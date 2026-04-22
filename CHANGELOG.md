@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] — 2026-04-21
+
+CLI polish: personality + progress + color + completions. No new language
+features; no breaking changes.
+
+### Added — new subcommands
+
+- **`nuc zen`** — prints the design principles of Nucleor. (Spirit of `python -c "import this"`.)
+- **`nuc mco`** — prints the Mars Climate Orbiter blurb. Always available, in every version.
+  Single sentence reminder of why dimensional analysis matters.
+- **`nuc clean`** — removes `target/` and `.nuc_cache/` from the project.
+  (No `clean` subcommand existed in v0.1.0/v0.1.1.)
+- **`nuc scram`** — alias for `nuc clean`. SCRAM is the actual technical
+  term for emergency reactor shutdown; the aliasing is the entirety of the
+  nuclear-themed personality in v0.1.2.
+
+### Added — runtime + compiler
+
+- **`isatty_stdout` builtin** — returns 1 if stdout is connected to a TTY,
+  0 otherwise. Implemented in `nucleor_llvm_rt.c` for both Windows
+  (`_isatty(_fileno(stdout))`) and POSIX (`isatty(STDOUT_FILENO)`).
+  Wired into the compiler's builtin table with a matching IR declaration.
+  Available to user `.nr` programs that want to gate their own output.
+
+### Added — tooling
+
+- **Tab completion** scripts for `bash`, `zsh`, `fish`, and PowerShell at
+  [`tools/completions/`](tools/completions/). One-liner install per shell.
+  Completes ~37 subcommands, common flags, and `*.nr` source files.
+- **`tools/verify.ps1` upgraded:**
+  - Per-step progress counter (`[ N/T] OK    test foo/bar`).
+  - ANSI colored OK / SKIP / FAIL labels (green / yellow / red).
+  - Honors `NO_COLOR` (per https://no-color.org/) and a `-NoColor` flag.
+  - Detects TTY via `$Host.UI.RawUI.WindowSize` to skip color in piped output.
+
+### Fixed
+
+- **`nuc.bat` PATH resolution.** v0.1.0/v0.1.1 trusted `$LLVM_SYS_180_PREFIX`
+  blindly; if it pointed at a stale path, clang couldn't be found. The
+  launcher now verifies each candidate directory actually contains
+  `clang.exe` before adding it to `PATH`. Same fix applied to
+  `tools/verify.ps1`'s clang resolution.
+
+### Verify gate
+
+38/38 pass (unchanged from v0.1.1). All examples + tests + self-host loop
+still green. New subcommands smoke-tested by hand:
+
+- `nuc zen` prints the principles
+- `nuc mco` prints the Mars Climate Orbiter box
+- `nuc clean` and `nuc scram` both remove `target/` and `.nuc_cache/`
+
+### Not in this release (intentionally cut from the original CLI flavor doc)
+
+The personality-and-skins draft considered a much broader set: a
+three-skin system (standard / reactor / compliance), themed command
+aliases (`ignite`, `enrich`, `manhattan`, `trinity`, `heisenberg`,
+`fission`), enrichment-tier optimization flags, a "weapons-grade" `--opt`
+level, ☢-decorated banners, version codenames after Manhattan-era
+physicists. None of that ships. Single voice; one nuclear-themed alias
+that's actually the right technical term (`scram`); zero hazard symbols
+in user-facing output.
+
+The guiding rule from the original doc — "celebrate the physics, respect
+the hazards" — is what made every cut.
+
+---
+
 ## [0.1.1] — 2026-04-21
 
 Major surface expansion. v0.1.0 shipped a deep runtime that was largely

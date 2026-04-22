@@ -594,6 +594,21 @@ const char *__nucleor_args_get(long long i) {
     return __argv[(int)i];
 }
 
+// === isatty ===
+// Returns 1 if stdout is connected to an interactive terminal, 0 otherwise.
+// Used by progress-UI code to gate carriage-return / spinner output.
+#ifdef _WIN32
+#include <io.h>
+long long __nucleor_isatty_stdout(void) {
+    return _isatty(_fileno(stdout)) ? 1 : 0;
+}
+#else
+#include <unistd.h>
+long long __nucleor_isatty_stdout(void) {
+    return isatty(STDOUT_FILENO) ? 1 : 0;
+}
+#endif
+
 // === RNG ===
 // Pull in rng_rt.c so nuc_rng_* symbols are available without a separate
 // link step. The compiler emits __nucleor_rng_seed/etc. which forward to
