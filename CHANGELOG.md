@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.59] — 2026-04-22
+
+**RFC-0020 phase 1 LineMap + RFC-0022 phase 2 `_WIN32` audit closed.**
+
+### Added — LineMap (compiler infrastructure)
+
+`nucleor_s1_compiler.nr` now ships:
+
+- `linemap_build(source) -> Vec<i32>` — precompute line-start byte
+  offsets for a source string (line 1 starts at 0).
+- `linemap_line(starts, byte_off) -> i64` — 1-indexed line number via
+  binary search; O(log n) instead of `byte_to_line`'s O(n).
+- `linemap_col(starts, byte_off) -> i64` — 1-indexed column number.
+- `linemap_line_count(starts) -> i64` — total line count.
+
+Replaces what would otherwise be O(n × k) span lookup work during
+diagnostic emission with O(n + k log n). Used by future per-error
+span migration (RFC-0020 phase 3).
+
+### Tracker — RFC-0022 phase 2 `_WIN32` audit closed
+
+Surveyed every `_rt.c` that imports `windows.h` (crypto, datetime,
+mmap, process, serial, socket, thread, nucleor_llvm_rt, etc.). All
+Win32 API calls are wrapped in `#ifdef _WIN32` / `#else` blocks with
+POSIX equivalents (pthreads, stdatomic, fork/exec, BSD sockets,
+clock_gettime). New `process_rt.c` (v0.1.48) follows the same pattern
+from day one. Marked DONE on the milestone.
+
+### Verify gate
+
+157/157 green on Windows. Self-host LLVM IR fixed point preserved
+(v55==v56 byte-identical despite +5 functions in the compiler).
+
 ## [0.1.58] — 2026-04-22
 
 **Stdin read primitives + RFC-0015 phase 4 runtime helpers complete.**

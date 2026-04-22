@@ -4026,6 +4026,45 @@ fn byte_to_line(source: str, byte_off: i64) -> i64 {
     return line;
 }
 
+// RFC-0020 phase 1: LineMap — precomputed line-start byte offsets.
+// linemap_build returns Vec<i32> where item[k] = byte offset of line (k+1)'s
+// first character (line 1 starts at offset 0). Lookup is O(log n) via
+// binary search; pair with linemap_col for column number.
+fn linemap_build(source: str) -> Vec<i32> {
+    let mut starts: Vec<i32> = Vec::new();
+    starts.push(0);  // line 1 starts at offset 0
+    let slen: i64 = str_len(source);
+    let mut i: i64 = 0;
+    while i < slen {
+        if str_char_at(source, i) == 10 { starts.push(i + 1); };
+        i = i + 1;
+    };
+    return starts;
+}
+
+fn linemap_line(starts: Vec<i32>, byte_off: i64) -> i64 {
+    let n: i64 = vec_len(starts);
+    if n == 0 { return 1; };
+    let mut lo: i64 = 0;
+    let mut hi: i64 = n - 1;
+    // Find the largest index `k` such that starts[k] <= byte_off.
+    // Returned line number is k + 1 (1-indexed).
+    while lo < hi {
+        let mid: i64 = (lo + hi + 1) / 2;
+        if vec_get(starts, mid) <= byte_off { lo = mid; }
+        else { hi = mid - 1; };
+    };
+    return lo + 1;
+}
+
+fn linemap_col(starts: Vec<i32>, byte_off: i64) -> i64 {
+    let line: i64 = linemap_line(starts, byte_off);
+    let line_start: i64 = vec_get(starts, line - 1);
+    return byte_off - line_start + 1;
+}
+
+fn linemap_line_count(starts: Vec<i32>) -> i64 { return vec_len(starts); }
+
 fn find_linecol_in_source(source: str, fn_name: str, var_name: str) -> Vec<i32> {
     let slen: i64 = str_len(source);
     let fnlen: i64 = str_len(fn_name);
