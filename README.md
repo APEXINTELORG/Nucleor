@@ -146,6 +146,11 @@ nuc test tests/
 
 This compiles and runs all 24 tests across `tests/lang/`, `tests/attrs/`, `tests/runtime/`, and `tests/rods/`.
 
+On Windows, the first run of `tests/rods/socket.nr` may trigger a Defender
+Firewall prompt because the socket gate briefly binds local TCP/UDP ports.
+Either `Allow` or `Block` is fine; the test does not require external network
+access and still passes under a block rule.
+
 For the full smoke gate (all examples + tests + self-host rebuild):
 
 ```
@@ -156,7 +161,15 @@ This is what CI runs on every push.
 
 ## Versioning
 
-This is **v0.1.1**. The bootstrap binary identifies itself as `Nucleor Compiler 0.2.0-v2` — the V2 designation refers to the second major rewrite of the compiler internals (the rewrite that introduced the algebraic-rewrite optimizer and the V2 attribute set). Future releases will follow semantic versioning starting from v0.1.x.
+This is **v0.2.0** (released 2026-04-22, milestone tracker at
+[docs/milestones/v0.2.0.md](docs/milestones/v0.2.0.md)). The bootstrap
+binary identifies itself as `Nucleor Compiler 0.2.0-v2` — the V2
+designation refers to the second major rewrite of the compiler
+internals (the rewrite that introduced the algebraic-rewrite
+optimizer and the V2 attribute set). v0.1.x releases were the
+incremental preview series that drove v0.2.0 to definition-of-done;
+the v0.4.0 backlog (deferred items + Tier-2 language extensions)
+lives in [docs/milestones/v0.4.0.md](docs/milestones/v0.4.0.md).
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed in this release.
 
