@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.19] — 2026-04-22
+
+**Filesystem extras (5 helpers).**
+
+```nucleor
+let tmp: str = fs_temp_dir();           // OS temp dir, no trailing sep
+let cwd: str = fs_current_dir();        // working directory
+let abs: str = fs_canonicalize(".");    // absolute resolved path
+
+fs_copy_file(src, dst);                 // 1 = ok, 0 = err
+fs_remove_dir(empty_dir);               // rmdir; 1 = ok, 0 = err
+```
+
+Fills the obvious gaps left by the v0.1 fs surface
+(`fs_exists / fs_is_file / fs_size / fs_create_dir / fs_list_dir / ...`).
+
+- **`fs_temp_dir`** uses `GetTempPathA` on Windows and `$TMPDIR` (or
+  `/tmp`) on POSIX, returning a path with no trailing separator so it
+  composes cleanly with `fs_join`.
+- **`fs_current_dir`** uses `GetCurrentDirectoryA` / `getcwd`.
+- **`fs_canonicalize`** uses `GetFullPathNameA` / `realpath`; falls
+  back to the input string verbatim if the path can't be resolved.
+- **`fs_copy_file`** is a streaming `fread`/`fwrite` loop with an 8KB
+  buffer; works on binary files.
+- **`fs_remove_dir`** uses `RemoveDirectoryA` / `rmdir`. Empty dirs
+  only — recursive removal is v0.4.
+
+All five wired through both compiler binaries with the drift-gate
+sync (`get_rt_name` + `is_ptr_ret` + `is_ptr_arg` + IR `declare`
+tables). Cross-platform via `#ifdef _WIN32`.
+
+### Verify gate
+
+168/169 green on Windows + 1 skip. New gate: `tests/runtime/fs_extras.nr`
+(round-trips a 15-byte file through `fs_copy_file` + creates and removes
+a fresh dir under `fs_temp_dir()`).
+Self-host LLVM IR fixed point preserved (v111==v112 byte-identical).
+
 ## [0.2.18] — 2026-04-22
 
 **Float math + bit population helpers (7 helpers).**

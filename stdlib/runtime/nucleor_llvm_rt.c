@@ -2982,6 +2982,119 @@ long long __nucleor_fs_extension(const char *path) {
     return (long long)(intptr_t)out;
 }
 
+// --- v0.2.19: fs extras ---
+long long __nucleor_fs_temp_dir(void) {
+#ifdef _WIN32
+    char buf[MAX_PATH + 1];
+    DWORD n = GetTempPathA(MAX_PATH, buf);
+    if (n == 0) {
+        const char *fallback = "C:\\Windows\\Temp";
+        size_t L = strlen(fallback);
+        char *out = (char *)malloc(L + 1);
+        memcpy(out, fallback, L + 1);
+        return (long long)(intptr_t)out;
+    }
+    // Strip trailing backslash for consistency with POSIX-style returns
+    if (n > 0 && (buf[n - 1] == '\\' || buf[n - 1] == '/')) buf[n - 1] = 0;
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return (long long)(intptr_t)out;
+#else
+    const char *t = getenv("TMPDIR");
+    if (!t || !*t) t = "/tmp";
+    size_t L = strlen(t);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, t, L + 1);
+    return (long long)(intptr_t)out;
+#endif
+}
+
+long long __nucleor_fs_current_dir(void) {
+#ifdef _WIN32
+    char buf[MAX_PATH + 1];
+    DWORD n = GetCurrentDirectoryA(MAX_PATH, buf);
+    if (n == 0) {
+        char *out = (char *)malloc(1); out[0] = 0;
+        return (long long)(intptr_t)out;
+    }
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return (long long)(intptr_t)out;
+#else
+    char buf[4096];
+    if (!getcwd(buf, sizeof(buf))) {
+        char *out = (char *)malloc(1); out[0] = 0;
+        return (long long)(intptr_t)out;
+    }
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return (long long)(intptr_t)out;
+#endif
+}
+
+long long __nucleor_fs_remove_dir(const char *path) {
+    if (!path) return 0;
+#ifdef _WIN32
+    return RemoveDirectoryA(path) ? 1 : 0;
+#else
+    return rmdir(path) == 0 ? 1 : 0;
+#endif
+}
+
+long long __nucleor_fs_copy_file(const char *from, const char *to) {
+    if (!from || !to) return 0;
+    FILE *fi = fopen(from, "rb");
+    if (!fi) return 0;
+    FILE *fo = fopen(to, "wb");
+    if (!fo) { fclose(fi); return 0; }
+    char buf[8192];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), fi)) > 0) {
+        if (fwrite(buf, 1, n, fo) != n) {
+            fclose(fi); fclose(fo);
+            return 0;
+        }
+    }
+    fclose(fi); fclose(fo);
+    return 1;
+}
+
+long long __nucleor_fs_canonicalize(const char *path) {
+    if (!path) {
+        char *out = (char *)malloc(1); out[0] = 0;
+        return (long long)(intptr_t)out;
+    }
+#ifdef _WIN32
+    char buf[MAX_PATH + 1];
+    DWORD n = GetFullPathNameA(path, MAX_PATH, buf, NULL);
+    if (n == 0) {
+        size_t L = strlen(path);
+        char *out = (char *)malloc(L + 1);
+        memcpy(out, path, L + 1);
+        return (long long)(intptr_t)out;
+    }
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return (long long)(intptr_t)out;
+#else
+    char buf[4096];
+    if (!realpath(path, buf)) {
+        size_t L = strlen(path);
+        char *out = (char *)malloc(L + 1);
+        memcpy(out, path, L + 1);
+        return (long long)(intptr_t)out;
+    }
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return (long long)(intptr_t)out;
+#endif
+}
+
 // === RFC-0019 phase 1: minimal TOML parser ===
 // Stores parsed key→value pairs in an NHashMap. Supports:
 //   - [section] headers (keys are emitted as "section.subkey")
