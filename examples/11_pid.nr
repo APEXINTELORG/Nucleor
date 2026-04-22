@@ -1,7 +1,7 @@
 // 11_pid.nr — A PID controller drives a noisy plant toward a setpoint.
 
-import "stdlib/rods/control.nr"
-import "stdlib/rods/complex.nr"
+use std::control;
+use std::complex;
 
 fn ex_int_to_str(n: i64) -> str {
     if n == 0 { return "0"; };

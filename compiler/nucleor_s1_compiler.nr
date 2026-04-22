@@ -7970,6 +7970,7 @@ fn run_publish_command(argc: i64) -> i64 { return run_external_tool(argc); }
 fn run_registry_command(argc: i64) -> i64 { return run_external_tool(argc); }
 fn run_install_command(argc: i64) -> i64 { return run_external_tool(argc); }
 fn run_fix_command(argc: i64) -> i64 { return run_external_tool(argc); }
+fn run_doc_command(argc: i64) -> i64 { return run_external_tool(argc); }
 fn run_impact_command(src_path: str, argc: i64, arg_start: i64) -> i64 { return run_external_tool(argc); }
 fn run_graph_command(src_path: str, argc: i64, arg_start: i64) -> i64 { return run_external_tool(argc); }
 fn run_profile_command(argc: i64) -> i64 { return run_external_tool(argc); }
@@ -8150,6 +8151,9 @@ fn main() -> i64 {
     };
     if str_eq(cmd, "fix") {
         return run_fix_command(argc);
+    };
+    if str_eq(cmd, "doc") {
+        return run_doc_command(argc);
     };
     if str_eq(cmd, "profile") {
         return run_profile_command(argc);

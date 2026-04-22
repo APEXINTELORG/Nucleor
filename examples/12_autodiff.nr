@@ -4,8 +4,8 @@
 // At x = 1.5: f(1.5) = sin(2.25) + 1.5 ≈ 2.278
 //             f'(1.5) = 3·cos(2.25) + 1 ≈ -0.881
 
-import "stdlib/rods/autodiff.nr"
-import "stdlib/rods/complex.nr"
+use std::autodiff;
+use std::complex;
 
 fn ex_int_to_str(n: i64) -> str {
     if n == 0 { return "0"; };
