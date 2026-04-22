@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.47] — 2026-04-22
+
+**HTTP client wrapper + COLL-004/005 diagnostics + socket smoke test.**
+
+### Added — HTTP client
+
+- `stdlib/rods/socket.nr`: new `http_get(url) -> str` wrapper over the
+  existing `nuc_http_get` runtime. Plaintext HTTP/1.0 only; TLS arrives
+  in v0.4 with a dedicated rod. Returns `""` on connect failure.
+
+### Added — COLL-004 + COLL-005 diagnostic explain entries
+
+- COLL-004 — Iterator invalidated by mutation during walk
+- COLL-005 — Index out of bounds on fixed-length collection
+
+Both wired into `nuc explain` (title + summary + explanation) and
+documented in `docs/spec/Nucleor_Error_Codes.md`. Closes RFC-0017
+phase 5 diagnostics task.
+
+### Added — gate test for socket rod
+
+`tests/rods/socket.nr` exercises UDP open, TCP listen, and TCP connect
+(refused) on transient ports — verifies link-time wiring without
+depending on outside network connectivity.
+
+### Verify gate
+
+149/149 green on Windows. Self-host LLVM IR fixed point preserved.
+
 ## [0.1.46] — 2026-04-22
 
 **Comprehensive math primitive library.**
