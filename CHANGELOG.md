@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.41] — 2026-04-22
+
+**Decisions §B5: byte-buffer + endian + MessagePack subset.**
+
+### Added — binary serialization runtime
+
+Builds atop the v0.1.22 `Vec<u8>` typed-storage (1-byte/elem honest
+storage). Foundation for CDR (ROS 2 DDS), Protobuf wire format,
+MCAP (Foxglove logging), MessagePack, CBOR, and arbitrary network
+protocols.
+
+#### Byte-buffer write helpers
+- `buf_write_u8(h, v)`
+- `buf_write_u16_le/be(h, v)`
+- `buf_write_u32_le/be(h, v)`
+- `buf_write_u64_le/be(h, v)`
+
+#### Byte-buffer read helpers
+- `buf_read_u8(h, off)`
+- `buf_read_u16_le/be(h, off)`
+- `buf_read_u32_le/be(h, off)`
+- `buf_read_u64_le/be(h, off)`
+
+#### MessagePack subset (msgpack.org wire format)
+- `msgpack_write_nil(h)` → 0xC0
+- `msgpack_write_bool(h, b)` → 0xC2 / 0xC3
+- `msgpack_write_uint(h, v)` — auto-selects positive fixint /
+  uint8 / uint16 / uint32 / uint64 markers
+- `msgpack_write_str(h, s)` — auto-selects fixstr / str8 / str16 /
+  str32 markers; encodes UTF-8 bytes
+
+### Verify gate
+
+142/142 green on Windows. Self-host LLVM IR fixed point preserved.
+New gate test: `tests/lang/binary_io.nr` (~14 sub-cases including
+endian round-trips and MessagePack marker bytes).
+
 ## [0.1.40] — 2026-04-22
 
 **RFC-0023 partial: `..=` inclusive range in `for` loops.**

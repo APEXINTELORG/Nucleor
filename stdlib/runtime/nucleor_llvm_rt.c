@@ -2321,6 +2321,139 @@ long long __nucleor_manifest_report(long long issues) {
     return (long long)(intptr_t)out;
 }
 
+// === Decisions §B5: byte-buffer + endian helpers ===
+// Required for binary serialization (MessagePack, CBOR, MCAP, CDR,
+// Protobuf wire format, network protocols).
+// Builds atop NVecU8 (1-byte-per-element honest storage from v0.1.22).
+
+long long __nucleor_buf_write_u8(long long h, long long v) {
+    return __nucleor_vec_u8_push(h, v);
+}
+long long __nucleor_buf_write_u16_le(long long h, long long v) {
+    __nucleor_vec_u8_push(h, v & 0xFFLL);
+    __nucleor_vec_u8_push(h, (v >> 8) & 0xFFLL);
+    return 0;
+}
+long long __nucleor_buf_write_u16_be(long long h, long long v) {
+    __nucleor_vec_u8_push(h, (v >> 8) & 0xFFLL);
+    __nucleor_vec_u8_push(h, v & 0xFFLL);
+    return 0;
+}
+long long __nucleor_buf_write_u32_le(long long h, long long v) {
+    __nucleor_vec_u8_push(h, v & 0xFFLL);
+    __nucleor_vec_u8_push(h, (v >> 8) & 0xFFLL);
+    __nucleor_vec_u8_push(h, (v >> 16) & 0xFFLL);
+    __nucleor_vec_u8_push(h, (v >> 24) & 0xFFLL);
+    return 0;
+}
+long long __nucleor_buf_write_u32_be(long long h, long long v) {
+    __nucleor_vec_u8_push(h, (v >> 24) & 0xFFLL);
+    __nucleor_vec_u8_push(h, (v >> 16) & 0xFFLL);
+    __nucleor_vec_u8_push(h, (v >> 8) & 0xFFLL);
+    __nucleor_vec_u8_push(h, v & 0xFFLL);
+    return 0;
+}
+long long __nucleor_buf_write_u64_le(long long h, long long v) {
+    int i;
+    for (i = 0; i < 8; i++) __nucleor_vec_u8_push(h, (v >> (i * 8)) & 0xFFLL);
+    return 0;
+}
+long long __nucleor_buf_write_u64_be(long long h, long long v) {
+    int i;
+    for (i = 7; i >= 0; i--) __nucleor_vec_u8_push(h, (v >> (i * 8)) & 0xFFLL);
+    return 0;
+}
+
+// Read helpers — caller passes vec_u8 handle + offset.
+long long __nucleor_buf_read_u8(long long h, long long off) {
+    return __nucleor_vec_u8_get(h, off);
+}
+long long __nucleor_buf_read_u16_le(long long h, long long off) {
+    long long lo = __nucleor_vec_u8_get(h, off);
+    long long hi = __nucleor_vec_u8_get(h, off + 1);
+    return (hi << 8) | lo;
+}
+long long __nucleor_buf_read_u16_be(long long h, long long off) {
+    long long hi = __nucleor_vec_u8_get(h, off);
+    long long lo = __nucleor_vec_u8_get(h, off + 1);
+    return (hi << 8) | lo;
+}
+long long __nucleor_buf_read_u32_le(long long h, long long off) {
+    long long b0 = __nucleor_vec_u8_get(h, off);
+    long long b1 = __nucleor_vec_u8_get(h, off + 1);
+    long long b2 = __nucleor_vec_u8_get(h, off + 2);
+    long long b3 = __nucleor_vec_u8_get(h, off + 3);
+    return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+}
+long long __nucleor_buf_read_u32_be(long long h, long long off) {
+    long long b0 = __nucleor_vec_u8_get(h, off);
+    long long b1 = __nucleor_vec_u8_get(h, off + 1);
+    long long b2 = __nucleor_vec_u8_get(h, off + 2);
+    long long b3 = __nucleor_vec_u8_get(h, off + 3);
+    return (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+}
+long long __nucleor_buf_read_u64_le(long long h, long long off) {
+    long long r = 0;
+    int i;
+    for (i = 0; i < 8; i++) r |= __nucleor_vec_u8_get(h, off + i) << (i * 8);
+    return r;
+}
+long long __nucleor_buf_read_u64_be(long long h, long long off) {
+    long long r = 0;
+    int i;
+    for (i = 0; i < 8; i++) r = (r << 8) | __nucleor_vec_u8_get(h, off + i);
+    return r;
+}
+
+// === MessagePack subset ===
+// Common wire-format primitives.
+long long __nucleor_msgpack_write_nil(long long h) {
+    return __nucleor_vec_u8_push(h, 0xC0);
+}
+long long __nucleor_msgpack_write_bool(long long h, long long b) {
+    return __nucleor_vec_u8_push(h, b ? 0xC3 : 0xC2);
+}
+long long __nucleor_msgpack_write_uint(long long h, long long v) {
+    if (v < 0) v = 0;  // delegate signed via write_int
+    if (v < 128) {
+        return __nucleor_vec_u8_push(h, v);  // positive fixint
+    } else if (v < 256) {
+        __nucleor_vec_u8_push(h, 0xCC);
+        return __nucleor_vec_u8_push(h, v);
+    } else if (v < 65536) {
+        __nucleor_vec_u8_push(h, 0xCD);
+        return __nucleor_buf_write_u16_be(h, v);
+    } else if (v < 4294967296LL) {
+        __nucleor_vec_u8_push(h, 0xCE);
+        return __nucleor_buf_write_u32_be(h, v);
+    } else {
+        __nucleor_vec_u8_push(h, 0xCF);
+        return __nucleor_buf_write_u64_be(h, v);
+    }
+}
+long long __nucleor_msgpack_write_str(long long h, const char *s) {
+    if (!s) {
+        __nucleor_vec_u8_push(h, 0xA0);  // empty fixstr
+        return 0;
+    }
+    size_t len = strlen(s);
+    if (len < 32) {
+        __nucleor_vec_u8_push(h, 0xA0 | (long long)len);
+    } else if (len < 256) {
+        __nucleor_vec_u8_push(h, 0xD9);
+        __nucleor_vec_u8_push(h, (long long)len);
+    } else if (len < 65536) {
+        __nucleor_vec_u8_push(h, 0xDA);
+        __nucleor_buf_write_u16_be(h, (long long)len);
+    } else {
+        __nucleor_vec_u8_push(h, 0xDB);
+        __nucleor_buf_write_u32_be(h, (long long)len);
+    }
+    size_t i;
+    for (i = 0; i < len; i++) __nucleor_vec_u8_push(h, (long long)(unsigned char)s[i]);
+    return 0;
+}
+
 // === RFC-0015 phase 6: bf16 / f16 / f8 software emulation ===
 // All packed in low N bits of i64 storage. Compute happens at f32 precision
 // via convert-up / convert-down round-trip.

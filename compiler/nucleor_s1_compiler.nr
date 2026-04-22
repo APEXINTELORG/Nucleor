@@ -2341,6 +2341,25 @@ fn get_rt_name(name: str) -> str {
     // RFC-0019 phase 1: manifest validation
     if str_eq(name, "manifest_validate") { return "__nucleor_manifest_validate"; };
     if str_eq(name, "manifest_report") { return "__nucleor_manifest_report"; };
+    // Decisions §B5: byte-buffer + endian helpers + MessagePack subset
+    if str_eq(name, "buf_write_u8") { return "__nucleor_buf_write_u8"; };
+    if str_eq(name, "buf_write_u16_le") { return "__nucleor_buf_write_u16_le"; };
+    if str_eq(name, "buf_write_u16_be") { return "__nucleor_buf_write_u16_be"; };
+    if str_eq(name, "buf_write_u32_le") { return "__nucleor_buf_write_u32_le"; };
+    if str_eq(name, "buf_write_u32_be") { return "__nucleor_buf_write_u32_be"; };
+    if str_eq(name, "buf_write_u64_le") { return "__nucleor_buf_write_u64_le"; };
+    if str_eq(name, "buf_write_u64_be") { return "__nucleor_buf_write_u64_be"; };
+    if str_eq(name, "buf_read_u8") { return "__nucleor_buf_read_u8"; };
+    if str_eq(name, "buf_read_u16_le") { return "__nucleor_buf_read_u16_le"; };
+    if str_eq(name, "buf_read_u16_be") { return "__nucleor_buf_read_u16_be"; };
+    if str_eq(name, "buf_read_u32_le") { return "__nucleor_buf_read_u32_le"; };
+    if str_eq(name, "buf_read_u32_be") { return "__nucleor_buf_read_u32_be"; };
+    if str_eq(name, "buf_read_u64_le") { return "__nucleor_buf_read_u64_le"; };
+    if str_eq(name, "buf_read_u64_be") { return "__nucleor_buf_read_u64_be"; };
+    if str_eq(name, "msgpack_write_nil") { return "__nucleor_msgpack_write_nil"; };
+    if str_eq(name, "msgpack_write_bool") { return "__nucleor_msgpack_write_bool"; };
+    if str_eq(name, "msgpack_write_uint") { return "__nucleor_msgpack_write_uint"; };
+    if str_eq(name, "msgpack_write_str") { return "__nucleor_msgpack_write_str"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2445,6 +2464,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "toml_get_str") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "toml_get_int") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "toml_has") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "msgpack_write_str") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "str_len") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_eq") { return 1; };
     if str_eq(name, "str_char_at") { if idx == 0 { return 1; }; return 0; };
@@ -3124,6 +3144,24 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_toml_has(i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_manifest_validate(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_manifest_report(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_write_u8(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_write_u16_le(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_write_u16_be(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_write_u32_le(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_write_u32_be(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_write_u64_le(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_write_u64_be(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_read_u8(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_read_u16_le(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_read_u16_be(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_read_u32_le(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_read_u32_be(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_read_u64_le(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_buf_read_u64_be(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_msgpack_write_nil(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_msgpack_write_bool(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_msgpack_write_uint(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_msgpack_write_str(i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");
