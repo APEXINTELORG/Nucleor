@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.12] — 2026-04-22
+
+**`nuc install --git <url> [--rev <ref>]` stub (RFC-0019 phase 3 partial).**
+
+```
+$ nuc install --git https://github.com/example/foo --rev v1.0.0
+nuc install --git https://github.com/example/foo
+                   --rev v1.0.0
+
+STATUS: deferred to v0.5 with the package registry (RFC-0019 phase 3).
+
+The v0.5 release will:
+  1. Clone <url> into .nucleor/git/<host>-<repo>-<sha>/
+  2. Check out <rev> (default: HEAD of the default branch)
+  ...
+```
+
+CLI surface ships now so users hitting it know what to expect; real
+clone + verify + lock land with the v0.5 registry phase. Documents
+the path-dependency workaround (`[dependencies] foo = "path/to/foo"`
++ `nuc lock`) for users who need git-based deps today.
+
+Milestone row for RFC-0019 phase 3 git source fetcher flips from
+DEFERRED to PARTIAL.
+
+### Verify gate
+
+162/162 green on Windows. Self-host LLVM IR fixed point preserved.
+
 ## [0.2.11] — 2026-04-22
 
 **Stdlib string utilities (10 helpers).**
