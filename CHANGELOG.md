@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.48] — 2026-04-22
+
+**Process spawn primitives + POSIX `nuc` wrapper recognized.**
+
+### Added — `stdlib/rods/process.nr` + `stdlib/runtime/process_rt.c`
+
+Cross-platform child-process surface (Win32 cmd.exe + POSIX /bin/sh):
+
+- `proc_run(cmdline) -> i64` — fire-and-forget, returns exit code.
+  Signal-killed children surface as 128 + signo on POSIX (matches shell
+  convention).
+- `proc_capture_stdout(cmdline) -> str` — returns the child's stdout
+  body. Empty string on launch failure.
+- `proc_capture_status() -> i64` — exit code from the most recent
+  `proc_capture_stdout` call (single-thread access).
+- `proc_capture_with_status(cmdline) -> str` — atomic capture: returns
+  `"<exit>\n<body>"` so callers can split without racing the global
+  status slot.
+- `proc_run1(cmd, arg) -> i64` — quoted-cmd + single-arg helper, the
+  shape `nuc test --runner-shim NAME` will use.
+
+Foundation for `nuc test --isolation=process` (RFC-0021 phase 2): a
+parent driver runs each test in a fresh child, captures
+`<exit>\n<stdout>`, and reports pass/fail without the test process
+being able to corrupt the parent's heap or globals.
+
+### Tracker — RFC-0022 phase 2 `nuc` POSIX wrapper
+
+The `./nuc` script (already shipped in v0.1.30) resolves clang via
+`NUCLEOR_CLANG_PATH` / `LLVM_SYS_180_PREFIX` / standard distro paths
+(/usr/lib/llvm-18, /opt/homebrew, /usr/local/opt) before exec'ing
+`bin/nucleor` with all args. Marked DONE on the milestone.
+
+### Verify gate
+
+150/150 green on Windows. New gate test: `tests/rods/process.nr`.
+Self-host LLVM IR fixed point preserved.
+
 ## [0.1.47] — 2026-04-22
 
 **HTTP client wrapper + COLL-004/005 diagnostics + socket smoke test.**
