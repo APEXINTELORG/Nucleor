@@ -82,6 +82,7 @@ fn classify_kw(w: str) -> i64 {
     if str_eq(w, "saturating") { return 79; };
     if str_eq(w, "scope") { return 80; };
     if str_eq(w, "spawn") { return 81; };
+    if str_eq(w, "loop") { return 84; };
     return 1;
 }
 fn lex(src: str) -> Vec<i32> {
@@ -987,6 +988,15 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 52 { let mut r: Vec<i32> = parse_passthrough_block_expr(tokens, pos, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 13 { let mut r: Vec<i32> = parse_if(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 15 { let mut r: Vec<i32> = parse_while_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
+    if tt == 84 {
+        // `loop { BODY }` desugars to `while true { BODY }`.
+        let mut cp: i64 = expect_tok(tokens, pos + 1, 52);
+        let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
+        cp = expect_tok(tokens, pr_pos(br), 53);
+        if pk(tokens, cp) == 43 { cp = cp + 1; };
+        let true_node: i64 = mk2(pool, 1, 1);
+        return pr(cp, mk3(pool, 24, true_node, pr_val(br)));
+    };
     if tt == 56 { let mut r: Vec<i32> = parse_for_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 76 {
