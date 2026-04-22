@@ -754,8 +754,62 @@ long long __nucleor_vec_all_i64(NVec *v, long long fn_ptr) {
     return 1;
 }
 
-// __nucleor_str_split — needs NVec; defined here (forward-declared
-// in the string-utilities block earlier).
+// === Char predicate + transformation helpers (RFC-0017) ===
+// All take an i64 (char code; ASCII is always-correct subset of UTF-8 for
+// these predicates). All return i64 (0/1 for predicates; new code for
+// transformations).
+
+long long __nucleor_char_is_alpha(long long c) {
+    return ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) ? 1 : 0;
+}
+long long __nucleor_char_is_digit(long long c) {
+    return (c >= '0' && c <= '9') ? 1 : 0;
+}
+long long __nucleor_char_is_alnum(long long c) {
+    if (__nucleor_char_is_alpha(c) || __nucleor_char_is_digit(c)) return 1;
+    return 0;
+}
+long long __nucleor_char_is_whitespace(long long c) {
+    return (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f') ? 1 : 0;
+}
+long long __nucleor_char_is_upper(long long c) {
+    return (c >= 'A' && c <= 'Z') ? 1 : 0;
+}
+long long __nucleor_char_is_lower(long long c) {
+    return (c >= 'a' && c <= 'z') ? 1 : 0;
+}
+long long __nucleor_char_is_hex_digit(long long c) {
+    if (__nucleor_char_is_digit(c)) return 1;
+    if (c >= 'a' && c <= 'f') return 1;
+    if (c >= 'A' && c <= 'F') return 1;
+    return 0;
+}
+long long __nucleor_char_is_punct(long long c) {
+    if (c >= '!' && c <= '/') return 1;
+    if (c >= ':' && c <= '@') return 1;
+    if (c >= '[' && c <= '`') return 1;
+    if (c >= '{' && c <= '~') return 1;
+    return 0;
+}
+long long __nucleor_char_is_ascii(long long c) {
+    return (c >= 0 && c <= 127) ? 1 : 0;
+}
+long long __nucleor_char_to_upper(long long c) {
+    if (c >= 'a' && c <= 'z') return c - 'a' + 'A';
+    return c;
+}
+long long __nucleor_char_to_lower(long long c) {
+    if (c >= 'A' && c <= 'Z') return c - 'A' + 'a';
+    return c;
+}
+long long __nucleor_char_digit_value(long long c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+    if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
+    return -1;
+}
+
+// === RFC-0024 phase 1 (cont): Vec<i64> arithmetic helpers ===
 NVec *__nucleor_str_split(const char *s, const char *sep) {
     NVec *out = __nucleor_vec_new();
     if (!s) return out;
