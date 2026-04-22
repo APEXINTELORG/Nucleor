@@ -310,6 +310,52 @@ long long __nucleor_parse_bin(const char *s) {
     return __nucleor_str_to_i64_radix(s, 2);
 }
 
+// --- v0.2.26: padding / justification / explode ---
+// fill_char is an i64 ASCII code. If <= 0 or > 127, defaults to ' '.
+static char __nuc_fill_char(long long c) {
+    if (c <= 0 || c > 127) return ' ';
+    return (char)(c & 0xFF);
+}
+const char *__nucleor_str_pad_left(const char *s, long long width, long long fill) {
+    if (!s) s = "";
+    size_t L = strlen(s);
+    size_t W = (width < (long long)L) ? L : (size_t)width;
+    char pad = __nuc_fill_char(fill);
+    char *out = (char *)malloc(W + 1);
+    size_t prefix = W - L;
+    for (size_t i = 0; i < prefix; i++) out[i] = pad;
+    memcpy(out + prefix, s, L);
+    out[W] = 0;
+    return out;
+}
+const char *__nucleor_str_pad_right(const char *s, long long width, long long fill) {
+    if (!s) s = "";
+    size_t L = strlen(s);
+    size_t W = (width < (long long)L) ? L : (size_t)width;
+    char pad = __nuc_fill_char(fill);
+    char *out = (char *)malloc(W + 1);
+    memcpy(out, s, L);
+    for (size_t i = L; i < W; i++) out[i] = pad;
+    out[W] = 0;
+    return out;
+}
+const char *__nucleor_str_center(const char *s, long long width, long long fill) {
+    if (!s) s = "";
+    size_t L = strlen(s);
+    size_t W = (width < (long long)L) ? L : (size_t)width;
+    char pad = __nuc_fill_char(fill);
+    size_t total_pad = W - L;
+    size_t left_pad = total_pad / 2;
+    size_t right_pad = total_pad - left_pad;
+    char *out = (char *)malloc(W + 1);
+    for (size_t i = 0; i < left_pad; i++) out[i] = pad;
+    memcpy(out + left_pad, s, L);
+    for (size_t i = 0; i < right_pad; i++) out[left_pad + L + i] = pad;
+    out[W] = 0;
+    return out;
+}
+// str_join, str_lines, str_chars are defined after NVec (further down).
+
 
 // === Stdin read helpers (RFC-0015 phase 4 completion) ===
 // read_line: returns a newline-terminated input line as a heap-allocated str
@@ -1125,6 +1171,65 @@ NVec *__nucleor_str_split(const char *s, const char *sep) {
     char *tail = (char *)malloc(tailL + 1);
     memcpy(tail, scan, tailL + 1);
     __nucleor_vec_push(out, (long long)(intptr_t)tail);
+    return out;
+}
+
+// --- v0.2.26 (cont): Vec-using str helpers ---
+const char *__nucleor_str_join(const char *sep, NVec *parts) {
+    if (!parts || parts->len == 0) {
+        char *e = (char *)malloc(1); e[0] = 0; return e;
+    }
+    if (!sep) sep = "";
+    size_t sep_len = strlen(sep);
+    size_t total = 0;
+    for (int i = 0; i < parts->len; i++) {
+        const char *p = (const char *)(intptr_t)parts->data[i];
+        if (p) total += strlen(p);
+        if (i + 1 < parts->len) total += sep_len;
+    }
+    char *out = (char *)malloc(total + 1);
+    size_t off = 0;
+    for (int i = 0; i < parts->len; i++) {
+        const char *p = (const char *)(intptr_t)parts->data[i];
+        if (p) {
+            size_t L = strlen(p);
+            memcpy(out + off, p, L);
+            off += L;
+        }
+        if (i + 1 < parts->len && sep_len > 0) {
+            memcpy(out + off, sep, sep_len);
+            off += sep_len;
+        }
+    }
+    out[off] = 0;
+    return out;
+}
+NVec *__nucleor_str_lines(const char *s) {
+    NVec *out = __nucleor_vec_new();
+    if (!s) return out;
+    const char *scan = s;
+    while (*scan) {
+        const char *p = scan;
+        while (*p && *p != '\n') p++;
+        size_t L = (size_t)(p - scan);
+        if (L > 0 && scan[L - 1] == '\r') L--;
+        char *line = (char *)malloc(L + 1);
+        memcpy(line, scan, L);
+        line[L] = 0;
+        __nucleor_vec_push(out, (long long)(intptr_t)line);
+        if (!*p) break;
+        scan = p + 1;
+        if (!*scan) break;
+    }
+    return out;
+}
+NVec *__nucleor_str_chars(const char *s) {
+    NVec *out = __nucleor_vec_new();
+    if (!s) return out;
+    while (*s) {
+        __nucleor_vec_push(out, (long long)(unsigned char)*s);
+        s++;
+    }
     return out;
 }
 

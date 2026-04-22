@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.26] — 2026-04-22
+
+**String padding + join + explode (6 helpers).**
+
+```nucleor
+// Padding (3rd arg is fill char as i64 ASCII code; <=0 or >127 -> ' ')
+str_pad_left("42", 5, 32);          // "   42"   (right-align with space)
+str_pad_left("42", 5, 48);          // "00042"   (zero-padded)
+str_pad_right("hi", 5, 46);         // "hi..."
+str_center("hi", 6, 45);            // "--hi--"
+str_center("hi", 5, 45);            // "-hi--"   (extra goes right)
+
+// Join + explode
+let parts: Vec<str> = vec_new();
+vec_push(parts, "a"); vec_push(parts, "b"); vec_push(parts, "c");
+str_join(",", parts);               // "a,b,c"
+str_join("", parts);                // "abc"
+
+let lines: Vec<str> = str_lines("a\nb\nc");        // ["a", "b", "c"]
+let crlf:  Vec<str> = str_lines("a\r\nb\r\nc");    // ["a", "b", "c"]   (\r stripped)
+
+let chars: Vec<i64> = str_chars("abc");            // [97, 98, 99]
+```
+
+Fills out the string-formatting surface that previously required
+hand-rolled `str_concat` loops or the template-based `format_*`
+family. None of these touch the typecker — they're all plain
+runtime helpers that accept and return `str` / `Vec<i64>` / `Vec<str>`.
+
+- **Padding helpers** never truncate. If `width <= str_len(s)`, the
+  original string comes back. The fill argument is an i64 char code
+  (so `48` is `'0'`, `45` is `'-'`, `46` is `'.'`); zero or out-of-
+  range values fall back to space. `str_center` puts any odd extra
+  on the right (Python `str.center` convention).
+- **`str_join`** is `Vec<str>` joined by a separator string. Empty
+  separator concatenates without delimiters; empty vec returns `""`.
+- **`str_lines`** splits on `\n` and strips a trailing `\r` per line
+  (so Windows CRLF input gives clean lines). A trailing newline does
+  *not* produce an empty final element (matches Python `splitlines`).
+- **`str_chars`** explodes a string into a `Vec<i64>` of byte values
+  — useful for byte-level inspection without `str_char_at` indexing.
+
+All six wired through both compiler binaries with the drift-gate
+sync. Five return ptr (`str_pad_*`, `str_center`, `str_join`,
+`str_lines`, `str_chars`); the padding helpers take an i64 char code.
+
+### Verify gate
+
+175/176 green on Windows + 1 skip. New gate: `tests/runtime/str_padding.nr`.
+Self-host LLVM IR fixed point preserved (v133==v134 byte-identical).
+
 ## [0.2.25] — 2026-04-22
 
 **Base-conversion helpers (6 helpers).**
