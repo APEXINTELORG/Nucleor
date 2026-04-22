@@ -55,7 +55,7 @@ proceed without re-design.
 | [0025](RFC-0025-closures.md) | Closures with capture (`Fn`, `FnMut`, `FnOnce`) | Draft | v0.4.0 |
 | [0026](RFC-0026-trait-objects.md) | Trait objects — `dyn Trait`, vtables | Draft | v0.4.0 |
 | [0027](RFC-0027-lifetimes.md) | Explicit lifetime parameters | Draft | v0.4.0 |
-| [0028](RFC-0028-format-strings.md) | Format strings — `format!`, `println!`, `Display`/`Debug` | Draft | v0.4.0 |
+| [0028](RFC-0028-format-strings.md) | Format strings — `format!`, `println!`, `Display`/`Debug` | **Implemented (partial)** v0.2.6 | v0.2 (`format_i64/str/hex/2_ii/2_si` builtins, one `{}` per call) → v0.4 (variadic + `Display`/`Debug` traits) |
 | [0029](RFC-0029-doc-generator.md) | Documentation generator — `nuc doc`, `///` comments, doc tests | **Implemented (skeleton)** v0.1.65 | v0.2.0 (skeleton) → v0.4 (param rendering, navigation, doc tests) |
 | [0030](RFC-0030-async-decision.md) | Async / await — decision and phased plan | Draft | v0.4 (decision) → v0.8 (sugar) |
 

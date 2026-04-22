@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] — 2026-04-22
+
+**RFC-0028 phase 1: format string builtins.**
+
+Five new runtime helpers wired through both compiler binaries with
+the drift gate (one `{}` placeholder per call; multi-placeholder via
+the `format2_*` variants):
+
+```nucleor
+print(format_i64("answer = {}", 42));            // "answer = 42"
+print(format_str("hello, {}!", "world"));         // "hello, world!"
+print(format_hex("addr = {}", 4096));             // "addr = 0x1000"
+print(format2_ii("{} + {} = ?", 3, 4));           // "3 + 4 = ?"
+print(format2_si("user {} is {} years old",
+                  "alice", 30));                  // "user alice is 30 years old"
+```
+
+Returns a heap-allocated `str` (caller-owned in the Nucleor object
+model). Variadic `format!` / `println!` + `Display` / `Debug` traits
+ship in v0.4 once generic enums (RFC-0024) unlock the trait
+parameterization.
+
+`docs/rfcs/README.md` flips RFC-0028 from `Draft` to `Implemented
+(partial)`.
+
+### Verify gate
+
+158/158 + new gate test `tests/runtime/format_strings.nr` (8 sub-cases
+covering all five builtins, no-placeholder verbatim, and negative
+i64 rendering). Self-host LLVM IR fixed point preserved (v86==v87
+byte-identical).
+
 ## [0.2.5] — 2026-04-22
 
 **`nuc install sysroot` stub + `nuc doc` parameter rendering.**
