@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] — 2026-04-22
+
+**RFC-0019 phase 4: `nuc add` / `nuc remove` / `nuc update` aliases.**
+
+All three commands share `nuc install`'s code path today. Full
+resolver-driven version-bump semantics for `update` land alongside
+the v0.5 package registry. The CLI surface is stable now; users can
+write Cargo-style scripts (`nuc add util libs/util && nuc lock`)
+without waiting for the registry. Milestone row for RFC-0019 phase 4
+flips from PARTIAL to DONE.
+
+Verify gate: 158/158 green on Windows. Self-host LLVM IR fixed point
+preserved (v82==v83 byte-identical).
+
+## [0.2.3] — 2026-04-22
+
+**RFC-0023 range patterns — IR scaffolding (parser deferred).**
+
+Wires the IR-side `__range` / `__range_bad` match arm lowering and
+the typecker MATCH-007 firing for inverted bounds. The parser-level
+`1..=9` syntax is deferred to v0.4 with a richer pattern AST — the
+existing 5-tuple arm node's mixed str/i64 binding field is too
+fragile.
+
+## [0.2.2] — 2026-04-22
+
+**`docs/status/v0.2-shipped-and-deferred.md` — public snapshot.**
+
+Rolled-up status across the v0.1.46..v0.2.1 chain: every shipped
+phase (DONE/PARTIAL) and every deferred row (with target release).
+
+## [0.2.1] — 2026-04-22
+
+**`docs/migrations/v0.1-to-v0.2.md` — upgrade guide.**
+
+User-facing migration guide covering the optional `nuc fix --imports`
++ `?` operator adoption steps, all new language features, all new
+CLI subcommands, all new runtime helpers + collection rods, and the
+diagnostics behavior change (warnings no longer halt the build).
+
 ## [0.2.0] — 2026-04-22
 
 **Foundation milestone — numerics, Result/Option/match, modules,
