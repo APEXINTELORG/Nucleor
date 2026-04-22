@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.15] — 2026-04-22
+
+**RNG primitives wired + latent linker gap closed.**
+
+```nucleor
+rng_seed(42, 0);             // seed the global xoshiro256** state
+rng_int(1, 100);             // uniform int in [1, 100]
+rng_uniform();               // f64 cell in [0, 1)
+rng_normal();                // f64 cell ~ N(0, 1)
+rng_bernoulli(p_bits);       // 0 / 1 (p as f64 cell)
+rng_exponential(lambda_bits);// f64 cell, exponential dist
+```
+
+Wires five new public names through both compiler binaries (the
+backing `nuc_rng_*` xoshiro256\*\* implementation in
+`stdlib/runtime/rng_rt.c` already existed; only the
+`__nucleor_rng_*` thin bridges were missing).
+
+### Fixed — `random_uniform` / `random_normal` linker gap
+
+Both builtins were declared in the compiler's IR-decl table since
+v0.1.x but had no runtime backing — any source that called them
+would fail to link. `nucleor_llvm_rt.c` now ships
+`__nucleor_random_uniform(_)` / `__nucleor_random_normal(_)` thin
+bridges to the existing xoshiro implementation.
+
+### Verify gate
+
+165/165 green on Windows. New gate: `tests/runtime/rng.nr` covers
+seed determinism + range membership + Bernoulli edge cases.
+Self-host LLVM IR fixed point preserved (v102==v103 byte-identical).
+
 ## [0.2.14] — 2026-04-22
 
 **Char predicates + transformations (12 helpers).**

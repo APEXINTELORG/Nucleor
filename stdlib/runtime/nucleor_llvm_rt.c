@@ -978,11 +978,36 @@ long long __nucleor_mutex_new_value(long long a, long long b) {
 // rng implementation lives in stdlib/runtime/rng_rt.c (nuc_rng_seed).
 // The second argument is reserved (currently unused).
 extern void nuc_rng_seed(long long seed);
+extern long long nuc_rng_uniform(void);
+extern long long nuc_rng_int(long long lo, long long hi);
+extern long long nuc_rng_normal(void);
+extern long long nuc_rng_bernoulli(long long p_bits);
+extern long long nuc_rng_exponential(long long lambda_bits);
+
 long long __nucleor_rng_seed(long long seed, long long reserved) {
     (void)reserved;
     nuc_rng_seed(seed);
     return 0;
 }
+
+// Public RNG bridges — pair with the get_rt_name registrations.
+// __nucleor_random_uniform / __nucleor_random_normal were previously
+// declared but never defined; this commit closes that latent linker gap.
+long long __nucleor_random_uniform(long long _reserved) {
+    (void)_reserved;
+    return nuc_rng_uniform();
+}
+long long __nucleor_random_normal(long long _reserved) {
+    (void)_reserved;
+    return nuc_rng_normal();
+}
+long long __nucleor_rng_int(long long lo, long long hi) {
+    return nuc_rng_int(lo, hi);
+}
+long long __nucleor_rng_uniform(void) { return nuc_rng_uniform(); }
+long long __nucleor_rng_normal(void) { return nuc_rng_normal(); }
+long long __nucleor_rng_bernoulli(long long p_bits) { return nuc_rng_bernoulli(p_bits); }
+long long __nucleor_rng_exponential(long long lambda_bits) { return nuc_rng_exponential(lambda_bits); }
 long long __nucleor_mutex_lock_value(long long handle) {
     __nucleor_mutex_lock(handle);
     return 0;

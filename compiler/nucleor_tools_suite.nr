@@ -1894,6 +1894,11 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "char_to_upper") { return "__nucleor_char_to_upper"; };
     if str_eq(name, "char_to_lower") { return "__nucleor_char_to_lower"; };
     if str_eq(name, "char_digit_value") { return "__nucleor_char_digit_value"; };
+    if str_eq(name, "rng_int") { return "__nucleor_rng_int"; };
+    if str_eq(name, "rng_uniform") { return "__nucleor_rng_uniform"; };
+    if str_eq(name, "rng_normal") { return "__nucleor_rng_normal"; };
+    if str_eq(name, "rng_bernoulli") { return "__nucleor_rng_bernoulli"; };
+    if str_eq(name, "rng_exponential") { return "__nucleor_rng_exponential"; };
     if str_eq(name, "file_append_string") { return "__nucleor_file_append_string"; };
     if str_eq(name, "sb_free") { return "__nucleor_sb_free"; };
     if str_eq(name, "now_ms") { return "__nucleor_now_ms"; };
@@ -2932,6 +2937,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_char_to_upper(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_char_to_lower(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_char_digit_value(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_rng_int(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_rng_uniform()\n");
+    sb_append(sb, "declare i64 @__nucleor_rng_normal()\n");
+    sb_append(sb, "declare i64 @__nucleor_rng_bernoulli(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_rng_exponential(i64)\n");
     sb_append(sb, "declare void @__nucleor_file_append_string(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_free(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_now_ms()\n");
