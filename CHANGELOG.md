@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] — 2026-04-22
+
+**`nuc install sysroot` stub + `nuc doc` parameter rendering.**
+
+### Added — `nuc install sysroot --target=<triple>` (RFC-0022 phase 3 partial)
+
+```
+$ nuc install sysroot --target=x86_64-unknown-linux-gnu
+nuc install sysroot --target=x86_64-unknown-linux-gnu
+
+STATUS: deferred to v0.5 with the package registry (RFC-0022 phase 3).
+
+The v0.5 release will fetch a signed sysroot bundle from
+https://nucleor.dev/sysroots/<triple>/ and verify the SHA-256
+checksum before unpacking under .nucleor/sysroots/<triple>/.
+```
+
+CLI surface ships now so users hitting it know what to expect and
+when. Real fetch + signed-bundle verify land with the v0.5 registry.
+Triples documented: `x86_64-unknown-linux-gnu`,
+`aarch64-unknown-linux-gnu`, `x86_64-apple-darwin`,
+`aarch64-apple-darwin`, `wasm32-unknown-unknown` (use `nuc
+build-wasm` today).
+
+Milestone row for RFC-0022 phase 3 sysroot manager flips from
+DEFERRED to PARTIAL.
+
+### Added — `nuc doc` parameter rendering + function index
+
+`nuc doc` output now includes:
+
+- **Function index** at the top with anchor links per function
+- **Parameter list + return type** rendered explicitly:
+  ````markdown
+  **Signature:**
+  ```nucleor
+  fn factorial(n: i64) -> i64
+  ```
+  ````
+- Multi-line `///` doc comment blocks now collected together and
+  rendered as a single block above the signature
+
+Per-module navigation arrives in v0.4 alongside the resolver.
+
+### Verify gate
+
+158/158 green on Windows. Self-host LLVM IR fixed point preserved
+(v84==v85 byte-identical).
+
 ## [0.2.4] — 2026-04-22
 
 **RFC-0019 phase 4: `nuc add` / `nuc remove` / `nuc update` aliases.**
