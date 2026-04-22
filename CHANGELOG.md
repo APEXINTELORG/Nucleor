@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.25] — 2026-04-22
+
+**Base-conversion helpers (6 helpers).**
+
+```nucleor
+// Stringify (no "0x" / "0b" prefix — caller prepends if wanted)
+int_to_hex(255);                 // "ff"
+int_to_bin(5);                   // "101"
+int_to_oct(64);                  // "100"
+
+// Parse — case-insensitive, optional sign, optional 0x/0b/0o prefix
+parse_hex("0xCAFE");             // 51966
+parse_hex("FF");                 // 255
+parse_bin("0b1000");             // 8
+parse_bin("11111111");           // 255
+
+// Arbitrary radix 2..36
+str_to_i64_radix("z", 36);       // 35
+str_to_i64_radix("777", 8);      // 511
+str_to_i64_radix("-ff", 16);     // -255
+```
+
+Closes the gap left by `format_hex` (which is template-based and
+emits formatted output) — these are the bare-string conversion
+shortcuts. The stringifiers reinterpret negative i64 inputs as their
+two's-complement bit pattern so `int_to_hex(-1)` is `"ffffffffffffffff"`.
+
+- **`int_to_hex`** / **`int_to_bin`** / **`int_to_oct`** are
+  always-allocates-fresh-string converters. Always uppercase-`a`
+  through `f` (lowercase) for hex; binary uses `0` / `1` only.
+- **`str_to_i64_radix(s, r)`** parses with arbitrary radix between
+  2 and 36 (so `'z'`/`'Z'` = 35 in radix 36). Tolerates leading
+  whitespace, optional sign, and the matching `0x` / `0b` / `0o`
+  prefix when `r` is 16 / 2 / 8.
+- **`parse_hex`** / **`parse_bin`** are the radix-16 / radix-2
+  shortcuts. Both delegate to `str_to_i64_radix`.
+
+All six wired through both compiler binaries with the drift-gate
+sync. Three return ptr (`int_to_*`), three return i64 (the parsers).
+
+### Verify gate
+
+174/175 green on Windows + 1 skip. New gate: `tests/runtime/base_conv.nr`
+(stringify + parse round-trip for hex / bin / oct + arbitrary radix).
+Self-host LLVM IR fixed point preserved (v130==v131 byte-identical).
+
 ## [0.2.24] — 2026-04-22
 
 **Parse + stringify primitives (6 helpers).**
