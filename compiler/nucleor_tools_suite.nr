@@ -2201,8 +2201,11 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "f8e4m3_to_f32") { return "__nucleor_f8e4m3_to_f32"; };
     if str_eq(name, "f8e5m2_to_f32") { return "__nucleor_f8e5m2_to_f32"; };
     if str_eq(name, "fs_basename") { return "__nucleor_fs_basename"; };
+    if str_eq(name, "fs_canonicalize") { return "__nucleor_fs_canonicalize"; };
+    if str_eq(name, "fs_copy_file") { return "__nucleor_fs_copy_file"; };
     if str_eq(name, "fs_create_dir") { return "__nucleor_fs_create_dir"; };
     if str_eq(name, "fs_create_dir_all") { return "__nucleor_fs_create_dir_all"; };
+    if str_eq(name, "fs_current_dir") { return "__nucleor_fs_current_dir"; };
     if str_eq(name, "fs_dirname") { return "__nucleor_fs_dirname"; };
     if str_eq(name, "fs_exists") { return "__nucleor_fs_exists"; };
     if str_eq(name, "fs_extension") { return "__nucleor_fs_extension"; };
@@ -2211,9 +2214,11 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "fs_join") { return "__nucleor_fs_join"; };
     if str_eq(name, "fs_list_dir") { return "__nucleor_fs_list_dir"; };
     if str_eq(name, "fs_mtime") { return "__nucleor_fs_mtime"; };
+    if str_eq(name, "fs_remove_dir") { return "__nucleor_fs_remove_dir"; };
     if str_eq(name, "fs_remove_file") { return "__nucleor_fs_remove_file"; };
     if str_eq(name, "fs_rename") { return "__nucleor_fs_rename"; };
     if str_eq(name, "fs_size") { return "__nucleor_fs_size"; };
+    if str_eq(name, "fs_temp_dir") { return "__nucleor_fs_temp_dir"; };
     if str_eq(name, "getcwd") { return "__nucleor_getcwd"; };
     if str_eq(name, "hashmap_capacity") { return "__nucleor_hashmap_capacity"; };
     if str_eq(name, "hashmap_clear") { return "__nucleor_hashmap_clear"; };
@@ -2449,6 +2454,9 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "fs_basename") { return 1; };
     if str_eq(name, "fs_dirname") { return 1; };
     if str_eq(name, "fs_extension") { return 1; };
+    if str_eq(name, "fs_temp_dir") { return 1; };
+    if str_eq(name, "fs_current_dir") { return 1; };
+    if str_eq(name, "fs_canonicalize") { return 1; };
     if str_eq(name, "manifest_report") { return 1; };
     if str_eq(name, "sha256_hex") { return 1; };
     if str_eq(name, "base64_encode") { return 1; };
@@ -2544,6 +2552,9 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "fs_basename") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "fs_dirname") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "fs_extension") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_remove_dir") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_copy_file") { return 1; };
+    if str_eq(name, "fs_canonicalize") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "toml_parse_string") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "toml_parse_file") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "toml_get_str") { if idx == 1 { return 1; }; return 0; };
@@ -3303,8 +3314,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_f8e4m3_to_f32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f8e5m2_to_f32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_fs_basename(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_canonicalize(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_copy_file(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_fs_create_dir(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_fs_create_dir_all(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_current_dir()\n");
     sb_append(sb, "declare i64 @__nucleor_fs_dirname(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_fs_exists(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_fs_extension(ptr)\n");
@@ -3313,9 +3327,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_fs_join(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_fs_list_dir(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_fs_mtime(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_remove_dir(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_fs_remove_file(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_fs_rename(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_fs_size(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_temp_dir()\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_capacity(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_clear(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_free(i64)\n");
