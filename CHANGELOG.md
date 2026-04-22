@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.19] — 2026-04-22
+
+**RFC-0015 phase 2: `as` cast operator + numeric type predicates.**
+
+### Added — type system
+
+- Numeric type predicate helpers in compiler: `is_int_type`,
+  `is_unsigned_type`, `is_float_type`, `is_numeric_type`,
+  `type_bit_width`.
+- `nr_type_to_llvm` extended for the full RFC-0015 type set:
+  - i8/i16/i32/i64/i128, u8/u16/u32/u64/u128, isize/usize
+  - f8e4m3/f8e5m2 (storage as i8), f16/bf16/f32/f64
+  - char (i32), bool (i1)
+- All types map to correct LLVM types — groundwork for width-tagged
+  storage in later phases.
+
+### Added — `as` cast operator
+
+- `expr as TYPE` parses as a postfix unary expression.
+- AST node kind 99 = "as cast" with payload (expr, target_type).
+- Lowered to runtime helper `__nucleor_as_<TYPE>`:
+  - `as_u8/u16/u32/u64`: bitmask truncate
+  - `as_i8/i16/i32/i64`: bitmask + sign-extend
+  - `as_f32/f64`: pass-through (phase 3 adds proper fpext/fptrunc)
+- New gate test: `tests/lang/as_cast.nr` — 8 sub-cases covering
+  truncation, sign extension, identity, chaining.
+
+### Verify gate
+
+111/111 green on Windows. Self-host LLVM IR fixed point preserved.
+
+## [0.1.18] — 2026-04-22
+
+`nuc explain` entries for ASSUME/UNIT/CONTRACT/ATOMIC/ISR/WCET/
+DEPTH/LAW/EFF (~30 new codes). Plus `docs/spec/Nucleor_Error_Codes.md`
+canonical reference (75 codes across 19 series).
+
 ## [0.1.17] — 2026-04-22
 
 `loop {}` keyword (Rust-parity).
