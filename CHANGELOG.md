@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.9] — 2026-04-22
+
+**RFC-0024 phase 1: Vec<i64> functional helpers via function pointers.**
+
+Seven new runtime helpers wired through both compiler binaries and
+the drift gate:
+
+```nucleor
+fn dbl(x: i64) -> i64 { return x * 2; }
+fn keep_even(x: i64) -> i64 { return 1 - (x - (x / 2) * 2); }
+fn add(a: i64, b: i64) -> i64 { return a + b; }
+
+fn main() -> i64 {
+    let mut v: Vec<i32> = Vec::new();
+    v.push(1); v.push(2); v.push(3); v.push(4); v.push(5);
+
+    vec_sum_i64(v);                    // 15
+    vec_min_i64(v);                    // 1
+    vec_max_i64(v);                    // 5
+    vec_fold_i64(v, 100, add);         // 115 (left fold)
+    vec_map_i64(v, dbl);               // [2,4,6,8,10]
+    vec_filter_i64(v, keep_even);      // [2,4]
+    vec_each_i64(v, side_effect_fn);   // returns len
+    return 0;
+}
+```
+
+Function-pointer args use the existing unresolved-identifier path in
+lower_expr (which emits `ir_fn_ptr` for any name not in the local
+symbol table). Pairs with the parallel runtime's `par_map` /
+`par_fold` (declared in v0.1.x; runtime backing pending).
+
+`docs/rfcs/README.md` flips RFC-0024 from `Draft` to `Implemented
+(partial)`. The full Iterator trait + adapter chain land in v0.4
+once closures (RFC-0025) and trait objects (RFC-0026) ship.
+
+### Verify gate
+
+160/160 green on Windows. New gate test: `tests/runtime/vec_helpers.nr`.
+Self-host LLVM IR fixed point preserved (v92==v93 byte-identical).
+
 ## [0.2.8] — 2026-04-22
 
 **`format_f64` builtin — RFC-0028 phase 1 completion.**
