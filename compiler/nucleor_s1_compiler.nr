@@ -2072,6 +2072,19 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "vec_count_eq_i64") { return "__nucleor_vec_count_eq_i64"; };
     if str_eq(name, "vec_any_i64") { return "__nucleor_vec_any_i64"; };
     if str_eq(name, "vec_all_i64") { return "__nucleor_vec_all_i64"; };
+    // Char predicates / transformations (RFC-0017 stdlib enrichment)
+    if str_eq(name, "char_is_alpha") { return "__nucleor_char_is_alpha"; };
+    if str_eq(name, "char_is_digit") { return "__nucleor_char_is_digit"; };
+    if str_eq(name, "char_is_alnum") { return "__nucleor_char_is_alnum"; };
+    if str_eq(name, "char_is_whitespace") { return "__nucleor_char_is_whitespace"; };
+    if str_eq(name, "char_is_upper") { return "__nucleor_char_is_upper"; };
+    if str_eq(name, "char_is_lower") { return "__nucleor_char_is_lower"; };
+    if str_eq(name, "char_is_hex_digit") { return "__nucleor_char_is_hex_digit"; };
+    if str_eq(name, "char_is_punct") { return "__nucleor_char_is_punct"; };
+    if str_eq(name, "char_is_ascii") { return "__nucleor_char_is_ascii"; };
+    if str_eq(name, "char_to_upper") { return "__nucleor_char_to_upper"; };
+    if str_eq(name, "char_to_lower") { return "__nucleor_char_to_lower"; };
+    if str_eq(name, "char_digit_value") { return "__nucleor_char_digit_value"; };
     if str_eq(name, "file_append_string") { return "__nucleor_file_append_string"; };
     if str_eq(name, "sb_free") { return "__nucleor_sb_free"; };
     if str_eq(name, "now_ms") { return "__nucleor_now_ms"; };
@@ -3130,6 +3143,18 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_vec_count_eq_i64(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_any_i64(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_all_i64(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_char_is_alpha(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_char_is_digit(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_char_is_alnum(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_char_is_whitespace(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_char_is_upper(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_char_is_lower(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_char_is_hex_digit(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_char_is_punct(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_char_is_ascii(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_char_to_upper(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_char_to_lower(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_char_digit_value(i64)\n");
     sb_append(sb, "declare void @__nucleor_file_append_string(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_free(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_now_ms()\n");

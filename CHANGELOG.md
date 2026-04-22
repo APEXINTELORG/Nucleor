@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.14] — 2026-04-22
+
+**Char predicates + transformations (12 helpers).**
+
+```nucleor
+char_is_alpha(65);          // 1 ('A')
+char_is_digit(57);          // 1 ('9')
+char_is_alnum(65);          // 1
+char_is_whitespace(32);     // 1 (space)
+char_is_upper(65);          // 1
+char_is_lower(97);          // 1
+char_is_hex_digit(70);      // 1 ('F')
+char_is_punct(33);          // 1 ('!')
+char_is_ascii(200);         // 0
+
+char_to_upper(97);          // 65 ('a' -> 'A')
+char_to_lower(65);          // 97 ('A' -> 'a')
+char_digit_value(70);       // 15 ('F' as hex)
+char_digit_value(103);      // -1 ('g' is not hex)
+```
+
+ASCII-correct subset of UTF-8 (the predicates only inspect bytes
+0-127). All return i64 (0/1 for predicates; transformed code or
+-1 for failure cases). Pairs with the v0.2.11 string utilities to
+give the v0.2 stdlib a complete text-processing surface.
+
+Wired through both compiler binaries with the drift-gate sync.
+
+### Verify gate
+
+164/164 green on Windows. New gate: `tests/runtime/char_predicates.nr`.
+Self-host LLVM IR fixed point preserved (v100==v101 byte-identical).
+
 ## [0.2.13] — 2026-04-22
 
 **Vec arithmetic + format extensions (8 helpers).**
