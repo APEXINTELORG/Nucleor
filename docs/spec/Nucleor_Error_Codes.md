@@ -203,10 +203,36 @@ Pre-existing codes from the compiler front-end. See the existing
 | COLL-004 | Iter invalidated by mutation during walk | [RFC-0017 §3.4](../rfcs/RFC-0017-collections.md) |
 | COLL-005 | Index out of bounds on fixed-length collection | [RFC-0017 §3.1](../rfcs/RFC-0017-collections.md) |
 
-## MOD / PKG / TGT series — v0.2.0 foundation
+## MOD series — RFC-0018 modules
 
-Reserved for RFCs 0018 (modules), 0019 (packages), 0022
-(cross-platform). Codes populate as those RFCs land.
+| Code | Title | RFC section |
+|---|---|---|
+| MOD-001 | Module file not found at expected path | [RFC-0018 §3.1](../rfcs/RFC-0018-modules.md) |
+| MOD-002 | Path references non-existent module/item | [RFC-0018 §3.3](../rfcs/RFC-0018-modules.md) |
+| MOD-003 | Visibility violation | [RFC-0018 §3.2](../rfcs/RFC-0018-modules.md) |
+| MOD-004 | Glob `use *` from a module without an explicit prelude (warning) | [RFC-0018](../rfcs/RFC-0018-modules.md) |
+| MOD-005 | Circular module dependency | [RFC-0018](../rfcs/RFC-0018-modules.md) |
+| MOD-006 | Two `use` declarations bind the same name | [RFC-0018 §3.4](../rfcs/RFC-0018-modules.md) |
+
+## PKG series — RFC-0019 packages
+
+| Code | Title | RFC section |
+|---|---|---|
+| PKG-001 | Manifest schema error | [RFC-0019 §3.1](../rfcs/RFC-0019-package-manager.md) |
+| PKG-002 | Version conflict — no resolution found | [RFC-0019 §3.3](../rfcs/RFC-0019-package-manager.md) |
+| PKG-003 | Checksum mismatch | [RFC-0019 §3.4](../rfcs/RFC-0019-package-manager.md) |
+| PKG-004 | Network error fetching package | [RFC-0019 §3.5](../rfcs/RFC-0019-package-manager.md) |
+| PKG-005 | Unknown package / version | [RFC-0019 §3.5](../rfcs/RFC-0019-package-manager.md) |
+| PKG-006 | Yanked version explicitly required | [RFC-0019 §3.5](../rfcs/RFC-0019-package-manager.md) |
+
+## TGT series — RFC-0022 cross-platform
+
+| Code | Title | RFC section |
+|---|---|---|
+| TGT-001 | Unknown target triple | [RFC-0022 §3.1](../rfcs/RFC-0022-cross-platform.md) |
+| TGT-002 | Sysroot not installed for target | [RFC-0022 §3.7](../rfcs/RFC-0022-cross-platform.md) |
+| TGT-003 | Feature unsupported on target | [RFC-0022 §3.6](../rfcs/RFC-0022-cross-platform.md) |
+| TGT-004 | Cross-link error | [RFC-0022 §3.7](../rfcs/RFC-0022-cross-platform.md) |
 
 ## ITER / CLO / DYN / LIFE / FMT / DOC — v0.4 Tier 2
 

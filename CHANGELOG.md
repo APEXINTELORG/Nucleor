@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.51] — 2026-04-22
+
+**Spec doc + tracker reconciliation: MOD/PKG/TGT diagnostic tables.**
+
+### Added — diagnostic spec tables
+
+`docs/spec/Nucleor_Error_Codes.md` now has full tables for:
+
+- **MOD-001…006** (RFC-0018 modules) — file-not-found, unresolved
+  path, visibility violation, glob warning, circular dependency,
+  duplicate `use` binding
+- **PKG-001…006** (RFC-0019 packages) — manifest schema, version
+  conflict, checksum mismatch, network error, unknown package, yanked
+  version
+- **TGT-001…004** (RFC-0022 cross-platform) — unknown triple, missing
+  sysroot, unsupported feature, cross-link error
+
+The explain entries (title + summary + explanation) for all 16 codes
+were already wired into `nuc explain`; this commit makes the spec
+tables match shipped reality.
+
+### Tracker reconciliations
+
+Five more milestone TODO entries reconciled against shipped code:
+
+- RFC-0015 phase 2 `as` cast — DONE (parser + lower + 12 cast helpers
+  in runtime; gate `tests/lang/as_cast.nr` was already running)
+- RFC-0015 phase 6 f8e4m3 / f8e5m2 software emulation — DONE
+  (NVIDIA Hopper formats in `nucleor_llvm_rt.c`)
+- RFC-0015 phase 4 overflow modes — PARTIAL (i64 family done;
+  per-narrow-width variants land alongside the type lattice)
+- RFC-0018 phase 3 MOD diagnostics — DONE (explain entries; firing
+  pass with the resolver)
+- RFC-0019 phase 5 PKG diagnostics — DONE (explain entries; firing
+  pass with the resolver)
+- RFC-0022 phase 4 TGT diagnostics — DONE (explain entries; firing
+  with cross-target sysroot work)
+
+### Verify gate
+
+151/151 green on Windows. Self-host LLVM IR fixed point preserved
+(no compiler source change in this release).
+
 ## [0.1.50] — 2026-04-22
 
 **RFC-0016 phase 1: `?` postfix operator.**
