@@ -1341,6 +1341,189 @@ long long __nucleor_string_free(long long h) {
     return 0;
 }
 
+// === RFC-0017 partial: HashMap<str, i64> ===
+// Open-addressed hash table with linear probing. Keys are owned
+// C-strings; values are i64 cells. Generic <K, V, A: Allocator>
+// arrives with v0.4 monomorphization (RFC-0024).
+
+typedef struct {
+    char *key;
+    long long val;
+    int occupied;
+} NHMSlot;
+
+typedef struct {
+    NHMSlot *slots;
+    long long len;
+    long long cap;
+} NHashMap;
+
+static unsigned long long __nuc_str_hash(const char *s) {
+    // FNV-1a 64
+    unsigned long long h = 0xcbf29ce484222325ULL;
+    while (*s) {
+        h ^= (unsigned char)*s++;
+        h *= 0x100000001b3ULL;
+    }
+    return h;
+}
+
+static void __nuc_hashmap_grow(NHashMap *m) {
+    long long old_cap = m->cap;
+    NHMSlot *old_slots = m->slots;
+    m->cap *= 2;
+    m->slots = (NHMSlot *)calloc((size_t)m->cap, sizeof(NHMSlot));
+    m->len = 0;
+    long long i;
+    for (i = 0; i < old_cap; i++) {
+        if (old_slots[i].occupied) {
+            // Reinsert
+            unsigned long long h = __nuc_str_hash(old_slots[i].key);
+            long long idx = (long long)(h & (unsigned long long)(m->cap - 1));
+            while (m->slots[idx].occupied) {
+                idx = (idx + 1) & (m->cap - 1);
+            }
+            m->slots[idx].key = old_slots[i].key;
+            m->slots[idx].val = old_slots[i].val;
+            m->slots[idx].occupied = 1;
+            m->len++;
+        }
+    }
+    free(old_slots);
+}
+
+long long __nucleor_hashmap_new(void) {
+    NHashMap *m = (NHashMap *)malloc(sizeof(NHashMap));
+    m->cap = 16;
+    m->slots = (NHMSlot *)calloc(16, sizeof(NHMSlot));
+    m->len = 0;
+    return (long long)(intptr_t)m;
+}
+long long __nucleor_hashmap_with_capacity(long long n) {
+    NHashMap *m = (NHashMap *)malloc(sizeof(NHashMap));
+    long long cap = 16;
+    while (cap < n * 2) cap *= 2;
+    m->cap = cap;
+    m->slots = (NHMSlot *)calloc((size_t)cap, sizeof(NHMSlot));
+    m->len = 0;
+    return (long long)(intptr_t)m;
+}
+long long __nucleor_hashmap_insert(long long h, const char *key, long long val) {
+    NHashMap *m = (NHashMap *)(intptr_t)h;
+    if (!m || !key) return 0;
+    if ((m->len + 1) * 2 > m->cap) __nuc_hashmap_grow(m);
+    unsigned long long hash = __nuc_str_hash(key);
+    long long idx = (long long)(hash & (unsigned long long)(m->cap - 1));
+    while (m->slots[idx].occupied) {
+        if (strcmp(m->slots[idx].key, key) == 0) {
+            // Update existing
+            m->slots[idx].val = val;
+            return 0;
+        }
+        idx = (idx + 1) & (m->cap - 1);
+    }
+    size_t klen = strlen(key);
+    m->slots[idx].key = (char *)malloc(klen + 1);
+    memcpy(m->slots[idx].key, key, klen + 1);
+    m->slots[idx].val = val;
+    m->slots[idx].occupied = 1;
+    m->len++;
+    return 0;
+}
+long long __nucleor_hashmap_get(long long h, const char *key) {
+    NHashMap *m = (NHashMap *)(intptr_t)h;
+    if (!m || !key) return 0;
+    unsigned long long hash = __nuc_str_hash(key);
+    long long idx = (long long)(hash & (unsigned long long)(m->cap - 1));
+    long long start = idx;
+    while (m->slots[idx].occupied) {
+        if (strcmp(m->slots[idx].key, key) == 0) {
+            return m->slots[idx].val;
+        }
+        idx = (idx + 1) & (m->cap - 1);
+        if (idx == start) break;
+    }
+    return 0;
+}
+long long __nucleor_hashmap_contains(long long h, const char *key) {
+    NHashMap *m = (NHashMap *)(intptr_t)h;
+    if (!m || !key) return 0;
+    unsigned long long hash = __nuc_str_hash(key);
+    long long idx = (long long)(hash & (unsigned long long)(m->cap - 1));
+    long long start = idx;
+    while (m->slots[idx].occupied) {
+        if (strcmp(m->slots[idx].key, key) == 0) return 1;
+        idx = (idx + 1) & (m->cap - 1);
+        if (idx == start) break;
+    }
+    return 0;
+}
+long long __nucleor_hashmap_remove(long long h, const char *key) {
+    NHashMap *m = (NHashMap *)(intptr_t)h;
+    if (!m || !key) return 0;
+    unsigned long long hash = __nuc_str_hash(key);
+    long long idx = (long long)(hash & (unsigned long long)(m->cap - 1));
+    long long start = idx;
+    while (m->slots[idx].occupied) {
+        if (strcmp(m->slots[idx].key, key) == 0) {
+            free(m->slots[idx].key);
+            m->slots[idx].occupied = 0;
+            m->slots[idx].key = NULL;
+            m->len--;
+            // Re-hash following cluster
+            long long next = (idx + 1) & (m->cap - 1);
+            while (m->slots[next].occupied) {
+                NHMSlot tmp = m->slots[next];
+                m->slots[next].occupied = 0;
+                m->slots[next].key = NULL;
+                m->len--;
+                __nucleor_hashmap_insert(h, tmp.key, tmp.val);
+                free(tmp.key);
+                next = (next + 1) & (m->cap - 1);
+            }
+            return 1;
+        }
+        idx = (idx + 1) & (m->cap - 1);
+        if (idx == start) break;
+    }
+    return 0;
+}
+long long __nucleor_hashmap_len(long long h) {
+    NHashMap *m = (NHashMap *)(intptr_t)h;
+    if (!m) return 0;
+    return m->len;
+}
+long long __nucleor_hashmap_capacity(long long h) {
+    NHashMap *m = (NHashMap *)(intptr_t)h;
+    if (!m) return 0;
+    return m->cap;
+}
+long long __nucleor_hashmap_clear(long long h) {
+    NHashMap *m = (NHashMap *)(intptr_t)h;
+    if (!m) return 0;
+    long long i;
+    for (i = 0; i < m->cap; i++) {
+        if (m->slots[i].occupied) {
+            free(m->slots[i].key);
+            m->slots[i].occupied = 0;
+            m->slots[i].key = NULL;
+        }
+    }
+    m->len = 0;
+    return 0;
+}
+long long __nucleor_hashmap_free(long long h) {
+    NHashMap *m = (NHashMap *)(intptr_t)h;
+    if (!m) return 0;
+    long long i;
+    for (i = 0; i < m->cap; i++) {
+        if (m->slots[i].occupied) free(m->slots[i].key);
+    }
+    free(m->slots);
+    free(m);
+    return 0;
+}
+
 // === RFC-0015 phase 6: bf16 / f16 / f8 software emulation ===
 // All packed in low N bits of i64 storage. Compute happens at f32 precision
 // via convert-up / convert-down round-trip.
