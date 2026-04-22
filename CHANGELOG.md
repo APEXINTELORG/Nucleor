@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.18] — 2026-04-22
+
+**Float math + bit population helpers (7 helpers).**
+
+```nucleor
+// Float magnitude / sign helpers — RFC-0015 stdlib enrichment
+let a: i64 = f64_from_scaled(-3500000);   // -3.5
+let b: i64 = f64_from_scaled(2000000);    //  2.0
+
+f64_abs(a);                  // 3.5
+f64_min(a, b);               // -3.5
+f64_max(a, b);               //  2.0
+f64_sign(a);                 // -1.0
+f64_copy_sign(b, a);         // -2.0  (|b| with sign(a))
+
+// Bit population — RFC-0017 stdlib enrichment
+count_ones(7);               // 3
+count_zeros(7);              // 61
+count_ones(-1);              // 64
+count_zeros(0);              // 64
+```
+
+`f64_abs`, `f64_min`, and `f64_max` round out the f64 surface that
+already had `f64_clamp` and `f64_lerp`; together they cover the
+"magnitude / extremum" idioms numeric code needs. `f64_sign` returns
+`-1.0`, `0.0`, or `+1.0` (so it composes with f64 arithmetic without
+an int→float conversion). `f64_copy_sign` mirrors libm — magnitude
+of the first argument with the sign of the second.
+
+`count_ones` and `count_zeros` are the canonical names for bit
+population — `popcount` is preserved as the historical alias.
+The invariant `count_ones(v) + count_zeros(v) == 64` holds for all i64.
+
+All seven take/return i64 (f64 helpers operate on the f64 bit
+pattern), so no `is_ptr_*` table updates were needed. Wired through
+both compiler binaries with the drift-gate sync.
+
+### Verify gate
+
+167/167 green on Windows + 1 skip. New gate: `tests/runtime/math_bit_helpers.nr`.
+Self-host LLVM IR fixed point preserved (v108==v109 byte-identical).
+
 ## [0.2.17] — 2026-04-22
 
 **Hash helpers + print/eprint without trailing newline (5 helpers).**
