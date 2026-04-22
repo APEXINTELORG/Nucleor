@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] — 2026-04-22
+
+Showcase release: four programs that demonstrate things Nucleor is
+uniquely suited for, all with live ANSI-colored visualizations.
+
+### Added — examples/showcase/
+
+- **`vqe_h2.nr`** — Variational Quantum Eigensolver for a 2-qubit
+  Hamiltonian (-Z0 - Z1 - 0.5 Z0Z1 + 0.5 X0X1). Parameter-shift gradient
+  descent on the bundled quantum simulator. Converges to within 1e-3 Ha
+  of the analytic ground state -2.5616. Live updating energy + parameter
+  bar chart.
+- **`market_maker.nr`** — Real-time options market-making engine. Black-
+  Scholes pricing + full Greeks + PID-driven delta hedging at simulated
+  10 ms tick. Live Bloomberg-style dashboard with bid/ask/Greeks/P&L.
+- **`wing_simulator.nr`** — Coupled aerodynamic + electromagnetic
+  simulator on a single airfoil cross-section. Lattice Boltzmann (D2Q9)
+  fluid + FDTD Maxwell, sharing one geometry function. 256-color
+  heatmaps for density, vorticity, and E_z field intensity.
+- **`lorenz.nr`** — The Lorenz strange attractor integrated with RK4.
+  Two trajectories from initial conditions 1e-5 apart, rendered as a
+  heatmap. Visual demonstration of sensitive dependence on initial
+  conditions; max separation reaches ~50 by end of integration.
+
+### Added — visualization helpers
+
+- **`examples/showcase/_viz.nr`** — shared ANSI viz helpers: `paint`,
+  256-color `viz_heat` and `viz_grey` palettes, `viz_block` density
+  characters, `viz_bar` horizontal bars, `viz_box_*` box drawing,
+  banner header, integer/f64 formatters. Reusable across showcase
+  programs.
+
+### Added — runtime + compiler
+
+- **`chr(byte_code) -> str`** builtin. Returns a 1-byte string for the
+  given code point (0-255). Lets user programs synthesize arbitrary
+  control bytes — including ESC = 27 for ANSI escape sequences. Wired
+  through the compiler's builtin table, IR declaration, and
+  `is_ptr_ret` classifier. Implementation in `nucleor_llvm_rt.c`.
+
+### Self-host rebuild
+
+- `bin/nucleor.exe` rebuilt from the patched source so the new `chr`
+  builtin is available in the shipped binary.
+
+### Verify gate
+
+38/38 pass. New showcase programs verified by hand (the showcase dir
+intentionally lives outside `tests/` because the visualizations are
+animated and rely on TTY output).
+
+---
+
 ## [0.1.2] — 2026-04-21
 
 CLI polish: personality + progress + color + completions. No new language

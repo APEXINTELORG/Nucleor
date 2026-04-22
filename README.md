@@ -86,6 +86,17 @@ That's **65 rods total** in v0.1.1, all building cleanly against the bootstrap b
 - [`examples/11_pid.nr`](examples/11_pid.nr) — PID controller driving a plant to a setpoint.
 - [`examples/12_autodiff.nr`](examples/12_autodiff.nr) — reverse-mode autodiff of `sin(x²) + x`.
 
+## Showcase — animated, color, "did one language really just do that"
+
+Programs in [`examples/showcase/`](examples/showcase/) that demonstrate
+things Nucleor is uniquely suited for, with live ANSI-colored visualizations.
+All four are one file each.
+
+- [`vqe_h2.nr`](examples/showcase/vqe_h2.nr) — **Variational Quantum Eigensolver** finding the ground state of a 2-qubit Hamiltonian via parameter-shift gradient descent. Live convergence chart with parameter and energy bars updating in place. Other-stack equivalent: PennyLane + PyTorch + OpenFermion + SciPy.
+- [`market_maker.nr`](examples/showcase/market_maker.nr) — **Live options market-making engine.** Black-Scholes pricing + full Greeks + PID-driven delta hedging at simulated 10 ms tick. Bloomberg-style dashboard. Other-stack equivalent: Python + QuantLib + filterpy + simple-pid + a C++ rewrite for the latency path.
+- [`wing_simulator.nr`](examples/showcase/wing_simulator.nr) — **Coupled fluid + electromagnetic simulator** on the same airfoil cross-section. Lattice Boltzmann (D2Q9) for aerodynamics + FDTD on a Yee grid for electromagnetics, both in one file with one shared geometry. 256-color heatmaps for density, vorticity, and E_z field. Other-stack equivalent: OpenFOAM + Meep + a custom mesh bridge + matplotlib.
+- [`lorenz.nr`](examples/showcase/lorenz.nr) — **The Lorenz strange attractor** integrated with RK4, two trajectories from initial conditions 1e-5 apart, rendered as a heatmap of trajectory density. Visual demonstration of sensitive dependence on initial conditions — the iconic butterfly shape emerges in your console.
+
 ## Documentation
 
 - [Getting Started](docs/getting-started.md) — install, first build, troubleshooting.
