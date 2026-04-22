@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.37] — 2026-04-22
+
+**Stdlib polish: typed-time + OS-info rod wrappers.**
+
+### Added — two new rods
+
+- **`stdlib/rods/time_typed.nr`** — exposes the v0.1.29 typed-time
+  builtins (Robotics-RFC §5.1):
+  - `time_mono_ns/us/ms` — monotonic clock for deadlines + intervals
+  - `time_wall_seconds_since_epoch / ms / us / ns` — wall clock
+  - `time_sleep_milliseconds / microseconds`
+  - `time_elapsed_ns / us / ms` — convenience: now - start
+- **`stdlib/rods/os_info.nr`** — OS family detection + pointer-width:
+  - `os_is_windows / linux / macos / bsd / unix`
+  - `os_family_name() -> str`
+  - `os_pointer_bits / is_64bit`
+  - `os_env_set / unset` (existing `os.nr` provides `os_getenv`)
+
+### Verify gate
+
+137/137 green on Windows. New gate tests:
+`tests/rods/time_typed.nr`, `tests/rods/os_info.nr`.
+
 ## [0.1.36] — 2026-04-22
 
 **RFC-0017 stdlib polish: rod-level wrappers for all collection
