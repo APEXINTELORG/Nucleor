@@ -94,10 +94,14 @@ EXAMPLES=(01_hello 02_fib 03_structs 04_rods 05_quantum 06_perf_attrs 08_linalg 
 [ -f "$RUST_BRIDGE_LIB" ] && EXAMPLES+=(07_rust_interop)
 
 TEST_DIRS=(lang attrs runtime rods features)
+# Files matching this pattern are auxiliary helpers imported by another
+# test (e.g. via `mod foo;`) and are not standalone-runnable. Skipping
+# them keeps the gate from treating them as duplicate-main failures.
+TEST_SKIP_REGEX='_aux\.nr$'
 TEST_COUNT=0
 for d in "${TEST_DIRS[@]}"; do
     if [ -d "tests/$d" ]; then
-        c=$(find "tests/$d" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
+        c=$(find "tests/$d" -maxdepth 1 -name '*.nr' 2>/dev/null | grep -vE "$TEST_SKIP_REGEX" | wc -l | tr -d ' ')
         TEST_COUNT=$((TEST_COUNT + c))
     fi
 done
@@ -172,7 +176,7 @@ done
 
 for d in "${TEST_DIRS[@]}"; do
     if [ -d "tests/$d" ]; then
-        for f in $(find "tests/$d" -maxdepth 1 -name '*.nr' 2>/dev/null | sort); do
+        for f in $(find "tests/$d" -maxdepth 1 -name '*.nr' 2>/dev/null | grep -vE "$TEST_SKIP_REGEX" | sort); do
             tname=$(basename "$f" .nr)
             step "test $d/$tname" build_test "$d" "$tname"
         done

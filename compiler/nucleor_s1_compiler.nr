@@ -7184,14 +7184,41 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
         while lp < eol && (str_char_at(src, lp) == 32 || str_char_at(src, lp) == 9) { lp = lp + 1; };
         let line_len: i64 = eol - lp;
         let mut prefix_len: i64 = 0;
+        let mut is_mod_decl: i64 = 0;
         if line_len >= 8 && str_eq(str_substring(src, lp, lp + 7), "import ") { prefix_len = 7; };
         if prefix_len == 0 && line_len >= 5 && str_eq(str_substring(src, lp, lp + 4), "use ") { prefix_len = 4; };
+        // RFC-0018 phase 1: `mod foo;` desugars to `import "./foo.nr"`.
+        // Block-form `mod foo { ... }` requires a parser-level scope and
+        // ships in phase 2 with the resolver.
+        if prefix_len == 0 && line_len >= 5 && str_eq(str_substring(src, lp, lp + 4), "mod ") == 1 {
+            let mut sp: i64 = lp + 4;
+            while sp < eol && str_char_at(src, sp) == 32 { sp = sp + 1; };
+            let mut np: i64 = sp;
+            while np < eol && (is_alnum(str_char_at(src, np)) == 1) { np = np + 1; };
+            // Require a `;` (after optional whitespace) — block-form is
+            // skipped here so the parser sees the brace and rejects.
+            let mut tp: i64 = np;
+            while tp < eol && str_char_at(src, tp) == 32 { tp = tp + 1; };
+            if np > sp && tp < eol && str_char_at(src, tp) == 59 {
+                is_mod_decl = 1;
+                prefix_len = 4;
+            };
+        };
         if prefix_len > 0 {
             let mut qp: i64 = lp + prefix_len;
             while qp < eol && str_char_at(src, qp) == 32 { qp = qp + 1; };
             // RFC-0018 phase 1: Rust-style `use std::foo` / `use crate::x` /
             // `use super::x` paths get rewritten to a quoted-path equivalent.
-            let rust_path: str = rewrite_use_path(src, lp, prefix_len, eol);
+            let mut rust_path: str = "";
+            if is_mod_decl == 1 {
+                let mut np: i64 = qp;
+                while np < eol && is_alnum(str_char_at(src, np)) == 1 { np = np + 1; };
+                if np > qp {
+                    rust_path = str_concat(str_substring(src, qp, np), ".nr");
+                };
+            } else {
+                rust_path = rewrite_use_path(src, lp, prefix_len, eol);
+            };
             if str_len(rust_path) > 0 {
                 let path: str = resolve_import_path(base_dir, rust_path);
                 let mut already: i64 = 0;
