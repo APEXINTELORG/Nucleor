@@ -894,6 +894,59 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 }
 
 fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
+    // RFC-0016 sugar: `while let PATTERN = EXPR { BODY }` desugars to
+    // `loop { match EXPR { PATTERN => { BODY }, _ => break } }`.
+    // For v0.1.16: implement as a while-true with an embedded match
+    // that breaks on wildcard arm.
+    if pk(tokens, pos) == 11 {
+        let mut ip: i64 = pos + 1;
+        let mut ename: str = "";
+        let mut vname: str = "";
+        let mut binding: str = "";
+        let pat_tt: i64 = pk(tokens, ip);
+        if pat_tt == 1 && (str_eq(pkv(tokens, ip), "Some") == 1 || str_eq(pkv(tokens, ip), "None") == 1 || str_eq(pkv(tokens, ip), "Ok") == 1 || str_eq(pkv(tokens, ip), "Err") == 1) {
+            vname = pkv(tokens, ip);
+            if str_eq(vname, "Ok") == 1 || str_eq(vname, "Err") == 1 { ename = "Result"; }
+            else { ename = "Option"; };
+            ip = ip + 1;
+            if pk(tokens, ip) == 50 {
+                ip = ip + 1;
+                if pk(tokens, ip) != 51 { binding = pkv(tokens, ip); ip = ip + 1; };
+                ip = expect_tok(tokens, ip, 51);
+            };
+        } else if pat_tt == 1 && pk(tokens, ip + 1) == 46 {
+            ename = pkv(tokens, ip);
+            ip = expect_tok(tokens, ip + 1, 46);
+            vname = pkv(tokens, ip); ip = ip + 1;
+            if pk(tokens, ip) == 50 {
+                ip = ip + 1;
+                if pk(tokens, ip) != 51 { binding = pkv(tokens, ip); ip = ip + 1; };
+                ip = expect_tok(tokens, ip, 51);
+            };
+        };
+        if str_len(ename) > 0 {
+            ip = expect_tok(tokens, ip, 40); // `=`
+            let mut sr: Vec<i32> = parse_expr(tokens, ip, pool);
+            let mut sp: i64 = expect_tok(tokens, pr_pos(sr), 52); // `{`
+            let mut br: Vec<i32> = parse_stmts(tokens, sp, pool);
+            sp = expect_tok(tokens, pr_pos(br), 53); // `}`
+            // Build break statement (node kind 26)
+            let break_stmt: i64 = mk2(pool, 26, 0);
+            let mut break_stmts: Vec<i32> = Vec::new();
+            break_stmts.push(break_stmt);
+            // Match arms: [PATTERN => body, _ => break]
+            let mut arms: Vec<i32> = Vec::new();
+            arms.push(mk6(pool, 39, ename, vname, binding, pr_val(br), 0));
+            arms.push(mk6(pool, 39, "__wild", "", "", mk_list(pool, break_stmts), 0));
+            let match_node: i64 = mk3(pool, 38, pr_val(sr), mk_list(pool, arms));
+            // Wrap match in a stmt list to be the loop body
+            let mut loop_body: Vec<i32> = Vec::new();
+            loop_body.push(mk2(pool, 25, match_node));
+            // True condition: literal 1
+            let true_node: i64 = mk2(pool, 1, 1);
+            return pr(sp, mk3(pool, 24, true_node, mk_list(pool, loop_body)));
+        };
+    };
     let mut cr: Vec<i32> = parse_expr(tokens, pos, pool);
     let mut cp: i64 = expect_tok(tokens, pr_pos(cr), 52);
     let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
