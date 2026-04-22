@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.61] — 2026-04-22
+
+**RFC-0016 phase 5 partial: MATCH-001 + MATCH-002 fired by typecker.**
+
+### Added — match diagnostic firing
+
+- **MATCH-001 — Non-exhaustive match.** `check_match_stmt` already
+  detected the case (arms < variants && no wildcard) and emitted the
+  legacy `TYP-001`. Now also emits `MATCH-001` with the same message
+  so `nuc explain MATCH-001` (already documented in v0.1.49) gets a
+  real firing source.
+- **MATCH-002 — Unreachable match arm.** New: any arm following a
+  `_` (wildcard) is unreachable since the wildcard already captures
+  every value. Reports `unreachable match arm after wildcard at arm
+  K of N`.
+
+```nucleor
+match x {
+    1 => { ... },
+    _ => { ... },
+    2 => { ... },   // warning[MATCH-002]: unreachable match arm
+};
+```
+
+Remaining MATCH-003..006 land alongside the full pattern typecker
+in v0.4 with RFC-0023 (`@`-bindings, slice patterns, range
+patterns) — those need pattern-level type comparison and the
+`?`-Into machinery (deferred to v0.4 in v0.1.60).
+
+### Verify gate
+
+158/158 green on Windows. New negative gate test:
+`tests/err/err_match_unreachable.nr`. Self-host LLVM IR fixed point
+preserved (v59==v60 byte-identical).
+
 ## [0.1.60] — 2026-04-22
 
 **`nuc fix --imports` migration tool + `From`/`Into` deferral.**
