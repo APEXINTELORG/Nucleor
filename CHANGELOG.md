@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.31] — 2026-04-22
+
+**RFC-0017 phase 3: BTreeMap + BTreeSet — ordered collections.**
+
+### Added — BTreeMap<str, i64>
+
+- Sorted-by-key associative map. Keys stored in sorted array;
+  iteration via `key_at(pos)` / `val_at(pos)` yields sorted order.
+- Operations:
+  - `btreemap_new()`, `btreemap_insert(m, k, v)`, `btreemap_get(m, k)`
+  - `btreemap_contains(m, k)`, `btreemap_remove(m, k)`
+  - `btreemap_len(m)`, `btreemap_key_at(m, i)`, `btreemap_val_at(m, i)`
+  - `btreemap_clear(m)`, `btreemap_free(m)`
+- Implementation: sorted array with binary search — O(log n) get,
+  O(n) insert with linear shift. Real B-tree (O(log n) insert) ships
+  in v0.4 RFC-0017 full impl. **API is shape-stable**, so user code
+  written today transitions cleanly.
+
+### Added — BTreeSet<str>
+
+- Implemented atop BTreeMap (value slot = 1). Ordered iteration via
+  `btreeset_at(pos)`.
+- Same API: `new/insert/contains/remove/len/at/clear/free`.
+
+### Why ordered
+
+- Determinism for replay debugging (per Robotics-RFC §5.6)
+- Range queries (when `.range()` lands)
+- Reproducible builds via deterministic iteration order
+- BTreeSet supports ordered set ops in upcoming union/intersection
+  impl
+
+### Verify gate
+
+126/126 green on Windows. Self-host LLVM IR fixed point preserved.
+New gate tests: `tests/lang/btreemap_basic.nr` (12 sub-cases including
+ordered iteration witness), `tests/lang/btreeset_basic.nr`.
+
 ## [0.1.30] — 2026-04-22
 
 **RFC-0017 phase 4: VecDeque + HashSet. RFC-0022 phase 2: POSIX `nuc` wrapper.**
