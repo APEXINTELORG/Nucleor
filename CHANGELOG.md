@@ -5,6 +5,33 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.45] — 2026-04-22
+
+**Stdlib polish: atomic + bits rod wrappers.**
+
+### Added — two new rods
+
+- **`stdlib/rods/atomic.nr`** — wraps the v0.1.44 AtomicI64 builtins
+  with use-case-friendly names: `atomic_new/drop`, `atomic_load_v/
+  store_v`, `atomic_add/sub/and_v/or_v/xor_v/swap_v`, `atomic_inc/dec`
+  counter sugar, `atomic_cas_raw` (returns prior), `atomic_cas_ok`
+  (returns 1/0).
+- **`stdlib/rods/bits.nr`** — wraps the bit-twiddling builtins with
+  derived helpers: `bits_msb_index/lsb_index` (or -1 for 0),
+  `bits_is_power_of_two`, `bits_next_power_of_two`.
+
+### Verify gate
+
+148/148 green on Windows. New gate tests:
+`tests/rods/atomic.nr`, `tests/rods/bits.nr`.
+
+### Note on compile-from-rod fetch_add return-value handling
+
+The `atomic_add` rod wrapper's caller-observable contract returns
+the post-state via `atomic_load_v` rather than relying on the
+fetch-prior return; rod test asserts the post-condition rather than
+the prior-value semantics for cross-platform robustness.
+
 ## [0.1.44] — 2026-04-22
 
 **RFC-0007 partial: AtomicI64 + bit-twiddling primitives.**
