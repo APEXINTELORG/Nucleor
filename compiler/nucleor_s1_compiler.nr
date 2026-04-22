@@ -319,6 +319,11 @@ fn lex(src: str) -> Vec<i32> {
         else if c == 58 { tokens.push(tok_new(42, 0, p)); p = p + 1; }
         else if c == 59 { tokens.push(tok_new(43, 0, p)); p = p + 1; }
         else if c == 44 { tokens.push(tok_new(44, 0, p)); p = p + 1; }
+        else if c == 46 && p + 1 < slen && str_char_at(src, p + 1) == 46 && p + 2 < slen && str_char_at(src, p + 2) == 61 {
+            // ..= inclusive range
+            tokens.push(tok_new(96, 0, p));
+            p = p + 3;
+        }
         else if c == 46 && p + 1 < slen && str_char_at(src, p + 1) == 46 { tokens.push(tok_new(58, 0, p)); p = p + 2; }
         else if c == 46 { tokens.push(tok_new(45, 0, p)); p = p + 1; }
         else if c == 40 { tokens.push(tok_new(50, 0, p)); p = p + 1; }
@@ -1024,6 +1029,17 @@ fn parse_for_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
         cp = expect_tok(tokens, pr_pos(br), 53); // expect '}'
         return pr(cp, mk5(pool, 28, name, pr_val(sr), pr_val(er), pr_val(br)));
+    };
+    if pk(tokens, cp) == 96 {
+        // ..= inclusive: synthesize end+1 expression so existing exclusive
+        // for-loop codegen handles it. Wrap end in (end + 1).
+        let mut er: Vec<i32> = parse_expr(tokens, cp + 1, pool);
+        let one_node: i64 = mk2(pool, 1, 1);
+        let plus_node: i64 = mk4(pool, 4, 20, pr_val(er), one_node);
+        cp = expect_tok(tokens, pr_pos(er), 52);
+        let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
+        cp = expect_tok(tokens, pr_pos(br), 53);
+        return pr(cp, mk5(pool, 28, name, pr_val(sr), plus_node, pr_val(br)));
     };
     cp = expect_tok(tokens, cp, 52); // expect '{'
     let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
