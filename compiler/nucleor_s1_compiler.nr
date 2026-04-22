@@ -2360,6 +2360,15 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "msgpack_write_bool") { return "__nucleor_msgpack_write_bool"; };
     if str_eq(name, "msgpack_write_uint") { return "__nucleor_msgpack_write_uint"; };
     if str_eq(name, "msgpack_write_str") { return "__nucleor_msgpack_write_str"; };
+    // Hash + checksum
+    if str_eq(name, "crc32") { return "__nucleor_crc32"; };
+    if str_eq(name, "crc32_update") { return "__nucleor_crc32_update"; };
+    if str_eq(name, "sha256_hex") { return "__nucleor_sha256_hex"; };
+    // Base64
+    if str_eq(name, "base64_encode") { return "__nucleor_base64_encode"; };
+    if str_eq(name, "base64_decode") { return "__nucleor_base64_decode"; };
+    // UUID
+    if str_eq(name, "uuid_v4") { return "__nucleor_uuid_v4"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2415,6 +2424,10 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "fs_dirname") { return 1; };
     if str_eq(name, "fs_extension") { return 1; };
     if str_eq(name, "manifest_report") { return 1; };
+    if str_eq(name, "sha256_hex") { return 1; };
+    if str_eq(name, "base64_encode") { return 1; };
+    if str_eq(name, "base64_decode") { return 1; };
+    if str_eq(name, "uuid_v4") { return 1; };
     return 0;
 }
 fn is_ptr_arg(name: str, idx: i64) -> i64 {
@@ -2465,6 +2478,11 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "toml_get_int") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "toml_has") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "msgpack_write_str") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "crc32") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "crc32_update") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "sha256_hex") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "base64_encode") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "base64_decode") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_len") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_eq") { return 1; };
     if str_eq(name, "str_char_at") { if idx == 0 { return 1; }; return 0; };
@@ -3162,6 +3180,12 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_msgpack_write_bool(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_msgpack_write_uint(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_msgpack_write_str(i64, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_crc32(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_crc32_update(i64, ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_sha256_hex(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_base64_encode(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_base64_decode(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_uuid_v4()\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");
