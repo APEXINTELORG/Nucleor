@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] — 2026-04-22
+
+**RFC-0015 phase 6 closed: NUM-002 + NUM-005 fired by typecker.**
+
+### Added — NUM-002 firing (literal out of range)
+
+```nucleor
+let x: u8 = 300;   // warning[NUM-002]: numeric literal 300 out of range for declared type u8
+let y: i8 = 200;   // warning[NUM-002]: numeric literal 200 out of range for declared type i8
+let z: u8 = 100;   // OK
+```
+
+Fires from `type_check_stmt` kind 20 (let-with-explicit-type +
+integer literal init). Uses two's-complement signed range and
+`0..2^width` unsigned range from the type lattice (v0.1.62).
+
+### Added — NUM-005 firing (usize/isize mixed with explicit width)
+
+```nucleor
+fn get_size() -> usize { return 42; }
+fn main() -> i64 {
+    let len: u64 = get_size();   // warning[NUM-005]: usize/isize mixed with explicit-width type: u64 vs usize
+    return 0;
+}
+```
+
+Even when widths happen to match on the current target (usize=64
+on x86_64), this is a portability hazard — LP64 vs ILP32 splits
+will surface on cross-target builds. Warning only.
+
+### Tracker — RFC-0015 phase 6 milestone row flips to DONE
+
+Combined with NUM-003 (lossy `as` cast, v0.1.64) and NUM-001 (wired
+in v0.1.62, gated until stdlib audit), four of five NUM diagnostic
+codes now fire. NUM-004 (f8/f16/bf16 hardware-support warnings)
+doesn't apply on the current x86_64 target — staged for v0.4 with
+cross-target sysroots.
+
+### Verify gate
+
+159/159 green on Windows. Self-host LLVM IR fixed point preserved
+(v88==v89 byte-identical).
+
 ## [0.2.6] — 2026-04-22
 
 **RFC-0028 phase 1: format string builtins.**

@@ -5770,6 +5770,46 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
                     };
                 };
             };
+            // RFC-0015 phase 6: NUM-002 — integer literal out of range for
+            // declared type. Only fires for bare integer literal init
+            // (kind == 1) with an explicit narrow numeric type. The check
+            // uses two's-complement signed range / 0..2^width unsigned
+            // range. Fires as warning, not error, until the strict-mode
+            // flip in v0.4.
+            if str_len(tstr) > 0 && node_kind(pool, init) == 1 && type_is_int(tstr) == 1 {
+                let lit_v: i64 = node_field(pool, init, 1);
+                let w: i64 = type_width(tstr);
+                let s: i64 = type_signedness(tstr);
+                let mut out_of_range: i64 = 0;
+                if s == 1 && w < 64 {
+                    let max_v: i64 = i64_pow(2, w - 1) - 1;
+                    let min_v: i64 = 0 - i64_pow(2, w - 1);
+                    if lit_v > max_v || lit_v < min_v { out_of_range = 1; };
+                };
+                if s == 2 && w < 64 {
+                    let umax_v: i64 = i64_pow(2, w) - 1;
+                    if lit_v < 0 || lit_v > umax_v { out_of_range = 1; };
+                };
+                if s == 2 && w == 64 && lit_v < 0 {
+                    out_of_range = 1;
+                };
+                if out_of_range == 1 {
+                    let nloc: Vec<i32> = find_linecol_in_source(source, fn_name, vname);
+                    diag_add_ex(diags, "warning", "type", "NUM-002", str_concat("numeric literal ", str_concat(str_from_int(lit_v), str_concat(" out of range for declared type ", tstr))), fn_name, vec_get(nloc, 0), vec_get(nloc, 1), "");
+                };
+            };
+            // RFC-0015 phase 6: NUM-005 — usize/isize mixed with an
+            // explicit-width numeric type. Even when widths happen to
+            // match on the current target, this is a portability hazard
+            // (LP64 vs ILP32). Warning only.
+            if str_len(tstr) > 0 && type_is_numeric(tstr) == 1 && type_is_numeric(init_t) == 1 {
+                let lhs_is_size: i64 = if str_eq(type_base_name(tstr), "usize") == 1 || str_eq(type_base_name(tstr), "isize") == 1 { 1 } else { 0 };
+                let rhs_is_size: i64 = if str_eq(type_base_name(init_t), "usize") == 1 || str_eq(type_base_name(init_t), "isize") == 1 { 1 } else { 0 };
+                if lhs_is_size != rhs_is_size {
+                    let nloc2: Vec<i32> = find_linecol_in_source(source, fn_name, vname);
+                    diag_add_ex(diags, "warning", "type", "NUM-005", str_concat("usize/isize mixed with explicit-width type: ", str_concat(tstr, str_concat(" vs ", init_t))), fn_name, vec_get(nloc2, 0), vec_get(nloc2, 1), "");
+                };
+            };
         };
         if str_len(tstr) > 0 {
             if str_len(init_t) == 0 { tenv_set(env, vname, ""); }
