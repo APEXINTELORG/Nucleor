@@ -3244,6 +3244,169 @@ long long __nucleor_fs_copy_file(const char *from, const char *to) {
     return 1;
 }
 
+// --- v0.2.23: path utilities ---
+// Cross-platform string-level path helpers (no I/O — fs_canonicalize is the
+// I/O-touching version). All accept "/" or "\\" interchangeably; output uses
+// the OS-native separator on Windows ("\\") and "/" elsewhere.
+static inline int __nuc_is_sep(char c) { return c == '/' || c == '\\'; }
+#ifdef _WIN32
+static const char __NUC_SEP = '\\';
+#else
+static const char __NUC_SEP = '/';
+#endif
+
+long long __nucleor_path_separator(void) {
+    char *out = (char *)malloc(2);
+    out[0] = __NUC_SEP;
+    out[1] = 0;
+    return (long long)(intptr_t)out;
+}
+
+long long __nucleor_path_is_absolute(const char *path) {
+    if (!path || !*path) return 0;
+    if (__nuc_is_sep(path[0])) return 1;
+#ifdef _WIN32
+    // "C:\\..." or "C:/..." style drive-rooted paths
+    if (((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z'))
+        && path[1] == ':' && __nuc_is_sep(path[2])) return 1;
+#endif
+    return 0;
+}
+
+long long __nucleor_path_normalize(const char *path) {
+    if (!path) {
+        char *e = (char *)malloc(1); e[0] = 0;
+        return (long long)(intptr_t)e;
+    }
+    size_t L = strlen(path);
+    // Working buffer: components stack (pointers + lens into a copy).
+    char *copy = (char *)malloc(L + 1);
+    memcpy(copy, path, L + 1);
+    // Detect drive prefix on Windows so we don't strip it.
+    size_t drive_len = 0;
+#ifdef _WIN32
+    if (L >= 2 && ((copy[0] >= 'A' && copy[0] <= 'Z') || (copy[0] >= 'a' && copy[0] <= 'z')) && copy[1] == ':') {
+        drive_len = 2;
+    }
+#endif
+    int is_abs = (drive_len < L) && __nuc_is_sep(copy[drive_len]);
+
+    // Tokenize the rest by separators.
+    char **parts = (char **)malloc(sizeof(char *) * (L + 1));
+    int n = 0;
+    char *p = copy + drive_len + (is_abs ? 1 : 0);
+    while (*p) {
+        while (*p && __nuc_is_sep(*p)) p++;
+        if (!*p) break;
+        char *start = p;
+        while (*p && !__nuc_is_sep(*p)) p++;
+        // Null-terminate this segment in-place; advance past the separator
+        // *after* terminating, but DO NOT restore — the next iteration will
+        // skip the (now-zero) byte via the leading separator-skip loop.
+        if (*p) { *p = 0; p++; }
+        if (strcmp(start, ".") == 0) {
+            // skip
+        } else if (strcmp(start, "..") == 0) {
+            if (n > 0 && strcmp(parts[n - 1], "..") != 0) {
+                n--;
+            } else if (!is_abs) {
+                parts[n++] = start;
+            }
+        } else {
+            parts[n++] = start;
+        }
+    }
+    // Reassemble.
+    size_t out_cap = L + 4;
+    char *out = (char *)malloc(out_cap);
+    size_t off = 0;
+    if (drive_len > 0) {
+        memcpy(out + off, copy, drive_len);
+        off += drive_len;
+    }
+    if (is_abs) { out[off++] = __NUC_SEP; }
+    for (int i = 0; i < n; i++) {
+        if (i > 0) out[off++] = __NUC_SEP;
+        size_t pl = strlen(parts[i]);
+        memcpy(out + off, parts[i], pl);
+        off += pl;
+    }
+    if (off == 0) { out[off++] = '.'; }
+    out[off] = 0;
+    free(parts);
+    free(copy);
+    return (long long)(intptr_t)out;
+}
+
+long long __nucleor_path_with_extension(const char *path, const char *ext) {
+    if (!path) {
+        char *e = (char *)malloc(1); e[0] = 0;
+        return (long long)(intptr_t)e;
+    }
+    if (!ext) ext = "";
+    size_t L = strlen(path);
+    // Strip leading "." from caller-supplied ext for normalization
+    while (*ext == '.') ext++;
+    size_t el = strlen(ext);
+
+    // Find position of the last '.' that's after the last separator.
+    long dot_pos = -1;
+    for (long i = (long)L - 1; i >= 0; i--) {
+        if (__nuc_is_sep(path[i])) break;
+        if (path[i] == '.' && i > 0 && !__nuc_is_sep(path[i - 1])) {
+            dot_pos = i;
+            break;
+        }
+    }
+    size_t base_len = (dot_pos >= 0) ? (size_t)dot_pos : L;
+    size_t need = base_len + (el > 0 ? 1 + el : 0);
+    char *out = (char *)malloc(need + 1);
+    memcpy(out, path, base_len);
+    if (el > 0) {
+        out[base_len] = '.';
+        memcpy(out + base_len + 1, ext, el);
+    }
+    out[need] = 0;
+    return (long long)(intptr_t)out;
+}
+
+long long __nucleor_path_strip_extension(const char *path) {
+    return __nucleor_path_with_extension(path, "");
+}
+
+long long __nucleor_path_components(const char *path) {
+    NVec *out = __nucleor_vec_new();
+    if (!path) return (long long)(intptr_t)out;
+    size_t L = strlen(path);
+    size_t drive_len = 0;
+#ifdef _WIN32
+    if (L >= 2 && ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) && path[1] == ':') {
+        drive_len = 2;
+        char *d = (char *)malloc(3);
+        d[0] = path[0]; d[1] = ':'; d[2] = 0;
+        __nucleor_vec_push(out, (long long)(intptr_t)d);
+    }
+#endif
+    if (drive_len < L && __nuc_is_sep(path[drive_len])) {
+        char *r = (char *)malloc(2);
+        r[0] = __NUC_SEP; r[1] = 0;
+        __nucleor_vec_push(out, (long long)(intptr_t)r);
+    }
+    const char *p = path + drive_len;
+    while (*p && __nuc_is_sep(*p)) p++;
+    while (*p) {
+        const char *start = p;
+        while (*p && !__nuc_is_sep(*p)) p++;
+        size_t pl = (size_t)(p - start);
+        char *piece = (char *)malloc(pl + 1);
+        memcpy(piece, start, pl);
+        piece[pl] = 0;
+        __nucleor_vec_push(out, (long long)(intptr_t)piece);
+        while (*p && __nuc_is_sep(*p)) p++;
+    }
+    return (long long)(intptr_t)out;
+}
+
 long long __nucleor_fs_canonicalize(const char *path) {
     if (!path) {
         char *out = (char *)malloc(1); out[0] = 0;

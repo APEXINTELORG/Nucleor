@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.23] — 2026-04-22
+
+**Path utilities (6 helpers).**
+
+```nucleor
+path_separator();                          // "\\"  on Windows, "/" on POSIX
+path_is_absolute("/foo/bar");              // 1
+path_is_absolute("C:/foo");                // 1   (Windows drive-rooted)
+path_is_absolute("foo/bar");               // 0
+
+path_normalize("a/b/../c");                // "a\\c"   (or "a/c" on POSIX)
+path_normalize("a/./b");                   // "a\\b"
+path_normalize(".");                       // "."
+
+path_with_extension("foo.txt", "md");      // "foo.md"
+path_with_extension("README", "md");       // "README.md"
+path_with_extension("foo.txt", ".log");    // "foo.log" (leading dot tolerated)
+
+path_strip_extension("foo.txt");           // "foo"
+
+let parts: Vec<str> = path_components("a/b/c.txt");  // ["a", "b", "c.txt"]
+```
+
+These are the **string-level** path helpers — pure transformations
+that don't touch the filesystem. The I/O-touching `fs_canonicalize`
+landed in v0.2.19; together they cover both the syntactic and
+filesystem-resolved sides of path manipulation.
+
+- **`path_separator`** returns the OS-native separator as a one-char
+  string. Useful for `path_join` callers that want to inspect or
+  print the convention without `#cfg(windows)`-style branching.
+- **`path_is_absolute`** treats both `/foo` (POSIX-style) and
+  `C:\foo` / `C:/foo` (Windows drive-rooted) as absolute on Windows;
+  POSIX builds only treat the leading `/` as absolute.
+- **`path_normalize`** collapses `.` and `..` components with the
+  usual semantics (consecutive `..` past root in absolute paths
+  is dropped; in relative paths it's preserved). Output uses the
+  OS-native separator. Empty result becomes `.`.
+- **`path_with_extension`** replaces the trailing extension or adds
+  one if missing. Caller may pass `"md"` or `".md"` — both work.
+  Pass `""` to strip.
+- **`path_strip_extension`** is the obvious shorthand
+  (`path_with_extension(p, "")`).
+- **`path_components`** splits a path into a `Vec<str>`. The leading
+  separator (and Windows drive prefix) come back as their own
+  one-character / two-character entries so the round-trip
+  `join(components(p))` preserves absoluteness.
+
+All six wired through both compiler binaries with the drift-gate
+sync. New entries cover `get_rt_name`, `is_ptr_ret`, `is_ptr_arg`,
+and the IR `declare` block.
+
+### Verify gate
+
+172/173 green on Windows + 1 skip. New gate: `tests/runtime/path_utils.nr`.
+Self-host LLVM IR fixed point preserved (v124==v125 byte-identical).
+
 ## [0.2.22] — 2026-04-22
 
 **Vec mutation + accessor extras (7 helpers).**
