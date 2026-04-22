@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.22] — 2026-04-22
+
+**RFC-0015 phase 5b: hex/oct/bin literals + typed-storage Vecs.**
+
+### Added — radix literals (RFC-0015 §3.6)
+
+- `0x...` / `0X...` — hexadecimal (case-insensitive digits)
+- `0o...` / `0O...` — octal
+- `0b...` / `0B...` — binary
+- All three accept `_` separators and integer type suffixes
+  (`0xFFu8`, `0b1111_1111u8`, etc.).
+- New gate test: `tests/lang/hex_oct_bin_literals.nr` (12 sub-cases).
+
+### Added — typed-storage Vec runtime
+
+- `Vec<u8>` semantics via `vec_u8_new/with_capacity/push/get/set/
+  len/capacity/clear/free/extend_from_ptr` — **1 byte per element**
+  instead of the i64 cells generic `Vec` uses.
+- `Vec<f32>` storage via `vec_f32_new/with_capacity/push_bits/
+  get_bits/len/free` — 4 bytes per element.
+- Solves the camera-frame / packet-buffer / MCAP-record memory
+  pressure problem from the RFC. Generic-enum monomorphization in
+  v0.4 RFC-0024 will auto-route `Vec<u8>` / `Vec<f32>` here.
+- New gate test: `tests/lang/typed_vec_storage.nr`.
+
+### Verify gate
+
+115/115 green on Windows. Self-host LLVM IR fixed point preserved.
+
 ## [0.1.21] — 2026-04-22
 
 **RFC-0015 phase 5: per-width print helpers + bin/hex.**

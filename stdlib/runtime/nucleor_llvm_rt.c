@@ -841,6 +841,136 @@ long long __nucleor_print_bin(long long v) {
     return 0;
 }
 
+// === RFC-0015 phase 5b: typed-storage byte buffers ===
+// `Vec<u8>` semantics: 1 byte per element instead of the 8-byte cells
+// that NVec uses. This is the *honest* storage for byte buffers (camera
+// frames, network packets, MCAP records, etc.). Users opt in via the
+// vec_u8_* API. Generic-enum monomorphization in v0.4 RFC-0024 will
+// auto-route Vec<u8> to this path.
+typedef struct { unsigned char *data; long long len; long long cap; } NVecU8;
+
+long long __nucleor_vec_u8_new(void) {
+    NVecU8 *v = (NVecU8 *)malloc(sizeof(NVecU8));
+    v->data = (unsigned char *)malloc(64);
+    v->len = 0;
+    v->cap = 64;
+    return (long long)(intptr_t)v;
+}
+long long __nucleor_vec_u8_with_capacity(long long n) {
+    NVecU8 *v = (NVecU8 *)malloc(sizeof(NVecU8));
+    if (n < 1) n = 1;
+    v->data = (unsigned char *)malloc((size_t)n);
+    v->len = 0;
+    v->cap = n;
+    return (long long)(intptr_t)v;
+}
+long long __nucleor_vec_u8_push(long long h, long long x) {
+    NVecU8 *v = (NVecU8 *)(intptr_t)h;
+    if (!v) return 0;
+    if (v->len >= v->cap) {
+        v->cap *= 2;
+        v->data = (unsigned char *)realloc(v->data, (size_t)v->cap);
+    }
+    v->data[v->len++] = (unsigned char)(x & 0xFFLL);
+    return 0;
+}
+long long __nucleor_vec_u8_get(long long h, long long i) {
+    NVecU8 *v = (NVecU8 *)(intptr_t)h;
+    if (!v || i < 0 || i >= v->len) return 0;
+    return (long long)v->data[i];
+}
+long long __nucleor_vec_u8_set(long long h, long long i, long long x) {
+    NVecU8 *v = (NVecU8 *)(intptr_t)h;
+    if (!v || i < 0 || i >= v->len) return 0;
+    v->data[i] = (unsigned char)(x & 0xFFLL);
+    return 0;
+}
+long long __nucleor_vec_u8_len(long long h) {
+    NVecU8 *v = (NVecU8 *)(intptr_t)h;
+    if (!v) return 0;
+    return v->len;
+}
+long long __nucleor_vec_u8_capacity(long long h) {
+    NVecU8 *v = (NVecU8 *)(intptr_t)h;
+    if (!v) return 0;
+    return v->cap;
+}
+long long __nucleor_vec_u8_clear(long long h) {
+    NVecU8 *v = (NVecU8 *)(intptr_t)h;
+    if (!v) return 0;
+    v->len = 0;
+    return 0;
+}
+long long __nucleor_vec_u8_free(long long h) {
+    NVecU8 *v = (NVecU8 *)(intptr_t)h;
+    if (!v) return 0;
+    free(v->data);
+    free(v);
+    return 0;
+}
+// Bulk copy from C-style buffer — useful for IO.
+long long __nucleor_vec_u8_extend_from_ptr(long long h, const unsigned char *src, long long n) {
+    NVecU8 *v = (NVecU8 *)(intptr_t)h;
+    if (!v || !src || n <= 0) return 0;
+    while (v->len + n > v->cap) {
+        v->cap *= 2;
+        v->data = (unsigned char *)realloc(v->data, (size_t)v->cap);
+    }
+    memcpy(v->data + v->len, src, (size_t)n);
+    v->len += n;
+    return 0;
+}
+
+// === Vec<f32> typed storage ===
+typedef struct { float *data; long long len; long long cap; } NVecF32;
+long long __nucleor_vec_f32_new(void) {
+    NVecF32 *v = (NVecF32 *)malloc(sizeof(NVecF32));
+    v->data = (float *)malloc(64 * sizeof(float));
+    v->len = 0;
+    v->cap = 64;
+    return (long long)(intptr_t)v;
+}
+long long __nucleor_vec_f32_with_capacity(long long n) {
+    NVecF32 *v = (NVecF32 *)malloc(sizeof(NVecF32));
+    if (n < 1) n = 1;
+    v->data = (float *)malloc((size_t)n * sizeof(float));
+    v->len = 0;
+    v->cap = n;
+    return (long long)(intptr_t)v;
+}
+// Push takes f32 bit-pattern in low 32 bits (caller responsible for conv).
+long long __nucleor_vec_f32_push_bits(long long h, long long bits) {
+    NVecF32 *v = (NVecF32 *)(intptr_t)h;
+    if (!v) return 0;
+    if (v->len >= v->cap) {
+        v->cap *= 2;
+        v->data = (float *)realloc(v->data, (size_t)v->cap * sizeof(float));
+    }
+    union { unsigned int u; float f; } cv;
+    cv.u = (unsigned int)(bits & 0xFFFFFFFFLL);
+    v->data[v->len++] = cv.f;
+    return 0;
+}
+long long __nucleor_vec_f32_get_bits(long long h, long long i) {
+    NVecF32 *v = (NVecF32 *)(intptr_t)h;
+    if (!v || i < 0 || i >= v->len) return 0;
+    union { unsigned int u; float f; } cv;
+    cv.f = v->data[i];
+    return (long long)cv.u;
+}
+long long __nucleor_vec_f32_len(long long h) {
+    NVecF32 *v = (NVecF32 *)(intptr_t)h;
+    if (!v) return 0;
+    return v->len;
+}
+long long __nucleor_vec_f32_free(long long h) {
+    NVecF32 *v = (NVecF32 *)(intptr_t)h;
+    if (!v) return 0;
+    free(v->data);
+    free(v);
+    return 0;
+}
+
 // === RNG ===
 // Pull in rng_rt.c so nuc_rng_* symbols are available without a separate
 // link step. The compiler emits __nucleor_rng_seed/etc. which forward to
