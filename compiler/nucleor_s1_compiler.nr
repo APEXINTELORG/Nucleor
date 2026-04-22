@@ -2322,6 +2322,9 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "toml_get_str") { return "__nucleor_toml_get_str"; };
     if str_eq(name, "toml_get_int") { return "__nucleor_toml_get_int"; };
     if str_eq(name, "toml_has") { return "__nucleor_toml_has"; };
+    // RFC-0019 phase 1: manifest validation
+    if str_eq(name, "manifest_validate") { return "__nucleor_manifest_validate"; };
+    if str_eq(name, "manifest_report") { return "__nucleor_manifest_report"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2376,6 +2379,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "fs_basename") { return 1; };
     if str_eq(name, "fs_dirname") { return 1; };
     if str_eq(name, "fs_extension") { return 1; };
+    if str_eq(name, "manifest_report") { return 1; };
     return 0;
 }
 fn is_ptr_arg(name: str, idx: i64) -> i64 {
@@ -3102,6 +3106,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_toml_get_str(i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_toml_get_int(i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_toml_has(i64, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_manifest_validate(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_manifest_report(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");
