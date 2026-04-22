@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.40] — 2026-04-22
+
+**RFC-0023 partial: `..=` inclusive range in `for` loops.**
+
+### Added
+
+- **`..=` inclusive range token** lexed (token 96).
+- `for x in 0..=N { ... }` desugars to `for x in 0..(N+1) { ... }`,
+  reusing existing exclusive-range codegen with the end+1 transformation.
+- New gate test: `tests/lang/inclusive_range.nr` (3 sub-cases:
+  exclusive vs inclusive sum, count, factorial via `1..=10`).
+
+### Why
+
+Rust-style inclusive ranges are an ergonomic table-stake. They
+unblock idiomatic `for i in 0..=255 { ... }` patterns common in
+embedded code and bytewise scans. Range patterns in `match` arms
+(also `..=`) ship with full RFC-0023 in v0.4.
+
+### Verify gate
+
+141/141 green on Windows. Self-host LLVM IR fixed point preserved.
+
 ## [0.1.39] — 2026-04-22
 
 **RFC-0019 phase 1 ★ canonical `nuc.toml` + manifest validator.**
