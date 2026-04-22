@@ -5,6 +5,139 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] — 2026-04-22
+
+Top-to-bottom audit + cleanup + 38 new rod wrappers. Triggered by a full
+audit that uncovered: most CLI subcommands were dead because the tools
+binary was never shipped; a large pile of orphan source files; and
+~50 runtime `.c` files with no `.nr` wrapper, representing ~3000+ runtime
+functions of latent functionality. v0.1.5 fixes all of it.
+
+### Fixed — CLI surface
+
+- **`bin/nucleor_tools.exe` shipped.** The compiler delegates 25+
+  subcommands to it; previously it was missing, so `nuc test`,
+  `nuc check`, `nuc audit`, `nuc bench`, `nuc summary`, `nuc query`,
+  `nuc abi`, `nuc bootstrap`, `nuc explain`, `nuc evidence`, `nuc impact`,
+  `nuc graph`, `nuc lock`, `nuc registry`, `nuc sage`, `nuc profile`,
+  `nuc certify`, `nuc translate`, `nuc policy`, and others all failed
+  with "nucleor_tools.exe is not recognized."  After the fix: 37 of 46
+  CLI invocations work (was 11 of 46).
+- **`getcwd` and `getenv` builtins** were referenced by the compiler but
+  had no IR declaration and no runtime implementation. Any program that
+  called either emitted invalid LLVM IR. **Fixed** in
+  `nucleor_llvm_rt.c` (~22 lines) + `nucleor_s1_compiler.nr` (4 lines).
+  This is what made building the tools binary possible in the first place.
+- **Self-host rebuild** was run with the patches and the new
+  `bin/nucleor.exe` ships those builtins.
+
+### Added — 38 new rod wrappers
+
+Drawn from runtime files that already shipped in `stdlib/runtime/` but
+had no `.nr` wrapper. Total rod count: **65 → 103**.
+
+**Numerics & validated computation:**
+- `taylor.nr` — validated Taylor-arithmetic ODE integrator for the
+  Boussinesq / Navier-Stokes class. Rigorous error bounds.
+- `interval.nr` — interval arithmetic with guaranteed containment of
+  the true result. Foundation for computer-assisted proofs.
+- `bigint.nr` — arbitrary-precision integer arithmetic + modular exp.
+- `bayesian.nr` — Metropolis MCMC, credible intervals, chain summaries.
+
+**Data structures + indexing:**
+- `hashmap.nr` — string-keyed hash map (major gap closed).
+- `bloom.nr` — Bloom filter + HyperLogLog cardinality estimation.
+- `bm25.nr` — BM25 search index.
+- `kdtree.nr` — k-d tree spatial index (nearest + range search).
+- `hnsw.nr` — HNSW approximate nearest neighbor.
+- `pq.nr` — product quantization for compressed vector search.
+- `embedding.nr` — vector embedding tables (lookup / cosine / nearest).
+- `string_algo.nr` — KMP search, Levenshtein, Trie.
+- `state_machine.nr` — finite-state machines with on-enter/on-exit hooks.
+- `graph.nr` — BFS, DFS, Dijkstra, Bellman-Ford, topological sort,
+  connected components, Kruskal MST, PageRank.
+
+**Systems / I/O:**
+- `socket.nr` — TCP connect/listen/accept/send/recv + UDP open/send/recv.
+- `mmap.nr` — memory-mapped files + POSIX shared memory.
+- `serial.nr` — serial port I/O.
+- `crypto.nr` — cryptographically-secure random bytes.
+- `compress.nr` — LZ77 lossless compression.
+- `datetime.nr` — date/time arithmetic, ISO parse, day-of-week.
+- `image.nr` — RGBA images, PPM/BMP I/O, greyscale, resize, convolution.
+- `plot.nr` — SVG line / scatter / heatmap plots.
+- `audio.nr` — WAV I/O, STFT, MFCC.
+- `color.nr` — RGB / HSV / Lab conversions, Delta E, palette generation.
+- `mesh.nr` — 2D rectangular finite-element meshes + Laplacian assembly +
+  VTK output.
+
+**Modern ML / LLM infrastructure:**
+- `kv_cache.nr` — paged KV cache for transformer inference, with eviction.
+- `quantize.nr` — Q4 / int8 / ternary / FP8 weight quantization + GEMV.
+- `rl.nr` — replay buffer, discount returns, GAE, PPO loss, DQN target,
+  epsilon-greedy.
+- `loss.nr` — cross-entropy (+ grad), label-smoothed CE, KL, MSE, Huber,
+  focal, InfoNCE, cosine similarity matrix.
+- `speculative.nr` — speculative decoding tree construction, verification,
+  sampling.
+- `diffusion.nr` — DDPM / rectified flow schedules, reverse step, AdaLN,
+  CFG, time embeddings.
+- `conv.nr` — Conv2D forward/backward, MaxPool/AvgPool, BatchNorm,
+  Dropout (CNN building blocks).
+- `scan.nr` — prefix-sum / prefix-prod / prefix-max / segmented sum /
+  cumulative logsumexp / SSM scan kernels.
+- `checkpoint.nr` — gradient-recomputation checkpointing.
+- `comm.nr` — distributed-training collective communication primitives
+  (allreduce / broadcast / reduce-scatter / all-gather / gradient
+  accumulation buffers).
+
+**Quantum:**
+- `clifford.nr` — stabilizer formalism for quantum error correction
+  (Clifford gates, measurement, error detection, distance computation,
+  GNN-style state features).
+- `mps.nr` — Matrix Product States efficient quantum simulation.
+
+**Bioinformatics:**
+- `bioseq.nr` — GC content, Needleman-Wunsch alignment, Hamming, k-mer
+  count, ORF finding.
+
+### Removed — dead code purge
+
+- **72 orphan `stdlib/*.nr` files** (~655 KB). All pre-self-host
+  compiler prototypes, dead checker variants, dead infrastructure
+  scaffolding (`lexer_core.nr`, `lexer_minimal.nr`, `real_lexer.nr`,
+  `nucleor_compiler.nr`, `stage1_compiler.nr`, `nucleor_stage0.nr`,
+  `borrow_check.nr`, `borrow_checker.nr`, etc.). None imported by
+  anything; carryover from the v0.1.0 Archive merge.
+- **4 orphan runtime `.c` files**:
+  - `gpu_fallback.c` — no caller
+  - `optimizer2_rt.c` — superseded by `optim_rt.c`
+  - `regex_rt.c` — superseded by Rust regex via `rust_bridge`
+  - `json_rt.c` — superseded by pure-Nucleor `json.nr`
+
+### Changed — documentation
+
+- `docs/language-reference.md` updated to reflect what's actually in the
+  language. The previous (v0.1.4) reference listed `for` loops,
+  `break`/`continue`, block comments, generics, and traits as
+  unimplemented. They are all in fact implemented; the audit confirmed
+  each works end-to-end.
+- `README.md` rod count bumped 65 → 103. New rods listed by category.
+
+### Audit reports preserved
+
+- `Desktop/Nucleor_Audit_2026-04-22.md` — full audit findings
+- `Desktop/Nucleor_v015_Plan_2026-04-22.md` — execution plan that drove
+  this release
+
+### Verify gate
+
+38/38 pass (unchanged). Self-host loop still closes with the rebuilt
+`bin/nucleor.exe`. All 38 new rods build clean against the bootstrap
+binary.
+
+---
+
 ## [0.1.4] — 2026-04-22
 
 Showcase programs now write CSV data alongside the live visualization.

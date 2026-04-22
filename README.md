@@ -69,7 +69,9 @@ POSIX (Linux/macOS) support is planned for v1.1.
 
 **Interop:** `rust` (Rust crates via C ABI) · `python` · `gpu`
 
-That's **65 rods total** in v0.1.1, all building cleanly against the bootstrap binary.
+That's **103 rods total** as of v0.1.5, all building cleanly against the bootstrap binary.
+
+**v0.1.5 added** (rods that wrap runtime files which already shipped but had no `.nr` wrapper): `taylor` (validated Taylor-arithmetic ODE integrator), `interval` (rigorous interval arithmetic), `bigint`, `crypto`, `compress`, `hashmap`, `socket` (TCP + UDP), `image` (PPM/BMP, convolutions), `plot` (SVG output), `datetime`, `mmap`, `state_machine`, `graph` (BFS/DFS/Dijkstra/Bellman-Ford/MST/PageRank), `bayesian` (MCMC), `bloom` + HyperLogLog, `bm25`, `kdtree`, `hnsw`, `pq` (product quantization), `embedding`, `clifford` (stabilizer formalism for QEC), `mesh` (finite-element rectangular meshes), `mps` (Matrix Product States), `kv_cache`, `quantize` (Q4/int8/ternary/FP8), `rl` (replay/GAE/PPO/DQN), `loss`, `speculative` (LLM speculative decoding), `diffusion`, `bioseq`, `audio` (WAV/STFT/MFCC), `color`, `serial`, `comm` (collective communication), `conv` (CNN building blocks), `string_algo` (KMP/Levenshtein/Trie), `scan` (parallel-scan/SSM kernels), `checkpoint`.
 
 ## Tour by example
 
