@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.10] — 2026-04-22
+
+**Vec utility expansion: contains, index_of, sort, reverse, clone,
+clear, plus f64 reductions.**
+
+Ten new runtime helpers extending the v0.2.9 functional-helper set:
+
+```nucleor
+vec_contains_i64(v, 5);            // 1 if found, 0 if not
+vec_index_of_i64(v, 4);            // first index, or -1
+vec_reverse_i64(v);                // in-place, returns same vec
+vec_sort_i64(v);                   // qsort ascending, in-place
+vec_clone_i64(v);                  // deep copy
+vec_clear_i64(v);                  // len = 0 (capacity preserved)
+
+// f64 reductions (i64-bit-cell convention):
+vec_sum_f64(v);
+vec_min_f64(v);
+vec_max_f64(v);
+```
+
+Wired through both compiler binaries with the drift-gate sync. Pairs
+with the v0.2.9 functional helpers (map/filter/fold/each/sum/min/
+max for i64) to give the v0.2 stdlib a complete Vec collection
+surface — closure-free, function-pointer-driven.
+
+### Verify gate
+
+161/161 green on Windows. New gate test: `tests/runtime/vec_more.nr`.
+Self-host LLVM IR fixed point preserved (v94==v95 byte-identical).
+
 ## [0.2.9] — 2026-04-22
 
 **RFC-0024 phase 1: Vec<i64> functional helpers via function pointers.**
