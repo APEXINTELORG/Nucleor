@@ -8118,6 +8118,7 @@ fn print_help() -> i64 {
     print("  lock [manifest]        Write Nucleor.lock for local/workspace manifests");
     print("    --json               Output machine-readable lock status");
     print("  install [alias] <pkg>  Add a path or registry dependency and refresh Nucleor.lock");
+    print("  add | remove | update  Aliases for install (RFC-0019 phase 4 ergonomics)");
     print("  publish [manifest]     Copy a package into a local registry directory");
     print("    --registry <dir>     Registry root (default: .nucleor/registry)");
     print("  registry [subcmd]      List/search/inspect packages in a local registry");
@@ -8186,6 +8187,19 @@ fn main() -> i64 {
         return run_lock_command(argc);
     };
     if str_eq(cmd, "install") {
+        return run_install_command(argc);
+    };
+    // RFC-0019 phase 4: ergonomic aliases over `nuc install`. The full
+    // `nuc add` / `nuc remove` / `nuc update` semantics (resolver-driven
+    // version bumps + lock refresh) land with the v0.5 registry; today
+    // they share the install code path.
+    if str_eq(cmd, "add") {
+        return run_install_command(argc);
+    };
+    if str_eq(cmd, "remove") {
+        return run_install_command(argc);
+    };
+    if str_eq(cmd, "update") {
         return run_install_command(argc);
     };
     if str_eq(cmd, "publish") {
