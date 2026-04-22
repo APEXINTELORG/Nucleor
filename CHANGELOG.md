@@ -5,6 +5,25 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.43] — 2026-04-22
+
+**Stdlib polish: binary + digest rod wrappers.**
+
+### Added — two new rods
+
+- **`stdlib/rods/binary.nr`** — wraps the v0.1.41 byte-buffer +
+  endian + MessagePack builtins under `bin_*` and `mp_*` names.
+  Includes `bin_buf_new`, `bin_buf_byte`, `bin_buf_free` etc. as
+  convenience aliases.
+- **`stdlib/rods/digest.nr`** — wraps v0.1.42 hash + base64 + uuid
+  with descriptive names: `digest_sha256`, `digest_b64_encode/
+  decode`, `digest_uuid`, `digest_crc32`, `digest_crc32_continue`.
+
+### Verify gate
+
+145/145 green on Windows. New gate tests:
+`tests/rods/binary.nr`, `tests/rods/digest.nr`.
+
 ## [0.1.42] — 2026-04-22
 
 **Crypto / hash / id helpers: CRC32, SHA-256, Base64, UUID v4.**
