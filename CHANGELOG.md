@@ -5,6 +5,21 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.17] — 2026-04-22
+
+`loop {}` keyword (Rust-parity).
+
+### Added
+
+- **`loop { BODY }`** — infinite loop. Desugars to `while true { BODY }`.
+  Use `break` to exit, `continue` to skip iteration. Composes with all
+  existing control-flow patterns.
+- New gate test: `tests/lang/loop_kw.nr`.
+
+### Verify gate
+
+110/110 green on Windows.
+
 ## [0.1.16] — 2026-04-22
 
 RFC-0016: `while let` sugar.
