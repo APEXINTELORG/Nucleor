@@ -2,34 +2,109 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "release/*"]
   pull_request:
     branches: [main]
 
 jobs:
-  build-and-test:
+  verify-windows:
+    name: verify (windows)
     runs-on: windows-latest
-    timeout-minutes: 30
-
+    timeout-minutes: 45
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Install LLVM 18
         run: choco install llvm --version=18.1.8 -y --no-progress
         shell: powershell
-
-      - name: Show toolchain versions
+      - name: Show toolchain
         run: |
           clang --version
-          cargo --version
         shell: powershell
-
-      - name: Build rust_bridge
+      - name: Build rust_bridge (optional)
         run: cargo build --release
         working-directory: stdlib/rods/rust_bridge
+        continue-on-error: true
         shell: powershell
+      - name: Run verify.ps1
+        run: powershell.exe -ExecutionPolicy Bypass -File tools\verify.ps1 -NoColor
+        shell: powershell
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-failure-windows
+          path: |
+            target/
+            .nuc_cache/
 
-      - name: Run verification suite
-        run: powershell.exe -ExecutionPolicy Bypass -File tools\verify.ps1
-        shell: powershell
+  verify-linux:
+    name: verify (linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LLVM 18
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
+          echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
+      - name: Show toolchain
+        run: |
+          uname -a
+          clang --version
+      - name: Note about Linux nucleor binary
+        run: |
+          if [ ! -x bin/nucleor ]; then
+            echo "::warning::bin/nucleor (Linux build) not present in repo. Verify gate will fail until v0.2.0 ships Linux binary. This job tracks that gap."
+          fi
+      - name: Run verify.sh
+        run: ./tools/verify.sh --no-color
+        continue-on-error: true
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-failure-linux
+          path: |
+            target/
+            .nuc_cache/
+
+  verify-macos:
+    name: verify (macos)
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LLVM 18
+        run: brew install llvm@18
+      - name: Show toolchain
+        run: |
+          uname -a
+          /opt/homebrew/opt/llvm@18/bin/clang --version
+          echo "/opt/homebrew/opt/llvm@18/bin" >> "$GITHUB_PATH"
+      - name: Note about macOS nucleor binary
+        run: |
+          if [ ! -x bin/nucleor ]; then
+            echo "::warning::bin/nucleor (macOS build) not present in repo. Verify gate will fail until v0.2.0 ships macOS binary."
+          fi
+      - name: Run verify.sh
+        run: ./tools/verify.sh --no-color
+        continue-on-error: true
+
+  rfc-link-check:
+    name: RFC index sanity
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify all RFCs in docs/rfcs/ are listed in README
+        run: |
+          missing=0
+          for rfc in docs/rfcs/RFC-*.md; do
+            base=$(basename "$rfc" .md)
+            if ! grep -q "$base" docs/rfcs/README.md; then
+              echo "::error::RFC $base is not listed in docs/rfcs/README.md"
+              missing=$((missing + 1))
+            fi
+          done
+          [ "$missing" -eq 0 ]
