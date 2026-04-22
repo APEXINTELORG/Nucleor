@@ -2677,6 +2677,41 @@ long long __nucleor_hashmap_free(long long h) {
     return 0;
 }
 
+// --- v0.2.27: HashMap accessors ---
+long long __nucleor_hashmap_is_empty(long long h) {
+    NHashMap *m = (NHashMap *)(intptr_t)h;
+    if (!m) return 1;
+    return m->len == 0 ? 1 : 0;
+}
+long long __nucleor_hashmap_get_or(long long h, const char *key, long long fallback) {
+    if (!__nucleor_hashmap_contains(h, key)) return fallback;
+    return __nucleor_hashmap_get(h, key);
+}
+long long __nucleor_hashmap_merge(long long dst, long long src) {
+    NHashMap *d = (NHashMap *)(intptr_t)dst;
+    NHashMap *s = (NHashMap *)(intptr_t)src;
+    if (!d || !s) return 0;
+    long long i;
+    for (i = 0; i < s->cap; i++) {
+        if (s->slots[i].occupied) {
+            __nucleor_hashmap_insert(dst, s->slots[i].key, s->slots[i].val);
+        }
+    }
+    return s->len;
+}
+long long __nucleor_hashmap_clone(long long h) {
+    NHashMap *m = (NHashMap *)(intptr_t)h;
+    if (!m) return __nucleor_hashmap_new();
+    long long out = __nucleor_hashmap_with_capacity(m->len);
+    long long i;
+    for (i = 0; i < m->cap; i++) {
+        if (m->slots[i].occupied) {
+            __nucleor_hashmap_insert(out, m->slots[i].key, m->slots[i].val);
+        }
+    }
+    return out;
+}
+
 // === HashMap iteration (RFC-0017 stdlib enrichment) ===
 // hashmap_keys(h)   -> Vec<str>  : every occupied slot's key (newly strdup'd)
 // hashmap_values(h) -> Vec<i64>  : every occupied slot's value (in same order

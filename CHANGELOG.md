@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.27] — 2026-04-22
+
+**HashMap accessor + bulk-op extras (4 helpers).**
+
+```nucleor
+let m: i64 = hashmap_new();
+hashmap_insert(m, "alpha", 1);
+hashmap_insert(m, "beta", 2);
+
+// Existence + defaulted lookup
+hashmap_is_empty(m);                       // 0
+hashmap_get_or(m, "alpha", -1);            // 1
+hashmap_get_or(m, "missing", -1);          // -1   (no false negatives vs hashmap_get)
+
+// Bulk ops
+let other: i64 = hashmap_new();
+hashmap_insert(other, "delta", 4);
+hashmap_insert(other, "alpha", 100);       // collides
+hashmap_merge(m, other);                   // returns 2 (entries copied)
+hashmap_get(m, "alpha");                   // 100   (overwrite semantics)
+
+let cl: i64 = hashmap_clone(m);            // deep copy; mutations isolated
+```
+
+Closes the gap between the v0.1 mutating HashMap surface
+(`new / with_capacity / insert / get / contains / remove / len /
+capacity / clear / free / keys / values`) and the higher-level
+operations programs actually want.
+
+- **`hashmap_is_empty`** is `len == 0` as a one-liner — clearer
+  than reading the comparison at every call site.
+- **`hashmap_get_or`** distinguishes "key missing" from "key set to
+  zero". `hashmap_get` returns `0` for both (which the v0.1 docs
+  acknowledge); `hashmap_get_or(m, k, default)` returns `default`
+  on miss, the actual value on hit.
+- **`hashmap_merge(dst, src)`** copies every entry of `src` into
+  `dst`. Existing keys in `dst` are overwritten (last-write-wins).
+  Returns the count of source entries copied.
+- **`hashmap_clone`** is a fresh-allocation deep copy: keys are
+  re-`malloc`'d, values copied by-value. Mutations to the clone
+  don't propagate to the original. Pre-sizes via `with_capacity` to
+  avoid rehash during the populate.
+
+All four take `i64` (the hashmap handle) and return `i64`; only
+`hashmap_get_or` takes a `ptr` (the key string). Wired through
+both compiler binaries with the drift-gate sync.
+
+### Verify gate
+
+176/177 green on Windows + 1 skip. New gate: `tests/runtime/hashmap_extras.nr`
+(get_or hit/miss + merge overwrite + clone isolation).
+Self-host LLVM IR fixed point preserved (v136==v137 byte-identical).
+
 ## [0.2.26] — 2026-04-22
 
 **String padding + join + explode (6 helpers).**

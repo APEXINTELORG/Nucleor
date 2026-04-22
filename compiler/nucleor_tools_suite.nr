@@ -2262,6 +2262,10 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "hashmap_clear") { return "__nucleor_hashmap_clear"; };
     if str_eq(name, "hashmap_contains") { return "__nucleor_hashmap_contains"; };
     if str_eq(name, "hashmap_free") { return "__nucleor_hashmap_free"; };
+    if str_eq(name, "hashmap_is_empty") { return "__nucleor_hashmap_is_empty"; };
+    if str_eq(name, "hashmap_get_or") { return "__nucleor_hashmap_get_or"; };
+    if str_eq(name, "hashmap_merge") { return "__nucleor_hashmap_merge"; };
+    if str_eq(name, "hashmap_clone") { return "__nucleor_hashmap_clone"; };
     if str_eq(name, "hashmap_get") { return "__nucleor_hashmap_get"; };
     if str_eq(name, "hashmap_insert") { return "__nucleor_hashmap_insert"; };
     if str_eq(name, "hashmap_len") { return "__nucleor_hashmap_len"; };
@@ -2557,6 +2561,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "hashmap_insert") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "hashmap_get") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "hashmap_contains") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashmap_get_or") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "hashmap_remove") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "env_get") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "env_has") { if idx == 0 { return 1; }; return 0; };
@@ -3475,6 +3480,10 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_hashmap_capacity(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_clear(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_free(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashmap_is_empty(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashmap_get_or(i64, ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashmap_merge(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashmap_clone(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_len(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_remove(i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_with_capacity(i64)\n");
