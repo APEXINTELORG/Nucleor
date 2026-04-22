@@ -1915,6 +1915,209 @@ long long __nucleor_btreeset_at(long long h, long long pos) {
 long long __nucleor_btreeset_clear(long long h) { return __nucleor_btreemap_clear(h); }
 long long __nucleor_btreeset_free(long long h) { return __nucleor_btreemap_free(h); }
 
+// === RFC-0018/0019: File system primitives ===
+// Required by module resolver + package manager. POSIX + Win32 portable.
+#include <sys/stat.h>
+#include <sys/types.h>
+#ifdef _WIN32
+#include <direct.h>
+#include <io.h>
+typedef struct _stat64 NucStatBuf;
+static inline int nuc_stat_call(const char *p, NucStatBuf *s) { return _stat64(p, s); }
+#else
+#include <dirent.h>
+#include <unistd.h>
+typedef struct stat NucStatBuf;
+static inline int nuc_stat_call(const char *p, NucStatBuf *s) { return stat(p, s); }
+#endif
+
+long long __nucleor_fs_exists(const char *path) {
+    if (!path) return 0;
+    NucStatBuf st;
+    return nuc_stat_call(path, &st) == 0 ? 1 : 0;
+}
+long long __nucleor_fs_is_file(const char *path) {
+    if (!path) return 0;
+    NucStatBuf st;
+    if (nuc_stat_call(path, &st) != 0) return 0;
+#ifdef _WIN32
+    return (st.st_mode & _S_IFREG) ? 1 : 0;
+#else
+    return S_ISREG(st.st_mode) ? 1 : 0;
+#endif
+}
+long long __nucleor_fs_is_dir(const char *path) {
+    if (!path) return 0;
+    NucStatBuf st;
+    if (nuc_stat_call(path, &st) != 0) return 0;
+#ifdef _WIN32
+    return (st.st_mode & _S_IFDIR) ? 1 : 0;
+#else
+    return S_ISDIR(st.st_mode) ? 1 : 0;
+#endif
+}
+long long __nucleor_fs_size(const char *path) {
+    if (!path) return -1;
+    NucStatBuf st;
+    if (nuc_stat_call(path, &st) != 0) return -1;
+    return (long long)st.st_size;
+}
+long long __nucleor_fs_mtime(const char *path) {
+    if (!path) return 0;
+    NucStatBuf st;
+    if (nuc_stat_call(path, &st) != 0) return 0;
+    return (long long)st.st_mtime;
+}
+long long __nucleor_fs_create_dir(const char *path) {
+    if (!path) return -1;
+#ifdef _WIN32
+    return _mkdir(path);
+#else
+    return mkdir(path, 0755);
+#endif
+}
+long long __nucleor_fs_create_dir_all(const char *path) {
+    // Create all parent components. Mutates a copy of `path` in place.
+    if (!path) return -1;
+    char buf[4096];
+    size_t len = strlen(path);
+    if (len >= sizeof(buf)) return -1;
+    memcpy(buf, path, len + 1);
+    size_t i;
+    for (i = 1; i < len; i++) {
+        if (buf[i] == '/' || buf[i] == '\\') {
+            char saved = buf[i];
+            buf[i] = 0;
+            if (!__nucleor_fs_exists(buf)) {
+#ifdef _WIN32
+                _mkdir(buf);
+#else
+                mkdir(buf, 0755);
+#endif
+            }
+            buf[i] = saved;
+        }
+    }
+    if (!__nucleor_fs_exists(buf)) {
+#ifdef _WIN32
+        return _mkdir(buf);
+#else
+        return mkdir(buf, 0755);
+#endif
+    }
+    return 0;
+}
+long long __nucleor_fs_remove_file(const char *path) {
+    if (!path) return -1;
+    return remove(path);
+}
+long long __nucleor_fs_rename(const char *from, const char *to) {
+    if (!from || !to) return -1;
+    return rename(from, to);
+}
+
+// Directory listing — returns a NVec handle holding str entries.
+// Empty Vec on error or non-existent path.
+long long __nucleor_fs_list_dir(const char *path) {
+    NVec *v = __nucleor_vec_new();
+    if (!path) return (long long)(intptr_t)v;
+#ifdef _WIN32
+    char pattern[4096];
+    snprintf(pattern, sizeof(pattern), "%s\\*", path);
+    struct _finddata_t fd;
+    intptr_t hd = _findfirst(pattern, &fd);
+    if (hd == -1) return (long long)(intptr_t)v;
+    do {
+        if (strcmp(fd.name, ".") == 0 || strcmp(fd.name, "..") == 0) continue;
+        size_t nlen = strlen(fd.name);
+        char *copy = (char *)malloc(nlen + 1);
+        memcpy(copy, fd.name, nlen + 1);
+        __nucleor_vec_push(v, (long long)(intptr_t)copy);
+    } while (_findnext(hd, &fd) == 0);
+    _findclose(hd);
+#else
+    DIR *d = opendir(path);
+    if (!d) return (long long)(intptr_t)v;
+    struct dirent *e;
+    while ((e = readdir(d)) != NULL) {
+        if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0) continue;
+        size_t nlen = strlen(e->d_name);
+        char *copy = (char *)malloc(nlen + 1);
+        memcpy(copy, e->d_name, nlen + 1);
+        __nucleor_vec_push(v, (long long)(intptr_t)copy);
+    }
+    closedir(d);
+#endif
+    return (long long)(intptr_t)v;
+}
+
+// Path manipulation
+long long __nucleor_fs_join(const char *a, const char *b) {
+    if (!a) a = "";
+    if (!b) b = "";
+    size_t la = strlen(a), lb = strlen(b);
+    char *out = (char *)malloc(la + lb + 2);
+    memcpy(out, a, la);
+    if (la > 0 && a[la - 1] != '/' && a[la - 1] != '\\') {
+        out[la++] = '/';
+    }
+    memcpy(out + la, b, lb + 1);
+    return (long long)(intptr_t)out;
+}
+long long __nucleor_fs_basename(const char *path) {
+    if (!path) {
+        char *e = (char *)malloc(1); e[0] = 0; return (long long)(intptr_t)e;
+    }
+    size_t len = strlen(path);
+    long i;
+    for (i = (long)len - 1; i >= 0; i--) {
+        if (path[i] == '/' || path[i] == '\\') {
+            size_t blen = len - i - 1;
+            char *out = (char *)malloc(blen + 1);
+            memcpy(out, path + i + 1, blen + 1);
+            return (long long)(intptr_t)out;
+        }
+    }
+    char *out = (char *)malloc(len + 1);
+    memcpy(out, path, len + 1);
+    return (long long)(intptr_t)out;
+}
+long long __nucleor_fs_dirname(const char *path) {
+    if (!path) {
+        char *e = (char *)malloc(2); e[0] = '.'; e[1] = 0; return (long long)(intptr_t)e;
+    }
+    size_t len = strlen(path);
+    long i;
+    for (i = (long)len - 1; i >= 0; i--) {
+        if (path[i] == '/' || path[i] == '\\') {
+            char *out = (char *)malloc(i + 1);
+            memcpy(out, path, i);
+            out[i] = 0;
+            return (long long)(intptr_t)out;
+        }
+    }
+    char *out = (char *)malloc(2); out[0] = '.'; out[1] = 0;
+    return (long long)(intptr_t)out;
+}
+long long __nucleor_fs_extension(const char *path) {
+    if (!path) {
+        char *e = (char *)malloc(1); e[0] = 0; return (long long)(intptr_t)e;
+    }
+    size_t len = strlen(path);
+    long i;
+    for (i = (long)len - 1; i >= 0; i--) {
+        if (path[i] == '/' || path[i] == '\\') break;
+        if (path[i] == '.' && i > 0 && path[i - 1] != '/' && path[i - 1] != '\\') {
+            size_t elen = len - i - 1;
+            char *out = (char *)malloc(elen + 1);
+            memcpy(out, path + i + 1, elen + 1);
+            return (long long)(intptr_t)out;
+        }
+    }
+    char *out = (char *)malloc(1); out[0] = 0;
+    return (long long)(intptr_t)out;
+}
+
 // === RFC-0015 phase 6: bf16 / f16 / f8 software emulation ===
 // All packed in low N bits of i64 storage. Compute happens at f32 precision
 // via convert-up / convert-down round-trip.

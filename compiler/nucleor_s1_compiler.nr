@@ -2301,6 +2301,21 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "btreeset_at") { return "__nucleor_btreeset_at"; };
     if str_eq(name, "btreeset_clear") { return "__nucleor_btreeset_clear"; };
     if str_eq(name, "btreeset_free") { return "__nucleor_btreeset_free"; };
+    // RFC-0018/0019: File system primitives
+    if str_eq(name, "fs_exists") { return "__nucleor_fs_exists"; };
+    if str_eq(name, "fs_is_file") { return "__nucleor_fs_is_file"; };
+    if str_eq(name, "fs_is_dir") { return "__nucleor_fs_is_dir"; };
+    if str_eq(name, "fs_size") { return "__nucleor_fs_size"; };
+    if str_eq(name, "fs_mtime") { return "__nucleor_fs_mtime"; };
+    if str_eq(name, "fs_create_dir") { return "__nucleor_fs_create_dir"; };
+    if str_eq(name, "fs_create_dir_all") { return "__nucleor_fs_create_dir_all"; };
+    if str_eq(name, "fs_remove_file") { return "__nucleor_fs_remove_file"; };
+    if str_eq(name, "fs_rename") { return "__nucleor_fs_rename"; };
+    if str_eq(name, "fs_list_dir") { return "__nucleor_fs_list_dir"; };
+    if str_eq(name, "fs_join") { return "__nucleor_fs_join"; };
+    if str_eq(name, "fs_basename") { return "__nucleor_fs_basename"; };
+    if str_eq(name, "fs_dirname") { return "__nucleor_fs_dirname"; };
+    if str_eq(name, "fs_extension") { return "__nucleor_fs_extension"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2351,6 +2366,10 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "chr") { return 1; };
     if str_eq(name, "getcwd") { return 1; };
     if str_eq(name, "getenv") { return 1; };
+    if str_eq(name, "fs_join") { return 1; };
+    if str_eq(name, "fs_basename") { return 1; };
+    if str_eq(name, "fs_dirname") { return 1; };
+    if str_eq(name, "fs_extension") { return 1; };
     return 0;
 }
 fn is_ptr_arg(name: str, idx: i64) -> i64 {
@@ -2381,6 +2400,20 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "btreeset_insert") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "btreeset_contains") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "btreeset_remove") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "fs_exists") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_is_file") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_is_dir") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_size") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_mtime") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_create_dir") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_create_dir_all") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_remove_file") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_rename") { return 1; };
+    if str_eq(name, "fs_list_dir") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_join") { return 1; };
+    if str_eq(name, "fs_basename") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_dirname") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "fs_extension") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_len") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_eq") { return 1; };
     if str_eq(name, "str_char_at") { if idx == 0 { return 1; }; return 0; };
@@ -3039,6 +3072,20 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_btreeset_at(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_btreeset_clear(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_btreeset_free(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_exists(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_is_file(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_is_dir(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_size(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_mtime(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_create_dir(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_create_dir_all(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_remove_file(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_rename(ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_list_dir(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_join(ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_basename(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_dirname(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fs_extension(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");

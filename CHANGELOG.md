@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.32] — 2026-04-22
+
+**RFC-0018 / RFC-0019 prerequisite: file system primitives.**
+
+### Added — file system runtime
+
+Required by module resolver (RFC-0018) + package manager (RFC-0019).
+POSIX + Win32 portable.
+
+- **Existence + classification:**
+  - `fs_exists(path) -> bool` — true if path exists.
+  - `fs_is_file(path) -> bool` — regular file?
+  - `fs_is_dir(path) -> bool` — directory?
+- **Metadata:**
+  - `fs_size(path) -> i64` — bytes; -1 if missing.
+  - `fs_mtime(path) -> i64` — seconds since epoch.
+- **Mutation:**
+  - `fs_create_dir(path) -> i64` — single directory.
+  - `fs_create_dir_all(path) -> i64` — recursive (`mkdir -p`).
+  - `fs_remove_file(path) -> i64`
+  - `fs_rename(from, to) -> i64`
+- **Enumeration:**
+  - `fs_list_dir(path) -> Vec<str>` — entries excluding `.` and `..`.
+- **Path manipulation (returns owned C-strings):**
+  - `fs_join(a, b)` — joins with `/` separator.
+  - `fs_basename(path)` — final path component.
+  - `fs_dirname(path)` — parent path, or `.`.
+  - `fs_extension(path)` — extension without dot, or empty.
+
+### Verify gate
+
+127/127 green on Windows. Self-host LLVM IR fixed point preserved.
+New gate test: `tests/lang/fs_basics.nr` (~15 sub-cases including
+existence, classification, size, mtime, path ops, dir creation,
+listing).
+
 ## [0.1.31] — 2026-04-22
 
 **RFC-0017 phase 3: BTreeMap + BTreeSet — ordered collections.**
