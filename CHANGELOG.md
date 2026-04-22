@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] — 2026-04-22
+
+Negative-test suite ported from the V1 archive — verify gate goes from
+**38 to 67 steps**.
+
+### Added
+
+- **29 new negative tests** in `tests/err/` (was 3, now 32). Ported from
+  `Archive/Nucleor_Copy/examples/err_*.nr` — the historical V1 negative
+  suite the OSS distro never carried over. Coverage: borrow checker
+  (after-move, while-borrowed, shared-mut, deref-nonref, two-mut, etc.),
+  move semantics (basic, conditional, fn-call, while-borrowed),
+  mut-borrow rules, lifetimes (dangling-return, scope-escape), arena
+  scope, taint propagation, spawn/send, scope escape, undefined args.
+  All 32 trip the expected diagnostic and gate green.
+- **`tests/err/_unimplemented/`** — 18 negative tests for V1 features
+  that never landed in the self-hosted OSS compiler (`pure fn`,
+  `requires [effect]` clauses, `restricts [...]`, `unit<T, dim>`,
+  `Box<T>`, governance attrs). Kept as a punchlist with a README; not
+  gated. The verify gate enumerates `tests\err\*.nr` non-recursively, so
+  these don't block CI.
+
+### Notes on test patterns surveyed
+
+`Archive/Nucleor_Copy/examples/` was the only repo with a real `.nr`
+test corpus (49 negatives + 196 feature/smoke files). The Rust crates in
+`Nucleor_V2/crates/` have 254 `#[test]` markers but no `Cargo.toml` —
+vestigial code that never compiled, intentionally not shipped.
+Top-level `Nucleor_Copy/examples/` and `Nucleor_V2_Distro/examples/`
+contain only build artifacts.
+
 ## [0.1.6] — 2026-04-22
 
 JSON rod brought up to "what everyone uses": floating-point values and
