@@ -5,6 +5,22 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.13] — 2026-04-22
+
+RFC-0016 sugar: `if let` for enum patterns.
+
+### Added
+
+- **`if let PATTERN = EXPR { THEN } [else { ELSE }]`** desugars to
+  a single-arm match. Supported patterns: `EnumName::Variant`,
+  `EnumName::Variant(binding)`, plus the short forms
+  `Some/None/Ok/Err`.
+- New gate test: `tests/lang/if_let.nr`.
+
+### Verify gate
+
+105/105 green on Windows.
+
 ## [0.1.12] — 2026-04-22
 
 RFC-0016 partial: native enum `match` with payload extraction
