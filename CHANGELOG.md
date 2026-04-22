@@ -5,6 +5,26 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.20] — 2026-04-22
+
+**RFC-0015 phase 4: explicit-overflow arithmetic.**
+
+### Added — overflow-mode builtins (i64 width)
+
+- `wrapping_add(a, b)`, `wrapping_sub(a, b)`, `wrapping_mul(a, b)` —
+  always-defined two's-complement arithmetic.
+- `saturating_add(a, b)`, `saturating_sub(a, b)`, `saturating_mul(a, b)` —
+  clamp at i64::MAX / i64::MIN on overflow.
+- `checked_add(a, b)`, `checked_sub(a, b)`, `checked_mul(a, b)` —
+  return 0 on overflow; pair with `checked_overflow_flag()` to detect.
+  Per-call thread-unsafe global; full Option<T> ships in v0.4 RFC-0024
+  with generic enums.
+- New gate test: `tests/lang/overflow_modes.nr` (12 sub-cases).
+
+### Verify gate
+
+112/112 green on Windows. Self-host LLVM IR fixed point preserved.
+
 ## [0.1.19] — 2026-04-22
 
 **RFC-0015 phase 2: `as` cast operator + numeric type predicates.**

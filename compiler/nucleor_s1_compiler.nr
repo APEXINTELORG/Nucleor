@@ -2072,6 +2072,17 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "as_u64") { return "__nucleor_as_u64"; };
     if str_eq(name, "as_f32") { return "__nucleor_as_f32"; };
     if str_eq(name, "as_f64") { return "__nucleor_as_f64"; };
+    // RFC-0015 phase 4: overflow-mode arithmetic
+    if str_eq(name, "wrapping_add") { return "__nucleor_wrapping_add_i64"; };
+    if str_eq(name, "wrapping_sub") { return "__nucleor_wrapping_sub_i64"; };
+    if str_eq(name, "wrapping_mul") { return "__nucleor_wrapping_mul_i64"; };
+    if str_eq(name, "saturating_add") { return "__nucleor_saturating_add_i64"; };
+    if str_eq(name, "saturating_sub") { return "__nucleor_saturating_sub_i64"; };
+    if str_eq(name, "saturating_mul") { return "__nucleor_saturating_mul_i64"; };
+    if str_eq(name, "checked_add") { return "__nucleor_checked_add_i64"; };
+    if str_eq(name, "checked_sub") { return "__nucleor_checked_sub_i64"; };
+    if str_eq(name, "checked_mul") { return "__nucleor_checked_mul_i64"; };
+    if str_eq(name, "checked_overflow_flag") { return "__nucleor_checked_overflow_flag"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2616,6 +2627,16 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_as_u64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_as_f32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_as_f64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_wrapping_add_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_wrapping_sub_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_wrapping_mul_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_saturating_add_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_saturating_sub_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_saturating_mul_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_checked_add_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_checked_sub_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_checked_mul_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_checked_overflow_flag()\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");

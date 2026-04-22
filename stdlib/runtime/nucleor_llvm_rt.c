@@ -730,6 +730,76 @@ long long __nucleor_as_f32(long long v) {
     return v;
 }
 
+// === RFC-0015 phase 4: overflow-mode arithmetic (i64 width) ===
+// wrapping_* — two's-complement wraparound (always defined behavior)
+// checked_* — Option<T>; we encode as a packed i64 [is_some:32 | value:32]
+//             For full precision: phase 5 ships proper Option<T> values.
+//             For now: returns 0 if overflow, the result if not, with the
+//             caller using a separate helper to check.
+// saturating_* — clamp at i64::MAX or i64::MIN
+
+#include <limits.h>
+
+long long __nucleor_wrapping_add_i64(long long a, long long b) {
+    return (long long)((unsigned long long)a + (unsigned long long)b);
+}
+long long __nucleor_wrapping_sub_i64(long long a, long long b) {
+    return (long long)((unsigned long long)a - (unsigned long long)b);
+}
+long long __nucleor_wrapping_mul_i64(long long a, long long b) {
+    return (long long)((unsigned long long)a * (unsigned long long)b);
+}
+
+long long __nucleor_saturating_add_i64(long long a, long long b) {
+    if (b > 0 && a > LLONG_MAX - b) return LLONG_MAX;
+    if (b < 0 && a < LLONG_MIN - b) return LLONG_MIN;
+    return a + b;
+}
+long long __nucleor_saturating_sub_i64(long long a, long long b) {
+    if (b < 0 && a > LLONG_MAX + b) return LLONG_MAX;
+    if (b > 0 && a < LLONG_MIN + b) return LLONG_MIN;
+    return a - b;
+}
+long long __nucleor_saturating_mul_i64(long long a, long long b) {
+    if (a == 0 || b == 0) return 0;
+    long long r = a * b;
+    if (a != r / b) {
+        // overflow occurred
+        if ((a < 0) ^ (b < 0)) return LLONG_MIN;
+        return LLONG_MAX;
+    }
+    return r;
+}
+
+// checked_* — returns 1 (success) into out via callback pattern.
+// Real implementation depends on Option<T> support; for now use 64-bit
+// flag values: returns the result, with a separate `last_overflow`
+// global checked via __nucleor_checked_overflow_flag().
+static int __nucleor_overflow_flag = 0;
+
+long long __nucleor_checked_add_i64(long long a, long long b) {
+    __nucleor_overflow_flag = 0;
+    if (b > 0 && a > LLONG_MAX - b) { __nucleor_overflow_flag = 1; return 0; }
+    if (b < 0 && a < LLONG_MIN - b) { __nucleor_overflow_flag = 1; return 0; }
+    return a + b;
+}
+long long __nucleor_checked_sub_i64(long long a, long long b) {
+    __nucleor_overflow_flag = 0;
+    if (b < 0 && a > LLONG_MAX + b) { __nucleor_overflow_flag = 1; return 0; }
+    if (b > 0 && a < LLONG_MIN + b) { __nucleor_overflow_flag = 1; return 0; }
+    return a - b;
+}
+long long __nucleor_checked_mul_i64(long long a, long long b) {
+    __nucleor_overflow_flag = 0;
+    if (a == 0 || b == 0) return 0;
+    long long r = a * b;
+    if (a != r / b) { __nucleor_overflow_flag = 1; return 0; }
+    return r;
+}
+long long __nucleor_checked_overflow_flag(void) {
+    return __nucleor_overflow_flag;
+}
+
 // === RNG ===
 // Pull in rng_rt.c so nuc_rng_* symbols are available without a separate
 // link step. The compiler emits __nucleor_rng_seed/etc. which forward to
