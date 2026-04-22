@@ -2649,6 +2649,138 @@ long long __nucleor_uuid_v4(void) {
     return (long long)(intptr_t)out;
 }
 
+// === RFC-0007 partial: AtomicI64 — i64-cell atomic operations ===
+// Backed by Win32 Interlocked* (msvc) or C11 stdatomic (POSIX).
+// All ops use seq_cst ordering; relaxed/acquire/release variants
+// land with full RFC-0007 in v0.5.
+//
+// Storage: malloc'd long long*. Handle is the pointer.
+#ifdef _WIN32
+#define NUC_AT_LOAD(p) ((long long)InterlockedCompareExchange64((LONG64 volatile*)(p), 0, 0))
+#define NUC_AT_STORE(p, v) ((void)InterlockedExchange64((LONG64 volatile*)(p), (LONG64)(v)))
+#define NUC_AT_ADD(p, v) ((long long)InterlockedExchangeAdd64((LONG64 volatile*)(p), (LONG64)(v)))
+#define NUC_AT_SUB(p, v) ((long long)InterlockedExchangeAdd64((LONG64 volatile*)(p), -(LONG64)(v)))
+#define NUC_AT_CAS(p, e, d) ((long long)InterlockedCompareExchange64((LONG64 volatile*)(p), (LONG64)(d), (LONG64)(e)))
+#define NUC_AT_AND(p, v) ((long long)InterlockedAnd64((LONG64 volatile*)(p), (LONG64)(v)))
+#define NUC_AT_OR(p, v)  ((long long)InterlockedOr64((LONG64 volatile*)(p), (LONG64)(v)))
+#define NUC_AT_XOR(p, v) ((long long)InterlockedXor64((LONG64 volatile*)(p), (LONG64)(v)))
+#define NUC_AT_SWAP(p, v) ((long long)InterlockedExchange64((LONG64 volatile*)(p), (LONG64)(v)))
+#else
+#include <stdatomic.h>
+#define NUC_AT_LOAD(p) atomic_load((_Atomic long long *)(p))
+#define NUC_AT_STORE(p, v) atomic_store((_Atomic long long *)(p), (v))
+#define NUC_AT_ADD(p, v) atomic_fetch_add((_Atomic long long *)(p), (v))
+#define NUC_AT_SUB(p, v) atomic_fetch_sub((_Atomic long long *)(p), (v))
+#define NUC_AT_CAS(p, e, d) ({ long long __exp=(e); atomic_compare_exchange_strong((_Atomic long long *)(p), &__exp, (d)); __exp; })
+#define NUC_AT_AND(p, v) atomic_fetch_and((_Atomic long long *)(p), (v))
+#define NUC_AT_OR(p, v)  atomic_fetch_or((_Atomic long long *)(p), (v))
+#define NUC_AT_XOR(p, v) atomic_fetch_xor((_Atomic long long *)(p), (v))
+#define NUC_AT_SWAP(p, v) atomic_exchange((_Atomic long long *)(p), (v))
+#endif
+
+long long __nucleor_atomic_i64_new(long long initial) {
+    long long *p = (long long *)malloc(sizeof(long long));
+    *p = initial;
+    return (long long)(intptr_t)p;
+}
+long long __nucleor_atomic_i64_free(long long h) {
+    long long *p = (long long *)(intptr_t)h;
+    if (p) free(p);
+    return 0;
+}
+long long __nucleor_atomic_i64_load(long long h) {
+    long long *p = (long long *)(intptr_t)h;
+    if (!p) return 0;
+    return NUC_AT_LOAD(p);
+}
+long long __nucleor_atomic_i64_store(long long h, long long v) {
+    long long *p = (long long *)(intptr_t)h;
+    if (!p) return 0;
+    NUC_AT_STORE(p, v);
+    return 0;
+}
+long long __nucleor_atomic_i64_fetch_add(long long h, long long v) {
+    long long *p = (long long *)(intptr_t)h;
+    if (!p) return 0;
+    return NUC_AT_ADD(p, v);
+}
+long long __nucleor_atomic_i64_fetch_sub(long long h, long long v) {
+    long long *p = (long long *)(intptr_t)h;
+    if (!p) return 0;
+    return NUC_AT_SUB(p, v);
+}
+long long __nucleor_atomic_i64_fetch_and(long long h, long long v) {
+    long long *p = (long long *)(intptr_t)h;
+    if (!p) return 0;
+    return NUC_AT_AND(p, v);
+}
+long long __nucleor_atomic_i64_fetch_or(long long h, long long v) {
+    long long *p = (long long *)(intptr_t)h;
+    if (!p) return 0;
+    return NUC_AT_OR(p, v);
+}
+long long __nucleor_atomic_i64_fetch_xor(long long h, long long v) {
+    long long *p = (long long *)(intptr_t)h;
+    if (!p) return 0;
+    return NUC_AT_XOR(p, v);
+}
+long long __nucleor_atomic_i64_swap(long long h, long long v) {
+    long long *p = (long long *)(intptr_t)h;
+    if (!p) return 0;
+    return NUC_AT_SWAP(p, v);
+}
+// CAS — returns the previous value. Caller compares vs `expected` for success.
+long long __nucleor_atomic_i64_cas(long long h, long long expected, long long desired) {
+    long long *p = (long long *)(intptr_t)h;
+    if (!p) return 0;
+    return NUC_AT_CAS(p, expected, desired);
+}
+
+// === Bit-twiddling primitives ===
+long long __nucleor_popcount(long long v) {
+    unsigned long long u = (unsigned long long)v;
+    long long c = 0;
+    while (u) { c += (long long)(u & 1ULL); u >>= 1; }
+    return c;
+}
+long long __nucleor_leading_zeros(long long v) {
+    if (v == 0) return 64;
+    unsigned long long u = (unsigned long long)v;
+    long long c = 0;
+    while ((u & 0x8000000000000000ULL) == 0) { c++; u <<= 1; }
+    return c;
+}
+long long __nucleor_trailing_zeros(long long v) {
+    if (v == 0) return 64;
+    unsigned long long u = (unsigned long long)v;
+    long long c = 0;
+    while ((u & 1ULL) == 0) { c++; u >>= 1; }
+    return c;
+}
+long long __nucleor_byte_swap(long long v) {
+    unsigned long long u = (unsigned long long)v;
+    return (long long)(
+        ((u & 0xFF00000000000000ULL) >> 56) |
+        ((u & 0x00FF000000000000ULL) >> 40) |
+        ((u & 0x0000FF0000000000ULL) >> 24) |
+        ((u & 0x000000FF00000000ULL) >> 8)  |
+        ((u & 0x00000000FF000000ULL) << 8)  |
+        ((u & 0x0000000000FF0000ULL) << 24) |
+        ((u & 0x000000000000FF00ULL) << 40) |
+        ((u & 0x00000000000000FFULL) << 56)
+    );
+}
+long long __nucleor_rotate_left(long long v, long long n) {
+    unsigned long long u = (unsigned long long)v;
+    n = n & 63;
+    return (long long)((u << n) | (u >> (64 - n)));
+}
+long long __nucleor_rotate_right(long long v, long long n) {
+    unsigned long long u = (unsigned long long)v;
+    n = n & 63;
+    return (long long)((u >> n) | (u << (64 - n)));
+}
+
 long long __nucleor_msgpack_write_str(long long h, const char *s) {
     if (!s) {
         __nucleor_vec_u8_push(h, 0xA0);  // empty fixstr
