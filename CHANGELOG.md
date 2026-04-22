@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.12] — 2026-04-22
+
+RFC-0016 partial: native enum `match` with payload extraction
+verified end-to-end for `Option`/`Result`-shaped enums.
+
+### Verified working
+
+- User-declared `enum Opt { None, Some(i64) }` and
+  `enum Res { Ok(i64), Err(i64) }` parse, type-check, codegen.
+- `match` on these with payload binding (`Opt::Some(x) => x * 2`)
+  works.
+- The `Some/None/Ok/Err` short forms also recognized in match arms
+  per the existing parser (tests/lang/match_option_result.nr).
+
+### Known gaps (planned for v0.2.0)
+
+- Generic enums (`enum Option<T>`) — RFC-0024 (v0.4)
+- `?` operator — partial parser support, full desugar pending
+- `if let`/`while let` sugar — pending
+- Built-in stdlib `Option<T>` / `Result<T, E>` types — replace
+  current Vec-based stubs in option.nr / result.nr
+
+### Verify gate
+
+104/104 green on Windows.
+
 ## [0.1.11] — 2026-04-22
 
 RFC-0020 phase 1: Rust-style diagnostic rendering.
