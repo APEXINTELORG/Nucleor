@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] — 2026-04-22
+
+Showcase programs now write CSV data alongside the live visualization.
+Animated console output is great for the demo; CSV is what you actually
+want for plotting, auditing, or feeding into another tool.
+
+### Added — CSV output
+
+- `vqe_h2.nr` writes **`vqe_h2_data.csv`** (32 rows): step, theta0,
+  theta1, theta2, energy, abs_error.
+- `market_maker.nr` writes **`market_maker_data.csv`** (61 rows):
+  tick, spot, iv, bid, theo, ask, delta, gamma, vega, position_delta,
+  hedge_qty, pnl_tick, cum_pnl.
+- `wing_simulator.nr` writes **`wing_simulator_data.csv`** (101 rows):
+  step, em_energy, density, vx, vy, vorticity, Ez, plus bit-pattern
+  columns for em_energy and density to recover NaN values when the FDTD
+  runtime returns them before field propagation reaches the probe.
+- `lorenz.nr` writes **`lorenz_data.csv`** (~200 sampled rows): step, t,
+  trajectory A (x, y, z), trajectory B (x, y, z), separation. Sampled
+  every 60th step out of 12000 to keep the file small.
+
+All CSVs are written next to the binary (cwd at run time). Ready to
+open in Excel, pandas, R, gnuplot, etc.
+
+### No regressions
+
+Verify gate still 38/38 pass. Self-host loop closes. No language or
+runtime changes — purely application-level additions to the four
+showcase programs.
+
+---
+
 ## [0.1.3] — 2026-04-22
 
 Showcase release: four programs that demonstrate things Nucleor is

@@ -171,6 +171,10 @@ fn main() -> i64 {
     let lr: i64 = f64(0, 200000);   // 0.2 step size
     let shots: i64 = 1024;
 
+    // CSV log: step, theta0, theta1, theta2, energy, |error|
+    let csv: i64 = sb_new();
+    sb_append(csv, "step,theta0,theta1,theta2,energy,abs_error\n");
+
     // Reserve space for the live readout (8 lines)
     let mut warm: i64 = 0;
     while warm < 8 { print(""); warm = warm + 1; };
@@ -179,6 +183,21 @@ fn main() -> i64 {
     let max_steps: i64 = 30;
     while step < max_steps {
         let e: i64 = energy(theta0, theta1, theta2, shots);
+        let err_abs: i64 = f64_abs(f64_sub(e, known_ground));
+
+        // Append CSV row
+        sb_append(csv, viz_int_to_str(step));
+        sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(theta0, 6));
+        sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(theta1, 6));
+        sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(theta2, 6));
+        sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(e, 6));
+        sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(err_abs, 6));
+        sb_append(csv, "\n");
 
         // Move cursor up 8 lines and overwrite
         print(ansi_cursor_up(8));
@@ -209,12 +228,30 @@ fn main() -> i64 {
 
     let final_e: i64 = energy(theta0, theta1, theta2, shots * 4);
     let err: i64 = f64_abs(f64_sub(final_e, known_ground));
+
+    // Append final-row to CSV
+    sb_append(csv, viz_int_to_str(max_steps));
+    sb_append(csv, ",");
+    sb_append(csv, viz_f64_str(theta0, 6));
+    sb_append(csv, ",");
+    sb_append(csv, viz_f64_str(theta1, 6));
+    sb_append(csv, ",");
+    sb_append(csv, viz_f64_str(theta2, 6));
+    sb_append(csv, ",");
+    sb_append(csv, viz_f64_str(final_e, 6));
+    sb_append(csv, ",");
+    sb_append(csv, viz_f64_str(err, 6));
+    sb_append(csv, "\n");
+
+    file_write_string("vqe_h2_data.csv", sb_to_str(csv));
+
     print("");
     print(paint("  CONVERGED", col_green()));
     print(str_concat("  final energy  : ", viz_f64_str(final_e, 6)));
     print(str_concat("  ground energy : ", viz_f64_str(known_ground, 6)));
     print(str_concat("  |error|       : ", viz_f64_str(err, 6)));
     print("");
+    print(paint("  Wrote 31 rows to vqe_h2_data.csv (step,theta0,theta1,theta2,energy,abs_error)", col_grey()));
     print(paint("  Same primitives scale to H2 in STO-3G (4 qubits, 15 Pauli terms,", col_grey()));
     print(paint("  Hartree-Fock initial state). See docs/math-and-physics.md.", col_grey()));
     return 0;

@@ -97,6 +97,10 @@ All four are one file each.
 - [`wing_simulator.nr`](examples/showcase/wing_simulator.nr) — **Coupled fluid + electromagnetic simulator** on the same airfoil cross-section. Lattice Boltzmann (D2Q9) for aerodynamics + FDTD on a Yee grid for electromagnetics, both in one file with one shared geometry. 256-color heatmaps for density, vorticity, and E_z field. Other-stack equivalent: OpenFOAM + Meep + a custom mesh bridge + matplotlib.
 - [`lorenz.nr`](examples/showcase/lorenz.nr) — **The Lorenz strange attractor** integrated with RK4, two trajectories from initial conditions 1e-5 apart, rendered as a heatmap of trajectory density. Visual demonstration of sensitive dependence on initial conditions — the iconic butterfly shape emerges in your console.
 
+Each program writes a `*_data.csv` next to the binary so you can plot it,
+audit it, or feed it into another tool. Open in Excel, pandas, R, gnuplot,
+or anything that accepts CSV.
+
 ## Documentation
 
 - [Getting Started](docs/getting-started.md) — install, first build, troubleshooting.

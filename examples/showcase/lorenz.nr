@@ -105,10 +105,33 @@ fn main() -> i64 {
     // Track maximum 3D separation
     let mut max_sep_sq: i64 = f64_from_int(0);
 
+    // CSV log: sample every 60th step to keep the file ~200 rows
+    let csv: i64 = sb_new();
+    sb_append(csv, "step,t,ax,ay,az,bx,by,bz,separation\n");
+
     let mut step: i64 = 0;
     while step < n_steps {
         rk4_step(stateA, sigma, rho, beta, h);
         rk4_step(stateB, sigma, rho, beta, h);
+
+        // Sample every 60th step to the CSV
+        if step - (step / 60) * 60 == 0 {
+            let dxa: i64 = f64_sub(vec_get(stateB, 0), vec_get(stateA, 0));
+            let dya: i64 = f64_sub(vec_get(stateB, 1), vec_get(stateA, 1));
+            let dza: i64 = f64_sub(vec_get(stateB, 2), vec_get(stateA, 2));
+            let sep_sq_now: i64 = f64_add(f64_add(f64_mul(dxa, dxa), f64_mul(dya, dya)), f64_mul(dza, dza));
+            let sep_now: i64 = f64_sqrt(sep_sq_now);
+            let t_now: i64 = f64_mul(f64_from_int(step), h);
+            sb_append(csv, viz_int_to_str(step));         sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(t_now, 4));        sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(vec_get(stateA, 0), 6)); sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(vec_get(stateA, 1), 6)); sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(vec_get(stateA, 2), 6)); sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(vec_get(stateB, 0), 6)); sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(vec_get(stateB, 1), 6)); sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(vec_get(stateB, 2), 6)); sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(sep_now, 6));      sb_append(csv, "\n");
+        };
 
         if step > 200 {
             // Project to grid (x in [-25, 25], z in [0, 50])
@@ -203,6 +226,9 @@ fn main() -> i64 {
     print(paint("  --- divergence summary ---", col_grey()));
     print(str_concat("  initial 3D separation:  ", viz_f64_str(f64(0, 10), 6)));
     print(str_concat("  maximum 3D separation:  ", viz_f64_str(max_sep, 6)));
+    print("");
+    file_write_string("lorenz_data.csv", sb_to_str(csv));
+    print(paint("  Wrote ~200 sampled trajectory rows to lorenz_data.csv", col_grey()));
     print("");
     print(paint("  Two trajectories started 0.00001 apart end up O(10) apart.", col_yellow()));
     print(paint("  This is sensitive dependence on initial conditions.", col_yellow()));
