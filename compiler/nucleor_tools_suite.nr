@@ -7857,6 +7857,29 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "EFF-001") { return "Function uses effect not in declared row"; };
     if str_eq(code, "EFF-002") { return "pure fn calls effectful fn"; };
     if str_eq(code, "EFF-003") { return "restricts [...] violated"; };
+    // RFC-0017 collections
+    if str_eq(code, "COLL-001") { return "K: Hash + Eq requirement violated"; };
+    if str_eq(code, "COLL-002") { return "K: Ord requirement violated for BTree"; };
+    if str_eq(code, "COLL-003") { return "Collection method that may grow used in #[no_alloc]"; };
+    // RFC-0018 modules
+    if str_eq(code, "MOD-001") { return "Module file not found at expected path"; };
+    if str_eq(code, "MOD-002") { return "Path references non-existent module/item"; };
+    if str_eq(code, "MOD-003") { return "Visibility violation"; };
+    if str_eq(code, "MOD-004") { return "Glob `use *` from a module without an explicit prelude (warning)"; };
+    if str_eq(code, "MOD-005") { return "Circular module dependency"; };
+    if str_eq(code, "MOD-006") { return "Two `use` declarations bind the same name"; };
+    // RFC-0019 packages
+    if str_eq(code, "PKG-001") { return "Manifest schema error"; };
+    if str_eq(code, "PKG-002") { return "Version conflict — no resolution found"; };
+    if str_eq(code, "PKG-003") { return "Checksum mismatch"; };
+    if str_eq(code, "PKG-004") { return "Network error fetching package"; };
+    if str_eq(code, "PKG-005") { return "Unknown package / version"; };
+    if str_eq(code, "PKG-006") { return "Yanked version explicitly required"; };
+    // RFC-0022 cross-platform
+    if str_eq(code, "TGT-001") { return "Unknown target triple"; };
+    if str_eq(code, "TGT-002") { return "Sysroot not installed for target"; };
+    if str_eq(code, "TGT-003") { return "Feature unsupported on target"; };
+    if str_eq(code, "TGT-004") { return "Cross-link error"; };
     return "";
 }
 
@@ -7923,6 +7946,25 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "EFF-001") { return "RFC-0032 effect rows are checked at type-check. The function body uses an effect (io.read, alloc, etc.) not declared in its signature's `+ effect_row`."; };
     if str_eq(code, "EFF-002") { return "pure fn cannot perform side effects. Either remove the call, mark the callee pure, or remove the pure annotation from the caller."; };
     if str_eq(code, "EFF-003") { return "restricts [...] forbids the listed effects in the callee. The callee uses an effect on the restrict list."; };
+    if str_eq(code, "COLL-001") { return "Hash-backed collections require K to implement both Hash + Eq."; };
+    if str_eq(code, "COLL-002") { return "BTree-backed collections require K to implement Ord."; };
+    if str_eq(code, "COLL-003") { return "push/insert/etc. may allocate to grow. In #[no_alloc] context use try_*-suffixed variants or pre-size with with_capacity."; };
+    if str_eq(code, "MOD-001") { return "`mod foo;` resolved to a path that does not exist on disk."; };
+    if str_eq(code, "MOD-002") { return "A use path or full-path reference resolves to a module/item that doesn't exist."; };
+    if str_eq(code, "MOD-003") { return "Item not pub for the access level used (pub, pub(crate), pub(super), or unrestricted)."; };
+    if str_eq(code, "MOD-004") { return "use foo::* without an explicit prelude pulls in everything; can shadow names unexpectedly."; };
+    if str_eq(code, "MOD-005") { return "Module dependency graph has a cycle (mod a uses b which uses a)."; };
+    if str_eq(code, "MOD-006") { return "Two use declarations binding the same identifier shadow each other; rename via `use foo::Bar as FBar`."; };
+    if str_eq(code, "PKG-001") { return "nuc.toml manifest fails schema validation."; };
+    if str_eq(code, "PKG-002") { return "PubGrub resolver could not find a set of versions satisfying all constraints."; };
+    if str_eq(code, "PKG-003") { return "Downloaded package hash does not match the lockfile entry. Possible network corruption or registry compromise."; };
+    if str_eq(code, "PKG-004") { return "HTTP/git fetch failed. Check connectivity, registry URL, and auth tokens."; };
+    if str_eq(code, "PKG-005") { return "Package or version not in registry. Check spelling; the version may be yanked."; };
+    if str_eq(code, "PKG-006") { return "The lockfile pins a version that the registry has yanked. Re-run nuc update to pick a non-yanked version."; };
+    if str_eq(code, "TGT-001") { return "Target triple does not match Tier-1 (windows-msvc, linux-gnu, apple-darwin) or any installed Tier-2/3 target."; };
+    if str_eq(code, "TGT-002") { return "Run nuc install sysroot --target=<triple> to install the cross-compilation sysroot."; };
+    if str_eq(code, "TGT-003") { return "Feature requires capability missing on this target (e.g. mmap on bare metal). Use --target check to see the missing capability list."; };
+    if str_eq(code, "TGT-004") { return "Cross-linker rejected the binary. Likely missing C library; consult the linker error output for the specific symbol."; };
     return "";
 }
 
@@ -7989,6 +8031,25 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "EFF-001") { return "RFC-0032 §3.1 — every function carries an effect row. Use a function with effects requires the caller to permit those effects. Either declare the effects in the caller's row or remove the call."; };
     if str_eq(code, "EFF-002") { return "RFC-0032 §3.2 — pure fn means no side effects (io, alloc, random, time, panic). The compiler can prove the call violates this."; };
     if str_eq(code, "EFF-003") { return "RFC-0032 §3.4 — restricts [...] is a contract on callbacks. Pass a different callback or remove the restrict."; };
+    if str_eq(code, "COLL-001") { return "RFC-0017 §3.2 — derive Hash + Eq for K, or use BTreeMap which only requires Ord, or change to a key type that already implements both."; };
+    if str_eq(code, "COLL-002") { return "RFC-0017 §3.3 — BTreeMap/BTreeSet rely on key ordering for sorted iteration and binary search. Derive Ord or implement it."; };
+    if str_eq(code, "COLL-003") { return "RFC-0017 §3.7 — pre-size with with_capacity_in for the worst case, then use try_push / push_within_capacity which never reallocate."; };
+    if str_eq(code, "MOD-001") { return "RFC-0018 §3.1 — `mod foo;` resolves to ./foo.nr or ./foo/mod.nr relative to the current file. Check the path or create the file."; };
+    if str_eq(code, "MOD-002") { return "RFC-0018 §3.3 — verify the path. crate::x means project root; super::x means parent module; std::x means stdlib; <pkg>::x means registry dep."; };
+    if str_eq(code, "MOD-003") { return "RFC-0018 §3.2 — add `pub` (or pub(crate)/pub(super)) to the item, or move the use site closer to where the item is visible."; };
+    if str_eq(code, "MOD-004") { return "RFC-0018 — globs are noisy and shadow-prone. Prefer explicit `use foo::{a, b, c}` lists, or define a prelude module that's intentional about exports."; };
+    if str_eq(code, "MOD-005") { return "RFC-0018 — break the cycle by extracting shared definitions to a third module both depend on."; };
+    if str_eq(code, "MOD-006") { return "RFC-0018 §3.4 — rename one with `as`: `use foo::Bar as FBar`. The compiler does not silently shadow."; };
+    if str_eq(code, "PKG-001") { return "RFC-0019 §3.1 — see the canonical schema in docs/nuc-toml-spec.md (forthcoming). Common errors: missing [package] table, missing name/version, malformed [dependencies] entries."; };
+    if str_eq(code, "PKG-002") { return "RFC-0019 §3.3 — PubGrub returns a structured conflict report. Common causes: two transitive deps require incompatible major versions of a shared dep. Loosen one constraint or pick a newer version of the conflicting transitive."; };
+    if str_eq(code, "PKG-003") { return "RFC-0019 §3.4 — re-run `nuc update` to refresh the lockfile if intentional, or escalate (registry compromise) if unexpected."; };
+    if str_eq(code, "PKG-004") { return "RFC-0019 §3.5 — verify network connectivity. For git deps, check the URL; for registry, check NUCLEOR_REGISTRY env or fall back to https://nucleor.dev/registry/ default."; };
+    if str_eq(code, "PKG-005") { return "RFC-0019 §3.5 — `nuc search <name>` to discover the package; check spelling and case (registry is case-sensitive)."; };
+    if str_eq(code, "PKG-006") { return "RFC-0019 §3.5 — yanked versions are kept downloadable for users with existing lockfiles but not chosen by `nuc add`. Either pin the yanked version explicitly with `=X.Y.Z`, or update."; };
+    if str_eq(code, "TGT-001") { return "RFC-0022 §3.1 — see the Tier-1 list in the RFC. Tier-2/3 targets need explicit installation."; };
+    if str_eq(code, "TGT-002") { return "RFC-0022 §3.7 — sysroots ship from nucleor.dev/sysroots/. The download is signed; install with `nuc install sysroot --target=<triple>`."; };
+    if str_eq(code, "TGT-003") { return "RFC-0022 §3.6 — runtime feature audit. Some `_rt.c` modules guard with `_WIN32` / `__linux__` / etc.; bare-metal targets exclude entire categories."; };
+    if str_eq(code, "TGT-004") { return "RFC-0022 §3.7 — likely missing libc on the target. For Linux→Windows or macOS→Linux cross, consult `clang --target=<triple> --print-search-dirs`."; };
     return "";
 }
 

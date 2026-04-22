@@ -3741,6 +3741,94 @@ fn ansi_bold(s: str) -> str {
     return str_concat(esc, str_concat("[1m", str_concat(s, str_concat(esc, "[0m"))));
 }
 
+// RFC-0020 phase 2: JSON renderer for IDE / CI consumption.
+// Honors NUCLEOR_DIAG_JSON env var (when set, all diags emit as one JSON
+// array of objects). Stable schema for tool integration:
+//   { "code": "OWN-008", "severity": "error", "message": "...",
+//     "fn": "main", "line": 14, "col": 5,
+//     "child": "moved here", "child_line": 13,
+//     "suggestion": "consider `let mut x` here" }
+fn diag_use_json() -> i64 {
+    if str_len(getenv("NUCLEOR_DIAG_JSON")) > 0 { return 1; };
+    return 0;
+}
+
+fn diag_json_escape(s: str) -> str {
+    let mut sb: i64 = sb_new();
+    let slen: i64 = str_len(s);
+    let mut i: i64 = 0;
+    while i < slen {
+        let c: i64 = str_char_at(s, i);
+        if c == 34 { sb_append(sb, "\\\""); }
+        else if c == 92 { sb_append(sb, "\\\\"); }
+        else if c == 10 { sb_append(sb, "\\n"); }
+        else if c == 13 { sb_append(sb, "\\r"); }
+        else if c == 9 { sb_append(sb, "\\t"); }
+        else { sb_append(sb, str_substring(s, i, i + 1)); };
+        i = i + 1;
+    };
+    return sb_to_str(sb);
+}
+
+fn diag_emit_json(diags: Vec<i32>) -> i64 {
+    let cnt: i64 = vec_len(diags);
+    print("[");
+    let mut i: i64 = 0;
+    while i < cnt {
+        let d: Vec<i32> = vec_get(diags, i);
+        let severity: str = vec_get(d, 0);
+        let code: str = vec_get(d, 2);
+        let message: str = vec_get(d, 3);
+        let fn_name: str = vec_get(d, 4);
+        let line: i64 = vec_get(d, 5);
+        let col: i64 = vec_get(d, 6);
+        let suggestion: str = vec_get(d, 8);
+        let child_msg: str = vec_get(d, 10);
+        let child_line: i64 = vec_get(d, 11);
+        let mut sb: i64 = sb_new();
+        if i > 0 { sb_append(sb, ","); };
+        sb_append(sb, "{\"code\":\"");
+        sb_append(sb, diag_json_escape(code));
+        sb_append(sb, "\",\"severity\":\"");
+        sb_append(sb, severity);
+        sb_append(sb, "\",\"message\":\"");
+        sb_append(sb, diag_json_escape(message));
+        sb_append(sb, "\"");
+        if str_len(fn_name) > 0 {
+            sb_append(sb, ",\"fn\":\"");
+            sb_append(sb, diag_json_escape(fn_name));
+            sb_append(sb, "\"");
+        };
+        if line > 0 {
+            sb_append(sb, ",\"line\":");
+            sb_append(sb, str_from_int(line));
+        };
+        if col > 0 {
+            sb_append(sb, ",\"col\":");
+            sb_append(sb, str_from_int(col));
+        };
+        if str_len(child_msg) > 0 {
+            sb_append(sb, ",\"child\":\"");
+            sb_append(sb, diag_json_escape(child_msg));
+            sb_append(sb, "\"");
+        };
+        if child_line > 0 {
+            sb_append(sb, ",\"child_line\":");
+            sb_append(sb, str_from_int(child_line));
+        };
+        if str_len(suggestion) > 0 {
+            sb_append(sb, ",\"suggestion\":\"");
+            sb_append(sb, diag_json_escape(suggestion));
+            sb_append(sb, "\"");
+        };
+        sb_append(sb, "}");
+        print(sb_to_str(sb));
+        i = i + 1;
+    };
+    print("]");
+    return cnt;
+}
+
 fn diag_emit_text(diags: Vec<i32>) -> i64 {
     let cnt: i64 = vec_len(diags);
     let mut i: i64 = 0;
@@ -5284,7 +5372,7 @@ fn preflight_source_check(source: str) -> i64 {
     if source_has_scope_escape_ref_binding(source) == 1 {
         let mut diags: Vec<i32> = diag_new();
         type_diag(diags, source, "main", "let", "OWN-010", "cannot bind a reference that escapes an inner block");
-        diag_emit_text(diags);
+        if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text(diags); };
         return 1;
     };
     return 0;
@@ -7053,7 +7141,10 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         print_phase_time(time_passes, "effect", 0);
         print_phase_time(time_passes, "taint", 0);
     };
-    if diag_count(diags) > 0 { diag_emit_text(diags); return 1; };
+    if diag_count(diags) > 0 {
+        if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text(diags); };
+        return 1;
+    };
     let mut closures: Vec<i32> = Vec::new();
     let lower_start: i64 = now_ms();
     fi = 0;

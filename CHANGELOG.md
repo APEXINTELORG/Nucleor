@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.34] — 2026-04-22
+
+**RFC-0020 phase 2 complete: JSON diagnostic renderer + RFC-0017/
+0018/0019/0022 explain coverage.**
+
+### Added — JSON diagnostic output
+
+- New `diag_emit_json` in compiler — emits all diagnostics as a JSON
+  array of objects with stable schema:
+  ```json
+  [{"code":"OWN-008","severity":"error","message":"...","fn":"main","line":14,"col":5,
+    "child":"moved here","child_line":13,"suggestion":"consider `let mut x` here"}]
+  ```
+- Switch via `NUCLEOR_DIAG_JSON=1` env var. IDEs / CI / lint pipelines
+  consume this; humans get the existing ANSI text renderer.
+- `diag_json_escape` handles `\"`, `\\`, `\n`, `\r`, `\t`.
+
+### Added — `nuc explain` for 19 new RFC error codes
+
+Completes RFC-0017/0018/0019/0022 explain coverage:
+- COLL-001…003 (RFC-0017 collections)
+- MOD-001…006 (RFC-0018 module system)
+- PKG-001…006 (RFC-0019 package manager)
+- TGT-001…004 (RFC-0022 cross-platform)
+
+Brings total `nuc explain` coverage to ~94 codes across 23 series.
+
+### Verify gate
+
+128/128 green on Windows. Self-host LLVM IR fixed point preserved.
+
 ## [0.1.33] — 2026-04-22
 
 **RFC-0019 phase 1 start: minimal TOML parser for `nuc.toml`.**
