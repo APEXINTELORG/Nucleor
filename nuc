@@ -1,18 +1,60 @@
-#!/usr/bin/env sh
-# nuc — Nucleor CLI launcher (POSIX stub)
+#!/usr/bin/env bash
+# nuc — Nucleor CLI launcher (POSIX)
 #
-# v1 of Nucleor targets x86_64-pc-windows-msvc. A POSIX port is planned for v1.1.
-# This stub is included so a future Linux/macOS build can land without a layout change.
+# Mirrors nuc.bat behavior for Linux / macOS / BSD. Resolves clang onto PATH
+# if not already there, then execs bin/nucleor with all arguments passed
+# through verbatim.
 #
-# When ported, this should resolve to ./bin/nucleor and pass arguments through,
-# mirroring nuc.bat behavior.
+# Configuration via environment:
+#   NUCLEOR_CLANG_PATH   — explicit path to clang binary
+#   LLVM_SYS_180_PREFIX  — LLVM 18 prefix (bin/clang expected inside)
+#   NUCLEOR_ROOT         — override repo root (defaults to script dir)
+#   NUCLEOR_BIN          — override binary path (defaults to $ROOT/bin/nucleor)
+#   NO_COLOR             — disable ANSI color output (standard)
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
-BIN="$ROOT/bin/nucleor"
+set -u
 
+ROOT="${NUCLEOR_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)}"
+BIN="${NUCLEOR_BIN:-$ROOT/bin/nucleor}"
+
+# --- Resolve clang onto PATH if not already there ---
+if ! command -v clang >/dev/null 2>&1; then
+    if [ -n "${NUCLEOR_CLANG_PATH:-}" ] && [ -x "${NUCLEOR_CLANG_PATH}" ]; then
+        export PATH="$(dirname "$NUCLEOR_CLANG_PATH"):$PATH"
+    elif [ -n "${LLVM_SYS_180_PREFIX:-}" ] && [ -x "${LLVM_SYS_180_PREFIX}/bin/clang" ]; then
+        export PATH="${LLVM_SYS_180_PREFIX}/bin:$PATH"
+    elif [ -x "/usr/lib/llvm-18/bin/clang" ]; then
+        export PATH="/usr/lib/llvm-18/bin:$PATH"
+    elif [ -x "/usr/lib/llvm-17/bin/clang" ]; then
+        export PATH="/usr/lib/llvm-17/bin:$PATH"
+    elif [ -x "/opt/homebrew/opt/llvm@18/bin/clang" ]; then
+        export PATH="/opt/homebrew/opt/llvm@18/bin:$PATH"
+    elif [ -x "/opt/homebrew/opt/llvm/bin/clang" ]; then
+        export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+    elif [ -x "/usr/local/opt/llvm@18/bin/clang" ]; then
+        export PATH="/usr/local/opt/llvm@18/bin:$PATH"
+    elif [ -x "/usr/local/opt/llvm/bin/clang" ]; then
+        export PATH="/usr/local/opt/llvm/bin:$PATH"
+    fi
+fi
+
+# --- Launch the compiler binary ---
 if [ ! -x "$BIN" ]; then
-    echo "nuc: POSIX build not available in this distribution." >&2
-    echo "nuc: v1 targets x86_64-pc-windows-msvc. See README.md." >&2
+    cat >&2 <<EOF
+nuc: compiler binary not found at $BIN
+
+Nucleor v0.1.x ships a Windows x86_64 binary only. Linux/macOS native
+binaries are shipping in v0.2.0 per RFC-0022.
+
+Workarounds in the interim:
+  1. Run through Wine (experimental):
+       wine $ROOT/bin/nucleor.exe "\$@"
+  2. Build the Rust bridge from source (requires rustc + cargo):
+       cd $ROOT/stdlib/rods/rust_bridge && cargo build --release
+  3. Track v0.2.0 progress at $ROOT/docs/milestones/v0.2.0.md
+
+See $ROOT/docs/process/contributing.md for details.
+EOF
     exit 1
 fi
 

@@ -2261,6 +2261,27 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "process_id") { return "__nucleor_process_id"; };
     if str_eq(name, "os_family") { return "__nucleor_os_family"; };
     if str_eq(name, "os_pointer_width") { return "__nucleor_os_pointer_width"; };
+    // RFC-0017 phase 4: VecDeque + HashSet
+    if str_eq(name, "vecdeque_new") { return "__nucleor_vecdeque_new"; };
+    if str_eq(name, "vecdeque_with_capacity") { return "__nucleor_vecdeque_with_capacity"; };
+    if str_eq(name, "vecdeque_push_back") { return "__nucleor_vecdeque_push_back"; };
+    if str_eq(name, "vecdeque_push_front") { return "__nucleor_vecdeque_push_front"; };
+    if str_eq(name, "vecdeque_pop_front") { return "__nucleor_vecdeque_pop_front"; };
+    if str_eq(name, "vecdeque_pop_back") { return "__nucleor_vecdeque_pop_back"; };
+    if str_eq(name, "vecdeque_get") { return "__nucleor_vecdeque_get"; };
+    if str_eq(name, "vecdeque_set") { return "__nucleor_vecdeque_set"; };
+    if str_eq(name, "vecdeque_len") { return "__nucleor_vecdeque_len"; };
+    if str_eq(name, "vecdeque_capacity") { return "__nucleor_vecdeque_capacity"; };
+    if str_eq(name, "vecdeque_clear") { return "__nucleor_vecdeque_clear"; };
+    if str_eq(name, "vecdeque_free") { return "__nucleor_vecdeque_free"; };
+    if str_eq(name, "hashset_new") { return "__nucleor_hashset_new"; };
+    if str_eq(name, "hashset_with_capacity") { return "__nucleor_hashset_with_capacity"; };
+    if str_eq(name, "hashset_insert") { return "__nucleor_hashset_insert"; };
+    if str_eq(name, "hashset_contains") { return "__nucleor_hashset_contains"; };
+    if str_eq(name, "hashset_remove") { return "__nucleor_hashset_remove"; };
+    if str_eq(name, "hashset_len") { return "__nucleor_hashset_len"; };
+    if str_eq(name, "hashset_clear") { return "__nucleor_hashset_clear"; };
+    if str_eq(name, "hashset_free") { return "__nucleor_hashset_free"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2331,6 +2352,9 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "env_get") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "env_set") { return 1; };
     if str_eq(name, "env_unset") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "hashset_insert") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashset_contains") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashset_remove") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "str_len") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_eq") { return 1; };
     if str_eq(name, "str_char_at") { if idx == 0 { return 1; }; return 0; };
@@ -2950,6 +2974,27 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_process_id()\n");
     sb_append(sb, "declare i64 @__nucleor_os_family()\n");
     sb_append(sb, "declare i64 @__nucleor_os_pointer_width()\n");
+    // RFC-0017 phase 4: VecDeque + HashSet
+    sb_append(sb, "declare i64 @__nucleor_vecdeque_new()\n");
+    sb_append(sb, "declare i64 @__nucleor_vecdeque_with_capacity(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vecdeque_push_back(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vecdeque_push_front(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vecdeque_pop_front(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vecdeque_pop_back(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vecdeque_get(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vecdeque_set(i64, i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vecdeque_len(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vecdeque_capacity(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vecdeque_clear(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vecdeque_free(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashset_new()\n");
+    sb_append(sb, "declare i64 @__nucleor_hashset_with_capacity(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashset_insert(i64, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashset_contains(i64, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashset_remove(i64, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashset_len(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashset_clear(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashset_free(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");
