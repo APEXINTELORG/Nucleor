@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.58] — 2026-04-22
+
+**Stdin read primitives + RFC-0015 phase 4 runtime helpers complete.**
+
+### Added — stdin read primitives
+
+```nucleor
+let line: str = read_line();   // -> body up to \n; "" at EOF
+let n:    i64 = read_i64();    // -> first decimal int; 0 on parse fail
+let b:    i64 = read_byte();   // -> 0..255; -1 at EOF
+```
+
+`read_line` returns a heap-allocated string with the trailing newline
+stripped. `read_byte` returns -1 at EOF for clean termination
+detection. `read_i64` uses `scanf("%lld")`; pair with `read_line` +
+`str_to_int` if you need full error handling.
+
+Wired into both compiler binaries via the synced `get_rt_name` /
+`is_ptr_ret` / IR `declare` tables — drift gate (v0.1.57) verified
+the round-trip caught the missing entries before publish.
+
+### Verify gate
+
+157/157 green on Windows. New gate test: `tests/runtime/stdin_read.nr`
+exercises the EOF-return contract. Self-host LLVM IR fixed point
+preserved (v53==v54 byte-identical).
+
+This closes RFC-0015 phase 4 (runtime per-width helpers): print_*
+landed in v0.1.27, narrow-width arithmetic in v0.1.54, comprehensive
+math in v0.1.46, atomic primitives in v0.1.44, and now stdin read.
+
 ## [0.1.57] — 2026-04-22
 
 **Compiler ABI drift detector wired into the gate.**

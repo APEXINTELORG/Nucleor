@@ -2020,6 +2020,10 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "args_get") { return "__nucleor_args_get"; };
     if str_eq(name, "print_int") { return "__nucleor_print_i64"; };
     if str_eq(name, "print_bool") { return "__nucleor_print_bool"; };
+    // Stdin read helpers (RFC-0015 phase 4 completion)
+    if str_eq(name, "read_line") { return "__nucleor_read_line"; };
+    if str_eq(name, "read_i64") { return "__nucleor_read_i64"; };
+    if str_eq(name, "read_byte") { return "__nucleor_read_byte"; };
     if str_eq(name, "file_append_string") { return "__nucleor_file_append_string"; };
     if str_eq(name, "sb_free") { return "__nucleor_sb_free"; };
     if str_eq(name, "now_ms") { return "__nucleor_now_ms"; };
@@ -2553,6 +2557,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "sb_to_str") { return 1; };
     if str_eq(name, "vec_new") { return 1; };
     if str_eq(name, "args_get") { return 1; };
+    if str_eq(name, "read_line") { return 1; };
     if str_eq(name, "sha256") { return 1; };
     if str_eq(name, "py_eval") { return 1; };
     if str_eq(name, "chr") { return 1; };
@@ -2977,6 +2982,9 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_args_count()\n");
     sb_append(sb, "declare ptr @__nucleor_args_get(i64)\n");
     sb_append(sb, "declare void @__nucleor_print_bool(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_read_line()\n");
+    sb_append(sb, "declare i64 @__nucleor_read_i64()\n");
+    sb_append(sb, "declare i64 @__nucleor_read_byte()\n");
     sb_append(sb, "declare void @__nucleor_file_append_string(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_free(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_now_ms()\n");

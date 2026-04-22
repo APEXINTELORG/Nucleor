@@ -28,6 +28,44 @@ void __nucleor_print_bool(int x) {
     printf("%s\n", x ? "true" : "false");
 }
 
+// === Stdin read helpers (RFC-0015 phase 4 completion) ===
+// read_line: returns a newline-terminated input line as a heap-allocated str
+//            (caller drops trailing \n); empty string on EOF.
+// read_int / read_i64: parse one decimal integer from the next token of
+//            stdin; returns 0 on parse failure (callers checking for EOF
+//            should pair with read_line + str_len + str_to_int from the
+//            stdlib).
+const char *__nucleor_read_line(void) {
+    size_t cap = 256, len = 0;
+    char *buf = (char *)malloc(cap);
+    if (!buf) return "";
+    int c;
+    while ((c = fgetc(stdin)) != EOF && c != '\n') {
+        if (len + 1 >= cap) {
+            cap *= 2;
+            char *grown = (char *)realloc(buf, cap);
+            if (!grown) { free(buf); return ""; }
+            buf = grown;
+        }
+        buf[len++] = (char)c;
+    }
+    if (c == EOF && len == 0) { free(buf); return ""; }
+    buf[len] = 0;
+    return buf;
+}
+
+long long __nucleor_read_i64(void) {
+    long long v = 0;
+    if (scanf("%lld", &v) != 1) return 0;
+    return v;
+}
+
+long long __nucleor_read_byte(void) {
+    int c = fgetc(stdin);
+    if (c == EOF) return -1;
+    return (long long)(unsigned char)c;
+}
+
 // rods_f64_encode: provided by quantum_rt.c (via complex.nr #cfile chain)
 // Standalone programs without quantum.nr must declare it as extern fn
 
