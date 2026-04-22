@@ -7822,7 +7822,12 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "MATCH-002") { return "Unreachable match arm"; };
     if str_eq(code, "MATCH-003") { return "Type mismatch between match arms"; };
     if str_eq(code, "MATCH-004") { return "? in a function not returning Result/Option"; };
+    if str_eq(code, "MATCH-005") { return "? error type doesn't Into the function's error type"; };
     if str_eq(code, "MATCH-006") { return "unwrap() in #[no_panic] function"; };
+    if str_eq(code, "MATCH-007") { return "Range pattern bounds in wrong order"; };
+    if str_eq(code, "MATCH-008") { return "Or-pattern arms have different bindings"; };
+    if str_eq(code, "MATCH-009") { return "Slice pattern overlaps"; };
+    if str_eq(code, "MATCH-010") { return "@-binding name collides with outer scope"; };
     // RFC-0004 assume!
     if str_eq(code, "ASSUME-001") { return "predicate not in analyzer's vocabulary"; };
     if str_eq(code, "ASSUME-002") { return "assume_unchecked! used without justification"; };
@@ -7922,7 +7927,12 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "MATCH-002") { return "An arm is preceded by patterns that already match every case it would handle."; };
     if str_eq(code, "MATCH-003") { return "Match arm bodies must produce the same type (or () in statement context)."; };
     if str_eq(code, "MATCH-004") { return "The ? operator desugars to a function-level early return; the function must return Result/Option for ? to type-check."; };
+    if str_eq(code, "MATCH-005") { return "? converts the inner error via `From::from`. The compiler cannot find an impl mapping the source error type to the function's declared error type."; };
     if str_eq(code, "MATCH-006") { return "unwrap() panics on Err/None. Use unwrap_or, ?, or match in #[no_panic] code."; };
+    if str_eq(code, "MATCH-007") { return "Range patterns like `1..=5` require `low <= high`. The compiler refuses inverted bounds since they would never match."; };
+    if str_eq(code, "MATCH-008") { return "Or-patterns like `Some(x) | Other(x)` must bind the same set of names with the same types in every arm so the body type-checks identically."; };
+    if str_eq(code, "MATCH-009") { return "Slice patterns split a slice into prefix/middle/suffix. Two patterns claiming the same element are ambiguous and rejected."; };
+    if str_eq(code, "MATCH-010") { return "An @-binding (e.g. `n @ 1..=5`) introduces a fresh name; using a name already in scope is rejected to prevent silent shadowing."; };
     if str_eq(code, "ASSUME-001") { return "The assume! predicate uses an expression form the analyzer doesn't track for static reasoning. Runtime check still happens; static benefit is none."; };
     if str_eq(code, "ASSUME-002") { return "assume_unchecked! disables even the debug-mode runtime check. The warning surfaces a missing comment justifying the unsafety."; };
     if str_eq(code, "ASSUME-004") { return "The assume! predicate is provably false from the type system (e.g., assume!(x < 0) for x: u32)."; };
@@ -8009,7 +8019,12 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "MATCH-002") { return "Patterns are tested in order. A later arm cannot match if an earlier arm covers all values it would handle."; };
     if str_eq(code, "MATCH-003") { return "All arms in a match expression must yield the same type. Cast or restructure to align."; };
     if str_eq(code, "MATCH-004") { return "The ? operator desugars to `match e { Ok(v) => v, Err(e) => return Err(e) }`. The function must return Result (or Option for option-?) for the desugar to type-check."; };
+    if str_eq(code, "MATCH-005") { return "RFC-0016 §3.7 — implement `From<SourceError> for TargetError` (or use a single boxed error type). The ? desugar inserts the conversion automatically."; };
     if str_eq(code, "MATCH-006") { return "Use unwrap_or, unwrap_or_else, ?, or match in #[no_panic] context. The compiler treats unwrap as may_panic."; };
+    if str_eq(code, "MATCH-007") { return "RFC-0023 §3.1 — swap the bounds. Half-open ranges `1..5` exclude the upper bound and have the same restriction."; };
+    if str_eq(code, "MATCH-008") { return "RFC-0023 §3.2 — every alternative must bind the same names with compatible types. Restructure the patterns so each path produces an identical binding set."; };
+    if str_eq(code, "MATCH-009") { return "RFC-0023 §3.4 — at most one wildcard prefix/middle/suffix per slice pattern. Restructure to a non-overlapping decomposition."; };
+    if str_eq(code, "MATCH-010") { return "RFC-0023 §3.3 — pick a fresh identifier for the binding, or `let outer = outer;` to make shadowing explicit before the match."; };
     if str_eq(code, "ASSUME-001") { return "RFC-0004 §3.2 lists the predicate vocabulary the analyzer understands: x < N, x != 0, arr.len() == N, opt.is_some(), result.is_ok(), equality substitution. Other predicates are accepted as runtime checks but contribute nothing to static analysis."; };
     if str_eq(code, "ASSUME-002") { return "RFC-0004 §3.6 — assume_unchecked! is a footgun for extreme RT loops. Document why the runtime check is too costly to justify."; };
     if str_eq(code, "ASSUME-004") { return "The compiler proved the predicate is unsatisfiable at this program point. The assume! is wrong."; };

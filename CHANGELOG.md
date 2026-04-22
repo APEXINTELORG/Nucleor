@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.49] — 2026-04-22
+
+**MATCH-005…010 explain entries + milestone tracker accuracy.**
+
+### Added — MATCH-005…010 explain entries
+
+Six new diagnostic codes wired into `nuc explain`:
+
+- MATCH-005 — `?` error type doesn't `Into` the function's error type
+- MATCH-006 — `unwrap()` in `#[no_panic]` function (was already
+  registered, no change)
+- MATCH-007 — Range pattern bounds in wrong order
+- MATCH-008 — Or-pattern arms have different bindings
+- MATCH-009 — Slice pattern overlaps
+- MATCH-010 — `@`-binding name collides with outer scope
+
+Brings RFC-0023 (pattern matching) diagnostic surface to full coverage
+even though the typecker for those features lands in v0.4.
+
+### Tracker — three stale entries reconciled
+
+- RFC-0016 `while let` sugar — DONE in v0.1.16, was still marked TODO
+- RFC-0022 phase 2 POSIX `nuc` wrapper — DONE in v0.1.30 (script
+  resolves clang via `NUCLEOR_CLANG_PATH` / `LLVM_SYS_180_PREFIX` /
+  standard distro paths), was still marked TODO
+- RFC-0019 phase 1 manifest schema validation — DONE in v0.1.39
+  (`manifest_validate` builtin returns bitmask; gate
+  `tests/lang/manifest_validate.nr`), was still marked TODO
+
+### Verify gate
+
+150/150 green on Windows. Self-host LLVM IR fixed point preserved.
+
 ## [0.1.48] — 2026-04-22
 
 **Process spawn primitives + POSIX `nuc` wrapper recognized.**
