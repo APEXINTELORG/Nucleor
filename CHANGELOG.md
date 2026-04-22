@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.57] — 2026-04-22
+
+**Compiler ABI drift detector wired into the gate.**
+
+### Added — `tools/check_compiler_drift.sh`
+
+Diffs the four ABI tables between `nucleor_s1_compiler.nr` (the
+canonical source) and `nucleor_tools_suite.nr` (the tools binary's
+`compile_file_mode` driver):
+
+- `get_rt_name` — Nucleor name → `__nucleor_*` runtime symbol
+- `is_ptr_ret` — runtime fns that return `ptr` (not `i64`)
+- `is_ptr_arg` — runtime fns that take `ptr` for a specific arg
+- IR `declare` block — extern decls injected into emitted modules
+
+Reports each missing entry by name with a one-line per-row hint and
+exits non-zero on drift. Now wired into `tools/verify.sh` and
+`tools/verify.ps1` as a gate step (`compiler ABI tables synced`).
+
+Verified the catch path: injecting a fake `__nucleor_drift_test_canary`
+entry into s1 trips the check immediately; removing it goes back to
+green. Future stdlib helpers added to s1 must be mirrored to
+`nucleor_tools_suite.nr` or the gate fails before publish.
+
+### Verify gate
+
+156/156 green on Windows. Self-host LLVM IR fixed point preserved
+(no compiler source change in this release).
+
 ## [0.1.56] — 2026-04-22
 
 **Tools-binary IR-gen tables fully synced — eliminates compile-time

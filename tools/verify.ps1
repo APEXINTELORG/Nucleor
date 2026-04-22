@@ -119,14 +119,36 @@ foreach ($d in $testDirs) {
 }
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
-# 1 (binary present) + N examples + N tests + N err + 1 (self-host)
-$stepTotal = 1 + $examples.Count + $testCount + $errCount + 1
+# 1 (binary present) + 1 (drift check) + N examples + N tests + N err + 1 (self-host)
+$stepTotal = 2 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
     if (-not (Test-Path $bin)) { return $false }
     $out = & $bin help 2>&1 | Select-String "Nucleor Compiler" | Select-Object -First 1
     return $null -ne $out
+}
+
+Step "compiler ABI tables synced" {
+    # Mirrors tools/check_compiler_drift.sh — verify the s1-compiler ↔
+    # tools-suite get_rt_name / is_ptr_ret / is_ptr_arg / IR `declare`
+    # tables stay aligned.  Drift produces unprefixed @<name> calls in
+    # `nuc test` / `nuc build-strict` / `nuc check`.
+    $bash = $env:NUCLEOR_BASH_PATH
+    if (-not $bash -or -not (Test-Path $bash)) {
+        if (Test-Path "C:\Program Files\Git\bin\bash.exe") {
+            $bash = "C:\Program Files\Git\bin\bash.exe"
+        } elseif (Test-Path "C:\msys64\usr\bin\bash.exe") {
+            $bash = "C:\msys64\usr\bin\bash.exe"
+        } else {
+            # Bash unavailable on this host; skip silently rather than fail
+            # the gate. Linux/macOS gates always run the bash version.
+            return $true
+        }
+    }
+    $script = Join-Path $root "tools\check_compiler_drift.sh"
+    & $bash $script *> $null
+    return $LASTEXITCODE -eq 0
 }
 
 foreach ($ex in $examples) {
