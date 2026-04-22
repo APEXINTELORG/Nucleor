@@ -1,0 +1,36 @@
+# Build outputs
+target/
+.nuc_cache/
+*.exe
+*.dll
+*.lib
+*.obj
+*.o
+*.a
+*.ll
+*.bc
+*.wasm
+*.ptx
+
+# Allow the shipped bootstrap binary
+!bin/nucleor.exe
+
+# rust_bridge build artifacts
+stdlib/rods/rust_bridge/target/
+stdlib/rods/rust_bridge/Cargo.lock
+
+# Editor/OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Local logs and JSONL outputs
+*.jsonl
+*.log
+
+# Test scratch
+_verify_*.exe
+_test_*.exe

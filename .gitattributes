@@ -1,0 +1,26 @@
+# Default: text, autoconverted line endings on checkout
+* text=auto
+
+# Source files: always LF in the repo
+*.nr   text eol=lf
+*.c    text eol=lf
+*.h    text eol=lf
+*.cu   text eol=lf
+*.rs   text eol=lf
+*.toml text eol=lf
+*.md   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+
+# Windows scripts: CRLF
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binaries
+*.exe  binary
+*.dll  binary
+*.lib  binary
+*.wasm binary
+*.png  binary
+*.jpg  binary
+*.gif  binary

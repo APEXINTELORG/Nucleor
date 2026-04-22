@@ -1,0 +1,257 @@
+# Nucleor Language Reference (v0.1)
+
+This document describes the Nucleor language as implemented by the v0.1 self-hosted compiler (`bin/nucleor.exe`, version `0.2.0-v2`). It is intended as a normative-style reference. For a gentler introduction, see [language-tour.md](language-tour.md).
+
+## 1. Lexical structure
+
+### 1.1 Source encoding
+
+Source files are UTF-8. Line endings may be `\n` or `\r\n`.
+
+### 1.2 Comments
+
+```
+// line comment to end of line
+```
+
+Block comments (`/* ... */`) are not currently supported.
+
+### 1.3 Identifiers
+
+```
+identifier ::= [A-Za-z_][A-Za-z0-9_]*
+```
+
+Identifiers are case-sensitive. There is no length limit.
+
+### 1.4 Literals
+
+| Form | Type | Example |
+|---|---|---|
+| Decimal integer | `i64` | `42`, `-17` |
+| String | `str`  | `"hello\n"` |
+| Boolean | `bool` | `true`, `false` |
+
+Hexadecimal (`0x...`) and binary (`0b...`) integer literals are not currently supported.
+
+String escape sequences: `\n`, `\r`, `\t`, `\\`, `\"`.
+
+### 1.5 Keywords
+
+`fn`, `let`, `mut`, `return`, `if`, `else`, `while`, `match`, `struct`, `enum`, `import`, `extern`, `pub`, `true`, `false`.
+
+### 1.6 Operators
+
+| Category | Operators |
+|---|---|
+| Arithmetic | `+`, `-`, `*`, `/` |
+| Comparison | `==`, `!=`, `<`, `<=`, `>`, `>=` |
+| Logical | `&&`, `||`, `!` |
+| Assignment | `=` |
+| Field access | `.` |
+| Path | `::` (e.g. `Option::Some`, `Vec::new`) |
+
+## 2. Types
+
+| Type | Description |
+|---|---|
+| `i64` | 64-bit signed integer (the workhorse type) |
+| `i32` | 32-bit signed integer (used for `main` return; mostly equivalent to `i64` in expressions) |
+| `f64` | 64-bit floating point (passed as `i64`-bitcast through the C ABI; see `stdlib/rods/complex.nr` for helpers) |
+| `bool` | Boolean (`true`/`false`) |
+| `str` | UTF-8 string (immutable, ref-counted) |
+| `Vec<T>` | Dynamic array of 64-bit slots; element type is by convention `i32` even when storing `i64` |
+| `struct` | User-defined product type (see §4) |
+| `enum`   | User-defined sum type (see §5) |
+
+Numeric primitives are not implicitly converted between widths. Use the runtime helpers (`f64_from_int`, `f64_to_str_6`, etc., from `stdlib/rods/complex.nr`) for explicit conversion.
+
+## 3. Functions
+
+```
+fn name(p1: T1, p2: T2, ...) -> ReturnType {
+    statements...
+    return value;
+}
+```
+
+- Every parameter requires a type annotation.
+- Every function requires a return type. `void`-returning functions return `()` (rare; most `void` cases are modeled as `-> i64` returning `0`).
+- Functions are first-class: a function name evaluated outside of a call expression yields a function pointer (`i64`).
+
+### 3.1 Closures
+
+```
+let f: i64 = |x, y| x + y;
+let g: i64 = |x| { if x < 0 { return 0 - x; }; return x; };
+let z: i64 = || 42;
+```
+
+Closures are stored as `i64` (a pointer or handle). Apply with normal call syntax: `f(1, 2)`.
+
+### 3.2 `pub`
+
+Prefix a function with `pub` to mark it as part of a shared-library export surface (used by `nuc build-shared`). Default visibility is module-internal.
+
+## 4. Structs
+
+```
+struct Point {
+    x: i64,
+    y: i64
+}
+```
+
+- Constructed with `Point { x: 3, y: 4 }`.
+- Accessed with `p.x`.
+- Field assignment requires the binding to be `mut`: `let mut p: Point = ...; p.x = 7;`.
+- Structs are move-by-default. Passing a struct into a function or storing it in another struct *moves* it; subsequent use of the original binding is reported as `OWN-001`.
+
+### 4.1 `@layout(soa | aos | group(...))`
+
+Annotate a struct to control memory layout.
+
+```
+@layout(soa)
+struct Particle { x: i64, y: i64, z: i64, mass: i64 }
+```
+
+- `aos` (default): array-of-structs, dense rows.
+- `soa`: struct-of-arrays, useful for SIMD or hot-fields-first access patterns.
+- `group(hot: x y, cold: mass)`: split fields into separately-laid-out groups.
+
+`@layout` does not change observable struct semantics, only memory layout.
+
+## 5. Enums
+
+```
+enum Option {
+    None,
+    Some(i64)
+}
+```
+
+- Variants without a payload are nullary: `Option::None`.
+- Variants with a payload take their value: `Option::Some(42)`.
+- Each enum is its own type. A function expecting an `Option` parameter cannot be called with an `i64` — declare the parameter type as the enum.
+
+### 5.1 `match`
+
+```
+match x {
+    Option::None => { return 0; },
+    Option::Some(v) => { return v; },
+};
+```
+
+`match` is exhaustive over the enum's variants. Each arm requires `=>` followed by a block; arms are comma-separated; the `match` expression itself is terminated by `;`.
+
+## 6. Control flow
+
+```
+if cond { ... } else { ... };
+
+while cond { ... };
+
+return expr;
+```
+
+- `if` and `while` blocks always require braces.
+- `else if` is written as a nested `if` inside the `else` branch (no syntactic sugar yet).
+- `break` and `continue` are not currently exposed as keywords; pattern out of loops with sentinel variables.
+
+## 7. Imports and modules
+
+```
+import "stdlib/rods/strings.nr"
+import "../my_local_helper.nr"
+```
+
+- Paths are string-quoted, evaluated relative to the working directory (typically the project root).
+- The compiler resolves the import graph and includes each unique source exactly once.
+
+### 7.1 `extern fn`
+
+Declare a foreign function callable through the C ABI:
+
+```
+extern fn rust_regex_is_match(pattern: str, text: str) -> i64;
+```
+
+The actual symbol must be linked at build time (see §7.2).
+
+### 7.2 Build directives
+
+| Directive | Effect |
+|---|---|
+| `#cfile "path/to/x.c"` | Compile and link `x.c` (relative to the rod file's directory). |
+| `#link "lib_name"`     | Link against the static or DLL import library `lib_name`. |
+| `#libpath "dir/path"`  | Add `dir/path` to the linker's library search path. |
+
+These appear at module top level, before function declarations. Multiple directives may be present and are collected during module resolution.
+
+## 8. Performance attributes
+
+| Attribute | Effect |
+|---|---|
+| `@hot`               | Strict performance enforcement: no heap allocation, no string formatting, no indirect dispatch in the function's body. The compiler reports violations as performance diagnostics. |
+| `@const_fn`          | Marks the function as eligible for compile-time evaluation when called with constant arguments. |
+| `@law(...)`          | Declares algebraic laws the optimizer may use to rewrite call sites. Supported laws: `commutative`, `associative`, `identity=N`, `absorbing=N`, `idempotent`, `involution`, `distributive`, `fusion`. |
+| `@region(name)`      | Binds the function's allocations to a named arena/region allocator. |
+
+Run `nuc perf <file>.nr` to see which laws fired and which violations were reported.
+
+## 9. Ownership and effects
+
+The compiler runs an ownership/move checker by default (`OWN-*` codes) and a type checker (`TYP-*` codes).
+
+| Code | Meaning |
+|---|---|
+| `OWN-001` | Use of moved variable |
+| `OWN-008` | Cannot assign to immutable binding (missing `mut`) |
+| `TYP-005` | Wrong number of arguments in call |
+| `TYP-006` | Argument type mismatch |
+| `TYP-008` | Type mismatch for binding |
+
+Run `nuc check <file>.nr` for diagnostics-only mode (no codegen).
+
+## 10. The `nuc` command-line interface
+
+| Command | Purpose |
+|---|---|
+| `nuc init [name]`     | Scaffold a new project with `Nucleor.toml` |
+| `nuc build [file]`    | Compile to a native binary |
+| `nuc build-fast`      | Fast core compile path |
+| `nuc build-strict`    | Run all checkers (ownership, type, source, taint, effect) |
+| `nuc build-shared`    | Compile a shared library (`.dll`/`.lib`) from `pub fn` exports |
+| `nuc build-wasm`      | Compile to WebAssembly |
+| `nuc build-ptx`       | Compile to NVIDIA PTX |
+| `nuc run`             | Compile and run |
+| `nuc emit`            | Emit LLVM IR only (no link) |
+| `nuc test [path]`     | Build and run tests |
+| `nuc bench [file]`    | Benchmark repeated runs |
+| `nuc perf [file]`     | Compile-path performance analysis |
+| `nuc check [file]`    | Run all checkers, report diagnostics |
+| `nuc summary [file]`  | Compact module interface card |
+| `nuc abi [file]`      | Inspect the C/Rust interop ABI of imports/exports |
+| `nuc graph [file]`    | Source-level call/effect graph |
+| `nuc bootstrap status` | Report self-host bootstrap state |
+| `nuc stage-dump <stage>` | Dump compiler stage summaries (`tokens`, `ast`, `typed`, `ir`, `all`) |
+
+Most commands accept `--json` for machine-readable output, `-o <name>` for the output base name, and `--time-passes` for per-phase compile timings.
+
+## 11. Project layout (`Nucleor.toml`)
+
+When invoked without an explicit source file in a directory containing `Nucleor.toml`, `nuc` reads `[build].entry` to find the entry point. See `nuc init [name]` for a scaffold.
+
+## 12. What this version does not have (yet)
+
+- `for` loops (only `while`)
+- `break` / `continue`
+- Hex/binary integer literals
+- Generics (planned)
+- Traits/interfaces (placeholder; see `tests/lang/struct_methods.nr` for current method patterns)
+- `async`/`await`
+- Block comments (`/* ... */`)
+
+These are tracked in the public roadmap. Contributions welcome.
