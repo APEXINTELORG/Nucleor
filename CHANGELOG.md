@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] — 2026-04-22
+
+Positive feature-test suite ported from the V1 archive — verify gate
+goes from **67 to 101 steps**.
+
+### Added
+
+- **34 new positive tests** in `tests/features/` (new directory). Cover
+  borrow checker (basic, comprehensive, copy, deref, field-disjoint,
+  multiple), control flow (break/continue, fizzbuzz×2, forin
+  array/vec, let-in-loop, while_sum, logical_ops), closures (basic),
+  generics (fn, struct, enum, where_clauses), traits (basic, bounds,
+  default, method), mut borrows (basic, fn-param, field-assign), move
+  semantics (comprehensive, option), arithmetic, overflow_trap, vec
+  (basic, grow), u32/u64 comparison.
+- **`tests\features` wired into `tools/verify.ps1`.** Pass criterion is
+  build success + program runs without crashing (no access-violation
+  exit). These tests assert by construction — they exercise language
+  constructs and the bar is "compiler accepts and emits something that
+  doesn't blow up at runtime."
+
+### Quarantined
+
+- **`tests/features/_unimplemented/`** — 18 tests that fail to link
+  because they reference V1 runtime symbols never ported to OSS:
+  `__nucleor_abs/min/max` (5 math tests), `__nucleor_capture_*`
+  (closure_capture), `__nucleor_vec_iter/take/skip/sum/any/fold/map/filter`
+  (5 vec-iter tests), `__nucleor_f64_from_scaled` (option_result_f64),
+  overflow-mode runtime ops (3 overflow tests), `String` type
+  (string_basic, string_ops), `use "<file>" { name }` selective import.
+  Each is a punchlist item — implement the missing builtin and the test
+  moves up.
+
 ## [0.1.7] — 2026-04-22
 
 Negative-test suite ported from the V1 archive — verify gate goes from
