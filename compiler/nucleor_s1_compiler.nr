@@ -1984,6 +1984,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "arena_alloc") { return "__nucleor_arena_alloc"; };
     if str_eq(name, "arena_destroy") { return "__nucleor_arena_destroy"; };
     if str_eq(name, "assert_eq") { return "__nucleor_assert_eq"; };
+    if str_eq(name, "assert_ne") { return "__nucleor_assert_ne"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2515,6 +2516,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_arena_alloc(i64, i64)\n");
     sb_append(sb, "declare void @__nucleor_arena_destroy(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_assert_eq(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_assert_ne(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");

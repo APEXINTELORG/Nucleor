@@ -644,6 +644,37 @@ long long __nucleor_isatty_stdout(void) {
 }
 #endif
 
+// === Test framework runtime (RFC-0021) ===
+// __nucleor_assert(cond) — print FAIL + exit 1 if cond is 0; else return 0.
+// __nucleor_assert_eq(a, b) — print FAIL + exit 1 if a != b; else return 0.
+// Compiler emits these for the assert!/assert_eq! built-ins.
+long long __nucleor_assert(long long cond) {
+    if (cond == 0) {
+        fprintf(stderr, "ASSERTION FAILED\n");
+        fflush(stderr);
+        exit(1);
+    }
+    return 0;
+}
+
+long long __nucleor_assert_eq(long long a, long long b) {
+    if (a != b) {
+        fprintf(stderr, "ASSERTION FAILED: %lld != %lld\n", a, b);
+        fflush(stderr);
+        exit(1);
+    }
+    return 0;
+}
+
+long long __nucleor_assert_ne(long long a, long long b) {
+    if (a == b) {
+        fprintf(stderr, "ASSERTION FAILED: %lld == %lld (expected !=)\n", a, b);
+        fflush(stderr);
+        exit(1);
+    }
+    return 0;
+}
+
 // === RNG ===
 // Pull in rng_rt.c so nuc_rng_* symbols are available without a separate
 // link step. The compiler emits __nucleor_rng_seed/etc. which forward to
