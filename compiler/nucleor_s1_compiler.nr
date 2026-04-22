@@ -2100,6 +2100,13 @@ fn get_rt_name(name: str) -> str {
     // ISO 8601 time formatting (RFC-0017 enrichment)
     if str_eq(name, "time_iso_now") { return "__nucleor_time_iso_now"; };
     if str_eq(name, "time_format_iso") { return "__nucleor_time_format_iso"; };
+    // Hash helpers (RFC-0017 stdlib enrichment)
+    if str_eq(name, "fnv1a_64_str") { return "__nucleor_fnv1a_64_str"; };
+    if str_eq(name, "fnv1a_64_i64") { return "__nucleor_fnv1a_64_i64"; };
+    if str_eq(name, "murmur3_64") { return "__nucleor_murmur3_64"; };
+    // Print without trailing newline (RFC-0017 ergonomics)
+    if str_eq(name, "print_raw") { return "__nucleor_print_raw"; };
+    if str_eq(name, "eprint_raw") { return "__nucleor_eprint_raw"; };
     if str_eq(name, "file_append_string") { return "__nucleor_file_append_string"; };
     if str_eq(name, "sb_free") { return "__nucleor_sb_free"; };
     if str_eq(name, "now_ms") { return "__nucleor_now_ms"; };
@@ -2606,6 +2613,8 @@ fn get_rt_name(name: str) -> str {
 }
 fn is_void_ret(name: str) -> i64 {
     if str_eq(name, "print") { return 1; };
+    if str_eq(name, "print_raw") { return 1; };
+    if str_eq(name, "eprint_raw") { return 1; };
     if str_eq(name, "file_write_string") { return 1; };
     if str_eq(name, "sb_append") { return 1; };
     if str_eq(name, "vec_push") { return 1; };
@@ -2675,9 +2684,12 @@ fn is_ptr_ret(name: str) -> i64 {
 }
 fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "print") { return 1; };
+    if str_eq(name, "print_raw") { return 1; };
+    if str_eq(name, "eprint_raw") { return 1; };
     if str_eq(name, "panic") { return 1; };
     if str_eq(name, "dbg_str") { return 1; };
     if str_eq(name, "eprint") { return 1; };
+    if str_eq(name, "fnv1a_64_str") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "string_from_str") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "string_push_str") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "string_eq_str") { if idx == 1 { return 1; }; return 0; };
@@ -3183,6 +3195,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_hashmap_values(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_time_iso_now()\n");
     sb_append(sb, "declare ptr @__nucleor_time_format_iso(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_fnv1a_64_str(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_fnv1a_64_i64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_murmur3_64(i64)\n");
+    sb_append(sb, "declare void @__nucleor_print_raw(ptr)\n");
+    sb_append(sb, "declare void @__nucleor_eprint_raw(ptr)\n");
     sb_append(sb, "declare void @__nucleor_file_append_string(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_free(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_now_ms()\n");

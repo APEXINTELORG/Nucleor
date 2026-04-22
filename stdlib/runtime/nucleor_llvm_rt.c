@@ -28,6 +28,51 @@ void __nucleor_print_bool(int x) {
     printf("%s\n", x ? "true" : "false");
 }
 
+// === RFC-0017 stdlib enrichment: hash + print extras ===
+
+// FNV-1a 64-bit hash (cf. Wikipedia FNV).  Determinstic, non-cryptographic.
+long long __nucleor_fnv1a_64_str(const char *s) {
+    if (!s) return 0;
+    unsigned long long h = 0xcbf29ce484222325ULL;
+    while (*s) {
+        h ^= (unsigned long long)(unsigned char)*s++;
+        h *= 0x100000001b3ULL;
+    }
+    return (long long)h;
+}
+long long __nucleor_fnv1a_64_i64(long long v) {
+    unsigned long long h = 0xcbf29ce484222325ULL;
+    int i;
+    for (i = 0; i < 8; i++) {
+        h ^= (unsigned long long)((v >> (i * 8)) & 0xFFLL);
+        h *= 0x100000001b3ULL;
+    }
+    return (long long)h;
+}
+
+// MurmurHash3 64-bit finalizer — fast bit-mixing without state.
+long long __nucleor_murmur3_64(long long v) {
+    unsigned long long x = (unsigned long long)v;
+    x ^= x >> 33;
+    x *= 0xff51afd7ed558ccdULL;
+    x ^= x >> 33;
+    x *= 0xc4ceb9fe1a85ec53ULL;
+    x ^= x >> 33;
+    return (long long)x;
+}
+
+// Print without trailing newline. `print` (the existing builtin) appends \n
+// for ergonomic logging; eprint and these `_raw` variants suppress it for
+// progress meters / formatted columns / in-place updates.
+void __nucleor_print_raw(const char *s) {
+    if (s) fputs(s, stdout);
+    fflush(stdout);
+}
+void __nucleor_eprint_raw(const char *s) {
+    if (s) fputs(s, stderr);
+    fflush(stderr);
+}
+
 // === RFC-0028 phase 1: format string builtins ===
 // Scan `template` for the first `{}` placeholder and replace it with the
 // rendered argument. Returns a heap-allocated str (caller-owned in the
