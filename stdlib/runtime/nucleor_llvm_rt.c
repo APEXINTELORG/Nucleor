@@ -160,6 +160,82 @@ const char *__nucleor_format3_iii(const char *tmpl, long long a, long long b, lo
     return out;
 }
 
+// --- v0.2.24: parse / stringify primitives ---
+// Parsers tolerate leading whitespace and an optional sign; return 0 on
+// completely-malformed input. Stringifiers always allocate fresh strings.
+long long __nucleor_str_to_i64(const char *s) {
+    if (!s) return 0;
+    while (*s == ' ' || *s == '\t' || *s == '\n' || *s == '\r') s++;
+    int neg = 0;
+    if (*s == '-') { neg = 1; s++; }
+    else if (*s == '+') { s++; }
+    long long v = 0;
+    int saw = 0;
+    while (*s >= '0' && *s <= '9') {
+        v = v * 10 + (long long)(*s - '0');
+        saw = 1;
+        s++;
+    }
+    if (!saw) return 0;
+    return neg ? -v : v;
+}
+
+long long __nucleor_str_to_f64(const char *s) {
+    union { long long i; double d; } u;
+    if (!s) { u.d = 0.0; return u.i; }
+    char *end;
+    double d = strtod(s, &end);
+    if (end == s) { u.d = 0.0; return u.i; }
+    u.d = d;
+    return u.i;
+}
+
+long long __nucleor_str_to_bool(const char *s) {
+    if (!s) return 0;
+    while (*s == ' ' || *s == '\t') s++;
+    // Accept "true"/"false" (case-insensitive) and "1"/"0".
+    if ((s[0] == '1') && (s[1] == 0 || s[1] == ' ' || s[1] == '\t')) return 1;
+    if ((s[0] == '0') && (s[1] == 0 || s[1] == ' ' || s[1] == '\t')) return 0;
+    char low[6] = {0};
+    int i = 0;
+    while (i < 5 && s[i]) {
+        char c = s[i];
+        if (c >= 'A' && c <= 'Z') c = (char)(c + 32);
+        low[i] = c;
+        i++;
+    }
+    if (strcmp(low, "true") == 0) return 1;
+    if (strcmp(low, "false") == 0) return 0;
+    return 0;
+}
+
+const char *__nucleor_int_to_str(long long v) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%lld", v);
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return out;
+}
+
+const char *__nucleor_f64_to_str(long long b) {
+    union { long long i; double d; } u; u.i = b;
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%g", u.d);
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return out;
+}
+
+const char *__nucleor_bool_to_str(long long v) {
+    const char *src = v != 0 ? "true" : "false";
+    size_t L = strlen(src);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, src, L + 1);
+    return out;
+}
+
 
 // === Stdin read helpers (RFC-0015 phase 4 completion) ===
 // read_line: returns a newline-terminated input line as a heap-allocated str
