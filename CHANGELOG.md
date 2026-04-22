@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.63] — 2026-04-22
+
+**`nuc fix --numeric` migration linter + RFC-0022 phase 3 deferrals.**
+
+### Added — `nuc fix --numeric` linter
+
+```
+$ nuc fix --numeric demo.nr
+demo.nr:2: numeric: i32 in additive context — consider explicit `as i64`
+demo.nr:3: numeric: i32 in subtractive context — consider explicit `as i64`
+nuc fix --numeric: 2 finding(s) in demo.nr
+  Add explicit `as <wider_type>` casts at flagged sites.
+```
+
+Conservative line-local heuristic that flags `let _: i32 = … + …`
+patterns missing an explicit `as i64` cast — the kind of site that
+the staged NUM-001 firing (v0.1.62) would warn on once the stdlib
+audit completes. Reports findings; does not modify the file (the
+automated rewriter ships once the full type lattice IR lands in
+phase 3). Exposed via the s1 compiler's `run_external_tool` router
+so `nuc fix --numeric <file>` works through `nucleor.exe`.
+
+### Tracker — RFC-0022 phase 3 deferrals
+
+- **Linux/macOS native build of `bin/nucleor`** — DEFERRED to v0.3
+  (needs a Linux self-host bootstrap). The POSIX `./nuc` wrapper
+  already documents the v0.3 cross-build plan in its error message.
+- **Sysroot manager `nuc install sysroot`** — DEFERRED to v0.5 with
+  the package registry. TGT-002 explain entry already documents the
+  planned `nuc install sysroot --target=<triple>` UX.
+
+### Verify gate
+
+158/158 green on Windows. Self-host LLVM IR fixed point preserved
+(v67==v68 byte-identical).
+
 ## [0.1.62] — 2026-04-22
 
 **RFC-0015 phase 1 numeric-type lattice classifiers landed.**

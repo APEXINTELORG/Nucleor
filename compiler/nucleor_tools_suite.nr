@@ -9501,14 +9501,61 @@ fn fix_imports_in_source(src: str) -> Vec<i32> {
     return out;
 }
 
+// RFC-0015 phase 5 partial: `nuc fix --numeric` lints (does not modify)
+// for mixed-width arithmetic. Scans for the textual pattern
+// `let <name>: <int_type> = ...;` followed elsewhere by binop operands
+// that don't align in width. Reports each finding with a suggested
+// `as` cast. Full inference + automated rewrite arrives once the
+// type lattice IR (phase 3) lands.
+fn report_numeric_findings(src_path: str, src: str) -> i64 {
+    let mut findings: i64 = 0;
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    let mut line: i64 = 1;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(src, eol) != 10 { eol = eol + 1; };
+        let ln: str = str_substring(src, p, eol);
+        let ll: i64 = str_len(ln);
+        // Heuristic: any line with two distinct width markers next to a
+        // binary operator counts. We look for adjacent declared types
+        // such as ": i32" + ": i64" on contiguous lines, or in-line
+        // "as i64" already present (which we ignore).
+        if ll >= 8 && find_substr(ln, ": i32") >= 0 && find_substr(ln, " + ") >= 0 && find_substr(ln, "as i64") < 0 {
+            print(str_concat(src_path, str_concat(":", str_concat(str_from_int(line), ": numeric: i32 in additive context — consider explicit `as i64`"))));
+            findings = findings + 1;
+        } else if ll >= 8 && find_substr(ln, ": i32") >= 0 && find_substr(ln, " - ") >= 0 && find_substr(ln, "as i64") < 0 {
+            print(str_concat(src_path, str_concat(":", str_concat(str_from_int(line), ": numeric: i32 in subtractive context — consider explicit `as i64`"))));
+            findings = findings + 1;
+        };
+        p = eol + 1;
+        line = line + 1;
+    };
+    return findings;
+}
+
+fn find_substr(haystack: str, needle: str) -> i64 {
+    let hlen: i64 = str_len(haystack);
+    let nlen: i64 = str_len(needle);
+    if nlen == 0 || nlen > hlen { return 0 - 1; };
+    let mut i: i64 = 0;
+    while i <= hlen - nlen {
+        if str_eq(str_substring(haystack, i, i + nlen), needle) == 1 { return i; };
+        i = i + 1;
+    };
+    return 0 - 1;
+}
+
 fn run_fix_command(src_path: str, subcmd: str) -> i64 {
-    if str_eq(subcmd, "imports") == 0 {
-        print("ERROR: nuc fix requires --imports (only fixer in v0.2.0)");
-        print("Usage: nuc fix --imports [file]");
+    if str_eq(subcmd, "imports") == 0 && str_eq(subcmd, "numeric") == 0 {
+        print("ERROR: nuc fix requires --imports or --numeric");
+        print("Usage:");
+        print("  nuc fix --imports <file>   Rewrite quoted imports to use std::");
+        print("  nuc fix --numeric <file>   Lint mixed-width arithmetic (RFC-0015)");
         return 1;
     };
     if str_len(src_path) == 0 {
-        print("ERROR: nuc fix --imports requires a source file");
+        print(str_concat("ERROR: nuc fix --", str_concat(subcmd, " requires a source file")));
         return 1;
     };
     let src: str = file_read_string(src_path);
@@ -9516,15 +9563,27 @@ fn run_fix_command(src_path: str, subcmd: str) -> i64 {
         print(str_concat("ERROR: cannot read ", src_path));
         return 1;
     };
-    let result: Vec<i32> = fix_imports_in_source(src);
-    let new_src: str = vec_get(result, 0);
-    let n_changed: i64 = str_to_int(vec_get(result, 1));
-    if n_changed == 0 {
-        print(str_concat("nothing to fix in ", src_path));
+    if str_eq(subcmd, "imports") == 1 {
+        let result: Vec<i32> = fix_imports_in_source(src);
+        let new_src: str = vec_get(result, 0);
+        let n_changed: i64 = str_to_int(vec_get(result, 1));
+        if n_changed == 0 {
+            print(str_concat("nothing to fix in ", src_path));
+            return 0;
+        };
+        file_write_string(src_path, new_src);
+        print(str_concat("nuc fix --imports: rewrote ", str_concat(str_from_int(n_changed), str_concat(" import line(s) in ", src_path))));
         return 0;
     };
-    file_write_string(src_path, new_src);
-    print(str_concat("nuc fix --imports: rewrote ", str_concat(str_from_int(n_changed), str_concat(" import line(s) in ", src_path))));
+    // numeric
+    let n: i64 = report_numeric_findings(src_path, src);
+    if n == 0 {
+        print(str_concat("nuc fix --numeric: no mixed-width arithmetic patterns detected in ", src_path));
+        return 0;
+    };
+    print(str_concat("nuc fix --numeric: ", str_concat(str_from_int(n), str_concat(" finding(s) in ", src_path))));
+    print("  Add explicit `as <wider_type>` casts at flagged sites.");
+    print("  This linter is intentionally conservative — manual review still required.");
     return 0;
 }
 
@@ -13507,6 +13566,7 @@ fn print_help() -> i64 {
     print("    --json               Output machine-readable lock status");
     print("  install [alias] <pkg>  Add a path or registry dependency and refresh Nucleor.lock");
     print("  fix --imports [file]   Rewrite import \"stdlib/rods/foo.nr\" to use std::foo (RFC-0018)");
+    print("  fix --numeric [file]   Lint mixed-width arithmetic, suggest `as` casts (RFC-0015)");
     print("  publish [manifest]     Copy a package into a local registry directory");
     print("    --registry <dir>     Registry root (default: .nucleor/registry)");
     print("  registry [subcmd]      List/search/inspect packages in a local registry");
@@ -13572,13 +13632,14 @@ fn main() -> i64 {
         return run_lock_command(argc);
     };
     if str_eq(cmd, "fix") {
-        // Parse: nuc fix --imports <file>
+        // Parse: nuc fix [--imports|--numeric] <file>
         let mut sub: str = "";
         let mut tgt: str = "";
         let mut fi: i64 = 2;
         while fi < argc {
             let a: str = args_get(fi);
             if str_eq(a, "--imports") == 1 { sub = "imports"; }
+            else if str_eq(a, "--numeric") == 1 { sub = "numeric"; }
             else if cli_is_flag(a) == 0 && str_len(tgt) == 0 { tgt = a; };
             fi = fi + 1;
         };
