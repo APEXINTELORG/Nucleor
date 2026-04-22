@@ -3644,6 +3644,18 @@ long long __nucleor_rotate_right(long long v, long long n) {
     n = n & 63;
     return (long long)((u >> n) | (u << (64 - n)));
 }
+long long __nucleor_count_ones(long long v) {
+    unsigned long long u = (unsigned long long)v;
+    long long c = 0;
+    while (u) { c += (long long)(u & 1ULL); u >>= 1; }
+    return c;
+}
+long long __nucleor_count_zeros(long long v) {
+    unsigned long long u = (unsigned long long)v;
+    long long c = 64;
+    while (u) { c -= (long long)(u & 1ULL); u >>= 1; }
+    return c;
+}
 
 // === Comprehensive math primitives (i64 + f64) ===
 // f64 values pass as i64 cells with bit-pattern in bits.
@@ -3783,6 +3795,26 @@ long long __nucleor_f64_clamp(long long v, long long lo, long long hi) {
     if (dv < dlo) return lo;
     if (dv > dhi) return hi;
     return v;
+}
+long long __nucleor_f64_abs(long long b) {
+    return __nuc_d2b(fabs(__nuc_b2d(b)));
+}
+long long __nucleor_f64_min(long long a, long long b) {
+    double da = __nuc_b2d(a), db = __nuc_b2d(b);
+    return __nuc_d2b(da < db ? da : db);
+}
+long long __nucleor_f64_max(long long a, long long b) {
+    double da = __nuc_b2d(a), db = __nuc_b2d(b);
+    return __nuc_d2b(da > db ? da : db);
+}
+long long __nucleor_f64_sign(long long b) {
+    double d = __nuc_b2d(b);
+    if (d > 0.0) return __nuc_d2b(1.0);
+    if (d < 0.0) return __nuc_d2b(-1.0);
+    return __nuc_d2b(0.0);
+}
+long long __nucleor_f64_copy_sign(long long a, long long b) {
+    return __nuc_d2b(copysign(__nuc_b2d(a), __nuc_b2d(b)));
 }
 long long __nucleor_f64_lerp(long long a, long long b, long long t) {
     double da = __nuc_b2d(a), db = __nuc_b2d(b), dt = __nuc_b2d(t);

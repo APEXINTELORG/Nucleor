@@ -2549,6 +2549,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "byte_swap") { return "__nucleor_byte_swap"; };
     if str_eq(name, "rotate_left") { return "__nucleor_rotate_left"; };
     if str_eq(name, "rotate_right") { return "__nucleor_rotate_right"; };
+    if str_eq(name, "count_ones") { return "__nucleor_count_ones"; };
+    if str_eq(name, "count_zeros") { return "__nucleor_count_zeros"; };
     // Math primitives — i64 helpers
     if str_eq(name, "i64_abs") { return "__nucleor_i64_abs"; };
     if str_eq(name, "i64_min") { return "__nucleor_i64_min"; };
@@ -2583,6 +2585,11 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "f64_fmod") { return "__nucleor_f64_fmod"; };
     if str_eq(name, "f64_hypot") { return "__nucleor_f64_hypot"; };
     if str_eq(name, "f64_clamp") { return "__nucleor_f64_clamp"; };
+    if str_eq(name, "f64_abs") { return "__nucleor_f64_abs"; };
+    if str_eq(name, "f64_min") { return "__nucleor_f64_min"; };
+    if str_eq(name, "f64_max") { return "__nucleor_f64_max"; };
+    if str_eq(name, "f64_sign") { return "__nucleor_f64_sign"; };
+    if str_eq(name, "f64_copy_sign") { return "__nucleor_f64_copy_sign"; };
     if str_eq(name, "f64_lerp") { return "__nucleor_f64_lerp"; };
     if str_eq(name, "f64_is_nan") { return "__nucleor_f64_is_nan"; };
     if str_eq(name, "f64_is_inf") { return "__nucleor_f64_is_inf"; };
@@ -3631,6 +3638,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_byte_swap(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_rotate_left(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_rotate_right(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_count_ones(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_count_zeros(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_i64_abs(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_i64_min(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_i64_max(i64, i64)\n");
@@ -3663,6 +3672,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_f64_fmod(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_hypot(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_clamp(i64, i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_abs(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_min(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_max(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_sign(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_copy_sign(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_lerp(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_is_nan(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_is_inf(i64)\n");
