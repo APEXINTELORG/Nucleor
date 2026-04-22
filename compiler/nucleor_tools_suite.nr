@@ -9432,6 +9432,102 @@ fn build_test_harness_source(resolved_source: str, tests: Vec<i32>) -> str {
     return sb_to_str(sb);
 }
 
+// RFC-0018 phase 3: `nuc fix --imports` migration tool.
+// Rewrites quoted-path imports of the form
+//     import "stdlib/rods/<rod>.nr"
+//     use    "stdlib/rods/<rod>.nr"
+// into the Rust-style equivalent
+//     use std::<rod>;
+// in-place. Skips lines that already use the std::/crate::/super::
+// syntax. Writes the source back only if at least one line changed.
+fn fix_imports_in_source(src: str) -> Vec<i32> {
+    let mut sb: i64 = sb_new();
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    let mut changed: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(src, eol) != 10 { eol = eol + 1; };
+        let line_end: i64 = eol;
+        let mut lp: i64 = p;
+        while lp < line_end && (str_char_at(src, lp) == 32 || str_char_at(src, lp) == 9) { lp = lp + 1; };
+        let line_len: i64 = line_end - lp;
+        let mut prefix_len: i64 = 0;
+        if line_len >= 8 && str_eq(str_substring(src, lp, lp + 7), "import ") == 1 { prefix_len = 7; };
+        if prefix_len == 0 && line_len >= 5 && str_eq(str_substring(src, lp, lp + 4), "use ") == 1 { prefix_len = 4; };
+        let mut rewritten: i64 = 0;
+        if prefix_len > 0 {
+            let mut qp: i64 = lp + prefix_len;
+            while qp < line_end && str_char_at(src, qp) == 32 { qp = qp + 1; };
+            if qp < line_end && str_char_at(src, qp) == 34 {
+                let ps: i64 = qp + 1;
+                let mut pe: i64 = ps;
+                while pe < line_end && str_char_at(src, pe) != 34 { pe = pe + 1; };
+                let raw: str = str_substring(src, ps, pe);
+                let rlen: i64 = str_len(raw);
+                let prefix_match: i64 = if rlen >= 12 { str_eq(str_substring(raw, 0, 12), "stdlib/rods/") } else { 0 };
+                if prefix_match == 1 && rlen >= 15 && str_eq(str_substring(raw, rlen - 3, rlen), ".nr") == 1 {
+                    let inner: str = str_substring(raw, 12, rlen - 3);
+                    // Convert any embedded "/" into "::" so e.g. "foo/bar" -> "foo::bar".
+                    let mut isb: i64 = sb_new();
+                    sb_append(isb, "use std::");
+                    let ilen: i64 = str_len(inner);
+                    let mut ii: i64 = 0;
+                    while ii < ilen {
+                        let ch: i64 = str_char_at(inner, ii);
+                        if ch == 47 { sb_append(isb, "::"); }
+                        else { sb_append(isb, str_substring(inner, ii, ii + 1)); };
+                        ii = ii + 1;
+                    };
+                    sb_append(isb, ";");
+                    // Preserve leading whitespace.
+                    if lp > p { sb_append(sb, str_substring(src, p, lp)); };
+                    sb_append(sb, sb_to_str(isb));
+                    if eol < slen { sb_append(sb, "\n"); };
+                    changed = changed + 1;
+                    rewritten = 1;
+                };
+            };
+        };
+        if rewritten == 0 {
+            sb_append(sb, str_substring(src, p, eol));
+            if eol < slen { sb_append(sb, "\n"); };
+        };
+        p = eol + 1;
+    };
+    let mut out: Vec<i32> = Vec::new();
+    out.push(sb_to_str(sb));
+    out.push(str_from_int(changed));
+    return out;
+}
+
+fn run_fix_command(src_path: str, subcmd: str) -> i64 {
+    if str_eq(subcmd, "imports") == 0 {
+        print("ERROR: nuc fix requires --imports (only fixer in v0.2.0)");
+        print("Usage: nuc fix --imports [file]");
+        return 1;
+    };
+    if str_len(src_path) == 0 {
+        print("ERROR: nuc fix --imports requires a source file");
+        return 1;
+    };
+    let src: str = file_read_string(src_path);
+    if str_len(src) == 0 {
+        print(str_concat("ERROR: cannot read ", src_path));
+        return 1;
+    };
+    let result: Vec<i32> = fix_imports_in_source(src);
+    let new_src: str = vec_get(result, 0);
+    let n_changed: i64 = str_to_int(vec_get(result, 1));
+    if n_changed == 0 {
+        print(str_concat("nothing to fix in ", src_path));
+        return 0;
+    };
+    file_write_string(src_path, new_src);
+    print(str_concat("nuc fix --imports: rewrote ", str_concat(str_from_int(n_changed), str_concat(" import line(s) in ", src_path))));
+    return 0;
+}
+
 fn run_test_command(src_path: str, out_name: str, use_cache: i64, time_passes: i64, list_only: i64, isolation_process: i64) -> i64 {
     let raw_source: str = file_read_string(src_path);
     if str_len(raw_source) == 0 {
@@ -13410,6 +13506,7 @@ fn print_help() -> i64 {
     print("  lock [manifest]        Write Nucleor.lock for local/workspace manifests");
     print("    --json               Output machine-readable lock status");
     print("  install [alias] <pkg>  Add a path or registry dependency and refresh Nucleor.lock");
+    print("  fix --imports [file]   Rewrite import \"stdlib/rods/foo.nr\" to use std::foo (RFC-0018)");
     print("  publish [manifest]     Copy a package into a local registry directory");
     print("    --registry <dir>     Registry root (default: .nucleor/registry)");
     print("  registry [subcmd]      List/search/inspect packages in a local registry");
@@ -13473,6 +13570,19 @@ fn main() -> i64 {
     };
     if str_eq(cmd, "lock") {
         return run_lock_command(argc);
+    };
+    if str_eq(cmd, "fix") {
+        // Parse: nuc fix --imports <file>
+        let mut sub: str = "";
+        let mut tgt: str = "";
+        let mut fi: i64 = 2;
+        while fi < argc {
+            let a: str = args_get(fi);
+            if str_eq(a, "--imports") == 1 { sub = "imports"; }
+            else if cli_is_flag(a) == 0 && str_len(tgt) == 0 { tgt = a; };
+            fi = fi + 1;
+        };
+        return run_fix_command(tgt, sub);
     };
     if str_eq(cmd, "install") {
         return run_install_command(argc);
