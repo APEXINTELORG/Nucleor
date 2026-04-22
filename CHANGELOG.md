@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] — 2026-04-22
+
+JSON rod brought up to "what everyone uses": floating-point values and
+pretty-printed output.
+
+### Added
+
+- **`json_from_f64(val)` / `json_f64(j)`** — store and retrieve f64 values.
+  Internally a new tag (6); on serialization, emits a JSON-spec-compliant
+  decimal (`3.141592`, `-42.0`, `0.5`, `0.125`) with trailing zeros trimmed
+  but at least one fractional digit preserved.
+- **`json_stringify_pretty(j, indent)`** — recursive pretty-printer with
+  configurable indent width. Empty arrays/objects render as `[]` / `{}` on
+  one line; otherwise each element/member gets its own line with proper
+  indentation.
+
+### Verified
+
+- Both compact and pretty output round-trip cleanly through Python's
+  `json.load`, and the two parses are equal.
+- `tests/rods/json.nr` extended with f64 + pretty cases — verify gate
+  remains 38/38 green.
+
 ## [0.1.5] — 2026-04-22
 
 Top-to-bottom audit + cleanup + 38 new rod wrappers. Triggered by a full
