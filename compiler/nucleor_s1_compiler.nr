@@ -128,16 +128,34 @@ fn lex(src: str) -> Vec<i32> {
             tokens.push(tok_new(classify_kw(w), w, st));
         }
         else if is_digit(c) == 1 {
+            // RFC-0015 phase 1: integer/float lexer with underscore + type suffix support.
+            // Underscores inside the digit run are skipped (e.g. 1_000_000).
+            // Recognised suffixes: i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 (currently
+            // accepted by lexer; type-checker still treats all as i64/f64 until
+            // later phases of RFC-0015 ship). Suffix is consumed but not yet stored
+            // in the token (no breaking change to tok layout in this phase).
             let st: i64 = p;
-            while p < slen && is_digit(str_char_at(src, p)) == 1 { p = p + 1; };
+            let mut digit_sb: i64 = sb_new();
+            while p < slen && (is_digit(str_char_at(src, p)) == 1 || str_char_at(src, p) == 95) {
+                if str_char_at(src, p) != 95 {
+                    sb_append(digit_sb, str_substring(src, p, p + 1));
+                };
+                p = p + 1;
+            };
             // Check for f64 literal: digits DOT digits
             if p < slen && str_char_at(src, p) == 46 && p + 1 < slen && is_digit(str_char_at(src, p + 1)) == 1 {
                 // f64 literal — parse integer.fraction, encode as bitcast i64
-                let int_part: i64 = str_to_int(str_substring(src, st, p));
+                let int_part: i64 = str_to_int(sb_to_str(digit_sb));
                 p = p + 1; // skip dot
                 let frac_st: i64 = p;
-                while p < slen && is_digit(str_char_at(src, p)) == 1 { p = p + 1; };
-                let frac_str: str = str_substring(src, frac_st, p);
+                let mut frac_sb: i64 = sb_new();
+                while p < slen && (is_digit(str_char_at(src, p)) == 1 || str_char_at(src, p) == 95) {
+                    if str_char_at(src, p) != 95 {
+                        sb_append(frac_sb, str_substring(src, p, p + 1));
+                    };
+                    p = p + 1;
+                };
+                let frac_str: str = sb_to_str(frac_sb);
                 let frac_val: i64 = str_to_int(frac_str);
                 let frac_len: i64 = str_len(frac_str);
                 // Compute frac_divisor = 10^frac_len
@@ -148,12 +166,45 @@ fn lex(src: str) -> Vec<i32> {
                 // Value = int_part * 1000000 + frac_val * (1000000 / frac_div)
                 let encoded: i64 = int_part * 1000000 + frac_val * (1000000 / frac_div);
                 tokens.push(tok_new(70, encoded, st));
+                // Consume optional float suffix: f32 or f64
+                if p < slen && str_char_at(src, p) == 102 {
+                    let suf_st: i64 = p;
+                    while p < slen && is_alnum(str_char_at(src, p)) == 1 { p = p + 1; };
+                    let suf: str = str_substring(src, suf_st, p);
+                    if str_eq(suf, "f32") == 0 && str_eq(suf, "f64") == 0 {
+                        // Not actually a suffix; rewind.
+                        p = suf_st;
+                    };
+                };
                 if p < slen && str_char_at(src, p) == 123 {
                     tokens.push(tok_new(83, 0, p));
                     p = p + 1;
                 }
             } else {
-                tokens.push(tok_new(2, str_to_int(str_substring(src, st, p)), st));
+                tokens.push(tok_new(2, str_to_int(sb_to_str(digit_sb)), st));
+                // Consume optional integer suffix: i8 i16 i32 i64 u8 u16 u32 u64 usize isize
+                if p < slen && (str_char_at(src, p) == 105 || str_char_at(src, p) == 117) {
+                    let suf_st: i64 = p;
+                    while p < slen && is_alnum(str_char_at(src, p)) == 1 { p = p + 1; };
+                    let suf: str = str_substring(src, suf_st, p);
+                    let mut is_known: i64 = 0;
+                    if str_eq(suf, "i8") == 1 { is_known = 1; };
+                    if str_eq(suf, "i16") == 1 { is_known = 1; };
+                    if str_eq(suf, "i32") == 1 { is_known = 1; };
+                    if str_eq(suf, "i64") == 1 { is_known = 1; };
+                    if str_eq(suf, "i128") == 1 { is_known = 1; };
+                    if str_eq(suf, "isize") == 1 { is_known = 1; };
+                    if str_eq(suf, "u8") == 1 { is_known = 1; };
+                    if str_eq(suf, "u16") == 1 { is_known = 1; };
+                    if str_eq(suf, "u32") == 1 { is_known = 1; };
+                    if str_eq(suf, "u64") == 1 { is_known = 1; };
+                    if str_eq(suf, "u128") == 1 { is_known = 1; };
+                    if str_eq(suf, "usize") == 1 { is_known = 1; };
+                    if is_known == 0 {
+                        // Not actually a suffix; rewind so it lexes as identifier.
+                        p = suf_st;
+                    };
+                };
                 if p < slen && str_char_at(src, p) == 123 {
                     tokens.push(tok_new(83, 0, p));
                     p = p + 1;

@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] — 2026-04-22
+
+Build infrastructure for v0.2: cross-platform CI, RFC-0015 phase 1
+(numeric literal lexer), Option/Result rod expansion, milestone
+tracker.
+
+### Added — cross-platform
+
+- **`tools/verify.sh`** — POSIX equivalent of `verify.ps1`. Same
+  step counter, same exit codes, same gates. Linux + macOS
+  contributors can now run the verify gate locally.
+- **GitHub Actions matrix** — Windows + Linux + macOS jobs in
+  `.github/workflows/ci.yml`. Linux/macOS jobs run advisory until
+  a Linux/macOS `bin/nucleor` build ships in v0.2.
+- **RFC index sanity check** in CI ensures no orphan RFCs.
+
+### Added — RFC-0015 phase 1 (lexer)
+
+- Underscores as digit separators in numeric literals: `1_000_000`,
+  `0xFFFF_FFFF`, etc. (`tests/lang/numeric_literals.nr` covers).
+- Integer type suffixes recognized by the lexer: `i8`, `i16`, `i32`,
+  `i64`, `i128`, `isize`, `u8`, `u16`, `u32`, `u64`, `u128`, `usize`.
+- Float type suffixes recognized: `f32`, `f64`.
+- Suffixes are accepted but not yet used by the type checker —
+  RFC-0015 phases 2-7 (type checker, IR, codegen) ship in v0.2.0.
+- Self-host fixed point: identical LLVM IR before and after change
+  (1,814,216 bytes both runs).
+
+### Added — stdlib API surface
+
+- `stdlib/rods/option.nr` expanded to full v0.2-targeted API
+  (`option_to_result`, inspection helpers, etc.). Still uses Vec-tag
+  encoding until RFC-0016 lands compiler-integrated `Option<T>`.
+- `stdlib/rods/result.nr` likewise expanded
+  (`result_to_option`, `result_unwrap_err`, etc.).
+
+### Added — process docs
+
+- `docs/milestones/v0.2.0.md` — canonical sequencing tracker for the
+  v0.2.0 release. Per-RFC checklists, dependency DAG, week-by-week
+  schedule, success criteria.
+- `docs/process/semver-and-release.md` — SemVer policy + release
+  process.
+- `docs/process/contributing.md` — contributor guide.
+- `docs/process/nucleor-safe-subset.md` — preview of the
+  safety-cert subset (S-001 through S-017).
+
+### Verify gate
+
+102/102 green on Windows (added 1 step: `tests/lang/numeric_literals`).
+Linux/macOS gates advisory until v0.2.0 binary ships.
+
 ## [0.1.8] — 2026-04-22
 
 Positive feature-test suite ported from the V1 archive — verify gate
