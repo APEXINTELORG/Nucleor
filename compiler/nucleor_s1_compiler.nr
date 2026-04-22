@@ -83,6 +83,7 @@ fn classify_kw(w: str) -> i64 {
     if str_eq(w, "scope") { return 80; };
     if str_eq(w, "spawn") { return 81; };
     if str_eq(w, "loop") { return 84; };
+    if str_eq(w, "as") { return 86; };
     return 1;
 }
 fn lex(src: str) -> Vec<i32> {
@@ -621,7 +622,18 @@ fn parse_unary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if is_mut == 1 { return pr(pr_pos(r), mk2(pool, 91, pr_val(r))); };
         return pr(pr_pos(r), mk2(pool, 90, pr_val(r)));
     };
-    return parse_postfix(tokens, pos, pool);
+    let mut base: Vec<i32> = parse_postfix(tokens, pos, pool);
+    let mut cp: i64 = pr_pos(base);
+    let mut node: i64 = pr_val(base);
+    // RFC-0015 phase 2: postfix `as TYPE` cast
+    while pk(tokens, cp) == 86 {
+        cp = cp + 1;
+        let mut tr: Vec<i32> = parse_type(tokens, cp);
+        cp = pr_pos(tr);
+        // AST node kind 99 = "as cast"; field 1 = expr, field 2 = type name
+        node = mk3(pool, 99, node, pr_val(tr));
+    };
+    return pr(cp, node);
 }
 
 fn parse_mul(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
@@ -2049,6 +2061,17 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "assert_eq") { return "__nucleor_assert_eq"; };
     if str_eq(name, "assert_ne") { return "__nucleor_assert_ne"; };
     if str_eq(name, "panic") { return "__nucleor_panic"; };
+    // RFC-0015 phase 2: `as` cast helpers
+    if str_eq(name, "as_i8") { return "__nucleor_as_i8"; };
+    if str_eq(name, "as_i16") { return "__nucleor_as_i16"; };
+    if str_eq(name, "as_i32") { return "__nucleor_as_i32"; };
+    if str_eq(name, "as_i64") { return "__nucleor_as_i64"; };
+    if str_eq(name, "as_u8") { return "__nucleor_as_u8"; };
+    if str_eq(name, "as_u16") { return "__nucleor_as_u16"; };
+    if str_eq(name, "as_u32") { return "__nucleor_as_u32"; };
+    if str_eq(name, "as_u64") { return "__nucleor_as_u64"; };
+    if str_eq(name, "as_f32") { return "__nucleor_as_f32"; };
+    if str_eq(name, "as_f64") { return "__nucleor_as_f64"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2583,6 +2606,16 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_assert_eq(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_assert_ne(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_as_i8(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_as_i16(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_as_i32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_as_i64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_as_u8(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_as_u16(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_as_u32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_as_u64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_as_f32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_as_f64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");
@@ -2642,9 +2675,93 @@ fn nr_type_to_llvm(t: str) -> str {
     if str_eq(t, "str") { return "ptr"; };
     if str_eq(t, "ptr") { return "ptr"; };
     if str_eq(t, "void") { return "void"; };
+    // Integer widths (RFC-0015 phase 2)
+    if str_eq(t, "i8") { return "i8"; };
+    if str_eq(t, "i16") { return "i16"; };
     if str_eq(t, "i32") { return "i32"; };
+    if str_eq(t, "i64") { return "i64"; };
+    if str_eq(t, "i128") { return "i128"; };
+    if str_eq(t, "u8") { return "i8"; };
+    if str_eq(t, "u16") { return "i16"; };
+    if str_eq(t, "u32") { return "i32"; };
+    if str_eq(t, "u64") { return "i64"; };
+    if str_eq(t, "u128") { return "i128"; };
+    // Pointer-width: 64-bit on x86_64/aarch64; treat as i64 for now,
+    // RFC-0022 cross-compile will adjust per target triple.
+    if str_eq(t, "isize") { return "i64"; };
+    if str_eq(t, "usize") { return "i64"; };
+    // Floats
+    if str_eq(t, "f16") { return "half"; };
+    if str_eq(t, "bf16") { return "bfloat"; };
+    if str_eq(t, "f32") { return "float"; };
     if str_eq(t, "f64") { return "double"; };
+    // FP8 — software-emulated; lower as i8 storage with conversion fns.
+    if str_eq(t, "f8e4m3") { return "i8"; };
+    if str_eq(t, "f8e5m2") { return "i8"; };
+    // Char — Unicode scalar value, 32-bit
+    if str_eq(t, "char") { return "i32"; };
+    if str_eq(t, "bool") { return "i1"; };
     return "i64";
+}
+
+// RFC-0015: numeric type predicates
+fn is_int_type(t: str) -> i64 {
+    if str_eq(t, "i8") == 1 { return 1; };
+    if str_eq(t, "i16") == 1 { return 1; };
+    if str_eq(t, "i32") == 1 { return 1; };
+    if str_eq(t, "i64") == 1 { return 1; };
+    if str_eq(t, "i128") == 1 { return 1; };
+    if str_eq(t, "isize") == 1 { return 1; };
+    if str_eq(t, "u8") == 1 { return 1; };
+    if str_eq(t, "u16") == 1 { return 1; };
+    if str_eq(t, "u32") == 1 { return 1; };
+    if str_eq(t, "u64") == 1 { return 1; };
+    if str_eq(t, "u128") == 1 { return 1; };
+    if str_eq(t, "usize") == 1 { return 1; };
+    return 0;
+}
+
+fn is_unsigned_type(t: str) -> i64 {
+    if str_eq(t, "u8") == 1 { return 1; };
+    if str_eq(t, "u16") == 1 { return 1; };
+    if str_eq(t, "u32") == 1 { return 1; };
+    if str_eq(t, "u64") == 1 { return 1; };
+    if str_eq(t, "u128") == 1 { return 1; };
+    if str_eq(t, "usize") == 1 { return 1; };
+    return 0;
+}
+
+fn is_float_type(t: str) -> i64 {
+    if str_eq(t, "f16") == 1 { return 1; };
+    if str_eq(t, "bf16") == 1 { return 1; };
+    if str_eq(t, "f32") == 1 { return 1; };
+    if str_eq(t, "f64") == 1 { return 1; };
+    if str_eq(t, "f8e4m3") == 1 { return 1; };
+    if str_eq(t, "f8e5m2") == 1 { return 1; };
+    return 0;
+}
+
+fn is_numeric_type(t: str) -> i64 {
+    if is_int_type(t) == 1 { return 1; };
+    if is_float_type(t) == 1 { return 1; };
+    return 0;
+}
+
+// Bit-width of a numeric type. Returns 0 for non-numerics.
+fn type_bit_width(t: str) -> i64 {
+    if str_eq(t, "i8") == 1 || str_eq(t, "u8") == 1 { return 8; };
+    if str_eq(t, "i16") == 1 || str_eq(t, "u16") == 1 { return 16; };
+    if str_eq(t, "i32") == 1 || str_eq(t, "u32") == 1 { return 32; };
+    if str_eq(t, "i64") == 1 || str_eq(t, "u64") == 1 { return 64; };
+    if str_eq(t, "i128") == 1 || str_eq(t, "u128") == 1 { return 128; };
+    if str_eq(t, "isize") == 1 || str_eq(t, "usize") == 1 { return 64; };
+    if str_eq(t, "f8e4m3") == 1 || str_eq(t, "f8e5m2") == 1 { return 8; };
+    if str_eq(t, "f16") == 1 || str_eq(t, "bf16") == 1 { return 16; };
+    if str_eq(t, "f32") == 1 { return 32; };
+    if str_eq(t, "f64") == 1 { return 64; };
+    if str_eq(t, "char") == 1 { return 32; };
+    if str_eq(t, "bool") == 1 { return 1; };
+    return 0;
 }
 fn is_ptr_type(t: str) -> i64 {
     if str_eq(t, "str") { return 1; };
@@ -4884,6 +5001,38 @@ fn lower_if_expr_branch(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>,
 
 fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
     let kind: i64 = node_kind(pool, nid);
+    // RFC-0015 phase 2: `as` cast. Lower inner, then call __nucleor_as_<T>
+    // to actually perform width truncation / sign extension at runtime.
+    if kind == 99 {
+        let inner_lx: Vec<i32> = lower_expr(pool, node_field(pool, nid, 1), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+        let inner_blk: Vec<i32> = lx_blk(inner_lx);
+        let inner_r: i64 = lx_reg(inner_lx);
+        let target_type: str = node_field(pool, nid, 2);
+        // Choose runtime helper based on target type
+        let mut helper: str = "";
+        if str_eq(target_type, "i8") == 1 { helper = "as_i8"; };
+        if str_eq(target_type, "i16") == 1 { helper = "as_i16"; };
+        if str_eq(target_type, "i32") == 1 { helper = "as_i32"; };
+        if str_eq(target_type, "i64") == 1 { helper = "as_i64"; };
+        if str_eq(target_type, "isize") == 1 { helper = "as_i64"; };
+        if str_eq(target_type, "u8") == 1 { helper = "as_u8"; };
+        if str_eq(target_type, "u16") == 1 { helper = "as_u16"; };
+        if str_eq(target_type, "u32") == 1 { helper = "as_u32"; };
+        if str_eq(target_type, "u64") == 1 { helper = "as_u64"; };
+        if str_eq(target_type, "usize") == 1 { helper = "as_u64"; };
+        if str_eq(target_type, "f32") == 1 { helper = "as_f32"; };
+        if str_eq(target_type, "f64") == 1 { helper = "as_f64"; };
+        if str_eq(target_type, "char") == 1 { helper = "as_u32"; };
+        if str_len(helper) == 0 {
+            // No-op cast for unrecognized targets (e.g., generics)
+            return inner_lx;
+        };
+        let mut conv_args: Vec<i32> = Vec::new();
+        conv_args.push(inner_r);
+        let r: i64 = ctr_next(regs);
+        ir_block_add(inner_blk, ir_call_ex(r, helper, conv_args));
+        return lx_new(r, inner_blk);
+    };
     if kind == 1 {
         let r: i64 = ctr_next(regs);
         ir_block_add(blk, ir_const_int(r, node_field(pool, nid, 1)));
