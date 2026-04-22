@@ -449,6 +449,51 @@ const char *__nucleor_str_trim(const char *s) {
     out[L] = 0;
     return out;
 }
+const char *__nucleor_str_trim_start(const char *s) {
+    if (!s) return "";
+    size_t n = strlen(s);
+    size_t start = 0;
+    while (start < n && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r')) start++;
+    size_t L = n - start;
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, s + start, L);
+    out[L] = 0;
+    return out;
+}
+const char *__nucleor_str_trim_end(const char *s) {
+    if (!s) return "";
+    size_t n = strlen(s);
+    size_t end = n;
+    while (end > 0 && (s[end - 1] == ' ' || s[end - 1] == '\t' || s[end - 1] == '\n' || s[end - 1] == '\r')) end--;
+    char *out = (char *)malloc(end + 1);
+    memcpy(out, s, end);
+    out[end] = 0;
+    return out;
+}
+long long __nucleor_str_is_empty(const char *s) {
+    if (!s) return 1;
+    return s[0] == 0 ? 1 : 0;
+}
+long long __nucleor_str_count(const char *s, const char *needle) {
+    if (!s || !needle || !*needle) return 0;
+    size_t nl = strlen(needle);
+    long long c = 0;
+    const char *scan = s;
+    const char *p;
+    while ((p = strstr(scan, needle)) != NULL) {
+        c++;
+        scan = p + nl;
+    }
+    return c;
+}
+const char *__nucleor_str_reverse(const char *s) {
+    if (!s) return "";
+    size_t n = strlen(s);
+    char *out = (char *)malloc(n + 1);
+    for (size_t i = 0; i < n; i++) out[i] = s[n - 1 - i];
+    out[n] = 0;
+    return out;
+}
 
 long long __nucleor_str_starts_with(const char *s, const char *prefix) {
     if (!s || !prefix) return 0;
@@ -2469,6 +2514,45 @@ long long __nucleor_env_unset(const char *name) {
 #else
     return unsetenv(name);
 #endif
+}
+long long __nucleor_env_has(const char *name) {
+    if (!name) return 0;
+    char *v = getenv(name);
+    return v != NULL ? 1 : 0;
+}
+long long __nucleor_env_keys(void) {
+    NVec *out = __nucleor_vec_new();
+#ifdef _WIN32
+    LPCH block = GetEnvironmentStringsA();
+    if (!block) return (long long)(intptr_t)out;
+    LPCH p = block;
+    while (*p) {
+        // Each entry is "KEY=VALUE\0". Some Windows entries start with '='
+        // (drive-current-dir tracking like "=C:=C:\\path"); skip those.
+        if (*p != '=') {
+            const char *eq = strchr(p, '=');
+            size_t klen = eq ? (size_t)(eq - p) : strlen(p);
+            char *key = (char *)malloc(klen + 1);
+            memcpy(key, p, klen);
+            key[klen] = 0;
+            __nucleor_vec_push(out, (long long)(intptr_t)key);
+        }
+        p += strlen(p) + 1;
+    }
+    FreeEnvironmentStringsA(block);
+#else
+    extern char **environ;
+    if (!environ) return (long long)(intptr_t)out;
+    for (char **e = environ; *e; e++) {
+        const char *eq = strchr(*e, '=');
+        size_t klen = eq ? (size_t)(eq - *e) : strlen(*e);
+        char *key = (char *)malloc(klen + 1);
+        memcpy(key, *e, klen);
+        key[klen] = 0;
+        __nucleor_vec_push(out, (long long)(intptr_t)key);
+    }
+#endif
+    return (long long)(intptr_t)out;
 }
 
 // === Process / OS info ===
