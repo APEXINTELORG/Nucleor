@@ -115,6 +115,29 @@ fn lex(src: str) -> Vec<i32> {
                 };
             };
         }
+        else if c == 35 && p + 1 < slen && str_char_at(src, p + 1) == 91 {
+            // Rust-style outer attribute: #[name], #[name(args)], #[name = val].
+            // Lex-time skip with quoted-string + bracket-depth awareness.
+            // Forward-compatible with RFC-0001/0021 attribute family; semantics
+            // ship in later RFC implementation phases.
+            p = p + 2;
+            let mut depth: i64 = 1;
+            while p < slen && depth > 0 {
+                let ch: i64 = str_char_at(src, p);
+                if ch == 34 {
+                    p = p + 1;
+                    while p < slen && str_char_at(src, p) != 34 {
+                        if str_char_at(src, p) == 92 && p + 1 < slen { p = p + 2; }
+                        else { p = p + 1; };
+                    };
+                    if p < slen { p = p + 1; };
+                } else {
+                    if ch == 91 { depth = depth + 1; }
+                    else if ch == 93 { depth = depth - 1; };
+                    p = p + 1;
+                };
+            };
+        }
         else if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
             while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
         }
