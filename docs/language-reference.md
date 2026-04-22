@@ -12,9 +12,10 @@ Source files are UTF-8. Line endings may be `\n` or `\r\n`.
 
 ```
 // line comment to end of line
+/* block comment, can span lines */
 ```
 
-Block comments (`/* ... */`) are not currently supported.
+Both line and block comments are supported.
 
 ### 1.3 Identifiers
 
@@ -153,12 +154,18 @@ if cond { ... } else { ... };
 
 while cond { ... };
 
+for i in start..end { ... };  // half-open range
+
+break;        // exit the innermost loop
+continue;     // skip to the next iteration
+
 return expr;
 ```
 
-- `if` and `while` blocks always require braces.
-- `else if` is written as a nested `if` inside the `else` branch (no syntactic sugar yet).
-- `break` and `continue` are not currently exposed as keywords; pattern out of loops with sentinel variables.
+- `if`, `while`, `for` blocks always require braces.
+- `else if` is written as a nested `if` inside the `else` branch.
+- `for i in N..M` iterates over the half-open range `[N, M)`.
+- `break` and `continue` are available inside `while` and `for` loops.
 
 ## 7. Imports and modules
 
@@ -246,12 +253,29 @@ When invoked without an explicit source file in a directory containing `Nucleor.
 
 ## 12. What this version does not have (yet)
 
-- `for` loops (only `while`)
-- `break` / `continue`
-- Hex/binary integer literals
-- Generics (planned)
-- Traits/interfaces (placeholder; see `tests/lang/struct_methods.nr` for current method patterns)
-- `async`/`await`
-- Block comments (`/* ... */`)
+- Hex/binary integer literals (lexer accepts them but produces wrong values)
+- `async` / `await`
+- Inline assembly
+- Macros / metaprogramming
+- Reflection
+- Cross-platform binaries (Windows-only in v0.1.x; POSIX port planned for v0.2)
+- Formatter (`nuc fmt`)
+- Language server (LSP)
+- Debugger / DWARF or PDB symbol info
+- Documentation generator
+- REPL
 
-These are tracked in the public roadmap. Contributions welcome.
+These are tracked as v0.2 / v0.3 work. Contributions welcome.
+
+## 13. What was added in v0.1.5 (audit corrigendum)
+
+The previous reference (v0.1.4) listed the following as missing. They are
+**actually available** and have been re-tested in the v0.1.5 audit:
+
+- `for i in N..M { ... }` half-open range loops
+- `break` and `continue` inside loops
+- Block comments `/* ... */`
+- Generics: `fn id<T>(x: T) -> T { return x; }`
+- Traits + impl: `trait Greet { fn hi(self) -> str; }` + `impl Greet for P`
+- `match` on integer literals (in addition to enum variants)
+- `getcwd()` and `getenv(name)` builtins (added in v0.1.5)

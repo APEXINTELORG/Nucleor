@@ -1,0 +1,56 @@
+// =====================================================
+// rods/clifford — Clifford / stabilizer formalism (quantum error correction)
+// =====================================================
+// Import: import "stdlib/rods/clifford.nr"
+// Provides: efficient simulation of stabilizer states (no exponential
+//   memory blowup), Clifford gates (H, S, CNOT, X, Y, Z), measurement,
+//   error detection, distance computation, GNN-style state features.
+// =====================================================
+
+#cfile "../runtime/clifford_rt.c"
+
+extern fn nuc_cliff_init(n_qubits: i64) -> i64;
+extern fn nuc_cliff_init_code(n_qubits: i64) -> i64;
+extern fn nuc_cliff_free(h: i64);
+extern fn nuc_cliff_clone(h: i64) -> i64;
+extern fn nuc_cliff_nq(h: i64) -> i64;
+extern fn nuc_cliff_h(h: i64, q: i64);
+extern fn nuc_cliff_s(h: i64, q: i64);
+extern fn nuc_cliff_cnot(h: i64, ctrl: i64, tgt: i64);
+extern fn nuc_cliff_x(h: i64, q: i64);
+extern fn nuc_cliff_y(h: i64, q: i64);
+extern fn nuc_cliff_z(h: i64, q: i64);
+extern fn nuc_cliff_measure(h: i64, q: i64) -> i64;
+extern fn nuc_cliff_error_detectable(h: i64, error_vec: i64) -> i64;
+extern fn nuc_cliff_num_stabilizers(h: i64) -> i64;
+extern fn nuc_cliff_distance(h: i64, n_logical: i64) -> i64;
+extern fn nuc_cliff_add_stabilizer(h: i64, pauli_vec: i64) -> i64;
+extern fn nuc_cliff_reset(h: i64);
+extern fn nuc_cliff_get_stabilizers(h: i64) -> i64;
+extern fn nuc_cliff_state_features(h: i64, n_logical: i64) -> i64;
+extern fn nuc_cliff_random_gate(h: i64, gate_type: i64, seed: i64);
+extern fn nuc_cliff_count_detectable_errors(h: i64) -> i64;
+extern fn nuc_cliff_best_distance_k1(h: i64) -> i64;
+
+fn cliff_init(n_qubits: i64) -> i64 { return nuc_cliff_init(n_qubits); }
+fn cliff_init_code(n_qubits: i64) -> i64 { return nuc_cliff_init_code(n_qubits); }
+fn cliff_free(h: i64) { nuc_cliff_free(h); }
+fn cliff_clone(h: i64) -> i64 { return nuc_cliff_clone(h); }
+fn cliff_nq(h: i64) -> i64 { return nuc_cliff_nq(h); }
+fn cliff_h(h: i64, q: i64) { nuc_cliff_h(h, q); }
+fn cliff_s(h: i64, q: i64) { nuc_cliff_s(h, q); }
+fn cliff_cnot(h: i64, ctrl: i64, tgt: i64) { nuc_cliff_cnot(h, ctrl, tgt); }
+fn cliff_x(h: i64, q: i64) { nuc_cliff_x(h, q); }
+fn cliff_y(h: i64, q: i64) { nuc_cliff_y(h, q); }
+fn cliff_z(h: i64, q: i64) { nuc_cliff_z(h, q); }
+fn cliff_measure(h: i64, q: i64) -> i64 { return nuc_cliff_measure(h, q); }
+fn cliff_distance(h: i64, n_logical: i64) -> i64 { return nuc_cliff_distance(h, n_logical); }
+fn cliff_add_stabilizer(h: i64, pauli: i64) -> i64 { return nuc_cliff_add_stabilizer(h, pauli); }
+fn cliff_reset(h: i64) { nuc_cliff_reset(h); }
+fn cliff_num_stabilizers(h: i64) -> i64 { return nuc_cliff_num_stabilizers(h); }
+fn cliff_get_stabilizers(h: i64) -> i64 { return nuc_cliff_get_stabilizers(h); }
+fn cliff_state_features(h: i64, n_logical: i64) -> i64 { return nuc_cliff_state_features(h, n_logical); }
+fn cliff_error_detectable(h: i64, err: i64) -> i64 { return nuc_cliff_error_detectable(h, err); }
+fn cliff_count_errors(h: i64) -> i64 { return nuc_cliff_count_detectable_errors(h); }
+fn cliff_best_d_k1(h: i64) -> i64 { return nuc_cliff_best_distance_k1(h); }
+fn cliff_random_gate(h: i64, gate_type: i64, seed: i64) { nuc_cliff_random_gate(h, gate_type, seed); }

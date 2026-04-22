@@ -1750,6 +1750,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "now_ms") { return "__nucleor_now_ms"; };
     if str_eq(name, "isatty_stdout") { return "__nucleor_isatty_stdout"; };
     if str_eq(name, "chr") { return "__nucleor_chr"; };
+    if str_eq(name, "getcwd") { return "__nucleor_getcwd"; };
+    if str_eq(name, "getenv") { return "__nucleor_getenv"; };
     if str_eq(name, "pipe_create") { return "__nucleor_pipe_create"; };
     if str_eq(name, "pipe_write") { return "__nucleor_pipe_write"; };
     if str_eq(name, "pipe_close") { return "__nucleor_pipe_close"; };
@@ -1901,6 +1903,8 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "sha256") { return 1; };
     if str_eq(name, "py_eval") { return 1; };
     if str_eq(name, "chr") { return 1; };
+    if str_eq(name, "getcwd") { return 1; };
+    if str_eq(name, "getenv") { return 1; };
     return 0;
 }
 fn is_ptr_arg(name: str, idx: i64) -> i64 {
@@ -2262,6 +2266,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_now_ms()\n");
     sb_append(sb, "declare i64 @__nucleor_isatty_stdout()\n");
     sb_append(sb, "declare ptr @__nucleor_chr(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_getcwd()\n");
+    sb_append(sb, "declare ptr @__nucleor_getenv(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_pipe_create(ptr)\n");
     sb_append(sb, "declare void @__nucleor_pipe_write(i64, ptr)\n");
     sb_append(sb, "declare void @__nucleor_pipe_close(i64)\n");

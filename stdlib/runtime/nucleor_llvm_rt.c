@@ -594,6 +594,29 @@ const char *__nucleor_args_get(long long i) {
     return __argv[(int)i];
 }
 
+// === getcwd ===
+// Returns the current working directory as a string. Used by tools that
+// need to report or operate relative to the project root.
+#ifdef _WIN32
+#include <direct.h>
+#define _NUC_GETCWD _getcwd
+#else
+#define _NUC_GETCWD getcwd
+#endif
+const char *__nucleor_getcwd(void) {
+    static char buf[4096];
+    if (_NUC_GETCWD(buf, sizeof(buf)) == NULL) { buf[0] = 0; }
+    return buf;
+}
+
+// === getenv ===
+// Returns the value of an environment variable, or "" if unset.
+const char *__nucleor_getenv(const char *name) {
+    if (!name) return "";
+    const char *v = getenv(name);
+    return v ? v : "";
+}
+
 // === chr ===
 // Returns a 1-byte string for the given code point (0-255). Used by user
 // programs that need arbitrary control bytes (e.g., ESC = 27 for ANSI).
