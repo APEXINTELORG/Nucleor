@@ -1017,6 +1017,37 @@ long long __nucleor_print_f32(long long a) {
     return 0;
 }
 
+// === Debug helpers ===
+// dbg!(expr) — eprint "[debug] expr = value", returns the value untouched.
+// Compiler maps `dbg(v)` to __nucleor_dbg_i64.
+long long __nucleor_dbg_i64(long long v) {
+    fprintf(stderr, "[debug] %lld\n", v);
+    fflush(stderr);
+    return v;
+}
+long long __nucleor_dbg_f64(long long bits) {
+    union { unsigned long long u; double d; } cd;
+    cd.u = (unsigned long long)bits;
+    fprintf(stderr, "[debug f64] %g\n", cd.d);
+    fflush(stderr);
+    return bits;
+}
+long long __nucleor_dbg_str(const char *s) {
+    fprintf(stderr, "[debug] \"%s\"\n", s ? s : "(null)");
+    fflush(stderr);
+    return 0;
+}
+long long __nucleor_eprint_str(const char *s) {
+    if (s) fprintf(stderr, "%s\n", s); else fprintf(stderr, "(null)\n");
+    fflush(stderr);
+    return 0;
+}
+long long __nucleor_eprint_int(long long v) {
+    fprintf(stderr, "%lld\n", v);
+    fflush(stderr);
+    return 0;
+}
+
 // === RFC-0015 phase 6: bf16 / f16 / f8 software emulation ===
 // All packed in low N bits of i64 storage. Compute happens at f32 precision
 // via convert-up / convert-down round-trip.

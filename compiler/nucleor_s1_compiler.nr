@@ -2186,6 +2186,12 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "f16_mul") { return "__nucleor_f16_mul"; };
     if str_eq(name, "f8e4m3_to_f32") { return "__nucleor_f8e4m3_to_f32"; };
     if str_eq(name, "f8e5m2_to_f32") { return "__nucleor_f8e5m2_to_f32"; };
+    // Debug + stderr helpers
+    if str_eq(name, "dbg") { return "__nucleor_dbg_i64"; };
+    if str_eq(name, "dbg_f64") { return "__nucleor_dbg_f64"; };
+    if str_eq(name, "dbg_str") { return "__nucleor_dbg_str"; };
+    if str_eq(name, "eprint") { return "__nucleor_eprint_str"; };
+    if str_eq(name, "eprint_int") { return "__nucleor_eprint_int"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2241,6 +2247,8 @@ fn is_ptr_ret(name: str) -> i64 {
 fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "print") { return 1; };
     if str_eq(name, "panic") { return 1; };
+    if str_eq(name, "dbg_str") { return 1; };
+    if str_eq(name, "eprint") { return 1; };
     if str_eq(name, "str_len") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_eq") { return 1; };
     if str_eq(name, "str_char_at") { if idx == 0 { return 1; }; return 0; };
@@ -2794,6 +2802,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_f16_mul(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f8e4m3_to_f32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f8e5m2_to_f32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_dbg_i64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_dbg_f64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_dbg_str(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_eprint_str(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_eprint_int(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");

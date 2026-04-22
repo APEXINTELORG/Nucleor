@@ -5,6 +5,23 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.25] — 2026-04-22
+
+Debug + stderr helper builtins.
+
+### Added
+
+- `dbg(v) -> i64` — prints `[debug] v` to stderr, **returns the
+  value untouched** so it can be inserted inline.
+- `dbg_f64(bits) -> i64` — same but interprets `bits` as f64.
+- `dbg_str(s) -> i64` — quoted string version.
+- `eprint(s)` — write line to stderr.
+- `eprint_int(n)` — write integer line to stderr.
+
+### Verify gate
+
+118/118 green. New gate test: `tests/lang/debug_helpers.nr`.
+
 ## [0.1.24] — 2026-04-22
 
 **RFC-0015: `stdlib/rods/numeric.nr` — unified numeric API.**
