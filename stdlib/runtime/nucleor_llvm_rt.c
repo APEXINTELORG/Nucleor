@@ -800,6 +800,198 @@ long long __nucleor_checked_overflow_flag(void) {
     return __nucleor_overflow_flag;
 }
 
+// === RFC-0015 phase 4: narrow-width overflow primitives ===
+// Generated for i8 / i16 / i32 / u8 / u16 / u32 / u64. The signed
+// variants treat the i64 storage as the underlying width's signed
+// range; unsigned variants mask to the width.
+//
+// Each width gets:
+//   __nucleor_wrapping_add_<W>     (always-defined modular wrap)
+//   __nucleor_wrapping_sub_<W>
+//   __nucleor_wrapping_mul_<W>
+//   __nucleor_saturating_add_<W>   (clamp at MIN/MAX of <W>)
+//   __nucleor_saturating_sub_<W>
+//   __nucleor_saturating_mul_<W>
+//   __nucleor_checked_add_<W>      (returns 0 + sets overflow flag on of)
+//   __nucleor_checked_sub_<W>
+//   __nucleor_checked_mul_<W>
+//
+// `__nucleor_checked_overflow_flag()` is shared with the i64 family.
+
+#define NUC_SIGN_EXT(t, mask, sign_bit) \
+    (((t) & (mask)) | (((t) & (sign_bit)) ? ~(mask) : 0))
+
+#define NUC_DEFINE_SIGNED_OVERFLOW(W, MIN_V, MAX_V, MASK, SIGN_BIT)         \
+long long __nucleor_wrapping_add_##W(long long a, long long b) {            \
+    long long t = (long long)((unsigned long long)a + (unsigned long long)b); \
+    return (long long)NUC_SIGN_EXT(t, (long long)MASK, (long long)SIGN_BIT); \
+}                                                                            \
+long long __nucleor_wrapping_sub_##W(long long a, long long b) {            \
+    long long t = (long long)((unsigned long long)a - (unsigned long long)b); \
+    return (long long)NUC_SIGN_EXT(t, (long long)MASK, (long long)SIGN_BIT); \
+}                                                                            \
+long long __nucleor_wrapping_mul_##W(long long a, long long b) {            \
+    long long t = (long long)((unsigned long long)a * (unsigned long long)b); \
+    return (long long)NUC_SIGN_EXT(t, (long long)MASK, (long long)SIGN_BIT); \
+}                                                                            \
+long long __nucleor_saturating_add_##W(long long a, long long b) {          \
+    long long r = a + b;                                                    \
+    if (r > (long long)MAX_V) return (long long)MAX_V;                      \
+    if (r < (long long)MIN_V) return (long long)MIN_V;                      \
+    return r;                                                               \
+}                                                                            \
+long long __nucleor_saturating_sub_##W(long long a, long long b) {          \
+    long long r = a - b;                                                    \
+    if (r > (long long)MAX_V) return (long long)MAX_V;                      \
+    if (r < (long long)MIN_V) return (long long)MIN_V;                      \
+    return r;                                                               \
+}                                                                            \
+long long __nucleor_saturating_mul_##W(long long a, long long b) {          \
+    long long r = a * b;                                                    \
+    if (r > (long long)MAX_V) return (long long)MAX_V;                      \
+    if (r < (long long)MIN_V) return (long long)MIN_V;                      \
+    return r;                                                               \
+}                                                                            \
+long long __nucleor_checked_add_##W(long long a, long long b) {             \
+    __nucleor_overflow_flag = 0;                                            \
+    long long r = a + b;                                                    \
+    if (r > (long long)MAX_V || r < (long long)MIN_V) {                     \
+        __nucleor_overflow_flag = 1; return 0;                              \
+    }                                                                        \
+    return r;                                                               \
+}                                                                            \
+long long __nucleor_checked_sub_##W(long long a, long long b) {             \
+    __nucleor_overflow_flag = 0;                                            \
+    long long r = a - b;                                                    \
+    if (r > (long long)MAX_V || r < (long long)MIN_V) {                     \
+        __nucleor_overflow_flag = 1; return 0;                              \
+    }                                                                        \
+    return r;                                                               \
+}                                                                            \
+long long __nucleor_checked_mul_##W(long long a, long long b) {             \
+    __nucleor_overflow_flag = 0;                                            \
+    long long r = a * b;                                                    \
+    if (r > (long long)MAX_V || r < (long long)MIN_V) {                     \
+        __nucleor_overflow_flag = 1; return 0;                              \
+    }                                                                        \
+    return r;                                                               \
+}
+
+#define NUC_DEFINE_UNSIGNED_OVERFLOW(W, MAX_V, MASK)                        \
+long long __nucleor_wrapping_add_##W(long long a, long long b) {            \
+    return (long long)(((unsigned long long)a + (unsigned long long)b) & (unsigned long long)(MASK)); \
+}                                                                            \
+long long __nucleor_wrapping_sub_##W(long long a, long long b) {            \
+    return (long long)(((unsigned long long)a - (unsigned long long)b) & (unsigned long long)(MASK)); \
+}                                                                            \
+long long __nucleor_wrapping_mul_##W(long long a, long long b) {            \
+    return (long long)(((unsigned long long)a * (unsigned long long)b) & (unsigned long long)(MASK)); \
+}                                                                            \
+long long __nucleor_saturating_add_##W(long long a, long long b) {          \
+    unsigned long long ua = (unsigned long long)a & (unsigned long long)(MASK); \
+    unsigned long long ub = (unsigned long long)b & (unsigned long long)(MASK); \
+    unsigned long long r = ua + ub;                                         \
+    if (r > (unsigned long long)(MAX_V)) return (long long)(MAX_V);         \
+    return (long long)r;                                                    \
+}                                                                            \
+long long __nucleor_saturating_sub_##W(long long a, long long b) {          \
+    unsigned long long ua = (unsigned long long)a & (unsigned long long)(MASK); \
+    unsigned long long ub = (unsigned long long)b & (unsigned long long)(MASK); \
+    if (ub > ua) return 0;                                                  \
+    return (long long)(ua - ub);                                            \
+}                                                                            \
+long long __nucleor_saturating_mul_##W(long long a, long long b) {          \
+    unsigned long long ua = (unsigned long long)a & (unsigned long long)(MASK); \
+    unsigned long long ub = (unsigned long long)b & (unsigned long long)(MASK); \
+    if (ua == 0 || ub == 0) return 0;                                       \
+    unsigned long long r = ua * ub;                                         \
+    if (r / ua != ub || r > (unsigned long long)(MAX_V)) return (long long)(MAX_V); \
+    return (long long)r;                                                    \
+}                                                                            \
+long long __nucleor_checked_add_##W(long long a, long long b) {             \
+    __nucleor_overflow_flag = 0;                                            \
+    unsigned long long ua = (unsigned long long)a & (unsigned long long)(MASK); \
+    unsigned long long ub = (unsigned long long)b & (unsigned long long)(MASK); \
+    unsigned long long r = ua + ub;                                         \
+    if (r > (unsigned long long)(MAX_V)) { __nucleor_overflow_flag = 1; return 0; } \
+    return (long long)r;                                                    \
+}                                                                            \
+long long __nucleor_checked_sub_##W(long long a, long long b) {             \
+    __nucleor_overflow_flag = 0;                                            \
+    unsigned long long ua = (unsigned long long)a & (unsigned long long)(MASK); \
+    unsigned long long ub = (unsigned long long)b & (unsigned long long)(MASK); \
+    if (ub > ua) { __nucleor_overflow_flag = 1; return 0; }                 \
+    return (long long)(ua - ub);                                            \
+}                                                                            \
+long long __nucleor_checked_mul_##W(long long a, long long b) {             \
+    __nucleor_overflow_flag = 0;                                            \
+    unsigned long long ua = (unsigned long long)a & (unsigned long long)(MASK); \
+    unsigned long long ub = (unsigned long long)b & (unsigned long long)(MASK); \
+    if (ua == 0 || ub == 0) return 0;                                       \
+    unsigned long long r = ua * ub;                                         \
+    if (r / ua != ub || r > (unsigned long long)(MAX_V)) { __nucleor_overflow_flag = 1; return 0; } \
+    return (long long)r;                                                    \
+}
+
+NUC_DEFINE_SIGNED_OVERFLOW(i8,  -128LL, 127LL,           0xFFLL,       0x80LL)
+NUC_DEFINE_SIGNED_OVERFLOW(i16, -32768LL, 32767LL,       0xFFFFLL,     0x8000LL)
+NUC_DEFINE_SIGNED_OVERFLOW(i32, -2147483648LL, 2147483647LL, 0xFFFFFFFFLL, 0x80000000LL)
+NUC_DEFINE_UNSIGNED_OVERFLOW(u8,  255LL,        0xFFLL)
+NUC_DEFINE_UNSIGNED_OVERFLOW(u16, 65535LL,      0xFFFFLL)
+NUC_DEFINE_UNSIGNED_OVERFLOW(u32, 4294967295LL, 0xFFFFFFFFLL)
+// u64 saturating mul checks against UINT64_MAX which can't fit in long long
+// signed, so caller must accept u64 wraparound semantics for the cap. Use
+// distinct unsigned check.
+long long __nucleor_wrapping_add_u64(long long a, long long b) {
+    return (long long)((unsigned long long)a + (unsigned long long)b);
+}
+long long __nucleor_wrapping_sub_u64(long long a, long long b) {
+    return (long long)((unsigned long long)a - (unsigned long long)b);
+}
+long long __nucleor_wrapping_mul_u64(long long a, long long b) {
+    return (long long)((unsigned long long)a * (unsigned long long)b);
+}
+long long __nucleor_saturating_add_u64(long long a, long long b) {
+    unsigned long long ua = (unsigned long long)a, ub = (unsigned long long)b;
+    unsigned long long r = ua + ub;
+    if (r < ua) return (long long)~0ULL;  // wrap-detect
+    return (long long)r;
+}
+long long __nucleor_saturating_sub_u64(long long a, long long b) {
+    unsigned long long ua = (unsigned long long)a, ub = (unsigned long long)b;
+    if (ub > ua) return 0;
+    return (long long)(ua - ub);
+}
+long long __nucleor_saturating_mul_u64(long long a, long long b) {
+    unsigned long long ua = (unsigned long long)a, ub = (unsigned long long)b;
+    if (ua == 0 || ub == 0) return 0;
+    unsigned long long r = ua * ub;
+    if (r / ua != ub) return (long long)~0ULL;
+    return (long long)r;
+}
+long long __nucleor_checked_add_u64(long long a, long long b) {
+    __nucleor_overflow_flag = 0;
+    unsigned long long ua = (unsigned long long)a, ub = (unsigned long long)b;
+    unsigned long long r = ua + ub;
+    if (r < ua) { __nucleor_overflow_flag = 1; return 0; }
+    return (long long)r;
+}
+long long __nucleor_checked_sub_u64(long long a, long long b) {
+    __nucleor_overflow_flag = 0;
+    unsigned long long ua = (unsigned long long)a, ub = (unsigned long long)b;
+    if (ub > ua) { __nucleor_overflow_flag = 1; return 0; }
+    return (long long)(ua - ub);
+}
+long long __nucleor_checked_mul_u64(long long a, long long b) {
+    __nucleor_overflow_flag = 0;
+    unsigned long long ua = (unsigned long long)a, ub = (unsigned long long)b;
+    if (ua == 0 || ub == 0) return 0;
+    unsigned long long r = ua * ub;
+    if (r / ua != ub) { __nucleor_overflow_flag = 1; return 0; }
+    return (long long)r;
+}
+
+
 // === RFC-0015 phase 5: per-width print helpers ===
 // Print the underlying value at the declared type's display width.
 // Today storage is uniformly i64; these helpers ensure correct

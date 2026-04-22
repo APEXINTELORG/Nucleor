@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.54] — 2026-04-22
+
+**RFC-0015 phase 4: per-narrow-width overflow primitives.**
+
+### Added — overflow primitives for every integer width
+
+Three operation families × seven widths × three operators (add/sub/mul)
+= **63 new helpers** in `nucleor_llvm_rt.c`, macro-generated for
+compactness and consistency:
+
+```nucleor
+saturating_add_i8(120, 20)    // → 127  (clamp at i8::MAX)
+saturating_sub_u8(20, 50)     // → 0    (clamp at u8::MIN)
+wrapping_add_u8(250, 20)      // → 14   (270 mod 256)
+checked_mul_i16(200, 200)     // → 0; checked_overflow_flag() == 1
+saturating_add_u64(big, 1)    // → ~0u64 (wrap-detect)
+```
+
+Widths covered: **i8, i16, i32, u8, u16, u32, u64** (i64 already
+landed in v0.1.44). Each width gets `wrapping_add/sub/mul`,
+`saturating_add/sub/mul`, `checked_add/sub/mul`. Signed variants
+sign-extend storage to fill the i64 cell; unsigned variants mask to
+the width.
+
+### Verify gate
+
+154/154 green on Windows. New gate test:
+`tests/lang/overflow_narrow.nr` covers every width × every operation.
+Self-host LLVM IR fixed point preserved.
+
 ## [0.1.53] — 2026-04-22
 
 **RFC-0018 phase 1 partial: `mod foo;` directive.**
