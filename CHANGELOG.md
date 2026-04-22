@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.21] — 2026-04-22
+
+**Time decomposition + elapsed (9 helpers).**
+
+```nucleor
+let now: i64 = time_wall_seconds();        // unix seconds (already in v0.1)
+
+// New: pull individual components in UTC
+time_year(now);          // 2026
+time_month(now);         // 1..12
+time_day(now);           // 1..31
+time_hour(now);          // 0..23
+time_minute(now);        // 0..59
+time_second(now);        // 0..60   (60 leaves room for leap-second)
+time_weekday(now);       // 0=Sun..6=Sat (POSIX tm_wday)
+time_day_of_year(now);   // 1..366
+
+// Elapsed measurement
+let start: i64 = time_wall_ms();
+work();
+let took: i64 = time_elapsed_ms(start);
+```
+
+Fills out the calendar surface that previously stopped at
+`time_iso_now` / `time_format_iso`. Each component helper takes a
+unix-seconds timestamp and goes through `gmtime_s` (Windows) /
+`gmtime_r` (POSIX), so the values are UTC-anchored and match what
+`time_iso_now` would format.
+
+`time_weekday` follows the POSIX `tm_wday` convention (0=Sunday)
+rather than ISO 8601 (1=Monday) so it composes cleanly with anyone
+calling the underlying C runtime directly.
+
+`time_elapsed_ms` is a one-line convenience: `time_wall_ms() - start`.
+Useful for benchmark scaffolding without dragging in the full
+`stdlib/rods/time.nr` rod.
+
+All nine take/return i64; no `is_ptr_*` table updates needed. Wired
+through both compiler binaries with the drift-gate sync.
+
+### Verify gate
+
+170/171 green on Windows + 1 skip. New gate: `tests/runtime/time_decompose.nr`
+(verifies all components against a known UTC timestamp and the epoch).
+Self-host LLVM IR fixed point preserved (v117==v118 byte-identical).
+
 ## [0.2.20] — 2026-04-22
 
 **Env extras + string utility round-out (7 helpers).**

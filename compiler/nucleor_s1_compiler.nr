@@ -2433,6 +2433,15 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "time_wall_us") { return "__nucleor_time_wall_us"; };
     if str_eq(name, "time_wall_ms") { return "__nucleor_time_wall_ms"; };
     if str_eq(name, "time_wall_seconds") { return "__nucleor_time_wall_seconds"; };
+    if str_eq(name, "time_year") { return "__nucleor_time_year"; };
+    if str_eq(name, "time_month") { return "__nucleor_time_month"; };
+    if str_eq(name, "time_day") { return "__nucleor_time_day"; };
+    if str_eq(name, "time_hour") { return "__nucleor_time_hour"; };
+    if str_eq(name, "time_minute") { return "__nucleor_time_minute"; };
+    if str_eq(name, "time_second") { return "__nucleor_time_second"; };
+    if str_eq(name, "time_weekday") { return "__nucleor_time_weekday"; };
+    if str_eq(name, "time_day_of_year") { return "__nucleor_time_day_of_year"; };
+    if str_eq(name, "time_elapsed_ms") { return "__nucleor_time_elapsed_ms"; };
     if str_eq(name, "sleep_ms") { return "__nucleor_sleep_ms"; };
     if str_eq(name, "sleep_us") { return "__nucleor_sleep_us"; };
     // Env
@@ -3562,6 +3571,15 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_time_wall_us()\n");
     sb_append(sb, "declare i64 @__nucleor_time_wall_ms()\n");
     sb_append(sb, "declare i64 @__nucleor_time_wall_seconds()\n");
+    sb_append(sb, "declare i64 @__nucleor_time_year(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_time_month(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_time_day(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_time_hour(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_time_minute(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_time_second(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_time_weekday(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_time_day_of_year(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_time_elapsed_ms(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sleep_ms(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sleep_us(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_env_get(ptr)\n");
