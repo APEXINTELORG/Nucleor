@@ -3,17 +3,20 @@
 // =====================================================
 // Import: import "stdlib/rods/json.nr"
 // Depends: import "stdlib/rods/strings.nr" (for strings_char_to_str)
-// Provides: json_parse, json_type, json_string, json_int, json_bool,
+// Provides: json_parse, json_type, json_string, json_int, json_f64, json_bool,
 //   json_array_len, json_array_get, json_object_get, json_object_keys,
-//   json_stringify, json_null, json_from_int, json_from_string, json_from_bool,
-//   json_array_new, json_array_push, json_object_new, json_object_set
+//   json_stringify, json_stringify_pretty, json_null, json_from_int,
+//   json_from_f64, json_from_string, json_from_bool, json_array_new,
+//   json_array_push, json_object_new, json_object_set
 // =====================================================
 
 import "stdlib/rods/strings.nr"
 import "stdlib/rods/fmt.nr"
+import "stdlib/rods/complex.nr"
 
 // JSON value types
-// 0 = null, 1 = bool, 2 = number (i64), 3 = string, 4 = array, 5 = object
+// 0 = null, 1 = bool, 2 = number (i64), 3 = string, 4 = array, 5 = object,
+// 6 = number (f64, bitcast as i64)
 
 // JSON value layout (Vec<i32>):
 //   [0] = type tag
@@ -39,6 +42,7 @@ fn json_null() -> Vec<i32> { return json_new(0, 0); }
 fn json_from_bool(b: i64) -> Vec<i32> { return json_new(1, b); }
 fn json_from_int(n: i64) -> Vec<i32> { return json_new(2, n); }
 fn json_from_string(s: str) -> Vec<i32> { return json_new(3, s); }
+fn json_from_f64(val: i64) -> Vec<i32> { return json_new(6, val); }
 
 fn json_array_new() -> Vec<i32> {
     let mut elems: Vec<i32> = Vec::new();
@@ -81,6 +85,11 @@ fn json_string(j: Vec<i32>) -> str {
 
 fn json_int(j: Vec<i32>) -> i64 {
     if j.get(0) != 2 { return 0; };
+    return j.get(1);
+}
+
+fn json_f64(j: Vec<i32>) -> i64 {
+    if j.get(0) != 6 { return f64_from_int(0); };
     return j.get(1);
 }
 
@@ -324,6 +333,28 @@ fn json_escape_string(s: str) -> str {
     return sb_to_str(sb);
 }
 
+// Format an f64 (bitcast in i64) as a JSON-compatible decimal string.
+// Uses 6 fractional digits, trimming trailing zeros while keeping at least one
+// digit after the decimal point ("1.0" not "1.", "3.14" not "3.140000").
+fn json_f64_to_str(val: i64) -> str {
+    let zero: i64 = f64_from_int(0);
+    let is_neg: i64 = f64_lt(val, zero);
+    let mut av: i64 = val;
+    if is_neg == 1 { av = f64_abs(val); };
+    let ip: i64 = f64_to_int(f64_floor(av));
+    let frac_f: i64 = f64_sub(av, f64_from_int(ip));
+    let mut fs: i64 = f64_to_int(f64_floor(f64_mul(frac_f, f64_from_int(1000000))));
+    let mut fstr: str = fmt_int(fs);
+    while str_len(fstr) < 6 { fstr = str_concat("0", fstr); };
+    // Trim trailing zeros, but keep at least one digit so output stays "1.0".
+    let mut flen: i64 = str_len(fstr);
+    while flen > 1 && str_char_at(fstr, flen - 1) == 48 { flen = flen - 1; };
+    fstr = str_substring(fstr, 0, flen);
+    let mut r: str = str_concat(fmt_int(ip), str_concat(".", fstr));
+    if is_neg == 1 { r = str_concat("-", r); };
+    return r;
+}
+
 fn json_stringify(j: Vec<i32>) -> str {
     let tag: i64 = j.get(0);
     if tag == 0 { return "null"; };
@@ -335,6 +366,7 @@ fn json_stringify(j: Vec<i32>) -> str {
     if tag == 3 {
         return str_concat("\"", str_concat(json_escape_string(j.get(1)), "\""));
     };
+    if tag == 6 { return json_f64_to_str(j.get(1)); };
     if tag == 4 {
         let mut sb: i64 = sb_new();
         sb_append(sb, "[");
@@ -367,4 +399,75 @@ fn json_stringify(j: Vec<i32>) -> str {
         return sb_to_str(sb);
     };
     return "null";
+}
+
+// Build a string of `n` spaces (used for pretty-print indentation).
+fn json_pp_spaces(n: i64) -> str {
+    let mut s: str = "";
+    let mut i: i64 = 0;
+    while i < n { s = str_concat(s, " "); i = i + 1; };
+    return s;
+}
+
+// Recursive pretty-printer. `indent` = spaces per level, `depth` = current depth.
+fn json_pp(j: Vec<i32>, indent: i64, depth: i64) -> str {
+    let tag: i64 = j.get(0);
+    if tag == 0 { return "null"; };
+    if tag == 1 {
+        if j.get(1) != 0 { return "true"; };
+        return "false";
+    };
+    if tag == 2 { return fmt_int(j.get(1)); };
+    if tag == 3 {
+        return str_concat("\"", str_concat(json_escape_string(j.get(1)), "\""));
+    };
+    if tag == 6 { return json_f64_to_str(j.get(1)); };
+    if tag == 4 {
+        let alen: i64 = json_array_len(j);
+        if alen == 0 { return "[]"; };
+        let inner: str = json_pp_spaces((depth + 1) * indent);
+        let outer: str = json_pp_spaces(depth * indent);
+        let mut sb: i64 = sb_new();
+        sb_append(sb, "[\n");
+        let mut i: i64 = 0;
+        while i < alen {
+            sb_append(sb, inner);
+            sb_append(sb, json_pp(json_array_get(j, i), indent, depth + 1));
+            if i + 1 < alen { sb_append(sb, ","); };
+            sb_append(sb, "\n");
+            i = i + 1;
+        };
+        sb_append(sb, outer);
+        sb_append(sb, "]");
+        return sb_to_str(sb);
+    };
+    if tag == 5 {
+        let keys: i64 = j.get(1);
+        let vals: i64 = j.get(2);
+        let klen: i64 = vec_len(keys);
+        if klen == 0 { return "{}"; };
+        let inner: str = json_pp_spaces((depth + 1) * indent);
+        let outer: str = json_pp_spaces(depth * indent);
+        let mut sb: i64 = sb_new();
+        sb_append(sb, "{\n");
+        let mut i: i64 = 0;
+        while i < klen {
+            sb_append(sb, inner);
+            sb_append(sb, "\"");
+            sb_append(sb, json_escape_string(vec_get(keys, i)));
+            sb_append(sb, "\": ");
+            sb_append(sb, json_pp(vec_get(vals, i), indent, depth + 1));
+            if i + 1 < klen { sb_append(sb, ","); };
+            sb_append(sb, "\n");
+            i = i + 1;
+        };
+        sb_append(sb, outer);
+        sb_append(sb, "}");
+        return sb_to_str(sb);
+    };
+    return "null";
+}
+
+fn json_stringify_pretty(j: Vec<i32>, indent: i64) -> str {
+    return json_pp(j, indent, 0);
 }
