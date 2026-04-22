@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.24] — 2026-04-22
+
+**Parse + stringify primitives (6 helpers).**
+
+```nucleor
+// String → number / bool
+str_to_i64("42");          // 42
+str_to_i64("  -7");        // -7   (leading whitespace + sign tolerated)
+str_to_i64("garbage");     // 0    (no exception — caller handles via sentinel)
+str_to_f64("3.14159");     // f64 bits
+str_to_bool("true");       // 1   (case-insensitive)
+str_to_bool("FALSE");      // 0
+str_to_bool("1");          // 1   (numeric tolerance)
+
+// Number / bool → string
+int_to_str(42);            // "42"
+int_to_str(-7);            // "-7"
+f64_to_str(pi);            // "3.14159"
+bool_to_str(1);            // "true"
+bool_to_str(0);            // "false"
+```
+
+Closes the obvious gap between `format_i64`/`format_f64` (template-
+based, RFC-0028 phase 1) and bare-string conversion. The new
+helpers don't take a template — they're the one-call shortcut for
+"show me this value as a string".
+
+- **`str_to_i64`** parses a leading sign + decimal digits; tolerates
+  ASCII whitespace before the sign. Returns `0` on a completely
+  malformed input. Use `str_len` + `str_starts_with` if you need to
+  distinguish "empty string" from "zero".
+- **`str_to_f64`** delegates to libc `strtod`; same `0.0` fallback
+  on parse failure. Returns the f64 bit-pattern in an i64 cell
+  (matches the existing f64 ABI).
+- **`str_to_bool`** accepts `true`/`false` (case-insensitive) and
+  the numeric `1`/`0`. Anything else returns `0`.
+- **`int_to_str`** / **`f64_to_str`** / **`bool_to_str`** are
+  always-allocates-fresh-string stringifiers. `f64_to_str` uses
+  `%g` formatting (sufficient digits for round-trip).
+
+All six wired through both compiler binaries with the drift-gate
+sync. Three return ptr (`int_to_str`, `f64_to_str`, `bool_to_str`),
+three take ptr (the parsers).
+
+### Verify gate
+
+173/174 green on Windows + 1 skip. New gate: `tests/runtime/parse_stringify.nr`
+(round-trip tests for int and f64; case-insensitive bool tests).
+Self-host LLVM IR fixed point preserved (v127==v128 byte-identical).
+
 ## [0.2.23] — 2026-04-22
 
 **Path utilities (6 helpers).**

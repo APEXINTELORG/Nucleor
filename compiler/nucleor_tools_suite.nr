@@ -1853,6 +1853,12 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "read_i64") { return "__nucleor_read_i64"; };
     if str_eq(name, "read_byte") { return "__nucleor_read_byte"; };
     if str_eq(name, "format_i64") { return "__nucleor_format_i64"; };
+    if str_eq(name, "str_to_i64") { return "__nucleor_str_to_i64"; };
+    if str_eq(name, "str_to_f64") { return "__nucleor_str_to_f64"; };
+    if str_eq(name, "str_to_bool") { return "__nucleor_str_to_bool"; };
+    if str_eq(name, "int_to_str") { return "__nucleor_int_to_str"; };
+    if str_eq(name, "f64_to_str") { return "__nucleor_f64_to_str"; };
+    if str_eq(name, "bool_to_str") { return "__nucleor_bool_to_str"; };
     if str_eq(name, "format_str") { return "__nucleor_format_str"; };
     if str_eq(name, "format_hex") { return "__nucleor_format_hex"; };
     if str_eq(name, "format2_ii") { return "__nucleor_format2_ii"; };
@@ -2460,6 +2466,9 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "args_get") { return 1; };
     if str_eq(name, "read_line") { return 1; };
     if str_eq(name, "format_i64") { return 1; };
+    if str_eq(name, "int_to_str") { return 1; };
+    if str_eq(name, "f64_to_str") { return 1; };
+    if str_eq(name, "bool_to_str") { return 1; };
     if str_eq(name, "format_str") { return 1; };
     if str_eq(name, "format_hex") { return 1; };
     if str_eq(name, "format2_ii") { return 1; };
@@ -2533,6 +2542,9 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "env_set") { return 1; };
     if str_eq(name, "env_unset") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_to_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_to_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_to_bool") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format_str") { if idx == 0 || idx == 1 { return 1; }; return 0; };
     if str_eq(name, "format_hex") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format2_ii") { if idx == 0 { return 1; }; return 0; };
@@ -2992,6 +3004,12 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_read_i64()\n");
     sb_append(sb, "declare i64 @__nucleor_read_byte()\n");
     sb_append(sb, "declare ptr @__nucleor_format_i64(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_to_i64(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_to_f64(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_to_bool(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_int_to_str(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f64_to_str(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_bool_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_format_str(ptr, ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_format_hex(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_format2_ii(ptr, i64, i64)\n");
