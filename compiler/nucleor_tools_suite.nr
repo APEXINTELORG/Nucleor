@@ -7823,6 +7823,40 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "MATCH-003") { return "Type mismatch between match arms"; };
     if str_eq(code, "MATCH-004") { return "? in a function not returning Result/Option"; };
     if str_eq(code, "MATCH-006") { return "unwrap() in #[no_panic] function"; };
+    // RFC-0004 assume!
+    if str_eq(code, "ASSUME-001") { return "predicate not in analyzer's vocabulary"; };
+    if str_eq(code, "ASSUME-002") { return "assume_unchecked! used without justification"; };
+    if str_eq(code, "ASSUME-004") { return "assume! contradicts type-system fact"; };
+    // RFC-0005 units
+    if str_eq(code, "UNIT-001") { return "Add/sub mismatched dimensions"; };
+    if str_eq(code, "UNIT-002") { return "Implicit unit conversion attempted"; };
+    if str_eq(code, "UNIT-004") { return "Unknown unit alias"; };
+    // RFC-0006 contracts
+    if str_eq(code, "CONTRACT-001") { return "Require violation"; };
+    if str_eq(code, "CONTRACT-002") { return "Ensure violation"; };
+    if str_eq(code, "CONTRACT-003") { return "Invariant violation"; };
+    if str_eq(code, "CONTRACT-004") { return "Trait impl weakens precondition (Liskov)"; };
+    // RFC-0007 atomic
+    if str_eq(code, "ATOMIC-001") { return "Blocking call inside #[atomic] function"; };
+    if str_eq(code, "ATOMIC-002") { return "Allocating call inside #[atomic] function"; };
+    // RFC-0008 ISR
+    if str_eq(code, "ISR-001") { return "#[isr] function not pub"; };
+    if str_eq(code, "ISR-002") { return "ISR stack frame exceeds budget"; };
+    if str_eq(code, "ISR-004") { return "Vector name not recognized for target"; };
+    // RFC-0009 WCET
+    if str_eq(code, "WCET-002") { return "Loop bound unknown"; };
+    if str_eq(code, "WCET-003") { return "WCET exceeds declared deadline"; };
+    // RFC-0014 max_depth
+    if str_eq(code, "DEPTH-001") { return "Recursive call without #[max_depth]"; };
+    if str_eq(code, "DEPTH-002") { return "Cannot prove #[max_depth = N]"; };
+    if str_eq(code, "DEPTH-004") { return "Total stack budget exceeded"; };
+    // RFC-0031 laws
+    if str_eq(code, "LAW-001") { return "Property test fails (auto-generated from @law)"; };
+    if str_eq(code, "LAW-002") { return "SMT disproves law"; };
+    // RFC-0032 effects
+    if str_eq(code, "EFF-001") { return "Function uses effect not in declared row"; };
+    if str_eq(code, "EFF-002") { return "pure fn calls effectful fn"; };
+    if str_eq(code, "EFF-003") { return "restricts [...] violated"; };
     return "";
 }
 
@@ -7864,6 +7898,31 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "MATCH-003") { return "Match arm bodies must produce the same type (or () in statement context)."; };
     if str_eq(code, "MATCH-004") { return "The ? operator desugars to a function-level early return; the function must return Result/Option for ? to type-check."; };
     if str_eq(code, "MATCH-006") { return "unwrap() panics on Err/None. Use unwrap_or, ?, or match in #[no_panic] code."; };
+    if str_eq(code, "ASSUME-001") { return "The assume! predicate uses an expression form the analyzer doesn't track for static reasoning. Runtime check still happens; static benefit is none."; };
+    if str_eq(code, "ASSUME-002") { return "assume_unchecked! disables even the debug-mode runtime check. The warning surfaces a missing comment justifying the unsafety."; };
+    if str_eq(code, "ASSUME-004") { return "The assume! predicate is provably false from the type system (e.g., assume!(x < 0) for x: u32)."; };
+    if str_eq(code, "UNIT-001") { return "Adding/subtracting unit<T,m> and unit<T,s> is dimensionally invalid. Convert one to the other or use multiplication."; };
+    if str_eq(code, "UNIT-002") { return "Implicit unit conversion is forbidden by RFC-0005. Use explicit .into() or From::from to cross unit systems."; };
+    if str_eq(code, "UNIT-004") { return "Unknown unit alias. Check stdlib/rods/units_si.nr or units_imperial.nr."; };
+    if str_eq(code, "CONTRACT-001") { return "A #[require(...)] precondition was violated by the caller. Caller must satisfy the predicate before the call."; };
+    if str_eq(code, "CONTRACT-002") { return "A #[ensure(...)] postcondition was violated by the function body. Body must produce a result matching the predicate."; };
+    if str_eq(code, "CONTRACT-003") { return "A #[invariant(...)] struct invariant was violated on method entry or exit."; };
+    if str_eq(code, "CONTRACT-004") { return "Liskov substitution: a trait impl cannot weaken the trait's preconditions. Add the missing #[require] to the impl."; };
+    if str_eq(code, "ATOMIC-001") { return "#[atomic] functions cannot block. Mutex::lock, Channel::recv, sleep, or syscalls are forbidden. Use lock-free structures (SpscQueue, MpmcQueue) or Atomic<T>."; };
+    if str_eq(code, "ATOMIC-002") { return "#[atomic] implies #[no_alloc]. See RT-001 explanation."; };
+    if str_eq(code, "ISR-001") { return "Vector-table wiring requires the ISR fn to be pub so the linker can find it."; };
+    if str_eq(code, "ISR-002") { return "ISRs share a small stack. Move large local arrays to static or move computation outside the ISR."; };
+    if str_eq(code, "ISR-004") { return "The vector name in #[isr(vector = ...)] does not match this target's PAC. Check stdlib/embedded/<target>/vectors.nr for the valid set."; };
+    if str_eq(code, "WCET-002") { return "Add #[loop_bound(N)] or assume!(arr.len() == N) so Heptane can bound the loop."; };
+    if str_eq(code, "WCET-003") { return "Static WCET upper bound exceeds the declared deadline. See the WCET report for the dominant cost path."; };
+    if str_eq(code, "DEPTH-001") { return "Recursion without a depth bound cannot be safely analyzed. Annotate with #[max_depth = N] (RFC-0014)."; };
+    if str_eq(code, "DEPTH-002") { return "The structural analysis cannot prove the recursion bound. Use an explicit depth-counter parameter and entry guard."; };
+    if str_eq(code, "DEPTH-004") { return "Sum of (max_depth_i × frame_size_i) along a recursion chain exceeds the project's stack budget."; };
+    if str_eq(code, "LAW-001") { return "RFC-0031 generates a property test from each @law. The test ran ~1000 random inputs and found a counterexample. Adjust the law's eps, mark @law(approximate), or remove the false claim."; };
+    if str_eq(code, "LAW-002") { return "In --profile=cert, RFC-0031 routes laws through Z3/CVC5 for proof. The SMT solver disproved the law and produced a counterexample."; };
+    if str_eq(code, "EFF-001") { return "RFC-0032 effect rows are checked at type-check. The function body uses an effect (io.read, alloc, etc.) not declared in its signature's `+ effect_row`."; };
+    if str_eq(code, "EFF-002") { return "pure fn cannot perform side effects. Either remove the call, mark the callee pure, or remove the pure annotation from the caller."; };
+    if str_eq(code, "EFF-003") { return "restricts [...] forbids the listed effects in the callee. The callee uses an effect on the restrict list."; };
     return "";
 }
 
@@ -7905,6 +7964,31 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "MATCH-003") { return "All arms in a match expression must yield the same type. Cast or restructure to align."; };
     if str_eq(code, "MATCH-004") { return "The ? operator desugars to `match e { Ok(v) => v, Err(e) => return Err(e) }`. The function must return Result (or Option for option-?) for the desugar to type-check."; };
     if str_eq(code, "MATCH-006") { return "Use unwrap_or, unwrap_or_else, ?, or match in #[no_panic] context. The compiler treats unwrap as may_panic."; };
+    if str_eq(code, "ASSUME-001") { return "RFC-0004 §3.2 lists the predicate vocabulary the analyzer understands: x < N, x != 0, arr.len() == N, opt.is_some(), result.is_ok(), equality substitution. Other predicates are accepted as runtime checks but contribute nothing to static analysis."; };
+    if str_eq(code, "ASSUME-002") { return "RFC-0004 §3.6 — assume_unchecked! is a footgun for extreme RT loops. Document why the runtime check is too costly to justify."; };
+    if str_eq(code, "ASSUME-004") { return "The compiler proved the predicate is unsatisfiable at this program point. The assume! is wrong."; };
+    if str_eq(code, "UNIT-001") { return "RFC-0005 §3.1 — units form a 7-dimensional polynomial. Add/sub require equal dimensions; mul/div produce sums/differences of dimension exponents."; };
+    if str_eq(code, "UNIT-002") { return "RFC-0005 §3.4 — silent unit conversions are exactly the bug class typed units exist to prevent."; };
+    if str_eq(code, "UNIT-004") { return "RFC-0005 §3.3 — alias library lives in stdlib/rods/units_si.nr (SI), units_imperial.nr, units_robotics.nr."; };
+    if str_eq(code, "CONTRACT-001") { return "RFC-0006 §3.2 — #[require] is checked at the call site (debug profile) or assumed (release). Either fix the call or relax the require."; };
+    if str_eq(code, "CONTRACT-002") { return "RFC-0006 §3.3 — #[ensure] is checked at function exit. The function returned a value or modified state in a way that violated the contract."; };
+    if str_eq(code, "CONTRACT-003") { return "RFC-0006 §3.4 — invariants checked on entry to + exit from every public method. Either restore the invariant before the method ends or weaken the invariant."; };
+    if str_eq(code, "CONTRACT-004") { return "RFC-0006 §3.5 — Liskov substitution principle. Trait impls cannot weaken preconditions; the impl must satisfy at least the trait's #[require]."; };
+    if str_eq(code, "ATOMIC-001") { return "RFC-0007 §3.3 — #[atomic] is the inter-thread RT contract. Use Atomic<T> ops, SpscQueue/MpmcQueue.try_push/try_pop, and avoid all blocking primitives."; };
+    if str_eq(code, "ATOMIC-002") { return "RFC-0007 §3.3 — see RT-001."; };
+    if str_eq(code, "ISR-001") { return "RFC-0008 §3.3 — vector table is generated from #[isr]-annotated functions. Linker needs the symbol public."; };
+    if str_eq(code, "ISR-002") { return "RFC-0008 §3.6 — each ISR has a stack budget (default 256 B). Move large arrays to static, file-scope, or to a dynamically-allocated heap region used outside the ISR."; };
+    if str_eq(code, "ISR-004") { return "RFC-0008 §3.1 — vector names are target-specific. The PAC for your MCU is in stdlib/embedded/<target>/vectors.nr."; };
+    if str_eq(code, "WCET-002") { return "RFC-0009 §3.2 — Heptane needs trip counts to bound loops. Annotate the loop with #[loop_bound(N)] or assert the array length with assume!(arr.len() == N) before entering."; };
+    if str_eq(code, "WCET-003") { return "RFC-0009 §3.3 — static WCET upper bound exceeds the declared deadline. The diagnostic shows the dominant cost path. Reduce loop bounds, simplify hot expressions, or relax the deadline."; };
+    if str_eq(code, "DEPTH-001") { return "RFC-0014 §3.4 — unbounded recursion blocks WCET analysis (RFC-0009) and stack-budget reasoning. Annotate the function with #[max_depth = N]."; };
+    if str_eq(code, "DEPTH-002") { return "RFC-0014 §3.3 — the analyzer requires an explicit depth-counter parameter and an entry guard (`if depth >= N { return ...; };`). The pattern lets the structural analysis confirm the bound."; };
+    if str_eq(code, "DEPTH-004") { return "RFC-0014 §3.5 — total stack usage is the sum of (max_depth_i × frame_size_i) along a recursion chain. Reduce frame sizes (move locals to static), reduce depth, or reorganize the chain."; };
+    if str_eq(code, "LAW-001") { return "RFC-0031 §3.2 — @law generates a property test that runs ~1000 random inputs of the relevant type. The test failed with a concrete counterexample. Common causes: float associativity is not exact (use eps tolerance), commutativity violated by side effects (mark fn pure), or the law is simply wrong."; };
+    if str_eq(code, "LAW-002") { return "RFC-0031 §3.4 — in --profile=cert, laws are SMT-proved by Z3 or CVC5. The solver returned UNSAT, meaning the law does not hold."; };
+    if str_eq(code, "EFF-001") { return "RFC-0032 §3.1 — every function carries an effect row. Use a function with effects requires the caller to permit those effects. Either declare the effects in the caller's row or remove the call."; };
+    if str_eq(code, "EFF-002") { return "RFC-0032 §3.2 — pure fn means no side effects (io, alloc, random, time, panic). The compiler can prove the call violates this."; };
+    if str_eq(code, "EFF-003") { return "RFC-0032 §3.4 — restricts [...] is a contract on callbacks. Pass a different callback or remove the restrict."; };
     return "";
 }
 
