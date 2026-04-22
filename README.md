@@ -86,7 +86,7 @@ That's **65 rods total** in v0.1.1, all building cleanly against the bootstrap b
 - [`examples/11_pid.nr`](examples/11_pid.nr) — PID controller driving a plant to a setpoint.
 - [`examples/12_autodiff.nr`](examples/12_autodiff.nr) — reverse-mode autodiff of `sin(x²) + x`.
 
-## Showcase — animated, color, "did one language really just do that"
+## Showcase — animated, color:
 
 Programs in [`examples/showcase/`](examples/showcase/) that demonstrate
 things Nucleor is uniquely suited for, with live ANSI-colored visualizations.
