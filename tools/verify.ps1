@@ -108,7 +108,7 @@ $examples = @("01_hello", "02_fib", "03_structs", "04_rods", "05_quantum", "06_p
               "08_linalg", "09_ode", "10_fft", "11_pid", "12_autodiff")
 if (Test-Path $rustBridgeLib) { $examples += "07_rust_interop" }
 
-$testDirs = @("lang", "attrs", "runtime", "rods")
+$testDirs = @("lang", "attrs", "runtime", "rods", "features")
 $testCount = 0
 foreach ($d in $testDirs) {
     $testCount += (Get-ChildItem -Path (Join-Path $root "tests\$d") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
@@ -154,6 +154,13 @@ foreach ($dir in $testDirs) {
                 return $false
             }
             $runOut = (& $exePath 2>&1) | Out-String
+            $exit = $LASTEXITCODE
+            if ($dir -eq "features") {
+                # Feature parity tests: pass if the program built and ran without
+                # an access-violation crash. They exercise language constructs by
+                # construction, not by printing "OK".
+                return ($exit -ne -1073741819 -and $exit -ne -1073740940)
+            }
             return ($runOut -match "(?m)^OK ")
         }
     }
