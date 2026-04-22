@@ -28,6 +28,67 @@ void __nucleor_print_bool(int x) {
     printf("%s\n", x ? "true" : "false");
 }
 
+// === RFC-0028 phase 1: format string builtins ===
+// Scan `template` for the first `{}` placeholder and replace it with the
+// rendered argument. Returns a heap-allocated str (caller-owned in the
+// Nucleor object model).
+//
+// `format_i64(t, v)`  — render an i64 as decimal
+// `format_str(t, s)`  — splice in another string
+// `format_hex(t, v)`  — render an i64 as `0x...` lowercase
+// `format2_ii(t, a,b)` — two i64 placeholders (left to right)
+// `format2_si(t, s,b)` — first {} = str, second {} = i64
+//
+// Variadic format strings + `Display`/`Debug` traits ship with full
+// RFC-0028 in v0.4.
+
+static const char *__nuc_render_format(const char *tmpl, const char *replacement) {
+    if (!tmpl) return "";
+    const char *p = tmpl;
+    while (*p && !(p[0] == '{' && p[1] == '}')) p++;
+    if (!*p) {
+        // No placeholder — return template verbatim.
+        size_t n = strlen(tmpl) + 1;
+        char *out = (char *)malloc(n);
+        memcpy(out, tmpl, n);
+        return out;
+    }
+    size_t pre_len = (size_t)(p - tmpl);
+    size_t rep_len = replacement ? strlen(replacement) : 0;
+    size_t suf_len = strlen(p + 2);
+    char *out = (char *)malloc(pre_len + rep_len + suf_len + 1);
+    memcpy(out, tmpl, pre_len);
+    if (replacement) memcpy(out + pre_len, replacement, rep_len);
+    memcpy(out + pre_len + rep_len, p + 2, suf_len + 1);
+    return out;
+}
+
+const char *__nucleor_format_i64(const char *tmpl, long long v) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%lld", v);
+    return __nuc_render_format(tmpl, buf);
+}
+const char *__nucleor_format_str(const char *tmpl, const char *s) {
+    return __nuc_render_format(tmpl, s ? s : "");
+}
+const char *__nucleor_format_hex(const char *tmpl, long long v) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "0x%llx", (unsigned long long)v);
+    return __nuc_render_format(tmpl, buf);
+}
+const char *__nucleor_format2_ii(const char *tmpl, long long a, long long b) {
+    const char *first = __nucleor_format_i64(tmpl, a);
+    const char *out = __nucleor_format_i64(first, b);
+    free((void *)first);
+    return out;
+}
+const char *__nucleor_format2_si(const char *tmpl, const char *s, long long b) {
+    const char *first = __nucleor_format_str(tmpl, s);
+    const char *out = __nucleor_format_i64(first, b);
+    free((void *)first);
+    return out;
+}
+
 // === Stdin read helpers (RFC-0015 phase 4 completion) ===
 // read_line: returns a newline-terminated input line as a heap-allocated str
 //            (caller drops trailing \n); empty string on EOF.
