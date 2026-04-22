@@ -2470,6 +2470,54 @@ const char *__nucleor_time_iso_now(void) {
     return __nucleor_time_format_iso(__nucleor_time_wall_seconds());
 }
 
+// --- v0.2.21: time decomposition + elapsed ---
+// All take a unix-seconds timestamp and return a UTC component.
+// time_weekday returns 0=Sunday..6=Saturday (POSIX tm_wday convention).
+// time_day_of_year returns 1..366.
+static void __nuc_unix_to_utc_tm(long long unix_seconds, struct tm *out) {
+    time_t t = (time_t)unix_seconds;
+#ifdef _WIN32
+    gmtime_s(out, &t);
+#else
+    gmtime_r(&t, out);
+#endif
+}
+long long __nucleor_time_year(long long unix_seconds) {
+    struct tm g; __nuc_unix_to_utc_tm(unix_seconds, &g);
+    return (long long)(g.tm_year + 1900);
+}
+long long __nucleor_time_month(long long unix_seconds) {
+    struct tm g; __nuc_unix_to_utc_tm(unix_seconds, &g);
+    return (long long)(g.tm_mon + 1);
+}
+long long __nucleor_time_day(long long unix_seconds) {
+    struct tm g; __nuc_unix_to_utc_tm(unix_seconds, &g);
+    return (long long)g.tm_mday;
+}
+long long __nucleor_time_hour(long long unix_seconds) {
+    struct tm g; __nuc_unix_to_utc_tm(unix_seconds, &g);
+    return (long long)g.tm_hour;
+}
+long long __nucleor_time_minute(long long unix_seconds) {
+    struct tm g; __nuc_unix_to_utc_tm(unix_seconds, &g);
+    return (long long)g.tm_min;
+}
+long long __nucleor_time_second(long long unix_seconds) {
+    struct tm g; __nuc_unix_to_utc_tm(unix_seconds, &g);
+    return (long long)g.tm_sec;
+}
+long long __nucleor_time_weekday(long long unix_seconds) {
+    struct tm g; __nuc_unix_to_utc_tm(unix_seconds, &g);
+    return (long long)g.tm_wday;
+}
+long long __nucleor_time_day_of_year(long long unix_seconds) {
+    struct tm g; __nuc_unix_to_utc_tm(unix_seconds, &g);
+    return (long long)(g.tm_yday + 1);
+}
+long long __nucleor_time_elapsed_ms(long long start_ms) {
+    return __nucleor_time_wall_ms() - start_ms;
+}
+
 long long __nucleor_sleep_ms(long long ms) {
 #ifdef _WIN32
     Sleep((DWORD)ms);
