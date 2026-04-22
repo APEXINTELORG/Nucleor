@@ -1,27 +1,135 @@
 # Rods and the Runtime
 
-Nucleor's standard library is organized as **rods**: small, focused modules paired with their C runtime.
+Nucleor's standard library is organized as **rods**: small, focused modules paired with their C runtime. As of v0.1.1 there are 65 shipping rods covering general utilities, scientific computing, modern ML, and physics simulation.
 
 ## Anatomy of a rod
 
-A rod is two files in `stdlib/rods/`:
+A rod is two files in `stdlib/rods/` (or one rod + one runtime file in `stdlib/runtime/`):
 
-- `<name>.nr` — the Nucleor-side wrapper. Declares `extern fn` bindings for the C symbols and provides Nucleor-friendly wrappers around them. Declares `#cfile "<name>_rt.c"` to tell the compiler what to compile and link.
+- `<name>.nr` — the Nucleor-side wrapper. Declares `extern fn` bindings for the C symbols, provides Nucleor-friendly wrappers around them, and includes `#cfile` directives to tell the compiler what C source to compile and link.
 - `<name>_rt.c` — the C implementation.
 
-Example: `stdlib/rods/quantum.nr` calls into `stdlib/rods/quantum_rt.c`. When a user program does `import "stdlib/rods/quantum.nr"`, the compiler reads the `#cfile` directive and arranges for `quantum_rt.c` to be compiled and linked into the final binary.
+Example: `stdlib/rods/quantum.nr` calls into `stdlib/rods/quantum_rt.c`. When a user program does `import "stdlib/rods/quantum.nr"`, the compiler reads the `#cfile` directive and arranges for `quantum_rt.c` to be compiled and linked into the final binary. Some rods (linalg, physics, ode, etc.) point at runtime files in `stdlib/runtime/` instead.
 
-## The shipping rod catalog (v0.1, all 36 build clean)
+## The shipping rod catalog (v0.1.1, all 65 build clean)
 
 ### Core utilities
 
 | Rod | Provides |
 |---|---|
-| `strings.nr`     | `strings_contains`, `strings_starts_with`, `strings_ends_with`, `strings_to_upper/lower`, `strings_split`, `strings_join`, `strings_trim`, `strings_replace`, `strings_repeat`, `strings_pad_*`, `strings_char_to_str` |
-| `fmt.nr`         | `fmt_int`, `fmt_bool`, `fmt_hex/oct/bin`, `fmt_float_approx`, `fmt_pad_*`, `fmt_format`, `fmt_to_int` |
-| `bitwise.nr`     | `bit_and`, `bit_or`, `bit_xor`, `bit_not`, `bit_shift_left/right`, `bit_test`, `bit_set`, `bit_clear` |
-| `math.nr`        | Common math functions (sqrt, sin, cos, ...) |
-| `complex.nr`     | f64 helpers: `f64_add/sub/mul/div`, `f64_lt/gt/eq`, `f64_from_int`, `f64_to_str_6`, `f64_abs`, complex-number arithmetic, RNG (`rng_seed`, `rng_f64`, `rng_normal`) |
+| `strings.nr`     | `strings_contains`, `starts_with`, `ends_with`, `to_upper/lower`, `split`, `join`, `trim`, `replace`, `repeat`, `pad_*`, `char_to_str` |
+| `fmt.nr`         | `fmt_int`, `bool`, `hex/oct/bin`, `float_approx`, `pad_*`, `format`, `to_int` |
+| `bitwise.nr`     | `bit_and`, `or`, `xor`, `not`, `shift_left/right`, `test`, `set`, `clear` |
+| `math.nr`        | `math_abs`, `min`, `max`, `clamp`, `pow_int`, `sqrt_int`, `gcd`, `lcm`, `is_even`, `is_odd` |
+| `complex.nr`     | f64 helpers (add/sub/mul/div, sqrt/sin/cos/atan2/exp/log/pow), constants (π, e, τ, √2), complex numbers, RNG (`rng_seed`, `rng_f64`, `rng_normal`) |
+
+### Linear algebra and tensors
+
+| Rod | Provides |
+|---|---|
+| `linalg.nr`        | Matrix construction, basic ops (add/sub/scale/mul/transpose/trace/norm/det/inv/rank), **LU**, **QR**, **Cholesky**, **eigen**, **SVD**, ridge regression, identity matrix |
+| `tensor_nd.nr`     | N-dimensional tensors: arbitrary-rank shapes, multi-index and flat access, reshape, slice, element-wise add/mul, scale, sum-along-axis, batched matmul |
+| `tensor_decomp.nr` | **CP-ALS** (PARAFAC), **Tensor-Train SVD**, Kronecker product, Khatri-Rao product |
+| `sparse.nr`        | CSR sparse matrices: from-COO, from-dense, set/get/transpose, sparse mat-vec, **conjugate gradient**, **GMRES** |
+
+### Numerical methods
+
+| Rod | Provides |
+|---|---|
+| `ode.nr`     | Explicit Euler, fixed-step **RK4**, adaptive **RK45**, symplectic (Hamiltonian-preserving), event detection |
+| `root.nr`    | Bisection, **Newton's method**, secant, **Brent**, multi-dim Newton for systems |
+| `quad.nr`    | Trapezoid, Simpson, Gauss-Legendre, adaptive, 2D, **Monte Carlo** |
+| `interp.nr`  | Linear, **cubic spline**, Lagrange, Chebyshev (fit + eval), 2D bilinear, **RBF** (radial basis function) |
+| `bspline.nr` | B-spline eval, basis functions, derivatives, uniform knot vector, **KAN forward** (Kolmogorov-Arnold) |
+| `optim.nr`   | Gradient descent, **Adam**, Nelder-Mead simplex, line search, genetic optimizer |
+
+### Statistics and signal processing
+
+| Rod | Provides |
+|---|---|
+| `stats.nr`   | Mean, median, var, std, covariance, correlation, percentile, histogram, **linear regression** (slope/intercept/R²), **t-test**, **chi-square**, **kernel density estimation** |
+| `signal.nr`  | FIR / IIR filtering, **Butterworth** design, Hamming / Hann / Blackman windows, **envelope**, zero-crossing count, up/down-sampling |
+| `fft.nr`     | 1D complex / real FFT, fast convolution, power spectrum, cross-correlation |
+| `pca.nr`     | Fit, project a sample onto top-k components, per-component variance ratio, eigenvalues |
+
+### PDE solvers and physics simulation
+
+| Rod | Provides |
+|---|---|
+| `multigrid.nr`  | 2D **multigrid Poisson** solve + residual norm |
+| `fluid.nr`      | 2D **Lattice Boltzmann** with obstacles, inlet velocity, density, velocity field, vorticity |
+| `emag.nr`       | 2D **FDTD electromagnetics** with materials, sources, E_z/H_x/H_y fields, energy integration |
+| `thermo.nr`     | 2D **heat equation**, steady-state, ideal gas law, **Carnot efficiency**, blackbody radiation |
+| `geom.nr`       | 2D convex hull, point-in-polygon, line intersection, polygon area, closest pair, bbox, point-to-line distance |
+| `rigid_body.nr` | 3D rigid body dynamics: position, velocity, rotation, angular velocity, force/torque, gravity, integration step, sphere-sphere collision |
+| `orbit.nr`      | **Kepler-to-Cartesian**, orbital period, **Hohmann transfer**, two-body propagation, vis-viva, escape velocity |
+
+### Physical constants and units
+
+| Rod | Provides |
+|---|---|
+| `physics.nr` | **17 CODATA 2018 constants**: c, h, ℏ, k_B, e, m_e, m_p, m_n, G, N_A, R, ε₀, μ₀, σ (Stefan-Boltzmann), α (fine-structure), a₀ (Bohr), R∞ (Rydberg), eV, u, π, e (Euler), v_sound |
+| `units.nr`   | SI unit conversion across mass (kg/g/lb/oz), length (m/km/cm/mm/in/ft/mi), time (s/ms/μs/min/hr/day), temperature (K/C/F), pressure (Pa/kPa/atm/bar/psi), energy (J/kJ/cal/eV/kWh), force (N/kN/lbf), frequency (Hz/kHz/MHz/GHz), angle (rad/deg), voltage (V/mV), current (A/mA) |
+
+### Symbolic and differentiable computing
+
+| Rod | Provides |
+|---|---|
+| `autodiff.nr` | **Reverse-mode automatic differentiation** with var/const, +/-/×/÷, sin/cos/exp/log/sqrt/pow/abs/tanh, value + gradient extraction, tape reset and checkpointing (20 fns) |
+| `symbolic.nr` | Expression trees: const + named vars, +/-/×/÷/^, sin/cos/exp/log/sqrt/neg, **symbolic differentiation**, numerical evaluation with variable substitution |
+
+### Control systems
+
+| Rod | Provides |
+|---|---|
+| `control.nr` | **PID controller** (new, update, reset), state-space model (new, step), **Kalman filter** (new, predict, update, state extraction) |
+
+### Modern ML
+
+| Rod | Provides |
+|---|---|
+| `nn.nr`   | Dense layers, forward/backward, **Adam optimizer**, attention, ensemble (30 externs) |
+| `gnn.nr`  | **GATv2Conv**, **GlobalAttention pooling**, graph construction (15 externs) |
+| `ssm.nr`  | **Mamba selective scan**, **SSD chunked**, **RWKV-WKV** (linear attention), **xLSTM cell**, ZOH discretization |
+| `moe.nr`  | **Top-k gating**, route indices/weights, expert dispatch + combine, load balancing |
+
+### Quantum
+
+| Rod | Provides |
+|---|---|
+| `quantum.nr` | Full state-vector simulator: H, X, Y, Z, S, T, RX, RY, RZ, **CNOT**, **measurement** with collapse, density-matrix observables (16 externs) |
+
+### Finance
+
+| Rod | Provides |
+|---|---|
+| `finance.nr` | **Black-Scholes** option pricing, full **Greeks** (Δ, Γ, Θ, ν, ρ), implied volatility, NPV, IRR, **value-at-risk**, mean-variance portfolio optimization |
+
+### Data and serialization
+
+| Rod | Provides |
+|---|---|
+| `json.nr`        | JSON parse, stringify, value construction (from_int/string/bool/array/object) |
+| `csv.nr`         | CSV parse and format |
+| `ini.nr`         | INI file parse |
+| `regex.nr`       | Simple character-class predicates (use `rust.nr` for full regex) |
+| `base64.nr`      | base64 encode/decode |
+| `uuid.nr`        | UUID generation |
+
+### System
+
+| Rod | Provides |
+|---|---|
+| `io.nr`          | Console output extensions |
+| `fs.nr`          | File system primitives |
+| `os.nr`          | Process exit, OS info |
+| `env.nr`         | Environment variable access |
+| `path.nr`        | Path manipulation |
+| `time.nr`        | `time_now_ms`, `time_sleep_ms`, `time_format_ms` |
+| `concurrency.nr` | `conc_mutex`, `conc_lock`, `conc_unlock`, `conc_spawn`, `conc_join`, `conc_parallel` |
+| `cli.nr`         | Command-line argument parsing |
+| `log.nr`         | Logging primitives |
+| `test.nr`        | Test framework with assertions |
 
 ### Data structures
 
@@ -34,66 +142,29 @@ Example: `stdlib/rods/quantum.nr` calls into `stdlib/rods/quantum_rt.c`. When a 
 | `stack.nr`       | LIFO stack |
 | `sort.nr`        | Sorting primitives |
 
-### Text and serialization
+### Specialty / interop
 
 | Rod | Provides |
 |---|---|
-| `json.nr`        | JSON parse, stringify, value construction |
-| `csv.nr`         | CSV parse and format |
-| `ini.nr`         | INI file parse |
-| `regex.nr`       | Simple character-class predicates (use `rust.nr` for full regex) |
-| `base64.nr`      | base64 encode/decode |
-| `uuid.nr`        | UUID generation |
-
-### System and concurrency
-
-| Rod | Provides |
-|---|---|
-| `io.nr`          | Console output extensions |
-| `fs.nr`          | File system primitives |
-| `os.nr`          | Process exit, OS info |
-| `env.nr`         | Environment variable access |
-| `path.nr`        | Path manipulation |
-| `time.nr`        | `time_now_ms`, `time_sleep_ms`, `time_format_ms` |
-| `concurrency.nr` | `conc_mutex`, `conc_lock`, `conc_unlock`, `conc_spawn`, `conc_join` |
-| `cli.nr`         | Command-line argument parsing (`cli_new`, `cli_flag`, `cli_option`, `cli_parse`, ...) |
-| `log.nr`         | Logging primitives |
-| `test.nr`        | Test framework with assertions |
-
-### Domain rods
-
-| Rod | Provides |
-|---|---|
-| `quantum.nr`    | Built-in quantum simulator: `qsim_init`, `qsim_h`, `qsim_x`, `qsim_y`, `qsim_z`, `qsim_cnot`, `qsim_measure`, ... |
-| `nn.nr`         | Neural network primitives: dense layers, backprop, Adam, attention |
-| `gnn.nr`        | Graph Neural Network: GATv2Conv, global attention pooling |
+| `rust.nr`       | Rust crate interop via `rust_bridge` (regex, base64, hashing, sorting) |
+| `python.nr`     | Optional Python FFI (requires Python on PATH) |
 | `gpu.nr`        | GPU kernel orchestration |
 | `multi_core.nr` | Multi-core trace recording for ensemble experiments |
-| `ridge.nr`      | Ridge regression with gradient descent |
+| `ridge.nr`      | Ridge regression with gradient descent (pure Nucleor) |
 | `twin_core.nr`  | Twin-core comparison utilities |
-| `python.nr`     | Optional Python FFI (requires Python on PATH) |
-| `rust.nr`       | Rust crate interop via `rust_bridge` (regex, base64, hashing, sorting) |
 
 ## The runtime boundary
 
 Every Nucleor program is linked with `stdlib/runtime/nucleor_llvm_rt.c`. This file is the **mandatory boundary** — it provides:
 
 - Basic I/O: `__nucleor_print_str`, `__nucleor_print_i64`, `__nucleor_print_bool`
-- File access: `__nucleor_file_read_string`, `__nucleor_file_write_string`
-- Process: `__nucleor_system`, `__nucleor_exit`, `__nucleor_args_count`, `__nucleor_args_get`
-- Hashing, timing
-- Vec / string-builder primitives
-- Threads: `__nucleor_thread_spawn`, `__nucleor_thread_join`
-- Mutex: `__nucleor_mutex_new`, `__nucleor_mutex_lock`, `__nucleor_mutex_unlock` (and `_value`-suffixed variants for the V2 ABI)
-- Channels: `__nucleor_channel_new`, `__nucleor_channel_send`, `__nucleor_channel_recv`
-- Atomic helpers
-- Numeric intrinsics
-- Tensor / allocator / device hooks
-- RNG: `nuc_rng_seed`, `nuc_rng_f64`, `nuc_rng_normal`, ... (included via `#include "rng_rt.c"` at the bottom of `nucleor_llvm_rt.c`)
+- File access, process control, args, time, hashing
+- `Vec` and string-builder primitives
+- Threads, mutex (with `_value` ABI variants), channels, atomics
+- RNG (via `#include "rng_rt.c"`)
+- Numeric intrinsics, tensor / allocator / device hooks
 
-The compiler emits `__nucleor_*` calls; the runtime defines them. Some symbols carry the suffix `_value` to indicate the V2 value-passing calling convention; both forms forward to the same underlying implementation.
-
-Beyond `nucleor_llvm_rt.c`, the C runtime files in `stdlib/runtime/` (e.g. `fft_rt.c`, `hashmap_rt.c`, `crypto_rt.c`, `tensor_rt.c`, ...) are **opt-in**: they are only compiled and linked when a rod that uses them includes the appropriate `#cfile` directive. A program that only uses `print` and arithmetic links exactly one C file (`nucleor_llvm_rt.c`).
+Beyond `nucleor_llvm_rt.c`, the C runtime files in `stdlib/runtime/` (`fft_rt.c`, `tensor_rt.c`, `linalg_rt.c`, `physics_const_rt.c`, etc.) are **opt-in**: they are only compiled and linked when a rod that uses them includes the appropriate `#cfile` directive. A program that only uses `print` and arithmetic links exactly one C file.
 
 ## Writing your own rod
 

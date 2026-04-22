@@ -5,6 +5,86 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] — 2026-04-21
+
+Major surface expansion. v0.1.0 shipped a deep runtime that was largely
+inaccessible without writing your own `extern fn` declarations. v0.1.1 adds
+**29 new `.nr` rod wrappers** that expose the existing C runtime as
+first-class Nucleor APIs.
+
+### Added — new rods (29)
+
+**Linear algebra and tensors:**
+- `linalg.nr` — matrix ops, LU, QR, Cholesky, eigen, SVD, ridge regression
+- `tensor_nd.nr` — N-dimensional tensors with reshape, slice, batched matmul
+- `tensor_decomp.nr` — CP-ALS, Tensor-Train SVD, Kronecker, Khatri-Rao
+- `sparse.nr` — CSR sparse matrices with CG and GMRES solvers
+
+**Numerical methods:**
+- `ode.nr` — Euler, RK4, RK45, symplectic, event detection
+- `root.nr` — bisection, Newton, secant, Brent, multi-dim systems
+- `quad.nr` — trapezoid, Simpson, Gauss-Legendre, adaptive, 2D, Monte Carlo
+- `interp.nr` — linear, cubic spline, Lagrange, Chebyshev, 2D bilinear, RBF
+- `bspline.nr` — B-spline eval + basis + derivatives + KAN forward
+- `optim.nr` — gradient descent, Adam, Nelder-Mead simplex, line search, genetic
+
+**Statistics and signal processing:**
+- `stats.nr` — mean/median/var/std, covariance, correlation, percentile, histogram, linear regression with R², t-test, chi-square, KDE
+- `signal.nr` — FIR/IIR/Butterworth, Hamming/Hann/Blackman windows, envelope, zero crossings, up/down-sampling
+- `fft.nr` — 1D complex/real FFT, convolution, power spectrum, correlation
+- `pca.nr` — fit, project, variance ratio, eigenvalues
+
+**PDE solvers and physics:**
+- `multigrid.nr` — 2D multigrid Poisson solver
+- `fluid.nr` — Lattice Boltzmann fluid simulation (D2Q9)
+- `emag.nr` — FDTD electromagnetics on the Yee grid
+- `thermo.nr` — heat equation, ideal gas, Carnot, blackbody radiation
+- `geom.nr` — convex hull, point-in-polygon, line intersect, polygon area
+- `rigid_body.nr` — full 3D rigid body dynamics with collision
+- `orbit.nr` — Kepler-to-Cartesian, Hohmann transfer, vis-viva, escape velocity
+
+**Constants and units:**
+- `physics.nr` — 17 CODATA 2018 fundamental constants + math constants
+- `units.nr` — SI conversion across 11 dimensions (mass, length, time, temperature, pressure, energy, force, frequency, angle, voltage, current)
+
+**Symbolic and differentiable:**
+- `autodiff.nr` — reverse-mode automatic differentiation (20 ops)
+- `symbolic.nr` — expression trees with symbolic differentiation and evaluation
+
+**Modern ML and control:**
+- `control.nr` — PID, state-space, Kalman filter
+- `ssm.nr` — Mamba selective scan, SSD chunked, RWKV-WKV, xLSTM, ZOH discretize
+- `moe.nr` — top-K gating, dispatch, combine, load balancing
+- `finance.nr` — Black-Scholes, full Greeks, implied volatility, NPV, IRR, VaR, portfolio optimization
+
+### Added — examples (5)
+
+- `examples/08_linalg.nr` — solve a linear system, compute an SVD
+- `examples/09_ode.nr` — simulate a damped pendulum with RK4
+- `examples/10_fft.nr` — round-trip a sine wave through the FFT
+- `examples/11_pid.nr` — PID controller driving a plant to a setpoint
+- `examples/12_autodiff.nr` — reverse-mode autodiff of `sin(x²) + x`
+
+### Added — documentation
+
+- `docs/math-and-physics.md` — worked examples across the scientific-computing rods
+- `docs/rods-and-runtime.md` rewritten with the v0.1.1 catalog (65 rods total)
+- `README.md` rewritten — the v0.1.0 tagline ("algebraic optimization") significantly undersold the actual scope. New tagline reflects the full stack.
+
+### Changed
+
+- README pitch updated to lead with the scientific-computing surface
+- Rod count: v0.1.0 had 36 rods; v0.1.1 has **65**
+
+### Stats
+
+- 65 rods all build clean against `bin/nucleor.exe`
+- All previous tests still pass (33/33 verify gate)
+- No breaking changes to v0.1.0 surface
+- No new compiler or runtime patches required — every new rod just exposes existing C runtime functions
+
+---
+
 ## [0.1.0] — 2026-04-21
 
 Initial open-source release of Nucleor under the Apache License 2.0.
