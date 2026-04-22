@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.53] — 2026-04-22
+
+**RFC-0018 phase 1 partial: `mod foo;` directive.**
+
+### Added — single-line `mod foo;`
+
+```nucleor
+mod helper;
+
+fn main() -> i64 {
+    helper_double(21)   // -> 42
+}
+```
+
+Resolves to the existing import preprocess step: `mod helper;` →
+`import "./helper.nr"`. Block-form `mod foo { ... }` and the
+visibility levels (`pub(crate)`, `pub(super)`) require parser-level
+scoping and ship in phase 2 alongside the resolver. `pub` itself is
+already lexed as token 72.
+
+### Added — gate aux-helper convention
+
+verify.sh and verify.ps1 now skip `*_aux.nr` files when walking
+`tests/<dir>/`. Multi-file gate tests can drop a `<name>_aux.nr`
+helper next to the main test without the helper being treated as a
+duplicate-main standalone failure.
+
+### Verify gate
+
+153/153 green on Windows. New gate test pair:
+`tests/lang/mod_decl.nr` (uses `mod mod_decl_aux;`) +
+`tests/lang/mod_decl_aux.nr` (helper, gate-skipped).
+Self-host LLVM IR fixed point preserved.
+
 ## [0.1.52] — 2026-04-22
 
 **RFC-0018 phase 1 partial: Rust-style `use std::<rod>` paths.**

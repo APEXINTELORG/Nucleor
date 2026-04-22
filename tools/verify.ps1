@@ -109,9 +109,13 @@ $examples = @("01_hello", "02_fib", "03_structs", "04_rods", "05_quantum", "06_p
 if (Test-Path $rustBridgeLib) { $examples += "07_rust_interop" }
 
 $testDirs = @("lang", "attrs", "runtime", "rods", "features")
+# Files matching this pattern are auxiliary helpers imported by another
+# test (e.g. via `mod foo;`) and are not standalone-runnable. Skipping
+# them keeps the gate from treating them as duplicate-main failures.
+$testSkipPattern = "_aux\.nr$"
 $testCount = 0
 foreach ($d in $testDirs) {
-    $testCount += (Get-ChildItem -Path (Join-Path $root "tests\$d") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
+    $testCount += (Get-ChildItem -Path (Join-Path $root "tests\$d") -Filter "*.nr" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch $testSkipPattern }).Count
 }
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
@@ -139,7 +143,7 @@ foreach ($ex in $examples) {
 }
 
 foreach ($dir in $testDirs) {
-    $testFiles = Get-ChildItem -Path (Join-Path $root "tests\$dir") -Filter "*.nr" -ErrorAction SilentlyContinue | Sort-Object Name
+    $testFiles = Get-ChildItem -Path (Join-Path $root "tests\$dir") -Filter "*.nr" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch $testSkipPattern } | Sort-Object Name
     foreach ($t in $testFiles) {
         $tname = $t.BaseName
         Step "test $dir/$tname" {
