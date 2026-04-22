@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.44] — 2026-04-22
+
+**RFC-0007 partial: AtomicI64 + bit-twiddling primitives.**
+
+### Added — AtomicI64
+
+Win32 Interlocked* + POSIX C11 `<stdatomic.h>` portable wrapper. All
+operations seq_cst (relaxed/acquire/release variants in v0.5).
+
+- `atomic_i64_new(initial) -> handle`
+- `atomic_i64_load / store / free`
+- `atomic_i64_fetch_add / sub / and / or / xor`
+- `atomic_i64_swap`
+- `atomic_i64_cas(h, expected, desired) -> previous_value`
+
+### Added — Bit-twiddling
+
+- `popcount(v)` — count of 1-bits
+- `leading_zeros(v)` / `trailing_zeros(v)` — both return 64 for 0
+- `byte_swap(v)` — endian flip (8-byte reverse)
+- `rotate_left(v, n)` / `rotate_right(v, n)` — barrel shift, n masked to 0..63
+
+### Why
+
+Foundation for RFC-0007 (atomic + lock-free queues), RFC-0008 ISR
+work (atomic counters from interrupts), and high-performance bit
+manipulation in compression/encoding rods.
+
+### Verify gate
+
+146/146 green on Windows. Self-host LLVM IR fixed point preserved.
+New gate test: `tests/lang/atomic_bit_ops.nr` (~25 sub-cases including
+CAS success+failure, all bitwise atomics, all bit-twiddle primitives).
+
 ## [0.1.43] — 2026-04-22
 
 **Stdlib polish: binary + digest rod wrappers.**

@@ -2369,6 +2369,25 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "base64_decode") { return "__nucleor_base64_decode"; };
     // UUID
     if str_eq(name, "uuid_v4") { return "__nucleor_uuid_v4"; };
+    // RFC-0007 partial: AtomicI64
+    if str_eq(name, "atomic_i64_new") { return "__nucleor_atomic_i64_new"; };
+    if str_eq(name, "atomic_i64_free") { return "__nucleor_atomic_i64_free"; };
+    if str_eq(name, "atomic_i64_load") { return "__nucleor_atomic_i64_load"; };
+    if str_eq(name, "atomic_i64_store") { return "__nucleor_atomic_i64_store"; };
+    if str_eq(name, "atomic_i64_fetch_add") { return "__nucleor_atomic_i64_fetch_add"; };
+    if str_eq(name, "atomic_i64_fetch_sub") { return "__nucleor_atomic_i64_fetch_sub"; };
+    if str_eq(name, "atomic_i64_fetch_and") { return "__nucleor_atomic_i64_fetch_and"; };
+    if str_eq(name, "atomic_i64_fetch_or") { return "__nucleor_atomic_i64_fetch_or"; };
+    if str_eq(name, "atomic_i64_fetch_xor") { return "__nucleor_atomic_i64_fetch_xor"; };
+    if str_eq(name, "atomic_i64_swap") { return "__nucleor_atomic_i64_swap"; };
+    if str_eq(name, "atomic_i64_cas") { return "__nucleor_atomic_i64_cas"; };
+    // Bit-twiddling
+    if str_eq(name, "popcount") { return "__nucleor_popcount"; };
+    if str_eq(name, "leading_zeros") { return "__nucleor_leading_zeros"; };
+    if str_eq(name, "trailing_zeros") { return "__nucleor_trailing_zeros"; };
+    if str_eq(name, "byte_swap") { return "__nucleor_byte_swap"; };
+    if str_eq(name, "rotate_left") { return "__nucleor_rotate_left"; };
+    if str_eq(name, "rotate_right") { return "__nucleor_rotate_right"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -3186,6 +3205,23 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_base64_encode(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_base64_decode(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_uuid_v4()\n");
+    sb_append(sb, "declare i64 @__nucleor_atomic_i64_new(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_atomic_i64_free(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_atomic_i64_load(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_atomic_i64_store(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_atomic_i64_fetch_add(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_atomic_i64_fetch_sub(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_atomic_i64_fetch_and(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_atomic_i64_fetch_or(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_atomic_i64_fetch_xor(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_atomic_i64_swap(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_atomic_i64_cas(i64, i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_popcount(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_leading_zeros(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_trailing_zeros(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_byte_swap(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_rotate_left(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_rotate_right(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");
