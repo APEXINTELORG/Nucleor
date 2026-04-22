@@ -3885,6 +3885,50 @@ fn type_base_name(t: str) -> str {
     };
     return base;
 }
+// RFC-0015 phase 1: numeric-type lattice — width + signedness + class.
+// type_width:    bit width of a numeric type (0 if non-numeric)
+// type_signedness: 1 = signed int, 2 = unsigned int, 3 = float, 0 = other
+// type_is_int / type_is_float / type_is_numeric: predicates
+//
+// `usize`/`isize` are treated as 64-bit on the only target Nucleor ships
+// today (x86_64 Windows). The type lattice will revisit this when the
+// LP64/ILP32 split arrives with cross-target sysroots.
+fn type_width(t: str) -> i64 {
+    let b: str = type_base_name(t);
+    if str_eq(b, "i8") == 1 || str_eq(b, "u8") == 1 { return 8; };
+    if str_eq(b, "i16") == 1 || str_eq(b, "u16") == 1 { return 16; };
+    if str_eq(b, "i32") == 1 || str_eq(b, "u32") == 1 { return 32; };
+    if str_eq(b, "i64") == 1 || str_eq(b, "u64") == 1 { return 64; };
+    if str_eq(b, "isize") == 1 || str_eq(b, "usize") == 1 { return 64; };
+    if str_eq(b, "f8e4m3") == 1 || str_eq(b, "f8e5m2") == 1 { return 8; };
+    if str_eq(b, "bf16") == 1 || str_eq(b, "f16") == 1 { return 16; };
+    if str_eq(b, "f32") == 1 { return 32; };
+    if str_eq(b, "f64") == 1 { return 64; };
+    if str_eq(b, "char") == 1 { return 32; };
+    if str_eq(b, "bool") == 1 { return 1; };
+    return 0;
+}
+fn type_signedness(t: str) -> i64 {
+    let b: str = type_base_name(t);
+    if str_eq(b, "i8") == 1 || str_eq(b, "i16") == 1 || str_eq(b, "i32") == 1 || str_eq(b, "i64") == 1 || str_eq(b, "isize") == 1 { return 1; };
+    if str_eq(b, "u8") == 1 || str_eq(b, "u16") == 1 || str_eq(b, "u32") == 1 || str_eq(b, "u64") == 1 || str_eq(b, "usize") == 1 || str_eq(b, "char") == 1 { return 2; };
+    if str_eq(b, "f8e4m3") == 1 || str_eq(b, "f8e5m2") == 1 || str_eq(b, "bf16") == 1 || str_eq(b, "f16") == 1 || str_eq(b, "f32") == 1 || str_eq(b, "f64") == 1 { return 3; };
+    return 0;
+}
+fn type_is_int(t: str) -> i64 {
+    let s: i64 = type_signedness(t);
+    if s == 1 || s == 2 { return 1; };
+    return 0;
+}
+fn type_is_float(t: str) -> i64 {
+    if type_signedness(t) == 3 { return 1; };
+    return 0;
+}
+fn type_is_numeric(t: str) -> i64 {
+    if type_signedness(t) > 0 { return 1; };
+    return 0;
+}
+
 fn type_is_mut_ref(t: str) -> i64 {
     let tlen: i64 = str_len(t);
     if tlen >= 5 && str_eq(str_substring(t, 0, 5), "&mut ") == 1 { return 1; };
@@ -5504,6 +5548,13 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if (op == 20 || op == 21) && type_is_unit(lt) == 1 && type_is_unit(rt) == 1 && str_eq(unit_dim(lt), unit_dim(rt)) == 0 {
             type_diag(diags, source, fn_name, fn_name, "TYP-003", "unit operands for addition/subtraction must match");
         };
+        // RFC-0015 phase 6 (NUM-001 firing) is gated behind the stdlib
+        // audit (phase 5) — the existing v0.1.x codebase relies on
+        // implicit i32→i64 widening pervasively. The classifier
+        // helpers (type_width, type_signedness, type_is_int, type_is_float,
+        // type_is_numeric) are in place; the typecker will start firing
+        // NUM-001 at warning level once `nuc fix --numeric` (RFC-0015
+        // phase 5) has migrated the stdlib.
         if is_tainted_type(lt) == 1 { return lt; };
         if is_tainted_type(rt) == 1 { return rt; };
         if (op == 20 || op == 21) && type_is_unit(lt) == 1 && str_eq(unit_dim(lt), unit_dim(rt)) == 1 { return lt; };

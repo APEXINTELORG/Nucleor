@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.62] — 2026-04-22
+
+**RFC-0015 phase 1 numeric-type lattice classifiers landed.**
+
+### Added — type-lattice classifiers in `nucleor_s1_compiler.nr`
+
+```
+type_width(t)        -> 1/8/16/32/64  (or 0 for non-numeric)
+type_signedness(t)   -> 1=signed, 2=unsigned, 3=float, 0=other
+type_is_int(t)       -> bool
+type_is_float(t)     -> bool
+type_is_numeric(t)   -> bool
+```
+
+Covers i8/i16/i32/i64/u8/u16/u32/u64/usize/isize, f8e4m3/f8e5m2/
+f16/bf16/f32/f64, char, bool. `usize`/`isize` are 64-bit on the
+current x86_64-Windows target; the LP64/ILP32 split arrives when
+cross-target sysroots ship.
+
+### Note — NUM-001 firing staged behind stdlib audit
+
+The classifier surface is wired into the binop type-check, but the
+NUM-001 warning emission is gated until `nuc fix --numeric`
+(RFC-0015 phase 5) has migrated the v0.1.x stdlib's implicit
+i32→i64 widening sites. Turning on warning-level NUM-001 today
+lights up 76 stdlib gate-test rod compiles — useful as a v0.4
+roadmap, premature as a v0.2 ship.
+
+### Verify gate
+
+158/158 green on Windows. Self-host LLVM IR fixed point preserved
+(v65==v66 byte-identical).
+
 ## [0.1.61] — 2026-04-22
 
 **RFC-0016 phase 5 partial: MATCH-001 + MATCH-002 fired by typecker.**
