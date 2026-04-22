@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.52] — 2026-04-22
+
+**RFC-0018 phase 1 partial: Rust-style `use std::<rod>` paths.**
+
+### Added — Rust-style `use` paths
+
+```nucleor
+use std::atomic;          // → stdlib/rods/atomic.nr
+use std::math;            // → stdlib/rods/math.nr
+use crate::my_module;     // → ./my_module.nr (relative to project root)
+use super::shared;        // → ../shared.nr  (relative to current file)
+use std::collections::set;  // → stdlib/rods/collections/set.nr
+```
+
+Implementation rewrites the path at the existing `import` preprocess
+step — a `use std::foo;` line becomes the equivalent of
+`import "stdlib/rods/foo.nr"`. Trailing `;`, `as ALIAS`, and
+`{ ... }` glob/list forms are recognized at lex time; full alias /
+re-export resolution (RFC-0018 §3.4 `pub use`) lands with the path
+resolver in phase 2.
+
+The existing quoted-path imports (`import "stdlib/rods/foo.nr"`,
+`use "stdlib/rods/foo.nr"`) continue to work unchanged.
+
+### Verify gate
+
+152/152 green on Windows. New gate test: `tests/lang/use_paths.nr`
+exercises `use std::atomic`, `use std::bits`, `use std::math`.
+Self-host LLVM IR fixed point preserved.
+
 ## [0.1.51] — 2026-04-22
 
 **Spec doc + tracker reconciliation: MOD/PKG/TGT diagnostic tables.**

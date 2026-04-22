@@ -7121,6 +7121,58 @@ fn module_graph_source_path(src_path: str) -> str {
     return sanitize(str_concat(".nuc_cache/modgraph_", str_concat(module_graph_cache_id(src_path), ".resolved")));
 }
 
+// RFC-0018 phase 1: rewrite Rust-style use paths into the equivalent
+// quoted-path import. Recognized prefixes:
+//   use std::foo;       → import "stdlib/rods/foo.nr"
+//   use std::foo::bar;  → import "stdlib/rods/foo/bar.nr"
+//   use crate::path;    → import "path.nr" (relative to project root)
+//   use super::path;    → import "../path.nr" (relative to base_dir)
+// Trailing `as ALIAS`, `;`, and `{ ... }` glob/list forms are ignored
+// for now (full resolver lands in phase 2 with name-mangling).
+fn rewrite_use_path(line: str, lp: i64, prefix_len: i64, eol: i64) -> str {
+    let mut qp: i64 = lp + prefix_len;
+    while qp < eol && str_char_at(line, qp) == 32 { qp = qp + 1; };
+    if qp >= eol { return ""; };
+    let c0: i64 = str_char_at(line, qp);
+    if c0 == 34 { return ""; };  // already quoted
+    if is_alpha(c0) == 0 { return ""; };
+    let mut path_end: i64 = qp;
+    while path_end < eol {
+        let pc: i64 = str_char_at(line, path_end);
+        if is_alnum(pc) == 1 || pc == 58 { path_end = path_end + 1; }
+        else { break; };
+    };
+    let raw_path: str = str_substring(line, qp, path_end);
+    let plen: i64 = str_len(raw_path);
+    let mut prefix: str = "";
+    let mut tail_start: i64 = 0;
+    if plen >= 5 && str_eq(str_substring(raw_path, 0, 5), "std::") == 1 {
+        prefix = "stdlib/rods/";
+        tail_start = 5;
+    } else if plen >= 7 && str_eq(str_substring(raw_path, 0, 7), "crate::") == 1 {
+        prefix = "";
+        tail_start = 7;
+    } else if plen >= 7 && str_eq(str_substring(raw_path, 0, 7), "super::") == 1 {
+        prefix = "../";
+        tail_start = 7;
+    } else { return ""; };
+    let mut sb: i64 = sb_new();
+    sb_append(sb, prefix);
+    let mut i: i64 = tail_start;
+    while i < plen {
+        let ch: i64 = str_char_at(raw_path, i);
+        if ch == 58 && i + 1 < plen && str_char_at(raw_path, i + 1) == 58 {
+            sb_append(sb, "/");
+            i = i + 2;
+        } else {
+            sb_append(sb, str_substring(raw_path, i, i + 1));
+            i = i + 1;
+        };
+    };
+    sb_append(sb, ".nr");
+    return sb_to_str(sb);
+}
+
 fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, module_records: Vec<i32>) -> str {
     let mut result: i64 = sb_new();
     let slen: i64 = str_len(src);
@@ -7137,7 +7189,31 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
         if prefix_len > 0 {
             let mut qp: i64 = lp + prefix_len;
             while qp < eol && str_char_at(src, qp) == 32 { qp = qp + 1; };
-            if qp < eol && str_char_at(src, qp) == 34 {
+            // RFC-0018 phase 1: Rust-style `use std::foo` / `use crate::x` /
+            // `use super::x` paths get rewritten to a quoted-path equivalent.
+            let rust_path: str = rewrite_use_path(src, lp, prefix_len, eol);
+            if str_len(rust_path) > 0 {
+                let path: str = resolve_import_path(base_dir, rust_path);
+                let mut already: i64 = 0;
+                let mut ii: i64 = 0;
+                while ii < vec_len(imported) {
+                    if str_eq(vec_get(imported, ii), path) { already = 1; };
+                    ii = ii + 1;
+                };
+                if already == 0 {
+                    imported.push(path);
+                    let isrc: str = file_read_string(path);
+                    if str_len(isrc) > 0 {
+                        module_record_add(module_records, path, isrc);
+                        let idir: str = extract_dir(path);
+                        sb_append(result, resolve_source_with_records(isrc, idir, imported, module_records));
+                        sb_append(result, "\n");
+                    } else {
+                        sb_append(result, str_concat("// ERROR: cannot read use path ", path));
+                        sb_append(result, "\n");
+                    };
+                };
+            } else if qp < eol && str_char_at(src, qp) == 34 {
                 let ps: i64 = qp + 1;
                 let mut pe: i64 = ps;
                 while pe < eol && str_char_at(src, pe) != 34 { pe = pe + 1; };
