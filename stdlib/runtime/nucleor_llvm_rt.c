@@ -675,6 +675,12 @@ long long __nucleor_assert_ne(long long a, long long b) {
     return 0;
 }
 
+long long __nucleor_panic(const char *msg) {
+    fprintf(stderr, "PANIC: %s\n", msg ? msg : "<no message>");
+    fflush(stderr);
+    exit(1);
+}
+
 // === RNG ===
 // Pull in rng_rt.c so nuc_rng_* symbols are available without a separate
 // link step. The compiler emits __nucleor_rng_seed/etc. which forward to

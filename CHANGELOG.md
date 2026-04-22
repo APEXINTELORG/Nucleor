@@ -5,6 +5,33 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.15] — 2026-04-22
+
+`panic!` builtin + `nuc explain` documentation for 24 new error
+codes from the v0.2-v0.6 RFCs.
+
+### Added — `panic!` builtin
+
+- `__nucleor_panic(msg)` runtime — prints PANIC: msg + exits 1.
+- Compiler maps `panic("text")` to the runtime, with first arg as
+  `*const u8` per `is_ptr_arg` map.
+- New gate test: `tests/lang/panic_builtin.nr`.
+
+### Added — `nuc explain` for new RFC error codes
+
+- 8 RT-attribute codes (RT-001…008) per RFC-0001
+- 3 allocator codes (ALLOC-001…003) per RFC-0002
+- 3 typed-frame codes (FRAME-001…003) per RFC-0003
+- 4 numeric codes (NUM-001/002/003/005) per RFC-0015
+- 5 match codes (MATCH-001/002/003/004/006) per RFC-0016
+- All explainable via `nuc explain CODE`. Each entry has title,
+  one-line summary, multi-paragraph explanation tied back to its
+  RFC, and a stable doc-anchor reference.
+
+### Verify gate
+
+108/108 green on Windows.
+
 ## [0.1.14] — 2026-04-22
 
 RFC-0021 step: `assert!`, `assert_eq!`, `assert_ne!` builtins +
