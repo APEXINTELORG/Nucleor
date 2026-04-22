@@ -5,6 +5,23 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.16] — 2026-04-22
+
+RFC-0016: `while let` sugar.
+
+### Added
+
+- **`while let PATTERN = EXPR { BODY }`** desugars to
+  `while true { match EXPR { PATTERN => BODY, _ => break } }`.
+- Same pattern set as `if let`: `EnumName::Variant`,
+  `EnumName::Variant(binding)`, plus the short forms
+  `Some/None/Ok/Err`.
+- New gate test: `tests/lang/while_let.nr`.
+
+### Verify gate
+
+109/109 green on Windows.
+
 ## [0.1.15] — 2026-04-22
 
 `panic!` builtin + `nuc explain` documentation for 24 new error
