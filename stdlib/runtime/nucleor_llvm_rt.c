@@ -1201,6 +1201,146 @@ long long __nucleor_i32x4_free(long long h) {
     return 0;
 }
 
+// === RFC-0017 partial: heap-allocated String type ===
+// Length-tracked, growable, UTF-8 bytes. Distinct from str (borrowed
+// view). Generic-enum monomorphization in v0.4 RFC-0024 will let
+// String<A: Allocator> swap allocators.
+typedef struct { char *data; long long len; long long cap; } NString;
+
+long long __nucleor_string_new(void) {
+    NString *s = (NString *)malloc(sizeof(NString));
+    s->data = (char *)malloc(16);
+    s->data[0] = 0;
+    s->len = 0;
+    s->cap = 16;
+    return (long long)(intptr_t)s;
+}
+long long __nucleor_string_with_capacity(long long n) {
+    NString *s = (NString *)malloc(sizeof(NString));
+    if (n < 1) n = 1;
+    s->data = (char *)malloc((size_t)n + 1);
+    s->data[0] = 0;
+    s->len = 0;
+    s->cap = n;
+    return (long long)(intptr_t)s;
+}
+long long __nucleor_string_from_str(const char *src) {
+    NString *s = (NString *)malloc(sizeof(NString));
+    long long n = src ? (long long)strlen(src) : 0;
+    long long cap = n + 1;
+    if (cap < 16) cap = 16;
+    s->data = (char *)malloc((size_t)cap);
+    if (n > 0) memcpy(s->data, src, (size_t)n);
+    s->data[n] = 0;
+    s->len = n;
+    s->cap = cap - 1;
+    return (long long)(intptr_t)s;
+}
+long long __nucleor_string_push_byte(long long h, long long b) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return 0;
+    if (s->len + 1 > s->cap) {
+        s->cap *= 2;
+        s->data = (char *)realloc(s->data, (size_t)s->cap + 1);
+    }
+    s->data[s->len++] = (char)(b & 0xFFLL);
+    s->data[s->len] = 0;
+    return 0;
+}
+long long __nucleor_string_push_str(long long h, const char *src) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s || !src) return 0;
+    long long n = (long long)strlen(src);
+    while (s->len + n > s->cap) {
+        s->cap *= 2;
+        s->data = (char *)realloc(s->data, (size_t)s->cap + 1);
+    }
+    memcpy(s->data + s->len, src, (size_t)n);
+    s->len += n;
+    s->data[s->len] = 0;
+    return 0;
+}
+long long __nucleor_string_len(long long h) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return 0;
+    return s->len;
+}
+long long __nucleor_string_capacity(long long h) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return 0;
+    return s->cap;
+}
+long long __nucleor_string_get_byte(long long h, long long i) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s || i < 0 || i >= s->len) return 0;
+    return (long long)(unsigned char)s->data[i];
+}
+long long __nucleor_string_clear(long long h) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return 0;
+    s->len = 0;
+    s->data[0] = 0;
+    return 0;
+}
+// Returns a borrowed C string pointer. Caller must not free.
+long long __nucleor_string_as_ptr(long long h) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return 0;
+    return (long long)(intptr_t)s->data;
+}
+long long __nucleor_string_print(long long h) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) { printf("(null)\n"); return 0; }
+    printf("%s\n", s->data);
+    fflush(stdout);
+    return 0;
+}
+long long __nucleor_string_eq(long long ah, long long bh) {
+    NString *a = (NString *)(intptr_t)ah;
+    NString *b = (NString *)(intptr_t)bh;
+    if (!a || !b) return 0;
+    if (a->len != b->len) return 0;
+    return memcmp(a->data, b->data, (size_t)a->len) == 0 ? 1 : 0;
+}
+long long __nucleor_string_eq_str(long long ah, const char *cs) {
+    NString *a = (NString *)(intptr_t)ah;
+    if (!a || !cs) return 0;
+    long long cn = (long long)strlen(cs);
+    if (a->len != cn) return 0;
+    return memcmp(a->data, cs, (size_t)cn) == 0 ? 1 : 0;
+}
+long long __nucleor_string_starts_with(long long ah, const char *prefix) {
+    NString *a = (NString *)(intptr_t)ah;
+    if (!a || !prefix) return 0;
+    long long pn = (long long)strlen(prefix);
+    if (pn > a->len) return 0;
+    return memcmp(a->data, prefix, (size_t)pn) == 0 ? 1 : 0;
+}
+long long __nucleor_string_ends_with(long long ah, const char *suffix) {
+    NString *a = (NString *)(intptr_t)ah;
+    if (!a || !suffix) return 0;
+    long long sn = (long long)strlen(suffix);
+    if (sn > a->len) return 0;
+    return memcmp(a->data + a->len - sn, suffix, (size_t)sn) == 0 ? 1 : 0;
+}
+long long __nucleor_string_contains(long long ah, const char *needle) {
+    NString *a = (NString *)(intptr_t)ah;
+    if (!a || !needle) return 0;
+    return strstr(a->data, needle) != NULL ? 1 : 0;
+}
+long long __nucleor_string_clone(long long ah) {
+    NString *a = (NString *)(intptr_t)ah;
+    if (!a) return __nucleor_string_new();
+    return __nucleor_string_from_str(a->data);
+}
+long long __nucleor_string_free(long long h) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return 0;
+    free(s->data);
+    free(s);
+    return 0;
+}
+
 // === RFC-0015 phase 6: bf16 / f16 / f8 software emulation ===
 // All packed in low N bits of i64 storage. Compute happens at f32 precision
 // via convert-up / convert-down round-trip.

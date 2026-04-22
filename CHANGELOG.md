@@ -5,6 +5,31 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.27] — 2026-04-22
+
+**RFC-0017 partial: heap-allocated `String` type.**
+
+### Added — String type
+
+- `string_new()`, `string_with_capacity(n)`, `string_from_str(cs)`,
+  `string_clone(s)` — constructors.
+- `string_push_byte(s, b)`, `string_push_str(s, cs)` — mutation
+  (with growth on demand).
+- `string_len(s)`, `string_capacity(s)`, `string_get_byte(s, i)` —
+  reads.
+- `string_clear(s)` — reset to empty without freeing capacity.
+- `string_eq(a, b)`, `string_eq_str(a, cs)` — comparison.
+- `string_starts_with`, `string_ends_with`, `string_contains`.
+- `string_print(s)` — println.
+- `string_as_ptr(s)` — borrow C-string view.
+- `string_free(s)` — explicit drop (until ownership tracking auto-
+  frees via Drop trait in v0.4).
+
+### Verify gate
+
+120/120 green on Windows. Self-host LLVM IR fixed point preserved.
+New gate test: `tests/lang/string_type.nr`.
+
 ## [0.1.26] — 2026-04-22
 
 **RFC-0033 (preview): SIMD vector types — `f32x4`, `i32x4`.**
