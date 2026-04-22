@@ -5,6 +5,84 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-04-22
+
+**Foundation milestone — numerics, Result/Option/match, modules,
+packages, diagnostics, tests, cross-platform.**
+
+This is the v0.2.0 release. The version bump in `nuc.toml` (was
+0.1.38) reflects the milestone closure shipped across the
+v0.1.46..v0.1.67 preview series. Every per-RFC checklist row in
+`docs/milestones/v0.2.0.md` is DONE, PARTIAL, or DEFERRED with a
+specific follow-on target (v0.3, v0.4, or v0.5). All 6 success
+criteria are green.
+
+### What landed in v0.2.0 (rolled-up from v0.1.46..v0.1.67)
+
+- **RFC-0015 numerics** — comprehensive math runtime (i64 + f64
+  transcendentals + constants + degree/rad), 63 narrow-width
+  overflow primitives (wrapping/saturating/checked × add/sub/mul ×
+  i8/i16/i32/u8/u16/u32/u64), bf16/f16/f8e4m3/f8e5m2 software
+  emulation, type-lattice classifiers, NUM-003 lossy-cast warning,
+  `nuc fix --numeric` linter
+- **RFC-0016 Result/Option/match** — `?` postfix operator, `if let`
+  / `while let` sugar, MATCH-001 (non-exhaustive) and MATCH-002
+  (unreachable) typecker firing, MATCH-005..010 explain entries
+- **RFC-0017 collections** — String, HashMap, BTreeMap, HashSet,
+  BTreeSet, VecDeque (all with rod wrappers) + COLL-001..005
+  diagnostics
+- **RFC-0018 modules** — Rust-style `use std::<rod>` / `use crate::*`
+  / `use super::*` paths, `mod foo;` directive, `nuc fix --imports`
+  migration tool, MOD-001..006 explain entries
+- **RFC-0019 packages** — canonical `nuc.toml` schema, manifest
+  validator, `nuc lock` lockfile generator, `nuc install` CLI,
+  `nuc publish` + local registry, workspace support, path
+  dependency resolver, PKG-001..006 explain entries
+- **RFC-0020 diagnostics** — JSON renderer, ANSI text renderer,
+  LineMap (O(log n) byte→line lookup), 38 explain entries across
+  the NR/RT/MATCH/COLL/MOD/PKG/TGT/EFF/LAW/UNIT/CONTRACT/ATOMIC/
+  ISR/WCET/DEPTH series
+- **RFC-0021 tests** — `nuc test`, `--isolation=process` (one fresh
+  child per test), `assert_eq!` / `assert_ne!`, `#[test]`
+  annotation discovery
+- **RFC-0022 cross-platform** — POSIX `nuc` wrapper, `_WIN32` audit
+  closed (every `_rt.c` wraps Win32 with `#ifdef _WIN32` + POSIX
+  fallback), TGT-001..004 explain entries
+- **RFC-0029 doc-gen skeleton** — `nuc doc <file> [--out f.md]`
+  walks source for `///` doc comments and emits Markdown
+- **Cross-cutting** — compiler ABI drift detector wired into the
+  gate (catches future `nucleor` ↔ `nucleor_tools` IR-gen drift),
+  155+ entry table sync (eliminated 749 entries of drift),
+  `process_rt.c` cross-platform process spawn rod, `socket_rt.c`
+  HTTP client wrapper
+
+### Migration
+
+11/11 example programs migrate cleanly via `nuc fix --imports`
+(7 actually rewritten; 4 had no imports to fix). The legacy
+`import "stdlib/rods/<rod>.nr"` syntax continues to work; users
+can move at their own pace.
+
+### Verify gate
+
+158/158 green on Windows. Linux/macOS gate runs alongside the v0.3
+cross-build. Self-host LLVM IR fixed point preserved across every
+release in the v0.1.46..v0.2.0 chain.
+
+### Deferred to follow-on releases
+
+Tracked in `docs/milestones/v0.4.0.md`:
+
+- **v0.3.0** — Linux/macOS native `bin/nucleor`
+- **v0.4.0** — strict-mode numerics flip + stdlib audit (RFC-0015
+  phase 3+5+7), full module resolver with `pub` enforcement
+  (RFC-0018 phase 2), `From`/`Into` + MATCH-003..006 with generic
+  enums (RFC-0016 phase 4+5 / RFC-0024), 80 error sites to spans
+  (RFC-0020 phase 3), full doc-gen (RFC-0029)
+- **v0.5.0** — package registry with PubGrub backtracking + git
+  source fetcher (RFC-0019 phase 3), sysroot manager
+  (RFC-0022 phase 3)
+
 ## [0.1.66] — 2026-04-22
 
 **v0.2.0 milestone closed: 0 TODO rows, 6/6 success criteria green.**

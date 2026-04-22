@@ -4,6 +4,12 @@
 // listener binds to localhost:0-equivalent (port 0 → ephemeral), the
 // open/close handles round-trip, and the HTTP wrapper resolves at link time.
 // Real client/server interplay sits in examples/, not the gate.
+//
+// NOTE: The first run of this binary on Windows pops the Defender Firewall
+// "allow inbound" prompt because `tcp_listen` briefly registers a listening
+// port. The binary closes the socket immediately and exits, but the rule
+// (or block) lingers. Either Allow or Block is fine — the test does not
+// need external network access; `tcp_listen` succeeds under both rules.
 import "stdlib/rods/socket.nr"
 
 fn main() -> i64 {

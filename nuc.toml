@@ -32,7 +32,7 @@
 
 [package]
 name = "nucleor-oss"
-version = "0.1.38"
+version = "0.2.0"
 edition = "2026"
 license = "Apache-2.0"
 description = "Open-source distribution of the Nucleor self-hosted programming language"
