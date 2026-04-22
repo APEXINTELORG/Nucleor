@@ -13091,6 +13091,42 @@ fn run_registry_command(argc: i64) -> i64 {
 }
 
 fn run_install_command(argc: i64) -> i64 {
+    // RFC-0019 phase 3 — `nuc install --git <url> [--rev <ref>]` stub.
+    // CLI surface ships now so users hitting it know what to expect;
+    // real clone + verify + lock lands with the v0.5 registry phase.
+    let mut gi: i64 = 2;
+    let mut git_url: str = "";
+    let mut git_rev: str = "";
+    while gi < argc {
+        let a: str = args_get(gi);
+        if str_eq(a, "--git") == 1 && gi + 1 < argc {
+            git_url = args_get(gi + 1);
+            gi = gi + 1;
+        } else if str_eq(a, "--rev") == 1 && gi + 1 < argc {
+            git_rev = args_get(gi + 1);
+            gi = gi + 1;
+        };
+        gi = gi + 1;
+    };
+    if str_len(git_url) > 0 {
+        print(str_concat("nuc install --git ", git_url));
+        if str_len(git_rev) > 0 {
+            print(str_concat("                   --rev ", git_rev));
+        };
+        print("");
+        print("STATUS: deferred to v0.5 with the package registry (RFC-0019 phase 3).");
+        print("");
+        print("The v0.5 release will:");
+        print("  1. Clone <url> into .nucleor/git/<host>-<repo>-<sha>/");
+        print("  2. Check out <rev> (default: HEAD of the default branch)");
+        print("  3. Verify the manifest at <repo>/Nucleor.toml is valid");
+        print("  4. Add a `[dependencies]` entry pointing at the local clone");
+        print("  5. Refresh Nucleor.lock with the resolved checksum");
+        print("");
+        print("Today, on Windows, clone the repo manually and use a path");
+        print("dependency: `[dependencies] foo = \"path/to/foo\"` then `nuc lock`.");
+        return 0;
+    };
     // RFC-0022 phase 3 — `nuc install sysroot --target=<triple>` stub.
     // Documents the planned UX (paired with TGT-002 explain entry) and
     // returns a clear "deferred to v0.5" message so users hitting this
