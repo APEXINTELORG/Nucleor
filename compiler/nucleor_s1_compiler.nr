@@ -4055,6 +4055,18 @@ fn diag_add_ex(diags: Vec<i32>, severity: str, checker: str, code: str, message:
     return vec_len(diags);
 }
 fn diag_count(diags: Vec<i32>) -> i64 { return vec_len(diags); }
+fn diag_count_errors(diags: Vec<i32>) -> i64 {
+    let n: i64 = vec_len(diags);
+    let mut errors: i64 = 0;
+    let mut i: i64 = 0;
+    while i < n {
+        let d: Vec<i32> = vec_get(diags, i);
+        let sev: str = vec_get(d, 0);
+        if str_eq(sev, "error") == 1 { errors = errors + 1; };
+        i = i + 1;
+    };
+    return errors;
+}
 fn diag_get(diags: Vec<i32>, i: i64) -> Vec<i32> { return vec_get(diags, i); }
 
 fn byte_to_line(source: str, byte_off: i64) -> i64 {
@@ -5529,6 +5541,25 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         // the unwrapped payload as i64 — matches the existing untyped
         // Result<i64,i64> stub layout in stdlib/rods/result.nr.
         return "i64";
+    };
+    if kind == 99 {
+        // RFC-0015 phase 2: `as` cast. Fire NUM-003 (warning) when the
+        // cast loses precision (target_width < source_width within the
+        // same class). Returns "" (the legacy unknown-type marker) so
+        // existing v0.1.x code that assigns a cast result to a wider
+        // binding (e.g. `let x: i64 = small as u8;`) still type-checks
+        // — strict cast typing flips on with the stdlib audit.
+        let target_type: str = node_field(pool, nid, 2);
+        let source_t: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        let sw: i64 = type_width(source_t);
+        let tw: i64 = type_width(target_type);
+        let ss: i64 = type_signedness(source_t);
+        let ts: i64 = type_signedness(target_type);
+        if sw > 0 && tw > 0 && ss == ts && tw < sw {
+            let nloc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+            diag_add_ex(diags, "warning", "type", "NUM-003", str_concat("`as` cast loses precision: ", str_concat(source_t, str_concat(" (", str_concat(str_from_int(sw), str_concat("-bit) -> ", str_concat(target_type, str_concat(" (", str_concat(str_from_int(tw), "-bit)")))))))), fn_name, vec_get(nloc, 0), vec_get(nloc, 1), "");
+        };
+        return "";
     };
     if kind == 3 {
         let name: str = node_field(pool, nid, 1);
@@ -7739,8 +7770,11 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         print_phase_time(time_passes, "taint", 0);
     };
     if diag_count(diags) > 0 {
+        // Emit every diagnostic, but only halt the build on errors.
+        // Warnings (NUM-003 lossy cast, MATCH-001/002 typecker, etc.)
+        // flow through the report without blocking compilation.
         if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text(diags); };
-        return 1;
+        if diag_count_errors(diags) > 0 { return 1; };
     };
     let mut closures: Vec<i32> = Vec::new();
     let lower_start: i64 = now_ms();

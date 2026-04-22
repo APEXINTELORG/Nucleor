@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.64] — 2026-04-22
+
+**NUM-003 lossy-cast warning + warnings-don't-halt-build.**
+
+### Added — NUM-003 firing for lossy `as` casts
+
+```nucleor
+let x: i64 = 1000000;
+let y: i8 = x as i8;      // warning[NUM-003]: cast loses precision: i64 (64-bit) -> i8 (8-bit)
+```
+
+Wired into `type_expr` for kind 99 (the `as` cast node). Compares
+`type_width(source)` vs `type_width(target)` within the same
+signedness class; emits when target_width < source_width.
+
+### Fixed — diagnostics-as-errors hard-stop
+
+The s1 compiler previously bailed at exit code 1 on any diagnostic
+(including warnings). Split the check: emit every diagnostic, but
+only halt on `severity == "error"`. New `diag_count_errors` helper
+walks each entry and counts only the error-severity ones. NUM-003
+warnings, MATCH-001/002 warnings, and any future warning-level
+diagnostic now flow through the report without breaking
+compilation.
+
+### Verify gate
+
+158/158 green on Windows. Self-host LLVM IR fixed point preserved
+(v73==v74 byte-identical).
+
 ## [0.1.63] — 2026-04-22
 
 **`nuc fix --numeric` migration linter + RFC-0022 phase 3 deferrals.**
