@@ -477,6 +477,99 @@ long long __nucleor_vec_max_i64(NVec *v) {
     return m;
 }
 
+// === RFC-0024 phase 1 (cont): Vec scalar utilities ===
+// vec_contains_i64 / vec_index_of_i64 — linear search
+// vec_reverse_i64 — in-place reverse, returns the same vec for chaining
+// vec_sort_i64 — in-place ascending sort (qsort)
+// vec_clone_i64 — deep copy
+// vec_clear_i64 — len = 0 (capacity preserved)
+//
+// f64 variants take i64-cell bit patterns and operate as doubles.
+
+long long __nucleor_vec_contains_i64(NVec *v, long long needle) {
+    if (!v) return 0;
+    for (int i = 0; i < v->len; i++) if (v->data[i] == needle) return 1;
+    return 0;
+}
+
+long long __nucleor_vec_index_of_i64(NVec *v, long long needle) {
+    if (!v) return -1;
+    for (int i = 0; i < v->len; i++) if (v->data[i] == needle) return (long long)i;
+    return -1;
+}
+
+NVec *__nucleor_vec_reverse_i64(NVec *v) {
+    if (!v || v->len < 2) return v;
+    int lo = 0, hi = v->len - 1;
+    while (lo < hi) {
+        long long t = v->data[lo]; v->data[lo] = v->data[hi]; v->data[hi] = t;
+        lo++; hi--;
+    }
+    return v;
+}
+
+static int __nuc_qcmp_i64(const void *a, const void *b) {
+    long long x = *(const long long *)a, y = *(const long long *)b;
+    if (x < y) return -1;
+    if (x > y) return 1;
+    return 0;
+}
+NVec *__nucleor_vec_sort_i64(NVec *v) {
+    if (!v || v->len < 2) return v;
+    qsort(v->data, (size_t)v->len, sizeof(long long), __nuc_qcmp_i64);
+    return v;
+}
+
+NVec *__nucleor_vec_clone_i64(NVec *v) {
+    NVec *out = __nucleor_vec_new();
+    if (!v) return out;
+    for (int i = 0; i < v->len; i++) __nucleor_vec_push(out, v->data[i]);
+    return out;
+}
+
+long long __nucleor_vec_clear_i64(NVec *v) {
+    if (!v) return 0;
+    v->len = 0;
+    return 0;
+}
+
+// f64 reductions — values are i64 bit-patterns.
+long long __nucleor_vec_sum_f64(NVec *v) {
+    if (!v) return 0;
+    union { long long i; double d; } acc;
+    acc.d = 0.0;
+    for (int i = 0; i < v->len; i++) {
+        union { long long i; double d; } u;
+        u.i = v->data[i];
+        acc.d += u.d;
+    }
+    return acc.i;
+}
+
+typedef union { long long i; double d; } NucI64F64;
+
+long long __nucleor_vec_min_f64(NVec *v) {
+    NucI64F64 m, u;
+    if (!v || v->len == 0) { m.d = 0.0; return m.i; }
+    m.i = v->data[0];
+    for (int i = 1; i < v->len; i++) {
+        u.i = v->data[i];
+        if (u.d < m.d) m = u;
+    }
+    return m.i;
+}
+
+long long __nucleor_vec_max_f64(NVec *v) {
+    NucI64F64 m, u;
+    if (!v || v->len == 0) { m.d = 0.0; return m.i; }
+    m.i = v->data[0];
+    for (int i = 1; i < v->len; i++) {
+        u.i = v->data[i];
+        if (u.d > m.d) m = u;
+    }
+    return m.i;
+}
+
 // === StringBuilder (amortized O(1) append, avoids O(n^2) str_concat) ===
 typedef struct { char *data; int len; int cap; } NStrBuilder;
 
