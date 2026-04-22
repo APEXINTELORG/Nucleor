@@ -1,0 +1,52 @@
+Nucleor
+Copyright 2026 Joseph Wescott
+
+This product includes software developed by Joseph Wescott
+(https://github.com/APEXINTELORG/Nucleor).
+
+Licensed under the Apache License, Version 2.0 (the "License").
+See the LICENSE file at the root of this repository for the full license text.
+
+================================================================================
+THIRD-PARTY DEPENDENCIES
+================================================================================
+
+The following third-party tools are required to build or run portions of
+Nucleor. They are not bundled with this distribution; users obtain them
+independently from their respective vendors.
+
+LLVM (clang, lld) — Required.
+  License: Apache License 2.0 with LLVM Exceptions
+  URL: https://llvm.org/
+  Used as: native code generation and linking back-end. The
+  `nucleor_llvm_rt.c` runtime emits LLVM IR which is compiled by clang.
+
+CUDA Toolkit (nvcc) — Optional.
+  License: NVIDIA proprietary
+  URL: https://developer.nvidia.com/cuda-downloads
+  Used as: optional GPU code generation for `stdlib/runtime/cuda_rt.cu`
+  and `stdlib/runtime/taylor_gpu_rt.cu`. Nucleor programs that do not use
+  GPU runtimes do not require CUDA.
+
+Rust toolchain (cargo, rustc) — Optional.
+  License: MIT OR Apache-2.0
+  URL: https://www.rust-lang.org/
+  Used as: optional builder for `stdlib/rods/rust_bridge`, a static
+  library that exposes Rust's `regex` crate and other utilities to
+  Nucleor programs via C ABI. Nucleor programs that do not import
+  `stdlib/rods/rust.nr` do not require Rust.
+
+================================================================================
+RUST BRIDGE — TRANSITIVE DEPENDENCIES
+================================================================================
+
+When `stdlib/rods/rust_bridge` is built (via `cargo build --release`),
+the following crates are pulled from crates.io and statically linked into
+`nucleor_rust_bridge.lib`. Their licenses apply to the resulting binary:
+
+  regex (MIT OR Apache-2.0)        https://github.com/rust-lang/regex
+  aho-corasick (MIT OR Unlicense)  https://github.com/BurntSushi/aho-corasick
+  memchr (MIT OR Unlicense)        https://github.com/BurntSushi/memchr
+
+These crates are not bundled with this distribution; they are downloaded
+by cargo at build time.

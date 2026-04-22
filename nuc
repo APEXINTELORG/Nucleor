@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+# nuc — Nucleor CLI launcher (POSIX stub)
+#
+# v1 of Nucleor targets x86_64-pc-windows-msvc. A POSIX port is planned for v1.1.
+# This stub is included so a future Linux/macOS build can land without a layout change.
+#
+# When ported, this should resolve to ./bin/nucleor and pass arguments through,
+# mirroring nuc.bat behavior.
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+BIN="$ROOT/bin/nucleor"
+
+if [ ! -x "$BIN" ]; then
+    echo "nuc: POSIX build not available in this distribution." >&2
+    echo "nuc: v1 targets x86_64-pc-windows-msvc. See README.md." >&2
+    exit 1
+fi
+
+exec "$BIN" "$@"
