@@ -4935,12 +4935,16 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         let ac: i64 = list_len(pool, arms);
         let snap: Vec<i32> = own_snapshot(own);
         let mut has_wildcard: i64 = 0;
+        let mut wildcard_idx: i64 = 0 - 1;
         let mut ai: i64 = 0;
         while ai < ac {
             let arm_nid: i64 = list_get(pool, arms, ai);
             own_restore(own, snap);
             let ename: str = node_field(pool, arm_nid, 1);
-            if str_eq(ename, "__wild") { has_wildcard = 1; };
+            if str_eq(ename, "__wild") {
+                has_wildcard = 1;
+                if wildcard_idx < 0 { wildcard_idx = ai; };
+            };
             let binding: str = node_field(pool, arm_nid, 3);
             if str_len(binding) > 0 {
                 own_set(own, binding, 1);
@@ -4955,6 +4959,14 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             own_set_i(own, "cur_scope", scope_depth);
             ai = ai + 1;
         };
+        // RFC-0016 phase 5 — MATCH-002: any arm following a wildcard is
+        // unreachable (the wildcard already captures every value).
+        if wildcard_idx >= 0 && wildcard_idx < ac - 1 {
+            let src: str = source_text;
+            let ln: i64 = find_in_source(src, fn_name, "match");
+            diag_add(own_get_type(own, "__diags"), "warning", "type", "MATCH-002", str_concat("unreachable match arm after wildcard at arm ", str_concat(str_from_int(wildcard_idx + 1), str_concat(" of ", str_from_int(ac)))), fn_name, ln);
+            warns = warns + 1;
+        };
         if has_wildcard == 0 && ac > 0 {
             let first_arm: i64 = list_get(pool, arms, 0);
             let first_ename: str = node_field(pool, first_arm, 1);
@@ -4967,8 +4979,12 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     if ac < vcnt {
                         let src: str = source_text;
                         let ln: i64 = find_in_source(src, fn_name, "match");
-                        diag_add(own_get_type(own, "__diags"), "warning", "type", "TYP-001", str_concat("non-exhaustive match: ", str_concat(str_from_int(ac), str_concat(" arms for enum with ", str_concat(str_from_int(vcnt), " variants")))), fn_name, ln);
-                        warns = warns + 1;
+                        // RFC-0016 phase 5 — MATCH-001 (canonical) alongside
+                        // legacy TYP-001 for backwards compatibility.
+                        let msg: str = str_concat("non-exhaustive match: ", str_concat(str_from_int(ac), str_concat(" arms for enum with ", str_concat(str_from_int(vcnt), " variants"))));
+                        diag_add(own_get_type(own, "__diags"), "warning", "type", "TYP-001", msg, fn_name, ln);
+                        diag_add(own_get_type(own, "__diags"), "warning", "type", "MATCH-001", msg, fn_name, ln);
+                        warns = warns + 2;
                     };
                 };
             };
