@@ -2,8 +2,8 @@
 // Build: nuc build examples/08_linalg.nr -o linalg_demo
 // Run:   ./linalg_demo.exe
 
-import "stdlib/rods/linalg.nr"
-import "stdlib/rods/complex.nr"
+use std::linalg;
+use std::complex;
 
 fn ex_int_to_str(n: i64) -> str {
     if n == 0 { return "0"; };

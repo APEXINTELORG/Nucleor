@@ -2,8 +2,8 @@
 // Build: nuc build examples/04_rods.nr -o rods_demo
 // Run:   ./rods_demo.exe
 
-import "stdlib/rods/strings.nr"
-import "stdlib/rods/json.nr"
+use std::strings;
+use std::json;
 
 fn main() -> i64 {
     // String utilities from stdlib/rods/strings.nr

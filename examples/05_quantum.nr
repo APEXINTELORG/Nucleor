@@ -6,7 +6,7 @@
 // After 1024 measurements, ~512 outcomes should be |00> and ~512 should be |11>.
 // |01> and |10> outcomes should be exactly 0.
 
-import "stdlib/rods/quantum.nr"
+use std::quantum;
 
 fn str_from_int(n: i64) -> str {
     if n == 0 { return "0"; };

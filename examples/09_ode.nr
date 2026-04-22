@@ -2,8 +2,8 @@
 // dy/dt = -k*y  (exponential decay)  with y(0) = 1, k = 0.5
 // Analytic solution: y(t) = exp(-0.5 * t)
 
-import "stdlib/rods/ode.nr"
-import "stdlib/rods/complex.nr"
+use std::ode;
+use std::complex;
 
 fn ex_int_to_str(n: i64) -> str {
     if n == 0 { return "0"; };

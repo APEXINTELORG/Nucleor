@@ -2,8 +2,8 @@
 // Input: 256-sample signal containing 5 Hz and 13 Hz components.
 // Expected: power spectrum has peaks near bins 5 and 13.
 
-import "stdlib/rods/fft.nr"
-import "stdlib/rods/complex.nr"
+use std::fft;
+use std::complex;
 
 fn ex_int_to_str(n: i64) -> str {
     if n == 0 { return "0"; };
