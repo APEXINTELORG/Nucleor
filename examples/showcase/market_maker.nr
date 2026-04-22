@@ -135,6 +135,10 @@ fn main() -> i64 {
     let mut cum_pnl: i64 = f64_from_int(0);
     let mut n_trades: i64 = 0;
 
+    // CSV log
+    let csv: i64 = sb_new();
+    sb_append(csv, "tick,spot,iv,bid,theo,ask,delta,gamma,vega,position_delta,hedge_qty,pnl_tick,cum_pnl\n");
+
     // Reserve dashboard space (12 lines)
     let mut warm: i64 = 0;
     while warm < 14 { print(""); warm = warm + 1; };
@@ -174,6 +178,21 @@ fn main() -> i64 {
         // Pretend a trade happens every ~5 ticks
         if tick - (tick / 5) * 5 == 0 { n_trades = n_trades + 1; };
 
+        // Append CSV row
+        sb_append(csv, viz_int_to_str(tick));    sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(spot, 4));    sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(iv, 6));      sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(bid, 4));     sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(theo, 4));    sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(ask, 4));     sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(delta_per_contract, 6)); sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(gamma_per, 6));          sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(vega_per, 6));           sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(inventory_delta, 6));    sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(hedge_qty, 6));          sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(pnl_tick, 6));           sb_append(csv, ",");
+        sb_append(csv, viz_f64_str(cum_pnl, 6));            sb_append(csv, "\n");
+
         // Move cursor up 14 lines and redraw
         print(ansi_cursor_up(14));
         render_dashboard(tick + 1, max_tick, spot, iv,
@@ -185,10 +204,13 @@ fn main() -> i64 {
         tick = tick + 1;
     };
 
+    file_write_string("market_maker_data.csv", sb_to_str(csv));
+
     print("");
     print(paint("  --- session complete ---", col_green()));
     print(str_concat("  Final cumulative P&L: ", paint(fmt_signed_price(cum_pnl), color_pnl(cum_pnl))));
     print(str_concat("  Trades executed:      ", viz_int_to_str(n_trades)));
+    print(paint("  Wrote 60 ticks to market_maker_data.csv", col_grey()));
     print("");
     print(paint("  All financial primitives shipped in stdlib (no external deps).", col_grey()));
     print(paint("  Hot path is @hot-eligible: no heap, no format, no indirect calls.", col_grey()));

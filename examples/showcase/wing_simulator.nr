@@ -196,6 +196,20 @@ fn main() -> i64 {
     print(paint("  Airfoil installed in both solvers. Stepping simulation...", col_grey()));
     print("");
 
+    // CSV log: per-step probe values.
+    // Probe is at (probe_x, probe_y), one cell downstream of the airfoil.
+    // Values are written as i64 bit-patterns alongside formatted floats so
+    // post-processors can recover bit-exact values if the formatter chokes
+    // on very-small / very-large magnitudes.
+    let probe_x: i64 = 60;
+    let probe_y: i64 = Ny / 2;
+    let csv: i64 = sb_new();
+    // Note: em_energy and density at this probe may format as "-.00000-"
+    // when the underlying f64 is NaN (the FDTD runtime can return NaN before
+    // the field has propagated past the obstacle). The *_bits columns hold
+    // the raw i64 bit-pattern so downstream tools can detect NaN explicitly.
+    sb_append(csv, "step,em_energy,density,vx,vy,vorticity,Ez,em_energy_bits,density_bits\n");
+
     // Settle the simulation
     let mut warm: i64 = 0;
     while warm < 30 { lbm_step(lbm); em_step(em); warm = warm + 1; };
@@ -206,7 +220,28 @@ fn main() -> i64 {
     let mut frame: i64 = 0;
     while frame < n_frames {
         let mut s: i64 = 0;
-        while s < steps_per_frame { lbm_step(lbm); em_step(em); s = s + 1; };
+        while s < steps_per_frame {
+            lbm_step(lbm);
+            em_step(em);
+            // Append per-step probe row
+            let total_step: i64 = warm + frame * steps_per_frame + s + 1;
+            let em_e: i64 = em_energy(em);
+            let den: i64 = lbm_get_density(lbm, probe_x, probe_y);
+            let vx: i64 = lbm_get_vx(lbm, probe_x, probe_y);
+            let vy: i64 = lbm_get_vy(lbm, probe_x, probe_y);
+            let vort: i64 = lbm_get_vorticity(lbm, probe_x, probe_y);
+            let ez: i64 = em_get_Ez(em, probe_x, probe_y);
+            sb_append(csv, viz_int_to_str(total_step)); sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(em_e, 6));   sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(den, 6));    sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(vx, 6));     sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(vy, 6));     sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(vort, 6));   sb_append(csv, ",");
+            sb_append(csv, viz_f64_str(ez, 6));     sb_append(csv, ",");
+            sb_append(csv, viz_int_to_str(em_e));   sb_append(csv, ",");
+            sb_append(csv, viz_int_to_str(den));    sb_append(csv, "\n");
+            s = s + 1;
+        };
         let total_e: i64 = em_energy(em);
         render_frame(lbm, em, Nx, Ny, warm + (frame + 1) * steps_per_frame,
                      x_origin, chord, max_t, total_e);
@@ -214,7 +249,10 @@ fn main() -> i64 {
         frame = frame + 1;
     };
 
+    file_write_string("wing_simulator_data.csv", sb_to_str(csv));
+
     print(paint("  --- simulation complete ---", col_green()));
+    print(paint("  Wrote 100 steps of probe data to wing_simulator_data.csv", col_grey()));
     print("");
     print(paint("  Heat scale (cool to hot):", col_grey()));
     let mut k: i64 = 0;
