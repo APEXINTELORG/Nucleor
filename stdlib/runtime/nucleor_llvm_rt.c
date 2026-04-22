@@ -971,6 +971,181 @@ long long __nucleor_vec_f32_free(long long h) {
     return 0;
 }
 
+// === RFC-0015 phase 6: f32 distinct compute path ===
+// f32 values are passed as i64 with the bit-pattern in low 32 bits.
+// Helpers convert in/out and perform arithmetic at f32 precision.
+static inline long long __nuc_f32_to_bits(float f) {
+    union { unsigned int u; float f; } cv;
+    cv.f = f;
+    return (long long)cv.u;
+}
+static inline float __nuc_bits_to_f32(long long b) {
+    union { unsigned int u; float f; } cv;
+    cv.u = (unsigned int)(b & 0xFFFFFFFFLL);
+    return cv.f;
+}
+
+long long __nucleor_f32_from_int(long long n) { return __nuc_f32_to_bits((float)n); }
+long long __nucleor_f32_to_int(long long b) { return (long long)__nuc_bits_to_f32(b); }
+long long __nucleor_f32_add(long long a, long long b) { return __nuc_f32_to_bits(__nuc_bits_to_f32(a) + __nuc_bits_to_f32(b)); }
+long long __nucleor_f32_sub(long long a, long long b) { return __nuc_f32_to_bits(__nuc_bits_to_f32(a) - __nuc_bits_to_f32(b)); }
+long long __nucleor_f32_mul(long long a, long long b) { return __nuc_f32_to_bits(__nuc_bits_to_f32(a) * __nuc_bits_to_f32(b)); }
+long long __nucleor_f32_div(long long a, long long b) { return __nuc_f32_to_bits(__nuc_bits_to_f32(a) / __nuc_bits_to_f32(b)); }
+long long __nucleor_f32_neg(long long a) { return __nuc_f32_to_bits(-__nuc_bits_to_f32(a)); }
+long long __nucleor_f32_abs(long long a) { return __nuc_f32_to_bits(fabsf(__nuc_bits_to_f32(a))); }
+long long __nucleor_f32_sqrt(long long a) { return __nuc_f32_to_bits(sqrtf(__nuc_bits_to_f32(a))); }
+long long __nucleor_f32_exp(long long a) { return __nuc_f32_to_bits(expf(__nuc_bits_to_f32(a))); }
+long long __nucleor_f32_log(long long a) { return __nuc_f32_to_bits(logf(__nuc_bits_to_f32(a))); }
+long long __nucleor_f32_sin(long long a) { return __nuc_f32_to_bits(sinf(__nuc_bits_to_f32(a))); }
+long long __nucleor_f32_cos(long long a) { return __nuc_f32_to_bits(cosf(__nuc_bits_to_f32(a))); }
+long long __nucleor_f32_pow(long long a, long long b) { return __nuc_f32_to_bits(powf(__nuc_bits_to_f32(a), __nuc_bits_to_f32(b))); }
+long long __nucleor_f32_lt(long long a, long long b) { return __nuc_bits_to_f32(a) < __nuc_bits_to_f32(b) ? 1 : 0; }
+long long __nucleor_f32_gt(long long a, long long b) { return __nuc_bits_to_f32(a) > __nuc_bits_to_f32(b) ? 1 : 0; }
+long long __nucleor_f32_eq(long long a, long long b) { return __nuc_bits_to_f32(a) == __nuc_bits_to_f32(b) ? 1 : 0; }
+long long __nucleor_f32_to_f64(long long a) {
+    union { unsigned long long u; double d; } cd;
+    cd.d = (double)__nuc_bits_to_f32(a);
+    return (long long)cd.u;
+}
+long long __nucleor_f64_to_f32(long long a) {
+    union { unsigned long long u; double d; } cd;
+    cd.u = (unsigned long long)a;
+    return __nuc_f32_to_bits((float)cd.d);
+}
+long long __nucleor_print_f32(long long a) {
+    printf("%g\n", (double)__nuc_bits_to_f32(a));
+    return 0;
+}
+
+// === RFC-0015 phase 6: bf16 / f16 / f8 software emulation ===
+// All packed in low N bits of i64 storage. Compute happens at f32 precision
+// via convert-up / convert-down round-trip.
+static inline long long __nuc_bf16_to_f32_bits(long long b) {
+    return (b & 0xFFFFLL) << 16;  // bf16 bit pattern is the high 16 bits of f32
+}
+static inline long long __nuc_f32_to_bf16_bits(long long f) {
+    // Round-to-nearest-even
+    unsigned int x = (unsigned int)(f & 0xFFFFFFFFLL);
+    unsigned int rounding_bias = 0x00007FFF + ((x >> 16) & 1);
+    return (long long)((x + rounding_bias) >> 16);
+}
+long long __nucleor_bf16_from_f32(long long f32_bits) { return __nuc_f32_to_bf16_bits(f32_bits); }
+long long __nucleor_bf16_to_f32(long long bf) { return __nuc_bf16_to_f32_bits(bf); }
+long long __nucleor_bf16_add(long long a, long long b) {
+    return __nuc_f32_to_bf16_bits(__nucleor_f32_add(__nuc_bf16_to_f32_bits(a), __nuc_bf16_to_f32_bits(b)));
+}
+long long __nucleor_bf16_mul(long long a, long long b) {
+    return __nuc_f32_to_bf16_bits(__nucleor_f32_mul(__nuc_bf16_to_f32_bits(a), __nuc_bf16_to_f32_bits(b)));
+}
+
+// f16 (IEEE 754 binary16): 1 sign + 5 exp + 10 mantissa
+static inline long long __nuc_f16_to_f32_bits(long long h) {
+    unsigned int half = (unsigned int)(h & 0xFFFFLL);
+    unsigned int sign = (half >> 15) & 0x1;
+    unsigned int exp = (half >> 10) & 0x1F;
+    unsigned int mant = half & 0x3FF;
+    unsigned int f32;
+    if (exp == 0) {
+        if (mant == 0) {
+            f32 = sign << 31;
+        } else {
+            // subnormal — normalize
+            int e = -1;
+            while (!(mant & 0x400)) { mant <<= 1; e--; }
+            mant &= 0x3FF;
+            f32 = (sign << 31) | ((unsigned int)(127 - 15 + e + 1) << 23) | (mant << 13);
+        }
+    } else if (exp == 31) {
+        // inf / NaN
+        f32 = (sign << 31) | (0xFFu << 23) | (mant << 13);
+    } else {
+        f32 = (sign << 31) | ((exp + (127 - 15)) << 23) | (mant << 13);
+    }
+    return (long long)f32;
+}
+static inline long long __nuc_f32_to_f16_bits(long long f) {
+    unsigned int x = (unsigned int)(f & 0xFFFFFFFFLL);
+    unsigned int sign = (x >> 31) & 0x1;
+    int exp = (int)((x >> 23) & 0xFF) - 127 + 15;
+    unsigned int mant = x & 0x7FFFFF;
+    unsigned int half;
+    if (exp <= 0) {
+        if (exp < -10) {
+            half = sign << 15;
+        } else {
+            mant = (mant | 0x800000) >> (1 - exp);
+            half = (sign << 15) | (mant >> 13);
+        }
+    } else if (exp >= 31) {
+        half = (sign << 15) | (0x1F << 10);
+    } else {
+        half = (sign << 15) | ((unsigned int)exp << 10) | (mant >> 13);
+    }
+    return (long long)half;
+}
+long long __nucleor_f16_from_f32(long long f32_bits) { return __nuc_f32_to_f16_bits(f32_bits); }
+long long __nucleor_f16_to_f32(long long h) { return __nuc_f16_to_f32_bits(h); }
+long long __nucleor_f16_add(long long a, long long b) {
+    return __nuc_f32_to_f16_bits(__nucleor_f32_add(__nuc_f16_to_f32_bits(a), __nuc_f16_to_f32_bits(b)));
+}
+long long __nucleor_f16_mul(long long a, long long b) {
+    return __nuc_f32_to_f16_bits(__nucleor_f32_mul(__nuc_f16_to_f32_bits(a), __nuc_f16_to_f32_bits(b)));
+}
+
+// f8e4m3 (NVIDIA Hopper format): 1 sign + 4 exp + 3 mantissa
+// Range ~±240, min normal ~2^-6
+static inline long long __nuc_f8e4m3_to_f32_bits(long long b) {
+    unsigned int x = (unsigned int)(b & 0xFFLL);
+    unsigned int sign = (x >> 7) & 0x1;
+    unsigned int exp = (x >> 3) & 0xF;
+    unsigned int mant = x & 0x7;
+    unsigned int f32;
+    if (exp == 0 && mant == 0) {
+        f32 = sign << 31;
+    } else if (exp == 0xF && mant == 0x7) {
+        // NaN per OFP8 spec
+        f32 = (sign << 31) | 0x7FC00000;
+    } else if (exp == 0) {
+        // subnormal — fall back to f32 representation directly
+        // value = ±mant × 2^-9
+        union { float f; unsigned int u; } cv;
+        cv.f = (float)mant * 0.001953125f;  // 2^-9
+        if (sign) cv.f = -cv.f;
+        f32 = cv.u;
+    } else {
+        // normal
+        f32 = (sign << 31) | ((exp + (127 - 7)) << 23) | (mant << 20);
+    }
+    return (long long)f32;
+}
+
+// f8e5m2 (NVIDIA Hopper format): 1 sign + 5 exp + 2 mantissa
+// Range ~±57344, supports inf and NaN
+static inline long long __nuc_f8e5m2_to_f32_bits(long long b) {
+    unsigned int x = (unsigned int)(b & 0xFFLL);
+    unsigned int sign = (x >> 7) & 0x1;
+    unsigned int exp = (x >> 2) & 0x1F;
+    unsigned int mant = x & 0x3;
+    unsigned int f32;
+    if (exp == 0 && mant == 0) {
+        f32 = sign << 31;
+    } else if (exp == 0x1F) {
+        // inf / NaN
+        f32 = (sign << 31) | (0xFFu << 23) | (mant << 21);
+    } else if (exp == 0) {
+        union { float f; unsigned int u; } cv;
+        cv.f = (float)mant * 0.0000152587890625f;  // 2^-16
+        if (sign) cv.f = -cv.f;
+        f32 = cv.u;
+    } else {
+        f32 = (sign << 31) | ((exp + (127 - 15)) << 23) | (mant << 21);
+    }
+    return (long long)f32;
+}
+
+long long __nucleor_f8e4m3_to_f32(long long v) { return __nuc_f8e4m3_to_f32_bits(v); }
+long long __nucleor_f8e5m2_to_f32(long long v) { return __nuc_f8e5m2_to_f32_bits(v); }
+
 // === RNG ===
 // Pull in rng_rt.c so nuc_rng_* symbols are available without a separate
 // link step. The compiler emits __nucleor_rng_seed/etc. which forward to

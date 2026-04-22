@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.23] — 2026-04-22
+
+**RFC-0015 phase 6: f32 distinct compute + bf16/f16/f8 software
+emulation.** Unblocks the ML/perception data-type story.
+
+### Added — f32 distinct compute path
+
+- f32 values pass as i64 with the IEEE-754 binary32 bit-pattern in
+  the low 32 bits. All ops convert via `union` bit-cast.
+- Arithmetic: `f32_add/sub/mul/div/neg`
+- Math: `f32_abs/sqrt/exp/log/sin/cos/pow`
+- Comparisons: `f32_lt/gt/eq` (return i64 0/1)
+- Conversions: `f32_from_int/to_int/to_f64`, `f64_to_f32`
+- I/O: `print_f32`
+
+### Added — bf16 (Google brain-float)
+
+- 1+8+7 layout, range matches f32 exponent. Used by every modern ML
+  framework. Pure software via convert-up-to-f32 round-trip.
+- `bf16_from_f32 / bf16_to_f32 / bf16_add / bf16_mul`
+
+### Added — f16 (IEEE 754 binary16)
+
+- 1+5+10 layout. Subnormal handling included. Used by RT models /
+  CUDA half-precision paths.
+- `f16_from_f32 / f16_to_f32 / f16_add / f16_mul`
+
+### Added — f8e4m3 / f8e5m2 (NVIDIA Hopper FP8 formats)
+
+- e4m3: 1+4+3, range ±240, the inference format
+- e5m2: 1+5+2, range ±57344, the training format
+- Convert-only API for now (`f8e4m3_to_f32`, `f8e5m2_to_f32`);
+  arithmetic via convert-up to f32. Hardware-native ops on Hopper/
+  Blackwell GPUs ship via CUDA rod in v0.6+.
+
+### Verify gate
+
+116/116 green on Windows. Self-host LLVM IR fixed point preserved.
+New gate test: `tests/lang/f32_compute.nr` (~16 sub-cases).
+
 ## [0.1.22] — 2026-04-22
 
 **RFC-0015 phase 5b: hex/oct/bin literals + typed-storage Vecs.**
