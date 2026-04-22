@@ -89,6 +89,18 @@ const char *__nucleor_format2_si(const char *tmpl, const char *s, long long b) {
     return out;
 }
 
+// f64 args arrive as i64 cells (bit-cast); decode then render with %g.
+// Uses a local union since `nf64` is typedef'd later in this file and
+// NucF64Bits later still.
+const char *__nucleor_format_f64(const char *tmpl, long long b) {
+    union { long long i; double d; } u;
+    u.i = b;
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%g", u.d);
+    return __nuc_render_format(tmpl, buf);
+}
+
+
 // === Stdin read helpers (RFC-0015 phase 4 completion) ===
 // read_line: returns a newline-terminated input line as a heap-allocated str
 //            (caller drops trailing \n); empty string on EOF.

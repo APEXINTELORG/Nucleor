@@ -2036,6 +2036,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "format_hex") { return "__nucleor_format_hex"; };
     if str_eq(name, "format2_ii") { return "__nucleor_format2_ii"; };
     if str_eq(name, "format2_si") { return "__nucleor_format2_si"; };
+    if str_eq(name, "format_f64") { return "__nucleor_format_f64"; };
     if str_eq(name, "file_append_string") { return "__nucleor_file_append_string"; };
     if str_eq(name, "sb_free") { return "__nucleor_sb_free"; };
     if str_eq(name, "now_ms") { return "__nucleor_now_ms"; };
@@ -2575,6 +2576,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "format_hex") { return 1; };
     if str_eq(name, "format2_ii") { return 1; };
     if str_eq(name, "format2_si") { return 1; };
+    if str_eq(name, "format_f64") { return 1; };
     if str_eq(name, "sha256") { return 1; };
     if str_eq(name, "py_eval") { return 1; };
     if str_eq(name, "chr") { return 1; };
@@ -2673,6 +2675,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "format_hex") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format2_ii") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format2_si") { if idx == 0 || idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "format_f64") { if idx == 0 { return 1; }; return 0; };
     return 0;
 }
 
@@ -3012,6 +3015,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_format_hex(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_format2_ii(ptr, i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_format2_si(ptr, ptr, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_format_f64(ptr, i64)\n");
     sb_append(sb, "declare void @__nucleor_file_append_string(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_free(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_now_ms()\n");
