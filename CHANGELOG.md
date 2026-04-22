@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.17] — 2026-04-22
+
+**Hash helpers + print/eprint without trailing newline (5 helpers).**
+
+```nucleor
+fnv1a_64_str("hello");      // deterministic 64-bit hash of a string
+fnv1a_64_i64(42);           // same on i64 input bytes
+murmur3_64(42);             // fast bit-mixing finalizer (no state)
+
+print_raw("progress: ");    // no trailing newline
+print_raw(format_i64("{}%", pct));
+print("");                   // newline when you actually want it
+eprint_raw("error: ");      // same on stderr
+```
+
+`fnv1a_*` is the same FNV-1a 64-bit hash backing the v0.1.28
+`HashMap` runtime. `murmur3_64` is the finalizer-only mix function
+from MurmurHash3 — useful for spreading sequential keys before
+indexing into a small open-addressed table.
+
+`print_raw` / `eprint_raw` complement the existing `print` /
+`eprint` builtins (which append `\n`). Use the `_raw` variants for
+progress meters, in-place updates, or columnar output.
+
+Wired through both compiler binaries with the drift-gate sync.
+
+### Verify gate
+
+167/167 green on Windows. New gate: `tests/runtime/hash_helpers.nr`.
+Self-host LLVM IR fixed point preserved (v106==v107 byte-identical).
+
 ## [0.2.16] — 2026-04-22
 
 **HashMap iteration + ISO 8601 time formatting (4 helpers).**
