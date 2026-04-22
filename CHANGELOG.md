@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.20] — 2026-04-22
+
+**Env extras + string utility round-out (7 helpers).**
+
+```nucleor
+// Env enumeration / existence
+env_has("PATH");                  // 1 if set, 0 if not
+let keys: Vec<str> = env_keys();  // every env var name in this process
+
+// String utilities
+str_is_empty("");                 // 1
+str_is_empty("x");                // 0
+str_count("hello world", "l");    // 3
+str_count("aaaa", "aa");          // 2
+str_reverse("abcd");              // "dcba"
+str_trim_start("  hi  ");         // "hi  "
+str_trim_end("  hi  ");           // "  hi"
+```
+
+`env_has` is a typed boolean wrapper for `env_get` (clearer than
+"empty string means missing"). `env_keys` walks the process
+environment block — `GetEnvironmentStringsA` on Windows, the POSIX
+`environ` array on Linux/macOS — and returns the variable names as
+a `Vec<str>` so callers can iterate without scanning a flat block.
+The Windows path skips the leading-`=` drive-current-dir entries
+that `cmd.exe` injects.
+
+`str_is_empty` is the obvious one-line companion to `str_len`.
+`str_count` returns occurrences of a non-overlapping substring
+(`str_count("aaaa", "aa") == 2`, not 3). `str_reverse` returns a
+fresh byte-reversed copy. `str_trim_start` / `str_trim_end` are
+the half-trims to round out `str_trim` — same whitespace set
+(space, tab, CR, LF).
+
+All seven wired through both compiler binaries with the drift-gate
+sync. New entries cover `get_rt_name`, `is_ptr_ret` (where
+applicable), `is_ptr_arg`, and the IR `declare` block.
+
+### Verify gate
+
+169/170 green on Windows + 1 skip. New gate: `tests/runtime/env_str_helpers.nr`.
+Self-host LLVM IR fixed point preserved (v114==v115 byte-identical).
+
 ## [0.2.19] — 2026-04-22
 
 **Filesystem extras (5 helpers).**

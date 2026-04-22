@@ -1825,6 +1825,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "system") { return "__nucleor_system"; };
     if str_eq(name, "getenv") { return "__nucleor_getenv"; };
     if str_eq(name, "env_get") { return "__nucleor_env_get"; };
+    if str_eq(name, "env_has") { return "__nucleor_env_has"; };
+    if str_eq(name, "env_keys") { return "__nucleor_env_keys"; };
     if str_eq(name, "env_set") { return "__nucleor_env_set"; };
     if str_eq(name, "env_unset") { return "__nucleor_env_unset"; };
     if str_eq(name, "sb_new") { return "__nucleor_sb_new"; };
@@ -1868,6 +1870,11 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "str_to_lower") { return "__nucleor_str_to_lower"; };
     if str_eq(name, "str_to_upper") { return "__nucleor_str_to_upper"; };
     if str_eq(name, "str_trim") { return "__nucleor_str_trim"; };
+    if str_eq(name, "str_trim_start") { return "__nucleor_str_trim_start"; };
+    if str_eq(name, "str_trim_end") { return "__nucleor_str_trim_end"; };
+    if str_eq(name, "str_is_empty") { return "__nucleor_str_is_empty"; };
+    if str_eq(name, "str_count") { return "__nucleor_str_count"; };
+    if str_eq(name, "str_reverse") { return "__nucleor_str_reverse"; };
     if str_eq(name, "str_starts_with") { return "__nucleor_str_starts_with"; };
     if str_eq(name, "str_ends_with") { return "__nucleor_str_ends_with"; };
     if str_eq(name, "str_index_of") { return "__nucleor_str_index_of"; };
@@ -2442,9 +2449,13 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "str_to_lower") { return 1; };
     if str_eq(name, "str_to_upper") { return 1; };
     if str_eq(name, "str_trim") { return 1; };
+    if str_eq(name, "str_trim_start") { return 1; };
+    if str_eq(name, "str_trim_end") { return 1; };
     if str_eq(name, "str_replace") { return 1; };
     if str_eq(name, "str_repeat") { return 1; };
     if str_eq(name, "str_split") { return 1; };
+    if str_eq(name, "str_reverse") { return 1; };
+    if str_eq(name, "env_keys") { return 1; };
     if str_eq(name, "sha256") { return 1; };
     if str_eq(name, "py_eval") { return 1; };
     if str_eq(name, "chr") { return 1; };
@@ -2487,6 +2498,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "hashmap_contains") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "hashmap_remove") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "env_get") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "env_has") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "env_set") { return 1; };
     if str_eq(name, "env_unset") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format_i64") { if idx == 0 { return 1; }; return 0; };
@@ -2514,6 +2526,11 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "str_to_lower") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_to_upper") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_trim") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_trim_start") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_trim_end") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_is_empty") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_count") { return 1; };
+    if str_eq(name, "str_reverse") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_starts_with") { return 1; };
     if str_eq(name, "str_ends_with") { return 1; };
     if str_eq(name, "str_index_of") { return 1; };
@@ -2907,6 +2924,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_env_get(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_env_set(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_env_unset(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_env_has(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_env_keys()\n");
     sb_append(sb, "declare ptr @__nucleor_vec_new()\n");
     sb_append(sb, "declare void @__nucleor_vec_push(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_get(ptr, i64)\n");
@@ -2947,6 +2966,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_str_to_lower(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_str_to_upper(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_str_trim(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_str_trim_start(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_str_trim_end(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_is_empty(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_count(ptr, ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_str_reverse(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_starts_with(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_ends_with(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_index_of(ptr, ptr)\n");

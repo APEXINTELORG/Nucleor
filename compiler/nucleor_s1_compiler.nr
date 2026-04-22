@@ -2065,6 +2065,11 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "str_replace") { return "__nucleor_str_replace"; };
     if str_eq(name, "str_repeat") { return "__nucleor_str_repeat"; };
     if str_eq(name, "str_split") { return "__nucleor_str_split"; };
+    if str_eq(name, "str_trim_start") { return "__nucleor_str_trim_start"; };
+    if str_eq(name, "str_trim_end") { return "__nucleor_str_trim_end"; };
+    if str_eq(name, "str_is_empty") { return "__nucleor_str_is_empty"; };
+    if str_eq(name, "str_count") { return "__nucleor_str_count"; };
+    if str_eq(name, "str_reverse") { return "__nucleor_str_reverse"; };
     if str_eq(name, "format_bool") { return "__nucleor_format_bool"; };
     if str_eq(name, "format3_iii") { return "__nucleor_format3_iii"; };
     if str_eq(name, "vec_avg_i64") { return "__nucleor_vec_avg_i64"; };
@@ -2434,6 +2439,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "env_get") { return "__nucleor_env_get"; };
     if str_eq(name, "env_set") { return "__nucleor_env_set"; };
     if str_eq(name, "env_unset") { return "__nucleor_env_unset"; };
+    if str_eq(name, "env_has") { return "__nucleor_env_has"; };
+    if str_eq(name, "env_keys") { return "__nucleor_env_keys"; };
     // OS info
     if str_eq(name, "process_id") { return "__nucleor_process_id"; };
     if str_eq(name, "os_family") { return "__nucleor_os_family"; };
@@ -2671,9 +2678,13 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "str_to_lower") { return 1; };
     if str_eq(name, "str_to_upper") { return 1; };
     if str_eq(name, "str_trim") { return 1; };
+    if str_eq(name, "str_trim_start") { return 1; };
+    if str_eq(name, "str_trim_end") { return 1; };
     if str_eq(name, "str_replace") { return 1; };
     if str_eq(name, "str_repeat") { return 1; };
     if str_eq(name, "str_split") { return 1; };
+    if str_eq(name, "str_reverse") { return 1; };
+    if str_eq(name, "env_keys") { return 1; };
     if str_eq(name, "sha256") { return 1; };
     if str_eq(name, "py_eval") { return 1; };
     if str_eq(name, "chr") { return 1; };
@@ -2805,6 +2816,11 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "str_to_lower") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_to_upper") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_trim") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_trim_start") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_trim_end") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_is_empty") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_count") { return 1; };
+    if str_eq(name, "str_reverse") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_starts_with") { return 1; };
     if str_eq(name, "str_ends_with") { return 1; };
     if str_eq(name, "str_index_of") { return 1; };
@@ -2812,6 +2828,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "str_replace") { return 1; };
     if str_eq(name, "str_repeat") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_split") { return 1; };
+    if str_eq(name, "env_has") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format_bool") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format3_iii") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_avg_i64") { if idx == 0 { return 1; }; return 0; };
@@ -3178,6 +3195,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_str_to_lower(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_str_to_upper(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_str_trim(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_str_trim_start(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_str_trim_end(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_is_empty(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_count(ptr, ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_str_reverse(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_starts_with(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_ends_with(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_index_of(ptr, ptr)\n");
@@ -3545,6 +3567,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_env_get(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_env_set(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_env_unset(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_env_has(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_env_keys()\n");
     sb_append(sb, "declare i64 @__nucleor_process_id()\n");
     sb_append(sb, "declare i64 @__nucleor_os_family()\n");
     sb_append(sb, "declare i64 @__nucleor_os_pointer_width()\n");
