@@ -2232,6 +2232,17 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "string_contains") { return "__nucleor_string_contains"; };
     if str_eq(name, "string_clone") { return "__nucleor_string_clone"; };
     if str_eq(name, "string_free") { return "__nucleor_string_free"; };
+    // RFC-0017 partial: HashMap<str, i64>
+    if str_eq(name, "hashmap_new") { return "__nucleor_hashmap_new"; };
+    if str_eq(name, "hashmap_with_capacity") { return "__nucleor_hashmap_with_capacity"; };
+    if str_eq(name, "hashmap_insert") { return "__nucleor_hashmap_insert"; };
+    if str_eq(name, "hashmap_get") { return "__nucleor_hashmap_get"; };
+    if str_eq(name, "hashmap_contains") { return "__nucleor_hashmap_contains"; };
+    if str_eq(name, "hashmap_remove") { return "__nucleor_hashmap_remove"; };
+    if str_eq(name, "hashmap_len") { return "__nucleor_hashmap_len"; };
+    if str_eq(name, "hashmap_capacity") { return "__nucleor_hashmap_capacity"; };
+    if str_eq(name, "hashmap_clear") { return "__nucleor_hashmap_clear"; };
+    if str_eq(name, "hashmap_free") { return "__nucleor_hashmap_free"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2295,6 +2306,10 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "string_starts_with") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "string_ends_with") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "string_contains") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashmap_insert") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashmap_get") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashmap_contains") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "hashmap_remove") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "str_len") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_eq") { return 1; };
     if str_eq(name, "str_char_at") { if idx == 0 { return 1; }; return 0; };
@@ -2891,6 +2906,14 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_string_contains(i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_string_clone(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_string_free(i64)\n");
+    // HashMap extras — new/insert/get/contains already declared in the
+    // header block above; extras live here.
+    sb_append(sb, "declare i64 @__nucleor_hashmap_with_capacity(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashmap_remove(i64, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashmap_len(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashmap_capacity(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashmap_clear(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashmap_free(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");

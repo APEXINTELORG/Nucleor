@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.28] — 2026-04-22
+
+**RFC-0017 partial: HashMap<str, i64> with full open-addressed
+implementation.**
+
+### Added — HashMap runtime
+
+- `hashmap_new()`, `hashmap_with_capacity(n)` — constructors.
+- `hashmap_insert(m, key, val)` — insert or update; auto-grows.
+- `hashmap_get(m, key) -> i64` — returns 0 if missing; pair with
+  `hashmap_contains` to disambiguate.
+- `hashmap_contains(m, key) -> bool`
+- `hashmap_remove(m, key) -> bool` — returns 1 if removed,
+  0 if missing. Re-clusters following entries.
+- `hashmap_len(m)`, `hashmap_capacity(m)`
+- `hashmap_clear(m)`, `hashmap_free(m)`
+- Open-addressed linear probing, FNV-1a 64-bit hash, doubles
+  capacity at 50% load factor.
+
+### Implementation note
+
+A 4-decl block of older HashMap declares conflicted with my 10-decl
+block during one build cycle. Fixed by ensuring the second block
+emits only NEW helpers, not duplicates of the original 4.
+Self-host loop closes after the dedup.
+
+### Verify gate
+
+121/121 green. New gate test: `tests/lang/hashmap_str_i64.nr`
+(13 sub-cases including update, remove, dedup, growth stress).
+
 ## [0.1.27] — 2026-04-22
 
 **RFC-0017 partial: heap-allocated `String` type.**
