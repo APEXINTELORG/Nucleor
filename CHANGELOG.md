@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.11] — 2026-04-22
+
+**Stdlib string utilities (10 helpers).**
+
+```nucleor
+str_to_lower("HELLO");                     // "hello"
+str_to_upper("hello");                     // "HELLO"
+str_trim("   spaced   ");                  // "spaced"
+str_starts_with("hello, world", "hello");  // 1
+str_ends_with("hello, world", "world");    // 1
+str_contains("hello, world", "lo, w");     // 1
+str_index_of("hello, world", "world");     // 7
+str_replace("hi, hi", "hi", "yo");         // "yo, yo"
+str_repeat("ab", 3);                       // "ababab"
+str_split("a,b,c,d", ",");                 // Vec<str> = ["a","b","c","d"]
+```
+
+ASCII case conversion + trimming + prefix/suffix/substring search +
+replace-all + repeat + split. All return heap-allocated `str`
+(caller-owned in the Nucleor object model). `str_split` returns a
+`Vec<str>` whose elements are individually allocated.
+
+Wired through both compiler binaries with the drift-gate sync.
+
+### Verify gate
+
+162/162 green on Windows. New gate: `tests/runtime/str_utils.nr`.
+Self-host LLVM IR fixed point preserved (v96==v97 byte-identical).
+
 ## [0.2.10] — 2026-04-22
 
 **Vec utility expansion: contains, index_of, sort, reverse, clone,

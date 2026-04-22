@@ -338,6 +338,132 @@ const char *__nucleor_str_concat(const char *a, const char *b) {
     return r;
 }
 
+// === RFC-0017 / RFC-0028 stdlib enrichment: string utilities ===
+// All return heap-allocated str (caller-owned in Nucleor).
+//
+//   str_to_lower(s)              — ASCII lowercase
+//   str_to_upper(s)              — ASCII uppercase
+//   str_trim(s)                  — strip leading + trailing ASCII whitespace
+//   str_starts_with(s, prefix)   — bool 0/1
+//   str_ends_with(s, suffix)     — bool 0/1
+//   str_contains(s, needle)      — bool 0/1
+//   str_index_of(s, needle)      — first match offset or -1
+//   str_replace(s, find, repl)   — replace ALL non-overlapping matches
+//   str_repeat(s, n)             — concatenate s n times
+//   str_split(s, sep) -> NVec*   — Vec<str> of substrings (each is a strdup)
+
+const char *__nucleor_str_to_lower(const char *s) {
+    if (!s) return "";
+    size_t n = strlen(s);
+    char *out = (char *)malloc(n + 1);
+    for (size_t i = 0; i < n; i++) {
+        char c = s[i];
+        out[i] = (c >= 'A' && c <= 'Z') ? (char)(c - 'A' + 'a') : c;
+    }
+    out[n] = 0;
+    return out;
+}
+
+const char *__nucleor_str_to_upper(const char *s) {
+    if (!s) return "";
+    size_t n = strlen(s);
+    char *out = (char *)malloc(n + 1);
+    for (size_t i = 0; i < n; i++) {
+        char c = s[i];
+        out[i] = (c >= 'a' && c <= 'z') ? (char)(c - 'a' + 'A') : c;
+    }
+    out[n] = 0;
+    return out;
+}
+
+const char *__nucleor_str_trim(const char *s) {
+    if (!s) return "";
+    size_t n = strlen(s);
+    size_t start = 0;
+    while (start < n && (s[start] == ' ' || s[start] == '\t' || s[start] == '\n' || s[start] == '\r')) start++;
+    size_t end = n;
+    while (end > start && (s[end - 1] == ' ' || s[end - 1] == '\t' || s[end - 1] == '\n' || s[end - 1] == '\r')) end--;
+    size_t L = end - start;
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, s + start, L);
+    out[L] = 0;
+    return out;
+}
+
+long long __nucleor_str_starts_with(const char *s, const char *prefix) {
+    if (!s || !prefix) return 0;
+    size_t pl = strlen(prefix);
+    if (strlen(s) < pl) return 0;
+    return memcmp(s, prefix, pl) == 0 ? 1 : 0;
+}
+
+long long __nucleor_str_ends_with(const char *s, const char *suffix) {
+    if (!s || !suffix) return 0;
+    size_t sl = strlen(s), xl = strlen(suffix);
+    if (sl < xl) return 0;
+    return memcmp(s + sl - xl, suffix, xl) == 0 ? 1 : 0;
+}
+
+long long __nucleor_str_index_of(const char *s, const char *needle) {
+    if (!s || !needle) return -1;
+    const char *p = strstr(s, needle);
+    if (!p) return -1;
+    return (long long)(p - s);
+}
+
+long long __nucleor_str_contains(const char *s, const char *needle) {
+    return __nucleor_str_index_of(s, needle) >= 0 ? 1 : 0;
+}
+
+const char *__nucleor_str_replace(const char *s, const char *find, const char *repl) {
+    if (!s) return "";
+    if (!find || !*find) {
+        size_t n = strlen(s) + 1;
+        char *out = (char *)malloc(n);
+        memcpy(out, s, n);
+        return out;
+    }
+    if (!repl) repl = "";
+    size_t fl = strlen(find), rl = strlen(repl);
+    // Two-pass: count occurrences, allocate exact size, fill.
+    size_t count = 0;
+    const char *scan = s;
+    const char *p;
+    while ((p = strstr(scan, find)) != NULL) {
+        count++;
+        scan = p + fl;
+    }
+    size_t out_len = strlen(s) + (count * (rl > fl ? (rl - fl) : 0)) - (count * (fl > rl ? (fl - rl) : 0));
+    char *out = (char *)malloc(out_len + 1);
+    char *w = out;
+    scan = s;
+    while ((p = strstr(scan, find)) != NULL) {
+        size_t pre = (size_t)(p - scan);
+        memcpy(w, scan, pre);   w += pre;
+        memcpy(w, repl, rl);    w += rl;
+        scan = p + fl;
+    }
+    size_t tail = strlen(scan);
+    memcpy(w, scan, tail);  w += tail;
+    *w = 0;
+    return out;
+}
+
+const char *__nucleor_str_repeat(const char *s, long long n) {
+    if (!s || n <= 0) {
+        char *empty = (char *)malloc(1); empty[0] = 0; return empty;
+    }
+    size_t L = strlen(s);
+    size_t total = L * (size_t)n;
+    char *out = (char *)malloc(total + 1);
+    for (long long i = 0; i < n; i++) memcpy(out + ((size_t)i * L), s, L);
+    out[total] = 0;
+    return out;
+}
+
+// __nucleor_str_split is defined further down in this file (after the
+// NVec typedef). It returns NVec* (Vec<str>) of substrings.
+
 // === File I/O ===
 const char *__nucleor_file_read_string(const char *path) {
     if (!path) return "";
@@ -568,6 +694,36 @@ long long __nucleor_vec_max_f64(NVec *v) {
         if (u.d > m.d) m = u;
     }
     return m.i;
+}
+
+// __nucleor_str_split — needs NVec; defined here (forward-declared
+// in the string-utilities block earlier).
+NVec *__nucleor_str_split(const char *s, const char *sep) {
+    NVec *out = __nucleor_vec_new();
+    if (!s) return out;
+    if (!sep || !*sep) {
+        size_t L = strlen(s);
+        char *copy = (char *)malloc(L + 1);
+        memcpy(copy, s, L + 1);
+        __nucleor_vec_push(out, (long long)(intptr_t)copy);
+        return out;
+    }
+    size_t sl = strlen(sep);
+    const char *scan = s;
+    const char *p;
+    while ((p = strstr(scan, sep)) != NULL) {
+        size_t L = (size_t)(p - scan);
+        char *piece = (char *)malloc(L + 1);
+        memcpy(piece, scan, L);
+        piece[L] = 0;
+        __nucleor_vec_push(out, (long long)(intptr_t)piece);
+        scan = p + sl;
+    }
+    size_t tailL = strlen(scan);
+    char *tail = (char *)malloc(tailL + 1);
+    memcpy(tail, scan, tailL + 1);
+    __nucleor_vec_push(out, (long long)(intptr_t)tail);
+    return out;
 }
 
 // === StringBuilder (amortized O(1) append, avoids O(n^2) str_concat) ===
