@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.36] — 2026-04-22
+
+**RFC-0017 stdlib polish: rod-level wrappers for all collection
+types.**
+
+### Added — six new collection rods
+
+- **`stdlib/rods/string_type.nr`** — heap String wrapper (`string_make`,
+  `string_of`, `string_concat_str`, `string_equals`, `string_copy`,
+  `string_drop`, etc.)
+- **`stdlib/rods/hashmap_str.nr`** — HashMap<str, i64> (`hms_*`)
+- **`stdlib/rods/hashset.nr`** — HashSet<str> (`hss_*`)
+- **`stdlib/rods/btreemap.nr`** — ordered BTreeMap (`btm_*`) with
+  `btm_key_at` / `btm_val_at` for sorted iteration
+- **`stdlib/rods/btreeset.nr`** — ordered BTreeSet (`bts_*`)
+- **`stdlib/rods/vecdeque.nr`** — ring-buffer deque (`vd_*`)
+
+### Quality bar
+
+Each rod includes:
+- Default-value accessors (`*_or`) where missing-key behavior matters
+- `is_empty()` predicate
+- Documentation comments explaining when to choose this collection
+  vs. alternatives
+- Lifecycle: explicit `_drop` / `_free` until v0.4 brings RAII
+  Drop-trait auto-free
+
+### Verify gate
+
+135/135 green on Windows. Self-host LLVM IR fixed point preserved.
+**Six new gate tests** under `tests/rods/`:
+hashmap_str, hashset, btreemap, btreeset, vecdeque, string_type.
+
 ## [0.1.35] — 2026-04-22
 
 **RFC-0019 phase 1: `stdlib/rods/toml.nr` rod-level wrapper.**
