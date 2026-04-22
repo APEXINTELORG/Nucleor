@@ -5,6 +5,23 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.35] — 2026-04-22
+
+**RFC-0019 phase 1: `stdlib/rods/toml.nr` rod-level wrapper.**
+
+### Added
+
+- `stdlib/rods/toml.nr` exposes the TOML parser through Nucleor-
+  friendly fns: `toml(src)`, `toml_load(path)`, `toml_string`,
+  `toml_int`, `toml_bool`, `toml_contains`, `toml_int_or`,
+  `toml_string_or`, `toml_free`.
+- Default-value accessors (`*_or`) eliminate the boilerplate of
+  contains-then-get for optional keys.
+
+### Verify gate
+
+129/129 green. New gate test: `tests/rods/toml.nr`.
+
 ## [0.1.34] — 2026-04-22
 
 **RFC-0020 phase 2 complete: JSON diagnostic renderer + RFC-0017/
