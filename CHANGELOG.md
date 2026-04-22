@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] — 2026-04-22
+
+**`format_f64` builtin — RFC-0028 phase 1 completion.**
+
+```nucleor
+let pi: i64 = f64_pi();
+print(format_f64("pi = {}", pi));     // "pi = 3.14159"
+print(format_f64("e = {}", f64_e())); // "e = 2.71828"
+```
+
+Renders an f64 (passed as i64-cell bit pattern, per Nucleor's
+existing f64 calling convention) with `%g` formatting. Pairs with
+`format_i64` / `format_str` / `format_hex` from v0.2.6 to cover all
+primitive scalar arg shapes a v0.2 program needs.
+
+Variadic `format!` + `Display` / `Debug` traits still ship in v0.4.
+
+### Verify gate
+
+159/159 green on Windows. Self-host LLVM IR fixed point preserved
+(v90==v91 byte-identical).
+
 ## [0.2.7] — 2026-04-22
 
 **RFC-0015 phase 6 closed: NUM-002 + NUM-005 fired by typecker.**
