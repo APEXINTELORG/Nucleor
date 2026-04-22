@@ -1823,6 +1823,10 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "file_read_string") { return "__nucleor_file_read_string"; };
     if str_eq(name, "file_write_string") { return "__nucleor_file_write_string"; };
     if str_eq(name, "system") { return "__nucleor_system"; };
+    if str_eq(name, "getenv") { return "__nucleor_getenv"; };
+    if str_eq(name, "env_get") { return "__nucleor_env_get"; };
+    if str_eq(name, "env_set") { return "__nucleor_env_set"; };
+    if str_eq(name, "env_unset") { return "__nucleor_env_unset"; };
     if str_eq(name, "sb_new") { return "__nucleor_sb_new"; };
     if str_eq(name, "sb_append") { return "__nucleor_sb_append"; };
     if str_eq(name, "sb_to_str") { return "__nucleor_sb_to_str"; };
@@ -1989,6 +1993,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "args_get") { return 1; };
     if str_eq(name, "sha256") { return 1; };
     if str_eq(name, "py_eval") { return 1; };
+    if str_eq(name, "getenv") { return 1; };
     return 0;
 }
 fn is_ptr_arg(name: str, idx: i64) -> i64 {
@@ -2014,6 +2019,10 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "profile_start") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "profile_end") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "py_eval") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "getenv") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "env_get") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "env_set") { return 1; };
+    if str_eq(name, "env_unset") { if idx == 0 { return 1; }; return 0; };
     return 0;
 }
 
@@ -2327,6 +2336,10 @@ fn emit_externs() -> str {
     sb_append(sb, "declare void @__nucleor_file_write_string(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_init_args(i32, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_system(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_getenv(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_env_get(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_env_set(ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_env_unset(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_new()\n");
     sb_append(sb, "declare void @__nucleor_vec_push(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_get(ptr, i64)\n");
@@ -8601,21 +8614,30 @@ fn build_test_harness_source(resolved_source: str, tests: Vec<i32>) -> str {
     };
     if slen > 0 && str_char_at(resolved_source, slen - 1) != 10 { sb_append(sb, "\n"); };
     sb_append(sb, "\nfn main() -> i32 {\n");
+    // RFC-0021 phase 2: when NUCLEOR_TEST_ONLY=<name> is set in the
+    // environment, run only that test and exit with its return code.
+    // The parent --isolation=process driver spawns one child per test
+    // with this env var to get full process isolation.
+    sb_append(sb, "    let only: str = getenv(\"NUCLEOR_TEST_ONLY\");\n");
     sb_append(sb, "    let mut failed: i32 = 0;\n");
     let mut i: i64 = 0;
     while i < vec_len(tests) {
         let test_name: str = vec_get(tests, i);
-        sb_append(sb, "    if ");
+        sb_append(sb, "    if str_len(only) == 0 || str_eq(only, \"");
+        sb_append(sb, test_name);
+        sb_append(sb, "\") == 1 {\n");
+        sb_append(sb, "        if ");
         sb_append(sb, test_name);
         sb_append(sb, "() == 0 {\n");
-        sb_append(sb, "        print(\"  PASS: ");
+        sb_append(sb, "            print(\"  PASS: ");
         sb_append(sb, test_name);
         sb_append(sb, "\");\n");
-        sb_append(sb, "    } else {\n");
-        sb_append(sb, "        print(\"  FAIL: ");
+        sb_append(sb, "        } else {\n");
+        sb_append(sb, "            print(\"  FAIL: ");
         sb_append(sb, test_name);
         sb_append(sb, "\");\n");
-        sb_append(sb, "        failed = failed + 1;\n");
+        sb_append(sb, "            failed = failed + 1;\n");
+        sb_append(sb, "        };\n");
         sb_append(sb, "    };\n");
         i = i + 1;
     };
@@ -8625,6 +8647,10 @@ fn build_test_harness_source(resolved_source: str, tests: Vec<i32>) -> str {
         sb_append(sb, "}\n");
         return sb_to_str(sb);
     };
+    sb_append(sb, "    if str_len(only) > 0 {\n");
+    sb_append(sb, "        if failed == 0 { return 0; };\n");
+    sb_append(sb, "        return failed;\n");
+    sb_append(sb, "    };\n");
     if vec_len(tests) == 1 {
         sb_append(sb, "    if failed == 0 { print(\"test result: PASS (1 test)\"); return 0; };\n");
     } else {
@@ -8638,7 +8664,7 @@ fn build_test_harness_source(resolved_source: str, tests: Vec<i32>) -> str {
     return sb_to_str(sb);
 }
 
-fn run_test_command(src_path: str, out_name: str, use_cache: i64, time_passes: i64, list_only: i64) -> i64 {
+fn run_test_command(src_path: str, out_name: str, use_cache: i64, time_passes: i64, list_only: i64, isolation_process: i64) -> i64 {
     let raw_source: str = file_read_string(src_path);
     if str_len(raw_source) == 0 {
         print(str_concat("ERROR: cannot read ", src_path));
@@ -8668,7 +8694,29 @@ fn run_test_command(src_path: str, out_name: str, use_cache: i64, time_passes: i
     let rc: i64 = compile_file_mode(temp_src, out_name, 1, use_cache, time_passes, 1);
     if rc != 0 { return rc; };
     let exe: str = sanitize(str_concat("target\\", str_concat(out_name, ".exe")));
-    return system(exe);
+    if isolation_process == 0 {
+        // Default: single process, all tests inline.
+        return system(exe);
+    };
+    // RFC-0021 phase 2: --isolation=process — spawn one child per test
+    // with NUCLEOR_TEST_ONLY=<name>, capture exit code, report aggregate.
+    print("  isolation: process (one child per test)");
+    let mut failed: i64 = 0;
+    let mut ti: i64 = 0;
+    while ti < vec_len(tests) {
+        let tname: str = vec_get(tests, ti);
+        env_set("NUCLEOR_TEST_ONLY", tname);
+        let child_rc: i64 = system(exe);
+        env_unset("NUCLEOR_TEST_ONLY");
+        if child_rc != 0 { failed = failed + 1; };
+        ti = ti + 1;
+    };
+    if failed == 0 {
+        print(str_concat("test result: PASS (", str_concat(str_from_int(vec_len(tests)), " tests, isolated)")));
+        return 0;
+    };
+    print(str_concat("test result: FAIL (", str_concat(str_from_int(failed), str_concat(" of ", str_concat(str_from_int(vec_len(tests)), " isolated children failed)")))));
+    return 1;
 }
 
 fn run_bench_command(src_path: str, out_name: str, use_cache: i64, time_passes: i64, iterations: i64, warmup: i64) -> i64 {
@@ -12564,6 +12612,7 @@ fn print_help() -> i64 {
     print("Developer commands:");
     print("  test [file]            Build and run @test / test_* functions");
     print("    --list               List discovered tests without running them");
+    print("    --isolation=process  Spawn a fresh child process per test (RFC-0021)");
     print("  bench [file]           Build once and benchmark repeated runs");
     print("    --iterations <n>     Number of measured runs (default 10)");
     print("    --warmup <n>         Number of warmup runs before timing (default 1)");
@@ -12742,6 +12791,7 @@ fn main() -> i64 {
     let mut bench_iterations: i64 = 10;
     let mut bench_warmup: i64 = 1;
     let mut test_list_only: i64 = 0;
+    let mut test_isolation_process: i64 = 0;
     let mut saw_output_name: i64 = 0;
     let mut argi_build: i64 = arg_start;
     while argi_build < argc {
@@ -12749,6 +12799,8 @@ fn main() -> i64 {
         if str_eq(flag, "--time-passes") { time_passes = 1; }
         else if str_eq(flag, "--no-cache") { use_cache = 0; }
         else if str_eq(cmd, "test") && str_eq(flag, "--list") { test_list_only = 1; }
+        else if str_eq(cmd, "test") && str_eq(flag, "--isolation=process") { test_isolation_process = 1; }
+        else if str_eq(cmd, "test") && str_eq(flag, "--isolation=thread") { test_isolation_process = 0; }
         else if str_eq(cmd, "bench") && str_eq(flag, "--iterations") {
             if argi_build + 1 >= argc {
                 print("ERROR: --iterations requires a value");
@@ -12926,7 +12978,7 @@ fn main() -> i64 {
     } else if str_eq(cmd, "emit") {
         return compile_file_mode(src_path, out_name, 1, use_cache, time_passes, 0);
     } else if str_eq(cmd, "test") {
-        return run_test_command(src_path, out_name, use_cache, time_passes, test_list_only);
+        return run_test_command(src_path, out_name, use_cache, time_passes, test_list_only, test_isolation_process);
     } else if str_eq(cmd, "bench") {
         return run_bench_command(src_path, out_name, use_cache, time_passes, bench_iterations, bench_warmup);
     } else if str_eq(cmd, "check") {

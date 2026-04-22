@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.55] — 2026-04-22
+
+**RFC-0021 phase 2: `nuc test --isolation=process` + RFC-0019 lockfile/workspace tracker reconciliation.**
+
+### Added — process-isolated test runner
+
+```
+nuc test mytest.nr --isolation=process
+```
+
+- Harness now reads `NUCLEOR_TEST_ONLY=<name>` from the environment
+  and runs only that test when set; absent, runs every test inline
+  (legacy behavior preserved).
+- Driver iterates discovered tests, sets `NUCLEOR_TEST_ONLY`, spawns
+  the binary, captures the exit code, then unsets. Aggregate
+  PASS/FAIL summary printed at the end.
+- `--isolation=thread` accepted as a noop alias for the current
+  default mode.
+
+### Fixed — IR-gen drift between `nucleor` and `nucleor_tools` binaries
+
+The tools binary carries its own `get_rt_name` / `is_ptr_ret` /
+`is_ptr_arg` tables for IR emission. They had drifted from the s1
+compiler — `getenv`, `env_get`, `env_set`, `env_unset` were missing.
+The result: any source built through the tools-side `compile_file_mode`
+(test harness, build-strict, etc.) that called these helpers emitted
+unprefixed `@getenv` and a missing IR `declare`, then failed to link.
+
+Fixed by syncing all four entries (get_rt_name + is_ptr_ret +
+is_ptr_arg + IR `declare`) plus `env_get/set/unset`. Production-grade:
+the test harness no longer needs a fast-mode workaround; strict-mode
+compilation handles env helpers identically to the build path.
+
+### Tracker reconciliation — RFC-0019 phase 2/3/4
+
+The `nuc lock`, `nuc install`, `nuc publish`, `nuc registry` CLI
+subcommands and `lock_build_graph_recursive` were already shipped:
+
+- **Lockfile generator + reader** — DONE (`nuc lock` writes
+  `Nucleor.lock` with version, root_package, per-package checksum +
+  dep list)
+- **Path source resolver** — DONE (`[dependencies]` entries resolve
+  as relative paths; recursive transitive traversal with cycle
+  detection)
+- **Workspace support** — DONE (`[workspace] members = [...]` with
+  `manifest_resolve_dependency_manifest` walking through workspaces)
+- **PubGrub-based resolver** — PARTIAL (recursive graph build with
+  cycle detection; full PubGrub backtracking with the registry in
+  v0.5)
+- **CLI: `nuc add` / `nuc remove` / `nuc update`** — PARTIAL
+  (`nuc install` adds + refreshes lock; `nuc publish` copies into a
+  local registry; aliases land alongside the registry phase in v0.5)
+- **Git source fetcher** — DEFERRED to v0.5 with the registry phase
+
+### Verify gate
+
+155/155 green on Windows. New gate test:
+`tests/runtime/test_isolation_smoke.nr`. Self-host LLVM IR fixed
+point preserved.
+
 ## [0.1.54] — 2026-04-22
 
 **RFC-0015 phase 4: per-narrow-width overflow primitives.**
