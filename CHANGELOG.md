@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.50] — 2026-04-22
+
+**RFC-0016 phase 1: `?` postfix operator.**
+
+### Added — `?` operator
+
+```nucleor
+fn divide(a: i64, b: i64) -> Vec<i32> {
+    if b == 0 { return result_err(99); };
+    return result_ok(a / b);
+}
+
+fn divide_chain(a: i64, b: i64, c: i64) -> Vec<i32> {
+    let q1: i64 = divide(a, b)?;          // Err propagates here
+    let q2: i64 = divide(q1, c)?;         //   ...or here
+    return result_ok(q2);
+}
+```
+
+The inner expression is expected to be the existing `Result<T,E>` stub
+(Vec<i32> with `[0]=tag (1=Ok / 0=Err)` and `[1]=payload`, see
+`stdlib/rods/result.nr`). On Err the function returns the entire
+Result early; on Ok the expression evaluates to the payload.
+
+Implementation:
+
+- Lexer: `?` becomes token type 97
+- Parser: `parse_postfix` wraps the chained postfix expression in
+  node kind 122 (TryExpr). Works after any primary, field access, or
+  index — including inline binops like `maybe(a)? + maybe(b)?`.
+- IR-gen: lowered to err-tag check + early `ret` block + payload
+  extract block. No match node required.
+- Type-check: kind 122 returns `i64` (the unwrapped payload type).
+  Full `Result<T,E>`/`Option<T>` typing arrives with generic enums
+  (RFC-0024) in v0.4.
+
+### Verify gate
+
+151/151 green on Windows. New gate test: `tests/lang/try_op.nr`
+covers Ok-chain + two propagation paths.
+Self-host LLVM IR fixed point preserved.
+
 ## [0.1.49] — 2026-04-22
 
 **MATCH-005…010 explain entries + milestone tracker accuracy.**

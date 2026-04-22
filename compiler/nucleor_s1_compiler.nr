@@ -332,6 +332,7 @@ fn lex(src: str) -> Vec<i32> {
         else if c == 125 { tokens.push(tok_new(53, 0, p)); p = p + 1; }
         else if c == 91 { tokens.push(tok_new(54, 0, p)); p = p + 1; }
         else if c == 93 { tokens.push(tok_new(55, 0, p)); p = p + 1; }
+        else if c == 63 { tokens.push(tok_new(97, 0, p)); p = p + 1; }
         else { p = p + 1; };
     };
     tokens.push(tok_new(0, 0, slen));
@@ -610,7 +611,15 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_primary(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
-    while pk(tokens, cp) == 45 || pk(tokens, cp) == 54 {
+    while pk(tokens, cp) == 45 || pk(tokens, cp) == 54 || pk(tokens, cp) == 97 {
+        if pk(tokens, cp) == 97 {
+            // RFC-0016 phase 1: `?` postfix — desugars at lower-time into
+            // err-check + early return on Err / None. Inner expression is
+            // expected to be Result<T, E> or Option<T> (compiler trusts the
+            // layout: cell 0 = tag, cell 1 = payload; tag 0 = Err/None).
+            cp = cp + 1;
+            node = mk2(pool, 122, node);
+        } else {
         if pk(tokens, cp) == 45 {
             let mut fname: str = "";
             if pk(tokens, cp + 1) == 2 { fname = str_from_int(pkv(tokens, cp + 1)); }
@@ -652,6 +661,7 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         } else {
             let mut ir: Vec<i32> = parse_expr(tokens, cp + 1, pool);
             cp = expect_tok(tokens, pr_pos(ir), 55); node = mk3(pool, 10, node, pr_val(ir));
+        };
         };
     };
     return pr(cp, node);
@@ -5277,6 +5287,12 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
     if kind == 1 { return "i32"; };
     if kind == 71 { return "f64"; };
     if kind == 2 { return "str"; };
+    if kind == 122 {
+        // RFC-0016 phase 1: ? operator. Until generic enums land we treat
+        // the unwrapped payload as i64 — matches the existing untyped
+        // Result<i64,i64> stub layout in stdlib/rods/result.nr.
+        return "i64";
+    };
     if kind == 3 {
         let name: str = node_field(pool, nid, 1);
         if str_eq(name, "true") == 1 || str_eq(name, "false") == 1 { return "bool"; };
@@ -5830,6 +5846,30 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let r: i64 = ctr_next(regs);
         ir_block_add(blk, ir_call_ex(r, "f64_from_scaled", conv_args));
         return lx_new(r, blk);
+    };
+    if kind == 122 {
+        // RFC-0016 phase 1: `?` postfix operator. Inner expression returns a
+        // Result-like Vec<i32> with [0]=tag (1=Ok/0=Err) and [1]=payload.
+        // Emit:
+        //   let tmp = inner;
+        //   if vec_get(tmp, 0) == 0 { return tmp; }
+        //   vec_get(tmp, 1)            // value of the ? expression
+        let inner_lx: Vec<i32> = lower_expr(pool, node_field(pool, nid, 1), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+        let mut cur: Vec<i32> = lx_blk(inner_lx);
+        let val_r: i64 = lx_reg(inner_lx);
+        let zero_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(zero_r, 0));
+        let mut tag_args: Vec<i32> = Vec::new(); tag_args.push(val_r); tag_args.push(zero_r);
+        let tag_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(tag_r, "vec_get", tag_args));
+        let cmp_r: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(7, cmp_r, tag_r, zero_r));
+        let err_lbl: i64 = ctr_next(lbls); let ok_lbl: i64 = ctr_next(lbls);
+        ir_block_add(cur, ir_br_cond(cmp_r, err_lbl, ok_lbl));
+        let mut err_blk: Vec<i32> = ir_block_new(err_lbl); ir_fn_add_block(fir, err_blk);
+        ir_block_add(err_blk, ir_ret(val_r));
+        let mut ok_blk: Vec<i32> = ir_block_new(ok_lbl); ir_fn_add_block(fir, ok_blk);
+        let one_r: i64 = ctr_next(regs); ir_block_add(ok_blk, ir_const_int(one_r, 1));
+        let mut pay_args: Vec<i32> = Vec::new(); pay_args.push(val_r); pay_args.push(one_r);
+        let pay_r: i64 = ctr_next(regs); ir_block_add(ok_blk, ir_call_ex(pay_r, "vec_get", pay_args));
+        return lx_new(pay_r, ok_blk);
     };
     if kind == 2 {
         let idx: i64 = vec_len(strtab);
