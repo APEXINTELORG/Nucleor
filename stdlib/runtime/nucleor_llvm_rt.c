@@ -594,6 +594,18 @@ const char *__nucleor_args_get(long long i) {
     return __argv[(int)i];
 }
 
+// === chr ===
+// Returns a 1-byte string for the given code point (0-255). Used by user
+// programs that need arbitrary control bytes (e.g., ESC = 27 for ANSI).
+const char *__nucleor_chr(long long code) {
+    static char buffers[256][2];
+    if (code < 0) code = 0;
+    if (code > 255) code = 255;
+    buffers[(int)code][0] = (char)code;
+    buffers[(int)code][1] = 0;
+    return buffers[(int)code];
+}
+
 // === isatty ===
 // Returns 1 if stdout is connected to an interactive terminal, 0 otherwise.
 // Used by progress-UI code to gate carriage-return / spinner output.
