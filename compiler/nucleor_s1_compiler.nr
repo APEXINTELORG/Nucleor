@@ -2643,6 +2643,9 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "profile_start") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "profile_end") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "py_eval") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "getenv") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "env_get") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "env_unset") { if idx == 0 { return 1; }; return 0; };
     return 0;
 }
 

@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.56] — 2026-04-22
+
+**Tools-binary IR-gen tables fully synced — eliminates compile-time
+drift between `nucleor` and `nucleor_tools`.**
+
+### Fixed — 351-entry `get_rt_name` drift, 11-entry `is_ptr_ret` drift, 40+-entry `is_ptr_arg` drift, 347-entry IR `declare` drift
+
+The `nucleor_tools` binary carries its own copies of `get_rt_name`,
+`is_ptr_ret`, `is_ptr_arg`, and the static IR `declare` block — each
+needed by its `compile_file_mode` driver (used by `nuc test`,
+`nuc build-strict`, `nuc check`, etc.). They had drifted from
+`nucleor_s1_compiler.nr` over many releases:
+
+```
+get_rt_name:    144 entries → 495 entries  (+351)
+is_ptr_ret:      8 entries →  19 entries   (+11)
+is_ptr_arg:    ~24 entries → ~64 entries   (+40, full sync)
+IR `declare`:  180 lines  → 527 lines     (+347)
+```
+
+Symptom: any source built through the tools-side `compile_file_mode`
+that called recently-added stdlib symbols emitted unprefixed
+`@<name>` calls and missing IR declares, then failed to link. The
+isolation harness path (v0.1.55) hit this for `getenv`; the
+`#[test]` path hit it for `assert_ne`; and almost every helper
+shipped after v0.1.10 was latently broken in tools-driven compiles.
+
+Production-grade fix: bulk-synced all four tables from the s1
+compiler (which is the canonical source). New regression evidence:
+`bin/nucleor.exe test examples/13_test_framework.nr` now passes
+all four `#[test]` functions both inline and under
+`--isolation=process`.
+
+### Added — RFC-0021 phase 4 (verify gate ↔ `nuc test`) — PARTIAL
+
+`nuc test` is now proven against `examples/13_test_framework.nr`:
+4 `#[test]` functions discovered, compiled to a single harness, and
+run successfully under both default and `--isolation=process` modes.
+Migrating the existing `tests/<dir>/*.nr` gate corpus to `#[test]`
+functions is a v0.4 housekeeping task — they currently use
+`fn main() -> i32` returning 0/1, which the gate already runs cleanly.
+
+### Verify gate
+
+155/155 green on Windows. Self-host LLVM IR fixed point preserved
+(v50==v51 byte-identical despite the table sync growing the IR
+declare block by 347 lines).
+
 ## [0.1.55] — 2026-04-22
 
 **RFC-0021 phase 2: `nuc test --isolation=process` + RFC-0019 lockfile/workspace tracker reconciliation.**
