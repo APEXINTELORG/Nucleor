@@ -100,6 +100,21 @@ const char *__nucleor_format_f64(const char *tmpl, long long b) {
     return __nuc_render_format(tmpl, buf);
 }
 
+// Bool: i64 (0 = false, anything else = true) -> "true"/"false".
+const char *__nucleor_format_bool(const char *tmpl, long long b) {
+    return __nuc_render_format(tmpl, b == 0 ? "false" : "true");
+}
+
+// Three-i64-placeholder format. Same {} convention; left-to-right.
+const char *__nucleor_format3_iii(const char *tmpl, long long a, long long b, long long c) {
+    const char *s1 = __nucleor_format_i64(tmpl, a);
+    const char *s2 = __nucleor_format_i64(s1, b);
+    free((void *)s1);
+    const char *out = __nucleor_format_i64(s2, c);
+    free((void *)s2);
+    return out;
+}
+
 
 // === Stdin read helpers (RFC-0015 phase 4 completion) ===
 // read_line: returns a newline-terminated input line as a heap-allocated str
@@ -694,6 +709,49 @@ long long __nucleor_vec_max_f64(NVec *v) {
         if (u.d > m.d) m = u;
     }
     return m.i;
+}
+
+// === RFC-0024 phase 1 (cont): Vec<i64> arithmetic helpers ===
+// vec_avg_i64    — integer mean (truncated)
+// vec_dot_i64    — sum-of-element-product of two equal-length vecs
+// vec_count_eq_i64 — number of elements equal to needle
+// vec_any_i64    — 1 if any elem matches predicate fn, else 0
+// vec_all_i64    — 1 if every elem matches predicate fn, else 0
+
+long long __nucleor_vec_avg_i64(NVec *v) {
+    if (!v || v->len == 0) return 0;
+    long long s = 0;
+    for (int i = 0; i < v->len; i++) s += v->data[i];
+    return s / (long long)v->len;
+}
+
+long long __nucleor_vec_dot_i64(NVec *a, NVec *b) {
+    if (!a || !b) return 0;
+    int n = a->len < b->len ? a->len : b->len;
+    long long s = 0;
+    for (int i = 0; i < n; i++) s += a->data[i] * b->data[i];
+    return s;
+}
+
+long long __nucleor_vec_count_eq_i64(NVec *v, long long needle) {
+    if (!v) return 0;
+    long long c = 0;
+    for (int i = 0; i < v->len; i++) if (v->data[i] == needle) c++;
+    return c;
+}
+
+long long __nucleor_vec_any_i64(NVec *v, long long fn_ptr) {
+    if (!v || !fn_ptr) return 0;
+    long long (*pred)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
+    for (int i = 0; i < v->len; i++) if (pred(v->data[i]) != 0) return 1;
+    return 0;
+}
+
+long long __nucleor_vec_all_i64(NVec *v, long long fn_ptr) {
+    if (!v || !fn_ptr) return v ? 1 : 0;
+    long long (*pred)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
+    for (int i = 0; i < v->len; i++) if (pred(v->data[i]) == 0) return 0;
+    return 1;
 }
 
 // __nucleor_str_split — needs NVec; defined here (forward-declared

@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.13] — 2026-04-22
+
+**Vec arithmetic + format extensions (8 helpers).**
+
+```nucleor
+fn is_pos(x: i64) -> i64 { if x > 0 { return 1; }; return 0; }
+
+fn main() -> i64 {
+    let mut v: Vec<i32> = Vec::new();
+    v.push(2); v.push(4); v.push(6); v.push(8);
+    let mut w: Vec<i32> = Vec::new();
+    w.push(1); w.push(2); w.push(3); w.push(4);
+
+    vec_avg_i64(v);                    // 5 (truncated mean)
+    vec_dot_i64(v, w);                 // 60 (sum of products)
+    vec_count_eq_i64(v, 4);            // 1
+    vec_any_i64(v, is_pos);            // 1
+    vec_all_i64(v, is_pos);            // 1
+
+    format_bool("flag = {}", 1);       // "flag = true"
+    format3_iii("{}/{}/{}", 1, 2, 3);  // "1/2/3"
+    return 0;
+}
+```
+
+Vec arithmetic helpers (avg/dot/count_eq/any/all) round out the
+v0.2.9 + v0.2.10 functional surface. `any`/`all` take a function
+pointer (predicate); the rest are pure reductions. `format_bool`
+adds the missing primitive scalar shape; `format3_iii` covers a
+common three-arg case (e.g. `"{}-{}-{}"` for date-like layouts).
+
+Wired through both compiler binaries with the drift-gate sync.
+
+### Verify gate
+
+163/163 green on Windows. New gate: `tests/runtime/vec_arith.nr`.
+Self-host LLVM IR fixed point preserved (v98==v99 byte-identical).
+
 ## [0.2.12] — 2026-04-22
 
 **`nuc install --git <url> [--rev <ref>]` stub (RFC-0019 phase 3 partial).**
