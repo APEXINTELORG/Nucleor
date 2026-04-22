@@ -639,6 +639,56 @@ void __nucleor_vec_set(NVec *v, long long i, long long x) {
     v->data[(int)i] = x;
 }
 
+// --- v0.2.22: vec extras ---
+long long __nucleor_vec_first(NVec *v) {
+    if (!v || v->len <= 0) return 0;
+    return v->data[0];
+}
+long long __nucleor_vec_last(NVec *v) {
+    if (!v || v->len <= 0) return 0;
+    return v->data[v->len - 1];
+}
+long long __nucleor_vec_is_empty(NVec *v) {
+    if (!v) return 1;
+    return v->len == 0 ? 1 : 0;
+}
+void __nucleor_vec_swap(NVec *v, long long i, long long j) {
+    if (!v) return;
+    if (i < 0 || j < 0 || i >= v->len || j >= v->len) return;
+    long long tmp = v->data[(int)i];
+    v->data[(int)i] = v->data[(int)j];
+    v->data[(int)j] = tmp;
+}
+void __nucleor_vec_extend(NVec *dst, NVec *src) {
+    if (!dst || !src) return;
+    for (int i = 0; i < src->len; i++) {
+        __nucleor_vec_push(dst, src->data[i]);
+    }
+}
+void __nucleor_vec_remove_at(NVec *v, long long i) {
+    if (!v || i < 0 || i >= v->len) return;
+    int idx = (int)i;
+    for (int k = idx; k < v->len - 1; k++) {
+        v->data[k] = v->data[k + 1];
+    }
+    v->len--;
+}
+void __nucleor_vec_insert_at(NVec *v, long long i, long long x) {
+    if (!v) return;
+    int idx = (int)i;
+    if (idx < 0) idx = 0;
+    if (idx > v->len) idx = v->len;
+    if (v->len >= v->cap) {
+        v->cap *= 2;
+        v->data = (long long *)realloc(v->data, v->cap * sizeof(long long));
+    }
+    for (int k = v->len; k > idx; k--) {
+        v->data[k] = v->data[k - 1];
+    }
+    v->data[idx] = x;
+    v->len++;
+}
+
 // === RFC-0024 phase 1: Vec<i64> functional helpers ===
 // All take a Nucleor function pointer (i64 cell holding the function
 // address) and apply it across the vec. The function-pointer arg

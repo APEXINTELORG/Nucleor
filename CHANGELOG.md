@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.22] — 2026-04-22
+
+**Vec mutation + accessor extras (7 helpers).**
+
+```nucleor
+let v: Vec<i64> = vec_new();
+vec_push(v, 10); vec_push(v, 20); vec_push(v, 30);
+
+vec_first(v);              // 10
+vec_last(v);               // 30
+vec_is_empty(v);           // 0
+
+vec_swap(v, 0, 2);         // [30, 20, 10]
+vec_insert_at(v, 1, 99);   // [30, 99, 20, 10]
+vec_remove_at(v, 0);       // [99, 20, 10]
+
+let other: Vec<i64> = vec_new();
+vec_push(other, 7); vec_push(other, 8);
+vec_extend(v, other);      // [99, 20, 10, 7, 8]
+```
+
+Rounds out the v0.1 mutating Vec surface
+(`vec_new / vec_push / vec_pop / vec_get / vec_set / vec_len`).
+
+- **`vec_first` / `vec_last`** return `0` for empty vecs (matches the
+  `vec_get` out-of-bounds convention).
+- **`vec_is_empty`** is `vec_len(v) == 0` as a one-liner.
+- **`vec_swap(v, i, j)`** is a simple in-place swap; out-of-bounds
+  indices are silently no-op (consistent with the rest of the Vec
+  surface).
+- **`vec_extend(dst, src)`** appends every element of `src` to `dst`
+  via the existing growth strategy.
+- **`vec_remove_at` / `vec_insert_at`** shift in-place; insert clamps
+  the index into `[0, len]` so passing `len` is "push to end".
+
+All seven take `Vec<i64>` (or two) as their primary argument; three
+return i64, four are void. Wired through both compiler binaries with
+the drift-gate sync (`get_rt_name` + `is_void_ret` + `is_ptr_arg` +
+IR `declare` tables).
+
+### Verify gate
+
+171/172 green on Windows + 1 skip. New gate: `tests/runtime/vec_extras.nr`.
+Self-host LLVM IR fixed point preserved (v120==v121 byte-identical).
+
 ## [0.2.21] — 2026-04-22
 
 **Time decomposition + elapsed (9 helpers).**
