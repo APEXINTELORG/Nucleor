@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.16] — 2026-04-22
+
+**HashMap iteration + ISO 8601 time formatting (4 helpers).**
+
+```nucleor
+let m: i64 = hashmap_new();
+hashmap_insert(m, "alpha", 1);
+hashmap_insert(m, "beta", 2);
+let keys: Vec<i32> = hashmap_keys(m);     // Vec<str>
+let vals: Vec<i32> = hashmap_values(m);   // Vec<i64>
+
+let now: str = time_iso_now();            // "2026-04-22T18:30:00Z"
+let then: str = time_format_iso(0);       // "1970-01-01T00:00:00Z"
+```
+
+`hashmap_keys` / `hashmap_values` walk the underlying open-addressed
+slot table — iteration order is stable for a given hashmap state but
+unrelated to insertion order. Use `vec_sum_i64` / `vec_min_i64` etc.
+on values when order doesn't matter.
+
+`time_iso_now` / `time_format_iso` use `gmtime_r` (POSIX) or
+`gmtime_s` (Win32). Output is always UTC with the trailing `Z`
+suffix; length is exactly 20 chars.
+
+Wired through both compiler binaries with the drift-gate sync.
+
+### Verify gate
+
+166/166 green on Windows. New gate:
+`tests/runtime/time_and_hashmap_iter.nr`. Self-host LLVM IR fixed
+point preserved (v104==v105 byte-identical).
+
 ## [0.2.15] — 2026-04-22
 
 **RNG primitives wired + latent linker gap closed.**
