@@ -236,6 +236,80 @@ const char *__nucleor_bool_to_str(long long v) {
     return out;
 }
 
+// --- v0.2.25: base-conversion (hex / binary / octal) ---
+// Stringifiers always emit unsigned 64-bit values (negative inputs are
+// reinterpreted as their two's-complement bit pattern). No "0x" / "0b"
+// prefix — callers prepend if they want one.
+const char *__nucleor_int_to_hex(long long v) {
+    char buf[20];
+    snprintf(buf, sizeof(buf), "%llx", (unsigned long long)v);
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return out;
+}
+const char *__nucleor_int_to_bin(long long v) {
+    unsigned long long u = (unsigned long long)v;
+    if (u == 0) {
+        char *z = (char *)malloc(2); z[0] = '0'; z[1] = 0;
+        return z;
+    }
+    char buf[65];
+    int i = 64;
+    buf[i] = 0;
+    while (u) {
+        buf[--i] = (char)('0' + (int)(u & 1ULL));
+        u >>= 1;
+    }
+    size_t L = (size_t)(64 - i);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf + i, L + 1);
+    return out;
+}
+const char *__nucleor_int_to_oct(long long v) {
+    char buf[24];
+    snprintf(buf, sizeof(buf), "%llo", (unsigned long long)v);
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return out;
+}
+// Parsers tolerate leading whitespace, optional sign, and the standard
+// "0x" / "0X" / "0b" / "0B" / "0o" / "0O" prefixes when radix matches.
+// Returns 0 on completely-malformed input.
+long long __nucleor_str_to_i64_radix(const char *s, long long radix) {
+    if (!s || radix < 2 || radix > 36) return 0;
+    while (*s == ' ' || *s == '\t' || *s == '\n' || *s == '\r') s++;
+    int neg = 0;
+    if (*s == '-') { neg = 1; s++; }
+    else if (*s == '+') { s++; }
+    // Strip optional 0x/0b/0o prefix when radix matches.
+    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X') && radix == 16) s += 2;
+    else if (s[0] == '0' && (s[1] == 'b' || s[1] == 'B') && radix == 2) s += 2;
+    else if (s[0] == '0' && (s[1] == 'o' || s[1] == 'O') && radix == 8) s += 2;
+    long long v = 0;
+    int saw = 0;
+    while (*s) {
+        long long digit;
+        if (*s >= '0' && *s <= '9') digit = (long long)(*s - '0');
+        else if (*s >= 'a' && *s <= 'z') digit = (long long)(*s - 'a' + 10);
+        else if (*s >= 'A' && *s <= 'Z') digit = (long long)(*s - 'A' + 10);
+        else break;
+        if (digit >= radix) break;
+        v = v * radix + digit;
+        saw = 1;
+        s++;
+    }
+    if (!saw) return 0;
+    return neg ? -v : v;
+}
+long long __nucleor_parse_hex(const char *s) {
+    return __nucleor_str_to_i64_radix(s, 16);
+}
+long long __nucleor_parse_bin(const char *s) {
+    return __nucleor_str_to_i64_radix(s, 2);
+}
+
 
 // === Stdin read helpers (RFC-0015 phase 4 completion) ===
 // read_line: returns a newline-terminated input line as a heap-allocated str
