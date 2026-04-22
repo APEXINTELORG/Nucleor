@@ -1773,6 +1773,148 @@ long long __nucleor_hashset_free(long long h) {
     return __nucleor_hashmap_free(h);
 }
 
+// === RFC-0017 phase 3: BTreeMap<str, i64> ===
+// Ordered associative map. Keys stored sorted; iteration yields sorted order.
+// Implementation: sorted array with binary search — O(log n) get, O(n) insert
+// (linear shift). Real B-tree with O(log n) insert arrives in v0.4 RFC-0017
+// full impl. Shape-stable API; user code written today transitions cleanly.
+
+typedef struct {
+    char **keys;
+    long long *vals;
+    long long len;
+    long long cap;
+} NBTreeMap;
+
+static long long __nuc_btreemap_bsearch(NBTreeMap *m, const char *key) {
+    // Returns index where key is, or -(insertion_point + 1) if missing.
+    long long lo = 0, hi = m->len - 1;
+    while (lo <= hi) {
+        long long mid = (lo + hi) / 2;
+        int cmp = strcmp(m->keys[mid], key);
+        if (cmp == 0) return mid;
+        if (cmp < 0) lo = mid + 1;
+        else hi = mid - 1;
+    }
+    return -(lo + 1);
+}
+
+long long __nucleor_btreemap_new(void) {
+    NBTreeMap *m = (NBTreeMap *)malloc(sizeof(NBTreeMap));
+    m->cap = 8;
+    m->keys = (char **)malloc((size_t)m->cap * sizeof(char *));
+    m->vals = (long long *)malloc((size_t)m->cap * sizeof(long long));
+    m->len = 0;
+    return (long long)(intptr_t)m;
+}
+long long __nucleor_btreemap_insert(long long h, const char *key, long long val) {
+    NBTreeMap *m = (NBTreeMap *)(intptr_t)h;
+    if (!m || !key) return 0;
+    long long idx = __nuc_btreemap_bsearch(m, key);
+    if (idx >= 0) {
+        // Update existing
+        m->vals[idx] = val;
+        return 0;
+    }
+    long long ins = -idx - 1;
+    if (m->len >= m->cap) {
+        m->cap *= 2;
+        m->keys = (char **)realloc(m->keys, (size_t)m->cap * sizeof(char *));
+        m->vals = (long long *)realloc(m->vals, (size_t)m->cap * sizeof(long long));
+    }
+    // Shift right
+    long long i;
+    for (i = m->len; i > ins; i--) {
+        m->keys[i] = m->keys[i - 1];
+        m->vals[i] = m->vals[i - 1];
+    }
+    size_t klen = strlen(key);
+    m->keys[ins] = (char *)malloc(klen + 1);
+    memcpy(m->keys[ins], key, klen + 1);
+    m->vals[ins] = val;
+    m->len++;
+    return 0;
+}
+long long __nucleor_btreemap_get(long long h, const char *key) {
+    NBTreeMap *m = (NBTreeMap *)(intptr_t)h;
+    if (!m || !key) return 0;
+    long long idx = __nuc_btreemap_bsearch(m, key);
+    if (idx < 0) return 0;
+    return m->vals[idx];
+}
+long long __nucleor_btreemap_contains(long long h, const char *key) {
+    NBTreeMap *m = (NBTreeMap *)(intptr_t)h;
+    if (!m || !key) return 0;
+    return __nuc_btreemap_bsearch(m, key) >= 0 ? 1 : 0;
+}
+long long __nucleor_btreemap_remove(long long h, const char *key) {
+    NBTreeMap *m = (NBTreeMap *)(intptr_t)h;
+    if (!m || !key) return 0;
+    long long idx = __nuc_btreemap_bsearch(m, key);
+    if (idx < 0) return 0;
+    free(m->keys[idx]);
+    long long i;
+    for (i = idx; i < m->len - 1; i++) {
+        m->keys[i] = m->keys[i + 1];
+        m->vals[i] = m->vals[i + 1];
+    }
+    m->len--;
+    return 1;
+}
+long long __nucleor_btreemap_len(long long h) {
+    NBTreeMap *m = (NBTreeMap *)(intptr_t)h;
+    if (!m) return 0;
+    return m->len;
+}
+// Sorted iteration: access by position.
+long long __nucleor_btreemap_key_at(long long h, long long pos) {
+    NBTreeMap *m = (NBTreeMap *)(intptr_t)h;
+    if (!m || pos < 0 || pos >= m->len) return 0;
+    return (long long)(intptr_t)m->keys[pos];
+}
+long long __nucleor_btreemap_val_at(long long h, long long pos) {
+    NBTreeMap *m = (NBTreeMap *)(intptr_t)h;
+    if (!m || pos < 0 || pos >= m->len) return 0;
+    return m->vals[pos];
+}
+long long __nucleor_btreemap_clear(long long h) {
+    NBTreeMap *m = (NBTreeMap *)(intptr_t)h;
+    if (!m) return 0;
+    long long i;
+    for (i = 0; i < m->len; i++) free(m->keys[i]);
+    m->len = 0;
+    return 0;
+}
+long long __nucleor_btreemap_free(long long h) {
+    NBTreeMap *m = (NBTreeMap *)(intptr_t)h;
+    if (!m) return 0;
+    long long i;
+    for (i = 0; i < m->len; i++) free(m->keys[i]);
+    free(m->keys);
+    free(m->vals);
+    free(m);
+    return 0;
+}
+
+// === RFC-0017 phase 3: BTreeSet<str> ===
+// Ordered set, implemented atop BTreeMap with value = 1.
+long long __nucleor_btreeset_new(void) { return __nucleor_btreemap_new(); }
+long long __nucleor_btreeset_insert(long long h, const char *key) {
+    return __nucleor_btreemap_insert(h, key, 1);
+}
+long long __nucleor_btreeset_contains(long long h, const char *key) {
+    return __nucleor_btreemap_contains(h, key);
+}
+long long __nucleor_btreeset_remove(long long h, const char *key) {
+    return __nucleor_btreemap_remove(h, key);
+}
+long long __nucleor_btreeset_len(long long h) { return __nucleor_btreemap_len(h); }
+long long __nucleor_btreeset_at(long long h, long long pos) {
+    return __nucleor_btreemap_key_at(h, pos);
+}
+long long __nucleor_btreeset_clear(long long h) { return __nucleor_btreemap_clear(h); }
+long long __nucleor_btreeset_free(long long h) { return __nucleor_btreemap_free(h); }
+
 // === RFC-0015 phase 6: bf16 / f16 / f8 software emulation ===
 // All packed in low N bits of i64 storage. Compute happens at f32 precision
 // via convert-up / convert-down round-trip.
