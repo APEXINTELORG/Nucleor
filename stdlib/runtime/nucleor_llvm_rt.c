@@ -408,6 +408,75 @@ void __nucleor_vec_set(NVec *v, long long i, long long x) {
     v->data[(int)i] = x;
 }
 
+// === RFC-0024 phase 1: Vec<i64> functional helpers ===
+// All take a Nucleor function pointer (i64 cell holding the function
+// address) and apply it across the vec. The function-pointer arg
+// matches Nucleor's existing par_map/par_fold convention.
+//
+//   vec_map_i64(v, fn)        — new Vec where each elem is fn(elem)
+//   vec_filter_i64(v, pred)   — new Vec containing elems where pred(elem) != 0
+//   vec_fold_i64(v, init, fn) — fold left: acc = fn(acc, elem) starting at init
+//   vec_each_i64(v, fn)       — fold-without-accumulator (for side effects)
+//   vec_sum_i64(v)            — sum of all elements (i64)
+//   vec_min_i64(v)            — minimum element (returns 0 if empty)
+//   vec_max_i64(v)            — maximum element (returns 0 if empty)
+
+NVec *__nucleor_vec_map_i64(NVec *v, long long fn_ptr) {
+    if (!v || !fn_ptr) return __nucleor_vec_new();
+    long long (*fn)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
+    NVec *out = __nucleor_vec_new();
+    for (int i = 0; i < v->len; i++) {
+        __nucleor_vec_push(out, fn(v->data[i]));
+    }
+    return out;
+}
+
+NVec *__nucleor_vec_filter_i64(NVec *v, long long fn_ptr) {
+    if (!v || !fn_ptr) return __nucleor_vec_new();
+    long long (*pred)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
+    NVec *out = __nucleor_vec_new();
+    for (int i = 0; i < v->len; i++) {
+        if (pred(v->data[i]) != 0) __nucleor_vec_push(out, v->data[i]);
+    }
+    return out;
+}
+
+long long __nucleor_vec_fold_i64(NVec *v, long long init, long long fn_ptr) {
+    if (!v || !fn_ptr) return init;
+    long long (*fn)(long long, long long) = (long long (*)(long long, long long))(void *)(intptr_t)fn_ptr;
+    long long acc = init;
+    for (int i = 0; i < v->len; i++) acc = fn(acc, v->data[i]);
+    return acc;
+}
+
+long long __nucleor_vec_each_i64(NVec *v, long long fn_ptr) {
+    if (!v || !fn_ptr) return 0;
+    long long (*fn)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
+    for (int i = 0; i < v->len; i++) fn(v->data[i]);
+    return (long long)v->len;
+}
+
+long long __nucleor_vec_sum_i64(NVec *v) {
+    if (!v) return 0;
+    long long s = 0;
+    for (int i = 0; i < v->len; i++) s += v->data[i];
+    return s;
+}
+
+long long __nucleor_vec_min_i64(NVec *v) {
+    if (!v || v->len == 0) return 0;
+    long long m = v->data[0];
+    for (int i = 1; i < v->len; i++) if (v->data[i] < m) m = v->data[i];
+    return m;
+}
+
+long long __nucleor_vec_max_i64(NVec *v) {
+    if (!v || v->len == 0) return 0;
+    long long m = v->data[0];
+    for (int i = 1; i < v->len; i++) if (v->data[i] > m) m = v->data[i];
+    return m;
+}
+
 // === StringBuilder (amortized O(1) append, avoids O(n^2) str_concat) ===
 typedef struct { char *data; int len; int cap; } NStrBuilder;
 

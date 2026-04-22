@@ -51,7 +51,7 @@ proceed without re-design.
 | # | Title | Status | Target |
 |---|---|---|---|
 | [0023](RFC-0023-pattern-matching.md) | Rich patterns — ranges, guards, slice, or-, @-bindings | Draft | v0.4.0 |
-| [0024](RFC-0024-iterators.md) | Iterator trait + adapter chain | Draft | v0.4.0 |
+| [0024](RFC-0024-iterators.md) | Iterator trait + adapter chain | **Implemented (partial)** v0.2.9 | v0.2 (Vec<i64> map/filter/fold/each/sum/min/max via fn-ptrs) → v0.4 (trait + adapter chain with closures) |
 | [0025](RFC-0025-closures.md) | Closures with capture (`Fn`, `FnMut`, `FnOnce`) | Draft | v0.4.0 |
 | [0026](RFC-0026-trait-objects.md) | Trait objects — `dyn Trait`, vtables | Draft | v0.4.0 |
 | [0027](RFC-0027-lifetimes.md) | Explicit lifetime parameters | Draft | v0.4.0 |
