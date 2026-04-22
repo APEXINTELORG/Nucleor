@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.33] — 2026-04-22
+
+**RFC-0019 phase 1 start: minimal TOML parser for `nuc.toml`.**
+
+### Added — TOML parser
+
+A line-based parser sufficient for v0.2.0 manifests (full RFC-0019
+toml.nr rod with arrays / floats / dates / inline tables in v0.4):
+
+- **`toml_parse_string(src) -> i64`** — parses TOML text, returns
+  HashMap handle keyed by `"section.key"` (dotted form for nested
+  sections, e.g. `profile.release.opt_level`).
+- **`toml_parse_file(path) -> i64`** — file convenience wrapper.
+- **`toml_get_str/get_int/has(map, key)`** — accessors.
+
+### Supported subset
+
+- `[section]` headers (any depth via dotted `[a.b.c]`)
+- `key = "string"` — string values (heap-allocated, pointer in map)
+- `key = 42` — integer values (stored directly)
+- `key = true / false` — booleans (stored as 1 / 0)
+- `# comment` — line comments
+- Trailing whitespace and `\r\n` tolerated
+
+### Out of scope (later phases)
+
+- Arrays (`x = [1, 2, 3]`)
+- Inline tables (`x = { a = 1, b = 2 }`)
+- Floats, dates, multi-line strings
+- Quoted keys with spaces
+
+### Verify gate
+
+128/128 green on Windows. Self-host LLVM IR fixed point preserved.
+New gate test: `tests/lang/toml_basic.nr` (8 sub-cases including
+section, dotted section, types).
+
 ## [0.1.32] — 2026-04-22
 
 **RFC-0018 / RFC-0019 prerequisite: file system primitives.**

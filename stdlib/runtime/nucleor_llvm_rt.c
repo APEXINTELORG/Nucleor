@@ -2118,6 +2118,145 @@ long long __nucleor_fs_extension(const char *path) {
     return (long long)(intptr_t)out;
 }
 
+// === RFC-0019 phase 1: minimal TOML parser ===
+// Stores parsed key→value pairs in an NHashMap. Supports:
+//   - [section] headers (keys are emitted as "section.subkey")
+//   - key = "string"
+//   - key = 42  (integers)
+//   - key = true / false  (stored as 1 / 0)
+//   - # line comments
+//   - [a.b.c] dotted sections
+// Out of scope (later phases): arrays, inline tables, multi-line strings,
+// floats, dates. Full RFC-0019 toml.nr rod arrives in v0.4.
+
+static void __nuc_toml_strip(char *s) {
+    // Trim trailing whitespace including \r
+    long n = (long)strlen(s);
+    while (n > 0 && (s[n-1] == ' ' || s[n-1] == '\t' || s[n-1] == '\r' || s[n-1] == '\n')) {
+        s[--n] = 0;
+    }
+}
+static char *__nuc_toml_skip_ws(char *p) {
+    while (*p == ' ' || *p == '\t') p++;
+    return p;
+}
+
+long long __nucleor_toml_parse_string(const char *src) {
+    // Parse TOML source string; return NHashMap handle with "section.key" → packed value.
+    // Values that are strings get heap-allocated and the hashmap stores a pointer-as-i64.
+    // Values that are integers/bool stored directly.
+    NHashMap *m = (NHashMap *)(intptr_t)__nucleor_hashmap_new();
+    if (!src) return (long long)(intptr_t)m;
+
+    char section[256] = "";
+    const char *p = src;
+    char line[4096];
+
+    while (*p) {
+        // Read one line
+        size_t n = 0;
+        while (*p && *p != '\n' && n < sizeof(line) - 1) {
+            line[n++] = *p++;
+        }
+        line[n] = 0;
+        if (*p == '\n') p++;
+
+        char *l = line;
+        l = __nuc_toml_skip_ws(l);
+        __nuc_toml_strip(l);
+        if (*l == 0 || *l == '#') continue;
+
+        if (*l == '[') {
+            // Section header
+            l++;
+            char *e = strchr(l, ']');
+            if (!e) continue;
+            size_t slen = (size_t)(e - l);
+            if (slen >= sizeof(section)) slen = sizeof(section) - 1;
+            memcpy(section, l, slen);
+            section[slen] = 0;
+            // Trim section name
+            char *s2 = section;
+            while (*s2 == ' ' || *s2 == '\t') s2++;
+            if (s2 != section) memmove(section, s2, strlen(s2) + 1);
+            __nuc_toml_strip(section);
+            continue;
+        }
+
+        // key = value
+        char *eq = strchr(l, '=');
+        if (!eq) continue;
+        *eq = 0;
+        char *key = l;
+        char *val = eq + 1;
+        __nuc_toml_strip(key);
+        val = __nuc_toml_skip_ws(val);
+        __nuc_toml_strip(val);
+
+        // Build full key
+        char fkey[512];
+        if (section[0]) {
+            snprintf(fkey, sizeof(fkey), "%s.%s", section, key);
+        } else {
+            snprintf(fkey, sizeof(fkey), "%s", key);
+        }
+
+        // Parse value
+        if (*val == '"') {
+            // String value — strip quotes
+            char *vend = strrchr(val, '"');
+            if (vend && vend > val) {
+                *vend = 0;
+                val++;
+                size_t vlen = strlen(val);
+                char *copy = (char *)malloc(vlen + 1);
+                memcpy(copy, val, vlen + 1);
+                __nucleor_hashmap_insert((long long)(intptr_t)m, fkey, (long long)(intptr_t)copy);
+            }
+        } else if (strcmp(val, "true") == 0) {
+            __nucleor_hashmap_insert((long long)(intptr_t)m, fkey, 1);
+        } else if (strcmp(val, "false") == 0) {
+            __nucleor_hashmap_insert((long long)(intptr_t)m, fkey, 0);
+        } else {
+            // Integer (best effort)
+            char *end;
+            long long iv = strtoll(val, &end, 10);
+            if (end != val) {
+                __nucleor_hashmap_insert((long long)(intptr_t)m, fkey, iv);
+            }
+        }
+    }
+
+    return (long long)(intptr_t)m;
+}
+
+long long __nucleor_toml_parse_file(const char *path) {
+    if (!path) return __nucleor_hashmap_new();
+    FILE *f = fopen(path, "rb");
+    if (!f) return __nucleor_hashmap_new();
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char *buf = (char *)malloc((size_t)sz + 1);
+    fread(buf, 1, (size_t)sz, f);
+    buf[sz] = 0;
+    fclose(f);
+    long long m = __nucleor_toml_parse_string(buf);
+    free(buf);
+    return m;
+}
+
+// Helper to read a string value from the parsed hashmap.
+long long __nucleor_toml_get_str(long long h, const char *key) {
+    return __nucleor_hashmap_get(h, key);
+}
+long long __nucleor_toml_get_int(long long h, const char *key) {
+    return __nucleor_hashmap_get(h, key);
+}
+long long __nucleor_toml_has(long long h, const char *key) {
+    return __nucleor_hashmap_contains(h, key);
+}
+
 // === RFC-0015 phase 6: bf16 / f16 / f8 software emulation ===
 // All packed in low N bits of i64 storage. Compute happens at f32 precision
 // via convert-up / convert-down round-trip.

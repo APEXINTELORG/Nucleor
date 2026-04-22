@@ -2316,6 +2316,12 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "fs_basename") { return "__nucleor_fs_basename"; };
     if str_eq(name, "fs_dirname") { return "__nucleor_fs_dirname"; };
     if str_eq(name, "fs_extension") { return "__nucleor_fs_extension"; };
+    // RFC-0019 phase 1: TOML parser
+    if str_eq(name, "toml_parse_string") { return "__nucleor_toml_parse_string"; };
+    if str_eq(name, "toml_parse_file") { return "__nucleor_toml_parse_file"; };
+    if str_eq(name, "toml_get_str") { return "__nucleor_toml_get_str"; };
+    if str_eq(name, "toml_get_int") { return "__nucleor_toml_get_int"; };
+    if str_eq(name, "toml_has") { return "__nucleor_toml_has"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2414,6 +2420,11 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "fs_basename") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "fs_dirname") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "fs_extension") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "toml_parse_string") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "toml_parse_file") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "toml_get_str") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "toml_get_int") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "toml_has") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "str_len") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_eq") { return 1; };
     if str_eq(name, "str_char_at") { if idx == 0 { return 1; }; return 0; };
@@ -3086,6 +3097,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_fs_basename(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_fs_dirname(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_fs_extension(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_toml_parse_string(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_toml_parse_file(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_toml_get_str(i64, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_toml_get_int(i64, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_toml_has(i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");
