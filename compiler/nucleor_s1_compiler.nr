@@ -2083,6 +2083,16 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "checked_sub") { return "__nucleor_checked_sub_i64"; };
     if str_eq(name, "checked_mul") { return "__nucleor_checked_mul_i64"; };
     if str_eq(name, "checked_overflow_flag") { return "__nucleor_checked_overflow_flag"; };
+    // RFC-0015 phase 5: per-width print helpers
+    if str_eq(name, "print_i8") { return "__nucleor_print_i8"; };
+    if str_eq(name, "print_i16") { return "__nucleor_print_i16"; };
+    if str_eq(name, "print_i32") { return "__nucleor_print_i32"; };
+    if str_eq(name, "print_u8") { return "__nucleor_print_u8"; };
+    if str_eq(name, "print_u16") { return "__nucleor_print_u16"; };
+    if str_eq(name, "print_u32") { return "__nucleor_print_u32"; };
+    if str_eq(name, "print_u64") { return "__nucleor_print_u64"; };
+    if str_eq(name, "print_hex") { return "__nucleor_print_hex"; };
+    if str_eq(name, "print_bin") { return "__nucleor_print_bin"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2637,6 +2647,15 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_checked_sub_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_checked_mul_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_checked_overflow_flag()\n");
+    sb_append(sb, "declare i64 @__nucleor_print_i8(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_print_i16(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_print_i32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_print_u8(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_print_u16(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_print_u32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_print_u64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_print_hex(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_print_bin(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");

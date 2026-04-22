@@ -800,6 +800,47 @@ long long __nucleor_checked_overflow_flag(void) {
     return __nucleor_overflow_flag;
 }
 
+// === RFC-0015 phase 5: per-width print helpers ===
+// Print the underlying value at the declared type's display width.
+// Today storage is uniformly i64; these helpers ensure correct
+// signed/unsigned formatting per RFC-0015 type semantics.
+long long __nucleor_print_i8(long long v) {
+    long long t = v & 0xFFLL;
+    if (t & 0x80LL) t |= 0xFFFFFFFFFFFFFF00LL;
+    printf("%lld\n", t);
+    return 0;
+}
+long long __nucleor_print_i16(long long v) {
+    long long t = v & 0xFFFFLL;
+    if (t & 0x8000LL) t |= 0xFFFFFFFFFFFF0000LL;
+    printf("%lld\n", t);
+    return 0;
+}
+long long __nucleor_print_i32(long long v) {
+    long long t = v & 0xFFFFFFFFLL;
+    if (t & 0x80000000LL) t |= 0xFFFFFFFF00000000LL;
+    printf("%lld\n", t);
+    return 0;
+}
+long long __nucleor_print_u8(long long v)  { printf("%llu\n", (unsigned long long)(v & 0xFFLL)); return 0; }
+long long __nucleor_print_u16(long long v) { printf("%llu\n", (unsigned long long)(v & 0xFFFFLL)); return 0; }
+long long __nucleor_print_u32(long long v) { printf("%llu\n", (unsigned long long)(v & 0xFFFFFFFFLL)); return 0; }
+long long __nucleor_print_u64(long long v) { printf("%llu\n", (unsigned long long)v); return 0; }
+
+// Hex/binary print helpers
+long long __nucleor_print_hex(long long v) { printf("%llx\n", (unsigned long long)v); return 0; }
+long long __nucleor_print_bin(long long v) {
+    char buf[65]; buf[64] = 0;
+    int i;
+    for (i = 0; i < 64; i++) {
+        buf[63 - i] = ((v >> i) & 1) ? '1' : '0';
+    }
+    int start = 0;
+    while (start < 63 && buf[start] == '0') start++;
+    printf("%s\n", buf + start);
+    return 0;
+}
+
 // === RNG ===
 // Pull in rng_rt.c so nuc_rng_* symbols are available without a separate
 // link step. The compiler emits __nucleor_rng_seed/etc. which forward to
