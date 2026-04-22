@@ -107,7 +107,7 @@ for d in "${TEST_DIRS[@]}"; do
 done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
-STEP_TOTAL=$((1 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+STEP_TOTAL=$((2 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -167,8 +167,13 @@ self_host_rebuild() {
     [ -x "target/verify_compiler" ] || [ -x "target/verify_compiler.exe" ]
 }
 
+compiler_tables_synced() {
+    bash "$ROOT/tools/check_compiler_drift.sh" >/tmp/_nuc_step.log 2>&1
+}
+
 # --- Run gate -----------------------------------------------------------
 step "binary present" check_binary
+step "compiler ABI tables synced" compiler_tables_synced
 
 for ex in "${EXAMPLES[@]}"; do
     step "example $ex" build_example "$ex"
