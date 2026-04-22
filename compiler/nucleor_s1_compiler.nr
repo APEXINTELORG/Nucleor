@@ -1378,7 +1378,12 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let mut vname: str = "";
         let mut binding: str = "";
         if att == 2 {
-            // Integer literal pattern (token value is already i64)
+            // Integer literal pattern (token value is already i64).
+            // RFC-0023 §3.1 range patterns (`1..=9`) deferred to v0.4 with
+            // generic enums — encoding LO/HI in the existing arm tuple
+            // (which assumes vname:i64-or-str + binding:str semantics) is
+            // too fragile without a richer arm AST node. The lower-side
+            // __range / __range_bad handlers below are wired and waiting.
             ename = "__int";
             vname = pkv(tokens, cp);
             cp = cp + 1;
@@ -5001,8 +5006,20 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 has_wildcard = 1;
                 if wildcard_idx < 0 { wildcard_idx = ai; };
             };
+            // RFC-0023 §3.1 + MATCH-007: range pattern with bounds in
+            // wrong order (LO > HI) — would never match.
+            if str_eq(ename, "__range_bad") {
+                let src: str = source_text;
+                let ln: i64 = find_in_source(src, fn_name, "match");
+                diag_add(own_get_type(own, "__diags"), "warning", "type", "MATCH-007", str_concat("range pattern bounds in wrong order at arm ", str_concat(str_from_int(ai + 1), " — pattern can never match")), fn_name, ln);
+                warns = warns + 1;
+            };
             let binding: str = node_field(pool, arm_nid, 3);
-            if str_len(binding) > 0 {
+            // For __range / __range_bad the `binding` field holds the
+            // string-encoded high bound (e.g. "9"), not a variable name.
+            // Skip the binding-as-variable scope setup for those arms.
+            let is_range: i64 = if str_eq(ename, "__range") == 1 || str_eq(ename, "__range_bad") == 1 { 1 } else { 0 };
+            if is_range == 0 && str_len(binding) > 0 {
                 own_set(own, binding, 1);
                 own_set_type(own, binding, "i64");
                 own_set_mutable(own, binding, 0);
@@ -6526,6 +6543,34 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     ir_block_add(ab, ir_store(rv, tmp));
                     ir_block_add(ab, ir_br(ml));
                 };
+            } else if str_eq(ename, "__range") {
+                // RFC-0023 §3.1: range pattern. vname = LO (i64 cell),
+                // binding = str_from_int(HI) (inclusive — half-open ranges
+                // were normalized at parse). Match if LO <= scrut && scrut
+                // <= HI.
+                let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
+                let lo_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(lo_r, vname));
+                let hi_n: i64 = str_to_int(binding);
+                let hi_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(hi_r, hi_n));
+                let lo_ok: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(11, lo_ok, lo_r, mv));
+                let hi_ok: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(11, hi_ok, mv, hi_r));
+                let both_r: i64 = ctr_next(regs); ir_block_add(cur, ir_binop(13, both_r, lo_ok, hi_ok));
+                ir_block_add(cur, ir_br_cond(both_r, al, nl));
+                let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
+                let arm_sym: Vec<i32> = sym_clone(sym);
+                let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                ab = lx_blk(bp);
+                let mut rv: i64 = lx_reg(bp);
+                if block_has_term(ab) == 0 {
+                    if rv < 0 { rv = ctr_next(regs); ir_block_add(ab, ir_const_int(rv, 0)); };
+                    ir_block_add(ab, ir_store(rv, tmp));
+                    ir_block_add(ab, ir_br(ml));
+                };
+            } else if str_eq(ename, "__range_bad") {
+                // MATCH-007 fired by the typecker (paired pass). Lower as
+                // never-match so program compiles; warning surfaces in the
+                // diagnostic stream.
+                ir_block_add(cur, ir_br(nl));
             } else if str_eq(ename, "__str") {
                 let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
                 let sidx: i64 = vec_len(strtab); strtab.push(vname);
