@@ -37,14 +37,14 @@ proceed without re-design.
 
 | # | Title | Status | Target |
 |---|---|---|---|
-| [0015](RFC-0015-numeric-types.md) | Numeric types — i8…i128, u8…u128, f16/bf16/f32/f64/f8 | Draft | v0.2.0 |
-| [0016](RFC-0016-result-option-match.md) | Result/Option/match/`?` | Draft | v0.2.0 |
-| [0017](RFC-0017-collections.md) | String, HashMap, BTreeMap, HashSet, VecDeque | Draft | v0.2.0 |
-| [0018](RFC-0018-modules.md) | Module system — `mod`, `pub`, `use`, paths | Draft | v0.2.0 |
-| [0019](RFC-0019-package-manager.md) | Package manager — `nuc.toml`, registry, resolver | Draft | v0.2.0 (resolver) → v0.5.0 (registry) |
-| [0020](RFC-0020-diagnostics.md) | Diagnostic upgrade — spans, snippets, color, fixes | Draft | v0.2.0 |
-| [0021](RFC-0021-test-framework.md) | Test framework — `#[test]`, `nuc test`, assertions | Draft | v0.2.0 |
-| [0022](RFC-0022-cross-platform.md) | Cross-platform — Linux, macOS, cross-compile | Draft | v0.2.0 → v0.5.0 |
+| [0015](RFC-0015-numeric-types.md) | Numeric types — i8…i128, u8…u128, f16/bf16/f32/f64/f8 | **Implemented (partial)** v0.1.46–v0.1.64 | v0.2.0 (lattice + cast warnings) → v0.4 (strict-mode) |
+| [0016](RFC-0016-result-option-match.md) | Result/Option/match/`?` | **Implemented (partial)** v0.1.50–v0.1.61 | v0.2.0 (`?` operator + MATCH-001/002) → v0.4 (generic enums) |
+| [0017](RFC-0017-collections.md) | String, HashMap, BTreeMap, HashSet, VecDeque | **Implemented** v0.1.27–v0.1.47 | v0.2.0 |
+| [0018](RFC-0018-modules.md) | Module system — `mod`, `pub`, `use`, paths | **Implemented (partial)** v0.1.52–v0.1.65 | v0.2.0 (`use std::` + `mod foo;` + `nuc fix --imports`) → v0.4 (resolver, `pub use`) |
+| [0019](RFC-0019-package-manager.md) | Package manager — `nuc.toml`, registry, resolver | **Implemented (partial)** v0.1.33–v0.1.55 | v0.2.0 (manifest, lockfile, install, workspace) → v0.5.0 (registry, PubGrub, git) |
+| [0020](RFC-0020-diagnostics.md) | Diagnostic upgrade — spans, snippets, color, fixes | **Implemented (partial)** v0.1.34–v0.1.59 | v0.2.0 (LineMap + JSON + 38 explain entries) → v0.4 (full span migration) |
+| [0021](RFC-0021-test-framework.md) | Test framework — `#[test]`, `nuc test`, assertions | **Implemented** v0.1.10–v0.1.55 | v0.2.0 |
+| [0022](RFC-0022-cross-platform.md) | Cross-platform — Linux, macOS, cross-compile | **Implemented (partial)** v0.1.30 (POSIX `nuc` wrapper, `_WIN32` audit) | v0.2.0 → v0.3.0 (Linux/macOS bin) → v0.5.0 (sysroots) |
 
 ### Tier 2 — language extensions (v0.4)
 
@@ -56,7 +56,7 @@ proceed without re-design.
 | [0026](RFC-0026-trait-objects.md) | Trait objects — `dyn Trait`, vtables | Draft | v0.4.0 |
 | [0027](RFC-0027-lifetimes.md) | Explicit lifetime parameters | Draft | v0.4.0 |
 | [0028](RFC-0028-format-strings.md) | Format strings — `format!`, `println!`, `Display`/`Debug` | Draft | v0.4.0 |
-| [0029](RFC-0029-doc-generator.md) | Documentation generator — `nuc doc`, `///` comments, doc tests | Draft | v0.4.0 |
+| [0029](RFC-0029-doc-generator.md) | Documentation generator — `nuc doc`, `///` comments, doc tests | **Implemented (skeleton)** v0.1.65 | v0.2.0 (skeleton) → v0.4 (param rendering, navigation, doc tests) |
 | [0030](RFC-0030-async-decision.md) | Async / await — decision and phased plan | Draft | v0.4 (decision) → v0.8 (sugar) |
 
 ### Tier 3 — Nucleor-unique differentiators
@@ -66,9 +66,11 @@ proceed without re-design.
 | [0031](RFC-0031-algebraic-laws.md) | Algebraic laws as a verified rewrite system | Draft | v0.5.0 |
 | [0032](RFC-0032-effects.md) | Effects — `pure fn`, `requires`, `restricts` | Draft | v0.6.0 |
 
-**32 RFCs drafted, all Draft status.** Together with the three
-process docs (`docs/process/`), they specify the full v0.2 → v0.8
-design surface for safety / robotics / AI.
+**32 RFCs drafted; 8 Tier-2 (RFC-0015..0022) + RFC-0029 carry
+Implemented or Implemented-partial status as of v0.1.65.**
+Together with the three process docs (`docs/process/`), they
+specify the full v0.2 → v0.8 design surface for safety / robotics
+/ AI.
 
 ## Process docs
 
