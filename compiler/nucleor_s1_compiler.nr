@@ -153,19 +153,63 @@ fn lex(src: str) -> Vec<i32> {
             tokens.push(tok_new(classify_kw(w), w, st));
         }
         else if is_digit(c) == 1 {
-            // RFC-0015 phase 1: integer/float lexer with underscore + type suffix support.
-            // Underscores inside the digit run are skipped (e.g. 1_000_000).
-            // Recognised suffixes: i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 (currently
-            // accepted by lexer; type-checker still treats all as i64/f64 until
-            // later phases of RFC-0015 ship). Suffix is consumed but not yet stored
-            // in the token (no breaking change to tok layout in this phase).
+            // RFC-0015 phase 1+5: integer/float lexer with hex/oct/bin literals,
+            // underscores, and type suffixes.
+            //   0x... = hex   (e.g., 0xAB, 0xFFFF_FFFF)
+            //   0o... = octal (e.g., 0o777)
+            //   0b... = binary (e.g., 0b1010_0001)
+            //   Otherwise decimal.
+            // Recognised suffixes: i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128
+            // usize (lexed; full type-check arrives in later phases).
             let st: i64 = p;
-            let mut digit_sb: i64 = sb_new();
-            while p < slen && (is_digit(str_char_at(src, p)) == 1 || str_char_at(src, p) == 95) {
-                if str_char_at(src, p) != 95 {
-                    sb_append(digit_sb, str_substring(src, p, p + 1));
+            let mut int_value: i64 = 0;
+            let mut handled_radix: i64 = 0;
+            // Detect 0x / 0o / 0b prefix
+            if c == 48 && p + 1 < slen {
+                let nx: i64 = str_char_at(src, p + 1);
+                if nx == 120 || nx == 88 {
+                    // hex
+                    p = p + 2;
+                    while p < slen {
+                        let hc: i64 = str_char_at(src, p);
+                        if hc == 95 { p = p + 1; }
+                        else if hc >= 48 && hc <= 57 { int_value = int_value * 16 + (hc - 48); p = p + 1; }
+                        else if hc >= 97 && hc <= 102 { int_value = int_value * 16 + (hc - 87); p = p + 1; }
+                        else if hc >= 65 && hc <= 70 { int_value = int_value * 16 + (hc - 55); p = p + 1; }
+                        else { break; };
+                    };
+                    handled_radix = 1;
+                } else if nx == 111 || nx == 79 {
+                    // octal
+                    p = p + 2;
+                    while p < slen {
+                        let oc: i64 = str_char_at(src, p);
+                        if oc == 95 { p = p + 1; }
+                        else if oc >= 48 && oc <= 55 { int_value = int_value * 8 + (oc - 48); p = p + 1; }
+                        else { break; };
+                    };
+                    handled_radix = 1;
+                } else if nx == 98 || nx == 66 {
+                    // binary
+                    p = p + 2;
+                    while p < slen {
+                        let bc: i64 = str_char_at(src, p);
+                        if bc == 95 { p = p + 1; }
+                        else if bc == 48 { int_value = int_value * 2; p = p + 1; }
+                        else if bc == 49 { int_value = int_value * 2 + 1; p = p + 1; }
+                        else { break; };
+                    };
+                    handled_radix = 1;
                 };
-                p = p + 1;
+            };
+            let mut digit_sb: i64 = sb_new();
+            if handled_radix == 0 {
+                while p < slen && (is_digit(str_char_at(src, p)) == 1 || str_char_at(src, p) == 95) {
+                    if str_char_at(src, p) != 95 {
+                        sb_append(digit_sb, str_substring(src, p, p + 1));
+                    };
+                    p = p + 1;
+                };
             };
             // Check for f64 literal: digits DOT digits
             if p < slen && str_char_at(src, p) == 46 && p + 1 < slen && is_digit(str_char_at(src, p + 1)) == 1 {
@@ -206,7 +250,8 @@ fn lex(src: str) -> Vec<i32> {
                     p = p + 1;
                 }
             } else {
-                tokens.push(tok_new(2, str_to_int(sb_to_str(digit_sb)), st));
+                let int_lit_value: i64 = if handled_radix == 1 { int_value } else { str_to_int(sb_to_str(digit_sb)) };
+                tokens.push(tok_new(2, int_lit_value, st));
                 // Consume optional integer suffix: i8 i16 i32 i64 u8 u16 u32 u64 usize isize
                 if p < slen && (str_char_at(src, p) == 105 || str_char_at(src, p) == 117) {
                     let suf_st: i64 = p;
@@ -2093,6 +2138,22 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "print_u64") { return "__nucleor_print_u64"; };
     if str_eq(name, "print_hex") { return "__nucleor_print_hex"; };
     if str_eq(name, "print_bin") { return "__nucleor_print_bin"; };
+    // RFC-0015 phase 5b: typed Vec storage
+    if str_eq(name, "vec_u8_new") { return "__nucleor_vec_u8_new"; };
+    if str_eq(name, "vec_u8_with_capacity") { return "__nucleor_vec_u8_with_capacity"; };
+    if str_eq(name, "vec_u8_push") { return "__nucleor_vec_u8_push"; };
+    if str_eq(name, "vec_u8_get") { return "__nucleor_vec_u8_get"; };
+    if str_eq(name, "vec_u8_set") { return "__nucleor_vec_u8_set"; };
+    if str_eq(name, "vec_u8_len") { return "__nucleor_vec_u8_len"; };
+    if str_eq(name, "vec_u8_capacity") { return "__nucleor_vec_u8_capacity"; };
+    if str_eq(name, "vec_u8_clear") { return "__nucleor_vec_u8_clear"; };
+    if str_eq(name, "vec_u8_free") { return "__nucleor_vec_u8_free"; };
+    if str_eq(name, "vec_f32_new") { return "__nucleor_vec_f32_new"; };
+    if str_eq(name, "vec_f32_with_capacity") { return "__nucleor_vec_f32_with_capacity"; };
+    if str_eq(name, "vec_f32_push_bits") { return "__nucleor_vec_f32_push_bits"; };
+    if str_eq(name, "vec_f32_get_bits") { return "__nucleor_vec_f32_get_bits"; };
+    if str_eq(name, "vec_f32_len") { return "__nucleor_vec_f32_len"; };
+    if str_eq(name, "vec_f32_free") { return "__nucleor_vec_f32_free"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2656,6 +2717,21 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_print_u64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_print_hex(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_print_bin(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_u8_new()\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_u8_with_capacity(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_u8_push(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_u8_get(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_u8_set(i64, i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_u8_len(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_u8_capacity(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_u8_clear(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_u8_free(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_f32_new()\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_f32_with_capacity(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_f32_push_bits(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_f32_get_bits(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_f32_len(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_f32_free(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");
