@@ -1048,6 +1048,159 @@ long long __nucleor_eprint_int(long long v) {
     return 0;
 }
 
+// === RFC-0033 (preview): SIMD vector types ===
+// Software-emulated for now. Hardware-native via LLVM intrinsics in
+// v0.4+ when the IR supports vector ops natively.
+//
+// Storage: heap-allocated vector handle, accessed via i64 (intptr).
+// f32x4 = packed 4 × f32; f32x8 = 8 × f32 (AVX/AVX2 path); etc.
+
+typedef struct { float lanes[4]; } NF32x4;
+typedef struct { float lanes[8]; } NF32x8;
+typedef struct { int   lanes[4]; } NI32x4;
+typedef struct { int   lanes[8]; } NI32x8;
+
+long long __nucleor_f32x4_new(long long a, long long b, long long c, long long d) {
+    NF32x4 *v = (NF32x4 *)malloc(sizeof(NF32x4));
+    v->lanes[0] = __nuc_bits_to_f32(a);
+    v->lanes[1] = __nuc_bits_to_f32(b);
+    v->lanes[2] = __nuc_bits_to_f32(c);
+    v->lanes[3] = __nuc_bits_to_f32(d);
+    return (long long)(intptr_t)v;
+}
+long long __nucleor_f32x4_splat(long long bits) {
+    NF32x4 *v = (NF32x4 *)malloc(sizeof(NF32x4));
+    float f = __nuc_bits_to_f32(bits);
+    v->lanes[0] = v->lanes[1] = v->lanes[2] = v->lanes[3] = f;
+    return (long long)(intptr_t)v;
+}
+long long __nucleor_f32x4_get(long long h, long long lane) {
+    NF32x4 *v = (NF32x4 *)(intptr_t)h;
+    if (!v || lane < 0 || lane >= 4) return 0;
+    return __nuc_f32_to_bits(v->lanes[lane]);
+}
+long long __nucleor_f32x4_add(long long ah, long long bh) {
+    NF32x4 *a = (NF32x4 *)(intptr_t)ah;
+    NF32x4 *b = (NF32x4 *)(intptr_t)bh;
+    NF32x4 *r = (NF32x4 *)malloc(sizeof(NF32x4));
+    int i;
+    for (i = 0; i < 4; i++) r->lanes[i] = a->lanes[i] + b->lanes[i];
+    return (long long)(intptr_t)r;
+}
+long long __nucleor_f32x4_sub(long long ah, long long bh) {
+    NF32x4 *a = (NF32x4 *)(intptr_t)ah;
+    NF32x4 *b = (NF32x4 *)(intptr_t)bh;
+    NF32x4 *r = (NF32x4 *)malloc(sizeof(NF32x4));
+    int i;
+    for (i = 0; i < 4; i++) r->lanes[i] = a->lanes[i] - b->lanes[i];
+    return (long long)(intptr_t)r;
+}
+long long __nucleor_f32x4_mul(long long ah, long long bh) {
+    NF32x4 *a = (NF32x4 *)(intptr_t)ah;
+    NF32x4 *b = (NF32x4 *)(intptr_t)bh;
+    NF32x4 *r = (NF32x4 *)malloc(sizeof(NF32x4));
+    int i;
+    for (i = 0; i < 4; i++) r->lanes[i] = a->lanes[i] * b->lanes[i];
+    return (long long)(intptr_t)r;
+}
+long long __nucleor_f32x4_div(long long ah, long long bh) {
+    NF32x4 *a = (NF32x4 *)(intptr_t)ah;
+    NF32x4 *b = (NF32x4 *)(intptr_t)bh;
+    NF32x4 *r = (NF32x4 *)malloc(sizeof(NF32x4));
+    int i;
+    for (i = 0; i < 4; i++) r->lanes[i] = a->lanes[i] / b->lanes[i];
+    return (long long)(intptr_t)r;
+}
+long long __nucleor_f32x4_dot(long long ah, long long bh) {
+    NF32x4 *a = (NF32x4 *)(intptr_t)ah;
+    NF32x4 *b = (NF32x4 *)(intptr_t)bh;
+    float s = 0.0f;
+    int i;
+    for (i = 0; i < 4; i++) s += a->lanes[i] * b->lanes[i];
+    return __nuc_f32_to_bits(s);
+}
+long long __nucleor_f32x4_sum(long long h) {
+    NF32x4 *v = (NF32x4 *)(intptr_t)h;
+    if (!v) return __nuc_f32_to_bits(0.0f);
+    return __nuc_f32_to_bits(v->lanes[0] + v->lanes[1] + v->lanes[2] + v->lanes[3]);
+}
+long long __nucleor_f32x4_max(long long h) {
+    NF32x4 *v = (NF32x4 *)(intptr_t)h;
+    if (!v) return __nuc_f32_to_bits(0.0f);
+    float m = v->lanes[0];
+    int i;
+    for (i = 1; i < 4; i++) if (v->lanes[i] > m) m = v->lanes[i];
+    return __nuc_f32_to_bits(m);
+}
+long long __nucleor_f32x4_min(long long h) {
+    NF32x4 *v = (NF32x4 *)(intptr_t)h;
+    if (!v) return __nuc_f32_to_bits(0.0f);
+    float m = v->lanes[0];
+    int i;
+    for (i = 1; i < 4; i++) if (v->lanes[i] < m) m = v->lanes[i];
+    return __nuc_f32_to_bits(m);
+}
+long long __nucleor_f32x4_free(long long h) {
+    NF32x4 *v = (NF32x4 *)(intptr_t)h;
+    if (v) free(v);
+    return 0;
+}
+
+// i32x4 — packed 4 × i32
+long long __nucleor_i32x4_new(long long a, long long b, long long c, long long d) {
+    NI32x4 *v = (NI32x4 *)malloc(sizeof(NI32x4));
+    v->lanes[0] = (int)(a & 0xFFFFFFFFLL);
+    v->lanes[1] = (int)(b & 0xFFFFFFFFLL);
+    v->lanes[2] = (int)(c & 0xFFFFFFFFLL);
+    v->lanes[3] = (int)(d & 0xFFFFFFFFLL);
+    return (long long)(intptr_t)v;
+}
+long long __nucleor_i32x4_splat(long long val) {
+    NI32x4 *v = (NI32x4 *)malloc(sizeof(NI32x4));
+    int x = (int)(val & 0xFFFFFFFFLL);
+    v->lanes[0] = v->lanes[1] = v->lanes[2] = v->lanes[3] = x;
+    return (long long)(intptr_t)v;
+}
+long long __nucleor_i32x4_get(long long h, long long lane) {
+    NI32x4 *v = (NI32x4 *)(intptr_t)h;
+    if (!v || lane < 0 || lane >= 4) return 0;
+    return (long long)v->lanes[lane];
+}
+long long __nucleor_i32x4_add(long long ah, long long bh) {
+    NI32x4 *a = (NI32x4 *)(intptr_t)ah;
+    NI32x4 *b = (NI32x4 *)(intptr_t)bh;
+    NI32x4 *r = (NI32x4 *)malloc(sizeof(NI32x4));
+    int i;
+    for (i = 0; i < 4; i++) r->lanes[i] = a->lanes[i] + b->lanes[i];
+    return (long long)(intptr_t)r;
+}
+long long __nucleor_i32x4_sub(long long ah, long long bh) {
+    NI32x4 *a = (NI32x4 *)(intptr_t)ah;
+    NI32x4 *b = (NI32x4 *)(intptr_t)bh;
+    NI32x4 *r = (NI32x4 *)malloc(sizeof(NI32x4));
+    int i;
+    for (i = 0; i < 4; i++) r->lanes[i] = a->lanes[i] - b->lanes[i];
+    return (long long)(intptr_t)r;
+}
+long long __nucleor_i32x4_mul(long long ah, long long bh) {
+    NI32x4 *a = (NI32x4 *)(intptr_t)ah;
+    NI32x4 *b = (NI32x4 *)(intptr_t)bh;
+    NI32x4 *r = (NI32x4 *)malloc(sizeof(NI32x4));
+    int i;
+    for (i = 0; i < 4; i++) r->lanes[i] = a->lanes[i] * b->lanes[i];
+    return (long long)(intptr_t)r;
+}
+long long __nucleor_i32x4_sum(long long h) {
+    NI32x4 *v = (NI32x4 *)(intptr_t)h;
+    if (!v) return 0;
+    return (long long)(v->lanes[0] + v->lanes[1] + v->lanes[2] + v->lanes[3]);
+}
+long long __nucleor_i32x4_free(long long h) {
+    NI32x4 *v = (NI32x4 *)(intptr_t)h;
+    if (v) free(v);
+    return 0;
+}
+
 // === RFC-0015 phase 6: bf16 / f16 / f8 software emulation ===
 // All packed in low N bits of i64 storage. Compute happens at f32 precision
 // via convert-up / convert-down round-trip.

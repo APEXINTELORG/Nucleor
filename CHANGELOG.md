@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.26] — 2026-04-22
+
+**RFC-0033 (preview): SIMD vector types — `f32x4`, `i32x4`.**
+
+### Added — SIMD primitives (software-emulated)
+
+- **`f32x4`** (4 packed f32):
+  - `f32x4_new(a, b, c, d)`, `f32x4_splat(x)`, `f32x4_get(v, lane)`
+  - `f32x4_add/sub/mul/div`
+  - `f32x4_dot(a, b)`, `f32x4_sum(v)`, `f32x4_max(v)`, `f32x4_min(v)`
+  - `f32x4_free(v)`
+- **`i32x4`** (4 packed i32):
+  - `i32x4_new`, `i32x4_splat`, `i32x4_get`
+  - `i32x4_add/sub/mul`, `i32x4_sum`
+  - `i32x4_free`
+
+### Implementation note
+
+Currently software-emulated via heap-allocated structs. Hardware
+vectorization (AVX/AVX2/NEON) arrives in v0.4 when the IR supports
+LLVM `<4 x float>` vector ops natively. The API is shape-stable —
+user code written today will benefit transparently from the
+hardware path later.
+
+### Verify gate
+
+119/119 green on Windows. Self-host LLVM IR fixed point preserved.
+New gate test: `tests/lang/simd_basic.nr` (~12 sub-cases).
+
 ## [0.1.25] — 2026-04-22
 
 Debug + stderr helper builtins.
