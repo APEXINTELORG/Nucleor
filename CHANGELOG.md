@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.39] — 2026-04-22
+
+**RFC-0019 phase 1 ★ canonical `nuc.toml` + manifest validator.**
+
+### Added — canonical `nuc.toml`
+
+- `nuc.toml` at repo root — fully populated example matching the
+  v0.2.0 schema (RFC-0019 §3.1):
+  - `[package]` with name, version, edition, license, description,
+    repository
+  - `[features]` with `default = ["showcase"]`, `embedded` placeholder
+  - `[profile.dev / release / safe-release / cert]` per RFC-0001
+- Full inline schema documentation; eats own dog food.
+
+### Added — manifest validator runtime
+
+- `manifest_validate(toml_handle) -> i64` — bitfield of issues:
+  - `0x01` — package.name missing
+  - `0x02` — package.version missing
+  - `0x04` — package.edition missing
+  - `0x08` — package.license missing
+  - `0x10` — version not semver-shaped
+  - `0x20` — edition unknown
+- `manifest_report(issues) -> str` — human-readable description.
+- Exposed in `stdlib/rods/toml.nr` as `toml_manifest_check`,
+  `toml_manifest_describe`, `toml_manifest_ok`.
+
+### Verify gate
+
+140/140 green on Windows. Self-host LLVM IR fixed point preserved.
+New gate test: `tests/lang/manifest_validate.nr` (6 sub-cases including
+shipped `nuc.toml` validation).
+
 ## [0.1.38] — 2026-04-22
 
 **Stdlib polish: fs_extras + simd + asserts rod wrappers.**

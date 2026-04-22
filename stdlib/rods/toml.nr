@@ -44,3 +44,14 @@ fn toml_string_or(t: i64, key: str, default: i64) -> i64 {
 
 // Free underlying HashMap when done.
 fn toml_free(t: i64) -> i64 { return hashmap_free(t); }
+
+// ---- Manifest validation (RFC-0019 phase 1) ----
+// Returns 0 if all required fields present + well-formed; bitfield
+// of issues otherwise (see __nucleor_manifest_validate header
+// for bit meanings). Use toml_manifest_report to render.
+fn toml_manifest_check(t: i64) -> i64 { return manifest_validate(t); }
+fn toml_manifest_describe(issues: i64) -> str { return manifest_report(issues); }
+fn toml_manifest_ok(t: i64) -> i64 {
+    if manifest_validate(t) == 0 { return 1; };
+    return 0;
+}

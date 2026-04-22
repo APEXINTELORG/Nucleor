@@ -2257,6 +2257,70 @@ long long __nucleor_toml_has(long long h, const char *key) {
     return __nucleor_hashmap_contains(h, key);
 }
 
+// === RFC-0019 phase 1: nuc.toml manifest validator ===
+// Validates a parsed manifest map against the v0.2.0 schema.
+// Returns a bitfield of issues, or 0 if all required fields present.
+//
+// Bits:
+//   0x01  package.name missing
+//   0x02  package.version missing
+//   0x04  package.edition missing
+//   0x08  package.license missing
+//   0x10  package.version not semver-shaped (basic check: contains a dot)
+//   0x20  edition not a known value
+//
+// Useful for CI / pre-commit / `nuc check` integrations.
+long long __nucleor_manifest_validate(long long h) {
+    if (h == 0) return 0xFF;  // empty map = everything missing
+    long long issues = 0;
+    if (__nucleor_hashmap_contains(h, "package.name") == 0)    issues |= 0x01;
+    if (__nucleor_hashmap_contains(h, "package.version") == 0) issues |= 0x02;
+    if (__nucleor_hashmap_contains(h, "package.edition") == 0) issues |= 0x04;
+    if (__nucleor_hashmap_contains(h, "package.license") == 0) issues |= 0x08;
+    // version semver shape check
+    if ((issues & 0x02) == 0) {
+        long long vptr = __nucleor_hashmap_get(h, "package.version");
+        const char *v = (const char *)(intptr_t)vptr;
+        if (v) {
+            int dots = 0, c;
+            for (c = 0; v[c]; c++) if (v[c] == '.') dots++;
+            if (dots < 2) issues |= 0x10;
+        }
+    }
+    // edition known value
+    if ((issues & 0x04) == 0) {
+        long long eptr = __nucleor_hashmap_get(h, "package.edition");
+        const char *e = (const char *)(intptr_t)eptr;
+        if (e && strcmp(e, "2026") != 0 && strcmp(e, "2027") != 0 && strcmp(e, "2028") != 0) {
+            issues |= 0x20;
+        }
+    }
+    return issues;
+}
+
+// Render a human-readable report of validation issues.
+// Returns owned C-string; caller frees.
+long long __nucleor_manifest_report(long long issues) {
+    char buf[2048];
+    int n = 0;
+    if (issues == 0) {
+        const char *ok = "manifest OK";
+        size_t l = strlen(ok);
+        char *out = (char *)malloc(l + 1);
+        memcpy(out, ok, l + 1);
+        return (long long)(intptr_t)out;
+    }
+    if (issues & 0x01) n += snprintf(buf + n, sizeof(buf) - (size_t)n, "missing required: package.name\n");
+    if (issues & 0x02) n += snprintf(buf + n, sizeof(buf) - (size_t)n, "missing required: package.version\n");
+    if (issues & 0x04) n += snprintf(buf + n, sizeof(buf) - (size_t)n, "missing required: package.edition\n");
+    if (issues & 0x08) n += snprintf(buf + n, sizeof(buf) - (size_t)n, "missing required: package.license\n");
+    if (issues & 0x10) n += snprintf(buf + n, sizeof(buf) - (size_t)n, "invalid: package.version is not semver-shaped (need MAJOR.MINOR.PATCH)\n");
+    if (issues & 0x20) n += snprintf(buf + n, sizeof(buf) - (size_t)n, "invalid: package.edition unknown (expected 2026, 2027, or 2028)\n");
+    char *out = (char *)malloc((size_t)n + 1);
+    memcpy(out, buf, (size_t)n + 1);
+    return (long long)(intptr_t)out;
+}
+
 // === RFC-0015 phase 6: bf16 / f16 / f8 software emulation ===
 // All packed in low N bits of i64 storage. Compute happens at f32 precision
 // via convert-up / convert-down round-trip.
