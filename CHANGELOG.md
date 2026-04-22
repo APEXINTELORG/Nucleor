@@ -5,6 +5,34 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.29] — 2026-04-22
+
+**Robotics-RFC §5.1 + RFC-0022: typed time, env vars, OS info.**
+
+### Added — typed time
+
+- **`time_monotonic_ns/us/ms()`** — never-decreasing monotonic clock.
+  Required for control-loop deadlines (per Robotics-RFC §5.1).
+- **`time_wall_ns/us/ms/seconds()`** — wall-clock time. Subject to
+  NTP / system-time changes; for human display, not deadlines.
+- **`sleep_ms(ms)`, `sleep_us(us)`** — best-effort sleep.
+
+### Added — environment
+
+- `env_get(name) -> ptr` — getenv wrapper, returns 0 if unset.
+- `env_set(name, value)` — setenv / `_putenv_s`.
+- `env_unset(name)` — unsetenv / `_putenv_s` with empty value.
+
+### Added — OS info
+
+- `process_id()` — current PID.
+- `os_family()` — tag (1=Win, 2=Linux, 3=Darwin, 4=BSD, 0=unknown).
+- `os_pointer_width()` — 32 or 64.
+
+### Verify gate
+
+122/122 green on Windows. New gate test: `tests/lang/time_env_os.nr`.
+
 ## [0.1.28] — 2026-04-22
 
 **RFC-0017 partial: HashMap<str, i64> with full open-addressed

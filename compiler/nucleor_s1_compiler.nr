@@ -2243,6 +2243,24 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "hashmap_capacity") { return "__nucleor_hashmap_capacity"; };
     if str_eq(name, "hashmap_clear") { return "__nucleor_hashmap_clear"; };
     if str_eq(name, "hashmap_free") { return "__nucleor_hashmap_free"; };
+    // Typed time
+    if str_eq(name, "time_monotonic_ns") { return "__nucleor_time_monotonic_ns"; };
+    if str_eq(name, "time_monotonic_us") { return "__nucleor_time_monotonic_us"; };
+    if str_eq(name, "time_monotonic_ms") { return "__nucleor_time_monotonic_ms"; };
+    if str_eq(name, "time_wall_ns") { return "__nucleor_time_wall_ns"; };
+    if str_eq(name, "time_wall_us") { return "__nucleor_time_wall_us"; };
+    if str_eq(name, "time_wall_ms") { return "__nucleor_time_wall_ms"; };
+    if str_eq(name, "time_wall_seconds") { return "__nucleor_time_wall_seconds"; };
+    if str_eq(name, "sleep_ms") { return "__nucleor_sleep_ms"; };
+    if str_eq(name, "sleep_us") { return "__nucleor_sleep_us"; };
+    // Env
+    if str_eq(name, "env_get") { return "__nucleor_env_get"; };
+    if str_eq(name, "env_set") { return "__nucleor_env_set"; };
+    if str_eq(name, "env_unset") { return "__nucleor_env_unset"; };
+    // OS info
+    if str_eq(name, "process_id") { return "__nucleor_process_id"; };
+    if str_eq(name, "os_family") { return "__nucleor_os_family"; };
+    if str_eq(name, "os_pointer_width") { return "__nucleor_os_pointer_width"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2310,6 +2328,9 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "hashmap_get") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "hashmap_contains") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "hashmap_remove") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "env_get") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "env_set") { return 1; };
+    if str_eq(name, "env_unset") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_len") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_eq") { return 1; };
     if str_eq(name, "str_char_at") { if idx == 0 { return 1; }; return 0; };
@@ -2914,6 +2935,21 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_hashmap_capacity(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_clear(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_free(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_time_monotonic_ns()\n");
+    sb_append(sb, "declare i64 @__nucleor_time_monotonic_us()\n");
+    sb_append(sb, "declare i64 @__nucleor_time_monotonic_ms()\n");
+    sb_append(sb, "declare i64 @__nucleor_time_wall_ns()\n");
+    sb_append(sb, "declare i64 @__nucleor_time_wall_us()\n");
+    sb_append(sb, "declare i64 @__nucleor_time_wall_ms()\n");
+    sb_append(sb, "declare i64 @__nucleor_time_wall_seconds()\n");
+    sb_append(sb, "declare i64 @__nucleor_sleep_ms(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_sleep_us(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_env_get(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_env_set(ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_env_unset(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_process_id()\n");
+    sb_append(sb, "declare i64 @__nucleor_os_family()\n");
+    sb_append(sb, "declare i64 @__nucleor_os_pointer_width()\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");

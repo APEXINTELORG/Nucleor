@@ -1524,6 +1524,117 @@ long long __nucleor_hashmap_free(long long h) {
     return 0;
 }
 
+// === RFC-0001 §5.1 / Robotics-RFC §5.1: typed time ===
+// Distinct monotonic vs wall-clock time.
+// Monotonic: never goes backwards; safe for control-loop deadlines.
+// Wall-clock: subject to NTP/sleep/system-time-changes; for human display.
+
+long long __nucleor_time_monotonic_ns(void) {
+#ifdef _WIN32
+    LARGE_INTEGER freq, count;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&count);
+    return (long long)((count.QuadPart * 1000000000LL) / freq.QuadPart);
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long long)(ts.tv_sec * 1000000000LL + ts.tv_nsec);
+#endif
+}
+long long __nucleor_time_monotonic_us(void) { return __nucleor_time_monotonic_ns() / 1000LL; }
+long long __nucleor_time_monotonic_ms(void) { return __nucleor_time_monotonic_ns() / 1000000LL; }
+
+long long __nucleor_time_wall_ns(void) {
+#ifdef _WIN32
+    FILETIME ft;
+    GetSystemTimePreciseAsFileTime(&ft);
+    long long ull = ((long long)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
+    // Convert from 100-ns intervals since Jan 1 1601 to ns since Unix epoch
+    return (ull - 116444736000000000LL) * 100LL;
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    return (long long)(ts.tv_sec * 1000000000LL + ts.tv_nsec);
+#endif
+}
+long long __nucleor_time_wall_us(void) { return __nucleor_time_wall_ns() / 1000LL; }
+long long __nucleor_time_wall_ms(void) { return __nucleor_time_wall_ns() / 1000000LL; }
+long long __nucleor_time_wall_seconds(void) { return __nucleor_time_wall_ns() / 1000000000LL; }
+
+long long __nucleor_sleep_ms(long long ms) {
+#ifdef _WIN32
+    Sleep((DWORD)ms);
+#else
+    struct timespec req;
+    req.tv_sec = ms / 1000;
+    req.tv_nsec = (ms % 1000) * 1000000L;
+    nanosleep(&req, NULL);
+#endif
+    return 0;
+}
+long long __nucleor_sleep_us(long long us) {
+#ifdef _WIN32
+    Sleep((DWORD)(us / 1000));
+#else
+    struct timespec req;
+    req.tv_sec = us / 1000000;
+    req.tv_nsec = (us % 1000000) * 1000L;
+    nanosleep(&req, NULL);
+#endif
+    return 0;
+}
+
+// === Environment variables ===
+long long __nucleor_env_get(const char *name) {
+    if (!name) return 0;
+    char *v = getenv(name);
+    return (long long)(intptr_t)v;
+}
+long long __nucleor_env_set(const char *name, const char *value) {
+    if (!name || !value) return -1;
+#ifdef _WIN32
+    return _putenv_s(name, value);
+#else
+    return setenv(name, value, 1);
+#endif
+}
+long long __nucleor_env_unset(const char *name) {
+    if (!name) return -1;
+#ifdef _WIN32
+    return _putenv_s(name, "");
+#else
+    return unsetenv(name);
+#endif
+}
+
+// === Process / OS info ===
+long long __nucleor_process_id(void) {
+#ifdef _WIN32
+    return (long long)GetCurrentProcessId();
+#else
+    return (long long)getpid();
+#endif
+}
+
+long long __nucleor_os_family(void) {
+    // Return a tag: 1 = windows, 2 = linux, 3 = darwin, 4 = bsd, 0 = unknown
+#if defined(_WIN32)
+    return 1;
+#elif defined(__APPLE__)
+    return 3;
+#elif defined(__linux__)
+    return 2;
+#elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    return 4;
+#else
+    return 0;
+#endif
+}
+
+long long __nucleor_os_pointer_width(void) {
+    return (long long)(sizeof(void *) * 8);
+}
+
 // === RFC-0015 phase 6: bf16 / f16 / f8 software emulation ===
 // All packed in low N bits of i64 storage. Compute happens at f32 precision
 // via convert-up / convert-down round-trip.
