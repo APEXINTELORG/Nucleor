@@ -7795,6 +7795,34 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "NR051") { return "WASM Backend Unavailable"; };
     if str_eq(code, "NR070") { return "Manifest or Lockfile Failure"; };
     if str_eq(code, "NR090") { return "Compiler Pipeline Invariant Failure"; };
+    // RFC-0001 RT attributes
+    if str_eq(code, "RT-001") { return "Allocation in #[no_alloc] function"; };
+    if str_eq(code, "RT-002") { return "Possibly-panicking expression in #[no_panic] function"; };
+    if str_eq(code, "RT-003") { return "Dynamic dispatch in #[no_dyn] function"; };
+    if str_eq(code, "RT-004") { return "Static WCET exceeds declared #[deadline]"; };
+    if str_eq(code, "RT-005") { return "FFI call in RT function without #[ffi_no_*] annotation"; };
+    if str_eq(code, "RT-006") { return "RT attribute on async fn"; };
+    if str_eq(code, "RT-007") { return "Deadline annotation without no_alloc or no_panic"; };
+    if str_eq(code, "RT-008") { return "Recursive call in #[deadline] function without #[max_depth]"; };
+    // RFC-0002 allocator types
+    if str_eq(code, "ALLOC-001") { return "Allocated value escapes its allocator"; };
+    if str_eq(code, "ALLOC-002") { return "Allocator type mismatch"; };
+    if str_eq(code, "ALLOC-003") { return "Allocation forbidden by #[no_alloc]"; };
+    // RFC-0003 typed frames
+    if str_eq(code, "FRAME-001") { return "Cannot add values in different coordinate frames"; };
+    if str_eq(code, "FRAME-002") { return "Transform composition mismatch"; };
+    if str_eq(code, "FRAME-003") { return "Cannot apply transform to value in incompatible frame"; };
+    // RFC-0015 numeric types
+    if str_eq(code, "NUM-001") { return "Mixed-width arithmetic without cast"; };
+    if str_eq(code, "NUM-002") { return "Numeric literal out of range for declared type"; };
+    if str_eq(code, "NUM-003") { return "Cast loses precision (warning)"; };
+    if str_eq(code, "NUM-005") { return "usize/isize mixed with explicit-width type"; };
+    // RFC-0016 match
+    if str_eq(code, "MATCH-001") { return "Non-exhaustive match"; };
+    if str_eq(code, "MATCH-002") { return "Unreachable match arm"; };
+    if str_eq(code, "MATCH-003") { return "Type mismatch between match arms"; };
+    if str_eq(code, "MATCH-004") { return "? in a function not returning Result/Option"; };
+    if str_eq(code, "MATCH-006") { return "unwrap() in #[no_panic] function"; };
     return "";
 }
 
@@ -7813,6 +7841,29 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "NR051") { return "WASM output was requested without the required backend support."; };
     if str_eq(code, "NR070") { return "Project metadata, dependency graph, or lockfile state is invalid."; };
     if str_eq(code, "NR090") { return "An internal compiler stage received invalid state from a previous pass."; };
+    if str_eq(code, "RT-001") { return "A #[no_alloc] function called something that allocates from the global heap."; };
+    if str_eq(code, "RT-002") { return "A #[no_panic] function contains an expression the compiler cannot prove is panic-free."; };
+    if str_eq(code, "RT-003") { return "A #[no_dyn] function uses dynamic (vtable) dispatch via dyn Trait."; };
+    if str_eq(code, "RT-004") { return "Static WCET analysis estimates the function exceeds its declared #[deadline]."; };
+    if str_eq(code, "RT-005") { return "An RT-tagged function called an extern fn lacking #[ffi_no_alloc] or #[ffi_no_panic]."; };
+    if str_eq(code, "RT-006") { return "RT attributes (#[no_alloc], #[deadline] etc.) cannot be applied to async fn — async semantics break the deadline guarantee."; };
+    if str_eq(code, "RT-007") { return "A #[deadline] annotation alone is incomplete — it is hard to reason about deadline without #[no_alloc] or #[no_panic]."; };
+    if str_eq(code, "RT-008") { return "A #[deadline] function uses recursion. Bound it with #[max_depth = N] (RFC-0014)."; };
+    if str_eq(code, "ALLOC-001") { return "A value allocated in an arena/pool/tlsf cannot outlive its allocator. The borrow checker rejects returning the value when the allocator goes out of scope."; };
+    if str_eq(code, "ALLOC-002") { return "Two values from different allocator types cannot be combined where one is required."; };
+    if str_eq(code, "ALLOC-003") { return "An allocation site reaches a #[no_alloc(...)] context that forbids that allocator."; };
+    if str_eq(code, "FRAME-001") { return "Spatial values in different coordinate frames cannot be combined directly. Transform via tf.lookup or apply an explicit Transform."; };
+    if str_eq(code, "FRAME-002") { return "Transform<A, B> * Transform<C, D> requires B == C. The compiler rejected the composition."; };
+    if str_eq(code, "FRAME-003") { return "Transform<A, B>.apply(Pose<C>) requires C == A. The compiler rejected the application."; };
+    if str_eq(code, "NUM-001") { return "Nucleor follows Rust's no-implicit-conversion rule. Cast explicitly with `as`: `(u8_val as i32) + i32_val`."; };
+    if str_eq(code, "NUM-002") { return "The literal does not fit in the declared type — e.g. 256u8 overflows u8."; };
+    if str_eq(code, "NUM-003") { return "An `as` cast may truncate or round. The warning is informational; promote to error with #![deny(precision_loss)]."; };
+    if str_eq(code, "NUM-005") { return "usize and isize are platform-pointer-width and incompatible with explicit i64 / u64 etc. without cast."; };
+    if str_eq(code, "MATCH-001") { return "The match does not cover all variants of the matched type. The compiler shows a witness uncovered value."; };
+    if str_eq(code, "MATCH-002") { return "An arm is preceded by patterns that already match every case it would handle."; };
+    if str_eq(code, "MATCH-003") { return "Match arm bodies must produce the same type (or () in statement context)."; };
+    if str_eq(code, "MATCH-004") { return "The ? operator desugars to a function-level early return; the function must return Result/Option for ? to type-check."; };
+    if str_eq(code, "MATCH-006") { return "unwrap() panics on Err/None. Use unwrap_or, ?, or match in #[no_panic] code."; };
     return "";
 }
 
@@ -7831,6 +7882,29 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "NR051") { return "The current CLI build does not include the backend support required for wasm code generation, or the wasm linker/toolchain is unavailable."; };
     if str_eq(code, "NR070") { return "Nucleor could not resolve the project package graph because the manifest was malformed, a dependency could not be found, or the lockfile was missing or stale."; };
     if str_eq(code, "NR090") { return "A compiler pipeline stage ran out of order or consumed data that was not produced by the earlier stage it depends on. This is an internal compiler bug, not a user program error."; };
+    if str_eq(code, "RT-001") { return "RFC-0001 #[no_alloc] forbids any expression whose effect set includes alloc. Common offenders: Box::new, Vec::push past capacity, String operations, HashMap::insert. Use a pre-sized container, an arena/pool/tlsf allocator (RFC-0002), or refactor the allocation outside the RT path."; };
+    if str_eq(code, "RT-002") { return "RFC-0001 #[no_panic] uses a conservative dataflow analysis. Sources of panic include integer overflow on +/-/*, division by zero, out-of-bounds indexing, unwrap() on Option/Result, and explicit panic!(). Use checked_*/wrapping_*/saturating_* arithmetic, guard divisions, use get() instead of [], and prove safety with assume! (RFC-0004)."; };
+    if str_eq(code, "RT-003") { return "RFC-0001 #[no_dyn] forbids dynamic dispatch via Box<dyn Trait> or &dyn Trait. Replace with generics (fn f<T: Trait>(x: T)) for static dispatch, or with an enum-based polymorphism pattern."; };
+    if str_eq(code, "RT-004") { return "RFC-0009 static WCET analysis estimates the function's worst-case time exceeds the deadline. Inspect the dominant cost in the report; reduce loop bounds, simplify hot paths, or relax the deadline if appropriate."; };
+    if str_eq(code, "RT-005") { return "Calls into C/C++ via extern fn are opaque to the analysis. Mark trusted FFI declarations with #[ffi_no_alloc, ffi_no_panic] (RFC-0001 §3.5) or use the audit manifest mechanism."; };
+    if str_eq(code, "RT-006") { return "async fn introduces poll-based scheduling and arbitrary suspend points. RT attributes promise bounded time and no allocation; the two are fundamentally incompatible. Refactor the function as sync, or use rod/tokio (RFC-0030) outside the RT path."; };
+    if str_eq(code, "RT-007") { return "Adding #[no_alloc] or #[no_panic] (or both) makes the deadline reasoning sound. The warning surfaces a likely-incomplete annotation."; };
+    if str_eq(code, "RT-008") { return "Deadline analysis cannot bound an unbounded recursion. Annotate the function with #[max_depth = N] per RFC-0014 to give the analyzer a depth bound."; };
+    if str_eq(code, "ALLOC-001") { return "Per RFC-0002, Box<T, A: Allocator> is bound by the lifetime of A. Returning a Box<T, Arena> from a fn whose Arena is local is rejected. Either pass &Arena into the fn (caller owns the arena), or copy the value into a Box<T, Global> before returning."; };
+    if str_eq(code, "ALLOC-002") { return "Allocator type is part of the value type. fn f(x: Box<T, Arena>) cannot accept a Box<T, Pool>. Use generics (fn f<A: Allocator>(x: Box<T, A>)) for allocator-agnostic APIs."; };
+    if str_eq(code, "ALLOC-003") { return "RFC-0001 #[no_alloc(...)] accepts an explicit allow-list of allowed allocators. The default #[no_alloc] forbids all four (global/arena/pool/tlsf); narrow with #[no_alloc(global)] etc."; };
+    if str_eq(code, "FRAME-001") { return "RFC-0003 typed frames make Pose<World> != Pose<BaseLink> at the type level. To combine, look up the transform: tf.lookup::<World, BaseLink>(time).apply(pose_world)."; };
+    if str_eq(code, "FRAME-002") { return "Transform composition Transform<A,B> * Transform<C,D> requires B == C. The compiler enforces the chain at compile time. Reorder, invert one transform, or look up an intermediate."; };
+    if str_eq(code, "FRAME-003") { return "Applying a Transform<From, To> requires the target value to be in the From frame. Convert via lookup of the appropriate transform."; };
+    if str_eq(code, "NUM-001") { return "Nucleor models on Rust: numeric types are distinct, no implicit conversion. Cast explicitly with `as`. Reasoning: silent conversions are a recurring bug source (truncation, sign extension)."; };
+    if str_eq(code, "NUM-002") { return "Numeric literal exceeds the declared type's range — e.g. 256u8, -1u32, 4_000_000_000i32. Use a wider type or change the literal."; };
+    if str_eq(code, "NUM-003") { return "Casting f64 to i32, i64 to i8 etc. may lose precision or wrap. The warning surfaces the risk; if intentional, suppress with #[allow(precision_loss)] on the call site."; };
+    if str_eq(code, "NUM-005") { return "usize/isize represent platform-pointer-width values used for indices and pointer arithmetic. Mixing with explicit i64/u64 risks portability bugs across 32-/64-bit targets."; };
+    if str_eq(code, "MATCH-001") { return "The match must cover every variant of the discriminant type, or use a wildcard (_) arm. Compiler shows the missing case."; };
+    if str_eq(code, "MATCH-002") { return "Patterns are tested in order. A later arm cannot match if an earlier arm covers all values it would handle."; };
+    if str_eq(code, "MATCH-003") { return "All arms in a match expression must yield the same type. Cast or restructure to align."; };
+    if str_eq(code, "MATCH-004") { return "The ? operator desugars to `match e { Ok(v) => v, Err(e) => return Err(e) }`. The function must return Result (or Option for option-?) for the desugar to type-check."; };
+    if str_eq(code, "MATCH-006") { return "Use unwrap_or, unwrap_or_else, ?, or match in #[no_panic] context. The compiler treats unwrap as may_panic."; };
     return "";
 }
 

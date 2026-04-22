@@ -1985,6 +1985,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "arena_destroy") { return "__nucleor_arena_destroy"; };
     if str_eq(name, "assert_eq") { return "__nucleor_assert_eq"; };
     if str_eq(name, "assert_ne") { return "__nucleor_assert_ne"; };
+    if str_eq(name, "panic") { return "__nucleor_panic"; };
     // V2: parallelism runtime
     if str_eq(name, "par_map") { return "__nucleor_par_map"; };
     if str_eq(name, "par_fold") { return "__nucleor_par_fold"; };
@@ -2039,6 +2040,7 @@ fn is_ptr_ret(name: str) -> i64 {
 }
 fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "print") { return 1; };
+    if str_eq(name, "panic") { return 1; };
     if str_eq(name, "str_len") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_eq") { return 1; };
     if str_eq(name, "str_char_at") { if idx == 0 { return 1; }; return 0; };
@@ -2517,6 +2519,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare void @__nucleor_arena_destroy(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_assert_eq(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_assert_ne(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_zeros(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_fill(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_tensor_ones(i64, i64)\n");
