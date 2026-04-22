@@ -7861,6 +7861,8 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "COLL-001") { return "K: Hash + Eq requirement violated"; };
     if str_eq(code, "COLL-002") { return "K: Ord requirement violated for BTree"; };
     if str_eq(code, "COLL-003") { return "Collection method that may grow used in #[no_alloc]"; };
+    if str_eq(code, "COLL-004") { return "Iterator invalidated by mutation during walk"; };
+    if str_eq(code, "COLL-005") { return "Index out of bounds on fixed-length collection"; };
     // RFC-0018 modules
     if str_eq(code, "MOD-001") { return "Module file not found at expected path"; };
     if str_eq(code, "MOD-002") { return "Path references non-existent module/item"; };
@@ -7949,6 +7951,8 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "COLL-001") { return "Hash-backed collections require K to implement both Hash + Eq."; };
     if str_eq(code, "COLL-002") { return "BTree-backed collections require K to implement Ord."; };
     if str_eq(code, "COLL-003") { return "push/insert/etc. may allocate to grow. In #[no_alloc] context use try_*-suffixed variants or pre-size with with_capacity."; };
+    if str_eq(code, "COLL-004") { return "Mutating a collection (push/remove/clear) while iterating it leaves the iterator pointing at stale or freed memory."; };
+    if str_eq(code, "COLL-005") { return "An index expression resolved to a value outside the collection's [0, len) bounds at compile time."; };
     if str_eq(code, "MOD-001") { return "`mod foo;` resolved to a path that does not exist on disk."; };
     if str_eq(code, "MOD-002") { return "A use path or full-path reference resolves to a module/item that doesn't exist."; };
     if str_eq(code, "MOD-003") { return "Item not pub for the access level used (pub, pub(crate), pub(super), or unrestricted)."; };
@@ -8034,6 +8038,8 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "COLL-001") { return "RFC-0017 §3.2 — derive Hash + Eq for K, or use BTreeMap which only requires Ord, or change to a key type that already implements both."; };
     if str_eq(code, "COLL-002") { return "RFC-0017 §3.3 — BTreeMap/BTreeSet rely on key ordering for sorted iteration and binary search. Derive Ord or implement it."; };
     if str_eq(code, "COLL-003") { return "RFC-0017 §3.7 — pre-size with with_capacity_in for the worst case, then use try_push / push_within_capacity which never reallocate."; };
+    if str_eq(code, "COLL-004") { return "RFC-0017 §3.4 — collect indices to mutate during the iteration into a Vec, then apply mutations after the iter completes. The borrow checker tracks shared/mut conflicts on the underlying buffer."; };
+    if str_eq(code, "COLL-005") { return "RFC-0017 §3.1 — fixed-length collections (arr[N], const-sized inline_vec) reject out-of-bounds accesses at compile time. Use a runtime-bounds-checked Vec, or guard with a length check."; };
     if str_eq(code, "MOD-001") { return "RFC-0018 §3.1 — `mod foo;` resolves to ./foo.nr or ./foo/mod.nr relative to the current file. Check the path or create the file."; };
     if str_eq(code, "MOD-002") { return "RFC-0018 §3.3 — verify the path. crate::x means project root; super::x means parent module; std::x means stdlib; <pkg>::x means registry dep."; };
     if str_eq(code, "MOD-003") { return "RFC-0018 §3.2 — add `pub` (or pub(crate)/pub(super)) to the item, or move the use site closer to where the item is visible."; };

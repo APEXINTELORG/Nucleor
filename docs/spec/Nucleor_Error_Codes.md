@@ -193,10 +193,20 @@ Pre-existing codes from the compiler front-end. See the existing
 | MATCH-009 | Slice pattern overlaps | [RFC-0023 §3.4](../rfcs/RFC-0023-pattern-matching.md) |
 | MATCH-010 | @-binding name collides with outer scope | [RFC-0023 §3.3](../rfcs/RFC-0023-pattern-matching.md) |
 
-## COLL / MOD / PKG / TGT series — v0.2.0 foundation
+## COLL series — RFC-0017 collections
 
-Reserved for RFCs 0017 (collections), 0018 (modules), 0019
-(packages), 0022 (cross-platform). Codes populate as those RFCs land.
+| Code | Title | RFC section |
+|---|---|---|
+| COLL-001 | HashMap/HashSet key type lacks `Hash + Eq` | [RFC-0017 §3.2](../rfcs/RFC-0017-collections.md) |
+| COLL-002 | BTreeMap/BTreeSet key type lacks `Ord` | [RFC-0017 §3.3](../rfcs/RFC-0017-collections.md) |
+| COLL-003 | Collection method that may grow used in `#[no_alloc]` | [RFC-0017 §3.5](../rfcs/RFC-0017-collections.md), [RFC-0001](../rfcs/RFC-0001-rt-attributes.md) |
+| COLL-004 | Iter invalidated by mutation during walk | [RFC-0017 §3.4](../rfcs/RFC-0017-collections.md) |
+| COLL-005 | Index out of bounds on fixed-length collection | [RFC-0017 §3.1](../rfcs/RFC-0017-collections.md) |
+
+## MOD / PKG / TGT series — v0.2.0 foundation
+
+Reserved for RFCs 0018 (modules), 0019 (packages), 0022
+(cross-platform). Codes populate as those RFCs land.
 
 ## ITER / CLO / DYN / LIFE / FMT / DOC — v0.4 Tier 2
 
