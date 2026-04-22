@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.42] — 2026-04-22
+
+**Crypto / hash / id helpers: CRC32, SHA-256, Base64, UUID v4.**
+
+### Added — hash + checksum
+
+- **`crc32(data, len) -> i64`** — IEEE 802.3 polynomial. MCAP, ZIP,
+  gzip, and the broader wire-format ecosystem.
+- **`crc32_update(crc, data, len)`** — streaming-friendly continuation.
+- **`sha256_hex(s) -> str`** — full SHA-256, returned as 64-char
+  lowercase hex. RFC-0019 package checksum foundation. Verified
+  against canonical test vectors (empty + "abc").
+
+### Added — Base64 (RFC 4648)
+
+- **`base64_encode(s) -> str`** — standard alphabet with `=` padding.
+- **`base64_decode(s) -> str`** — round-trip verified.
+
+### Added — UUID
+
+- **`uuid_v4() -> str`** — RFC 4122 random-based UUID, 8-4-4-4-12
+  hyphenated lowercase format. Version + variant bits set per spec.
+  Foundation for trace IDs (Robotics-RFC §5.4 OpenTelemetry rod
+  forthcoming).
+
+### Verify gate
+
+143/143 green on Windows. Self-host LLVM IR fixed point preserved.
+New gate test: `tests/lang/hash_b64_uuid.nr` (~12 sub-cases including
+SHA-256 canonical test vectors).
+
 ## [0.1.41] — 2026-04-22
 
 **Decisions §B5: byte-buffer + endian + MessagePack subset.**

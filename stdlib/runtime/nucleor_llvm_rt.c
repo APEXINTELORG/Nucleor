@@ -2431,6 +2431,224 @@ long long __nucleor_msgpack_write_uint(long long h, long long v) {
         return __nucleor_buf_write_u64_be(h, v);
     }
 }
+
+// === Hash + checksum helpers ===
+// CRC32 (IEEE 802.3 polynomial), used by MCAP, ZIP, gzip.
+long long __nucleor_crc32(const char *data, long long len) {
+    if (!data) return 0;
+    unsigned int crc = 0xFFFFFFFFU;
+    long long i;
+    for (i = 0; i < len; i++) {
+        unsigned int b = (unsigned char)data[i];
+        crc ^= b;
+        int j;
+        for (j = 0; j < 8; j++) {
+            crc = (crc >> 1) ^ (0xEDB88320U & (-(int)(crc & 1U)));
+        }
+    }
+    return (long long)(crc ^ 0xFFFFFFFFU);
+}
+long long __nucleor_crc32_update(long long crc, const char *data, long long len) {
+    if (!data) return crc;
+    unsigned int c = (unsigned int)crc ^ 0xFFFFFFFFU;
+    long long i;
+    for (i = 0; i < len; i++) {
+        unsigned int b = (unsigned char)data[i];
+        c ^= b;
+        int j;
+        for (j = 0; j < 8; j++) {
+            c = (c >> 1) ^ (0xEDB88320U & (-(int)(c & 1U)));
+        }
+    }
+    return (long long)(c ^ 0xFFFFFFFFU);
+}
+
+// SHA-256 — RFC-0019 package checksums + general hashing.
+typedef struct {
+    unsigned int state[8];
+    unsigned long long bit_count;
+    unsigned char buf[64];
+    unsigned int buf_len;
+} NucSha256Ctx;
+static const unsigned int __nuc_sha256_k[64] = {
+    0x428a2f98U,0x71374491U,0xb5c0fbcfU,0xe9b5dba5U,0x3956c25bU,0x59f111f1U,0x923f82a4U,0xab1c5ed5U,
+    0xd807aa98U,0x12835b01U,0x243185beU,0x550c7dc3U,0x72be5d74U,0x80deb1feU,0x9bdc06a7U,0xc19bf174U,
+    0xe49b69c1U,0xefbe4786U,0x0fc19dc6U,0x240ca1ccU,0x2de92c6fU,0x4a7484aaU,0x5cb0a9dcU,0x76f988daU,
+    0x983e5152U,0xa831c66dU,0xb00327c8U,0xbf597fc7U,0xc6e00bf3U,0xd5a79147U,0x06ca6351U,0x14292967U,
+    0x27b70a85U,0x2e1b2138U,0x4d2c6dfcU,0x53380d13U,0x650a7354U,0x766a0abbU,0x81c2c92eU,0x92722c85U,
+    0xa2bfe8a1U,0xa81a664bU,0xc24b8b70U,0xc76c51a3U,0xd192e819U,0xd6990624U,0xf40e3585U,0x106aa070U,
+    0x19a4c116U,0x1e376c08U,0x2748774cU,0x34b0bcb5U,0x391c0cb3U,0x4ed8aa4aU,0x5b9cca4fU,0x682e6ff3U,
+    0x748f82eeU,0x78a5636fU,0x84c87814U,0x8cc70208U,0x90befffaU,0xa4506cebU,0xbef9a3f7U,0xc67178f2U
+};
+static unsigned int __nuc_rotr32(unsigned int x, unsigned int n) { return (x >> n) | (x << (32 - n)); }
+static void __nuc_sha256_block(NucSha256Ctx *c, const unsigned char *block) {
+    unsigned int w[64];
+    int i;
+    for (i = 0; i < 16; i++) {
+        w[i] = ((unsigned int)block[i*4] << 24) | ((unsigned int)block[i*4+1] << 16) |
+               ((unsigned int)block[i*4+2] << 8) | (unsigned int)block[i*4+3];
+    }
+    for (i = 16; i < 64; i++) {
+        unsigned int s0 = __nuc_rotr32(w[i-15],7) ^ __nuc_rotr32(w[i-15],18) ^ (w[i-15]>>3);
+        unsigned int s1 = __nuc_rotr32(w[i-2],17) ^ __nuc_rotr32(w[i-2],19) ^ (w[i-2]>>10);
+        w[i] = w[i-16] + s0 + w[i-7] + s1;
+    }
+    unsigned int a=c->state[0],b=c->state[1],cc=c->state[2],d=c->state[3];
+    unsigned int e=c->state[4],f=c->state[5],g=c->state[6],h=c->state[7];
+    for (i = 0; i < 64; i++) {
+        unsigned int S1 = __nuc_rotr32(e,6) ^ __nuc_rotr32(e,11) ^ __nuc_rotr32(e,25);
+        unsigned int ch = (e & f) ^ ((~e) & g);
+        unsigned int t1 = h + S1 + ch + __nuc_sha256_k[i] + w[i];
+        unsigned int S0 = __nuc_rotr32(a,2) ^ __nuc_rotr32(a,13) ^ __nuc_rotr32(a,22);
+        unsigned int mj = (a & b) ^ (a & cc) ^ (b & cc);
+        unsigned int t2 = S0 + mj;
+        h=g; g=f; f=e; e=d+t1;
+        d=cc; cc=b; b=a; a=t1+t2;
+    }
+    c->state[0]+=a; c->state[1]+=b; c->state[2]+=cc; c->state[3]+=d;
+    c->state[4]+=e; c->state[5]+=f; c->state[6]+=g; c->state[7]+=h;
+}
+static void __nuc_sha256_init(NucSha256Ctx *c) {
+    c->state[0]=0x6a09e667U; c->state[1]=0xbb67ae85U;
+    c->state[2]=0x3c6ef372U; c->state[3]=0xa54ff53aU;
+    c->state[4]=0x510e527fU; c->state[5]=0x9b05688cU;
+    c->state[6]=0x1f83d9abU; c->state[7]=0x5be0cd19U;
+    c->bit_count = 0;
+    c->buf_len = 0;
+}
+static void __nuc_sha256_update(NucSha256Ctx *c, const unsigned char *data, size_t len) {
+    c->bit_count += (unsigned long long)len * 8;
+    while (len > 0) {
+        size_t want = 64 - c->buf_len;
+        size_t take = len < want ? len : want;
+        memcpy(c->buf + c->buf_len, data, take);
+        c->buf_len += (unsigned int)take;
+        data += take;
+        len -= take;
+        if (c->buf_len == 64) { __nuc_sha256_block(c, c->buf); c->buf_len = 0; }
+    }
+}
+static void __nuc_sha256_final(NucSha256Ctx *c, unsigned char out[32]) {
+    unsigned long long bits = c->bit_count;
+    c->buf[c->buf_len++] = 0x80;
+    if (c->buf_len > 56) {
+        while (c->buf_len < 64) c->buf[c->buf_len++] = 0;
+        __nuc_sha256_block(c, c->buf);
+        c->buf_len = 0;
+    }
+    while (c->buf_len < 56) c->buf[c->buf_len++] = 0;
+    int i;
+    for (i = 7; i >= 0; i--) c->buf[c->buf_len++] = (unsigned char)(bits >> (i * 8));
+    __nuc_sha256_block(c, c->buf);
+    for (i = 0; i < 8; i++) {
+        out[i*4]   = (unsigned char)(c->state[i] >> 24);
+        out[i*4+1] = (unsigned char)(c->state[i] >> 16);
+        out[i*4+2] = (unsigned char)(c->state[i] >> 8);
+        out[i*4+3] = (unsigned char)(c->state[i]);
+    }
+}
+long long __nucleor_sha256_hex(const char *data) {
+    NucSha256Ctx c;
+    __nuc_sha256_init(&c);
+    if (data) __nuc_sha256_update(&c, (const unsigned char *)data, strlen(data));
+    unsigned char digest[32];
+    __nuc_sha256_final(&c, digest);
+    char *out = (char *)malloc(65);
+    static const char *hexc = "0123456789abcdef";
+    int i;
+    for (i = 0; i < 32; i++) {
+        out[i*2]   = hexc[digest[i] >> 4];
+        out[i*2+1] = hexc[digest[i] & 0xF];
+    }
+    out[64] = 0;
+    return (long long)(intptr_t)out;
+}
+
+// === Base64 (RFC 4648) ===
+static const char *__nuc_b64_alpha =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+long long __nucleor_base64_encode(const char *data) {
+    if (!data) { char *e = (char *)malloc(1); e[0] = 0; return (long long)(intptr_t)e; }
+    size_t inlen = strlen(data);
+    size_t outlen = ((inlen + 2) / 3) * 4;
+    char *out = (char *)malloc(outlen + 1);
+    size_t i, j = 0;
+    for (i = 0; i + 2 < inlen; i += 3) {
+        unsigned int v = ((unsigned int)(unsigned char)data[i] << 16)
+                       | ((unsigned int)(unsigned char)data[i+1] << 8)
+                       | (unsigned int)(unsigned char)data[i+2];
+        out[j++] = __nuc_b64_alpha[(v >> 18) & 0x3F];
+        out[j++] = __nuc_b64_alpha[(v >> 12) & 0x3F];
+        out[j++] = __nuc_b64_alpha[(v >> 6)  & 0x3F];
+        out[j++] = __nuc_b64_alpha[v & 0x3F];
+    }
+    if (i < inlen) {
+        unsigned int v = (unsigned int)(unsigned char)data[i] << 16;
+        if (i + 1 < inlen) v |= (unsigned int)(unsigned char)data[i+1] << 8;
+        out[j++] = __nuc_b64_alpha[(v >> 18) & 0x3F];
+        out[j++] = __nuc_b64_alpha[(v >> 12) & 0x3F];
+        out[j++] = (i + 1 < inlen) ? __nuc_b64_alpha[(v >> 6) & 0x3F] : '=';
+        out[j++] = '=';
+    }
+    out[j] = 0;
+    return (long long)(intptr_t)out;
+}
+
+static int __nuc_b64_decode_char(char c) {
+    if (c >= 'A' && c <= 'Z') return c - 'A';
+    if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+    if (c >= '0' && c <= '9') return c - '0' + 52;
+    if (c == '+') return 62;
+    if (c == '/') return 63;
+    return -1;
+}
+long long __nucleor_base64_decode(const char *data) {
+    if (!data) { char *e = (char *)malloc(1); e[0] = 0; return (long long)(intptr_t)e; }
+    size_t inlen = strlen(data);
+    size_t outcap = (inlen / 4) * 3 + 4;
+    char *out = (char *)malloc(outcap);
+    size_t i = 0, j = 0;
+    while (i + 3 < inlen) {
+        int a = __nuc_b64_decode_char(data[i]);
+        int b = __nuc_b64_decode_char(data[i+1]);
+        int c = (data[i+2] == '=') ? 0 : __nuc_b64_decode_char(data[i+2]);
+        int d = (data[i+3] == '=') ? 0 : __nuc_b64_decode_char(data[i+3]);
+        if (a < 0 || b < 0 || c < 0 || d < 0) break;
+        unsigned int v = (a << 18) | (b << 12) | (c << 6) | d;
+        out[j++] = (char)((v >> 16) & 0xFF);
+        if (data[i+2] != '=') out[j++] = (char)((v >> 8) & 0xFF);
+        if (data[i+3] != '=') out[j++] = (char)(v & 0xFF);
+        i += 4;
+    }
+    out[j] = 0;
+    return (long long)(intptr_t)out;
+}
+
+// === UUID v4 (random-based, RFC 4122) ===
+long long __nucleor_uuid_v4(void) {
+    static int seeded = 0;
+    if (!seeded) {
+        srand((unsigned int)__nucleor_time_wall_seconds() ^ (unsigned int)(uintptr_t)&seeded);
+        seeded = 1;
+    }
+    unsigned char b[16];
+    int i;
+    for (i = 0; i < 16; i++) b[i] = (unsigned char)(rand() & 0xFF);
+    b[6] = (b[6] & 0x0F) | 0x40;  // version 4
+    b[8] = (b[8] & 0x3F) | 0x80;  // variant 10
+    char *out = (char *)malloc(37);
+    static const char *hexc = "0123456789abcdef";
+    int p = 0;
+    for (i = 0; i < 16; i++) {
+        if (i == 4 || i == 6 || i == 8 || i == 10) out[p++] = '-';
+        out[p++] = hexc[b[i] >> 4];
+        out[p++] = hexc[b[i] & 0xF];
+    }
+    out[36] = 0;
+    return (long long)(intptr_t)out;
+}
+
 long long __nucleor_msgpack_write_str(long long h, const char *s) {
     if (!s) {
         __nucleor_vec_u8_push(h, 0xA0);  // empty fixstr
