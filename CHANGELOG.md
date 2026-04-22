@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.14] — 2026-04-22
+
+RFC-0021 step: `assert!`, `assert_eq!`, `assert_ne!` builtins +
+`#[test]` ergonomics demo.
+
+### Added — assertion builtins
+
+- `__nucleor_assert(cond)` runtime — exits 1 with stderr message on
+  failure.
+- `__nucleor_assert_eq(a, b)` — numeric equality check.
+- `__nucleor_assert_ne(a, b)` — numeric inequality check.
+- Compiler maps `assert`, `assert_eq`, `assert_ne` calls to the
+  runtime symbols (no `extern fn` decl needed in user code).
+- New gate test: `tests/lang/assert_macros.nr`.
+
+### Added — RFC-0021 demo
+
+- `examples/13_test_framework.nr` — showcase mixing `#[test]`
+  attribute discovery + new assertion builtins. Standalone `main()`
+  also runs the tests sequentially. Wired into both `verify.ps1`
+  and `verify.sh`.
+
+### Verify gate
+
+107/107 green on Windows.
+
 ## [0.1.13] — 2026-04-22
 
 RFC-0016 sugar: `if let` for enum patterns.

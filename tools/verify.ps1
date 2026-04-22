@@ -105,7 +105,7 @@ Push-Location $root
 # --- Compute total step count for the [N/T] counter ---------------------
 $rustBridgeLib = Join-Path $root "stdlib\rods\rust_bridge\target\release\nucleor_rust_bridge.lib"
 $examples = @("01_hello", "02_fib", "03_structs", "04_rods", "05_quantum", "06_perf_attrs",
-              "08_linalg", "09_ode", "10_fft", "11_pid", "12_autodiff")
+              "08_linalg", "09_ode", "10_fft", "11_pid", "12_autodiff", "13_test_framework")
 if (Test-Path $rustBridgeLib) { $examples += "07_rust_interop" }
 
 $testDirs = @("lang", "attrs", "runtime", "rods", "features")
