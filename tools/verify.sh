@@ -155,7 +155,7 @@ build_negative() {
     local ename="$1"
     local out
     out=$("$BIN" build "tests/err/$ename.nr" -o "$ename" 2>&1)
-    echo "$out" | grep -qE 'ERROR|WARNING|error:' && return 0 || return 1
+    echo "$out" | grep -qiE 'error\b|error\[|warning\b|warning\[' && return 0 || return 1
 }
 
 self_host_rebuild() {

@@ -2781,6 +2781,180 @@ long long __nucleor_rotate_right(long long v, long long n) {
     return (long long)((u >> n) | (u << (64 - n)));
 }
 
+// === Comprehensive math primitives (i64 + f64) ===
+// f64 values pass as i64 cells with bit-pattern in bits.
+
+typedef union { double d; long long i; } NucF64Bits;
+static double __nuc_b2d(long long b) { NucF64Bits u; u.i = b; return u.d; }
+static long long __nuc_d2b(double d) { NucF64Bits u; u.d = d; return u.i; }
+
+// ---- Bare-literal float plumbing ----
+// Lexer encodes `1.5` as the integer 1500000 (int*1e6 + frac_millionths) and
+// emits f64_from_scaled to decode. This bridges raw float literals to the
+// f64-bit-pattern convention.
+long long __nucleor_f64_from_scaled(long long scaled) {
+    return __nuc_d2b((double)scaled / 1000000.0);
+}
+long long __nucleor_f64_to_i32(long long b) {
+    return (long long)(int)__nuc_b2d(b);
+}
+long long __nucleor_i32_to_f64(long long i) {
+    return __nuc_d2b((double)(int)i);
+}
+// Legacy unprefixed names referenced by the IR header for cross-compat.
+long long __nucleor_fabs(long long b)  { return __nuc_d2b(fabs(__nuc_b2d(b))); }
+long long __nucleor_fmod(long long a, long long b) { return __nuc_d2b(fmod(__nuc_b2d(a), __nuc_b2d(b))); }
+long long __nucleor_sqrt(long long b)  { return __nuc_d2b(sqrt(__nuc_b2d(b))); }
+long long __nucleor_sin(long long b)   { return __nuc_d2b(sin(__nuc_b2d(b))); }
+long long __nucleor_cos(long long b)   { return __nuc_d2b(cos(__nuc_b2d(b))); }
+long long __nucleor_pow(long long a, long long b) { return __nuc_d2b(pow(__nuc_b2d(a), __nuc_b2d(b))); }
+long long __nucleor_floor(long long b) { return __nuc_d2b(floor(__nuc_b2d(b))); }
+long long __nucleor_ceil(long long b)  { return __nuc_d2b(ceil(__nuc_b2d(b))); }
+long long __nucleor_round(long long b) { return __nuc_d2b(round(__nuc_b2d(b))); }
+long long __nucleor_exp(long long b)   { return __nuc_d2b(exp(__nuc_b2d(b))); }
+long long __nucleor_log(long long b)   { return __nuc_d2b(log(__nuc_b2d(b))); }
+long long __nucleor_sigmoid(long long b) {
+    double d = __nuc_b2d(b);
+    return __nuc_d2b(1.0 / (1.0 + exp(-d)));
+}
+long long __nucleor_tanh(long long b)  { return __nuc_d2b(tanh(__nuc_b2d(b))); }
+long long __nucleor_relu(long long b)  {
+    double d = __nuc_b2d(b);
+    return __nuc_d2b(d > 0.0 ? d : 0.0);
+}
+long long __nucleor_gelu(long long b)  {
+    double d = __nuc_b2d(b);
+    double inner = 0.7978845608028654 * (d + 0.044715 * d * d * d);
+    return __nuc_d2b(0.5 * d * (1.0 + tanh(inner)));
+}
+long long __nucleor_abs(long long v)   { return v < 0 ? -v : v; }
+long long __nucleor_min(long long a, long long b) { return a < b ? a : b; }
+long long __nucleor_max(long long a, long long b) { return a > b ? a : b; }
+long long __nucleor_clamp(long long v, long long lo, long long hi) {
+    if (v < lo) return lo;
+    if (v > hi) return hi;
+    return v;
+}
+
+// ---- Integer helpers ----
+long long __nucleor_i64_abs(long long v) { return v < 0 ? -v : v; }
+long long __nucleor_i64_min(long long a, long long b) { return a < b ? a : b; }
+long long __nucleor_i64_max(long long a, long long b) { return a > b ? a : b; }
+long long __nucleor_i64_clamp(long long v, long long lo, long long hi) {
+    if (v < lo) return lo;
+    if (v > hi) return hi;
+    return v;
+}
+long long __nucleor_i64_sign(long long v) {
+    if (v > 0) return 1;
+    if (v < 0) return -1;
+    return 0;
+}
+long long __nucleor_i64_pow(long long base, long long exp) {
+    if (exp < 0) return 0;
+    long long r = 1;
+    while (exp > 0) {
+        if (exp & 1) r *= base;
+        base *= base;
+        exp >>= 1;
+    }
+    return r;
+}
+long long __nucleor_i64_isqrt(long long n) {
+    if (n < 0) return 0;
+    if (n < 2) return n;
+    long long lo = 0, hi = n;
+    while (lo < hi) {
+        long long mid = (lo + hi + 1) / 2;
+        if (mid <= n / mid) lo = mid;
+        else hi = mid - 1;
+    }
+    return lo;
+}
+long long __nucleor_i64_gcd(long long a, long long b) {
+    if (a < 0) a = -a;
+    if (b < 0) b = -b;
+    while (b != 0) { long long t = b; b = a % b; a = t; }
+    return a;
+}
+long long __nucleor_i64_lcm(long long a, long long b) {
+    if (a == 0 || b == 0) return 0;
+    long long g = __nucleor_i64_gcd(a, b);
+    return (a / g) * b;
+}
+
+// ---- f64 transcendental + extended math ----
+long long __nucleor_f64_sin(long long b) { return __nuc_d2b(sin(__nuc_b2d(b))); }
+long long __nucleor_f64_cos(long long b) { return __nuc_d2b(cos(__nuc_b2d(b))); }
+long long __nucleor_f64_tan(long long b) { return __nuc_d2b(tan(__nuc_b2d(b))); }
+long long __nucleor_f64_asin(long long b) { return __nuc_d2b(asin(__nuc_b2d(b))); }
+long long __nucleor_f64_acos(long long b) { return __nuc_d2b(acos(__nuc_b2d(b))); }
+long long __nucleor_f64_atan(long long b) { return __nuc_d2b(atan(__nuc_b2d(b))); }
+long long __nucleor_f64_atan2(long long y, long long x) {
+    return __nuc_d2b(atan2(__nuc_b2d(y), __nuc_b2d(x)));
+}
+long long __nucleor_f64_sinh(long long b) { return __nuc_d2b(sinh(__nuc_b2d(b))); }
+long long __nucleor_f64_cosh(long long b) { return __nuc_d2b(cosh(__nuc_b2d(b))); }
+long long __nucleor_f64_tanh(long long b) { return __nuc_d2b(tanh(__nuc_b2d(b))); }
+long long __nucleor_f64_exp(long long b) { return __nuc_d2b(exp(__nuc_b2d(b))); }
+long long __nucleor_f64_exp2(long long b) { return __nuc_d2b(exp2(__nuc_b2d(b))); }
+long long __nucleor_f64_log(long long b) { return __nuc_d2b(log(__nuc_b2d(b))); }
+long long __nucleor_f64_log2(long long b) { return __nuc_d2b(log2(__nuc_b2d(b))); }
+long long __nucleor_f64_log10(long long b) { return __nuc_d2b(log10(__nuc_b2d(b))); }
+long long __nucleor_f64_pow_v(long long base, long long exp) {
+    return __nuc_d2b(pow(__nuc_b2d(base), __nuc_b2d(exp)));
+}
+long long __nucleor_f64_floor(long long b) { return __nuc_d2b(floor(__nuc_b2d(b))); }
+long long __nucleor_f64_ceil(long long b) { return __nuc_d2b(ceil(__nuc_b2d(b))); }
+long long __nucleor_f64_round(long long b) { return __nuc_d2b(round(__nuc_b2d(b))); }
+long long __nucleor_f64_trunc(long long b) { return __nuc_d2b(trunc(__nuc_b2d(b))); }
+long long __nucleor_f64_fmod(long long a, long long b) {
+    return __nuc_d2b(fmod(__nuc_b2d(a), __nuc_b2d(b)));
+}
+long long __nucleor_f64_hypot(long long a, long long b) {
+    return __nuc_d2b(hypot(__nuc_b2d(a), __nuc_b2d(b)));
+}
+long long __nucleor_f64_clamp(long long v, long long lo, long long hi) {
+    double dv = __nuc_b2d(v), dlo = __nuc_b2d(lo), dhi = __nuc_b2d(hi);
+    if (dv < dlo) return lo;
+    if (dv > dhi) return hi;
+    return v;
+}
+long long __nucleor_f64_lerp(long long a, long long b, long long t) {
+    double da = __nuc_b2d(a), db = __nuc_b2d(b), dt = __nuc_b2d(t);
+    return __nuc_d2b(da + (db - da) * dt);
+}
+long long __nucleor_f64_is_nan(long long b) {
+    double d = __nuc_b2d(b);
+    return (d != d) ? 1 : 0;
+}
+long long __nucleor_f64_is_inf(long long b) {
+    double d = __nuc_b2d(b);
+    if (d == d * 2 && d != 0.0) return 1;
+    return 0;
+}
+long long __nucleor_f64_is_finite(long long b) {
+    if (__nucleor_f64_is_nan(b)) return 0;
+    if (__nucleor_f64_is_inf(b)) return 0;
+    return 1;
+}
+
+// Constants
+long long __nucleor_f64_pi(void)      { return __nuc_d2b(3.14159265358979323846); }
+long long __nucleor_f64_tau(void)     { return __nuc_d2b(6.28318530717958647692); }
+long long __nucleor_f64_e(void)       { return __nuc_d2b(2.71828182845904523536); }
+long long __nucleor_f64_sqrt2(void)   { return __nuc_d2b(1.41421356237309504880); }
+long long __nucleor_f64_ln2(void)     { return __nuc_d2b(0.69314718055994530942); }
+long long __nucleor_f64_ln10(void)    { return __nuc_d2b(2.30258509299404568402); }
+
+// Degree/radian conversion
+long long __nucleor_f64_deg_to_rad(long long b) {
+    return __nuc_d2b(__nuc_b2d(b) * 3.14159265358979323846 / 180.0);
+}
+long long __nucleor_f64_rad_to_deg(long long b) {
+    return __nuc_d2b(__nuc_b2d(b) * 180.0 / 3.14159265358979323846);
+}
+
 long long __nucleor_msgpack_write_str(long long h, const char *s) {
     if (!s) {
         __nucleor_vec_u8_push(h, 0xA0);  // empty fixstr

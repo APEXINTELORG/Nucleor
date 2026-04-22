@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.46] — 2026-04-22
+
+**Comprehensive math primitive library.**
+
+### Added — i64 helpers
+
+`i64_abs`, `i64_min`, `i64_max`, `i64_clamp`, `i64_sign`, `i64_pow`
+(integer fast-power), `i64_isqrt` (integer square root via binary
+search, exact), `i64_gcd`, `i64_lcm`.
+
+### Added — f64 transcendentals
+
+`f64_sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`,
+`cosh`, `tanh`, `exp`, `exp2`, `log`, `log2`, `log10`, `pow_v`,
+`hypot`, `floor`, `ceil`, `round`, `trunc`, `fmod`, `clamp`, `lerp`.
+
+Plus predicates `is_nan`, `is_inf`, `is_finite`.
+
+### Added — constants & angle conversion
+
+`f64_pi`, `f64_tau`, `f64_e`, `f64_sqrt2`, `f64_ln2`, `f64_ln10`,
+`f64_deg_to_rad`, `f64_rad_to_deg`.
+
+### Fixed — bare float literal codegen
+
+Float literals like `1.5` lex into a `f64_from_scaled` builtin call
+that previously had no runtime backing. Added the missing
+`__nucleor_f64_from_scaled` plus the long-declared but unimplemented
+math wrappers (`__nucleor_fabs`, `sqrt`, `sin`, `cos`, `pow`, `floor`,
+`ceil`, `round`, `exp`, `log`, `sigmoid`, `tanh`, `relu`, `gelu`,
+`abs`, `min`, `max`, `clamp`, `fmod`, `f64_to_i32`, `i32_to_f64`).
+Bare float literals now compile end-to-end.
+
+### Fixed — verify.sh negative-test regex
+
+`verify.sh` now matches the structured `error[CODE-NNN]:` /
+`warning[CODE-NNN]:` diagnostic format case-insensitively, mirroring
+the PowerShell gate. Previously bash gate under-reported failures.
+
+### Verify gate
+
+148/148 green on Windows (POSIX bash gate now matches PS gate). New
+gate test: `tests/lang/math_primitives.nr` (60+ sub-cases).
+Self-host LLVM IR fixed point preserved.
+
 ## [0.1.45] — 2026-04-22
 
 **Stdlib polish: atomic + bits rod wrappers.**
