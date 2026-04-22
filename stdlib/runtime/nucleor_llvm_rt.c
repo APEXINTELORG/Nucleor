@@ -2282,6 +2282,42 @@ long long __nucleor_hashmap_free(long long h) {
     return 0;
 }
 
+// === HashMap iteration (RFC-0017 stdlib enrichment) ===
+// hashmap_keys(h)   -> Vec<str>  : every occupied slot's key (newly strdup'd)
+// hashmap_values(h) -> Vec<i64>  : every occupied slot's value (in same order
+//                                  as hashmap_keys for any single hashmap)
+//
+// Iteration order is the underlying open-addressed slot order — stable for
+// a given hashmap state, but unrelated to insertion order.
+
+NVec *__nucleor_hashmap_keys(long long h) {
+    NVec *out = __nucleor_vec_new();
+    NHashMap *m = (NHashMap *)(intptr_t)h;
+    if (!m) return out;
+    long long i;
+    for (i = 0; i < m->cap; i++) {
+        if (m->slots[i].occupied) {
+            const char *k = m->slots[i].key;
+            size_t L = strlen(k);
+            char *copy = (char *)malloc(L + 1);
+            memcpy(copy, k, L + 1);
+            __nucleor_vec_push(out, (long long)(intptr_t)copy);
+        }
+    }
+    return out;
+}
+
+NVec *__nucleor_hashmap_values(long long h) {
+    NVec *out = __nucleor_vec_new();
+    NHashMap *m = (NHashMap *)(intptr_t)h;
+    if (!m) return out;
+    long long i;
+    for (i = 0; i < m->cap; i++) {
+        if (m->slots[i].occupied) __nucleor_vec_push(out, m->slots[i].val);
+    }
+    return out;
+}
+
 // === RFC-0001 §5.1 / Robotics-RFC §5.1: typed time ===
 // Distinct monotonic vs wall-clock time.
 // Monotonic: never goes backwards; safe for control-loop deadlines.
@@ -2318,6 +2354,31 @@ long long __nucleor_time_wall_ns(void) {
 long long __nucleor_time_wall_us(void) { return __nucleor_time_wall_ns() / 1000LL; }
 long long __nucleor_time_wall_ms(void) { return __nucleor_time_wall_ns() / 1000000LL; }
 long long __nucleor_time_wall_seconds(void) { return __nucleor_time_wall_ns() / 1000000000LL; }
+
+// === ISO 8601 formatting (RFC-0017 stdlib enrichment) ===
+// time_iso_now() -> "YYYY-MM-DDTHH:MM:SSZ" (UTC); heap-allocated str.
+// time_format_iso(unix_seconds) -> same format for an arbitrary timestamp.
+
+#include <time.h>
+
+const char *__nucleor_time_format_iso(long long unix_seconds) {
+    time_t t = (time_t)unix_seconds;
+    struct tm gmt;
+#ifdef _WIN32
+    gmtime_s(&gmt, &t);
+#else
+    gmtime_r(&t, &gmt);
+#endif
+    char *buf = (char *)malloc(32);
+    snprintf(buf, 32, "%04d-%02d-%02dT%02d:%02d:%02dZ",
+        gmt.tm_year + 1900, gmt.tm_mon + 1, gmt.tm_mday,
+        gmt.tm_hour, gmt.tm_min, gmt.tm_sec);
+    return buf;
+}
+
+const char *__nucleor_time_iso_now(void) {
+    return __nucleor_time_format_iso(__nucleor_time_wall_seconds());
+}
 
 long long __nucleor_sleep_ms(long long ms) {
 #ifdef _WIN32

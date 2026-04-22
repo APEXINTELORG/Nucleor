@@ -2085,12 +2085,21 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "char_to_upper") { return "__nucleor_char_to_upper"; };
     if str_eq(name, "char_to_lower") { return "__nucleor_char_to_lower"; };
     if str_eq(name, "char_digit_value") { return "__nucleor_char_digit_value"; };
+    // Note: hashmap_keys/values + time_iso_now/format_iso are exposed below
+    // (later in this map) — listed there next to the rest of the v0.2.16
+    // helpers.
     // RNG primitives (rng_seed/random_uniform/random_normal already mapped above)
     if str_eq(name, "rng_int") { return "__nucleor_rng_int"; };
     if str_eq(name, "rng_uniform") { return "__nucleor_rng_uniform"; };
     if str_eq(name, "rng_normal") { return "__nucleor_rng_normal"; };
     if str_eq(name, "rng_bernoulli") { return "__nucleor_rng_bernoulli"; };
     if str_eq(name, "rng_exponential") { return "__nucleor_rng_exponential"; };
+    // HashMap iteration (RFC-0017 enrichment)
+    if str_eq(name, "hashmap_keys") { return "__nucleor_hashmap_keys"; };
+    if str_eq(name, "hashmap_values") { return "__nucleor_hashmap_values"; };
+    // ISO 8601 time formatting (RFC-0017 enrichment)
+    if str_eq(name, "time_iso_now") { return "__nucleor_time_iso_now"; };
+    if str_eq(name, "time_format_iso") { return "__nucleor_time_format_iso"; };
     if str_eq(name, "file_append_string") { return "__nucleor_file_append_string"; };
     if str_eq(name, "sb_free") { return "__nucleor_sb_free"; };
     if str_eq(name, "now_ms") { return "__nucleor_now_ms"; };
@@ -2658,6 +2667,10 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "base64_encode") { return 1; };
     if str_eq(name, "base64_decode") { return 1; };
     if str_eq(name, "uuid_v4") { return 1; };
+    if str_eq(name, "hashmap_keys") { return 1; };
+    if str_eq(name, "hashmap_values") { return 1; };
+    if str_eq(name, "time_iso_now") { return 1; };
+    if str_eq(name, "time_format_iso") { return 1; };
     return 0;
 }
 fn is_ptr_arg(name: str, idx: i64) -> i64 {
@@ -3166,6 +3179,10 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_rng_normal()\n");
     sb_append(sb, "declare i64 @__nucleor_rng_bernoulli(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_rng_exponential(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_hashmap_keys(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_hashmap_values(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_time_iso_now()\n");
+    sb_append(sb, "declare ptr @__nucleor_time_format_iso(i64)\n");
     sb_append(sb, "declare void @__nucleor_file_append_string(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_free(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_now_ms()\n");
