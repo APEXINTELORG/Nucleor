@@ -12239,6 +12239,58 @@ fn run_perf_command(src_path: str, argc: i64, arg_start: i64) -> i64 {
     return 0;
 }
 
+fn run_zen_command() -> i64 {
+    print("The Zen of Nucleor");
+    print("");
+    print("Units are not optional. Ask the Mars Climate Orbiter.");
+    print("Effects are declared, not discovered in production.");
+    print("If it compiles, the dimensions are correct.");
+    print("Governance is not overhead. Governance is the product.");
+    print("Unsafe is a confession, not a feature.");
+    print("Trust is earned per-session, not granted per-binary.");
+    print("The audit trail is the only history that matters.");
+    print("Memory is borrowed. Responsibility is owned.");
+    print("A taint you can see is a taint you can fix.");
+    print("Correctness is faster than debugging.");
+    print("Criticality is not an accident. It is a design choice.");
+    print("Know your k-effective.");
+    return 0;
+}
+
+fn run_mco_command() -> i64 {
+    print("  +-----------------------------------------+");
+    print("  |  Mars Climate Orbiter - September 1999  |");
+    print("  |                                         |");
+    print("  |  Lockheed Martin: pound-force-seconds   |");
+    print("  |  NASA JPL:        newton-seconds        |");
+    print("  |                                         |");
+    print("  |  Cost: $327,600,000                     |");
+    print("  |  Root cause: unit mismatch              |");
+    print("  |  Nucleor status: PREVENTED AT COMPILE   |");
+    print("  |                                         |");
+    print("  |  \"This is why we exist.\"                |");
+    print("  +-----------------------------------------+");
+    return 0;
+}
+
+fn run_clean_command() -> i64 {
+    // Remove target/ and .nuc_cache/ from the current working directory.
+    // Use `system` (rmdir on Windows / rm on POSIX). Refuse to run if the
+    // current directory is the filesystem root.
+    let cwd: str = getcwd();
+    if str_len(cwd) <= 3 {
+        print("clean: refusing to operate on filesystem root");
+        return 1;
+    };
+    print(str_concat("clean: removing build artifacts in ", cwd));
+    // Windows: `rmdir /S /Q` does the recursive delete; ignore errors so we
+    // can still try the other path if one is missing.
+    system("rmdir /S /Q target 2>nul");
+    system("rmdir /S /Q .nuc_cache 2>nul");
+    print("clean: done");
+    return 0;
+}
+
 fn print_help() -> i64 {
     print(str_concat("Nucleor Compiler ", compiler_version_label()));
     print("The governance-native programming language");
@@ -12316,6 +12368,12 @@ fn print_help() -> i64 {
     print("  certify [file]         Compile + produce certification manifest");
     print("  translate [file]       Parse, validate, and summarize source");
     print("");
+    print("Project utilities:");
+    print("  clean                  Remove target/ and .nuc_cache/ from the project");
+    print("  scram                  Alias for `clean` (emergency shutdown of build state)");
+    print("  zen                    The design principles of Nucleor");
+    print("  mco                    Mars Climate Orbiter — why we ship dimensional analysis");
+    print("");
     print("Project mode:");
     print("  If [file] is omitted and ./Nucleor.toml exists, [build].entry is used.");
     print("");
@@ -12365,6 +12423,15 @@ fn main() -> i64 {
     };
     if str_eq(cmd, "sage") {
         return run_sage_command(argc);
+    };
+    if str_eq(cmd, "zen") {
+        return run_zen_command();
+    };
+    if str_eq(cmd, "mco") {
+        return run_mco_command();
+    };
+    if str_eq(cmd, "clean") || str_eq(cmd, "scram") {
+        return run_clean_command();
     };
     if str_eq(cmd, "init") {
         // nuc init [name] — scaffold a new project

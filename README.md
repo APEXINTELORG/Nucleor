@@ -109,8 +109,17 @@ nuc check [file]           run all checkers (ownership, type, source, taint, eff
 nuc emit [file]            emit LLVM IR only
 nuc stage-dump <stage>     dump compiler stage summaries (tokens|ast|typed|ir|all)
 nuc bootstrap status       self-host bootstrap report
+nuc clean                  remove target/ and .nuc_cache/ (alias: nuc scram)
+nuc zen                    the design principles of Nucleor
+nuc mco                    Mars Climate Orbiter — why dimensional analysis matters
 nuc help                   full command list
 ```
+
+## Tab completion
+
+Drop-in completion scripts for `bash`, `zsh`, `fish`, and PowerShell live in
+[`tools/completions/`](tools/completions/). One-liner install per shell —
+see [`tools/completions/README.md`](tools/completions/README.md).
 
 ## Testing this build
 

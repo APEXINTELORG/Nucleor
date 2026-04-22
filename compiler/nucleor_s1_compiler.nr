@@ -1748,6 +1748,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "file_append_string") { return "__nucleor_file_append_string"; };
     if str_eq(name, "sb_free") { return "__nucleor_sb_free"; };
     if str_eq(name, "now_ms") { return "__nucleor_now_ms"; };
+    if str_eq(name, "isatty_stdout") { return "__nucleor_isatty_stdout"; };
     if str_eq(name, "pipe_create") { return "__nucleor_pipe_create"; };
     if str_eq(name, "pipe_write") { return "__nucleor_pipe_write"; };
     if str_eq(name, "pipe_close") { return "__nucleor_pipe_close"; };
@@ -2257,6 +2258,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare void @__nucleor_file_append_string(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_free(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_now_ms()\n");
+    sb_append(sb, "declare i64 @__nucleor_isatty_stdout()\n");
     sb_append(sb, "declare i64 @__nucleor_pipe_create(ptr)\n");
     sb_append(sb, "declare void @__nucleor_pipe_write(i64, ptr)\n");
     sb_append(sb, "declare void @__nucleor_pipe_close(i64)\n");
@@ -6331,6 +6333,49 @@ fn run_graph_command(src_path: str, argc: i64, arg_start: i64) -> i64 { return r
 fn run_profile_command(argc: i64) -> i64 { return run_external_tool(argc); }
 fn run_sage_command(argc: i64) -> i64 { return run_external_tool(argc); }
 fn run_perf_command(src_path: str, argc: i64, arg_start: i64) -> i64 { return run_external_tool(argc); }
+
+fn run_zen_command() -> i64 {
+    print("The Zen of Nucleor");
+    print("");
+    print("Units are not optional. Ask the Mars Climate Orbiter.");
+    print("Effects are declared, not discovered in production.");
+    print("If it compiles, the dimensions are correct.");
+    print("Governance is not overhead. Governance is the product.");
+    print("Unsafe is a confession, not a feature.");
+    print("Trust is earned per-session, not granted per-binary.");
+    print("The audit trail is the only history that matters.");
+    print("Memory is borrowed. Responsibility is owned.");
+    print("A taint you can see is a taint you can fix.");
+    print("Correctness is faster than debugging.");
+    print("Criticality is not an accident. It is a design choice.");
+    print("Know your k-effective.");
+    return 0;
+}
+
+fn run_mco_command() -> i64 {
+    print("  +-----------------------------------------+");
+    print("  |  Mars Climate Orbiter - September 1999  |");
+    print("  |                                         |");
+    print("  |  Lockheed Martin: pound-force-seconds   |");
+    print("  |  NASA JPL:        newton-seconds        |");
+    print("  |                                         |");
+    print("  |  Cost: $327,600,000                     |");
+    print("  |  Root cause: unit mismatch              |");
+    print("  |  Nucleor status: PREVENTED AT COMPILE   |");
+    print("  |                                         |");
+    print("  |  \"This is why we exist.\"                |");
+    print("  +-----------------------------------------+");
+    return 0;
+}
+
+fn run_clean_command() -> i64 {
+    print("clean: removing build artifacts (target/, .nuc_cache/)");
+    system("rmdir /S /Q target 2>nul");
+    system("rmdir /S /Q .nuc_cache 2>nul");
+    print("clean: done");
+    return 0;
+}
+
 fn print_help() -> i64 {
     print(str_concat("Nucleor Compiler ", compiler_version_label()));
     print("The governance-native programming language");
@@ -6408,6 +6453,12 @@ fn print_help() -> i64 {
     print("  certify [file]         Compile + produce certification manifest");
     print("  translate [file]       Parse, validate, and summarize source");
     print("");
+    print("Project utilities:");
+    print("  clean                  Remove target/ and .nuc_cache/ from the project");
+    print("  scram                  Alias for `clean` (emergency shutdown of build state)");
+    print("  zen                    The design principles of Nucleor");
+    print("  mco                    Mars Climate Orbiter - why we ship dimensional analysis");
+    print("");
     print("Project mode:");
     print("  If [file] is omitted and ./Nucleor.toml exists, [build].entry is used.");
     print("");
@@ -6460,6 +6511,15 @@ fn main() -> i64 {
     };
     if str_eq(cmd, "sage") {
         return run_sage_command(argc);
+    };
+    if str_eq(cmd, "zen") {
+        return run_zen_command();
+    };
+    if str_eq(cmd, "mco") {
+        return run_mco_command();
+    };
+    if str_eq(cmd, "clean") || str_eq(cmd, "scram") {
+        return run_clean_command();
     };
     if str_eq(cmd, "init") {
         // nuc init [name] — scaffold a new project
