@@ -19,21 +19,22 @@ proceed without re-design.
 | [0001](RFC-0001-rt-attributes.md) | Real-Time Function Attributes — `#[no_alloc]`, `#[no_panic]`, `#[no_dyn]`, `#[deadline]` | Draft | v0.3.0 |
 | [0002](RFC-0002-allocator-types.md) | Allocator Types — `Box<T, A: Allocator>`, Arena / Pool / TLSF | Draft | v0.3.0 |
 | [0003](RFC-0003-typed-frames.md) | Typed Coordinate Frames — `Pose<F: Frame>`, compile-time TF correctness | Draft | v0.4.0 |
+| [0004](RFC-0004-assume.md) | `#[assume(...)]` — explicit non-panic / bounds proofs | Draft | v0.4.0 |
+| [0011](RFC-0011-nuc-cxx.md) | `nuc-cxx` — paired `.h` + `.nr` C++ FFI codegen | Draft | v0.4.0 |
 
 ## Planned (not yet drafted)
 
 | # | Title | Target |
 |---|---|---|
-| 0004 | `#[assume(...)]` — explicit non-panic / bounds proofs | v0.4.0 |
 | 0005 | `unit<T, dim>` — typed dimensional units (resurrect from V1 quarantine) | v0.6.0 |
-| 0006 | `#[max_depth = N]` — bounded recursion attribute | v0.4.0 |
+| 0006 | `#[require(pre)]` / `#[ensure(post)]` — design-by-contract | v0.5.0 |
 | 0007 | `#[atomic]` — lock-free data structure attribute | v0.5.0 |
 | 0008 | `#[isr]` — interrupt-service-routine attribute | v0.6.0 |
 | 0009 | Static WCET via Heptane integration | v0.7.0 |
 | 0010 | DLPack — zero-copy tensor handoff with PyTorch / JAX / MLX | v0.7.0 |
-| 0011 | `nuc-cxx` — paired `.h` + `.nr` C++ FFI codegen | v0.4.0 |
 | 0012 | `nuc-bindgen` — libclang-driven C/C++ binding generator | v0.4.0 |
 | 0013 | URDF-aware compile-time frame chain verification | v0.5.0 |
+| 0014 | `#[max_depth = N]` — bounded recursion attribute | v0.5.0 |
 
 ## Authoring an RFC
 
