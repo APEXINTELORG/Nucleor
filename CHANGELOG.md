@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.38] — 2026-04-22
+
+**Stdlib polish: fs_extras + simd + asserts rod wrappers.**
+
+### Added — three new rods
+
+- **`stdlib/rods/fs_extras.nr`** — exposes the v0.1.32 fs builtins
+  (mkdir/mkdir_p, list_dir, mtime, rename, path manipulation) under
+  `fsx_*` names. Uses `fsx_` prefix to coexist with the existing
+  rods/fs.nr (which uses fs_rt.c).
+- **`stdlib/rods/simd.nr`** — wraps the v0.1.26 SIMD builtins
+  (f32x4 + i32x4) with descriptive names (`simd_f32x4_horizontal_sum`,
+  `simd_f32x4_lane`, `simd_f32x4_dot_product`, etc.).
+- **`stdlib/rods/asserts.nr`** — wraps assert/assert_eq/assert_ne/
+  panic/dbg/eprint as `check/check_eq/check_ne/fail/debug_*/err_*`,
+  plus `check_with(cond, msg)` for assertion + custom message.
+
+### Verify gate
+
+139/139 green on Windows. Two new gate tests:
+`tests/rods/fs_extras.nr`, `tests/rods/asserts.nr`.
+
 ## [0.1.37] — 2026-04-22
 
 **Stdlib polish: typed-time + OS-info rod wrappers.**
