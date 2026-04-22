@@ -5,6 +5,26 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.24] — 2026-04-22
+
+**RFC-0015: `stdlib/rods/numeric.nr` — unified numeric API.**
+
+### Added — numeric rod
+
+- `stdlib/rods/numeric.nr` exposes the full RFC-0015 surface
+  (overflow ops, narrow casts, f32/bf16/f16 compute, per-width
+  print, type-width queries, range constants) under
+  Nucleor-friendly `n_*` names.
+- ~50 wrapper functions; one rod-level entry for every compiler
+  builtin.
+- Width-query constants (`n_size_u8` … `n_size_f64`) and range
+  bounds (`n_max_u8`, `n_min_i32` …).
+
+### Verify gate
+
+117/117 green on Windows. Self-host LLVM IR fixed point preserved.
+New gate test: `tests/rods/numeric.nr`.
+
 ## [0.1.23] — 2026-04-22
 
 **RFC-0015 phase 6: f32 distinct compute + bf16/f16/f8 software
