@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.30] — 2026-04-22
+
+**RFC-0017 phase 4: VecDeque + HashSet. RFC-0022 phase 2: POSIX `nuc` wrapper.**
+
+### Added — VecDeque<i64>
+
+- Ring-buffer-backed deque with O(1) push/pop at both ends.
+- `vecdeque_new/with_capacity/push_front/push_back/pop_front/pop_back/
+  get/set/len/capacity/clear/free` — 12 operations.
+- Growth doubles capacity with copy-to-linear-layout preservation.
+- New gate test: `tests/lang/vecdeque_basic.nr` (13 sub-cases covering
+  both ends, indexed access, set/get, 100-element growth).
+
+### Added — HashSet<str>
+
+- Implemented as HashMap<str, 1> — same FNV-1a hash, same open-addressed
+  storage, value slot unused.
+- `hashset_new/with_capacity/insert/contains/remove/len/clear/free`.
+- New gate test: `tests/lang/hashset_basic.nr` (7 sub-cases including
+  dedup, remove, clear).
+
+### Added — POSIX `nuc` wrapper
+
+- `./nuc` now a real Bash script mirroring `nuc.bat` semantics:
+  auto-resolves LLVM 18 from `NUCLEOR_CLANG_PATH`, `LLVM_SYS_180_PREFIX`,
+  `/usr/lib/llvm-18/`, Homebrew paths, `/usr/local/opt/llvm/` — in that
+  priority order.
+- Honors `NUCLEOR_ROOT`, `NUCLEOR_BIN` for override, and `NO_COLOR`.
+- When binary missing (current state on Linux/macOS pre-v0.2.0), prints
+  actionable message pointing to three workarounds + milestone doc.
+
+### Verify gate
+
+124/124 green on Windows. Self-host LLVM IR fixed point preserved.
+
 ## [0.1.29] — 2026-04-22
 
 **Robotics-RFC §5.1 + RFC-0022: typed time, env vars, OS info.**

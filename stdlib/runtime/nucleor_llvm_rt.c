@@ -1635,6 +1635,144 @@ long long __nucleor_os_pointer_width(void) {
     return (long long)(sizeof(void *) * 8);
 }
 
+// === RFC-0017 phase 4: VecDeque<i64> ===
+// Ring-buffer-backed deque. O(1) push_front/push_back/pop_front/pop_back.
+typedef struct {
+    long long *data;
+    long long head;   // index of first element
+    long long len;
+    long long cap;
+} NVecDeque;
+
+long long __nucleor_vecdeque_new(void) {
+    NVecDeque *d = (NVecDeque *)malloc(sizeof(NVecDeque));
+    d->cap = 16;
+    d->data = (long long *)malloc((size_t)d->cap * sizeof(long long));
+    d->head = 0;
+    d->len = 0;
+    return (long long)(intptr_t)d;
+}
+long long __nucleor_vecdeque_with_capacity(long long n) {
+    NVecDeque *d = (NVecDeque *)malloc(sizeof(NVecDeque));
+    long long cap = 16;
+    while (cap < n) cap *= 2;
+    d->cap = cap;
+    d->data = (long long *)malloc((size_t)cap * sizeof(long long));
+    d->head = 0;
+    d->len = 0;
+    return (long long)(intptr_t)d;
+}
+static void __nuc_vecdeque_grow(NVecDeque *d) {
+    long long new_cap = d->cap * 2;
+    long long *new_data = (long long *)malloc((size_t)new_cap * sizeof(long long));
+    long long i;
+    for (i = 0; i < d->len; i++) {
+        new_data[i] = d->data[(d->head + i) % d->cap];
+    }
+    free(d->data);
+    d->data = new_data;
+    d->head = 0;
+    d->cap = new_cap;
+}
+long long __nucleor_vecdeque_push_back(long long h, long long v) {
+    NVecDeque *d = (NVecDeque *)(intptr_t)h;
+    if (!d) return 0;
+    if (d->len >= d->cap) __nuc_vecdeque_grow(d);
+    long long tail = (d->head + d->len) % d->cap;
+    d->data[tail] = v;
+    d->len++;
+    return 0;
+}
+long long __nucleor_vecdeque_push_front(long long h, long long v) {
+    NVecDeque *d = (NVecDeque *)(intptr_t)h;
+    if (!d) return 0;
+    if (d->len >= d->cap) __nuc_vecdeque_grow(d);
+    d->head = (d->head + d->cap - 1) % d->cap;
+    d->data[d->head] = v;
+    d->len++;
+    return 0;
+}
+// Returns the popped value; caller checks len > 0 first via vecdeque_len.
+// Returns 0 if empty.
+long long __nucleor_vecdeque_pop_front(long long h) {
+    NVecDeque *d = (NVecDeque *)(intptr_t)h;
+    if (!d || d->len == 0) return 0;
+    long long v = d->data[d->head];
+    d->head = (d->head + 1) % d->cap;
+    d->len--;
+    return v;
+}
+long long __nucleor_vecdeque_pop_back(long long h) {
+    NVecDeque *d = (NVecDeque *)(intptr_t)h;
+    if (!d || d->len == 0) return 0;
+    long long tail = (d->head + d->len - 1) % d->cap;
+    long long v = d->data[tail];
+    d->len--;
+    return v;
+}
+long long __nucleor_vecdeque_get(long long h, long long i) {
+    NVecDeque *d = (NVecDeque *)(intptr_t)h;
+    if (!d || i < 0 || i >= d->len) return 0;
+    return d->data[(d->head + i) % d->cap];
+}
+long long __nucleor_vecdeque_set(long long h, long long i, long long v) {
+    NVecDeque *d = (NVecDeque *)(intptr_t)h;
+    if (!d || i < 0 || i >= d->len) return 0;
+    d->data[(d->head + i) % d->cap] = v;
+    return 0;
+}
+long long __nucleor_vecdeque_len(long long h) {
+    NVecDeque *d = (NVecDeque *)(intptr_t)h;
+    if (!d) return 0;
+    return d->len;
+}
+long long __nucleor_vecdeque_capacity(long long h) {
+    NVecDeque *d = (NVecDeque *)(intptr_t)h;
+    if (!d) return 0;
+    return d->cap;
+}
+long long __nucleor_vecdeque_clear(long long h) {
+    NVecDeque *d = (NVecDeque *)(intptr_t)h;
+    if (!d) return 0;
+    d->head = 0;
+    d->len = 0;
+    return 0;
+}
+long long __nucleor_vecdeque_free(long long h) {
+    NVecDeque *d = (NVecDeque *)(intptr_t)h;
+    if (!d) return 0;
+    free(d->data);
+    free(d);
+    return 0;
+}
+
+// === RFC-0017 phase 4: HashSet<str> ===
+// Implemented as HashMap<str, 1> (value slot unused). Same hash strategy.
+long long __nucleor_hashset_new(void) {
+    return __nucleor_hashmap_new();
+}
+long long __nucleor_hashset_with_capacity(long long n) {
+    return __nucleor_hashmap_with_capacity(n);
+}
+long long __nucleor_hashset_insert(long long h, const char *key) {
+    return __nucleor_hashmap_insert(h, key, 1);
+}
+long long __nucleor_hashset_contains(long long h, const char *key) {
+    return __nucleor_hashmap_contains(h, key);
+}
+long long __nucleor_hashset_remove(long long h, const char *key) {
+    return __nucleor_hashmap_remove(h, key);
+}
+long long __nucleor_hashset_len(long long h) {
+    return __nucleor_hashmap_len(h);
+}
+long long __nucleor_hashset_clear(long long h) {
+    return __nucleor_hashmap_clear(h);
+}
+long long __nucleor_hashset_free(long long h) {
+    return __nucleor_hashmap_free(h);
+}
+
 // === RFC-0015 phase 6: bf16 / f16 / f8 software emulation ===
 // All packed in low N bits of i64 storage. Compute happens at f32 precision
 // via convert-up / convert-down round-trip.
