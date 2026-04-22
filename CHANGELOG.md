@@ -5,6 +5,23 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.21] — 2026-04-22
+
+**RFC-0015 phase 5: per-width print helpers + bin/hex.**
+
+### Added
+
+- `print_i8`, `print_i16`, `print_i32` — signed-display, narrow-width
+  truncation with sign extension.
+- `print_u8`, `print_u16`, `print_u32`, `print_u64` — unsigned display.
+- `print_hex(v)` — lowercase hexadecimal, no `0x` prefix.
+- `print_bin(v)` — binary representation, leading zeros stripped.
+- New gate test: `tests/lang/print_widths.nr`.
+
+### Verify gate
+
+113/113 green on Windows. Self-host LLVM IR fixed point preserved.
+
 ## [0.1.20] — 2026-04-22
 
 **RFC-0015 phase 4: explicit-overflow arithmetic.**
