@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] — 2026-04-22
+
+RFC-0001/0021 attribute syntax in the lexer + `#[test]` discovery
+in `nuc test`.
+
+### Added — RFC-0001/0021 attribute syntax
+
+- **Lexer recognizes `#[...]`** outer attributes alongside the legacy
+  `@attr(args)` syntax. Bracket-depth and quoted-string aware. Skips
+  cleanly without emitting tokens (semantics ship in v0.3 / v0.5
+  RFCs). Forward-compatible with `#[test]`, `#[no_alloc]`,
+  `#[deadline = 1ms]`, `#[cfg(target_os = "linux")]`, etc.
+- **`tests/lang/hash_attributes.nr`** verifies the lexer accepts
+  `#[no_alloc]`, `#[no_panic]`, `#[deadline = 1000]`,
+  `#[cfg(...)]` syntax.
+
+### Added — `nuc test` for `#[test]` attributes
+
+- `nuc test --list` and `nuc test` discover `#[test]`-attributed
+  functions in addition to the legacy `@test` line and `test_*`
+  naming convention. Multiple `#[...]` attribute lines between
+  `#[test]` and the fn signature are now permitted.
+- Verified end-to-end on a probe with all three discovery styles
+  (4 tests discovered, 4 passed).
+
+### Verify gate
+
+103/103 green on Windows (added 1 step: `tests/lang/hash_attributes`).
+
 ## [0.1.9] — 2026-04-22
 
 Build infrastructure for v0.2: cross-platform CI, RFC-0015 phase 1

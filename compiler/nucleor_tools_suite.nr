@@ -8321,7 +8321,14 @@ fn collect_test_names_from_source(source: str) -> Vec<i32> {
         while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
         let line: str = str_substring(source, p, eol);
         let compact: str = strip_spaces(line);
-        if str_eq(compact, "@test") == 1 {
+        // Detect test attributes: legacy `@test` line, RFC-0021 `#[test]`,
+        // or RFC-0021 `#[test, ignore]` / `#[test, should_panic]` etc.
+        let mut is_test_attr: i64 = 0;
+        if str_eq(compact, "@test") == 1 { is_test_attr = 1; };
+        if str_eq(compact, "#[test]") == 1 { is_test_attr = 1; };
+        if str_starts_with(compact, "#[test,") == 1 { is_test_attr = 1; };
+        if str_starts_with(compact, "#[test ") == 1 { is_test_attr = 1; };
+        if is_test_attr == 1 {
             marked_test = 1;
         } else {
             let fn_name: str = extract_fn_name_from_line(line);
@@ -8330,7 +8337,8 @@ fn collect_test_names_from_source(source: str) -> Vec<i32> {
                     tests.push(fn_name);
                 };
                 marked_test = 0;
-            } else if str_len(compact) > 0 && str_starts_with(compact, "//") == 0 {
+            } else if str_len(compact) > 0 && str_starts_with(compact, "//") == 0 && str_starts_with(compact, "#[") == 0 {
+                // Allow other #[...] attribute lines between the test attr and the fn
                 marked_test = 0;
             };
         };
