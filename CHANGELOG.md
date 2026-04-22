@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.11] — 2026-04-22
+
+RFC-0020 phase 1: Rust-style diagnostic rendering.
+
+### Added — diagnostics
+
+- ANSI-colored error / warning labels (red / yellow). Honors
+  `NO_COLOR` and `NUCLEOR_NO_COLOR` env vars; falls back to plain
+  text when stdout is not a TTY.
+- Multi-line diagnostic frame:
+  ```
+  error[OWN-001]: use of moved variable 'p'
+    --> fn main@line 14:9
+    note: moved here (line 13)
+    help: Consider cloning the value before passing it
+  ```
+- Pre-existing diag struct fields (col, suggestion, child_message,
+  child_line) now actually rendered. No struct changes; renderer
+  upgrade only.
+- Inter-diagnostic blank line for readability when multiple errors
+  are emitted.
+- Helper functions `ansi_red`, `ansi_yellow`, `ansi_dim`,
+  `ansi_bold`, `diag_use_color()` added to compiler.
+
+### Verify gate
+
+103/103 green. Negative tests still pass because their match
+pattern (`ERROR|WARNING|error:`) finds the new lowercase `error[`
+prefix.
+
 ## [0.1.10] — 2026-04-22
 
 RFC-0001/0021 attribute syntax in the lexer + `#[test]` discovery

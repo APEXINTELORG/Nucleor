@@ -2982,24 +2982,102 @@ fn find_column_in_source(source: str, fn_name: str, var_name: str) -> i64 {
     return vec_get(find_linecol_in_source(source, fn_name, var_name), 1);
 }
 
+// RFC-0020 phase 1: Rust-style diagnostic rendering.
+// Detects TTY via NO_COLOR env; ANSI when colored, plain otherwise.
+fn diag_use_color() -> i64 {
+    if str_len(getenv("NO_COLOR")) > 0 { return 0; };
+    if str_len(getenv("NUCLEOR_NO_COLOR")) > 0 { return 0; };
+    if isatty_stdout() == 0 { return 0; };
+    return 1;
+}
+
+fn ansi_red(s: str) -> str {
+    if diag_use_color() == 0 { return s; };
+    let esc: str = chr(27);
+    return str_concat(esc, str_concat("[31m", str_concat(s, str_concat(esc, "[0m"))));
+}
+
+fn ansi_yellow(s: str) -> str {
+    if diag_use_color() == 0 { return s; };
+    let esc: str = chr(27);
+    return str_concat(esc, str_concat("[33m", str_concat(s, str_concat(esc, "[0m"))));
+}
+
+fn ansi_dim(s: str) -> str {
+    if diag_use_color() == 0 { return s; };
+    let esc: str = chr(27);
+    return str_concat(esc, str_concat("[2m", str_concat(s, str_concat(esc, "[0m"))));
+}
+
+fn ansi_bold(s: str) -> str {
+    if diag_use_color() == 0 { return s; };
+    let esc: str = chr(27);
+    return str_concat(esc, str_concat("[1m", str_concat(s, str_concat(esc, "[0m"))));
+}
+
 fn diag_emit_text(diags: Vec<i32>) -> i64 {
     let cnt: i64 = vec_len(diags);
     let mut i: i64 = 0;
     while i < cnt {
         let d: Vec<i32> = vec_get(diags, i);
         let severity: str = vec_get(d, 0);
-        let checker: str = vec_get(d, 1);
         let code: str = vec_get(d, 2);
         let message: str = vec_get(d, 3);
         let fn_name: str = vec_get(d, 4);
         let line: i64 = vec_get(d, 5);
-        let mut sb: i64 = sb_new();
-        if str_eq(severity, "error") { sb_append(sb, "ERROR"); } else { sb_append(sb, "WARNING"); };
-        sb_append(sb, " ["); sb_append(sb, code); sb_append(sb, "]: ");
-        sb_append(sb, message);
-        if str_len(fn_name) > 0 { sb_append(sb, " in function '"); sb_append(sb, fn_name); sb_append(sb, "'"); };
-        if line > 0 { sb_append(sb, " (line "); sb_append(sb, str_from_int(line)); sb_append(sb, ")"); };
-        print(sb_to_str(sb));
+        let col: i64 = vec_get(d, 6);
+        let suggestion: str = vec_get(d, 8);
+        let child_msg: str = vec_get(d, 10);
+        let child_line: i64 = vec_get(d, 11);
+
+        // First line: severity[CODE]: message
+        let mut head: i64 = sb_new();
+        let label: str = if str_eq(severity, "error") == 1 { ansi_red("error") } else { ansi_yellow("warning") };
+        sb_append(head, label);
+        sb_append(head, ansi_bold(str_concat("[", str_concat(code, "]"))));
+        sb_append(head, ": ");
+        sb_append(head, message);
+        print(sb_to_str(head));
+
+        // Second line: --> file:line:col  (file currently unknown; emit fn:line:col)
+        if line > 0 {
+            let mut loc: i64 = sb_new();
+            sb_append(loc, "  ");
+            sb_append(loc, ansi_dim("-->"));
+            sb_append(loc, " ");
+            if str_len(fn_name) > 0 {
+                sb_append(loc, ansi_dim("fn "));
+                sb_append(loc, fn_name);
+                sb_append(loc, ansi_dim("@"));
+            };
+            sb_append(loc, ansi_dim(str_concat("line ", str_from_int(line))));
+            if col > 0 {
+                sb_append(loc, ansi_dim(str_concat(":", str_from_int(col))));
+            };
+            print(sb_to_str(loc));
+        };
+
+        // Child note line ("moved here", "borrowed here", etc.)
+        if str_len(child_msg) > 0 && child_line > 0 {
+            let mut child: i64 = sb_new();
+            sb_append(child, "  ");
+            sb_append(child, ansi_dim("note: "));
+            sb_append(child, child_msg);
+            sb_append(child, ansi_dim(str_concat(" (line ", str_concat(str_from_int(child_line), ")"))));
+            print(sb_to_str(child));
+        };
+
+        // Suggestion / help line
+        if str_len(suggestion) > 0 {
+            let mut help: i64 = sb_new();
+            sb_append(help, "  ");
+            sb_append(help, ansi_dim("help: "));
+            sb_append(help, suggestion);
+            print(sb_to_str(help));
+        };
+
+        // Blank separator between diagnostics
+        if i + 1 < cnt { print(""); };
         i = i + 1;
     };
     return cnt;
