@@ -1,8 +1,6 @@
 # Nucleor
 
-**A self-hosted systems language with algebraic optimization and proof-friendly numerics.**
-
-Nucleor is a small, statically-typed language that compiles to native code through LLVM. The compiler is written in Nucleor itself — every release rebuilds the compiler from its own source as part of CI. The optimizer understands user-declared algebraic laws (`@law(commutative, associative, identity=0)`), enforces strict performance budgets on hot paths (`@hot`), and ships with a runtime that includes a quantum-circuit simulator, validated Taylor-arithmetic primitives, and a working Rust-FFI demonstration.
+**A self-hosted programming language with a complete scientific-computing runtime — linear algebra, tensors, PDE solvers, control systems, automatic differentiation, quantum simulation, and 60+ more rods, all built in.**
 
 ```nr
 fn main() -> i64 {
@@ -19,11 +17,16 @@ target\hello.exe
 
 ## Why
 
+Nucleor is what happens when you build a small programming language and don't stop at "hello world." The compiler is self-hosted in ~10,000 lines of Nucleor source. The standard library is ~280+ runtime functions covering most of the scientific computing stack. Together they fit in a 54 MB repo with no external runtime dependencies beyond LLVM.
+
 - **Self-hosted from day one.** The compiler is written in Nucleor and rebuilds itself as a standard CI step. No hidden runtime dependencies; no separate bootstrap language to keep in sync.
-- **Algebraic optimization.** Declare a function commutative or associative and the optimizer rewrites call sites accordingly. Identity elimination, idempotence, involution, and fusion are all expressible.
-- **Strict performance attributes.** `@hot` enforces no-heap, no-format, no-indirect-dispatch in a function's body and surfaces violations as compile-time diagnostics.
-- **Proof-friendly numerics.** Bundled interval and Taylor-arithmetic runtimes for code where bit-exact bounds matter (PDE solvers, quantum simulation, formal verification pipelines).
+- **Real scientific-computing stack, not a toy.** Linear algebra (LU, QR, Cholesky, eigen, SVD), tensor decompositions (CP-ALS, TT-SVD), sparse matrices with CG/GMRES solvers, FFT, signal processing, statistics with t-tests and KDE, ODE solvers (Euler, RK4, RK45, symplectic), root finding, quadrature, B-splines + KAN, interpolation.
+- **PDE solvers that actually solve PDEs.** Multigrid Poisson, Lattice Boltzmann fluids, FDTD electromagnetics, heat transfer.
+- **Physics built in.** 17 CODATA 2018 constants. SI unit conversion across mass, length, time, temperature, pressure, energy, force, frequency, voltage, current. 3D rigid-body dynamics. Orbital mechanics (Kepler, Hohmann, vis-viva).
+- **Modern ML in the box.** Reverse-mode autodiff. Mamba selective scan, RWKV, xLSTM cells. Mixture-of-experts routing. GATv2 graph neural networks. Full state-vector quantum simulator.
+- **Algebraic optimization.** Declare a function commutative or associative and the optimizer rewrites call sites accordingly. `@hot` enforces no-heap, no-format, no-indirect-dispatch in a function's body.
 - **Real interop.** The shipping `rust_bridge` demonstrates calling Rust crates (regex, base64, hashing) from Nucleor through the C ABI. The same pattern works for any language with `extern "C"` static-library output.
+- **Black-Scholes and Greeks** because why not. Plus PCA, PID, Kalman filter, control state-space models.
 
 ## Install
 
@@ -38,21 +41,35 @@ target\hello.exe
 
 The bootstrap binary `bin/nucleor.exe` is committed to the repo, so you do not need to build the compiler from source on first use. The `nuc.bat` launcher resolves `clang.exe` from `NUCLEOR_CLANG_PATH`, then `LLVM_SYS_180_PREFIX/bin`, then `C:\Program Files\LLVM\bin`, then plain PATH.
 
-POSIX (Linux/macOS) support is planned for v1.1. The `nuc` shell stub is shipped now to keep the layout stable.
+POSIX (Linux/macOS) support is planned for v1.1.
 
-## What's in the box
+## Standard library — by category
 
-| Path | Purpose |
-|---|---|
-| `bin/nucleor.exe`         | The bootstrap compiler binary |
-| `compiler/`               | The compiler's own Nucleor source (`nucleor_s1_compiler.nr`, `nucleor_tools_suite.nr`) |
-| `stdlib/runtime/`         | Always-linked C runtime (`nucleor_llvm_rt.c`) plus opt-in domain runtimes (FFT, hashmap, JSON, crypto, tensor, ...) |
-| `stdlib/rods/`            | Standard library rods (Nucleor `.nr` wrappers + their `_rt.c` runtimes): strings, fmt, json, regex, quantum, neural-network, GNN, concurrency, time, base64, bitwise, math, cli, log, test, ... |
-| `stdlib/rods/rust_bridge/`| A working Rust crate demonstrating C-ABI interop |
-| `examples/01..07_*.nr`    | Seven runnable demos, one per major feature |
-| `tests/`                  | 24 self-contained `.nr` tests across language, attributes, runtime, rods, and negative cases |
-| `docs/`                   | Full reference: getting-started, language tour, language reference, rods + runtime, architecture, benchmarks |
-| `nuc.bat`, `nuc_router.ps1` | Windows launcher and command router |
+**Numerics & linear algebra:** `complex` · `math` · `linalg` (LU, QR, Cholesky, eigen, SVD) · `tensor_nd` · `tensor_decomp` (CP-ALS, TT-SVD) · `sparse` (CSR, CG, GMRES) · `bitwise`
+
+**Numerical methods:** `ode` (Euler, RK4, RK45, symplectic) · `root` (bisection, Newton, Brent) · `quad` (trapezoid, Simpson, Gauss, adaptive, Monte Carlo) · `interp` (linear, cubic spline, Lagrange, Chebyshev, RBF) · `bspline` (+ KAN forward) · `optim` (GD, Adam, simplex, line search, genetic)
+
+**Statistics & signal:** `stats` (regression, t-test, χ², KDE) · `signal` (FIR/IIR/Butterworth/windows) · `fft` (1D, real, convolve, power spectrum) · `pca` (fit, project)
+
+**PDE & physics simulation:** `multigrid` · `fluid` (Lattice Boltzmann) · `emag` (FDTD Maxwell) · `thermo` (heat eq + ideal gas + Carnot + radiation) · `geom` · `rigid_body` · `orbit`
+
+**Physical constants & units:** `physics` (17 CODATA 2018 constants) · `units` (SI conversion across 9 dimensions)
+
+**Symbolic & differentiable:** `autodiff` (reverse mode) · `symbolic` (expression trees + diff)
+
+**Control systems:** `control` (PID + Kalman + state-space)
+
+**Modern ML:** `nn` (Dense + Adam + attention + ensemble) · `gnn` (GATv2 + global attention pool) · `ssm` (Mamba selective scan + RWKV + xLSTM + ZOH) · `moe` (top-k gate + dispatch + load balancing)
+
+**Quantum:** `quantum` (full state-vector simulator: H, X, Y, Z, CNOT, measure)
+
+**Finance:** `finance` (Black-Scholes + all Greeks + implied vol + NPV + IRR + VaR + portfolio opt)
+
+**System & data:** `io` · `fs` · `os` · `env` · `path` · `time` · `concurrency` (threads + mutex + spawn/join) · `cli` · `log` · `test` · `strings` · `fmt` · `json` · `csv` · `ini` · `regex` · `base64` · `uuid` · `queue` · `stack` · `sort` · `collections` · `option` · `result`
+
+**Interop:** `rust` (Rust crates via C ABI) · `python` · `gpu`
+
+That's **65 rods total** in v0.1.1, all building cleanly against the bootstrap binary.
 
 ## Tour by example
 
@@ -63,13 +80,19 @@ POSIX (Linux/macOS) support is planned for v1.1. The `nuc` shell stub is shipped
 - [`examples/05_quantum.nr`](examples/05_quantum.nr) — Bell-state preparation on the bundled quantum simulator.
 - [`examples/06_perf_attrs.nr`](examples/06_perf_attrs.nr) — `@hot`, `@law`, `@const_fn`.
 - [`examples/07_rust_interop.nr`](examples/07_rust_interop.nr) — Rust regex + base64 via `rust_bridge`.
+- [`examples/08_linalg.nr`](examples/08_linalg.nr) — solve a linear system, take an SVD.
+- [`examples/09_ode.nr`](examples/09_ode.nr) — integrate a damped pendulum with RK4.
+- [`examples/10_fft.nr`](examples/10_fft.nr) — round-trip a sine wave through the FFT.
+- [`examples/11_pid.nr`](examples/11_pid.nr) — PID controller driving a plant to a setpoint.
+- [`examples/12_autodiff.nr`](examples/12_autodiff.nr) — reverse-mode autodiff of `sin(x²) + x`.
 
 ## Documentation
 
 - [Getting Started](docs/getting-started.md) — install, first build, troubleshooting.
 - [Language Tour](docs/language-tour.md) — syntax and idioms by example.
 - [Language Reference](docs/language-reference.md) — formal-style spec of types, control flow, attributes, the CLI.
-- [Rods and Runtime](docs/rods-and-runtime.md) — what rods exist, how the runtime boundary works, how to write a new rod in C, Rust, or anything else with a C ABI.
+- [Rods and Runtime](docs/rods-and-runtime.md) — the rod catalog with one-liners for each one.
+- [Math and Physics](docs/math-and-physics.md) — worked examples across the scientific-computing rods.
 - [Architecture](docs/architecture.md) — pipeline (lex → parse → IR → algebraic-rewrite → LLVM → clang), the self-host bootstrap chain, the optimizer.
 - [Benchmarks](docs/benchmarks.md) — reproducible numbers from `nuc bench`.
 
@@ -95,17 +118,25 @@ nuc help                   full command list
 nuc test tests/
 ```
 
-This compiles and runs all 24 tests across `tests/lang/`, `tests/attrs/`, `tests/runtime/`, and `tests/rods/`. The negative tests in `tests/err/` are checked separately by running `nuc build` against them and confirming the expected diagnostic fires.
+This compiles and runs all 24 tests across `tests/lang/`, `tests/attrs/`, `tests/runtime/`, and `tests/rods/`.
+
+For the full smoke gate (all examples + tests + self-host rebuild):
+
+```
+powershell.exe -ExecutionPolicy Bypass -File tools\verify.ps1
+```
+
+This is what CI runs on every push.
 
 ## Versioning
 
-This is the **v0.1.0** open-source release. The bootstrap binary identifies itself as `Nucleor Compiler 0.2.0-v2` — the V2 designation refers to the second major rewrite of the compiler internals (the rewrite that introduced the algebraic-rewrite optimizer and the V2 attribute set). Future releases will follow semantic versioning starting from v0.1.0.
+This is **v0.1.1**. The bootstrap binary identifies itself as `Nucleor Compiler 0.2.0-v2` — the V2 designation refers to the second major rewrite of the compiler internals (the rewrite that introduced the algebraic-rewrite optimizer and the V2 attribute set). Future releases will follow semantic versioning starting from v0.1.x.
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed in this release.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: open an issue or PR at https://github.com/APEXINTELORG/Nucleor. We follow the [Contributor Covenant](CODE_OF_CONDUCT.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: open an issue or PR at https://github.com/APEXINTELORG/Nucleor. We follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

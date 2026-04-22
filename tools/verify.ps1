@@ -60,8 +60,9 @@ Step "binary present" {
     return $null -ne $out
 }
 
-# Examples 01..06 (07 needs rust_bridge built)
-$examples = @("01_hello", "02_fib", "03_structs", "04_rods", "05_quantum", "06_perf_attrs")
+# Examples 01..06 + 08..12 (07 needs rust_bridge built)
+$examples = @("01_hello", "02_fib", "03_structs", "04_rods", "05_quantum", "06_perf_attrs",
+              "08_linalg", "09_ode", "10_fft", "11_pid", "12_autodiff")
 $rustBridgeLib = Join-Path $root "stdlib\rods\rust_bridge\target\release\nucleor_rust_bridge.lib"
 if (Test-Path $rustBridgeLib) {
     $examples += "07_rust_interop"
