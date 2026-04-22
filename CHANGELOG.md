@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.60] — 2026-04-22
+
+**`nuc fix --imports` migration tool + `From`/`Into` deferral.**
+
+### Added — `nuc fix --imports`
+
+```
+$ cat demo.nr
+import "stdlib/rods/atomic.nr"
+import "stdlib/rods/bits.nr"
+use std::math;
+
+$ nuc fix --imports demo.nr
+nuc fix --imports: rewrote 2 import line(s) in demo.nr
+
+$ cat demo.nr
+use std::atomic;
+use std::bits;
+use std::math;
+```
+
+Rewrites quoted-path `import "stdlib/rods/<rod>.nr"` (and `use`)
+lines into the Rust-style `use std::<rod>;` syntax shipped in v0.1.52.
+Idempotent — skips lines already in `std::*` / `crate::*` / `super::*`
+form and emits "nothing to fix" when no rewrite applies. Writes the
+file only when at least one line changed.
+
+Implementation lives in tools binary (`run_fix_command` +
+`fix_imports_in_source`), exposed via the s1 compiler's
+`run_external_tool` router so `nuc fix --imports <file>` works
+identically through `nucleor.exe`.
+
+### Tracker — `From` / `Into` trait
+
+Marked DEFERRED to v0.4 — the `?` desugar (v0.1.50) propagates errors
+verbatim through the existing untyped `Result` stub
+(`Vec<i32>` `[tag, payload]`). Auto-conversion via `From<T>::from`
+needs generic trait params, which arrive with RFC-0024 generic enums
+in v0.4.
+
+### Verify gate
+
+157/157 green on Windows. Self-host LLVM IR fixed point preserved
+(v57==v58 byte-identical).
+
 ## [0.1.59] — 2026-04-22
 
 **RFC-0020 phase 1 LineMap + RFC-0022 phase 2 `_WIN32` audit closed.**
