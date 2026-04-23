@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.36] — 2026-04-22
+
+**Micro-benchmark harness (`examples/18_benchmark.nr`).**
+
+```
+=== Nucleor benchmark harness (v0.2.x stdlib) ===
+Iterations per workload: 100
+
+workload            n      min_ns      max_ns     mean_ns   median_ns   stddev_ns      p95_ns
+---------------------------------------------------------------------------------------------
+fib(35)           100           0         300          46           0     55.5338         100
+i64_isqrt         100         300        3200         450         400     280.535         500
+
+fib(35) total:    0 ms
+i64_isqrt total:  1 ms
+```
+
+Fifth v0.2-era end-to-end demo. Different category from the
+text-processing demos (csv / word-count / histogram / linecount):
+this one exercises `time_wall_ns` + the v0.2.30 stats helpers in
+the canonical "wall-clock micro-benchmark" pattern that production
+code actually uses.
+
+- Times two CPU-bound workloads — `fib(35)` (deterministic) and
+  `i64_isqrt` of a random input — over N iterations each.
+- Per-sample timing via `time_wall_ns()` brackets; per-workload
+  total elapsed via `time_elapsed_ms(start)`.
+- Reports min / max / mean / median / stddev / p95 per workload.
+- Iteration count from `$NUC_BENCH_ITERS` (default 100).
+- Seeded RNG via `rng_seed(42, 1337)` so the i64_isqrt input
+  distribution is reproducible across runs.
+
+The bundled output shows `fib(35)` running well under the
+nanosecond-resolution clock floor (many samples report 0ns; mean
+46ns), while `i64_isqrt` over random 9-digit inputs takes
+300–3200ns with stddev 280ns — visible separation between the two
+workloads in the same harness.
+
+`18_benchmark` is now part of the gate (`tools/verify.sh`):
+184/185 green on Windows + 1 skip. Self-host LLVM IR fixed point
+unaffected (no compiler changes this release).
+
 ## [0.2.35] — 2026-04-22
 
 **Multi-file `wc`-style counter (`examples/17_linecount.nr`).**
