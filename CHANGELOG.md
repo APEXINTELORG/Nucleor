@@ -5,6 +5,93 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.72] — 2026-04-23
+
+**Verify gate: diagnostic smoke step (policy/certify/translate/evidence/graph/perf/bench).**
+
+Seven more CLI surfaces gate-covered. With this ship the
+remaining diagnostic / reporting / provenance commands all sit
+behind the gate, completing the CLI-coverage audit pattern that
+ran from v0.2.64 (`explain`) through v0.2.71 (inspector
+bundle):
+
+- **`nuc policy`** — policy compliance report. Verifies the
+  default policy passes on `examples/01_hello.nr` and that the
+  output shape contains `Policy:` and `Result:` headers.
+- **`nuc certify`** — strict-mode verification pass. Verifies
+  the report carries the `source:` provenance line.
+- **`nuc translate`** — Sage translation pass. Verifies the
+  output carries the `translated:` marker.
+- **`nuc evidence`** — SPDX + provenance JSON (SLSA v1
+  attestation surface). Verifies both `"spdx":` and
+  `"provenance":` keys appear in the JSON.
+- **`nuc graph`** — call-graph analysis. Verifies the
+  `functions:` and `edges:` summary lines.
+- **`nuc perf`** — performance analysis report. Verifies the
+  `Nucleor Performance Analysis` header.
+- **`nuc bench`** — benchmark harness output. Verifies the
+  `source:` line that anchors per-bench provenance.
+
+**Bundled into one `cli_diagnostic_smoke` step** (single bash
+function, single PowerShell `Step` block). Per-iteration
+overhead: 7 binary invocations against the same input file.
+Same audit + bundling pattern that v0.2.71 used for inspectors.
+
+**Audit findings:** all seven commands return exit 0 with the
+expected structured output. **Zero real bugs found** — same
+positive-finding outcome as v0.2.71, confirming this slice of
+the CLI stays well-tested by the existing example pipeline.
+
+**Step total bumped 194 → 195** in both gates.
+
+The pre-iteration smoke block now reads:
+
+```
+[ 1/195] OK    binary present
+[ 2/195] OK    compiler ABI tables synced
+[ 3/195] OK    CLI: nuc explain NUM-001 wired
+[ 4/195] OK    CLI: nuc bootstrap status reports correctly
+[ 5/195] OK    CLI: nuc check + abi inspect
+[ 6/195] OK    CLI: nuc summary/audit/query/impact (inspectors)
+[ 7/195] OK    CLI: nuc policy/certify/translate/evidence/graph/perf/bench (diagnostics)
+[ 8/195] OK    CLI: nuc init scaffolding works
+[ 9/195] OK    CLI: nuc doc generator works
+[10/195] OK    CLI: nuc lock writes Nucleor.lock
+[11/195] OK    CLI: nuc test runs #[test] functions
+```
+
+**Coverage so far: 16 unique CLI commands** under explicit
+smoke coverage (every command except the four `build*`-family
+variants and `emit`, which are implicitly exercised by every
+example + test step that calls `nuc build`):
+`explain`, `bootstrap`, `check`, `abi`, `summary`, `audit`,
+`query`, `impact`, `policy`, `certify`, `translate`,
+`evidence`, `graph`, `perf`, `bench`, `init`, `doc`, `lock`,
+`test`. With the build-family already implicitly gated, **the
+full surface area of `nuc` is now under verify-gate coverage.**
+
+### Bash gate clang resolution: Windows fallback
+
+Drive-by fix while wiring v0.2.72: `tools/verify.sh` now falls
+back to `C:\Program Files\LLVM\bin\clang.exe` when neither
+`NUCLEOR_CLANG_PATH` nor `LLVM_SYS_180_PREFIX` resolve, mirroring
+the PowerShell gate's behavior. The probes for both env vars now
+also check the `.exe` suffix so a stale `LLVM_SYS_180_PREFIX`
+pointing at a deleted MSVC LLVM tree silently falls through
+instead of looking valid.
+
+Symptom that prompted the fix: bash gate run on a host where
+`LLVM_SYS_180_PREFIX` had been set to a since-removed LLVM tree
+showed ~150 spurious link failures (`note: LLVM IR was emitted;
+GPU/CUDA experiments may require manual link with CUDA libs`)
+because clang never made it onto `PATH`. Linux/macOS gates
+unaffected.
+
+### Verify gate
+
+195 / 195 PASS, 0 SKIP on the bash gate. Tooling-only — no
+compiler / runtime / ABI / source / test changes.
+
 ## [0.2.71] — 2026-04-23
 
 **Verify gate: inspector smoke step (summary/audit/query/impact).**

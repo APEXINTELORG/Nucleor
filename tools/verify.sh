@@ -72,11 +72,16 @@ step() {
 }
 
 # --- Ensure clang on PATH (mirror nuc resolution) -----------------------
+# Probe for clang on Windows accepts either `clang` or `clang.exe`, since
+# MSVC LLVM packages ship only the .exe. Path-not-found env vars (e.g.
+# stale LLVM_SYS_180_PREFIX) silently fall through.
 if ! command -v clang >/dev/null 2>&1; then
-    if [ -n "${NUCLEOR_CLANG_PATH:-}" ] && [ -x "$NUCLEOR_CLANG_PATH" ]; then
+    if [ -n "${NUCLEOR_CLANG_PATH:-}" ] && { [ -x "$NUCLEOR_CLANG_PATH" ] || [ -x "${NUCLEOR_CLANG_PATH}.exe" ]; }; then
         export PATH="$(dirname "$NUCLEOR_CLANG_PATH"):$PATH"
-    elif [ -n "${LLVM_SYS_180_PREFIX:-}" ] && [ -x "$LLVM_SYS_180_PREFIX/bin/clang" ]; then
+    elif [ -n "${LLVM_SYS_180_PREFIX:-}" ] && { [ -x "$LLVM_SYS_180_PREFIX/bin/clang" ] || [ -x "$LLVM_SYS_180_PREFIX/bin/clang.exe" ]; }; then
         export PATH="$LLVM_SYS_180_PREFIX/bin:$PATH"
+    elif [ -x "/c/Program Files/LLVM/bin/clang.exe" ]; then
+        export PATH="/c/Program Files/LLVM/bin:$PATH"
     elif [ -x "/usr/lib/llvm-18/bin/clang" ]; then
         export PATH="/usr/lib/llvm-18/bin:$PATH"
     elif [ -x "/opt/homebrew/opt/llvm/bin/clang" ]; then
@@ -131,9 +136,10 @@ done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
 # Step count: 1 binary present + 1 ABI parity + 1 CLI explain
-# + 1 bootstrap + 1 check+abi + 1 inspectors + 1 init + 1 doc
-# + 1 lock + 1 test + N examples + N tests + N negative + 1 self-host
-STEP_TOTAL=$((10 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+# + 1 bootstrap + 1 check+abi + 1 inspectors + 1 diagnostics
+# + 1 init + 1 doc + 1 lock + 1 test
+# + N examples + N tests + N negative + 1 self-host
+STEP_TOTAL=$((11 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -211,6 +217,40 @@ cli_inspector_smoke() {
     out=$("$BIN" impact examples/01_hello.nr main 2>&1)
     echo "$out" | grep -q '"target":"main"' || return 1
     echo "$out" | grep -q '"found":true' || return 1
+    return 0
+}
+
+# nuc policy/certify/translate/evidence/graph/perf/bench smoke
+# (added v0.2.72). Bundles seven advanced/diagnostic commands into
+# one gate step. Each gets minimal output validation; the goal is
+# "this command path produces structured output without crashing"
+# rather than full semantic verification.
+cli_diagnostic_smoke() {
+    local out
+    # nuc policy — policy compliance check (PASS on default)
+    out=$("$BIN" policy examples/01_hello.nr 2>&1)
+    echo "$out" | grep -q "Policy:" || return 1
+    echo "$out" | grep -q "Result:" || return 1
+    # nuc certify — strict-mode verification pass
+    out=$("$BIN" certify examples/01_hello.nr 2>&1)
+    echo "$out" | grep -q "source:" || return 1
+    # nuc translate — Sage translation pass
+    out=$("$BIN" translate examples/01_hello.nr 2>&1)
+    echo "$out" | grep -q "translated:" || return 1
+    # nuc evidence — SPDX + provenance JSON (SLSA v1)
+    out=$("$BIN" evidence examples/01_hello.nr 2>&1)
+    echo "$out" | grep -q '"spdx":' || return 1
+    echo "$out" | grep -q '"provenance":' || return 1
+    # nuc graph — call-graph node/edge counts
+    out=$("$BIN" graph examples/01_hello.nr 2>&1)
+    echo "$out" | grep -q "functions:" || return 1
+    echo "$out" | grep -q "edges:" || return 1
+    # nuc perf — performance analysis report header
+    out=$("$BIN" perf examples/01_hello.nr 2>&1)
+    echo "$out" | grep -q "Nucleor Performance Analysis" || return 1
+    # nuc bench — benchmark harness against the source
+    out=$("$BIN" bench examples/01_hello.nr 2>&1)
+    echo "$out" | grep -q "source:" || return 1
     return 0
 }
 
@@ -412,6 +452,7 @@ step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
 step "CLI: nuc bootstrap status reports correctly" cli_bootstrap_smoke
 step "CLI: nuc check + abi inspect" cli_check_abi_smoke
 step "CLI: nuc summary/audit/query/impact (inspectors)" cli_inspector_smoke
+step "CLI: nuc policy/certify/translate/evidence/graph/perf/bench (diagnostics)" cli_diagnostic_smoke
 step "CLI: nuc init scaffolding works" cli_init_smoke
 step "CLI: nuc doc generator works" cli_doc_smoke
 step "CLI: nuc lock writes Nucleor.lock" cli_lock_smoke
