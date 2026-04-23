@@ -90,7 +90,7 @@ cd "$ROOT"
 
 # --- Compute total step count ------------------------------------------
 RUST_BRIDGE_LIB="$ROOT/stdlib/rods/rust_bridge/target/release/libnucleor_rust_bridge.a"
-EXAMPLES=(01_hello 02_fib 03_structs 04_rods 05_quantum 06_perf_attrs 08_linalg 09_ode 10_fft 11_pid 12_autodiff 13_test_framework 14_csv_summary 15_word_count 16_histogram)
+EXAMPLES=(01_hello 02_fib 03_structs 04_rods 05_quantum 06_perf_attrs 08_linalg 09_ode 10_fft 11_pid 12_autodiff 13_test_framework 14_csv_summary 15_word_count 16_histogram 17_linecount)
 [ -f "$RUST_BRIDGE_LIB" ] && EXAMPLES+=(07_rust_interop)
 
 TEST_DIRS=(lang attrs runtime rods features)
