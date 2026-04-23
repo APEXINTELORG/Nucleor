@@ -131,8 +131,9 @@ done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
 # Step count: 1 binary present + 1 ABI parity + 1 CLI explain smoke
-# + 1 CLI init smoke + N examples + N tests + N negative + 1 self-host
-STEP_TOTAL=$((4 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+# + 1 CLI init smoke + 1 CLI doc smoke + N examples + N tests
+# + N negative + 1 self-host
+STEP_TOTAL=$((5 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -182,6 +183,37 @@ cli_init_smoke() {
         local out
         out=$("$exe" 2>&1)
         [ -n "$out" ] || exit 1
+    )
+    local rc=$?
+    rm -rf "$sandbox"
+    return $rc
+}
+
+# nuc doc skeleton smoke (added v0.2.67) — RFC-0029 phase 1 doc
+# generator is a v0.2 deliverable. Verifies the generator reads
+# /// doc comments, emits a Markdown doc with function index + per-fn
+# signature blocks, and the --out flag writes to file.
+cli_doc_smoke() {
+    local sandbox="/tmp/_nuc_doc_smoke_$$"
+    rm -rf "$sandbox"
+    mkdir -p "$sandbox" || return 1
+    (
+        cd "$sandbox" || exit 1
+        cat > smoke.nr <<'NREOF'
+/// Adds two integers.
+fn smoke_add(a: i64, b: i64) -> i64 { return a + b; }
+NREOF
+        local stdout_out
+        stdout_out=$("$BIN" doc smoke.nr 2>&1)
+        # Stdout mode: must produce a Markdown doc that mentions the fn
+        echo "$stdout_out" | grep -q "smoke_add" || exit 1
+        echo "$stdout_out" | grep -q "## Function index" || exit 1
+        echo "$stdout_out" | grep -q "Adds two integers" || exit 1
+        echo "$stdout_out" | grep -q "Signature" || exit 1
+        # --out mode: must write the file
+        "$BIN" doc smoke.nr --out smoke.md >/dev/null 2>&1 || exit 1
+        [ -f smoke.md ] || exit 1
+        grep -q "smoke_add" smoke.md || exit 1
     )
     local rc=$?
     rm -rf "$sandbox"
@@ -263,6 +295,7 @@ step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
 step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
 step "CLI: nuc init scaffolding works" cli_init_smoke
+step "CLI: nuc doc generator works" cli_doc_smoke
 
 for ex in "${EXAMPLES[@]}"; do
     step "example $ex" build_example "$ex"
