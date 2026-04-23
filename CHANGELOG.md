@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.120] — 2026-04-23
+
+**One more code: TNT-001 (taint analysis) was the last
+undocumented diagnostic.**
+
+After v0.2.119 wired 22 OWN/TYP codes, ran a final repo-wide
+sweep comparing every `"CODE-NNN"` literal in the compiler
+sources to the spec doc's documented codes. **Found one more:
+TNT-001** — "Tainted data passed to sensitive sink" — fires
+from the strict-mode taint pass in
+`compiler/nucleor_tools_suite.nr` when tainted data flows
+into a function annotated as a sensitive sink.
+
+Same drift class as v0.2.79 / v0.2.119 — code fires but is
+missing from spec doc and explain registry. The suggestion
+machinery already proposes `sanitize(value)` as the fix, so
+the diagnostic itself was wired all along; just the user-
+facing documentation was the gap.
+
+### Spec doc
+
+Added a new "TNT series — taint analysis (expansion of
+NR033)" section between OWN and TYP, with a one-row table
+covering TNT-001 (severity: warning; source: strict-mode
+taint pass).
+
+Note about TYP-006 vs TNT-001: the existing `tests/err/err_taint_*`
+files (taint_arg, taint_leak, taint_propagation, taint_to_clean)
+fire TYP-006 / TYP-008 from the **type checker**, NOT TNT-001
+from the **strict pass**. Two different code paths handle
+taint — TYP-006/008 for compile-time type-mismatch when the
+sink param is declared as a non-tainted type, TNT-001 for the
+strict-pass warning when both types match but the data
+provenance is tainted. Documented this distinction in the
+TNT-001 row's "Gate-tested via" line.
+
+### Explain registry
+
+3 string literals added (TNT-001 × title + summary +
+explanation). Tools binary rebuilt; spot-check passes.
+
+### Gate
+
+`cli_explain_full_smoke` extended with TNT-001 in both gates.
+Spec catalog now **153 codes** (was 152 + 1).
+
+### Comprehensive coverage check
+
+After v0.2.120 the audit script `[python3 -c "..."]` finds
+**zero codes** fired by the compiler that are missing from
+the spec doc. The "fired vs documented" drift class is
+**closed** — the gate's `cli_explain_full_smoke` step now
+covers every code that has ever escaped from the compiler
+into a user-facing diagnostic.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Tools-suite source
+change only — s1 compiler / runtime / source / test
+unchanged; self-host LLVM IR fixed point preserved.
+
 ## [0.2.119] — 2026-04-23
 
 **Big bug fix: 22 OWN-* and TYP-* codes fired by the compiler
