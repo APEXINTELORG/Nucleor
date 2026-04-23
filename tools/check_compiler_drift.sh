@@ -8,7 +8,8 @@
 #      @<name> calls + missing IR `declare` statements that fail to
 #      link).
 #   2. helper_manifest.toml freshness vs gen_helper_manifest.py output
-#      (since v0.2.41 — Helpers.md going-forward constraint).
+#      (since v0.2.42 — Helpers.md going-forward constraint;
+#      manifest mech v0.2.41, gate enforcement v0.2.42).
 #   3. rod_manifest.toml freshness vs gen_rod_manifest.py output
 #      (since v0.2.47).
 #   4. RELEASES.md freshness vs gen_releases_index.py output
