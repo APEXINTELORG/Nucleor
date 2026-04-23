@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.54] — 2026-04-22
+
+**v0.3 milestone tracker: Phase 2 launcher work checked off.**
+
+v0.2.53 actually shipped the v0.3 phase 2 launcher work but the
+milestone tracker still showed it as planned. Closes the gap
+between what shipped and what the tracker says shipped.
+
+**Updated `docs/milestones/v0.3.0.md`:**
+
+- **Status line** rewritten — was "post-v0.2.51, planning",
+  now "post-v0.2.53, Phase 2 launcher work done ahead of
+  bootstrap." Explicitly notes that the launcher works
+  correctly today even without a Linux binary (users hitting
+  `./nuc build foo.nr` on Linux without LLVM get a clean
+  install-instruction error instead of a cryptic "binary not
+  found").
+- **Inheritance table row** for "POSIX `./nuc` wrapper resolves
+  clang via distro paths" updated from "shipped v0.2 with stub"
+  to "**DONE v0.2.53** — full 10-path resolution chain +
+  fail-fast error with per-platform install commands."
+- **Phase 2 section** title now reads "Phase 2 — Launcher (DONE
+  in v0.2.53)". Steps reformatted to enumerate exactly what
+  shipped: 4 numbered items each with a ✅ marker and the
+  concrete deliverable. Includes the full 10-path chain and the
+  per-platform install commands.
+- **Success criteria checkbox** for "POSIX `./nuc` wrapper
+  resolves clang on Ubuntu, Debian, Fedora, Arch, Homebrew Intel,
+  Homebrew Apple Silicon" flipped from `[ ]` to `[x]` with a
+  pointer to v0.2.53.
+
+**v0.3 success criteria status:** 1/8 done (the launcher row).
+Remaining 7 require a Linux/macOS host and v0.3 kickoff:
+
+- [ ] `bin/nucleor` (Linux x86_64) self-host fixed point holds
+- [ ] `bin/nucleor` (macOS arm64) self-host fixed point holds
+- [ ] `tools/verify.sh` 186/186 PASS on Linux
+- [ ] `tools/verify.sh` 186/186 PASS on macOS
+- [x] **POSIX `./nuc` wrapper resolves clang** (DONE v0.2.53)
+- [ ] CI runners green for Ubuntu + macOS
+- [ ] TGT-002 explain entry: "planned for v0.3" → "shipped"
+- [ ] CHANGELOG documents the cross-platform release
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Documentation-only — no compiler /
+runtime / ABI / source / test changes.
+
 ## [0.2.53] — 2026-04-22
 
 **POSIX `nuc` launcher: full clang resolution chain + fail-fast errors (v0.3 phase 2 prep).**
