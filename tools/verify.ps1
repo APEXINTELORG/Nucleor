@@ -350,9 +350,13 @@ Step "CLI: nuc explain — full spec code set wired" {
         "ALLOC-001", "ALLOC-002", "ALLOC-003",
         # RFC-0003 typed frames
         "FRAME-001", "FRAME-002", "FRAME-003",
-        # OWN series — borrow checker (expansion of NR031, since v0.2.119)
+        # OWN series — borrow checker (expansion of NR031, since v0.2.119;
+        # OWN-013 added v0.2.131 — spawn-capture for non-Send DeviceBuffer)
         "OWN-001", "OWN-002", "OWN-003", "OWN-004", "OWN-005", "OWN-006",
         "OWN-007", "OWN-008", "OWN-009", "OWN-010", "OWN-011", "OWN-012",
+        "OWN-013",
+        # GOV series — governance policies (since v0.2.131)
+        "GOV-001", "GOV-002",
         # TNT series — taint analysis (expansion of NR033, since v0.2.120)
         "TNT-001",
         # TYP series — type checker (expansion of NR030, since v0.2.119)
