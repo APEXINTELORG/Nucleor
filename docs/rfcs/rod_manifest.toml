@@ -7,9 +7,27 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 121
-# Total fn definitions: 1395
-# Total LOC: 6085
+# Total rods: 132
+# Total fn definitions: 1506
+# Total LOC: 6379
+
+[[rod]]
+name           = "activation2"
+path           = "stdlib/rods/activation2.nr"
+description    = "Modern transformer activations + normalizations"
+function_count = 13
+cfile_count    = 1
+loc            = 33
+imports        = []
+
+[[rod]]
+name           = "allocator"
+path           = "stdlib/rods/allocator.nr"
+description    = "Bump arena, object pool, mark/pop stack allocator"
+function_count = 19
+cfile_count    = 1
+loc            = 41
+imports        = []
 
 [[rod]]
 name           = "asserts"
@@ -28,6 +46,15 @@ function_count = 14
 cfile_count    = 0
 loc            = 19
 imports        = ["atomic"]
+
+[[rod]]
+name           = "attention2"
+path           = "stdlib/rods/attention2.nr"
+description    = "Modern attention variants"
+function_count = 6
+cfile_count    = 1
+loc            = 25
+imports        = []
 
 [[rod]]
 name           = "audio"
@@ -273,6 +300,15 @@ loc            = 105
 imports        = ["csv", "strings"]
 
 [[rod]]
+name           = "csv_table"
+path           = "stdlib/rods/csv_table.nr"
+description    = "Whole-CSV-file table API (load, set, write, free)"
+function_count = 10
+cfile_count    = 1
+loc            = 29
+imports        = []
+
+[[rod]]
 name           = "datetime"
 path           = "stdlib/rods/datetime.nr"
 description    = "Date/time operations"
@@ -280,6 +316,15 @@ function_count = 10
 cfile_count    = 1
 loc            = 21
 imports        = ["datetime"]
+
+[[rod]]
+name           = "diff_sim"
+path           = "stdlib/rods/diff_sim.nr"
+description    = "Differentiable quantum simulation"
+function_count = 23
+cfile_count    = 1
+loc            = 59
+imports        = []
 
 [[rod]]
 name           = "diffusion"
@@ -561,6 +606,15 @@ loc            = 63
 imports        = ["math"]
 
 [[rod]]
+name           = "mem"
+path           = "stdlib/rods/mem.nr"
+description    = "Vec memory-management extensions (free, clear, footprint)"
+function_count = 3
+cfile_count    = 1
+loc            = 7
+imports        = []
+
+[[rod]]
 name           = "mesh"
 path           = "stdlib/rods/mesh.nr"
 description    = "2D rectangular finite-element meshes + Laplacian assembly + VTK output."
@@ -732,6 +786,15 @@ loc            = 17
 imports        = []
 
 [[rod]]
+name           = "pqueue"
+path           = "stdlib/rods/pqueue.nr"
+description    = "Priority queue (binary min/max-heap with decrease-key)"
+function_count = 11
+cfile_count    = 1
+loc            = 24
+imports        = []
+
+[[rod]]
 name           = "process"
 path           = "stdlib/rods/process.nr"
 description    = "child-process primitives (RFC-0021 phase 2)"
@@ -828,6 +891,15 @@ description    = "Reinforcement learning primitives"
 function_count = 10
 cfile_count    = 1
 loc            = 21
+imports        = []
+
+[[rod]]
+name           = "rod_helpers"
+path           = "stdlib/rods/rod_helpers.nr"
+description    = "Cross-rod interop helpers"
+function_count = 7
+cfile_count    = 1
+loc            = 17
 imports        = []
 
 [[rod]]
@@ -1038,6 +1110,15 @@ loc            = 11
 imports        = ["thermo"]
 
 [[rod]]
+name           = "thread"
+path           = "stdlib/rods/thread.nr"
+description    = "Thread pool, futures, parallel map, barrier"
+function_count = 5
+cfile_count    = 1
+loc            = 15
+imports        = []
+
+[[rod]]
 name           = "time"
 path           = "stdlib/rods/time.nr"
 description    = "Time utilities"
@@ -1056,6 +1137,15 @@ loc            = 18
 imports        = ["time_typed"]
 
 [[rod]]
+name           = "tokenizer"
+path           = "stdlib/rods/tokenizer.nr"
+description    = "Byte-Pair Encoding (BPE) and char-level tokenization"
+function_count = 7
+cfile_count    = 1
+loc            = 17
+imports        = []
+
+[[rod]]
 name           = "toml"
 path           = "stdlib/rods/toml.nr"
 description    = "Minimal TOML parser (RFC-0019 phase 1)"
@@ -1063,6 +1153,15 @@ function_count = 12
 cfile_count    = 0
 loc            = 21
 imports        = ["toml"]
+
+[[rod]]
+name           = "transformer"
+path           = "stdlib/rods/transformer.nr"
+description    = "Classic transformer building blocks"
+function_count = 7
+cfile_count    = 1
+loc            = 27
+imports        = []
 
 [[rod]]
 name           = "twin_core"

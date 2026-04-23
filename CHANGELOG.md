@@ -5,6 +5,92 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.150] — 2026-04-23
+
+**Closes v0.2.123 finding: 11 orphan runtime C files now have rod
+wrappers + smokes. Rod count 121 → 132, gate 226 → 237.**
+
+The v0.2.123 audit found 11 `stdlib/runtime/*_rt.c` files that
+ship in the OSS distribution but have no `.nr` rod wrapper, so
+their substantial functionality (transformer building blocks,
+modern attention variants, modern activations, BPE tokenizer,
+CSV table API, priority queue, thread pool, three-way allocator
+suite, differentiable quantum simulation, vec memory helpers,
+cross-rod interop helpers) was unreachable from Nucleor source.
+v0.2.123 documented them as v0.4 wrap targets. v0.2.150 closes
+the finding by writing all 11 wrappers + a smoke per rod.
+
+### New rods under `stdlib/rods/`
+
+| Rod | C runtime | Notes |
+|---|---|---|
+| `mem.nr` | `mem_rt.c` | `vec_free`, `vec_clear`, `vec_mem_bytes` |
+| `pqueue.nr` | `queue_rt.c` | Priority queue (binary min/max-heap with decrease-key); separate from existing FIFO `queue.nr` |
+| `allocator.nr` | `allocator_rt.c` | Arena (bump), object pool, mark/pop stack — `allocator_*` prefix to avoid collision with the s1's pre-declared `arena_new` / `arena_alloc` / `arena_reset` / `arena_destroy` builtins (which are stubs that don't link to a runtime; RFC-0002 will share this rod's runtime) |
+| `thread.nr` | `thread_rt.c` | Thread pool, futures, parallel map |
+| `tokenizer.nr` | `tokenizer_rt.c` | BPE training + encode/decode, char-level fallback |
+| `csv_table.nr` | `csv_rt.c` | Whole-file table API; separate from existing line-parsing `csv.nr` |
+| `activation2.nr` | `activation2_rt.c` | SwiGLU, GeGLU, JumpReLU, DyT, RMSNorm, QK-Norm, RoPE, DeepNorm, GELU, SiLU, softmax, sigmoid (13 fns) |
+| `transformer.nr` | `transformer_rt.c` | Classic transformer blocks (scaled dot-product attention, MHA, layer norm, FFN, sinusoidal PE, softmax, cross-entropy) |
+| `attention2.nr` | `attention2_rt.c` | FlashAttention, GQA, MLA (compress/decompress), sliding window, differential attention |
+| `diff_sim.nr` | `diff_sim_rt.c` | Differentiable quantum simulation (23 fns: forward, adjoint backprop, per-feature grads, gate-importance, prior import/export) |
+| `rod_helpers.nr` | `rod_helpers_rt.c` | String↔i64-vec bridge + function-pointer callers (`call_fn2`, `call_fn3`); functions renamed `vec_str_*` to avoid collision with core `vec_*` builtins |
+
+### New tests under `tests/rods/`
+
+- **Functional smokes** (call ≥1 function and assert): `mem_smoke.nr`
+  (push/clear/free), `pqueue_smoke.nr` (min + max heap drain),
+  `allocator_smoke.nr` (arena + pool + stack), `thread_smoke.nr`
+  (pool create/free), `tokenizer_smoke.nr` (char-level encode),
+  `csv_table_smoke.nr` (new + set + rows/cols + free),
+  `transformer_smoke.nr` (positional encoding), `diff_sim_smoke.nr`
+  (init + n_gates + free).
+- **Build-only smokes** (import + return 0; opaque tensor handles
+  needed for a meaningful functional check):
+  `activation2_smoke.nr`, `attention2_smoke.nr`,
+  `rod_helpers_smoke.nr`.
+
+### Caught two bugs along the way
+
+- **`arena_new` builtin shadowed user rod** — the s1 compiler
+  pre-declares `arena_new` / `arena_alloc` / `arena_reset` /
+  `arena_destroy` as builtins mapped to `__nucleor_arena_*`
+  symbols that don't exist in any runtime. A rod with the same
+  user-facing names (`arena_new`, `arena_alloc`, …) gets shadowed
+  by the dangling builtins and fails at link. Fixed by prefixing
+  the rod's surface with `allocator_` (the runtime symbols use
+  `nuc_arena_*` so the link path is fine; only the user-facing
+  Nucleor names needed renaming). The dangling builtins are an
+  RFC-0002 artifact — they should land alongside the v0.4
+  `Box<T, A>` / `Allocator` trait work; logging here so the v0.4
+  ship knows to wire them to this rod's runtime instead of a
+  parallel implementation.
+- **`tok_char_level` ≠ tokenizer handle** — first cut of
+  `tokenizer_smoke.nr` called `tok_free(tok_char_level("hello"))`,
+  which segfaults because `tok_char_level` returns a `TKVec*`
+  (token-id vec) and `tok_free` casts to `BPETokenizer*`. The
+  rod docs deserve a clarifying note; smoke fixed.
+
+### Manifests
+
+- `tools/gen_rod_manifest.py` regenerated (`docs/rfcs/rod_manifest.toml`):
+  rod count **121 → 132**.
+- `tools/gen_helper_manifest.py` regenerated (`docs/rfcs/helper_manifest.toml`):
+  helper count grew by the runtime fns from the 11 new rods'
+  `extern fn` declarations.
+- Drift gate caught the rod-manifest staleness on the first run;
+  RELEASES.md regenerated for the v0.2.150 entry.
+
+### Verify gate
+
+**237 / 237 PASS, 0 SKIP** on the bash gate (was 226/226; +11
+new `tests/rods/*_smoke.nr`). Pure addition — no compiler /
+runtime / s1-source / tools-suite change; the 11 new rods only
+add `.nr` wrapper files + their smokes; the runtime C files
+they wrap have shipped in `stdlib/runtime/` since well before
+the v0.2.0 RC. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.149] — 2026-04-23
 
 **Closes v0.2.124 finding: 22 orphan rod wrappers now have smoke
