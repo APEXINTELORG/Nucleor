@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.115] — 2026-04-23
+
+**Same v0.2.41/v0.2.42 off-by-one in `check_compiler_drift.sh`
+header (which I introduced in v0.2.112).**
+
+The v0.2.114 fix caught two locations of the off-by-one but
+missed a third — the `tools/check_compiler_drift.sh` header
+itself, which I refreshed in v0.2.112 and where I also
+attributed gate enforcement to v0.2.41.
+
+Specifically the script header had:
+
+```
+#   2. helper_manifest.toml freshness vs gen_helper_manifest.py output
+#      (since v0.2.41 — Helpers.md going-forward constraint).
+```
+
+Updated to:
+
+```
+#   2. helper_manifest.toml freshness vs gen_helper_manifest.py output
+#      (since v0.2.42 — Helpers.md going-forward constraint;
+#      manifest mech v0.2.41, gate enforcement v0.2.42).
+```
+
+The expanded form (mech v0.2.41 + enforcement v0.2.42) makes
+the distinction explicit so future readers don't compress the
+two ships back into one.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure script-header
+refresh — no behavior change.
+
 ## [0.2.114] — 2026-04-23
 
 **Fix off-by-one ship attribution: drift-gate enforcement of
