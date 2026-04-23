@@ -68,9 +68,9 @@ iterations, the compiler is at a fixed point — meaning the source
 the new compiler emits matches what the previous compiler emitted,
 which means the binary is stable under self-application.
 
-The v0.2.x sub-chain through v0.2.100 has preserved the fixed
+The v0.2.x sub-chain through v0.2.121 has preserved the fixed
 point on every promotion that touched compiler / runtime / s1
-source. Most of the **v0.2.50–v0.2.100 sub-chain** has been
+source. Most of the **v0.2.50–v0.2.121 sub-chain** has been
 tooling-only — but two releases did make compiler source
 changes:
 
@@ -113,7 +113,7 @@ The runtime is a single C source file:
 stdlib/runtime/nucleor_llvm_rt.c
 ```
 
-(4944 lines / 676 `__nucleor_*` symbols as of v0.2.100; the
+(4944 lines / 676 `__nucleor_*` symbols as of v0.2.121; the
 runtime hasn't gained new helpers since v0.2.81 — only doc
 work has shipped). The compiler emits LLVM IR that calls into
 these symbols via `declare`-d externs; clang links the runtime
@@ -123,13 +123,13 @@ provide collection and platform primitives.
 
 The 676 helpers across the s1 ABI tables and the runtime are
 catalogued in `docs/rfcs/helper_manifest.toml` (Phase 2 contract,
-95.1% populated as of v0.2.100). See
+95.1% populated as of v0.2.121). See
 `docs/rfcs/HELPER-CONTRACT.md` for the cataloging contract.
 
 ## Examples corpus
 
 The verify gate builds and runs every example in `examples/`. As of
-v0.2.100 this is 18 examples (`examples/01_hello.nr` through
+v0.2.121 this is 18 examples (`examples/01_hello.nr` through
 `examples/18_benchmark.nr`), plus 4 build-only `examples/showcase/*.nr`
 programs (`lorenz`, `vqe_h2`, `market_maker`, `wing_simulator`)
 covered by the v0.2.90 `showcase_build_smoke` step. The numbered
@@ -155,13 +155,14 @@ cd Nucleor
 powershell -ExecutionPolicy Bypass -File tools\verify.ps1
 ```
 
-The gate runs **203 steps as of v0.2.100**: binary present,
-ABI parity, tools-suite rebuild, mojibake check, 14 CLI smoke
-steps (help-coverage, utility, JSON, version, showcase build,
-explain single + full 130-code, bootstrap, check+abi,
-inspectors, diagnostics, init, doc, lock, test), every example
-(18), every test in `tests/{lang,attrs,runtime,rods,features}`
-(~140), every negative test in `tests/err` (~24), and the
+The gate runs **204 steps as of v0.2.121**: binary present,
+ABI parity, tools-suite rebuild, mojibake check, err-EXPECT-
+headers (since v0.2.118), 14 CLI smoke steps (help-coverage,
+utility, JSON, version, showcase build, explain single + full
+158-code spec catalog, bootstrap, check+abi, inspectors,
+diagnostics, init, doc, lock, test), every example (18),
+every test in `tests/{lang,attrs,runtime,rods,features}`
+(~140), every negative test in `tests/err` (33), and the
 self-host rebuild at the end.
 
 If the gate is green, the bootstrap is healthy. If it fails, the
@@ -169,7 +170,7 @@ diagnostic output names the failing step.
 
 ## Cross-platform status
 
-As of v0.2.100 only Windows x86_64 has a committed bootstrap binary.
+As of v0.2.121 only Windows x86_64 has a committed bootstrap binary.
 Linux / macOS bootstrap binaries land alongside the v0.3.0
 cross-build work (see `docs/milestones/v0.3.0.md`). Until then, the
 POSIX `./nuc` shell wrapper resolves clang and execs
