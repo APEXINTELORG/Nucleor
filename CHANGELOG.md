@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.55] — 2026-04-22
+
+**CI workflow stale-warning fix + v0.3 phase 3 scaffolding documented.**
+
+Two gaps closed:
+
+**Stale CI warnings.** `.github/workflows/ci.yml` already had
+the 3-OS matrix (`verify-windows`, `verify-linux`,
+`verify-macos`) but the Linux/macOS jobs printed warnings that
+referenced "v0.2.0 ships Linux binary" — stale since v0.2.0
+shipped Windows-only and the Linux/macOS work is now scoped to
+v0.3. Updated both warnings to point at
+`docs/milestones/v0.3.0.md` phase 1.
+
+Both warnings are unchanged in semantics — the
+`continue-on-error: true` is still set so the jobs don't block
+PRs until binaries ship — but the diagnostic message is now
+accurate.
+
+**v0.3 phase 3 status.** The milestone tracker said Phase 3
+needed all of "set up CI" plus "run gate" plus "investigate
+regressions." Reality: the CI scaffolding is already in place
+(it just runs in `continue-on-error` mode for non-Windows).
+Updated the Phase 3 section title to "(CI scaffolding shipped
+v0.2.55)" and added a status paragraph explaining what's wired
+already, plus the concrete remaining step: remove the two
+`continue-on-error: true` lines once Linux + macOS binaries
+land. Re-numbered the steps.
+
+**Net effect:** v0.3 phase 3 work is now down to "ship the two
+binaries, then flip two lines in the CI YAML." Phase 1 (the
+bootstrap path) is still the gating item.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Tooling + docs only — no compiler /
+runtime / ABI / source / test changes.
+
 ## [0.2.54] — 2026-04-22
 
 **v0.3 milestone tracker: Phase 2 launcher work checked off.**
