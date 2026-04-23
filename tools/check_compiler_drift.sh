@@ -142,4 +142,9 @@ check_manifest "rod_manifest" \
     "$ROOT/tools/gen_rod_manifest.py" \
     "$ROOT/docs/rfcs/rod_manifest.toml" || exit 1
 
+# RELEASES.md — tag-only index regenerated from CHANGELOG.md (v0.2.57)
+check_manifest "RELEASES.md" \
+    "$ROOT/tools/gen_releases_index.py" \
+    "$ROOT/RELEASES.md" || exit 1
+
 exit 0
