@@ -4696,6 +4696,203 @@ fn promote_denied_to_errors(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+// RFC-0001 phase 1 — `#[no_alloc]` v1 (file-wide source-level
+// static check). Scans for `#[no_alloc]` attribute lines and
+// associates each with the next `fn NAME(` declaration. For every
+// such fn, scans its body text for forbidden allocator-builtin
+// call patterns (literal `<name>(` substrings) and fires `RT-001`
+// per violation.
+//
+// Limitations of the source-level check (acceptable for v1):
+//   - False positive if the literal pattern (e.g. `vec_push(`)
+//     appears inside a string or comment in the body. Rare in
+//     practice; rewrites are easy.
+//   - Does not chase transitive calls. `#[no_alloc]` fn that calls
+//     `helper()` which itself calls `vec_push` will not fire.
+//     v0.4 lifts this once trait-resolution + call-graph analysis
+//     ships.
+//   - Per-file scope only; no module boundary tracking.
+//
+// AST-based v2 ships with the rest of RFC-0001 (`#[no_panic]`,
+// `#[no_dyn]`, `#[deadline]`).
+
+fn collect_no_alloc_fns(source: str) -> Vec<i32> {
+    let mut fns: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[no_alloc]";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        // Skip the rest of any line that starts with `//` so the
+        // pattern in a comment (including this comment when the
+        // s1 compiles itself) doesn't get treated as a real
+        // attribute. Doc comments above the next fn would
+        // otherwise collide with their own subject.
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        // Skip string literals — `let pat: str = "#[no_alloc]"`
+        // would otherwise be matched as a real attribute. Walk
+        // through escape sequences (`\"` is not the closing
+        // quote). The s1 itself contains the literal `#[no_alloc]`
+        // in a string for use by this scanner; without this guard
+        // the s1 false-positives on its own helper fn.
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut q: i64 = p + plen;
+            // Skip whitespace until we hit the next 'fn '.
+            while q + 3 <= slen {
+                let c0: i64 = str_char_at(source, q);
+                let c1: i64 = str_char_at(source, q + 1);
+                let c2: i64 = str_char_at(source, q + 2);
+                if c0 == 102 && c1 == 110 && c2 == 32 {
+                    // 'fn ' — read the name identifier.
+                    q = q + 3;
+                    let name_start: i64 = q;
+                    while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) {
+                        q = q + 1;
+                    };
+                    if q > name_start {
+                        let name: str = str_substring(source, name_start, q);
+                        fns.push(name);
+                    };
+                    p = q;
+                    break;
+                };
+                q = q + 1;
+            };
+            if q + 3 > slen { p = slen; };
+        } else {
+            p = p + 1;
+        };
+    };
+    return fns;
+}
+
+// For a given fn_name marked #[no_alloc], scan its body text for
+// literal `<alloc_call>(` patterns and emit RT-001 diags into
+// `diags` for each match.
+fn check_no_alloc_violations(diags: Vec<i32>, source: str, fn_name: str) {
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < nlen {
+            if str_char_at(source, p + k) != str_char_at(needle, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            // Walk to the body's opening '{'.
+            let mut q: i64 = p + nlen;
+            while q < slen && str_char_at(source, q) != 123 { q = q + 1; };
+            if q < slen {
+                let body_start: i64 = q + 1;
+                let mut depth: i64 = 1;
+                q = q + 1;
+                while q < slen && depth > 0 {
+                    let c: i64 = str_char_at(source, q);
+                    if c == 123 { depth = depth + 1; };
+                    if c == 125 { depth = depth - 1; };
+                    q = q + 1;
+                };
+                let body: str = str_substring(source, body_start, q - 1);
+                // Walk every alloc-builtin name and check str_contains
+                // for `<name>(` in the body. Each match becomes one
+                // diag; we don't dedup, so two `vec_push(...)` calls
+                // produce two RT-001 entries.
+                let alloc_names: Vec<i32> = no_alloc_check_list();
+                let mut ai: i64 = 0;
+                while ai < vec_len(alloc_names) {
+                    let n: str = vec_get(alloc_names, ai);
+                    // For dot-prefixed method-call sugar (e.g. `.push`)
+                    // the `(` separator is already implied; for the
+                    // bare names append `(` to anchor the match.
+                    let pat: str = str_concat(n, "(");
+                    if str_contains(body, pat) == 1 {
+                        let msg: str = str_concat("`", str_concat(n, str_concat("` allocates but `", str_concat(fn_name, "` is marked #[no_alloc]"))));
+                        diag_add_ex(diags, "error", "rt", "RT-001", msg, fn_name, 0, 0, "");
+                    };
+                    ai = ai + 1;
+                };
+            };
+            return;
+        };
+        p = p + 1;
+    };
+}
+
+// The list of allocator-call patterns to scan for in a #[no_alloc]
+// body. Each entry is matched as a literal substring with `(`
+// appended (so `vec_push` matches `vec_push(` but not `vec_pushy`),
+// EXCEPT entries already containing `(` or `::` are matched verbatim
+// so they can encode method-call / constructor forms.
+//
+// Includes both the underlying builtin names (rare in user code) and
+// the user-facing forms (`Vec::new(`, `.push(`, etc.) that the s1
+// lowers to those builtins. The dot-prefixed forms catch the method-
+// call sugar; this is the only way the source-level v1 check can see
+// `vec.push(x)` without an AST.
+fn no_alloc_check_list() -> Vec<i32> {
+    let mut v: Vec<i32> = Vec::new();
+    // Vec — constructor + method calls
+    v.push("Vec::new");
+    v.push(".push");
+    v.push(".pop");
+    v.push(".extend");
+    v.push(".insert_at");
+    v.push(".remove_at");
+    // Vec — builtin names (in case user reaches past the sugar)
+    v.push("vec_new"); v.push("vec_push"); v.push("vec_pop");
+    v.push("vec_extend"); v.push("vec_insert_at"); v.push("vec_remove_at");
+    // String builder
+    v.push("sb_new"); v.push("sb_append");
+    // String allocators
+    v.push("str_concat"); v.push("str_substring"); v.push("str_repeat");
+    v.push("str_pad_left"); v.push("str_pad_right");
+    v.push("str_center"); v.push("str_join");
+    // Format-string helpers (every one mallocs)
+    v.push("format_i64"); v.push("format_str"); v.push("format_f64");
+    v.push("format_hex"); v.push("format_bool");
+    v.push("format2_ii"); v.push("format2_si"); v.push("format2_ss");
+    v.push("format2_is"); v.push("format2_ff");
+    v.push("format3_iii"); v.push("format3_sii"); v.push("format3_iss"); v.push("format3_sss");
+    // Number-to-string
+    v.push("int_to_str"); v.push("f64_to_str"); v.push("bool_to_str");
+    // Bare arena builtins (RFC-0002 phase 1) — also alloc
+    v.push("arena_new"); v.push("arena_alloc");
+    return v;
+}
+
+fn enforce_no_alloc(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let no_alloc_fns: Vec<i32> = collect_no_alloc_fns(source);
+    let mut i: i64 = 0;
+    while i < vec_len(no_alloc_fns) {
+        let fn_name: str = vec_get(no_alloc_fns, i);
+        check_no_alloc_violations(diags, source, fn_name);
+        i = i + 1;
+    };
+    return diags;
+}
+
 fn byte_to_line(source: str, byte_off: i64) -> i64 {
     let slen: i64 = str_len(source);
     let mut line: i64 = 1;
@@ -8481,6 +8678,11 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         print_phase_time(time_passes, "effect", 0);
         print_phase_time(time_passes, "taint", 0);
     };
+    // RFC-0001 phase 1 — enforce #[no_alloc] before suppression so
+    // users can `#[allow(RT-001)]` if needed. enforce_no_alloc
+    // appends to diags; if no #[no_alloc] attribute is present in
+    // the source it's a no-op.
+    diags = enforce_no_alloc(diags, source);
     if diag_count(diags) > 0 {
         // RFC-0028 §Suppression — drop warnings the user has silenced
         // via `#[allow(CODE)]`, then promote any remaining warnings

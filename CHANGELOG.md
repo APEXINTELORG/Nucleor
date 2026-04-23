@@ -5,6 +5,101 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.157] — 2026-04-23
+
+**RFC-0001 phase 1: `#[no_alloc]` v1 — first RT attribute that
+actually enforces. File-wide source-level static check. Fires
+new diag code RT-001 on violation.**
+
+The v0.2.151 `#[allow]` ship preserved Rust-style attribute
+lines through the source preprocessor, but `#[no_alloc]` itself
+parsed silently with no checker. v0.2.157 wires a real check:
+fns marked `#[no_alloc]` are scanned for forbidden allocator
+patterns in their body text; each match emits an `error`-severity
+RT-001 diag, halting the build.
+
+### Surface
+
+```nucleor
+#[no_alloc]
+fn add(a: i64, b: i64) -> i64 {
+    return a + b;       // OK — no allocator calls
+}
+
+#[no_alloc]
+fn busy() -> i64 {
+    let mut v: Vec<i32> = Vec::new();   // error[RT-001]: Vec::new allocates
+    v.push(1);                          // error[RT-001]: .push allocates
+    return 0;
+}
+```
+
+### Implementation in `compiler/nucleor_s1_compiler.nr`
+
+- `collect_no_alloc_fns(source)` — scans the source text for
+  `#[no_alloc]` literal followed by `fn NAME(`; returns Vec
+  of fn names. Skips `//` line comments (so doc comments
+  documenting `#[no_alloc]` don't match) and `"..."` string
+  literals (so `let pat: str = "#[no_alloc]"` in this very
+  file doesn't false-positive on the next fn after it).
+- `no_alloc_check_list()` — returns a Vec of allocator-call
+  patterns to scan for. Includes both user-facing forms
+  (`Vec::new`, `.push`, `.pop`, `.extend`, `.insert_at`,
+  `.remove_at`) and underlying builtin names (`vec_new`,
+  `sb_new`, `str_concat`, `format_*` family, `int_to_str`,
+  `arena_new`, etc.). 30+ entries.
+- `check_no_alloc_violations(diags, source, fn_name)` — for
+  the named fn, locates the body via `fn fn_name(` + brace-
+  matching, scans the body text for `<pattern>(` substrings,
+  fires RT-001 per match.
+- `enforce_no_alloc(diags, source)` — drives the loop;
+  no-op when no `#[no_alloc]` attributes are present.
+
+### Wiring
+
+`enforce_no_alloc` runs in the main pipeline before
+`filter_allow_suppressed`, so users can `#[allow(RT-001)]` if
+needed.
+
+### Limitations of the v1 source-level approach (intentional)
+
+- False positive if a forbidden literal pattern (e.g.
+  `vec_push(`) appears inside a string or comment INSIDE
+  the `#[no_alloc]` fn's body. Rare in practice.
+- Does not chase transitive calls. `#[no_alloc]` fn calling
+  a non-`#[no_alloc]` `helper()` that itself allocates does
+  not fire. Lifts in v2 with AST + call-graph analysis.
+- Per-file scope only.
+
+These are documented inline above the implementation; v0.4
+replaces the source-level scan with an AST-based check that
+also lights up `#[no_panic]`, `#[no_dyn]`, and `#[deadline]`.
+
+### New error code
+
+- **RT-001** — "<call> allocates but `<fn>` is marked
+  #[no_alloc]". Severity: error. Suppressible via
+  `#[allow(RT-001)]`.
+
+### Self-host LLVM IR fixed point
+
+- 3-iter check passed: nucleor_v157f, v157g, v157h all
+  byte-identical at 2,672,291 bytes.
+- `bin/nucleor.exe` updated; the v0.2.x compiler-source
+  chain is now v0.2.84 → v0.2.87 → v0.2.151 → v0.2.152 →
+  v0.2.153 → v0.2.155 → **v0.2.157**.
+
+### Gate tests
+
+- `tests/lang/no_alloc_clean.nr` — positive (#[no_alloc]
+  fns that genuinely don't alloc).
+- `tests/err/err_no_alloc_violation.nr` — negative
+  (`busy()` with Vec::new + .push, expects RT-001).
+
+### Verify gate
+
+**244 / 244 PASS, 0 SKIP** (was 242/242; +2 new tests).
+
 ## [0.2.156] — 2026-04-23
 
 **Gate ergonomics: `KEEP_CACHE=1 bash tools/verify.sh` skips
