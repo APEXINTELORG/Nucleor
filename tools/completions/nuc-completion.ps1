@@ -9,8 +9,9 @@ $nuc_subcommands = @(
     'build', 'build-fast', 'build-strict', 'build-shared', 'build-wasm', 'build-ptx',
     'run', 'emit', 'test', 'bench', 'perf', 'check', 'audit', 'policy',
     'certify', 'translate', 'summary', 'query', 'graph', 'impact', 'abi', 'evidence',
-    'bootstrap', 'stage-dump', 'init', 'lock', 'install', 'publish', 'registry',
-    'profile', 'sage', 'explain', 'help',
+    'bootstrap', 'stage-dump', 'init', 'lock',
+    'install', 'add', 'remove', 'update', 'publish', 'registry',
+    'profile', 'sage', 'explain', 'doc', 'fix', 'help',
     'clean', 'scram', 'zen', 'mco'
 )
 

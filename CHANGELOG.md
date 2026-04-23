@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.143] — 2026-04-23
+
+**Tab-completion scripts missing 5 user-facing CLI commands across
+all 4 shells; added.**
+
+A cross-check of the `nuc help` command list against
+`tools/completions/{nuc.bash,nuc.zsh,nuc.fish,nuc-completion.ps1}`
+found 5 commands that ship in the CLI but had no entry in any of
+the 4 completion files:
+
+- **`add`**, **`remove`**, **`update`** — install aliases
+  (RFC-0019 phase 4 ergonomics; visible in `nuc help` as
+  "`add | remove | update  Aliases for install`").
+- **`doc`** — RFC-0029 doc generator (`Render /// doc comments
+  as Markdown`).
+- **`fix`** — RFC-0015 / RFC-0018 migration linters
+  (`fix [--imports|--numeric] [file]`).
+
+All 5 are real top-level subcommands users can run today. They
+fired no completion suggestion before this ship; users had to
+type them manually.
+
+### `tools/completions/nuc.bash`
+
+- Appended `add remove update` after `install` and inserted a
+  `doc fix` line after `sage` in the `commands="…"` literal.
+
+### `tools/completions/nuc.zsh`
+
+- Inserted three install-alias rows
+  (`'add:Alias for install (RFC-0019 phase 4 ergonomics)'` +
+  `remove` / `update`) and two RFC entries
+  (`'doc:Render /// doc comments as Markdown (RFC-0029)'`,
+  `'fix:Migration linters (--imports / --numeric — RFC-0015 /
+  RFC-0018)'`).
+
+### `tools/completions/nuc.fish`
+
+- Same five commands added to both the `nuc_commands` list and
+  the per-subcommand `complete -c nuc -n '__fish_use_subcommand'`
+  declarations, with description strings.
+
+### `tools/completions/nuc-completion.ps1`
+
+- Five commands appended to the `$nuc_subcommands` array.
+
+### `tools/completions/README.md`
+
+- "Subcommand at position 1" bullet — count corrected from
+  "**~37 commands**" to "**39 commands as of v0.2.143**" with a
+  note explaining what the v0.2.143 catch-up covered.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. No compiler / runtime
+/ s1-source change; the completion scripts are user-tooling
+helpers, not part of the gate. Self-host LLVM IR fixed point
+preserved (`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.142] — 2026-04-23
 
 **`examples/showcase/README.md` claimed "Not part of the verify

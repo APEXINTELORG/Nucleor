@@ -16,7 +16,8 @@ _nuc_complete() {
     local commands="build build-fast build-strict build-shared build-wasm build-ptx \
                     run emit test bench perf check audit policy certify translate \
                     summary query graph impact abi evidence \
-                    bootstrap stage-dump init lock install publish registry profile sage \
+                    bootstrap stage-dump init lock install add remove update publish registry profile sage \
+                    doc fix \
                     explain help clean scram zen mco --version --help"
 
     local flags="-o --out --emit --no-link --time-passes --no-cache --tier \

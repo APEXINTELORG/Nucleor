@@ -49,7 +49,10 @@ Reload the profile (`. $PROFILE`) and tab completion is wired up for both
 
 - **Subcommand at position 1:** `build`, `run`, `test`, `bench`, `perf`,
   `check`, `emit`, `clean`, `scram`, `zen`, `mco`, `init`, `bootstrap`,
-  and the rest of the surface (~37 commands).
+  and the rest of the surface (39 commands as of v0.2.143; v0.2.143 added
+  the `add` / `remove` / `update` install aliases, `doc` for RFC-0029
+  rendering, and `fix` for RFC-0015 / RFC-0018 migration linters that had
+  shipped earlier but were missing from completion).
 - **Flags after a subcommand:** `-o`, `--time-passes`, `--no-cache`,
   `--tier`, `--json`, `--iterations`, etc.
 - **Source files:** `.nr` files in the current and child directories.
