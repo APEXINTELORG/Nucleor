@@ -113,18 +113,32 @@ The runtime is a single C source file:
 stdlib/runtime/nucleor_llvm_rt.c
 ```
 
-(4944 lines / 676 `__nucleor_*` symbols as of v0.2.121; the
-runtime hasn't gained new helpers since v0.2.81 — only doc
-work has shipped). The compiler emits LLVM IR that calls into
-these symbols via `declare`-d externs; clang links the runtime
-archive at the final link step. Auxiliary `_rt.c` files
-(string_rt.c, hashmap_rt.c, btreemap_rt.c, vecdeque_rt.c, etc.)
-provide collection and platform primitives.
+(4944 lines as of v0.2.131; the runtime hasn't gained new
+helpers since v0.2.81 — only doc work has shipped). The
+compiler emits LLVM IR that calls into these symbols via
+`declare`-d externs; clang links the runtime archive at the
+final link step. Auxiliary `_rt.c` files (string_rt.c,
+hashmap_rt.c, btreemap_rt.c, vecdeque_rt.c, etc.) provide
+collection and platform primitives.
 
-The 676 helpers across the s1 ABI tables and the runtime are
-catalogued in `docs/rfcs/helper_manifest.toml` (Phase 2 contract,
-95.1% populated as of v0.2.121). See
-`docs/rfcs/HELPER-CONTRACT.md` for the cataloging contract.
+Two different "symbol count" numbers appear in the toolchain;
+both are correct, they answer different questions:
+
+- **`nuc bootstrap status` reports `~748 symbols`** —
+  `bootstrap_runtime_symbol_count()` (in
+  `compiler/nucleor_tools_suite.nr`) line-counts every place
+  in `nucleor_llvm_rt.c` that mentions `__nucleor_` followed
+  by `(`, excluding comments. This conflates definitions,
+  extern declarations, and internal call sites into one
+  per-mention number.
+- **The helper manifest catalogues 676 unique helpers** —
+  `docs/rfcs/helper_manifest.toml` (Phase 2 contract, 95.1%
+  populated as of v0.2.121) lists each `__nucleor_*` symbol
+  exactly once across the s1 ABI tables + the entire runtime
+  surface (main `_rt.c` + auxiliary `*_rt.c` files). This is
+  the stable user-facing symbol count.
+
+See `docs/rfcs/HELPER-CONTRACT.md` for the cataloging contract.
 
 ## Examples corpus
 
