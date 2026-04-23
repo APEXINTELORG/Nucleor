@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.44] — 2026-04-22
+
+**Top-level README size-claim sentence — replaced loose talk with verified counts.**
+
+The v0.2.38 README update claimed "676 runtime helpers" without
+explaining what unit that was — readers couldn't compare it to
+Rust's `std::*` sub-module count or any other meaningful baseline.
+This release replaces the line with four directly-measured numbers
+that explain what they each mean:
+
+| What | Count | Source of truth |
+|---|---|---|
+| User-facing rods | **121** | `ls stdlib/rods/*.nr \| wc -l` |
+| Runtime C source files | **84** | `ls stdlib/runtime/*.c \| wc -l` |
+| Helper categories | **13 active** | `helper_manifest.toml` taxonomy |
+| `__nucleor_*` ABI symbols | **676** | `helper_manifest.toml` total |
+
+The Rust-comparable "121 rods" framing is the one external readers
+will actually find informative — it's the count of importable
+modules, analogous to Rust's top-level `std::*` sub-modules. The
+676 number is the right answer when comparing leaf-function
+density, but mostly noise for "how big is this stdlib."
+
+The new sentence also points readers at
+`docs/rfcs/helper_manifest.toml` so they can drill into the ABI
+surface if they want to.
+
+Documentation-only — no compiler / runtime / ABI / source / test
+changes. Verify gate 184/185 (1 skip).
+
 ## [0.2.43] — 2026-04-22
 
 **Helper manifest `since` field accurately tagged (132 rows updated).**
