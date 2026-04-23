@@ -177,6 +177,93 @@ CLASS_RULES = [
 ]
 
 
+# Per-helper `since` release. Values not listed default to "0.1.0" (the
+# v0.1 baseline). The v0.2.x stdlib enrichment chain (v0.2.18..v0.2.30
+# plus a few earlier rolling additions) is enumerated here. Keep in sync
+# with the CHANGELOG.md per-release helper lists.
+SINCE_MAP = {
+    # v0.2.9: Vec functional helpers (RFC-0024 phase 1)
+    "vec_map_i64": "0.2.9", "vec_filter_i64": "0.2.9",
+    "vec_fold_i64": "0.2.9", "vec_each_i64": "0.2.9",
+    "vec_sum_i64": "0.2.9", "vec_min_i64": "0.2.9", "vec_max_i64": "0.2.9",
+    # v0.2.10: Vec reductions
+    "vec_contains_i64": "0.2.10", "vec_index_of_i64": "0.2.10",
+    "vec_reverse_i64": "0.2.10", "vec_sort_i64": "0.2.10",
+    "vec_clone_i64": "0.2.10", "vec_clear_i64": "0.2.10",
+    # v0.2.13: Vec arithmetic + format extensions
+    "vec_avg_i64": "0.2.13", "vec_dot_i64": "0.2.13",
+    "vec_count_eq_i64": "0.2.13", "vec_any_i64": "0.2.13",
+    "vec_all_i64": "0.2.13",
+    "vec_sum_f64": "0.2.13", "vec_min_f64": "0.2.13", "vec_max_f64": "0.2.13",
+    # v0.2.14: char predicates
+    "char_is_alpha": "0.2.14", "char_is_digit": "0.2.14",
+    "char_is_alnum": "0.2.14", "char_is_whitespace": "0.2.14",
+    "char_is_upper": "0.2.14", "char_is_lower": "0.2.14",
+    "char_is_hex_digit": "0.2.14", "char_is_ascii": "0.2.14",
+    "char_is_punct": "0.2.14",
+    "char_to_upper": "0.2.14", "char_to_lower": "0.2.14",
+    "char_digit_value": "0.2.14",
+    # v0.2.15: RNG bridges
+    "rng_int": "0.2.15", "rng_uniform": "0.2.15", "rng_normal": "0.2.15",
+    "rng_bernoulli": "0.2.15", "rng_exponential": "0.2.15",
+    "rng_seed": "0.2.15", "random_uniform": "0.2.15", "random_normal": "0.2.15",
+    # v0.2.16: HashMap iteration + ISO time
+    "hashmap_keys": "0.2.16", "hashmap_values": "0.2.16",
+    "time_iso_now": "0.2.16", "time_format_iso": "0.2.16",
+    # v0.2.17: hash helpers + raw print
+    "fnv1a_64_str": "0.2.17", "fnv1a_64_i64": "0.2.17", "murmur3_64": "0.2.17",
+    "print_raw": "0.2.17", "eprint_raw": "0.2.17",
+    # v0.2.18: f64 magnitude/sign + bit population
+    "f64_abs": "0.2.18", "f64_min": "0.2.18", "f64_max": "0.2.18",
+    "f64_sign": "0.2.18", "f64_copy_sign": "0.2.18",
+    "count_ones": "0.2.18", "count_zeros": "0.2.18",
+    # v0.2.19: filesystem extras
+    "fs_temp_dir": "0.2.19", "fs_current_dir": "0.2.19",
+    "fs_remove_dir": "0.2.19", "fs_copy_file": "0.2.19",
+    "fs_canonicalize": "0.2.19",
+    # v0.2.20: env extras + string round-out
+    "env_has": "0.2.20", "env_keys": "0.2.20",
+    "str_is_empty": "0.2.20", "str_count": "0.2.20",
+    "str_reverse": "0.2.20", "str_trim_start": "0.2.20", "str_trim_end": "0.2.20",
+    # v0.2.21: time decomposition
+    "time_year": "0.2.21", "time_month": "0.2.21", "time_day": "0.2.21",
+    "time_hour": "0.2.21", "time_minute": "0.2.21", "time_second": "0.2.21",
+    "time_weekday": "0.2.21", "time_day_of_year": "0.2.21",
+    "time_elapsed_ms": "0.2.21",
+    # v0.2.22: vec mutation + accessor
+    "vec_first": "0.2.22", "vec_last": "0.2.22", "vec_is_empty": "0.2.22",
+    "vec_swap": "0.2.22", "vec_extend": "0.2.22",
+    "vec_remove_at": "0.2.22", "vec_insert_at": "0.2.22",
+    # v0.2.23: path utilities
+    "path_separator": "0.2.23", "path_is_absolute": "0.2.23",
+    "path_normalize": "0.2.23", "path_with_extension": "0.2.23",
+    "path_strip_extension": "0.2.23", "path_components": "0.2.23",
+    # v0.2.24: parse + stringify
+    "str_to_i64": "0.2.24", "str_to_f64": "0.2.24", "str_to_bool": "0.2.24",
+    "int_to_str": "0.2.24", "f64_to_str": "0.2.24", "bool_to_str": "0.2.24",
+    # v0.2.25: base conversion
+    "int_to_hex": "0.2.25", "int_to_bin": "0.2.25", "int_to_oct": "0.2.25",
+    "str_to_i64_radix": "0.2.25", "parse_hex": "0.2.25", "parse_bin": "0.2.25",
+    # v0.2.26: string padding + join + explode
+    "str_pad_left": "0.2.26", "str_pad_right": "0.2.26", "str_center": "0.2.26",
+    "str_join": "0.2.26", "str_lines": "0.2.26", "str_chars": "0.2.26",
+    # v0.2.27: HashMap accessor + bulk
+    "hashmap_is_empty": "0.2.27", "hashmap_get_or": "0.2.27",
+    "hashmap_merge": "0.2.27", "hashmap_clone": "0.2.27",
+    # v0.2.28: checked div/rem/neg
+    "checked_div": "0.2.28", "checked_rem": "0.2.28", "checked_neg": "0.2.28",
+    "wrapping_div": "0.2.28", "wrapping_rem": "0.2.28", "wrapping_neg": "0.2.28",
+    "saturating_neg": "0.2.28",
+    # v0.2.29: random + shuffle/sample
+    "random_int": "0.2.29", "random_bool": "0.2.29", "random_choice": "0.2.29",
+    "vec_shuffle": "0.2.29", "vec_sample": "0.2.29", "random_fill": "0.2.29",
+    # v0.2.30: Vec statistics
+    "vec_mean_f64": "0.2.30", "vec_median_f64": "0.2.30",
+    "vec_variance_f64": "0.2.30", "vec_stddev_f64": "0.2.30",
+    "vec_range_i64": "0.2.30", "vec_percentile_f64": "0.2.30",
+}
+
+
 # Helpers known to be intentional v0.4 placeholders / forward-declarations.
 # These are declared in IR so the parser knows the names but lack runtime
 # definitions — they're the deferred items from v0.4.0 milestone tracker.
@@ -310,7 +397,7 @@ def main():
             "units": "passthrough",
             "proof_obligation": "none" if cls in ("PureMath",) else "TODO",
             "stability": stability,
-            "since": "0.1.0",
+            "since": SINCE_MAP.get(name, "0.1.0"),
             "notes": "; ".join(notes_bits),
         })
 

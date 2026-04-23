@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.43] — 2026-04-22
+
+**Helper manifest `since` field accurately tagged (132 rows updated).**
+
+The v0.2.40 schema doc flagged the `since` field as a known TODO:
+every row was tagged `"0.1.0"` regardless of when the helper
+actually shipped, because `gen_helper_manifest.py` didn't yet
+know the helper → release mapping.
+
+This release closes that gap:
+
+- **`tools/gen_helper_manifest.py`** — added `SINCE_MAP` dict
+  enumerating every v0.2.9..v0.2.30 helper with its actual release.
+  Mapping derived from the per-release helper lists in
+  `CHANGELOG.md`.
+- **`docs/rfcs/helper_manifest.toml`** — regenerated. **132 rows
+  now correctly tagged with their release version**:
+  - v0.2.9 (7) — Vec functional helpers
+  - v0.2.10 (6) — Vec reductions
+  - v0.2.13 (8) — Vec arithmetic + format
+  - v0.2.14 (12) — char predicates
+  - v0.2.15 (8) — RNG bridges
+  - v0.2.16 (4) — HashMap iteration + ISO time
+  - v0.2.17 (5) — hash helpers + raw print
+  - v0.2.18 (7) — f64 magnitude/sign + bit population
+  - v0.2.19 (5) — filesystem extras
+  - v0.2.20 (7) — env extras + string round-out
+  - v0.2.21 (9) — time decomposition
+  - v0.2.22 (7) — Vec mutation + accessor
+  - v0.2.23 (6) — path utilities
+  - v0.2.24 (6) — parse + stringify
+  - v0.2.25 (6) — base conversion
+  - v0.2.26 (6) — string padding + join + explode
+  - v0.2.27 (4) — HashMap accessor + bulk
+  - v0.2.28 (7) — checked div/rem/neg
+  - v0.2.29 (6) — random + shuffle/sample
+  - v0.2.30 (6) — Vec statistics
+- **`docs/rfcs/helper_manifest_schema.md`** — `since` field docs
+  updated; TODO note removed.
+
+The remaining 544 rows still default to `"0.1.0"` (the v0.1
+baseline); a follow-up pass could split them into their actual v0.1.x
+sub-releases by walking git blame of the `get_rt_name` table, but
+the v0.2.x precision was the immediate gap.
+
+### Drift gate
+
+The v0.2.42 manifest-freshness check correctly noticed the regen
+diff during testing — confirming that the gate works in both
+directions (catches stale manifests AND catches generator changes
+that need re-running).
+
+### Verify gate
+
+184/185 green on Windows + 1 skip. Tooling-only — no compiler /
+runtime / ABI / source changes.
+
 ## [0.2.42] — 2026-04-22
 
 **Drift gate enforces helper manifest freshness (Helpers.md going-forward constraint).**
