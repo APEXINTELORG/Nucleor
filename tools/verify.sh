@@ -154,12 +154,12 @@ done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
 # Step count: 1 binary present + 1 ABI parity + 1 tools-rebuild
-# + 1 mojibake check + 1 help coverage + 1 utility smoke + 1 json
-# + 1 version + 1 showcase build + 1 CLI explain + 1 explain-full
-# + 1 bootstrap + 1 check+abi + 1 inspectors + 1 diagnostics
-# + 1 init + 1 doc + 1 lock + 1 test
+# + 1 mojibake check + 1 err-EXPECT-headers + 1 help coverage
+# + 1 utility smoke + 1 json + 1 version + 1 showcase build
+# + 1 CLI explain + 1 explain-full + 1 bootstrap + 1 check+abi
+# + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host
-STEP_TOTAL=$((19 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -356,6 +356,28 @@ cli_utility_smoke() {
     echo "$out" | grep -q "TOKENS" || return 1
     out=$("$BIN" fix --imports examples/01_hello.nr 2>&1)
     [ -n "$out" ] || return 1
+    return 0
+}
+
+err_tests_have_expect_smoke() {
+    # v0.2.118 — every tests/err/*.nr file must carry an
+    # `// EXPECT: <code> <text>` header on its first comment line.
+    # Locks down the v0.2.117 bulk-add (33/33 tests headerized).
+    # Going forward, contributors adding a new negative test must
+    # also document what diagnostic it fires.
+    local missing=()
+    for f in "$ROOT"/tests/err/*.nr; do
+        if ! head -3 "$f" | grep -q "^// EXPECT:"; then
+            missing+=("$(basename "$f")")
+        fi
+    done
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "       err tests missing EXPECT header:"
+        for m in "${missing[@]}"; do
+            echo "         - $m"
+        done
+        return 1
+    fi
     return 0
 }
 
@@ -711,6 +733,7 @@ step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
 step "tools-suite rebuild" tools_rebuild
 step "no UTF-8 mojibake in source/docs" mojibake_clean
+step "tests/err/*.nr have EXPECT headers" err_tests_have_expect_smoke
 step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
 step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" cli_utility_smoke
 step "CLI: --json variants emit machine-readable JSON" cli_json_smoke

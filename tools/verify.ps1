@@ -149,13 +149,13 @@ foreach ($d in $testDirs) {
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
 # 1 (binary present) + 1 (drift check) + 1 (tools-rebuild) +
-# 1 (mojibake check) + 1 (help coverage) + 1 (utility smoke) +
-# 1 (json smoke) + 1 (version aliases) + 1 (showcase build) +
-# 1 (CLI explain smoke) + 1 (explain-full) + 1 (bootstrap) +
-# 1 (check+abi) + 1 (inspectors) + 1 (diagnostics) + 1 (init) +
-# 1 (doc) + 1 (lock) + 1 (test) + N examples + N tests + N err +
-# 1 (self-host)
-$stepTotal = 19 + $examples.Count + $testCount + $errCount + 1
+# 1 (mojibake check) + 1 (err-EXPECT-headers) + 1 (help coverage)
+# + 1 (utility smoke) + 1 (json smoke) + 1 (version aliases) +
+# 1 (showcase build) + 1 (CLI explain smoke) + 1 (explain-full) +
+# 1 (bootstrap) + 1 (check+abi) + 1 (inspectors) + 1 (diagnostics)
+# + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
+# N tests + N err + 1 (self-host)
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -284,6 +284,22 @@ Step "no UTF-8 mojibake in source/docs" {
     }
     & $bash (Join-Path $root "tools\check_mojibake.sh") *> $null
     return ($LASTEXITCODE -eq 0)
+}
+
+Step "tests/err/*.nr have EXPECT headers" {
+    # Mirrors verify.sh err_tests_have_expect_smoke (added v0.2.118).
+    # Locks down the v0.2.117 bulk-add (33/33 tests headerized).
+    $missing = @()
+    foreach ($f in (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue)) {
+        $head = (Get-Content $f.FullName -TotalCount 3) -join "`n"
+        if ($head -notmatch "(?m)^// EXPECT:") {
+            $missing += $f.Name
+        }
+    }
+    if ($missing.Count -gt 0) {
+        return $false
+    }
+    return $true
 }
 
 Step "CLI: nuc help advertises every dispatched command" {

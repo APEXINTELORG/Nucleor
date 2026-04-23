@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.118] — 2026-04-23
+
+**Lock down v0.2.117: gate step enforces every err test has an
+EXPECT header.**
+
+After v0.2.117 brought EXPECT-header coverage to 33/33 err
+tests, this release adds **`err_tests_have_expect_smoke`** to
+both gates so the property holds going forward. Any new
+`tests/err/*.nr` file that lands without a `// EXPECT:` line
+in the first 3 lines fails the gate.
+
+The error message names which file(s) lack the header so
+contributors can fix in place:
+
+```
+[ 5/204] FAIL  tests/err/*.nr have EXPECT headers
+       err tests missing EXPECT header:
+         - err_<name>.nr
+```
+
+### Why this lockdown matters
+
+The EXPECT header serves three audiences:
+
+1. **Future contributors** reading any err test file —
+   immediately see what diagnostic the test exercises.
+2. **Compiler-fix work** — when a v0.2.79-class audit runs
+   later, the EXPECT header gives the audit a concrete
+   expected diagnostic to compare against the actual
+   compiler output (catches regressions like the v0.2.87
+   "false-positive negative test" findings).
+3. **Spec doc cross-reference** — every code in the EXPECT
+   list should appear in `docs/spec/Nucleor_Error_Codes.md`
+   (and per the v0.2.79/v0.2.80 gate work, in the explain
+   registry too).
+
+**Step total bumped 203 → 204** in both gates.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure gate addition
+— no compiler / runtime / source / test changes.
+
 ## [0.2.117] — 2026-04-23
 
 **Bulk-add EXPECT headers to the remaining 28 `tests/err/*.nr`
