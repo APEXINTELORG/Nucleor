@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.50] — 2026-04-22
+
+**v0.2.0 milestone tracker status line current — v0.2.x chain officially closed.**
+
+`docs/milestones/v0.2.0.md` line 5 (the Status field) was stale —
+still claimed `(2026-04-22, v0.1.65)`, "5 of 6 success criteria
+green", "158/158 verify gate". Reality has moved well beyond
+that:
+
+- Tag stamp: v0.1.65 → **v0.2.49** (the chain produced 49 v0.2.x
+  releases including the v0.2.0 RC and the 48 incremental
+  follow-on releases)
+- Success criteria: 5/6 → **6/6 green** (the remaining row "all
+  8 RFCs to v0.2 definition-of-done" was met at v0.2.0 itself but
+  the status sentence wasn't updated)
+- Verify gate: 158/158 → **186/186** (with **zero SKIPs since
+  v0.2.45**)
+- Status: "RC-track" → **"Shipped."**
+
+This release is the formal close of the v0.2.x sub-chain. Every
+loop-tracked doc is now current:
+
+- `docs/milestones/v0.2.0.md` — status line current (this release)
+- `CHANGELOG.md` — 116 entries, current through v0.2.50
+- `docs/spec/Nucleor_Error_Codes.md` — current with explicit
+  reserved-but-empty TST + DIAG sections (v0.2.49)
+- `docs/rfcs/README.md` — current with HELPER-CONTRACT, helper
+  manifest, rod manifest cross-cutting section (v0.2.46)
+
+The next push is **v0.3** (Linux/macOS bootstrap) or v0.4
+(deferred items: pattern matching, generic enums, iterator trait,
+resolver). Both are scoped in `docs/milestones/v0.4.0.md`.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Documentation-only — no compiler /
+runtime / ABI / source / test changes.
+
 ## [0.2.49] — 2026-04-22
 
 **Error codes spec: TST + DIAG namespaces documented as reserved-but-empty.**
