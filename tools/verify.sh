@@ -131,9 +131,9 @@ done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
 # Step count: 1 binary present + 1 ABI parity + 1 CLI explain
-# + 1 bootstrap + 1 check+abi + 1 init + 1 doc + 1 lock + 1 test
-# + N examples + N tests + N negative + 1 self-host
-STEP_TOTAL=$((9 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+# + 1 bootstrap + 1 check+abi + 1 inspectors + 1 init + 1 doc
+# + 1 lock + 1 test + N examples + N tests + N negative + 1 self-host
+STEP_TOTAL=$((10 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -186,6 +186,31 @@ cli_check_abi_smoke() {
     [ -n "$out" ] || return 1
     echo "$out" | grep -q "ABI version:" || return 1
     echo "$out" | grep -q "extern imports:" || return 1
+    return 0
+}
+
+# nuc summary + audit + query + impact smoke (added v0.2.71).
+# Inspector commands that produce structured output (summary text or
+# JSON) for tooling integration. Bundled into one step to keep
+# pre-iteration overhead small.
+cli_inspector_smoke() {
+    local out
+    # nuc summary — module/effect summary text
+    out=$("$BIN" summary examples/01_hello.nr 2>&1)
+    echo "$out" | grep -q "// Module: examples/01_hello.nr" || return 1
+    echo "$out" | grep -q "fn main" || return 1
+    # nuc audit — JSON audit report
+    out=$("$BIN" audit examples/01_hello.nr 2>&1)
+    echo "$out" | grep -q '"type": "audit_report"' || return 1
+    echo "$out" | grep -q '"functions": 1' || return 1
+    # nuc query — JSON function inventory
+    out=$("$BIN" query examples/01_hello.nr 2>&1)
+    echo "$out" | grep -q '"functions":\[' || return 1
+    echo "$out" | grep -q '"name":"main"' || return 1
+    # nuc impact — JSON callee/caller graph for one fn
+    out=$("$BIN" impact examples/01_hello.nr main 2>&1)
+    echo "$out" | grep -q '"target":"main"' || return 1
+    echo "$out" | grep -q '"found":true' || return 1
     return 0
 }
 
@@ -386,6 +411,7 @@ step "compiler ABI tables synced" compiler_tables_synced
 step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
 step "CLI: nuc bootstrap status reports correctly" cli_bootstrap_smoke
 step "CLI: nuc check + abi inspect" cli_check_abi_smoke
+step "CLI: nuc summary/audit/query/impact (inspectors)" cli_inspector_smoke
 step "CLI: nuc init scaffolding works" cli_init_smoke
 step "CLI: nuc doc generator works" cli_doc_smoke
 step "CLI: nuc lock writes Nucleor.lock" cli_lock_smoke

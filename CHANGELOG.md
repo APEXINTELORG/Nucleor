@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.71] — 2026-04-23
+
+**Verify gate: inspector smoke step (summary/audit/query/impact).**
+
+Four more CLI surfaces gate-covered. All four are inspector
+commands that produce structured output for tooling integration:
+
+- **`nuc summary`** — module/effect summary text format.
+  Prints `// Module: <path>` and `fn <name> ... requires [...]`.
+- **`nuc audit`** — JSON audit report. Schema includes
+  `"type": "audit_report"`, source hash, function/struct/etc.
+  inventory.
+- **`nuc query`** — JSON function inventory. Each function's
+  name, params, return type, declared/inferred effects, contract
+  counts.
+- **`nuc impact`** — JSON callee/caller graph for a single
+  named function. Reports declared/inferred effects + the
+  caller/callee impact tree.
+
+**Bundled into one `cli_inspector_smoke` step** (single bash
+function, single PowerShell Step block). Per-iteration overhead:
+4 binary invocations against the same input file. Keeps gate
+pre-iteration block at a manageable size.
+
+**Step total bumped 193 → 194** in both gates.
+
+The pre-iteration smoke block now reads:
+
+```
+[ 1/194] OK    binary present
+[ 2/194] OK    compiler ABI tables synced
+[ 3/194] OK    CLI: nuc explain NUM-001 wired
+[ 4/194] OK    CLI: nuc bootstrap status reports correctly
+[ 5/194] OK    CLI: nuc check + abi inspect
+[ 6/194] OK    CLI: nuc summary/audit/query/impact (inspectors)
+[ 7/194] OK    CLI: nuc init scaffolding works
+[ 8/194] OK    CLI: nuc doc generator works
+[ 9/194] OK    CLI: nuc lock writes Nucleor.lock
+[10/194] OK    CLI: nuc test runs #[test] functions
+```
+
+**Coverage so far: 11 unique CLI commands** (binary present
+isn't a command, ABI parity is internal): `explain`, `bootstrap`,
+`check`, `abi`, `summary`, `audit`, `query`, `impact`, `init`,
+`doc`, `lock`, `test`. **Still uncovered (mostly diagnostic /
+advanced):** `bench`, `policy`, `certify`, `translate`,
+`evidence`, `graph`, `perf`, `emit`, plus the four
+`build*`-family variants. The build family is implicitly
+exercised by every example + test step.
+
+### Verify gate
+
+194 / 194 PASS, 0 SKIP on the bash gate. Tooling-only — no
+compiler / runtime / ABI / source / test changes.
+
 ## [0.2.70] — 2026-04-23
 
 **Verify gate: `nuc bootstrap`, `nuc check`, `nuc abi` smoke steps.**
