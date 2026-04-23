@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.123] — 2026-04-23
+
+**Audit finding: 11 orphan runtime C files document themselves as
+v0.4 wrap targets.**
+
+A sweep of `stdlib/runtime/*_rt.c` against `#cfile` rod
+references found 11 runtime C source files that ship in the
+OSS distribution but have no `.nr` rod wrapper, so the
+features they implement are unreachable from Nucleor source
+today.
+
+The orphan set covers a substantial slice of the future
+ML / data / concurrency surface: SwiGLU + RoPE + RMSNorm
+(`activation2_rt.c`), FlashAttention with GQA / MLA / sliding
+window (`attention2_rt.c`), classic transformer building
+blocks (`transformer_rt.c`), BPE training + encode/decode
+(`tokenizer_rt.c`), CSV I/O (`csv_rt.c`), priority queue
+(`queue_rt.c`), thread pool + futures + parallel map
+(`thread_rt.c`), arena + pool allocators (`allocator_rt.c`),
+differentiable quantum simulation (`diff_sim_rt.c`), string-
+vec + function-pointer call helpers (`rod_helpers_rt.c`), and
+vec_free / vec_clear for long-running experiments
+(`mem_rt.c`).
+
+This is not a bug — every file compiles standalone (see the
+leading `// Compile:` comment in each), and wrapping each in
+`stdlib/rods/<name>.nr` is straightforward `extern fn`
+binding work. It's tracked here so the v0.4 cycle can pick
+the wrap targets up explicitly rather than rediscover them.
+
+### `docs/status/v0.2-shipped-and-deferred.md`
+
+- New bullet "**Orphan runtime C files — known v0.4 wrap
+  targets (audit finding v0.2.123)**" added before the
+  Diagnostic-code coverage closure bullet. Enumerates all
+  11 files with their feature sets.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no tools-suite
+touch; no helper-manifest touch. Self-host LLVM IR fixed point
+preserved (`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.122] — 2026-04-23
 
 **Mirror v0.2.121 to status doc + bootstrap contract.**
