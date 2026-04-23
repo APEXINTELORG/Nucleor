@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.139] — 2026-04-23
+
+**Bootstrap contract clarifies the "748 vs 676 symbols" gotcha.**
+
+The `NUCLEOR_BOOTSTRAP_CONTRACT.md` showed two different runtime
+symbol counts that confused readers:
+
+- The `nuc bootstrap` CLI output (also quoted in the doc) says
+  "**Runtime: 4945 lines, ~748 symbols**".
+- The doc body two paragraphs later said "**676 `__nucleor_*`
+  symbols**".
+
+Both are correct, they answer different questions — the bootstrap
+output line-counts every `__nucleor_*` mention (definition + extern
+declaration + call site, all conflated), while the helper manifest
+catalogues each symbol exactly once across s1 ABI tables + the
+full runtime surface. The doc didn't explain this; readers
+reasonably wondered which number was authoritative.
+
+### `NUCLEOR_BOOTSTRAP_CONTRACT.md`
+
+- Replaced the bare "**4944 lines / 676 `__nucleor_*` symbols
+  as of v0.2.121**" with a two-bullet explanation that names
+  `bootstrap_runtime_symbol_count()` as the source of the ~748
+  number, and `helper_manifest.toml` as the source of the 676
+  unique-helper number.
+- Bumped the as-of stamp from v0.2.121 to v0.2.131.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.138] — 2026-04-23
 
 **Two test-suite README drifts: features/ dir missing from
