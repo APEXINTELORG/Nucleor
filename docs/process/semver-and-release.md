@@ -1,6 +1,6 @@
 # Nucleor — SemVer and Release Process
 
-**Last updated:** 2026-04-22
+**Last updated:** 2026-04-23 (post-v0.2.92)
 
 ## 1. Versioning policy
 
@@ -19,10 +19,19 @@ MAJOR.MINOR.PATCH
 Breaking changes (source-incompatible) are allowed at MINOR bumps
 (e.g., v0.2.0). Patch bumps (e.g., v0.2.1) are bug fixes only.
 
-The v0.2.0 release will break ~every existing program due to the
-numeric refactor (RFC-0015). v0.3.0 may break programs depending on
-the rod APIs the RT attribute audit changes. **Migration tools ship
-at every breaking release** (`nuc fix --<topic>`).
+The v0.2.0 release **shipped 2026-04-22 fully backwards-compatible
+with v0.1.x** despite originally being scoped as a breaking
+numeric refactor (RFC-0015). The phase 5 stdlib audit and phase 7
+strict-mode flip were deferred to v0.4 alongside the type-lattice
+IR work, so v0.2.0 ended up additive — see
+[`docs/migrations/v0.1-to-v0.2.md`](../migrations/v0.1-to-v0.2.md)
+for the upgrade path. The v0.2.x sub-chain (through v0.2.92 as of
+this update) has been strictly additive on top of v0.2.0; no
+existing program semantics changed.
+
+v0.3.0 (Linux/macOS bootstrap) may break programs that depend on
+Windows-specific runtime quirks; **migration tools ship at every
+breaking release** (`nuc fix --<topic>`).
 
 ### 1.2 At v1.0 and beyond
 
@@ -62,8 +71,8 @@ The v0.2.0 → v0.7.0 schedule (per `Nucleor_Decisions_2026-04-22.md`):
 
 | Release | Target | Months |
 |---|---|---|
-| v0.2.0 | 2026-06 | 1–2 |
-| v0.3.0 | 2026-08 | 3–4 |
+| v0.2.0 | 2026-06 (shipped early on 2026-04-22) | 1–2 |
+| v0.3.0 | 2026-Q3 | 3–4 |
 | v0.4.0 | 2026-11 | 5–7 |
 | v0.5.0 | 2027-02 | 8–10 |
 | v0.6.0 | 2027-05 | 11–13 |

@@ -13,11 +13,14 @@ cd Nucleor
 # Windows:
 .\tools\verify.ps1
 
-# Linux / macOS (after v0.2.0):
+# Linux / macOS (POSIX gate ships in v0.2; native Linux/macOS
+# bin/nucleor binaries land in v0.3.0):
 ./tools/verify.sh
 ```
 
-Verify gate green (101 steps as of v0.1.8) means your environment is
+Verify gate green (203 steps as of v0.2.91, grew from 101 at
+v0.1.8 through CLI surface coverage, JSON smoke, mojibake check,
+and other audit-pattern hardening) means your environment is
 ready.
 
 ## Code organization
@@ -59,7 +62,11 @@ from `compiler/nucleor_s1_compiler.nr`. To make a compiler change:
 
 Self-host fixed-point: the new compiler must be byte-identical to a
 compiler built by itself. Verify this with the self-host loop in
-`verify.ps1` (step 67/67).
+`verify.ps1` (the final "self-host rebuild closes" step). For a
+stronger 2-iteration fixed-point check, see the recipe in
+[`NUCLEOR_BOOTSTRAP_CONTRACT.md`](../../NUCLEOR_BOOTSTRAP_CONTRACT.md)
+(used for v0.2.84 and v0.2.87 compiler source changes — both
+preserved byte-identical IR across iterations).
 
 ## Filing issues
 
@@ -82,8 +89,10 @@ For compiler crashes, attach the LLVM IR if available
 5. Update CHANGELOG.md under "Unreleased".
 6. Open the PR with a description of what + why.
 
-CI runs the full verify gate on Linux + macOS + Windows × Intel +
-ARM (post v0.2.0). PRs that don't pass CI cannot merge.
+CI runs the verify gate on Windows x86_64 today (the v0.2 target).
+Linux + macOS + Windows ARM matrix lands with the v0.3.0 cross-
+build (see [`docs/milestones/v0.3.0.md`](../milestones/v0.3.0.md)).
+PRs that don't pass CI cannot merge.
 
 ## RFC process
 

@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.93] — 2026-04-23
+
+**Process docs refresh — `semver-and-release.md` and
+`process/contributing.md` were stale.**
+
+### `docs/process/semver-and-release.md`
+
+- **Last-updated header** bumped from 2026-04-22 to 2026-04-23
+  (post-v0.2.92).
+- **§1.1 v0.x policy paragraph** had a future-tense framing of
+  the v0.2.0 release ("v0.2.0 release will break ~every existing
+  program due to the numeric refactor"). Updated to past tense
+  + the actual outcome: v0.2.0 shipped 2026-04-22 fully
+  backwards-compatible because the phase 5 stdlib audit and
+  phase 7 strict-mode flip were deferred to v0.4.
+- **Release schedule table** — v0.2.0 row updated to note
+  early ship (2026-04-22 vs the original 2026-06 target).
+  v0.3.0 target loosened from "2026-08" to "2026-Q3".
+
+### `docs/process/contributing.md`
+
+- **"101 steps as of v0.1.8"** — replaced with "203 steps as
+  of v0.2.91" + a note about the ~100-step growth via CLI
+  surface coverage, JSON smoke, mojibake check, and other
+  audit-pattern hardening.
+- **"step 67/67"** — replaced with the current step name
+  ("self-host rebuild closes") + a back-pointer to the
+  `NUCLEOR_BOOTSTRAP_CONTRACT.md` 2-iteration fixed-point
+  recipe used for v0.2.84 and v0.2.87 compiler source changes.
+- **"Linux/macOS (after v0.2.0)"** — clarified that the POSIX
+  gate ships in v0.2 but native Linux/macOS `bin/nucleor`
+  binaries land in v0.3.
+- **"CI runs the full verify gate on Linux + macOS + Windows
+  × Intel + ARM (post v0.2.0)"** — corrected to "Windows
+  x86_64 today; Linux + macOS + Windows ARM with v0.3.0
+  cross-build" with a link to the v0.3 milestone tracker.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.92] — 2026-04-23
 
 **Migration guide refresh — `docs/migrations/v0.1-to-v0.2.md`
