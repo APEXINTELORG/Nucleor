@@ -136,11 +136,11 @@ done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
 # Step count: 1 binary present + 1 ABI parity + 1 tools-rebuild
-# + 1 help coverage + 1 CLI explain + 1 explain-full + 1 bootstrap
-# + 1 check+abi + 1 inspectors + 1 diagnostics + 1 init + 1 doc
-# + 1 lock + 1 test
+# + 1 help coverage + 1 utility smoke + 1 CLI explain + 1 explain-full
+# + 1 bootstrap + 1 check+abi + 1 inspectors + 1 diagnostics + 1 init
+# + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host
-STEP_TOTAL=$((14 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+STEP_TOTAL=$((15 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -235,6 +235,36 @@ cli_inspector_smoke() {
 # one gate step. Each gets minimal output validation; the goal is
 # "this command path produces structured output without crashing"
 # rather than full semantic verification.
+cli_utility_smoke() {
+    # v0.2.85 — smoke the zero-side-effect utility commands that
+    # weren't yet under gate coverage: zen, mco, registry list,
+    # stage-dump tokens, fix --imports.
+    # `clean` / `scram` are NOT smoked because they delete target/
+    # mid-gate. Each command must produce non-empty output and
+    # NOT leak the "The system cannot find the file specified."
+    # cmd-shell stderr message that v0.2.85 fixed for registry list.
+    local out
+    out=$("$BIN" zen 2>&1)
+    [ -n "$out" ] || return 1
+    echo "$out" | grep -q "The Zen of Nucleor" || return 1
+    out=$("$BIN" mco 2>&1)
+    [ -n "$out" ] || return 1
+    echo "$out" | grep -q "Mars Climate Orbiter" || return 1
+    out=$("$BIN" registry list 2>&1)
+    [ -n "$out" ] || return 1
+    echo "$out" | grep -q "registry: " || return 1
+    echo "$out" | grep -q "packages: " || return 1
+    # Catch the v0.2.85 stderr leak by name — if it ever returns,
+    # this fires.
+    echo "$out" | grep -q "system cannot find" && return 1
+    out=$("$BIN" stage-dump tokens examples/01_hello.nr 2>&1)
+    [ -n "$out" ] || return 1
+    echo "$out" | grep -q "TOKENS" || return 1
+    out=$("$BIN" fix --imports examples/01_hello.nr 2>&1)
+    [ -n "$out" ] || return 1
+    return 0
+}
+
 cli_help_coverage_smoke() {
     # v0.2.84 — every dispatched CLI subcommand must appear in the
     # `nuc help` output. Catches the drift class that bit `doc` and
@@ -580,6 +610,7 @@ step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
 step "tools-suite rebuild" tools_rebuild
 step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
+step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" cli_utility_smoke
 step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
 step "CLI: nuc explain — full spec code set wired" cli_explain_full_smoke
 step "CLI: nuc bootstrap status reports correctly" cli_bootstrap_smoke

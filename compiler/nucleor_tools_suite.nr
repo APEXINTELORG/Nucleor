@@ -11597,10 +11597,15 @@ fn dir_list_native(dir_path: str, dirs_only: i64) -> Vec<i32> {
     let mut items: Vec<i32> = Vec::new();
     system("mkdir .nuc_cache 2>NUL");
     let listing_path: str = str_concat(".nuc_cache/dir_list_", str_concat(str_from_int(now_ms()), ".txt"));
+    // v0.2.85: redirect stderr to NUL so a missing-directory probe
+    // (e.g. `nuc registry list` with no .nucleor/registry yet) doesn't
+    // leak "The system cannot find the file specified." to the user's
+    // terminal. The system() return code below already handles the
+    // missing-dir case by returning an empty Vec.
     let list_cmd: str = if dirs_only == 1 {
-        str_concat("dir /b /ad ", str_concat(shell_quote(path_shell_native(dir_path)), str_concat(" > ", shell_quote(path_shell_native(listing_path)))))
+        str_concat("dir /b /ad ", str_concat(shell_quote(path_shell_native(dir_path)), str_concat(" > ", str_concat(shell_quote(path_shell_native(listing_path)), " 2>NUL"))))
     } else {
-        str_concat("dir /b ", str_concat(shell_quote(path_shell_native(dir_path)), str_concat(" > ", shell_quote(path_shell_native(listing_path)))))
+        str_concat("dir /b ", str_concat(shell_quote(path_shell_native(dir_path)), str_concat(" > ", str_concat(shell_quote(path_shell_native(listing_path)), " 2>NUL"))))
     };
     if system(list_cmd) != 0 { return items; };
     let raw: str = file_read_string(listing_path);
