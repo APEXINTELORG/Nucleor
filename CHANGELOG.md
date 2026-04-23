@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.110] — 2026-04-23
+
+**Bug fix: `gen_helper_manifest.py` docstring said "14 v0.2.39
+taxonomy classes" — actual is 13 since v0.2.41.**
+
+The generator's docstring claimed the script "Classifies by
+name pattern into the 14 v0.2.39 taxonomy classes." Audit of
+the actual class list (per the v0.2.78 `nuc explain` extension
+and the v0.2.99 milestone tracker refresh) showed there are
+13 classes today (the Unclassified bucket collapsed to zero by
+v0.2.41 when `CLASS_RULES` was extended to catch the 7
+originally-unclassified helpers). The same docstring also
+mis-described the policy-field population as "TODO unless
+trivially derivable" — actually populated 95.1% via the
+3-level resolution chain added in v0.2.74.
+
+### Fix
+
+Docstring rewritten to:
+
+- "Classifies by name pattern into the **13 v0.2.41
+  taxonomy classes**" with the full list enumerated
+  (PureMath, VectorOps, PanickingArith, StringFormat, IO,
+  Collection, TensorOps, Concurrency, Time, DataCodec, Random,
+  ToolingMeta, Allocation) and a parenthetical noting the
+  v0.2.39 → v0.2.41 14 → 13 collapse.
+- "Populates policy-sensitive fields ... via the resolution
+  chain NAME_OVERRIDES → PATTERN_OVERRIDES → CLASS_DEFAULTS
+  → 'TODO' (added v0.2.74; populated 95.1% of the 676 helpers
+  as of v0.2.78)" — now describes what the generator
+  actually does.
+- "Zero rows since v0.2.41" added to the Unclassified bullet.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Manifest unchanged
+(docstring-only — no semantic difference). Pure documentation
+refresh of the generator's own self-description.
+
 ## [0.2.109] — 2026-04-23
 
 **Bug fix: `nuc.toml` `[features]` showcase comment listed

@@ -15,14 +15,19 @@ Output: docs/rfcs/helper_manifest.toml (overwrites)
 
 This script is the executable form of the Helpers.md contract Phase 2:
 - Inventories every helper symbol declared by the compiler.
-- Classifies by name pattern into the 14 v0.2.39 taxonomy classes.
+- Classifies by name pattern into the 13 v0.2.41 taxonomy classes
+  (PureMath, VectorOps, PanickingArith, StringFormat, IO, Collection,
+  TensorOps, Concurrency, Time, DataCodec, Random, ToolingMeta,
+  Allocation; the original v0.2.39 walk proposed 14 but the
+  Unclassified bucket collapsed to zero by v0.2.41).
 - Marks unclassified entries as `class = "Unclassified"` and lists
-  them under the file's REVIEW REQUIRED block.
+  them under the file's REVIEW REQUIRED block (zero rows since v0.2.41).
 - Marks declared-but-undefined entries as `stability = "experimental"`
   with a `notes` flag (latent linker gaps from earlier eras).
-- Marks policy-sensitive fields (effects, taint, units,
-  proof_obligation) as TODO unless trivially derivable; non-trivial
-  rows go under REVIEW REQUIRED.
+- Populates policy-sensitive fields (effects, taint, units,
+  proof_obligation) via the resolution chain
+  NAME_OVERRIDES → PATTERN_OVERRIDES → CLASS_DEFAULTS → "TODO"
+  (added v0.2.74; populated 95.1% of the 676 helpers as of v0.2.78).
 
 Re-run this script after adding any new helper. The Helpers.md contract
 going-forward constraint requires the manifest to stay in sync.
