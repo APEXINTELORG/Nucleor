@@ -427,6 +427,8 @@ cli_explain_full_smoke() {
         # OWN series — borrow checker (expansion of NR031, since v0.2.119)
         "OWN-001" "OWN-002" "OWN-003" "OWN-004" "OWN-005" "OWN-006"
         "OWN-007" "OWN-008" "OWN-009" "OWN-010" "OWN-011" "OWN-012"
+        # TNT series — taint analysis (expansion of NR033, since v0.2.120)
+        "TNT-001"
         # TYP series — type checker (expansion of NR030, since v0.2.119)
         "TYP-001" "TYP-002" "TYP-003" "TYP-004" "TYP-005"
         "TYP-006" "TYP-007" "TYP-008" "TYP-009" "TYP-010"

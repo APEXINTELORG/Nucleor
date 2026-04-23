@@ -9041,6 +9041,8 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "OWN-010") { return "Cannot bind a reference that escapes an inner block"; };
     if str_eq(code, "OWN-011") { return "Cannot mutably borrow immutable value"; };
     if str_eq(code, "OWN-012") { return "Cannot destroy arena with live references"; };
+    // TNT series — taint analysis (expansion of NR033)
+    if str_eq(code, "TNT-001") { return "Tainted data passed to sensitive sink"; };
     // TYP series — type checker (expansion of NR030)
     if str_eq(code, "TYP-001") { return "Non-exhaustive match (legacy; use MATCH-001)"; };
     if str_eq(code, "TYP-002") { return "Boolean values cannot be used in arithmetic"; };
@@ -9223,6 +9225,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "OWN-010") { return "A reference's source value lives in a nested scope that ends before the binding's scope; the reference would dangle. Move the source out to the enclosing scope, or hold the source by value at the outer scope."; };
     if str_eq(code, "OWN-011") { return "`&mut T` requires the source to be declared `let mut x`. Make the binding mutable, or restructure to take a shared `&T` instead."; };
     if str_eq(code, "OWN-012") { return "An arena cannot be destroyed while references into it are still live — would dangle every outstanding pointer. End all borrows from the arena before destroy."; };
+    if str_eq(code, "TNT-001") { return "Tainted data flowing into a function annotated as a sensitive sink. Wrap the value in `sanitize(value)` to strip the taint marker before the call."; };
     if str_eq(code, "TYP-001") { return "Legacy non-exhaustive-match warning. Prefer the canonical MATCH-001 (RFC-0016) which carries a witness. TYP-001 still fires for backwards compatibility — both are emitted."; };
     if str_eq(code, "TYP-002") { return "Booleans are not numeric in Nucleor; `true + false` etc. are rejected. Use `if cond { 1 } else { 0 }` if you need to convert."; };
     if str_eq(code, "TYP-003") { return "RFC-0005 — adding two unit values requires identical dimensions (both must be `unit<T,m>` or both `unit<T,s>`, etc.). Convert one to the other or use multiplication."; };
@@ -9384,6 +9387,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "OWN-010") { return "Inner-block lifetime escape: `let r = { let x = 5; &x };` would leave `r` pointing at freed `x`. The compiler tracks scope-exit destruction and rejects bindings that would outlive their referent. Move the source value out to the outer scope, or hold by value rather than reference."; };
     if str_eq(code, "OWN-011") { return "`&mut T` requires the source to be declared `let mut`. Add `mut` to the binding, or use `&T` if you don't actually need to write through the reference."; };
     if str_eq(code, "OWN-012") { return "Arenas free all their backing storage on destroy. If any reference into the arena is still live, the destroy would dangle every outstanding pointer. End all borrows from the arena (typically by exiting the scope where they live) before destroy."; };
+    if str_eq(code, "TNT-001") { return "Strict-mode taint pass detected tainted data flowing into a function annotated as a sensitive sink. The suggestion is to wrap the value in `sanitize(value)` (which strips the taint marker) before the call. Fires from the tools-suite strict checker, not the s1 main type-check pass."; };
     if str_eq(code, "TYP-001") { return "**Legacy** non-exhaustive-match warning, retained for backwards compatibility through the v0.2.x line. The canonical code is MATCH-001 (RFC-0016) which carries a witness uncovered value. Both warnings fire from `check_match_stmt`; address either to silence both."; };
     if str_eq(code, "TYP-002") { return "Booleans aren't numeric — `true + false`, `bool * bool`, etc. are rejected. The arithmetic operator type-check (in check_expr's binop branch) fires TYP-002 when either operand resolves to bool."; };
     if str_eq(code, "TYP-003") { return "RFC-0005 — adding `unit<T,m>` and `unit<T,s>` is dimensionally invalid (length-plus-time has no physical meaning). Convert one to the other via the appropriate physical relationship, or use multiplication (`unit<T,m> * unit<T,1/s>` produces `unit<T,m/s>`)."; };

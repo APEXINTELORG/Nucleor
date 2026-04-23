@@ -59,6 +59,25 @@ assign-shared-ref, field-assign-while-borrowed,
 immutable-assign, dangling-return, lifetime-scope-escape,
 mut-borrow-immutable, arena-destroy-live-ref).
 
+## TNT series — taint analysis (expansion of NR033)
+
+The taint analyzer fires concrete `TNT-NNN` codes; `NR033`
+remains the umbrella stage code. **One TNT code shipped today
+(documented v0.2.120)**, fired from
+`compiler/nucleor_tools_suite.nr`'s strict-checker pass when
+tainted data flows into a function annotated as a sensitive
+sink. The suggestion machinery proposes wrapping the value in
+`sanitize(value)` before the call.
+
+| Code | Title | Source | Severity |
+|---|---|---|---|
+| TNT-001 | Tainted data passed to sensitive sink | strict-mode taint pass | warning |
+
+Gate-tested via `tests/err/err_taint_*` (taint_arg, taint_leak,
+taint_propagation, taint_to_clean — though those fire TYP-006
+or TYP-008 from the type checker rather than TNT-001 from the
+strict pass; TNT-001 is the warning-level companion).
+
 ## TYP series — type checker (expansion of NR030)
 
 The type checker fires concrete `TYP-NNN` codes; `NR030`
