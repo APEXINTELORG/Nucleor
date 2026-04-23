@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.121] — 2026-04-23
+
+**Milestone tracker refresh — capture the v0.2.99–120
+diagnostic-code coverage closure as a sixth sub-chain bucket.**
+
+After v0.2.120 closed the "fired-vs-documented" diagnostic-code
+drift class, the milestone tracker still showed the v0.2.98
+state (5 buckets through v0.2.50–98). Refreshed to:
+
+- **Status header** v0.2.98 → v0.2.120; sub-chain
+  v0.2.50–98 (49 releases) → v0.2.50–120 (71 releases).
+  Gate count 203/203 → 204/204. Added explicit notes that
+  **all 158 spec codes are wired/gate-tested** and **all 33
+  err tests have EXPECT headers** (gate-enforced via
+  v0.2.118).
+- **Bucket count 5 → 6**, with the new bucket
+  "**Diagnostic-code coverage closure (v0.2.117–120)**"
+  covering the EXPECT-header bulk-add + 23 OWN/TYP/TNT codes
+  wired + the gate enforcement — the "fired-vs-documented"
+  drift class is closed.
+- **Untouched-since-v0.2.49** paragraph updated to note that
+  v0.2.117 (test fixtures) and v0.2.119+v0.2.120
+  (tools-suite source for explain registry) also touched
+  surfaces, but no s1 / runtime changes since v0.2.87.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.120] — 2026-04-23
 
 **One more code: TNT-001 (taint analysis) was the last
