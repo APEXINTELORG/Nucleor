@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.100] — 2026-04-23
+
+**Status doc refresh — `v0.2-shipped-and-deferred.md` was 22
+ships stale. v0.2.100 milestone crossed.**
+
+`docs/status/v0.2-shipped-and-deferred.md` snapshot was at
+v0.2.76 (97-release chain). Refresh:
+
+- **Snapshot**: `v0.2.76` → `v0.2.99`. Chain count 97 → 119
+  releases (22 v0.1.x preview + 99 v0.2.x).
+- **Sub-chain header**: "v0.2.50–v0.2.76, 27 releases" →
+  "v0.2.50–v0.2.99, 50 releases". Removed the "all
+  tooling-only" claim (the two compiler source changes in
+  v0.2.84 + v0.2.87 are now noted with their preserved
+  fixed point).
+- **Helper manifest bucket**: v0.2.73–76 / 92.9% / 48 TODO →
+  v0.2.73–78 / 95.1% / 33 TODO with the placeholder taxonomy
+  enumerated.
+- **CLI surface gate coverage bucket**: v0.2.64–72 / 16
+  commands / 158→195 step total → v0.2.64–86 / 21+ commands /
+  158→203 step total. Added the four meta-coverage steps
+  (help-text-coverage, JSON-flag, version-alias, showcase-
+  build) plus the explain-full-spec-catalog (130 codes) and
+  mojibake check.
+- **Drift gate hardening bucket**: expanded to enumerate all
+  six things the drift gate now enforces (added v0.2.83
+  CHANGELOG↔git tag parity, v0.2.91 mojibake clean).
+- **Compiler bug fixes bucket**: 1 entry (v0.2.69) → 6
+  entries (v0.2.69, v0.2.79+80, v0.2.82, v0.2.83, v0.2.85,
+  v0.2.91), each with its corresponding gate-step addition.
+- **NEW "Documentation staleness audit" bucket** (v0.2.77–98)
+  — 19+ stale claims fixed across 12 doc surfaces with the
+  principal drift classes enumerated.
+
+### Milestone
+
+This is the **100th v0.2.x release**. Total releases (per
+`RELEASES.md`) now 169. The audit-pattern chain that started
+at v0.2.79 has run for 22 ships finding ~25 real bugs across
+docs and tooling.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh of the status doc.
+
 ## [0.2.99] — 2026-04-23
 
 **Milestone tracker refresh — was 22 ships stale.**
