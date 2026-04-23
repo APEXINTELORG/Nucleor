@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.98] — 2026-04-23
+
+**`docs/benchmarks.md` self-host stats + `docs/rfcs/README.md`
+RFC status both stale.**
+
+### `docs/benchmarks.md` — self-host build numbers
+
+The doc claimed v0.1-era estimates: `~330 KB source / 5700
+functions / 10000 LOC / 1.8 MB LLVM IR / 3 MB binary`. Audited
+against current state via `nuc perf compiler/nucleor_s1_compiler.nr`
+and direct file inspection:
+
+| Metric | v0.1-era claim | v0.2.97 actual |
+|---|---|---|
+| Source size | ~330 KB | **~467 KB** |
+| LOC | ~10000 | **8897** |
+| Reachable functions (post-DCE) | ~5700 | **365** |
+| Optimizer instructions | n/a | **664** |
+| String pool | n/a | **3932** |
+| LLVM IR | ~1.8 MB | **~2.6 MB** |
+| `nucleor.exe` binary | ~3 MB | **~845 KB** |
+
+The dramatic binary shrink (3 MB → 845 KB) is the cumulative
+effect of the optimizer + dead-code elimination pass shipped in
+the v0.1.46–v0.1.65 chain, which stripped the v0.1.x compiler's
+~5700 functions down to the 365 actually reachable. Self-build
+wall time also bumped from ~14s to ~27s as the compiler grew
+its v0.2 type-checker (which now dominates per the perf
+diagnostic).
+
+Also updated the lead paragraph "characterize the v0.1
+self-host bootstrap pipeline" → "v0.2".
+
+### `docs/rfcs/README.md` — RFC implementation status
+
+The doc claimed:
+
+> 32 RFCs drafted; 8 Tier-2 (RFC-0015..0022) + RFC-0029 carry
+> Implemented or Implemented-partial status as of v0.1.65.
+
+Updated to:
+
+> 32 RFCs drafted; 8 Tier-2 (RFC-0015..0022) + RFC-0029 carry
+> Implemented or Implemented-partial status **as of v0.2.0 RC**
+> (per the per-RFC checklist rows in `docs/milestones/v0.2.0.md`
+> — every row is DONE / PARTIAL / DEFERRED with a follow-on
+> target). **RFC-0030 declined** during v0.2 (see the RFC for
+> rationale). The post-RC v0.2.x sub-chain (through v0.2.97 as
+> of this update) has been strictly additive on top of v0.2.0;
+> no RFC implementation states changed.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.97] — 2026-04-23
 
 **`docs/rods-and-runtime.md` — same stale rod count drift as
