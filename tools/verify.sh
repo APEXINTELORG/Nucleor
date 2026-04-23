@@ -785,7 +785,14 @@ fi
 step "self-host rebuild closes" self_host_rebuild
 
 # --- Cleanup ------------------------------------------------------------
-rm -rf "$ROOT/target" "$ROOT/.nuc_cache" 2>/dev/null || true
+# Default: wipe target + .nuc_cache so the next run starts cold (matches
+# CI semantics — fresh module-graph cache). Set KEEP_CACHE=1 in the env
+# to skip cleanup; the next run will reuse the module-graph cache and
+# the self-host rebuild step alone drops from ~20s to ~2s. Use during
+# active iteration; never in CI.
+if [ "${KEEP_CACHE:-0}" != "1" ]; then
+    rm -rf "$ROOT/target" "$ROOT/.nuc_cache" 2>/dev/null || true
+fi
 
 echo ""
 echo "$(dim '===')"
