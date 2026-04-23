@@ -117,7 +117,7 @@ branch — only the release branch is rebuilt and tagged.
 ## 5. Yanking
 
 Severe bugs / security issues: yank the version from the registry.
-Yanked versions remain downloadable for users with `nuc.lock` already
+Yanked versions remain downloadable for users with `Nucleor.lock` already
 pinning them, but `nuc add` skips them.
 
 `nuc yank --version 0.3.1 --reason "OOB write in parser"` (post v0.5

@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.148] — 2026-04-23
+
+**One more lockfile-name straggler missed by v0.2.147 — fixed.**
+
+Follow-on to v0.2.147 (which canonicalized 12 files using
+`nuc.toml` / `nuc.lock`): a final sweep with the
+not-CHANGELOG-yet filter found one more in
+`docs/process/semver-and-release.md` §5 Yanking that v0.2.147
+missed (the doc was updated for `nuc.toml` but not `nuc.lock`).
+
+### `docs/process/semver-and-release.md`
+
+- §5 Yanking sentence: "Yanked versions remain downloadable for
+  users with `nuc.lock` already pinning them" → "with
+  `Nucleor.lock` already pinning them".
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.147] — 2026-04-23
 
 **Filename drift: 8 docs + 1 tools-suite entry referenced
