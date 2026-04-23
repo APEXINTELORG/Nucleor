@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.92] — 2026-04-23
+
+**Migration guide refresh — `docs/migrations/v0.1-to-v0.2.md`
+was 50+ releases stale.**
+
+The guide's TL;DR claimed:
+
+> v0.2.0 → v0.2.38 is also fully additive. The 18 incremental
+> v0.2.x releases shipped 75+ new runtime helpers...
+
+But we're at v0.2.91, not v0.2.38. The 91+ post-v0.2.0
+releases are still strictly additive — no behavior change in
+v0.2.0 surface — but the guide's narrative was 50+ releases
+behind the actual chain.
+
+### Updated framing
+
+The guide now explicitly covers three sub-chains:
+
+- **v0.2.18–v0.2.30 stdlib enrichment** (helpers + 5 demo
+  programs — already documented in detail).
+- **v0.2.41–v0.2.49 manifest contract** (helper / rod
+  manifests under drift-gate enforcement — newly mentioned).
+- **v0.2.50–v0.2.91 post-RC hardening** (16+ gate steps for
+  CLI surface coverage, JSON smoke, version aliases, showcase
+  build, mojibake check, plus real bugs surfaced by the audit
+  pattern: registry list cmd.exe stderr leak, `nuc test`
+  target/ creation, missing bootstrap contract doc, etc.).
+
+The opening summary block also notes the **two compiler source
+changes** in the post-RC chain (v0.2.84 `nuc help` doc/fix
+entries, v0.2.87 `-V` / `version` aliases) and their preserved
+LLVM IR fixed point — important for the "fully additive"
+guarantee.
+
+No behavior promised by v0.2.0 changed. The migration paths
+documented in the guide (legacy `import "stdlib/rods/foo.nr"`
+→ `use std::foo`, `nuc fix --imports` linter, etc.) all still
+work as written.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.91] — 2026-04-23
 
 **Mojibake sweep + gate enforcement. Self-defeating mojibake
