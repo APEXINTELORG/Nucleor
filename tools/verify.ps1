@@ -130,8 +130,9 @@ foreach ($d in $testDirs) {
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
 # 1 (binary present) + 1 (drift check) + 1 (CLI explain smoke) +
-# 1 (CLI init smoke) + N examples + N tests + N err + 1 (self-host)
-$stepTotal = 4 + $examples.Count + $testCount + $errCount + 1
+# 1 (CLI init smoke) + 1 (CLI doc smoke) + N examples + N tests
+# + N err + 1 (self-host)
+$stepTotal = 5 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -199,6 +200,38 @@ Step "CLI: nuc init scaffolding works" {
         $runOut = & $exe 2>&1 | Out-String
         Pop-Location
         if ([string]::IsNullOrWhiteSpace($runOut)) { return $false }
+        return $true
+    }
+    finally {
+        Pop-Location
+        if (Test-Path $sandbox) { Remove-Item -Recurse -Force $sandbox -ErrorAction SilentlyContinue }
+    }
+}
+
+Step "CLI: nuc doc generator works" {
+    # Mirrors verify.sh cli_doc_smoke (added v0.2.67). Exercises
+    # RFC-0029 phase 1 doc generator: reads /// doc comments, emits
+    # Markdown with function index + per-fn signature blocks; --out
+    # flag writes to file.
+    $sandbox = Join-Path $env:TEMP "_nuc_doc_smoke_$PID"
+    if (Test-Path $sandbox) { Remove-Item -Recurse -Force $sandbox }
+    New-Item -ItemType Directory -Path $sandbox -Force | Out-Null
+    try {
+        Push-Location $sandbox
+        $src = @"
+/// Adds two integers.
+fn smoke_add(a: i64, b: i64) -> i64 { return a + b; }
+"@
+        Set-Content -Path "smoke.nr" -Value $src -Encoding UTF8
+        $stdoutOut = & $bin doc "smoke.nr" 2>&1 | Out-String
+        if ($stdoutOut -notmatch "smoke_add") { return $false }
+        if ($stdoutOut -notmatch "## Function index") { return $false }
+        if ($stdoutOut -notmatch "Adds two integers") { return $false }
+        if ($stdoutOut -notmatch "Signature") { return $false }
+        & $bin doc "smoke.nr" --out "smoke.md" *> $null
+        if (-not (Test-Path "smoke.md")) { return $false }
+        $fileContent = Get-Content "smoke.md" -Raw
+        if ($fileContent -notmatch "smoke_add") { return $false }
         return $true
     }
     finally {
