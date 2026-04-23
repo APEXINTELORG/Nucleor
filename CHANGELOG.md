@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.49] — 2026-04-22
+
+**Error codes spec: TST + DIAG namespaces documented as reserved-but-empty.**
+
+Audit of `docs/spec/Nucleor_Error_Codes.md` (one of the four
+active trackers in the loop input). The spec was missing entries
+for two RFCs that shipped real surface in v0.2 but never minted
+their own error codes:
+
+- **RFC-0021 test framework** — shipped `nuc test` discovery,
+  `assert_eq!` / `assert_ne!` macros, and `--isolation=process`
+  mode in v0.2, but routes test failures through `assert_*` panic
+  messages + harness exit status rather than a TST-NNN series.
+- **RFC-0020 diagnostics machinery** — shipped LineMap
+  infrastructure + the warnings-no-longer-halt-the-build behavior
+  in v0.2 (phase 1 + 2), but the diagnostic machinery surfaces
+  through the per-RFC code series (NUM, MATCH, COLL, etc.) rather
+  than its own DIAG-NNN.
+
+The spec previously claimed to be the "canonical list of every
+compiler error code" but had silent gaps where readers might
+reasonably expect entries. Honest fix: add explicit TST and DIAG
+sections that say **"Reserved namespace; no codes minted as of
+v0.2.48"**, with:
+
+- Pointer to the RFC + the v0.2 surface that did ship.
+- Explanation of why no codes were minted (test-runner failures
+  go through panic; diagnostic machinery wraps per-RFC codes).
+- Three proposed TST-NNN candidates for the v0.4 minting pass
+  (test discovery / isolation / fixture).
+- Note that RFC-0020 phase 3 (planned v0.4) is the existing-error
+  span migration, not new code minting.
+
+This is a "say what's there honestly" pass, not "invent fictional
+codes" — readers grepping the spec for TST-001 will now find
+context instead of nothing.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Documentation-only — no compiler /
+runtime / ABI / source / test changes.
+
 ## [0.2.48] — 2026-04-22
 
 **Status snapshot refreshed — covers full v0.1.46 → v0.2.47 chain.**
