@@ -8656,7 +8656,7 @@ fn main() -> i64 {
     };
     let cmd: str = args_get(1);
     // --version and help
-    if str_eq(cmd, "--version") || str_eq(cmd, "-v") {
+    if str_eq(cmd, "--version") || str_eq(cmd, "-v") || str_eq(cmd, "-V") || str_eq(cmd, "version") {
         print(compiler_identity());
         return 0;
     };
