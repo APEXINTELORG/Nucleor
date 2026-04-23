@@ -5,6 +5,78 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.149] — 2026-04-23
+
+**Closes v0.2.124 finding: 22 orphan rod wrappers now have smoke
+tests under the verify gate. Gate grew 204 → 226.**
+
+The v0.2.124 audit found 22 rod files in `stdlib/rods/*.nr` that
+ship with `#cfile` directives but are never imported by any
+example, test, or other rod — so the verify gate never built
+them through `nuc build`. v0.2.124 documented them as v0.4
+example-coverage targets. v0.2.149 closes the finding by
+adding a `tests/rods/<name>_smoke.nr` for each.
+
+The smokes are minimal. Where the rod's API takes only
+primitives (str / i64), the smoke calls one or two functions
+and asserts the obvious return value. Where the rod returns
+opaque handles to allocated tensors / buffers / WAV streams /
+hardware ports, the smoke imports the rod and returns 0
+("build-only smoke") — the value is verifying that the `#cfile`
+resolves, the `extern fn` declarations match the C
+implementation's symbol table, and the rod links against the
+runtime. Future rename / typo / runtime-removal regressions are
+now gate-blocked.
+
+### New tests under `tests/rods/`
+
+- **Functional smokes** (call ≥1 function with primitive args
+  and assert the result):
+  `stack_smoke.nr` (push/pop/peek/len/is_empty),
+  `string_algo_smoke.nr` (Levenshtein),
+  `bioseq_smoke.nr` (GC + Hamming),
+  `color_smoke.nr` (RGB→HSV + palette),
+  `mesh_smoke.nr` (4×4 rect + node-count check),
+  `mps_smoke.nr` (init + free),
+  `gpu_smoke.nr` (gpu_available probe),
+  `hnsw_smoke.nr` (constructor),
+  `kv_cache_smoke.nr` (constructor),
+  `embedding_smoke.nr` (constructor),
+  `rl_smoke.nr` (replay-buffer constructor + size==0),
+  `checkpoint_smoke.nr` (constructor),
+  `comm_smoke.nr` (comm_init),
+  `diffusion_smoke.nr` (linear schedule),
+  `speculative_smoke.nr` (spec_seed).
+
+- **Build-only smokes** (import + return 0; rod requires
+  opaque-handle setup that doesn't fit a smoke):
+  `audio_smoke.nr` (needs WAV file),
+  `conv_smoke.nr` (needs tensor handles),
+  `loss_smoke.nr` (needs tensor handles),
+  `pq_smoke.nr` (needs training data),
+  `quantize_smoke.nr` (needs weight buffer handles),
+  `scan_smoke.nr` (needs `Vec<f64>` plumbing),
+  `serial_smoke.nr` (needs serial port hardware).
+
+### Caught one bug along the way
+
+The first cut of `string_algo_smoke.nr` asserted
+`str_kmp("hello world", "world") == 6`, expecting the function
+to return the match position. Reading
+`stdlib/runtime/string_algo_rt.c` showed it actually returns
+**a handle to a `savec` of all match positions**, not a
+position. Fixed the smoke to exercise the function without
+asserting on the return — and the rod's wrapper docs deserve
+a follow-up to clarify the handle return.
+
+### Verify gate
+
+**226 / 226 PASS, 0 SKIP** on the bash gate (was 204/204; +22
+new `tests/rods/*_smoke.nr`). Pure addition — no compiler /
+runtime / s1-source / tools-suite change; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.148] — 2026-04-23
 
 **One more lockfile-name straggler missed by v0.2.147 — fixed.**
