@@ -352,6 +352,9 @@ NAME_OVERRIDES = {
     "fnv1a_64_i64":     ([],        "passthrough", "none"),
     "fnv1a_64_str":     ([],        "passthrough", "none"),
     "murmur3_64":       ([],        "passthrough", "none"),
+    # StringFormat — string_print actually does I/O (despite living
+    # in StringFormat by name pattern).
+    "string_print":     (["io"],    "passthrough", "io_capability_required"),
 }
 
 
@@ -369,6 +372,27 @@ PATTERN_OVERRIDES = [
      ([], "passthrough", "none")),
     # Standalone narrow-width sentinels — saturating/wrapping i32 casts.
     (re.compile(r"^(sat|wrap)_i32$"),
+     ([], "passthrough", "none")),
+    # StringFormat: pure character predicates and conversions.
+    (re.compile(r"^char_"),
+     ([], "passthrough", "none")),
+    # StringFormat: int -> char.
+    (re.compile(r"^chr$"),
+     ([], "passthrough", "none")),
+    # StringFormat: pure str/string predicates and accessors that
+    # return a scalar (bool / i64 / i32) without allocating.
+    (re.compile(r"^str_(eq|contains|count|ends_with|starts_with|index_of|is_empty|len|char_at)$"),
+     ([], "passthrough", "none")),
+    (re.compile(r"^str_to_(i64|f64|bool|i64_radix)$"),
+     ([], "passthrough", "none")),
+    (re.compile(r"^parse_(hex|bin)$"),
+     ([], "passthrough", "none")),
+    (re.compile(r"^string_(capacity|eq|eq_str|get_byte|len|starts_with|ends_with|contains|as_ptr)$"),
+     ([], "passthrough", "none")),
+    # Collection: pure read-only accessors across hashmap/hashset/
+    # btreemap/btreeset/vecdeque. Allocation-free (return Option /
+    # bool / i64 / i32 / scalar).
+    (re.compile(r"^(hashmap|hashset|btreemap|btreeset|vecdeque)_(get|contains|len|capacity|is_empty|get_or|key_at|val_at|at)$"),
      ([], "passthrough", "none")),
 ]
 
@@ -403,6 +427,15 @@ CLASS_DEFAULTS = {
     # alloc effect. Caller must own the arena/region or hold the
     # allocator capability.
     "Allocation":     (["alloc"],     "passthrough", "alloc_capability_or_arena_owned"),
+    # StringFormat — string-builder / int-to-string / format helpers
+    # all allocate the output buffer. Pure read-only members are
+    # singled out by PATTERN_OVERRIDES above.
+    "StringFormat":   (["alloc"],     "passthrough", "none"),
+    # Collection — mutators (insert / remove / push / pop / clone /
+    # merge / new / with_capacity / clear / free / keys / values)
+    # touch the allocator. Pure access methods are singled out by
+    # PATTERN_OVERRIDES above.
+    "Collection":     (["alloc"],     "passthrough", "none"),
 }
 
 
