@@ -38,7 +38,12 @@ fn main() -> i64 {
 }
 ```
 
-Numeric literals are decimal `i64`. (Hex/binary literal support is planned.)
+Numeric literals default to `i64`. The lexer accepts decimal
+(`42`), hex (`0xFF` → `255`), binary (`0b1010` → `10`), and
+underscored (`1_000_000`) forms. RFC-0015 width / signedness
+suffixes (`100u8`, `1.5f32`) parse and type-check; the strict-
+mode mixed-width-arithmetic warning (NUM-001) is staged behind
+`nuc fix --numeric` until the v0.4 stdlib audit closes.
 
 ## Control flow
 

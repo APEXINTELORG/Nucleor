@@ -5,6 +5,64 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.95] — 2026-04-23
+
+**Bug fix: docs claimed hex/binary literals don't work — they do.**
+
+Three stale doc claims about literal-form support, all
+contradicted by gate-tested usage in the source corpus:
+
+1. **`docs/language-tour.md` line 41** said "Numeric literals
+   are decimal `i64`. (Hex/binary literal support is planned.)"
+2. **`docs/language-reference.md` §1.4 literals table** had no
+   row for hex / binary / underscored / suffixed literals plus
+   an explicit "not currently supported" line below the table.
+3. **`docs/language-reference.md` §12 'does not have (yet)'**
+   listed "Hex/binary integer literals (lexer accepts them but
+   produces wrong values)" — actively wrong (verified that
+   `0xFF` → `255` and `0b1010` → `10` produce correct output).
+
+### Verified working
+
+```nr
+fn main() -> i64 {
+    let h: i64 = 0xFF;        // 255
+    let b: i64 = 0b1010;      //  10
+    let u: i64 = 1_000_000;   // 1000000
+    print_int(h);
+    print_int(b);
+    print_int(u);
+    return 0;
+}
+```
+
+Hex literals are also actively used in `tests/lang/atomic_bit_ops.nr`
+(`atomic_i64_store(a, 0xFF00)`, `0x000F`, `0xFF0F`, `0x0F0F`)
+which has been gate-green for many releases.
+
+### Fix
+
+- **`docs/language-tour.md` §Variables** — replaced the stale
+  one-liner with an explicit list of all four literal forms
+  (decimal / hex / binary / underscored) plus a note about the
+  RFC-0015 width / signedness suffixes that parse and
+  type-check, with the strict-mode flip status.
+- **`docs/language-reference.md` §1.4 literals** — table
+  expanded from 3 rows to 8 rows covering decimal / hex /
+  binary / underscored / width-suffixed integer + decimal /
+  width-suffixed float + string + boolean. Added a paragraph
+  documenting the RFC-0015 suffix vocabulary and NUM-001
+  staging.
+- **`docs/language-reference.md` §12 'does not have (yet)'** —
+  removed the bogus "hex/binary literals" entry (they do
+  work). Added a one-line note that RFC-0030 (`async` /
+  `await`) was declined.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.94] — 2026-04-23
 
 **Top-level `CONTRIBUTING.md` "scope" section was 90+ releases
