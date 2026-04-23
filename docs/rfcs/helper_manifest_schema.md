@@ -123,11 +123,13 @@ Marked `"TODO"` outside `PureMath` until reviewed.
   this state.
 
 ### `since` — string
-Version the helper was introduced. Currently set to `"0.1.0"` for
-all rows; the v0.2.x enrichment-chain helpers (released v0.2.18
-through v0.2.30) will be re-tagged with their actual `since`
-release in a follow-up pass, since the `gen_helper_manifest.py`
-script doesn't yet know how to map symbols → release.
+Version the helper was introduced. The v0.2.9..v0.2.30 enrichment
+chain helpers carry their actual release version (e.g. `vec_mean_f64`
+= `"0.2.30"`, `path_normalize` = `"0.2.23"`). Helpers shipped in
+v0.1 and pre-v0.2.9 v0.2 work default to `"0.1.0"` (the v0.1
+baseline). The mapping is maintained in `tools/gen_helper_manifest.py`
+in the `SINCE_MAP` dictionary — keep in sync with the per-release
+helper lists in CHANGELOG.md when adding new helpers.
 
 ### `notes` — string
 Free text. Used by the generator to record REVIEW REQUIRED reasons:
