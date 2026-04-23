@@ -130,8 +130,8 @@ foreach ($d in $testDirs) {
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
 # 1 (binary present) + 1 (drift check) + 1 (CLI explain smoke) +
-# N examples + N tests + N err + 1 (self-host)
-$stepTotal = 3 + $examples.Count + $testCount + $errCount + 1
+# 1 (CLI init smoke) + N examples + N tests + N err + 1 (self-host)
+$stepTotal = 4 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -174,6 +174,37 @@ Step "CLI: nuc explain NUM-001 wired" {
     if ($explainOut -notmatch "Mixed-width") { return $false }
     if ($explainOut -notmatch "Nucleor_Error_Codes") { return $false }
     return $true
+}
+
+Step "CLI: nuc init scaffolding works" {
+    # Mirrors verify.sh cli_init_smoke (added v0.2.66). Verifies the
+    # new-user-first-command produces a working project: scaffolds
+    # Nucleor.toml + src/main.nr, manifest declares name + entry,
+    # and the scaffold compiles + runs to non-empty stdout.
+    $sandbox = Join-Path $env:TEMP "_nuc_init_smoke_$PID"
+    if (Test-Path $sandbox) { Remove-Item -Recurse -Force $sandbox }
+    New-Item -ItemType Directory -Path $sandbox -Force | Out-Null
+    try {
+        Push-Location $sandbox
+        & $bin init smokeproj *> $null
+        if (-not (Test-Path "smokeproj\Nucleor.toml")) { return $false }
+        if (-not (Test-Path "smokeproj\src\main.nr")) { return $false }
+        $manifest = Get-Content "smokeproj\Nucleor.toml" -Raw
+        if ($manifest -notmatch 'name = "smokeproj"') { return $false }
+        if ($manifest -notmatch 'entry = "src/main.nr"') { return $false }
+        Push-Location "smokeproj"
+        & $bin build "src/main.nr" -o "smokeproj" *> $null
+        $exe = "target\smokeproj.exe"
+        if (-not (Test-Path $exe)) { Pop-Location; return $false }
+        $runOut = & $exe 2>&1 | Out-String
+        Pop-Location
+        if ([string]::IsNullOrWhiteSpace($runOut)) { return $false }
+        return $true
+    }
+    finally {
+        Pop-Location
+        if (Test-Path $sandbox) { Remove-Item -Recurse -Force $sandbox -ErrorAction SilentlyContinue }
+    }
 }
 
 foreach ($ex in $examples) {

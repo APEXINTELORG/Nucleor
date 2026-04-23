@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.66] — 2026-04-23
+
+**Verify gate: `nuc init` smoke step (both bash + PowerShell).**
+
+`nuc init` is the **new-user-first-command** — what someone
+types after `git clone` to verify everything works. It had
+**zero gate coverage**. Catching a regression here matters more
+than catching a regression in any individual example, because
+it's the failure mode that turns "first 5 minutes" into "this
+language is broken."
+
+**Manual verification first** (the right order):
+
+```
+$ nuc init testproject
+  Created project: testproject
+  testproject/Nucleor.toml
+  testproject/src/main.nr
+
+  To build: cd testproject && nuc build
+  To run:   cd testproject && nuc run
+
+$ cd testproject && nuc build src/main.nr -o testproject && ./target/testproject.exe
+Hello, Nucleor!
+```
+
+Works end-to-end. **Gated as of v0.2.66:**
+
+- New `cli_init_smoke` step in both `tools/verify.sh` and
+  `tools/verify.ps1`. Creates a sandbox temp dir, runs
+  `nuc init smokeproj`, then asserts:
+  1. `smokeproj/Nucleor.toml` exists.
+  2. `smokeproj/src/main.nr` exists.
+  3. Manifest declares `name = "smokeproj"`.
+  4. Manifest declares `entry = "src/main.nr"`.
+  5. The scaffold compiles via `nuc build`.
+  6. The compiled binary runs and produces non-empty stdout.
+  7. The sandbox is cleaned up afterward (try/finally on
+     PowerShell, post-step `rm -rf` on bash).
+- Step total bumped 187 → 188 in both gates.
+
+The four CLI smoke steps (`binary present`, `ABI parity`,
+`explain smoke`, `init smoke`) are now the gate's "is the
+toolchain even alive?" pre-iteration block before the example +
+test marathon kicks off.
+
+### Verify gate
+
+188 / 188 PASS, 0 SKIP on the bash gate. PowerShell side runs
+on next CI push.
+
 ## [0.2.65] — 2026-04-23
 
 **`tools/verify.ps1` mirrors v0.2.64 explain smoke step.**
