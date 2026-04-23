@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.86] — 2026-04-23
+
+**Gate `--json` output across 11 CLI commands. 200-step gate
+milestone crossed.**
+
+Auditing the `--json` flag surface found:
+
+- **9 commands honor `--json` and emit valid JSON** when the
+  flag follows the source positional: `audit`, `summary`,
+  `query`, `abi`, `evidence`, `graph`, `perf`, `check`, plus
+  `explain` (CODE positional, both flag-orders work),
+  `bootstrap` (no positional), `lock` (no positional). 11
+  total command paths.
+- **`policy --json` and `bench --json` silently fall back to
+  text** because `policy [file] [level]` parses `--json` as
+  the `level` positional and `bench` doesn't advertise `--json`
+  at all. **Documented behavior gap, not a bug** — both
+  commands accept the flag without warning rather than
+  honoring it. Future ships can add `--json` support to either
+  by adjusting the dispatch.
+- **Parser quirk: `--json` must come AFTER the source
+  positional for file-taking commands.** `nuc audit
+  examples/01_hello.nr --json` works; `nuc audit --json
+  examples/01_hello.nr` falls through to the usage message.
+  This is consistent with the help text format (file first,
+  flags below) but is a surface that future versions may want
+  to permissive-ify.
+
+### Gate hardening (`cli_json_smoke`)
+
+New step in both `verify.sh` and `verify.ps1` exercises the 11
+working `--json` paths and verifies each output starts with
+`{` (or `[` for array shapes). Catches regressions where the
+flag silently falls back to the text path.
+
+The smoke is positioned early in the pre-iteration block (right
+after `cli_utility_smoke`) so the JSON contract is verified
+before the heavier example/test build phase.
+
+**Step total bumped 199 → 200** in both gates. **First gate
+milestone with a 3-digit step count.**
+
+The pre-iteration smoke block now reads (truncated):
+
+```
+[ 1/200] OK    binary present
+[ 2/200] OK    compiler ABI tables synced
+[ 3/200] OK    tools-suite rebuild
+[ 4/200] OK    CLI: nuc help advertises every dispatched command
+[ 5/200] OK    CLI: nuc zen/mco/registry/stage-dump/fix (utilities)
+[ 6/200] OK    CLI: --json variants emit machine-readable JSON
+... (10 more)
+```
+
+### Verify gate
+
+200 / 200 PASS, 0 SKIP on the bash gate. Pure gate addition
+— no compiler / runtime / source / test changes.
+
 ## [0.2.85] — 2026-04-23
 
 **Bug fix: `nuc registry list` leaked `cmd.exe` stderr.**
