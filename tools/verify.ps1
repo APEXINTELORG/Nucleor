@@ -130,9 +130,10 @@ foreach ($d in $testDirs) {
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
 # 1 (binary present) + 1 (drift check) + 1 (CLI explain smoke) +
-# 1 (bootstrap) + 1 (check+abi) + 1 (init) + 1 (doc) + 1 (lock) +
-# 1 (test) + N examples + N tests + N err + 1 (self-host)
-$stepTotal = 9 + $examples.Count + $testCount + $errCount + 1
+# 1 (bootstrap) + 1 (check+abi) + 1 (inspectors) + 1 (init) +
+# 1 (doc) + 1 (lock) + 1 (test) + N examples + N tests + N err
+# + 1 (self-host)
+$stepTotal = 10 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -196,6 +197,25 @@ Step "CLI: nuc check + abi inspect" {
     $abiOut = & $bin abi "examples/01_hello.nr" 2>&1 | Out-String
     if ($abiOut -notmatch "ABI version:") { return $false }
     if ($abiOut -notmatch "extern imports:") { return $false }
+    return $true
+}
+
+Step "CLI: nuc summary/audit/query/impact (inspectors)" {
+    # Mirrors verify.sh cli_inspector_smoke (added v0.2.71). Bundles
+    # four inspector commands (summary text + audit/query/impact JSON)
+    # into a single step.
+    $sumOut = & $bin summary "examples/01_hello.nr" 2>&1 | Out-String
+    if ($sumOut -notmatch "// Module: examples/01_hello.nr") { return $false }
+    if ($sumOut -notmatch "fn main") { return $false }
+    $auditOut = & $bin audit "examples/01_hello.nr" 2>&1 | Out-String
+    if ($auditOut -notmatch '"type": "audit_report"') { return $false }
+    if ($auditOut -notmatch '"functions": 1') { return $false }
+    $queryOut = & $bin query "examples/01_hello.nr" 2>&1 | Out-String
+    if ($queryOut -notmatch '"functions":\[') { return $false }
+    if ($queryOut -notmatch '"name":"main"') { return $false }
+    $impactOut = & $bin impact "examples/01_hello.nr" "main" 2>&1 | Out-String
+    if ($impactOut -notmatch '"target":"main"') { return $false }
+    if ($impactOut -notmatch '"found":true') { return $false }
     return $true
 }
 
