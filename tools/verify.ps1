@@ -130,9 +130,9 @@ foreach ($d in $testDirs) {
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
 # 1 (binary present) + 1 (drift check) + 1 (CLI explain smoke) +
-# 1 (CLI init smoke) + 1 (CLI doc smoke) + N examples + N tests
-# + N err + 1 (self-host)
-$stepTotal = 5 + $examples.Count + $testCount + $errCount + 1
+# 1 (CLI init smoke) + 1 (CLI doc smoke) + 1 (CLI lock smoke) +
+# N examples + N tests + N err + 1 (self-host)
+$stepTotal = 6 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -232,6 +232,34 @@ fn smoke_add(a: i64, b: i64) -> i64 { return a + b; }
         if (-not (Test-Path "smoke.md")) { return $false }
         $fileContent = Get-Content "smoke.md" -Raw
         if ($fileContent -notmatch "smoke_add") { return $false }
+        return $true
+    }
+    finally {
+        Pop-Location
+        if (Test-Path $sandbox) { Remove-Item -Recurse -Force $sandbox -ErrorAction SilentlyContinue }
+    }
+}
+
+Step "CLI: nuc lock writes Nucleor.lock" {
+    # Mirrors verify.sh cli_lock_smoke (added v0.2.68). RFC-0019
+    # phase 1 lockfile generator. Verifies init -> lock -> reads
+    # back canonical fields.
+    $sandbox = Join-Path $env:TEMP "_nuc_lock_smoke_$PID"
+    if (Test-Path $sandbox) { Remove-Item -Recurse -Force $sandbox }
+    New-Item -ItemType Directory -Path $sandbox -Force | Out-Null
+    try {
+        Push-Location $sandbox
+        & $bin init lockproj *> $null
+        Push-Location "lockproj"
+        & $bin lock *> $null
+        if (-not (Test-Path "Nucleor.lock")) { Pop-Location; return $false }
+        $lock = Get-Content "Nucleor.lock" -Raw
+        Pop-Location
+        if ($lock -notmatch '^version = ') { return $false }
+        if ($lock -notmatch 'root = "Nucleor.toml"') { return $false }
+        if ($lock -notmatch 'root_package = "lockproj"') { return $false }
+        if ($lock -notmatch '\[\[package\]\]') { return $false }
+        if ($lock -notmatch 'name = "lockproj"') { return $false }
         return $true
     }
     finally {

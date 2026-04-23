@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.68] — 2026-04-23
+
+**Verify gate: `nuc lock` smoke step (both bash + PowerShell).**
+
+`nuc lock` (RFC-0019 phase 1 lockfile generator) is the third
+v0.2 deliverable in the package-manager surface (alongside
+`nuc init` smoked v0.2.66 and `nuc doc` smoked v0.2.67). Same
+gap, same fix.
+
+**Manual verification first:**
+
+```
+$ nuc init testpkg && cd testpkg && nuc lock
+wrote lockfile: Nucleor.lock
+packages: 1
+
+$ cat Nucleor.lock
+version = 1
+root = "Nucleor.toml"
+
+root_package = "testpkg"
+
+[[package]]
+name = "testpkg"
+version = "0.1.0"
+manifest = "Nucleor.toml"
+entry = "src/main.nr"
+```
+
+Works. **Gated as of v0.2.68:**
+
+- New `cli_lock_smoke` step in both `tools/verify.sh` and
+  `tools/verify.ps1`. Sandboxed temp dir, runs `nuc init lockproj`
+  then `nuc lock`, then asserts `Nucleor.lock` contains five
+  canonical schema fields:
+  1. `^version = ` (lockfile schema version line)
+  2. `root = "Nucleor.toml"` (path to root manifest)
+  3. `root_package = "lockproj"` (project name from init)
+  4. `[[package]]` (at least one TOML array-of-tables entry)
+  5. `name = "lockproj"` (the package name in the entry)
+- Step total bumped 189 → 190 in both gates.
+- Both gates run the six CLI smoke steps in identical order:
+  `binary present` → `ABI parity` → `explain` → `init` → `doc` →
+  `lock`.
+
+(Initial v0.2.68 ps1 mirror placed `lock` *before* `doc` — fixed
+in the same release before commit so both gates step in the same
+order. The matching commit history reflects this as one move.)
+
+The user-facing v0.2 CLI surface (`init`, `doc`, `lock`,
+`explain`) is now fully smoke-covered. `nuc summary` works
+correctly when invoked with a file path but is implicitly tested
+via the existing 17-example build path. `nuc bench` / `nuc audit`
+/ `nuc query` are v0.4 deliverables and not yet on the gate.
+
+### Verify gate
+
+190 / 190 PASS, 0 SKIP on the bash gate. PowerShell side runs
+on next CI push.
+
 ## [0.2.67] — 2026-04-23
 
 **Verify gate: `nuc doc` smoke step (both bash + PowerShell).**
