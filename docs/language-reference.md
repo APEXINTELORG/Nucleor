@@ -30,10 +30,21 @@ Identifiers are case-sensitive. There is no length limit.
 | Form | Type | Example |
 |---|---|---|
 | Decimal integer | `i64` | `42`, `-17` |
+| Hexadecimal integer | `i64` | `0xFF` (= 255) |
+| Binary integer | `i64` | `0b1010` (= 10) |
+| Underscored integer | `i64` | `1_000_000` |
+| Width-suffixed integer | as suffix | `100u8`, `42i32`, `1_000_000i64` |
+| Float | `f64` | `1.5`, `-3.14` |
+| Width-suffixed float | as suffix | `1.5f32`, `2.71828f64` |
 | String | `str`  | `"hello\n"` |
 | Boolean | `bool` | `true`, `false` |
 
-Hexadecimal (`0x...`) and binary (`0b...`) integer literals are not currently supported.
+(Width / signedness suffixes parse and type-check per
+RFC-0015 §3.6 — `i8` / `i16` / `i32` / `i64` / `u8` / `u16` /
+`u32` / `u64` / `usize` / `isize` / `f8e4m3` / `f8e5m2` / `f16` /
+`bf16` / `f32` / `f64`. The strict-mode mixed-width-arithmetic
+warning NUM-001 is staged behind `nuc fix --numeric` until the
+v0.4 stdlib audit completes.)
 
 String escape sequences: `\n`, `\r`, `\t`, `\\`, `\"`.
 
@@ -253,8 +264,7 @@ When invoked without an explicit source file in a directory containing `Nucleor.
 
 ## 12. What this version does not have (yet)
 
-- Hex/binary integer literals (lexer accepts them but produces wrong values)
-- `async` / `await`
+- `async` / `await` (RFC-0030 declined — see RFC for rationale)
 - Inline assembly
 - Macros / metaprogramming
 - Reflection
