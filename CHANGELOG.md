@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.65] — 2026-04-23
+
+**`tools/verify.ps1` mirrors v0.2.64 explain smoke step.**
+
+Closes the v0.2.64 follow-up note. The PowerShell gate
+(`tools/verify.ps1`) now has the same `nuc explain NUM-001`
+smoke check the bash gate gained in v0.2.64.
+
+**Updated:**
+
+- **Step body** — added `Step "CLI: nuc explain NUM-001 wired"`
+  block running `& $bin explain NUM-001 2>&1 | Out-String` and
+  validating the four shape properties:
+  `[string]::IsNullOrWhiteSpace($explainOut)` → false,
+  `-match "NUM-001"`, `-match "Mixed-width"`,
+  `-match "Nucleor_Error_Codes"`. Comment cross-references
+  v0.2.64 / v0.2.65.
+- **Step total counter** — bumped from `2 + N + ...` to
+  `3 + N + ...` (the new step is now part of the total).
+
+Both gates now share three pre-iteration check steps in
+identical order: binary present → ABI parity → CLI explain
+smoke. The two output checks (v0.2.61 + v0.2.62 non-empty
+stdout, v0.2.64 + v0.2.65 explain smoke) and the example list
+single-source (v0.2.60) collectively close the verify-gate
+parity work for the v0.2 line.
+
+### Verify gate
+
+187 / 187 PASS, 0 SKIP on the bash gate. PowerShell gate not
+re-validated locally this release (Windows gate uses verify.ps1
+through CI on the Windows runner per
+`.github/workflows/ci.yml`).
+
 ## [0.2.64] — 2026-04-23
 
 **Verify gate: `nuc explain` smoke step closes a real coverage gap.**
