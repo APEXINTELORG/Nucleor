@@ -431,6 +431,50 @@ void __nucleor_print_f64(long long x) {
     fflush(stdout);
 }
 
+// === RFC-0002 phase 1 — bare arena builtins (v0.2.154) ===
+// The s1 compiler pre-declares `arena_new` / `arena_alloc` /
+// `arena_reset` / `arena_destroy` (see get_rt_name in
+// nucleor_s1_compiler.nr) and emits calls to `__nucleor_arena_*`
+// symbols. v0.2.150 found those symbols dangling — the only
+// implementation lived in `allocator_rt.c` under the rod-prefixed
+// `nuc_arena_*` names, so any user code that called the bare
+// builtins (without `import "stdlib/rods/allocator.nr"`) link-
+// failed. v0.2.154 fixes the trap by shipping minimal arena impls
+// here in the always-linked main runtime. The rich pool / stack
+// surface stays in `allocator.nr`; this is just the bump-arena
+// minimum that the s1 builtin path promises.
+//
+// Layout: header + raw bytes. Allocations are 8-byte aligned and
+// fail (return 0) when the arena is exhausted — no resize.
+typedef struct { long long capacity; long long offset; } NArena;
+
+long long __nucleor_arena_new(long long size_bytes) {
+    if (size_bytes < 0) return 0;
+    NArena *a = (NArena *)malloc(sizeof(NArena) + (size_t)size_bytes);
+    if (!a) return 0;
+    a->capacity = size_bytes;
+    a->offset = 0;
+    return (long long)(size_t)a;
+}
+long long __nucleor_arena_alloc(long long h, long long n_bytes) {
+    NArena *a = (NArena *)(void *)(size_t)h;
+    if (!a || n_bytes <= 0) return 0;
+    long long aligned = (n_bytes + 7) & ~7LL;
+    if (a->offset + aligned > a->capacity) return 0;
+    long long ptr = (long long)(size_t)((char *)(a + 1) + a->offset);
+    a->offset += aligned;
+    return ptr;
+}
+void __nucleor_arena_reset(long long h) {
+    NArena *a = (NArena *)(void *)(size_t)h;
+    if (!a) return;
+    a->offset = 0;
+}
+void __nucleor_arena_destroy(long long h) {
+    NArena *a = (NArena *)(void *)(size_t)h;
+    if (a) free(a);
+}
+
 // === Tensor runtime ===
 typedef struct { int rows; int cols; double *data; } NTensor;
 static double _t_i2f(long long x) { double d; memcpy(&d, &x, sizeof(double)); return d; }
