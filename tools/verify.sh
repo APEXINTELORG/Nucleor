@@ -130,10 +130,10 @@ for d in "${TEST_DIRS[@]}"; do
 done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
-# Step count: 1 binary present + 1 ABI parity + 1 CLI explain smoke
-# + 1 CLI init smoke + 1 CLI doc smoke + 1 CLI lock smoke
-# + 1 CLI test smoke + N examples + N tests + N negative + 1 self-host
-STEP_TOTAL=$((7 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+# Step count: 1 binary present + 1 ABI parity + 1 CLI explain
+# + 1 bootstrap + 1 check+abi + 1 init + 1 doc + 1 lock + 1 test
+# + N examples + N tests + N negative + 1 self-host
+STEP_TOTAL=$((9 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -155,6 +155,37 @@ cli_explain_smoke() {
     echo "$out" | grep -q "Mixed-width" || return 1
     # Reference line should point at the spec doc
     echo "$out" | grep -q "Nucleor_Error_Codes" || return 1
+    return 0
+}
+
+# nuc bootstrap status smoke (added v0.2.70). Verifies the bootstrap
+# status command (NUCLEOR_BOOTSTRAP_CONTRACT.md indicator) reports
+# the expected stage + self-hosted status.
+cli_bootstrap_smoke() {
+    local out
+    out=$("$BIN" bootstrap 2>&1)
+    [ -n "$out" ] || return 1
+    echo "$out" | grep -q "Nucleor Bootstrap Status" || return 1
+    echo "$out" | grep -q "Stage: 1 (self-hosted)" || return 1
+    echo "$out" | grep -q "Self-hosted: yes" || return 1
+    return 0
+}
+
+# nuc check + abi smoke (added v0.2.70). Verifies the no-codegen
+# check command and the ABI import inspector both produce structured
+# output on a known-good source file. Catches regressions in the
+# diagnostic emission pipeline that don't surface through build/test.
+cli_check_abi_smoke() {
+    local out
+    # `nuc check` should report no diagnostics on examples/01_hello.nr
+    out=$("$BIN" check examples/01_hello.nr 2>&1)
+    [ -n "$out" ] || return 1
+    echo "$out" | grep -q "OK — no diagnostics\|OK -- no diagnostics" || return 1
+    # `nuc abi` should print the ABI version + extern imports section
+    out=$("$BIN" abi examples/01_hello.nr 2>&1)
+    [ -n "$out" ] || return 1
+    echo "$out" | grep -q "ABI version:" || return 1
+    echo "$out" | grep -q "extern imports:" || return 1
     return 0
 }
 
@@ -353,6 +384,8 @@ compiler_tables_synced() {
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
 step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
+step "CLI: nuc bootstrap status reports correctly" cli_bootstrap_smoke
+step "CLI: nuc check + abi inspect" cli_check_abi_smoke
 step "CLI: nuc init scaffolding works" cli_init_smoke
 step "CLI: nuc doc generator works" cli_doc_smoke
 step "CLI: nuc lock writes Nucleor.lock" cli_lock_smoke

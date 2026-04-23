@@ -130,9 +130,9 @@ foreach ($d in $testDirs) {
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
 # 1 (binary present) + 1 (drift check) + 1 (CLI explain smoke) +
-# 1 (CLI init smoke) + 1 (CLI doc smoke) + 1 (CLI lock smoke) +
-# 1 (CLI test smoke) + N examples + N tests + N err + 1 (self-host)
-$stepTotal = 7 + $examples.Count + $testCount + $errCount + 1
+# 1 (bootstrap) + 1 (check+abi) + 1 (init) + 1 (doc) + 1 (lock) +
+# 1 (test) + N examples + N tests + N err + 1 (self-host)
+$stepTotal = 9 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -174,6 +174,28 @@ Step "CLI: nuc explain NUM-001 wired" {
     if ($explainOut -notmatch "NUM-001") { return $false }
     if ($explainOut -notmatch "Mixed-width") { return $false }
     if ($explainOut -notmatch "Nucleor_Error_Codes") { return $false }
+    return $true
+}
+
+Step "CLI: nuc bootstrap status reports correctly" {
+    # Mirrors verify.sh cli_bootstrap_smoke (added v0.2.70).
+    $out = & $bin bootstrap 2>&1 | Out-String
+    if ([string]::IsNullOrWhiteSpace($out)) { return $false }
+    if ($out -notmatch "Nucleor Bootstrap Status") { return $false }
+    if ($out -notmatch "Stage: 1 \(self-hosted\)") { return $false }
+    if ($out -notmatch "Self-hosted: yes") { return $false }
+    return $true
+}
+
+Step "CLI: nuc check + abi inspect" {
+    # Mirrors verify.sh cli_check_abi_smoke (added v0.2.70). Verifies
+    # the no-codegen check command and the ABI import inspector both
+    # produce structured output on a known-good source file.
+    $checkOut = & $bin check "examples/01_hello.nr" 2>&1 | Out-String
+    if ($checkOut -notmatch "OK . no diagnostics") { return $false }
+    $abiOut = & $bin abi "examples/01_hello.nr" 2>&1 | Out-String
+    if ($abiOut -notmatch "ABI version:") { return $false }
+    if ($abiOut -notmatch "extern imports:") { return $false }
     return $true
 }
 
