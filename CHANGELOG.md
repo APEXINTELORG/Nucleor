@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.153] — 2026-04-23
+
+**RFC-0028 phase 2: three new `format2_*` builtins
+(`format2_ss`, `format2_is`, `format2_ff`).**
+
+Closes the most-asked-for gaps in the v0.2 format-string surface:
+two strings, i64-then-str (the missing opposite of `format2_si`),
+and two f64s. Each chains the corresponding single-arg
+`format_*` helper twice, matching the `format2_ii` / `format2_si`
+template. Full variadic format-string parsing is still v0.4.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr`: 4 ABI-table sites updated
+  (get_rt_name, is_ptr_ret, is_ptr_arg, emit_externs declares).
+- `compiler/nucleor_tools_suite.nr`: same 4 ABI sites mirrored;
+  the cross-compiler drift gate enforces parity.
+- `stdlib/runtime/nucleor_llvm_rt.c`: 3 new
+  `__nucleor_format2_<X>` impls + a forward declaration of
+  `__nucleor_format_f64` so `format2_ff` can reference it
+  without reordering the file.
+- `tests/lang/format2_combos.nr`: positive test asserting all 3
+  new combos produce the expected interpolated output
+  ("from=earth, to=mars", "count=42, name=answer",
+  "pi=3.14, e=2.72").
+- `docs/rfcs/helper_manifest.toml`: regenerated (drift gate
+  caught the staleness on the first run).
+
+### Self-host LLVM IR fixed point
+
+- 2-iter check passed after the first pass (which legitimately
+  differed by exactly the 3 new `declare` lines, since the old
+  v0.2.152 compiler didn't know about them yet): nucleor_v153b
+  rebuilt itself byte-identical at 2,631,996 bytes.
+- `bin/nucleor.exe` updated; the v0.2.x compiler-source chain
+  is now v0.2.84 → v0.2.87 → v0.2.151 → v0.2.152 → **v0.2.153**.
+
+### Verify gate
+
+**240 / 240 PASS, 0 SKIP** on the bash gate (was 239/239; +1
+new `tests/lang/format2_combos.nr`).
+
 ## [0.2.152] — 2026-04-23
 
 **`#[deny(CODE)]` promotes warnings to errors — sibling of v0.2.151
