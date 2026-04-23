@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0029 |
 | **Title** | Documentation generator — `nuc doc`, `///` doc comments, doc tests |
-| **Status** | Draft |
+| **Status** | Implemented (skeleton) v0.1.65 — see `docs/milestones/v0.2.0.md`; v0.2 ships skeleton; param rendering, navigation, doc tests deferred to v0.4 |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.4.0 |

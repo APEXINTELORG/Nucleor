@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0022 |
 | **Title** | Cross-platform — Linux, macOS, cross-compile to ARM/RISC-V |
-| **Status** | Draft |
+| **Status** | Implemented (partial) v0.1.30 — see `docs/milestones/v0.2.0.md`; v0.2 ships POSIX `nuc` shell wrapper + `_WIN32` audit, Linux/macOS native bins targeted v0.3.0, sysroots v0.5.0 |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2.0 (Linux desktop) → v0.5.0 (macOS, full cross) |

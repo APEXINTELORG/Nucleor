@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0015 |
 | **Title** | Numeric Types — distinct `i8/i16/i32/i64`, `u8/u16/u32/u64`, `f32/f64`, `usize/isize`, `bf16`, `f16`, `f8e4m3`, `f8e5m2` |
-| **Status** | Draft |
+| **Status** | Implemented (partial) v0.1.46–v0.1.64 — see `docs/milestones/v0.2.0.md` for v0.2 DoD; strict-mode deferred to v0.4 |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2.0 |
