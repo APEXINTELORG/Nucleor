@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.29] — 2026-04-22
+
+**Random helpers + Vec shuffle / sample (6 helpers).**
+
+```nucleor
+rng_seed(42, 1337);
+
+random_int(3, 7);                 // i64 in [3, 7]   (alias for rng_int)
+random_bool();                    // 0 or 1
+
+let pool: Vec<i64> = vec_new();
+vec_push(pool, 100); vec_push(pool, 200); vec_push(pool, 300);
+random_choice(pool);              // one of 100, 200, 300
+
+vec_shuffle(arr);                 // in-place Fisher-Yates
+
+let pick3: Vec<i64> = vec_sample(arr, 3);   // 3 distinct elems (no replacement)
+let big:   Vec<i64> = vec_sample(arr, 999); // clamps to vec_len(arr)
+
+random_fill(buf, 1, 6);           // overwrite each cell with rng_int(1, 6)
+```
+
+Builds on the v0.2.15 RNG bridges (`rng_int / rng_uniform / rng_normal`)
+to add the convenience helpers actual programs reach for.
+
+- **`random_int` / `random_bool`** are inclusive-range and coin-flip
+  shortcuts. `random_int(lo, hi)` is exactly `rng_int(lo, hi)` with
+  the more familiar name; `random_bool` is `rng_int(0, 1)`.
+- **`random_choice`** picks a uniformly-random element from a
+  `Vec<i64>`. Empty vec returns `0` (matches `vec_get` convention).
+- **`vec_shuffle`** is in-place Fisher-Yates walking backward.
+  Length-0 and length-1 vecs are no-ops.
+- **`vec_sample(v, k)`** returns `k` distinct elements (no
+  replacement). Implementation: shuffle a side-array of indices and
+  take the first `k`. `k > len(v)` clamps.
+- **`random_fill(v, lo, hi)`** overwrites every existing cell with
+  `rng_int(lo, hi)`. Doesn't grow the vec — caller pre-sizes.
+
+Six helpers; three are void (`vec_shuffle`, `random_fill`), three
+return value or `Vec`. Wired through both compiler binaries with
+the drift-gate sync. New `is_void_ret` entries for the void-returning
+pair.
+
+### Verify gate
+
+178/179 green on Windows + 1 skip. New gate: `tests/runtime/random_extras.nr`
+(50-iter range checks for the scalar helpers; sum-invariant for shuffle;
+membership check for sample).
+Self-host LLVM IR fixed point preserved (v142==v143 byte-identical).
+
 ## [0.2.28] — 2026-04-22
 
 **Checked / wrapping / saturating div-rem-neg (7 helpers).**
