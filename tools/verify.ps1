@@ -4,7 +4,7 @@
 #
 # Steps:
 #   1. Confirm bin\nucleor.exe loads
-#   2. Build and run examples 01..06 + 08..12 (07 only if rust_bridge built)
+#   2. Build and run examples 01..06 + 08..18 (07 only if rust_bridge built)
 #   3. Build and run all positive tests under tests\{lang,attrs,runtime,rods}
 #   4. Confirm negative tests under tests\err\ fail with the expected diagnostic
 #   5. Self-host loop: rebuild the compiler from source
@@ -105,7 +105,8 @@ Push-Location $root
 # --- Compute total step count for the [N/T] counter ---------------------
 $rustBridgeLib = Join-Path $root "stdlib\rods\rust_bridge\target\release\nucleor_rust_bridge.lib"
 $examples = @("01_hello", "02_fib", "03_structs", "04_rods", "05_quantum", "06_perf_attrs",
-              "08_linalg", "09_ode", "10_fft", "11_pid", "12_autodiff", "13_test_framework")
+              "08_linalg", "09_ode", "10_fft", "11_pid", "12_autodiff", "13_test_framework",
+              "14_csv_summary", "15_word_count", "16_histogram", "17_linecount", "18_benchmark")
 if (Test-Path $rustBridgeLib) { $examples += "07_rust_interop" }
 
 $testDirs = @("lang", "attrs", "runtime", "rods", "features")

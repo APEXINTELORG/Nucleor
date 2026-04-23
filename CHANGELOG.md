@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.59] — 2026-04-22
+
+**`tools/verify.ps1` parity with `verify.sh` — Windows CI now actually gates the v0.2.x demos.**
+
+Real production-readiness gap. The v0.2.31..v0.2.36 demos
+(`14_csv_summary` through `18_benchmark`) were added to
+`tools/verify.sh`'s example list as they shipped, but
+`tools/verify.ps1` was never updated to match. The
+`.github/workflows/ci.yml` Windows runner invokes `verify.ps1`
+— so **none of the 5 v0.2.x demos were actually being gated by
+Windows CI**. Local bash gate covers them; CI didn't.
+
+**Fix:**
+
+- `tools/verify.ps1` line 107-108: appended `14_csv_summary`,
+  `15_word_count`, `16_histogram`, `17_linecount`,
+  `18_benchmark` to the `$examples` array. Now matches
+  `verify.sh`'s example list (17 examples + optional
+  `07_rust_interop`).
+- Header comment in both `verify.ps1` and `verify.sh` updated
+  from "examples 01..06 + 08..12" to "examples 01..06 + 08..18"
+  to reflect the actual range.
+
+**Going-forward note.** Adding a new example needs to update
+*both* `verify.ps1` and `verify.sh` example arrays. The two
+gates should ideally be generated from a single source of truth
+— filed mentally as a v0.4 cleanup item, not blocking v0.3.
+
+This is a "say what's running honestly" fix — the gate count was
+the same on both sides (since both also count test files), but
+the underlying coverage was different. Now they agree.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP on the bash gate (Windows local). The
+PowerShell gate will pick up the 5 new examples on the next CI
+run; local PowerShell run not validated this release because the
+Windows-side `verify.ps1` was last touched in v0.1 — assumes the
+parity matches and the new examples build under PowerShell the
+same way they build under bash (both invoke the same
+`bin\nucleor.exe`).
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Tooling-only — no compiler / runtime /
+ABI / source / test changes.
+
 ## [0.2.58] — 2026-04-22
 
 **Manifest generators: fix UTF-8 mojibake in rod descriptions.**
