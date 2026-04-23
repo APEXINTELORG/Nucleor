@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.73] — 2026-04-23
+
+**Helper manifest Phase 2 — populate effects/taint/proof for four
+more taxonomy classes.**
+
+Continues the Helpers.md contract Phase 2 work begun in v0.2.41
+(taxonomy + auto-class) by extending the generator's per-class
+default population from two classes (`PureMath`, `VectorOps`)
+to six. The generator now ships a `CLASS_DEFAULTS` table keyed
+by taxonomy class; each entry is `(effects, taint,
+proof_obligation)`.
+
+**Newly populated classes (82 helpers):**
+
+- **`Random` (13 helpers)** — `effects = ["random"]`,
+  `taint = "passthrough"`, `proof_obligation =
+  "rng_capability_required"`. Covers `ambient_random`, `rng_*`,
+  `random_*`, `vec_shuffle`, `vec_sample`.
+- **`Time` (21 helpers)** — `effects = ["clock"]`,
+  `taint = "passthrough"`, `proof_obligation =
+  "clock_capability_required"`. Covers `time_*`, `now_*`,
+  `sleep_*`. (Schema-aligned: `"clock"` not `"time"`.)
+- **`Concurrency` (38 helpers)** — `effects = ["sync"]`,
+  `taint = "passthrough"`, `proof_obligation =
+  "happens_before_release_acquire"`. Covers `mutex_*`,
+  `channel_*`/`chan_*`, `atomic_*`/`cas_*`, `thread_*`,
+  `rwlock_*`, `cancel_token_*`, `once_*`, `par_*`,
+  `scheduler_*`, `cpu_count`. **New `"sync"` effect tag** added
+  to the schema vocabulary for synchronization-only primitives
+  that don't fit `"thread"` (just spawn/join) or any other
+  effect category.
+- **`Allocation` (10 helpers)** — `effects = ["alloc"]`,
+  `taint = "passthrough"`, `proof_obligation =
+  "alloc_capability_or_arena_owned"`. Covers `arena_*`,
+  `region_*`, `alloc_*`, `free`, `realloc`, `malloc`, `memcpy`,
+  `calloc`, `drop_*`, `capture_*`.
+- **`VectorOps` (97 helpers)** — already had
+  `taint = "passthrough"`; now also gets `effects = ["alloc"]`
+  and `proof_obligation = "bounds_within_len"`.
+
+**TODO sentinel count drops 1535 → 1095** (440 TODOs
+eliminated). Remaining classes (`PanickingArith`,
+`StringFormat`, `IO`, `Collection`, `TensorOps`, `DataCodec`,
+`ToolingMeta`) carry `"TODO"` because they need per-helper
+divergence (e.g. `wrapping_add` has no panic effect but
+`panic_div_by_zero` does; `str_concat` allocates but
+`str_eq` doesn't). Those land in follow-on releases as
+per-name tables get fixed.
+
+### Schema doc updates (`docs/rfcs/helper_manifest_schema.md`)
+
+- Added `"sync"` to the effect-tag vocabulary list with a
+  description and a back-reference to the v0.2.73 ship.
+- Per-field "marked TODO outside X" notes updated to enumerate
+  the six classes the generator now populates and the seven
+  that still TODO.
+- `proof_obligation` field promoted from a closed `none|emits|
+  consumes` enumeration to a free-form string with a worked
+  example list of the six values now in use.
+- `taint` field default-justification expanded to cover the
+  four new classes (RNG/clock/sync/alloc are passthrough
+  because their outputs derive only from input arguments + an
+  observable effect).
+
+### Generator changes (`tools/gen_helper_manifest.py`)
+
+- Added `CLASS_DEFAULTS: dict[str, (list[str], str, str)]`.
+- Per-row population logic refactored to consume `CLASS_DEFAULTS`
+  instead of the previous open-coded `if cls in (...)` checks.
+- TOML emitter updated to handle non-empty array literals for
+  `effects` (was previously hardcoded for `"[]"` only).
+
+### Verify gate
+
+195 / 195 PASS, 0 SKIP on the bash gate. Tooling-only — no
+compiler / runtime / ABI / source / test changes. The manifest
+is generated; only the generator and schema doc carry hand
+edits.
+
 ## [0.2.72] — 2026-04-23
 
 **Verify gate: diagnostic smoke step (policy/certify/translate/evidence/graph/perf/bench).**

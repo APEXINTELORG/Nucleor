@@ -68,26 +68,41 @@ List of effect tags this helper performs. Empty `[]` means pure
 
 - `"alloc"` — calls `malloc` / `calloc` / `realloc`.
 - `"io"` — touches stdin / stdout / stderr / file system.
-- `"clock"` — reads a wall or monotonic clock.
+- `"clock"` — reads a wall or monotonic clock (covers `time_*`,
+  `now_*`, `sleep_*`, ISO formatting, calendar decomposition).
 - `"random"` — reads PRNG state.
 - `"net"` — opens or reads from a socket.
 - `"thread"` — spawns or joins a thread.
+- `"sync"` — synchronization-only primitive: atomics, mutexes,
+  channels, rwlocks, once-cells, parallel reducers. Memory-ordering
+  guarantee is encoded in the row's `proof_obligation`. (Added
+  v0.2.73 — populated for the entire `Concurrency` class.)
 - `"panic"` — may abort the process.
 
-Marked `"TODO"` for everything outside `PureMath` / `VectorOps`
-unless the implementation has been verified. **Do not assume `[]`
-for unclassified rows.**
+As of v0.2.73 the generator populates `effects` for `PureMath`
+(`[]`), `VectorOps` (`["alloc"]`), `Random` (`["random"]`),
+`Time` (`["clock"]`), `Concurrency` (`["sync"]`), and
+`Allocation` (`["alloc"]`) — 405 rows total. The remaining
+271 rows (`PanickingArith`, `StringFormat`, `IO`, `Collection`,
+`TensorOps`, `DataCodec`, `ToolingMeta`) carry `"TODO"` and
+will be populated as the per-class semantics get fixed in
+follow-on releases. **Do not assume `[]` for `"TODO"` rows.**
 
 ### `taint` — `"passthrough" | "propagates" | "breaks"`
 Whether taint flowing into the inputs propagates to the outputs.
 - `passthrough` — output taint = union of input taint (default for
-  pure math / vector batch).
+  pure math / vector batch / RNG / clock / sync / alloc — anything
+  whose output value derives only from input arguments + an
+  observable effect, with no implicit external taint source).
 - `propagates` — output taint = input taint plus any internal
-  state read.
+  state read (e.g. an IO read whose contents are user-controlled
+  upstream).
 - `breaks` — output is always considered untainted regardless of
   input. Reserved for verified sanitizers.
 
-Marked `"TODO"` outside `PureMath` / `VectorOps`.
+As of v0.2.73 `taint = "passthrough"` is set for `PureMath`,
+`VectorOps`, `Random`, `Time`, `Concurrency`, `Allocation`. The
+remaining seven classes carry `"TODO"`.
 
 ### `units` — `"passthrough" | "carries" | "strips"`
 SI / dimensional-units behavior under RFC-0005:
@@ -96,14 +111,31 @@ SI / dimensional-units behavior under RFC-0005:
 - `carries` — output type carries the same unit as the input.
 - `strips` — output is dimensionless.
 
-### `proof_obligation` — `"none" | "emits" | "consumes"`
-Sage_NS interval / certificate behavior:
-- `none` — no proof obligation. **Default** for everything outside
-  the certificate emission pipeline.
-- `emits` — emits an interval / range certificate as a side effect.
-- `consumes` — requires a proof certificate for inputs.
+### `proof_obligation` — string
+Sage_NS interval / certificate / capability obligation imposed on
+the call site. The vocabulary is open-ended (free-form string)
+because each class implies a different pre-condition. Common
+values:
 
-Marked `"TODO"` outside `PureMath` until reviewed.
+- `"none"` — no proof obligation. Default for `PureMath`.
+- `"bounds_within_len"` — caller must guarantee any index passed
+  in is within `0..len(input_vec)`. Set for `VectorOps`.
+- `"rng_capability_required"` — call site must hold the RNG
+  capability (or be in an `ambient_random` scope). Set for
+  `Random`.
+- `"clock_capability_required"` — call site must hold the clock
+  capability. Set for `Time`.
+- `"happens_before_release_acquire"` — caller is responsible for
+  the release/acquire ordering when chaining sync ops. Set for
+  `Concurrency`.
+- `"alloc_capability_or_arena_owned"` — caller must own the arena
+  / region or hold the allocator capability. Set for `Allocation`.
+- `"emits"` — emits an interval / range certificate as a side
+  effect. Reserved for the certificate emission pipeline.
+- `"consumes"` — requires a proof certificate for inputs.
+
+Marked `"TODO"` for the seven classes the generator hasn't yet
+populated. **Do not assume `"none"` for `"TODO"` rows.**
 
 ### `stability` — `"stable" | "unstable" | "experimental"`
 - `stable` — defined in `stdlib/runtime/*.c`, callable, and
