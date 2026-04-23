@@ -155,11 +155,11 @@ cd Nucleor
 powershell -ExecutionPolicy Bypass -File tools\verify.ps1
 ```
 
-The gate runs **204 steps as of v0.2.121**: binary present,
+The gate runs **204 steps as of v0.2.131**: binary present,
 ABI parity, tools-suite rebuild, mojibake check, err-EXPECT-
 headers (since v0.2.118), 14 CLI smoke steps (help-coverage,
 utility, JSON, version, showcase build, explain single + full
-158-code spec catalog, bootstrap, check+abi, inspectors,
+161-code spec catalog, bootstrap, check+abi, inspectors,
 diagnostics, init, doc, lock, test), every example (18),
 every test in `tests/{lang,attrs,runtime,rods,features}`
 (~140), every negative test in `tests/err` (33), and the
