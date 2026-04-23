@@ -17,7 +17,7 @@ target\hello.exe
 
 ## Why
 
-Nucleor is what happens when you build a small programming language and don't stop at "hello world." The compiler is self-hosted in ~10,000 lines of Nucleor source. The standard library is ~280+ runtime functions covering most of the scientific computing stack. Together they fit in a 54 MB repo with no external runtime dependencies beyond LLVM.
+Nucleor is what happens when you build a small programming language and don't stop at "hello world." The compiler is self-hosted in ~10,000 lines of Nucleor source. The standard library is **676 runtime helpers** (as of v0.2.37) covering most of the scientific computing stack — math, vectors, hashmaps, file system, env, time, base conversion, statistics, padding, parsing, randomness, and the full v0.1 quantum + linalg + FFT + ODE stack. Together they fit in a ~55 MB repo with no external runtime dependencies beyond LLVM.
 
 - **Self-hosted from day one.** The compiler is written in Nucleor and rebuilds itself as a standard CI step. No hidden runtime dependencies; no separate bootstrap language to keep in sync.
 - **Real scientific-computing stack, not a toy.** Linear algebra (LU, QR, Cholesky, eigen, SVD), tensor decompositions (CP-ALS, TT-SVD), sparse matrices with CG/GMRES solvers, FFT, signal processing, statistics with t-tests and KDE, ODE solvers (Euler, RK4, RK45, symplectic), root finding, quadrature, B-splines + KAN, interpolation.
@@ -75,6 +75,11 @@ That's **103 rods total** as of v0.1.5, all building cleanly against the bootstr
 
 ## Tour by example
 
+See [`examples/README.md`](examples/README.md) for the full index. The
+short tour:
+
+**Tier 1 — language tour:**
+
 - [`examples/01_hello.nr`](examples/01_hello.nr) — the smallest possible program.
 - [`examples/02_fib.nr`](examples/02_fib.nr) — recursion + iteration.
 - [`examples/03_structs.nr`](examples/03_structs.nr) — structs, fields, mutation.
@@ -82,11 +87,28 @@ That's **103 rods total** as of v0.1.5, all building cleanly against the bootstr
 - [`examples/05_quantum.nr`](examples/05_quantum.nr) — Bell-state preparation on the bundled quantum simulator.
 - [`examples/06_perf_attrs.nr`](examples/06_perf_attrs.nr) — `@hot`, `@law`, `@const_fn`.
 - [`examples/07_rust_interop.nr`](examples/07_rust_interop.nr) — Rust regex + base64 via `rust_bridge`.
+
+**Tier 2 — numerics & domains:**
+
 - [`examples/08_linalg.nr`](examples/08_linalg.nr) — solve a linear system, take an SVD.
 - [`examples/09_ode.nr`](examples/09_ode.nr) — integrate a damped pendulum with RK4.
 - [`examples/10_fft.nr`](examples/10_fft.nr) — round-trip a sine wave through the FFT.
 - [`examples/11_pid.nr`](examples/11_pid.nr) — PID controller driving a plant to a setpoint.
 - [`examples/12_autodiff.nr`](examples/12_autodiff.nr) — reverse-mode autodiff of `sin(x²) + x`.
+- [`examples/13_test_framework.nr`](examples/13_test_framework.nr) — `assert_*` macros + test runner.
+
+**Tier 3 — v0.2.x stdlib showcase (real end-to-end programs):**
+
+- [`examples/14_csv_summary.nr`](examples/14_csv_summary.nr) — per-column count / min / max / mean / median / stddev report from CSV input.
+- [`examples/15_word_count.nr`](examples/15_word_count.nr) — word-frequency counter with stable top-N sort, hashmap-backed.
+- [`examples/16_histogram.nr`](examples/16_histogram.nr) — 10-bin ASCII histogram of numeric input + summary statistics.
+- [`examples/17_linecount.nr`](examples/17_linecount.nr) — `wc`-style multi-file line/word/char counter with TOTAL aggregation.
+- [`examples/18_benchmark.nr`](examples/18_benchmark.nr) — micro-benchmark harness with min/max/mean/median/stddev/p95 per workload.
+
+Tier 3 demos read a small bundled in-source sample by default, or accept
+real-data input via env vars (`NUC_CSV_PATH`, `NUC_TEXT_PATH`,
+`NUC_HIST_PATH`, `NUC_LC_FILES`, `NUC_BENCH_ITERS`). All examples are
+part of the verify gate and rebuild + run on every release.
 
 ## Showcase — animated, color:
 
