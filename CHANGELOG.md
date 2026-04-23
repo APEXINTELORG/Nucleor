@@ -5,6 +5,33 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.144] — 2026-04-23
+
+**Tab-completion scripts (all 4 shells) also missing 3 flags that
+shipped CLI surfaces use.**
+
+Follow-on to v0.2.143 (which caught 5 missing subcommands): a flag-
+level cross-check against `nuc help` output found 3 `--flag` names
+that are accepted by the shipped CLI but not completable in any
+of the 4 shells:
+
+- **`--imports`** — used by `nuc fix --imports` (RFC-0018 legacy-
+  import → `use std::` migration linter).
+- **`--numeric`** — used by `nuc fix --numeric` (RFC-0015 narrow-
+  width numeric-suffix migration linter).
+- **`--registry`** — used by `nuc registry --registry <path>`
+  (local registry path override).
+
+Added to all 4 completion files (`nuc.bash`, `nuc.zsh`, `nuc.fish`,
+`nuc-completion.ps1`) with short descriptions noting which
+subcommand uses each flag.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. No compiler / runtime
+/ s1-source change; completion scripts only. Self-host LLVM IR
+fixed point preserved (`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.143] — 2026-04-23
 
 **Tab-completion scripts missing 5 user-facing CLI commands across

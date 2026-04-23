@@ -69,6 +69,9 @@ complete -c nuc      -l warmup      -x -d 'Bench warmup runs'
 complete -c nuc      -l c-header    -d 'Emit C declarations'
 complete -c nuc      -l rust-extern -d 'Emit Rust extern decls'
 complete -c nuc      -l exports     -d 'Inspect pub fn ABI'
+complete -c nuc      -l imports     -d 'nuc fix: migrate import syntax to use std::'
+complete -c nuc      -l numeric     -d 'nuc fix: migrate to RFC-0015 numeric suffix syntax'
+complete -c nuc      -l registry    -r -d 'nuc registry: path to local registry dir'
 
 # Source file completion
 complete -c nuc -n '__fish_seen_subcommand_from build build-fast build-strict build-shared build-wasm build-ptx run emit test bench perf check audit policy certify translate summary query graph impact abi evidence' -F
