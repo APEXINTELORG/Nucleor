@@ -129,8 +129,9 @@ foreach ($d in $testDirs) {
 }
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
-# 1 (binary present) + 1 (drift check) + N examples + N tests + N err + 1 (self-host)
-$stepTotal = 2 + $examples.Count + $testCount + $errCount + 1
+# 1 (binary present) + 1 (drift check) + 1 (CLI explain smoke) +
+# N examples + N tests + N err + 1 (self-host)
+$stepTotal = 3 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -159,6 +160,20 @@ Step "compiler ABI tables synced" {
     $script = Join-Path $root "tools\check_compiler_drift.sh"
     & $bash $script *> $null
     return $LASTEXITCODE -eq 0
+}
+
+Step "CLI: nuc explain NUM-001 wired" {
+    # Mirrors verify.sh cli_explain_smoke (added v0.2.64). Exercises
+    # the explain registry in nucleor_tools_suite.nr so codes added
+    # to docs/spec/Nucleor_Error_Codes.md can't drift from the
+    # registry without the gate noticing. Mirrored to PowerShell in
+    # v0.2.65.
+    $explainOut = & $bin explain "NUM-001" 2>&1 | Out-String
+    if ([string]::IsNullOrWhiteSpace($explainOut)) { return $false }
+    if ($explainOut -notmatch "NUM-001") { return $false }
+    if ($explainOut -notmatch "Mixed-width") { return $false }
+    if ($explainOut -notmatch "Nucleor_Error_Codes") { return $false }
+    return $true
 }
 
 foreach ($ex in $examples) {
