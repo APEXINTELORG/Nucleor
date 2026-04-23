@@ -111,7 +111,7 @@ struct Suggestion {
 ### 3.5 Multi-span errors
 
 ```
-error[BORROW-003]: cannot borrow `x` as mutable, already borrowed as immutable
+error[OWN-005]: cannot borrow `x` as mutable, already borrowed as immutable
   --> src/main.nr:14:9
    |
 12 |     let r1 = &x;

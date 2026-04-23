@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.134] — 2026-04-23
+
+**Two RFCs reference diagnostic codes that don't exist in the spec
+— renamed to match the shipped prefix.**
+
+A code-cross-reference audit between the 32 RFCs and the spec
+catalog (161 codes) caught two cases where the RFC body uses a
+diagnostic code prefix that was renamed during implementation:
+
+- **RFC-0020 §3.5** (Multi-span errors example) used
+  `error[BORROW-003]: cannot borrow x as mutable, already
+  borrowed as immutable` — but `BORROW-*` is not a shipped
+  prefix. The borrow checker uses **OWN-*** since v0.2.119
+  (specifically OWN-005 — Cannot shared-borrow mutably-borrowed
+  value, which is exactly what the example shows). Renamed
+  the example to `error[OWN-005]`.
+- **RFC-0021 §3.10** Diagnostics table listed `TEST-001..004`
+  — but the shipped prefix is **TST-***. v0.2.79 wired
+  TST-001/002/003 with different semantics than the original
+  draft (test discovery / process isolation / fixture setup,
+  not the original test-signature / panic-mismatch / setup-
+  context split). The RFC table was updated to mirror the
+  shipped TST-001..003 + 2 v0.4-deferred entries (TST-004
+  panic-mismatch, TST-005 wrong-signature). Implementation
+  table's diagnostics row also bumped from `TEST-001…004` to
+  `TST-001…003 (shipped) + planned TST-004/005`.
+
+The **other 35 RFC code references** that don't appear in the
+spec are intentional — most are aspirational future codes
+mentioned in still-Draft RFCs (CLO-*, DYN-*, ITER-*, ALLOC-006,
+FRAME-005, etc.) that will be added when the RFC ships, plus a
+handful of references to external standards (REP-103/105 from
+ROS, JSR-385 from Java, MSP430 microcontroller name).
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.133] — 2026-04-23
 
 **Three more docs caught with stale or mistaken roadmap claims —
