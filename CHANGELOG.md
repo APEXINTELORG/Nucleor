@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.111] — 2026-04-23
+
+**`gen_releases_index.py` docstring said "124 entries" — actual
+is 179.**
+
+The generator's docstring claimed:
+
+> CHANGELOG.md grew past 124 entries during the v0.2.x chain.
+
+But by v0.2.110 the count is **179** entries (`grep -c '^## \[' CHANGELOG.md`).
+The docstring was written when the script first shipped at
+v0.2.57 — never refreshed across the v0.2.83 drift-gate
+enforcement or the v0.2.x audit chain.
+
+### Fix
+
+Docstring updated to:
+
+> CHANGELOG.md has 179+ entries through the v0.2.x chain
+> (v0.1.46 → v0.2.110+ as of this docstring). ... CHANGELOG↔
+> git-tag parity is drift-gate-enforced since v0.2.83 (every
+> tag must have a `## [version]` heading or the verify gate
+> fails).
+
+Adds the v0.2.83 enforcement note so future readers
+understand why the count number drifts predictably (every
+release adds 1).
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Generator behavior
+unchanged — pure docstring refresh.
+
 ## [0.2.110] — 2026-04-23
 
 **Bug fix: `gen_helper_manifest.py` docstring said "14 v0.2.39

@@ -2,10 +2,13 @@
 """
 gen_releases_index.py — Generate RELEASES.md from CHANGELOG.md.
 
-CHANGELOG.md grew past 124 entries during the v0.2.x chain. RELEASES.md
-is a navigable tag-only index — one line per release, version + date +
-one-line summary — so readers can scan the chain without paging
-through the full CHANGELOG.
+CHANGELOG.md has 179+ entries through the v0.2.x chain
+(v0.1.46 → v0.2.110+ as of this docstring). RELEASES.md is a
+navigable tag-only index — one line per release, version + date
++ one-line summary — so readers can scan the chain without paging
+through the full CHANGELOG. CHANGELOG↔git-tag parity is
+drift-gate-enforced since v0.2.83 (every tag must have a
+`## [version]` heading or the verify gate fails).
 
 Usage: python tools/gen_releases_index.py
 Output: RELEASES.md (overwrites)
