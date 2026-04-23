@@ -1,6 +1,6 @@
-# Nucleor Language Reference (v0.1)
+# Nucleor Language Reference (v0.2)
 
-This document describes the Nucleor language as implemented by the v0.1 self-hosted compiler (`bin/nucleor.exe`, version `0.2.0-v2`). It is intended as a normative-style reference. For a gentler introduction, see [language-tour.md](language-tour.md).
+This document describes the Nucleor language as implemented by the self-hosted compiler (`bin/nucleor.exe`, version `0.2.0-v2` plus the v0.2.x post-RC sub-chain). It is intended as a normative-style reference. For a gentler introduction, see [language-tour.md](language-tour.md). For v0.2-deferred language extensions (iterators, closures, lifetimes, trait objects, format strings, pattern-matching extensions), see [docs/milestones/v0.4.0.md](milestones/v0.4.0.md).
 
 ## 1. Lexical structure
 
@@ -279,15 +279,40 @@ These are tracked as v0.3 / v0.4 work. The full deferral list with
 target releases lives in [`docs/milestones/v0.4.0.md`](milestones/v0.4.0.md).
 Contributions welcome.
 
-## 13. What was added in v0.1.5 (audit corrigendum)
+## 13. Historical corrigenda
 
-The previous reference (v0.1.4) listed the following as missing. They are
-**actually available** and have been re-tested in the v0.1.5 audit:
+### 13.1 v0.1.5 audit (now redundant — features are gate-tested)
+
+The pre-v0.1.5 reference listed the following as missing. They
+have been gate-tested under `tests/features/` and `tests/lang/`
+through the entire v0.1.x → v0.2.x chain:
 
 - `for i in N..M { ... }` half-open range loops
-- `break` and `continue` inside loops
+- `break` and `continue` inside loops (`tests/features/break_continue.nr`)
 - Block comments `/* ... */`
 - Generics: `fn id<T>(x: T) -> T { return x; }`
-- Traits + impl: `trait Greet { fn hi(self) -> str; }` + `impl Greet for P`
+  (`tests/features/generic_fn.nr` + `generic_struct.nr` +
+  `generic_enum.nr`)
+- Traits + impl: `trait Greet { fn hi(self) -> str; }` +
+  `impl Greet for P` (`tests/features/trait_basic.nr` +
+  `trait_bounds.nr` + `trait_default.nr` + `trait_method.nr`)
+- `where` clauses (`tests/features/where_clauses.nr`)
 - `match` on integer literals (in addition to enum variants)
 - `getcwd()` and `getenv(name)` builtins (added in v0.1.5)
+- Hex (`0xFF`) / binary (`0b1010`) / underscored (`1_000_000`)
+  numeric literals (added v0.1.x; gate-tested via
+  `tests/lang/atomic_bit_ops.nr` and others — see §1.4)
+
+### 13.2 v0.2.x additions
+
+The v0.2.x sub-chain added: `?` postfix operator (v0.1.50,
+RFC-0016), `if let` / `while let` sugar (v0.1.13 / v0.1.16),
+`as` cast operator (RFC-0015 §3.5), narrow-width overflow
+helpers (`wrapping_*`, `saturating_*`, `checked_*` for
+i8/i16/i32/u8/u16/u32/u64), 75+ runtime helpers across
+math/fs/env/time/path/parse/stringify/padding/hashmap/stats/
+random/checked-arithmetic, plus the `String` / `HashMap` /
+`HashSet` / `BTreeMap` / `BTreeSet` / `VecDeque` collection
+runtime + rod surface. The full enrichment table is in
+[CHANGELOG.md](../CHANGELOG.md) and
+[docs/migrations/v0.1-to-v0.2.md](migrations/v0.1-to-v0.2.md).
