@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.70] — 2026-04-23
+
+**Verify gate: `nuc bootstrap`, `nuc check`, `nuc abi` smoke steps.**
+
+Three more CLI surfaces brought under gate coverage as the
+audit pattern continues to find no real bugs (positive
+finding — those commands work):
+
+**`nuc bootstrap`** — reports stage / runtime size / self-host
+status. Used as the canonical "is this a self-hosted build?"
+check by anyone reading `NUCLEOR_BOOTSTRAP_CONTRACT.md`. New
+`cli_bootstrap_smoke` step verifies it prints
+`"Nucleor Bootstrap Status"`, `"Stage: 1 (self-hosted)"`, and
+`"Self-hosted: yes"`.
+
+**`nuc check`** — runs ownership/type/source/taint/effect
+checkers without codegen. The fast feedback path during dev. New
+`cli_check_abi_smoke` step verifies `nuc check examples/01_hello.nr`
+prints `"OK — no diagnostics"`.
+
+**`nuc abi`** — ABI import inspector. Reports ABI version + extern
+imports list. Same step as check, also asserts
+`nuc abi examples/01_hello.nr` prints `"ABI version:"` +
+`"extern imports:"`.
+
+**Combined into one `cli_check_abi_smoke`** to keep the per-iteration
+overhead small (single binary invocation per check, two for the
+combined step).
+
+**Step total bumped 191 → 193** in both gates. The full
+pre-iteration smoke block now reads:
+
+```
+[ 1/193] OK    binary present
+[ 2/193] OK    compiler ABI tables synced
+[ 3/193] OK    CLI: nuc explain NUM-001 wired
+[ 4/193] OK    CLI: nuc bootstrap status reports correctly
+[ 5/193] OK    CLI: nuc check + abi inspect
+[ 6/193] OK    CLI: nuc init scaffolding works
+[ 7/193] OK    CLI: nuc doc generator works
+[ 8/193] OK    CLI: nuc lock writes Nucleor.lock
+[ 9/193] OK    CLI: nuc test runs #[test] functions
+```
+
+The user-facing v0.2 CLI surface is now nine pre-iteration smoke
+steps. Remaining v0.2 commands (`nuc bench`, `nuc audit`,
+`nuc policy`, `nuc certify`, `nuc translate`, `nuc evidence`,
+`nuc query`, `nuc graph`, `nuc perf`, `nuc summary`,
+`nuc impact`, `nuc emit`) are either advanced/diagnostic
+commands or implicitly tested via the example/test gate. None
+have known regressions.
+
+### Verify gate
+
+193 / 193 PASS, 0 SKIP on the bash gate. Tooling-only — no
+compiler / runtime / ABI / source / test changes.
+
 ## [0.2.69] — 2026-04-23
 
 **`nuc test` bug fix — target/ now created before harness write.**
