@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.136] — 2026-04-23
+
+**v0.3.0 milestone tracker + cross-platform readiness doc — stale
+gate-step counts and "as of vN" stamps brought current.**
+
+The v0.3 milestone references the Windows verify-gate state in
+several places to motivate the gate-parity goal. Two of those
+numbers were stale (203 / v0.2.100 / v0.2.102 era — the gate
+landed its 204th step at v0.2.118 with `err_tests_have_expect_smoke`
+and the audit chain has continued through v0.2.135).
+
+- **`docs/milestones/v0.3.0.md`** Status header — bumped from
+  "post-v0.2.102" to "post-v0.2.135", from "203 as of v0.2.100"
+  to "**204 as of v0.2.118**" with the EXPECT-headers gate
+  reason, and from "v0.2.50–v0.2.102 audit chain" to
+  "v0.2.50–v0.2.135".
+- **`docs/milestones/v0.3.0.md`** Inheritance-from-v0.2.0 row 2
+  for the gate parity goal: "203/203 unchanged (current Windows
+  count as of v0.2.100)" → "204/204 unchanged (current as of
+  v0.2.118)".
+- **`docs/milestones/v0.3.0.md`** Phase 3 verify-gate-parity
+  paragraph: "203/203 on Linux + macOS" → "204/204"; baseline
+  "203 as of v0.2.100" → "204 as of v0.2.118"; "v0.2.50–v0.2.102
+  audit chain" → "v0.2.50–v0.2.135".
+- **`docs/status/v0.3-cross-platform-readiness.md`** opening
+  snapshot caveat: "remains accurate as of v0.2.102" → "as of
+  v0.2.135".
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.135] — 2026-04-23
 
 **RFC README footer paragraph undercounted the implemented RFCs
