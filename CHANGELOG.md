@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.128] — 2026-04-23
+
+**Three stale numeric markers in user-facing docs (README + getting-
+started) brought current.**
+
+A sweep across the top-of-tree user-facing docs caught three
+numbers that had drifted with the v0.2.x sub-chain and never got
+back-mirrored.
+
+- **`README.md`** "Testing this build" section claimed "**all 24
+  tests across `tests/lang/`, `tests/attrs/`, `tests/runtime/`,
+  and `tests/rods/`**" — the actual tree has 99 tests across
+  those four dirs (44 + 4 + 27 + 24), with 34 more in
+  `tests/features/` and 33 negative tests in `tests/err/`. The
+  `nuc test tests/` command line in the snippet only exercises
+  the four-dir slice, so the rewrite splits the count by dir and
+  notes that `tools/verify.ps1` covers the additional two dirs.
+- **`README.md`** "Versioning" section claimed "**(124 tags as
+  of v0.2.57)**" — actual is 196 tags as of v0.2.127.
+- **`docs/getting-started.md`** "Next steps" section pointed
+  readers at "**`examples/02_fib.nr` through
+  `examples/07_rust_interop.nr`**" (only 6 examples) — the tree
+  has 18 numbered examples (`01_hello.nr` through
+  `18_benchmark.nr`) plus 4 build-only `examples/showcase/`
+  programs. The new bullet enumerates the per-example feature
+  list and points at `tools/examples.list` (the gate's single
+  source of truth) for the canonical numbered list.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.127] — 2026-04-23
 
 **RFC-0030 (async decision) status synchronized + new "Decision"
