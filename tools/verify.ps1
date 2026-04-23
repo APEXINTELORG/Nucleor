@@ -131,11 +131,11 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 
 # 1 (binary present) + 1 (drift check) + 1 (tools-rebuild) +
 # 1 (help coverage) + 1 (utility smoke) + 1 (json smoke) +
-# 1 (version aliases) + 1 (CLI explain smoke) + 1 (explain-full) +
-# 1 (bootstrap) + 1 (check+abi) + 1 (inspectors) + 1 (diagnostics)
-# + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
-# N tests + N err + 1 (self-host)
-$stepTotal = 17 + $examples.Count + $testCount + $errCount + 1
+# 1 (version aliases) + 1 (showcase build) + 1 (CLI explain smoke)
+# + 1 (explain-full) + 1 (bootstrap) + 1 (check+abi) + 1 (inspectors)
+# + 1 (diagnostics) + 1 (init) + 1 (doc) + 1 (lock) + 1 (test)
+# + N examples + N tests + N err + 1 (self-host)
+$stepTotal = 18 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -177,6 +177,20 @@ Step "tools-suite rebuild" {
     $built = "target\nucleor_tools.exe"
     if (-not (Test-Path $built)) { return $false }
     Copy-Item $built (Join-Path $root "bin\nucleor_tools.exe") -Force -ErrorAction SilentlyContinue
+    return $true
+}
+
+Step "examples/showcase: lorenz/vqe_h2/market_maker/wing_simulator build" {
+    # Mirrors verify.sh showcase_build_smoke (added v0.2.90).
+    # Build-only — the four showcase programs produce streaming
+    # ANSI dashboards that don't terminate on their own, so we
+    # don't run them. Build catches stdlib regressions that would
+    # break the showcase compile path.
+    foreach ($prog in @("lorenz", "vqe_h2", "market_maker", "wing_simulator")) {
+        & $bin build "examples/showcase/$prog.nr" -o "showcase_$prog" *> $null
+        $exe = "target\showcase_$prog.exe"
+        if (-not (Test-Path $exe)) { return $false }
+    }
     return $true
 }
 
