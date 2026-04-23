@@ -146,11 +146,26 @@ build_example() {
         tail -1 /tmp/_nuc_step.log | sed 's/^/       /'
         return 1
     fi
+    # Capture stdout to /tmp/_nuc_ex_out.log so we can shape-check it.
+    # Catches the silent-regression case where an example builds + exits
+    # 0 but produces wrong/no output (added v0.2.61).
     if [ -x "target/$ex" ]; then
-        "target/$ex" >/dev/null 2>&1
+        "target/$ex" >/tmp/_nuc_ex_out.log 2>&1
     else
-        "target/$ex.exe" >/dev/null 2>&1
+        "target/$ex.exe" >/tmp/_nuc_ex_out.log 2>&1
     fi
+    local rc=$?
+    if [ "$rc" -ne 0 ]; then
+        tail -1 /tmp/_nuc_ex_out.log | sed 's/^/       /'
+        return 1
+    fi
+    # Non-empty stdout shape check (added v0.2.61) — catches silent
+    # regressions where the binary builds + exits 0 but prints nothing.
+    if [ ! -s /tmp/_nuc_ex_out.log ]; then
+        echo "       example produced empty output" | sed 's/^/       /'
+        return 1
+    fi
+    return 0
 }
 
 build_test() {

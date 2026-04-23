@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.61] — 2026-04-22
+
+**Verify gate: examples now checked for non-empty stdout.**
+
+The example-build step in `tools/verify.sh` previously routed
+example output to `/dev/null` and only checked exit code. An
+example that built, ran, exited 0, **but printed nothing** would
+silently pass — a real production gap that hid `print()`
+regressions in the runtime, the format helpers, or the ABI
+table.
+
+**Fix in `build_example`:**
+
+1. Capture stdout to `/tmp/_nuc_ex_out.log` instead of
+   `/dev/null` (3-line change).
+2. Check the binary's exit code explicitly (was implicit via
+   bash's last-command-exit semantics).
+3. Add a `[ -s /tmp/_nuc_ex_out.log ]` non-empty check; print
+   `"example produced empty output"` and return non-zero if the
+   file is empty.
+
+**Why non-empty stdout is the right shape check** (not "matches
+expected output"): every example in the repo is designed to
+print at least one line — the tier-1 demos all start with a
+`Hello`-style print, the v0.2.x demos all open with
+`=== Nucleor X demo ===`. Catching empty output catches the
+silent-regression case (any change that breaks `print()`-to-stdout
+pathway). Hand-maintaining expected-output assertions for 17
+demos would be a maintenance burden the gate doesn't need
+today.
+
+**Verified:**
+
+- Full gate still 186/186 PASS (every example currently produces
+  non-empty output, as expected).
+- Shell-level mini-test confirms `[ -s file ]` semantics —
+  empty file → FALSE → gate FAIL path.
+
+**Future work** — the same check should be added to
+`tools/verify.ps1` (PowerShell mirror). Filed as v0.4 cleanup;
+the bash gate is what local development + the bash-variant CI
+runners use today.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Tooling-only — no compiler / runtime /
+ABI / source / test changes.
+
 ## [0.2.60] — 2026-04-22
 
 **`tools/examples.list` — single source of truth for the verify-gate example list.**
