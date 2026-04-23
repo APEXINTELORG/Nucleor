@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.78] — 2026-04-23
+
+**Helper manifest Phase 2 — populate 15 stable `TensorOps`
+helpers.**
+
+15 of the 45 `TensorOps` helpers are actually CPU-bound and
+shipping today (`tensor_get`, `tensor_set`, `tensor_fill`,
+`tensor_cols`, `tensor_rows`, `tensor_max`, `tensor_min`,
+`tensor_mean`, `tensor_sum`, `tensor_stddev`, `tensor_variance`,
+`tensor_zeros`, `tensor_ones`, `tensor_transpose`,
+`tensor_matmul`). The remaining 30 are forward declarations
+for the v0.4 device-effect formalization (`device_*`,
+`kvcache_*`, `kvprefix_*`, `simd_*`, `vector_*`,
+`tensor_sample_*`, etc.) — all carry `stability = "unstable"`
+already.
+
+**Newly populated via `PATTERN_OVERRIDES`:**
+
+- **9 pure** — `^tensor_(get|cols|rows|max|min|mean|sum|stddev|
+  variance)$`. Read-only / reductions returning scalar.
+  Proof obligation `"bounds_within_shape"`.
+- **2 in-place mutation** — `^tensor_(set|fill)$`. Modify
+  pointed-to tensor without allocation. Proof obligation
+  `"bounds_within_shape"`.
+- **4 allocating** — `^tensor_(zeros|ones|transpose|matmul)$`.
+  Allocate a fresh result tensor. Proof obligation
+  `"shape_compatible"`.
+
+The 30 unstable `TensorOps` placeholders stay TODO because
+their effects depend on the v0.4 `"device"` effect tag (not
+yet in the schema vocabulary). Adding `"device"` ahead of the
+v0.4 implementation would create a dangling abstraction.
+
+**TODO sentinel count drops 144 → 99** (45 TODOs eliminated).
+
+**Helper manifest Phase 2 now at 643 of 676 helpers (95.1%).**
+Remaining 33 helpers are all intentional v0.4 placeholders:
+
+- 30 `TensorOps` GPU/device/SIMD/sampling forward declarations
+- 3 `ToolingMeta` stubs (`profile_start`, `profile_end`,
+  `py_eval`) whose runtime bodies are deferred to v0.4
+
+### Verify gate
+
+195 / 195 PASS, 0 SKIP on the bash gate. Tooling-only — no
+compiler / runtime / ABI / source / test changes.
+
 ## [0.2.77] — 2026-04-23
 
 **Milestone tracker + status doc + RFC index refresh for the
