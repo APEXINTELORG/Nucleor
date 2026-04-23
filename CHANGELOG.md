@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.37] — 2026-04-22
+
+**`examples/README.md` — discoverability index for the 18 examples.**
+
+The examples directory had 18 `.nr` files (01_hello through
+18_benchmark) with no README — discoverability was filename-only.
+This release ships a proper index page covering:
+
+- **Build & run** (one-line `nuc build` invocation, no special flags
+  for tiers 1–3).
+- **Tier 1 (01–07): language tour** — hello / fib / structs / rods /
+  quantum / perf-attrs / Rust FFI.
+- **Tier 2 (08–13): numerics & domains** — linalg / ODE / FFT / PID /
+  autodiff / test framework.
+- **Tier 3 (14–18): v0.2.x stdlib showcase** — the post-v0.2.31
+  end-to-end demos (CSV summary, word count, histogram, linecount,
+  benchmark) with a per-example "helpers exercised" column so
+  readers can navigate from the example back to the v0.2.x helper
+  releases.
+- **Env-var overrides** — table of which env vars switch each tier-3
+  demo from bundled-sample to real-data input
+  (`NUC_CSV_PATH`, `NUC_TEXT_PATH`, `NUC_HIST_PATH`, `NUC_LC_FILES`,
+  `NUC_BENCH_ITERS`).
+- **Verify-gate integration** — pointer to `tools/verify.sh:93` and
+  the four-step rule for adding a new example.
+- **Adding a new example** — copy-paste recipe using
+  `14_csv_summary.nr` as template.
+
+This is the last loose end on the v0.2.x example chain — every
+example is now both built+run on every release AND linked from a
+discoverable index page.
+
+Documentation-only — no compiler / runtime / ABI / test changes.
+Verify gate 184/185 (1 skip). Self-host LLVM IR fixed point
+unaffected.
+
 ## [0.2.36] — 2026-04-22
 
 **Micro-benchmark harness (`examples/18_benchmark.nr`).**
