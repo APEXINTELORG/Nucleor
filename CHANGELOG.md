@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.83] — 2026-04-23
+
+**CHANGELOG ↔ git tag parity restored; drift gate now enforces.**
+
+A repo-wide audit comparing `git tag -l 'v*'` to the `## [x.y.z]`
+headings in `CHANGELOG.md` found one drift entry: **`v0.1.67`
+existed as a git tag but had no per-version CHANGELOG block.**
+
+History: v0.1.67 was the bridge release between the v0.1.x
+preview chain and the v0.2.0 RC tag — landed
+`docs/milestones/v0.4.0.md` (the v0.4 tracker for v0.2-deferred
+work). The release notes were rolled into the v0.2.0 narrative
+("the v0.1.46..v0.1.67 preview series") instead of getting their
+own CHANGELOG entry. The git tag therefore had no documentation
+match.
+
+### Fix
+
+Added a retroactive `## [0.1.67] — 2026-04-22` block to
+CHANGELOG.md describing what landed (the v0.4 tracker file),
+inserted in the correct chronological position between v0.1.66
+and v0.2.0.
+
+### Drift gate hardening
+
+`tools/check_compiler_drift.sh` now performs a fifth check:
+**every git tag matching `v*` must have a matching
+`## [version]` heading in CHANGELOG.md.** Skips silently if the
+working tree isn't a git checkout (tarball release case).
+
+This closes the same drift class that bit v0.1.67 — anyone who
+pushes a tag without writing the corresponding CHANGELOG block
+will fail the verify gate's drift step.
+
+The drift gate now enforces five things:
+
+1. s1 compiler ↔ tools-suite ABI table parity (v0.2.x baseline)
+2. `helper_manifest.toml` freshness (v0.2.41)
+3. `rod_manifest.toml` freshness (v0.2.47)
+4. `RELEASES.md` freshness (v0.2.57)
+5. **CHANGELOG ↔ git tag parity (v0.2.83 — this release)**
+
+### Verify gate
+
+197 / 197 PASS, 0 SKIP on the bash gate. Drift step now
+includes the new tag/CHANGELOG check; passes after the v0.1.67
+backfill.
+
 ## [0.2.82] — 2026-04-23
 
 **Bug fix: create the missing `NUCLEOR_BOOTSTRAP_CONTRACT.md`
@@ -3800,6 +3848,28 @@ User-facing migration guide covering the optional `nuc fix --imports`
 + `?` operator adoption steps, all new language features, all new
 CLI subcommands, all new runtime helpers + collection rods, and the
 diagnostics behavior change (warnings no longer halt the build).
+
+## [0.1.67] — 2026-04-22
+
+**`docs/milestones/v0.4.0.md` — capture v0.2-deferred work.**
+
+Writes the v0.4.0 milestone tracker, populated from the v0.2
+deferred rows + the Tier-2 language extensions (RFC-0023..0029).
+Each deferred row cites the v0.2 release where its foundation
+work landed, so v0.4 work pickup has the back-pointer to the
+v0.2 chain that produced the substrate.
+
+This was the bridge release between the v0.1.46..v0.1.67
+preview chain and the v0.2.0 RC tag — the last v0.1.x entry,
+landing only the v0.4 tracker file. Tagged but the per-version
+CHANGELOG entry was originally rolled into the v0.2.0 narrative;
+this entry restores the per-version row for tag-vs-CHANGELOG
+parity (added retroactively in v0.2.83).
+
+### Verify gate
+
+158 / 158 PASS at the time of release. No compiler / runtime /
+ABI / source / test changes — pure documentation drop.
 
 ## [0.2.0] — 2026-04-22
 

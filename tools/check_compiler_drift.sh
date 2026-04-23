@@ -147,4 +147,22 @@ check_manifest "RELEASES.md" \
     "$ROOT/tools/gen_releases_index.py" \
     "$ROOT/RELEASES.md" || exit 1
 
+# CHANGELOG ↔ git tag parity (v0.2.83). Catches the v0.1.67 drift
+# class — a tag that was pushed without a per-version CHANGELOG
+# entry. Skips silently if not in a git repo (e.g. tarball release).
+if [ -d "$ROOT/.git" ] && command -v git >/dev/null 2>&1; then
+    pushd "$ROOT" >/dev/null
+    tag_set=$(git tag -l 'v*' | sed 's/^v//' | sort -u)
+    ch_set=$(grep -oE '^## \[[0-9.]+\]' "$ROOT/CHANGELOG.md" | sed 's/^## \[//; s/\]$//' | sort -u)
+    missing_in_ch=$(comm -23 <(echo "$tag_set") <(echo "$ch_set"))
+    popd >/dev/null
+    if [ -n "$missing_in_ch" ]; then
+        echo "FAIL: git tags exist with no CHANGELOG entry:"
+        echo "$missing_in_ch" | sed 's/^/  - v/'
+        echo "Add a per-version block to CHANGELOG.md or remove the stray tag."
+        exit 1
+    fi
+    echo "OK: CHANGELOG.md covers every git tag"
+fi
+
 exit 0
