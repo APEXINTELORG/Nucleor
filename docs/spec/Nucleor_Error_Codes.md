@@ -437,27 +437,35 @@ backs `nuc explain`). The 2-iteration LLVM IR fixed-point
 check from `NUCLEOR_BOOTSTRAP_CONTRACT.md` applies whenever
 the s1 source is touched.
 
-## Suppression (planned v0.4)
+## Suppression
 
-> **Status (v0.2):** not yet implemented. The design below is
-> documented here so that the explain-registry prose (which
-> references `#[allow(precision_loss)]`, `#[deny(precision_loss)]`,
-> `#[allow(no_dyn)]`, `#[allow(no_hw_lp_float)]` etc. on codes
-> like NUM-003, CXX-003, NUM-004) has a coherent target. The
-> current s1 compiler **parses but silently ignores** any
-> `#[allow(...)]` / `#[deny(...)]` attribute — the suppression
-> has no effect on diagnostic emission. **Every warning is
-> always printed today**, regardless of any `#[allow]` on the
-> call site. Promotion of warnings to errors via `#[deny]` also
-> does not take effect. This is tracked as a v0.4 follow-on
-> alongside the RFC-0004 `#[assume]` and RFC-0014
-> `#[max_depth]` attribute work, which will introduce the
-> general attribute-with-argument parsing infrastructure that
-> `#[allow]` / `#[deny]` can then plug into.
+> **Status (v0.2.151):** `#[allow(CODE)]` ships. Scope is
+> file-wide for the v0.2 cut — anywhere the attribute appears
+> in the source, the named code is silenced for the whole
+> compile unit. Per-fn / per-block scoping ships with v0.4
+> alongside the general attribute-with-argument parsing
+> infrastructure that powers RFC-0004 `#[assume]` and
+> RFC-0014 `#[max_depth]`. **`#[deny(CODE)]` is not yet
+> wired** — `#[deny]` parses without error but does not
+> promote a warning to an error; targeted for v0.4.
 
-**Planned v0.4 design:** users will be able to suppress
-diagnostics per-scope via `#[allow(CODE)]` or per-project via
-the build profile. Warnings will be promotable to errors with
-`#[deny(CODE)]`. Some codes (safety-cert subset — see
-`docs/process/nucleor-safe-subset.md`) will not be suppressible
-in `--profile=cert` mode.
+Users suppress warning-severity diagnostics per-file via
+`#[allow(CODE)]`. The check happens after every compiler pass
+fires its diagnostics — `filter_allow_suppressed` walks the
+collected `diags` vec and drops any whose severity is
+`"warning"` (not `"error"`) and whose code matches an entry
+in the source's collected allow-list. Errors are never
+suppressible. Gate-tested via
+`tests/lang/allow_suppress_warning.nr`.
+
+The mechanism preserves `#[allow]` lines through
+`resolve_source_with_records` (the import / `#cfile` / `#link`
+preprocessor) by checking for `#[` after the leading `#`
+before stripping the line — Rust-style attributes are kept
+intact for the diag-filter to scan.
+
+**Planned v0.4 design:** per-fn / per-block scoping for
+`#[allow]`; `#[deny(CODE)]` promoting warnings to errors;
+build-profile suppression. Some codes (safety-cert subset —
+see `docs/process/nucleor-safe-subset.md`) will not be
+suppressible in `--profile=cert` mode.

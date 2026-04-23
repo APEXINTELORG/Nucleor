@@ -4524,6 +4524,83 @@ fn diag_count_errors(diags: Vec<i32>) -> i64 {
 }
 fn diag_get(diags: Vec<i32>, i: i64) -> Vec<i32> { return vec_get(diags, i); }
 
+// RFC-0028 §Suppression — minimal `#[allow(CODE)]` post-filter.
+//
+// Scans the source for the literal pattern `#[allow(CODE)]` and
+// returns a Vec<str> of the CODEs the user has marked as silenced.
+// Whitespace inside the parens is tolerated but the CODE must be a
+// bare identifier (e.g. `NUM-003`, `MATCH-001`) — quoted-string
+// payloads are not supported in the v0.2 subset.
+//
+// `#[allow]` is file-wide for now; per-fn / per-block scoping ships
+// with the v0.4 attribute-with-argument parsing pass that powers
+// RFC-0004 `#[assume]` and RFC-0014 `#[max_depth]`.
+fn collect_allowed_codes(source: str) -> Vec<i32> {
+    let mut allowed: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[allow(";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut q: i64 = p + plen;
+            // Skip leading whitespace inside the parens.
+            while q < slen && (str_char_at(source, q) == 32 || str_char_at(source, q) == 9) {
+                q = q + 1;
+            };
+            let start: i64 = q;
+            // Read the bare identifier up to ')' or whitespace.
+            while q < slen {
+                let ch: i64 = str_char_at(source, q);
+                if ch == 41 || ch == 32 || ch == 9 { break; };
+                q = q + 1;
+            };
+            if q > start {
+                let code: str = str_substring(source, start, q);
+                allowed.push(code);
+            };
+            p = q + 1;
+        } else {
+            p = p + 1;
+        };
+    };
+    return allowed;
+}
+
+// Drop every diagnostic whose code is in `allowed`. Errors are
+// always preserved — `#[allow]` only suppresses warnings (Rust
+// model). Modifies the input vec by rebuilding a filtered copy.
+fn filter_allow_suppressed(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let allowed: Vec<i32> = collect_allowed_codes(source);
+    if vec_len(allowed) == 0 { return diags; };
+    let mut filtered: Vec<i32> = Vec::new();
+    let n: i64 = vec_len(diags);
+    let mut i: i64 = 0;
+    while i < n {
+        let d: Vec<i32> = vec_get(diags, i);
+        let sev: str = vec_get(d, 0);
+        let code: str = vec_get(d, 2);
+        let mut suppressed: i64 = 0;
+        if str_eq(sev, "error") == 0 {
+            let mut j: i64 = 0;
+            let m: i64 = vec_len(allowed);
+            while j < m {
+                if str_eq(vec_get(allowed, j), code) == 1 { suppressed = 1; break; };
+                j = j + 1;
+            };
+        };
+        if suppressed == 0 { filtered.push(d); };
+        i = i + 1;
+    };
+    return filtered;
+}
+
 fn byte_to_line(source: str, byte_off: i64) -> i64 {
     let slen: i64 = str_len(source);
     let mut line: i64 = 1;
@@ -6380,6 +6457,8 @@ fn preflight_source_check(source: str) -> i64 {
     if source_has_scope_escape_ref_binding(source) == 1 {
         let mut diags: Vec<i32> = diag_new();
         type_diag(diags, source, "main", "let", "OWN-010", "cannot bind a reference that escapes an inner block");
+        diags = filter_allow_suppressed(diags, source);
+        if diag_count(diags) == 0 { return 0; };
         if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text(diags); };
         return 1;
     };
@@ -8078,8 +8157,10 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
                 sb_append(result, str_substring(src, p, eol));
                 sb_append(result, "\n");
             };
-        } else if line_len >= 2 && str_char_at(src, lp) == 35 {
-            // Skip # directives (#link, #cfile)
+        } else if line_len >= 2 && str_char_at(src, lp) == 35 && str_char_at(src, lp + 1) != 91 {
+            // Skip # directives (#link, #cfile). Rust-style outer
+            // attributes `#[...]` are preserved so the diag-filter
+            // (`filter_allow_suppressed`) can still see them.
             sb_append(result, "\n");
         } else {
             sb_append(result, str_substring(src, p, eol));
@@ -8305,11 +8386,17 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         print_phase_time(time_passes, "taint", 0);
     };
     if diag_count(diags) > 0 {
-        // Emit every diagnostic, but only halt the build on errors.
-        // Warnings (NUM-003 lossy cast, MATCH-001/002 typecker, etc.)
-        // flow through the report without blocking compilation.
-        if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text(diags); };
-        if diag_count_errors(diags) > 0 { return 1; };
+        // RFC-0028 §Suppression — drop warnings the user has silenced
+        // via `#[allow(CODE)]`. Errors are not suppressible.
+        diags = filter_allow_suppressed(diags, source);
+        if diag_count(diags) > 0 {
+            // Emit every (post-filter) diagnostic, but only halt the
+            // build on errors. Warnings (NUM-003 lossy cast,
+            // MATCH-001/002 typecker, etc.) flow through the report
+            // without blocking compilation.
+            if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text(diags); };
+            if diag_count_errors(diags) > 0 { return 1; };
+        };
     };
     let mut closures: Vec<i32> = Vec::new();
     let lower_start: i64 = now_ms();

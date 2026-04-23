@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.151] — 2026-04-23
+
+**Closes punchlist item 4: `#[allow(CODE)]` actually suppresses
+warnings now (file-wide; per-fn scoping deferred to v0.4).**
+
+The v0.2.145 audit caught the spec doc describing `#[allow]` /
+`#[deny]` as if they worked when in reality `#[allow(CODE)]`
+parsed without error but had **zero** effect on diagnostic
+emission. v0.2.151 wires the file-wide variant: anywhere
+`#[allow(CODE)]` appears in the source, the named code is
+silenced for the whole compile unit. Errors are never
+suppressible (Rust model).
+
+### `compiler/nucleor_s1_compiler.nr`
+
+- New `fn collect_allowed_codes(source: str) -> Vec<i32>`
+  scans the raw source for the literal pattern `#[allow(CODE)]`
+  and returns the Vec of CODE strings.
+- New `fn filter_allow_suppressed(diags: Vec<i32>, source: str)
+  -> Vec<i32>` drops any warning-severity diag whose code is in
+  the allow list. Errors pass through unchanged.
+- Two call sites wired (`preflight_source_check` and the main
+  pipeline diag-emit block) — the filter runs immediately
+  before `diag_emit_text` / `diag_emit_json`.
+- **Bug fix in `resolve_source_with_records`** — the source-
+  import preprocessor was stripping ALL `#`-prefixed lines
+  (intended to skip `#cfile` and `#link` directives) but also
+  swallowed Rust-style `#[allow]` attribute lines before they
+  could reach the diag-filter. Tightened the condition: only
+  strip lines whose second character is **not** `[`. The
+  attribute lines now flow through the resolver unchanged; the
+  lexer continues to skip them at token time, so the parser
+  never sees them and the diag-filter does. Same fix benefits
+  any future `#[deny]` / `#[assume]` / `#[max_depth]` work.
+
+### Self-host LLVM IR fixed point
+
+- 2-iter check passed: nucleor_v151f.ll == nucleor_v151g.ll
+  (byte-identical, 2,615,215 bytes).
+- `bin/nucleor.exe` updated for the first time since v0.2.87
+  — the v0.2.84 (`nuc help` doc/fix) and v0.2.87 (`-V` /
+  `version` aliases) chain extends to **v0.2.151
+  (`#[allow]` filter)**.
+
+### `tests/lang/allow_suppress_warning.nr`
+
+- New positive test exercising the `i64 → i32` cast
+  (NUM-003) under `#[allow(NUM-003)]`. Prints "OK" when
+  the warning is silenced, gate-tested.
+
+### `docs/spec/Nucleor_Error_Codes.md`
+
+- "Suppression" section status callout flipped from "**not
+  yet implemented**" to "**ships**"; documents the file-wide
+  scope with v0.4 follow-on for per-fn scoping. `#[deny]`
+  remains v0.4-planned.
+
+### Verify gate
+
+**238 / 238 PASS, 0 SKIP** on the bash gate (was 237/237; +1
+new `tests/lang/allow_suppress_warning.nr`). Self-host rebuild
+closes step 238/238 — confirming the new compiler can rebuild
+itself.
+
 ## [0.2.150] — 2026-04-23
 
 **Closes v0.2.123 finding: 11 orphan runtime C files now have rod
