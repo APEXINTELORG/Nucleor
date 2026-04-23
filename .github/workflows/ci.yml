@@ -56,7 +56,7 @@ jobs:
       - name: Note about Linux nucleor binary
         run: |
           if [ ! -x bin/nucleor ]; then
-            echo "::warning::bin/nucleor (Linux build) not present in repo. Verify gate will fail until v0.2.0 ships Linux binary. This job tracks that gap."
+            echo "::warning::bin/nucleor (Linux build) not present in repo. Verify gate will fail until v0.3.0 ships the Linux binary — see docs/milestones/v0.3.0.md phase 1. This job tracks that gap."
           fi
       - name: Run verify.sh
         run: ./tools/verify.sh --no-color
@@ -86,7 +86,7 @@ jobs:
       - name: Note about macOS nucleor binary
         run: |
           if [ ! -x bin/nucleor ]; then
-            echo "::warning::bin/nucleor (macOS build) not present in repo. Verify gate will fail until v0.2.0 ships macOS binary."
+            echo "::warning::bin/nucleor (macOS build) not present in repo. Verify gate will fail until v0.3.0 ships the macOS binary — see docs/milestones/v0.3.0.md phase 1."
           fi
       - name: Run verify.sh
         run: ./tools/verify.sh --no-color
