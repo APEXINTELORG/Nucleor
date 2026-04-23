@@ -1,16 +1,32 @@
 #!/usr/bin/env bash
-# check_compiler_drift.sh — verify the s1-compiler ↔ tools-suite ABI tables
-# stay in sync. Without this check, the tools binary's compile_file_mode
-# (used by `nuc test`, `nuc build-strict`, `nuc check`) silently drifts
-# from the s1 emit path and produces unprefixed @<name> calls + missing
-# IR `declare` statements that fail to link.
+# check_compiler_drift.sh — drift detector. Originally only checked the
+# s1-compiler ↔ tools-suite ABI tables; grown to enforce **five things**
+# as of v0.2.83:
 #
-# History: v0.1.55 caught the symptom for `getenv`/`assert_ne`; v0.1.56
-# bulk-synced 749 entries across get_rt_name (351), is_ptr_ret (11),
-# is_ptr_arg (40), and IR `declare` (347).
+#   1. s1 ↔ tools-suite ABI table parity (the original check; without
+#      it the tools binary's compile_file_mode produces unprefixed
+#      @<name> calls + missing IR `declare` statements that fail to
+#      link).
+#   2. helper_manifest.toml freshness vs gen_helper_manifest.py output
+#      (since v0.2.41 — Helpers.md going-forward constraint).
+#   3. rod_manifest.toml freshness vs gen_rod_manifest.py output
+#      (since v0.2.47).
+#   4. RELEASES.md freshness vs gen_releases_index.py output
+#      (since v0.2.57).
+#   5. CHANGELOG ↔ git-tag parity — every git tag matching `v*` must
+#      have a `## [version]` heading in CHANGELOG.md (since v0.2.83).
 #
-# Exit 0 = synced. Exit 1 = drift detected; commit must add the missing
-# entries to compiler/nucleor_tools_suite.nr (or remove from s1).
+# (Mojibake clean is its own gate step in verify.sh, not part of this
+# script — see tools/check_mojibake.sh added v0.2.91.)
+#
+# History: v0.1.55 caught the original drift symptom for `getenv` /
+# `assert_ne`; v0.1.56 bulk-synced 749 entries across get_rt_name
+# (351), is_ptr_ret (11), is_ptr_arg (40), and IR `declare` (347).
+# Manifest + RELEASES + tag/CHANGELOG checks added v0.2.41–v0.2.83.
+#
+# Exit 0 = all five checks passed. Exit 1 = some drift detected; the
+# script names the failing check and the fix command (typically
+# re-run a generator and commit the result).
 #
 # Usage: ./tools/check_compiler_drift.sh
 

@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.112] — 2026-04-23
+
+**Two tool-script headers stale at v0.1-era state.**
+
+### `tools/verify.sh` header
+
+The header described the gate as **5 steps** (binary present;
+build/run examples; build/run positive tests; confirm
+negative tests fail; self-host loop). Today it's **203 steps**
+including 19 pre-iteration smoke steps that grew through the
+v0.2.50–v0.2.111 audit chain. Refresh:
+
+- Replaced the 5-bullet "Steps:" block with a 19+N+M+P+1
+  step-shape outline matching what the script actually runs:
+  binary present, ABI parity, tools-suite rebuild, mojibake
+  check, help-coverage, utility smoke, JSON smoke, version
+  aliases, showcase build, explain (single + full 130-code
+  catalog), bootstrap + Contract: file resolves, check + abi
+  inspect, inspectors smoke, diagnostics smoke, init, doc,
+  lock, test, examples, positive tests, negative tests,
+  self-host rebuild.
+- Each step references the v0.2.x release that added it (so
+  future readers can find the introducing CHANGELOG entry).
+
+### `tools/check_compiler_drift.sh` header
+
+Header said the script "verify[s] the s1-compiler ↔ tools-suite
+ABI tables stay in sync." Originally true; **as of v0.2.83 it
+enforces five things**: ABI parity, `helper_manifest.toml`
+freshness, `rod_manifest.toml` freshness, `RELEASES.md`
+freshness, and CHANGELOG ↔ git-tag parity. The header didn't
+mention the four post-v0.2.41 additions. Refresh:
+
+- Header now opens "drift detector. Originally only checked the
+  s1-compiler ↔ tools-suite ABI tables; grown to enforce
+  **five things** as of v0.2.83" with each numbered + the
+  release that added it.
+- Notes that mojibake-clean is a separate gate step
+  (`tools/check_mojibake.sh` added v0.2.91), not part of this
+  script.
+- Exit code description updated from "Exit 1 = drift detected;
+  commit must add..." to "the script names the failing check
+  and the fix command (typically re-run a generator and commit
+  the result)" — describes the actual current behavior where
+  each check prints its own actionable error.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure script-header
+refresh — no behavior change to either script.
+
 ## [0.2.111] — 2026-04-23
 
 **`gen_releases_index.py` docstring said "124 entries" — actual
