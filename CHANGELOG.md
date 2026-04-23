@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.33] — 2026-04-22
+
+**Helper schema contract ported into the plan as a tracked deliverable.**
+
+The user-supplied `Helpers.md` contract (a two-phase cataloging
+deliverable for every `__nucleor_*` runtime helper and ABI-table
+entry) is now a tracked deliverable in the milestone trackers and
+RFC index:
+
+- **`docs/rfcs/HELPER-CONTRACT.md`** — full contract verbatim, with
+  the going-forward constraint appended.
+- **`docs/milestones/v0.4.0.md`** — primary tracker entry (Phase 1
+  taxonomy report → Phase 2 manifest population).
+- **`docs/milestones/v0.2.0.md`** — short pointer to v0.4 entry,
+  documenting that the going-forward constraint applies *now*
+  (v0.2.33 onward).
+- **`docs/rfcs/README.md`** — new "Cross-cutting contracts" section
+  added above the tier index, linking the HELPER-CONTRACT doc.
+
+**Going-forward constraint** — from this release on, any helper
+added to the codebase MUST also add a row to
+`docs/rfcs/helper_manifest.toml` in the same commit. Drift-gate
+enforcement (`tools/check_compiler_drift.sh` extension) lands
+once Phase 2 of the contract is approved and the manifest exists.
+
+**Phase 1 walk** is on hold per the contract's own
+echo-before-acting rule: I've posted the echo in chat (definition
+of "helper" used here, directories to walk, file types to scan,
+what won't be touched) and am awaiting an explicit "go" before
+producing the taxonomy report.
+
+This release is documentation-only: no compiler, runtime, ABI, or
+test changes. Verify gate 181/182 (1 skip). Self-host LLVM IR
+fixed point unaffected (no compiler changes).
+
 ## [0.2.32] — 2026-04-22
 
 **Word-frequency counter example (`examples/15_word_count.nr`).**

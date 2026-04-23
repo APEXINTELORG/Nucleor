@@ -14,6 +14,12 @@ proceed without re-design.
 
 ## Index
 
+### Cross-cutting contracts
+
+| Doc | Topic | Status |
+|---|---|---|
+| [HELPER-CONTRACT](HELPER-CONTRACT.md) | Helper schema inventory & population (cataloging all `__nucleor_*` runtime helpers + ABI-table entries) | Phase 1 echo on record (v0.2.33); awaiting "go" before walk |
+
 ### Tier 1 — RT, robotics, allocator foundations
 
 | # | Title | Status | Target |
