@@ -2271,6 +2271,13 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "checked_sub") { return "__nucleor_checked_sub_i64"; };
     if str_eq(name, "checked_mul") { return "__nucleor_checked_mul_i64"; };
     if str_eq(name, "checked_overflow_flag") { return "__nucleor_checked_overflow_flag"; };
+    if str_eq(name, "checked_div") { return "__nucleor_checked_div_i64"; };
+    if str_eq(name, "checked_rem") { return "__nucleor_checked_rem_i64"; };
+    if str_eq(name, "checked_neg") { return "__nucleor_checked_neg_i64"; };
+    if str_eq(name, "wrapping_div") { return "__nucleor_wrapping_div_i64"; };
+    if str_eq(name, "wrapping_rem") { return "__nucleor_wrapping_rem_i64"; };
+    if str_eq(name, "wrapping_neg") { return "__nucleor_wrapping_neg_i64"; };
+    if str_eq(name, "saturating_neg") { return "__nucleor_saturating_neg_i64"; };
     // RFC-0015 phase 4 — per-narrow-width overflow primitives
     if str_eq(name, "wrapping_add_i8") { return "__nucleor_wrapping_add_i8"; };
     if str_eq(name, "wrapping_sub_i8") { return "__nucleor_wrapping_sub_i8"; };
@@ -3502,6 +3509,13 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_checked_sub_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_checked_mul_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_checked_overflow_flag()\n");
+    sb_append(sb, "declare i64 @__nucleor_checked_div_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_checked_rem_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_checked_neg_i64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_wrapping_div_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_wrapping_rem_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_wrapping_neg_i64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_saturating_neg_i64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_add_i8(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_sub_i8(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_mul_i8(i64, i64)\n");
