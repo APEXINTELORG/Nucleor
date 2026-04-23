@@ -130,11 +130,11 @@ foreach ($d in $testDirs) {
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
 # 1 (binary present) + 1 (drift check) + 1 (tools-rebuild) +
-# 1 (help coverage) + 1 (CLI explain smoke) + 1 (explain-full) +
-# 1 (bootstrap) + 1 (check+abi) + 1 (inspectors) + 1 (diagnostics)
-# + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples + N tests
-# + N err + 1 (self-host)
-$stepTotal = 14 + $examples.Count + $testCount + $errCount + 1
+# 1 (help coverage) + 1 (utility smoke) + 1 (CLI explain smoke) +
+# 1 (explain-full) + 1 (bootstrap) + 1 (check+abi) + 1 (inspectors)
+# + 1 (diagnostics) + 1 (init) + 1 (doc) + 1 (lock) + 1 (test)
+# + N examples + N tests + N err + 1 (self-host)
+$stepTotal = 15 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -176,6 +176,30 @@ Step "tools-suite rebuild" {
     $built = "target\nucleor_tools.exe"
     if (-not (Test-Path $built)) { return $false }
     Copy-Item $built (Join-Path $root "bin\nucleor_tools.exe") -Force -ErrorAction SilentlyContinue
+    return $true
+}
+
+Step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" {
+    # Mirrors verify.sh cli_utility_smoke (added v0.2.85). Smokes
+    # the zero-side-effect utility commands. clean / scram NOT
+    # smoked because they delete target/ mid-gate.
+    $zenOut = & $bin zen 2>&1 | Out-String
+    if ([string]::IsNullOrWhiteSpace($zenOut)) { return $false }
+    if ($zenOut -notmatch "The Zen of Nucleor") { return $false }
+    $mcoOut = & $bin mco 2>&1 | Out-String
+    if ([string]::IsNullOrWhiteSpace($mcoOut)) { return $false }
+    if ($mcoOut -notmatch "Mars Climate Orbiter") { return $false }
+    $regOut = & $bin registry list 2>&1 | Out-String
+    if ([string]::IsNullOrWhiteSpace($regOut)) { return $false }
+    if ($regOut -notmatch "registry: ") { return $false }
+    if ($regOut -notmatch "packages: ") { return $false }
+    # Catch the v0.2.85 stderr leak by name.
+    if ($regOut -match "system cannot find") { return $false }
+    $tokOut = & $bin stage-dump tokens "examples/01_hello.nr" 2>&1 | Out-String
+    if ([string]::IsNullOrWhiteSpace($tokOut)) { return $false }
+    if ($tokOut -notmatch "TOKENS") { return $false }
+    $fixOut = & $bin fix --imports "examples/01_hello.nr" 2>&1 | Out-String
+    if ([string]::IsNullOrWhiteSpace($fixOut)) { return $false }
     return $true
 }
 

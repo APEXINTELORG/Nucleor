@@ -5,6 +5,84 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.85] — 2026-04-23
+
+**Bug fix: `nuc registry list` leaked `cmd.exe` stderr.**
+**Plus utility-smoke gate for 5 previously unsmoked CLI commands.**
+
+### Bug
+
+Auditing the unsmoked CLI surface (`zen`, `mco`, `registry list`,
+`stage-dump`, `fix --imports`) found `nuc registry list` printing
+a spurious `The system cannot find the file specified.` line on
+top of its real output:
+
+```
+$ nuc registry list
+The system cannot find the file specified.
+registry: .nucleor/registry
+packages: 0
+```
+
+Root cause: `dir_list_native` in
+`compiler/nucleor_tools_suite.nr` shells out to Windows
+`dir /b /ad <path> > <listing>`. When `<path>` doesn't exist
+(common — fresh project has no `.nucleor/registry` dir),
+`cmd.exe` writes to its stderr, which leaks past the parent
+process's redirect and lands on the user's terminal. The
+`system()` return code already handles the missing-dir case
+correctly (returns empty Vec); only the stderr message was
+broken.
+
+Fix: append `2>NUL` to both `dir` invocations in
+`dir_list_native`. Now:
+
+```
+$ nuc registry list
+registry: .nucleor/registry
+packages: 0
+```
+
+### Utility-smoke gate (`cli_utility_smoke`)
+
+New step in both `verify.sh` and `verify.ps1` exercises the 5
+zero-side-effect utility commands that weren't yet under gate
+coverage:
+
+- `nuc zen` — must print `"The Zen of Nucleor"`
+- `nuc mco` — must print `"Mars Climate Orbiter"` (RFC-0005
+  motivation poster)
+- `nuc registry list` — must print `registry:` + `packages:`
+  AND must NOT contain `system cannot find` (catches the
+  v0.2.85 regression by name)
+- `nuc stage-dump tokens examples/01_hello.nr` — must print
+  `TOKENS`
+- `nuc fix --imports examples/01_hello.nr` — must produce
+  non-empty output
+
+`nuc clean` and `nuc scram` are intentionally **NOT smoked**
+because they delete `target/` mid-gate, which would conflict
+with downstream example/test build steps.
+
+This brings the **explicitly-smoked CLI surface to 21
+commands**: `explain`, `bootstrap`, `check`, `abi`, `summary`,
+`audit`, `query`, `impact`, `policy`, `certify`, `translate`,
+`evidence`, `graph`, `perf`, `bench`, `init`, `doc`, `lock`,
+`test`, plus the 5 new utility entries (`zen`, `mco`,
+`registry`, `stage-dump`, `fix`). Together with implicit
+coverage of the build-family + run + emit via every example /
+test step, **every dispatched user-facing CLI command is now
+gate-protected** (modulo the side-effect-heavy `clean`/`scram`).
+
+**Step total bumped 198 → 199** in both gates.
+
+### Verify gate
+
+199 / 199 PASS, 0 SKIP on the bash gate. Tools-suite source
+change only — s1 compiler / runtime / ABI / source / test
+unchanged; self-host LLVM IR fixed point preserved (s1 binary
+not rebuilt this release).
+
 ## [0.2.84] — 2026-04-23
 
 **Bug fix: `nuc doc` and `nuc fix` were dispatched but missing
