@@ -18,7 +18,9 @@ proceed without re-design.
 
 | Doc | Topic | Status |
 |---|---|---|
-| [HELPER-CONTRACT](HELPER-CONTRACT.md) | Helper schema inventory & population (cataloging all `__nucleor_*` runtime helpers + ABI-table entries) | Phase 1 echo on record (v0.2.33); awaiting "go" before walk |
+| [HELPER-CONTRACT](HELPER-CONTRACT.md) | Helper schema inventory & population — protocol document | Phase 1 + Phase 2 done in v0.2.40 |
+| [helper_manifest.toml](helper_manifest.toml) | 676-helper schema map (TOML, generated) | Phase 2 artifact, v0.2.40 |
+| [helper_manifest_schema.md](helper_manifest_schema.md) | Per-field reference for `helper_manifest.toml` | v0.2.40 |
 
 ### Tier 1 — RT, robotics, allocator foundations
 
