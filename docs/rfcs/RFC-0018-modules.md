@@ -100,7 +100,7 @@ pub use crate::parser::Token;              // re-export
 
 ```
 my_project/
-├── nuc.toml
+├── Nucleor.toml
 ├── src/
 │   ├── main.nr      # crate root (binary)
 │   ├── parser.nr    # mod parser;
@@ -129,7 +129,7 @@ Module path appears in mangled symbol names so `parser::helper` and
 
 ### 3.8 Composition with package manager (RFC-0019)
 
-Top-level package name from `nuc.toml` becomes accessible as
+Top-level package name from `Nucleor.toml` becomes accessible as
 `<pkg>::...` in other crates. Inside the crate, refer via `crate::`.
 
 ### 3.9 Diagnostics

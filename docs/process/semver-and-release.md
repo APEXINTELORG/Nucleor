@@ -154,6 +154,6 @@ Compiler warning: "deprecated; will be removed in v0.N+3".
 
 When v1.0 ships, an "edition" mechanism (mirror Rust 2018/2021/2024)
 allows breaking syntax/semantics changes without breaking older
-crates. Each crate declares `edition = "2027"` in `nuc.toml`. Crates
+crates. Each crate declares `edition = "2027"` in `Nucleor.toml`. Crates
 of different editions interoperate at the API level. Withhold for
 1.0+; not relevant during v0.x.
