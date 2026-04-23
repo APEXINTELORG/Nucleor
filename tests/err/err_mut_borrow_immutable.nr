@@ -1,3 +1,5 @@
+// EXPECT: OWN-011 cannot mutably borrow immutable value
+// Need let mut to take &mut.
 // Phase 2c: Cannot mutably borrow immutable variable
 
 struct Data { x: i32 }

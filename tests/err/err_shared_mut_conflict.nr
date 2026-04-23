@@ -1,3 +1,5 @@
+// EXPECT: OWN-004 cannot mutably borrow value that is already borrowed
+// Mut borrow attempted while shared borrow live.
 // Phase 2c: Cannot have &T and &mut T at same time
 
 struct Item { val: i32 }

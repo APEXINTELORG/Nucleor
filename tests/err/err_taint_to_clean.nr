@@ -1,3 +1,5 @@
+// EXPECT: TYP-008 type mismatch for binding
+// Binding clean type to a tainted expression.
 // Error test: tainted<i32> cannot be assigned to clean i32
 fn get_input() -> tainted<i32> {
     99

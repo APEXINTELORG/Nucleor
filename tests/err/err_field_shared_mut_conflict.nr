@@ -1,3 +1,5 @@
+// EXPECT: OWN-005 cannot shared-borrow value that is mutably borrowed
+// Shared/mut borrow conflict at field granularity.
 // Phase SAFE-P5: Overlapping field borrows remain exclusive
 
 struct Pair { left: i32, right: i32 }

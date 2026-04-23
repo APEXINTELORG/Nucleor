@@ -1,3 +1,5 @@
+// EXPECT: TYP-006 argument type mismatch in call
+// Taint leaks into a clean sink.
 // Error test: tainted data cannot flow to clean context without sanitize
 fn get_input() -> tainted<i32> {
     99

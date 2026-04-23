@@ -5,6 +5,77 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.117] — 2026-04-23
+
+**Bulk-add EXPECT headers to the remaining 28 `tests/err/*.nr`
+files. All 33 negative tests now self-document.**
+
+After v0.2.116 fixed `err_args` and `err_bool_arith`, 28 of
+the 33 negative tests still had no `// EXPECT:` header. Added
+the canonical 2-line header to each:
+
+```
+// EXPECT: <CODE> <text>
+// <one-line description of what the test exercises>
+```
+
+Headers were captured by running each file through the
+compiler and recording the first `error[CODE]:` /
+`warning[CODE]:` line, then writing the EXPECT line + a
+short prose description.
+
+### Distribution of diagnostic codes added
+
+- **OWN-001 (use of moved variable)** — 6 tests:
+  err_borrow_after_move, err_device_use_after_move,
+  err_move_basic, err_move_conditional, err_move_fn_call.
+- **OWN-009 (cannot return reference to local value)** — 4
+  tests: err_dangling_primitive, err_dangling_return,
+  err_lifetime_dangling_return, err_scope_escape.
+- **OWN-004 (cannot mutably borrow value already borrowed)**
+  — 2 tests: err_shared_mut_conflict, err_two_mut_borrows.
+- **OWN-005 (cannot shared-borrow mutably-borrowed)** — 2
+  tests: err_field_shared_mut_conflict, err_mut_then_shared.
+- **TYP-006 (argument type mismatch)** — 3 tests:
+  err_taint_arg, err_taint_leak, err_taint_propagation.
+- **One each:** OWN-003 (move while borrowed), OWN-006 (assign
+  through shared ref), OWN-007 (assign borrowed location),
+  OWN-010 (escape inner block), OWN-011 (mut borrow immutable),
+  OWN-012 (destroy live arena), TYP-004 (deref non-ref),
+  TYP-008 (binding type mismatch), MATCH-002 (unreachable
+  match arm).
+
+### False-positive negative tests (v0.2.87 finding)
+
+Three tests fail at link-time rather than firing the intended
+Nucleor diagnostic — flagged with a special header:
+
+```
+// EXPECT: link error (false-positive negative test)
+// <description of the underlying compiler gap>
+```
+
+Files: `err_pure_ambient_random` (should fire pure-vs-effect
+but link-fails on `__nucleor_ambient_random` v0.4 placeholder),
+`err_restricts_specific` (should fire EFF-003 but link-fails
+on `__nucleor_putchar` libc symbol), `err_spawn_send` (should
+fire concurrency check but link-fails on
+`__nucleor_device_alloc/free` v0.4 placeholders). All three
+documented as v0.4 follow-up in v0.2.87 CHANGELOG.
+
+### Coverage
+
+**33 of 33 err tests now have EXPECT headers.** Future
+contributors reading any err test can immediately see what
+diagnostic the test is supposed to fire, the brief
+explanation, and (for the 3 false-positives) the known
+discrepancy.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Test behavior
+unchanged — header-only additions.
+
 ## [0.2.116] — 2026-04-23
 
 **Two `tests/err/*.nr` files had no header comment.**

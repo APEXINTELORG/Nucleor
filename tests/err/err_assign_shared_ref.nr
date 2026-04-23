@@ -1,3 +1,5 @@
+// EXPECT: OWN-006 cannot assign through shared reference
+// Shared (immutable) refs are read-only.
 // Phase 2c: Cannot assign through shared reference
 
 struct Data { x: i32 }
