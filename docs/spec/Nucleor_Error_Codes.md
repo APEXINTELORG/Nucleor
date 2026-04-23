@@ -439,33 +439,37 @@ the s1 source is touched.
 
 ## Suppression
 
-> **Status (v0.2.151):** `#[allow(CODE)]` ships. Scope is
-> file-wide for the v0.2 cut — anywhere the attribute appears
-> in the source, the named code is silenced for the whole
+> **Status (v0.2.152):** `#[allow(CODE)]` and `#[deny(CODE)]`
+> both ship. Scope is file-wide for the v0.2 cut — anywhere
+> the attribute appears in the source, the named code is
+> respectively silenced or promoted-to-error for the whole
 > compile unit. Per-fn / per-block scoping ships with v0.4
 > alongside the general attribute-with-argument parsing
 > infrastructure that powers RFC-0004 `#[assume]` and
-> RFC-0014 `#[max_depth]`. **`#[deny(CODE)]` is not yet
-> wired** — `#[deny]` parses without error but does not
-> promote a warning to an error; targeted for v0.4.
+> RFC-0014 `#[max_depth]`.
 
 Users suppress warning-severity diagnostics per-file via
-`#[allow(CODE)]`. The check happens after every compiler pass
-fires its diagnostics — `filter_allow_suppressed` walks the
-collected `diags` vec and drops any whose severity is
-`"warning"` (not `"error"`) and whose code matches an entry
-in the source's collected allow-list. Errors are never
-suppressible. Gate-tested via
-`tests/lang/allow_suppress_warning.nr`.
+`#[allow(CODE)]`, and promote warning-severity diagnostics to
+errors via `#[deny(CODE)]`. Both checks happen after every
+compiler pass fires its diagnostics — `filter_allow_suppressed`
+walks the collected `diags` vec and drops any whose severity
+is `"warning"` and whose code matches an entry in the source's
+collected allow-list, then `promote_denied_to_errors` walks
+the surviving diags and flips severity from `"warning"` to
+`"error"` where the code matches an entry in the deny-list.
+Errors are never suppressible; allow runs first so a deny on
+a previously-allowed code is a no-op (the diag is gone).
+Gate-tested via `tests/lang/allow_suppress_warning.nr` (allow)
+and `tests/err/err_deny_promotes_warning.nr` (deny).
 
-The mechanism preserves `#[allow]` lines through
+The mechanism preserves `#[allow]` and `#[deny]` lines through
 `resolve_source_with_records` (the import / `#cfile` / `#link`
 preprocessor) by checking for `#[` after the leading `#`
 before stripping the line — Rust-style attributes are kept
 intact for the diag-filter to scan.
 
 **Planned v0.4 design:** per-fn / per-block scoping for
-`#[allow]`; `#[deny(CODE)]` promoting warnings to errors;
-build-profile suppression. Some codes (safety-cert subset —
-see `docs/process/nucleor-safe-subset.md`) will not be
+`#[allow]` / `#[deny]`; build-profile suppression. Some codes
+(safety-cert subset — see
+`docs/process/nucleor-safe-subset.md`) will not be
 suppressible in `--profile=cert` mode.
