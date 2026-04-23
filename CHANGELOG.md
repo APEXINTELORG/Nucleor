@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.146] — 2026-04-23
+
+**Milestone tracker sub-chain header was undercounting post-RC
+releases — 71 → 96.**
+
+The sub-chain summary header in `docs/milestones/v0.2.0.md` said
+"**The 71 releases between the v0.2.0 RC tag and v0.2.120 fall
+into six buckets**". As of v0.2.145 the post-RC chain is 96
+releases long (v0.2.50 through v0.2.145 spans more ships than
+when the header was last written at v0.2.120). Bumped both the
+endpoint (v0.2.120 → v0.2.145) and the count (71 → 96). The six
+buckets themselves still cover the span — the v0.2.131–145 ships
+all fall into "**Documentation staleness audit**" or the extended
+"**Diagnostic-code coverage closure**" bucket.
+
+### `docs/milestones/v0.2.0.md`
+
+- Sub-chain summary header: "v0.2.50–v0.2.120 (post-RC
+  hardening)" → "v0.2.50–v0.2.145 (post-RC hardening)"; first
+  sentence bumped "71 releases ... and v0.2.120" →
+  "96 releases ... and v0.2.145".
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.145] — 2026-04-23
 
 **Spec doc "Suppression" section described `#[allow]` / `#[deny]`
