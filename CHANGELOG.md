@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.39] — 2026-04-22
+
+**Migration guide refreshed for the v0.2.x stdlib enrichment chain.**
+
+`docs/migrations/v0.1-to-v0.2.md` was authored at v0.2.0 release and
+hadn't been updated to reflect the 18 incremental v0.2.x enrichment
+releases. This release brings it current:
+
+- **Title + scope** broadened to "v0.1.x to v0.2.0 (and beyond)" with
+  explicit framing that v0.2.0..v0.2.38 is strictly additive.
+- **TL;DR** now explicitly mentions the v0.2.x enrichment chain (75+
+  new helpers, 5 new demo programs) so readers know what they're
+  picking up if they upgrade past v0.2.0 itself.
+- **"v0.2.18..v0.2.30 stdlib enrichment" sub-section** lists every
+  incremental release with its helper count and 1-line summary
+  (v0.2.18 → v0.2.30, twelve rows).
+- **Pointer to HELPER-CONTRACT.md** for the full 676-helper
+  inventory + manifest deliverable status.
+
+Documentation-only — no compiler / runtime / ABI / test changes.
+Verify gate 184/185 (1 skip).
+
 ## [0.2.38] — 2026-04-22
 
 **Top-level `README.md` reflects the v0.2.x stdlib + new examples.**
