@@ -7,7 +7,7 @@
 | **Status** | Implemented (partial) v0.1.30 — see `docs/milestones/v0.2.0.md`; v0.2 ships POSIX `nuc` shell wrapper + `_WIN32` audit, Linux/macOS native bins targeted v0.3.0, sysroots v0.5.0 |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
-| **Target release** | v0.2.0 (Linux desktop) → v0.5.0 (macOS, full cross) |
+| **Target release** | v0.2.0 (POSIX `nuc` wrapper + `_WIN32` audit — shipped v0.1.30) → v0.3.0 (native Linux/macOS `bin/nucleor` binaries) → v0.5.0 (full cross-compilation + sysroots) |
 | **Depends on** | RFC-0018 (modules — for path semantics) |
 
 ---

@@ -7,7 +7,7 @@
 | **Status** | Implemented (partial) v0.2.6 — `format_i64/str/hex/2_ii/2_si` builtins, one `{}` per call; full variadic + `Display` / `Debug` traits deferred to v0.4 |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
-| **Target release** | v0.4.0 |
+| **Target release** | v0.2 partial (v0.2.6 — `format_i64/str/hex/2_ii/2_si` builtins) → v0.4.0 (full variadic + `Display` / `Debug` traits) |
 | **Depends on** | RFC-0017 (String) |
 
 ---

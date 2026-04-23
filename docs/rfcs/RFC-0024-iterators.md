@@ -7,7 +7,7 @@
 | **Status** | Implemented (partial) v0.2.9 — `Vec<i64>` `.map/.filter/.fold/.each/.sum/.min/.max` via fn-ptrs; full trait + adapter chain with closures deferred to v0.4 |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
-| **Target release** | v0.4.0 |
+| **Target release** | v0.2 partial (v0.2.9 — `Vec<i64>` fn-ptr adapters) → v0.4.0 (full trait + closures) |
 | **Depends on** | RFC-0016 (Option for `next()`), RFC-0017 (collections that iterate) |
 
 ---
