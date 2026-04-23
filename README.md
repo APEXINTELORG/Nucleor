@@ -41,7 +41,7 @@ target\hello.exe
 
 The bootstrap binary `bin/nucleor.exe` is committed to the repo, so you do not need to build the compiler from source on first use. The `nuc.bat` launcher resolves `clang.exe` from `NUCLEOR_CLANG_PATH`, then `LLVM_SYS_180_PREFIX/bin`, then `C:\Program Files\LLVM\bin`, then plain PATH.
 
-POSIX (Linux/macOS) support is planned for v1.1.
+POSIX (Linux/macOS) support is planned for **v0.3.0** (see [`docs/milestones/v0.3.0.md`](docs/milestones/v0.3.0.md)) — phases 1, 2, and 4 of RFC-0022 already shipped in v0.2 (POSIX `tools/verify.sh` gate, `nuc` shell wrapper, runtime `_WIN32` audit). The v0.3 release adds the native Linux/macOS bootstrap binaries.
 
 ## Standard library — by category
 
@@ -69,7 +69,7 @@ POSIX (Linux/macOS) support is planned for v1.1.
 
 **Interop:** `rust` (Rust crates via C ABI) · `python` · `gpu`
 
-That's **103 rods total** as of v0.1.5, all building cleanly against the bootstrap binary.
+That's **121 rods total** as of v0.2.46 (was 103 at v0.1.5; the v0.2.18–v0.2.30 stdlib enrichment chain added 18 more), all building cleanly against the bootstrap binary. Full per-rod catalog with API surface and stability is at [`docs/rfcs/rod_manifest.toml`](docs/rfcs/rod_manifest.toml).
 
 **v0.1.5 added** (rods that wrap runtime files which already shipped but had no `.nr` wrapper): `taylor` (validated Taylor-arithmetic ODE integrator), `interval` (rigorous interval arithmetic), `bigint`, `crypto`, `compress`, `hashmap`, `socket` (TCP + UDP), `image` (PPM/BMP, convolutions), `plot` (SVG output), `datetime`, `mmap`, `state_machine`, `graph` (BFS/DFS/Dijkstra/Bellman-Ford/MST/PageRank), `bayesian` (MCMC), `bloom` + HyperLogLog, `bm25`, `kdtree`, `hnsw`, `pq` (product quantization), `embedding`, `clifford` (stabilizer formalism for QEC), `mesh` (finite-element rectangular meshes), `mps` (Matrix Product States), `kv_cache`, `quantize` (Q4/int8/ternary/FP8), `rl` (replay/GAE/PPO/DQN), `loss`, `speculative` (LLM speculative decoding), `diffusion`, `bioseq`, `audio` (WAV/STFT/MFCC), `color`, `serial`, `comm` (collective communication), `conv` (CNN building blocks), `string_algo` (KMP/Levenshtein/Trie), `scan` (parallel-scan/SSM kernels), `checkpoint`.
 
