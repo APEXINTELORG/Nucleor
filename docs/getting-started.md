@@ -4,7 +4,7 @@ Five minutes from a fresh clone to a running Nucleor program.
 
 ## Prerequisites
 
-- **Windows 10/11, x86_64.** v1 targets `x86_64-pc-windows-msvc`. POSIX support is planned for v1.1.
+- **Windows 10/11, x86_64.** v0.2 targets `x86_64-pc-windows-msvc`. POSIX support (Linux/macOS) is planned for **v0.3.0** (see [`docs/milestones/v0.3.0.md`](milestones/v0.3.0.md)) — phases 1, 2, and 4 of RFC-0022 already shipped in v0.2 (POSIX `tools/verify.sh` gate, `nuc` shell wrapper, runtime `_WIN32` audit). The v0.3 release adds the native Linux/macOS bootstrap binaries.
 - **LLVM 18.x** with `clang.exe`. The default install path is `C:\Program Files\LLVM\bin`.
   - Easiest install: `winget install LLVM.LLVM` or download from https://github.com/llvm/llvm-project/releases.
   - If LLVM lives elsewhere, set `LLVM_SYS_180_PREFIX` (pointing at the install root) or `NUCLEOR_CLANG_PATH` (full path to `clang.exe`) before invoking `nuc`.
