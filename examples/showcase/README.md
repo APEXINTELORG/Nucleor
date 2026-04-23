@@ -2,10 +2,13 @@
 
 End-to-end programs that exercise the v0.2.x stdlib in
 production-shaped scenarios. Larger and more domain-specific
-than the numbered examples in `examples/01..18`. **Not part of
-the verify gate** — they produce streaming visual output
-(ANSI heatmaps, dashboards, live charts), so they're meant to
-be run interactively and watched.
+than the numbered examples in `examples/01..18`. **Build is
+gated** via the `showcase_build_smoke` step (added v0.2.90 to
+both `tools/verify.sh` and `tools/verify.ps1` — the gate
+verifies each `.exe` is produced); **execution is not gated**
+because the programs produce streaming visual output (ANSI
+heatmaps, dashboards, live charts) and are meant to be run
+interactively and watched, not auto-asserted.
 
 All four programs build with the shipped `bin/nucleor.exe` and
 share the local `_viz.nr` helper for ANSI cursor positioning,
@@ -46,15 +49,19 @@ For automation use the numbered examples in `examples/01..18`,
 all of which produce non-streaming text output and are gated
 in `tools/verify.sh` / `tools/verify.ps1`.
 
-## Why no gate coverage?
+## Why no run-time gate coverage?
 
-The verify gate runs every example to completion and checks
-non-empty stdout. The showcase programs:
+The verify gate runs every numbered example to completion and
+checks non-empty stdout. The showcase programs:
 
 - Run for many seconds (or until the user interrupts) producing
   thousands of lines of ANSI escape sequences;
 - Re-render the same screen region in place via cursor moves;
 - Aren't designed to "complete" — they're live dashboards.
 
-A future gate addition could be a build-only smoke (verify the
-`.exe` is produced). That's tracked but not yet shipped.
+So end-to-end run gating doesn't fit. The build-only smoke
+(`showcase_build_smoke`, shipped v0.2.90) catches the cases that
+matter for the gate: a `.exe` not produced, an `import "examples/
+showcase/_viz.nr"` resolution break, an extern-fn typo against
+the runtime, or an LLVM emission failure. Run-time visual
+correctness remains a manual / human-eyeball verification.
