@@ -1233,6 +1233,48 @@ NVec *__nucleor_str_chars(const char *s) {
     return out;
 }
 
+// --- v0.2.29 (cont): Vec-using random helpers ---
+extern long long nuc_rng_int(long long lo, long long hi);
+
+long long __nucleor_random_choice(NVec *v) {
+    if (!v || v->len <= 0) return 0;
+    long long idx = nuc_rng_int(0, (long long)(v->len - 1));
+    return v->data[(int)idx];
+}
+void __nucleor_vec_shuffle(NVec *v) {
+    if (!v || v->len < 2) return;
+    // Fisher-Yates in place, walking backward.
+    for (int i = v->len - 1; i > 0; i--) {
+        long long j = nuc_rng_int(0, (long long)i);
+        long long tmp = v->data[i];
+        v->data[i] = v->data[(int)j];
+        v->data[(int)j] = tmp;
+    }
+}
+NVec *__nucleor_vec_sample(NVec *v, long long k) {
+    NVec *out = __nucleor_vec_new();
+    if (!v || k <= 0) return out;
+    if (k > (long long)v->len) k = (long long)v->len;
+    // Build a shuffled copy of the source indices, take first k.
+    int *idx = (int *)malloc(sizeof(int) * v->len);
+    for (int i = 0; i < v->len; i++) idx[i] = i;
+    for (int i = v->len - 1; i > 0; i--) {
+        long long j = nuc_rng_int(0, (long long)i);
+        int t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+    }
+    for (long long i = 0; i < k; i++) {
+        __nucleor_vec_push(out, v->data[idx[i]]);
+    }
+    free(idx);
+    return out;
+}
+void __nucleor_random_fill(NVec *v, long long lo, long long hi) {
+    if (!v) return;
+    for (int i = 0; i < v->len; i++) {
+        v->data[i] = nuc_rng_int(lo, hi);
+    }
+}
+
 // === StringBuilder (amortized O(1) append, avoids O(n^2) str_concat) ===
 typedef struct { char *data; int len; int cap; } NStrBuilder;
 
@@ -1403,6 +1445,14 @@ long long __nucleor_rng_uniform(void) { return nuc_rng_uniform(); }
 long long __nucleor_rng_normal(void) { return nuc_rng_normal(); }
 long long __nucleor_rng_bernoulli(long long p_bits) { return nuc_rng_bernoulli(p_bits); }
 long long __nucleor_rng_exponential(long long lambda_bits) { return nuc_rng_exponential(lambda_bits); }
+
+// --- v0.2.29: random helpers (non-Vec) ---
+long long __nucleor_random_int(long long lo, long long hi) {
+    return nuc_rng_int(lo, hi);
+}
+long long __nucleor_random_bool(void) {
+    return nuc_rng_int(0, 1);
+}
 long long __nucleor_mutex_lock_value(long long handle) {
     __nucleor_mutex_lock(handle);
     return 0;
