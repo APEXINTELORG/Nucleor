@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.109] — 2026-04-23
+
+**Bug fix: `nuc.toml` `[features]` showcase comment listed
+wrong example name.**
+
+The repo-root `nuc.toml` had:
+
+```toml
+[features]
+default = ["showcase"]
+showcase = []  # examples 13_test_framework, 14_typed_frames, etc.
+```
+
+But **`14_typed_frames` doesn't exist**. The actual `examples/14_*.nr`
+file is `14_csv_summary.nr`. There's no Nucleor example named
+`typed_frames` — that's a future RFC-0003 demo concept that was
+never built. The "etc." also hid the fact that examples
+15–18 + 4 showcase programs exist today.
+
+### Fix
+
+Comment expanded to enumerate the actual examples that ship
+under the showcase feature: `13_test_framework`,
+`14_csv_summary`, `15_word_count`, `16_histogram`,
+`17_linecount`, `18_benchmark`, plus the four
+`examples/showcase/*.nr` programs (`lorenz`, `vqe_h2`,
+`market_maker`, `wing_simulator`).
+
+The `showcase = []` array is empty (no further deps required
+to build the showcase examples) so the comment is the only
+signal of what the feature actually includes.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.108] — 2026-04-23
 
 **Bug fix: `docs/architecture.md` "around line 1700" stale —

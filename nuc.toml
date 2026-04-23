@@ -45,7 +45,7 @@ repository = "https://github.com/APEXINTELORG/Nucleor"
 
 [features]
 default = ["showcase"]
-showcase = []  # examples 13_test_framework, 14_typed_frames, etc.
+showcase = []  # examples 13_test_framework, 14_csv_summary, 15_word_count, 16_histogram, 17_linecount, 18_benchmark + examples/showcase/{lorenz,vqe_h2,market_maker,wing_simulator}.nr
 embedded = []  # v0.6: stdlib/embedded/* + nostd profile
 
 [profile.dev]
