@@ -129,11 +129,12 @@ foreach ($d in $testDirs) {
 }
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
-# 1 (binary present) + 1 (drift check) + 1 (CLI explain smoke) +
-# 1 (bootstrap) + 1 (check+abi) + 1 (inspectors) + 1 (diagnostics) +
-# 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples + N tests +
-# N err + 1 (self-host)
-$stepTotal = 11 + $examples.Count + $testCount + $errCount + 1
+# 1 (binary present) + 1 (drift check) + 1 (tools-rebuild) +
+# 1 (CLI explain smoke) + 1 (explain-full) + 1 (bootstrap) +
+# 1 (check+abi) + 1 (inspectors) + 1 (diagnostics) + 1 (init) +
+# 1 (doc) + 1 (lock) + 1 (test) + N examples + N tests + N err +
+# 1 (self-host)
+$stepTotal = 13 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -164,6 +165,20 @@ Step "compiler ABI tables synced" {
     return $LASTEXITCODE -eq 0
 }
 
+Step "tools-suite rebuild" {
+    # Mirrors verify.sh tools_rebuild (added v0.2.79). Rebuilds the
+    # nucleor_tools.exe binary so the explain registry, `nuc test`
+    # harness writer, and other tools-suite logic are tested
+    # against the current source. Without this a pull that updates
+    # nucleor_tools_suite.nr would leave the user's stale
+    # bin\nucleor_tools.exe in place.
+    & $bin build "compiler/nucleor_tools_suite.nr" -o "nucleor_tools" *> $null
+    $built = "target\nucleor_tools.exe"
+    if (-not (Test-Path $built)) { return $false }
+    Copy-Item $built (Join-Path $root "bin\nucleor_tools.exe") -Force -ErrorAction SilentlyContinue
+    return $true
+}
+
 Step "CLI: nuc explain NUM-001 wired" {
     # Mirrors verify.sh cli_explain_smoke (added v0.2.64). Exercises
     # the explain registry in nucleor_tools_suite.nr so codes added
@@ -175,6 +190,29 @@ Step "CLI: nuc explain NUM-001 wired" {
     if ($explainOut -notmatch "NUM-001") { return $false }
     if ($explainOut -notmatch "Mixed-width") { return $false }
     if ($explainOut -notmatch "Nucleor_Error_Codes") { return $false }
+    return $true
+}
+
+Step "CLI: nuc explain — full v0.2 code set wired" {
+    # Mirrors verify.sh cli_explain_full_smoke (added v0.2.79).
+    # Audits the full v0.2 error-code set against the explain
+    # registry. Catches the drift class that bit NUM-004 / TST-001
+    # / TST-002 / TST-003 (codes spec'd in Nucleor_Error_Codes.md
+    # but never wired into the registry).
+    $codes = @(
+        "NUM-001", "NUM-002", "NUM-003", "NUM-004", "NUM-005",
+        "MATCH-001", "MATCH-002", "MATCH-003", "MATCH-004", "MATCH-005", "MATCH-006",
+        "COLL-001", "COLL-002", "COLL-003", "COLL-004", "COLL-005",
+        "MOD-001", "MOD-002", "MOD-003", "MOD-004", "MOD-005", "MOD-006",
+        "PKG-001", "PKG-002", "PKG-003", "PKG-004", "PKG-005", "PKG-006",
+        "TGT-001", "TGT-002", "TGT-003", "TGT-004",
+        "TST-001", "TST-002", "TST-003"
+    )
+    foreach ($c in $codes) {
+        $out = & $bin explain $c 2>&1 | Out-String
+        if ($out -match "unknown error code") { return $false }
+        if ($out -notmatch [regex]::Escape($c)) { return $false }
+    }
     return $true
 }
 

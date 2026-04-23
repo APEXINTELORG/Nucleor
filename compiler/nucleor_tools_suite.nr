@@ -9032,6 +9032,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "NUM-001") { return "Mixed-width arithmetic without cast"; };
     if str_eq(code, "NUM-002") { return "Numeric literal out of range for declared type"; };
     if str_eq(code, "NUM-003") { return "Cast loses precision (warning)"; };
+    if str_eq(code, "NUM-004") { return "f8/f16/bf16 op without hardware support"; };
     if str_eq(code, "NUM-005") { return "usize/isize mixed with explicit-width type"; };
     // RFC-0016 match
     if str_eq(code, "MATCH-001") { return "Non-exhaustive match"; };
@@ -9103,6 +9104,10 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "TGT-002") { return "Sysroot not installed for target"; };
     if str_eq(code, "TGT-003") { return "Feature unsupported on target"; };
     if str_eq(code, "TGT-004") { return "Cross-link error"; };
+    // RFC-0021 test framework
+    if str_eq(code, "TST-001") { return "Test discovery: no #[test] functions found"; };
+    if str_eq(code, "TST-002") { return "Test isolation: process child crashed before reporting"; };
+    if str_eq(code, "TST-003") { return "Test fixture: setup fn returned non-zero"; };
     return "";
 }
 
@@ -9138,6 +9143,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "NUM-001") { return "Nucleor follows Rust's no-implicit-conversion rule. Cast explicitly with `as`: `(u8_val as i32) + i32_val`."; };
     if str_eq(code, "NUM-002") { return "The literal does not fit in the declared type — e.g. 256u8 overflows u8."; };
     if str_eq(code, "NUM-003") { return "An `as` cast may truncate or round. The warning is informational; promote to error with #![deny(precision_loss)]."; };
+    if str_eq(code, "NUM-004") { return "The current target lacks hardware support for the requested low-precision float (f8e4m3 / f8e5m2 / f16 / bf16); the operation is emulated in software and may be slow."; };
     if str_eq(code, "NUM-005") { return "usize and isize are platform-pointer-width and incompatible with explicit i64 / u64 etc. without cast."; };
     if str_eq(code, "MATCH-001") { return "The match does not cover all variants of the matched type. The compiler shows a witness uncovered value."; };
     if str_eq(code, "MATCH-002") { return "An arm is preceded by patterns that already match every case it would handle."; };
@@ -9195,6 +9201,9 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "TGT-002") { return "Run nuc install sysroot --target=<triple> to install the cross-compilation sysroot."; };
     if str_eq(code, "TGT-003") { return "Feature requires capability missing on this target (e.g. mmap on bare metal). Use --target check to see the missing capability list."; };
     if str_eq(code, "TGT-004") { return "Cross-linker rejected the binary. Likely missing C library; consult the linker error output for the specific symbol."; };
+    if str_eq(code, "TST-001") { return "`nuc test` scanned the source but found no functions annotated `#[test]`. Either add tests or invoke `nuc build`/`nuc check` directly."; };
+    if str_eq(code, "TST-002") { return "Under `--isolation=process`, the spawned child for a test exited with an unexpected signal (segv / abort / oom) before the harness could record PASS or FAIL."; };
+    if str_eq(code, "TST-003") { return "A `#[test]` declared `setup` or `teardown` returned non-zero. The test body did not run."; };
     return "";
 }
 
@@ -9230,6 +9239,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "NUM-001") { return "Nucleor models on Rust: numeric types are distinct, no implicit conversion. Cast explicitly with `as`. Reasoning: silent conversions are a recurring bug source (truncation, sign extension)."; };
     if str_eq(code, "NUM-002") { return "Numeric literal exceeds the declared type's range — e.g. 256u8, -1u32, 4_000_000_000i32. Use a wider type or change the literal."; };
     if str_eq(code, "NUM-003") { return "Casting f64 to i32, i64 to i8 etc. may lose precision or wrap. The warning surfaces the risk; if intentional, suppress with #[allow(precision_loss)] on the call site."; };
+    if str_eq(code, "NUM-004") { return "RFC-0015 §3.4 — f8e4m3 / f8e5m2 (NVIDIA Hopper formats), f16 (IEEE half), and bf16 (Brain float) need hardware support to be fast. Without it the operation is emulated via f32 conversion in the runtime. The warning is informational; suppress with #[allow(no_hw_lp_float)] or move the kernel to a target that has the instruction set."; };
     if str_eq(code, "NUM-005") { return "usize/isize represent platform-pointer-width values used for indices and pointer arithmetic. Mixing with explicit i64/u64 risks portability bugs across 32-/64-bit targets."; };
     if str_eq(code, "MATCH-001") { return "The match must cover every variant of the discriminant type, or use a wildcard (_) arm. Compiler shows the missing case."; };
     if str_eq(code, "MATCH-002") { return "Patterns are tested in order. A later arm cannot match if an earlier arm covers all values it would handle."; };
@@ -9287,6 +9297,9 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "TGT-002") { return "RFC-0022 §3.7 — sysroots ship from nucleor.dev/sysroots/. The download is signed; install with `nuc install sysroot --target=<triple>`."; };
     if str_eq(code, "TGT-003") { return "RFC-0022 §3.6 — runtime feature audit. Some `_rt.c` modules guard with `_WIN32` / `__linux__` / etc.; bare-metal targets exclude entire categories."; };
     if str_eq(code, "TGT-004") { return "RFC-0022 §3.7 — likely missing libc on the target. For Linux→Windows or macOS→Linux cross, consult `clang --target=<triple> --print-search-dirs`."; };
+    if str_eq(code, "TST-001") { return "RFC-0021 §3.1 — the discovery pass walks every fn declared in the source and looks for the `#[test]` attribute. None found means either the file has no tests yet or all candidates are gated behind `#[cfg(test)]` that isn't active. To run a single test from a non-test source, mark it `#[test]` explicitly."; };
+    if str_eq(code, "TST-002") { return "RFC-0021 §3.4 — `--isolation=process` runs each test in a fresh child via env-var dispatch (`NUCLEOR_TEST_ONLY=<name>`). If the child segfaults, aborts, or is OOM-killed before `print('PASS …')` or `print('FAIL …')`, the harness reports TST-002 with the child's exit code. Re-run under a debugger or drop `--isolation=process` to see the panic in the parent."; };
+    if str_eq(code, "TST-003") { return "RFC-0021 (deferred) — the v0.4 fixture work adds `#[before]` / `#[after]` hooks that gate the test body. A non-zero return from the setup hook reports TST-003 and skips the body. Until v0.4 lands, manage setup imperatively at the top of each `#[test]` fn."; };
     return "";
 }
 
