@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.35] — 2026-04-22
+
+**Multi-file `wc`-style counter (`examples/17_linecount.nr`).**
+
+```
+=== Nucleor linecount demo (v0.2.x stdlib) ===
+
+file                                 lines     words     chars
+--------------------------------------------------------------
+README.md                              184      1567     12279
+CHANGELOG.md                          3706     19005    144499
+LICENSE                                201      1573     11305
+--------------------------------------------------------------
+TOTAL                                 4091     22145    168083
+
+Counted 3 files.
+```
+
+Fourth v0.2-era end-to-end demo. A practical `wc`-style tool that
+counts lines, words, and characters across one or more files.
+
+- File list comes from `$NUC_LC_FILES` (semicolon-separated) or
+  falls back to a bundled list (`README.md`, `CHANGELOG.md`,
+  `LICENSE`) so the demo works out of the box.
+- Per-file rows + a TOTAL aggregate when more than one file given.
+- Missing files are reported separately rather than silently skipped.
+- Tokenizer treats space, tab, newline, and carriage-return as
+  word separators (POSIX `wc` convention).
+- Output is padded into fixed-width columns via `str_pad_right` /
+  `str_pad_left`, with an underline bar for visual structure.
+
+The bundled-default invocation across the three repo files
+(`README.md`, `CHANGELOG.md`, `LICENSE`) reports 4091 lines, 22145
+words, 168083 chars — verifiable against `wc` on the same files
+(numbers will drift slightly as CHANGELOG grows, that's expected).
+
+`17_linecount` is now part of the gate (`tools/verify.sh`):
+183/184 green on Windows + 1 skip. Self-host LLVM IR fixed point
+unaffected (no compiler changes this release).
+
 ## [0.2.34] — 2026-04-22
 
 **ASCII histogram example (`examples/16_histogram.nr`).**
