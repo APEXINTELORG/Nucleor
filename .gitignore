@@ -15,6 +15,14 @@ target/
 # Allow the shipped bootstrap binary
 !bin/nucleor.exe
 
+# Scratch binaries from self-host fixed-point checks. Chain commands
+# of the form `nuc build ... -o bin/nucleor_vNNN.exe` should write to
+# target/ instead, but the convention through v0.2.x left them in
+# bin/. Excluded here so they never slip into a commit. Do NOT add
+# a `!` exception for these. (See bin/README.md.)
+bin/nucleor_v*.exe
+bin/nucleor_tools.exe
+
 # rust_bridge build artifacts
 stdlib/rods/rust_bridge/target/
 stdlib/rods/rust_bridge/Cargo.lock
