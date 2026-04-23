@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.30] — 2026-04-22
+
+**Vec statistics helpers (6 helpers).**
+
+```nucleor
+let v: Vec<i64> = vec_new();
+vec_push(v, 2); vec_push(v, 4); vec_push(v, 4); vec_push(v, 4);
+vec_push(v, 5); vec_push(v, 5); vec_push(v, 7); vec_push(v, 9);
+// Classic [2,4,4,4,5,5,7,9]: mean=5, variance=4, stddev=2.
+
+vec_mean_f64(v);                            // 5.0   (f64 bits)
+vec_median_f64(v);                          // 4.5
+vec_variance_f64(v);                        // 4.0   (population variance)
+vec_stddev_f64(v);                          // 2.0
+vec_range_i64(v);                           // 7     (max - min)
+vec_percentile_f64(v, f64_from_scaled(0));  // 2.0   (0th percentile)
+vec_percentile_f64(v, f64_from_scaled(1000000));  // 9.0
+```
+
+Gives Nucleor programs first-class summary statistics over `Vec<i64>`
+without going through a separate rod. Returns f64 bit-patterns
+(matching the existing f64 ABI) so results compose with the
+`f64_*` math helpers from v0.2.18 / v0.2.21.
+
+- **`vec_mean_f64`** is a straight `sum / len`. Population mean,
+  not sample mean.
+- **`vec_median_f64`** allocates a sorted scratch copy (insertion
+  sort — fine for "stat over a small vec" usage). Source vec is
+  not mutated. Even-length: average of the two middle elements.
+- **`vec_variance_f64`** is the **population** variance
+  `Σ(x - mean)² / n`. (Sample variance with `/ (n-1)` is one
+  multiply away — left to higher-level rods.)
+- **`vec_stddev_f64`** is the obvious `sqrt(variance)`.
+- **`vec_range_i64`** is `max - min` in one pass over the data.
+- **`vec_percentile_f64(v, p)`** uses linear interpolation between
+  the bracketing samples. `p` clamps to `[0, 1]`. `p == 0` returns
+  the min, `p == 1` returns the max.
+
+Empty vecs return `0` / `0.0` (matches the rest of the Vec surface).
+
+Six helpers; all take `Vec<i64>` (one also takes a `p` f64-bits arg).
+Wired through both compiler binaries with the drift-gate sync.
+
+### Verify gate
+
+179/180 green on Windows + 1 skip. New gate: `tests/runtime/vec_stats.nr`
+(classic [2,4,4,4,5,5,7,9] sample with hand-verified mean / variance /
+stddev; odd-length median; percentile endpoints; non-mutation invariant).
+Self-host LLVM IR fixed point preserved (v145==v146 byte-identical).
+
 ## [0.2.29] — 2026-04-22
 
 **Random helpers + Vec shuffle / sample (6 helpers).**

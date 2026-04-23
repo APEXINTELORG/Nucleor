@@ -1275,6 +1275,97 @@ void __nucleor_random_fill(NVec *v, long long lo, long long hi) {
     }
 }
 
+// --- v0.2.30: Vec statistics helpers ---
+// vec_mean_f64 / vec_median_f64 / vec_variance_f64 / vec_stddev_f64 /
+// vec_percentile_f64 all return f64 bits in an i64 cell. vec_range_i64
+// returns max - min as i64.
+//
+// Empty inputs return 0 / 0.0 (no exception). vec_median + vec_percentile
+// allocate a sorted scratch copy so the source vec is not mutated.
+
+long long __nucleor_vec_mean_f64(NVec *v) {
+    union { long long i; double d; } u;
+    if (!v || v->len <= 0) { u.d = 0.0; return u.i; }
+    long long sum = 0;
+    for (int i = 0; i < v->len; i++) sum += v->data[i];
+    u.d = (double)sum / (double)v->len;
+    return u.i;
+}
+long long __nucleor_vec_median_f64(NVec *v) {
+    union { long long i; double d; } u;
+    if (!v || v->len <= 0) { u.d = 0.0; return u.i; }
+    long long *copy = (long long *)malloc(sizeof(long long) * v->len);
+    memcpy(copy, v->data, sizeof(long long) * v->len);
+    // Insertion sort — fine for the typical "stat over a small vec" use case.
+    for (int i = 1; i < v->len; i++) {
+        long long key = copy[i]; int j = i - 1;
+        while (j >= 0 && copy[j] > key) { copy[j + 1] = copy[j]; j--; }
+        copy[j + 1] = key;
+    }
+    if (v->len % 2 == 1) {
+        u.d = (double)copy[v->len / 2];
+    } else {
+        long long a = copy[v->len / 2 - 1];
+        long long b = copy[v->len / 2];
+        u.d = ((double)a + (double)b) / 2.0;
+    }
+    free(copy);
+    return u.i;
+}
+long long __nucleor_vec_variance_f64(NVec *v) {
+    union { long long i; double d; } u;
+    if (!v || v->len <= 0) { u.d = 0.0; return u.i; }
+    long long sum = 0;
+    for (int i = 0; i < v->len; i++) sum += v->data[i];
+    double mean = (double)sum / (double)v->len;
+    double accum = 0.0;
+    for (int i = 0; i < v->len; i++) {
+        double dv = (double)v->data[i] - mean;
+        accum += dv * dv;
+    }
+    u.d = accum / (double)v->len;
+    return u.i;
+}
+long long __nucleor_vec_stddev_f64(NVec *v) {
+    union { long long i; double d; } u;
+    long long var_bits = __nucleor_vec_variance_f64(v);
+    union { long long i; double d; } vu; vu.i = var_bits;
+    u.d = sqrt(vu.d);
+    return u.i;
+}
+long long __nucleor_vec_range_i64(NVec *v) {
+    if (!v || v->len <= 0) return 0;
+    long long mn = v->data[0], mx = v->data[0];
+    for (int i = 1; i < v->len; i++) {
+        if (v->data[i] < mn) mn = v->data[i];
+        if (v->data[i] > mx) mx = v->data[i];
+    }
+    return mx - mn;
+}
+long long __nucleor_vec_percentile_f64(NVec *v, long long p_bits) {
+    union { long long i; double d; } u;
+    if (!v || v->len <= 0) { u.d = 0.0; return u.i; }
+    union { long long i; double d; } pu; pu.i = p_bits;
+    double p = pu.d;
+    if (p < 0.0) p = 0.0;
+    if (p > 1.0) p = 1.0;
+    long long *copy = (long long *)malloc(sizeof(long long) * v->len);
+    memcpy(copy, v->data, sizeof(long long) * v->len);
+    for (int i = 1; i < v->len; i++) {
+        long long key = copy[i]; int j = i - 1;
+        while (j >= 0 && copy[j] > key) { copy[j + 1] = copy[j]; j--; }
+        copy[j + 1] = key;
+    }
+    // Linear interpolation between bracketing samples.
+    double idx = p * (double)(v->len - 1);
+    int lo = (int)idx;
+    int hi = (lo + 1 < v->len) ? lo + 1 : lo;
+    double frac = idx - (double)lo;
+    u.d = (double)copy[lo] + frac * ((double)copy[hi] - (double)copy[lo]);
+    free(copy);
+    return u.i;
+}
+
 // === StringBuilder (amortized O(1) append, avoids O(n^2) str_concat) ===
 typedef struct { char *data; int len; int cap; } NStrBuilder;
 

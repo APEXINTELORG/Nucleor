@@ -2202,6 +2202,12 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "vec_shuffle") { return "__nucleor_vec_shuffle"; };
     if str_eq(name, "vec_sample") { return "__nucleor_vec_sample"; };
     if str_eq(name, "random_fill") { return "__nucleor_random_fill"; };
+    if str_eq(name, "vec_mean_f64") { return "__nucleor_vec_mean_f64"; };
+    if str_eq(name, "vec_median_f64") { return "__nucleor_vec_median_f64"; };
+    if str_eq(name, "vec_variance_f64") { return "__nucleor_vec_variance_f64"; };
+    if str_eq(name, "vec_stddev_f64") { return "__nucleor_vec_stddev_f64"; };
+    if str_eq(name, "vec_range_i64") { return "__nucleor_vec_range_i64"; };
+    if str_eq(name, "vec_percentile_f64") { return "__nucleor_vec_percentile_f64"; };
     if str_eq(name, "arena_reset") { return "__nucleor_arena_reset"; };
     if str_eq(name, "device_alloc") { return "__nucleor_device_alloc"; };
     if str_eq(name, "device_transfer") { return "__nucleor_device_transfer"; };
@@ -2880,6 +2886,12 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "vec_shuffle") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_sample") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "random_fill") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_mean_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_median_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_variance_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_stddev_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_range_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_percentile_f64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "file_append_string") { return 1; };
     if str_eq(name, "pipe_create") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "pipe_write") { if idx == 1 { return 1; }; return 0; };
@@ -3451,6 +3463,12 @@ fn emit_externs() -> str {
     sb_append(sb, "declare void @__nucleor_vec_shuffle(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_sample(ptr, i64)\n");
     sb_append(sb, "declare void @__nucleor_random_fill(ptr, i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_mean_f64(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_median_f64(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_variance_f64(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_stddev_f64(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_range_i64(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_percentile_f64(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_arena_reset(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_device_alloc(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_device_transfer(i64, i64)\n");
