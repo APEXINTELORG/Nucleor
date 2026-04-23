@@ -131,9 +131,9 @@ done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
 # Step count: 1 binary present + 1 ABI parity + 1 CLI explain smoke
-# + 1 CLI init smoke + 1 CLI doc smoke + N examples + N tests
-# + N negative + 1 self-host
-STEP_TOTAL=$((5 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+# + 1 CLI init smoke + 1 CLI doc smoke + 1 CLI lock smoke
+# + N examples + N tests + N negative + 1 self-host
+STEP_TOTAL=$((6 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -183,6 +183,33 @@ cli_init_smoke() {
         local out
         out=$("$exe" 2>&1)
         [ -n "$out" ] || exit 1
+    )
+    local rc=$?
+    rm -rf "$sandbox"
+    return $rc
+}
+
+# nuc lock smoke (added v0.2.68) — RFC-0019 package manager phase 1
+# is a v0.2 deliverable. Verifies the lockfile generator reads
+# Nucleor.toml, walks the (trivial in this case) dependency graph,
+# and writes Nucleor.lock with the expected fields.
+cli_lock_smoke() {
+    local sandbox="/tmp/_nuc_lock_smoke_$$"
+    rm -rf "$sandbox"
+    mkdir -p "$sandbox" || return 1
+    (
+        cd "$sandbox" || exit 1
+        "$BIN" init lockproj >/dev/null 2>&1 || exit 1
+        cd lockproj || exit 1
+        "$BIN" lock >/dev/null 2>&1 || exit 1
+        [ -f Nucleor.lock ] || exit 1
+        # Schema: must have the four canonical fields (version, root,
+        # root_package, [[package]] table for the project itself)
+        grep -q '^version = ' Nucleor.lock || exit 1
+        grep -q '^root = "Nucleor.toml"' Nucleor.lock || exit 1
+        grep -q '^root_package = "lockproj"' Nucleor.lock || exit 1
+        grep -q '^\[\[package\]\]' Nucleor.lock || exit 1
+        grep -q '^name = "lockproj"' Nucleor.lock || exit 1
     )
     local rc=$?
     rm -rf "$sandbox"
@@ -296,6 +323,7 @@ step "compiler ABI tables synced" compiler_tables_synced
 step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
 step "CLI: nuc init scaffolding works" cli_init_smoke
 step "CLI: nuc doc generator works" cli_doc_smoke
+step "CLI: nuc lock writes Nucleor.lock" cli_lock_smoke
 
 for ex in "${EXAMPLES[@]}"; do
     step "example $ex" build_example "$ex"
