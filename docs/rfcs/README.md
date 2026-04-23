@@ -18,9 +18,9 @@ proceed without re-design.
 
 | Doc | Topic | Status |
 |---|---|---|
-| [HELPER-CONTRACT](HELPER-CONTRACT.md) | Helper schema inventory & population — protocol document | Phase 1 + Phase 2 done in v0.2.40 |
-| [helper_manifest.toml](helper_manifest.toml) | 676-helper schema map (TOML, generated) | Phase 2 artifact, v0.2.40 |
-| [helper_manifest_schema.md](helper_manifest_schema.md) | Per-field reference for `helper_manifest.toml` | v0.2.40 |
+| [HELPER-CONTRACT](HELPER-CONTRACT.md) | Helper schema inventory & population — protocol document | Phase 1 + Phase 2 done in v0.2.40; Phase 2 population at 92.9% via v0.2.73–76 |
+| [helper_manifest.toml](helper_manifest.toml) | 676-helper schema map (TOML, generated) | Mech v0.2.40, populated v0.2.73–76 (628/676 rows fully annotated; remaining 48 are intentional v0.4 placeholders) |
+| [helper_manifest_schema.md](helper_manifest_schema.md) | Per-field reference for `helper_manifest.toml` | v0.2.40, schema vocabulary expanded v0.2.73 (`"sync"` effect tag) + v0.2.75 (per-class population state table) |
 | [rod_manifest.toml](rod_manifest.toml) | 121-rod catalog (TOML, generated) | Companion to helper manifest, v0.2.46 |
 | [rod_manifest_schema.md](rod_manifest_schema.md) | Per-field reference for `rod_manifest.toml` | v0.2.46 |
 
