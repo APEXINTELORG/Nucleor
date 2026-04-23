@@ -136,11 +136,11 @@ done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
 # Step count: 1 binary present + 1 ABI parity + 1 tools-rebuild
-# + 1 help coverage + 1 utility smoke + 1 CLI explain + 1 explain-full
-# + 1 bootstrap + 1 check+abi + 1 inspectors + 1 diagnostics + 1 init
-# + 1 doc + 1 lock + 1 test
+# + 1 help coverage + 1 utility smoke + 1 json smoke + 1 CLI explain
+# + 1 explain-full + 1 bootstrap + 1 check+abi + 1 inspectors
+# + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host
-STEP_TOTAL=$((15 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+STEP_TOTAL=$((16 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -235,6 +235,45 @@ cli_inspector_smoke() {
 # one gate step. Each gets minimal output validation; the goal is
 # "this command path produces structured output without crashing"
 # rather than full semantic verification.
+cli_json_smoke() {
+    # v0.2.86 — exercise the --json variants on every CLI command
+    # that documents one. Output must start with `{` (or `[` for
+    # array-shaped responses) so the gate catches regressions
+    # where --json silently falls back to the text path.
+    #
+    # Note: --json must come AFTER the source positional for the
+    # file-taking commands; see CHANGELOG v0.2.86 for the parser
+    # quirk discussion.
+    local out
+    # commands taking [file] [--json]
+    for cmd in audit summary query abi evidence graph perf check; do
+        out=$("$BIN" "$cmd" examples/01_hello.nr --json 2>&1 | head -1)
+        case "$out" in
+            \{*|\[*) ;;  # JSON
+            *) echo "       $cmd --json: not JSON: $out"; return 1 ;;
+        esac
+    done
+    # explain CODE --json (CODE is positional, not file)
+    out=$("$BIN" explain NUM-001 --json 2>&1 | head -1)
+    case "$out" in
+        \{*) ;;
+        *) echo "       explain --json: not JSON: $out"; return 1 ;;
+    esac
+    # bootstrap --json (no positional)
+    out=$("$BIN" bootstrap --json 2>&1 | head -1)
+    case "$out" in
+        \{*) ;;
+        *) echo "       bootstrap --json: not JSON: $out"; return 1 ;;
+    esac
+    # lock --json (no positional, returns error JSON outside a project)
+    out=$("$BIN" lock --json 2>&1 | head -1)
+    case "$out" in
+        \{*) ;;
+        *) echo "       lock --json: not JSON: $out"; return 1 ;;
+    esac
+    return 0
+}
+
 cli_utility_smoke() {
     # v0.2.85 — smoke the zero-side-effect utility commands that
     # weren't yet under gate coverage: zen, mco, registry list,
@@ -611,6 +650,7 @@ step "compiler ABI tables synced" compiler_tables_synced
 step "tools-suite rebuild" tools_rebuild
 step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
 step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" cli_utility_smoke
+step "CLI: --json variants emit machine-readable JSON" cli_json_smoke
 step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
 step "CLI: nuc explain — full spec code set wired" cli_explain_full_smoke
 step "CLI: nuc bootstrap status reports correctly" cli_bootstrap_smoke

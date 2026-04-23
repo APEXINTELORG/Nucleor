@@ -130,11 +130,12 @@ foreach ($d in $testDirs) {
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
 # 1 (binary present) + 1 (drift check) + 1 (tools-rebuild) +
-# 1 (help coverage) + 1 (utility smoke) + 1 (CLI explain smoke) +
-# 1 (explain-full) + 1 (bootstrap) + 1 (check+abi) + 1 (inspectors)
-# + 1 (diagnostics) + 1 (init) + 1 (doc) + 1 (lock) + 1 (test)
-# + N examples + N tests + N err + 1 (self-host)
-$stepTotal = 15 + $examples.Count + $testCount + $errCount + 1
+# 1 (help coverage) + 1 (utility smoke) + 1 (json smoke) +
+# 1 (CLI explain smoke) + 1 (explain-full) + 1 (bootstrap) +
+# 1 (check+abi) + 1 (inspectors) + 1 (diagnostics) + 1 (init) +
+# 1 (doc) + 1 (lock) + 1 (test) + N examples + N tests + N err +
+# 1 (self-host)
+$stepTotal = 16 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -176,6 +177,24 @@ Step "tools-suite rebuild" {
     $built = "target\nucleor_tools.exe"
     if (-not (Test-Path $built)) { return $false }
     Copy-Item $built (Join-Path $root "bin\nucleor_tools.exe") -Force -ErrorAction SilentlyContinue
+    return $true
+}
+
+Step "CLI: --json variants emit machine-readable JSON" {
+    # Mirrors verify.sh cli_json_smoke (added v0.2.86). Locks down
+    # which commands honor --json today. NOTE: --json must come
+    # AFTER the source positional for file-taking commands.
+    $jsonCmds = @("audit", "summary", "query", "abi", "evidence", "graph", "perf", "check")
+    foreach ($cmd in $jsonCmds) {
+        $out = (& $bin $cmd "examples/01_hello.nr" --json 2>&1 | Out-String).TrimStart()
+        if (-not ($out.StartsWith("{") -or $out.StartsWith("["))) { return $false }
+    }
+    $out = (& $bin explain "NUM-001" --json 2>&1 | Out-String).TrimStart()
+    if (-not $out.StartsWith("{")) { return $false }
+    $out = (& $bin bootstrap --json 2>&1 | Out-String).TrimStart()
+    if (-not $out.StartsWith("{")) { return $false }
+    $out = (& $bin lock --json 2>&1 | Out-String).TrimStart()
+    if (-not $out.StartsWith("{")) { return $false }
     return $true
 }
 
