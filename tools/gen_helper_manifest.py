@@ -326,6 +326,38 @@ def classify(name):
     return "Unclassified"
 
 
+# Per-class default population for the policy-sensitive fields. Classes
+# with uniform per-helper semantics live here; classes with per-helper
+# divergence (PanickingArith, DataCodec, IO, ToolingMeta, etc.) stay
+# under the TODO sentinel until a per-name table or hand pass populates
+# them in a later release.
+#
+# Schema: each value is (effects_list, taint, proof_obligation). The
+# generator emits effects as a TOML array literal, taint and
+# proof_obligation as quoted strings.
+CLASS_DEFAULTS = {
+    # Effect-free, deterministic — no panic, no heap, no syscall.
+    "PureMath":       ([],            "passthrough", "none"),
+    # VectorOps allocate a result Vec but otherwise carry input
+    # taint through verbatim. Bounds are checked at call site.
+    "VectorOps":      (["alloc"],     "passthrough", "bounds_within_len"),
+    # RNG bridges. Require RNG capability (seeded explicitly or
+    # ambient-random capability granted). Output is non-deterministic
+    # but doesn't taint downstream values.
+    "Random":         (["random"],    "passthrough", "rng_capability_required"),
+    # Wall-clock and monotonic clock reads. Capability-gated by the
+    # ambient clock effect (matches schema vocabulary "clock").
+    "Time":           (["clock"],     "passthrough", "clock_capability_required"),
+    # Mutex/channel/atomic/thread/par primitives. Require sync effect.
+    # Memory-ordering guarantee handed to the caller as proof obligation.
+    "Concurrency":    (["sync"],      "passthrough", "happens_before_release_acquire"),
+    # arena_*/region_*/alloc_*/free_*/realloc_*/capture_*. Require
+    # alloc effect. Caller must own the arena/region or hold the
+    # allocator capability.
+    "Allocation":     (["alloc"],     "passthrough", "alloc_capability_or_arena_owned"),
+}
+
+
 def fmt_abi(ir_decl):
     if not ir_decl:
         return "TODO"
@@ -386,16 +418,31 @@ def main():
         if cls == "Unclassified":
             notes_bits.append("name pattern did not match any class rule (REVIEW REQUIRED)")
 
+        defaults = CLASS_DEFAULTS.get(cls)
+        if defaults is not None:
+            eff_list, taint_val, proof_val = defaults
+            # Render effects as a TOML array literal. Empty list is
+            # the explicit no-effect signal (PureMath); non-empty
+            # lists list each effect string.
+            if not eff_list:
+                effects_field = "[]"
+            else:
+                effects_field = "[" + ", ".join(f'"{e}"' for e in eff_list) + "]"
+        else:
+            effects_field = "TODO"
+            taint_val = "TODO"
+            proof_val = "TODO"
+
         rows.append({
             "name": name,
             "class": cls,
             "symbol": sym,
             "dispatch": "RuntimeCall",
             "abi": fmt_abi(ir_decl),
-            "effects": "[]" if cls in ("PureMath",) else "TODO",
-            "taint": "passthrough" if cls in ("PureMath", "VectorOps") else "TODO",
+            "effects": effects_field,
+            "taint": taint_val,
             "units": "passthrough",
-            "proof_obligation": "none" if cls in ("PureMath",) else "TODO",
+            "proof_obligation": proof_val,
             "stability": stability,
             "since": SINCE_MAP.get(name, "0.1.0"),
             "notes": "; ".join(notes_bits),
@@ -459,8 +506,11 @@ def main():
         out_lines.append(f'symbol           = "{r["symbol"]}"')
         out_lines.append(f'dispatch         = "{r["dispatch"]}"')
         out_lines.append(f'abi              = "{r["abi"]}"')
-        if r["effects"] == "[]":
-            out_lines.append('effects          = []')
+        # Effects field is either a TOML array literal (any string
+        # starting with '[') or the "TODO" sentinel for classes the
+        # generator hasn't yet populated.
+        if r["effects"].startswith("["):
+            out_lines.append(f'effects          = {r["effects"]}')
         else:
             out_lines.append(f'effects          = "{r["effects"]}"  # TODO')
         if r["taint"] == "TODO":
