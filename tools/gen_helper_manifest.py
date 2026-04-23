@@ -449,6 +449,19 @@ PATTERN_OVERRIDES = [
     # DataCodec — uuid_v4 generates a fresh UUID via the RNG.
     (re.compile(r"^uuid_v4$"),
      (["random", "alloc"], "passthrough", "rng_capability_required")),
+    # TensorOps — pure read-only accessors / reductions. Return a
+    # scalar (i64 / f64 bit pattern) without allocating.
+    (re.compile(r"^tensor_(get|cols|rows|max|min|mean|sum|stddev|variance)$"),
+     ([], "passthrough", "bounds_within_shape")),
+    # TensorOps — in-place mutations. No allocation; modify the
+    # pointed-to tensor.
+    (re.compile(r"^tensor_(set|fill)$"),
+     ([], "passthrough", "bounds_within_shape")),
+    # TensorOps — allocate a fresh tensor as output. CPU-bound
+    # implementations as of v0.2; GPU paths (matmul on cuda etc.)
+    # will land alongside the v0.4 device-effect formalization.
+    (re.compile(r"^tensor_(zeros|ones|transpose|matmul)$"),
+     (["alloc"], "passthrough", "shape_compatible")),
 ]
 
 
