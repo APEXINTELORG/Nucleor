@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.132] — 2026-04-23
+
+**Mirror v0.2.131's 161-code spec catalog into milestone tracker,
+status doc, and bootstrap contract.**
+
+After v0.2.131 wired OWN-013 + GOV-001/002 (3 new codes), three
+trackers still claimed "158 codes" — the v0.2.120 closure number.
+Mirror in:
+
+- **`docs/milestones/v0.2.0.md`** Status header — bumped from
+  "v0.2.120" → "v0.2.131", "120 incremental releases through
+  v0.2.120" → "131 incremental releases through v0.2.131", "23
+  OWN/TYP/TNT codes" → "26 OWN/TYP/TNT/GOV codes across
+  v0.2.119/120/131", "All 158 diagnostic codes" → "All 161
+  diagnostic codes"; closure note now reads "**re-closed at
+  v0.2.131** after a second-pass audit found OWN-013 +
+  GOV-001/002 fired but undocumented".
+- **`docs/milestones/v0.2.0.md`** "Diagnostic-code coverage
+  closure" sub-chain bullet — extended title to
+  `(v0.2.117–120, re-closed v0.2.131)`, paragraph names the 3
+  new codes and bumps `cli_explain_full_smoke` from 158 → 161.
+- **`NUCLEOR_BOOTSTRAP_CONTRACT.md`** gate-runs description —
+  "204 steps as of v0.2.121" → "v0.2.131", "full 158-code spec
+  catalog" → "161-code".
+- **`docs/status/v0.2-shipped-and-deferred.md`** diagnostic-
+  code closure bullet — added the v0.2.131 second-pass paragraph
+  with the 3 new codes, bumped 158 → 161, marked the drift class
+  **re-closed at v0.2.131**.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.131] — 2026-04-23
 
 **3 more diagnostic codes were fired by the tools-suite type-check
