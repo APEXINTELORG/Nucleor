@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.34] — 2026-04-22
+
+**ASCII histogram example (`examples/16_histogram.nr`).**
+
+```
+=== Nucleor histogram demo (v0.2.x stdlib) ===
+
+Samples:  30
+Min:      38
+Max:      58
+Range:    20
+Mean:     48.9
+Median:   49
+StdDev:   4.78435
+
+Distribution:
+range            count  bar
+--------------------------------
+38-39                1  ########
+40-41                1  ########
+42-43                2  ################
+44-45                4  ################################
+46-47                3  ########################
+48-49                5  ########################################
+50-51                5  ########################################
+52-53                4  ################################
+54-55                2  ################
+56-58                3  ########################
+```
+
+Third v0.2-era end-to-end demo. Continues exercising the v0.2.x
+helper surface in real programs:
+
+- `str_lines` + `str_trim` + `str_is_empty` to clean line-delimited
+  numeric input.
+- `str_to_i64` per line to build `Vec<i64>`.
+- `vec_min_i64` / `vec_max_i64` / `vec_range_i64` for the axis.
+- `vec_mean_f64` / `vec_median_f64` / `vec_stddev_f64` for summary stats.
+- Hand-rolled bucketing (10 bins by `(value - min) / width` with
+  end-bin clamp for the max value).
+- `str_pad_right` / `str_pad_left` + ASCII-bar generator for output.
+
+The bundled sample produces a clean roughly-Gaussian distribution
+centered at 49, std-dev ~4.8 — visually obvious in the bar chart.
+
+`16_histogram` is now part of the gate (`tools/verify.sh`):
+182/183 green on Windows + 1 skip. Self-host LLVM IR fixed point
+unaffected (no compiler changes this release).
+
 ## [0.2.33] — 2026-04-22
 
 **Helper schema contract ported into the plan as a tracked deliverable.**
