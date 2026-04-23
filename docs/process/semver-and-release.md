@@ -1,6 +1,6 @@
 # Nucleor — SemVer and Release Process
 
-**Last updated:** 2026-04-23 (post-v0.2.92)
+**Last updated:** 2026-04-23 (post-v0.2.129)
 
 ## 1. Versioning policy
 
@@ -25,7 +25,7 @@ numeric refactor (RFC-0015). The phase 5 stdlib audit and phase 7
 strict-mode flip were deferred to v0.4 alongside the type-lattice
 IR work, so v0.2.0 ended up additive — see
 [`docs/migrations/v0.1-to-v0.2.md`](../migrations/v0.1-to-v0.2.md)
-for the upgrade path. The v0.2.x sub-chain (through v0.2.92 as of
+for the upgrade path. The v0.2.x sub-chain (through v0.2.129 as of
 this update) has been strictly additive on top of v0.2.0; no
 existing program semantics changed.
 

@@ -18,10 +18,10 @@ cd Nucleor
 ./tools/verify.sh
 ```
 
-Verify gate green (203 steps as of v0.2.91, grew from 101 at
+Verify gate green (204 steps as of v0.2.118, grew from 101 at
 v0.1.8 through CLI surface coverage, JSON smoke, mojibake check,
-and other audit-pattern hardening) means your environment is
-ready.
+err-test EXPECT-header enforcement, and other audit-pattern
+hardening) means your environment is ready.
 
 ## Code organization
 

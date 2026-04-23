@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.130] — 2026-04-23
+
+**Three more "as-of" markers in process docs + architecture brought
+current.**
+
+The audit-pattern sweep continued past README + getting-started +
+migration + benchmarks into the process docs and architecture
+reference. Three findings, all the same drift class (timestamp
+markers from earlier in the v0.2.x sub-chain).
+
+- **`docs/process/contributing.md`** said "**Verify gate green
+  (203 steps as of v0.2.91)**". Actual is 204 steps as of v0.2.118
+  (the EXPECT-headers gate step landed in v0.2.118). Updated +
+  added EXPECT-header enforcement to the rollup of what the gate
+  newly covers.
+- **`docs/process/semver-and-release.md`** "**Last updated:
+  2026-04-23 (post-v0.2.92)**" → "post-v0.2.129"; same paragraph's
+  "v0.2.x sub-chain (through v0.2.92 as of this update)" → "through
+  v0.2.129".
+- **`docs/architecture.md`** "Builtin name mapping" row said
+  "**around line 2004 as of v0.2.107**" — verified `fn get_rt_name`
+  is exactly at line 2004 in the current source (compiler unchanged
+  since v0.2.87, so the line number truly is unmoved). Bumped the
+  stamp to v0.2.129 and dropped "around" since the line number is
+  exact.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.129] — 2026-04-23
 
 **Migration guide + benchmarks doc — stale "as of v0.2.91 / v0.2.97"
