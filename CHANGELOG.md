@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.142] — 2026-04-23
+
+**`examples/showcase/README.md` claimed "Not part of the verify
+gate" — but `showcase_build_smoke` has been gated since v0.2.90.**
+
+The opening line of the showcase README said "**Not part of the
+verify gate**" and the bottom section "**Why no gate coverage?**"
+ended with "**A future gate addition could be a build-only smoke
+(verify the `.exe` is produced). That's tracked but not yet
+shipped.**" — both stale. The build-only smoke landed as
+`showcase_build_smoke` in v0.2.90 (in both `tools/verify.sh` and
+`tools/verify.ps1`); 47 ships ago readers were already getting
+gate coverage that the README denied.
+
+### `examples/showcase/README.md`
+
+- Opening paragraph: "Not part of the verify gate" → "**Build is
+  gated** via the `showcase_build_smoke` step (added v0.2.90);
+  **execution is not gated** because…". Splits the build-vs-run
+  distinction explicitly so readers understand what is and isn't
+  enforced.
+- "Why no gate coverage?" → "Why no run-time gate coverage?";
+  closing paragraph rewritten to acknowledge the v0.2.90
+  build-smoke as already shipped, name the failure modes it
+  catches (missing `.exe`, `_viz.nr` import break, extern typo,
+  LLVM emission fail), and clarify that visual correctness is
+  manual.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.141] — 2026-04-23
 
 **Spec doc "Adding a new error code" recipe was 4 steps; we
