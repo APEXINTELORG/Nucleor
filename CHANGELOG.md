@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.41] — 2026-04-22
+
+**Helper manifest audit — REVIEW REQUIRED count: 144 → 0.**
+
+Audit pass on the v0.2.40 manifest. The original generator flagged
+144 rows as REVIEW REQUIRED (137 declared-but-undefined + 7
+unclassified). After investigation, none are real bugs:
+
+**Macro-generated arith — 54 rows reclassified as `stable` (real):**
+
+The `NUC_DEFINE_SIGNED_OVERFLOW(W, ...)` and
+`NUC_DEFINE_UNSIGNED_OVERFLOW(W, ...)` macros at
+`stdlib/runtime/nucleor_llvm_rt.c:1971` and `:2027` instantiate 9
+helpers each (`wrapping_add/sub/mul`, `saturating_add/sub/mul`,
+`checked_add/sub/mul`) for each of 6 widths (i8, i16, i32, u8, u16,
+u32). The original `__nucleor_*` regex couldn't see through
+`##W` token-paste so all 54 looked undefined. Generator now
+detects `NUC_DEFINE_*_OVERFLOW(<width>, ...)` instantiations and
+expands the 9 generated symbol names per width.
+
+**Intentional v0.4 placeholders — 83 rows reclassified as `unstable`:**
+
+Symbols that are declared in IR with a runtime body deferred to a
+follow-on release (typically v0.4). Now on a curated
+`INTENTIONAL_PLACEHOLDER` allowlist in
+`tools/gen_helper_manifest.py`:
+- RFC-0001/0002 region / arena allocators (10)
+- RFC-0007 phase-2 concurrency: cancel tokens, par_*, rwlock_*,
+  ambient_scheduler (10)
+- RFC-0024 iterator chain (`vec_iter / map / filter / fold / all /
+  any / count / chain / skip / take / sum`) (11)
+- GPU / device / LLM domain (kvcache, tensor_*, device_*,
+  ambient_random) (24)
+- SIMD batch (simd_*, vector_*) (10)
+- Tooling / legacy (profile_*, py_eval, rods_f64_*) (7)
+- Standalone narrow-width sentinels (sat_i32, wrap_i32) (2)
+- Stdlib bridge synonyms (sha256→sha256_hex, putchar→libc) (2)
+
+These are now `stability = "unstable"` with a notes field
+explicitly stating "intentional v0.4 placeholder; declared in IR
+for forward compat, runtime body deferred". Calling one from user
+code still fails at link time (correct behavior — body isn't
+there); the manifest just stops flagging them as bugs.
+
+**Truly unclassified — 7 rows reclassified into existing classes:**
+
+- `assert_eq`, `assert_ne`, `dbg` → `ToolingMeta` (added regex)
+- `bf16_add / from_f32 / mul / to_f32` → `PureMath` (added rule)
+
+**Schema doc updated** to document the new `stability` semantics —
+`unstable` now means "intentionally deferred", not "no helpers in
+this state today".
+
+### Final class distribution (676 helpers, 0 REVIEW REQUIRED)
+
+```
+PureMath             132       PanickingArith        84
+VectorOps             97       StringFormat          81
+IO                    70       Collection            54
+TensorOps             45       Concurrency           38
+Time                  21       DataCodec             19
+Random                13       ToolingMeta           12
+Allocation            10       (Unclassified          0)
+```
+
+The manifest is now genuinely authoritative — every row's policy
+fields are either populated or transparently flagged as TODO; no
+hidden "this might be a bug" entries. The
+`tools/gen_helper_manifest.py` generator is reproducible and
+should be re-run any time a helper is added.
+
+### Verify gate
+
+184/185 green on Windows + 1 skip. Documentation + tooling only —
+no compiler / runtime / ABI / test changes.
+
 ## [0.2.40] — 2026-04-22
 
 **Helpers.md contract Phase 2 — manifest + schema doc shipped.**

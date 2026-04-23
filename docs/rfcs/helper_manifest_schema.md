@@ -108,12 +108,19 @@ Marked `"TODO"` outside `PureMath` until reviewed.
 ### `stability` — `"stable" | "unstable" | "experimental"`
 - `stable` — defined in `stdlib/runtime/*.c`, callable, and
   exercised by the verify gate.
-- `unstable` — implementation may change in v0.4 (no helpers in
-  this state today).
+- `unstable` — declared in IR with a runtime body deferred to a
+  follow-on release (typically v0.4). The symbol is reserved so the
+  compiler can lex calls to it; calling one of these from user
+  code today will fail at link time. The full set is enumerated in
+  `tools/gen_helper_manifest.py`'s `INTENTIONAL_PLACEHOLDER` set
+  and includes the RFC-0001/0002 region/arena allocators, RFC-0007
+  phase-2 concurrency (cancel tokens, par_*, rwlock_*), RFC-0024
+  iterator chain, GPU/device/LLM domain helpers, and SIMD batch.
 - `experimental` — declared in IR but no `__nucleor_*` definition
-  found in the runtime tree. **REVIEW REQUIRED** — the compiler
-  will emit an unresolved external if these are called from user
-  code.
+  found in the runtime tree AND not on the intentional-placeholder
+  allowlist. **REVIEW REQUIRED** — likely a real linker gap that
+  needs investigation. As of v0.2.41 the manifest has zero rows in
+  this state.
 
 ### `since` — string
 Version the helper was introduced. Currently set to `"0.1.0"` for

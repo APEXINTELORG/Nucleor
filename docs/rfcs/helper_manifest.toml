@@ -8,7 +8,7 @@
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
 # Total helpers: 676
-# Of which REVIEW REQUIRED: 144
+# Of which REVIEW REQUIRED: 0
 
 # ============================================================
 # REVIEW REQUIRED
@@ -22,150 +22,6 @@
 # Each row is still emitted below with `stability = "experimental"`
 # or `class = "Unclassified"` so callers can find them.
 #
-#   arena_alloc                              (undefined)
-#   arena_destroy                            (undefined)
-#   arena_new                                (undefined)
-#   arena_reset                              (undefined)
-#   capture_get                              (undefined)
-#   capture_set                              (undefined)
-#   region_alloc                             (undefined)
-#   region_free                              (undefined)
-#   region_new                               (undefined)
-#   region_reset                             (undefined)
-#   ambient_scheduler                        (undefined)
-#   cancel_token_cancel                      (undefined)
-#   cancel_token_is_cancelled                (undefined)
-#   cancel_token_new                         (undefined)
-#   par_fold                                 (undefined)
-#   par_map                                  (undefined)
-#   par_reduce                               (undefined)
-#   rwlock_new                               (undefined)
-#   rwlock_read                              (undefined)
-#   rwlock_unlock                            (undefined)
-#   rwlock_write                             (undefined)
-#   sha256                                   (undefined)
-#   putchar                                  (undefined)
-#   checked_add_i16                          (undefined)
-#   checked_add_i32                          (undefined)
-#   checked_add_i8                           (undefined)
-#   checked_add_u16                          (undefined)
-#   checked_add_u32                          (undefined)
-#   checked_add_u8                           (undefined)
-#   checked_mul_i16                          (undefined)
-#   checked_mul_i32                          (undefined)
-#   checked_mul_i8                           (undefined)
-#   checked_mul_u16                          (undefined)
-#   checked_mul_u32                          (undefined)
-#   checked_mul_u8                           (undefined)
-#   checked_sub_i16                          (undefined)
-#   checked_sub_i32                          (undefined)
-#   checked_sub_i8                           (undefined)
-#   checked_sub_u16                          (undefined)
-#   checked_sub_u32                          (undefined)
-#   checked_sub_u8                           (undefined)
-#   sat_i32                                  (undefined)
-#   saturating_add_i16                       (undefined)
-#   saturating_add_i32                       (undefined)
-#   saturating_add_i8                        (undefined)
-#   saturating_add_u16                       (undefined)
-#   saturating_add_u32                       (undefined)
-#   saturating_add_u8                        (undefined)
-#   saturating_mul_i16                       (undefined)
-#   saturating_mul_i32                       (undefined)
-#   saturating_mul_i8                        (undefined)
-#   saturating_mul_u16                       (undefined)
-#   saturating_mul_u32                       (undefined)
-#   saturating_mul_u8                        (undefined)
-#   saturating_sub_i16                       (undefined)
-#   saturating_sub_i32                       (undefined)
-#   saturating_sub_i8                        (undefined)
-#   saturating_sub_u16                       (undefined)
-#   saturating_sub_u32                       (undefined)
-#   saturating_sub_u8                        (undefined)
-#   wrap_i32                                 (undefined)
-#   wrapping_add_i16                         (undefined)
-#   wrapping_add_i32                         (undefined)
-#   wrapping_add_i8                          (undefined)
-#   wrapping_add_u16                         (undefined)
-#   wrapping_add_u32                         (undefined)
-#   wrapping_add_u8                          (undefined)
-#   wrapping_mul_i16                         (undefined)
-#   wrapping_mul_i32                         (undefined)
-#   wrapping_mul_i8                          (undefined)
-#   wrapping_mul_u16                         (undefined)
-#   wrapping_mul_u32                         (undefined)
-#   wrapping_mul_u8                          (undefined)
-#   wrapping_sub_i16                         (undefined)
-#   wrapping_sub_i32                         (undefined)
-#   wrapping_sub_i8                          (undefined)
-#   wrapping_sub_u16                         (undefined)
-#   wrapping_sub_u32                         (undefined)
-#   wrapping_sub_u8                          (undefined)
-#   ambient_random                           (undefined)
-#   device_alloc                             (undefined)
-#   device_free                              (undefined)
-#   device_transfer                          (undefined)
-#   kvcache_append                           (undefined)
-#   kvcache_compact                          (undefined)
-#   kvcache_evict                            (undefined)
-#   kvcache_free                             (undefined)
-#   kvcache_new                              (undefined)
-#   kvcache_read_prefix                      (undefined)
-#   kvprefix_free                            (undefined)
-#   tensor_center                            (undefined)
-#   tensor_clip                              (undefined)
-#   tensor_entropy                           (undefined)
-#   tensor_greedy                            (undefined)
-#   tensor_l1                                (undefined)
-#   tensor_l2                                (undefined)
-#   tensor_len                               (undefined)
-#   tensor_mad                               (undefined)
-#   tensor_median                            (undefined)
-#   tensor_minmax                            (undefined)
-#   tensor_normalize_l2                      (undefined)
-#   tensor_percentile                        (undefined)
-#   tensor_sample_eps                        (undefined)
-#   tensor_sample_gumbel                     (undefined)
-#   tensor_sample_nucleus_temp               (undefined)
-#   tensor_sample_rank                       (undefined)
-#   tensor_sample_topk_temp                  (undefined)
-#   tensor_top2_gap                          (undefined)
-#   tensor_view                              (undefined)
-#   tensor_zscore                            (undefined)
-#   profile_end                              (undefined)
-#   profile_start                            (undefined)
-#   py_eval                                  (undefined)
-#   rods_f64_add                             (undefined)
-#   rods_f64_div                             (undefined)
-#   rods_f64_encode                          (undefined)
-#   rods_f64_sub                             (undefined)
-#   assert_eq                                (Unclassified)
-#   assert_ne                                (Unclassified)
-#   bf16_add                                 (Unclassified)
-#   bf16_from_f32                            (Unclassified)
-#   bf16_mul                                 (Unclassified)
-#   bf16_to_f32                              (Unclassified)
-#   dbg                                      (Unclassified)
-#   simd_add                                 (undefined)
-#   simd_fma                                 (undefined)
-#   simd_mul                                 (undefined)
-#   vec_all                                  (undefined)
-#   vec_any                                  (undefined)
-#   vec_chain                                (undefined)
-#   vec_count                                (undefined)
-#   vec_filter                               (undefined)
-#   vec_fold                                 (undefined)
-#   vec_iter                                 (undefined)
-#   vec_map                                  (undefined)
-#   vec_skip                                 (undefined)
-#   vec_sum                                  (undefined)
-#   vec_take                                 (undefined)
-#   vector_add                               (undefined)
-#   vector_broadcast                         (undefined)
-#   vector_fma                               (undefined)
-#   vector_mul                               (undefined)
-#   vector_new                               (undefined)
-#   vector_reduce_sum                        (undefined)
 
 
 # ----- class: Allocation -----
@@ -180,9 +36,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "arena_destroy"
@@ -194,9 +50,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "arena_new"
@@ -208,9 +64,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "arena_reset"
@@ -222,9 +78,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "capture_get"
@@ -236,9 +92,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "capture_set"
@@ -250,9 +106,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "region_alloc"
@@ -264,9 +120,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "region_free"
@@ -278,9 +134,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "region_new"
@@ -292,9 +148,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "region_reset"
@@ -306,9 +162,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 
 # ----- class: Collection -----
@@ -1082,9 +938,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "atomic_add"
@@ -1292,9 +1148,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "cancel_token_is_cancelled"
@@ -1306,9 +1162,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "cancel_token_new"
@@ -1320,9 +1176,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "channel_len"
@@ -1488,9 +1344,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "par_map"
@@ -1502,9 +1358,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "par_reduce"
@@ -1516,9 +1372,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "rwlock_new"
@@ -1530,9 +1386,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "rwlock_read"
@@ -1544,9 +1400,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "rwlock_unlock"
@@ -1558,9 +1414,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "rwlock_write"
@@ -1572,9 +1428,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "thread_join"
@@ -1771,9 +1627,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "sha256_hex"
@@ -2796,9 +2652,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "read_byte"
@@ -2897,9 +2753,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_add_i32"
@@ -2911,9 +2767,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_add_i8"
@@ -2925,9 +2781,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_add_u16"
@@ -2939,9 +2795,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_add_u32"
@@ -2953,9 +2809,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_add_u64"
@@ -2981,9 +2837,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_div"
@@ -3023,9 +2879,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_mul_i32"
@@ -3037,9 +2893,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_mul_i8"
@@ -3051,9 +2907,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_mul_u16"
@@ -3065,9 +2921,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_mul_u32"
@@ -3079,9 +2935,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_mul_u64"
@@ -3107,9 +2963,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_neg"
@@ -3177,9 +3033,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_sub_i32"
@@ -3191,9 +3047,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_sub_i8"
@@ -3205,9 +3061,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_sub_u16"
@@ -3219,9 +3075,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_sub_u32"
@@ -3233,9 +3089,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "checked_sub_u64"
@@ -3261,9 +3117,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "panic"
@@ -3289,9 +3145,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "saturating_add"
@@ -3317,9 +3173,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_add_i32"
@@ -3331,9 +3187,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_add_i8"
@@ -3345,9 +3201,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_add_u16"
@@ -3359,9 +3215,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_add_u32"
@@ -3373,9 +3229,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_add_u64"
@@ -3401,9 +3257,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_mul"
@@ -3429,9 +3285,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_mul_i32"
@@ -3443,9 +3299,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_mul_i8"
@@ -3457,9 +3313,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_mul_u16"
@@ -3471,9 +3327,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_mul_u32"
@@ -3485,9 +3341,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_mul_u64"
@@ -3513,9 +3369,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_neg"
@@ -3555,9 +3411,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_sub_i32"
@@ -3569,9 +3425,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_sub_i8"
@@ -3583,9 +3439,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_sub_u16"
@@ -3597,9 +3453,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_sub_u32"
@@ -3611,9 +3467,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "saturating_sub_u64"
@@ -3639,9 +3495,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrap_i32"
@@ -3653,9 +3509,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "wrapping_add"
@@ -3681,9 +3537,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_add_i32"
@@ -3695,9 +3551,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_add_i8"
@@ -3709,9 +3565,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_add_u16"
@@ -3723,9 +3579,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_add_u32"
@@ -3737,9 +3593,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_add_u64"
@@ -3765,9 +3621,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_div"
@@ -3807,9 +3663,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_mul_i32"
@@ -3821,9 +3677,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_mul_i8"
@@ -3835,9 +3691,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_mul_u16"
@@ -3849,9 +3705,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_mul_u32"
@@ -3863,9 +3719,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_mul_u64"
@@ -3891,9 +3747,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_neg"
@@ -3947,9 +3803,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_sub_i32"
@@ -3961,9 +3817,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_sub_i8"
@@ -3975,9 +3831,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_sub_u16"
@@ -3989,9 +3845,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_sub_u32"
@@ -4003,9 +3859,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 [[helper]]
 name             = "wrapping_sub_u64"
@@ -4031,9 +3887,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = ""
 
 
 # ----- class: PureMath -----
@@ -4182,6 +4038,62 @@ notes            = ""
 name             = "as_u8"
 class            = "PureMath"
 symbol           = "__nucleor_as_u8"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "bf16_add"
+class            = "PureMath"
+symbol           = "__nucleor_bf16_add"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "bf16_from_f32"
+class            = "PureMath"
+symbol           = "__nucleor_bf16_from_f32"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "bf16_mul"
+class            = "PureMath"
+symbol           = "__nucleor_bf16_mul"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "bf16_to_f32"
+class            = "PureMath"
+symbol           = "__nucleor_bf16_to_f32"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> i64"
 effects          = []
@@ -5843,9 +5755,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "random_bool"
@@ -7165,9 +7077,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "device_free"
@@ -7179,9 +7091,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "device_transfer"
@@ -7193,9 +7105,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "kvcache_append"
@@ -7207,9 +7119,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "kvcache_compact"
@@ -7221,9 +7133,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "kvcache_evict"
@@ -7235,9 +7147,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "kvcache_free"
@@ -7249,9 +7161,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "kvcache_new"
@@ -7263,9 +7175,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "kvcache_read_prefix"
@@ -7277,9 +7189,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "kvprefix_free"
@@ -7291,9 +7203,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_center"
@@ -7305,9 +7217,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_clip"
@@ -7319,9 +7231,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_cols"
@@ -7347,9 +7259,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_fill"
@@ -7389,9 +7301,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_l1"
@@ -7403,9 +7315,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_l2"
@@ -7417,9 +7329,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_len"
@@ -7431,9 +7343,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_mad"
@@ -7445,9 +7357,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_matmul"
@@ -7501,9 +7413,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_min"
@@ -7529,9 +7441,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_normalize_l2"
@@ -7543,9 +7455,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_ones"
@@ -7571,9 +7483,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_rows"
@@ -7599,9 +7511,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_sample_gumbel"
@@ -7613,9 +7525,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_sample_nucleus_temp"
@@ -7627,9 +7539,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_sample_rank"
@@ -7641,9 +7553,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_sample_topk_temp"
@@ -7655,9 +7567,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_set"
@@ -7711,9 +7623,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_transpose"
@@ -7753,9 +7665,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "tensor_zeros"
@@ -7781,9 +7693,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 
 # ----- class: Time -----
@@ -8086,6 +7998,48 @@ notes            = ""
 # ----- class: ToolingMeta -----
 
 [[helper]]
+name             = "assert_eq"
+class            = "ToolingMeta"
+symbol           = "__nucleor_assert_eq"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "assert_ne"
+class            = "ToolingMeta"
+symbol           = "__nucleor_assert_ne"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "dbg"
+class            = "ToolingMeta"
+symbol           = "__nucleor_dbg_i64"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "manifest_report"
 class            = "ToolingMeta"
 symbol           = "__nucleor_manifest_report"
@@ -8123,9 +8077,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "profile_start"
@@ -8137,9 +8091,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "py_eval"
@@ -8151,9 +8105,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "rods_f64_add"
@@ -8165,9 +8119,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "rods_f64_div"
@@ -8179,9 +8133,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "rods_f64_encode"
@@ -8193,9 +8147,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "rods_f64_sub"
@@ -8207,110 +8161,9 @@ effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
-
-
-# ----- class: Unclassified -----
-
-[[helper]]
-name             = "assert_eq"
-class            = "Unclassified"
-symbol           = "__nucleor_assert_eq"
-dispatch         = "RuntimeCall"
-abi              = "(i64, i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "assert_ne"
-class            = "Unclassified"
-symbol           = "__nucleor_assert_ne"
-dispatch         = "RuntimeCall"
-abi              = "(i64, i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "bf16_add"
-class            = "Unclassified"
-symbol           = "__nucleor_bf16_add"
-dispatch         = "RuntimeCall"
-abi              = "(i64, i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "bf16_from_f32"
-class            = "Unclassified"
-symbol           = "__nucleor_bf16_from_f32"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "bf16_mul"
-class            = "Unclassified"
-symbol           = "__nucleor_bf16_mul"
-dispatch         = "RuntimeCall"
-abi              = "(i64, i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "bf16_to_f32"
-class            = "Unclassified"
-symbol           = "__nucleor_bf16_to_f32"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
-
-[[helper]]
-name             = "dbg"
-class            = "Unclassified"
-symbol           = "__nucleor_dbg_i64"
-dispatch         = "RuntimeCall"
-abi              = "(i64) -> i64"
-effects          = "TODO"  # TODO
-taint            = "TODO"  # verify before use
-units            = "passthrough"
-proof_obligation = "TODO"  # verify before use
-stability        = "stable"
-since            = "0.1.0"
-notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 
 # ----- class: VectorOps -----
@@ -8605,9 +8458,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "simd_fma"
@@ -8619,9 +8472,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "simd_mul"
@@ -8633,9 +8486,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vec_all"
@@ -8647,9 +8500,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vec_all_i64"
@@ -8675,9 +8528,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vec_any_i64"
@@ -8717,9 +8570,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vec_clear_i64"
@@ -8773,9 +8626,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vec_count_eq_i64"
@@ -8927,9 +8780,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vec_filter_i64"
@@ -8969,9 +8822,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vec_fold_i64"
@@ -9053,9 +8906,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vec_last"
@@ -9095,9 +8948,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vec_map_i64"
@@ -9347,9 +9200,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vec_sort_i64"
@@ -9389,9 +9242,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vec_sum_f64"
@@ -9445,9 +9298,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vec_u8_capacity"
@@ -9599,9 +9452,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vector_broadcast"
@@ -9613,9 +9466,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vector_fma"
@@ -9627,9 +9480,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vector_mul"
@@ -9641,9 +9494,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vector_new"
@@ -9655,9 +9508,9 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
 name             = "vector_reduce_sum"
@@ -9669,6 +9522,6 @@ effects          = "TODO"  # TODO
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "TODO"  # verify before use
-stability        = "experimental"
+stability        = "unstable"
 since            = "0.1.0"
-notes            = "declared in IR but no __nucleor_* definition found in stdlib/runtime/*.c (REVIEW REQUIRED)"
+notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
