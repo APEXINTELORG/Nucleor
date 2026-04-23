@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.156] — 2026-04-23
+
+**Gate ergonomics: `KEEP_CACHE=1 bash tools/verify.sh` skips
+the post-run wipe and reuses the module-graph cache on the
+next run.**
+
+The verify gate's "self-host rebuild closes" step rebuilds the
+~9000-LOC s1 compiler from scratch — that single step
+dominates the gate's wallclock (≈20s of the typical ~80s
+total). The compiler emits a `.nuc_cache/` module-graph
+snapshot that lets a re-run skip 80%+ of that work, but the
+gate's tail-of-script cleanup wipes that cache so the next
+run starts cold.
+
+For active iteration this is wasteful — the same gate runs
+back-to-back during a single feature ship and the cache
+should be reused. v0.2.156 adds `KEEP_CACHE=1` env-var
+support: when set, the gate skips the cleanup, and the next
+run finds the populated cache and finishes ≈10× faster on
+the self-host step. Default behavior is unchanged (CI still
+runs cold for reproducibility).
+
+### Files
+
+- `tools/verify.sh`: cleanup block now gated on `KEEP_CACHE=0`
+  (default). The variable is checked once at end-of-script.
+
+### Self-host LLVM IR fixed point
+
+- **No s1 source change** — pure tooling change. Fixed-point
+  check not required.
+- `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+Gate behavior unchanged when invoked as before
+(`bash tools/verify.sh`); the new behavior only activates
+with the env var. Sample usage:
+
+```
+# fast iteration loop
+KEEP_CACHE=1 bash tools/verify.sh   # populates cache
+KEEP_CACHE=1 bash tools/verify.sh   # second run: ≈10× faster on self-host
+
+# clean run (default; matches CI)
+bash tools/verify.sh
+```
+
 ## [0.2.155] — 2026-04-23
 
 **RFC-0028 phase 3: three new `format3_*` builtins
