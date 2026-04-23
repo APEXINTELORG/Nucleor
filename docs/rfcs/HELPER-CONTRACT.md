@@ -1,10 +1,23 @@
 # Helper Schema Inventory & Population — Contract
 
 > **Source:** User-provided contract `Helpers.md` (2026-04-22).
-> **Status:** Tracked deliverable — see `docs/milestones/v0.4.0.md` for
-> phasing. The going-forward constraint applies starting v0.2.33.
-> **Phase 1 echo on record:** see chat transcript ending v0.2.32.
-> **Phase 1 walk:** awaiting explicit "go" from user.
+> **Status (2026-04-23, v0.2.80):** **Phase 1 + Phase 2 shipped;
+> population at 95.1%.**
+>
+> - **Phase 1 echo on record:** chat transcript ending v0.2.32.
+> - **Phase 1 walk approved:** user authorized "go" → walk
+>   completed v0.2.41 (taxonomy: 13 classes covering 676 helpers).
+> - **Phase 2 mechanism:** `tools/gen_helper_manifest.py` shipped
+>   v0.2.41; populates `docs/rfcs/helper_manifest.toml` from the
+>   canonical s1-compiler ABI tables + runtime C source. Drift-gate
+>   enforced via `tools/check_compiler_drift.sh`.
+> - **Phase 2 population:** 643 of 676 helpers (95.1%) carry
+>   populated `effects` / `taint` / `proof_obligation` fields as
+>   of v0.2.78. Remaining 33 are intentional v0.4 placeholders
+>   (TensorOps GPU/device + 3 ToolingMeta stubs).
+> - **Going-forward constraint:** live since v0.2.41 — drift gate
+>   blocks any helper change that doesn't include a regenerated
+>   manifest.
 
 ## Goal
 
@@ -113,14 +126,17 @@ Before starting Phase 1, reply with:
 
 Wait for "go" before the walk.
 
-## Going-forward constraint (added v0.2.33, 2026-04-22)
+## Going-forward constraint (added v0.2.33, drift-enforced v0.2.41)
 
 - Any helper added to the codebase from v0.2.33 onward MUST also
   add a row to `helper_manifest.toml` in the same commit.
 - Any helper *used* in a new example or stdlib path triggers the
   same manifest-row obligation if the helper isn't already cataloged.
-- Drift-gate enforcement (`tools/check_compiler_drift.sh`
-  extension) lands once Phase 2 is approved.
+- Drift-gate enforcement is **live since v0.2.41**:
+  `tools/check_compiler_drift.sh` runs `gen_helper_manifest.py`
+  in dry-run mode and compares the output to the committed file;
+  any divergence (new helper added to s1, runtime, or tools-suite
+  without a regenerated manifest) blocks the verify gate.
 
 ## Success criteria
 

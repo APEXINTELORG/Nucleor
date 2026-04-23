@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.81] — 2026-04-23
+
+**Refresh `HELPER-CONTRACT.md` and `helper_manifest_schema.md`
+for v0.2.41–78 Phase 2 reality.**
+
+Two contract / schema docs were stale:
+
+- **`docs/rfcs/HELPER-CONTRACT.md`** — header still said
+  "Phase 1 walk: awaiting explicit 'go' from user" and
+  "drift-gate enforcement lands once Phase 2 is approved" —
+  both true at v0.2.32 / v0.2.40 but false since v0.2.41.
+  Refreshed to reflect: Phase 1 walk approved (taxonomy: 13
+  classes / 676 helpers), Phase 2 mechanism shipped v0.2.41,
+  Phase 2 population at 95.1% as of v0.2.78, and the
+  going-forward constraint is **drift-gate-enforced live**
+  since v0.2.41 (not pending).
+- **`docs/rfcs/helper_manifest_schema.md`** — `effects` field
+  state table said "v0.2.73 — 405 rows; remaining 271 carry
+  TODO." Replaced with a 13-row per-class population table
+  showing 643 of 676 helpers (95.1%) populated and the
+  remaining 33 enumerated as v0.4 placeholders. `taint` field
+  state expanded to enumerate the 23 read-side IO helpers
+  carrying `"propagates"` (the only non-`"passthrough"` rows).
+
+No code or generator changes. The manifest itself, the
+generator, and the gate are unchanged — this ship just brings
+the protocol docs into agreement with the shipped state.
+
+### Verify gate
+
+197 / 197 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / ABI / source / test changes.
+
 ## [0.2.80] — 2026-04-23
 
 **Wire 44 forward-looking error codes into the explain registry;
