@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 679
+# Total helpers: 682
 # Of which REVIEW REQUIRED: 0
 
 # ============================================================
@@ -6216,6 +6216,48 @@ class            = "StringFormat"
 symbol           = "__nucleor_format3_iii"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, i64, i64, i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "format3_iss"
+class            = "StringFormat"
+symbol           = "__nucleor_format3_iss"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64, ptr, ptr) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "format3_sii"
+class            = "StringFormat"
+symbol           = "__nucleor_format3_sii"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr, i64, i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "format3_sss"
+class            = "StringFormat"
+symbol           = "__nucleor_format3_sss"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr, ptr, ptr) -> ptr"
 effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"

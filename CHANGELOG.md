@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.155] — 2026-04-23
+
+**RFC-0028 phase 3: three new `format3_*` builtins
+(`format3_sii`, `format3_iss`, `format3_sss`).**
+
+Same template as v0.2.153 (which added the `format2_*` trio). Each
+chains the corresponding single-arg `format_*` helper three
+times. Closes the most-asked-for gaps in the v0.2 3-arg format
+surface — string-then-two-ints (operator/operands), int-then-
+two-strings (id-then-from-to), and three strings (path joins).
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr`: 4 ABI-table sites updated
+  (get_rt_name, is_ptr_ret, is_ptr_arg, emit_externs declares).
+- `compiler/nucleor_tools_suite.nr`: same 4 ABI sites mirrored;
+  the cross-compiler drift gate enforces parity.
+- `stdlib/runtime/nucleor_llvm_rt.c`: 3 new
+  `__nucleor_format3_<X>` impls.
+- `tests/lang/format3_combos.nr`: positive test asserting all 3
+  combos produce the expected interpolated output
+  ("sum=2+3", "7: src -> dst", "a/b/c").
+- `docs/rfcs/helper_manifest.toml`: regenerated for the 3 new
+  helpers.
+
+### Self-host LLVM IR fixed point
+
+- 2-iter check passed at iter2==iter3 (byte-identical at
+  2,639,313 bytes). Iter1 (built by v0.2.154 compiler) legitimately
+  differed by exactly the 3 new `declare` lines, since the old
+  compiler didn't know them yet — same well-understood pattern
+  as v0.2.153.
+- `bin/nucleor.exe` updated; the v0.2.x compiler-source chain
+  is now v0.2.84 → v0.2.87 → v0.2.151 → v0.2.152 → v0.2.153
+  → **v0.2.155**. (v0.2.154 was a pure runtime addition that
+  didn't touch the s1.)
+
+### Verify gate
+
+**242 / 242 PASS, 0 SKIP** on the bash gate (was 241/241; +1
+new `tests/lang/format3_combos.nr`).
+
 ## [0.2.154] — 2026-04-23
 
 **RFC-0002 phase 1: bare arena builtins now actually link.
