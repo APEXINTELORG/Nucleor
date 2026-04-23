@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.96] — 2026-04-23
+
+**`docs/language-reference.md` v0.1 → v0.2 promotion + v0.1.5
+audit corrigendum updated for the v0.2.x chain.**
+
+### Title bump
+
+The reference's title was `Nucleor Language Reference (v0.1)`
+even though the body described features in `0.2.0-v2`.
+Promoted to `(v0.2)` with an explicit pointer to
+`docs/milestones/v0.4.0.md` for the deferred Tier-2 language
+extensions.
+
+### §13 audit corrigendum refresh
+
+The §13 "What was added in v0.1.5" section was a frozen-in-time
+list from a v0.1.4 → v0.1.5 audit. Renamed to "Historical
+corrigenda" and split into two subsections:
+
+- **§13.1 v0.1.5 audit (now redundant)** — the original list
+  (for-loops, break/continue, block comments, generics, traits,
+  match-on-int) plus per-feature back-pointers to the
+  gate-tested files under `tests/features/` and `tests/lang/`.
+  Added `where` clauses (`tests/features/where_clauses.nr`)
+  and the hex / binary / underscored literal forms (per the
+  v0.2.95 fix to §1.4).
+- **§13.2 v0.2.x additions** — new section enumerating the
+  major language additions in the v0.2.x sub-chain that
+  weren't yet captured: `?` postfix (v0.1.50, RFC-0016),
+  `if let` / `while let` sugar, `as` cast operator, narrow-
+  width overflow helpers, 75+ runtime helpers, the
+  String/HashMap/HashSet/BTreeMap/BTreeSet/VecDeque
+  collection runtime + rod surface. With back-pointers to the
+  CHANGELOG and migration guide.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.95] — 2026-04-23
 
 **Bug fix: docs claimed hex/binary literals don't work — they do.**
