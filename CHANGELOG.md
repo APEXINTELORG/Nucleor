@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.140] — 2026-04-23
+
+**Architecture doc "where to look in the source" table named 7
+fns that don't exist — replaced with the actual names.**
+
+The "Where to look in the source" table in `docs/architecture.md`
+told readers to "search `fn <name>` in `nucleor_s1_compiler.nr`"
+for various pipeline stages. A spot-check found 7 of the named
+functions don't actually exist; readers searching would hit zero
+matches.
+
+| Stage | Said | Actually |
+|---|---|---|
+| Lexing | `fn next_token` | (no such fn — `lex` is the entry point; tokens are pulled inline) |
+| Parsing | `fn parse_fn`, `fn parse_struct` | `fn parse_fn_decl`, `fn parse_struct_decl` |
+| Lowering | `fn build_ir` | (no such fn — entry is `fn lower_fn`) |
+| Optimizer | `fn optimize`, `fn algebraic_rewrite` | `fn opt_fn` (driver), `fn opt_fold_block` (constant folding / algebraic), `fn opt_cse_block` (CSE), `fn opt_dce_block` (DCE), `fn opt_prop_block` (copy prop), `fn opt_dead_store_block` |
+| LLVM emission | `fn emit_llvm` | `fn emit_fn`, `fn emit_inst`, `fn emit_externs` |
+
+The `lex`, `parse_expr`, `lower_*`, `nr_type_to_llvm`,
+`escape_llvm_str`, `get_rt_name`, `link_native_module`, and
+`llvm_clang_path` references in the same table were already
+correct.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.139] — 2026-04-23
 
 **Bootstrap contract clarifies the "748 vs 676 symbols" gotcha.**
