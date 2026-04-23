@@ -95,15 +95,20 @@ Whenever a rod is added or modified:
 python tools/gen_rod_manifest.py
 ```
 
-This overwrites `rod_manifest.toml` from the `.nr` source. Unlike
-`helper_manifest.toml`, the rod manifest is **not** currently
-gate-enforced — adding a rod without regenerating the manifest
-won't fail the verify gate today. (Wiring it into
-`tools/check_compiler_drift.sh` is a follow-up release; the
-helper manifest got priority because the helper ABI is more
-load-bearing.)
+This overwrites `rod_manifest.toml` from the `.nr` source. As of
+v0.2.47, the rod manifest is gate-enforced via
+`tools/check_compiler_drift.sh` — the same enforcement
+`helper_manifest.toml` got in v0.2.42. Adding or modifying a rod
+without regenerating the manifest will fail the verify gate with:
 
-## Going-forward expectation (v0.2.46+)
+```
+FAIL: docs/rfcs/rod_manifest.toml is stale.
+Re-run the generator and commit the result:
+  python tools/gen_rod_manifest.py
+  git add docs/rfcs/rod_manifest.toml
+```
 
-When adding a new rod, regenerate the manifest in the same
-commit. The eventual gate enforcement will require this.
+## Going-forward expectation (v0.2.47+ — gate-enforced)
+
+When adding or modifying a rod, regenerate the manifest in the
+same commit. The drift gate will fail otherwise.

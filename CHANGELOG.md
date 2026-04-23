@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.47] — 2026-04-22
+
+**Drift gate enforces rod manifest freshness — generalized helper checker.**
+
+The v0.2.46 rod manifest noted "not yet gate-enforced" — this
+release closes that gap, parallel to v0.2.42's helper manifest
+enforcement.
+
+**Refactored the freshness check.** The v0.2.42 implementation
+inlined the check for `helper_manifest.toml` only. v0.2.47 extracts
+it into a `check_manifest()` shell function that takes
+`(label, generator_path, manifest_path)` and runs the same
+snapshot → regen → diff → restore-if-stale logic. Both manifests
+now use the same code path:
+
+```bash
+check_manifest "helper_manifest" \
+    "$ROOT/tools/gen_helper_manifest.py" \
+    "$ROOT/docs/rfcs/helper_manifest.toml" || exit 1
+
+check_manifest "rod_manifest" \
+    "$ROOT/tools/gen_rod_manifest.py" \
+    "$ROOT/docs/rfcs/rod_manifest.toml" || exit 1
+```
+
+Adding a third manifest in the future is one line.
+
+**Output now shows three OK lines** when everything's in sync:
+
+```
+OK: tools-suite ABI tables match nucleor_s1_compiler.nr
+OK: helper_manifest.toml is up to date
+OK: rod_manifest.toml is up to date
+```
+
+**Negative test verified for both manifests** — corrupting either
+file produces the matching FAIL with a per-manifest remediation
+hint.
+
+**Schema doc updated** — `rod_manifest_schema.md` "Re-generating"
+section now reflects gate enforcement and shows the FAIL message
+users will see if they forget.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Tooling-only — no compiler / runtime /
+ABI / source / test changes.
+
 ## [0.2.46] — 2026-04-22
 
 **Rod manifest companion to the helper manifest (121 rods cataloged).**

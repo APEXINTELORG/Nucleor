@@ -88,39 +88,58 @@ fi
 
 echo "OK: tools-suite ABI tables match nucleor_s1_compiler.nr"
 
-# --- Manifest freshness check (added v0.2.42) ---
-# Per the v0.2.33 going-forward constraint: every commit that adds a
-# helper must also regenerate docs/rfcs/helper_manifest.toml. Re-run
-# the generator and diff against the committed file.
-MANIFEST="$ROOT/docs/rfcs/helper_manifest.toml"
-GEN="$ROOT/tools/gen_helper_manifest.py"
+# --- Manifest freshness checks ---
+# v0.2.42 added helper_manifest.toml enforcement.
+# v0.2.47 generalized to any manifest under docs/rfcs/ that has a
+# matching tools/gen_*_manifest.py generator. Each freshness check
+# regenerates the manifest, diffs against the committed snapshot, and
+# fails the gate if they differ.
 
-if [ -f "$GEN" ] && [ -f "$MANIFEST" ]; then
-    if ! command -v python >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
-        echo "WARN: python not in PATH — skipping manifest freshness check"
-        exit 0
-    fi
+# Resolve PYTHON once for all manifest checks.
+PYTHON=""
+if command -v python >/dev/null 2>&1; then
     PYTHON=python
-    command -v python >/dev/null 2>&1 || PYTHON=python3
-    # Snapshot the committed manifest, regenerate, diff, then restore.
-    SNAPSHOT="$TMP/manifest_committed.toml"
-    cp "$MANIFEST" "$SNAPSHOT"
-    "$PYTHON" "$GEN" >/dev/null 2>&1 || {
-        echo "FAIL: gen_helper_manifest.py crashed."
-        cp "$SNAPSHOT" "$MANIFEST"
-        exit 1
-    }
-    if ! diff -q "$SNAPSHOT" "$MANIFEST" >/dev/null 2>&1; then
-        echo ""
-        echo "FAIL: docs/rfcs/helper_manifest.toml is stale."
-        echo "Re-run the generator and commit the result:"
-        echo "  python tools/gen_helper_manifest.py"
-        echo "  git add docs/rfcs/helper_manifest.toml"
-        # Restore so the working tree isn't muddled by the diff probe
-        cp "$SNAPSHOT" "$MANIFEST"
-        exit 1
-    fi
-    echo "OK: docs/rfcs/helper_manifest.toml is up to date"
+elif command -v python3 >/dev/null 2>&1; then
+    PYTHON=python3
 fi
+
+check_manifest() {
+    local label="$1" gen_path="$2" manifest_path="$3"
+    if [ ! -f "$gen_path" ] || [ ! -f "$manifest_path" ]; then
+        return 0
+    fi
+    if [ -z "$PYTHON" ]; then
+        echo "WARN: python not in PATH — skipping $label freshness check"
+        return 0
+    fi
+    local snapshot="$TMP/$(basename "$manifest_path").snapshot"
+    cp "$manifest_path" "$snapshot"
+    "$PYTHON" "$gen_path" >/dev/null 2>&1 || {
+        echo "FAIL: $(basename "$gen_path") crashed."
+        cp "$snapshot" "$manifest_path"
+        return 1
+    }
+    if ! diff -q "$snapshot" "$manifest_path" >/dev/null 2>&1; then
+        echo ""
+        echo "FAIL: $manifest_path is stale."
+        echo "Re-run the generator and commit the result:"
+        echo "  python $gen_path"
+        echo "  git add $manifest_path"
+        cp "$snapshot" "$manifest_path"
+        return 1
+    fi
+    echo "OK: $(basename "$manifest_path") is up to date"
+    return 0
+}
+
+# helper_manifest — Helpers.md going-forward constraint (v0.2.33+, gate v0.2.42)
+check_manifest "helper_manifest" \
+    "$ROOT/tools/gen_helper_manifest.py" \
+    "$ROOT/docs/rfcs/helper_manifest.toml" || exit 1
+
+# rod_manifest — companion gate enforcement (v0.2.47)
+check_manifest "rod_manifest" \
+    "$ROOT/tools/gen_rod_manifest.py" \
+    "$ROOT/docs/rfcs/rod_manifest.toml" || exit 1
 
 exit 0
