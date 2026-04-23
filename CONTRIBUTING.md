@@ -133,20 +133,50 @@ Avoid drive-by formatting changes in PRs that aren't about formatting.
 
 ## What's in scope vs. out of scope
 
-**In scope** for v0.1.x patches:
+**In scope** for current v0.2.x post-RC patches:
 
 - Bug fixes in the compiler, runtime, or rods
-- Documentation improvements
+- Documentation improvements (especially staleness fixes — the
+  audit pattern that drove the v0.2.79–v0.2.93 chain still has
+  surface area to cover)
 - Test additions
 - New rods (small, focused, with C source + `.nr` wrapper + a test)
+- New gate steps that catch real drift classes (the post-RC
+  hardening pattern)
+- Migration tools (`nuc fix --<topic>`)
 
-**Out of scope** for v0.1.x (defer to v0.2 / v1.0 milestones):
+**Already shipped** (no longer "out of scope"):
 
-- Linux / macOS port
-- `for` loop syntax, `break`/`continue`
-- Generics work
-- New CLI subcommands
-- Major changes to the optimizer
+- `for x in <array | Vec>` syntax — see `tests/features/forin_array.nr`
+  + `forin_vec.nr` (gate-tested)
+- `break` / `continue` — see `tests/features/break_continue.nr`
+- Generics (`fn`, `struct`, `enum`) — see
+  `tests/features/generic_{fn,struct,enum}.nr`
+- Traits (basic, bounds, default methods) — see
+  `tests/features/trait_{basic,bounds,default,method}.nr`
+- `where` clauses — see `tests/features/where_clauses.nr`
+- Many new CLI subcommands (`init`, `lock`, `doc`, `fix`,
+  `audit`, `policy`, `certify`, `translate`, `evidence`,
+  `impact`, `summary`, `query`, `bootstrap`, `stage-dump`,
+  `install`, `add`, `publish`, `registry`, `sage`, `clean`,
+  `scram`, `zen`, `mco`)
+- Optimizer additions in v0.1.x's 6-pass pipeline + v0.2.x's
+  algebraic-rewrite extensions
+
+**Out of scope** for v0.2.x (defer to v0.3 / v0.4 / v0.5+
+milestones):
+
+- Linux / macOS native bootstrap binary — **v0.3.0** target,
+  see [`docs/milestones/v0.3.0.md`](docs/milestones/v0.3.0.md).
+  POSIX gate (`tools/verify.sh`), `nuc` shell wrapper, and
+  runtime `_WIN32` audit already shipped in v0.2.
+- Iterator trait + lazy adapters — **v0.4.0**, RFC-0024.
+- Pattern matching extensions (range, slice, `@`-bindings,
+  or-patterns) — **v0.4.0**, RFC-0023.
+- Closures with capture, lifetimes, trait objects, format
+  strings — **v0.4.0**, RFC-0025/0026/0027/0028.
+- Full PubGrub package resolver + git fetch — **v0.5.0**,
+  RFC-0019 phase 3.
 
 If you're not sure whether something is in scope, open an issue first to
 discuss before doing the implementation work.

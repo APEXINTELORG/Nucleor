@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.94] — 2026-04-23
+
+**Top-level `CONTRIBUTING.md` "scope" section was 90+ releases
+stale.**
+
+The "What's in scope vs. out of scope" section framed
+contributors against v0.1.x patches. Three rows of "out of
+scope" items had **already shipped**:
+
+- **`for` loop syntax** — `for x in <array | Vec>` works,
+  gate-tested as `tests/features/forin_array.nr` +
+  `forin_vec.nr`.
+- **`break` / `continue`** — gate-tested as
+  `tests/features/break_continue.nr`.
+- **Generics work** — `fn`, `struct`, `enum`, traits (basic,
+  bounds, default methods), `where` clauses all gate-tested
+  under `tests/features/generic_*` and `tests/features/trait_*`
+  and `tests/features/where_clauses.nr`.
+- **New CLI subcommands** — 20+ shipped since v0.1
+  (`init`, `lock`, `doc`, `fix`, `audit`, `policy`, `certify`,
+  `translate`, `evidence`, `impact`, `summary`, `query`,
+  `bootstrap`, `stage-dump`, `install`, `add`, `publish`,
+  `registry`, `sage`, `clean`, `scram`, `zen`, `mco`).
+
+### Refresh
+
+Replaced the v0.1.x scope framing with three sections:
+
+1. **In scope for v0.2.x post-RC patches** — bug fixes, doc
+   staleness fixes (with explicit nod to the audit pattern
+   that drove v0.2.79–v0.2.93), test additions, new rods, new
+   gate steps, migration tools.
+2. **Already shipped (no longer "out of scope")** — enumerates
+   each item from the original list with a back-pointer to
+   the gate-tested feature file.
+3. **Out of scope for v0.2.x (defer to v0.3 / v0.4 / v0.5+)** —
+   Linux/macOS native bootstrap (v0.3.0), iterator trait
+   (v0.4 RFC-0024), pattern-matching extensions (v0.4
+   RFC-0023), closures/lifetimes/trait-objects/format-strings
+   (v0.4 RFC-0025/26/27/28), PubGrub resolver + git fetch
+   (v0.5 RFC-0019 phase 3).
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.93] — 2026-04-23
 
 **Process docs refresh — `semver-and-release.md` and
