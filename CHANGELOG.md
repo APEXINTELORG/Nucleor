@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.32] — 2026-04-22
+
+**Word-frequency counter example (`examples/15_word_count.nr`).**
+
+```
+=== Nucleor word-count demo (v0.2.x stdlib) ===
+
+Total words:  47
+Unique words: 26
+
+Top words by frequency:
+word                   count
+----------------------------
+the                       10
+fox                        4
+dog                        4
+is                         3
+and                        2
+runs                       2
+quick                      2
+nucleor                    2
+compiler                   1
+windows                    1
+```
+
+The second v0.2-era end-to-end demo. Continues the post-v0.2.31
+direction of validating the helper surface with real programs
+rather than adding more leaf helpers.
+
+The program tokenizes a passage, counts word frequencies in a
+HashMap, and prints a top-N report:
+- `is_word_char` per-byte filter (a-z, A-Z, 0-9) drives the
+  tokenizer; non-word bytes split tokens.
+- `str_to_lower` + `str_substring` build each lowercased token.
+- `hashmap_get_or` (v0.2.27) bumps existing counts cleanly without a
+  separate `contains` check.
+- `hashmap_keys` (v0.2.16) → `Vec<str>` to enumerate the table.
+- Stable sort by `(count, original_index)` packed into a single
+  i64 cell so `vec_sort_i64` orders entries deterministically. The
+  pack/unpack uses the unique `n_keys` denominator to avoid
+  collisions on small counts.
+- `str_pad_right` / `str_pad_left` / `int_to_str` for output.
+
+Touches helpers from v0.1 (file/hashmap/str basics), v0.2.16 (keys),
+v0.2.20 (str_to_lower), v0.2.24 (int_to_str), v0.2.26 (str_pad_*),
+and v0.2.27 (hashmap_get_or) — verifying each composes with the
+others in a single program.
+
+`15_word_count` is now part of the gate (`tools/verify.sh`):
+181/182 green on Windows + 1 skip. Self-host LLVM IR fixed point
+preserved (no compiler changes this release).
+
 ## [0.2.31] — 2026-04-22
 
 **End-to-end CSV summary example (`examples/14_csv_summary.nr`).**
