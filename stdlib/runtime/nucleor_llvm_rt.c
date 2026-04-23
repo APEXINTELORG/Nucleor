@@ -133,6 +133,32 @@ const char *__nucleor_format2_si(const char *tmpl, const char *s, long long b) {
     free((void *)first);
     return out;
 }
+// RFC-0028 phase 2 (v0.2.153) — three more two-arg combinations
+// commonly needed but missing from the v0.2.6 baseline:
+//   ss = two strs (e.g. format!("from={}, to={}", a, b))
+//   is = i64 then str (opposite of si)
+//   ff = two f64s (passed as i64-bit-cast cells, like format_f64)
+// format_f64 is defined further down; forward-declare here so
+// format2_ff can reference it without reordering the file.
+const char *__nucleor_format_f64(const char *tmpl, long long b);
+const char *__nucleor_format2_ss(const char *tmpl, const char *a, const char *b) {
+    const char *first = __nucleor_format_str(tmpl, a);
+    const char *out = __nucleor_format_str(first, b);
+    free((void *)first);
+    return out;
+}
+const char *__nucleor_format2_is(const char *tmpl, long long a, const char *b) {
+    const char *first = __nucleor_format_i64(tmpl, a);
+    const char *out = __nucleor_format_str(first, b);
+    free((void *)first);
+    return out;
+}
+const char *__nucleor_format2_ff(const char *tmpl, long long a_bits, long long b_bits) {
+    const char *first = __nucleor_format_f64(tmpl, a_bits);
+    const char *out = __nucleor_format_f64(first, b_bits);
+    free((void *)first);
+    return out;
+}
 
 // f64 args arrive as i64 cells (bit-cast); decode then render with %g.
 // Uses a local union since `nf64` is typedef'd later in this file and

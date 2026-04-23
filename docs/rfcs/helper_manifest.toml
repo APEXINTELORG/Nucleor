@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 676
+# Total helpers: 679
 # Of which REVIEW REQUIRED: 0
 
 # ============================================================
@@ -6141,6 +6141,20 @@ since            = "0.2.24"
 notes            = ""
 
 [[helper]]
+name             = "format2_ff"
+class            = "StringFormat"
+symbol           = "__nucleor_format2_ff"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64, i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "format2_ii"
 class            = "StringFormat"
 symbol           = "__nucleor_format2_ii"
@@ -6155,11 +6169,39 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "format2_is"
+class            = "StringFormat"
+symbol           = "__nucleor_format2_is"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64, ptr) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "format2_si"
 class            = "StringFormat"
 symbol           = "__nucleor_format2_si"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, ptr, i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "format2_ss"
+class            = "StringFormat"
+symbol           = "__nucleor_format2_ss"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr, ptr) -> ptr"
 effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
