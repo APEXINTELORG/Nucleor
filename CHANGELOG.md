@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.99] — 2026-04-23
+
+**Milestone tracker refresh — was 22 ships stale.**
+
+`docs/milestones/v0.2.0.md` last refreshed at v0.2.77 (sub-chain
+summary still said v0.2.50–v0.2.76 with 27 releases). We're at
+v0.2.98 — 22 ships beyond. Refresh:
+
+### Status block
+
+- **Release count** 76 → 98.
+- **Verify gate** 195/195 → 203/203.
+- **Helper manifest Phase 2** 92.9% (628/676) → 95.1%
+  (643/676), with the 33 remaining TODOs explicitly enumerated
+  as v0.4 placeholders.
+- **Compiler source changes** in the sub-chain now noted (the
+  two changes in v0.2.84 + v0.2.87, both preserved IR fixed
+  point).
+
+### Sub-chain summary
+
+- Range bumped v0.2.50–76 (27 releases) → v0.2.50–98
+  (49 releases). Bucket count 4 → 5.
+- **Helper manifest bucket** updated for v0.2.78 TensorOps
+  population.
+- **CLI surface gate coverage bucket** expanded to enumerate
+  the 21+ commands now smoked + the four meta-coverage steps
+  (help-text-coverage, JSON-flag, version-alias, showcase-build).
+- **Compiler bug fix bucket** expanded from 1 entry (v0.2.69)
+  to 6 entries covering v0.2.69 / v0.2.79 / v0.2.82 / v0.2.83 /
+  v0.2.85 / v0.2.91 — each one a real bug surfaced by the
+  audit pattern with a corresponding gate-step addition.
+- **New "Documentation staleness audit" bucket** — 19+ stale
+  claims fixed across 12 doc surfaces (milestone tracker,
+  helper-contract, schema docs, README, getting-started,
+  language-tour, language-reference, migration guide,
+  semver-and-release, contributing, rods-and-runtime,
+  benchmarks, rfcs/README). Lists the principal drift classes
+  (POSIX target version, rod count, "for-loops planned",
+  hex/binary literals "not supported", v0.1.x "out of scope").
+
+### Success criteria
+
+Two `[x]` rows updated to current numbers (158/158 → 203/203,
+195 steps → 203 steps).
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh of the canonical v0.2 milestone tracker — no compiler
+/ runtime / source / test changes.
+
 ## [0.2.98] — 2026-04-23
 
 **`docs/benchmarks.md` self-host stats + `docs/rfcs/README.md`
