@@ -5,6 +5,64 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.53] — 2026-04-22
+
+**POSIX `nuc` launcher: full clang resolution chain + fail-fast errors (v0.3 phase 2 prep).**
+
+The `nuc` POSIX wrapper had a partial fallback chain and stale
+error message text. This release closes both gaps per the
+`docs/milestones/v0.3.0.md` phase 2 spec.
+
+**Added two missing canonical clang paths:**
+
+```
+/usr/bin/clang-18    (Ubuntu / Debian standard apt install)
+/usr/bin/clang       (Fedora / Arch generic)
+```
+
+The launcher now checks **10 paths** in resolution order:
+
+1. `$NUCLEOR_CLANG_PATH` — explicit override
+2. `$LLVM_SYS_180_PREFIX/bin/clang` — Rust-toolchain prefix env
+3. `/usr/lib/llvm-18/bin/clang` — Ubuntu / Debian llvm-18 package
+4. `/usr/lib/llvm-17/bin/clang` — same for LLVM 17 fallback
+5. `/usr/bin/clang-18` — apt versioned binary (NEW)
+6. `/usr/bin/clang` — generic distro install (NEW)
+7. `/opt/homebrew/opt/llvm@18/bin/clang` — Homebrew Apple Silicon, versioned
+8. `/opt/homebrew/opt/llvm/bin/clang` — Homebrew Apple Silicon, default
+9. `/usr/local/opt/llvm@18/bin/clang` — Homebrew Intel, versioned
+10. `/usr/local/opt/llvm/bin/clang` — Homebrew Intel, default
+
+**Added fail-fast error path** — if clang isn't found via any of
+the above AND the user's command actually needs it (skips
+`help`, `--help`, `--version`), the launcher prints a structured
+error with per-platform install instructions:
+
+```
+Ubuntu / Debian:    sudo apt install clang-18
+Fedora:             sudo dnf install clang
+Arch / Manjaro:     sudo pacman -S clang
+macOS (Homebrew):   brew install llvm@18
+```
+
+Plus the full resolution chain that was attempted, so users can
+diagnose without reading the launcher source.
+
+**Refreshed the missing-binary error message** — was stale
+("Nucleor v0.1.x ships Windows only..."), pointed at obsolete
+v0.2.0 RFC-0022 status. Now points at the v0.3.0.md milestone
+tracker for the bootstrap path, with three current workarounds
+(Wine / source bootstrap / use Windows host).
+
+This release does **not** change Windows behavior — `nuc.bat`
+continues to operate unchanged. The POSIX launcher is gated by
+`#!/usr/bin/env bash` so Windows users never invoke it.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Windows-side unchanged; POSIX launcher
+path won't actually run until v0.3 ships the Linux binary.
+
 ## [0.2.52] — 2026-04-22
 
 **`docs/milestones/v0.3.0.md` — formal v0.3 milestone tracker.**
