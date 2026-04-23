@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.106] — 2026-04-23
+
+**v0.2.0 milestone tracker — Helper Schema status block + 1
+success criterion still at v0.2.76 era.**
+
+The v0.2.99 / v0.2.105 refreshes still missed two pockets:
+
+1. **Helper Schema Deliverable status block** (line 268) said
+   "Status (v0.2.76)" with "Phase 2 mechanism (v0.2.41–73)"
+   and "Phase 2 population (v0.2.73–76) — 628 of 676 (92.9%)
+   ... 48 TODO rows". Updated to "Status (v0.2.105)" with
+   correct mech (v0.2.41 only — the v0.2.73 was confusing the
+   mech ship with the start of population), correct population
+   range (v0.2.73–78), and correct numbers (643/676 = 95.1%,
+   33 TODO).
+2. **Success criterion: CHANGELOG entries** (line 351) said
+   "every release v0.1.46..v0.2.76 has a CHANGELOG entry"
+   and "The v0.2.50–76 sub-chain". Both bumped to v0.2.105.
+   Also added a note about the **v0.2.83 drift-gate-enforced
+   CHANGELOG↔git tag parity** check that catches any missing
+   per-version entry.
+
+These are the kind of stale claims the audit pattern keeps
+surfacing: the high-level status block at the top got
+refreshed but specific in-document references hidden a few
+sections down stayed at older values.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.105] — 2026-04-23
 
 **v0.2.0 milestone tracker — two more stale claims inside
