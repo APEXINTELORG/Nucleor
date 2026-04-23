@@ -157,6 +157,6 @@ There is no garbage collector. Memory ownership follows the rules enforced at co
 | AST → IR lowering        | search `fn lower_`, `fn build_ir` |
 | Optimizer                | search `fn optimize`, `fn algebraic_rewrite` |
 | LLVM emission            | search `fn emit_llvm`, `fn nr_type_to_llvm`, `fn escape_llvm_str` |
-| Builtin name mapping     | `fn get_rt_name(name: str) -> str` (around line 2004 as of v0.2.107; the long string of `__nucleor_*` mappings runs from there for several hundred lines) |
+| Builtin name mapping     | `fn get_rt_name(name: str) -> str` (line 2004 as of v0.2.129; the long string of `__nucleor_*` mappings runs from there for several hundred lines) |
 | The CLI                  | `compiler/nucleor_tools_suite.nr` — subcommand dispatch, `nuc test`, `nuc perf`, etc. |
 | The clang invocation     | search `fn link_native_module`, `fn llvm_clang_path` |
