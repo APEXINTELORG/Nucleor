@@ -136,10 +136,11 @@ done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
 # Step count: 1 binary present + 1 ABI parity + 1 tools-rebuild
-# + 1 CLI explain + 1 explain-full + 1 bootstrap + 1 check+abi
-# + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
+# + 1 help coverage + 1 CLI explain + 1 explain-full + 1 bootstrap
+# + 1 check+abi + 1 inspectors + 1 diagnostics + 1 init + 1 doc
+# + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host
-STEP_TOTAL=$((13 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+STEP_TOTAL=$((14 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -234,6 +235,30 @@ cli_inspector_smoke() {
 # one gate step. Each gets minimal output validation; the goal is
 # "this command path produces structured output without crashing"
 # rather than full semantic verification.
+cli_help_coverage_smoke() {
+    # v0.2.84 — every dispatched CLI subcommand must appear in the
+    # `nuc help` output. Catches the drift class that bit `doc` and
+    # `fix` (both shipped + smoke-tested but absent from help).
+    local out
+    out=$("$BIN" help 2>&1) || return 1
+    local cmds=(
+        "build" "build-fast" "build-strict" "build-shared" "build-wasm" "build-ptx"
+        "run" "emit" "test" "bench" "perf" "bootstrap" "stage-dump"
+        "summary" "query" "abi" "evidence" "impact" "graph" "doc" "profile"
+        "lock" "install" "add" "publish" "registry" "sage"
+        "check" "explain"
+        "audit" "policy" "certify" "translate"
+        "init" "clean" "scram" "fix" "zen" "mco"
+    )
+    local cmd
+    for cmd in "${cmds[@]}"; do
+        # Match the command at the start of an indented help line so
+        # we don't get false positives from prose ("the build step").
+        echo "$out" | grep -qE "^  $cmd\b" || return 1
+    done
+    return 0
+}
+
 cli_explain_full_smoke() {
     # v0.2.79 — audits the v0.2 error-code set against the explain
     # registry. v0.2.80 — extended to the full forward-looking
@@ -554,6 +579,7 @@ compiler_tables_synced() {
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
 step "tools-suite rebuild" tools_rebuild
+step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
 step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
 step "CLI: nuc explain — full spec code set wired" cli_explain_full_smoke
 step "CLI: nuc bootstrap status reports correctly" cli_bootstrap_smoke
