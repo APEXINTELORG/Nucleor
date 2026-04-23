@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.125] — 2026-04-23
+
+**docs/rfcs/README.md cross-cutting-contracts table refresh — three
+stale numbers from the v0.2.73 era brought current.**
+
+The cross-cutting-contracts header table at the top of the RFC
+index carried three numbers that drifted over the v0.2.73–78
+helper-manifest population sub-chain and never got mirrored
+back into the index:
+
+- HELPER-CONTRACT row claimed **92.9% via v0.2.73–76**;
+  actual is 95.1% via v0.2.73–78 (matches HELPER-CONTRACT.md
+  itself + the milestone tracker).
+- helper_manifest.toml row claimed **628/676 rows fully
+  annotated**; actual is 643/676 (matches helper_manifest_schema.md
+  + milestone tracker).
+- helper_manifest.toml row claimed **48 intentional v0.4
+  placeholders**; actual is 33 (the complement: 676 − 643).
+
+Plus the trailing footer note "**through v0.2.97 as of this
+update**" was 27 ships stale; bumped to **v0.2.124**.
+
+### `docs/rfcs/README.md`
+
+- HELPER-CONTRACT row Status column: 92.9 → 95.1, v0.2.73–76 →
+  v0.2.73–78.
+- helper_manifest.toml row Status column: 628/676 → 643/676,
+  48 → 33 placeholders, v0.2.73–76 → v0.2.73–78.
+- Footer paragraph: "v0.2.97" → "v0.2.124".
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.124] — 2026-04-23
 
 **Audit finding: 22 orphan rod wrappers document themselves as

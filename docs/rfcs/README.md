@@ -18,8 +18,8 @@ proceed without re-design.
 
 | Doc | Topic | Status |
 |---|---|---|
-| [HELPER-CONTRACT](HELPER-CONTRACT.md) | Helper schema inventory & population — protocol document | Phase 1 + Phase 2 done in v0.2.40; Phase 2 population at 92.9% via v0.2.73–76 |
-| [helper_manifest.toml](helper_manifest.toml) | 676-helper schema map (TOML, generated) | Mech v0.2.40, populated v0.2.73–76 (628/676 rows fully annotated; remaining 48 are intentional v0.4 placeholders) |
+| [HELPER-CONTRACT](HELPER-CONTRACT.md) | Helper schema inventory & population — protocol document | Phase 1 + Phase 2 done in v0.2.40; Phase 2 population at 95.1% via v0.2.73–78 |
+| [helper_manifest.toml](helper_manifest.toml) | 676-helper schema map (TOML, generated) | Mech v0.2.40, populated v0.2.73–78 (643/676 rows fully annotated; remaining 33 are intentional v0.4 placeholders) |
 | [helper_manifest_schema.md](helper_manifest_schema.md) | Per-field reference for `helper_manifest.toml` | v0.2.40, schema vocabulary expanded v0.2.73 (`"sync"` effect tag) + v0.2.75 (per-class population state table) |
 | [rod_manifest.toml](rod_manifest.toml) | 121-rod catalog (TOML, generated) | Companion to helper manifest, v0.2.46 |
 | [rod_manifest_schema.md](rod_manifest_schema.md) | Per-field reference for `rod_manifest.toml` | v0.2.46 |
@@ -82,7 +82,7 @@ Implemented or Implemented-partial status as of v0.2.0 RC**
 [`docs/milestones/v0.2.0.md`](../milestones/v0.2.0.md) — every
 row is DONE / PARTIAL / DEFERRED with a follow-on target).
 **RFC-0030 declined** during v0.2 (see the RFC for rationale).
-The post-RC v0.2.x sub-chain (through v0.2.97 as of this
+The post-RC v0.2.x sub-chain (through v0.2.124 as of this
 update) has been strictly additive on top of v0.2.0; no
 RFC implementation states changed. Together with the three
 process docs (`docs/process/`), they specify the full
