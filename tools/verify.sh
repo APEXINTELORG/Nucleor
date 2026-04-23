@@ -174,6 +174,15 @@ cli_bootstrap_smoke() {
     echo "$out" | grep -q "Nucleor Bootstrap Status" || return 1
     echo "$out" | grep -q "Stage: 1 (self-hosted)" || return 1
     echo "$out" | grep -q "Self-hosted: yes" || return 1
+    # v0.2.82 — the Contract: line names a doc file. Verify it
+    # exists at the repo root so `nuc bootstrap` doesn't dangle.
+    # Catches the drift class that bit NUCLEOR_BOOTSTRAP_CONTRACT.md
+    # being referenced from v0.2.70 onward without ever being
+    # committed.
+    local contract_path
+    contract_path=$(echo "$out" | sed -n 's/^[[:space:]]*Contract:[[:space:]]*//p')
+    [ -n "$contract_path" ] || return 1
+    [ -f "$ROOT/$contract_path" ] || return 1
     return 0
 }
 
