@@ -7,7 +7,7 @@
 #
 # Steps:
 #   1. Confirm bin/nucleor loads
-#   2. Build and run examples 01..06 + 08..12 (07 only if rust_bridge built)
+#   2. Build and run examples 01..06 + 08..18 (07 only if rust_bridge built)
 #   3. Build and run all positive tests under tests/{lang,attrs,runtime,rods,features}
 #   4. Confirm negative tests under tests/err/ fail with the expected diagnostic
 #   5. Self-host loop: rebuild the compiler from source
