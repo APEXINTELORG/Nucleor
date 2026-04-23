@@ -244,14 +244,14 @@ contained in the generated code; user code is safe.
 1. Pre-build step: invoke `nuc-cxx` over each bridge to produce the
    C++ shim file (`.cxx`).
 2. Compile the C++ shim with `clang++ -std=c++20 -c shim.cxx`
-   (configurable via `nuc.toml`).
+   (configurable via `Nucleor.toml`).
 3. Compile the user's C++ source (the original library headers and
    source) similarly.
 4. Compile the Nucleor module producing a `.o`.
 5. Link all `.o` files together with `clang++` (because we now have
    C++ symbols).
 
-`nuc.toml` gains:
+`Nucleor.toml` gains:
 
 ```toml
 [cxx]

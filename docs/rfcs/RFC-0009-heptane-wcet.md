@@ -135,7 +135,7 @@ WCET on systems with cache is hard. Heptane supports:
 
 For cert profile on Cortex-A class, default to no-cache for safety.
 Users can provide platform-specific cache config in
-`nuc.toml [wcet.cache]` if they want tighter bounds.
+`Nucleor.toml [wcet.cache]` if they want tighter bounds.
 
 ### 3.7 Diagnostics
 

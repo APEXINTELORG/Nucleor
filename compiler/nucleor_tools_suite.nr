@@ -9337,7 +9337,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "MOD-004") { return "use foo::* without an explicit prelude pulls in everything; can shadow names unexpectedly."; };
     if str_eq(code, "MOD-005") { return "Module dependency graph has a cycle (mod a uses b which uses a)."; };
     if str_eq(code, "MOD-006") { return "Two use declarations binding the same identifier shadow each other; rename via `use foo::Bar as FBar`."; };
-    if str_eq(code, "PKG-001") { return "nuc.toml manifest fails schema validation."; };
+    if str_eq(code, "PKG-001") { return "Nucleor.toml manifest fails schema validation."; };
     if str_eq(code, "PKG-002") { return "PubGrub resolver could not find a set of versions satisfying all constraints."; };
     if str_eq(code, "PKG-003") { return "Downloaded package hash does not match the lockfile entry. Possible network corruption or registry compromise."; };
     if str_eq(code, "PKG-004") { return "HTTP/git fetch failed. Check connectivity, registry URL, and auth tokens."; };

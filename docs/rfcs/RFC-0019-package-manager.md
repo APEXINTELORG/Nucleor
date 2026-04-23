@@ -1,9 +1,9 @@
-# RFC-0019 — Package Manager: `nuc.toml`, registry, resolver
+# RFC-0019 — Package Manager: `Nucleor.toml`, registry, resolver
 
 | Field | Value |
 |---|---|
 | **Number** | 0019 |
-| **Title** | Package manager — `nuc.toml`, lockfile, semver resolver, registry |
+| **Title** | Package manager — `Nucleor.toml`, lockfile, semver resolver, registry |
 | **Status** | Implemented (partial) v0.1.33–v0.1.55 — see `docs/milestones/v0.2.0.md`; v0.2 DoD met (manifest, lockfile, install, workspace); registry / PubGrub / git deferred to v0.5.0 |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
@@ -14,12 +14,12 @@
 
 ## 1. Summary
 
-Ship a Cargo-equivalent package manager: per-project `nuc.toml`,
-a `nuc.lock` lockfile, a semver-based resolver, and a static-files
+Ship a Cargo-equivalent package manager: per-project `Nucleor.toml`,
+a `Nucleor.lock` lockfile, a semver-based resolver, and a static-files
 registry hosted on GitHub Pages.
 
 ```toml
-# nuc.toml
+# Nucleor.toml
 [package]
 name    = "my_robot"
 version = "0.3.1"
@@ -67,7 +67,7 @@ Prior art: Cargo (Rust), npm (JS), pip+PyPI (Python), go modules.
 
 ## 3. Design
 
-### 3.1 `nuc.toml`
+### 3.1 `Nucleor.toml`
 
 Sections: `[package]`, `[dependencies]`, `[dev-dependencies]`,
 `[build-dependencies]`, `[features]`, `[profile.*]`, `[bin]`,
@@ -98,7 +98,7 @@ resolver design — better diagnostics than Cargo's older resolver).
 
 ### 3.4 Lockfile
 
-`nuc.lock` records exact resolved versions + hashes:
+`Nucleor.lock` records exact resolved versions + hashes:
 
 ```toml
 version = 1
@@ -155,12 +155,12 @@ nuc clean                Remove build artifacts
 Multi-crate projects:
 
 ```toml
-# top-level nuc.toml
+# top-level Nucleor.toml
 [workspace]
 members = ["crates/parser", "crates/codegen", "crates/cli"]
 ```
 
-Each member has its own `nuc.toml`. Shared `nuc.lock` at workspace
+Each member has its own `Nucleor.toml`. Shared `Nucleor.lock` at workspace
 root.
 
 ### 3.8 Features
@@ -244,7 +244,7 @@ Users can use git deps for v0.2.
 
 ## 7. Definition of done
 
-- [ ] `nuc.toml` parses and validates per schema
+- [ ] `Nucleor.toml` parses and validates per schema
 - [ ] PubGrub resolver produces correct lockfile
 - [ ] git/path/registry source types work
 - [ ] All CLI commands functional

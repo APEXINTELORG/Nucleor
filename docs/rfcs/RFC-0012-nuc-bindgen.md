@@ -208,7 +208,7 @@ robotics SDKs ship C APIs).
 |---|---|---|
 | `nuc-bindgen` standalone binary | libclang glue + emit | ~3500 |
 | Compiler | `extern fn ... ...` (varargs) parser + codegen | ~150 |
-| `nuc.toml [bindgen]` integration | Optional auto-regenerate on build | ~120 |
+| `Nucleor.toml [bindgen]` integration | Optional auto-regenerate on build | ~120 |
 | Diagnostics | BINDGEN-001…005 | ~150 |
 | **Total** | | **~3920** |
 

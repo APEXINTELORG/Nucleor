@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.147] — 2026-04-23
+
+**Filename drift: 8 docs + 1 tools-suite entry referenced
+`nuc.toml` / `nuc.lock`, but the shipped compiler reads
+`Nucleor.toml` / `Nucleor.lock`.**
+
+The compiler source has been reading the capitalized form for
+the entire v0.2 line (`file_read_string("Nucleor.toml")` in
+`compiler/nucleor_s1_compiler.nr`; `nuc init <name>` scaffolds
+`<name>/Nucleor.toml`; `nuc lock` writes `Nucleor.lock`). But
+the canonical **RFC-0019** (package-manager design), five other
+RFCs, the milestone tracker, the migration guide, the semver
+process doc, and one explain-registry title all referred to
+**`nuc.toml`** / **`nuc.lock`**. Users reading the RFC and
+running `nuc build` from a `nuc.toml` project directory would
+get "manifest not found" (because the compiler is looking for
+`Nucleor.toml`).
+
+Also: the repo-root sample file **`nuc.toml`** had a header
+claiming "**The minimal TOML parser shipped in v0.1.33 reads
+this file**". It does not — the parser reads `Nucleor.toml`.
+Header rewritten to correctly describe the file as a schema
+reference that is NOT the manifest the compiler consumes.
+
+### Docs (all `nuc.toml` → `Nucleor.toml`, all `nuc.lock` →
+`Nucleor.lock`)
+
+- **`docs/rfcs/RFC-0019-package-manager.md`** — 10 replacements
+  including the RFC title, the body references, the fenced-code-
+  block headers (`# Nucleor.toml`, `# top-level Nucleor.toml`),
+  and the workspace section naming `Nucleor.lock`.
+- **`docs/rfcs/RFC-0018-modules.md`** — 2 replacements.
+- **`docs/rfcs/RFC-0011-nuc-cxx.md`** — 3 replacements.
+- **`docs/rfcs/RFC-0012-nuc-bindgen.md`** — 1 replacement
+  (bindgen section table).
+- **`docs/rfcs/RFC-0009-heptane-wcet.md`** — 1 replacement
+  (wcet cache config section).
+- **`docs/process/semver-and-release.md`** — 1 replacement
+  (edition declaration example).
+- **`docs/milestones/v0.2.0.md`** — 1 replacement (RFC-0019
+  phase-1 parser row).
+- **`docs/migrations/v0.1-to-v0.2.md`** — 1 replacement
+  ("canonical project manifest").
+
+### Compiler tools-suite
+
+- **`compiler/nucleor_tools_suite.nr`** — `explain_error_title()`
+  entry for **PKG-001** — "nuc.toml manifest fails schema
+  validation" → "**Nucleor.toml** manifest fails schema
+  validation". Rebuilt on gate; tools binary is git-ignored.
+
+### Repo root sample
+
+- **`nuc.toml`** (the reference schema file, kept because its
+  schema comments are useful reader documentation) — header
+  rewritten to name `Nucleor.toml` as the canonical manifest
+  the compiler actually reads, with pointers to the
+  `file_read_string("Nucleor.toml")` call in s1 and the
+  `Nucleor.lock` write in `nuc lock`.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Tools-suite rebuild
+picked up the PKG-001 title change; no compiler / runtime /
+s1-source change. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.146] — 2026-04-23
 
 **Milestone tracker sub-chain header was undercounting post-RC

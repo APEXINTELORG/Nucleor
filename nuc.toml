@@ -1,8 +1,17 @@
-# nuc.toml — Nucleor OSS distribution
+# nuc.toml — Nucleor OSS distribution reference sample
 #
-# Reference manifest for v0.2.0 schema (RFC-0019). The minimal TOML
-# parser shipped in v0.1.33 reads this file; the manifest validator
-# (v0.1.39) checks structure.
+# NOTE: This file is kept as a **schema reference** for the v0.2.0
+# manifest format (RFC-0019). It is NOT the file the shipped
+# compiler reads — the canonical per-project manifest is
+# `Nucleor.toml` (capitalized). `bin/nucleor.exe` reads
+# `./Nucleor.toml` (see `file_read_string("Nucleor.toml")` in
+# `compiler/nucleor_s1_compiler.nr`); `nuc init <name>` scaffolds
+# `<name>/Nucleor.toml`; `nuc lock` writes `Nucleor.lock`.
+#
+# The minimal TOML parser shipped in v0.1.33 reads `Nucleor.toml`;
+# the manifest validator (v0.1.39) checks structure. This file is
+# left in-tree so the RFC-0019 schema below can serve as reader
+# documentation without spinning up a full project.
 #
 # Schema (RFC-0019 §3.1):
 #   [package]
