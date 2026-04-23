@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.52] — 2026-04-22
+
+**`docs/milestones/v0.3.0.md` — formal v0.3 milestone tracker.**
+
+`v0.4.0.md` existed but `v0.3.0.md` was missing — v0.3 had no
+canonical sequencing doc, just the v0.2.51 readiness audit. This
+release closes the gap with a parallel-structured milestone
+tracker.
+
+**Contents:**
+
+- **Header** in the same style as `v0.2.0.md` and `v0.4.0.md`:
+  target Q3 2026, theme "Linux/macOS bootstrap — same compiler,
+  same runtime, same gate, three OSes", status "Planning, post-
+  v0.2.51 readiness audit confirms runtime is substantially
+  ready".
+- **Inheritance from v0.2.0** — table mapping the single
+  explicit `DEFERRED to v0.3` row from v0.2.0.md to the v0.3
+  phase that closes it. Cites the v0.2.x foundation work
+  (RFC-0022 phase 1+2, the audit findings).
+- **Positive findings** explicitly listed so v0.3 doesn't
+  re-litigate them (no path-sep hardcoding, no CRT-only calls
+  in public APIs, no CRLF assumptions, no backslash assumptions).
+- **4-phase work plan** — bootstrap path → launcher polish →
+  verify gate parity → release artifact policy. Each phase has
+  concrete steps + risk assessment.
+- **Out-of-scope list** — WASM backend, cross-compilation, and
+  ARM Linux are deferred to v0.4+ to keep v0.3 focused.
+- **Sequencing table** — 6-week timeline with LOC budget ~500
+  (mostly launcher script + CI YAML; runtime is already done).
+- **Success criteria** — 8-row checklist covering both OSes +
+  the launcher + CI + the TGT-002 explain entry update.
+- **What's next (v0.4 follow-on)** — pointer to v0.4.0.md for
+  the deferred Tier-2 language extensions.
+
+**Cross-references updated:**
+
+- `docs/milestones/v0.4.0.md` — header now mentions v0.3 as the
+  cross-platform intermediate release between v0.2 and v0.4.
+
+The three milestone trackers (v0.2.0.md, v0.3.0.md, v0.4.0.md)
+now form a contiguous chain covering everything from foundation
+through cross-platform through Tier-2 extensions.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Documentation-only — no compiler /
+runtime / ABI / source / test changes.
+
 ## [0.2.51] — 2026-04-22
 
 **v0.3 cross-platform readiness audit (`docs/status/v0.3-cross-platform-readiness.md`).**
