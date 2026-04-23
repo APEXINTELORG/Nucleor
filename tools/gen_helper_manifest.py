@@ -355,6 +355,13 @@ NAME_OVERRIDES = {
     # StringFormat — string_print actually does I/O (despite living
     # in StringFormat by name pattern).
     "string_print":     (["io"],    "passthrough", "io_capability_required"),
+    # ToolingMeta — legacy rods bridge. Pure f64 arithmetic (kept
+    # for pre-v0.2 ABI compat). Behavior matches standard f64 —
+    # division by zero returns NaN/inf, no panic.
+    "rods_f64_add":     ([],        "passthrough", "none"),
+    "rods_f64_sub":     ([],        "passthrough", "none"),
+    "rods_f64_div":     ([],        "passthrough", "none"),
+    "rods_f64_encode":  (["alloc"], "passthrough", "none"),
 }
 
 
@@ -394,6 +401,54 @@ PATTERN_OVERRIDES = [
     # bool / i64 / i32 / scalar).
     (re.compile(r"^(hashmap|hashset|btreemap|btreeset|vecdeque)_(get|contains|len|capacity|is_empty|get_or|key_at|val_at|at)$"),
      ([], "passthrough", "none")),
+    # IO class — pure compile-time-constant queries.
+    (re.compile(r"^os_(family|pointer_width)$"),
+     ([], "passthrough", "none")),
+    # IO class — pure path predicates (return bool / static str).
+    (re.compile(r"^path_(is_absolute|separator)$"),
+     ([], "passthrough", "none")),
+    # IO class — string-transforming path / fs helpers. Allocate the
+    # output string but do NOT touch the filesystem.
+    (re.compile(r"^path_(components|normalize|strip_extension|with_extension)$"),
+     (["alloc"], "passthrough", "none")),
+    (re.compile(r"^fs_(basename|dirname|extension|join)$"),
+     (["alloc"], "passthrough", "none")),
+    # IO class — stdin reads. Introduce external taint into the
+    # value graph (output taint = input taint ∪ external source).
+    (re.compile(r"^read_(byte|i64|line)$"),
+     (["io"], "propagates", "io_capability_required")),
+    # IO class — env / fs / process-state reads. Same taint behavior
+    # as stdin reads — they pull external state into the program.
+    (re.compile(r"^env_(get|has|keys)$"),
+     (["io"], "propagates", "io_capability_required")),
+    (re.compile(r"^getenv$"),
+     (["io"], "propagates", "io_capability_required")),
+    (re.compile(r"^getcwd$"),
+     (["io"], "propagates", "io_capability_required")),
+    (re.compile(r"^process_id$"),
+     (["io"], "propagates", "io_capability_required")),
+    (re.compile(r"^isatty_"),
+     (["io"], "propagates", "io_capability_required")),
+    (re.compile(r"^args_(count|get)$|^init_args$"),
+     (["io"], "propagates", "io_capability_required")),
+    (re.compile(r"^fs_(exists|is_dir|is_file|size|mtime|list_dir|canonicalize|current_dir|temp_dir)$"),
+     (["io"], "propagates", "io_capability_required")),
+    (re.compile(r"^file_read_"),
+     (["io"], "propagates", "io_capability_required")),
+    # IO class — system() execs a subprocess; subprocess can write to
+    # stdout / stderr / files which would propagate taint upstream.
+    (re.compile(r"^system$"),
+     (["io"], "propagates", "io_capability_required")),
+    # DataCodec — toml_get_*/has are pure reads from a parsed TOML
+    # handle (the parse already happened; lookup is in-memory).
+    (re.compile(r"^toml_(get_int|get_str|has)$"),
+     ([], "passthrough", "none")),
+    # DataCodec — toml_parse_file does both I/O and parsing.
+    (re.compile(r"^toml_parse_file$"),
+     (["io"], "propagates", "io_capability_required")),
+    # DataCodec — uuid_v4 generates a fresh UUID via the RNG.
+    (re.compile(r"^uuid_v4$"),
+     (["random", "alloc"], "passthrough", "rng_capability_required")),
 ]
 
 
@@ -436,6 +491,18 @@ CLASS_DEFAULTS = {
     # touch the allocator. Pure access methods are singled out by
     # PATTERN_OVERRIDES above.
     "Collection":     (["alloc"],     "passthrough", "none"),
+    # IO — fall-through default for write-side IO (print / eprint /
+    # putchar / dbg / env_set / env_unset / file_write_* / fs_*
+    # mutations / pipe_*). These take an input value and push it
+    # to stdout/file/etc; output value (if any) is a status code
+    # so taint passthrough is safe. Read-side IO is singled out
+    # by PATTERN_OVERRIDES with `propagates` taint.
+    "IO":             (["io"],        "passthrough", "io_capability_required"),
+    # DataCodec — fall-through default for the encoders/decoders/
+    # parsers that allocate output buffers but don't otherwise
+    # touch the OS. Pure hash helpers and TOML lookups + I/O parse
+    # variants are singled out by NAME_OVERRIDES / PATTERN_OVERRIDES.
+    "DataCodec":      (["alloc"],     "passthrough", "none"),
 }
 
 

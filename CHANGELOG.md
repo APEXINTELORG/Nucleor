@@ -5,6 +5,97 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.76] — 2026-04-23
+
+**Helper manifest Phase 2 — populate `IO` (70), `DataCodec` (14
+remaining), and 4 ToolingMeta legacy bridge entries.**
+
+Continues the per-class population sweep. With this ship the
+manifest's policy-sensitive fields are populated for **628 of
+676 helpers (92.9%)** — every helper with known semantics today
+is now annotated. The remaining **48 TODOs are all intentional
+v0.4 placeholders** (`TensorOps` GPU/CUDA/DLPack/KV-cache
+forward declarations and `ToolingMeta`'s `profile_*` / `py_eval`
+stubs).
+
+**`IO` (70 helpers).**
+
+The class splits four ways:
+
+- **Pure (no I/O)** — 8 helpers via `PATTERN_OVERRIDES`:
+  - `^os_(family|pointer_width)$` — compile-time-constant queries.
+  - `^path_(is_absolute|separator)$` — pure path predicates.
+- **Pure-allocating (no I/O, output string allocates)** — 8
+  helpers via `PATTERN_OVERRIDES`:
+  - `^path_(components|normalize|strip_extension|with_extension)$`
+  - `^fs_(basename|dirname|extension|join)$`
+- **Read-side I/O (taint propagator)** — 23 helpers via
+  `PATTERN_OVERRIDES`. Output value carries external taint
+  because the read introduces new state into the value graph:
+  - stdin: `^read_(byte|i64|line)$`
+  - env: `^env_(get|has|keys)$`, `^getenv$`
+  - process state: `^getcwd$`, `^process_id$`, `^isatty_`,
+    `^args_(count|get)$|^init_args$`
+  - filesystem queries: `^fs_(exists|is_dir|is_file|size|mtime|
+    list_dir|canonicalize|current_dir|temp_dir)$`
+  - file reads: `^file_read_`
+  - subprocess: `^system$`
+- **Write-side I/O (passthrough taint)** — 31 helpers via
+  `CLASS_DEFAULTS["IO"]` → `["io"]` / `passthrough` /
+  `"io_capability_required"`. Covers `print*`, `eprint*`,
+  `putchar`, `dbg_*`, `env_(set|unset)`, `file_(write|append)_*`,
+  `fs_(create_dir|create_dir_all|copy_file|remove_dir|
+  remove_file|rename)`, `pipe_*`.
+
+**Schema rationale for `taint = "propagates"` on read-side I/O.**
+
+The schema's `propagates` value is "output taint = input taint
+plus any internal state read." A `read_line()` call has empty
+input taint (no arguments), but its output should be considered
+tainted because it pulled bytes from stdin — that's an
+"internal state read" of the most external kind. Without
+`propagates`, every read-side I/O helper would wrongly be
+treated as a fresh untainted source.
+
+**`DataCodec` (14 remaining helpers).**
+
+- **3 pure** via `PATTERN_OVERRIDES`: `^toml_(get_int|get_str|
+  has)$` — read from a parsed TOML handle in memory.
+- **1 I/O** via `PATTERN_OVERRIDES`: `^toml_parse_file$` —
+  reads + parses a file. Tainted (pulls external state).
+- **1 random+alloc** via `PATTERN_OVERRIDES`: `^uuid_v4$` —
+  generates fresh UUID via RNG.
+- **9 alloc** via `CLASS_DEFAULTS["DataCodec"]` →
+  `["alloc"]` / `passthrough` / `none`. Covers `base64_encode`,
+  `base64_decode`, `msgpack_write_*`, `sha256`, `sha256_hex`,
+  `toml_parse_string`.
+
+**`ToolingMeta` (4 more — legacy rods bridge).**
+
+- `rods_f64_add`, `rods_f64_sub`, `rods_f64_div` → pure
+  (standard f64 — div-by-zero returns NaN/inf, no panic).
+- `rods_f64_encode` → `["alloc"]` (output string).
+
+The remaining 3 `ToolingMeta` entries (`profile_start`,
+`profile_end`, `py_eval`) stay TODO — their implementations
+are deferred to v0.4 and the precise effect set depends on
+the chosen profile sink / py interop model.
+
+**TODO sentinel count drops 408 → 144** (264 TODOs eliminated).
+
+### Generator changes (`tools/gen_helper_manifest.py`)
+
+- 14 new `PATTERN_OVERRIDES` entries (IO subclasses + DataCodec
+  pure / I/O / random helpers).
+- 4 new `NAME_OVERRIDES` entries (ToolingMeta `rods_f64_*`).
+- 2 new `CLASS_DEFAULTS` entries (IO write-side default,
+  DataCodec encoder default).
+
+### Verify gate
+
+195 / 195 PASS, 0 SKIP on the bash gate. Tooling-only — no
+compiler / runtime / ABI / source / test changes.
+
 ## [0.2.75] — 2026-04-23
 
 **Helper manifest Phase 2 — populate `StringFormat` (81) and
