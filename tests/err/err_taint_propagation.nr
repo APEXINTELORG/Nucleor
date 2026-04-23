@@ -1,3 +1,5 @@
+// EXPECT: TYP-006 argument type mismatch in call
+// Taint propagates through binary op into clean sink.
 // Error test: taint propagates through arithmetic — result is still tainted
 fn get_input() -> tainted<i32> {
     10

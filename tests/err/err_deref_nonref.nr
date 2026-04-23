@@ -1,3 +1,5 @@
+// EXPECT: TYP-004 cannot dereference a non-reference value
+// The * operator only applies to reference types.
 // Phase 2b: Cannot dereference a non-reference type
 
 fn main() -> i32 {

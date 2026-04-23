@@ -1,3 +1,5 @@
+// EXPECT: TYP-006 argument type mismatch in call
+// Tainted value passed as clean argument.
 // Error test: tainted<i32> cannot be passed where i32 is expected
 fn clean_sink(x: i32) -> i32 {
     x + 1

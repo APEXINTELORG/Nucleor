@@ -1,3 +1,5 @@
+// EXPECT: OWN-005 cannot shared-borrow value that is mutably borrowed
+// Mut borrow followed by shared borrow conflict.
 // Phase 2c: Cannot shared-borrow while mutably borrowed
 
 struct Item { val: i32 }

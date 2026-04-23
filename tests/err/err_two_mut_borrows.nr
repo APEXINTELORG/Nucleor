@@ -1,3 +1,5 @@
+// EXPECT: OWN-004 cannot mutably borrow value that is already borrowed
+// Two simultaneous mutable borrows.
 // Phase 2c: Cannot have two &mut to same value
 
 struct Data { x: i32 }

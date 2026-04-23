@@ -1,3 +1,5 @@
+// EXPECT: OWN-001 use of moved variable
+// Device buffer moved; subsequent use is invalid.
 // Error test: DeviceBuffer use-after-move should be caught by type checker
 // Expected: type checker error about use of moved value
 

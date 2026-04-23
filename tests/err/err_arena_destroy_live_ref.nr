@@ -1,3 +1,5 @@
+// EXPECT: OWN-012 cannot destroy arena with live references
+// Arena destruction while a borrow is still live. RFC-0001 ownership.
 // Phase REGION-P1: Arena invalidation must not outlive live references
 
 fn main() -> i32 {

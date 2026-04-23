@@ -1,3 +1,5 @@
+// EXPECT: OWN-009 cannot return reference to local value
+// Lifetime escapes the function via return value.
 // Phase 2d: Cannot return reference to local variable
 
 fn dangling() -> &i32 {

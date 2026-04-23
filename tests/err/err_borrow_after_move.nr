@@ -1,3 +1,5 @@
+// EXPECT: OWN-001 use of moved variable
+// Variable was moved into something else; subsequent use is invalid.
 // Phase 2b: Cannot borrow a value that has been moved
 
 struct Item { data: i32 }

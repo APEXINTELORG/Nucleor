@@ -1,3 +1,5 @@
+// EXPECT: OWN-001 use of moved variable
+// Variable consumed by fn call, then used again.
 // Phase 2a: Move semantics — move into function parameter
 
 struct Data { value: i32 }

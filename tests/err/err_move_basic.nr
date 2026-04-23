@@ -1,3 +1,5 @@
+// EXPECT: OWN-001 use of moved variable
+// Basic move-then-use pattern.
 // Phase 2a: Move semantics — basic move on assignment
 
 struct Point { x: i32, y: i32 }

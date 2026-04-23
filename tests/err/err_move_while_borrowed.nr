@@ -1,3 +1,5 @@
+// EXPECT: OWN-003 cannot move value that is borrowed
+// Move while a borrow is outstanding.
 // Phase 2b: Cannot move a value while it is borrowed
 
 struct Widget { id: i32 }

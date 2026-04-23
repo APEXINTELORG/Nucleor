@@ -1,3 +1,5 @@
+// EXPECT: OWN-001 use of moved variable
+// Move on one branch then unconditional use after.
 // Phase 2a: Move semantics — conditional moves
 
 struct Item { id: i32 }

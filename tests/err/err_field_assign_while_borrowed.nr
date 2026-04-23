@@ -1,3 +1,5 @@
+// EXPECT: OWN-007 cannot assign to borrowed location
+// Mutating a struct field while a borrow exists violates ownership.
 // Phase SAFE-P5: Borrowed fields cannot be assigned through overlapping paths
 
 struct Pair { left: i32, right: i32 }
