@@ -6,7 +6,8 @@
 set -l nuc_commands build build-fast build-strict build-shared build-wasm build-ptx \
                     run emit test bench perf check audit policy certify translate \
                     summary query graph impact abi evidence \
-                    bootstrap stage-dump init lock install publish registry profile sage \
+                    bootstrap stage-dump init lock install add remove update publish registry profile sage \
+                    doc fix \
                     explain help clean scram zen mco
 
 # Subcommands at first position
@@ -38,10 +39,15 @@ complete -c nuc -n '__fish_use_subcommand' -a bootstrap     -d 'Self-host status
 complete -c nuc -n '__fish_use_subcommand' -a stage-dump    -d 'Compiler stage dump'
 complete -c nuc -n '__fish_use_subcommand' -a lock          -d 'Write Nucleor.lock'
 complete -c nuc -n '__fish_use_subcommand' -a install       -d 'Add a dependency'
+complete -c nuc -n '__fish_use_subcommand' -a add           -d 'Alias for install (RFC-0019 ergonomics)'
+complete -c nuc -n '__fish_use_subcommand' -a remove        -d 'Alias for install --remove'
+complete -c nuc -n '__fish_use_subcommand' -a update        -d 'Alias for install --update'
 complete -c nuc -n '__fish_use_subcommand' -a publish       -d 'Publish to registry'
 complete -c nuc -n '__fish_use_subcommand' -a registry      -d 'Inspect registry'
 complete -c nuc -n '__fish_use_subcommand' -a sage          -d 'Sage_NS proof checks'
 complete -c nuc -n '__fish_use_subcommand' -a explain       -d 'Explain error code'
+complete -c nuc -n '__fish_use_subcommand' -a doc           -d 'Render /// doc comments (RFC-0029)'
+complete -c nuc -n '__fish_use_subcommand' -a fix           -d 'Migration linters (RFC-0015 / RFC-0018)'
 complete -c nuc -n '__fish_use_subcommand' -a help          -d 'Print help'
 complete -c nuc -n '__fish_use_subcommand' -a clean         -d 'Remove build artifacts'
 complete -c nuc -n '__fish_use_subcommand' -a scram         -d 'Alias for clean'
