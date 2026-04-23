@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.135] — 2026-04-23
+
+**RFC README footer paragraph undercounted the implemented RFCs
+and carried a stale v0.2.124 stamp.**
+
+The summary paragraph at the end of the RFC index claimed
+"**8 Tier-2 (RFC-0015..0022) + RFC-0029 carry Implemented or
+Implemented-partial status**" — a true count, but an
+**undercount**. The same index (tier-2 table) also shows RFC-0024
+(iterators) and RFC-0028 (format strings) as Implemented
+(partial) — both landed early in the v0.2.x sub-chain (v0.2.9 +
+v0.2.6). Counting them brings the total to **11 Implemented/
+partial + 1 Decision (RFC-0030)**, not 8 + 1.
+
+Plus the footer timestamp "**through v0.2.124 as of this
+update**" was 10 ships stale.
+
+### `docs/rfcs/README.md`
+
+- Paragraph rewritten: "**32 RFCs drafted; 11 carry Implemented
+  or Implemented-partial status as of v0.2.0 RC + early sub-
+  chain**" — the 8 Tier-2 (RFC-0015..0022), RFC-0024, RFC-0028,
+  RFC-0029 enumerated explicitly.
+- Footer stamp: "v0.2.124" → "v0.2.134".
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.134] — 2026-04-23
 
 **Two RFCs reference diagnostic codes that don't exist in the spec
