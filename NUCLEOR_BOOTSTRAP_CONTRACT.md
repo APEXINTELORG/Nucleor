@@ -68,13 +68,26 @@ iterations, the compiler is at a fixed point — meaning the source
 the new compiler emits matches what the previous compiler emitted,
 which means the binary is stable under self-application.
 
-The v0.2.x sub-chain through v0.2.81 has preserved the fixed point
-on every promotion that touched compiler / runtime / s1 source. The
-**v0.2.50–v0.2.81 sub-chain** has been tooling-only — no compiler
-changes — so the fixed point is preserved by construction. (The
-v0.2.79 fix to the explain registry in `nucleor_tools_suite.nr`
-touches a *different* binary — `bin/nucleor_tools.exe` — which is
-git-ignored and rebuilt on every gate run since v0.2.79.)
+The v0.2.x sub-chain through v0.2.100 has preserved the fixed
+point on every promotion that touched compiler / runtime / s1
+source. Most of the **v0.2.50–v0.2.100 sub-chain** has been
+tooling-only — but two releases did make compiler source
+changes:
+
+- **v0.2.84** — added `doc` and `fix` entries to `print_usage`
+  in `compiler/nucleor_s1_compiler.nr` so they appear in
+  `nuc help` output.
+- **v0.2.87** — added `-V`, `-v`, and bare `version` aliases
+  alongside `--version` in the dispatch.
+
+Both ran the standard 2-iteration LLVM IR fixed-point check
+(see "Bootstrapping a fresh clone" below for the recipe) and
+both produced byte-identical IR across iterations. The
+self-host invariant therefore holds across every promotion
+in the sub-chain. (The v0.2.79 fix to the explain registry in
+`nucleor_tools_suite.nr` touches a *different* binary —
+`bin/nucleor_tools.exe` — which is git-ignored and rebuilt
+on every gate run since v0.2.79.)
 
 ## Two binaries, one source tree
 
@@ -100,25 +113,28 @@ The runtime is a single C source file:
 stdlib/runtime/nucleor_llvm_rt.c
 ```
 
-(~4945 lines, ~748 `__nucleor_*` symbols as of v0.2.81). The
-compiler emits LLVM IR that calls into these symbols via
-`declare`-d externs; clang links the runtime archive at the final
-link step. Auxiliary `_rt.c` files (string_rt.c, hashmap_rt.c,
-btreemap_rt.c, vecdeque_rt.c, etc.) provide collection and platform
-primitives.
+(4944 lines / 676 `__nucleor_*` symbols as of v0.2.100; the
+runtime hasn't gained new helpers since v0.2.81 — only doc
+work has shipped). The compiler emits LLVM IR that calls into
+these symbols via `declare`-d externs; clang links the runtime
+archive at the final link step. Auxiliary `_rt.c` files
+(string_rt.c, hashmap_rt.c, btreemap_rt.c, vecdeque_rt.c, etc.)
+provide collection and platform primitives.
 
 The 676 helpers across the s1 ABI tables and the runtime are
 catalogued in `docs/rfcs/helper_manifest.toml` (Phase 2 contract,
-95.1% populated as of v0.2.81). See
+95.1% populated as of v0.2.100). See
 `docs/rfcs/HELPER-CONTRACT.md` for the cataloging contract.
 
 ## Examples corpus
 
 The verify gate builds and runs every example in `examples/`. As of
-v0.2.81 this is 18 examples (`examples/01_hello.nr` through
-`examples/18_benchmark.nr`). The list is maintained in
-`tools/examples.list` (single source of truth shared between bash
-and PowerShell gates since v0.2.60).
+v0.2.100 this is 18 examples (`examples/01_hello.nr` through
+`examples/18_benchmark.nr`), plus 4 build-only `examples/showcase/*.nr`
+programs (`lorenz`, `vqe_h2`, `market_maker`, `wing_simulator`)
+covered by the v0.2.90 `showcase_build_smoke` step. The numbered
+list is maintained in `tools/examples.list` (single source of truth
+shared between bash and PowerShell gates since v0.2.60).
 
 Each example must compile via `nuc build`, link against the
 runtime, and produce non-empty stdout when run. Empty stdout fails
@@ -139,17 +155,21 @@ cd Nucleor
 powershell -ExecutionPolicy Bypass -File tools\verify.ps1
 ```
 
-The gate runs ~197 steps: binary present, ABI parity, tools-suite
-rebuild, CLI smokes (12 steps), every example (18), every test in
-`tests/{lang,attrs,runtime,rods,features}` (~140), every negative
-test in `tests/err` (~24), and the self-host rebuild at the end.
+The gate runs **203 steps as of v0.2.100**: binary present,
+ABI parity, tools-suite rebuild, mojibake check, 14 CLI smoke
+steps (help-coverage, utility, JSON, version, showcase build,
+explain single + full 130-code, bootstrap, check+abi,
+inspectors, diagnostics, init, doc, lock, test), every example
+(18), every test in `tests/{lang,attrs,runtime,rods,features}`
+(~140), every negative test in `tests/err` (~24), and the
+self-host rebuild at the end.
 
 If the gate is green, the bootstrap is healthy. If it fails, the
 diagnostic output names the failing step.
 
 ## Cross-platform status
 
-As of v0.2.81 only Windows x86_64 has a committed bootstrap binary.
+As of v0.2.100 only Windows x86_64 has a committed bootstrap binary.
 Linux / macOS bootstrap binaries land alongside the v0.3.0
 cross-build work (see `docs/milestones/v0.3.0.md`). Until then, the
 POSIX `./nuc` shell wrapper resolves clang and execs
