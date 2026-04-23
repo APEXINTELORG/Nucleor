@@ -130,10 +130,10 @@ foreach ($d in $testDirs) {
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
 # 1 (binary present) + 1 (drift check) + 1 (CLI explain smoke) +
-# 1 (bootstrap) + 1 (check+abi) + 1 (inspectors) + 1 (init) +
-# 1 (doc) + 1 (lock) + 1 (test) + N examples + N tests + N err
-# + 1 (self-host)
-$stepTotal = 10 + $examples.Count + $testCount + $errCount + 1
+# 1 (bootstrap) + 1 (check+abi) + 1 (inspectors) + 1 (diagnostics) +
+# 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples + N tests +
+# N err + 1 (self-host)
+$stepTotal = 11 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -216,6 +216,30 @@ Step "CLI: nuc summary/audit/query/impact (inspectors)" {
     $impactOut = & $bin impact "examples/01_hello.nr" "main" 2>&1 | Out-String
     if ($impactOut -notmatch '"target":"main"') { return $false }
     if ($impactOut -notmatch '"found":true') { return $false }
+    return $true
+}
+
+Step "CLI: nuc policy/certify/translate/evidence/graph/perf/bench (diagnostics)" {
+    # Mirrors verify.sh cli_diagnostic_smoke (added v0.2.72). Bundles
+    # the seven remaining diagnostic / reporting CLI commands so the
+    # gate notices regressions before users hit them.
+    $polOut = & $bin policy "examples/01_hello.nr" 2>&1 | Out-String
+    if ($polOut -notmatch "Policy:") { return $false }
+    if ($polOut -notmatch "Result:") { return $false }
+    $certOut = & $bin certify "examples/01_hello.nr" 2>&1 | Out-String
+    if ($certOut -notmatch "source:") { return $false }
+    $trOut = & $bin translate "examples/01_hello.nr" 2>&1 | Out-String
+    if ($trOut -notmatch "translated:") { return $false }
+    $evOut = & $bin evidence "examples/01_hello.nr" 2>&1 | Out-String
+    if ($evOut -notmatch '"spdx":') { return $false }
+    if ($evOut -notmatch '"provenance":') { return $false }
+    $grOut = & $bin graph "examples/01_hello.nr" 2>&1 | Out-String
+    if ($grOut -notmatch "functions:") { return $false }
+    if ($grOut -notmatch "edges:") { return $false }
+    $perfOut = & $bin perf "examples/01_hello.nr" 2>&1 | Out-String
+    if ($perfOut -notmatch "Nucleor Performance Analysis") { return $false }
+    $benchOut = & $bin bench "examples/01_hello.nr" 2>&1 | Out-String
+    if ($benchOut -notmatch "source:") { return $false }
     return $true
 }
 
