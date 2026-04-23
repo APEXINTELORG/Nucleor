@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.101] — 2026-04-23
+
+**`NUCLEOR_BOOTSTRAP_CONTRACT.md` refresh — was at v0.2.81 era;
+the "tooling-only" claim was wrong by v0.2.84.**
+
+The bootstrap contract was written in v0.2.82 to fix the
+v0.2.70-era broken reference. By v0.2.100 it carried four stale
+pointers:
+
+1. **"v0.2.x sub-chain through v0.2.81"** → updated to v0.2.100.
+2. **"v0.2.50–v0.2.81 sub-chain has been tooling-only — no
+   compiler changes"** — wrong. **v0.2.84 added `doc`/`fix`
+   to `print_usage` in `nucleor_s1_compiler.nr`** and
+   **v0.2.87 added `-V` / `version` aliases** — both compiler
+   source changes. Both ran the standard 2-iteration LLVM IR
+   fixed-point check and produced byte-identical IR. Updated
+   to enumerate the two changes explicitly + reaffirm fixed
+   point preserved.
+3. **"~4945 lines, ~748 `__nucleor_*` symbols as of v0.2.81"**
+   → audited current state: **4944 lines / 676 symbols**
+   (no helpers added since v0.2.81 — only doc work has
+   shipped). The "~748" claim was always wrong (the exact
+   number was 676 even at v0.2.81); this fix corrects both
+   the line count and the symbol count to verified values.
+4. **"95.1% populated as of v0.2.81"** → "as of v0.2.100"
+   (number is the same — Phase 2 population didn't change).
+5. **"As of v0.2.81 this is 18 examples"** + **"As of
+   v0.2.81 only Windows x86_64..."** — both bumped to
+   v0.2.100. Examples paragraph also updated to mention the
+   4 build-only `examples/showcase/*.nr` programs covered by
+   the v0.2.90 `showcase_build_smoke` step.
+6. **"The gate runs ~197 steps"** → **"203 steps as of
+   v0.2.100"** with the 14 CLI smoke steps enumerated
+   (was previously generic "CLI smokes (12 steps)").
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.100] — 2026-04-23
 
 **Status doc refresh — `v0.2-shipped-and-deferred.md` was 22
