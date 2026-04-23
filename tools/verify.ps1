@@ -1,13 +1,32 @@
-# verify.ps1 — smoke gate for the Nucleor OSS distribution.
+# verify.ps1 — Windows smoke gate for the Nucleor OSS distribution.
+# Mirrors tools/verify.sh — same step counter, same exit code, same gates.
 #
 # Usage: powershell.exe -ExecutionPolicy Bypass -File tools\verify.ps1
 #
-# Steps:
-#   1. Confirm bin\nucleor.exe loads
-#   2. Build and run examples 01..06 + 08..18 (07 only if rust_bridge built)
-#   3. Build and run all positive tests under tests\{lang,attrs,runtime,rods}
-#   4. Confirm negative tests under tests\err\ fail with the expected diagnostic
-#   5. Self-host loop: rebuild the compiler from source
+# Step shape (203 steps total as of v0.2.111):
+#   1.  Binary present + loads
+#   2.  ABI parity (s1 ↔ tools-suite, via WSL bash if available)
+#   3.  Tools-suite rebuild (since v0.2.79)
+#   4.  Mojibake clean (since v0.2.91, via bash if available)
+#   5.  Help-coverage (since v0.2.84) — every dispatched cmd in `nuc help`
+#   6.  Utility smoke (zen / mco / registry / stage-dump / fix; v0.2.85)
+#   7.  JSON-flag smoke (11 commands; v0.2.86)
+#   8.  Version aliases (--version / -v / -V / version; v0.2.87)
+#   9.  Showcase build (lorenz / vqe_h2 / market_maker / wing_simulator; v0.2.90)
+#   10. CLI: explain NUM-001 (single quick-fail canary; v0.2.64/v0.2.65)
+#   11. CLI: explain — full 130-code spec catalog (v0.2.79+v0.2.80)
+#   12. CLI: bootstrap status + Contract: file resolves (v0.2.70+v0.2.82)
+#   13. CLI: check + abi inspect (v0.2.70)
+#   14. CLI: summary/audit/query/impact (inspectors; v0.2.71)
+#   15. CLI: policy/certify/translate/evidence/graph/perf/bench (diagnostics; v0.2.72)
+#   16. CLI: init scaffolding (v0.2.66)
+#   17. CLI: doc generator (v0.2.67)
+#   18. CLI: lock writes Nucleor.lock (v0.2.68)
+#   19. CLI: test runs #[test] functions (v0.2.69)
+#   20..N. Build + run every example under examples/
+#   N+1.. Build + run every positive test under tests\{lang,attrs,runtime,rods,features}
+#   ...   Confirm every tests\err\*.nr fails with at least a diagnostic line
+#   final Self-host rebuild closes (compile s1 source via current binary)
 #
 # Exit code: 0 = ship-ready; 1 = a step failed.
 #

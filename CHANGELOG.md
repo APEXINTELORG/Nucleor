@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.113] — 2026-04-23
+
+**Mirror v0.2.112 to `tools/verify.ps1` header.**
+
+The PowerShell gate's header was the same v0.1-era 5-step
+summary that v0.2.112 fixed in `verify.sh`. The PS gate
+mirrors the bash one step-for-step, so its header should
+match.
+
+Refreshed to the same 19+N+M+P+1 step-shape outline with
+v0.2.x release refs per step — adapted for PowerShell
+conventions (`tools\verify.ps1` path style; "via WSL bash if
+available" annotations on the steps that shell out to bash).
+
+Also added the explicit "Mirrors tools/verify.sh — same step
+counter, same exit code, same gates." line that was missing.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. PowerShell gate
+behavior unchanged — pure header refresh.
+
 ## [0.2.112] — 2026-04-23
 
 **Two tool-script headers stale at v0.1-era state.**
