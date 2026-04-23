@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.127] — 2026-04-23
+
+**RFC-0030 (async decision) status synchronized + new "Decision"
+status added to the legend.**
+
+The audit pattern in v0.2.126 caught 11 RFCs whose per-file
+Status row drifted from the index. RFC-0030 was the corner case
+not covered there: the index Status said "Draft", the per-RFC
+header said "Draft", but the README footer paragraph stated
+"**RFC-0030 declined during v0.2**". The status legend lacked
+any "Decision" / "Declined" option, so neither the index nor the
+RFC header could correctly express it.
+
+The decision RFC is the third class of RFC outcome: a
+deliberate non-implementation (or scope-bounding choice) where
+the *decision* is the deliverable. RFC-0030 explicitly chose
+"no first-class async runtime in v0.x; `rod/tokio.nr` opt-in
+in v0.5; native `async`/`await` syntax in v0.8". That is a
+ship-grade outcome, not a draft and not a withdrawal.
+
+### `docs/rfcs/README.md`
+
+- **Status legend** — added `**Decision**` row between
+  `Implemented` and `Superseded by RFC-NNNN`. Defines it as
+  "RFC documents a deliberate non-implementation or scope-
+  bounding choice; the decision is the deliverable, not a
+  code drop."
+- **Index Tier-2 row for RFC-0030** — Status column updated:
+  `Draft` → `**Decision** v0.2 — no first-class async in
+  v0.x; rod/tokio.nr opt-in v0.5; native syntax v0.8`.
+- **Footer paragraph** — `RFC-0030 declined during v0.2` →
+  `RFC-0030 (async) accepted as a Decision RFC in v0.2 …`,
+  with the phased plan summary inline.
+
+### `docs/rfcs/RFC-0030-async-decision.md`
+
+- Per-RFC `| **Status** |` row: `Draft` → `Decision (accepted
+  v0.2) — no first-class async in v0.x; rod/tokio.nr opt-in
+  v0.5, native sugar v0.8`.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.126] — 2026-04-23
 
 **11 RFC headers had `Status: Draft` while the index + milestone

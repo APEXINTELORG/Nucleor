@@ -9,6 +9,9 @@ proceed without re-design.
 - **Draft** — written, not yet approved by maintainer.
 - **Accepted** — design locked; implementation pending.
 - **Implemented** — landed in the named release.
+- **Decision** — RFC documents a deliberate non-implementation
+  or scope-bounding choice (e.g. RFC-0030 async); the decision
+  is the deliverable, not a code drop.
 - **Superseded by RFC-NNNN** — replaced.
 - **Withdrawn** — abandoned.
 
@@ -67,7 +70,7 @@ proceed without re-design.
 | [0027](RFC-0027-lifetimes.md) | Explicit lifetime parameters | Draft | v0.4.0 |
 | [0028](RFC-0028-format-strings.md) | Format strings — `format!`, `println!`, `Display`/`Debug` | **Implemented (partial)** v0.2.6 | v0.2 (`format_i64/str/hex/2_ii/2_si` builtins, one `{}` per call) → v0.4 (variadic + `Display`/`Debug` traits) |
 | [0029](RFC-0029-doc-generator.md) | Documentation generator — `nuc doc`, `///` comments, doc tests | **Implemented (skeleton)** v0.1.65 | v0.2.0 (skeleton) → v0.4 (param rendering, navigation, doc tests) |
-| [0030](RFC-0030-async-decision.md) | Async / await — decision and phased plan | Draft | v0.4 (decision) → v0.8 (sugar) |
+| [0030](RFC-0030-async-decision.md) | Async / await — decision and phased plan | **Decision** v0.2 — no first-class async in v0.x; `rod/tokio.nr` opt-in v0.5; native syntax v0.8 | v0.4 (decision doc) → v0.5 (`rod/tokio.nr`) → v0.8 (sugar) |
 
 ### Tier 3 — Nucleor-unique differentiators
 
@@ -81,7 +84,10 @@ Implemented or Implemented-partial status as of v0.2.0 RC**
 (per the per-RFC checklist rows in
 [`docs/milestones/v0.2.0.md`](../milestones/v0.2.0.md) — every
 row is DONE / PARTIAL / DEFERRED with a follow-on target).
-**RFC-0030 declined** during v0.2 (see the RFC for rationale).
+**RFC-0030 (async) accepted as a Decision RFC in v0.2** — Nucleor
+ships no first-class async runtime in v0.x; tokio binding is opt-in
+(v0.5) and native `async` syntax targets v0.8 (see the RFC for the
+phased plan).
 The post-RC v0.2.x sub-chain (through v0.2.124 as of this
 update) has been strictly additive on top of v0.2.0; no
 RFC implementation states changed. Together with the three
