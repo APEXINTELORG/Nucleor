@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.80] — 2026-04-23
+
+**Wire 44 forward-looking error codes into the explain registry;
+gate now exercises the full 130-code spec catalog.**
+
+Continues the audit pattern from v0.2.79 (which found 4 v0.2
+codes missing). A wider sweep of every code listed in
+`docs/spec/Nucleor_Error_Codes.md` found **44 more `unknown
+error code` returns** from `nuc explain` — all forward-looking
+entries for RFCs that haven't shipped yet but whose codes are
+documented:
+
+- **RFC-0004 assume!** — `ASSUME-003`, `ASSUME-005` (2 codes)
+- **RFC-0005 units** — `UNIT-003`, `UNIT-005` (2 codes)
+- **RFC-0006 contracts** — `CONTRACT-005`, `CONTRACT-006`,
+  `CONTRACT-007` (3 codes)
+- **RFC-0007 atomic** — `ATOMIC-003`, `ATOMIC-004` (2 codes)
+- **RFC-0008 ISR** — `ISR-003`, `ISR-005`, `ISR-006` (3 codes)
+- **RFC-0009 WCET** — `WCET-001`, `WCET-002`, `WCET-004`,
+  `WCET-005`, `WCET-006` (5 codes)
+- **RFC-0010 DLPack** — `DLPACK-001..005` (5 codes)
+- **RFC-0011 nuc-cxx** — `CXX-001..005` (5 codes)
+- **RFC-0012 nuc-bindgen** — `BINDGEN-001..005` (5 codes)
+- **RFC-0013 URDF** — `URDF-001..006` (6 codes)
+- **RFC-0014 max_depth** — `DEPTH-003`, `DEPTH-005` (2 codes)
+- **RFC-0031 algebraic laws** — `LAW-003`, `LAW-004` (2 codes)
+- **RFC-0032 effects** — `EFF-004`, `EFF-005` (2 codes)
+
+Each entry got a short title, a one-line summary, and a longer
+RFC-anchored explanation — a total of **132 string literals
+added across the 3 explain registry functions**
+(`explain_error_title`, `explain_error_summary`,
+`explain_error_explanation`) in
+`compiler/nucleor_tools_suite.nr`. Tools binary rebuilt.
+
+Even though the underlying RFCs ship in v0.3 / v0.4 / v0.5+,
+having `nuc explain RT-001` or `nuc explain DLPACK-002` produce
+useful documentation today gives users a reading surface for
+the planned features.
+
+### Gate hardening
+
+The `cli_explain_full_smoke` step (added v0.2.79 with 35 codes)
+is **extended to cover all 130 codes** from the spec catalog.
+Step renamed from "full v0.2 code set wired" to "full spec
+code set wired" in both `verify.sh` and `verify.ps1` to reflect
+the expanded scope. Per-call overhead: 130 binary invocations,
+all against the same fast-fail explain command — adds ~2 s to
+the gate run.
+
+Going forward, adding a code to `Nucleor_Error_Codes.md` MUST
+also (a) wire it into all three explain registry functions and
+(b) add the code string to the `cli_explain_full_smoke` list in
+both gates. The existing tools-rebuild + drift-gate machinery
+catches unrelated divergence; this step closes the explain-
+specific drift class.
+
+### Verify gate
+
+197 / 197 PASS, 0 SKIP on the bash gate. Tools-suite source
+change only — no s1 compiler / runtime / ABI / source / test
+changes; self-host LLVM IR fixed point preserved.
+
 ## [0.2.79] — 2026-04-23
 
 **Bug fix: 4 v0.2 error codes spec'd but not wired into explain

@@ -226,21 +226,66 @@ cli_inspector_smoke() {
 # "this command path produces structured output without crashing"
 # rather than full semantic verification.
 cli_explain_full_smoke() {
-    # v0.2.79 — audits the full v0.2 error-code set against the
-    # explain registry. Catches the drift class that bit
-    # NUM-004 / TST-001 / TST-002 / TST-003 (codes spec'd in
-    # docs/spec/Nucleor_Error_Codes.md but never wired into the
-    # nucleor_tools_suite.nr explain registry). When adding a new
-    # code, list it here AND in the spec doc AND in the explain
-    # registry — this step is the cross-link.
+    # v0.2.79 — audits the v0.2 error-code set against the explain
+    # registry. v0.2.80 — extended to the full forward-looking
+    # spec catalog (RFC-0001..0014, 0015..0022, 0031, 0032). Catches
+    # the drift class that bit NUM-004 / TST-001/002/003 in v0.2.79
+    # (4 codes spec'd but missing from registry) and again in
+    # v0.2.80 (44 more). When adding a new code, list it here AND
+    # in the spec doc AND in the explain registry — this step is
+    # the cross-link.
     local codes=(
+        # NR — compiler pipeline (RFC-0020 baseline)
+        "NR001" "NR005" "NR010" "NR020" "NR030" "NR031" "NR032" "NR033"
+        "NR034" "NR040" "NR050" "NR051" "NR070" "NR090"
+        # RFC-0001 RT
+        "RT-001" "RT-002" "RT-003" "RT-004" "RT-005" "RT-006" "RT-007" "RT-008"
+        # RFC-0002 allocators
+        "ALLOC-001" "ALLOC-002" "ALLOC-003"
+        # RFC-0003 typed frames
+        "FRAME-001" "FRAME-002" "FRAME-003"
+        # RFC-0004 assume!
+        "ASSUME-001" "ASSUME-002" "ASSUME-003" "ASSUME-004" "ASSUME-005"
+        # RFC-0005 units
+        "UNIT-001" "UNIT-002" "UNIT-003" "UNIT-004" "UNIT-005"
+        # RFC-0006 contracts
+        "CONTRACT-001" "CONTRACT-002" "CONTRACT-003" "CONTRACT-004"
+        "CONTRACT-005" "CONTRACT-006" "CONTRACT-007"
+        # RFC-0007 atomic
+        "ATOMIC-001" "ATOMIC-002" "ATOMIC-003" "ATOMIC-004"
+        # RFC-0008 ISR
+        "ISR-001" "ISR-002" "ISR-003" "ISR-004" "ISR-005" "ISR-006"
+        # RFC-0009 WCET
+        "WCET-001" "WCET-002" "WCET-003" "WCET-004" "WCET-005" "WCET-006"
+        # RFC-0010 DLPack
+        "DLPACK-001" "DLPACK-002" "DLPACK-003" "DLPACK-004" "DLPACK-005"
+        # RFC-0011 nuc-cxx
+        "CXX-001" "CXX-002" "CXX-003" "CXX-004" "CXX-005"
+        # RFC-0012 nuc-bindgen
+        "BINDGEN-001" "BINDGEN-002" "BINDGEN-003" "BINDGEN-004" "BINDGEN-005"
+        # RFC-0013 URDF
+        "URDF-001" "URDF-002" "URDF-003" "URDF-004" "URDF-005" "URDF-006"
+        # RFC-0014 max_depth
+        "DEPTH-001" "DEPTH-002" "DEPTH-003" "DEPTH-004" "DEPTH-005"
+        # RFC-0015 numeric types (v0.2)
         "NUM-001" "NUM-002" "NUM-003" "NUM-004" "NUM-005"
+        # RFC-0016 Result/Option/match (v0.2; 007..010 for v0.4 RFC-0023)
         "MATCH-001" "MATCH-002" "MATCH-003" "MATCH-004" "MATCH-005" "MATCH-006"
+        "MATCH-007" "MATCH-008" "MATCH-009" "MATCH-010"
+        # RFC-0017 collections (v0.2)
         "COLL-001" "COLL-002" "COLL-003" "COLL-004" "COLL-005"
+        # RFC-0018 modules (v0.2)
         "MOD-001" "MOD-002" "MOD-003" "MOD-004" "MOD-005" "MOD-006"
+        # RFC-0019 packages (v0.2)
         "PKG-001" "PKG-002" "PKG-003" "PKG-004" "PKG-005" "PKG-006"
-        "TGT-001" "TGT-002" "TGT-003" "TGT-004"
+        # RFC-0021 test framework (v0.2)
         "TST-001" "TST-002" "TST-003"
+        # RFC-0022 cross-platform (v0.2)
+        "TGT-001" "TGT-002" "TGT-003" "TGT-004"
+        # RFC-0031 algebraic laws
+        "LAW-001" "LAW-002" "LAW-003" "LAW-004"
+        # RFC-0032 effects
+        "EFF-001" "EFF-002" "EFF-003" "EFF-004" "EFF-005"
     )
     local code
     for code in "${codes[@]}"; do
@@ -501,7 +546,7 @@ step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
 step "tools-suite rebuild" tools_rebuild
 step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
-step "CLI: nuc explain — full v0.2 code set wired" cli_explain_full_smoke
+step "CLI: nuc explain — full spec code set wired" cli_explain_full_smoke
 step "CLI: nuc bootstrap status reports correctly" cli_bootstrap_smoke
 step "CLI: nuc check + abi inspect" cli_check_abi_smoke
 step "CLI: nuc summary/audit/query/impact (inspectors)" cli_inspector_smoke
