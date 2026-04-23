@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.45] — 2026-04-22
+
+**Verify gate: 186 / 186 — first all-PASS run, no skips.**
+
+The rust_interop test had been skipping for months. Root cause:
+`tools/verify.sh:92` checked for the POSIX-style cargo artifact
+name `libnucleor_rust_bridge.a`, but cargo on Windows (MSVC
+toolchain) produces `nucleor_rust_bridge.lib` instead. The test
+gate looked for the wrong file, decided the bridge wasn't built,
+and SKIP'd instead of including the test.
+
+Fix: `tools/verify.sh` now detects either filename:
+
+```bash
+RUST_BRIDGE_DIR="$ROOT/stdlib/rods/rust_bridge/target/release"
+RUST_BRIDGE_LIB=""
+if [ -f "$RUST_BRIDGE_DIR/libnucleor_rust_bridge.a" ]; then
+    RUST_BRIDGE_LIB="$RUST_BRIDGE_DIR/libnucleor_rust_bridge.a"
+elif [ -f "$RUST_BRIDGE_DIR/nucleor_rust_bridge.lib" ]; then
+    RUST_BRIDGE_LIB="$RUST_BRIDGE_DIR/nucleor_rust_bridge.lib"
+fi
+```
+
+Test-side downstream check at line 135 updated to use `-z` (empty
+string check) instead of `-f` so it works with the new variable
+semantics.
+
+**Result:** with `cargo build --release` run in
+`stdlib/rods/rust_bridge/`, the gate now goes from `184 PASS / 1
+SKIP / 185 total` to `186 PASS / 186 total` — including
+`07_rust_interop` (example) and `tests/rods/rust_interop` (test).
+The Rust FFI demo now executes on every release.
+
+This is the first release in the v0.2.x chain to ship a fully
+green gate with no SKIPs.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Tooling-only — no compiler / runtime /
+ABI / source / test changes.
+
 ## [0.2.44] — 2026-04-22
 
 **Top-level README size-claim sentence — replaced loose talk with verified counts.**
