@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.91] — 2026-04-23
+
+**Mojibake sweep + gate enforcement. Self-defeating mojibake
+in v0.2.90 / v0.2.58 CHANGELOG entries fixed.**
+
+### Self-defeating CHANGELOG entries
+
+A repo-wide mojibake-byte sweep (looking for the cp1252-as-UTF-8
+fingerprint `0xC3 0xA2 0xE2 0x82 0xAC`) found **two CHANGELOG
+entries that re-introduced the very mojibake they claimed to
+fix**:
+
+- **v0.2.90 entry** (vqe_h2.nr fix) — quoted the mojibake
+  literally with `// vqe_h2.nr [mojibake] Variational`. The
+  bytes survived markdown into the published CHANGELOG.
+- **v0.2.58 entry** (rod manifest generator fix) — same
+  pattern, twice (in the prose intro and in the example
+  TOML block).
+
+Fixed by replacing each literal mojibake quotation with a
+hex-byte description (e.g. `0xC3 0xA2 0xE2 0x82 0xAC 0xE2
+0x80 0x9D` instead of the literal sequence). Documents the bug
+without re-introducing the bad bytes.
+
+### `tools/check_mojibake.sh` + gate step
+
+New script + gate step that flags the universal mojibake
+fingerprint across `*.md` / `*.nr` / `*.toml` / `*.py` /
+`*.sh` / `*.ps1` / `*.c` / `*.h` / `*.txt` files (skipping
+`bin/`, `target/`, `.git/`, `node_modules/`). The check
+itself is whitelisted (it intentionally documents the bytes
+in comments).
+
+The script outputs an actionable error message naming the
+correct UTF-8 sequences for em-dash / en-dash / curly quotes,
+plus a pointer to the v0.2.91 CHANGELOG precedent for how to
+write about the mojibake without re-introducing it.
+
+Wired into both gates as **`mojibake_clean`** (bash) /
+**`no UTF-8 mojibake in source/docs`** (PowerShell, shells out
+to the bash script). Skipped silently on Windows hosts without
+Git for Windows or msys2.
+
+**Step total bumped 202 → 203** in both gates.
+
+### Drift gate now enforces six things
+
+After this ship the `tools/check_compiler_drift.sh` + gate
+together enforce:
+
+1. s1 ↔ tools-suite ABI table parity (v0.2.x baseline)
+2. `helper_manifest.toml` freshness (v0.2.41)
+3. `rod_manifest.toml` freshness (v0.2.47)
+4. `RELEASES.md` freshness (v0.2.57)
+5. CHANGELOG ↔ git tag parity (v0.2.83)
+6. **No UTF-8 mojibake in source/docs (v0.2.91 — this release)**
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Documentation +
+gate-step refinement only — no compiler / runtime / source /
+test changes.
+
 ## [0.2.90] — 2026-04-23
 
 **Bug fix: `examples/showcase/README.md` was referenced but
@@ -29,10 +92,13 @@ coverage?" rationale.
 
 ### UTF-8 mojibake in `vqe_h2.nr` header
 
-The first comment line was `// vqe_h2.nr â€" Variational
-Quantum Eigensolver showcase.` — same cp1252-rendered-as-UTF-8
-mojibake class that bit the rod descriptions in v0.2.58.
-Fixed to the proper em-dash.
+The first comment line had a 5-byte mojibake sequence
+(`0xC3 0xA2 0xE2 0x82 0xAC 0xE2 0x80 0x9D`) where an em-dash
+(`U+2014`, 3 UTF-8 bytes) was intended — the cp1252-rendered-
+as-UTF-8 mojibake class that bit the rod descriptions in
+v0.2.58. Fixed to the proper em-dash. (Documenting the bytes
+in hex rather than literal because the literal would
+re-introduce the mojibake into this CHANGELOG.)
 
 ### Showcase build smoke (`showcase_build_smoke`)
 
@@ -1887,25 +1953,23 @@ ABI / source / test changes.
 
 **Manifest generators: fix UTF-8 mojibake in rod descriptions.**
 
-Spot-check of `docs/rfcs/rod_manifest.toml` revealed
-`â€"` instead of em-dash (`—`) in rod descriptions. Root cause:
-both `tools/gen_rod_manifest.py` and `tools/gen_helper_manifest.py`
-called `Path.read_text(errors="replace")` without specifying
-`encoding="utf-8"` — Python on Windows defaults to `cp1252`, so
-files written as UTF-8 were misdecoded.
+Spot-check of `docs/rfcs/rod_manifest.toml` revealed a 5-byte
+mojibake sequence (`0xC3 0xA2 0xE2 0x82 0xAC 0xE2 0x80 0x9D`)
+where an em-dash (`U+2014`, 3 UTF-8 bytes) was intended. Root
+cause: both `tools/gen_rod_manifest.py` and
+`tools/gen_helper_manifest.py` called
+`Path.read_text(errors="replace")` without specifying
+`encoding="utf-8"` — Python on Windows defaults to `cp1252`,
+so files written as UTF-8 were misdecoded.
 
 **Fix:** added explicit `encoding="utf-8"` to all `read_text()`
 calls in both generators (3 sites total).
 
 **Side effect (good):** because the rod-manifest parser uses the
 em-dash as a delimiter to strip the `rods/<name> — ` title
-prefix, the previously-broken descriptions like
-
-```
-"rods/atomic â€\" AtomicI64 (RFC-0007 partial)"
-```
-
-now come out clean as
+prefix, the previously-broken descriptions (rendered as the
+mojibake byte sequence shown above where the em-dash should
+be) now come out clean as
 
 ```
 "AtomicI64 (RFC-0007 partial)"

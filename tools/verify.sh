@@ -136,12 +136,12 @@ done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
 # Step count: 1 binary present + 1 ABI parity + 1 tools-rebuild
-# + 1 help coverage + 1 utility smoke + 1 json smoke + 1 version
-# + 1 showcase build + 1 CLI explain + 1 explain-full + 1 bootstrap
-# + 1 check+abi + 1 inspectors + 1 diagnostics + 1 init + 1 doc
-# + 1 lock + 1 test
+# + 1 mojibake check + 1 help coverage + 1 utility smoke + 1 json
+# + 1 version + 1 showcase build + 1 CLI explain + 1 explain-full
+# + 1 bootstrap + 1 check+abi + 1 inspectors + 1 diagnostics
+# + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host
-STEP_TOTAL=$((18 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+STEP_TOTAL=$((19 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -681,10 +681,18 @@ compiler_tables_synced() {
     bash "$ROOT/tools/check_compiler_drift.sh" >/tmp/_nuc_step.log 2>&1
 }
 
+mojibake_clean() {
+    # v0.2.91 — flag cp1252-as-utf8 mojibake byte sequences across
+    # the source/doc surface. Catches the drift class that bit
+    # rod_manifest.toml in v0.2.58 and vqe_h2.nr in v0.2.90.
+    bash "$ROOT/tools/check_mojibake.sh" >/tmp/_nuc_step.log 2>&1
+}
+
 # --- Run gate -----------------------------------------------------------
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
 step "tools-suite rebuild" tools_rebuild
+step "no UTF-8 mojibake in source/docs" mojibake_clean
 step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
 step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" cli_utility_smoke
 step "CLI: --json variants emit machine-readable JSON" cli_json_smoke
