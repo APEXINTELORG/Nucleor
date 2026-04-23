@@ -9041,6 +9041,10 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "OWN-010") { return "Cannot bind a reference that escapes an inner block"; };
     if str_eq(code, "OWN-011") { return "Cannot mutably borrow immutable value"; };
     if str_eq(code, "OWN-012") { return "Cannot destroy arena with live references"; };
+    if str_eq(code, "OWN-013") { return "Spawn block captures non-Send DeviceBuffer value"; };
+    // GOV series — governance policies
+    if str_eq(code, "GOV-001") { return "policy(require_authored) requires authored annotations"; };
+    if str_eq(code, "GOV-002") { return "policy(no_unsafe) forbids unsafe blocks"; };
     // TNT series — taint analysis (expansion of NR033)
     if str_eq(code, "TNT-001") { return "Tainted data passed to sensitive sink"; };
     // TYP series — type checker (expansion of NR030)
@@ -9225,6 +9229,9 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "OWN-010") { return "A reference's source value lives in a nested scope that ends before the binding's scope; the reference would dangle. Move the source out to the enclosing scope, or hold the source by value at the outer scope."; };
     if str_eq(code, "OWN-011") { return "`&mut T` requires the source to be declared `let mut x`. Make the binding mutable, or restructure to take a shared `&T` instead."; };
     if str_eq(code, "OWN-012") { return "An arena cannot be destroyed while references into it are still live — would dangle every outstanding pointer. End all borrows from the arena before destroy."; };
+    if str_eq(code, "OWN-013") { return "GPU `DeviceBuffer` handles are pinned to the thread that allocated them, so they are not `Send`. A `spawn { ... }` block runs on a fresh thread and cannot capture them. Move the launch into the owning thread, or pass a host-side handle that the worker can re-acquire its own DeviceBuffer from."; };
+    if str_eq(code, "GOV-001") { return "The source declares `@policy(require_authored)` at the module level but at least one function lacks an `@authored(\"name\")` annotation. Add `@authored(\"...\")` to every fn, or remove the policy."; };
+    if str_eq(code, "GOV-002") { return "The source declares `@policy(no_unsafe)` at the module level but contains an `unsafe { ... }` block. Either remove the unsafe block (preferred) or remove the no_unsafe policy."; };
     if str_eq(code, "TNT-001") { return "Tainted data flowing into a function annotated as a sensitive sink. Wrap the value in `sanitize(value)` to strip the taint marker before the call."; };
     if str_eq(code, "TYP-001") { return "Legacy non-exhaustive-match warning. Prefer the canonical MATCH-001 (RFC-0016) which carries a witness. TYP-001 still fires for backwards compatibility — both are emitted."; };
     if str_eq(code, "TYP-002") { return "Booleans are not numeric in Nucleor; `true + false` etc. are rejected. Use `if cond { 1 } else { 0 }` if you need to convert."; };
@@ -9387,6 +9394,9 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "OWN-010") { return "Inner-block lifetime escape: `let r = { let x = 5; &x };` would leave `r` pointing at freed `x`. The compiler tracks scope-exit destruction and rejects bindings that would outlive their referent. Move the source value out to the outer scope, or hold by value rather than reference."; };
     if str_eq(code, "OWN-011") { return "`&mut T` requires the source to be declared `let mut`. Add `mut` to the binding, or use `&T` if you don't actually need to write through the reference."; };
     if str_eq(code, "OWN-012") { return "Arenas free all their backing storage on destroy. If any reference into the arena is still live, the destroy would dangle every outstanding pointer. End all borrows from the arena (typically by exiting the scope where they live) before destroy."; };
+    if str_eq(code, "OWN-013") { return "Spawn-capture pass detected a `spawn { ... }` block capturing a `DeviceBuffer` value. GPU memory handles are pinned to the thread that allocated them via the CUDA / Vulkan context binding — the worker thread that spawn dispatches to has no context attached, so the capture would be undefined behavior at runtime. Either keep the launch on the owning thread (process the buffer there before spawning the consumer), or pass a host-side handle (CPU-side index / descriptor) that the worker re-acquires its own DeviceBuffer from with its own context."; };
+    if str_eq(code, "GOV-001") { return "The `@policy(require_authored)` module-level attribute requires every fn in the source to carry an `@authored(\"name\")` annotation (the governance audit trail). The audit pass found at least one un-annotated fn. Add `@authored(\"...\")` above each fn, or remove the policy if it doesn't apply to this module."; };
+    if str_eq(code, "GOV-002") { return "The `@policy(no_unsafe)` module-level attribute forbids `unsafe { ... }` blocks anywhere in the source. The audit pass found at least one. Either remove the unsafe block (preferred — usually means switching to a safe API) or remove the no_unsafe policy if the module legitimately needs unsafe operations."; };
     if str_eq(code, "TNT-001") { return "Strict-mode taint pass detected tainted data flowing into a function annotated as a sensitive sink. The suggestion is to wrap the value in `sanitize(value)` (which strips the taint marker) before the call. Fires from the tools-suite strict checker, not the s1 main type-check pass."; };
     if str_eq(code, "TYP-001") { return "**Legacy** non-exhaustive-match warning, retained for backwards compatibility through the v0.2.x line. The canonical code is MATCH-001 (RFC-0016) which carries a witness uncovered value. Both warnings fire from `check_match_stmt`; address either to silence both."; };
     if str_eq(code, "TYP-002") { return "Booleans aren't numeric — `true + false`, `bool * bool`, etc. are rejected. The arithmetic operator type-check (in check_expr's binop branch) fires TYP-002 when either operand resolves to bool."; };

@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.131] — 2026-04-23
+
+**3 more diagnostic codes were fired by the tools-suite type-check
+pass but missing from spec + explain registry — wired in.**
+
+A second-pass audit on the diagnostic-code registry (parallel to
+v0.2.79–80 / v0.2.119–120) found 3 codes emitted by
+`compiler/nucleor_tools_suite.nr` at `type_diag` sites that were
+not present in `docs/spec/Nucleor_Error_Codes.md` and not in the
+explain registry's three functions. They've been firing this whole
+time — users running `nuc check` / `nuc audit` against sources
+that match the relevant patterns would see the warnings without
+being able to look the codes up via `nuc explain CODE`.
+
+The 3 codes fall in two new buckets:
+
+- **OWN-013** (borrow-checker / spawn-capture pass) — fires when
+  a `spawn { ... }` block captures a `DeviceBuffer` value. GPU
+  memory handles are pinned to the allocating thread's CUDA /
+  Vulkan context binding; the worker thread spawn dispatches to
+  has no context, so the capture is undefined behavior at
+  runtime. Documented as the 13th OWN code (one above the
+  v0.2.119 closure of OWN-001..012).
+
+- **GOV-001** + **GOV-002** (governance pass) — fire when the
+  source declares `@policy(require_authored)` or
+  `@policy(no_unsafe)` but violates the constraint. **New series
+  with two codes.** The s1 compiler does not yet enforce these at
+  build time (the corresponding tests are quarantined under
+  `tests/err/_unimplemented/`), but `nuc check` / `nuc audit`
+  exercise the tools-suite path that fires them.
+
+### `docs/spec/Nucleor_Error_Codes.md`
+
+- OWN table: appended `| OWN-013 | Spawn block captures non-Send
+  DeviceBuffer value | spawn-capture checker | error |` plus a
+  paragraph noting it's tools-suite-fired and was added v0.2.131.
+- New top-level `## GOV series — governance policies` section with
+  the 2 codes and a paragraph covering the
+  `tests/err/_unimplemented/` quarantine status.
+- Spec catalog count: **158 → 161 codes**.
+
+### `compiler/nucleor_tools_suite.nr`
+
+- `explain_error_title()` — added 3 entries between OWN-012 and
+  TNT-001.
+- `explain_error_summary()` — added 3 entries (OWN-013 + 2 GOV).
+- `explain_error_explanation()` — added 3 paragraph-length
+  entries with the underlying CUDA / Vulkan context rationale
+  (OWN-013) and policy-attribute mechanics (GOV-001/002).
+
+### `tools/verify.sh` + `tools/verify.ps1`
+
+- `cli_explain_full_smoke` codes array: appended `OWN-013` to the
+  OWN block (with comment noting v0.2.131), added a new GOV
+  block (`GOV-001 GOV-002`). Both gate scripts kept in step-for-
+  step parity.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. The
+`cli_explain_full_smoke` step now exercises 161 codes (was 158).
+No compiler / runtime / s1-source change — only tools-suite +
+spec doc + gate scripts. Tools-suite rebuild on every gate run
+catches the new entries. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.130] — 2026-04-23
 
 **Three more "as-of" markers in process docs + architecture brought

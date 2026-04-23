@@ -52,12 +52,18 @@ chain after `tests/err/*.nr` got EXPECT headers in v0.2.117.
 | OWN-010 | Cannot bind a reference that escapes an inner block | lifetime / scope checker | error |
 | OWN-011 | Cannot mutably borrow immutable value | mutability checker | error |
 | OWN-012 | Cannot destroy arena with live references | arena lifetime checker | error |
+| OWN-013 | Spawn block captures non-`Send` `DeviceBuffer` value | spawn-capture checker | error |
 
 Gate-tested via `tests/err/err_*` (use-after-move, borrow-
 after-move, two-mut-borrows, shared-mut-conflict,
 assign-shared-ref, field-assign-while-borrowed,
 immutable-assign, dangling-return, lifetime-scope-escape,
-mut-borrow-immutable, arena-destroy-live-ref).
+mut-borrow-immutable, arena-destroy-live-ref). **OWN-013**
+is fired from `compiler/nucleor_tools_suite.nr`'s spawn-
+capture pass when a `spawn { ... }` block captures a
+non-`Send` `DeviceBuffer` (GPU memory handles are pinned to
+their launching thread); documented v0.2.131 after the audit
+sweep found it fired without spec + explain-registry entries.
 
 ## TNT series — taint analysis (expansion of NR033)
 
@@ -362,6 +368,27 @@ migration, not new code minting.
 | LAW-002 | SMT disproves law (cert profile) | [RFC-0031 §3.4](../rfcs/RFC-0031-algebraic-laws.md) |
 | LAW-003 | Law cited but optimizer cannot use it | [RFC-0031](../rfcs/RFC-0031-algebraic-laws.md) |
 | LAW-004 | Float operation claimed exact associative (warn) | [RFC-0031 §3.3](../rfcs/RFC-0031-algebraic-laws.md) |
+
+## GOV series — governance policies
+
+The governance pass in `compiler/nucleor_tools_suite.nr` enforces
+opt-in `@policy(...)` attributes that constrain what authored
+functions and unsafe blocks may appear in the source. Documented
+v0.2.131 after the audit sweep found the codes fired without
+spec + explain-registry entries.
+
+| Code | Title | Source | Severity |
+|---|---|---|---|
+| GOV-001 | `policy(require_authored)` requires `@authored` annotations | governance pass | warning |
+| GOV-002 | `policy(no_unsafe)` forbids `unsafe` blocks | governance pass | warning |
+
+Test corpus: `tests/err/_unimplemented/err_policy_missing_authored.nr`
++ `err_policy_no_unsafe.nr` — currently quarantined under
+`_unimplemented/` because the s1 compiler accepts the source
+unconditionally; the tools-suite governance pass does fire the
+codes via `nuc check` / `nuc audit`. Once the s1 strict-mode
+flip lands (v0.4 follow-on), the tests will move out of
+`_unimplemented/` and the verify gate will enforce them.
 
 ---
 
