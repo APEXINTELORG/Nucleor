@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.108] — 2026-04-23
+
+**Bug fix: `docs/architecture.md` "around line 1700" stale —
+actual line is 2004.**
+
+The architecture doc's "where things live" table pointed
+contributors at:
+
+> Builtin name mapping | search `if str_eq(name,` for the
+> long string of `__nucleor_*` mappings (around line 1700)
+
+The actual function (`fn get_rt_name(name: str) -> str`) is at
+**line 2004** as of v0.2.107 — the compiler grew ~300 lines
+across the v0.2.x sub-chain (the v0.2.84 `nuc help` doc/fix
+entries + v0.2.87 version aliases plus general fill-in around
+the type checker and lower).
+
+### Fix
+
+Replaced the "around line 1700" search hint with the canonical
+function name `fn get_rt_name(name: str) -> str` (around line
+2004 as of v0.2.107) so contributors can find it via grep
+even after future line drift, and so the doc records the
+actual current location.
+
+Other "around line N" references in the doc: zero (this was
+the only one).
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.107] — 2026-04-23
 
 **Audit found two POSIX-stub gaps in the runtime not flagged
