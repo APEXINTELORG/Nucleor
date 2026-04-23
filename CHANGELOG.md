@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.107] — 2026-04-23
+
+**Audit found two POSIX-stub gaps in the runtime not flagged
+in the v0.3 readiness doc.**
+
+A grep of `stdlib/runtime/nucleor_llvm_rt.c` for `return 0;`
+inside `#else` branches surfaced two POSIX no-ops that aren't
+documented as v0.3 follow-ups in
+`docs/status/v0.3-cross-platform-readiness.md`:
+
+1. **`__nucleor_channel_*`** — Windows uses
+   `CRITICAL_SECTION` + `CreateEvent` for a bounded blocking
+   channel; POSIX side returns `0` from `new`, ignores `send`
+   / `recv`, reports `len = 0`. Marked with `// TODO: POSIX
+   channel` since the v0.1 era. Used by
+   `stdlib/rods/concurrency.nr` (called from `compiler/`
+   sources too).
+2. **`__nucleor_pipe_*`** — Windows uses `CreateNamedPipeA`
+   for one-shot named pipes; POSIX side returns `0` from
+   `pipe_create` and no-ops `pipe_write` / `pipe_close`. No
+   TODO comment — would have been silent.
+
+Both are silent failure modes (no panic, just lost data).
+Code that depends on either family appears to run but
+produces no inter-thread (channel) or inter-process (pipe)
+communication on Linux/macOS.
+
+### Fix
+
+Added a new "Known POSIX gaps to fill in v0.3" section to
+`docs/status/v0.3-cross-platform-readiness.md` enumerating
+both stubs with:
+
+- Windows path (CreateEvent / CreateNamedPipeA)
+- POSIX no-op behavior
+- POSIX implementation outline (`pthread_mutex_t` +
+  `pthread_cond_t` for channels; `mkfifo` + `open(O_WRONLY)`
+  for pipes)
+- Silent failure mode warning
+
+Section sits before the "Open questions for v0.3 kickoff"
+list so v0.3 implementers see it during planning.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.106] — 2026-04-23
 
 **v0.2.0 milestone tracker — Helper Schema status block + 1
