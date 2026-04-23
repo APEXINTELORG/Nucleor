@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.60] — 2026-04-22
+
+**`tools/examples.list` — single source of truth for the verify-gate example list.**
+
+Closes the v0.2.59 going-forward note. The two verify gates
+(`verify.sh` for POSIX, `verify.ps1` for Windows) had duplicated
+hand-maintained example arrays that drifted across 30 releases
+(v0.2.31..v0.2.59) before v0.2.59 caught the gap. This release
+eliminates the drift class entirely.
+
+**Shipped:**
+
+- **`tools/examples.list`** — new file. One example name per
+  line, blank lines and `#`-prefixed lines ignored. Header
+  documents the format and the 4-step "to add a new example"
+  procedure. Lists all 17 standard examples (`07_rust_interop`
+  remains a special case added programmatically by both gates
+  when the rust_bridge build artifact is present).
+- **`tools/verify.sh`** — replaced the inline `EXAMPLES=(...)`
+  array with a `while IFS= read -r line` loop that parses
+  `tools/examples.list`. Skips blank/comment lines.
+- **`tools/verify.ps1`** — replaced the inline `$examples = @(...)`
+  with a `Get-Content | ForEach-Object` loop that does the same.
+
+**Negative test verified.** Commenting out
+`18_benchmark` in `examples.list` correctly drops the gate count
+from 186 to 185 on both gates; restoring the line returns it to
+186. The list is now load-bearing.
+
+**Going-forward "add a new example" workflow** (collapsed from
+3 places to 2):
+
+1. Drop the `.nr` file in `examples/<NN>_<name>.nr`.
+2. Add a line to `tools/examples.list`.
+3. Add a row to `examples/README.md`.
+
+(Was: also remember to update `verify.sh` AND `verify.ps1`
+separately. Now: just edit the list file.)
+
+This is the kind of refactor that the v0.2.59 fix made obvious
+— catching the drift wasn't enough, the duplicate source was
+the bug.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Tooling-only — no compiler / runtime /
+ABI / source / test changes.
+
 ## [0.2.59] — 2026-04-22
 
 **`tools/verify.ps1` parity with `verify.sh` — Windows CI now actually gates the v0.2.x demos.**

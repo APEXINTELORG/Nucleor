@@ -1,0 +1,40 @@
+# Single source of truth for the verify-gate example list.
+# Both tools/verify.sh and tools/verify.ps1 read from this file.
+#
+# Format: one example name per line (no .nr extension, no path prefix).
+# Lines starting with '#' and blank lines are ignored.
+# Order matters — the gate runs them top-to-bottom.
+#
+# To add a new example:
+#   1. Drop the .nr file in examples/<NN>_<name>.nr.
+#   2. Add a line below.
+#   3. Add a row to examples/README.md under the matching tier.
+#   4. Re-run verify.sh / verify.ps1 to confirm it builds + runs.
+#
+# Special case: 07_rust_interop is added programmatically by the
+# verify scripts only when stdlib/rods/rust_bridge/ has been built
+# (libnucleor_rust_bridge.a / nucleor_rust_bridge.lib present).
+# Do NOT list 07 here.
+
+# Tier 1 — language tour
+01_hello
+02_fib
+03_structs
+04_rods
+05_quantum
+06_perf_attrs
+
+# Tier 2 — numerics & domains
+08_linalg
+09_ode
+10_fft
+11_pid
+12_autodiff
+13_test_framework
+
+# Tier 3 — v0.2.x stdlib showcase
+14_csv_summary
+15_word_count
+16_histogram
+17_linecount
+18_benchmark

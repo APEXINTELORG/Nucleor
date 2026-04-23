@@ -85,13 +85,14 @@ NUC_BENCH_ITERS=1000 ./benchmark.exe
 
 ## Verify gate
 
-`tools/verify.sh` rebuilds and runs every example on every release.
-The example list is at `tools/verify.sh:93` (`EXAMPLES=(...)`). New
-examples must:
+`tools/verify.sh` (POSIX) and `tools/verify.ps1` (Windows) rebuild
+and run every example on every release. Both gates read the example
+list from `tools/examples.list` (single source of truth — added
+v0.2.60). New examples must:
 
 1. Build cleanly with `bin/nucleor.exe build examples/<name>.nr`.
 2. Run to completion with exit code `0` against bundled-default input.
-3. Be added to the `EXAMPLES=(...)` array in `tools/verify.sh`.
+3. Be added to `tools/examples.list`.
 4. Be listed in this README index.
 
 ## Adding a new example
@@ -106,8 +107,11 @@ bin/nucleor.exe build examples/19_my_demo.nr -o my_demo
 # Run, confirm exit 0:
 ./my_demo.exe; echo "exit=$?"
 
-# Wire into gate (edit tools/verify.sh:93 to append `19_my_demo` to
-# EXAMPLES). Then:
+# Wire into the gate — add a single line to tools/examples.list
+# (one entry per line, no .nr extension):
+echo "19_my_demo" >> tools/examples.list
+
+# Verify:
 bash tools/verify.sh    # should now show N+1 / N+1 with no fails
 
 # Add a row to this README under the matching tier.

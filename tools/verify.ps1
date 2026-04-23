@@ -104,9 +104,18 @@ Push-Location $root
 
 # --- Compute total step count for the [N/T] counter ---------------------
 $rustBridgeLib = Join-Path $root "stdlib\rods\rust_bridge\target\release\nucleor_rust_bridge.lib"
-$examples = @("01_hello", "02_fib", "03_structs", "04_rods", "05_quantum", "06_perf_attrs",
-              "08_linalg", "09_ode", "10_fft", "11_pid", "12_autodiff", "13_test_framework",
-              "14_csv_summary", "15_word_count", "16_histogram", "17_linecount", "18_benchmark")
+# Read example list from the single source of truth (shared with
+# verify.sh). v0.2.60 — eliminates the drift class that bit v0.2.59.
+$examplesFile = Join-Path $root "tools\examples.list"
+$examples = @()
+if (Test-Path $examplesFile) {
+    Get-Content $examplesFile | ForEach-Object {
+        $line = $_.Trim()
+        if ($line -and -not $line.StartsWith("#")) {
+            $examples += $line
+        }
+    }
+}
 if (Test-Path $rustBridgeLib) { $examples += "07_rust_interop" }
 
 $testDirs = @("lang", "attrs", "runtime", "rods", "features")
