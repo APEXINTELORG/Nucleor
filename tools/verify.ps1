@@ -131,11 +131,11 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 
 # 1 (binary present) + 1 (drift check) + 1 (tools-rebuild) +
 # 1 (help coverage) + 1 (utility smoke) + 1 (json smoke) +
-# 1 (CLI explain smoke) + 1 (explain-full) + 1 (bootstrap) +
-# 1 (check+abi) + 1 (inspectors) + 1 (diagnostics) + 1 (init) +
-# 1 (doc) + 1 (lock) + 1 (test) + N examples + N tests + N err +
-# 1 (self-host)
-$stepTotal = 16 + $examples.Count + $testCount + $errCount + 1
+# 1 (version aliases) + 1 (CLI explain smoke) + 1 (explain-full) +
+# 1 (bootstrap) + 1 (check+abi) + 1 (inspectors) + 1 (diagnostics)
+# + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
+# N tests + N err + 1 (self-host)
+$stepTotal = 17 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -177,6 +177,16 @@ Step "tools-suite rebuild" {
     $built = "target\nucleor_tools.exe"
     if (-not (Test-Path $built)) { return $false }
     Copy-Item $built (Join-Path $root "bin\nucleor_tools.exe") -Force -ErrorAction SilentlyContinue
+    return $true
+}
+
+Step "CLI: --version / -v / -V / version aliases" {
+    # Mirrors verify.sh cli_version_smoke (added v0.2.87). All four
+    # spellings of "give me the version" must work.
+    foreach ($variant in @("--version", "-v", "-V", "version")) {
+        $out = (& $bin $variant 2>&1 | Out-String).Trim().Split("`n")[0]
+        if ($out -notmatch "^nucleor ") { return $false }
+    }
     return $true
 }
 

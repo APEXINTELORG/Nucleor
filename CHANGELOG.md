@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.87] — 2026-04-23
+
+**`nuc -V` and `nuc version` now work as aliases for
+`--version`. Plus negative-test audit findings.**
+
+### Version aliases (`nuc -V` / `nuc version`)
+
+`nuc --version` and `nuc -v` worked since v0.1.x. The
+`-V` (rustc/gcc/clang convention) and bare `version`
+spellings both returned `Unknown command:`. Added both to the
+dispatch in `compiler/nucleor_s1_compiler.nr`:
+
+```nr
+if str_eq(cmd, "--version") || str_eq(cmd, "-v") ||
+   str_eq(cmd, "-V")        || str_eq(cmd, "version") {
+    print(compiler_identity());
+    return 0;
+};
+```
+
+All four spellings now produce the same output:
+`nucleor 0.2.0-v2 (self-hosted, llvm backend)`.
+
+This is a **compiler source change** — `bin/nucleor.exe`
+rebuilt via the standard 2-iteration LLVM IR fixed-point
+check. Both iterations produced byte-identical
+2,603,849-byte LLVM IR (fixed point preserved).
+
+### Negative-test audit findings (no fix this ship)
+
+Auditing `tests/err/*.nr` against a strict
+"must contain a Nucleor diagnostic code (NR/RT/NUM/etc.)"
+check found **4 of 33 negative tests pass for the wrong
+reason**:
+
+- `err_pure_ambient_random` — fails at link (missing
+  `__nucleor_ambient_random` v0.4 placeholder) instead of
+  firing a pure-vs-effect diagnostic.
+- `err_restricts_specific` — fails at link (missing
+  `__nucleor_putchar`) instead of firing EFF-003 (restricts
+  violated).
+- `err_spawn_send` — fails at link (missing
+  `__nucleor_device_alloc`/`free`) instead of firing a
+  concurrency check.
+- `err_undefined_var` — fails at link (`str_from_int` not in
+  scope) instead of firing NR030 on `undeclared_thing`. The
+  compiler **silently accepts** the undefined variable; only
+  the unrelated `str_from_int` call trips clang.
+
+These are all real compiler gaps (the type-checker doesn't
+catch undefined identifiers; effect rows aren't enforced for
+ambient_random; restricts isn't enforced for putchar). The
+gate's loose "any error string" matcher accepts the link
+failures, so the tests register green — but if the v0.4
+placeholders ever get implemented, these tests would
+silently start passing the build and then the gate would
+flip red.
+
+**Documented as v0.4 follow-up.** Tightening the negative-test
+matcher to require Nucleor-style diagnostic codes would
+immediately surface these 4 cases as gate failures, but the
+underlying fixes touch the type-checker and effect/taint
+analyzers — substantively bigger than a single ship.
+
+### New gate step (`cli_version_smoke`)
+
+Smoke-tests all four version aliases produce the
+`"nucleor "`-prefixed output. **Step total bumped 200 → 201**
+in both gates.
+
+### Verify gate
+
+201 / 201 PASS, 0 SKIP on the bash gate. Compiler source
+change (s1 dispatch only) — self-host LLVM IR fixed point
+preserved.
+
 ## [0.2.86] — 2026-04-23
 
 **Gate `--json` output across 11 CLI commands. 200-step gate
