@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.31] — 2026-04-22
+
+**End-to-end CSV summary example (`examples/14_csv_summary.nr`).**
+
+The first v0.2-era example program that exercises the stdlib helpers
+shipped across v0.2.18..v0.2.30 in a single end-to-end demo:
+
+```
+=== Nucleor CSV summary demo (v0.2.x stdlib) ===
+
+metric                  temp_x10    humidity_x10    pressure_x10
+----------------------------------------------------------------
+count                          7               7               7
+min                          198             483           10107
+max                          230             605           10159
+range                         32             122              52
+mean                     213.571         539.286           10131
+median                       214             541           10131
+stddev                   10.0122         40.3475         15.7571
+
+Processed 7 rows.
+```
+
+The program:
+- Reads CSV from `$NUC_CSV_PATH` (env_has / env_get / file_read_string)
+  or falls back to a bundled in-source sample.
+- Splits on `\n` and `,` (str_lines + str_split + str_trim) to parse
+  the header and data rows into per-column `Vec<i64>`s.
+- Parses each cell with `str_to_i64`.
+- Computes seven statistics per column with `vec_min_i64 / vec_max_i64
+  / vec_range_i64 / vec_mean_f64 / vec_median_f64 / vec_stddev_f64`.
+- Prints a padded report with `str_pad_right / str_pad_left / int_to_str
+  / f64_to_str`.
+
+**Why this release matters more than another helper batch:** the v0.2.x
+chain has shipped ~75 leaf helpers since v0.2.18. This release validates
+that the surface composes — that real programs can be written end-to-end
+without dropping back to bare runtime calls or workaround idioms. It
+also establishes the pattern for v0.4.x examples (web server, JSON tool,
+file watcher) that will exercise additional layers as they ship.
+
+### Verify gate
+
+`14_csv_summary` is now part of the gate (`tools/verify.sh`): builds and
+runs as one of the 13 indexed examples, checked on every promotion.
+180/181 green on Windows + 1 skip. Self-host LLVM IR fixed point
+preserved (v147==v148 byte-identical — no compiler changes this release).
+
 ## [0.2.30] — 2026-04-22
 
 **Vec statistics helpers (6 helpers).**
