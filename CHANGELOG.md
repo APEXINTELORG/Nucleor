@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.129] — 2026-04-23
+
+**Migration guide + benchmarks doc — stale "as of v0.2.91 / v0.2.97"
+markers brought current.**
+
+A continuation sweep across the long-form docs found three more
+stale markers from the early v0.2 sub-chain. None affected
+correctness — the underlying numbers are still right — but the
+"as of v0.2.91" framing implied the doc was 37 ships behind.
+
+- **`docs/migrations/v0.1-to-v0.2.md`** opening paragraph closed
+  the post-RC chain at "v0.2.50 through v0.2.91+"; bumped to
+  "v0.2.50 through v0.2.128+" and added the binary-unchanged-
+  since-v0.2.87 note.
+- **`docs/migrations/v0.1-to-v0.2.md`** TL;DR paragraph said
+  "**v0.2.0 → v0.2.91 is also fully additive** … 91+ incremental";
+  bumped to "**v0.2.0 → v0.2.128**" with "128+ incremental", and
+  the gate-step rollup expanded to include the EXPECT-header
+  enforcement (v0.2.118) and the diagnostic-code closure
+  (v0.2.117–120, 158 codes wired) so the rollup matches the
+  current state of the gate.
+- **`docs/benchmarks.md`** size-table footnote said "Numbers as
+  of v0.2.97 — bumped from v0.1-era estimates"; bumped to "as
+  of v0.2.128" and added the binary-unchanged-since-v0.2.87 note
+  (the binary really is identical, so the v0.2.87 numbers are
+  the v0.2.128 numbers).
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.128] — 2026-04-23
 
 **Three stale numeric markers in user-facing docs (README + getting-

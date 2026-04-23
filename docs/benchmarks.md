@@ -18,12 +18,15 @@ The compiler itself is one `.nr` file (~467 KB source / **8897 LOC** /
 **365 reachable functions** after dead-code elimination /
 **664 optimizer instructions** / 3932 strings) producing a
 **~2.6 MB LLVM IR module** that clang then turns into the
-**~845 KB `nucleor.exe` binary**. Numbers as of v0.2.97 — bumped
-from v0.1-era estimates (~330 KB / 5700 functions / 10000 LOC /
-1.8 MB IR / 3 MB binary). The `nucleor.exe` binary is roughly a
-quarter of the v0.1-era size because the optimizer + DCE pass
-shipped in the v0.1.46–v0.1.65 chain stripped most of the
-unreachable surface.
+**~845 KB `nucleor.exe` binary**. Numbers as of v0.2.128; the
+binary is unchanged since v0.2.87 (compiler source touched twice
+post-RC — v0.2.84 `nuc help` doc/fix entries, v0.2.87 `-V` /
+`version` aliases — and the LLVM IR fixed point preserved on both
+promotions). Bumped from v0.1-era estimates (~330 KB / 5700
+functions / 10000 LOC / 1.8 MB IR / 3 MB binary). The
+`nucleor.exe` binary is roughly a quarter of the v0.1-era size
+because the optimizer + DCE pass shipped in the v0.1.46–v0.1.65
+chain stripped most of the unreachable surface.
 
 ## Hello-world build time
 
