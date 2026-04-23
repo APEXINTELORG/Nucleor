@@ -21,6 +21,8 @@ proceed without re-design.
 | [HELPER-CONTRACT](HELPER-CONTRACT.md) | Helper schema inventory & population — protocol document | Phase 1 + Phase 2 done in v0.2.40 |
 | [helper_manifest.toml](helper_manifest.toml) | 676-helper schema map (TOML, generated) | Phase 2 artifact, v0.2.40 |
 | [helper_manifest_schema.md](helper_manifest_schema.md) | Per-field reference for `helper_manifest.toml` | v0.2.40 |
+| [rod_manifest.toml](rod_manifest.toml) | 121-rod catalog (TOML, generated) | Companion to helper manifest, v0.2.46 |
+| [rod_manifest_schema.md](rod_manifest_schema.md) | Per-field reference for `rod_manifest.toml` | v0.2.46 |
 
 ### Tier 1 — RT, robotics, allocator foundations
 
