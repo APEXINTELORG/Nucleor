@@ -130,12 +130,13 @@ foreach ($d in $testDirs) {
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
 # 1 (binary present) + 1 (drift check) + 1 (tools-rebuild) +
-# 1 (help coverage) + 1 (utility smoke) + 1 (json smoke) +
-# 1 (version aliases) + 1 (showcase build) + 1 (CLI explain smoke)
-# + 1 (explain-full) + 1 (bootstrap) + 1 (check+abi) + 1 (inspectors)
-# + 1 (diagnostics) + 1 (init) + 1 (doc) + 1 (lock) + 1 (test)
-# + N examples + N tests + N err + 1 (self-host)
-$stepTotal = 18 + $examples.Count + $testCount + $errCount + 1
+# 1 (mojibake check) + 1 (help coverage) + 1 (utility smoke) +
+# 1 (json smoke) + 1 (version aliases) + 1 (showcase build) +
+# 1 (CLI explain smoke) + 1 (explain-full) + 1 (bootstrap) +
+# 1 (check+abi) + 1 (inspectors) + 1 (diagnostics) + 1 (init) +
+# 1 (doc) + 1 (lock) + 1 (test) + N examples + N tests + N err +
+# 1 (self-host)
+$stepTotal = 19 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -244,6 +245,26 @@ Step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" {
     $fixOut = & $bin fix --imports "examples/01_hello.nr" 2>&1 | Out-String
     if ([string]::IsNullOrWhiteSpace($fixOut)) { return $false }
     return $true
+}
+
+Step "no UTF-8 mojibake in source/docs" {
+    # Mirrors verify.sh mojibake_clean (added v0.2.91). Shells out
+    # to tools/check_mojibake.sh because grepping raw byte sequences
+    # is bash-native and the PowerShell equivalent would be slower
+    # and error-prone. Skips silently if bash isn't available
+    # (Windows host without Git for Windows / msys2).
+    $bash = $env:NUCLEOR_BASH_PATH
+    if (-not $bash -or -not (Test-Path $bash)) {
+        if (Test-Path "C:\Program Files\Git\bin\bash.exe") {
+            $bash = "C:\Program Files\Git\bin\bash.exe"
+        } elseif (Test-Path "C:\msys64\usr\bin\bash.exe") {
+            $bash = "C:\msys64\usr\bin\bash.exe"
+        } else {
+            return $true
+        }
+    }
+    & $bash (Join-Path $root "tools\check_mojibake.sh") *> $null
+    return ($LASTEXITCODE -eq 0)
 }
 
 Step "CLI: nuc help advertises every dispatched command" {
