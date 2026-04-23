@@ -258,14 +258,16 @@ When invoked without an explicit source file in a directory containing `Nucleor.
 - Inline assembly
 - Macros / metaprogramming
 - Reflection
-- Cross-platform binaries (Windows-only in v0.1.x; POSIX port planned for v0.2)
+- Cross-platform binaries (Windows-only through v0.2.x; Linux + macOS native binaries scoped for v0.3 — see [`docs/milestones/v0.3.0.md`](milestones/v0.3.0.md))
 - Formatter (`nuc fmt`)
 - Language server (LSP)
 - Debugger / DWARF or PDB symbol info
-- Documentation generator
+- Documentation generator (skeleton ships v0.2; full version in v0.4 — see [`docs/milestones/v0.4.0.md`](milestones/v0.4.0.md) RFC-0029)
 - REPL
 
-These are tracked as v0.2 / v0.3 work. Contributions welcome.
+These are tracked as v0.3 / v0.4 work. The full deferral list with
+target releases lives in [`docs/milestones/v0.4.0.md`](milestones/v0.4.0.md).
+Contributions welcome.
 
 ## 13. What was added in v0.1.5 (audit corrigendum)
 

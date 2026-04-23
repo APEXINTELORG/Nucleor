@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.56] — 2026-04-22
+
+**Language reference: stale "POSIX port planned for v0.2" reference fixed.**
+
+`docs/language-reference.md:261` had a stale forward reference
+in the "Out of scope for v0.1" section: said "Cross-platform
+binaries (Windows-only in v0.1.x; POSIX port planned for v0.2)"
+— but POSIX cross-platform shipped neither in v0.1.x nor v0.2.x;
+it's now scoped to v0.3 per the v0.2.51 audit and v0.2.52
+milestone tracker.
+
+**Updated:**
+
+- "Cross-platform binaries" entry now reads
+  "Windows-only through v0.2.x; Linux + macOS native binaries
+  scoped for v0.3" with a pointer to `docs/milestones/v0.3.0.md`.
+- "Documentation generator" entry got a similar fix — was bare,
+  now notes "skeleton ships v0.2; full version in v0.4 — see
+  RFC-0029".
+- Section trailing line updated from "tracked as v0.2 / v0.3
+  work" to "tracked as v0.3 / v0.4 work" with a pointer to
+  `docs/milestones/v0.4.0.md` for the full deferral list.
+
+**Repo-wide grep verified** as the only stale "planned for v0.2"
+reference. Other v0.1.x mentions in docs are correctly contextual
+(migration guide, milestone tracker historical notes), not
+stale forward references.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Documentation-only — no compiler /
+runtime / ABI / source / test changes.
+
 ## [0.2.55] — 2026-04-22
 
 **CI workflow stale-warning fix + v0.3 phase 3 scaffolding documented.**
