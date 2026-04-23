@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.138] — 2026-04-23
+
+**Two test-suite README drifts: features/ dir missing from
+top-level layout table, and quarantined-features count off by one.**
+
+- **`tests/README.md`** Layout table listed only 5 directories
+  (`lang/`, `attrs/`, `runtime/`, `rods/`, `err/`) — the
+  `features/` directory (34 ported V1 feature tests:
+  generics, traits, `where`, ranges, etc.) was missing
+  entirely. Added a row for it.
+- **`tests/features/_unimplemented/README.md`** opening line
+  said "**These 17 positive feature tests**" — actual count is
+  18 (and the same README's own table accounts for 18). Off-by-
+  one corrected.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.137] — 2026-04-23
 
 **Four RFC "Target release" rows lagged behind the phased

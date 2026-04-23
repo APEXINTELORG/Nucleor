@@ -27,6 +27,7 @@ nuc build tests/lang/arith.nr -o arith
 | `attrs/`    | V2 attributes: `@hot`, `@law`, `@const_fn`, `@layout` |
 | `runtime/`  | Runtime primitives: I/O, files, time |
 | `rods/`     | Stdlib rods: bitwise, complex, quantum, json, regex, base64 |
+| `features/` | Ported V1 feature corpus — generics, traits, `where` clauses, `for x in <range>`, `break` / `continue`, block comments, hex / bin / underscored literals, `match` on int literals |
 | `err/`      | Negative tests — programs that *should* produce a specific compiler error |
 
 ## Negative tests (`err/`)
