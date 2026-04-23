@@ -5,6 +5,87 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.84] — 2026-04-23
+
+**Bug fix: `nuc doc` and `nuc fix` were dispatched but missing
+from `nuc help`.**
+
+Audit of `nuc help` output vs. the s1 compiler's command
+dispatch table found two commands that worked but were
+unadvertised:
+
+- **`nuc doc`** — RFC-0029 Markdown doc generator. Shipped
+  v0.1.65, gate-tested via `cli_doc_smoke` since v0.2.67, but
+  never appeared in `nuc help`.
+- **`nuc fix`** — RFC-0015 `--numeric` linter (v0.1.63) +
+  RFC-0018 `--imports` migration (v0.1.60). Both subcommands
+  shipped with their respective RFCs but never appeared in
+  `nuc help`.
+
+Result: users running `nuc help` to discover available commands
+would not see two of the most useful tools. The drift wasn't
+caught by any existing gate — `cli_doc_smoke` exercises the
+behavior; nothing exercised the help text.
+
+### Fix
+
+Added the two missing entries to `print_usage` in
+`compiler/nucleor_s1_compiler.nr`:
+
+```
+  doc [file]             Render /// doc comments as Markdown (RFC-0029)
+    --out <file>         Write to file instead of stdout
+  fix [--imports|--numeric] [file]  Migration linters (RFC-0015 / RFC-0018)
+```
+
+`doc` lives in the Developer commands section near `summary` /
+`query` / `graph`. `fix` lives in the Project utilities section
+near `clean` / `scram`.
+
+### Self-host bootstrap
+
+This is a **compiler source change** — `bin/nucleor.exe`
+rebuilt via the standard 2-iteration LLVM IR fixed-point check:
+
+```
+./bin/nucleor.exe build compiler/nucleor_s1_compiler.nr -o nucleor_v1
+./target/nucleor_v1.exe build compiler/nucleor_s1_compiler.nr -o nucleor_v2
+diff -q target/nucleor_v1.ll target/nucleor_v2.ll  # identical
+cp target/nucleor_v2.exe bin/nucleor.exe
+```
+
+Both iterations produced **byte-identical 2,603,214-byte LLVM
+IR** — fixed point preserved across the compiler change.
+
+### Gate hardening
+
+New step **`cli_help_coverage_smoke`** in both `verify.sh` and
+`verify.ps1` enumerates the 38-command list and verifies each
+appears at the start of an indented line in `nuc help` output.
+Catches the same drift class going forward — adding a new
+command to the dispatch table without updating `print_usage`
+will now fail the gate.
+
+**Step total bumped 197 → 198** in both gates.
+
+The pre-iteration smoke block now reads (truncated):
+
+```
+[ 1/198] OK    binary present
+[ 2/198] OK    compiler ABI tables synced
+[ 3/198] OK    tools-suite rebuild
+[ 4/198] OK    CLI: nuc help advertises every dispatched command
+[ 5/198] OK    CLI: nuc explain NUM-001 wired
+[ 6/198] OK    CLI: nuc explain — full spec code set wired
+... (8 more)
+```
+
+### Verify gate
+
+198 / 198 PASS, 0 SKIP on the bash gate. Compiler source
+change (s1 `print_usage` only) — self-host LLVM IR fixed point
+preserved.
+
 ## [0.2.83] — 2026-04-23
 
 **CHANGELOG ↔ git tag parity restored; drift gate now enforces.**

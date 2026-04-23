@@ -8603,6 +8603,8 @@ fn print_help() -> i64 {
     print("    --fn <name>          Specify the target function");
     print("  graph [file]           Source-level call/effect graph");
     print("    --json               Output machine-readable graph data");
+    print("  doc [file]             Render /// doc comments as Markdown (RFC-0029)");
+    print("    --out <file>         Write to file instead of stdout");
     print("  profile run <binary>   Timed binary execution profile");
     print("    --iterations <n>     Repeat the profile run N times");
     print("  lock [manifest]        Write Nucleor.lock for local/workspace manifests");
@@ -8635,6 +8637,7 @@ fn print_help() -> i64 {
     print("Project utilities:");
     print("  clean                  Remove target/ and .nuc_cache/ from the project");
     print("  scram                  Alias for `clean` (emergency shutdown of build state)");
+    print("  fix [--imports|--numeric] [file]  Migration linters (RFC-0015 / RFC-0018)");
     print("  zen                    The design principles of Nucleor");
     print("  mco                    Mars Climate Orbiter - why we ship dimensional analysis");
     print("");

@@ -130,11 +130,11 @@ foreach ($d in $testDirs) {
 $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
 
 # 1 (binary present) + 1 (drift check) + 1 (tools-rebuild) +
-# 1 (CLI explain smoke) + 1 (explain-full) + 1 (bootstrap) +
-# 1 (check+abi) + 1 (inspectors) + 1 (diagnostics) + 1 (init) +
-# 1 (doc) + 1 (lock) + 1 (test) + N examples + N tests + N err +
-# 1 (self-host)
-$stepTotal = 13 + $examples.Count + $testCount + $errCount + 1
+# 1 (help coverage) + 1 (CLI explain smoke) + 1 (explain-full) +
+# 1 (bootstrap) + 1 (check+abi) + 1 (inspectors) + 1 (diagnostics)
+# + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples + N tests
+# + N err + 1 (self-host)
+$stepTotal = 14 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -176,6 +176,26 @@ Step "tools-suite rebuild" {
     $built = "target\nucleor_tools.exe"
     if (-not (Test-Path $built)) { return $false }
     Copy-Item $built (Join-Path $root "bin\nucleor_tools.exe") -Force -ErrorAction SilentlyContinue
+    return $true
+}
+
+Step "CLI: nuc help advertises every dispatched command" {
+    # Mirrors verify.sh cli_help_coverage_smoke (added v0.2.84).
+    # Catches the drift class that bit `doc` and `fix` (both shipped
+    # + smoke-tested but absent from `nuc help`).
+    $out = & $bin help 2>&1 | Out-String
+    $cmds = @(
+        "build", "build-fast", "build-strict", "build-shared", "build-wasm", "build-ptx",
+        "run", "emit", "test", "bench", "perf", "bootstrap", "stage-dump",
+        "summary", "query", "abi", "evidence", "impact", "graph", "doc", "profile",
+        "lock", "install", "add", "publish", "registry", "sage",
+        "check", "explain",
+        "audit", "policy", "certify", "translate",
+        "init", "clean", "scram", "fix", "zen", "mco"
+    )
+    foreach ($cmd in $cmds) {
+        if ($out -notmatch "(?m)^  $([regex]::Escape($cmd))\b") { return $false }
+    }
     return $true
 }
 
