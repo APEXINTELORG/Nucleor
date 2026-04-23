@@ -70,7 +70,17 @@ fn sum_to(n: i64) -> i64 {
 }
 ```
 
-`while` is the loop primitive; `for` is sugar planned for v1.1.
+`while` is the loop primitive. `for x in <expr>` over arrays and `Vec` already works (see `tests/features/forin_array.nr` and `tests/features/forin_vec.nr`):
+
+```nr
+let arr: [i32; 3] = [10, 20, 30];
+let mut sum: i32 = 0;
+for x in arr {
+    sum = sum + x;
+}
+```
+
+A more general iterator-trait `for` (over `HashMap` keys, ranges, lazy adapters) lands in v0.4 with RFC-0024.
 
 ## Strings
 

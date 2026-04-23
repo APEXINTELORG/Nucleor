@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.89] — 2026-04-23
+
+**Continue README freshness pass — fix two more `v1.1` stale
+roadmap claims plus document `for-in` already shipped.**
+
+### `docs/getting-started.md` — POSIX target version
+
+Same drift class as the README v0.2.88 fix. Said:
+
+> Windows 10/11, x86_64. v1 targets `x86_64-pc-windows-msvc`.
+> POSIX support is planned for v1.1.
+
+Updated to:
+
+> Windows 10/11, x86_64. **v0.2** targets
+> `x86_64-pc-windows-msvc`. POSIX support (Linux/macOS) is
+> planned for **v0.3.0** (see `docs/milestones/v0.3.0.md`) —
+> phases 1, 2, and 4 of RFC-0022 already shipped in v0.2
+> (POSIX `tools/verify.sh` gate, `nuc` shell wrapper, runtime
+> `_WIN32` audit). The v0.3 release adds the native
+> Linux/macOS bootstrap binaries.
+
+### `docs/language-tour.md` — `for` loops already work
+
+The tour said:
+
+> `while` is the loop primitive; `for` is sugar planned for v1.1.
+
+But `for x in <expr>` over arrays AND `Vec` **already works**
+and is gate-tested as `tests/features/forin_array.nr` and
+`tests/features/forin_vec.nr`. Replaced the stale claim with
+a working code example plus a forward-looking note that
+iterator-trait `for` (over `HashMap` keys, ranges, lazy
+adapters) lands in v0.4 with RFC-0024.
+
+### Audit sweep
+
+Repo-wide grep for `v1.1` references after these fixes
+returns **zero matches** in non-CHANGELOG markdown. The
+remaining `v1.0` references in CONTRIBUTING / benchmarks /
+process docs are legitimate forward-looking ("after v1.0",
+"at v1.0+", "revisit at v1.0") and not drift.
+
+### Verify gate
+
+201 / 201 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.88] — 2026-04-23
 
 **README freshness pass — fix two stale claims.**
