@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.137] — 2026-04-23
+
+**Four RFC "Target release" rows lagged behind the phased
+implementation reality — brought into step with their own
+Status rows + the index.**
+
+The v0.2.126 / v0.2.127 work fixed the **Status** row in each
+of 11+ early-implemented RFCs, but the **Target release** row
+on the same header table was left alone. For RFCs that landed a
+partial in v0.2 with the rest deferred to v0.3/v0.4/v0.5, the
+Target row was simpler than the Status row and understated the
+phasing.
+
+- **RFC-0022** — Target said **"v0.2.0 (Linux desktop) →
+  v0.5.0 (macOS, full cross)"**. Wrong on the first leg —
+  v0.2 ships **only** the POSIX wrapper + `_WIN32` audit;
+  native Linux/macOS `bin/nucleor` binaries are a **v0.3.0**
+  deliverable (see `docs/milestones/v0.3.0.md`). Rewrote to
+  match the phased reality: v0.2 POSIX wrapper → v0.3 native
+  bootstrap → v0.5 cross-compilation + sysroots.
+- **RFC-0024** — Target was a bare **"v0.4.0"**; Status row
+  already said "Implemented (partial) v0.2.9". Rewrote Target
+  to "v0.2 partial (v0.2.9 — Vec<i64> fn-ptr adapters) → v0.4.0
+  (full trait + closures)" so the phasing is visible in the
+  Target field too.
+- **RFC-0028** — same pattern: bare "v0.4.0" → "v0.2 partial
+  (v0.2.6 — format_i64/str/hex/2_ii/2_si builtins) → v0.4.0
+  (full variadic + Display / Debug traits)".
+- **RFC-0029** — bare "v0.4.0" → "v0.2 skeleton (v0.1.65 —
+  nuc doc CLI shipped) → v0.4.0 (param rendering, navigation,
+  doc tests)".
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.136] — 2026-04-23
 
 **v0.3.0 milestone tracker + cross-platform readiness doc — stale

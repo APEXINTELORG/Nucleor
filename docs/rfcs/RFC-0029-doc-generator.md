@@ -7,7 +7,7 @@
 | **Status** | Implemented (skeleton) v0.1.65 — see `docs/milestones/v0.2.0.md`; v0.2 ships skeleton; param rendering, navigation, doc tests deferred to v0.4 |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
-| **Target release** | v0.4.0 |
+| **Target release** | v0.2 skeleton (v0.1.65 — `nuc doc` CLI shipped) → v0.4.0 (param rendering, navigation, doc tests) |
 | **Depends on** | RFC-0021 (test framework — for doc tests), RFC-0019 (package metadata) |
 
 ---
