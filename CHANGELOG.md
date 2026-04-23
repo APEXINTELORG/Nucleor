@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.104] — 2026-04-23
+
+**Bug fix: spec doc claimed TST-001..003 are "proposed for v0.4"
+— they were wired in v0.2.79.**
+
+`docs/spec/Nucleor_Error_Codes.md` is one of the four trackers
+the standing /loop instruction names. The TST series section
+said:
+
+> Reserved namespace; no codes minted as of v0.2.48. ... When
+> TST-NNN codes are minted (planned for v0.4 alongside
+> property-based testing), candidates include:
+>
+> | Code (proposed) | Title | RFC section |
+> | TST-001 | ... | RFC-0021 §3.1 |
+> | TST-002 | ... | RFC-0021 §3.4 |
+> | TST-003 | ... | RFC-0021 (deferred) |
+
+But **all three were wired into the explain registry in
+v0.2.79** as part of the explain-coverage audit (along with
+NUM-004, also flagged that release). The v0.2.80 follow-up
+extended the gate to enforce the full 130-code spec catalog,
+so any future drift between this doc and the registry now
+fails the gate.
+
+This was an **inverted-direction drift bug**: the
+implementation got ahead of the spec doc, and the spec doc
+told users to expect features that already shipped to land in
+v0.4.
+
+### Fix
+
+- TST series intro rewritten: "TST-001..003 wired into the
+  explain registry in v0.2.79" with a pointer to
+  `cli_explain_full_smoke` for the gate enforcement.
+- TST table column "Status" added to each row (Wired (v0.2.79)
+  + per-row firing-status detail).
+- DIAG series intro: "no user-facing codes minted as of
+  v0.2.48" → "as of v0.2.103" with TST added to the list of
+  per-RFC code series the diagnostic machinery surfaces
+  through.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.103] — 2026-04-23
 
 **v0.3.0 milestone tracker + v0.3 readiness status doc had four
