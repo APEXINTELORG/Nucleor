@@ -30,6 +30,58 @@ Pre-existing codes from the compiler front-end. See the existing
 | NR070 | Manifest or Lockfile Failure | package |
 | NR090 | Compiler Pipeline Invariant Failure | internal |
 
+## OWN series — borrow-checker (expansion of NR031)
+
+The ownership analyzer fires concrete `OWN-NNN` codes; `NR031`
+remains the umbrella stage code. **All 12 OWN codes documented
+v0.2.119**; previously the codes fired but were missing from
+the spec doc and the explain registry. Surfaced by the audit
+chain after `tests/err/*.nr` got EXPECT headers in v0.2.117.
+
+| Code | Title | Source | Severity |
+|---|---|---|---|
+| OWN-001 | Use of moved variable | move/borrow checker | warning |
+| OWN-002 | Cannot borrow moved value | move/borrow checker | error |
+| OWN-003 | Cannot move value that is borrowed | move/borrow checker | error |
+| OWN-004 | Cannot mutably borrow value already borrowed | borrow checker | error |
+| OWN-005 | Cannot shared-borrow mutably-borrowed value | borrow checker | error |
+| OWN-006 | Cannot assign through shared reference | borrow checker | error |
+| OWN-007 | Cannot assign to borrowed location | borrow checker | error |
+| OWN-008 | Cannot assign to immutable binding | mutability checker | error |
+| OWN-009 | Cannot return reference to local value | lifetime / scope checker | error |
+| OWN-010 | Cannot bind a reference that escapes an inner block | lifetime / scope checker | error |
+| OWN-011 | Cannot mutably borrow immutable value | mutability checker | error |
+| OWN-012 | Cannot destroy arena with live references | arena lifetime checker | error |
+
+Gate-tested via `tests/err/err_*` (use-after-move, borrow-
+after-move, two-mut-borrows, shared-mut-conflict,
+assign-shared-ref, field-assign-while-borrowed,
+immutable-assign, dangling-return, lifetime-scope-escape,
+mut-borrow-immutable, arena-destroy-live-ref).
+
+## TYP series — type checker (expansion of NR030)
+
+The type checker fires concrete `TYP-NNN` codes; `NR030`
+remains the umbrella stage code. **All 10 TYP codes documented
+v0.2.119**; same drift class as the OWN series above.
+
+| Code | Title | Source | Notes |
+|---|---|---|---|
+| TYP-001 | Non-exhaustive match | match checker | warning. **Legacy** — superseded by MATCH-001 (RFC-0016); both still fire for backwards compat |
+| TYP-002 | Boolean values cannot be used in arithmetic | binop type-check | error |
+| TYP-003 | Unit operands for addition/subtraction must match | unit / dimensional checker (RFC-0005) | error |
+| TYP-004 | Cannot dereference a non-reference value | deref expr type-check | error |
+| TYP-005 | Wrong number of arguments | call expr type-check | error |
+| TYP-006 | Argument type mismatch in call | call expr type-check | error |
+| TYP-007 | Bare numeric literal cannot initialize a unit value | unit type-check (RFC-0005) | error |
+| TYP-008 | Type mismatch for binding | let stmt type-check | error |
+| TYP-009 | Assignment type mismatch | assign stmt type-check | error |
+| TYP-010 | Return type mismatch | return stmt type-check | error |
+
+Gate-tested via `tests/err/err_bool_arith`, `err_args`,
+`err_deref_nonref`, `err_taint_arg/leak/propagation`,
+`err_taint_to_clean`.
+
 ## RT series — RFC-0001 real-time function attributes
 
 | Code | Title | RFC section |

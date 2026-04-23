@@ -5,6 +5,81 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.119] — 2026-04-23
+
+**Big bug fix: 22 OWN-* and TYP-* codes fired by the compiler
+were missing from spec doc AND explain registry. Fully wired.**
+
+After v0.2.117 brought EXPECT-header coverage to 33/33 err
+tests, audit of the codes referenced in those headers found
+that **OWN-001 through OWN-012 (12 codes) and TYP-001 through
+TYP-010 (10 codes)** were:
+
+1. **Fired by the compiler** (`diag_add_ex`, `own_diag`,
+   `type_diag` calls in `compiler/nucleor_s1_compiler.nr`).
+2. **Documented as the expected diagnostic** in 22 of the 33
+   `tests/err/*.nr` EXPECT headers.
+3. **Missing from the spec doc** (`docs/spec/Nucleor_Error_Codes.md`).
+4. **Missing from the explain registry** (`compiler/nucleor_tools_suite.nr`)
+   — `nuc explain OWN-001` returned `unknown error code: OWN-001`.
+
+This is the same drift class as the v0.2.79 finding (NUM-004 +
+TST-001/002/003), but **5x larger** — 22 codes vs 4. Bigger
+than the 44-code v0.2.80 forward-looking sweep.
+
+### Spec doc additions
+
+Added two new sections to `docs/spec/Nucleor_Error_Codes.md`,
+positioned right after NR series:
+
+- **OWN series — borrow-checker (expansion of NR031)** —
+  12-row table covering use-of-moved, borrow-of-moved,
+  move-while-borrowed, two-mut-borrows, shared-mut-conflict,
+  assign-through-shared-ref, assign-borrowed-location,
+  assign-immutable-binding, return-ref-to-local,
+  inner-block-escape, mut-borrow-immutable, destroy-arena-with-
+  live-refs.
+- **TYP series — type checker (expansion of NR030)** —
+  10-row table covering non-exhaustive-match (legacy),
+  bool-arith, unit-add-mismatch, deref-non-ref, wrong-arg-
+  count, arg-type-mismatch, bare-literal-into-unit, binding-
+  type-mismatch, assign-type-mismatch, return-type-mismatch.
+
+Each row includes the title, source (which checker fires it),
+and notes (severity for OWN; legacy/RFC pointers for TYP).
+Both sections list the gate-tested `tests/err/*` file(s) that
+exercise the codes.
+
+### Explain registry additions
+
+Added 66 string literals (22 codes × 3 functions) to
+`compiler/nucleor_tools_suite.nr`:
+- `explain_error_title(code)` — short title per code
+- `explain_error_summary(code)` — one-line summary per code
+- `explain_error_explanation(code)` — RFC-anchored explanation
+  per code (the longest entry — typically describes the rule,
+  why it exists, and the fix path)
+
+Tools binary rebuilt; spot-checked `OWN-004`, `OWN-009`,
+`TYP-005` all return correct titled output.
+
+### Gate hardening
+
+Extended `cli_explain_full_smoke` in both `verify.sh` and
+`verify.ps1` to include the 22 new codes (12 OWN + 10 TYP).
+The full spec catalog the gate now exercises is **152 codes**
+(was 130 — bumped 130 + 22).
+
+Going forward, any future drift in the OWN/TYP series is
+caught by the same gate that already enforces the rest of
+the spec catalog (per v0.2.79/v0.2.80).
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Tools-suite source
+change only — s1 compiler / runtime / source / test
+unchanged; self-host LLVM IR fixed point preserved.
+
 ## [0.2.118] — 2026-04-23
 
 **Lock down v0.2.117: gate step enforces every err test has an
