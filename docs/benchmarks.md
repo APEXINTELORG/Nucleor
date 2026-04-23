@@ -1,7 +1,7 @@
 # Benchmarks
 
 Numbers below are reproducible from this repo with `nuc bench`. The intent is to
-characterize the v0.1 self-host bootstrap pipeline, not to compete with mature
+characterize the v0.2 self-host bootstrap pipeline, not to compete with mature
 production compilers — that comparison comes after v1.0.
 
 ## Self-host build time
@@ -10,11 +10,20 @@ Building the full self-host compiler from source on a laptop-class machine:
 
 | Stage | Wall time |
 |---|---|
-| Clean self-build of `compiler/nucleor_s1_compiler.nr`         | ~14 s |
-| Internal timed build (excluding clang link)                   | ~13.6 s |
+| Clean self-build of `compiler/nucleor_s1_compiler.nr`         | ~27 s |
+| Internal timed build (excluding clang link)                   | ~24 s (type-check dominates) |
 | Same build with module cache hit                              | sub-second IR cache; ~5 s clang link |
 
-The compiler itself is one `.nr` file (~330 KB / 5700 functions / ~10000 LOC) producing a ~1.8 MB LLVM IR module that clang then turns into the ~3 MB `nucleor.exe` binary.
+The compiler itself is one `.nr` file (~467 KB source / **8897 LOC** /
+**365 reachable functions** after dead-code elimination /
+**664 optimizer instructions** / 3932 strings) producing a
+**~2.6 MB LLVM IR module** that clang then turns into the
+**~845 KB `nucleor.exe` binary**. Numbers as of v0.2.97 — bumped
+from v0.1-era estimates (~330 KB / 5700 functions / 10000 LOC /
+1.8 MB IR / 3 MB binary). The `nucleor.exe` binary is roughly a
+quarter of the v0.1-era size because the optimizer + DCE pass
+shipped in the v0.1.46–v0.1.65 chain stripped most of the
+unreachable surface.
 
 ## Hello-world build time
 

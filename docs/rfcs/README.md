@@ -77,10 +77,16 @@ proceed without re-design.
 | [0032](RFC-0032-effects.md) | Effects — `pure fn`, `requires`, `restricts` | Draft | v0.6.0 |
 
 **32 RFCs drafted; 8 Tier-2 (RFC-0015..0022) + RFC-0029 carry
-Implemented or Implemented-partial status as of v0.1.65.**
-Together with the three process docs (`docs/process/`), they
-specify the full v0.2 → v0.8 design surface for safety / robotics
-/ AI.
+Implemented or Implemented-partial status as of v0.2.0 RC**
+(per the per-RFC checklist rows in
+[`docs/milestones/v0.2.0.md`](../milestones/v0.2.0.md) — every
+row is DONE / PARTIAL / DEFERRED with a follow-on target).
+**RFC-0030 declined** during v0.2 (see the RFC for rationale).
+The post-RC v0.2.x sub-chain (through v0.2.97 as of this
+update) has been strictly additive on top of v0.2.0; no
+RFC implementation states changed. Together with the three
+process docs (`docs/process/`), they specify the full
+v0.2 → v0.8 design surface for safety / robotics / AI.
 
 ## Process docs
 
