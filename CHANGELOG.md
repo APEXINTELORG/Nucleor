@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.116] — 2026-04-23
+
+**Two `tests/err/*.nr` files had no header comment.**
+
+Audit of `tests/err/*.nr` (33 negative tests) found two files
+with **zero header comments** explaining what diagnostic the
+test exercises:
+
+- `err_args.nr` — exercises wrong-arg-count call
+- `err_bool_arith.nr` — exercises boolean-arithmetic rejection
+
+Without a header, a future contributor reading the file has
+to reverse-engineer the test's intent from the source. Three
+of the 33 err tests already had `// EXPECT: <code> <text>`
+comments (per the v0.2.87 audit findings); these two now do
+too.
+
+### Fix
+
+Added header comments to both files:
+
+```nr
+// EXPECT: TYP-005 wrong number of arguments
+// `add` takes (a: i32, b: i32) but is called with 1 arg.
+// The type checker fires TYP-005 (...) at the call site.
+fn add(a: i32, b: i32) -> i32 { a + b }
+fn main() -> i32 { add(1) }
+```
+
+```nr
+// EXPECT: TYP-002 boolean values cannot be used in arithmetic
+// Booleans aren't addable. The type checker fires TYP-002
+// from check_expr's binop branch when either operand is bool.
+fn main() -> i32 { true + false }
+```
+
+Verified both EXPECT codes match the actual diagnostic the
+compiler emits (`error[TYP-005]: wrong number of arguments
+for 'add'` and `error[TYP-002]: boolean values cannot be used
+in arithmetic`).
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Test files unchanged
+behaviorally — header-only addition.
+
 ## [0.2.115] — 2026-04-23
 
 **Same v0.2.41/v0.2.42 off-by-one in `check_compiler_drift.sh`
