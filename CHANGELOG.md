@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.77] — 2026-04-23
+
+**Milestone tracker + status doc + RFC index refresh for the
+v0.2.50–76 sub-chain.**
+
+Three docs were stale:
+
+- **`docs/milestones/v0.2.0.md`** — header status was at v0.2.49
+  / 186-step gate. Refreshed to v0.2.76 / 195-step gate, with a
+  new "Sub-chain summary v0.2.50–v0.2.76" section enumerating
+  the four buckets of post-RC work (Helper manifest Phase 2,
+  CLI surface gate coverage, drift gate hardening, compiler
+  bug fix). Helper Schema Deliverable section rewritten —
+  previously said "awaiting 'go'" + "drift gate enforcement
+  lands once Phase 2 is approved"; now reflects that Phase 2
+  shipped (mech v0.2.41, population v0.2.73–76 → 92.9%) and
+  that the going-forward constraint is live in the drift gate.
+  Three success criteria checkboxes updated to current numbers
+  (158 → 195).
+- **`docs/status/v0.2-shipped-and-deferred.md`** — header
+  snapshot was at `v0.2.47` (68 releases). Refreshed to
+  `v0.2.76` (97 releases). Added a "Post-RC sub-chain
+  (v0.2.50–v0.2.76)" section mirroring the milestone tracker
+  bucket-by-bucket summary.
+- **`docs/rfcs/README.md`** — Cross-cutting contracts table
+  said the helper manifest was a v0.2.40 artifact with no
+  population progress. Updated to reflect Phase 2 population
+  state (628/676 = 92.9% via v0.2.73–76) and the schema
+  vocabulary additions in v0.2.73 / v0.2.75.
+
+No source / runtime / generator changes — pure documentation
+refresh of the four canonical trackers the user maintains as
+the project's source-of-truth surface.
+
+### Verify gate
+
+195 / 195 PASS, 0 SKIP on the bash gate. Tooling-only — no
+compiler / runtime / ABI / source / test changes.
+
 ## [0.2.76] — 2026-04-23
 
 **Helper manifest Phase 2 — populate `IO` (70), `DataCodec` (14
