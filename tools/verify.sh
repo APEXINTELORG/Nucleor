@@ -89,9 +89,19 @@ fi
 cd "$ROOT"
 
 # --- Compute total step count ------------------------------------------
-RUST_BRIDGE_LIB="$ROOT/stdlib/rods/rust_bridge/target/release/libnucleor_rust_bridge.a"
+# rust_bridge artifact name varies by toolchain:
+#   POSIX (gcc/clang): libnucleor_rust_bridge.a
+#   Windows (MSVC):    nucleor_rust_bridge.lib
+# Detect either; downstream test gate uses the same heuristic.
+RUST_BRIDGE_DIR="$ROOT/stdlib/rods/rust_bridge/target/release"
+RUST_BRIDGE_LIB=""
+if [ -f "$RUST_BRIDGE_DIR/libnucleor_rust_bridge.a" ]; then
+    RUST_BRIDGE_LIB="$RUST_BRIDGE_DIR/libnucleor_rust_bridge.a"
+elif [ -f "$RUST_BRIDGE_DIR/nucleor_rust_bridge.lib" ]; then
+    RUST_BRIDGE_LIB="$RUST_BRIDGE_DIR/nucleor_rust_bridge.lib"
+fi
 EXAMPLES=(01_hello 02_fib 03_structs 04_rods 05_quantum 06_perf_attrs 08_linalg 09_ode 10_fft 11_pid 12_autodiff 13_test_framework 14_csv_summary 15_word_count 16_histogram 17_linecount 18_benchmark)
-[ -f "$RUST_BRIDGE_LIB" ] && EXAMPLES+=(07_rust_interop)
+[ -n "$RUST_BRIDGE_LIB" ] && EXAMPLES+=(07_rust_interop)
 
 TEST_DIRS=(lang attrs runtime rods features)
 # Files matching this pattern are auxiliary helpers imported by another
@@ -132,7 +142,7 @@ build_example() {
 
 build_test() {
     local dir="$1" tname="$2"
-    if [ "$tname" = "rust_interop" ] && [ ! -f "$RUST_BRIDGE_LIB" ]; then
+    if [ "$tname" = "rust_interop" ] && [ -z "$RUST_BRIDGE_LIB" ]; then
         return 2
     fi
     "$BIN" build "tests/$dir/$tname.nr" -o "$tname" >/tmp/_nuc_step.log 2>&1
