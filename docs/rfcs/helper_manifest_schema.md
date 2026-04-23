@@ -79,14 +79,30 @@ List of effect tags this helper performs. Empty `[]` means pure
   v0.2.73 — populated for the entire `Concurrency` class.)
 - `"panic"` — may abort the process.
 
-As of v0.2.73 the generator populates `effects` for `PureMath`
-(`[]`), `VectorOps` (`["alloc"]`), `Random` (`["random"]`),
-`Time` (`["clock"]`), `Concurrency` (`["sync"]`), and
-`Allocation` (`["alloc"]`) — 405 rows total. The remaining
-271 rows (`PanickingArith`, `StringFormat`, `IO`, `Collection`,
-`TensorOps`, `DataCodec`, `ToolingMeta`) carry `"TODO"` and
-will be populated as the per-class semantics get fixed in
-follow-on releases. **Do not assume `[]` for `"TODO"` rows.**
+As of v0.2.78 the generator populates `effects` for **643 of
+676 helpers (95.1%)** via a 3-level resolution chain
+(`NAME_OVERRIDES` → `PATTERN_OVERRIDES` → `CLASS_DEFAULTS`):
+
+| Class | Population | Mechanism |
+|---|---|---|
+| `PureMath` | 132 / 132 | class default `[]` |
+| `VectorOps` | 97 / 97 | class default `["alloc"]` |
+| `PanickingArith` | 84 / 84 | 80 pure via pattern, 4 via name |
+| `StringFormat` | 81 / 81 | 38 pure via pattern, 1 io via name, 42 alloc via class default |
+| `IO` | 70 / 70 | 8 pure + 8 pure-alloc + 23 read-side propagating + 31 write-side passthrough |
+| `Collection` | 54 / 54 | 17 pure via pattern, 37 alloc via class default |
+| `Concurrency` | 38 / 38 | class default `["sync"]` |
+| `Time` | 21 / 21 | class default `["clock"]` |
+| `DataCodec` | 19 / 19 | 5 pure + 1 io + 1 random+alloc + 12 alloc |
+| `Random` | 13 / 13 | class default `["random"]` |
+| `Allocation` | 10 / 10 | class default `["alloc"]` |
+| `ToolingMeta` | 9 / 12 | 9 via name; 3 placeholders TODO |
+| `TensorOps` | 15 / 45 | 15 via pattern; 30 placeholders TODO |
+
+The remaining **33 TODO rows** are all intentional v0.4
+placeholders (TensorOps GPU/device/SIMD/sampling forward
+declarations + ToolingMeta `profile_*` / `py_eval` stubs).
+**Do not assume `[]` for `"TODO"` rows.**
 
 ### `taint` — `"passthrough" | "propagates" | "breaks"`
 Whether taint flowing into the inputs propagates to the outputs.
@@ -100,9 +116,15 @@ Whether taint flowing into the inputs propagates to the outputs.
 - `breaks` — output is always considered untainted regardless of
   input. Reserved for verified sanitizers.
 
-As of v0.2.73 `taint = "passthrough"` is set for `PureMath`,
-`VectorOps`, `Random`, `Time`, `Concurrency`, `Allocation`. The
-remaining seven classes carry `"TODO"`.
+As of v0.2.78, `taint` is populated for the same 643 of 676
+helpers as `effects`. Most populated rows carry
+`"passthrough"`; the only `"propagates"` rows are the 23
+read-side IO helpers (stdin reads, env reads, fs queries,
+file reads, system) — these introduce external taint that
+must propagate downstream. No rows carry `"breaks"` (reserved
+for verified sanitizers, which v0.2 doesn't ship). Rows with
+`taint = "TODO"` are limited to the 33 v0.4 placeholders
+listed above.
 
 ### `units` — `"passthrough" | "carries" | "strips"`
 SI / dimensional-units behavior under RFC-0005:
