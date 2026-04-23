@@ -1761,6 +1761,51 @@ long long __nucleor_checked_overflow_flag(void) {
     return __nucleor_overflow_flag;
 }
 
+// --- v0.2.28: division / remainder / negation variants ---
+// checked_div_i64 / checked_rem_i64: 0 + overflow flag set on
+//   (a) divide-by-zero, OR (b) i64::MIN / -1 (would overflow).
+// wrapping_div_i64 / wrapping_rem_i64: silent — div-by-zero returns 0,
+//   i64::MIN / -1 wraps to i64::MIN (the two's-complement result).
+// checked_neg_i64: handles the i64::MIN edge case (no positive equivalent).
+// wrapping_neg_i64: returns -v with two's-complement semantics
+//   (so wrapping_neg(i64::MIN) == i64::MIN).
+// saturating_neg_i64: clamps i64::MIN to i64::MAX.
+
+long long __nucleor_checked_div_i64(long long a, long long b) {
+    __nucleor_overflow_flag = 0;
+    if (b == 0) { __nucleor_overflow_flag = 1; return 0; }
+    if (a == LLONG_MIN && b == -1) { __nucleor_overflow_flag = 1; return 0; }
+    return a / b;
+}
+long long __nucleor_checked_rem_i64(long long a, long long b) {
+    __nucleor_overflow_flag = 0;
+    if (b == 0) { __nucleor_overflow_flag = 1; return 0; }
+    if (a == LLONG_MIN && b == -1) { __nucleor_overflow_flag = 1; return 0; }
+    return a % b;
+}
+long long __nucleor_wrapping_div_i64(long long a, long long b) {
+    if (b == 0) return 0;
+    if (a == LLONG_MIN && b == -1) return LLONG_MIN;
+    return a / b;
+}
+long long __nucleor_wrapping_rem_i64(long long a, long long b) {
+    if (b == 0) return 0;
+    if (a == LLONG_MIN && b == -1) return 0;
+    return a % b;
+}
+long long __nucleor_checked_neg_i64(long long v) {
+    __nucleor_overflow_flag = 0;
+    if (v == LLONG_MIN) { __nucleor_overflow_flag = 1; return 0; }
+    return -v;
+}
+long long __nucleor_wrapping_neg_i64(long long v) {
+    return (long long)(0ULL - (unsigned long long)v);
+}
+long long __nucleor_saturating_neg_i64(long long v) {
+    if (v == LLONG_MIN) return LLONG_MAX;
+    return -v;
+}
+
 // === RFC-0015 phase 4: narrow-width overflow primitives ===
 // Generated for i8 / i16 / i32 / u8 / u16 / u32 / u64. The signed
 // variants treat the i64 storage as the underlying width's signed

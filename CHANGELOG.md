@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.28] — 2026-04-22
+
+**Checked / wrapping / saturating div-rem-neg (7 helpers).**
+
+```nucleor
+let imax: i64 = 9223372036854775807;
+let imin: i64 = wrapping_add(imax, 1);  // i64::MIN
+
+// Checked: sets checked_overflow_flag() on (a) b==0 or (b) i64::MIN/-1
+checked_div(10, 3);                     // 3
+checked_div(10, 0);                     // 0  + flag set
+checked_div(imin, -1);                  // 0  + flag set
+
+checked_rem(10, 3);                     // 1
+checked_rem(imin, -1);                  // 0  + flag set
+
+checked_neg(7);                         // -7
+checked_neg(imin);                      // 0  + flag set (no positive equivalent)
+
+// Wrapping: silent — div-by-zero returns 0; i64::MIN/-1 wraps
+wrapping_div(imin, -1);                 // imin (two's-complement result)
+wrapping_rem(imin, -1);                 // 0
+wrapping_neg(imin);                     // imin
+
+// Saturating: clamp i64::MIN to i64::MAX (no positive equivalent)
+saturating_neg(7);                      // -7
+saturating_neg(imin);                   // imax
+```
+
+Closes the v0.1.54 RFC-0015 phase 4 gap by extending the
+checked/wrapping/saturating coverage from `add`/`sub`/`mul` to
+include division (`div`, `rem`) and unary negation (`neg`).
+The `checked_*` family writes the result into the same global
+`checked_overflow_flag()` slot as the existing arithmetic, so
+callers can chain checked operations and inspect the flag once.
+
+- **Two overflow paths matter for div / rem on i64:** divide-by-
+  zero, *and* `i64::MIN / -1` (the result is `i64::MAX + 1`, which
+  overflows). All seven helpers handle both correctly.
+- **`wrapping_neg`** uses the two's-complement modular identity:
+  `wrapping_neg(i64::MIN) == i64::MIN` (the sign bit can't flip).
+- **`saturating_neg`** is the canonical `wrapping`-vs-`saturating`
+  partner: clamps `i64::MIN` to `i64::MAX`.
+
+All seven take/return i64 (no `is_ptr_*` table updates needed).
+Wired through both compiler binaries with the drift-gate sync.
+
+### Verify gate
+
+177/178 green on Windows + 1 skip. New gate: `tests/runtime/checked_div_neg.nr`
+(round-trip tests for all three families across the divide-by-zero and
+`i64::MIN / -1` overflow corners).
+Self-host LLVM IR fixed point preserved (v139==v140 byte-identical).
+
 ## [0.2.27] — 2026-04-22
 
 **HashMap accessor + bulk-op extras (4 helpers).**
