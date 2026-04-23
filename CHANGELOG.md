@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.88] — 2026-04-23
+
+**README freshness pass — fix two stale claims.**
+
+Audit of the README's quantitative + roadmap claims against
+current state found two outdated statements:
+
+1. **POSIX target version was wrong.** README said "POSIX
+   (Linux/macOS) support is planned for v1.1." Milestone
+   tracker says it's deferred to **v0.3.0** (see
+   `docs/milestones/v0.3.0.md` — entire RFC-0022 phase 3 work).
+   Fixed; the new line also notes that phases 1, 2, and 4 of
+   RFC-0022 already shipped in v0.2 (POSIX gate, `nuc` shell
+   wrapper, runtime `_WIN32` audit).
+
+2. **Rod count was historical.** README said "That's **103
+   rods total** as of v0.1.5." Actually 121 rods today (v0.2.46
+   bumped the count via the v0.2.18–30 enrichment chain).
+   Updated to "121 rods total as of v0.2.46 (was 103 at v0.1.5;
+   the v0.2.18–v0.2.30 stdlib enrichment chain added 18 more)"
+   with a pointer to `docs/rfcs/rod_manifest.toml` for the
+   per-rod catalog.
+
+Other quantitative README claims confirmed accurate against
+current state:
+
+- `~10,000 lines compiler source` → 8,897 actual ✓ (rough match)
+- `121 rods` → 121 actual ✓
+- `84 runtime C source files` → 84 actual ✓
+- `676 __nucleor_* symbols` → 676 actual ✓
+- `13 categories` → 13 taxonomy classes ✓ (per
+  `docs/rfcs/helper_manifest.toml`)
+- `v0.2.0 (released 2026-04-22)` → still accurate
+
+### Verify gate
+
+201 / 201 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.87] — 2026-04-23
 
 **`nuc -V` and `nuc version` now work as aliases for
