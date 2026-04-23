@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.46] — 2026-04-22
+
+**Rod manifest companion to the helper manifest (121 rods cataloged).**
+
+The v0.2.40 helper manifest catalogs the 676 compiler-emitted
+`__nucleor_*` symbols. This release adds its companion: a
+catalog of the 121 user-facing rods you actually `import`.
+
+- **`tools/gen_rod_manifest.py`** — new generator. Reads every
+  `stdlib/rods/*.nr`, parses the leading comment block for a
+  one-line description, counts `fn` definitions and `#cfile`
+  directives, walks `import "stdlib/rods/<name>.nr"` lines for
+  the dependency graph, computes LOC.
+- **`docs/rfcs/rod_manifest.toml`** — 121 rod entries, sorted by
+  name. Schema: `name / path / description / function_count /
+  cfile_count / loc / imports`.
+- **`docs/rfcs/rod_manifest_schema.md`** — one-page field-by-field
+  reference + worked example.
+- **`docs/rfcs/README.md`** — Cross-cutting Contracts section
+  extended to link both new docs.
+
+### Aggregate stats
+
+```
+Total rods:          121
+Total fn definitions: 1395
+Total LOC:           6085
+Without description: 0   (every rod has an extractable header)
+```
+
+The two manifests answer different questions:
+
+- **rod manifest** — "what modules can I import?"
+- **helper manifest** — "what `__nucleor_*` symbols can the
+  compiler emit?"
+
+A rod can call multiple helpers, and a helper can be exposed
+through multiple rod functions; the counts (121 vs 676) are
+independent.
+
+### Going-forward note
+
+The rod manifest is **not yet gate-enforced** (unlike the helper
+manifest, which v0.2.42 wired into `tools/check_compiler_drift.sh`).
+Adding a rod without regenerating the manifest won't fail the
+verify gate today. Wiring it in is a follow-up release; the helper
+manifest got priority because the ABI surface is more load-bearing.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Tooling + docs only — no compiler /
+runtime / ABI / source / test changes.
+
 ## [0.2.45] — 2026-04-22
 
 **Verify gate: 186 / 186 — first all-PASS run, no skips.**
