@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.62] — 2026-04-22
+
+**`tools/verify.ps1` mirrors v0.2.61 non-empty stdout check.**
+
+The v0.2.61 silent-regression check landed in `tools/verify.sh`
+only. The Windows-side mirror was filed as a v0.4 cleanup but
+the gap is small enough to close immediately.
+
+**Updated `tools/verify.ps1`:**
+
+- Capture example stdout to `$runOut` via `| Out-String` instead
+  of letting it flow to the host (same shape as the existing
+  build-output capture).
+- Check `$LASTEXITCODE -ne 0` explicitly (was implicit via the
+  trailing `return $LASTEXITCODE -eq 0`).
+- Add `[string]::IsNullOrWhiteSpace($runOut)` shape check;
+  `Write-Host (Dim "       example produced empty output")` and
+  `return $false` if empty.
+
+Both gates now share the same FAIL semantics on silent
+regressions. The `tools/examples.list` single-source-of-truth
+(v0.2.60) plus parity output checks (v0.2.61 + v0.2.62) means
+the two gates will run identical example coverage on identical
+shape rules going forward.
+
+**Bonus dogfood verification.** During this release I ran the
+bash gate and got **`FAIL: example 01_hello`** — exactly the
+silent-regression class the v0.2.61 check is designed to catch.
+Root cause: my own earlier negative test corrupted
+`examples/01_hello.nr` (replaced the body with a no-print stub
+to verify the FAIL path) and the backgrounded restore never
+completed. `git checkout HEAD -- examples/01_hello.nr` restored
+the file and the gate returned to 186/186. Real-world proof
+that the new check fires when it should.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Tooling-only — no compiler / runtime /
+ABI / source / test changes.
+
 ## [0.2.61] — 2026-04-22
 
 **Verify gate: examples now checked for non-empty stdout.**

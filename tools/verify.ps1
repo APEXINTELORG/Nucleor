@@ -169,8 +169,19 @@ foreach ($ex in $examples) {
             Write-Host (Dim ("       " + ($out.Trim() -split "`n" | Select-Object -Last 1)))
             return $false
         }
-        $runOut = & "target\$ex.exe" 2>&1
-        return $LASTEXITCODE -eq 0
+        $runOut = & "target\$ex.exe" 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host (Dim ("       " + ($runOut.Trim() -split "`n" | Select-Object -Last 1)))
+            return $false
+        }
+        # Non-empty stdout shape check (added v0.2.62, mirrors verify.sh
+        # v0.2.61) — catches silent regressions where the binary builds
+        # + exits 0 but prints nothing.
+        if ([string]::IsNullOrWhiteSpace($runOut)) {
+            Write-Host (Dim "       example produced empty output")
+            return $false
+        }
+        return $true
     }
 }
 
