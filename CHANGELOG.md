@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.82] — 2026-04-23
+
+**Bug fix: create the missing `NUCLEOR_BOOTSTRAP_CONTRACT.md`
+file referenced by `nuc bootstrap` since v0.2.70.**
+
+`nuc bootstrap` has been printing `Contract:
+NUCLEOR_BOOTSTRAP_CONTRACT.md` (and emitting the same string as
+the `bootstrap_contract` JSON field) since v0.2.70 — but the
+file **never existed in git history**. Anyone following the
+pointer hit a 404.
+
+### Fix
+
+Wrote `NUCLEOR_BOOTSTRAP_CONTRACT.md` at the repo root. The
+contract document specifies:
+
+- The stage hierarchy (single committed `bin/nucleor.exe` =
+  stage 1, self-hosted; stage 0 lineage is upstream).
+- The self-host invariant (every committed
+  `bin/nucleor.exe` must be capable of compiling its own source
+  via the verify gate's final step).
+- The 2-iteration LLVM IR fixed-point check pattern used during
+  v0.1 / v0.2.x sub-chain releases that touch the compiler.
+- The two-binary architecture (`bin/nucleor.exe` for s1,
+  `bin/nucleor_tools.exe` for explain/bootstrap/test runner;
+  drift gate enforces ABI parity between the two source files).
+- Runtime layer pointer (`stdlib/runtime/nucleor_llvm_rt.c`).
+- Examples corpus pointer (`tools/examples.list`).
+- Bootstrap-from-fresh-clone instructions.
+- Cross-platform status (Windows-only binary today;
+  Linux/macOS lands with v0.3.0).
+- "What changes the contract" — enumerates the four common
+  ways to break or update the bootstrap.
+
+### Gate hardening
+
+Extended `cli_bootstrap_smoke` (in both `verify.sh` and
+`verify.ps1`) to **resolve the `Contract:` line as an existing
+file at the repo root**. Catches the same drift class going
+forward — if anyone renames or removes the file (or if the
+binary's emitted reference changes to point at something
+non-existent), the gate fails.
+
+### Verify gate
+
+197 / 197 PASS, 0 SKIP on the bash gate. Documentation +
+gate-step refinement only — no compiler / runtime / source /
+test changes.
+
 ## [0.2.81] — 2026-04-23
 
 **Refresh `HELPER-CONTRACT.md` and `helper_manifest_schema.md`

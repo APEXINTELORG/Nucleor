@@ -265,6 +265,12 @@ Step "CLI: nuc bootstrap status reports correctly" {
     if ($out -notmatch "Nucleor Bootstrap Status") { return $false }
     if ($out -notmatch "Stage: 1 \(self-hosted\)") { return $false }
     if ($out -notmatch "Self-hosted: yes") { return $false }
+    # v0.2.82 — verify the Contract: line resolves to an existing
+    # doc file at the repo root.
+    $contractMatch = [regex]::Match($out, "(?m)^\s*Contract:\s*(.+?)\s*$")
+    if (-not $contractMatch.Success) { return $false }
+    $contractPath = Join-Path $root $contractMatch.Groups[1].Value
+    if (-not (Test-Path $contractPath)) { return $false }
     return $true
 }
 
