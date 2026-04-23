@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.114] — 2026-04-23
+
+**Fix off-by-one ship attribution: drift-gate enforcement of
+helper manifest shipped v0.2.42, not v0.2.41.**
+
+While checking `docs/rfcs/rod_manifest_schema.md` for
+staleness, noticed it correctly attributes helper-manifest
+gate enforcement to v0.2.42 ("the same enforcement
+`helper_manifest.toml` got in v0.2.42") — but **two of my own
+recent audit ships had said v0.2.41**. Self-introduced
+inconsistency.
+
+Looking at the actual CHANGELOG to ground-truth it:
+
+- **v0.2.40** — shipped the initial `helper_manifest.toml`
+  (with 144 REVIEW REQUIRED rows).
+- **v0.2.41** — audit pass dropped REVIEW REQUIRED count from
+  144 → 0 by extending the generator's
+  `INTENTIONAL_PLACEHOLDER` allowlist + macro-expansion regex.
+  This is what I'd been calling "manifest mech".
+- **v0.2.42** — wired the drift-gate enforcement that the
+  v0.2.33 going-forward constraint promised. **This is the
+  ship I'd been mis-attributing.**
+
+### Fix
+
+Three references corrected in two files:
+
+- **`docs/milestones/v0.2.0.md`** (line 287): "constraint
+  enforcement (live since v0.2.41)" → "(live since v0.2.42)".
+- **`docs/rfcs/HELPER-CONTRACT.md`** (status header + going-
+  forward section): "drift-enforced v0.2.41" / "live since
+  v0.2.41" → "v0.2.42" with an explicit timeline paragraph
+  explaining the v0.2.40 → v0.2.41 → v0.2.42 progression so
+  future readers don't get the same off-by-one wrong.
+
+The "mech v0.2.41" attribution stays — v0.2.41 IS when the
+generator became the source of truth (REVIEW REQUIRED → 0).
+Just the GATE-ENFORCEMENT ship was a release later.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.113] — 2026-04-23
 
 **Mirror v0.2.112 to `tools/verify.ps1` header.**
