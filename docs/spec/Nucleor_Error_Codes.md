@@ -394,17 +394,48 @@ flip lands (v0.4 follow-on), the tests will move out of
 
 ## Adding a new error code
 
-When a new error code is introduced (via an RFC):
+When a new error code is introduced (via an RFC or by audit
+finding a fired-but-undocumented code), all six steps below
+must be done in the same commit so the verify gate locks the
+addition in:
 
-1. Add it to this file under the appropriate series (create a new
-   series table if needed).
-2. Register it in `nucleor_tools_suite.nr`:
+1. **Spec doc (this file)** — add a row in the appropriate
+   series table (create a new series table if needed).
+2. **Explain registry in `compiler/nucleor_tools_suite.nr`** —
+   add three entries (one per function) for the code:
    - `explain_error_title()` — one-line summary
    - `explain_error_summary()` — single-sentence description
    - `explain_error_explanation()` — paragraph of context
-3. Verify `nuc explain CODE` renders correctly.
-4. Add a test in `tests/err/` that triggers the code (where
-   possible).
+3. **Gate scripts in BOTH `tools/verify.sh` AND
+   `tools/verify.ps1`** — append the code to the
+   `cli_explain_full_smoke` codes array (the bash array literal
+   and the PowerShell array; keep the two scripts in step-for-
+   step parity). This step is what makes `nuc explain CODE`
+   gate-tested.
+4. **Test in `tests/err/`** — add a one-file negative test
+   that triggers the code. The first line must be a
+   `// EXPECT: CODE [text]` header (the v0.2.118
+   `err_tests_have_expect_smoke` gate step rejects test files
+   without one).
+5. **Verify the gate stays green** — run `bash tools/verify.sh`
+   (or `powershell -File tools/verify.ps1` on Windows). The
+   `cli_explain_full_smoke` step exercises every code in its
+   array; a missing explain-registry entry surfaces as an
+   immediate gate failure.
+6. **Update consumer docs** — `NUCLEOR_BOOTSTRAP_CONTRACT.md`
+   names the spec catalog count ("161-code spec catalog");
+   `docs/milestones/v0.2.0.md` Status header names the count
+   too. Bump both when the count changes. (`tools/check_compiler_drift.sh`
+   does NOT enforce this, so it's a reviewer responsibility.)
+
+Codes that fire from the s1 compiler proper (`nucleor_s1_compiler.nr`)
+follow the same recipe — the compiler ABI tables don't track
+diagnostic codes (only `__nucleor_*` symbols), so a new code
+added there only changes step 2's source file (the explain
+registry still lives in the tools-suite, since that's what
+backs `nuc explain`). The 2-iteration LLVM IR fixed-point
+check from `NUCLEOR_BOOTSTRAP_CONTRACT.md` applies whenever
+the s1 source is touched.
 
 ## Suppression
 

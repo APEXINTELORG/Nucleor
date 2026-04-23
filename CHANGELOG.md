@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.141] — 2026-04-23
+
+**Spec doc "Adding a new error code" recipe was 4 steps; we
+actually use 6 — recipe brought into agreement with practice.**
+
+The recipe in `docs/spec/Nucleor_Error_Codes.md` listed only
+4 steps (spec entry, 3 explain-registry entries, sanity check,
+test in `tests/err/`). The actual workflow used by v0.2.79–
+v0.2.131 (which wired 30+ codes — NR, OWN, TYP, TNT, GOV) has
+6 steps because the gate locks each addition in two more places:
+
+- The `cli_explain_full_smoke` codes array in **both** gate
+  scripts (`tools/verify.sh` AND `tools/verify.ps1`) — without
+  this step the `nuc explain CODE` smoke doesn't actually
+  exercise the new code.
+- The `// EXPECT: CODE [text]` header on the negative test
+  (gate-enforced via `err_tests_have_expect_smoke` since
+  v0.2.118).
+
+Plus an unenforced reviewer-checklist step:
+
+- Bump the "161-code spec catalog" count in
+  `NUCLEOR_BOOTSTRAP_CONTRACT.md` and the "All N diagnostic
+  codes" claim in `docs/milestones/v0.2.0.md` Status header.
+  Not gate-enforced (would require a `wc -l`-style check that
+  bumps with every new entry — debatable whether that's worth
+  the gate complexity).
+
+The recipe also now notes that codes fired from the s1 compiler
+proper (`nucleor_s1_compiler.nr`) follow the same recipe and
+trigger the 2-iteration LLVM IR fixed-point check from the
+bootstrap contract.
+
+### `docs/spec/Nucleor_Error_Codes.md`
+
+- "Adding a new error code" section rewritten 4 steps → 6 steps
+  with the gate-wiring + EXPECT-header steps explicit, plus a
+  paragraph on the s1-vs-tools-suite split (codes can fire from
+  either; explain registry is always in tools-suite).
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.140] — 2026-04-23
 
 **Architecture doc "where to look in the source" table named 7
