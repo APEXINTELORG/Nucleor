@@ -177,8 +177,8 @@ This bundle is what an auditor reviews.
 
 | Release | Subset milestone |
 |---|---|
-| v0.2.0 | RFC-0001-0004 implemented; subset begins to be enforceable |
-| v0.3.0 | Full RT attributes; subset 60% enforceable |
+| v0.2.0 | Tier-2 RFCs shipped (numerics, Result/Option/match, collections, modules, packages, diagnostics, tests, cross-platform). RFC-0001..0004 are still Draft (target v0.3.0–v0.4.0); the safety subset spec is **frozen** but full enforcement waits on those Tier-1 RFCs landing. |
+| v0.3.0 | Full RT attributes (RFC-0001) + allocator types (RFC-0002); subset 60% enforceable |
 | v0.4.0 | Lifetimes + frames + assume; subset 80% enforceable |
 | v0.5.0 | Contracts + atomic + URDF; subset 90% enforceable |
 | v0.6.0 | Units + ISR + final subset spec; `nuc check --safe` ships |

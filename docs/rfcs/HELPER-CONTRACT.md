@@ -1,8 +1,11 @@
 # Helper Schema Inventory & Population — Contract
 
 > **Source:** User-provided contract `Helpers.md` (2026-04-22).
-> **Status (2026-04-23, v0.2.80):** **Phase 1 + Phase 2 shipped;
-> population at 95.1%.**
+> **Status (2026-04-23, v0.2.132):** **Phase 1 + Phase 2 shipped;
+> population at 95.1%.** Numbers below are unchanged since v0.2.78
+> — the v0.2.79–132 sub-chain has been audit-pattern hardening
+> (gate steps, doc fixes, diagnostic-code coverage closure) on top
+> of the populated manifest, not new helper additions.
 >
 > - **Phase 1 echo on record:** chat transcript ending v0.2.32.
 > - **Phase 1 walk approved:** user authorized "go" → walk

@@ -137,8 +137,8 @@ Avoid drive-by formatting changes in PRs that aren't about formatting.
 
 - Bug fixes in the compiler, runtime, or rods
 - Documentation improvements (especially staleness fixes — the
-  audit pattern that drove the v0.2.79–v0.2.93 chain still has
-  surface area to cover)
+  audit pattern drove the v0.2.79–v0.2.132 chain and continues
+  to surface real drift; new findings are welcome)
 - Test additions
 - New rods (small, focused, with C source + `.nr` wrapper + a test)
 - New gate steps that catch real drift classes (the post-RC
