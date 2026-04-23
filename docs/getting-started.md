@@ -71,7 +71,7 @@ nuc stage-dump all    examples\01_hello.nr
 
 ## Next steps
 
-- **Browse the examples.** Each of `examples/02_fib.nr` through `examples/07_rust_interop.nr` shows one feature: recursion, structs, rod imports, the quantum simulator, performance attributes (`@hot` / `@law` / `@const_fn`), and Rust interop via the bundled `rust_bridge` crate.
+- **Browse the examples.** All 18 numbered examples (`examples/01_hello.nr` through `examples/18_benchmark.nr`) plus the 4 build-only `examples/showcase/*.nr` programs (`lorenz`, `vqe_h2`, `market_maker`, `wing_simulator`) cover one feature each: hello, recursion, structs, rod imports, the quantum simulator, performance attributes (`@hot` / `@law` / `@const_fn`), Rust interop, linear algebra, ODE solvers, FFT, PID control, autodiff, the test framework, CSV summary, word count, histogram, line count, and benchmarking. The full numbered list lives in `tools/examples.list`.
 - **Read the [language tour](language-tour.md)** for syntax and semantics by example.
 - **Read the [language reference](language-reference.md)** for the full grammar, type system, and attribute catalog.
 - **Run the tests** to confirm everything works on your machine: `nuc test tests/`.

@@ -166,7 +166,7 @@ see [`tools/completions/README.md`](tools/completions/README.md).
 nuc test tests/
 ```
 
-This compiles and runs all 24 tests across `tests/lang/`, `tests/attrs/`, `tests/runtime/`, and `tests/rods/`.
+This compiles and runs all 99 tests across `tests/lang/` (44), `tests/attrs/` (4), `tests/runtime/` (27), and `tests/rods/` (24). The full gate (`tools/verify.ps1`) additionally exercises `tests/features/` (34) and `tests/err/` (33 negative tests).
 
 On Windows, the first run of `tests/rods/socket.nr` may trigger a Defender
 Firewall prompt because the socket gate briefly binds local TCP/UDP ports.
@@ -194,8 +194,8 @@ the v0.4.0 backlog (deferred items + Tier-2 language extensions)
 lives in [docs/milestones/v0.4.0.md](docs/milestones/v0.4.0.md).
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed in this release.
-For a tag-only navigable index of every release (124 tags as of
-v0.2.57), see [RELEASES.md](RELEASES.md).
+For a tag-only navigable index of every release (196 tags as of
+v0.2.127), see [RELEASES.md](RELEASES.md).
 
 ## Contributing
 
