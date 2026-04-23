@@ -100,7 +100,20 @@ if [ -f "$RUST_BRIDGE_DIR/libnucleor_rust_bridge.a" ]; then
 elif [ -f "$RUST_BRIDGE_DIR/nucleor_rust_bridge.lib" ]; then
     RUST_BRIDGE_LIB="$RUST_BRIDGE_DIR/nucleor_rust_bridge.lib"
 fi
-EXAMPLES=(01_hello 02_fib 03_structs 04_rods 05_quantum 06_perf_attrs 08_linalg 09_ode 10_fft 11_pid 12_autodiff 13_test_framework 14_csv_summary 15_word_count 16_histogram 17_linecount 18_benchmark)
+# Read example list from the single source of truth (shared with
+# verify.ps1). v0.2.60 — eliminates the drift class that bit
+# v0.2.59.
+EXAMPLES_FILE="$ROOT/tools/examples.list"
+EXAMPLES=()
+if [ -f "$EXAMPLES_FILE" ]; then
+    while IFS= read -r line; do
+        # Skip blank lines and comments
+        case "$line" in
+            ""|"#"*) continue ;;
+        esac
+        EXAMPLES+=("$line")
+    done < "$EXAMPLES_FILE"
+fi
 [ -n "$RUST_BRIDGE_LIB" ] && EXAMPLES+=(07_rust_interop)
 
 TEST_DIRS=(lang attrs runtime rods features)
