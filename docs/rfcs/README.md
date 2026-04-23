@@ -79,16 +79,18 @@ proceed without re-design.
 | [0031](RFC-0031-algebraic-laws.md) | Algebraic laws as a verified rewrite system | Draft | v0.5.0 |
 | [0032](RFC-0032-effects.md) | Effects — `pure fn`, `requires`, `restricts` | Draft | v0.6.0 |
 
-**32 RFCs drafted; 8 Tier-2 (RFC-0015..0022) + RFC-0029 carry
-Implemented or Implemented-partial status as of v0.2.0 RC**
-(per the per-RFC checklist rows in
-[`docs/milestones/v0.2.0.md`](../milestones/v0.2.0.md) — every
-row is DONE / PARTIAL / DEFERRED with a follow-on target).
+**32 RFCs drafted; 11 carry Implemented or Implemented-partial
+status as of v0.2.0 RC + early sub-chain** — the 8 Tier-2 v0.2
+essentials (RFC-0015..0022), plus RFC-0024 (iterators, partial
+v0.2.9), RFC-0028 (format strings, partial v0.2.6), and RFC-0029
+(doc generator skeleton, v0.1.65). Per-RFC checklist rows live in
+[`docs/milestones/v0.2.0.md`](../milestones/v0.2.0.md) — every row
+is DONE / PARTIAL / DEFERRED with a follow-on target.
 **RFC-0030 (async) accepted as a Decision RFC in v0.2** — Nucleor
 ships no first-class async runtime in v0.x; tokio binding is opt-in
 (v0.5) and native `async` syntax targets v0.8 (see the RFC for the
 phased plan).
-The post-RC v0.2.x sub-chain (through v0.2.124 as of this
+The post-RC v0.2.x sub-chain (through v0.2.134 as of this
 update) has been strictly additive on top of v0.2.0; no
 RFC implementation states changed. Together with the three
 process docs (`docs/process/`), they specify the full
