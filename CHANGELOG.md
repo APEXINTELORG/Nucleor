@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.122] — 2026-04-23
+
+**Mirror v0.2.121 to status doc + bootstrap contract.**
+
+After v0.2.121 refreshed the milestone tracker, the two
+companion docs (status snapshot + bootstrap contract) were
+~22 ships stale.
+
+### `docs/status/v0.2-shipped-and-deferred.md`
+
+- Snapshot v0.2.99 → v0.2.121. Chain count 119 → 141 releases
+  (22 v0.1.x + 121 v0.2.x).
+- Sub-chain header v0.2.50–99 (50 releases) → v0.2.50–121
+  (72 releases).
+- Added new bullet for the **Diagnostic-code coverage closure
+  (v0.2.117–120)** — EXPECT-header bulk-add (28 files in
+  v0.2.117), gate enforcement (v0.2.118), 23 OWN/TYP/TNT
+  codes wired in v0.2.119+v0.2.120, spec catalog 130 → 158,
+  drift class closed.
+
+### `NUCLEOR_BOOTSTRAP_CONTRACT.md`
+
+- All `v0.2.100` markers bumped to v0.2.121 (5 sites — sub-
+  chain claim, runtime stats, helper-manifest %, examples
+  count, cross-platform note).
+- Gate-run paragraph updated: "**203 steps**" → "**204
+  steps**" with the new `err_tests_have_expect_smoke` step
+  (added v0.2.118) listed before the CLI smokes.
+- The "explain single + full 130-code" line in the gate-run
+  description bumped to "**full 158-code spec catalog**" to
+  reflect the v0.2.117–120 additions.
+- Negative-test count "(~24)" → "(33)" — the actual count.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.121] — 2026-04-23
 
 **Milestone tracker refresh — capture the v0.2.99–120
