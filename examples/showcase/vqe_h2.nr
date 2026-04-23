@@ -1,4 +1,4 @@
-// vqe_h2.nr â€” Variational Quantum Eigensolver showcase.
+// vqe_h2.nr — Variational Quantum Eigensolver showcase.
 //
 // Find the ground-state energy of a 2-qubit Hamiltonian by varying a
 // 3-parameter ansatz and measuring expectation values on the bundled

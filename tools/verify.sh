@@ -137,10 +137,11 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 
 # Step count: 1 binary present + 1 ABI parity + 1 tools-rebuild
 # + 1 help coverage + 1 utility smoke + 1 json smoke + 1 version
-# + 1 CLI explain + 1 explain-full + 1 bootstrap + 1 check+abi
-# + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
+# + 1 showcase build + 1 CLI explain + 1 explain-full + 1 bootstrap
+# + 1 check+abi + 1 inspectors + 1 diagnostics + 1 init + 1 doc
+# + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host
-STEP_TOTAL=$((17 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+STEP_TOTAL=$((18 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -235,6 +236,26 @@ cli_inspector_smoke() {
 # one gate step. Each gets minimal output validation; the goal is
 # "this command path produces structured output without crashing"
 # rather than full semantic verification.
+showcase_build_smoke() {
+    # v0.2.90 — verify the four `examples/showcase/*.nr` programs
+    # build cleanly. They're not run-tested because they produce
+    # streaming ANSI dashboards that don't terminate on their own.
+    # Build-only catches regressions where a stdlib change breaks
+    # the showcase compile path even though the standard examples
+    # still compile.
+    local prog
+    for prog in lorenz vqe_h2 market_maker wing_simulator; do
+        local out
+        out=$("$BIN" build "examples/showcase/$prog.nr" -o "showcase_$prog" 2>&1)
+        if [ ! -x "target/showcase_$prog" ] && [ ! -x "target/showcase_$prog.exe" ]; then
+            echo "       showcase build failed for $prog"
+            echo "$out" | tail -2
+            return 1
+        fi
+    done
+    return 0
+}
+
 cli_version_smoke() {
     # v0.2.87 — every spelling of "give me the version" must work:
     # --version (canonical), -v (short), -V (rustc/gcc convention),
@@ -668,6 +689,7 @@ step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
 step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" cli_utility_smoke
 step "CLI: --json variants emit machine-readable JSON" cli_json_smoke
 step "CLI: --version / -v / -V / version aliases" cli_version_smoke
+step "examples/showcase: lorenz/vqe_h2/market_maker/wing_simulator build" showcase_build_smoke
 step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
 step "CLI: nuc explain — full spec code set wired" cli_explain_full_smoke
 step "CLI: nuc bootstrap status reports correctly" cli_bootstrap_smoke

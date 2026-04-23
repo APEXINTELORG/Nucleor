@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.90] — 2026-04-23
+
+**Bug fix: `examples/showcase/README.md` was referenced but
+missing. Plus showcase build smoke + UTF-8 mojibake fix.**
+
+### Missing showcase README
+
+`examples/README.md` line 62 told readers:
+
+> `showcase/` contains larger programs that span multiple rods.
+> See `showcase/README.md` (or run `nuc summary`) for the
+> index.
+
+But `examples/showcase/README.md` **didn't exist** in git.
+Created it with: a one-paragraph framing of the showcase
+intent (production-shaped programs, not gated, intended for
+manual viewing); a per-program table covering `lorenz.nr`,
+`vqe_h2.nr`, `market_maker.nr`, `wing_simulator.nr` (lifted
+from the top-level README descriptions); the `_viz.nr` shared
+helper note; build/run instructions; and a "why no gate
+coverage?" rationale.
+
+### UTF-8 mojibake in `vqe_h2.nr` header
+
+The first comment line was `// vqe_h2.nr â€" Variational
+Quantum Eigensolver showcase.` — same cp1252-rendered-as-UTF-8
+mojibake class that bit the rod descriptions in v0.2.58.
+Fixed to the proper em-dash.
+
+### Showcase build smoke (`showcase_build_smoke`)
+
+New gate step in both `verify.sh` and `verify.ps1` builds the
+4 standalone showcase programs (`lorenz`, `vqe_h2`,
+`market_maker`, `wing_simulator`) and verifies the `.exe` is
+produced. **Build-only, not run-tested** because each program
+emits a streaming ANSI dashboard that doesn't terminate on its
+own (live Lorenz attractor, VQE convergence chart, options
+market-making dashboard, fluid+EM heatmap).
+
+This catches regressions where a stdlib change breaks the
+showcase compile path even though the standard examples
+01..18 still compile. The `_viz.nr` shared helper imported by
+all four is exercised transitively.
+
+**Step total bumped 201 → 202** in both gates.
+
+### Verify gate
+
+202 / 202 PASS, 0 SKIP on the bash gate. Tools-suite source
+unchanged; no compiler / runtime / s1 / test changes.
+
 ## [0.2.89] — 2026-04-23
 
 **Continue README freshness pass — fix two more `v1.1` stale
