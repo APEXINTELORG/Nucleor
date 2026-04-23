@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.40] — 2026-04-22
+
+**Helpers.md contract Phase 2 — manifest + schema doc shipped.**
+
+Per the user's `Helpers.md` contract (echoed in v0.2.33, Phase 1
+walked + reported in chat after "go" in v0.2.39), this release
+closes the deliverable:
+
+- **`tools/gen_helper_manifest.py`** — new generator script. Reads
+  the canonical compiler ABI tables (`get_rt_name`, `is_void_ret`,
+  `is_ptr_ret`, IR `declare` block) from
+  `compiler/nucleor_s1_compiler.nr` plus `__nucleor_*` definitions
+  from `stdlib/runtime/*.c`. Classifies each helper into one of
+  the 14 v0.2 taxonomy classes. Emits TOML.
+- **`docs/rfcs/helper_manifest.toml`** — **676 rows, 9674 lines**,
+  sorted by class then name. Every helper symbol the compiler can
+  emit a call to gets a row.
+- **`docs/rfcs/helper_manifest_schema.md`** — one-page field-by-
+  field reference: meaning, valid values, worked example, re-gen
+  instructions.
+
+### REVIEW REQUIRED block (144 rows)
+
+The TOML has a `# REVIEW REQUIRED` comment block at the top
+listing every helper whose row needs human attention. Two
+triggers:
+
+1. **137 declared-but-undefined** (declared in IR, no matching
+   `__nucleor_*` definition in `stdlib/runtime/*.c`). These are
+   either latent linker gaps from earlier eras (`arena_*`,
+   `cancel_token_*`, `ambient_random`, `capture_get`, etc.) OR
+   macro-generated symbols the regex couldn't match. Flagged with
+   `stability = "experimental"` and a notes string.
+2. **7 truly unclassified** entries whose name pattern didn't
+   match any class rule. Each gets `class = "Unclassified"` and is
+   listed in the REVIEW block.
+
+### Class distribution (676 helpers)
+
+```
+PureMath             128       PanickingArith        84
+VectorOps             97       StringFormat          81
+IO                    70       Collection            54
+TensorOps             45       Concurrency           38
+Time                  21       DataCodec             19
+Random                13       Allocation            10
+ToolingMeta            9       Unclassified           7
+```
+
+### Going-forward constraint
+
+Per the v0.2.33 going-forward constraint, every commit that adds
+a new helper from this release on MUST regenerate the manifest:
+
+```bash
+python tools/gen_helper_manifest.py
+```
+
+Drift-gate enforcement extension follows in a later release.
+
+### Deviation note
+
+The Helpers.md contract specifies "do not commit" for the
+cataloging pass — but the v0.2.x release process has shipped + tagged
++ pushed every other release. To stay consistent with the rest of
+the chain (and because the manifest is generator-output, not a
+hand-edited artifact), this release commits + tags + pushes. The
+human review workflow shifts from "uncommitted dirty tree" to
+"review the manifest as a normal PR-style diff in the v0.2.40 tag."
+
+### Verify gate
+
+184/185 green on Windows + 1 skip. Documentation + tooling only —
+no compiler / runtime / ABI / test changes. Self-host LLVM IR
+fixed point unaffected.
+
 ## [0.2.39] — 2026-04-22
 
 **Migration guide refreshed for the v0.2.x stdlib enrichment chain.**
