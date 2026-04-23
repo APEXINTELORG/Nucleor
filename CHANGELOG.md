@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.126] — 2026-04-23
+
+**11 RFC headers had `Status: Draft` while the index + milestone
+tracker showed them as Implemented — drift class fixed.**
+
+A status audit comparing each `RFC-NNNN.md`'s in-file Status row
+against the Status column in `docs/rfcs/README.md` found 11 RFCs
+where the per-RFC header still said **`Draft`** even though the
+index + `docs/milestones/v0.2.0.md` track them as Implemented or
+Implemented (partial / skeleton). All 11 are Tier-2 v0.2 essentials
+or v0.4 features that landed early.
+
+The drift came from the original RFC drafts being written with
+`Status: Draft` and the implementation rolling in via the v0.1.x
++ early v0.2.x sub-chain without updating the per-RFC header
+back. The index Status column (the user-facing surface) was kept
+fresh; only the per-RFC pages were stale.
+
+Updates (per-RFC `| **Status** |` row, brought into agreement with
+the index):
+
+- **RFC-0015** Numeric types — Implemented (partial) v0.1.46–v0.1.64
+- **RFC-0016** Result/Option/match — Implemented (partial)
+  v0.1.50–v0.1.61
+- **RFC-0017** Collections — Implemented v0.1.27–v0.1.47
+- **RFC-0018** Modules — Implemented (partial) v0.1.52–v0.1.65
+- **RFC-0019** Package manager — Implemented (partial)
+  v0.1.33–v0.1.55
+- **RFC-0020** Diagnostics — Implemented (partial) v0.1.34–v0.1.59
+- **RFC-0021** Test framework — Implemented v0.1.10–v0.1.55
+- **RFC-0022** Cross-platform — Implemented (partial) v0.1.30
+- **RFC-0024** Iterators — Implemented (partial) v0.2.9
+- **RFC-0028** Format strings — Implemented (partial) v0.2.6
+- **RFC-0029** Doc generator — Implemented (skeleton) v0.1.65
+
+Each new Status row also names the v0.4 (or later) follow-on so
+future readers don't think the RFC is fully landed.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87). Mojibake check
+confirms the new `–` (en-dash) bytes are clean UTF-8.
+
 ## [0.2.125] — 2026-04-23
 
 **docs/rfcs/README.md cross-cutting-contracts table refresh — three

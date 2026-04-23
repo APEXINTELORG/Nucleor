@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0016 |
 | **Title** | `Result<T, E>`, `Option<T>`, exhaustive `match`, `?` early-return |
-| **Status** | Draft |
+| **Status** | Implemented (partial) v0.1.50–v0.1.61 — see `docs/milestones/v0.2.0.md` for v0.2 DoD; generic enums deferred to v0.4 |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2.0 |

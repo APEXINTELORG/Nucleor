@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0019 |
 | **Title** | Package manager — `nuc.toml`, lockfile, semver resolver, registry |
-| **Status** | Draft |
+| **Status** | Implemented (partial) v0.1.33–v0.1.55 — see `docs/milestones/v0.2.0.md`; v0.2 DoD met (manifest, lockfile, install, workspace); registry / PubGrub / git deferred to v0.5.0 |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2.0 (manifest+resolver) → v0.5.0 (registry MVP) |
