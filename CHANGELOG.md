@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.63] — 2026-04-22
+
+**`bin/` housekeeping — README + explicit .gitignore for scratch binaries.**
+
+`bin/` had accumulated **14 stale `nucleor_vNNN.exe` scratch
+binaries** (~11 MB of working-tree pollution) from self-host
+fixed-point checks across v0.1.46..v0.2.x. All correctly untracked
+(globally ignored via `*.exe` + `!bin/nucleor.exe` exception),
+but visible in `ls bin/` and confusing to future contributors who
+don't know what they are.
+
+**Cleanup + documentation:**
+
+- **Deleted** all 14 `bin/nucleor_v*.exe` files from the working
+  tree. Plus `bin/nucleor_tools.exe`. Repo size drops by ~11 MB
+  on local clones that ran the verify gate.
+- **`.gitignore`** — added explicit `bin/nucleor_v*.exe` and
+  `bin/nucleor_tools.exe` patterns with a comment explaining the
+  fixed-point-check chain that produces them. The `*.exe` global
+  ignore already covers them, but explicit is better for someone
+  reading `.gitignore` to understand the convention. Pattern
+  warns "Do NOT add a `!` exception."
+- **`bin/README.md`** — new file documenting:
+  - what belongs in `bin/` (exactly one file today:
+    `bin/nucleor.exe`)
+  - what's coming in v0.3 (`bin/nucleor` for Linux + macOS)
+  - what does NOT belong (the scratch binaries with the chain
+    pattern that produces them, and a one-line `rm -f` cleanup
+    recipe)
+  - why pre-built (self-host bootstrap chicken-and-egg, with
+    references to Rust stage0 / OCaml `boot/` / Nim
+    `csources_v2` as prior art)
+
+The fixed-point chain pattern itself isn't fixed yet (the next
+v0.3 release that does a fixed-point check should write the
+scratch binary to `target/` instead of `bin/`); that's filed as
+a future polish item, not blocking.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Documentation + working-tree cleanup
+only — no compiler / runtime / ABI / source / test changes.
+
 ## [0.2.62] — 2026-04-22
 
 **`tools/verify.ps1` mirrors v0.2.61 non-empty stdout check.**
