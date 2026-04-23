@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.105] — 2026-04-23
+
+**v0.2.0 milestone tracker — two more stale claims inside
+per-RFC checklist rows.**
+
+The v0.2.99 status-block refresh missed two stale claims
+buried inside RFC-0015 phase rows:
+
+1. **RFC-0015 phase 5 row** (Stdlib audit): "Stdlib audit:
+   **103 rods** × type drift fixes". Updated to "**121 rods**"
+   with a note that the rod count grew from 103 (v0.1.5) to
+   121 (v0.2.46) via the v0.2.18–v0.2.30 enrichment chain —
+   the v0.4 audit covers the full v0.2.x surface, not just
+   the v0.1.5 baseline.
+2. **RFC-0015 phase 7 row** (Verify gate green after
+   migration): "The current **158/158 gate** already covers
+   every shipped phase 1+2+4+6 piece". Updated to "**203/203
+   gate** (was 158/158 at v0.1.64; grown via the
+   v0.2.50–v0.2.102 audit chain)".
+
+Both stale at v0.1.64-era values. Lines 156 (RFC-0016
+"108/108") and 176 (RFC-0017 "149/149") **kept as historical
+milestones** because they record the gate count at the time
+those rows shipped DONE — they're checkpoints, not current-
+state claims.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.104] — 2026-04-23
 
 **Bug fix: spec doc claimed TST-001..003 are "proposed for v0.4"
