@@ -1,6 +1,6 @@
 # Feature tests blocked on unimplemented runtime symbols
 
-These 17 positive feature tests come from
+These 18 positive feature tests come from
 `Archive/Nucleor_Copy/examples/` and exercise V1 features whose runtime
 support never landed in the OSS distribution. They build to LLVM IR
 cleanly but fail at link time with `LNK2019: unresolved external symbol`
