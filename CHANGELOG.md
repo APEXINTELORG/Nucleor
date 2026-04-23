@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.154] — 2026-04-23
+
+**RFC-0002 phase 1: bare arena builtins now actually link.
+Closes the v0.2.150 footgun where `arena_new` etc. were
+pre-declared by the s1 but had no runtime impl.**
+
+The v0.2.150 audit caught that the s1 compiler pre-declares
+`arena_new` / `arena_alloc` / `arena_reset` / `arena_destroy`
+as builtins (mapped to `__nucleor_arena_*` symbols) but those
+symbols existed in NO runtime — they only appeared in the
+rod-prefixed `nuc_arena_*` form inside `allocator_rt.c`. Any
+user code calling the bare builtins (without
+`import "stdlib/rods/allocator.nr"`) link-failed. v0.2.154
+ships minimal bump-arena impls for those exact symbols inside
+the always-linked main runtime.
+
+The rich pool / stack / freelist surface stays in
+`stdlib/rods/allocator.nr`; this ship is just the bump-arena
+minimum the s1 builtin path was already promising. Full
+`Box<T, A>` / `Allocator` trait integration ships with v0.4
+RFC-0002 once generics land via RFC-0023..0027.
+
+### Files
+
+- `stdlib/runtime/nucleor_llvm_rt.c`: 4 new `__nucleor_arena_*`
+  impls. NArena layout = `{ capacity, offset }` header followed
+  by raw bytes. Allocations are 8-byte aligned; `arena_alloc`
+  returns 0 on exhaustion (no resize); `arena_reset` rewinds
+  the offset; `arena_destroy` frees the whole arena.
+- `tests/lang/arena_builtin.nr`: positive test exercising the
+  bare builtins WITHOUT importing `allocator.nr`. Asserts:
+  alloc returns non-zero, sequential allocs are ordered, reset
+  rewinds to the original alloc address, destroy completes.
+
+### Self-host LLVM IR fixed point
+
+- **No s1 source change** — pure runtime addition. Fixed-point
+  check was therefore not required for this ship.
+- `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**241 / 241 PASS, 0 SKIP** (was 240/240; +1 new test).
+
 ## [0.2.153] — 2026-04-23
 
 **RFC-0028 phase 2: three new `format2_*` builtins
