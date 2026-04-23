@@ -4601,6 +4601,77 @@ fn filter_allow_suppressed(diags: Vec<i32>, source: str) -> Vec<i32> {
     return filtered;
 }
 
+// RFC-0028 §Suppression — sibling of collect_allowed_codes.
+// Scans the source for the literal pattern `#[deny(CODE)]`; same
+// scope rules (file-wide for v0.2; per-fn deferred to v0.4).
+fn collect_denied_codes(source: str) -> Vec<i32> {
+    let mut denied: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[deny(";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut q: i64 = p + plen;
+            while q < slen && (str_char_at(source, q) == 32 || str_char_at(source, q) == 9) {
+                q = q + 1;
+            };
+            let start: i64 = q;
+            while q < slen {
+                let ch: i64 = str_char_at(source, q);
+                if ch == 41 || ch == 32 || ch == 9 { break; };
+                q = q + 1;
+            };
+            if q > start {
+                let code: str = str_substring(source, start, q);
+                denied.push(code);
+            };
+            p = q + 1;
+        } else {
+            p = p + 1;
+        };
+    };
+    return denied;
+}
+
+// Promote every warning-severity diagnostic whose code is in
+// `denied` to error severity. Errors stay errors; allow-then-deny
+// of the same code is order-dependent (allow strips the diag, so
+// deny would not see it) — the recommended user pattern is to use
+// at most one of `#[allow(CODE)]` or `#[deny(CODE)]` per code per
+// file. Mutates each promoted diag's severity slot in place via
+// vec_set (the diag inner vec is the actual storage, not a copy).
+fn promote_denied_to_errors(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let denied: Vec<i32> = collect_denied_codes(source);
+    if vec_len(denied) == 0 { return diags; };
+    let n: i64 = vec_len(diags);
+    let mut i: i64 = 0;
+    while i < n {
+        let d: Vec<i32> = vec_get(diags, i);
+        let sev: str = vec_get(d, 0);
+        let code: str = vec_get(d, 2);
+        if str_eq(sev, "warning") == 1 {
+            let mut j: i64 = 0;
+            let m: i64 = vec_len(denied);
+            while j < m {
+                if str_eq(vec_get(denied, j), code) == 1 {
+                    vec_set(d, 0, "error");
+                    break;
+                };
+                j = j + 1;
+            };
+        };
+        i = i + 1;
+    };
+    return diags;
+}
+
 fn byte_to_line(source: str, byte_off: i64) -> i64 {
     let slen: i64 = str_len(source);
     let mut line: i64 = 1;
@@ -6458,6 +6529,7 @@ fn preflight_source_check(source: str) -> i64 {
         let mut diags: Vec<i32> = diag_new();
         type_diag(diags, source, "main", "let", "OWN-010", "cannot bind a reference that escapes an inner block");
         diags = filter_allow_suppressed(diags, source);
+        diags = promote_denied_to_errors(diags, source);
         if diag_count(diags) == 0 { return 0; };
         if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text(diags); };
         return 1;
@@ -8387,13 +8459,17 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     };
     if diag_count(diags) > 0 {
         // RFC-0028 §Suppression — drop warnings the user has silenced
-        // via `#[allow(CODE)]`. Errors are not suppressible.
+        // via `#[allow(CODE)]`, then promote any remaining warnings
+        // whose code is named in `#[deny(CODE)]`. Errors are not
+        // suppressible. Allow runs first so a deny on a previously-
+        // allowed code is a no-op (the diag is gone).
         diags = filter_allow_suppressed(diags, source);
+        diags = promote_denied_to_errors(diags, source);
         if diag_count(diags) > 0 {
-            // Emit every (post-filter) diagnostic, but only halt the
-            // build on errors. Warnings (NUM-003 lossy cast,
-            // MATCH-001/002 typecker, etc.) flow through the report
-            // without blocking compilation.
+            // Emit every (post-filter, post-promote) diagnostic, but
+            // only halt the build on errors. Warnings (NUM-003 lossy
+            // cast, MATCH-001/002 typecker, etc.) flow through the
+            // report without blocking compilation.
             if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text(diags); };
             if diag_count_errors(diags) > 0 { return 1; };
         };

@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.152] — 2026-04-23
+
+**`#[deny(CODE)]` promotes warnings to errors — sibling of v0.2.151
+`#[allow]`. Item 4 fully closed at the v0.2 scope.**
+
+v0.2.151 shipped `#[allow(CODE)]` (file-wide warning suppression).
+v0.2.152 ships `#[deny(CODE)]` (file-wide warning → error
+promotion). Same scan-and-collect machinery; same lifecycle
+(parse-resolve preserves the attribute through to diag-filter
+time); same v0.4 follow-on for per-fn / per-block scoping.
+
+### `compiler/nucleor_s1_compiler.nr`
+
+- New `fn collect_denied_codes(source: str) -> Vec<i32>` —
+  parallel to `collect_allowed_codes`, scans for the literal
+  pattern `#[deny(CODE)]`.
+- New `fn promote_denied_to_errors(diags: Vec<i32>, source: str)
+  -> Vec<i32>` — walks the diag vec; for each warning whose
+  code is in the deny list, mutates severity slot from
+  `"warning"` to `"error"` via `vec_set(d, 0, "error")`.
+- Wired into both diag-emit sites (preflight + main pipeline)
+  immediately after `filter_allow_suppressed` — allow → deny
+  ordering means a code listed in both is silenced (allow wins
+  by removing the diag before deny can see it).
+
+### Self-host LLVM IR fixed point
+
+- 2-iter check passed: nucleor_v152.ll == nucleor_v152b.ll
+  (byte-identical, 2,625,247 bytes).
+- `bin/nucleor.exe` updated; the v0.2.84 / v0.2.87 / v0.2.151
+  / v0.2.152 chain extends to four committed compiler binaries
+  in the v0.2.x sub-chain.
+
+### `tests/err/err_deny_promotes_warning.nr`
+
+- New negative test exercising the same `i64 → i32` cast
+  (NUM-003) used by `tests/lang/allow_suppress_warning.nr`,
+  but with `#[deny(NUM-003)]` instead of `#[allow]`. Header
+  `// EXPECT: NUM-003 \`as\` cast loses precision` —
+  `err_tests_have_expect_smoke` (v0.2.118 gate step) enforces
+  the format. The gate runs the file through `nuc check` and
+  asserts compilation fails with NUM-003.
+
+### `docs/spec/Nucleor_Error_Codes.md`
+
+- "Suppression" section status callout updated: `#[allow]` and
+  `#[deny]` both ship at v0.2.152; the prose names both code
+  paths (`filter_allow_suppressed`, `promote_denied_to_errors`)
+  and lists their respective gate tests.
+- v0.4 follow-on now lists only "per-fn / per-block scoping"
+  and "build-profile suppression" — the per-attribute work is
+  done.
+
+### Verify gate
+
+**239 / 239 PASS, 0 SKIP** on the bash gate (was 238/238; +1
+new `tests/err/err_deny_promotes_warning.nr`). Self-host
+rebuild closes step 239/239.
+
 ## [0.2.151] — 2026-04-23
 
 **Closes punchlist item 4: `#[allow(CODE)]` actually suppresses
