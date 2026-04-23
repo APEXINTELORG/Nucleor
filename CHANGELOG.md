@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.38] — 2026-04-22
+
+**Top-level `README.md` reflects the v0.2.x stdlib + new examples.**
+
+The project README hadn't been updated since the v0.1.x → v0.2.0
+release. This release brings it current with the v0.2.x reality:
+
+- **"Why" paragraph** now states the verified helper count (`676
+  runtime helpers as of v0.2.37`) instead of the v0.1-era
+  approximation (`~280+`). Number derived from the Phase 1 Helpers
+  contract walk.
+- **"Tour by example" section** restructured into the same three
+  tiers used in `examples/README.md`:
+  - Tier 1 (01–07): language tour
+  - Tier 2 (08–13): numerics & domains (added 13_test_framework
+    which was missing from the previous list)
+  - Tier 3 (14–18): v0.2.x stdlib showcase — the 5 new demo programs
+    landed in v0.2.31, v0.2.32, v0.2.34, v0.2.35, v0.2.36
+- **Env-var override note** for tier-3 demos so external readers
+  know how to point them at real data.
+
+This is the last loose end on the v0.2.x documentation surface —
+top-level README, `examples/README.md`, milestone trackers, and
+RFC index now all agree on what the v0.2.x release contains.
+
+Documentation-only — no compiler / runtime / ABI / test changes.
+Verify gate 184/185 (1 skip). Self-host LLVM IR fixed point
+unaffected.
+
 ## [0.2.37] — 2026-04-22
 
 **`examples/README.md` — discoverability index for the 18 examples.**
