@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.48] — 2026-04-22
+
+**Status snapshot refreshed — covers full v0.1.46 → v0.2.47 chain.**
+
+`docs/status/v0.2-shipped-and-deferred.md` was authored at v0.2.1
+and was rolling 22 releases out of date. This release brings it
+current with the full 68-release v0.1.46→v0.2.47 chain:
+
+- **Header rewritten** — scope expanded from "22 releases" to
+  "68 releases (22 v0.1.x preview + 47 v0.2.x including v0.2.0 RC
+  and the v0.2.18..v0.2.47 enrichment + tooling sub-chain)".
+- **Three new sections under DONE** documenting what landed
+  post-v0.2.0:
+  - **v0.2.x stdlib enrichment** (75+ new helpers across
+    v0.2.18..v0.2.30 with one-line summaries per release).
+  - **v0.2.x example demos** (5 end-to-end programs from
+    v0.2.31..v0.2.36).
+  - **v0.2.x docs + tooling** (the v0.2.37..v0.2.47 production-
+    readiness pass — examples README, top-README counts,
+    migration guide, helper + rod manifests, drift-gate
+    enforcement).
+- **📊 Counts table refreshed**:
+  - Releases shipped: 22 → **68**
+  - Verify gate: 158/158 → **186/186 (0 SKIP)**
+  - Six new rows added: 121 rods, 84 runtime files, 13 helper
+    categories, 676 ABI symbols, 18 examples, 2 gate-enforced
+    manifest generators.
+
+The "What's next" section (v0.4 priorities) was already accurate
+and was not changed.
+
+This is the canonical "what's in v0.2" rollup readers should be
+pointed at — the milestone tracker has the by-RFC view, this doc
+has the by-release narrative.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Documentation-only — no compiler /
+runtime / ABI / source / test changes.
+
 ## [0.2.47] — 2026-04-22
 
 **Drift gate enforces rod manifest freshness — generalized helper checker.**
