@@ -15,9 +15,10 @@
 >   populated `effects` / `taint` / `proof_obligation` fields as
 >   of v0.2.78. Remaining 33 are intentional v0.4 placeholders
 >   (TensorOps GPU/device + 3 ToolingMeta stubs).
-> - **Going-forward constraint:** live since v0.2.41 — drift gate
+> - **Going-forward constraint:** live since v0.2.42 — drift gate
 >   blocks any helper change that doesn't include a regenerated
->   manifest.
+>   manifest. (Manifest mech shipped v0.2.41; drift-gate
+>   enforcement landed v0.2.42 per the v0.2.33 promise.)
 
 ## Goal
 
@@ -126,17 +127,23 @@ Before starting Phase 1, reply with:
 
 Wait for "go" before the walk.
 
-## Going-forward constraint (added v0.2.33, drift-enforced v0.2.41)
+## Going-forward constraint (added v0.2.33, drift-enforced v0.2.42)
 
 - Any helper added to the codebase from v0.2.33 onward MUST also
   add a row to `helper_manifest.toml` in the same commit.
 - Any helper *used* in a new example or stdlib path triggers the
   same manifest-row obligation if the helper isn't already cataloged.
-- Drift-gate enforcement is **live since v0.2.41**:
+- Drift-gate enforcement is **live since v0.2.42**:
   `tools/check_compiler_drift.sh` runs `gen_helper_manifest.py`
   in dry-run mode and compares the output to the committed file;
   any divergence (new helper added to s1, runtime, or tools-suite
   without a regenerated manifest) blocks the verify gate.
+
+(Timeline: v0.2.40 shipped the initial manifest with 144
+REVIEW REQUIRED rows; v0.2.41 audit pass dropped that to 0 by
+extending the generator's `INTENTIONAL_PLACEHOLDER` allowlist
++ macro-expansion regex; v0.2.42 wired the drift-gate
+enforcement promised in the v0.2.33 going-forward constraint.)
 
 ## Success criteria
 
