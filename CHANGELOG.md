@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.133] — 2026-04-23
+
+**Three more docs caught with stale or mistaken roadmap claims —
+brought into agreement with current RFC index.**
+
+The audit pattern continued past the milestone-tracker refresh
+into the long-tail process docs:
+
+- **`CONTRIBUTING.md`** "What's in scope" bullet for doc-staleness
+  fixes referenced "**the v0.2.79–v0.2.93 chain**". Bumped to
+  v0.2.79–v0.2.132 to reflect the live state of the audit chain.
+- **`docs/rfcs/HELPER-CONTRACT.md`** Status header stamped
+  "**(2026-04-23, v0.2.80)**"; bumped to v0.2.132 with an
+  explicit note that the population numbers (95.1%, 643/676)
+  are unchanged since v0.2.78 — the v0.2.79–132 chain has been
+  audit-pattern hardening on top of the populated manifest, not
+  helper additions.
+- **`docs/process/nucleor-safe-subset.md`** roadmap claimed
+  "**v0.2.0 | RFC-0001-0004 implemented; subset begins to be
+  enforceable**" — this is **wrong**: RFC-0001 through RFC-0014
+  are all Draft status with v0.3.0–v0.7.0 targets per the
+  current RFC index. The v0.2.0 row was rewritten to say what
+  v0.2.0 actually shipped (Tier-2 essentials) and that the
+  safety subset spec is frozen but enforcement waits on Tier-1
+  RFC implementation. The v0.3.0 row was also tightened to name
+  RFC-0001 + RFC-0002 explicitly.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.132] — 2026-04-23
 
 **Mirror v0.2.131's 161-code spec catalog into milestone tracker,
