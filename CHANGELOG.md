@@ -5,6 +5,117 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.79] — 2026-04-23
+
+**Bug fix: 4 v0.2 error codes spec'd but not wired into explain
+registry. Plus a new gate step that enforces full v0.2 code-set
+coverage going forward.**
+
+`docs/spec/Nucleor_Error_Codes.md` listed 35 v0.2-era codes
+across the NUM / MATCH / COLL / MOD / PKG / TGT / TST series.
+A spot audit found that **4 of them returned `unknown error
+code` from `nuc explain`**:
+
+- **`NUM-004`** — f8/f16/bf16 op without hardware support
+  (RFC-0015 §3.4)
+- **`TST-001`** — Test discovery: no #[test] functions found
+  (RFC-0021 §3.1)
+- **`TST-002`** — Test isolation: process child crashed before
+  reporting (RFC-0021 §3.4)
+- **`TST-003`** — Test fixture: setup fn returned non-zero
+  (RFC-0021, fixture work deferred to v0.4)
+
+Root cause: the spec doc was a forward-looking catalog, but
+the explain registry in `compiler/nucleor_tools_suite.nr` (the
+backing store for `nuc explain CODE`) had no entries for these
+four codes. Existing gate step `cli_explain_smoke` only
+exercised `NUM-001`, so the drift wasn't caught.
+
+### Fix
+
+Added 4 entries × 3 functions (12 string literals) to the
+explain registry:
+
+- `explain_error_title(code)` — short title
+- `explain_error_summary(code)` — one-line summary
+- `explain_error_explanation(code)` — RFC-anchored explanation
+
+Tools binary rebuilt from `compiler/nucleor_tools_suite.nr` and
+installed at `bin/nucleor_tools.exe` (where `nuc` resolves the
+external explain handler).
+
+### Gate hardening
+
+New step **`cli_explain_full_smoke`** in both `verify.sh` and
+`verify.ps1` enumerates the full 35-code v0.2 set and verifies
+each returns a non-`unknown` answer that includes the code in
+its title. The previous gate step `cli_explain_smoke` (NUM-001
+only) is preserved as a quick-fail canary; the new step runs
+the exhaustive sweep.
+
+### Companion fix: `tools_rebuild` gate step
+
+Found while wiring the new explain step: the gate had **no
+step that rebuilt `bin/nucleor_tools.exe`**. The s1 compiler
+gets self-host-rebuilt at the end of every gate run, but the
+tools-suite source — which backs `nuc explain`, `nuc test`,
+and other tools-suite logic — was being tested against
+whatever stale binary the user happened to have in `bin/`.
+
+This meant a fresh-clone-and-pull workflow that updated
+`compiler/nucleor_tools_suite.nr` would silently leave the
+stale `bin/nucleor_tools.exe` in place (the file is
+`.gitignore`-d), and the new `cli_explain_full_smoke` step
+would have spuriously failed because the user's binary lacked
+the new entries — even though the source did have them.
+
+Added a **`tools_rebuild`** step that:
+
+1. Builds `compiler/nucleor_tools_suite.nr` via `bin/nucleor.exe`
+2. Copies the resulting `target/nucleor_tools.exe` to
+   `bin/nucleor_tools.exe`
+
+Placed after `compiler ABI tables synced` and before the
+explain smokes. The subsequent CLI smokes (`bootstrap`,
+`check`, `abi`, inspectors, diagnostics, `init`, `doc`,
+`lock`, `test`) now exercise the freshly-built tools binary,
+not whatever was stale on disk.
+
+**Step total bumped 195 → 197** (one for explain-full, one
+for tools-rebuild) in both gates.
+
+The pre-iteration smoke block now reads:
+
+```
+[ 1/197] OK    binary present
+[ 2/197] OK    compiler ABI tables synced
+[ 3/197] OK    tools-suite rebuild
+[ 4/197] OK    CLI: nuc explain NUM-001 wired
+[ 5/197] OK    CLI: nuc explain — full v0.2 code set wired
+[ 6/197] OK    CLI: nuc bootstrap status reports correctly
+[ 7/197] OK    CLI: nuc check + abi inspect
+[ 8/197] OK    CLI: nuc summary/audit/query/impact (inspectors)
+[ 9/197] OK    CLI: nuc policy/certify/translate/evidence/graph/perf/bench (diagnostics)
+[10/197] OK    CLI: nuc init scaffolding works
+[11/197] OK    CLI: nuc doc generator works
+[12/197] OK    CLI: nuc lock writes Nucleor.lock
+[13/197] OK    CLI: nuc test runs #[test] functions
+```
+
+Going forward, adding a code to `Nucleor_Error_Codes.md` MUST
+also wire it into the explain registry AND add the code string
+to the `cli_explain_full_smoke` list in both gates — same
+"add it in three places" pattern that already protects the s1
+compiler ↔ tools-suite ABI tables.
+
+### Verify gate
+
+197 / 197 PASS, 0 SKIP on the bash gate. Compiler change
+(tools-suite explain registry only — no s1 compiler / runtime
+/ ABI / source / test changes). Self-host LLVM IR fixed point
+preserved; the s1 compiler binary at `bin/nucleor.exe` is
+unchanged.
+
 ## [0.2.78] — 2026-04-23
 
 **Helper manifest Phase 2 — populate 15 stable `TensorOps`
