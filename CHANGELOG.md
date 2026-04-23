@@ -5,6 +5,64 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.42] — 2026-04-22
+
+**Drift gate enforces helper manifest freshness (Helpers.md going-forward constraint).**
+
+The v0.2.33 going-forward constraint promised that
+`tools/check_compiler_drift.sh` would extend to enforce manifest
+freshness once Phase 2 landed. v0.2.40 shipped the manifest;
+v0.2.41 made it authoritative; this release wires the enforcement.
+
+`tools/check_compiler_drift.sh` now has a third check after the s1↔
+tools-suite ABI parity diff:
+
+```
+OK: tools-suite ABI tables match nucleor_s1_compiler.nr
+OK: docs/rfcs/helper_manifest.toml is up to date
+```
+
+**How it works:**
+
+1. Snapshot the committed `helper_manifest.toml` to a temp file.
+2. Run `tools/gen_helper_manifest.py` (which overwrites the in-tree
+   manifest from the canonical s1 ABI tables).
+3. Diff the snapshot against the regenerated file.
+4. If they differ: print `FAIL: docs/rfcs/helper_manifest.toml is
+   stale.`, restore the snapshot to keep the working tree clean,
+   exit 1.
+5. If they match: print `OK`, exit 0.
+
+**Negative test verified** — corrupting the manifest with a stale
+line correctly triggers the FAIL path with a clear remediation
+hint:
+
+```
+FAIL: docs/rfcs/helper_manifest.toml is stale.
+Re-run the generator and commit the result:
+  python tools/gen_helper_manifest.py
+  git add docs/rfcs/helper_manifest.toml
+```
+
+**Graceful degradation** — if `python` / `python3` isn't on PATH
+(e.g. minimal CI runner), the freshness check is skipped with a
+WARN rather than blocking the gate. The s1↔tools-suite parity
+check still runs unconditionally.
+
+**Wired into verify gate** automatically — `tools/verify.sh:176`
+already runs `check_compiler_drift.sh` as step 2 (`compiler ABI
+tables synced`), so the manifest freshness check runs on every
+release without further changes.
+
+This closes the v0.2.33 going-forward-constraint promise: from
+this release on, `git commit` of a helper without regenerating the
+manifest will fail the gate.
+
+### Verify gate
+
+184/185 green on Windows + 1 skip. Tooling-only — no compiler /
+runtime / ABI / source changes.
+
 ## [0.2.41] — 2026-04-22
 
 **Helper manifest audit — REVIEW REQUIRED count: 144 → 0.**

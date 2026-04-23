@@ -87,4 +87,40 @@ if [ "$drift_count" -gt 0 ]; then
 fi
 
 echo "OK: tools-suite ABI tables match nucleor_s1_compiler.nr"
+
+# --- Manifest freshness check (added v0.2.42) ---
+# Per the v0.2.33 going-forward constraint: every commit that adds a
+# helper must also regenerate docs/rfcs/helper_manifest.toml. Re-run
+# the generator and diff against the committed file.
+MANIFEST="$ROOT/docs/rfcs/helper_manifest.toml"
+GEN="$ROOT/tools/gen_helper_manifest.py"
+
+if [ -f "$GEN" ] && [ -f "$MANIFEST" ]; then
+    if ! command -v python >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+        echo "WARN: python not in PATH — skipping manifest freshness check"
+        exit 0
+    fi
+    PYTHON=python
+    command -v python >/dev/null 2>&1 || PYTHON=python3
+    # Snapshot the committed manifest, regenerate, diff, then restore.
+    SNAPSHOT="$TMP/manifest_committed.toml"
+    cp "$MANIFEST" "$SNAPSHOT"
+    "$PYTHON" "$GEN" >/dev/null 2>&1 || {
+        echo "FAIL: gen_helper_manifest.py crashed."
+        cp "$SNAPSHOT" "$MANIFEST"
+        exit 1
+    }
+    if ! diff -q "$SNAPSHOT" "$MANIFEST" >/dev/null 2>&1; then
+        echo ""
+        echo "FAIL: docs/rfcs/helper_manifest.toml is stale."
+        echo "Re-run the generator and commit the result:"
+        echo "  python tools/gen_helper_manifest.py"
+        echo "  git add docs/rfcs/helper_manifest.toml"
+        # Restore so the working tree isn't muddled by the diff probe
+        cp "$SNAPSHOT" "$MANIFEST"
+        exit 1
+    fi
+    echo "OK: docs/rfcs/helper_manifest.toml is up to date"
+fi
+
 exit 0
