@@ -164,12 +164,20 @@ Out of scope for this RFC; covered by `proptest` and `fuzz` rods
 
 ### 3.10 Diagnostics
 
-| Code | Meaning |
-|---|---|
-| TEST-001 | `#[test]` fn has wrong signature |
-| TEST-002 | `#[should_panic]` test didn't panic |
-| TEST-003 | `#[should_panic(expected = ...)]` mismatch |
-| TEST-004 | Test setup/teardown missing context arg |
+The shipped diagnostic prefix is **TST** (the original RFC draft
+used `TEST-*`; the prefix was renamed to TST during v0.2.79
+implementation to fit the 4-letter category convention). v0.2
+ships TST-001..003 wired into the explain registry; the original
+TEST-004 (setup/teardown context) is deferred to v0.4 alongside
+the fixture work.
+
+| Code | Meaning | Status |
+|---|---|---|
+| TST-001 | Test discovery: no `#[test]` functions found | Wired v0.2.79 |
+| TST-002 | Test isolation: process child crashed before reporting | Wired v0.2.79 |
+| TST-003 | Test fixture: setup fn returned non-zero | Wired v0.2.79; body deferred to v0.4 |
+| TST-004 *(planned v0.4)* | `#[should_panic]` mismatch — covers both "didn't panic" and "wrong message" | Deferred to v0.4 |
+| TST-005 *(planned v0.4)* | `#[test]` fn has wrong signature | Deferred to v0.4 |
 
 ---
 
@@ -183,7 +191,7 @@ Out of scope for this RFC; covered by `proptest` and `fuzz` rods
 | `nuc test` CLI | Subcommand | ~400 |
 | Per-test isolation | Thread/process management | ~350 |
 | Bencher | Statistical run + reporting | ~400 |
-| Diagnostics | TEST-001…004 | ~150 |
+| Diagnostics | TST-001…003 (shipped) + planned TST-004/005 | ~150 |
 | **Total** | | **~2650** |
 
 ---
