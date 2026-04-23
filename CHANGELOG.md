@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.57] — 2026-04-22
+
+**`RELEASES.md` — tag-only navigable index of all 124 releases.**
+
+CHANGELOG.md grew to 124 entries during the v0.2.x chain; readers
+need a navigable index. New artifact + generator + gate enforcement
+following the established pattern (helper_manifest, rod_manifest):
+
+- **`tools/gen_releases_index.py`** — parses CHANGELOG.md
+  (handles em-dash variants in the date separator), extracts each
+  release's first **bold** line as the summary, sorts by version
+  descending, groups by major.minor.
+- **`RELEASES.md`** — single-table-per-major.minor view. Each
+  release is one row: `**vX.Y.Z** | YYYY-MM-DD | one-line summary`.
+  Header explains the pattern + links to CHANGELOG, RFC index,
+  and v0.2 status snapshot.
+- **`tools/check_compiler_drift.sh`** — added a fourth manifest
+  freshness check via the existing `check_manifest()` shell
+  function. Output now reads:
+
+  ```
+  OK: tools-suite ABI tables match nucleor_s1_compiler.nr
+  OK: helper_manifest.toml is up to date
+  OK: rod_manifest.toml is up to date
+  OK: RELEASES.md is up to date
+  ```
+
+  Adding a CHANGELOG entry without regenerating `RELEASES.md`
+  now fails the gate with the same per-file FAIL message as the
+  other manifests.
+
+- **`README.md`** — Versioning section gains a one-line pointer
+  to `RELEASES.md` for quick browsing alongside CHANGELOG.
+
+**Coverage:** 124 / 124 entries got summaries (no
+`(no summary parsed)` in the output) — the convention of opening
+each release body with a `**bold one-liner**` is consistently
+followed across the v0.1.46..v0.2.57 chain.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Tooling + docs only — no compiler /
+runtime / ABI / source / test changes.
+
 ## [0.2.56] — 2026-04-22
 
 **Language reference: stale "POSIX port planned for v0.2" reference fixed.**
