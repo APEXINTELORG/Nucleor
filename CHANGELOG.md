@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.75] — 2026-04-23
+
+**Helper manifest Phase 2 — populate `StringFormat` (81) and
+`Collection` (54) with read-vs-mutate split.**
+
+Both classes split cleanly into "pure read-only accessors" and
+"mutating / output-allocating" buckets. The v0.2.74 override
+mechanism now carries the split via class default + per-pattern
+pure overrides:
+
+**`StringFormat` (81 helpers).**
+
+- 38 helpers populated as **pure** via `PATTERN_OVERRIDES`:
+  - `^char_` — all 12 character predicates and case conversions.
+  - `^chr$` — int → char.
+  - `^str_(eq|contains|count|ends_with|starts_with|index_of|is_empty|len|char_at)$` — 9 string predicates and accessors.
+  - `^str_to_(i64|f64|bool|i64_radix)$` — 4 string→scalar parses.
+  - `^parse_(hex|bin)$` — 2 base-conversion parses.
+  - `^string_(capacity|eq|eq_str|get_byte|len|starts_with|ends_with|contains|as_ptr)$` — 9 heap-String accessors.
+  - `chr` — 1 helper (already pattern-matched above by `^chr$`).
+- 1 helper via `NAME_OVERRIDES`: `string_print` →
+  `["io"]` / `"io_capability_required"` (does I/O despite living
+  in StringFormat by name pattern).
+- 42 helpers via `CLASS_DEFAULTS["StringFormat"]` →
+  `["alloc"]` / `passthrough` / `none`. Covers all string
+  builders: `format_*`, `int_to_*`, `f64_to_str`, `bool_to_str`,
+  `sb_*`, `string_new`/`from_str`/`with_capacity`/`clone`/etc.,
+  `str_concat`/`pad_*`/`replace`/`split`/`substring`/`to_lower`/
+  `to_upper`/`trim*`/`reverse`/`repeat`/`center`/`join`/`lines`/
+  `chars`.
+
+**`Collection` (54 helpers).**
+
+- 17 helpers populated as **pure** via `PATTERN_OVERRIDES`:
+  `^(hashmap|hashset|btreemap|btreeset|vecdeque)_(get|contains|len|capacity|is_empty|get_or|key_at|val_at|at)$` —
+  read-only accessors return `Option` / `bool` / `i64` / `i32`
+  without allocating.
+- 37 helpers via `CLASS_DEFAULTS["Collection"]` →
+  `["alloc"]` / `passthrough` / `none`. Covers all mutators:
+  `*_insert`, `*_remove`, `*_push_*`, `*_pop_*`, `*_set`,
+  `*_clear`, `*_clone`, `*_merge`, `*_new`, `*_with_capacity`,
+  `*_free`, `*_keys`, `*_values`.
+
+**TODO sentinel count drops 813 → 408** (405 TODOs eliminated).
+
+After this ship the manifest's policy-sensitive fields are
+populated for **540 of 676 helpers (79.9%)**. The remaining 136
+TODOs live in four classes that still need per-name or
+per-pattern fixing:
+
+- **`IO` (70)** — needs read/write/file/env split (writes are
+  passthrough taint, reads are propagating taint sources).
+- **`TensorOps` (45)** — mostly intentional v0.4 placeholders;
+  most rows are already `stability = "unstable"`.
+- **`DataCodec` (14 remaining)** — encoders/parsers/UUID; mix
+  of pure (parsers) and alloc (encoders).
+- **`ToolingMeta` (7 remaining)** — all intentional v0.4
+  placeholders (`profile_*`, `py_eval`, `rods_f64_*`).
+
+### Verify gate
+
+195 / 195 PASS, 0 SKIP on the bash gate. Tooling-only — no
+compiler / runtime / ABI / source / test changes.
+
 ## [0.2.74] — 2026-04-23
 
 **Helper manifest Phase 2 — per-name override mechanism + populate
