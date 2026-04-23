@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.103] — 2026-04-23
+
+**v0.3.0 milestone tracker + v0.3 readiness status doc had four
+stale claims (broken cross-tracker reference + 186-step gate).**
+
+### `docs/milestones/v0.3.0.md`
+
+Three stale gate-count refs:
+
+1. **Status header**: "Status (2026-04-22, post-v0.2.53)" →
+   "Status (2026-04-23, post-v0.2.102)" with a sentence about
+   the gate growing 186 → 203 steps through the audit chain.
+2. **Inheritance row 2**: "expected 186/186 unchanged" →
+   "expected 203/203 unchanged (current Windows count as of
+   v0.2.100)".
+3. **Phase 3 goal**: "`tools/verify.sh` runs 186/186 on Linux
+   + macOS" → "203/203" with note about the v0.2.55 → v0.2.102
+   growth.
+
+### `docs/status/v0.3-cross-platform-readiness.md`
+
+One broken cross-tracker reference:
+
+4. **Header**: pointed at `docs/milestones/v0.4.0.md` for the
+   "v0.3 bootstrap target" — wrong tracker. Updated to
+   `docs/milestones/v0.3.0.md` (the actual v0.3 tracker).
+   Also added a parenthetical noting the per-block runtime
+   audit findings preserved from v0.2.51 are still accurate
+   as of v0.2.102 (no new `#ifdef _WIN32` blocks added in
+   the post-RC chain).
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.102] — 2026-04-23
 
 **`docs/milestones/v0.4.0.md` Helper Schema section was at v0.2.40
