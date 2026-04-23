@@ -326,11 +326,59 @@ def classify(name):
     return "Unclassified"
 
 
+# Per-helper-name override. Takes precedence over PATTERN_OVERRIDES and
+# CLASS_DEFAULTS. Use this for individual helpers whose semantics
+# diverge from their class default (e.g. PanickingArith's `panic` and
+# `assert` actually panic, while the bulk of the class — checked_/
+# wrapping_/saturating_ — return tagged results).
+#
+# Each value is (effects_list, taint, proof_obligation).
+NAME_OVERRIDES = {
+    # PanickingArith — actually-panicking members (the bulk of the
+    # class is non-panicking and lives under PATTERN_OVERRIDES).
+    "panic":            (["panic"], "passthrough", "callsite_unreachable_or_recoverable"),
+    "assert":           (["panic"], "passthrough", "predicate_holds"),
+    # ToolingMeta — assertion macros panic on failure.
+    "assert_eq":        (["panic"], "passthrough", "predicate_holds"),
+    "assert_ne":        (["panic"], "passthrough", "predicate_holds"),
+    # ToolingMeta — debug print to stderr.
+    "dbg":              (["io"],    "passthrough", "io_capability_required"),
+    # ToolingMeta — manifest validation builds a small report string.
+    "manifest_report":  (["alloc"], "passthrough", "none"),
+    "manifest_validate":(["alloc"], "passthrough", "none"),
+    # DataCodec — pure hash helpers (return a u64; no allocation).
+    "crc32":            ([],        "passthrough", "none"),
+    "crc32_update":     ([],        "passthrough", "none"),
+    "fnv1a_64_i64":     ([],        "passthrough", "none"),
+    "fnv1a_64_str":     ([],        "passthrough", "none"),
+    "murmur3_64":       ([],        "passthrough", "none"),
+}
+
+
+# Per-name-regex override. Same precedence as NAME_OVERRIDES (matched
+# only if the helper's name didn't hit NAME_OVERRIDES). Matched in
+# order; first hit wins. Use this for whole helper families that share
+# semantics (e.g. all `checked_*` are pure, regardless of width).
+#
+# Each entry is (compiled_regex, (effects_list, taint, proof_obligation)).
+PATTERN_OVERRIDES = [
+    # PanickingArith's non-panicking family — checked_*/wrapping_*/
+    # saturating_* return Option/wrap/saturate instead of panicking,
+    # and never allocate. Effectively pure.
+    (re.compile(r"^(checked|wrapping|saturating)_"),
+     ([], "passthrough", "none")),
+    # Standalone narrow-width sentinels — saturating/wrapping i32 casts.
+    (re.compile(r"^(sat|wrap)_i32$"),
+     ([], "passthrough", "none")),
+]
+
+
 # Per-class default population for the policy-sensitive fields. Classes
 # with uniform per-helper semantics live here; classes with per-helper
-# divergence (PanickingArith, DataCodec, IO, ToolingMeta, etc.) stay
-# under the TODO sentinel until a per-name table or hand pass populates
-# them in a later release.
+# divergence (StringFormat, IO, Collection, TensorOps, DataCodec,
+# ToolingMeta) stay under the TODO sentinel for the rows that don't
+# match a NAME_OVERRIDES / PATTERN_OVERRIDES entry, until per-name
+# tables are populated in follow-on releases.
 #
 # Schema: each value is (effects_list, taint, proof_obligation). The
 # generator emits effects as a TOML array literal, taint and
@@ -418,9 +466,19 @@ def main():
         if cls == "Unclassified":
             notes_bits.append("name pattern did not match any class rule (REVIEW REQUIRED)")
 
-        defaults = CLASS_DEFAULTS.get(cls)
-        if defaults is not None:
-            eff_list, taint_val, proof_val = defaults
+        # Resolution order: NAME_OVERRIDES → PATTERN_OVERRIDES →
+        # CLASS_DEFAULTS → TODO sentinel.
+        resolved = NAME_OVERRIDES.get(name)
+        if resolved is None:
+            for pat, vals in PATTERN_OVERRIDES:
+                if pat.match(name):
+                    resolved = vals
+                    break
+        if resolved is None:
+            resolved = CLASS_DEFAULTS.get(cls)
+
+        if resolved is not None:
+            eff_list, taint_val, proof_val = resolved
             # Render effects as a TOML array literal. Empty list is
             # the explicit no-effect signal (PureMath); non-empty
             # lists list each effect string.

@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.74] — 2026-04-23
+
+**Helper manifest Phase 2 — per-name override mechanism + populate
+PanickingArith (full) + 10 ToolingMeta/DataCodec entries.**
+
+Adds the missing piece for the mixed-semantic taxonomy classes:
+the `tools/gen_helper_manifest.py` generator now consults a
+**resolution chain** when populating effects/taint/proof_obligation:
+
+  1. `NAME_OVERRIDES` — exact helper-name match
+  2. `PATTERN_OVERRIDES` — name-pattern regex match
+  3. `CLASS_DEFAULTS` — taxonomy class default (added v0.2.73)
+  4. `"TODO"` sentinel
+
+This unlocks populating classes whose helpers have non-uniform
+semantics (e.g. `PanickingArith.checked_add` is pure but
+`PanickingArith.panic` panics; `ToolingMeta.assert_eq` panics on
+failure but `ToolingMeta.dbg` does I/O; `DataCodec.fnv1a_64_str`
+is pure but `DataCodec.base64_encode` allocates).
+
+**`PanickingArith` (84 helpers) — fully populated.**
+
+- 80 helpers via `PATTERN_OVERRIDES` — `^(checked|wrapping|
+  saturating)_` and `^(sat|wrap)_i32$` patterns mark them as
+  pure (`effects = []`, `taint = "passthrough"`,
+  `proof_obligation = "none"`). These return `Option<T>` /
+  wrap / saturate instead of panicking, so they have no panic
+  effect.
+- 4 helpers via `NAME_OVERRIDES`:
+  - `panic` → `["panic"]` /
+    `"callsite_unreachable_or_recoverable"`
+  - `assert` → `["panic"]` / `"predicate_holds"`
+
+**`DataCodec` partial — 5 hash helpers populated.**
+
+`crc32`, `crc32_update`, `fnv1a_64_i64`, `fnv1a_64_str`,
+`murmur3_64` → pure (`[]` / `passthrough` / `"none"`). They
+return a `u64` digest; no allocation, no I/O. The remaining
+14 `DataCodec` helpers (encoders/decoders/parsers/UUID) stay
+TODO until follow-on releases populate them.
+
+**`ToolingMeta` partial — 5 helpers populated.**
+
+- `assert_eq`, `assert_ne` → `["panic"]` / `"predicate_holds"`
+- `dbg` → `["io"]` / `"io_capability_required"`
+- `manifest_report`, `manifest_validate` → `["alloc"]` /
+  `"none"` (validation builds a small report string).
+
+The remaining 7 `ToolingMeta` helpers (`profile_*`, `py_eval`,
+`rods_f64_*`) are intentional v0.4 placeholders — left TODO
+because their semantics are TBD with the v0.4 implementation.
+
+**TODO sentinel count drops 1095 → 813** (282 TODOs eliminated).
+
+### Generator changes (`tools/gen_helper_manifest.py`)
+
+- Added `NAME_OVERRIDES: dict[str, (list[str], str, str)]`.
+- Added `PATTERN_OVERRIDES: list[(re.Pattern, (list[str], str, str))]`.
+- Resolution chain replaces the previous single `CLASS_DEFAULTS`
+  lookup. Now: name → pattern → class → TODO.
+- `CLASS_DEFAULTS` docstring updated to enumerate which classes
+  ship as default vs. require per-name population.
+
+### Verify gate
+
+195 / 195 PASS, 0 SKIP on the bash gate. Tooling-only — no
+compiler / runtime / ABI / source / test changes.
+
 ## [0.2.73] — 2026-04-23
 
 **Helper manifest Phase 2 — populate effects/taint/proof for four
