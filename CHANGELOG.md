@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.102] — 2026-04-23
+
+**`docs/milestones/v0.4.0.md` Helper Schema section was at v0.2.40
+state — said Phase 2 was "DONE in v0.2.40" with 144 REVIEW
+REQUIRED rows.**
+
+The v0.4 tracker's Helper Schema Deliverable section was
+written at the v0.2.40 walk and never updated for the v0.2.41
+mech ship + v0.2.73–78 population work. Specifically wrong:
+
+1. **"Phase 1 — taxonomy report (DONE in v0.2.40): 14 classes
+   proposed; 7 helpers truly unclassified"** — actually 13
+   classes, 0 unclassified.
+2. **"Phase 2 — manifest population (DONE in v0.2.40)"** — the
+   v0.2.40 ship was the initial walk only. Phase 2 mech shipped
+   in v0.2.41 + drift-gate enforcement; population work landed
+   v0.2.73–78 reaching 95.1% (643/676 rows).
+3. **"144 entries flagged REVIEW REQUIRED"** — manifest is at
+   **0 REVIEW REQUIRED** since v0.2.41 (the
+   `INTENTIONAL_PLACEHOLDER` allowlist resolved 137 IR-declared-
+   but-undefined cases as deliberate v0.4 forward declarations;
+   `CLASS_RULES` extension caught the 7 unclassified).
+4. **"drift gate will be extended to enforce this once Phase 2
+   lands"** — drift-enforced **since v0.2.41**, not pending.
+
+### Refresh
+
+- Phase 1 row updated to "13 classes covering all 676
+  helpers".
+- Phase 2 row split: **mech (v0.2.41)** + **population
+  (v0.2.73–78, 95.1%)** with the 3-level resolution chain
+  + remaining 33 v0.4 placeholder enumeration.
+- "REVIEW REQUIRED count: 0 as of v0.2.41" replaces the
+  144-row claim, with the explanation of how the 137 + 7
+  resolved.
+- Going-forward constraint clarified to "drift-enforced
+  v0.2.41" with explicit gate failure description.
+
+The section now correctly tells the reader that the deliverable
+is essentially shipped — only the 33 placeholder rows are left,
+gated on v0.4 implementations.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.101] — 2026-04-23
 
 **`NUCLEOR_BOOTSTRAP_CONTRACT.md` refresh — was at v0.2.81 era;
