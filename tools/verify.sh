@@ -131,8 +131,8 @@ done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
 # Step count: 1 binary present + 1 ABI parity + 1 CLI explain smoke
-# + N examples + N tests + N negative + 1 self-host
-STEP_TOTAL=$((3 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+# + 1 CLI init smoke + N examples + N tests + N negative + 1 self-host
+STEP_TOTAL=$((4 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -155,6 +155,37 @@ cli_explain_smoke() {
     # Reference line should point at the spec doc
     echo "$out" | grep -q "Nucleor_Error_Codes" || return 1
     return 0
+}
+
+# nuc init scaffolding smoke (added v0.2.66) — verifies the
+# new-user-first-command produces a working project. Catches
+# regressions in the init template (Nucleor.toml fields,
+# src/main.nr scaffold) that the example/test gate misses.
+cli_init_smoke() {
+    local sandbox="/tmp/_nuc_init_smoke_$$"
+    rm -rf "$sandbox"
+    mkdir -p "$sandbox" || return 1
+    (
+        cd "$sandbox" || exit 1
+        "$BIN" init smokeproj >/dev/null 2>&1 || exit 1
+        [ -f smokeproj/Nucleor.toml ] || exit 1
+        [ -f smokeproj/src/main.nr ]   || exit 1
+        # Manifest must declare package name + entry
+        grep -q 'name = "smokeproj"' smokeproj/Nucleor.toml || exit 1
+        grep -q 'entry = "src/main.nr"' smokeproj/Nucleor.toml || exit 1
+        # Scaffold must compile + run
+        cd smokeproj || exit 1
+        "$BIN" build src/main.nr -o smokeproj >/dev/null 2>&1 || exit 1
+        local exe="target/smokeproj"
+        [ -x "$exe.exe" ] && exe="$exe.exe"
+        [ -x "$exe" ] || exit 1
+        local out
+        out=$("$exe" 2>&1)
+        [ -n "$out" ] || exit 1
+    )
+    local rc=$?
+    rm -rf "$sandbox"
+    return $rc
 }
 
 build_example() {
@@ -231,6 +262,7 @@ compiler_tables_synced() {
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
 step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
+step "CLI: nuc init scaffolding works" cli_init_smoke
 
 for ex in "${EXAMPLES[@]}"; do
     step "example $ex" build_example "$ex"
