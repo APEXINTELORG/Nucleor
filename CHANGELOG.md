@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.97] — 2026-04-23
+
+**`docs/rods-and-runtime.md` — same stale rod count drift as
+README v0.2.88.**
+
+The doc opened with:
+
+> Nucleor's standard library is organized as **rods**...
+> As of v0.1.1 there are 65 shipping rods covering general
+> utilities, scientific computing, modern ML, and physics
+> simulation.
+
+And had a section heading "## The shipping rod catalog (v0.1.1,
+all 65 build clean)". Both numbers stale: actual is **121
+rods** as of v0.2.46 (was 65 at v0.1.1; v0.1.5 brought it to
+103; v0.2.18–v0.2.30 enrichment chain added 18 more). Same
+drift class as the README "103 rods" claim fixed in v0.2.88.
+
+### Fix
+
+- **Opening paragraph** updated to "121 shipping rods as of
+  v0.2.46" with the historical progression (65 → 103 → 121)
+  in parens and a pointer to `docs/rfcs/rod_manifest.toml`
+  for the per-rod catalog.
+- **§ heading** changed from "The shipping rod catalog (v0.1.1,
+  all 65 build clean)" to just "The shipping rod catalog"
+  with a one-paragraph note that the tables below are the
+  v0.1.1 foundation (still gate-tested) and that the
+  authoritative enumeration lives in `rod_manifest.toml`.
+
+The 65-row rod tables under that heading are still accurate
+for what they list — they're just no longer the complete set.
+
+### Verify gate
+
+203 / 203 PASS, 0 SKIP on the bash gate. Pure documentation
+refresh — no compiler / runtime / source / test changes.
+
 ## [0.2.96] — 2026-04-23
 
 **`docs/language-reference.md` v0.1 → v0.2 promotion + v0.1.5
