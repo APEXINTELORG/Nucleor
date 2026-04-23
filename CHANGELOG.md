@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.64] — 2026-04-23
+
+**Verify gate: `nuc explain` smoke step closes a real coverage gap.**
+
+Audit of what the gate covered vs. didn't: the **explain
+registry** (the per-error-code tables in
+`compiler/nucleor_tools_suite.nr` that back `nuc explain CODE`)
+had **zero gate coverage**. Adding a code to
+`docs/spec/Nucleor_Error_Codes.md` without registering it in
+the three `explain_error_*` functions would silently fail
+discovery — the registry could drift from the spec for months.
+
+**Fix:** new `cli_explain_smoke` step that runs
+
+```bash
+nuc explain NUM-001
+```
+
+and verifies the output:
+
+1. Is non-empty.
+2. Mentions `NUM-001` (title line).
+3. Contains `"Mixed-width"` (per the `Error_Codes.md` row).
+4. Contains `Nucleor_Error_Codes` (the reference link).
+
+If any of those four checks fail, the gate FAILs with the step
+name, pointing at exactly the registry table that needs the
+new row.
+
+**Why NUM-001 specifically:** it's a stable v0.2 code with
+canonical title text that's unlikely to change. Future audits
+could extend to a representative sample (one per series — RT,
+NUM, MATCH, COLL, MOD, PKG, TGT) but a single-code smoke catches
+the "registry is wired and produces structured output" class.
+
+**Gate count: 186 → 187.** All green on the bash gate. The
+PowerShell gate (`tools/verify.ps1`) does not yet have the
+mirror — filed as a follow-up alongside the v0.4 verify-gate
+parity work.
+
+**Spot-check of all 18 example outputs** done in passing — every
+example produces sensible, on-topic output (Bell-state counts,
+RK45 numerical accuracy to 6 digits, Gaussian histogram bars,
+etc.). No regressions found; the v0.2.61 + v0.2.62 non-empty
+checks are sufficient for now. Hand-curated golden-output
+assertions remain a v0.4 deferral.
+
+### Verify gate
+
+187 / 187 PASS, 0 SKIP. Tooling-only — no compiler / runtime /
+ABI / source / test changes.
+
 ## [0.2.63] — 2026-04-22
 
 **`bin/` housekeeping — README + explicit .gitignore for scratch binaries.**

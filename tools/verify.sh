@@ -130,12 +130,30 @@ for d in "${TEST_DIRS[@]}"; do
 done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
-STEP_TOTAL=$((2 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+# Step count: 1 binary present + 1 ABI parity + 1 CLI explain smoke
+# + N examples + N tests + N negative + 1 self-host
+STEP_TOTAL=$((3 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
     [ -x "$BIN" ] || return 1
     "$BIN" help 2>&1 | grep -q "Nucleor Compiler" || return 1
+    return 0
+}
+
+# CLI smoke check (added v0.2.64) — exercises `nuc explain` so the
+# explain registry in nucleor_tools_suite.nr stays wired to the
+# error codes spec. Without this, codes can be added to
+# docs/spec/Nucleor_Error_Codes.md but never registered.
+cli_explain_smoke() {
+    local out
+    out=$("$BIN" explain NUM-001 2>&1)
+    [ -n "$out" ] || return 1
+    echo "$out" | grep -q "NUM-001" || return 1
+    # Title line should mention "Mixed-width" (per Error_Codes.md row)
+    echo "$out" | grep -q "Mixed-width" || return 1
+    # Reference line should point at the spec doc
+    echo "$out" | grep -q "Nucleor_Error_Codes" || return 1
     return 0
 }
 
@@ -212,6 +230,7 @@ compiler_tables_synced() {
 # --- Run gate -----------------------------------------------------------
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
+step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
 
 for ex in "${EXAMPLES[@]}"; do
     step "example $ex" build_example "$ex"
