@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.58] — 2026-04-22
+
+**Manifest generators: fix UTF-8 mojibake in rod descriptions.**
+
+Spot-check of `docs/rfcs/rod_manifest.toml` revealed
+`â€"` instead of em-dash (`—`) in rod descriptions. Root cause:
+both `tools/gen_rod_manifest.py` and `tools/gen_helper_manifest.py`
+called `Path.read_text(errors="replace")` without specifying
+`encoding="utf-8"` — Python on Windows defaults to `cp1252`, so
+files written as UTF-8 were misdecoded.
+
+**Fix:** added explicit `encoding="utf-8"` to all `read_text()`
+calls in both generators (3 sites total).
+
+**Side effect (good):** because the rod-manifest parser uses the
+em-dash as a delimiter to strip the `rods/<name> — ` title
+prefix, the previously-broken descriptions like
+
+```
+"rods/atomic â€\" AtomicI64 (RFC-0007 partial)"
+```
+
+now come out clean as
+
+```
+"AtomicI64 (RFC-0007 partial)"
+```
+
+— shorter, more readable, matches the parser's design intent.
+
+**Audit:** 121 rods × 1 description each — all 121 descriptions
+now correctly extracted. The helper manifest doesn't have this
+issue user-visibly (helpers don't carry descriptions today, just
+class + symbol + ABI), but the generator's runtime-defs scan
+also benefits from correct UTF-8 reading.
+
+This is the kind of bug a manifest-driven test surface catches
+that hand-maintained docs would miss for months.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Tooling-only — no compiler / runtime /
+ABI / source / test changes.
+
 ## [0.2.57] — 2026-04-22
 
 **`RELEASES.md` — tag-only navigable index of all 124 releases.**

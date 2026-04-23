@@ -32,7 +32,7 @@ OUT = ROOT / "docs" / "rfcs" / "rod_manifest.toml"
 
 
 def parse_rod(path):
-    text = path.read_text(errors="replace")
+    text = path.read_text(encoding="utf-8", errors="replace")
     name = path.stem
 
     # Extract leading comment block — first run of '//'-prefixed lines

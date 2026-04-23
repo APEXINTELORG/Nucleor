@@ -14,7 +14,7 @@
 [[rod]]
 name           = "asserts"
 path           = "stdlib/rods/asserts.nr"
-description    = "rods/asserts â€” Assertion + debug helpers (RFC-0021)"
+description    = "Assertion + debug helpers (RFC-0021)"
 function_count = 9
 cfile_count    = 0
 loc            = 12
@@ -23,7 +23,7 @@ imports        = ["asserts"]
 [[rod]]
 name           = "atomic"
 path           = "stdlib/rods/atomic.nr"
-description    = "rods/atomic â€” AtomicI64 (RFC-0007 partial)"
+description    = "AtomicI64 (RFC-0007 partial)"
 function_count = 14
 cfile_count    = 0
 loc            = 19
@@ -32,7 +32,7 @@ imports        = ["atomic"]
 [[rod]]
 name           = "audio"
 path           = "stdlib/rods/audio.nr"
-description    = "rods/audio â€” WAV I/O + STFT + MFCC"
+description    = "WAV I/O + STFT + MFCC"
 function_count = 8
 cfile_count    = 1
 loc            = 17
@@ -41,7 +41,7 @@ imports        = []
 [[rod]]
 name           = "autodiff"
 path           = "stdlib/rods/autodiff.nr"
-description    = "rods/autodiff â€” Reverse-Mode Automatic Differentiation"
+description    = "Reverse-Mode Automatic Differentiation"
 function_count = 20
 cfile_count    = 1
 loc            = 41
@@ -50,7 +50,7 @@ imports        = ["autodiff"]
 [[rod]]
 name           = "base64"
 path           = "stdlib/rods/base64.nr"
-description    = "rods/base64 â€” Base64 encoding/decoding"
+description    = "Base64 encoding/decoding"
 function_count = 4
 cfile_count    = 0
 loc            = 65
@@ -59,7 +59,7 @@ imports        = ["base64", "strings"]
 [[rod]]
 name           = "bayesian"
 path           = "stdlib/rods/bayesian.nr"
-description    = "rods/bayesian â€” MCMC Bayesian inference"
+description    = "MCMC Bayesian inference"
 function_count = 7
 cfile_count    = 1
 loc            = 19
@@ -68,7 +68,7 @@ imports        = ["bayesian"]
 [[rod]]
 name           = "bigint"
 path           = "stdlib/rods/bigint.nr"
-description    = "rods/bigint â€” Arbitrary-precision integers"
+description    = "Arbitrary-precision integers"
 function_count = 9
 cfile_count    = 1
 loc            = 19
@@ -77,7 +77,7 @@ imports        = ["bigint"]
 [[rod]]
 name           = "binary"
 path           = "stdlib/rods/binary.nr"
-description    = "rods/binary â€” Byte buffers, endian helpers, MessagePack subset"
+description    = "Byte buffers, endian helpers, MessagePack subset"
 function_count = 23
 cfile_count    = 0
 loc            = 23
@@ -86,7 +86,7 @@ imports        = ["binary"]
 [[rod]]
 name           = "bioseq"
 path           = "stdlib/rods/bioseq.nr"
-description    = "rods/bioseq â€” Bioinformatics sequence ops (DNA/RNA/protein)"
+description    = "Bioinformatics sequence ops (DNA/RNA/protein)"
 function_count = 6
 cfile_count    = 1
 loc            = 13
@@ -95,7 +95,7 @@ imports        = []
 [[rod]]
 name           = "bits"
 path           = "stdlib/rods/bits.nr"
-description    = "rods/bits â€” Bit-twiddling primitives"
+description    = "Bit-twiddling primitives"
 function_count = 10
 cfile_count    = 0
 loc            = 24
@@ -104,7 +104,7 @@ imports        = ["bits"]
 [[rod]]
 name           = "bitwise"
 path           = "stdlib/rods/bitwise.nr"
-description    = "rods/bitwise â€” Bitwise operations (via C FFI)"
+description    = "Bitwise operations (via C FFI)"
 function_count = 9
 cfile_count    = 1
 loc            = 37
@@ -113,7 +113,7 @@ imports        = ["bitwise"]
 [[rod]]
 name           = "bloom"
 path           = "stdlib/rods/bloom.nr"
-description    = "rods/bloom â€” Bloom filter + HyperLogLog"
+description    = "Bloom filter + HyperLogLog"
 function_count = 10
 cfile_count    = 1
 loc            = 21
@@ -122,7 +122,7 @@ imports        = ["bloom"]
 [[rod]]
 name           = "bm25"
 path           = "stdlib/rods/bm25.nr"
-description    = "rods/bm25 â€” BM25 search index"
+description    = "BM25 search index"
 function_count = 6
 cfile_count    = 1
 loc            = 13
@@ -131,7 +131,7 @@ imports        = ["bm25"]
 [[rod]]
 name           = "bspline"
 path           = "stdlib/rods/bspline.nr"
-description    = "rods/bspline â€” B-Splines and KAN"
+description    = "B-Splines and KAN"
 function_count = 5
 cfile_count    = 1
 loc            = 13
@@ -140,7 +140,7 @@ imports        = ["bspline"]
 [[rod]]
 name           = "btreemap"
 path           = "stdlib/rods/btreemap.nr"
-description    = "rods/btreemap â€” BTreeMap<str, i64> (RFC-0017 phase 3)"
+description    = "BTreeMap<str, i64> (RFC-0017 phase 3)"
 function_count = 12
 cfile_count    = 0
 loc            = 18
@@ -149,7 +149,7 @@ imports        = ["btreemap"]
 [[rod]]
 name           = "btreeset"
 path           = "stdlib/rods/btreeset.nr"
-description    = "rods/btreeset â€” BTreeSet<str> (RFC-0017 phase 3)"
+description    = "BTreeSet<str> (RFC-0017 phase 3)"
 function_count = 9
 cfile_count    = 0
 loc            = 12
@@ -158,7 +158,7 @@ imports        = ["btreeset"]
 [[rod]]
 name           = "checkpoint"
 path           = "stdlib/rods/checkpoint.nr"
-description    = "rods/checkpoint â€” ML model checkpointing for gradient recomputation"
+description    = "ML model checkpointing for gradient recomputation"
 function_count = 10
 cfile_count    = 1
 loc            = 21
@@ -167,7 +167,7 @@ imports        = []
 [[rod]]
 name           = "cli"
 path           = "stdlib/rods/cli.nr"
-description    = "rods/cli â€” Command-line argument parsing"
+description    = "Command-line argument parsing"
 function_count = 11
 cfile_count    = 0
 loc            = 162
@@ -176,7 +176,7 @@ imports        = ["cli", "fmt", "strings"]
 [[rod]]
 name           = "clifford"
 path           = "stdlib/rods/clifford.nr"
-description    = "rods/clifford â€” Clifford / stabilizer formalism (quantum error correction)"
+description    = "Clifford / stabilizer formalism (quantum error correction)"
 function_count = 22
 cfile_count    = 1
 loc            = 45
@@ -185,7 +185,7 @@ imports        = ["clifford"]
 [[rod]]
 name           = "collections"
 path           = "stdlib/rods/collections.nr"
-description    = "rods/collections â€” HashMap and collection utilities"
+description    = "HashMap and collection utilities"
 function_count = 20
 cfile_count    = 0
 loc            = 218
@@ -194,7 +194,7 @@ imports        = ["collections"]
 [[rod]]
 name           = "color"
 path           = "stdlib/rods/color.nr"
-description    = "rods/color â€” Color space conversions and palette ops"
+description    = "Color space conversions and palette ops"
 function_count = 7
 cfile_count    = 1
 loc            = 15
@@ -203,7 +203,7 @@ imports        = []
 [[rod]]
 name           = "comm"
 path           = "stdlib/rods/comm.nr"
-description    = "rods/comm â€” Distributed-training collective communication primitives"
+description    = "Distributed-training collective communication primitives"
 function_count = 12
 cfile_count    = 1
 loc            = 25
@@ -212,7 +212,7 @@ imports        = []
 [[rod]]
 name           = "complex"
 path           = "stdlib/rods/complex.nr"
-description    = "rods/complex â€” Complex number arithmetic (via C FFI)"
+description    = "Complex number arithmetic (via C FFI)"
 function_count = 56
 cfile_count    = 1
 loc            = 161
@@ -221,7 +221,7 @@ imports        = ["complex"]
 [[rod]]
 name           = "compress"
 path           = "stdlib/rods/compress.nr"
-description    = "rods/compress â€” Lossless compression"
+description    = "Lossless compression"
 function_count = 3
 cfile_count    = 1
 loc            = 7
@@ -230,7 +230,7 @@ imports        = ["compress"]
 [[rod]]
 name           = "concurrency"
 path           = "stdlib/rods/concurrency.nr"
-description    = "concurrency.nr â€” Structured concurrency with safety guardrails"
+description    = "concurrency.nr — Structured concurrency with safety guardrails"
 function_count = 17
 cfile_count    = 0
 loc            = 70
@@ -239,7 +239,7 @@ imports        = []
 [[rod]]
 name           = "control"
 path           = "stdlib/rods/control.nr"
-description    = "rods/control â€” Control Systems"
+description    = "Control Systems"
 function_count = 9
 cfile_count    = 1
 loc            = 23
@@ -248,7 +248,7 @@ imports        = ["control"]
 [[rod]]
 name           = "conv"
 path           = "stdlib/rods/conv.nr"
-description    = "rods/conv â€” 2D convolutions, pooling, batch norm, dropout (CNN building blocks)"
+description    = "2D convolutions, pooling, batch norm, dropout (CNN building blocks)"
 function_count = 8
 cfile_count    = 1
 loc            = 21
@@ -257,7 +257,7 @@ imports        = []
 [[rod]]
 name           = "crypto"
 path           = "stdlib/rods/crypto.nr"
-description    = "rods/crypto â€” Cryptographic primitives"
+description    = "Cryptographic primitives"
 function_count = 1
 cfile_count    = 1
 loc            = 4
@@ -266,7 +266,7 @@ imports        = ["crypto"]
 [[rod]]
 name           = "csv"
 path           = "stdlib/rods/csv.nr"
-description    = "rods/csv â€” CSV parsing and formatting"
+description    = "CSV parsing and formatting"
 function_count = 4
 cfile_count    = 0
 loc            = 105
@@ -275,7 +275,7 @@ imports        = ["csv", "strings"]
 [[rod]]
 name           = "datetime"
 path           = "stdlib/rods/datetime.nr"
-description    = "rods/datetime â€” Date/time operations"
+description    = "Date/time operations"
 function_count = 10
 cfile_count    = 1
 loc            = 21
@@ -284,7 +284,7 @@ imports        = ["datetime"]
 [[rod]]
 name           = "diffusion"
 path           = "stdlib/rods/diffusion.nr"
-description    = "rods/diffusion â€” Diffusion models / rectified flow / DDPM"
+description    = "Diffusion models / rectified flow / DDPM"
 function_count = 10
 cfile_count    = 1
 loc            = 25
@@ -293,7 +293,7 @@ imports        = []
 [[rod]]
 name           = "digest"
 path           = "stdlib/rods/digest.nr"
-description    = "rods/digest â€” Hash + Base64 + UUID helpers"
+description    = "Hash + Base64 + UUID helpers"
 function_count = 6
 cfile_count    = 0
 loc            = 8
@@ -302,7 +302,7 @@ imports        = ["digest"]
 [[rod]]
 name           = "emag"
 path           = "stdlib/rods/emag.nr"
-description    = "rods/emag â€” FDTD Electromagnetics"
+description    = "FDTD Electromagnetics"
 function_count = 9
 cfile_count    = 1
 loc            = 23
@@ -311,7 +311,7 @@ imports        = ["emag"]
 [[rod]]
 name           = "embedding"
 path           = "stdlib/rods/embedding.nr"
-description    = "rods/embedding â€” Vector embedding tables"
+description    = "Vector embedding tables"
 function_count = 8
 cfile_count    = 1
 loc            = 17
@@ -320,7 +320,7 @@ imports        = []
 [[rod]]
 name           = "env"
 path           = "stdlib/rods/env.nr"
-description    = "rods/env â€” Environment variable utilities"
+description    = "Environment variable utilities"
 function_count = 3
 cfile_count    = 1
 loc            = 23
@@ -329,7 +329,7 @@ imports        = ["env"]
 [[rod]]
 name           = "fft"
 path           = "stdlib/rods/fft.nr"
-description    = "rods/fft â€” Fast Fourier Transform"
+description    = "Fast Fourier Transform"
 function_count = 5
 cfile_count    = 1
 loc            = 11
@@ -338,7 +338,7 @@ imports        = ["fft"]
 [[rod]]
 name           = "finance"
 path           = "stdlib/rods/finance.nr"
-description    = "rods/finance â€” Financial Mathematics"
+description    = "Financial Mathematics"
 function_count = 12
 cfile_count    = 1
 loc            = 31
@@ -347,7 +347,7 @@ imports        = ["finance"]
 [[rod]]
 name           = "fluid"
 path           = "stdlib/rods/fluid.nr"
-description    = "rods/fluid â€” Lattice Boltzmann Fluid Simulation"
+description    = "Lattice Boltzmann Fluid Simulation"
 function_count = 9
 cfile_count    = 1
 loc            = 19
@@ -356,7 +356,7 @@ imports        = ["fluid"]
 [[rod]]
 name           = "fmt"
 path           = "stdlib/rods/fmt.nr"
-description    = "rods/fmt â€” String formatting"
+description    = "String formatting"
 function_count = 9
 cfile_count    = 0
 loc            = 128
@@ -365,7 +365,7 @@ imports        = ["fmt", "strings"]
 [[rod]]
 name           = "fs"
 path           = "stdlib/rods/fs.nr"
-description    = "rods/fs â€” Filesystem operations"
+description    = "Filesystem operations"
 function_count = 14
 cfile_count    = 1
 loc            = 91
@@ -374,7 +374,7 @@ imports        = ["fs", "strings"]
 [[rod]]
 name           = "fs_extras"
 path           = "stdlib/rods/fs_extras.nr"
-description    = "rods/fs_extras â€” Extended file-system operations (RFC-0018/0019)"
+description    = "Extended file-system operations (RFC-0018/0019)"
 function_count = 15
 cfile_count    = 0
 loc            = 17
@@ -383,7 +383,7 @@ imports        = ["fs_extras"]
 [[rod]]
 name           = "geom"
 path           = "stdlib/rods/geom.nr"
-description    = "rods/geom â€” Computational Geometry (2D)"
+description    = "Computational Geometry (2D)"
 function_count = 7
 cfile_count    = 1
 loc            = 19
@@ -392,7 +392,7 @@ imports        = ["geom"]
 [[rod]]
 name           = "gnn"
 path           = "stdlib/rods/gnn.nr"
-description    = "rods/gnn â€” Graph Neural Network"
+description    = "Graph Neural Network"
 function_count = 0
 cfile_count    = 1
 loc            = 16
@@ -401,7 +401,7 @@ imports        = ["gnn"]
 [[rod]]
 name           = "gpu"
 path           = "stdlib/rods/gpu.nr"
-description    = "gpu.nr â€” GPU compute with safety guardrails"
+description    = "gpu.nr — GPU compute with safety guardrails"
 function_count = 6
 cfile_count    = 0
 loc            = 50
@@ -410,7 +410,7 @@ imports        = []
 [[rod]]
 name           = "graph"
 path           = "stdlib/rods/graph.nr"
-description    = "rods/graph â€” Classical graph algorithms"
+description    = "Classical graph algorithms"
 function_count = 12
 cfile_count    = 1
 loc            = 25
@@ -419,7 +419,7 @@ imports        = ["graph"]
 [[rod]]
 name           = "hashmap"
 path           = "stdlib/rods/hashmap.nr"
-description    = "rods/hashmap â€” String-keyed hash map"
+description    = "String-keyed hash map"
 function_count = 10
 cfile_count    = 1
 loc            = 21
@@ -428,7 +428,7 @@ imports        = ["hashmap"]
 [[rod]]
 name           = "hashmap_str"
 path           = "stdlib/rods/hashmap_str.nr"
-description    = "rods/hashmap_str â€” HashMap<str, i64> (RFC-0017 phase 2)"
+description    = "HashMap<str, i64> (RFC-0017 phase 2)"
 function_count = 12
 cfile_count    = 0
 loc            = 18
@@ -437,7 +437,7 @@ imports        = ["hashmap_str"]
 [[rod]]
 name           = "hashset"
 path           = "stdlib/rods/hashset.nr"
-description    = "rods/hashset â€” HashSet<str> (RFC-0017 phase 4)"
+description    = "HashSet<str> (RFC-0017 phase 4)"
 function_count = 9
 cfile_count    = 0
 loc            = 12
@@ -446,7 +446,7 @@ imports        = ["hashset"]
 [[rod]]
 name           = "hnsw"
 path           = "stdlib/rods/hnsw.nr"
-description    = "rods/hnsw â€” HNSW vector index (approximate nearest neighbor)"
+description    = "HNSW vector index (approximate nearest neighbor)"
 function_count = 5
 cfile_count    = 1
 loc            = 11
@@ -455,7 +455,7 @@ imports        = []
 [[rod]]
 name           = "image"
 path           = "stdlib/rods/image.nr"
-description    = "rods/image â€” RGBA image processing"
+description    = "RGBA image processing"
 function_count = 16
 cfile_count    = 1
 loc            = 35
@@ -464,7 +464,7 @@ imports        = ["image"]
 [[rod]]
 name           = "ini"
 path           = "stdlib/rods/ini.nr"
-description    = "rods/ini â€” INI file parsing utilities"
+description    = "INI file parsing utilities"
 function_count = 5
 cfile_count    = 0
 loc            = 107
@@ -473,7 +473,7 @@ imports        = ["ini"]
 [[rod]]
 name           = "interp"
 path           = "stdlib/rods/interp.nr"
-description    = "rods/interp â€” Interpolation and Approximation"
+description    = "Interpolation and Approximation"
 function_count = 7
 cfile_count    = 1
 loc            = 15
@@ -482,7 +482,7 @@ imports        = ["interp"]
 [[rod]]
 name           = "interval"
 path           = "stdlib/rods/interval.nr"
-description    = "rods/interval â€” Interval Arithmetic (rigorous numerical bounds)"
+description    = "Interval Arithmetic (rigorous numerical bounds)"
 function_count = 23
 cfile_count    = 1
 loc            = 47
@@ -491,7 +491,7 @@ imports        = ["interval"]
 [[rod]]
 name           = "io"
 path           = "stdlib/rods/io.nr"
-description    = "rods/io â€” Input/Output operations"
+description    = "Input/Output operations"
 function_count = 7
 cfile_count    = 1
 loc            = 25
@@ -500,7 +500,7 @@ imports        = ["io"]
 [[rod]]
 name           = "json"
 path           = "stdlib/rods/json.nr"
-description    = "rods/json â€” JSON parser and serializer"
+description    = "JSON parser and serializer"
 function_count = 35
 cfile_count    = 0
 loc            = 397
@@ -509,7 +509,7 @@ imports        = ["complex", "fmt", "json", "strings"]
 [[rod]]
 name           = "kdtree"
 path           = "stdlib/rods/kdtree.nr"
-description    = "rods/kdtree â€” k-d tree spatial index"
+description    = "k-d tree spatial index"
 function_count = 4
 cfile_count    = 1
 loc            = 9
@@ -518,7 +518,7 @@ imports        = ["kdtree"]
 [[rod]]
 name           = "kv_cache"
 path           = "stdlib/rods/kv_cache.nr"
-description    = "rods/kv_cache â€” KV cache for LLM inference (paged, with eviction)"
+description    = "KV cache for LLM inference (paged, with eviction)"
 function_count = 8
 cfile_count    = 1
 loc            = 21
@@ -527,7 +527,7 @@ imports        = []
 [[rod]]
 name           = "linalg"
 path           = "stdlib/rods/linalg.nr"
-description    = "rods/linalg â€” Dense Linear Algebra"
+description    = "Dense Linear Algebra"
 function_count = 35
 cfile_count    = 2
 loc            = 72
@@ -536,7 +536,7 @@ imports        = ["linalg"]
 [[rod]]
 name           = "log"
 path           = "stdlib/rods/log.nr"
-description    = "rods/log â€” Structured logging with severity levels"
+description    = "Structured logging with severity levels"
 function_count = 16
 cfile_count    = 0
 loc            = 58
@@ -545,7 +545,7 @@ imports        = ["log"]
 [[rod]]
 name           = "loss"
 path           = "stdlib/rods/loss.nr"
-description    = "rods/loss â€” Neural network loss functions"
+description    = "Neural network loss functions"
 function_count = 9
 cfile_count    = 1
 loc            = 19
@@ -554,7 +554,7 @@ imports        = []
 [[rod]]
 name           = "math"
 path           = "stdlib/rods/math.nr"
-description    = "rods/math â€” Integer math utilities"
+description    = "Integer math utilities"
 function_count = 10
 cfile_count    = 0
 loc            = 63
@@ -563,7 +563,7 @@ imports        = ["math"]
 [[rod]]
 name           = "mesh"
 path           = "stdlib/rods/mesh.nr"
-description    = "rods/mesh â€” 2D rectangular finite-element meshes + Laplacian assembly + VTK output."
+description    = "2D rectangular finite-element meshes + Laplacian assembly + VTK output."
 function_count = 11
 cfile_count    = 1
 loc            = 23
@@ -572,7 +572,7 @@ imports        = []
 [[rod]]
 name           = "mmap"
 path           = "stdlib/rods/mmap.nr"
-description    = "rods/mmap â€” Memory-mapped files + shared memory"
+description    = "Memory-mapped files + shared memory"
 function_count = 10
 cfile_count    = 1
 loc            = 21
@@ -581,7 +581,7 @@ imports        = ["mmap"]
 [[rod]]
 name           = "moe"
 path           = "stdlib/rods/moe.nr"
-description    = "rods/moe â€” Mixture of Experts Routing"
+description    = "Mixture of Experts Routing"
 function_count = 9
 cfile_count    = 1
 loc            = 27
@@ -590,7 +590,7 @@ imports        = ["moe"]
 [[rod]]
 name           = "mps"
 path           = "stdlib/rods/mps.nr"
-description    = "rods/mps â€” Matrix Product States (efficient quantum simulation)"
+description    = "Matrix Product States (efficient quantum simulation)"
 function_count = 6
 cfile_count    = 1
 loc            = 13
@@ -599,7 +599,7 @@ imports        = []
 [[rod]]
 name           = "multi_core"
 path           = "stdlib/rods/multi_core.nr"
-description    = "rods/multi_core â€” N-Core Quantum Noise Ensemble"
+description    = "N-Core Quantum Noise Ensemble"
 function_count = 26
 cfile_count    = 0
 loc            = 504
@@ -608,7 +608,7 @@ imports        = ["multi_core"]
 [[rod]]
 name           = "multigrid"
 path           = "stdlib/rods/multigrid.nr"
-description    = "rods/multigrid â€” Multigrid PDE Solver"
+description    = "Multigrid PDE Solver"
 function_count = 2
 cfile_count    = 1
 loc            = 5
@@ -617,7 +617,7 @@ imports        = ["multigrid"]
 [[rod]]
 name           = "nn"
 path           = "stdlib/rods/nn.nr"
-description    = "rods/nn â€” Neural Network Training"
+description    = "Neural Network Training"
 function_count = 12
 cfile_count    = 1
 loc            = 275
@@ -626,7 +626,7 @@ imports        = ["complex", "nn"]
 [[rod]]
 name           = "numeric"
 path           = "stdlib/rods/numeric.nr"
-description    = "rods/numeric â€” RFC-0015 numeric type operations"
+description    = "RFC-0015 numeric type operations"
 function_count = 59
 cfile_count    = 0
 loc            = 59
@@ -635,7 +635,7 @@ imports        = ["numeric"]
 [[rod]]
 name           = "ode"
 path           = "stdlib/rods/ode.nr"
-description    = "rods/ode â€” Ordinary Differential Equation Solvers"
+description    = "Ordinary Differential Equation Solvers"
 function_count = 5
 cfile_count    = 1
 loc            = 11
@@ -644,7 +644,7 @@ imports        = ["ode"]
 [[rod]]
 name           = "optim"
 path           = "stdlib/rods/optim.nr"
-description    = "rods/optim â€” Optimization Algorithms"
+description    = "Optimization Algorithms"
 function_count = 5
 cfile_count    = 1
 loc            = 11
@@ -653,7 +653,7 @@ imports        = ["optim"]
 [[rod]]
 name           = "option"
 path           = "stdlib/rods/option.nr"
-description    = "rods/option â€” Option<T> type (Some/None)"
+description    = "Option<T> type (Some/None)"
 function_count = 10
 cfile_count    = 0
 loc            = 44
@@ -662,7 +662,7 @@ imports        = ["option"]
 [[rod]]
 name           = "orbit"
 path           = "stdlib/rods/orbit.nr"
-description    = "rods/orbit â€” Orbital Mechanics"
+description    = "Orbital Mechanics"
 function_count = 6
 cfile_count    = 1
 loc            = 15
@@ -671,7 +671,7 @@ imports        = ["orbit"]
 [[rod]]
 name           = "os"
 path           = "stdlib/rods/os.nr"
-description    = "rods/os â€” Operating system interface"
+description    = "Operating system interface"
 function_count = 5
 cfile_count    = 1
 loc            = 20
@@ -680,7 +680,7 @@ imports        = ["os"]
 [[rod]]
 name           = "os_info"
 path           = "stdlib/rods/os_info.nr"
-description    = "rods/os_info â€” OS family detection + pointer-width queries"
+description    = "OS family detection + pointer-width queries"
 function_count = 11
 cfile_count    = 0
 loc            = 24
@@ -689,7 +689,7 @@ imports        = ["os_info"]
 [[rod]]
 name           = "path"
 path           = "stdlib/rods/path.nr"
-description    = "rods/path â€” Path manipulation utilities"
+description    = "Path manipulation utilities"
 function_count = 7
 cfile_count    = 0
 loc            = 100
@@ -698,7 +698,7 @@ imports        = ["path", "strings"]
 [[rod]]
 name           = "pca"
 path           = "stdlib/rods/pca.nr"
-description    = "rods/pca â€” Principal Component Analysis"
+description    = "Principal Component Analysis"
 function_count = 5
 cfile_count    = 1
 loc            = 11
@@ -707,7 +707,7 @@ imports        = ["pca"]
 [[rod]]
 name           = "physics"
 path           = "stdlib/rods/physics.nr"
-description    = "rods/physics â€” CODATA 2018 Physical Constants"
+description    = "CODATA 2018 Physical Constants"
 function_count = 22
 cfile_count    = 1
 loc            = 45
@@ -716,7 +716,7 @@ imports        = ["physics"]
 [[rod]]
 name           = "plot"
 path           = "stdlib/rods/plot.nr"
-description    = "rods/plot â€” SVG plotting"
+description    = "SVG plotting"
 function_count = 12
 cfile_count    = 1
 loc            = 31
@@ -725,7 +725,7 @@ imports        = ["plot"]
 [[rod]]
 name           = "pq"
 path           = "stdlib/rods/pq.nr"
-description    = "rods/pq â€” Product Quantization (compressed vector search)"
+description    = "Product Quantization (compressed vector search)"
 function_count = 6
 cfile_count    = 1
 loc            = 17
@@ -734,7 +734,7 @@ imports        = []
 [[rod]]
 name           = "process"
 path           = "stdlib/rods/process.nr"
-description    = "rods/process â€” child-process primitives (RFC-0021 phase 2)"
+description    = "child-process primitives (RFC-0021 phase 2)"
 function_count = 5
 cfile_count    = 1
 loc            = 21
@@ -743,7 +743,7 @@ imports        = ["process"]
 [[rod]]
 name           = "python"
 path           = "stdlib/rods/python.nr"
-description    = "rods/python â€” Embedded Python interop"
+description    = "Embedded Python interop"
 function_count = 5
 cfile_count    = 1
 loc            = 21
@@ -752,7 +752,7 @@ imports        = ["python"]
 [[rod]]
 name           = "quad"
 path           = "stdlib/rods/quad.nr"
-description    = "rods/quad â€” Numerical Integration (Quadrature)"
+description    = "Numerical Integration (Quadrature)"
 function_count = 6
 cfile_count    = 1
 loc            = 13
@@ -761,7 +761,7 @@ imports        = ["quad"]
 [[rod]]
 name           = "quantize"
 path           = "stdlib/rods/quantize.nr"
-description    = "rods/quantize â€” Weight + activation quantization (Q4 / int8 / ternary / FP8)"
+description    = "Weight + activation quantization (Q4 / int8 / ternary / FP8)"
 function_count = 10
 cfile_count    = 1
 loc            = 21
@@ -770,7 +770,7 @@ imports        = []
 [[rod]]
 name           = "quantum"
 path           = "stdlib/rods/quantum.nr"
-description    = "rods/quantum â€” Quantum circuit simulator"
+description    = "Quantum circuit simulator"
 function_count = 38
 cfile_count    = 1
 loc            = 337
@@ -779,7 +779,7 @@ imports        = ["quantum"]
 [[rod]]
 name           = "queue"
 path           = "stdlib/rods/queue.nr"
-description    = "rods/queue â€” FIFO queue using Vec"
+description    = "FIFO queue using Vec"
 function_count = 6
 cfile_count    = 0
 loc            = 37
@@ -788,7 +788,7 @@ imports        = ["queue"]
 [[rod]]
 name           = "regex"
 path           = "stdlib/rods/regex.nr"
-description    = "rods/regex â€” Simple pattern matching utilities"
+description    = "Simple pattern matching utilities"
 function_count = 5
 cfile_count    = 0
 loc            = 71
@@ -797,7 +797,7 @@ imports        = ["regex"]
 [[rod]]
 name           = "result"
 path           = "stdlib/rods/result.nr"
-description    = "rods/result â€” Result<T, E> type (Ok/Err)"
+description    = "Result<T, E> type (Ok/Err)"
 function_count = 11
 cfile_count    = 0
 loc            = 57
@@ -806,7 +806,7 @@ imports        = ["result"]
 [[rod]]
 name           = "ridge"
 path           = "stdlib/rods/ridge.nr"
-description    = "rods/ridge â€” Ridge Regression (Gradient Descent)"
+description    = "Ridge Regression (Gradient Descent)"
 function_count = 7
 cfile_count    = 0
 loc            = 150
@@ -815,7 +815,7 @@ imports        = ["complex", "ridge"]
 [[rod]]
 name           = "rigid_body"
 path           = "stdlib/rods/rigid_body.nr"
-description    = "rods/rigid_body â€” 3D Rigid Body Physics"
+description    = "3D Rigid Body Physics"
 function_count = 16
 cfile_count    = 1
 loc            = 33
@@ -824,7 +824,7 @@ imports        = ["rigid_body"]
 [[rod]]
 name           = "rl"
 path           = "stdlib/rods/rl.nr"
-description    = "rods/rl â€” Reinforcement learning primitives"
+description    = "Reinforcement learning primitives"
 function_count = 10
 cfile_count    = 1
 loc            = 21
@@ -833,7 +833,7 @@ imports        = []
 [[rod]]
 name           = "root"
 path           = "stdlib/rods/root.nr"
-description    = "rods/root â€” Root Finding for Nonlinear Equations"
+description    = "Root Finding for Nonlinear Equations"
 function_count = 5
 cfile_count    = 1
 loc            = 11
@@ -842,7 +842,7 @@ imports        = ["root"]
 [[rod]]
 name           = "rust"
 path           = "stdlib/rods/rust.nr"
-description    = "rods/rust â€” Rust interop via C ABI"
+description    = "Rust interop via C ABI"
 function_count = 5
 cfile_count    = 0
 loc            = 31
@@ -851,7 +851,7 @@ imports        = ["rust"]
 [[rod]]
 name           = "scan"
 path           = "stdlib/rods/scan.nr"
-description    = "rods/scan â€” Parallel-scan / prefix-sum / SSM kernels"
+description    = "Parallel-scan / prefix-sum / SSM kernels"
 function_count = 8
 cfile_count    = 1
 loc            = 17
@@ -860,7 +860,7 @@ imports        = []
 [[rod]]
 name           = "serial"
 path           = "stdlib/rods/serial.nr"
-description    = "rods/serial â€” Serial port I/O"
+description    = "Serial port I/O"
 function_count = 4
 cfile_count    = 1
 loc            = 9
@@ -869,7 +869,7 @@ imports        = []
 [[rod]]
 name           = "signal"
 path           = "stdlib/rods/signal.nr"
-description    = "rods/signal â€” Digital Signal Processing"
+description    = "Digital Signal Processing"
 function_count = 10
 cfile_count    = 1
 loc            = 21
@@ -878,7 +878,7 @@ imports        = ["signal"]
 [[rod]]
 name           = "simd"
 path           = "stdlib/rods/simd.nr"
-description    = "rods/simd â€” SIMD vector types (RFC-0033 preview)"
+description    = "SIMD vector types (RFC-0033 preview)"
 function_count = 20
 cfile_count    = 0
 loc            = 20
@@ -887,7 +887,7 @@ imports        = ["simd"]
 [[rod]]
 name           = "socket"
 path           = "stdlib/rods/socket.nr"
-description    = "rods/socket â€” TCP/UDP networking"
+description    = "TCP/UDP networking"
 function_count = 10
 cfile_count    = 1
 loc            = 21
@@ -896,7 +896,7 @@ imports        = ["socket"]
 [[rod]]
 name           = "sort"
 path           = "stdlib/rods/sort.nr"
-description    = "rods/sort â€” Sorting algorithms"
+description    = "Sorting algorithms"
 function_count = 5
 cfile_count    = 0
 loc            = 69
@@ -905,7 +905,7 @@ imports        = ["sort"]
 [[rod]]
 name           = "sparse"
 path           = "stdlib/rods/sparse.nr"
-description    = "rods/sparse â€” Sparse Matrix Operations (CSR Format)"
+description    = "Sparse Matrix Operations (CSR Format)"
 function_count = 13
 cfile_count    = 1
 loc            = 27
@@ -914,7 +914,7 @@ imports        = ["sparse"]
 [[rod]]
 name           = "speculative"
 path           = "stdlib/rods/speculative.nr"
-description    = "rods/speculative â€” Speculative decoding for LLM inference"
+description    = "Speculative decoding for LLM inference"
 function_count = 5
 cfile_count    = 1
 loc            = 15
@@ -923,7 +923,7 @@ imports        = []
 [[rod]]
 name           = "ssm"
 path           = "stdlib/rods/ssm.nr"
-description    = "rods/ssm â€” State Space Models (modern ML)"
+description    = "State Space Models (modern ML)"
 function_count = 5
 cfile_count    = 1
 loc            = 21
@@ -932,7 +932,7 @@ imports        = ["ssm"]
 [[rod]]
 name           = "stack"
 path           = "stdlib/rods/stack.nr"
-description    = "stack.nr â€” Stack (LIFO) data structure using Vec"
+description    = "stack.nr — Stack (LIFO) data structure using Vec"
 function_count = 6
 cfile_count    = 0
 loc            = 14
@@ -941,7 +941,7 @@ imports        = []
 [[rod]]
 name           = "state_machine"
 path           = "stdlib/rods/state_machine.nr"
-description    = "rods/state_machine â€” Finite State Machines"
+description    = "Finite State Machines"
 function_count = 12
 cfile_count    = 1
 loc            = 27
@@ -950,7 +950,7 @@ imports        = ["state_machine"]
 [[rod]]
 name           = "stats"
 path           = "stdlib/rods/stats.nr"
-description    = "rods/stats â€” Statistics and Probability"
+description    = "Statistics and Probability"
 function_count = 17
 cfile_count    = 1
 loc            = 35
@@ -959,7 +959,7 @@ imports        = ["stats"]
 [[rod]]
 name           = "string_algo"
 path           = "stdlib/rods/string_algo.nr"
-description    = "rods/string_algo â€” Advanced string algorithms (KMP, Levenshtein, Trie)"
+description    = "Advanced string algorithms (KMP, Levenshtein, Trie)"
 function_count = 8
 cfile_count    = 1
 loc            = 17
@@ -968,7 +968,7 @@ imports        = []
 [[rod]]
 name           = "string_type"
 path           = "stdlib/rods/string_type.nr"
-description    = "rods/string_type â€” Heap-allocated String type (RFC-0017)"
+description    = "Heap-allocated String type (RFC-0017)"
 function_count = 16
 cfile_count    = 0
 loc            = 16
@@ -977,7 +977,7 @@ imports        = ["string_type"]
 [[rod]]
 name           = "strings"
 path           = "stdlib/rods/strings.nr"
-description    = "rods/strings â€” String manipulation"
+description    = "String manipulation"
 function_count = 23
 cfile_count    = 0
 loc            = 260
@@ -986,7 +986,7 @@ imports        = ["strings"]
 [[rod]]
 name           = "symbolic"
 path           = "stdlib/rods/symbolic.nr"
-description    = "rods/symbolic â€” Symbolic Math (Expression Trees)"
+description    = "Symbolic Math (Expression Trees)"
 function_count = 16
 cfile_count    = 1
 loc            = 33
@@ -995,7 +995,7 @@ imports        = ["symbolic"]
 [[rod]]
 name           = "taylor"
 path           = "stdlib/rods/taylor.nr"
-description    = "rods/taylor â€” Validated Taylor Model ODE Integrator"
+description    = "Validated Taylor Model ODE Integrator"
 function_count = 18
 cfile_count    = 1
 loc            = 44
@@ -1004,7 +1004,7 @@ imports        = ["taylor"]
 [[rod]]
 name           = "tensor_decomp"
 path           = "stdlib/rods/tensor_decomp.nr"
-description    = "rods/tensor_decomp â€” Tensor Decompositions"
+description    = "Tensor Decompositions"
 function_count = 4
 cfile_count    = 1
 loc            = 17
@@ -1013,7 +1013,7 @@ imports        = ["tensor_decomp"]
 [[rod]]
 name           = "tensor_nd"
 path           = "stdlib/rods/tensor_nd.nr"
-description    = "rods/tensor_nd â€” N-Dimensional Tensors"
+description    = "N-Dimensional Tensors"
 function_count = 18
 cfile_count    = 1
 loc            = 37
@@ -1022,7 +1022,7 @@ imports        = ["tensor_nd"]
 [[rod]]
 name           = "test"
 path           = "stdlib/rods/test.nr"
-description    = "rods/test â€” Test framework with assertions"
+description    = "Test framework with assertions"
 function_count = 10
 cfile_count    = 0
 loc            = 88
@@ -1031,7 +1031,7 @@ imports        = ["fmt", "test"]
 [[rod]]
 name           = "thermo"
 path           = "stdlib/rods/thermo.nr"
-description    = "rods/thermo â€” Heat Transfer and Thermodynamics"
+description    = "Heat Transfer and Thermodynamics"
 function_count = 5
 cfile_count    = 1
 loc            = 11
@@ -1040,7 +1040,7 @@ imports        = ["thermo"]
 [[rod]]
 name           = "time"
 path           = "stdlib/rods/time.nr"
-description    = "rods/time â€” Time utilities"
+description    = "Time utilities"
 function_count = 3
 cfile_count    = 1
 loc            = 13
@@ -1049,7 +1049,7 @@ imports        = ["time"]
 [[rod]]
 name           = "time_typed"
 path           = "stdlib/rods/time_typed.nr"
-description    = "rods/time_typed â€” Typed time API (Robotics-RFC Â§5.1)"
+description    = "Typed time API (Robotics-RFC §5.1)"
 function_count = 12
 cfile_count    = 0
 loc            = 18
@@ -1058,7 +1058,7 @@ imports        = ["time_typed"]
 [[rod]]
 name           = "toml"
 path           = "stdlib/rods/toml.nr"
-description    = "rods/toml â€” Minimal TOML parser (RFC-0019 phase 1)"
+description    = "Minimal TOML parser (RFC-0019 phase 1)"
 function_count = 12
 cfile_count    = 0
 loc            = 21
@@ -1067,7 +1067,7 @@ imports        = ["toml"]
 [[rod]]
 name           = "twin_core"
 path           = "stdlib/rods/twin_core.nr"
-description    = "rods/twin_core â€” Dual-Core Differentiable Noise Model"
+description    = "Dual-Core Differentiable Noise Model"
 function_count = 26
 cfile_count    = 0
 loc            = 317
@@ -1076,7 +1076,7 @@ imports        = []
 [[rod]]
 name           = "units"
 path           = "stdlib/rods/units.nr"
-description    = "rods/units â€” SI Unit Conversion"
+description    = "SI Unit Conversion"
 function_count = 44
 cfile_count    = 1
 loc            = 48
@@ -1085,7 +1085,7 @@ imports        = ["units"]
 [[rod]]
 name           = "uuid"
 path           = "stdlib/rods/uuid.nr"
-description    = "rods/uuid â€” UUID generation and utilities"
+description    = "UUID generation and utilities"
 function_count = 7
 cfile_count    = 0
 loc            = 56
@@ -1094,7 +1094,7 @@ imports        = ["uuid"]
 [[rod]]
 name           = "vecdeque"
 path           = "stdlib/rods/vecdeque.nr"
-description    = "rods/vecdeque â€” VecDeque<i64> (RFC-0017 phase 4)"
+description    = "VecDeque<i64> (RFC-0017 phase 4)"
 function_count = 13
 cfile_count    = 0
 loc            = 16

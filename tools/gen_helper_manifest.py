@@ -103,7 +103,7 @@ def collect_runtime_defs():
     ]
 
     for c in sorted(RT_DIR.glob("*.c")):
-        text = c.read_text(errors="replace")
+        text = c.read_text(encoding="utf-8", errors="replace")
 
         # Direct function definitions
         for m in re.finditer(r'\b(__nucleor_[a-zA-Z0-9_]+)\s*\(', text):
@@ -337,7 +337,7 @@ def fmt_abi(ir_decl):
 # ---------- Main ----------
 
 def main():
-    src = S1.read_text(errors="replace")
+    src = S1.read_text(encoding="utf-8", errors="replace")
 
     rt_pairs = parse_get_rt_name(src)            # (name, symbol)
     void_set = parse_is_void_ret(src)
