@@ -437,11 +437,27 @@ backs `nuc explain`). The 2-iteration LLVM IR fixed-point
 check from `NUCLEOR_BOOTSTRAP_CONTRACT.md` applies whenever
 the s1 source is touched.
 
-## Suppression
+## Suppression (planned v0.4)
 
-Users can suppress diagnostics per-scope via `#[allow(CODE)]` or
-per-project via the build profile. Warnings can be promoted to
-errors with `#[deny(CODE)]`.
+> **Status (v0.2):** not yet implemented. The design below is
+> documented here so that the explain-registry prose (which
+> references `#[allow(precision_loss)]`, `#[deny(precision_loss)]`,
+> `#[allow(no_dyn)]`, `#[allow(no_hw_lp_float)]` etc. on codes
+> like NUM-003, CXX-003, NUM-004) has a coherent target. The
+> current s1 compiler **parses but silently ignores** any
+> `#[allow(...)]` / `#[deny(...)]` attribute — the suppression
+> has no effect on diagnostic emission. **Every warning is
+> always printed today**, regardless of any `#[allow]` on the
+> call site. Promotion of warnings to errors via `#[deny]` also
+> does not take effect. This is tracked as a v0.4 follow-on
+> alongside the RFC-0004 `#[assume]` and RFC-0014
+> `#[max_depth]` attribute work, which will introduce the
+> general attribute-with-argument parsing infrastructure that
+> `#[allow]` / `#[deny]` can then plug into.
 
-Some codes (safety-cert subset — see `docs/process/nucleor-safe-subset.md`)
-cannot be suppressed in `--profile=cert` mode.
+**Planned v0.4 design:** users will be able to suppress
+diagnostics per-scope via `#[allow(CODE)]` or per-project via
+the build profile. Warnings will be promotable to errors with
+`#[deny(CODE)]`. Some codes (safety-cert subset — see
+`docs/process/nucleor-safe-subset.md`) will not be suppressible
+in `--profile=cert` mode.

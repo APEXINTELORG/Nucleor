@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.145] — 2026-04-23
+
+**Spec doc "Suppression" section described `#[allow]` / `#[deny]`
+as a working feature — it isn't. Documented the current behavior +
+v0.4 plan.**
+
+The "Suppression" section in `docs/spec/Nucleor_Error_Codes.md`
+read as if `#[allow(CODE)]` and `#[deny(CODE)]` were live
+features:
+
+> Users can suppress diagnostics per-scope via `#[allow(CODE)]`
+> or per-project via the build profile. Warnings can be
+> promoted to errors with `#[deny(CODE)]`.
+
+Verified by inspection: `compiler/nucleor_s1_compiler.nr` has
+**zero** references to the strings `"allow"` or `"deny"` as
+parsed attribute names. No tests under `tests/lang/`,
+`tests/attrs/`, or `tests/features/` use either attribute.
+A direct test (`#[allow(NUM-001)] fn main() -> i64 { return 0; }`)
+parses without error but the suppression has no effect — the
+attribute is silently ignored.
+
+The explain-registry prose for **NUM-003**, **CXX-003**,
+**NUM-004** (and likely others) tells users to suppress with
+`#[allow(precision_loss)]`, `#[allow(no_dyn)]`,
+`#[allow(no_hw_lp_float)]` etc., but those suggestions are
+non-functional today. The Suppression section is what makes
+the explain-registry prose coherent — without a suppression
+mechanism documented anywhere, the explain text reads as
+nonsense.
+
+### `docs/spec/Nucleor_Error_Codes.md`
+
+- "Suppression" section now opens with a "**Status (v0.2):
+  not yet implemented**" callout, documents the current silent-
+  ignore behavior, names the v0.4 follow-on attribute
+  infrastructure (RFC-0004 `#[assume]` + RFC-0014
+  `#[max_depth]`) that suppression will plug into, and keeps
+  the planned design as the closing paragraph.
+
+The explain-registry prose still mentions the suppression
+attributes — that's correct because it shows the planned
+syntax. A future ship will revisit those entries once
+suppression actually works to mark them as live; for now the
+prose accurately describes the target user fix even though
+the runtime mechanism isn't wired.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no helper-manifest
+touch. Self-host LLVM IR fixed point preserved
+(`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.144] — 2026-04-23
 
 **Tab-completion scripts (all 4 shells) also missing 3 flags that
