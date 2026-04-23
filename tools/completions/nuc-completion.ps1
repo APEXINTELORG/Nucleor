@@ -20,6 +20,7 @@ $nuc_flags = @(
     '--json', '--sarif', '--check', '--review', '--review-filter',
     '--list', '--iterations', '--warmup',
     '--c-header', '--rust-extern', '--exports', '--fn',
+    '--imports', '--numeric', '--registry',
     '--version', '--help'
 )
 

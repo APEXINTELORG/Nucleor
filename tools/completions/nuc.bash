@@ -23,7 +23,8 @@ _nuc_complete() {
     local flags="-o --out --emit --no-link --time-passes --no-cache --tier \
                  --json --sarif --check --review --review-filter \
                  --list --iterations --warmup \
-                 --c-header --rust-extern --exports --fn"
+                 --c-header --rust-extern --exports --fn \
+                 --imports --numeric --registry"
 
     if [[ ${COMP_CWORD} -eq 1 ]]; then
         COMPREPLY=( $(compgen -W "$commands" -- "$cur") )

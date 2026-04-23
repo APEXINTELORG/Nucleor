@@ -68,6 +68,9 @@ _nuc() {
         '--c-header[emit C declarations]'
         '--rust-extern[emit Rust unsafe extern declarations]'
         '--exports[inspect pub fn ABI]'
+        '--imports[nuc fix: migrate legacy import syntax to use std::]'
+        '--numeric[nuc fix: migrate to RFC-0015 narrow-width suffix syntax]'
+        '--registry[nuc registry: path to local registry directory]'
     )
 
     if (( CURRENT == 2 )); then
