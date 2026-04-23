@@ -240,30 +240,32 @@ Reserved for RFCs 0024-0029. Codes populate as those RFCs land.
 
 ## TST series — RFC-0021 test framework
 
-**Reserved namespace; no codes minted as of v0.2.48.** RFC-0021
-shipped the test framework (`nuc test` discovery, `assert_eq!` /
-`assert_ne!` macros, `--isolation=process` mode) without minting
-test-runner-specific error codes — runtime test failures surface
-through `assert_*` panic messages plus the test harness's own
-exit-status reporting.
+**TST-001..003 wired into the explain registry in v0.2.79.**
+RFC-0021 originally shipped the test framework (`nuc test`
+discovery, `assert_eq!` / `assert_ne!` macros,
+`--isolation=process` mode) without minting test-runner-specific
+error codes — runtime test failures surfaced through `assert_*`
+panic messages plus the test harness's own exit-status
+reporting. The v0.2.79 explain-coverage audit found three TST
+codes spec'd here but missing from the registry; all three were
+wired into `compiler/nucleor_tools_suite.nr` and the gate now
+exercises them via `cli_explain_full_smoke` (added v0.2.79,
+extended to the full 130-code spec catalog in v0.2.80).
 
-When TST-NNN codes are minted (planned for v0.4 alongside
-property-based testing), candidates include:
-
-| Code (proposed) | Title | RFC section |
-|---|---|---|
-| TST-001 | Test discovery: no `#[test]` functions found | RFC-0021 §3.1 |
-| TST-002 | Test isolation: process child crashed before reporting | RFC-0021 §3.4 |
-| TST-003 | Test fixture: setup fn returned non-zero | RFC-0021 (deferred) |
+| Code | Title | RFC section | Status |
+|---|---|---|---|
+| TST-001 | Test discovery: no `#[test]` functions found | RFC-0021 §3.1 | Wired (v0.2.79); test runner fires when discovery returns 0 |
+| TST-002 | Test isolation: process child crashed before reporting | RFC-0021 §3.4 | Wired (v0.2.79); runtime check fires under `--isolation=process` |
+| TST-003 | Test fixture: setup fn returned non-zero | RFC-0021 (deferred) | Wired (v0.2.79) but body deferred — fires when v0.4 fixture work lands |
 
 ## DIAG series — RFC-0020 diagnostics machinery
 
-**Reserved namespace; no user-facing codes minted as of v0.2.48.**
+**Reserved namespace; no user-facing codes minted as of v0.2.103.**
 RFC-0020 phase 1 + 2 shipped the LineMap infrastructure
 (`linemap_*` runtime helpers, error-vs-warning split where warnings
 no longer halt the build) but no DIAG-NNN codes — the diagnostic
-machinery surfaces through the per-RFC code series (NUM, MATCH,
-COLL, MOD, PKG, TGT, etc.) rather than its own series.
+machinery surfaces through the per-RFC code series (NR, NUM,
+MATCH, COLL, MOD, PKG, TGT, TST, etc.) rather than its own series.
 
 The `nuc explain CODE` command is part of the RFC-0020 surface;
 its error path (unknown code) was previously reported as a plain
