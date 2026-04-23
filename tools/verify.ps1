@@ -131,8 +131,8 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 
 # 1 (binary present) + 1 (drift check) + 1 (CLI explain smoke) +
 # 1 (CLI init smoke) + 1 (CLI doc smoke) + 1 (CLI lock smoke) +
-# N examples + N tests + N err + 1 (self-host)
-$stepTotal = 6 + $examples.Count + $testCount + $errCount + 1
+# 1 (CLI test smoke) + N examples + N tests + N err + 1 (self-host)
+$stepTotal = 7 + $examples.Count + $testCount + $errCount + 1
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -260,6 +260,38 @@ Step "CLI: nuc lock writes Nucleor.lock" {
         if ($lock -notmatch 'root_package = "lockproj"') { return $false }
         if ($lock -notmatch '\[\[package\]\]') { return $false }
         if ($lock -notmatch 'name = "lockproj"') { return $false }
+        return $true
+    }
+    finally {
+        Pop-Location
+        if (Test-Path $sandbox) { Remove-Item -Recurse -Force $sandbox -ErrorAction SilentlyContinue }
+    }
+}
+
+Step "CLI: nuc test runs #[test] functions" {
+    # Mirrors verify.sh cli_test_smoke (added v0.2.69). RFC-0021
+    # phase 1 test framework: discovery + harness write + child
+    # build + child run for a #[test]-annotated function.
+    $sandbox = Join-Path $env:TEMP "_nuc_test_smoke_$PID"
+    if (Test-Path $sandbox) { Remove-Item -Recurse -Force $sandbox }
+    New-Item -ItemType Directory -Path $sandbox -Force | Out-Null
+    try {
+        Push-Location $sandbox
+        $src = @"
+#[test]
+fn test_addition() {
+    let x: i64 = 2 + 2;
+    if x != 4 { print("FAIL"); return; };
+    print("PASS test_addition");
+}
+fn main() -> i64 { return 0; }
+"@
+        Set-Content -Path "t.nr" -Value $src -Encoding UTF8
+        $out = & $bin test "t.nr" 2>&1 | Out-String
+        if ($out -notmatch "discovered tests: 1") { return $false }
+        if ($out -notmatch "test_addition")        { return $false }
+        if ($out -notmatch "PASS test_addition")   { return $false }
+        if ($out -notmatch "test result: PASS")    { return $false }
         return $true
     }
     finally {

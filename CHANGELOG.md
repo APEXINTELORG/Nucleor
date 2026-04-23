@@ -5,6 +5,78 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.69] — 2026-04-23
+
+**`nuc test` bug fix — target/ now created before harness write.**
+
+Real compiler bug found via the gate-coverage audit. `nuc test
+foo.nr` from a fresh directory failed with:
+
+```
+  discovered tests: 1
+    test_addition
+ERROR: cannot read target/foo-test__test_harness.nr
+```
+
+Root cause: `compiler/nucleor_tools_suite.nr:10189` writes the
+test-harness source to `target/<name>__test_harness.nr` but
+never creates `target/` first. `file_write_string` silently
+fails when the parent dir doesn't exist; the subsequent
+`compile_file_mode` call then can't read the file.
+
+The `bin/nucleor.exe` self-host build path already handles this
+correctly via `system("mkdir target 2>NUL")` at
+`compiler/nucleor_s1_compiler.nr:7773`. The `nuc test` path was
+missing the same idiom.
+
+**Fix (one line):** added `system("mkdir target 2>NUL")` before
+the harness write. Same idiom as the build path. Comment
+references the sibling location.
+
+Verified end-to-end:
+
+```
+$ rm -rf /tmp/sandbox && mkdir /tmp/sandbox && cd /tmp/sandbox
+$ cat > t.nr <<'EOF'
+#[test]
+fn test_addition() { let x: i64 = 2 + 2; if x != 4 { print("FAIL"); return; }; print("PASS test_addition"); }
+fn main() -> i64 { return 0; }
+EOF
+$ nuc test t.nr
+  discovered tests: 1
+    test_addition
+  source: target/t-test__test_harness.nr (748 bytes)
+  ...
+PASS test_addition
+  PASS: test_addition
+test result: PASS (1 test)
+```
+
+**Tools binary rebuilt** (`bin/nucleor_tools.exe`) from the
+patched source. Self-host LLVM IR fixed point preserved (s1
+compiler unchanged this release; only tools_suite was patched).
+
+**New gate step `cli_test_smoke`** in both `tools/verify.sh`
+and `tools/verify.ps1`. Sandboxed temp dir, writes a `t.nr` with
+a `#[test]` function, runs `nuc test t.nr`, asserts:
+1. `discovered tests: 1`
+2. function name appears
+3. `PASS test_addition` line
+4. `test result: PASS` summary
+
+Step total bumped 190 → 191 in both gates. Critically, this
+step would have caught the bug — running it on the pre-fix
+binary would FAIL.
+
+The seven CLI smoke steps now cover every v0.2 user-facing
+command path: `binary present` → `ABI parity` → `explain` →
+`init` → `doc` → `lock` → `test`.
+
+### Verify gate
+
+191 / 191 PASS, 0 SKIP on the bash gate. Self-host fixed point
+holds (verified locally — s1 compiler source unchanged).
+
 ## [0.2.68] — 2026-04-23
 
 **Verify gate: `nuc lock` smoke step (both bash + PowerShell).**

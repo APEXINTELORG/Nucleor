@@ -10186,6 +10186,12 @@ fn run_test_command(src_path: str, out_name: str, use_cache: i64, time_passes: i
         return 1;
     };
     let harness_source: str = build_test_harness_source(resolved_source, tests);
+    // v0.2.69 fix: ensure target/ exists before writing the harness file.
+    // Without this, `nuc test foo.nr` from a fresh directory fails with
+    // "ERROR: cannot read target/foo__test_harness.nr" because
+    // file_write_string silently fails when the parent dir doesn't exist.
+    // Mirrors the pattern already used in compiler/nucleor_s1_compiler.nr:7773.
+    system("mkdir target 2>NUL");
     let temp_src: str = sanitize(str_concat("target/", str_concat(out_name, "__test_harness.nr")));
     file_write_string(temp_src, harness_source);
     let rc: i64 = compile_file_mode(temp_src, out_name, 1, use_cache, time_passes, 1);
