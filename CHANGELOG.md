@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.51] — 2026-04-22
+
+**v0.3 cross-platform readiness audit (`docs/status/v0.3-cross-platform-readiness.md`).**
+
+First v0.3 prep step: machine-grep the runtime for Windows-only
+assumptions and produce a punchlist for the Linux/macOS bootstrap.
+
+**Audit method:** Python script counts `#ifdef _WIN32` blocks in
+each runtime C source file and verifies each has a paired
+`#else` POSIX branch. Reproducible — script is embedded in the
+audit doc.
+
+**Audit findings (positive):**
+
+| File | `#ifdef _WIN32` blocks | with `#else` POSIX branch |
+|---|---|---|
+| `nucleor_llvm_rt.c` | 33 | 29 |
+| `thread_rt.c` | 11 | 11 |
+| `mmap_rt.c` | 9 | 9 |
+| `serial_rt.c` | 5 | 5 |
+| `process_rt.c` | 2 | 2 |
+| `datetime_rt.c` | 2 | 1 |
+| `crypto_rt.c` | 2 | 2 |
+| `socket_rt.c` | 1 | 1 |
+| **Total** | **65** | **60** |
+
+The 5 unmatched blocks are all single-line `#include <windows.h>`
+guards — POSIX systems just don't include the file, so no `#else`
+is needed. **Every code-bearing block has a POSIX branch.**
+
+**Concrete v0.3 work plan** sectioned into four phases:
+1. **Bootstrap path** — copy the s1 compiler source to a Linux
+   box, run the same `nuc build compiler/nucleor_s1_compiler.nr`
+   invocation, verify ELF output produces the same LLVM IR fixed
+   point.
+2. **Launcher** — POSIX `./nuc` wrapper exists; needs verified
+   clang resolution paths for Ubuntu / Homebrew / Apple Silicon
+   Homebrew.
+3. **Verify gate parity** — expected to be 186/186 on Linux
+   identical to Windows, since the runtime is already cross-
+   platform per the audit.
+4. **Release artifact** — add `bin/nucleor-linux-x86_64` and
+   `bin/nucleor-macos-arm64` (matching current Windows pattern)
+   or shift to GitHub Releases tarballs.
+
+**Open kickoff questions:** binary distribution policy, Linux
+distro CI target, macOS arch matrix, CI runner choice. None are
+technical blockers — all are policy.
+
+**Positive findings explicitly called out** so v0.3 doesn't
+re-litigate them: no Windows path-separator hardcoding, no CRT-
+only calls in user-facing helpers, no `<windows.h>` types in
+public APIs, no CRLF assumptions (str_lines strips `\r`), no
+backslash assumptions (path_normalize handles both).
+
+The audit confirms the v0.2.x cross-platform groundwork
+(documented in RFC-0022 and the v0.2.20 / v0.2.23 / v0.2.26
+helper releases) actually delivered — the runtime is genuinely
+ready for the v0.3 port.
+
+### Verify gate
+
+186 / 186 PASS, 0 SKIP. Documentation-only — no compiler /
+runtime / ABI / source / test changes.
+
 ## [0.2.50] — 2026-04-22
 
 **v0.2.0 milestone tracker status line current — v0.2.x chain officially closed.**
