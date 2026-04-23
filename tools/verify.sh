@@ -132,8 +132,8 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 
 # Step count: 1 binary present + 1 ABI parity + 1 CLI explain smoke
 # + 1 CLI init smoke + 1 CLI doc smoke + 1 CLI lock smoke
-# + N examples + N tests + N negative + 1 self-host
-STEP_TOTAL=$((6 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+# + 1 CLI test smoke + N examples + N tests + N negative + 1 self-host
+STEP_TOTAL=$((7 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -183,6 +183,38 @@ cli_init_smoke() {
         local out
         out=$("$exe" 2>&1)
         [ -n "$out" ] || exit 1
+    )
+    local rc=$?
+    rm -rf "$sandbox"
+    return $rc
+}
+
+# nuc test single-file smoke (added v0.2.69) — RFC-0021 phase 1
+# test framework. Verifies discovery + harness file write + child
+# build + child run for a #[test]-annotated function. The bug
+# v0.2.69 fixed (target/ not created before harness write) is
+# directly catchable by this step.
+cli_test_smoke() {
+    local sandbox="/tmp/_nuc_test_smoke_$$"
+    rm -rf "$sandbox"
+    mkdir -p "$sandbox" || return 1
+    (
+        cd "$sandbox" || exit 1
+        cat > t.nr <<'NREOF'
+#[test]
+fn test_addition() {
+    let x: i64 = 2 + 2;
+    if x != 4 { print("FAIL"); return; };
+    print("PASS test_addition");
+}
+fn main() -> i64 { return 0; }
+NREOF
+        local out
+        out=$("$BIN" test t.nr 2>&1)
+        echo "$out" | grep -q "discovered tests: 1" || exit 1
+        echo "$out" | grep -q "test_addition"      || exit 1
+        echo "$out" | grep -q "PASS test_addition" || exit 1
+        echo "$out" | grep -q "test result: PASS"  || exit 1
     )
     local rc=$?
     rm -rf "$sandbox"
@@ -324,6 +356,7 @@ step "CLI: nuc explain NUM-001 wired" cli_explain_smoke
 step "CLI: nuc init scaffolding works" cli_init_smoke
 step "CLI: nuc doc generator works" cli_doc_smoke
 step "CLI: nuc lock writes Nucleor.lock" cli_lock_smoke
+step "CLI: nuc test runs #[test] functions" cli_test_smoke
 
 for ex in "${EXAMPLES[@]}"; do
     step "example $ex" build_example "$ex"
