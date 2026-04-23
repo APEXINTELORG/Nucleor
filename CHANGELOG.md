@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.124] — 2026-04-23
+
+**Audit finding: 22 orphan rod wrappers document themselves as
+v0.4 example-coverage targets.**
+
+A second-layer sweep of `stdlib/rods/*.nr` against `import`
+references across `examples/`, `tests/`, and other rods found
+22 rod files that wrap a runtime C file (via `#cfile`) but
+are never imported by anything in-tree, so `nuc build` never
+exercises them through the verify gate.
+
+This is the rod-layer analogue of the v0.2.123 finding (which
+was at the runtime layer). The orphan set splits roughly into:
+
+- **ML / inference:** `conv`, `loss`, `embedding`,
+  `kv_cache`, `quantize`, `speculative`, `diffusion`, `rl`,
+  `checkpoint`, `scan` — the user-facing surfaces for the
+  CNN / LLM / RL / SSM building blocks.
+- **Quantum:** `mps` — Matrix Product States.
+- **Data / search:** `hnsw`, `pq`, `string_algo`, `bioseq`,
+  `audio`, `color`, `mesh` — vector indices, classical
+  algorithms, scientific data formats.
+- **Systems / I-O:** `gpu`, `comm`, `serial`, `stack`.
+
+The rod sources themselves are valid Nucleor (each parses;
+each declares the right `extern fn` bindings against its
+`#cfile`); they just don't have an example or test that
+imports them. The fix is to add a one-import smoke per rod
+in `examples/` or a `tests/rods/` corpus, which pulls them
+under the gate without any compiler / runtime changes.
+
+### `docs/status/v0.2-shipped-and-deferred.md`
+
+- New bullet "**Orphan rod wrappers — known v0.4 example-
+  coverage targets (audit finding v0.2.124)**" added after
+  the v0.2.123 orphan-runtime bullet. Enumerates all 22 rods
+  by category.
+
+### Verify gate
+
+204 / 204 PASS, 0 SKIP on the bash gate. Pure documentation —
+no compiler / runtime / source / test changes; no tools-suite
+touch; no helper-manifest touch. Self-host LLVM IR fixed point
+preserved (`bin/nucleor.exe` unchanged since v0.2.87).
+
 ## [0.2.123] — 2026-04-23
 
 **Audit finding: 11 orphan runtime C files document themselves as
