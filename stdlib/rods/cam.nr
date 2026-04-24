@@ -57,6 +57,10 @@ extern fn nuc_cam_intrinsic_matrix(h: i64, K_out_ptr: i64);
 extern fn nuc_cam_project(h: i64, P_w_ptr: i64, uv_out_ptr: i64) -> i64;
 extern fn nuc_cam_unproject(h: i64, u_b: i64, v_b: i64, depth_b: i64, P_out_ptr: i64);
 extern fn nuc_cam_distort(h: i64, xn_b: i64, yn_b: i64, out_ptr: i64);
+extern fn nuc_cam_undistort_normalized(h: i64, xd_b: i64, yd_b: i64,
+    n_iters: i64, out_ptr: i64);
+extern fn nuc_cam_unproject_distorted(h: i64, u_b: i64, v_b: i64, depth_b: i64,
+    n_iters: i64, P_out_ptr: i64);
 extern fn nuc_cam_free(h: i64);
 
 fn cam_new(fx_b: i64, fy_b: i64, cx_b: i64, cy_b: i64) -> i64 {
@@ -92,6 +96,25 @@ fn cam_unproject(h: i64, u_b: i64, v_b: i64, depth_b: i64, P_out_ptr: i64) {
 // (xd, yd) to out_ptr (double[2]).
 fn cam_distort(h: i64, xn_b: i64, yn_b: i64, out_ptr: i64) {
     nuc_cam_distort(h, xn_b, yn_b, out_ptr);
+}
+
+// Iteratively invert the distortion model. Given a distorted
+// normalized point (xd, yd), find the undistorted (xn, yn) such
+// that distort(xn, yn) ≈ (xd, yd). `n_iters` typically 5–10
+// (pass 0 for default 10). Writes (xn, yn) to out_ptr (double[2]).
+fn cam_undistort_normalized(h: i64, xd_b: i64, yd_b: i64,
+    n_iters: i64, out_ptr: i64)
+{
+    nuc_cam_undistort_normalized(h, xd_b, yd_b, n_iters, out_ptr);
+}
+
+// Convenience: undistort a distorted pixel (u, v) and unproject
+// with depth — single call. Writes the world point (X, Y, Z) to
+// P_out_ptr (double[3]).
+fn cam_unproject_distorted(h: i64, u_b: i64, v_b: i64, depth_b: i64,
+    n_iters: i64, P_out_ptr: i64)
+{
+    nuc_cam_unproject_distorted(h, u_b, v_b, depth_b, n_iters, P_out_ptr);
 }
 
 fn cam_free(h: i64) { nuc_cam_free(h); }
