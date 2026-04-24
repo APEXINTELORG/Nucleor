@@ -128,3 +128,146 @@ long long nuc_cam_image_jacobian(
     L[9] = 1 + y*y; L[10] = -x*y;  L[11] = -x;
     return 0;
 }
+
+// === Image-based visual servoing (v0.2.225) =============================
+//
+// Standard IBVS control law (Chaumette & Hutchinson 2006). Given
+// k feature points observed in the current image (s_current) and
+// their desired image positions (s_desired), compute the camera-
+// frame Cartesian velocity v_cam = (vx, vy, vz, ωx, ωy, ωz) that
+// drives s_current → s_desired:
+//
+//     v_cam = −λ · L⁺ · (s_current − s_desired)
+//
+// where L is the 2k × 6 stacked image Jacobian and L⁺ is the
+// damped-least-squares pseudoinverse `(LᵀL + δ²I)⁻¹·Lᵀ`. The
+// caller-supplied depths Z[] estimate the per-feature scene depth
+// in the camera frame; these can come from a stereo pair, RGBD
+// sensor, or model-based depth predictor.
+//
+// The output `v_cam` is the world-frame Cartesian velocity the
+// camera should achieve. To translate to joint commands, multiply
+// by the robot Jacobian's pseudoinverse: `qd = J_robot⁺ · v_cam`
+// (using the existing IK damped pseudoinverse). For an eye-in-hand
+// configuration where the camera is mounted on the end-effector,
+// also compose with the end-effector → camera transform.
+//
+// **Limitations**:
+// - Point features only (line-feature L_s and pose-feature L_s
+//   variants land in v0.6 if needed).
+// - User must supply per-feature depth (no monocular depth
+//   estimation).
+// - Constant damping (no adaptive λ).
+
+// Inline 6×6 Gauss-Jordan inverse. Returns 1 on success, 0 if singular.
+static int _gj_inv_6x6(const double *A, double *Ainv) {
+    double aug[6][12];
+    for (int i = 0; i < 6; i++) {
+        for (int j = 0; j < 6; j++) aug[i][j] = A[i*6 + j];
+        for (int j = 0; j < 6; j++) aug[i][6 + j] = (i == j) ? 1.0 : 0.0;
+    }
+    for (int i = 0; i < 6; i++) {
+        int piv = i;
+        for (int r = i + 1; r < 6; r++) {
+            double a1 = aug[r][i]; if (a1 < 0) a1 = -a1;
+            double a2 = aug[piv][i]; if (a2 < 0) a2 = -a2;
+            if (a1 > a2) piv = r;
+        }
+        double pa = aug[piv][i]; if (pa < 0) pa = -pa;
+        if (pa < 1e-12) return 0;
+        if (piv != i) {
+            for (int j = 0; j < 12; j++) {
+                double t = aug[i][j]; aug[i][j] = aug[piv][j]; aug[piv][j] = t;
+            }
+        }
+        double inv = 1.0 / aug[i][i];
+        for (int j = 0; j < 12; j++) aug[i][j] *= inv;
+        for (int r = 0; r < 6; r++) {
+            if (r == i) continue;
+            double f = aug[r][i];
+            for (int j = 0; j < 12; j++) aug[r][j] -= f * aug[i][j];
+        }
+    }
+    for (int i = 0; i < 6; i++)
+        for (int j = 0; j < 6; j++) Ainv[i*6 + j] = aug[i][6 + j];
+    return 1;
+}
+
+long long nuc_ibvs_velocity(
+    long long s_current_ptr, long long s_desired_ptr,
+    long long Z_ptr, long long n_features_,
+    long long fx_b, long long fy_b, long long cx_b, long long cy_b,
+    long long lambda_b, long long damping_b,
+    long long v_cam_out_ptr)
+{
+    int n = (int)n_features_;
+    if (n <= 0) return -1;
+    const double *sc = (const double *)(void *)(size_t)s_current_ptr;
+    const double *sd = (const double *)(void *)(size_t)s_desired_ptr;
+    const double *Z  = (const double *)(void *)(size_t)Z_ptr;
+    double *v_cam = (double *)(void *)(size_t)v_cam_out_ptr;
+    if (!sc || !sd || !Z || !v_cam) return -1;
+    double fx = _i2f(fx_b), fy = _i2f(fy_b);
+    double cx = _i2f(cx_b), cy = _i2f(cy_b);
+    double lambda = _i2f(lambda_b);
+    double delta = _i2f(damping_b);
+    double delta2 = delta * delta;
+
+    // Build stacked image Jacobian L (2n × 6) and error e (2n).
+    double *L = (double *)malloc(2 * n * 6 * sizeof(double));
+    double *e = (double *)malloc(2 * n * sizeof(double));
+    for (int i = 0; i < n; i++) {
+        // Convert current and desired pixel coords to normalized.
+        double xc_n = (sc[i*2+0] - cx) / fx;
+        double yc_n = (sc[i*2+1] - cy) / fy;
+        double xd_n = (sd[i*2+0] - cx) / fx;
+        double yd_n = (sd[i*2+1] - cy) / fy;
+        e[i*2+0] = xc_n - xd_n;
+        e[i*2+1] = yc_n - yd_n;
+        // Image Jacobian at the CURRENT feature's normalized coords
+        // and depth.
+        double Zi = Z[i];
+        if (Zi <= 1e-9) { free(L); free(e); return -1; }
+        double iZ = 1.0 / Zi;
+        // Row 2i: -1/Z, 0, x/Z, xy, -(1+x²), y
+        L[(2*i+0)*6 + 0] = -iZ;
+        L[(2*i+0)*6 + 1] =  0;
+        L[(2*i+0)*6 + 2] =  xc_n * iZ;
+        L[(2*i+0)*6 + 3] =  xc_n * yc_n;
+        L[(2*i+0)*6 + 4] = -(1 + xc_n*xc_n);
+        L[(2*i+0)*6 + 5] =  yc_n;
+        // Row 2i+1: 0, -1/Z, y/Z, 1+y², -xy, -x
+        L[(2*i+1)*6 + 0] =  0;
+        L[(2*i+1)*6 + 1] = -iZ;
+        L[(2*i+1)*6 + 2] =  yc_n * iZ;
+        L[(2*i+1)*6 + 3] =  1 + yc_n*yc_n;
+        L[(2*i+1)*6 + 4] = -xc_n*yc_n;
+        L[(2*i+1)*6 + 5] = -xc_n;
+    }
+
+    // Damped pseudoinverse: L⁺ = (LᵀL + δ²I)⁻¹·Lᵀ.
+    // Compute LᵀL  (6×6).
+    double LtL[36];
+    for (int r = 0; r < 6; r++)
+        for (int c = 0; c < 6; c++) {
+            double s = 0;
+            for (int k = 0; k < 2*n; k++) s += L[k*6 + r] * L[k*6 + c];
+            LtL[r*6 + c] = s + (r == c ? delta2 : 0);
+        }
+    double LtL_inv[36];
+    if (!_gj_inv_6x6(LtL, LtL_inv)) { free(L); free(e); return -1; }
+    // L⁺ = LtL_inv · Lᵀ  (6 × 2n).
+    // v_cam = -λ · L⁺ · e  (length 6).
+    for (int i = 0; i < 6; i++) {
+        double s = 0;
+        for (int j = 0; j < 6; j++) {
+            double row_j = 0;
+            for (int k = 0; k < 2*n; k++) row_j += L[k*6 + j] * e[k];
+            s += LtL_inv[i*6 + j] * row_j;
+        }
+        v_cam[i] = -lambda * s;
+    }
+
+    free(L); free(e);
+    return 0;
+}

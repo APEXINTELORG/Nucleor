@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 148
-# Total fn definitions: 1690
-# Total LOC: 7294
+# Total fn definitions: 1691
+# Total LOC: 7311
 
 [[rod]]
 name           = "activation2"
@@ -1338,7 +1338,7 @@ imports        = ["vecdeque"]
 name           = "vision"
 path           = "stdlib/rods/vision.nr"
 description    = "Camera-projection primitives for robotics vision."
-function_count = 4
+function_count = 5
 cfile_count    = 1
-loc            = 31
+loc            = 48
 imports        = []

@@ -47,6 +47,31 @@ extern fn nuc_cam_project_batch(K_ptr: i64,
 extern fn nuc_cam_image_jacobian(
     x_b: i64, y_b: i64, Z_b: i64, L_out_ptr: i64) -> i64;
 
+// Image-based visual servoing (v0.2.225). Compute the camera-frame
+// Cartesian velocity command that drives the current observed
+// features toward their desired image positions:
+//
+//     v_cam = −λ · L⁺ · (s_current − s_desired)
+//
+// where L is the 2k × 6 stacked image Jacobian and L⁺ is the
+// damped-least-squares pseudoinverse `(LᵀL + δ²I)⁻¹·Lᵀ`.
+//
+// `s_current_ptr` and `s_desired_ptr` are `double[2*n_features]`
+// arrays of pixel (u, v). `Z_ptr` is `double[n_features]` of
+// per-feature scene depths in the camera frame. `v_cam_out_ptr`
+// is `double[6]` filled with (vx, vy, vz, ωx, ωy, ωz).
+//
+// To translate to joint commands: multiply by the robot Jacobian's
+// pseudoinverse: `qd = J_robot⁺ · v_cam`. For an eye-in-hand
+// configuration where the camera is mounted on the end-effector,
+// also compose with the end-effector → camera transform.
+extern fn nuc_ibvs_velocity(
+    s_current_ptr: i64, s_desired_ptr: i64,
+    Z_ptr: i64, n_features: i64,
+    fx_b: i64, fy_b: i64, cx_b: i64, cy_b: i64,
+    lambda_b: i64, damping_b: i64,
+    v_cam_out_ptr: i64) -> i64;
+
 // Fill a `double[9]` intrinsics matrix (row-major) with the
 // standard pinhole layout: K = [[fx, 0, cx], [0, fy, cy], [0, 0, 1]].
 fn cam_intrinsics_set(K_ptr: i64,
@@ -86,4 +111,16 @@ fn cam_image_jacobian(x_b: i64, y_b: i64, Z_b: i64,
     L_out_ptr: i64) -> i64
 {
     return nuc_cam_image_jacobian(x_b, y_b, Z_b, L_out_ptr);
+}
+
+fn ibvs_velocity(s_current_ptr: i64, s_desired_ptr: i64,
+    Z_ptr: i64, n_features: i64,
+    fx_b: i64, fy_b: i64, cx_b: i64, cy_b: i64,
+    lambda_b: i64, damping_b: i64,
+    v_cam_out_ptr: i64) -> i64
+{
+    return nuc_ibvs_velocity(s_current_ptr, s_desired_ptr,
+        Z_ptr, n_features,
+        fx_b, fy_b, cx_b, cy_b,
+        lambda_b, damping_b, v_cam_out_ptr);
 }
