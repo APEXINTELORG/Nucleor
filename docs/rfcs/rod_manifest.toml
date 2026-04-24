@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 155
-# Total fn definitions: 1727
-# Total LOC: 7494
+# Total rods: 156
+# Total fn definitions: 1737
+# Total LOC: 7521
 
 [[rod]]
 name           = "activation2"
@@ -1359,6 +1359,15 @@ description    = "Dual-Core Differentiable Noise Model"
 function_count = 26
 cfile_count    = 0
 loc            = 317
+imports        = []
+
+[[rod]]
+name           = "ukf"
+path           = "stdlib/rods/ukf.nr"
+description    = "Unscented Kalman Filter for nonlinear state estimation."
+function_count = 10
+cfile_count    = 1
+loc            = 27
 imports        = []
 
 [[rod]]
