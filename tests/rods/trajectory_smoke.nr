@@ -57,6 +57,14 @@ fn main() -> i64 {
     let _sc_pa: i64 = scurve_peak_a(sc);
     scurve_free(sc);
 
+    // DMP (v0.2.192) — build-only smoke (training requires a
+    // double[] trajectory which is non-trivial in a single test).
+    let dmp: i64 = dmp_new(25, f64_to_bits(25.0), f64_to_bits(8.33));
+    if dmp == 0 { fail = fail + 1; print("FAIL dmp_new"); };
+    let _ok: i64 = dmp_reset(dmp, f64_to_bits(0.0), f64_to_bits(1.0), f64_to_bits(1.0));
+    let _y: i64 = dmp_step(dmp, f64_to_bits(0.01));
+    dmp_free(dmp);
+
     if fail == 0 { print("OK trajectory_smoke"); };
     return fail;
 }
