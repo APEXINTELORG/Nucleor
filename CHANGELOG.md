@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.270] — 2026-04-24
+
+**Robotics: per-DOF admittance controller (`admit`). Maps measured
+force to a position command via a virtual mass-spring-damper —
+foundational for compliant manipulation on position-controlled
+robots.**
+
+### Algorithm
+
+```
+Per DOF:  M · ẍ + D · ẋ + K · x = F_meas − F_des
+
+Discrete update each tick:
+    ẍ ← (F_meas − F_des − D · ẋ − K · x) / M
+    x ← x + dt · ẋ + ½ · dt² · ẍ
+    ẋ ← ẋ + dt · ẍ
+```
+
+Output: the (x, ẋ) state of the virtual admittance model. Higher-
+level code typically adds `x` as a perturbation to a nominal
+position trajectory ("compliant tracking") so the robot yields
+under contact force.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/admit.nr"
+
+let h = admit_new(n_dof);
+for d in 0..n_dof {
+    admit_set_gains(h, d, M_b, D_b, K_b);
+}
+for tick {
+    admit_step(h, force_meas_ptr, dt_b);    // force_meas_ptr: double[n_dof]
+    let x_b = admit_get_position(h, d);     // perturbation
+    // ... add x to nominal position command ...
+}
+```
+
+### Verification
+
+Single DOF, critically damped (`M=1, D=2, K=1`), `F_meas = 1 N`,
+`F_des = 0`, `dt = 0.01s`, run for 30 s:
+
+- Final `x = 1.000000` (exactly `F/K = 1`).
+- Final `ẋ = 4.4 × 10⁻¹²` (steady-state).
+
+### Files
+
+- `stdlib/runtime/admit_rt.c` — `nuc_admit_*` API; per-DOF state
+  + integration.
+- `stdlib/rods/admit.nr` — externs + wrappers.
+- `tests/rods/admit_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.269] — 2026-04-24
 
 **Robotics: ZMP tracking via cart-table inverse dynamics + finite-

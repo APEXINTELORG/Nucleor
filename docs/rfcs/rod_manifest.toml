@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 183
-# Total fn definitions: 1953
-# Total LOC: 8379
+# Total rods: 184
+# Total fn definitions: 1961
+# Total LOC: 8402
 
 [[rod]]
 name           = "activation2"
@@ -19,6 +19,15 @@ function_count = 13
 cfile_count    = 1
 loc            = 33
 imports        = []
+
+[[rod]]
+name           = "admit"
+path           = "stdlib/rods/admit.nr"
+description    = "Per-DOF admittance controller."
+function_count = 8
+cfile_count    = 1
+loc            = 23
+imports        = ["admit"]
 
 [[rod]]
 name           = "ahrs"
