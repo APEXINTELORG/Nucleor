@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.330] — 2026-04-24
+
+**Robotics: Sobel edge gradient (`sobel`). Computes per-pixel
+x-gradient, y-gradient, and gradient magnitude using the
+standard 3×3 Sobel stencils. Foundation for Canny / Hough /
+edge-strength salience maps.**
+
+### Algorithm
+
+```
+Gx = [-1 0 +1                 Gy = [-1 -2 -1
+      -2 0 +2                       0  0  0
+      -1 0 +1]                     +1 +2 +1]
+
+|G| = sqrt(Gx² + Gy²)
+```
+
+Sobel weights are tuned so horizontal and vertical edges yield
+approximately equal magnitudes on a 45° diagonal.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/sobel.nr"
+
+// Pass 0 for any output you want to skip.
+let _ = sobel(img_ptr, W, H,
+               gx_out_ptr, gy_out_ptr, mag_out_ptr);
+```
+
+Image and outputs are `double[H*W]` row-major.
+
+### Verification
+
+Direct C unit test (`target/_test_sobel.c`):
+
+- T1 vertical edge   : 0/255 step at x=4 → Gx=1020, Gy=0 ✓
+- T2 horizontal edge : 0/255 step at y=4 → Gx=0, Gy=1020 ✓
+- T3 flat image      : Σ|gradient| = 0 ✓
+- T4 null gx output  : skip-output works ✓
+- T5 bad W=2         : returns 0 ✓
+
+Build smoke `tests/rods/sobel_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/sobel_rt.c` — 3×3 separable convolution.
+- `stdlib/rods/sobel.nr` — extern + `sobel` wrapper.
+- `tests/rods/sobel_smoke.nr` — build-only smoke.
+- `CHANGELOG.md` — this entry.
+
+### Limitations
+
+Documented in `sobel.nr` and `sobel_rt.c`: standard Sobel only
+(no Scharr); replicate boundary handling. Scharr / 5×5 Sobel /
+sub-pixel direction land in v0.6 if needed.
+
 ## [0.2.329] — 2026-04-24
 
 **Robotics: FAST corner detector (`fast_corner`). "Features

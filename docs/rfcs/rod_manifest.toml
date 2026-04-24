@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 219
-# Total fn definitions: 2088
-# Total LOC: 9171
+# Total rods: 220
+# Total fn definitions: 2089
+# Total LOC: 9179
 
 [[rod]]
 name           = "activation2"
@@ -1603,6 +1603,15 @@ function_count = 20
 cfile_count    = 0
 loc            = 20
 imports        = ["simd"]
+
+[[rod]]
+name           = "sobel"
+path           = "stdlib/rods/sobel.nr"
+description    = "Sobel edge gradient (3×3 kernels for x, y, and"
+function_count = 1
+cfile_count    = 1
+loc            = 8
+imports        = ["sobel"]
 
 [[rod]]
 name           = "socket"
