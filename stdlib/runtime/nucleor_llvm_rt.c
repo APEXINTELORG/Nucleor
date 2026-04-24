@@ -2269,6 +2269,32 @@ long long __nucleor_as_f32(long long v) {
     return v;
 }
 
+// === T1.1 Phase 3a: sizeof_<T>() builtins — byte-size of primitives ===
+// Returns the observable byte size of each primitive type. Pairs with
+// a matching surface-level dispatch in get_rt_name so user code can
+// write `sizeof_u8()` etc. A future pass will layer a generic
+// `sizeof::<T>()` syntax on top.
+
+long long __nucleor_sizeof_i8(void)   { return 1; }
+long long __nucleor_sizeof_i16(void)  { return 2; }
+long long __nucleor_sizeof_i32(void)  { return 4; }
+long long __nucleor_sizeof_i64(void)  { return 8; }
+long long __nucleor_sizeof_i128(void) { return 16; }
+long long __nucleor_sizeof_u8(void)   { return 1; }
+long long __nucleor_sizeof_u16(void)  { return 2; }
+long long __nucleor_sizeof_u32(void)  { return 4; }
+long long __nucleor_sizeof_u64(void)  { return 8; }
+long long __nucleor_sizeof_u128(void) { return 16; }
+long long __nucleor_sizeof_usize(void){ return sizeof(void*); }
+long long __nucleor_sizeof_isize(void){ return sizeof(void*); }
+long long __nucleor_sizeof_f16(void)  { return 2; }
+long long __nucleor_sizeof_bf16(void) { return 2; }
+long long __nucleor_sizeof_f32(void)  { return 4; }
+long long __nucleor_sizeof_f64(void)  { return 8; }
+long long __nucleor_sizeof_bool(void) { return 1; }
+long long __nucleor_sizeof_char(void) { return 4; }   // Unicode scalar = UTF-32
+long long __nucleor_sizeof_ptr(void)  { return sizeof(void*); }
+
 // === RFC-0015 phase 4: overflow-mode arithmetic (i64 width) ===
 // wrapping_* — two's-complement wraparound (always defined behavior)
 // checked_* — Option<T>; we encode as a packed i64 [is_some:32 | value:32]
