@@ -5,6 +5,76 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.249] — 2026-04-24
+
+**Robotics: Differential Dynamic Programming (Mayne 1966; Jacobson
+& Mayne 1970). Second-order extension of iLQR — includes the full
+dynamics-Hessian contractions in the Q-function update for
+quadratic local convergence (vs iLQR's superlinear).**
+
+### Algorithm
+
+Where iLQR (Gauss-Newton) computes:
+
+```
+Q_xx = l_xx + Aᵀ V_xx A
+Q_uu = l_uu + Bᵀ V_xx B
+Q_ux =        Bᵀ V_xx A
+```
+
+DDP adds the second-order tensor terms:
+
+```
+Q_xx += Σ_k V_x[k] · f_xx[k]
+Q_uu += Σ_k V_x[k] · f_uu[k]
+Q_ux += Σ_k V_x[k] · f_ux[k]
+```
+
+where `f_xx`, `f_uu`, `f_ux` are the dynamics Hessian tensors w.r.t.
+`(x,x)`, `(u,u)`, `(u,x)`. Computed by 4-point central differences
+against the user's `dynamics_fp` callback.
+
+### When to use
+
+- **DDP**: hot-starting near the optimum, smooth dynamics, small
+  state dimension (`n_x ≤ ~10`). Quadratic local convergence makes
+  the final iterations very cheap.
+- **iLQR** (`stdlib/rods/ilqr.nr`): large state dim (Hessian FD cost
+  dominates), stiff/non-smooth dynamics (Hessians noisy), or you
+  just want one-shot optimization without the warm-start premium.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/ddp.nr"
+
+// Same I/O contract as ilqr_optimize.
+let n = ddp_optimize(n_x, n_u, T,
+    x0_ptr, u_seq_ptr,    // u_seq is double[T*n_u], modified in place
+    max_iters,
+    dynamics_fp, stage_cost_fp, terminal_cost_fp);
+```
+
+### Verification
+
+Two direct C tests covering both regimes:
+
+1. **2D linear double-integrator** (pos, vel; cost = `0.001·u² + 10(x−1)² + v²` terminal). DDP converged in **2 iterations**, cost `10.000 → 0.004`, terminal `(1.000, 0.006)`. Confirms the second-order tensor terms vanish exactly when `f_xx = f_uu = f_ux = 0` and DDP cleanly reduces to iLQR for linear dynamics.
+2. **1D nonlinear** (`x_{t+1} = x + u + 0.1 x²`, cost `0.01 u² + 100(x_T − 1)²`). DDP converged in **13 iterations**, cost `100.000 → 0.0002`, terminal `x = 1.0000` to four digits.
+
+### Files
+
+- `stdlib/runtime/ddp_rt.c` — `nuc_ddp_optimize`, `nuc_ddp_total_cost`,
+  `_dyn_hessian` (full f_xx/f_uu/f_ux tensors via 4-point central FD),
+  shared `_gj_inv` / `_dyn_jacobian` / `_cost_quadratize` / forward
+  pass with bisection line search.
+- `stdlib/rods/ddp.nr` — externs + `ddp_optimize` / `ddp_total_cost`
+  Nucleor wrappers.
+- `tests/rods/ddp_smoke.nr` — build-only smoke (functional coverage
+  in the direct C unit test).
+
+---
+
 ## [0.2.248] — 2026-04-24
 
 **Robotics: Informed RRT* (Gammell, Srinivasa & Barfoot 2014).
