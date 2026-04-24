@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.314] — 2026-04-24
+
+**T1.1 Phase 4 — full `as` cast operator matrix.** Float↔int and
+float↔float conversions now follow Rust `as` semantics
+(saturating float→int, exact int→float, lossy float→float
+narrowing). p4_cast matrix subdir 8/8 PASS.
+
+### What landed
+
+#### Runtime (`stdlib/runtime/nucleor_llvm_rt.c`)
+- 8 new converters: `__nucleor_f32_to_{i32,i64,u32}`,
+  `__nucleor_i32_to_f32`, `__nucleor_i64_to_f32`,
+  `__nucleor_f64_to_{i64,u32}`, `__nucleor_i64_to_f64`.
+- All saturating per Rust spec: float overflow clamps to
+  type max/min (e.g. `f32 = 1e20 as i32` → `i32::MAX`).
+
+#### Compiler (`compiler/nucleor_s1_compiler.nr` + sync to tools)
+- `lower_expr` `kind == 99` (`as` cast) gains source-type
+  detection via the Phase 5 `binop_float_type` helper.
+- Dispatch table: float-source × int-target → converter
+  helper (e.g. `f32 as i32` → `f32_to_i32`); int-source
+  × float-target → `i64_to_f32`/`i64_to_f64`; float-source
+  × float-target → `f32_to_f64`/`f64_to_f32`.
+- `narrow_via_as` extended for `let x: f32 = 100;` and
+  `let x: f64 = 100;` patterns: integer-literal source
+  (src_kind == 1) gets routed through the int→float
+  converter instead of bit-preserving as_f32.
+- 14 new IR `declare` statements + matching `get_rt_name`
+  entries (s1 + tools_suite synced; ABI parity check green).
+
+### Backwards-compatibility decision (production-readiness)
+
+`f64 as i64` and `f32 as i64` PRESERVE bit pattern
+(no truncation). This is the i64-everywhere ABI
+contract — 13 existing rod tests rely on
+`fn f64_to_bits(x: f64) -> i64 { return x as i64; }` to
+extract the bit pattern for FFI to C runtime. To explicitly
+truncate float→i64, use `(x as i32) as i64` or call
+`f64_to_i64()` directly. Documented in source.
+
+### Matrix progress
+
+| Phase         | v0.2.313 | v0.2.314 |
+|---------------|----------|----------|
+| p4_cast       | 6P/2F    | **8P/0F (ALL GREEN)** |
+| TOTAL         | 48P/4F/8BE | **50P/2F/8BE** |
+
+### Verify gate
+
+329/329 PASS. Bootstrap fixpoint stable. ABI parity green.
+All 13 rod tests using `as i64` for bitcast continue to work.
+
+### Files
+
+- `stdlib/runtime/nucleor_llvm_rt.c` — 8 converter helpers.
+- `compiler/nucleor_s1_compiler.nr` — cast dispatcher +
+  narrow_via_as extension + IR decls + name maps.
+- `compiler/nucleor_tools_suite.nr` — synced.
+- `bin/nucleor.exe` — rebuilt.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+Phase 6 (`v0.2.315`) — bitwise + shift ops at narrow widths
+(closes the 2 p6_bitwise FAIL + 2 BUILD_ERROR).
+
 ## [0.2.313] — 2026-04-24
 
 **T1.1 Phase 3b — `sizeof_struct(<Name>)` compile-time builtin

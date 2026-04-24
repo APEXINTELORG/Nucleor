@@ -2242,6 +2242,19 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "f64_ge") { return "__nucleor_f64_ge"; };
     if str_eq(name, "f64_eq") { return "__nucleor_f64_eq"; };
     if str_eq(name, "f64_ne") { return "__nucleor_f64_ne"; };
+    // T1.1 Phase 4 float↔int converters (synced from s1).
+    if str_eq(name, "f32_to_i32") { return "__nucleor_f32_to_i32"; };
+    if str_eq(name, "f32_to_i64") { return "__nucleor_f32_to_i64"; };
+    if str_eq(name, "f32_to_u32") { return "__nucleor_f32_to_u32"; };
+    if str_eq(name, "i32_to_f32") { return "__nucleor_i32_to_f32"; };
+    if str_eq(name, "i64_to_f32") { return "__nucleor_i64_to_f32"; };
+    if str_eq(name, "f64_to_i64") { return "__nucleor_f64_to_i64"; };
+    if str_eq(name, "f64_to_u32") { return "__nucleor_f64_to_u32"; };
+    if str_eq(name, "i64_to_f64") { return "__nucleor_i64_to_f64"; };
+    if str_eq(name, "f64_to_i32") { return "__nucleor_f64_to_i32"; };
+    if str_eq(name, "i32_to_f64") { return "__nucleor_i32_to_f64"; };
+    if str_eq(name, "f32_to_f64") { return "__nucleor_f32_to_f64"; };
+    if str_eq(name, "f64_to_f32") { return "__nucleor_f64_to_f32"; };
     if str_eq(name, "f32_exp") { return "__nucleor_f32_exp"; };
     if str_eq(name, "f32_from_int") { return "__nucleor_f32_from_int"; };
     if str_eq(name, "f32_gt") { return "__nucleor_f32_gt"; };
@@ -3580,6 +3593,15 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_f64_ge(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_eq(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_ne(i64, i64)\n");
+    // T1.1 Phase 4: float↔int converters (synced from s1).
+    sb_append(sb, "declare i64 @__nucleor_f32_to_i32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_i64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_u32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_i32_to_f32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_i64_to_f32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_to_i64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_to_u32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_i64_to_f64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_exp(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_from_int(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_gt(i64, i64)\n");
