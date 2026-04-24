@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.236] — 2026-04-23
+
+**Robotics: stereo triangulation — recover a world-frame 3D point
+from two camera views of it. Closes the vision rod: pinhole
+projection (v0.2.224) + IBVS (v0.2.225) + PnP (v0.2.233) + now
+the inverse direction (3D from 2D × 2). Foundation for stereo
+SLAM landmark reconstruction, 3D measurement from stereo rigs,
+and structure-from-motion.**
+
+### Algorithm
+
+Midpoint of skew lines:
+1. For each view i: get the camera-frame ray direction
+   `d_cam = K⁻¹ · (u, v, 1)`. Rotate to world: `d_world = Rᵀ · d_cam`.
+   Camera origin in world: `c = -Rᵀ · t`.
+2. Solve for scalars `s1, s2` minimizing `‖(c1 + s1·d1) − (c2 + s2·d2)‖²`
+   (closed-form 2×2 linear system).
+3. The 3D point is the midpoint of the two closest points on the
+   two rays.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/vision.nr"
+
+cam_triangulate(
+    K1_ptr, R1_ptr, t1_ptr,
+    K2_ptr, R2_ptr, t2_ptr,
+    uv1_ptr, uv2_ptr,
+    X_out_ptr);
+```
+
+`K*` are 9-double row-major intrinsics, `R*` are 9-double
+world→camera rotations, `t*` are 3-double translations, `uv*` are
+2-double pixel observations, `X_out` is a 3-double output.
+
+### Verification
+
+Synthetic: cameras at `(0, 0, 0)` and `(0.2, 0, 0)`, both facing
++z, intrinsics `fx=fy=500, cx=cy=320`. 3D point at `(0.5, 0.3, 2.0)`
+projected to both cameras, then triangulated:
+
+| Quantity | Value |
+|---|---|
+| uv1 | (445, 395) ✓ |
+| uv2 | (395, 395) ✓ |
+| Recovered X | (0.5000, 0.3000, 2.0000) |
+| Error | **6.0e-14 m** (machine epsilon) |
+
+### Limitations (linear-DLT triangulation + nonlinear refinement
+with reprojection minimization land in v0.6 if needed):
+
+- Midpoint method only — adequate for short baselines, slight
+  bias when baseline is large relative to depth.
+- No multi-view fusion or bundle adjustment.
+
+### Files
+
+- `stdlib/runtime/vision_rt.c` — `nuc_cam_triangulate` (midpoint
+  of skew lines closed form).
+- `stdlib/rods/vision.nr` — extern + `cam_triangulate` wrapper.
+
+---
+
 ## [0.2.235] — 2026-04-23
 
 **Robotics: particle filter (sequential Monte Carlo) for nonlinear,
