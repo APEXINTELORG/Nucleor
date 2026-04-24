@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 197
-# Total fn definitions: 2051
-# Total LOC: 8801
+# Total rods: 198
+# Total fn definitions: 2052
+# Total LOC: 8817
 
 [[rod]]
 name           = "activation2"
@@ -1765,6 +1765,15 @@ function_count = 6
 cfile_count    = 1
 loc            = 23
 imports        = []
+
+[[rod]]
+name           = "wavefront"
+path           = "stdlib/rods/wavefront.nr"
+description    = "2D BFS / Dijkstra-lite distance transform."
+function_count = 1
+cfile_count    = 1
+loc            = 16
+imports        = ["wavefront"]
 
 [[rod]]
 name           = "wbc"
