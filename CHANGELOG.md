@@ -5,6 +5,81 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.266] — 2026-04-24
+
+**Robotics: jerk-limited 7-phase s-curve trajectory (`scurve`).
+Production-grade motion-control profile that bounds velocity,
+acceleration, AND jerk — eliminating the δ-spike acceleration
+jumps of `topp.nr`'s trapezoidal profile that cause robot
+lurching, vibration, and reduced joint lifetime.**
+
+### Algorithm
+
+```
+Phases (jerk j is constant within each):
+  1. j = +j_max   a:0 → a_max    duration T_j = a_max / j_max
+  2. j = 0       a = a_max const  duration T_a − 2·T_j
+  3. j = −j_max   a:a_max → 0    duration T_j
+  4. j = 0       cruise at v_max  duration T_v
+  5. j = −j_max   a:0 → −a_max   duration T_j
+  6. j = 0       a = −a_max const duration T_a − 2·T_j
+  7. j = +j_max   a:−a_max → 0   duration T_j
+
+T_a = T_j + v_max/a_max
+T_v = L/v_max − T_a
+T_total = 2·T_a + T_v
+```
+
+Closed-form integration produces position / velocity / acceleration
+/ jerk evaluators at each phase.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/scurve.nr"
+
+let h = scurve_new(L_b, v_max_b, a_max_b, j_max_b);
+if h == 0 {
+    // Path too short for full 7-phase profile — fall back to
+    // topp.nr's trapezoidal.
+}
+let T = scurve_total_time(h);
+for tick {
+    let s_b = scurve_position(h, t_b);
+    let v_b = scurve_velocity(h, t_b);
+    let a_b = scurve_acceleration(h, t_b);
+    let j_b = scurve_jerk(h, t_b);
+}
+scurve_free(h);
+```
+
+### Verification
+
+Setup `L = 10, v_max = 2, a_max = 2, j_max = 4`. Six direct C tests:
+
+1. `T_total = 6.500000` exact (analytical formula).
+2. Boundary `s(0)=0, s(T)=10, v(0)=0, v(T)=0` all exact to 1e-9.
+3. Peak velocity at mid-cruise: `2.000000` (`= v_max`) exact.
+4. Peak acceleration in phase 2: `2.000000` (`= a_max`) exact.
+5. Peak jerk in phase 1: `4.000000` (`= j_max`) exact.
+6. Position continuous across phase boundary at `t = T_j`.
+
+### Files
+
+- `stdlib/runtime/scurve_rt.c` — `nuc_scurve_*` API; closed-form
+  per-phase polynomials; cached state at phase boundaries.
+- `stdlib/rods/scurve.nr` — externs + wrappers.
+- `tests/rods/scurve_smoke.nr` — build-only smoke.
+
+### Limitations carried forward
+
+- Requires the full 7-phase profile (both v_max and a_max must be
+  reached). For short paths use `topp.nr`'s trapezoidal fallback.
+- Symmetric (accel = decel limits).
+- Rest-to-rest only (no nonzero start/end velocities).
+
+---
+
 ## [0.2.265] — 2026-04-24
 
 **Robotics: quaternion utilities (`qutil`) on raw `double[4]`
