@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.257] — 2026-04-24
+
+**Robotics: classic PID controller (`pid`) with anti-windup
+integral clamp + output clamp. Foundational SISO controller — the
+single missing primitive in the controls set (between bang-bang
+and full model-based control like iLQR/WBC).**
+
+### Algorithm
+
+```
+error    = setpoint − measurement
+integral = clamp(integral + error · dt, i_lo, i_hi)    // anti-windup
+deriv    = (error − last_error) / dt
+u        = clamp(Kp·error + Ki·integral + Kd·deriv, u_lo, u_hi)
+```
+
+Anti-windup: integral is clamped to a user-set range so it cannot
+run away during output saturation. Output is clamped after the sum
+so the caller sees the actual command.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/pid.nr"
+
+let p = pid_new(kp_b, ki_b, kd_b);
+pid_set_integral_clamp(p, i_lo_b, i_hi_b);
+pid_set_output_clamp  (p, u_lo_b, u_hi_b);
+
+for tick {
+    let u_b = pid_step(p, setpoint_b, meas_b, dt_b);
+}
+```
+
+### Verification
+
+Four direct C tests:
+
+1. P-only: `Kp = 2`, `error = 2` → `u = 4.0` exactly.
+2. PI integrator: `Ki = 1`, 5 calls of `error = 2`, `dt = 0.5` →
+   `integral = 5.0` exactly.
+3. Anti-windup: `Ki = 1`, integral clamp `[−3, 3]`, 100 calls of
+   `error = 2` → `integral = 3.0` (would be 100 without clamp).
+4. Closed loop on integrator plant: PI = (2, 1), 1000 ticks at
+   `dt = 0.01` → `x = 1.000427`, error `4.3e-4`. Converges to
+   setpoint as expected.
+
+### Files
+
+- `stdlib/runtime/pid_rt.c` — `nuc_pid_*` API.
+- `stdlib/rods/pid.nr` — externs + wrapper functions.
+- `tests/rods/pid_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.256] — 2026-04-24
 
 **Robotics: whole-body / multi-task controller (`wbc`) — weighted

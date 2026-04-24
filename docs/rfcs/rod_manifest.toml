@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 171
-# Total fn definitions: 1850
-# Total LOC: 8058
+# Total rods: 172
+# Total fn definitions: 1859
+# Total LOC: 8087
 
 [[rod]]
 name           = "activation2"
@@ -1000,6 +1000,15 @@ function_count = 22
 cfile_count    = 1
 loc            = 45
 imports        = ["physics"]
+
+[[rod]]
+name           = "pid"
+path           = "stdlib/rods/pid.nr"
+description    = "Classic PID controller with anti-windup."
+function_count = 9
+cfile_count    = 1
+loc            = 29
+imports        = ["pid"]
 
 [[rod]]
 name           = "plot"
