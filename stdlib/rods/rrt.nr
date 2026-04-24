@@ -24,6 +24,7 @@ extern fn nuc_rrt_set_root(h: i64, start_ptr: i64) -> i64;
 extern fn nuc_rrt_plan(h: i64, goal_ptr: i64, max_iters: i64, step_bits: i64, is_collision_free_fp: i64) -> i64;
 extern fn nuc_rrt_connect_plan(h: i64, goal_ptr: i64, max_iters: i64, step_bits: i64, is_collision_free_fp: i64) -> i64;
 extern fn nuc_rrt_star_plan(h: i64, goal_ptr: i64, max_iters: i64, step_bits: i64, radius_bits: i64, is_collision_free_fp: i64) -> i64;
+extern fn nuc_rrt_plan_region(h: i64, region_lo_ptr: i64, region_hi_ptr: i64, max_iters: i64, step_bits: i64, is_collision_free_fp: i64) -> i64;
 extern fn nuc_rrt_path_len(h: i64) -> i64;
 extern fn nuc_rrt_path_at(h: i64, path_idx: i64, dim: i64) -> i64;
 extern fn nuc_rrt_node_count(h: i64) -> i64;
@@ -58,6 +59,16 @@ fn rrt_connect_plan(h: i64, goal_ptr: i64, max_iters: i64, step_bits: i64, is_co
 // per-iteration overhead.
 fn rrt_star_plan(h: i64, goal_ptr: i64, max_iters: i64, step_bits: i64, radius_bits: i64, is_collision_free_fp: i64) -> i64 {
     return nuc_rrt_star_plan(h, goal_ptr, max_iters, step_bits, radius_bits, is_collision_free_fp);
+}
+
+// Goal-region planning (v0.2.198). Instead of a single goal point,
+// `region_lo_ptr` and `region_hi_ptr` are double[n_dim] arrays
+// defining a per-dim [lo, hi] acceptable goal region. Useful when
+// the exact goal pose is approximate or there's a tolerance bubble
+// around the desired end-effector position. 10% goal-bias samples
+// inside the region.
+fn rrt_plan_region(h: i64, region_lo_ptr: i64, region_hi_ptr: i64, max_iters: i64, step_bits: i64, is_collision_free_fp: i64) -> i64 {
+    return nuc_rrt_plan_region(h, region_lo_ptr, region_hi_ptr, max_iters, step_bits, is_collision_free_fp);
 }
 fn rrt_path_len(h: i64) -> i64 { return nuc_rrt_path_len(h); }
 fn rrt_path_at(h: i64, path_idx: i64, dim: i64) -> i64 {

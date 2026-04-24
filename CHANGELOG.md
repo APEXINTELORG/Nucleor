@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.198] — 2026-04-24
+
+**Robotics: goal-region planning in RRT. Sample uniformly inside
+a per-dimension `[lo, hi]` acceptable region instead of converging
+on a single goal point. Useful when the target pose is approximate
+or has a tolerance bubble.**
+
+`rrt_plan` (v0.2.179) targets a single point and reports success
+when the latest extension is within `step` of that point. In
+practice many tasks (placing an object on a table; "reach the
+book bin"; etc.) have a tolerance — any pose within an acceptable
+region is fine. Goal-region planning samples inside that region
+during the goal-bias phase and accepts the first node that lands
+inside.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/rrt.nr"
+
+let r = rrt_new(n_dim, seed);
+rrt_set_root(r, start_ptr);
+
+// region_lo, region_hi are double[n_dim] arrays defining the
+// acceptable goal region. For position goals: region_lo[k] =
+// goal_center[k] - tolerance, region_hi[k] = goal_center[k] +
+// tolerance.
+let ok = rrt_plan_region(r, region_lo_ptr, region_hi_ptr,
+    1000,                   // max_iters
+    f64_to_bits(0.1),       // step size
+    coll_callback_fp);
+```
+
+### Files
+
+- `stdlib/runtime/rrt_rt.c`: ~80 LOC for the goal-region variant.
+  Same overall structure as `nuc_rrt_plan`; differs only in the
+  goal-bias sampling (samples inside the region) and the
+  acceptance check (point-in-box).
+- `stdlib/rods/rrt.nr`: 1 new builtin (`rrt_plan_region`).
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**259 / 259 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.197] — 2026-04-24
 
 **Robotics: sphere-OBB (Oriented Bounding Box) cross-pair.
