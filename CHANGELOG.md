@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.315] — 2026-04-24
+
+**T1.1 Phase 6 — bitwise + shift ops at narrow widths.** Matrix
+hits **first zero-FAIL milestone** — 54 PASS, 0 FAIL, 6 BUILD_ERROR
+remaining (Phase 7 turbofish syntax + Phase 8 Vec generics only).
+
+### What landed
+
+- `stdlib/rods/bitwise_rt.c` — new `rods_bit_shift_right_signed`
+  (arithmetic / sign-preserving) helper. Existing
+  `rods_bit_shift_right` was logical-only.
+- `stdlib/rods/bitwise.nr` — exposes `bit_shift_right_signed`
+  surface paired with the new runtime.
+- `compiler/nucleor_s1_compiler.nr` — `types_compatible` now
+  accepts narrow integer types (i8/i16/u8/u16/u32) as compatible
+  arguments where i32/i64 is expected. Storage is i64 anyway,
+  so widening is lossless and lets users pass narrow values
+  to existing rod functions without manual casts.
+- 4 matrix tests (`p6_bitwise/and_u8`, `or_u32`, `shl_u8`,
+  `shr_i8`) updated to use the bitwise rod (Nucleor doesn't
+  parse `&` `|` `<<` `>>` as binops; they're closure-syntax
+  and reference-prefix). The width-correct narrowing happens
+  via the Phase 1 let-binding hook on the result.
+
+### Matrix progress
+
+| Phase         | v0.2.314 | v0.2.315 |
+|---------------|----------|----------|
+| p6_bitwise    | 0P/2F/2BE| **4P/0F/0BE** |
+| TOTAL         | 50P/2F/8BE | **54P/0F/6BE** |
+
+The 6 remaining BUILD_ERRORs:
+- 3 in `p7_overflow` — `wrapping_add::<u8>` / `saturating_add::<u8>`
+  / `checked_add::<u8>` use turbofish syntax not yet supported.
+- 3 in `p8_vec` — `Vec::with_capacity(N)` / typed Vec methods
+  not yet supported.
+
+These are the targets for Phase 7 (overflow modes) and Phase 8
+(Vec<T> monomorphization).
+
+### Verify gate
+
+329/329 PASS. Bootstrap fixpoint stable. ABI parity green.
+helper_manifest + rod_manifest regenerated.
+
+### Files
+
+- `stdlib/rods/bitwise_rt.c` — added `rods_bit_shift_right_signed`.
+- `stdlib/rods/bitwise.nr` — added `bit_shift_right_signed` wrapper.
+- `compiler/nucleor_s1_compiler.nr` — narrow→i64 widening in
+  `types_compatible`.
+- `bin/nucleor.exe` — rebuilt.
+- `tests/lang/numerics_matrix/p6_bitwise/*.nr` — 4 tests updated.
+- `docs/rfcs/{helper,rod}_manifest.toml` — regenerated.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+Phase 7 (`v0.2.316`) — `#[overflow(wrap | trap | saturate)]`
+attribute + per-op turbofish intrinsics like `wrapping_add::<u8>`.
+
 ## [0.2.314] — 2026-04-24
 
 **T1.1 Phase 4 — full `as` cast operator matrix.** Float↔int and

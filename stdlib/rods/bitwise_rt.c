@@ -25,6 +25,13 @@ long long rods_bit_shift_right(long long a, long long n) {
     return (unsigned long long)a >> n;
 }
 
+// T1.1 Phase 6: arithmetic (sign-preserving) right shift.
+// Pairs with the logical shift above so users can opt in
+// to either based on signedness of the operand.
+long long rods_bit_shift_right_signed(long long a, long long n) {
+    return a >> n;
+}
+
 long long rods_bit_test(long long val, long long bit) {
     return (val >> bit) & 1;
 }

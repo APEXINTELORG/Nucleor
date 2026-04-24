@@ -6308,6 +6308,14 @@ fn types_compatible(expected: str, actual: str) -> i64 {
         };
         if digits_only == 1 && (str_eq(actual, "i32") == 1 || str_eq(actual, "i64") == 1 || str_eq(actual, "f64") == 1) { return 1; };
     };
+    // T1.1 Phase 6: narrow integer → i64/i32 widening for argument
+    // passing. Storage is i64 anyway, so a u8 / u16 / i8 / i16 / u32
+    // can be passed as an i64 / i32 argument without loss.
+    if (str_eq(expected, "i64") == 1 || str_eq(expected, "i32") == 1) {
+        if str_eq(actual, "i8") == 1 || str_eq(actual, "i16") == 1 ||
+           str_eq(actual, "u8") == 1 || str_eq(actual, "u16") == 1 ||
+           str_eq(actual, "u32") == 1 { return 1; };
+    };
     // T1.1 Phase 2: f32 / f16 / bf16 accept f64 literals (the parser
     // emits all float literals as f64; lowering inserts the conversion).
     if (str_eq(expected, "f32") == 1 || str_eq(expected, "f16") == 1 || str_eq(expected, "bf16") == 1)

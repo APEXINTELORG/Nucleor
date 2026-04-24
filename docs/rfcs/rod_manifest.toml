@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 212
-# Total fn definitions: 2071
-# Total LOC: 9059
+# Total fn definitions: 2072
+# Total LOC: 9063
 
 [[rod]]
 name           = "activation2"
@@ -186,9 +186,9 @@ imports        = ["bits"]
 name           = "bitwise"
 path           = "stdlib/rods/bitwise.nr"
 description    = "Bitwise operations (via C FFI)"
-function_count = 9
+function_count = 10
 cfile_count    = 1
-loc            = 37
+loc            = 41
 imports        = ["bitwise"]
 
 [[rod]]
