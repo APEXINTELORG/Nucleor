@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 175
-# Total fn definitions: 1886
-# Total LOC: 8161
+# Total rods: 176
+# Total fn definitions: 1898
+# Total LOC: 8190
 
 [[rod]]
 name           = "activation2"
@@ -424,6 +424,15 @@ function_count = 6
 cfile_count    = 0
 loc            = 8
 imports        = ["digest"]
+
+[[rod]]
+name           = "dstar"
+path           = "stdlib/rods/dstar.nr"
+description    = "D* Lite incremental replanner on a 2-D 8-connected"
+function_count = 12
+cfile_count    = 1
+loc            = 29
+imports        = ["dstar"]
 
 [[rod]]
 name           = "dwa"

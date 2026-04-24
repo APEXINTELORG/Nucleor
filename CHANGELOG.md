@@ -5,6 +5,93 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.262] — 2026-04-24
+
+**Robotics: D* Lite incremental grid replanner (`dstar`) on a
+2-D 8-connected grid (Koenig & Likhachev 2002). Solves the same
+single-source shortest-path problem as A*, but designed for
+repeated planning when only a small fraction of edge costs
+change between queries — typical mobile-robot navigation when
+new obstacles appear / disappear.**
+
+### Algorithm
+
+```
+g(s)   — current best known cost-to-goal
+rhs(s) — one-step look-ahead from neighbors
+key(s) = (min(g, rhs) + h(s, s_start) + km,  min(g, rhs))
+
+ComputeShortestPath:
+  while top of U has key < key(s_start) OR s_start inconsistent:
+    pop u
+    if u stale (popped key < current key): re-push with current key
+    elif g(u) == rhs(u): skip (lazy-heap stale entry, cell is consistent)
+    elif g(u) > rhs(u):  g(u) = rhs(u);  update predecessors
+    else (g(u) < rhs(u)): g(u) = ∞;  update u + predecessors
+```
+
+Edge cost: `max(c[s], c[s']) · (√2 if diagonal else 1)`. Heuristic:
+octile distance (admissible AND consistent for 8-connected
+uniform grids).
+
+Implementation uses a lazy binary min-heap (no decrease-key /
+delete operations) — duplicates are pushed and the pop side
+detects stale entries.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/dstar.nr"
+
+let h = dstar_new(W, H);
+// ... set per-cell costs (negative = obstacle / ∞) ...
+dstar_set_start(h, sx, sy);
+dstar_set_goal(h, gx, gy);
+dstar_plan(h);
+// path:
+for i in 0..dstar_path_len(h) {
+    let x = dstar_path_x(h, i);
+    let y = dstar_path_y(h, i);
+}
+
+// World changes — incremental replan:
+dstar_update_cost(h, x, y, new_c_b);    // call repeatedly
+dstar_replan(h);                         // O(perturbed cells)
+```
+
+### Verification
+
+20×20 grid, three direct C tests:
+
+1. **Open terrain**, plan `(0, 0) → (19, 19)`: 20 waypoints, total
+   cost `26.8701` = exactly `19·√2`.
+2. **Wall inserted** at column `x = 10` (rows 0–18; row 19 left
+   open as a gap): incremental replan finds a 29-waypoint path
+   with cost `32.1421` (vs 26.87 baseline). Zero waypoints inside
+   the wall.
+3. **Wall removed**: incremental replan returns to cost `26.8701`
+   exactly, matching the original.
+
+### Files
+
+- `stdlib/runtime/dstar_rt.c` — `nuc_dstar_*` API; lazy min-heap
+  on `(k1, k2)` lex order; ComputeShortestPath with consistent-
+  skip + stale-key re-push; greedy path extraction.
+- `stdlib/rods/dstar.nr` — externs + wrappers.
+- `tests/rods/dstar_smoke.nr` — build-only smoke.
+
+### Bug fixed during build
+
+The lazy-heap variant of D* Lite needs an explicit
+"`g(u) == rhs(u)` → skip" check before the over-/under-consistent
+branches: otherwise stale heap entries for a now-consistent cell
+fall through to the under-consistent branch and wrongly zap the
+cell's `g` to ∞. Standard D* Lite avoids this by maintaining U
+as a set (so consistent cells are never in U); the lazy heap
+needs the explicit guard.
+
+---
+
 ## [0.2.261] — 2026-04-24
 
 **Robotics: AHRS via Mahony quaternion complementary filter
