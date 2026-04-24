@@ -558,6 +558,82 @@ long long nuc_rrt_star_plan(
     return 1;
 }
 
+// Goal-region planning (v0.2.198). Instead of a single goal
+// point, the user supplies a per-dimension [lo, hi] box that
+// defines an acceptable goal region. The planner samples
+// uniformly inside the region (10% goal-bias) and reports
+// success when the new node is inside the region.
+//
+// Useful when the exact goal pose is approximate or there's
+// a tolerance bubble around the desired end-effector position.
+
+long long nuc_rrt_plan_region(
+    long long h, long long region_lo_ptr, long long region_hi_ptr,
+    long long max_iters,
+    long long step_bits,
+    long long is_collision_free_fp)
+{
+    NRRT *r = (NRRT *)(void *)(size_t)h;
+    if (!r || r->count == 0) return 0;
+    double *lo = (double *)(void *)(size_t)region_lo_ptr;
+    double *hi = (double *)(void *)(size_t)region_hi_ptr;
+    double step = _i2f(step_bits);
+    coll_fn_t coll_free = (coll_fn_t)(void *)(size_t)is_collision_free_fp;
+    double *sample = (double *)malloc(r->n_dim * sizeof(double));
+    double *new_cfg = (double *)malloc(r->n_dim * sizeof(double));
+    int success = 0;
+    int goal_index = -1;
+    for (long long it = 0; it < max_iters && !success; it++) {
+        // 10% chance: sample inside the region (goal bias).
+        if (_rng_unit(r) < 0.1) {
+            for (int k = 0; k < r->n_dim; k++) {
+                sample[k] = lo[k] + _rng_unit(r) * (hi[k] - lo[k]);
+            }
+        } else {
+            for (int k = 0; k < r->n_dim; k++) {
+                sample[k] = r->lower[k] + _rng_unit(r) * (r->upper[k] - r->lower[k]);
+            }
+        }
+        int near = _nearest(r, sample);
+        double *near_cfg = r->configs + near * r->n_dim;
+        double dist = 0;
+        for (int k = 0; k < r->n_dim; k++) {
+            double d = sample[k] - near_cfg[k];
+            dist += d * d;
+        }
+        dist = sqrt(dist);
+        if (dist < 1e-9) continue;
+        double scale = (dist <= step) ? 1.0 : (step / dist);
+        for (int k = 0; k < r->n_dim; k++) {
+            new_cfg[k] = near_cfg[k] + (sample[k] - near_cfg[k]) * scale;
+        }
+        long long is_free = 1;
+        if (coll_free) is_free = coll_free((long long)(size_t)new_cfg);
+        if (!is_free) continue;
+        _ensure_capacity(r);
+        memcpy(r->configs + r->count * r->n_dim, new_cfg, r->n_dim * sizeof(double));
+        r->parents[r->count] = near;
+        int new_idx = r->count;
+        r->count++;
+        // Inside region?
+        int inside = 1;
+        for (int k = 0; k < r->n_dim; k++) {
+            if (new_cfg[k] < lo[k] || new_cfg[k] > hi[k]) { inside = 0; break; }
+        }
+        if (inside) { success = 1; goal_index = new_idx; }
+    }
+    free(sample); free(new_cfg);
+    if (!success) return 0;
+    int n_nodes = 0;
+    for (int i = goal_index; i != -1; i = r->parents[i]) n_nodes++;
+    if (r->path_indices) free(r->path_indices);
+    r->path_indices = (int *)malloc(n_nodes * sizeof(int));
+    r->path_len = n_nodes;
+    int p = n_nodes - 1;
+    for (int i = goal_index; i != -1; i = r->parents[i]) r->path_indices[p--] = i;
+    return 1;
+}
+
 // Path shortcutting (v0.2.182). Repeatedly pick two random
 // indices i < j on the current path; if the straight-line
 // segment from path[i] to path[j] is collision-free at every
