@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 158
-# Total fn definitions: 1754
-# Total LOC: 7597
+# Total rods: 159
+# Total fn definitions: 1760
+# Total LOC: 7620
 
 [[rod]]
 name           = "activation2"
@@ -1431,4 +1431,13 @@ description    = "Camera-projection primitives for robotics vision."
 function_count = 6
 cfile_count    = 1
 loc            = 61
+imports        = []
+
+[[rod]]
+name           = "voxel"
+path           = "stdlib/rods/voxel.nr"
+description    = "Dense 3D voxel grid for occupancy."
+function_count = 6
+cfile_count    = 1
+loc            = 23
 imports        = []
