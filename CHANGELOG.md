@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.199] — 2026-04-23
+
+**Robotics: singularity detection in IK solver. The damped least
+squares solver tracks the smallest `|det(J·Jᵀ + λ²I)|` observed
+during a solve and exposes it via `ik_get_last_singularity_metric`.
+A small value (~1e-9 or below) flags that the chain approached a
+singular configuration where the Jacobian is rank-deficient — the
+caller can use this to back off, try a different goal, or switch
+to a more aggressive damped strategy.**
+
+The damped least squares solver is mathematically robust at
+singularities (the λ² term keeps the inverse well-conditioned), but
+its position progress can stall there. There was previously no way
+for the caller to *know* a singularity had been hit — convergence
+just slowed. The new accessor surfaces the observation as a single
+number, no per-iteration callback needed.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/ik_dls.nr"
+
+let _iters = ik_dls_solve(chain, vars, tx, ty, tz, 100, tol, lambda);
+let metric = ik_get_last_singularity_metric();
+// metric < 1e-9 ≈ near-singular configuration
+```
+
+The metric resets at the start of every solve. Read it after the
+solve returns; it reflects the worst-conditioned Jacobian seen
+during that solve. Both 3D (`nuc_ik_dls_solve`) and 6D
+(`nuc_ik_dls_solve_6d`) update the same global, so the most recent
+solve wins regardless of mode.
+
+### Files
+
+- `stdlib/runtime/ik_dls_rt.c` — track `_g_last_singularity` in
+  the 3D solve loop; export `nuc_ik_get_last_singularity_metric`.
+- `stdlib/rods/ik_dls.nr` — `extern fn nuc_ik_get_last_singularity_metric`
+  + `ik_get_last_singularity_metric` Nucleor wrapper.
+- `tests/rods/ik_dls_smoke.nr` — call accessor for link verification.
+
+---
+
 ## [0.2.198] — 2026-04-24
 
 **Robotics: goal-region planning in RRT. Sample uniformly inside
