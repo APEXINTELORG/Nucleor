@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.299] — 2026-04-24
+
+**Robotics: kinematic bicycle model forward integration
+(`bicycle`). Closed-form Euler and RK4 single-step integrators
+for the standard car-like kinematic bicycle model. Companion
+to `purepursuit` and `stanley` — the controllers output a
+steering angle, this rod rolls the model forward.**
+
+### Algorithm
+
+```
+ẋ  = v cos(θ)
+ẏ  = v sin(θ)
+θ̇ = (v / L) tan(δ)
+
+  (x, y, θ) = REAR axle pose, world frame
+  v         = forward speed at rear axle (m/s)
+  δ         = front-wheel steering angle (rad)
+  L         = wheelbase (m)
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/bicycle.nr"
+
+let out: [3]double;        // {x, y, theta}
+let ok = bicycle_step_rk4(x_b, y_b, theta_b,
+                           v_b, delta_b,
+                           wheelbase_b, dt_b,
+                           f64_ptr(&out[0]));
+```
+
+### Verification
+
+Direct C unit test (`target/_test_bicycle.c`):
+
+- T1 euler straight  : v=1, δ=0, dt=1 → (1,0,0) ✓
+- T2 rk4   straight  : same → (1,0,0) ✓
+- T3 rk4   arc       : 1000 RK4 steps of dt=0.001 with δ=π/4
+                        match analytic constant-curvature arc
+                        to ≤1e-9 ✓
+- T4 rk4 vs euler    : at dt=0.5 over 1 s, RK4 error 0.000001
+                        vs Euler error 0.124 (5 orders of mag) ✓
+- T5 bad L           : L=0 → returns 0 ✓
+
+Build smoke `tests/rods/bicycle_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/bicycle_rt.c` — Euler + RK4 integrators.
+- `stdlib/rods/bicycle.nr`      — extern + wrappers.
+- `tests/rods/bicycle_smoke.nr` — build-only smoke.
+- `CHANGELOG.md`                 — this entry.
+
+### Limitations
+
+Documented in `bicycle.nr` and `bicycle_rt.c`: kinematic only
+(no tire slip), zero-order hold on (v, δ) over the step, caller
+must clamp δ to vehicle limits. Full dynamic bicycle with
+Pacejka tire model lands in v0.6 if needed.
+
 ## [0.2.298] — 2026-04-24
 
 **Robotics: Stanley path tracker for Ackermann robots (`stanley`).
