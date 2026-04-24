@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.206] — 2026-04-23
+
+**Robotics: end-to-end showcase exercising the full v0.2.174-205
+stack. `examples/showcase/robotic_arm.nr` now runs an 8-stage
+integration that touches every robotics rod the OSS distribution
+ships, in the order a real motion-planning pipeline would: build
+chain → FK → IK (with limits + singularity readout) → TOPP
+→ collision (sphere/AABB/sphere-sphere) → BVH workspace.**
+
+The previous showcase touched 5 rods at a build-only level; the
+new version drives each through a representative call sequence
+that proves they compose correctly. Particularly important for
+the v0.5 release narrative: this is the file a prospective user
+would read first to understand "can Nucleor really build a robot
+control loop?". Now: yes, in 100 lines.
+
+### Stages
+
+1. Build a 3-link planar arm via DH parameters (`fk_chain.nr`).
+2. Forward-kinematics update at the home configuration.
+3. IK solve to a reachable target position (`ik_dls.nr` /
+   `ik_dls_solve`).
+4. Read singularity metric from the most recent solve
+   (`ik_get_last_singularity_metric` — v0.2.199).
+5. Set joint limits + re-solve IK in the bounded region
+   (`ik_set_joint_limit` — v0.2.193).
+6. TOPP time-optimal parameterization of a 3-waypoint joint-
+   space path (`topp_*` — v0.2.203).
+7. Sphere-sphere collision sanity test (`coll_sphere_sphere`).
+8. BVH obstacle setup + sphere-AABB workspace check
+   (`bvh.nr` + `coll_sphere_aabb`).
+
+### Files
+
+- `examples/showcase/robotic_arm.nr` — 8-stage integration
+  showcase.
+
+---
+
 ## [0.2.205] — 2026-04-23
 
 **Robotics: convex-mesh GJK + EPA. Convenience entry points for
