@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.183] — 2026-04-24
+
+**Robotics: GJK convex-convex collision. Generic shape support
+via user-supplied support functions. Industry-standard convex
+collision algorithm.**
+
+The Gilbert-Johnson-Keerthi algorithm (1988) is the workhorse
+for convex-shape collision in physics engines and robotics. Given
+two convex shapes, it iteratively builds a simplex in
+Minkowski-difference space and asks whether the simplex contains
+the origin (origin in Minkowski difference ⇔ shapes overlap).
+
+The user supplies the **support function** for each shape: a
+callable that takes a direction vector and returns the point on
+the shape farthest in that direction. With this contract, GJK
+works for arbitrary convex shapes — spheres, capsules, OBBs,
+convex meshes, Minkowski sums of any of the above — without
+caring about the specific representation.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/collision.nr"
+
+// User defines support functions for shapes A and B as Nucleor fns
+// that take an i64 direction-Vec3 handle and return an i64 point-Vec3
+// handle. (Specifics per shape: typical support_fn for a convex hull
+// iterates vertices and picks the dot-max.)
+
+let result = coll_gjk(support_a_fp, support_b_fp);
+// 1 = overlap, 0 = clear, -1 = convergence failed (rare; means
+// degenerate inputs)
+```
+
+### Files
+
+- `stdlib/runtime/collision_rt.c`: GJK implementation,
+  ~140 LOC.
+  - 4-element simplex (point → line → triangle → tetrahedron)
+  - Standard `do_simplex` updates per simplex size
+  - 32-iteration cap; returns -1 on non-convergence
+  - Internal helpers: vector ops (sub, dot, cross, neg, scale),
+    triple cross product
+- `stdlib/rods/collision.nr`: 1 new builtin (`coll_gjk`).
+- Existing `tests/rods/collision_smoke.nr` left unchanged
+  (GJK requires user-supplied support fns; full functional test
+  ships in v0.5 alongside the convex-mesh shape rod).
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**256 / 256 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.182] — 2026-04-24
 
 **Robotics: two more v0.5-list items shipped — RRT path
