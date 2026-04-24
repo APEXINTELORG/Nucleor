@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.163] — 2026-04-23
+
+**Memory-fix Ship 6: env-snapshot UAF audit (item E4 from
+MEMORY_FIX_PUNCHLIST.md). Type-pass env snapshots now free
+properly; check-pass snapshots remain deferred with a
+documented reason.**
+
+The v0.2.158 ship attempted to free env snapshots in five
+sites and reverted all five after match/enum/if-let tests
+segfaulted. v0.2.163 isolates the actual cause via bisection:
+the *type pass* (`type_check_stmts`) snapshot frees are safe;
+the *check pass* (`own_restore`, `own_merge_moved` called
+from `check_expr`) frees are not. The check pass keeps a
+richer ownership state with reference targets and scopes
+that downstream consumers may still hold pointers into;
+freeing in those sites caused use-after-free. The type pass's
+env stores only `(name, type-string)` pairs whose backing
+strings live independently — safe to free.
+
+### Fix
+
+In `compiler/nucleor_s1_compiler.nr`:
+
+- **Re-enabled** `vec_free(then_env)`, `vec_free(else_env)`,
+  `vec_free(arm_env)` in the type-check pass (kind == 23
+  if/else, kind == 38 match arms). These were the three frees
+  whose intent was correct and whose lifetimes are bounded
+  by the recursive `type_check_stmts` call.
+- **Kept disabled** `vec_free(snap)` in `own_restore` and
+  `vec_free(a)` / `vec_free(b)` in `own_merge_moved`.
+  Documented the reason inline ("check pass needs a deeper
+  audit before we can free here"). These are called from
+  `check_expr` where downstream consumers may still hold
+  references; full fix requires identifying all such
+  references which is multi-pass work.
+
+### Bisection method
+
+To isolate which sites were unsafe, ran the FAIL set
+(enums.nr, if_let.nr, match_option_result.nr,
+err_match_unreachable.nr) standalone against compilers built
+with each subset of frees enabled. Found that:
+
+- arm_env free alone — works
+- + then_env / else_env free — works
+- + own_restore free — match_option_result segfaults
+- + own_merge_moved free — match_option_result segfaults
+
+So the check-pass frees are the culprits.
+
+### Memory measurement
+
+Self-host TOTAL TRACKED unchanged at 185 MB — the type-pass
+snapshots are bounded (one snapshot per active match/if-else
+during type-check, freed before next iteration), so they
+weren't accumulating to a measurable amount. The win is
+*correctness* (no leaked snapshots) and *unblocking* future
+work on the check-pass audit which would yield real memory.
+
+### Self-host LLVM IR fixed point
+
+- 2-iter byte-identical at 2,676,821 bytes.
+- `bin/nucleor.exe` updated; chain extends to **v0.2.163**.
+
+### Verify gate
+
+**246 / 246 PASS, 0 SKIP** in 2m45s. Self-host: 185 MB / 400
+MB budget. Self-host rebuild closes byte-identical.
+
+### Punchlist progress
+
+- ~~Item E4 partial: type-pass frees safe, check-pass frees
+  documented~~ ✓ shipped this release
+- Remaining: B (TypeId interner), C (identifier interner),
+  D (per-compile arena), check-pass UAF audit (full E4)
+
 ## [0.2.162] — 2026-04-23
 
 **Release-readiness polish: SECURITY.md added; README updated
