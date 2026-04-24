@@ -18,6 +18,7 @@
 
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
 
 static double _i2f(long long x) { double d; memcpy(&d, &x, sizeof(double)); return d; }
 
@@ -136,6 +137,213 @@ long long nuc_coll_capsule_capsule(
     );
     double sum_r = _i2f(ar) + _i2f(br);
     return (d2 <= sum_r*sum_r) ? 1 : 0;
+}
+
+// ---- GJK (Gilbert-Johnson-Keerthi) — convex-convex overlap ----
+//
+// Generic convex-shape overlap test. The user supplies the support
+// function for each shape (mapping from a direction to the
+// point on the shape that's farthest in that direction). GJK
+// then iteratively builds a simplex in Minkowski-difference
+// space and asks whether it contains the origin.
+//
+// Returns 1 (overlap), 0 (clear), or -1 if convergence failed.
+//
+// The support functions are passed as i64 function pointers;
+// each takes a Vec3 direction handle (3 doubles malloc'd) and
+// returns a Vec3 point handle. The caller is responsible for
+// the malloc of the direction Vec3 and for freeing the returned
+// point Vec3.
+
+typedef long long (*support_fn_t)(long long dir_h);
+
+static void _vsub3(const double *a, const double *b, double *out) {
+    out[0] = a[0] - b[0];
+    out[1] = a[1] - b[1];
+    out[2] = a[2] - b[2];
+}
+static double _vdot3(const double *a, const double *b) {
+    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+}
+static void _vcross3(const double *a, const double *b, double *out) {
+    out[0] = a[1]*b[2] - a[2]*b[1];
+    out[1] = a[2]*b[0] - a[0]*b[2];
+    out[2] = a[0]*b[1] - a[1]*b[0];
+}
+static void _vneg3(double *v) { v[0] = -v[0]; v[1] = -v[1]; v[2] = -v[2]; }
+static void _vscale3(double *v, double s) { v[0]*=s; v[1]*=s; v[2]*=s; }
+
+// Minkowski difference support: support_A(d) - support_B(-d).
+static void _gjk_support(support_fn_t sa, support_fn_t sb,
+                         const double *dir, double *out)
+{
+    double *dir_a = (double *)malloc(3 * sizeof(double));
+    dir_a[0] = dir[0]; dir_a[1] = dir[1]; dir_a[2] = dir[2];
+    long long pa_h = sa((long long)(size_t)dir_a);
+    free(dir_a);
+    double *dir_b = (double *)malloc(3 * sizeof(double));
+    dir_b[0] = -dir[0]; dir_b[1] = -dir[1]; dir_b[2] = -dir[2];
+    long long pb_h = sb((long long)(size_t)dir_b);
+    free(dir_b);
+    double *pa = (double *)(void *)(size_t)pa_h;
+    double *pb = (double *)(void *)(size_t)pb_h;
+    out[0] = pa[0] - pb[0];
+    out[1] = pa[1] - pb[1];
+    out[2] = pa[2] - pb[2];
+    free(pa);
+    free(pb);
+}
+
+// Triple product (a × b) × c.
+static void _triple_cross(const double *a, const double *b, const double *c, double *out) {
+    double ab[3]; _vcross3(a, b, ab);
+    _vcross3(ab, c, out);
+}
+
+// Update simplex during GJK; returns 1 if origin inside.
+// Modifies simplex (`simp`) and direction (`dir`).
+// `n` is the current simplex size in/out.
+static int _gjk_do_simplex(double simp[4][3], int *n, double *dir) {
+    if (*n == 2) {
+        // Line: A is the most recently added point, B is the other.
+        double *A = simp[1];
+        double *B = simp[0];
+        double AB[3], AO[3];
+        _vsub3(B, A, AB);
+        _vsub3((double[]){0,0,0}, A, AO);
+        if (_vdot3(AB, AO) > 0) {
+            // Origin in direction perp to AB, in plane of AB,AO.
+            _triple_cross(AB, AO, AB, dir);
+            // If degenerate (AB parallel AO), pick any perp.
+            if (_vdot3(dir, dir) < 1e-12) {
+                // Fall back: use any axis perpendicular to AB.
+                double axis[3] = {1, 0, 0};
+                if (fabs(AB[0]) > 0.9) { axis[0] = 0; axis[1] = 1; }
+                _vcross3(AB, axis, dir);
+            }
+        } else {
+            // Origin behind A; drop B.
+            simp[0][0] = A[0]; simp[0][1] = A[1]; simp[0][2] = A[2];
+            *n = 1;
+            dir[0] = AO[0]; dir[1] = AO[1]; dir[2] = AO[2];
+        }
+        return 0;
+    }
+    if (*n == 3) {
+        // Triangle: A most recent, B, C earlier.
+        double *A = simp[2];
+        double *B = simp[1];
+        double *C = simp[0];
+        double AB[3], AC[3], AO[3], ABC[3];
+        _vsub3(B, A, AB);
+        _vsub3(C, A, AC);
+        _vsub3((double[]){0,0,0}, A, AO);
+        _vcross3(AB, AC, ABC);
+        double tmp[3]; _vcross3(ABC, AC, tmp);
+        if (_vdot3(tmp, AO) > 0) {
+            if (_vdot3(AC, AO) > 0) {
+                // Region AC.
+                simp[1][0] = A[0]; simp[1][1] = A[1]; simp[1][2] = A[2];
+                // C stays at simp[0], A moves to simp[1].
+                *n = 2;
+                _triple_cross(AC, AO, AC, dir);
+                if (_vdot3(dir, dir) < 1e-12) { dir[0] = AO[0]; dir[1] = AO[1]; dir[2] = AO[2]; }
+                return 0;
+            }
+            // Region AB or beyond — drop C, recurse as line.
+            simp[0][0] = B[0]; simp[0][1] = B[1]; simp[0][2] = B[2];
+            simp[1][0] = A[0]; simp[1][1] = A[1]; simp[1][2] = A[2];
+            *n = 2;
+            return _gjk_do_simplex(simp, n, dir);
+        }
+        _vcross3(AB, ABC, tmp);
+        if (_vdot3(tmp, AO) > 0) {
+            simp[0][0] = B[0]; simp[0][1] = B[1]; simp[0][2] = B[2];
+            simp[1][0] = A[0]; simp[1][1] = A[1]; simp[1][2] = A[2];
+            *n = 2;
+            return _gjk_do_simplex(simp, n, dir);
+        }
+        // Origin inside the triangle prism — pick the side ABC faces.
+        if (_vdot3(ABC, AO) > 0) {
+            // Above: keep order C,B,A and use ABC as direction.
+            dir[0] = ABC[0]; dir[1] = ABC[1]; dir[2] = ABC[2];
+        } else {
+            // Below: swap B,C so winding flips, use -ABC.
+            simp[0][0] = B[0]; simp[0][1] = B[1]; simp[0][2] = B[2];
+            simp[1][0] = C[0]; simp[1][1] = C[1]; simp[1][2] = C[2];
+            simp[2][0] = A[0]; simp[2][1] = A[1]; simp[2][2] = A[2];
+            dir[0] = -ABC[0]; dir[1] = -ABC[1]; dir[2] = -ABC[2];
+        }
+        return 0;
+    }
+    if (*n == 4) {
+        // Tetrahedron: A most recent, B,C,D earlier.
+        double *A = simp[3];
+        double *B = simp[2];
+        double *C = simp[1];
+        double *D = simp[0];
+        double AB[3], AC[3], AD[3], AO[3];
+        _vsub3(B, A, AB);
+        _vsub3(C, A, AC);
+        _vsub3(D, A, AD);
+        _vsub3((double[]){0,0,0}, A, AO);
+        double ABC[3], ACD[3], ADB[3];
+        _vcross3(AB, AC, ABC);
+        _vcross3(AC, AD, ACD);
+        _vcross3(AD, AB, ADB);
+        if (_vdot3(ABC, AO) > 0) {
+            // Drop D.
+            simp[0][0] = C[0]; simp[0][1] = C[1]; simp[0][2] = C[2];
+            simp[1][0] = B[0]; simp[1][1] = B[1]; simp[1][2] = B[2];
+            simp[2][0] = A[0]; simp[2][1] = A[1]; simp[2][2] = A[2];
+            *n = 3;
+            return _gjk_do_simplex(simp, n, dir);
+        }
+        if (_vdot3(ACD, AO) > 0) {
+            // Drop B.
+            simp[0][0] = D[0]; simp[0][1] = D[1]; simp[0][2] = D[2];
+            simp[1][0] = C[0]; simp[1][1] = C[1]; simp[1][2] = C[2];
+            simp[2][0] = A[0]; simp[2][1] = A[1]; simp[2][2] = A[2];
+            *n = 3;
+            return _gjk_do_simplex(simp, n, dir);
+        }
+        if (_vdot3(ADB, AO) > 0) {
+            // Drop C.
+            simp[0][0] = B[0]; simp[0][1] = B[1]; simp[0][2] = B[2];
+            simp[1][0] = D[0]; simp[1][1] = D[1]; simp[1][2] = D[2];
+            simp[2][0] = A[0]; simp[2][1] = A[1]; simp[2][2] = A[2];
+            *n = 3;
+            return _gjk_do_simplex(simp, n, dir);
+        }
+        // Origin inside the tetrahedron.
+        return 1;
+    }
+    return 0;
+}
+
+long long nuc_coll_gjk(long long support_a_fp, long long support_b_fp) {
+    support_fn_t sa = (support_fn_t)(void *)(size_t)support_a_fp;
+    support_fn_t sb = (support_fn_t)(void *)(size_t)support_b_fp;
+    if (!sa || !sb) return -1;
+
+    double simp[4][3];
+    int n = 0;
+    double dir[3] = {1, 0, 0};
+    double sup[3];
+    _gjk_support(sa, sb, dir, sup);
+    if (_vdot3(sup, dir) <= 0) return 0;
+    simp[0][0] = sup[0]; simp[0][1] = sup[1]; simp[0][2] = sup[2];
+    n = 1;
+    dir[0] = -sup[0]; dir[1] = -sup[1]; dir[2] = -sup[2];
+
+    for (int iter = 0; iter < 32; iter++) {
+        _gjk_support(sa, sb, dir, sup);
+        if (_vdot3(sup, dir) <= 0) return 0;
+        simp[n][0] = sup[0]; simp[n][1] = sup[1]; simp[n][2] = sup[2];
+        n++;
+        if (_gjk_do_simplex(simp, &n, dir)) return 1;
+    }
+    return -1;
 }
 
 // ---- AABB-AABB overlap ----

@@ -28,6 +28,17 @@ extern fn nuc_coll_capsule_capsule(
     b_ax: i64, b_ay: i64, b_az: i64,
     b_bx: i64, b_by: i64, b_bz: i64, br: i64) -> i64;
 
+// GJK (Gilbert-Johnson-Keerthi) — convex-convex overlap test for
+// arbitrary convex shapes. The user supplies two support function
+// pointers; each takes a Vec3 direction handle (allocated by GJK,
+// 3 doubles malloc'd) and returns a Vec3 point handle (the point
+// on the shape farthest in that direction). The user fn is
+// responsible for freeing the direction Vec3 it received and
+// returning a freshly malloc'd point Vec3 (GJK frees the point).
+//
+// Returns 1 (overlap), 0 (clear), or -1 if convergence failed.
+extern fn nuc_coll_gjk(support_a_fp: i64, support_b_fp: i64) -> i64;
+
 extern fn nuc_coll_aabb_aabb(
     a_minx: i64, a_miny: i64, a_minz: i64,
     a_maxx: i64, a_maxy: i64, a_maxz: i64,
@@ -55,6 +66,10 @@ fn coll_capsule_capsule(
     return nuc_coll_capsule_capsule(
         a_ax, a_ay, a_az, a_bx, a_by, a_bz, ar,
         b_ax, b_ay, b_az, b_bx, b_by, b_bz, br);
+}
+
+fn coll_gjk(support_a_fp: i64, support_b_fp: i64) -> i64 {
+    return nuc_coll_gjk(support_a_fp, support_b_fp);
 }
 
 fn coll_aabb_aabb(
