@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.272] — 2026-04-24
+
+**Robotics: Dynamic Time Warping (`dtw`) sequence-similarity
+distance for n-dimensional time series (Sakoe & Chiba 1978).
+Tolerant of time-axis stretches that confuse Euclidean point-to-
+point comparison — useful for trajectory tracking error, gesture
+matching, and learning-from-demonstration matching.**
+
+### Algorithm
+
+```
+Cost matrix d[i, j] = ‖A[i] − B[j]‖ (Euclidean)
+Accumulated D[0, 0] = d[0, 0]
+            D[0, j] = d[0, j] + D[0, j−1]
+            D[i, 0] = d[i, 0] + D[i−1, 0]
+            D[i, j] = d[i, j] + min(D[i−1, j], D[i, j−1], D[i−1, j−1])
+DTW distance = D[M−1, N−1]
+```
+
+Optional Sakoe-Chiba band restricts cells to `|i − j·M/N| ≤ band`
+— reduces work from `O(M·N)` to `O(band·max(M, N))` and rejects
+"too warped" alignments.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/dtw.nr"
+
+let d_b   = dtw_distance(a_ptr, M, b_ptr, N, dim);
+let d_b   = dtw_distance_band(a_ptr, M, b_ptr, N, dim, band);
+let avg_b = dtw_distance_normalized(a_ptr, M, b_ptr, N, dim);
+```
+
+### Verification
+
+Four direct C tests:
+
+1. Identical 1-D sequences → distance `0.000000` exactly.
+2. Time-shifted sin sequences (5-sample shift, N=30): Euclidean
+   `19.03`, **DTW `4.76`** — warping pulls cost down 4×.
+3. Sakoe-Chiba band-restricted with band ≥ N matches the
+   unbounded version exactly.
+4. Normalized = unnormalized / `(M + N − 1)` exact.
+
+### Files
+
+- `stdlib/runtime/dtw_rt.c` — `nuc_dtw_*` API; full DP and
+  band-restricted variants.
+- `stdlib/rods/dtw.nr` — externs + wrappers.
+- `tests/rods/dtw_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.271] — 2026-04-24
 
 **Robotics: natural cubic spline (`cspline`) — smooth interpolation

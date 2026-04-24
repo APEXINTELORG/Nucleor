@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 185
-# Total fn definitions: 1968
-# Total LOC: 8423
+# Total rods: 186
+# Total fn definitions: 1971
+# Total LOC: 8436
 
 [[rod]]
 name           = "activation2"
@@ -460,6 +460,15 @@ function_count = 12
 cfile_count    = 1
 loc            = 29
 imports        = ["dstar"]
+
+[[rod]]
+name           = "dtw"
+path           = "stdlib/rods/dtw.nr"
+description    = "Dynamic Time Warping (Sakoe & Chiba 1978) for"
+function_count = 3
+cfile_count    = 1
+loc            = 13
+imports        = ["dtw"]
 
 [[rod]]
 name           = "dwa"
