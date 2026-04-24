@@ -5439,7 +5439,11 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
         o.push(vec_get(snap, i)); o.push(vec_get(snap, i + 1));
         i = i + 2;
     };
-    // FREE-DISABLED: vec_free(snap) — caller may still hold references; needs deeper audit
+    // Keep snap alive — caller in check_expr (kind == 23 if-else) may
+    // still hold pointers into snap's storage via downstream check
+    // function references. The check pass needs a deeper audit before
+    // we can free here. The type pass (type_check_stmts) is safe to
+    // free because its env consumers don't outlive the snapshot.
     return 0;
 }
 fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
@@ -5457,7 +5461,10 @@ fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
         };
         i = i + 2;
     };
-    // FREE-DISABLED: vec_free(a) and vec_free(b) — needs deeper audit
+    // Keep a/b alive — own_merge_moved is called from check_expr (line
+    // 5786 area) where the caller may still reference them. The
+    // type-pass own_snapshot/free pattern is safe; the check pass needs
+    // a deeper audit before we can free here.
     return 0;
 }
 
@@ -6731,12 +6738,12 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let then_env: Vec<i32> = own_snapshot(env);
         warns = warns + type_check_stmts(pool, node_field(pool, nid, 2), then_env, sigs, structs, fn_name, diags, source, rtype, tprof);
-        // FREE-DISABLED: vec_free(then_env) crashes enums/if_let/match tests; needs deeper audit
+        vec_free(then_env);
         let enode: i64 = node_field(pool, nid, 3);
         if enode >= 0 {
             let else_env: Vec<i32> = own_snapshot(env);
             warns = warns + type_check_stmts(pool, enode, else_env, sigs, structs, fn_name, diags, source, rtype, tprof);
-            // FREE-DISABLED: vec_free(else_env)
+            vec_free(else_env);
         };
         return warns;
     };
@@ -6752,7 +6759,7 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         while ai < ac {
             let arm_env: Vec<i32> = own_snapshot(env);
             warns = warns + type_check_stmts(pool, node_field(pool, list_get(pool, arms, ai), 4), arm_env, sigs, structs, fn_name, diags, source, rtype, tprof);
-            // FREE-DISABLED: vec_free(arm_env) crashes enums/match tests
+            vec_free(arm_env);
             ai = ai + 1;
         };
         return warns;
