@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.273] — 2026-04-24
+
+**Robotics: Model Predictive Path Integral control (`mppi`) —
+Williams, Aldrich & Theodorou 2016/2017. Sample-based MPC variant
+that requires no gradient and handles arbitrary non-smooth
+dynamics + costs (binary obstacle indicators, friction stick-slip,
+hybrid systems) where iLQR / DDP would fail.**
+
+### Algorithm
+
+```
+Per control tick:
+  for k = 1..K:
+    ε_k[t] ~ N(0, Σ)                  (per-component noise)
+    u_k[t] = u_seq[t] + ε_k[t]        (perturbed sequence)
+    roll out under dynamics → cost J_k
+  w_k = exp(−(J_k − J_min) / λ)
+  w_k /= Σ_j w_j
+  u_seq[t] ← Σ_k w_k · u_k[t]
+  output u_seq[0], shift sequence by 1
+```
+
+`J_min` subtraction in the exponent is the standard numerical-
+stability trick. Naturally embarrassingly parallel — each rollout
+is independent — though this implementation runs sequentially.
+
+### When to use
+
+- **`mppi.nr`** — non-smooth costs/dynamics, contact-rich tasks,
+  obstacle indicator costs, hybrid systems. Slower (K rollouts per
+  tick) but globally robust.
+- **`ilqr.nr`, `mpc.nr`** — smooth costs/dynamics, fast convergence
+  via gradients.
+- **`cilqr.nr`** — smooth dynamics + box constraints on `u`.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/mppi.nr"
+
+let h = mppi_new(n_x, n_u, T, K, lambda_b, seed);
+for d in 0..n_u { mppi_set_sigma(h, d, sigma_d_b); }
+mppi_set_callbacks(h, dyn_fp, sc_fp, tc_fp);
+
+for tick {
+    mppi_step(h, x_ptr, u_out_ptr);
+}
+```
+
+### Verification
+
+Closed-loop MPPI on a 2-D double integrator (pos, vel; scalar
+accel input). Goal `(1, 0)` from start `(0, 0)`. `T = 20`,
+`K = 512`, `λ = 1.0`, `σ = 0.5`. Final state after 50 ticks:
+`(1.0055, −0.0713)` — converged within tolerance.
+
+### Files
+
+- `stdlib/runtime/mppi_rt.c` — `nuc_mppi_*` API; xorshift RNG +
+  Box-Muller normal sampling; sequential rollout loop; weighted
+  average update.
+- `stdlib/rods/mppi.nr` — externs + wrappers.
+- `tests/rods/mppi_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.272] — 2026-04-24
 
 **Robotics: Dynamic Time Warping (`dtw`) sequence-similarity
