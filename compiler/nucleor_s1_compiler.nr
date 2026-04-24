@@ -5382,7 +5382,50 @@ fn diag_emit_json(diags: Vec<i32>) -> i64 {
     return cnt;
 }
 
+// T1.8 (v0.2.335): extract a single 1-based line from a source
+// string. Returns "" if line is out of range. Memory-safe: walks
+// the source by index without allocating a substring per
+// candidate.
+fn diag_extract_line(source: str, line_no: i64) -> str {
+    if line_no <= 0 || str_len(source) == 0 { return ""; };
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    let mut cur_line: i64 = 1;
+    let mut line_start: i64 = 0;
+    while p < slen && cur_line < line_no {
+        if str_char_at(source, p) == 10 { cur_line = cur_line + 1; line_start = p + 1; };
+        p = p + 1;
+    };
+    if cur_line != line_no { return ""; };
+    let mut line_end: i64 = line_start;
+    while line_end < slen && str_char_at(source, line_end) != 10 { line_end = line_end + 1; };
+    return str_substring(source, line_start, line_end);
+}
+
+// T1.8: build a caret line "    ^^^^^^" pointing at column `col`
+// (1-based). Length defaults to 1 (single caret) for now; future
+// work can pass a token span.
+fn diag_caret_line(col: i64) -> str {
+    if col <= 0 { return ""; };
+    let mut sb: i64 = sb_new();
+    let mut i: i64 = 1;
+    while i < col { sb_append(sb, " "); i = i + 1; };
+    sb_append(sb, "^");
+    return sb_to_str(sb);
+}
+
 fn diag_emit_text(diags: Vec<i32>) -> i64 {
+    return diag_emit_text_with_source(diags, "");
+}
+
+// T1.8: source-aware text emit. Renders Rust-style frame:
+//   error[CODE]: message
+//     --> fn:line:col
+//     |
+//   42 |     let x: u8 = 256;
+//      |                 ^
+//     = help: ...
+fn diag_emit_text_with_source(diags: Vec<i32>, source: str) -> i64 {
     let cnt: i64 = vec_len(diags);
     let mut i: i64 = 0;
     while i < cnt {
@@ -5422,6 +5465,45 @@ fn diag_emit_text(diags: Vec<i32>) -> i64 {
                 sb_append(loc, ansi_dim(str_concat(":", str_from_int(col))));
             };
             print(sb_to_str(loc));
+        };
+
+        // T1.8: source snippet + caret frame, when source is available.
+        // Format (Rust-style):
+        //     |
+        //  42 | let x: u8 = 256;
+        //     |             ^
+        if str_len(source) > 0 && line > 0 {
+            let snippet: str = diag_extract_line(source, line);
+            if str_len(snippet) > 0 {
+                let line_str: str = str_from_int(line);
+                let gutter_w: i64 = str_len(line_str);
+                // Pad line number gutter + vertical bar on blank row.
+                let mut blank: i64 = sb_new();
+                let mut pi: i64 = 0;
+                while pi < gutter_w { sb_append(blank, " "); pi = pi + 1; };
+                sb_append(blank, " ");
+                sb_append(blank, ansi_dim("|"));
+                print(sb_to_str(blank));
+                // Source line row.
+                let mut src_row: i64 = sb_new();
+                sb_append(src_row, ansi_dim(line_str));
+                sb_append(src_row, " ");
+                sb_append(src_row, ansi_dim("|"));
+                sb_append(src_row, " ");
+                sb_append(src_row, snippet);
+                print(sb_to_str(src_row));
+                // Caret row.
+                if col > 0 {
+                    let mut caret_row: i64 = sb_new();
+                    pi = 0;
+                    while pi < gutter_w { sb_append(caret_row, " "); pi = pi + 1; };
+                    sb_append(caret_row, " ");
+                    sb_append(caret_row, ansi_dim("|"));
+                    sb_append(caret_row, " ");
+                    sb_append(caret_row, ansi_red(diag_caret_line(col)));
+                    print(sb_to_str(caret_row));
+                };
+            };
         };
 
         // Child note line ("moved here", "borrowed here", etc.)
@@ -7110,7 +7192,7 @@ fn preflight_source_check(source: str) -> i64 {
         diags = filter_allow_suppressed(diags, source);
         diags = promote_denied_to_errors(diags, source);
         if diag_count(diags) == 0 { return 0; };
-        if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text(diags); };
+        if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text_with_source(diags, source); };
         return 1;
     };
     return 0;
@@ -9223,7 +9305,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
             // only halt the build on errors. Warnings (NUM-003 lossy
             // cast, MATCH-001/002 typecker, etc.) flow through the
             // report without blocking compilation.
-            if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text(diags); };
+            if diag_use_json() == 1 { diag_emit_json(diags); } else { diag_emit_text_with_source(diags, source); };
             if diag_count_errors(diags) > 0 { return 1; };
         };
     };

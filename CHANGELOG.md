@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.335] — 2026-04-24
+
+**T1.8 Diagnostics — Rust-style snippet + caret rendering.**
+First v0.2 punchlist Tier 1 item shipped after T1.1 numerics
+closeout. Diagnostic emit now produces a full E-style frame
+with the source line and a caret pointing at the column.
+
+### Surface change
+
+Before:
+```
+warning[NUM-002]: numeric literal 256 out of range for declared type u8
+  --> fn main@line 2:9
+```
+
+After:
+```
+warning[NUM-002]: numeric literal 256 out of range for declared type u8
+  --> fn main@line 2:9
+  |
+2 |     let x: u8 = 256;
+  |         ^
+```
+
+### What landed
+
+- `compiler/nucleor_s1_compiler.nr`: three new helpers:
+  - `diag_extract_line(source, line_no)` — pull a single
+    1-based line from a source string, walking by index
+    (no per-candidate substring allocation).
+  - `diag_caret_line(col)` — build the `    ^` row pointing
+    at column `col` (1-based).
+  - `diag_emit_text_with_source(diags, source)` — new entry
+    point that renders the snippet+caret frame after the
+    location line. The original `diag_emit_text(diags)`
+    delegates to it with `""` for source (back-compat).
+- Both `diag_emit_text` call sites (preflight at line 7195,
+  type-check at line 9308) updated to pass `source` through.
+- Memory-safety preserved: helpers don't alias the input
+  string; the renderer uses sb_new/sb_append/sb_to_str
+  patterns matching the existing Rust-grade ownership rules.
+
+### Numerics-compatibility
+
+No new arithmetic; existing T1.1 narrow-numerics rules apply
+unchanged. The new helpers use `i64` everywhere internally.
+
+### Verify gate
+
+343/331 PASS. Bootstrap fixpoint stable. ABI parity green.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — 3 helpers + 2 call-site
+  updates.
+- `bin/nucleor.exe` — rebuilt.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+T1.2 Result/Option/match payloads + `?` operator.
+
 ## [0.2.334] — 2026-04-24
 
 **Robotics: 4-wheel skid-steer kinematics + odometry
