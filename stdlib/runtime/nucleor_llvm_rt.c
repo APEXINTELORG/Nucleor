@@ -551,6 +551,100 @@ void __nucleor_arena_destroy(long long h) {
     if (a) free(a);
 }
 
+// === RFC-0029 phase 1 — identifier interner (v0.2.164) ===
+// Returns a stable canonical pointer for any input string. Future
+// calls with content-equal inputs return the SAME pointer, so
+// downstream comparisons can use pointer-equality (i64 ==) instead
+// of byte-equality (str_eq). This is the architectural step toward
+// the TypeId interner (Ship 3 in MEMORY_FIX_PUNCHLIST.md): once
+// strings are interned, comparing types is one i64 == instead of
+// O(n) byte walk + transient allocations.
+//
+// Implementation: open-addressed hash table with linear probing.
+// Table doubles when load > 70%. Each unique string is malloc'd
+// once (with its content copied) and lives for process lifetime.
+// Memory bounded by ~unique-identifier count × avg-length, which
+// for the s1 self-host is ~1500 × 16 = 24 KB — negligible vs the
+// 185 MB compile baseline. The win is comparison cost, not memory.
+
+typedef struct {
+    char **slots;
+    long long *hashes;
+    long long count;
+    long long capacity;
+} NIntern;
+
+static NIntern g_intern = { 0, 0, 0, 0 };
+static long long g_intern_hits = 0;
+static long long g_intern_misses = 0;
+
+static long long _intern_hash(const char *s) {
+    // FNV-1a 64
+    long long h = (long long)0xcbf29ce484222325LL;
+    while (*s) {
+        h ^= (long long)(unsigned char)*s++;
+        h *= (long long)0x100000001b3LL;
+    }
+    return h;
+}
+
+static void _intern_init(long long cap) {
+    g_intern.capacity = cap;
+    g_intern.count = 0;
+    g_intern.slots = (char **)calloc((size_t)cap, sizeof(char *));
+    g_intern.hashes = (long long *)calloc((size_t)cap, sizeof(long long));
+}
+
+static void _intern_grow(void) {
+    long long old_cap = g_intern.capacity;
+    char **old_slots = g_intern.slots;
+    long long *old_hashes = g_intern.hashes;
+    _intern_init(old_cap * 2);
+    for (long long i = 0; i < old_cap; i++) {
+        if (old_slots[i] == 0) continue;
+        long long h = old_hashes[i];
+        long long idx = (h & (long long)0x7FFFFFFFFFFFFFFFLL) % g_intern.capacity;
+        while (g_intern.slots[idx] != 0) idx = (idx + 1) % g_intern.capacity;
+        g_intern.slots[idx] = old_slots[i];
+        g_intern.hashes[idx] = h;
+        g_intern.count++;
+    }
+    free(old_slots);
+    free(old_hashes);
+}
+
+const char *__nucleor_str_intern(const char *s) {
+    if (!s) return 0;
+    if (g_intern.capacity == 0) _intern_init(256);
+    if (g_intern.count * 10 > g_intern.capacity * 7) _intern_grow();
+    long long h = _intern_hash(s);
+    long long idx = (h & (long long)0x7FFFFFFFFFFFFFFFLL) % g_intern.capacity;
+    while (g_intern.slots[idx] != 0) {
+        if (g_intern.hashes[idx] == h && strcmp(g_intern.slots[idx], s) == 0) {
+            g_intern_hits++;
+            return g_intern.slots[idx];
+        }
+        idx = (idx + 1) % g_intern.capacity;
+    }
+    // Miss — copy the string and store it. The interned pointer is
+    // stable for process lifetime (we never delete from the table).
+    size_t L = strlen(s);
+    char *owned = (char *)malloc(L + 1);
+    memcpy(owned, s, L + 1);
+    g_intern.slots[idx] = owned;
+    g_intern.hashes[idx] = h;
+    g_intern.count++;
+    g_intern_misses++;
+    return owned;
+}
+
+// Diagnostic: returns a stat-pair packed as (hits << 32) | misses
+// (truncated). For test inspection only; not promoted to a public
+// CLI yet.
+long long __nucleor_str_intern_stats(void) {
+    return (g_intern_hits << 24) | (g_intern_misses & 0xFFFFFFLL);
+}
+
 // === Tensor runtime ===
 typedef struct { int rows; int cols; double *data; } NTensor;
 static double _t_i2f(long long x) { double d; memcpy(&d, &x, sizeof(double)); return d; }

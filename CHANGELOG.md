@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.164] — 2026-04-23
+
+**RFC-0029 phase 1: identifier interner. New `str_intern(s)`
+builtin returns a stable canonical pointer per unique input
+string. Architectural building block for the v0.4 TypeId
+interner and for any pointer-equality fast paths.**
+
+The interner is the foundation for migrating the type checker
+from string-equality (O(n) per comparison + transient
+allocations) to pointer-equality (O(1), no allocations). v0.2
+ships the underlying primitive so user code (including
+optimizers and helper rods) can use it now; the type-checker
+migration is Ship 3 in `MEMORY_FIX_PUNCHLIST.md`.
+
+### Surface
+
+```nucleor
+let a: str = str_intern("hello");
+let b: str = str_intern("hello");
+// a and b have the SAME underlying pointer; (a as i64) == (b as i64)
+let c: str = str_intern("world");
+// c has a DIFFERENT pointer from a/b
+// All still str_eq cleanly:
+//   str_eq(a, "hello") == 1
+//   str_eq(c, "world") == 1
+```
+
+### Implementation in `stdlib/runtime/nucleor_llvm_rt.c`
+
+Open-addressed hash table with linear probing:
+- FNV-1a 64 hash
+- Doubles when load > 70% (rehashes existing entries)
+- Each unique string is malloc'd once with content copied
+- Process-lifetime ownership (entries never deleted)
+- Memory bounded by ~unique-identifier count × avg-length;
+  for the s1 self-host: ~1500 × 16 = 24 KB total
+
+The win is comparison cost, not memory. After interning, two
+strings with the same content are byte-identical at the same
+address; comparison becomes one i64 == instead of an O(n)
+byte walk plus possible transient allocations.
+
+### Compiler builtin
+
+- `compiler/nucleor_s1_compiler.nr`: 4 ABI sites
+  (`get_rt_name`, `is_ptr_ret`, `is_ptr_arg`, `emit_externs`).
+- `compiler/nucleor_tools_suite.nr`: 4 mirrored sites.
+- Bootstrap was clean — no calls to `str_intern` from compiler
+  source yet (the call sites land with Ship 3).
+
+### Tests
+
+- `tests/lang/str_intern_basic.nr`: positive test asserting
+  identical content returns identical pointer; different
+  content returns different pointers; interned strings still
+  `str_eq` correctly.
+
+### Self-host LLVM IR fixed point
+
+- 3-iter check passed at iter2==iter3 (byte-identical at
+  2,678,872 bytes). Iter1 differed by exactly the new
+  `str_intern` declare line, as expected.
+- `bin/nucleor.exe` updated; chain extends to **v0.2.164**.
+
+### Verify gate
+
+**247 / 247 PASS, 0 SKIP** (was 246/246; +1 new test).
+
 ## [0.2.163] — 2026-04-23
 
 **Memory-fix Ship 6: env-snapshot UAF audit (item E4 from
