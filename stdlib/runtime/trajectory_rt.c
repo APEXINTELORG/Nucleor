@@ -577,3 +577,270 @@ void nuc_dmp_free(long long h) {
     if (d->weights) free(d->weights);
     free(d);
 }
+
+// === TOPP — time-optimal path parameterization (v0.2.203) ================
+//
+// Pham 2014 / TOPP-RA, simplified for piecewise-linear paths in joint
+// space. Given a sequence of N waypoints and per-joint velocity +
+// acceleration bounds, computes the time-optimal parameterization
+// — i.e., the minimum total traversal time subject to the bounds —
+// via the standard forward + backward pass on the squared path
+// velocity b(s) = (ds/dt)².
+//
+// Per-segment algebra (segment i: q[i] → q[i+1], parameterized by
+// s ∈ [i, i+1]):
+//   q(s) within segment is linear in s, so q_s = q[i+1] - q[i] is
+//   constant and q_ss = 0. For each joint j:
+//     velocity bound:     |q_s[j] · sqrt(b)| ≤ vmax[j]
+//                         → b ≤ (vmax[j] / |q_s[j]|)²
+//     acceleration bound: |q_s[j] · a| ≤ amax[j]   (a = s_ddot)
+//                         → |a| ≤ amax[j] / |q_s[j]|
+//
+// Forward pass:  b[0] = 0, b[i+1] = min(b[i] + 2·a_max(i), vbound²(i))
+// Backward pass: b[N-1] = 0, b[i] = min(b[i], b[i+1] + 2·a_max(i))
+//
+// Time per segment: ∫₀¹ ds/sqrt(b(s)) where b(s) is linear within
+// the segment. Closed form: (sqrt(b[i+1]) - sqrt(b[i])) / a where
+// a = (b[i+1] - b[i]) / 2; falls back to 1/sqrt(b) when a ≈ 0.
+//
+// **Limitations** (full TOPP-RA via convex optimization on each
+// path discretization step lands in v0.6 if needed):
+// - Only piecewise-linear paths. For B-spline / quintic-spline
+//   geometric paths, sample to a piecewise-linear discretization
+//   first.
+// - Symmetric box bounds only (|v| ≤ vmax, |a| ≤ amax). Asymmetric
+//   bounds (e.g., gravity-loaded vertical axes) need the full LP
+//   formulation.
+// - No torque/dynamics constraints. Pure kinematic.
+
+typedef struct {
+    int n_dim;
+    int n_waypoints;
+    int cap_waypoints;
+    double *waypoints;     // n_waypoints × n_dim, flat
+    double *vmax;          // n_dim
+    double *amax;          // n_dim
+    // After solve:
+    double *b;             // n_waypoints (squared path velocity)
+    double *t;             // n_waypoints (cumulative time)
+    int solved;
+    double total_time;
+} NTopp;
+
+long long nuc_topp_new(long long n_dim) {
+    NTopp *p = (NTopp *)calloc(1, sizeof(NTopp));
+    p->n_dim = (int)n_dim;
+    p->cap_waypoints = 16;
+    p->waypoints = (double *)malloc(p->cap_waypoints * p->n_dim * sizeof(double));
+    p->vmax = (double *)malloc(p->n_dim * sizeof(double));
+    p->amax = (double *)malloc(p->n_dim * sizeof(double));
+    for (int j = 0; j < p->n_dim; j++) {
+        p->vmax[j] = 1.0;     // sane defaults: 1 unit/s, 1 unit/s²
+        p->amax[j] = 1.0;
+    }
+    return (long long)(size_t)p;
+}
+
+long long nuc_topp_add_waypoint(long long h, long long q_ptr) {
+    NTopp *p = (NTopp *)(void *)(size_t)h;
+    if (!p) return -1;
+    if (p->n_waypoints >= p->cap_waypoints) {
+        p->cap_waypoints *= 2;
+        p->waypoints = (double *)realloc(p->waypoints,
+                                         p->cap_waypoints * p->n_dim * sizeof(double));
+    }
+    double *q = (double *)(void *)(size_t)q_ptr;
+    memcpy(p->waypoints + p->n_waypoints * p->n_dim, q,
+           p->n_dim * sizeof(double));
+    p->solved = 0;
+    return (long long)(p->n_waypoints++);
+}
+
+void nuc_topp_set_vmax(long long h, long long j, long long vmax_b) {
+    NTopp *p = (NTopp *)(void *)(size_t)h;
+    if (!p || j < 0 || j >= (long long)p->n_dim) return;
+    p->vmax[j] = _i2f(vmax_b);
+    p->solved = 0;
+}
+
+void nuc_topp_set_amax(long long h, long long j, long long amax_b) {
+    NTopp *p = (NTopp *)(void *)(size_t)h;
+    if (!p || j < 0 || j >= (long long)p->n_dim) return;
+    p->amax[j] = _i2f(amax_b);
+    p->solved = 0;
+}
+
+// Solve the parameterization. Returns 0 on success, -1 on bad
+// state (fewer than 2 waypoints).
+long long nuc_topp_solve(long long h) {
+    NTopp *p = (NTopp *)(void *)(size_t)h;
+    if (!p || p->n_waypoints < 2) return -1;
+    int N = p->n_waypoints;
+    int M = N - 1;  // number of segments
+
+    if (p->b) free(p->b);
+    if (p->t) free(p->t);
+    p->b = (double *)calloc(N, sizeof(double));
+    p->t = (double *)calloc(N, sizeof(double));
+
+    double *vbound2 = (double *)malloc(M * sizeof(double));
+    double *amax_seg = (double *)malloc(M * sizeof(double));
+
+    for (int i = 0; i < M; i++) {
+        double *q0 = p->waypoints + i * p->n_dim;
+        double *q1 = p->waypoints + (i + 1) * p->n_dim;
+        double v_lim2 = 1e30;
+        double a_lim = 1e30;
+        for (int j = 0; j < p->n_dim; j++) {
+            double dq = q1[j] - q0[j];
+            double adq = fabs(dq);
+            if (adq < 1e-18) continue;  // joint stationary on this segment
+            double v_j = p->vmax[j] / adq;
+            double a_j = p->amax[j] / adq;
+            if (v_j * v_j < v_lim2) v_lim2 = v_j * v_j;
+            if (a_j < a_lim)        a_lim = a_j;
+        }
+        vbound2[i] = v_lim2;
+        amax_seg[i] = a_lim;
+    }
+
+    // Per-interior-waypoint corner cap. At waypoint i (0 < i < N-1),
+    // if the path tangent changes between segment i-1 and segment i,
+    // any nonzero path velocity translates to a discontinuous JOINT
+    // velocity — which would require unbounded acceleration. Detect
+    // corners and force b[i] = 0 there. (The strict-equality test
+    // for collinear unit tangents is `dot ≥ 1 - ε`.)
+    double *vbound2_node = (double *)malloc(N * sizeof(double));
+    vbound2_node[0] = 0.0;
+    vbound2_node[N - 1] = 0.0;
+    for (int i = 1; i < N - 1; i++) {
+        double *q_prev = p->waypoints + (i - 1) * p->n_dim;
+        double *q_cur  = p->waypoints + i * p->n_dim;
+        double *q_next = p->waypoints + (i + 1) * p->n_dim;
+        double dot = 0, lp2 = 0, ln2 = 0;
+        for (int j = 0; j < p->n_dim; j++) {
+            double dp = q_cur[j] - q_prev[j];
+            double dn = q_next[j] - q_cur[j];
+            dot += dp * dn;
+            lp2 += dp * dp;
+            ln2 += dn * dn;
+        }
+        double cosang = (lp2 > 1e-18 && ln2 > 1e-18) ? dot / sqrt(lp2 * ln2) : 1.0;
+        // Allow cap = min of segment vbounds if collinear; else 0.
+        if (cosang >= 0.999999) {
+            double v0 = vbound2[i - 1], v1 = vbound2[i];
+            vbound2_node[i] = (v0 < v1) ? v0 : v1;
+        } else {
+            vbound2_node[i] = 0.0;
+        }
+    }
+
+    // Forward pass: b[0] = 0; b[i+1] ≤ b[i] + 2·a_max(i); b[i+1] ≤ vbound²(i).
+    p->b[0] = 0.0;
+    for (int i = 0; i < M; i++) {
+        double cap = p->b[i] + 2.0 * amax_seg[i];
+        if (cap > vbound2[i]) cap = vbound2[i];
+        if (cap > vbound2_node[i + 1]) cap = vbound2_node[i + 1];
+        p->b[i + 1] = cap;
+    }
+    // Backward pass: b[N-1] = 0; b[i] ≤ b[i+1] + 2·a_max(i).
+    p->b[N - 1] = 0.0;
+    for (int i = N - 2; i >= 0; i--) {
+        double cap = p->b[i + 1] + 2.0 * amax_seg[i];
+        if (cap < p->b[i]) p->b[i] = cap;
+    }
+    free(vbound2_node);
+
+    // Time per segment. The forward + backward passes guarantee
+    // that b[i] is reachable from b[i+1] (and vice-versa) within
+    // the segment's a_max budget, but they only constrain the
+    // ENDPOINTS — not the within-segment peak. To get a tight
+    // total time we need to integrate the actual within-segment
+    // b(s), which is the minimum of:
+    //   forward parabola : b_f(s) = b[i]   + 2·a·s
+    //   backward parabola: b_b(s) = b[i+1] + 2·a·(1-s)
+    //   velocity bound   : vbound²
+    // The two parabolas meet at s_meet = (b[i+1]-b[i])/(4a) + ½.
+    // If neither reaches vbound² before they meet, the profile is
+    // triangular (peak = b[i]+2·a·s_meet); otherwise trapezoidal
+    // with a constant-velocity cruise at vbound² in between.
+    p->t[0] = 0.0;
+    for (int i = 0; i < M; i++) {
+        double b0 = p->b[i], b1 = p->b[i + 1];
+        double a = amax_seg[i];
+        double vb2 = vbound2[i];
+        double dt = 0.0;
+        if (a >= 1e29 || vb2 >= 1e29) {
+            // Degenerate segment — no joint moves. Zero time.
+            dt = 0.0;
+        } else if (a < 1e-12) {
+            // No within-segment acceleration possible (shouldn't
+            // really happen if any joint moves, since a is in s-units
+            // = amax[j] / |dq[j]|).
+            if (b0 > 1e-18) dt = 1.0 / sqrt(b0);
+        } else {
+            double s_fv = (vb2 - b0) / (2.0 * a);
+            double s_bv = 1.0 - (vb2 - b1) / (2.0 * a);
+            if (s_fv < 0) s_fv = 0;     if (s_fv > 1) s_fv = 1;
+            if (s_bv < 0) s_bv = 0;     if (s_bv > 1) s_bv = 1;
+            double sqv = sqrt(vb2);
+            if (s_fv < s_bv) {
+                // Trapezoidal: accelerate to vbound, cruise, decelerate.
+                double t_acc = (sqv - sqrt(b0)) / a;
+                double t_cruise = (s_bv - s_fv) / sqv;
+                double t_dec = (sqv - sqrt(b1)) / a;
+                dt = t_acc + t_cruise + t_dec;
+            } else {
+                // Triangular: forward and backward arcs meet in the
+                // middle (peak below vbound²).
+                double s_meet = (b1 - b0) / (4.0 * a) + 0.5;
+                if (s_meet < 0) s_meet = 0; if (s_meet > 1) s_meet = 1;
+                double b_peak = b0 + 2.0 * a * s_meet;
+                if (b_peak > vb2) b_peak = vb2;
+                double sqp = sqrt(b_peak);
+                dt = (sqp - sqrt(b0)) / a + (sqp - sqrt(b1)) / a;
+            }
+            if (dt < 0) dt = 0;  // numerical guard
+        }
+        p->t[i + 1] = p->t[i] + dt;
+    }
+    p->total_time = p->t[N - 1];
+
+    free(vbound2); free(amax_seg);
+    p->solved = 1;
+    return 0;
+}
+
+long long nuc_topp_total_time(long long h) {
+    NTopp *p = (NTopp *)(void *)(size_t)h;
+    if (!p || !p->solved) return _f2i(-1.0);
+    return _f2i(p->total_time);
+}
+
+long long nuc_topp_time_at_waypoint(long long h, long long i) {
+    NTopp *p = (NTopp *)(void *)(size_t)h;
+    if (!p || !p->solved || i < 0 || i >= (long long)p->n_waypoints) return _f2i(-1.0);
+    return _f2i(p->t[i]);
+}
+
+long long nuc_topp_path_velocity(long long h, long long i) {
+    NTopp *p = (NTopp *)(void *)(size_t)h;
+    if (!p || !p->solved || i < 0 || i >= (long long)p->n_waypoints) return _f2i(-1.0);
+    return _f2i(sqrt(p->b[i]));
+}
+
+long long nuc_topp_waypoint_count(long long h) {
+    NTopp *p = (NTopp *)(void *)(size_t)h;
+    return p ? (long long)p->n_waypoints : 0;
+}
+
+void nuc_topp_free(long long h) {
+    NTopp *p = (NTopp *)(void *)(size_t)h;
+    if (!p) return;
+    if (p->waypoints) free(p->waypoints);
+    if (p->vmax) free(p->vmax);
+    if (p->amax) free(p->amax);
+    if (p->b) free(p->b);
+    if (p->t) free(p->t);
+    free(p);
+}

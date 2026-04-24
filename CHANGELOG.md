@@ -5,6 +5,94 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.203] — 2026-04-23
+
+**Robotics: TOPP — time-optimal path parameterization. Given a
+piecewise-linear path through joint space and per-joint velocity +
+acceleration bounds, computes the minimum-time time-parameterization
+(s ↦ t) that respects the bounds. Standard forward + backward pass
+on the squared path velocity b(s) = (ds/dt)², per Pham 2014's
+TOPP-RA algorithm — simplified for piecewise-linear paths.**
+
+The trajectory rod (v0.2.177-192) ships profile-shaping primitives
+(quintic, trapezoid, S-curve, DMP) that are useful for one-segment
+moves between two waypoints. Multi-waypoint paths from a planner
+(RRT, RRT*, PRM) need a different tool: parameterize the existing
+geometric path along the time axis to minimize total time subject
+to actuator limits. That's TOPP.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/trajectory.nr"
+
+let topp = topp_new(n_dim);
+topp_set_vmax(topp, joint_idx, vmax_b);
+topp_set_amax(topp, joint_idx, amax_b);
+for waypoint in path {
+    topp_add_waypoint(topp, waypoint_ptr);  // double[n_dim] handle
+}
+topp_solve(topp);
+let total_t = topp_total_time(topp);
+let t_at_2  = topp_time_at_waypoint(topp, 2);
+let v_at_2  = topp_path_velocity(topp, 2);  // path velocity (ds/dt)
+```
+
+### Implementation notes
+
+- Per segment, projects per-joint bounds onto the segment direction:
+  `vbound² = min_j (vmax[j] / |dq[j]|)²`,
+  `a_max_seg = min_j amax[j] / |dq[j]|`.
+- Forward pass starts at `b[0] = 0` and accelerates segment by
+  segment; backward pass starts at `b[N-1] = 0` and decelerates.
+  The minimum of the two is the actual squared path velocity at
+  each waypoint.
+- **Corner detection**: at each interior waypoint, if the path
+  tangent changes (cosine of angle between adjacent segments
+  < 0.999999), the joint velocity would have to step-change to
+  follow — which violates any finite acceleration bound. Force
+  `b[i] = 0` at corners. (Continuous-tangent paths through the
+  same waypoint sequence preserve `b > 0`.)
+- **Within-segment integration**: the segment-time integral
+  ∫₀¹ ds/sqrt(b(s)) accounts for the *peak* `b` reached within
+  the segment (not just the endpoints). Two cases:
+  - **Trapezoidal**: forward + backward parabolas reach the
+    velocity bound — accelerate, cruise at vmax, decelerate.
+  - **Triangular**: parabolas meet below the bound — accelerate
+    to a peak, immediately decelerate.
+
+### Limitations (full TOPP-RA via convex optimization on a per-
+discretization-step LP lands in v0.6 if needed):
+
+- Only piecewise-linear paths. For B-splines or quintic-splines,
+  sample to a piecewise-linear discretization first.
+- Symmetric box bounds only (`|v| ≤ vmax`, `|a| ≤ amax`).
+  Asymmetric bounds (e.g., gravity-loaded vertical axes) need
+  the full LP formulation.
+- Pure kinematic. No torque / dynamics constraints.
+
+### Verification
+
+- Single-segment 0→1 with `vmax=2, amax=4`: total time 1.0 s
+  (matches analytical trapezoid: 0.5 s accel + 0.5 s decel).
+- L-shaped (0,0)→(1,0)→(1,1) with `vmax=1, amax=2`:
+  3.0 s (corner detection forces stop at midpoint).
+- Collinear (0,0)→(1,0)→(2,0) with `vmax=1, amax=2`:
+  2.5 s with `s_dot=1.0` at midpoint (no spurious braking on
+  continuous tangent).
+
+### Files
+
+- `stdlib/runtime/trajectory_rt.c` — `NTopp` struct,
+  `nuc_topp_new` / `_add_waypoint` / `_set_vmax` / `_set_amax` /
+  `_solve` / `_total_time` / `_time_at_waypoint` /
+  `_path_velocity` / `_waypoint_count` / `_free`.
+- `stdlib/rods/trajectory.nr` — externs + Nucleor wrappers.
+- `tests/rods/trajectory_smoke.nr` — exercise empty-state +
+  insufficient-waypoint return code.
+
+---
+
 ## [0.2.202] — 2026-04-23
 
 **Robotics: GJK EPA — penetration depth + contact normal for two
