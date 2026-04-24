@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.276] — 2026-04-24
+
+**Robotics: Monte Carlo reachability mapper (`reach`) for arm
+robots. Samples N joint configurations uniformly within per-joint
+bounds, runs a user-supplied forward-kinematics callback on each,
+stores the resulting end-effector positions as a workspace cloud.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/reach.nr"
+
+let h = reach_new(n_joints, n_samples, seed);
+for j in 0..n_joints {
+    reach_set_joint_limit(h, j, lo_b, hi_b);
+}
+reach_compute(h, fk_fp);
+
+// Per-sample EE coordinates:
+let x_b = reach_get_ee(h, sample_idx, 0);
+// ... y, z
+
+// Density query:
+let n_in = reach_density_in_sphere(h, x_b, y_b, z_b, radius_b);
+
+// Bounding box on axis 0/1/2 (writes [min, max]):
+reach_workspace_extent(h, axis, out_ptr);
+```
+
+FK callback signature: `fn(joints_ptr, ee_xyz_out_ptr) -> i64`
+where `joints_ptr` is `double[n_joints]` and `ee_xyz_out_ptr` is
+`double[3]` for the EE world-frame position.
+
+### Verification
+
+Planar 2-link arm, link lengths `1.0` and `1.0`, both joints
+sampled uniformly in `[−π, π]` with 5000 samples. Workspace is
+the disk of radius 2.
+
+- Workspace bounding box: `x ∈ [-1.998, 1.998]`, `y ∈ [-1.999, 2.000]`
+  — converged to the analytical disk to within `0.002`.
+- Density at origin (`r = 0.5` sphere): `811 / 5000` (configurations
+  where the two links fold near each other).
+- Density outside workspace (`(3, 0, 0)`, `r = 0.5`): `0`
+  (correctly excludes unreachable region).
+
+### Files
+
+- `stdlib/runtime/reach_rt.c` — `nuc_reach_*` API; xorshift RNG;
+  uniform sampling within bounds; brute-force density query.
+- `stdlib/rods/reach.nr` — externs + wrappers.
+- `tests/rods/reach_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.275] — 2026-04-24
 
 **Robotics: 2D Visibility Graph planner (`vgraph`). Builds a graph

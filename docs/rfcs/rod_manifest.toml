@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 189
-# Total fn definitions: 1997
-# Total LOC: 8521
+# Total rods: 190
+# Total fn definitions: 2005
+# Total LOC: 8550
 
 [[rod]]
 name           = "activation2"
@@ -1243,6 +1243,15 @@ function_count = 1
 cfile_count    = 1
 loc            = 16
 imports        = []
+
+[[rod]]
+name           = "reach"
+path           = "stdlib/rods/reach.nr"
+description    = "Monte Carlo reachability mapper for arm robots."
+function_count = 8
+cfile_count    = 1
+loc            = 29
+imports        = ["reach"]
 
 [[rod]]
 name           = "regex"
