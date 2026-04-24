@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 146
-# Total fn definitions: 1683
-# Total LOC: 7228
+# Total rods: 147
+# Total fn definitions: 1686
+# Total LOC: 7263
 
 [[rod]]
 name           = "activation2"
@@ -558,6 +558,15 @@ description    = "HNSW vector index (approximate nearest neighbor)"
 function_count = 5
 cfile_count    = 1
 loc            = 11
+imports        = []
+
+[[rod]]
+name           = "icp"
+path           = "stdlib/rods/icp.nr"
+description    = "Iterative Closest Point for 3D point cloud"
+function_count = 3
+cfile_count    = 1
+loc            = 35
 imports        = []
 
 [[rod]]

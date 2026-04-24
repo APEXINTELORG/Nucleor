@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.223] — 2026-04-23
+
+**Robotics: ICP — Iterative Closest Point for 3D point cloud
+alignment. Foundation for robotics perception (LiDAR / depth
+camera / RGBD scan matching, object pose estimation against CAD
+models, SLAM scan-matching front-end). Uses Horn 1987's quaternion-
+based closed-form solution for the per-iteration optimal rotation
+step + brute-force nearest-neighbor matching.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/icp.nr"
+
+// Initial guess via centroid alignment (R=I, t=cQ-cP). Useful
+// for clouds with large translation offsets — without this, all
+// source points may degenerate to matching the same closest
+// target vertex.
+icp_centroid_init(src_ptr, n_src, tgt_ptr, n_tgt, R_ptr, t_ptr);
+
+// Refine with ICP. Returns iterations performed.
+let n_iters = icp_align(src_ptr, n_src, tgt_ptr, n_tgt,
+                        max_iters, tol_b, R_ptr, t_ptr);
+
+// Verify residual.
+let mse = icp_residual(src_ptr, n_src, tgt_ptr, n_tgt, R_ptr, t_ptr);
+```
+
+`R_ptr` is a `double[9]` row-major rotation; `t_ptr` is a
+`double[3]` translation. Both hold the initial guess on entry and
+the refined transform on exit.
+
+### Implementation notes
+
+- **Optimal rotation step**: Horn 1987's quaternion-based method
+  via 4×4 N-matrix construction + power iteration for the top
+  eigenvector. No SVD library dependency.
+- **Nearest-neighbor matching**: brute-force `O(N_src · N_tgt)`
+  per iteration. Fine for clouds ≤ 1000 points (typical for
+  CAD-model object pose); for full LiDAR scans, the v0.6
+  KD-tree variant accelerates this to `O(N_src · log N_tgt)`.
+- **Centroid init helper**: `icp_centroid_init` writes
+  `(R = I, t = cQ - cP)`. Without this, large translations
+  cause every source point to match the same closest target
+  corner — the classic "ICP degenerate fixed point" failure
+  mode.
+- **Convergence**: stops when consecutive-iter MSE difference
+  drops below `tol`, or after `max_iters`.
+
+### Verification
+
+- **Translation-only** (cube → cube + (1, 2, 3)) with centroid init
+  + 2 ICP iters: t recovered exactly = (1.0000, 2.0000, 3.0000),
+  R = identity, residual MSE = 0.
+- **Rotation + translation** (cube rotated 30° about z, then
+  translated (0.5, -0.3, 0.2)) with centroid init + 2 ICP iters:
+  R[0,0] = 0.8660 (cos 30°), R[0,1] = -0.5000 (-sin 30°),
+  t recovered exactly, residual MSE = 3.5e-33 (machine epsilon).
+
+### Limitations (KD-tree NN + outlier rejection + point-to-plane
+land in v0.6 if needed):
+
+- Brute-force nearest neighbor.
+- No outlier rejection (every source point gets a match).
+- Point-to-point only (point-to-plane is the surface-rich-scene
+  alternative).
+
+### Files
+
+- `stdlib/runtime/icp_rt.c` — `nuc_icp_align`,
+  `nuc_icp_centroid_init`, `nuc_icp_residual`, plus
+  `_nearest_in` / `_kabsch_horn` / `_top_eigenvec_4x4` /
+  `_quat_to_R` / `_mat3_mul` / `_apply_Rt` helpers.
+- `stdlib/rods/icp.nr` — externs + Nucleor wrappers.
+- `tests/rods/icp_smoke.nr` — build-only linkage smoke
+  (correctness covered by direct C cube-alignment test).
+
+---
+
 ## [0.2.222] — 2026-04-23
 
 **Robotics: iLQR — iterative Linear Quadratic Regulator (Tassa
