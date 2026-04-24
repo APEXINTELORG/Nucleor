@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.291] — 2026-04-24
+
+**Robotics: 2D BFS / Dijkstra-lite wavefront distance transform
+(`wavefront`). Given a traversability grid and one or more start
+cells, compute per-cell distance to the nearest start, propagated
+along traversable cells. 4- or 8-connectivity.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/wavefront.nr"
+
+// trav: i64[W*H]  (1 = traversable, 0 = obstacle)
+// starts: i64[n_starts * 2]  (ix, iy interleaved)
+// dist_out: double[W*H]  (∞ = unreachable)
+
+let reached = wavefront_compute(W, H, trav_ptr,
+    n_starts, starts_ptr,
+    dist_out_ptr,
+    connectivity);     // 4 or 8
+```
+
+### Pairs naturally with
+
+- `occgrid.nr`'s free-cell mask → build `trav` array → distance field.
+- `occgrid_find_frontiers` → supply frontiers as starts →
+  nearest-frontier distance per cell → utility-weighted exploration.
+- `astar.nr` / `dstar.nr`: wavefront gives the admissible
+  straight-line-through-traversable heuristic.
+
+### Verification
+
+10×10 grid, four tests:
+
+1. **8-conn open**: `d(9,9) = 12.727922` = `9·√2` exact, 100 cells
+   reached.
+2. **4-conn open**: `d(9,9) = 18.0` = `9+9` Manhattan exact.
+3. **Wall** at column 5: left-of-wall cell `d(4,0) = 4.0`,
+   right-of-wall `d(6,0) = ∞`, reached count drops to 50.
+4. **Two starts** at `(0,0)` and `(9,9)`: `d(4,4) = 4·√2 = 5.6569`
+   (min of distances to either start) exact.
+
+### Files
+
+- `stdlib/runtime/wavefront_rt.c` — `nuc_wavefront_compute`;
+  binary min-heap Dijkstra over uniform-cost (with √2 diagonal)
+  grid edges.
+- `stdlib/rods/wavefront.nr` — extern + wrapper.
+- `tests/rods/wavefront_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.290] — 2026-04-24
 
 **Robotics: frontier detection for `occgrid.nr` — finds "free"
