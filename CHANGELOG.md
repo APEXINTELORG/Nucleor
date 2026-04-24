@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.323] — 2026-04-24
+
+**Robotics: trapezoidal velocity profile for point-to-point
+motion (`trapvel`). Foundational profile underneath every
+robot servo drive, CNC controller, and pick-and-place
+sequencer that needs smooth bounded motion. First rod ship
+after the T1.1 numerics refactor closeout.**
+
+### Algorithm
+
+```
+Plan: t_acc = v_max / a_max,  d_acc = v_max² / (2 a_max)
+
+If 2·d_acc ≤ |s1 − s0|:    TRAPEZOIDAL (with cruise)
+    t_total = 2 t_acc + (|s1−s0| − 2 d_acc) / v_max
+Else:                       TRIANGULAR (never reach v_max)
+    t_acc = sqrt(|s1−s0| / a_max)
+    v_peak = a_max · t_acc
+    t_total = 2 t_acc
+
+Sample(t) → (s(t), v(t), a(t)) by phase membership.
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/trapvel.nr"
+
+let t_total: double;
+let _ = trapvel_total_time(s0_b, s1_b, v_max_b, a_max_b,
+                            f64_ptr(&t_total));
+
+let svr: [3]double;   // (s, v, a)
+let _ = trapvel_sample(s0_b, s1_b, v_max_b, a_max_b, t_b,
+                        f64_ptr(&svr[0]));
+```
+
+### Verification
+
+Direct C unit test (`target/_test_trapvel.c`):
+
+- T1 trapezoidal total : (0→10, v=2, a=1) → 7s ✓
+- T2 triangular total  : (0→1, v=10, a=1) → 2s ✓
+- T3 sample t=0        : (s=0, v=0, a=+1) ✓
+- T4 sample t=total    : (s=10, v=0, a=-1) ✓
+- T5 cruise sample t=3 : (s=4, v=2, a=0) ✓
+- T6 reverse total     : (10→0) → 7s ✓
+- T7 reverse sample t=0: (s=10, v=0, a=-1) ✓
+- T8 bad v_max         : v_max=0 → returns 0 ✓
+
+Build smoke `tests/rods/trapvel_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/trapvel_rt.c` — `_plan` + total_time + sample.
+- `stdlib/rods/trapvel.nr` — extern + wrappers.
+- `tests/rods/trapvel_smoke.nr` — build-only smoke.
+- `CHANGELOG.md` — this entry.
+
+### Limitations
+
+Documented in `trapvel.nr` and `trapvel_rt.c`: symmetric
+accel = decel; discontinuous accel at phase transitions
+(infinite jerk); 1-D scalar moves (multi-axis sync done by
+caller). S-curve / 7-segment jerk-limited / asymmetric
+accel-decel land in v0.6 if needed.
+
 ## [0.2.322] — 2026-04-24
 
 **🏁 T1.1 Phase 13 — final RFC rollup. T1.1 maximalist
