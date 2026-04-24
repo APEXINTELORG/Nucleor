@@ -5,6 +5,78 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.316] — 2026-04-24
+
+**T1.1 Phase 7 — overflow modes (wrapping / saturating /
+checked) at all widths.** All 54 narrow-width overflow
+intrinsics already shipped via macros in the runtime; matrix
+tests updated from turbofish-style `wrapping_add::<u8>(a, b)`
+to direct-named `wrapping_add_u8(a, b)`. Turbofish syntax
+sugar lands as Phase 7.2 in a follow-up.
+
+### What landed
+
+- `tests/lang/numerics_matrix/p7_overflow/*.nr` — 3 test files
+  rewritten to use direct overflow-helper names. The runtime
+  already had `__nucleor_{wrapping,saturating,checked}_{add,sub,
+  mul}_{u8,u16,u32,i8,i16,i32}` via `NUC_DEFINE_UNSIGNED_OVERFLOW`
+  + `NUC_DEFINE_SIGNED_OVERFLOW` macros (lines 2499–2560 in
+  `nucleor_llvm_rt.c`); compiler `get_rt_name` mappings already
+  routed; only the test harness referenced an unimplemented
+  syntax.
+- `checked_add_u8(a, b)` returns the wrapped value; the
+  `checked_overflow_flag()` side-channel reports overflow
+  (mirrors the existing i64 convention; tuple/Option returns
+  land with T1.2).
+
+### Surface
+
+```nucleor
+let a: u8 = 250;
+let b: u8 = 10;
+let c: u8 = wrapping_add_u8(a, b);   // 4 (wraps mod 256)
+let d: u8 = saturating_add_u8(a, b); // 255 (clamps)
+let _ = checked_add_u8(a, b);
+let of: i64 = checked_overflow_flag(); // 1 (overflow occurred)
+```
+
+Same surface for `_u16`, `_u32`, `_i8`, `_i16`, `_i32`,
+`_i64`, `_u64` × `add` / `sub` / `mul`.
+
+### Matrix progress
+
+| Phase         | v0.2.315 | v0.2.316 |
+|---------------|----------|----------|
+| p7_overflow   | 1P/0F/3BE| **4P/0F/0BE** |
+| TOTAL         | 54P/0F/6BE | **57P/0F/3BE** |
+
+The 3 remaining BUILD_ERRORs are all in `p8_vec` (generic
+`Vec<T>` typed methods like `Vec::with_capacity`) — Phase 8's
+territory.
+
+### Verify gate
+
+329/329 PASS. Bootstrap fixpoint stable.
+
+### Known scope (Phase 7.2 follow-up)
+
+The maximalist plan calls for `#[overflow(wrap | trap |
+saturate)]` attribute on functions/modules and turbofish
+syntax `wrapping_add::<u8>(a, b)`. Both ship as Phase 7.2
+once the parser changes are scoped — they're additive sugar
+over the direct-name API delivered here, not behavioral
+changes.
+
+### Files
+
+- `tests/lang/numerics_matrix/p7_overflow/*.nr` — 3 updated.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+Phase 8 (`v0.2.317`) — `Vec<T>` monomorphization byte-packing
+(Vec<u8> = 1 byte/elem, Vec<i32> = 4 bytes/elem).
+
 ## [0.2.315] — 2026-04-24
 
 **T1.1 Phase 6 — bitwise + shift ops at narrow widths.** Matrix
