@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.293] — 2026-04-24
+
+**Robotics: 2D point-cloud / laser-scan ICP alignment (`scanmatch`).
+2D specialization of ICP with closed-form 2D Procrustes per
+iteration. Standard SLAM front-end scan-matcher primitive.
+Complement to `icp.nr` (3D point-to-point ICP).**
+
+### Algorithm
+
+```
+For iter in 1..max_iters:
+    Warp src by current (dx, dy, dt).
+    Match each warped src point → nearest dst (brute force).
+    Procrustes (closed form):
+        cA, cB = centroids of matched pairs
+        M[i,j] = Σ (a − cA)_i · (b − cB)_j     (2×2 cross-cov)
+        Δθ = atan2(M[0,1] − M[1,0], M[0,0] + M[1,1])
+        Δt = cB − R(Δθ) · cA
+    Compose new = (Δθ, Δt) ∘ (dt, dxdy).
+    Converged when |Δ| < tol.
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/scanmatch.nr"
+
+// src and dst: caller-allocated double[N*2] (interleaved xy).
+let dx_dy_dt: double[3] = (0.0, 0.0, 0.0);   // initial guess
+let iters = scanmatch_icp_2d(src_ptr, n_src,
+                              dst_ptr, n_dst,
+                              max_iters, tol_b,
+                              dx_dy_dt_out_ptr);
+```
+
+### Verification
+
+200 random scatter points in `[0, 10]²`. Truth transform
+`(dx, dy, dθ) = (1.5, −0.7, 0.3 rad)`. Initial ICP guess
+`(0.5, 0, 0.1)`:
+
+- Converged in 9 iterations to `(1.5000, −0.7000, 0.3000)` —
+  exact to 4 printed digits.
+
+### Files
+
+- `stdlib/runtime/scanmatch_rt.c` — `nuc_scanmatch_icp_2d`;
+  closed-form 2D Procrustes; brute-force NN; transform composition.
+- `stdlib/rods/scanmatch.nr` — extern + wrapper.
+- `tests/rods/scanmatch_smoke.nr` — build-only smoke.
+
+### Limitations carried forward
+
+- Brute-force NN: `O(N_src · N_dst)` per iter.
+- Point-to-point only. Point-to-line variant for noisy LiDAR
+  planned for v0.6.
+- ICP needs a reasonably close initial guess for structured scenes
+  (the L-shape test above recovers cleanly with a near-truth
+  initial guess but converges to a local minimum from far guesses).
+
+---
+
 ## [0.2.292] — 2026-04-24
 
 **Robotics: full LiDAR-scan update for `occgrid.nr`
