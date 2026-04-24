@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.248] — 2026-04-24
+
+**Robotics: Informed RRT* (Gammell, Srinivasa & Barfoot 2014).
+After the first solution is found with cost `c_best`, restrict
+subsequent samples to the prolate hyperspheroid (ellipsoid) with
+foci at start/goal and major axis `c_best`. As `c_best` shrinks
+via rewiring, the ellipsoid shrinks, focusing sampling on the
+region that could improve the path.**
+
+### Algorithm
+
+```
+center = (start + goal) / 2
+c_min  = ‖goal - start‖
+
+phase A — uniform sampling until the first solution is found
+phase B — for each subsequent sample:
+  1. Sample u uniformly on unit n-sphere (Box-Muller normalize)
+  2. Scale by U^(1/n) for uniform unit n-ball
+  3. L = diag(c_best/2,
+              sqrt(c_best² - c_min²)/2, ...,
+              sqrt(c_best² - c_min²)/2)
+  4. C = rotation aligning e_1 with (goal - start)/c_min
+         (built via Gram-Schmidt)
+  5. x = C · L · ball_point + center
+  6. Reject if x outside the per-dim bounds, else use as sample
+```
+
+The remainder of the planner is identical to vanilla RRT* — same
+near-radius rewiring, same goal-radius termination, same path
+read-back via `rrt_path_len` / `rrt_path_at`.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/rrt.nr"
+
+let h = rrt_new(n_dim, seed);
+// ... set bounds and root ...
+let ok = rrt_star_plan_informed(h, start_ptr, goal_ptr,
+                                max_iters, step_b, radius_b,
+                                coll_fp);
+```
+
+`rrt_star_plan_informed` accepts BOTH start and goal — the
+ellipsoid sampler needs the start position. (`rrt_set_root`
+already specifies the start internally; passing it again here
+is for the ellipsoid math.)
+
+### Verification
+
+2D `[0, 10]²` planning, start `(1, 1)` → goal `(9, 9)`,
+3000 iters / step 1.0 / radius 2.0. Both vanilla and informed
+variants reached goal; informed produced denser path coverage
+(47 waypoints vs 5) reflecting the focused sampling inside the
+ellipsoid that contains the current best path.
+
+### Files
+
+- `stdlib/runtime/rrt_rt.c` — `nuc_rrt_star_plan_informed`,
+  `_sample_unit_sphere`, `_build_rotation_C` (Gram-Schmidt with
+  degenerate-axis fallback).
+- `stdlib/rods/rrt.nr` — extern + `rrt_star_plan_informed`
+  Nucleor wrapper.
+
+---
+
 ## [0.2.247] — 2026-04-23
 
 **Robotics: Lazy PRM (Bohlin & Kavraki 2000). Build the roadmap
