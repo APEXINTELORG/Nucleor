@@ -5,6 +5,77 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.326] — 2026-04-24
+
+**Robotics: Catmull-Rom spline evaluation in 2-D and 3-D
+(`catmullrom`). Interpolating spline that passes through every
+control point. C¹ continuous, locally controlled. Centripetal
+parameterization (alpha = 0.5) avoids loops/cusps from non-
+uniform control point spacing.**
+
+### Algorithm
+
+Centripetal parameterization (Yuksel/Schaefer 2009):
+- Compute knot parameters from chord lengths raised to alpha:
+  `t_{i+1} = t_i + |p_{i+1} - p_i|^alpha`
+- Within a 4-point segment (p₀, p₁, p₂, p₃ at knots t₀..t₃),
+  evaluate via Aitken/Lagrange recurrence:
+  ```
+  A_k = lerp(P_{k-1}, P_k) over [t_{k-1}, t_k]
+  B_k = lerp(A_k, A_{k+1}) over [t_{k-1}, t_{k+1}]
+  point = lerp(B_1, B_2) over [t_1, t_2]
+  ```
+
+alpha guide:
+- 0.0 → uniform (classic Catmull-Rom; can self-intersect)
+- 0.5 → centripetal (recommended; safe)
+- 1.0 → chordal (smoother but can overshoot)
+
+### Surface
+
+```nucleor
+import "stdlib/rods/catmullrom.nr"
+
+let xy: [2]double;
+let _ = catmullrom_eval_2d(ctrl_xy_ptr, N,
+                            t_global_b, alpha_b,
+                            f64_ptr(&xy[0]));
+
+let xyz: [3]double;
+let _ = catmullrom_eval_3d(ctrl_xyz_ptr, N,
+                            t_global_b, alpha_b,
+                            f64_ptr(&xyz[0]));
+```
+
+`t_global` is in `[0, N-3]`.
+
+### Verification
+
+Direct C unit test (`target/_test_catmullrom.c`):
+
+- T1 t=0  → control point 1: (1, 0) ✓
+- T2 t=1  → control point 2: (2, 0) ✓
+- T3 colinear at t=0.5: y=0, x in (1, 2) ✓
+- T4 3-D at t=0: (1, 1, 1) ✓
+- T5 bad n=3 → returns 0 ✓
+
+Build smoke `tests/rods/catmullrom_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/catmullrom_rt.c` — 2-D + 3-D evaluator with
+  centripetal/chordal/uniform alpha.
+- `stdlib/rods/catmullrom.nr` — extern + wrappers.
+- `tests/rods/catmullrom_smoke.nr` — build-only smoke.
+- `CHANGELOG.md` — this entry.
+
+### Limitations
+
+Documented in `catmullrom.nr` and `catmullrom_rt.c`: requires
+N ≥ 4 control points; caller-supplied parameter (no arc-length
+reparam); 2-D and 3-D only (higher dimensions need a generic
+version).
+
 ## [0.2.325] — 2026-04-24
 
 **Robotics: Bezier curve evaluation in 2-D and 3-D

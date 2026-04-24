@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 215
-# Total fn definitions: 2078
-# Total LOC: 9109
+# Total rods: 216
+# Total fn definitions: 2080
+# Total LOC: 9124
 
 [[rod]]
 name           = "activation2"
@@ -271,6 +271,15 @@ function_count = 10
 cfile_count    = 1
 loc            = 46
 imports        = ["cam"]
+
+[[rod]]
+name           = "catmullrom"
+path           = "stdlib/rods/catmullrom.nr"
+description    = "Catmull-Rom spline evaluation in 2-D and 3-D."
+function_count = 2
+cfile_count    = 1
+loc            = 15
+imports        = ["catmullrom"]
 
 [[rod]]
 name           = "checkpoint"
