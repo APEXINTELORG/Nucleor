@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.160] — 2026-04-23
+
+**Memory-fix Ship 2 part 2: convert remaining 13 cold-path
+`str_eq(str_substring(...))` sites to `str_starts_with` /
+`str_eq_at`. Eliminates the anti-pattern from the codebase
+entirely.**
+
+v0.2.159 fixed the five hot in-loop sites (52× memory drop).
+v0.2.160 cleans up the rest for consistency and to prevent
+future drift. None of these sites are in measured hot paths —
+they're in setup, parsing, and CLI flag handling. The win is
+correctness + maintainability: a single audited helper for
+position-based equality, no remaining "allocate-then-equate"
+anti-pattern in the s1.
+
+### Sites converted
+
+- `type_is_mut_ref` — `&mut ` prefix probe
+- nested-type extraction (Box<...>) — `Box<` prefix probe
+- `rewrite_use_path` — `std::` / `crate::` / `super::` prefix
+- `resolve_source_with_records` — `import ` / `use ` / `mod `
+  line prefixes
+- `extract_directives` — `#link ` / `#cfile ` / `#libpath `
+  directive line prefixes
+- key parser — positional key match (uses `str_eq_at`)
+- bench CLI flags — `--iterations=` / `--warmup=` prefixes
+
+### Self-host LLVM IR fixed point
+
+- 2-iter byte-identical at 2,676,389 bytes (slightly smaller
+  than v0.2.159 because eliminated `str_substring` calls also
+  eliminated their declares + setup IR).
+- Compile time stable at 4.5 s.
+- `bin/nucleor.exe` updated; chain extends to **v0.2.160**.
+
+### Verify gate
+
+**245 / 245 PASS, 0 SKIP** in 2m41s. Self-host closes
+byte-identical.
+
 ## [0.2.159] — 2026-04-23
 
 **Memory-fix Ship 2 (part 1): non-allocating `str_eq_at` helper
