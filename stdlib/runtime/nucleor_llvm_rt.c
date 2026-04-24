@@ -1155,13 +1155,23 @@ long long __nucleor_system(const char *cmd) {
 typedef struct { long long *data; int len; int cap; } NVec;
 
 NVec *__nucleor_vec_new(void) {
+    // RFC-0030 phase 3 (v0.2.167) — initial capacity dropped from 16
+    // to 4 elements. The s1 self-host creates ~800 K Vecs per compile,
+    // a substantial fraction of which never exceed 4 elements (small
+    // arg lists, two-element coords, scope counters, etc.). The 16-
+    // element initial wasted ~75 MB across the compile when those
+    // Vecs sat at length 0-3 forever. For Vecs that grow beyond 4,
+    // total memory footprint is unchanged because realloc-doubling
+    // (4→8→16→32→…) lands at the same end-state by the time a Vec
+    // reaches a given size; we just pay 1-2 extra reallocs per such
+    // growing Vec, amortized.
     if (!g_alloc_tracer_init) { atexit(_alloc_summary); g_alloc_tracer_init = 1; }
     g_vec_new_count++;
     NVec *v = (NVec *)malloc(sizeof(NVec));
-    v->data = (long long *)malloc(16 * sizeof(long long));
+    v->data = (long long *)malloc(4 * sizeof(long long));
     v->len = 0;
-    v->cap = 16;
-    g_vec_realloc_bytes += sizeof(NVec) + 16 * sizeof(long long);
+    v->cap = 4;
+    g_vec_realloc_bytes += sizeof(NVec) + 4 * sizeof(long long);
     return v;
 }
 
