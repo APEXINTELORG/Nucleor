@@ -5,6 +5,75 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.227] — 2026-04-23
+
+**Robotics: Extended Kalman Filter for nonlinear state
+estimation. Foundation for sensor fusion (IMU + odometry + GPS),
+SLAM front-ends, model-based observers, and any time-varying
+state estimation. User supplies dynamics + measurement callbacks;
+EKF handles all the linearization and Bayesian update math.**
+
+### Standard EKF recursion
+
+```
+Predict:  x⁻ = f(x, u);  F = ∂f/∂x;  P⁻ = F·P·Fᵀ + Q
+Update:   y = z − h(x⁻); H = ∂h/∂x;  S = H·P⁻·Hᵀ + R
+          K = P⁻·Hᵀ·S⁻¹;  x = x⁻ + K·y;  P = (I − KH)·P⁻
+```
+
+Both Jacobians are computed by numerical finite differences
+against the user callbacks (no analytical-Jacobian requirement).
+
+### Surface
+
+```nucleor
+import "stdlib/rods/ekf.nr"
+
+let ekf = ekf_new(n_x, n_z, n_u);
+ekf_set_state(ekf, x0_ptr);
+ekf_set_covariance(ekf, P0_ptr);          // n_x × n_x initial uncertainty
+ekf_set_process_noise(ekf, Q_ptr);        // n_x × n_x
+ekf_set_measurement_noise(ekf, R_ptr);    // n_z × n_z
+
+// At each control step:
+ekf_predict(ekf, u_ptr, dynamics_fp);     // dynamics_fp: fn(x, u, x_next) -> i64
+ekf_update(ekf, z_ptr, measurement_fp);   // measurement_fp: fn(x, z_out) -> i64
+ekf_get_state(ekf, x_out_ptr);
+```
+
+### Verification
+
+1D constant-velocity tracker (state = (pos, vel), measurement =
+pos with σ = 0.5 m noise). Initial guess: pos=5, vel=0; true:
+pos starts at 0, vel = 2 m/s constant. After 30 EKF steps:
+
+| Quantity | True | Initial | Final estimate | Error |
+|---|---|---|---|---|
+| Position | 6.000 | 5.000 | 5.901 | **0.099 m** (<< 0.5 m noise σ) |
+| Velocity | 2.000 | 0.000 | 1.971 | **1.4%** |
+
+Filter correctly inferred velocity from position-only noisy
+measurements — the standard "Kalman filter tracker" capability.
+
+### Limitations (UKF / particle filter / square-root form land
+in v0.6 if needed):
+
+- Standard EKF (no UKF / sigma-point variants).
+- Numerical-FD Jacobians (slower than analytical).
+- No square-root form — for very long-running filters with tight
+  covariance, prefer UKF or manually re-symmetrize P periodically.
+
+### Files
+
+- `stdlib/runtime/ekf_rt.c` — `NEKF` struct, `nuc_ekf_new` /
+  `_set_*` / `_get_*` / `_predict` / `_update` / `_free`, plus
+  `_dyn_jacobian` / `_meas_jacobian` / `_gj_inv` helpers.
+- `stdlib/rods/ekf.nr` — externs + Nucleor wrappers.
+- `tests/rods/ekf_smoke.nr` — alloc/free linkage smoke
+  (correctness covered by direct C tracker test).
+
+---
+
 ## [0.2.226] — 2026-04-23
 
 **Robotics: sparse octree for 3D occupancy grids and broad-phase
