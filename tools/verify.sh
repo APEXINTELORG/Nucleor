@@ -168,7 +168,8 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 CLI explain + 1 explain-full + 1 bootstrap + 1 check+abi
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 3))
+# + 1 T1.7 bootstrap-seed (v0.2.339)
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 4))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -757,6 +758,26 @@ tools_suite_memory_budget() {
     _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
 }
 
+t17_bootstrap_seed_matches() {
+    # v0.2.339 (T1.7): the Linux verify gate clang-links
+    # bootstrap/nucleor_s1_seed.ll against the platform-portable C
+    # runtime to produce its own bin/nucleor. The seed must match what
+    # the current compiler emits for compiler/nucleor_s1_compiler.nr,
+    # otherwise the Linux gate would cross-fail every time the IR
+    # shape changed without the developer also refreshing the seed.
+    # Refresh workflow: see bootstrap/README.md.
+    local seed="bootstrap/nucleor_s1_seed.ll"
+    [ -f "$seed" ] || return 1
+    "$BIN" build "compiler/nucleor_s1_compiler.nr" -o "_seed_check" >/tmp/_nuc_step.log 2>&1
+    local fresh="target/_seed_check.ll"
+    [ -f "$fresh" ] || return 1
+    local seed_sha
+    local fresh_sha
+    seed_sha="$(sha256sum "$seed"  | awk '{print $1}')"
+    fresh_sha="$(sha256sum "$fresh" | awk '{print $1}')"
+    [ "$seed_sha" = "$fresh_sha" ]
+}
+
 # Shared body for the per-source memory-budget steps. Builds the
 # named source under NUC_TRACE_ALLOC=1, parses the TOTAL TRACKED
 # line, and asserts it stays under `budget_mb`. Diagnostic guidance
@@ -862,6 +883,7 @@ fi
 step "self-host rebuild closes" self_host_rebuild
 step "self-host memory budget (<= 100 MB)" self_host_memory_budget
 step "tools-suite memory budget (<= 200 MB)" tools_suite_memory_budget
+step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------
 # Default: wipe target + .nuc_cache so the next run starts cold (matches

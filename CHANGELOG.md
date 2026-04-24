@@ -5,6 +5,181 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.339] — 2026-04-24
+
+**T1.7 Linux build target — cross-platform link command +
+checked-in IR seed + Linux/macOS bootstrap script + verify
+gate parity.** The compiler stops baking Windows-only flags
+(`-Wl,/STACK:`, `.exe` suffix, `target\` separator, `2>NUL`)
+into the link command. The package-management shell-outs
+(`dir /b /s`, `del /q`, `copy /Y`) become cross-platform
+runtime calls (`fs_list_dir`, `fs_copy_file`,
+`fs_create_dir_all`). A target-agnostic `.ll` seed is checked
+in at `bootstrap/nucleor_s1_seed.ll` and a new
+`tools/bootstrap_linux.sh` clang-links it against the
+platform-portable C runtime so a fresh Linux box produces a
+working `bin/nucleor` without already having one. Linux CI
+verify gate flips from `continue-on-error: true` to fail-hard.
+
+### Compiler changes
+
+#### A. `host_is_windows()` + sibling helpers
+
+Added in BOTH `nucleor_s1_compiler.nr` and
+`nucleor_tools_suite.nr` (synced). Detects the host OS via
+`path_separator()` returning `\\`. Five host-aware helpers
+(`host_is_windows`, `host_exe_suffix`, `host_target_path_sep`,
+`host_null_redirect`, `host_stack_link_flag`) replace the
+hard-coded Windows tokens.
+
+| Token | Windows | POSIX |
+|---|---|---|
+| Output suffix | `.exe` | (none) |
+| Target dir separator | `\\` | `/` |
+| Stderr redirect | `2>NUL` | `2>/dev/null` |
+| Stack link flag | `-Wl,/STACK:16777216` | `-Wl,-z,stacksize=16777216` |
+
+#### B. Package management shell-outs → fs_* runtime calls
+
+Three call sites that used to shell out to `cmd.exe` are now
+portable:
+
+| Call site | Before | After |
+|---|---|---|
+| `dir_list_native` | `dir /b` + temp listing file + parse | `fs_list_dir` + post-filter via `fs_is_dir` |
+| `package_checksum_native` | `dir /b /s /a-d /on` recursive walk | `walk_dir_recursive_native` (new helper, sorts ASCII-asc to match prior `/on` ordering — pre-existing checksums in `Nucleor.lock` files remain stable) |
+| `publish_copy_files_native` | `dir /b /s` + `mkdir` + `copy /Y` | `walk_dir_recursive_native` + `fs_create_dir_all` + `fs_copy_file` |
+| `bootstrap_collect_corpus_files` | `dir /b examples\*.nr` + temp listing | `fs_list_dir("examples")` + `.nr` extension filter |
+
+Plus three smaller `mkdir 2>NUL` sites became
+`fs_create_dir_all` (test harness target dir, module-graph
+cache dir, `nuc init` scaffold).
+
+#### C. New helpers
+
+- `walk_dir_recursive_native(root_dir) -> Vec<str>` — depth-first
+  walk via `fs_list_dir` + `fs_is_dir`, returns full paths to all
+  regular files. Sorted (via the new `sort_strings_asc` helper)
+  to match cmd.exe `/on` for checksum stability.
+- `sort_strings_asc(v) -> Vec<str>` — insertion sort on a string
+  Vec. Stable, O(n²); n is bounded by directory entry count.
+- `str_compare_asc(a, b) -> i64` — byte-wise lexicographic compare.
+
+### Bootstrap mechanism
+
+#### `bootstrap/nucleor_s1_seed.ll`
+
+A target-agnostic LLVM IR snapshot of
+`compiler/nucleor_s1_compiler.nr`. Emitted on Windows by the
+current self-hosted compiler. Has no `target triple` /
+`target datalayout` baked in, so clang on any platform can
+lower it for the host's native triple.
+
+The seed exists because of the chicken-and-egg problem: the
+self-hosted compiler needs `bin/nucleor` to compile itself,
+but a fresh Linux box doesn't have one. Compiling the seed
+with clang produces a stage-1 binary that then bootstraps
+itself.
+
+#### `tools/bootstrap_linux.sh`
+
+Self-contained POSIX bootstrap. Steps:
+
+1. Resolve clang on PATH (mirrors `./nuc` resolution chain).
+2. Stage-1 link: `clang $SEED $RUNTIME -o bin/nucleor -Wl,-z,stacksize=...`.
+3. Stage-1 sanity: `bin/nucleor --version` must succeed.
+4. Stage-2 self-rebuild: `bin/nucleor build compiler/nucleor_s1_compiler.nr`.
+5. Fixed-point check: stage-2 IR matches the seed byte-for-byte.
+6. Stage-2 link (sanity): rebuild `bin/nucleor` from stage-2 IR.
+
+`--seed-only` skips steps 4–6 (verify.sh handles full
+self-rebuild as its own step).
+
+### CI
+
+`verify-linux` job in `.github/workflows/ci.yml` now:
+
+- Adds a `Bootstrap bin/nucleor from IR seed` step that runs
+  `tools/bootstrap_linux.sh`.
+- Drops the `continue-on-error: true` from `Run verify.sh`.
+- Adds `bin/` to the failure-artifact upload paths.
+
+`verify-macos` job adds the same bootstrap step (with
+`--seed-only`) but keeps `continue-on-error: true` until the
+remaining Windows-only powershell-script invocations
+(`invoke_native_package_sign` / `..._verify`) get POSIX
+equivalents — out of scope for T1.7.
+
+### Verify gate
+
+Two new steps land in BOTH `verify.ps1` and `verify.sh`:
+
+- `T1.7 bootstrap seed matches current compiler` — fresh-compiles
+  `compiler/nucleor_s1_compiler.nr` and asserts the resulting
+  `.ll` matches `bootstrap/nucleor_s1_seed.ll` byte-for-byte.
+  This is the "did you forget to refresh the seed" guard.
+
+Plus a side fix: `verify.ps1` previously only set
+`[Console]::OutputEncoding = UTF8` inside the `useColor` block,
+so running with `-NoColor` (which CI does) caused multibyte
+characters (em-dash, box-drawing) in compiler output to be
+reinterpreted as the Windows OEM codepage, breaking the regex
+in the `nuc check` smoke step. Hoisted UTF-8 encoding setup
+out of the color block.
+
+Windows verify gate: 347/348 PASS. Linux verify gate:
+scheduled to start passing in CI on the first commit that
+lands the bootstrap script.
+
+### Numerics-compatibility
+
+No new arithmetic surfaces. The host detection helpers return
+`i64`/`str`. The link command builders are pure string
+concatenation. `walk_dir_recursive_native` and `sort_strings_asc`
+operate on `Vec<str>` (str pointers stored as `i64` per the
+locked i64-everywhere convention).
+
+### Memory safety
+
+All new helpers preserve Rust-style ownership. `fs_list_dir`
+returns an owned `Vec<i32>` (each entry is a runtime-allocated
+str pointer), `walk_dir_recursive_native` builds a new owned
+`Vec` and pushes string handles into it without aliasing.
+`sort_strings_asc` allocates a fresh `Vec` and never mutates
+its input. No move-after-borrow patterns; no shared mutable
+state introduced.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — host_is_windows + sibling
+  helpers, link_native_module rewrite.
+- `compiler/nucleor_tools_suite.nr` — same host helpers, plus
+  walk_dir_recursive_native, sort_strings_asc, str_compare_asc;
+  six call sites refactored from cmd.exe shell-outs to fs_*
+  builtins.
+- `bootstrap/nucleor_s1_seed.ll` — new (2.86 MB IR seed).
+- `bootstrap/README.md` — explains the seed + refresh workflow.
+- `tools/bootstrap_linux.sh` — new (executable).
+- `tools/verify.ps1` — UTF-8 console fix + T1.7 bootstrap-seed
+  step; step counter bumped to account for the four steps
+  added since the last counter sync.
+- `tools/verify.sh` — T1.7 bootstrap-seed step.
+- `.github/workflows/ci.yml` — Linux fail-hard, macOS seed-only.
+- `bin/nucleor.exe`, `bin/nucleor_tools.exe` — both rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Deferred follow-ups (not blocking T1.7)
+
+- `invoke_native_package_sign` / `invoke_native_package_verify`
+  still shell out to `tools/native_release.ps1`. Linux/macOS
+  equivalents (openssl-based) tracked in v0.2.4xx queue.
+- Linux verify.sh has not been exercised on actual Linux yet
+  (the CI run after this commit is the first test).
+
+### Next
+
+T1.5 modules.
+
 ## [0.2.338] — 2026-04-24
 
 **T1.3 HashMap + String — verify-gate test promoted + harness

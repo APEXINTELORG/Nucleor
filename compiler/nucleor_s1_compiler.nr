@@ -8758,13 +8758,46 @@ fn llvm_clang_path() -> str {
     return "clang";
 }
 
+fn host_is_windows() -> i64 {
+    // Detects host OS via the path separator returned by the runtime.
+    // Used by link_native_module to choose Windows-only flags (/STACK: linker
+    // syntax, .exe suffix, 2>NUL stderr redirect) vs POSIX equivalents.
+    let sep: str = path_separator();
+    if str_len(sep) >= 1 && str_char_at(sep, 0) == 92 { return 1; };
+    return 0;
+}
+
+fn host_exe_suffix() -> str {
+    if host_is_windows() == 1 { return ".exe"; };
+    return "";
+}
+
+fn host_target_path_sep() -> str {
+    if host_is_windows() == 1 { return "\\"; };
+    return "/";
+}
+
+fn host_null_redirect() -> str {
+    if host_is_windows() == 1 { return " 2>NUL"; };
+    return " 2>/dev/null";
+}
+
+fn host_stack_link_flag() -> str {
+    // Windows: clang-cl-style flag passed through to MSVC link.exe / lld-link.
+    // POSIX: GNU ld accepts -z stacksize=N (in bytes). Both expand the main
+    // thread stack to 16 MiB so deep recursion in the compiler works.
+    if host_is_windows() == 1 { return " -Wl,/STACK:16777216"; };
+    return " -Wl,-z,stacksize=16777216";
+}
+
 fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path: str, link_native: i64, time_passes: i64) -> i64 {
     let ll_path: str = sanitize(str_concat("target/", str_concat(out_name, ".ll")));
-    let exe_path: str = sanitize(str_concat("target\\", str_concat(out_name, ".exe")));
-    system("mkdir target 2>NUL");
+    let exe_path: str = sanitize(str_concat(str_concat("target", host_target_path_sep()), str_concat(out_name, host_exe_suffix())));
+    let null_redir: str = host_null_redirect();
+    system(str_concat("mkdir target", null_redir));
     file_write_string(ll_path, ll);
     if str_len(cache_ll_path) > 0 {
-        system("mkdir .nuc_cache 2>NUL");
+        system(str_concat("mkdir .nuc_cache", null_redir));
         let clean_cache_path: str = sanitize(cache_ll_path);
         file_write_string(clean_cache_path, ll);
     };
@@ -8779,7 +8812,8 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     let libpath_flags: str = vec_get(native_d, 2);
     let rt_arg: str = resolve_toolchain_path("stdlib/runtime/nucleor_llvm_rt.c");
     let clang_start: i64 = now_ms();
-    let cmd: str = str_concat(llvm_clang_path(), str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module -Wl,/STACK:16777216 ", str_concat(libpath_flags, str_concat(link_flags, " 2>&1"))))))))));
+    let stack_flag: str = host_stack_link_flag();
+    let cmd: str = str_concat(llvm_clang_path(), str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags, str_concat(link_flags, " 2>&1"))))))))))));
     let rc: i64 = system(cmd);
     print_phase_time(time_passes, "clang", now_ms() - clang_start);
     if rc != 0 {
