@@ -283,11 +283,16 @@ long long nuc_dyn_inverse(long long h,
             double cross[3]; _vcross(pw, qdz, cross);
             _vadd(pwd, qddz, wd[i]);
             _vadd(wd[i], cross, wd[i]);
-            // a_i = a_{i-1} + ω̇_i × r + ω_i × (ω_i × r)
-            double t1[3]; _vcross(wd[i], r, t1);
+            // a_origin_i = a_parent + ω̇_PARENT × r + ω_PARENT × (ω_PARENT × r).
+            // Use the PARENT's angular state — link i's frame origin is a
+            // point fixed on the parent body (the revolute joint rotates
+            // about it but doesn't move it). Using wd[i]/w[i] here would
+            // double-count the joint's rotational contribution and break
+            // the symmetry of M(q).
+            double t1[3]; _vcross(pwd, r, t1);
             _vadd(pa, t1, a[i]);
-            double wxr[3]; _vcross(w[i], r, wxr);
-            double wxwxr[3]; _vcross(w[i], wxr, wxwxr);
+            double wxr[3]; _vcross(pw, r, wxr);
+            double wxwxr[3]; _vcross(pw, wxr, wxwxr);
             _vadd(a[i], wxwxr, a[i]);
         } else {
             // Fixed joint: kinematics propagate without joint contribution.
@@ -399,6 +404,139 @@ long long nuc_dyn_gravity(long long h, long long q_ptr, long long tau_out_ptr) {
         (long long)(size_t)qd, (long long)(size_t)qdd, tau_out_ptr);
     free(qd); free(qdd);
     return rc;
+}
+
+// === Mass matrix M(q) and forward dynamics (v0.2.211) ===================
+//
+// Joint-space mass matrix. Standard derivation via the equation of
+// motion: tau = M(q)·qdd + C(q,qd)·qd + g(q). With qd = 0, the
+// Coriolis term vanishes and we get tau − g = M·qdd. Setting qdd
+// to the i-th unit vector e_i extracts the i-th column of M:
+//
+//     M[:, i] = RNEA(q, 0, e_i) − RNEA(q, 0, 0)
+//
+// This requires n+1 RNEA calls (one for gravity bias + one per
+// column). Slower than the composite-rigid-body algorithm but much
+// simpler to implement correctly; for n ≤ 20 the constant factor
+// is fine.
+//
+// `out_M_ptr` is the caller-allocated `double[n*n]` row-major
+// matrix output buffer. Returns 0 on success.
+long long nuc_dyn_mass_matrix(long long h, long long q_ptr, long long out_M_ptr) {
+    NDyn *d = (NDyn *)(void *)(size_t)h;
+    if (!d) return -1;
+    int n = d->n_links;
+    double *M = (double *)(void *)(size_t)out_M_ptr;
+    if (!M) return -1;
+
+    double *qd  = (double *)calloc(n, sizeof(double));
+    double *qdd = (double *)calloc(n, sizeof(double));
+    double *tau_g    = (double *)calloc(n, sizeof(double));
+    double *tau_col  = (double *)calloc(n, sizeof(double));
+
+    // Gravity bias g(q) = RNEA(q, 0, 0).
+    nuc_dyn_inverse(h, q_ptr,
+        (long long)(size_t)qd, (long long)(size_t)qdd,
+        (long long)(size_t)tau_g);
+
+    // Each column.
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) qdd[j] = (j == i) ? 1.0 : 0.0;
+        nuc_dyn_inverse(h, q_ptr,
+            (long long)(size_t)qd, (long long)(size_t)qdd,
+            (long long)(size_t)tau_col);
+        for (int j = 0; j < n; j++) M[j*n + i] = tau_col[j] - tau_g[j];
+    }
+
+    free(qd); free(qdd); free(tau_g); free(tau_col);
+    return 0;
+}
+
+// In-place Gauss-Jordan inverse of an n×n matrix (row-major).
+// Allocates a 2n×2n augmented buffer internally. Returns 1 on
+// success, 0 if the matrix is singular.
+static int _gj_invert(double *A, int n, double *Ainv) {
+    double *aug = (double *)malloc(n * 2 * n * sizeof(double));
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) aug[i*2*n + j] = A[i*n + j];
+        for (int j = 0; j < n; j++) aug[i*2*n + n + j] = (i == j) ? 1.0 : 0.0;
+    }
+    for (int i = 0; i < n; i++) {
+        // Pivot.
+        int pivot = i;
+        for (int r = i + 1; r < n; r++) {
+            if (fabs(aug[r*2*n + i]) > fabs(aug[pivot*2*n + i])) pivot = r;
+        }
+        if (fabs(aug[pivot*2*n + i]) < 1e-12) { free(aug); return 0; }
+        if (pivot != i) {
+            for (int j = 0; j < 2*n; j++) {
+                double t = aug[i*2*n + j];
+                aug[i*2*n + j] = aug[pivot*2*n + j];
+                aug[pivot*2*n + j] = t;
+            }
+        }
+        double inv = 1.0 / aug[i*2*n + i];
+        for (int j = 0; j < 2*n; j++) aug[i*2*n + j] *= inv;
+        for (int r = 0; r < n; r++) {
+            if (r == i) continue;
+            double f = aug[r*2*n + i];
+            for (int j = 0; j < 2*n; j++) aug[r*2*n + j] -= f * aug[i*2*n + j];
+        }
+    }
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++) Ainv[i*n + j] = aug[i*2*n + n + j];
+    free(aug);
+    return 1;
+}
+
+// Forward dynamics: given joint torques `tau` (and current q, qd),
+// compute the resulting joint accelerations `qdd` via
+//
+//     qdd = M(q)⁻¹ · (tau − C(q,qd)·qd − g(q))
+//
+// The bias `C·qd + g` is computed in one RNEA call by setting
+// `qdd_input = 0`. The mass matrix is computed via
+// `nuc_dyn_mass_matrix` and inverted by Gauss-Jordan.
+//
+// Returns 0 on success; -1 if the mass matrix turns out to be
+// singular (very rare in practice — usually means inertia data is
+// pathological).
+long long nuc_dyn_forward(long long h,
+                         long long q_ptr, long long qd_ptr, long long tau_ptr,
+                         long long qdd_out_ptr)
+{
+    NDyn *d = (NDyn *)(void *)(size_t)h;
+    if (!d) return -1;
+    int n = d->n_links;
+    double *tau = (double *)(void *)(size_t)tau_ptr;
+    double *qdd_out = (double *)(void *)(size_t)qdd_out_ptr;
+    if (!tau || !qdd_out) return -1;
+
+    double *zero = (double *)calloc(n, sizeof(double));
+    double *bias = (double *)calloc(n, sizeof(double));
+    nuc_dyn_inverse(h, q_ptr, qd_ptr,
+        (long long)(size_t)zero, (long long)(size_t)bias);
+
+    double *M = (double *)malloc(n * n * sizeof(double));
+    nuc_dyn_mass_matrix(h, q_ptr, (long long)(size_t)M);
+
+    double *Minv = (double *)malloc(n * n * sizeof(double));
+    if (!_gj_invert(M, n, Minv)) {
+        free(zero); free(bias); free(M); free(Minv);
+        return -1;
+    }
+
+    // qdd = Minv · (tau - bias).
+    double *rhs = (double *)malloc(n * sizeof(double));
+    for (int i = 0; i < n; i++) rhs[i] = tau[i] - bias[i];
+    for (int i = 0; i < n; i++) {
+        double s = 0;
+        for (int j = 0; j < n; j++) s += Minv[i*n + j] * rhs[j];
+        qdd_out[i] = s;
+    }
+
+    free(zero); free(bias); free(M); free(Minv); free(rhs);
+    return 0;
 }
 
 void nuc_dyn_free(long long h) {
