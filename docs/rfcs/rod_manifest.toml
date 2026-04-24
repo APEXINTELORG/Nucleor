@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 157
-# Total fn definitions: 1752
-# Total LOC: 7585
+# Total rods: 158
+# Total fn definitions: 1754
+# Total LOC: 7597
 
 [[rod]]
 name           = "activation2"
@@ -576,6 +576,15 @@ description    = "HNSW vector index (approximate nearest neighbor)"
 function_count = 5
 cfile_count    = 1
 loc            = 11
+imports        = []
+
+[[rod]]
+name           = "hull"
+path           = "stdlib/rods/hull.nr"
+description    = "2D convex hull (Andrew's monotone chain)."
+function_count = 2
+cfile_count    = 1
+loc            = 12
 imports        = []
 
 [[rod]]
