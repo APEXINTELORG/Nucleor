@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.327] — 2026-04-24
+
+**Robotics: unit-quaternion utilities for 3-D rotation
+(`quat`). Foundational primitives — IMU sensor fusion,
+robot arm joint orientations, smooth orientation
+interpolation (slerp), SLAM rotation parameterization.**
+
+### Operations
+
+- `quat_from_axis_angle(axis, theta, q_out)` — build q
+- `quat_to_axis_angle(q, axis_out, theta_out)` — invert
+- `quat_mul(a, b, out)` — Hamilton product
+- `quat_normalize(q_inplace)` — re-unit-norm
+- `quat_slerp(a, b, t, out)` — spherical linear interpolation
+  (picks shorter arc; falls back to nlerp when nearly parallel)
+- `quat_rotate_vec(q, v, out)` — apply q to vector v via the
+  optimized 15-flop formula `v + 2 cross(qxyz, cross(qxyz, v) + qw·v)`
+
+### Surface
+
+```nucleor
+import "stdlib/rods/quat.nr"
+
+let q: [4]double;   // (w, x, y, z)
+let _ = quat_from_axis_angle(f64_ptr(&axis[0]), theta_b,
+                              f64_ptr(&q[0]));
+
+let q_mid: [4]double;
+let _ = quat_slerp(f64_ptr(&q_a[0]), f64_ptr(&q_b[0]), t_b,
+                    f64_ptr(&q_mid[0]));
+
+let v_rot: [3]double;
+let _ = quat_rotate_vec(f64_ptr(&q[0]), f64_ptr(&v[0]),
+                         f64_ptr(&v_rot[0]));
+```
+
+### Verification
+
+Direct C unit test (`target/_test_quat.c`):
+
+- T1 axis-angle round-trip : (0,0,1)+π/2 → (0.707,0,0,0.707);
+                              decompose back exact ✓
+- T2 identity rotates v→v  : (3,5,7) → (3,5,7) ✓
+- T3 90° about z           : (1,0,0) → (0,1,0) ✓
+- T4 mul 90+90 = 180       : (1,0,0) → (-1,0,0) ✓
+- T5 slerp 0..π midpoint   : (1,0,0) → (0,1,0) ✓
+- T6 normalize             : (2,0,0,0) → (1,0,0,0) ✓
+
+Build smoke `tests/rods/quat_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/quat_rt.c` — 6 quaternion ops.
+- `stdlib/rods/quat.nr` — extern + wrappers.
+- `tests/rods/quat_smoke.nr` — build-only smoke.
+- `CHANGELOG.md` — this entry.
+
+### Limitations
+
+Documented in `quat.nr` and `quat_rt.c`: caller responsible for
+normalizing inputs (slerp tolerates small drift but won't
+correct it); no rotation-matrix conversion (use existing
+`stdlib/rods/rotation.nr` if you need 3x3 matrices). Rotor /
+dual-quaternion / quat-exp+log land in v0.6 if needed.
+
 ## [0.2.326] — 2026-04-24
 
 **Robotics: Catmull-Rom spline evaluation in 2-D and 3-D
