@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.167] — 2026-04-23
+
+**Vec initial capacity tuned: 16 → 4 elements drops vec_new
+from 119 MB to 49 MB (-70 MB). Total peak: 137 → 67 MB.
+Cumulative reduction from v0.2.157 baseline: 19 GB → 67 MB
+= 283× reduction. Budget tightened to 100 MB.**
+
+The s1 self-host creates ~800 K Vecs per compile; many never
+exceed the initial 4 slots (small arg lists, two-element
+coords, scope counters, and similar transient holders). The
+16-element initial wasted ~70 MB across the compile when those
+Vecs sat at length 0-3 forever.
+
+For Vecs that grow beyond 4, total memory footprint is
+unchanged — realloc-doubling (4→8→16→32→…) lands at the same
+end-state by the time a Vec reaches a given size; we just pay
+1-2 extra reallocs per growing Vec, amortized. Compile time
++0.7 s (4.5 → 5.2 s) for the extra realloc work.
+
+### Files
+
+- `stdlib/runtime/nucleor_llvm_rt.c`: `__nucleor_vec_new`
+  initial cap 16 → 4 with documented rationale.
+- `tools/verify.sh`: budget tightened from 250 MB to 100 MB
+  (50% headroom over 67 MB baseline).
+
+### Memory measurement
+
+|              | v0.2.166  | v0.2.167  | Δ          |
+|--------------|----------:|----------:|-----------:|
+| **vec_new** | **119 MB** | **49 MB** | **-70 MB** |
+| str_concat   |    4 MB   |    4 MB   | —          |
+| str_substring|    1 MB   |    1 MB   | —          |
+| sb_new       |   11 MB   |   11 MB   | —          |
+| **TOTAL**   | **137 MB** | **67 MB** | **-51%**   |
+
+### Cumulative reduction from session baseline
+
+| Version  | Total tracked | Compile time |
+|----------|--------------:|-------------:|
+| v0.2.157 | 19 GB (peak)  | 25 s         |
+| v0.2.159 | 185 MB        |  4.5 s       |
+| v0.2.166 | 137 MB        |  4.5 s       |
+| v0.2.167 |  **67 MB**    |  5.2 s       |
+| **Δ**    |  **283×**     | **~5×**      |
+
+### Self-host LLVM IR fixed point
+
+- 2-iter byte-identical at 2,686,442 bytes.
+- `bin/nucleor.exe` updated.
+
+### Verify gate
+
+**248 / 248 PASS, 0 SKIP** in 3m. Self-host: 67 MB / 100 MB
+budget (was 250). Self-host rebuild closes byte-identical.
+
 ## [0.2.166] — 2026-04-23
 
 **SB initial capacity tuned: 4 KB → 256 B drops sb_new from

@@ -721,10 +721,12 @@ self_host_rebuild() {
 # without flagging legitimate scaling. Tighten if necessary as the
 # architectural Ship 3 (TypeId interner) lands.
 self_host_memory_budget() {
-    # v0.2.166 — tightened from 400 MB to 250 MB after the SB initial-
-    # capacity fix dropped baseline from 186 MB to 137 MB. Headroom
-    # is still ~80% so legitimate growth doesn't trip the gate.
-    local budget_mb=250
+    # v0.2.167 — tightened from 250 MB to 100 MB after the Vec
+    # initial-capacity fix dropped baseline from 137 MB to 67 MB.
+    # 50% headroom over the 67 MB baseline. Production-scale source
+    # files (1-2 MB) will need this lifted; the s1 self-host (485 KB)
+    # is the canonical regression target.
+    local budget_mb=100
     local out
     rm -rf "$ROOT/.nuc_cache" 2>/dev/null || true
     out=$(NUC_TRACE_ALLOC=1 "$BIN" build "compiler/nucleor_s1_compiler.nr" -o "verify_budget" 2>&1)
@@ -819,7 +821,7 @@ if [ -d "tests/err" ]; then
 fi
 
 step "self-host rebuild closes" self_host_rebuild
-step "self-host memory budget (<= 250 MB)" self_host_memory_budget
+step "self-host memory budget (<= 100 MB)" self_host_memory_budget
 
 # --- Cleanup ------------------------------------------------------------
 # Default: wipe target + .nuc_cache so the next run starts cold (matches
