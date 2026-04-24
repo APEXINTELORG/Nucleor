@@ -59,6 +59,8 @@ POSIX (Linux/macOS) support is planned for **v0.3.0** (see [`docs/milestones/v0.
 
 **Control systems:** `control` (PID + Kalman + state-space)
 
+**Robotics:** `kinematics` (Vec3, quaternion, Pose) · `fk_chain` (forward kinematics, DH parameters) · `ik_dls` (damped least squares IK, 3-DOF + 6-DOF + joint limits + singularity detection) · `trajectory` (quintic, trapezoid, S-curve, DMP, TOPP time-optimal parameterization) · `collision` (sphere/capsule/AABB/OBB pairs + GJK + EPA penetration depth + CCD) · `bvh` (broad-phase pruning) · `rrt` (RRT, RRT-Connect, RRT*, goal-region) · `prm` (probabilistic roadmap + Dijkstra query) · `astar` · `urdf` (parser → FK chain)
+
 **Modern ML:** `nn` (Dense + Adam + attention + ensemble) · `gnn` (GATv2 + global attention pool) · `ssm` (Mamba selective scan + RWKV + xLSTM + ZOH) · `moe` (top-k gate + dispatch + load balancing)
 
 **Quantum:** `quantum` (full state-vector simulator: H, X, Y, Z, CNOT, measure)
@@ -114,12 +116,13 @@ part of the verify gate and rebuild + run on every release.
 
 Programs in [`examples/showcase/`](examples/showcase/) that demonstrate
 things Nucleor is uniquely suited for, with live ANSI-colored visualizations.
-All four are one file each.
+All five are one file each.
 
 - [`vqe_h2.nr`](examples/showcase/vqe_h2.nr) — **Variational Quantum Eigensolver** finding the ground state of a 2-qubit Hamiltonian via parameter-shift gradient descent. Live convergence chart with parameter and energy bars updating in place. Other-stack equivalent: PennyLane + PyTorch + OpenFermion + SciPy.
 - [`market_maker.nr`](examples/showcase/market_maker.nr) — **Live options market-making engine.** Black-Scholes pricing + full Greeks + PID-driven delta hedging at simulated 10 ms tick. Bloomberg-style dashboard. Other-stack equivalent: Python + QuantLib + filterpy + simple-pid + a C++ rewrite for the latency path.
 - [`wing_simulator.nr`](examples/showcase/wing_simulator.nr) — **Coupled fluid + electromagnetic simulator** on the same airfoil cross-section. Lattice Boltzmann (D2Q9) for aerodynamics + FDTD on a Yee grid for electromagnetics, both in one file with one shared geometry. 256-color heatmaps for density, vorticity, and E_z field. Other-stack equivalent: OpenFOAM + Meep + a custom mesh bridge + matplotlib.
 - [`lorenz.nr`](examples/showcase/lorenz.nr) — **The Lorenz strange attractor** integrated with RK4, two trajectories from initial conditions 1e-5 apart, rendered as a heatmap of trajectory density. Visual demonstration of sensitive dependence on initial conditions — the iconic butterfly shape emerges in your console.
+- [`robotic_arm.nr`](examples/showcase/robotic_arm.nr) — **End-to-end robot motion-planning stack**, 8 stages: build a 3-link arm (DH parameters or URDF), forward kinematics, IK with joint limits + singularity detection, TOPP time-optimal trajectory parameterization, GJK + EPA collision checking, BVH workspace pruning. Other-stack equivalent: ROS / MoveIt / Pinocchio / TOPP-RA + a Python orchestrator.
 
 Each program writes a `*_data.csv` next to the binary so you can plot it,
 audit it, or feed it into another tool. Open in Excel, pandas, R, gnuplot,
