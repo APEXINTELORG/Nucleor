@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 190
-# Total fn definitions: 2009
-# Total LOC: 8572
+# Total rods: 191
+# Total fn definitions: 2015
+# Total LOC: 8603
 
 [[rod]]
 name           = "activation2"
@@ -748,6 +748,15 @@ function_count = 16
 cfile_count    = 1
 loc            = 35
 imports        = ["image"]
+
+[[rod]]
+name           = "imgproc"
+path           = "stdlib/rods/imgproc.nr"
+description    = "Basic image processing primitives on grayscale"
+function_count = 6
+cfile_count    = 1
+loc            = 31
+imports        = ["imgproc"]
 
 [[rod]]
 name           = "ini"
