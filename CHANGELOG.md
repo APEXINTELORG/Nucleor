@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.224] — 2026-04-23
+
+**Robotics: pinhole camera projection rod. Standard
+intrinsics + world-to-pixel projection + image (interaction)
+Jacobian for visual servoing. Foundation for hand-eye calibration,
+object pose estimation, and IBVS (which lands as v0.2.225 next).**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/vision.nr"
+
+// K is a 9-double row-major intrinsics buffer.
+cam_intrinsics_set(K_ptr, fx_b, fy_b, cx_b, cy_b);
+
+// Single point: returns 1 on success, 0 if behind camera.
+cam_project(K_ptr, R_ptr, t_ptr, X_ptr, uv_out_ptr);
+
+// Batch over N world points; returns count successfully projected.
+cam_project_batch(K_ptr, R_ptr, t_ptr, X_ptr, N, uv_out_ptr);
+
+// Image Jacobian (2×6) for IBVS — Chaumette & Hutchinson 2006.
+cam_image_jacobian(x_b, y_b, Z_b, L_out_ptr);
+```
+
+### Verification
+
+Standard 640×480-style intrinsics K = [[500, 0, 320], [0, 500, 320], [0, 0, 1]]
+with camera at world origin looking down +z:
+
+| Test | Expected | Got |
+|---|---|---|
+| Project (0, 0, 1) | (320, 320) — principal point | **(320.00, 320.00)** |
+| Project (0.1, 0.05, 1) | (370, 345) | **(370.00, 345.00)** |
+| Project (0, 0, -1) — behind camera | failure (0) | **0** |
+| Image Jacobian at (x=0.1, y=0.05, Z=1) | analytical formula | **all 12 entries match** |
+
+### Limitations (lens distortion + PnP/P3P pose estimation land
+in v0.6 if needed):
+
+- Pinhole only — assumes pre-undistorted pixel coords. Real
+  cameras: undistort upstream via the camera driver, then feed
+  to this layer.
+- No camera-pose-from-correspondences primitives (PnP, P3P) —
+  those land alongside hand-eye calibration in v0.6.
+
+### Files
+
+- `stdlib/runtime/vision_rt.c` — `nuc_cam_intrinsics_set`,
+  `nuc_cam_project`, `nuc_cam_project_batch`,
+  `nuc_cam_image_jacobian`.
+- `stdlib/rods/vision.nr` — externs + Nucleor wrappers.
+- `tests/rods/vision_smoke.nr` — build-only linkage smoke
+  (correctness covered by direct C projection test).
+
+---
+
 ## [0.2.223] — 2026-04-23
 
 **Robotics: ICP — Iterative Closest Point for 3D point cloud
