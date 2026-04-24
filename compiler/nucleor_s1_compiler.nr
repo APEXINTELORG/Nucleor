@@ -4434,8 +4434,7 @@ fn type_is_numeric(t: str) -> i64 {
 }
 
 fn type_is_mut_ref(t: str) -> i64 {
-    let tlen: i64 = str_len(t);
-    if tlen >= 5 && str_eq(str_substring(t, 0, 5), "&mut ") == 1 { return 1; };
+    if str_starts_with(t, "&mut ") == 1 { return 1; };
     return 0;
 }
 fn type_is_shared_ref(t: str) -> i64 {
@@ -6540,7 +6539,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         };
         if str_eq(type_base_name(inner), "Box") == 1 {
             let slen: i64 = str_len(inner);
-            if slen >= 5 && str_eq(str_substring(inner, 0, 4), "Box<") == 1 { return str_substring(inner, 4, slen - 1); };
+            if slen >= 5 && str_starts_with(inner, "Box<") == 1 { return str_substring(inner, 4, slen - 1); };
         };
         return type_base_name(inner);
     };
@@ -8416,13 +8415,13 @@ fn rewrite_use_path(line: str, lp: i64, prefix_len: i64, eol: i64) -> str {
     let plen: i64 = str_len(raw_path);
     let mut prefix: str = "";
     let mut tail_start: i64 = 0;
-    if plen >= 5 && str_eq(str_substring(raw_path, 0, 5), "std::") == 1 {
+    if str_starts_with(raw_path, "std::") == 1 {
         prefix = "stdlib/rods/";
         tail_start = 5;
-    } else if plen >= 7 && str_eq(str_substring(raw_path, 0, 7), "crate::") == 1 {
+    } else if str_starts_with(raw_path, "crate::") == 1 {
         prefix = "";
         tail_start = 7;
-    } else if plen >= 7 && str_eq(str_substring(raw_path, 0, 7), "super::") == 1 {
+    } else if str_starts_with(raw_path, "super::") == 1 {
         prefix = "../";
         tail_start = 7;
     } else { return ""; };
@@ -8455,12 +8454,12 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
         let line_len: i64 = eol - lp;
         let mut prefix_len: i64 = 0;
         let mut is_mod_decl: i64 = 0;
-        if line_len >= 8 && str_eq(str_substring(src, lp, lp + 7), "import ") { prefix_len = 7; };
-        if prefix_len == 0 && line_len >= 5 && str_eq(str_substring(src, lp, lp + 4), "use ") { prefix_len = 4; };
+        if line_len >= 8 && str_eq_at(src, lp, "import ") == 1 { prefix_len = 7; };
+        if prefix_len == 0 && line_len >= 5 && str_eq_at(src, lp, "use ") == 1 { prefix_len = 4; };
         // RFC-0018 phase 1: `mod foo;` desugars to `import "./foo.nr"`.
         // Block-form `mod foo { ... }` requires a parser-level scope and
         // ships in phase 2 with the resolver.
-        if prefix_len == 0 && line_len >= 5 && str_eq(str_substring(src, lp, lp + 4), "mod ") == 1 {
+        if prefix_len == 0 && line_len >= 5 && str_eq_at(src, lp, "mod ") == 1 {
             let mut sp: i64 = lp + 4;
             while sp < eol && str_char_at(src, sp) == 32 { sp = sp + 1; };
             let mut np: i64 = sp;
@@ -8610,7 +8609,7 @@ fn extract_directives(raw_source: str, base_dir: str) -> Vec<i32> {
         while lp < eol && (str_char_at(raw_source, lp) == 32 || str_char_at(raw_source, lp) == 9) { lp = lp + 1; };
         let line_len: i64 = eol - lp;
         if line_len >= 6 && str_char_at(raw_source, lp) == 35 {
-            if line_len >= 7 && str_eq(str_substring(raw_source, lp, lp + 6), "#link ") {
+            if line_len >= 7 && str_eq_at(raw_source, lp, "#link ") == 1 {
                 let mut qp: i64 = lp + 6;
                 while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
                 if qp < eol && str_char_at(raw_source, qp) == 34 {
@@ -8619,7 +8618,7 @@ fn extract_directives(raw_source: str, base_dir: str) -> Vec<i32> {
                     while pe < eol && str_char_at(raw_source, pe) != 34 { pe = pe + 1; };
                     sb_append(links, " -l"); sb_append(links, str_substring(raw_source, ps, pe));
                 };
-            } else if line_len >= 8 && str_eq(str_substring(raw_source, lp, lp + 7), "#cfile ") {
+            } else if line_len >= 8 && str_eq_at(raw_source, lp, "#cfile ") == 1 {
                 let mut qp: i64 = lp + 7;
                 while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
                 if qp < eol && str_char_at(raw_source, qp) == 34 {
@@ -8628,7 +8627,7 @@ fn extract_directives(raw_source: str, base_dir: str) -> Vec<i32> {
                     while pe < eol && str_char_at(raw_source, pe) != 34 { pe = pe + 1; };
                     sb_append(cfiles, " "); sb_append(cfiles, str_concat(base_dir, str_substring(raw_source, ps, pe)));
                 };
-            } else if line_len >= 10 && str_eq(str_substring(raw_source, lp, lp + 9), "#libpath ") {
+            } else if line_len >= 10 && str_eq_at(raw_source, lp, "#libpath ") == 1 {
                 let mut qp: i64 = lp + 9;
                 while qp < eol && str_char_at(raw_source, qp) == 32 { qp = qp + 1; };
                 if qp < eol && str_char_at(raw_source, qp) == 34 {
@@ -8934,7 +8933,7 @@ fn manifest_entry_path() -> str {
     let klen: i64 = str_len(key);
     let mut p: i64 = 0;
     while p + klen <= clen {
-        if str_eq(str_substring(compact, p, p + klen), key) == 1 {
+        if str_eq_at(compact, p, key) == 1 {
             let start: i64 = p + klen;
             let mut end: i64 = start;
             while end < clen && str_char_at(compact, end) != 34 { end = end + 1; };
@@ -9274,7 +9273,7 @@ fn main() -> i64 {
             };
             bench_iterations = str_to_int(args_get(argi_build + 1));
             argi_build = argi_build + 1;
-        } else if str_eq(cmd, "bench") && str_len(flag) > 13 && str_eq(str_substring(flag, 0, 13), "--iterations=") {
+        } else if str_eq(cmd, "bench") && str_starts_with(flag, "--iterations=") == 1 {
             bench_iterations = str_to_int(str_substring(flag, 13, str_len(flag)));
         } else if str_eq(cmd, "bench") && str_eq(flag, "--warmup") {
             if argi_build + 1 >= argc {
@@ -9283,7 +9282,7 @@ fn main() -> i64 {
             };
             bench_warmup = str_to_int(args_get(argi_build + 1));
             argi_build = argi_build + 1;
-        } else if str_eq(cmd, "bench") && str_len(flag) > 9 && str_eq(str_substring(flag, 0, 9), "--warmup=") {
+        } else if str_eq(cmd, "bench") && str_starts_with(flag, "--warmup=") == 1 {
             bench_warmup = str_to_int(str_substring(flag, 9, str_len(flag)));
         }
         else if wants_output_name == 1 && (str_eq(flag, "-o") || str_eq(flag, "--out") || str_eq(flag, "--output")) {
