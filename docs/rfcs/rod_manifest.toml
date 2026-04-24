@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 220
-# Total fn definitions: 2089
-# Total LOC: 9179
+# Total rods: 221
+# Total fn definitions: 2090
+# Total LOC: 9187
 
 [[rod]]
 name           = "activation2"
@@ -271,6 +271,15 @@ function_count = 10
 cfile_count    = 1
 loc            = 46
 imports        = ["cam"]
+
+[[rod]]
+name           = "canny"
+path           = "stdlib/rods/canny.nr"
+description    = "Canny edge detector (Canny 1986)."
+function_count = 1
+cfile_count    = 1
+loc            = 8
+imports        = ["canny"]
 
 [[rod]]
 name           = "catmullrom"

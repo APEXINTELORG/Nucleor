@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.331] — 2026-04-24
+
+**Robotics: Canny edge detector (`canny`). Full 4-stage edge
+pipeline: Sobel gradients → non-maximum suppression along
+gradient direction → double threshold → 8-connected hysteresis.
+Output is a binary edge map (0 / 255).**
+
+### Algorithm
+
+```
+1. Sobel: per-pixel Gx, Gy, magnitude.
+2. NMS: keep G(x,y) only if it's the local max along the
+   gradient direction (4-direction quantization: 0/45/90/135).
+3. Double threshold: classify pixels as
+     strong (mag >= high_thr)
+     weak   (low_thr <= mag < high_thr)
+     suppressed (else).
+4. Hysteresis: weak pixels survive iff 8-connected to a
+   strong pixel transitively (BFS flood from strongs).
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/canny.nr"
+
+let _ = canny(img_ptr, W, H,
+               low_thr_b, high_thr_b,
+               edges_out_ptr);
+```
+
+Image and output are `double[H*W]` row-major. Output is 0 or
+255 per pixel.
+
+Tuning: `low_thr ≈ 0.4 × high_thr`; for 8-bit images, high_thr
+of 100-200 typical.
+
+### Verification
+
+Direct C unit test (`target/_test_canny.c`):
+
+- T1 vertical edge : 16×16 with 0/255 step at x=8 → 28 edge
+                      pixels along col=7 (NMS picks the higher-
+                      gradient side) ✓
+- T2 flat image    : no edges ✓
+- T3 bad W=2       : returns 0 ✓
+
+Build smoke `tests/rods/canny_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/canny_rt.c` — Sobel + NMS + double threshold
+  + BFS hysteresis.
+- `stdlib/rods/canny.nr` — extern + `canny` wrapper.
+- `tests/rods/canny_smoke.nr` — build-only smoke.
+- `CHANGELOG.md` — this entry.
+
+### Limitations
+
+Documented in `canny.nr` and `canny_rt.c`: 4-direction NMS
+quantization (no sub-pixel interpolation along gradient);
+single-scale. Sub-pixel localization / scale-space edges land
+in v0.6 if needed.
+
 ## [0.2.330] — 2026-04-24
 
 **Robotics: Sobel edge gradient (`sobel`). Computes per-pixel
