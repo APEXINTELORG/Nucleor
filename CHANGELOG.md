@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.245] — 2026-04-23
+
+**Robotics: spatial hash grid for fast 3D nearest-neighbor
+queries. Bins points into cubic cells of side `cell_size`; NN
+queries scan only the query cell + its 26 neighbors instead of
+all points. Roughly O(1) average-case lookup on uniformly-
+distributed clouds — order-of-magnitude speedup over the brute-
+force O(N) NN in `icp.nr` and `prm.nr` for large workloads.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/sgrid.nr"
+
+let g = sgrid_new(cell_size_b, n_pts_hint);
+for each point: sgrid_insert(g, x_b, y_b, z_b);
+let nn_idx = sgrid_nearest(g, qx_b, qy_b, qz_b);
+sgrid_free(g);
+```
+
+### Use cases
+
+- Faster ICP NN matching: replace the brute-force scan in
+  `icp_align` for large point clouds.
+- Large-roadmap PRM expansion: find k nearest existing nodes
+  during `prm_build` without scanning all of them.
+- Particle-grid neighborhood lookups in physics sims (find
+  particles within interaction radius).
+
+### Verification
+
+Inserted 3 points at (0, 0, 0), (1, 0, 0), (2, 0, 0); query at
+(1.1, 0, 0):
+
+| Quantity | Expected | Got |
+|---|---|---|
+| Count after 3 inserts | 3 | ✓ |
+| Nearest to (1.1, 0, 0) | index 1 (point at (1, 0, 0)) | ✓ |
+
+### Limitations (KD-tree / R-tree variants land in v0.6 if needed):
+
+- Cell size is fixed; pick ≈ expected NN distance for best
+  performance.
+- For very non-uniform clouds, a KD-tree adapts better.
+- Includes a brute-force fallback (correctness guaranteed) when
+  the cell + 1-ring is empty.
+
+### Files
+
+- `stdlib/runtime/sgrid_rt.c` — `_SBin` / `NSGrid` types,
+  FNV-1a hash, `nuc_sgrid_*` exports.
+- `stdlib/rods/sgrid.nr` — externs + Nucleor wrappers.
+- `tests/rods/sgrid_smoke.nr` — full functional smoke
+  (count + nearest-neighbor verification).
+
+---
+
 ## [0.2.244] — 2026-04-23
 
 **Robotics: behavior trees — THE standard pattern for modern
