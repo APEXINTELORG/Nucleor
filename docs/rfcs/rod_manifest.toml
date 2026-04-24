@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 169
-# Total fn definitions: 1833
-# Total LOC: 8001
+# Total rods: 170
+# Total fn definitions: 1842
+# Total LOC: 8030
 
 [[rod]]
 name           = "activation2"
@@ -757,6 +757,15 @@ function_count = 8
 cfile_count    = 1
 loc            = 21
 imports        = []
+
+[[rod]]
+name           = "lcp"
+path           = "stdlib/rods/lcp.nr"
+description    = "Box LCP solver via Projected Gauss-Seidel (PGS)."
+function_count = 9
+cfile_count    = 1
+loc            = 29
+imports        = ["lcp"]
 
 [[rod]]
 name           = "linalg"
