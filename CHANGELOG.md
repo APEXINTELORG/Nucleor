@@ -5,6 +5,92 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.228] — 2026-04-23
+
+**Robotics: 2D pose graph SLAM optimizer (Gauss-Newton). Standard
+SLAM back-end: minimize the sum of squared edge errors over a
+graph of relative-pose constraints. Foundation for SLAM systems
+where the front-end (scan matching with `icp.nr`, visual odometry,
+IMU dead-reckoning) produces relative-pose measurements between
+poses, and loop closures fix accumulated drift via additional
+edges between non-adjacent poses.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/pgs.nr"
+
+let g = pgs_new(n_nodes);
+for i in 0..n_nodes { pgs_set_node(g, i, x_b, y_b, theta_b); }
+
+// Each edge says "node j's pose, expressed in node i's frame, is
+// approximately (dx, dy, dtheta)" with diagonal information matrix.
+pgs_add_edge(g, i, j, dx_b, dy_b, dtheta_b,
+             info_xx_b, info_yy_b, info_tt_b);
+
+// Run Gauss-Newton.
+pgs_optimize(g, max_iters, tol_b);
+
+// Read back the optimized poses.
+pgs_get_node(g, i, x_out_ptr, y_out_ptr, theta_out_ptr);
+```
+
+Node 0 is gauge-fixed (never moves) to break the global rigid-
+motion ambiguity.
+
+### Algorithm
+
+Gauss-Newton iterations on the linearized residuals:
+1. For each edge, compute residual `e = inv(p_i) ⊞ p_j ⊟ z_ij`
+   (predicted relative pose minus measurement, in node i's frame).
+2. Compute analytical 2D pose Jacobians wrt both endpoints
+   (Grisetti et al. tutorial form).
+3. Build the dense normal equations `H · δx = −b` with `H = Σ Aᵀ Ω A`,
+   `b = Σ Aᵀ Ω e`. Add small Levenberg damping to keep H invertible.
+4. Solve via Gauss-Jordan, apply update to all non-fixed nodes.
+5. Repeat until ‖δx‖ drops below tolerance.
+
+### Verification
+
+4-node "loop closure" test: square loop with relative-pose
+measurements `(1, 0, π/2)` between consecutive nodes (90° turn
+each step). Initial estimates perturbed from truth by ≤ 10 cm
+position, ≤ 0.05 rad angle:
+
+| Stage | Cost |
+|---|---|
+| Initial (with perturbation) | 3.79 |
+| After 4 Gauss-Newton iters | **1.5e-29** (machine epsilon) |
+
+Recovered poses match the analytical answer:
+- Node 0: (0.0000, 0.0000, 0.0000) — fixed ✓
+- Node 1: (1.0000, 0.0000, 1.5708 = π/2) ✓
+- Node 2: (1.0000, 1.0000, -3.1416 = ±π) ✓
+- Node 3: (0.0000, 1.0000, -1.5708 = -π/2 = 3π/2) ✓
+
+(Angles equivalent under ±π wraparound, which the optimizer's
+`_wrap_angle` handles.)
+
+### Limitations (3D pose graphs / sparse Cholesky / robust kernels
+land in v0.6 if needed):
+
+- 2D only. 3D extension uses quaternions + 6-DOF residuals.
+- Dense linear solve via Gauss-Jordan: O(n³) per iter. Fine for
+  ≤ 200 nodes; larger graphs need sparse Cholesky.
+- L₂ cost only — no robust kernels (Huber, Cauchy) for outlier
+  rejection.
+
+### Files
+
+- `stdlib/runtime/pgs_rt.c` — `_PGSEdge` / `NPGS` types,
+  `nuc_pgs_*` exports including `_optimize` and `_total_cost`,
+  plus `_gj_inv` and `_wrap_angle` helpers.
+- `stdlib/rods/pgs.nr` — externs + Nucleor wrappers.
+- `tests/rods/pgs_smoke.nr` — alloc/insert/optimize/free smoke
+  (correctness covered by direct C 4-node loop test).
+
+---
+
 ## [0.2.227] — 2026-04-23
 
 **Robotics: Extended Kalman Filter for nonlinear state
