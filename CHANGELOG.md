@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.267] — 2026-04-24
+
+**Robotics: box-constrained iLQR (`cilqr`). Same iterative-LQR
+algorithm as `ilqr.nr` with one addition — each control update
+during the forward pass is clamped to a per-component box
+`[u_min, u_max]`. Standard pragmatic way to enforce hard actuator
+limits.**
+
+### Algorithm
+
+```
+backward pass: identical to ilqr (Q-function update, K, k)
+forward pass with line search:
+    for t in 0..T:
+        u_new[t] = u_seq[t] + α·k_t + K_t·(x_new − x_old)
+        u_new[t] = clamp(u_new[t], u_min, u_max)        // box clamp
+        x_new[t+1] = f(x_new[t], u_new[t])
+    if cost(u_new) < cost(u_seq): accept
+    else: α *= 0.5
+```
+
+The initial `u_seq` is also pre-clamped on entry so an
+out-of-bounds warm start is safe.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/cilqr.nr"
+
+cilqr_optimize_box(n_x, n_u, T,
+    x0_ptr, u_seq_ptr,
+    u_min_ptr, u_max_ptr,
+    max_iters,
+    dynamics_fp, stage_cost_fp, terminal_cost_fp);
+```
+
+Same callback contract as `ilqr.nr`. `u_min` and `u_max` are
+caller-allocated `double[n_u]`.
+
+### Verification
+
+2-D double-integrator goal-reaching with `T = 30`, `dt = 0.1`,
+terminal cost `50·(p − 1)² + 5·v²`, and **tight u-bounds** `[-0.5, 0.5]`
+(tighter than what unconstrained iLQR would peak at, ~0.65).
+
+- Converged in 4 iterations.
+- `max |u| = 0.5000` exact, **0 violations** of the bound.
+- Final state `(1.0037, 0.0425)` — made it to goal despite the bound.
+
+### Files
+
+- `stdlib/runtime/cilqr_rt.c` — `nuc_cilqr_optimize_box`; iLQR
+  helpers prefixed `_ci_` to avoid C-symbol collision with
+  `ilqr_rt.c`.
+- `stdlib/rods/cilqr.nr` — extern + `cilqr_optimize_box` wrapper.
+- `tests/rods/cilqr_smoke.nr` — build-only smoke.
+
+### Limitations carried forward
+
+- Only the forward pass clamps; backward-pass `K` is unconstrained.
+  Tassa-style projected backward pass for tightly-active stretches
+  lands in v0.6.
+
+---
+
 ## [0.2.266] — 2026-04-24
 
 **Robotics: jerk-limited 7-phase s-curve trajectory (`scurve`).
