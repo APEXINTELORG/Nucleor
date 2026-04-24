@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.173] — 2026-04-24
+
+**`sb_new_with_cap(initial_cap)` builtin: pre-size a string
+builder when the final size is known. IR builder now starts
+at 2 MB instead of 256 B (saves ~14 reallocs per self-host
+compile).**
+
+The IR builder in `emit_module_ext` produces ~2.7 MB of
+LLVM IR per self-host compile. With the default 256 B
+initial capacity, it grew through 14 doubling reallocs
+(256→512→1024→…→4 MB), each requiring a `realloc` +
+implicit memcpy of the previous content.
+
+`sb_new_with_cap(initial_cap)` lets the caller pre-size
+when the final length is approximately known. Used in
+`emit_module_ext` with 2 MB initial — at most one realloc
+to absorb the final stretch.
+
+### Files
+
+- `stdlib/runtime/nucleor_llvm_rt.c`: new
+  `__nucleor_sb_new_with_cap(initial_cap)`. Same growth
+  semantics as `sb_new`; only the initial allocation
+  differs.
+- `compiler/nucleor_s1_compiler.nr` + `nucleor_tools_suite.nr`:
+  4 ABI sites each.
+- `compiler/nucleor_s1_compiler.nr` (`emit_module_ext`):
+  swapped `sb_new()` → `sb_new_with_cap(2097152)` with a
+  comment explaining the rationale.
+
+### Memory measurement
+
+The trace counter doesn't show a meaningful delta because
+both paths (one big alloc vs many doubling reallocs) sum
+to roughly the same cumulative allocation (~3 MB for the
+IR SB). The win is in **fewer realloc/memcpy operations**
+and **less heap fragmentation**, neither of which the
+counter tracks.
+
+|              | v0.2.172  | v0.2.173  |
+|--------------|----------:|----------:|
+| TOTAL TRACKED|   67 MB   |   67 MB   |
+| Wall-clock   |   4.6 s   |   4.6 s   |
+
+### Self-host LLVM IR fixed point
+
+- 2-iter byte-identical at 2,691,806 bytes.
+- `bin/nucleor.exe` updated.
+
+### Verify gate
+
+**250 / 250 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.172] — 2026-04-24
 
 **`sb_append_char` builtin: append a single byte to a string
