@@ -25,6 +25,17 @@ extern fn nuc_rrt_plan(h: i64, goal_ptr: i64, max_iters: i64, step_bits: i64, is
 extern fn nuc_rrt_connect_plan(h: i64, goal_ptr: i64, max_iters: i64, step_bits: i64, is_collision_free_fp: i64) -> i64;
 extern fn nuc_rrt_star_plan(h: i64, goal_ptr: i64, max_iters: i64, step_bits: i64, radius_bits: i64, is_collision_free_fp: i64) -> i64;
 extern fn nuc_rrt_plan_region(h: i64, region_lo_ptr: i64, region_hi_ptr: i64, max_iters: i64, step_bits: i64, is_collision_free_fp: i64) -> i64;
+
+// Informed RRT* (v0.2.248, Gammell, Srinivasa, Barfoot 2014).
+// After finding a first solution with cost c_best, restricts
+// subsequent samples to the prolate hyperspheroid (ellipsoid)
+// with foci at start/goal and major axis c_best. As c_best
+// shrinks via rewiring, the ellipsoid shrinks too, focusing
+// sampling on the region that could improve the path.
+extern fn nuc_rrt_star_plan_informed(h: i64,
+    start_ptr: i64, goal_ptr: i64,
+    max_iters: i64, step_bits: i64, radius_bits: i64,
+    is_collision_free_fp: i64) -> i64;
 extern fn nuc_rrt_path_len(h: i64) -> i64;
 extern fn nuc_rrt_path_at(h: i64, path_idx: i64, dim: i64) -> i64;
 extern fn nuc_rrt_node_count(h: i64) -> i64;
@@ -59,6 +70,18 @@ fn rrt_connect_plan(h: i64, goal_ptr: i64, max_iters: i64, step_bits: i64, is_co
 // per-iteration overhead.
 fn rrt_star_plan(h: i64, goal_ptr: i64, max_iters: i64, step_bits: i64, radius_bits: i64, is_collision_free_fp: i64) -> i64 {
     return nuc_rrt_star_plan(h, goal_ptr, max_iters, step_bits, radius_bits, is_collision_free_fp);
+}
+
+// Informed RRT* — accepts BOTH start and goal because the
+// ellipsoid sampler needs the start position. (`rrt_set_root`
+// already specifies the start internally; passing start here is
+// for the ellipsoid math.)
+fn rrt_star_plan_informed(h: i64, start_ptr: i64, goal_ptr: i64,
+    max_iters: i64, step_bits: i64, radius_bits: i64,
+    is_collision_free_fp: i64) -> i64
+{
+    return nuc_rrt_star_plan_informed(h, start_ptr, goal_ptr,
+        max_iters, step_bits, radius_bits, is_collision_free_fp);
 }
 
 // Goal-region planning (v0.2.198). Instead of a single goal point,

@@ -558,6 +558,244 @@ long long nuc_rrt_star_plan(
     return 1;
 }
 
+// === Informed RRT* (v0.2.248) ==========================================
+//
+// Gammell, Srinivasa & Barfoot 2014. After the first solution
+// is found (with cost c_best), restrict subsequent samples to
+// the prolate hyperspheroid (ellipsoid) with foci at start and
+// goal and major-axis length c_best. As c_best decreases via
+// rewiring, the ellipsoid shrinks, focusing sampling on the
+// region that could improve the solution. Significantly faster
+// convergence to the optimum than vanilla RRT* on long-path
+// problems.
+//
+// Sampling within the ellipsoid:
+//   1. Sample u uniformly on the unit n-sphere.
+//   2. Scale by U^(1/n) where U ~ Uniform(0, 1) → uniform in unit n-ball.
+//   3. x = C · L · (point in unit ball) + center
+//      where:
+//        center = (start + goal) / 2
+//        c_min  = ‖goal - start‖
+//        L      = diag(c_best/2, sqrt(c_best² - c_min²)/2, ..., sqrt(c_best² - c_min²)/2)
+//        C      = rotation aligning e_1 with (goal - start)/c_min
+//
+// **Limitations** (anytime variant + asymptotic-optimality
+// theoretical guarantees land in v0.6 if needed):
+// - Falls back to uniform-bounds sampling when no solution found
+//   yet, same as vanilla RRT*.
+// - C matrix built via simple Gram-Schmidt; degenerate when
+//   start ↔ goal axis is perfectly aligned with a standard basis
+//   in pathological dimensions ≥ 4 (rare in practice).
+
+// Sample uniformly on the unit n-sphere via Gaussian normalization.
+static void _sample_unit_sphere(NRRT *r, int n, double *out) {
+    double s = 0;
+    for (int i = 0; i < n; i++) {
+        // Box-Muller: two uniforms → one standard normal.
+        double u1 = _rng_unit(r), u2 = _rng_unit(r);
+        if (u1 < 1e-12) u1 = 1e-12;
+        out[i] = sqrt(-2.0 * log(u1)) * cos(2.0 * 3.14159265358979 * u2);
+        s += out[i] * out[i];
+    }
+    s = sqrt(s);
+    if (s > 1e-12) {
+        for (int i = 0; i < n; i++) out[i] /= s;
+    }
+}
+
+// Build the n×n rotation matrix C (row-major) such that C·e_1 = a1.
+// Columns 1..n-1 completed via Gram-Schmidt starting from standard
+// basis vectors.
+static void _build_rotation_C(const double *a1, int n, double *C_out) {
+    for (int i = 0; i < n; i++) C_out[i*n + 0] = a1[i];
+    double *col = (double *)malloc(n * sizeof(double));
+    for (int j = 1; j < n; j++) {
+        // Start with the standard basis vector e_j.
+        for (int i = 0; i < n; i++) col[i] = (i == j) ? 1.0 : 0.0;
+        // Orthogonalize against all previous columns.
+        for (int prev = 0; prev < j; prev++) {
+            double dot = 0;
+            for (int i = 0; i < n; i++) dot += col[i] * C_out[i*n + prev];
+            for (int i = 0; i < n; i++) col[i] -= dot * C_out[i*n + prev];
+        }
+        double norm = 0;
+        for (int i = 0; i < n; i++) norm += col[i] * col[i];
+        norm = sqrt(norm);
+        if (norm < 1e-9) {
+            // Degenerate; pick next basis.
+            for (int i = 0; i < n; i++) col[i] = (i == (j+1) % n) ? 1.0 : 0.0;
+            for (int prev = 0; prev < j; prev++) {
+                double dot = 0;
+                for (int i = 0; i < n; i++) dot += col[i] * C_out[i*n + prev];
+                for (int i = 0; i < n; i++) col[i] -= dot * C_out[i*n + prev];
+            }
+            norm = 0;
+            for (int i = 0; i < n; i++) norm += col[i] * col[i];
+            norm = sqrt(norm);
+            if (norm < 1e-9) norm = 1.0;
+        }
+        for (int i = 0; i < n; i++) C_out[i*n + j] = col[i] / norm;
+    }
+    free(col);
+}
+
+long long nuc_rrt_star_plan_informed(
+    long long h, long long start_ptr, long long goal_ptr,
+    long long max_iters,
+    long long step_bits,
+    long long radius_bits,
+    long long is_collision_free_fp)
+{
+    NRRT *r = (NRRT *)(void *)(size_t)h;
+    if (!r || r->count == 0) return 0;
+    double *start = (double *)(void *)(size_t)start_ptr;
+    double *goal  = (double *)(void *)(size_t)goal_ptr;
+    double step = _i2f(step_bits);
+    double radius = _i2f(radius_bits);
+    coll_fn_t cf = (coll_fn_t)(void *)(size_t)is_collision_free_fp;
+    int n = r->n_dim;
+
+    _ensure_cost_capacity(r);
+    _rrt_cost[0] = 0;
+
+    // Precompute ellipsoid parameters.
+    double c_min = 0;
+    for (int i = 0; i < n; i++) {
+        double d = goal[i] - start[i];
+        c_min += d * d;
+    }
+    c_min = sqrt(c_min);
+    double *a1 = (double *)malloc(n * sizeof(double));
+    if (c_min > 1e-9) {
+        for (int i = 0; i < n; i++) a1[i] = (goal[i] - start[i]) / c_min;
+    } else {
+        for (int i = 0; i < n; i++) a1[i] = (i == 0) ? 1.0 : 0.0;
+    }
+    double *center = (double *)malloc(n * sizeof(double));
+    for (int i = 0; i < n; i++) center[i] = 0.5 * (start[i] + goal[i]);
+    double *C = (double *)malloc(n * n * sizeof(double));
+    _build_rotation_C(a1, n, C);
+
+    double *sample = (double *)malloc(n * sizeof(double));
+    double *new_cfg = (double *)malloc(n * sizeof(double));
+    double *unit_ball = (double *)malloc(n * sizeof(double));
+    int best_goal = -1;
+    double best_goal_cost = 1e30;
+
+    long long it;
+    for (it = 0; it < max_iters; it++) {
+        // === Sample ===
+        if (best_goal >= 0 && best_goal_cost < 1e29) {
+            // Informed sample within ellipsoid.
+            _sample_unit_sphere(r, n, unit_ball);
+            double scale = pow(_rng_unit(r), 1.0 / (double)n);
+            for (int i = 0; i < n; i++) unit_ball[i] *= scale;
+            // Apply L (diagonal): major axis c_best/2, others sqrt(c²-c_min²)/2.
+            double r1 = best_goal_cost * 0.5;
+            double r2sq = best_goal_cost*best_goal_cost - c_min*c_min;
+            double r2 = (r2sq > 0) ? 0.5 * sqrt(r2sq) : 0;
+            double *Lball = sample;  // reuse buffer
+            Lball[0] = r1 * unit_ball[0];
+            for (int i = 1; i < n; i++) Lball[i] = r2 * unit_ball[i];
+            // Apply C: rotate Lball into ellipsoid frame.
+            // sample = C · Lball + center.
+            double *tmp = (double *)malloc(n * sizeof(double));
+            for (int i = 0; i < n; i++) {
+                double s = 0;
+                for (int j = 0; j < n; j++) s += C[i*n + j] * Lball[j];
+                tmp[i] = s + center[i];
+            }
+            for (int i = 0; i < n; i++) sample[i] = tmp[i];
+            free(tmp);
+            // Clip to bounds.
+            for (int i = 0; i < n; i++) {
+                if (sample[i] < r->lower[i]) sample[i] = r->lower[i];
+                if (sample[i] > r->upper[i]) sample[i] = r->upper[i];
+            }
+        } else {
+            // Uniform-bounds sample (no solution found yet).
+            for (int k = 0; k < n; k++) {
+                sample[k] = r->lower[k] + _rng_unit(r) * (r->upper[k] - r->lower[k]);
+            }
+        }
+
+        // === Steer + RRT* logic (same as vanilla rrt_star_plan) ===
+        int near = _nearest(r, sample);
+        double *near_cfg = r->configs + near * r->n_dim;
+        double dist = 0;
+        for (int k = 0; k < n; k++) {
+            double d = sample[k] - near_cfg[k];
+            dist += d * d;
+        }
+        dist = sqrt(dist);
+        if (dist < 1e-9) continue;
+        double scale_step = (dist <= step) ? 1.0 : (step / dist);
+        for (int k = 0; k < n; k++) {
+            new_cfg[k] = near_cfg[k] + (sample[k] - near_cfg[k]) * scale_step;
+        }
+        if (cf && cf((long long)(size_t)new_cfg) == 0) continue;
+
+        int best_parent = near;
+        double best_parent_cost = _rrt_cost[near] + _node_dist_n(r, near, new_cfg);
+        int neighbor_buf[64]; int n_neigh = 0;
+        for (int i = 0; i < r->count; i++) {
+            double d = _node_dist_n(r, i, new_cfg);
+            if (d > radius) continue;
+            if (n_neigh < 64) neighbor_buf[n_neigh++] = i;
+            double cand = _rrt_cost[i] + d;
+            if (cand < best_parent_cost) {
+                if (_segment_collision_free_n(r, r->configs + i * r->n_dim, new_cfg, step, cf)) {
+                    best_parent_cost = cand;
+                    best_parent = i;
+                }
+            }
+        }
+        _ensure_capacity(r);
+        _ensure_cost_capacity(r);
+        memcpy(r->configs + r->count * r->n_dim, new_cfg, r->n_dim * sizeof(double));
+        r->parents[r->count] = best_parent;
+        _rrt_cost[r->count] = best_parent_cost;
+        int new_idx = r->count;
+        r->count++;
+        for (int q = 0; q < n_neigh; q++) {
+            int n_i = neighbor_buf[q];
+            if (n_i == best_parent) continue;
+            double d = _node_dist_n(r, n_i, new_cfg);
+            double cand = _rrt_cost[new_idx] + d;
+            if (cand < _rrt_cost[n_i]) {
+                if (_segment_collision_free_n(r, new_cfg, r->configs + n_i * r->n_dim, step, cf)) {
+                    r->parents[n_i] = new_idx;
+                    _rrt_cost[n_i] = cand;
+                }
+            }
+        }
+        // Track best goal.
+        double goal_d = 0;
+        for (int k = 0; k < n; k++) {
+            double dd = new_cfg[k] - goal[k];
+            goal_d += dd * dd;
+        }
+        if (goal_d <= step * step) {
+            double total = _rrt_cost[new_idx] + sqrt(goal_d);
+            if (total < best_goal_cost) {
+                best_goal = new_idx;
+                best_goal_cost = total;
+            }
+        }
+    }
+    free(sample); free(new_cfg); free(unit_ball);
+    free(a1); free(center); free(C);
+    if (best_goal < 0) return 0;
+    int n_nodes = 0;
+    for (int i = best_goal; i != -1; i = r->parents[i]) n_nodes++;
+    if (r->path_indices) free(r->path_indices);
+    r->path_indices = (int *)malloc(n_nodes * sizeof(int));
+    r->path_len = n_nodes;
+    int p = n_nodes - 1;
+    for (int i = best_goal; i != -1; i = r->parents[i]) r->path_indices[p--] = i;
+    return 1;
+}
+
 // Goal-region planning (v0.2.198). Instead of a single goal
 // point, the user supplies a per-dimension [lo, hi] box that
 // defines an acceptable goal region. The planner samples
