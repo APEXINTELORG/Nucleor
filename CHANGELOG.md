@@ -5,6 +5,77 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.250] — 2026-04-24
+
+**Robotics: 3D pose-graph SLAM (SE(3) Gauss-Newton). Three-dimensional
+generalization of `pgs.nr`. Each pose is an SE(3) element — translation
+in ℝ³ + rotation in SO(3) stored as a unit quaternion. Edges encode
+relative-pose measurements with diagonal information weights (3
+translational + 3 rotational per edge).**
+
+### Algorithm
+
+```
+State per node: t ∈ ℝ³ + unit quaternion q ∈ SO(3)
+Optimization variable per node (i > 0): δ ∈ ℝ⁶ in se(3) Lie algebra
+
+Edge residual (j relative to i, given measurement (t_meas, R_meas)):
+    R_pred = R_iᵀ · R_j
+    t_pred = R_iᵀ · (t_j − t_i)
+    r_t    = t_pred − t_meas              (ℝ³)
+    r_R    = log(R_measᵀ · R_pred)        (ℝ³, axis-angle)
+
+Update on the manifold:
+    t_i ← t_i + δ_t
+    R_i ← R_i · exp(δ_θ)              (right-multiplied SO(3) exp)
+```
+
+Jacobians of `r ∈ ℝ⁶` w.r.t. the 6-DOF perturbations of nodes `i`
+and `j` are computed by central finite differences (12 residual
+evaluations per edge per iter). Linear normal equations
+`H · δ = −b` solved with dense Gauss-Jordan inverse + small LM
+damping. Node 0 is gauge-fixed.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/pgs3.nr"
+
+let g = pgs3_new(n_nodes);
+// initial estimates
+for i in 0..n_nodes { pgs3_set_node(g, i, t_ptr_i, q_ptr_i); }
+// relative-pose constraint edges
+pgs3_add_edge(g, i, j, dt_ptr, dq_ptr, info_ptr);   // info = double[6]
+// optimize
+pgs3_optimize(g, max_iters, tol_b);
+// read back
+pgs3_get_node(g, i, t_out_ptr, q_out_ptr);
+```
+
+`info_ptr` is `double[6]` of per-DOF diagonal weights:
+`[info_tx, info_ty, info_tz, info_rx, info_ry, info_rz]`.
+
+### Verification
+
+4-pose loop in 3D with rotated/translated edges + initial estimates
+perturbed away from ground truth. Edges: `0→1, 1→2, 2→3, 3→0` (loop
+closure). Gauss-Newton converged in **4 iterations**, cost
+`15.23 → 0.0 (machine precision)`. All three free poses recovered
+to translation error `0` and rotation error `0` to printed digits.
+
+### Files
+
+- `stdlib/runtime/pgs3_rt.c` — `nuc_pgs3_*` API,
+  `_so3_exp` / `_so3_log` / quaternion helpers, residual + numerical
+  6×6 Jacobians, dense Gauss-Newton iteration.
+- `stdlib/rods/pgs3.nr` — externs + `pgs3_new` /
+  `pgs3_set_node` / `pgs3_get_node` / `pgs3_add_edge` /
+  `pgs3_optimize` / `pgs3_total_cost` / `pgs3_free` wrappers.
+- `tests/rods/pgs3_smoke.nr` — build-only smoke (functional coverage
+  in the direct C unit test).
+
+---
+
 ## [0.2.249] — 2026-04-24
 
 **Robotics: Differential Dynamic Programming (Mayne 1966; Jacobson
