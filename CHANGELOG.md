@@ -96,6 +96,14 @@ finite-weight terminal cost trade-off.
 
 ---
 
+## [0.2.220] — 2026-04-23
+
+See the bundled v0.2.221 entry below — PRM A* query (v0.2.220)
+shipped together with reflected motor inertia (v0.2.221) in a
+single combined release note.
+
+---
+
 ## [0.2.221] — 2026-04-23
 
 **Robotics: PRM A* query (v0.2.220) and reflected motor inertia
@@ -169,6 +177,14 @@ without motor inertia (link inertia 0.05 + parallel-axis 0.25
   wrapper.
 - `tests/rods/prm_smoke.nr` — exercise A* query on empty
   roadmap.
+
+---
+
+## [0.2.218] — 2026-04-23
+
+See the bundled v0.2.219 entry below — joint friction (v0.2.218)
+shipped together with operational-space inverse dynamics
+(v0.2.219) in a single combined release note.
 
 ---
 
@@ -402,6 +418,15 @@ land in v0.6 if needed):
 - `stdlib/rods/grasp.nr` — externs + Nucleor wrappers.
 - `tests/rods/grasp_smoke.nr` — perfect-antipodal grasp end-to-
   end (correctness coverage in the direct C test).
+
+---
+
+## [0.2.214] — 2026-04-23
+
+See the bundled v0.2.215 entry below — joint-space computed-
+torque controller (v0.2.214) shipped together with the 6-DOF
+Cartesian impedance (v0.2.215) in a single combined release
+note since the two are paired model-based controllers.
 
 ---
 
