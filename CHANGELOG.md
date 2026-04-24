@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.282] — 2026-04-24
+
+**Robotics: Lucas-Kanade single-feature tracker (`klt`). Given two
+grayscale images and a feature point in image 1, find the
+displacement to match in image 2 via Newton-LK iteration.
+Foundation for visual-odometry feature flow and template tracking.**
+
+### Algorithm
+
+```
+Newton-LK update each iter (over a window of radius r around the feature):
+    H = [[Σ Ix², Σ Ix·Iy], [Σ Ix·Iy, Σ Iy²]]   (in I1)
+    b = [Σ Ix·It, Σ Iy·It]                       (It = I2(warped) − I1)
+    Δ = -H⁻¹ · b
+    (dx, dy) += Δ
+```
+
+Sub-pixel image access uses bilinear interpolation. Iterates until
+`|Δ| < tol` or `max_iters` reached. Returns 0 if Hessian becomes
+singular (textureless region).
+
+### Surface
+
+```nucleor
+import "stdlib/rods/klt.nr"
+
+let dx_dy: double[2];   // initial guess (e.g. 0, 0)
+let ok = klt_track(I1_ptr, I2_ptr, W, H,
+                   feature_x_b, feature_y_b,
+                   window_radius, max_iters, tol_b,
+                   dx_dy_out_ptr);
+```
+
+For displacements > a few pixels, build an image pyramid via
+`imgproc_resize_bilinear` (from v0.2.280) and call this iteratively
+coarse-to-fine.
+
+### Verification
+
+64×64 textured image (sinusoidal + linear ramp). I2 = I1 shifted
+by `(dx_true, dy_true) = (1.7, −0.8)` via bilinear sampling. Track
+from feature `(32, 32)`, initial guess `(0, 0)`, window radius 7,
+30 iters max:
+
+- Recovered `(dx, dy) = (1.6966, −0.7968)`. Error in both
+  components ≤ `0.004` px — sub-pixel accuracy.
+
+### Files
+
+- `stdlib/runtime/klt_rt.c` — `nuc_klt_track`; bilinear sampler;
+  Newton-LK iteration with closed-form 2×2 Hessian inverse.
+- `stdlib/rods/klt.nr` — extern + wrapper.
+- `tests/rods/klt_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.281] — 2026-04-24
 
 **Robotics: generic RANSAC orchestrator (`ransac_run`) added to
