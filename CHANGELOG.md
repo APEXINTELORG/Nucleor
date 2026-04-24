@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.294] — 2026-04-24
+
+**Robotics: Ramer-Douglas-Peucker polyline simplification (`rdp`).
+N-D recursive max-perpendicular-distance splitting. GPS / odometry
+trace compaction, path simplification after RRT / A* (remove
+redundant collinear waypoints), 2D/3D polyline rendering LOD.**
+
+### Algorithm
+
+```
+simplify(lo, hi, ε):
+  find point i ∈ (lo, hi) with max perpendicular distance to
+  segment pts[lo] → pts[hi]
+  if max_dist ≤ ε: drop all interior points
+  else: keep argmax; recurse on (lo, argmax) and (argmax, hi)
+```
+
+Implemented iteratively with an explicit stack to avoid C recursion
+depth limits on long polylines.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/rdp.nr"
+
+// pts: double[N * dim] (interleaved coords).
+// keep_out: i64[N] — 1 = kept, 0 = dropped. Endpoints always kept.
+let kept = rdp_simplify(pts_ptr, n, dim, epsilon_b, keep_out_ptr);
+```
+
+### Verification
+
+Three direct C tests:
+
+1. **Collinear** 10-point line: kept = 2 (just endpoints).
+2. **Sine curve** (50 points, one period), ε = 0.05: kept = 15
+   (3.3× reduction while preserving peak/trough structure).
+3. **ε = 0** on 5 non-collinear points: kept = 5 (all retained).
+
+### Files
+
+- `stdlib/runtime/rdp_rt.c` — `nuc_rdp_simplify`; N-D
+  perpendicular-to-segment distance; iterative stack.
+- `stdlib/rods/rdp.nr` — extern + wrapper.
+- `tests/rods/rdp_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.293] — 2026-04-24
 
 **Robotics: 2D point-cloud / laser-scan ICP alignment (`scanmatch`).
