@@ -9232,6 +9232,24 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "NUM-003") { return "Cast loses precision (warning)"; };
     if str_eq(code, "NUM-004") { return "f8/f16/bf16 op without hardware support"; };
     if str_eq(code, "NUM-005") { return "usize/isize mixed with explicit-width type"; };
+    // T1.1 Phase 10 (v0.2.319): expanded NUM namespace for the maximalist
+    // numerics refactor. Each entry has a matching explanation + reasoning
+    // body in the longer-form sections below.
+    if str_eq(code, "NUM-006") { return "Signed/unsigned arithmetic without explicit cast"; };
+    if str_eq(code, "NUM-007") { return "Float→int cast saturates to type bounds"; };
+    if str_eq(code, "NUM-008") { return "Shift amount equals or exceeds operand width (UB-prone)"; };
+    if str_eq(code, "NUM-009") { return "Division or remainder by literal zero"; };
+    if str_eq(code, "NUM-010") { return "Implicit narrowing of f64 literal to f32 may lose precision"; };
+    if str_eq(code, "NUM-011") { return "Overflow attribute conflicts with operation kind"; };
+    if str_eq(code, "NUM-012") { return "Cast from pointer to non-pointer-width integer"; };
+    if str_eq(code, "NUM-013") { return "Vec<T> requires sized element type"; };
+    if str_eq(code, "NUM-014") { return "sizeof_struct on unknown / generic struct"; };
+    if str_eq(code, "NUM-015") { return "extern fn signature uses non-ABI-stable type"; };
+    if str_eq(code, "NUM-016") { return "Comparison between signed and unsigned of equal width"; };
+    if str_eq(code, "NUM-017") { return "Bitwise op on signed type may have surprising sign-extension"; };
+    if str_eq(code, "NUM-018") { return "Float literal in integer context"; };
+    if str_eq(code, "NUM-019") { return "Negative literal assigned to unsigned type"; };
+    if str_eq(code, "NUM-020") { return "Mixed-width comparison without explicit cast"; };
     // RFC-0016 match
     if str_eq(code, "MATCH-001") { return "Non-exhaustive match"; };
     if str_eq(code, "MATCH-002") { return "Unreachable match arm"; };
@@ -9416,6 +9434,21 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "NUM-003") { return "An `as` cast may truncate or round. The warning is informational; promote to error with #![deny(precision_loss)]."; };
     if str_eq(code, "NUM-004") { return "The current target lacks hardware support for the requested low-precision float (f8e4m3 / f8e5m2 / f16 / bf16); the operation is emulated in software and may be slow."; };
     if str_eq(code, "NUM-005") { return "usize and isize are platform-pointer-width and incompatible with explicit i64 / u64 etc. without cast."; };
+    if str_eq(code, "NUM-006") { return "Signed and unsigned of the same width are distinct types. Cast one explicitly: `(u32_val as i32) + i32_val`. Reason: silent sign-coercion is a recurring bug source in C/C++."; };
+    if str_eq(code, "NUM-007") { return "Float→int cast saturates to the target's max/min when the value is out of range (matches Rust). Use `.try_as_i32()` if you want a Result-typed conversion that surfaces overflow."; };
+    if str_eq(code, "NUM-008") { return "Shift amount must be < operand width. `let x: u8 = 1; let y = x << 8;` is UB in C, returns 0 in some Rust modes, traps in others. Nucleor matches Rust 'wrapping shift' semantics in release; debug builds trap."; };
+    if str_eq(code, "NUM-009") { return "Constant-folded division by zero. Either change the divisor or guard the call site with `if divisor != 0 { ... }`."; };
+    if str_eq(code, "NUM-010") { return "An f64 literal assigned to an f32 binding is narrowed via `__nucleor_as_f32` at the bind site (Phase 5). For most literals this is exact; for values requiring more than 24 bits of mantissa precision (e.g. 0.1), the rounded f32 differs from the f64."; };
+    if str_eq(code, "NUM-011") { return "`#[overflow(trap)]` on a function whose body uses `wrapping_add` is contradictory — wrapping_add is opt-in and won't trap regardless of the attribute. Pick one mode."; };
+    if str_eq(code, "NUM-012") { return "Casting `*const T` or `*mut T` to a non-pointer-width int (i8/i16/i32) loses bits on 64-bit targets. Use `usize`/`isize` for round-trip-safe pointer-int conversions."; };
+    if str_eq(code, "NUM-013") { return "`Vec<T>` requires T to be a primitive or sized struct. Generic / trait-object element types are not yet supported (lands with the Vec<T> monomorphization phase)."; };
+    if str_eq(code, "NUM-014") { return "`sizeof_struct(Foo)` requires Foo to be a defined struct with non-generic field types. Phase 3b ships byte sizes for primitives + simple structs; nested generic structs land in 3b.2."; };
+    if str_eq(code, "NUM-015") { return "`extern fn` signatures should use ABI-stable C types: i8..i64 / u8..u64 / f32 / f64 / ptr / str. Nucleor-only types (Vec<T>, str, generics) are forwarded as i64 handles via FFI but won't link to native C."; };
+    if str_eq(code, "NUM-016") { return "Comparing i32 < u32 risks sign mismatch — the negative i32 is interpreted as a giant u32. Cast one operand explicitly to make the intent visible."; };
+    if str_eq(code, "NUM-017") { return "Bitwise ops on signed types preserve the sign bit on right shift (arithmetic shift). For unsigned semantics use `bit_shift_right` (logical); for sign-preserving use `bit_shift_right_signed`."; };
+    if str_eq(code, "NUM-018") { return "A float literal (`3.14`) was used where an integer is expected. Either cast (`3.14 as i32`) or change the binding type to f32/f64."; };
+    if str_eq(code, "NUM-019") { return "`let x: u8 = -1` doesn't fit in u8 (range 0..255). Use `255u8` (the wrap result) or change the type to i8 / i16."; };
+    if str_eq(code, "NUM-020") { return "`let a: i32 = 5; let b: i64 = 6; if a < b { ... }` mixes widths. Cast one operand: `if (a as i64) < b { ... }`."; };
     if str_eq(code, "MATCH-001") { return "The match does not cover all variants of the matched type. The compiler shows a witness uncovered value."; };
     if str_eq(code, "MATCH-002") { return "An arm is preceded by patterns that already match every case it would handle."; };
     if str_eq(code, "MATCH-003") { return "Match arm bodies must produce the same type (or () in statement context)."; };
@@ -9581,6 +9614,21 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "NUM-003") { return "Casting f64 to i32, i64 to i8 etc. may lose precision or wrap. The warning surfaces the risk; if intentional, suppress with #[allow(precision_loss)] on the call site."; };
     if str_eq(code, "NUM-004") { return "RFC-0015 §3.4 — f8e4m3 / f8e5m2 (NVIDIA Hopper formats), f16 (IEEE half), and bf16 (Brain float) need hardware support to be fast. Without it the operation is emulated via f32 conversion in the runtime. The warning is informational; suppress with #[allow(no_hw_lp_float)] or move the kernel to a target that has the instruction set."; };
     if str_eq(code, "NUM-005") { return "usize/isize represent platform-pointer-width values used for indices and pointer arithmetic. Mixing with explicit i64/u64 risks portability bugs across 32-/64-bit targets."; };
+    if str_eq(code, "NUM-006") { return "Signed and unsigned types of the same width are distinct. Cast explicitly to make the conversion intent visible at the call site. Storage is i64-uniform under the hood, but the type system enforces sign-discipline."; };
+    if str_eq(code, "NUM-007") { return "Float→int cast in Rust semantics saturates (3e9 as i32 = i32::MAX, NaN as i32 = 0). Catches the silent-truncation bug class C inherits from its float→int rules."; };
+    if str_eq(code, "NUM-008") { return "Shifting by >= the operand width is UB in C and panics in Rust debug mode. Nucleor matches Rust's release-mode wrapping shift; debug-mode trap will land with #[overflow(trap)] phase 7.2."; };
+    if str_eq(code, "NUM-009") { return "Constant-folded division by zero is detectable at compile time and almost always a bug. The runtime trap costs cycles in hot loops; surface it earlier."; };
+    if str_eq(code, "NUM-010") { return "f64 → f32 narrowing rounds to nearest representable f32, which is exact for many literals (1.0, 0.5, 2.5) but loses precision on others (0.1, 1/3). The warning is informational."; };
+    if str_eq(code, "NUM-011") { return "#[overflow(trap)] + wrapping_add inside the same fn produces inconsistent semantics — wrapping always wraps regardless of attribute. Refactor to use the matching primitive."; };
+    if str_eq(code, "NUM-012") { return "Pointer-int cast portability: 32-bit targets have 32-bit pointers; 64-bit targets have 64-bit pointers. Use usize/isize for round-trip safety; explicit i32/i64 risks losing bits on the wrong target."; };
+    if str_eq(code, "NUM-013") { return "Vec<T> monomorphization (Phase 8) currently supports primitives + flat structs. Generic / trait-object element types need a vtable layer that lands later."; };
+    if str_eq(code, "NUM-014") { return "sizeof_struct is compile-time-constant; the struct must be statically known. Generic struct parameters (Vec<T> field of an outer struct) defer to runtime via a separate sizeof query."; };
+    if str_eq(code, "NUM-015") { return "ABI stability matters when other languages call into Nucleor-compiled libraries. Stick to the C-stable types; Vec / str / generics need a manual marshalling layer."; };
+    if str_eq(code, "NUM-016") { return "Equal-width sign mismatch is the C 'comparing -1 to 0xFFFFFFFF' bug — the comparison silently sign-extends and yields wrong answers. Always cast first."; };
+    if str_eq(code, "NUM-017") { return "Right-shift on a signed integer preserves the sign bit (arithmetic shift). For -8 >> 1, you get -4 (arithmetic) or 0x7FFF...FC (logical). Pick the helper matching your intent."; };
+    if str_eq(code, "NUM-018") { return "Integer context expects an integer; a float literal there is almost always a typo. If you intended a truncating conversion, write it explicitly with `as`."; };
+    if str_eq(code, "NUM-019") { return "Unsigned types can't represent negative values. -1u32 as a literal is rejected; (-1 as u32) compiles and gives u32::MAX (the wrap result)."; };
+    if str_eq(code, "NUM-020") { return "Mixed-width comparison forces a widening conversion. Make it explicit so the reader sees which operand is being widened and why."; };
     if str_eq(code, "MATCH-001") { return "The match must cover every variant of the discriminant type, or use a wildcard (_) arm. Compiler shows the missing case."; };
     if str_eq(code, "MATCH-002") { return "Patterns are tested in order. A later arm cannot match if an earlier arm covers all values it would handle."; };
     if str_eq(code, "MATCH-003") { return "All arms in a match expression must yield the same type. Cast or restructure to align."; };
