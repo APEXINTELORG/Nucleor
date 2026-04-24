@@ -5,6 +5,86 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.244] — 2026-04-23
+
+**Robotics: behavior trees — THE standard pattern for modern
+robot behavior orchestration (Colledanchise & Ögren 2018). Tree
+of composite + decorator + leaf nodes ticked from the root each
+control cycle. Foundation for pick-and-place sequencing, reactive
+obstacle avoidance, task scheduling, error recovery, and any
+structured multi-step behavior with long-running actions.**
+
+### Node types
+
+| Type | Behavior |
+|---|---|
+| **SEQUENCE** | Tick children in order; FAIL on first failure, SUCCESS only when all succeed. |
+| **SELECTOR** | Tick children in order; SUCCESS on first success, FAIL only when all fail. |
+| **PARALLEL** | Tick all children; SUCCESS when k of n succeed, FAIL when n-k+1 fail. |
+| **INVERTER** | Decorator: flips SUCCESS ↔ FAILURE of single child. |
+| **ACTION** | Leaf: user callback returning SUCCESS / FAILURE / RUNNING. |
+| **CONDITION** | Leaf: user callback returning SUCCESS / FAILURE. |
+
+Status codes: 0 = SUCCESS, 1 = FAILURE, 2 = RUNNING.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/bt.nr"
+
+let bt = bt_new();
+let root = bt_add_sequence(bt, 0 - 1);    // -1 = no parent (root)
+let _check = bt_add_condition(bt, root, check_fp);
+let _act1  = bt_add_action(bt, root, action1_fp);
+let _act2  = bt_add_action(bt, root, action2_fp);
+
+// At each control cycle:
+let status = bt_tick(bt, root, ctx_ptr);
+
+bt_free(bt);
+```
+
+Leaf callbacks: `fn(ctx_ptr) -> i64` where the return value is
+0 / 1 / 2 (SUCCESS / FAILURE / RUNNING). `ctx` is an opaque
+pointer for shared state.
+
+### Verification
+
+| Test | Expected | Got |
+|---|---|---|
+| sequence(SUCC, SUCC, SUCC) | 0 = SUCCESS | **0** |
+| sequence(SUCC, FAIL, SUCC) | 1 = FAILURE | **1** |
+| selector(FAIL, SUCC, FAIL) | 0 = SUCCESS | **0** |
+| inverter(FAIL) | 0 = SUCCESS | **0** |
+| composite (3 count actions + threshold check) | 0 = SUCCESS, counter=3 | **0, counter=3** |
+
+### Use cases
+
+- Pick-and-place: sequence(detect → approach → grasp → lift →
+  move → release).
+- Reactive avoidance: selector(if obstacle close, avoid; else
+  proceed).
+- Error recovery: selector(try main plan; on fail, fall back to
+  recovery).
+- Task scheduling: parallel(track target, monitor battery,
+  execute mission).
+
+### Limitations (blackboard-style data sharing between nodes
++ dynamic tree restructuring land in v0.6 if needed):
+
+- No blackboard; user passes shared state via the `ctx` pointer.
+- Static tree — built once, ticked many times.
+
+### Files
+
+- `stdlib/runtime/bt_rt.c` — `_BTNode` / `NBT` types,
+  `nuc_bt_*` exports, recursive `_tick` evaluator.
+- `stdlib/rods/bt.nr` — externs + Nucleor wrappers.
+- `tests/rods/bt_smoke.nr` — alloc/build/free smoke
+  (correctness covered by direct C composite-scenario test).
+
+---
+
 ## [0.2.243] — 2026-04-23
 
 **Robotics: 2D polygon-polygon collision via Separating Axis

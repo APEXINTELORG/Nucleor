@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 161
-# Total fn definitions: 1766
-# Total LOC: 7705
+# Total rods: 162
+# Total fn definitions: 1776
+# Total LOC: 7740
 
 [[rod]]
 name           = "activation2"
@@ -181,6 +181,15 @@ function_count = 5
 cfile_count    = 1
 loc            = 13
 imports        = ["bspline"]
+
+[[rod]]
+name           = "bt"
+path           = "stdlib/rods/bt.nr"
+description    = "Behavior tree for robot behavior coordination."
+function_count = 10
+cfile_count    = 1
+loc            = 35
+imports        = []
 
 [[rod]]
 name           = "btreemap"
