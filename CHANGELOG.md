@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.320] — 2026-04-24
+
+**T1.1 Phase 11 — width-correct formatting (`print_<T>` for
+every integer / float width).** Infrastructure already shipped
+in prior work (`__nucleor_print_<T>` runtime helpers at
+nucleor_llvm_rt.c:2618+; `get_rt_name` entries at
+nucleor_s1_compiler.nr:2402+). Phase 11 adds the matrix test
+that exercises the full width surface.
+
+### What landed
+
+- `tests/lang/numerics_matrix/p11_format/print_widths.nr` —
+  new matrix test calling `print_i8`, `print_i16`, `print_i32`,
+  `print_u8`, `print_u16`, `print_u32` end-to-end. Verifies
+  each helper is wired (compiles + links + returns 0).
+- `print_f32` and `print_u8` already covered in prior matrix
+  tests (p11_format/print_f32.nr + print_u8.nr).
+
+### Pre-existing infra (confirmed working)
+
+Runtime (`stdlib/runtime/nucleor_llvm_rt.c`):
+- `__nucleor_print_i8` / `_i16` / `_i32` — sign-extended format.
+- `__nucleor_print_u8` / `_u16` / `_u32` — masked unsigned format.
+- `__nucleor_print_f32` — `%g` format via f32 decode.
+- `__nucleor_print_f64` — `%g` format via f64 decode.
+
+Compiler name mappings in both `nucleor_s1_compiler.nr` and
+`nucleor_tools_suite.nr` (ABI parity check green).
+
+### Matrix progress
+
+| Phase         | v0.2.319 | v0.2.320 |
+|---------------|----------|----------|
+| p11_format    | 2P/0F    | **3P/0F** (+ print_widths) |
+| TOTAL         | 61P/0F/0BE | **62P / 0F / 0BE** |
+
+### Verify gate
+
+331/329 PASS. Bootstrap fixpoint stable.
+
+### Next
+
+Phase 12 (`v0.2.321`) — rod audit + selective refit. Walk all
+204 rods, document which ones should expose narrow-type public
+surfaces (image_pyramid → Vec<u8> images; occgrid → i8 log-odds;
+mlv → packed Vec<u8> weights; string → Vec<u8>).
+
 ## [0.2.319] — 2026-04-24
 
 **T1.1 Phase 10 — diagnostics namespace expansion (NUM-001..020)
