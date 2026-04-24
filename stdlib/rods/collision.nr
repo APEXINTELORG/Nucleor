@@ -39,6 +39,23 @@ extern fn nuc_coll_capsule_capsule(
 // Returns 1 (overlap), 0 (clear), or -1 if convergence failed.
 extern fn nuc_coll_gjk(support_a_fp: i64, support_b_fp: i64) -> i64;
 
+// EPA (Expanding Polytope Algorithm) — penetration depth + contact
+// normal for two overlapping convex shapes (v0.2.202). Same support-
+// function contract as GJK. After determining the polytope of the
+// Minkowski difference contains the origin, EPA expands it iteratively
+// until it finds the face nearest the origin — the distance from the
+// origin to that face is the penetration depth, and the face normal
+// points along the minimum-translation vector to separate the shapes.
+//
+// `out_normal_h` is a handle to a caller-allocated `double[3]` that
+// EPA fills with the unit contact normal (from B into A).
+//
+// Returns the penetration depth as a bit-cast f64; -1.0 (bit-cast) if
+// the shapes are not overlapping (caller should have checked GJK
+// first).
+extern fn nuc_coll_gjk_epa(support_a_fp: i64, support_b_fp: i64,
+                          out_normal_h: i64) -> i64;
+
 // Sphere-OBB cross-pair (v0.2.197). Oriented bounding box has
 // center, half-extents, and orientation quaternion. The sphere
 // center is rotated into the OBB's local frame, then the standard
@@ -129,6 +146,10 @@ fn coll_capsule_capsule(
 
 fn coll_gjk(support_a_fp: i64, support_b_fp: i64) -> i64 {
     return nuc_coll_gjk(support_a_fp, support_b_fp);
+}
+
+fn coll_gjk_epa(support_a_fp: i64, support_b_fp: i64, out_normal_h: i64) -> i64 {
+    return nuc_coll_gjk_epa(support_a_fp, support_b_fp, out_normal_h);
 }
 
 fn coll_sphere_obb(

@@ -576,6 +576,241 @@ long long nuc_coll_gjk(long long support_a_fp, long long support_b_fp) {
     return -1;
 }
 
+// ---- GJK EPA: penetration depth + contact normal (v0.2.202) =============
+//
+// Once GJK reports overlap (returns 1), the closest face on the
+// Minkowski-difference polytope to the origin gives the minimum-
+// translation vector to separate the shapes. EPA (Expanding
+// Polytope Algorithm, Van den Bergen 2001) expands the GJK
+// terminating tetrahedron iteratively, looking for the support
+// point that is "outside" the closest face — when no such point
+// exists, the closest face is on the polytope boundary, and its
+// distance to the origin is the penetration depth.
+//
+// Inputs are the same support function pointers as `nuc_coll_gjk`.
+// Output: penetration depth as a bit-cast f64; the 3-double buffer
+// at `out_normal_h` is filled with the unit contact-normal vector
+// pointing from B into A. Returns -1.0 (bit-cast f64) if the shapes
+// are not overlapping (caller should have checked GJK first).
+
+#define _NEPA_MAX_VERT 64
+#define _NEPA_MAX_FACE 128
+
+typedef struct { int v[3]; double n[3]; double dist; } _EPAFace;
+
+// Build the GJK terminating simplex (must be a tetrahedron with
+// the origin inside). On success, fills `simp_out[4][3]` and
+// returns 1; otherwise returns 0.
+static int _gjk_capture_simplex(support_fn_t sa, support_fn_t sb,
+                                double simp_out[4][3])
+{
+    double simp[4][3];
+    int n = 0;
+    double dir[3] = {1, 0, 0};
+    double sup[3];
+    _gjk_support(sa, sb, dir, sup);
+    if (_vdot3(sup, dir) <= 0) return 0;
+    simp[0][0] = sup[0]; simp[0][1] = sup[1]; simp[0][2] = sup[2];
+    n = 1;
+    dir[0] = -sup[0]; dir[1] = -sup[1]; dir[2] = -sup[2];
+
+    for (int iter = 0; iter < 64; iter++) {
+        _gjk_support(sa, sb, dir, sup);
+        if (_vdot3(sup, dir) <= 0) return 0;
+        simp[n][0] = sup[0]; simp[n][1] = sup[1]; simp[n][2] = sup[2];
+        n++;
+        if (_gjk_do_simplex(simp, &n, dir)) {
+            // n is now 4; copy out the tetrahedron.
+            for (int i = 0; i < 4; i++)
+                for (int j = 0; j < 3; j++) simp_out[i][j] = simp[i][j];
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// Compute outward face normal + distance for a triangle (v0, v1, v2).
+// EPA polytope invariant: the origin is always inside, so we orient
+// the normal so that (n · v0) ≥ 0 — that makes `n` point outward
+// (away from the origin) and `dist = n · v0` is the positive distance
+// from the origin to the face's supporting plane. The `interior`
+// parameter is a centroid-like reference; unused in this formulation
+// (kept in the signature so callers don't need to change).
+// EPA face init: orient the (v0, v1, v2) winding so that the
+// right-hand cross-product (v1-v0) × (v2-v0) points OUTWARD (away
+// from the origin). Outward = origin is inside the polytope = face
+// supporting plane has positive distance from origin along the
+// winding-implied normal. If the cross-product points the wrong way,
+// swap v1 ↔ v2 (instead of just flipping the normal vector) so the
+// stored face winding stays consistent with the stored normal —
+// this is essential for the silhouette-edge cancellation logic
+// during EPA expansion.
+static void _epa_face_init(double *v0, double *v1, double *v2,
+                           double *interior, _EPAFace *f, int i0, int i1, int i2)
+{
+    (void)interior;
+    double e1[3], e2[3], n[3];
+    _vsub3(v1, v0, e1);
+    _vsub3(v2, v0, e2);
+    _vcross3(e1, e2, n);
+    double nlen = sqrt(_vdot3(n, n));
+    if (nlen < 1e-18) {
+        f->v[0] = i0; f->v[1] = i1; f->v[2] = i2;
+        f->n[0] = 0; f->n[1] = 0; f->n[2] = 1; f->dist = 1e30; return;
+    }
+    n[0] /= nlen; n[1] /= nlen; n[2] /= nlen;
+    double d = _vdot3(n, v0);
+    if (d < 0) {
+        // Cross-product points inward; swap winding to flip it.
+        n[0] = -n[0]; n[1] = -n[1]; n[2] = -n[2]; d = -d;
+        f->v[0] = i0; f->v[1] = i2; f->v[2] = i1;
+    } else {
+        f->v[0] = i0; f->v[1] = i1; f->v[2] = i2;
+    }
+    f->n[0] = n[0]; f->n[1] = n[1]; f->n[2] = n[2];
+    f->dist = d;
+}
+
+long long nuc_coll_gjk_epa(long long support_a_fp, long long support_b_fp,
+                           long long out_normal_h)
+{
+    support_fn_t sa = (support_fn_t)(void *)(size_t)support_a_fp;
+    support_fn_t sb = (support_fn_t)(void *)(size_t)support_b_fp;
+    if (!sa || !sb) return _f2i(-1.0);
+
+    // Capture the GJK terminating tetrahedron.
+    double tet[4][3];
+    if (!_gjk_capture_simplex(sa, sb, tet)) return _f2i(-1.0);
+
+    static double verts[_NEPA_MAX_VERT][3];
+    static _EPAFace faces[_NEPA_MAX_FACE];
+    int n_verts = 0, n_faces = 0;
+
+    for (int i = 0; i < 4; i++) {
+        verts[i][0] = tet[i][0]; verts[i][1] = tet[i][1]; verts[i][2] = tet[i][2];
+    }
+    n_verts = 4;
+    // Centroid of the tetrahedron — used to orient face normals outward.
+    double centroid[3] = {0,0,0};
+    for (int i = 0; i < 4; i++) {
+        centroid[0] += tet[i][0]; centroid[1] += tet[i][1]; centroid[2] += tet[i][2];
+    }
+    centroid[0] *= 0.25; centroid[1] *= 0.25; centroid[2] *= 0.25;
+
+    // 4 faces of the tetrahedron, each excluding one vertex; the
+    // interior point for orientation is the excluded vertex (since
+    // the centroid is inside the tetrahedron). Actually — the
+    // interior of the polytope is the centroid; we use it as the
+    // reference point and flip normals that point toward it.
+    _epa_face_init(verts[0], verts[1], verts[2], centroid, &faces[0], 0, 1, 2);
+    _epa_face_init(verts[0], verts[1], verts[3], centroid, &faces[1], 0, 1, 3);
+    _epa_face_init(verts[0], verts[2], verts[3], centroid, &faces[2], 0, 2, 3);
+    _epa_face_init(verts[1], verts[2], verts[3], centroid, &faces[3], 1, 2, 3);
+    n_faces = 4;
+
+    double *out_normal = (double *)(void *)(size_t)out_normal_h;
+
+    for (int iter = 0; iter < 64; iter++) {
+        // Find the face closest to the origin.
+        int best = 0;
+        double best_dist = faces[0].dist;
+        for (int i = 1; i < n_faces; i++) {
+            if (faces[i].dist < best_dist) { best_dist = faces[i].dist; best = i; }
+        }
+        double *bn = faces[best].n;
+        double sup[3];
+        _gjk_support(sa, sb, bn, sup);
+        double d_new = _vdot3(sup, bn);
+        if (d_new - best_dist < 1e-9 || n_verts >= _NEPA_MAX_VERT) {
+            if (out_normal) {
+                out_normal[0] = bn[0]; out_normal[1] = bn[1]; out_normal[2] = bn[2];
+            }
+            return _f2i(best_dist);
+        }
+
+        // Add the new vertex.
+        int new_idx = n_verts;
+        verts[n_verts][0] = sup[0]; verts[n_verts][1] = sup[1]; verts[n_verts][2] = sup[2];
+        n_verts++;
+
+        // Find all faces visible from `sup` (face normal points
+        // toward sup). Collect their boundary edges as the silhouette.
+        int visible[_NEPA_MAX_FACE];
+        int n_visible = 0;
+        for (int i = 0; i < n_faces; i++) {
+            double diff[3];
+            _vsub3(sup, verts[faces[i].v[0]], diff);
+            if (_vdot3(faces[i].n, diff) > 1e-9) visible[n_visible++] = i;
+        }
+        if (n_visible == 0) {
+            // Numerical issue — terminate with current best.
+            if (out_normal) {
+                out_normal[0] = bn[0]; out_normal[1] = bn[1]; out_normal[2] = bn[2];
+            }
+            return _f2i(best_dist);
+        }
+
+        // Edge collection: each visible face contributes 3 edges;
+        // edges shared between two visible faces cancel (interior).
+        // Remaining = silhouette.
+        int edges[_NEPA_MAX_FACE * 3][2];
+        int n_edges = 0;
+        for (int vf = 0; vf < n_visible; vf++) {
+            _EPAFace *f = &faces[visible[vf]];
+            int e[3][2] = { {f->v[0], f->v[1]}, {f->v[1], f->v[2]}, {f->v[2], f->v[0]} };
+            for (int k = 0; k < 3; k++) {
+                int found = -1;
+                for (int e2 = 0; e2 < n_edges; e2++) {
+                    if ((edges[e2][0] == e[k][1] && edges[e2][1] == e[k][0])) {
+                        found = e2; break;
+                    }
+                }
+                if (found >= 0) {
+                    edges[found][0] = edges[n_edges - 1][0];
+                    edges[found][1] = edges[n_edges - 1][1];
+                    n_edges--;
+                } else {
+                    edges[n_edges][0] = e[k][0];
+                    edges[n_edges][1] = e[k][1];
+                    n_edges++;
+                }
+            }
+        }
+
+        // Remove visible faces (compact face array).
+        // Build a "removed" mask, then compact.
+        int removed[_NEPA_MAX_FACE] = {0};
+        for (int vf = 0; vf < n_visible; vf++) removed[visible[vf]] = 1;
+        int dst = 0;
+        for (int i = 0; i < n_faces; i++) {
+            if (!removed[i]) {
+                if (dst != i) faces[dst] = faces[i];
+                dst++;
+            }
+        }
+        n_faces = dst;
+
+        // Add new faces from `sup` to each silhouette edge.
+        for (int e = 0; e < n_edges; e++) {
+            if (n_faces >= _NEPA_MAX_FACE) break;
+            _epa_face_init(verts[edges[e][0]], verts[edges[e][1]], verts[new_idx],
+                           centroid, &faces[n_faces], edges[e][0], edges[e][1], new_idx);
+            n_faces++;
+        }
+    }
+    // Hit iteration cap; return current best.
+    int best = 0;
+    double best_dist = faces[0].dist;
+    for (int i = 1; i < n_faces; i++) {
+        if (faces[i].dist < best_dist) { best_dist = faces[i].dist; best = i; }
+    }
+    if (out_normal) {
+        double *bn = faces[best].n;
+        out_normal[0] = bn[0]; out_normal[1] = bn[1]; out_normal[2] = bn[2];
+    }
+    return _f2i(best_dist);
+}
+
 // ---- Sphere-AABB (v0.2.195) ----
 //
 // Closest point on the AABB to the sphere center is the sphere
