@@ -2010,6 +2010,11 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "str_substring") { return "__nucleor_str_substring"; };
     if str_eq(name, "str_concat") { return "__nucleor_str_concat"; };
     if str_eq(name, "str_intern") { return "__nucleor_str_intern"; };
+    if str_eq(name, "str_arena_new") { return "__nucleor_str_arena_new"; };
+    if str_eq(name, "str_arena_free") { return "__nucleor_str_arena_free"; };
+    if str_eq(name, "str_arena_bytes") { return "__nucleor_str_arena_bytes"; };
+    if str_eq(name, "str_arena_concat") { return "__nucleor_str_arena_concat"; };
+    if str_eq(name, "str_arena_substring") { return "__nucleor_str_arena_substring"; };
     if str_eq(name, "file_read_string") { return "__nucleor_file_read_string"; };
     if str_eq(name, "file_write_string") { return "__nucleor_file_write_string"; };
     if str_eq(name, "system") { return "__nucleor_system"; };
@@ -2706,6 +2711,7 @@ fn get_rt_name(name: str) -> str {
 }
 fn is_void_ret(name: str) -> i64 {
     if str_eq(name, "print") { return 1; };
+    if str_eq(name, "str_arena_free") { return 1; };
     if str_eq(name, "print_raw") { return 1; };
     if str_eq(name, "eprint_raw") { return 1; };
     if str_eq(name, "file_write_string") { return 1; };
@@ -2740,6 +2746,8 @@ fn is_void_ret(name: str) -> i64 {
 fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "str_concat") { return 1; };
     if str_eq(name, "str_intern") { return 1; };
+    if str_eq(name, "str_arena_concat") { return 1; };
+    if str_eq(name, "str_arena_substring") { return 1; };
     if str_eq(name, "str_substring") { return 1; };
     if str_eq(name, "file_read_string") { return 1; };
     if str_eq(name, "sb_to_str") { return 1; };
@@ -2889,6 +2897,8 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "str_substring") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_concat") { return 1; };
     if str_eq(name, "str_intern") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_arena_concat") { if idx == 1 || idx == 2 { return 1; }; return 0; };
+    if str_eq(name, "str_arena_substring") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "file_read_string") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "file_write_string") { return 1; };
     if str_eq(name, "system") { if idx == 0 { return 1; }; return 0; };
@@ -3308,6 +3318,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_str_substring(ptr, i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_str_concat(ptr, ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_str_intern(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_arena_new()\n");
+    sb_append(sb, "declare void @__nucleor_str_arena_free(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_arena_bytes(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_str_arena_concat(i64, ptr, ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_str_arena_substring(i64, ptr, i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_file_read_string(ptr)\n");
     sb_append(sb, "declare void @__nucleor_file_write_string(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_init_args(i32, ptr)\n");

@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.165] — 2026-04-23
+
+**RFC-0030 phase 1: per-compile string arena. Five new builtins
+(`str_arena_new`, `str_arena_free`, `str_arena_bytes`,
+`str_arena_concat`, `str_arena_substring`) for allocate-then-
+free-all-at-once string lifetimes.**
+
+The arena is the second architectural building block (after
+`str_intern` in v0.2.164) for migrating the compiler away from
+per-string `malloc`/`leak` and toward bounded, lifetime-scoped
+allocation. Caller creates an arena, allocates as many transient
+strings as needed via `str_arena_concat` / `str_arena_substring`,
+then frees the entire arena in one call.
+
+### Surface
+
+```nucleor
+let arena: i64 = str_arena_new();
+let msg: str = str_arena_concat(arena, "from ", "scope");
+let part: str = str_arena_substring(arena, "abcdef", 2, 5);  // "cde"
+let used: i64 = str_arena_bytes(arena);
+str_arena_free(arena);  // every string allocated above is now invalid
+```
+
+### Implementation in `stdlib/runtime/nucleor_llvm_rt.c`
+
+Linked list of bump-allocated chunks:
+- Default chunk size 64 KB
+- New chunk allocated when current chunk exhausted, OR when a
+  single allocation would exceed default (large-allocation
+  fast path)
+- Bump within chunk: O(1) per allocation, no per-string free
+- `str_arena_free` walks the chunk list, frees each + the
+  arena header
+
+For the s1 self-host's diag formatting and type-checker
+temporaries, this can replace dozens of `str_concat` chains
+with a single arena scope.
+
+### Compiler builtin
+
+- `compiler/nucleor_s1_compiler.nr`: 4 ABI sites
+  (get_rt_name + is_void_ret + is_ptr_ret + is_ptr_arg +
+  emit_externs).
+- `compiler/nucleor_tools_suite.nr`: same mirrored.
+- `str_arena_new`/`bytes` return i64 (arena handle / byte count);
+  `str_arena_free` is void; `str_arena_concat`/`substring`
+  return str (pointer into arena chunk).
+
+### Tests
+
+- `tests/lang/str_arena_basic.nr`: positive test asserting
+  arena allocations produce the expected strings, byte
+  accounting works, free completes cleanly.
+
+### Self-host LLVM IR fixed point
+
+- 3-iter check passed at iter2==iter3 (byte-identical at
+  2,686,442 bytes). Iter1 differed by exactly the 5 new
+  declares.
+- `bin/nucleor.exe` updated; chain extends to **v0.2.165**.
+
+### Memory measurement
+
+Self-host TOTAL TRACKED at 186 MB (was 185 MB) — the 1 MB
+delta is the arena builtins' generated code. Arena infrastructure
+is unused by the s1's own type checker yet (Ship 4 in the
+punchlist will migrate the diag-message-formatting paths to use
+it). The win lands when the arena REPLACES global str_concat
+chains in known transient sites.
+
+### Verify gate
+
+**248 / 248 PASS, 0 SKIP** (was 247/247; +1 new test).
+Self-host: 186 MB / 400 MB budget.
+
 ## [0.2.164] — 2026-04-23
 
 **RFC-0029 phase 1: identifier interner. New `str_intern(s)`
