@@ -404,6 +404,10 @@ Step "CLI: nuc explain — full spec code set wired" {
         "DEPTH-001", "DEPTH-002", "DEPTH-003", "DEPTH-004", "DEPTH-005",
         # RFC-0015 numeric types (v0.2)
         "NUM-001", "NUM-002", "NUM-003", "NUM-004", "NUM-005",
+        # T1.1 Phase 10 (v0.2.319): expanded NUM namespace.
+        "NUM-006", "NUM-007", "NUM-008", "NUM-009", "NUM-010",
+        "NUM-011", "NUM-012", "NUM-013", "NUM-014", "NUM-015",
+        "NUM-016", "NUM-017", "NUM-018", "NUM-019", "NUM-020",
         # RFC-0016 Result/Option/match (v0.2; 007..010 for v0.4 RFC-0023)
         "MATCH-001", "MATCH-002", "MATCH-003", "MATCH-004", "MATCH-005", "MATCH-006",
         "MATCH-007", "MATCH-008", "MATCH-009", "MATCH-010",

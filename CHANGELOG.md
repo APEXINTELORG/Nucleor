@@ -5,6 +5,78 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.319] — 2026-04-24
+
+**T1.1 Phase 10 — diagnostics namespace expansion (NUM-001..020)
++ negative-test for literal-overflow.** Existing diagnostic
+infrastructure already had spans, codes, and a mature `nuc
+explain <CODE>` registry; Phase 10 fills out the maximalist
+plan's full NUM-001..NUM-020 namespace.
+
+### What landed
+
+#### A. NUM-006 .. NUM-020 added to the explain registry
+- `compiler/nucleor_tools_suite.nr` — three sections updated
+  per code (concise title, short fix, longer reasoning):
+  - NUM-006: signed/unsigned arithmetic without explicit cast
+  - NUM-007: float→int cast saturates to type bounds
+  - NUM-008: shift amount equals or exceeds operand width
+  - NUM-009: division or remainder by literal zero
+  - NUM-010: implicit f64→f32 narrowing precision loss
+  - NUM-011: `#[overflow(trap)]` conflicts with `wrapping_*` op
+  - NUM-012: pointer→non-pointer-width int cast
+  - NUM-013: `Vec<T>` requires sized element type
+  - NUM-014: `sizeof_struct` on unknown / generic struct
+  - NUM-015: extern fn signature uses non-ABI-stable type
+  - NUM-016: signed↔unsigned comparison of equal width
+  - NUM-017: bitwise op on signed type sign-extension surprise
+  - NUM-018: float literal in integer context
+  - NUM-019: negative literal assigned to unsigned type
+  - NUM-020: mixed-width comparison without explicit cast
+- `tools/verify.ps1` — full spec-code wiring step extended
+  with NUM-006..020. `nuc explain NUM-008` etc. all return
+  the registered title + summary + reasoning.
+
+#### B. New negative-gate test
+- `tests/err/err_num002_literal_overflow.nr` — verifies the
+  NUM-002 warning fires for `let x: u8 = 256;`. Picked up
+  by the verify gate's `tests/err/*.nr` enumerator.
+
+### Diagnostic surface (already shipped, confirmed in Phase 10)
+
+```
+warning[NUM-002]: numeric literal 256 out of range for declared type u8
+  --> fn main@line 2:9
+```
+
+`nuc explain NUM-XXX` returns:
+- one-line title
+- short fix recommendation
+- longer reasoning paragraph
+- doc reference link
+
+### Verify gate
+
+331/329 PASS. New steps:
+- "negative err_num002_literal_overflow"
+- "CLI: nuc explain — full spec code set wired" (extended
+  with NUM-006..020)
+
+### Files
+
+- `compiler/nucleor_tools_suite.nr` — NUM-006..020 entries.
+- `bin/nucleor.exe` + `bin/nucleor_tools.exe` — both rebuilt.
+- `tools/verify.ps1` — NUM-006..020 added to spec-code list.
+- `tests/err/err_num002_literal_overflow.nr` — new neg test.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+Phase 11 (`v0.2.320`) — width-correct formatting (`print_u8`,
+`print_i32`, `print_f32`, etc.) — likely already mostly in
+place per existing `__nucleor_print_<T>` helpers.
+
 ## [0.2.318] — 2026-04-24
 
 **T1.1 Phase 9 — FFI ABI + `nuc gen-headers` subcommand.**
