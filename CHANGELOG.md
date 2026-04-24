@@ -5,6 +5,75 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.232] — 2026-04-23
+
+**Robotics: hand-eye calibration — solve `AX = XB` for the unknown
+end-effector → camera transform. Foundation for any vision-in-the-
+loop robot control where the camera is mounted on the end-effector
+(eye-in-hand visual servoing, object pose estimation, eye-in-hand
+tracking). The result `X` is what relates the camera observation
+frame to the robot's kinematic chain.**
+
+### Algorithm
+
+Two-step solve:
+
+1. **Rotation**: Procrustes / Horn quaternion alignment of the
+   per-motion rotation axes — `axis(R_a)` should equal
+   `R_x · axis(R_b)`. Cross-covariance `H = Σ axis(R_b)·axis(R_a)ᵀ`,
+   build Horn's 4×4 N matrix, top eigenvector via power iteration
+   gives the optimal `R_x`.
+2. **Translation**: with `R_x` known, `(R_a − I)·t_x = R_x·t_b − t_a`
+   is linear in `t_x`. Solve via normal equations accumulated
+   across all motion pairs.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/handeye.nr"
+
+// Ra/Rb arrays are double[N * 9] row-major rotations.
+// ta/tb arrays are double[N * 3] translations.
+// Rx_out is double[9], tx_out is double[3].
+handeye_calibrate(Ra_array_ptr, ta_array_ptr,
+                  Rb_array_ptr, tb_array_ptr, n_motions,
+                  Rx_out_ptr, tx_out_ptr);
+```
+
+### Verification
+
+Synthetic AX = XB sequence: planted `X = (R_x = 30° about y-axis,
+t_x = (0.05, 0.10, 0.15))`, 6 diverse motion pairs generated as
+`B_i = inv(X) · A_i · X`. Solver recovers X to machine precision:
+
+| Quantity | Value |
+|---|---|
+| Max element-wise `|Rx − Rx_true|` | **4.4e-16** |
+| `|tx − tx_true|` | **1.4e-16** |
+
+Both rotation and translation match the planted truth to machine
+epsilon.
+
+### Limitations (joint dual-quaternion solver lands in v0.6 if
+needed):
+
+- Two-step (rotation then translation). Daniilidis 1999's dual-
+  quaternion form couples the two and can be marginally more
+  accurate when rotation/translation errors correlate.
+- Requires ≥ 3 motion pairs with non-collinear rotation axes for
+  the rotation step to be well-conditioned.
+
+### Files
+
+- `stdlib/runtime/handeye_rt.c` — `nuc_handeye_calibrate` plus
+  `_rot_log` (axis-angle from rotation matrix), `_quat_to_R`,
+  `_top_eigenvec_4x4` (Horn alignment), `_build_N`, `_gj_inv`.
+- `stdlib/rods/handeye.nr` — extern + `handeye_calibrate` wrapper.
+- `tests/rods/handeye_smoke.nr` — build-only linkage smoke
+  (correctness covered by direct C synthetic AX=XB test).
+
+---
+
 ## [0.2.231] — 2026-04-23
 
 **Robotics: RANSAC outlier-robust 3D plane fitting (Fischler &
