@@ -193,6 +193,98 @@ static int _gj_inv_6x6(const double *A, double *Ainv) {
     return 1;
 }
 
+// === Stereo triangulation (v0.2.236) ====================================
+//
+// Given two camera views (intrinsics K1, K2; world→camera poses
+// (R1, t1) and (R2, t2)) of the same 3D point, plus its observed
+// pixel locations (u1, v1) and (u2, v2), recover the 3D point in
+// world coordinates.
+//
+// Method: midpoint of the two viewing rays (closest points on the
+// skew lines). For each view, the camera-frame ray direction is
+// d_i_cam = K_i⁻¹ · (u, v, 1); rotate to world: d_i_world = R_iᵀ · d_i_cam.
+// The world-frame ray origin is c_i = -R_iᵀ · t_i. Then solve for
+// scalars s1, s2 minimizing ‖(c1 + s1·d1) − (c2 + s2·d2)‖²; the
+// 3D point is the midpoint of those two closest points.
+//
+// **Limitations** (linear-DLT triangulation + nonlinear refinement
+// with reprojection minimization land in v0.6 if needed):
+// - Midpoint method only — adequate for short baselines, can have
+//   small bias when baseline is large relative to depth.
+// - No bundle adjustment / multi-view fusion.
+
+long long nuc_cam_triangulate(
+    long long K1_ptr, long long R1_ptr, long long t1_ptr,
+    long long K2_ptr, long long R2_ptr, long long t2_ptr,
+    long long uv1_ptr, long long uv2_ptr,
+    long long X_out_ptr)
+{
+    const double *K1 = (const double *)(void *)(size_t)K1_ptr;
+    const double *R1 = (const double *)(void *)(size_t)R1_ptr;
+    const double *t1 = (const double *)(void *)(size_t)t1_ptr;
+    const double *K2 = (const double *)(void *)(size_t)K2_ptr;
+    const double *R2 = (const double *)(void *)(size_t)R2_ptr;
+    const double *t2 = (const double *)(void *)(size_t)t2_ptr;
+    const double *uv1 = (const double *)(void *)(size_t)uv1_ptr;
+    const double *uv2 = (const double *)(void *)(size_t)uv2_ptr;
+    double *X = (double *)(void *)(size_t)X_out_ptr;
+    if (!K1 || !R1 || !t1 || !K2 || !R2 || !t2 || !uv1 || !uv2 || !X) return -1;
+
+    // Normalized image coords from intrinsics (pinhole inverse).
+    double xn1 = (uv1[0] - K1[2]) / K1[0];
+    double yn1 = (uv1[1] - K1[5]) / K1[4];
+    double xn2 = (uv2[0] - K2[2]) / K2[0];
+    double yn2 = (uv2[1] - K2[5]) / K2[4];
+
+    // Camera-frame ray direction (z = 1 plane).
+    double dc1[3] = { xn1, yn1, 1.0 };
+    double dc2[3] = { xn2, yn2, 1.0 };
+    // Rotate to world: d_world = R^T · d_cam (R is world→cam).
+    double d1[3], d2[3];
+    d1[0] = R1[0]*dc1[0] + R1[3]*dc1[1] + R1[6]*dc1[2];
+    d1[1] = R1[1]*dc1[0] + R1[4]*dc1[1] + R1[7]*dc1[2];
+    d1[2] = R1[2]*dc1[0] + R1[5]*dc1[1] + R1[8]*dc1[2];
+    d2[0] = R2[0]*dc2[0] + R2[3]*dc2[1] + R2[6]*dc2[2];
+    d2[1] = R2[1]*dc2[0] + R2[4]*dc2[1] + R2[7]*dc2[2];
+    d2[2] = R2[2]*dc2[0] + R2[5]*dc2[1] + R2[8]*dc2[2];
+    // Camera world-frame origins: c = -R^T · t.
+    double c1[3], c2[3];
+    c1[0] = -(R1[0]*t1[0] + R1[3]*t1[1] + R1[6]*t1[2]);
+    c1[1] = -(R1[1]*t1[0] + R1[4]*t1[1] + R1[7]*t1[2]);
+    c1[2] = -(R1[2]*t1[0] + R1[5]*t1[1] + R1[8]*t1[2]);
+    c2[0] = -(R2[0]*t2[0] + R2[3]*t2[1] + R2[6]*t2[2]);
+    c2[1] = -(R2[1]*t2[0] + R2[4]*t2[1] + R2[7]*t2[2]);
+    c2[2] = -(R2[2]*t2[0] + R2[5]*t2[1] + R2[8]*t2[2]);
+
+    // Closest points on two skew lines: solve [d1·d1, -d1·d2; -d1·d2, d2·d2] · [s1; -s2] = [d1·(c2-c1); d2·(c2-c1)].
+    // Or equivalent: minimize ‖(c1 + s1·d1) − (c2 + s2·d2)‖² → linear system.
+    double r[3] = { c2[0] - c1[0], c2[1] - c1[1], c2[2] - c1[2] };
+    double a = d1[0]*d1[0] + d1[1]*d1[1] + d1[2]*d1[2];
+    double b = d1[0]*d2[0] + d1[1]*d2[1] + d1[2]*d2[2];
+    double c = d2[0]*d2[0] + d2[1]*d2[1] + d2[2]*d2[2];
+    double e = d1[0]*r[0]  + d1[1]*r[1]  + d1[2]*r[2];
+    double f = d2[0]*r[0]  + d2[1]*r[1]  + d2[2]*r[2];
+    // Minimize ‖(c1 + s1·d1) − (c2 + s2·d2)‖² = ‖s1·d1 − s2·d2 − r‖².
+    // Stationarity:
+    //   s1·a − s2·b =  e
+    //  −s1·b + s2·c = −f
+    // Solve via Cramer:
+    //   s1 = (c·e − b·f) / (a·c − b²)
+    //   s2 = (b·e − a·f) / (a·c − b²)
+    double det = a*c - b*b;
+    if (fabs(det) < 1e-12) return -1;   // parallel rays
+    double s1 = ( c*e - b*f) / det;
+    double s2 = ( b*e - a*f) / det;
+    // Closest points on each ray.
+    double p1[3] = { c1[0] + s1*d1[0], c1[1] + s1*d1[1], c1[2] + s1*d1[2] };
+    double p2[3] = { c2[0] + s2*d2[0], c2[1] + s2*d2[1], c2[2] + s2*d2[2] };
+    // 3D point = midpoint.
+    X[0] = 0.5 * (p1[0] + p2[0]);
+    X[1] = 0.5 * (p1[1] + p2[1]);
+    X[2] = 0.5 * (p1[2] + p2[2]);
+    return 0;
+}
+
 long long nuc_ibvs_velocity(
     long long s_current_ptr, long long s_desired_ptr,
     long long Z_ptr, long long n_features_,

@@ -47,6 +47,20 @@ extern fn nuc_cam_project_batch(K_ptr: i64,
 extern fn nuc_cam_image_jacobian(
     x_b: i64, y_b: i64, Z_b: i64, L_out_ptr: i64) -> i64;
 
+// Stereo triangulation (v0.2.236): given two camera views (K, R, t)
+// and the same 3D point's pixel observations in each, recover the
+// world-frame 3D point. Midpoint-of-skew-lines method.
+//
+// `K1_ptr` / `K2_ptr` are 9-double row-major intrinsics matrices,
+// `R1_ptr` / `R2_ptr` are 9-double world→camera rotations, `t1_ptr`
+// / `t2_ptr` are 3-double translations, `uv1_ptr` / `uv2_ptr` are
+// 2-double pixel observations, `X_out_ptr` is a 3-double output.
+extern fn nuc_cam_triangulate(
+    K1_ptr: i64, R1_ptr: i64, t1_ptr: i64,
+    K2_ptr: i64, R2_ptr: i64, t2_ptr: i64,
+    uv1_ptr: i64, uv2_ptr: i64,
+    X_out_ptr: i64) -> i64;
+
 // Image-based visual servoing (v0.2.225). Compute the camera-frame
 // Cartesian velocity command that drives the current observed
 // features toward their desired image positions:
@@ -111,6 +125,17 @@ fn cam_image_jacobian(x_b: i64, y_b: i64, Z_b: i64,
     L_out_ptr: i64) -> i64
 {
     return nuc_cam_image_jacobian(x_b, y_b, Z_b, L_out_ptr);
+}
+
+// Triangulate a 3D point from two camera views. Returns 0 on
+// success, -1 on bad input or parallel rays.
+fn cam_triangulate(K1_ptr: i64, R1_ptr: i64, t1_ptr: i64,
+    K2_ptr: i64, R2_ptr: i64, t2_ptr: i64,
+    uv1_ptr: i64, uv2_ptr: i64,
+    X_out_ptr: i64) -> i64
+{
+    return nuc_cam_triangulate(K1_ptr, R1_ptr, t1_ptr,
+        K2_ptr, R2_ptr, t2_ptr, uv1_ptr, uv2_ptr, X_out_ptr);
 }
 
 fn ibvs_velocity(s_current_ptr: i64, s_desired_ptr: i64,
