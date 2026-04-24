@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.283] — 2026-04-24
+
+**Robotics: differential-drive and Ackermann mobile-robot
+kinematics + arc-integrated pose update (`mobile`).**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/mobile.nr"
+
+// Differential-drive forward (wheels → body):
+mobile_diff_fwd_kin(vL_b, vR_b, wheel_radius_b, wheelbase_b,
+                    v_out_ptr, w_out_ptr);
+
+// Differential-drive inverse (body → wheels):
+mobile_diff_inv_kin(v_b, w_b, wheel_radius_b, wheelbase_b,
+                    vL_out_ptr, vR_out_ptr);
+
+// Ackermann (bicycle model) forward:
+mobile_ackermann_fwd_kin(v_b, delta_b, wheelbase_b,
+                          v_out_ptr, w_out_ptr);
+let delta_b = mobile_ackermann_inv_steer(v_b, w_b, wheelbase_b);
+
+// Arc-integrated pose update (closed form along constant-curvature arc):
+mobile_pose_step(x_b, y_b, theta_b, v_b, w_b, dt_b,
+                 x_out_ptr, y_out_ptr, theta_out_ptr);
+```
+
+### Verification
+
+Four direct C tests:
+
+1. **Diff-drive fwd/inv roundtrip** (`r=0.05, L=0.3, vL=5, vR=7`):
+   `v=0.3, ω=0.333` exact; inverse recovers `vL=5, vR=7` exact.
+2. **Ackermann roundtrip** (`v=2, δ=π/6, L=1.5`): `ω=0.7698` matches
+   analytical `(v/L)·tan(δ)`; inverse recovers `δ=π/6` exact.
+3. **Straight-line pose** at heading `π/4`, `v=2`, `dt=1`: shifted
+   by `(√2, √2)` exact, heading unchanged.
+4. **Full circle** from origin with `v=1, ω=2π, dt=1`: returns to
+   `(0, 0, 2π)` to machine precision.
+
+### Files
+
+- `stdlib/runtime/mobile_rt.c` — `nuc_mobile_*` API.
+- `stdlib/rods/mobile.nr` — externs + wrappers.
+- `tests/rods/mobile_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.282] — 2026-04-24
 
 **Robotics: Lucas-Kanade single-feature tracker (`klt`). Given two

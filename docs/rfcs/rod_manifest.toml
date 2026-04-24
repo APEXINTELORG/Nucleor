@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 192
-# Total fn definitions: 2017
-# Total LOC: 8631
+# Total rods: 193
+# Total fn definitions: 2022
+# Total LOC: 8667
 
 [[rod]]
 name           = "activation2"
@@ -928,6 +928,15 @@ function_count = 10
 cfile_count    = 1
 loc            = 21
 imports        = ["mmap"]
+
+[[rod]]
+name           = "mobile"
+path           = "stdlib/rods/mobile.nr"
+description    = "Differential-drive and Ackermann mobile-robot"
+function_count = 5
+cfile_count    = 1
+loc            = 36
+imports        = ["mobile"]
 
 [[rod]]
 name           = "moe"
