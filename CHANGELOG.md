@@ -5,6 +5,64 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.310] — 2026-04-24
+
+**T1.1 Phase 3c — stdlib audit + i32/u32 narrowing re-enabled.**
+Completes the deferred work from Phase 2: Nucleor's stdlib no
+longer depends on `let val: i32 = n` loosely holding i64-range
+values, so auto-narrow can safely fire on `i32`/`u32` targets.
+
+### What landed
+
+- `compiler/nucleor_s1_compiler.nr:str_from_int` — internal
+  arithmetic widened to i64 (loop variable + digit var). Parameter
+  stays `i32` for source compatibility; internal i64 prevents the
+  Phase 1 narrow hook from truncating large register IDs.
+- `compiler/nucleor_tools_suite.nr:str_from_int` — same fix
+  mirrored (duplicate function).
+- `stdlib/runtime/core_io.nr:str_from_int` — same fix.
+- `compiler/nucleor_s1_compiler.nr:narrow_via_as` — re-added
+  `i32` + `u32` cases.
+
+### Audit outcome
+
+11 sites of `let <name>: i32` / `let <name>: u32` in
+`compiler/*.nr` + `stdlib/runtime/*.nr`:
+- 4 UNSAFE (str_from_int × 3 sites in 3 files) → fixed.
+- 7 SAFE (loop counters + string lengths where i32 range is
+  adequate) → untouched.
+
+### Matrix progress
+
+| Phase         | v0.2.309 | v0.2.310 |
+|---------------|----------|----------|
+| p1_intarith   | 22P/0F   | **24P/0F** (+2 i32/u32 wrap tests) |
+| TOTAL         | 41P/7F/8BE | **43P/7F/8BE** |
+
+### Verify gate
+
+329/329 PASS. Bootstrap fixpoint stable (stage-1 and stage-2
+IR are byte-identical).
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — str_from_int widened,
+  narrow_via_as expanded.
+- `compiler/nucleor_tools_suite.nr` — str_from_int widened.
+- `stdlib/runtime/core_io.nr` — str_from_int widened.
+- `bin/nucleor.exe` — rebuilt (clean bootstrap from v0.2.307).
+- `tools/gen_numerics_matrix.py` — 2 new i32/u32 wrap tests.
+- `tests/lang/numerics_matrix/MANIFEST.md` — updated counts.
+- `tests/lang/numerics_matrix/p1_intarith/add_u32_wrap.nr` — new.
+- `tests/lang/numerics_matrix/p1_intarith/mul_i32_wrap.nr` — new.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+Phase 3a–b (`v0.2.311`) — `sizeof::<T>()` builtin + full
+`#[repr(C)]` / `#[repr(packed)]` field-offset machinery.
+Then Phase 4 (`v0.2.312`) — full `as` cast matrix.
+
 ## [0.2.309] — 2026-04-24
 
 **T1.1 Phase 2 — f32 literals + bootstrap-stability gate +

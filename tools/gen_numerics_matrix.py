@@ -67,6 +67,9 @@ fn main() -> i32 {{
         ("add_u16_wrap.nr",  "u16", "+", 65000, 1000, 464, "65000 + 1000 wraps mod 65536"),
         ("mul_i8_wrap.nr",   "i8",  "*", 50, 3, 0 - 106, "50 * 3 = 150 wraps to -106 in i8"),
         ("mul_u8_wrap.nr",   "u8",  "*", 100, 100, 16, "100 * 100 = 10000, mod 256 = 16"),
+        # i32/u32 wrap — re-enabled in Phase 3c after stdlib audit.
+        ("add_u32_wrap.nr",  "u32", "+", 4000000000, 500000000, 205032704, "4e9 + 5e8 wraps mod 2^32"),
+        ("mul_i32_wrap.nr",  "i32", "*", 100000, 100000, 1410065408, "1e10 wraps to 1410065408 in i32"),
     ]
     for fn, ty, op, a, b, exp, msg in boundary_cases:
         body = f'''// p1_intarith/{fn} — Phase 1: {ty} `{op}` width-boundary
