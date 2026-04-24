@@ -76,6 +76,38 @@ extern fn nuc_dyn_inverse_with_wrench(h: i64,
     tx_b: i64, ty_b: i64, tz_b: i64,
     tau_out_ptr: i64) -> i64;
 
+// Joint-space computed-torque controller (v0.2.214). Classical
+// inverse-dynamics control for trajectory tracking:
+//
+//     qdd_cmd = qdd_des + Kp·(q_des − q) + Kd·(qd_des − qd)
+//     tau     = M(q)·qdd_cmd + C(q,qd)·qd + g(q)   ← packaged via RNEA
+//
+// Closes the loop on tracking error: e = q_des − q follows the
+// linear ODE ë + Kd·ė + Kp·e = 0. Tune Kp / Kd in error-space:
+// Kp = ω², Kd = 2·ζ·ω for natural frequency ω and damping ζ.
+//
+// `Kp_ptr` / `Kd_ptr` are caller-allocated `double[n_joints]`
+// diagonal gain vectors. Pass 0 for either to disable that term
+// (e.g., feedforward-only with Kp=0, Kd=0).
+extern fn nuc_dyn_computed_torque(h: i64,
+    q_ptr: i64, qd_ptr: i64,
+    q_des_ptr: i64, qd_des_ptr: i64, qdd_des_ptr: i64,
+    Kp_ptr: i64, Kd_ptr: i64,
+    tau_out_ptr: i64) -> i64;
+
+// 6-DOF Cartesian impedance (v0.2.215). Extends `nuc_dyn_cartesian_
+// impedance` from 3-DOF position to 6-DOF pose. Angular error is
+// computed as the quaternion log-map of `q_des · q_cur⁻¹`. Jacobian
+// is 6×n. K and D are 6-vectors (Kx, Ky, Kz, Krx, Kry, Krz) in
+// world frame; rotational entries have units N·m/rad.
+extern fn nuc_dyn_cartesian_impedance_6d(h: i64,
+    q_ptr: i64, qd_ptr: i64,
+    pdes_x_b: i64, pdes_y_b: i64, pdes_z_b: i64,
+    qdes_w_b: i64, qdes_x_b: i64, qdes_y_b: i64, qdes_z_b: i64,
+    K_ptr: i64, D_ptr: i64,
+    include_gravity: i64,
+    tau_out_ptr: i64) -> i64;
+
 // Cartesian impedance / operational-space PD controller (v0.2.212).
 // Computes joint torques for a position-task PD in Cartesian space:
 //
@@ -170,6 +202,31 @@ fn dyn_cartesian_impedance(h: i64,
         pdes_x_b, pdes_y_b, pdes_z_b,
         kx_b, ky_b, kz_b, dx_b, dy_b, dz_b,
         include_gravity, tau_out_ptr);
+}
+
+fn dyn_computed_torque(h: i64,
+    q_ptr: i64, qd_ptr: i64,
+    q_des_ptr: i64, qd_des_ptr: i64, qdd_des_ptr: i64,
+    Kp_ptr: i64, Kd_ptr: i64,
+    tau_out_ptr: i64) -> i64
+{
+    return nuc_dyn_computed_torque(h, q_ptr, qd_ptr,
+        q_des_ptr, qd_des_ptr, qdd_des_ptr,
+        Kp_ptr, Kd_ptr, tau_out_ptr);
+}
+
+fn dyn_cartesian_impedance_6d(h: i64,
+    q_ptr: i64, qd_ptr: i64,
+    pdes_x_b: i64, pdes_y_b: i64, pdes_z_b: i64,
+    qdes_w_b: i64, qdes_x_b: i64, qdes_y_b: i64, qdes_z_b: i64,
+    K_ptr: i64, D_ptr: i64,
+    include_gravity: i64,
+    tau_out_ptr: i64) -> i64
+{
+    return nuc_dyn_cartesian_impedance_6d(h, q_ptr, qd_ptr,
+        pdes_x_b, pdes_y_b, pdes_z_b,
+        qdes_w_b, qdes_x_b, qdes_y_b, qdes_z_b,
+        K_ptr, D_ptr, include_gravity, tau_out_ptr);
 }
 
 fn dyn_free(h: i64) { nuc_dyn_free(h); }

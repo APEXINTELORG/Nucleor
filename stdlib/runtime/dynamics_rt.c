@@ -585,6 +585,57 @@ long long nuc_dyn_forward(long long h,
     return 0;
 }
 
+// === Joint-space computed-torque controller (v0.2.214) ==================
+//
+// Classical "computed torque" / inverse-dynamics control for
+// trajectory tracking:
+//
+//     qdd_cmd = qdd_des + Kp·(q_des − q) + Kd·(qd_des − qd)
+//     tau     = M(q)·qdd_cmd + C(q, qd)·qd + g(q)
+//                          ↑ packaged together via RNEA
+//
+// This linearizes the closed-loop dynamics: the tracking error
+// `e = q_des − q` follows the second-order linear ODE
+// `ë + Kd·ė + Kp·e = 0`, so Kp / Kd are tuned in error-space (e.g.,
+// `Kp = ω²`, `Kd = 2·ζ·ω` for desired natural frequency ω and
+// damping ratio ζ). Standard reference for any model-based
+// trajectory-following robot controller.
+//
+// `Kp_ptr` and `Kd_ptr` are caller-allocated `double[n_joints]`
+// diagonal gain vectors. Use `0` for either to disable that term.
+long long nuc_dyn_computed_torque(long long h,
+    long long q_ptr,     long long qd_ptr,
+    long long q_des_ptr, long long qd_des_ptr, long long qdd_des_ptr,
+    long long Kp_ptr,    long long Kd_ptr,
+    long long tau_out_ptr)
+{
+    NDyn *d = (NDyn *)(void *)(size_t)h;
+    if (!d) return -1;
+    int n = d->n_links;
+    double *q       = (double *)(void *)(size_t)q_ptr;
+    double *qd      = (double *)(void *)(size_t)qd_ptr;
+    double *q_des   = (double *)(void *)(size_t)q_des_ptr;
+    double *qd_des  = (double *)(void *)(size_t)qd_des_ptr;
+    double *qdd_des = (double *)(void *)(size_t)qdd_des_ptr;
+    double *Kp      = (double *)(void *)(size_t)Kp_ptr;
+    double *Kd      = (double *)(void *)(size_t)Kd_ptr;
+    if (!q || !qd || !q_des || !qd_des || !qdd_des) return -1;
+
+    double *qdd_cmd = (double *)malloc(n * sizeof(double));
+    for (int i = 0; i < n; i++) {
+        double e_q  = q_des[i]  - q[i];
+        double e_qd = qd_des[i] - qd[i];
+        double cmd = qdd_des[i];
+        if (Kp) cmd += Kp[i] * e_q;
+        if (Kd) cmd += Kd[i] * e_qd;
+        qdd_cmd[i] = cmd;
+    }
+    long long rc = nuc_dyn_inverse(h, q_ptr, qd_ptr,
+        (long long)(size_t)qdd_cmd, tau_out_ptr);
+    free(qdd_cmd);
+    return rc;
+}
+
 // === Cartesian impedance / operational-space PD (v0.2.212) ==============
 //
 // Computes joint torques for a position-task PD controller in
@@ -677,6 +728,151 @@ long long nuc_dyn_cartesian_impedance(long long h,
         nuc_dyn_gravity(h, q_ptr, (long long)(size_t)tau_g);
         for (int j = 0; j < n; j++) tau[j] += tau_g[j];
         free(zero); free(tau_g);
+    }
+    return 0;
+}
+
+// === 6-DOF Cartesian impedance (v0.2.215) ===============================
+//
+// Full-pose operational-space PD: extends `nuc_dyn_cartesian_impedance`
+// (v0.2.212) from 3-DOF position to 6-DOF pose. Angular error is
+// computed as the quaternion log-map of `q_target · q_current⁻¹`,
+// giving a 3-vector (axis × angle) correction. Jacobian is 6×n:
+// three rows for position velocities, three for angular velocities.
+//
+//     e_6 = [ p_des − p            ;  log_map(q_des · q_cur⁻¹) ]
+//     v_6 = J·qd
+//     F_6 = K · e_6 − D · v_6            (K, D diagonal 6-vectors)
+//     tau = Jᵀ · F_6  [+ g(q)  if include_gravity]
+//
+// Use case: contact-rich manipulation where both position AND
+// orientation matter (e.g., screwing, polishing). The separate
+// translational / rotational K and D vectors let the caller tune
+// task-space stiffness independently per axis.
+//
+// The rotational stiffness / damping (entries 3–5 of K and D)
+// have units N·m/rad and N·m·s/rad respectively.
+long long nuc_dyn_cartesian_impedance_6d(long long h,
+    long long q_ptr, long long qd_ptr,
+    long long pdes_x_b, long long pdes_y_b, long long pdes_z_b,
+    long long qdes_w_b, long long qdes_x_b, long long qdes_y_b, long long qdes_z_b,
+    long long K_ptr,   // 6-vector (Kx, Ky, Kz, Krx, Kry, Krz)
+    long long D_ptr,
+    long long include_gravity,
+    long long tau_out_ptr)
+{
+    NDyn *d = (NDyn *)(void *)(size_t)h;
+    if (!d) return -1;
+    int n = d->n_links;
+    double *q   = (double *)(void *)(size_t)q_ptr;
+    double *qd  = (double *)(void *)(size_t)qd_ptr;
+    double *K   = (double *)(void *)(size_t)K_ptr;
+    double *D   = (double *)(void *)(size_t)D_ptr;
+    double *tau = (double *)(void *)(size_t)tau_out_ptr;
+    if (!q || !qd || !K || !D || !tau) return -1;
+
+    double pd[3] = { _i2f(pdes_x_b), _i2f(pdes_y_b), _i2f(pdes_z_b) };
+    double qdes_q[4] = {
+        _i2f(qdes_w_b), _i2f(qdes_x_b), _i2f(qdes_y_b), _i2f(qdes_z_b)
+    };
+
+    // Current end-effector position + orientation via FK.
+    nuc_fk_chain_update(d->fk_handle, q_ptr);
+    int last = n - 1;
+    double cp[3] = {
+        _i2f(nuc_fk_chain_link_pos_x(d->fk_handle, last)),
+        _i2f(nuc_fk_chain_link_pos_y(d->fk_handle, last)),
+        _i2f(nuc_fk_chain_link_pos_z(d->fk_handle, last))
+    };
+    double cq_w = _i2f(nuc_fk_chain_link_quat_w(d->fk_handle, last));
+    double cq_x = _i2f(nuc_fk_chain_link_quat_x(d->fk_handle, last));
+    double cq_y = _i2f(nuc_fk_chain_link_quat_y(d->fk_handle, last));
+    double cq_z = _i2f(nuc_fk_chain_link_quat_z(d->fk_handle, last));
+
+    // Numerical 6×n Jacobian via finite differences (same pattern as
+    // the 6-DOF IK solver in `ik_dls_rt.c`).
+    double *J = (double *)malloc(6 * n * sizeof(double));
+    double *perturbed = (double *)malloc(n * sizeof(double));
+    long long perturbed_h = (long long)(size_t)perturbed;
+    double eps = 1e-5;
+    for (int j = 0; j < n; j++) {
+        memcpy(perturbed, q, n * sizeof(double));
+        perturbed[j] += eps;
+        nuc_fk_chain_update(d->fk_handle, perturbed_h);
+        double pp_x = _i2f(nuc_fk_chain_link_pos_x(d->fk_handle, last));
+        double pp_y = _i2f(nuc_fk_chain_link_pos_y(d->fk_handle, last));
+        double pp_z = _i2f(nuc_fk_chain_link_pos_z(d->fk_handle, last));
+        double pq_w = _i2f(nuc_fk_chain_link_quat_w(d->fk_handle, last));
+        double pq_x = _i2f(nuc_fk_chain_link_quat_x(d->fk_handle, last));
+        double pq_y = _i2f(nuc_fk_chain_link_quat_y(d->fk_handle, last));
+        double pq_z = _i2f(nuc_fk_chain_link_quat_z(d->fk_handle, last));
+        J[0*n + j] = (pp_x - cp[0]) / eps;
+        J[1*n + j] = (pp_y - cp[1]) / eps;
+        J[2*n + j] = (pp_z - cp[2]) / eps;
+        // Angular-velocity Jacobian: angular error from current to perturbed / eps.
+        // δq = perturbed * conj(current); angular velocity ≈ log_map(δq) / eps.
+        double cjx = -cq_x, cjy = -cq_y, cjz = -cq_z;
+        double ew = pq_w*cq_w - pq_x*cjx - pq_y*cjy - pq_z*cjz;
+        double ex = pq_w*cjx + pq_x*cq_w + pq_y*cjz - pq_z*cjy;
+        double ey = pq_w*cjy - pq_x*cjz + pq_y*cq_w + pq_z*cjx;
+        double ez = pq_w*cjz + pq_x*cjy - pq_y*cjx + pq_z*cq_w;
+        double sinh_mag = sqrt(ex*ex + ey*ey + ez*ez);
+        double axis[3] = {0, 0, 0};
+        if (sinh_mag > 1e-9) {
+            double angle = 2.0 * atan2(sinh_mag, ew);
+            if (angle > 3.14159265358979) angle -= 2.0 * 3.14159265358979;
+            double s = angle / sinh_mag;
+            axis[0] = ex * s; axis[1] = ey * s; axis[2] = ez * s;
+        }
+        J[3*n + j] = axis[0] / eps;
+        J[4*n + j] = axis[1] / eps;
+        J[5*n + j] = axis[2] / eps;
+    }
+    nuc_fk_chain_update(d->fk_handle, q_ptr);
+
+    // 6-DOF pose error: position + angular.
+    double e6[6];
+    e6[0] = pd[0] - cp[0];
+    e6[1] = pd[1] - cp[1];
+    e6[2] = pd[2] - cp[2];
+    // Angular error: log_map(q_des · q_cur⁻¹).
+    double cq_conj_w = cq_w, cq_conj_x = -cq_x, cq_conj_y = -cq_y, cq_conj_z = -cq_z;
+    double aw = qdes_q[0]*cq_conj_w - qdes_q[1]*cq_conj_x - qdes_q[2]*cq_conj_y - qdes_q[3]*cq_conj_z;
+    double ax = qdes_q[0]*cq_conj_x + qdes_q[1]*cq_conj_w + qdes_q[2]*cq_conj_z - qdes_q[3]*cq_conj_y;
+    double ay = qdes_q[0]*cq_conj_y - qdes_q[1]*cq_conj_z + qdes_q[2]*cq_conj_w + qdes_q[3]*cq_conj_x;
+    double az = qdes_q[0]*cq_conj_z + qdes_q[1]*cq_conj_y - qdes_q[2]*cq_conj_x + qdes_q[3]*cq_conj_w;
+    double sm = sqrt(ax*ax + ay*ay + az*az);
+    if (sm > 1e-9) {
+        double angle = 2.0 * atan2(sm, aw);
+        if (angle > 3.14159265358979) angle -= 2.0 * 3.14159265358979;
+        double s = angle / sm;
+        e6[3] = ax * s; e6[4] = ay * s; e6[5] = az * s;
+    } else {
+        e6[3] = 0; e6[4] = 0; e6[5] = 0;
+    }
+
+    // 6-DOF velocity v = J·qd.
+    double v6[6] = {0,0,0, 0,0,0};
+    for (int r = 0; r < 6; r++) {
+        for (int k = 0; k < n; k++) v6[r] += J[r*n + k] * qd[k];
+    }
+    // Wrench F = K·e - D·v.
+    double F6[6];
+    for (int i = 0; i < 6; i++) F6[i] = K[i]*e6[i] - D[i]*v6[i];
+
+    // tau = Jᵀ · F.
+    for (int j = 0; j < n; j++) {
+        double s = 0;
+        for (int r = 0; r < 6; r++) s += J[r*n + j] * F6[r];
+        tau[j] = s;
+    }
+    free(J); free(perturbed);
+
+    if (include_gravity) {
+        double *tau_g = (double *)calloc(n, sizeof(double));
+        nuc_dyn_gravity(h, q_ptr, (long long)(size_t)tau_g);
+        for (int j = 0; j < n; j++) tau[j] += tau_g[j];
+        free(tau_g);
     }
     return 0;
 }
