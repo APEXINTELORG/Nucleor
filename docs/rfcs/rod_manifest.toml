@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 184
-# Total fn definitions: 1961
-# Total LOC: 8402
+# Total rods: 185
+# Total fn definitions: 1968
+# Total LOC: 8423
 
 [[rod]]
 name           = "activation2"
@@ -379,6 +379,15 @@ function_count = 1
 cfile_count    = 1
 loc            = 4
 imports        = ["crypto"]
+
+[[rod]]
+name           = "cspline"
+path           = "stdlib/rods/cspline.nr"
+description    = "Natural cubic spline interpolation through"
+function_count = 7
+cfile_count    = 1
+loc            = 21
+imports        = ["cspline"]
 
 [[rod]]
 name           = "csv"
