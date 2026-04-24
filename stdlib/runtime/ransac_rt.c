@@ -210,3 +210,91 @@ long long nuc_ransac_plane_3d(
     free(inliers); free(best_inliers);
     return 0;
 }
+
+// === Generic RANSAC orchestrator (v0.2.281) ===
+//
+// Caller supplies:
+//   fit_fp(indices_ptr, n_indices, model_out_ptr) -> i64
+//     - randomly chosen sample of indices into the user's data
+//     - writes the candidate model to a caller-allocated double[]
+//     - returns 1 on success, 0 on degenerate sample
+//   score_fp(model_ptr, data_index) -> i64
+//     - returns 1 if data point is an inlier under the model, else 0
+//
+// nuc_ransac_run does sampling + fit + scoring + best-tracking, and
+// writes the best model + per-data-point inlier mask to caller
+// buffers. Returns the inlier count of the best model.
+
+typedef long long (*_ransac_fit_fn_t)(long long indices_ptr, long long n_indices,
+                                       long long model_out_ptr);
+typedef long long (*_ransac_score_fn_t)(long long model_ptr, long long data_index);
+
+typedef struct { unsigned long long state; } _NRRng2;
+static unsigned long long _xs2(_NRRng2 *r) {
+    unsigned long long x = r->state;
+    x ^= x << 13; x ^= x >> 7; x ^= x << 17;
+    if (x == 0) x = 0xdeadbeefdeadbeefULL;
+    r->state = x;
+    return x;
+}
+static void _sample2(int n, int k, long long *out, _NRRng2 *rng) {
+    int filled = 0;
+    while (filled < k) {
+        long long candidate = (long long)(_xs2(rng) % (unsigned long long)n);
+        int dup = 0;
+        for (int i = 0; i < filled; i++) {
+            if (out[i] == candidate) { dup = 1; break; }
+        }
+        if (!dup) out[filled++] = candidate;
+    }
+}
+
+long long nuc_ransac_run(long long n_data_, long long n_min_samples_,
+                          long long model_size_, long long n_iters_, long long seed_,
+                          long long fit_fp, long long score_fp,
+                          long long best_model_out_ptr, long long inlier_mask_out_ptr)
+{
+    int n_data = (int)n_data_;
+    int n_min  = (int)n_min_samples_;
+    int model_size = (int)model_size_;
+    int n_iters = (int)n_iters_;
+    if (n_data < n_min || n_min < 1 || model_size < 1 || n_iters < 1) return 0;
+    _ransac_fit_fn_t fit     = (_ransac_fit_fn_t)(void *)(size_t)fit_fp;
+    _ransac_score_fn_t score = (_ransac_score_fn_t)(void *)(size_t)score_fp;
+    if (!fit || !score) return 0;
+    double *best_model = (double *)(void *)(size_t)best_model_out_ptr;
+    long long *inlier_mask = (long long *)(void *)(size_t)inlier_mask_out_ptr;
+    if (!best_model) return 0;
+
+    long long *indices = (long long *)malloc(n_min * sizeof(long long));
+    double *cand = (double *)malloc(model_size * sizeof(double));
+    long long *cand_inliers = (long long *)malloc(n_data * sizeof(long long));
+    long long *best_inliers_g = (long long *)malloc(n_data * sizeof(long long));
+
+    _NRRng2 rng = { (unsigned long long)seed_ * 6364136223846793005ULL
+                   + 1442695040888963407ULL };
+    if (rng.state == 0) rng.state = 1;
+
+    long long best_count = -1;
+    for (int it = 0; it < n_iters; it++) {
+        _sample2(n_data, n_min, indices, &rng);
+        long long ok = fit((long long)(size_t)indices, n_min,
+                            (long long)(size_t)cand);
+        if (!ok) continue;
+        long long count = 0;
+        for (int i = 0; i < n_data; i++) {
+            long long is_in = score((long long)(size_t)cand, (long long)i);
+            cand_inliers[i] = is_in ? 1 : 0;
+            count += cand_inliers[i];
+        }
+        if (count > best_count) {
+            best_count = count;
+            memcpy(best_model, cand, model_size * sizeof(double));
+            memcpy(best_inliers_g, cand_inliers, n_data * sizeof(long long));
+        }
+    }
+    if (best_count < 0) best_count = 0;
+    if (inlier_mask) memcpy(inlier_mask, best_inliers_g, n_data * sizeof(long long));
+    free(indices); free(cand); free(cand_inliers); free(best_inliers_g);
+    return best_count;
+}

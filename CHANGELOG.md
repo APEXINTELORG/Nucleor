@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.281] — 2026-04-24
+
+**Robotics: generic RANSAC orchestrator (`ransac_run`) added to
+`ransac.nr` alongside the existing specialized `ransac_plane_3d`.
+User-supplied `fit` and `score` callbacks let RANSAC handle any
+geometric model (2-D line / circle, 3-D sphere, fundamental /
+essential matrix, similarity transform between point clouds, etc.)
+without one-off rod-per-shape duplication.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/ransac.nr"
+
+// fit(indices_ptr, n_indices, model_out_ptr) -> i64
+//   - indices_ptr: i64[n_indices] random sample of data indices
+//   - model_out_ptr: caller-allocated double[model_size]
+//   - returns 1 on success, 0 on degenerate sample
+//
+// score(model_ptr, data_index) -> i64
+//   - 1 if data point is an inlier under model, 0 otherwise
+
+let inlier_count = ransac_run(n_data, n_min_samples, model_size,
+    n_iters, seed,
+    fit_fp, score_fp,
+    best_model_out_ptr,    // double[model_size]
+    inlier_mask_out_ptr);  // i64[n_data] (1=inlier under best, 0=else)
+```
+
+### Verification
+
+2-D line fitting on 100 inliers (`y = 2x + 1` + small noise) plus
+20 wild outliers:
+
+- **Recovered slope**: `2.0010` (truth `2.0`).
+- **Recovered intercept**: `0.9561` (truth `1.0`).
+- **Inlier mask**: 100/100 true inliers correctly identified;
+  1/20 outliers slipped through (within tolerance `0.3`).
+
+### Files
+
+- `stdlib/runtime/ransac_rt.c` — added `nuc_ransac_run` alongside
+  the existing `nuc_ransac_plane_3d`.
+- `stdlib/rods/ransac.nr` — added extern + `ransac_run` wrapper.
+
+### Limitations carried forward
+
+- Vanilla RANSAC: uniform random sampling, no PROSAC / MLESAC /
+  locally-optimized variants (planned for v0.6).
+- No automatic non-minimal refit on the best inlier set — caller
+  re-fits the model on `inlier_mask` for best accuracy.
+
+---
+
 ## [0.2.280] — 2026-04-24
 
 **Robotics: basic image processing primitives (`imgproc`) on
