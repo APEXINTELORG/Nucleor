@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 172
-# Total fn definitions: 1859
-# Total LOC: 8087
+# Total rods: 173
+# Total fn definitions: 1869
+# Total LOC: 8112
 
 [[rod]]
 name           = "activation2"
@@ -793,6 +793,15 @@ function_count = 9
 cfile_count    = 1
 loc            = 19
 imports        = []
+
+[[rod]]
+name           = "lqr"
+path           = "stdlib/rods/lqr.nr"
+description    = "Discrete infinite-horizon LQR via Riccati iteration."
+function_count = 10
+cfile_count    = 1
+loc            = 25
+imports        = ["lqr"]
 
 [[rod]]
 name           = "math"

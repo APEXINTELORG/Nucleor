@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.258] — 2026-04-24
+
+**Robotics: discrete infinite-horizon LQR (`lqr`) via Riccati
+iteration. Linear-time-invariant systems with quadratic cost get a
+static optimal feedback gain `u = −K · x`. Complement to `ilqr.nr`
+and `ddp.nr` (both finite-horizon nonlinear).**
+
+### Algorithm
+
+```
+x_{k+1} = A · x_k + B · u_k
+J = Σ (xᵀ Q x + uᵀ R u)
+u_k = −K · x_k
+
+K = (R + Bᵀ P B)⁻¹ Bᵀ P A
+
+P solves the discrete algebraic Riccati equation:
+  P = Aᵀ P A − Aᵀ P B (R + Bᵀ P B)⁻¹ Bᵀ P A + Q
+Solved here by direct Riccati recursion (start P₀ = Q, iterate).
+Converges for stabilizable (A, B) with detectable Q^{1/2}.
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/lqr.nr"
+
+let h = lqr_new(n_x, n_u);
+// ... set A, B, Q, R entrywise ...
+lqr_solve(h, max_iters, tol_b);
+// Read computed gain K (n_u × n_x):
+let kij = lqr_K(h, i, j);
+// Compute feedback control:
+lqr_compute_u(h, x_ptr, u_out_ptr);
+```
+
+### Verification
+
+Two direct C tests:
+
+1. **Scalar (a=1, b=1, Q=1, R=1)** — DARE has the analytical
+   solution `P = (1+√5)/2 = φ ≈ 1.618034`, `K = P/(1+P) ≈ 0.618034`.
+   Convergence in 16 iters; both P and K match to 6 digits exactly.
+2. **Double integrator** (`dt = 0.1`, `Q = diag(10, 1)`, `R = 1`).
+   118 iters to converge; computed gain `K = (2.76, 2.51)`.
+   Closed-loop sim from `x₀ = (1, 0)` for 200 ticks → final state
+   `(0.000000, 0.000000)` (stabilized to machine zero).
+
+### Files
+
+- `stdlib/runtime/lqr_rt.c` — `nuc_lqr_*` API; small dense gemm
+  helpers (NN and TN variants); GJ inverse; Riccati recursion.
+- `stdlib/rods/lqr.nr` — externs + wrappers.
+- `tests/rods/lqr_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.257] — 2026-04-24
 
 **Robotics: classic PID controller (`pid`) with anti-windup
