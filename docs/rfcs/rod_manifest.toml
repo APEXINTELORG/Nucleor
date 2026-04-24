@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 140
-# Total fn definitions: 1590
-# Total LOC: 6660
+# Total rods: 141
+# Total fn definitions: 1596
+# Total LOC: 6679
 
 [[rod]]
 name           = "activation2"
@@ -37,6 +37,15 @@ function_count = 9
 cfile_count    = 0
 loc            = 12
 imports        = ["asserts"]
+
+[[rod]]
+name           = "astar"
+path           = "stdlib/rods/astar.nr"
+description    = "A* shortest-path search on a generic weighted graph."
+function_count = 6
+cfile_count    = 1
+loc            = 19
+imports        = []
 
 [[rod]]
 name           = "atomic"
