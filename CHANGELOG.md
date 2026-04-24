@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.195] — 2026-04-24
+
+**Robotics: collision cross-pairs — sphere-AABB and capsule-
+AABB. Fills out the collision matrix so every primitive pair
+in the v0.5 list has a narrow-phase test.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/collision.nr"
+
+// Sphere-AABB.
+let hit = coll_sphere_aabb(
+    f64_to_bits(sx), f64_to_bits(sy), f64_to_bits(sz), f64_to_bits(sr),
+    f64_to_bits(minx), f64_to_bits(miny), f64_to_bits(minz),
+    f64_to_bits(maxx), f64_to_bits(maxy), f64_to_bits(maxz));
+
+// Capsule-AABB.
+let hit2 = coll_capsule_aabb(
+    f64_to_bits(c_ax), f64_to_bits(c_ay), f64_to_bits(c_az),
+    f64_to_bits(c_bx), f64_to_bits(c_by), f64_to_bits(c_bz), f64_to_bits(cr),
+    f64_to_bits(minx), f64_to_bits(miny), f64_to_bits(minz),
+    f64_to_bits(maxx), f64_to_bits(maxy), f64_to_bits(maxz));
+```
+
+### Algorithms
+
+- **Sphere-AABB**: closest point on AABB to sphere center is the
+  center clamped to the AABB bounds. Overlap iff that point is
+  within `radius`.
+- **Capsule-AABB**: expand the AABB by the capsule radius
+  (Minkowski sum trick), then test segment vs expanded-AABB via
+  Liang-Barsky-style slab clipping. Slightly conservative at the
+  rounded corners of the expanded box; exact rounded-corner
+  rejection ships in v0.5 alongside the GJK-based mesh paths.
+
+### Files
+
+- `stdlib/runtime/collision_rt.c`: ~80 LOC for the two new tests.
+- `stdlib/rods/collision.nr`: 2 new builtins.
+- `tests/rods/collision_smoke.nr`: extended with sphere-AABB
+  inside / sphere-AABB clear assertions.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**259 / 259 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.194] — 2026-04-24
 
 **Robotics: 6-DOF orientation IK. New `ik_dls_solve_6d`

@@ -31,6 +31,20 @@ fn main() -> i64 {
     );
     if aabb_hit != 1 { fail = fail + 1; print("FAIL aabb-touching reported no overlap"); };
 
+    // Sphere-AABB cross-pair (v0.2.195): sphere center inside AABB.
+    let sa: i64 = coll_sphere_aabb(
+        f64_to_bits(0.5), f64_to_bits(0.5), f64_to_bits(0.5), f64_to_bits(0.1),
+        f64_to_bits(0.0), f64_to_bits(0.0), f64_to_bits(0.0),
+        f64_to_bits(1.0), f64_to_bits(1.0), f64_to_bits(1.0));
+    if sa != 1 { fail = fail + 1; print("FAIL sphere-AABB inside reported clear"); };
+
+    // Sphere-AABB clear: sphere far away.
+    let sa_clear: i64 = coll_sphere_aabb(
+        f64_to_bits(5.0), f64_to_bits(5.0), f64_to_bits(5.0), f64_to_bits(0.1),
+        f64_to_bits(0.0), f64_to_bits(0.0), f64_to_bits(0.0),
+        f64_to_bits(1.0), f64_to_bits(1.0), f64_to_bits(1.0));
+    if sa_clear != 0 { fail = fail + 1; print("FAIL sphere-AABB far reported overlap"); };
+
     if fail == 0 { print("OK collision_smoke"); };
     return fail;
 }

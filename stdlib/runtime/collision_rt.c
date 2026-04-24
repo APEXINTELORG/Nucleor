@@ -346,6 +346,87 @@ long long nuc_coll_gjk(long long support_a_fp, long long support_b_fp) {
     return -1;
 }
 
+// ---- Sphere-AABB (v0.2.195) ----
+//
+// Closest point on the AABB to the sphere center is the sphere
+// center clamped to the AABB bounds. Collision iff that point is
+// within `radius` of the center.
+long long nuc_coll_sphere_aabb(
+    long long sx, long long sy, long long sz, long long sr,
+    long long minx, long long miny, long long minz,
+    long long maxx, long long maxy, long long maxz)
+{
+    double cx = _i2f(sx), cy = _i2f(sy), cz = _i2f(sz);
+    double r = _i2f(sr);
+    double bx = _i2f(minx), by = _i2f(miny), bz = _i2f(minz);
+    double Bx = _i2f(maxx), By = _i2f(maxy), Bz = _i2f(maxz);
+    double clx = cx < bx ? bx : (cx > Bx ? Bx : cx);
+    double cly = cy < by ? by : (cy > By ? By : cy);
+    double clz = cz < bz ? bz : (cz > Bz ? Bz : cz);
+    double dx = cx - clx, dy = cy - cly, dz = cz - clz;
+    return (dx*dx + dy*dy + dz*dz <= r*r) ? 1 : 0;
+}
+
+// ---- Capsule-AABB (v0.2.195) ----
+//
+// Test the capsule's central segment against the AABB by
+// expanding the AABB by the capsule's radius (Minkowski sum
+// trick). Then we have segment vs expanded-AABB overlap. Use
+// the standard slab-clip method for segment-AABB intersection;
+// if the segment overlaps the expanded AABB, the capsule
+// collides with the original AABB.
+//
+// Note: this is a sound but slightly conservative test for the
+// rounded corners of the expanded AABB. For the rounded-corner
+// rejection, we'd add a corner-distance test; deferred to v0.5
+// alongside the GJK-based mesh paths.
+long long nuc_coll_capsule_aabb(
+    long long c_ax, long long c_ay, long long c_az,
+    long long c_bx, long long c_by, long long c_bz, long long cr,
+    long long minx, long long miny, long long minz,
+    long long maxx, long long maxy, long long maxz)
+{
+    double r = _i2f(cr);
+    double bx = _i2f(minx) - r, by = _i2f(miny) - r, bz = _i2f(minz) - r;
+    double Bx = _i2f(maxx) + r, By = _i2f(maxy) + r, Bz = _i2f(maxz) + r;
+    double ax = _i2f(c_ax), ay = _i2f(c_ay), az = _i2f(c_az);
+    double bex = _i2f(c_bx), bey = _i2f(c_by), bez = _i2f(c_bz);
+    double dx = bex - ax, dy = bey - ay, dz = bez - az;
+    // Liang-Barsky-style segment vs slab clipping.
+    double tmin = 0.0, tmax = 1.0;
+    // X slab.
+    if (fabs(dx) < 1e-12) {
+        if (ax < bx || ax > Bx) return 0;
+    } else {
+        double t1 = (bx - ax) / dx, t2 = (Bx - ax) / dx;
+        if (t1 > t2) { double t = t1; t1 = t2; t2 = t; }
+        if (t1 > tmin) tmin = t1;
+        if (t2 < tmax) tmax = t2;
+        if (tmin > tmax) return 0;
+    }
+    // Y slab.
+    if (fabs(dy) < 1e-12) {
+        if (ay < by || ay > By) return 0;
+    } else {
+        double t1 = (by - ay) / dy, t2 = (By - ay) / dy;
+        if (t1 > t2) { double t = t1; t1 = t2; t2 = t; }
+        if (t1 > tmin) tmin = t1;
+        if (t2 < tmax) tmax = t2;
+        if (tmin > tmax) return 0;
+    }
+    // Z slab.
+    if (fabs(dz) < 1e-12) {
+        if (az < bz || az > Bz) return 0;
+    } else {
+        double t1 = (bz - az) / dz, t2 = (Bz - az) / dz;
+        if (t1 > t2) { double t = t1; t1 = t2; t2 = t; }
+        if (t1 > tmin) tmin = t1;
+        if (t2 < tmax) tmax = t2;
+        if (tmin > tmax) return 0;
+    }
+    return 1;
+}
+
 // ---- AABB-AABB overlap ----
 long long nuc_coll_aabb_aabb(
     long long a_minx, long long a_miny, long long a_minz,
