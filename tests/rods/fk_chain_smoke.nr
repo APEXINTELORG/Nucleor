@@ -19,11 +19,17 @@ fn main() -> i64 {
     );
     if fk_chain_count(chain) != 1 { fail = fail + 1; print("FAIL count after one add"); };
 
-    // Caller would normally pass a malloc'd double[] for vars; for the
-    // smoke we just verify the link-pos accessors return non-zero
-    // numbers after default-init (vars handle = 0 should be safe to
-    // read; FK update returns -1 on null vars and we handle that).
+    // Add a DH-parameter joint (alpha=0, a=0.5, d=0, theta=0).
+    let _dh_slot: i64 = fk_chain_add_dh_joint(
+        chain,
+        f64_to_bits(0.0),  // alpha
+        f64_to_bits(0.5),  // a
+        f64_to_bits(0.0),  // d
+        f64_to_bits(0.0)   // theta offset
+    );
+    if fk_chain_count(chain) != 2 { fail = fail + 1; print("FAIL count after DH add"); };
+
     fk_chain_free(chain);
-    print("OK fk_chain_smoke");
+    if fail == 0 { print("OK fk_chain_smoke"); };
     return fail;
 }

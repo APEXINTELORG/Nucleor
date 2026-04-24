@@ -205,3 +205,55 @@ void nuc_fk_chain_free(long long ch) {
     if (c->world_quat) free(c->world_quat);
     free(c);
 }
+
+// Add a joint described by Denavit-Hartenberg parameters (modified
+// DH convention as taught in Spong's Robot Modeling and Control).
+//   alpha — twist angle about previous x (rad)
+//   a     — link length along previous x (m)
+//   d     — link offset along previous z (m)
+//   theta — joint angle about previous z (rad); for revolute joints
+//           this is the variable, but we store the value here as the
+//           STATIC offset (the joint variable adds to this at FK time)
+//
+// Returns the joint slot index (0-based), -1 on null chain.
+//
+// The DH transform is:
+//   T = Rot_x(alpha) · Trans_x(a) · Trans_z(d) · Rot_z(theta)
+// We split into a base offset pose (with theta=0) and the
+// joint variable, encoded as a revolute joint about z.
+long long nuc_fk_chain_add_dh_joint(
+    long long ch,
+    long long alpha_bits, long long a_bits,
+    long long d_bits,     long long theta_bits)
+{
+    FKChain *c = (FKChain *)(void *)(size_t)ch;
+    if (!c) return -1;
+    double alpha = _i2f(alpha_bits);
+    double a = _i2f(a_bits);
+    double d = _i2f(d_bits);
+    double theta = _i2f(theta_bits);
+    // Compose T = Rot_x(alpha) · Trans_x(a) · Trans_z(d) · Rot_z(theta).
+    // The base pose stored in the joint is everything EXCEPT the
+    // joint variable's contribution.
+    // Rotation: Rot_x(alpha) · Rot_z(theta). As a quaternion:
+    double half_a = alpha * 0.5;
+    double half_t = theta * 0.5;
+    double qa_w = cos(half_a), qa_x = sin(half_a), qa_y = 0, qa_z = 0;
+    double qt_w = cos(half_t), qt_x = 0, qt_y = 0, qt_z = sin(half_t);
+    // q = qa * qt
+    double qw = qa_w*qt_w - qa_x*qt_x - qa_y*qt_y - qa_z*qt_z;
+    double qx = qa_w*qt_x + qa_x*qt_w + qa_y*qt_z - qa_z*qt_y;
+    double qy = qa_w*qt_y - qa_x*qt_z + qa_y*qt_w + qa_z*qt_x;
+    double qz = qa_w*qt_z + qa_x*qt_y - qa_y*qt_x + qa_z*qt_w;
+    // Translation: Rot_x(alpha) applied to (a, 0, d) plus 0.
+    // Rot_x(alpha): y'=cos(α)y - sin(α)z, z'=sin(α)y + cos(α)z.
+    double ca = cos(alpha), sa = sin(alpha);
+    double off_x = a;
+    double off_y = -sa * d;
+    double off_z =  ca * d;
+    // Forward to add_joint with joint type = revolute and axis = z.
+    return nuc_fk_chain_add_joint(ch, FK_REVOLUTE,
+        _f2i(off_x), _f2i(off_y), _f2i(off_z),
+        _f2i(qw), _f2i(qx), _f2i(qy), _f2i(qz),
+        _f2i(0.0), _f2i(0.0), _f2i(1.0));
+}

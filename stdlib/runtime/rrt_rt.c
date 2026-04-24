@@ -205,6 +205,71 @@ long long nuc_rrt_node_count(long long h) {
     return r ? (long long)r->count : 0;
 }
 
+// Path shortcutting (v0.2.182). Repeatedly pick two random
+// indices i < j on the current path; if the straight-line
+// segment from path[i] to path[j] is collision-free at every
+// intermediate `step`-spaced sample, replace path[i+1..j-1]
+// with that line. Standard post-process for RRT raw output.
+//
+// Modifies the cached path in place. Returns the new path
+// length (number of waypoints). Does nothing if path_len < 3.
+long long nuc_rrt_shortcut_path(
+    long long h, long long iters,
+    long long step_bits, long long is_collision_free_fp)
+{
+    NRRT *r = (NRRT *)(void *)(size_t)h;
+    if (!r || !r->path_indices || r->path_len < 3) return r ? r->path_len : 0;
+    coll_fn_t coll_free = (coll_fn_t)(void *)(size_t)is_collision_free_fp;
+    double step = _i2f(step_bits);
+    double *sample = (double *)malloc(r->n_dim * sizeof(double));
+    long long sample_h = (long long)(size_t)sample;
+
+    for (long long it = 0; it < iters; it++) {
+        if (r->path_len < 3) break;
+        // Random i < j on the current path.
+        int span = r->path_len;
+        int i = (int)(_rng_unit(r) * (span - 1));
+        int j = i + 2 + (int)(_rng_unit(r) * (span - i - 2));
+        if (j >= span) j = span - 1;
+        if (j - i < 2) continue;
+
+        double *cfg_i = r->configs + r->path_indices[i] * r->n_dim;
+        double *cfg_j = r->configs + r->path_indices[j] * r->n_dim;
+
+        // Walk the segment from i → j in `step` increments and
+        // verify each intermediate is collision-free.
+        double dist = 0;
+        for (int k = 0; k < r->n_dim; k++) {
+            double d = cfg_j[k] - cfg_i[k];
+            dist += d * d;
+        }
+        dist = sqrt(dist);
+        int n_steps = (int)(dist / step);
+        if (n_steps < 1) n_steps = 1;
+        int free_path = 1;
+        for (int s = 1; s < n_steps; s++) {
+            double t = (double)s / (double)n_steps;
+            for (int k = 0; k < r->n_dim; k++) {
+                sample[k] = cfg_i[k] + t * (cfg_j[k] - cfg_i[k]);
+            }
+            if (coll_free && coll_free(sample_h) == 0) { free_path = 0; break; }
+        }
+        if (!free_path) continue;
+
+        // Collapse path[i+1..j-1] — keep i and j, drop everything
+        // between. Shift later indices down.
+        int drop = (j - i) - 1;
+        if (drop <= 0) continue;
+        for (int k = j; k < r->path_len; k++) {
+            r->path_indices[k - drop] = r->path_indices[k];
+        }
+        r->path_len -= drop;
+    }
+
+    free(sample);
+    return (long long)r->path_len;
+}
+
 void nuc_rrt_free(long long h) {
     NRRT *r = (NRRT *)(void *)(size_t)h;
     if (!r) return;

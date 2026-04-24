@@ -31,6 +31,7 @@ extern fn nuc_fk_chain_link_pos_x(ch: i64, i: i64) -> i64;
 extern fn nuc_fk_chain_link_pos_y(ch: i64, i: i64) -> i64;
 extern fn nuc_fk_chain_link_pos_z(ch: i64, i: i64) -> i64;
 extern fn nuc_fk_chain_link_quat_w(ch: i64, i: i64) -> i64;
+extern fn nuc_fk_chain_add_dh_joint(ch: i64, alpha_bits: i64, a_bits: i64, d_bits: i64, theta_bits: i64) -> i64;
 extern fn nuc_fk_chain_free(ch: i64);
 
 // Joint type tags for fk_add_joint.
@@ -46,6 +47,21 @@ fn fk_chain_link_pos_y(ch: i64, i: i64) -> i64 { return nuc_fk_chain_link_pos_y(
 fn fk_chain_link_pos_z(ch: i64, i: i64) -> i64 { return nuc_fk_chain_link_pos_z(ch, i); }
 fn fk_chain_link_quat_w(ch: i64, i: i64) -> i64 { return nuc_fk_chain_link_quat_w(ch, i); }
 fn fk_chain_free(ch: i64) { nuc_fk_chain_free(ch); }
+
+// Add a joint described by Denavit-Hartenberg parameters (Spong's
+// Robot Modeling and Control). Convenience wrapper for the common
+// industrial-arm description format. Always creates a revolute
+// joint about z; for prismatic, use fk_chain_add_joint with
+// FK_PRISMATIC and a custom axis.
+//
+//   alpha — twist angle about previous x (rad)
+//   a     — link length along previous x (m)
+//   d     — link offset along previous z (m)
+//   theta — joint angle about previous z (rad); the static offset
+//           (joint variable adds to this at FK time)
+fn fk_chain_add_dh_joint(ch: i64, alpha_bits: i64, a_bits: i64, d_bits: i64, theta_bits: i64) -> i64 {
+    return nuc_fk_chain_add_dh_joint(ch, alpha_bits, a_bits, d_bits, theta_bits);
+}
 
 // Add a joint to the chain. Returns its 0-indexed slot.
 //
