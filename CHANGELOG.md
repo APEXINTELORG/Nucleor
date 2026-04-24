@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.338] — 2026-04-24
+
+**T1.3 HashMap + String — verify-gate test promoted + harness
+`#cfile` import bridge fixed.** String (heap-owned mutable
+UTF-8) and HashMap (string-keyed i64 + open-addressed FNV-1a)
+both shipped pre-T1.3 as rods. This ship adds the verify-gate
+guarantee + closes a bug where `nuc test` couldn't link rods
+that depend on C runtime files via `#cfile`.
+
+### Bugs fixed (caught by user-driven verification)
+
+#### A. Test harness lost `#cfile` directives
+
+`resolve_source_with_records` strips `#`-prefixed directives
+from inlined source. The harness was missing the
+`#cfile "../runtime/X.c"` lines, so `nuc test` couldn't link
+hashmap_rt.c, string_rt.c, etc.
+
+Fix: new `collect_imported_cfiles_for_harness(imported)` walks
+the original imports' `#cfile` directives and emits them with
+paths rewritten to the harness location (`target/`). Wired into
+`build_test_harness_source_with_imports`.
+
+#### B. Absolute imp_dir on cache-hit Windows path
+
+When the module-graph cache was hit, `imp_dir` came back as
+absolute (`C:\...\stdlib/rods/`). The cfile rewrite produced
+malformed `target/../C:\...` paths.
+
+Fix: detect absolute paths (POSIX `/X` or Windows `C:`) in
+both `collect_imported_cfiles_for_harness` AND
+`extract_directives` (BOTH compilers — s1 + tools_suite).
+Absolute paths emit as-is; relative paths get the `target/`
+prefix.
+
+### T1.3 smoke
+
+`tests/smoke/t13_hashmap_string.nr` — 6 cases:
+- `string_make` + `string_concat_str` length round-trip
+- `string_of(str)` round-trip
+- `map_set` / `map_get` insert + retrieve
+- `map_set` overwrite same key
+- `map_has` + `map_del` lifecycle
+- `hms_open_addressed` (FNV-1a impl in `hashmap_str.nr`)
+
+New verify-gate step `T1.3 HashMap + String smoke` runs the
+fixture via `nuc test` and asserts all 6 PASS.
+
+### Verify gate
+
+346/342 PASS. Bootstrap fixpoint stable. Cross-compiler
+abs-path fix landed in both s1 and tools_suite simultaneously.
+
+### Numerics-compatibility
+
+No new arithmetic surfaces. String/HashMap rods continue to
+take/return `i64` across FFI per the locked i64-everywhere
+convention. Caller packs/unpacks narrow values via `as` casts
+at the let-binding boundary.
+
+### Files
+
+- `compiler/nucleor_tools_suite.nr` — collect_imported_cfiles +
+  build_test_harness_source_with_imports + abs-path detection.
+- `compiler/nucleor_s1_compiler.nr` — extract_directives
+  abs-path detection (synced).
+- `bin/nucleor.exe`, `bin/nucleor_tools.exe` — both rebuilt.
+- `tests/smoke/t13_hashmap_string.nr` — new fixture.
+- `tools/verify.ps1` — new T1.3 step.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+T1.7 Linux build target.
+
 ## [0.2.337] — 2026-04-24
 
 **T1.9 test framework smoke + T1.1 narrow-wrap parity fix

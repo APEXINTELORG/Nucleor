@@ -9157,7 +9157,14 @@ fn extract_directives(raw_source: str, base_dir: str) -> Vec<i32> {
                     let ps: i64 = qp + 1;
                     let mut pe: i64 = ps;
                     while pe < eol && str_char_at(raw_source, pe) != 34 { pe = pe + 1; };
-                    sb_append(cfiles, " "); sb_append(cfiles, str_concat(base_dir, str_substring(raw_source, ps, pe)));
+                    let cf_path: str = str_substring(raw_source, ps, pe);
+                    let cflen: i64 = str_len(cf_path);
+                    let mut cf_abs: i64 = 0;
+                    if cflen >= 1 && str_char_at(cf_path, 0) == 47 { cf_abs = 1; };
+                    if cflen >= 2 && str_char_at(cf_path, 1) == 58 { cf_abs = 1; };
+                    sb_append(cfiles, " ");
+                    if cf_abs == 1 { sb_append(cfiles, cf_path); }
+                    else { sb_append(cfiles, str_concat(base_dir, cf_path)); };
                 };
             } else if line_len >= 10 && str_eq_at(raw_source, lp, "#libpath ") == 1 {
                 let mut qp: i64 = lp + 9;

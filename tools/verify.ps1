@@ -701,6 +701,21 @@ Step "self-host rebuild closes" {
 # the same binary. Prevents the class of bug where a compiler change
 # silently poisons the next compile (Phase 1's narrow_via_as truncating
 # stdlib's `let val: i32 = n` for str_from_int was caught this way).
+Step "T1.3 HashMap + String smoke" {
+    # T1.3 (v0.2.338): HashMap (string-keyed i64 + open-addressed) +
+    # String (heap-owned mutable UTF-8) round-trip via nuc test.
+    # Exercises the harness #cfile-import bridge fix.
+    $src = Join-Path $root "tests\smoke\t13_hashmap_string.nr"
+    if (-not (Test-Path $src)) { return $false }
+    $out = & $bin test $src 2>&1 | Out-String
+    if ($out -notmatch "PASS: test_string_make_and_push") { return $false }
+    if ($out -notmatch "PASS: test_hashmap_insert_get") { return $false }
+    if ($out -notmatch "PASS: test_hashmap_overwrite") { return $false }
+    if ($out -notmatch "PASS: test_hms_open_addressed") { return $false }
+    if ($out -notmatch "test result: PASS \(6 tests\)") { return $false }
+    return $true
+}
+
 Step "T1.9 nuc test framework smoke" {
     # Verifies `nuc test` discovers #[test] functions and reports PASS
     # for each. The harness fixture is `tests/smoke/t19_test_framework.nr`.

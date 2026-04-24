@@ -9946,7 +9946,14 @@ fn extract_directives(raw_source: str, base_dir: str) -> Vec<i32> {
                     let ps: i64 = qp + 1;
                     let mut pe: i64 = ps;
                     while pe < eol && str_char_at(raw_source, pe) != 34 { pe = pe + 1; };
-                    sb_append(cfiles, " "); sb_append(cfiles, str_concat(base_dir, str_substring(raw_source, ps, pe)));
+                    let cf_path: str = str_substring(raw_source, ps, pe);
+                    let cflen: i64 = str_len(cf_path);
+                    let mut cf_abs: i64 = 0;
+                    if cflen >= 1 && str_char_at(cf_path, 0) == 47 { cf_abs = 1; };
+                    if cflen >= 2 && str_char_at(cf_path, 1) == 58 { cf_abs = 1; };
+                    sb_append(cfiles, " ");
+                    if cf_abs == 1 { sb_append(cfiles, cf_path); }
+                    else { sb_append(cfiles, str_concat(base_dir, cf_path)); };
                 };
             } else if line_len >= 10 && str_eq(str_substring(raw_source, lp, lp + 9), "#libpath ") {
                 let mut qp: i64 = lp + 9;
@@ -10276,15 +10283,109 @@ fn collect_test_names_from_source(source: str) -> Vec<i32> {
     return tests;
 }
 
-fn build_test_harness_source(resolved_source: str, tests: Vec<i32>) -> str {
+// T1.3 (v0.2.338): collect #cfile directives from every imported
+// rod file and emit them at the top of the harness with paths
+// rewritten to be harness-relative (target/.. → repo root). This
+// closes the gap where `resolve_source_with_records` strips
+// `#cfile` lines, so the harness compile would otherwise have no
+// way to reach the rod runtime .c files.
+fn collect_imported_cfiles_for_harness(imported: Vec<i32>) -> str {
     let mut sb: i64 = sb_new();
+    let mut i: i64 = 0;
+    while i < vec_len(imported) {
+        let imp_path: str = vec_get(imported, i);
+        let imp_raw: str = file_read_string(imp_path);
+        let imp_dir: str = extract_dir(imp_path);
+        let slen: i64 = str_len(imp_raw);
+        let mut p: i64 = 0;
+        while p < slen {
+            let mut eol: i64 = p;
+            while eol < slen && str_char_at(imp_raw, eol) != 10 { eol = eol + 1; };
+            let mut lp: i64 = p;
+            while lp < eol && (str_char_at(imp_raw, lp) == 32 || str_char_at(imp_raw, lp) == 9) { lp = lp + 1; };
+            let line_len: i64 = eol - lp;
+            if line_len >= 8 && str_char_at(imp_raw, lp) == 35 &&
+               str_eq(str_substring(imp_raw, lp, lp + 7), "#cfile ") == 1 {
+                let mut qp: i64 = lp + 7;
+                while qp < eol && str_char_at(imp_raw, qp) == 32 { qp = qp + 1; };
+                if qp < eol && str_char_at(imp_raw, qp) == 34 {
+                    let ps: i64 = qp + 1;
+                    let mut pe: i64 = ps;
+                    while pe < eol && str_char_at(imp_raw, pe) != 34 { pe = pe + 1; };
+                    let raw_path: str = str_substring(imp_raw, ps, pe);
+                    // Resolve the directive's relative path against the
+                    // rod's directory. imp_dir may be absolute (from
+                    // cache resolution on Windows: `C:\...\stdlib/rods/`)
+                    // or relative (`stdlib/rods/`). Produce a path that
+                    // works either way: if absolute, emit as-is; if
+                    // relative, make it harness-relative via `../`.
+                    let resolved: str = str_concat(imp_dir, raw_path);
+                    let dlen: i64 = str_len(imp_dir);
+                    let mut is_abs: i64 = 0;
+                    if dlen >= 1 && str_char_at(imp_dir, 0) == 47 { is_abs = 1; };
+                    if dlen >= 2 && str_char_at(imp_dir, 1) == 58 { is_abs = 1; };
+                    sb_append(sb, "#cfile \"");
+                    if is_abs == 0 { sb_append(sb, "../"); };
+                    sb_append(sb, resolved);
+                    sb_append(sb, "\"\n");
+                };
+            };
+            p = eol + 1;
+        };
+        i = i + 1;
+    };
+    return sb_to_str(sb);
+}
+
+// Legacy helper kept for backwards-compat with any inline #cfile that
+// survives in the harness source. Currently no-op for the common
+// "../runtime/X.c" pattern since collect_imported_cfiles_for_harness
+// handles it; this acts as a safety net.
+fn rewrite_cfile_for_harness(line: str) -> str {
+    let llen: i64 = str_len(line);
+    let mut lp: i64 = 0;
+    while lp < llen && (str_char_at(line, lp) == 32 || str_char_at(line, lp) == 9) { lp = lp + 1; };
+    if lp + 7 > llen { return line; };
+    if str_eq(str_substring(line, lp, lp + 7), "#cfile ") == 0 { return line; };
+    // Find the quoted path
+    let mut qp: i64 = lp + 7;
+    while qp < llen && str_char_at(line, qp) == 32 { qp = qp + 1; };
+    if qp >= llen || str_char_at(line, qp) != 34 { return line; };
+    let ps: i64 = qp + 1;
+    let mut pe: i64 = ps;
+    while pe < llen && str_char_at(line, pe) != 34 { pe = pe + 1; };
+    let path: str = str_substring(line, ps, pe);
+    // Common rod pattern: "../runtime/X.c" (relative to stdlib/rods/).
+    // Rewrite to harness-relative: "../stdlib/runtime/X.c".
+    let mut new_path: str = path;
+    if str_starts_with(path, "../runtime/") == 1 {
+        new_path = str_concat("../stdlib/runtime/", str_substring(path, 11, str_len(path)));
+    };
+    let mut sb: i64 = sb_new();
+    sb_append(sb, str_substring(line, 0, ps));
+    sb_append(sb, new_path);
+    sb_append(sb, str_substring(line, pe, llen));
+    return sb_to_str(sb);
+}
+
+fn build_test_harness_source(resolved_source: str, tests: Vec<i32>) -> str {
+    let mut empty: Vec<i32> = Vec::new();
+    return build_test_harness_source_with_imports(resolved_source, tests, empty);
+}
+
+fn build_test_harness_source_with_imports(resolved_source: str, tests: Vec<i32>, imported: Vec<i32>) -> str {
+    let mut sb: i64 = sb_new();
+    // T1.3: prepend #cfile directives collected from the original
+    // imports so the harness build can find rod runtime .c files.
+    sb_append(sb, collect_imported_cfiles_for_harness(imported));
     let slen: i64 = str_len(resolved_source);
     let mut p: i64 = 0;
     while p < slen {
         let mut eol: i64 = p;
         while eol < slen && str_char_at(resolved_source, eol) != 10 { eol = eol + 1; };
         let line: str = str_substring(resolved_source, p, eol);
-        sb_append(sb, rewrite_test_main_line(line));
+        let rewritten: str = rewrite_cfile_for_harness(line);
+        sb_append(sb, rewrite_test_main_line(rewritten));
         if eol < slen { sb_append(sb, "\n"); };
         p = eol + 1;
     };
@@ -10658,7 +10759,8 @@ fn run_test_command(src_path: str, out_name: str, use_cache: i64, time_passes: i
         print(str_concat("ERROR: cannot resolve ", src_path));
         return 1;
     };
-    let harness_source: str = build_test_harness_source(resolved_source, tests);
+    let imported: Vec<i32> = vec_get(bundle, 1);
+    let harness_source: str = build_test_harness_source_with_imports(resolved_source, tests, imported);
     // v0.2.69 fix: ensure target/ exists before writing the harness file.
     // Without this, `nuc test foo.nr` from a fresh directory fails with
     // "ERROR: cannot read target/foo__test_harness.nr" because
