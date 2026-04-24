@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.271] — 2026-04-24
+
+**Robotics: natural cubic spline (`cspline`) — smooth interpolation
+through waypoints with continuous first and second derivatives at
+every internal waypoint and `y''(x_0) = y''(x_N) = 0` boundary
+conditions.**
+
+### Algorithm
+
+Standard textbook tridiagonal solve via the Thomas algorithm for
+the second derivatives `m_k` at each waypoint, then per-segment
+cubic evaluation:
+
+```
+y(x) = m_k/(6 h_k)·(x_{k+1} − x)³ + m_{k+1}/(6 h_k)·(x − x_k)³
+     + (y_k/h_k − m_k h_k/6)·(x_{k+1} − x)
+     + (y_{k+1}/h_k − m_{k+1} h_k/6)·(x − x_k)
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/cspline.nr"
+
+let s = cspline_new(n_waypoints);
+for k in 0..n_waypoints {
+    cspline_set_waypoint(s, k, x_b, y_b);
+}
+cspline_solve(s);     // returns 0 if x is not strictly increasing
+
+for tick {
+    let y_b = cspline_eval(s, x_b);
+    let yp_b = cspline_eval_derivative(s, x_b);
+    let ypp_b = cspline_eval_second_derivative(s, x_b);
+}
+```
+
+### How it differs from existing trajectory rods
+
+- `qtraj.nr` — minimum-snap (4th-derivative-bounded) 7th-degree
+  per segment; for quadrotors / differentially-flat systems.
+- `bspline.nr` — general degree-k B-splines with explicit control
+  points and knot vectors.
+- `cspline.nr` — simplest "smooth fit through waypoints" primitive,
+  no extra control-point machinery.
+
+### Verification
+
+5 waypoints sampled from `y = sin(x)` at `x = 0, π/4, π/2, 3π/4, π`:
+
+1. Interpolation **exact** at every waypoint (errors < 1e-9).
+2. Second derivative **zero** at both endpoints (1e-9 tolerance) —
+   natural BC holds.
+3. Max approximation error vs `sin(x)` over 50 mid-segment samples:
+   `1.06e-3`. Excellent quality with only 5 control points.
+
+### Files
+
+- `stdlib/runtime/cspline_rt.c` — `nuc_cspline_*` API; Thomas
+  tridiagonal solve; binary-search segment lookup.
+- `stdlib/rods/cspline.nr` — externs + wrappers.
+- `tests/rods/cspline_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.270] — 2026-04-24
 
 **Robotics: per-DOF admittance controller (`admit`). Maps measured
