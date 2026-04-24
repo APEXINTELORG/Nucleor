@@ -181,17 +181,23 @@ void nuc_dyn_set_gravity(long long h, long long gx_b, long long gy_b, long long 
     d->gravity[2] = _i2f(gz_b);
 }
 
-// Inverse dynamics: compute joint torques tau given (q, qd, qdd).
-// All array handles are flat double[n_links] pointers (caller-owned).
+// Inverse dynamics core (v0.2.212 refactor): the world-frame
+// two-pass RNEA, parameterized by an applied tip wrench so both
+// the standard and wrench-augmented entry points share the body.
 //
-// Implementation: world-frame two-pass RNEA. The forward pass
-// propagates link kinematics (ω, ω̇, a) from base to tip; the
-// backward pass propagates wrenches (force, torque) from tip to
-// base, projecting onto the joint axis to extract the per-joint
-// torque scalar.
-long long nuc_dyn_inverse(long long h,
-                         long long q_ptr, long long qd_ptr, long long qdd_ptr,
-                         long long tau_out_ptr)
+// Forward pass propagates link kinematics (ω, ω̇, a) from base to
+// tip; backward pass propagates wrenches (force, torque) from
+// tip to base, projecting onto the joint axis to extract the
+// per-joint torque scalar.
+//
+// `tip_force` and `tip_torque` are the applied wrench at the
+// end-effector tip in world frame (set both to zero for the
+// standard case). Sign convention: positive force is what the
+// *environment* applies *to* the robot.
+static long long _dyn_rnea_core(long long h,
+    long long q_ptr, long long qd_ptr, long long qdd_ptr,
+    const double *tip_force, const double *tip_torque,
+    long long tau_out_ptr)
 {
     NDyn *d = (NDyn *)(void *)(size_t)h;
     if (!d) return -1;
@@ -200,7 +206,8 @@ long long nuc_dyn_inverse(long long h,
     double *qd  = (double *)(void *)(size_t)qd_ptr;
     double *qdd = (double *)(void *)(size_t)qdd_ptr;
     double *tau = (double *)(void *)(size_t)tau_out_ptr;
-    if (!q || !qd || !qdd || !tau) return -1;
+    (void)q;
+    if (!qd || !qdd || !tau) return -1;
 
     // Run FK to refresh the chain's link world-frame poses.
     nuc_fk_chain_update(d->fk_handle, q_ptr);
@@ -325,8 +332,15 @@ long long nuc_dyn_inverse(long long h,
         parent_pos[2] = pos_w[i][2];
     }
 
-    // Backward pass: wrenches.
-    double f_next[3] = {0,0,0}, n_next[3] = {0,0,0};
+    // Backward pass: wrenches. Initialize with the applied tip
+    // wrench. Sign convention: positive `tip_force` / `tip_torque`
+    // is what the environment applies to the robot (ROS / standard
+    // convention). In RNEA's recursion, this is exactly what
+    // "f_next" represents at the tip — the force the next body
+    // (here, the environment) applies to the current link — so
+    // we copy the wrench in directly.
+    double f_next[3] = { tip_force[0],  tip_force[1],  tip_force[2]  };
+    double n_next[3] = { tip_torque[0], tip_torque[1], tip_torque[2] };
     double next_pos[3] = {0,0,0};   // origin of link i+1 in world (for r_{i+1})
 
     for (int i = n - 1; i >= 0; i--) {
@@ -389,6 +403,38 @@ long long nuc_dyn_inverse(long long h,
     free(axis_w); free(pos_w); free(jtype);
     free(w); free(wd); free(a); free(acm);
     return 0;
+}
+
+// Public entry points: standard inverse (no applied wrench) and
+// wrench-augmented variant (v0.2.212).
+long long nuc_dyn_inverse(long long h,
+                         long long q_ptr, long long qd_ptr, long long qdd_ptr,
+                         long long tau_out_ptr)
+{
+    double zero[3] = {0,0,0};
+    return _dyn_rnea_core(h, q_ptr, qd_ptr, qdd_ptr, zero, zero, tau_out_ptr);
+}
+
+// Inverse dynamics with an applied tip wrench (force + torque, both
+// world-frame). Use cases:
+// - Modeling environment contact (peg-in-hole, surface tracking) —
+//   the contact force shows up in the resulting joint torques.
+// - Computing the joint torques required to *resist* a known
+//   external load (e.g., "carry a 5 kg payload at the tip").
+// - Verifying force-controlled behavior in simulation.
+//
+// Sign convention: positive force is what the environment applies
+// *to* the robot. The robot's reaction torques include the term
+// needed to balance this load.
+long long nuc_dyn_inverse_with_wrench(long long h,
+    long long q_ptr, long long qd_ptr, long long qdd_ptr,
+    long long fx_b, long long fy_b, long long fz_b,
+    long long tx_b, long long ty_b, long long tz_b,
+    long long tau_out_ptr)
+{
+    double f[3] = { _i2f(fx_b), _i2f(fy_b), _i2f(fz_b) };
+    double t[3] = { _i2f(tx_b), _i2f(ty_b), _i2f(tz_b) };
+    return _dyn_rnea_core(h, q_ptr, qd_ptr, qdd_ptr, f, t, tau_out_ptr);
 }
 
 // Gravity-compensation torques — the special case qd = qdd = 0.
@@ -536,6 +582,102 @@ long long nuc_dyn_forward(long long h,
     }
 
     free(zero); free(bias); free(M); free(Minv); free(rhs);
+    return 0;
+}
+
+// === Cartesian impedance / operational-space PD (v0.2.212) ==============
+//
+// Computes joint torques for a position-task PD controller in
+// Cartesian (operational) space:
+//
+//     F_cart = K · (p_des − p_actual) − D · (J · qd)
+//     tau    = Jᵀ · F_cart  [+ g(q) if include_gravity]
+//
+// Where K and D are 3-vectors (diagonal stiffness and damping in
+// world frame) and J is the position-only geometric Jacobian.
+// `include_gravity` adds gravity-compensation torques so the
+// stiffness `K` produces the actual restoring force the user
+// expects (rather than fighting gravity-induced drift).
+//
+// This is the most common entry point for "soft" Cartesian control
+// in robotics — useful for compliant peg-in-hole, contact-rich
+// manipulation, and any application where pure position control
+// would over-react to disturbances.
+long long nuc_dyn_cartesian_impedance(long long h,
+    long long q_ptr, long long qd_ptr,
+    long long pdes_x_b, long long pdes_y_b, long long pdes_z_b,
+    long long kx_b, long long ky_b, long long kz_b,
+    long long dx_b, long long dy_b, long long dz_b,
+    long long include_gravity,
+    long long tau_out_ptr)
+{
+    NDyn *d = (NDyn *)(void *)(size_t)h;
+    if (!d) return -1;
+    int n = d->n_links;
+    double *q   = (double *)(void *)(size_t)q_ptr;
+    double *qd  = (double *)(void *)(size_t)qd_ptr;
+    double *tau = (double *)(void *)(size_t)tau_out_ptr;
+    if (!q || !qd || !tau) return -1;
+
+    double pd_x = _i2f(pdes_x_b), pd_y = _i2f(pdes_y_b), pd_z = _i2f(pdes_z_b);
+    double K[3] = { _i2f(kx_b), _i2f(ky_b), _i2f(kz_b) };
+    double D[3] = { _i2f(dx_b), _i2f(dy_b), _i2f(dz_b) };
+
+    // Current end-effector position via FK.
+    nuc_fk_chain_update(d->fk_handle, q_ptr);
+    int last = n - 1;
+    double cx = _i2f(nuc_fk_chain_link_pos_x(d->fk_handle, last));
+    double cy = _i2f(nuc_fk_chain_link_pos_y(d->fk_handle, last));
+    double cz = _i2f(nuc_fk_chain_link_pos_z(d->fk_handle, last));
+
+    // Numerical Jacobian (3 × n) via finite differences.
+    double *J = (double *)malloc(3 * n * sizeof(double));
+    double *perturbed = (double *)malloc(n * sizeof(double));
+    long long perturbed_h = (long long)(size_t)perturbed;
+    double eps = 1e-5;
+    for (int j = 0; j < n; j++) {
+        memcpy(perturbed, q, n * sizeof(double));
+        perturbed[j] += eps;
+        nuc_fk_chain_update(d->fk_handle, perturbed_h);
+        double px = _i2f(nuc_fk_chain_link_pos_x(d->fk_handle, last));
+        double py = _i2f(nuc_fk_chain_link_pos_y(d->fk_handle, last));
+        double pz = _i2f(nuc_fk_chain_link_pos_z(d->fk_handle, last));
+        J[0*n + j] = (px - cx) / eps;
+        J[1*n + j] = (py - cy) / eps;
+        J[2*n + j] = (pz - cz) / eps;
+    }
+    // Restore FK to the queried configuration.
+    nuc_fk_chain_update(d->fk_handle, q_ptr);
+
+    // Cartesian velocity v = J · qd  (3-vector).
+    double v[3] = {0,0,0};
+    for (int r = 0; r < 3; r++) {
+        for (int k = 0; k < n; k++) v[r] += J[r*n + k] * qd[k];
+    }
+    // Position error e = p_des - p_actual.
+    double e[3] = { pd_x - cx, pd_y - cy, pd_z - cz };
+    // Cartesian force F = K · e - D · v.
+    double F[3] = {
+        K[0]*e[0] - D[0]*v[0],
+        K[1]*e[1] - D[1]*v[1],
+        K[2]*e[2] - D[2]*v[2],
+    };
+    // Joint torque tau = Jᵀ · F.
+    for (int j = 0; j < n; j++) {
+        double s = 0;
+        for (int r = 0; r < 3; r++) s += J[r*n + j] * F[r];
+        tau[j] = s;
+    }
+    free(J); free(perturbed);
+
+    // Optional gravity compensation.
+    if (include_gravity) {
+        double *zero = (double *)calloc(n, sizeof(double));
+        double *tau_g = (double *)calloc(n, sizeof(double));
+        nuc_dyn_gravity(h, q_ptr, (long long)(size_t)tau_g);
+        for (int j = 0; j < n; j++) tau[j] += tau_g[j];
+        free(zero); free(tau_g);
+    }
     return 0;
 }
 
