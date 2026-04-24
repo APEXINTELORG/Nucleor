@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 163
-# Total fn definitions: 1785
-# Total LOC: 7803
+# Total rods: 164
+# Total fn definitions: 1787
+# Total LOC: 7836
 
 [[rod]]
 name           = "activation2"
@@ -370,6 +370,15 @@ function_count = 10
 cfile_count    = 1
 loc            = 21
 imports        = ["datetime"]
+
+[[rod]]
+name           = "ddp"
+path           = "stdlib/rods/ddp.nr"
+description    = "Differential Dynamic Programming (Mayne 1966; Jacobson"
+function_count = 2
+cfile_count    = 1
+loc            = 33
+imports        = []
 
 [[rod]]
 name           = "diff_sim"
