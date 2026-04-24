@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 221
-# Total fn definitions: 2090
-# Total LOC: 9187
+# Total rods: 222
+# Total fn definitions: 2094
+# Total LOC: 9216
 
 [[rod]]
 name           = "activation2"
@@ -487,6 +487,15 @@ function_count = 2
 cfile_count    = 1
 loc            = 18
 imports        = ["delaunay"]
+
+[[rod]]
+name           = "diff_drive"
+path           = "stdlib/rods/diff_drive.nr"
+description    = "Differential-drive (2-wheel) kinematics +"
+function_count = 4
+cfile_count    = 1
+loc            = 29
+imports        = ["diff_drive"]
 
 [[rod]]
 name           = "diff_sim"
