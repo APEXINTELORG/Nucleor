@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 216
-# Total fn definitions: 2080
-# Total LOC: 9124
+# Total rods: 217
+# Total fn definitions: 2086
+# Total LOC: 9149
 
 [[rod]]
 name           = "activation2"
@@ -1360,6 +1360,15 @@ function_count = 38
 cfile_count    = 1
 loc            = 337
 imports        = ["quantum"]
+
+[[rod]]
+name           = "quat"
+path           = "stdlib/rods/quat.nr"
+description    = "Unit-quaternion utilities for 3-D rotation."
+function_count = 6
+cfile_count    = 1
+loc            = 25
+imports        = ["quat"]
 
 [[rod]]
 name           = "queue"
