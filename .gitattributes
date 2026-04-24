@@ -12,6 +12,13 @@
 *.yml  text eol=lf
 *.yaml text eol=lf
 
+# T1.7 (v0.2.339): the bootstrap IR seed must be byte-identical
+# everywhere — Linux clang reads it for stage-1 link, and the verify
+# gate sha256-compares it against a fresh Windows compile. Force LF
+# so Git's CRLF auto-conversion can't change the bytes.
+*.ll   text eol=lf
+*.sh   text eol=lf
+
 # Windows scripts: CRLF
 *.bat  text eol=crlf
 *.ps1  text eol=crlf
