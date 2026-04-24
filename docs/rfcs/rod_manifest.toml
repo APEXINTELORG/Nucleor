@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 195
-# Total fn definitions: 2036
-# Total LOC: 8731
+# Total rods: 196
+# Total fn definitions: 2048
+# Total LOC: 8774
 
 [[rod]]
 name           = "activation2"
@@ -1009,6 +1009,15 @@ function_count = 59
 cfile_count    = 0
 loc            = 59
 imports        = ["numeric"]
+
+[[rod]]
+name           = "occgrid"
+path           = "stdlib/rods/occgrid.nr"
+description    = "2D log-odds probabilistic occupancy grid."
+function_count = 12
+cfile_count    = 1
+loc            = 43
+imports        = ["occgrid"]
 
 [[rod]]
 name           = "octree"
