@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.260] — 2026-04-24
+
+**Robotics: receding-horizon MPC wrapper (`mpc`) around iLQR.
+Standard MPC pattern — observe state, plan over horizon T (warm-
+started from previous tick's solution), execute u_0, shift the
+warm-start sequence, tick again. Thin persistent layer over the
+existing iLQR runtime.**
+
+### Algorithm
+
+```
+At each control tick:
+  1. Run iLQR for current state x with warm-start sequence u_seq.
+  2. Output u_seq[0] to caller.
+  3. Shift: u_seq[t] = u_seq[t+1] for t in 0..T-1; last slot keeps
+     a copy of itself (standard "horizon-end stays put" tail).
+```
+
+The whole point is the warm start — re-planning from scratch each
+tick is wasteful when consecutive states differ by a single
+timestep. After the first few ticks, iLQR typically converges in
+1–3 iterations per tick.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/mpc.nr"
+
+let m = mpc_new(n_x, n_u, T, max_iters_per_step);
+mpc_set_callbacks(m, dynamics_fp, stage_cost_fp, terminal_cost_fp);
+// optional warm seed (else starts at zeros):
+mpc_warm_start(m, u_seq_ptr);
+
+for tick {
+    mpc_step(m, x_ptr, u_out_ptr);
+    // apply u_out to plant; sequence is auto-shifted
+}
+```
+
+### Verification
+
+Closed-loop MPC on a 2-D double integrator (pos, vel; scalar accel
+input). Goal `(1, 0)` from start `(0, 0)`. Horizon `T = 30`,
+`max_iters_per_step = 8`, terminal cost `50·(p−1)² + 5·v²`.
+
+- 60 ticks total. Final state `(1.0098, 0.0065)` — converged.
+- Warm-start kept iLQR at **2 iterations per tick** the entire run
+  (max 2, avg-after-warm-up 2.00). Without warm-start each tick
+  would take ~10–20 iters.
+- Total iLQR work: **120 iters across 60 ticks**.
+
+### Files
+
+- `stdlib/runtime/mpc_rt.c` — `nuc_mpc_*` API; persistent
+  warm-start buffer; calls `nuc_ilqr_optimize` per tick; shift
+  policy.
+- `stdlib/rods/mpc.nr` — externs + wrappers; pulls in both
+  `mpc_rt.c` and `ilqr_rt.c` via `#cfile`.
+- `tests/rods/mpc_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.259] — 2026-04-24
 
 **Fix: rename v0.2.257's `pid` rod to `pidc`. The new rod's

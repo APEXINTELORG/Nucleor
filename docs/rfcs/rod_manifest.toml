@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 173
-# Total fn definitions: 1869
-# Total LOC: 8112
+# Total rods: 174
+# Total fn definitions: 1878
+# Total LOC: 8140
 
 [[rod]]
 name           = "activation2"
@@ -847,6 +847,15 @@ function_count = 9
 cfile_count    = 1
 loc            = 27
 imports        = ["moe"]
+
+[[rod]]
+name           = "mpc"
+path           = "stdlib/rods/mpc.nr"
+description    = "Receding-horizon Model Predictive Control wrapper"
+function_count = 9
+cfile_count    = 2
+loc            = 28
+imports        = ["mpc"]
 
 [[rod]]
 name           = "mps"
