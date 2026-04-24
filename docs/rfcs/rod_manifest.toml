@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 193
-# Total fn definitions: 2023
-# Total LOC: 8671
+# Total rods: 194
+# Total fn definitions: 2031
+# Total LOC: 8710
 
 [[rod]]
 name           = "activation2"
@@ -1387,6 +1387,15 @@ function_count = 10
 cfile_count    = 1
 loc            = 31
 imports        = ["sdf"]
+
+[[rod]]
+name           = "se3"
+path           = "stdlib/rods/se3.nr"
+description    = "Pointer-based SE(3) operations on raw `(t ∈ ℝ³,"
+function_count = 8
+cfile_count    = 1
+loc            = 39
+imports        = ["se3"]
 
 [[rod]]
 name           = "serial"
