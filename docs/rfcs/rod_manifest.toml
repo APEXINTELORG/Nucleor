@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 176
-# Total fn definitions: 1898
-# Total LOC: 8190
+# Total rods: 177
+# Total fn definitions: 1906
+# Total LOC: 8215
 
 [[rod]]
 name           = "activation2"
@@ -1495,6 +1495,15 @@ function_count = 12
 cfile_count    = 0
 loc            = 21
 imports        = ["toml"]
+
+[[rod]]
+name           = "topp"
+path           = "stdlib/rods/topp.nr"
+description    = "Trapezoidal time-parameterization for a 1-D"
+function_count = 8
+cfile_count    = 1
+loc            = 25
+imports        = ["topp"]
 
 [[rod]]
 name           = "trajectory"

@@ -5,6 +5,75 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.263] — 2026-04-24
+
+**Robotics: trapezoidal time-parameterization (`topp`) for an arc-
+length path. Given path length `L`, max velocity `v_max`, and max
+acceleration `a_max`, computes the minimum-time `s(t)` profile
+with `|ṡ| ≤ v_max` and `|s̈| ≤ a_max`. Falls back to triangular
+profile (peak `< v_max`) when the path is too short for cruise.**
+
+### Algorithm
+
+```
+t1 = v_max / a_max       // accel duration
+d1 = ½ · a_max · t1²     // accel distance
+
+if 2·d1 ≥ L:             // triangular — never reach v_max
+    t_accel = √(L / a_max)
+    v_peak  = a_max · t_accel
+    T       = 2 · t_accel
+else:                    // trapezoidal
+    t_cruise = (L − 2·d1) / v_max
+    T        = 2·t1 + t_cruise
+
+s(t) = ½ a t²                                        for t in [0, t1]
+     = d1 + v_peak (t − t1)                          for t in [t1, t1+t_cruise]
+     = L − ½ a (T − t)²                              for t in [t1+t_cruise, T]
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/topp.nr"
+
+let h = topp_trap_new(L_b, v_max_b, a_max_b);
+let T = topp_trap_total_time(h);
+
+for tick {
+    let s_b = topp_trap_position(h, t_b);
+    let v_b = topp_trap_velocity(h, t_b);
+    let a_b = topp_trap_acceleration(h, t_b);
+}
+```
+
+Use to time-parameterize a geometric path (e.g. minimum-snap from
+`qtraj.nr`): the user gets `t → s(t)` and maps `s` back to robot
+configuration via the original path.
+
+### Verification
+
+Two direct C tests:
+
+1. **Trapezoidal** (L=10, v_max=2, a_max=1): T=`7.000000`s
+   (analytical = 7), v_peak=`2.000000` (=v_max). Spot checks at
+   `t=1` (`s=0.5, v=1`), `t=3` mid-cruise (`s=4.0, v=2.0`),
+   `t=7` end (`s=10.0`). Acceleration sign correct in all three
+   phases.
+2. **Triangular** (L=1, v_max=10, a_max=2 — v_max never reached):
+   T=`1.414214`s (`=√2`), v_peak=`1.414214` (`=√(L·a_max)`).
+   Boundary `s(0)=0`, `s(T)=L` exact.
+
+### Files
+
+- `stdlib/runtime/topp_rt.c` — `nuc_topp_trap_*` API; closed-form
+  position / velocity / acceleration for accel / cruise / decel
+  phases.
+- `stdlib/rods/topp.nr` — externs + wrappers.
+- `tests/rods/topp_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.262] — 2026-04-24
 
 **Robotics: D* Lite incremental grid replanner (`dstar`) on a
