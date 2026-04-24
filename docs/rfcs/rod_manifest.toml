@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 165
-# Total fn definitions: 1794
-# Total LOC: 7862
+# Total rods: 166
+# Total fn definitions: 1801
+# Total LOC: 7887
 
 [[rod]]
 name           = "activation2"
@@ -703,6 +703,15 @@ function_count = 35
 cfile_count    = 0
 loc            = 397
 imports        = ["complex", "fmt", "json", "strings"]
+
+[[rod]]
+name           = "kdt"
+path           = "stdlib/rods/kdt.nr"
+description    = "3D KD-tree for fast nearest-neighbor queries."
+function_count = 7
+cfile_count    = 1
+loc            = 25
+imports        = ["kdt"]
 
 [[rod]]
 name           = "kdtree"
