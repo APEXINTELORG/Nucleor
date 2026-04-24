@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.178] — 2026-04-24
+
+**Robotics: collision primitives. New `collision.nr` rod ships
+sphere-sphere, sphere-capsule, capsule-capsule, and AABB-AABB
+overlap tests. Foundation for collision-aware motion planning
+(v0.5).**
+
+Fourth robotics ship in this session arc:
+
+- v0.2.174 — Vec3 / quat / Pose primitives
+- v0.2.175 — fk_chain (forward kinematics)
+- v0.2.176 — ik_dls (inverse kinematics)
+- v0.2.177 — trajectory (quintic polynomial)
+- **v0.2.178 — collision (geometric primitives)**
+
+Each test takes raw doubles (xyz components + radii) and returns
+1 (collision) or 0 (no collision). No allocation; pure compute.
+Suitable as the narrow-phase leaf in a BVH or spatial-hash
+broad-phase / narrow-phase pipeline.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/collision.nr"
+
+// Sphere-sphere: returns 1 (overlap) or 0 (clear).
+let hit = coll_sphere_sphere(
+    f64_to_bits(0.0), f64_to_bits(0.0), f64_to_bits(0.0), f64_to_bits(1.0),  // a center + radius
+    f64_to_bits(1.0), f64_to_bits(0.0), f64_to_bits(0.0), f64_to_bits(1.0)   // b center + radius
+);
+
+// Sphere-capsule, capsule-capsule, AABB-AABB available with the
+// same pattern — see stdlib/rods/collision.nr for signatures.
+```
+
+### Files
+
+- `stdlib/runtime/collision_rt.c`: ~140 LOC. Includes the
+  point-segment and segment-segment closest-distance helpers
+  (Real-Time Collision Detection, Ericson, sec 5.1.9) used by
+  the capsule tests. AABB test is straightforward axis-by-axis.
+- `stdlib/rods/collision.nr`: 4 builtins (one per pair).
+- `tests/rods/collision_smoke.nr`: positive smoke asserting
+  spheres-apart returns 0, spheres-overlap returns 1, and
+  AABBs touching at a corner return 1 (touch counts as overlap).
+
+### v0.5 follow-on
+
+- Mesh / convex-hull collision via GJK + EPA
+- Continuous collision detection (CCD) for fast-moving objects
+- BVH builder + traversal
+- Capsule-AABB, sphere-AABB, sphere-OBB cross-pairs
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**255 / 255 PASS, 0 SKIP** (was 254/254; +1 new smoke test).
+Both budgets hold.
+
 ## [0.2.177] — 2026-04-24
 
 **Robotics: time-parameterized trajectories. New `trajectory.nr`
