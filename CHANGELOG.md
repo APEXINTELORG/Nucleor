@@ -5,6 +5,95 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.204] — 2026-04-23
+
+**Robotics: URDF (Unified Robot Description Format) parser. Reads
+URDF source as a NUL-terminated text buffer, extracts joint
+attributes (type, origin xyz/rpy, axis, limits), and constructs an
+FK chain via `urdf_to_fk_chain` for direct use with the IK solver
+(v0.2.176, .193, .194, .199), motion planners (v0.2.179-200), and
+trajectory parameterization (v0.2.181-203). Closes the v0.5
+robotics roadmap — the rod stack now spans URDF input → FK →
+collision → motion planning → IK → trajectory parameterization.**
+
+URDF is the de-facto standard for describing robot kinematics
+(every ROS robot ships one, every commercial arm has one in the
+manufacturer's distribution). Hand-coding the same joint topology
+in DH parameters is tedious and error-prone; loading the URDF and
+calling `urdf_to_fk_chain` is one line.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/urdf.nr"
+
+let urdf = urdf_new();
+urdf_parse(urdf, str_to_ptr(my_urdf_source));    // returns # joints
+let chain = urdf_to_fk_chain(urdf);              // FK chain handle
+
+// Then use the FK chain with the rest of the robotics stack:
+let iters = ik_dls_solve(chain, vars, tx, ty, tz, 100, tol, lambda);
+let collide = coll_sphere_sphere(/* end-effector vs obstacle */);
+// ... etc.
+```
+
+### Supported per-joint attributes
+
+```xml
+<joint name="..." type="revolute|prismatic|fixed|continuous">
+  <origin xyz="x y z" rpy="r p y"/>     <!-- RPY = roll/pitch/yaw -->
+  <axis xyz="x y z"/>
+  <limit lower="..." upper="..." effort="..." velocity="..."/>
+</joint>
+```
+
+The parser also exposes accessors for each: `urdf_joint_count`,
+`urdf_joint_type`, `urdf_joint_axis`, `urdf_joint_origin_xyz`,
+`urdf_joint_origin_rpy`, `urdf_joint_limit_lo` / `_hi` / `_has_limit`.
+
+### Implementation notes
+
+- Substring-extraction parser, not a full XML parser. Tolerates
+  the formatting variations of hand-written and ROS-exported URDF
+  files; not strictly XML-compliant (no DTDs, no namespaces, no
+  CDATA sections).
+- RPY-to-quaternion conversion uses the URDF default convention
+  R_z(yaw) · R_y(pitch) · R_x(roll).
+- Mesh / visual / collision / inertial subtrees are skipped.
+- `continuous` joint type is treated as `revolute` (no
+  distinction needed by the FK chain).
+
+### Limitations (full URDF compliance lands in v0.6 if needed)
+
+- **Linear-chain assumption**: joints are loaded in source order
+  from base to tip; `<parent>` / `<child>` link relationships are
+  *not* used to reconstruct the topology. Branching trees
+  (humanoids) are flattened to source-order — wrong for those,
+  fine for serial arms (the dominant use case).
+- xacro `<xacro:include>` is NOT resolved — the caller must pre-
+  process xacro to plain URDF first (`xacro myrobot.xacro >
+  myrobot.urdf`).
+
+### Verification
+
+- 2-DOF planar arm URDF (shoulder + elbow + fixed tip), 3 joints
+  parsed with correct types / limits / axes / origins.
+- `urdf_to_fk_chain` produces a chain that, with all joint vars
+  zero, places the end effector at (2, 0, 0) — the analytical
+  position for the straight-out arm with two 1-meter links.
+
+### Files
+
+- `stdlib/runtime/urdf_rt.c` — `_URDFJoint` / `NURDF` state,
+  `_find_elem` / `_find_attr` / `_parse_3d` / `_rpy_to_quat`
+  helpers, `nuc_urdf_*` exports including `_to_fk_chain`.
+- `stdlib/rods/urdf.nr` — externs + Nucleor wrappers; chains
+  `fk_chain.nr` so the FK runtime is linked in.
+- `tests/rods/urdf_smoke.nr` — empty-state linkage smoke
+  (correctness covered by direct C test against a real URDF).
+
+---
+
 ## [0.2.203] — 2026-04-23
 
 **Robotics: TOPP — time-optimal path parameterization. Given a

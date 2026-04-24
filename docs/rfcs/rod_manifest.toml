@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 141
-# Total fn definitions: 1637
-# Total LOC: 6889
+# Total rods: 142
+# Total fn definitions: 1649
+# Total LOC: 6923
 
 [[rod]]
 name           = "activation2"
@@ -1261,6 +1261,15 @@ function_count = 44
 cfile_count    = 1
 loc            = 48
 imports        = ["units"]
+
+[[rod]]
+name           = "urdf"
+path           = "stdlib/rods/urdf.nr"
+description    = "Minimal URDF parser + FK chain integration."
+function_count = 12
+cfile_count    = 1
+loc            = 34
+imports        = ["fk_chain"]
 
 [[rod]]
 name           = "uuid"
