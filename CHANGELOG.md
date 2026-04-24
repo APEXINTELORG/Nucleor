@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.226] — 2026-04-23
+
+**Robotics: sparse octree for 3D occupancy grids and broad-phase
+collision pruning. Foundation for occupancy-grid SLAM (octomap-
+style probabilistic mapping from depth-camera / LiDAR streams),
+voxel-based collision detection in cluttered scenes, and broad-
+phase collision pruning against a precomputed octree of the
+static environment.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/octree.nr"
+
+// Root cube centered at (cx, cy, cz) with the given half-size.
+// max_depth controls leaf resolution: leaves are
+// (2 · half_size / 2^max_depth) per side.
+let oct = oct_new(cx_b, cy_b, cz_b, half_size_b, max_depth);
+
+// Insert occupancy. occupied = 1 (OCCUPIED) or 0 (FREE).
+oct_insert(oct, x_b, y_b, z_b, occupied);
+
+// Query: 0 = unknown, 1 = free, 2 = occupied.
+let state = oct_query(oct, x_b, y_b, z_b);
+
+let resolution = oct_leaf_resolution(oct);   // bit-cast f64
+let n_nodes    = oct_node_count(oct);
+oct_free(oct);
+```
+
+### Verification
+
+`[-10, 10]³` root, max_depth = 5 → leaf resolution 0.625 m:
+
+| Test | Expected | Got |
+|---|---|---|
+| Leaf resolution (20 / 32) | 0.625 m | **0.625000** |
+| Nodes after 3 opposite-octant inserts | growing tree | **15** |
+| Query (+5, +5, +5) | OCCUPIED (2) | **2** |
+| Query (-5, -5, -5) | FREE (1) | **1** |
+| Query (0, 0, 0) | OCCUPIED (2) | **2** |
+| Query (+8, -8, +8) — never inserted | UNKNOWN (0) | **0** |
+| Query (+15, 0, 0) — outside root | UNKNOWN (0) | **0** |
+
+### Limitations (probabilistic occupancy + log-odds storage +
+raycast carve land in v0.6 if needed):
+
+- Binary occupancy only (occupied / free / unknown).
+- No raycast-based "carve" along sensor rays (typical
+  octomap-style update).
+- No prune-on-merge of equal-state siblings (no compression).
+
+### Files
+
+- `stdlib/runtime/octree_rt.c` — `_OctNode` / `NOct` types,
+  `nuc_oct_new` / `_insert` / `_query` / `_node_count` /
+  `_leaf_resolution` / `_free`, plus `_octant` /
+  `_child_center` / `_alloc_node` helpers.
+- `stdlib/rods/octree.nr` — externs + Nucleor wrappers.
+- `tests/rods/octree_smoke.nr` — positive-coord-only smoke
+  (Nucleor's `0.0 - x` does integer arithmetic on bit patterns,
+  so negative literals can't be synthesized in pure Nucleor —
+  direct C test covers negative-coord inserts).
+
+---
+
 ## [0.2.225] — 2026-04-23
 
 **Robotics: image-based visual servoing (IBVS) — Chaumette &
