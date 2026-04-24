@@ -5,6 +5,89 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.225] — 2026-04-23
+
+**Robotics: image-based visual servoing (IBVS) — Chaumette &
+Hutchinson 2006. Standard IBVS control law that maps observed
+image-feature errors to a camera-frame Cartesian velocity command.
+Closes the perception-to-control loop: vision rod (v0.2.224)
+projects → IBVS computes camera velocity → robot Jacobian
+pseudoinverse maps to joint commands.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/vision.nr"
+
+// s_current and s_desired are double[2*n] arrays of pixel (u, v).
+// Z is double[n] of per-feature scene depths in the camera frame.
+// v_cam_out is double[6] for (vx, vy, vz, ωx, ωy, ωz).
+ibvs_velocity(s_current_ptr, s_desired_ptr, Z_ptr, n_features,
+    fx_b, fy_b, cx_b, cy_b,    // camera intrinsics
+    lambda_b, damping_b,        // control gain + pseudoinverse damping
+    v_cam_out_ptr);
+```
+
+### Control law
+
+```
+v_cam = −λ · L⁺ · (s_current − s_desired)
+L⁺    = (LᵀL + δ²I)⁻¹·Lᵀ                  (damped least squares)
+```
+
+`L` is the 2k × 6 stacked image Jacobian (one 2×6 block per
+feature, evaluated at the current normalized image coords +
+caller-supplied depth). The damping `δ²I` keeps the inverse well-
+conditioned near rank-deficient configurations (e.g., when all
+features are collinear).
+
+### Verification
+
+4-feature square pattern at depth 1 m, camera intrinsics fx=fy=500,
+cx=cy=320; λ = 1, δ = 0.001:
+
+| Test | Expected | Got |
+|---|---|---|
+| Zero error (current = desired) | v = 0 | **(0, 0, 0, 0, 0, 0)** |
+| Right-shift 50 px | vx > 0, others ≈ 0 | **vx = 0.0978**, others < 0.003 |
+| Down-shift 50 px | vy > 0, others ≈ 0 | **vy = 0.0978**, others < 0.003 |
+
+The small ω terms in the displacement tests are the natural IBVS
+coupling: pure pixel translation can also be achieved by camera
+rotation, so the damped least squares mixes a tiny rotation —
+correct minor cross-axis behavior, magnitude well below the
+primary translation gain.
+
+### How to close the loop
+
+```nucleor
+// At each control tick:
+// 1. Compute desired camera velocity:
+ibvs_velocity(s_current, s_desired, Z, n, fx, fy, cx, cy, λ, δ, v_cam);
+// 2. Map to end-effector velocity (eye-in-hand: compose with
+//    camera-mount transform; eye-to-hand: identity).
+// 3. Map to joint velocities via the robot Jacobian pseudoinverse:
+//    qd = J_robot⁺ · v_ee
+// 4. Send qd to the joint controller.
+```
+
+### Limitations (line / pose features and adaptive depth land in
+v0.6 if needed):
+
+- Point features only.
+- User must supply per-feature depth (no monocular depth
+  estimation — use stereo / RGBD upstream).
+- Constant damping (no adaptive λ scheduling).
+
+### Files
+
+- `stdlib/runtime/vision_rt.c` — `nuc_ibvs_velocity` + inline
+  `_gj_inv_6x6` Gauss-Jordan helper.
+- `stdlib/rods/vision.nr` — extern + `ibvs_velocity` Nucleor
+  wrapper.
+
+---
+
 ## [0.2.224] — 2026-04-23
 
 **Robotics: pinhole camera projection rod. Standard
