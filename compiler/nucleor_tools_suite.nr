@@ -2226,6 +2226,22 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "f32_cos") { return "__nucleor_f32_cos"; };
     if str_eq(name, "f32_div") { return "__nucleor_f32_div"; };
     if str_eq(name, "f32_eq") { return "__nucleor_f32_eq"; };
+    // T1.1 Phase 5: f32 comparisons + f64 native arithmetic + cmps.
+    if str_eq(name, "f32_ne") { return "__nucleor_f32_ne"; };
+    if str_eq(name, "f32_le") { return "__nucleor_f32_le"; };
+    if str_eq(name, "f32_ge") { return "__nucleor_f32_ge"; };
+    if str_eq(name, "f32_lt") { return "__nucleor_f32_lt"; };
+    if str_eq(name, "f32_gt") { return "__nucleor_f32_gt"; };
+    if str_eq(name, "f64_add") { return "__nucleor_f64_add"; };
+    if str_eq(name, "f64_sub") { return "__nucleor_f64_sub"; };
+    if str_eq(name, "f64_mul") { return "__nucleor_f64_mul"; };
+    if str_eq(name, "f64_div") { return "__nucleor_f64_div"; };
+    if str_eq(name, "f64_lt") { return "__nucleor_f64_lt"; };
+    if str_eq(name, "f64_gt") { return "__nucleor_f64_gt"; };
+    if str_eq(name, "f64_le") { return "__nucleor_f64_le"; };
+    if str_eq(name, "f64_ge") { return "__nucleor_f64_ge"; };
+    if str_eq(name, "f64_eq") { return "__nucleor_f64_eq"; };
+    if str_eq(name, "f64_ne") { return "__nucleor_f64_ne"; };
     if str_eq(name, "f32_exp") { return "__nucleor_f32_exp"; };
     if str_eq(name, "f32_from_int") { return "__nucleor_f32_from_int"; };
     if str_eq(name, "f32_gt") { return "__nucleor_f32_gt"; };
@@ -3549,6 +3565,21 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_f32_cos(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_div(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_eq(i64, i64)\n");
+    // T1.1 Phase 5: f32 comparisons (added v0.2.312, synced from s1).
+    sb_append(sb, "declare i64 @__nucleor_f32_ne(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_le(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_ge(i64, i64)\n");
+    // T1.1 Phase 5: native f64 arithmetic + comparisons (synced from s1).
+    sb_append(sb, "declare i64 @__nucleor_f64_add(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_sub(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_mul(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_div(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_lt(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_gt(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_le(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_ge(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_eq(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_ne(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_exp(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_from_int(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_gt(i64, i64)\n");

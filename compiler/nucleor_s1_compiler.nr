@@ -2431,6 +2431,24 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "f32_sub") { return "__nucleor_f32_sub"; };
     if str_eq(name, "f32_mul") { return "__nucleor_f32_mul"; };
     if str_eq(name, "f32_div") { return "__nucleor_f32_div"; };
+    // T1.1 Phase 5: f32 comparisons.
+    if str_eq(name, "f32_lt") { return "__nucleor_f32_lt"; };
+    if str_eq(name, "f32_gt") { return "__nucleor_f32_gt"; };
+    if str_eq(name, "f32_le") { return "__nucleor_f32_le"; };
+    if str_eq(name, "f32_ge") { return "__nucleor_f32_ge"; };
+    if str_eq(name, "f32_eq") { return "__nucleor_f32_eq"; };
+    if str_eq(name, "f32_ne") { return "__nucleor_f32_ne"; };
+    // T1.1 Phase 5: native f64 arithmetic + comparisons.
+    if str_eq(name, "f64_add") { return "__nucleor_f64_add"; };
+    if str_eq(name, "f64_sub") { return "__nucleor_f64_sub"; };
+    if str_eq(name, "f64_mul") { return "__nucleor_f64_mul"; };
+    if str_eq(name, "f64_div") { return "__nucleor_f64_div"; };
+    if str_eq(name, "f64_lt") { return "__nucleor_f64_lt"; };
+    if str_eq(name, "f64_gt") { return "__nucleor_f64_gt"; };
+    if str_eq(name, "f64_le") { return "__nucleor_f64_le"; };
+    if str_eq(name, "f64_ge") { return "__nucleor_f64_ge"; };
+    if str_eq(name, "f64_eq") { return "__nucleor_f64_eq"; };
+    if str_eq(name, "f64_ne") { return "__nucleor_f64_ne"; };
     if str_eq(name, "f32_neg") { return "__nucleor_f32_neg"; };
     if str_eq(name, "f32_abs") { return "__nucleor_f32_abs"; };
     if str_eq(name, "f32_sqrt") { return "__nucleor_f32_sqrt"; };
@@ -3653,6 +3671,17 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_sizeof_bool()\n");
     sb_append(sb, "declare i64 @__nucleor_sizeof_char()\n");
     sb_append(sb, "declare i64 @__nucleor_sizeof_ptr()\n");
+    // T1.1 Phase 5: native f64 arithmetic for inline + - * /
+    sb_append(sb, "declare i64 @__nucleor_f64_add(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_sub(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_mul(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_div(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_lt(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_gt(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_le(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_ge(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_eq(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_ne(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_add_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_sub_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_mul_i64(i64, i64)\n");
@@ -3763,6 +3792,10 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_f32_sub(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_mul(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_div(i64, i64)\n");
+    // T1.1 Phase 5: f32 le/ne (lt/gt/eq already declared below).
+    sb_append(sb, "declare i64 @__nucleor_f32_le(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_ge(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_ne(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_neg(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_abs(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_sqrt(i64)\n");
@@ -7243,7 +7276,25 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         cur = lx_blk(rp);
         let iop: i64 = tok_to_ir(node_field(pool, nid, 1));
         let r: i64 = ctr_next(regs);
-        if is_cmp_or_logic(iop) == 1 { ir_block_add(cur, ir_cmpop(iop, r, lr, rr)); }
+        // T1.1 Phase 5: dispatch float binop to runtime helper instead
+        // of integer binop. Detection: either operand is a variable
+        // declared as f32/f64, or a kind==71 float literal. The f32
+        // type wins precedence (matches narrowing cast rule). Only
+        // applies to + - * / and the comparison ops.
+        let lt: str = binop_float_type(pool, node_field(pool, nid, 2), sym);
+        let rt: str = binop_float_type(pool, node_field(pool, nid, 3), sym);
+        let mut ftype: str = "";
+        if str_eq(lt, "f32") == 1 { ftype = "f32"; }
+        else if str_eq(rt, "f32") == 1 { ftype = "f32"; }
+        else if str_eq(lt, "f64") == 1 { ftype = "f64"; }
+        else if str_eq(rt, "f64") == 1 { ftype = "f64"; };
+        let helper: str = float_binop_helper(iop, ftype);
+        if str_len(helper) > 0 {
+            let mut conv_args: Vec<i32> = Vec::new();
+            conv_args.push(lr);
+            conv_args.push(rr);
+            ir_block_add(cur, ir_call_ex(r, helper, conv_args));
+        } else if is_cmp_or_logic(iop) == 1 { ir_block_add(cur, ir_cmpop(iop, r, lr, rr)); }
         else { ir_block_add(cur, ir_binop(iop, r, lr, rr)); };
         return lx_new(r, cur);
     };
@@ -7821,18 +7872,69 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
     print(str_concat("ERROR: unhandled expr kind ", str_from_int(kind)));
     return lx_new(0 - 1, blk);
 }
-// T1.1 Phase 1+2+3c: if `tstr` is a narrow numeric type, insert a
+// T1.1 Phase 5: detect whether an AST expression node has a known
+// float type (f32 or f64), looking through variable reads (kind==3)
+// and float literals (kind==71). Returns "f32"/"f64"/"" .
+fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>) -> str {
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 3 {
+        let vname: str = node_field(pool, nid, 1);
+        let tstr: i64 = sym_get(sym, str_concat("__type_", vname));
+        if tstr < 0 { return ""; };
+        if str_eq(tstr, "f32") == 1 { return "f32"; };
+        if str_eq(tstr, "f64") == 1 { return "f64"; };
+        return "";
+    };
+    if kind == 71 { return "f64"; };
+    return "";
+}
+
+// T1.1 Phase 5: map a binop token (via tok_to_ir) and a float type
+// to the corresponding runtime helper name. Returns "" if the op
+// isn't a float-supported binop or the type isn't float.
+//
+// Supported ops (iop values from tok_to_ir):
+//   2  + → f<T>_add        7  == → f<T>_eq
+//   3  - → f<T>_sub        8  != → f<T>_ne
+//   4  * → f<T>_mul        9  <  → f<T>_lt
+//   5  / → f<T>_div       10  >  → f<T>_gt
+//                         11  <= → f<T>_le
+//                         12  >= → f<T>_ge
+fn float_binop_helper(iop: i64, ftype: str) -> str {
+    if str_len(ftype) == 0 { return ""; };
+    let mut suffix: str = "";
+    if iop == 2 { suffix = "add"; };
+    if iop == 3 { suffix = "sub"; };
+    if iop == 4 { suffix = "mul"; };
+    if iop == 5 { suffix = "div"; };
+    if iop == 7 { suffix = "eq"; };
+    if iop == 8 { suffix = "ne"; };
+    if iop == 9 { suffix = "lt"; };
+    if iop == 10 { suffix = "gt"; };
+    if iop == 11 { suffix = "le"; };
+    if iop == 12 { suffix = "ge"; };
+    if str_len(suffix) == 0 { return ""; };
+    if str_eq(ftype, "f32") == 1 { return str_concat("f32_", suffix); };
+    if str_eq(ftype, "f64") == 1 { return str_concat("f64_", suffix); };
+    return "";
+}
+
+// T1.1 Phase 1+2+3c+5: if `tstr` is a narrow numeric type, insert a
 // runtime `__nucleor_as_<T>` cast so the stored value is width-
 // correct (e.g. u8 wraps mod 256, i32 truncates from i64, f32
 // narrows from f64). Returns the new register holding the narrowed
 // value, or `vr` unchanged otherwise.
 //
-// Phase 3c stdlib audit complete: str_from_int (compiler + tools +
-// core_io) widened to i64 internal arithmetic. i32/u32 narrowing
-// is now SAFE to enable; the bootstrap-fixpoint gate (Phase 2)
-// catches any remaining stdlib site that still loosely uses i32
-// for i64-range values.
-fn narrow_via_as(blk: Vec<i32>, regs: Vec<i32>, vr: i64, tstr: str) -> i64 {
+// `src_kind` is the AST kind of the init expression. For f32
+// narrowing we ONLY narrow when the source is a f64 literal
+// (kind == 71). If the source is already a float expression
+// (e.g. result of f32 binop, another f32 variable), a second
+// narrowing would corrupt the already-narrow bit-pattern. This
+// guard is specific to float types; integer narrowing is always
+// safe to apply.
+//
+// Phase 3c stdlib audit complete: i32/u32 narrowing is safe.
+fn narrow_via_as(blk: Vec<i32>, regs: Vec<i32>, vr: i64, tstr: str, src_kind: i64) -> i64 {
     // Defensive: a negative source register means upstream lowering failed.
     // Return it unchanged so the bad register propagates to a visible
     // diagnostic rather than getting silently wrapped in an as-cast.
@@ -7845,7 +7947,9 @@ fn narrow_via_as(blk: Vec<i32>, regs: Vec<i32>, vr: i64, tstr: str) -> i64 {
     if str_eq(tstr, "u8") == 1 { helper = "as_u8"; };
     if str_eq(tstr, "u16") == 1 { helper = "as_u16"; };
     if str_eq(tstr, "u32") == 1 { helper = "as_u32"; };
-    if str_eq(tstr, "f32") == 1 { helper = "as_f32"; };
+    // f32 narrowing only when source is an f64 literal (kind==71).
+    // Prevents double-narrowing when source is already an f32 value.
+    if str_eq(tstr, "f32") == 1 && src_kind == 71 { helper = "as_f32"; };
     if str_len(helper) == 0 { return vr; };
     let mut conv_args: Vec<i32> = Vec::new();
     conv_args.push(vr);
@@ -7870,10 +7974,11 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let sbase: str = type_base_name(tstr);
         if str_len(sbase) > 0 { sym_set(sym, str_concat("__type_", vname), sbase); };
         if init >= 0 {
+            let src_kind: i64 = node_kind(pool, init);
             let mut vp: Vec<i32> = lower_expr(pool, init, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
             cur = lx_blk(vp);
             let vr: i64 = lx_reg(vp);
-            let nvr: i64 = narrow_via_as(cur, regs, vr, sbase);
+            let nvr: i64 = narrow_via_as(cur, regs, vr, sbase, src_kind);
             ir_block_add(cur, ir_store(nvr, ar));
         };
         return cur;

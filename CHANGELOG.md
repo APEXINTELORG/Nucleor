@@ -5,6 +5,87 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.312] — 2026-04-24
+
+**T1.1 Phase 5 — native f32 + f64 arithmetic via inline `+ - * /`
+and full comparisons (`< > <= >= == !=`).** Closes the matrix
+fail surface for floating-point binops; pairs with the Phase 1
+`let`-narrow hook so f32 literals get correctly narrowed at the
+assignment boundary.
+
+### What landed
+
+#### A. Runtime helpers (`stdlib/runtime/nucleor_llvm_rt.c`)
+- 10 new f64 helpers: `__nucleor_f64_{add,sub,mul,div,lt,gt,le,ge,eq,ne}`.
+- 4 new f32 comparison helpers: `__nucleor_f32_{ne,le,ge}`
+  (`{lt,gt,eq}` already existed).
+- **Fixed `__nucleor_as_f32`** — was a no-op stub from Phase 3
+  scaffolding; now actually narrows f64 bits → f32 bits via
+  union punning. Required because Phase 5 dispatches inline f32
+  binops through `__nucleor_f32_*` helpers that decode via
+  `bits_to_f32` — without proper narrowing, f32 vars held f64
+  bits and arithmetic returned garbage.
+
+#### B. Compiler (`compiler/nucleor_s1_compiler.nr` + sync to tools)
+- `binop_float_type(node)` helper: detects f32/f64 type via
+  variable-symbol lookup (`__type_<vname>`) or kind==71 (f64
+  literal).
+- `float_binop_helper(iop, ftype)` helper: maps (op, type) to
+  the runtime helper name (`f32_add`, `f64_lt`, etc.).
+- `lower_expr` `kind == 4` (binop) now dispatches to the float
+  helper when either operand is a float type.
+- `narrow_via_as` extended: `src_kind` parameter; f32 narrow ONLY
+  fires when source is a f64 literal (kind==71). Prevents
+  double-narrowing when source is already an f32 value (e.g.
+  result of an f32 binop) — that would corrupt the bit-pattern.
+- `get_rt_name` + IR-decl tables grew f32/f64 cmp + f64 arith
+  entries. ABI parity check (s1 ↔ tools-suite) green.
+
+### Matrix progress
+
+| Phase         | v0.2.311 | v0.2.312 |
+|---------------|----------|----------|
+| p5_float      | 0P/4F    | **4P/0F** |
+| p4_cast       | 7P/1F    | 6P/2F (Phase 4 will close) |
+| TOTAL         | 44P/7F/8BE | **47P/4F/8BE** |
+
+3 net tests flipped to PASS. The 2 new p4_cast fails
+(`cast_f32_to_i32`, `cast_i32_to_f32`) are Phase 4's territory
+— the existing `as_<T>` runtime masks bits without knowing
+source type, so float-to-int cast misinterprets the bits.
+
+### Verify gate
+
+329/329 PASS. Bootstrap fixpoint stable. ABI parity check
+green (s1 ↔ tools-suite synced; helper_manifest regen).
+
+### Known limit (intentional, picked up by later phase)
+
+The float-binop dispatcher only fires when at least one operand
+is a variable with declared float type or a kind==71 f64
+literal. Mixed integer + float (e.g. `let x: f64 = 3 + 1.5`)
+falls back to integer arithmetic on the LHS only. Phase 4
+(`as` cast operator with full float→int / int→float matrix)
+will close this gap by inserting explicit conversions.
+
+### Files
+
+- `stdlib/runtime/nucleor_llvm_rt.c` — 14 new helpers + as_f32
+  fix.
+- `compiler/nucleor_s1_compiler.nr` — binop dispatcher + narrow
+  scope tightening.
+- `compiler/nucleor_tools_suite.nr` — synced ABI tables.
+- `bin/nucleor.exe` — rebuilt (clean bootstrap from v0.2.307).
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+Phase 3b (`v0.2.313`) — full `#[repr(C)]` + `#[repr(packed)]`
+field-offset machinery + `sizeof_struct(<name>)` for user types.
+Then Phase 4 — full `as` cast matrix (closes the 2 p4 fails
+introduced here).
+
 ## [0.2.311] — 2026-04-24
 
 **T1.1 Phase 3a — `sizeof_<T>()` primitive byte-size builtins.**

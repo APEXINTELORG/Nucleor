@@ -167,6 +167,14 @@ miscompile from the expanded narrow set immediately.
 
 **Defer to later phase:** alloca-at-width emit (move to Phase 8).
 
+**Reordering note (locked 2026-04-24):** Phase 3b (`#[repr(C)]` /
+`#[repr(packed)]` field-offset machinery + `sizeof_struct(<name>)`
+for user types) ships AFTER Phase 5 native float arith because the
+matrix has 4 immediate Phase 5 fails and 0 immediate Phase 3b fails
+— Phase 5 yields more user-visible value first. Phase 3b is NOT
+deferred from the maximalist plan; it ships at v0.2.313 (after
+v0.2.312 Phase 5).
+
 ### Phase 4 — `as` cast operator (2 sessions, v0.2.311)
 
 Full cast matrix per Rust semantics. Codegen: `trunc`, `sext`,

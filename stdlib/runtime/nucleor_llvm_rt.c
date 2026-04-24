@@ -2265,8 +2265,17 @@ long long __nucleor_as_f64(long long v) {
 }
 
 long long __nucleor_as_f32(long long v) {
-    // For now: pass through (phase 3 adds proper f64->f32 narrow op).
-    return v;
+    // T1.1 Phase 5 (2026-04-24): actually narrow f64→f32 so inline
+    // arithmetic with f32 operands sees real f32 bit-patterns.
+    // Prior no-op was a Phase 3 placeholder; Phase 5 requires correct
+    // conversion because lower_expr dispatches f32 binops to
+    // __nucleor_f32_<op> which decodes via bits_to_f32.
+    union { long long i; double d; } ub;
+    ub.i = v;
+    float f = (float)ub.d;
+    union { unsigned int u; float f; } uf;
+    uf.f = f;
+    return (long long)(unsigned long long)uf.u;
 }
 
 // === T1.1 Phase 3a: sizeof_<T>() builtins — byte-size of primitives ===
@@ -2804,6 +2813,9 @@ long long __nucleor_f32_pow(long long a, long long b) { return __nuc_f32_to_bits
 long long __nucleor_f32_lt(long long a, long long b) { return __nuc_bits_to_f32(a) < __nuc_bits_to_f32(b) ? 1 : 0; }
 long long __nucleor_f32_gt(long long a, long long b) { return __nuc_bits_to_f32(a) > __nuc_bits_to_f32(b) ? 1 : 0; }
 long long __nucleor_f32_eq(long long a, long long b) { return __nuc_bits_to_f32(a) == __nuc_bits_to_f32(b) ? 1 : 0; }
+long long __nucleor_f32_ne(long long a, long long b) { return __nuc_bits_to_f32(a) != __nuc_bits_to_f32(b) ? 1 : 0; }
+long long __nucleor_f32_le(long long a, long long b) { return __nuc_bits_to_f32(a) <= __nuc_bits_to_f32(b) ? 1 : 0; }
+long long __nucleor_f32_ge(long long a, long long b) { return __nuc_bits_to_f32(a) >= __nuc_bits_to_f32(b) ? 1 : 0; }
 long long __nucleor_f32_to_f64(long long a) {
     union { unsigned long long u; double d; } cd;
     cd.d = (double)__nuc_bits_to_f32(a);
@@ -5155,6 +5167,21 @@ long long __nucleor_i64_lcm(long long a, long long b) {
     long long g = __nucleor_i64_gcd(a, b);
     return (a / g) * b;
 }
+
+// ---- T1.1 Phase 5: native f64 arithmetic for inline + - * / ----
+// Decode i64 bits to double, compute, re-encode. Pairs with the
+// compiler's binop dispatcher in lower_expr (kind==4) which calls
+// these when either operand has type f64.
+long long __nucleor_f64_add(long long a, long long b) { return __nuc_d2b(__nuc_b2d(a) + __nuc_b2d(b)); }
+long long __nucleor_f64_sub(long long a, long long b) { return __nuc_d2b(__nuc_b2d(a) - __nuc_b2d(b)); }
+long long __nucleor_f64_mul(long long a, long long b) { return __nuc_d2b(__nuc_b2d(a) * __nuc_b2d(b)); }
+long long __nucleor_f64_div(long long a, long long b) { return __nuc_d2b(__nuc_b2d(a) / __nuc_b2d(b)); }
+long long __nucleor_f64_lt(long long a, long long b) { return __nuc_b2d(a) <  __nuc_b2d(b) ? 1 : 0; }
+long long __nucleor_f64_gt(long long a, long long b) { return __nuc_b2d(a) >  __nuc_b2d(b) ? 1 : 0; }
+long long __nucleor_f64_le(long long a, long long b) { return __nuc_b2d(a) <= __nuc_b2d(b) ? 1 : 0; }
+long long __nucleor_f64_ge(long long a, long long b) { return __nuc_b2d(a) >= __nuc_b2d(b) ? 1 : 0; }
+long long __nucleor_f64_eq(long long a, long long b) { return __nuc_b2d(a) == __nuc_b2d(b) ? 1 : 0; }
+long long __nucleor_f64_ne(long long a, long long b) { return __nuc_b2d(a) != __nuc_b2d(b) ? 1 : 0; }
 
 // ---- f64 transcendental + extended math ----
 long long __nucleor_f64_sin(long long b) { return __nuc_d2b(sin(__nuc_b2d(b))); }

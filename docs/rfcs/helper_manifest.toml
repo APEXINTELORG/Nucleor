@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 714
+# Total helpers: 727
 # Of which REVIEW REQUIRED: 19
 
 # ============================================================
@@ -4572,9 +4572,37 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f32_ge"
+class            = "PureMath"
+symbol           = "__nucleor_f32_ge"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f32_gt"
 class            = "PureMath"
 symbol           = "__nucleor_f32_gt"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f32_le"
+class            = "PureMath"
+symbol           = "__nucleor_f32_le"
 dispatch         = "RuntimeCall"
 abi              = "(i64, i64) -> i64"
 effects          = []
@@ -4617,6 +4645,20 @@ notes            = ""
 name             = "f32_mul"
 class            = "PureMath"
 symbol           = "__nucleor_f32_mul"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f32_ne"
+class            = "PureMath"
+symbol           = "__nucleor_f32_ne"
 dispatch         = "RuntimeCall"
 abi              = "(i64, i64) -> i64"
 effects          = []
@@ -4754,6 +4796,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f64_add"
+class            = "PureMath"
+symbol           = "__nucleor_f64_add"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f64_asin"
 class            = "PureMath"
 symbol           = "__nucleor_f64_asin"
@@ -4880,11 +4936,39 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f64_div"
+class            = "PureMath"
+symbol           = "__nucleor_f64_div"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f64_e"
 class            = "PureMath"
 symbol           = "__nucleor_f64_e"
 dispatch         = "RuntimeCall"
 abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_eq"
+class            = "PureMath"
+symbol           = "__nucleor_f64_eq"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
 effects          = []
 taint            = "passthrough"
 units            = "passthrough"
@@ -4964,6 +5048,34 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f64_ge"
+class            = "PureMath"
+symbol           = "__nucleor_f64_ge"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_gt"
+class            = "PureMath"
+symbol           = "__nucleor_f64_gt"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f64_hypot"
 class            = "PureMath"
 symbol           = "__nucleor_f64_hypot"
@@ -5011,6 +5123,20 @@ class            = "PureMath"
 symbol           = "__nucleor_f64_is_nan"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_le"
+class            = "PureMath"
+symbol           = "__nucleor_f64_le"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
 effects          = []
 taint            = "passthrough"
 units            = "passthrough"
@@ -5104,6 +5230,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f64_lt"
+class            = "PureMath"
+symbol           = "__nucleor_f64_lt"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f64_max"
 class            = "PureMath"
 symbol           = "__nucleor_f64_max"
@@ -5129,6 +5269,34 @@ units            = "passthrough"
 proof_obligation = "none"
 stability        = "stable"
 since            = "0.2.18"
+notes            = ""
+
+[[helper]]
+name             = "f64_mul"
+class            = "PureMath"
+symbol           = "__nucleor_f64_mul"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_ne"
+class            = "PureMath"
+symbol           = "__nucleor_f64_ne"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
 notes            = ""
 
 [[helper]]
@@ -5235,6 +5403,20 @@ class            = "PureMath"
 symbol           = "__nucleor_f64_sqrt2"
 dispatch         = "RuntimeCall"
 abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_sub"
+class            = "PureMath"
+symbol           = "__nucleor_f64_sub"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
 effects          = []
 taint            = "passthrough"
 units            = "passthrough"
