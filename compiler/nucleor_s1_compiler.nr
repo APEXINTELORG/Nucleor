@@ -4981,7 +4981,7 @@ fn find_linecol_in_source(source: str, fn_name: str, var_name: str) -> Vec<i32> 
     let mut i: i64 = 0;
     let mut fn_start: i64 = 0 - 1;
     while i < slen - tlen {
-        if str_eq(str_substring(source, i, i + tlen), target) { fn_start = i; i = slen; };
+        if str_eq_at(source, i, target) == 1 { fn_start = i; i = slen; };
         i = i + 1;
     };
     if fn_start < 0 { out.push(0); out.push(0); return out; };
@@ -4989,7 +4989,7 @@ fn find_linecol_in_source(source: str, fn_name: str, var_name: str) -> Vec<i32> 
     let mut col: i64 = 1;
     i = fn_start;
     while i < slen - vlen {
-        if str_eq(str_substring(source, i, i + vlen), var_name) {
+        if str_eq_at(source, i, var_name) == 1 {
             out.push(line);
             out.push(col);
             return out;
@@ -5303,6 +5303,32 @@ fn str_starts_with(s: str, prefix: str) -> i64 {
     while i < plen {
         if str_char_at(s, i) != str_char_at(prefix, i) { return 0; };
         i = i + 1;
+    };
+    return 1;
+}
+
+// Non-allocating "is target string at source[pos..pos+len(target)]"
+// check. Replaces the `str_eq(str_substring(source, pos, pos+tlen),
+// target)` anti-pattern that was the dominant memory leak in the
+// self-host compile (find_linecol_in_source, line_contains_text,
+// source_box_binding_type, substring-search loops — each scanned
+// the full source allocating a substring per byte position; for a
+// 485 KB source that was ~485,000 transient allocations per
+// invocation × thousands of invocations = ~9.5 GB of leaked
+// transient strings during type-check).
+fn str_eq_at(source: str, pos: i64, target: str) -> i64 {
+    // CRITICAL: do NOT call str_len(source) here — it's O(n) (walks
+    // to the null terminator). The dominant caller (find_linecol_in_
+    // source) already guarantees pos + str_len(target) <= str_len(
+    // source) via its outer loop bound, so we don't need to recheck.
+    // A naive bounds check made the s1 self-host compile take >5 min
+    // (was ~25 s) because the per-call str_len walked the entire
+    // 485 KB source for every byte position scanned.
+    let tlen: i64 = str_len(target);
+    let mut k: i64 = 0;
+    while k < tlen {
+        if str_char_at(source, pos + k) != str_char_at(target, k) { return 0; };
+        k = k + 1;
     };
     return 1;
 }
@@ -6146,7 +6172,7 @@ fn line_contains_text(source: str, fn_name: str, symbol: str, text: str) -> i64 
     if llen < tlen { return 0; };
     let mut i: i64 = 0;
     while i <= llen - tlen {
-        if str_eq(str_substring(txt, i, i + tlen), text) == 1 { return 1; };
+        if str_eq_at(txt, i, text) == 1 { return 1; };
         i = i + 1;
     };
     return 0;
@@ -6157,7 +6183,7 @@ fn source_box_binding_type(source: str, fn_name: str, name: str) -> str {
     let slen: i64 = str_len(source);
     let mut i: i64 = 0;
     while i <= slen - tlen {
-        if str_eq(str_substring(source, i, i + tlen), target) == 1 {
+        if str_eq_at(source, i, target) == 1 {
             let mut end: i64 = i + tlen;
             while end < slen && str_char_at(source, end) != 62 { end = end + 1; };
             if end < slen { return str_concat("Box<", str_concat(str_substring(source, i + tlen, end), ">")); };
@@ -6788,7 +6814,7 @@ fn text_contains(hay: str, needle: str) -> i64 {
     if hlen < nlen { return 0; };
     let mut i: i64 = 0;
     while i <= hlen - nlen {
-        if str_eq(str_substring(hay, i, i + nlen), needle) == 1 { return 1; };
+        if str_eq_at(hay, i, needle) == 1 { return 1; };
         i = i + 1;
     };
     return 0;

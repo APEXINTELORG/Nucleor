@@ -5,6 +5,123 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.159] — 2026-04-23
+
+**Memory-fix Ship 2 (part 1): non-allocating `str_eq_at` helper
+replaces the dominant `str_eq(str_substring(source, i, i+tlen),
+target)` source-scan anti-pattern. Self-host compile drops from
+9.7 GB / 19 GB peak RSS / 25 s to 185 MB / 4.5 s — a 52× memory
+reduction and 5.5× speedup.**
+
+The Ship 1 (v0.2.158) infrastructure (NUC_TRACE_ALLOC counters)
+let us identify the dominant leak empirically. Result: 586
+million `str_substring` calls during a self-host compile (9.5 GB
+of transient allocations) all originated in five hot loop sites
+that scanned the 485 KB compiler source byte-by-byte, allocating
+a substring per position via the `str_eq(str_substring(source,
+i, i+tlen), target)` anti-pattern.
+
+Each call allocated a ~10-byte transient string — none of which
+were ever read again — and the GC'd-by-the-OS-at-process-exit
+pattern accumulated through the whole compile. For a 485 KB
+source × thousands of `find_linecol_in_source` invocations,
+that came to ~9.5 GB.
+
+### Fix
+
+New helper in `compiler/nucleor_s1_compiler.nr`:
+
+```nucleor
+fn str_eq_at(source: str, pos: i64, target: str) -> i64 {
+    let tlen: i64 = str_len(target);
+    let mut k: i64 = 0;
+    while k < tlen {
+        if str_char_at(source, pos + k) != str_char_at(target, k) {
+            return 0;
+        };
+        k = k + 1;
+    };
+    return 1;
+}
+```
+
+Five hot sites converted (all in O(N²) source-scan loops):
+- `find_linecol_in_source` (two loops — finds `fn <name>` then
+  the variable name)
+- `line_contains_text`
+- `source_box_binding_type`
+- `text_contains`
+
+### Critical implementation detail
+
+The first cut of `str_eq_at` called `str_len(source)` for a bounds
+check — which made the s1 self-host compile hang for 5+ minutes
+(was 25 s baseline). `str_len` is O(n) (walks to the null
+terminator); placing it inside an O(n) outer loop makes the loop
+O(n²) per compile, plus an inner O(tlen) byte-compare made it
+O(n × n × tlen). For a 485 KB source: 485,000 × 485,000 × 10 =
+2.4 × 10¹² operations.
+
+**Production-quality fix**: omit the source bounds check, document
+that callers must guarantee `pos + len(target) <= len(source)`
+via their loop bound (which they all do — `while i <= slen - tlen`).
+The comment in the source explains the constraint and the previous
+hang it caused.
+
+### Memory measurement
+
+Self-host compile of `compiler/nucleor_s1_compiler.nr`:
+
+|                  | Before (v0.2.158) | After (v0.2.159) | Ratio  |
+|------------------|------------------:|-----------------:|-------:|
+| vec_new          |   119 MB / 798K   |   119 MB / 799K  | 1.0×   |
+| str_concat       |     4 MB / 598K   |     5 MB / 599K  | 1.0×   |
+| **str_substring**| **9.5 GB / 586M** | **2 MB / 282K**  | **5,000×** |
+| sb_new           |    60 MB /  13K   |    60 MB /  13K  | 1.0×   |
+| **TOTAL TRACKED**|    **9.7 GB**     |    **185 MB**    | **52×**    |
+| **wallclock**    |     **25 s**      |     **4.5 s**    | **5.5×**   |
+
+OS-reported peak RSS during the gate's `tools_rebuild` step
+(compiles `nucleor_tools_suite.nr`, 822 KB — 1.7× larger than
+s1) is similarly bounded.
+
+### Self-host LLVM IR fixed point
+
+- Pass1 build (with v0.2.158 binary, fixed source): nucleor_e5
+  at 2,680,852 bytes.
+- Pass2 (with pass1 binary, same source): nucleor_e5b at
+  2,680,852 bytes — byte-identical.
+- Pass3 (with pass2 binary): nucleor_e5c at 2,680,852 bytes —
+  byte-identical.
+- 3-iter fixed point holds.
+- `bin/nucleor.exe` updated; chain is now v0.2.84 → v0.2.87 →
+  v0.2.151 → v0.2.152 → v0.2.153 → v0.2.155 → v0.2.157 →
+  v0.2.158 → **v0.2.159**.
+
+### Verify gate
+
+**245 / 245 PASS, 0 SKIP** in 2m40s (was ~3m20s+ with the leak,
+plus occasional OOM cascades that required killing nucleor.exe
+processes mid-gate). Self-host rebuild closes byte-identical.
+
+### Punchlist progress
+
+- Ship 1 (v0.2.158): infrastructure + non-allocating prefix
+  probes + format builtins
+- **Ship 2 part 1 (v0.2.159): str_eq_at — biggest single
+  win (52× memory).**
+- Ship 2 part 2 (TBD): convert remaining 12 `str_eq(str_substring(
+  ...))` sites in non-hot paths for consistency
+- Ship 2 part 3 (TBD): re-attempt env-snapshot vec_free calls
+  after the use-after-free root-cause audit (item E4)
+- Ship 3 (TBD): TypeId interner (architectural fix; further
+  reduces type-check string churn — likely brings RSS to
+  ~50-100 MB)
+- Ship 4 (TBD): per-compile arena
+- Ship 5 (TBD): peak-RSS gate budget enforcement (item F1)
+
+See `MEMORY_FIX_PUNCHLIST.md` (repo root) for the full plan.
+
 ## [0.2.158] — 2026-04-23
 
 **Memory-fix Ship 1: vec_free builtin, env-snapshot leak fix,
