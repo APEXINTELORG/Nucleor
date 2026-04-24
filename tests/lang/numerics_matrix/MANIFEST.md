@@ -35,6 +35,7 @@ should turn its tests green.
 | `p6_bitwise/`  | 6     | Bitwise + shift at width                       | 4                 |
 | `p7_overflow/` | 7     | wrap/trap/saturate modes + intrinsics          | 4                 |
 | `p8_vec/`      | 8     | `Vec<T>` monomorphization byte-packing         | 3                 |
+| `p9_ffi/`      | 9     | FFI ABI: narrow-width extern fn + gen-headers  | 1                 |
 | `p11_format/`  | 11    | Width-correct formatting                       | 2                 |
 
 **Total at v0.2.307 (Phase 0 baseline): 56 tests.**

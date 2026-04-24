@@ -697,6 +697,29 @@ Step "self-host rebuild closes" {
 # the same binary. Prevents the class of bug where a compiler change
 # silently poisons the next compile (Phase 1's narrow_via_as truncating
 # stdlib's `let val: i32 = n` for str_from_int was caught this way).
+Step "nuc gen-headers FFI smoke" {
+    # T1.1 Phase 9 (v0.2.318): nuc gen-headers should turn an .nr
+    # file's extern fn declarations into a matching C header. This
+    # smoke verifies the subcommand exists, accepts narrow types,
+    # and emits a header containing every extern decl.
+    $nrf = Join-Path $root "target\_genh_demo.nr"
+    @"
+extern fn frob_u8(x: u8, y: u32) -> i64;
+extern fn frob_f32(a: f32, b: f64) -> f32;
+extern fn frob_void();
+fn main() -> i64 { return 0; }
+"@ | Out-File -FilePath $nrf -Encoding ASCII
+    $hdr = Join-Path $root "target\_genh_demo.h"
+    & $bin gen-headers $nrf -o $hdr 2>&1 | Out-Null
+    if (-not (Test-Path $hdr)) { return $false }
+    $h = Get-Content $hdr -Raw
+    if ($h -notmatch "uint8_t") { return $false }
+    if ($h -notmatch "uint32_t") { return $false }
+    if ($h -notmatch "float frob_f32") { return $false }
+    if ($h -notmatch "void frob_void\(void\)") { return $false }
+    return $true
+}
+
 Step "self-host bootstrap fixpoint (stage-2)" {
     if (-not (Test-Path "target\verify_compiler.exe")) { return $false }
     $out = & "target\verify_compiler.exe" build "compiler/nucleor_s1_compiler.nr" -o "verify_compiler_2" 2>&1 | Out-String
