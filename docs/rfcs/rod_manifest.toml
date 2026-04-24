@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 151
-# Total fn definitions: 1714
-# Total LOC: 7392
+# Total rods: 152
+# Total fn definitions: 1722
+# Total LOC: 7427
 
 [[rod]]
 name           = "activation2"
@@ -937,6 +937,15 @@ function_count = 5
 cfile_count    = 1
 loc            = 21
 imports        = ["process"]
+
+[[rod]]
+name           = "pursuit"
+path           = "stdlib/rods/pursuit.nr"
+description    = "Pure pursuit path-following controller."
+function_count = 8
+cfile_count    = 1
+loc            = 35
+imports        = []
 
 [[rod]]
 name           = "python"
