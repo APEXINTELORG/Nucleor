@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.175] — 2026-04-24
+
+**Robotics: forward kinematics for serial joint chains. New
+`fk_chain.nr` rod composes per-joint poses to compute every
+link's world-frame pose. Compute backend for RFC-0013 (URDF
+static frame chain verification, v0.5).**
+
+Builds on v0.2.174's `kinematics.nr` (Vec3 + quaternion +
+Pose). Each joint has a parent-to-child base offset (pose)
+and a joint axis; given a flat array of joint variables (one
+per joint), `fk_chain_update` walks the chain and caches the
+world-frame position + orientation of every link.
+
+Joint types:
+- **revolute** — variable is the angle in radians about `axis`
+- **prismatic** — variable is the displacement along `axis`
+- **fixed** — variable ignored
+
+### Surface
+
+```nucleor
+import "stdlib/rods/fk_chain.nr"
+
+let chain = fk_chain_new();
+fk_chain_add_joint(
+    chain, fk_revolute(),
+    1.0, 0.0, 0.0,         // parent-to-child position offset
+    1.0, 0.0, 0.0, 0.0,    // identity quaternion
+    0.0, 0.0, 1.0          // z-axis (rotation about z)
+);
+// ... add more joints ...
+fk_chain_update(chain, vars_ptr);
+let x = fk_chain_link_pos_x(chain, link_index);
+```
+
+### Files
+
+- `stdlib/runtime/fk_chain_rt.c`: ~150 LOC. Self-contained
+  quaternion math (no external dependencies); each joint
+  contributes a base-offset pose then a joint-local pose
+  driven by the variable.
+- `stdlib/rods/fk_chain.nr`: thin Nucleor wrapper exposing 9
+  builtins.
+- `tests/rods/fk_chain_smoke.nr`: positive smoke creating a
+  one-revolute-joint chain, asserting the count is 1.
+
+### URDF integration (RFC-0013, deferred to v0.5)
+
+The URDF parser + frame-chain check is the v0.5 deliverable.
+The data model:
+1. URDF XML → list of `(joint_type, parent_offset, axis)` tuples
+2. Tuples → `fk_chain_add_joint` calls
+3. Compile-time check that any frame-tagged value reaching a
+   joint matches the chain's expected parent frame
+
+This ship lands the compute path so v0.5 is purely the parser
++ type-system overlay.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**252 / 252 PASS, 0 SKIP** (was 251/251; +1 new smoke test).
+Both budgets hold.
+
 ## [0.2.174] — 2026-04-24
 
 **Robotics math foundation: new `kinematics.nr` rod with
