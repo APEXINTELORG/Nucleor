@@ -5,6 +5,101 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.207] — 2026-04-23
+
+**Robotics: robot inverse dynamics via the Recursive Newton-Euler
+Algorithm (RNEA, Luh-Walker-Paul 1980). Given joint positions q,
+velocities qd, and accelerations qdd, computes the joint torques
+required to produce that motion against gravity:**
+
+```
+tau = M(q)·qdd + C(q, qd)·qd + g(q)
+```
+
+**RNEA computes tau directly in O(n) without explicitly forming
+the mass matrix M or the Coriolis tensor C — much faster than the
+equation-of-motion form for small-to-medium chains. Foundation
+for gravity compensation, impedance / admittance control, dynamic
+simulation, and torque-aware planning.**
+
+The robotics rod stack now spans the full motion-planning compute
+path *plus* the dynamic compute path: kinematics rods (FK + IK)
+let you reason about joint geometry; this dynamics rod lets you
+reason about joint torques.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/dynamics.nr"
+
+let dyn = dyn_new(fk_chain_handle);   // wraps an existing FK chain
+for i in 0..n_links {
+    dyn_set_link_mass(dyn, i, m_b);
+    dyn_set_link_com(dyn, i, cx_b, cy_b, cz_b);
+    dyn_set_link_inertia(dyn, i, ixx_b, iyy_b, izz_b, ixy_b, ixz_b, iyz_b);
+}
+dyn_set_gravity(dyn, gx_b, gy_b, gz_b);    // default (0, 0, -9.81)
+
+// Full inverse dynamics:
+dyn_inverse(dyn, q_ptr, qd_ptr, qdd_ptr, tau_out_ptr);
+
+// Or gravity compensation only (qd = qdd = 0):
+dyn_gravity(dyn, q_ptr, tau_out_ptr);
+```
+
+### Implementation notes
+
+- World-frame two-pass RNEA. The forward pass propagates link
+  kinematics (ω, ω̇, a, a_com) from base to tip; the backward
+  pass propagates wrenches (force, torque) from tip to base,
+  projecting onto each joint's axis to extract the per-joint
+  torque scalar.
+- Gravity is folded in by setting the implicit base-link linear
+  acceleration to `-g` (the standard RNEA trick) — the resulting
+  fictitious force on each CoM cancels real gravity in the
+  equations of motion.
+- Inertia tensors stored body-frame at the CoM (URDF convention),
+  rotated to world frame on demand for the wrench computation.
+- New FK chain accessors `nuc_fk_chain_joint_type` and
+  `nuc_fk_chain_joint_axis` expose the per-joint metadata RNEA
+  needs to know which axis to project the wrench onto.
+
+### Verification
+
+End-to-end gravity-torque test on a single-link pendulum (mass
+2 kg, length 1 m, CoM at the tip, gravity = -9.81 m/s² in y):
+
+| q (rad) | Expected τ | RNEA τ | Match |
+|---|---|---|---|
+| 0          | +19.62  | +19.62000 | exact |
+| π/2        | 0       | -0.00000  | exact |
+| π          | -19.62  | -19.62000 | exact |
+
+Result equals `m·g·L·cos(q)` analytically across the configuration
+space, validating the kinematic propagation, the body-frame
+inertia rotation, and the joint-axis projection.
+
+### Limitations (full Featherstone spatial-vector formulation
+lands in v0.6 if needed for very large or deep chains):
+
+- Serial chain only (no branching trees — same restriction as
+  the URDF parser).
+- Revolute and prismatic joints only.
+- Inertia tensors must be expressed in the link's body-fixed
+  frame at the link's center of mass.
+
+### Files
+
+- `stdlib/runtime/dynamics_rt.c` — `NDyn` struct, `_q_rot_vec`
+  helper, `nuc_dyn_*` exports including `_inverse` and `_gravity`.
+- `stdlib/runtime/fk_chain_rt.c` — added `nuc_fk_chain_joint_type`
+  and `nuc_fk_chain_joint_axis` accessors.
+- `stdlib/rods/dynamics.nr` — externs + Nucleor wrappers.
+- `tests/rods/dynamics_smoke.nr` — smoke test for the configuration
+  setters (correctness covered by the direct C pendulum test).
+
+---
+
 ## [0.2.206] — 2026-04-23
 
 **Robotics: end-to-end showcase exercising the full v0.2.174-205

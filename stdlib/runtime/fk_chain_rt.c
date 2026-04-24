@@ -272,3 +272,21 @@ long long nuc_fk_chain_add_dh_joint(
         _f2i(qw), _f2i(qx), _f2i(qy), _f2i(qz),
         _f2i(0.0), _f2i(0.0), _f2i(1.0));
 }
+
+// === Per-joint metadata accessors (v0.2.207) ===
+//
+// Added to support `dynamics_rt.c` (RNEA) which needs the joint
+// type + axis-of-motion to compute Coriolis/centrifugal terms and
+// to project the resulting wrench onto the joint axis.
+
+long long nuc_fk_chain_joint_type(long long ch, long long i) {
+    FKChain *c = (FKChain *)(void *)(size_t)ch;
+    if (!c || i < 0 || i >= (long long)c->count) return -1;
+    return (long long)c->joints[i].joint_type;
+}
+
+long long nuc_fk_chain_joint_axis(long long ch, long long i, long long dim) {
+    FKChain *c = (FKChain *)(void *)(size_t)ch;
+    if (!c || i < 0 || i >= (long long)c->count || dim < 0 || dim > 2) return _f2i(0.0);
+    return _f2i(c->joints[i].axis[dim]);
+}
