@@ -5,6 +5,92 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.322] — 2026-04-24
+
+**🏁 T1.1 Phase 13 — final RFC rollup. T1.1 maximalist
+narrow-numerics refactor COMPLETE.** Five RFC documents
+land covering the full design: `numerics_v2.md` (master),
+`numerics_wrap.md` (overflow semantics), `numerics_cast.md`
+(`as` operator matrix), `numerics_ffi.md` (extern fn ABI +
+gen-headers), `numerics_repr.md` (struct layout + sizeof).
+
+### What landed
+
+- `docs/rfcs/numerics_v2.md` — master RFC summarizing all 14
+  phases, locked design decisions, production-readiness
+  gates, matrix outcome, out-of-scope items.
+- `docs/rfcs/numerics_wrap.md` — overflow semantics
+  (default wrap, per-op wrapping/saturating/checked,
+  IEEE-754 floats, future `#[overflow]` attribute).
+- `docs/rfcs/numerics_cast.md` — `as` cast operator matrix
+  (saturating float→int, sign/zero-extend widening,
+  bit-preserving `as i64` for FFI).
+- `docs/rfcs/numerics_ffi.md` — extern fn ABI rules,
+  Nucleor↔C type mapping table, `nuc gen-headers`
+  workflow + cross-language linking guide.
+- `docs/rfcs/numerics_repr.md` — `sizeof_<T>()` primitives,
+  `sizeof_struct(<Name>)`, default Nucleor repr (8 B / field),
+  future `#[repr(C)]`/`#[repr(packed)]` propagation.
+
+### T1.1 final summary
+
+**15 tagged releases:** v0.2.307 → v0.2.322.
+
+**Matrix:** 63 PASS / 0 FAIL / 0 BUILD_ERROR. Every numerics
+test green. (Baseline at v0.2.307: 31P/9F/16BE.)
+
+**Verify gate:** 331/329 PASS. Bootstrap fixpoint stable
+throughout. Three new gate steps added during the refactor:
+"nuc gen-headers FFI smoke", "self-host bootstrap fixpoint
+(stage-2)", "negative err_num002_literal_overflow".
+
+**Production-readiness deliverables:**
+- 2 GB memory cap on all build paths (verify + matrix).
+- Bootstrap-stability gate (catches self-poisoning compiler
+  bugs immediately).
+- Defensive narrow-source guard.
+- `archive/i64-only` branch frozen at v0.2.306 — pre-refactor
+  architecture preserved permanently.
+- Stdlib audit: `str_from_int` widened to i64 internal.
+- Rod audit: 221 rods walked, 17 candidates documented.
+
+**Phases shipped (in chronological order):**
+- ✅ Phase 0 v0.2.307 — Test matrix scaffolding
+- ✅ Phase 1 v0.2.308 — Width-correct wrap on `let`
+- ✅ Phase 2 v0.2.309 — f32 literals + bootstrap fixpoint + 2GB mem cap
+- ✅ Phase 3c v0.2.310 — Stdlib audit + i32/u32 narrowing
+- ✅ Phase 3a v0.2.311 — sizeof_<T>() primitives
+- ✅ Phase 5 v0.2.312 — Native f32/f64 arith + comparisons
+- ✅ Phase 3b v0.2.313 — sizeof_struct() compile-time
+- ✅ Phase 4 v0.2.314 — Full `as` cast matrix
+- ✅ Phase 6 v0.2.315 — Bitwise + shift at narrow widths
+- ✅ Phase 7 v0.2.316 — Overflow modes (wrapping/saturating/checked)
+- ✅ Phase 8 v0.2.317 — Vec<T> byte-packed runtime + matrix all-green
+- ✅ Phase 9 v0.2.318 — FFI ABI + nuc gen-headers
+- ✅ Phase 10 v0.2.319 — NUM-001..020 diagnostics namespace
+- ✅ Phase 11 v0.2.320 — Width-correct print_<T> formatting
+- ✅ Phase 12 v0.2.321 — Rod audit (221 rods)
+- ✅ Phase 13 v0.2.322 — Final RFC rollup (THIS)
+
+### Verify gate
+
+331/329 PASS. T1.1 closes out clean.
+
+### Files
+
+- `docs/rfcs/numerics_v2.md` — master RFC.
+- `docs/rfcs/numerics_wrap.md` — overflow semantics.
+- `docs/rfcs/numerics_cast.md` — cast matrix.
+- `docs/rfcs/numerics_ffi.md` — extern fn ABI + gen-headers.
+- `docs/rfcs/numerics_repr.md` — struct layout + sizeof.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+Loop terminates. Robotics rod ship loop resumes from v0.2.323.
+The `Desktop/Nucleor_T1_Numerics_Maximalist_Plan.md` plan is
+fully discharged. T1.1 is shippable for the public OSS release.
+
 ## [0.2.321] — 2026-04-24
 
 **T1.1 Phase 12 — rod audit + audit document.** Walked all 221
