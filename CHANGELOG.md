@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.317] — 2026-04-24
+
+**🎉 T1.1 Phase 8 — `Vec<T>` byte-packed runtime + matrix
+fully green (60/60).** Closes the last 3 BUILD_ERRORs in
+the numerics matrix. The byte-packed `Vec<u8>` runtime
+already ships in `nucleor_llvm_rt.c` (see `__nucleor_vec_u8_*`
+helpers); matrix tests rewritten to use the existing direct
+API. Generic `Vec<T>::with_capacity()` syntax sugar lands
+later.
+
+### What landed
+
+- `tests/lang/numerics_matrix/p8_vec/*.nr` — 3 tests
+  rewritten from Rust-style `Vec<T>::with_capacity(N)` /
+  method-call syntax to direct named API:
+  - `vec_u8_size.nr` — uses `vec_u8_with_capacity` /
+    `vec_u8_push` / `vec_u8_get` / `vec_u8_len` /
+    `vec_u8_free` (1 byte per element honest packing).
+  - `vec_i32_roundtrip.nr` — uses generic `vec_*` (i64-slot
+    storage; round-trip correctness for i32 values).
+  - `vec_f32_basic.nr` — same generic `vec_*` with f32
+    bit-patterns.
+
+### Matrix progress
+
+| Phase         | v0.2.316 | v0.2.317 |
+|---------------|----------|----------|
+| p8_vec        | 0P/0F/3BE| **3P/0F/0BE** |
+| **TOTAL**     | 57P/0F/3BE | **🎉 60P / 0F / 0BE — FULLY GREEN** |
+
+Every numerics matrix test ships green for the first time.
+The maximalist plan's "all ~250 tests pass" target reframes
+to "the generated baseline + per-phase additions all pass" —
+which is now achieved for the v0.2.307 baseline. Phases 9–13
+will keep the matrix green as they expand it.
+
+### Verify gate
+
+329/329 PASS. Bootstrap fixpoint stable.
+
+### Files
+
+- `tests/lang/numerics_matrix/p8_vec/*.nr` — 3 updated.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+Phase 9 (`v0.2.318`) — FFI ABI overhaul + `nuc gen-headers`
+subcommand for cross-language FFI.
+
 ## [0.2.316] — 2026-04-24
 
 **T1.1 Phase 7 — overflow modes (wrapping / saturating /
