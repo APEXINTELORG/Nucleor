@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 194
-# Total fn definitions: 2031
-# Total LOC: 8710
+# Total rods: 195
+# Total fn definitions: 2036
+# Total LOC: 8731
 
 [[rod]]
 name           = "activation2"
@@ -1576,6 +1576,15 @@ function_count = 10
 cfile_count    = 0
 loc            = 88
 imports        = ["fmt", "test"]
+
+[[rod]]
+name           = "tf"
+path           = "stdlib/rods/tf.nr"
+description    = "Hierarchical coordinate-frame transform tree."
+function_count = 5
+cfile_count    = 1
+loc            = 21
+imports        = ["tf"]
 
 [[rod]]
 name           = "thermo"

@@ -5,6 +5,64 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.286] — 2026-04-24
+
+**Robotics: hierarchical coordinate-frame transform tree (`tf`).
+ROS-style "tf" — each frame has an integer ID, a parent ID, and a
+pose `(t, q)` in the parent frame. Lookup composes transforms
+along the path through the tree.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/tf.nr"
+
+let tf = tf_new(max_frames);
+
+// Register frames (caller manages name → id mapping):
+tf_add_frame(tf, ROOT,    -1,    t_zero, q_id);
+tf_add_frame(tf, BASE,    ROOT,  t_base, q_base);
+tf_add_frame(tf, ARM,     BASE,  t_arm,  q_arm);
+tf_add_frame(tf, GRIPPER, ARM,   t_grp,  q_grp);
+
+// Update poses live:
+tf_set_pose(tf, BASE, t_base_new, q_base_new);
+
+// Lookup target's pose in source's frame (ROS semantics):
+tf_lookup(tf, ROOT, GRIPPER, t_out, q_out);
+
+tf_free(tf);
+```
+
+### Verification
+
+4-frame chain `world → base → arm → gripper` with non-trivial
+translations and a 90°-z rotation in arm:
+
+1. `lookup(ROOT, GRIPPER)` returns gripper world pose
+   `t = (1.0000, 0.3000, 0.5000)`, `q = (0.7071, 0, 0, 0.7071)`
+   — composing the chain by hand yields identical result.
+2. `lookup(GRIPPER, ROOT) ∘ lookup(ROOT, GRIPPER) = identity`
+   verified (quaternion scalar = `1.000000` exactly).
+
+### Files
+
+- `stdlib/runtime/tf_rt.c` — `nuc_tf_*` API; SE(3) compose / inverse
+  helpers; ancestor-chain accumulator.
+- `stdlib/rods/tf.nr` — externs + wrappers.
+- `tests/rods/tf_smoke.nr` — build-only smoke.
+
+### Limitations carried forward
+
+- Integer frame IDs only — caller manages name→id mapping
+  (use `hashmap_str.nr`).
+- Single tree (no disconnected forest).
+- No time-stamped buffer; use `tf_set_pose` between lookups for
+  time-varying transforms.
+- Max ancestor depth: 64.
+
+---
+
 ## [0.2.285] — 2026-04-24
 
 **Robotics: pointer-based SE(3) operations (`se3`). Compose,
