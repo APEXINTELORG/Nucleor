@@ -5,6 +5,97 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.222] — 2026-04-23
+
+**Robotics: iLQR — iterative Linear Quadratic Regulator (Tassa
+et al. 2012). Locally-optimal nonlinear trajectory optimizer
+that's the workhorse inner loop of model predictive control
+(MPC) and direct shooting trajectory optimization. Closes the
+optimal-control gap in Nucleor's robotics rod stack.**
+
+User supplies the dynamics, stage cost, and terminal cost as
+function-pointer callbacks (no analytical-gradient requirement —
+iLQR handles all the gradient/Hessian work via numerical finite
+differences). The optimizer iteratively quadratizes the problem
+around the current trajectory, solves the LQR sub-problem
+backward (Riccati recursion), and forward-rolls with a line
+search until the cost decreases.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/ilqr.nr"
+
+let n_iters = ilqr_optimize(n_x, n_u, T,
+    x0_ptr,                        // initial state (double[n_x])
+    u_seq_ptr,                     // initial controls (double[T*n_u]), modified in place
+    max_iters,
+    dynamics_fp,                   // fn(x, u, x_next) -> i64
+    stage_cost_fp,                 // fn(x, u) -> bit-cast f64
+    terminal_cost_fp);             // fn(x_T) -> bit-cast f64
+
+let final_cost = ilqr_total_cost(n_x, n_u, T,
+    x0_ptr, u_seq_ptr,
+    dynamics_fp, stage_cost_fp, terminal_cost_fp);
+```
+
+### Use cases
+
+- **Direct shooting trajectory optimization**: optimize robot
+  joint torques over a finite horizon to minimize a cost
+  function (e.g., reach goal pose with minimum control effort).
+- **MPC inner loop**: at each control step, solve a finite-
+  horizon iLQR problem from the current state, apply the first
+  control, re-solve at the next step.
+- **Reinforcement-learning baseline**: a model-based optimizer
+  to compare against learned policies.
+
+### Implementation notes
+
+- Numerical FD for all gradients/Hessians (no analytical-gradient
+  requirement on user callbacks).
+- Diagonal Hessian approximation for the cost (Gauss-Newton style;
+  ignores off-diagonal coupling — fast and adequate for typical
+  smooth costs).
+- Line search on the line `α ∈ {1, 0.5, 0.25, …, 1/512}` with
+  cost-decrease acceptance.
+- Q_uu regularizer of `1e-6·I` for stability near singular
+  configurations.
+
+### Verification
+
+2D double-integrator brought to origin (T=20, dt=0.1, stage
+cost = u², terminal cost = 100·(pos² + vel²)):
+
+| Stage | Cost | Final state |
+|---|---|---|
+| Initial (zero control, drift) | 100.0 | pos=1.000, vel=0.000 |
+| After **2** iLQR iters | **11.62** | pos=0.116, vel=-0.111 |
+
+Optimizer recovered the LQR-style decreasing-magnitude control
+(`u = -1.16, -1.04, -0.93, ...`) — the system decelerates from
+pos=1 with a smooth ramp, ending close to the origin under the
+finite-weight terminal cost trade-off.
+
+### Limitations
+
+- Numerical FD slower than user-supplied analytical gradients —
+  acceptable for typical T ≤ 100, n_x ≤ 16, n_u ≤ 8.
+- No box constraints on `u` (would need projected line search
+  or DDP variant).
+
+### Files
+
+- `stdlib/runtime/ilqr_rt.c` — `nuc_ilqr_optimize`,
+  `nuc_ilqr_total_cost`, plus `_dyn_jacobian` /
+  `_cost_quadratize` / `_tcost_quadratize` / `_total_cost`
+  helpers and a small Gauss-Jordan inverter.
+- `stdlib/rods/ilqr.nr` — externs + Nucleor wrappers.
+- `tests/rods/ilqr_smoke.nr` — build-only linkage smoke
+  (correctness covered by direct C double-integrator test).
+
+---
+
 ## [0.2.221] — 2026-04-23
 
 **Robotics: PRM A* query (v0.2.220) and reflected motor inertia
