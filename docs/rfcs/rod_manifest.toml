@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 209
-# Total fn definitions: 2067
-# Total LOC: 9001
+# Total rods: 210
+# Total fn definitions: 2068
+# Total LOC: 9025
 
 [[rod]]
 name           = "activation2"
@@ -721,6 +721,15 @@ function_count = 1
 cfile_count    = 1
 loc            = 14
 imports        = ["hough"]
+
+[[rod]]
+name           = "hough_circle"
+path           = "stdlib/rods/hough_circle.nr"
+description    = "Hough transform for 2-D circle detection."
+function_count = 1
+cfile_count    = 1
+loc            = 24
+imports        = ["hough_circle"]
 
 [[rod]]
 name           = "hull"
