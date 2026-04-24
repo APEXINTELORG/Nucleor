@@ -701,6 +701,21 @@ Step "self-host rebuild closes" {
 # the same binary. Prevents the class of bug where a compiler change
 # silently poisons the next compile (Phase 1's narrow_via_as truncating
 # stdlib's `let val: i32 = n` for str_from_int was caught this way).
+Step "T1.9 nuc test framework smoke" {
+    # Verifies `nuc test` discovers #[test] functions and reports PASS
+    # for each. The harness fixture is `tests/smoke/t19_test_framework.nr`.
+    $src = Join-Path $root "tests\smoke\t19_test_framework.nr"
+    if (-not (Test-Path $src)) { return $false }
+    $out = & $bin test $src 2>&1 | Out-String
+    if ($out -notmatch "PASS: test_arithmetic_addition") { return $false }
+    if ($out -notmatch "PASS: test_arithmetic_subtraction") { return $false }
+    if ($out -notmatch "PASS: test_assert_ne_distinct") { return $false }
+    if ($out -notmatch "PASS: test_division") { return $false }
+    if ($out -notmatch "PASS: test_narrow_wrap_u8_in_test_fn") { return $false }
+    if ($out -notmatch "test result: PASS \(5 tests\)") { return $false }
+    return $true
+}
+
 Step "nuc gen-headers FFI smoke" {
     # T1.1 Phase 9 (v0.2.318): nuc gen-headers should turn an .nr
     # file's extern fn declarations into a matching C header. This
