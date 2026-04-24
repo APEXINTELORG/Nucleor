@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.189] — 2026-04-24
+
+**Documentation: `docs/release-notes-v0.2.x-robotics.md` adds a
+single-page summary of the v0.2.174-v0.2.188 robotics stack arc
+suitable for blog posts, release announcements, and reviewer
+overview.**
+
+Companion to the v0.2.x memory-fix release notes
+(`docs/release-notes-v0.2.x-memory.md` from v0.2.170). Together
+the two docs cover the two major stories of the v0.2 ship arc:
+the 283× memory reduction and the new robotics stack.
+
+Sections:
+
+- TL;DR table (9 rods + 1 showcase, ~1965 LOC)
+- Per-ship one-line summary (15 ships)
+- Architecture decisions (i64 FFI; user callbacks for
+  collision and graph search; composition over coupling)
+- v0.4/v0.5 follow-on cross-reference to milestone trackers
+- "How to use the stack today" with the integration example
+  command
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**259 / 259 PASS, 0 SKIP** (no test changes; doc-only ship).
+
 ## [0.2.188] — 2026-04-24
 
 **Robotics: RRT-Connect (Kuffner & LaValle 2000) — bidirectional
