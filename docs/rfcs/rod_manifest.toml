@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 199
-# Total fn definitions: 2054
-# Total LOC: 8843
+# Total rods: 200
+# Total fn definitions: 2055
+# Total LOC: 8851
 
 [[rod]]
 name           = "activation2"
@@ -1288,6 +1288,15 @@ function_count = 2
 cfile_count    = 1
 loc            = 30
 imports        = []
+
+[[rod]]
+name           = "rdp"
+path           = "stdlib/rods/rdp.nr"
+description    = "Ramer-Douglas-Peucker polyline simplification."
+function_count = 1
+cfile_count    = 1
+loc            = 8
+imports        = ["rdp"]
 
 [[rod]]
 name           = "reach"
