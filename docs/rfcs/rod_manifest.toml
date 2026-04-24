@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 222
-# Total fn definitions: 2094
-# Total LOC: 9216
+# Total rods: 223
+# Total fn definitions: 2097
+# Total LOC: 9238
 
 [[rod]]
 name           = "activation2"
@@ -1027,6 +1027,15 @@ function_count = 10
 cfile_count    = 0
 loc            = 63
 imports        = ["math"]
+
+[[rod]]
+name           = "mecanum"
+path           = "stdlib/rods/mecanum.nr"
+description    = "Mecanum-wheel (4-wheel omnidirectional) kinematics."
+function_count = 3
+cfile_count    = 1
+loc            = 22
+imports        = ["mecanum"]
 
 [[rod]]
 name           = "mem"
