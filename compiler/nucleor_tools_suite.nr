@@ -8774,13 +8774,46 @@ fn llvm_clang_path() -> str {
     return "clang";
 }
 
+fn host_is_windows() -> i64 {
+    // Detects host OS via the path separator returned by the runtime.
+    // Used by link_native_module to choose Windows-only flags (/STACK: linker
+    // syntax, .exe suffix, 2>NUL stderr redirect) vs POSIX equivalents.
+    let sep: str = path_separator();
+    if str_len(sep) >= 1 && str_char_at(sep, 0) == 92 { return 1; };
+    return 0;
+}
+
+fn host_exe_suffix() -> str {
+    if host_is_windows() == 1 { return ".exe"; };
+    return "";
+}
+
+fn host_target_path_sep() -> str {
+    if host_is_windows() == 1 { return "\\"; };
+    return "/";
+}
+
+fn host_null_redirect() -> str {
+    if host_is_windows() == 1 { return " 2>NUL"; };
+    return " 2>/dev/null";
+}
+
+fn host_stack_link_flag() -> str {
+    // Windows: clang-cl-style flag passed through to MSVC link.exe / lld-link.
+    // POSIX: GNU ld accepts -z stacksize=N (in bytes). Both expand the main
+    // thread stack to 16 MiB so deep recursion in the compiler works.
+    if host_is_windows() == 1 { return " -Wl,/STACK:16777216"; };
+    return " -Wl,-z,stacksize=16777216";
+}
+
 fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path: str, link_native: i64, time_passes: i64) -> i64 {
     let ll_path: str = sanitize(str_concat("target/", str_concat(out_name, ".ll")));
-    let exe_path: str = sanitize(str_concat("target\\", str_concat(out_name, ".exe")));
-    system("mkdir target 2>NUL");
+    let exe_path: str = sanitize(str_concat(str_concat("target", host_target_path_sep()), str_concat(out_name, host_exe_suffix())));
+    let null_redir: str = host_null_redirect();
+    system(str_concat("mkdir target", null_redir));
     file_write_string(ll_path, ll);
     if str_len(cache_ll_path) > 0 {
-        system("mkdir .nuc_cache 2>NUL");
+        system(str_concat("mkdir .nuc_cache", null_redir));
         let clean_cache_path: str = sanitize(cache_ll_path);
         file_write_string(clean_cache_path, ll);
     };
@@ -8795,7 +8828,8 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     let libpath_flags: str = vec_get(native_d, 2);
     let rt_arg: str = resolve_toolchain_path("stdlib/runtime/nucleor_llvm_rt.c");
     let clang_start: i64 = now_ms();
-    let cmd: str = str_concat(llvm_clang_path(), str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module -Wl,/STACK:16777216 ", str_concat(libpath_flags, str_concat(link_flags, " 2>&1"))))))))));
+    let stack_flag: str = host_stack_link_flag();
+    let cmd: str = str_concat(llvm_clang_path(), str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags, str_concat(link_flags, " 2>&1"))))))))))));
     let rc: i64 = system(cmd);
     print_phase_time(time_passes, "clang", now_ms() - clang_start);
     if rc != 0 {
@@ -8824,11 +8858,11 @@ fn compile_and_run(ll: str, name: str) -> i64 {
         return 1;
     };
     let lp: str = sanitize(str_concat("target/", str_concat(safe_name, ".ll")));
-    let ep: str = sanitize(str_concat("target\\", str_concat(safe_name, ".exe")));
-    system("mkdir target 2>NUL");
+    let ep: str = sanitize(str_concat(str_concat("target", host_target_path_sep()), str_concat(safe_name, host_exe_suffix())));
+    system(str_concat("mkdir target", host_null_redirect()));
     file_write_string(lp, ll);
     let rt_arg2: str = resolve_toolchain_path("stdlib/runtime/nucleor_llvm_rt.c");
-    let cmd: str = str_concat(llvm_clang_path(), str_concat(" ", str_concat(lp, str_concat(" ", str_concat(rt_arg2, str_concat(" -o ", str_concat(ep, " -Wno-override-module -Wl,/STACK:16777216  2>&1"))))));
+    let cmd: str = str_concat(llvm_clang_path(), str_concat(" ", str_concat(lp, str_concat(" ", str_concat(rt_arg2, str_concat(" -o ", str_concat(ep, str_concat(" -Wno-override-module", str_concat(host_stack_link_flag(), "  2>&1")))))))));
     let rc: i64 = system(cmd);
     if rc != 0 { print(str_concat("  COMPILE FAIL: ", safe_name)); return 0 - 1; };
     return system(ep);
@@ -9906,7 +9940,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     module_record_add(module_records, src_path, raw_source);
     let source: str = resolve_source_with_records(raw_source, extract_dir(src_path), imported, module_records);
     if use_cache == 1 {
-        system("mkdir .nuc_cache 2>NUL");
+        fs_create_dir_all(".nuc_cache");
         file_write_string(manifest_path, module_records_serialize(module_records));
         file_write_string(source_path, source);
     };
@@ -10765,8 +10799,10 @@ fn run_test_command(src_path: str, out_name: str, use_cache: i64, time_passes: i
     // Without this, `nuc test foo.nr` from a fresh directory fails with
     // "ERROR: cannot read target/foo__test_harness.nr" because
     // file_write_string silently fails when the parent dir doesn't exist.
-    // Mirrors the pattern already used in compiler/nucleor_s1_compiler.nr:7773.
-    system("mkdir target 2>NUL");
+    // v0.2.339 (T1.7): switched from `mkdir target 2>NUL` shell-out to
+    // the cross-platform fs_create_dir_all builtin so `nuc test` works
+    // on Linux + macOS without cmd.exe.
+    fs_create_dir_all("target");
     let temp_src: str = sanitize(str_concat("target/", str_concat(out_name, "__test_harness.nr")));
     file_write_string(temp_src, harness_source);
     let rc: i64 = compile_file_mode(temp_src, out_name, 1, use_cache, time_passes, 1);
@@ -11033,21 +11069,24 @@ fn bootstrap_corpus_listing_path(tag: str) -> str {
 }
 
 fn bootstrap_collect_corpus_files(tag: str) -> Vec<i32> {
-    let listing_path: str = bootstrap_corpus_listing_path(tag);
-    system("mkdir target 2>NUL");
-    system(str_concat("dir /b examples\\*.nr > ", str_concat(listing_path, " 2>NUL")));
-    let raw: str = file_read_string(listing_path);
-    system(str_concat("del /q ", str_concat(listing_path, " >NUL 2>NUL")));
+    // v0.2.339 (T1.7): replaced `dir /b examples\*.nr` shell-out with
+    // fs_list_dir + a .nr extension filter. The (unused-after-this)
+    // `tag` parameter is kept for API compatibility; the temp listing
+    // file path is no longer needed since we never write to disk.
+    let _ = tag;
+    fs_create_dir_all("target");
+    let entries: Vec<i32> = fs_list_dir("examples");
+    let sorted: Vec<i32> = sort_strings_asc(entries);
     let mut files: Vec<i32> = Vec::new();
-    let slen: i64 = str_len(raw);
-    let mut p: i64 = 0;
-    while p < slen {
-        let mut eol: i64 = p;
-        while eol < slen && str_char_at(raw, eol) != 10 && str_char_at(raw, eol) != 13 { eol = eol + 1; };
-        let line: str = str_substring(raw, p, eol);
-        if str_len(line) > 0 { files.push(line); };
-        while eol < slen && (str_char_at(raw, eol) == 10 || str_char_at(raw, eol) == 13) { eol = eol + 1; };
-        p = eol;
+    let n: i64 = vec_len(sorted);
+    let mut i: i64 = 0;
+    while i < n {
+        let name: str = vec_get(sorted, i);
+        let nlen: i64 = str_len(name);
+        if nlen >= 3 && str_eq(str_substring(name, nlen - 3, nlen), ".nr") == 1 {
+            files.push(name);
+        };
+        i = i + 1;
     };
     return files;
 }
@@ -11784,21 +11823,18 @@ fn lock_should_skip_file(package_dir: str, file_path: str) -> i64 {
 }
 
 fn package_checksum_native(package_dir: str) -> str {
+    // v0.2.339 (T1.7): replaced `dir /b /s` shell-out with the
+    // platform-portable walk_dir_recursive_native helper. The output
+    // ordering matches the prior cmd.exe `/on` (alphabetical), so
+    // pre-existing checksums in Nucleor.lock files remain stable.
     let root_dir: str = trim_trailing_sep(package_dir);
     if str_len(root_dir) == 0 { return secure_hash(package_dir); };
-    system("mkdir .nuc_cache 2>NUL");
-    let listing_path: str = str_concat(".nuc_cache/lock_inventory_", str_concat(str_from_int(now_ms()), ".txt"));
-    let list_cmd: str = str_concat("dir /b /s /a-d /on ", str_concat(shell_quote(path_shell_native(root_dir)), str_concat(" > ", shell_quote(path_shell_native(listing_path)))));
-    if system(list_cmd) != 0 { return secure_hash(root_dir); };
-    let raw: str = file_read_string(listing_path);
-    system(str_concat("del /q ", str_concat(shell_quote(path_shell_native(listing_path)), " >NUL 2>NUL")));
-    let slen: i64 = str_len(raw);
+    let files: Vec<i32> = walk_dir_recursive_native(root_dir);
+    let n: i64 = vec_len(files);
     let mut payload: i64 = sb_new();
-    let mut p: i64 = 0;
-    while p <= slen {
-        let mut eol: i64 = p;
-        while eol < slen && str_char_at(raw, eol) != 10 { eol = eol + 1; };
-        let line: str = trim_ws(str_substring(raw, p, eol));
+    let mut i: i64 = 0;
+    while i < n {
+        let line: str = vec_get(files, i);
         if str_len(line) > 0 && lock_should_skip_file(root_dir, line) == 0 && str_eq(basename(line), package_signature_file_name()) == 0 {
             let rel: str = path_normalize_slashes(path_relative_inventory(root_dir, line));
             sb_append(payload, rel);
@@ -11806,8 +11842,7 @@ fn package_checksum_native(package_dir: str) -> str {
             sb_append(payload, file_read_string(line));
             sb_append(payload, "\n--\n");
         };
-        if eol >= slen { p = slen + 1; }
-        else { p = eol + 1; };
+        i = i + 1;
     };
     let material: str = sb_to_str(payload);
     if str_len(material) == 0 { return secure_hash(root_dir); };
@@ -12023,33 +12058,110 @@ fn manifest_replace_dependencies_section_native(manifest_path: str, deps: Vec<i3
 }
 
 fn dir_list_native(dir_path: str, dirs_only: i64) -> Vec<i32> {
+    // v0.2.339 (T1.7): replaced the prior `dir /b` shell-out with the
+    // cross-platform __nucleor_fs_list_dir builtin so this works on
+    // both Windows and POSIX without needing cmd.exe. dirs_only
+    // post-filters via fs_is_dir on the joined path.
     let mut items: Vec<i32> = Vec::new();
-    system("mkdir .nuc_cache 2>NUL");
-    let listing_path: str = str_concat(".nuc_cache/dir_list_", str_concat(str_from_int(now_ms()), ".txt"));
-    // v0.2.85: redirect stderr to NUL so a missing-directory probe
-    // (e.g. `nuc registry list` with no .nucleor/registry yet) doesn't
-    // leak "The system cannot find the file specified." to the user's
-    // terminal. The system() return code below already handles the
-    // missing-dir case by returning an empty Vec.
-    let list_cmd: str = if dirs_only == 1 {
-        str_concat("dir /b /ad ", str_concat(shell_quote(path_shell_native(dir_path)), str_concat(" > ", str_concat(shell_quote(path_shell_native(listing_path)), " 2>NUL"))))
-    } else {
-        str_concat("dir /b ", str_concat(shell_quote(path_shell_native(dir_path)), str_concat(" > ", str_concat(shell_quote(path_shell_native(listing_path)), " 2>NUL"))))
-    };
-    if system(list_cmd) != 0 { return items; };
-    let raw: str = file_read_string(listing_path);
-    system(str_concat("del /q ", str_concat(shell_quote(path_shell_native(listing_path)), " >NUL 2>NUL")));
-    let slen: i64 = str_len(raw);
-    let mut p: i64 = 0;
-    while p <= slen {
-        let mut eol: i64 = p;
-        while eol < slen && str_char_at(raw, eol) != 10 { eol = eol + 1; };
-        let line: str = trim_ws(str_substring(raw, p, eol));
-        if str_len(line) > 0 { items.push(line); };
-        if eol >= slen { p = slen + 1; }
-        else { p = eol + 1; };
+    let entries: Vec<i32> = fs_list_dir(dir_path);
+    let n: i64 = vec_len(entries);
+    let mut i: i64 = 0;
+    while i < n {
+        let name: str = vec_get(entries, i);
+        if str_len(name) > 0 {
+            if dirs_only == 1 {
+                let full: str = fs_join(dir_path, name);
+                if fs_is_dir(full) == 1 { items.push(name); };
+            } else {
+                items.push(name);
+            };
+        };
+        i = i + 1;
     };
     return items;
+}
+
+fn walk_dir_recursive_native(root_dir: str) -> Vec<i32> {
+    // v0.2.339 (T1.7): cross-platform replacement for `dir /b /s /a-d /on`.
+    // Returns an ordered Vec<str> of every regular file's full path under
+    // root_dir, walked via fs_list_dir + fs_is_dir. Used by package
+    // checksum + publish — both call sites used to shell out to cmd.exe
+    // which broke `nuc lock` and `nuc publish` on Linux/macOS.
+    let mut out: Vec<i32> = Vec::new();
+    let mut stack: Vec<i32> = Vec::new();
+    stack.push(root_dir);
+    while vec_len(stack) > 0 {
+        let last_idx: i64 = vec_len(stack) - 1;
+        let cur: str = vec_get(stack, last_idx);
+        vec_pop(stack);
+        let names: Vec<i32> = fs_list_dir(cur);
+        // Sort entries so the recursive walk produces a stable
+        // alphabetical order across platforms (cmd.exe `/on` did the same).
+        let sorted: Vec<i32> = sort_strings_asc(names);
+        let n: i64 = vec_len(sorted);
+        // Push subdirs in reverse so the pop order produces ascending visit.
+        let mut subdirs: Vec<i32> = Vec::new();
+        let mut i: i64 = 0;
+        while i < n {
+            let name: str = vec_get(sorted, i);
+            if str_len(name) > 0 {
+                let full: str = fs_join(cur, name);
+                if fs_is_dir(full) == 1 { subdirs.push(full); }
+                else { out.push(full); };
+            };
+            i = i + 1;
+        };
+        let m: i64 = vec_len(subdirs);
+        let mut j: i64 = m - 1;
+        while j >= 0 {
+            stack.push(vec_get(subdirs, j));
+            j = j - 1;
+        };
+    };
+    return out;
+}
+
+fn sort_strings_asc(v: Vec<i32>) -> Vec<i32> {
+    // Insertion sort on a string Vec (stable, O(n²) but n is bounded by
+    // file count per directory). Caller owns the returned Vec.
+    let n: i64 = vec_len(v);
+    let mut out: Vec<i32> = Vec::new();
+    let mut i: i64 = 0;
+    while i < n { out.push(vec_get(v, i)); i = i + 1; };
+    let mut k: i64 = 1;
+    while k < n {
+        let key: str = vec_get(out, k);
+        let mut j: i64 = k - 1;
+        let mut placed: i64 = 0;
+        while j >= 0 && placed == 0 {
+            let prev: str = vec_get(out, j);
+            if str_compare_asc(prev, key) > 0 {
+                vec_set(out, j + 1, prev);
+                j = j - 1;
+            } else {
+                placed = 1;
+            };
+        };
+        vec_set(out, j + 1, key);
+        k = k + 1;
+    };
+    return out;
+}
+
+fn str_compare_asc(a: str, b: str) -> i64 {
+    let la: i64 = str_len(a);
+    let lb: i64 = str_len(b);
+    let mut i: i64 = 0;
+    while i < la && i < lb {
+        let ca: i64 = str_char_at(a, i);
+        let cb: i64 = str_char_at(b, i);
+        if ca < cb { return 0 - 1; };
+        if ca > cb { return 1; };
+        i = i + 1;
+    };
+    if la < lb { return 0 - 1; };
+    if la > lb { return 1; };
+    return 0;
 }
 
 fn should_copy_package_file_native(file_path: str) -> i64 {
@@ -12129,31 +12241,25 @@ fn json_extract_string_value(raw: str, key: str) -> str {
 }
 
 fn copy_package_tree_native(src_root: str, dst_root: str) -> i64 {
+    // v0.2.339 (T1.7): replaced `dir /b /s` walk + `mkdir`/`copy /Y`
+    // shell-outs with the cross-platform fs_* runtime builtins.
+    // walk_dir_recursive_native + fs_create_dir_all + fs_copy_file work
+    // identically on Windows and POSIX.
     let root_dir: str = trim_trailing_sep(src_root);
-    system(str_concat("mkdir ", str_concat(shell_quote(path_shell_native(dst_root)), " 2>NUL")));
-    system("mkdir .nuc_cache 2>NUL");
-    let listing_path: str = str_concat(".nuc_cache/publish_inventory_", str_concat(str_from_int(now_ms()), ".txt"));
-    let list_cmd: str = str_concat("dir /b /s /a-d /on ", str_concat(shell_quote(path_shell_native(root_dir)), str_concat(" > ", shell_quote(path_shell_native(listing_path)))));
-    if system(list_cmd) != 0 { return 1; };
-    let raw: str = file_read_string(listing_path);
-    system(str_concat("del /q ", str_concat(shell_quote(path_shell_native(listing_path)), " >NUL 2>NUL")));
-    let slen: i64 = str_len(raw);
-    let mut p: i64 = 0;
-    while p <= slen {
-        let mut eol: i64 = p;
-        while eol < slen && str_char_at(raw, eol) != 10 { eol = eol + 1; };
-        let file_path: str = trim_ws(str_substring(raw, p, eol));
+    fs_create_dir_all(dst_root);
+    let files: Vec<i32> = walk_dir_recursive_native(root_dir);
+    let n: i64 = vec_len(files);
+    let mut i: i64 = 0;
+    while i < n {
+        let file_path: str = vec_get(files, i);
         if str_len(file_path) > 0 && lock_should_skip_file(root_dir, file_path) == 0 && should_copy_package_file_native(file_path) == 1 {
             let rel: str = path_relative_inventory(root_dir, file_path);
             let dst_path: str = sanitize(str_concat(path_with_sep(dst_root), rel));
             let dst_parent: str = parent_dir(dst_path);
-            if str_len(dst_parent) > 0 { system(str_concat("mkdir ", str_concat(shell_quote(path_shell_native(dst_parent)), " 2>NUL"))); };
-            if system(str_concat("copy /Y ", str_concat(shell_quote(path_shell_native(file_path)), str_concat(" ", str_concat(shell_quote(path_shell_native(dst_path)), " >NUL"))))) != 0 {
-                return 1;
-            };
+            if str_len(dst_parent) > 0 { fs_create_dir_all(dst_parent); };
+            if fs_copy_file(file_path, dst_path) != 0 { return 1; };
         };
-        if eol >= slen { p = slen + 1; }
-        else { p = eol + 1; };
+        i = i + 1;
     };
     return 0;
 }
@@ -14926,12 +15032,15 @@ fn main() -> i64 {
         return run_clean_command();
     };
     if str_eq(cmd, "init") {
-        // nuc init [name] — scaffold a new project
+        // nuc init [name] — scaffold a new project.
+        // v0.2.339 (T1.7): switched from `mkdir name\src` shell-out
+        // (Windows-only path separator) to fs_create_dir_all which
+        // accepts forward slashes on every platform.
         let mut proj_name: str = "myproject";
         if argc >= 3 { proj_name = args_get(2); };
-        system(str_concat("mkdir ", proj_name));
-        system(str_concat("mkdir ", str_concat(proj_name, "\\src")));
-        system(str_concat("mkdir ", str_concat(proj_name, "\\target")));
+        fs_create_dir_all(proj_name);
+        fs_create_dir_all(str_concat(proj_name, "/src"));
+        fs_create_dir_all(str_concat(proj_name, "/target"));
         // Write Nucleor.toml
         let toml: str = str_concat("[package]\nname = \"", str_concat(proj_name, "\"\nversion = \"0.1.0\"\n\n[build]\nentry = \"src/main.nr\"\n"));
         file_write_string(str_concat(proj_name, "/Nucleor.toml"), toml);

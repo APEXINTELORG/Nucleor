@@ -53,14 +53,16 @@ jobs:
         run: |
           uname -a
           clang --version
-      - name: Note about Linux nucleor binary
-        run: |
-          if [ ! -x bin/nucleor ]; then
-            echo "::warning::bin/nucleor (Linux build) not present in repo. Verify gate will fail until v0.3.0 ships the Linux binary — see docs/milestones/v0.3.0.md phase 1. This job tracks that gap."
-          fi
+      - name: Bootstrap bin/nucleor from IR seed
+        # T1.7 (v0.2.339): the Linux verify gate now produces its own
+        # bin/nucleor by clang-linking bootstrap/nucleor_s1_seed.ll
+        # against the platform-portable C runtime, then validating the
+        # fixed-point invariant (stage-2 IR matches the seed). No
+        # pre-built Linux binary is checked into the repo — the .ll
+        # seed is the only artifact the bootstrap depends on.
+        run: ./tools/bootstrap_linux.sh
       - name: Run verify.sh
         run: ./tools/verify.sh --no-color
-        continue-on-error: true
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -69,6 +71,7 @@ jobs:
           path: |
             target/
             .nuc_cache/
+            bin/
 
   verify-macos:
     name: verify (macos)
@@ -83,11 +86,14 @@ jobs:
           uname -a
           /opt/homebrew/opt/llvm@18/bin/clang --version
           echo "/opt/homebrew/opt/llvm@18/bin" >> "$GITHUB_PATH"
-      - name: Note about macOS nucleor binary
-        run: |
-          if [ ! -x bin/nucleor ]; then
-            echo "::warning::bin/nucleor (macOS build) not present in repo. Verify gate will fail until v0.3.0 ships the macOS binary — see docs/milestones/v0.3.0.md phase 1."
-          fi
+      - name: Bootstrap bin/nucleor from IR seed
+        # T1.7 (v0.2.339): same bootstrap path as Linux. The seed .ll
+        # is target-agnostic so the same artifact builds for arm64-darwin
+        # via the host clang. macOS verify.sh remains
+        # continue-on-error until the OEM-codepage / shell-quoting
+        # paths in nucleor_tools_suite.nr that still assume Windows
+        # `dir`/`del` are ported (tracked separately).
+        run: ./tools/bootstrap_linux.sh --seed-only
       - name: Run verify.sh
         run: ./tools/verify.sh --no-color
         continue-on-error: true

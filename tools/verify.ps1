@@ -70,10 +70,13 @@ try {
     $useColor = $false
 }
 
-# Enable VT processing for ANSI colors on Windows 10+ cmd / PowerShell hosts.
-if ($useColor) {
-    try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new() } catch { }
-}
+# Force UTF-8 console encoding so multibyte characters (em-dash, box-drawing
+# glyphs, etc.) round-trip cleanly through Out-String. This is required even
+# in -NoColor mode — several Step bodies regex-match text that contains
+# em-dashes ("OK — no diagnostics", "ERROR — ..."), and without UTF-8 the
+# bytes get reinterpreted as the Windows OEM codepage and the regex misses.
+try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new() } catch { }
+try { [Console]::InputEncoding  = [System.Text.UTF8Encoding]::new() } catch { }
 
 function Color($text, $ansi) {
     if ($useColor) { return "$([char]27)[${ansi}m${text}$([char]27)[0m" } else { return $text }
@@ -171,8 +174,9 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # 1 (showcase build) + 1 (CLI explain smoke) + 1 (explain-full) +
 # 1 (bootstrap) + 1 (check+abi) + 1 (inspectors) + 1 (diagnostics)
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
-# N tests + N err + 1 (self-host)
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 1
+# N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
+# + 1 self-host fixpoint + 1 T1.7 bootstrap seed
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 6
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -769,6 +773,24 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
     $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
     return $h1 -eq $h2
+}
+
+Step "T1.7 bootstrap seed matches current compiler" {
+    # v0.2.339 (T1.7): the Linux verify gate clang-links
+    # bootstrap/nucleor_s1_seed.ll against the platform-portable C
+    # runtime to produce its own bin/nucleor. The seed must match what
+    # the current Windows compiler emits for compiler/nucleor_s1_compiler.nr,
+    # otherwise the Linux gate would cross-fail every time the IR shape
+    # changed without a developer also refreshing the seed. Refresh
+    # workflow: see bootstrap/README.md.
+    $seed = "bootstrap\nucleor_s1_seed.ll"
+    if (-not (Test-Path $seed)) { return $false }
+    & $bin build "compiler/nucleor_s1_compiler.nr" -o "_seed_check" 2>&1 | Out-Null
+    $fresh = "target\_seed_check.ll"
+    if (-not (Test-Path $fresh)) { return $false }
+    $hSeed  = (Get-FileHash $seed  -Algorithm SHA256).Hash
+    $hFresh = (Get-FileHash $fresh -Algorithm SHA256).Hash
+    return $hSeed -eq $hFresh
 }
 
 Remove-Item -Recurse -Force (Join-Path $root "target") -ErrorAction SilentlyContinue
