@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 153
-# Total fn definitions: 1724
-# Total LOC: 7452
+# Total rods: 154
+# Total fn definitions: 1725
+# Total LOC: 7468
 
 [[rod]]
 name           = "activation2"
@@ -531,6 +531,15 @@ description    = "Grasp quality metrics for a 2-finger parallel-jaw"
 function_count = 3
 cfile_count    = 1
 loc            = 40
+imports        = []
+
+[[rod]]
+name           = "handeye"
+path           = "stdlib/rods/handeye.nr"
+description    = "Hand-eye calibration: solve AX = XB for the"
+function_count = 1
+cfile_count    = 1
+loc            = 16
 imports        = []
 
 [[rod]]
