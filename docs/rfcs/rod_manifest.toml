@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 201
-# Total fn definitions: 2057
-# Total LOC: 8873
+# Total rods: 202
+# Total fn definitions: 2058
+# Total LOC: 8887
 
 [[rod]]
 name           = "activation2"
@@ -703,6 +703,15 @@ function_count = 5
 cfile_count    = 1
 loc            = 11
 imports        = []
+
+[[rod]]
+name           = "hough"
+path           = "stdlib/rods/hough.nr"
+description    = "2D Hough transform for line detection."
+function_count = 1
+cfile_count    = 1
+loc            = 14
+imports        = ["hough"]
 
 [[rod]]
 name           = "hull"
