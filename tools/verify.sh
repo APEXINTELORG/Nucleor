@@ -277,8 +277,8 @@ showcase_build_smoke() {
     # of the v0.2.174-205 robotics rods composed by the showcase.
     local rrun
     rrun=$("./target/showcase_robotic_arm" 2>&1 || true)
-    if ! printf '%s\n' "$rrun" | grep -q "Showcase complete: 8 stages"; then
-        echo "       robotic_arm showcase did not complete 8 stages"
+    if ! printf '%s\n' "$rrun" | grep -q "Showcase complete: 10 stages"; then
+        echo "       robotic_arm showcase did not complete 10 stages"
         printf '%s\n' "$rrun" | tail -10
         return 1
     fi

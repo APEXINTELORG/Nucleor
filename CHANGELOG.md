@@ -5,6 +5,31 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.213] — 2026-04-23
+
+**Robotics: extend the end-to-end showcase to 10 stages, adding
+RNEA gravity-compensation and Cartesian impedance demonstrations.
+Verify gate updated to expect "10 stages" in the run output.**
+
+The showcase now exercises the entire v0.2.174-212 surface
+(kinematics + IK with limits/singularity/manipulability + TOPP +
+collision + BVH + dynamics inverse + Cartesian impedance) in a
+single 130-line Nucleor program. Gives prospective users one
+file to read to understand "what does Nucleor's robotics stack
+actually look like end-to-end?".
+
+### Files
+
+- `examples/showcase/robotic_arm.nr` — added stages 9 (RNEA
+  gravity comp via `dyn_gravity`) and 10 (Cartesian impedance
+  via `dyn_cartesian_impedance`); also incorporated
+  `ik_manipulability` into stage 4 alongside the singularity
+  metric.
+- `tools/verify.sh` — updated end-marker check from "8 stages"
+  to "10 stages".
+
+---
+
 ## [0.2.212] — 2026-04-23
 
 **Robotics: Cartesian impedance / operational-space PD controller
