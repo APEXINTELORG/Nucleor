@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.329] — 2026-04-24
+
+**Robotics: FAST corner detector (`fast_corner`). "Features
+from Accelerated Segment Test" (Rosten & Drummond 2006).
+Faster than Harris (no gradient computation, just pixel
+comparisons); standard front-end for ORB. Implements FAST-9
+(9-pixel consecutive segment).**
+
+### Algorithm
+
+```
+For each candidate pixel p:
+    High-speed reject: ≥ 2 of {N, E, S, W} circle pixels must
+                       agree (brighter or darker) with threshold.
+    Full check: 16-pixel Bresenham circle (radius 3); look for
+                ≥ 9 consecutive samples ALL brighter than I_p+t
+                or ALL darker than I_p-t.
+    Score: sum of |circle - center|.
+Optional 3×3 NMS on score; sort descending; return top-K.
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/fast_corner.nr"
+
+let xy: [2 * MAX]double;
+let score: [MAX]double;
+let n = fast_corners(img_ptr, W, H,
+                      threshold_b, nms,    // nms = 1 enables NMS
+                      MAX,
+                      f64_ptr(&xy[0]),
+                      f64_ptr(&score[0]));
+```
+
+### Verification
+
+Direct C unit test (`target/_test_fast_corner.c`):
+
+- T1 synthetic L-corner : 32×32 with dark 10×10 quad → corner
+                           detected at (9, 9), score 2805 ✓
+- T2 flat image         : all 128 → no corners ✓
+- T3 bad W=5            : returns 0 (insufficient border) ✓
+
+Build smoke `tests/rods/fast_corner_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/fast_corner_rt.c` — Bresenham circle table +
+  high-speed reject + 16-pixel scan + NMS + sort.
+- `stdlib/rods/fast_corner.nr` — extern + `fast_corners` wrapper.
+- `tests/rods/fast_corner_smoke.nr` — build-only smoke.
+- `CHANGELOG.md` — this entry.
+
+### Limitations
+
+Documented in `fast_corner.nr` and `fast_corner_rt.c`: single-
+scale (caller pre-builds Gaussian pyramid via `image_pyramid.nr`
+for multi-scale FAST); hard-coded N=9 segment length; Bresenham
+radius is fixed at 3.
+
 ## [0.2.328] — 2026-04-24
 
 **Robotics: Harris corner detector (`harris`). For each pixel,

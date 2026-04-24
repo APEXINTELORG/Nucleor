@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 218
-# Total fn definitions: 2087
-# Total LOC: 9160
+# Total rods: 219
+# Total fn definitions: 2088
+# Total LOC: 9171
 
 [[rod]]
 name           = "activation2"
@@ -586,6 +586,15 @@ function_count = 3
 cfile_count    = 1
 loc            = 23
 imports        = ["env"]
+
+[[rod]]
+name           = "fast_corner"
+path           = "stdlib/rods/fast_corner.nr"
+description    = "FAST corner detector (Rosten & Drummond"
+function_count = 1
+cfile_count    = 1
+loc            = 11
+imports        = ["fast_corner"]
 
 [[rod]]
 name           = "fft"
