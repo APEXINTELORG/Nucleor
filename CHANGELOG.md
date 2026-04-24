@@ -5,6 +5,88 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.215] — 2026-04-23
+
+**Robotics: two model-based controllers — joint-space computed-
+torque (v0.2.214) for trajectory tracking, and 6-DOF Cartesian
+impedance (v0.2.215) for full-pose contact-rich manipulation.
+Together with v0.2.212's 3-DOF impedance + tip wrench, the
+dynamics rod now ships every standard model-based controller a
+robotics user would reach for.**
+
+### Joint-space computed torque (v0.2.214)
+
+Classical inverse-dynamics control:
+
+```
+qdd_cmd = qdd_des + Kp·(q_des − q) + Kd·(qd_des − qd)
+tau     = M(q)·qdd_cmd + C(q,qd)·qd + g(q)   ← packaged via RNEA
+```
+
+Linearizes the closed-loop dynamics: the tracking error
+`e = q_des − q` follows the second-order linear ODE
+`ë + Kd·ė + Kp·e = 0`, so `Kp` and `Kd` are tuned in error-space
+(`Kp = ω²`, `Kd = 2·ζ·ω` for desired natural frequency `ω` and
+damping ratio `ζ`).
+
+### 6-DOF Cartesian impedance (v0.2.215)
+
+Extends v0.2.212's 3-DOF position-only impedance to full pose:
+
+```
+e_6 = [ p_des − p ; log_map(q_des · q_cur⁻¹) ]
+F_6 = K · e_6 − D · v_6        (K, D are 6-vectors)
+tau = Jᵀ · F_6  [+ g(q) if include_gravity]
+```
+
+Angular error via quaternion log-map (same approach as the 6-DOF
+IK solver shipped in v0.2.194). Jacobian is 6×n: three rows for
+position derivatives + three for angular-velocity derivatives.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/dynamics.nr"
+
+dyn_computed_torque(dyn,
+    q, qd,                      // current state
+    q_des, qd_des, qdd_des,     // reference trajectory
+    Kp, Kd,                     // diagonal gain vectors
+    tau_out);
+
+dyn_cartesian_impedance_6d(dyn,
+    q, qd,
+    pdes_x, pdes_y, pdes_z,
+    qdes_w, qdes_x, qdes_y, qdes_z,    // target orientation quaternion
+    K_ptr, D_ptr,                       // 6-vectors (3 trans + 3 rot)
+    1,                                   // include_gravity
+    tau_out);
+```
+
+### Verification
+
+Single revolute joint about z + fixed tip at (1, 0, 0); link mass
+1 kg with CoM at (0.5, 0, 0), Izz = 0.05; fixed tip default inertia
+0.01 contributes via parallel axis theorem (so M[0][0] = 0.31, not
+0.30):
+
+| Test | Expected | Got |
+|---|---|---|
+| Computed torque, zero error, no gravity | 0 | **0.000000** |
+| Computed torque, q_des=0.5 (Kp=10) — should give M·5 = 1.55 | 1.55 | **1.550000** |
+| 6D impedance, p_err=(0,1,0), Kp_trans=10 — Jᵀ·F = 10 | 10 | **10.000000** |
+
+### Files
+
+- `stdlib/runtime/dynamics_rt.c` — `nuc_dyn_computed_torque`
+  (thin wrapper around `nuc_dyn_inverse` with PD-augmented
+  qdd command); `nuc_dyn_cartesian_impedance_6d` (6×n Jacobian
+  + 6-DOF wrench).
+- `stdlib/rods/dynamics.nr` — externs + Nucleor wrappers for
+  both new entry points.
+
+---
+
 ## [0.2.213] — 2026-04-23
 
 **Robotics: extend the end-to-end showcase to 10 stages, adding
