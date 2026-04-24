@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 179
-# Total fn definitions: 1924
-# Total LOC: 8281
+# Total rods: 180
+# Total fn definitions: 1932
+# Total LOC: 8300
 
 [[rod]]
 name           = "activation2"
@@ -1279,6 +1279,15 @@ function_count = 8
 cfile_count    = 1
 loc            = 17
 imports        = []
+
+[[rod]]
+name           = "scurve"
+path           = "stdlib/rods/scurve.nr"
+description    = "Jerk-limited (7-phase) s-curve time-parameterization"
+function_count = 8
+cfile_count    = 1
+loc            = 19
+imports        = ["scurve"]
 
 [[rod]]
 name           = "serial"
