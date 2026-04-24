@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.274] — 2026-04-24
+
+**Robotics: pinhole camera with Brown-Conrady distortion (`cam`).
+Project world points → pixels and unproject pixels + depth →
+world points. Standalone utility complementing `ba.nr`'s built-in
+projection (which is fixed at pure pinhole and tied to the BA
+solver state).**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/cam.nr"
+
+let h = cam_new(fx_b, fy_b, cx_b, cy_b);
+cam_set_distortion(h, k1_b, k2_b, k3_b, p1_b, p2_b);
+cam_set_pose(h, t_ptr, q_ptr);             // double[3], double[4]
+
+let ok    = cam_project(h, P_w_ptr, uv_out_ptr);     // (X,Y,Z) → (u,v)
+            cam_unproject(h, u_b, v_b, depth_b, P_out_ptr);
+
+cam_distort(h, xn_b, yn_b, distorted_out_ptr);       // normalized
+cam_intrinsic_matrix(h, K_out_ptr);                  // 3×3 row-major
+```
+
+Pose `(t, q)` is the camera frame in the world (`X_cam = qᵀ · (P − t)`),
+matching `ba.nr`'s convention.
+
+### Verification
+
+`fx = fy = 500, cx = 320, cy = 240`, identity pose:
+
+1. `project(0, 0, 1)` = `(320, 240)` (principal point) exact.
+2. `project(0.5, -0.5, 2)` = `(445, 115)` exact.
+3. `unproject(320, 240, 5)` = `(0, 0, 5)` exact (round-trip).
+4. With `k1 = 0.1`: `distort(0.3, 0)` = `(0.302700, 0)` —
+   matches analytical `0.3 · (1 + 0.1·0.09) = 0.3027`.
+5. K matrix matches input intrinsics exactly.
+
+### Files
+
+- `stdlib/runtime/cam_rt.c` — `nuc_cam_*` API; quaternion helpers,
+  pinhole + Brown-Conrady projection.
+- `stdlib/rods/cam.nr` — externs + wrappers.
+- `tests/rods/cam_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.273] — 2026-04-24
 
 **Robotics: Model Predictive Path Integral control (`mppi`) —

@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 187
-# Total fn definitions: 1979
-# Total LOC: 8466
+# Total rods: 188
+# Total fn definitions: 1987
+# Total LOC: 8498
 
 [[rod]]
 name           = "activation2"
@@ -244,6 +244,15 @@ function_count = 9
 cfile_count    = 1
 loc            = 31
 imports        = []
+
+[[rod]]
+name           = "cam"
+path           = "stdlib/rods/cam.nr"
+description    = "Pinhole camera with Brown-Conrady (radial-tangential)"
+function_count = 8
+cfile_count    = 1
+loc            = 32
+imports        = ["cam"]
 
 [[rod]]
 name           = "checkpoint"
