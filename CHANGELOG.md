@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.172] — 2026-04-24
+
+**`sb_append_char` builtin: append a single byte to a string
+builder without allocating a temp string. Cuts ~73K
+transient allocations from the s1 self-host (escape_llvm_str
+hot path).**
+
+The compiler's `escape_llvm_str` was running per-character
+through every string literal in the source. For each non-
+special character it called `sb_append(esb,
+str_substring(s, i, i + 1))` — allocating a 2-byte string just
+to call `sb_append` with a one-character payload. For the s1
+self-host (4 K+ string literals × ~20 chars each), this
+was ~73 K transient allocations.
+
+`sb_append_char(handle, c)` writes the byte directly into the
+SB's data buffer (with the same grow-on-overflow logic as
+`sb_append`), bypassing the temporary-string detour.
+
+### Files
+
+- `stdlib/runtime/nucleor_llvm_rt.c`: new
+  `__nucleor_sb_append_char(handle, c)`.
+- `compiler/nucleor_s1_compiler.nr` + `nucleor_tools_suite.nr`:
+  4 ABI sites each.
+- `compiler/nucleor_s1_compiler.nr` (escape_llvm_str): single-
+  byte append path converted from `sb_append(esb,
+  str_substring(s, i, i + 1))` to `sb_append_char(esb, c)`.
+
+### Memory measurement
+
+|              | v0.2.171  | v0.2.172  | Δ            |
+|--------------|----------:|----------:|-------------:|
+| vec_new      |  49 MB    |  49 MB    | —            |
+| str_concat   |   4 MB    |   4 MB    | —            |
+| **str_substring** | **218K calls** | **145K calls** | **-73K calls** |
+| sb_new       |  11 MB    |  11 MB    | —            |
+| TOTAL        |  67 MB    |  67 MB    | unchanged    |
+
+Memory unchanged because the saved allocations were 1-byte
+strings, but the call-count drop is real. Removes a hot-loop
+allocator from the IR-emit path and is a cleaner pattern
+going forward.
+
+### Self-host LLVM IR fixed point
+
+- 2-iter byte-identical at 2,689,964 bytes.
+- `bin/nucleor.exe` updated.
+
+### Verify gate
+
+**250 / 250 PASS, 0 SKIP** in 3m3s. Both budgets hold
+(67 MB / 100 + 111 MB / 200).
+
 ## [0.2.171] — 2026-04-24
 
 **Memory-fix Ship 7: tools-suite gets its own 200 MB

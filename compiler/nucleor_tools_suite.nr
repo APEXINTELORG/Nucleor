@@ -1838,6 +1838,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "env_unset") { return "__nucleor_env_unset"; };
     if str_eq(name, "sb_new") { return "__nucleor_sb_new"; };
     if str_eq(name, "sb_append") { return "__nucleor_sb_append"; };
+    if str_eq(name, "sb_append_char") { return "__nucleor_sb_append_char"; };
     if str_eq(name, "sb_to_str") { return "__nucleor_sb_to_str"; };
     if str_eq(name, "vec_new") { return "__nucleor_vec_new"; };
     if str_eq(name, "vec_push") { return "__nucleor_vec_push"; };
@@ -2489,6 +2490,7 @@ fn is_void_ret(name: str) -> i64 {
     if str_eq(name, "eprint_raw") { return 1; };
     if str_eq(name, "file_write_string") { return 1; };
     if str_eq(name, "sb_append") { return 1; };
+    if str_eq(name, "sb_append_char") { return 1; };
     if str_eq(name, "vec_push") { return 1; };
     if str_eq(name, "vec_pop") { return 1; };
     if str_eq(name, "vec_free") { return 1; };
@@ -2741,6 +2743,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "file_write_string") { return 1; };
     if str_eq(name, "system") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "sb_append") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "sb_append_char") { return 0; };
     if str_eq(name, "vec_push") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_get") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_len") { if idx == 0 { return 1; }; return 0; };
@@ -3116,6 +3119,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare void @__nucleor_vec_insert_at(ptr, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sb_new()\n");
     sb_append(sb, "declare void @__nucleor_sb_append(i64, ptr)\n");
+    sb_append(sb, "declare void @__nucleor_sb_append_char(i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_sb_to_str(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_args_count()\n");
     sb_append(sb, "declare ptr @__nucleor_args_get(i64)\n");
