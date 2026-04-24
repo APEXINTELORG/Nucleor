@@ -75,6 +75,11 @@ typedef struct {
     // Default 0 / 0 (frictionless).
     double *mu_viscous;      // n_links
     double *mu_coulomb;      // n_links
+    // === Reflected motor inertia (v0.2.221) ===
+    // I_motor_reflected = I_rotor · gear_ratio² (caller pre-computes
+    // the reflection). Adds I_motor · qdd to the joint torque, i.e.,
+    // augments the diagonal of the joint-space mass matrix.
+    double *motor_inertia;   // n_links
 } NDyn;
 
 // === Quaternion helpers (link rotation handling) ===
@@ -137,8 +142,10 @@ long long nuc_dyn_new(long long fk_handle) {
     d->inertia = (double *)calloc(n * 6, sizeof(double));
     d->mu_viscous = (double *)calloc(n, sizeof(double));
     d->mu_coulomb = (double *)calloc(n, sizeof(double));
+    d->motor_inertia = (double *)calloc(n, sizeof(double));
     // Sensible defaults — unit mass at link origin, unit inertia,
-    // frictionless joints (mu_viscous = mu_coulomb = 0).
+    // frictionless joints (mu_viscous = mu_coulomb = 0), no
+    // reflected motor inertia.
     for (int i = 0; i < n; i++) {
         d->mass[i] = 1.0;
         d->inertia[i*6 + 0] = 0.01;  // Ixx
@@ -206,6 +213,19 @@ void nuc_dyn_set_joint_friction(long long h, long long i,
     if (!d || i < 0 || i >= (long long)d->n_links) return;
     d->mu_viscous[i] = _i2f(mu_v_b);
     d->mu_coulomb[i] = _i2f(mu_c_b);
+}
+
+// Per-joint reflected motor inertia (v0.2.221). The caller supplies
+// `I_rotor · gear_ratio²` — the rotor inertia "as seen at the joint
+// shaft". Augments the joint-space mass matrix diagonal: τ += I_m·qdd.
+// Default 0 (no reflection). Critical for high-fidelity dynamics on
+// geared robots (typical industrial arms have reflected inertia
+// comparable to or larger than the link inertia).
+void nuc_dyn_set_motor_inertia(long long h, long long i, long long I_b)
+{
+    NDyn *d = (NDyn *)(void *)(size_t)h;
+    if (!d || i < 0 || i >= (long long)d->n_links) return;
+    d->motor_inertia[i] = _i2f(I_b);
 }
 
 // Inverse dynamics core (v0.2.212 refactor): the world-frame
@@ -440,6 +460,16 @@ static long long _dyn_rnea_core(long long h,
         double v = qd[i];
         double sgn = (v > 0) ? 1.0 : (v < 0 ? -1.0 : 0.0);
         tau[i] += mu_v * v + mu_c * sgn;
+    }
+
+    // Reflected motor inertia (v0.2.221): augment the joint-space
+    // mass matrix diagonal with the rotor inertia × gear_ratio².
+    // Adds I_motor · qdd to the joint torque.
+    for (int i = 0; i < n; i++) {
+        if (jtype[i] == _DYN_FIXED) continue;
+        double Im = d->motor_inertia[i];
+        if (Im == 0) continue;
+        tau[i] += Im * qdd[i];
     }
 
     free(axis_w); free(pos_w); free(jtype);
@@ -1048,5 +1078,6 @@ void nuc_dyn_free(long long h) {
     if (d->inertia) free(d->inertia);
     if (d->mu_viscous) free(d->mu_viscous);
     if (d->mu_coulomb) free(d->mu_coulomb);
+    if (d->motor_inertia) free(d->motor_inertia);
     free(d);
 }

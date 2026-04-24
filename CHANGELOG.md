@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.221] — 2026-04-23
+
+**Robotics: PRM A* query (v0.2.220) and reflected motor inertia
+(v0.2.221). Two precision additions: a faster planner-query
+variant for large roadmaps with informative heuristic, and the
+single-most-important real-hardware effect missing from the
+ideal-rigid-body dynamics model.**
+
+### PRM A* query (v0.2.220)
+
+```nucleor
+// Same I/O contract as `prm_query` (Dijkstra), but uses A* with
+// a Euclidean-distance heuristic toward the goal config.
+let path_len = prm_query_astar(prm, start_ptr, goal_ptr,
+                              k_neighbors, step_b, coll_fp);
+```
+
+On large roadmaps where joint-space distance correlates with
+roadmap distance, A* expands far fewer nodes than Dijkstra and
+returns the same optimal path. Both queries share the heap-free
+O(V²) inner loop; the only difference is the priority key
+(`g + h` for A* vs just `g` for Dijkstra).
+
+### Reflected motor inertia (v0.2.221)
+
+```
+τ_motor[i] = I_rotor[i] · gear_ratio[i]² · qdd[i]
+```
+
+Per-joint reflected motor inertia. Caller supplies the already-
+reflected value (`I_rotor · gear_ratio²`); the runtime adds
+`I_motor · qdd` to the joint torque. Augments the joint-space
+mass matrix diagonal — automatically reflected in computed
+torque, gravity comp, mass matrix extraction, forward dynamics,
+and all RNEA-derived entry points.
+
+Critical for high-fidelity dynamics on geared robots: typical
+industrial arms have reflected motor inertia comparable to or
+larger than the link inertia, so omitting it makes the model
+noticeably less accurate at higher accelerations.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/dynamics.nr"
+dyn_set_motor_inertia(dyn, joint_idx, I_b);    // I_b = I_rotor · gear_ratio²
+```
+
+### Verification
+
+Single revolute joint about z + fixed tip; M[0][0] = 0.31
+without motor inertia (link inertia 0.05 + parallel-axis 0.25
++ fixed-tip default 0.01):
+
+| Test | Expected | Got |
+|---|---|---|
+| Inverse, qdd=1, no motor inertia | 0.31 | **0.310000** |
+| Inverse, qdd=1, motor_I=2.0 | 2.31 | **2.310000** |
+| `M[0][0]` extracted with motor_I=2.0 | 2.31 | **2.310000** |
+
+### Files
+
+- `stdlib/runtime/prm_rt.c` — `nuc_prm_query_astar` (A* with
+  pre-computed Euclidean h-score; same V² inner loop as
+  Dijkstra, different priority key).
+- `stdlib/runtime/dynamics_rt.c` — `motor_inertia` array in
+  `NDyn`, `nuc_dyn_set_motor_inertia` setter, application loop
+  in `_dyn_rnea_core`.
+- `stdlib/rods/prm.nr` — extern + `prm_query_astar` wrapper.
+- `stdlib/rods/dynamics.nr` — extern + `dyn_set_motor_inertia`
+  wrapper.
+- `tests/rods/prm_smoke.nr` — exercise A* query on empty
+  roadmap.
+
+---
+
 ## [0.2.219] — 2026-04-23
 
 **Robotics: per-joint friction model in dynamics rod (v0.2.218) +
