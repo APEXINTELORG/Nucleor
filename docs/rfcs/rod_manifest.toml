@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 156
-# Total fn definitions: 1737
-# Total LOC: 7521
+# Total rods: 157
+# Total fn definitions: 1746
+# Total LOC: 7558
 
 [[rod]]
 name           = "activation2"
@@ -883,6 +883,15 @@ function_count = 5
 cfile_count    = 1
 loc            = 11
 imports        = ["pca"]
+
+[[rod]]
+name           = "pf"
+path           = "stdlib/rods/pf.nr"
+description    = "Particle filter (sequential Monte Carlo) for nonlinear,"
+function_count = 9
+cfile_count    = 1
+loc            = 37
+imports        = []
 
 [[rod]]
 name           = "pgs"

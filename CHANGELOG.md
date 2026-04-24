@@ -5,6 +5,102 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.235] — 2026-04-23
+
+**Robotics: particle filter (sequential Monte Carlo) for nonlinear,
+non-Gaussian state estimation. Represents the posterior by a swarm
+of weighted particles; foundation for kidnapped-robot localization
+(multi-modal posterior over the entire map until enough
+observations narrow it down), strongly nonlinear tracking where
+EKF/UKF fail, and Bayesian filtering on non-vector state spaces.**
+
+### Algorithm
+
+```
+Predict:  x_i ← f(x_i, u) + Q-sample noise
+Update:   w_i ← w_i · p(z | h(x_i))    [user supplies likelihood]
+          normalize: Σ w_i = 1
+Resample: if N_eff < threshold·N, do systematic resampling.
+```
+
+`N_eff = 1 / Σ w_i²` is the effective particle count. When
+weights collapse onto a few particles, resampling restores
+diversity by drawing N new particles with replacement.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/pf.nr"
+
+let pf = pf_new(n_x, n_z, n_particles, seed);
+
+// Initialize: uniform-box for global localization, or set-initial
+// for "warm start" from a previous estimate.
+pf_init_uniform(pf, lo_ptr, hi_ptr);   // double[n_x] arrays
+// OR
+pf_set_initial(pf, x_array_ptr);       // double[n_particles * n_x]
+
+// At each control step:
+pf_predict(pf, u_ptr, dynamics_fp, noise_std_ptr);
+pf_update(pf, z_ptr, likelihood_fp, eff_threshold_b);
+pf_get_mean(pf, x_out_ptr);
+```
+
+Callbacks:
+- `dynamics_fp`: same contract as EKF / UKF.
+- `likelihood_fp`: `fn(x_ptr, z_ptr) -> i64` returning a non-
+  negative bit-cast f64 (the un-normalized likelihood; PF
+  normalizes weights itself).
+
+### Verification
+
+1D constant-velocity tracker initialized with NO prior knowledge:
+500 particles uniform over `[-10, 10] × [-3, 3]` (the global-
+localization scenario). True state pos = 0, vel = 2.0; observed
+position with σ = 0.5 m noise.
+
+| Step | True pos | Estimate | True vel | Estimate |
+|---|---|---|---|---|
+| 0 | 0.200 | 0.629 | 2.000 | 0.044 |
+| 6 | 1.400 | 1.466 | 2.000 | 1.944 |
+| 15 | 3.200 | 3.056 | 2.000 | 1.788 |
+| 29 | 6.000 | 6.159 | 2.000 | 2.106 |
+
+Final errors: pos **0.159 m**, vel **0.106 m/s**. Slightly larger
+than EKF / UKF on the same scenario (0.099 / 0.029) because PF
+starts with NO prior, vs EKF / UKF starting at (5, 0) — the
+demonstrated capability is *global localization*, which EKF / UKF
+can't do at all.
+
+### When to use PF vs EKF / UKF
+
+| Posterior shape | Best estimator |
+|---|---|
+| Unimodal Gaussian, mild nonlinearity | EKF |
+| Unimodal Gaussian, strong nonlinearity | UKF |
+| Multi-modal (kidnapped robot, ambiguous data association) | **PF** |
+| Non-vector state (orientation manifolds, Lie groups) | **PF** |
+
+### Implementation notes
+
+- xorshift32 RNG seeded from `seed`. Box-Muller for Gaussian noise.
+- Systematic resampling: low-variance, single-pass O(N).
+- Caller supplies process noise as a diagonal stddev vector
+  (Gaussian assumption); for arbitrary noise, sample within the
+  user's dynamics callback.
+
+### Files
+
+- `stdlib/runtime/pf_rt.c` — `NPF` struct, `nuc_pf_*` exports
+  including `_init_uniform` / `_predict` / `_update` /
+  `_get_mean` / `_get_particle`, plus `_systematic_resample` and
+  Box-Muller helper.
+- `stdlib/rods/pf.nr` — externs + Nucleor wrappers.
+- `tests/rods/pf_smoke.nr` — alloc/free + particle-count smoke
+  (correctness covered by direct C global-localization test).
+
+---
+
 ## [0.2.234] — 2026-04-23
 
 **Robotics: Unscented Kalman Filter — sigma-point Bayesian
