@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 166
-# Total fn definitions: 1801
-# Total LOC: 7887
+# Total rods: 167
+# Total fn definitions: 1810
+# Total LOC: 7924
 
 [[rod]]
 name           = "activation2"
@@ -91,6 +91,15 @@ function_count = 20
 cfile_count    = 1
 loc            = 41
 imports        = ["autodiff"]
+
+[[rod]]
+name           = "ba"
+path           = "stdlib/rods/ba.nr"
+description    = "Bundle adjustment (visual SLAM back-end)."
+function_count = 9
+cfile_count    = 1
+loc            = 37
+imports        = ["ba"]
 
 [[rod]]
 name           = "base64"
