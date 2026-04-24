@@ -5,6 +5,94 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.256] — 2026-04-24
+
+**Robotics: whole-body / multi-task controller (`wbc`) — weighted
+QP that simultaneously realizes a stack of task-space objectives
+(end-effector velocities, CoM motion, posture regularization) by
+solving for joint velocities at each control tick.**
+
+### Algorithm
+
+Each task is `(J_i ∈ ℝ^(m_i × n), ẋ_i ∈ ℝ^(m_i), w_i > 0)`.
+Weighted-QP cost:
+
+```
+minimize  Σ_i w_i · ‖J_i · q̇ − ẋ_i‖²  +  α · ‖q̇‖²
+```
+
+Closed form via Tikhonov-regularized weighted least squares:
+
+```
+A = Σ_i w_i · J_iᵀ · J_i  +  α · I
+b = Σ_i w_i · J_iᵀ · ẋ_i
+q̇ = A⁻¹ · b
+```
+
+The α regularizer handles redundancy and rank deficiency without
+extra machinery — rotation around redundant joints is naturally
+pulled toward zero.
+
+### Use cases
+
+- **Humanoid balance + reach**: CoM velocity task + hand-position
+  task + posture regularizer task (low weight) for null-space
+  shaping.
+- **Mobile-manipulator coordination**: base-motion task + arm-pose
+  task with weights chosen by application (e.g. higher weight on
+  the arm when accuracy matters most).
+- **Redundant-arm IK**: 7-DOF arm with 6-D Cartesian target plus a
+  posture preference forms a complete weighted stack.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/wbc.nr"
+
+let h = wbc_new(n_dof, alpha_b);
+
+// Per control tick:
+wbc_clear_tasks(h);
+let id_eef  = wbc_add_task(h, J_eef_ptr,  x_des_eef_ptr,  6,    w_eef_b);
+let id_com  = wbc_add_task(h, J_com_ptr,  x_des_com_ptr,  3,    w_com_b);
+let id_post = wbc_add_task(h, J_post_ptr, x_des_post_ptr, n_dof, w_post_b);
+wbc_solve(h);
+
+// Read joint-velocity command:
+for i in 0..n_dof { let qd_b = wbc_get_qdot(h, i); ... }
+
+// Per-task residual norm:
+let res_b = wbc_task_residual(h, id_eef);
+```
+
+### Verification
+
+Three direct C tests:
+
+1. **Single full-rank task** — 3-DOF, identity Jacobian, target
+   `(1, −2, 3)`. Recovers `q̇ = (1.000000, −2.000000, 3.000000)`
+   exactly.
+2. **Redundant-arm regularization** — 4-DOF, 3-D EE target via
+   `J = [I_3 | 0]`. Solution: `q̇ = (0.4995, 0.6993, −0.3996, 0.0)`
+   — task met (residual `9.5e-4`, dominated by `α = 1e-3` cost
+   tradeoff), redundant 4th DOF driven exactly to zero by the
+   regularizer.
+3. **Two-task weight tradeoff** — scalar problem with conflicting
+   targets `1.0` (weight 9) and `0.0` (weight 1). Solution:
+   `q̇ = 0.900000` = closed-form weighted average `9/(9+1)`.
+
+### Files
+
+- `stdlib/runtime/wbc_rt.c` — `nuc_wbc_*` API; per-tick task stack;
+  weighted normal-equations assembly; in-place GJ solve.
+- `stdlib/rods/wbc.nr` — externs + `wbc_new` /
+  `wbc_set_regularization` / `wbc_clear_tasks` / `wbc_add_task` /
+  `wbc_solve` / `wbc_get_qdot` / `wbc_task_residual` / `wbc_free`.
+- `tests/rods/wbc_smoke.nr` — build-only smoke (functional coverage
+  in the direct C unit test).
+
+---
+
 ## [0.2.255] — 2026-04-24
 
 **Robotics: box LCP solver via Projected Gauss-Seidel (`lcp`). The
