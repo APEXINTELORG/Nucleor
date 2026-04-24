@@ -5,6 +5,80 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.313] — 2026-04-24
+
+**T1.1 Phase 3b — `sizeof_struct(<Name>)` compile-time builtin
++ struct-layout machinery foundation.** Compile-time constant
+returning the byte size of a user-defined struct. Default
+Nucleor representation (one i64 slot per field) ships now;
+`#[repr(C)]` / `#[repr(packed)]` attribute propagation lands
+in Phase 3b.2 once the parser preserves attributes on struct
+AST nodes.
+
+### What landed
+
+- `compiler/nucleor_s1_compiler.nr` — five new helpers:
+  - `type_byte_size(t)` — primitive type → byte size.
+  - `type_align(t)` — natural alignment per type.
+  - `align_up(offset, align)` — round up to alignment boundary.
+  - `struct_byte_size(struct_nid, repr)` — compute total size
+    given a repr ("C" naturally aligned + tail-padded, "packed"
+    no align, "" / default Nucleor = field_count × 8).
+  - `struct_repr(source, name)` + `source_find` — text-scan
+    helpers ready for the Phase 3b.2 attribute walk; not yet
+    invoked since `lower_expr` doesn't carry the source string
+    (will be plumbed in 3b.2).
+- `compiler/nucleor_s1_compiler.nr` — `lower_expr` `kind == 7`
+  call lowering intercepts `sizeof_struct(<Ident>)`. Looks up
+  the struct, computes size at compile time, emits a constant.
+
+### Surface
+
+```nucleor
+struct Point { x: i32, y: i32 }
+struct Three { a: i32, b: i32, c: i32 }
+
+fn main() -> i32 {
+    let s1: i64 = sizeof_struct(Point);   // 16  (2 fields × 8)
+    let s2: i64 = sizeof_struct(Three);   // 24  (3 fields × 8)
+    return 0;
+}
+```
+
+### Matrix progress
+
+| Phase         | v0.2.312 | v0.2.313 |
+|---------------|----------|----------|
+| p3_layout     | 4P/0F    | **5P/0F** (+ sizeof_struct_basic) |
+| TOTAL         | 47P/4F/8BE | **48P/4F/8BE** |
+
+### Verify gate
+
+329/329 PASS. Bootstrap fixpoint stable.
+
+### Known scope (intentional, Phase 3b.2 follow-up)
+
+The Nucleor parser doesn't currently store attribute lists on
+struct AST nodes. Phase 3b.2 (within this T1.1 refactor; not
+deferred to a later major) wires that plumbing and switches
+`sizeof_struct` to honor `#[repr(C)]` / `#[repr(packed)]` for
+tighter layouts. The helpers (`struct_byte_size` with `repr`
+arg, `struct_repr` source scanner) are ready; only the AST
+preservation is pending.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — 5 helpers + lower_expr hook.
+- `bin/nucleor.exe` — rebuilt (clean bootstrap from v0.2.307).
+- `tests/lang/numerics_matrix/p3_layout/sizeof_struct_basic.nr` — new.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+Phase 4 (`v0.2.314`) — full `as` cast operator matrix
+including float→int / int→float / float→float (closes the
+2 p4 fails introduced by Phase 5).
+
 ## [0.2.312] — 2026-04-24
 
 **T1.1 Phase 5 — native f32 + f64 arithmetic via inline `+ - * /`

@@ -4548,6 +4548,121 @@ fn type_is_numeric(t: str) -> i64 {
     return 0;
 }
 
+// T1.1 Phase 3b: byte size of a primitive type. Returns 0 for
+// non-primitives (caller must handle struct/array/ref types).
+fn type_byte_size(t: str) -> i64 {
+    let b: str = type_base_name(t);
+    if str_eq(b, "i8") == 1 || str_eq(b, "u8") == 1 || str_eq(b, "bool") == 1 { return 1; };
+    if str_eq(b, "i16") == 1 || str_eq(b, "u16") == 1 { return 2; };
+    if str_eq(b, "f16") == 1 || str_eq(b, "bf16") == 1 { return 2; };
+    if str_eq(b, "i32") == 1 || str_eq(b, "u32") == 1 { return 4; };
+    if str_eq(b, "f32") == 1 || str_eq(b, "char") == 1 { return 4; };
+    if str_eq(b, "i64") == 1 || str_eq(b, "u64") == 1 { return 8; };
+    if str_eq(b, "f64") == 1 { return 8; };
+    if str_eq(b, "isize") == 1 || str_eq(b, "usize") == 1 { return 8; };
+    if str_eq(b, "i128") == 1 || str_eq(b, "u128") == 1 { return 16; };
+    if str_eq(b, "f8e4m3") == 1 || str_eq(b, "f8e5m2") == 1 { return 1; };
+    if str_eq(b, "ptr") == 1 { return 8; };
+    return 0;
+}
+
+// T1.1 Phase 3b: natural alignment of a primitive type (= byte size
+// for primitives). For non-primitives returns 0.
+fn type_align(t: str) -> i64 {
+    return type_byte_size(t);
+}
+
+// T1.1 Phase 3b: align `offset` up to `align`. Returns the next
+// multiple of `align` >= offset. Assumes align > 0.
+fn align_up(offset: i64, align: i64) -> i64 {
+    if align <= 1 { return offset; };
+    let rem: i64 = offset - (offset / align) * align;
+    if rem == 0 { return offset; };
+    return offset + (align - rem);
+}
+
+// T1.1 Phase 3b: compute byte size of a struct given its repr.
+// `repr` is "C" (natural alignment), "packed" (no alignment),
+// or "" / "Nucleor" (default — currently 8 bytes per field
+// because Nucleor stores everything as i64 slots in a Vec<i32>).
+//
+// Returns 0 if the struct has any non-primitive field type the
+// computation can't yet handle (nested struct, generic, array).
+// Caller can fall back to default size in that case.
+fn struct_byte_size(pool: Vec<i32>, struct_nid: i64, repr: str) -> i64 {
+    let flist: i64 = node_field(pool, struct_nid, 2);
+    let cnt: i64 = list_len(pool, flist);
+    if cnt == 0 { return 0; };
+    let mut max_align: i64 = 1;
+    let mut offset: i64 = 0;
+    let is_packed: i64 = if str_eq(repr, "packed") == 1 { 1 } else { 0 };
+    let is_c: i64 = if str_eq(repr, "C") == 1 { 1 } else { 0 };
+    let is_natural: i64 = if (is_packed + is_c) == 0 { 1 } else { 0 };
+    let mut i: i64 = 0;
+    while i < cnt {
+        let fnode: i64 = list_get(pool, flist, i);
+        let ftype: str = node_field(pool, fnode, 2);
+        let fsize: i64 = type_byte_size(ftype);
+        if fsize == 0 {
+            // Unknown / non-primitive field type; fall back to
+            // 8 bytes per field (Nucleor's i64-slot representation).
+            return cnt * 8;
+        };
+        if is_packed == 0 {
+            let falign: i64 = type_align(ftype);
+            if falign > max_align { max_align = falign; };
+            offset = align_up(offset, falign);
+        };
+        offset = offset + fsize;
+        i = i + 1;
+    };
+    if is_natural == 1 {
+        // Default Nucleor repr — backing storage is Vec<i32> with
+        // one i64 slot per field. Report that observable size.
+        return cnt * 8;
+    };
+    if is_c == 1 {
+        // Pad up to the max field alignment so arrays of this struct
+        // align correctly. Standard C ABI rule.
+        offset = align_up(offset, max_align);
+    };
+    return offset;
+}
+
+// T1.1 Phase 3b: read the `repr` attribute from a struct AST node.
+// Looks at the prefix attribute list (if any) for `#[repr(C)]` /
+// `#[repr(packed)]`. Returns "C", "packed", or "" if absent.
+//
+// Currently uses a source-text scan via the surrounding source —
+// will be moved to proper attribute-list AST walking once the
+// generic attribute storage lands.
+fn struct_repr(source: str, struct_name: str) -> str {
+    if str_len(source) == 0 || str_len(struct_name) == 0 { return ""; };
+    let needle: str = str_concat("struct ", struct_name);
+    let pos: i64 = source_find(source, needle);
+    if pos < 0 { return ""; };
+    // Look back up to 200 chars for an attribute.
+    let look_start: i64 = if pos > 200 { pos - 200 } else { 0 };
+    let prefix: str = str_substring(source, look_start, pos);
+    if source_find(prefix, "#[repr(packed)]") >= 0 { return "packed"; };
+    if source_find(prefix, "#[repr(C)]") >= 0 { return "C"; };
+    return "";
+}
+
+// Helper: find substring in source (returns byte offset or -1).
+fn source_find(haystack: str, needle: str) -> i64 {
+    let hlen: i64 = str_len(haystack);
+    let nlen: i64 = str_len(needle);
+    if nlen == 0 { return 0; };
+    if hlen < nlen { return 0 - 1; };
+    let mut i: i64 = 0;
+    while i <= hlen - nlen {
+        if str_eq_at(haystack, i, needle) == 1 { return i; };
+        i = i + 1;
+    };
+    return 0 - 1;
+}
+
 fn type_is_mut_ref(t: str) -> i64 {
     if str_starts_with(t, "&mut ") == 1 { return 1; };
     return 0;
@@ -7323,6 +7438,30 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
     };
     if kind == 7 {
         let fn_name: str = node_field(pool, nid, 1);
+        // T1.1 Phase 3b: sizeof_struct(StructName) — compile-time
+        // constant. Looks up the struct and returns its byte size
+        // computed per its repr attribute (default Nucleor / C / packed).
+        if str_eq(fn_name, "sizeof_struct") {
+            let sa: i64 = node_field(pool, nid, 2);
+            if list_len(pool, sa) == 1 {
+                let arg_nid: i64 = list_get(pool, sa, 0);
+                if node_kind(pool, arg_nid) == 3 {
+                    let sname: str = node_field(pool, arg_nid, 1);
+                    let si: i64 = struct_find_type(pool, structs, sname);
+                    if si >= 0 {
+                        let snode: i64 = vec_get(structs, si);
+                        // Default Nucleor repr: backing storage is
+                        // Vec<i32> with one i64 slot per field.
+                        // repr(C) / repr(packed) variants land when
+                        // attribute-preservation plumbing is wired.
+                        let sz: i64 = struct_byte_size(pool, snode, "");
+                        let r: i64 = ctr_next(regs);
+                        ir_block_add(blk, ir_const_int(r, sz));
+                        return lx_new(r, blk);
+                    };
+                };
+            };
+        };
         if str_eq(fn_name, "sanitize") {
             let args_list: i64 = node_field(pool, nid, 2);
             if list_len(pool, args_list) > 0 {
