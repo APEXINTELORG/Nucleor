@@ -171,6 +171,72 @@ long long nuc_pursuit_step_ackermann(long long h,
     return _f2i(delta);
 }
 
+// === Stanley controller (v0.2.230) ======================================
+//
+// Hoffmann et al. 2007's path-tracking controller from the
+// Stanford DARPA Grand Challenge entry "Stanley". Computes the
+// steering angle for a car-like vehicle as the sum of the heading
+// error to the path tangent and a cross-track error term:
+//
+//     δ = (ψ_path − ψ_robot) + atan(k · e_ct / (v + v_eps))
+//
+// where e_ct is the signed cross-track error (perpendicular
+// distance from the robot to the closest path point, signed by
+// which side of the path) and k is a tunable gain.
+//
+// Common alternative to pure pursuit. Pure pursuit drives toward
+// a lookahead point (smoother on tight curves, sluggish on
+// straights); Stanley drives toward the path itself (snappier on
+// straights, can chatter on tight curves).
+//
+// Implementation notes:
+// - The "front axle" position should be passed as (x, y); for
+//   most pure-rear-axle parameterizations, project forward by the
+//   wheelbase: x_fa = x + L·cos(θ), y_fa = y + L·sin(θ).
+// - `v_eps` (small, e.g. 0.1) prevents divide-by-zero when v ≈ 0.
+
+// Compute path tangent angle at index i — angle of segment from
+// pts[i] to pts[i+1]. For the last point, uses the segment from
+// pts[i-1] to pts[i].
+static double _path_tangent(NPursuit *p, int i) {
+    int a = i, b = i + 1;
+    if (b >= p->n_pts) { a = p->n_pts - 2; b = p->n_pts - 1; }
+    double dx = p->pts[b*2+0] - p->pts[a*2+0];
+    double dy = p->pts[b*2+1] - p->pts[a*2+1];
+    return atan2(dy, dx);
+}
+
+long long nuc_pursuit_step_stanley(long long h,
+    long long x_b, long long y_b, long long theta_b,
+    long long v_b, long long k_b, long long v_eps_b)
+{
+    NPursuit *p = (NPursuit *)(void *)(size_t)h;
+    if (!p || p->n_pts < 2) return _f2i(0.0);
+    double x = _i2f(x_b), y = _i2f(y_b), th = _i2f(theta_b);
+    double v = _i2f(v_b), k = _i2f(k_b), v_eps = _i2f(v_eps_b);
+    if (v_eps < 1e-9) v_eps = 0.1;
+
+    int closest = _closest_after(p, x, y);
+    p->last_idx = closest;
+    double psi_path = _path_tangent(p, closest);
+
+    // Signed cross-track error: project (closest_pt → robot) onto
+    // the path normal (perpendicular to tangent, rotated +90°).
+    // Positive e_ct = robot is to the LEFT of the path direction
+    // (so steer right → negative δ contribution).
+    double cx = p->pts[closest*2+0], cy = p->pts[closest*2+1];
+    double ex = x - cx, ey = y - cy;
+    // Path normal (LEFT of tangent): (-sin(ψ), cos(ψ)).
+    double e_ct = -sin(psi_path) * ex + cos(psi_path) * ey;
+
+    double heading_err = psi_path - th;
+    while (heading_err >  M_PI) heading_err -= 2.0 * M_PI;
+    while (heading_err < -M_PI) heading_err += 2.0 * M_PI;
+
+    double delta = heading_err - atan(k * e_ct / (fabs(v) + v_eps));
+    return _f2i(delta);
+}
+
 // Distance to the final waypoint — useful for goal-reached
 // detection.
 long long nuc_pursuit_distance_to_goal(long long h, long long x_b, long long y_b) {

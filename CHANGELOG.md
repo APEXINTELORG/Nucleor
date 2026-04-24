@@ -5,6 +5,77 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.230] — 2026-04-23
+
+**Robotics: Stanley path-following controller (Hoffmann et al.
+2007). Classic alternative to pure pursuit, originally from
+Stanford's DARPA Grand Challenge entry "Stanley". Tracks the
+path itself rather than a lookahead point — snappier on straights,
+makes pure pursuit + Stanley a natural pair to switch between
+based on path curvature.**
+
+### Algorithm
+
+```
+δ = (ψ_path − ψ_robot) + atan(k · e_ct / (v + v_eps))
+```
+
+where `ψ_path` is the local path tangent angle, `ψ_robot` is the
+robot heading, `e_ct` is the signed cross-track error from the
+robot to the closest path point, and `k` is a tunable gain.
+
+The "front axle" position should be passed as `(x, y)`; for a
+pure-rear-axle state representation, project forward by the
+wheelbase first: `x_fa = x + L·cos(θ)`, `y_fa = y + L·sin(θ)`.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/pursuit.nr"
+
+let delta = pursuit_step_stanley(p, x_b, y_b, theta_b,
+                                 v_b, k_b, v_eps_b);
+```
+
+### Verification
+
+Straight path along +x axis (21 waypoints from (0,0) to (20,0)),
+robot starts off-axis at (0, 0.5) with θ = 0, cross-track error
+0.5 m, v = 1 m/s, dt = 0.05 s, k = 1.5, wheelbase 0.5 m:
+
+| Step | Cross-track error | Reduction factor |
+|---|---|---|
+| 0 | 0.5000 m | — |
+| 20 | 0.2479 m | 2× |
+| 40 | 0.0769 m | 6.5× |
+| 60 | 0.0208 m | 24× |
+| 100 | 0.0013 m | 380× |
+| 120 | 0.0003 m | 1700× |
+| Final (200 step) | **0.0000 m** | converged |
+
+Exponential-like convergence — the expected Stanley behavior.
+
+### Pure pursuit vs Stanley
+
+| Property | Pure pursuit | Stanley |
+|---|---|---|
+| Drives toward | Lookahead point | Closest path point |
+| Behavior on straight | Sluggish (lookahead-dependent) | Snappy, fast convergence |
+| Behavior on tight curve | Smooth circle-tracking | Can chatter at high curvature |
+| Common usage | AGVs, AMRs, indoor robots | Outdoor cars, autonomous vehicles |
+
+The two controllers are paired in the same `pursuit` rod so
+applications can switch between them based on path curvature.
+
+### Files
+
+- `stdlib/runtime/pursuit_rt.c` — `nuc_pursuit_step_stanley`
+  + `_path_tangent` helper.
+- `stdlib/rods/pursuit.nr` — extern + `pursuit_step_stanley`
+  Nucleor wrapper.
+
+---
+
 ## [0.2.229] — 2026-04-23
 
 **Robotics: pure pursuit path-following controller. Classical
