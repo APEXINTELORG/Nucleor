@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.216] — 2026-04-23
+
+**Robotics: grasp quality metrics for a 2-finger parallel-jaw
+gripper. New `grasp` rod with three foundational metrics:
+antipodal score, force closure under Coulomb friction, and
+approach-vector alignment. Foundation for grasp synthesis (sample
+candidate grasps, score them, pick the best) and for control-time
+validation (reject planned grasps that the friction model says
+will slip).**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/grasp.nr"
+
+let score = grasp_antipodal_score(
+    c0_x, c0_y, c0_z,  n0_x, n0_y, n0_z,    // contact 0 + outward normal
+    c1_x, c1_y, c1_z,  n1_x, n1_y, n1_z);   // contact 1 + outward normal
+
+let closed = grasp_force_closure(
+    c0_x, c0_y, c0_z,  n0_x, n0_y, n0_z,
+    c1_x, c1_y, c1_z,  n1_x, n1_y, n1_z,
+    mu_b);                                   // friction coefficient
+
+let align = grasp_approach_alignment(
+    n_x, n_y, n_z,                          // surface normal
+    ax_x, ax_y, ax_z);                      // gripper approach vector
+```
+
+Antipodal score is in `[-1, 1]`; +1 = perfect antipodal grasp,
+0 = tangential, -1 = totally wrong direction. Force closure is a
+binary check (1 / 0). Approach alignment is in `[-1, 1]`; +1 =
+head-on (approach antiparallel to normal), 0 = tangential, -1 =
+approaching from behind the surface.
+
+### Verification
+
+| Test | Expected | Got |
+|---|---|---|
+| Perfect antipodal score | 1.000000 | **1.000000** |
+| 20° tilted antipodal | 0.939693 | **0.939693** |
+| Tangential normals | 0.000000 | **0.000000** |
+| Force closure (perfect, μ=0) | 1 | **1** |
+| Force closure (30° tilt, μ=0.5) — outside cone | 0 | **0** |
+| Force closure (30° tilt, μ=1.0) — inside cone | 1 | **1** |
+| Approach head-on | +1.0 | **1.000000** |
+| Approach from behind | -1.0 | **-1.000000** |
+
+### Limitations (full convex-hull-of-friction-cone wrench-space
+metric, multi-finger generalizations, and grasp-stability margins
+land in v0.6 if needed):
+
+- 2-finger / 2-contact only.
+- Coulomb friction with single coefficient (no anisotropic
+  friction, no separate static / kinetic μ).
+- Point contacts (no soft / surface contacts).
+
+### Files
+
+- `stdlib/runtime/grasp_rt.c` — `nuc_grasp_antipodal_score`,
+  `nuc_grasp_force_closure`, `nuc_grasp_approach_alignment` plus
+  `_normalize3` helper.
+- `stdlib/rods/grasp.nr` — externs + Nucleor wrappers.
+- `tests/rods/grasp_smoke.nr` — perfect-antipodal grasp end-to-
+  end (correctness coverage in the direct C test).
+
+---
+
 ## [0.2.215] — 2026-04-23
 
 **Robotics: two model-based controllers — joint-space computed-

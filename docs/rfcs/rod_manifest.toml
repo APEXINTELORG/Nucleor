@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 143
-# Total fn definitions: 1672
-# Total LOC: 7099
+# Total rods: 144
+# Total fn definitions: 1675
+# Total LOC: 7139
 
 [[rod]]
 name           = "activation2"
@@ -505,6 +505,15 @@ function_count = 12
 cfile_count    = 1
 loc            = 25
 imports        = ["graph"]
+
+[[rod]]
+name           = "grasp"
+path           = "stdlib/rods/grasp.nr"
+description    = "Grasp quality metrics for a 2-finger parallel-jaw"
+function_count = 3
+cfile_count    = 1
+loc            = 40
+imports        = []
 
 [[rod]]
 name           = "hashmap"
