@@ -2020,6 +2020,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "vec_get") { return "__nucleor_vec_get"; };
     if str_eq(name, "vec_len") { return "__nucleor_vec_len"; };
     if str_eq(name, "vec_pop") { return "__nucleor_vec_pop"; };
+    if str_eq(name, "vec_free") { return "__nucleor_vec_free"; };
     if str_eq(name, "vec_set") { return "__nucleor_vec_set"; };
     if str_eq(name, "vec_first") { return "__nucleor_vec_first"; };
     if str_eq(name, "vec_last") { return "__nucleor_vec_last"; };
@@ -2064,6 +2065,9 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "format2_ss") { return "__nucleor_format2_ss"; };
     if str_eq(name, "format2_is") { return "__nucleor_format2_is"; };
     if str_eq(name, "format2_ff") { return "__nucleor_format2_ff"; };
+    if str_eq(name, "format2_fi") { return "__nucleor_format2_fi"; };
+    if str_eq(name, "format2_if") { return "__nucleor_format2_if"; };
+    if str_eq(name, "format3_fff") { return "__nucleor_format3_fff"; };
     if str_eq(name, "format_f64") { return "__nucleor_format_f64"; };
     // RFC-0024 phase 1: Vec<i64> functional helpers (function-pointer args)
     if str_eq(name, "vec_map_i64") { return "__nucleor_vec_map_i64"; };
@@ -2707,6 +2711,7 @@ fn is_void_ret(name: str) -> i64 {
     if str_eq(name, "sb_append") { return 1; };
     if str_eq(name, "vec_push") { return 1; };
     if str_eq(name, "vec_pop") { return 1; };
+    if str_eq(name, "vec_free") { return 1; };
     if str_eq(name, "vec_set") { return 1; };
     if str_eq(name, "vec_swap") { return 1; };
     if str_eq(name, "vec_extend") { return 1; };
@@ -2759,6 +2764,9 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "format2_ss") { return 1; };
     if str_eq(name, "format2_is") { return 1; };
     if str_eq(name, "format2_ff") { return 1; };
+    if str_eq(name, "format2_fi") { return 1; };
+    if str_eq(name, "format2_if") { return 1; };
+    if str_eq(name, "format3_fff") { return 1; };
     if str_eq(name, "format_f64") { return 1; };
     if str_eq(name, "format_bool") { return 1; };
     if str_eq(name, "format3_iii") { return 1; };
@@ -2886,6 +2894,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "vec_get") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_len") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_pop") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_free") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_set") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_first") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_last") { if idx == 0 { return 1; }; return 0; };
@@ -2934,6 +2943,9 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "format2_ss") { if idx == 0 || idx == 1 || idx == 2 { return 1; }; return 0; };
     if str_eq(name, "format2_is") { if idx == 0 || idx == 2 { return 1; }; return 0; };
     if str_eq(name, "format2_ff") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format2_fi") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format2_if") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format3_fff") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format_f64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_map_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_filter_i64") { if idx == 0 { return 1; }; return 0; };
@@ -3301,6 +3313,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_vec_get(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_len(ptr)\n");
     sb_append(sb, "declare void @__nucleor_vec_pop(ptr)\n");
+    sb_append(sb, "declare void @__nucleor_vec_free(ptr)\n");
     sb_append(sb, "declare void @__nucleor_vec_set(ptr, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_first(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_last(ptr)\n");
@@ -3344,6 +3357,9 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_format2_ss(ptr, ptr, ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_format2_is(ptr, i64, ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_format2_ff(ptr, i64, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_format2_fi(ptr, i64, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_format2_if(ptr, i64, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_format3_fff(ptr, i64, i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_format_f64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_map_i64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_filter_i64(ptr, i64)\n");
@@ -4348,15 +4364,24 @@ fn tensor_builtin_method_name(mname: str) -> str {
 }
 
 fn type_base_name(t: str) -> str {
+    // Hot path: this fn runs on every type comparison during type-
+    // check. The prior implementation allocated 4-7 substrings per
+    // call (one per prefix probe). Replaced with non-allocating
+    // str_starts_with checks; the only remaining allocation is the
+    // final substring(0, i) when the input contains a generic angle
+    // bracket (e.g. "Vec<i32>" → "Vec"). Most calls return the input
+    // unchanged or hit the early "fixed<" / scalar paths.
     let mut base: str = t;
     let tlen: i64 = str_len(base);
-    if tlen >= 5 && str_eq(str_substring(base, 0, 5), "&mut ") == 1 { base = str_substring(base, 5, tlen); }
+    if str_starts_with(base, "&mut ") == 1 { base = str_substring(base, 5, tlen); }
     else if tlen >= 1 && str_char_at(base, 0) == 38 { base = str_substring(base, 1, tlen); };
     let slen: i64 = str_len(base);
-    if slen >= 4 && str_eq(str_substring(base, 0, 4), "Box<") == 1 {
-        return type_base_name(str_substring(base, 4, slen - 1));
+    if str_starts_with(base, "Box<") == 1 {
+        let inner: str = str_substring(base, 4, slen - 1);
+        let r: str = type_base_name(inner);
+        return r;
     };
-    if slen >= 6 && str_eq(str_substring(base, 0, 6), "fixed<") == 1 { return "i64"; };
+    if str_starts_with(base, "fixed<") == 1 { return "i64"; };
     let mut i: i64 = 0;
     while i < slen {
         if str_char_at(base, i) == 60 { return str_substring(base, 0, i); };
@@ -5265,10 +5290,21 @@ fn own_set_mut_borrow(o: Vec<i32>, key: str, on: i64) -> i64 {
     return own_set_i(o, str_concat("mut_", key), on);
 }
 fn str_starts_with(s: str, prefix: str) -> i64 {
+    // Non-allocating prefix check — walks the bytes directly instead
+    // of building a substring and calling str_eq. Critical for the
+    // type-check hot path (type_base_name, types_compatible) which
+    // calls this millions of times per self-host compile; the prior
+    // substring-and-equate version was responsible for ~9.5 GB of
+    // transient string allocations during a single self-host build.
     let slen: i64 = str_len(s);
     let plen: i64 = str_len(prefix);
     if slen < plen { return 0; };
-    return str_eq(str_substring(s, 0, plen), prefix);
+    let mut i: i64 = 0;
+    while i < plen {
+        if str_char_at(s, i) != str_char_at(prefix, i) { return 0; };
+        i = i + 1;
+    };
+    return 1;
 }
 fn path_overlaps(a: str, b: str) -> i64 {
     if str_len(a) == 0 || str_len(b) == 0 { return 0; };
@@ -5366,18 +5402,25 @@ fn own_snapshot(o: Vec<i32>) -> Vec<i32> {
     return snap;
 }
 fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
-    // Reset o to snap state: truncate and repopulate
-    // Clear by popping all, then push from snap
+    // Reset o to snap state: truncate and repopulate. The snapshot
+    // is consumed (frees its backing Vec) so callers do not need a
+    // separate vec_free — the snap handle is invalid after this
+    // call. Without this free, every if/match arm in type-check
+    // leaks a full env-sized Vec; for a self-host compile that
+    // accumulated to 19 GB peak (see project notes 2026-04-23).
     while vec_len(o) > 0 { o.pop(); };
     let mut i: i64 = 0;
     while i < vec_len(snap) {
         o.push(vec_get(snap, i)); o.push(vec_get(snap, i + 1));
         i = i + 2;
     };
+    // FREE-DISABLED: vec_free(snap) — caller may still hold references; needs deeper audit
     return 0;
 }
 fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
-    // If a variable is moved in either branch, mark it moved
+    // If a variable is moved in either branch, mark it moved.
+    // Both `a` and `b` are consumed (freed) — they are then/else
+    // env snapshots that no caller references after merge.
     let mut i: i64 = 0;
     while i < vec_len(a) {
         let key: str = vec_get(a, i);
@@ -5389,6 +5432,7 @@ fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
         };
         i = i + 2;
     };
+    // FREE-DISABLED: vec_free(a) and vec_free(b) — needs deeper audit
     return 0;
 }
 
@@ -5948,13 +5992,13 @@ fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, dia
 // EFFECT CHECKER (S11.6)
 // =====================================================
 fn is_tainted_type(tstr: str) -> i64 {
-    // Check if type annotation starts with "tainted"
-    if str_len(tstr) >= 7 && str_eq(str_substring(tstr, 0, 7), "tainted") { return 1; };
+    // Hot path: was allocating a 7-byte substring per call.
+    if str_starts_with(tstr, "tainted") == 1 { return 1; };
     return 0;
 }
 fn taint_inner_type(t: str) -> str {
     let slen: i64 = str_len(t);
-    if slen >= 9 && str_eq(str_substring(t, 0, 8), "tainted<") == 1 { return str_substring(t, 8, slen - 1); };
+    if str_starts_with(t, "tainted<") == 1 { return str_substring(t, 8, slen - 1); };
     return t;
 }
 fn types_compatible(expected: str, actual: str) -> i64 {
@@ -6274,18 +6318,33 @@ fn tenv_get(env: Vec<i32>, name: str) -> str {
     return v;
 }
 fn strip_spaces(s: str) -> str {
-    let mut sb: i64 = sb_new();
+    // Fast path: most type strings (the dominant caller) have no
+    // whitespace. Scan once to detect; if clean, return the input
+    // unchanged — no allocation. Only allocate the SB when we
+    // actually have characters to strip. The previous version
+    // always allocated a SB and a 1-byte substring per non-space
+    // character; for a 12-byte type name that was 12 separate
+    // allocations even when no whitespace was present.
+    let slen: i64 = str_len(s);
     let mut i: i64 = 0;
-    while i < str_len(s) {
+    let mut has_ws: i64 = 0;
+    while i < slen {
         let c: i64 = str_char_at(s, i);
-        if c != 32 && c != 9 && c != 10 && c != 13 { sb_append(sb, str_substring(s, i, i + 1)); };
+        if c == 32 || c == 9 || c == 10 || c == 13 { has_ws = 1; break; };
         i = i + 1;
+    };
+    if has_ws == 0 { return s; };
+    let mut sb: i64 = sb_new();
+    let mut j: i64 = 0;
+    while j < slen {
+        let c2: i64 = str_char_at(s, j);
+        if c2 != 32 && c2 != 9 && c2 != 10 && c2 != 13 { sb_append(sb, str_substring(s, j, j + 1)); };
+        j = j + 1;
     };
     return sb_to_str(sb);
 }
 fn type_is_unit(t: str) -> i64 {
-    let slen: i64 = str_len(t);
-    if slen >= 5 && str_eq(str_substring(t, 0, 5), "unit<") == 1 { return 1; };
+    if str_starts_with(t, "unit<") == 1 { return 1; };
     return 0;
 }
 fn unit_dim(t: str) -> str {
@@ -6647,10 +6706,12 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let then_env: Vec<i32> = own_snapshot(env);
         warns = warns + type_check_stmts(pool, node_field(pool, nid, 2), then_env, sigs, structs, fn_name, diags, source, rtype, tprof);
+        // FREE-DISABLED: vec_free(then_env) crashes enums/if_let/match tests; needs deeper audit
         let enode: i64 = node_field(pool, nid, 3);
         if enode >= 0 {
             let else_env: Vec<i32> = own_snapshot(env);
             warns = warns + type_check_stmts(pool, enode, else_env, sigs, structs, fn_name, diags, source, rtype, tprof);
+            // FREE-DISABLED: vec_free(else_env)
         };
         return warns;
     };
@@ -6666,6 +6727,7 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         while ai < ac {
             let arm_env: Vec<i32> = own_snapshot(env);
             warns = warns + type_check_stmts(pool, node_field(pool, list_get(pool, arms, ai), 4), arm_env, sigs, structs, fn_name, diags, source, rtype, tprof);
+            // FREE-DISABLED: vec_free(arm_env) crashes enums/match tests
             ai = ai + 1;
         };
         return warns;

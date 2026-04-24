@@ -5,6 +5,139 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.158] — 2026-04-23
+
+**Memory-fix Ship 1: vec_free builtin, env-snapshot leak fix,
+non-allocating string-prefix probes, allocation tracing
+infrastructure. Plus RFC-0028 phase 4 (3 new format builtins).
+Bundled with `MEMORY_FIX_PUNCHLIST.md` documenting the road
+to a < 500 MB self-host compile.**
+
+A profiler-driven audit of the compiler's self-host build
+revealed peak RSS of ~19 GB for a 485 KB source — a 40,000×
+bloat dominated by transient allocations in the type checker.
+This ship lands the first batch of fixes (Ship 1 of an
+N-ship architectural plan tracked in
+`MEMORY_FIX_PUNCHLIST.md` at the repo root). The full plan
+ends with TypeId interning + per-compile arena (Ship 2-4)
+projected to bring peak RSS under the 500 MB target.
+
+### Memory infrastructure
+
+- `stdlib/runtime/nucleor_llvm_rt.c`: NUC_TRACE_ALLOC=1
+  environment variable activates per-category allocation
+  counters (vec_new, str_concat, str_substring, sb_new,
+  misc_str). Counters tally call counts + bytes; an
+  `atexit` handler prints the summary. Cost when disabled:
+  one branch per call (~zero overhead).
+- New runtime fn `__nucleor_vec_free(handle)`: free a Vec +
+  its backing data. Always-linked counterpart of
+  `mem_rt.c`'s `nuc_vec_free` so the compiler itself can
+  call `vec_free` without importing `stdlib/rods/mem.nr`.
+- New runtime fn `__nucleor_str_free(s)`: free a heap-
+  allocated string from `str_concat` / `str_substring` /
+  `sb_to_str` / `format_*` / etc. Wired but not yet
+  consumed; reserved for Ship 2.
+
+### Memory fixes (real wins this ship)
+
+- **Env-snapshot vec_free CALLS deferred** (initially
+  attempted, reverted before ship). When `own_restore`,
+  `own_merge_moved`, and the type-check arm-env sites
+  freed their snapshot Vecs, all `match` / `enum` / `if-let`
+  tests segfaulted. Root cause: a downstream reader keeps
+  pointers into the snapshot's backing data after the
+  snapshot is supposedly consumed. Identifying that reader
+  is item E4 in `MEMORY_FIX_PUNCHLIST.md`. The `vec_free`
+  builtin itself ships and is link-tested; the call sites
+  remain documented + commented for the next ship.
+- **Non-allocating `str_starts_with`.** Previously did
+  `str_eq(str_substring(s, 0, plen), prefix)` — allocated
+  on every call. Now walks bytes directly. Used by every
+  prefix probe in the type checker.
+- **`type_base_name` converted** to use the non-allocating
+  prefix probes. Was 4-7 substring allocations per call;
+  now 0-1 (only when extracting the bare name from a
+  generic type like `Vec<i32>`).
+- **`is_tainted_type`, `taint_inner_type`, `type_is_unit`**
+  similarly converted.
+- **`strip_spaces` fast path.** Most type strings have no
+  whitespace; scan once to detect, return input unchanged
+  if clean. Previously always allocated a string builder
+  + a 1-byte substring per non-space character.
+
+### `vec_free` builtin
+
+The s1 needed a way to free Vecs from its own type
+checker. v0.2.158 adds `vec_free` as a first-class builtin
+(not just a `mem.nr` rod export):
+- `compiler/nucleor_s1_compiler.nr`: 4 ABI sites
+  (get_rt_name, is_void_ret, is_ptr_arg, emit_externs).
+- `compiler/nucleor_tools_suite.nr`: 4 mirrored sites.
+- Bootstrap took two passes: pass 1 wired the ABI without
+  callers (compiles cleanly with the v0.2.157 binary that
+  doesn't know vec_free); pass 2 added the actual
+  `vec_free(snap)` etc. calls (compiles with the new
+  pass 1 binary that does know it).
+
+### RFC-0028 phase 4: format2_fi / format2_if / format3_fff
+
+Continuing the v0.2.153 / v0.2.155 pattern, fills the
+float-mixed gap left after `format2_ff`:
+- `format2_fi(tmpl, f64, i64)` — ratio + count
+- `format2_if(tmpl, i64, f64)` — step + error
+- `format3_fff(tmpl, f64, f64, f64)` — 3D vector
+Each chains the existing single-arg helper.
+
+### Self-host LLVM IR fixed point
+
+- 3-iter check held at byte-identical 2,681,397 bytes
+  (pass2 == pass3 == pass3-rebuild). The intervening
+  bootstrap pass differs from pass2 by exactly the new
+  vec_free declare line, as expected.
+- `bin/nucleor.exe` updated; compiler-source chain is now
+  v0.2.84 → v0.2.87 → v0.2.151 → v0.2.152 → v0.2.153 →
+  v0.2.155 → v0.2.157 → **v0.2.158**.
+
+### Memory measurement
+
+Baseline (v0.2.157 self-host, NUC_TRACE_ALLOC=1):
+```
+vec_new:         798K calls   119 MB
+str_concat:      598K calls     4 MB
+str_substring:   582M calls   9.5 GB  ← dominant
+sb_new:           13K calls    60 MB
+peak RSS:                       19 GB
+```
+
+After Ship 1 (this release):
+```
+vec_new:         799K calls   119 MB
+str_concat:      598K calls     4 MB
+str_substring:   586M calls   9.6 GB  (no change — see below)
+sb_new:           13K calls    60 MB
+peak RSS:                       19 GB
+```
+
+Ship 1 is infrastructure + non-allocating string-prefix
+probes. Real wins are small. The dominant `str_substring`
+leak (582M calls / 9.5 GB) is in code paths that need
+Ship 2's TypeId interner to fix architecturally. The
+`vec_free` builtin lands here so Ship 2 can be built on
+top; the env-snapshot CALL SITES that crash on
+match/enum tests are deferred to Ship 1b after the
+interior-string-pointer audit (item E4 in punchlist).
+
+### Verify gate
+
+**245 / 245 PASS, 0 SKIP** on the bash gate. Self-host
+rebuild closes byte-identical.
+
+### See
+
+`MEMORY_FIX_PUNCHLIST.md` (repo root) — full multi-ship
+plan to bring peak RSS from 19 GB to < 500 MB.
+
 ## [0.2.157] — 2026-04-23
 
 **RFC-0001 phase 1: `#[no_alloc]` v1 — first RT attribute that

@@ -1837,6 +1837,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "vec_get") { return "__nucleor_vec_get"; };
     if str_eq(name, "vec_len") { return "__nucleor_vec_len"; };
     if str_eq(name, "vec_pop") { return "__nucleor_vec_pop"; };
+    if str_eq(name, "vec_free") { return "__nucleor_vec_free"; };
     if str_eq(name, "vec_set") { return "__nucleor_vec_set"; };
     if str_eq(name, "vec_first") { return "__nucleor_vec_first"; };
     if str_eq(name, "vec_last") { return "__nucleor_vec_last"; };
@@ -1878,6 +1879,9 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "format2_ss") { return "__nucleor_format2_ss"; };
     if str_eq(name, "format2_is") { return "__nucleor_format2_is"; };
     if str_eq(name, "format2_ff") { return "__nucleor_format2_ff"; };
+    if str_eq(name, "format2_fi") { return "__nucleor_format2_fi"; };
+    if str_eq(name, "format2_if") { return "__nucleor_format2_if"; };
+    if str_eq(name, "format3_fff") { return "__nucleor_format3_fff"; };
     if str_eq(name, "format_f64") { return "__nucleor_format_f64"; };
     if str_eq(name, "vec_map_i64") { return "__nucleor_vec_map_i64"; };
     if str_eq(name, "vec_filter_i64") { return "__nucleor_vec_filter_i64"; };
@@ -2478,6 +2482,7 @@ fn is_void_ret(name: str) -> i64 {
     if str_eq(name, "sb_append") { return 1; };
     if str_eq(name, "vec_push") { return 1; };
     if str_eq(name, "vec_pop") { return 1; };
+    if str_eq(name, "vec_free") { return 1; };
     if str_eq(name, "vec_set") { return 1; };
     if str_eq(name, "vec_swap") { return 1; };
     if str_eq(name, "vec_extend") { return 1; };
@@ -2528,6 +2533,9 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "format2_ss") { return 1; };
     if str_eq(name, "format2_is") { return 1; };
     if str_eq(name, "format2_ff") { return 1; };
+    if str_eq(name, "format2_fi") { return 1; };
+    if str_eq(name, "format2_if") { return 1; };
+    if str_eq(name, "format3_fff") { return 1; };
     if str_eq(name, "format_f64") { return 1; };
     if str_eq(name, "format_bool") { return 1; };
     if str_eq(name, "format3_iii") { return 1; };
@@ -2620,6 +2628,9 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "format2_ss") { if idx == 0 || idx == 1 || idx == 2 { return 1; }; return 0; };
     if str_eq(name, "format2_is") { if idx == 0 || idx == 2 { return 1; }; return 0; };
     if str_eq(name, "format2_ff") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format2_fi") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format2_if") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "format3_fff") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format_f64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_map_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_filter_i64") { if idx == 0 { return 1; }; return 0; };
@@ -2718,6 +2729,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "vec_get") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_len") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_pop") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_free") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_set") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_first") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_last") { if idx == 0 { return 1; }; return 0; };
@@ -3070,6 +3082,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_vec_get(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_len(ptr)\n");
     sb_append(sb, "declare void @__nucleor_vec_pop(ptr)\n");
+    sb_append(sb, "declare void @__nucleor_vec_free(ptr)\n");
     sb_append(sb, "declare void @__nucleor_vec_set(ptr, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_first(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_last(ptr)\n");
@@ -3113,6 +3126,9 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_format2_ss(ptr, ptr, ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_format2_is(ptr, i64, ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_format2_ff(ptr, i64, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_format2_fi(ptr, i64, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_format2_if(ptr, i64, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_format3_fff(ptr, i64, i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_format_f64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_map_i64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_filter_i64(ptr, i64)\n");
