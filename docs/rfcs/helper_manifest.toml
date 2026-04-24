@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 682
+# Total helpers: 686
 # Of which REVIEW REQUIRED: 0
 
 # ============================================================
@@ -6155,6 +6155,34 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "format2_fi"
+class            = "StringFormat"
+symbol           = "__nucleor_format2_fi"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64, i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "format2_if"
+class            = "StringFormat"
+symbol           = "__nucleor_format2_if"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64, i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "format2_ii"
 class            = "StringFormat"
 symbol           = "__nucleor_format2_ii"
@@ -6202,6 +6230,20 @@ class            = "StringFormat"
 symbol           = "__nucleor_format2_ss"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, ptr, ptr) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "format3_fff"
+class            = "StringFormat"
+symbol           = "__nucleor_format3_fff"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64, i64, i64) -> ptr"
 effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
@@ -8922,6 +8964,20 @@ units            = "passthrough"
 proof_obligation = "bounds_within_len"
 stability        = "stable"
 since            = "0.2.9"
+notes            = ""
+
+[[helper]]
+name             = "vec_free"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_free"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> void"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
 notes            = ""
 
 [[helper]]

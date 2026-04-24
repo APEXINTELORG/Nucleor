@@ -12,6 +12,32 @@
 #include <windows.h>
 #endif
 
+// DIAGNOSTIC: allocation counters (active when NUC_TRACE_ALLOC=1)
+static long long g_vec_new_count = 0;
+static long long g_vec_realloc_bytes = 0;
+static long long g_str_concat_count = 0;
+static long long g_str_concat_bytes = 0;
+static long long g_str_substring_count = 0;
+static long long g_str_substring_bytes = 0;
+static long long g_sb_new_count = 0;
+static long long g_sb_realloc_bytes = 0;
+static long long g_misc_str_count = 0;
+static long long g_misc_str_bytes = 0;
+static int g_alloc_tracer_init = 0;
+static void _alloc_summary(void) {
+    if (getenv("NUC_TRACE_ALLOC")) {
+        long long total = g_vec_realloc_bytes + g_str_concat_bytes + g_str_substring_bytes + g_sb_realloc_bytes + g_misc_str_bytes;
+        fprintf(stderr, "\n[NUC_TRACE_ALLOC]\n");
+        fprintf(stderr, "  vec_new:       %8lld calls   %10lld B (%5lld MB)\n", g_vec_new_count, g_vec_realloc_bytes, g_vec_realloc_bytes >> 20);
+        fprintf(stderr, "  str_concat:    %8lld calls   %10lld B (%5lld MB)\n", g_str_concat_count, g_str_concat_bytes, g_str_concat_bytes >> 20);
+        fprintf(stderr, "  str_substring: %8lld calls   %10lld B (%5lld MB)\n", g_str_substring_count, g_str_substring_bytes, g_str_substring_bytes >> 20);
+        fprintf(stderr, "  sb_new:        %8lld calls   %10lld B (%5lld MB)\n", g_sb_new_count, g_sb_realloc_bytes, g_sb_realloc_bytes >> 20);
+        fprintf(stderr, "  misc_str:      %8lld calls   %10lld B (%5lld MB)\n", g_misc_str_count, g_misc_str_bytes, g_misc_str_bytes >> 20);
+        fprintf(stderr, "  TOTAL TRACKED:                 %10lld B (%5lld MB)\n", total, total >> 20);
+        fflush(stderr);
+    }
+}
+
 // === Print ===
 void __nucleor_print_str(const char *s) {
     if (s) printf("%s\n", s);
@@ -159,6 +185,26 @@ const char *__nucleor_format2_ff(const char *tmpl, long long a_bits, long long b
     free((void *)first);
     return out;
 }
+const char *__nucleor_format2_fi(const char *tmpl, long long a_bits, long long b) {
+    const char *first = __nucleor_format_f64(tmpl, a_bits);
+    const char *out = __nucleor_format_i64(first, b);
+    free((void *)first);
+    return out;
+}
+const char *__nucleor_format2_if(const char *tmpl, long long a, long long b_bits) {
+    const char *first = __nucleor_format_i64(tmpl, a);
+    const char *out = __nucleor_format_f64(first, b_bits);
+    free((void *)first);
+    return out;
+}
+const char *__nucleor_format3_fff(const char *tmpl, long long a_bits, long long b_bits, long long c_bits) {
+    const char *s1 = __nucleor_format_f64(tmpl, a_bits);
+    const char *s2 = __nucleor_format_f64(s1, b_bits);
+    free((void *)s1);
+    const char *out = __nucleor_format_f64(s2, c_bits);
+    free((void *)s2);
+    return out;
+}
 
 // f64 args arrive as i64 cells (bit-cast); decode then render with %g.
 // Uses a local union since `nf64` is typedef'd later in this file and
@@ -264,10 +310,12 @@ long long __nucleor_str_to_bool(const char *s) {
 }
 
 const char *__nucleor_int_to_str(long long v) {
+    g_misc_str_count++;
     char buf[32];
     snprintf(buf, sizeof(buf), "%lld", v);
     size_t L = strlen(buf);
     char *out = (char *)malloc(L + 1);
+    g_misc_str_bytes += L + 1;
     memcpy(out, buf, L + 1);
     return out;
 }
@@ -676,6 +724,8 @@ const char *__nucleor_str_substring(const char *s, long long start, long long en
     if (!s) return "";
     int n = (int)(end - start);
     if (n < 0) n = 0;
+    g_str_substring_count++;
+    g_str_substring_bytes += n + 1;
     char *r = (char *)malloc(n + 1);
     memcpy(r, s + (int)start, n);
     r[n] = 0;
@@ -686,6 +736,8 @@ const char *__nucleor_str_concat(const char *a, const char *b) {
     if (!a) a = "";
     if (!b) b = "";
     int la = (int)strlen(a), lb = (int)strlen(b);
+    g_str_concat_count++;
+    g_str_concat_bytes += la + lb + 1;
     char *r = (char *)malloc(la + lb + 1);
     memcpy(r, a, la);
     memcpy(r + la, b, lb + 1);
@@ -897,18 +949,44 @@ long long __nucleor_system(const char *cmd) {
 typedef struct { long long *data; int len; int cap; } NVec;
 
 NVec *__nucleor_vec_new(void) {
+    if (!g_alloc_tracer_init) { atexit(_alloc_summary); g_alloc_tracer_init = 1; }
+    g_vec_new_count++;
     NVec *v = (NVec *)malloc(sizeof(NVec));
     v->data = (long long *)malloc(16 * sizeof(long long));
     v->len = 0;
     v->cap = 16;
+    g_vec_realloc_bytes += sizeof(NVec) + 16 * sizeof(long long);
     return v;
+}
+
+// Free a Vec and its data. The handle is invalid after this call.
+// Always-linked counterpart of mem_rt.c's nuc_vec_free, so user code
+// (and the compiler itself) can reclaim a Vec without importing
+// stdlib/rods/mem.nr. Safe on null handles.
+void __nucleor_vec_free(long long handle) {
+    NVec *v = (NVec *)(void *)(size_t)handle;
+    if (!v) return;
+    if (v->data) free(v->data);
+    free(v);
+}
+
+// Free a heap-allocated string previously returned by str_concat,
+// str_substring, sb_to_str, format_*, int_to_str, etc. Safe on
+// null. Do NOT call on string literals — those live in the rodata
+// section and free() would corrupt the heap. Use only on values
+// the runtime explicitly malloc'd (return values of the allocating
+// builtins listed above).
+void __nucleor_str_free(const char *s) {
+    if (s) free((void *)s);
 }
 
 void __nucleor_vec_push(NVec *v, long long x) {
     if (!v) return;
     if (v->len >= v->cap) {
+        long long old_cap = v->cap;
         v->cap *= 2;
         v->data = (long long *)realloc(v->data, v->cap * sizeof(long long));
+        g_vec_realloc_bytes += (v->cap - old_cap) * sizeof(long long);
     }
     v->data[v->len++] = x;
 }
@@ -1468,11 +1546,13 @@ long long __nucleor_vec_percentile_f64(NVec *v, long long p_bits) {
 typedef struct { char *data; int len; int cap; } NStrBuilder;
 
 long long __nucleor_sb_new(void) {
+    g_sb_new_count++;
     NStrBuilder *sb = (NStrBuilder *)malloc(sizeof(NStrBuilder));
     sb->cap = 4096;
     sb->data = (char *)malloc(sb->cap);
     sb->data[0] = '\0';
     sb->len = 0;
+    g_sb_realloc_bytes += sizeof(NStrBuilder) + sb->cap;
     return (long long)sb;
 }
 
@@ -1481,8 +1561,10 @@ void __nucleor_sb_append(long long handle, const char *s) {
     NStrBuilder *sb = (NStrBuilder *)(void *)handle;
     int slen = (int)strlen(s);
     while (sb->len + slen + 1 > sb->cap) {
+        long long old_cap = sb->cap;
         sb->cap *= 2;
         sb->data = (char *)realloc(sb->data, sb->cap);
+        g_sb_realloc_bytes += sb->cap - old_cap;
     }
     memcpy(sb->data + sb->len, s, slen + 1);
     sb->len += slen;
