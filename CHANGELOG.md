@@ -5,6 +5,80 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.176] — 2026-04-24
+
+**Robotics: inverse kinematics. New `ik_dls.nr` rod solves for
+joint variables that put the end-effector at a target position.
+Damped Least Squares (Wampler 1986, Buss 2009).**
+
+Closes the FK/IK pair for serial chains. Given the target
+end-effector position `(tx, ty, tz)`, iteratively adjusts the
+joint variables to minimize position error. Uses the standard
+damped Jacobian pseudoinverse:
+
+```
+δq = J^T (J J^T + λ² I)^{-1} · e
+```
+
+The Jacobian is computed numerically via finite differences on
+the FK chain — no hand-coded analytical derivatives required;
+works for any joint topology that `fk_chain.nr` supports.
+
+`damping (λ)` trades convergence speed against numerical
+stability near singularities; 0.01-0.1 is typical.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/ik_dls.nr"
+// (ik_dls.nr imports fk_chain.nr; both runtimes link in)
+
+let chain = fk_chain_new();
+// ... add joints ...
+let iters_run = ik_dls_solve(
+    chain, vars_ptr,
+    f64_to_bits(0.5), f64_to_bits(0.3), f64_to_bits(0.0),  // target xyz
+    100,                                                   // max_iters
+    f64_to_bits(0.001),                                    // tolerance (m)
+    f64_to_bits(0.05)                                      // damping λ
+);
+// vars_ptr now holds the solved joint configuration
+```
+
+### Files
+
+- `stdlib/runtime/ik_dls_rt.c`: ~140 LOC. Forward-declares the
+  FK chain runtime symbols (no header dependency); allocates
+  scratch for J, J·Jᵀ+λ²I, its 3×3 inverse, and the
+  J^T(...)^{-1} matrix per solve. Inverse via cofactor
+  formula (3×3 closed form).
+- `stdlib/rods/ik_dls.nr`: thin wrapper. Imports `fk_chain.nr`
+  so both translation units get linked together (the linker
+  needs `nuc_fk_chain_*` symbols that ik_dls calls).
+- `tests/rods/ik_dls_smoke.nr`: build-only smoke (full
+  convergence test needs Vec<f64> plumbing not available in a
+  single-file test).
+
+### Limitations + future work
+
+- **Position-only solver.** Orientation IK lands in v0.5
+  (RFC-0013 follow-on) — extends to a 6×n Jacobian (3 rows
+  position + 3 rows angular). Position-only covers most
+  pick-and-place use cases.
+- **No joint limits enforced.** v0.5 will add per-joint
+  `[min, max]` bounds clamping.
+- **No singularity-detection callback.** Determinant check
+  (det(J·Jᵀ+λ²I) < 1e-12) silently breaks the loop today.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**253 / 253 PASS, 0 SKIP** (was 252/252; +1 new smoke test).
+Both budgets hold.
+
 ## [0.2.175] — 2026-04-24
 
 **Robotics: forward kinematics for serial joint chains. New
