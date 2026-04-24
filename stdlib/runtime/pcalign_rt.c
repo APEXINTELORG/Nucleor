@@ -222,3 +222,133 @@ long long nuc_pcalign_horn(long long src_ptr, long long dst_ptr, long long n_,
 
     return 1;
 }
+
+// === Outlier-robust pcalign via RANSAC (v0.2.289) ===
+//
+// Self-contained RANSAC over correspondences with Horn fit and
+// reprojection-error inlier scoring. After the best 3-correspondence
+// model is found, refits Horn on the full inlier set to produce
+// the final transform.
+//
+// Returns the inlier count of the best model. Writes the final
+// `(t, q)` to caller buffers and the per-correspondence inlier
+// mask (1 = inlier, 0 = outlier) if `inlier_mask_out_ptr` is non-null.
+//
+// `threshold_b` is the maximum reprojection error (Euclidean distance
+// from `R·src + t` to `dst`) for a correspondence to count as an inlier.
+//
+// Useful when correspondences come from feature matching with
+// possible mismatches: feature-based registration, scan-to-scan
+// alignment with bad matches, AR pose estimation with outlier anchors.
+
+static unsigned long long _xs_pcalign(unsigned long long *state) {
+    unsigned long long x = *state;
+    x ^= x << 13; x ^= x >> 7; x ^= x << 17;
+    if (x == 0) x = 0xdeadbeefdeadbeefULL;
+    *state = x;
+    return x;
+}
+
+long long nuc_pcalign_horn_ransac(long long src_ptr, long long dst_ptr,
+                                    long long n_, long long n_iters_,
+                                    long long threshold_b, long long seed_,
+                                    long long t_out_ptr, long long q_out_ptr,
+                                    long long inlier_mask_out_ptr)
+{
+    int n = (int)n_;
+    int n_iters = (int)n_iters_;
+    if (n < 3 || n_iters < 1) return 0;
+    const double *A = (const double *)(void *)(size_t)src_ptr;
+    const double *B = (const double *)(void *)(size_t)dst_ptr;
+    double *t_out = (double *)(void *)(size_t)t_out_ptr;
+    double *q_out = (double *)(void *)(size_t)q_out_ptr;
+    long long *mask_out = (long long *)(void *)(size_t)inlier_mask_out_ptr;
+    if (!A || !B || !t_out || !q_out) return 0;
+    double thresh = _i2f(threshold_b);
+    double thresh2 = thresh * thresh;
+
+    unsigned long long rng = (unsigned long long)seed_ * 6364136223846793005ULL
+                           + 1442695040888963407ULL;
+    if (rng == 0) rng = 1;
+
+    double sample_src[9], sample_dst[9];
+    long long indices[3];
+    long long *best_inliers = (long long *)calloc(n, sizeof(long long));
+    long long *cand_inliers = (long long *)calloc(n, sizeof(long long));
+    long long best_count = -1;
+    double best_t[3] = {0, 0, 0};
+    double best_q[4] = {1, 0, 0, 0};
+
+    for (int it = 0; it < n_iters; it++) {
+        // Sample 3 distinct indices.
+        int filled = 0;
+        while (filled < 3) {
+            long long c = (long long)(_xs_pcalign(&rng) % (unsigned long long)n);
+            int dup = 0;
+            for (int i = 0; i < filled; i++) if (indices[i] == c) { dup = 1; break; }
+            if (!dup) indices[filled++] = c;
+        }
+        for (int i = 0; i < 3; i++) {
+            int s = (int)indices[i];
+            sample_src[i*3+0] = A[s*3+0];
+            sample_src[i*3+1] = A[s*3+1];
+            sample_src[i*3+2] = A[s*3+2];
+            sample_dst[i*3+0] = B[s*3+0];
+            sample_dst[i*3+1] = B[s*3+1];
+            sample_dst[i*3+2] = B[s*3+2];
+        }
+        double t_cand[3], q_cand[4];
+        if (!nuc_pcalign_horn((long long)(size_t)sample_src,
+                               (long long)(size_t)sample_dst, 3,
+                               (long long)(size_t)t_cand,
+                               (long long)(size_t)q_cand)) continue;
+        // Score: count inliers under candidate model.
+        double R[9];
+        _q_to_R(q_cand, R);
+        long long count = 0;
+        for (int i = 0; i < n; i++) {
+            double ax = A[i*3], ay = A[i*3+1], az = A[i*3+2];
+            double pred_x = R[0]*ax + R[1]*ay + R[2]*az + t_cand[0];
+            double pred_y = R[3]*ax + R[4]*ay + R[5]*az + t_cand[1];
+            double pred_z = R[6]*ax + R[7]*ay + R[8]*az + t_cand[2];
+            double dx = pred_x - B[i*3];
+            double dy = pred_y - B[i*3+1];
+            double dz = pred_z - B[i*3+2];
+            double e2 = dx*dx + dy*dy + dz*dz;
+            cand_inliers[i] = (e2 <= thresh2) ? 1 : 0;
+            count += cand_inliers[i];
+        }
+        if (count > best_count) {
+            best_count = count;
+            for (int i = 0; i < n; i++) best_inliers[i] = cand_inliers[i];
+            best_t[0] = t_cand[0]; best_t[1] = t_cand[1]; best_t[2] = t_cand[2];
+            best_q[0] = q_cand[0]; best_q[1] = q_cand[1]; best_q[2] = q_cand[2]; best_q[3] = q_cand[3];
+        }
+    }
+
+    // Refit on best inlier set if ≥ 3 inliers (else fall back to best-sample model).
+    if (best_count >= 3) {
+        double *src_in = (double *)malloc(best_count * 3 * sizeof(double));
+        double *dst_in = (double *)malloc(best_count * 3 * sizeof(double));
+        long long k = 0;
+        for (int i = 0; i < n; i++) {
+            if (best_inliers[i]) {
+                src_in[k*3+0] = A[i*3+0]; src_in[k*3+1] = A[i*3+1]; src_in[k*3+2] = A[i*3+2];
+                dst_in[k*3+0] = B[i*3+0]; dst_in[k*3+1] = B[i*3+1]; dst_in[k*3+2] = B[i*3+2];
+                k++;
+            }
+        }
+        nuc_pcalign_horn((long long)(size_t)src_in, (long long)(size_t)dst_in, k,
+                          (long long)(size_t)t_out, (long long)(size_t)q_out);
+        free(src_in); free(dst_in);
+    } else {
+        t_out[0] = best_t[0]; t_out[1] = best_t[1]; t_out[2] = best_t[2];
+        q_out[0] = best_q[0]; q_out[1] = best_q[1]; q_out[2] = best_q[2]; q_out[3] = best_q[3];
+    }
+
+    if (mask_out) {
+        for (int i = 0; i < n; i++) mask_out[i] = best_inliers[i];
+    }
+    free(best_inliers); free(cand_inliers);
+    return (best_count >= 0) ? best_count : 0;
+}
