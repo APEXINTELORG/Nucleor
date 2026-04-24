@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.209] — 2026-04-23
+
+**Robotics: workspace sampling primitives. `fk_workspace_sample`
+takes a serial chain + per-joint `[lo, hi]` bounds and writes N
+end-effector world positions to a caller-allocated buffer by
+running FK on uniformly-random configurations. `fk_workspace_aabb`
+computes the axis-aligned bounding box; `fk_workspace_aabb_volume`
+the box volume. Useful for "what can this arm reach?" estimation,
+reachable-set visualization, and seeding workspace-coordinate
+IK / RRT initialization.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/fk_chain.nr"
+
+let positions = /* double[N * 3] handle */;
+let lo = /* double[n_joints] handle */;
+let hi = /* double[n_joints] handle */;
+fk_workspace_sample(chain, n_samples, seed, lo_h, hi_h, positions_h);
+
+let aabb = /* double[6] handle */;
+fk_workspace_aabb(positions_h, n_samples, aabb_h);
+let volume = fk_workspace_aabb_volume(aabb_h);  // bit-cast f64
+```
+
+### Implementation notes
+
+- xorshift32 RNG seeded from `seed` (0 → default seed
+  `0x9E3779B9`).
+- Per-iteration: sample `n_joints` doubles uniformly within `[lo, hi]`,
+  call FK update, read the last link's world position. O(n_samples
+  × n_joints) FK evaluations; bottleneck is the FK update itself.
+- AABB pass is a single linear scan over the position array.
+- Joints whose `lo == hi` stay fixed — useful for "freeze joint k"
+  scans of a partial configuration space.
+
+### Verification
+
+2-link planar arm (DH `a=1` per joint) plus a fixed end-effector
+tip, sampled with 2000 random configurations:
+
+- All 2000 sample points lie within the analytical reachable
+  disk `r ≤ 3`.
+- AABB matches the analytical reachable extents
+  (`x ≈ [-1, 3]`, `y ≈ [-2, 2]`, `z = 0`).
+- AABB volume = 0 for the planar case (z extent is exactly 0).
+
+### Files
+
+- `stdlib/runtime/fk_chain_rt.c` — `_ws_xs32` xorshift RNG,
+  `nuc_fk_workspace_sample`, `nuc_fk_workspace_aabb`,
+  `nuc_fk_workspace_aabb_volume`.
+- `stdlib/rods/fk_chain.nr` — externs + Nucleor wrappers; also
+  exposes the `fk_chain_joint_type` / `fk_chain_joint_axis`
+  accessors added in v0.2.207.
+
+---
+
 ## [0.2.208] — 2026-04-23
 
 **Robotics: Yoshikawa manipulability metric `√det(J·Jᵀ)` at an

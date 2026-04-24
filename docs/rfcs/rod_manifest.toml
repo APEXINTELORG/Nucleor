@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 143
-# Total fn definitions: 1660
-# Total LOC: 6979
+# Total fn definitions: 1665
+# Total LOC: 7005
 
 [[rod]]
 name           = "activation2"
@@ -429,9 +429,9 @@ imports        = ["finance"]
 name           = "fk_chain"
 path           = "stdlib/rods/fk_chain.nr"
 description    = "Forward kinematics for a serial joint chain."
-function_count = 16
+function_count = 21
 cfile_count    = 1
-loc            = 45
+loc            = 71
 imports        = []
 
 [[rod]]
