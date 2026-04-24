@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.278] — 2026-04-24
+
+**Robotics: Cauchy/Lorentzian redescending kernel for `pgs.nr`
+(`pgs_optimize_cauchy`). Stronger outlier rejection than Huber —
+the weight `w = 1 / (1 + r²/c²)` is < 1 for ALL non-zero
+residuals (truly redescending), so outliers are rejected even if
+their residual happens to drop below the Huber threshold during
+IRLS convergence.**
+
+### When to use which kernel
+
+- **`pgs_optimize`** — vanilla L2; fast and unbiased on inliers.
+  Use when no outliers expected.
+- **`pgs_optimize_huber(δ)`** — bounded influence, smooth at the
+  threshold. Reduces to L2 below `δ`. Standard for "mostly inliers
+  with occasional outliers."
+- **`pgs_optimize_cauchy(c)`** — strongly redescending. Best when
+  outliers must be rejected even after IRLS pulls residuals down.
+  Mild bias on inliers (acceptable when robustness dominates).
+
+### Verification
+
+Same 2-node + outlier scenario as Huber test (good edge: distance 1;
+outlier: distance 100):
+
+1. **Cauchy (c=2.0)**: `node1.x = 1.0404` — extremely close to the
+   good edge's distance of 1.
+2. **Cauchy (c=0)**: `node1.x = 50.5000` — degenerate case reduces
+   to L2 average.
+3. **Direct comparison**: Huber(δ=2) gives `x=3.00` while Cauchy(c=2)
+   gives `x=1.04` — Cauchy 30× more aggressive at the same scale.
+
+### Files
+
+- `stdlib/runtime/pgs_rt.c` — added `nuc_pgs_optimize_cauchy`
+  alongside L2 and Huber variants.
+- `stdlib/rods/pgs.nr` — added extern + `pgs_optimize_cauchy` wrapper.
+
+---
+
 ## [0.2.277] — 2026-04-24
 
 **Robotics: Huber robust-cost kernel for `pgs.nr` (`pgs_optimize_huber`).

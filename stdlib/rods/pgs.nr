@@ -49,6 +49,7 @@ extern fn nuc_pgs_add_edge(h: i64, i: i64, j: i64,
     info_xx_b: i64, info_yy_b: i64, info_tt_b: i64) -> i64;
 extern fn nuc_pgs_optimize(h: i64, max_iters: i64, tol_b: i64) -> i64;
 extern fn nuc_pgs_optimize_huber(h: i64, max_iters: i64, tol_b: i64, delta_b: i64) -> i64;
+extern fn nuc_pgs_optimize_cauchy(h: i64, max_iters: i64, tol_b: i64, c_b: i64) -> i64;
 extern fn nuc_pgs_total_cost(h: i64) -> i64;
 extern fn nuc_pgs_free(h: i64);
 
@@ -95,6 +96,22 @@ fn pgs_optimize(h: i64, max_iters: i64, tol_b: i64) -> i64 {
 // disable Huber and reduce to vanilla L2.
 fn pgs_optimize_huber(h: i64, max_iters: i64, tol_b: i64, delta_b: i64) -> i64 {
     return nuc_pgs_optimize_huber(h, max_iters, tol_b, delta_b);
+}
+
+// Cauchy/Lorentzian redescending kernel (v0.2.278). Stronger
+// outlier rejection than Huber — the weight `w = 1 / (1 + r²/c²)`
+// is < 1 for ALL non-zero residuals (truly redescending), so
+// outliers are rejected even if their residual happens to drop
+// below the Huber threshold during IRLS convergence. Trade-off:
+// inlier estimates are slightly biased. Useful when:
+// - Outlier residuals don't drop below the Huber threshold during
+//   IRLS convergence (Huber then reverts to L2).
+// - Maximum robustness wanted, mild bias acceptable.
+//
+// `c_b` is the Cauchy scale parameter (typical 0.5–2.0; tune to ~σ).
+// Pass 0 to disable.
+fn pgs_optimize_cauchy(h: i64, max_iters: i64, tol_b: i64, c_b: i64) -> i64 {
+    return nuc_pgs_optimize_cauchy(h, max_iters, tol_b, c_b);
 }
 
 // Total residual cost (sum of squared edge errors weighted by
