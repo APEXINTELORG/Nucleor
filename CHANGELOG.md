@@ -5,6 +5,87 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.309] — 2026-04-24
+
+**T1.1 Phase 2 — f32 literals + bootstrap-stability gate +
+defensive narrow scope.** Three production-readiness items
+landed together because Phase 2's f32-literal work surfaced a
+self-host bootstrap landmine that Phase 1 had silently
+introduced.
+
+### What landed
+
+#### A. f32 literal binding (`let a: f32 = 3.14;`, `let b: f32 = 3.14f32;`)
+- `compiler/nucleor_s1_compiler.nr` type-compat: f32 / f16 / bf16
+  now accept f64 / i32 / i64 source types (the lexer always
+  emits float literals as f64; lowering inserts the conversion).
+- `narrow_via_as` extended to call `as_f32` for `f32` targets.
+
+#### B. Defensive narrow scope (production fix for Phase 1)
+- Phase 1's `narrow_via_as` originally narrowed
+  `i8/i16/i32/u8/u16/u32`. Removed `i32`/`u32` after
+  discovering Nucleor's stdlib (`str_from_int(n: i32)` and
+  similar) loosely uses `i32` to hold i64-range values. Auto-
+  narrowing those silently truncated large literals to 0,
+  poisoning the self-host compiler binary one rebuild later.
+  Restricted set is now `i8/i16/u8/u16` + `f32`. A future
+  Phase 3 stdlib audit can re-enable i32/u32 narrowing.
+- Added `if vr < 0 { return vr; }` guard so an upstream
+  lowering bug surfaces as a visible diagnostic rather than
+  emitting `add i64 , 0` with a missing operand.
+
+#### C. Bootstrap-stability gate (verify step #329)
+- `tools/verify.ps1` adds `self-host bootstrap fixpoint
+  (stage-2)` step: stage-1 binary compiles compiler source →
+  stage-2 binary; stage-2 then re-compiles `tests/lang/arith.nr`
+  and the IR must be SHA-256 identical to stage-1's output.
+- This catches the entire class of "compiler change silently
+  poisons next compile" bugs. Phase 1's truncation-of-
+  str_from_int bug would have failed this gate immediately.
+
+#### D. Memory cap on all build paths
+- `tools/verify.sh` and `tools/verify.ps1`: cap at 2 GB virtual
+  memory / working set (was: unlimited). Override via
+  `NUCLEOR_MEM_CAP_KB` (sh) / `NUCLEOR_MEM_CAP_MB` (ps1) /
+  `0` to disable. Healthy compile is sub-1 GB; prior swap-
+  thrashing blowups hit ~20 GB.
+- `tools/run_numerics_matrix.{sh,ps1}` mirror the same cap.
+
+### Matrix progress
+
+| Phase         | v0.2.308 | v0.2.309 |
+|---------------|----------|----------|
+| p2_literals   | 5P/1BE   | **6P/0F/0BE** |
+| p4_cast       | 5P/3BE   | **7P/1F/0BE** |
+| p5_float      | 0P/1F/3BE| **0P/4F/0BE** |
+| p11_format    | 1P/1BE   | **2P/0F/0BE** |
+| TOTAL         | 37P/3F/16BE | **41P/7F/8BE** |
+
+4 tests flipped to PASS (literal + format). 8 BUILD_ERRORs
+flipped to FAIL — those tests now compile but expose real
+runtime gaps (float arith, narrow bitwise) which Phases 5 / 6
+will close.
+
+### Verify gate
+
+329/328 PASS (the +1 is the new bootstrap-fixpoint step).
+Bootstrap proven stable.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — narrow scope restricted +
+   guard added; f32 type-compat clause.
+- `bin/nucleor.exe` — rebuilt (clean bootstrap from v0.2.307).
+- `tools/verify.ps1` — bootstrap-stability step + memory cap.
+- `tools/verify.sh` — memory cap.
+- `tools/run_numerics_matrix.{sh,ps1}` — memory cap.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+Phase 3 (`v0.2.310`) — alloca + struct layout at correct width
+(after stdlib audit to confirm i32/u32 narrowing is safe).
+
 ## [0.2.308] — 2026-04-24
 
 **T1.1 Phase 1 — width-correct integer wrap on `let` binding.**

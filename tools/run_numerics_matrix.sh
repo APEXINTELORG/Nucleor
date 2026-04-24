@@ -9,6 +9,14 @@
 # Usage: bash tools/run_numerics_matrix.sh
 
 set -u
+
+# T1.1 safety: cap virtual memory at 2 GB so a runaway compile or test
+# fails fast (mirrors verify.sh). Override via NUCLEOR_MEM_CAP_KB env.
+: "${NUCLEOR_MEM_CAP_KB:=2097152}"
+if [ "${NUCLEOR_MEM_CAP_KB}" != "0" ]; then
+    ulimit -v "${NUCLEOR_MEM_CAP_KB}" 2>/dev/null || true
+fi
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MATRIX="$ROOT/tests/lang/numerics_matrix"
 NUCLEOR="$ROOT/bin/nucleor.exe"
