@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 177
-# Total fn definitions: 1906
-# Total LOC: 8215
+# Total rods: 178
+# Total fn definitions: 1914
+# Total LOC: 8238
 
 [[rod]]
 name           = "activation2"
@@ -658,6 +658,15 @@ function_count = 2
 cfile_count    = 1
 loc            = 12
 imports        = []
+
+[[rod]]
+name           = "hwbc"
+path           = "stdlib/rods/hwbc.nr"
+description    = "Hierarchical (strict-priority) whole-body controller"
+function_count = 8
+cfile_count    = 1
+loc            = 23
+imports        = ["hwbc"]
 
 [[rod]]
 name           = "icp"

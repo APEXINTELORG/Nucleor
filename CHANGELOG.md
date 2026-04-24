@@ -5,6 +5,84 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.264] — 2026-04-24
+
+**Robotics: hierarchical (strict-priority) whole-body controller
+(`hwbc`) via Siciliano-Slotine null-space projection (Siciliano &
+Slotine 1991). Strict counterpart to `wbc.nr` — lower-priority
+tasks live entirely in the null space of higher-priority Jacobians
+and can never undo a higher-priority objective.**
+
+### Algorithm
+
+```
+q̇₀ = 0,  N₀ = I_n
+for i = 1..K (priority order, 1 = highest):
+    J̃_i = J_i · N_{i-1}                  // effective Jacobian
+    if ‖J̃_i‖_F² < ε · damping: skip      // no available DOF in this null space
+    Δq̇ = J̃_i⁺ · (ẋ_i_des − J_i · q̇_{i-1})
+    q̇_i = q̇_{i-1} + Δq̇
+    N_i = N_{i-1} − J̃_i⁺ · J̃_i
+return q̇_K
+```
+
+Pseudoinverse uses damped least squares for numerical stability:
+`A⁺ = Aᵀ · (A · Aᵀ + λ · I)⁻¹`. The "skip if J̃ near-zero" guard
+prevents the pathology where an exhausted null space lets the
+damped pseudoinverse assert a near-infinite gain that wipes out
+higher-priority work via numerical projector imprecision.
+
+### When to use
+
+- **`hwbc.nr`** — when you need ABSOLUTE task ordering (e.g. balance
+  must NEVER be sacrificed for reach). Lower-priority tasks
+  contribute only what fits within the residual freedom.
+- **`wbc.nr`** (weighted QP) — when soft tradeoffs are acceptable.
+  Simpler, faster, handles near-singular task stacks more gracefully.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/hwbc.nr"
+
+let h = hwbc_new(n_dof, damping_b);
+
+for tick {
+    hwbc_clear_tasks(h);
+    let id_balance = hwbc_add_task(h, J_bal_ptr,  x_bal_ptr,  3);   // priority 1
+    let id_reach   = hwbc_add_task(h, J_reach_ptr, x_reach_ptr, 6);  // priority 2
+    let id_post    = hwbc_add_task(h, J_post_ptr, x_post_ptr, n_dof); // priority 3
+    hwbc_solve(h);
+    for i in 0..n_dof { let q = hwbc_get_qdot(h, i); ... }
+}
+```
+
+### Verification
+
+Three direct C tests:
+
+1. **Single full-rank task** — 3-DOF, identity Jacobian, target
+   `(1, −2, 3)`. Recovers `q̇ = (1.000000, −2.000000, 3.000000)`
+   exactly.
+2. **Strict priority on conflicting scalar** — high-pri target = 2,
+   low-pri target = 0, both with `J = [1]`. Hierarchical: `q̇ = 2.000000`
+   (high-pri win), high-pri residual = 0, **low-pri residual = 2**
+   (the conflict is unsatisfiable in the now-empty null space).
+   Compare to weighted `wbc.nr` which would give `q̇ = 9/10`.
+3. **Redundant arm with secondary regularization** — 4-DOF, 3-D EE
+   primary task via `J = [I_3 | 0]` + secondary task driving DOF 3
+   to 0.2 via `J = [0,0,0,1]`. Solution: primary residual `9.5e-4`
+   (numerical from damping), DOF 3 driven exactly to `0.1998`.
+
+### Files
+
+- `stdlib/runtime/hwbc_rt.c` — `nuc_hwbc_*` API; per-task null-space
+  contraction; Frobenius-norm exhaustion guard; damped LS solve.
+- `stdlib/rods/hwbc.nr` — externs + wrappers.
+- `tests/rods/hwbc_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.263] — 2026-04-24
 
 **Robotics: trapezoidal time-parameterization (`topp`) for an arc-
