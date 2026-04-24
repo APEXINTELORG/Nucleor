@@ -36,3 +36,29 @@ fn quintic_pos_at(h: i64, t_bits: i64) -> i64 { return nuc_quintic_pos_at(h, t_b
 fn quintic_vel_at(h: i64, t_bits: i64) -> i64 { return nuc_quintic_vel_at(h, t_bits); }
 fn quintic_acc_at(h: i64, t_bits: i64) -> i64 { return nuc_quintic_acc_at(h, t_bits); }
 fn quintic_free(h: i64) { nuc_quintic_free(h); }
+
+// === Trapezoidal velocity profile (v0.2.181) ===
+//
+// Three-phase profile with constant-acceleration ramp-up, constant-
+// velocity cruise, constant-deceleration ramp-down. Respects explicit
+// `v_max` and `a_max` limits. If the displacement is too small to
+// reach `v_max`, automatically collapses to a triangular (two-phase)
+// profile with a lower reachable peak velocity.
+//
+// Best for actuator-limited systems where hitting velocity /
+// acceleration ceilings would saturate the motor controller.
+extern fn nuc_trapezoid_new(q0_bits: i64, qT_bits: i64, vmax_bits: i64, amax_bits: i64) -> i64;
+extern fn nuc_trapezoid_duration(h: i64) -> i64;
+extern fn nuc_trapezoid_peak_v(h: i64) -> i64;
+extern fn nuc_trapezoid_pos_at(h: i64, t_bits: i64) -> i64;
+extern fn nuc_trapezoid_vel_at(h: i64, t_bits: i64) -> i64;
+extern fn nuc_trapezoid_free(h: i64);
+
+fn trapezoid_new(q0_bits: i64, qT_bits: i64, vmax_bits: i64, amax_bits: i64) -> i64 {
+    return nuc_trapezoid_new(q0_bits, qT_bits, vmax_bits, amax_bits);
+}
+fn trapezoid_duration(h: i64) -> i64 { return nuc_trapezoid_duration(h); }
+fn trapezoid_peak_v(h: i64) -> i64 { return nuc_trapezoid_peak_v(h); }
+fn trapezoid_pos_at(h: i64, t_bits: i64) -> i64 { return nuc_trapezoid_pos_at(h, t_bits); }
+fn trapezoid_vel_at(h: i64, t_bits: i64) -> i64 { return nuc_trapezoid_vel_at(h, t_bits); }
+fn trapezoid_free(h: i64) { nuc_trapezoid_free(h); }

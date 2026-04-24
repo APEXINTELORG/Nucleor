@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.181] — 2026-04-24
+
+**Robotics: trapezoidal velocity profile added to `trajectory.nr`.
+First v0.5-list item shipped.**
+
+The v0.2.177 quintic shipped C² smoothness but ignored
+actuator velocity / acceleration limits. v0.2.181 adds the
+trapezoidal profile: three-phase motion (constant accel ramp-up,
+constant velocity cruise, constant decel ramp-down) that
+respects explicit `v_max` and `a_max` limits.
+
+If the displacement is too small to reach `v_max`, the profile
+automatically collapses to a triangular two-phase profile with
+the actually-reachable peak velocity (`v_peak = sqrt(dist *
+a_max)`).
+
+### Surface
+
+```nucleor
+import "stdlib/rods/trajectory.nr"
+
+let tp = trapezoid_new(
+    f64_to_bits(0.0), f64_to_bits(1.0),  // q0, qT
+    f64_to_bits(2.0),                    // v_max (rad/s or m/s)
+    f64_to_bits(4.0)                     // a_max (rad/s² or m/s²)
+);
+let q = trapezoid_pos_at(tp, f64_to_bits(t));
+let v = trapezoid_vel_at(tp, f64_to_bits(t));
+let dur = trapezoid_duration(tp);
+let v_peak = trapezoid_peak_v(tp);  // actual reached, may be < v_max
+trapezoid_free(tp);
+```
+
+### Files
+
+- `stdlib/runtime/trajectory_rt.c`: ~75 LOC for the new
+  `__nucleor_trapezoid_*` family. `nuc_trapezoid_new` solves
+  for the actual peak velocity; sample functions are direct
+  closed-form per phase (no allocation per sample).
+- `stdlib/rods/trajectory.nr`: 6 new builtins.
+- `tests/rods/trajectory_smoke.nr`: extended to cover
+  trapezoid_new + duration + sample at midpoint.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**256 / 256 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.180] — 2026-04-24
 
 **v0.5.0, v0.6.0, v0.7.0, v0.8.0 milestone trackers drafted.
