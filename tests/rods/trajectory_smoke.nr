@@ -44,6 +44,19 @@ fn main() -> i64 {
     let _tp_pos_mid: i64 = trapezoid_pos_at(tp, f64_to_bits(0.25));
     trapezoid_free(tp);
 
+    // S-curve (v0.2.191): rest-to-rest q 0→1, v_max=2, a_max=4, j_max=20.
+    let sc: i64 = scurve_new(
+        f64_to_bits(0.0), f64_to_bits(1.0),
+        f64_to_bits(2.0), f64_to_bits(4.0), f64_to_bits(20.0)
+    );
+    if sc == 0 { fail = fail + 1; print("FAIL scurve_new"); };
+    let sc_dur: i64 = scurve_duration(sc);
+    if sc_dur == 0 { fail = fail + 1; print("FAIL scurve duration"); };
+    let _sc_pos: i64 = scurve_pos_at(sc, f64_to_bits(0.5));
+    let _sc_pv: i64 = scurve_peak_v(sc);
+    let _sc_pa: i64 = scurve_peak_a(sc);
+    scurve_free(sc);
+
     if fail == 0 { print("OK trajectory_smoke"); };
     return fail;
 }

@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 141
-# Total fn definitions: 1598
-# Total LOC: 6687
+# Total fn definitions: 1604
+# Total LOC: 6701
 
 [[rod]]
 name           = "activation2"
@@ -1230,9 +1230,9 @@ imports        = ["toml"]
 name           = "trajectory"
 path           = "stdlib/rods/trajectory.nr"
 description    = "Smooth time-parameterized joint trajectories."
-function_count = 12
+function_count = 18
 cfile_count    = 1
-loc            = 34
+loc            = 48
 imports        = []
 
 [[rod]]

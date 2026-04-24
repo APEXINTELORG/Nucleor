@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.191] — 2026-04-24
+
+**Robotics: S-curve (bounded-jerk) trajectory profile added to
+`trajectory.nr`. Respects velocity, acceleration, AND jerk
+limits simultaneously — smoother than trapezoidal, less
+residual vibration.**
+
+The seven-phase S-curve profile bounds the rate of change of
+acceleration (jerk). Trapezoidal profiles (v0.2.181) have
+acceleration discontinuities at phase boundaries that cause
+residual vibration in flexible systems (robot arms with
+harmonic drives, CNC axes with ball screws, etc.). S-curves
+eliminate those discontinuities with constant-jerk transitions.
+
+Seven phases: acc-ramp-up, acc-constant, acc-ramp-down, cruise,
+dec-ramp-up, dec-constant, dec-ramp-down. For long-enough
+motions all seven run full-duration and the profile hits
+`v_max`, `a_max`, and `j_max` plateaus. For shorter motions,
+phases collapse automatically and peak values are reduced (read
+back via `scurve_peak_v` / `scurve_peak_a`).
+
+### Surface
+
+```nucleor
+import "stdlib/rods/trajectory.nr"
+
+let sc = scurve_new(
+    f64_to_bits(0.0), f64_to_bits(1.0),  // q0, qT
+    f64_to_bits(2.0),                    // v_max (rad/s)
+    f64_to_bits(4.0),                    // a_max (rad/s²)
+    f64_to_bits(20.0)                    // j_max (rad/s³)
+);
+let T = scurve_duration(sc);
+let q = scurve_pos_at(sc, f64_to_bits(t));
+scurve_free(sc);
+```
+
+### When to use which trajectory profile
+
+- **`quintic_new`** (v0.2.177) — C² smooth, hits boundary
+  (q, v, a) exactly; doesn't respect velocity/accel limits;
+  best when the duration is known and smoothness is the goal
+- **`trapezoid_new`** (v0.2.181) — respects v_max and a_max;
+  acceleration is discontinuous at phase boundaries
+- **`scurve_new`** (v0.2.191) — respects v_max, a_max, AND
+  j_max; smoother than trapezoidal; preferred for high-speed
+  or flexible systems where acceleration steps cause problems
+
+### Files
+
+- `stdlib/runtime/trajectory_rt.c`: ~160 LOC for the S-curve.
+  Closed-form computation for the canonical symmetric
+  rest-to-rest case; scale-down fallback when distance is too
+  short to reach the requested peaks. The full 16-case branch
+  from Biagiotti & Melchiorri is deferred to v0.5 alongside
+  TOPP-RA + DMPs.
+- `stdlib/rods/trajectory.nr`: 6 new builtins.
+- `tests/rods/trajectory_smoke.nr`: extended to build an
+  S-curve and sample all accessors.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**259 / 259 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.190] — 2026-04-24
 
 **Robotics: RRT* (Karaman & Frazzoli 2011) — asymptotically

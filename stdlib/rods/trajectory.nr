@@ -62,3 +62,34 @@ fn trapezoid_peak_v(h: i64) -> i64 { return nuc_trapezoid_peak_v(h); }
 fn trapezoid_pos_at(h: i64, t_bits: i64) -> i64 { return nuc_trapezoid_pos_at(h, t_bits); }
 fn trapezoid_vel_at(h: i64, t_bits: i64) -> i64 { return nuc_trapezoid_vel_at(h, t_bits); }
 fn trapezoid_free(h: i64) { nuc_trapezoid_free(h); }
+
+// === S-curve (bounded-jerk) profile (v0.2.191) ===
+//
+// Seven-phase profile that respects velocity, acceleration, AND
+// jerk limits. Smoother than trapezoidal — no acceleration step;
+// the acceleration itself ramps up and down via a constant-jerk
+// phase. Industrial CNC, pick-and-place, any system where
+// acceleration discontinuities cause residual vibration or
+// position overshoot.
+//
+// For long enough motions, the profile reaches the requested
+// `v_max`, `a_max`, and `j_max` plateaus. For shorter motions,
+// the profile auto-collapses (constant-accel phase shrinks to
+// zero, then cruise phase shrinks to zero) and the actual peak
+// v / peak a are reduced. Read back via `scurve_peak_v` /
+// `scurve_peak_a`.
+extern fn nuc_scurve_new(q0_bits: i64, qT_bits: i64, vmax_bits: i64, amax_bits: i64, jmax_bits: i64) -> i64;
+extern fn nuc_scurve_duration(h: i64) -> i64;
+extern fn nuc_scurve_peak_v(h: i64) -> i64;
+extern fn nuc_scurve_peak_a(h: i64) -> i64;
+extern fn nuc_scurve_pos_at(h: i64, t_bits: i64) -> i64;
+extern fn nuc_scurve_free(h: i64);
+
+fn scurve_new(q0_bits: i64, qT_bits: i64, vmax_bits: i64, amax_bits: i64, jmax_bits: i64) -> i64 {
+    return nuc_scurve_new(q0_bits, qT_bits, vmax_bits, amax_bits, jmax_bits);
+}
+fn scurve_duration(h: i64) -> i64 { return nuc_scurve_duration(h); }
+fn scurve_peak_v(h: i64) -> i64 { return nuc_scurve_peak_v(h); }
+fn scurve_peak_a(h: i64) -> i64 { return nuc_scurve_peak_a(h); }
+fn scurve_pos_at(h: i64, t_bits: i64) -> i64 { return nuc_scurve_pos_at(h, t_bits); }
+fn scurve_free(h: i64) { nuc_scurve_free(h); }
