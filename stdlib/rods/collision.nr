@@ -59,6 +59,30 @@ extern fn nuc_coll_ccd_sphere_sphere(
     b0x: i64, b0y: i64, b0z: i64,
     b1x: i64, b1y: i64, b1z: i64, br: i64) -> i64;
 
+// CCD: continuous capsule-capsule (v0.2.201). Both capsules sweep
+// linearly between their starting and ending endpoint positions
+// over a unit time interval. Uses 16-step bracket + 16-step
+// bisection on segment-segment distance. Returns earliest
+// collision time t ∈ [0, 1] as bit-cast f64; -1.0 if clear.
+extern fn nuc_coll_ccd_capsule_capsule(
+    a_a0x: i64, a_a0y: i64, a_a0z: i64,
+    a_a1x: i64, a_a1y: i64, a_a1z: i64,
+    a_b0x: i64, a_b0y: i64, a_b0z: i64,
+    a_b1x: i64, a_b1y: i64, a_b1z: i64, ar: i64,
+    b_a0x: i64, b_a0y: i64, b_a0z: i64,
+    b_a1x: i64, b_a1y: i64, b_a1z: i64,
+    b_b0x: i64, b_b0y: i64, b_b0z: i64,
+    b_b1x: i64, b_b1y: i64, b_b1z: i64, br: i64) -> i64;
+
+// CCD: moving sphere vs static AABB (v0.2.201). Sphere center
+// linear-sweeps from s0 → s1 over a unit time interval. Same
+// bracket + bisect approach.
+extern fn nuc_coll_ccd_sphere_aabb(
+    s0x: i64, s0y: i64, s0z: i64,
+    s1x: i64, s1y: i64, s1z: i64, sr: i64,
+    minx: i64, miny: i64, minz: i64,
+    maxx: i64, maxy: i64, maxz: i64) -> i64;
+
 // Sphere-AABB cross-pair (v0.2.195).
 extern fn nuc_coll_sphere_aabb(
     sx: i64, sy: i64, sz: i64, sr: i64,
@@ -122,6 +146,31 @@ fn coll_ccd_sphere_sphere(
     b1x: i64, b1y: i64, b1z: i64, br: i64) -> i64 {
     return nuc_coll_ccd_sphere_sphere(a0x, a0y, a0z, a1x, a1y, a1z, ar,
                                        b0x, b0y, b0z, b1x, b1y, b1z, br);
+}
+
+fn coll_ccd_capsule_capsule(
+    a_a0x: i64, a_a0y: i64, a_a0z: i64,
+    a_a1x: i64, a_a1y: i64, a_a1z: i64,
+    a_b0x: i64, a_b0y: i64, a_b0z: i64,
+    a_b1x: i64, a_b1y: i64, a_b1z: i64, ar: i64,
+    b_a0x: i64, b_a0y: i64, b_a0z: i64,
+    b_a1x: i64, b_a1y: i64, b_a1z: i64,
+    b_b0x: i64, b_b0y: i64, b_b0z: i64,
+    b_b1x: i64, b_b1y: i64, b_b1z: i64, br: i64) -> i64 {
+    return nuc_coll_ccd_capsule_capsule(
+        a_a0x, a_a0y, a_a0z, a_a1x, a_a1y, a_a1z,
+        a_b0x, a_b0y, a_b0z, a_b1x, a_b1y, a_b1z, ar,
+        b_a0x, b_a0y, b_a0z, b_a1x, b_a1y, b_a1z,
+        b_b0x, b_b0y, b_b0z, b_b1x, b_b1y, b_b1z, br);
+}
+
+fn coll_ccd_sphere_aabb(
+    s0x: i64, s0y: i64, s0z: i64,
+    s1x: i64, s1y: i64, s1z: i64, sr: i64,
+    minx: i64, miny: i64, minz: i64,
+    maxx: i64, maxy: i64, maxz: i64) -> i64 {
+    return nuc_coll_ccd_sphere_aabb(s0x, s0y, s0z, s1x, s1y, s1z, sr,
+                                     minx, miny, minz, maxx, maxy, maxz);
 }
 
 fn coll_sphere_aabb(

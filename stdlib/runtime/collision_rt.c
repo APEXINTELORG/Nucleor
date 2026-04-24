@@ -199,6 +199,146 @@ long long nuc_coll_ccd_sphere_sphere(
     return _f2i(-1.0);
 }
 
+// ---- CCD: Capsule-Capsule (v0.2.201) ----
+//
+// Two moving capsules sweep over a unit time interval [0, 1]. Both
+// the per-capsule endpoints are interpolated linearly between
+// (a_*0 → a_*1) and (b_*0 → b_*1). At time t we evaluate the
+// capsule centerlines and check against (a_radius + b_radius).
+//
+// Approach: 16-step uniform sweep to bracket the first overlap,
+// then 16-step bisection to refine the impact time. Returns the
+// earliest collision time t ∈ [0, 1] as bit-cast f64; -1.0 if
+// no collision in the interval.
+//
+// Capsule-capsule CCD has no closed form (the segment-segment
+// distance squared is a piecewise function of t). The bracket-
+// then-bisect approach matches what most game/robotics engines
+// actually ship in production. Sub-step exact rooting (solving
+// the per-region quadratics) lands in v0.6 if needed.
+static double _capcap_dist2_at(
+    double t,
+    double a_a0[3], double a_a1[3], double a_b0[3], double a_b1[3],
+    double b_a0[3], double b_a1[3], double b_b0[3], double b_b1[3])
+{
+    double aax = a_a0[0] + t * (a_a1[0] - a_a0[0]);
+    double aay = a_a0[1] + t * (a_a1[1] - a_a0[1]);
+    double aaz = a_a0[2] + t * (a_a1[2] - a_a0[2]);
+    double abx = a_b0[0] + t * (a_b1[0] - a_b0[0]);
+    double aby = a_b0[1] + t * (a_b1[1] - a_b0[1]);
+    double abz = a_b0[2] + t * (a_b1[2] - a_b0[2]);
+    double bax = b_a0[0] + t * (b_a1[0] - b_a0[0]);
+    double bay = b_a0[1] + t * (b_a1[1] - b_a0[1]);
+    double baz = b_a0[2] + t * (b_a1[2] - b_a0[2]);
+    double bbx = b_b0[0] + t * (b_b1[0] - b_b0[0]);
+    double bby = b_b0[1] + t * (b_b1[1] - b_b0[1]);
+    double bbz = b_b0[2] + t * (b_b1[2] - b_b0[2]);
+    return _segment_segment_dist2(aax, aay, aaz, abx, aby, abz,
+                                  bax, bay, baz, bbx, bby, bbz);
+}
+
+long long nuc_coll_ccd_capsule_capsule(
+    long long a_a0x, long long a_a0y, long long a_a0z,
+    long long a_a1x, long long a_a1y, long long a_a1z,
+    long long a_b0x, long long a_b0y, long long a_b0z,
+    long long a_b1x, long long a_b1y, long long a_b1z, long long ar,
+    long long b_a0x, long long b_a0y, long long b_a0z,
+    long long b_a1x, long long b_a1y, long long b_a1z,
+    long long b_b0x, long long b_b0y, long long b_b0z,
+    long long b_b1x, long long b_b1y, long long b_b1z, long long br)
+{
+    double a_a0[3] = { _i2f(a_a0x), _i2f(a_a0y), _i2f(a_a0z) };
+    double a_a1[3] = { _i2f(a_a1x), _i2f(a_a1y), _i2f(a_a1z) };
+    double a_b0[3] = { _i2f(a_b0x), _i2f(a_b0y), _i2f(a_b0z) };
+    double a_b1[3] = { _i2f(a_b1x), _i2f(a_b1y), _i2f(a_b1z) };
+    double b_a0[3] = { _i2f(b_a0x), _i2f(b_a0y), _i2f(b_a0z) };
+    double b_a1[3] = { _i2f(b_a1x), _i2f(b_a1y), _i2f(b_a1z) };
+    double b_b0[3] = { _i2f(b_b0x), _i2f(b_b0y), _i2f(b_b0z) };
+    double b_b1[3] = { _i2f(b_b1x), _i2f(b_b1y), _i2f(b_b1z) };
+    double rsum = _i2f(ar) + _i2f(br);
+    double rsum2 = rsum * rsum;
+
+    int N = 16;
+    double t_prev = 0.0;
+    double d2_prev = _capcap_dist2_at(0.0, a_a0, a_a1, a_b0, a_b1,
+                                              b_a0, b_a1, b_b0, b_b1);
+    if (d2_prev <= rsum2) return _f2i(0.0);
+    for (int i = 1; i <= N; i++) {
+        double t = (double)i / (double)N;
+        double d2 = _capcap_dist2_at(t, a_a0, a_a1, a_b0, a_b1,
+                                            b_a0, b_a1, b_b0, b_b1);
+        if (d2 <= rsum2) {
+            // Found a frame at/after impact. Bisect t_prev..t for
+            // the impact time. Invariant: d2_prev > rsum2, d2 ≤ rsum2.
+            double lo = t_prev, hi = t;
+            for (int b = 0; b < 16; b++) {
+                double mid = 0.5 * (lo + hi);
+                double dm = _capcap_dist2_at(mid, a_a0, a_a1, a_b0, a_b1,
+                                                    b_a0, b_a1, b_b0, b_b1);
+                if (dm <= rsum2) hi = mid; else lo = mid;
+            }
+            return _f2i(hi);
+        }
+        t_prev = t; d2_prev = d2;
+    }
+    return _f2i(-1.0);
+}
+
+// ---- CCD: Sphere-AABB (v0.2.201) ----
+//
+// One moving sphere over a unit time interval [0, 1] vs a static
+// AABB. Same bracket-then-bisect approach as capsule-capsule.
+// Distance metric is sphere-center to AABB-clamp; collision is
+// distance ≤ sphere radius.
+static double _sph_aabb_dist2_at(
+    double t, double s0[3], double s1[3],
+    double bx, double by, double bz, double Bx, double By, double Bz)
+{
+    double cx = s0[0] + t * (s1[0] - s0[0]);
+    double cy = s0[1] + t * (s1[1] - s0[1]);
+    double cz = s0[2] + t * (s1[2] - s0[2]);
+    double clx = cx < bx ? bx : (cx > Bx ? Bx : cx);
+    double cly = cy < by ? by : (cy > By ? By : cy);
+    double clz = cz < bz ? bz : (cz > Bz ? Bz : cz);
+    double dx = cx - clx, dy = cy - cly, dz = cz - clz;
+    return dx*dx + dy*dy + dz*dz;
+}
+
+long long nuc_coll_ccd_sphere_aabb(
+    long long s0x, long long s0y, long long s0z,
+    long long s1x, long long s1y, long long s1z, long long sr,
+    long long minx, long long miny, long long minz,
+    long long maxx, long long maxy, long long maxz)
+{
+    double s0[3] = { _i2f(s0x), _i2f(s0y), _i2f(s0z) };
+    double s1[3] = { _i2f(s1x), _i2f(s1y), _i2f(s1z) };
+    double r = _i2f(sr);
+    double r2 = r * r;
+    double bx = _i2f(minx), by = _i2f(miny), bz = _i2f(minz);
+    double Bx = _i2f(maxx), By = _i2f(maxy), Bz = _i2f(maxz);
+
+    double d2_0 = _sph_aabb_dist2_at(0.0, s0, s1, bx, by, bz, Bx, By, Bz);
+    if (d2_0 <= r2) return _f2i(0.0);
+
+    int N = 16;
+    double t_prev = 0.0;
+    for (int i = 1; i <= N; i++) {
+        double t = (double)i / (double)N;
+        double d2 = _sph_aabb_dist2_at(t, s0, s1, bx, by, bz, Bx, By, Bz);
+        if (d2 <= r2) {
+            double lo = t_prev, hi = t;
+            for (int b = 0; b < 16; b++) {
+                double mid = 0.5 * (lo + hi);
+                double dm = _sph_aabb_dist2_at(mid, s0, s1, bx, by, bz, Bx, By, Bz);
+                if (dm <= r2) hi = mid; else lo = mid;
+            }
+            return _f2i(hi);
+        }
+        t_prev = t;
+    }
+    return _f2i(-1.0);
+}
+
 // ---- Sphere-Capsule ----
 long long nuc_coll_sphere_capsule(
     long long sx, long long sy, long long sz, long long sr,
