@@ -31,6 +31,9 @@ extern fn nuc_fk_chain_link_pos_x(ch: i64, i: i64) -> i64;
 extern fn nuc_fk_chain_link_pos_y(ch: i64, i: i64) -> i64;
 extern fn nuc_fk_chain_link_pos_z(ch: i64, i: i64) -> i64;
 extern fn nuc_fk_chain_link_quat_w(ch: i64, i: i64) -> i64;
+extern fn nuc_fk_chain_link_quat_x(ch: i64, i: i64) -> i64;
+extern fn nuc_fk_chain_link_quat_y(ch: i64, i: i64) -> i64;
+extern fn nuc_fk_chain_link_quat_z(ch: i64, i: i64) -> i64;
 extern fn nuc_fk_chain_add_dh_joint(ch: i64, alpha_bits: i64, a_bits: i64, d_bits: i64, theta_bits: i64) -> i64;
 extern fn nuc_fk_chain_free(ch: i64);
 
@@ -46,6 +49,9 @@ fn fk_chain_link_pos_x(ch: i64, i: i64) -> i64 { return nuc_fk_chain_link_pos_x(
 fn fk_chain_link_pos_y(ch: i64, i: i64) -> i64 { return nuc_fk_chain_link_pos_y(ch, i); }
 fn fk_chain_link_pos_z(ch: i64, i: i64) -> i64 { return nuc_fk_chain_link_pos_z(ch, i); }
 fn fk_chain_link_quat_w(ch: i64, i: i64) -> i64 { return nuc_fk_chain_link_quat_w(ch, i); }
+fn fk_chain_link_quat_x(ch: i64, i: i64) -> i64 { return nuc_fk_chain_link_quat_x(ch, i); }
+fn fk_chain_link_quat_y(ch: i64, i: i64) -> i64 { return nuc_fk_chain_link_quat_y(ch, i); }
+fn fk_chain_link_quat_z(ch: i64, i: i64) -> i64 { return nuc_fk_chain_link_quat_z(ch, i); }
 fn fk_chain_free(ch: i64) { nuc_fk_chain_free(ch); }
 
 // Add a joint described by Denavit-Hartenberg parameters (Spong's

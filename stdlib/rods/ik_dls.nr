@@ -38,6 +38,24 @@ extern fn nuc_ik_dls_solve(
 // across multiple solve calls on the same chain handle.
 extern fn nuc_ik_set_joint_limit(ch: i64, joint_idx: i64, lo_b: i64, hi_b: i64);
 
+// 6-DOF IK (v0.2.194): position + orientation. The angular error
+// is computed as the quaternion log-map of (target * current^-1),
+// giving a 3-vector axis-angle correction. Jacobian is 6×n.
+//
+// `weight_orient` scales orientation error vs position error
+// (1.0 = equal weight; <1.0 prioritize position; >1.0 prioritize
+// orientation). Useful for rebalancing when the position units
+// (meters) and angular units (radians) have different
+// numerical magnitudes.
+extern fn nuc_ik_dls_solve_6d(
+    ch: i64, vars_ptr: i64,
+    tx_b: i64, ty_b: i64, tz_b: i64,
+    tqw_b: i64, tqx_b: i64, tqy_b: i64, tqz_b: i64,
+    max_iters: i64,
+    tolerance_b: i64,
+    damping_b: i64,
+    weight_orient_b: i64) -> i64;
+
 fn ik_dls_solve(
     ch: i64, vars_ptr: i64,
     tx_bits: i64, ty_bits: i64, tz_bits: i64,
@@ -50,4 +68,18 @@ fn ik_dls_solve(
 
 fn ik_set_joint_limit(ch: i64, joint_idx: i64, lo_b: i64, hi_b: i64) {
     nuc_ik_set_joint_limit(ch, joint_idx, lo_b, hi_b);
+}
+
+fn ik_dls_solve_6d(
+    ch: i64, vars_ptr: i64,
+    tx_b: i64, ty_b: i64, tz_b: i64,
+    tqw_b: i64, tqx_b: i64, tqy_b: i64, tqz_b: i64,
+    max_iters: i64,
+    tolerance_b: i64,
+    damping_b: i64,
+    weight_orient_b: i64) -> i64 {
+    return nuc_ik_dls_solve_6d(
+        ch, vars_ptr, tx_b, ty_b, tz_b,
+        tqw_b, tqx_b, tqy_b, tqz_b,
+        max_iters, tolerance_b, damping_b, weight_orient_b);
 }

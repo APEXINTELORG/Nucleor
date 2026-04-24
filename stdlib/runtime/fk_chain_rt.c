@@ -196,6 +196,21 @@ long long nuc_fk_chain_link_quat_w(long long ch, long long i) {
     if (!c || i < 0 || i >= c->count) return 0;
     return _f2i(c->world_quat[i*4 + 0]);
 }
+long long nuc_fk_chain_link_quat_x(long long ch, long long i) {
+    FKChain *c = (FKChain *)(void *)(size_t)ch;
+    if (!c || i < 0 || i >= c->count) return 0;
+    return _f2i(c->world_quat[i*4 + 1]);
+}
+long long nuc_fk_chain_link_quat_y(long long ch, long long i) {
+    FKChain *c = (FKChain *)(void *)(size_t)ch;
+    if (!c || i < 0 || i >= c->count) return 0;
+    return _f2i(c->world_quat[i*4 + 2]);
+}
+long long nuc_fk_chain_link_quat_z(long long ch, long long i) {
+    FKChain *c = (FKChain *)(void *)(size_t)ch;
+    if (!c || i < 0 || i >= c->count) return 0;
+    return _f2i(c->world_quat[i*4 + 3]);
+}
 
 void nuc_fk_chain_free(long long ch) {
     FKChain *c = (FKChain *)(void *)(size_t)ch;

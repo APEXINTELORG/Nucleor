@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.194] — 2026-04-24
+
+**Robotics: 6-DOF orientation IK. New `ik_dls_solve_6d`
+extends the v0.2.176 position-only solver to a position +
+orientation target. Closes the IK roadmap item from the v0.5
+list.**
+
+The position-only solver (v0.2.176) only constrained where the
+end-effector ends up. Real manipulation tasks require the
+end-effector to face a particular direction too — pick-and-
+place, welding, screwdriving, all need orientation control.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/ik_dls.nr"
+
+let iters = ik_dls_solve_6d(
+    chain, vars_ptr,
+    f64_to_bits(tx), f64_to_bits(ty), f64_to_bits(tz),
+    f64_to_bits(qw), f64_to_bits(qx), f64_to_bits(qy), f64_to_bits(qz),
+    100,                   // max_iters
+    f64_to_bits(0.001),    // tolerance
+    f64_to_bits(0.05),     // damping λ
+    f64_to_bits(1.0)       // weight_orient
+);
+```
+
+### Theory
+
+The Jacobian becomes 6×n: 3 rows for position derivatives + 3
+rows for angular-velocity derivatives. The 6-DOF target is
+(position, orientation). Position error is `target - current`
+in world space. Angular error is the quaternion log-map of
+`target_quat * current_quat^-1`, which produces a 3-vector in
+axis-angle form (the rotation axis times the rotation magnitude).
+
+The solver inverts a 6×6 normal-equations matrix per iteration
+via Gauss-Jordan elimination on a stack-allocated 6×12
+augmented matrix. Joint limits (v0.2.193) compose: bounds
+apply after each delta update.
+
+### `weight_orient`
+
+Position units (meters) and angular units (radians) have
+different magnitudes. `weight_orient` scales the orientation
+error to balance the optimization:
+
+- `weight_orient = 1.0` — equal weight (default; works for
+  ~1m workspaces with sub-meter precision)
+- `weight_orient < 1.0` — prioritize position
+- `weight_orient > 1.0` — prioritize orientation
+- `weight_orient = 0.0` — invalid; use the position-only
+  `ik_dls_solve` instead
+
+### Files
+
+- `stdlib/runtime/ik_dls_rt.c`: ~140 LOC for the 6D solver
+  (alongside the existing position-only path). Includes
+  quaternion log-map helper, angular-error helper, and a
+  6×6 Gauss-Jordan inverter.
+- `stdlib/runtime/fk_chain_rt.c`: added `quat_x/y/z`
+  accessors (only `quat_w` was exported originally).
+- `stdlib/rods/ik_dls.nr`: 1 new builtin
+  (`ik_dls_solve_6d`).
+- `stdlib/rods/fk_chain.nr`: 3 new accessors
+  (`fk_chain_link_quat_x/y/z`).
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**259 / 259 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.193] — 2026-04-24
 
 **Robotics: per-joint min/max limits in IK solver. Set once
