@@ -56,6 +56,10 @@ extern fn nuc_occgrid_height(h: i64) -> i64;
 extern fn nuc_occgrid_cell_size(h: i64) -> i64;
 extern fn nuc_occgrid_find_frontiers(h: i64, free_thresh_b: i64,
     unknown_eps_b: i64, out_x_ptr: i64, out_y_ptr: i64, max_n: i64) -> i64;
+extern fn nuc_occgrid_update_scan(h: i64,
+    sx_b: i64, sy_b: i64, stheta_b: i64,
+    bearings_ptr: i64, ranges_ptr: i64, n_beams: i64,
+    l_free_b: i64, l_occ_b: i64, max_range_b: i64);
 extern fn nuc_occgrid_free(h: i64);
 
 // Create a `W × H` grid with `cell_size` (m), with the lower-left
@@ -117,6 +121,24 @@ fn occgrid_find_frontiers(h: i64, free_thresh_b: i64,
 {
     return nuc_occgrid_find_frontiers(h, free_thresh_b, unknown_eps_b,
         out_x_ptr, out_y_ptr, max_n);
+}
+
+// LiDAR scan update (v0.2.292): apply every beam of a scan in one
+// call. Sensor at world `(sx, sy)` with heading `stheta`.
+// `bearings_ptr` (double[n_beams]) holds per-beam SENSOR-frame
+// bearings (rad); `ranges_ptr` (double[n_beams]) holds measured
+// ranges. Each beam's world bearing is `stheta + bearings[i]`.
+//
+// Internally calls `occgrid_update_ray` per beam with the shared
+// `(l_free, l_occ, max_range)` parameters.
+fn occgrid_update_scan(h: i64,
+    sx_b: i64, sy_b: i64, stheta_b: i64,
+    bearings_ptr: i64, ranges_ptr: i64, n_beams: i64,
+    l_free_b: i64, l_occ_b: i64, max_range_b: i64)
+{
+    nuc_occgrid_update_scan(h, sx_b, sy_b, stheta_b,
+        bearings_ptr, ranges_ptr, n_beams,
+        l_free_b, l_occ_b, max_range_b);
 }
 
 fn occgrid_free(h: i64) { nuc_occgrid_free(h); }

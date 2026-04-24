@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.292] — 2026-04-24
+
+**Robotics: full LiDAR-scan update for `occgrid.nr`
+(`occgrid_update_scan`). Single-call wrapper that applies every
+beam of a scan as an inverse-sensor-model raycast — the typical
+"plug a 2D LiDAR into the mapper" call.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/occgrid.nr"
+
+// bearings: double[N] — per-beam SENSOR-frame bearings (rad)
+// ranges:   double[N] — measured ranges (m)
+//
+// Sensor at world (sx, sy) heading stheta. Each beam's world bearing
+// = stheta + bearings[i].
+occgrid_update_scan(grid,
+    sx_b, sy_b, stheta_b,
+    bearings_ptr, ranges_ptr, n_beams,
+    l_free_b, l_occ_b, max_range_b);
+```
+
+Replaces the typical user-side `for beam_i { occgrid_update_ray(...) }`
+loop with a single rod call that handles the per-beam world-bearing
+math.
+
+### Verification
+
+40×40 grid, 9-beam fan from sensor at `(5, 5)` covering `[−π/2, π/2]`.
+Even-indexed beams hit at 3 m; odd-indexed have range > max (no hit):
+
+- **Beam 0** (south, hit) endpoint `(5, 2)`: log-odds `+0.8500` exact.
+- **Beam 4** (east, hit) endpoint `(8, 5)`: log-odds `+0.8500` exact.
+- **Mid-beam** at `(5, 3.5)`: log-odds `−0.4000` exact (free-space
+  along the beam path).
+
+### Files
+
+- `stdlib/runtime/occgrid_rt.c` — added `nuc_occgrid_update_scan`.
+- `stdlib/rods/occgrid.nr` — added extern + `occgrid_update_scan`
+  wrapper.
+
+---
+
 ## [0.2.291] — 2026-04-24
 
 **Robotics: 2D BFS / Dijkstra-lite wavefront distance transform
