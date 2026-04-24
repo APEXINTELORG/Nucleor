@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 196
-# Total fn definitions: 2048
-# Total LOC: 8774
+# Total rods: 197
+# Total fn definitions: 2049
+# Total LOC: 8782
 
 [[rod]]
 name           = "activation2"
@@ -1099,6 +1099,15 @@ function_count = 5
 cfile_count    = 1
 loc            = 11
 imports        = ["pca"]
+
+[[rod]]
+name           = "pcalign"
+path           = "stdlib/rods/pcalign.nr"
+description    = "Closed-form 3-D rigid alignment of two point"
+function_count = 1
+cfile_count    = 1
+loc            = 8
+imports        = ["pcalign"]
 
 [[rod]]
 name           = "pf"

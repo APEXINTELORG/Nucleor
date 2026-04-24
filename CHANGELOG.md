@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.288] — 2026-04-24
+
+**Robotics: closed-form 3-D rigid alignment of two point clouds
+with known correspondences via Horn's quaternion method (`pcalign`).
+Foundation for ICP back-end, fragment registration, AR pose
+estimation from world-anchor correspondences, and RANSAC-outlier-
+robust registration.**
+
+### Algorithm (Horn 1987)
+
+```
+Given source A_i, dest B_i correspondences:
+  Centroids Ā = mean(A_i), B̄ = mean(B_i)
+  Cross-cov M = Σ (A_i − Ā) · (B_i − B̄)ᵀ
+  Build Horn's symmetric 4×4 N matrix from M's entries.
+  q = eigenvector of N with the LARGEST eigenvalue (4×4 Jacobi).
+  t = B̄ − R(q) · Ā
+```
+
+`O(N)` for centroids + cross-cov; constant-time 4×4 eigenvalue
+extraction.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/pcalign.nr"
+
+// src and dst: caller-allocated double[N * 3] row-major XYZ.
+let ok = pcalign_horn(src_ptr, dst_ptr, n_points,
+                      t_out_ptr, q_out_ptr);
+```
+
+Composes naturally with `ransac_run` (v0.2.281): use `pcalign_horn`
+as the `fit` callback over a 3-point sample, score by reprojection
+error → outlier-robust point-cloud registration in 50 LOC of glue.
+
+### Verification
+
+8-corner unit cube transformed by known 30° rotation about
+`(1,1,1)/√3` and translation `(5, −2, 3)`:
+
+- **Recovered translation**: `(5.000000, −2.000000, 3.000000)` —
+  exact to all 6 printed digits.
+- **Recovered quaternion**: `(0.965926, 0.149429, 0.149429, 0.149429)`
+  — exact to all 6 printed digits.
+
+### Files
+
+- `stdlib/runtime/pcalign_rt.c` — `nuc_pcalign_horn`; 4×4 Jacobi
+  eigensolver; quaternion-to-rotation-matrix helper.
+- `stdlib/rods/pcalign.nr` — extern + wrapper.
+- `tests/rods/pcalign_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.287] — 2026-04-24
 
 **Robotics: 2D log-odds probabilistic occupancy grid (`occgrid`)
