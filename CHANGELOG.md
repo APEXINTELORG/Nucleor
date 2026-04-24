@@ -5,6 +5,83 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.254] — 2026-04-24
+
+**Robotics: bipedal footstep planner (`fsp`). Discrete A* search
+over reachable footstep poses with a user-supplied action set +
+terrain-validity callback. Foundation for bipedal locomotion
+planning where the front-end picks where each foot lands and the
+back-end (e.g., a whole-body controller) realizes the steps.**
+
+### Algorithm
+
+```
+State: (x, y, θ, foot ∈ {LEFT, RIGHT})
+Discretization: ix = round(x/res_xy), iy = same, iθ = round((θ mod 2π)/res_theta)
+Successors: for each registered action (dx, dy, dθ, cost):
+    dy_eff = (foot==LEFT) ? dy : -dy        (mirror y for right stance)
+    nx = x + cos(θ)·dx − sin(θ)·dy_eff
+    ny = y + sin(θ)·dx + cos(θ)·dy_eff
+    nθ = θ + ((foot==LEFT) ? dθ : −dθ)
+    nfoot = 1 − foot
+    if !is_valid(nx, ny, nθ): skip
+    cost_inc = action.cost + Euclidean step length
+A*: heuristic = Euclidean(start, goal) / max_step_length over actions.
+Goal: |xy| within `goal_tol_xy` AND |θ−θ_goal| within `goal_tol_theta`.
+```
+
+The y-component mirroring means the user writes the action set
+once in left-stance coordinates and gets symmetric gait in both
+stance directions for free.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/fsp.nr"
+
+let h = fsp_new();
+// Register a forward action and a sidestep action (in LEFT stance frame):
+fsp_add_action(h, dx_b, dy_b, dtheta_b, cost_b);
+// ...
+let n = fsp_plan(h, x0_b, y0_b, t0_b, foot0,
+                    xg_b, yg_b, tg_b,
+                    max_iters, valid_fp);
+for i in 0..n {
+    let x_b = fsp_path_x(h, i);
+    let y_b = fsp_path_y(h, i);
+    let t_b = fsp_path_theta(h, i);
+    let f   = fsp_path_foot(h, i);    // 0 = LEFT, 1 = RIGHT
+}
+```
+
+`valid_fp` is `fn(x_b, y_b, theta_b) -> i64`; returns 1 if the foot
+placement at `(x, y, θ)` is allowed, 0 if not.
+
+### Verification
+
+Two direct C tests with a 5-action default gait (forward, longer
+forward, sidestep, ±turn-step):
+
+1. **Open terrain** — `(0,0,0,LEFT)` → `(3,0,0)`. Plan: 11
+   footsteps, final pose `(3.000, 0.000, 0.000)`, feet alternate
+   throughout, total cost 3.606.
+2. **Wall obstacle** at `x ∈ [1, 2]` and `y ∈ [−0.4, 0.4]` —
+   same start/goal. Plan: 15 footsteps, no step inside the wall,
+   final pose `(3.023, 0.047)` within tolerance.
+
+### Files
+
+- `stdlib/runtime/fsp_rt.c` — `nuc_fsp_*` API, A* with binary
+  min-heap on f-score and open-addressing hash table for visited
+  states (capped at 1M slots).
+- `stdlib/rods/fsp.nr` — externs + `fsp_new` / `fsp_set_resolution` /
+  `fsp_set_goal_tolerance` / `fsp_add_action` / `fsp_plan` /
+  `fsp_path_*` / `fsp_free` wrappers.
+- `tests/rods/fsp_smoke.nr` — build-only smoke (functional coverage
+  in the direct C unit test).
+
+---
+
 ## [0.2.253] — 2026-04-24
 
 **Robotics: minimum-snap polynomial trajectory generator (qtraj)
