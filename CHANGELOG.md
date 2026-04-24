@@ -5,6 +5,81 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.333] — 2026-04-24
+
+**Robotics: mecanum-wheel (4-wheel omnidirectional) kinematics
++ odometry (`mecanum`). Forward + inverse kinematics for the
+standard X-pattern roller geometry, plus Euler odometry step.
+Supports strafing, rotation, and combined motion. Used in
+indoor warehouse robots, soccer/competition platforms.**
+
+### Algorithm
+
+```
+Inverse kinematics (body → wheels, X-pattern):
+  v_FL = vx − vy − (Lx + Ly)·ω
+  v_FR = vx + vy + (Lx + Ly)·ω
+  v_BL = vx + vy − (Lx + Ly)·ω
+  v_BR = vx − vy + (Lx + Ly)·ω
+
+Forward kinematics (wheels → body):
+  vx    = (FL + FR + BL + BR) / 4
+  vy    = (-FL + FR + BL − BR) / 4
+  omega = (-FL + FR − BL + BR) / (4·(Lx + Ly))
+
+Pose update (Euler, body→world rotation):
+  x' = x + Δt·(vx cos θ − vy sin θ)
+  y' = y + Δt·(vx sin θ + vy cos θ)
+  θ' = θ + Δt·ω
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/mecanum.nr"
+
+let wheels: [4]double;   // (FL, FR, BL, BR)
+let _ = mecanum_wheels(vx_b, vy_b, w_b, Lx_b, Ly_b,
+                        f64_ptr(&wheels[0]));
+
+let body: [3]double;     // (vx, vy, omega)
+let _ = mecanum_velocities(fl_b, fr_b, bl_b, br_b,
+                            Lx_b, Ly_b,
+                            f64_ptr(&body[0]));
+
+let pose: [3]double;     // (x, y, theta)
+let _ = mecanum_step(x_b, y_b, th_b, vx_b, vy_b, w_b, dt_b,
+                      f64_ptr(&pose[0]));
+```
+
+### Verification
+
+Direct C unit test (`target/_test_mecanum.c`):
+
+- T1 pure +x command : (1,0,0) → (1, 1, 1, 1) ✓
+- T2 pure +y strafe  : (0,1,0) → (-1, +1, +1, -1) ✓
+- T3 pure spin       : (0,0,1) Lx+Ly=0.8 → (-0.8, +0.8, -0.8, +0.8) ✓
+- T4 round-trip      : body → wheels → body recovers exact ✓
+- T5 odometry step   : (vx=1, dt=2) from (0,0,0) → (2,0,0) ✓
+- T6 bad Lx+Ly=0     : returns 0 ✓
+
+Build smoke `tests/rods/mecanum_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/mecanum_rt.c` — fwd kin, inv kin, Euler step.
+- `stdlib/rods/mecanum.nr` — extern + 3 wrappers.
+- `tests/rods/mecanum_smoke.nr` — build-only smoke.
+- `CHANGELOG.md` — this entry.
+
+### Limitations
+
+Documented in `mecanum.nr` and `mecanum_rt.c`: kinematic only
+(no slip, no roller friction); X-pattern roller geometry only
+(O-pattern requires sign flips on FL/BR vs FR/BL). Wheel-slip /
+over-determined least-squares / roller-friction model land in
+v0.6 if needed.
+
 ## [0.2.332] — 2026-04-24
 
 **Robotics: differential-drive (2-wheel) kinematics + odometry
