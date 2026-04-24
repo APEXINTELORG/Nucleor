@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 138
-# Total fn definitions: 1575
-# Total LOC: 6610
+# Total rods: 139
+# Total fn definitions: 1584
+# Total LOC: 6641
 
 [[rod]]
 name           = "activation2"
@@ -181,6 +181,15 @@ function_count = 9
 cfile_count    = 0
 loc            = 12
 imports        = ["btreeset"]
+
+[[rod]]
+name           = "bvh"
+path           = "stdlib/rods/bvh.nr"
+description    = "Bounding Volume Hierarchy for broad-phase collision."
+function_count = 9
+cfile_count    = 1
+loc            = 31
+imports        = []
 
 [[rod]]
 name           = "checkpoint"

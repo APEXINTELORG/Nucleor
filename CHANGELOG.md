@@ -5,6 +5,78 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.184] — 2026-04-24
+
+**Robotics: BVH (Bounding Volume Hierarchy) for broad-phase
+collision pruning. Companion to v0.2.183 GJK narrow-phase.**
+
+Stores N axis-aligned bounding boxes; builds a binary tree
+where each internal node's box contains its children's boxes.
+Two query modes:
+
+- **`bvh_query(box)`** — given a query AABB, return all stored
+  AABB indices whose boxes overlap. Useful for "what objects
+  might my new pose intersect?" queries.
+- **`bvh_self_pairs()`** — return all `(i, j)` `i < j` where
+  stored boxes overlap each other. Use this to enumerate
+  candidate object pairs to check with narrow-phase
+  (`coll_sphere_sphere`, `coll_capsule_capsule`, `coll_gjk`).
+
+Build is top-down median split along the longest axis (object
+median). O(N log N) typical.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/bvh.nr"
+
+let bvh = bvh_new();
+bvh_add(bvh, minx, miny, minz, maxx, maxy, maxz);  // for each object
+// ...
+bvh_build(bvh);
+
+// Overlap query.
+let n = bvh_query(bvh, qmin_x, qmin_y, qmin_z, qmax_x, qmax_y, qmax_z);
+let i = 0;
+while i < n {
+    let hit = bvh_query_at(bvh, i);
+    // ... process hit (object index in user's array)
+    i = i + 1;
+};
+
+// Self-pairs.
+let p = bvh_self_pairs(bvh);
+let k = 0;
+while k < p {
+    let lo = bvh_pair_lo(bvh, k);
+    let hi = bvh_pair_hi(bvh, k);
+    // ... apply narrow-phase to (lo, hi)
+    k = k + 1;
+};
+
+bvh_free(bvh);
+```
+
+### Files
+
+- `stdlib/runtime/bvh_rt.c`: ~230 LOC. BVH struct + node/leaf
+  encoding, top-down build with insertion-sort partition,
+  recursive overlap query, recursive self-pair query (the
+  classic "tree-tree" intersection pattern).
+- `stdlib/rods/bvh.nr`: 9 builtins.
+- `tests/rods/bvh_smoke.nr`: builds 3 boxes (A overlaps B,
+  C separate), asserts overlap query returns 2, self-pairs
+  returns 1.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**257 / 257 PASS, 0 SKIP** (was 256/256; +1 new smoke test).
+Both budgets hold.
+
 ## [0.2.183] — 2026-04-24
 
 **Robotics: GJK convex-convex collision. Generic shape support
