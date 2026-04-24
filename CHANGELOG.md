@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.295] — 2026-04-24
+
+**Robotics: Dubins shortest paths for car-like robots with minimum
+turning radius (Dubins 1957; Shkel & Lumelsky 2001 closed-form
+classification). All 6 candidate types (LSL, LSR, RSL, RSR, RLR,
+LRL); returns the shortest length plus type and per-segment
+parameters.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/dubins.nr"
+
+let type_out: i64;
+let length_b = dubins_shortest(x0_b, y0_b, t0_b,
+                               x1_b, y1_b, t1_b,
+                               R_b, type_out_ptr);
+
+// Or with per-segment lengths (double[3]):
+let segs: double[3];
+let length_b = dubins_shortest_with_segments(x0_b, y0_b, t0_b,
+                                              x1_b, y1_b, t1_b,
+                                              R_b,
+                                              type_out_ptr, segs_out_ptr);
+```
+
+Type indices: `0=LSL, 1=LSR, 2=RSL, 3=RSR, 4=RLR, 5=LRL`.
+
+Pairs naturally with `rrt.nr` (Dubins-RRT*) and any planner that
+needs a car-like steering function.
+
+### Verification
+
+Three direct C tests:
+
+1. **Colinear same-heading** (0,0,0) → (10,0,0), R=1: length =
+   `10.000000` exact (type 0 = LSL — pure straight, both turns 0).
+2. **180° flip-around** (0,0,0) → (0,0,π), R=1: length = `7.3304`
+   (type 4 = RLR — three-arc CCC path, the only way to flip in place
+   with minimum turning radius).
+3. **Segment readout** for the colinear case: `(0, 10, 0)` —
+   straight middle, zero turns; sums to total length exactly.
+
+### Files
+
+- `stdlib/runtime/dubins_rt.c` — `nuc_dubins_shortest` and
+  `nuc_dubins_shortest_with_segments`; 6 type closed-form solvers.
+- `stdlib/rods/dubins.nr` — externs + wrappers.
+- `tests/rods/dubins_smoke.nr` — build-only smoke.
+
+### Limitations carried forward
+
+- Forward-only (no reverse). Reeds-Shepp paths for cars that can
+  reverse plan for v0.6.
+- Returns lengths and segment parameters; does not sample the path
+  into a pose sequence.
+
+---
+
 ## [0.2.294] — 2026-04-24
 
 **Robotics: Ramer-Douglas-Peucker polyline simplification (`rdp`).
