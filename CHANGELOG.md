@@ -5,6 +5,78 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.334] — 2026-04-24
+
+**Robotics: 4-wheel skid-steer kinematics + odometry
+(`skid_steer`). Forward + inverse kinematics + Euler odometry
+step. Companion to `diff_drive` (2-wheel) and `mecanum`
+(omnidirectional). Used for Husky, Jackal, big agricultural /
+mining vehicles, and tracked platforms.**
+
+### Algorithm
+
+```
+Per-side average:
+  vL = (FL + BL) / 2
+  vR = (FR + BR) / 2
+
+Forward kinematics (4 wheels → body):
+  v     = (vL + vR) / 2
+  omega = (vR − vL) / L_eff
+
+Inverse kinematics (body → per-side speed):
+  vL = v − ω·L_eff/2
+  vR = v + ω·L_eff/2
+
+Effective track L_eff accounts for wheel-vs-ground slip:
+  Indoor wheels on hard floor:  L_eff ≈ 1.5 × L_phys
+  Outdoor wheels on soft soil:  L_eff ≈ 1.0 × L_phys
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/skid_steer.nr"
+
+let v: double; let w: double;
+let _ = skid_steer_velocities(fl_b, fr_b, bl_b, br_b, L_eff_b,
+                                f64_ptr(&v), f64_ptr(&w));
+
+let pose: [3]double;
+let _ = skid_steer_step(x_b, y_b, th_b,
+                         fl_b, fr_b, bl_b, br_b,
+                         L_eff_b, dt_b,
+                         f64_ptr(&pose[0]));
+```
+
+### Verification
+
+Direct C unit test (`target/_test_skid_steer.c`):
+
+- T1 all 1 m/s    : (v=1, ω=0) ✓
+- T2 in-place spin: (vL=−1, vR=+1) → ω = 2/L_eff = 3.33 rad/s ✓
+- T3 round-trip   : body → per-side → body recovers exact ✓
+- T4 odometry step: dt=2 forward → (2, 0, 0) ✓
+- T5 bad L_eff=0  : returns 0 ✓
+
+Build smoke `tests/rods/skid_steer_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/skid_steer_rt.c` — fwd kin (4 wheels), inv kin
+  (per-side), Euler step.
+- `stdlib/rods/skid_steer.nr` — extern + 3 wrappers.
+- `tests/rods/skid_steer_smoke.nr` — build-only smoke.
+- `CHANGELOG.md` — this entry.
+
+### Limitations
+
+Documented in `skid_steer.nr` and `skid_steer_rt.c`: caller
+supplies effective track L_eff (no auto-fit from history);
+kinematic only (no slip-aware dynamics, no IMU fusion). Slip-
+aware odometry / yaw-rate fusion / ICR-estimation from history
+land in v0.6 if needed.
+
 ## [0.2.333] — 2026-04-24
 
 **Robotics: mecanum-wheel (4-wheel omnidirectional) kinematics
