@@ -54,6 +54,8 @@ extern fn nuc_occgrid_cell_log_odds(h: i64, ix: i64, iy: i64) -> i64;
 extern fn nuc_occgrid_width(h: i64) -> i64;
 extern fn nuc_occgrid_height(h: i64) -> i64;
 extern fn nuc_occgrid_cell_size(h: i64) -> i64;
+extern fn nuc_occgrid_find_frontiers(h: i64, free_thresh_b: i64,
+    unknown_eps_b: i64, out_x_ptr: i64, out_y_ptr: i64, max_n: i64) -> i64;
 extern fn nuc_occgrid_free(h: i64);
 
 // Create a `W × H` grid with `cell_size` (m), with the lower-left
@@ -101,5 +103,20 @@ fn occgrid_cell_log_odds(h: i64, ix: i64, iy: i64) -> i64 {
 fn occgrid_width(h: i64)  -> i64 { return nuc_occgrid_width(h); }
 fn occgrid_height(h: i64) -> i64 { return nuc_occgrid_height(h); }
 fn occgrid_cell_size(h: i64) -> i64 { return nuc_occgrid_cell_size(h); }
+
+// Frontier detection (v0.2.290): find "free" cells with at least
+// one "unknown" 4-neighbor. These are natural exploration targets.
+//
+// A cell is "free" iff `log-odds < free_thresh_b` (typical −0.4).
+// A cell is "unknown" iff `|log-odds| < unknown_eps_b` (typical 0.05).
+//
+// Writes cell-center world coords to `out_x_ptr` / `out_y_ptr`
+// (both `double[max_n]`). Returns the count (capped at max_n).
+fn occgrid_find_frontiers(h: i64, free_thresh_b: i64,
+    unknown_eps_b: i64, out_x_ptr: i64, out_y_ptr: i64, max_n: i64) -> i64
+{
+    return nuc_occgrid_find_frontiers(h, free_thresh_b, unknown_eps_b,
+        out_x_ptr, out_y_ptr, max_n);
+}
 
 fn occgrid_free(h: i64) { nuc_occgrid_free(h); }

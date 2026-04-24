@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.290] — 2026-04-24
+
+**Robotics: frontier detection for `occgrid.nr` — finds "free"
+cells that have at least one "unknown" 4-neighbor. Standard
+autonomous-exploration primitive: the boundary between known free
+space and the unknown is where the robot should go next.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/occgrid.nr"
+
+// ... build occupancy grid from sensor data ...
+
+let fx_out: double[MAX];   // world x of frontier-cell centers
+let fy_out: double[MAX];
+let n_frontiers = occgrid_find_frontiers(
+    grid, free_thresh_b, unknown_eps_b,
+    fx_out_ptr, fy_out_ptr, MAX);
+
+// Typical thresholds:
+//   free_thresh_b   = -0.3  (log-odds below this = free)
+//   unknown_eps_b   =  0.05 (|log-odds| below this = unknown)
+```
+
+Combined with `astar.nr` or `dstar.nr`: plan from current robot
+pose to the nearest (or highest-utility) frontier, navigate there,
+repeat — classical exploration pattern.
+
+### Verification
+
+40×40 grid covering `[0, 20]²`. 16 "free-space" rays from `(2, 2)`
+fanning 0°→π with `range = max_range = 10 m` (no hit, pure free-
+space update). Result:
+
+- **150 frontier cells** found — the outer boundary of the fan.
+- All cells within grid bounds (0 out-of-bounds).
+
+### Files
+
+- `stdlib/runtime/occgrid_rt.c` — added `nuc_occgrid_find_frontiers`.
+- `stdlib/rods/occgrid.nr` — added extern + `occgrid_find_frontiers`
+  wrapper.
+
+---
+
 ## [0.2.289] — 2026-04-24
 
 **Robotics: outlier-robust point-cloud rigid alignment
