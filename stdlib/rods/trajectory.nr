@@ -221,3 +221,34 @@ fn catmull_eval(h: i64, s_b: i64, q_out_ptr: i64) -> i64 {
 }
 
 fn catmull_free(h: i64) { nuc_catmull_free(h); }
+
+// === Cubic Bezier (v0.2.242) ===
+//
+// Standard 4-control-point Bezier. Pairs with Catmull-Rom:
+// Catmull-Rom passes through every waypoint exactly (good for
+// path-following); Bezier offers explicit tangent control at
+// endpoints via the inner control points (good for smooth merges
+// with existing trajectories).
+//
+//   B(t) = (1-t)³·P₀ + 3(1-t)²t·P₁ + 3(1-t)t²·P₂ + t³·P₃
+//
+// `pts_ptr` is a flat `double[4 * n_dim]` array of P₀..P₃.
+extern fn nuc_bezier_eval(pts_ptr: i64, n_dim: i64,
+    t_b: i64, q_out_ptr: i64) -> i64;
+extern fn nuc_bezier_tangent(pts_ptr: i64, n_dim: i64,
+    t_b: i64, dq_out_ptr: i64) -> i64;
+
+// Evaluate cubic Bezier at parameter t ∈ [0, 1].
+fn bezier_eval(pts_ptr: i64, n_dim: i64,
+    t_b: i64, q_out_ptr: i64) -> i64
+{
+    return nuc_bezier_eval(pts_ptr, n_dim, t_b, q_out_ptr);
+}
+
+// First derivative B'(t) = 3·[(1-t)²·(P₁-P₀) + 2(1-t)t·(P₂-P₁) + t²·(P₃-P₂)].
+// Useful for computing instantaneous tangent / velocity along the curve.
+fn bezier_tangent(pts_ptr: i64, n_dim: i64,
+    t_b: i64, dq_out_ptr: i64) -> i64
+{
+    return nuc_bezier_tangent(pts_ptr, n_dim, t_b, dq_out_ptr);
+}

@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.242] — 2026-04-23
+
+**Robotics: cubic Bezier curves in the trajectory rod. Pairs with
+Catmull-Rom (v0.2.237): Catmull-Rom passes through every waypoint
+exactly (good for path-following); Bezier offers explicit tangent
+control at endpoints via the inner control points (good for
+smooth merges with existing trajectories, specified-velocity
+approach paths).**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/trajectory.nr"
+
+// pts is double[4 * n_dim]: P₀, P₁, P₂, P₃ in order.
+// q_out is double[n_dim].
+bezier_eval(pts_ptr, n_dim, t_b, q_out_ptr);
+
+// First derivative — useful for tangent / instantaneous velocity:
+bezier_tangent(pts_ptr, n_dim, t_b, dq_out_ptr);
+```
+
+### Math
+
+```
+B(t)  = (1-t)³·P₀ + 3(1-t)²t·P₁ + 3(1-t)t²·P₂ + t³·P₃
+B'(t) = 3·[(1-t)²·(P₁-P₀) + 2(1-t)t·(P₂-P₁) + t²·(P₃-P₂)]
+```
+
+The curve passes through P₀ at `t=0` and P₃ at `t=1`, but NOT
+through P₁ / P₂. Instead, P₁ specifies the endpoint tangent at
+P₀ (direction `3·(P₁−P₀)`) and P₂ specifies the endpoint tangent
+at P₃ (direction `3·(P₃−P₂)`).
+
+### Verification
+
+2D cubic Bezier with control points `(0,0), (1,2), (2,2), (3,0)`:
+
+| Test | Expected | Got |
+|---|---|---|
+| `B(0)` | (0, 0) — P₀ | **(0.0000, 0.0000)** |
+| `B(1)` | (3, 0) — P₃ | **(3.0000, 0.0000)** |
+| `B(0.5)` | x = 1.5 by symmetry | **(1.5000, 1.5000)** |
+| `B'(0)` | (3, 6) = 3·(P₁−P₀) | **(3.0000, 6.0000)** |
+| `B'(1)` | (3, -6) = 3·(P₃−P₂) | **(3.0000, -6.0000)** |
+
+### Catmull-Rom vs Bezier
+
+| Property | Catmull-Rom | Cubic Bezier |
+|---|---|---|
+| Passes through control points | Yes (every waypoint) | Endpoints only (P₀, P₃) |
+| Tangent control | Implicit (C¹ from neighbors) | Explicit (via P₁, P₂) |
+| Use case | Smooth a discrete path | Smooth merge with given start/end velocities |
+
+### Files
+
+- `stdlib/runtime/trajectory_rt.c` — `nuc_bezier_eval`,
+  `nuc_bezier_tangent`.
+- `stdlib/rods/trajectory.nr` — externs + Nucleor wrappers.
+
+---
+
 ## [0.2.241] — 2026-04-23
 
 **Robotics: artificial potential field (Khatib 1986). Simplest
