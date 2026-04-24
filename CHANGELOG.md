@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.307] — 2026-04-24
+
+**T1.1 Phase 0 — maximalist narrow-numerics test matrix
+scaffolding.** First commit of the 14-phase numerics refactor
+described in `Desktop/Nucleor_T1_Numerics_Maximalist_Plan.md`.
+Robotics rod loop paused until refactor lands. The pre-refactor
+i64-everywhere architecture is preserved on `archive/i64-only`
+branch (frozen at `v0.2.306`).
+
+### What landed
+
+- `tests/lang/numerics_matrix/` — 56 test files across 9 phase
+  subdirectories (`p1_intarith/`, `p2_literals/`, `p3_layout/`,
+  `p4_cast/`, `p5_float/`, `p6_bitwise/`, `p7_overflow/`,
+  `p8_vec/`, `p11_format/`).
+- `tools/gen_numerics_matrix.py` — generator (idempotent;
+  re-run to add cases as each phase grows the matrix).
+- `tools/run_numerics_matrix.ps1`, `tools/run_numerics_matrix.sh`
+  — runners that build + run + classify each test as
+  PASS / FAIL / BUILD_ERROR. Always exit 0 (matrix is
+  informational; verify gate stays green).
+- `tests/lang/numerics_matrix/MANIFEST.md` — links each test to
+  the phase that should make it green.
+
+### Phase 0 baseline
+
+```
+Phase         PASS  FAIL  BERR   TOT
+p11_format       1     0     1     2
+p1_intarith     18     4     0    22
+p2_literals      5     0     1     6
+p3_layout        2     1     0     3
+p4_cast          5     0     3     8
+p5_float         0     1     3     4
+p6_bitwise       0     2     2     4
+p7_overflow      0     1     3     4
+p8_vec           0     0     3     3
+TOTAL: pass=31  fail=9  build_error=16  total=56
+```
+
+The 31 passing cases reflect that narrow types already compile
+and arithmetic is correct WITHIN i64 range. The 9 FAIL + 16
+BUILD_ERROR cases are the actual gap surface — width-overflow
+wrap, native float arithmetic, narrow bitwise, overflow modes,
+generic `Vec<T>`, width-correct `print_*`.
+
+### Verify gate
+
+328/328 PASS. The matrix lives in `tests/lang/numerics_matrix/`
+(nested subdirectory) so verify.ps1's top-level enumeration
+doesn't pick it up.
+
+### Next
+
+Phase 1 (`v0.2.308`) — width-aware integer arithmetic and
+comparisons in `emit_arith()`, `emit_cmp()`, `emit_inst()`.
+
 ## [0.2.306] — 2026-04-24
 
 **Robotics: 2-D Voronoi diagram from Delaunay triangulation
