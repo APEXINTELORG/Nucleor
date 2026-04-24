@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 214
-# Total fn definitions: 2076
-# Total LOC: 9094
+# Total rods: 215
+# Total fn definitions: 2078
+# Total LOC: 9109
 
 [[rod]]
 name           = "activation2"
@@ -136,6 +136,15 @@ function_count = 7
 cfile_count    = 1
 loc            = 19
 imports        = ["bayesian"]
+
+[[rod]]
+name           = "bezier"
+path           = "stdlib/rods/bezier.nr"
+description    = "Bezier curve evaluation in 2-D and 3-D via the"
+function_count = 2
+cfile_count    = 1
+loc            = 15
+imports        = ["bezier"]
 
 [[rod]]
 name           = "bicycle"

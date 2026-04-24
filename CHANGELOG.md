@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.325] — 2026-04-24
+
+**Robotics: Bezier curve evaluation in 2-D and 3-D
+(`bezier`). Numerically-stable de Casteljau recurrence for
+arbitrary degree. Companion to cubic spline for path
+authoring with explicit handle control.**
+
+### Algorithm
+
+de Casteljau recurrence — repeated linear interpolation
+between adjacent control points until one point remains:
+
+```
+For each level 1..n-1:
+    For each i in 0..n-1-level:
+        w[i] = (1-t)·w[i] + t·w[i+1]
+Result = w[0] after all levels.
+```
+
+O(n²) time, numerically stable for any degree (vs the explicit
+Bernstein polynomial form which suffers from cancellation at
+high degree).
+
+### Surface
+
+```nucleor
+import "stdlib/rods/bezier.nr"
+
+// 2-D, ctrl_xy = double[2*N] interleaved (x, y).
+let xy: [2]double;
+let _ = bezier_eval_2d(ctrl_xy_ptr, N, t_b, f64_ptr(&xy[0]));
+
+// 3-D, ctrl_xyz = double[3*N] interleaved (x, y, z).
+let xyz: [3]double;
+let _ = bezier_eval_3d(ctrl_xyz_ptr, N, t_b, f64_ptr(&xyz[0]));
+```
+
+`t` is clamped to [0, 1].
+
+### Verification
+
+Direct C unit test (`target/_test_bezier.c`):
+
+- T1 cubic 2D endpoints  : t=0 → (0,0); t=1 → (3,0) ✓
+- T2 quadratic 2D mid    : t=0.5 → (1,1) ✓
+- T3 linear 2D @0.3      : (3, 1.5) ✓
+- T4 quadratic 3D mid    : t=0.5 → (1, 0.5, 1) ✓
+- T5 bad n=1             : returns 0 ✓
+
+Build smoke `tests/rods/bezier_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/bezier_rt.c` — de Casteljau eval 2-D + 3-D.
+- `stdlib/rods/bezier.nr` — extern + wrappers.
+- `tests/rods/bezier_smoke.nr` — build-only smoke.
+- `CHANGELOG.md` — this entry.
+
+### Limitations
+
+Documented in `bezier.nr` and `bezier_rt.c`: polynomial Bezier
+only (no rational / NURBS); caller-supplied parameter t (no
+arc-length reparameterization); numerically stable up to ~20
+control points (higher degrees: prefer piecewise cubic Bezier
+or B-spline).
+
 ## [0.2.324] — 2026-04-24
 
 **Robotics: natural cubic spline interpolation through N
