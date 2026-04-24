@@ -5,6 +5,76 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.277] — 2026-04-24
+
+**Robotics: Huber robust-cost kernel for `pgs.nr` (`pgs_optimize_huber`).
+Down-weights outlier loop-closure edges via iteratively-reweighted
+least squares so a single bad measurement can't dominate the
+optimization. Standard back-end-robust SLAM technique.**
+
+### Algorithm
+
+```
+Each Gauss-Newton iteration:
+    For each edge:
+        r² = e_xᵀ Ω e_x   (information-weighted residual norm²)
+        w  = 1                          if r² ≤ δ²
+        w  = δ / sqrt(r²)               if r² > δ²
+        Accumulate H += w · Jᵀ Ω J
+        Accumulate b += w · Jᵀ Ω e
+    Solve H · δ = −b; apply δ to free nodes; repeat.
+```
+
+The weight `w` is recomputed each iteration based on the current
+state's residual — this is the IRLS form of the Huber M-estimator.
+Edges with large residuals (`r² > δ²`) get weight `< 1`, capping
+their influence on the gradient at `δ` per residual unit.
+
+`delta_b` is the Huber threshold (typical `0.5–2.0` for distance
+residuals, tuned to ~3σ of the noise model). Pass `0.0` to
+disable Huber and reduce to vanilla L2 (matches `pgs_optimize`).
+
+### Surface
+
+```nucleor
+import "stdlib/rods/pgs.nr"
+
+// ... build graph as for pgs_optimize ...
+pgs_optimize_huber(g, max_iters, tol_b, delta_b);
+```
+
+### Verification
+
+Two-node graph with two edges between them: one good (distance 1),
+one outlier (distance 100), info=1 both:
+
+1. **L2** (`pgs_optimize`): `node1.x = 50.5000` (averages the two
+   measurements).
+2. **Huber with δ=0** (degenerate): `node1.x = 50.5000` — exactly
+   matches L2 as expected.
+3. **Huber with δ=2.0** (outlier residual `99 ≫ δ`): `node1.x = 3.0000`
+   — outlier was down-weighted, solution near the good edge's
+   distance of 1.
+
+### Limitations carried forward
+
+- Huber is a non-redescending M-estimator: when the outlier residual
+  drops below `δ`, the kernel reverts to L2. For strongly tangled
+  problems where the IRLS trajectory dips the outlier residual
+  below `δ`, the converged Huber solution can equal the L2 one.
+  Stronger redescending kernels (Cauchy, Tukey, Geman-McClure) and
+  graduated non-convexity (GNC) plan for v0.6.
+
+### Files
+
+- `stdlib/runtime/pgs_rt.c` — added `nuc_pgs_optimize_huber`
+  alongside the existing `nuc_pgs_optimize`. Same Gauss-Newton
+  iteration structure with per-edge IRLS weighting.
+- `stdlib/rods/pgs.nr` — added extern + `pgs_optimize_huber`
+  wrapper.
+
+---
+
 ## [0.2.276] — 2026-04-24
 
 **Robotics: Monte Carlo reachability mapper (`reach`) for arm
