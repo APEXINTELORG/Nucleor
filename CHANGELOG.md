@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.210] — 2026-04-23
+
+**Robotics: task-priority IK with nullspace posture preference for
+redundant manipulators (Siciliano-Slotine 1991). For arms with
+more joints than the position task DOFs, the IK solution is
+underdetermined — there's a manifold of joint configurations that
+all hit the same end-effector pose. This solver fills the
+redundancy with a *secondary* task projected into the primary
+task's nullspace, so it never disturbs the position objective:**
+
+```
+q̇ = J⁺·e_pos + (I − J⁺·J)·w·(q_pref − q)
+```
+
+The secondary task here is joint-space posture preference (drive q
+toward a desired `q_pref`). Useful for joint-limit avoidance
+(`q_pref` = midpoint of each joint's range), solution-branch
+selection on a 7-DOF arm, and continuity across waypoints
+(`q_pref` = previous solve's output).
+
+### Surface
+
+```nucleor
+import "stdlib/rods/ik_dls.nr"
+
+ik_dls_solve_nullspace(
+    chain, vars,
+    tx_b, ty_b, tz_b,
+    q_pref_ptr, secondary_weight_b,    // 0 disables secondary task
+    100, tol_b, damping_b);
+```
+
+`q_pref_ptr` is a `double[n_joints]` handle. `secondary_weight_b`
+scales the secondary task; 0 disables it (degenerates to the base
+DLS solver), 0.1-0.5 is typical.
+
+### Verification
+
+4-DOF planar arm (3 revolute + 1 fixed tip) with target (2, 1, 0)
+from a perturbed initial guess `q = (1, 0.5, -0.5, 0.3)` and
+`q_pref = (0, 0, 0, 0)`:
+
+| Solver | EE position | Σ\|q\| |
+|---|---|---|
+| Base DLS  | (2.000, 1.000) — exact | **9.606** |
+| Nullspace | (1.998, 0.998) — within 1 cm | **4.829** |
+
+Both hit the target; the nullspace variant cuts the total joint-
+deflection nearly in half by using the redundancy to pull toward
+the rest pose without disturbing the primary task.
+
+### Files
+
+- `stdlib/runtime/ik_dls_rt.c` — `nuc_ik_dls_solve_nullspace`
+  with damped pseudoinverse + explicit `(I − J⁺·J)` nullspace
+  projector. Reuses joint-limit infrastructure from v0.2.193.
+- `stdlib/rods/ik_dls.nr` — extern + `ik_dls_solve_nullspace`
+  wrapper.
+
+---
+
 ## [0.2.209] — 2026-04-23
 
 **Robotics: workspace sampling primitives. `fk_workspace_sample`

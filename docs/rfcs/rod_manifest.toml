@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 143
-# Total fn definitions: 1665
-# Total LOC: 7005
+# Total fn definitions: 1666
+# Total LOC: 7020
 
 [[rod]]
 name           = "activation2"
@@ -546,9 +546,9 @@ imports        = []
 name           = "ik_dls"
 path           = "stdlib/rods/ik_dls.nr"
 description    = "Damped Least Squares inverse kinematics."
-function_count = 5
+function_count = 6
 cfile_count    = 1
-loc            = 50
+loc            = 65
 imports        = ["fk_chain"]
 
 [[rod]]

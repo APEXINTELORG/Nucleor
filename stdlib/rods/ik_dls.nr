@@ -55,6 +55,31 @@ extern fn nuc_ik_get_last_singularity_metric() -> i64;
 // pose is left at the queried configuration for follow-up accessors.
 extern fn nuc_ik_manipulability(ch: i64, vars_ptr: i64) -> i64;
 
+// Task-priority IK with nullspace posture preference (v0.2.210).
+// For redundant manipulators (n_joints > 3 in the position-only
+// case), the IK solution is underdetermined. This solver fills
+// the redundancy by pulling the joint configuration toward
+// `q_pref` while still hitting the position target exactly:
+//
+//   q̇ = J⁺·e_pos + (I − J⁺·J)·w·(q_pref − q)
+//
+// `q_pref_ptr` is a `double[n_joints]` handle; pass 0 to disable
+// the secondary task and behave like `nuc_ik_dls_solve`.
+//
+// `secondary_weight_bits` scales the secondary task; 0 disables it,
+// 1.0 is "as aggressive as the primary update". 0.1-0.5 typical.
+//
+// Common patterns:
+// - **Joint-limit avoidance**: q_pref = midpoint of each joint's
+//   range, weight by 1/range².
+// - **Solution-branch selection**: q_pref = previous solve's
+//   output (continuity across waypoints).
+extern fn nuc_ik_dls_solve_nullspace(
+    ch: i64, vars_ptr: i64,
+    tx_bits: i64, ty_bits: i64, tz_bits: i64,
+    q_pref_ptr: i64, secondary_weight_bits: i64,
+    max_iters: i64, tolerance_bits: i64, damping_bits: i64) -> i64;
+
 // 6-DOF IK (v0.2.194): position + orientation. The angular error
 // is computed as the quaternion log-map of (target * current^-1),
 // giving a 3-vector axis-angle correction. Jacobian is 6×n.
@@ -93,6 +118,17 @@ fn ik_get_last_singularity_metric() -> i64 {
 
 fn ik_manipulability(ch: i64, vars_ptr: i64) -> i64 {
     return nuc_ik_manipulability(ch, vars_ptr);
+}
+
+fn ik_dls_solve_nullspace(
+    ch: i64, vars_ptr: i64,
+    tx_bits: i64, ty_bits: i64, tz_bits: i64,
+    q_pref_ptr: i64, secondary_weight_bits: i64,
+    max_iters: i64, tolerance_bits: i64, damping_bits: i64) -> i64
+{
+    return nuc_ik_dls_solve_nullspace(ch, vars_ptr,
+        tx_bits, ty_bits, tz_bits, q_pref_ptr, secondary_weight_bits,
+        max_iters, tolerance_bits, damping_bits);
 }
 
 fn ik_dls_solve_6d(
