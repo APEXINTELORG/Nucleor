@@ -5,6 +5,98 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.212] — 2026-04-23
+
+**Robotics: Cartesian impedance / operational-space PD controller
++ inverse dynamics with applied tip wrench. Two related dynamics
+extensions that round out the model-based control surface for
+contact-rich manipulation.**
+
+### Cartesian impedance / operational-space PD
+
+```
+F_cart = K · (p_des − p_actual) − D · (J · qd)
+tau    = Jᵀ · F_cart  [+ g(q) if include_gravity]
+```
+
+Computes joint torques for a position-task PD in Cartesian
+(operational) space. K and D are 3-vectors (diagonal stiffness
+and damping in world frame). Use cases:
+- Compliant peg-in-hole and contact-rich manipulation.
+- Soft Cartesian "follow this pose" trajectories where pure
+  position control would over-react to disturbances.
+- Drag-and-teach with adjustable stiffness per axis.
+
+### Inverse dynamics with applied tip wrench
+
+```
+τ = M(q)·qdd + C(q,qd)·qd + g(q) − Jᵀ · F_ext
+```
+
+Same RNEA as `nuc_dyn_inverse` but the backward pass is seeded with
+an applied force/torque at the end-effector tip instead of zero.
+Sign convention matches ROS / standard usage: positive `F_ext` is
+what the *environment* applies to the robot. Use cases:
+- Modeling environment contact (peg-in-hole, surface tracking).
+- Computing torques required to *resist* a known external load
+  (e.g., "carry a 5 kg payload at the tip").
+- Verifying force-controlled behavior in simulation.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/dynamics.nr"
+
+dyn_inverse_with_wrench(dyn, q, qd, qdd,
+    fx, fy, fz,    // tip force, world frame
+    tx, ty, tz,    // tip torque, world frame
+    tau_out);
+
+dyn_cartesian_impedance(dyn, q, qd,
+    pdes_x, pdes_y, pdes_z,
+    kx, ky, kz,    // diagonal stiffness
+    dx, dy, dz,    // diagonal damping
+    1,             // include_gravity (1 = compensate, 0 = don't)
+    tau_out);
+```
+
+### Implementation notes
+
+- **Refactor**: `nuc_dyn_inverse` now delegates to a private
+  `_dyn_rnea_core` helper that takes an extra `tip_force` /
+  `tip_torque` parameter. The standard entry point passes zero;
+  the new entry point passes the user-supplied wrench. Both
+  share the same RNEA body — no code duplication, identical
+  numerical behavior on the zero-wrench path.
+- **Cartesian impedance** computes the position-only Jacobian
+  (3 × n) inline via finite differences (same scheme as the IK
+  solver), then `tau = Jᵀ · (K·e − D·v)`. Gravity compensation
+  via `nuc_dyn_gravity` when requested.
+
+### Verification
+
+Single-joint arm at world origin with a fixed tip at (1, 0, 0):
+
+| Test | Expected | Got |
+|---|---|---|
+| Tip force `F = (0, 5, 0)` (perpendicular) | τ = 5 | **5.000000** |
+| Tip force `F = (5, 0, 0)` (radial — no moment) | τ = 0 | **0.000000** |
+| Impedance `K=10`, `p_des=(1,1,0)`, `p_actual=(1,0,0)` | τ = 10 | **10.000000** |
+
+All three match the analytical answer exactly. The pendulum
+gravity test from v0.2.207 still passes (the standard inverse
+path is identical on zero wrench).
+
+### Files
+
+- `stdlib/runtime/dynamics_rt.c` — refactored `nuc_dyn_inverse`
+  into `_dyn_rnea_core` + thin wrapper; new
+  `nuc_dyn_inverse_with_wrench` and `nuc_dyn_cartesian_impedance`.
+- `stdlib/rods/dynamics.nr` — externs + Nucleor wrappers for
+  both new entry points.
+
+---
+
 ## [0.2.211] — 2026-04-23
 
 **Robotics: mass matrix `M(q)` extraction and forward dynamics —

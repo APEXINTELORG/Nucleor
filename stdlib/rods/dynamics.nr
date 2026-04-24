@@ -60,6 +60,38 @@ extern fn nuc_dyn_mass_matrix(h: i64, q_ptr: i64, out_M_ptr: i64) -> i64;
 extern fn nuc_dyn_forward(h: i64,
     q_ptr: i64, qd_ptr: i64, tau_ptr: i64, qdd_out_ptr: i64) -> i64;
 
+// Inverse dynamics with applied tip wrench (v0.2.212). Same as
+// `nuc_dyn_inverse` but the backward pass starts with the given
+// world-frame force + torque applied at the end-effector tip
+// instead of zero. Use cases:
+// - Modeling environment contact (peg-in-hole, surface tracking).
+// - Computing torques to resist a known external load.
+// - Force-controlled simulation.
+//
+// Sign convention: positive force is what the *environment*
+// applies to the robot.
+extern fn nuc_dyn_inverse_with_wrench(h: i64,
+    q_ptr: i64, qd_ptr: i64, qdd_ptr: i64,
+    fx_b: i64, fy_b: i64, fz_b: i64,
+    tx_b: i64, ty_b: i64, tz_b: i64,
+    tau_out_ptr: i64) -> i64;
+
+// Cartesian impedance / operational-space PD controller (v0.2.212).
+// Computes joint torques for a position-task PD in Cartesian space:
+//
+//     F_cart = K · (p_des − p_actual) − D · (J · qd)
+//     tau    = Jᵀ · F_cart [+ g(q) if include_gravity]
+//
+// K and D are diagonal stiffness and damping in world frame.
+// `include_gravity` adds gravity-compensation torques.
+extern fn nuc_dyn_cartesian_impedance(h: i64,
+    q_ptr: i64, qd_ptr: i64,
+    pdes_x_b: i64, pdes_y_b: i64, pdes_z_b: i64,
+    kx_b: i64, ky_b: i64, kz_b: i64,
+    dx_b: i64, dy_b: i64, dz_b: i64,
+    include_gravity: i64,
+    tau_out_ptr: i64) -> i64;
+
 extern fn nuc_dyn_free(h: i64);
 
 // Create a dynamics solver bound to an existing FK chain handle.
@@ -114,6 +146,30 @@ fn dyn_mass_matrix(h: i64, q_ptr: i64, out_M_ptr: i64) -> i64 {
 fn dyn_forward(h: i64,
     q_ptr: i64, qd_ptr: i64, tau_ptr: i64, qdd_out_ptr: i64) -> i64 {
     return nuc_dyn_forward(h, q_ptr, qd_ptr, tau_ptr, qdd_out_ptr);
+}
+
+fn dyn_inverse_with_wrench(h: i64,
+    q_ptr: i64, qd_ptr: i64, qdd_ptr: i64,
+    fx_b: i64, fy_b: i64, fz_b: i64,
+    tx_b: i64, ty_b: i64, tz_b: i64,
+    tau_out_ptr: i64) -> i64
+{
+    return nuc_dyn_inverse_with_wrench(h, q_ptr, qd_ptr, qdd_ptr,
+        fx_b, fy_b, fz_b, tx_b, ty_b, tz_b, tau_out_ptr);
+}
+
+fn dyn_cartesian_impedance(h: i64,
+    q_ptr: i64, qd_ptr: i64,
+    pdes_x_b: i64, pdes_y_b: i64, pdes_z_b: i64,
+    kx_b: i64, ky_b: i64, kz_b: i64,
+    dx_b: i64, dy_b: i64, dz_b: i64,
+    include_gravity: i64,
+    tau_out_ptr: i64) -> i64
+{
+    return nuc_dyn_cartesian_impedance(h, q_ptr, qd_ptr,
+        pdes_x_b, pdes_y_b, pdes_z_b,
+        kx_b, ky_b, kz_b, dx_b, dy_b, dz_b,
+        include_gravity, tau_out_ptr);
 }
 
 fn dyn_free(h: i64) { nuc_dyn_free(h); }
