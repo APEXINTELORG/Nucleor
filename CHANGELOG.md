@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.247] — 2026-04-23
+
+**Robotics: Lazy PRM (Bohlin & Kavraki 2000). Build the roadmap
+WITHOUT collision-checking edges; validate edges on-demand during
+the query. For dense roadmaps with sparse queries, much faster
+than eager `prm_build` because most edges are never traversed.**
+
+### Algorithm
+
+```
+Build: same k-NN structure as eager PRM, but skip the per-edge
+       collision check entirely. Allocates an edge_blocked
+       byte-array initialized to all-zero.
+
+Query: outer loop (≤ 50 iters):
+  1. Run Dijkstra over (roadmap + start + goal), skipping any
+     edge marked blocked.
+  2. Reconstruct candidate path.
+  3. Validate the path's roadmap-roadmap edges via the user's
+     collision callback.
+  4. If all edges validate, return the path.
+  5. Otherwise mark the failed edge (and its reverse) as blocked,
+     and retry.
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/prm.nr"
+
+let p = prm_new(n_dim, seed);
+// ... set bounds ...
+prm_build_lazy(p, n_samples, k_neighbors, step_b, coll_fp);
+let path_len = prm_query_lazy(p, start_ptr, goal_ptr,
+                              k_neighbors, step_b, coll_fp);
+```
+
+### Verification
+
+50 nodes / 250 edges built lazily in 2D `[0, 10]²` (no collision
+check at build time). Query from `(1, 1)` to `(9, 9)` returned
+a 10-waypoint path with edges validated on-demand.
+
+### Files
+
+- `stdlib/runtime/prm_rt.c` — `edge_blocked` array in `NPRM`,
+  `nuc_prm_build_lazy`, `nuc_prm_query_lazy`,
+  `_validate_roadmap_edge` helper.
+- `stdlib/rods/prm.nr` — externs + `prm_build_lazy` /
+  `prm_query_lazy` Nucleor wrappers.
+
+---
+
 ## [0.2.246] — 2026-04-23
 
 **Robotics: CCD capsule vs static AABB. Closes the CCD pair

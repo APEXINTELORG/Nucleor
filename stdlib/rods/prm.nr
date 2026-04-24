@@ -32,6 +32,17 @@ extern fn nuc_prm_query(h: i64, start_ptr: i64, goal_ptr: i64,
                        k_neighbors: i64, step_b: i64,
                        is_collision_free_fp: i64) -> i64;
 
+// Lazy PRM (v0.2.247, Bohlin & Kavraki 2000). Build the roadmap
+// WITHOUT collision-checking edges; validate edges on-demand
+// during query. For dense roadmaps with sparse queries, much
+// faster than eager `prm_build` + `prm_query` because most edges
+// are never traversed.
+extern fn nuc_prm_build_lazy(h: i64, n_samples: i64, k_neighbors: i64,
+    step_b: i64, is_collision_free_fp: i64) -> i64;
+extern fn nuc_prm_query_lazy(h: i64, start_ptr: i64, goal_ptr: i64,
+    k_neighbors: i64, step_b: i64,
+    is_collision_free_fp: i64) -> i64;
+
 // A* query (v0.2.220): same multi-query pattern as `nuc_prm_query`
 // (Dijkstra) but uses A* with a Euclidean heuristic toward the
 // goal config. On large roadmaps where joint-space distance
@@ -80,6 +91,25 @@ fn prm_query_astar(h: i64, start_ptr: i64, goal_ptr: i64,
                    is_collision_free_fp: i64) -> i64 {
     return nuc_prm_query_astar(h, start_ptr, goal_ptr, k_neighbors,
                                 step_b, is_collision_free_fp);
+}
+
+// Build the roadmap LAZILY: skip per-edge collision checks at
+// build time. Edges get validated on-demand during `prm_query_lazy`.
+// Faster for dense roadmaps where most edges are never traversed.
+fn prm_build_lazy(h: i64, n_samples: i64, k_neighbors: i64,
+    step_b: i64, is_collision_free_fp: i64) -> i64 {
+    return nuc_prm_build_lazy(h, n_samples, k_neighbors,
+                               step_b, is_collision_free_fp);
+}
+
+// Query a lazily-built roadmap: iteratively run Dijkstra
+// (skipping previously-blocked edges), validate path edges,
+// mark failures, retry. Returns path length on success.
+fn prm_query_lazy(h: i64, start_ptr: i64, goal_ptr: i64,
+    k_neighbors: i64, step_b: i64,
+    is_collision_free_fp: i64) -> i64 {
+    return nuc_prm_query_lazy(h, start_ptr, goal_ptr, k_neighbors,
+                               step_b, is_collision_free_fp);
 }
 
 // Number of waypoints on the most recent successful query path.
