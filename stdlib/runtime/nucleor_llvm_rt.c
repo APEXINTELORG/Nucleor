@@ -645,6 +645,118 @@ long long __nucleor_str_intern_stats(void) {
     return (g_intern_hits << 24) | (g_intern_misses & 0xFFFFFFLL);
 }
 
+// === RFC-0030 phase 1 — string arena (v0.2.165) ===
+// Lifetime-bound alternative to global str_concat / str_substring
+// for transient string work. Caller creates an arena, allocates
+// strings against it via str_arena_concat / str_arena_substring,
+// then releases the entire arena in one free at end-of-scope.
+//
+// vs the global allocators: same content, no per-string free
+// burden. Best for "build a bunch of intermediate strings, use
+// them, throw them all away" patterns — diagnostic message
+// formatting, type-checker temporaries, etc.
+//
+// Implementation: linked list of bump-allocated chunks. Each
+// chunk is 64 KB by default; large allocations get their own
+// chunk. str_arena_free walks the list and frees every chunk +
+// the arena header.
+
+typedef struct NStrArenaChunk {
+    struct NStrArenaChunk *next;
+    long long capacity;
+    long long offset;
+    char *data;
+} NStrArenaChunk;
+
+typedef struct {
+    NStrArenaChunk *head;
+    long long total_bytes;
+} NStrArena;
+
+#define NUC_STR_ARENA_CHUNK_DEFAULT 65536LL
+
+static NStrArenaChunk *_str_arena_chunk_new(long long min_capacity) {
+    long long cap = NUC_STR_ARENA_CHUNK_DEFAULT;
+    if (min_capacity > cap) cap = min_capacity;
+    NStrArenaChunk *c = (NStrArenaChunk *)malloc(sizeof(NStrArenaChunk));
+    c->next = 0;
+    c->capacity = cap;
+    c->offset = 0;
+    c->data = (char *)malloc((size_t)cap);
+    return c;
+}
+
+long long __nucleor_str_arena_new(void) {
+    NStrArena *a = (NStrArena *)malloc(sizeof(NStrArena));
+    a->head = _str_arena_chunk_new(NUC_STR_ARENA_CHUNK_DEFAULT);
+    a->total_bytes = 0;
+    return (long long)(size_t)a;
+}
+
+void __nucleor_str_arena_free(long long handle) {
+    NStrArena *a = (NStrArena *)(void *)(size_t)handle;
+    if (!a) return;
+    NStrArenaChunk *c = a->head;
+    while (c) {
+        NStrArenaChunk *next = c->next;
+        free(c->data);
+        free(c);
+        c = next;
+    }
+    free(a);
+}
+
+long long __nucleor_str_arena_bytes(long long handle) {
+    NStrArena *a = (NStrArena *)(void *)(size_t)handle;
+    if (!a) return 0;
+    return a->total_bytes;
+}
+
+// Internal: allocate `n` bytes from the arena. Returns a pointer
+// into one of the chunks. The pointer is valid until the arena
+// is freed.
+static char *_str_arena_alloc(NStrArena *a, long long n) {
+    NStrArenaChunk *c = a->head;
+    if (c->offset + n > c->capacity) {
+        // Need a new chunk — make it big enough for `n` if `n` is
+        // larger than the default chunk size.
+        NStrArenaChunk *fresh = _str_arena_chunk_new(n);
+        fresh->next = a->head;
+        a->head = fresh;
+        c = fresh;
+    }
+    char *p = c->data + c->offset;
+    c->offset += n;
+    a->total_bytes += n;
+    return p;
+}
+
+// str_arena_concat — same semantics as str_concat but the result
+// lives in the arena instead of the global heap. Caller must
+// release the arena (str_arena_free) when done with all strings.
+const char *__nucleor_str_arena_concat(long long handle, const char *a, const char *b) {
+    NStrArena *ar = (NStrArena *)(void *)(size_t)handle;
+    if (!a) a = "";
+    if (!b) b = "";
+    long long la = (long long)strlen(a), lb = (long long)strlen(b);
+    char *r = _str_arena_alloc(ar, la + lb + 1);
+    memcpy(r, a, (size_t)la);
+    memcpy(r + la, b, (size_t)lb + 1);
+    return r;
+}
+
+// str_arena_substring — same as str_substring but arena-backed.
+const char *__nucleor_str_arena_substring(long long handle, const char *s, long long start, long long end) {
+    NStrArena *ar = (NStrArena *)(void *)(size_t)handle;
+    if (!s) return "";
+    long long n = end - start;
+    if (n < 0) n = 0;
+    char *r = _str_arena_alloc(ar, n + 1);
+    memcpy(r, s + start, (size_t)n);
+    r[n] = 0;
+    return r;
+}
+
 // === Tensor runtime ===
 typedef struct { int rows; int cols; double *data; } NTensor;
 static double _t_i2f(long long x) { double d; memcpy(&d, &x, sizeof(double)); return d; }

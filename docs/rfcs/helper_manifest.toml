@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 687
+# Total helpers: 692
 # Of which REVIEW REQUIRED: 0
 
 # ============================================================
@@ -6510,6 +6510,76 @@ class            = "StringFormat"
 symbol           = "__nucleor_sb_to_str"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "str_arena_bytes"
+class            = "StringFormat"
+symbol           = "__nucleor_str_arena_bytes"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "str_arena_concat"
+class            = "StringFormat"
+symbol           = "__nucleor_str_arena_concat"
+dispatch         = "RuntimeCall"
+abi              = "(i64, ptr, ptr) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "str_arena_free"
+class            = "StringFormat"
+symbol           = "__nucleor_str_arena_free"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> void"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "str_arena_new"
+class            = "StringFormat"
+symbol           = "__nucleor_str_arena_new"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "str_arena_substring"
+class            = "StringFormat"
+symbol           = "__nucleor_str_arena_substring"
+dispatch         = "RuntimeCall"
+abi              = "(i64, ptr, i64, i64) -> ptr"
 effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
