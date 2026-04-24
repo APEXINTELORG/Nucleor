@@ -99,3 +99,112 @@ void nuc_quintic_free(long long h) {
     NQuintic *q = (NQuintic *)(void *)(size_t)h;
     if (q) free(q);
 }
+
+// === Trapezoidal velocity profile (v0.2.181) ============================
+//
+// Three-phase profile: constant acceleration, constant velocity (cruise),
+// constant deceleration. Solves for the actual reachable peak velocity
+// when the displacement is too small to reach the requested v_max
+// (collapses to a triangular profile in that case).
+//
+// Inputs: q0, qT (start + goal position), v_max, a_max (limits).
+// Output: a heap-allocated NTrapezoid with the resolved (T_acc, T_cruise,
+// T_dec, peak_v) timing.
+
+typedef struct {
+    double q0;
+    double dir;          // +1 or -1
+    double v_peak;       // actual reachable peak velocity
+    double a;            // |acceleration|
+    double t_acc;        // duration of accel phase
+    double t_cruise;     // duration of constant-v phase
+    double t_dec;        // duration of decel phase
+    double T;            // total = t_acc + t_cruise + t_dec
+} NTrapezoid;
+
+long long nuc_trapezoid_new(
+    long long q0_bits, long long qT_bits,
+    long long vmax_bits, long long amax_bits)
+{
+    double q0 = _i2f(q0_bits), qT = _i2f(qT_bits);
+    double v_max = fabs(_i2f(vmax_bits));
+    double a_max = fabs(_i2f(amax_bits));
+    if (v_max <= 0 || a_max <= 0) return 0;
+    double dq = qT - q0;
+    double dir = (dq >= 0) ? 1.0 : -1.0;
+    double dist = fabs(dq);
+    NTrapezoid *p = (NTrapezoid *)malloc(sizeof(NTrapezoid));
+    p->q0 = q0;
+    p->dir = dir;
+    p->a = a_max;
+    // Distance covered while ramping from 0 to v_max and back: 2 * (v_max² / (2 a_max)) = v_max²/a_max.
+    double ramp_dist = (v_max * v_max) / a_max;
+    if (dist >= ramp_dist) {
+        // Trapezoid: full v_max reached.
+        p->v_peak = v_max;
+        p->t_acc = v_max / a_max;
+        p->t_dec = p->t_acc;
+        p->t_cruise = (dist - ramp_dist) / v_max;
+    } else {
+        // Triangular: peak v < v_max.
+        p->v_peak = sqrt(dist * a_max);
+        p->t_acc = p->v_peak / a_max;
+        p->t_dec = p->t_acc;
+        p->t_cruise = 0.0;
+    }
+    p->T = p->t_acc + p->t_cruise + p->t_dec;
+    return (long long)(size_t)p;
+}
+
+long long nuc_trapezoid_duration(long long h) {
+    NTrapezoid *p = (NTrapezoid *)(void *)(size_t)h;
+    return p ? _f2i(p->T) : 0;
+}
+
+long long nuc_trapezoid_peak_v(long long h) {
+    NTrapezoid *p = (NTrapezoid *)(void *)(size_t)h;
+    return p ? _f2i(p->v_peak * p->dir) : 0;
+}
+
+long long nuc_trapezoid_pos_at(long long h, long long t_bits) {
+    NTrapezoid *p = (NTrapezoid *)(void *)(size_t)h;
+    if (!p) return 0;
+    double t = _i2f(t_bits);
+    if (t < 0) t = 0;
+    if (t > p->T) t = p->T;
+    double s; // signed displacement from q0
+    if (t <= p->t_acc) {
+        s = 0.5 * p->a * t * t;
+    } else if (t <= p->t_acc + p->t_cruise) {
+        double s_acc = 0.5 * p->a * p->t_acc * p->t_acc;
+        s = s_acc + p->v_peak * (t - p->t_acc);
+    } else {
+        double s_acc = 0.5 * p->a * p->t_acc * p->t_acc;
+        double s_cruise = p->v_peak * p->t_cruise;
+        double tt = t - p->t_acc - p->t_cruise;
+        s = s_acc + s_cruise + p->v_peak * tt - 0.5 * p->a * tt * tt;
+    }
+    return _f2i(p->q0 + p->dir * s);
+}
+
+long long nuc_trapezoid_vel_at(long long h, long long t_bits) {
+    NTrapezoid *p = (NTrapezoid *)(void *)(size_t)h;
+    if (!p) return 0;
+    double t = _i2f(t_bits);
+    if (t < 0) t = 0;
+    if (t > p->T) t = p->T;
+    double v;
+    if (t <= p->t_acc) {
+        v = p->a * t;
+    } else if (t <= p->t_acc + p->t_cruise) {
+        v = p->v_peak;
+    } else {
+        v = p->v_peak - p->a * (t - p->t_acc - p->t_cruise);
+    }
+    return _f2i(p->dir * v);
+}
+
+void nuc_trapezoid_free(long long h) {
+    NTrapezoid *p = (NTrapezoid *)(void *)(size_t)h;
+    if (p) free(p);
+}

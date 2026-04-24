@@ -30,6 +30,20 @@ fn main() -> i64 {
     if dur == 0 { fail = fail + 1; print("FAIL duration round-trip"); };
 
     quintic_free(q);
+
+    // Trapezoidal profile (v0.2.181): q 0→1, v_max=2.0, a_max=4.0.
+    // Long enough to actually reach v_max before decelerating.
+    let tp: i64 = trapezoid_new(
+        f64_to_bits(0.0), f64_to_bits(1.0),
+        f64_to_bits(2.0), f64_to_bits(4.0)
+    );
+    if tp == 0 { fail = fail + 1; print("FAIL trapezoid_new"); };
+    let tp_dur: i64 = trapezoid_duration(tp);
+    if tp_dur == 0 { fail = fail + 1; print("FAIL trapezoid duration"); };
+    let _tp_v0: i64 = trapezoid_vel_at(tp, f64_to_bits(0.0));
+    let _tp_pos_mid: i64 = trapezoid_pos_at(tp, f64_to_bits(0.25));
+    trapezoid_free(tp);
+
     if fail == 0 { print("OK trajectory_smoke"); };
     return fail;
 }
