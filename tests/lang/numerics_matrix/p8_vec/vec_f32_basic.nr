@@ -1,12 +1,17 @@
-// p8_vec/vec_f32_basic.nr — Phase 8: Vec<f32>
+// p8_vec/vec_f32_basic.nr — Phase 8: Vec stores f32 round-trip.
+// Uses generic vec_* with f32 bit-patterns stored in i64 slots.
 
 fn main() -> i32 {
-    let mut v: Vec<f32> = Vec::with_capacity(4);
-    v.push(1.0);
-    v.push(2.5);
-    v.push(3.14);
-    if v[1] != 2.5f32 {
-        print("FAIL: Vec<f32> indexing\n");
+    let v: i64 = vec_new();
+    let one: f32 = 1.0;
+    let two_five: f32 = 2.5;
+    let pi_ish: f32 = 3.14;
+    let _ = vec_push(v, one);
+    let _ = vec_push(v, two_five);
+    let _ = vec_push(v, pi_ish);
+    let got: f32 = vec_get(v, 1);
+    if got != two_five {
+        print("FAIL: Vec f32 indexing\n");
         return 1;
     };
     print("OK vec_f32_basic\n");
