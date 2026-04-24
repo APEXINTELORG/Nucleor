@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.324] — 2026-04-24
+
+**Robotics: natural cubic spline interpolation through N
+waypoints (`cubicspline`). C² piecewise-cubic curve fitting
+for path smoothing, sensor calibration tables, and visualization.
+Two-call API: `fit` precomputes second-derivative table,
+`sample` queries the curve at any x.**
+
+### Algorithm
+
+```
+Numerical Recipes §3.3 / Press et al. natural cubic spline.
+
+fit(xs, ys, n) computes y2[] via tridiagonal solve with
+boundary y2[0] = y2[n-1] = 0 (zero curvature at endpoints).
+O(N) time.
+
+sample(xs, ys, y2, n, x):
+    binary search for klo such that xs[klo] <= x < xs[klo+1]
+    h = xs[khi] - xs[klo]
+    a = (xs[khi] - x) / h
+    b = (x - xs[klo]) / h
+    y = a·ys[klo] + b·ys[khi]
+      + ((a³−a)·y2[klo] + (b³−b)·y2[khi]) · h² / 6
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/cubicspline.nr"
+
+let _ = cubicspline_fit(xs_ptr, ys_ptr, N, y2_ptr);
+
+let y: double;
+let _ = cubicspline_sample(xs_ptr, ys_ptr, y2_ptr, N, x_b,
+                            f64_ptr(&y));
+```
+
+### Verification
+
+Direct C unit test (`target/_test_cubicspline.c`):
+
+- T1 linear data    : y=2x → spline exact at midpoint (5.0) ✓
+- T2 knot samples   : y(0)=3, y(1)=7, y(2)=11 ✓
+- T3 peak overshoot : (0,0)-(1,1)-(2,0) → y(0.5) > 0.5 ✓
+- T4 non-monotonic  : xs=[0,2,1] → returns 0 ✓
+- T5 bad n=1        : returns 0 ✓
+
+Build smoke `tests/rods/cubicspline_smoke.nr` compiles and
+links.
+
+### Files
+
+- `stdlib/runtime/cubicspline_rt.c` — fit (tridiagonal) + sample.
+- `stdlib/rods/cubicspline.nr` — extern + wrappers.
+- `tests/rods/cubicspline_smoke.nr` — build-only smoke.
+- `CHANGELOG.md` — this entry.
+
+### Limitations
+
+Documented in `cubicspline.nr` and `cubicspline_rt.c`: natural
+boundary only (y'' = 0 at endpoints); O(log N) sample via
+binary search; requires strictly increasing xs. Clamped /
+not-a-knot / monotone-Hermite boundary conditions land in
+v0.6 if needed.
+
 ## [0.2.323] — 2026-04-24
 
 **Robotics: trapezoidal velocity profile for point-to-point
