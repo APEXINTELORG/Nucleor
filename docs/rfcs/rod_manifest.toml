@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 152
-# Total fn definitions: 1723
-# Total LOC: 7436
+# Total rods: 153
+# Total fn definitions: 1724
+# Total LOC: 7452
 
 [[rod]]
 name           = "activation2"
@@ -991,6 +991,15 @@ function_count = 6
 cfile_count    = 0
 loc            = 37
 imports        = ["queue"]
+
+[[rod]]
+name           = "ransac"
+path           = "stdlib/rods/ransac.nr"
+description    = "RANSAC outlier-robust geometric fitting."
+function_count = 1
+cfile_count    = 1
+loc            = 16
+imports        = []
 
 [[rod]]
 name           = "regex"

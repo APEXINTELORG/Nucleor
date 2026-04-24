@@ -5,6 +5,76 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.231] — 2026-04-23
+
+**Robotics: RANSAC outlier-robust 3D plane fitting (Fischler &
+Bolles 1981 + PCA refit). Foundational perception primitive used
+throughout robotics: LiDAR ground-plane detection (segment ground
+from obstacles), depth-scan surface fitting (table tops, walls),
+point-cloud preprocessing for ICP (filter outliers before
+registration).**
+
+### Algorithm
+
+```
+1. Repeatedly sample 3 random points; fit a plane through them.
+2. Count inliers — points within `thresh` distance of the plane.
+3. After all trials, take the trial with the most inliers.
+4. Refit the final plane via PCA on those inliers (smallest-
+   eigenvalue eigenvector of the centered covariance is the
+   normal).
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/ransac.nr"
+
+// pts is double[N * 3]; plane_out is double[4] for (nx, ny, nz, d)
+// with n unit and plane: nx·x + ny·y + nz·z + d = 0.
+ransac_plane_3d(pts_ptr, n_pts,
+                n_trials,
+                inlier_thresh_b,
+                seed,
+                plane_out_ptr, inlier_count_out_ptr);
+```
+
+### Verification
+
+Synthetic z = 0.5 plane with 50 inlier points (uniformly in [-1, 1]²
+with 5 mm noise in z) + 10 outlier points scattered widely in z;
+threshold 0.05 m, 100 RANSAC trials:
+
+| Quantity | Expected | Got |
+|---|---|---|
+| Plane normal x-component | ≈ 0 | -0.000695 |
+| Plane normal y-component | ≈ 0 | -0.000990 |
+| Plane normal z-component | ±1 | **+0.999999** |
+| z-offset (-d/nz) | 0.5 | **0.499525** |
+| Inliers (out of 60) | 50 | **50** |
+
+Exactly 50 / 60 inliers — the 10 outliers were correctly rejected.
+Plane orientation within 0.06° of the true xy-plane.
+
+### Limitations (generic-callback RANSAC for line/sphere/transform
+fitting + adaptive trial-count via inlier ratio land in v0.6 if
+needed):
+
+- 3D plane only (other shapes added similarly later).
+- Fixed trial count (no early termination).
+- Final refit uses unweighted PCA on inliers.
+
+### Files
+
+- `stdlib/runtime/ransac_rt.c` — `nuc_ransac_plane_3d` plus
+  `_plane_from_3pts`, `_pt_to_plane_dist`, `_jacobi_3x3`
+  (3×3 symmetric eigendecomposition for PCA refit), `_refit_plane`.
+- `stdlib/rods/ransac.nr` — extern + `ransac_plane_3d` wrapper.
+- `tests/rods/ransac_smoke.nr` — build-only linkage smoke
+  (correctness covered by direct C synthetic-plane test).
+
+---
+
 ## [0.2.230] — 2026-04-23
 
 **Robotics: Stanley path-following controller (Hoffmann et al.
