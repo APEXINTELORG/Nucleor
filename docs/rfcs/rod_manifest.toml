@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 174
-# Total fn definitions: 1878
-# Total LOC: 8140
+# Total rods: 175
+# Total fn definitions: 1886
+# Total LOC: 8161
 
 [[rod]]
 name           = "activation2"
@@ -19,6 +19,15 @@ function_count = 13
 cfile_count    = 1
 loc            = 33
 imports        = []
+
+[[rod]]
+name           = "ahrs"
+path           = "stdlib/rods/ahrs.nr"
+description    = "Attitude & Heading Reference System via the"
+function_count = 8
+cfile_count    = 1
+loc            = 21
+imports        = ["ahrs"]
 
 [[rod]]
 name           = "allocator"

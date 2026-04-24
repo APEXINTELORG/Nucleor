@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.261] — 2026-04-24
+
+**Robotics: AHRS via Mahony quaternion complementary filter
+(`ahrs`). IMU orientation estimation — fuses gyro angular rates
+with accelerometer gravity vector to maintain a body→world
+quaternion. Mahony, Hamel & Pflimlin 2008.**
+
+### Algorithm
+
+Per IMU tick with gyro `ω` (rad/s) and accel `a` (gravity vector
+in body frame):
+
+```
+g_pred_body = qᵀ · (0, 0, 1)             // predicted up direction in body
+error       = g_pred_body × normalize(a)  // axis to rotate predicted into measured
+ω_corr      = ω + Kp · error + Ki · ∫ error dt
+q̇          = 0.5 · q · (0, ω_corr)
+q          ← (q + q̇ · dt) / ‖·‖
+```
+
+`Kp` is the proportional accel→tilt correction (typical 1.0).
+`Ki` accumulates the gyro-bias estimate (typical 0.0–0.1; `Ki = 0`
+disables bias estimation and reduces to a pure complementary
+filter).
+
+### Surface
+
+```nucleor
+import "stdlib/rods/ahrs.nr"
+
+let h = ahrs_new(Kp_b, Ki_b);
+for tick {
+    ahrs_update(h, gyro_ptr, accel_ptr, dt_b);
+    ahrs_get_orientation(h, q_out_ptr);
+    ahrs_get_euler(h, rpy_out_ptr);   // roll, pitch, yaw (rad)
+}
+// Pass 0 for accel_ptr to skip accel correction (e.g. during
+// high-acceleration maneuvers).
+```
+
+### Verification
+
+Three direct C tests:
+
+1. **Stationary IMU** (gyro = 0, accel = (0, 0, 1)) for 1000 ticks:
+   roll/pitch/yaw stayed at exactly 0 — no spurious drift.
+2. **Tilted IMU** with accel = `(sin θ, 0, cos θ)`, `θ = 0.3 rad`,
+   `Kp = 2.0`: converged to pitch = 0.300000 rad in 5000 ticks
+   (test accepts the gimbal-lock alias `roll=π, pitch=0.3, yaw=π`
+   which represents the same orientation).
+3. **Pure z-axis gyro** at `0.5 rad/s` for 2 s with accel correction
+   off: yaw = `1.000000 rad` exactly, matching `ω·T` to 6 digits.
+
+### Files
+
+- `stdlib/runtime/ahrs_rt.c` — `nuc_ahrs_*` API; quaternion mul/
+  normalize, Mahony PI loop, ZYX Euler readout.
+- `stdlib/rods/ahrs.nr` — externs + wrappers.
+- `tests/rods/ahrs_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.260] — 2026-04-24
 
 **Robotics: receding-horizon MPC wrapper (`mpc`) around iLQR.
