@@ -1,8 +1,28 @@
 # Compiler Memory Architecture Punchlist
 
-**Goal:** s1 self-host compile uses < 500 MB peak RSS (currently 19 GB).
-tools_suite < 1 GB peak RSS (currently ~30 GB).
+**Goal:** s1 self-host compile uses < 500 MB peak RSS (originally 19 GB).
+tools_suite < 1 GB peak RSS.
 Architectural fix, not patches.
+
+## Status as of v0.2.167 (2026-04-23 evening)
+
+- **s1 self-host: 67 MB tracked / ~100 MB peak RSS** (was 19 GB → **283× reduction**)
+- **Compile time: 5.2 s** (was 25 s → **5× speedup**)
+- **Gate budget: 100 MB enforced** (3 ratchets so far: 400 → 250 → 100 MB)
+- **Verify gate: 248/248 PASS** (was 245)
+
+## Items shipped this session
+
+- Ship 1 (v0.2.158): infrastructure + counters + format builtins + vec_free
+- Ship 2 part 1 (v0.2.159): str_eq_at — 52× memory drop (9.7 GB → 185 MB)
+- Ship 2 part 2 (v0.2.160): anti-pattern fully purged (13 cold-path conversions)
+- Ship 5 (v0.2.161): 400 MB peak-allocation budget gate
+- Polish (v0.2.162): SECURITY.md + README refresh
+- Ship 6 (v0.2.163): env-snapshot UAF bisected; type-pass frees safe
+- RFC-0029 (v0.2.164): str_intern builtin (identifier interner)
+- RFC-0030 phase 1 (v0.2.165): string arena (5 builtins)
+- RFC-0030 phase 2 (v0.2.166): SB initial cap 4096→256 (185→137 MB, -49 MB)
+- RFC-0030 phase 3 (v0.2.167): Vec initial cap 16→4 (137→67 MB, -70 MB)
 
 **Date started:** 2026-04-23
 **Repo:** `C:\Users\JoeWe\Desktop\Nucleor_OSS`

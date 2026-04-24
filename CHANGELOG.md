@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.168] — 2026-04-23
+
+**Documentation: `docs/memory-architecture.md` adds a complete
+case-study writeup of the v0.2.158-v0.2.167 memory work for new
+contributors. Linked from README.**
+
+The 10-ship memory effort cut s1 self-host RSS from 19 GB to
+67 MB (283× reduction) and added a gate-enforced 100 MB budget.
+Without a writeup, future contributors hitting a regression won't
+know which patterns to look for or why the budget exists.
+
+### `docs/memory-architecture.md`
+
+Sections:
+
+- Headline numbers (67 MB / 5.2 s self-host)
+- Architecture overview (single-pass pipeline)
+- Five key design decisions:
+  1. Per-category allocation tracing (`NUC_TRACE_ALLOC=1`)
+  2. Non-allocating prefix/positional probes (`str_starts_with`,
+     `str_eq_at`) — the 5,000× drop site
+  3. Structural allocator sizing (SB 4 KB → 256 B, Vec 16 → 4)
+  4. Identifier interner (`str_intern`) + string arena
+     (`str_arena_*`) as foundations for the next wave
+  5. Targeted lifetime fixes (env-snapshot vec_free, with the
+     UAF audit story)
+- How the gate enforces the budget + the failure-mode diagnostic
+- Cumulative reduction table (19 GB → 185 MB → 137 MB → 67 MB)
+- "How to investigate a regression" troubleshooting guide
+- "What's deferred" list cross-referencing
+  `MEMORY_FIX_PUNCHLIST.md`
+
+### README
+
+Added a one-line link to the memory-architecture doc in the
+"Documentation" section.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**248 / 248 PASS, 0 SKIP** (no test changes; doc-only ship).
+
 ## [0.2.167] — 2026-04-23
 
 **Vec initial capacity tuned: 16 → 4 elements drops vec_new

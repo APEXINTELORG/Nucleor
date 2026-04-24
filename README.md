@@ -133,6 +133,7 @@ or anything that accepts CSV.
 - [Rods and Runtime](docs/rods-and-runtime.md) — the rod catalog with one-liners for each one.
 - [Math and Physics](docs/math-and-physics.md) — worked examples across the scientific-computing rods.
 - [Architecture](docs/architecture.md) — pipeline (lex → parse → IR → algebraic-rewrite → LLVM → clang), the self-host bootstrap chain, the optimizer.
+- [Memory Architecture](docs/memory-architecture.md) — how the compiler keeps self-host RSS at 67 MB (down from 19 GB), the gate-enforced 100 MB allocation budget, and the diagnostic backbone (`NUC_TRACE_ALLOC`).
 - [Benchmarks](docs/benchmarks.md) — reproducible numbers from `nuc bench`.
 
 ## CLI quick reference
