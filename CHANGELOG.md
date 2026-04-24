@@ -5,6 +5,87 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.179] — 2026-04-24
+
+**Robotics: motion planner. New `rrt.nr` rod ships LaValle's
+RRT (Rapidly-exploring Random Tree). Closes the kinematics +
+collision + planning loop — the full motion-planner stack is
+now in the standard library.**
+
+Sixth robotics ship in this session arc:
+
+- v0.2.174 — kinematics (Vec3 / quat / Pose)
+- v0.2.175 — fk_chain (forward kinematics)
+- v0.2.176 — ik_dls (inverse kinematics)
+- v0.2.177 — trajectory (quintic polynomial)
+- v0.2.178 — collision (geometric primitives)
+- **v0.2.179 — rrt (motion planning)**
+
+RRT (LaValle 1998) builds a tree rooted at the start
+configuration in joint space, repeatedly sampling random
+configurations and extending the nearest tree node toward the
+sample by a small step. When any tree node is within step_size
+of the goal, success.
+
+The collision check is supplied by the caller as a function
+pointer — given a pointer to a `double[n_dim]` joint
+configuration, the user fn returns 1 if collision-free, 0 if
+in collision. This decouples RRT from any specific robot or
+world model — pair with the v0.2.178 `collision.nr` primitives
+or any custom check.
+
+10% goal-biased sampling for faster convergence near the goal.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/rrt.nr"
+
+let r = rrt_new(2, 42);          // 2-DOF, seed 42
+rrt_set_bounds(r, 0, lo_bits, hi_bits);  // per-dim sampling bounds
+rrt_set_root(r, start_config_ptr);       // root = start config
+let ok = rrt_plan(
+    r, goal_config_ptr,
+    1000,                         // max_iters
+    f64_to_bits(0.1),             // step size
+    coll_callback_fp              // user collision-check fn pointer
+);
+if ok == 1 {
+    let n = rrt_path_len(r);
+    // read back path: rrt_path_at(r, i, dim) for i in 0..n
+};
+rrt_free(r);
+```
+
+### Files
+
+- `stdlib/runtime/rrt_rt.c`: ~210 LOC. xorshift32 RNG (no
+  external dependency), goal-biased sampling, parent-array
+  tree, path reconstruction by walking parents from goal node.
+  Auto-grows the tree's config + parent arrays.
+- `stdlib/rods/rrt.nr`: 8 builtins.
+- `tests/rods/rrt_smoke.nr`: build-only smoke (full planning
+  test needs callback function pointer + double[] vars).
+
+### v0.5 follow-on
+
+- **RRT-Connect** — bidirectional tree, faster convergence on
+  hard problems
+- **RRT*** — asymptotically optimal (path quality improves
+  with more samples)
+- **PRM** (Probabilistic Roadmap) — multi-query planner
+- **Path shortcutting / smoothing** — post-process the raw
+  RRT output to remove unnecessary detours
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**256 / 256 PASS, 0 SKIP** (was 255/255; +1 new smoke test).
+Both budgets hold.
+
 ## [0.2.178] — 2026-04-24
 
 **Robotics: collision primitives. New `collision.nr` rod ships
