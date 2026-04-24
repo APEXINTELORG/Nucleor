@@ -184,6 +184,37 @@ long long nuc_occgrid_width(long long h)  { NOCC *p = (NOCC *)(void *)(size_t)h;
 long long nuc_occgrid_height(long long h) { NOCC *p = (NOCC *)(void *)(size_t)h; return p ? (long long)p->H : 0; }
 long long nuc_occgrid_cell_size(long long h) { NOCC *p = (NOCC *)(void *)(size_t)h; return p ? _f2i(p->cell_size) : _f2i(0.0); }
 
+// === LiDAR full-scan update (v0.2.292) ===
+//
+// Convenience wrapper around `nuc_occgrid_update_ray` that applies
+// every beam of a scan in a single call.
+//
+// Sensor pose: (sx, sy) world position + `stheta` world heading.
+// `bearings_ptr` is `double[n_beams]` of per-beam sensor-frame
+// bearings (rad); `ranges_ptr` is `double[n_beams]` of measured
+// ranges. Each beam's world-frame bearing is
+// `stheta + bearings[i]`. Each beam is fed to `_update_ray` with
+// the shared `(l_free, l_occ, max_range)` parameters.
+void nuc_occgrid_update_scan(long long h,
+    long long sx_b, long long sy_b, long long stheta_b,
+    long long bearings_ptr, long long ranges_ptr, long long n_beams_,
+    long long l_free_b, long long l_occ_b, long long max_range_b)
+{
+    NOCC *p = (NOCC *)(void *)(size_t)h;
+    if (!p) return;
+    int n = (int)n_beams_;
+    const double *bearings = (const double *)(void *)(size_t)bearings_ptr;
+    const double *ranges   = (const double *)(void *)(size_t)ranges_ptr;
+    if (!bearings || !ranges) return;
+    double stheta = _i2f(stheta_b);
+    for (int i = 0; i < n; i++) {
+        double world_bearing = stheta + bearings[i];
+        nuc_occgrid_update_ray(h, sx_b, sy_b,
+            _f2i(ranges[i]), _f2i(world_bearing),
+            l_free_b, l_occ_b, max_range_b);
+    }
+}
+
 // === Frontier detection (v0.2.290) ===
 //
 // A frontier cell is a "free" cell (log-odds < free_thresh) that
