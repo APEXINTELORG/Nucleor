@@ -46,6 +46,20 @@ extern fn nuc_dyn_set_gravity(h: i64, gx_b: i64, gy_b: i64, gz_b: i64);
 extern fn nuc_dyn_inverse(h: i64,
     q_ptr: i64, qd_ptr: i64, qdd_ptr: i64, tau_out_ptr: i64) -> i64;
 extern fn nuc_dyn_gravity(h: i64, q_ptr: i64, tau_out_ptr: i64) -> i64;
+
+// Mass matrix M(q) extraction (v0.2.211). Computes the joint-space
+// mass matrix at the given configuration q via n+1 RNEA calls
+// (gravity bias + one column per joint). `out_M_ptr` is a caller-
+// allocated `double[n*n]` row-major buffer.
+extern fn nuc_dyn_mass_matrix(h: i64, q_ptr: i64, out_M_ptr: i64) -> i64;
+
+// Forward dynamics (v0.2.211): given torques, compute resulting
+// joint accelerations via qdd = M⁻¹·(tau − C·qd − g). Internally
+// runs RNEA for the bias term, computes M via `nuc_dyn_mass_matrix`,
+// inverts it via Gauss-Jordan. Returns -1 if M is singular.
+extern fn nuc_dyn_forward(h: i64,
+    q_ptr: i64, qd_ptr: i64, tau_ptr: i64, qdd_out_ptr: i64) -> i64;
+
 extern fn nuc_dyn_free(h: i64);
 
 // Create a dynamics solver bound to an existing FK chain handle.
@@ -91,6 +105,15 @@ fn dyn_inverse(h: i64,
 // without inducing motion.
 fn dyn_gravity(h: i64, q_ptr: i64, tau_out_ptr: i64) -> i64 {
     return nuc_dyn_gravity(h, q_ptr, tau_out_ptr);
+}
+
+fn dyn_mass_matrix(h: i64, q_ptr: i64, out_M_ptr: i64) -> i64 {
+    return nuc_dyn_mass_matrix(h, q_ptr, out_M_ptr);
+}
+
+fn dyn_forward(h: i64,
+    q_ptr: i64, qd_ptr: i64, tau_ptr: i64, qdd_out_ptr: i64) -> i64 {
+    return nuc_dyn_forward(h, q_ptr, qd_ptr, tau_ptr, qdd_out_ptr);
 }
 
 fn dyn_free(h: i64) { nuc_dyn_free(h); }

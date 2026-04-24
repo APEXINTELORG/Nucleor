@@ -5,6 +5,84 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.211] — 2026-04-23
+
+**Robotics: mass matrix `M(q)` extraction and forward dynamics —
+the second half of the dynamics rod started in v0.2.207. Inverse
+dynamics ("given motion, compute torques") was the foundation;
+this ship adds the inverse direction ("given torques, compute
+motion") plus the explicit `M(q)` matrix that's foundational for
+impedance/admittance control, operational-space control, and
+kinetic-energy analysis.**
+
+Together v0.2.207 + v0.2.211 give Nucleor's dynamics rod the
+complete model-based control surface: inverse, forward, mass
+matrix, gravity compensation. Round-trip (inverse → forward)
+recovers the original `qdd` to machine precision, and `M(q)`
+comes out perfectly symmetric (asymmetry below `1e-15`).
+
+### Surface
+
+```nucleor
+import "stdlib/rods/dynamics.nr"
+
+// Inverse: given motion, compute torques (v0.2.207).
+dyn_inverse(dyn, q_ptr, qd_ptr, qdd_ptr, tau_out_ptr);
+
+// Forward: given torques, compute resulting joint accelerations
+//   qdd = M(q)^{-1} · (tau - C(q,qd)·qd - g(q))
+dyn_forward(dyn, q_ptr, qd_ptr, tau_ptr, qdd_out_ptr);
+
+// Explicit mass matrix (row-major n*n buffer).
+dyn_mass_matrix(dyn, q_ptr, M_out_ptr);
+```
+
+### Implementation notes
+
+- **Mass matrix** via `n+1` RNEA calls: gravity bias + one column
+  per joint, using `M[:, i] = RNEA(q, 0, e_i) − g(q)`. Slower
+  than the composite-rigid-body algorithm but much simpler to
+  implement correctly. For `n ≤ 20` the constant factor is fine.
+- **Forward dynamics**: one RNEA call to compute the bias
+  `C(q, qd)·qd + g(q)` (with `qdd_input = 0`), then `M(q)^{-1}` via
+  Gauss-Jordan on an `n×2n` augmented matrix.
+
+### RNEA correctness fix (also v0.2.211)
+
+The v0.2.207 forward-pass for revolute joints was using the
+*child's* angular state (`ω_i`, `ω̇_i`) when propagating the
+linear acceleration of the link's frame ORIGIN — but that origin
+is a point fixed on the *parent* body (the joint pivots about it
+without moving it). Using the child's angular state double-
+counts the joint's rotational contribution and breaks the
+symmetry of `M(q)`. Fixed to use the parent's `ω`, `ω̇`. The
+pendulum gravity-torque test from v0.2.207 still matches the
+analytical answer exactly (`m·g·L·cos(q)` across `q ∈ {0, π/2, π}`),
+so this is a pure correctness improvement that didn't regress the
+gravity-only path.
+
+### Verification
+
+3-DOF planar arm with mass 1.5 kg / link, CoM at 0.5 m, diagonal
+inertia 0.05:
+
+| Quantity | Result |
+|---|---|
+| Inverse → forward round-trip error | `2.84e-14` (machine precision) |
+| Mass matrix asymmetry `‖M − Mᵀ‖` | `1.11e-15` (machine precision) |
+| Pendulum gravity at `q=0` | `+19.62` (analytical: `+19.62`) |
+| Pendulum gravity at `q=π/2` | `0.00` (analytical: `0`) |
+
+### Files
+
+- `stdlib/runtime/dynamics_rt.c` — RNEA forward-pass fix for
+  revolute joints; new `nuc_dyn_mass_matrix`, `nuc_dyn_forward`,
+  internal `_gj_invert` Gauss-Jordan helper.
+- `stdlib/rods/dynamics.nr` — externs + `dyn_mass_matrix` /
+  `dyn_forward` Nucleor wrappers.
+
+---
+
 ## [0.2.210] — 2026-04-23
 
 **Robotics: task-priority IK with nullspace posture preference for
