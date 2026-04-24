@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 210
-# Total fn definitions: 2068
-# Total LOC: 9025
+# Total rods: 211
+# Total fn definitions: 2070
+# Total LOC: 9043
 
 [[rod]]
 name           = "activation2"
@@ -442,6 +442,15 @@ function_count = 2
 cfile_count    = 1
 loc            = 33
 imports        = []
+
+[[rod]]
+name           = "delaunay"
+path           = "stdlib/rods/delaunay.nr"
+description    = "2-D Delaunay triangulation + circumcenter helper."
+function_count = 2
+cfile_count    = 1
+loc            = 18
+imports        = ["delaunay"]
 
 [[rod]]
 name           = "diff_sim"
