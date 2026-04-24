@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.241] — 2026-04-23
+
+**Robotics: artificial potential field (Khatib 1986). Simplest
+reactive controller — attractive force to goal + repulsive force
+from obstacles. Common baseline alongside DWA / pure pursuit.
+Closes the reactive controller suite.**
+
+### Algorithm
+
+```
+F_att(q) = −k_att · (q − q_goal)
+F_rep(q) = Σ over obstacles within d_max:
+             k_rep · (1/d − 1/d_max) · (1/d²) · (q − q_obs)/|q − q_obs|
+
+F_total = F_att + F_rep        → direction of motion
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/apf.nr"
+
+// Compute the raw force at the robot's pose:
+apf_force_2d(x, y, gx, gy, obs_ptr, n_obs,
+             k_att, k_rep, d_max, F_out_ptr);
+
+// Or step the robot by v·dt along the (normalized) force:
+apf_step_2d(x, y, gx, gy, obs_ptr, n_obs,
+            k_att, k_rep, d_max, v, dt,
+            x_out_ptr, y_out_ptr);
+```
+
+### Verification
+
+Robot starts at (0, 0.01), goal at (5, 0), obstacle at (2.5, 0)
+blocking the straight path. APF correctly detours upward to
+y ≈ 0.83 to avoid the obstacle, then returns toward the goal:
+
+| Step | Position | d_obs | d_goal |
+|---|---|---|---|
+| 0 | (0.025, +0.010) | 2.475 | 4.975 |
+| 60 | (1.525, +0.007) | 0.975 | 3.475 (repulsion engaging) |
+| 120 | (2.539, +0.794) | 0.795 | 2.586 (apex of detour) |
+| 180 | (3.977, +0.517) | 1.564 | 1.146 (returning to goal line) |
+| 200 | (4.401, +0.303) | 1.910 | 0.667 (close to goal) |
+
+The classic APF detour pattern — smooth, monotonic obstacle
+avoidance.
+
+### Limitations (Vector Field Histogram, Navigation Functions
+land in v0.6 if needed):
+
+- 2D only.
+- Caller supplies obstacle list as point obstacles.
+- No local-minimum escape — gets stuck in concave obstacles facing
+  the goal. Use DWA or a planner for those.
+
+### Files
+
+- `stdlib/runtime/apf_rt.c` — `nuc_apf_force_2d`,
+  `nuc_apf_step_2d`.
+- `stdlib/rods/apf.nr` — externs + Nucleor wrappers.
+
+---
+
 ## [0.2.240] — 2026-04-23
 
 **Robotics: Dynamic Window Approach (Fox, Burgard & Thrun 1997)
