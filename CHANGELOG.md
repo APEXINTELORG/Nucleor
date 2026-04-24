@@ -5,6 +5,78 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.233] — 2026-04-23
+
+**Robotics: Perspective-n-Point camera pose estimation. Given N
+known 3D points and their observed 2D pixel projections plus the
+camera intrinsics, find the camera pose (R, t) that minimizes
+reprojection error. Foundation for object pose estimation
+(against a known CAD-model point cloud), visual odometry
+(track 3D landmarks across frames), AR markers / fiducials
+(estimate camera pose from corner pixels), and hand-eye
+calibration target tracking.**
+
+### Algorithm
+
+Iterative Gauss-Newton on reprojection error. Pose increment is
+SE(3) `(δω, δt)`; each iteration linearizes around the current
+pose, solves the 6×6 normal equations, and applies the
+left-perturbed update:
+
+```
+R ← exp(δω) · R          (Rodrigues rotation)
+t ← exp(δω) · t + δt
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/pnp.nr"
+
+// pts3d is double[N*3], pts2d is double[N*2]; R is double[9]
+// row-major and t is double[3], both holding initial guess on
+// entry and refined pose on exit.
+pnp_solve(pts3d_ptr, pts2d_ptr, n_pts,
+          fx_b, fy_b, cx_b, cy_b,
+          max_iters,
+          R_inout_ptr, t_inout_ptr);
+
+let rms = pnp_reprojection_rms(...);   // diagnostic (pixels)
+```
+
+### Verification
+
+8 cube-corner 3D points projected through a synthetic camera
+(fx=fy=500, cx=cy=320, true pose: 15° about y-axis + translation
+(0.1, 0.05, 1.5)). Initial guess: identity rotation + translation
+(0, 0, 1):
+
+| Quantity | Value |
+|---|---|
+| Iterations to converge | **6** |
+| Max element-wise R error | **1.2e-14** |
+| Translation error norm | **1.9e-14** |
+| Reprojection RMS | **6.3e-12 px** (machine epsilon) |
+
+### Limitations (closed-form EPnP / P3P initialization, RANSAC-
+based outlier rejection land in v0.6 if needed):
+
+- Iterative-only — caller supplies initial guess. Identity pose
+  works for typical setups.
+- No outlier rejection (use `ransac.nr` upstream if needed).
+- Pinhole intrinsics only (no distortion).
+
+### Files
+
+- `stdlib/runtime/pnp_rt.c` — `nuc_pnp_solve`,
+  `nuc_pnp_reprojection_rms`, plus `_rodrigues`, `_mat3_mul`,
+  `_mat3_vec`, `_gj_inv_6` helpers.
+- `stdlib/rods/pnp.nr` — externs + Nucleor wrappers.
+- `tests/rods/pnp_smoke.nr` — build-only linkage smoke
+  (correctness covered by direct C synthetic-camera test).
+
+---
+
 ## [0.2.232] — 2026-04-23
 
 **Robotics: hand-eye calibration — solve `AX = XB` for the unknown

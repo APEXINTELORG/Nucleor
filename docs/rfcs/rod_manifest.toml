@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 154
-# Total fn definitions: 1725
-# Total LOC: 7468
+# Total rods: 155
+# Total fn definitions: 1727
+# Total LOC: 7494
 
 [[rod]]
 name           = "activation2"
@@ -910,6 +910,15 @@ function_count = 12
 cfile_count    = 1
 loc            = 31
 imports        = ["plot"]
+
+[[rod]]
+name           = "pnp"
+path           = "stdlib/rods/pnp.nr"
+description    = "Perspective-n-Point camera pose estimation."
+function_count = 2
+cfile_count    = 1
+loc            = 26
+imports        = []
 
 [[rod]]
 name           = "pq"
