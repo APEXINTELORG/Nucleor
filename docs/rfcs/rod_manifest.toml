@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 161
-# Total fn definitions: 1765
-# Total LOC: 7697
+# Total fn definitions: 1766
+# Total LOC: 7705
 
 [[rod]]
 name           = "activation2"
@@ -258,9 +258,9 @@ imports        = ["collections"]
 name           = "collision"
 path           = "stdlib/rods/collision.nr"
 description    = "Geometric collision primitives for robotics."
-function_count = 14
+function_count = 15
 cfile_count    = 1
-loc            = 156
+loc            = 164
 imports        = []
 
 [[rod]]
