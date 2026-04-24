@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.265] — 2026-04-24
+
+**Robotics: quaternion utilities (`qutil`) on raw `double[4]`
+buffers. Complement to `kinematics.nr`'s allocated-handle Quat;
+this rod takes pointers directly so inner loops (controllers,
+trajectory interpolation) can avoid per-call allocation.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/qutil.nr"
+
+qutil_slerp(q1_ptr, q2_ptr, t_b, q_out_ptr);     // Shoemake SLERP
+qutil_squad(p_ptr, a_ptr, b_ptr, q_ptr, t_b, q_out_ptr);  // smooth interp
+
+qutil_log(q_ptr, omega_out_ptr);                  // unit quat → axis-angle
+qutil_exp(omega_ptr, q_out_ptr);                  // axis-angle → unit quat
+
+qutil_from_axis_angle(axis_ptr, angle_b, q_out_ptr);
+let angle_b = qutil_to_axis_angle(q_ptr, axis_out_ptr);
+
+qutil_from_euler(roll_b, pitch_b, yaw_b, q_out_ptr);
+qutil_to_euler(q_ptr, rpy_out_ptr);
+
+qutil_relative(q1_ptr, q2_ptr, q12_out_ptr);     // q12 = q1⁻¹ · q2
+let dist_b = qutil_angular_distance(q1_ptr, q2_ptr);  // radians ∈ [0, π]
+```
+
+SLERP picks the shorter arc by flipping `q2` when needed and
+falls back to lerp+normalize within `1.8°` (cos > 0.9995) to
+avoid div-by-tiny-sin.
+
+### Verification
+
+Five direct C tests:
+
+1. **SLERP** identity↔180°z at `t = 0, 1, 0.5` recovers identity,
+   180°z, and exact 90°z (`(cos45, 0, 0, sin45)`).
+2. **log/exp roundtrip**: `(0.1, 0.3, −0.2)` → quaternion → log →
+   identical input to 9 decimals.
+3. **Axis-angle**: build from `(y, π/3)`, decode to `(y, π/3)` exact.
+4. **Euler ZYX**: yaw = `π/2` → `(cos45, 0, 0, sin45)` exact;
+   decoding recovers `(0, 0, π/2)` exact.
+5. **Relative + distance**: `q⁻¹·q = identity`, `d(q, q) = 0`,
+   `d(identity, 90°z) = π/2` exact.
+
+### Files
+
+- `stdlib/runtime/qutil_rt.c` — `nuc_qutil_*` API.
+- `stdlib/rods/qutil.nr` — externs + wrappers.
+- `tests/rods/qutil_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.264] — 2026-04-24
 
 **Robotics: hierarchical (strict-priority) whole-body controller
