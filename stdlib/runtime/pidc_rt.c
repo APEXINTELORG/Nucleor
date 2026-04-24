@@ -1,4 +1,6 @@
-// pid_rt.c — Classic PID controller with anti-windup.
+// pidc_rt.c — Classic PID controller with anti-windup. The
+// "c" suffix avoids C-symbol collision with `control_rt.c`'s
+// simpler `nuc_pid_*` functions.
 //
 //   u(t) = Kp · e(t)  +  Ki · ∫₀^t e(τ) dτ  +  Kd · de/dt
 //
@@ -44,7 +46,7 @@ typedef struct {
     double u_lo, u_hi;
 } NPID;
 
-long long nuc_pid_new(long long kp_b, long long ki_b, long long kd_b) {
+long long nuc_pidc_new(long long kp_b, long long ki_b, long long kd_b) {
     NPID *p = (NPID *)calloc(1, sizeof(NPID));
     p->kp = _i2f(kp_b);
     p->ki = _i2f(ki_b);
@@ -57,7 +59,7 @@ long long nuc_pid_new(long long kp_b, long long ki_b, long long kd_b) {
     return (long long)(size_t)p;
 }
 
-void nuc_pid_set_gains(long long h, long long kp_b, long long ki_b, long long kd_b) {
+void nuc_pidc_set_gains(long long h, long long kp_b, long long ki_b, long long kd_b) {
     NPID *p = (NPID *)(void *)(size_t)h;
     if (!p) return;
     p->kp = _i2f(kp_b);
@@ -65,7 +67,7 @@ void nuc_pid_set_gains(long long h, long long kp_b, long long ki_b, long long kd
     p->kd = _i2f(kd_b);
 }
 
-void nuc_pid_set_integral_clamp(long long h, long long lo_b, long long hi_b) {
+void nuc_pidc_set_integral_clamp(long long h, long long lo_b, long long hi_b) {
     NPID *p = (NPID *)(void *)(size_t)h;
     if (!p) return;
     double lo = _i2f(lo_b), hi = _i2f(hi_b);
@@ -73,7 +75,7 @@ void nuc_pid_set_integral_clamp(long long h, long long lo_b, long long hi_b) {
     p->i_lo = lo; p->i_hi = hi;
 }
 
-void nuc_pid_set_output_clamp(long long h, long long lo_b, long long hi_b) {
+void nuc_pidc_set_output_clamp(long long h, long long lo_b, long long hi_b) {
     NPID *p = (NPID *)(void *)(size_t)h;
     if (!p) return;
     double lo = _i2f(lo_b), hi = _i2f(hi_b);
@@ -81,7 +83,7 @@ void nuc_pid_set_output_clamp(long long h, long long lo_b, long long hi_b) {
     p->u_lo = lo; p->u_hi = hi;
 }
 
-void nuc_pid_reset(long long h) {
+void nuc_pidc_reset(long long h) {
     NPID *p = (NPID *)(void *)(size_t)h;
     if (!p) return;
     p->integral = 0;
@@ -89,7 +91,7 @@ void nuc_pid_reset(long long h) {
     p->has_last = 0;
 }
 
-long long nuc_pid_step(long long h, long long setpoint_b, long long meas_b, long long dt_b) {
+long long nuc_pidc_step(long long h, long long setpoint_b, long long meas_b, long long dt_b) {
     NPID *p = (NPID *)(void *)(size_t)h;
     if (!p) return _f2i(0.0);
     double dt = _i2f(dt_b);
@@ -111,19 +113,19 @@ long long nuc_pid_step(long long h, long long setpoint_b, long long meas_b, long
     return _f2i(u);
 }
 
-long long nuc_pid_integral(long long h) {
+long long nuc_pidc_integral(long long h) {
     NPID *p = (NPID *)(void *)(size_t)h;
     if (!p) return _f2i(0.0);
     return _f2i(p->integral);
 }
 
-long long nuc_pid_last_error(long long h) {
+long long nuc_pidc_last_error(long long h) {
     NPID *p = (NPID *)(void *)(size_t)h;
     if (!p) return _f2i(0.0);
     return _f2i(p->last_error);
 }
 
-void nuc_pid_free(long long h) {
+void nuc_pidc_free(long long h) {
     NPID *p = (NPID *)(void *)(size_t)h;
     if (!p) return;
     free(p);

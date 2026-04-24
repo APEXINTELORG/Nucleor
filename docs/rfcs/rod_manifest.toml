@@ -1011,9 +1011,9 @@ loc            = 45
 imports        = ["physics"]
 
 [[rod]]
-name           = "pid"
-path           = "stdlib/rods/pid.nr"
-description    = "Classic PID controller with anti-windup."
+name           = "pidc"
+path           = "stdlib/rods/pidc.nr"
+description    = "Classic PID controller with anti-windup integral"
 function_count = 9
 cfile_count    = 1
 loc            = 29

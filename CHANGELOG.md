@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.259] — 2026-04-24
+
+**Fix: rename v0.2.257's `pid` rod to `pidc`. The new rod's
+`nuc_pid_*` C functions collided with the simpler PID exposed by
+the older `control.nr` (its `nuc_pid_new` / `nuc_pid_update` /
+`nuc_pid_reset`); importing both rods would fail at link time.**
+
+The new rod's user-facing surface is `pidc_new`, `pidc_set_gains`,
+`pidc_set_integral_clamp`, `pidc_set_output_clamp`, `pidc_reset`,
+`pidc_step`, `pidc_integral`, `pidc_last_error`, `pidc_free`. The
+"c" suffix denotes the **clamping** PID (the older one in
+`control.nr` lacks anti-windup + output clamps). Behavior is
+unchanged from v0.2.257 — only the names moved.
+
+### Verification
+
+A two-import smoke (`import "stdlib/rods/control.nr"` and
+`import "stdlib/rods/pidc.nr"`) builds + links cleanly,
+confirming the symbol clash is gone.
+
+### Files
+
+- Renamed `stdlib/runtime/pid_rt.c` → `stdlib/runtime/pidc_rt.c`
+  with all `nuc_pid_*` → `nuc_pidc_*`.
+- Renamed `stdlib/rods/pid.nr` → `stdlib/rods/pidc.nr` with all
+  `pid_*` → `pidc_*`.
+- Renamed `tests/rods/pid_smoke.nr` → `tests/rods/pidc_smoke.nr`.
+
+---
+
 ## [0.2.258] — 2026-04-24
 
 **Robotics: discrete infinite-horizon LQR (`lqr`) via Riccati
