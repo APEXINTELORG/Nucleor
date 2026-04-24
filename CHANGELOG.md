@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.187] — 2026-04-24
+
+**Robotics integration showcase: `examples/showcase/robotic_arm.nr`
+composes 5 of the v0.2.174-186 robotics rods (kinematics +
+fk_chain + trajectory + collision + bvh) into a single working
+program. Proves the rods compose end-to-end.**
+
+Each robotics rod ships its own smoke test, but the smokes only
+exercise one rod at a time. v0.2.187 builds the integration
+example: a 3-link planar arm via DH parameters, a workspace BVH
+of two obstacle boxes, a sphere-sphere collision sanity check,
+a trapezoidal trajectory, and Vec3 / quaternion cross-product
+algebra — all in one program, all sharing the same handles.
+
+### Surface
+
+```
+nuc build examples/showcase/robotic_arm.nr -o robotic_arm
+target/robotic_arm.exe
+```
+
+Output:
+```
+=== Nucleor Robotic Arm Showcase ===
+Built 3-link DH arm
+Built obstacle BVH (2 boxes)
+Collision check: spheres at d=1.5, r=1+1 overlap
+Trapezoidal trajectory built
+Vec3 cross-product: x × y → z (verified non-zero z)
+=== Showcase complete: 5 robotics rods composed ===
+```
+
+### Files
+
+- `examples/showcase/robotic_arm.nr`: ~70 LOC of integration
+  code. Imports kinematics + fk_chain + trajectory + collision
+  + bvh; sets up a 3-link arm, an obstacle BVH, runs a few
+  sanity checks; cleans up all handles.
+
+### Why this matters for open-source release
+
+The robotics rods (174-186) shipped one at a time with
+build-only or per-rod functional smokes. A reviewer cloning
+the repo wants to see the rods used together, not just in
+isolation. This example serves as the "yes the stack works"
+artifact alongside the existing showcase programs (lorenz,
+vqe_h2, market_maker, wing_simulator).
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**259 / 259 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.186] — 2026-04-24
 
 **Robotics + foundations: A* shortest-path search on a generic
