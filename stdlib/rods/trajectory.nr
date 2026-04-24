@@ -188,3 +188,36 @@ fn topp_path_velocity(h: i64, i: i64) -> i64 {
 
 fn topp_waypoint_count(h: i64) -> i64 { return nuc_topp_waypoint_count(h); }
 fn topp_free(h: i64) { nuc_topp_free(h); }
+
+// === Catmull-Rom spline (v0.2.237) ===
+//
+// C¹ interpolating spline through arbitrary waypoints. Standard
+// smoothing primitive: pass through every waypoint exactly, with
+// continuous tangent across waypoint boundaries. Common workflow:
+// run RRT/PRM to get a discrete path → smooth with Catmull-Rom →
+// time-parameterize with TOPP.
+//
+// Workflow:
+//   let cr = catmull_new(n_dim);
+//   for each waypoint: catmull_add_waypoint(cr, q_ptr);
+//   // Sample at parameter s ∈ [0, n_pts - 1]:
+//   catmull_eval(cr, s_b, q_out_ptr);
+extern fn nuc_catmull_new(n_dim: i64) -> i64;
+extern fn nuc_catmull_add_waypoint(h: i64, q_ptr: i64) -> i64;
+extern fn nuc_catmull_waypoint_count(h: i64) -> i64;
+extern fn nuc_catmull_eval(h: i64, s_b: i64, q_out_ptr: i64) -> i64;
+extern fn nuc_catmull_free(h: i64);
+
+fn catmull_new(n_dim: i64) -> i64 { return nuc_catmull_new(n_dim); }
+fn catmull_add_waypoint(h: i64, q_ptr: i64) -> i64 {
+    return nuc_catmull_add_waypoint(h, q_ptr);
+}
+fn catmull_waypoint_count(h: i64) -> i64 { return nuc_catmull_waypoint_count(h); }
+
+// Evaluate spline at parameter s (0 to n_pts - 1). Writes n_dim
+// doubles to q_out_ptr. Returns 0 on success, -1 on bad input.
+fn catmull_eval(h: i64, s_b: i64, q_out_ptr: i64) -> i64 {
+    return nuc_catmull_eval(h, s_b, q_out_ptr);
+}
+
+fn catmull_free(h: i64) { nuc_catmull_free(h); }
