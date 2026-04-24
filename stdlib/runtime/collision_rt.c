@@ -110,6 +110,46 @@ static double _segment_segment_dist2(double a1x, double a1y, double a1z,
     return dx*dx + dy*dy + dz*dz;
 }
 
+// ---- Sphere-OBB (v0.2.197) ----
+//
+// Oriented bounding box: center + half-extents (hx, hy, hz) +
+// orientation quaternion (qw, qx, qy, qz). Transform the sphere
+// center into the OBB's local frame (inverse-rotate), then
+// perform a sphere-AABB check against the half-extents.
+//
+// Conjugate of a unit quaternion is its inverse.
+long long nuc_coll_sphere_obb(
+    long long sx, long long sy, long long sz, long long sr,
+    long long cx, long long cy, long long cz,
+    long long hx, long long hy, long long hz,
+    long long qw, long long qx, long long qy, long long qz)
+{
+    // Translate sphere center to OBB-local origin.
+    double px = _i2f(sx) - _i2f(cx);
+    double py = _i2f(sy) - _i2f(cy);
+    double pz = _i2f(sz) - _i2f(cz);
+    // Rotate (px, py, pz) by conj(q) into the OBB's local axis-
+    // aligned frame: p_local = conj(q) · p_world · q.
+    double qWv = _i2f(qw), qXv = _i2f(qx), qYv = _i2f(qy), qZv = _i2f(qz);
+    // r = conj(q) · p   where conj(q) = (qW, -qX, -qY, -qZ).
+    double rw = qXv*px + qYv*py + qZv*pz;
+    double rx = qWv*px - qYv*pz + qZv*py;
+    double ry = qWv*py + qXv*pz - qZv*px;
+    double rz = qWv*pz - qXv*py + qYv*px;
+    // out = r · q.
+    double lx = rw*qXv + rx*qWv + ry*qZv - rz*qYv;
+    double ly = rw*qYv - rx*qZv + ry*qWv + rz*qXv;
+    double lz = rw*qZv + rx*qYv - ry*qXv + rz*qWv;
+    // Clamp to the OBB's half-extents in local frame.
+    double H[3] = { _i2f(hx), _i2f(hy), _i2f(hz) };
+    double clx = lx < -H[0] ? -H[0] : (lx > H[0] ? H[0] : lx);
+    double cly = ly < -H[1] ? -H[1] : (ly > H[1] ? H[1] : ly);
+    double clz = lz < -H[2] ? -H[2] : (lz > H[2] ? H[2] : lz);
+    double ddx = lx - clx, ddy = ly - cly, ddz = lz - clz;
+    double r = _i2f(sr);
+    return (ddx*ddx + ddy*ddy + ddz*ddz <= r*r) ? 1 : 0;
+}
+
 // ---- CCD: swept sphere-sphere (v0.2.196) ----
 //
 // A moving sphere from (a0, ar) to (a1, ar) sweeps a capsule.

@@ -39,6 +39,16 @@ extern fn nuc_coll_capsule_capsule(
 // Returns 1 (overlap), 0 (clear), or -1 if convergence failed.
 extern fn nuc_coll_gjk(support_a_fp: i64, support_b_fp: i64) -> i64;
 
+// Sphere-OBB cross-pair (v0.2.197). Oriented bounding box has
+// center, half-extents, and orientation quaternion. The sphere
+// center is rotated into the OBB's local frame, then the standard
+// sphere-AABB clamp test runs against the half-extents.
+extern fn nuc_coll_sphere_obb(
+    sx: i64, sy: i64, sz: i64, sr: i64,
+    cx: i64, cy: i64, cz: i64,
+    hx: i64, hy: i64, hz: i64,
+    qw: i64, qx: i64, qy: i64, qz: i64) -> i64;
+
 // CCD: continuous sphere-sphere (v0.2.196). Two moving spheres
 // from (a0, ar) → (a1, ar) and (b0, br) → (b1, br) over a unit
 // time interval. Returns the earliest collision time t ∈ [0, 1]
@@ -95,6 +105,14 @@ fn coll_capsule_capsule(
 
 fn coll_gjk(support_a_fp: i64, support_b_fp: i64) -> i64 {
     return nuc_coll_gjk(support_a_fp, support_b_fp);
+}
+
+fn coll_sphere_obb(
+    sx: i64, sy: i64, sz: i64, sr: i64,
+    cx: i64, cy: i64, cz: i64,
+    hx: i64, hy: i64, hz: i64,
+    qw: i64, qx: i64, qy: i64, qz: i64) -> i64 {
+    return nuc_coll_sphere_obb(sx, sy, sz, sr, cx, cy, cz, hx, hy, hz, qw, qx, qy, qz);
 }
 
 fn coll_ccd_sphere_sphere(

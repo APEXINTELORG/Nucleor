@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.197] — 2026-04-24
+
+**Robotics: sphere-OBB (Oriented Bounding Box) cross-pair.
+Closes the v0.5 collision-pair matrix.**
+
+OBBs are more general than AABBs: they have a position, half-
+extents, AND an orientation. The standard test rotates the
+sphere center into the OBB's local frame (via `conj(q) · p ·
+q`), then runs the same clamp-to-half-extents logic as
+sphere-AABB.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/collision.nr"
+
+let hit = coll_sphere_obb(
+    f64_to_bits(sx), f64_to_bits(sy), f64_to_bits(sz), f64_to_bits(sr),
+    f64_to_bits(cx), f64_to_bits(cy), f64_to_bits(cz),    // OBB center
+    f64_to_bits(hx), f64_to_bits(hy), f64_to_bits(hz),    // OBB half-extents
+    f64_to_bits(qw), f64_to_bits(qx), f64_to_bits(qy), f64_to_bits(qz)  // OBB orientation
+);
+```
+
+### Files
+
+- `stdlib/runtime/collision_rt.c`: ~30 LOC for the rotate-into-
+  local-frame + clamp pattern.
+- `stdlib/rods/collision.nr`: 1 new builtin (`coll_sphere_obb`).
+
+### v0.5 collision matrix status
+
+| Pair | Static | CCD |
+|------|--------|-----|
+| sphere-sphere | ✓ v0.2.178 | ✓ v0.2.196 |
+| sphere-capsule | ✓ v0.2.178 | — |
+| sphere-AABB | ✓ v0.2.195 | — |
+| sphere-OBB | ✓ v0.2.197 | — |
+| capsule-capsule | ✓ v0.2.178 | — |
+| capsule-AABB | ✓ v0.2.195 | — |
+| AABB-AABB | ✓ v0.2.178 | — |
+| convex-convex (GJK) | ✓ v0.2.183 | — |
+
+CCD for the rest of the pairs ships in v0.5.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**259 / 259 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.196] — 2026-04-24
 
 **Robotics: Continuous Collision Detection (CCD) for swept
