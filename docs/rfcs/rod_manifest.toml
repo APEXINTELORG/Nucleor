@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 141
-# Total fn definitions: 1596
-# Total LOC: 6679
+# Total fn definitions: 1597
+# Total LOC: 6683
 
 [[rod]]
 name           = "activation2"
@@ -978,9 +978,9 @@ imports        = ["root"]
 name           = "rrt"
 path           = "stdlib/rods/rrt.nr"
 description    = "Rapidly-exploring Random Tree motion planner."
-function_count = 9
+function_count = 10
 cfile_count    = 1
-loc            = 27
+loc            = 31
 imports        = []
 
 [[rod]]

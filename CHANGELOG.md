@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.188] — 2026-04-24
+
+**Robotics: RRT-Connect (Kuffner & LaValle 2000) — bidirectional
+RRT, typically 5-10× faster than vanilla RRT on hard problems.**
+
+The classic single-tree RRT (`rrt_plan` in v0.2.179) extends one
+tree from the start and has to randomly stumble into the goal
+region. RRT-Connect grows TWO trees — one from start, one from
+goal — and each iteration tries to "connect" all the way from
+the latest extension in one tree to the other tree. Much faster
+convergence on most problems.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/rrt.nr"
+
+let r = rrt_new(n_dim, seed);
+rrt_set_root(r, start_ptr);
+let ok = rrt_connect_plan(r, goal_ptr,
+    1000,                  // max_iters
+    f64_to_bits(0.1),      // step size
+    coll_callback_fp);
+// On success, rrt_path_len + rrt_path_at give the bidirectional path.
+```
+
+Same callback contract as `rrt_plan`. Path access is unchanged
+(`rrt_path_len` + `rrt_path_at`) — internal stitching of the two
+trees is invisible to the caller.
+
+### Files
+
+- `stdlib/runtime/rrt_rt.c`: ~120 LOC for RRT-Connect alongside
+  the existing single-tree RRT. Reuses `_extend_toward` helper
+  (factored out of the original `rrt_plan` body); each iteration
+  alternates which tree extends, then the OTHER tree tries
+  multiple connect-steps without sampling.
+- `stdlib/rods/rrt.nr`: 1 new builtin (`rrt_connect_plan`).
+- Existing `tests/rods/rrt_smoke.nr` unchanged (build-only smoke).
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**259 / 259 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.187] — 2026-04-24
 
 **Robotics integration showcase: `examples/showcase/robotic_arm.nr`

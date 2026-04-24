@@ -205,6 +205,179 @@ long long nuc_rrt_node_count(long long h) {
     return r ? (long long)r->count : 0;
 }
 
+// RRT-Connect (Kuffner & LaValle 2000). Bidirectional variant of
+// RRT that grows two trees — one from the start, one from the
+// goal — and tries to connect them. Typically converges 5-10x
+// faster than vanilla RRT on hard problems.
+//
+// Implementation: each iteration alternates which tree extends.
+// The active tree picks a random sample, extends toward it, then
+// the OTHER tree tries to "connect" all the way to the new node
+// (taking as many steps as needed without sampling). On
+// successful connection, walk back from the connection point in
+// each tree to assemble the bidirectional path.
+//
+// Builds on the existing NRRT struct + helpers; uses TWO NRRT
+// instances internally and stitches their paths.
+//
+// Returns 1 on success (connected), 0 on failure. Path is read
+// back via the FIRST tree's path_indices (which has been
+// rewritten to hold the full path).
+
+static int _extend_toward(NRRT *r, double *target, double step,
+                          coll_fn_t coll_free, double **out_new_cfg)
+{
+    int near = _nearest(r, target);
+    double *near_cfg = r->configs + near * r->n_dim;
+    double dist = 0;
+    for (int k = 0; k < r->n_dim; k++) {
+        double d = target[k] - near_cfg[k];
+        dist += d * d;
+    }
+    dist = sqrt(dist);
+    if (dist < 1e-9) { *out_new_cfg = NULL; return -1; }
+    double scale = (dist <= step) ? 1.0 : (step / dist);
+    double *new_cfg = (double *)malloc(r->n_dim * sizeof(double));
+    for (int k = 0; k < r->n_dim; k++) {
+        new_cfg[k] = near_cfg[k] + (target[k] - near_cfg[k]) * scale;
+    }
+    if (coll_free && coll_free((long long)(size_t)new_cfg) == 0) {
+        free(new_cfg);
+        *out_new_cfg = NULL;
+        return -1;
+    }
+    _ensure_capacity(r);
+    memcpy(r->configs + r->count * r->n_dim, new_cfg, r->n_dim * sizeof(double));
+    r->parents[r->count] = near;
+    int idx = r->count++;
+    *out_new_cfg = new_cfg;
+    return idx;
+}
+
+// Plan with bidirectional RRT-Connect. Caller provides the goal
+// configuration; we build TWO trees internally, both rooted at
+// the existing tree's root. Connects them in joint space.
+//
+// Returns 1 on success, 0 on failure. The path is written back
+// into r->path_indices as a sequence of node indices in the
+// FIRST tree (start tree); the connection bridges to the goal
+// tree but the user reads the configs flat from r->configs.
+//
+// This implementation builds the goal-tree separately and on
+// success appends its path to the start-tree's path. For simplicity
+// the goal-tree's nodes are concatenated into r->configs after
+// the start tree finishes.
+long long nuc_rrt_connect_plan(
+    long long h, long long goal_ptr,
+    long long max_iters,
+    long long step_bits,
+    long long is_collision_free_fp)
+{
+    NRRT *r = (NRRT *)(void *)(size_t)h;
+    if (!r || r->count == 0) return 0;
+    double *goal = (double *)(void *)(size_t)goal_ptr;
+    double step = _i2f(step_bits);
+    coll_fn_t coll_free = (coll_fn_t)(void *)(size_t)is_collision_free_fp;
+
+    // Build a second tree rooted at the goal.
+    NRRT g;
+    memset(&g, 0, sizeof(NRRT));
+    g.n_dim = r->n_dim;
+    g.capacity = 64;
+    g.configs = (double *)malloc(g.capacity * g.n_dim * sizeof(double));
+    g.parents = (int *)malloc(g.capacity * sizeof(int));
+    g.lower = (double *)malloc(g.n_dim * sizeof(double));
+    g.upper = (double *)malloc(g.n_dim * sizeof(double));
+    memcpy(g.lower, r->lower, g.n_dim * sizeof(double));
+    memcpy(g.upper, r->upper, g.n_dim * sizeof(double));
+    g.rng_state = r->rng_state ^ 0xDEADBEEF;
+    if (g.rng_state == 0) g.rng_state = 0x1337C0DE;
+    memcpy(g.configs, goal, g.n_dim * sizeof(double));
+    g.parents[0] = -1;
+    g.count = 1;
+
+    double *sample = (double *)malloc(r->n_dim * sizeof(double));
+    NRRT *active = r;
+    NRRT *other = &g;
+    int success = 0;
+    int active_idx = -1, other_idx = -1;
+
+    for (long long it = 0; it < max_iters && !success; it++) {
+        for (int k = 0; k < r->n_dim; k++) {
+            sample[k] = active->lower[k] + _rng_unit(active) * (active->upper[k] - active->lower[k]);
+        }
+        double *new_cfg;
+        int new_idx = _extend_toward(active, sample, step, coll_free, &new_cfg);
+        if (new_idx < 0) {
+            // Swap and continue.
+            NRRT *tmp = active; active = other; other = tmp;
+            continue;
+        }
+        // Try to connect `other` all the way to new_cfg.
+        for (int connect_iter = 0; connect_iter < 64; connect_iter++) {
+            double *connect_cfg;
+            int oi = _extend_toward(other, new_cfg, step, coll_free, &connect_cfg);
+            if (oi < 0) { free(new_cfg); break; }
+            // Check: did we reach new_cfg?
+            double *o_node = other->configs + oi * other->n_dim;
+            double d = 0;
+            for (int k = 0; k < other->n_dim; k++) {
+                double dd = o_node[k] - new_cfg[k];
+                d += dd * dd;
+            }
+            free(connect_cfg);
+            if (d <= step * step) {
+                success = 1;
+                if (active == r) { active_idx = new_idx; other_idx = oi; }
+                else             { active_idx = oi; other_idx = new_idx; }
+                free(new_cfg);
+                break;
+            }
+        }
+        // Swap.
+        NRRT *tmp = active; active = other; other = tmp;
+    }
+    free(sample);
+
+    if (!success) {
+        free(g.configs); free(g.parents); free(g.lower); free(g.upper);
+        return 0;
+    }
+
+    // Reconstruct: walk parents in `r` from active_idx to root,
+    // walk parents in `g` from other_idx to root, then stitch.
+    int r_len = 0;
+    for (int i = active_idx; i != -1; i = r->parents[i]) r_len++;
+    int g_len = 0;
+    for (int i = other_idx; i != -1; i = g.parents[i]) g_len++;
+
+    // Append g's nodes to r's configs so the unified r->path_indices
+    // can index them. Map g_idx -> r_idx via offset.
+    int r_offset = r->count;
+    while (r->count + g.count > r->capacity) {
+        r->capacity *= 2;
+        r->configs = (double *)realloc(r->configs, r->capacity * r->n_dim * sizeof(double));
+        r->parents = (int *)realloc(r->parents, r->capacity * sizeof(int));
+    }
+    memcpy(r->configs + r_offset * r->n_dim, g.configs, g.count * g.n_dim * sizeof(double));
+    // (parents copying not needed for path reconstruction since we walk g separately)
+    for (int i = 0; i < g.count; i++) r->parents[r_offset + i] = -1;
+    r->count += g.count;
+
+    int total_len = r_len + g_len;
+    if (r->path_indices) free(r->path_indices);
+    r->path_indices = (int *)malloc(total_len * sizeof(int));
+    r->path_len = total_len;
+
+    int p = r_len - 1;
+    for (int i = active_idx; i != -1; i = r->parents[i]) r->path_indices[p--] = i;
+    p = r_len;
+    for (int i = other_idx; i != -1; i = g.parents[i]) r->path_indices[p++] = i + r_offset;
+
+    free(g.configs); free(g.parents); free(g.lower); free(g.upper);
+    return 1;
+}
+
 // Path shortcutting (v0.2.182). Repeatedly pick two random
 // indices i < j on the current path; if the straight-line
 // segment from path[i] to path[j] is collision-free at every
