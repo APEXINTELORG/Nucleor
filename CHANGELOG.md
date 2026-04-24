@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.193] — 2026-04-24
+
+**Robotics: per-joint min/max limits in IK solver. Set once
+per chain, applied as clamping during every solve iteration.**
+
+The v0.2.176 IK solver assumed unbounded joint motion. Real
+robots have mechanical joint limits (e.g., a wrist that can
+rotate ±170°, not ∞). v0.2.193 adds:
+
+```nucleor
+import "stdlib/rods/ik_dls.nr"
+
+// After fk_chain_add_*_joint, set per-joint bounds.
+ik_set_joint_limit(chain, 0, f64_to_bits(-2.96), f64_to_bits(2.96));
+ik_set_joint_limit(chain, 1, f64_to_bits(-2.05), f64_to_bits(2.05));
+// ... etc
+
+// Solve as before — clamping is automatic.
+let n = ik_dls_solve(chain, vars_ptr, tx, ty, tz, max_iters, tol, lambda);
+```
+
+Bounds default to ±2π if not set. Persist across multiple
+solve calls on the same chain handle.
+
+### Limitations + future work (v0.5)
+
+- **Simple clamp** — the current implementation just bounds
+  the joint values after each delta. A more sophisticated
+  approach projects the gradient onto the constraint manifold
+  (gradient projection) so the solver doesn't waste iterations
+  pushing against the bounds. v0.5 task-priority IK ship.
+- **Per-step velocity caps** also useful for smoother motion;
+  deferred.
+
+### Files
+
+- `stdlib/runtime/ik_dls_rt.c`: ~50 LOC for the limits table
+  (per-chain entry, simple linear-search lookup; fine for
+  typical N≤10 joint chains) plus the in-loop clamp.
+- `stdlib/rods/ik_dls.nr`: 1 new builtin
+  (`ik_set_joint_limit`).
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**259 / 259 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.192] — 2026-04-24
 
 **Robotics: Dynamic Movement Primitives (DMPs) added to

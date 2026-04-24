@@ -35,6 +35,54 @@ long long nuc_fk_chain_link_pos_z(long long ch, long long i);
 
 static double _f_from_handle(long long bits) { double d; memcpy(&d, &bits, sizeof(double)); return d; }
 
+// === Joint limits (v0.2.193) ===
+//
+// Per-joint min/max bounds. Set once per chain, applied during
+// every IK iteration via clamping. Bounds are stored in a
+// global table keyed by chain handle (simple linear-search
+// lookup — for typical N≤10 joint chains this is fine).
+
+typedef struct { long long ch; double *lo; double *hi; int n; } _IKLimits;
+static _IKLimits *_g_limits = NULL;
+static int _g_limits_count = 0, _g_limits_cap = 0;
+
+static _IKLimits *_get_or_create_limits(long long ch, int n) {
+    for (int i = 0; i < _g_limits_count; i++) {
+        if (_g_limits[i].ch == ch) return &_g_limits[i];
+    }
+    if (_g_limits_count >= _g_limits_cap) {
+        _g_limits_cap = _g_limits_cap == 0 ? 4 : _g_limits_cap * 2;
+        _g_limits = (_IKLimits *)realloc(_g_limits, _g_limits_cap * sizeof(_IKLimits));
+    }
+    _IKLimits *L = &_g_limits[_g_limits_count++];
+    L->ch = ch;
+    L->n = n;
+    L->lo = (double *)malloc(n * sizeof(double));
+    L->hi = (double *)malloc(n * sizeof(double));
+    for (int i = 0; i < n; i++) {
+        L->lo[i] = -3.14159265358979 * 2.0;
+        L->hi[i] =  3.14159265358979 * 2.0;
+    }
+    return L;
+}
+
+void nuc_ik_set_joint_limit(long long ch, long long joint_idx,
+                             long long lo_b, long long hi_b)
+{
+    int n = (int)nuc_fk_chain_count(ch);
+    if (n <= 0 || joint_idx < 0 || joint_idx >= n) return;
+    _IKLimits *L = _get_or_create_limits(ch, n);
+    L->lo[joint_idx] = _i2f(lo_b);
+    L->hi[joint_idx] = _i2f(hi_b);
+}
+
+static _IKLimits *_lookup_limits(long long ch) {
+    for (int i = 0; i < _g_limits_count; i++) {
+        if (_g_limits[i].ch == ch) return &_g_limits[i];
+    }
+    return NULL;
+}
+
 // Solve in place: vars are read AND written through the same array.
 // On entry, vars holds the current joint configuration; on exit,
 // vars holds the (possibly improved) configuration.
@@ -137,6 +185,17 @@ long long nuc_ik_dls_solve(
             vars[r] += Jt_invJJt[r*3 + 0]*ex
                      + Jt_invJJt[r*3 + 1]*ey
                      + Jt_invJJt[r*3 + 2]*ez;
+        }
+        // Apply joint limits (v0.2.193). Clamp each var to its [lo, hi]
+        // bound after the delta update. Simple clamp — for a more
+        // sophisticated handling (gradient projection onto the
+        // constraint manifold), see the v0.5 task-priority IK ship.
+        _IKLimits *L = _lookup_limits(ch);
+        if (L) {
+            for (int r = 0; r < n && r < L->n; r++) {
+                if (vars[r] < L->lo[r]) vars[r] = L->lo[r];
+                if (vars[r] > L->hi[r]) vars[r] = L->hi[r];
+            }
         }
     }
 

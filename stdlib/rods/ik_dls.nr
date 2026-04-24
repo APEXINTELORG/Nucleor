@@ -33,6 +33,11 @@ extern fn nuc_ik_dls_solve(
     tolerance_bits: i64,
     damping_bits: i64) -> i64;
 
+// Set per-joint min/max bounds. Applied during every IK iteration
+// via simple clamping. Default (if not set) is ±2π. Bounds persist
+// across multiple solve calls on the same chain handle.
+extern fn nuc_ik_set_joint_limit(ch: i64, joint_idx: i64, lo_b: i64, hi_b: i64);
+
 fn ik_dls_solve(
     ch: i64, vars_ptr: i64,
     tx_bits: i64, ty_bits: i64, tz_bits: i64,
@@ -41,4 +46,8 @@ fn ik_dls_solve(
     damping_bits: i64) -> i64 {
     return nuc_ik_dls_solve(ch, vars_ptr, tx_bits, ty_bits, tz_bits,
                              max_iters, tolerance_bits, damping_bits);
+}
+
+fn ik_set_joint_limit(ch: i64, joint_idx: i64, lo_b: i64, hi_b: i64) {
+    nuc_ik_set_joint_limit(ch, joint_idx, lo_b, hi_b);
 }
