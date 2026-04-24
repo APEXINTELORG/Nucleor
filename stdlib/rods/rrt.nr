@@ -25,6 +25,7 @@ extern fn nuc_rrt_plan(h: i64, goal_ptr: i64, max_iters: i64, step_bits: i64, is
 extern fn nuc_rrt_path_len(h: i64) -> i64;
 extern fn nuc_rrt_path_at(h: i64, path_idx: i64, dim: i64) -> i64;
 extern fn nuc_rrt_node_count(h: i64) -> i64;
+extern fn nuc_rrt_shortcut_path(h: i64, iters: i64, step_bits: i64, is_collision_free_fp: i64) -> i64;
 extern fn nuc_rrt_free(h: i64);
 
 fn rrt_new(n_dim: i64, seed: i64) -> i64 { return nuc_rrt_new(n_dim, seed); }
@@ -40,4 +41,14 @@ fn rrt_path_at(h: i64, path_idx: i64, dim: i64) -> i64 {
     return nuc_rrt_path_at(h, path_idx, dim);
 }
 fn rrt_node_count(h: i64) -> i64 { return nuc_rrt_node_count(h); }
+
+// Path shortcutting (post-RRT smoothing). Repeatedly samples
+// random index pairs (i, j) on the current path; if the
+// straight-line segment from path[i] to path[j] is collision-free
+// at every intermediate step-spaced sample, replaces path[i+1..j-1]
+// with that segment. Returns the new path length.
+fn rrt_shortcut_path(h: i64, iters: i64, step_bits: i64, is_collision_free_fp: i64) -> i64 {
+    return nuc_rrt_shortcut_path(h, iters, step_bits, is_collision_free_fp);
+}
+
 fn rrt_free(h: i64) { nuc_rrt_free(h); }

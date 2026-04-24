@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.182] — 2026-04-24
+
+**Robotics: two more v0.5-list items shipped — RRT path
+shortcutting + DH-parameter constructor for fk_chain.**
+
+### Path shortcutting (`rrt.nr`)
+
+Standard post-process for RRT raw output. Repeatedly samples
+random index pairs `(i, j)` on the current path; if the
+straight-line segment from `path[i]` to `path[j]` is
+collision-free at every intermediate `step`-spaced sample,
+collapses `path[i+1..j-1]` into that segment. New builtin:
+
+```nucleor
+let n = rrt_shortcut_path(rrt, 200, f64_to_bits(0.05), coll_fn_fp);
+// path is now smoothed; n is the new waypoint count
+```
+
+Same callback contract as `rrt_plan` — caller-supplied
+collision-check function pointer. Useful as a one-shot smoother
+between `rrt_plan` and consuming the path.
+
+### DH-parameter constructor (`fk_chain.nr`)
+
+Industrial-arm convention. Add a revolute joint described by
+the four Denavit-Hartenberg parameters (Spong's *Robot Modeling
+and Control*):
+
+```nucleor
+fk_chain_add_dh_joint(chain,
+    f64_to_bits(alpha),  // twist about previous x
+    f64_to_bits(a),      // link length along previous x
+    f64_to_bits(d),      // link offset along previous z
+    f64_to_bits(theta)   // joint angle offset about previous z
+);
+```
+
+The transform `T = Rot_x(α) · Trans_x(a) · Trans_z(d) ·
+Rot_z(θ)` is decomposed into a base-pose offset (compiled as
+the joint's parent-to-child base) plus a revolute joint about z
+(the joint variable adds to θ at FK time).
+
+This is the standard alternative to URDF for serial
+manipulators — most robot textbooks describe arms via DH tables
+(Puma 560, Stanford arm, KUKA LBR iiwa, Universal Robots UR5).
+
+### Files
+
+- `stdlib/runtime/rrt_rt.c`: new `nuc_rrt_shortcut_path`.
+- `stdlib/runtime/fk_chain_rt.c`: new `nuc_fk_chain_add_dh_joint`.
+- `stdlib/rods/rrt.nr`, `stdlib/rods/fk_chain.nr`: thin
+  Nucleor wrappers.
+- `tests/rods/fk_chain_smoke.nr`: extended to add a DH-joint
+  and assert the count goes 1 → 2.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**256 / 256 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.181] — 2026-04-24
 
 **Robotics: trapezoidal velocity profile added to `trajectory.nr`.
