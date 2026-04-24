@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.162] — 2026-04-23
+
+**Release-readiness polish: SECURITY.md added; README updated
+with current rod count (132), helper count (686), test counts,
+and the 4.5 s / 185 MB self-host metrics from v0.2.159.**
+
+The repo was carrying stale numbers from earlier in the v0.2
+chain — README still claimed 121 rods (was true before v0.2.150
+wrapped 11 orphan runtimes) and 99 tests (was true before v0.2.149
+added 22 rod smokes + later additions across the err/features
+dirs). v0.2.162 reconciles these to the canonical manifest
+counts and adds the missing standard OSS file (SECURITY.md).
+
+### Files
+
+- New `SECURITY.md` — vulnerability reporting policy, supported
+  versions, scope statement, coordinated-disclosure timeline.
+  Standard OSS pattern; was the only release-readiness file
+  missing from the repo.
+- `README.md`:
+  - Rod count 121 → **132** (matches `docs/rfcs/rod_manifest.toml`)
+  - Helper count 676 → **686**
+  - Self-host metrics added: "rebuilds itself in 4.5 s using 185 MB peak"
+  - Test counts updated: 137 positive (was 99), 35 negative (was 33),
+    34 features (unchanged)
+  - Mention of the v0.2.161 400 MB budget gate
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**246 / 246 PASS, 0 SKIP** (no test changes; doc-only ship).
+
 ## [0.2.161] — 2026-04-23
 
 **Memory-fix Ship 5: gate enforces a 400 MB peak-allocation

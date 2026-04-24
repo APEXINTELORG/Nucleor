@@ -17,7 +17,7 @@ target\hello.exe
 
 ## Why
 
-Nucleor is what happens when you build a small programming language and don't stop at "hello world." The compiler is self-hosted in ~10,000 lines of Nucleor source. The standard library is **121 rods** (`stdlib/rods/*.nr` — the user-facing modules you `import`) backed by **84 runtime C source files**. The full ABI surface — the helpers the compiler can emit calls to — is **676 `__nucleor_*` symbols** organized into **13 categories** (math, vectors, collections, IO, statistics, time, randomness, concurrency, tensor ops, plus the v0.1 quantum / linalg / FFT / ODE stack). Catalog at [`docs/rfcs/helper_manifest.toml`](docs/rfcs/helper_manifest.toml). Whole thing fits in a ~55 MB repo with no external runtime dependencies beyond LLVM.
+Nucleor is what happens when you build a small programming language and don't stop at "hello world." The compiler is self-hosted in ~10,000 lines of Nucleor source and **rebuilds itself in 4.5 s using 185 MB peak**. The standard library is **132 rods** (`stdlib/rods/*.nr` — the user-facing modules you `import`) backed by **84 runtime C source files**. The full ABI surface — the helpers the compiler can emit calls to — is **686 `__nucleor_*` symbols** organized into **13 categories** (math, vectors, collections, IO, statistics, time, randomness, concurrency, tensor ops, plus the v0.1 quantum / linalg / FFT / ODE stack). Catalog at [`docs/rfcs/helper_manifest.toml`](docs/rfcs/helper_manifest.toml). Whole thing fits in a ~55 MB repo with no external runtime dependencies beyond LLVM.
 
 - **Self-hosted from day one.** The compiler is written in Nucleor and rebuilds itself as a standard CI step. No hidden runtime dependencies; no separate bootstrap language to keep in sync.
 - **Real scientific-computing stack, not a toy.** Linear algebra (LU, QR, Cholesky, eigen, SVD), tensor decompositions (CP-ALS, TT-SVD), sparse matrices with CG/GMRES solvers, FFT, signal processing, statistics with t-tests and KDE, ODE solvers (Euler, RK4, RK45, symplectic), root finding, quadrature, B-splines + KAN, interpolation.
@@ -166,7 +166,7 @@ see [`tools/completions/README.md`](tools/completions/README.md).
 nuc test tests/
 ```
 
-This compiles and runs all 99 tests across `tests/lang/` (44), `tests/attrs/` (4), `tests/runtime/` (27), and `tests/rods/` (24). The full gate (`tools/verify.ps1`) additionally exercises `tests/features/` (34) and `tests/err/` (33 negative tests).
+This compiles and runs all 137 tests across `tests/lang/` (49), `tests/attrs/` (4), `tests/runtime/` (27), and `tests/rods/` (57). The full gate (`tools/verify.ps1` on Windows or `tools/verify.sh` on POSIX) additionally exercises `tests/features/` (34) and `tests/err/` (35 negative tests). The gate also enforces a **400 MB peak-allocation budget on the self-host compile** (current: 185 MB; see `MEMORY_FIX_PUNCHLIST.md` for the architectural roadmap).
 
 On Windows, the first run of `tests/rods/socket.nr` may trigger a Defender
 Firewall prompt because the socket gate briefly binds local TCP/UDP ports.
