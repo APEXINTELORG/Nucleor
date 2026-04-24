@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.302] — 2026-04-24
+
+**Robotics: Reeds-Shepp shortest paths (`reeds_shepp`). Car-like
+robot with minimum turning radius that can MOVE IN REVERSE
+(Reeds & Shepp 1990). Companion to `dubins.nr` which is
+forward-only. For a U-turn-in-place query, RS gives π/2
+(back-up + pull-forward) vs Dubins' 2π — 4× shorter.**
+
+### Algorithm
+
+9 base word families (CSC, CCC, CCCC, CCSC, CCSCC variants)
+× 4 symmetry transforms (identity, timeflip (−x,y,−phi),
+reflect (x,−y,−phi), both (−x,−y,phi)) = 36 candidate paths
+(some degenerate). Pick the minimum length.
+
+Implements the classical Sussmann-Tang / OMPL structure:
+LpSpLp, LpSpRp, LpRmL, LpRmLm, LpRpuLmuRm, LpRmuLmuRp,
+LpRmSmLm, LpRmSmRm, LpRmSLmRp — each tried with all four
+symmetry variants.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/reeds_shepp.nr"
+
+let len: double;
+let ok = reeds_shepp_length(x0_b, y0_b, th0_b,
+                             x1_b, y1_b, th1_b,
+                             R_b, f64_ptr(&len));
+```
+
+### Verification
+
+Direct C unit test (`target/_test_reeds_shepp.c`):
+
+- T1 straight 10m : (0,0,0)→(10,0,0) R=1 → length 10.0 ✓
+- T2 identity     : start=goal → length 0 ✓
+- T3 reverse π    : (0,0,0)→(1,0,π) R=1 → 5.31, < 2π ✓
+- T4 scale        : 2× R and 2× coords → 2× length ✓
+- T5 rs vs dubins : (0,0,0)→(0,2,0) RS = π/2 vs Dubins 2π ✓
+- T6 bad R        : R=0 → returns 0 ✓
+
+Build smoke `tests/rods/reeds_shepp_smoke.nr` compiles and
+links.
+
+### Files
+
+- `stdlib/runtime/reeds_shepp_rt.c` — 9 base families + symmetry
+   transforms + normalized-coord transform.
+- `stdlib/rods/reeds_shepp.nr`      — extern + `reeds_shepp_length`.
+- `tests/rods/reeds_shepp_smoke.nr` — build-only smoke.
+- `CHANGELOG.md`                     — this entry.
+
+### Limitations
+
+Documented in `reeds_shepp.nr` and `reeds_shepp_rt.c`: length
+only (no sampled poses along the path); constant curvature on
+turns; caller smooths cusps if needed. Path sampling and
+smoothing land in v0.6 if needed.
+
 ## [0.2.301] — 2026-04-24
 
 **Robotics: point-to-plane ICP (`icp_p2p`). Chen & Medioni 1991

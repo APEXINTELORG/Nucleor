@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 207
-# Total fn definitions: 2064
-# Total LOC: 8975
+# Total rods: 208
+# Total fn definitions: 2065
+# Total LOC: 8988
 
 [[rod]]
 name           = "activation2"
@@ -1351,6 +1351,15 @@ function_count = 8
 cfile_count    = 1
 loc            = 29
 imports        = ["reach"]
+
+[[rod]]
+name           = "reeds_shepp"
+path           = "stdlib/rods/reeds_shepp.nr"
+description    = "Reeds-Shepp shortest paths (Reeds & Shepp"
+function_count = 1
+cfile_count    = 1
+loc            = 13
+imports        = ["reeds_shepp"]
 
 [[rod]]
 name           = "regex"
