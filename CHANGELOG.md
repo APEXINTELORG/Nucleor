@@ -5,6 +5,94 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.255] — 2026-04-24
+
+**Robotics: box LCP solver via Projected Gauss-Seidel (`lcp`). The
+iteration that underlies MuJoCo, Bullet, ODE, and most other rigid-
+body contact solvers. Solves**
+
+```
+find λ ∈ [lo, hi]  such that  w = M·λ + q  satisfies
+    w_i ≥ 0  whenever  λ_i = lo_i
+    w_i ≤ 0  whenever  λ_i = hi_i
+    w_i = 0  whenever  lo_i < λ_i < hi_i
+```
+
+### Algorithm
+
+```
+for iter in 0..max_iters:
+    for i in 0..n:
+        w_i  = q_i + Σ_{j≠i} M_ij · λ_j
+        λ_i' = clamp(−w_i / M_ii, lo_i, hi_i)
+    if max_i |λ_i' − λ_i| < tol: break
+```
+
+Convergence: PGS converges for any positive-definite M (Cottle,
+Pang & Stone 1992). For symmetric PSD M it converges if a solution
+exists. For well-conditioned soft-contact LCPs, 30–100 iters reach
+1e-4 accuracy.
+
+### Use cases
+
+- **Unilateral contact**: λ ∈ [0, ∞) — non-penetration normal force
+  (default bounds set by `lcp_pgs_new`).
+- **Coulomb friction (pyramidal linearization)**: tangent components
+  in box `[−μ·λ_n, μ·λ_n]` per contact.
+- **Joint limits**: bounded λ for a constraint that activates at
+  joint stops.
+- **Bilateral constraint**: λ ∈ (−∞, ∞) reduces to a normal linear
+  solve via PGS for symmetric positive-definite systems.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/lcp.nr"
+
+let h = lcp_pgs_new(n);
+for i in 0..n  { for j in 0..n {
+    lcp_pgs_set_M(h, i, j, M_ij_b);
+}}
+for i in 0..n  { lcp_pgs_set_q(h, i, q_i_b); }
+// optional bounds + warm start
+lcp_pgs_set_bounds(h, i, lo_b, hi_b);
+lcp_pgs_set_initial(h, i, lambda0_b);
+
+let iters = lcp_pgs_solve(h, max_iters, tol_b);
+let lam_b = lcp_pgs_get(h, i);
+let res_b = lcp_pgs_residual(h);
+```
+
+### Verification
+
+Four direct C tests:
+
+1. **Classic 2-D LCP**: `M = [[2,1],[1,2]]`, `q = [-1,-1]`, λ ≥ 0.
+   Converges in 21 iters to `λ = (1/3, 1/3)`, residual `2.3e-13`.
+   Matches the analytical solution exactly.
+2. **Box LCP at active bounds**: `M = I`, `q = [-2, 2]`, bounds
+   `[-0.5, 0.5]`. Converges in 2 iters to `λ = (+0.5, -0.5)` —
+   both clipped to box edges.
+3. **1-DOF normal contact**: ball at velocity −1 m/s, `M = 1`,
+   `q = -1`, λ ≥ 0. Converges in 2 iters to `λ = 1.0` — the
+   impulse that exactly closes the gap.
+4. **Friction pyramid**: 3-vec `[λ_n, λ_t1, λ_t2]` with `q` driving
+   tangents past their friction box. Converges in 2 iters to
+   `λ_n = 2.0`, tangents clipped to `±μ·λ_n` exactly.
+
+### Files
+
+- `stdlib/runtime/lcp_rt.c` — `nuc_lcp_pgs_*` API, PGS iteration,
+  complementarity-residual diagnostic.
+- `stdlib/rods/lcp.nr` — externs + `lcp_pgs_new` /
+  `lcp_pgs_set_M` / `lcp_pgs_set_q` / `lcp_pgs_set_bounds` /
+  `lcp_pgs_set_initial` / `lcp_pgs_solve` / `lcp_pgs_get` /
+  `lcp_pgs_residual` / `lcp_pgs_free` wrappers.
+- `tests/rods/lcp_smoke.nr` — build-only smoke (functional coverage
+  in the direct C unit test).
+
+---
+
 ## [0.2.254] — 2026-04-24
 
 **Robotics: bipedal footstep planner (`fsp`). Discrete A* search
