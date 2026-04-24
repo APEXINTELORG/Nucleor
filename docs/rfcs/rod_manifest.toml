@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 186
-# Total fn definitions: 1971
-# Total LOC: 8436
+# Total rods: 187
+# Total fn definitions: 1979
+# Total LOC: 8466
 
 [[rod]]
 name           = "activation2"
@@ -919,6 +919,15 @@ function_count = 9
 cfile_count    = 2
 loc            = 28
 imports        = ["mpc"]
+
+[[rod]]
+name           = "mppi"
+path           = "stdlib/rods/mppi.nr"
+description    = "Model Predictive Path Integral control (Williams,"
+function_count = 8
+cfile_count    = 1
+loc            = 30
+imports        = ["mppi"]
 
 [[rod]]
 name           = "mps"
