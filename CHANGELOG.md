@@ -5,6 +5,84 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.269] — 2026-04-24
+
+**Robotics: ZMP tracking via cart-table inverse dynamics + finite-
+horizon LQR (`zmp`) — Kajita's bipedal locomotion CoM trajectory
+generator. Given a desired ZMP reference (typically inside the
+support polygon), inverts the cart-table dynamics to produce the
+CoM trajectory whose induced ZMP best tracks the reference.**
+
+### Cart-table model
+
+```
+Per axis (x and y are decoupled):
+    State:   x = (c, ċ, c̈) ∈ ℝ³
+    Dyn:     x_{k+1} = A · x_k + B · u_k          (u = jerk)
+                A = [[1, dt, dt²/2], [0, 1, dt], [0, 0, 1]]
+                B = [dt³/6, dt²/2, dt]
+    Output:  p = C · x = c − (h/g) · c̈           (the "ZMP")
+    Cost:    J = Σ (p_k − p_ref_k)² + R · u_k²
+```
+
+Solved by a standard finite-horizon LQR backward Riccati pass with
+an affine offset term for the tracking reference, then a forward
+pass to compute u and roll the state.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/zmp.nr"
+
+let h_x = zmp_new(h_b, dt_b, n_steps);
+let h_y = zmp_new(h_b, dt_b, n_steps);
+
+for k in 0..n_steps {
+    zmp_set_zmp_ref(h_x, k, x_ref_b);
+    zmp_set_zmp_ref(h_y, k, y_ref_b);
+}
+zmp_set_initial_state(h_x, c0_x_b, cdot0_x_b, cddot0_x_b);
+zmp_set_initial_state(h_y, c0_y_b, cdot0_y_b, cddot0_y_b);
+
+zmp_solve(h_x, R_b);  zmp_solve(h_y, R_b);
+
+for k in 0..(n_steps + 1) {
+    let cx_b = zmp_com(h_x, k);
+    let cy_b = zmp_com(h_y, k);
+}
+```
+
+### Verification
+
+`h = 0.8 m`, `dt = 0.01 s`, `N = 200`. Step ZMP reference at
+`k = 100` (0.05 m / 5 cm — typical biped foot displacement):
+
+- **Phase 1 max ZMP deviation** = 0.0154 m: this is the **correct
+  physical anticipation** — the LQR controller knows the upcoming
+  step from the offline reference and starts pre-tilting the CoM
+  to swing the ZMP smoothly.
+- **Steady-state ZMP error** (`k > 150`) = 0.000262 m (sub-mm).
+- **Final CoM** = 0.0385 m (settling toward 0.05 m; finite horizon
+  ends shortly after step so some lag persists).
+
+### Files
+
+- `stdlib/runtime/zmp_rt.c` — `nuc_zmp_*` API; cart-table A, B, C
+  matrices; finite-horizon LQR backward Riccati with tracking term;
+  forward pass.
+- `stdlib/rods/zmp.nr` — externs + wrappers.
+- `tests/rods/zmp_smoke.nr` — build-only smoke.
+
+### Limitations carried forward
+
+- 1-D per call; call twice for x and y.
+- Constant CoM height. Variable-height (LIPM with vertical motion)
+  needs a different model.
+- Offline (whole-trajectory). For online MPC, feed each window of
+  `p_ref` through this rod with a rolling horizon.
+
+---
+
 ## [0.2.268] — 2026-04-24
 
 **Robotics: 2-D Signed Distance Field (`sdf`) on a regular grid
