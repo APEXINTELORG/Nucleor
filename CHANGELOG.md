@@ -5,6 +5,31 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.170] — 2026-04-24
+
+**Documentation: `docs/release-notes-v0.2.x-memory.md` adds a
+single-page summary of the v0.2.158-v0.2.169 memory-fix arc
+suitable for blog posts, release announcements, and reviewer
+overview.**
+
+The CHANGELOG entries are comprehensive but each is per-release;
+a flat ship-by-ship summary table lives at this new doc, with:
+
+- TL;DR table (19 GB → 67 MB, 25 s → 5.2 s, 283× memory + 5× speed)
+- Per-ship one-line summary (12 ships)
+- Methodology section (trace first; identify dominant cost; fix
+  architecturally then structurally; lock in wins; document)
+- Critical bugs caught along the way (3, with diagnosis stories)
+- "Where to next" section cross-referencing the punchlist
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**249 / 249 PASS, 0 SKIP** (no test changes; doc-only ship).
+
 ## [0.2.169] — 2026-04-24
 
 **RFC-0030 phase 4: `str_free` exposed as a builtin.
