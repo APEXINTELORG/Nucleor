@@ -27,7 +27,7 @@ should turn its tests green.
 
 | Subdir         | Phase | Topic                                          | Tests at v0.2.307 |
 |----------------|-------|------------------------------------------------|-------------------|
-| `p1_intarith/` | 1     | Width-aware integer arithmetic + comparisons   | 22                |
+| `p1_intarith/` | 1     | Width-aware integer arithmetic + comparisons   | 24                |
 | `p2_literals/` | 2     | Suffix literals + overflow at compile time     | 6                 |
 | `p3_layout/`   | 3     | Width-correct alloca + struct layout           | 3                 |
 | `p4_cast/`     | 4     | `as` cast operator full matrix                 | 8                 |
@@ -39,6 +39,9 @@ should turn its tests green.
 
 **Total at v0.2.307 (Phase 0 baseline): 56 tests.**
 **Status: 31 PASS / 9 FAIL / 16 BUILD_ERROR.**
+
+**At v0.2.310 (Phase 3c): 58 tests (2 added for i32/u32 wrap).**
+**Status: 43 PASS / 7 FAIL / 8 BUILD_ERROR.**
 
 (Many tests already pass at v0.2.306 because narrow types compile
 and arithmetic is correct WITHIN i64 range. The 9 FAIL + 16

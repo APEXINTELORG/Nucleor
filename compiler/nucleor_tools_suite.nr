@@ -7,13 +7,17 @@
 // Usage: nucleor_s1 <source.nr> <output_name>
 // =====================================================
 
+// T1.1 Phase 3c (v0.2.310): widened internal arithmetic to i64
+// (parallel to compiler/nucleor_s1_compiler.nr:str_from_int) so
+// large IR constants format correctly under Phase 1's narrow-as
+// hook.
 fn str_from_int(n: i32) -> str {
     if n == 0 { return "0"; };
-    let mut val: i32 = n;
+    let mut val: i64 = n;
     if val < 0 { val = 0 - val; };
     let mut s: str = "";
     while val > 0 {
-        let d: i32 = val - (val / 10) * 10;
+        let d: i64 = val - (val / 10) * 10;
         let mut ch: str = "0";
         if d == 1 { ch = "1"; } else if d == 2 { ch = "2"; } else if d == 3 { ch = "3"; }
         else if d == 4 { ch = "4"; } else if d == 5 { ch = "5"; } else if d == 6 { ch = "6"; }
