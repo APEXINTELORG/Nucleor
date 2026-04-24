@@ -5,6 +5,101 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.234] — 2026-04-23
+
+**Robotics: Unscented Kalman Filter — sigma-point Bayesian
+estimator for nonlinear systems where the EKF's Jacobian
+linearization doesn't capture the local geometry well. Standard
+alternative to EKF in robotics state estimation. Same callback
+contract as `ekf.nr` (no API changes; user can swap EKF ↔ UKF
+based on which works better for their problem).**
+
+### Algorithm
+
+```
+Predict:
+  1. Generate 2n+1 sigma points X_i around (x, P).
+  2. Propagate: Y_i = f(X_i, u).
+  3. x⁻ = Σ wm_i · Y_i
+     P⁻ = Σ wc_i · (Y_i − x⁻)(Y_i − x⁻)ᵀ + Q
+
+Update (with measurement z):
+  1. Generate 2n+1 sigma points Y_i around (x⁻, P⁻).
+  2. Z_i      = h(Y_i)
+  3. z_pred  = Σ wm_i · Z_i
+     S       = Σ wc_i · (Z_i − z_pred)(Z_i − z_pred)ᵀ + R
+     Pxz     = Σ wc_i · (Y_i − x⁻)(Z_i − z_pred)ᵀ
+     K       = Pxz · S⁻¹
+     x       = x⁻ + K·(z − z_pred)
+     P       = P⁻ − K·S·Kᵀ
+```
+
+Standard scaled-sigma-point parameters (Wan & van der Merwe 2000):
+α = 1e-3, β = 2 (Gaussian assumption), κ = 0.
+
+### Surface
+
+Identical to `ekf.nr` for drop-in replacement:
+
+```nucleor
+import "stdlib/rods/ukf.nr"
+
+let ukf = ukf_new(n_x, n_z, n_u);
+ukf_set_state(ukf, x0_ptr);
+ukf_set_covariance(ukf, P0_ptr);
+ukf_set_process_noise(ukf, Q_ptr);
+ukf_set_measurement_noise(ukf, R_ptr);
+
+ukf_predict(ukf, u_ptr, dynamics_fp);
+ukf_update(ukf, z_ptr, measurement_fp);
+ukf_get_state(ukf, x_out_ptr);
+```
+
+### When to use UKF vs EKF
+
+| Property | EKF | UKF |
+|---|---|---|
+| Per-step cost | O(n³) | O(n³) (similar) |
+| Linearization | Jacobian (analytical or FD) | Sigma points (no Jacobian needed) |
+| Linear dynamics | Optimal | Optimal (same as EKF) |
+| Mild nonlinearity | Good | Slightly better |
+| Strong nonlinearity (e.g., rotational dynamics, non-monotonic h) | Can diverge | Robust |
+| Multi-modal posteriors | Single-mode only | Single-mode only (use particle filter for multi-modal) |
+
+### Verification
+
+Same scenario as the EKF test (1D constant-velocity tracker
+recovering velocity from noisy position-only measurements):
+
+| Quantity | EKF | UKF |
+|---|---|---|
+| Final position error | 0.099 m | 0.099 m |
+| Final velocity error | 0.029 m/s | 0.029 m/s |
+
+Identical results on linear dynamics — UKF's sigma-point
+propagation is exact for linear systems, so EKF and UKF should
+match. The UKF advantage shows up on nonlinear systems (separate
+test in user code).
+
+### Implementation notes
+
+- Symmetric matrix square root via Jacobi eigendecomposition +
+  sqrt of eigenvalues — more stable than naïve Cholesky on
+  ill-conditioned `P`.
+- Same dense Gauss-Jordan inverter for the innovation covariance
+  `S` as the EKF.
+
+### Files
+
+- `stdlib/runtime/ukf_rt.c` — `NUKF` struct, `nuc_ukf_*` exports,
+  `_gen_sigma`, `_sym_sqrt` (Jacobi-based sym matrix sqrt),
+  `_gj_inv` helpers.
+- `stdlib/rods/ukf.nr` — externs + Nucleor wrappers.
+- `tests/rods/ukf_smoke.nr` — alloc/free linkage smoke
+  (correctness covered by direct C tracker test, matches EKF).
+
+---
+
 ## [0.2.233] — 2026-04-23
 
 **Robotics: Perspective-n-Point camera pose estimation. Given N
