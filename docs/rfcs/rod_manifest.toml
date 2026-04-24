@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 164
-# Total fn definitions: 1787
-# Total LOC: 7836
+# Total rods: 165
+# Total fn definitions: 1794
+# Total LOC: 7862
 
 [[rod]]
 name           = "activation2"
@@ -946,6 +946,15 @@ function_count = 7
 cfile_count    = 1
 loc            = 33
 imports        = []
+
+[[rod]]
+name           = "pgs3"
+path           = "stdlib/rods/pgs3.nr"
+description    = "3D pose graph SLAM optimizer (SE(3) Gauss-Newton)."
+function_count = 7
+cfile_count    = 1
+loc            = 26
+imports        = ["pgs3"]
 
 [[rod]]
 name           = "physics"
