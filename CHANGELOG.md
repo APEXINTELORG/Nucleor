@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.337] — 2026-04-24
+
+**T1.9 test framework smoke + T1.1 narrow-wrap parity fix
+in tools_suite.** Two-in-one ship: formalizes `#[test]` +
+`nuc test` + `assert_eq` infrastructure as v0.2.x shipped,
+AND fixes a discovered cross-compiler regression where
+`nucleor_tools_suite.nr:lower_stmt` was missing the T1.1
+Phase 1 `narrow_via_as` hook. Strict-mode and `nuc test`
+builds were silently skipping narrow-width let-binding
+semantics (e.g. `let c: u8 = 250 + 10` stored 260 instead
+of wrapping to 4).
+
+### Bug fixed (caught by user-driven verification)
+
+`nucleor_tools_suite.nr:lower_stmt` `kind == 20` (let) was
+the pre-T1.1 version. Mirrored the canonical `narrow_via_as`
+helper from `nucleor_s1_compiler.nr` and wired it into the
+let-lowering. Both compilers now share the same narrow
+semantics.
+
+Confirmed: `let a: u8 = 250; let b: u8 = 10; let c: u8 = a + b;`
+inside a `#[test]` fn now correctly produces c=4.
+
+### T1.9 smoke
+
+`tests/smoke/t19_test_framework.nr` — 5 cases (arithmetic
+add/sub, assert_ne, division, narrow-wrap regression guard).
+New verify-gate step `T1.9 nuc test framework smoke` asserts
+all 5 PASS via `nuc test`.
+
+### What was already there for T1.9
+
+- `#[test]` discovery (lex-time attribute strip + source walk).
+- `nuc test` subcommand + harness generator.
+- `assert_eq(a, b)` / `assert_ne(a, b)` runtime helpers.
+- `--isolation=process` per-test child-process mode.
+- `--list` flag for test discovery without running.
+
+### Verify gate
+
+345/342 PASS (+1 new T1.9 smoke step). Bootstrap stable.
+
+### Numerics-compatibility rule reinforced
+
+This ship enforces the locked rule: every code path that
+narrows on `let` must apply the cast. The compiler-drift
+check should extend to `lower_stmt` parity in a follow-up
+(currently only checks `get_rt_name` + IR `declare`).
+
+### Files
+
+- `compiler/nucleor_tools_suite.nr` — narrow_via_as +
+  let-lowering hook (synced from s1).
+- `bin/nucleor.exe`, `bin/nucleor_tools.exe` — both rebuilt.
+- `tests/smoke/t19_test_framework.nr` — new fixture.
+- `tools/verify.ps1` — new T1.9 step.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+T1.3 HashMap + String.
+
 ## [0.2.336] — 2026-04-24
 
 **T1.2 Result/Option/match payloads + `?` operator — end-to-end

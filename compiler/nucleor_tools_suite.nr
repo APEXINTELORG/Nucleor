@@ -8033,6 +8033,33 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
     print(str_concat("ERROR: unhandled expr kind ", str_from_int(kind)));
     return lx_new(0 - 1, blk);
 }
+// T1.1 Phase 1+2+3c+5 (synced from nucleor_s1_compiler.nr at v0.2.337
+// — was missing here, causing strict-mode / nuc-test builds to skip
+// narrow-width let-binding semantics and produce wrong arithmetic).
+// See ../nucleor_s1_compiler.nr `narrow_via_as` for the canonical
+// version. Memory-safety: returns vr unchanged for non-narrow types
+// or upstream lowering failures (vr<0).
+fn narrow_via_as(blk: Vec<i32>, regs: Vec<i32>, vr: i64, tstr: str, src_kind: i64) -> i64 {
+    if vr < 0 { return vr; };
+    if str_len(tstr) == 0 { return vr; };
+    let mut helper: str = "";
+    if str_eq(tstr, "i8") == 1 { helper = "as_i8"; };
+    if str_eq(tstr, "i16") == 1 { helper = "as_i16"; };
+    if str_eq(tstr, "i32") == 1 { helper = "as_i32"; };
+    if str_eq(tstr, "u8") == 1 { helper = "as_u8"; };
+    if str_eq(tstr, "u16") == 1 { helper = "as_u16"; };
+    if str_eq(tstr, "u32") == 1 { helper = "as_u32"; };
+    if str_eq(tstr, "f32") == 1 && src_kind == 71 { helper = "as_f32"; };
+    if str_eq(tstr, "f32") == 1 && src_kind == 1 { helper = "i64_to_f32"; };
+    if str_eq(tstr, "f64") == 1 && src_kind == 1 { helper = "i64_to_f64"; };
+    if str_len(helper) == 0 { return vr; };
+    let mut conv_args: Vec<i32> = Vec::new();
+    conv_args.push(vr);
+    let r: i64 = ctr_next(regs);
+    ir_block_add(blk, ir_call_ex(r, helper, conv_args));
+    return r;
+}
+
 fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
     let kind: i64 = node_kind(pool, nid);
     if kind == 20 {
@@ -8049,10 +8076,12 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let sbase: str = type_base_name(tstr);
         if str_len(sbase) > 0 { sym_set(sym, str_concat("__type_", vname), sbase); };
         if init >= 0 {
+            let src_kind: i64 = node_kind(pool, init);
             let mut vp: Vec<i32> = lower_expr(pool, init, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
             cur = lx_blk(vp);
             let vr: i64 = lx_reg(vp);
-            ir_block_add(cur, ir_store(vr, ar));
+            let nvr: i64 = narrow_via_as(cur, regs, vr, sbase, src_kind);
+            ir_block_add(cur, ir_store(nvr, ar));
         };
         return cur;
     };
