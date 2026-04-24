@@ -437,6 +437,124 @@ long long nuc_pgs3_optimize(long long h, long long max_iters, long long tol_b) {
     return iter;
 }
 
+// === Huber-robust 3D PGS optimizer (v0.2.284) ===
+//
+// Same SE(3) Gauss-Newton iteration as nuc_pgs3_optimize, with
+// per-edge Huber down-weighting in IRLS form:
+//   r²    = Σ_k r0[k]² · info[k]    (info-weighted 6-D residual norm²)
+//   w     = 1               if r² ≤ δ²
+//   w     = δ / sqrt(r²)    if r² > δ²
+// Edge contributions to H and b are scaled by w. `delta_b` is the
+// Huber threshold; pass 0 to disable (matches `nuc_pgs3_optimize`).
+//
+// Same "Huber reverts to L2 once below threshold" caveat as
+// `pgs.nr`'s 2D Huber — for stronger rejection consider a Cauchy
+// kernel (planned for v0.6 on 3D).
+long long nuc_pgs3_optimize_huber(long long h, long long max_iters, long long tol_b,
+                                   long long delta_b)
+{
+    NPGS3 *p = (NPGS3 *)(void *)(size_t)h;
+    if (!p || p->n_nodes < 2) return -1;
+    int N = p->n_nodes;
+    int dof = 6 * (N - 1);
+    double tol = _i2f(tol_b);
+    double delta = _i2f(delta_b);
+    double delta2 = (delta > 0) ? delta * delta : 0.0;
+
+    double *H_mat = (double *)calloc(dof * dof, sizeof(double));
+    double *b_vec = (double *)calloc(dof, sizeof(double));
+    double *Hinv  = (double *)malloc(dof * dof * sizeof(double));
+    double *delta_v = (double *)malloc(dof * sizeof(double));
+    double J_i[36], J_j[36];
+    double r0[6];
+
+    long long iter;
+    for (iter = 0; iter < max_iters; iter++) {
+        memset(H_mat, 0, dof * dof * sizeof(double));
+        memset(b_vec, 0, dof * sizeof(double));
+
+        for (int e_idx = 0; e_idx < p->n_edges; e_idx++) {
+            _PGS3Edge *e = &p->edges[e_idx];
+            double *ni = p->nodes + e->i * 7;
+            double *nj = p->nodes + e->j * 7;
+            double *t_i = ni, *q_i = ni + 3;
+            double *t_j = nj, *q_j = nj + 3;
+
+            _edge_residual(t_i, q_i, t_j, q_j, e->dt, e->dq, r0);
+            _edge_jacobians(t_i, q_i, t_j, q_j, e->dt, e->dq, J_i, J_j);
+
+            int gi = (e->i == 0) ? -1 : 6 * (e->i - 1);
+            int gj = (e->j == 0) ? -1 : 6 * (e->j - 1);
+
+            // Information-weighted residual norm²
+            double r2 = 0;
+            for (int k = 0; k < 6; k++) r2 += r0[k] * r0[k] * e->info[k];
+            double w = 1.0;
+            if (delta > 0 && r2 > delta2) w = delta / sqrt(r2);
+
+            double Om[6];
+            for (int k = 0; k < 6; k++) Om[k] = w * e->info[k];
+
+            if (gi >= 0) {
+                for (int r = 0; r < 6; r++) {
+                    for (int c = 0; c < 6; c++) {
+                        double s = 0;
+                        for (int k = 0; k < 6; k++) s += J_i[k*6 + r] * Om[k] * J_i[k*6 + c];
+                        H_mat[(gi+r)*dof + (gi+c)] += s;
+                    }
+                    double s = 0;
+                    for (int k = 0; k < 6; k++) s += J_i[k*6 + r] * Om[k] * r0[k];
+                    b_vec[gi + r] += s;
+                }
+            }
+            if (gj >= 0) {
+                for (int r = 0; r < 6; r++) {
+                    for (int c = 0; c < 6; c++) {
+                        double s = 0;
+                        for (int k = 0; k < 6; k++) s += J_j[k*6 + r] * Om[k] * J_j[k*6 + c];
+                        H_mat[(gj+r)*dof + (gj+c)] += s;
+                    }
+                    double s = 0;
+                    for (int k = 0; k < 6; k++) s += J_j[k*6 + r] * Om[k] * r0[k];
+                    b_vec[gj + r] += s;
+                }
+            }
+            if (gi >= 0 && gj >= 0) {
+                for (int r = 0; r < 6; r++) {
+                    for (int c = 0; c < 6; c++) {
+                        double s = 0;
+                        for (int k = 0; k < 6; k++) s += J_i[k*6 + r] * Om[k] * J_j[k*6 + c];
+                        H_mat[(gi+r)*dof + (gj+c)] += s;
+                        H_mat[(gj+c)*dof + (gi+r)] += s;
+                    }
+                }
+            }
+        }
+
+        for (int i = 0; i < dof; i++) H_mat[i*dof + i] += 1e-9;
+        if (!_gj_inv(H_mat, dof, Hinv)) break;
+        for (int i = 0; i < dof; i++) {
+            double s = 0;
+            for (int j = 0; j < dof; j++) s += Hinv[i*dof + j] * b_vec[j];
+            delta_v[i] = -s;
+        }
+
+        double max_step = 0;
+        for (int n = 1; n < N; n++) {
+            int g = 6 * (n - 1);
+            _apply_local(p->nodes + n*7, p->nodes + n*7 + 3, delta_v + g);
+            for (int k = 0; k < 6; k++) {
+                double v = fabs(delta_v[g + k]);
+                if (v > max_step) max_step = v;
+            }
+        }
+        if (max_step < tol) { iter++; break; }
+    }
+
+    free(H_mat); free(b_vec); free(Hinv); free(delta_v);
+    return iter;
+}
+
 long long nuc_pgs3_total_cost(long long h) {
     NPGS3 *p = (NPGS3 *)(void *)(size_t)h;
     if (!p) return _f2i(0.0);

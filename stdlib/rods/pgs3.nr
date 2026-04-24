@@ -56,6 +56,7 @@ extern fn nuc_pgs3_get_node(h: i64, i: i64, t_out_ptr: i64, q_out_ptr: i64);
 extern fn nuc_pgs3_add_edge(h: i64, i: i64, j: i64,
     dt_ptr: i64, dq_ptr: i64, info_ptr: i64) -> i64;
 extern fn nuc_pgs3_optimize(h: i64, max_iters: i64, tol_b: i64) -> i64;
+extern fn nuc_pgs3_optimize_huber(h: i64, max_iters: i64, tol_b: i64, delta_b: i64) -> i64;
 extern fn nuc_pgs3_total_cost(h: i64) -> i64;
 extern fn nuc_pgs3_free(h: i64);
 
@@ -96,6 +97,18 @@ fn pgs3_add_edge(h: i64, i: i64, j: i64,
 // moves). Returns the number of iterations actually performed.
 fn pgs3_optimize(h: i64, max_iters: i64, tol_b: i64) -> i64 {
     return nuc_pgs3_optimize(h, max_iters, tol_b);
+}
+
+// Huber-robust variant (v0.2.284). Same SE(3) Gauss-Newton iteration
+// with each edge's contribution down-weighted by the Huber loss for
+// outlier rejection on bad loop closures. `delta_b` is the Huber
+// threshold (typical 0.5–2.0; tune to ~3σ of the noise model);
+// pass 0 to disable.
+//
+// Same caveat as `pgs.nr`'s 2D Huber: once an edge's residual drops
+// below the threshold the kernel reverts to L2.
+fn pgs3_optimize_huber(h: i64, max_iters: i64, tol_b: i64, delta_b: i64) -> i64 {
+    return nuc_pgs3_optimize_huber(h, max_iters, tol_b, delta_b);
 }
 
 // Total residual cost (sum of squared edge errors weighted by
