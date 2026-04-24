@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.304] — 2026-04-24
+
+**Robotics: Hough transform for 2-D circle detection
+(`hough_circle`). Companion to `hough.nr` (lines). Each input
+edge point votes for every (cx, cy) on every candidate ring
+of radius R; peaks in the 3-D `(cx × cy × R)` accumulator
+reveal circles. 3×3×3 NMS with lex-order tie-breaking gives
+deterministic single-peak per neighborhood.**
+
+### Algorithm
+
+```
+For each edge point (px, py):
+    For each radius R_k in [R_min, R_max]:
+        For each angle θ_t in [0, 2π):
+            (cx_w, cy_w) = (px - R_k cos θ_t,  py - R_k sin θ_t)
+            increment acc[bin(cx_w), bin(cy_w), bin(R_k)]
+3×3×3 NMS in (cx, cy, R) with lex tie-break, threshold,
+sort descending by votes, return top-K (cx, cy, R, votes).
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/hough_circle.nr"
+
+// out_circles: double[4*max_circles]; packed (cx, cy, R, votes).
+let n = hough_circles_2d(
+    pts_xy_ptr, n_pts,
+    cx_min_b, cx_max_b, n_cx,
+    cy_min_b, cy_max_b, n_cy,
+    R_min_b,  R_max_b,  n_R,
+    n_theta, threshold, max_circles,
+    out_circles_ptr);
+```
+
+### Verification
+
+Direct C unit test (`target/_test_hough_circle.c`):
+
+- T1 single circle  : R=5 at (10, 8), 64 sample points → top
+                       (cx=9.5, cy=7.5, R=4.5) ≈ truth ✓
+- T2 two circles    : (5,5,R=3) + (15,10,R=4), 32 pts each →
+                       both detected as top peaks ✓
+- T3 bad n_theta    : n_theta=0 → returns 0 ✓
+
+Build smoke `tests/rods/hough_circle_smoke.nr` compiles and
+links.
+
+### Files
+
+- `stdlib/runtime/hough_circle_rt.c` — accumulator build +
+   3×3×3 NMS + top-K selection.
+- `stdlib/rods/hough_circle.nr`      — extern + wrapper.
+- `tests/rods/hough_circle_smoke.nr` — build-only smoke.
+- `CHANGELOG.md`                      — this entry.
+
+### Limitations
+
+Documented in `hough_circle.nr` and `hough_circle_rt.c`:
+each (x, y) contributes uniformly along the ring (no
+orientation pruning) — `O(N · n_R · n_theta)` per accumulator;
+grid-quantized peak locations; 2-D circles only. Gradient-
+direction voting / sub-pixel refinement / 21HT pre-screening
+land in v0.6 if needed.
+
 ## [0.2.303] — 2026-04-24
 
 **Robotics: Gaussian image pyramid reduce/expand
