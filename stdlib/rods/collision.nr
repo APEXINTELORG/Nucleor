@@ -114,6 +114,18 @@ extern fn nuc_coll_ccd_sphere_aabb(
     minx: i64, miny: i64, minz: i64,
     maxx: i64, maxy: i64, maxz: i64) -> i64;
 
+// CCD: moving capsule vs static AABB (v0.2.246). Both capsule
+// endpoints linearly interpolate from a_*0 → a_*1 and b_*0 → b_*1.
+// Returns earliest collision time t ∈ [0, 1] as bit-cast f64;
+// -1.0 if clear. Closes the CCD pair matrix.
+extern fn nuc_coll_ccd_capsule_aabb(
+    a0x: i64, a0y: i64, a0z: i64,
+    a1x: i64, a1y: i64, a1z: i64,
+    b0x: i64, b0y: i64, b0z: i64,
+    b1x: i64, b1y: i64, b1z: i64, cr: i64,
+    minx: i64, miny: i64, minz: i64,
+    maxx: i64, maxy: i64, maxz: i64) -> i64;
+
 // Sphere-AABB cross-pair (v0.2.195).
 extern fn nuc_coll_sphere_aabb(
     sx: i64, sy: i64, sz: i64, sr: i64,
@@ -226,6 +238,19 @@ fn coll_ccd_sphere_aabb(
     maxx: i64, maxy: i64, maxz: i64) -> i64 {
     return nuc_coll_ccd_sphere_aabb(s0x, s0y, s0z, s1x, s1y, s1z, sr,
                                      minx, miny, minz, maxx, maxy, maxz);
+}
+
+fn coll_ccd_capsule_aabb(
+    a0x: i64, a0y: i64, a0z: i64,
+    a1x: i64, a1y: i64, a1z: i64,
+    b0x: i64, b0y: i64, b0z: i64,
+    b1x: i64, b1y: i64, b1z: i64, cr: i64,
+    minx: i64, miny: i64, minz: i64,
+    maxx: i64, maxy: i64, maxz: i64) -> i64
+{
+    return nuc_coll_ccd_capsule_aabb(a0x, a0y, a0z, a1x, a1y, a1z,
+        b0x, b0y, b0z, b1x, b1y, b1z, cr,
+        minx, miny, minz, maxx, maxy, maxz);
 }
 
 fn coll_sphere_aabb(
