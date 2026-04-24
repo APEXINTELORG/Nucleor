@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.171] — 2026-04-24
+
+**Memory-fix Ship 7: tools-suite gets its own 200 MB
+allocation budget (was un-gated). Both compilers now
+regression-protected.**
+
+The s1 self-host budget gate (v0.2.161 → v0.2.167) only
+covered `compiler/nucleor_s1_compiler.nr`. The
+`compiler/nucleor_tools_suite.nr` source (1.7× larger at
+822 KB; produces `bin/nucleor_tools.exe` for `nuc explain`,
+`nuc test` harness, and the rest of the tools surface) was
+un-gated — a regression in any tools-only path could blow
+its memory without the gate noticing.
+
+v0.2.171 adds a parallel `tools_suite_memory_budget` step
+with a proportional 200 MB ceiling.
+
+### Files
+
+- `tools/verify.sh`: refactored the existing `self_host_
+  memory_budget` body into a shared `_memory_budget_for`
+  helper that takes (source, budget_mb, label, output_name);
+  added `tools_suite_memory_budget` step that calls it with
+  (`compiler/nucleor_tools_suite.nr`, 200, `tools-suite`,
+  `verify_tools_budget`).
+- `STEP_TOTAL` bumped to account for the new step.
+
+### Baseline
+
+- s1 self-host: 67 MB (budget 100)
+- tools-suite: 111 MB (budget 200)
+
+The 200 MB budget gives ~80% headroom over the 111 MB
+baseline. The 1.7× source-size ratio between tools-suite
+(822 KB) and s1 (485 KB) tracks roughly with the memory
+ratio (1.66×), suggesting the architectural improvements
+scale linearly.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**250 / 250 PASS, 0 SKIP** in 3m3s (was 249/249; +1 new
+budget step).
+
 ## [0.2.170] — 2026-04-24
 
 **Documentation: `docs/release-notes-v0.2.x-memory.md` adds a

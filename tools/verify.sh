@@ -158,8 +158,8 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 utility smoke + 1 json + 1 version + 1 showcase build
 # + 1 CLI explain + 1 explain-full + 1 bootstrap + 1 check+abi
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
-# + N examples + N tests + N negative + 1 self-host + 1 budget
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 2))
+# + N examples + N tests + N negative + 1 self-host + 2 budgets
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 3))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -726,11 +726,30 @@ self_host_memory_budget() {
     # 50% headroom over the 67 MB baseline. Production-scale source
     # files (1-2 MB) will need this lifted; the s1 self-host (485 KB)
     # is the canonical regression target.
-    local budget_mb=100
+    _memory_budget_for "compiler/nucleor_s1_compiler.nr" 100 "self-host" "verify_budget"
+}
+
+tools_suite_memory_budget() {
+    # v0.2.171 — tools_suite is 1.7× the size of the s1 (822 KB vs
+    # 485 KB) and roughly proportionally heavier on type-check
+    # work, so the budget is set proportionally: 100 MB × 1.7 + a
+    # bit of margin = 200 MB. Same regression-protection rationale.
+    _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
+}
+
+# Shared body for the per-source memory-budget steps. Builds the
+# named source under NUC_TRACE_ALLOC=1, parses the TOTAL TRACKED
+# line, and asserts it stays under `budget_mb`. Diagnostic guidance
+# on failure points at the underlying NUC_TRACE_ALLOC command so
+# the developer can see the per-category breakdown.
+_memory_budget_for() {
+    local src="$1"
+    local budget_mb="$2"
+    local label="$3"
+    local out_name="$4"
     local out
     rm -rf "$ROOT/.nuc_cache" 2>/dev/null || true
-    out=$(NUC_TRACE_ALLOC=1 "$BIN" build "compiler/nucleor_s1_compiler.nr" -o "verify_budget" 2>&1)
-    # Parse the TOTAL TRACKED line: "  TOTAL TRACKED: ... (NN MB)"
+    out=$(NUC_TRACE_ALLOC=1 "$BIN" build "$src" -o "$out_name" 2>&1)
     local mb
     mb=$(echo "$out" | awk '/TOTAL TRACKED/ { for (i=1; i<=NF; i++) if ($i ~ /MB\)$/) { gsub(/[(]|MB\)/, "", $(i-1)); print $(i-1); exit } }')
     if [ -z "$mb" ]; then
@@ -738,13 +757,13 @@ self_host_memory_budget() {
         return 1
     fi
     if [ "$mb" -gt "$budget_mb" ]; then
-        echo "       FAIL: self-host compile used ${mb} MB; budget ${budget_mb} MB" | sed 's/^/       /'
+        echo "       FAIL: ${label} compile used ${mb} MB; budget ${budget_mb} MB" | sed 's/^/       /'
         echo "       Recent changes may have re-introduced an allocate-then-discard pattern." | sed 's/^/       /'
-        echo "       Run NUC_TRACE_ALLOC=1 bin/nucleor.exe build compiler/nucleor_s1_compiler.nr --no-cache" | sed 's/^/       /'
+        echo "       Run NUC_TRACE_ALLOC=1 bin/nucleor.exe build ${src} --no-cache" | sed 's/^/       /'
         echo "       to see per-category breakdown." | sed 's/^/       /'
         return 1
     fi
-    echo "       (self-host: ${mb} MB / ${budget_mb} MB budget)" | sed 's/^/       /'
+    echo "       (${label}: ${mb} MB / ${budget_mb} MB budget)" | sed 's/^/       /'
 }
 
 tools_rebuild() {
@@ -822,6 +841,7 @@ fi
 
 step "self-host rebuild closes" self_host_rebuild
 step "self-host memory budget (<= 100 MB)" self_host_memory_budget
+step "tools-suite memory budget (<= 200 MB)" tools_suite_memory_budget
 
 # --- Cleanup ------------------------------------------------------------
 # Default: wipe target + .nuc_cache so the next run starts cold (matches
