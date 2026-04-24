@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.239] — 2026-04-23
+
+**Robotics: dense 3D voxel grid for occupancy. Complements
+`octree.nr` (sparse): dense storage is faster than the octree
+for cluttered scenes (no tree traversal per query) but memory-
+intensive for sparse scenes. Foundation for inflated obstacle
+costmaps, voxel-based collision detection in tightly-packed
+cells, signed-distance-field caching.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/voxel.nr"
+
+// 5m cube centered at origin, 5cm resolution → 100³ = 1M voxels.
+let v = vox_new(cx_b, cy_b, cz_b, res_b, nx, ny, nz);
+vox_insert(v, x_b, y_b, z_b, occupied);
+let state = vox_query(v, x_b, y_b, z_b);   // 0=unknown, 1=free, 2=occupied
+let n_occ = vox_occupied_count(v);
+vox_free(v);
+```
+
+### When to use voxel grid vs octree
+
+| Property | Octree | Voxel grid |
+|---|---|---|
+| Storage | Sparse — only allocated nodes | Dense — full grid up front |
+| Per-query cost | O(depth) tree traversal | O(1) array index |
+| Best for sparse scenes | ✅ | ✗ (memory wastage) |
+| Best for dense scenes | ✗ (depth overhead) | ✅ |
+| Memory at 5m³ / 5cm res | ~10 MB typical (sparse) | 125 MB always |
+| Memory at 1m³ / 1cm res | ~100 MB typical (sparse) | 1 GB always |
+
+Use octree for room-scale outdoor scans (mostly empty); voxel
+grid for tabletop manipulation (mostly cluttered).
+
+### Verification
+
+10×10×10 grid centered at origin, 0.1 m resolution (1 m³ extent),
+all assertions in the smoke pass:
+
+| Test | Expected | Got |
+|---|---|---|
+| Total cell count | 1000 | ✓ |
+| Initial occupied count | 0 | ✓ |
+| Insert + query occupied at (0.3, 0.2, 0.1) | state = 2 | ✓ |
+| Occupied count after insert | 1 | ✓ |
+| Insert + query free at (0.4, 0.4, 0.4) | state = 1 | ✓ |
+| Insert at (5, 0, 0) (outside grid) | -1 | ✓ |
+
+### Files
+
+- `stdlib/runtime/voxel_rt.c` — `NVoxel` struct,
+  `_world_to_voxel`, `nuc_vox_*` exports.
+- `stdlib/rods/voxel.nr` — externs + Nucleor wrappers.
+- `tests/rods/voxel_smoke.nr` — full functional smoke
+  (positive-coord-only — Nucleor `0.0 - x` integer-on-bits limit).
+
+---
+
 ## [0.2.238] — 2026-04-23
 
 **Robotics: 2D convex hull (Andrew's monotone chain). Standard
