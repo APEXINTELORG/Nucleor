@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.287] — 2026-04-24
+
+**Robotics: 2D log-odds probabilistic occupancy grid (`occgrid`)
+with Bresenham-traced raycast updates. Foundational mapping
+primitive for 2D mobile-robot SLAM (Hector / gmapping style),
+free-space planning, and frontier exploration.**
+
+### Algorithm
+
+```
+Each cell stores log_odds; p = 1 / (1 + exp(−log_odds)).
+For each ray (sensor (sx, sy), bearing β, range r):
+    Bresenham-trace from (sx, sy) to ray endpoint:
+        cells along path:    log_odds -= l_free
+        cell at endpoint:    log_odds += l_occ      (if r < max_range)
+                             log_odds -= l_free     (no return)
+    Clamp log_odds to ±20.
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/occgrid.nr"
+
+let m = occgrid_new(W, H, cell_size_b, ox_b, oy_b);
+
+for ray {
+    occgrid_update_ray(m, sx_b, sy_b, range_b, bearing_b,
+                          l_free_b, l_occ_b, max_range_b);
+}
+
+let p_b    = occgrid_probability(m, x_b, y_b);
+let is_occ = occgrid_is_occupied(m, x_b, y_b, threshold_b);
+```
+
+Typical inverse-sensor params: `l_free = 0.4` (`p_obs = 0.40`),
+`l_occ = 0.85` (`p_obs = 0.70`), threshold `0.65`.
+
+### Verification
+
+20×20 grid covering `[0, 10]²`, cell size 0.5 m. Ray from `(1, 1)`
+bearing 0, range 5 m, `(l_free, l_occ) = (0.4, 0.85)`:
+
+- **Endpoint** at `(6, 1)`: log-odds = `+0.8500` exact (`p = 0.7006`).
+- **Mid-path** at `(3, 1)`: log-odds = `−0.4000` exact (`p = 0.4013`).
+- **Off-ray** at `(5, 5)`: `0.0000` (unchanged).
+- `is_occupied` true at endpoint, false at mid-path.
+
+### Files
+
+- `stdlib/runtime/occgrid_rt.c` — `nuc_occgrid_*` API; world↔cell
+  mapping; Bresenham raycast; sigmoid query.
+- `stdlib/rods/occgrid.nr` — externs + wrappers.
+- `tests/rods/occgrid_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.286] — 2026-04-24
 
 **Robotics: hierarchical coordinate-frame transform tree (`tf`).
