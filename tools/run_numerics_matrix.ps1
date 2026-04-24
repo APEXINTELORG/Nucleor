@@ -9,6 +9,16 @@
 #
 # Usage: pwsh tools/run_numerics_matrix.ps1
 
+# T1.1 safety: cap working set at 2 GB (mirrors verify.ps1).
+if (-not $env:NUCLEOR_MEM_CAP_MB) { $env:NUCLEOR_MEM_CAP_MB = "2048" }
+if ($env:NUCLEOR_MEM_CAP_MB -ne "0") {
+    try {
+        $proc = [System.Diagnostics.Process]::GetCurrentProcess()
+        $cap_bytes = [int64]$env:NUCLEOR_MEM_CAP_MB * 1MB
+        $proc.MaxWorkingSet = [System.IntPtr]::new($cap_bytes)
+    } catch { }
+}
+
 $root = (Resolve-Path "$PSScriptRoot\..").Path
 $matrix = Join-Path $root "tests\lang\numerics_matrix"
 $nucleor = Join-Path $root "bin\nucleor.exe"

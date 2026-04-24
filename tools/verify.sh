@@ -37,6 +37,15 @@
 
 set -uo pipefail
 
+# T1.1 safety: cap virtual memory at 2 GB so a runaway compile or
+# test fails fast. Healthy compiles are sub-1 GB; the prior blowups
+# we hunted hit ~20 GB, so 2 GB is the right "alarm" threshold.
+# Override via NUCLEOR_MEM_CAP_KB env var (units: KB; "0" = no cap).
+: "${NUCLEOR_MEM_CAP_KB:=2097152}"
+if [ "${NUCLEOR_MEM_CAP_KB}" != "0" ]; then
+    ulimit -v "${NUCLEOR_MEM_CAP_KB}" 2>/dev/null || true
+fi
+
 NO_COLOR_FLAG=""
 for arg in "$@"; do
     case "$arg" in

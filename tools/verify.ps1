@@ -39,6 +39,23 @@ param(
 
 $ErrorActionPreference = "Continue"
 
+# T1.1 safety: cap process working set / commit at 2 GB so a runaway
+# compile or test fails fast. Healthy compiles are sub-1 GB; the prior
+# blowups we hunted hit ~20 GB, so 2 GB is the right "alarm" threshold.
+# Override via env NUCLEOR_MEM_CAP_MB (units: MB; "0" = no cap).
+if (-not $env:NUCLEOR_MEM_CAP_MB) { $env:NUCLEOR_MEM_CAP_MB = "2048" }
+if ($env:NUCLEOR_MEM_CAP_MB -ne "0") {
+    try {
+        $proc = [System.Diagnostics.Process]::GetCurrentProcess()
+        # MaxWorkingSet is a soft cap (Windows can grow past on memory
+        # pressure) — sufficient hint to fail fast on multi-GB compiles.
+        $cap_bytes = [int64]$env:NUCLEOR_MEM_CAP_MB * 1MB
+        $proc.MaxWorkingSet = [System.IntPtr]::new($cap_bytes)
+    } catch {
+        # Soft-fail; some Windows hosts don't allow setting WS limits.
+    }
+}
+
 $root = Split-Path -Parent $PSScriptRoot
 $bin  = Join-Path $root "bin\nucleor.exe"
 
@@ -673,6 +690,28 @@ foreach ($e in $errFiles) {
 Step "self-host rebuild closes" {
     $out = & $bin build "compiler/nucleor_s1_compiler.nr" -o "verify_compiler" 2>&1 | Out-String
     return (Test-Path "target\verify_compiler.exe")
+}
+
+# T1.1 (v0.2.309+): bootstrap-stability check. The compiler change must
+# be FIXPOINT — compiling the source twice in succession must produce
+# the same binary. Prevents the class of bug where a compiler change
+# silently poisons the next compile (Phase 1's narrow_via_as truncating
+# stdlib's `let val: i32 = n` for str_from_int was caught this way).
+Step "self-host bootstrap fixpoint (stage-2)" {
+    if (-not (Test-Path "target\verify_compiler.exe")) { return $false }
+    $out = & "target\verify_compiler.exe" build "compiler/nucleor_s1_compiler.nr" -o "verify_compiler_2" 2>&1 | Out-String
+    if (-not (Test-Path "target\verify_compiler_2.exe")) { return $false }
+    # Stage-2 must compile the same hand-rolled smoke that the stage-1
+    # binary compiles. Cheap proxy: same byte-size of the emitted IR for
+    # a trivial test. (Stronger: exact-match diff; deferred to v0.2.310+.)
+    $smoke = "tests\lang\arith.nr"
+    & $bin build $smoke -o "_boot_s1" 2>&1 | Out-Null
+    & "target\verify_compiler_2.exe" build $smoke -o "_boot_s2" 2>&1 | Out-Null
+    $s1 = "target\_boot_s1.ll"; $s2 = "target\_boot_s2.ll"
+    if (-not (Test-Path $s1) -or -not (Test-Path $s2)) { return $false }
+    $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
+    $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
+    return $h1 -eq $h2
 }
 
 Remove-Item -Recurse -Force (Join-Path $root "target") -ErrorAction SilentlyContinue

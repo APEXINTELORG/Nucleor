@@ -6093,6 +6093,10 @@ fn types_compatible(expected: str, actual: str) -> i64 {
         };
         if digits_only == 1 && (str_eq(actual, "i32") == 1 || str_eq(actual, "i64") == 1 || str_eq(actual, "f64") == 1) { return 1; };
     };
+    // T1.1 Phase 2: f32 / f16 / bf16 accept f64 literals (the parser
+    // emits all float literals as f64; lowering inserts the conversion).
+    if (str_eq(expected, "f32") == 1 || str_eq(expected, "f16") == 1 || str_eq(expected, "bf16") == 1)
+       && (str_eq(actual, "f64") == 1 || str_eq(actual, "i32") == 1 || str_eq(actual, "i64") == 1) { return 1; };
     if str_len(expected) == 1 {
         let c: i64 = str_char_at(expected, 0);
         if c >= 65 && c <= 90 { return 1; };
@@ -7772,19 +7776,30 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
     print(str_concat("ERROR: unhandled expr kind ", str_from_int(kind)));
     return lx_new(0 - 1, blk);
 }
-// T1.1 Phase 1 (v0.2.308): if `tstr` is a narrow integer type, insert
-// a runtime `__nucleor_as_<T>` cast so the stored value is width-correct
-// (e.g. u8 wraps mod 256). Returns the new register holding the narrowed
-// value, or `vr` unchanged if `tstr` is not a narrow integer.
+// T1.1 Phase 1+2: if `tstr` is a narrow numeric type, insert a runtime
+// `__nucleor_as_<T>` cast so the stored value is width-correct (e.g.
+// u8 wraps mod 256, f32 narrows from f64). Returns the new register
+// holding the narrowed value, or `vr` unchanged otherwise.
+//
+// Restricted to u8/u16/i8/i16 + f32 deliberately. Phase 2 leaves
+// i32/u32 alone because Nucleor's stdlib (e.g. `str_from_int(n: i32)`)
+// loosely uses i32 as a "small int" annotation while still passing
+// i64-range values. Auto-narrowing those would silently break stdlib
+// code that wasn't written with strict-width assumptions. Phase 3
+// (alloca + register-type table) will do a proper stdlib audit and
+// re-enable i32/u32 narrowing once the stdlib types are tightened.
 fn narrow_via_as(blk: Vec<i32>, regs: Vec<i32>, vr: i64, tstr: str) -> i64 {
+    // Defensive: a negative source register means upstream lowering failed.
+    // Return it unchanged so the bad register propagates to a visible
+    // diagnostic rather than getting silently wrapped in an as-cast.
+    if vr < 0 { return vr; };
     if str_len(tstr) == 0 { return vr; };
     let mut helper: str = "";
     if str_eq(tstr, "i8") == 1 { helper = "as_i8"; };
     if str_eq(tstr, "i16") == 1 { helper = "as_i16"; };
-    if str_eq(tstr, "i32") == 1 { helper = "as_i32"; };
     if str_eq(tstr, "u8") == 1 { helper = "as_u8"; };
     if str_eq(tstr, "u16") == 1 { helper = "as_u16"; };
-    if str_eq(tstr, "u32") == 1 { helper = "as_u32"; };
+    if str_eq(tstr, "f32") == 1 { helper = "as_f32"; };
     if str_len(helper) == 0 { return vr; };
     let mut conv_args: Vec<i32> = Vec::new();
     conv_args.push(vr);
