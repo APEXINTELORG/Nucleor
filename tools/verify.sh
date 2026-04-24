@@ -255,14 +255,15 @@ cli_inspector_smoke() {
 # "this command path produces structured output without crashing"
 # rather than full semantic verification.
 showcase_build_smoke() {
-    # v0.2.90 — verify the four `examples/showcase/*.nr` programs
-    # build cleanly. They're not run-tested because they produce
-    # streaming ANSI dashboards that don't terminate on their own.
-    # Build-only catches regressions where a stdlib change breaks
-    # the showcase compile path even though the standard examples
-    # still compile.
+    # v0.2.90 — verify the `examples/showcase/*.nr` programs build
+    # cleanly. The animated dashboards (lorenz / vqe_h2 / market_maker
+    # / wing_simulator) are build-only because they produce streaming
+    # ANSI output that doesn't terminate on its own. The robotics
+    # showcase (added v0.2.206) DOES terminate on its own and is
+    # additionally run-tested below to gate the IK / TOPP / collision
+    # / BVH integration path against regression.
     local prog
-    for prog in lorenz vqe_h2 market_maker wing_simulator; do
+    for prog in lorenz vqe_h2 market_maker wing_simulator robotic_arm; do
         local out
         out=$("$BIN" build "examples/showcase/$prog.nr" -o "showcase_$prog" 2>&1)
         if [ ! -x "target/showcase_$prog" ] && [ ! -x "target/showcase_$prog.exe" ]; then
@@ -271,6 +272,16 @@ showcase_build_smoke() {
             return 1
         fi
     done
+    # Run the robotics showcase end-to-end and require all 8 stages
+    # complete with the final marker line. Catches regressions in any
+    # of the v0.2.174-205 robotics rods composed by the showcase.
+    local rrun
+    rrun=$("./target/showcase_robotic_arm" 2>&1 || true)
+    if ! printf '%s\n' "$rrun" | grep -q "Showcase complete: 8 stages"; then
+        echo "       robotic_arm showcase did not complete 8 stages"
+        printf '%s\n' "$rrun" | tail -10
+        return 1
+    fi
     return 0
 }
 
