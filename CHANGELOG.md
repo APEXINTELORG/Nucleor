@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.246] — 2026-04-23
+
+**Robotics: CCD capsule vs static AABB. Closes the CCD pair
+matrix alongside sphere-sphere (v0.2.196), capsule-capsule
+(v0.2.201), and sphere-AABB (v0.2.201). Common scenario: arm-
+link sweep past an environment box.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/collision.nr"
+
+let t = coll_ccd_capsule_aabb(
+    a0_x, a0_y, a0_z,  a1_x, a1_y, a1_z,    // capsule endpoint A
+    b0_x, b0_y, b0_z,  b1_x, b1_y, b1_z, cr, // capsule endpoint B + radius
+    aabb_min_x, aabb_min_y, aabb_min_z,
+    aabb_max_x, aabb_max_y, aabb_max_z);
+```
+
+Returns earliest collision time `t ∈ [0, 1]` as bit-cast f64;
+`-1.0` if clear. Both capsule endpoints linearly interpolate
+from `a_*0 → a_*1` and `b_*0 → b_*1` over the unit time interval.
+
+### Verification
+
+| Test | Expected | Got |
+|---|---|---|
+| Capsule sweep clear of AABB | -1.0 | **-1.000000** |
+| Capsule sweeps through AABB at midpoint | t ∈ (0, 1] | **0.480000** |
+
+### Files
+
+- `stdlib/runtime/collision_rt.c` — `_seg_aabb_dist2`,
+  `_capaabb_dist2_at`, `nuc_coll_ccd_capsule_aabb`.
+- `stdlib/rods/collision.nr` — extern + `coll_ccd_capsule_aabb`.
+
+---
+
 ## [0.2.245] — 2026-04-23
 
 **Robotics: spatial hash grid for fast 3D nearest-neighbor

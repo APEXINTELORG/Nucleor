@@ -339,6 +339,98 @@ long long nuc_coll_ccd_sphere_aabb(
     return _f2i(-1.0);
 }
 
+// ---- CCD: Capsule-AABB (v0.2.246) ----
+//
+// Moving capsule (both endpoints linearly interpolating from
+// a_*0 → a_*1 and b_*0 → b_*1) vs static AABB. Same bracket+
+// bisect approach as the other CCD primitives. Distance metric
+// is the segment-to-AABB-point distance: at each candidate t,
+// compute the capsule's centerline as the linearly-interpolated
+// segment and check segment-AABB distance against the capsule
+// radius.
+//
+// Closes the CCD pair matrix:
+//   sphere-sphere (v0.2.196), capsule-capsule (v0.2.201),
+//   sphere-AABB (v0.2.201), capsule-AABB (v0.2.246).
+
+// Distance² from segment (p0, p1) to AABB [bmin, bmax]^3 by
+// substepping along the segment + clamping each sample to the
+// AABB. Conservative — uses the minimum sample-to-AABB distance.
+static double _seg_aabb_dist2(
+    double p0_x, double p0_y, double p0_z,
+    double p1_x, double p1_y, double p1_z,
+    double bx, double by, double bz,
+    double Bx, double By, double Bz)
+{
+    int N = 8;  // segment subsamples
+    double best = 1e300;
+    for (int i = 0; i <= N; i++) {
+        double t = (double)i / (double)N;
+        double x = p0_x + t * (p1_x - p0_x);
+        double y = p0_y + t * (p1_y - p0_y);
+        double z = p0_z + t * (p1_z - p0_z);
+        double clx = x < bx ? bx : (x > Bx ? Bx : x);
+        double cly = y < by ? by : (y > By ? By : y);
+        double clz = z < bz ? bz : (z > Bz ? Bz : z);
+        double dx = x - clx, dy = y - cly, dz = z - clz;
+        double d2 = dx*dx + dy*dy + dz*dz;
+        if (d2 < best) best = d2;
+    }
+    return best;
+}
+
+static double _capaabb_dist2_at(double t,
+    double a0[3], double a1[3], double b0[3], double b1[3],
+    double bx, double by, double bz, double Bx, double By, double Bz)
+{
+    double pax = a0[0] + t*(a1[0] - a0[0]);
+    double pay = a0[1] + t*(a1[1] - a0[1]);
+    double paz = a0[2] + t*(a1[2] - a0[2]);
+    double pbx = b0[0] + t*(b1[0] - b0[0]);
+    double pby = b0[1] + t*(b1[1] - b0[1]);
+    double pbz = b0[2] + t*(b1[2] - b0[2]);
+    return _seg_aabb_dist2(pax, pay, paz, pbx, pby, pbz, bx, by, bz, Bx, By, Bz);
+}
+
+long long nuc_coll_ccd_capsule_aabb(
+    long long a0x, long long a0y, long long a0z,
+    long long a1x, long long a1y, long long a1z,
+    long long b0x, long long b0y, long long b0z,
+    long long b1x, long long b1y, long long b1z, long long cr,
+    long long minx, long long miny, long long minz,
+    long long maxx, long long maxy, long long maxz)
+{
+    double a0[3] = { _i2f(a0x), _i2f(a0y), _i2f(a0z) };
+    double a1[3] = { _i2f(a1x), _i2f(a1y), _i2f(a1z) };
+    double b0[3] = { _i2f(b0x), _i2f(b0y), _i2f(b0z) };
+    double b1[3] = { _i2f(b1x), _i2f(b1y), _i2f(b1z) };
+    double r = _i2f(cr);
+    double r2 = r * r;
+    double bx = _i2f(minx), by = _i2f(miny), bz = _i2f(minz);
+    double Bx = _i2f(maxx), By = _i2f(maxy), Bz = _i2f(maxz);
+
+    double d2_0 = _capaabb_dist2_at(0.0, a0, a1, b0, b1, bx, by, bz, Bx, By, Bz);
+    if (d2_0 <= r2) return _f2i(0.0);
+
+    int N = 16;
+    double t_prev = 0.0;
+    for (int i = 1; i <= N; i++) {
+        double t = (double)i / (double)N;
+        double d2 = _capaabb_dist2_at(t, a0, a1, b0, b1, bx, by, bz, Bx, By, Bz);
+        if (d2 <= r2) {
+            double lo = t_prev, hi = t;
+            for (int b = 0; b < 16; b++) {
+                double mid = 0.5 * (lo + hi);
+                double dm = _capaabb_dist2_at(mid, a0, a1, b0, b1, bx, by, bz, Bx, By, Bz);
+                if (dm <= r2) hi = mid; else lo = mid;
+            }
+            return _f2i(hi);
+        }
+        t_prev = t;
+    }
+    return _f2i(-1.0);
+}
+
 // ---- Sphere-Capsule ----
 long long nuc_coll_sphere_capsule(
     long long sx, long long sy, long long sz, long long sr,
