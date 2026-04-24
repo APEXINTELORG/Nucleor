@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.328] — 2026-04-24
+
+**Robotics: Harris corner detector (`harris`). For each pixel,
+computes `R = det(M) - k·trace(M)²` where M is the 3×3-windowed
+structure tensor of image gradients. Pixels above threshold AND
+3×3 local maxima are reported as corners, sorted by response.**
+
+### Algorithm
+
+```
+For each pixel:
+    Ix = central diff in x;  Iy = central diff in y
+    Sum Ix², Iy², Ix·Iy over 3×3 window → structure tensor M
+    R = det(M) - k · trace(M)²
+3×3 NMS + threshold → candidate corners
+Sort descending by R, return top-K (x, y, response).
+```
+
+Standard tuning: `k = 0.04`. Larger k → fewer/sharper corners.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/harris.nr"
+
+let xy: [2 * MAX]double;
+let resp: [MAX]double;
+let n = harris_corners(img_ptr, W, H,
+                        k_b, threshold_b, MAX,
+                        f64_ptr(&xy[0]),
+                        f64_ptr(&resp[0]));
+```
+
+Image is `double[H*W]` row-major in [0, 255].
+
+### Verification
+
+Direct C unit test (`target/_test_harris.c`):
+
+- T1 synthetic L-corner : 32×32 image with dark 10×10 quad in
+                           upper-left → top corner detected at
+                           (9, 9), response 3.3e9 ✓
+- T2 flat image         : all 128 → no corners ✓
+- T3 bad W=2            : returns 0 ✓
+
+Build smoke `tests/rods/harris_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/harris_rt.c` — gradients + structure tensor +
+  Harris response + NMS + sort.
+- `stdlib/rods/harris.nr` — extern + `harris_corners` wrapper.
+- `tests/rods/harris_smoke.nr` — build-only smoke.
+- `CHANGELOG.md` — this entry.
+
+### Limitations
+
+Documented in `harris.nr` and `harris_rt.c`: single-scale (caller
+pre-builds Gaussian pyramid via `image_pyramid.nr` for multi-
+scale); fixed 3×3 box window (no Gaussian weighting); central-
+difference gradients. Shi-Tomasi response / sub-pixel refinement
+land in v0.6 if needed.
+
 ## [0.2.327] — 2026-04-24
 
 **Robotics: unit-quaternion utilities for 3-D rotation
