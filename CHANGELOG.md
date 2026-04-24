@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.306] — 2026-04-24
+
+**Robotics: 2-D Voronoi diagram from Delaunay triangulation
+(`voronoi`). Lifts a Delaunay triangulation (`delaunay.nr`)
+into its dual Voronoi diagram. Each Voronoi vertex is a
+Delaunay-triangle circumcenter; each Voronoi edge connects
+circumcenters of triangles sharing a Delaunay edge. Hull-
+boundary edges have one endpoint at infinity (encoded as
+`-1`).**
+
+### Algorithm
+
+```
+Voronoi vertex = circumcenter(Delaunay triangle)
+Voronoi edge   = (cc(t1), cc(t2)) for every Delaunay edge
+                 shared by triangles t1 and t2
+                 (or (cc(t1), ∞) if hull edge)
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/delaunay.nr"
+import "stdlib/rods/voronoi.nr"
+
+let n_tris = delaunay_2d(pts_ptr, n_pts, tris_ptr, max_tris);
+
+let n_verts: i32;
+let n_edges = voronoi_2d(pts_ptr, n_pts, tris_ptr, n_tris,
+                          vert_xy_out_ptr, max_verts,
+                          edges_out_ptr, max_edges,
+                          i32_ptr(&n_verts));
+```
+
+### Verification
+
+Direct C unit test (`target/_test_voronoi.c`):
+
+- T1 sq+center  : 5 sites → 4 Voronoi vertices at exactly
+                   (1,0), (2,1), (1,2), (0,1); 4 inner edges
+                   ring + 4 hull edges to ∞ ✓
+- T2 bad n_tris : n_tris=0 → returns 0 ✓
+
+Build smoke `tests/rods/voronoi_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/voronoi_rt.c` — circumcenter per triangle +
+   Delaunay-edge dual graph.
+- `stdlib/rods/voronoi.nr`      — extern + `voronoi_2d` wrapper.
+- `tests/rods/voronoi_smoke.nr` — build-only smoke.
+- `CHANGELOG.md`                 — this entry.
+
+### Limitations
+
+Documented in `voronoi.nr` and `voronoi_rt.c`: 2-D only;
+naive O(T²) Delaunay-edge group; returns segments only (caller
+assembles full cell polygons); hull edges go to ∞ encoded as
+vertex `-1`. 3-D Voronoi / weighted (power) Voronoi /
+centroidal CVT iteration land in v0.6 if needed.
+
 ## [0.2.305] — 2026-04-24
 
 **Robotics: 2-D Delaunay triangulation + circumcenter helper

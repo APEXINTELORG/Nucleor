@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 211
-# Total fn definitions: 2070
-# Total LOC: 9043
+# Total rods: 212
+# Total fn definitions: 2071
+# Total LOC: 9059
 
 [[rod]]
 name           = "activation2"
@@ -1873,6 +1873,15 @@ function_count = 6
 cfile_count    = 1
 loc            = 61
 imports        = []
+
+[[rod]]
+name           = "voronoi"
+path           = "stdlib/rods/voronoi.nr"
+description    = "2-D Voronoi diagram from a Delaunay triangulation."
+function_count = 1
+cfile_count    = 1
+loc            = 16
+imports        = ["delaunay", "voronoi"]
 
 [[rod]]
 name           = "voxel"
