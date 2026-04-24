@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.303] — 2026-04-24
+
+**Robotics: Gaussian image pyramid reduce/expand
+(`image_pyramid`). Burt & Adelson 1983 multi-resolution
+representation with the canonical 5-tap separable Gaussian
+`[1 4 6 4 1] / 16`. Foundation for coarse-to-fine Lucas-Kanade
+and multi-scale feature detection.**
+
+### Algorithm
+
+```
+reduce(I): blur(I, [1,4,6,4,1]/16) then subsample by 2
+expand(I): zero-insert by 2 then blur([1,4,6,4,1]/8)
+           (kernel sum 2× per axis compensates for zeros so
+            constant images are preserved)
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/image_pyramid.nr"
+
+// halve
+let ok = pyramid_reduce(in_ptr, W, H, out_ptr);
+
+// double
+let ok = pyramid_expand(in_ptr, W, H, outW, outH, out_ptr);
+```
+
+Images are `double[H*W]` row-major in [0, 255].
+
+### Verification
+
+Direct C unit test (`target/_test_image_pyramid.c`):
+
+- T1 const reduce  : 128 const → reduce → maxerr=0 ✓
+- T2 odd dims      : 15×17 → reduce → 8×9 ✓
+- T3 impulse       : 1 at center → reduce energy=0.25 ✓
+- T4 expand const  : 100 const → expand → 100 (kernel preserves) ✓
+- T5 bad dim       : W=0 → returns 0 ✓
+
+Build smoke `tests/rods/image_pyramid_smoke.nr` compiles and
+links.
+
+### Files
+
+- `stdlib/runtime/image_pyramid_rt.c` — separable Gaussian
+   reduce + zero-insert expand.
+- `stdlib/rods/image_pyramid.nr`      — extern + wrappers.
+- `tests/rods/image_pyramid_smoke.nr` — build-only smoke.
+- `CHANGELOG.md`                       — this entry.
+
+### Limitations
+
+Documented in `image_pyramid.nr` and `image_pyramid_rt.c`:
+double-precision internal representation; replicate boundary
+handling; `ceil(W/2) × ceil(H/2)` target size for reduce. SIFT
+DoG / orientation assignment / SIMD stride land in v0.6 if
+needed.
+
 ## [0.2.302] — 2026-04-24
 
 **Robotics: Reeds-Shepp shortest paths (`reeds_shepp`). Car-like
