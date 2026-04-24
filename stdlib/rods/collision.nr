@@ -39,6 +39,21 @@ extern fn nuc_coll_capsule_capsule(
 // Returns 1 (overlap), 0 (clear), or -1 if convergence failed.
 extern fn nuc_coll_gjk(support_a_fp: i64, support_b_fp: i64) -> i64;
 
+// Sphere-AABB cross-pair (v0.2.195).
+extern fn nuc_coll_sphere_aabb(
+    sx: i64, sy: i64, sz: i64, sr: i64,
+    minx: i64, miny: i64, minz: i64,
+    maxx: i64, maxy: i64, maxz: i64) -> i64;
+
+// Capsule-AABB cross-pair (v0.2.195). Slightly conservative
+// at the rounded corners of the AABB-Minkowski-expanded box;
+// exact rounded-corner rejection ships in v0.5.
+extern fn nuc_coll_capsule_aabb(
+    c_ax: i64, c_ay: i64, c_az: i64,
+    c_bx: i64, c_by: i64, c_bz: i64, cr: i64,
+    minx: i64, miny: i64, minz: i64,
+    maxx: i64, maxy: i64, maxz: i64) -> i64;
+
 extern fn nuc_coll_aabb_aabb(
     a_minx: i64, a_miny: i64, a_minz: i64,
     a_maxx: i64, a_maxy: i64, a_maxz: i64,
@@ -70,6 +85,22 @@ fn coll_capsule_capsule(
 
 fn coll_gjk(support_a_fp: i64, support_b_fp: i64) -> i64 {
     return nuc_coll_gjk(support_a_fp, support_b_fp);
+}
+
+fn coll_sphere_aabb(
+    sx: i64, sy: i64, sz: i64, sr: i64,
+    minx: i64, miny: i64, minz: i64,
+    maxx: i64, maxy: i64, maxz: i64) -> i64 {
+    return nuc_coll_sphere_aabb(sx, sy, sz, sr, minx, miny, minz, maxx, maxy, maxz);
+}
+
+fn coll_capsule_aabb(
+    c_ax: i64, c_ay: i64, c_az: i64,
+    c_bx: i64, c_by: i64, c_bz: i64, cr: i64,
+    minx: i64, miny: i64, minz: i64,
+    maxx: i64, maxy: i64, maxz: i64) -> i64 {
+    return nuc_coll_capsule_aabb(c_ax, c_ay, c_az, c_bx, c_by, c_bz, cr,
+                                  minx, miny, minz, maxx, maxy, maxz);
 }
 
 fn coll_aabb_aabb(
