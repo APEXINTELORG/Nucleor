@@ -39,6 +39,16 @@ extern fn nuc_coll_capsule_capsule(
 // Returns 1 (overlap), 0 (clear), or -1 if convergence failed.
 extern fn nuc_coll_gjk(support_a_fp: i64, support_b_fp: i64) -> i64;
 
+// CCD: continuous sphere-sphere (v0.2.196). Two moving spheres
+// from (a0, ar) → (a1, ar) and (b0, br) → (b1, br) over a unit
+// time interval. Returns the earliest collision time t ∈ [0, 1]
+// as a bit-cast f64; returns -1.0 (bit-cast) if no collision.
+extern fn nuc_coll_ccd_sphere_sphere(
+    a0x: i64, a0y: i64, a0z: i64,
+    a1x: i64, a1y: i64, a1z: i64, ar: i64,
+    b0x: i64, b0y: i64, b0z: i64,
+    b1x: i64, b1y: i64, b1z: i64, br: i64) -> i64;
+
 // Sphere-AABB cross-pair (v0.2.195).
 extern fn nuc_coll_sphere_aabb(
     sx: i64, sy: i64, sz: i64, sr: i64,
@@ -85,6 +95,15 @@ fn coll_capsule_capsule(
 
 fn coll_gjk(support_a_fp: i64, support_b_fp: i64) -> i64 {
     return nuc_coll_gjk(support_a_fp, support_b_fp);
+}
+
+fn coll_ccd_sphere_sphere(
+    a0x: i64, a0y: i64, a0z: i64,
+    a1x: i64, a1y: i64, a1z: i64, ar: i64,
+    b0x: i64, b0y: i64, b0z: i64,
+    b1x: i64, b1y: i64, b1z: i64, br: i64) -> i64 {
+    return nuc_coll_ccd_sphere_sphere(a0x, a0y, a0z, a1x, a1y, a1z, ar,
+                                       b0x, b0y, b0z, b1x, b1y, b1z, br);
 }
 
 fn coll_sphere_aabb(

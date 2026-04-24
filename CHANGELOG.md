@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.196] — 2026-04-24
+
+**Robotics: Continuous Collision Detection (CCD) for swept
+sphere-sphere. Reports the earliest collision time t ∈ [0, 1]
+of two moving spheres over a unit time interval — so fast-
+moving objects don't tunnel through each other in discrete-
+time simulation.**
+
+The static collision tests (v0.2.178) check overlap at one
+instant. Real systems with fast motion need to know whether two
+objects WILL collide between simulation steps — otherwise small
+objects pass through walls (the classic "tunneling" bug).
+
+`coll_ccd_sphere_sphere` solves the closed-form quadratic for
+when the relative-distance equals the sum-of-radii during the
+swept motion, and reports the earliest such time in [0, 1].
+Returns -1.0 if no collision in the interval.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/collision.nr"
+
+// Sphere A moves from (0,0,0) → (10,0,0); sphere B sits at (5,0,0).
+let t = coll_ccd_sphere_sphere(
+    f64_to_bits(0.0), f64_to_bits(0.0), f64_to_bits(0.0),
+    f64_to_bits(10.0), f64_to_bits(0.0), f64_to_bits(0.0), f64_to_bits(0.5),
+    f64_to_bits(5.0), f64_to_bits(0.0), f64_to_bits(0.0),
+    f64_to_bits(5.0), f64_to_bits(0.0), f64_to_bits(0.0), f64_to_bits(0.5));
+// t ≈ 0.45 (first contact when sphere A reaches x ≈ 4.5)
+```
+
+### Files
+
+- `stdlib/runtime/collision_rt.c`: ~50 LOC for the quadratic
+  solver.
+- `stdlib/rods/collision.nr`: 1 new builtin
+  (`coll_ccd_sphere_sphere`).
+
+### v0.5 follow-on
+
+- CCD for capsule-capsule, sphere-AABB
+- GJK-based CCD for general convex shapes
+- Continuous AABB-AABB (sweep-and-prune at the BVH leaf level)
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**259 / 259 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.195] — 2026-04-24
 
 **Robotics: collision cross-pairs — sphere-AABB and capsule-

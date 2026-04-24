@@ -21,6 +21,7 @@
 #include <stdlib.h>
 
 static double _i2f(long long x) { double d; memcpy(&d, &x, sizeof(double)); return d; }
+static long long _f2i(double d) { long long x; memcpy(&x, &d, sizeof(double)); return x; }
 
 // ---- Sphere-Sphere ----
 long long nuc_coll_sphere_sphere(
@@ -107,6 +108,55 @@ static double _segment_segment_dist2(double a1x, double a1y, double a1z,
     double cbx = b1x + dbx*t, cby = b1y + dby*t, cbz = b1z + dbz*t;
     double dx = cax - cbx, dy = cay - cby, dz = caz - cbz;
     return dx*dx + dy*dy + dz*dz;
+}
+
+// ---- CCD: swept sphere-sphere (v0.2.196) ----
+//
+// A moving sphere from (a0, ar) to (a1, ar) sweeps a capsule.
+// A moving sphere from (b0, br) to (b1, br) sweeps another.
+// Two moving spheres collide iff the distance between their
+// centers — as a function of time t ∈ [0, 1] — drops below
+// (ar + br). Solve the quadratic in t and report the earliest
+// hit time, or -1 if no collision in [0, 1].
+//
+// Returns:
+//   t ∈ [0, 1]: collision at fraction t of the motion
+//   -1.0     : no collision in the swept interval
+long long nuc_coll_ccd_sphere_sphere(
+    long long a0x, long long a0y, long long a0z,
+    long long a1x, long long a1y, long long a1z, long long ar,
+    long long b0x, long long b0y, long long b0z,
+    long long b1x, long long b1y, long long b1z, long long br)
+{
+    double a0[3] = { _i2f(a0x), _i2f(a0y), _i2f(a0z) };
+    double a1[3] = { _i2f(a1x), _i2f(a1y), _i2f(a1z) };
+    double b0[3] = { _i2f(b0x), _i2f(b0y), _i2f(b0z) };
+    double b1[3] = { _i2f(b1x), _i2f(b1y), _i2f(b1z) };
+    double radius = _i2f(ar) + _i2f(br);
+    double dx0 = a0[0] - b0[0], dy0 = a0[1] - b0[1], dz0 = a0[2] - b0[2];
+    // Relative velocity (a relative to b) over the motion duration.
+    double vx = (a1[0] - a0[0]) - (b1[0] - b0[0]);
+    double vy = (a1[1] - a0[1]) - (b1[1] - b0[1]);
+    double vz = (a1[2] - a0[2]) - (b1[2] - b0[2]);
+    double A = vx*vx + vy*vy + vz*vz;
+    double B = 2.0 * (dx0*vx + dy0*vy + dz0*vz);
+    double C = dx0*dx0 + dy0*dy0 + dz0*dz0 - radius*radius;
+    if (A < 1e-18) {
+        // No relative motion; behaves as static sphere-sphere.
+        return _f2i(C <= 0 ? 0.0 : -1.0);
+    }
+    double disc = B*B - 4*A*C;
+    if (disc < 0) return _f2i(-1.0);
+    double sd = sqrt(disc);
+    double t0 = (-B - sd) / (2*A);
+    double t1 = (-B + sd) / (2*A);
+    // Earliest non-negative root in [0, 1].
+    if (t0 >= 0 && t0 <= 1) return _f2i(t0);
+    if (t1 >= 0 && t1 <= 1) {
+        // Already overlapping at t=0 — t0 < 0, but exit at t1.
+        return _f2i(t0 < 0 ? 0.0 : t1);
+    }
+    return _f2i(-1.0);
 }
 
 // ---- Sphere-Capsule ----
