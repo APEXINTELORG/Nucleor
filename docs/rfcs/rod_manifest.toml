@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 202
-# Total fn definitions: 2058
-# Total LOC: 8887
+# Total rods: 203
+# Total fn definitions: 2059
+# Total LOC: 8902
 
 [[rod]]
 name           = "activation2"
@@ -1225,6 +1225,15 @@ function_count = 5
 cfile_count    = 1
 loc            = 21
 imports        = ["process"]
+
+[[rod]]
+name           = "purepursuit"
+path           = "stdlib/rods/purepursuit.nr"
+description    = "Pure-pursuit geometric path tracker for"
+function_count = 1
+cfile_count    = 1
+loc            = 15
+imports        = ["purepursuit"]
 
 [[rod]]
 name           = "pursuit"
