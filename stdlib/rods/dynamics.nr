@@ -52,6 +52,13 @@ extern fn nuc_dyn_set_gravity(h: i64, gx_b: i64, gy_b: i64, gz_b: i64);
 // Default 0 / 0 (frictionless). Skipped for fixed joints.
 extern fn nuc_dyn_set_joint_friction(h: i64, i: i64,
     mu_v_b: i64, mu_c_b: i64);
+
+// Per-joint reflected motor inertia (v0.2.221). The caller supplies
+// `I_rotor · gear_ratio²` — the rotor inertia "as seen at the joint
+// shaft". Augments the joint-space mass matrix diagonal:
+// `τ += I_motor · qdd`. Default 0 (no reflection). Critical for
+// high-fidelity dynamics on geared robots.
+extern fn nuc_dyn_set_motor_inertia(h: i64, i: i64, I_b: i64);
 extern fn nuc_dyn_inverse(h: i64,
     q_ptr: i64, qd_ptr: i64, qdd_ptr: i64, tau_out_ptr: i64) -> i64;
 extern fn nuc_dyn_gravity(h: i64, q_ptr: i64, tau_out_ptr: i64) -> i64;
@@ -191,6 +198,12 @@ fn dyn_set_gravity(h: i64, gx_b: i64, gy_b: i64, gz_b: i64) {
 // the Coulomb / dry-friction torque magnitude. Default 0 / 0.
 fn dyn_set_joint_friction(h: i64, i: i64, mu_v_b: i64, mu_c_b: i64) {
     nuc_dyn_set_joint_friction(h, i, mu_v_b, mu_c_b);
+}
+
+// Per-joint reflected motor inertia (v0.2.221). Caller supplies
+// `I_rotor · gear_ratio²`. Default 0.
+fn dyn_set_motor_inertia(h: i64, i: i64, I_b: i64) {
+    nuc_dyn_set_motor_inertia(h, i, I_b);
 }
 
 // Inverse dynamics: compute joint torques `tau` for the (q, qd, qdd)

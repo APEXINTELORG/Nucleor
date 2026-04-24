@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 145
-# Total fn definitions: 1679
-# Total LOC: 7182
+# Total fn definitions: 1681
+# Total LOC: 7195
 
 [[rod]]
 name           = "activation2"
@@ -384,9 +384,9 @@ imports        = ["digest"]
 name           = "dynamics"
 path           = "stdlib/rods/dynamics.nr"
 description    = "Robot inverse dynamics via the Recursive"
-function_count = 16
+function_count = 17
 cfile_count    = 1
-loc            = 136
+loc            = 140
 imports        = ["fk_chain"]
 
 [[rod]]
@@ -879,9 +879,9 @@ imports        = []
 name           = "prm"
 path           = "stdlib/rods/prm.nr"
 description    = "Probabilistic Roadmap motion planner."
-function_count = 10
+function_count = 11
 cfile_count    = 1
-loc            = 36
+loc            = 45
 imports        = []
 
 [[rod]]

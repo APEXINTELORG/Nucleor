@@ -31,6 +31,15 @@ extern fn nuc_prm_build(h: i64, n_samples: i64, k_neighbors: i64,
 extern fn nuc_prm_query(h: i64, start_ptr: i64, goal_ptr: i64,
                        k_neighbors: i64, step_b: i64,
                        is_collision_free_fp: i64) -> i64;
+
+// A* query (v0.2.220): same multi-query pattern as `nuc_prm_query`
+// (Dijkstra) but uses A* with a Euclidean heuristic toward the
+// goal config. On large roadmaps where joint-space distance
+// correlates with roadmap distance, A* expands far fewer nodes
+// than Dijkstra and returns the same optimal path.
+extern fn nuc_prm_query_astar(h: i64, start_ptr: i64, goal_ptr: i64,
+                             k_neighbors: i64, step_b: i64,
+                             is_collision_free_fp: i64) -> i64;
 extern fn nuc_prm_path_len(h: i64) -> i64;
 extern fn nuc_prm_path_node(h: i64, idx: i64) -> i64;
 extern fn nuc_prm_path_at(h: i64, idx: i64, dim: i64) -> i64;
@@ -61,6 +70,16 @@ fn prm_query(h: i64, start_ptr: i64, goal_ptr: i64,
              is_collision_free_fp: i64) -> i64 {
     return nuc_prm_query(h, start_ptr, goal_ptr, k_neighbors,
                          step_b, is_collision_free_fp);
+}
+
+// A*-with-Euclidean-heuristic variant of `prm_query`. Same I/O
+// contract; on large roadmaps with informative heuristic, expands
+// far fewer nodes.
+fn prm_query_astar(h: i64, start_ptr: i64, goal_ptr: i64,
+                   k_neighbors: i64, step_b: i64,
+                   is_collision_free_fp: i64) -> i64 {
+    return nuc_prm_query_astar(h, start_ptr, goal_ptr, k_neighbors,
+                                step_b, is_collision_free_fp);
 }
 
 // Number of waypoints on the most recent successful query path.

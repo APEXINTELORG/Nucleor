@@ -418,6 +418,150 @@ long long nuc_prm_path_at(long long h, long long idx, long long dim) {
     return _f2i(p->nodes[node * p->n_dim + (int)dim]);
 }
 
+// === A* query (v0.2.220) ================================================
+//
+// Same multi-query pattern as `nuc_prm_query` (Dijkstra) but uses
+// A* with a Euclidean-distance heuristic toward `goal_ptr`. On
+// roadmaps where the heuristic is informative — i.e., when joint-
+// space distance correlates with roadmap distance — A* expands
+// many fewer nodes than Dijkstra and returns the same optimal
+// path.
+//
+// Same input/output contract as `nuc_prm_query`. The path lives
+// in `p->path_indices` after the call.
+long long nuc_prm_query_astar(long long h,
+                             long long start_ptr, long long goal_ptr,
+                             long long k_neighbors,
+                             long long step_b,
+                             long long is_collision_free_fp)
+{
+    NPRM *p = (NPRM *)(void *)(size_t)h;
+    if (!p || p->n_nodes == 0) return 0;
+    coll_fn_t cf = (coll_fn_t)(void *)(size_t)is_collision_free_fp;
+    double step = _i2f(step_b);
+    int k = (int)k_neighbors;
+    if (k < 1) k = 1;
+
+    double *start = (double *)(void *)(size_t)start_ptr;
+    double *goal  = (double *)(void *)(size_t)goal_ptr;
+    int N = p->n_nodes;
+    int V = N + 2;
+    int START = N, GOAL = N + 1;
+
+    typedef struct { int j; double cost; } VEdge;
+    VEdge *start_edges = (VEdge *)malloc(k * sizeof(VEdge));
+    VEdge *goal_edges  = (VEdge *)malloc(k * sizeof(VEdge));
+    int n_start_e = 0, n_goal_e = 0;
+
+    int *cand = (int *)malloc(k * sizeof(int));
+    double *cand_d2 = (double *)malloc(k * sizeof(double));
+    for (int pass = 0; pass < 2; pass++) {
+        double *cfg = (pass == 0) ? start : goal;
+        int filled = 0;
+        for (int j = 0; j < N; j++) {
+            double d2 = _ext_dist2(p, cfg, j);
+            if (filled < k) {
+                cand[filled] = j; cand_d2[filled] = d2; filled++;
+            } else {
+                int worst = 0;
+                for (int q = 1; q < k; q++) if (cand_d2[q] > cand_d2[worst]) worst = q;
+                if (d2 < cand_d2[worst]) { cand[worst] = j; cand_d2[worst] = d2; }
+            }
+        }
+        for (int q = 0; q < filled; q++) {
+            int j = cand[q];
+            if (!_ext_segment_free(p, cfg, j, step, cf)) continue;
+            double cost = sqrt(cand_d2[q]);
+            if (pass == 0) start_edges[n_start_e++] = (VEdge){j, cost};
+            else            goal_edges [n_goal_e++ ] = (VEdge){j, cost};
+        }
+    }
+    free(cand); free(cand_d2);
+
+    if (n_start_e == 0 || n_goal_e == 0) {
+        free(start_edges); free(goal_edges);
+        if (p->path_indices) { free(p->path_indices); p->path_indices = NULL; }
+        p->path_len = 0;
+        return 0;
+    }
+
+    // Per-node Euclidean heuristic to goal (precomputed for speed).
+    double *h_score = (double *)malloc(V * sizeof(double));
+    for (int j = 0; j < N; j++) h_score[j] = sqrt(_ext_dist2(p, goal, j));
+    h_score[START] = sqrt(_ext_dist2(p, goal, /*ignored*/0));   // recomputed below
+    {
+        double s2 = 0;
+        for (int d = 0; d < p->n_dim; d++) {
+            double dlt = start[d] - goal[d];
+            s2 += dlt * dlt;
+        }
+        h_score[START] = sqrt(s2);
+    }
+    h_score[GOAL] = 0.0;
+
+    // A*: same Dijkstra structure but pick by min(g + h) instead of min(g).
+    double *g_score = (double *)malloc(V * sizeof(double));
+    int    *prev    = (int    *)malloc(V * sizeof(int));
+    int    *done    = (int    *)calloc(V, sizeof(int));
+    for (int i = 0; i < V; i++) { g_score[i] = 1e300; prev[i] = -1; }
+    g_score[START] = 0;
+
+    for (int it = 0; it < V; it++) {
+        int u = -1;
+        double best_f = 1e300;
+        for (int i = 0; i < V; i++) {
+            if (done[i] || g_score[i] >= 1e299) continue;
+            double f = g_score[i] + h_score[i];
+            if (f < best_f) { best_f = f; u = i; }
+        }
+        if (u < 0) break;
+        done[u] = 1;
+        if (u == GOAL) break;
+
+        if (u == START) {
+            for (int q = 0; q < n_start_e; q++) {
+                int v = start_edges[q].j;
+                double ng = g_score[u] + start_edges[q].cost;
+                if (ng < g_score[v]) { g_score[v] = ng; prev[v] = u; }
+            }
+        } else if (u == GOAL) {
+            // No outgoing.
+        } else {
+            int s_off = p->edge_offset[u];
+            int e_off = p->edge_offset[u + 1];
+            for (int e = s_off; e < e_off; e++) {
+                int v = p->edges[e].to;
+                double ng = g_score[u] + p->edges[e].cost;
+                if (ng < g_score[v]) { g_score[v] = ng; prev[v] = u; }
+            }
+            for (int q = 0; q < n_goal_e; q++) {
+                if (goal_edges[q].j != u) continue;
+                double ng = g_score[u] + goal_edges[q].cost;
+                if (ng < g_score[GOAL]) { g_score[GOAL] = ng; prev[GOAL] = u; }
+            }
+        }
+    }
+
+    long long path_len = 0;
+    if (g_score[GOAL] < 1e299) {
+        int len = 0;
+        for (int v = GOAL; v != -1; v = prev[v]) len++;
+        if (p->path_indices) free(p->path_indices);
+        p->path_indices = (int *)malloc(len * sizeof(int));
+        int idx = len - 1;
+        for (int v = GOAL; v != -1; v = prev[v]) p->path_indices[idx--] = v;
+        p->path_len = len;
+        path_len = (long long)len;
+    } else {
+        if (p->path_indices) { free(p->path_indices); p->path_indices = NULL; }
+        p->path_len = 0;
+    }
+
+    free(g_score); free(prev); free(done); free(h_score);
+    free(start_edges); free(goal_edges);
+    return path_len;
+}
+
 long long nuc_prm_node_count(long long h) {
     NPRM *p = (NPRM *)(void *)(size_t)h;
     return p ? (long long)p->n_nodes : 0;
