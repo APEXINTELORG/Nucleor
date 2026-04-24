@@ -295,6 +295,174 @@ long long nuc_ik_dls_solve(
     return (long long)iter;
 }
 
+// === Task-priority IK with nullspace posture preference (v0.2.210) ======
+//
+// For redundant manipulators (more joints than task DOFs), the
+// primary IK task underdetermines the joint configuration — there's
+// a whole manifold of joint values that produce the same end-
+// effector pose. Standard task-priority IK (Siciliano-Slotine 1991)
+// fills that ambiguity with a *secondary* task projected into the
+// primary task's nullspace, so it never disturbs the primary
+// objective.
+//
+// This entry point ships the most common secondary-task pattern:
+// **joint-space posture preference**. Given a desired "rest"
+// configuration `q_pref`, the redundancy is used to pull the
+// solver's output toward `q_pref` while still hitting the
+// position target exactly. Useful for:
+// - Joint-limit avoidance (set `q_pref` to the midpoint of each
+//   joint's `[lo, hi]` range, weight by 1/range²).
+// - Solution-branch selection on a 7-DOF arm (e.g., elbow-up vs
+//   elbow-down).
+// - Continuity across waypoints (use the previous solve's output
+//   as `q_pref`).
+//
+// Math:
+//   q̇_primary  = J⁺ · e_pos
+//   N          = I − J⁺ · J          (nullspace projector)
+//   q̇_secondary = N · w · (q_pref − q)
+//   q̇          = q̇_primary + q̇_secondary
+//
+// `J⁺` is the damped pseudoinverse `Jᵀ · (J·Jᵀ + λ²I)⁻¹`. The
+// secondary task is in joint space (J2 = I), so its update is
+// just the projected joint-space error.
+//
+// Same return convention as the base `nuc_ik_dls_solve`: number
+// of iterations actually performed.
+long long nuc_ik_dls_solve_nullspace(
+    long long ch, long long vars_ptr,
+    long long tx_bits, long long ty_bits, long long tz_bits,
+    long long q_pref_ptr,
+    long long secondary_weight_bits,
+    long long max_iters,
+    long long tolerance_bits,
+    long long damping_bits)
+{
+    int n = (int)nuc_fk_chain_count(ch);
+    if (n <= 0) return 0;
+    double *vars = (double *)(void *)(size_t)vars_ptr;
+    double *q_pref = (double *)(void *)(size_t)q_pref_ptr;
+    double tx = _i2f(tx_bits), ty = _i2f(ty_bits), tz = _i2f(tz_bits);
+    double tol = _i2f(tolerance_bits);
+    double lambda = _i2f(damping_bits);
+    double w_sec = _i2f(secondary_weight_bits);
+    if (w_sec < 0) w_sec = 0;
+    double lambda2 = lambda * lambda;
+
+    double *J          = (double *)malloc(3 * n * sizeof(double));
+    double *perturbed  = (double *)malloc(n * sizeof(double));
+    long long perturbed_h = (long long)(size_t)perturbed;
+    double *JJt_lam    = (double *)malloc(9 * sizeof(double));
+    double *invJJt     = (double *)malloc(9 * sizeof(double));
+    double *Jpinv      = (double *)malloc(n * 3 * sizeof(double)); // J⁺ = Jᵀ · (J·Jᵀ + λ²I)⁻¹  (n×3)
+    double *NS         = (double *)malloc(n * n * sizeof(double));
+    double *dq_sec     = (double *)malloc(n * sizeof(double));
+    double *e_q        = (double *)malloc(n * sizeof(double));
+
+    int last = n - 1;
+    double eps = 1e-5;
+    int iter;
+
+    for (iter = 0; iter < max_iters; iter++) {
+        // Primary residual.
+        nuc_fk_chain_update(ch, vars_ptr);
+        double cx = _f_from_handle(nuc_fk_chain_link_pos_x(ch, last));
+        double cy = _f_from_handle(nuc_fk_chain_link_pos_y(ch, last));
+        double cz = _f_from_handle(nuc_fk_chain_link_pos_z(ch, last));
+        double ex = tx - cx, ey = ty - cy, ez = tz - cz;
+        double err2 = ex*ex + ey*ey + ez*ez;
+        if (err2 < tol * tol) break;
+
+        // Numerical Jacobian (3×n).
+        for (int j = 0; j < n; j++) {
+            memcpy(perturbed, vars, n * sizeof(double));
+            perturbed[j] += eps;
+            nuc_fk_chain_update(ch, perturbed_h);
+            double px = _f_from_handle(nuc_fk_chain_link_pos_x(ch, last));
+            double py = _f_from_handle(nuc_fk_chain_link_pos_y(ch, last));
+            double pz = _f_from_handle(nuc_fk_chain_link_pos_z(ch, last));
+            J[0*n + j] = (px - cx) / eps;
+            J[1*n + j] = (py - cy) / eps;
+            J[2*n + j] = (pz - cz) / eps;
+        }
+
+        // J · Jᵀ + λ²I  (3×3).
+        for (int r = 0; r < 3; r++) {
+            for (int c = 0; c < 3; c++) {
+                double s = 0;
+                for (int k = 0; k < n; k++) s += J[r*n + k] * J[c*n + k];
+                JJt_lam[r*3 + c] = s + (r == c ? lambda2 : 0);
+            }
+        }
+
+        // Inverse 3×3.
+        double a = JJt_lam[0], b = JJt_lam[1], c2 = JJt_lam[2];
+        double d = JJt_lam[3], e = JJt_lam[4], f = JJt_lam[5];
+        double g = JJt_lam[6], h = JJt_lam[7], i_ = JJt_lam[8];
+        double det = a*(e*i_ - f*h) - b*(d*i_ - f*g) + c2*(d*h - e*g);
+        if (fabs(det) < 1e-12) break;
+        double idet = 1.0 / det;
+        invJJt[0] = (e*i_ - f*h) * idet;
+        invJJt[1] = (c2*h - b*i_) * idet;
+        invJJt[2] = (b*f - c2*e) * idet;
+        invJJt[3] = (f*g - d*i_) * idet;
+        invJJt[4] = (a*i_ - c2*g) * idet;
+        invJJt[5] = (c2*d - a*f) * idet;
+        invJJt[6] = (d*h - e*g) * idet;
+        invJJt[7] = (b*g - a*h) * idet;
+        invJJt[8] = (a*e - b*d) * idet;
+
+        // Damped pseudoinverse J⁺ = Jᵀ · invJJt  (n × 3).
+        for (int r = 0; r < n; r++) {
+            for (int c = 0; c < 3; c++) {
+                double s = 0;
+                for (int k = 0; k < 3; k++) s += J[k*n + r] * invJJt[k*3 + c];
+                Jpinv[r*3 + c] = s;
+            }
+        }
+
+        // Primary update q̇₁ = J⁺ · e_pos  (length n). Apply to vars.
+        // Hold the secondary update separately so we can project it.
+        for (int r = 0; r < n; r++) {
+            vars[r] += Jpinv[r*3 + 0]*ex
+                     + Jpinv[r*3 + 1]*ey
+                     + Jpinv[r*3 + 2]*ez;
+        }
+
+        // Secondary task: q_pref - q in joint space, projected
+        // onto the nullspace of J. N = I − J⁺·J  (n×n).
+        if (q_pref && w_sec > 0) {
+            for (int r = 0; r < n; r++) {
+                for (int c = 0; c < n; c++) {
+                    double s = 0;
+                    for (int k = 0; k < 3; k++) s += Jpinv[r*3 + k] * J[k*n + c];
+                    NS[r*n + c] = (r == c ? 1.0 : 0.0) - s;
+                }
+            }
+            for (int r = 0; r < n; r++) e_q[r] = w_sec * (q_pref[r] - vars[r]);
+            for (int r = 0; r < n; r++) {
+                double s = 0;
+                for (int c = 0; c < n; c++) s += NS[r*n + c] * e_q[c];
+                dq_sec[r] = s;
+            }
+            for (int r = 0; r < n; r++) vars[r] += dq_sec[r];
+        }
+
+        // Apply joint limits if any are configured (reuse v0.2.193 path).
+        _IKLimits *L = _lookup_limits(ch);
+        if (L) {
+            for (int r = 0; r < n && r < L->n; r++) {
+                if (vars[r] < L->lo[r]) vars[r] = L->lo[r];
+                if (vars[r] > L->hi[r]) vars[r] = L->hi[r];
+            }
+        }
+    }
+
+    free(J); free(perturbed); free(JJt_lam); free(invJJt);
+    free(Jpinv); free(NS); free(dq_sec); free(e_q);
+    return (long long)iter;
+}
+
 // === 6-DOF orientation IK (v0.2.194) ====================================
 //
 // Extends the position-only DLS solver to a 6-DOF target (position
