@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.321] — 2026-04-24
+
+**T1.1 Phase 12 — rod audit + audit document.** Walked all 221
+rods. Confirmed the i64-everywhere FFI keeps every rod working
+unchanged; narrow-type users get correct width semantics
+end-to-end via the Phase 6 widening rule + Phase 1 narrow_via_as
+hook. Identifies 5 high-value + 12 medium-value refit candidates
+as Phase 12.2 follow-ups (not blocking T1.1 closeout).
+
+### What landed
+
+- `docs/rfcs/numerics_rod_audit.md` — full audit document
+  walking 221 rods. Categorizes:
+  - **A. High-value** (5 rods): binary, occgrid, image_pyramid,
+    string/strings — would benefit from typed-narrow surfaces.
+  - **B. Medium-value** (12 rods): digest, uuid, atomic, serial,
+    fmt, socket, binary_io, bitwise, checksum, random, time,
+    file — clarity wins from narrow-typed args.
+  - **C. No refit** (~204 rods): correct as-is (f64 scientific
+    domains, i64 indices, generic Vec<i64> handles).
+- `tests/lang/numerics_matrix/p12_rods/rod_call_with_narrow.nr`
+  — matrix test demonstrating the audit principle in action:
+  `let c: u8 = bit_and(a, b)` where bit_and is i64-FFI works
+  end-to-end with width-correct truncation.
+
+### Audit principle (locked)
+
+The default Nucleor FFI calling convention remains
+i64-everywhere (every parameter and return value passes as
+`long long` across the C boundary). This protects the existing
+165 `_rt.c` runtime files and every rod test. A rod's public
+Nucleor surface can independently choose to expose narrow types
+where it makes the API clearer; the compiler auto-narrows on
+let-binding so existing callers keep working.
+
+### Matrix progress
+
+| Phase         | v0.2.320 | v0.2.321 |
+|---------------|----------|----------|
+| p12_rods      | (new)    | **1P/0F** |
+| TOTAL         | 62P/0F/0BE | **63P / 0F / 0BE** |
+
+### Verify gate
+
+331/329 PASS. Bootstrap fixpoint stable.
+
+### Files
+
+- `docs/rfcs/numerics_rod_audit.md` — new (full audit doc).
+- `tests/lang/numerics_matrix/p12_rods/rod_call_with_narrow.nr` — new.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+Phase 13 (`v0.2.322`) — final RFC rollup: consolidate
+`numerics_v2.md`, `numerics_wrap.md`, `numerics_cast.md`,
+`numerics_ffi.md`, `numerics_repr.md` — the maximalist plan's
+documentation deliverables. Then T1.1 closes out.
+
 ## [0.2.320] — 2026-04-24
 
 **T1.1 Phase 11 — width-correct formatting (`print_<T>` for
