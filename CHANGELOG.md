@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.190] — 2026-04-24
+
+**Robotics: RRT* (Karaman & Frazzoli 2011) — asymptotically
+optimal motion planning. Path quality converges to the optimum
+as iterations accumulate.**
+
+Vanilla RRT (`rrt_plan` v0.2.179) finds a feasible path but
+doesn't optimize it. RRT-Connect (`rrt_connect_plan` v0.2.188)
+finds it faster but still not optimal. RRT* adds two phases per
+new node:
+
+1. **Best parent selection**: among all neighbors within
+   `radius`, pick the one that yields the lowest cost-to-come
+   for the new node (collision-checked).
+2. **Rewiring**: for each neighbor, check whether routing
+   through the new node would lower their own cost-to-come;
+   if so, change their parent.
+
+Cost is path length in joint space. With enough samples the path
+converges to the shortest feasible route.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/rrt.nr"
+
+let r = rrt_new(n_dim, seed);
+rrt_set_root(r, start_ptr);
+let ok = rrt_star_plan(r, goal_ptr,
+    1000,                    // max_iters (more = better path quality)
+    f64_to_bits(0.1),        // step size
+    f64_to_bits(0.3),        // rewire radius (~3× step is typical)
+    coll_callback_fp);
+```
+
+### Files
+
+- `stdlib/runtime/rrt_rt.c`: ~120 LOC for RRT* alongside vanilla
+  RRT and RRT-Connect. Uses a per-node cost-to-come array sized
+  to the tree's capacity. Per-iteration overhead vs vanilla RRT
+  is O(N) for the neighbor scan + collision-check per neighbor;
+  with `radius` tuned correctly, dominated by the collision
+  checks.
+- `stdlib/rods/rrt.nr`: 1 new builtin (`rrt_star_plan`).
+
+### When to use which planner
+
+- **`rrt_plan`** — fastest to first feasible path; simplest
+- **`rrt_connect_plan`** — 5-10× faster than `rrt_plan` on hard
+  problems; same path quality (just feasible, not optimal)
+- **`rrt_star_plan`** — optimal path quality at higher per-iter
+  cost; use when the path will be executed repeatedly and
+  motion-time matters
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**259 / 259 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.189] — 2026-04-24
 
 **Documentation: `docs/release-notes-v0.2.x-robotics.md` adds a

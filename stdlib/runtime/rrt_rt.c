@@ -378,6 +378,186 @@ long long nuc_rrt_connect_plan(
     return 1;
 }
 
+// RRT* (Karaman & Frazzoli 2011). Asymptotically optimal variant
+// of RRT: when a new node is added, neighbors within a search
+// radius are checked, and (a) the new node is connected to the
+// neighbor that gives the lowest cost-to-come, then (b) each
+// neighbor checks whether routing through the new node would lower
+// its own cost-to-come and rewires if so.
+//
+// Cost is path length in joint space. The rewire step gradually
+// improves the tree's path quality as iterations accumulate. With
+// enough samples the path converges to the optimum.
+//
+// Builds on the same NRRT struct as vanilla RRT; adds a per-node
+// cost-to-come array allocated lazily.
+//
+// Returns the iteration count run (≤ max_iters). Path is reachable
+// via the existing path_indices/len accessors after a goal-region
+// check at the end.
+
+static double *_rrt_cost = NULL;     // length = NRRT::capacity
+static int _rrt_cost_for = -1;       // sentinel for "which NRRT this belongs to"
+
+// Allocate / extend the cost-to-come array as the tree grows.
+static void _ensure_cost_capacity(NRRT *r) {
+    static int last_cap = 0;
+    if (_rrt_cost_for != (int)(size_t)r || last_cap < r->capacity) {
+        _rrt_cost = (double *)realloc(_rrt_cost, r->capacity * sizeof(double));
+        last_cap = r->capacity;
+        _rrt_cost_for = (int)(size_t)r;
+    }
+}
+
+static double _node_dist_n(NRRT *r, int i, double *cfg) {
+    double *ni = r->configs + i * r->n_dim;
+    double s = 0;
+    for (int k = 0; k < r->n_dim; k++) {
+        double d = ni[k] - cfg[k];
+        s += d * d;
+    }
+    return sqrt(s);
+}
+
+static int _segment_collision_free_n(NRRT *r, double *a, double *b,
+                                     double step, coll_fn_t cf)
+{
+    if (!cf) return 1;
+    double dist = 0;
+    for (int k = 0; k < r->n_dim; k++) {
+        double d = a[k] - b[k];
+        dist += d * d;
+    }
+    dist = sqrt(dist);
+    int n_steps = (int)(dist / step);
+    if (n_steps < 1) n_steps = 1;
+    double *sample = (double *)malloc(r->n_dim * sizeof(double));
+    long long sh = (long long)(size_t)sample;
+    int ok = 1;
+    for (int s = 1; s < n_steps; s++) {
+        double t = (double)s / (double)n_steps;
+        for (int k = 0; k < r->n_dim; k++) {
+            sample[k] = a[k] + t * (b[k] - a[k]);
+        }
+        if (cf(sh) == 0) { ok = 0; break; }
+    }
+    free(sample);
+    return ok;
+}
+
+long long nuc_rrt_star_plan(
+    long long h, long long goal_ptr,
+    long long max_iters,
+    long long step_bits,
+    long long radius_bits,
+    long long is_collision_free_fp)
+{
+    NRRT *r = (NRRT *)(void *)(size_t)h;
+    if (!r || r->count == 0) return 0;
+    double *goal = (double *)(void *)(size_t)goal_ptr;
+    double step = _i2f(step_bits);
+    double radius = _i2f(radius_bits);
+    coll_fn_t cf = (coll_fn_t)(void *)(size_t)is_collision_free_fp;
+
+    _ensure_cost_capacity(r);
+    _rrt_cost[0] = 0; // root has zero cost-to-come
+
+    double *sample = (double *)malloc(r->n_dim * sizeof(double));
+    double *new_cfg = (double *)malloc(r->n_dim * sizeof(double));
+    int best_goal = -1;
+    double best_goal_cost = 1e30;
+    long long it;
+    for (it = 0; it < max_iters; it++) {
+        for (int k = 0; k < r->n_dim; k++) {
+            sample[k] = r->lower[k] + _rng_unit(r) * (r->upper[k] - r->lower[k]);
+        }
+        // Steer toward sample by `step`.
+        int near = _nearest(r, sample);
+        double *near_cfg = r->configs + near * r->n_dim;
+        double dist = 0;
+        for (int k = 0; k < r->n_dim; k++) {
+            double d = sample[k] - near_cfg[k];
+            dist += d * d;
+        }
+        dist = sqrt(dist);
+        if (dist < 1e-9) continue;
+        double scale = (dist <= step) ? 1.0 : (step / dist);
+        for (int k = 0; k < r->n_dim; k++) {
+            new_cfg[k] = near_cfg[k] + (sample[k] - near_cfg[k]) * scale;
+        }
+        if (cf && cf((long long)(size_t)new_cfg) == 0) continue;
+
+        // Find all neighbors within `radius` of new_cfg.
+        // Compute their candidate costs as parents.
+        int best_parent = near;
+        double best_parent_cost = _rrt_cost[near] +
+            _node_dist_n(r, near, new_cfg);
+        // Track neighbors for rewire phase.
+        int neighbor_buf[64]; int n_neigh = 0;
+        for (int i = 0; i < r->count; i++) {
+            double d = _node_dist_n(r, i, new_cfg);
+            if (d > radius) continue;
+            if (n_neigh < 64) neighbor_buf[n_neigh++] = i;
+            double cand = _rrt_cost[i] + d;
+            if (cand < best_parent_cost) {
+                if (_segment_collision_free_n(r, r->configs + i * r->n_dim,
+                                              new_cfg, step, cf)) {
+                    best_parent_cost = cand;
+                    best_parent = i;
+                }
+            }
+        }
+        // Add the new node.
+        _ensure_capacity(r);
+        _ensure_cost_capacity(r);
+        memcpy(r->configs + r->count * r->n_dim, new_cfg, r->n_dim * sizeof(double));
+        r->parents[r->count] = best_parent;
+        _rrt_cost[r->count] = best_parent_cost;
+        int new_idx = r->count;
+        r->count++;
+        // Rewire phase: for each neighbor, check whether routing
+        // through new_idx improves its cost.
+        for (int q = 0; q < n_neigh; q++) {
+            int n_i = neighbor_buf[q];
+            if (n_i == best_parent) continue;
+            double d = _node_dist_n(r, n_i, new_cfg);
+            double cand = _rrt_cost[new_idx] + d;
+            if (cand < _rrt_cost[n_i]) {
+                if (_segment_collision_free_n(r, new_cfg,
+                                              r->configs + n_i * r->n_dim,
+                                              step, cf)) {
+                    r->parents[n_i] = new_idx;
+                    _rrt_cost[n_i] = cand;
+                }
+            }
+        }
+        // Track best goal candidate.
+        double goal_d = 0;
+        for (int k = 0; k < r->n_dim; k++) {
+            double dd = new_cfg[k] - goal[k];
+            goal_d += dd * dd;
+        }
+        if (goal_d <= step * step) {
+            double total = _rrt_cost[new_idx] + sqrt(goal_d);
+            if (total < best_goal_cost) {
+                best_goal = new_idx;
+                best_goal_cost = total;
+            }
+        }
+    }
+    free(sample); free(new_cfg);
+    if (best_goal < 0) return 0;
+    // Reconstruct path through best goal node.
+    int n_nodes = 0;
+    for (int i = best_goal; i != -1; i = r->parents[i]) n_nodes++;
+    if (r->path_indices) free(r->path_indices);
+    r->path_indices = (int *)malloc(n_nodes * sizeof(int));
+    r->path_len = n_nodes;
+    int p = n_nodes - 1;
+    for (int i = best_goal; i != -1; i = r->parents[i]) r->path_indices[p--] = i;
+    return 1;
+}
+
 // Path shortcutting (v0.2.182). Repeatedly pick two random
 // indices i < j on the current path; if the straight-line
 // segment from path[i] to path[j] is collision-free at every
