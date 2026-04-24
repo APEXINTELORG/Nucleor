@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.161] — 2026-04-23
+
+**Memory-fix Ship 5: gate enforces a 400 MB peak-allocation
+budget on the s1 self-host compile. Locks in v0.2.159's 52×
+memory reduction so future ships can't silently regress.**
+
+The verify gate now runs the s1 self-host with
+`NUC_TRACE_ALLOC=1` and asserts `TOTAL TRACKED <= 400 MB`.
+v0.2.160 baseline is 185 MB; the 2.2× headroom absorbs minor
+growth from new compiler features without flagging legitimate
+scaling. The budget will tighten as Ship 3 (TypeId interner)
+lands and brings the floor to ~50-100 MB.
+
+### Files
+
+- `tools/verify.sh`: new `self_host_memory_budget` step
+  (line 712-ish). Parses the `TOTAL TRACKED: ... (NN MB)`
+  line from NUC_TRACE_ALLOC and compares against `budget_mb=400`.
+  On failure, prints diagnostic guidance ("Recent changes may
+  have re-introduced an allocate-then-discard pattern; run
+  NUC_TRACE_ALLOC=1 ... for per-category breakdown").
+- `STEP_TOTAL` bumped from 245 to 246 (the budget is its own
+  step, separate from the self-host rebuild).
+
+### Why this matters for open-source release
+
+Without an enforced budget, the v0.2.158 leak class (an
+allocate-then-discard pattern in the type checker that grew
+to 9.7 GB transient strings) could slip back in via any
+future ship that touches the type checker. With the gate,
+the next contributor sees an immediate "memory budget
+exceeded" failure and is pointed at the diagnostic command.
+
+This is the standard production-compiler pattern (LLVM's
+`buildbot-track`, Rust's `rustc-perf`) adapted to a single-
+binary self-host.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change — pure tooling addition.
+- `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**246 / 246 PASS, 0 SKIP** (was 245/245; +1 new budget step).
+Self-host: 185 MB / 400 MB budget.
+
 ## [0.2.160] — 2026-04-23
 
 **Memory-fix Ship 2 part 2: convert remaining 13 cold-path

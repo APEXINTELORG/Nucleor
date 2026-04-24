@@ -158,8 +158,8 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 utility smoke + 1 json + 1 version + 1 showcase build
 # + 1 CLI explain + 1 explain-full + 1 bootstrap + 1 check+abi
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
-# + N examples + N tests + N negative + 1 self-host
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 1))
+# + N examples + N tests + N negative + 1 self-host + 1 budget
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 2))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -709,6 +709,39 @@ self_host_rebuild() {
     [ -x "target/verify_compiler" ] || [ -x "target/verify_compiler.exe" ]
 }
 
+# v0.2.161 — guard against memory regressions in the self-host compile.
+# Runs the s1 self-host with NUC_TRACE_ALLOC=1 and asserts the total
+# tracked allocation stays under the budget. Without this gate, any
+# future change that re-introduces an allocate-then-discard pattern in
+# the type checker (the class of bug that caused the v0.2.158 9.7 GB
+# leak) could ship silently.
+#
+# Budget: 400 MB total tracked. v0.2.160 baseline is ~185 MB; the
+# headroom (2.2x) absorbs minor growth as the s1 source itself grows
+# without flagging legitimate scaling. Tighten if necessary as the
+# architectural Ship 3 (TypeId interner) lands.
+self_host_memory_budget() {
+    local budget_mb=400
+    local out
+    rm -rf "$ROOT/.nuc_cache" 2>/dev/null || true
+    out=$(NUC_TRACE_ALLOC=1 "$BIN" build "compiler/nucleor_s1_compiler.nr" -o "verify_budget" 2>&1)
+    # Parse the TOTAL TRACKED line: "  TOTAL TRACKED: ... (NN MB)"
+    local mb
+    mb=$(echo "$out" | awk '/TOTAL TRACKED/ { for (i=1; i<=NF; i++) if ($i ~ /MB\)$/) { gsub(/[(]|MB\)/, "", $(i-1)); print $(i-1); exit } }')
+    if [ -z "$mb" ]; then
+        echo "       ERROR: could not parse TOTAL TRACKED from NUC_TRACE_ALLOC output" | sed 's/^/       /'
+        return 1
+    fi
+    if [ "$mb" -gt "$budget_mb" ]; then
+        echo "       FAIL: self-host compile used ${mb} MB; budget ${budget_mb} MB" | sed 's/^/       /'
+        echo "       Recent changes may have re-introduced an allocate-then-discard pattern." | sed 's/^/       /'
+        echo "       Run NUC_TRACE_ALLOC=1 bin/nucleor.exe build compiler/nucleor_s1_compiler.nr --no-cache" | sed 's/^/       /'
+        echo "       to see per-category breakdown." | sed 's/^/       /'
+        return 1
+    fi
+    echo "       (self-host: ${mb} MB / ${budget_mb} MB budget)" | sed 's/^/       /'
+}
+
 tools_rebuild() {
     # v0.2.79 — rebuild the tools binary so the explain registry,
     # `nuc test` harness writer, and other tools-suite logic are
@@ -783,6 +816,7 @@ if [ -d "tests/err" ]; then
 fi
 
 step "self-host rebuild closes" self_host_rebuild
+step "self-host memory budget (<= 400 MB)" self_host_memory_budget
 
 # --- Cleanup ------------------------------------------------------------
 # Default: wipe target + .nuc_cache so the next run starts cold (matches
