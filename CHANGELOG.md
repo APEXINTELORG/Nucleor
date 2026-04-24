@@ -5,6 +5,93 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.253] — 2026-04-24
+
+**Robotics: minimum-snap polynomial trajectory generator (qtraj)
+for quadrotors and other differentially-flat systems (Mellinger &
+Kumar 2011). Quadrotor dynamics are differentially flat in
+(x, y, z, yaw); a smooth trajectory in those four outputs uniquely
+determines the full 12-state + 4-input sequence.**
+
+### Algorithm
+
+Per axis: degree-7 polynomial per segment, N segments → 8N
+coefficients. The QP
+
+```
+minimize Σ_k ∫_0^{T_k} (p_k^(4)(t))² dt
+s.t.
+  - 4 boundary conditions at t=0  of segment 0   (pos, vel, acc, jerk)
+  - 4 boundary conditions at end of segment N-1
+  - per interior waypoint k=1..N-1:
+      * p_{k-1}(T_{k-1}) = waypts[k]
+      * p_k(0)           = waypts[k]
+      * vel, acc, jerk continuity across the boundary
+```
+
+is solved as a KKT system
+
+```
+[ 2Q  Aᵀ ] [ c ]   [ 0 ]
+[  A   0 ] [ λ ] = [ b ]
+```
+
+with dimension `13N + 3` × `13N + 3`. Dense Gauss-Jordan handles
+typical N ≤ 20 comfortably.
+
+### Quadrotor workflow
+
+One handle = one flat output (one axis). Call this rod four times
+— sharing the same waypoint count + segment times — to generate a
+full quadrotor trajectory in (x, y, z, yaw):
+
+```nucleor
+import "stdlib/rods/qtraj.nr"
+
+let tx = qtraj_new(n_seg);
+let ty = qtraj_new(n_seg);
+let tz = qtraj_new(n_seg);
+let tyaw = qtraj_new(n_seg);
+// ... set segment times on all four (must match) ...
+// ... set per-axis waypoints ...
+qtraj_solve(tx);  qtraj_solve(ty);  qtraj_solve(tz);  qtraj_solve(tyaw);
+
+// Evaluate position / velocity / acceleration at absolute time t:
+let px_b = qtraj_evaluate_total(tx, 0, t_b);
+let vx_b = qtraj_evaluate_total(tx, 1, t_b);
+let ax_b = qtraj_evaluate_total(tx, 2, t_b);
+```
+
+Default boundary derivatives (vel, acc, jerk) are 0 at start and
+end; user can override via `qtraj_set_start_boundary` /
+`qtraj_set_end_boundary`.
+
+### Verification
+
+3-segment 1-D trajectory, waypoints `[0, 1, 4, 2]`, segment times
+`[1, 1, 1] s`, all start/end derivatives 0:
+
+- All four waypoints hit **exactly** (errors ≤ machine ε).
+- Start/end velocity, acceleration, jerk all `≈ 1e-13` (machine zero
+  through the linear solve).
+- Velocity, acceleration, jerk continuous across both interior
+  boundaries (verified by ε-perturbed left/right sampling).
+- Total time correct to machine precision.
+
+### Files
+
+- `stdlib/runtime/qtraj_rt.c` — `nuc_qtraj_*` API; per-segment snap
+  cost matrix, KKT-system constraint assembly, dense solve.
+- `stdlib/rods/qtraj.nr` — externs + `qtraj_new` /
+  `qtraj_set_waypoint` / `qtraj_set_segment_time` /
+  `qtraj_set_start_boundary` / `qtraj_set_end_boundary` /
+  `qtraj_n_segments` / `qtraj_total_time` / `qtraj_solve` /
+  `qtraj_evaluate` / `qtraj_evaluate_total` / `qtraj_free` wrappers.
+- `tests/rods/qtraj_smoke.nr` — build-only smoke (functional
+  coverage in the direct C unit test).
+
+---
+
 ## [0.2.252] — 2026-04-24
 
 **Robotics: Bundle adjustment (visual SLAM back-end). Jointly

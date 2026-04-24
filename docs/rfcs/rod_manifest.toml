@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 167
-# Total fn definitions: 1810
-# Total LOC: 7924
+# Total rods: 168
+# Total fn definitions: 1821
+# Total LOC: 7959
 
 [[rod]]
 name           = "activation2"
@@ -1054,6 +1054,15 @@ function_count = 5
 cfile_count    = 1
 loc            = 21
 imports        = ["python"]
+
+[[rod]]
+name           = "qtraj"
+path           = "stdlib/rods/qtraj.nr"
+description    = "Minimum-snap polynomial trajectory generator for"
+function_count = 11
+cfile_count    = 1
+loc            = 35
+imports        = ["qtraj"]
 
 [[rod]]
 name           = "quad"
