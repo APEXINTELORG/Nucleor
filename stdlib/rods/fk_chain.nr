@@ -37,6 +37,26 @@ extern fn nuc_fk_chain_link_quat_z(ch: i64, i: i64) -> i64;
 extern fn nuc_fk_chain_add_dh_joint(ch: i64, alpha_bits: i64, a_bits: i64, d_bits: i64, theta_bits: i64) -> i64;
 extern fn nuc_fk_chain_free(ch: i64);
 
+// Per-joint metadata accessors (v0.2.207). Joint type is one of
+// 0 = revolute, 1 = prismatic, 2 = fixed. Joint axis is the axis-
+// of-motion in the joint's body frame.
+extern fn nuc_fk_chain_joint_type(ch: i64, i: i64) -> i64;
+extern fn nuc_fk_chain_joint_axis(ch: i64, i: i64, dim: i64) -> i64;
+
+// Workspace sampling (v0.2.209). Sample n_samples uniformly random
+// joint configurations within per-joint [lo, hi] bounds, run FK on
+// each, and write end-effector world positions to a caller-allocated
+// double[n_samples * 3] buffer. Useful for "what can this arm reach"
+// visualization, reachable-set estimation, and seeding workspace-
+// coordinate IK / RRT initialization. xorshift32 RNG seeded from
+// `seed`. Returns the actual number of samples written.
+extern fn nuc_fk_workspace_sample(
+    ch: i64, n_samples: i64, seed: i64,
+    lo_ptr: i64, hi_ptr: i64, out_xyz_ptr: i64) -> i64;
+extern fn nuc_fk_workspace_aabb(
+    positions_ptr: i64, n_positions: i64, out_aabb_ptr: i64) -> i64;
+extern fn nuc_fk_workspace_aabb_volume(aabb_ptr: i64) -> i64;
+
 // Joint type tags for fk_add_joint.
 fn fk_revolute() -> i64 { return 0; }
 fn fk_prismatic() -> i64 { return 1; }
@@ -53,6 +73,27 @@ fn fk_chain_link_quat_x(ch: i64, i: i64) -> i64 { return nuc_fk_chain_link_quat_
 fn fk_chain_link_quat_y(ch: i64, i: i64) -> i64 { return nuc_fk_chain_link_quat_y(ch, i); }
 fn fk_chain_link_quat_z(ch: i64, i: i64) -> i64 { return nuc_fk_chain_link_quat_z(ch, i); }
 fn fk_chain_free(ch: i64) { nuc_fk_chain_free(ch); }
+
+fn fk_chain_joint_type(ch: i64, i: i64) -> i64 {
+    return nuc_fk_chain_joint_type(ch, i);
+}
+fn fk_chain_joint_axis(ch: i64, i: i64, dim: i64) -> i64 {
+    return nuc_fk_chain_joint_axis(ch, i, dim);
+}
+
+// Workspace sampling primitives (v0.2.209). See extern doc above.
+fn fk_workspace_sample(ch: i64, n_samples: i64, seed: i64,
+    lo_ptr: i64, hi_ptr: i64, out_xyz_ptr: i64) -> i64 {
+    return nuc_fk_workspace_sample(ch, n_samples, seed,
+                                    lo_ptr, hi_ptr, out_xyz_ptr);
+}
+fn fk_workspace_aabb(positions_ptr: i64, n_positions: i64,
+                     out_aabb_ptr: i64) -> i64 {
+    return nuc_fk_workspace_aabb(positions_ptr, n_positions, out_aabb_ptr);
+}
+fn fk_workspace_aabb_volume(aabb_ptr: i64) -> i64 {
+    return nuc_fk_workspace_aabb_volume(aabb_ptr);
+}
 
 // Add a joint described by Denavit-Hartenberg parameters (Spong's
 // Robot Modeling and Control). Convenience wrapper for the common

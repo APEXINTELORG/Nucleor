@@ -290,3 +290,99 @@ long long nuc_fk_chain_joint_axis(long long ch, long long i, long long dim) {
     if (!c || i < 0 || i >= (long long)c->count || dim < 0 || dim > 2) return _f2i(0.0);
     return _f2i(c->joints[i].axis[dim]);
 }
+
+// === Workspace sampling (v0.2.209) ====================================
+//
+// Sample n_samples uniformly-random joint configurations within
+// the per-joint [lo, hi] bounds, run forward kinematics on each,
+// and write the end-effector world positions to an output buffer
+// (double[n_samples * 3]). Useful for:
+// - "What can this arm reach?" workspace visualization.
+// - Reachable-set estimation for grasp planning.
+// - Initial-condition seeding for IK / RRT in workspace coords.
+//
+// `lo_ptr` and `hi_ptr` are caller-allocated `double[n_joints]`
+// arrays. Joints whose bounds are equal stay fixed at that value.
+// `out_xyz_ptr` is the caller-allocated `double[n_samples * 3]`
+// output buffer (sample i → x at [i*3+0], y at [i*3+1], z at [i*3+2]).
+//
+// xorshift32 RNG seeded from `seed`. Returns the actual number of
+// samples written (always n_samples on success).
+
+static unsigned int _ws_xs32(unsigned int *st) {
+    unsigned int x = *st;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    *st = x;
+    return x;
+}
+
+long long nuc_fk_workspace_sample(
+    long long ch, long long n_samples, long long seed,
+    long long lo_ptr, long long hi_ptr, long long out_xyz_ptr)
+{
+    FKChain *c = (FKChain *)(void *)(size_t)ch;
+    if (!c || n_samples <= 0) return 0;
+    int n = (int)c->count;
+    if (n <= 0) return 0;
+    double *lo = (double *)(void *)(size_t)lo_ptr;
+    double *hi = (double *)(void *)(size_t)hi_ptr;
+    double *out = (double *)(void *)(size_t)out_xyz_ptr;
+    if (!lo || !hi || !out) return 0;
+
+    unsigned int st = (unsigned int)seed;
+    if (st == 0) st = 0x9E3779B9u;
+
+    double *vars = (double *)malloc(n * sizeof(double));
+    long long vars_h = (long long)(size_t)vars;
+    int last = n - 1;
+    long long count = 0;
+    for (long long i = 0; i < n_samples; i++) {
+        for (int j = 0; j < n; j++) {
+            double u = (double)_ws_xs32(&st) / 4294967296.0;
+            vars[j] = lo[j] + u * (hi[j] - lo[j]);
+        }
+        nuc_fk_chain_update(ch, vars_h);
+        out[i*3 + 0] = _i2f(nuc_fk_chain_link_pos_x(ch, last));
+        out[i*3 + 1] = _i2f(nuc_fk_chain_link_pos_y(ch, last));
+        out[i*3 + 2] = _i2f(nuc_fk_chain_link_pos_z(ch, last));
+        count++;
+    }
+    free(vars);
+    return count;
+}
+
+// Axis-aligned bounding box of an N×3 position array. Writes 6
+// doubles to `out_aabb_ptr` (minx, miny, minz, maxx, maxy, maxz).
+// Returns 0 on success, -1 on bad input.
+long long nuc_fk_workspace_aabb(
+    long long positions_ptr, long long n_positions, long long out_aabb_ptr)
+{
+    double *p   = (double *)(void *)(size_t)positions_ptr;
+    double *out = (double *)(void *)(size_t)out_aabb_ptr;
+    if (!p || !out || n_positions <= 0) return -1;
+    out[0] = out[3] = p[0];
+    out[1] = out[4] = p[1];
+    out[2] = out[5] = p[2];
+    for (long long i = 1; i < n_positions; i++) {
+        for (int d = 0; d < 3; d++) {
+            double v = p[i*3 + d];
+            if (v < out[d])     out[d]     = v;
+            if (v > out[3 + d]) out[3 + d] = v;
+        }
+    }
+    return 0;
+}
+
+// Convenience: volume of the AABB returned by the sampler. Returns
+// the volume as bit-cast f64.
+long long nuc_fk_workspace_aabb_volume(long long aabb_ptr) {
+    double *a = (double *)(void *)(size_t)aabb_ptr;
+    if (!a) return _f2i(0.0);
+    double dx = a[3] - a[0];
+    double dy = a[4] - a[1];
+    double dz = a[5] - a[2];
+    if (dx < 0) dx = 0; if (dy < 0) dy = 0; if (dz < 0) dz = 0;
+    return _f2i(dx * dy * dz);
+}
