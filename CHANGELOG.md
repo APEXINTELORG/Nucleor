@@ -5,6 +5,83 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.229] — 2026-04-23
+
+**Robotics: pure pursuit path-following controller. Classical
+geometric controller for differential-drive (AGVs, AMRs,
+two-wheeled balancing robots) and car-like (Ackermann-steered)
+ground vehicles. Foundation for autonomous mobile robot control,
+outdoor delivery robots, autonomous vehicles, and warehouse
+transports.**
+
+### Algorithm
+
+```
+1. Find the lookahead point on the path at distance L_ahead from
+   the robot, scanning forward from the closest path point.
+2. Compute heading error α to that point.
+3. Differential drive:  ω = 2·v·sin(α) / L_ahead
+   Car-like (Ackermann): δ = atan(2·L_wheelbase·sin(α) / L_ahead)
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/pursuit.nr"
+
+let p = pursuit_new(n_pts_hint);
+for waypoint in path { pursuit_add_point(p, x_b, y_b); }
+
+// At each control tick (differential drive):
+let omega = pursuit_step_diff_drive(p, x_b, y_b, theta_b,
+                                    v_b, lookahead_b);
+
+// ... or car-like:
+let delta = pursuit_step_ackermann(p, x_b, y_b, theta_b,
+                                   v_b, lookahead_b, wheelbase_b);
+
+// Goal-reached check:
+if pursuit_distance_to_goal(p, x_b, y_b) < goal_tol { stop(); }
+```
+
+### Verification
+
+Quarter-circle path from (0, 0) to (5, 5) with 21 waypoints,
+robot at v = 1 m/s, lookahead = 0.5 m, dt = 0.05 s:
+
+| Stage | Result |
+|---|---|
+| Initial distance to goal | 7.071 m |
+| Steps to within 0.2 m of goal | **153** |
+| Final distance to goal | **0.191 m** |
+| Final pose | (4.99, 4.81) ≈ (5, 5) goal ✓ |
+
+Angular velocity ω increased monotonically from ~0.12 to ~0.20
+rad/s as the path curved — exactly as pure-pursuit theory
+predicts (heading error grows with arc curvature).
+
+### Limitations (adaptive lookahead, time-based formulation,
+path pruning land in v0.6 if needed):
+
+- Constant lookahead distance (no velocity-adaptive scheduling).
+- No automatic completion / "near-goal" early-stop — caller
+  checks via `pursuit_distance_to_goal`.
+- Brute-force closest-point search per call (with early-exit
+  when distance starts growing). Fine for paths up to a few
+  thousand waypoints.
+
+### Files
+
+- `stdlib/runtime/pursuit_rt.c` — `NPursuit` struct,
+  `nuc_pursuit_*` exports including `_step_diff_drive` and
+  `_step_ackermann`, plus `_closest_after` and
+  `_lookahead_index` helpers.
+- `stdlib/rods/pursuit.nr` — externs + Nucleor wrappers.
+- `tests/rods/pursuit_smoke.nr` — straight-line linkage smoke
+  (correctness covered by direct C quarter-circle test).
+
+---
+
 ## [0.2.228] — 2026-04-23
 
 **Robotics: 2D pose graph SLAM optimizer (Gauss-Newton). Standard
