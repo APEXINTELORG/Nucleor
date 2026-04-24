@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 223
-# Total fn definitions: 2097
-# Total LOC: 9238
+# Total rods: 224
+# Total fn definitions: 2100
+# Total LOC: 9266
 
 [[rod]]
 name           = "activation2"
@@ -1630,6 +1630,15 @@ function_count = 20
 cfile_count    = 0
 loc            = 20
 imports        = ["simd"]
+
+[[rod]]
+name           = "skid_steer"
+path           = "stdlib/rods/skid_steer.nr"
+description    = "4-wheel skid-steer kinematics + odometry."
+function_count = 3
+cfile_count    = 1
+loc            = 28
+imports        = ["skid_steer"]
 
 [[rod]]
 name           = "sobel"
