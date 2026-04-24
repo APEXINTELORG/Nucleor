@@ -207,6 +207,217 @@ long long nuc_prm_build(long long h, long long n_samples, long long k_neighbors,
     return 0;
 }
 
+// Distance from an external configuration to roadmap node `j`.
+static double _ext_dist2(NPRM *p, double *cfg, int j) {
+    double *pj = p->nodes + j * p->n_dim;
+    double s = 0;
+    for (int k = 0; k < p->n_dim; k++) {
+        double d = cfg[k] - pj[k];
+        s += d * d;
+    }
+    return s;
+}
+
+// Collision-check the segment from external config `cfg` to roadmap
+// node `j` by sampling at `step` granularity. Same scheme as the
+// inter-node version above.
+static int _ext_segment_free(NPRM *p, double *cfg, int j, double step,
+                             coll_fn_t cf)
+{
+    if (!cf) return 1;
+    double *pj = p->nodes + j * p->n_dim;
+    double *sample = (double *)malloc(p->n_dim * sizeof(double));
+    long long sh = (long long)(size_t)sample;
+    double dist = sqrt(_ext_dist2(p, cfg, j));
+    int n_steps = (int)(dist / step);
+    if (n_steps < 1) n_steps = 1;
+    int ok = 1;
+    for (int s = 1; s < n_steps; s++) {
+        double t = (double)s / (double)n_steps;
+        for (int k = 0; k < p->n_dim; k++) {
+            sample[k] = cfg[k] + t * (pj[k] - cfg[k]);
+        }
+        if (cf(sh) == 0) { ok = 0; break; }
+    }
+    free(sample);
+    return ok;
+}
+
+// === Dijkstra query (v0.2.200) ==========================================
+//
+// Connects `start` and `goal` configurations to their k nearest
+// roadmap neighbors via collision-free segments, then runs Dijkstra
+// from start to goal across the (roadmap + start + goal) graph.
+//
+// Returns the number of nodes on the resulting path (≥ 2 on success;
+// 0 if no path was found). The path itself is stored in
+// `p->path_indices` (start..goal) — read back via nuc_prm_path_at.
+//
+// The roadmap remains unmodified — multiple queries can run against
+// the same build without rebuilding.
+//
+// Implementation notes:
+//   - Virtual nodes: start = N, goal = N+1. Edges from these to
+//     real roadmap nodes are computed on demand (no graph mutation).
+//   - O(V²) Dijkstra (no priority queue) — fine for N ≤ a few k.
+//   - Returns 0 if start or goal can't reach any roadmap node.
+long long nuc_prm_query(long long h,
+                       long long start_ptr, long long goal_ptr,
+                       long long k_neighbors,
+                       long long step_b,
+                       long long is_collision_free_fp)
+{
+    NPRM *p = (NPRM *)(void *)(size_t)h;
+    if (!p || p->n_nodes == 0) return 0;
+    coll_fn_t cf = (coll_fn_t)(void *)(size_t)is_collision_free_fp;
+    double step = _i2f(step_b);
+    int k = (int)k_neighbors;
+    if (k < 1) k = 1;
+
+    double *start = (double *)(void *)(size_t)start_ptr;
+    double *goal  = (double *)(void *)(size_t)goal_ptr;
+    int N = p->n_nodes;
+    int V = N + 2;             // start = N, goal = N+1
+    int START = N, GOAL = N + 1;
+
+    // Find k nearest roadmap nodes to start and goal, keep
+    // collision-free ones as virtual edges.
+    typedef struct { int j; double cost; } VEdge;
+    VEdge *start_edges = (VEdge *)malloc(k * sizeof(VEdge));
+    VEdge *goal_edges  = (VEdge *)malloc(k * sizeof(VEdge));
+    int n_start_e = 0, n_goal_e = 0;
+
+    int *cand = (int *)malloc(k * sizeof(int));
+    double *cand_d2 = (double *)malloc(k * sizeof(double));
+
+    // Helper inlined twice: pick k nearest to `cfg`, then collision-test.
+    for (int pass = 0; pass < 2; pass++) {
+        double *cfg = (pass == 0) ? start : goal;
+        int filled = 0;
+        for (int j = 0; j < N; j++) {
+            double d2 = _ext_dist2(p, cfg, j);
+            if (filled < k) {
+                cand[filled] = j;
+                cand_d2[filled] = d2;
+                filled++;
+            } else {
+                int worst = 0;
+                for (int q = 1; q < k; q++) if (cand_d2[q] > cand_d2[worst]) worst = q;
+                if (d2 < cand_d2[worst]) { cand[worst] = j; cand_d2[worst] = d2; }
+            }
+        }
+        for (int q = 0; q < filled; q++) {
+            int j = cand[q];
+            if (!_ext_segment_free(p, cfg, j, step, cf)) continue;
+            double cost = sqrt(cand_d2[q]);
+            if (pass == 0) start_edges[n_start_e++] = (VEdge){j, cost};
+            else            goal_edges [n_goal_e++ ] = (VEdge){j, cost};
+        }
+    }
+    free(cand); free(cand_d2);
+
+    if (n_start_e == 0 || n_goal_e == 0) {
+        free(start_edges); free(goal_edges);
+        if (p->path_indices) { free(p->path_indices); p->path_indices = NULL; }
+        p->path_len = 0;
+        return 0;
+    }
+
+    // Standard Dijkstra (O(V²), no heap).
+    double *dist = (double *)malloc(V * sizeof(double));
+    int    *prev = (int    *)malloc(V * sizeof(int));
+    int    *done = (int    *)calloc(V, sizeof(int));
+    for (int i = 0; i < V; i++) { dist[i] = 1e300; prev[i] = -1; }
+    dist[START] = 0;
+
+    for (int it = 0; it < V; it++) {
+        // Pick min-dist unvisited.
+        int u = -1;
+        double best = 1e300;
+        for (int i = 0; i < V; i++) {
+            if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
+        }
+        if (u < 0 || best >= 1e299) break;
+        done[u] = 1;
+        if (u == GOAL) break;
+
+        // Relax outgoing edges.
+        if (u == START) {
+            for (int q = 0; q < n_start_e; q++) {
+                int v = start_edges[q].j;
+                double nd = dist[u] + start_edges[q].cost;
+                if (nd < dist[v]) { dist[v] = nd; prev[v] = u; }
+            }
+        } else if (u == GOAL) {
+            // No outgoing edges from goal in this directed view.
+        } else {
+            // Real roadmap node: enumerate its CSR edges, plus check
+            // if it's on goal_edges (incoming-from-real-to-virtual).
+            int start_off = p->edge_offset[u];
+            int end_off   = p->edge_offset[u + 1];
+            for (int e = start_off; e < end_off; e++) {
+                int v = p->edges[e].to;
+                double nd = dist[u] + p->edges[e].cost;
+                if (nd < dist[v]) { dist[v] = nd; prev[v] = u; }
+            }
+            for (int q = 0; q < n_goal_e; q++) {
+                if (goal_edges[q].j != u) continue;
+                double nd = dist[u] + goal_edges[q].cost;
+                if (nd < dist[GOAL]) { dist[GOAL] = nd; prev[GOAL] = u; }
+            }
+        }
+    }
+
+    long long path_len = 0;
+    if (dist[GOAL] < 1e299) {
+        // Reconstruct path GOAL ← … ← START.
+        int len = 0;
+        for (int v = GOAL; v != -1; v = prev[v]) len++;
+        if (p->path_indices) free(p->path_indices);
+        p->path_indices = (int *)malloc(len * sizeof(int));
+        int idx = len - 1;
+        for (int v = GOAL; v != -1; v = prev[v]) p->path_indices[idx--] = v;
+        p->path_len = len;
+        path_len = (long long)len;
+    } else {
+        if (p->path_indices) { free(p->path_indices); p->path_indices = NULL; }
+        p->path_len = 0;
+    }
+
+    free(dist); free(prev); free(done);
+    free(start_edges); free(goal_edges);
+    return path_len;
+}
+
+// Read coordinate `dim` of path entry `idx`, returned as i64-bit-cast f64.
+// Path includes both virtual endpoints (start at idx=0, goal at idx=path_len-1).
+// For virtual endpoints, returns the start_ptr / goal_ptr coordinates the user
+// passed in — but those pointers are external; we need a stash. To keep the
+// API minimal, virtual endpoints return a sentinel (0.0) — callers know their
+// own start/goal coords, so this is just the *path through the roadmap*.
+// Real-node entries (path[1..len-2]) are read from p->nodes.
+long long nuc_prm_path_len(long long h) {
+    NPRM *p = (NPRM *)(void *)(size_t)h;
+    return p ? (long long)p->path_len : 0;
+}
+
+long long nuc_prm_path_node(long long h, long long idx) {
+    NPRM *p = (NPRM *)(void *)(size_t)h;
+    if (!p || idx < 0 || idx >= (long long)p->path_len) return -1;
+    int node = p->path_indices[idx];
+    // Real roadmap nodes are 0..n_nodes-1; virtual START = n_nodes, GOAL = n_nodes+1.
+    return (long long)node;
+}
+
+long long nuc_prm_path_at(long long h, long long idx, long long dim) {
+    NPRM *p = (NPRM *)(void *)(size_t)h;
+    if (!p || idx < 0 || idx >= (long long)p->path_len) return _f2i(0.0);
+    if (dim < 0 || dim >= (long long)p->n_dim) return _f2i(0.0);
+    int node = p->path_indices[idx];
+    if (node < 0 || node >= p->n_nodes) return _f2i(0.0); // virtual endpoint
+    return _f2i(p->nodes[node * p->n_dim + (int)dim]);
+}
+
 long long nuc_prm_node_count(long long h) {
     NPRM *p = (NPRM *)(void *)(size_t)h;
     return p ? (long long)p->n_nodes : 0;
