@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 217
-# Total fn definitions: 2086
-# Total LOC: 9149
+# Total rods: 218
+# Total fn definitions: 2087
+# Total LOC: 9160
 
 [[rod]]
 name           = "activation2"
@@ -712,6 +712,15 @@ function_count = 1
 cfile_count    = 1
 loc            = 16
 imports        = []
+
+[[rod]]
+name           = "harris"
+path           = "stdlib/rods/harris.nr"
+description    = "Harris corner detector (Harris & Stephens 1988)."
+function_count = 1
+cfile_count    = 1
+loc            = 11
+imports        = ["harris"]
 
 [[rod]]
 name           = "hashmap"
