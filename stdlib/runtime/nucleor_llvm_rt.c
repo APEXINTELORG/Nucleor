@@ -1752,9 +1752,17 @@ long long __nucleor_vec_percentile_f64(NVec *v, long long p_bits) {
 typedef struct { char *data; int len; int cap; } NStrBuilder;
 
 long long __nucleor_sb_new(void) {
+    // RFC-0030 phase 2 (v0.2.166) — initial capacity dropped from 4 KB
+    // to 256 B. The s1 self-host creates ~13K SBs per compile; most
+    // never exceed the small range (diag messages, type-name builders,
+    // identifier escapers). The 4 KB initial wasted ~50 MB across the
+    // compile. Grow-on-append still handles the large IR string-
+    // builder sites correctly — it just costs an extra realloc or two
+    // (sb_append doubles, so 256→512→1024→2048→4096 = 4 reallocs vs
+    // one to reach 4 KB; per-realloc is a memcpy and is amortized).
     g_sb_new_count++;
     NStrBuilder *sb = (NStrBuilder *)malloc(sizeof(NStrBuilder));
-    sb->cap = 4096;
+    sb->cap = 256;
     sb->data = (char *)malloc(sb->cap);
     sb->data[0] = '\0';
     sb->len = 0;

@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.166] — 2026-04-23
+
+**SB initial capacity tuned: 4 KB → 256 B drops sb_new from
+60 MB to 11 MB on the s1 self-host (49 MB saved). Total
+peak: 185 → 137 MB. Budget tightened to 250 MB.**
+
+The string-builder allocator was sized for the IR-emit case
+(2.7 MB output, dominated by one big SB) but the s1 creates
+~13K SBs per compile, most for diag messages, type names,
+identifier escapers — none of which approach 4 KB. The 4 KB
+initial wasted ~50 MB across the compile.
+
+256 B is enough for ~95% of SB lifetimes; the grow-on-append
+path still handles the IR builder by doubling
+(256→512→…→big), at the cost of a few extra `realloc`s per
+big SB that are amortized over the build.
+
+### Files
+
+- `stdlib/runtime/nucleor_llvm_rt.c`: `__nucleor_sb_new`
+  initial cap 4096 → 256 with documented rationale.
+- `tools/verify.sh`: budget tightened from 400 MB to 250 MB
+  (still 80% headroom over current 137 MB baseline).
+
+### Memory measurement
+
+|              | v0.2.165 (baseline) | v0.2.166 | Δ          |
+|--------------|--------------------:|---------:|-----------:|
+| vec_new      | 119 MB              | 119 MB   | —          |
+| str_concat   |   4 MB              |   4 MB   | —          |
+| str_substring|   1 MB              |   1 MB   | —          |
+| **sb_new**   | **60 MB**           | **11 MB**| **-49 MB** |
+| **TOTAL**    | **185 MB**          |**137 MB**| **-26%**   |
+
+### Self-host LLVM IR fixed point
+
+- 2-iter byte-identical at 2,686,442 bytes.
+- `bin/nucleor.exe` updated.
+
+### Verify gate
+
+**248 / 248 PASS, 0 SKIP** in 3m. Self-host: 137 MB / 250 MB
+budget (was 400). Self-host rebuild closes byte-identical.
+
 ## [0.2.165] — 2026-04-23
 
 **RFC-0030 phase 1: per-compile string arena. Five new builtins
