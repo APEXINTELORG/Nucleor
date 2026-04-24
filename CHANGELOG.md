@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.279] — 2026-04-24
+
+**Robotics: iterative inverse-distortion for `cam.nr`. Adds two
+functions to invert the Brown-Conrady distortion model so that
+distorted pixels can be undistorted (then unprojected) without
+caller pre-rectification.**
+
+### New surface
+
+```nucleor
+import "stdlib/rods/cam.nr"
+
+// Find undistorted (xn, yn) such that distort(xn, yn) ≈ (xd, yd):
+cam_undistort_normalized(h, xd_b, yd_b, n_iters, out_ptr);  // double[2]
+
+// Convenience: distorted pixel + depth → world point in one call.
+cam_unproject_distorted(h, u_b, v_b, depth_b, n_iters, P_out_ptr);  // double[3]
+```
+
+### Algorithm
+
+OpenCV-style fixed-point iteration starting from the distorted
+point as the initial guess:
+
+```
+x_n^{k+1} = (x_d − tangential_x(x_n^k, y_n^k)) / radial(x_n^k, y_n^k)
+y_n^{k+1} = (y_d − tangential_y(x_n^k, y_n^k)) / radial(x_n^k, y_n^k)
+```
+
+Converges in 5–10 iters for moderate distortion. For extreme
+fish-eye distortion, a different model is needed (planned for v0.6).
+
+### Verification
+
+Distort → undistort roundtrip on three test points with
+`(k1=0.1, k2=−0.02, p1=0.001, p2=−0.0005)`:
+
+- `(0.300, −0.200)` → distorted `(0.304, −0.202)` → undistorted
+  `(0.300000, −0.200000)`, error `1.1e−14`.
+- `(−0.100, 0.500)` → roundtrip error `2.1e−14`.
+- `(0, 0)` → exact zero (origin invariant).
+
+All within machine precision.
+
+### Files
+
+- `stdlib/runtime/cam_rt.c` — added `nuc_cam_undistort_normalized`
+  and `nuc_cam_unproject_distorted`.
+- `stdlib/rods/cam.nr` — added externs + wrappers.
+
+---
+
 ## [0.2.278] — 2026-04-24
 
 **Robotics: Cauchy/Lorentzian redescending kernel for `pgs.nr`

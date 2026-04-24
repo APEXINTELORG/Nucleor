@@ -173,6 +173,75 @@ void nuc_cam_distort(long long h, long long xn_b, long long yn_b, long long out_
     o[1] = yn * radial + p->p1*(r2 + 2.0*yn*yn) + 2.0*p->p2*xn*yn;
 }
 
+// === Iterative inverse-distortion (v0.2.279) ===
+//
+// Given a distorted normalized point (x_d, y_d), solve for the
+// undistorted normalized point (x_n, y_n) via fixed-point
+// iteration (OpenCV-style):
+//
+//   x_n^{k+1} = (x_d − tangential_x(x_n^k, y_n^k)) / radial(x_n^k, y_n^k)
+//   y_n^{k+1} = (y_d − tangential_y(x_n^k, y_n^k)) / radial(x_n^k, y_n^k)
+//
+// Initialized with x_n = x_d, y_n = y_d. Converges in 5–10 iters
+// for moderate distortion. For extreme distortion (fish-eye) use
+// a different model (planned for v0.6).
+void nuc_cam_undistort_normalized(long long h, long long xd_b, long long yd_b,
+                                   long long n_iters_, long long out_ptr)
+{
+    NCAM *p = (NCAM *)(void *)(size_t)h;
+    if (!p) return;
+    double *o = (double *)(void *)(size_t)out_ptr;
+    if (!o) return;
+    int n_iters = (int)n_iters_;
+    if (n_iters <= 0) n_iters = 10;
+
+    double xd = _i2f(xd_b), yd = _i2f(yd_b);
+    double xn = xd, yn = yd;
+    for (int it = 0; it < n_iters; it++) {
+        double r2 = xn * xn + yn * yn;
+        double r4 = r2 * r2;
+        double r6 = r4 * r2;
+        double radial = 1.0 + p->k1*r2 + p->k2*r4 + p->k3*r6;
+        if (radial < 1e-9) break;
+        double dx_tan = 2.0 * p->p1 * xn * yn + p->p2 * (r2 + 2.0 * xn * xn);
+        double dy_tan = p->p1 * (r2 + 2.0 * yn * yn) + 2.0 * p->p2 * xn * yn;
+        double xn_new = (xd - dx_tan) / radial;
+        double yn_new = (yd - dy_tan) / radial;
+        if (fabs(xn_new - xn) < 1e-12 && fabs(yn_new - yn) < 1e-12) {
+            xn = xn_new; yn = yn_new;
+            break;
+        }
+        xn = xn_new; yn = yn_new;
+    }
+    o[0] = xn;
+    o[1] = yn;
+}
+
+// Convenience: undistort a pixel (u, v) and unproject with depth.
+// Iterates the inverse-distortion model on the normalized
+// coordinate (`(u − cx)/fx`, `(v − cy)/fy`), then back-projects
+// like `nuc_cam_unproject` would.
+void nuc_cam_unproject_distorted(long long h, long long u_b, long long v_b,
+                                  long long depth_b, long long n_iters_,
+                                  long long P_out_ptr)
+{
+    NCAM *p = (NCAM *)(void *)(size_t)h;
+    if (!p) return;
+    double *P = (double *)(void *)(size_t)P_out_ptr;
+    if (!P) return;
+    double u = _i2f(u_b), v = _i2f(v_b), z = _i2f(depth_b);
+    double xd = (u - p->cx) / p->fx;
+    double yd = (v - p->cy) / p->fy;
+    double und[2];
+    nuc_cam_undistort_normalized(h, _f2i(xd), _f2i(yd), n_iters_,
+                                  (long long)(size_t)und);
+    double X_cam[3] = { und[0] * z, und[1] * z, z };
+    double X_w[3]; _q_rotate(p->q, X_cam, X_w);
+    P[0] = X_w[0] + p->t[0];
+    P[1] = X_w[1] + p->t[1];
+    P[2] = X_w[2] + p->t[2];
+}
+
 void nuc_cam_free(long long h) {
     NCAM *p = (NCAM *)(void *)(size_t)h;
     if (!p) return;
