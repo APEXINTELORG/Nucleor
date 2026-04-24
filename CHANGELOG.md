@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.296] — 2026-04-24
+
+**Robotics: 2D Hough line detection (`hough`). Each input point
+votes for the family of lines through it parameterized by `(ρ, θ)`;
+peaks in the accumulator → detected lines. Foundation for laser-
+scan landmark extraction and structured-environment SLAM.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/hough.nr"
+
+let count = hough_lines_2d(pts_ptr, n_pts,
+    n_rho, n_theta,
+    rho_max_b, threshold, max_lines,
+    out_rho_ptr, out_theta_ptr);
+```
+
+Builds the accumulator, runs 3×3 non-maximum suppression on
+peaks, returns top `max_lines` lines whose vote count meets
+`threshold`.
+
+### Verification
+
+60 points along horizontal line `y = 3` (ground truth `ρ = 3,
+θ = π/2`):
+
+- Found **1 line** at `ρ = 3.1500, θ = 1.5795 rad` ≈ π/2 — within
+  one bin of ground truth.
+
+### Files
+
+- `stdlib/runtime/hough_rt.c` — `nuc_hough_lines_2d`; sin/cos
+  precompute, vote accumulator, 3×3 NMS peak extractor.
+- `stdlib/rods/hough.nr` — extern + wrapper.
+- `tests/rods/hough_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.295] — 2026-04-24
 
 **Robotics: Dubins shortest paths for car-like robots with minimum
