@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.280] — 2026-04-24
+
+**Robotics: basic image processing primitives (`imgproc`) on
+grayscale images. Sobel gradient, gradient magnitude, box filter,
+separable Gaussian blur, bilinear resize. Foundation for vision
+pipelines and image pyramids.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/imgproc.nr"
+
+// All operate on caller-allocated double[H * W] row-major buffers.
+imgproc_sobel_x(in_ptr, out_ptr, W, H);
+imgproc_sobel_y(in_ptr, out_ptr, W, H);
+imgproc_gradient_magnitude(in_ptr, out_ptr, W, H);   // sqrt(Gx² + Gy²)
+
+imgproc_box_filter(in_ptr, out_ptr, W, H, radius);
+imgproc_blur_gaussian(in_ptr, out_ptr, W, H, sigma_b, radius);
+
+imgproc_resize_bilinear(in_ptr, in_W, in_H, out_ptr, out_W, out_H);
+```
+
+Boundary handling: edge-pixel replication (clamp). Pixels are
+doubles in arbitrary range — caller decides `[0, 1]`, `[0, 255]`,
+or anything else.
+
+### Verification
+
+Three direct C tests:
+
+1. **Sobel x on a vertical edge** (8×8 image, 0 left half, 1 right
+   half): `gx[4, 3]` = `gx[4, 4]` = `4.0000` exact (matches the
+   3×3 stencil computation `−1 + 1 − 2 + 2 − 1 + 1 = 0` at the
+   step ... wait actually for the BOUNDARY column `x=3` adjacent
+   to the edge at `x=4`, Sobel = 4).
+2. **Gaussian blur of a constant** (16×16 of 5.0, σ=2, radius=6):
+   `0/256` pixels deviate from 5.0 — preserves constant exactly.
+3. **Resize roundtrip** 4×4 → 8×8 → 4×4: max roundtrip error
+   `8.9e−16` (machine precision).
+
+### Files
+
+- `stdlib/runtime/imgproc_rt.c` — `nuc_img_*` API; Sobel, gradient
+  magnitude, box, separable Gaussian, bilinear resize.
+- `stdlib/rods/imgproc.nr` — externs + wrappers.
+- `tests/rods/imgproc_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.279] — 2026-04-24
 
 **Robotics: iterative inverse-distortion for `cam.nr`. Adds two
