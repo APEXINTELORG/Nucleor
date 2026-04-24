@@ -7772,6 +7772,27 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
     print(str_concat("ERROR: unhandled expr kind ", str_from_int(kind)));
     return lx_new(0 - 1, blk);
 }
+// T1.1 Phase 1 (v0.2.308): if `tstr` is a narrow integer type, insert
+// a runtime `__nucleor_as_<T>` cast so the stored value is width-correct
+// (e.g. u8 wraps mod 256). Returns the new register holding the narrowed
+// value, or `vr` unchanged if `tstr` is not a narrow integer.
+fn narrow_via_as(blk: Vec<i32>, regs: Vec<i32>, vr: i64, tstr: str) -> i64 {
+    if str_len(tstr) == 0 { return vr; };
+    let mut helper: str = "";
+    if str_eq(tstr, "i8") == 1 { helper = "as_i8"; };
+    if str_eq(tstr, "i16") == 1 { helper = "as_i16"; };
+    if str_eq(tstr, "i32") == 1 { helper = "as_i32"; };
+    if str_eq(tstr, "u8") == 1 { helper = "as_u8"; };
+    if str_eq(tstr, "u16") == 1 { helper = "as_u16"; };
+    if str_eq(tstr, "u32") == 1 { helper = "as_u32"; };
+    if str_len(helper) == 0 { return vr; };
+    let mut conv_args: Vec<i32> = Vec::new();
+    conv_args.push(vr);
+    let r: i64 = ctr_next(regs);
+    ir_block_add(blk, ir_call_ex(r, helper, conv_args));
+    return r;
+}
+
 fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
     let kind: i64 = node_kind(pool, nid);
     if kind == 20 {
@@ -7791,7 +7812,8 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let mut vp: Vec<i32> = lower_expr(pool, init, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
             cur = lx_blk(vp);
             let vr: i64 = lx_reg(vp);
-            ir_block_add(cur, ir_store(vr, ar));
+            let nvr: i64 = narrow_via_as(cur, regs, vr, sbase);
+            ir_block_add(cur, ir_store(nvr, ar));
         };
         return cur;
     };

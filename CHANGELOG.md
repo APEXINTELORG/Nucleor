@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.308] — 2026-04-24
+
+**T1.1 Phase 1 — width-correct integer wrap on `let` binding.**
+First functional phase of the maximalist numerics refactor.
+A `let x: u8 = ...` (or `i8`/`i16`/`i32`/`u16`/`u32`) now wraps
+the init value to the declared width via the existing
+`__nucleor_as_<T>` runtime helpers. Behavior matches C / Rust
+wrap semantics in release.
+
+### What landed
+
+- `compiler/nucleor_s1_compiler.nr`: new `narrow_via_as()`
+  helper (lines ~7775); hook in `lower_stmt` `kind == 20`
+  (`let`) inserts an `as <T>` synthetic call when the declared
+  type is a narrow integer.
+- `bin/nucleor.exe`: rebuilt self-hosted from the modified
+  source (verified by `self-host rebuild closes` step in the
+  verify gate).
+
+### Matrix progress
+
+| Phase         | v0.2.307 | v0.2.308 |
+|---------------|----------|----------|
+| p1_intarith   | 18P/4F   | **22P/0F** |
+| p3_layout     | 2P/1F    | **3P/0F**  |
+| p7_overflow   | 0P/1F/3BE| **1P/0F/3BE** |
+| TOTAL         | 31P/9F/16BE | **37P/3F/16BE** |
+
+6 tests flipped to green. The 3 remaining fails are float arith
+(Phase 5) and bitwise narrow (Phase 6); the 16 build-errors are
+syntax not yet supported (Vec<T> generics, turbofish, `print_*`).
+
+### Known limits (intentional, picked up by later phases)
+
+- The hook only fires on `let` bindings with explicit narrow
+  type. Inline expressions like `if (x + y) > 250 {...}`
+  where `x, y: u8` still evaluate at i64 width. Phase 1.5 / 3
+  (alloca + per-register type table) addresses this.
+- Reassignment (`x = a + b;`) does not narrow yet; same gap.
+
+### Verify gate
+
+328/328 PASS. No regressions in the existing test suite.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — new helper + lower_stmt hook
+- `bin/nucleor.exe` — rebuilt
+- `CHANGELOG.md` — this entry
+
+### Next
+
+Phase 2 (`v0.2.309`) — suffix literals (`255u8`, `1_000i32`,
+`3.14f32`) + compile-time literal-overflow errors.
+
 ## [0.2.307] — 2026-04-24
 
 **T1.1 Phase 0 — maximalist narrow-numerics test matrix
