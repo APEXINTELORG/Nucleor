@@ -38,6 +38,14 @@ extern fn nuc_ik_dls_solve(
 // across multiple solve calls on the same chain handle.
 extern fn nuc_ik_set_joint_limit(ch: i64, joint_idx: i64, lo_b: i64, hi_b: i64);
 
+// Returns the smallest |det(J·Jᵀ + λ²I)| observed during the most
+// recent solve. A small value (~1e-9 or below) indicates the chain
+// approached a singular configuration — small joint changes don't
+// move the end-effector (or vice-versa). Use to back off, try a
+// different goal, or switch to a damped strategy. Reset at the
+// start of each solve; read after the solve returns.
+extern fn nuc_ik_get_last_singularity_metric() -> i64;
+
 // 6-DOF IK (v0.2.194): position + orientation. The angular error
 // is computed as the quaternion log-map of (target * current^-1),
 // giving a 3-vector axis-angle correction. Jacobian is 6×n.
@@ -68,6 +76,10 @@ fn ik_dls_solve(
 
 fn ik_set_joint_limit(ch: i64, joint_idx: i64, lo_b: i64, hi_b: i64) {
     nuc_ik_set_joint_limit(ch, joint_idx, lo_b, hi_b);
+}
+
+fn ik_get_last_singularity_metric() -> i64 {
+    return nuc_ik_get_last_singularity_metric();
 }
 
 fn ik_dls_solve_6d(

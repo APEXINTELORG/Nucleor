@@ -23,6 +23,23 @@
 #include <math.h>
 
 static double _i2f(long long x) { double d; memcpy(&d, &x, sizeof(double)); return d; }
+static long long _f2i(double d) { long long x; memcpy(&x, &d, sizeof(long long)); return x; }
+
+// === Singularity-detection state (v0.2.199) =============================
+//
+// Tracks the smallest |det(J·Jᵀ + λ²I)| observed during the most
+// recent solve call. A small value means the Jacobian is rank-
+// deficient — the chain is near a singular configuration where
+// small joint changes don't move the end-effector (or vice-versa).
+//
+// User reads `nuc_ik_get_last_singularity_metric` after the solve
+// to decide whether to back off, request a different goal, or
+// switch to a damped strategy.
+static double _g_last_singularity = 1e30;
+
+long long nuc_ik_get_last_singularity_metric(void) {
+    return _f2i(_g_last_singularity);
+}
 
 // Forward declare the FK chain runtime symbols (defined in
 // fk_chain_rt.c). Only takes long-long and returns long-long, so
@@ -125,6 +142,7 @@ long long nuc_ik_dls_solve(
     int last = n - 1;
     double eps = 1e-5;
     int iter;
+    _g_last_singularity = 1e30;  // reset for this solve
 
     for (iter = 0; iter < max_iters; iter++) {
         // Current end-effector position.
@@ -163,7 +181,10 @@ long long nuc_ik_dls_solve(
         double d = JJt_plus_lam[3], e = JJt_plus_lam[4], f = JJt_plus_lam[5];
         double g = JJt_plus_lam[6], h = JJt_plus_lam[7], i = JJt_plus_lam[8];
         double det = a*(e*i - f*h) - b*(d*i - f*g) + c2*(d*h - e*g);
-        if (fabs(det) < 1e-12) break;
+        // Track smallest |det| seen this solve (proxy for singularity).
+        double abs_det = fabs(det);
+        if (abs_det < _g_last_singularity) _g_last_singularity = abs_det;
+        if (abs_det < 1e-12) break;
         double idet = 1.0 / det;
         invJJt[0] = (e*i - f*h) * idet;
         invJJt[1] = (c2*h - b*i) * idet;

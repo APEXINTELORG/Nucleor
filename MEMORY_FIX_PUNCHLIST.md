@@ -11,7 +11,7 @@ Architectural fix, not patches.
 - **Gate budget: 100 MB enforced** (3 ratchets so far: 400 → 250 → 100 MB)
 - **Verify gate: 248/248 PASS** (was 245)
 
-## Items shipped this session
+## Items shipped this session (14 ships)
 
 - Ship 1 (v0.2.158): infrastructure + counters + format builtins + vec_free
 - Ship 2 part 1 (v0.2.159): str_eq_at — 52× memory drop (9.7 GB → 185 MB)
@@ -23,6 +23,10 @@ Architectural fix, not patches.
 - RFC-0030 phase 1 (v0.2.165): string arena (5 builtins)
 - RFC-0030 phase 2 (v0.2.166): SB initial cap 4096→256 (185→137 MB, -49 MB)
 - RFC-0030 phase 3 (v0.2.167): Vec initial cap 16→4 (137→67 MB, -70 MB)
+- Docs (v0.2.168): docs/memory-architecture.md case-study
+- RFC-0030 phase 4 (v0.2.169): str_free builtin (foundation for explicit-free)
+- Docs (v0.2.170): docs/release-notes-v0.2.x-memory.md summary
+- Ship 7 (v0.2.171): tools-suite memory budget gate (was ungated; 111 MB baseline / 200 MB budget)
 
 **Date started:** 2026-04-23
 **Repo:** `C:\Users\JoeWe\Desktop\Nucleor_OSS`
