@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.298] — 2026-04-24
+
+**Robotics: Stanley path tracker for Ackermann robots (`stanley`).
+Front-axle controller from the Stanford DARPA Grand Challenge
+vehicle. Steering combines heading error (path tangent − vehicle
+heading) and signed cross-track error of the front axle relative
+to the path.**
+
+### Algorithm (Hoffmann/Thrun 2007)
+
+```
+δ = ψ_e + atan2(k · e_ct, v_f + k_soft)
+  ψ_e   = path tangent − vehicle heading (rad, wrapped)
+  e_ct  = signed front-axle perpendicular distance to path
+          (+ when front is LEFT of path tangent)
+  k     = cross-track gain (typical 0.5 - 2.5)
+  k_soft= softening constant (keeps gain finite at v→0)
+```
+
+Pure-pursuit looks AHEAD; Stanley looks at where the front wheel
+actually IS. Better at low speed and tight curvature; more
+sensitive to path noise.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/stanley.nr"
+
+let steer: double;
+let ok = stanley_step(
+    x_b, y_b, theta_b,           // REAR axle pose
+    v_b,                          // forward speed (m/s)
+    path_x_ptr, path_y_ptr, N,    // double[N] waypoints
+    k_b, k_soft_b,
+    wheelbase_b,
+    f64_ptr(&steer));
+```
+
+### Verification
+
+Direct C unit test (`target/_test_stanley.c`):
+
+- T1 left-of-path  : front (4, +0.5), straight path → steer −0.0831 rad (right) ✓
+- T2 on-path       : aligned → steer = 0 ✓
+- T3 heading + xt  : heading +0.2 rad, off path → −0.233 rad ✓
+- T4 right-of-path : front (4, −0.5) → steer +0.0831 rad (left) ✓
+- T5 bad n         : n=1 → returns 0 ✓
+
+Build smoke `tests/rods/stanley_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/stanley_rt.c` — front-axle projection +
+   nearest-segment search + Stanley control law.
+- `stdlib/rods/stanley.nr`      — extern + `stanley_step` wrapper.
+- `tests/rods/stanley_smoke.nr` — build-only smoke.
+- `CHANGELOG.md`                 — this entry.
+
+### Limitations
+
+Documented in `stanley.nr` and `stanley_rt.c`: no curvature
+feedforward (proportional only); 2-D right-handed frame assumed
+for cross-track sign; path must be dense for nearest-segment
+projection. Gain scheduling / yaw-rate feedforward / curvature
+preview land in v0.6 if needed.
+
 ## [0.2.297] — 2026-04-24
 
 **Robotics: pure-pursuit geometric path tracker for Ackermann
