@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.205] — 2026-04-23
+
+**Robotics: convex-mesh GJK + EPA. Convenience entry points for
+the common case where each shape is a convex polytope represented
+as a flat `double[n*3]` vertex array — no support-function pointer
+required (the runtime computes the support inline by scanning the
+vertices). Closes the v0.5 deferred "mesh-mesh collision" item.**
+
+`coll_gjk` (v0.2.183) and `coll_gjk_epa` (v0.2.202) take user-
+supplied support function pointers, which is awkward when the
+support function needs per-shape state (vertex array, position,
+orientation) — Nucleor doesn't have closures, so the user has to
+either thread state through globals or build a separate support
+fn per shape. `coll_gjk_mesh_mesh` and `coll_gjk_epa_mesh_mesh`
+sidestep that for the convex-mesh case.
+
+For non-convex meshes, the caller decomposes the mesh into convex
+pieces (V-HACD or similar — third-party preprocessing) and runs
+pairwise mesh-mesh queries.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/collision.nr"
+
+// Each mesh is a flat double[n*3] of vertex coordinates.
+let overlap = coll_gjk_mesh_mesh(verts_a_ptr, n_a, verts_b_ptr, n_b);
+if overlap == 1 {
+    let normal_h = vec3_new();
+    let depth = coll_gjk_epa_mesh_mesh(verts_a_ptr, n_a,
+                                       verts_b_ptr, n_b, normal_h);
+    // depth is bit-cast f64; normal[0..2] is the unit contact normal.
+}
+```
+
+### Verification
+
+- Unit cube vs translated unit cube (offset 0.7 along x): overlap
+  detected; EPA reports depth 0.3 along (1, 0, 0).
+- Same cubes with offset 1.7: no overlap, as expected.
+
+### Files
+
+- `stdlib/runtime/collision_rt.c` — `_mesh_support`,
+  `_gjk_support_mesh_mesh`, `nuc_coll_gjk_mesh_mesh`,
+  `nuc_coll_gjk_epa_mesh_mesh`. Forward-declares the EPA
+  static helpers (`_NEPA_MAX_VERT`, `_EPAFace`, `_epa_face_init`)
+  so the mesh-mesh EPA can use them.
+- `stdlib/rods/collision.nr` — externs + Nucleor wrappers.
+
+---
+
 ## [0.2.204] — 2026-04-23
 
 **Robotics: URDF (Unified Robot Description Format) parser. Reads
