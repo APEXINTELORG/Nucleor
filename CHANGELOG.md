@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.311] — 2026-04-24
+
+**T1.1 Phase 3a — `sizeof_<T>()` primitive byte-size builtins.**
+First step toward production-grade memory layout introspection.
+Tests can now verify struct/primitive sizes without an external
+FFI bridge. A future pass will layer a generic `sizeof::<T>()`
+syntax on top.
+
+### What landed
+
+- `stdlib/runtime/nucleor_llvm_rt.c` — 19 new
+  `__nucleor_sizeof_<T>()` zero-arg builtins (`i8/i16/i32/i64/i128`,
+  `u8/u16/u32/u64/u128`, `usize/isize`, `f16/bf16/f32/f64`,
+  `bool/char/ptr`).
+- `compiler/nucleor_s1_compiler.nr` + `compiler/nucleor_tools_suite.nr`
+  — matching `get_rt_name` mappings + LLVM IR `declare`
+  statements (kept in sync; bash drift-check passes).
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+- `tests/lang/numerics_matrix/p3_layout/sizeof_primitives.nr`
+  — 17 sizeof checks against expected widths (i8=1, i32=4,
+  usize=8, f64=8, etc.). All pass.
+
+### Surface
+
+```nucleor
+let sz: i64 = sizeof_u8();    // 1
+let sz: i64 = sizeof_i32();   // 4
+let sz: i64 = sizeof_f64();   // 8
+let sz: i64 = sizeof_usize(); // 8 on 64-bit targets
+```
+
+### Matrix progress
+
+| Phase         | v0.2.310 | v0.2.311 |
+|---------------|----------|----------|
+| p3_layout     | 3P/0F    | **4P/0F** (+ sizeof_primitives) |
+| TOTAL         | 43P/7F/8BE | **44P/7F/8BE** |
+
+### Verify gate
+
+329/329 PASS. Bootstrap fixpoint stable. ABI parity check
+green (s1 ↔ tools-suite synced).
+
+### Files
+
+- `stdlib/runtime/nucleor_llvm_rt.c` — 19 sizeof builtins.
+- `compiler/nucleor_s1_compiler.nr` — get_rt_name + IR decls.
+- `compiler/nucleor_tools_suite.nr` — same (synced).
+- `bin/nucleor.exe` — rebuilt.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+- `tests/lang/numerics_matrix/p3_layout/sizeof_primitives.nr` — new.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+Phase 3b (`v0.2.312`) — full `#[repr(C)]` + `#[repr(packed)]`
+field-offset machinery + `sizeof_struct(<name>)` for user types.
+Then Phase 4 — full `as` cast matrix.
+
 ## [0.2.310] — 2026-04-24
 
 **T1.1 Phase 3c — stdlib audit + i32/u32 narrowing re-enabled.**

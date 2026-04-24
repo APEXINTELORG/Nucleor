@@ -2296,6 +2296,26 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "as_u64") { return "__nucleor_as_u64"; };
     if str_eq(name, "as_f32") { return "__nucleor_as_f32"; };
     if str_eq(name, "as_f64") { return "__nucleor_as_f64"; };
+    // T1.1 Phase 3a: sizeof_<T>() primitive byte-size queries.
+    if str_eq(name, "sizeof_i8") { return "__nucleor_sizeof_i8"; };
+    if str_eq(name, "sizeof_i16") { return "__nucleor_sizeof_i16"; };
+    if str_eq(name, "sizeof_i32") { return "__nucleor_sizeof_i32"; };
+    if str_eq(name, "sizeof_i64") { return "__nucleor_sizeof_i64"; };
+    if str_eq(name, "sizeof_i128") { return "__nucleor_sizeof_i128"; };
+    if str_eq(name, "sizeof_u8") { return "__nucleor_sizeof_u8"; };
+    if str_eq(name, "sizeof_u16") { return "__nucleor_sizeof_u16"; };
+    if str_eq(name, "sizeof_u32") { return "__nucleor_sizeof_u32"; };
+    if str_eq(name, "sizeof_u64") { return "__nucleor_sizeof_u64"; };
+    if str_eq(name, "sizeof_u128") { return "__nucleor_sizeof_u128"; };
+    if str_eq(name, "sizeof_usize") { return "__nucleor_sizeof_usize"; };
+    if str_eq(name, "sizeof_isize") { return "__nucleor_sizeof_isize"; };
+    if str_eq(name, "sizeof_f16") { return "__nucleor_sizeof_f16"; };
+    if str_eq(name, "sizeof_bf16") { return "__nucleor_sizeof_bf16"; };
+    if str_eq(name, "sizeof_f32") { return "__nucleor_sizeof_f32"; };
+    if str_eq(name, "sizeof_f64") { return "__nucleor_sizeof_f64"; };
+    if str_eq(name, "sizeof_bool") { return "__nucleor_sizeof_bool"; };
+    if str_eq(name, "sizeof_char") { return "__nucleor_sizeof_char"; };
+    if str_eq(name, "sizeof_ptr") { return "__nucleor_sizeof_ptr"; };
     // RFC-0015 phase 4: overflow-mode arithmetic
     if str_eq(name, "wrapping_add") { return "__nucleor_wrapping_add_i64"; };
     if str_eq(name, "wrapping_sub") { return "__nucleor_wrapping_sub_i64"; };
@@ -3613,6 +3633,26 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_as_u64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_as_f32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_as_f64(i64)\n");
+    // T1.1 Phase 3a: sizeof_<T>() primitive byte-size builtins.
+    sb_append(sb, "declare i64 @__nucleor_sizeof_i8()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_i16()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_i32()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_i64()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_i128()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_u8()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_u16()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_u32()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_u64()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_u128()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_usize()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_isize()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_f16()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_bf16()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_f32()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_f64()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_bool()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_char()\n");
+    sb_append(sb, "declare i64 @__nucleor_sizeof_ptr()\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_add_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_sub_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_mul_i64(i64, i64)\n");
