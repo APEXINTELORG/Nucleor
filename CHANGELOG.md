@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.208] — 2026-04-23
+
+**Robotics: Yoshikawa manipulability metric `√det(J·Jᵀ)` at an
+explicit (chain, vars) configuration. Geometrically, the volume
+of the reachable end-effector velocity ellipsoid given unit
+joint velocities — larger = more dexterous, 0 = singular. Useful
+for kinematic-optimization scoring, redundancy resolution, and
+checking "how good is this configuration?" *before* sending it
+to the controller.**
+
+Differs from the existing `ik_get_last_singularity_metric`
+(v0.2.199) in three ways:
+- Computed at an explicit (chain, vars), not as a side effect of
+  running an IK solve.
+- Uses bare `J·Jᵀ` (no `λ²` regularization).
+- Returns `√det` rather than `|det|` — the standard manipulability
+  per Yoshikawa 1985.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/ik_dls.nr"
+
+let m = ik_manipulability(chain, vars_ptr);
+// m = bit-cast f64; 0 ≈ singular, larger = more dexterous.
+```
+
+### Verification
+
+3-DOF arm with axes (z, y, z) plus a fixed end-effector tip:
+
+| Configuration | Expected | Got |
+|---|---|---|
+| `(0, 0, 0, 0)` (outstretched along x — kinematic singularity) | 0 | 0.000000 |
+| `(0.5, 0.7, 0.3, 0)` (bent dexterous configuration) | > 0 | 1.019806 |
+
+### Files
+
+- `stdlib/runtime/ik_dls_rt.c` — `nuc_ik_manipulability`. FK chain
+  extern declarations + `_f_from_handle` hoisted to the top of
+  the file so the new function can use them.
+- `stdlib/rods/ik_dls.nr` — extern + `ik_manipulability` wrapper.
+
+---
+
 ## [0.2.207] — 2026-04-23
 
 **Robotics: robot inverse dynamics via the Recursive Newton-Euler
