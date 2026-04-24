@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 181
-# Total fn definitions: 1933
-# Total LOC: 8321
+# Total rods: 182
+# Total fn definitions: 1943
+# Total LOC: 8352
 
 [[rod]]
 name           = "activation2"
@@ -1297,6 +1297,15 @@ function_count = 8
 cfile_count    = 1
 loc            = 19
 imports        = ["scurve"]
+
+[[rod]]
+name           = "sdf"
+path           = "stdlib/rods/sdf.nr"
+description    = "2D Signed Distance Field on a regular grid."
+function_count = 10
+cfile_count    = 1
+loc            = 31
+imports        = ["sdf"]
 
 [[rod]]
 name           = "serial"

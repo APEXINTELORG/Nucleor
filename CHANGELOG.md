@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.268] — 2026-04-24
+
+**Robotics: 2-D Signed Distance Field (`sdf`) on a regular grid
+with bilinear interpolation + gradient. Foundational primitive
+for collision queries, repulsive potential fields, cost-aware
+planning, and distance-aware MPC stage costs.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/sdf.nr"
+
+let h = sdf_new(W, H, dx_b, ox_b, oy_b);
+
+// Either fill cells manually:
+sdf_set(h, ix, iy, value_b);
+
+// Or compute from a list of circular obstacles:
+sdf_compute_from_circles(h, centers_ptr, radii_ptr, n_obs);
+
+// Query with bilinear interpolation:
+let phi_b = sdf_query(h, x_b, y_b);
+
+// Gradient:
+sdf_gradient(h, x_b, y_b, gx_out_ptr, gy_out_ptr);
+
+sdf_free(h);
+```
+
+Convention: `φ > 0` outside obstacles, `φ < 0` inside, `φ = 0`
+on the boundary.
+
+### Verification
+
+41 × 41 grid covering `[−2, 2]²` with cell size `0.1`, single
+circle radius `0.5` at `(0.5, 0.5)`:
+
+1. φ at cell (25, 25) = `−0.500000` (at obstacle center).
+2. φ at cell (35, 25) = `+0.500000` (distance 1.0 from center
+   minus radius 0.5).
+3. Bilinear query at `(0.5, 0.5)` = `−0.500000` (exact match
+   with grid value at center).
+4. Bilinear gradient at `(1.0, 0.5)` = `(1.0000, 0.0990)` —
+   magnitude `1.0049`, direction `+x` (away from obstacle).
+   Small y-component is the expected piecewise-linear
+   approximation artifact.
+
+### Files
+
+- `stdlib/runtime/sdf_rt.c` — `nuc_sdf_*` API; bilinear query +
+  gradient; `compute_from_circles` helper.
+- `stdlib/rods/sdf.nr` — externs + wrappers.
+- `tests/rods/sdf_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.267] — 2026-04-24
 
 **Robotics: box-constrained iLQR (`cilqr`). Same iterative-LQR
