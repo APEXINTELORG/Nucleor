@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 205
-# Total fn definitions: 2062
-# Total LOC: 8939
+# Total rods: 206
+# Total fn definitions: 2063
+# Total LOC: 8962
 
 [[rod]]
 name           = "activation2"
@@ -1801,6 +1801,15 @@ function_count = 13
 cfile_count    = 0
 loc            = 16
 imports        = ["vecdeque"]
+
+[[rod]]
+name           = "vfh"
+path           = "stdlib/rods/vfh.nr"
+description    = "Vector Field Histogram local obstacle avoidance."
+function_count = 1
+cfile_count    = 1
+loc            = 23
+imports        = ["vfh"]
 
 [[rod]]
 name           = "vgraph"
