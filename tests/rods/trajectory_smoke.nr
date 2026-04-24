@@ -81,6 +81,15 @@ fn main() -> i64 {
     };
     topp_free(topp);
 
+    // Catmull-Rom (v0.2.237) — build-only smoke (eval needs an
+    // allocated waypoint buffer, non-trivial in pure Nucleor).
+    let cr: i64 = catmull_new(2);
+    if cr == 0 { fail = fail + 1; print("FAIL catmull_new"); };
+    if catmull_waypoint_count(cr) != 0 {
+        fail = fail + 1; print("FAIL catmull initial count");
+    };
+    catmull_free(cr);
+
     if fail == 0 { print("OK trajectory_smoke"); };
     return fail;
 }

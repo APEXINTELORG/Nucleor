@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.237] — 2026-04-23
+
+**Robotics: Catmull-Rom spline interpolation in the trajectory rod.
+Standard C¹ smoothing primitive that passes through every
+waypoint exactly with continuous tangent. Common workflow: run
+RRT/PRM to get a discrete path → smooth with Catmull-Rom →
+time-parameterize with TOPP.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/trajectory.nr"
+
+let cr = catmull_new(n_dim);
+for waypoint in path { catmull_add_waypoint(cr, q_ptr); }
+
+// Sample at parameter s ∈ [0, n_pts - 1].
+catmull_eval(cr, s_b, q_out_ptr);
+```
+
+### Algorithm
+
+Standard 4-point Catmull-Rom: between waypoints `P_i` and `P_{i+1}`,
+interpolate using `P_{i-1}, P_i, P_{i+1}, P_{i+2}` as control
+points. At endpoints, the missing virtual waypoint is reflected
+(`P_{-1} = 2·P_0 − P_1`) for smooth boundary behavior.
+
+### Verification
+
+5-waypoint zigzag path `(0,0), (1,1), (2,0), (3,1), (4,0)` in 2D:
+
+| Test | Result |
+|---|---|
+| Hits every waypoint exactly at integer s | **0.0e+00 error at all 5** |
+| Smooth interpolation at intermediate s | C¹ continuous, sensible bumps between zigzag corners |
+
+### Files
+
+- `stdlib/runtime/trajectory_rt.c` — `NCatmull` struct,
+  `nuc_catmull_new` / `_add_waypoint` / `_eval` / `_free`.
+- `stdlib/rods/trajectory.nr` — externs + Nucleor wrappers.
+- `tests/rods/trajectory_smoke.nr` — alloc/count/free smoke
+  (correctness covered by direct C zigzag test).
+
+---
+
 ## [0.2.236] — 2026-04-23
 
 **Robotics: stereo triangulation — recover a world-frame 3D point

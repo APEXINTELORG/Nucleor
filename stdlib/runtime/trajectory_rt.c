@@ -834,6 +834,129 @@ long long nuc_topp_waypoint_count(long long h) {
     return p ? (long long)p->n_waypoints : 0;
 }
 
+// === Catmull-Rom spline (v0.2.237) ======================================
+//
+// C¹ interpolating spline that passes through every waypoint.
+// Standard smoothing primitive for robot paths and animation
+// curves — given a sequence of N waypoints, evaluates at any
+// parameter s ∈ [0, N-1] producing a smooth path that hits
+// each waypoint exactly at integer s.
+//
+// Within each segment between P_i and P_{i+1}, the interpolation
+// uses P_{i-1}, P_i, P_{i+1}, P_{i+2} as control points:
+//
+//   P(t) = 0.5 · ( (2·P_i)
+//                + (-P_{i-1} + P_{i+1})·t
+//                + (2·P_{i-1} − 5·P_i + 4·P_{i+1} − P_{i+2})·t²
+//                + (-P_{i-1} + 3·P_i − 3·P_{i+1} + P_{i+2})·t³ )
+//
+// where t ∈ [0, 1] is the local segment parameter.
+//
+// At the endpoints (i = 0 or i+1 = N-1), the missing virtual
+// waypoint is reflected: P_{-1} = 2·P_0 − P_1 and similarly for
+// the other end. This gives smooth boundary behavior without
+// requiring the user to specify ghost points.
+//
+// Use cases:
+// - Smooth a discrete RRT / PRM path before sending to TOPP.
+// - Animate a robot end-effector through key poses with C¹
+//   continuity (no jerks at waypoints).
+// - Generate dense path samples from a sparse waypoint list.
+
+typedef struct {
+    int n_dim;
+    int n_pts;
+    int cap_pts;
+    double *pts;     // n_pts × n_dim, flat
+} NCatmull;
+
+long long nuc_catmull_new(long long n_dim) {
+    NCatmull *c = (NCatmull *)calloc(1, sizeof(NCatmull));
+    c->n_dim = (int)n_dim;
+    c->cap_pts = 16;
+    c->pts = (double *)malloc(c->cap_pts * c->n_dim * sizeof(double));
+    return (long long)(size_t)c;
+}
+
+long long nuc_catmull_add_waypoint(long long h, long long q_ptr) {
+    NCatmull *c = (NCatmull *)(void *)(size_t)h;
+    if (!c) return -1;
+    if (c->n_pts >= c->cap_pts) {
+        c->cap_pts *= 2;
+        c->pts = (double *)realloc(c->pts, c->cap_pts * c->n_dim * sizeof(double));
+    }
+    double *q = (double *)(void *)(size_t)q_ptr;
+    memcpy(c->pts + c->n_pts * c->n_dim, q, c->n_dim * sizeof(double));
+    return (long long)(c->n_pts++);
+}
+
+long long nuc_catmull_waypoint_count(long long h) {
+    NCatmull *c = (NCatmull *)(void *)(size_t)h;
+    return c ? (long long)c->n_pts : 0;
+}
+
+// Evaluate the spline at parameter `s` (≥ 0, ≤ n_pts - 1). Writes
+// n_dim doubles to q_out_ptr. Returns 0 on success, -1 if s is
+// out of range or fewer than 2 waypoints.
+long long nuc_catmull_eval(long long h, long long s_b, long long q_out_ptr) {
+    NCatmull *c = (NCatmull *)(void *)(size_t)h;
+    if (!c || c->n_pts < 2) return -1;
+    double *out = (double *)(void *)(size_t)q_out_ptr;
+    if (!out) return -1;
+    double s = _i2f(s_b);
+    if (s < 0) s = 0;
+    if (s > (double)(c->n_pts - 1)) s = (double)(c->n_pts - 1);
+    int i = (int)s;
+    if (i >= c->n_pts - 1) i = c->n_pts - 2;
+    double t = s - (double)i;
+    int n = c->n_dim;
+    // Resolve four control points; reflect across endpoints.
+    double *Pim, *Pi, *Pip, *Pipp;
+    double *reflect_low = NULL, *reflect_hi = NULL;
+    if (i == 0) {
+        // P_{-1} = 2·P_0 − P_1.
+        reflect_low = (double *)malloc(n * sizeof(double));
+        for (int j = 0; j < n; j++) {
+            reflect_low[j] = 2.0 * c->pts[0*n + j] - c->pts[1*n + j];
+        }
+        Pim = reflect_low;
+    } else {
+        Pim = c->pts + (i - 1) * n;
+    }
+    Pi  = c->pts + i * n;
+    Pip = c->pts + (i + 1) * n;
+    if (i + 2 >= c->n_pts) {
+        // P_{N} = 2·P_{N-1} − P_{N-2}.
+        reflect_hi = (double *)malloc(n * sizeof(double));
+        int last = c->n_pts - 1;
+        for (int j = 0; j < n; j++) {
+            reflect_hi[j] = 2.0 * c->pts[last*n + j] - c->pts[(last-1)*n + j];
+        }
+        Pipp = reflect_hi;
+    } else {
+        Pipp = c->pts + (i + 2) * n;
+    }
+    double t2 = t * t;
+    double t3 = t2 * t;
+    for (int j = 0; j < n; j++) {
+        double a = 2.0 * Pi[j];
+        double b = -Pim[j] + Pip[j];
+        double cc = 2.0*Pim[j] - 5.0*Pi[j] + 4.0*Pip[j] - Pipp[j];
+        double dd = -Pim[j] + 3.0*Pi[j] - 3.0*Pip[j] + Pipp[j];
+        out[j] = 0.5 * (a + b*t + cc*t2 + dd*t3);
+    }
+    if (reflect_low) free(reflect_low);
+    if (reflect_hi) free(reflect_hi);
+    return 0;
+}
+
+void nuc_catmull_free(long long h) {
+    NCatmull *c = (NCatmull *)(void *)(size_t)h;
+    if (!c) return;
+    if (c->pts) free(c->pts);
+    free(c);
+}
+
 void nuc_topp_free(long long h) {
     NTopp *p = (NTopp *)(void *)(size_t)h;
     if (!p) return;
