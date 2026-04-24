@@ -1780,6 +1780,24 @@ long long __nucleor_sb_new(void) {
     return (long long)sb;
 }
 
+// v0.2.172 — append a single byte without allocating a temp string.
+// The compiler's escape_llvm_str path was allocating a 2-byte
+// substring per non-special character of every string literal —
+// 4 K+ literals × ~20 chars = 80 K+ transient allocations of 2-byte
+// strings just to call sb_append with a one-character payload.
+void __nucleor_sb_append_char(long long handle, long long c) {
+    NStrBuilder *sb = (NStrBuilder *)(void *)handle;
+    if (!sb) return;
+    if (sb->len + 2 > sb->cap) {
+        long long old_cap = sb->cap;
+        sb->cap *= 2;
+        sb->data = (char *)realloc(sb->data, sb->cap);
+        g_sb_realloc_bytes += sb->cap - old_cap;
+    }
+    sb->data[sb->len++] = (char)(c & 0xFF);
+    sb->data[sb->len] = '\0';
+}
+
 void __nucleor_sb_append(long long handle, const char *s) {
     if (!s) return;
     NStrBuilder *sb = (NStrBuilder *)(void *)handle;
