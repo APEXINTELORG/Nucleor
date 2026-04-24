@@ -93,3 +93,39 @@ fn scurve_peak_v(h: i64) -> i64 { return nuc_scurve_peak_v(h); }
 fn scurve_peak_a(h: i64) -> i64 { return nuc_scurve_peak_a(h); }
 fn scurve_pos_at(h: i64, t_bits: i64) -> i64 { return nuc_scurve_pos_at(h, t_bits); }
 fn scurve_free(h: i64) { nuc_scurve_free(h); }
+
+// === Dynamic Movement Primitives (DMP) (v0.2.192) ===
+//
+// Discrete DMP per Ijspeert et al. 2013. A DMP is a damped
+// second-order spring system whose attractor is the goal,
+// perturbed by a learnable forcing function shaped from a
+// demonstration. Once trained, the DMP can be unrolled with a
+// NEW goal — the learned shape generalizes (preserving the
+// "style" of the demonstration while adapting start/goal).
+//
+// Foundation for imitation learning and skill transfer.
+//
+// Workflow:
+//   1. dmp_new(n_basis, alpha_z, alpha_s)       — create
+//   2. dmp_learn(dmp, traj_ptr, n_samples, tau) — train from demo
+//   3. dmp_reset(dmp, y0, g, tau)               — set up unroll
+//   4. loop: y = dmp_step(dmp, dt)              — sample
+//
+// Multi-DOF: instantiate one DMP per joint.
+extern fn nuc_dmp_new(n_basis: i64, alpha_z_b: i64, alpha_s_b: i64) -> i64;
+extern fn nuc_dmp_learn(h: i64, traj_ptr: i64, n_samples: i64, tau_b: i64) -> i64;
+extern fn nuc_dmp_reset(h: i64, y0_b: i64, g_b: i64, tau_b: i64) -> i64;
+extern fn nuc_dmp_step(h: i64, dt_b: i64) -> i64;
+extern fn nuc_dmp_free(h: i64);
+
+fn dmp_new(n_basis: i64, alpha_z_b: i64, alpha_s_b: i64) -> i64 {
+    return nuc_dmp_new(n_basis, alpha_z_b, alpha_s_b);
+}
+fn dmp_learn(h: i64, traj_ptr: i64, n_samples: i64, tau_b: i64) -> i64 {
+    return nuc_dmp_learn(h, traj_ptr, n_samples, tau_b);
+}
+fn dmp_reset(h: i64, y0_b: i64, g_b: i64, tau_b: i64) -> i64 {
+    return nuc_dmp_reset(h, y0_b, g_b, tau_b);
+}
+fn dmp_step(h: i64, dt_b: i64) -> i64 { return nuc_dmp_step(h, dt_b); }
+fn dmp_free(h: i64) { nuc_dmp_free(h); }

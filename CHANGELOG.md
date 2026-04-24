@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.192] — 2026-04-24
+
+**Robotics: Dynamic Movement Primitives (DMPs) added to
+`trajectory.nr`. Learnable trajectories that generalize across
+goal positions — foundation for imitation learning and skill
+transfer.**
+
+A DMP (Ijspeert et al. 2013) is a damped second-order spring
+system whose attractor is the goal, perturbed by a learnable
+forcing function shaped from a demonstration:
+
+```
+τ²·y'' = α_z·(β_z·(g - y) - τ·y') + (g - y0)·f(s)
+τ·s'   = -α_s·s
+```
+
+The forcing function `f(s)` is a weighted sum of Gaussian
+basis functions over the canonical phase `s` (which decays
+1 → 0 as motion proceeds). The basis weights are learned from
+a demonstration via locally weighted regression. After
+training, the DMP unrolls with a NEW (start, goal) pair and
+the learned shape generalizes — preserving the demonstration's
+"style" while adapting to different motions.
+
+Foundation for:
+- Robotics imitation learning ("show the robot once, generalize")
+- Skill primitives in hierarchical RL
+- Smooth trajectory adaptation to perturbed goals (e.g., target
+  moves during execution)
+
+### Workflow
+
+```nucleor
+import "stdlib/rods/trajectory.nr"
+
+// 1. Create DMP with 25 Gaussian basis functions.
+let dmp = dmp_new(25, f64_to_bits(25.0), f64_to_bits(8.33));
+
+// 2. Train from demonstration (traj_ptr is a malloc'd
+//    double[N] of equispaced position samples).
+dmp_learn(dmp, traj_ptr, n_samples, f64_to_bits(tau_seconds));
+
+// 3. Reset for unroll with a new goal.
+dmp_reset(dmp, f64_to_bits(y0_new), f64_to_bits(g_new), f64_to_bits(tau));
+
+// 4. Step Euler integration.
+let i = 0;
+while i < n_steps {
+    let y = dmp_step(dmp, f64_to_bits(dt));
+    // ... record / send to actuator
+    i = i + 1;
+};
+
+dmp_free(dmp);
+```
+
+### Multi-DOF
+
+Instantiate one DMP per joint — each joint's trajectory is
+independent. Multi-DOF DMPs sharing a phase variable are a v0.5
+follow-on (gives synchronized motion across joints).
+
+### Files
+
+- `stdlib/runtime/trajectory_rt.c`: ~140 LOC for the DMP. The
+  basis centers are placed logarithmically in s-space (matches
+  the canonical phase decay); LWR learns one weight per basis.
+  Step uses simple Euler integration — the user advances time
+  externally with their preferred dt.
+- `stdlib/rods/trajectory.nr`: 5 new builtins.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**259 / 259 PASS, 0 SKIP**. Both budgets hold.
+
 ## [0.2.191] — 2026-04-24
 
 **Robotics: S-curve (bounded-jerk) trajectory profile added to

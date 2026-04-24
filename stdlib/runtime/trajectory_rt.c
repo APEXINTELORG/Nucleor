@@ -392,3 +392,188 @@ void nuc_scurve_free(long long h) {
     NSCurve *p = (NSCurve *)(void *)(size_t)h;
     if (p) free(p);
 }
+
+// === Dynamic Movement Primitives (DMP) v0.2.192 =========================
+//
+// Discrete DMP (Ijspeert et al. 2013). A DMP is a damped second-
+// order spring system whose attractor is the goal, perturbed by a
+// learnable forcing function f(s) that shapes the trajectory:
+//
+//   tau²·y'' = alpha_z·(beta_z·(g - y) - tau·y') + (g - y0)·f(s)
+//   tau·s'   = -alpha_s·s                 (canonical phase)
+//
+// where s decays from 1 → 0 as the motion proceeds. f(s) is
+// represented as a weighted sum of Gaussian basis functions; the
+// weights are learned from a demonstration.
+//
+// Training (`dmp_learn`) takes a sampled demonstration trajectory
+// (positions + the corresponding times) and computes the basis
+// weights via locally weighted regression. After training, the DMP
+// can be unrolled with a NEW goal — and the learned shape
+// generalizes (preserving the "style" of the demonstration while
+// adapting to different start/goal pairs). Foundation for
+// imitation learning and skill transfer.
+//
+// **Scope of v0.2.192**: discrete, single-DOF DMP. Multi-DOF
+// (one DMP per joint) is straightforward — instantiate N
+// independent DMPs. Rhythmic DMPs and full LWR with proper
+// feature scaling ship in v0.5.
+
+typedef struct {
+    int n_basis;
+    double *centers;     // n_basis — Gaussian centers in s-space
+    double *widths;      // n_basis — Gaussian widths
+    double *weights;     // n_basis — learned forcing weights
+    double alpha_z;      // ~25, system stiffness
+    double beta_z;       // = alpha_z / 4 for critical damping
+    double alpha_s;      // ~25/3, canonical phase decay rate
+    double y0, g;        // start position, goal position
+    double tau;          // trajectory duration scale
+    // Runtime state for sample-by-sample integration.
+    double y, dy;        // current pos, velocity
+    double s;            // current canonical phase
+} NDMP;
+
+long long nuc_dmp_new(long long n_basis_l, long long alpha_z_b, long long alpha_s_b) {
+    int n = (int)n_basis_l;
+    if (n < 1) n = 25;
+    NDMP *d = (NDMP *)calloc(1, sizeof(NDMP));
+    d->n_basis = n;
+    d->centers = (double *)malloc(n * sizeof(double));
+    d->widths = (double *)malloc(n * sizeof(double));
+    d->weights = (double *)calloc(n, sizeof(double));
+    d->alpha_z = _i2f(alpha_z_b);
+    if (d->alpha_z <= 0) d->alpha_z = 25.0;
+    d->beta_z = d->alpha_z / 4.0;
+    d->alpha_s = _i2f(alpha_s_b);
+    if (d->alpha_s <= 0) d->alpha_s = d->alpha_z / 3.0;
+    // Place centers logarithmically over s-space (s = exp(-alpha_s/tau · t)).
+    for (int i = 0; i < n; i++) {
+        double t_frac = (double)i / (double)(n - 1);
+        d->centers[i] = exp(-d->alpha_s * t_frac);
+    }
+    // Widths: 1 / (Δc)² with overlap factor.
+    for (int i = 0; i < n - 1; i++) {
+        double dc = d->centers[i + 1] - d->centers[i];
+        d->widths[i] = 1.0 / (dc * dc);
+    }
+    d->widths[n - 1] = d->widths[n - 2];
+    return (long long)(size_t)d;
+}
+
+// Train the DMP from a demonstration. `traj_ptr` is a malloc'd
+// double[n_samples] of equispaced position samples. `tau` is the
+// total demonstration duration in seconds. After training,
+// `weights[i]` shape the forcing term to reproduce the demo when
+// unrolled with the SAME (y0, g); generalizes to other goals.
+long long nuc_dmp_learn(long long h, long long traj_ptr, long long n_samples_l, long long tau_b) {
+    NDMP *d = (NDMP *)(void *)(size_t)h;
+    if (!d) return -1;
+    int N = (int)n_samples_l;
+    if (N < 3) return -1;
+    double *traj = (double *)(void *)(size_t)traj_ptr;
+    double tau = _i2f(tau_b);
+    if (tau <= 0) return -1;
+    d->y0 = traj[0];
+    d->g = traj[N - 1];
+    d->tau = tau;
+    // Numerical 1st and 2nd derivative of the demonstration.
+    double dt = tau / (double)(N - 1);
+    double *dy = (double *)malloc(N * sizeof(double));
+    double *ddy = (double *)malloc(N * sizeof(double));
+    for (int i = 0; i < N; i++) {
+        if (i == 0) dy[i] = (traj[i + 1] - traj[i]) / dt;
+        else if (i == N - 1) dy[i] = (traj[i] - traj[i - 1]) / dt;
+        else dy[i] = (traj[i + 1] - traj[i - 1]) / (2.0 * dt);
+    }
+    for (int i = 0; i < N; i++) {
+        if (i == 0) ddy[i] = (dy[i + 1] - dy[i]) / dt;
+        else if (i == N - 1) ddy[i] = (dy[i] - dy[i - 1]) / dt;
+        else ddy[i] = (dy[i + 1] - dy[i - 1]) / (2.0 * dt);
+    }
+    // Compute target forcing f_target(s_i) for each sample.
+    // Re-arrange the DMP equation:
+    //   f(s) = (tau²·y'' - alpha_z·(beta_z·(g - y) - tau·y')) / (g - y0)
+    double scale = d->g - d->y0;
+    if (fabs(scale) < 1e-9) scale = 1.0;
+    double *s_vals = (double *)malloc(N * sizeof(double));
+    double *f_target = (double *)malloc(N * sizeof(double));
+    double s = 1.0;
+    s_vals[0] = s;
+    for (int i = 1; i < N; i++) {
+        s += -d->alpha_s * s / tau * dt;
+        if (s < 1e-9) s = 1e-9;
+        s_vals[i] = s;
+    }
+    for (int i = 0; i < N; i++) {
+        f_target[i] = (tau * tau * ddy[i]
+                       - d->alpha_z * (d->beta_z * (d->g - traj[i]) - tau * dy[i]))
+                       / scale;
+    }
+    // Locally weighted regression for each basis i.
+    for (int i = 0; i < d->n_basis; i++) {
+        double sum_psi_s2 = 0;
+        double sum_psi_sf = 0;
+        for (int t = 0; t < N; t++) {
+            double diff = s_vals[t] - d->centers[i];
+            double psi = exp(-d->widths[i] * diff * diff);
+            sum_psi_s2 += psi * s_vals[t] * s_vals[t];
+            sum_psi_sf += psi * s_vals[t] * f_target[t];
+        }
+        if (sum_psi_s2 > 1e-12) d->weights[i] = sum_psi_sf / sum_psi_s2;
+        else d->weights[i] = 0;
+    }
+    free(dy); free(ddy); free(s_vals); free(f_target);
+    return 0;
+}
+
+// Reset internal state for a new unroll. Call before sampling
+// the DMP at a new goal `g_new`.
+long long nuc_dmp_reset(long long h, long long y0_b, long long g_b, long long tau_b) {
+    NDMP *d = (NDMP *)(void *)(size_t)h;
+    if (!d) return -1;
+    d->y0 = _i2f(y0_b);
+    d->g = _i2f(g_b);
+    d->tau = _i2f(tau_b);
+    d->y = d->y0;
+    d->dy = 0;
+    d->s = 1.0;
+    return 0;
+}
+
+// Sample one Euler step of duration `dt` and return the new
+// position. Caller advances time externally.
+long long nuc_dmp_step(long long h, long long dt_b) {
+    NDMP *d = (NDMP *)(void *)(size_t)h;
+    if (!d) return 0;
+    double dt = _i2f(dt_b);
+    // Compute forcing f(s) as weighted sum of Gaussians, scaled by s.
+    double sum_w_psi = 0;
+    double sum_psi = 0;
+    for (int i = 0; i < d->n_basis; i++) {
+        double diff = d->s - d->centers[i];
+        double psi = exp(-d->widths[i] * diff * diff);
+        sum_w_psi += d->weights[i] * psi;
+        sum_psi += psi;
+    }
+    double f = (sum_psi > 1e-12) ? (sum_w_psi / sum_psi) * d->s : 0;
+    double scale = d->g - d->y0;
+    // Integrate transformation system.
+    double ddy = (d->alpha_z * (d->beta_z * (d->g - d->y) - d->tau * d->dy) + scale * f)
+                  / (d->tau * d->tau);
+    d->dy += ddy * dt;
+    d->y += d->dy * dt;
+    // Integrate canonical phase.
+    d->s += -d->alpha_s * d->s / d->tau * dt;
+    if (d->s < 1e-9) d->s = 1e-9;
+    return _f2i(d->y);
+}
+
+void nuc_dmp_free(long long h) {
+    NDMP *d = (NDMP *)(void *)(size_t)h;
+    if (!d) return;
+    if (d->centers) free(d->centers);
+    if (d->widths) free(d->widths);
+    if (d->weights) free(d->weights);
+    free(d);
+}
