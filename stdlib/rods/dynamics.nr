@@ -43,6 +43,15 @@ extern fn nuc_dyn_set_link_inertia(h: i64, i: i64,
     ixx_b: i64, iyy_b: i64, izz_b: i64,
     ixy_b: i64, ixz_b: i64, iyz_b: i64);
 extern fn nuc_dyn_set_gravity(h: i64, gx_b: i64, gy_b: i64, gz_b: i64);
+
+// Per-joint friction model (v0.2.218). Adds
+// τ_friction = μ_v · qd + μ_c · sign(qd) to the inverse-dynamics
+// output for joint `i`. All RNEA-derived entry points (computed
+// torque, Cartesian impedance, gravity comp, mass matrix
+// extraction, forward dynamics) account for it automatically.
+// Default 0 / 0 (frictionless). Skipped for fixed joints.
+extern fn nuc_dyn_set_joint_friction(h: i64, i: i64,
+    mu_v_b: i64, mu_c_b: i64);
 extern fn nuc_dyn_inverse(h: i64,
     q_ptr: i64, qd_ptr: i64, qdd_ptr: i64, tau_out_ptr: i64) -> i64;
 extern fn nuc_dyn_gravity(h: i64, q_ptr: i64, tau_out_ptr: i64) -> i64;
@@ -108,6 +117,27 @@ extern fn nuc_dyn_cartesian_impedance_6d(h: i64,
     include_gravity: i64,
     tau_out_ptr: i64) -> i64;
 
+// Operational-space inverse dynamics (v0.2.219). Khatib-style
+// task-space control: given a desired Cartesian acceleration
+// `xdd_des` for the end-effector, computes the joint torques that
+// produce it via the simplified joint-space-mapping form:
+//
+//     qdd_des = J⁺(q) · xdd_des
+//     τ       = M(q)·qdd_des + C(q,qd)·qd + g(q)   ← packaged via RNEA
+//
+// `damping_b` is the damping factor for the pseudoinverse
+// `J⁺ = Jᵀ·(J·Jᵀ + λ²I)⁻¹` — same role as in the IK solver.
+// 0.01-0.1 typical.
+//
+// Different from `dyn_cartesian_impedance` (v0.2.212): impedance
+// controls task-space STIFFNESS / DAMPING (force-driven); this
+// entry point controls task-space ACCELERATION (motion-driven).
+extern fn nuc_dyn_op_space_inverse(h: i64,
+    q_ptr: i64, qd_ptr: i64,
+    xdd_des_x_b: i64, xdd_des_y_b: i64, xdd_des_z_b: i64,
+    damping_b: i64,
+    tau_out_ptr: i64) -> i64;
+
 // Cartesian impedance / operational-space PD controller (v0.2.212).
 // Computes joint torques for a position-task PD in Cartesian space:
 //
@@ -154,6 +184,13 @@ fn dyn_set_link_inertia(h: i64, i: i64,
 // World-frame gravity vector. Default (0, 0, -9.81).
 fn dyn_set_gravity(h: i64, gx_b: i64, gy_b: i64, gz_b: i64) {
     nuc_dyn_set_gravity(h, gx_b, gy_b, gz_b);
+}
+
+// Per-joint friction (v0.2.218). `mu_v` is the viscous coefficient
+// (units: N·m·s/rad for revolute, N·s/m for prismatic); `mu_c` is
+// the Coulomb / dry-friction torque magnitude. Default 0 / 0.
+fn dyn_set_joint_friction(h: i64, i: i64, mu_v_b: i64, mu_c_b: i64) {
+    nuc_dyn_set_joint_friction(h, i, mu_v_b, mu_c_b);
 }
 
 // Inverse dynamics: compute joint torques `tau` for the (q, qd, qdd)
@@ -213,6 +250,17 @@ fn dyn_computed_torque(h: i64,
     return nuc_dyn_computed_torque(h, q_ptr, qd_ptr,
         q_des_ptr, qd_des_ptr, qdd_des_ptr,
         Kp_ptr, Kd_ptr, tau_out_ptr);
+}
+
+fn dyn_op_space_inverse(h: i64,
+    q_ptr: i64, qd_ptr: i64,
+    xdd_des_x_b: i64, xdd_des_y_b: i64, xdd_des_z_b: i64,
+    damping_b: i64,
+    tau_out_ptr: i64) -> i64
+{
+    return nuc_dyn_op_space_inverse(h, q_ptr, qd_ptr,
+        xdd_des_x_b, xdd_des_y_b, xdd_des_z_b,
+        damping_b, tau_out_ptr);
 }
 
 fn dyn_cartesian_impedance_6d(h: i64,

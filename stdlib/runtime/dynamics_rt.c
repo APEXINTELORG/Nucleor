@@ -70,6 +70,11 @@ typedef struct {
     double *com;             // n_links × 3 (in link-local frame, at the CoM)
     double *inertia;         // n_links × 6 (Ixx, Iyy, Izz, Ixy, Ixz, Iyz, body-frame at CoM)
     double gravity[3];       // world-frame gravity (default 0, 0, -9.81)
+    // === Joint friction (v0.2.218) ===
+    // tau_friction = -μ_v · qd - μ_c · sign(qd), applied per joint.
+    // Default 0 / 0 (frictionless).
+    double *mu_viscous;      // n_links
+    double *mu_coulomb;      // n_links
 } NDyn;
 
 // === Quaternion helpers (link rotation handling) ===
@@ -130,7 +135,10 @@ long long nuc_dyn_new(long long fk_handle) {
     d->mass    = (double *)calloc(n, sizeof(double));
     d->com     = (double *)calloc(n * 3, sizeof(double));
     d->inertia = (double *)calloc(n * 6, sizeof(double));
-    // Sensible defaults — unit mass at link origin, unit inertia.
+    d->mu_viscous = (double *)calloc(n, sizeof(double));
+    d->mu_coulomb = (double *)calloc(n, sizeof(double));
+    // Sensible defaults — unit mass at link origin, unit inertia,
+    // frictionless joints (mu_viscous = mu_coulomb = 0).
     for (int i = 0; i < n; i++) {
         d->mass[i] = 1.0;
         d->inertia[i*6 + 0] = 0.01;  // Ixx
@@ -179,6 +187,25 @@ void nuc_dyn_set_gravity(long long h, long long gx_b, long long gy_b, long long 
     d->gravity[0] = _i2f(gx_b);
     d->gravity[1] = _i2f(gy_b);
     d->gravity[2] = _i2f(gz_b);
+}
+
+// === Joint friction (v0.2.218) ===
+//
+// Per-joint Coulomb + viscous friction model:
+//
+//     τ_friction(qd) = μ_v · qd + μ_c · sign(qd)
+//
+// Added to the inverse-dynamics output BEFORE the user reads it,
+// so all the model-based controllers built on RNEA (computed
+// torque, Cartesian impedance, gravity comp) automatically
+// account for joint friction. Set both to 0 to disable.
+void nuc_dyn_set_joint_friction(long long h, long long i,
+                                long long mu_v_b, long long mu_c_b)
+{
+    NDyn *d = (NDyn *)(void *)(size_t)h;
+    if (!d || i < 0 || i >= (long long)d->n_links) return;
+    d->mu_viscous[i] = _i2f(mu_v_b);
+    d->mu_coulomb[i] = _i2f(mu_c_b);
 }
 
 // Inverse dynamics core (v0.2.212 refactor): the world-frame
@@ -398,6 +425,21 @@ static long long _dyn_rnea_core(long long h,
         f_next[0] = f_i[0]; f_next[1] = f_i[1]; f_next[2] = f_i[2];
         n_next[0] = n_i[0]; n_next[1] = n_i[1]; n_next[2] = n_i[2];
         next_pos[0] = pos_w[i][0]; next_pos[1] = pos_w[i][1]; next_pos[2] = pos_w[i][2];
+    }
+
+    // Joint friction (v0.2.218): viscous + Coulomb. Adds the
+    // friction torque to the inverse-dynamics output so user-
+    // facing entry points (computed torque, gravity comp, mass
+    // matrix extraction, etc.) all account for it. Skipped for
+    // fixed joints since they don't have a velocity DOF.
+    for (int i = 0; i < n; i++) {
+        if (jtype[i] == _DYN_FIXED) continue;
+        double mu_v = d->mu_viscous[i];
+        double mu_c = d->mu_coulomb[i];
+        if (mu_v == 0 && mu_c == 0) continue;
+        double v = qd[i];
+        double sgn = (v > 0) ? 1.0 : (v < 0 ? -1.0 : 0.0);
+        tau[i] += mu_v * v + mu_c * sgn;
     }
 
     free(axis_w); free(pos_w); free(jtype);
@@ -877,11 +919,134 @@ long long nuc_dyn_cartesian_impedance_6d(long long h,
     return 0;
 }
 
+// === Operational-space inverse dynamics (v0.2.219) ======================
+//
+// Khatib-style task-space control. Given a desired end-effector
+// Cartesian acceleration `xdd_des`, computes the joint torques
+// that produce it via the simplified joint-space-mapping form:
+//
+//     qdd_des = J⁺(q) · xdd_des
+//     τ       = M(q)·qdd_des + C(q,qd)·qd + g(q)   ← packaged via RNEA
+//
+// `J⁺` is the damped pseudoinverse `Jᵀ·(J·Jᵀ + λ²I)⁻¹` (3×n
+// position-only). For redundant arms, the kernel of `J⁺` leaves
+// the redundant DOFs un-driven; combine with task-priority IK
+// (v0.2.210) for full-pose control of redundant manipulators.
+//
+// Use case: trajectory tracking when the user has a desired
+// Cartesian acceleration profile (e.g., from a TOPP solver
+// applied to a Cartesian path, or an MPC-style controller). The
+// dynamics rod's `dyn_cartesian_impedance` family (v0.2.212,
+// v0.2.215) controls task-space STIFFNESS / DAMPING; this entry
+// point controls task-space ACCELERATION.
+//
+// **Limitations** (full Khatib OSC with operational-space inertia
+// matrix `Λ = (J·M⁻¹·Jᵀ)⁻¹` and the J̇·qd correction lands in
+// v0.6 if needed). The current simplified form is what most
+// manipulator-software-stack OSC implementations actually ship.
+long long nuc_dyn_op_space_inverse(long long h,
+    long long q_ptr, long long qd_ptr,
+    long long xdd_des_x_b, long long xdd_des_y_b, long long xdd_des_z_b,
+    long long damping_b,
+    long long tau_out_ptr)
+{
+    NDyn *d = (NDyn *)(void *)(size_t)h;
+    if (!d) return -1;
+    int n = d->n_links;
+    double *q = (double *)(void *)(size_t)q_ptr;
+    if (!q) return -1;
+    double xdd[3] = { _i2f(xdd_des_x_b), _i2f(xdd_des_y_b), _i2f(xdd_des_z_b) };
+    double lambda = _i2f(damping_b);
+    double lambda2 = lambda * lambda;
+
+    // Compute current EE position via FK.
+    nuc_fk_chain_update(d->fk_handle, q_ptr);
+    int last = n - 1;
+    double cx = _i2f(nuc_fk_chain_link_pos_x(d->fk_handle, last));
+    double cy = _i2f(nuc_fk_chain_link_pos_y(d->fk_handle, last));
+    double cz = _i2f(nuc_fk_chain_link_pos_z(d->fk_handle, last));
+
+    // Numerical 3×n Jacobian.
+    double *J = (double *)malloc(3 * n * sizeof(double));
+    double *perturbed = (double *)malloc(n * sizeof(double));
+    long long perturbed_h = (long long)(size_t)perturbed;
+    double eps = 1e-5;
+    for (int j = 0; j < n; j++) {
+        memcpy(perturbed, q, n * sizeof(double));
+        perturbed[j] += eps;
+        nuc_fk_chain_update(d->fk_handle, perturbed_h);
+        double px = _i2f(nuc_fk_chain_link_pos_x(d->fk_handle, last));
+        double py = _i2f(nuc_fk_chain_link_pos_y(d->fk_handle, last));
+        double pz = _i2f(nuc_fk_chain_link_pos_z(d->fk_handle, last));
+        J[0*n + j] = (px - cx) / eps;
+        J[1*n + j] = (py - cy) / eps;
+        J[2*n + j] = (pz - cz) / eps;
+    }
+    nuc_fk_chain_update(d->fk_handle, q_ptr);
+
+    // J·Jᵀ + λ²I  (3×3).
+    double JJt[9];
+    for (int r = 0; r < 3; r++) {
+        for (int c = 0; c < 3; c++) {
+            double s = 0;
+            for (int k = 0; k < n; k++) s += J[r*n + k] * J[c*n + k];
+            JJt[r*3 + c] = s + (r == c ? lambda2 : 0);
+        }
+    }
+    // Inverse 3×3.
+    double a = JJt[0], b = JJt[1], c2 = JJt[2];
+    double dd = JJt[3], e = JJt[4], f = JJt[5];
+    double g = JJt[6], h_ = JJt[7], i_ = JJt[8];
+    double det = a*(e*i_ - f*h_) - b*(dd*i_ - f*g) + c2*(dd*h_ - e*g);
+    if (fabs(det) < 1e-12) {
+        free(J); free(perturbed);
+        return -1;
+    }
+    double idet = 1.0 / det;
+    double inv[9];
+    inv[0] = (e*i_ - f*h_) * idet;
+    inv[1] = (c2*h_ - b*i_) * idet;
+    inv[2] = (b*f - c2*e) * idet;
+    inv[3] = (f*g - dd*i_) * idet;
+    inv[4] = (a*i_ - c2*g) * idet;
+    inv[5] = (c2*dd - a*f) * idet;
+    inv[6] = (dd*h_ - e*g) * idet;
+    inv[7] = (b*g - a*h_) * idet;
+    inv[8] = (a*e - b*dd) * idet;
+
+    // J⁺ = Jᵀ · inv  (n×3).
+    double *Jpinv = (double *)malloc(n * 3 * sizeof(double));
+    for (int r = 0; r < n; r++) {
+        for (int c = 0; c < 3; c++) {
+            double s = 0;
+            for (int k = 0; k < 3; k++) s += J[k*n + r] * inv[k*3 + c];
+            Jpinv[r*3 + c] = s;
+        }
+    }
+    // qdd_des = J⁺ · xdd_des  (length n).
+    double *qdd_des = (double *)malloc(n * sizeof(double));
+    for (int r = 0; r < n; r++) {
+        qdd_des[r] = Jpinv[r*3 + 0]*xdd[0]
+                   + Jpinv[r*3 + 1]*xdd[1]
+                   + Jpinv[r*3 + 2]*xdd[2];
+    }
+
+    free(J); free(perturbed); free(Jpinv);
+
+    // Run RNEA with the joint-space-mapped acceleration.
+    long long rc = nuc_dyn_inverse(h, q_ptr, qd_ptr,
+        (long long)(size_t)qdd_des, tau_out_ptr);
+    free(qdd_des);
+    return rc;
+}
+
 void nuc_dyn_free(long long h) {
     NDyn *d = (NDyn *)(void *)(size_t)h;
     if (!d) return;
     if (d->mass) free(d->mass);
     if (d->com) free(d->com);
     if (d->inertia) free(d->inertia);
+    if (d->mu_viscous) free(d->mu_viscous);
+    if (d->mu_coulomb) free(d->mu_coulomb);
     free(d);
 }

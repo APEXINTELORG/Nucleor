@@ -5,6 +5,83 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.219] — 2026-04-23
+
+**Robotics: per-joint friction model in dynamics rod (v0.2.218) +
+operational-space inverse dynamics (Khatib-style, v0.2.219). Two
+related dynamics extensions that close the gap between the model
+and real hardware behavior.**
+
+### Joint friction (v0.2.218)
+
+```
+τ_friction(qd) = μ_v · qd + μ_c · sign(qd)
+```
+
+Per-joint viscous (`μ_v`, units N·m·s/rad for revolute) +
+Coulomb (`μ_c`, dry-friction torque magnitude). Added to the
+inverse-dynamics output BEFORE the user reads it, so all the RNEA-
+derived entry points (computed torque, Cartesian impedance,
+gravity comp, mass matrix extraction, forward dynamics) account
+for it automatically. Default 0 / 0 (frictionless). Skipped for
+fixed joints.
+
+### Operational-space inverse dynamics (v0.2.219)
+
+```
+qdd_des = J⁺(q) · xdd_des
+τ       = M(q)·qdd_des + C(q,qd)·qd + g(q)   ← packaged via RNEA
+```
+
+Khatib-style task-space control: given a desired Cartesian
+acceleration for the end-effector, computes the joint torques
+that produce it via the simplified joint-space-mapping form.
+`J⁺` is the damped pseudoinverse `Jᵀ·(J·Jᵀ + λ²I)⁻¹`.
+
+Different from `dyn_cartesian_impedance` (v0.2.212): impedance
+controls task-space STIFFNESS / DAMPING (force-driven); this
+entry point controls task-space ACCELERATION (motion-driven).
+Useful when the user has a desired Cartesian acceleration profile
+(e.g., from a TOPP solver applied to a Cartesian path, or an
+MPC-style controller).
+
+### Surface
+
+```nucleor
+import "stdlib/rods/dynamics.nr"
+
+dyn_set_joint_friction(dyn, joint_idx, mu_v_b, mu_c_b);
+
+dyn_op_space_inverse(dyn, q, qd,
+    xdd_x, xdd_y, xdd_z,    // desired Cartesian acceleration
+    damping_b,                // pseudoinverse damping factor
+    tau_out);
+```
+
+### Verification
+
+Single revolute joint about z + fixed tip at (1, 0, 0), no gravity:
+
+| Test | Expected | Got |
+|---|---|---|
+| Viscous friction `μ_v=2, qd=0.5` (qdd=0) | τ = 1.0 | **1.000000** |
+| Coulomb friction `μ_c=0.3, qd>0` (qdd=0) | τ = 0.3 | **0.300000** |
+| Op-space `xdd_des=(0, 1, 0)` with `λ=0.05` | τ ≈ 0.31 | **0.309227** |
+
+Friction terms exact; op-space within 0.7% of the analytical
+answer (the small discrepancy is the damping factor — λ = 0.05
+slightly under-drives the joint vs the un-damped pseudoinverse).
+
+### Files
+
+- `stdlib/runtime/dynamics_rt.c` — `mu_viscous` / `mu_coulomb`
+  arrays in `NDyn`, `nuc_dyn_set_joint_friction` setter, friction
+  application loop in `_dyn_rnea_core`, `nuc_dyn_op_space_inverse`.
+- `stdlib/rods/dynamics.nr` — externs + `dyn_set_joint_friction`
+  / `dyn_op_space_inverse` Nucleor wrappers.
+
+---
+
 ## [0.2.217] — 2026-04-23
 
 **Robotics: CHOMP — gradient-based trajectory optimizer (Ratliff
