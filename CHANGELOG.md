@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.289] — 2026-04-24
+
+**Robotics: outlier-robust point-cloud rigid alignment
+(`pcalign_horn_ransac`). Self-contained RANSAC over
+3-correspondence samples + Horn fit + reprojection-error inlier
+scoring + final refit on the inlier set. One-call replacement for
+the manual RANSAC + pcalign + refit triple needed for outlier-
+contaminated correspondences.**
+
+### Algorithm
+
+```
+For iter in 1..n_iters:
+    Sample 3 distinct correspondences uniformly.
+    Fit (R, t) via Horn.
+    Score: count inliers where ‖R·src + t − dst‖ ≤ threshold.
+    Track the best (R, t, inlier_set).
+After RANSAC: refit Horn on the FULL inlier set for the final transform.
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/pcalign.nr"
+
+let inlier_count = pcalign_horn_ransac(src_ptr, dst_ptr, n_corr,
+    n_iters, threshold_b, seed,
+    t_out_ptr, q_out_ptr,
+    inlier_mask_out_ptr);     // i64[n] (1=inlier, 0=outlier); pass 0 to skip
+```
+
+### Verification
+
+50 inlier correspondences (transform: 30°-z rotation + `(2, 1, −3)`
+translation, tiny noise) plus 20 wild outlier correspondences:
+
+- **Inlier count**: 50/70 — exactly the true inliers.
+- **Recovered transform**: `t = (1.9995, 0.9996, −3.0006)`,
+  `q ≈ (0.9659, 0, 0, 0.2589)` — within 1 mm of truth.
+- **Inlier mask**: 50/50 true inliers detected, **0/20** outliers
+  misclassified.
+
+### Files
+
+- `stdlib/runtime/pcalign_rt.c` — added `nuc_pcalign_horn_ransac`
+  alongside the existing `nuc_pcalign_horn`.
+- `stdlib/rods/pcalign.nr` — added extern + `pcalign_horn_ransac`
+  wrapper.
+
+---
+
 ## [0.2.288] — 2026-04-24
 
 **Robotics: closed-form 3-D rigid alignment of two point clouds

@@ -45,6 +45,11 @@
 extern fn nuc_pcalign_horn(src_ptr: i64, dst_ptr: i64, n: i64,
     t_out_ptr: i64, q_out_ptr: i64) -> i64;
 
+// Outlier-robust variant (v0.2.289): RANSAC over correspondences.
+extern fn nuc_pcalign_horn_ransac(src_ptr: i64, dst_ptr: i64, n: i64,
+    n_iters: i64, threshold_b: i64, seed: i64,
+    t_out_ptr: i64, q_out_ptr: i64, inlier_mask_out_ptr: i64) -> i64;
+
 // Closed-form rigid alignment via Horn's quaternion method.
 // Returns 1 on success (writes `(t, q)` to caller buffers — `t_out`
 // is `double[3]`, `q_out` is `double[4]`); 0 on degenerate input
@@ -53,4 +58,25 @@ fn pcalign_horn(src_ptr: i64, dst_ptr: i64, n: i64,
     t_out_ptr: i64, q_out_ptr: i64) -> i64
 {
     return nuc_pcalign_horn(src_ptr, dst_ptr, n, t_out_ptr, q_out_ptr);
+}
+
+// Outlier-robust rigid alignment via RANSAC over 3-correspondence
+// samples + Horn fit + reprojection-error inlier scoring + final
+// refit on inlier set.
+//
+// `threshold_b`: max Euclidean reprojection error (m) for an inlier.
+// `inlier_mask_out_ptr`: caller-allocated `i64[n]` (or 0 to skip);
+//   filled with 1 = inlier, 0 = outlier under best model.
+// Returns the inlier count of the best model.
+//
+// Useful for feature-based registration where some correspondences
+// are bad matches (visual feature mismatches, scan-to-scan
+// confusion, etc.).
+fn pcalign_horn_ransac(src_ptr: i64, dst_ptr: i64, n: i64,
+    n_iters: i64, threshold_b: i64, seed: i64,
+    t_out_ptr: i64, q_out_ptr: i64, inlier_mask_out_ptr: i64) -> i64
+{
+    return nuc_pcalign_horn_ransac(src_ptr, dst_ptr, n,
+        n_iters, threshold_b, seed,
+        t_out_ptr, q_out_ptr, inlier_mask_out_ptr);
 }
