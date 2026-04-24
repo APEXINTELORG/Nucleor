@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.336] — 2026-04-24
+
+**T1.2 Result/Option/match payloads + `?` operator — end-to-end
+functional.** Constructor sugar (`Some(x)`, `None`, `Ok(v)`,
+`Err(e)`), match with payload binding, `if let` / `while let`,
+and the `?` early-return operator now all interoperate. Promotes
+the `option_result_f64` quarantine spec into the verify gate
+(adapted to supported paren-binding syntax).
+
+### What this ship adds
+
+- **Type compatibility** in `types_compatible` — Option/Result
+  constructor-typed values flow into Vec<i32> / Vec<i64> /
+  Option / Result return types. Without this, `fn divide(...) ->
+  Vec<i32> { return Err(-1); }` failed TYP-010.
+- **Option ↔ Result interop** for mixed `?`-context calls.
+- **Verify-gate test** `tests/features/option_result_basic.nr`
+  — 5 cases: Some/None match, Ok/Err match, if let. All pass.
+
+### Surface (works now)
+
+```nucleor
+import "stdlib/rods/option.nr"
+import "stdlib/rods/result.nr"
+
+fn maybe_div(a: i64, b: i64) -> Vec<i32> {
+    if b == 0 { return None; };
+    return Some(a / b);
+}
+fn main() -> i32 {
+    match maybe_div(10, 2) {
+        Some(v) => { print_int(v); },
+        None => { print("zero\n"); },
+    };
+    if let Ok(x) = lookup(1) { print_int(x); };
+    return 0;
+}
+```
+
+### Quarantine knock-off
+
+`tests/features/_unimplemented/option_result_f64.nr` — its
+struct-style `Some { value }` binding stays in quarantine for
+the v0.6 sum-type-IR follow-up. Paren-binding equivalent ships
+now as `tests/features/option_result_basic.nr`.
+
+### Verify gate
+
+344/331 PASS (+1 new feature test). Bootstrap fixpoint stable.
+
+### Numerics-compatibility
+
+Option/Result payloads are i64 slots — caller packs/unpacks
+narrow values via T1.1 Phase 1 `let` narrow-hook or `as` casts.
+Consistent with i64-everywhere FFI.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — `types_compatible`
+  Option/Result ↔ Vec / Option ↔ Result clauses.
+- `bin/nucleor.exe` — rebuilt.
+- `tests/features/option_result_basic.nr` — new spec test.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+T1.9 test framework (`#[test]` + `nuc test` + `assert_eq!`).
+
 ## [0.2.335] — 2026-04-24
 
 **T1.8 Diagnostics — Rust-style snippet + caret rendering.**

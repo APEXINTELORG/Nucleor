@@ -6376,6 +6376,16 @@ fn types_compatible(expected: str, actual: str) -> i64 {
     let abase: str = type_base_name(actual);
     if str_eq(ebase, "Vec") == 1 && (str_eq(actual, "i64") == 1 || str_eq(actual, "i32") == 1 || str_eq(actual, "ptr") == 1) { return 1; };
     if str_eq(abase, "Vec") == 1 && (str_eq(expected, "i64") == 1 || str_eq(expected, "i32") == 1 || str_eq(expected, "ptr") == 1) { return 1; };
+    // T1.2 (v0.2.336): Option/Result constructors lower to a Vec<i32>
+    // tag-payload runtime representation. Allow them to flow into
+    // Vec / Vec<i32> / Vec<i64> return types.
+    if (str_eq(actual, "Option") == 1 || str_eq(actual, "Result") == 1) &&
+       (str_eq(ebase, "Vec") == 1 || str_eq(ebase, "Option") == 1 || str_eq(ebase, "Result") == 1) { return 1; };
+    if (str_eq(expected, "Option") == 1 || str_eq(expected, "Result") == 1) &&
+       (str_eq(abase, "Vec") == 1 || str_eq(abase, "Option") == 1 || str_eq(abase, "Result") == 1) { return 1; };
+    // Option ↔ Result interop (rare but useful for ? in ad-hoc contexts).
+    if (str_eq(expected, "Option") == 1 && str_eq(actual, "Result") == 1) { return 1; };
+    if (str_eq(expected, "Result") == 1 && str_eq(actual, "Option") == 1) { return 1; };
     if (str_eq(expected, "i64") == 1 || str_eq(expected, "i32") == 1) && str_eq(actual, "bool") == 1 { return 1; };
     if str_eq(expected, "bool") == 1 && (str_eq(actual, "i64") == 1 || str_eq(actual, "i32") == 1) { return 1; };
     if str_eq(expected, "Int") == 1 && (str_eq(actual, "i32") == 1 || str_eq(actual, "i64") == 1) { return 1; };
