@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 144
-# Total fn definitions: 1675
-# Total LOC: 7139
+# Total rods: 145
+# Total fn definitions: 1677
+# Total LOC: 7162
 
 [[rod]]
 name           = "activation2"
@@ -207,6 +207,15 @@ description    = "ML model checkpointing for gradient recomputation"
 function_count = 10
 cfile_count    = 1
 loc            = 21
+imports        = []
+
+[[rod]]
+name           = "chomp"
+path           = "stdlib/rods/chomp.nr"
+description    = "Covariant Hamiltonian Optimization for Motion"
+function_count = 2
+cfile_count    = 1
+loc            = 23
 imports        = []
 
 [[rod]]

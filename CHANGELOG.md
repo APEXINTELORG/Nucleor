@@ -5,6 +5,94 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.217] — 2026-04-23
+
+**Robotics: CHOMP — gradient-based trajectory optimizer (Ratliff
+et al. 2009). Smooths an initial discretized path while pushing
+it away from obstacles via a user-supplied cost function. The
+standard "post-process the planner's output before sending to the
+controller" tool — turns RRT / PRM's discretely-collision-free
+but jerky paths into smooth executable trajectories.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/chomp.nr"
+
+// path is a caller-allocated double[N * n_dim] buffer holding
+// the initial path; CHOMP modifies the interior in place.
+chomp_optimize(path_ptr, N, n_dim,
+    max_iters,
+    alpha_b,         // step size
+    w_smooth_b,      // smoothness weight
+    w_obs_b,         // obstacle weight
+    obs_cost_fp);    // user callback: fn(config_ptr) -> i64 (bit-cast f64 cost)
+
+let cost = chomp_cost(path_ptr, N, n_dim, w_smooth_b, w_obs_b, obs_cost_fp);
+```
+
+### Cost function
+
+```
+F(ξ) = w_smooth · F_smooth(ξ) + w_obs · F_obs(ξ)
+```
+
+where:
+- `F_smooth = Σ ‖2·ξ_i − ξ_{i-1} − ξ_{i+1}‖²` (discrete Laplacian
+  of the path — penalizes acceleration, encourages smoothness).
+- `F_obs = Σ user_cost(ξ_i)` integrated along the trajectory.
+
+Endpoints (ξ_0, ξ_{N-1}) are NEVER moved; only interior waypoints
+are optimized.
+
+### Implementation notes
+
+- Smoothness gradient is exact (the Laplacian is its own gradient
+  up to a factor of 2). Obstacle gradient is computed by numerical
+  finite differences on the user cost function.
+- Update rule: `ξ_i ← ξ_i − α · (w_s · ∇F_smooth + w_o · ∇F_obs)`
+  with per-step move clamping (the simplification of the full
+  covariant pre-conditioning A⁻¹·∇F that ships in CHOMP-proper —
+  similar empirical behavior on typical paths).
+- Convergence: stops when the largest waypoint move per iteration
+  drops below `1e-6`, or after `max_iters`.
+
+### Verification
+
+2-DOF path of 9 waypoints from (0, -0.5) to (1, -0.5), passing
+through a Gaussian obstacle potential centered at y = 0 with
+width 0.3:
+
+| Phase | Cost | Status |
+|---|---|---|
+| Initial straight line, smooth-only weight | 0.000000 | trivially optimal |
+| 50 iters, smooth-only | 0.000000 | unchanged ✓ |
+| Initial line, smooth + obstacle | **2.244170** | high (path near wall) |
+| 100 iters, smooth + obstacle | **0.616400** | dropped 3.6× |
+
+Final path: interior waypoints curved from `y = -0.5` (initial)
+to `y = -1.017` (midpoint) — successfully dodging the wall.
+Endpoints stayed clamped at `y = -0.5`.
+
+### Limitations
+
+- Joint-space optimization only (Cartesian-space variant would
+  need an FK + Jacobian wrapper — straightforward to add later).
+- Obstacle gradient via numerical finite differences (slower than
+  exact gradients on signed-distance fields).
+- Pre-conditioning approximated by per-step clamping; full
+  covariant `A⁻¹·∇F` lands in v0.6 if needed.
+
+### Files
+
+- `stdlib/runtime/chomp_rt.c` — `nuc_chomp_optimize`,
+  `nuc_chomp_cost`, `_obs_cost_at` / `_obs_grad_at` helpers.
+- `stdlib/rods/chomp.nr` — externs + Nucleor wrappers.
+- `tests/rods/chomp_smoke.nr` — build-only linkage smoke
+  (correctness covered by direct C wall-dodging test).
+
+---
+
 ## [0.2.216] — 2026-04-23
 
 **Robotics: grasp quality metrics for a 2-finger parallel-jaw
