@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 692
+# Total helpers: 693
 # Of which REVIEW REQUIRED: 0
 
 # ============================================================
@@ -6693,6 +6693,20 @@ symbol           = "__nucleor_str_eq"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, ptr) -> i64"
 effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "str_free"
+class            = "StringFormat"
+symbol           = "__nucleor_str_free"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> void"
+effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "none"

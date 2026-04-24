@@ -5,6 +5,78 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.169] — 2026-04-24
+
+**RFC-0030 phase 4: `str_free` exposed as a builtin.
+Foundation for explicit-free patterns in user code and for
+the Ship 4 type-checker arena migration.**
+
+The `__nucleor_str_free` runtime function shipped in
+v0.2.158 alongside `__nucleor_vec_free`, but was never wired
+as a Nucleor-side builtin. v0.2.169 closes that gap.
+
+### Surface
+
+```nucleor
+let s: str = str_concat("foo", "bar");
+str_free(s);  // explicit free; s is invalid after this
+```
+
+### Safety contract
+
+`str_free` MUST NOT be called on string literals. String
+literals live in the rodata section of the executable;
+calling free() on them corrupts the heap allocator's
+metadata and causes silent or delayed crashes. Only call
+`str_free` on values returned from one of the allocating
+builtins:
+
+- `str_concat`
+- `str_substring`
+- `sb_to_str`
+- `format_i64` / `format_str` / `format_f64` / `format_hex`
+  / `format_bool` / `format2_*` / `format3_*`
+- `int_to_str` / `f64_to_str` / `bool_to_str`
+- `str_repeat` / `str_pad_left` / `str_pad_right` /
+  `str_center` / `str_join`
+- `read_line` / `read_byte`
+
+For arena-backed strings (`str_arena_concat`,
+`str_arena_substring`), use `str_arena_free(arena)` instead
+— calling `str_free` on individual arena strings is
+incorrect (the chunk allocator tracks regions, not
+individual strings).
+
+### Compiler builtin
+
+- `compiler/nucleor_s1_compiler.nr`: 4 ABI sites
+  (`get_rt_name`, `is_void_ret`, `is_ptr_arg`,
+  `emit_externs`).
+- `compiler/nucleor_tools_suite.nr`: 4 mirrored sites.
+- The compiler itself does NOT yet call `str_free`; the
+  audit of safe-vs-unsafe call sites is part of Ship 4
+  (type-checker arena migration). The builtin lands first
+  so user code and rods can adopt it now.
+
+### Tests
+
+- `tests/lang/str_free_basic.nr`: positive test asserting
+  `str_free` cleanly deallocates results from `str_concat`,
+  `str_substring`, and `int_to_str`. Process-level memory
+  doesn't crash; the freed strings are no longer accessed.
+
+### Self-host LLVM IR fixed point
+
+- 3-iter check passed at iter2==iter3 (byte-identical at
+  2,688,476 bytes). Iter1 differed by exactly the new
+  `str_free` declare line.
+- `bin/nucleor.exe` updated; chain extends to **v0.2.169**.
+
+### Verify gate
+
+**249 / 249 PASS, 0 SKIP** (was 248/248; +1 new test).
+Self-host: 67 MB / 100 MB budget.
+
 ## [0.2.168] — 2026-04-23
 
 **Documentation: `docs/memory-architecture.md` adds a complete
