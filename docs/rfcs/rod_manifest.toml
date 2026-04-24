@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 160
-# Total fn definitions: 1761
-# Total LOC: 7653
+# Total rods: 161
+# Total fn definitions: 1763
+# Total LOC: 7683
 
 [[rod]]
 name           = "activation2"
@@ -27,6 +27,15 @@ description    = "Bump arena, object pool, mark/pop stack allocator"
 function_count = 19
 cfile_count    = 1
 loc            = 41
+imports        = []
+
+[[rod]]
+name           = "apf"
+path           = "stdlib/rods/apf.nr"
+description    = "Artificial potential field for reactive collision"
+function_count = 2
+cfile_count    = 1
+loc            = 30
 imports        = []
 
 [[rod]]
