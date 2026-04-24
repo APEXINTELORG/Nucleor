@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 212
-# Total fn definitions: 2072
-# Total LOC: 9063
+# Total rods: 213
+# Total fn definitions: 2074
+# Total LOC: 9078
 
 [[rod]]
 name           = "activation2"
@@ -1792,6 +1792,15 @@ function_count = 7
 cfile_count    = 1
 loc            = 27
 imports        = []
+
+[[rod]]
+name           = "trapvel"
+path           = "stdlib/rods/trapvel.nr"
+description    = "Trapezoidal velocity profile for point-to-point"
+function_count = 2
+cfile_count    = 1
+loc            = 15
+imports        = ["trapvel"]
 
 [[rod]]
 name           = "twin_core"
