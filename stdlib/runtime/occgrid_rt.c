@@ -184,6 +184,57 @@ long long nuc_occgrid_width(long long h)  { NOCC *p = (NOCC *)(void *)(size_t)h;
 long long nuc_occgrid_height(long long h) { NOCC *p = (NOCC *)(void *)(size_t)h; return p ? (long long)p->H : 0; }
 long long nuc_occgrid_cell_size(long long h) { NOCC *p = (NOCC *)(void *)(size_t)h; return p ? _f2i(p->cell_size) : _f2i(0.0); }
 
+// === Frontier detection (v0.2.290) ===
+//
+// A frontier cell is a "free" cell (log-odds < free_thresh) that
+// has at least one 4-connected neighbor classified as "unknown"
+// (|log-odds| < unknown_eps). These are the natural exploration
+// targets — the boundary between known free space and the unknown.
+//
+// Writes the world (x, y) coordinates of frontier cell centers to
+// caller-allocated `double[max_n]` arrays. Returns the number of
+// frontier cells found (capped at max_n; further frontiers are
+// silently dropped).
+long long nuc_occgrid_find_frontiers(long long h, long long free_thresh_b,
+                                       long long unknown_eps_b,
+                                       long long out_x_ptr, long long out_y_ptr,
+                                       long long max_n)
+{
+    NOCC *p = (NOCC *)(void *)(size_t)h;
+    if (!p) return 0;
+    double free_thresh = _i2f(free_thresh_b);
+    double unknown_eps = _i2f(unknown_eps_b);
+    if (unknown_eps <= 0) unknown_eps = 0.05;
+    double *ox = (double *)(void *)(size_t)out_x_ptr;
+    double *oy = (double *)(void *)(size_t)out_y_ptr;
+    long long n_max = max_n;
+    if (n_max <= 0 || !ox || !oy) return 0;
+    long long count = 0;
+
+    int W = p->W, H = p->H;
+    int dx[4] = { 1, -1, 0, 0 };
+    int dy[4] = { 0, 0, 1, -1 };
+    for (int iy = 0; iy < H; iy++) {
+        for (int ix = 0; ix < W; ix++) {
+            double l = p->lo[iy*W + ix];
+            if (l >= free_thresh) continue;
+            int has_unknown = 0;
+            for (int k = 0; k < 4; k++) {
+                int nx = ix + dx[k], ny = iy + dy[k];
+                if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+                double ln = p->lo[ny*W + nx];
+                if (fabs(ln) < unknown_eps) { has_unknown = 1; break; }
+            }
+            if (!has_unknown) continue;
+            if (count >= n_max) return count;
+            ox[count] = p->ox + (ix + 0.5) * p->cell_size;
+            oy[count] = p->oy + (iy + 0.5) * p->cell_size;
+            count++;
+        }
+    }
+    return count;
+}
+
 void nuc_occgrid_free(long long h) {
     NOCC *p = (NOCC *)(void *)(size_t)h;
     if (!p) return;
