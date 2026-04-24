@@ -5,6 +5,84 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.177] — 2026-04-24
+
+**Robotics: time-parameterized trajectories. New `trajectory.nr`
+rod ships quintic (5th-order polynomial) joint trajectories with
+C² boundary conditions. Third robotics ship.**
+
+Closes the FK / IK / trajectory triplet that covers the
+"compute the path, follow the path" loop:
+
+- v0.2.174 — Vec3 / quaternion / Pose primitives
+- v0.2.175 — fk_chain (forward kinematics)
+- v0.2.176 — ik_dls (inverse kinematics, position-only)
+- **v0.2.177 — trajectory (quintic polynomial)**
+
+Quintic polynomial fits 6 boundary conditions (start q, v, a +
+goal q, v, a) over a duration T:
+
+```
+q(t)   = a0 + a1·t + a2·t² + a3·t³ + a4·t⁴ + a5·t⁵
+q'(t)  =      a1   + 2·a2·t + 3·a3·t² + 4·a4·t³ + 5·a5·t⁴
+q''(t) =             2·a2   + 6·a3·t  + 12·a4·t² + 20·a5·t³
+```
+
+Closed-form coefficients via the standard Lynch & Park
+formulation. C² continuous at endpoints — good for actuator-
+limited systems.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/trajectory.nr"
+
+let traj = quintic_new(
+    1.0,          // T = 1 second
+    0.0, 0.0, 0.0,  // start: rest at q=0
+    1.0, 0.0, 0.0   // goal:  rest at q=1
+);
+
+// Sample at any t in [0, T]:
+let q   = quintic_pos_at(traj, t);
+let v   = quintic_vel_at(traj, t);
+let a   = quintic_acc_at(traj, t);
+
+quintic_free(traj);
+```
+
+### Files
+
+- `stdlib/runtime/trajectory_rt.c`: ~80 LOC. Closed-form
+  coefficient computation; per-sample evaluation is direct
+  Horner-style (no allocation).
+- `stdlib/rods/trajectory.nr`: 6 builtins (`new`, `duration`,
+  `pos_at`, `vel_at`, `acc_at`, `free`).
+- `tests/rods/trajectory_smoke.nr`: build a rest-to-rest
+  quintic; sample at start, midpoint, end; assert duration
+  round-trips.
+
+### Future work (deferred to v0.5)
+
+- **Trapezoidal velocity profiles** — phase 1 (accel) + phase 2
+  (cruise) + phase 3 (decel); preferred when the actuator has
+  hard velocity / acceleration limits.
+- **S-curves (limited jerk)** — additional smoothness on
+  acceleration discontinuities.
+- **Dynamic Movement Primitives (DMPs)** — learnable
+  trajectories that generalize across goal positions.
+- **TOPP-RA** — time-optimal path parameterization respecting
+  joint torque + velocity limits.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**254 / 254 PASS, 0 SKIP** (was 253/253; +1 new smoke test).
+Both budgets hold.
+
 ## [0.2.176] — 2026-04-24
 
 **Robotics: inverse kinematics. New `ik_dls.nr` rod solves for
