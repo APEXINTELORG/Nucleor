@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 208
-# Total fn definitions: 2065
-# Total LOC: 8988
+# Total rods: 209
+# Total fn definitions: 2067
+# Total LOC: 9001
 
 [[rod]]
 name           = "activation2"
@@ -784,6 +784,15 @@ function_count = 16
 cfile_count    = 1
 loc            = 35
 imports        = ["image"]
+
+[[rod]]
+name           = "image_pyramid"
+path           = "stdlib/rods/image_pyramid.nr"
+description    = "Gaussian image pyramid (reduce / expand)."
+function_count = 2
+cfile_count    = 1
+loc            = 13
+imports        = ["image_pyramid"]
 
 [[rod]]
 name           = "imgproc"
