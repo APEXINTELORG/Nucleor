@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.180] — 2026-04-24
+
+**v0.5.0, v0.6.0, v0.7.0, v0.8.0 milestone trackers drafted.
+Roadmap is now concrete through 2028-Q1.**
+
+The semver-and-release doc named these targets:
+
+| Version  | Target  |
+|----------|---------|
+| v0.4.0   | 2026-Q4 |
+| v0.5.0   | 2027-Q2 |
+| v0.6.0   | 2027-Q2 |
+| v0.7.0   | 2027-Q3 |
+| v0.8.0   | 2028-Q1 |
+
+But the milestone-tracker docs only existed for v0.2-v0.4. v0.2.180
+adds the four missing trackers covering RFC-0005 through
+RFC-0014 + the cross-cutting workstreams.
+
+### Files
+
+- `docs/milestones/v0.5.0.md`: Robotics + DbC + URDF + atomics.
+  - Robotics-stack v0.5 follow-on items for the v0.2.174-179
+    rods (frame typing, URDF parser, IK orientation, trajectory
+    profiles, GJK/EPA, RRT*/PRM/path smoothing)
+  - RFC-0006 Design by Contract
+  - RFC-0007 atomics + lock-free queues
+  - RFC-0013 URDF static frame chain verification
+  - RFC-0014 #[max_depth = N] bounded recursion
+  - Package manager v0.5 follow-on (registry + PubGrub + git deps)
+- `docs/milestones/v0.6.0.md`: Units + ISRs + embedded targets.
+  - RFC-0005 dimensional units (Mars Climate Orbiter prevention)
+  - RFC-0008 #[isr] interrupt service routine attribute
+  - Embedded-target sysroots: ARM Cortex-M, RISC-V, ESP32
+- `docs/milestones/v0.7.0.md`: WCET + DLPack + cert profile.
+  - RFC-0009 static WCET via Heptane
+  - RFC-0010 DLPack zero-copy tensor interchange
+  - Certified-build profile (--profile=cert)
+- `docs/milestones/v0.8.0.md`: Stabilization + ABI freeze + cert
+  pilot.
+  - ABI freeze + nuc abi diff regression gate
+  - Safety-cert pilot (real project IEC 61508 / ISO 26262)
+  - LSP + debug-adapter + coverage + profiler polish
+  - Self-host < 1 s target
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**256 / 256 PASS, 0 SKIP** (no test changes; doc-only ship).
+
 ## [0.2.179] — 2026-04-24
 
 **Robotics: motion planner. New `rrt.nr` rod ships LaValle's
