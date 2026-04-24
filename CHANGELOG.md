@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.297] — 2026-04-24
+
+**Robotics: pure-pursuit geometric path tracker for Ackermann
+robots (`purepursuit`). Given current pose, a 2-D waypoint path,
+and a lookahead distance, computes the steering angle that drives
+the vehicle along an arc to the lookahead point.**
+
+### Algorithm (Coulter 1992)
+
+```
+1. closest = argmin path waypoint distance to robot
+2. walk forward from closest, accumulating arc length, until L_d
+3. lookahead = interpolated point at distance L_d on path
+4. α = angle from robot heading to lookahead point
+5. δ = atan(2 L sin(α) / L_d)
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/purepursuit.nr"
+
+let steer: double;
+let ok = purepursuit_step(x_b, y_b, theta_b,
+                           path_x_ptr, path_y_ptr, n,
+                           lookahead_b, wheelbase_b,
+                           steer_out_ptr);
+```
+
+### Verification
+
+Straight path along +x, wheelbase 0.5 m, lookahead 2 m:
+
+- **Off-path** robot at `(0, 1, 0)` → steer `−0.3398 rad` (right
+  turn back to path). ✓
+- **On-path** robot at `(0, 0, 0)` → steer `0.0000` exactly. ✓
+
+### Files
+
+- `stdlib/runtime/purepursuit_rt.c` — `nuc_purepursuit_step`;
+  closest-waypoint search, forward arc-length walk, atan steering.
+- `stdlib/rods/purepursuit.nr` — extern + wrapper.
+- `tests/rods/purepursuit_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.296] — 2026-04-24
 
 **Robotics: 2D Hough line detection (`hough`). Each input point
