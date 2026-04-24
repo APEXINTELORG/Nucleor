@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.284] — 2026-04-24
+
+**Robotics: Huber-robust kernel for `pgs3.nr` (3D pose-graph SLAM).
+Mirror of v0.2.277's 2D `pgs_optimize_huber` for SE(3) loop
+closures.**
+
+### Algorithm
+
+```
+Same SE(3) Gauss-Newton iteration as nuc_pgs3_optimize, with
+per-edge IRLS weighting:
+    r² = Σ_k r0[k]² · info[k]            (info-weighted 6-D norm²)
+    w  = 1                                 if r² ≤ δ²
+    w  = δ / sqrt(r²)                      if r² > δ²
+    Edge contributions to H and b are scaled by w.
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/pgs3.nr"
+
+// ... build graph as for pgs3_optimize ...
+pgs3_optimize_huber(g, max_iters, tol_b, delta_b);
+```
+
+`delta_b = 0` reduces to vanilla L2 (matches `pgs3_optimize`).
+
+### Files
+
+- `stdlib/runtime/pgs3_rt.c` — added `nuc_pgs3_optimize_huber`
+  alongside the existing `nuc_pgs3_optimize`.
+- `stdlib/rods/pgs3.nr` — added extern + `pgs3_optimize_huber`
+  wrapper.
+
+### Limitations carried forward
+
+- Huber reverts to L2 once an edge's residual drops below `δ`. For
+  stronger always-redescending rejection, a Cauchy 3D variant
+  lands in v0.6.
+
+---
+
 ## [0.2.283] — 2026-04-24
 
 **Robotics: differential-drive and Ackermann mobile-robot
