@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 139
-# Total fn definitions: 1584
-# Total LOC: 6641
+# Total rods: 140
+# Total fn definitions: 1590
+# Total LOC: 6660
 
 [[rod]]
 name           = "activation2"
@@ -837,6 +837,15 @@ description    = "Priority queue (binary min/max-heap with decrease-key)"
 function_count = 11
 cfile_count    = 1
 loc            = 24
+imports        = []
+
+[[rod]]
+name           = "prm"
+path           = "stdlib/rods/prm.nr"
+description    = "Probabilistic Roadmap motion planner."
+function_count = 6
+cfile_count    = 1
+loc            = 19
 imports        = []
 
 [[rod]]
