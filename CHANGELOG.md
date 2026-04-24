@@ -5,6 +5,75 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.251] — 2026-04-24
+
+**Robotics: 3D KD-tree (`kdt`) for fast nearest-neighbor queries
+that adapt to non-uniform point distributions. Median-split on
+alternating axes + bounding-box pruning. O(log n) average-case NN
+with proper splitting-plane pruning + heap-based k-NN.**
+
+### Why a third NN rod
+
+This release brings the robotics NN catalog to three rods, each
+with a distinct sweet spot:
+
+- `sgrid.nr` — uniform spatial-hash grid. Constant-time average
+  lookup; ideal when point distribution is roughly uniform and the
+  expected NN distance can be picked up front.
+- `kdtree.nr` — general n-dimensional kd-tree using a separate
+  point-vector handle (`KDVec` from `vec.nr`). Suited to ML or
+  clustering workflows where points already live in a vec and
+  dimensionality varies.
+- `kdt.nr` — 3D-specific kd-tree with the same insert/build/query
+  workflow as `sgrid.nr`. Adapts to non-uniform distributions via
+  median-split. Best when the workspace has dense + sparse regions
+  and you don't want to tune a cell size.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/kdt.nr"
+
+let h = kdt_new(n_pts_hint);
+for each point: kdt_insert(h, x_b, y_b, z_b);
+kdt_build(h);                     // call ONCE after all inserts
+
+// Nearest-neighbor:
+let nn_idx = kdt_nearest(h, qx_b, qy_b, qz_b);
+
+// k-Nearest:
+//   out_indices_ptr — caller-allocated i64[k] (or 0 to skip)
+//   out_dist2_ptr   — caller-allocated double[k] (or 0 to skip)
+let n = kdt_knearest(h, qx_b, qy_b, qz_b, k,
+                     out_indices_ptr, out_dist2_ptr);
+```
+
+### Verification
+
+Three direct C tests against brute-force reference:
+
+1. **Uniform 1000-point cloud, 200 random queries** — `kdt_nearest`
+   matched brute-force NN on every query (0 mismatches).
+2. **k-NN, k=5, 200 queries** — distances matched brute-force on
+   every neighbor (0 mismatches), and KD-tree results were returned
+   in nearest-first order (0 ordering violations).
+3. **Non-uniform stress** — 800 points in a `0.01³` cluster around
+   `(0.5, 0.5, 0.5)` + 200 sprinkled across `(0, 100)³`. 100 mixed
+   queries from both regions: 0 NN mismatches.
+
+### Files
+
+- `stdlib/runtime/kdt_rt.c` — `nuc_kdt_*` API; qsort-based
+  median-split build; recursive bounding-box-pruned NN; heap-based
+  k-NN with splitting-plane pruning.
+- `stdlib/rods/kdt.nr` — externs + `kdt_new` / `kdt_insert` /
+  `kdt_count` / `kdt_build` / `kdt_nearest` / `kdt_knearest` /
+  `kdt_free` wrappers.
+- `tests/rods/kdt_smoke.nr` — build-only smoke (functional coverage
+  in the direct C unit test).
+
+---
+
 ## [0.2.250] — 2026-04-24
 
 **Robotics: 3D pose-graph SLAM (SE(3) Gauss-Newton). Three-dimensional
