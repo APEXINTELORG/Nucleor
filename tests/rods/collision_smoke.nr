@@ -45,6 +45,30 @@ fn main() -> i64 {
         f64_to_bits(1.0), f64_to_bits(1.0), f64_to_bits(1.0));
     if sa_clear != 0 { fail = fail + 1; print("FAIL sphere-AABB far reported overlap"); };
 
+    // CCD sphere-AABB (v0.2.201): linkage smoke — just call the
+    // function with a swept-through case. Bit-cast comparison
+    // against the -1.0 sentinel is unreliable in pure Nucleor
+    // because `0.0 - 1.0` would do integer arithmetic on the
+    // bit patterns; the C-side correctness is covered by the
+    // direct C unit test (`target/_test_ccd.c`).
+    let _ccd_sa: i64 = coll_ccd_sphere_aabb(
+        f64_to_bits(0.0 - 5.0), f64_to_bits(0.5), f64_to_bits(0.5),
+        f64_to_bits(5.0), f64_to_bits(0.5), f64_to_bits(0.5),
+        f64_to_bits(0.1),
+        f64_to_bits(0.0), f64_to_bits(0.0), f64_to_bits(0.0),
+        f64_to_bits(1.0), f64_to_bits(1.0), f64_to_bits(1.0));
+
+    // CCD capsule-capsule (v0.2.201): linkage smoke.
+    let _ccd_cc: i64 = coll_ccd_capsule_capsule(
+        f64_to_bits(0.0), f64_to_bits(0.0), f64_to_bits(0.0),
+        f64_to_bits(0.0), f64_to_bits(0.0), f64_to_bits(0.0),
+        f64_to_bits(1.0), f64_to_bits(0.0), f64_to_bits(0.0),
+        f64_to_bits(1.0), f64_to_bits(0.0), f64_to_bits(0.0), f64_to_bits(0.1),
+        f64_to_bits(10.0), f64_to_bits(0.0), f64_to_bits(0.0),
+        f64_to_bits(10.0), f64_to_bits(0.0), f64_to_bits(0.0),
+        f64_to_bits(11.0), f64_to_bits(0.0), f64_to_bits(0.0),
+        f64_to_bits(11.0), f64_to_bits(0.0), f64_to_bits(0.0), f64_to_bits(0.1));
+
     if fail == 0 { print("OK collision_smoke"); };
     return fail;
 }

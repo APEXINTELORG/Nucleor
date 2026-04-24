@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.201] — 2026-04-23
+
+**Robotics: two more CCD (continuous collision detection) pairs.
+`coll_ccd_capsule_capsule` and `coll_ccd_sphere_aabb` extend the
+swept-sphere-sphere primitive (v0.2.196) to the two most-asked-for
+moving-body cases: two moving capsules vs each other, and a moving
+sphere vs a static AABB. Same surface as v0.2.196 — return earliest
+collision time t ∈ [0, 1] as bit-cast f64; -1.0 if clear.**
+
+Capsule-capsule swept distance has no closed form (the segment-
+segment distance squared is a piecewise function of t, with the
+piece-boundary endpoints themselves moving). The implementation
+brackets the first overlap with a 16-step uniform sweep, then
+refines via 16 bisection steps — what most game / robotics
+engines actually ship in production. Sub-step exact rooting via
+the per-region quadratics lands in v0.6 if a use-case demands it.
+
+Sphere-vs-static-AABB uses the same bracket-then-bisect on the
+sphere-center to AABB-clamp distance. The same approach generalizes
+to most static-body CCD pairs (sphere vs OBB, sphere vs convex hull,
+etc.) — those will be straightforward additions later.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/collision.nr"
+
+let t = coll_ccd_capsule_capsule(
+    a_a0_x, a_a0_y, a_a0_z,  a_a1_x, a_a1_y, a_a1_z,    // capsule A endpoint A
+    a_b0_x, a_b0_y, a_b0_z,  a_b1_x, a_b1_y, a_b1_z, ar, // capsule A endpoint B + radius
+    b_a0_x, b_a0_y, b_a0_z,  b_a1_x, b_a1_y, b_a1_z,    // capsule B endpoint A
+    b_b0_x, b_b0_y, b_b0_z,  b_b1_x, b_b1_y, b_b1_z, br); // capsule B endpoint B + radius
+
+let t2 = coll_ccd_sphere_aabb(
+    s0_x, s0_y, s0_z,  s1_x, s1_y, s1_z, sr,
+    aabb_min_x, aabb_min_y, aabb_min_z,
+    aabb_max_x, aabb_max_y, aabb_max_z);
+```
+
+### Files
+
+- `stdlib/runtime/collision_rt.c` — `_capcap_dist2_at`,
+  `nuc_coll_ccd_capsule_capsule`, `_sph_aabb_dist2_at`,
+  `nuc_coll_ccd_sphere_aabb`.
+- `stdlib/rods/collision.nr` — externs + Nucleor wrappers.
+- `tests/rods/collision_smoke.nr` — exercise both new CCD calls
+  for link verification (correctness covered by direct C test).
+
+---
+
 ## [0.2.200] — 2026-04-23
 
 **Robotics: PRM Dijkstra query. The probabilistic roadmap rod
