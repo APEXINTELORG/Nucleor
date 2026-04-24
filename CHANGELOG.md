@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.185] — 2026-04-24
+
+**Robotics: PRM (Probabilistic Roadmap) multi-query motion
+planner. Complement to v0.2.179 RRT (single-query).**
+
+PRM samples random configurations and connects k-nearest
+neighbors with collision-free edges, building a graph in joint
+space. The roadmap is built once; every subsequent (start,
+goal) query reuses it via graph search.
+
+### When to use which planner
+
+- **RRT** (`rrt.nr`) — single-query, world changes between
+  queries, build a fresh tree per problem
+- **PRM** (`prm.nr`) — multi-query, world is static, amortize
+  graph construction over many queries
+
+### Surface
+
+```nucleor
+import "stdlib/rods/prm.nr"
+
+let p = prm_new(2, 42);                       // 2-DOF, seed 42
+prm_set_bounds(p, 0, lo_b, hi_b);             // per-dim sampling range
+prm_build(p, 200, 8,                          // 200 samples, k=8 neighbors
+    f64_to_bits(0.05), coll_callback_fp);     // step size for edge validation
+let n = prm_node_count(p);
+let e = prm_edge_count(p);
+prm_free(p);
+```
+
+### Files
+
+- `stdlib/runtime/prm_rt.c`: ~180 LOC. Sample-and-reject for
+  collision-free node selection, O(N²) k-NN for edges, two-pass
+  edge construction (count + fill into CSR-style adjacency).
+- `stdlib/rods/prm.nr`: 6 builtins.
+- `tests/rods/prm_smoke.nr`: build-only smoke (full
+  roadmap-build needs callback fp + bounds).
+
+### v0.5 follow-on
+
+- Dijkstra query: `prm_query(p, start_ptr, goal_ptr)` returns
+  the shortest collision-free path through the roadmap
+- Lazy collision checking on query (only collide-test edges
+  that the search visits)
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**258 / 258 PASS, 0 SKIP** (was 257/257; +1 new smoke test).
+Both budgets hold.
+
 ## [0.2.184] — 2026-04-24
 
 **Robotics: BVH (Bounding Volume Hierarchy) for broad-phase
