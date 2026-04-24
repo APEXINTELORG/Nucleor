@@ -458,6 +458,150 @@ long long nuc_pgs_optimize_huber(long long h, long long max_iters, long long tol
     return iter;
 }
 
+// === Cauchy/Lorentzian redescending kernel (v0.2.278) ===
+//
+// Same Gauss-Newton iteration as nuc_pgs_optimize_huber, but with
+// the Cauchy weight:
+//
+//   ρ_c(r²) = ½ c² log(1 + r²/c²)
+//
+// In IRLS form, the weight is:
+//
+//   w = 1 / (1 + r²/c²)
+//
+// Unlike Huber (which gives w=1 below threshold and the L2 loss
+// for small residuals), Cauchy is REDESCENDING — w < 1 for all
+// non-zero residuals. Stronger outlier rejection at the cost of
+// not converging to the L2 minimum even for inlier-only edges.
+// Useful when:
+// - Outlier residuals don't drop below the Huber threshold during
+//   IRLS convergence (Huber then reverts to L2).
+// - You want maximum robustness even at the cost of slightly biased
+//   inlier estimates.
+//
+// `c_b` is the Cauchy scale parameter (typical 0.5–2.0; tune to
+// ~σ of the noise model, similar to Huber but typically smaller).
+// Pass 0 to disable Cauchy and reduce to vanilla L2.
+long long nuc_pgs_optimize_cauchy(long long h, long long max_iters, long long tol_b,
+                                   long long c_b)
+{
+    NPGS *p = (NPGS *)(void *)(size_t)h;
+    if (!p || p->n_nodes < 2) return -1;
+    int N = p->n_nodes;
+    int dof = 3 * (N - 1);
+    double tol = _i2f(tol_b);
+    double c = _i2f(c_b);
+    double c2 = c * c;
+
+    double *H_mat = (double *)calloc(dof * dof, sizeof(double));
+    double *b_vec = (double *)calloc(dof, sizeof(double));
+    double *Hinv  = (double *)malloc(dof * dof * sizeof(double));
+    double *delta_v = (double *)malloc(dof * sizeof(double));
+
+    long long iter;
+    for (iter = 0; iter < max_iters; iter++) {
+        memset(H_mat, 0, dof * dof * sizeof(double));
+        memset(b_vec, 0, dof * sizeof(double));
+
+        for (int e_idx = 0; e_idx < p->n_edges; e_idx++) {
+            _PGSEdge *e = &p->edges[e_idx];
+            double xi = p->nodes[e->i*3+0], yi = p->nodes[e->i*3+1], ti = p->nodes[e->i*3+2];
+            double xj = p->nodes[e->j*3+0], yj = p->nodes[e->j*3+1], tj = p->nodes[e->j*3+2];
+            double si = sin(ti), ci = cos(ti);
+            double dx_pred = ci*(xj-xi) + si*(yj-yi);
+            double dy_pred = -si*(xj-xi) + ci*(yj-yi);
+            double dt_pred = tj - ti;
+            double er_x = dx_pred - e->dx;
+            double er_y = dy_pred - e->dy;
+            double er_t = _wrap_angle(dt_pred - e->dtheta);
+
+            double r2 = er_x*er_x*e->info_xx + er_y*er_y*e->info_yy + er_t*er_t*e->info_tt;
+            double w = 1.0;
+            if (c > 0) w = 1.0 / (1.0 + r2 / c2);
+
+            double dxd = xj - xi, dyd = yj - yi;
+            double A_i[3][3] = {
+                { -ci,  -si,  -si*dxd + ci*dyd },
+                {  si,  -ci,  -ci*dxd - si*dyd },
+                {  0,    0,   -1                }
+            };
+            double A_j[3][3] = {
+                {  ci,   si,   0 },
+                { -si,   ci,   0 },
+                {  0,    0,    1 }
+            };
+            double Omega[3] = { w * e->info_xx, w * e->info_yy, w * e->info_tt };
+
+            int gi = (e->i == 0) ? -1 : 3 * (e->i - 1);
+            int gj = (e->j == 0) ? -1 : 3 * (e->j - 1);
+
+            if (gi >= 0) {
+                for (int r = 0; r < 3; r++)
+                    for (int c2c = 0; c2c < 3; c2c++) {
+                        double s = 0;
+                        for (int k = 0; k < 3; k++) s += A_i[k][r] * Omega[k] * A_i[k][c2c];
+                        H_mat[(gi + r) * dof + (gi + c2c)] += s;
+                    }
+                for (int r = 0; r < 3; r++) {
+                    double s = 0;
+                    s += A_i[0][r] * Omega[0] * er_x;
+                    s += A_i[1][r] * Omega[1] * er_y;
+                    s += A_i[2][r] * Omega[2] * er_t;
+                    b_vec[gi + r] += s;
+                }
+            }
+            if (gj >= 0) {
+                for (int r = 0; r < 3; r++)
+                    for (int c2c = 0; c2c < 3; c2c++) {
+                        double s = 0;
+                        for (int k = 0; k < 3; k++) s += A_j[k][r] * Omega[k] * A_j[k][c2c];
+                        H_mat[(gj + r) * dof + (gj + c2c)] += s;
+                    }
+                for (int r = 0; r < 3; r++) {
+                    double s = 0;
+                    s += A_j[0][r] * Omega[0] * er_x;
+                    s += A_j[1][r] * Omega[1] * er_y;
+                    s += A_j[2][r] * Omega[2] * er_t;
+                    b_vec[gj + r] += s;
+                }
+            }
+            if (gi >= 0 && gj >= 0) {
+                for (int r = 0; r < 3; r++)
+                    for (int c2c = 0; c2c < 3; c2c++) {
+                        double s = 0;
+                        for (int k = 0; k < 3; k++) s += A_i[k][r] * Omega[k] * A_j[k][c2c];
+                        H_mat[(gi + r) * dof + (gj + c2c)] += s;
+                        H_mat[(gj + c2c) * dof + (gi + r)] += s;
+                    }
+            }
+        }
+
+        for (int i = 0; i < dof; i++) H_mat[i*dof + i] += 1e-9;
+        if (!_gj_inv(H_mat, dof, Hinv)) break;
+        for (int i = 0; i < dof; i++) {
+            double s = 0;
+            for (int j = 0; j < dof; j++) s += Hinv[i*dof + j] * b_vec[j];
+            delta_v[i] = -s;
+        }
+
+        double max_step = 0;
+        for (int i = 1; i < N; i++) {
+            int g = 3 * (i - 1);
+            p->nodes[i*3+0] += delta_v[g + 0];
+            p->nodes[i*3+1] += delta_v[g + 1];
+            p->nodes[i*3+2] = _wrap_angle(p->nodes[i*3+2] + delta_v[g + 2]);
+            for (int k = 0; k < 3; k++) {
+                double v = fabs(delta_v[g + k]);
+                if (v > max_step) max_step = v;
+            }
+        }
+        if (max_step < tol) { iter++; break; }
+    }
+
+    free(H_mat); free(b_vec); free(Hinv); free(delta_v);
+    return iter;
+}
+
 // Total residual cost (sum of squared edge errors weighted by
 // information). Useful for verifying convergence.
 long long nuc_pgs_total_cost(long long h) {
