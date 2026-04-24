@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 149
-# Total fn definitions: 1697
-# Total LOC: 7332
+# Total rods: 150
+# Total fn definitions: 1707
+# Total LOC: 7359
 
 [[rod]]
 name           = "activation2"
@@ -388,6 +388,15 @@ function_count = 17
 cfile_count    = 1
 loc            = 140
 imports        = ["fk_chain"]
+
+[[rod]]
+name           = "ekf"
+path           = "stdlib/rods/ekf.nr"
+description    = "Extended Kalman Filter for nonlinear state estimation."
+function_count = 10
+cfile_count    = 1
+loc            = 27
+imports        = []
 
 [[rod]]
 name           = "emag"
