@@ -56,6 +56,20 @@ extern fn nuc_coll_gjk(support_a_fp: i64, support_b_fp: i64) -> i64;
 extern fn nuc_coll_gjk_epa(support_a_fp: i64, support_b_fp: i64,
                           out_normal_h: i64) -> i64;
 
+// Convex-mesh GJK + EPA (v0.2.205). Convenience entry points
+// for the common case where each shape is a convex polytope
+// represented as a flat `double[n*3]` vertex array. No support-
+// function pointer required — the runtime computes the support
+// inline by scanning the vertices.
+//
+// For non-convex meshes, the caller must decompose the mesh into
+// convex pieces (V-HACD or similar) and run pairwise queries.
+extern fn nuc_coll_gjk_mesh_mesh(verts_a_ptr: i64, n_a: i64,
+                                verts_b_ptr: i64, n_b: i64) -> i64;
+extern fn nuc_coll_gjk_epa_mesh_mesh(verts_a_ptr: i64, n_a: i64,
+                                    verts_b_ptr: i64, n_b: i64,
+                                    out_normal_h: i64) -> i64;
+
 // Sphere-OBB cross-pair (v0.2.197). Oriented bounding box has
 // center, half-extents, and orientation quaternion. The sphere
 // center is rotated into the OBB's local frame, then the standard
@@ -150,6 +164,18 @@ fn coll_gjk(support_a_fp: i64, support_b_fp: i64) -> i64 {
 
 fn coll_gjk_epa(support_a_fp: i64, support_b_fp: i64, out_normal_h: i64) -> i64 {
     return nuc_coll_gjk_epa(support_a_fp, support_b_fp, out_normal_h);
+}
+
+fn coll_gjk_mesh_mesh(verts_a_ptr: i64, n_a: i64,
+                     verts_b_ptr: i64, n_b: i64) -> i64 {
+    return nuc_coll_gjk_mesh_mesh(verts_a_ptr, n_a, verts_b_ptr, n_b);
+}
+
+fn coll_gjk_epa_mesh_mesh(verts_a_ptr: i64, n_a: i64,
+                         verts_b_ptr: i64, n_b: i64,
+                         out_normal_h: i64) -> i64 {
+    return nuc_coll_gjk_epa_mesh_mesh(verts_a_ptr, n_a,
+                                       verts_b_ptr, n_b, out_normal_h);
 }
 
 fn coll_sphere_obb(

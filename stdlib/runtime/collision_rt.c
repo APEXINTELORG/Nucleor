@@ -576,6 +576,233 @@ long long nuc_coll_gjk(long long support_a_fp, long long support_b_fp) {
     return -1;
 }
 
+// ---- GJK + EPA on convex meshes (v0.2.205) ==============================
+//
+// Convenience entry points: instead of accepting a user-supplied
+// support function pointer (which is awkward when the support
+// function needs to capture per-shape state and Nucleor doesn't
+// have closures), accept a flat `double[n*3]` vertex array per
+// shape directly. The support function is computed inline by
+// scanning all vertices for the one with maximum dot-product
+// against the query direction — O(n) per support, fine for
+// typical convex hulls (10-100 verts).
+//
+// For non-convex meshes, the caller decomposes the mesh into
+// convex pieces (V-HACD or similar) and runs pairwise mesh-mesh
+// queries.
+
+// Forward declarations for the EPA helpers defined in the next
+// section — needed by `nuc_coll_gjk_epa_mesh_mesh` below.
+#define _NEPA_MAX_VERT 64
+#define _NEPA_MAX_FACE 128
+typedef struct { int v[3]; double n[3]; double dist; } _EPAFace;
+static void _epa_face_init(double *v0, double *v1, double *v2,
+                           double *interior, _EPAFace *f, int i0, int i1, int i2);
+
+static void _mesh_support(const double *verts, int n_verts,
+                          const double *dir, double *out)
+{
+    int best = 0;
+    double best_dot = _vdot3(verts + 0, dir);
+    for (int i = 1; i < n_verts; i++) {
+        double d = _vdot3(verts + i * 3, dir);
+        if (d > best_dot) { best_dot = d; best = i; }
+    }
+    out[0] = verts[best * 3 + 0];
+    out[1] = verts[best * 3 + 1];
+    out[2] = verts[best * 3 + 2];
+}
+
+static void _gjk_support_mesh_mesh(const double *va, int na,
+                                   const double *vb, int nb,
+                                   const double *dir, double *out)
+{
+    double pa[3], pb[3];
+    double neg[3] = { -dir[0], -dir[1], -dir[2] };
+    _mesh_support(va, na, dir, pa);
+    _mesh_support(vb, nb, neg, pb);
+    out[0] = pa[0] - pb[0];
+    out[1] = pa[1] - pb[1];
+    out[2] = pa[2] - pb[2];
+}
+
+long long nuc_coll_gjk_mesh_mesh(long long verts_a_ptr, long long n_a,
+                                 long long verts_b_ptr, long long n_b)
+{
+    const double *va = (const double *)(void *)(size_t)verts_a_ptr;
+    const double *vb = (const double *)(void *)(size_t)verts_b_ptr;
+    int na = (int)n_a, nb = (int)n_b;
+    if (!va || !vb || na <= 0 || nb <= 0) return -1;
+
+    double simp[4][3];
+    int n = 0;
+    double dir[3] = {1, 0, 0};
+    double sup[3];
+    _gjk_support_mesh_mesh(va, na, vb, nb, dir, sup);
+    if (_vdot3(sup, dir) <= 0) return 0;
+    simp[0][0] = sup[0]; simp[0][1] = sup[1]; simp[0][2] = sup[2];
+    n = 1;
+    dir[0] = -sup[0]; dir[1] = -sup[1]; dir[2] = -sup[2];
+
+    for (int iter = 0; iter < 64; iter++) {
+        _gjk_support_mesh_mesh(va, na, vb, nb, dir, sup);
+        if (_vdot3(sup, dir) <= 0) return 0;
+        simp[n][0] = sup[0]; simp[n][1] = sup[1]; simp[n][2] = sup[2];
+        n++;
+        if (_gjk_do_simplex(simp, &n, dir)) return 1;
+    }
+    return -1;
+}
+
+// EPA on mesh-mesh. Same algorithm as `nuc_coll_gjk_epa` (v0.2.202)
+// but uses the mesh-direct support function. Returns penetration
+// depth as bit-cast f64; -1.0 if shapes are not overlapping.
+long long nuc_coll_gjk_epa_mesh_mesh(long long verts_a_ptr, long long n_a,
+                                     long long verts_b_ptr, long long n_b,
+                                     long long out_normal_h)
+{
+    const double *va = (const double *)(void *)(size_t)verts_a_ptr;
+    const double *vb = (const double *)(void *)(size_t)verts_b_ptr;
+    int na = (int)n_a, nb = (int)n_b;
+    if (!va || !vb || na <= 0 || nb <= 0) return _f2i(-1.0);
+
+    // First, capture the GJK terminating tetrahedron via an inline
+    // GJK loop on the mesh-mesh support (same scheme as
+    // `_gjk_capture_simplex` but with the mesh-mesh support fn).
+    double tet[4][3];
+    {
+        double simp[4][3];
+        int n = 0;
+        double dir[3] = {1, 0, 0};
+        double sup[3];
+        _gjk_support_mesh_mesh(va, na, vb, nb, dir, sup);
+        if (_vdot3(sup, dir) <= 0) return _f2i(-1.0);
+        simp[0][0] = sup[0]; simp[0][1] = sup[1]; simp[0][2] = sup[2];
+        n = 1;
+        dir[0] = -sup[0]; dir[1] = -sup[1]; dir[2] = -sup[2];
+        int captured = 0;
+        for (int iter = 0; iter < 64; iter++) {
+            _gjk_support_mesh_mesh(va, na, vb, nb, dir, sup);
+            if (_vdot3(sup, dir) <= 0) return _f2i(-1.0);
+            simp[n][0] = sup[0]; simp[n][1] = sup[1]; simp[n][2] = sup[2];
+            n++;
+            if (_gjk_do_simplex(simp, &n, dir)) {
+                for (int i = 0; i < 4; i++)
+                    for (int j = 0; j < 3; j++) tet[i][j] = simp[i][j];
+                captured = 1;
+                break;
+            }
+        }
+        if (!captured) return _f2i(-1.0);
+    }
+
+    static double verts[_NEPA_MAX_VERT][3];
+    static _EPAFace faces[_NEPA_MAX_FACE];
+    int n_verts = 0, n_faces = 0;
+
+    for (int i = 0; i < 4; i++) {
+        verts[i][0] = tet[i][0]; verts[i][1] = tet[i][1]; verts[i][2] = tet[i][2];
+    }
+    n_verts = 4;
+    double centroid[3] = {0,0,0};
+    for (int i = 0; i < 4; i++) {
+        centroid[0] += tet[i][0]; centroid[1] += tet[i][1]; centroid[2] += tet[i][2];
+    }
+    centroid[0] *= 0.25; centroid[1] *= 0.25; centroid[2] *= 0.25;
+
+    _epa_face_init(verts[0], verts[1], verts[2], centroid, &faces[0], 0, 1, 2);
+    _epa_face_init(verts[0], verts[1], verts[3], centroid, &faces[1], 0, 1, 3);
+    _epa_face_init(verts[0], verts[2], verts[3], centroid, &faces[2], 0, 2, 3);
+    _epa_face_init(verts[1], verts[2], verts[3], centroid, &faces[3], 1, 2, 3);
+    n_faces = 4;
+
+    double *out_normal = (double *)(void *)(size_t)out_normal_h;
+
+    for (int iter = 0; iter < 64; iter++) {
+        int best = 0;
+        double best_dist = faces[0].dist;
+        for (int i = 1; i < n_faces; i++) {
+            if (faces[i].dist < best_dist) { best_dist = faces[i].dist; best = i; }
+        }
+        double *bn = faces[best].n;
+        double sup[3];
+        _gjk_support_mesh_mesh(va, na, vb, nb, bn, sup);
+        double d_new = _vdot3(sup, bn);
+        if (d_new - best_dist < 1e-9 || n_verts >= _NEPA_MAX_VERT) {
+            if (out_normal) {
+                out_normal[0] = bn[0]; out_normal[1] = bn[1]; out_normal[2] = bn[2];
+            }
+            return _f2i(best_dist);
+        }
+        int new_idx = n_verts;
+        verts[n_verts][0] = sup[0]; verts[n_verts][1] = sup[1]; verts[n_verts][2] = sup[2];
+        n_verts++;
+
+        int visible[_NEPA_MAX_FACE];
+        int n_visible = 0;
+        for (int i = 0; i < n_faces; i++) {
+            double diff[3];
+            _vsub3(sup, verts[faces[i].v[0]], diff);
+            if (_vdot3(faces[i].n, diff) > 1e-9) visible[n_visible++] = i;
+        }
+        if (n_visible == 0) {
+            if (out_normal) {
+                out_normal[0] = bn[0]; out_normal[1] = bn[1]; out_normal[2] = bn[2];
+            }
+            return _f2i(best_dist);
+        }
+        int edges[_NEPA_MAX_FACE * 3][2];
+        int n_edges = 0;
+        for (int vf = 0; vf < n_visible; vf++) {
+            _EPAFace *f = &faces[visible[vf]];
+            int e[3][2] = { {f->v[0], f->v[1]}, {f->v[1], f->v[2]}, {f->v[2], f->v[0]} };
+            for (int k = 0; k < 3; k++) {
+                int found = -1;
+                for (int e2 = 0; e2 < n_edges; e2++) {
+                    if (edges[e2][0] == e[k][1] && edges[e2][1] == e[k][0]) {
+                        found = e2; break;
+                    }
+                }
+                if (found >= 0) {
+                    edges[found][0] = edges[n_edges - 1][0];
+                    edges[found][1] = edges[n_edges - 1][1];
+                    n_edges--;
+                } else {
+                    edges[n_edges][0] = e[k][0];
+                    edges[n_edges][1] = e[k][1];
+                    n_edges++;
+                }
+            }
+        }
+        int removed[_NEPA_MAX_FACE] = {0};
+        for (int vf = 0; vf < n_visible; vf++) removed[visible[vf]] = 1;
+        int dst = 0;
+        for (int i = 0; i < n_faces; i++) {
+            if (!removed[i]) {
+                if (dst != i) faces[dst] = faces[i];
+                dst++;
+            }
+        }
+        n_faces = dst;
+        for (int e = 0; e < n_edges; e++) {
+            if (n_faces >= _NEPA_MAX_FACE) break;
+            _epa_face_init(verts[edges[e][0]], verts[edges[e][1]], verts[new_idx],
+                           centroid, &faces[n_faces], edges[e][0], edges[e][1], new_idx);
+            n_faces++;
+        }
+    }
+    int best = 0;
+    double best_dist = faces[0].dist;
+    for (int i = 1; i < n_faces; i++) {
+        if (faces[i].dist < best_dist) { best_dist = faces[i].dist; best = i; }
+    }
+    if (out_normal) {
+        double *bn = faces[best].n;
+        out_normal[0] = bn[0]; out_normal[1] = bn[1]; out_normal[2] = bn[2];
+    }
+    return _f2i(best_dist);
+}
+
 // ---- GJK EPA: penetration depth + contact normal (v0.2.202) =============
 //
 // Once GJK reports overlap (returns 1), the closest face on the
@@ -592,11 +819,10 @@ long long nuc_coll_gjk(long long support_a_fp, long long support_b_fp) {
 // at `out_normal_h` is filled with the unit contact-normal vector
 // pointing from B into A. Returns -1.0 (bit-cast f64) if the shapes
 // are not overlapping (caller should have checked GJK first).
-
-#define _NEPA_MAX_VERT 64
-#define _NEPA_MAX_FACE 128
-
-typedef struct { int v[3]; double n[3]; double dist; } _EPAFace;
+//
+// `_NEPA_MAX_VERT`, `_NEPA_MAX_FACE`, and `_EPAFace` are forward-
+// declared in the v0.2.205 mesh-mesh section above so it can use
+// them for its own EPA loop.
 
 // Build the GJK terminating simplex (must be a tetrahedron with
 // the origin inside). On success, fills `simp_out[4][3]` and
