@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.238] — 2026-04-23
+
+**Robotics: 2D convex hull (Andrew's monotone chain). Standard
+geometry primitive: O(N log N) sort-then-scan. Foundation for
+grasp wrench space construction (convex hull of contact-force
+generators), object bounding-shape extraction from depth scans,
+collision broad-phase precomputation (replace mesh with hull for
+cheaper queries).**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/hull.nr"
+
+// pts is double[N * 2]; hull_out_indices is int[N] (worst case).
+let n_hull = hull_2d(pts_ptr, n_pts, hull_out_indices_ptr);
+
+// Hull area via shoelace formula:
+let area = hull_2d_area(pts_ptr, n_pts, hull_indices_ptr, n_hull);
+```
+
+### Algorithm
+
+Andrew 1979's monotone chain (`O(N log N)`):
+1. Sort points by `(x, y)`.
+2. Build lower hull: left-to-right scan, popping any vertex
+   that doesn't make a left turn with the current edge.
+3. Build upper hull: right-to-left scan, same rule.
+4. Concatenate (excluding duplicate endpoints).
+
+### Verification
+
+Test 1: 2×2 square corners + 1 interior point:
+- Hull size: **4** (interior point correctly dropped)
+- Hull indices (CCW): 0, 1, 2, 3
+- Hull area: **4.000000** (= 2 × 2)
+
+Test 2: 4 extreme points at (±10, 0) and (0, ±10) + 20 random
+points in [-5, 5]²:
+- Hull size: **4** — only the 4 extremes
+- All 4 extreme corners present in the hull: **YES**
+
+### Files
+
+- `stdlib/runtime/hull_rt.c` — `nuc_hull_2d`, `nuc_hull_2d_area`
+  plus `_cross_o` orientation test and `_cmp_xy` sort comparator.
+- `stdlib/rods/hull.nr` — externs + Nucleor wrappers.
+- `tests/rods/hull_smoke.nr` — build-only linkage smoke
+  (correctness covered by direct C square-hull test).
+
+---
+
 ## [0.2.237] — 2026-04-23
 
 **Robotics: Catmull-Rom spline interpolation in the trajectory rod.
