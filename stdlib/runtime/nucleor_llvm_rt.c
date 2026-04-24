@@ -1780,6 +1780,21 @@ long long __nucleor_sb_new(void) {
     return (long long)sb;
 }
 
+// v0.2.173 — sb_new variant that takes an explicit initial capacity.
+// Lets the IR builder pre-size to ~2 MB (the typical s1-compile IR
+// length) and skip the 14+ reallocs the default 256 B initial would
+// otherwise cost on its way up.
+long long __nucleor_sb_new_with_cap(long long initial_cap) {
+    g_sb_new_count++;
+    NStrBuilder *sb = (NStrBuilder *)malloc(sizeof(NStrBuilder));
+    sb->cap = (initial_cap > 0) ? initial_cap : 256;
+    sb->data = (char *)malloc(sb->cap);
+    sb->data[0] = '\0';
+    sb->len = 0;
+    g_sb_realloc_bytes += sizeof(NStrBuilder) + sb->cap;
+    return (long long)sb;
+}
+
 // v0.2.172 — append a single byte without allocating a temp string.
 // The compiler's escape_llvm_str path was allocating a 2-byte
 // substring per non-special character of every string literal —
