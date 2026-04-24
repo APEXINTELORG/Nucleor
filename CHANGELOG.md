@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.200] — 2026-04-23
+
+**Robotics: PRM Dijkstra query. The probabilistic roadmap rod
+finally ships its query side — `prm_query` connects start and goal
+configurations to the precomputed roadmap and runs Dijkstra from
+start to goal. Multiple queries can run against the same roadmap
+without rebuilding, which is the entire reason to use PRM over
+RRT. Read the resulting path back via `prm_path_len` /
+`prm_path_node` / `prm_path_at`.**
+
+`prm_build` (v0.2.185) shipped the precomputation half of the
+multi-query pattern: sample N collision-free configurations,
+connect each to its k nearest neighbors with collision-free edges,
+store the resulting graph as a CSR adjacency. The query side was
+deferred to "v0.5 alongside RRT-Connect / RRT*" — both of which
+already shipped (v0.2.180, v0.2.190), so this closes that gap.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/prm.nr"
+
+let p = prm_new(n_dim, seed);
+prm_build(p, n_samples, k_neighbors, step, coll_fp);
+
+// Then any number of queries against the same roadmap:
+let path_len = prm_query(p, start_ptr, goal_ptr, k_neighbors,
+                         step, coll_fp);
+if path_len > 0 {
+    for i in 0..path_len {
+        let node_idx = prm_path_node(p, i);  // n_nodes/+1 = virtual endpoints
+        let q0 = prm_path_at(p, i, 0);       // bit-cast f64 coord
+        // ...
+    }
+}
+```
+
+### Implementation
+
+- Virtual nodes: `start = N`, `goal = N + 1`. Edges from these to
+  real roadmap nodes are computed on demand (no graph mutation),
+  so the roadmap remains pristine for the next query.
+- O(V²) Dijkstra (no priority queue). Fine for N ≤ a few thousand
+  roadmap nodes; a binary-heap upgrade is straightforward later.
+- Endpoints connect via the same k-nearest pattern + collision-
+  free segment check as the roadmap edges. If start or goal can't
+  reach any roadmap node, query returns 0 (no path).
+
+### Files
+
+- `stdlib/runtime/prm_rt.c` — `_ext_dist2`, `_ext_segment_free`,
+  `nuc_prm_query`, `nuc_prm_path_len`, `nuc_prm_path_node`,
+  `nuc_prm_path_at`.
+- `stdlib/rods/prm.nr` — externs + Nucleor wrappers for the four
+  new exports.
+- `tests/rods/prm_smoke.nr` — exercise empty-roadmap query
+  (returns 0 path-len) and out-of-range path-node accessor.
+
+---
+
 ## [0.2.199] — 2026-04-23
 
 **Robotics: singularity detection in IK solver. The damped least
