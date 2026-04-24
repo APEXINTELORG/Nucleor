@@ -950,6 +950,85 @@ long long nuc_catmull_eval(long long h, long long s_b, long long q_out_ptr) {
     return 0;
 }
 
+// === Cubic Bezier curve (v0.2.242) =====================================
+//
+// Standard 4-control-point Bezier curve:
+//
+//   B(t) = (1−t)³·P₀ + 3(1−t)²t·P₁ + 3(1−t)t²·P₂ + t³·P₃
+//
+// where t ∈ [0, 1]. The curve passes through P₀ (at t=0) and P₃
+// (at t=1) but NOT through the interior control points P₁, P₂.
+// Instead, P₁ specifies the endpoint tangent at P₀ (direction
+// 3·(P₁−P₀)) and P₂ specifies the endpoint tangent at P₃
+// (direction 3·(P₃−P₂)).
+//
+// Pairs with Catmull-Rom: Catmull-Rom passes through every
+// waypoint exactly (good for path-following); Bezier offers
+// explicit tangent control at endpoints (good for smooth merges
+// with existing trajectories).
+//
+// Use cases:
+// - Generate a smooth approach trajectory with specified
+//   start/end velocities.
+// - Smooth merge between two segments where tangent continuity
+//   matters more than waypoint coverage.
+// - Generic curve fitting with explicit shape control.
+
+// Single-segment cubic Bezier evaluation. Writes n_dim doubles
+// to q_out_ptr.
+//
+// `pts_ptr` is a flat `double[4 * n_dim]` array of the four
+// control points P₀, P₁, P₂, P₃ in order. `t_b` is the parameter
+// in [0, 1] (clamped if outside).
+long long nuc_bezier_eval(long long pts_ptr, long long n_dim_,
+    long long t_b, long long q_out_ptr)
+{
+    int n = (int)n_dim_;
+    if (n <= 0) return -1;
+    const double *P = (const double *)(void *)(size_t)pts_ptr;
+    double *out = (double *)(void *)(size_t)q_out_ptr;
+    if (!P || !out) return -1;
+    double t = _i2f(t_b);
+    if (t < 0) t = 0;
+    if (t > 1) t = 1;
+    double mt  = 1.0 - t;
+    double w0 = mt * mt * mt;
+    double w1 = 3.0 * mt * mt * t;
+    double w2 = 3.0 * mt * t * t;
+    double w3 = t * t * t;
+    for (int j = 0; j < n; j++) {
+        out[j] = w0*P[0*n + j] + w1*P[1*n + j] + w2*P[2*n + j] + w3*P[3*n + j];
+    }
+    return 0;
+}
+
+// Cubic Bezier first derivative (tangent) at parameter t. Writes
+// n_dim doubles to dq_out_ptr.
+//
+//   B'(t) = 3·[(1−t)²·(P₁−P₀) + 2(1−t)t·(P₂−P₁) + t²·(P₃−P₂)]
+long long nuc_bezier_tangent(long long pts_ptr, long long n_dim_,
+    long long t_b, long long dq_out_ptr)
+{
+    int n = (int)n_dim_;
+    if (n <= 0) return -1;
+    const double *P = (const double *)(void *)(size_t)pts_ptr;
+    double *out = (double *)(void *)(size_t)dq_out_ptr;
+    if (!P || !out) return -1;
+    double t = _i2f(t_b);
+    if (t < 0) t = 0;
+    if (t > 1) t = 1;
+    double mt = 1.0 - t;
+    double w0 = 3.0 * mt * mt;
+    double w1 = 6.0 * mt * t;
+    double w2 = 3.0 * t * t;
+    for (int j = 0; j < n; j++) {
+        out[j] = w0*(P[1*n + j] - P[0*n + j])
+               + w1*(P[2*n + j] - P[1*n + j])
+               + w2*(P[3*n + j] - P[2*n + j]);
+    }
+    return 0;
+}
+
 void nuc_catmull_free(long long h) {
     NCatmull *c = (NCatmull *)(void *)(size_t)h;
     if (!c) return;
