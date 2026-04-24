@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 168
-# Total fn definitions: 1821
-# Total LOC: 7959
+# Total rods: 169
+# Total fn definitions: 1833
+# Total LOC: 8001
 
 [[rod]]
 name           = "activation2"
@@ -532,6 +532,15 @@ function_count = 15
 cfile_count    = 0
 loc            = 17
 imports        = ["fs_extras"]
+
+[[rod]]
+name           = "fsp"
+path           = "stdlib/rods/fsp.nr"
+description    = "Bipedal footstep planner."
+function_count = 12
+cfile_count    = 1
+loc            = 42
+imports        = ["fsp"]
 
 [[rod]]
 name           = "geom"
