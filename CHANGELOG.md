@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.285] — 2026-04-24
+
+**Robotics: pointer-based SE(3) operations (`se3`). Compose,
+inverse, apply, log/exp, interpolation, distance — all on raw
+`(t ∈ ℝ³, q ∈ S³)` buffers. Counterpart to `kinematics.nr`'s
+allocated-handle Pose, parallel to how `qutil.nr` complements the
+allocated-handle Quat.**
+
+### Surface
+
+```nucleor
+import "stdlib/rods/se3.nr"
+
+se3_compose(tA, qA, tB, qB, tC, qC);             // T_C = T_A · T_B
+se3_inverse(t, q, t_inv, q_inv);
+se3_apply(t, q, p_body, p_world);                // p_world = T · p_body
+se3_relative(tA, qA, tB, qB, tAB, qAB);          // T_AB = T_A⁻¹ · T_B
+se3_interpolate(t1, q1, t2, q2, alpha_b, t, q);  // lerp t, slerp q
+
+se3_log(t, q, twist_out);                        // double[6] = (ρ, ω)
+se3_exp(twist, t_out, q_out);
+
+let d_b = se3_distance(tA, qA, tB, qB);
+```
+
+SE(3) log/exp use the standard Lie-algebra parameterization with
+the exact left-Jacobian `V` for the translation part, with small-
+angle Taylor below `1e−9`.
+
+### Verification
+
+Four direct C tests (pose `t=(1,2,3)`, 30° rotation about y):
+
+1. **T · T⁻¹ = identity** — translation `1e−16`, quaternion exact.
+2. **Compose-then-apply matches sequential apply** — `(−1, 1, 3)`
+   exact via both routes.
+3. **log/exp roundtrip** — translation matches to `1e−9`, quaternion
+   recovered (modulo sign).
+4. **Interpolation endpoints**: α=0 and α=1 return inputs exactly.
+
+### Files
+
+- `stdlib/runtime/se3_rt.c` — `nuc_se3_*` API; quaternion helpers,
+  SE(3) log/exp with full left-Jacobian.
+- `stdlib/rods/se3.nr` — externs + wrappers.
+- `tests/rods/se3_smoke.nr` — build-only smoke.
+
+---
+
 ## [0.2.284] — 2026-04-24
 
 **Robotics: Huber-robust kernel for `pgs3.nr` (3D pose-graph SLAM).
