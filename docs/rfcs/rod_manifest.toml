@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 198
-# Total fn definitions: 2053
-# Total LOC: 8830
+# Total rods: 199
+# Total fn definitions: 2054
+# Total LOC: 8843
 
 [[rod]]
 name           = "activation2"
@@ -1387,6 +1387,15 @@ function_count = 8
 cfile_count    = 1
 loc            = 17
 imports        = []
+
+[[rod]]
+name           = "scanmatch"
+path           = "stdlib/rods/scanmatch.nr"
+description    = "2D point-cloud / laser-scan ICP alignment."
+function_count = 1
+cfile_count    = 1
+loc            = 13
+imports        = ["scanmatch"]
 
 [[rod]]
 name           = "scurve"
