@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 159
-# Total fn definitions: 1760
-# Total LOC: 7620
+# Total rods: 160
+# Total fn definitions: 1761
+# Total LOC: 7653
 
 [[rod]]
 name           = "activation2"
@@ -379,6 +379,15 @@ function_count = 6
 cfile_count    = 0
 loc            = 8
 imports        = ["digest"]
+
+[[rod]]
+name           = "dwa"
+path           = "stdlib/rods/dwa.nr"
+description    = "Dynamic Window Approach (Fox, Burgard & Thrun 1997)"
+function_count = 1
+cfile_count    = 1
+loc            = 33
+imports        = []
 
 [[rod]]
 name           = "dynamics"

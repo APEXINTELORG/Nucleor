@@ -5,6 +5,86 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.240] — 2026-04-23
+
+**Robotics: Dynamic Window Approach (Fox, Burgard & Thrun 1997)
+local planner. Standard ROS-style local navigation controller for
+differential-drive robots. Selects the best (v, ω) command at
+each control step by sampling within the dynamic window of
+velocities reachable in one step given the robot's acceleration
+limits, rolling out each candidate trajectory, scoring by
+(obstacle clearance + heading + velocity), and picking the best.**
+
+Foundation for ROS-style local navigation: the global planner
+(RRT / A* / PRM) emits a path; DWA picks the local commands that
+follow it while reactively avoiding obstacles the global planner
+didn't see.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/dwa.nr"
+
+// User-supplied callback returning distance to nearest obstacle:
+//   fn(x_b, y_b) -> i64 (bit-cast f64 distance)
+//
+// At each control step:
+dwa_step(x, y, theta,
+         v_curr, w_curr,
+         goal_x, goal_y,
+         v_min, v_max, w_min, w_max,
+         a_max, alpha_max,
+         n_v_samples, n_w_samples,
+         dt, T_horizon,
+         w_clear, w_heading, w_velocity,
+         obs_dist_fp,
+         v_out_ptr, w_out_ptr);
+```
+
+### Scoring
+
+All three score components normalized to `[0, 1]` (canonical DWA
+formulation — without normalization, "stop" trivially wins on
+the unbounded clearance term):
+
+```
+clear_score = min(traj_clearance, 2 m) / 2 m       — saturates at 2 m
+head_score  = 1 − |heading_error| / π              — 1 if aligned, 0 if 180°
+vel_score   = max(0, v / v_max)                    — only positive forward
+```
+
+`total = w_clear · clear + w_head · head + w_vel · vel`. Pick
+the (v, ω) with the highest total.
+
+### Verification
+
+- Smoke: linkage + alloc test passes.
+- Functional: with a robot at (0, 0) facing +x toward goal (6, 0)
+  and an obstacle in the way, DWA correctly chooses non-collision
+  commands and avoids running into the obstacle. Multi-step
+  rollout verified non-degenerate behavior.
+
+### Limitations (TEB / MPC-style trajectory-level optimization
+land in v0.6 if needed):
+
+- Differential-drive only. Ackermann variant adds a steering
+  constraint.
+- Constant velocity within each candidate (no piecewise
+  acceleration).
+- Brute-force grid search over (v, ω). Adaptive sampling lands
+  later if the brute force becomes a bottleneck.
+- Sensitive to score weights — tuning required per scenario.
+
+### Files
+
+- `stdlib/runtime/dwa_rt.c` — `nuc_dwa_step` (one-shot DWA
+  step; user passes all kinematic limits + scoring weights as
+  call-site arguments).
+- `stdlib/rods/dwa.nr` — extern + `dwa_step` Nucleor wrapper.
+- `tests/rods/dwa_smoke.nr` — build-only linkage smoke.
+
+---
+
 ## [0.2.239] — 2026-04-23
 
 **Robotics: dense 3D voxel grid for occupancy. Complements
