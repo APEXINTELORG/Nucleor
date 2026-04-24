@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.275] — 2026-04-24
+
+**Robotics: 2D Visibility Graph planner (`vgraph`). Builds a graph
+whose vertices are the start, the goal, and every vertex of every
+convex polygonal obstacle; connects pairs whose direct segment is
+collision-free; runs Dijkstra. Optimal-path baseline against
+sampling planners (RRT/PRM) for known polygonal worlds.**
+
+### Algorithm
+
+```
+Vertices V = { start, goal } ∪ { all obstacle vertices }
+Edge (u, v) ∈ E iff:
+    (a) segment uv does not properly intersect any obstacle edge
+        (sharing endpoints with obstacle edges is fine), AND
+    (b) midpoint of uv is not strictly inside any obstacle interior
+        (allowed iff u and v are adjacent vertices of the same obstacle)
+Edge weight = Euclidean distance
+Path = Dijkstra(start, goal)
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/vgraph.nr"
+
+let h = vgraph_new();
+// Add convex obstacles. vertices_ptr is double[n_vert * 2] CCW.
+vgraph_add_obstacle(h, vertices_ptr, n_vert);
+
+vgraph_set_start(h, sx_b, sy_b);
+vgraph_set_goal(h,  gx_b, gy_b);
+let n = vgraph_plan(h);
+
+for i in 0..n {
+    let x_b = vgraph_path_x(h, i);
+    let y_b = vgraph_path_y(h, i);
+}
+```
+
+### Verification
+
+`start = (0, 0)`, `goal = (10, 0)`, single 2×2 box obstacle
+centered at `(5, 0)`. Direct line through the box is blocked.
+
+- Path length: 4 waypoints `(0,0) → (4,-1) → (6,-1) → (10,0)`
+  (corner detour around the box).
+- Cost: `10.2462` — matches analytical `2·√17 + 2 = 10.2462` exactly.
+- 0 waypoints inside the obstacle interior.
+
+### Files
+
+- `stdlib/runtime/vgraph_rt.c` — `nuc_vgraph_*` API; segment-segment
+  proper intersection test, point-in-convex test, brute-force
+  visibility check, dense Dijkstra.
+- `stdlib/rods/vgraph.nr` — externs + wrappers.
+- `tests/rods/vgraph_smoke.nr` — build-only smoke.
+
+### Limitations carried forward
+
+- Convex obstacles only (CCW vertex order).
+- Brute-force visibility check `O(V² · E_obs)`. Fine for ≤ ~100
+  total vertices.
+- No vertex inflation — caller responsible for inflating obstacles
+  to account for robot size.
+
+---
+
 ## [0.2.274] — 2026-04-24
 
 **Robotics: pinhole camera with Brown-Conrady distortion (`cam`).
