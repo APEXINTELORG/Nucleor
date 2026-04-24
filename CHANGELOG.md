@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.202] — 2026-04-23
+
+**Robotics: GJK EPA — penetration depth + contact normal for two
+overlapping convex shapes. Once GJK reports overlap (v0.2.184),
+the Expanding Polytope Algorithm (Van den Bergen 2001) iteratively
+expands the GJK terminating tetrahedron until it finds the face
+nearest the origin on the Minkowski-difference polytope. The
+distance from the origin to that face is the penetration depth;
+the face normal is the minimum-translation direction to separate
+the shapes.**
+
+GJK answers "are these shapes overlapping?" (yes/no). Resolving
+the overlap (e.g., for a physics resolver, a manipulation planner,
+or a "push the gripper out of the obstacle" recovery) needs more:
+*how far* to push and in *what direction*. EPA produces both, with
+the same support-function contract as GJK — no shape-pair-specific
+narrow-phase code.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/collision.nr"
+
+let normal_h = vec3_new();   // double[3] handle, allocated by caller
+let depth_b = coll_gjk_epa(support_a_fp, support_b_fp, normal_h);
+// depth_b is bit-cast f64; -1.0 if shapes don't overlap.
+```
+
+The contact normal is written to the caller's `double[3]` buffer in
+unit-vector form, pointing from B into A.
+
+### Implementation notes
+
+- Captures the GJK terminating tetrahedron via the same
+  `_gjk_do_simplex` driver, then expands it iteratively.
+- Each iteration: find face closest to origin (smallest `dist`),
+  get support point in face-normal direction; if support is no
+  further out than current best, terminate; otherwise add support
+  to polytope, remove visible faces, fill silhouette with new
+  faces from the support point.
+- Face-orientation invariant: stored winding `(v0, v1, v2)` always
+  produces an outward-pointing cross product. The init helper
+  swaps `v1 ↔ v2` when needed (instead of just flipping the normal
+  vector) to keep this invariant — essential for correct silhouette-
+  edge cancellation during expansion.
+- Static buffers cap the polytope at 64 vertices / 128 faces.
+  Sufficient for converged sphere-sphere, sphere-box, and box-box;
+  for very high-detail convex hulls, the cap can be raised.
+- Convergence verified end-to-end with two-sphere overlap tests
+  (axis-aligned: depth 0.5 along x; diagonal offset: depth 1.0
+  along (0.6, 0.8, 0) — both match analytical answer).
+
+### Files
+
+- `stdlib/runtime/collision_rt.c` — `_NEPA_*` constants, `_EPAFace`,
+  `_gjk_capture_simplex`, `_epa_face_init`, `nuc_coll_gjk_epa`.
+- `stdlib/rods/collision.nr` — extern + `coll_gjk_epa` wrapper.
+
+---
+
 ## [0.2.201] — 2026-04-23
 
 **Robotics: two more CCD (continuous collision detection) pairs.
