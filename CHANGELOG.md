@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.186] — 2026-04-24
+
+**Robotics + foundations: A* shortest-path search on a generic
+weighted graph. Foundation for v0.5 PRM Dijkstra/A* query and
+RRT* rewiring; immediately useful as a standalone graph-search
+primitive.**
+
+A* (Hart-Nilsson-Raphael 1968) is the workhorse heuristic
+shortest-path algorithm. Caller supplies the graph as two
+function pointers:
+
+- `neighbor_fn(node, out_ids, out_costs, cap) -> n` — given a
+  node, fill the output arrays with up to `cap`
+  `(neighbor_id, edge_cost)` pairs and return the count
+  written.
+- `heuristic_fn(from, to) -> cost_lower_bound` — admissible
+  lower-bound on remaining cost. Pass 0 (null fn pointer) for
+  pure Dijkstra (no heuristic).
+
+The algorithm uses a binary min-heap keyed by f-score; standard
+A* with closed-list, lazy decrease-key.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/astar.nr"
+
+let a = astar_new(n_nodes);
+let ok = astar_search(a, start, goal,
+    neighbor_callback_fp,
+    heuristic_callback_fp,    // 0 for Dijkstra
+    max_neighbors_per_node);
+if ok == 1 {
+    let n = astar_path_len(a);
+    let i = 0;
+    while i < n {
+        let node = astar_path_at(a, i);
+        // ... process node ...
+        i = i + 1;
+    };
+};
+astar_free(a);
+```
+
+### Files
+
+- `stdlib/runtime/astar_rt.c`: ~150 LOC. Open-list as a
+  binary min-heap, closed-list as a flat byte array,
+  came_from / g_score / f_score arrays sized to `n_nodes`.
+  Standard textbook A* — admissible heuristic guarantees
+  optimal path.
+- `stdlib/rods/astar.nr`: 6 builtins.
+- `tests/rods/astar_smoke.nr`: build-only smoke (full search
+  needs callback fps).
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**259 / 259 PASS, 0 SKIP** (was 258/258; +1 new smoke test).
+Both budgets hold.
+
 ## [0.2.185] — 2026-04-24
 
 **Robotics: PRM (Probabilistic Roadmap) multi-query motion
