@@ -1118,6 +1118,70 @@ long long nuc_coll_capsule_aabb(
     return 1;
 }
 
+// ---- 2D polygon-polygon collision via SAT (v0.2.243) ----
+//
+// Separating Axis Theorem for convex 2D polygons. For each edge
+// of either polygon, project both polygons onto the edge's
+// perpendicular axis. If any projection pair doesn't overlap,
+// the polygons are separated. If no such separating axis is
+// found, they overlap.
+//
+// Foundation for 2D mobile-robot collision (e.g., AGV footprint
+// vs obstacle polygons), planar gripper-jaw collision, board-game
+// piece overlap. Complements the 3D GJK + EPA shipped earlier.
+//
+// Both polygons must be CONVEX and CCW-wound. For non-convex
+// polygons, decompose into convex pieces first.
+
+// Project a polygon onto an axis; writes (min, max) projections.
+static void _project_poly(const double *pts, int n, double ax, double ay,
+                          double *mn, double *mx) {
+    double v = pts[0]*ax + pts[1]*ay;
+    *mn = *mx = v;
+    for (int i = 1; i < n; i++) {
+        v = pts[i*2+0]*ax + pts[i*2+1]*ay;
+        if (v < *mn) *mn = v;
+        if (v > *mx) *mx = v;
+    }
+}
+
+// Check separation along the perpendicular axes of polygon `a`.
+// Returns 1 if any separating axis is found (no overlap).
+static int _sat_separated(const double *a, int na, const double *b, int nb) {
+    for (int i = 0; i < na; i++) {
+        int j = (i + 1) % na;
+        double ex = a[j*2+0] - a[i*2+0];
+        double ey = a[j*2+1] - a[i*2+1];
+        // Perpendicular axis: rotate edge 90°. Direction sign doesn't
+        // matter for overlap test.
+        double ax = -ey, ay = ex;
+        double mag = sqrt(ax*ax + ay*ay);
+        if (mag < 1e-12) continue;
+        ax /= mag; ay /= mag;
+        double a_min, a_max, b_min, b_max;
+        _project_poly(a, na, ax, ay, &a_min, &a_max);
+        _project_poly(b, nb, ax, ay, &b_min, &b_max);
+        if (a_max < b_min || b_max < a_min) return 1;  // gap
+    }
+    return 0;
+}
+
+// Returns 1 if convex polygons A and B overlap, 0 otherwise.
+// `pts_a_ptr` is `double[na * 2]`; same for B.
+long long nuc_coll_poly2d_sat(
+    long long pts_a_ptr, long long na_,
+    long long pts_b_ptr, long long nb_)
+{
+    int na = (int)na_, nb = (int)nb_;
+    if (na < 3 || nb < 3) return -1;
+    const double *a = (const double *)(void *)(size_t)pts_a_ptr;
+    const double *b = (const double *)(void *)(size_t)pts_b_ptr;
+    if (!a || !b) return -1;
+    if (_sat_separated(a, na, b, nb)) return 0;
+    if (_sat_separated(b, nb, a, na)) return 0;
+    return 1;
+}
+
 // ---- AABB-AABB overlap ----
 long long nuc_coll_aabb_aabb(
     long long a_minx, long long a_miny, long long a_minz,

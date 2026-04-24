@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.243] — 2026-04-23
+
+**Robotics: 2D polygon-polygon collision via Separating Axis
+Theorem. Foundation for 2D mobile-robot footprint collision (AGV
+shape vs static obstacle polygons), planar gripper-jaw checks,
+board-game piece overlap. Complements the 3D GJK + EPA shipped
+earlier with a lower-dimensional, faster primitive for inherently-
+2D scenarios.**
+
+### Algorithm
+
+For each edge of either polygon, project both polygons onto the
+edge's perpendicular axis. If any projection pair doesn't overlap,
+the polygons are separated (early-exit). If no separating axis is
+found, they overlap.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/collision.nr"
+
+// pts_a is double[na * 2]; same for B. CONVEX, CCW-wound polygons.
+// Returns 1 if overlap, 0 if separated, -1 on bad input.
+let overlap = coll_poly2d_sat(pts_a_ptr, na, pts_b_ptr, nb);
+```
+
+### Verification
+
+| Test | Expected | Got |
+|---|---|---|
+| Two triangles obviously overlapping | 1 | **1** |
+| Two triangles widely separated (Δx = 5) | 0 | **0** |
+| Square fully contained inside triangle | 1 | **1** |
+| Square touching triangle at vertex | 1 | **1** |
+
+### Limitations (concave polygon support via convex
+decomposition + GJK distance for non-overlapping pairs land in
+v0.6 if needed):
+
+- Convex polygons only. For concave, decompose first.
+- CCW winding required.
+- Boolean overlap only — no penetration depth or contact normal.
+  For penetration info, use 3D GJK + EPA (treat 2D polygon as a
+  thin 3D prism).
+
+### Files
+
+- `stdlib/runtime/collision_rt.c` — `_project_poly`,
+  `_sat_separated`, `nuc_coll_poly2d_sat`.
+- `stdlib/rods/collision.nr` — extern + `coll_poly2d_sat` wrapper.
+
+---
+
 ## [0.2.242] — 2026-04-23
 
 **Robotics: cubic Bezier curves in the trajectory rod. Pairs with

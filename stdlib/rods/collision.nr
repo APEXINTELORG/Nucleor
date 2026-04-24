@@ -129,6 +129,14 @@ extern fn nuc_coll_capsule_aabb(
     minx: i64, miny: i64, minz: i64,
     maxx: i64, maxy: i64, maxz: i64) -> i64;
 
+// 2D polygon-polygon collision via SAT (v0.2.243). Convex,
+// CCW-wound polygons only. Returns 1 if overlap, 0 if separated,
+// -1 on bad input. Foundation for 2D mobile-robot footprint
+// collision and planar gripper-jaw checks.
+extern fn nuc_coll_poly2d_sat(
+    pts_a_ptr: i64, na: i64,
+    pts_b_ptr: i64, nb: i64) -> i64;
+
 extern fn nuc_coll_aabb_aabb(
     a_minx: i64, a_miny: i64, a_minz: i64,
     a_maxx: i64, a_maxy: i64, a_maxz: i64,
@@ -234,6 +242,12 @@ fn coll_capsule_aabb(
     maxx: i64, maxy: i64, maxz: i64) -> i64 {
     return nuc_coll_capsule_aabb(c_ax, c_ay, c_az, c_bx, c_by, c_bz, cr,
                                   minx, miny, minz, maxx, maxy, maxz);
+}
+
+fn coll_poly2d_sat(pts_a_ptr: i64, na: i64,
+    pts_b_ptr: i64, nb: i64) -> i64
+{
+    return nuc_coll_poly2d_sat(pts_a_ptr, na, pts_b_ptr, nb);
 }
 
 fn coll_aabb_aabb(
