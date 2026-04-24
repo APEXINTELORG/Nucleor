@@ -5,6 +5,84 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.174] — 2026-04-24
+
+**Robotics math foundation: new `kinematics.nr` rod with
+Vec3, quaternion, and Pose primitives. RFC-0003 (typed
+coordinate frames) compute path now ready; the type-system
+overlay lands in v0.4 once Nucleor has generics.**
+
+This is the first concrete robotics-stack deliverable from
+the v0.4 roadmap. RFC-0003 calls for `Pose<F: Frame>` with
+compile-time frame correctness — but the underlying math
+(quaternion algebra, pose composition, point transformation)
+is independent of the type-system overlay and ships now so
+the runtime path is ready when v0.4 lifts the frame tag to
+the generic-type level.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/kinematics.nr"
+
+let xhat = vec3(1.0, 0.0, 0.0);
+let yhat = vec3(0.0, 1.0, 0.0);
+let zhat = vec3_cross(xhat, yhat);  // (0, 0, 1)
+
+let q = quat_from_axis_angle(zhat, 1.5708);  // 90° about z
+let p = pose(vec3(1.0, 0.0, 0.0), q);
+let world_point = pose_apply(p, vec3(0.0, 1.0, 0.0));
+// world_point ≈ (1, 0, 0) + R_z(90°) · (0,1,0) ≈ (0, 0, 0)
+```
+
+### Files
+
+- `stdlib/runtime/kinematics_rt.c`: ~270 LOC of C primitives.
+  - **Vec3**: `new`/`get_x|y|z`/`dot`/`cross`/`norm`/`add`/
+    `scale`/`free`. Heap-allocated 3-double arrays.
+  - **Quaternion**: `new`/`identity`/`from_axis_angle`/
+    `get_w|x|y|z`/`mul` (Hamilton product)/`conjugate`/
+    `rotate` (q · v · q⁻¹)/`free`. Heap-allocated 4-double
+    arrays.
+  - **Pose**: `new`/`identity`/`get_pos`/`get_quat`/
+    `compose`/`inverse`/`apply` (rotate then translate)/
+    `free`. NPose = position Vec3 + orientation quaternion.
+- `stdlib/rods/kinematics.nr`: thin Nucleor wrapper exposing
+  31 builtins via `extern fn` declarations and short
+  passthrough functions.
+- `tests/rods/kinematics_smoke.nr`: positive smoke asserting
+  cross-product produces non-degenerate result, identity
+  quaternion composes to itself, identity pose preserves a
+  point under apply.
+- `docs/rfcs/rod_manifest.toml` regenerated (rod count
+  132 → 133).
+- `docs/rfcs/helper_manifest.toml` regenerated (helper count
+  +30 for the new Vec3/quat/pose primitives).
+
+### Frame tagging (RFC-0003 — deferred to v0.4)
+
+The C runtime stores no frame information. RFC-0003 adds a
+generic `Pose<F: Frame>` and `Vector3<F: Frame>` overlay so
+that `pose_apply` between mismatched frames is a compile
+error. That requires:
+- Generics in the s1 type-checker (RFC-0024 follow-on)
+- A `Frame` trait + `World`/`BaseLink`/etc. concrete frames
+- Compiler-side enforcement of frame-parameter equality on
+  every spatial-value operation
+
+v0.2 ships the underlying math so application code can
+adopt the rod now and migrate to typed frames mechanically
+when v0.4 lands.
+
+### Self-host LLVM IR fixed point
+
+- No s1 source change. `bin/nucleor.exe` unchanged.
+
+### Verify gate
+
+**251 / 251 PASS, 0 SKIP** (was 250/250; +1 new smoke test).
+Both budgets hold.
+
 ## [0.2.173] — 2026-04-24
 
 **`sb_new_with_cap(initial_cap)` builtin: pre-size a string

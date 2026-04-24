@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 132
-# Total fn definitions: 1506
-# Total LOC: 6379
+# Total rods: 133
+# Total fn definitions: 1535
+# Total LOC: 6442
 
 [[rod]]
 name           = "activation2"
@@ -559,6 +559,15 @@ function_count = 4
 cfile_count    = 1
 loc            = 9
 imports        = ["kdtree"]
+
+[[rod]]
+name           = "kinematics"
+path           = "stdlib/rods/kinematics.nr"
+description    = "3D math primitives for robotics."
+function_count = 29
+cfile_count    = 1
+loc            = 63
+imports        = []
 
 [[rod]]
 name           = "kv_cache"
