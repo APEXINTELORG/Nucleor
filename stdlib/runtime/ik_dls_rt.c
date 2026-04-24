@@ -25,6 +25,84 @@
 static double _i2f(long long x) { double d; memcpy(&d, &x, sizeof(double)); return d; }
 static long long _f2i(double d) { long long x; memcpy(&x, &d, sizeof(long long)); return x; }
 
+// FK chain runtime forward declarations (definitions in fk_chain_rt.c).
+// Hoisted above the v0.2.208 manipulability function so it can use them.
+long long nuc_fk_chain_count(long long ch);
+long long nuc_fk_chain_update(long long ch, long long vars_ptr);
+long long nuc_fk_chain_link_pos_x(long long ch, long long i);
+long long nuc_fk_chain_link_pos_y(long long ch, long long i);
+long long nuc_fk_chain_link_pos_z(long long ch, long long i);
+long long nuc_fk_chain_link_quat_w(long long ch, long long i);
+long long nuc_fk_chain_link_quat_x(long long ch, long long i);
+long long nuc_fk_chain_link_quat_y(long long ch, long long i);
+long long nuc_fk_chain_link_quat_z(long long ch, long long i);
+
+static double _f_from_handle(long long bits) { double d; memcpy(&d, &bits, sizeof(double)); return d; }
+
+// === Manipulability metric (Yoshikawa 1985) — v0.2.208 ==================
+//
+// Computes √det(J·Jᵀ) where J is the position-only geometric
+// Jacobian (3 × n_joints) at the given configuration. Yoshikawa's
+// manipulability measure — geometrically the volume of the
+// reachable end-effector velocity ellipsoid given unit joint
+// velocities. Useful for "how dexterous is this configuration?"
+// scoring, kinematic optimization, and avoiding singularities at
+// trajectory-planning time.
+//
+// Returns √det(J·Jᵀ) as bit-cast f64. Differs from
+// `nuc_ik_get_last_singularity_metric` (v0.2.199) in three ways:
+//  - Computed at an explicit (chain, vars) pair, not as a side
+//    effect of running an IK solve.
+//  - Uses bare J·Jᵀ (no λ² regularization).
+//  - Returns √det rather than |det| — the standard manipulability.
+long long nuc_ik_manipulability(long long ch, long long vars_ptr) {
+    int n = (int)nuc_fk_chain_count(ch);
+    if (n <= 0) return _f2i(0.0);
+    double *vars = (double *)(void *)(size_t)vars_ptr;
+
+    nuc_fk_chain_update(ch, vars_ptr);
+    int last = n - 1;
+    double cx = _f_from_handle(nuc_fk_chain_link_pos_x(ch, last));
+    double cy = _f_from_handle(nuc_fk_chain_link_pos_y(ch, last));
+    double cz = _f_from_handle(nuc_fk_chain_link_pos_z(ch, last));
+
+    double *J = (double *)malloc(3 * n * sizeof(double));
+    double *perturbed = (double *)malloc(n * sizeof(double));
+    long long perturbed_h = (long long)(size_t)perturbed;
+    double eps = 1e-5;
+    for (int j = 0; j < n; j++) {
+        memcpy(perturbed, vars, n * sizeof(double));
+        perturbed[j] += eps;
+        nuc_fk_chain_update(ch, perturbed_h);
+        double px = _f_from_handle(nuc_fk_chain_link_pos_x(ch, last));
+        double py = _f_from_handle(nuc_fk_chain_link_pos_y(ch, last));
+        double pz = _f_from_handle(nuc_fk_chain_link_pos_z(ch, last));
+        J[0*n + j] = (px - cx) / eps;
+        J[1*n + j] = (py - cy) / eps;
+        J[2*n + j] = (pz - cz) / eps;
+    }
+    // Restore the chain's FK pose to the queried configuration so
+    // the user can call other accessors (link positions, etc.)
+    // without surprise.
+    nuc_fk_chain_update(ch, vars_ptr);
+
+    double JJt[9];
+    for (int r = 0; r < 3; r++) {
+        for (int c = 0; c < 3; c++) {
+            double s = 0;
+            for (int k = 0; k < n; k++) s += J[r*n + k] * J[c*n + k];
+            JJt[r*3 + c] = s;
+        }
+    }
+    double a = JJt[0], b = JJt[1], c2 = JJt[2];
+    double d = JJt[3], e = JJt[4], f = JJt[5];
+    double g = JJt[6], h = JJt[7], i = JJt[8];
+    double det = a*(e*i - f*h) - b*(d*i - f*g) + c2*(d*h - e*g);
+    free(J); free(perturbed);
+    if (det < 0) det = 0;     // numerical guard; det(J·Jᵀ) ≥ 0
+    return _f2i(sqrt(det));
+}
+
 // === Singularity-detection state (v0.2.199) =============================
 //
 // Tracks the smallest |det(J·Jᵀ + λ²I)| observed during the most
@@ -41,20 +119,9 @@ long long nuc_ik_get_last_singularity_metric(void) {
     return _f2i(_g_last_singularity);
 }
 
-// Forward declare the FK chain runtime symbols (defined in
-// fk_chain_rt.c). Only takes long-long and returns long-long, so
-// the calling convention works without a header.
-long long nuc_fk_chain_count(long long ch);
-long long nuc_fk_chain_update(long long ch, long long vars_ptr);
-long long nuc_fk_chain_link_pos_x(long long ch, long long i);
-long long nuc_fk_chain_link_pos_y(long long ch, long long i);
-long long nuc_fk_chain_link_pos_z(long long ch, long long i);
-long long nuc_fk_chain_link_quat_w(long long ch, long long i);
-long long nuc_fk_chain_link_quat_x(long long ch, long long i);
-long long nuc_fk_chain_link_quat_y(long long ch, long long i);
-long long nuc_fk_chain_link_quat_z(long long ch, long long i);
-
-static double _f_from_handle(long long bits) { double d; memcpy(&d, &bits, sizeof(double)); return d; }
+// (FK chain extern declarations + `_f_from_handle` were hoisted to
+// the top of this file in v0.2.208 so the manipulability function
+// can use them.)
 
 // === Joint limits (v0.2.193) ===
 //

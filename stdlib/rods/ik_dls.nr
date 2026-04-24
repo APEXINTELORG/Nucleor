@@ -46,6 +46,15 @@ extern fn nuc_ik_set_joint_limit(ch: i64, joint_idx: i64, lo_b: i64, hi_b: i64);
 // start of each solve; read after the solve returns.
 extern fn nuc_ik_get_last_singularity_metric() -> i64;
 
+// Yoshikawa manipulability metric (v0.2.208) — √det(J·Jᵀ) at the
+// given (chain, vars) configuration. Geometrically, the volume of
+// the reachable end-effector velocity ellipsoid given unit joint
+// velocities. Larger = more dexterous; 0 = singular. Computed from
+// the position-only Jacobian (3 × n_joints) via finite differences,
+// just like the IK solver, so an FK update is implied; the chain's
+// pose is left at the queried configuration for follow-up accessors.
+extern fn nuc_ik_manipulability(ch: i64, vars_ptr: i64) -> i64;
+
 // 6-DOF IK (v0.2.194): position + orientation. The angular error
 // is computed as the quaternion log-map of (target * current^-1),
 // giving a 3-vector axis-angle correction. Jacobian is 6×n.
@@ -80,6 +89,10 @@ fn ik_set_joint_limit(ch: i64, joint_idx: i64, lo_b: i64, hi_b: i64) {
 
 fn ik_get_last_singularity_metric() -> i64 {
     return nuc_ik_get_last_singularity_metric();
+}
+
+fn ik_manipulability(ch: i64, vars_ptr: i64) -> i64 {
+    return nuc_ik_manipulability(ch, vars_ptr);
 }
 
 fn ik_dls_solve_6d(

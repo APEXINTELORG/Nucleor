@@ -9,6 +9,9 @@ import "stdlib/rods/ik_dls.nr"
 
 fn main() -> i64 {
     let _sing: i64 = ik_get_last_singularity_metric();
+    // v0.2.208 — manipulability accessor exists. Functional check
+    // requires a real chain + vars; covered by the showcase build
+    // and direct C tests.
     print("OK ik_dls_smoke");
     return 0;
 }
