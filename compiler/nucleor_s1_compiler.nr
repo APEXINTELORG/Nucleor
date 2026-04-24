@@ -2449,6 +2449,19 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "f64_ge") { return "__nucleor_f64_ge"; };
     if str_eq(name, "f64_eq") { return "__nucleor_f64_eq"; };
     if str_eq(name, "f64_ne") { return "__nucleor_f64_ne"; };
+    // T1.1 Phase 4: float↔int converters (Rust `as` saturating).
+    if str_eq(name, "f32_to_i32") { return "__nucleor_f32_to_i32"; };
+    if str_eq(name, "f32_to_i64") { return "__nucleor_f32_to_i64"; };
+    if str_eq(name, "f32_to_u32") { return "__nucleor_f32_to_u32"; };
+    if str_eq(name, "i32_to_f32") { return "__nucleor_i32_to_f32"; };
+    if str_eq(name, "i64_to_f32") { return "__nucleor_i64_to_f32"; };
+    if str_eq(name, "f64_to_i64") { return "__nucleor_f64_to_i64"; };
+    if str_eq(name, "f64_to_u32") { return "__nucleor_f64_to_u32"; };
+    if str_eq(name, "i64_to_f64") { return "__nucleor_i64_to_f64"; };
+    if str_eq(name, "f64_to_i32") { return "__nucleor_f64_to_i32"; };
+    if str_eq(name, "i32_to_f64") { return "__nucleor_i32_to_f64"; };
+    if str_eq(name, "f32_to_f64") { return "__nucleor_f32_to_f64"; };
+    if str_eq(name, "f64_to_f32") { return "__nucleor_f64_to_f32"; };
     if str_eq(name, "f32_neg") { return "__nucleor_f32_neg"; };
     if str_eq(name, "f32_abs") { return "__nucleor_f32_abs"; };
     if str_eq(name, "f32_sqrt") { return "__nucleor_f32_sqrt"; };
@@ -3682,6 +3695,15 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_f64_ge(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_eq(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_ne(i64, i64)\n");
+    // T1.1 Phase 4: full as-cast matrix — float↔int converters.
+    sb_append(sb, "declare i64 @__nucleor_f32_to_i32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_i64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_u32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_i32_to_f32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_i64_to_f32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_to_i64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_to_u32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_i64_to_f64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_add_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_sub_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_mul_i64(i64, i64)\n");
@@ -7286,11 +7308,47 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
     // RFC-0015 phase 2: `as` cast. Lower inner, then call __nucleor_as_<T>
     // to actually perform width truncation / sign extension at runtime.
     if kind == 99 {
-        let inner_lx: Vec<i32> = lower_expr(pool, node_field(pool, nid, 1), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+        let inner_nid: i64 = node_field(pool, nid, 1);
+        let inner_lx: Vec<i32> = lower_expr(pool, inner_nid, blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let inner_blk: Vec<i32> = lx_blk(inner_lx);
         let inner_r: i64 = lx_reg(inner_lx);
         let target_type: str = node_field(pool, nid, 2);
-        // Choose runtime helper based on target type
+        // T1.1 Phase 4: full as-cast matrix. If we can detect that
+        // source is a float (variable with f32/f64 type, or kind==71
+        // f64 literal), dispatch to the float↔int / float↔float
+        // converter helper. Otherwise fall through to the existing
+        // int-only `as_<T>` mask path.
+        let src_ftype: str = binop_float_type(pool, inner_nid, sym);
+        let mut conv_helper: str = "";
+        // Float → narrow int / float → float dispatch. i64 target
+        // is INTENTIONALLY left to the bitcast-preserving as_i64
+        // helper because Nucleor's i64-everywhere ABI relies on
+        // `f64 as i64` being a no-op bit-preservation for FFI to C
+        // runtime functions. To truncate float→i64 explicitly use
+        // `(x as i32) as i64` or call `f64_to_i64()` directly.
+        if str_eq(src_ftype, "f32") == 1 {
+            if str_eq(target_type, "i32") == 1 { conv_helper = "f32_to_i32"; };
+            if str_eq(target_type, "u32") == 1 { conv_helper = "f32_to_u32"; };
+            if str_eq(target_type, "f64") == 1 { conv_helper = "f32_to_f64"; };
+        };
+        if str_eq(src_ftype, "f64") == 1 {
+            if str_eq(target_type, "i32") == 1 { conv_helper = "f64_to_i32"; };
+            if str_eq(target_type, "u32") == 1 { conv_helper = "f64_to_u32"; };
+            if str_eq(target_type, "f32") == 1 { conv_helper = "f64_to_f32"; };
+        };
+        // int → float: detect if source has int type and target is float.
+        if str_len(src_ftype) == 0 {
+            if str_eq(target_type, "f32") == 1 { conv_helper = "i64_to_f32"; };
+            if str_eq(target_type, "f64") == 1 { conv_helper = "i64_to_f64"; };
+        };
+        if str_len(conv_helper) > 0 {
+            let mut cargs: Vec<i32> = Vec::new();
+            cargs.push(inner_r);
+            let r: i64 = ctr_next(regs);
+            ir_block_add(inner_blk, ir_call_ex(r, conv_helper, cargs));
+            return lx_new(r, inner_blk);
+        };
+        // Fall through to existing as_<T> mask helpers (int↔int).
         let mut helper: str = "";
         if str_eq(target_type, "i8") == 1 { helper = "as_i8"; };
         if str_eq(target_type, "i16") == 1 { helper = "as_i16"; };
@@ -7306,7 +7364,6 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         if str_eq(target_type, "f64") == 1 { helper = "as_f64"; };
         if str_eq(target_type, "char") == 1 { helper = "as_u32"; };
         if str_len(helper) == 0 {
-            // No-op cast for unrecognized targets (e.g., generics)
             return inner_lx;
         };
         let mut conv_args: Vec<i32> = Vec::new();
@@ -8086,9 +8143,13 @@ fn narrow_via_as(blk: Vec<i32>, regs: Vec<i32>, vr: i64, tstr: str, src_kind: i6
     if str_eq(tstr, "u8") == 1 { helper = "as_u8"; };
     if str_eq(tstr, "u16") == 1 { helper = "as_u16"; };
     if str_eq(tstr, "u32") == 1 { helper = "as_u32"; };
-    // f32 narrowing only when source is an f64 literal (kind==71).
-    // Prevents double-narrowing when source is already an f32 value.
-    if str_eq(tstr, "f32") == 1 && src_kind == 71 { helper = "as_f32"; };
+    // f32 narrowing per source kind: literals get the right converter,
+    // already-narrow values are left alone (avoid double-conversion).
+    if str_eq(tstr, "f32") == 1 && src_kind == 71 { helper = "as_f32"; };       // f64 literal
+    if str_eq(tstr, "f32") == 1 && src_kind == 1 { helper = "i64_to_f32"; };    // int literal
+    // f64 from int literal: needs i64→f64 conversion (literals are
+    // stored as raw i64 bit pattern, not as scaled-f64).
+    if str_eq(tstr, "f64") == 1 && src_kind == 1 { helper = "i64_to_f64"; };
     if str_len(helper) == 0 { return vr; };
     let mut conv_args: Vec<i32> = Vec::new();
     conv_args.push(vr);
