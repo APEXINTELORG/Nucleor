@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.300] — 2026-04-24
+
+**Robotics: Vector Field Histogram (VFH) local obstacle
+avoidance (`vfh`). Polar histogram of obstacle density around
+the robot, valley detection, picks the valley nearest the goal
+bearing. Borenstein & Koren 1991 (simplified VFH+).**
+
+### Algorithm
+
+```
+1. For each occupied cell within window_radius:
+       weight = max(0, a − b·d²)              (zero at edge)
+       hist[bin(bearing)] += weight
+2. Smooth: 3-bin circular box.
+3. Threshold: bins below density_threshold are FREE.
+4. Find contiguous free runs ("valleys"); pick valley whose
+   center bearing is closest to goal bearing.
+5. Steered bearing = center of that valley.
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/vfh.nr"
+
+let steer_bearing: double;
+let ok = vfh_step(occ_ptr, W, H, cell_size_b,
+                   ox_b, oy_b, occ_threshold_b,
+                   robot_x_b, robot_y_b,
+                   goal_x_b, goal_y_b,
+                   window_radius_b, n_bins,
+                   density_threshold_b,
+                   f64_ptr(&steer_bearing));
+```
+
+### Verification
+
+Direct C unit test (`target/_test_vfh.c`):
+
+- T1 empty grid     : steer = 0 (goal bearing) ✓
+- T2 wall ahead     : steer = −1.83 rad (clears the wall) ✓
+- T3 ring outside   : ring beyond window → steer = 0 ✓
+- T4 bad n_bins     : n_bins = 2 → returns 0 ✓
+
+Build smoke `tests/rods/vfh_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/vfh_rt.c` — histogram build + smoothing +
+   valley search.
+- `stdlib/rods/vfh.nr`      — extern + `vfh_step` wrapper.
+- `tests/rods/vfh_smoke.nr` — build-only smoke.
+- `CHANGELOG.md`             — this entry.
+
+### Limitations
+
+Documented in `vfh.nr` and `vfh_rt.c`: 2-D occupancy only;
+robot modelled as a point (caller inflates the underlying
+occupancy grid for vehicle radius); 3-bin box smoother (not
+the full VFH+ primary/binary mask cascade). VFH+ /VFH*
+extensions land in v0.6 if needed.
+
 ## [0.2.299] — 2026-04-24
 
 **Robotics: kinematic bicycle model forward integration
