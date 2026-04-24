@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 200
-# Total fn definitions: 2055
-# Total LOC: 8851
+# Total rods: 201
+# Total fn definitions: 2057
+# Total LOC: 8873
 
 [[rod]]
 name           = "activation2"
@@ -478,6 +478,15 @@ function_count = 3
 cfile_count    = 1
 loc            = 13
 imports        = ["dtw"]
+
+[[rod]]
+name           = "dubins"
+path           = "stdlib/rods/dubins.nr"
+description    = "Shortest path for a car-like robot with minimum"
+function_count = 2
+cfile_count    = 1
+loc            = 22
+imports        = ["dubins"]
 
 [[rod]]
 name           = "dwa"
