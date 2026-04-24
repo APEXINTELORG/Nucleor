@@ -65,6 +65,22 @@ fn main() -> i64 {
     let _y: i64 = dmp_step(dmp, f64_to_bits(0.01));
     dmp_free(dmp);
 
+    // TOPP (v0.2.203) — build-only smoke.  Adding waypoints needs
+    // a double[] handle which is non-trivial in a single test file;
+    // this just verifies new + free + waypoint_count linkage.
+    let topp: i64 = topp_new(2);
+    if topp == 0 { fail = fail + 1; print("FAIL topp_new"); };
+    if topp_waypoint_count(topp) != 0 {
+        fail = fail + 1; print("FAIL topp initial waypoint count");
+    };
+    topp_set_vmax(topp, 0, f64_to_bits(2.0));
+    topp_set_amax(topp, 0, f64_to_bits(4.0));
+    let solve_rc: i64 = topp_solve(topp);  // < 2 waypoints → -1
+    if solve_rc != 0 - 1 {
+        fail = fail + 1; print("FAIL topp_solve empty did not return -1");
+    };
+    topp_free(topp);
+
     if fail == 0 { print("OK trajectory_smoke"); };
     return fail;
 }

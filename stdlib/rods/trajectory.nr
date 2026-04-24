@@ -129,3 +129,62 @@ fn dmp_reset(h: i64, y0_b: i64, g_b: i64, tau_b: i64) -> i64 {
 }
 fn dmp_step(h: i64, dt_b: i64) -> i64 { return nuc_dmp_step(h, dt_b); }
 fn dmp_free(h: i64) { nuc_dmp_free(h); }
+
+// === TOPP — time-optimal path parameterization (v0.2.203) ===
+//
+// Pham 2014 / TOPP-RA, simplified for piecewise-linear paths in
+// joint space. Given a sequence of N waypoints and per-joint
+// velocity + acceleration bounds, computes the time-optimal
+// parameterization via the standard forward + backward pass on
+// the squared path velocity b(s) = (ds/dt)².
+//
+// Workflow:
+//   1. topp_new(n_dim)                          — create solver
+//   2. topp_set_vmax(h, j, vmax_b) for each j   — joint vel bounds
+//   3. topp_set_amax(h, j, amax_b) for each j   — joint accel bounds
+//   4. for each waypoint: topp_add_waypoint(h, q_ptr)
+//   5. topp_solve(h)                            — run forward+backward
+//   6. read total_time / per-waypoint time / path velocity
+//
+// **Limitations** (full TOPP-RA via convex optimization on a per-
+// step basis lands in v0.6 if needed):
+// - Only piecewise-linear paths. Sample splines first.
+// - Symmetric box bounds only.
+// - Pure kinematic (no torque/dynamics constraints).
+extern fn nuc_topp_new(n_dim: i64) -> i64;
+extern fn nuc_topp_add_waypoint(h: i64, q_ptr: i64) -> i64;
+extern fn nuc_topp_set_vmax(h: i64, j: i64, vmax_b: i64);
+extern fn nuc_topp_set_amax(h: i64, j: i64, amax_b: i64);
+extern fn nuc_topp_solve(h: i64) -> i64;
+extern fn nuc_topp_total_time(h: i64) -> i64;
+extern fn nuc_topp_time_at_waypoint(h: i64, i: i64) -> i64;
+extern fn nuc_topp_path_velocity(h: i64, i: i64) -> i64;
+extern fn nuc_topp_waypoint_count(h: i64) -> i64;
+extern fn nuc_topp_free(h: i64);
+
+fn topp_new(n_dim: i64) -> i64 { return nuc_topp_new(n_dim); }
+fn topp_add_waypoint(h: i64, q_ptr: i64) -> i64 {
+    return nuc_topp_add_waypoint(h, q_ptr);
+}
+fn topp_set_vmax(h: i64, j: i64, vmax_b: i64) { nuc_topp_set_vmax(h, j, vmax_b); }
+fn topp_set_amax(h: i64, j: i64, amax_b: i64) { nuc_topp_set_amax(h, j, amax_b); }
+fn topp_solve(h: i64) -> i64 { return nuc_topp_solve(h); }
+
+// Total traversal time of the parameterized path, as bit-cast f64.
+// Returns -1.0 (bit-cast) if not yet solved.
+fn topp_total_time(h: i64) -> i64 { return nuc_topp_total_time(h); }
+
+// Cumulative time at waypoint `i`, as bit-cast f64.
+fn topp_time_at_waypoint(h: i64, i: i64) -> i64 {
+    return nuc_topp_time_at_waypoint(h, i);
+}
+
+// Path velocity (s_dot) at waypoint `i`, as bit-cast f64. Useful
+// for verifying boundary conditions (s_dot[0] and s_dot[N-1] should
+// both be 0 by default).
+fn topp_path_velocity(h: i64, i: i64) -> i64 {
+    return nuc_topp_path_velocity(h, i);
+}
+
+fn topp_waypoint_count(h: i64) -> i64 { return nuc_topp_waypoint_count(h); }
+fn topp_free(h: i64) { nuc_topp_free(h); }
