@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 204
-# Total fn definitions: 2060
-# Total LOC: 8918
+# Total rods: 205
+# Total fn definitions: 2062
+# Total LOC: 8939
 
 [[rod]]
 name           = "activation2"
@@ -136,6 +136,15 @@ function_count = 7
 cfile_count    = 1
 loc            = 19
 imports        = ["bayesian"]
+
+[[rod]]
+name           = "bicycle"
+path           = "stdlib/rods/bicycle.nr"
+description    = "Kinematic bicycle model forward integration."
+function_count = 2
+cfile_count    = 1
+loc            = 21
+imports        = ["bicycle"]
 
 [[rod]]
 name           = "bigint"
