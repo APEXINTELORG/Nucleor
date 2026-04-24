@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.252] — 2026-04-24
+
+**Robotics: Bundle adjustment (visual SLAM back-end). Jointly
+refines a set of camera SE(3) poses and a set of 3D world points
+to minimize the sum of squared 2-D reprojection errors over a list
+of (camera, point, pixel) observations. Pinhole camera model with
+shared focal length + principal point.**
+
+### Algorithm
+
+```
+Per camera (i): t_i ∈ ℝ³, q_i ∈ SO(3) (unit quaternion)
+Per point   (j): X_j ∈ ℝ³
+
+Predicted pixel for observation (cam i, point j):
+    X_cam = R_iᵀ · (X_j − t_i)
+    u_pred = cx + f · X_cam[0] / X_cam[2]
+    v_pred = cy + f · X_cam[1] / X_cam[2]
+
+Residual: r = (u_pred − u_meas, v_pred − v_meas) ∈ ℝ²
+
+Update: cameras on the SE(3) manifold (right-multiplied SO(3) exp);
+points by simple addition. Camera 0 gauge-fixed.
+
+Solve: stacked 2-D residuals → dense Levenberg-Marquardt-damped
+Gauss-Newton normal equations.
+```
+
+Numerical Jacobians via central differences (2 × 9 evals per obs
+per iter — 6 cam DOF + 3 point DOF). Linear solve via dense
+Gauss-Jordan inverse.
+
+### Surface
+
+```nucleor
+import "stdlib/rods/ba.nr"
+
+let h = ba_new(n_cams, n_pts, focal_b, cx_b, cy_b);
+// initial estimates
+for i in 0..n_cams { ba_set_cam(h, i, t_ptr_i, q_ptr_i); }
+for j in 0..n_pts  { ba_set_pt (h, j, p_ptr_j); }
+// observations
+ba_add_obs(h, cam_i, pt_j, u_b, v_b, info_b);
+// optimize
+ba_optimize(h, max_iters, tol_b);
+// read back refined
+ba_get_cam(h, i, t_out, q_out);
+ba_get_pt (h, j, p_out);
+```
+
+### Verification
+
+Synthetic noise-free scene: 5 cameras arranged in a horizontal arc
+above and behind a 12-point cube at the origin (60 perfect
+projection observations). Initial estimates: cam 0 at ground truth
+(gauge-fixed); cams 1–4 perturbed in position + rotation; all
+points perturbed off ground truth.
+
+- Reprojection cost: **257 122 → 0.0 in 5 iterations**.
+- All four free cameras: rotation recovered exactly (`rot_err = 0` rad).
+- Camera positions and 3-D points all consistent with a **single
+  global scale factor** (1.019775) relative to cam 0 — i.e. the
+  optimizer found the correct rescaled solution, confirming the
+  expected 1-DOF scale ambiguity in pure-pixel BA. (Real systems
+  break this with a depth prior or a known baseline.)
+
+### Files
+
+- `stdlib/runtime/ba_rt.c` — `nuc_ba_*` API; quaternion helpers,
+  pinhole projection, residual + numerical 2×6 / 2×3 Jacobians,
+  dense LM-damped Gauss-Newton.
+- `stdlib/rods/ba.nr` — externs + `ba_new` / `ba_set_cam` /
+  `ba_set_pt` / `ba_get_cam` / `ba_get_pt` / `ba_add_obs` /
+  `ba_optimize` / `ba_total_cost` / `ba_free` wrappers.
+- `tests/rods/ba_smoke.nr` — build-only smoke (functional coverage
+  in the direct C unit test).
+
+---
+
 ## [0.2.251] — 2026-04-24
 
 **Robotics: 3D KD-tree (`kdt`) for fast nearest-neighbor queries
