@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 206
-# Total fn definitions: 2063
-# Total LOC: 8962
+# Total rods: 207
+# Total fn definitions: 2064
+# Total LOC: 8975
 
 [[rod]]
 name           = "activation2"
@@ -748,6 +748,15 @@ function_count = 3
 cfile_count    = 1
 loc            = 35
 imports        = []
+
+[[rod]]
+name           = "icp_p2p"
+path           = "stdlib/rods/icp_p2p.nr"
+description    = "Point-to-plane ICP (Chen & Medioni 1991)."
+function_count = 1
+cfile_count    = 1
+loc            = 13
+imports        = ["icp_p2p"]
 
 [[rod]]
 name           = "ik_dls"

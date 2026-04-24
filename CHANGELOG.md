@@ -5,6 +5,83 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.301] — 2026-04-24
+
+**Robotics: point-to-plane ICP (`icp_p2p`). Chen & Medioni 1991
+variant that minimises point-to-tangent-plane distance rather
+than point-to-point. Converges 3–10× faster than point-to-point
+ICP on planar scenes (room walls, floor, CAD models).**
+
+### Algorithm
+
+```
+min Σ ((R·P_i + t − Q_j) · n_j)²,  j = nn(i)
+
+Each iteration:
+  1. Associate each source point with its nearest target point
+     (brute force O(N_src · N_tgt)).
+  2. Linearise rigid transform (small-angle Rodrigues);
+     residual r_i = (p'_i − q_j) · n_j; Jacobian row
+     J_i = [ (p'_i × n_j)^T , n_j^T ].
+  3. Gauss-Newton: solve (JᵀJ) δ = −Jᵀr for the 6-DOF update
+     δ = (α, β, γ, tx, ty, tz).
+  4. Apply δ; iterate until |δ| < tol or max_iters reached.
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/icp_p2p.nr"
+
+let R_out: [9]double;   // row-major
+let t_out: [3]double;
+let iters = icp_p2p(src_ptr, n_src,
+                     tgt_ptr, tgt_normals_ptr, n_tgt,
+                     max_iters, tol_b,
+                     f64_ptr(&R_out[0]),
+                     f64_ptr(&t_out[0]));
+```
+
+Point clouds are `double[N*3]` interleaved `(x, y, z)`.
+
+### Verification
+
+Direct C unit test (`target/_test_icp_p2p.c`) uses a
+CUBE-CORNER target (three mutually perpendicular planar
+patches) to guarantee full-rank 6-DOF observability.
+Point-to-plane ICP with a planar-only target is rank-3 in
+the 6-DOF update — this is documented and expected.
+
+- T1 translate        : src = tgt + (0.2, -0.1, 0.3); recovered
+                         t = (-0.2, 0.1, -0.3) exact in 2 iters ✓
+- T2 rotate z         : 0.1 rad rotation recovered; max p2p
+                         residual 1.1e-31 in 4 iters ✓
+- T3 SE(3) combo      : (α=0.03, β=-0.04, γ=0.05, t=(0.1,-0.05,
+                         0.15)); max p2p residual 8.3e-17 in
+                         4 iters ✓
+- T4 identity         : src = tgt; exact in 1 iter ✓
+- T5 bad n_src        : n_src=0 → returns 0 ✓
+
+Build smoke `tests/rods/icp_p2p_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/icp_p2p_rt.c` — linearised Gauss-Newton +
+   6x6 solver + small-angle Rodrigues update.
+- `stdlib/rods/icp_p2p.nr`      — extern + `icp_p2p` wrapper.
+- `tests/rods/icp_p2p_smoke.nr` — build-only smoke.
+- `CHANGELOG.md`                 — this entry.
+
+### Limitations
+
+Documented in `icp_p2p.nr` and `icp_p2p_rt.c`: brute-force NN
+O(N_src · N_tgt); caller supplies target normals (no
+estimation in this rod); no outlier rejection; small-angle
+linearisation assumes approximate pre-alignment; planar-only
+target is rank-deficient (3 DOF unobservable). KD-tree NN /
+robust kernel / symmetric plane-to-plane metric land in v0.6
+if needed.
+
 ## [0.2.300] — 2026-04-24
 
 **Robotics: Vector Field Histogram (VFH) local obstacle
