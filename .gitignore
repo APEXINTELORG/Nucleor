@@ -15,6 +15,11 @@ target/
 # Allow the shipped bootstrap binary
 !bin/nucleor.exe
 
+# T1.7 (v0.2.339): allow the cross-platform IR seed used by
+# tools/bootstrap_linux.sh to produce bin/nucleor on fresh Linux/macOS
+# hosts. See bootstrap/README.md for the refresh workflow.
+!bootstrap/nucleor_s1_seed.ll
+
 # Scratch binaries from self-host fixed-point checks. Chain commands
 # of the form `nuc build ... -o bin/nucleor_vNNN.exe` should write to
 # target/ instead, but the convention through v0.2.x left them in
