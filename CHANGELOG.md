@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.305] — 2026-04-24
+
+**Robotics: 2-D Delaunay triangulation + circumcenter helper
+(`delaunay`). Bowyer-Watson incremental insertion (Bowyer 1981
+/ Watson 1981). Foundation for Voronoi diagrams (lift each
+output triangle through `circumcenter_2d` to get the Voronoi
+vertex), triangle-mesh generation, and natural-neighbor
+interpolation.**
+
+### Algorithm
+
+```
+1. Seed with a "super-triangle" enclosing all input points.
+2. For each input point P:
+   - Find all triangles whose circumcircle contains P (bad).
+   - Compute the cavity boundary (edges appearing exactly
+     once across the bad set).
+   - Remove bad triangles; connect P to every cavity edge.
+3. Strip triangles using super-triangle vertices.
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/delaunay.nr"
+
+// out_tris: int32[3 * max_tris], packed (i, j, k) per triangle.
+let n_tris = delaunay_2d(pts_xy_ptr, n_pts,
+                          out_tris_ptr, max_tris);
+
+let cx: double; let cy: double;
+let ok = circumcenter_2d(ax_b, ay_b, bx_b, by_b, cx_b, cy_b,
+                          f64_ptr(&cx), f64_ptr(&cy));
+```
+
+### Verification
+
+Direct C unit test (`target/_test_delaunay.c`):
+
+- T1 unit square    : 4 corners → 2 triangles, all 4 used ✓
+- T2 sq + center    : 5 pts → 4 triangles, center in all 4 ✓
+- T3 circumcenter   : (0,0)-(2,0)-(0,2) → (1,1) ✓
+- T4 collinear cc   : (0,0)-(1,1)-(2,2) → returns 0 ✓
+- T5 too few pts    : n_pts=2 → returns 0 ✓
+
+Build smoke `tests/rods/delaunay_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/delaunay_rt.c` — Bowyer-Watson +
+   `_in_circumcircle` determinant test + circumcenter.
+- `stdlib/rods/delaunay.nr`      — extern + wrappers.
+- `tests/rods/delaunay_smoke.nr` — build-only smoke.
+- `CHANGELOG.md`                  — this entry.
+
+### Limitations
+
+Documented in `delaunay.nr` and `delaunay_rt.c`: 2-D only;
+naive O(N²) incremental insertion (fine ≤ ~1000 points);
+floating-point — cocircular degeneracies pick an arbitrary
+valid triangulation. Sweep-line / 3-D Delaunay / robust
+predicates land in v0.6 if needed.
+
 ## [0.2.304] — 2026-04-24
 
 **Robotics: Hough transform for 2-D circle detection
