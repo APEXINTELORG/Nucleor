@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 145
-# Total fn definitions: 1681
-# Total LOC: 7195
+# Total rods: 146
+# Total fn definitions: 1683
+# Total LOC: 7228
 
 [[rod]]
 name           = "activation2"
@@ -568,6 +568,15 @@ function_count = 6
 cfile_count    = 1
 loc            = 65
 imports        = ["fk_chain"]
+
+[[rod]]
+name           = "ilqr"
+path           = "stdlib/rods/ilqr.nr"
+description    = "Iterative Linear Quadratic Regulator (iLQR, Tassa"
+function_count = 2
+cfile_count    = 1
+loc            = 33
+imports        = []
 
 [[rod]]
 name           = "image"
