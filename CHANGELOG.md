@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.332] — 2026-04-24
+
+**Robotics: differential-drive (2-wheel) kinematics + odometry
+(`diff_drive`). Forward + inverse kinematics, Euler odometry
+step, exact constant-curvature arc integration. Foundational
+for TurtleBot / iRobot Create / custom 2-wheel platforms.**
+
+### Algorithm
+
+```
+Forward kinematics (wheels → body):
+  v     = (v_l + v_r) / 2
+  omega = (v_r − v_l) / L
+
+Inverse kinematics (body → wheels):
+  v_l = v − ω·L/2
+  v_r = v + ω·L/2
+
+Pose update (Euler):  ẋ=v cos θ,  ẏ=v sin θ,  θ̇=ω
+Pose update (arc):    R = v/ω;   x' = x + R(sin(θ+ωΔt) − sin θ)
+                                  y' = y − R(cos(θ+ωΔt) − cos θ)
+                                  θ' = θ + ωΔt
+```
+
+### Surface
+
+```nucleor
+import "stdlib/rods/diff_drive.nr"
+
+let v: double; let w: double;
+let _ = diff_drive_velocities(vl_b, vr_b, L_b,
+                                f64_ptr(&v), f64_ptr(&w));
+
+let pose: [3]double;   // (x, y, theta)
+let _ = diff_drive_step_arc(x_b, y_b, th_b,
+                              vl_b, vr_b, L_b, dt_b,
+                              f64_ptr(&pose[0]));
+```
+
+### Verification
+
+Direct C unit test (`target/_test_diff_drive.c`):
+
+- T1 forward kin   : (vl=1, vr=3, L=2) → v=2, ω=1 ✓
+- T2 inverse kin   : (v=2, ω=1, L=2) → vl=1, vr=3 ✓
+- T3 straight      : equal speeds → forward only ✓
+- T4 in-place spin : vl=−1, vr=+1, dt=π → θ from 0 to π ✓
+- T5 quarter arc   : (vl=1, vr=3, dt=π/2) → final (2, 2, π/2) ✓
+- T6 bad L=0       : returns 0 ✓
+
+Build smoke `tests/rods/diff_drive_smoke.nr` compiles and links.
+
+### Files
+
+- `stdlib/runtime/diff_drive_rt.c` — 4 functions: fwd/inv kin,
+  Euler step, arc step.
+- `stdlib/rods/diff_drive.nr` — extern + 4 wrappers.
+- `tests/rods/diff_drive_smoke.nr` — build-only smoke.
+- `CHANGELOG.md` — this entry.
+
+### Limitations
+
+Documented in `diff_drive.nr` and `diff_drive_rt.c`: kinematic
+only (no slip); caller supplies wheel speeds (not encoder ticks).
+Wheel-slip / encoder-tick odometry / IMU-fused pose update
+land in v0.6 if needed.
+
 ## [0.2.331] — 2026-04-24
 
 **Robotics: Canny edge detector (`canny`). Full 4-stage edge
