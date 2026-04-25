@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 25
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 26
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -799,6 +799,25 @@ Step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" {
     return $true
 }
 
+Step "T3.4 #[export] surfaces in nuc gen-headers" {
+    # v0.3.4 (T3.4): #[export] attribute prefix → C forward
+    # declaration in `nuc gen-headers` output. Lets external
+    # C/C++ host code call into Nucleor-compiled fns through
+    # the unmangled LLVM symbol. Three exported fns + one
+    # private fn (must NOT appear in the header) + one extern
+    # import (must still work).
+    $hdr = "$env:TEMP\_t34_export_check.h"
+    $null = & $bin gen-headers "tests/fixtures/t34_export.nr" -o $hdr 2>&1
+    if (-not (Test-Path $hdr)) { return $false }
+    $h = Get-Content $hdr -Raw
+    if ($h -notmatch 'int64_t nuc_add\(int64_t a, int64_t b\);') { return $false }
+    if ($h -notmatch 'double nuc_dot\(Vec3 a, Vec3 b\);') { return $false }
+    if ($h -notmatch 'void nuc_noop\(void\);') { return $false }
+    if ($h -match 'private_helper') { return $false }
+    if ($h -notmatch 'void host_logger\(int64_t msg_ptr, int64_t msg_len\);') { return $false }
+    return $true
+}
+
 Step "T3.2 #[no_panic] passes when body has no panic-prone calls" {
     # v0.3.1 (T3.2): source-level v1 check mirrors #[no_alloc].
     # Smoke fixture has 2 #[no_panic] fns + 2 #[test] cases that
@@ -987,7 +1006,7 @@ Step "T1.6 gen-headers emits #[repr(C)] struct typedefs" {
     $hdr = Join-Path $env:TEMP "_t16_struct_ffi.h"
     if (Test-Path $hdr) { Remove-Item -Force $hdr }
     $banner = & $bin gen-headers "tests/fixtures/t16_struct_ffi.nr" -o $hdr 2>&1 | Out-String
-    if ($banner -notmatch "wrote 2 #\[repr\(C\)\] struct\(s\) and 2 extern decl\(s\)") { return $false }
+    if ($banner -notmatch "wrote 2 #\[repr\(C\)\] struct\(s\), 2 extern decl\(s\), 0 #\[export\] decl\(s\)") { return $false }
     if (-not (Test-Path $hdr)) { return $false }
     $h = Get-Content $hdr -Raw
     if ($h -notmatch "typedef struct Point2D \{[^}]*double x;[^}]*double y;[^}]*\} Point2D;") { return $false }

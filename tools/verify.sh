@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 23))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 24))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -773,6 +773,22 @@ t35_rt007_unguarded_deadline() {
     grep -q 'has #\[deadline\] but neither #\[no_alloc\] nor #\[no_panic\]' /tmp/_nuc_step.log || return 1
 }
 
+t34_export_decls() {
+    # T3.4 (v0.3.4): #[export] attribute → C forward declaration
+    # in `nuc gen-headers` output. Lets external C code call into
+    # Nucleor-compiled fns through the unmangled LLVM symbol.
+    local hdr="/tmp/_t34_export.h"
+    "$BIN" gen-headers "tests/fixtures/t34_export.nr" -o "$hdr" >/tmp/_nuc_step.log 2>&1
+    [ -f "$hdr" ] || return 1
+    grep -q 'int64_t nuc_add(int64_t a, int64_t b);' "$hdr" || return 1
+    grep -q 'double nuc_dot(Vec3 a, Vec3 b);' "$hdr" || return 1
+    grep -q 'void nuc_noop(void);' "$hdr" || return 1
+    # private_helper has no #[export] — must NOT appear.
+    if grep -q 'private_helper' "$hdr"; then return 1; fi
+    # Existing extern fn import path still works.
+    grep -q 'void host_logger(int64_t msg_ptr, int64_t msg_len);' "$hdr" || return 1
+}
+
 t32_no_panic_clean() {
     "$BIN" test "tests/smoke/t32_no_panic_clean.nr" >/tmp/_nuc_step.log 2>&1
     grep -q "PASS: test_no_panic_pure_arithmetic" /tmp/_nuc_step.log || return 1
@@ -913,7 +929,7 @@ t16_gen_headers_structs() {
     hdr="$(mktemp 2>/dev/null || echo /tmp/_t16_struct_ffi.h)"
     rm -f "$hdr"
     "$BIN" gen-headers tests/fixtures/t16_struct_ffi.nr -o "$hdr" >/tmp/_nuc_step.log 2>&1
-    grep -qE 'wrote 2 #\[repr\(C\)\] struct\(s\) and 2 extern decl\(s\)' /tmp/_nuc_step.log || return 1
+    grep -qE 'wrote 2 #\[repr\(C\)\] struct\(s\), 2 extern decl\(s\), 0 #\[export\] decl\(s\)' /tmp/_nuc_step.log || return 1
     [ -f "$hdr" ] || return 1
     grep -q "typedef struct Point2D" "$hdr" || return 1
     grep -q "double x;" "$hdr" || return 1
@@ -1150,6 +1166,7 @@ step "T2.8 async (threads-only): async fn / async_spawn / .await" t28_async_thre
 step "T3.2 #[no_panic] passes when body has no panic-prone calls" t32_no_panic_clean
 step "T3.3 static WCET v1 estimator emits warning[RT-004]" t33_wcet_estimator
 step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" t35_rt007_unguarded_deadline
+step "T3.4 #[export] surfaces in nuc gen-headers" t34_export_decls
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
