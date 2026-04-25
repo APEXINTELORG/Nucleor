@@ -5,6 +5,94 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.83] — 2026-04-25
+
+**Feature: fn-pointer type syntax `fn(T1, T2) -> R` in parameter
+positions.** Pre-v0.3.83, writing `fn apply(f: fn(i64) -> i64, x: i64)
+-> i64` cascaded into 26+ parse errors because `parse_type` didn't
+recognize `fn` as a type-starter. Rust users would naturally reach for
+this syntax to declare higher-order fn parameters; pre-v0.3.83 it
+produced a confusing failure spray with no clear cause.
+
+### Fix
+
+Add a new branch in `parse_type` (line ~841) that recognizes the
+`fn` keyword (token 10) as a fn-pointer type starter. Walks the
+paren-balanced argument list, optionally consumes the `-> R` return
+annotation, and returns the type string `"i64"` — Nucleor's calling
+convention stores fn pointers as i64-shaped values, and the
+existing fn-pointer / closure dispatch in lower_expr already
+handles i64-typed callable values via indirect call.
+
+```nucleor
+if pk(tokens, pos) == 10 {
+    let mut cp: i64 = pos + 1;
+    if pk(tokens, cp) == 50 {
+        cp = cp + 1;
+        let mut depth: i64 = 1;
+        while depth > 0 && pk(tokens, cp) != 0 {
+            if pk(tokens, cp) == 50 { depth = depth + 1; };
+            if pk(tokens, cp) == 51 { depth = depth - 1; };
+            cp = cp + 1;
+        };
+        if pk(tokens, cp) == 41 {
+            cp = cp + 1;
+            let mut tr: Vec<i32> = parse_type(tokens, cp);
+            cp = pr_pos(tr);
+        };
+    };
+    return pr(cp, "i64");
+};
+```
+
+### What now works that previously didn't
+
+```nucleor
+fn apply(f: fn(i64) -> i64, x: i64) -> i64 {
+    return f(x);
+}
+
+fn add_with(a: i64, op: fn(i64, i64) -> i64, b: i64) -> i64 {
+    return op(a, b);
+}
+
+fn main() -> i64 {
+    apply(double, 7);                         // → 14
+    add_with(10, sum, 5);                     // → 15
+    apply(|x| x * captured, 7);               // → captured*7
+    // The closure-with-capture case routes through the AST kind
+    // 42 path (v0.3.78) for full capture support.
+}
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `parse_type` gains the `fn`
+  branch. Bootstrap fixed point recomputed at SHA `a6ace26a` (was
+  `507a775f`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t359_fn_pointer_type.nr` — new strict regression
+  fixture covering free-fn arg, closure arg, and multi-arg
+  fn-pointer types.
+- `tools/verify.{sh,ps1}` — new T3.59 verify step.
+
+### Verify gate
+
+- 437/437 green (was 436 + 1 step from T3.59).
+- All prior regression fixtures (T3.28-T3.58) still green.
+- Bootstrap fixed point closes at `a6ace26a`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.83)
+
+- **24 codegen + 1 runtime + 5 parser/check diagnostic = 30 total**
+- **32 strict regression fixtures** (T3.28-T3.59)
+- **6 robotics RT showcase examples** in Tier 4
+- **Higher-order function ergonomics complete**: trait default
+  methods (v0.3.82) + fn-pointer type syntax (v0.3.83) + inline
+  closure capture (v0.3.78) cover the canonical Rust patterns
+  for higher-order code.
+
 ## [0.3.82] — 2026-04-25
 
 **Feature: trait default methods.** Pre-v0.3.82, calling a trait

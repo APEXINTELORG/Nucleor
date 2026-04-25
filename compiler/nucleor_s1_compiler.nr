@@ -837,6 +837,33 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         };
         return pr(cp + 1, str_concat("(", str_concat(inner, ")")));
     };
+    // v0.3.83: fn-pointer type syntax `fn(T1, T2) -> R`. Nucleor stores
+    // function pointers as i64, so we consume the syntactic shape and
+    // return "i64" — the existing fn-pointer/closure dispatch already
+    // handles i64-typed callable values. Pre-v0.3.83, `fn(i64) -> i64`
+    // in a parameter type position cascaded into 26+ parse errors.
+    if pk(tokens, pos) == 10 {
+        let mut cp: i64 = pos + 1;
+        // Expect `(`
+        if pk(tokens, cp) == 50 {
+            cp = cp + 1;
+            // Skip args: each arg is `parse_type` (no name needed).
+            // Walk paren-balanced to allow nested fn types.
+            let mut depth: i64 = 1;
+            while depth > 0 && pk(tokens, cp) != 0 {
+                if pk(tokens, cp) == 50 { depth = depth + 1; };
+                if pk(tokens, cp) == 51 { depth = depth - 1; };
+                cp = cp + 1;
+            };
+            // Optional `-> R` return type
+            if pk(tokens, cp) == 41 {
+                cp = cp + 1;
+                let mut tr: Vec<i32> = parse_type(tokens, cp);
+                cp = pr_pos(tr);
+            };
+        };
+        return pr(cp, "i64");
+    };
     let name: i64 = pkv(tokens, pos); let p2: i64 = pos + 1;
     if str_eq(name, "fixed") == 1 && pk(tokens, p2) == 32 {
         let mut cp: i64 = p2 + 1;
