@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 756
+# Total helpers: 758
 # Of which REVIEW REQUIRED: 26
 
 # ============================================================
@@ -10354,6 +10354,20 @@ since            = "0.1.0"
 notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
 
 [[helper]]
+name             = "vec_skip_i64"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_skip_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "vec_sort_i64"
 class            = "VectorOps"
 symbol           = "__nucleor_vec_sort_i64"
@@ -10450,6 +10464,20 @@ proof_obligation = "bounds_within_len"
 stability        = "unstable"
 since            = "0.1.0"
 notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
+
+[[helper]]
+name             = "vec_take_i64"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_take_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
 
 [[helper]]
 name             = "vec_u8_capacity"
