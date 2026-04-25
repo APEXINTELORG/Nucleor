@@ -337,18 +337,33 @@ extended to the full 130-code spec catalog in v0.2.80).
 
 ## DIAG series — RFC-0020 diagnostics machinery
 
-**Reserved namespace; no user-facing codes minted as of v0.2.103.**
-RFC-0020 phase 1 + 2 shipped the LineMap infrastructure
-(`linemap_*` runtime helpers, error-vs-warning split where warnings
-no longer halt the build) but no DIAG-NNN codes — the diagnostic
-machinery surfaces through the per-RFC code series (NR, NUM,
-MATCH, COLL, MOD, PKG, TGT, TST, etc.) rather than its own series.
+| Code | Title | Shipped |
+|---|---|---|
+| DIAG-001 | Unknown diagnostic code in `#[allow]` / `#[deny]` attribute | v0.3.36 |
+
+**v0.3.36 (T3.20) minted the first DIAG-NNN code.** Prior to v0.3.36
+the namespace was reserved (RFC-0020 phase 1 + 2 shipped only the
+LineMap infrastructure and the error-vs-warning split — no
+user-facing DIAG codes). DIAG-001 fires when an `#[allow(CODE)]`,
+`#[allow_fn(CODE)]`, `#[deny(CODE)]`, or `#[deny_fn(CODE)]`
+attribute references a CODE whose prefix is not in the canonical
+diagnostic series set (RT-, NR0, NUM-, OWN-, ALLOC-, FRAME-, GOV-,
+TNT-, TYP-, ASSUME-, UNIT-, CONTRACT-, ATOMIC-, ISR-, EFF-, WCET-,
+DLPACK-, CXX-, BINDGEN-, URDF-, DEPTH-, NUM-, MATCH-, COLL-, MOD-,
+PKG-, TST-, TGT-, LAW-, DIAG-). The suppression / promotion has no
+effect at compile time — the diagnostic the author meant to control
+still fires unsuppressed. Suppress DIAG-001 itself during a noisy
+refactor with `#[allow(DIAG-001)]`.
+
+The check is prefix-only (v1). Within-series typos like `RT-099`
+vs `RT-009` slip through; the v0.4 AST-based RT re-implementation
+will own the strict enumerated check.
 
 The `nuc explain CODE` command is part of the RFC-0020 surface;
-its error path (unknown code) was previously reported as a plain
-"unknown error code" message rather than a structured DIAG-NNN.
+its error path (unknown code) is reported as a plain
+"unknown error code" message — that path is unchanged by v0.3.36.
 RFC-0020 phase 3 (planned for v0.4) is the existing-error span
-migration, not new code minting.
+migration plus the within-series enumerated DIAG-001 check.
 
 ## EFF series — RFC-0032 effects
 

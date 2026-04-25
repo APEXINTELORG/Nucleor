@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 36))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 37))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -499,6 +499,8 @@ cli_explain_full_smoke() {
         "LAW-001" "LAW-002" "LAW-003" "LAW-004"
         # RFC-0032 effects
         "EFF-001" "EFF-002" "EFF-003" "EFF-004" "EFF-005"
+        # RFC-0020 DIAG (minted v0.3.36 — first DIAG-NNN code)
+        "DIAG-001"
     )
     local code
     for code in "${codes[@]}"; do
@@ -870,6 +872,23 @@ t39_rt005_ffi_call() {
     "$BIN" build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -qE "warning\[RT-005\]: FFI call 'host_telemetry'" /tmp/_nuc_step.log || return 1
     grep -q "from #\[no_alloc\] fn 'rt_path'" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t320_diag001_unknown_code() {
+    # T3.20 (v0.3.36): DIAG-001 warning fires for #[allow(_fn)] /
+    # #[deny(_fn)] CODE arguments whose prefix isn't in the
+    # canonical diagnostic series set. Fixture has four
+    # offending attributes (one per allow/deny shape) plus one
+    # control with a known prefix (RT-) that must NOT fire.
+    "$BIN" build "tests/fixtures/t320_diag001_unknown_code.nr" -o "_t320_diag001_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local count
+    count=$(grep -cE 'warning\[DIAG-001\]' /tmp/_nuc_step.log)
+    [ "$count" = "4" ] || return 1
+    grep -qE "WAT-001"      /tmp/_nuc_step.log || return 1
+    grep -qE "BOGUS-002"    /tmp/_nuc_step.log || return 1
+    grep -qE "GIBBERISH-003" /tmp/_nuc_step.log || return 1
+    grep -qE "NONSENSE-004" /tmp/_nuc_step.log || return 1
     return 0
 }
 
@@ -1353,6 +1372,7 @@ step "T3.12 #[allow_fn] suppresses one RT diag for one fn" t320_allow_fn_per_fn
 step "T3.17 #[allow_fn(RT-004)] suppresses static WCET warning per-fn" t317_allow_fn_rt004
 step "T3.18 #[deny_fn(RT-007)] promotes warning to error (strict)" t321_deny_fn_promotes_strict
 step "T3.19 #[allow_fn(RT-001)] cannot demote error tier (strict)" t323_allow_fn_error_tier_strict
+step "T3.20 DIAG-001 fires for #[allow]/#[deny] unknown-prefix codes" t320_diag001_unknown_code
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

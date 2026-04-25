@@ -5338,6 +5338,126 @@ fn collect_deny_fn_pairs(source: str) -> Vec<i32> {
     return pairs;
 }
 
+// v0.3.36 (T3.20): validation pass for #[allow(_fn)] / #[deny(_fn)]
+// CODE arguments. The four collectors above accept any well-formed
+// substring; a typo like #[allow_fn(RT-099)] is silently absorbed
+// (the user's intended diagnostic still fires, but the suppression
+// they wrote points at nothing). v1 catches the easy class:
+// codes whose prefix doesn't match any known diagnostic series.
+// Within-series typos like RT-099 vs RT-009 still slip through;
+// the v0.4 AST-based RT re-implementation will own the strict
+// enumerated check (see docs/v0.3-robotics-guide.md cookbook §4
+// "Known limitation: unknown codes").
+fn is_known_diag_prefix(code: str) -> i64 {
+    let n: i64 = str_len(code);
+    if n < 3 { return 0; };
+    // NR series uses no dash: NR<NNN>. All others use PREFIX-<digits>.
+    if n >= 3 && str_char_at(code, 0) == 78 && str_char_at(code, 1) == 82 {
+        // NR... — accept if char 2 is a digit (NR0NN, NR123, etc.).
+        let c2: i64 = str_char_at(code, 2);
+        if c2 >= 48 && c2 <= 57 { return 1; };
+        return 0;
+    };
+    // Dash-style codes: PREFIX-<digits>. Match the prefix substring
+    // up to the dash against the canonical set.
+    let mut dash: i64 = 0 - 1;
+    let mut i: i64 = 0;
+    while i < n {
+        if str_char_at(code, i) == 45 { dash = i; break; };
+        i = i + 1;
+    };
+    if dash <= 0 { return 0; };
+    let pfx: str = str_substring(code, 0, dash);
+    // Canonical prefix set drawn from cli_explain_full_smoke /
+    // docs/spec/Nucleor_Error_Codes.md. Add to BOTH this list and
+    // the cli_explain_full_smoke `codes` array when minting a new
+    // series.
+    if str_eq(pfx, "RT") == 1 { return 1; };
+    if str_eq(pfx, "NUM") == 1 { return 1; };
+    if str_eq(pfx, "MATCH") == 1 { return 1; };
+    if str_eq(pfx, "COLL") == 1 { return 1; };
+    if str_eq(pfx, "MOD") == 1 { return 1; };
+    if str_eq(pfx, "PKG") == 1 { return 1; };
+    if str_eq(pfx, "TGT") == 1 { return 1; };
+    if str_eq(pfx, "TST") == 1 { return 1; };
+    if str_eq(pfx, "ALLOC") == 1 { return 1; };
+    if str_eq(pfx, "FRAME") == 1 { return 1; };
+    if str_eq(pfx, "OWN") == 1 { return 1; };
+    if str_eq(pfx, "GOV") == 1 { return 1; };
+    if str_eq(pfx, "TNT") == 1 { return 1; };
+    if str_eq(pfx, "TYP") == 1 { return 1; };
+    if str_eq(pfx, "ASSUME") == 1 { return 1; };
+    if str_eq(pfx, "UNIT") == 1 { return 1; };
+    if str_eq(pfx, "CONTRACT") == 1 { return 1; };
+    if str_eq(pfx, "ATOMIC") == 1 { return 1; };
+    if str_eq(pfx, "ISR") == 1 { return 1; };
+    if str_eq(pfx, "EFF") == 1 { return 1; };
+    if str_eq(pfx, "WCET") == 1 { return 1; };
+    if str_eq(pfx, "DIAG") == 1 { return 1; };
+    if str_eq(pfx, "DLPACK") == 1 { return 1; };
+    if str_eq(pfx, "CXX") == 1 { return 1; };
+    if str_eq(pfx, "BINDGEN") == 1 { return 1; };
+    if str_eq(pfx, "URDF") == 1 { return 1; };
+    if str_eq(pfx, "DEPTH") == 1 { return 1; };
+    if str_eq(pfx, "LAW") == 1 { return 1; };
+    return 0;
+}
+
+// Walk all four allow/deny collectors; emit warning[DIAG-001] for
+// any CODE whose prefix doesn't match the canonical set. Hint
+// names docs/spec/Nucleor_Error_Codes.md as the catalog. The
+// emitted diags themselves can be suppressed via #[allow(DIAG-001)]
+// on a noisy refactor.
+fn emit_diag001_unknown_codes(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let allowed: Vec<i32> = collect_allowed_codes(source);
+    let allow_fn_pairs: Vec<i32> = collect_allow_fn_pairs(source);
+    let denied: Vec<i32> = collect_denied_codes(source);
+    let deny_fn_pairs: Vec<i32> = collect_deny_fn_pairs(source);
+    let mut i: i64 = 0;
+    let an: i64 = vec_len(allowed);
+    while i < an {
+        let code: str = vec_get(allowed, i);
+        if is_known_diag_prefix(code) == 0 {
+            let msg: str = str_concat("unknown diagnostic code '", str_concat(code, "' in #[allow(...)] -- prefix not in canonical set; suppression has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"));
+            diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, "", 0, 0, "");
+        };
+        i = i + 1;
+    };
+    i = 0;
+    let dn: i64 = vec_len(denied);
+    while i < dn {
+        let code: str = vec_get(denied, i);
+        if is_known_diag_prefix(code) == 0 {
+            let msg: str = str_concat("unknown diagnostic code '", str_concat(code, "' in #[deny(...)] -- prefix not in canonical set; promotion has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"));
+            diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, "", 0, 0, "");
+        };
+        i = i + 1;
+    };
+    let pn: i64 = vec_len(allow_fn_pairs);
+    let mut pi: i64 = 0;
+    while pi + 1 < pn {
+        let fname: str = vec_get(allow_fn_pairs, pi);
+        let code: str = vec_get(allow_fn_pairs, pi + 1);
+        if is_known_diag_prefix(code) == 0 {
+            let msg: str = str_concat("unknown diagnostic code '", str_concat(code, str_concat("' in #[allow_fn(...)] on fn '", str_concat(fname, "' -- prefix not in canonical set; suppression has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"))));
+            diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, fname, 0, 0, "");
+        };
+        pi = pi + 2;
+    };
+    let qn: i64 = vec_len(deny_fn_pairs);
+    let mut qi: i64 = 0;
+    while qi + 1 < qn {
+        let fname: str = vec_get(deny_fn_pairs, qi);
+        let code: str = vec_get(deny_fn_pairs, qi + 1);
+        if is_known_diag_prefix(code) == 0 {
+            let msg: str = str_concat("unknown diagnostic code '", str_concat(code, str_concat("' in #[deny_fn(...)] on fn '", str_concat(fname, "' -- prefix not in canonical set; promotion has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"))));
+            diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, fname, 0, 0, "");
+        };
+        qi = qi + 2;
+    };
+    return diags;
+}
+
 fn promote_denied_to_errors(diags: Vec<i32>, source: str) -> Vec<i32> {
     let denied: Vec<i32> = collect_denied_codes(source);
     let deny_fn_pairs: Vec<i32> = collect_deny_fn_pairs(source);
@@ -10896,6 +11016,11 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // neither #[no_alloc] nor #[no_panic]. Either guard makes the
     // deadline reachable in the first place.
     diags = enforce_deadline_safety(diags, source);
+    // T3.20 (v0.3.36): emit DIAG-001 for #[allow(_fn)] / #[deny(_fn)]
+    // codes whose prefix isn't in the canonical set. Runs BEFORE the
+    // suppression pass so users can `#[allow(DIAG-001)]` to silence
+    // it during a noisy refactor.
+    diags = emit_diag001_unknown_codes(diags, source);
     if diag_count(diags) > 0 {
         // RFC-0028 §Suppression — drop warnings the user has silenced
         // via `#[allow(CODE)]`, then promote any remaining warnings
