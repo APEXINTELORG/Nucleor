@@ -5,6 +5,115 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.340] — 2026-04-24
+
+**T1.5a modules — `mod foo { ... }` inline block-form +
+tools-suite resolver parity for `mod foo;`.** First chunk of
+T1.5. The s1 resolver gains brace-balanced inline parsing for
+the block-form `mod foo { … }` (string- and line-comment-aware
+brace tracking, splices the body in place after stripping the
+opener and matching close brace). The tools-suite resolver
+catches up to s1 — it was previously missing both `mod foo;`
+desugaring and any block-form support, which silently broke
+`nuc test` on any fixture that used `mod` keyword imports.
+
+### Scope
+
+T1.5a ships **inline parsing only**. No namespacing, no
+visibility scoping, no symbol mangling. Helpers defined inside
+a `mod foo { ... }` block are visible to the outer scope,
+identical to how `mod foo;` worked before today. The full
+RFC-0018 resolver (path syntax, `pub` enforcement, name
+mangling, `pub use` re-exports) lands in T1.5b/c/d.
+
+This matches the pragma "ship the smallest meaningful slice
+first." The motivating use case — `mod tests { #[test] fn ... }`
+collocated with production code — works today.
+
+### Resolver brace scanner
+
+The block-form scanner advances past `{` tracking nesting depth.
+It handles three context classes that would otherwise produce
+false positive `}` matches:
+
+| Context | Handling |
+|---|---|
+| Double-quoted string `"..."` | Skip `\X` escapes, terminate at unescaped `"` |
+| Single-quoted char `'X'` | Skip `\X` escapes, terminate at unescaped `'` |
+| Line comment `// ...` | Terminate at newline |
+
+A `}` inside `"}"` or after `//` does NOT close the module.
+Verified by the smoke fixture's `brace_in_str` and
+`nested` cases.
+
+If the closing brace is missing (depth never reaches 0), the
+resolver falls through and lets the parser surface the
+unbalanced-brace error — no silent corruption.
+
+### Bug closed (cross-compiler divergence)
+
+`nucleor_tools_suite.nr:resolve_source_with_records` was the
+pre-RFC-0018 version that only handled `import "path"`
+literals. After T1.5a it has the same `mod foo;` + `mod foo {}`
+support as the s1 resolver. This unblocks fixtures that mix
+`mod` declarations with `#[test]` functions when run via
+`nuc test` (which routes through tools-suite, not s1).
+
+### T1.5a smoke
+
+`tests/smoke/t15a_mod_block_form.nr` — 3 cases:
+- `test_mod_block_helper_visible_outside` — helper defined
+  inside `mod tests_inner { ... }` callable from the outer
+  scope (no namespacing yet).
+- `test_mod_block_brace_in_string` — `fn brace_in_str() ->
+  str { return "}"; }` inside a `mod` block: the `}` literal
+  must not close the module.
+- `test_mod_block_brace_in_comment_does_not_close_early` —
+  the same for `// ...}` comments.
+
+New verify-gate step `T1.5a mod block-form inline` runs the
+fixture via `nuc test` and asserts all three PASS.
+
+### Verify gate
+
+Windows: 348/348 PASS. Bootstrap fixpoint stable (seed
+refreshed; new SHA `c62d5733...`).
+
+### Numerics-compatibility
+
+No new arithmetic surfaces. The brace scanner operates on
+ASCII byte values (`{`=123, `}`=125, `"`=34, `'`=39, `/`=47,
+`\`=92, `\n`=10) — all `i64` per the locked i64-everywhere
+convention.
+
+### Memory safety
+
+The resolver still source-text concatenates via the existing
+`sb_*` string builder. Block-form recursion calls the same
+`resolve_source_with_records` with the body substring; no new
+ownership transfers. The brace scanner does not mutate `src`.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — `resolve_source_with_records`
+  block-form branch.
+- `compiler/nucleor_tools_suite.nr` — resolver brought to s1
+  parity (`mod foo;` desugaring + block-form, plus `#[...]`
+  attribute preservation that s1 had).
+- `tests/smoke/t15a_mod_block_form.nr` — new smoke fixture.
+- `tools/verify.ps1`, `tools/verify.sh` — new T1.5a step;
+  step counter +1.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (393 fns, 718
+  optimized instructions).
+- `bin/nucleor.exe`, `bin/nucleor_tools.exe` — both rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+T1.5b — visibility scoping (`pub` enforcement at module
+boundaries) is the natural follow-up. T1.5c (path syntax)
+and T1.5d (mangling) chain after.
+
 ## [0.2.339] — 2026-04-24
 
 **T1.7 Linux build target — cross-platform link command +

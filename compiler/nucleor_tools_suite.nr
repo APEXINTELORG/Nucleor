@@ -9156,6 +9156,14 @@ fn module_graph_source_path(src_path: str) -> str {
 }
 
 fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, module_records: Vec<i32>) -> str {
+    // T1.5a (v0.2.340): tools-suite resolver brought to parity with the
+    // s1 compiler resolver. Previously this only handled
+    // `import "path"` literals; now it also handles
+    // `mod foo;` (file-rooted desugaring) and
+    // `mod foo { ... }` (inline block-form, brace-balanced with
+    // string and line-comment awareness). This closes the divergence
+    // gap that broke `nuc test` whenever a test fixture used
+    // mod-keyword imports.
     let mut result: i64 = sb_new();
     let slen: i64 = str_len(src);
     let mut p: i64 = 0;
@@ -9166,12 +9174,97 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
         while lp < eol && (str_char_at(src, lp) == 32 || str_char_at(src, lp) == 9) { lp = lp + 1; };
         let line_len: i64 = eol - lp;
         let mut prefix_len: i64 = 0;
+        let mut is_mod_decl: i64 = 0;
         if line_len >= 8 && str_eq(str_substring(src, lp, lp + 7), "import ") { prefix_len = 7; };
         if prefix_len == 0 && line_len >= 5 && str_eq(str_substring(src, lp, lp + 4), "use ") { prefix_len = 4; };
+        if prefix_len == 0 && line_len >= 5 && str_eq(str_substring(src, lp, lp + 4), "mod ") == 1 {
+            let mut sp: i64 = lp + 4;
+            while sp < eol && str_char_at(src, sp) == 32 { sp = sp + 1; };
+            let mut np: i64 = sp;
+            while np < eol && (is_alnum(str_char_at(src, np)) == 1) { np = np + 1; };
+            let mut tp: i64 = np;
+            while tp < eol && str_char_at(src, tp) == 32 { tp = tp + 1; };
+            if np > sp && tp < eol && str_char_at(src, tp) == 59 {
+                is_mod_decl = 1;
+                prefix_len = 4;
+            };
+            if np > sp && tp < eol && str_char_at(src, tp) == 123 {
+                // Block-form `mod foo { ... }` — brace-balanced inline.
+                let body_start: i64 = tp + 1;
+                let mut depth: i64 = 1;
+                let mut q: i64 = body_start;
+                let mut in_dquote: i64 = 0;
+                let mut in_squote: i64 = 0;
+                let mut in_line_comment: i64 = 0;
+                while q < slen && depth > 0 {
+                    let ch: i64 = str_char_at(src, q);
+                    if in_line_comment == 1 {
+                        if ch == 10 { in_line_comment = 0; };
+                    } else if in_dquote == 1 {
+                        if ch == 92 && q + 1 < slen { q = q + 1; }
+                        else if ch == 34 { in_dquote = 0; };
+                    } else if in_squote == 1 {
+                        if ch == 92 && q + 1 < slen { q = q + 1; }
+                        else if ch == 39 { in_squote = 0; };
+                    } else if ch == 47 && q + 1 < slen && str_char_at(src, q + 1) == 47 {
+                        in_line_comment = 1;
+                        q = q + 1;
+                    } else if ch == 34 {
+                        in_dquote = 1;
+                    } else if ch == 39 {
+                        in_squote = 1;
+                    } else if ch == 123 {
+                        depth = depth + 1;
+                    } else if ch == 125 {
+                        depth = depth - 1;
+                    };
+                    q = q + 1;
+                };
+                if depth == 0 {
+                    let body: str = str_substring(src, body_start, q - 1);
+                    sb_append(result, "// mod ");
+                    sb_append(result, str_substring(src, sp, np));
+                    sb_append(result, " { ... } (inlined block-form)\n");
+                    sb_append(result, resolve_source_with_records(body, base_dir, imported, module_records));
+                    sb_append(result, "\n");
+                    p = q;
+                    continue;
+                };
+            };
+        };
         if prefix_len > 0 {
             let mut qp: i64 = lp + prefix_len;
             while qp < eol && str_char_at(src, qp) == 32 { qp = qp + 1; };
-            if qp < eol && str_char_at(src, qp) == 34 {
+            let mut rust_path: str = "";
+            if is_mod_decl == 1 {
+                let mut np: i64 = qp;
+                while np < eol && is_alnum(str_char_at(src, np)) == 1 { np = np + 1; };
+                if np > qp {
+                    rust_path = str_concat(str_substring(src, qp, np), ".nr");
+                };
+            };
+            if str_len(rust_path) > 0 {
+                let path: str = resolve_import_path(base_dir, rust_path);
+                let mut already: i64 = 0;
+                let mut ii: i64 = 0;
+                while ii < vec_len(imported) {
+                    if str_eq(vec_get(imported, ii), path) { already = 1; };
+                    ii = ii + 1;
+                };
+                if already == 0 {
+                    imported.push(path);
+                    let isrc: str = file_read_string(path);
+                    if str_len(isrc) > 0 {
+                        module_record_add(module_records, path, isrc);
+                        let idir: str = extract_dir(path);
+                        sb_append(result, resolve_source_with_records(isrc, idir, imported, module_records));
+                        sb_append(result, "\n");
+                    } else {
+                        sb_append(result, str_concat("// ERROR: cannot read mod path ", path));
+                        sb_append(result, "\n");
+                    };
+                };
+            } else if qp < eol && str_char_at(src, qp) == 34 {
                 let ps: i64 = qp + 1;
                 let mut pe: i64 = ps;
                 while pe < eol && str_char_at(src, pe) != 34 { pe = pe + 1; };
@@ -9199,8 +9292,9 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
                 sb_append(result, str_substring(src, p, eol));
                 sb_append(result, "\n");
             };
-        } else if line_len >= 2 && str_char_at(src, lp) == 35 {
-            // Skip # directives (#link, #cfile)
+        } else if line_len >= 2 && str_char_at(src, lp) == 35 && str_char_at(src, lp + 1) != 91 {
+            // Skip # directives (#link, #cfile). Preserve `#[...]` outer
+            // attributes so the diag-filter sees them.
             sb_append(result, "\n");
         } else {
             sb_append(result, str_substring(src, p, eol));

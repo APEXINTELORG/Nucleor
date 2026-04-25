@@ -9023,20 +9023,73 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
         if line_len >= 8 && str_eq_at(src, lp, "import ") == 1 { prefix_len = 7; };
         if prefix_len == 0 && line_len >= 5 && str_eq_at(src, lp, "use ") == 1 { prefix_len = 4; };
         // RFC-0018 phase 1: `mod foo;` desugars to `import "./foo.nr"`.
-        // Block-form `mod foo { ... }` requires a parser-level scope and
-        // ships in phase 2 with the resolver.
+        // T1.5a (v0.2.340): block-form `mod foo { ... }` is now also
+        // recognized and inlined. The contents are spliced into the
+        // outer source after stripping the `mod foo {` opener and the
+        // matching `}` (brace-balanced scan, comment- and
+        // string-literal-aware). This is the pragmatic prelude to the
+        // full namespacing resolver — `mod tests { #[test] fn ... }`
+        // patterns work today; visibility scoping arrives in T1.5b.
         if prefix_len == 0 && line_len >= 5 && str_eq_at(src, lp, "mod ") == 1 {
             let mut sp: i64 = lp + 4;
             while sp < eol && str_char_at(src, sp) == 32 { sp = sp + 1; };
             let mut np: i64 = sp;
             while np < eol && (is_alnum(str_char_at(src, np)) == 1) { np = np + 1; };
-            // Require a `;` (after optional whitespace) — block-form is
-            // skipped here so the parser sees the brace and rejects.
+            // Tail after the name: `;` → file-rooted; `{` → block-form.
             let mut tp: i64 = np;
             while tp < eol && str_char_at(src, tp) == 32 { tp = tp + 1; };
             if np > sp && tp < eol && str_char_at(src, tp) == 59 {
                 is_mod_decl = 1;
                 prefix_len = 4;
+            };
+            if np > sp && tp < eol && str_char_at(src, tp) == 123 {
+                // Block-form: scan brace-balanced past the `{`. Scanner
+                // tracks string literals (single/double quotes) and
+                // line comments so a `}` inside a string or `//` line
+                // doesn't close the module prematurely.
+                let body_start: i64 = tp + 1;
+                let mut depth: i64 = 1;
+                let mut q: i64 = body_start;
+                let mut in_dquote: i64 = 0;
+                let mut in_squote: i64 = 0;
+                let mut in_line_comment: i64 = 0;
+                while q < slen && depth > 0 {
+                    let ch: i64 = str_char_at(src, q);
+                    if in_line_comment == 1 {
+                        if ch == 10 { in_line_comment = 0; };
+                    } else if in_dquote == 1 {
+                        if ch == 92 && q + 1 < slen { q = q + 1; }
+                        else if ch == 34 { in_dquote = 0; };
+                    } else if in_squote == 1 {
+                        if ch == 92 && q + 1 < slen { q = q + 1; }
+                        else if ch == 39 { in_squote = 0; };
+                    } else if ch == 47 && q + 1 < slen && str_char_at(src, q + 1) == 47 {
+                        in_line_comment = 1;
+                        q = q + 1;
+                    } else if ch == 34 {
+                        in_dquote = 1;
+                    } else if ch == 39 {
+                        in_squote = 1;
+                    } else if ch == 123 {
+                        depth = depth + 1;
+                    } else if ch == 125 {
+                        depth = depth - 1;
+                    };
+                    q = q + 1;
+                };
+                if depth == 0 {
+                    // Splice body in place; advance the outer scanner
+                    // past the closing brace.
+                    let body: str = str_substring(src, body_start, q - 1);
+                    sb_append(result, "// mod ");
+                    sb_append(result, str_substring(src, sp, np));
+                    sb_append(result, " { ... } (inlined block-form)\n");
+                    sb_append(result, resolve_source_with_records(body, base_dir, imported, module_records));
+                    sb_append(result, "\n");
+                    p = q;
+                    continue;
+                };
+                // Unbalanced — fall through; parser will surface the error.
             };
         };
         if prefix_len > 0 {

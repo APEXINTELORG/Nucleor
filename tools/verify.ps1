@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 6
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 7
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -773,6 +773,19 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
     $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
     return $h1 -eq $h2
+}
+
+Step "T1.5a mod block-form inline" {
+    # v0.2.340 (T1.5a): the resolver inlines `mod foo { ... }` block
+    # contents alongside the existing `mod foo;` file-rooted desugaring.
+    # Brace scanner is string- and line-comment-aware. This step runs
+    # the smoke fixture via `nuc test` and asserts all three cases PASS.
+    $out = & $bin test "tests/smoke/t15a_mod_block_form.nr" 2>&1 | Out-String
+    if ($out -notmatch "PASS: test_mod_block_helper_visible_outside") { return $false }
+    if ($out -notmatch "PASS: test_mod_block_brace_in_string") { return $false }
+    if ($out -notmatch "PASS: test_mod_block_brace_in_comment_does_not_close_early") { return $false }
+    if ($out -notmatch "test result: PASS \(3 tests\)") { return $false }
+    return $true
 }
 
 Step "T1.7 bootstrap seed matches current compiler" {
