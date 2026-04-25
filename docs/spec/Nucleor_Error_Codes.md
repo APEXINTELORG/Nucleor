@@ -254,6 +254,21 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 | NUM-003 | `as` cast loses precision (warning) | [RFC-0015 §3.5](../rfcs/RFC-0015-numeric-types.md) |
 | NUM-004 | f8/f16/bf16 op without hardware support | [RFC-0015 §3.4](../rfcs/RFC-0015-numeric-types.md) |
 | NUM-005 | usize/isize mixed with explicit-width type | [RFC-0015 §3.1](../rfcs/RFC-0015-numeric-types.md) |
+| NUM-006 | Signed/unsigned arithmetic without explicit cast | RFC-0015 / v0.2.319 expansion |
+| NUM-007 | Float→int cast saturates to type bounds | RFC-0015 / v0.2.319 expansion |
+| NUM-008 | Shift amount equals or exceeds operand width (UB-prone) | RFC-0015 / v0.2.319 expansion |
+| NUM-009 | Division or remainder by literal zero | RFC-0015 / v0.2.319 expansion |
+| NUM-010 | Implicit narrowing of f64 literal to f32 may lose precision | RFC-0015 / v0.2.319 expansion |
+| NUM-011 | Overflow attribute conflicts with operation kind | RFC-0015 / v0.2.319 expansion |
+| NUM-012 | Cast from pointer to non-pointer-width integer | RFC-0015 / v0.2.319 expansion |
+| NUM-013 | Vec\<T\> requires sized element type | RFC-0015 / v0.2.319 expansion |
+| NUM-014 | sizeof_struct on unknown / generic struct | RFC-0015 / v0.2.319 expansion |
+| NUM-015 | extern fn signature uses non-ABI-stable type | RFC-0015 / v0.2.319 expansion |
+| NUM-016 | Comparison between signed and unsigned of equal width | RFC-0015 / v0.2.319 expansion |
+| NUM-017 | Bitwise op on signed type may have surprising sign-extension | RFC-0015 / v0.2.319 expansion |
+| NUM-018 | Float literal in integer context | RFC-0015 / v0.2.319 expansion |
+| NUM-019 | Negative literal assigned to unsigned type | RFC-0015 / v0.2.319 expansion |
+| NUM-020 | Mixed-width comparison without explicit cast | RFC-0015 / v0.2.319 expansion |
 
 ## MATCH series — RFC-0016 Result/Option/match
 

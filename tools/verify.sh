@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 39))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 40))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -897,6 +897,35 @@ t39_rt005_ffi_call() {
     return 0
 }
 
+t324_spec_doc_drift() {
+    # T3.24 (v0.3.42): drift gate against the docs/spec/
+    # Nucleor_Error_Codes.md Markdown table. Every code in the
+    # canonical set (verify.sh codes array) must appear as a
+    # row in the spec doc; every code in the spec doc must
+    # be in the canonical set. Catches the drift class that
+    # left NUM-006..020 missing from the spec for ~80 ships
+    # after their v0.2.319 introduction.
+    local canon spec
+    canon=$(awk '/local codes=\(/,/^    \)/' "$ROOT/tools/verify.sh" \
+            | grep -oE '"[A-Z]+-?[0-9]+"' | tr -d '"' | sort -u)
+    spec=$(grep -oE '\| (NR[0-9]+|[A-Z]+-[0-9]+) \|' "$ROOT/docs/spec/Nucleor_Error_Codes.md" \
+           | grep -oE '(NR[0-9]+|[A-Z]+-[0-9]+)' | sort -u)
+    local missing_a missing_b
+    missing_a=$(comm -23 <(echo "$canon") <(echo "$spec"))
+    missing_b=$(comm -13 <(echo "$canon") <(echo "$spec"))
+    if [ -n "$missing_a" ]; then
+        echo "       drift: codes in canonical set but missing from spec doc:" | sed 's/^/       /'
+        echo "$missing_a" | sed 's/^/         - /'
+        return 1
+    fi
+    if [ -n "$missing_b" ]; then
+        echo "       drift: codes in spec doc but missing from canonical set:" | sed 's/^/       /'
+        echo "$missing_b" | sed 's/^/         - /'
+        return 1
+    fi
+    return 0
+}
+
 t323_diag_code_drift() {
     # T3.23 (v0.3.39, extended v0.3.40): three-way drift gate
     # for the parallel canonical diagnostic code lists. The
@@ -1452,6 +1481,7 @@ step "T3.19 #[allow_fn(RT-001)] cannot demote error tier (strict)" t323_allow_fn
 step "T3.20 DIAG-001 fires for #[allow]/#[deny] unknown-prefix codes" t320_diag001_unknown_code
 step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" t321_diag001_self_suppress
 step "T3.23 diag-code drift (s1 is_known_diag_code vs smoke list)" t323_diag_code_drift
+step "T3.24 spec-doc drift (canonical codes vs Nucleor_Error_Codes.md)" t324_spec_doc_drift
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
