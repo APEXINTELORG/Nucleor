@@ -873,45 +873,52 @@ Step "T3.9 RT-005 fires on FFI call from RT fn body" {
 }
 
 Step "T3.23 diag-code drift (s1 is_known_diag_code vs smoke list)" {
-    # v0.3.39 (T3.23): drift gate for the parallel canonical
-    # diagnostic code lists (is_known_diag_code in s1 +
-    # cli_explain_full_smoke codes array). Both directions
-    # checked: a code in s1 but not smoke means the explain
-    # registry has no audit; a code in smoke but not s1 means
-    # DIAG-001 will spuriously fire on a real shipped code.
-    $s1Path    = Join-Path $root "compiler\nucleor_s1_compiler.nr"
-    $smokePath = Join-Path $root "tools\verify.ps1"
-    # Get-Content (line mode) — handles CRLF cleanly. Using -Raw +
-    # -split "\`n" leaves trailing \r on each line and breaks the
-    # `^\s*\$codes...` block-start match.
+    # v0.3.39 (T3.23, extended v0.3.40): three-way drift gate
+    # for the parallel canonical diagnostic code lists. The set
+    # lives in THREE places: is_known_diag_code in s1, the local
+    # codes=(...) array in verify.sh, the $codes = @(...) array
+    # in verify.ps1. v0.3.39 caught s1 vs same-script drift;
+    # v0.3.40 closes the cross-script gap (the original
+    # NUM-006..020 gap was sh-vs-ps1 drift, which same-script
+    # checks can't see). Asserts all three sets pairwise equal.
+    $s1Path  = Join-Path $root "compiler\nucleor_s1_compiler.nr"
+    $shPath  = Join-Path $root "tools\verify.sh"
+    $ps1Path = Join-Path $root "tools\verify.ps1"
+    function _ExtractBlock($path, $startPattern) {
+        $lines = Get-Content $path
+        $inBlock = $false
+        $body = New-Object System.Collections.ArrayList
+        foreach ($line in $lines) {
+            if ($line -match $startPattern) { $inBlock = $true; continue }
+            if ($inBlock -and $line -match '^\s*\)\s*$') { $inBlock = $false; continue }
+            if ($inBlock) { [void]$body.Add($line) }
+        }
+        $body | Select-String -AllMatches -Pattern '"([A-Z]+-?[0-9]+)"' `
+            | ForEach-Object { $_.Matches } `
+            | ForEach-Object { $_.Groups[1].Value } `
+            | Sort-Object -Unique
+    }
     $s1Codes = Get-Content $s1Path `
         | Select-String -AllMatches -Pattern 'str_eq\(code,\s*"([A-Z]+-?[0-9]+)"\)' `
         | ForEach-Object { $_.Matches } `
         | ForEach-Object { $_.Groups[1].Value } `
         | Sort-Object -Unique
-    $smokeLines = Get-Content $smokePath
-    $inBlock = $false
-    $smokeBody = New-Object System.Collections.ArrayList
-    foreach ($line in $smokeLines) {
-        if ($line -match '^\s*\$codes\s*=\s*@\(') { $inBlock = $true; continue }
-        if ($inBlock -and $line -match '^\s*\)\s*$') { $inBlock = $false; continue }
-        if ($inBlock) { [void]$smokeBody.Add($line) }
+    $shCodes  = _ExtractBlock $shPath  '^\s*local codes=\('
+    $ps1Codes = _ExtractBlock $ps1Path '^\s*\$codes\s*=\s*@\('
+    function _DriftDiff($labelA, $labelB, $setA, $setB) {
+        $missing = $setA | Where-Object { $setB -notcontains $_ }
+        if ($missing) {
+            Write-Host ("       drift: codes in {0} but missing from {1}: {2}" -f $labelA, $labelB, ($missing -join ", "))
+            return $false
+        }
+        return $true
     }
-    $smokeCodes = $smokeBody `
-        | Select-String -AllMatches -Pattern '"([A-Z]+-?[0-9]+)"' `
-        | ForEach-Object { $_.Matches } `
-        | ForEach-Object { $_.Groups[1].Value } `
-        | Sort-Object -Unique
-    $missingFromS1 = $smokeCodes | Where-Object { $s1Codes -notcontains $_ }
-    $missingFromSmoke = $s1Codes | Where-Object { $smokeCodes -notcontains $_ }
-    if ($missingFromS1) {
-        Write-Host ("       drift: codes in cli_explain_full_smoke but missing from is_known_diag_code: " + ($missingFromS1 -join ", "))
-        return $false
-    }
-    if ($missingFromSmoke) {
-        Write-Host ("       drift: codes in is_known_diag_code but missing from cli_explain_full_smoke: " + ($missingFromSmoke -join ", "))
-        return $false
-    }
+    if (-not (_DriftDiff "verify.sh"          "is_known_diag_code" $shCodes  $s1Codes))  { return $false }
+    if (-not (_DriftDiff "is_known_diag_code" "verify.sh"          $s1Codes  $shCodes))  { return $false }
+    if (-not (_DriftDiff "verify.ps1"         "is_known_diag_code" $ps1Codes $s1Codes))  { return $false }
+    if (-not (_DriftDiff "is_known_diag_code" "verify.ps1"         $s1Codes  $ps1Codes)) { return $false }
+    if (-not (_DriftDiff "verify.sh"          "verify.ps1"         $shCodes  $ps1Codes)) { return $false }
+    if (-not (_DriftDiff "verify.ps1"         "verify.sh"          $ps1Codes $shCodes))  { return $false }
     return $true
 }
 
