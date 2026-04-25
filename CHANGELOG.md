@@ -5,6 +5,79 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.97] — 2026-04-25
+
+**Diagnostic: bitwise operators (`&`, `|`, `^`) — silent
+miscompute eliminated.** Pre-v0.3.97, writing `let c: i64 = a & b;`
+silently parsed the RHS as just `a` (the `& b` was treated as a
+separate borrow expression-statement after), producing wrong
+values with no diagnostic. Same for `|` and `^`. Programs using
+bitwise ops silently mis-computed.
+
+### Root cause
+
+The `&`, `|`, `^` tokens are not in any precedence tier of
+the binop chain (mul → add → cmp → eq → and(`&&`) → or(`||`) →
+pipe(`|>`)). `&` is tokenized as borrow (kind 82), `|` as
+closure-pipe (kind 65), `^` isn't even tokenized.
+
+When parse_expr encounters `a & b` in a let-RHS:
+1. `a` parses as ident
+2. `&` is not in any binop tier → parse_expr returns just `a`
+3. The let stmt accepts `a` as the RHS
+4. The leftover `& b;` is parsed as a separate borrow
+   expression-statement (no observable effect)
+
+Net: `let c: i64 = a;` silently. The user thought they got
+bitwise AND.
+
+### Fix (diagnostic)
+
+In parse_let, after parse_expr returns, check if the next token
+is `&` (82), `|` (65), or `^` (94). If so, emit:
+
+```
+ERROR: bitwise operator `&` is not yet supported in expressions.
+Pre-v0.3.97, the parser silently dropped the RHS after the bitwise
+op (parsed only the LHS), producing wrong values. Workaround: use
+the bare-fn helpers `bit_and(a, b)` / `bit_or(a, b)` /
+`bit_xor(a, b)` (when wired) or do the ops via separate steps with
+explicit shifts. Tracked for a future ship — bitwise op precedence
+tiers needed in the binop chain.
+```
+
+Real bitwise op support requires:
+- Lexer disambiguation (`&` as bitwise vs borrow based on context)
+- New `^` token for XOR
+- New precedence tiers (between cmp and eq per Rust grammar)
+- Codegen to LLVM `and`/`or`/`xor` instructions
+
+That's multi-cycle. For v0.3.97 the diagnostic is the
+production-readiness ship.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `parse_let` gains
+  bitwise-op detection after RHS. Bootstrap fixed point at
+  SHA `d83ef371` (was `d525ffd1`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t373_bitwise_op_diagnostic.nr` — new negative
+  regression fixture.
+- `tools/verify.{sh,ps1}` — new T3.73 verify step.
+
+### Verify gate
+
+- 451/451 green (was 450 + 1 step from T3.73).
+- All prior regression fixtures (T3.28-T3.72) still green.
+- Bootstrap fixed point closes at `d83ef371`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.97)
+
+- **32 codegen + 2 runtime + 10 parser/check diagnostic = 44 total**
+- **46 strict regression fixtures** (T3.28-T3.73)
+- **6 robotics RT showcase examples** in Tier 4
+
 ## [0.3.96] — 2026-04-25
 
 **Diagnostic: closures cannot mutate captured variables (FnMut
