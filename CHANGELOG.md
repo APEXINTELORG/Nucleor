@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.21] — 2026-04-25
+
+**T3.13 per-fn `#[deny_fn(CODE)]` attribute.** Sibling of
+v0.3.20's `#[allow_fn]`. Promotes one warning-tier diagnostic
+to error for the next fn declaration only — handy when one
+critical fn must hold a stricter contract than the rest of the
+file (e.g. the inner motor-control loop must not even *warn*
+on RT-007 but the surrounding orchestration code is fine to).
+
+```nucleor
+#[deadline = 1000]
+fn loose_step(x: i64) -> i64 { return x + 1; }
+//          ^ RT-007 fires here as a warning (build still
+//            succeeds — informational)
+
+#[deadline = 1000]
+#[deny_fn(RT-007)]
+fn critical_step(x: i64) -> i64 { return x + 1; }
+//          ^ RT-007 promoted to error for *this* fn — build
+//            fails until the user adds #[no_alloc] or
+//            #[no_panic] (or, if the constraint is genuinely
+//            spurious, an explicit #[allow_fn(RT-007)])
+```
+
+### Approach
+
+`collect_deny_fn_pairs` mirrors `collect_allow_fn_pairs` from
+v0.3.20: scan for `#[deny_fn(CODE)]` lines (string- and
+comment-aware), pair each with the next `fn NAME(`
+declaration, return alternating `[fn_name, code, ...]`.
+
+`promote_denied_to_errors` now checks the per-fn pairs in
+addition to the existing file-wide `#[deny]` list. A warning
+is promoted if either: `(diag.code in denied)` OR
+`(diag.fn_name, diag.code) in deny_fn_pairs`.
+
+The two-attribute pair `#[allow_fn]` / `#[deny_fn]` gives
+authors precise per-fn control over the warning tier without
+the "all-or-nothing" of file-wide directives. Errors stay
+non-suppressible by design.
+
+### Verify gate
+
+- New: `tests/err/err_t321_deny_fn.nr` — `#[deadline]` fn with
+  `#[deny_fn(RT-007)]` carrier. The negative-fixture sweep
+  auto-runs it; promote-to-error makes the build fail with a
+  diagnostic line (which is exactly the negative-test contract).
+- Self-host bootstrap fixed-point holds at 3BCDF7AE (stage-3
+  IR == stage-4 IR). Bootstrap RSS peak 229 MB.
+
 ## [0.3.20] — 2026-04-25
 
 **T3.12 per-fn `#[allow_fn(CODE)]` attribute.** The narrower
