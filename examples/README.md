@@ -65,6 +65,7 @@ together on a single tight inner loop.
 | # | File | Topic | RT attrs exercised |
 |---|---|---|---|
 | 19 | [19_rt_pid.nr](19_rt_pid.nr) | RT-annotated PID control step | `#[no_alloc]`, `#[no_panic]`, `#[no_dyn]`, `#[deadline = N]` (RFC-0001 full stack) |
+| 20 | [20_rt_motor_ffi.nr](20_rt_motor_ffi.nr) | RT motor-control kernel calling marker-tagged extern fns | RFC-0001 full stack + `#[ffi_no_alloc]` / `#[ffi_no_panic]` per-extern markers (v0.3.24, intersection rule v0.3.26) |
 
 ### Showcase
 

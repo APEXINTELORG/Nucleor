@@ -5,6 +5,76 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.48] — 2026-04-25
+
+**`examples/20_rt_motor_ffi.nr` — runnable demo of the
+v0.3.24 `#[ffi_no_alloc]` / `#[ffi_no_panic]` markers.** The
+markers were documented in cookbook §5 of the robotics guide
+(v0.3.25) and exercised by the verify gate fixture
+`tests/fixtures/t324_ffi_no_alloc.nr`. Neither lived under
+`examples/`, so a user reading the guide had no end-to-end
+working example file to read or run. v0.3.48 closes that gap
+with a realistic motor-control kernel.
+
+### What's in the ship
+
+**`examples/20_rt_motor_ffi.nr`** — full L1 RT stack
+(`#[no_alloc]` + `#[no_panic]` + `#[no_dyn]` + `#[deadline]`)
+on a `motor_step` kernel that calls three extern fns to a
+C-side motor driver. Each extern is annotated with both
+`#[ffi_no_alloc]` and `#[ffi_no_panic]` — the v0.3.26
+intersection rule for `#[deadline]` callers requires both
+markers per extern. With the markers in place, the kernel
+compiles cleanly with no RT-005 warnings; remove either
+marker and RT-005 fires for that extern.
+
+**`stdlib/runtime/example_motor_rt.c`** — C-side stub for the
+three extern symbols (`host_motor_read_encoder`,
+`host_motor_write_torque`, `host_get_clock_us`). Models the
+motor as a pure integrator. Production code would memory-map
+the actual peripheral registers; the API shape is the same.
+Linked into the example via the `#cfile` directive at the top
+of the `.nr` source.
+
+**`tools/examples.list`** — added `20_rt_motor_ffi` under the
+Tier 4 robotics RT showcase header. The v0.3.43 T3.25
+drift gate enforces this list against the `examples/` dir, so
+forgetting to enumerate would have failed the verify gate.
+
+**`examples/README.md`** — added a row in the Tier 4 table
+linking to the new example with the RT-attrs-exercised column
+calling out the FFI markers and the intersection rule.
+
+### Verify gate
+
+- 400/400 green (was 399 + 1 new step from the example
+  sweep). The example sweep auto-picks up `20_rt_motor_ffi`
+  from `examples.list`; T3.25 confirms list ⇄ dir sync; the
+  example builds, links against the C stub, and runs to exit
+  0 with bounded output.
+- The kernel's `#[deadline = 200]` static WCET estimator
+  scores `motor_step` at 1 unit (no whiles → ×1 multiplier),
+  well under the 200 µs budget — no spurious RT-004.
+- All three extern declarations carry both `#[ffi_no_alloc]`
+  and `#[ffi_no_panic]`, so the RT-005 intersection rule
+  considers them safe for `#[deadline]` callers — no spurious
+  RT-005 either.
+- Bootstrap fixed point unchanged at SHA `4cd2d428` (no
+  compiler change — example + C stub + manifest only).
+
+### Why this matters
+
+The robotics guide cookbook §5 is the canonical user-facing
+documentation for the FFI markers. Pre-v0.3.48 it linked
+only to a verify-gate fixture (designed for diagnostic
+scraping, not user reading). v0.3.48 gives users a runnable,
+realistic example file in the same `examples/` tier as the
+v0.3.0 PID demo. The lineage is visible: 19 shows the L1
+stack on pure-Nucleor code; 20 shows the L1 stack PLUS FFI
+markers on code that calls into a C driver — the realistic
+shape for production robotics code talking to peripheral
+hardware.
+
 ## [0.3.47] — 2026-04-25
 
 **T3.21 strict assertion: build exit code + error-tier
