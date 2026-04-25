@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 17
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 18
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -773,6 +773,22 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
     $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
     return $h1 -eq $h2
+}
+
+Step "T2.5 lifetime parameters parse cleanly (advisory metadata)" {
+    # v0.2.351 (T2.5): lifetime tokens 'a, 'static etc. lex as kind 98
+    # and parse as: (a) generic params alongside type params, (b) skip
+    # tokens after & in reference types, (c) skip tokens in generic
+    # instantiations. No semantic enforcement — annotations are
+    # advisory until T2.5b. 4 #[test] cases cover baseline + single +
+    # two lifetimes + mixed lifetime/type params.
+    $out = & $bin test "tests/smoke/t25_lifetime_params.nr" 2>&1 | Out-String
+    if ($out -notmatch "PASS: test_no_lifetime_baseline") { return $false }
+    if ($out -notmatch "PASS: test_single_lifetime") { return $false }
+    if ($out -notmatch "PASS: test_two_lifetimes") { return $false }
+    if ($out -notmatch "PASS: test_mixed_lifetime_and_type_param") { return $false }
+    if ($out -notmatch "test result: PASS \(4 tests\)") { return $false }
+    return $true
 }
 
 Step "T2.4 trait objects (Box<dyn Trait> 2-cell handle helpers)" {

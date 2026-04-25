@@ -5,6 +5,105 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.351] — 2026-04-24
+
+**T2.5 lifetime parameters (parse-only) — `'a` annotations
+recognized in generic param lists, reference types, and
+generic type instantiations.** Closes the syntactic gap
+that prevented Nucleor source from accepting Rust-style
+lifetime annotations. Annotations are advisory metadata;
+real lifetime-parameter checking lands in T2.5b once the
+borrow checker tracks named scopes (today's checker uses
+dynamic lexical depth via `own_set_scope`).
+
+### Lex change
+
+`'<ident>` (apostrophe + identifier) lexes as a new
+**lifetime token** (kind 98). Token value holds the
+lifetime name (without the leading `'`). Nucleor doesn't
+have char literals as a lex primitive — chars use `u8`/`u32`
+via int literals — so the apostrophe is unambiguously a
+lifetime marker.
+
+### Parse changes
+
+- `parse_generic_params` accepts lifetime tokens alongside
+  type-name tokens. Stored as `'<name>` strings so future
+  T2.5b consumers can distinguish them from type params.
+- `parse_type` (`&` branch) skips an optional lifetime
+  token after `&` and before `mut`. So `&'a T`, `&'a mut T`
+  parse the same as `&T`, `&mut T` for codegen purposes.
+- `parse_type` (generic instantiation branch) accepts and
+  skips lifetime args. `Vec<'a, T>` parses as `Vec<T>`.
+
+### T2.5 smoke
+
+`tests/smoke/t25_lifetime_params.nr` — 4 `#[test]` cases:
+- `test_no_lifetime_baseline` — fns without lifetime annotations
+  unchanged
+- `test_single_lifetime` — `fn foo<'a>(x: i64) -> i64`
+- `test_two_lifetimes` — `fn foo<'a, 'b>(x: i64, y: i64) -> i64`
+- `test_mixed_lifetime_and_type_param` — `fn foo<'a, T>(x: i64)`
+
+Manual end-to-end at `/tmp/t25_lt.nr`:
+```nucleor
+fn longest<'a>(a: &'a str, b: &'a str) -> &'a str { return a; }
+struct Holder<'a, T> { data: &'a T }
+fn main() -> i64 { let r: str = longest("hello", "world"); println!("{:s}", r); return 0; }
+```
+Compiles + prints `hello`.
+
+### Verify gate
+
+Windows: 360/360 PASS. Bootstrap fixpoint refreshed
+(seed sha256 `bc004126...`).
+
+### Numerics-compatibility
+
+Lifetime tokens carry a `str` value (the name). All token
+inspection sites that don't recognize kind 98 ignore them
+(default case `else { p = p + 1 }` in the lexer; the parser
+extension points listed above explicitly skip kind 98).
+No new arithmetic surface.
+
+### Memory safety
+
+Annotations are inert metadata — they don't affect codegen,
+borrow checking, or runtime layout. The existing borrow
+checker (OWN-001 ... OWN-013, dynamic-scope-based) continues
+to enforce ownership. Real lifetime-parameter inference
+arrives with T2.5b's named-scope checker.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — kind-98 lex rule,
+  parse_type lifetime-skip in `&` branch + generic-arg
+  branch, parse_generic_params lifetime acceptance.
+- `compiler/nucleor_tools_suite.nr` — synced.
+- `tests/smoke/t25_lifetime_params.nr` — 4-case smoke.
+- `tools/verify.ps1`, `tools/verify.sh` — new T2.5 step.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (418 fns,
+  813 optimized instructions; new sha256 bc004126...).
+- `bin/nucleor.exe` — rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Known limitations / T2.5b–c roadmap
+
+- **Annotations are advisory.** Today there's no check that
+  `&'a T` references actually live for `'a`. T2.5b adds
+  named-scope tracking and a pass that reports errors when
+  annotations don't match the actual lifetime relationships.
+- **No `'static` recognition as special.** It's just another
+  lifetime name. T2.5b adds the global-scope shortcut.
+- **No higher-ranked trait bounds (`for<'a>`)** — T2.5c.
+- **No lifetime elision rules** beyond the baseline (today
+  `fn foo(x: &T) -> &T` works because the `&` doesn't require
+  a lifetime). T2.5b adds Rust's three elision rules.
+
+### Next
+
+T2.7 — `nuc doc` HTML generator per the locked priority.
+
 ## [0.2.350] — 2026-04-24
 
 **T2.4 trait objects (a) — `Box<dyn Trait>` 2-cell handle
