@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 27))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 28))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -800,6 +800,18 @@ t36_no_dyn_clean() {
     grep -q "test result: PASS (2 tests)" /tmp/_nuc_step.log || return 1
 }
 
+t39_rt005_ffi_call() {
+    # T3.9 (v0.3.8): RT-005 — extern fn call from inside an
+    # RT-marked fn body warns. v1 is text-scan: every literal
+    # `<extern_name>(` substring in the stripped body fires.
+    # Until #[ffi_no_*] annotations land, every FFI call is
+    # treated as RT-unsafe.
+    "$BIN" build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" >/tmp/_nuc_step.log 2>&1
+    grep -qE "warning\[RT-005\]: FFI call 'host_telemetry'" /tmp/_nuc_step.log || return 1
+    grep -q "from #\[no_alloc\] fn 'rt_path'" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t38_rt006_async_attr() {
     # T3.8 (v0.3.7): #[no_alloc] / #[no_panic] / #[no_dyn] /
     # #[deadline] on an `async fn` is rejected with RT-006
@@ -1208,6 +1220,7 @@ step "T3.4 #[export] surfaces in nuc gen-headers" t34_export_decls
 step "T3.6 #[no_dyn] passes when body has no dynamic dispatch" t36_no_dyn_clean
 step "T3.7 RT body checks strip strings and line comments" t37_rt_string_skip
 step "T3.8 RT-006 fires on RT attr + async fn" t38_rt006_async_attr
+step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches

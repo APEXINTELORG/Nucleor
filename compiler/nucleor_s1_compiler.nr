@@ -5672,6 +5672,136 @@ fn enforce_no_dyn(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+// === T3.9 (v0.3.8): RT-005 — FFI call in RT-marked fn ===
+// `extern fn` declarations are unknown to the compiler and may
+// allocate, panic, take indeterminate time, or do IO. Calling
+// one from inside a #[no_alloc] / #[no_panic] / #[deadline] fn
+// breaks every RT contract. Until ffi annotations like
+// #[ffi_no_alloc] ship (deferred to v0.4), every extern fn call
+// from an RT body fires `warning[RT-005]`. Suppressible via
+// `#[allow(RT-005)]`.
+
+fn collect_extern_fn_names(source: str) -> Vec<i32> {
+    let mut names: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "extern fn ";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut q: i64 = p + plen;
+            let nm_start: i64 = q;
+            while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
+            if q > nm_start {
+                let nm: str = str_substring(source, nm_start, q);
+                let mut already: i64 = 0;
+                let mut j: i64 = 0;
+                while j < vec_len(names) && already == 0 {
+                    if str_eq(vec_get(names, j), nm) == 1 { already = 1; };
+                    j = j + 1;
+                };
+                if already == 0 { names.push(nm); };
+            };
+            p = q;
+        } else {
+            p = p + 1;
+        };
+    };
+    return names;
+}
+
+fn check_no_ffi_violations(diags: Vec<i32>, source: str, fn_name: str, externs: Vec<i32>, attr_label: str) {
+    if vec_len(externs) == 0 { return; };
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < nlen {
+            if str_char_at(source, p + k) != str_char_at(needle, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut q: i64 = p + nlen;
+            while q < slen && str_char_at(source, q) != 123 { q = q + 1; };
+            if q < slen {
+                let body_start: i64 = q + 1;
+                let mut depth: i64 = 1;
+                q = q + 1;
+                while q < slen && depth > 0 {
+                    let c: i64 = str_char_at(source, q);
+                    if c == 123 { depth = depth + 1; };
+                    if c == 125 { depth = depth - 1; };
+                    q = q + 1;
+                };
+                let body_raw: str = str_substring(source, body_start, q - 1);
+                let body: str = strip_strings_and_line_comments(body_raw);
+                let mut ei: i64 = 0;
+                let en: i64 = vec_len(externs);
+                while ei < en {
+                    let ext_name: str = vec_get(externs, ei);
+                    let pat: str = str_concat(ext_name, "(");
+                    if str_contains(body, pat) == 1 {
+                        let msg: str = str_concat("FFI call '", str_concat(ext_name, str_concat("' from ", str_concat(attr_label, str_concat(" fn '", str_concat(fn_name, "' -- extern fns may allocate, panic, or block (use #[allow(RT-005)] until #[ffi_no_*] ships)"))))));
+                        diag_add_ex(diags, "warning", "rt", "RT-005", msg, fn_name, 0, 0, "");
+                    };
+                    ei = ei + 1;
+                };
+            };
+            return;
+        };
+        p = p + 1;
+    };
+}
+
+fn enforce_rt005_ffi(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let externs: Vec<i32> = collect_extern_fn_names(source);
+    if vec_len(externs) == 0 { return diags; };
+    let no_alloc_fns: Vec<i32> = collect_no_alloc_fns(source);
+    let mut i: i64 = 0;
+    while i < vec_len(no_alloc_fns) {
+        check_no_ffi_violations(diags, source, vec_get(no_alloc_fns, i), externs, "#[no_alloc]");
+        i = i + 1;
+    };
+    let no_panic_fns: Vec<i32> = collect_no_panic_fns(source);
+    i = 0;
+    while i < vec_len(no_panic_fns) {
+        check_no_ffi_violations(diags, source, vec_get(no_panic_fns, i), externs, "#[no_panic]");
+        i = i + 1;
+    };
+    // Deadline fns live as the wcet inner pair after T3.1 expansion.
+    let dl_entries: Vec<i32> = wcet_collect_deadline_fns(source);
+    let n: i64 = vec_len(dl_entries);
+    let mut k: i64 = 0;
+    while k + 1 < n {
+        check_no_ffi_violations(diags, source, vec_get(dl_entries, k), externs, "#[deadline]");
+        k = k + 2;
+    };
+    return diags;
+}
+
 // === T3.8 (v0.3.7): RT-006 — RT attribute on async fn ===
 // expand_async_strip_keyword (in the resolver-level expanders)
 // drops the `async` keyword for good. To still detect "an RT
@@ -10202,6 +10332,12 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // the only way to detect this after the async keyword itself
     // has been stripped from the resolved source.
     diags = enforce_rt006_async(diags, source);
+    // T3.9 (v0.3.8): RT-005 — extern fn calls from RT-marked
+    // bodies break the RT contract because nothing is known about
+    // the extern's allocation, panic, or timing behaviour. v1
+    // warns; users suppress per-fn via #[allow(RT-005)] until the
+    // #[ffi_no_*] annotation family ships in v0.4.
+    diags = enforce_rt005_ffi(diags, source);
     // T3.3 (v0.3.2): static WCET estimator for #[deadline = N] fns.
     // Emits warning[RT-004] when the v1 estimate exceeds the budget.
     diags = enforce_static_wcet(diags, source);
