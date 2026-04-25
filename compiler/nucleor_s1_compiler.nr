@@ -4504,6 +4504,31 @@ fn trait_impl_find(impls: Vec<i32>, type_name: str, method_name: str) -> str {
     return "";
 }
 
+fn iter_method_for_vec(mname: str) -> i64 {
+    // T2.2 (v0.2.348): method names that map to the typed
+    // `vec_<name>_i64` runtime helpers in
+    // stdlib/runtime/nucleor_llvm_rt.c. Used by lower_expr's
+    // method-dispatch path so `v.map(f)` lowers to
+    // `vec_map_i64(v, f)` instead of the unwired `vec_map`.
+    // Anything not in this set falls through to the existing
+    // `vec_<method>` convention — preserves backward compat with
+    // current `.push`, `.pop`, `.len`, `.get`, `.set`, etc.
+    if str_eq(mname, "map") == 1 { return 1; };
+    if str_eq(mname, "filter") == 1 { return 1; };
+    if str_eq(mname, "fold") == 1 { return 1; };
+    if str_eq(mname, "each") == 1 { return 1; };
+    if str_eq(mname, "sum") == 1 { return 1; };
+    if str_eq(mname, "min") == 1 { return 1; };
+    if str_eq(mname, "max") == 1 { return 1; };
+    if str_eq(mname, "contains") == 1 { return 1; };
+    if str_eq(mname, "index_of") == 1 { return 1; };
+    if str_eq(mname, "reverse") == 1 { return 1; };
+    if str_eq(mname, "sort") == 1 { return 1; };
+    if str_eq(mname, "clone") == 1 { return 1; };
+    if str_eq(mname, "clear") == 1 { return 1; };
+    return 0;
+}
+
 fn tensor_builtin_method_name(mname: str) -> str {
     if str_eq(mname, "rows") == 1 { return str_concat("__nucleor_tensor_", mname); };
     if str_eq(mname, "cols") == 1 { return str_concat("__nucleor_tensor_", mname); };
@@ -7772,7 +7797,19 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             if str_eq(type_base_name(stype), "Tensor") == 1 {
                 fn_name = tensor_builtin_method_name(mname);
             };
-            if str_len(fn_name) == 0 { fn_name = str_concat("vec_", mname); };
+            if str_len(fn_name) == 0 {
+                // T2.2 (v0.2.348): iterator method dispatch on Vec.
+                // `v.map(f)` / `v.filter(p)` / `v.fold(init, f)` etc.
+                // route to the typed `vec_*_i64` runtime helpers
+                // already wired up in stdlib/runtime/nucleor_llvm_rt.c.
+                // Anything else falls through to the existing
+                // `vec_<method>` convention.
+                if iter_method_for_vec(mname) == 1 {
+                    fn_name = str_concat("vec_", str_concat(mname, "_i64"));
+                } else {
+                    fn_name = str_concat("vec_", mname);
+                };
+            };
         };
         let r: i64 = ctr_next(regs);
         ir_block_add(cur, ir_call_ex(r, fn_name, all_args));
