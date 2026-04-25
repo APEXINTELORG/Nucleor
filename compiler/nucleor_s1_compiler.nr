@@ -2157,6 +2157,11 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "format3_fff") { return "__nucleor_format3_fff"; };
     if str_eq(name, "format_f64") { return "__nucleor_format_f64"; };
     // RFC-0024 phase 1: Vec<i64> functional helpers (function-pointer args)
+    // T2.4 (v0.2.350): trait object 2-cell handle helpers.
+    if str_eq(name, "dyn_box_make") { return "__nucleor_dyn_box_make"; };
+    if str_eq(name, "dyn_box_type") { return "__nucleor_dyn_box_type"; };
+    if str_eq(name, "dyn_box_data") { return "__nucleor_dyn_box_data"; };
+    if str_eq(name, "dyn_box_free") { return "__nucleor_dyn_box_free"; };
     if str_eq(name, "vec_map_i64") { return "__nucleor_vec_map_i64"; };
     if str_eq(name, "vec_filter_i64") { return "__nucleor_vec_filter_i64"; };
     if str_eq(name, "vec_fold_i64") { return "__nucleor_vec_fold_i64"; };
@@ -2918,6 +2923,10 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "format3_sii") { return 1; };
     if str_eq(name, "format3_iss") { return 1; };
     if str_eq(name, "format3_sss") { return 1; };
+    if str_eq(name, "dyn_box_make") { return 1; };
+    if str_eq(name, "dyn_box_type") { return 1; };
+    if str_eq(name, "dyn_box_data") { return 1; };
+    if str_eq(name, "dyn_box_free") { return 1; };
     if str_eq(name, "vec_map_i64") { return 1; };
     if str_eq(name, "vec_filter_i64") { return 1; };
     if str_eq(name, "vec_reverse_i64") { return 1; };
@@ -3521,6 +3530,10 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_format2_if(ptr, i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_format3_fff(ptr, i64, i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_format_f64(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_dyn_box_make(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_dyn_box_type(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_dyn_box_data(i64)\n");
+    sb_append(sb, "declare void @__nucleor_dyn_box_free(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_map_i64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_filter_i64(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_fold_i64(ptr, i64, i64)\n");

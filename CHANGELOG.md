@@ -5,6 +5,173 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.350] — 2026-04-24
+
+**T2.4 trait objects (a) — `Box<dyn Trait>` 2-cell handle
+runtime helpers + manual dispatch pattern.** Ships the
+runtime primitives that make `Box<dyn Trait>` representable
+as an i64 handle to a 2-cell allocation `[type_id, data_ptr]`.
+Compiler-generated auto-dispatch sugar (`box.method(args)`
+emitting a per-trait switch on type_id) lands in T2.4b once
+the trait/impl registry walking pass is wired into the
+resolver. Today users build the dispatcher manually using
+the four new builtins.
+
+### New runtime helpers
+
+```c
+long long __nucleor_dyn_box_make(long long type_id, long long data);
+long long __nucleor_dyn_box_type(long long box);
+long long __nucleor_dyn_box_data(long long box);
+void      __nucleor_dyn_box_free(long long box);
+```
+
+A box is a `malloc`'d 2-element `long long[]`:
+- `box[0]` = caller-supplied type tag (any i64; convention: a
+  per-impl unique id assigned at struct-decl scope)
+- `box[1]` = data pointer or value (any i64)
+
+The 2-cell layout is intentionally minimal — no vtable
+indirection, no fat-pointer ABI. T2.4b's compiler-generated
+dispatch fns will do the per-trait switch at the call site.
+
+### Compiler-side wiring
+
+Four new builtin entries synced across both compilers:
+- `dyn_box_make` → `__nucleor_dyn_box_make`
+- `dyn_box_type` → `__nucleor_dyn_box_type`
+- `dyn_box_data` → `__nucleor_dyn_box_data`
+- `dyn_box_free` → `__nucleor_dyn_box_free`
+
+Each entry touches three places per compiler:
+1. `nuc_builtin_to_extern` (name → symbol mapping)
+2. `is_known_builtin` (lex-time recognition)
+3. LLVM `declare` emission (`declare i64 @__nucleor_dyn_box_make(i64, i64)`)
+
+Plus `docs/rfcs/helper_manifest.toml` regenerated to capture
+the new ToolingMeta entries — caught by the drift checker
+after the first verify run.
+
+### Manual dispatch pattern (today)
+
+```nucleor
+fn type_id_circle() -> i64 { return 1; }
+fn type_id_square() -> i64 { return 2; }
+
+fn impl_circle_area(data: i64) -> i64 { /* ... */ }
+fn impl_square_area(data: i64) -> i64 { /* ... */ }
+
+fn dispatch_shape_area(box: i64) -> i64 {
+    let tid: i64 = dyn_box_type(box);
+    let data: i64 = dyn_box_data(box);
+    if tid == 1 { return impl_circle_area(data); };
+    if tid == 2 { return impl_square_area(data); };
+    return 0;
+}
+
+fn main() -> i64 {
+    let c: i64 = dyn_box_make(type_id_circle(), 5);
+    let q: i64 = dyn_box_make(type_id_square(), 4);
+    println!("{} {}", dispatch_shape_area(c), dispatch_shape_area(q));
+    dyn_box_free(c);
+    dyn_box_free(q);
+    return 0;
+}
+```
+
+T2.4b will auto-generate `dispatch_shape_area` at resolver
+time by walking `trait Shape` + every `impl Shape for X`
+declaration in the merged source.
+
+### Bug class noticed (third occurrence)
+
+The first draft of `tests/smoke/t24_trait_objects.nr` ended
+each test with `dyn_box_free(box);` (returns void). Test fns
+without an explicit `return 0` implicitly return their last
+expression's value, so the void/undef from `dyn_box_free`
+was non-zero, causing the harness to flag the tests as FAIL
+even though every `assert_eq` had succeeded. Fix: read the
+test values into locals BEFORE calling free, end the test
+with the final `assert_eq`. Same pattern applies to any
+test that needs cleanup with a void-returning call. Possibly
+worth adding a checker rule (T2.4 follow-up: warn if a
+`#[test]` fn's last statement returns void).
+
+### T2.4 smoke
+
+`tests/smoke/t24_trait_objects.nr` — 5 `#[test]` cases:
+- `test_dyn_box_make_type_data` — round-trip type_id + data
+- `test_dyn_box_dispatch_a` — dispatch fires impl A
+- `test_dyn_box_dispatch_b` — dispatch fires impl B
+- `test_dyn_box_polymorphic_collection` — `Vec<i32>` of mixed-type
+  boxes with sum-via-dispatch (the canonical trait-object use case)
+- `test_dyn_box_unknown_tag_returns_default` — defensive fallback
+
+Manual end-to-end: `/tmp/t24_dyn.nr` Shape demo with Circle +
+Square impls produces `circle.area = 75 / square.area = 16`.
+
+### Verify gate
+
+Windows: 359/359 PASS. Bootstrap fixpoint refreshed
+(seed sha256 `6a86dcf5...`). Helper manifest regenerated.
+
+### Numerics-compatibility
+
+All four helpers are `(i64) -> i64` or `(i64, i64) -> i64` —
+matches the locked i64-everywhere FFI convention. The 2-cell
+allocation stores raw i64 values (no boxing of narrow types
+needed because the storage cell is always i64).
+
+### Memory safety
+
+`dyn_box_make` allocates 16 bytes via malloc; ownership
+transfers to the caller. `dyn_box_free` releases the
+wrapper but NOT the data pointer (the caller owns the data
+separately). The 2-cell handle is treated as opaque by
+Nucleor's borrow checker (i64 = Copy), so ownership tracking
+is the user's responsibility — same model as the existing
+HashMap / arena handles. T2.4c will add a `dyn_box` newtype
+that the borrow checker tracks like a regular Box.
+
+### Files
+
+- `stdlib/runtime/nucleor_llvm_rt.c` — four new dyn_box_*
+  helpers (~25 LOC) before the Vec<i64> functional helpers
+  block.
+- `compiler/nucleor_s1_compiler.nr` — three table entries
+  per builtin (name→extern, is_known, IR declare).
+- `compiler/nucleor_tools_suite.nr` — synced.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+- `tests/smoke/t24_trait_objects.nr` — 5-case smoke
+  including polymorphic collection.
+- `tools/verify.ps1`, `tools/verify.sh` — new T2.4 step.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (418 fns,
+  812 optimized instructions; new sha256 6a86dcf5...).
+- `bin/nucleor.exe` — rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Known limitations / T2.4b–c roadmap
+
+- **No syntactic sugar yet.** `Box::new(MyStruct{...}) as
+  Box<dyn Trait>` doesn't parse; users call `dyn_box_make`
+  with a type_id constant and a data pointer manually. T2.4b
+  parses the dyn-trait syntax + auto-generates dispatch fns.
+- **No vtable**, just a tag-switch dispatch. Adding traits
+  with many methods or many impls means a long if-cascade.
+  T2.4d will swap in vtables once the runtime gets fat-pointer
+  support.
+- **Borrow checker treats box as i64.** No automatic free
+  on scope exit. T2.4c adds a wrapper newtype with Drop
+  semantics.
+- **No object safety check.** Nothing today prevents
+  declaring a trait with `Self`-returning methods and then
+  using it as a trait object. T2.4e adds the standard
+  object-safety rules per Rust convention.
+
+### Next
+
+T2.5 — lifetime parameters per the locked priority order.
+
 ## [0.2.349] — 2026-04-24
 
 **T2.3 closure literals (no-capture) in call-argument position

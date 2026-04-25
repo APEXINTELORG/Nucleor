@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 735
-# Of which REVIEW REQUIRED: 19
+# Total helpers: 739
+# Of which REVIEW REQUIRED: 23
 
 # ============================================================
 # REVIEW REQUIRED
@@ -22,6 +22,10 @@
 # Each row is still emitted below with `stability = "experimental"`
 # or `class = "Unclassified"` so callers can find them.
 #
+#   dyn_box_data                             (Unclassified)
+#   dyn_box_free                             (Unclassified)
+#   dyn_box_make                             (Unclassified)
+#   dyn_box_type                             (Unclassified)
 #   sizeof_bf16                              (Unclassified)
 #   sizeof_bool                              (Unclassified)
 #   sizeof_char                              (Unclassified)
@@ -8732,6 +8736,62 @@ notes            = "intentional v0.4 placeholder; declared in IR for forward com
 
 
 # ----- class: Unclassified -----
+
+[[helper]]
+name             = "dyn_box_data"
+class            = "Unclassified"
+symbol           = "__nucleor_dyn_box_data"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "dyn_box_free"
+class            = "Unclassified"
+symbol           = "__nucleor_dyn_box_free"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> void"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "dyn_box_make"
+class            = "Unclassified"
+symbol           = "__nucleor_dyn_box_make"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "dyn_box_type"
+class            = "Unclassified"
+symbol           = "__nucleor_dyn_box_type"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
 
 [[helper]]
 name             = "sizeof_bf16"
