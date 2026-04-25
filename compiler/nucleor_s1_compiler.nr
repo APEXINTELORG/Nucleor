@@ -603,6 +603,32 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             if pk(tokens, cp2 + 2) == 50 {
                 let mut ar: Vec<i32> = parse_args(tokens, cp2 + 3, pool);
                 return pr(pr_pos(ar), mk4(pool, 12, name, qname, pr_val(ar)));
+            } else if pk(tokens, cp2 + 2) == 52 && (pk(tokens, cp2 + 3) == 53 || (pk(tokens, cp2 + 3) == 1 && pk(tokens, cp2 + 4) == 42)) {
+                // v0.3.87: struct-like enum variant constructor
+                // `EnumName::Variant { field: val, ... }`. Parse the
+                // named fields and produce a kind-12 with values in
+                // SOURCE order (field names are discarded).
+                //
+                // v0.3.88: disambiguation guard. Only fire if what's
+                // inside the `{` looks like a field-init list (empty
+                // `}` or IDENT followed by `:`). Without this, the
+                // branch incorrectly captured the match body in
+                // `match Stream::Done { Stream::More(v) => ... }`
+                // because the SCRUTINEE position has `IDENT::IDENT {`
+                // followed by patterns, not field initializers.
+                let mut cp3: i64 = cp2 + 3;
+                let mut sargs: Vec<i32> = Vec::new();
+                while pk(tokens, cp3) != 53 && pk(tokens, cp3) != 0 {
+                    if vec_len(sargs) > 0 { cp3 = expect_tok(tokens, cp3, 44); };
+                    if pk(tokens, cp3) == 53 { break; };
+                    cp3 = cp3 + 1;
+                    cp3 = expect_tok(tokens, cp3, 42);
+                    let mut vr: Vec<i32> = parse_expr(tokens, cp3, pool);
+                    sargs.push(pr_val(vr));
+                    cp3 = pr_pos(vr);
+                };
+                cp3 = cp3 + 1; // }
+                return pr(cp3, mk4(pool, 12, name, qname, mk_list(pool, sargs)));
             } else {
                 let mut empty: Vec<i32> = Vec::new();
                 return pr(cp2 + 2, mk4(pool, 12, name, qname, mk_list(pool, empty)));

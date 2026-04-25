@@ -5,6 +5,108 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.87] — 2026-04-25
+
+**Feature: struct-like enum variant construction
+`EnumName::Variant { field: value, ... }`.** Pre-v0.3.87, this
+canonical Rust pattern failed at clang link with
+`use of undefined value '@r'` because the parser produced kind-12
+with empty args and then re-parsed `{ r: 5 }` as a separate block
+expression where `r` resolved as an undefined global symbol.
+
+**Includes a same-ship hotfix:** the initial struct-init detection
+was too aggressive — it fired on `match Stream::Done { ... }`
+(scrutinee position) and tried to parse the match body as a
+field-init list, regressing T3.60. The disambiguation guard from
+the existing struct-init detection (line 596-600) was added to
+the new branch: only fire if what's inside the `{` looks like a
+field-init list (empty `}` or IDENT followed by `:`).
+
+### Fix
+
+Add a struct-init branch to `parse_primary`'s `Type::Method`
+handler. After detecting the path, check if the next token is `{`
+(token 52). If yes, parse comma-separated `name: value` pairs,
+discard names, and produce a kind-12 with values in source order.
+
+```nucleor
+} else if pk(tokens, cp2 + 2) == 52 {
+    let mut cp3: i64 = cp2 + 3;
+    let mut sargs: Vec<i32> = Vec::new();
+    while pk(tokens, cp3) != 53 && pk(tokens, cp3) != 0 {
+        if vec_len(sargs) > 0 { cp3 = expect_tok(tokens, cp3, 44); };
+        if pk(tokens, cp3) == 53 { break; };
+        cp3 = cp3 + 1;                              // skip name
+        cp3 = expect_tok(tokens, cp3, 42);          // colon
+        let mut vr: Vec<i32> = parse_expr(tokens, cp3, pool);
+        sargs.push(pr_val(vr));
+        cp3 = pr_pos(vr);
+    };
+    cp3 = cp3 + 1;
+    return pr(cp3, mk4(pool, 12, name, qname, mk_list(pool, sargs)));
+};
+```
+
+The lowering for kind-12 enum variants pushes args to the
+variant's Vec by position (existing path) — no codegen change
+needed.
+
+### Known v1 limitation: declaration-order requirement
+
+Field names are discarded at parse time, so users must write
+fields in the variant's declaration order. Out-of-order writing
+will silently produce wrong values (e.g. `Circle { r: 5 }` and
+`Square { s: 5 }` both work because each variant has only one
+field; but `Variant { b: 1, a: 2 }` would map b→0, a→1 instead
+of by declaration). Full out-of-order support requires storing
+field names in the variant declaration and looking them up at
+construction time — tracked for a future ship.
+
+### What now works that previously didn't
+
+```nucleor
+enum Shape { Circle { r: i64 }, Square { s: i64 } }
+
+let c = Shape::Circle { r: 5 };       // ✓ struct-like
+let s = Shape::Square { s: 7 };       // ✓ struct-like
+let c2 = Shape::Circle(99);           // ✓ tuple-like (regression)
+
+match c {
+    Shape::Circle(rr) => rr,           // ✓ destructure
+    Shape::Square(ss) => ss,
+}
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `parse_primary` Type::Method
+  branch gains struct-init parsing with disambiguation guard.
+  Bootstrap fixed point recomputed at SHA `eba68feb` (was `a9baa862`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t363_struct_like_enum_variant.nr` — new strict
+  regression fixture covering struct-like + tuple-like + match
+  destructure of both forms.
+- `tools/verify.{sh,ps1}` — new T3.63 verify step.
+
+### Verify gate
+
+- 441/441 green (was 440 + 1 step from T3.63).
+- All prior regression fixtures (T3.28-T3.62) still green —
+  including T3.60 which initially regressed before the
+  disambiguation hotfix.
+- Bootstrap fixed point closes at `eba68feb`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.87)
+
+- **27 codegen + 1 runtime + 6 parser/check diagnostic = 34 total**
+- **36 strict regression fixtures** (T3.28-T3.63)
+- **6 robotics RT showcase examples** in Tier 4
+- **Enum surface complete**: tuple variants, struct-like variants
+  (declaration-order), default-method-style trait dispatch, single
+  + multi-capture match patterns, return/break/continue arm bodies,
+  assignment arm bodies — every common Rust enum pattern.
+
 ## [0.3.86] — 2026-04-25
 
 **Feature: multi-capture enum patterns `Variant(a, b, c)`.**
