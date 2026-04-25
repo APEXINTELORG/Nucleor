@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 69))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 70))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1048,6 +1048,22 @@ t321_diag001_self_suppress() {
     [ "$rc" = "0" ] || return 1
     if grep -qE 'warning\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
     if grep -qE 'error\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
+    return 0
+}
+
+t354_match_arm_return() {
+    # T3.54 (v0.3.79): regression test for stmt-style match-arm bodies
+    # (`return EXPR`, `break`, `continue`). Pre-v0.3.79, the parser
+    # only accepted block `{ stmts }` or single expression as arm body,
+    # so `Status::Ok => return 42,` produced cascading parse errors.
+    # Pins enum-no-data, enum-with-data, wildcard, all with return arms.
+    "$BIN" build "tests/fixtures/t354_match_arm_return.nr" -o "_t354_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t354_check" ] || [ -x "target/_t354_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t354_check" ]; then exe="target/_t354_check"; else exe="target/_t354_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    local code=$?
+    [ "$code" -eq 0 ] || return 1
     return 0
 }
 
@@ -2083,6 +2099,7 @@ step "T3.50 module-scope stmt-keyword diagnostic (return/if/while/for/match/loop
 step "T3.51 let-shadowing semantics (RHS sees outer binding, not new uninit slot)" t351_shadowing
 step "T3.52 compound assignment desugar (+= -= *= /= %=)" t352_compound_assignment
 step "T3.53 inline closure-with-capture at .map/.filter call sites (T2.1/2/3 partial close)" t353_inline_closure_capture
+step "T3.54 match-arm stmt bodies (return/break/continue) — T1.2 partial close" t354_match_arm_return
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
