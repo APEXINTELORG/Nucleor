@@ -183,7 +183,43 @@ in a small async adapter — explicit, not transparent.
 
 - [ ] This RFC published as the canonical async stance
 - [ ] v0.5 ships `rod/tokio.nr`
-- [ ] v0.8 ships native syntax (separate RFC at that time)
+- [x] v0.2.353 (T2.8) ships the **threads-only** threaded
+      fallback: `async fn` + `<ident>.await` syntactic sugar
+      desugaring to `async_spawn` / `async_await` runtime
+      helpers on top of CreateThread/pthread_create.
+      RFC-0027 phase-1 parked pending the v0.8 state-machine
+      rewrite.
+- [ ] v0.8 ships native syntax (separate RFC at that time;
+      supersedes the threaded fallback for users who need
+      zero-thread concurrency)
+
+### v0.2.353 threaded fallback details
+
+Ship scope:
+- Lex: no new tokens; `async` is just an identifier the
+  resolver treats specially.
+- Resolver rewrite: `async <ws> fn` drops the `async` (the
+  function is a regular fn); `<ident>.await` rewrites to
+  `async_await(<ident>)`. Restricted to the
+  `<ident>.await` form — complex receivers need a
+  let-binding first.
+- Runtime (both Windows + POSIX): `__nucleor_async_spawn(fn_ptr,
+  arg) -> task_handle` allocates an `NAsyncTask` struct,
+  spawns a real OS thread running the fn with the arg,
+  captures the i64 return into the struct's `result` slot.
+  `__nucleor_async_await(task_handle) -> i64` joins the
+  thread, reads `result`, frees the struct, returns the
+  value.
+- Policy: thread priority is NOT set to IDLE like
+  `thread_spawn` — `async_spawn` uses default priority
+  because async tasks typically need to make progress
+  (unlike the legacy IDLE-priority `thread_spawn` which is
+  background-only).
+
+Users who want real async semantics (no per-task thread,
+cooperative scheduling, single-address-space polling) wait
+for v0.8. Users who want a "it works today and I don't
+care about 8 MB per task" path get the threaded fallback.
 
 ## 8. Future extensions
 

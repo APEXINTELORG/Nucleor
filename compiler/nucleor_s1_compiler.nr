@@ -2300,6 +2300,9 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "sha256") { return "__nucleor_sha256"; };
     if str_eq(name, "thread_spawn") { return "__nucleor_thread_spawn"; };
     if str_eq(name, "thread_join") { return "__nucleor_thread_join"; };
+    // T2.8 (v0.2.353): async runtime — threads-only per RFC-0027.
+    if str_eq(name, "async_spawn") { return "__nucleor_async_spawn"; };
+    if str_eq(name, "async_await") { return "__nucleor_async_await"; };
     if str_eq(name, "mutex_new") { return "__nucleor_mutex_new_value"; };
     if str_eq(name, "mutex_lock") { return "__nucleor_mutex_lock_value"; };
     if str_eq(name, "mutex_unlock") { return "__nucleor_mutex_unlock_value"; };
@@ -3662,6 +3665,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_sha256(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_thread_spawn(i64, i64)\n");
     sb_append(sb, "declare void @__nucleor_thread_join(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_async_spawn(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_async_await(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_mutex_new()\n");
     sb_append(sb, "declare void @__nucleor_mutex_lock(i64)\n");
     sb_append(sb, "declare void @__nucleor_mutex_unlock(i64)\n");
@@ -9403,11 +9408,15 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // post-expansion text. Identifier-and-quote-aware so a `!` inside
     // a string literal (e.g. `"err!"`) survives untouched.
     let after_format: str = expand_format_macros(resolved);
+    // T2.8 (v0.2.353): strip `async` keyword before fn + rewrite
+    // `<ident>.await` to `async_await(<ident>)`. Threads-only
+    // commitment per RFC-0027 phase 1.
+    let after_async: str = expand_async_syntax(after_format);
     // T2.3 (v0.2.349): expand closure literals `|args| body` in
     // argument position. Synthesizes top-level fns at the head of
     // the source; replaces the closure expression with the synth fn
     // name so downstream parsing sees a normal identifier reference.
-    let source: str = expand_closures(after_format);
+    let source: str = expand_closures(after_async);
     if use_cache == 1 {
         system("mkdir .nuc_cache 2>NUL");
         file_write_string(manifest_path, module_records_serialize(module_records));
@@ -9698,6 +9707,154 @@ fn normalize_output_name(raw: str) -> str {
         i = i + 1;
     };
     return sanitize(base);
+}
+
+// ===== T2.8 (v0.2.353): async syntax surface (threads-only) =====
+//
+// Resolver-level rewrite of two pieces of async syntax:
+//   `async fn name(...)`  → `fn name(...)` (keyword strip)
+//   `<ident>.await`        → `async_await(<ident>)`
+//
+// The runtime is committed to threads-only (RFC-0027 phase 1):
+// `async_spawn(fn_ptr, arg)` returns an opaque task handle that
+// runs the fn on a real OS thread; `async_await(handle)` joins
+// the thread + returns the captured i64 result. No green-thread
+// scheduler, no future polling — every async fn is a thread.
+//
+// `.await` is restricted to the simple `<ident>.await` form
+// today. Complex receivers (`call().await`, `arr[0].await`)
+// require a let-binding first. T2.8b will lift that restriction
+// once we have a depth-aware backwards-receiver scanner.
+
+fn expand_async_strip_keyword(src: str) -> str {
+    // Identifier-aware walk. When we find an `async` identifier
+    // followed by whitespace and `fn`, we drop the `async` keyword
+    // (and the whitespace between it and `fn`). Anywhere else,
+    // `async` passes through as a regular identifier.
+    let mut sb: i64 = sb_new();
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            while p < slen && str_char_at(src, p) != 10 {
+                sb_append(sb, str_substring(src, p, p + 1));
+                p = p + 1;
+            };
+        } else if c == 34 {
+            sb_append(sb, "\"");
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 34 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    sb_append(sb, str_substring(src, p, p + 2));
+                    p = p + 2;
+                } else {
+                    sb_append(sb, str_substring(src, p, p + 1));
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, "\""); p = p + 1; };
+        } else if is_alpha(c) == 1 || c == 95 {
+            let id_start: i64 = p;
+            let mut id_done: i64 = 0;
+            while p < slen && id_done == 0 {
+                let ch: i64 = str_char_at(src, p);
+                if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
+                else { id_done = 1; };
+            };
+            let name: str = str_substring(src, id_start, p);
+            if str_eq(name, "async") == 1 {
+                // Look ahead past whitespace for `fn`.
+                let mut peek: i64 = p;
+                while peek < slen && (str_char_at(src, peek) == 32 || str_char_at(src, peek) == 9) { peek = peek + 1; };
+                if peek + 2 <= slen && str_eq(str_substring(src, peek, peek + 2), "fn") == 1 {
+                    let after_fn: i64 = peek + 2;
+                    let next_after_fn: i64 = if after_fn < slen { str_char_at(src, after_fn) } else { 0 };
+                    if next_after_fn == 32 || next_after_fn == 9 || next_after_fn == 10 {
+                        // Drop `async ` — emit nothing for the keyword
+                        // and fast-forward past the trailing whitespace.
+                        p = peek;
+                        continue;
+                    };
+                };
+                // Not `async fn` — keep `async` as a regular identifier.
+                sb_append(sb, name);
+            } else {
+                sb_append(sb, name);
+            };
+        } else {
+            sb_append(sb, str_substring(src, p, p + 1));
+            p = p + 1;
+        };
+    };
+    return sb_to_str(sb);
+}
+
+fn expand_async_await(src: str) -> str {
+    // Walk identifier-aware. When we see `<ident>.await` (followed by
+    // a non-ident-continuation char like ` `, `;`, `)`, etc.), rewrite
+    // the chunk into `async_await(<ident>)`. Other `.await`s (`obj.x
+    // .await`, `f().await`, etc.) pass through unchanged today —
+    // T2.8b lifts the restriction.
+    let mut sb: i64 = sb_new();
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            while p < slen && str_char_at(src, p) != 10 {
+                sb_append(sb, str_substring(src, p, p + 1));
+                p = p + 1;
+            };
+        } else if c == 34 {
+            sb_append(sb, "\"");
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 34 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    sb_append(sb, str_substring(src, p, p + 2));
+                    p = p + 2;
+                } else {
+                    sb_append(sb, str_substring(src, p, p + 1));
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, "\""); p = p + 1; };
+        } else if is_alpha(c) == 1 || c == 95 {
+            let id_start: i64 = p;
+            let mut id_done: i64 = 0;
+            while p < slen && id_done == 0 {
+                let ch: i64 = str_char_at(src, p);
+                if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
+                else { id_done = 1; };
+            };
+            let name: str = str_substring(src, id_start, p);
+            // Look ahead for `.await`.
+            if p + 6 <= slen && str_eq(str_substring(src, p, p + 6), ".await") == 1 {
+                // Confirm `await` isn't actually part of a longer ident.
+                let after: i64 = p + 6;
+                let after_ch: i64 = if after < slen { str_char_at(src, after) } else { 0 };
+                let is_ident_cont: i64 = if is_alnum(after_ch) == 1 || after_ch == 95 { 1 } else { 0 };
+                if is_ident_cont == 0 {
+                    sb_append(sb, "async_await(");
+                    sb_append(sb, name);
+                    sb_append(sb, ")");
+                    p = p + 6;
+                } else {
+                    sb_append(sb, name);
+                };
+            } else {
+                sb_append(sb, name);
+            };
+        } else {
+            sb_append(sb, str_substring(src, p, p + 1));
+            p = p + 1;
+        };
+    };
+    return sb_to_str(sb);
+}
+
+fn expand_async_syntax(src: str) -> str {
+    return expand_async_await(expand_async_strip_keyword(src));
 }
 
 // ===== T2.3 (v0.2.349): closure literals (no-capture) =====
