@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 84))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 85))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1057,6 +1057,17 @@ t356_indexed_lhs_diagnostic() {
     "$BIN" build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -q "indexed assignment" /tmp/_nuc_step.log || return 1
     grep -q "vec_set" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t369_mut_ref_param_diagnostic() {
+    # T3.69 (v0.3.93): negative regression for &mut T param diagnostic.
+    # Pre-v0.3.93, &mut T params silently passed by value so any
+    # mutation via *x = ... was a no-op (HIGH-BLAST silent miscompute).
+    # Post: parse_fn_decl emits a clear diagnostic.
+    "$BIN" build "tests/fixtures/t369_mut_ref_param_diagnostic.nr" -o "_t369_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    grep -q "&mut reference parameter" /tmp/_nuc_step.log || return 1
+    grep -q "would silently NOT propagate" /tmp/_nuc_step.log || return 1
     return 0
 }
 
@@ -2310,6 +2321,7 @@ step "T3.65 trait method with generic param `fn count<T>(self)`" t365_trait_gene
 step "T3.66 mixed-shorthand struct init `Point { x: 5, y }`" t366_struct_init_shorthand
 step "T3.67 ? operator chain (Ok/Err labels were swapped pre-v0.3.91)" t367_question_op_chain
 step "T3.68 dyn keyword parser acceptance (Box<dyn Trait>, fn -> dyn ...)" t368_dyn_keyword_parse
+step "T3.69 &mut T param diagnostic (HIGH-BLAST silent miscompute pre-v0.3.93)" t369_mut_ref_param_diagnostic
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

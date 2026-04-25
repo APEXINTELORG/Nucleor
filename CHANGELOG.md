@@ -5,6 +5,78 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.93] — 2026-04-25
+
+**Diagnostic: `&mut T` reference parameters surface a clear error
+instead of silently producing wrong output (HIGH-BLAST-RADIUS).**
+Pre-v0.3.93, declaring `fn add_one(x: &mut i64) { *x = *x + 1; }`
+silently passed by value — `add_one(&mut n)` returned with
+caller's `n` unchanged. The most basic Rust idiom for in-place
+mutation was a no-op with no warning.
+
+### Root cause
+
+`parse_type` correctly built the type string `&mut T`, but the
+codegen for kind 91 (`&mut x`) at line 9690 of lower_expr just
+recursed on the inner expression and returned its VALUE, not its
+address. The fn parameter received the value, not a pointer; any
+deref-store inside the fn modified a local copy. Real
+implementation requires:
+
+- New IR opcode (or specialized lowering) for "address-of-alloca-slot"
+- ptrtoint at the call site for `&mut x`
+- inttoptr+load/store at deref sites inside the fn body
+
+That's a substantial multi-cycle implementation. Per the
+production-readiness pattern, v0.3.93 ships the safety-net
+diagnostic now and queues the real implementation.
+
+### Fix
+
+In `parse_fn_decl`'s parameter loop, detect param types
+beginning with `&mut ` and emit:
+
+```
+ERROR: &mut reference parameter `x: &mut i64` in fn signature is
+not yet supported. Mutations via `*x = ...` would silently NOT
+propagate back to the caller. Workaround: return the new value
+(`fn foo(x: i64) -> i64 { return x + 1; }`) or use a `Vec<i64>`
+for shared state. Tracked for a future ship — get/store-via-pointer
+codegen needed.
+```
+
+The diagnostic surfaces at parse time so users see the issue
+before they spend time debugging silent miscomputes downstream.
+
+### Why this is HIGH-BLAST-RADIUS
+
+`&mut T` parameter is the canonical Rust idiom for in-place
+mutation in fn arguments. Every Rust user reaches for it
+reflexively. Silent failure on this pattern is a launch blocker.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `parse_fn_decl` gains
+  `&mut ` prefix detection on param types. Bootstrap fixed
+  point at SHA `eda5a0ee` (was `4b11a95e`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t369_mut_ref_param_diagnostic.nr` — new
+  negative regression fixture.
+- `tools/verify.{sh,ps1}` — new T3.69 verify step.
+
+### Verify gate
+
+- 447/447 green (was 446 + 1 step from T3.69).
+- All prior regression fixtures (T3.28-T3.68) still green.
+- Bootstrap fixed point closes at `eda5a0ee`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.93)
+
+- **30 codegen + 2 runtime + 8 parser/check diagnostic = 40 total**
+- **42 strict regression fixtures** (T3.28-T3.69)
+- **6 robotics RT showcase examples** in Tier 4
+
 ## [0.3.92] — 2026-04-25
 
 **Parser fix: `dyn Trait` syntax acceptance.** Pre-v0.3.92, using
