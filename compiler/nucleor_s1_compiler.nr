@@ -9999,6 +9999,168 @@ fn nr_type_to_c(t: str) -> str {
     return "";
 }
 
+fn nr_type_to_c_with_structs(t: str, repr_c_structs: Vec<i32>) -> str {
+    // T1.6 (v0.2.345): C ABI struct-by-value support. If the type
+    // name matches a known #[repr(C)] struct, emit the struct name
+    // directly so callers get the typedef; otherwise fall through to
+    // the primitive table. Returns "" for non-repr(C) struct names
+    // (caller emits CXX-004 — types crossing the bridge must have a
+    // C-stable layout).
+    let primitive: str = nr_type_to_c(t);
+    if str_len(primitive) > 0 { return primitive; };
+    let b: str = type_base_name(t);
+    let n: i64 = vec_len(repr_c_structs);
+    let mut i: i64 = 0;
+    while i < n {
+        if str_eq(vec_get(repr_c_structs, i), b) == 1 { return b; };
+        i = i + 1;
+    };
+    return "";
+}
+
+fn collect_repr_c_structs(src: str) -> Vec<i32> {
+    // T1.6 (v0.2.345): walk the source text identifying every
+    // struct declaration whose IMMEDIATELY-preceding non-blank
+    // line (skipping doc-comments and whitespace) is exactly
+    // `#[repr(C)]`. Strict line-precedence rules out the
+    // lookback false-positive in `struct_repr`, where a 200-char
+    // window happily picked up the previous struct's attribute.
+    // Returns a Vec<str> of struct names (no duplicates).
+    let mut out: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(src);
+    // Pre-pass: build line offsets so we can look at the previous
+    // non-blank line cheaply.
+    let mut line_starts: Vec<i32> = Vec::new();
+    line_starts.push(0);
+    let mut s: i64 = 0;
+    while s < slen {
+        if str_char_at(src, s) == 10 && s + 1 < slen { line_starts.push(s + 1); };
+        s = s + 1;
+    };
+    let nlines: i64 = vec_len(line_starts);
+    let mut li: i64 = 0;
+    while li < nlines {
+        let p: i64 = vec_get(line_starts, li);
+        let next_p: i64 = if li + 1 < nlines { vec_get(line_starts, li + 1) - 1 } else { slen };
+        let mut eol: i64 = if next_p < slen { next_p } else { slen };
+        // strip trailing CR if present (CRLF tolerant)
+        if eol > p && str_char_at(src, eol - 1) == 13 { eol = eol - 1; };
+        let line: str = str_substring(src, p, eol);
+        let llen: i64 = str_len(line);
+        let mut lp: i64 = 0;
+        while lp < llen && (str_char_at(line, lp) == 32 || str_char_at(line, lp) == 9) { lp = lp + 1; };
+        // Match `struct NAME` (optionally `pub struct NAME`)
+        let mut after_kw: i64 = 0 - 1;
+        if lp + 7 <= llen && str_eq_at(line, lp, "struct ") == 1 { after_kw = lp + 7; };
+        if after_kw < 0 && lp + 11 <= llen && str_eq_at(line, lp, "pub struct ") == 1 { after_kw = lp + 11; };
+        if after_kw >= 0 {
+            let name_start: i64 = after_kw;
+            let mut q: i64 = name_start;
+            while q < llen && (is_alnum(str_char_at(line, q)) == 1 || str_char_at(line, q) == 95) { q = q + 1; };
+            if q > name_start {
+                let name: str = str_substring(line, name_start, q);
+                // Look back at preceding non-blank, non-/// lines
+                // until we either find an attribute or hit something
+                // that decisively isn't an attribute (struct decl,
+                // closing brace, source start).
+                let mut prev_li: i64 = li - 1;
+                let mut found: i64 = 0;
+                while prev_li >= 0 && found == 0 {
+                    let pp: i64 = vec_get(line_starts, prev_li);
+                    let mut pend: i64 = if prev_li + 1 < nlines { vec_get(line_starts, prev_li + 1) - 1 } else { slen };
+                    if pend > pp && str_char_at(src, pend - 1) == 13 { pend = pend - 1; };
+                    let pline: str = str_substring(src, pp, pend);
+                    let trimmed: str = strip_spaces(pline);
+                    if str_len(trimmed) == 0 {
+                        prev_li = prev_li - 1;
+                    } else if str_len(trimmed) >= 3 && str_eq(str_substring(trimmed, 0, 3), "///") == 1 {
+                        prev_li = prev_li - 1;
+                    } else if str_eq(trimmed, "#[repr(C)]") == 1 {
+                        found = 1;
+                    } else {
+                        // Anything else terminates the lookback —
+                        // attribute didn't apply to this struct.
+                        prev_li = 0 - 1;
+                    };
+                };
+                if found == 1 {
+                    let mut already: i64 = 0;
+                    let mut k: i64 = 0;
+                    while k < vec_len(out) {
+                        if str_eq(vec_get(out, k), name) == 1 { already = 1; };
+                        k = k + 1;
+                    };
+                    if already == 0 { out.push(name); };
+                };
+            };
+        };
+        li = li + 1;
+    };
+    return out;
+}
+
+fn extract_struct_fields_native(src: str, struct_name: str) -> Vec<i32> {
+    // T1.6 (v0.2.345): pull the field list of a struct as alternating
+    // [name1, type1, name2, type2, ...]. Uses brace-balanced source
+    // scanning starting at the `struct NAME {` declaration. Returns
+    // empty Vec if the struct is missing or syntactically malformed.
+    let mut out: Vec<i32> = Vec::new();
+    let needle: str = str_concat("struct ", struct_name);
+    let pos: i64 = source_find(src, needle);
+    if pos < 0 { return out; };
+    let slen: i64 = str_len(src);
+    let mut p: i64 = pos + str_len(needle);
+    while p < slen && str_char_at(src, p) != 123 { p = p + 1; };
+    if p >= slen { return out; };
+    p = p + 1;
+    let mut depth: i64 = 1;
+    let body_start: i64 = p;
+    let mut body_end: i64 = p;
+    while p < slen && depth > 0 {
+        let ch: i64 = str_char_at(src, p);
+        if ch == 123 { depth = depth + 1; }
+        else if ch == 125 { depth = depth - 1; if depth == 0 { body_end = p; }; };
+        p = p + 1;
+    };
+    if depth != 0 { return out; };
+    // Walk fields: `name: type,` (commas optional after last)
+    let body: str = str_substring(src, body_start, body_end);
+    let blen: i64 = str_len(body);
+    let mut q: i64 = 0;
+    while q < blen {
+        // skip whitespace
+        while q < blen && (str_char_at(body, q) == 32 || str_char_at(body, q) == 9 || str_char_at(body, q) == 10 || str_char_at(body, q) == 13) { q = q + 1; };
+        if q >= blen { q = blen + 1; }
+        else {
+            // skip optional `pub ` field-visibility prefix
+            if q + 4 <= blen && str_eq_at(body, q, "pub ") == 1 { q = q + 4; };
+            while q < blen && (str_char_at(body, q) == 32 || str_char_at(body, q) == 9) { q = q + 1; };
+            // field name
+            let name_start: i64 = q;
+            while q < blen && (is_alnum(str_char_at(body, q)) == 1 || str_char_at(body, q) == 95) { q = q + 1; };
+            if q == name_start { q = blen + 1; }
+            else {
+                let fname: str = str_substring(body, name_start, q);
+                while q < blen && (str_char_at(body, q) == 32 || str_char_at(body, q) == 9) { q = q + 1; };
+                if q >= blen || str_char_at(body, q) != 58 { q = blen + 1; }
+                else {
+                    q = q + 1;
+                    while q < blen && (str_char_at(body, q) == 32 || str_char_at(body, q) == 9) { q = q + 1; };
+                    let type_start: i64 = q;
+                    while q < blen && str_char_at(body, q) != 44 && str_char_at(body, q) != 10 { q = q + 1; };
+                    let ftype: str = strip_spaces(str_substring(body, type_start, q));
+                    if str_len(fname) > 0 && str_len(ftype) > 0 {
+                        out.push(fname);
+                        out.push(ftype);
+                    };
+                    if q < blen && str_char_at(body, q) == 44 { q = q + 1; };
+                };
+            };
+        };
+    };
+    return out;
+}
+
 // T1.1 Phase 9: nuc gen-headers <input.nr> [-o <out.h>]
 //
 // Scans an .nr source file for `extern fn` declarations and emits a
@@ -10044,12 +10206,52 @@ fn run_gen_headers_command(argc: i64) -> i64 {
     let mut out: i64 = sb_new();
     sb_append(out, "// Generated by `nuc gen-headers` from ");
     sb_append(out, in_path);
-    sb_append(out, "\n// Edits will be lost; regenerate after extern fn changes.\n");
+    sb_append(out, "\n// Edits will be lost; regenerate after extern fn / #[repr(C)] struct changes.\n");
     sb_append(out, "#ifndef NUCLEOR_GEN_HEADERS_H\n");
     sb_append(out, "#define NUCLEOR_GEN_HEADERS_H\n");
     sb_append(out, "#include <stdint.h>\n");
     sb_append(out, "#include <stdbool.h>\n\n");
     sb_append(out, "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n");
+
+    // T1.6 (v0.2.345): emit C `typedef struct { ... } Name;`
+    // declarations for every #[repr(C)] struct in the source.
+    // Field types must be primitives or other repr(C) struct names —
+    // otherwise we silently skip the offending field rather than
+    // emit an invalid C declaration. CXX-004 fires elsewhere (in
+    // strict-mode build) when a non-repr(C) struct appears in an
+    // extern fn signature.
+    let repr_c: Vec<i32> = collect_repr_c_structs(src);
+    let mut emitted_structs: i64 = 0;
+    let mut si: i64 = 0;
+    while si < vec_len(repr_c) {
+        let sname: str = vec_get(repr_c, si);
+        let fields: Vec<i32> = extract_struct_fields_native(src, sname);
+        let fc: i64 = vec_len(fields);
+        if fc >= 2 {
+            sb_append(out, "typedef struct ");
+            sb_append(out, sname);
+            sb_append(out, " {\n");
+            let mut fi: i64 = 0;
+            while fi + 1 < fc {
+                let fname: str = vec_get(fields, fi);
+                let ftype: str = vec_get(fields, fi + 1);
+                let ftype_c: str = nr_type_to_c_with_structs(ftype, repr_c);
+                if str_len(ftype_c) > 0 {
+                    sb_append(out, "    ");
+                    sb_append(out, ftype_c);
+                    sb_append(out, " ");
+                    sb_append(out, fname);
+                    sb_append(out, ";\n");
+                };
+                fi = fi + 2;
+            };
+            sb_append(out, "} ");
+            sb_append(out, sname);
+            sb_append(out, ";\n\n");
+            emitted_structs = emitted_structs + 1;
+        };
+        si = si + 1;
+    };
 
     // Walk source line by line for `extern fn NAME(...) -> RT;`
     let slen: i64 = str_len(src);
@@ -10102,7 +10304,9 @@ fn run_gen_headers_command(argc: i64) -> i64 {
             // trim trailing whitespace
             let arg_name: str = strip_spaces(an_raw);
             let arg_type: str = strip_spaces(at_raw);
-            let c_type: str = nr_type_to_c(arg_type);
+            // T1.6 (v0.2.345): struct-by-value FFI — accept any
+            // #[repr(C)] struct name (already collected above).
+            let c_type: str = nr_type_to_c_with_structs(arg_type, repr_c);
             if str_len(c_type) == 0 { bad_arg = 1; continue; };
             if narg > 0 { sb_append(args_buf, ", "); };
             sb_append(args_buf, c_type);
@@ -10122,7 +10326,7 @@ fn run_gen_headers_command(argc: i64) -> i64 {
             while q < llen && str_char_at(line, q) != 59 && str_char_at(line, q) != 32 && str_char_at(line, q) != 9 { q = q + 1; };
             rtype = str_substring(line, rt_start, q);
         };
-        let c_rtype: str = nr_type_to_c(rtype);
+        let c_rtype: str = nr_type_to_c_with_structs(rtype, repr_c);
         if str_len(c_rtype) == 0 { continue; };
         sb_append(out, c_rtype);
         sb_append(out, " ");
@@ -10136,7 +10340,11 @@ fn run_gen_headers_command(argc: i64) -> i64 {
     sb_append(out, "\n#ifdef __cplusplus\n}\n#endif\n");
     sb_append(out, "#endif // NUCLEOR_GEN_HEADERS_H\n");
     let _ = file_write_string(out_path, sb_to_str(out));
-    print(str_concat("nuc gen-headers: wrote ", str_concat(str_from_int(emitted), str_concat(" extern decl(s) to ", out_path))));
+    if emitted_structs > 0 {
+        print(str_concat("nuc gen-headers: wrote ", str_concat(str_from_int(emitted_structs), str_concat(" #[repr(C)] struct(s) and ", str_concat(str_from_int(emitted), str_concat(" extern decl(s) to ", out_path))))));
+    } else {
+        print(str_concat("nuc gen-headers: wrote ", str_concat(str_from_int(emitted), str_concat(" extern decl(s) to ", out_path))));
+    };
     return 0;
 }
 

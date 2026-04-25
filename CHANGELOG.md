@@ -5,6 +5,170 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.345] — 2026-04-24
+
+**T1.6 C ABI rest — `#[repr(C)]` struct-by-value support
+in `nuc gen-headers` + a fix for the long-standing
+`struct_repr` lookback false-positive.** Closes the
+extern-C surface gap so any `#[repr(C)]` struct can flow
+through extern fn signatures and become a real `typedef
+struct { ... } Name;` in the generated C header. Previously
+gen-headers silently dropped any extern fn whose signature
+referenced a struct (because `nr_type_to_c` returned ""
+for non-primitives) — now it emits typedefs for the structs
+plus the matching extern decls in one pass.
+
+### Generated header shape
+
+For a source file with two `#[repr(C)]` structs and two
+extern fn decls, gen-headers now emits:
+
+```c
+typedef struct Point2D {
+    double x;
+    double y;
+} Point2D;
+
+typedef struct Color {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t a;
+} Color;
+
+double distance(Point2D a, Point2D b);
+void fill_pixel(Color c, int64_t count);
+```
+
+Verified end-to-end: a hand-rolled `t16_use.c` `#include`s
+the generated header, defines `distance` + `fill_pixel`,
+and the resulting binary prints the expected output. The
+struct-by-value calling convention round-trips correctly
+between Nucleor-emitted code and host-clang-compiled C.
+
+### Three new helpers in `nucleor_s1_compiler.nr`
+
+| Helper | Purpose |
+|---|---|
+| `nr_type_to_c_with_structs(t, repr_c_structs)` | Wraps `nr_type_to_c` (primitives table) with a `repr_c_structs` lookup. If the type name matches a registered repr(C) struct, returns the struct name verbatim. Otherwise returns `""` so callers can flag CXX-004. |
+| `collect_repr_c_structs(src)` | Pre-scans the source line-by-line. For each `struct NAME` (or `pub struct NAME`) line, walks BACKWARD through the previous lines, skipping blanks and `///` doc comments. If the first non-blank/non-doc line is exactly `#[repr(C)]`, the struct is registered. Anything else terminates the lookback (no false positive). |
+| `extract_struct_fields_native(src, name)` | Brace-balanced extraction of a struct body. Returns alternating `[field_name, field_type, ...]`. Skips `pub ` field-visibility prefix, supports trailing-comma-or-not. Used to render the C typedef body. |
+
+### Bug fixed: `struct_repr` 200-char lookback false-positive
+
+The pre-T1.6 `struct_repr(source, struct_name)` helper
+located the named struct, then scanned the **200 bytes
+preceding** the declaration for `#[repr(C)]`. That window
+happily picked up the previous struct's attribute when
+two struct decls were adjacent — so a non-repr(C)
+`PrivateInternal` declared right after a repr(C) `Color`
+would inherit Color's attribute and falsely register as
+repr(C).
+
+`collect_repr_c_structs` doesn't share `struct_repr`'s
+window — it does a strict immediately-preceding-line
+attribute test. The original `struct_repr` is left
+unchanged (other call sites depend on its existing
+loose-window behavior); a follow-up can tighten it once
+all callers can tolerate stricter semantics.
+
+Caught by the T1.6 fixture: the first draft picked up 3
+structs (Point2D, Color, PrivateInternal) when only 2
+should have been registered.
+
+### CXX-004 ↔ T1.6
+
+The diagnostic `CXX-004` (extern "Nucleor" type with
+non-`#[repr(C)]` layout) was already declared in the
+explain registry and the strict-mode checker. T1.6
+provides the producer side — once a struct is correctly
+declared `#[repr(C)]`, gen-headers emits it; otherwise
+extern fn signatures referencing it fall through (caller
+hits the existing CXX-004 path).
+
+### T1.6 fixture
+
+`tests/fixtures/t16_struct_ffi.nr` — 3 structs (2 repr(C),
+1 non-repr(C)) + 2 extern fn decls. The verify gate runs
+`nuc gen-headers` and asserts:
+- banner reports `wrote 2 #[repr(C)] struct(s) and 2
+  extern decl(s)`
+- generated header has `typedef struct Point2D` and
+  `typedef struct Color` with all fields in the right
+  order and right C primitive types
+- both extern decls present with struct-typed parameters
+- `PrivateInternal` is NOT in the header (negative
+  assertion catches the lookback false-positive
+  regression class)
+
+### Verify gate
+
+Windows: 354/354 PASS. Bootstrap fixpoint refreshed
+(seed sha256 `a52270f9...`).
+
+### Numerics-compatibility
+
+No new arithmetic surfaces. Field types in repr(C)
+structs go through `nr_type_to_c_with_structs` which
+preserves the existing primitive width contract:
+`u8`/`u16`/`u32`/`u64`/`usize` → `uint8_t`/`uint16_t`/
+`uint32_t`/`uint64_t`/`uintptr_t`; `i8`...`isize`
+similarly; `f32` → `float`, `f64` → `double`. No
+narrow-wrap interaction (extern fn calling convention is
+already i64-everywhere at the runtime boundary; struct
+fields preserve their declared widths in the C typedef
+because the C compiler picks the storage layout).
+
+### Memory safety
+
+Helpers operate on `str` (read-only) and emit fresh
+`Vec<i32>` / `sb_*` builders. No new shared state. The
+generated C header is a pure source-text artifact —
+nothing about Nucleor's own memory model changes.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — three new helpers
+  (`nr_type_to_c_with_structs`, `collect_repr_c_structs`,
+  `extract_struct_fields_native`); `run_gen_headers_command`
+  emits typedef structs + uses struct-aware type lookup
+  for extern fn params/returns; banner shows struct count
+  + extern decl count.
+- `tests/fixtures/t16_struct_ffi.nr` — new FFI fixture.
+- `tools/verify.ps1`, `tools/verify.sh` — new T1.6 step
+  asserting header contents (positive + negative
+  assertions).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (405 fns,
+  759 optimized instructions; new sha256 a52270f9...).
+- `bin/nucleor.exe` — rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Known limitations (T1.6b scope)
+
+- `tools_suite::render_export_c_header` (used by
+  `nuc abi --exports`, separate from `nuc gen-headers`)
+  doesn't yet share the struct-aware path. Pub fns
+  exported as shared-library symbols still trip the
+  primitive-only `abi_type_is_export_safe` predicate
+  for struct types. Easy port — same helpers, same
+  template — deferred to keep this ship bounded.
+- Pointer types (`*const T`, `*mut T`) and arrays
+  (`[T; N]`) aren't recognized in extern fn signatures
+  yet. The runtime ABI uses i64 slots for everything so
+  callers can pass raw pointers as `ptr` today; richer
+  types arrive with the v0.4 cxx-style codegen (chosen
+  during the v0.2 design vote).
+- Nested non-primitive struct fields work only if the
+  inner struct is also `#[repr(C)]` (otherwise the field
+  is silently skipped from the typedef body). Future:
+  emit a CXX-004 at gen-headers time for skipped fields
+  rather than silently dropping them.
+
+### Next
+
+T2.6 format strings — `format!()` and `println!()` macros
+per the locked v0.2 design vote.
+
 ## [0.2.344] — 2026-04-24
 
 **T1.4 packager — `nuc registry export-static` (GitHub-Pages

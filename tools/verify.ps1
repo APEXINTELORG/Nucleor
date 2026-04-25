@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 11
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 12
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -773,6 +773,29 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
     $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
     return $h1 -eq $h2
+}
+
+Step "T1.6 gen-headers emits #[repr(C)] struct typedefs" {
+    # v0.2.345 (T1.6): struct-by-value FFI. nuc gen-headers walks the
+    # source for #[repr(C)] structs, emits matching `typedef struct
+    # { ... } Name;` in the C header, and accepts struct names in
+    # extern fn signatures. Non-repr(C) structs (PrivateInternal in
+    # the fixture) must be excluded — the immediately-preceding-line
+    # attribute lookback rules out the false-positive that the
+    # earlier 200-char lookback in struct_repr suffered from.
+    $hdr = Join-Path $env:TEMP "_t16_struct_ffi.h"
+    if (Test-Path $hdr) { Remove-Item -Force $hdr }
+    $banner = & $bin gen-headers "tests/fixtures/t16_struct_ffi.nr" -o $hdr 2>&1 | Out-String
+    if ($banner -notmatch "wrote 2 #\[repr\(C\)\] struct\(s\) and 2 extern decl\(s\)") { return $false }
+    if (-not (Test-Path $hdr)) { return $false }
+    $h = Get-Content $hdr -Raw
+    if ($h -notmatch "typedef struct Point2D \{[^}]*double x;[^}]*double y;[^}]*\} Point2D;") { return $false }
+    if ($h -notmatch "typedef struct Color \{[^}]*uint8_t r;[^}]*uint8_t g;[^}]*uint8_t b;[^}]*uint8_t a;[^}]*\} Color;") { return $false }
+    if ($h -notmatch "double distance\(Point2D a, Point2D b\)") { return $false }
+    if ($h -notmatch "void fill_pixel\(Color c, int64_t count\)") { return $false }
+    if ($h -match "PrivateInternal") { return $false }
+    Remove-Item -Force $hdr -ErrorAction SilentlyContinue
+    return $true
 }
 
 Step "T1.4 nuc registry export-static (GH-Pages schema)" {
