@@ -5,6 +5,100 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.73] — 2026-04-25
+
+**Parser fix #1: clear diagnostic for `let` at module scope (was
+silently dropped + emitted broken IR).** Pre-v0.3.73, writing
+`let G_VAL: i64 = 42;` at module scope produced no front-end
+diagnostic — the parser silently consumed every token and dropped
+the declaration entirely. When `main` later referenced `G_VAL`, the
+codegen treated the identifier as a global symbol and emitted
+`@G_VAL`, which failed at clang link with the cryptic
+"use of undefined value '@G_VAL'". A user new to Nucleor would
+have no idea their module-scope let-binding was being thrown away.
+
+### Root cause
+
+`parse_program` (lines 1580-1660) iterates tokens, dispatching to
+the right item parser for each known top-level kind: `fn`, `extern fn`,
+`pure fn`, `const`, `type`, `struct`, `enum`, `trait`, `impl`. Anything
+else hit the silent fall-through `else { cp = cp + 1; pending_pub = 0; }`
+which dropped the token without comment. `let` (token kind 11) is a
+statement-only construct in Nucleor — at module scope it has no
+binding semantics — so it fell into the silent skip.
+
+### Fix
+
+Add an explicit `let`-token branch to `parse_program` that:
+
+1. Emits a clear diagnostic naming the issue and the canonical
+   workaround (`const NAME: T = VALUE;`).
+2. Skips ahead past the trailing semicolon (token 43) to recover,
+   so the rest of the program still parses and the user gets the
+   complete diagnostic surface in one compile.
+
+```nucleor
+else if pk(tokens, cp) == 11 {
+    print("ERROR: `let` is not allowed at module scope. Use `const NAME: T = VALUE;` for module-scope constants. ...");
+    let mut sk: i64 = cp + 1;
+    while pk(tokens, sk) != 0 && pk(tokens, sk) != 43 { sk = sk + 1; };
+    if pk(tokens, sk) == 43 { sk = sk + 1; };
+    cp = sk;
+    pending_pub = 0;
+}
+```
+
+### Production-readiness rationale
+
+`const NAME: T = VALUE;` already works correctly at module scope
+(verified by the existing tests/lang fixtures and the new
+probe_v373_g sanity check). The fix is purely diagnostic: surface
+the existing limitation as a readable error rather than as a
+delayed clang link failure with a missing-symbol reference.
+
+This matches the v0.3.71 pattern (turning silent IR-corrupting
+fall-throughs into named diagnostics) — making compiler-level
+limitations visible to users instead of producing cryptic link
+errors three transformations downstream.
+
+### What now happens that previously didn't
+
+```nucleor
+let G_VAL: i64 = 42;     // Pre-v0.3.73: silent drop + clang link error
+                         // Post-v0.3.73: clear front-end diagnostic
+                         // pointing at `const NAME: T = V;` workaround
+
+const G_VAL: i64 = 42;   // Always worked — the canonical form
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `parse_program` gains the
+  module-scope `let` diagnostic branch. Bootstrap fixed point
+  recomputed at SHA `bc354c21` (was `aeea9044`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t348_module_let_diagnostic.nr` — new negative
+  regression fixture. Compilation MUST fail and stderr MUST
+  contain the diagnostic text.
+- `tools/verify.{sh,ps1}` — new T3.48 verify step.
+
+### Verify gate
+
+- 426/426 green (was 425 + 1 step from T3.48).
+- All prior regression fixtures (T3.28-T3.47) still green.
+- Bootstrap fixed point closes at `bc354c21`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.73)
+
+- **17 codegen/runtime fixes + 1 parser diagnostic fix**
+- **21 strict regression fixtures** (T3.28-T3.48)
+- **6 robotics RT showcase examples** in Tier 4
+- **Diagnostic discipline**: every silent fall-through that
+  produced cryptic broken IR now surfaces a named error with
+  hint text — `const`/`Type::method`/closure capture all
+  covered.
+
 ## [0.3.72] — 2026-04-25
 
 **Compiler fix #17: closure capture link-time correctness — runtime

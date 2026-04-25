@@ -1655,6 +1655,24 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             items.push(fn_nid);
             cp = pr_pos(r);
         }
+        else if pk(tokens, cp) == 11 {
+            // v0.3.73: `let` is a statement-level binding — it cannot
+            // appear at module scope. Pre-v0.3.73, the parser silently
+            // skipped the entire `let NAME: T = EXPR;` token-by-token
+            // and downstream codegen emitted `@NAME` references that
+            // failed at clang link with "use of undefined value '@NAME'"
+            // when main referenced the binding. Surface a clear
+            // diagnostic with the canonical workaround (`const`) and
+            // skip the let-stmt cleanly so the rest of the program
+            // still parses for any other diagnostics the user needs.
+            print("ERROR: `let` is not allowed at module scope. Use `const NAME: T = VALUE;` for module-scope constants. (`let` is statement-only — the parser previously dropped this declaration silently and emitted broken IR.)");
+            // Skip ahead to the next semicolon (token kind 43) to recover.
+            let mut sk: i64 = cp + 1;
+            while pk(tokens, sk) != 0 && pk(tokens, sk) != 43 { sk = sk + 1; };
+            if pk(tokens, sk) == 43 { sk = sk + 1; };
+            cp = sk;
+            pending_pub = 0;
+        }
         else { cp = cp + 1; pending_pub = 0; };
     };
     return pr(cp, mk_list(pool, items));

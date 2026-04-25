@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 63))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 64))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1048,6 +1048,20 @@ t321_diag001_self_suppress() {
     [ "$rc" = "0" ] || return 1
     if grep -qE 'warning\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
     if grep -qE 'error\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
+    return 0
+}
+
+t348_module_let_diagnostic() {
+    # T3.48 (v0.3.73): negative regression test for module-scope `let`
+    # diagnostic. Pre-v0.3.73, the parser silently dropped `let NAME:T=V;`
+    # at module scope and downstream codegen emitted broken @NAME refs.
+    # Asserts: (1) the build fails, (2) the diagnostic text mentioning
+    # "module scope" + "const" appears in stderr.
+    "$BIN" build "tests/fixtures/t348_module_let_diagnostic.nr" -o "_t348_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local code=$?
+    [ "$code" -ne 0 ] || return 1
+    grep -q "let.* not allowed at module scope" /tmp/_nuc_step.log || return 1
+    grep -q "Use .const NAME" /tmp/_nuc_step.log || return 1
     return 0
 }
 
@@ -1982,6 +1996,7 @@ step "T3.44 method-result-returning-struct field access (v0.3.69 fix)" t344_meth
 step "T3.45 Kalman synthesis (v0.3.65-69 nested-composition lock)" t345_kalman_synthesis
 step "T3.46 assoc-fn collection aliases (HashMap/HashSet/BTreeMap/BTreeSet/VecDeque ::new)" t346_assoc_fn_collections
 step "T3.47 closure-capture link correctness (runtime helpers __nucleor_capture_set/get)" t347_closure_capture
+step "T3.48 module-scope let diagnostic (parser previously dropped silently)" t348_module_let_diagnostic
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
