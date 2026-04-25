@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 39
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 40
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -869,6 +869,18 @@ Step "T3.9 RT-005 fires on FFI call from RT fn body" {
     $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-005\]: FFI call 'host_telemetry'") { return $false }
     if ($out -notmatch "from #\[no_alloc\] fn 'rt_path'") { return $false }
+    return $true
+}
+
+Step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" {
+    # v0.3.37 (T3.21): #[allow(DIAG-001)] suppresses DIAG-001
+    # itself. Fixture has #[allow(WAT-001)] (would fire DIAG-001
+    # for the WAT- unknown prefix) plus a file-wide
+    # #[allow(DIAG-001)]. The suppression pass runs AFTER the
+    # emit pass, so the DIAG-001 warning gets dropped before
+    # reaching the user. Build must be silent on diagnostics.
+    $out = & $bin build "tests/fixtures/t321_diag001_self_suppress.nr" -o "_t321_diag001_self_check" --no-cache 2>&1 | Out-String
+    if ($out -match "warning\[DIAG-001\]") { return $false }
     return $true
 }
 

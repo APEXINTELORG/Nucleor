@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 37))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 38))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -875,6 +875,18 @@ t39_rt005_ffi_call() {
     return 0
 }
 
+t321_diag001_self_suppress() {
+    # T3.21 (v0.3.37): #[allow(DIAG-001)] suppresses DIAG-001
+    # itself. Fixture has #[allow(WAT-001)] (would fire DIAG-001
+    # for the WAT- unknown prefix) plus a file-wide
+    # #[allow(DIAG-001)]. The suppression pass runs AFTER the
+    # emit pass, so the DIAG-001 warning gets dropped before
+    # reaching the user. Build must be silent on diagnostics.
+    "$BIN" build "tests/fixtures/t321_diag001_self_suppress.nr" -o "_t321_diag001_self_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    if grep -qE 'warning\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
+    return 0
+}
+
 t320_diag001_unknown_code() {
     # T3.20 (v0.3.36): DIAG-001 warning fires for #[allow(_fn)] /
     # #[deny(_fn)] CODE arguments whose prefix isn't in the
@@ -1373,6 +1385,7 @@ step "T3.17 #[allow_fn(RT-004)] suppresses static WCET warning per-fn" t317_allo
 step "T3.18 #[deny_fn(RT-007)] promotes warning to error (strict)" t321_deny_fn_promotes_strict
 step "T3.19 #[allow_fn(RT-001)] cannot demote error tier (strict)" t323_allow_fn_error_tier_strict
 step "T3.20 DIAG-001 fires for #[allow]/#[deny] unknown-prefix codes" t320_diag001_unknown_code
+step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" t321_diag001_self_suppress
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
