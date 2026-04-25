@@ -9880,6 +9880,32 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
 // T1.1 Phase 5: detect whether an AST expression node has a known
 // float type (f32 or f64), looking through variable reads (kind==3)
 // and float literals (kind==71). Returns "f32"/"f64"/"" .
+// v0.3.54 helper: populate sym with `__fnret_NAME = rtype` entries
+// for every fn declared in pool. Walks the entire pool once,
+// skipping non-fn nodes. Called from lower_fn at the start of each
+// fn body so binop_float_type's kind==7 (call) branch can look up
+// the called fn's return type via the existing sym mechanism — no
+// signature plumbing required.
+//
+// Pool walk caveat: pool nodes form a flat arena. Fn decls are
+// kind 30 (regular) and kind 32 (extern). The walk uses node_kind
+// at every offset and bails early once we run off the end (handled
+// by node_kind returning -1 / 0 for invalid offsets in the arena).
+fn populate_fn_returns_in_sym(pool: Vec<i32>, fn_decls: Vec<i32>, sym: Vec<i32>) -> i64 {
+    let n: i64 = vec_len(fn_decls);
+    let mut i: i64 = 0;
+    while i < n {
+        let fnid: i64 = vec_get(fn_decls, i);
+        let name: str = node_field(pool, fnid, 1);
+        let rtype: str = type_base_name(node_field(pool, fnid, 3));
+        if str_len(name) > 0 && str_len(rtype) > 0 {
+            sym_set(sym, str_concat("__fnret_", name), rtype);
+        };
+        i = i + 1;
+    };
+    return 0;
+}
+
 fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
     let kind: i64 = node_kind(pool, nid);
     if kind == 3 {
@@ -9926,6 +9952,19 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
     // chain that expr_struct_type already handles.
     if kind == 90 || kind == 91 || kind == 92 {
         return binop_float_type(pool, node_field(pool, nid, 1), sym, structs);
+    };
+    // v0.3.54 fix: function call. Look up the called fn's return
+    // type via the `__fnret_<NAME>` sym entry (populated by
+    // populate_fn_returns_in_sym at lower_fn entry). Without this,
+    // `make_one() + make_four()` (both returning f64) silently
+    // fell through to integer add and miscomputed.
+    if kind == 7 {
+        let fn_name: str = node_field(pool, nid, 1);
+        let rt: i64 = sym_get(sym, str_concat("__fnret_", fn_name));
+        if rt < 0 { return ""; };
+        if str_eq(rt, "f32") == 1 { return "f32"; };
+        if str_eq(rt, "f64") == 1 { return "f64"; };
+        return "";
     };
     return "";
 }
@@ -10323,7 +10362,7 @@ fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Ve
     return b;
 }
 
-fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
+fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>) -> Vec<i32> {
     let name: str = node_field(pool, fn_nid, 1);
     let plist: i64 = node_field(pool, fn_nid, 2);
     let blist: i64 = node_field(pool, fn_nid, 4);
@@ -10332,6 +10371,11 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
     let mut lbls: Vec<i32> = ctr_new();
     let mut sym: Vec<i32> = sym_new();
     enum_populate_sym(pool, enums, sym);
+    // v0.3.54: seed sym with `__fnret_NAME = rtype` entries so
+    // binop_float_type's kind==7 (call) branch can resolve the
+    // called fn's return type without signature plumbing through
+    // 44 lower_expr call sites.
+    populate_fn_returns_in_sym(pool, fn_decls, sym);
     let mut fir: Vec<i32> = ir_fn_new(name, pc);
     let mut ebb0: Vec<i32> = ir_block_new(0);
     ir_fn_add_block(fir, ebb0);
@@ -11113,14 +11157,20 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     let mut structs: Vec<i32> = Vec::new();
     let mut enums: Vec<i32> = Vec::new();
     let mut globals: Vec<i32> = Vec::new();
+    // v0.3.54: collect fn return-type lookup table for binop_float_type's
+    // kind==7 (call) branch. Mirrors the existing structs/enums vecs.
+    // Holds both regular fns (kind 30) and extern fns (kind 32) — both
+    // can return f32/f64 and call sites need correct binop dispatch.
+    let mut fn_decls: Vec<i32> = Vec::new();
     // Pass 1: collect structs, enums, and externs
     let collect_start: i64 = now_ms();
     let mut fi: i64 = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 32 { externs.push(fn_nid); }
+        if node_kind(pool, fn_nid) == 32 { externs.push(fn_nid); fn_decls.push(fn_nid); }
         else if node_kind(pool, fn_nid) == 33 { structs.push(fn_nid); }
         else if node_kind(pool, fn_nid) == 36 { enums.push(fn_nid); };
+        if node_kind(pool, fn_nid) == 30 { fn_decls.push(fn_nid); };
         if node_kind(pool, fn_nid) == 50 { globals.push(fn_nid); };
         fi = fi + 1;
     };
@@ -11236,12 +11286,12 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     fi = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls)); };
+        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls)); };
         fi = fi + 1;
     };
     let mut ii: i64 = 0;
     while ii < vec_len(impl_fns) {
-        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls));
+        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls));
         ii = ii + 1;
     };
     let mut ci3: i64 = 0;
