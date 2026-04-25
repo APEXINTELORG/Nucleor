@@ -5,6 +5,140 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.343] — 2026-04-24
+
+**T1.5d modules — friendly compile-time MOD-003 diagnostic
+replaces the link-time clang error.** Capstone of T1.5
+visibility work. After T1.5c privatized non-pub fns at the
+resolver layer, cross-module callers were getting a raw
+clang error: `error: use of undefined value '@lib_helper'`.
+Now the compiler captures clang's stderr, scans for
+undefined-symbol references that match registered private
+fn names, and emits a spec-aligned diagnostic instead:
+
+```
+error[MOD-003]: cannot call private fn 'lib_helper' from outside its declaring module
+  --> declared in: tests/err/../smoke/t15c_pkg/lib_optin.nr
+  hint: add `pub` to the fn declaration to expose it cross-module
+```
+
+The raw clang output is still echoed below the friendly
+diagnostic for power users who want the underlying detail.
+
+### Mechanism
+
+Three new helpers, synced across `nucleor_s1_compiler.nr` and
+`nucleor_tools_suite.nr`:
+
+| Helper | Purpose |
+|---|---|
+| `priv_build_global_registry(imported)` | Re-reads each imported file's source and runs `priv_collect_private_fn_names`. Returns a flat `[name1, origin_path1, name2, origin_path2, ...]` Vec. Re-reading is cheap (the imports list is small) and avoids threading the registry through the existing resolver signature. |
+| `priv_lookup_origin(reg, name)` | Linear scan of the alternating-pair Vec returns the origin path for a name, or `""` if not registered. |
+| `priv_lift_link_errors(clang_output, reg)` | Scans clang's captured output for the literal string `use of undefined value '@`, extracts each name up to the closing `'`, and for each name found in `reg` emits the MOD-003 diagnostic. Dedupes via a `seen` Vec so a single private fn called from two sites only fires once. Returns the count of MOD-003 lines emitted. |
+
+### Link command change
+
+`link_native_module` (in both compilers) now redirects clang's
+stderr+stdout to `.nuc_cache/clang_link.log` via `> log 2>&1`
+instead of streaming straight to the terminal. After the
+system call returns, the log is read back. On link failure,
+`priv_lift_link_errors` runs against the captured output;
+matching MOD-003 lines print first, then the raw clang
+output, then the standard `COMPILE FAILED` summary line which
+mentions the violation count.
+
+On link success, the captured log is still echoed (preserves
+the existing user experience of seeing clang warnings).
+
+### T1.5d verify gate step
+
+`T1.5d MOD-003 surfaces with origin + pub hint` builds the
+existing T1.5c err fixture (`tests/err/err_priv_cross_module.nr`)
+and asserts four properties of the output:
+
+1. The exact `error[MOD-003]: cannot call private fn 'lib_helper'
+   from outside its declaring module` line.
+2. The `--> declared in: ...lib_optin.nr` line.
+3. The hint line `hint: add \`pub\` to the fn declaration`.
+4. The summary `MOD-003 violation(s) — see error[MOD-003] above`.
+
+This locks the diagnostic format so future refactors don't
+silently degrade the error message.
+
+### Verify gate
+
+Windows: 352/352 PASS. Bootstrap fixpoint refreshed
+(seed sha256 `aa09c220...`).
+
+### Numerics-compatibility
+
+No new arithmetic surfaces. The lifter operates on `str` data
+through existing `str_*` builtins. Counts return `i64` per the
+locked i64-everywhere convention.
+
+### Memory safety
+
+The captured-log file is overwritten on each link, never
+appended to (no unbounded growth). The `seen` Vec inside
+`priv_lift_link_errors` is a stack-local that's freed when
+the function returns. The registry lookup is linear-search
+(O(n·m) where n=undefined-symbols and m=private-names) — fine
+for typical projects (both bounded by hundreds of fns).
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — three new helpers
+  (priv_build_global_registry, priv_lookup_origin,
+  priv_lift_link_errors) + link_native_module captures clang
+  output and calls the lifter on failure.
+- `compiler/nucleor_tools_suite.nr` — synced helpers + same
+  link command change.
+- `tools/verify.ps1`, `tools/verify.sh` — new T1.5d step
+  asserting the diagnostic format.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (402 fns,
+  747 optimized instructions; new sha256 aa09c220...).
+- `bin/nucleor.exe`, `bin/nucleor_tools.exe` — both rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Known limitations
+
+- The MOD-003 diagnostic doesn't yet include file:line:col
+  for the call site — clang's error format gives those
+  coordinates against the merged .ll, not the original
+  source. Mapping back to original source requires
+  preserving source markers through the merger; deferred to
+  T1.5e (which extends both source-map preservation AND
+  privatization to non-fn declarations).
+- The diagnostic fires post-link; the type checker doesn't
+  reject the call upfront. A future refactor moves this to
+  pre-link (during `nuc check`) by walking the resolved AST
+  and looking up call names against the private registry.
+  Out of scope for T1.5d.
+
+### T1.5 series complete (a-d)
+
+T1.5a (mod block-form), T1.5b (pub introspection), T1.5c
+(resolver-layer privatization), T1.5d (MOD-003 lift). The
+T1.5 module system now provides:
+- `mod foo;` file-rooted import (since v0.1.x)
+- `mod foo { ... }` inline block-form (T1.5a)
+- `pub fn` parsed + tagged + visible in `nuc summary` (T1.5b)
+- Cross-module visibility ENFORCED via name privatization
+  with per-file opt-in (T1.5c)
+- Friendly MOD-003 compile-time diagnostic on violation
+  (T1.5d)
+
+T1.5e (struct/enum visibility, source-map preservation for
+file:line in MOD-003) and v0.4 work (`pub use` re-exports,
+`pub(crate)`/`pub(super)` granularity, `crate::path::syntax`
+in the type system) remain queued.
+
+### Next
+
+T1.4 packager — real registry server backed by static index,
+per the locked design decisions. Will use GitHub Pages as
+the registry host (chosen during the v0.2 unblock vote).
+
 ## [0.2.342] — 2026-04-24
 
 **T1.5c modules — resolver-layer name privatization (real

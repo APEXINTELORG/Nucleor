@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 7))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 8))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -758,6 +758,19 @@ tools_suite_memory_budget() {
     _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
 }
 
+t15d_mod003() {
+    # v0.2.343 (T1.5d): undefined-symbol clang errors that match
+    # privatized fn names get lifted into MOD-003 with origin path
+    # and the `add pub` hint. Builds the err fixture (which calls
+    # lib_helper from outside lib_optin.nr) and asserts the friendly
+    # diagnostic appears in stderr.
+    "$BIN" build "tests/err/err_priv_cross_module.nr" -o "_t15d_check" >/tmp/_nuc_step.log 2>&1
+    grep -q "error\[MOD-003\]: cannot call private fn 'lib_helper'" /tmp/_nuc_step.log || return 1
+    grep -q "declared in:.*lib_optin\.nr" /tmp/_nuc_step.log || return 1
+    grep -q 'hint: add `pub` to the fn declaration' /tmp/_nuc_step.log || return 1
+    grep -q "MOD-003 violation(s)" /tmp/_nuc_step.log || return 1
+}
+
 t15c_privatization() {
     # v0.2.342 (T1.5c): resolver-layer name privatization with opt-in
     # semantics. Imports two libs:
@@ -932,6 +945,7 @@ step "tools-suite memory budget (<= 200 MB)" tools_suite_memory_budget
 step "T1.5a mod block-form inline" t15a_mod_block_form
 step "T1.5b pub introspection (summary surfaces visibility)" t15b_pub_introspection
 step "T1.5c privatization (cross-module call surfaces succeed)" t15c_privatization
+step "T1.5d MOD-003 surfaces with origin + pub hint" t15d_mod003
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------
