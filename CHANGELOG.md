@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.15] — 2026-04-25
+
+**RFC-0028 phase 3 — `format3_ssf` combo.** Two strs followed
+by an f64. Closes the str-leading float tier:
+
+  `format3_ssf(tmpl, str_a, str_b, f64_c)` — e.g.
+  `format!("{} {}: {}", category, key, measurement)` produces
+  `"metric pi: 3.14"`.
+
+Useful for metrics, CSV-ish output, and instrumented log lines
+where a labeled float is the payload. Same five edit sites in
+s1 + mirrored in tools_suite + runtime impl in
+`nucleor_llvm_rt.c` chaining `__nucleor_format_str` x 2 then
+`__nucleor_format_f64`. Added to the `#[no_alloc]` forbidden-
+name list.
+
+After this ship the format3 surface covers all the s/i/f
+prefix shapes that tier-3 user code routinely needs:
+
+|        | str-1   | i64-1   | f64-1 |
+|--------|---------|---------|-------|
+| str-2  | sss     | sii sis ssi | sff ssf (new) |
+| i64-2  | iss isi | iii     | iff iif       |
+| f64-2  | —       | —       | fff           |
+
+### Verify gate
+
+- New: `tests/lang/format3_ssf.nr` — auto-discovered under the
+  lang directory; prints `metric pi: 3.14`,
+  `sensor temp_c: 22.5`, then `OK format3_ssf`.
+- Self-host bootstrap fixed-point holds at E9DE3715 (stage-3
+  IR == stage-4 IR). Bootstrap RSS peak 263 MB.
+
 ## [0.3.14] — 2026-04-25
 
 **RFC-0028 phase 3 — float-mixing format3 combos.** Three more
