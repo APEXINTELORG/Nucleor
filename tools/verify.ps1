@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 15
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 16
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -773,6 +773,21 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
     $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
     return $h1 -eq $h2
+}
+
+Step "T2.3 closure literals |args| body (no-capture)" {
+    # v0.2.349 (T2.3): closure literals in argument position get
+    # lifted into synthesized top-level fns. Disambiguation from
+    # bitwise `|` uses preceding-non-ws-char arg-position test
+    # (after `(`, `,`, `=`, `=>`, `[`, `{`, `;`, or source start).
+    # 4 #[test] cases including a 3-step pipeline.
+    $out = & $bin test "tests/smoke/t23_closure_literals.nr" 2>&1 | Out-String
+    if ($out -notmatch "PASS: test_map_with_closure") { return $false }
+    if ($out -notmatch "PASS: test_filter_with_closure") { return $false }
+    if ($out -notmatch "PASS: test_fold_with_closure") { return $false }
+    if ($out -notmatch "PASS: test_chain_with_closures") { return $false }
+    if ($out -notmatch "test result: PASS \(4 tests\)") { return $false }
+    return $true
 }
 
 Step "T2.2 Vec iterator methods (.map/.filter/.fold/.sum/.min/.max)" {

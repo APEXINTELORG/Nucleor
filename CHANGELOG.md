@@ -5,6 +5,140 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.349] — 2026-04-24
+
+**T2.3 closure literals (no-capture) in call-argument position
+— `v.map(|x| x * 2).filter(|x| x > 0).fold(0, |acc, x| acc + x)`
+now works.** Source-level rewriting in the resolver lifts each
+closure into a synthesized top-level fn and replaces the closure
+expression with the synth fn's name. The T2.2 iterator dispatch
+then receives a function-pointer value through the existing
+i64-cell calling convention — no runtime change required.
+
+### Scope and bug-discovered limitation
+
+T2.3 fires ONLY when `|` is preceded (after whitespace) by `(`
+or `,` — i.e., **inside an unambiguous call-argument position**.
+Other closure contexts (let-binding RHS, return expression,
+match-arm RHS, etc.) continue to use the existing parser-level
+closure infrastructure (kind-42 `Closure` + kind-49
+`ClosureLet` + capture analysis at `closure_collect_capture_expr`).
+
+The first draft was broader — it also fired after `=`, `=>`,
+`[`, `{`, `;`. Verify gate caught the regression: existing
+`tests/lang/closures.nr` and `tests/features/closure_basic.nr`
+both rely on `let f = |x| x * 2; ... f(41)` syntax. Lifting
+the closure to a top-level fn and assigning the fn pointer
+to a local i64 means the call site `f(41)` no longer matches a
+global symbol — clang fails with `use of undefined value '@f'`
+because the existing parser still treats `f(...)` as a direct
+call rather than indirect-through-pointer.
+
+The fix is a 7-line tightening of `close_is_arg_position_char`
+to `(` and `,` only. Closures-in-arg-position is the most
+useful case (the iterator-method pipeline) and the case the
+existing parser doesn't handle as ergonomically. The two
+infrastructures coexist cleanly.
+
+### Helpers added (synced across both compilers)
+
+| Helper | Purpose |
+|---|---|
+| `close_is_arg_position_char(c)` | Returns 1 iff `c` is `(` (40) or `,` (44). Used to disambiguate closures from bitwise `\|`. |
+| `close_parse_arg_list(src, start, slen)` | Parses `<ident>(, <ident>)*` with optional `: type` annotations. Returns `[end_pos, name1, name2, ...]` or `[-1]` on parse error. |
+| `close_parse_body_end(src, start, slen)` | Walks forward from start. Body ends at first `,` or `)` or `]` at the same paren depth. String / char / line-comment aware. |
+| `close_synthesize_fn(name, args, body)` | Builds the synth fn declaration text — `fn <name>(arg1: i64, ...) -> i64 { return <body>; }`. All args typed i64 (matches the existing `vec_*_i64` runtime calling convention). |
+| `expand_closures(src)` | Top-level walker. Identifier-, quote-, char-literal-, line-comment-aware. Uses `last_non_ws` tracking to detect arg-position `\|`. Synth fns are accumulated in a separate sb and prepended to the final source. |
+
+### Wired in resolver
+
+`load_resolved_source_bundle` (in BOTH `nucleor_s1_compiler.nr`
+and `nucleor_tools_suite.nr`) now runs `expand_closures` AFTER
+`expand_format_macros` — so the chain is:
+1. `resolve_source_with_records` (imports + privatization +
+   `mod foo { ... }` block-form, T1.5)
+2. `expand_format_macros` (T2.6)
+3. `expand_closures` (T2.3) — new step
+4. cache the post-expansion text, parse, lower, link
+
+Each closure gets a unique synth name keyed off
+`content_hash(src)` + a per-source counter, so two closures
+with identical bodies in the same file get distinct fns
+(simpler than de-duping; avoids semantics drift).
+
+### T2.3 smoke
+
+`tests/smoke/t23_closure_literals.nr` — 4 `#[test]` cases:
+- `test_map_with_closure`     — `v.map(|x| x * x)` squares
+- `test_filter_with_closure`  — `v.filter(|x| x)` keeps non-zero
+- `test_fold_with_closure`    — `v.fold(1, |acc, x| acc * x)`
+- `test_chain_with_closures`  — `v.map(|x| x*x).filter(|x| x - (x/2)*2).fold(0, |acc, x| acc + x)` 3-step pipeline
+
+All 4 PASS. Existing closure tests (`tests/lang/closures.nr`,
+`tests/features/closure_basic.nr`) continue to PASS — they
+exercise the let-RHS closure path which the parser handles
+natively and which T2.3 leaves alone.
+
+### Verify gate
+
+Windows: 358/358 PASS. Bootstrap fixpoint refreshed
+(seed sha256 `34d0aec3...`).
+
+### Numerics-compatibility
+
+All closure args + return values typed as i64 — matches the
+locked i64-everywhere FFI convention and the existing
+`vec_*_i64` runtime helper signatures. No new arithmetic
+surfaces.
+
+### Memory safety
+
+No-capture closures generate truly global helper fns — no
+environment, no shared state, no aliasing. The fn-pointer
+value passed through the iterator dispatch is an i64
+address; the runtime helpers call through it without dereferencing
+any environment pointer. Capture support (T2.3b) will need a
+new (fn_ptr, env_ptr) ABI plus separate runtime helpers.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — five new closure helpers
+  + `expand_closures` resolver hook.
+- `compiler/nucleor_tools_suite.nr` — synced helpers + same
+  resolver hook.
+- `tests/smoke/t23_closure_literals.nr` — 4-case smoke
+  including the 3-step chain pipeline.
+- `tools/verify.ps1`, `tools/verify.sh` — new T2.3 step.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (418 fns,
+  812 optimized instructions; new sha256 34d0aec3...).
+- `bin/nucleor.exe`, `bin/nucleor_tools.exe` — both rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Known limitations
+
+- **No captures.** The closure body must only reference its
+  own arg names + global fns. Referencing an outer-scope
+  local will compile (the synth fn declares the outer name
+  as undefined) and fail at link time. T2.3b adds capture
+  via (fn_ptr, env_ptr) closure objects; runtime helpers
+  need a new variant: `vec_map_i64_env(v, fn_ptr, env_ptr)`.
+- **No type annotations on closure args.** Args are always
+  typed i64 in the synthesized fn. f64-bodied closures need
+  the synth template generalized; T2.3c.
+- **Body must be a single expression.** Block-bodied closures
+  (`|x| { let y = x + 1; y * 2 }`) need a slightly different
+  synth template; T2.3d.
+- **Body extends to first `,` / `)` at same depth** — works
+  for the iterator-method case but means a closure body with
+  a top-level `,` requires explicit parens:
+  `v.fold(0, |acc, x| (acc, x).0 + x)` rather than
+  `v.fold(0, |acc, x| acc, x)`. Probably fine in practice.
+
+### Next
+
+T2.4 — trait objects (`Box<dyn Trait>`) per the locked
+priority order. Real dynamic dispatch.
+
 ## [0.2.348] — 2026-04-24
 
 **T2.2 iterator trait + adapters — Vec method-call dispatch

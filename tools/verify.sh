@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 13))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 14))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -758,6 +758,17 @@ tools_suite_memory_budget() {
     _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
 }
 
+t23_closure_literals() {
+    # v0.2.349 (T2.3): closure literals lifted into synthesized
+    # top-level fns. 4 #[test] cases including a 3-step pipeline.
+    "$BIN" test "tests/smoke/t23_closure_literals.nr" >/tmp/_nuc_step.log 2>&1
+    grep -q "PASS: test_map_with_closure" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_filter_with_closure" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_fold_with_closure" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_chain_with_closures" /tmp/_nuc_step.log || return 1
+    grep -q "test result: PASS (4 tests)" /tmp/_nuc_step.log || return 1
+}
+
 t22_iter_methods() {
     # v0.2.348 (T2.2): Vec method-call dispatch for iterator methods
     # routes to typed `vec_*_i64` runtime helpers. 5 #[test] cases
@@ -1034,6 +1045,7 @@ step "T1.6 gen-headers emits #[repr(C)] struct typedefs" t16_gen_headers_structs
 step "T2.6 println!/print!/format! macros expand correctly" t26_format_macros
 step "T2.1 range patterns in match (1..=9 / 1..10)" t21_range_patterns
 step "T2.2 Vec iterator methods (.map/.filter/.fold/.sum/.min/.max)" t22_iter_methods
+step "T2.3 closure literals |args| body (no-capture)" t23_closure_literals
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------
