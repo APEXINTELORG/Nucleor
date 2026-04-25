@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 37
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 38
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -867,6 +867,22 @@ Step "T3.9 RT-005 fires on FFI call from RT fn body" {
     $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-005\]: FFI call 'host_telemetry'") { return $false }
     if ($out -notmatch "from #\[no_alloc\] fn 'rt_path'") { return $false }
+    return $true
+}
+
+Step "T3.19 #[allow_fn(RT-001)] cannot demote error tier (strict)" {
+    # v0.3.34 (T3.19): companion to T3.18. The err-sweep already
+    # builds err_t323_allow_fn_no_error_suppress.nr and asserts
+    # SOME diagnostic fires, but build_negative accepts either
+    # error or warning -- so a regression where #[allow_fn(RT-001)]
+    # silently demoted errors to warnings would still pass the
+    # sweep. T3.19 strictly asserts error[RT-001] fires AND
+    # warning[RT-001] does NOT fire (would indicate the allow_fn
+    # improperly demoted the diag tier instead of leaving it at
+    # error tier untouched).
+    $out = & $bin build "tests/err/err_t323_allow_fn_no_error_suppress.nr" -o "_t323_strict_check" --no-cache 2>&1 | Out-String
+    if ($out -notmatch "error\[RT-001\]") { return $false }
+    if ($out -match "warning\[RT-001\]") { return $false }
     return $true
 }
 

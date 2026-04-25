@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.34] — 2026-04-25
+
+**T3.19 strict assertion: `#[allow_fn]` cannot demote error
+tier.** Companion to v0.3.33's T3.18. v0.3.23 shipped the
+negative test `err_t323_allow_fn_no_error_suppress.nr` to lock
+in the RFC-0001 design intent that errors are non-suppressible
+— but the err-sweep's `build_negative` accepts ANY diagnostic,
+so a regression where `#[allow_fn(RT-001)]` started silently
+demoting RT-001 from error to warning would still pass the
+sweep. T3.19 closes that gap.
+
+### Approach
+
+New T3.19 verify step (sh + ps1) that builds the existing
+`err_t323_allow_fn_no_error_suppress.nr` and asserts:
+
+- `error[RT-001]` MUST fire (RFC-0001 design intent: errors are
+  non-suppressible by `#[allow_fn]`)
+- `warning[RT-001]` must NOT fire (would indicate the allow_fn
+  improperly demoted the diag tier instead of leaving it
+  untouched)
+
+The fixture is a `#[no_alloc]` fn that calls `Vec::new` and
+`.push` (both alloc-prone), with a stacked
+`#[allow_fn(RT-001)]` that the design intent says SHOULD be
+ignored. T3.19 pins both the fire-as-error semantics and the
+no-demote semantics.
+
+### Why this matters: the warning ↔ error line as opt-out boundary
+
+Per RFC-0001 §3.5, the `#[allow]` / `#[allow_fn]` family moves
+diagnostics across the warning ↔ error line in ONE direction
+only — they suppress warnings, not errors. The `#[deny]` /
+`#[deny_fn]` family moves them across in the OTHER direction —
+they promote warnings to errors. Neither family should ever:
+
+- Suppress an error (would be the v0.3.34 regression class)
+- Demote an error to a warning (same regression class)
+- Add a brand-new diagnostic (collector-mismatch class)
+
+T3.18 (v0.3.33) catches "deny silently stops promoting".
+T3.19 (v0.3.34) catches "allow silently starts demoting".
+Together they pin the design-intent boundary from both sides.
+
+### Verify gate
+
+- 393/393 green (was 392 + 1 new step). Verify total grew by
+  one in both verify.sh and verify.ps1.
+- T3.19 confirmed manually: stage-1 emits two `error[RT-001]`
+  diagnostics (one for `Vec::new`, one for `.push`) and zero
+  `warning[RT-001]` — the allow_fn is silently ignored against
+  error-tier RT-001 as designed.
+- Self-host bootstrap fixed point unchanged at SHA `8ae2941f`
+  (no compiler change — verify-step-only).
+
+### Pair table after v0.3.34
+
+| Per-fn op  | Tier behavior tested            | Step | Code  |
+|------------|---------------------------------|------|-------|
+| `allow_fn` | suppresses warning              | T3.12 | RT-007 |
+| `allow_fn` | suppresses warning              | T3.17 | RT-004 |
+| `allow_fn` | does NOT demote error           | T3.19 | RT-001 |
+| `deny_fn`  | promotes warning -> error       | T3.18 | RT-007 |
+
+Both directions of the warning ↔ error opt-out boundary now
+have purpose-built fixtures with strict tier assertions.
+
 ## [0.3.33] — 2026-04-25
 
 **T3.18 strict assertion: `#[deny_fn(RT-007)]` actually
