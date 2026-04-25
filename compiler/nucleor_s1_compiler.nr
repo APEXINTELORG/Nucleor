@@ -9119,6 +9119,19 @@ fn closure_collect_capture_stmt(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params:
         closure_collect_capture_expr(pool, nid, sym, params, caps);
         return 0;
     };
+    // v0.3.72: bare-expression body fall-through. When a closure
+    // literal's body is `|x| EXPR` (no braces), the parser stores
+    // EXPR as the single body element — but EXPR has an expression
+    // kind (binop/call/index/etc.), not a stmt kind. Pre-v0.3.72,
+    // closure_collect_capture_stmt silently returned without walking,
+    // missing every capture in inline closures (typically those
+    // passed to .map / .filter / .fold). The let-bound case
+    // (`let f = |x| x + outer;`) accidentally worked because the
+    // outer let-stmt's RHS handler took a different path. Without
+    // this, every `v.map(|x| x * factor)` lowered to a closure body
+    // that referenced `@factor` as a missing global symbol —
+    // unresolved external at link time.
+    closure_collect_capture_expr(pool, nid, sym, params, caps);
     return 0;
 }
 

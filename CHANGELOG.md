@@ -5,6 +5,147 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.72] — 2026-04-25
+
+**Compiler fix #17: closure capture link-time correctness — runtime
+helpers `__nucleor_capture_set` / `__nucleor_capture_get` were declared
+in the IR header but never DEFINED in the runtime.** Pre-v0.3.72,
+EVERY closure that captured an outer variable failed at clang link
+with "unresolved external symbol __nucleor_capture_set / get". The
+codegen path emitted the calls correctly; the runtime side was simply
+absent. v0.3.72 adds the helpers (a flat 8192×32 capture table) so
+the let-bound closure-capture path links and runs end-to-end.
+
+### Root cause
+
+Looking at `compiler/nucleor_s1_compiler.nr` lines 3817-3818:
+
+```nucleor
+sb_append(sb, "declare i64 @__nucleor_capture_set(i64, i64, i64)\n");
+sb_append(sb, "declare i64 @__nucleor_capture_get(i64, i64)\n");
+```
+
+And lines 9950 / 9972 emit the calls. But grep across
+`stdlib/runtime/nucleor_llvm_rt.c` for `capture_set` / `capture_get`
+returned **no matches**. The runtime helpers had never been written.
+
+This is the kind of dead-end that only surfaces when a real user
+writes `let mul = |x| x * factor;` — the existing unit tests labelled
+T2.3 in the verify gate were "no-capture" closures only, so the link
+gap stayed invisible until production-shape probing exposed it.
+
+### Fix
+
+**Runtime side** (`stdlib/runtime/nucleor_llvm_rt.c`): add a flat
+2D capture table sized for production code (8192 closures × 32
+captures × 8 bytes = 2 MB static), with the two helpers:
+
+```c
+#define NUC_MAX_CLOSURES 8192
+#define NUC_MAX_CAPTURES 32
+static long long g_capture_table[NUC_MAX_CLOSURES][NUC_MAX_CAPTURES];
+
+long long __nucleor_capture_set(long long clo_id, long long cap_id, long long value) {
+    if (clo_id < 0 || clo_id >= NUC_MAX_CLOSURES) return 0;
+    if (cap_id < 0 || cap_id >= NUC_MAX_CAPTURES) return 0;
+    g_capture_table[clo_id][cap_id] = value;
+    return value;
+}
+
+long long __nucleor_capture_get(long long clo_id, long long cap_id) {
+    if (clo_id < 0 || clo_id >= NUC_MAX_CLOSURES) return 0;
+    if (cap_id < 0 || cap_id >= NUC_MAX_CAPTURES) return 0;
+    return g_capture_table[clo_id][cap_id];
+}
+```
+
+Bounds-checked, defaults-to-zero on out-of-range — matches the
+compiler's threads-only concurrency model (per locked default).
+
+**Compiler hardening** (`compiler/nucleor_s1_compiler.nr`):
+`closure_collect_capture_stmt` previously only handled stmt kinds
+{20, 21, 22, 23, 25} and silently returned `0` for any other kind.
+This dropped captures whenever the closure body was a stmt shape
+not in that set. v0.3.72 adds an expression fall-through:
+
+```nucleor
+// v0.3.72: bare-expression body fall-through. When a closure
+// literal's body is `|x| EXPR` (no braces), the parser stores
+// EXPR as the single body element — but EXPR has an expression
+// kind (binop/call/index/etc.), not a stmt kind.
+closure_collect_capture_expr(pool, nid, sym, params, caps);
+return 0;
+```
+
+Defensive — no observable difference on current tests, prevents
+future closure-body shape gaps.
+
+### What now works that previously didn't
+
+```nucleor
+// All four shapes link + run correctly:
+let factor: i64 = 3;
+let mul3 = |x: i64| x * factor;                 // single capture
+let offset: i64 = 5;
+let with_off = |x: i64| x * factor + offset;    // multi-capture
+let combined = |x: i64| x * factor + x * factor; // capture reused
+let m1 = |x: i64| x * factor;
+let m2 = |x: i64| x + offset;                   // distinct slots
+```
+
+### Known v1 boundary (NOT fixed in this ship)
+
+Inline closures passed directly to `.map / .filter / .fold` go
+through a separate source preprocessor path
+(`close_synthesize_fn`) that synthesizes the body as a top-level
+fn without capture detection. So:
+
+```nucleor
+let mapped = v.map(|x| x * factor);      // STILL FAILS at link
+```
+
+Workaround — lift to a let binding so the AST closure-capture
+path takes over:
+
+```nucleor
+let f = |x: i64| x * factor;
+let mapped = v.map(f);                   // works post-v0.3.72
+```
+
+Tracked for a v0.4 parser/preprocessor refactor.
+
+### Files touched
+
+- `stdlib/runtime/nucleor_llvm_rt.c` — `g_capture_table` + the two
+  helpers added at the closure-capture section near `__nucleor_abs`.
+- `compiler/nucleor_s1_compiler.nr` — `closure_collect_capture_stmt`
+  expression fall-through hardening. Bootstrap fixed point recomputed
+  at SHA `aeea9044` (was `5706a27f`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t347_closure_capture.nr` — new strict regression
+  fixture covering single capture, multi-capture, capture reused
+  in body, and multiple distinct closures (slot non-aliasing).
+  Returns 1+2+4+8=15 if every form links + runs.
+- `tools/verify.{sh,ps1}` — new T3.47 verify step.
+
+### Verify gate
+
+- 425/425 green (was 424 + 1 step from T3.47).
+- All prior regression fixtures (T3.28-T3.46) still green.
+- Bootstrap fixed point closes at `aeea9044`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.72)
+
+- **17 codegen fixes** (15 from v0.3.51-69 + v0.3.71 + v0.3.72)
+- **20 strict regression fixtures** (T3.28-T3.47)
+- **6 robotics RT showcase examples** in Tier 4
+- **Diagnostic discipline**: silent IR-corrupting fall-throughs
+  now emit named errors with hints
+- **Runtime↔compiler symmetry**: every helper the compiler
+  declares is now also defined in the runtime (closure-capture
+  was the last gap)
+
 ## [0.3.71] — 2026-04-25
 
 **Compiler fix #16: Rust-style associated-fn aliases for collections

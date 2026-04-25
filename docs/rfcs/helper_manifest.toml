@@ -118,9 +118,9 @@ effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "alloc_capability_or_arena_owned"
-stability        = "unstable"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
+notes            = ""
 
 [[helper]]
 name             = "capture_set"
@@ -132,9 +132,9 @@ effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "alloc_capability_or_arena_owned"
-stability        = "unstable"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
+notes            = ""
 
 [[helper]]
 name             = "region_alloc"

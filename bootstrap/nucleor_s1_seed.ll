@@ -76123,8 +76123,14 @@ L12:
   %r.79 = add i64 0, 0
   ret i64 %r.79
 L14:
-  %r.80 = add i64 0, 0
-  ret i64 %r.80
+  %r.80 = load i64, ptr %r.0
+  %r.81 = load i64, ptr %r.2
+  %r.82 = load i64, ptr %r.4
+  %r.83 = load i64, ptr %r.6
+  %r.84 = load i64, ptr %r.8
+  %r.85 = call i64 @closure_collect_capture_expr(i64 %r.80, i64 %r.81, i64 %r.82, i64 %r.83, i64 %r.84)
+  %r.86 = add i64 0, 0
+  ret i64 %r.86
 }
 
 define i64 @lower_if_expr_branch(i64 %p.0, i64 %p.1, i64 %p.2, i64 %p.3, i64 %p.4, i64 %p.5, i64 %p.6, i64 %p.7, i64 %p.8, i64 %p.9, i64 %p.10, i64 %p.11, i64 %p.12) {
