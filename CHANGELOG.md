@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.7] — 2026-04-25
+
+**T3.8 RT-006 — RT attribute on `async fn` is rejected.** The
+final RT diagnostic from RFC-0001 §3.5: any of `#[no_alloc]`,
+`#[no_panic]`, `#[no_dyn]`, or `#[deadline = N]` paired with
+an `async fn` now fires `error[RT-006]: RT attribute ... on
+async fn '<name>' -- async is non-deterministic by design and
+cannot satisfy real-time guarantees`. The two surfaces have
+to be mutually exclusive — async scheduling, IO wakeups, and
+thread allocation make every RT contract impossible to honor.
+
+### Approach
+
+Detection has to happen *before* `expand_async_strip_keyword`
+deletes the `async` keyword. The expander now does the check
+inline: when stripping `async ` from `async fn NAME(...)`, it
+walks back past blank lines and `///` doc comments looking for
+exactly `#[no_alloc]`, `#[no_panic]`, `#[no_dyn]`, or
+`#[deadline ...]` / `#[deadline=...]`. If any of those is the
+first non-blank/non-`///` line above, it emits a marker
+`\n//__NUC6T:<fnname>\n` at column 0 in the output stream.
+The post-resolver diag pass scans for the exact byte sequence
+`\n//__NUC6T:` (the leading newline rules out string-literal
+and mid-line prose mentions in this very compiler), reads the
+fn name, emits one error[RT-006] per match.
+
+### Verify gate
+
+- New: `tests/err/err_rt006_async_no_alloc.nr` and
+  `tests/err/err_rt006_async_deadline.nr` — both auto-discovered
+  by the negative-fixture sweep.
+- New explicit step T3.8 asserts the exact RT-006 diagnostic
+  text (code, fn name, "non-deterministic" rationale).
+- Existing `tests/smoke/t28_async_threads.nr` still PASSes:
+  bare async (no RT attr) is unaffected.
+- Self-host bootstrap fixed-point holds at 73553798 (stage-2
+  IR == stage-3 IR). Bootstrap RSS peak 207 MB.
+
 ## [0.3.6] — 2026-04-25
 
 **T3.7 polish — RT-001/002/003 v1 checkers strip strings and

@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 28
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 29
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -796,6 +796,19 @@ Step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" {
     $out = & $bin build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-007\]:") { return $false }
     if ($out -notmatch "has #\[deadline\] but neither #\[no_alloc\] nor #\[no_panic\]") { return $false }
+    return $true
+}
+
+Step "T3.8 RT-006 fires on RT attr + async fn" {
+    # v0.3.7 (T3.8): RFC-0001 RT-006 — async fn cannot carry an
+    # RT attribute (#[no_alloc] / #[no_panic] / #[no_dyn] /
+    # #[deadline]) because async scheduling is non-deterministic.
+    # Two negative fixtures cover both attribute spellings; this
+    # step asserts the no_alloc variant fires the exact text.
+    $out = & $bin build "tests/err/err_rt006_async_no_alloc.nr" -o "_t38_rt006_check" 2>&1 | Out-String
+    if ($out -notmatch "error\[RT-006\]: RT attribute") { return $false }
+    if ($out -notmatch "on async fn 'poll_loop'") { return $false }
+    if ($out -notmatch "async is non-deterministic") { return $false }
     return $true
 }
 
