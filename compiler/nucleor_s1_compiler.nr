@@ -6542,7 +6542,7 @@ fn enforce_static_wcet(diags: Vec<i32>, source: str) -> Vec<i32> {
         let units: i64 = wcet_estimate_fn_units(source, inner_name);
         let estimated_us: i64 = (units + 9) / 10;
         if estimated_us > limit_us {
-            let msg: str = str_concat("static WCET estimate ", str_concat(str_from_int(estimated_us), str_concat(" us (", str_concat(str_from_int(units), str_concat(" units x 0.1 us) exceeds #[deadline = ", str_concat(str_from_int(limit_us), str_concat(" us] (v1 estimator -- use #[allow(RT-004)] if wrong; default loop multiplier 100x)", "")))))));
+            let msg: str = str_concat("static WCET estimate ", str_concat(str_from_int(estimated_us), str_concat(" us (", str_concat(str_from_int(units), str_concat(" units x 0.1 us) exceeds #[deadline = ", str_concat(str_from_int(limit_us), str_concat(" us] (v1 estimator -- use #[allow(RT-004)] file-wide or #[allow_fn(RT-004)] per-fn if the estimate is wrong; default loop multiplier 100x)", "")))))));
             diag_add_ex(diags, "warning", "rt", "RT-004", msg, inner_name, 0, 0, "");
         };
         i = i + 2;
