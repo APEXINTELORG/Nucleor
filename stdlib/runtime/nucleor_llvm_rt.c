@@ -1555,6 +1555,17 @@ long long __nucleor_vec_iter_i64(NVec *v) {
     return (long long)(intptr_t)v;
 }
 
+// v0.3.102: vec_collect_i64 — identity terminator for the
+// `.iter().map(f).collect()` chain. The intermediate `.map`
+// returns a fresh Vec already; .collect() just hands it back to
+// the caller. Without this, Rust-canonical `let w = v.iter()
+// .map(f).collect();` failed at clang link with `@vec_collect`
+// undefined even though the value flowing into it was already a
+// well-formed Vec.
+long long __nucleor_vec_collect_i64(NVec *v) {
+    return (long long)(intptr_t)v;
+}
+
 long long __nucleor_vec_sum_f64(NVec *v) {
     if (!v) return 0;
     union { long long i; double d; } acc;
