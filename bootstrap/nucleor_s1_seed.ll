@@ -49445,13 +49445,13 @@ L2:
   %r.95 = call i64 @sym_set(i64 %r.92, i64 %r.93, i64 %r.82)
   %r.96 = load i64, ptr %r.4
   %r.97 = ptrtoint ptr @.str.3222 to i64
-  %r.99 = call i64 @sym_set(i64 %r.96, i64 %r.97, i64 %r.82)
+  %r.99 = call i64 @sym_set(i64 %r.96, i64 %r.97, i64 %r.86)
   %r.100 = load i64, ptr %r.4
   %r.101 = ptrtoint ptr @.str.3223 to i64
   %r.103 = call i64 @sym_set(i64 %r.100, i64 %r.101, i64 %r.86)
   %r.104 = load i64, ptr %r.4
   %r.105 = ptrtoint ptr @.str.3224 to i64
-  %r.107 = call i64 @sym_set(i64 %r.104, i64 %r.105, i64 %r.86)
+  %r.107 = call i64 @sym_set(i64 %r.104, i64 %r.105, i64 %r.82)
   %r.108 = load i64, ptr %r.4
   %r.109 = ptrtoint ptr @.str.3225 to i64
   %r.111 = call i64 @sym_set(i64 %r.108, i64 %r.109, i64 %r.86)

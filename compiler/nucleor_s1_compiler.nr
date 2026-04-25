@@ -5295,9 +5295,18 @@ fn enum_populate_sym(pool: Vec<i32>, enums: Vec<i32>, sym: Vec<i32>) -> i64 {
     sym_set(sym, "__eargs_Option_Some", 1);
     sym_set(sym, "__etag_Option_None", 1);
     sym_set(sym, "__eargs_Option_None", 0);
-    sym_set(sym, "__etag_Result_Ok", 0);
+    // v0.3.91 (revised): Result variant tags must match the stdlib
+    // `result.nr` convention (Ok=1, Err=0) so the `?` operator works
+    // for BOTH compiler-builtin Ok(x)/Err(x) AND
+    // stdlib result_ok(x)/result_err(x) calls. Pre-revision had
+    // Ok=0/Err=1, which conflicted with the stdlib (used by the
+    // existing tests/lang/try_op.nr) — flipping etag tag values is
+    // the correct fix; reverting the `?` lowering too. Both Result
+    // construction shapes now produce Vec<i32> [tag, payload] with
+    // tag=1 on Ok, tag=0 on Err.
+    sym_set(sym, "__etag_Result_Ok", 1);
     sym_set(sym, "__eargs_Result_Ok", 1);
-    sym_set(sym, "__etag_Result_Err", 1);
+    sym_set(sym, "__etag_Result_Err", 0);
     sym_set(sym, "__eargs_Result_Err", 1);
     return 0;
 }
@@ -9536,11 +9545,13 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
     };
     if kind == 122 {
         // RFC-0016 phase 1: `?` postfix operator. Inner expression returns a
-        // Result-like Vec<i32> with [0]=tag (1=Ok/0=Err) and [1]=payload.
-        // Emit:
-        //   let tmp = inner;
-        //   if vec_get(tmp, 0) == 0 { return tmp; }
-        //   vec_get(tmp, 1)            // value of the ? expression
+        // Result-like Vec<i32> with [0]=tag (Ok=1, Err=0) and [1]=payload —
+        // matching the stdlib `result.nr` convention (and v0.3.91-revised
+        // __etag_Result_Ok=1 / __etag_Result_Err=0 at line 5298-5301).
+        //
+        // Lowering: compute `cmp = (tag == 0)` (true on Err); if true,
+        // branch to err_lbl (early-return the Result); else branch to
+        // ok_lbl (extract payload at index 1).
         let inner_lx: Vec<i32> = lower_expr(pool, node_field(pool, nid, 1), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let mut cur: Vec<i32> = lx_blk(inner_lx);
         let val_r: i64 = lx_reg(inner_lx);
@@ -9549,6 +9560,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let tag_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(tag_r, "vec_get", tag_args));
         let cmp_r: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(7, cmp_r, tag_r, zero_r));
         let err_lbl: i64 = ctr_next(lbls); let ok_lbl: i64 = ctr_next(lbls);
+        // cmp_r == 1 (tag==0, Err) → err_lbl (return); cmp_r == 0 (tag!=0, Ok) → ok_lbl (extract).
         ir_block_add(cur, ir_br_cond(cmp_r, err_lbl, ok_lbl));
         let mut err_blk: Vec<i32> = ir_block_new(err_lbl); ir_fn_add_block(fir, err_blk);
         ir_block_add(err_blk, ir_ret(val_r));

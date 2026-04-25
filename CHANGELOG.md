@@ -5,6 +5,99 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.91] — 2026-04-25
+
+**HIGH-BLAST-RADIUS FIX: compiler-builtin `Ok(x)`/`Err(x)`
+constructors used different tag values than stdlib
+`result_ok(x)`/`result_err(x)`, breaking the `?` operator
+for compiler-builtin Result.** Pre-v0.3.91, two Result
+construction shapes coexisted with INCOMPATIBLE tag values:
+
+- Compiler-builtin: `__etag_Result_Ok = 0, __etag_Result_Err = 1`
+- Stdlib `result.nr`: `Ok = 1, Err = 0` (line 10 of result.nr)
+
+The `?` operator's lowering was correct for ONE convention only.
+Programs using compiler-builtin Result silently mis-computed
+(`pipeline(60)` returned 30 instead of 100 because `?`
+early-returned on Ok), while programs using stdlib `result_ok`/
+`result_err` worked correctly.
+
+### Fix (with first-attempt postmortem)
+
+The first v0.3.91 attempt swapped the `?` lowering labels to
+match the compiler-builtin convention, then verify caught a
+regression in the existing `tests/lang/try_op.nr` (which uses
+the stdlib `result.nr` convention). The conventions are
+INCOMPATIBLE — fixing only one breaks the other.
+
+The correct fix: unify both conventions. Flip the etag table
+entries to match the stdlib (`Ok=1, Err=0`) AND keep the
+original `?` lowering. Both Result construction shapes now
+produce `Vec<i32> [tag, payload]` with `tag=1` on Ok, `tag=0`
+on Err. The `?` operator branches `tag==0 → err_lbl` (early
+return), `tag!=0 → ok_lbl` (extract payload).
+
+```nucleor
+// v0.3.91 (revised) — etag entries match stdlib:
+sym_set(sym, "__etag_Result_Ok",  1);
+sym_set(sym, "__etag_Result_Err", 0);
+```
+
+Comment in the `?` lowering also updated to document the
+unified convention.
+
+### What now works that previously didn't
+
+```nucleor
+fn pipeline(a: i64) -> Result<i64, str> {
+    let x: i64 = divide(a, 2)?;       // ✓ unwraps to 30 (was: early-returned)
+    let y: i64 = divide(x, 3)?;       // ✓ unwraps to 10 (was: dead code)
+    return Ok(y * 10);                 // ✓ Ok(100) (was: never reached)
+}
+
+pipeline(60) → Ok(100)                 // pre-v0.3.91: Ok(30) (wrong)
+```
+
+### Probing strategy note
+
+User feedback (2026-04-25): "attempt to run more than one probe to
+find multiple issues in a given pass then batch them out as opposed
+to change by change." The v0.3.91 cycle ran an 8-probe batch
+that found 4 issues:
+- `?` chain Ok/Err swap (this ship)
+- Mut closure capture writeback silent no-op (queued for v0.3.92+)
+- Pure-shorthand struct init `P { x, y }` (known v0.3.90 boundary)
+- `Box<dyn Trait>` parser failure (queued)
+
+Cron interval also reduced from 5m → 3m to decrease idling.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — flipped `__etag_Result_Ok`
+  and `__etag_Result_Err` registrations to match stdlib
+  convention; `?` lowering at line 9537 unchanged from
+  pre-v0.3.91 behavior. Bootstrap fixed point at SHA
+  `f92686c8` (was `acfd7375`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t367_question_op_chain.nr` — new strict
+  regression fixture.
+- `tools/verify.{sh,ps1}` — new T3.67 verify step.
+
+### Verify gate
+
+- 445/445 green (was 444 + 1 step from T3.67).
+- All prior regression fixtures (T3.28-T3.66) still green —
+  including `tests/lang/try_op.nr` which initially regressed
+  with the first-attempt fix and now passes after the etag flip.
+- Bootstrap fixed point closes at `f92686c8`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.91)
+
+- **30 codegen + 2 runtime + 6 parser/check diagnostic = 38 total**
+- **40 strict regression fixtures** (T3.28-T3.67)
+- **6 robotics RT showcase examples** in Tier 4
+
 ## [0.3.90] — 2026-04-25
 
 **Feature: shorthand field initialization in struct literals.**
