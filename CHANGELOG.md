@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.96] — 2026-04-25
+
+**Diagnostic: closures cannot mutate captured variables (FnMut
+silent miscompute eliminated, HIGH-BLAST-RADIUS).** Pre-v0.3.96,
+closures that mutated captured outer-scope variables via
+assignment silently no-op'd:
+
+```nucleor
+let mut total: i64 = 0;
+let inc = |n: i64| { total = total + n; };
+inc(5); inc(7);
+return total;       // PRE-v0.3.96: returned 0 instead of 12
+```
+
+The closure body's `total = total + n` wrote to the closure's
+local copy of the captured value (loaded once at fn entry via
+`__nucleor_capture_get`). The mutation never propagated back to
+the caller's scope. Programs using FnMut-style mutation in
+closures silently produced wrong results.
+
+### Fix
+
+In `closure_collect_capture_stmt`'s kind-21 (assign) branch,
+detect when the LHS is a kind-3 var ref whose name resolves in
+the OUTER sym AND isn't a closure parameter. Emit:
+
+```
+ERROR: closure cannot mutate captured variable `total` via
+assignment. The mutation would write to the closure's local copy
+and silently NOT propagate back to the caller's scope (FnMut
+semantics not yet supported). Workaround: have the closure RETURN
+the new value (`let new = inc(5); total = new;`) or use a
+`Vec<i64>` for shared mutable state. Tracked for a future ship.
+```
+
+### Why HIGH-BLAST-RADIUS
+
+The `let inc = |n| { total += n; };` pattern is universal for
+event handlers, state machines, and accumulator loops. Silent
+no-op was a launch blocker.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `closure_collect_capture_stmt`
+  kind-21 branch gains LHS detection. Bootstrap fixed point at
+  SHA `d525ffd1` (was `c0c6f684`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t372_mut_closure_capture_diagnostic.nr` — new
+  negative regression fixture.
+- `tools/verify.{sh,ps1}` — new T3.72 verify step.
+
+### Verify gate
+
+- 450/450 green (was 449 + 1 step from T3.72).
+- All prior regression fixtures (T3.28-T3.71) still green.
+- Bootstrap fixed point closes at `d525ffd1`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.96)
+
+- **32 codegen + 2 runtime + 9 parser/check diagnostic = 43 total**
+- **45 strict regression fixtures** (T3.28-T3.72)
+- **6 robotics RT showcase examples** in Tier 4
+- **All known silent miscomputes eliminated** — every
+  silent-wrong-value pattern surfaced in probing now produces
+  either correct output or a named diagnostic (no more programs
+  that compile, run, and silently produce the wrong answer).
+
 ## [0.3.95] — 2026-04-25
 
 **Feature: extended macro set — `assert_eq!`, `assert_ne!`, `todo!`,

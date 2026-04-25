@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 87))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 88))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1057,6 +1057,17 @@ t356_indexed_lhs_diagnostic() {
     "$BIN" build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -q "indexed assignment" /tmp/_nuc_step.log || return 1
     grep -q "vec_set" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t372_mut_closure_capture_diagnostic() {
+    # T3.72 (v0.3.96): negative regression for mut closure capture
+    # writeback. Pre-v0.3.96 silently no-op'd (FnMut not yet supported).
+    # Post: closure_collect_capture_stmt detects assignment-to-captured
+    # var and emits a clear diagnostic.
+    "$BIN" build "tests/fixtures/t372_mut_closure_capture_diagnostic.nr" -o "_t372_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    grep -q "closure cannot mutate captured variable" /tmp/_nuc_step.log || return 1
+    grep -q "FnMut semantics not yet supported" /tmp/_nuc_step.log || return 1
     return 0
 }
 
@@ -2352,6 +2363,7 @@ step "T3.68 dyn keyword parser acceptance (Box<dyn Trait>, fn -> dyn ...)" t368_
 step "T3.69 &mut T param diagnostic (HIGH-BLAST silent miscompute pre-v0.3.93)" t369_mut_ref_param_diagnostic
 step "T3.70 panic!/assert!/dbg! macro forms (textual ! strip)" t370_panic_assert_macros
 step "T3.71 extended macro set (assert_eq!/assert_ne!/todo!/unimplemented!/unreachable!)" t371_extended_macro_set
+step "T3.72 mut closure capture diagnostic (FnMut silent miscompute pre-v0.3.96)" t372_mut_closure_capture_diagnostic
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
