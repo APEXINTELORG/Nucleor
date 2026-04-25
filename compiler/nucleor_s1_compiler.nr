@@ -4969,6 +4969,27 @@ fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
         if rt < 0 { return ""; };
         return type_base_name(rt);
     };
+    // v0.3.59 fix: Vec indexing result. For `v[0].x` where v
+    // is Vec<V3>, the operand of the field access is `v[0]`
+    // (kind 10); same compile-error class as v0.3.58. Reuses
+    // the v0.3.55 __fulltype_<vname> sym entry that preserves
+    // the generic; extracts T from "Vec<T>" via str_substring.
+    if kind == 10 {
+        let vexpr: i64 = node_field(pool, nid, 1);
+        if node_kind(pool, vexpr) == 3 {
+            let vname: str = node_field(pool, vexpr, 1);
+            let vtype: i64 = sym_get(sym, str_concat("__fulltype_", vname));
+            if vtype < 0 { return ""; };
+            // Vec<T> → return T (base name). Length of "Vec<" = 4.
+            if str_starts_with(vtype, "Vec<") == 1 {
+                let tlen: i64 = str_len(vtype);
+                if tlen > 5 && str_char_at(vtype, tlen - 1) == 62 {
+                    return type_base_name(str_substring(vtype, 4, tlen - 1));
+                };
+            };
+        };
+        return "";
+    };
     return "";
 }
 
