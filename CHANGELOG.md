@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.111] — 2026-04-25
+
+**User-defined associated fn dispatch + `Self` return-type
+substitution.** Two related silent miscomputes in the canonical
+Rust constructor pattern, closed in one ship.
+
+### `Self` in inherent-impl return types
+
+Pre-v0.3.111, `impl Point { fn new() -> Self { ... } }` left
+rtype = "Self" verbatim through parse. `populate_fn_returns_in_sym`
+registered `__fnret_Point__new = "Self"` — and downstream
+`expr_struct_type` couldn't resolve "Self" to a known struct.
+Method dispatch on the call result fell back to a zero placeholder.
+
+### User-defined `Type::method(...)` lowering
+
+The kind-12 (assoc-fn-call) lowering only recognized built-in
+shapes — `Vec::new` / `HashMap::new` / `Tensor::*` / enum-variant
+constructors. User-defined assoc fns hit the diagnostic-and-emit-
+zero path — a printed error followed by silent miscompute (the
+.exe still ran, returning 0 from the constructor, and the next
+method call operated on the zero placeholder). Adopters reaching
+for the canonical `let p = Point::new(...)` pattern saw either
+segfault, wrong values, or zeros — all silent at runtime since
+the diag was informational, not blocking.
+
+### Fix
+
+1. parse_impl_block: substitute `Self` / `&Self` / `&mut Self`
+   in the parsed return type with the impl's `type_name`. Mirror
+   of the existing param-side `&self` substitution.
+2. kind-12 lowering: BEFORE the diagnostic-and-return-0 fallback,
+   look up `__fnret_<TypeName>__<methodname>`. If registered, lower
+   as a normal i64 fn call to the mangled name with the args.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t388 returns 10 (7 + 3), proving
+the round-trip through a Self-returning constructor and a
+self-taking method. `bin/nucleor.exe` SHA `7e7c3899`. 452/452
+verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — Self subst in
+  `parse_impl_block`; user-fn dispatch in kind-12 lowering.
+- `tests/fixtures/t388_assoc_fn_dispatch.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.110] — 2026-04-25
 
 **Supertrait syntax `trait Sub: Super` / `trait Foo: Bar + Baz`.**
