@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 6))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 7))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -758,6 +758,21 @@ tools_suite_memory_budget() {
     _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
 }
 
+t15c_privatization() {
+    # v0.2.342 (T1.5c): resolver-layer name privatization with opt-in
+    # semantics. Imports two libs:
+    #   - lib_optin.nr  (pub fn → opt-in active, lib_helper privatized)
+    #   - lib_legacy.nr (no pub fn → opt-out, legacy_fn stays callable)
+    # Asserts pub fn AND opt-out non-pub fn both stay callable
+    # cross-module. Negative case (cross-module non-pub call from
+    # opt-in lib must FAIL) is covered by the err-fixture
+    # tests/err/err_priv_cross_module.nr in the main negative sweep.
+    "$BIN" test "tests/smoke/t15c_privatization.nr" >/tmp/_nuc_step.log 2>&1
+    grep -q "PASS: test_cross_module_pub_call_opt_in_lib" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_cross_module_non_pub_call_opt_out_lib" /tmp/_nuc_step.log || return 1
+    grep -q "test result: PASS (2 tests)" /tmp/_nuc_step.log || return 1
+}
+
 t15b_pub_introspection() {
     # v0.2.341 (T1.5b): the parser emits a kind-76 marker before each
     # `pub`-prefixed top-level item; `nuc summary` reads the markers
@@ -916,6 +931,7 @@ step "self-host memory budget (<= 100 MB)" self_host_memory_budget
 step "tools-suite memory budget (<= 200 MB)" tools_suite_memory_budget
 step "T1.5a mod block-form inline" t15a_mod_block_form
 step "T1.5b pub introspection (summary surfaces visibility)" t15b_pub_introspection
+step "T1.5c privatization (cross-module call surfaces succeed)" t15c_privatization
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------

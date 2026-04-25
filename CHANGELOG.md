@@ -5,6 +5,153 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.342] — 2026-04-24
+
+**T1.5c modules — resolver-layer name privatization (real
+cross-module visibility enforcement, opt-in semantics).**
+Builds on T1.5a (block-form) and T1.5b (pub introspection).
+The resolver now enforces visibility by rewriting non-pub fn
+names to a file-scoped mangled form (`__priv_<file_id>__name`)
+inside imported files that have at least one `pub fn`
+declaration. Cross-module callers (whose source is NOT
+rewritten) find no symbol for the private name and fail at
+clang link time. T1.5d will turn this into a friendly
+compile-time MOD-003 diagnostic.
+
+### Opt-in semantics (back-compat preserved)
+
+The privatization activates **per imported file**, only when
+that file has at least one `pub fn` declaration. Files with
+zero `pub fn` (the entire pre-T1.5 stdlib rod corpus and most
+v0.1.x user code) get no rewriting at all and continue to
+work exactly as before.
+
+This is the right deployment shape: adding a `pub fn` to a
+module is a deliberate signal that you've decided to use the
+visibility system. Existing callers of that module's other
+non-pub fns will start failing at link time — which is the
+intended behavior.
+
+### Helpers added (synced across s1 + tools-suite)
+
+| Helper | Purpose |
+|---|---|
+| `priv_extract_fn_decl_info(line)` | Returns `[name, is_pub]` for an `fn`, `pub fn`, `pure fn`, or `pub pure fn` declaration line; returns `["", 0]` if line is not an fn declaration. Uses `strip_spaces` so whitespace variants collapse. |
+| `priv_collect_private_fn_names(source)` | Two-phase scan: pub names first, then ALL fn names; private = (all − pub). Returns empty Vec if the source has zero `pub fn` declarations (the opt-out signal). Excludes `main` from privatization regardless. |
+| `priv_string_vec_contains` / `priv_string_vec_push_unique` | s1 didn't have these helpers — added prefixed copies to avoid collisions with future stdlib helpers. |
+| `priv_apply_if_opted_in(isrc, path)` | Resolver entry point. Returns isrc unchanged if no privatization needed; otherwise returns the mangled source. |
+| `priv_mangle_private_fns(src, file_id, names)` | Token-aware identifier substitution. Skips `// ...` line comments, `"..."` string literals, `'X'` char literals, and identifiers preceded by `.` (struct field / method access). |
+
+### Wired in both resolvers
+
+`resolve_source_with_records` in BOTH `nucleor_s1_compiler.nr`
+and `nucleor_tools_suite.nr` now calls `priv_apply_if_opted_in`
+on every imported file's source before passing it through the
+recursive resolver. Both branches (the `mod foo;` /
+`use crate::x` desugar branch AND the literal `import "path"`
+branch) get the same treatment.
+
+### Bug fixes during implementation
+
+The first draft of `priv_extract_fn_decl_info` and the
+identifier scanner in `priv_mangle_private_fns` had identical
+loop-exit bugs: `else { stop = clen + 1; }` jumped past the
+end of the buffer to break the loop, then a back-correction
+landed at `clen` instead of the actual non-ident position.
+Rewrote both with explicit `done`/`id_done` flags so `stop`/`p`
+correctly point at the first non-ident char. Caught when the
+positive-case smoke test ran successfully but the .ll showed
+no mangling.
+
+### File-id scheme
+
+`file_id = content_hash(absolute_path)` — DJB2-hash of the
+import-resolved absolute path, rendered as 8-char hex. Each
+unique source file gets a unique privatization namespace.
+Calling the same file from two different importers produces
+the same mangled symbols (the resolver dedupes via the
+`imported` Vec so a file is only inlined once).
+
+### T1.5c smoke
+
+`tests/smoke/t15c_privatization.nr` + the supporting
+`tests/smoke/t15c_pkg/lib_optin.nr` and `lib_legacy.nr`
+fixtures — 2 cases:
+- `test_cross_module_pub_call_opt_in_lib` — calling `pub fn
+  lib_pub_api()` (which internally calls private
+  `lib_helper`) returns the right value (107). Verifies the
+  rewriter rewrites both the declaration AND the internal
+  call together so intra-module calls stay linked.
+- `test_cross_module_non_pub_call_opt_out_lib` — `legacy_fn`
+  in lib_legacy (no pub fn) is callable cross-module. Verifies
+  back-compat for v0.1.x rod files.
+
+`tests/err/err_priv_cross_module.nr` — negative case in the
+auto-discovered err sweep. Imports lib_optin and tries to
+call private `lib_helper` directly. Build fails with
+"use of undefined value '@lib_helper'" — the link-time error
+that T1.5d will lift into a compile-time MOD-003.
+
+### Verify gate
+
+Windows: 351/351 PASS. The new err-fixture got auto-discovered
+by the err glob (count goes 351, was 350). Bootstrap fixpoint
+refreshed (seed sha256 `2d22c3ec...`).
+
+### Numerics-compatibility
+
+No new arithmetic surfaces. The privatization helpers operate
+on `str` (i64 ptr) values per the locked i64-everywhere
+convention. The mangled symbol prefix `__priv_<8hex>__` uses
+ASCII identifier chars only, no encoding ambiguity.
+
+### Memory safety
+
+All new helpers preserve Rust-style ownership. The Vec<i32>
+returns from `priv_collect_private_fn_names` and
+`priv_extract_fn_decl_info` are owned by the caller and
+freed normally. `priv_mangle_private_fns` allocates a fresh
+sb_new() string builder; the original src is read-only
+(only `str_substring` and `str_char_at` calls).
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — privatization helpers
+  (~145 LOC) + resolver wiring at both inline branches.
+- `compiler/nucleor_tools_suite.nr` — synced privatization
+  helpers + resolver wiring.
+- `tests/smoke/t15c_privatization.nr` — new smoke (2 cases).
+- `tests/smoke/t15c_pkg/lib_optin.nr` — opt-in fixture.
+- `tests/smoke/t15c_pkg/lib_legacy.nr` — opt-out fixture.
+- `tests/err/err_priv_cross_module.nr` — negative case.
+- `tools/verify.ps1`, `tools/verify.sh` — new T1.5c step.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (399 fns,
+  745 optimized instructions; new sha256 2d22c3ec...).
+- `bin/nucleor.exe`, `bin/nucleor_tools.exe` — both rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Known limitations (T1.5d / T1.5e scope)
+
+- The link-time error message is clang-emitted ("use of
+  undefined value '@name'") rather than a friendly Nucleor
+  diagnostic. T1.5d adds a compile-time pre-link check that
+  surfaces MOD-003 with file:line:col context.
+- Privatization is applied to top-level `fn` only. Top-level
+  `struct`, `enum`, `trait`, `const`, `type` declarations
+  are NOT yet privatized — they're tracked via the kind-76
+  marker (T1.5b) but the resolver doesn't rewrite their
+  identifier occurrences yet. T1.5e extends the rewriter.
+- Methods inside `impl` blocks aren't analyzed for visibility.
+  Same T1.5e scope.
+- `pub use` re-exports aren't supported — declaring `pub use
+  some_lib::api;` doesn't surface `api` as a re-export. The
+  RFC notes this is v0.4 work.
+
+### Next
+
+T1.5d — friendly compile-time MOD-003 for cross-module
+private access (replaces the link-time clang error).
+
 ## [0.2.341] — 2026-04-24
 
 **T1.5b modules — `pub` parsed + tagged + surfaced via `nuc

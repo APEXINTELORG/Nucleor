@@ -9164,9 +9164,10 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
                     imported.push(path);
                     let isrc: str = file_read_string(path);
                     if str_len(isrc) > 0 {
-                        module_record_add(module_records, path, isrc);
+                        let isrc_used: str = priv_apply_if_opted_in(isrc, path);
+                        module_record_add(module_records, path, isrc_used);
                         let idir: str = extract_dir(path);
-                        sb_append(result, resolve_source_with_records(isrc, idir, imported, module_records));
+                        sb_append(result, resolve_source_with_records(isrc_used, idir, imported, module_records));
                         sb_append(result, "\n");
                     } else {
                         sb_append(result, str_concat("// ERROR: cannot read use path ", path));
@@ -9188,9 +9189,10 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
                     imported.push(path);
                     let isrc: str = file_read_string(path);
                     if str_len(isrc) > 0 {
-                        module_record_add(module_records, path, isrc);
+                        let isrc_used: str = priv_apply_if_opted_in(isrc, path);
+                        module_record_add(module_records, path, isrc_used);
                         let idir: str = extract_dir(path);
-                        sb_append(result, resolve_source_with_records(isrc, idir, imported, module_records));
+                        sb_append(result, resolve_source_with_records(isrc_used, idir, imported, module_records));
                         sb_append(result, "\n");
                     } else {
                         sb_append(result, str_concat("// ERROR: cannot read import ", path));
@@ -9538,6 +9540,216 @@ fn normalize_output_name(raw: str) -> str {
         i = i + 1;
     };
     return sanitize(base);
+}
+
+// ===== T1.5c (v0.2.342): resolver-layer name privatization =====
+//
+// Opt-in cross-module visibility enforcement. When the resolver
+// inlines an imported file F, we scan F for `pub fn` declarations.
+// If F has at least one `pub fn`, we identify all NON-pub `fn`
+// declarations in F and rewrite their identifier occurrences within
+// F's source to `__priv_<file_id>__<name>`. Cross-module callers
+// (whose source is NOT rewritten) then find no symbol for the
+// private name and fail with an unresolved-name error — which is
+// exactly the behavior `pub` is supposed to gate.
+//
+// Files with ZERO `pub fn` declarations get NO rewriting (opt-out
+// for back-compat with pre-T1.5 rod files that have no `pub`
+// markers but whose fns are de-facto callable from any importer).
+//
+// The token rewriter is identifier-aware: it skips string literals,
+// char literals, and `// ...` line comments, and it does NOT rewrite
+// identifiers preceded by `.` (field/method access). Everything else
+// is conservative — keywords and shadowed locals are not in the
+// private_names list so they're never substituted.
+
+fn priv_extract_fn_decl_info(line: str) -> Vec<i32> {
+    // Returns [name, is_pub] where is_pub = 1 for `pub fn name(`
+    // (or `pub pure fn name(`), 0 for `fn name(` or `pure fn name(`,
+    // and name = "" if line is not an fn declaration whose `(` is
+    // on the same line. Uses strip_spaces so `pub  fn  name` etc.
+    // all collapse to a stable prefix shape.
+    let mut out: Vec<i32> = Vec::new();
+    out.push("");
+    out.push(0);
+    let compact: str = strip_spaces(line);
+    let clen: i64 = str_len(compact);
+    let mut start: i64 = 0 - 1;
+    let mut is_pub: i64 = 0;
+    if clen >= 9 && str_eq(str_substring(compact, 0, 9), "pubpurefn") == 1 { start = 9; is_pub = 1; }
+    else if clen >= 5 && str_eq(str_substring(compact, 0, 5), "pubfn") == 1 { start = 5; is_pub = 1; }
+    else if clen >= 6 && str_eq(str_substring(compact, 0, 6), "purefn") == 1 { start = 6; is_pub = 0; }
+    else if clen >= 2 && str_eq(str_substring(compact, 0, 2), "fn") == 1 { start = 2; is_pub = 0; };
+    if start < 0 { return out; };
+    if start >= clen { return out; };
+    let mut stop: i64 = start;
+    let mut done: i64 = 0;
+    while stop < clen && done == 0 {
+        let ch: i64 = str_char_at(compact, stop);
+        if is_alnum(ch) == 1 || ch == 95 { stop = stop + 1; }
+        else { done = 1; };
+    };
+    if stop <= start { return out; };
+    // Require a `(` after the name (after stripping); rejects type
+    // params like `fn ` followed by something non-callable. After
+    // strip_spaces the `(` is always immediately after the name.
+    if stop >= clen || str_char_at(compact, stop) != 40 { return out; };
+    vec_set(out, 0, str_substring(compact, start, stop));
+    vec_set(out, 1, is_pub);
+    return out;
+}
+
+fn priv_collect_private_fn_names(source: str) -> Vec<i32> {
+    // Two-phase scan: first collect all pub fn names, then collect
+    // any fn name not in the pub set. Returns the empty Vec if the
+    // source has no `pub fn` declarations at all (opt-out signal —
+    // files without pub markers stay flat-namespace).
+    let slen: i64 = str_len(source);
+    let mut pub_names: Vec<i32> = Vec::new();
+    let mut all_names: Vec<i32> = Vec::new();
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let info: Vec<i32> = priv_extract_fn_decl_info(line);
+        let name: str = vec_get(info, 0);
+        if str_len(name) > 0 {
+            let is_pub: i64 = vec_get(info, 1);
+            if is_pub == 1 { priv_string_vec_push_unique(pub_names, name); };
+            priv_string_vec_push_unique(all_names, name);
+        };
+        p = eol + 1;
+    };
+    let mut result: Vec<i32> = Vec::new();
+    if vec_len(pub_names) == 0 { return result; };
+    let n: i64 = vec_len(all_names);
+    let mut i: i64 = 0;
+    while i < n {
+        let nm: str = vec_get(all_names, i);
+        if priv_string_vec_contains(pub_names, nm) == 0 {
+            // Don't privatize `main` — entry points should never be
+            // mangled even in opt-in files. (Imported files with main
+            // are unusual but possible; the compiler's existing
+            // remove_main_decl handles dedupe.)
+            if str_eq(nm, "main") == 0 { result.push(nm); };
+        };
+        i = i + 1;
+    };
+    return result;
+}
+
+fn priv_string_vec_contains(v: Vec<i32>, s: str) -> i64 {
+    let n: i64 = vec_len(v);
+    let mut i: i64 = 0;
+    while i < n {
+        if str_eq(vec_get(v, i), s) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
+fn priv_string_vec_push_unique(v: Vec<i32>, s: str) -> i64 {
+    if priv_string_vec_contains(v, s) == 0 { v.push(s); };
+    return 0;
+}
+
+fn priv_apply_if_opted_in(isrc: str, path: str) -> str {
+    // Resolver's entry point into T1.5c privatization. Returns the
+    // input source unchanged unless the file has at least one
+    // `pub fn` (the opt-in trigger). Caller pipes the returned
+    // source straight into resolve_source_with_records — the
+    // mangling has already happened, so the recursive resolver
+    // call sees only mangled identifiers and won't re-mangle.
+    let private_names: Vec<i32> = priv_collect_private_fn_names(isrc);
+    if vec_len(private_names) == 0 { return isrc; };
+    let file_id: str = content_hash(path);
+    return priv_mangle_private_fns(isrc, file_id, private_names);
+}
+
+fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> str {
+    // Token-aware identifier substitution. Walks src char-by-char,
+    // identifies identifier tokens (alpha/_ followed by alnum/_),
+    // and rewrites identifiers whose value is in private_names to
+    // __priv_<file_id>__<name>. Skips: "..." string literals,
+    // 'X' char literals, // ... line comments. Does NOT rewrite
+    // identifiers preceded by `.` (field/method access).
+    let mut sb: i64 = sb_new();
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    let mut last_non_ws: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            // // line comment — copy through to newline
+            while p < slen && str_char_at(src, p) != 10 {
+                sb_append(sb, str_substring(src, p, p + 1));
+                p = p + 1;
+            };
+            last_non_ws = 10;
+        } else if c == 34 {
+            // double-quoted string literal — copy with backslash escapes
+            sb_append(sb, "\"");
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 34 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    sb_append(sb, str_substring(src, p, p + 2));
+                    p = p + 2;
+                } else {
+                    sb_append(sb, str_substring(src, p, p + 1));
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, "\""); p = p + 1; };
+            last_non_ws = 34;
+        } else if c == 39 {
+            // single-quoted char literal
+            sb_append(sb, "'");
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 39 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    sb_append(sb, str_substring(src, p, p + 2));
+                    p = p + 2;
+                } else {
+                    sb_append(sb, str_substring(src, p, p + 1));
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, "'"); p = p + 1; };
+            last_non_ws = 39;
+        } else if is_alpha(c) == 1 || c == 95 {
+            // Identifier start — gather to the end and decide whether
+            // to mangle. Also reject: numeric prefixes (handled
+            // because is_alpha rejects digits; identifiers can't
+            // start with digit) and identifiers preceded by `.`
+            // (struct field / method access).
+            let start: i64 = p;
+            let mut id_done: i64 = 0;
+            while p < slen && id_done == 0 {
+                let ch: i64 = str_char_at(src, p);
+                if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
+                else { id_done = 1; };
+            };
+            let name: str = str_substring(src, start, p);
+            let preceded_by_dot: i64 = if last_non_ws == 46 { 1 } else { 0 };
+            if preceded_by_dot == 0 && priv_string_vec_contains(private_names, name) == 1 {
+                sb_append(sb, "__priv_");
+                sb_append(sb, file_id);
+                sb_append(sb, "__");
+                sb_append(sb, name);
+            } else {
+                sb_append(sb, name);
+            };
+            last_non_ws = str_char_at(name, str_len(name) - 1);
+        } else {
+            sb_append(sb, str_substring(src, p, p + 1));
+            // Track last non-whitespace so we can detect `.X` field
+            // accesses through intervening whitespace too.
+            if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
+            p = p + 1;
+        };
+    };
+    return sb_to_str(sb);
 }
 
 fn content_hash(s: str) -> str {
