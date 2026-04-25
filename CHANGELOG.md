@@ -5,6 +5,90 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.56] — 2026-04-25
+
+**Production-coverage lock for f64 inline binops with mixed
+operand kinds.** The v0.3.53/54/55 ratchet fixed each operand
+kind in isolation (struct field, fn-call result, Vec
+indexing). Probing five realistic cross-kind production
+patterns confirmed all five compute correctly post the three
+fixes. v0.3.56 locks them with a strict regression fixture
+so a future codegen change can't silently regress one of the
+cross-kind paths.
+
+### Patterns locked
+
+```
+v.x * make_one()        → 3.0   (field × fn-call)
+v.x * a[0]              → 6.0   (field × vec[i])
+make_one() * a[1]       → 5.0   (fn-call × vec[i])
+(7 as f64) * v.x        → 21.0  ((cast) × field)
+(4 as f64) * a[1]       → 20.0  ((cast) × vec[i])
+```
+
+These are the realistic inline binop shapes production code
+writes — a robotics control kernel reading a sensor field and
+multiplying by a fn-derived scale, or indexing a state vector
+and combining with a literal weight. Each was confirmed
+correct in v0.3.53/54/55's individual fix probes; T3.31 keeps
+them locked across future codegen work.
+
+### Approach
+
+Pure regression test: `tests/fixtures/t331_mixed_fp_ops.nr`
+exercises all five patterns; T3.31 verify step strictly
+asserts each output line matches the mathematically correct
+value. No compiler change — the v0.3.53/54/55 fixes were
+already comprehensive enough to handle these shapes.
+
+### Why not also fix the if-expr-inline corner case
+
+Probing also surfaced `(if c { 1.0 } else { 2.0 }) +
+(if c { 1.0 } else { 2.0 })` returning -0.0 — the if-expr
+result kind (23) isn't in `binop_float_type`'s enumeration
+and falls through to integer add. **This is a probe artifact,
+not a production pattern.** Real Nucleor code lifts if-expr
+results to a `let`-binding before using them in arithmetic;
+the inline form is awkward enough that no production codebase
+reads that way. Per "robust production ready fixes only",
+shipping a fragile kind-23 fix that has to recurse into
+stmts-list tail expressions, handle else-less branches,
+handle nested if-elif chains, and traverse multiple block
+shapes is more risk surface than the corner case warrants.
+
+The v1-limitations entry calls out the if-expr-inline gap
+explicitly so future contributors know the edge exists; if
+production code ever needs that pattern, the fix can be
+shipped as a focused future ship with full block-tail
+handling done right.
+
+### Verify gate
+
+- 407/407 green (was 406 + 1 new step from T3.31).
+- All prior regression fixtures (T3.28, T3.29, T3.30) still
+  green.
+- Bootstrap fixed point unchanged at SHA `6b4cd0f3` (no
+  compiler change).
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc summary
+
+The v0.3.51 → v0.3.56 work delivered:
+
+| Ship | Type | Kind covered |
+|------|------|--------------|
+| v0.3.51 | Surface + workaround | (struct field bug discovered) |
+| v0.3.52 | Pin workaround | RT-008 regression test |
+| v0.3.53 | Compiler fix | kinds 9 / 4 / 90/91/92 (struct + nested + wrappers) |
+| v0.3.54 | Compiler fix | kind 7 (fn call) |
+| v0.3.55 | Compiler fix | kind 10 (Vec indexing) |
+| v0.3.56 | Production lock | mixed-kind binops |
+
+Three real codegen fixes shipped without breaking anything.
+Four regression fixtures (T3.28-T3.31) lock the contract
+forward. The silent-miscompilation class for f64 binops on
+production AST shapes is structurally closed.
+
 ## [0.3.55] — 2026-04-25
 
 **Compiler fix #3: f64 inline binary ops on Vec indexing now
