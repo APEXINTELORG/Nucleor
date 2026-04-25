@@ -5,6 +5,136 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.55] — 2026-04-25
+
+**Compiler fix #3: f64 inline binary ops on Vec indexing now
+compile correctly.** Third codegen bug surfaced by the
+production-readiness probe. `v[0] + v[1]` on `Vec<f64>`
+returned `inf` pre-v0.3.55 because Vec indexing (AST kind 10)
+fell through `binop_float_type` even after v0.3.53 + v0.3.54.
+
+### Root cause was upstream of the dispatcher
+
+Probing for kind 10 turned up a second-order issue: the
+existing `__type_<vname>` sym entry, used by every type-aware
+dispatch path, only stores the BASE name of declared types
+because `type_base_name` strips generics. `let v: Vec<f64>`
+ends up with `__type_v = "Vec"`, not `"Vec<f64>"`. The
+binop_float_type kind==10 branch needed the element type to
+make the float dispatch decision — and there was no way to
+recover it from the existing sym data.
+
+### Fix: parallel `__fulltype_` sym entry
+
+Three sym_set sites in `lower_fn` (let bindings line 10082,
+fn parameters line 10421, globals line 10438) now store
+BOTH:
+
+- `__type_<vname>` = base name (existing — used by all type
+  checks that don't care about generics)
+- `__fulltype_<vname>` = full declared type with generics
+  preserved (NEW — used by binop_float_type's kind==10
+  branch and any future generic-aware dispatch)
+
+`binop_float_type` extends with kind==10:
+
+```nucleor
+if kind == 10 {
+    let vexpr: i64 = node_field(pool, nid, 1);
+    if node_kind(pool, vexpr) == 3 {
+        let vname: str = node_field(pool, vexpr, 1);
+        let vtype: i64 = sym_get(sym, str_concat("__fulltype_", vname));
+        if vtype < 0 { return ""; };
+        if str_starts_with(vtype, "Vec<") == 1 {
+            let tlen: i64 = str_len(vtype);
+            if tlen > 5 && str_char_at(vtype, tlen - 1) == 62 {
+                let inner: str = type_base_name(str_substring(vtype, 4, tlen - 1));
+                if str_eq(inner, "f32") == 1 { return "f32"; };
+                if str_eq(inner, "f64") == 1 { return "f64"; };
+            };
+        };
+    };
+    return "";
+};
+```
+
+The kind==3 guard restricts to direct variable indexing
+(`v[i]`); chained shapes (`v.field[i]`, `v[i][j]`) would need
+recursion but aren't in scope for this ship.
+
+### What now works that previously didn't
+
+```
+v[0] + v[1]      where v: Vec<f64> = {1, 4}      → 5.0    ✓
+v[0] - v[1]                                      → -3.0   ✓
+v[0] * v[1]                                      → 4.0    ✓
+v[3] / v[1]      where v[3]=8                    → 2.0    ✓
+v[0]*v[1] + v[2]*v[5] + v[4]*v[6]                → 32.0   ✓ (nested-binop)
+```
+
+Pre-v0.3.55 the simple two-element add returned `inf` and the
+others returned garbage values from integer arithmetic on
+f64 bit patterns.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` —
+  - 3× `sym_set(... "__fulltype_" ...)` additions (let, param,
+    global sites).
+  - `binop_float_type` adds kind==10 branch.
+  - Bootstrap fixed point recomputed at SHA `6b4cd0f3` (was
+    `cb696a25`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t330_vec_index_fp_ops.nr` — new strict
+  regression fixture covering all four primary ops on
+  `Vec<f64>` indexing plus the nested-binop dot product
+  shape.
+- `tools/verify.{sh,ps1}` — new T3.30 verify step.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry
+  extended to list v0.3.53 + v0.3.54 + v0.3.55 fixes; SHA
+  stamp updated.
+
+### Verify gate
+
+- 406/406 green (was 405 + 1 new step from T3.30).
+- T3.28 (struct field), T3.29 (fn call) still green —
+  showing all three fixes coexist correctly.
+- T1.7 bootstrap fixed-point passes.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### The `__fulltype_` mechanism is reusable
+
+Any future generic-aware dispatch can read `__fulltype_<vname>`
+to get the full declared type. Candidates:
+- `Box<f64>` — same pattern, dereference yields f64
+- `&[f64]` — slice indexing
+- `[f64; N]` — fixed array indexing
+- `HashMap<K, f64>` — value-side ops
+- Custom containers from stdlib
+
+Each would need its own kind handler in binop_float_type but
+the sym infrastructure is now in place — no more upstream
+data loss.
+
+### Production readiness arc continues
+
+The v0.3.51 → v0.3.55 ratchet:
+
+| Ship | Role |
+|------|------|
+| v0.3.51 | Surface bug via runnable example, document workaround |
+| v0.3.52 | Pin workaround behavior with strict regression test |
+| v0.3.53 | Fix root cause for kinds 9 / 4 / 90/91/92 (struct field, nested, wrappers) |
+| v0.3.54 | Fix root cause for kind 7 (fn call), via `__fnret_<NAME>` sym |
+| v0.3.55 | Fix root cause for kind 10 (Vec indexing), via `__fulltype_<vname>` sym |
+
+Three codegen fixes shipped without breaking any existing
+test. Each fix added a regression fixture (T3.28, T3.29, T3.30)
+that ratchets the contract forward — the silent-miscompilation
+class for f64 binops is structurally closed for the AST kinds
+we've enumerated. Next probe candidates: array indexing
+(`[T; N]`), method call results, closure call results.
+
 ## [0.3.54] — 2026-04-25
 
 **Compiler fix #2: f64 inline binary ops on fn-call results
