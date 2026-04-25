@@ -5,6 +5,100 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.51] — 2026-04-25
+
+**`examples/22_rt_export.nr` — runnable demo of `#[export]` —
+also surfaces a real codegen bug.** Last of the four Tier 4
+robotics examples. Cookbook §6 of the robotics guide
+demonstrated `#[export]` for C-side callers but referenced
+only the verify-gate fixture (`tests/fixtures/t34_export.nr`),
+which is compile-only — `nuc gen-headers` extracts the C
+declarations but the example never actually CALLS the
+`#[export]` fns at runtime.
+
+### What's in the ship
+
+**`examples/22_rt_export.nr`** — three `#[export]` kernels
+covering the practical signature shapes:
+
+- `nuc_scale(Vec3, f64) -> Vec3` (struct-in / struct-out)
+- `nuc_add(i64, i64) -> i64` (scalar-only)
+- `nuc_print_dot(Vec3, Vec3) -> i64` (struct-in,
+  side-effect-out)
+
+`main()` exercises all three end-to-end. `nuc gen-headers
+examples/22_rt_export.nr -o kernel.h` would emit the C decls
+for the three fns plus the `Vec3` typedef, ready for a host
+C compiler to consume.
+
+**`tools/examples.list` + `examples/README.md`** — wired in
+under Tier 4 (T3.25 drift gate enforces the list-vs-dir
+sync).
+
+### Bug discovered + workaround documented
+
+Building the original draft of `nuc_dot(Vec3, Vec3) -> f64`
+returned 0.0 instead of the correct dot product. Bisected
+to: f64 multiplication of two struct-field accesses written
+inline (e.g. `a.x * b.x`) miscomputes when both operands are
+loaded from struct-by-value args. Receiving Vec3 args works,
+struct-out works, scalar mul works — only the inline
+multiply on field-access operands misfires.
+
+The bug is pre-existing in v0.3.4 codegen and was hidden
+because the t34_export fixture only validates `nuc gen-headers`
+output (compile-only), never runtime behavior. It's the
+class of bug that needs an actually-RUN example to surface.
+
+Workaround in `nuc_print_dot`: lift each struct field to
+its own `let`-bound f64 before the multiply, AND split
+chained multiplies into separate lets:
+
+```nucleor
+let ax: f64 = a.x; let bx: f64 = b.x;
+let p1: f64 = ax * bx;
+// ...then sum p1 + p2 + p3 in a final let.
+```
+
+Documented inline in `examples/22_rt_export.nr` and added
+to the v1 limitations section of
+`docs/v0.3-robotics-guide.md`. v0.4 AST-based codegen owns
+the fix.
+
+### Verify gate
+
+- 402/402 green (was 401 + 1 new step from the example
+  sweep). Bootstrap fixed point unchanged at SHA `4cd2d428`
+  (no compiler change in this ship — only example, manifest,
+  and docs).
+- `nuc_scale` returns the correct (10, 20, 30); `nuc_add`
+  returns 42; `nuc_print_dot` prints 32.0 — the workaround
+  pattern produces the expected dot product.
+
+### Tier 4 robotics example coverage after v0.3.51
+
+| # | File | Demonstrates |
+|---|------|--------------|
+| 19 | `19_rt_pid.nr` | L1 stack on pure-Nucleor inner loop |
+| 20 | `20_rt_motor_ffi.nr` | L1 stack + FFI markers (intersection rule) |
+| 21 | `21_rt_state_machine.nr` | L1 stack + bounded recursion (`#[max_depth]`) |
+| 22 | `22_rt_export.nr` | C-callable kernel via `#[export]` (Vec3 + scalar) |
+
+All four cookbook sections (§3 bounded recursion, §4 per-fn
+diagnostic control, §5 FFI markers, §6 #[export]) now have
+matching runnable example files. The cookbook → `examples/`
+discovery flow is fully populated for the v0.3.x attribute
+family.
+
+### Ship value beyond the example
+
+The bug discovery is the bigger payoff. v0.3.51 hardens the
+v0.3 surface in two ways: a runnable example for users to
+copy from, AND a documented v1-limitation entry for the
+codegen issue that was previously silent. Future contributors
+hitting the inline-multiply mis-compute now have a search
+hit instead of mysterious-zero debugging time.
+
 ## [0.3.50] — 2026-04-25
 
 **`examples/21_rt_state_machine.nr` — runnable demo of
