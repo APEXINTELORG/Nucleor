@@ -2726,6 +2726,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "sb_new_with_cap") { return "__nucleor_sb_new_with_cap"; };
     if str_eq(name, "sb_to_str") { return "__nucleor_sb_to_str"; };
     if str_eq(name, "vec_new") { return "__nucleor_vec_new"; };
+    if str_eq(name, "vec_with_capacity") { return "__nucleor_vec_with_capacity"; };
     if str_eq(name, "vec_push") { return "__nucleor_vec_push"; };
     if str_eq(name, "vec_get") { return "__nucleor_vec_get"; };
     if str_eq(name, "vec_len") { return "__nucleor_vec_len"; };
@@ -3544,6 +3545,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "file_read_string") { return 1; };
     if str_eq(name, "sb_to_str") { return 1; };
     if str_eq(name, "vec_new") { return 1; };
+    if str_eq(name, "vec_with_capacity") { return 1; };
     if str_eq(name, "args_get") { return 1; };
     if str_eq(name, "read_line") { return 1; };
     if str_eq(name, "format_i64") { return 1; };
@@ -4164,6 +4166,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare void @__nucleor_init_args(i32, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_system(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_new()\n");
+    sb_append(sb, "declare ptr @__nucleor_vec_with_capacity(i64)\n");
     sb_append(sb, "declare void @__nucleor_vec_push(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_get(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_len(ptr)\n");
@@ -10269,6 +10272,27 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let mut empty_args: Vec<i32> = Vec::new();
             ir_block_add(blk, ir_call_ex(r, "vec_new", empty_args));
             return lx_new(r, blk);
+        };
+        // v0.3.116: `Vec::with_capacity(n)`. Pre-v0.3.116 fell through
+        // to the diagnostic+zero path because no kind-12 handler
+        // matched. Adopters reaching for the canonical Rust pre-
+        // allocation pattern (`Vec::with_capacity(N)` for known-size
+        // accumulators) saw their .exe return 0 from the ctor and
+        // every push silently fail. The runtime helper
+        // `__nucleor_vec_with_capacity` already exists; this is purely
+        // the missing surface dispatch. Lower the single arg, then
+        // emit a call to the runtime helper.
+        if str_eq(tname, "Vec") && str_eq(mname, "with_capacity") {
+            let mut wc_cur: Vec<i32> = blk;
+            let mut wc_args: Vec<i32> = Vec::new();
+            if list_len(pool, args_list) >= 1 {
+                let mut ap: Vec<i32> = lower_expr(pool, list_get(pool, args_list, 0), wc_cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                wc_args.push(lx_reg(ap));
+                wc_cur = lx_blk(ap);
+            };
+            let r: i64 = ctr_next(regs);
+            ir_block_add(wc_cur, ir_call_ex(r, "vec_with_capacity", wc_args));
+            return lx_new(r, wc_cur);
         };
         if str_eq(tname, "String") && str_eq(mname, "new") {
             let idx: i64 = vec_len(strtab);

@@ -1944,6 +1944,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "sb_new_with_cap") { return "__nucleor_sb_new_with_cap"; };
     if str_eq(name, "sb_to_str") { return "__nucleor_sb_to_str"; };
     if str_eq(name, "vec_new") { return "__nucleor_vec_new"; };
+    if str_eq(name, "vec_with_capacity") { return "__nucleor_vec_with_capacity"; };
     if str_eq(name, "vec_push") { return "__nucleor_vec_push"; };
     if str_eq(name, "vec_get") { return "__nucleor_vec_get"; };
     if str_eq(name, "vec_len") { return "__nucleor_vec_len"; };
@@ -2704,6 +2705,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "file_read_string") { return 1; };
     if str_eq(name, "sb_to_str") { return 1; };
     if str_eq(name, "vec_new") { return 1; };
+    if str_eq(name, "vec_with_capacity") { return 1; };
     if str_eq(name, "args_get") { return 1; };
     if str_eq(name, "read_line") { return 1; };
     if str_eq(name, "format_i64") { return 1; };
@@ -3322,6 +3324,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_env_has(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_env_keys()\n");
     sb_append(sb, "declare ptr @__nucleor_vec_new()\n");
+    sb_append(sb, "declare ptr @__nucleor_vec_with_capacity(i64)\n");
     sb_append(sb, "declare void @__nucleor_vec_push(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_get(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_len(ptr)\n");
