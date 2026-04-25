@@ -1277,6 +1277,44 @@ void __nucleor_vec_insert_at(NVec *v, long long i, long long x) {
     v->len++;
 }
 
+// === T2.4 (v0.2.350): trait object handle helpers ===
+// A Box<dyn Trait> is represented as an i64 handle to a small
+// 2-cell allocation: [type_id, data_ptr]. The compiler-generated
+// dispatch helpers cast type_id back to a tag, look up the impl
+// for that tag, and call the concrete fn with the data pointer.
+//
+// nuc_dyn_box_make(type_id, data) -> i64    Allocate + return handle.
+// nuc_dyn_box_type(box)           -> i64    Read the type tag.
+// nuc_dyn_box_data(box)           -> i64    Read the data pointer.
+// nuc_dyn_box_free(box)           -> void   Free the wrapper (not the data).
+//
+// The 2-cell layout is intentionally simple — no vtable indirection,
+// no fat-pointer ABI. Compiler-generated dispatch fns do the
+// per-trait switch on type_id at the call site. T2.4b will add
+// vtable-based dispatch once the runtime is ready for fat pointers.
+
+long long __nucleor_dyn_box_make(long long type_id, long long data) {
+    long long *box = (long long *)malloc(2 * sizeof(long long));
+    if (!box) return 0;
+    box[0] = type_id;
+    box[1] = data;
+    return (long long)(intptr_t)box;
+}
+
+long long __nucleor_dyn_box_type(long long box) {
+    if (!box) return 0;
+    return ((long long *)(intptr_t)box)[0];
+}
+
+long long __nucleor_dyn_box_data(long long box) {
+    if (!box) return 0;
+    return ((long long *)(intptr_t)box)[1];
+}
+
+void __nucleor_dyn_box_free(long long box) {
+    if (box) free((void *)(intptr_t)box);
+}
+
 // === RFC-0024 phase 1: Vec<i64> functional helpers ===
 // All take a Nucleor function pointer (i64 cell holding the function
 // address) and apply it across the vec. The function-pointer arg
