@@ -10107,6 +10107,22 @@ fn indexed_element_full_type(pool: Vec<i32>, vexpr: i64, sym: Vec<i32>, structs:
         let ft: i64 = sym_get(sym, str_concat("__fnfulltype_", fn_name));
         if ft >= 0 { vtype = ft; };
     };
+    // v0.3.74: trait-method-call (kind 8) indexed operand. Mirrors
+    // the kind==7 lookup but with the trait-impl mangled name
+    // (`<TYPE>__<METHOD>`) — so `s.samples()[i]` where samples
+    // returns Vec<f64> resolves correctly to f64 element type.
+    // Pre-v0.3.74, this fell through to "" and the outer binop
+    // dispatched to integer add on packed-double bit patterns.
+    if vk == 8 {
+        let recv_nid: i64 = node_field(pool, vexpr, 1);
+        let mname: str = node_field(pool, vexpr, 2);
+        let rtype: str = expr_struct_type(pool, recv_nid, sym, structs);
+        if str_len(rtype) > 0 {
+            let mangled: str = str_concat(rtype, str_concat("__", mname));
+            let ft: i64 = sym_get(sym, str_concat("__fnfulltype_", mangled));
+            if ft >= 0 { vtype = ft; };
+        };
+    };
     if vk == 10 {
         // Nested indexing — recurse to get inner expr's element type,
         // which is itself a container. The outer indexing strips

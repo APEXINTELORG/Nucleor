@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 64))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 65))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1048,6 +1048,22 @@ t321_diag001_self_suppress() {
     [ "$rc" = "0" ] || return 1
     if grep -qE 'warning\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
     if grep -qE 'error\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
+    return 0
+}
+
+t349_trait_method_vec_index() {
+    # T3.49 (v0.3.74): regression test for indexed_element_full_type
+    # kind==8 (trait method call) resolution. Pre-v0.3.74, indexing
+    # a trait-method-call result inline (`s.samples()[i]`) where the
+    # method returns Vec<f64> dispatched to integer add on packed
+    # f64 bit patterns. Pins compile + run + value (1.0+2.0+3.0=6).
+    "$BIN" build "tests/fixtures/t349_trait_method_vec_index.nr" -o "_t349_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t349_check" ] || [ -x "target/_t349_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t349_check" ]; then exe="target/_t349_check"; else exe="target/_t349_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    local code=$?
+    [ "$code" -eq 6 ] || return 1
     return 0
 }
 
@@ -1997,6 +2013,7 @@ step "T3.45 Kalman synthesis (v0.3.65-69 nested-composition lock)" t345_kalman_s
 step "T3.46 assoc-fn collection aliases (HashMap/HashSet/BTreeMap/BTreeSet/VecDeque ::new)" t346_assoc_fn_collections
 step "T3.47 closure-capture link correctness (runtime helpers __nucleor_capture_set/get)" t347_closure_capture
 step "T3.48 module-scope let diagnostic (parser previously dropped silently)" t348_module_let_diagnostic
+step "T3.49 trait-method-call indexed operand f64 dispatch (s.samples()[i])" t349_trait_method_vec_index
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

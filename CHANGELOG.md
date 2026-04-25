@@ -5,6 +5,109 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.74] — 2026-04-25
+
+**Compiler fix #18: trait-method-call (kind 8) indexed operand
+resolution.** Pre-v0.3.74, indexing the result of a trait method
+that returned `Vec<f64>` inline (`s.samples()[i]`) caused the
+`indexed_element_full_type` resolver to fall through to `""`, and
+the OUTER binop dispatched to integer `add` on packed-double bit
+patterns — silently producing the wrong sum.
+
+### Root cause
+
+`indexed_element_full_type` (the unifying helper introduced in
+v0.3.68) handled four operand kinds:
+
+- kind 3 (var ref) — `v[i]` where `v: Vec<f64>`
+- kind 9 (struct field) — `self.samples[i]`
+- kind 7 (free fn call) — `make_vec()[i]`
+- kind 10 (nested indexing) — `grid[i][j]`
+
+But not kind 8 (trait method call). `s.samples()[0]` therefore
+fell through to integer dispatch in the outer `+` binop because
+the resolver couldn't tell that the indexed element was f64.
+
+### Fix
+
+Mirror the kind==7 branch using the trait-impl mangled name:
+
+```nucleor
+if vk == 8 {
+    let recv_nid: i64 = node_field(pool, vexpr, 1);
+    let mname: str = node_field(pool, vexpr, 2);
+    let rtype: str = expr_struct_type(pool, recv_nid, sym, structs);
+    if str_len(rtype) > 0 {
+        let mangled: str = str_concat(rtype, str_concat("__", mname));
+        let ft: i64 = sym_get(sym, str_concat("__fnfulltype_", mangled));
+        if ft >= 0 { vtype = ft; };
+    };
+};
+```
+
+This reuses the existing `__fnfulltype_<MANGLED>` infrastructure
+(populated by `populate_fn_returns_in_sym` / pass-1.5
+`collect_impls`) — no new symbol-table plumbing required. Same
+pattern as v0.3.60 (binop_float_type kind 8) and v0.3.69
+(expr_struct_type kind 8): the trait-impl mangling convention is
+the same; we just need the kind 8 cell wired in each resolver.
+
+### What now works that previously didn't
+
+```nucleor
+trait Sample { fn samples(self) -> Vec<f64>; }
+impl Sample for Stats { fn samples(self) -> Vec<f64> { ... } }
+
+let total: f64 = s.samples()[0] + s.samples()[1] + s.samples()[2];
+//                ^                ^                ^
+// All three trait-method-indexed operands now resolve to f64
+// → outer + dispatches to __nucleor_f64_add. Pre-v0.3.74 the
+// outer + was integer add on packed bit patterns → wrong sum.
+```
+
+### Production-readiness composition matrix
+
+After v0.3.74, `indexed_element_full_type` covers all five
+common operand kinds:
+
+| Operand kind | Example | Status |
+|---|---|---|
+| 3 var ref | `v[i]` | v0.3.51-arc |
+| 9 struct field | `self.samples[i]` | v0.3.65 |
+| 7 free fn call | `make_vec()[i]` | v0.3.67 |
+| 10 nested index | `grid[i][j]` | v0.3.68 |
+| **8 trait method call** | **`s.samples()[i]`** | **v0.3.74** |
+
+Symmetric with `binop_float_type` and `expr_struct_type` which
+both already handle all five operand kinds.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `indexed_element_full_type`
+  gains kind==8 branch. Bootstrap fixed point recomputed at SHA
+  `624dff69` (was `bc354c21`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t349_trait_method_vec_index.nr` — new strict
+  regression fixture covering the production shape with three
+  trait-method-indexed operands in inline arithmetic.
+- `tools/verify.{sh,ps1}` — new T3.49 verify step.
+
+### Verify gate
+
+- 427/427 green (was 426 + 1 step from T3.49).
+- All prior regression fixtures (T3.28-T3.48) still green.
+- Bootstrap fixed point closes at `624dff69`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.74)
+
+- **18 codegen fixes + 1 parser diagnostic + 1 runtime fix = 20 total**
+  (renumbered from prior tally — v0.3.74 closes one more cell)
+- **22 strict regression fixtures** (T3.28-T3.49)
+- **6 robotics RT showcase examples** in Tier 4
+- **Indexed-operand composition matrix complete** across all three
+  resolvers (binop_float_type / expr_struct_type / indexed_element_full_type)
+
 ## [0.3.73] — 2026-04-25
 
 **Parser fix #1: clear diagnostic for `let` at module scope (was
