@@ -4084,7 +4084,7 @@ declare i64 @__nucleor_tensor_sample_gumbel(i64, i64)
 @.str.3330 = private unnamed_addr constant [11 x i8] c"FFI call '\00"
 @.str.3331 = private unnamed_addr constant [8 x i8] c"' from \00"
 @.str.3332 = private unnamed_addr constant [6 x i8] c" fn '\00"
-@.str.3333 = private unnamed_addr constant [93 x i8] c"' -- extern fns may allocate, panic, or block (use #[allow(RT-005)] until #[ffi_no_*] ships)\00"
+@.str.3333 = private unnamed_addr constant [161 x i8] c"' -- extern fns may allocate, panic, or block (mark the extern with #[ffi_no_alloc] / #[ffi_no_panic] for per-symbol opt-out, or #[allow(RT-005)] for file-wide)\00"
 @.str.3334 = private unnamed_addr constant [8 x i8] c"warning\00"
 @.str.3335 = private unnamed_addr constant [3 x i8] c"rt\00"
 @.str.3336 = private unnamed_addr constant [7 x i8] c"RT-005\00"

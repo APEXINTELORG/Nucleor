@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.28] — 2026-04-25
+
+**RT-005 warning text now mentions the v0.3.24 markers.** The
+diagnostic message has said "use #[allow(RT-005)] until
+#[ffi_no_*] ships" since v0.3.8. The markers shipped in
+v0.3.24 (T3.15), making that suffix actively misleading —
+readers were told the per-symbol opt-out was a future feature
+when in fact it had been live for three releases.
+
+### Before / After
+
+```
+# v0.3.8 → v0.3.27 (stale)
+warning[RT-005]: FFI call 'host_log' from #[no_alloc] fn 'rt_step'
+  -- extern fns may allocate, panic, or block (use #[allow(RT-005)]
+     until #[ffi_no_*] ships)
+
+# v0.3.28 (current)
+warning[RT-005]: FFI call 'host_log' from #[no_alloc] fn 'rt_step'
+  -- extern fns may allocate, panic, or block (mark the extern
+     with #[ffi_no_alloc] / #[ffi_no_panic] for per-symbol opt-out,
+     or #[allow(RT-005)] for file-wide)
+```
+
+### Approach
+
+Single-line edit to the `str_concat` chain in
+`enforce_rt005_ffi`'s diagnostic builder. No structural change;
+only the suffix substring after "may allocate, panic, or block "
+swapped.
+
+### Verify gate
+
+- All 390 existing diagnostic-grep verify steps continue to
+  pass — the assertions key on the `warning[RT-005]: FFI call
+  '<NAME>'` prefix, not the trailing message body, so the
+  rename leaves them green.
+- Bootstrap fixed point recomputed at SHA `8de96dcb` (was
+  `A7D6876D`). The new SHA reflects only the message-text
+  change in the .rodata strings table.
+- `bootstrap/nucleor_s1_seed.ll` refreshed to match — the Linux
+  cross-build's seed-vs-current SHA equality check (T1.7) now
+  passes against the new fixed point.
+- Stage-2/3/4 chain: stage_b.exe (built from current binary +
+  new source) → promoted to bin/ → stage_c.ll == stage_d.ll
+  byte-identical → seed updated. RSS during bootstrap stayed
+  comfortably under the 2 GB ceiling.
+
+### Why this matters
+
+The audit-trail principle: a diagnostic message that points the
+user at a stale workaround is a small but real bug — anyone
+reading RT-005 today and following its guidance writes
+`#[allow(RT-005)]` instead of the more surgical
+`#[ffi_no_alloc]` / `#[ffi_no_panic]` markers. The message is
+the most common surface for users to discover the opt-out, so
+it has to be right.
+
+The `nuc explain RT-005` registry entries in
+`compiler/nucleor_tools_suite.nr` already mentioned the markers
+correctly (lines 9595, 9804, 9984 — synopsis/cause/hint all
+reference `#[ffi_no_*]`). Only the s1 compiler's runtime
+warning text was stale; v0.3.28 brings them into alignment.
+
 ## [0.3.27] — 2026-04-25
 
 **Cache-hit hardening pass for the diagnostic-dependent verify
