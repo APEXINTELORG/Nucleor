@@ -5,6 +5,100 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.70] — 2026-04-25
+
+**Production-coverage lock for the v0.3.65-69 nested-composition
+arc.** Ships a synthesis example that exercises every shape closed
+across the v0.3.51-69 codegen-fix arc — `Vec<Vec<f64>>` matrix
+indexing (v0.3.68), `Vec<V3>` field-chain through indexed structs
+(v0.3.66), trait method on struct returning f64 (v0.3.60), inline
+`as`-cast composition (v0.3.61) — all in one realistic Kalman-style
+state update step. New T3.45 verify step pins all six output values
+so any regression in the composition matrix is caught immediately.
+
+### Why a synthesis ship matters
+
+Each of v0.3.51-69 fixed an isolated codegen cell (one operand kind
+× one resolver). Strict per-fix fixtures (T3.28-T3.44) verify each
+cell in isolation. T3.45 verifies the **interaction** — that all the
+cells compose correctly inside one realistic robotics inner loop
+without falling back to lifted-let workarounds.
+
+This is the production-readiness contract: not "every individual
+codegen fix is green in isolation" but "the matrix as a whole is
+load-bearing for real Kalman/sensor-fusion/state-estimation code."
+
+### What `examples/24_rt_kalman_step.nr` exercises
+
+```nucleor
+// 3x3 transition matrix (Vec<Vec<f64>>, v0.3.55 + v0.3.68)
+let mut A: Vec<Vec<f64>> = Vec::new(); /* ... */
+
+// x' = A * x via nested indexing (v0.3.68)
+acc = acc + A[i][j] * x[j];
+
+// Velocity magnitude squared via trait method (v0.3.60)
+let speed_sq: f64 = v.norm_sq();
+
+// Trajectory cumulative dist_sq via Vec<V3>.x indexing (v0.3.66)
+let dx: f64 = path[k].x - path[k - 1].x;
+
+// Cast + inline binop (v0.3.61)
+let avg_dist: f64 = total / (n as f64);
+```
+
+All six pinned outputs:
+
+```
+x_next[0]: 5.000000      // 1*2 + 0*4 + 0.5*6
+x_next[1]: 7.000000      // 0*2 + 1*4 + 0.5*6
+x_next[2]: 6.000000      // 0*2 + 0*4 + 1.0*6
+speed_sq:  25.000000     // 3² + 4² + 0²
+total:     50.000000     // 25 + 25
+avg_dist:  16.666667     // 50 / 3
+```
+
+### Files touched
+
+- `examples/24_rt_kalman_step.nr` — NEW. Tier 4 robotics RT showcase
+  example, synthesizing the v0.3.65-69 nested-composition arc.
+- `tools/examples.list` — wires `24_rt_kalman_step` into the gate
+  example sweep.
+- `tools/verify.{sh,ps1}` — new T3.45 step grep-asserts all six
+  output values, including the `^16\.66[67]` regex for the 50/3
+  trailing-7 representation. Step counter `+ 60 → + 61` (sh),
+  `+ 62 → + 63` (ps1).
+- `examples/README.md` — Tier 4 row added.
+- `docs/v0.3-robotics-guide.md` — worked-example index row added.
+
+### Verify gate
+
+- All prior gate steps green (T3.28-T3.44 still pass).
+- T3.45 added and green; locks the composition matrix as a
+  load-bearing contract.
+- Bootstrap fixed point unchanged at `267dee66` (no compiler
+  changes in this ship).
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.70)
+
+- **15 codegen fixes** (v0.3.51-69)
+- **18 strict regression fixtures**: T3.28-T3.45 (T3.45 is the
+  cross-fix synthesis lock added this ship)
+- **6 robotics RT showcase examples**: Tier 4 now covers PID,
+  motor FFI, state machine, exported kernels, sensor fusion,
+  and Kalman matrix update
+- **Bootstrap stable** through 15 SHA refreshes across the arc
+- **Type-resolver kind enumerations symmetric**: binop and
+  expr_struct handle kinds {3, 7, 8, 9, 10} uniformly
+- **Composition matrix verified end-to-end**: T3.45 proves the
+  cells interact correctly inside one realistic inner loop
+
+The arithmetic + struct-resolution surface for f64 on production
+AST shapes is now structurally complete AND the surface is locked
+against composition-level regressions — both per-cell and
+end-to-end.
+
 ## [0.3.69] — 2026-04-25
 
 **Compiler fix #15: trait method results returning structs +

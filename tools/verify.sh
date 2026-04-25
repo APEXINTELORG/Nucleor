@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 60))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 61))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1051,6 +1051,26 @@ t321_diag001_self_suppress() {
     return 0
 }
 
+t345_kalman_synthesis() {
+    # T3.45 (v0.3.70): production-coverage lock for the v0.3.65-69
+    # nested-composition arc. Builds examples/24_rt_kalman_step.nr
+    # which combines 3x3 matrix-vector multiply (nested indexing),
+    # Vec<V3> trajectory, struct trait method, and cast inline,
+    # then asserts all six output values are mathematically correct.
+    "$BIN" build "examples/24_rt_kalman_step.nr" -o "_t345_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t345_check" ] || [ -x "target/_t345_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t345_check" ]; then exe="target/_t345_check"; else exe="target/_t345_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    grep -qE '^5\.0+$'    /tmp/_nuc_step.log || return 1
+    grep -qE '^7\.0+$'    /tmp/_nuc_step.log || return 1
+    grep -qE '^6\.0+$'    /tmp/_nuc_step.log || return 1
+    grep -qE '^25\.0+$'   /tmp/_nuc_step.log || return 1
+    grep -qE '^50\.0+$'   /tmp/_nuc_step.log || return 1
+    grep -qE '^16\.66[67]' /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t344_method_returning_struct() {
     # T3.44 (v0.3.69): regression test for trait method calls
     # returning structs followed by immediate field access
@@ -1921,6 +1941,7 @@ step "T3.41 method on indexed struct field (p.rects[0].area(), v0.3.66 fix)" t34
 step "T3.42 indexing on fn-call result (make_vec()[i], v0.3.67 fix)" t342_fncall_indexing
 step "T3.43 nested indexing (grid[i][j], v0.3.68 fix — matrix CLOSED)" t343_nested_indexing
 step "T3.44 method-result-returning-struct field access (v0.3.69 fix)" t344_method_returning_struct
+step "T3.45 Kalman synthesis (v0.3.65-69 nested-composition lock)" t345_kalman_synthesis
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
