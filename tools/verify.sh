@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 73))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 74))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1057,6 +1057,23 @@ t356_indexed_lhs_diagnostic() {
     "$BIN" build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -q "indexed assignment" /tmp/_nuc_step.log || return 1
     grep -q "vec_set" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t358_trait_default_methods() {
+    # T3.58 (v0.3.82): regression test for trait default-method support.
+    # Pre-v0.3.82, calling a trait method that the impl didn't override
+    # fell through to `vec_<mname>` and failed at clang link with
+    # "use of undefined value". Post: synthesized fns from trait
+    # defaults dispatch correctly, including Self substitution for
+    # nested self.method() calls.
+    "$BIN" build "tests/fixtures/t358_trait_default_methods.nr" -o "_t358_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t358_check" ] || [ -x "target/_t358_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t358_check" ]; then exe="target/_t358_check"; else exe="target/_t358_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    local code=$?
+    [ "$code" -eq 0 ] || return 1
     return 0
 }
 
@@ -2134,6 +2151,7 @@ step "T3.54 match-arm stmt bodies (return/break/continue) — T1.2 partial close
 step "T3.55 nested struct field assign safety net (pre-v0.3.80 segfault → clean diagnostic)" t355_nested_field_assign_diagnostic
 step "T3.56 indexed-LHS assign safety net (pre-v0.3.81 segfault → clean diagnostic)" t356_indexed_lhs_diagnostic
 step "T3.57 tuple-destructure let safety net (pre-v0.3.81 segfault → clean diagnostic)" t357_tuple_let_diagnostic
+step "T3.58 trait default-method support (impls inherit defaults; Self substitution)" t358_trait_default_methods
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

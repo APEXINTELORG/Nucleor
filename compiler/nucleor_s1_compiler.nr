@@ -11679,6 +11679,89 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         };
         fi = fi + 1;
     };
+    // v0.3.82: trait default method support. After collect_impls
+    // registers explicit impl methods, walk every kind-45 (impl block)
+    // with a non-empty trait_name and look for default methods (body
+    // != -1) declared in the corresponding kind-43 trait_decl that
+    // the impl did NOT override. For each such default method,
+    // synthesize a mangled fn `<TypeName>__<method>` using the
+    // trait's body and register it in trait_impls + fn_decls. This
+    // enables the canonical Rust pattern of trait defaults that impls
+    // can selectively override. Pre-v0.3.82, calling a trait method
+    // not present in the impl's explicit body fell through to the
+    // `vec_<mname>` fallback which failed at clang link with
+    // "use of undefined value".
+    fi = 0;
+    while fi < cnt {
+        let impl_nid: i64 = list_get(pool, prog, fi);
+        if node_kind(pool, impl_nid) == 45 {
+            let trait_name: str = node_field(pool, impl_nid, 1);
+            let type_name2: str = node_field(pool, impl_nid, 2);
+            let impl_methods: i64 = node_field(pool, impl_nid, 3);
+            if str_len(trait_name) > 0 {
+                let mut fj: i64 = 0;
+                while fj < cnt {
+                    let td_nid: i64 = list_get(pool, prog, fj);
+                    if node_kind(pool, td_nid) == 43 && str_eq(node_field(pool, td_nid, 1), trait_name) == 1 {
+                        let trait_methods: i64 = node_field(pool, td_nid, 2);
+                        let tmc: i64 = list_len(pool, trait_methods);
+                        let mut tmi: i64 = 0;
+                        while tmi < tmc {
+                            let trait_method_nid: i64 = list_get(pool, trait_methods, tmi);
+                            let tmname: str = node_field(pool, trait_method_nid, 1);
+                            let tbody: i64 = node_field(pool, trait_method_nid, 4);
+                            if tbody >= 0 {
+                                // Trait has a default body. Check if impl overrides.
+                                let imc: i64 = list_len(pool, impl_methods);
+                                let mut overridden: i64 = 0;
+                                let mut imi: i64 = 0;
+                                while imi < imc {
+                                    let im_nid: i64 = list_get(pool, impl_methods, imi);
+                                    if str_eq(node_field(pool, im_nid, 1), tmname) == 1 {
+                                        overridden = 1;
+                                    };
+                                    imi = imi + 1;
+                                };
+                                if overridden == 0 {
+                                    // v0.3.82: build new params with "Self"
+                                    // substituted for the impl's actual
+                                    // type_name. Without this, the default
+                                    // body's `self` has type="Self" which
+                                    // doesn't resolve to a known struct in
+                                    // expr_struct_type, breaking dispatch
+                                    // for any nested `self.<method>()` call.
+                                    let trait_params: i64 = node_field(pool, trait_method_nid, 2);
+                                    let pcount: i64 = list_len(pool, trait_params);
+                                    let mut new_params: Vec<i32> = Vec::new();
+                                    let mut pi: i64 = 0;
+                                    while pi < pcount {
+                                        let pnode: i64 = list_get(pool, trait_params, pi);
+                                        let pname: str = node_field(pool, pnode, 1);
+                                        let ptype: str = node_field(pool, pnode, 2);
+                                        let mut new_ptype: str = ptype;
+                                        if str_eq(ptype, "Self") == 1 { new_ptype = type_name2; };
+                                        if str_eq(ptype, "&Self") == 1 { new_ptype = str_concat("&", type_name2); };
+                                        if str_eq(ptype, "&mut Self") == 1 { new_ptype = str_concat("&mut ", type_name2); };
+                                        new_params.push(mk3(pool, 41, pname, new_ptype));
+                                        pi = pi + 1;
+                                    };
+                                    // Synthesize fn using trait's default body, mangled with the impl's type name.
+                                    let dm_mangled: str = str_concat(type_name2, str_concat("__", tmname));
+                                    let dm_fn: i64 = mk6(pool, 30, dm_mangled, mk_list(pool, new_params), node_field(pool, trait_method_nid, 3), tbody, 0);
+                                    impl_fns.push(dm_fn);
+                                    fn_decls.push(dm_fn);
+                                    trait_impl_register(trait_impls, type_name2, tmname, dm_mangled);
+                                };
+                            };
+                            tmi = tmi + 1;
+                        };
+                    };
+                    fj = fj + 1;
+                };
+            };
+        };
+        fi = fi + 1;
+    };
     print_phase_time(time_passes, "collect_impls", now_ms() - impl_start);
     // Diagnostic accumulator
     let mut diags: Vec<i32> = diag_new();
