@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 78
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 79
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1076,6 +1076,14 @@ Step "T3.56 indexed-LHS assign safety net (pre-v0.3.81 segfault → clean diagno
     if ($LASTEXITCODE -eq -1073741819) { return $false }
     if ($out -notmatch "indexed assignment") { return $false }
     if ($out -notmatch "vec_set") { return $false }
+    return $true
+}
+
+Step "T3.61 trait/impl associated-const diagnostic (pre-v0.3.85 cascaded parse errors)" {
+    # v0.3.85 (T3.61): negative regression for trait/impl assoc consts.
+    $out = & $bin build "tests/fixtures/t361_assoc_const_diagnostic.nr" -o "_t361_check" --no-cache 2>&1 | Out-String
+    if ($out -notmatch "associated constants in traits") { return $false }
+    if ($out -notmatch "associated constants in impl blocks") { return $false }
     return $true
 }
 

@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.85] — 2026-04-25
+
+**Diagnostic: associated constants in trait/impl bodies.** Pre-v0.3.85,
+writing `const NAME: T;` in a trait body or `const NAME: T = V;` in
+an impl body cascaded into 18+ parse errors as the body parser
+called `expect_tok(fn)` and got `const`. Recovery walked into the
+rest of the body mis-aligned, producing a confusing failure cloud.
+
+### Fix
+
+Both `parse_trait_decl` and `parse_impl_block` now detect token 73
+(`const`) inside the body loop and emit a clear diagnostic with
+the canonical workaround (module-scope const or inherent fn).
+Recovery skips to the next semicolon or close-brace.
+
+```
+ERROR: associated constants in traits are not yet supported
+(e.g. `trait T { const MAX: i64; }`). Workaround: declare the
+constant at module scope (`const MAX: i64 = 100;`) or as an
+inherent fn that returns the value. Tracked for a future ship.
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — parse_trait_decl and
+  parse_impl_block body loops gain `const` detection. Bootstrap
+  fixed point recomputed at SHA `d402dc9a` (was `8476e1d9`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t361_assoc_const_diagnostic.nr` — new negative
+  fixture asserting both diagnostics surface.
+- `tools/verify.{sh,ps1}` — new T3.61 verify step.
+
+### Verify gate
+
+- 439/439 green (was 438 + 1 step from T3.61).
+- All prior regression fixtures (T3.28-T3.60) still green.
+- Bootstrap fixed point closes at `d402dc9a`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.85)
+
+- **25 codegen + 1 runtime + 6 parser/check diagnostic = 32 total**
+- **34 strict regression fixtures** (T3.28-T3.61)
+- **6 robotics RT showcase examples** in Tier 4
+
 ## [0.3.84] — 2026-04-25
 
 **High-blast-radius fix: match-arm assignment body silently dropped
