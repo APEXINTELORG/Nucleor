@@ -12628,7 +12628,7 @@ fn copy_package_tree_native(src_root: str, dst_root: str) -> i64 {
             let dst_path: str = sanitize(str_concat(path_with_sep(dst_root), rel));
             let dst_parent: str = parent_dir(dst_path);
             if str_len(dst_parent) > 0 { fs_create_dir_all(dst_parent); };
-            if fs_copy_file(file_path, dst_path) != 0 { return 1; };
+            if fs_copy_file(file_path, dst_path) == 0 { return 1; };
         };
         i = i + 1;
     };
@@ -12731,6 +12731,102 @@ fn registry_resolve_version_native(registry_dir: str, package_name: str, selecto
         i = i + 1;
     };
     return "";
+}
+
+fn registry_export_static_native(registry_dir: str, out_dir: str) -> Vec<i32> {
+    // T1.4 (v0.2.344): convert the local file-system registry tree
+    // into the GitHub-Pages-publishable static-site shape per
+    // RFC-0019 §6. Returns [pkg_count, version_count, file_count]
+    // so the CLI can summarize what got exported.
+    //
+    // Schema: <out_dir>/index.json (top-level package list),
+    // <out_dir>/<pkg>/index.json (per-package version list +
+    // latest pointer), <out_dir>/<pkg>/<version>/<files...>
+    // (verbatim copy of the source tree).
+    let mut counts: Vec<i32> = Vec::new();
+    counts.push(0);
+    counts.push(0);
+    counts.push(0);
+    fs_create_dir_all(out_dir);
+    let packages: Vec<i32> = dir_list_native(registry_dir, 1);
+    let mut pkg_count: i64 = 0;
+    let mut ver_count: i64 = 0;
+    let mut file_count: i64 = 0;
+    let mut top_index: i64 = sb_new();
+    sb_append(top_index, "{\"schema_version\":\"1.0\",\"type\":\"nucleor_registry_index\",\"packages\":[");
+    let mut first_pkg: i64 = 1;
+    let mut pi: i64 = 0;
+    while pi < vec_len(packages) {
+        let name: str = vec_get(packages, pi);
+        let versions: Vec<i32> = registry_package_versions_native(registry_dir, name);
+        if vec_len(versions) > 0 {
+            if first_pkg == 0 { sb_append(top_index, ","); };
+            first_pkg = 0;
+            sb_append(top_index, "{\"name\":\"");
+            sb_append(top_index, json_escape(name));
+            sb_append(top_index, "\",\"latest\":\"");
+            sb_append(top_index, json_escape(vec_get(versions, 0)));
+            sb_append(top_index, "\",\"versions\":");
+            sb_append_json_string_array(top_index, versions);
+            sb_append(top_index, "}");
+            pkg_count = pkg_count + 1;
+            // Per-package directory + per-package index.json
+            let pkg_out: str = sanitize(str_concat(path_with_sep(out_dir), name));
+            fs_create_dir_all(pkg_out);
+            let mut pkg_index: i64 = sb_new();
+            sb_append(pkg_index, "{\"schema_version\":\"1.0\",\"type\":\"nucleor_registry_package\",\"name\":\"");
+            sb_append(pkg_index, json_escape(name));
+            sb_append(pkg_index, "\",\"latest\":\"");
+            sb_append(pkg_index, json_escape(vec_get(versions, 0)));
+            sb_append(pkg_index, "\",\"versions\":");
+            sb_append_json_string_array(pkg_index, versions);
+            sb_append(pkg_index, "}");
+            file_write_string(sanitize(str_concat(path_with_sep(pkg_out), "index.json")), sb_to_str(pkg_index));
+            file_count = file_count + 1;
+            // Per-version: copy the source tree verbatim
+            let mut vi: i64 = 0;
+            while vi < vec_len(versions) {
+                let version: str = vec_get(versions, vi);
+                let src_root: str = sanitize(str_concat(path_with_sep(registry_dir), str_concat(name, str_concat("/", version))));
+                let dst_root: str = sanitize(str_concat(path_with_sep(pkg_out), version));
+                fs_create_dir_all(dst_root);
+                let copied: i64 = registry_export_copy_tree_native(src_root, dst_root);
+                file_count = file_count + copied;
+                ver_count = ver_count + 1;
+                vi = vi + 1;
+            };
+        };
+        pi = pi + 1;
+    };
+    sb_append(top_index, "],\"count\":");
+    sb_append(top_index, str_from_int(pkg_count));
+    sb_append(top_index, "}");
+    file_write_string(sanitize(str_concat(path_with_sep(out_dir), "index.json")), sb_to_str(top_index));
+    file_count = file_count + 1;
+    vec_set(counts, 0, pkg_count);
+    vec_set(counts, 1, ver_count);
+    vec_set(counts, 2, file_count);
+    return counts;
+}
+
+fn registry_export_copy_tree_native(src_root: str, dst_root: str) -> i64 {
+    // Recursive directory copy. Returns the number of files copied.
+    // Uses walk_dir_recursive_native (already cross-platform per T1.7)
+    // so this works identically on Windows and POSIX.
+    let files: Vec<i32> = walk_dir_recursive_native(src_root);
+    let n: i64 = vec_len(files);
+    let mut copied: i64 = 0;
+    let mut i: i64 = 0;
+    while i < n {
+        let file_path: str = vec_get(files, i);
+        let rel: str = path_relative_inventory(src_root, file_path);
+        let dst_path: str = sanitize(str_concat(path_with_sep(dst_root), rel));
+        let dst_parent: str = parent_dir(dst_path);
+        if str_len(dst_parent) > 0 { fs_create_dir_all(dst_parent); };
+        if fs_copy_file(file_path, dst_path) == 1 { copied = copied + 1; };
+        i = i + 1;
+    };
+    return copied;
 }
 
 fn native_release_repo_root() -> str {
@@ -14491,7 +14587,50 @@ fn run_registry_command(argc: i64) -> i64 {
         };
         return 0;
     };
-    print("Usage: nuc registry [list|search <query>|versions <package>|verify <package|package@version>] [--registry <dir>]");
+    if str_eq(subcmd, "export-static") == 1 {
+        // T1.4 (v0.2.344): convert a local registry directory tree into
+        // the GitHub-Pages-publishable static-site shape documented in
+        // RFC-0019 §6 (Remote registry — static-index variant). Nothing
+        // here touches the network; the maintainer pushes the resulting
+        // directory to a gh-pages branch and points users at
+        // https://<user>.github.io/<repo>/index.json.
+        if vec_len(positionals) < 2 {
+            print("Usage: nuc registry export-static <out_dir> [--registry <dir>]");
+            print("");
+            print("Output schema (per RFC-0019 §6, GH-Pages remote registry):");
+            print("  <out_dir>/index.json                      Top-level package list");
+            print("  <out_dir>/<pkg>/index.json                Per-package version list");
+            print("  <out_dir>/<pkg>/<version>/Nucleor.toml    Manifest");
+            print("  <out_dir>/<pkg>/<version>/Nucleor.lock    Lockfile (if present)");
+            print("  <out_dir>/<pkg>/<version>/checksum.json   Per-RFC-0019 file checksums");
+            print("  <out_dir>/<pkg>/<version>/<files>...      Source + bundled artifacts");
+            return 1;
+        };
+        let out_dir: str = sanitize(vec_get(positionals, 1));
+        if str_len(out_dir) == 0 {
+            print("ERROR: invalid out_dir");
+            return 1;
+        };
+        let exported: Vec<i32> = registry_export_static_native(registry_dir, out_dir);
+        let pkg_count: i64 = vec_get(exported, 0);
+        let ver_count: i64 = vec_get(exported, 1);
+        let file_count: i64 = vec_get(exported, 2);
+        print(str_concat("registry: ", registry_dir));
+        print(str_concat("static site: ", out_dir));
+        print(str_concat("packages exported: ", str_from_int(pkg_count)));
+        print(str_concat("versions exported: ", str_from_int(ver_count)));
+        print(str_concat("files copied:     ", str_from_int(file_count)));
+        print("");
+        print("Next: push the out_dir to your GitHub Pages branch:");
+        print(str_concat("  cd ", str_concat(out_dir, " && git init && git add -A && git commit -m 'registry'")));
+        print("  git push <gh-pages-remote> main:gh-pages");
+        print("");
+        print("Users point `nuc` at the published URL via:");
+        print("  nuc registry remote add <name> https://<user>.github.io/<repo>");
+        print("  (remote fetch ships in T1.4b once the TLS rod lands per RFC-0019 §6.3)");
+        return 0;
+    };
+    print("Usage: nuc registry [list|search <query>|versions <package>|verify <package|package@version>|export-static <out_dir>] [--registry <dir>]");
     return 1;
 }
 

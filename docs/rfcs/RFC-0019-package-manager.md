@@ -224,7 +224,97 @@ Users can use git deps for v0.2.
 
 ---
 
-## 5. Alternatives considered
+## 5. Remote registry — static-index variant (T1.4 ship, v0.2.344)
+
+The pulled-forward MVP for the GitHub-Pages registry path. Ships
+in v0.2.344 (T1.4); the full v0.5 registry is the same shape plus
+TLS fetch, signature verification, and conflict resolution.
+
+### 5.1 Static-site directory schema
+
+A registry is a directory tree publishable as-is to GitHub Pages
+(or any static host). The schema is content-addressable enough
+that mirroring is just a directory copy.
+
+```
+<registry_root>/
+├── index.json                       # top-level — every package
+├── <package>/
+│   ├── index.json                   # per-package — every version
+│   └── <version>/
+│       ├── Nucleor.toml             # manifest (canonical)
+│       ├── Nucleor.lock             # lockfile (if present)
+│       ├── checksum.json            # sha256 of every file
+│       ├── signature.json           # signature (if signed)
+│       └── ...                      # source files (.nr, .md, .txt)
+```
+
+### 5.2 JSON shapes
+
+**Top-level `index.json`:**
+
+```json
+{
+  "schema_version": "1.0",
+  "type": "nucleor_registry_index",
+  "packages": [
+    {"name": "foo", "latest": "0.2.0", "versions": ["0.2.0", "0.1.0"]},
+    {"name": "bar", "latest": "1.0.0", "versions": ["1.0.0"]}
+  ],
+  "count": 2
+}
+```
+
+**Per-package `<package>/index.json`:**
+
+```json
+{
+  "schema_version": "1.0",
+  "type": "nucleor_registry_package",
+  "name": "foo",
+  "latest": "0.2.0",
+  "versions": ["0.2.0", "0.1.0"]
+}
+```
+
+`versions` is sorted descending by semver; `latest` matches `versions[0]`.
+
+### 5.3 Producer side — `nuc registry export-static <out_dir>`
+
+Converts a local file-system registry (`.nucleor/registry` by
+default) into the static-site shape above. Pure file I/O — no
+network. The maintainer then pushes `<out_dir>` to a `gh-pages`
+branch (or any static host).
+
+Implemented in v0.2.344. Smoke test in
+`tests/fixtures/t14_registry/` exercises 2 packages with 3
+versions and 4 source files.
+
+### 5.4 Consumer side — `nuc registry remote add/list/remove`
+
+Configuration of remote registry URLs (writes to a per-user
+config file). Resolution of `<package>@<version>` against a
+remote follows: GET `<remote>/index.json` → confirm package
+exists, GET `<remote>/<package>/index.json` → resolve version,
+GET `<remote>/<package>/<version>/Nucleor.toml` + every file
+listed in `checksum.json`, verify hashes match, drop into
+`.nucleor/registry/<package>/<version>/`.
+
+**Status:** consumer side ships in T1.4b once the TLS rod
+lands (RFC-0019 §5.5). GitHub Pages enforces HTTPS so a
+plaintext-only HTTP rod is not enough.
+
+### 5.5 TLS rod (gating consumer fetch)
+
+The existing `stdlib/rods/socket.nr` exposes
+`nuc_http_get(url)` over plaintext HTTP/1.0 only. T1.4b adds
+a `stdlib/rods/tls.nr` (likely backed by mbedTLS or native
+schannel/SecureTransport) so HTTPS GET works. This is the
+single blocker on consumer fetch — the resolver, version
+selector, and download orchestration are all already in
+`tools_suite.nr`.
+
+## 6. Alternatives considered
 
 - **No package manager** — blocks ecosystem.
 - **Run on top of npm/Cargo** — silly.

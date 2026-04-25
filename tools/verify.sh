@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 8))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 9))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -758,6 +758,30 @@ tools_suite_memory_budget() {
     _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
 }
 
+t14_export_static() {
+    # v0.2.344 (T1.4): registry export-static produces the
+    # GitHub-Pages-publishable static-site shape per RFC-0019 §6.
+    # Uses the checked-in fixture at tests/fixtures/t14_registry/
+    # (2 packages: foo with 2 versions, bar with 1 version).
+    local out_dir
+    out_dir="$(mktemp -d 2>/dev/null || echo /tmp/_t14_verify_out)"
+    rm -rf "$out_dir"
+    "$BIN" registry export-static "$out_dir" --registry tests/fixtures/t14_registry >/tmp/_nuc_step.log 2>&1
+    grep -q "packages exported: 2" /tmp/_nuc_step.log || return 1
+    grep -q "versions exported: 3" /tmp/_nuc_step.log || return 1
+    grep -qE "files copied:\s*7" /tmp/_nuc_step.log || return 1
+    [ -f "$out_dir/index.json" ] || return 1
+    [ -f "$out_dir/foo/index.json" ] || return 1
+    [ -f "$out_dir/foo/0.2.0/Nucleor.toml" ] || return 1
+    [ -f "$out_dir/bar/1.0.0/Nucleor.toml" ] || return 1
+    grep -q '"schema_version":"1.0"' "$out_dir/index.json" || return 1
+    grep -q '"type":"nucleor_registry_index"' "$out_dir/index.json" || return 1
+    grep -q '"name":"foo"' "$out_dir/index.json" || return 1
+    grep -q '"latest":"0.2.0"' "$out_dir/index.json" || return 1
+    grep -q '"count":2' "$out_dir/index.json" || return 1
+    rm -rf "$out_dir"
+}
+
 t15d_mod003() {
     # v0.2.343 (T1.5d): undefined-symbol clang errors that match
     # privatized fn names get lifted into MOD-003 with origin path
@@ -946,6 +970,7 @@ step "T1.5a mod block-form inline" t15a_mod_block_form
 step "T1.5b pub introspection (summary surfaces visibility)" t15b_pub_introspection
 step "T1.5c privatization (cross-module call surfaces succeed)" t15c_privatization
 step "T1.5d MOD-003 surfaces with origin + pub hint" t15d_mod003
+step "T1.4 nuc registry export-static (GH-Pages schema)" t14_export_static
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------
