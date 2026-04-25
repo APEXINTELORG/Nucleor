@@ -1276,6 +1276,24 @@ NVec *__nucleor_vec_new(void) {
     return v;
 }
 
+// v0.3.116: vec_with_capacity(n) — pre-allocate the data buffer
+// to hold n elements without realloc churn. Mirrors Rust's
+// `Vec::with_capacity(N)` for known-size accumulators. Returns
+// an empty Vec (len = 0) with capacity = max(n, 4) — keeps the
+// post-v0.2.167 minimum so the vec_push fast path doesn't have to
+// special-case zero-cap allocations.
+NVec *__nucleor_vec_with_capacity(long long n) {
+    if (!g_alloc_tracer_init) { atexit(_alloc_summary); g_alloc_tracer_init = 1; }
+    g_vec_new_count++;
+    long long cap = n < 4 ? 4 : n;
+    NVec *v = (NVec *)malloc(sizeof(NVec));
+    v->data = (long long *)malloc((size_t)cap * sizeof(long long));
+    v->len = 0;
+    v->cap = cap;
+    g_vec_realloc_bytes += sizeof(NVec) + (long long)cap * (long long)sizeof(long long);
+    return v;
+}
+
 // Free a Vec and its data. The handle is invalid after this call.
 // Always-linked counterpart of mem_rt.c's nuc_vec_free, so user code
 // (and the compiler itself) can reclaim a Vec without importing

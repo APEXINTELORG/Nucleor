@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.116] — 2026-04-25
+
+**`Vec::with_capacity(N)` constructor.** Pre-v0.3.116, the kind-12
+associated-fn-call lowering only handled `Vec::new` for the generic
+Vec — `Vec::with_capacity(N)` fell through to the diagnostic+zero
+path. Adopters reaching for the canonical Rust pre-allocation
+pattern (for known-size accumulators that want to avoid realloc
+churn during many push calls) saw their .exe return 0 from the
+constructor and every subsequent push silently fail.
+
+### Fix
+
+Three-piece coordinated change:
+
+1. Runtime: new `__nucleor_vec_with_capacity(n)` allocates
+   `max(n, 4)` slots upfront, returns an empty Vec (len = 0,
+   cap = max(n, 4)). Min-4 floor preserves the post-v0.2.167
+   minimum so the vec_push fast path doesn't have to special-case
+   zero-cap allocations.
+2. Compiler: kind-12 dispatch handles `Vec::with_capacity`, lowering
+   the single arg and calling `vec_with_capacity`. Registered in
+   `get_rt_name` + `is_ptr_ret` + IR header `declare` list.
+   Mirrored in `nucleor_tools_suite.nr` per drift gate.
+3. helper_manifest.toml regenerated.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t393 returns 1 (post-push len),
+proving the pre-allocated Vec is push-able and len reflects the
+pushed element count (not the reserved capacity). `bin/nucleor.exe`
+SHA `eb3aa9d5`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `Vec::with_capacity` arm in
+  kind-12 lowering; helper registration.
+- `compiler/nucleor_tools_suite.nr` — drift mirror.
+- `stdlib/runtime/nucleor_llvm_rt.c` — `__nucleor_vec_with_capacity`.
+- `tests/fixtures/t393_vec_with_capacity.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+
 ## [0.3.115] — 2026-04-25
 
 **Turbofish syntax `name::<TypeArgs>(args)`.** Pre-v0.3.115, the
