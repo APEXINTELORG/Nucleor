@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.95] — 2026-04-25
+
+**Feature: extended macro set — `assert_eq!`, `assert_ne!`, `todo!`,
+`unimplemented!`, `unreachable!`.** Builds on v0.3.94's
+panic!/assert!/dbg! by adding the rest of the canonical Rust
+debugging macros to the `!`-strip preprocessor.
+
+```nucleor
+if str_eq(name, "panic") == 1 || str_eq(name, "assert") == 1
+   || str_eq(name, "assert_eq") == 1 || str_eq(name, "assert_ne") == 1
+   || str_eq(name, "dbg") == 1 || str_eq(name, "todo") == 1
+   || str_eq(name, "unimplemented") == 1 || str_eq(name, "unreachable") == 1 {
+    sb_append(sb, name);
+    p = p + 1;
+    continue;
+};
+```
+
+### What now works that previously didn't
+
+```nucleor
+assert_eq!(2 + 2, 4);          // ✓ no-op when true
+assert_ne!(1, 2);              // ✓
+todo!("not yet");              // ✓ runtime panic
+unimplemented!();              // ✓ runtime panic
+unreachable!("can't happen");  // ✓ runtime panic
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — extended the `!`-strip
+  list. Bootstrap fixed point at SHA `c0c6f684` (was `3cd21d68`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t371_extended_macro_set.nr` — new strict
+  regression fixture.
+- `tools/verify.{sh,ps1}` — new T3.71 verify step.
+
+### Verify gate
+
+- 449/449 green (was 448 + 1 step from T3.71).
+- All prior regression fixtures (T3.28-T3.70) still green.
+- Bootstrap fixed point closes at `c0c6f684`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.95)
+
+- **32 codegen + 2 runtime + 8 parser/check diagnostic = 42 total**
+- **44 strict regression fixtures** (T3.28-T3.71)
+- **6 robotics RT showcase examples** in Tier 4
+- **Macro surface complete**: every common Rust debugging macro
+  (`println!`, `format!`, `print!`, `panic!`, `assert!`,
+  `assert_eq!`, `assert_ne!`, `dbg!`, `todo!`, `unimplemented!`,
+  `unreachable!`) parses and dispatches correctly.
+
 ## [0.3.94] — 2026-04-25
 
 **Feature: `panic!`, `assert!`, and `dbg!` macro forms.** Pre-v0.3.94,
