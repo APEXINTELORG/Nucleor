@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.106] — 2026-04-25
+
+**`&self` / `&mut self` in trait declarations + tuple-pattern
+match diagnostic.**
+
+### Trait `&self` parse
+
+Pre-v0.3.106, `parse_trait_decl` only recognized bare `self`
+(used in the older v0.2.x fixtures). The canonical Rust form
+`fn say(&self) -> i64;` cascaded into 13+ parse errors as the
+param-loop tried to consume `&` as a param name and then `self`
+as a comma-separated next param. Empty `impl Trait for Foo {}`
+blocks (relying on default trait methods) were collateral damage —
+they triggered the same trait declaration which never parsed.
+
+Fix: mirror the `parse_impl_block` `&self` branch (line 1685) in
+`parse_trait_decl`, producing a `&Self` / `&mut Self` advisory
+type for the receiver param when the trait method declaration
+uses the borrow form.
+
+### Tuple-pattern match diagnostic
+
+Pre-v0.3.106, `match p { (x, y) => return x + y, };` was a
+SILENT MISCOMPUTE. The arm-pattern parser fell into the catch-all
+else branch on the `(` token, set `ename = "__wild"`, then
+expect_tok(`=>`) on the inner `x` cascaded into 13+ parse errors —
+but the match itself silently returned 0 from the wildcard. Any
+adopter reaching for the canonical Rust tuple destructure pattern
+saw wrong values with garbled error output (the cascaded parse
+errors looked like noise; the real return value was 0).
+
+Real tuple-arm codegen needs payload-binding for tuple cells
+(complex enough for a separate ship). Until that lands, surface
+a clear diagnostic and fast-skip to `=>` so the rest of the body
+parses cleanly. Workaround: wildcard `_` and access tuple fields
+via `.0` / `.1`.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t383 returns 1 (default trait
+method body) via `impl Greet for Foo {}` empty body. Tuple
+destructure now emits a clear diag instead of silent 0.
+`bin/nucleor.exe` SHA `7c5e87a0`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `&self` branch in
+  `parse_trait_decl`; tuple-pattern (`(`) diag in
+  `parse_match_stmt` arm parser.
+- `tests/fixtures/t383_trait_ref_self.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.105] — 2026-04-25
 
 **Bitwise/shift compound assigns + char literal escapes — closes
