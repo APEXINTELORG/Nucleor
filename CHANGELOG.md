@@ -5,6 +5,77 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.103] — 2026-04-25
+
+**Real bitwise op codegen + `str_from_int` alias.** Two related
+production-readiness wins shipped together.
+
+### Bitwise `&` `|` `^` (replaces v0.3.97 diag-only stub)
+
+Pre-v0.3.103, `let c: i64 = a & b;` printed an error diag but
+still emitted a broken .exe (`a` was the result; the `& b` was
+treated as a leftover unary borrow expression-statement). The
+v0.3.97 diag was informational, not blocking, so attentive
+adopters saw the message but ignored it; inattentive ones got
+silent miscomputes when the diag scrolled past in build output.
+This was a HIGH-blast silent-miscompute risk for any program
+doing low-level work (mask manipulation, flag tests, hex
+decoding, hash-mixing).
+
+Real implementation:
+
+1. Lexer: `^` (ASCII 94) now tokenizes as token 94 (was unhandled).
+2. Parser: new `parse_bitwise` precedence tier between `parse_add`
+   and `parse_cmp`, matching Rust precedence (`& ^ |` bind tighter
+   than `== !=`, so `a & b == c` parses as `(a & b) == c`).
+3. tok_to_ir: `&` (82) → iop 13 (LLVM `and i64`), `|` (65) → iop 14
+   (LLVM `or i64`), `^` (94) → iop 15 (new LLVM `xor i64`).
+4. emit_inst: iop 15 emits `xor i64`. Iops 13/14 already emitted
+   `and`/`or` for the `&&`/`||` lowering — reused as-is.
+5. Const folder: ops 13/14/15 now apply BITWISE semantics
+   (matching the runtime LLVM emit), not the prior LOGICAL
+   truthiness fold. Without this, constant inputs diverged from
+   variable inputs (`255 & 15` const-folded to 1, runtime emitted 15).
+6. DCE: pure-op range extended to include iop 15.
+
+Existing `&&`/`||` behavior unchanged — they still produce iops
+13/14, which now bitwise-AND/OR the operands as before. (The
+historic semantics-when-operands-aren't-0/1 quirk is preserved
+for back-compat; in practice `&&`/`||` only appear on cmp results
+which are 0/1 anyway.)
+
+### `str_from_int(n)` alias for `int_to_str(n)`
+
+Pre-v0.3.103, only `int_to_str` was registered as a callable
+runtime helper. But the s1 compiler's own source uses
+`str_from_int` everywhere, and Rust users seeing it in the
+source naturally reach for the same name — only to hit
+`clang: undefined value '@str_from_int'`. Both names now route
+to `__nucleor_int_to_str` via a one-line entry in `get_rt_name`,
+`is_ptr_ret`, and the tools-suite drift mirror.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t373 (now positive — was the
+v0.3.97 diag pin) returns 0 across six bitwise tests including
+hex literals, const-fold path, and chained mixed expression.
+Fixture t379 returns 2 (`str_len("42")`). `bin/nucleor.exe` SHA
+`1bfcd9f4`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — lexer `^` entry, new
+  `parse_bitwise` tier, tok_to_ir entries, emit_inst iop 15,
+  const-folder bitwise semantics, DCE range, `str_from_int` alias.
+- `compiler/nucleor_tools_suite.nr` — drift mirror for
+  `str_from_int` alias.
+- `tests/fixtures/t373_bitwise_op_diagnostic.nr` — flipped from
+  diag-pin to positive codegen pin (six bitwise tests).
+- `tests/fixtures/t379_str_from_int_alias.nr` — new alias pin.
+- `tools/verify.ps1` — T3.73 step now tests positive behavior.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+
 ## [0.3.102] — 2026-04-25
 
 **`.collect()` iterator-chain terminator.** Pre-v0.3.102, the

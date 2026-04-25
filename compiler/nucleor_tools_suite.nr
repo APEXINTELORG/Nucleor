@@ -1969,6 +1969,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "str_to_f64") { return "__nucleor_str_to_f64"; };
     if str_eq(name, "str_to_bool") { return "__nucleor_str_to_bool"; };
     if str_eq(name, "int_to_str") { return "__nucleor_int_to_str"; };
+    if str_eq(name, "str_from_int") { return "__nucleor_int_to_str"; };
     if str_eq(name, "f64_to_str") { return "__nucleor_f64_to_str"; };
     if str_eq(name, "bool_to_str") { return "__nucleor_bool_to_str"; };
     if str_eq(name, "int_to_hex") { return "__nucleor_int_to_hex"; };
@@ -2704,6 +2705,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "read_line") { return 1; };
     if str_eq(name, "format_i64") { return 1; };
     if str_eq(name, "int_to_str") { return 1; };
+    if str_eq(name, "str_from_int") { return 1; };
     if str_eq(name, "f64_to_str") { return 1; };
     if str_eq(name, "bool_to_str") { return 1; };
     if str_eq(name, "int_to_hex") { return 1; };

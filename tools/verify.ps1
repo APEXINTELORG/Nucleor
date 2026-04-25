@@ -1090,11 +1090,15 @@ Step "T3.74 env_get_or runtime helper" {
     return $true
 }
 
-Step "T3.73 bitwise op diagnostic (HIGH-BLAST silent miscompute pre-v0.3.97)" {
-    $out = & $bin build "tests/fixtures/t373_bitwise_op_diagnostic.nr" -o "_t373_check" --no-cache 2>&1 | Out-String
-    if ($out -notmatch "bitwise operator") { return $false }
-    if ($out -notmatch "is not yet supported in expressions") { return $false }
-    return $true
+Step "T3.73 bitwise op codegen (`&`/`|`/`^` real impl, was diag-only pre-v0.3.103)" {
+    & $bin build "tests/fixtures/t373_bitwise_op_diagnostic.nr" -o "_t373_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t373_check.exe") { $exe = "target\_t373_check.exe" }
+    elseif (Test-Path "target\_t373_check") { $exe = "target\_t373_check" }
+    if (-not $exe) { return $false }
+    & $exe | Out-Null
+    # Fixture exits 0 when all three ops produce correct results.
+    return $LASTEXITCODE -eq 0
 }
 
 Step "T3.72 mut closure capture diagnostic (FnMut silent miscompute pre-v0.3.96)" {
