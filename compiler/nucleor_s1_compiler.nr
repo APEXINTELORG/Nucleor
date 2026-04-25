@@ -10065,6 +10065,11 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
     // type_base_name strips generics; v0.3.55 added a parallel
     // __fulltype_ entry that preserves the generic so the kind==10
     // dispatcher can extract the element type.
+    //
+    // v0.3.62 extension: also handles fixed-size arrays
+    // `[T; N]` (parsed identically to indexing). Production code
+    // uses fixed arrays for state vectors / sensor batches with
+    // known length.
     if kind == 10 {
         let vexpr: i64 = node_field(pool, nid, 1);
         if node_kind(pool, vexpr) == 3 {
@@ -10078,6 +10083,23 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
                     let inner: str = type_base_name(str_substring(vtype, 4, tlen - 1));
                     if str_eq(inner, "f32") == 1 { return "f32"; };
                     if str_eq(inner, "f64") == 1 { return "f64"; };
+                };
+            };
+            // [T; N] → extract T. Pattern: leading '[' (char 91),
+            // element type ends at first ';' (char 59) or ',' (char 44).
+            if str_len(vtype) > 1 && str_char_at(vtype, 0) == 91 {
+                let tlen2: i64 = str_len(vtype);
+                let mut sep: i64 = 0 - 1;
+                let mut k: i64 = 1;
+                while k < tlen2 {
+                    let ch: i64 = str_char_at(vtype, k);
+                    if ch == 59 || ch == 44 { sep = k; k = tlen2; }
+                    else { k = k + 1; };
+                };
+                if sep > 1 {
+                    let inner2: str = type_base_name(strip_spaces(str_substring(vtype, 1, sep)));
+                    if str_eq(inner2, "f32") == 1 { return "f32"; };
+                    if str_eq(inner2, "f64") == 1 { return "f64"; };
                 };
             };
         };

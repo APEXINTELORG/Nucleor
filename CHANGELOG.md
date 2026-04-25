@@ -5,6 +5,128 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.62] — 2026-04-25
+
+**Compiler fix #9: fixed-size array `[T; N]` indexing in
+inline f64 binops.** `arr[0] + arr[1]` where arr: [f64; 3]
+returned `nan` pre-v0.3.62. The v0.3.55 kind==10 fix
+extended `binop_float_type` to handle `Vec<T>` indexing,
+but fixed-size arrays `[T; N]` use the same AST kind
+(parser shares the `[]` indexing path) — and the type
+stamp `[f64; 3]` failed v0.3.55's `Vec<` prefix check.
+
+### Production relevance
+
+Fixed-size arrays are common in robotics where dimensions
+are known at compile time:
+
+```nucleor
+let pose: [f64; 6] = ...;     // SE(3) translation + rotation
+let imu: [f64; 3] = ...;      // accelerometer reading
+let history: [f64; 16] = ...; // sliding sensor window
+```
+
+Pre-v0.3.62 every inline arithmetic on these shapes silently
+miscomputed. Per "robust production ready fixes only", this
+is the kind of pattern users will reach for the moment they
+need a known-size buffer instead of a heap-allocated `Vec`.
+
+### Fix
+
+Extended the v0.3.55 kind==10 dispatcher to recognize
+`[T; N]` in addition to `Vec<T>`:
+
+```nucleor
+// [T; N] → extract T. Pattern: leading '[' (char 91),
+// element type ends at first ';' (char 59) or ',' (char 44).
+if str_len(vtype) > 1 && str_char_at(vtype, 0) == 91 {
+    let tlen2: i64 = str_len(vtype);
+    let mut sep: i64 = 0 - 1;
+    let mut k: i64 = 1;
+    while k < tlen2 {
+        let ch: i64 = str_char_at(vtype, k);
+        if ch == 59 || ch == 44 { sep = k; k = tlen2; }
+        else { k = k + 1; };
+    };
+    if sep > 1 {
+        let inner2: str = type_base_name(strip_spaces(str_substring(vtype, 1, sep)));
+        if str_eq(inner2, "f32") == 1 { return "f32"; };
+        if str_eq(inner2, "f64") == 1 { return "f64"; };
+    };
+};
+```
+
+Reuses the same `__fulltype_<vname>` sym entry from v0.3.55
+(which already preserves the full `[f64; 3]` shape — the
+infrastructure handled it; only the parser logic needed
+extending). The `strip_spaces` call handles `[ f64 ; 3 ]`
+spacing variations.
+
+### What now works that previously didn't
+
+```
+let arr: [f64; 4] = [1.0, 4.0, 8.0, 2.0];
+
+arr[0] + arr[1]                   →  5.0   (was: nan)
+arr[0] - arr[1]                   → -3.0
+arr[0] * arr[1]                   →  4.0
+arr[2] / arr[1]                   →  2.0
+arr[0]*arr[1] + arr[2]*arr[3]     → 20.0   (nested-binop case)
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `binop_float_type`
+  kind==10 branch extended with `[T; N]` recognition.
+  Bootstrap fixed point recomputed at SHA `e5e9e7c4` (was
+  `cffbff60`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t337_fixed_array_fp_ops.nr` — new strict
+  regression fixture covering all four primary ops + nested
+  binop on `[f64; 4]`.
+- `tools/verify.{sh,ps1}` — new T3.37 verify step.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry
+  added; SHA stamp updated.
+
+### Verify gate
+
+- 413/413 green (was 412 + 1 new step from T3.37).
+- All prior regression fixtures (T3.28-T3.36) still green.
+- Bootstrap fixed point closes at `e5e9e7c4`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.62)
+
+- **9 codegen fixes**:
+  - kinds 9, 4, 90/91/92 (struct field, nested binop,
+    wrappers) — v0.3.53
+  - kind 7 (fn call) — v0.3.54
+  - kind 10 (Vec indexing) — v0.3.55
+  - kind 5 (unary minus) — v0.3.57
+  - kind 7 (fn call in expr_struct_type) — v0.3.58
+  - kind 10 (Vec indexing in expr_struct_type) — v0.3.59
+  - kind 8 (trait method) + fn_decls extension — v0.3.60
+  - kind 99 (as-cast) — v0.3.61
+  - kind 10 (`[T; N]` extension) — v0.3.62
+- **10 strict regression fixtures**: T3.28-T3.37
+- **Reusable infrastructure**:
+  - `__fnret_<NAME>` (v0.3.54) → drives 3 type-resolver paths
+  - `__fulltype_<vname>` (v0.3.55) → drives 2 paths, handles
+    Vec<T> AND [T; N] (v0.3.62)
+  - Pass-1.5 fn_decls extension (v0.3.60) → trait-impl
+    methods get __fnret_ entries
+- **All fixes coexist**: bootstrap stable through 9 SHA
+  refreshes (4cd2d428 → e5722f24 → cb696a25 → 6b4cd0f3 →
+  13b25308 → 9f19b383 → a4b34d06 → c1f676b0 → cffbff60 →
+  e5e9e7c4)
+
+The dispatcher now handles all 9 production AST kinds the
+parser can produce as f-typed binop operands. Heap-allocated
+collections (`Vec<f64>`), stack-allocated buffers (`[f64; N]`),
+struct fields, fn-call results, trait method results,
+as-casts, unary minus, and the binop nesting that combines
+them — all dispatch to f64 helpers correctly.
+
 ## [0.3.61] — 2026-04-25
 
 **Compiler fix #8: as-cast results in inline f64 binops.**
