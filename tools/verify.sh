@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 35))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 36))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -873,6 +873,25 @@ t39_rt005_ffi_call() {
     return 0
 }
 
+t323_allow_fn_error_tier_strict() {
+    # T3.19 (v0.3.34): companion to T3.18. The err-sweep
+    # already builds err_t323_allow_fn_no_error_suppress.nr and
+    # asserts SOME diagnostic fires, but build_negative accepts
+    # either error or warning -- so a regression where
+    # #[allow_fn(RT-001)] started silently demoting errors to
+    # warnings (or to nothing) would still pass the sweep.
+    # T3.19 strictly asserts:
+    #   * error[RT-001] fires (the design intent: errors are
+    #     non-suppressible per RFC-0001)
+    #   * warning[RT-001] does NOT fire (would indicate the
+    #     allow_fn improperly demoted the diag tier instead of
+    #     leaving it at error tier untouched)
+    "$BIN" build "tests/err/err_t323_allow_fn_no_error_suppress.nr" -o "_t323_strict_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    grep -qE 'error\[RT-001\]' /tmp/_nuc_step.log || return 1
+    if grep -qE 'warning\[RT-001\]' /tmp/_nuc_step.log; then return 1; fi
+    return 0
+}
+
 t321_deny_fn_promotes_strict() {
     # T3.18 (v0.3.33): the err-sweep already builds
     # err_t321_deny_fn.nr and asserts SOME diagnostic fires, but
@@ -1333,6 +1352,7 @@ step "T3.8 RT-006 fires on RT attr + async fn" t38_rt006_async_attr
 step "T3.12 #[allow_fn] suppresses one RT diag for one fn" t320_allow_fn_per_fn
 step "T3.17 #[allow_fn(RT-004)] suppresses static WCET warning per-fn" t317_allow_fn_rt004
 step "T3.18 #[deny_fn(RT-007)] promotes warning to error (strict)" t321_deny_fn_promotes_strict
+step "T3.19 #[allow_fn(RT-001)] cannot demote error tier (strict)" t323_allow_fn_error_tier_strict
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
