@@ -280,6 +280,26 @@ const char *__nucleor_format3_sis(const char *tmpl, const char *a, long long b, 
     return out;
 }
 
+// v0.3.13 — round out the i/s trio:
+//   iis = i64 then i64 then str (e.g. format!("{}/{}: {}", done, total, label))
+//   isi = i64 then str then i64 (e.g. format!("{}: {} ({})", n, kind, count))
+const char *__nucleor_format3_iis(const char *tmpl, long long a, long long b, const char *c) {
+    const char *s1 = __nucleor_format_i64(tmpl, a);
+    const char *s2 = __nucleor_format_i64(s1, b);
+    free((void *)s1);
+    const char *out = __nucleor_format_str(s2, c);
+    free((void *)s2);
+    return out;
+}
+const char *__nucleor_format3_isi(const char *tmpl, long long a, const char *b, long long c) {
+    const char *s1 = __nucleor_format_i64(tmpl, a);
+    const char *s2 = __nucleor_format_str(s1, b);
+    free((void *)s1);
+    const char *out = __nucleor_format_i64(s2, c);
+    free((void *)s2);
+    return out;
+}
+
 // --- v0.2.24: parse / stringify primitives ---
 // Parsers tolerate leading whitespace and an optional sign; return 0 on
 // completely-malformed input. Stringifiers always allocate fresh strings.
