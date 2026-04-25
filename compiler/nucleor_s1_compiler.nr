@@ -1582,6 +1582,30 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let mut gr: Vec<i32> = parse_generic_params(tokens, cp);
         cp = pr_pos(gr); gparams = mk_list(pool, pr_val(gr));
     };
+    // v0.3.110: supertrait syntax `trait Dog: Animal { ... }` and
+    // `trait Foo: Bar + Baz { ... }`. Pre-v0.3.110, the parser
+    // expected `{` right after the trait name, so the canonical
+    // Rust form `trait Dog: Animal { ... }` cascaded into 13+
+    // parse errors. Supertrait names are accepted but not yet
+    // wired into method dispatch — adopters get the syntactic
+    // freedom to express the relationship; trait inheritance
+    // semantics (calling super-trait default methods through the
+    // sub-trait) already work because the impl block separately
+    // implements both traits and method dispatch resolves through
+    // the impl_table. Skip ident, optional `+ ident` repeats, and
+    // the optional `where` clause until `{`.
+    if pk(tokens, cp) == 42 {
+        cp = cp + 1;
+        cp = cp + 1; // first super-trait name
+        // Optional generic args on supertrait `Foo<T>` — skip the angle group.
+        if pk(tokens, cp) == 32 { cp = skip_angle_group(tokens, cp); };
+        while pk(tokens, cp) == 20 {
+            cp = cp + 1;
+            cp = cp + 1; // additional super-trait name
+            if pk(tokens, cp) == 32 { cp = skip_angle_group(tokens, cp); };
+        };
+    };
+    cp = skip_where_clause(tokens, cp);
     cp = expect_tok(tokens, cp, 52); // {
     let mut methods: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
