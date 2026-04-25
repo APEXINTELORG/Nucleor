@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 44
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 45
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1067,6 +1067,26 @@ Step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" {
     if ($LASTEXITCODE -ne 0) { return $false }
     if ($out -match "warning\[DIAG-001\]") { return $false }
     if ($out -match "error\[DIAG-001\]") { return $false }
+    return $true
+}
+
+Step "T3.27 #[export] workaround produces correct dot product" {
+    # v0.3.52 (T3.27): regression test for the v0.3.51 codegen
+    # workaround. examples/22_rt_export.nr's nuc_print_dot uses
+    # lifted-let bindings to compute (1,2,3)·(4,5,6) = 32. The
+    # example sweep already builds + runs ex22 but only checks
+    # for non-empty stdout; if the workaround broke,
+    # nuc_print_dot would print 0 and the sweep would silently
+    # pass. T3.27 strictly asserts the example output contains
+    # the literal "32.0" -- the dot product the workaround
+    # produces.
+    & $bin build "examples/22_rt_export.nr" -o "_t327_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t327_check.exe") { $exe = "target\_t327_check.exe" }
+    elseif (Test-Path "target\_t327_check") { $exe = "target\_t327_check" }
+    if (-not $exe) { return $false }
+    $out = & $exe 2>&1 | Out-String
+    if ($out -notmatch '32\.0+') { return $false }
     return $true
 }
 

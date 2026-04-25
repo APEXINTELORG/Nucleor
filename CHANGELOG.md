@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.52] — 2026-04-25
+
+**T3.27 strict regression test for the v0.3.51 codegen
+workaround.** v0.3.51 documented the lifted-let workaround
+for the f64-inline-multiply codegen bug, but the
+`examples/22_rt_export.nr` file is exercised only by the
+generic example sweep — `build_example` checks build
+succeeds, run exits 0, and stdout is non-empty, but doesn't
+validate stdout content. If the workaround broke (e.g., the
+underlying bug shifted shape and the lifted-let pattern also
+mis-computes), `nuc_print_dot` would print `0.000000`
+instead of `32.000000` and the example sweep would silently
+pass. T3.27 closes that gap.
+
+### Approach
+
+New T3.27 verify step (sh + ps1) that:
+
+1. Builds `examples/22_rt_export.nr` with `--no-cache`
+2. Runs the resulting binary
+3. Asserts stdout matches the regex `32\.0+` — pinning the
+   correct dot product `(1, 2, 3) · (4, 5, 6) = 32` to the
+   workaround pattern
+
+The match is intentionally loose on trailing zeroes
+(`32.0+` accepts `32.0`, `32.000000`, `32.000000000`, etc.)
+so a print-format change in the future doesn't false-fail.
+The literal `32` is the load-bearing assertion — the dot
+product itself is what the workaround must produce.
+
+### Why this matters
+
+The v0.3.51 ship surfaced a real codegen bug AND documented
+a workaround. v0.3.52 makes the workaround verifiable: if a
+future compiler change accidentally breaks the workaround
+(or accidentally fixes the underlying bug, which would make
+the workaround unnecessary but also still produce 32 — both
+states pass T3.27), the gate stays green only as long as
+the user-facing dot product is correct.
+
+A nice forward-compatibility property: T3.27 doesn't pin
+the buggy behavior, only the correct output. When the v0.4
+AST-based codegen lands and the inline form computes
+correctly, T3.27 still passes — the workaround pattern is
+just additionally protected from accidental regression
+during the transition.
+
+### Verify gate
+
+- 403/403 green (was 402 + 1 new step). Bootstrap fixed
+  point unchanged at SHA `4cd2d428` (no compiler change —
+  verify-step-only).
+- T3.27 confirmed manually: ex22 stdout contains
+  `32.000000` from the `nuc_print_dot((1,2,3), (4,5,6))`
+  invocation; T3.27's regex matches.
+
+### Pattern: example sweeps as smoke + named steps as strict
+
+The existing example sweep is a SMOKE-level check (build,
+run, non-empty stdout). T3.27 establishes the pattern of
+adding STRICT named verify steps for examples whose output
+content is load-bearing — currently just one
+(`22_rt_export.nr`'s dot product), but the same pattern
+could extend to other examples if their output stability
+becomes part of the public contract (e.g., a benchmark
+showing specific timing thresholds, an FFT example with
+known-correct output bins).
+
 ## [0.3.51] — 2026-04-25
 
 **`examples/22_rt_export.nr` — runnable demo of `#[export]` —
