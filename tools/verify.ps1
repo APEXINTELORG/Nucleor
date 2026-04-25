@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 33
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 34
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -822,6 +822,16 @@ Step "T3.10 RT-008 fires on direct recursion in deadline fn" {
     if ($out -notmatch "add #\[max_depth") { return $false }
     $out2 = & $bin build "tests/fixtures/t310_rt008_bounded.nr" -o "_t310_bounded_check" 2>&1 | Out-String
     if ($out2 -match "RT-008") { return $false }
+    return $true
+}
+
+Step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" {
+    # v0.3.24 (T3.15): per-symbol opt-out for the v0.3.8 RT-005
+    # check. Annotated extern stays clean from a #[no_alloc]
+    # caller; un-annotated still fires.
+    $out = & $bin build "tests/fixtures/t324_ffi_no_alloc.nr" -o "_t324_check" 2>&1 | Out-String
+    if ($out -notmatch "warning\[RT-005\]: FFI call 'host_unsafe'") { return $false }
+    if ($out -match "warning\[RT-005\]: FFI call 'host_safe'") { return $false }
     return $true
 }
 

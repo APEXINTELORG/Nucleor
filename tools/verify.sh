@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 31))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 32))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -824,6 +824,16 @@ t310_rt008_recursion() {
     return 0
 }
 
+t324_ffi_no_alloc_marker() {
+    # T3.15 (v0.3.24): #[ffi_no_alloc] / #[ffi_no_panic]
+    # markers on extern declarations narrow the RT-005 scope.
+    # Annotated extern is not flagged when called from a
+    # matching RT body; un-annotated still fires.
+    "$BIN" build "tests/fixtures/t324_ffi_no_alloc.nr" -o "_t324_check" >/tmp/_nuc_step.log 2>&1
+    grep -qE "warning\[RT-005\]: FFI call 'host_unsafe'" /tmp/_nuc_step.log || return 1
+    if grep -qE "warning\[RT-005\]: FFI call 'host_safe'" /tmp/_nuc_step.log; then return 1; fi
+}
+
 t39_rt005_ffi_call() {
     # T3.9 (v0.3.8): RT-005 — extern fn call from inside an
     # RT-marked fn body warns. v1 is text-scan: every literal
@@ -1264,6 +1274,7 @@ step "T3.7 RT body checks strip strings and line comments" t37_rt_string_skip
 step "T3.8 RT-006 fires on RT attr + async fn" t38_rt006_async_attr
 step "T3.12 #[allow_fn] suppresses one RT diag for one fn" t320_allow_fn_per_fn
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
+step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.10 RT-008 fires on direct recursion in deadline fn" t310_rt008_recursion
 step "T3.11 bare arena_* builtins link + run end-to-end" t311_arena_builtin_smoke
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass

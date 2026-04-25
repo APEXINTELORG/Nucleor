@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.24] — 2026-04-25
+
+**T3.15 `#[ffi_no_alloc]` and `#[ffi_no_panic]` extern markers
+— closes RT-005 v1's deferred opt-out surface.** v0.3.8's
+RT-005 check fires on every extern call from any RT-marked fn
+body, with the only opt-out being file-wide `#[allow(RT-005)]`.
+The deferred design from RFC-0001 §3.5 is per-symbol opt-out:
+mark the trusted FFI declaration as RT-safe and the call no
+longer flags.
+
+```nucleor
+#[ffi_no_alloc]
+extern fn host_get_time() -> i64;        // marked safe
+
+extern fn host_log(msg: i64) -> i64;     // unmarked, opaque
+
+#[no_alloc]
+fn rt_step() -> i64 {
+    let t: i64 = host_get_time();         // OK — marker says
+                                          //      this extern
+                                          //      doesn't alloc
+    let _: i64 = host_log(t);             // RT-005 fires —
+                                          //      we don't know
+                                          //      what host_log
+                                          //      does
+    return t;
+}
+```
+
+### Approach
+
+Two new collectors and one set-difference helper:
+
+- `collect_externs_with_marker(source, marker_pat)` walks for
+  `<marker>\nextern fn NAME(...)` pairs (skipping past blank /
+  `///` / other-attribute lines) and returns the matched
+  extern names.
+- `filter_externs_keep_unsafe(all, safe)` returns the set
+  difference — externs that are NOT in the safe list.
+- `enforce_rt005_ffi` now builds three filtered lists:
+  - `no_alloc_unsafe` = `all_externs - #[ffi_no_alloc]`-marked
+  - `no_panic_unsafe` = `all_externs - #[ffi_no_panic]`-marked
+  - `dl_unsafe` = `all_externs - (#[ffi_no_alloc] ∩ #[ffi_no_panic])`
+    (deadline determinism subsumes both no-* contracts, so
+    only externs marked safe in BOTH dimensions get a pass)
+
+Each RT body check then sees only the un-safe externs for its
+contract — annotated symbols slip through silently.
+
+### Verify gate
+
+- New: `tests/fixtures/t324_ffi_no_alloc.nr` — one safe + one
+  unsafe extern, both called from a `#[no_alloc]` fn. New step
+  T3.15 asserts RT-005 mentions `host_unsafe` but NOT
+  `host_safe`.
+- Self-host bootstrap fixed-point holds at A7D6876D (stage-3
+  IR == stage-4 IR). Bootstrap RSS peak 251 MB.
+
+This formally closes the v0.3.8 ship message's "until
+`#[ffi_no_*]` ships" caveat. The warning text still mentions
+that suppression option since the message is unchanged for
+unmarked externs (where the file-wide allow is still the only
+escape hatch).
+
 ## [0.3.23] — 2026-04-25
 
 **T3.14 negative test — `#[allow_fn]` does not suppress
