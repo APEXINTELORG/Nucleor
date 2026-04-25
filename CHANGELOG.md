@@ -5,6 +5,155 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.346] — 2026-04-24
+
+**T2.6 format strings — `println!()`, `print!()`, `format!()`
+macros via source-level expansion in the resolver.** First
+ergonomic-quality-of-life win for v0.2 users. Replaces the
+existing `print(str_concat("v=", str_concat(int_to_str(v),
+str_concat(", n=", int_to_str(n)))))` chain with a
+Rust-style `println!("v={}, n={}", v, n)` one-liner.
+
+### Format spec syntax
+
+Mirrors Rust:
+
+| Spec | Conversion | Use case |
+|---|---|---|
+| `{}`   | `int_to_str(arg)`  | i64 (default — most common) |
+| `{:i}` | `int_to_str(arg)`  | explicit alias |
+| `{:s}` | `arg` as-is        | str passthrough |
+| `{:f}` | `f64_to_str(arg)`  | f64 (bit-pattern is the i64 slot) |
+| `{:b}` | `bool_to_str(arg)` | bool (returns `"true"` / `"false"`) |
+| `{{` `}}` | literal `{` / `}` | Rust escape convention |
+
+Three macro modes:
+- `println!(fmt, args...)` → `print(...)` (adds trailing `\n`)
+- `print!(fmt, args...)`   → `print_raw(...)` (no `\n`)
+- `format!(fmt, args...)`  → bare str expression (returns the result)
+
+### Mechanism — resolver-level rewrite
+
+Eight new helpers in `nucleor_s1_compiler.nr`, mirrored to
+`nucleor_tools_suite.nr`:
+
+| Helper | Purpose |
+|---|---|
+| `expand_format_macros(src)` | Top-level entry. Walks the merged source identifier-by-identifier. When it sees `<name>!(...)` where name is `println`/`print`/`format`, calls `fmt_build_expansion`. Identifier-aware (skips method-call `.name!`), quote-aware (skips strings + char literals), comment-aware (skips `// ...`). Recurses into the args text so nested macros expand correctly. |
+| `fmt_build_expansion(args_text, mode)` | Splits args into format-string + value-args, walks the format-string body finding `{...}` placeholders with brace-balanced + escape handling, builds the right-folded `str_concat(...)` chain, wraps in `print()` / `print_raw()` per mode. |
+| `fmt_split_args(args_text)` | Depth-aware comma split — respects `()`, `[]`, `{}`, `"..."`, `'...'` so commas inside nested calls or strings don't split args. |
+| `fmt_strip_outer_quotes(s)` | Strips the wrapping `"..."` from the format-string literal arg. |
+| `fmt_conversion_for_spec(spec, arg_expr)` | Picks the conversion fn name based on the spec (`""` → `int_to_str`, `:s` → identity, etc.). |
+| `fmt_build_concat_chain(segments, parities)` | Right-fold `str_concat` builder. Segments alternate literal/expression by parity 0/1; literals get re-quoted, expressions stay verbatim. |
+| `fmt_trim_ws(s)` | Whitespace-trim helper. Uses explicit `done` flag pattern so the loop-exit-via-set-past-bound bug class doesn't recur. |
+
+The expander runs in `load_resolved_source_bundle` AFTER
+`resolve_source_with_records` completes (so all imports are
+already inlined and any private fns are already mangled per
+T1.5c) and BEFORE the source is cached / lexed. The cache
+holds the post-expansion text; subsequent compiles skip the
+expansion when the cache hits.
+
+### Bug fixed during implementation
+
+First draft of `fmt_trim_ws` recapitulated the loop-exit
+bug from T1.5c: setting `start = slen + 1` to break the
+loop, then back-correcting with `start = start - 1`. When
+the input had NO leading whitespace, `start` ended up
+landing at `slen` (one past the last char) and the
+trim returned empty for ALL inputs — collapsing every
+macro to `print("")`. Fixed with the now-standard explicit
+`done` flag pattern. Caught by manual smoke test at
+`/tmp/t26_fmt.nr` showing every macro emitted `print("")`
+instead of the actual content.
+
+This is the third occurrence of the same loop-exit
+anti-pattern (T1.5c privatization scanner, T1.6
+`priv_extract_fn_decl_info`, T2.6 `fmt_trim_ws`). Note for
+future Nucleor self-hosted code: the language doesn't have
+`break` in while loops, so the safest break-equivalent is
+an explicit `done` boolean in the loop condition. Avoid
+the "set the index past the bound and back-correct" trick.
+
+### T2.6 smoke
+
+`tests/smoke/t26_format_macros.nr` — 6 `#[test]` cases:
+- `test_format_basic_int` — single `{}` placeholder, str_len
+  + char-at sanity
+- `test_format_two_placeholders` — three `{}` placeholders
+  with arithmetic in the third arg
+- `test_format_str_passthrough` — `{:s}` spec with a str
+  variable
+- `test_format_literal_only` — no placeholders
+- `test_format_escaped_braces` — `{{` and `}}` escape to
+  literal braces
+- `test_format_bool_spec` — `{:b}` produces `"true"`
+
+New verify-gate step `T2.6 println!/print!/format! macros
+expand correctly` asserts all 6 PASS.
+
+### Verify gate
+
+Windows: 355/355 PASS. Bootstrap fixpoint refreshed
+(seed sha256 `a3b81e9b...`).
+
+### Numerics-compatibility
+
+The format expander emits straight calls to existing
+`int_to_str` / `f64_to_str` / `bool_to_str` runtime
+helpers — same calling convention, same i64-everywhere
+slots. No new arithmetic surfaces; no narrow-wrap
+interaction. Format-string chars are byte-level (`{` =
+123, `}` = 125, `:` = 58, `i` = 105, `s` = 115, `f` = 102,
+`b` = 98) — ASCII identifier conventions.
+
+### Memory safety
+
+Pure source-text rewriting; no new shared state. Each
+expansion allocates fresh `sb_*` builders and `Vec<i32>`
+segments. The original src is read-only (only
+`str_substring` + `str_char_at`). No move-after-borrow
+patterns; the recursive `expand_format_macros` call on
+the args text doesn't share state with the outer call.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — eight new T2.6
+  helpers + wired `expand_format_macros` into
+  `load_resolved_source_bundle`.
+- `compiler/nucleor_tools_suite.nr` — synced helpers + same
+  wiring (so `nuc test`, `nuc build-strict`, etc., expand
+  identically to `nuc build`).
+- `tests/smoke/t26_format_macros.nr` — new smoke (6 cases).
+- `tools/verify.ps1`, `tools/verify.sh` — new T2.6 step.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (412 fns,
+  791 optimized instructions; new sha256 a3b81e9b...).
+- `bin/nucleor.exe`, `bin/nucleor_tools.exe` — both rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Known limitations
+
+- Width/precision specs (`{:5}`, `{:.2}`, `{:>10}`, etc.)
+  are NOT implemented. Today only the conversion-selector
+  specs ship. Width/precision arrives in T2.6b once the
+  runtime gets `int_to_str_padded` and `f64_to_str_prec`
+  helpers.
+- Positional args (`{0}`, `{1:s}`) are NOT implemented —
+  only sequential-positional `{}` works. Future work.
+- Named args (`{name}`) are NOT implemented (would require
+  walking the surrounding scope). Future work.
+- Caller-side type checking is informal — passing a str to
+  `{}` (default int) compiles but produces garbage at
+  runtime since `int_to_str` reads the str pointer as i64.
+  T2.6c will add a strict-mode warning when the type checker
+  can prove a spec/arg mismatch.
+
+### Next
+
+T2.1/T2.2/T2.3 — pattern matching beyond enum tags,
+iterator trait + adapters, closures with capture. Per the
+locked priority order.
+
 ## [0.2.345] — 2026-04-24
 
 **T1.6 C ABI rest — `#[repr(C)]` struct-by-value support

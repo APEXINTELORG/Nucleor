@@ -9271,7 +9271,12 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let mut module_records: Vec<i32> = Vec::new();
     imported.push(src_path);
     module_record_add(module_records, src_path, raw_source);
-    let source: str = resolve_source_with_records(raw_source, extract_dir(src_path), imported, module_records);
+    let resolved: str = resolve_source_with_records(raw_source, extract_dir(src_path), imported, module_records);
+    // T2.6 (v0.2.346): expand println!/print!/format! macros AFTER all
+    // imports are inlined and BEFORE caching, so the cache holds the
+    // post-expansion text. Identifier-and-quote-aware so a `!` inside
+    // a string literal (e.g. `"err!"`) survives untouched.
+    let source: str = expand_format_macros(resolved);
     if use_cache == 1 {
         system("mkdir .nuc_cache 2>NUL");
         file_write_string(manifest_path, module_records_serialize(module_records));
@@ -9562,6 +9567,295 @@ fn normalize_output_name(raw: str) -> str {
         i = i + 1;
     };
     return sanitize(base);
+}
+
+// ===== T2.6 (v0.2.346): format-string macro expansion =====
+//
+// Source-level rewriting of `println!(fmt, args...)`,
+// `print!(fmt, args...)`, and `format!(fmt, args...)` calls into
+// the equivalent str_concat + print/print_raw expression chain.
+// Runs in the resolver, AFTER all imports are inlined and BEFORE
+// the source is cached / lexed.
+//
+// Format spec syntax:
+//   {}    — int_to_str(arg)   (default; the most common case)
+//   {:i}  — int_to_str(arg)   (explicit alias)
+//   {:s}  — arg as-is         (caller-provided str)
+//   {:f}  — f64_to_str(arg)
+//   {:b}  — bool_to_str(arg)
+//   {{ }} — literal `{` / `}` (Rust convention)
+//
+// Modes:
+//   println!  — wraps result in `print(...)`  (adds trailing \n via runtime)
+//   print!    — wraps result in `print_raw(...)` (no trailing \n)
+//   format!   — bare expression, returns str
+//
+// The expander is identifier- and quote-aware: skips `// ...`
+// line comments, `"..."` string literals, and `'X'` char literals.
+// `name!` after a `.` (method call) is left alone.
+
+fn fmt_trim_ws(s: str) -> str {
+    let slen: i64 = str_len(s);
+    let mut start: i64 = 0;
+    let mut start_done: i64 = 0;
+    while start < slen && start_done == 0 {
+        let c: i64 = str_char_at(s, start);
+        if c == 32 || c == 9 || c == 10 || c == 13 { start = start + 1; }
+        else { start_done = 1; };
+    };
+    let mut end: i64 = slen;
+    let mut end_done: i64 = 0;
+    while end > start && end_done == 0 {
+        let c: i64 = str_char_at(s, end - 1);
+        if c == 32 || c == 9 || c == 10 || c == 13 { end = end - 1; }
+        else { end_done = 1; };
+    };
+    return str_substring(s, start, end);
+}
+
+fn fmt_split_args(args_text: str) -> Vec<i32> {
+    // Depth-aware comma split: respects (), [], {}, "...", '...'
+    // so commas inside nested calls / strings don't split args.
+    let mut parts: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(args_text);
+    let mut start: i64 = 0;
+    let mut p: i64 = 0;
+    let mut depth: i64 = 0;
+    let mut in_dq: i64 = 0;
+    let mut in_sq: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(args_text, p);
+        if in_dq == 1 {
+            if c == 92 && p + 1 < slen { p = p + 1; }
+            else if c == 34 { in_dq = 0; };
+        } else if in_sq == 1 {
+            if c == 92 && p + 1 < slen { p = p + 1; }
+            else if c == 39 { in_sq = 0; };
+        } else if c == 34 { in_dq = 1; }
+        else if c == 39 { in_sq = 1; }
+        else if c == 40 || c == 91 || c == 123 { depth = depth + 1; }
+        else if c == 41 || c == 93 || c == 125 { depth = depth - 1; }
+        else if c == 44 && depth == 0 {
+            let part: str = fmt_trim_ws(str_substring(args_text, start, p));
+            if str_len(part) > 0 { parts.push(part); };
+            start = p + 1;
+        };
+        p = p + 1;
+    };
+    let tail: str = fmt_trim_ws(str_substring(args_text, start, slen));
+    if str_len(tail) > 0 { parts.push(tail); };
+    return parts;
+}
+
+fn fmt_strip_outer_quotes(s: str) -> str {
+    let slen: i64 = str_len(s);
+    if slen < 2 { return s; };
+    if str_char_at(s, 0) != 34 { return s; };
+    if str_char_at(s, slen - 1) != 34 { return s; };
+    return str_substring(s, 1, slen - 1);
+}
+
+fn fmt_conversion_for_spec(spec: str, arg_expr: str) -> str {
+    // spec is the contents of `{...}` after the `{` and before `}`,
+    // i.e. `` for `{}`, `:s` for `{:s}`, etc.
+    if str_eq(spec, "") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
+    if str_eq(spec, ":i") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
+    if str_eq(spec, ":s") == 1 { return arg_expr; };
+    if str_eq(spec, ":f") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+    if str_eq(spec, ":b") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+    // Unknown spec — pass through int_to_str for safety.
+    return str_concat("int_to_str(", str_concat(arg_expr, ")"));
+}
+
+fn fmt_build_concat_chain(segments: Vec<i32>, parities: Vec<i32>) -> str {
+    // segments[i] alternates between literal text (parity 0) and
+    // pre-formed expression (parity 1). Build a right-fold of
+    // str_concat(...) with the literals re-quoted.
+    let nseg: i64 = vec_len(segments);
+    if nseg == 0 { return "\"\""; };
+    let mut chain: str = "";
+    let mut k: i64 = nseg - 1;
+    while k >= 0 {
+        let part: str = vec_get(segments, k);
+        let parity: i64 = vec_get(parities, k);
+        let part_text: str = if parity == 0 {
+            str_concat("\"", str_concat(part, "\""))
+        } else { part };
+        if str_len(chain) == 0 { chain = part_text; }
+        else { chain = str_concat("str_concat(", str_concat(part_text, str_concat(", ", str_concat(chain, ")")))); };
+        k = k - 1;
+    };
+    return chain;
+}
+
+fn fmt_build_expansion(args_text: str, mode: i64) -> str {
+    // mode: 0 = println! → print(...)
+    //       1 = format!  → bare str expression
+    //       2 = print!   → print_raw(...)
+    let parts: Vec<i32> = fmt_split_args(args_text);
+    if vec_len(parts) == 0 {
+        if mode == 0 { return "print(\"\")"; };
+        if mode == 1 { return "\"\""; };
+        return "print_raw(\"\")";
+    };
+    let fmt_lit: str = vec_get(parts, 0);
+    let body: str = fmt_strip_outer_quotes(fmt_lit);
+    let blen: i64 = str_len(body);
+    let n_args: i64 = vec_len(parts) - 1;
+    let mut segments: Vec<i32> = Vec::new();
+    let mut parities: Vec<i32> = Vec::new();
+    let mut current: i64 = sb_new();
+    let mut i: i64 = 0;
+    let mut arg_idx: i64 = 0;
+    while i < blen {
+        let c: i64 = str_char_at(body, i);
+        if c == 123 && i + 1 < blen && str_char_at(body, i + 1) == 123 {
+            sb_append(current, "{");
+            i = i + 2;
+        } else if c == 125 && i + 1 < blen && str_char_at(body, i + 1) == 125 {
+            sb_append(current, "}");
+            i = i + 2;
+        } else if c == 123 {
+            let mut spec_end: i64 = i + 1;
+            while spec_end < blen && str_char_at(body, spec_end) != 125 { spec_end = spec_end + 1; };
+            if spec_end >= blen {
+                sb_append(current, str_substring(body, i, i + 1));
+                i = i + 1;
+            } else {
+                let spec: str = str_substring(body, i + 1, spec_end);
+                segments.push(sb_to_str(current));
+                parities.push(0);
+                current = sb_new();
+                if arg_idx < n_args {
+                    let arg_expr: str = vec_get(parts, arg_idx + 1);
+                    segments.push(fmt_conversion_for_spec(spec, arg_expr));
+                    parities.push(1);
+                    arg_idx = arg_idx + 1;
+                } else {
+                    segments.push("\"<MISSING>\"");
+                    parities.push(1);
+                };
+                i = spec_end + 1;
+            };
+        } else {
+            sb_append(current, str_substring(body, i, i + 1));
+            i = i + 1;
+        };
+    };
+    segments.push(sb_to_str(current));
+    parities.push(0);
+    let chain: str = fmt_build_concat_chain(segments, parities);
+    if mode == 0 { return str_concat("print(", str_concat(chain, ")")); };
+    if mode == 1 { return chain; };
+    return str_concat("print_raw(", str_concat(chain, ")"));
+}
+
+fn expand_format_macros(src: str) -> str {
+    // Top-level T2.6 entry. Walks the merged source and replaces every
+    // `<name>!(...)` macro call (where name is `println`/`print`/`format`)
+    // with the desugared expression. Identifier- and quote-aware so a
+    // `!` inside a string literal is left alone, and `obj.println!()`
+    // (method-call form, currently unsupported anyway) doesn't trip.
+    let mut sb: i64 = sb_new();
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    let mut last_non_ws: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            while p < slen && str_char_at(src, p) != 10 {
+                sb_append(sb, str_substring(src, p, p + 1));
+                p = p + 1;
+            };
+            last_non_ws = 10;
+        } else if c == 34 {
+            sb_append(sb, "\"");
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 34 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    sb_append(sb, str_substring(src, p, p + 2));
+                    p = p + 2;
+                } else {
+                    sb_append(sb, str_substring(src, p, p + 1));
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, "\""); p = p + 1; };
+            last_non_ws = 34;
+        } else if c == 39 {
+            sb_append(sb, "'");
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 39 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    sb_append(sb, str_substring(src, p, p + 2));
+                    p = p + 2;
+                } else {
+                    sb_append(sb, str_substring(src, p, p + 1));
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, "'"); p = p + 1; };
+            last_non_ws = 39;
+        } else if is_alpha(c) == 1 || c == 95 {
+            let id_start: i64 = p;
+            let mut id_done: i64 = 0;
+            while p < slen && id_done == 0 {
+                let ch: i64 = str_char_at(src, p);
+                if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
+                else { id_done = 1; };
+            };
+            let name: str = str_substring(src, id_start, p);
+            let preceded_by_dot: i64 = if last_non_ws == 46 { 1 } else { 0 };
+            let mut handled: i64 = 0;
+            if preceded_by_dot == 0 && p < slen && str_char_at(src, p) == 33 && p + 1 < slen && str_char_at(src, p + 1) == 40 {
+                let mut mode: i64 = 0 - 1;
+                if str_eq(name, "println") == 1 { mode = 0; };
+                if str_eq(name, "format") == 1 { mode = 1; };
+                if str_eq(name, "print") == 1 { mode = 2; };
+                if mode >= 0 {
+                    p = p + 2;
+                    let args_start: i64 = p;
+                    let mut depth: i64 = 1;
+                    let mut q: i64 = args_start;
+                    let mut in_dq: i64 = 0;
+                    let mut in_sq: i64 = 0;
+                    while q < slen && depth > 0 {
+                        let ch: i64 = str_char_at(src, q);
+                        if in_dq == 1 {
+                            if ch == 92 && q + 1 < slen { q = q + 1; }
+                            else if ch == 34 { in_dq = 0; };
+                        } else if in_sq == 1 {
+                            if ch == 92 && q + 1 < slen { q = q + 1; }
+                            else if ch == 39 { in_sq = 0; };
+                        } else if ch == 34 { in_dq = 1; }
+                        else if ch == 39 { in_sq = 1; }
+                        else if ch == 40 { depth = depth + 1; }
+                        else if ch == 41 { depth = depth - 1; };
+                        q = q + 1;
+                    };
+                    if depth == 0 {
+                        let args_end: i64 = q - 1;
+                        let args_text: str = str_substring(src, args_start, args_end);
+                        let inner_expanded: str = expand_format_macros(args_text);
+                        let expansion: str = fmt_build_expansion(inner_expanded, mode);
+                        sb_append(sb, expansion);
+                        p = q;
+                        last_non_ws = 41;
+                        handled = 1;
+                    };
+                };
+            };
+            if handled == 0 {
+                sb_append(sb, name);
+                last_non_ws = str_char_at(name, str_len(name) - 1);
+            };
+        } else {
+            sb_append(sb, str_substring(src, p, p + 1));
+            if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
+            p = p + 1;
+        };
+    };
+    return sb_to_str(sb);
 }
 
 // ===== T1.5c (v0.2.342): resolver-layer name privatization =====

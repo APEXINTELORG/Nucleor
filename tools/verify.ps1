@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 12
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 13
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -773,6 +773,23 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
     $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
     return $h1 -eq $h2
+}
+
+Step "T2.6 println!/print!/format! macros expand correctly" {
+    # v0.2.346 (T2.6): source-level macro expansion in resolver.
+    # Smoke fixture has 6 #[test] cases covering int placeholder, two
+    # placeholders, {:s} str passthrough, literal-only, {{ }} escapes,
+    # {:b} bool spec. Every test verifies the resulting str matches
+    # the expected length and first/middle chars.
+    $out = & $bin test "tests/smoke/t26_format_macros.nr" 2>&1 | Out-String
+    if ($out -notmatch "PASS: test_format_basic_int") { return $false }
+    if ($out -notmatch "PASS: test_format_two_placeholders") { return $false }
+    if ($out -notmatch "PASS: test_format_str_passthrough") { return $false }
+    if ($out -notmatch "PASS: test_format_literal_only") { return $false }
+    if ($out -notmatch "PASS: test_format_escaped_braces") { return $false }
+    if ($out -notmatch "PASS: test_format_bool_spec") { return $false }
+    if ($out -notmatch "test result: PASS \(6 tests\)") { return $false }
+    return $true
 }
 
 Step "T1.6 gen-headers emits #[repr(C)] struct typedefs" {
