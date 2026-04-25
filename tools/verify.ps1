@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 65
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 66
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1067,6 +1067,17 @@ Step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" {
     if ($LASTEXITCODE -ne 0) { return $false }
     if ($out -match "warning\[DIAG-001\]") { return $false }
     if ($out -match "error\[DIAG-001\]") { return $false }
+    return $true
+}
+
+Step "T3.48 module-scope let diagnostic (parser previously dropped silently)" {
+    # v0.3.73 (T3.48): negative regression test for module-scope `let`
+    # diagnostic. Build must fail AND stderr must contain the
+    # diagnostic mentioning "module scope" and `const`.
+    $out = & $bin build "tests/fixtures/t348_module_let_diagnostic.nr" -o "_t348_check" --no-cache 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0) { return $false }
+    if ($out -notmatch "let.* not allowed at module scope") { return $false }
+    if ($out -notmatch "Use .const NAME") { return $false }
     return $true
 }
 
