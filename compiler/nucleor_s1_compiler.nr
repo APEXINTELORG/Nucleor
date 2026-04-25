@@ -1575,13 +1575,22 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             ename = "__wild";
             cp = cp + 1;
         } else if att == 1 && pk(tokens, cp + 1) == 46 {
-            // Enum pattern: EnumName::Variant or EnumName::Variant(binding)
+            // Enum pattern: EnumName::Variant or EnumName::Variant(b1, b2, ...)
+            // v0.3.86: multi-capture support — bindings separated by `|`
+            // in the binding string (match_bind_payloads at line 9177
+            // already handles this format).
             ename = pkv(tokens, cp);
             cp = expect_tok(tokens, cp + 1, 46); // ::
             vname = pkv(tokens, cp); cp = cp + 1;
             if pk(tokens, cp) == 50 {
                 cp = cp + 1;
-                binding = pkv(tokens, cp); cp = cp + 1;
+                let mut first: i64 = 1;
+                while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
+                    if first == 0 { cp = expect_tok(tokens, cp, 44); };
+                    let bn: str = pkv(tokens, cp); cp = cp + 1;
+                    if first == 1 { binding = bn; } else { binding = str_concat(binding, str_concat("|", bn)); };
+                    first = 0;
+                };
                 cp = expect_tok(tokens, cp, 51); // )
             } else if pk(tokens, cp) == 52 {
                 let mut br: Vec<i32> = parse_match_binding_block(tokens, cp + 1);

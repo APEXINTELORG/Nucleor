@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 79
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 80
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1079,6 +1079,18 @@ Step "T3.56 indexed-LHS assign safety net (pre-v0.3.81 segfault → clean diagno
     return $true
 }
 
+Step "T3.62 match multi-capture enum patterns 'Variant(a, b, c)'" {
+    # v0.3.86 (T3.62): regression test for multi-capture enum patterns.
+    & $bin build "tests/fixtures/t362_match_multi_capture.nr" -o "_t362_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t362_check.exe") { $exe = "target\_t362_check.exe" }
+    elseif (Test-Path "target\_t362_check") { $exe = "target\_t362_check" }
+    if (-not $exe) { return $false }
+    & $exe | Out-Null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    return $true
+}
+
 Step "T3.61 trait/impl associated-const diagnostic (pre-v0.3.85 cascaded parse errors)" {
     # v0.3.85 (T3.61): negative regression for trait/impl assoc consts.
     $out = & $bin build "tests/fixtures/t361_assoc_const_diagnostic.nr" -o "_t361_check" --no-cache 2>&1 | Out-String
@@ -1087,7 +1099,7 @@ Step "T3.61 trait/impl associated-const diagnostic (pre-v0.3.85 cascaded parse e
     return $true
 }
 
-Step "T3.60 match-arm assignment body (`pat => x = v`)" {
+Step "T3.60 match-arm assignment body ('pat => x = v')" {
     # v0.3.84 (T3.60): regression test for match-arm assignment.
     & $bin build "tests/fixtures/t360_match_arm_assign.nr" -o "_t360_check" --no-cache 2>&1 | Out-Null
     $exe = $null
@@ -1099,7 +1111,7 @@ Step "T3.60 match-arm assignment body (`pat => x = v`)" {
     return $true
 }
 
-Step "T3.59 fn-pointer type syntax `fn(T) -> R` in param positions" {
+Step "T3.59 fn-pointer type syntax 'fn(T) -> R' in param positions" {
     # v0.3.83 (T3.59): regression test for fn-pointer type syntax.
     & $bin build "tests/fixtures/t359_fn_pointer_type.nr" -o "_t359_check" --no-cache 2>&1 | Out-Null
     $exe = $null
