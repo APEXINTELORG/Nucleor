@@ -9431,6 +9431,22 @@ fn closure_collect_capture_stmt(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params:
         return 0;
     };
     if kind == 21 {
+        // v0.3.96: detect mutable capture writeback. If the LHS of an
+        // assignment in a closure body is a captured variable
+        // (kind 3 var ref whose name resolves in the OUTER sym AND
+        // isn't a closure param), emit a clear diagnostic. Pre-v0.3.96
+        // this silently no-op'd — the assignment wrote to the closure's
+        // local copy of the captured value (loaded once at entry via
+        // __nucleor_capture_get) and never propagated back to the
+        // caller's scope. Programs using FnMut-style mutation in
+        // closures silently mis-computed.
+        let lhs: i64 = node_field(pool, nid, 1);
+        if node_kind(pool, lhs) == 3 {
+            let lname: str = node_field(pool, lhs, 1);
+            if sym_get(sym, lname) >= 0 && capture_param_has(pool, params, lname) == 0 {
+                print(str_concat("ERROR: closure cannot mutate captured variable `", str_concat(lname, "` via assignment. The mutation would write to the closure's local copy and silently NOT propagate back to the caller's scope (FnMut semantics not yet supported). Workaround: have the closure RETURN the new value (`let new = inc(5); total = new;`) or use a `Vec<i64>` for shared mutable state. Tracked for a future ship.")));
+            };
+        };
         closure_collect_capture_expr(pool, node_field(pool, nid, 1), sym, params, caps);
         closure_collect_capture_expr(pool, node_field(pool, nid, 2), sym, params, caps);
         return 0;
