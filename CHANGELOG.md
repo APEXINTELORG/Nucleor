@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.49] — 2026-04-25
+
+**Robotics guide picks up `examples/20_rt_motor_ffi.nr`.**
+v0.3.48 shipped the runnable ffi-marker example but didn't
+update the robotics guide that references the example tier.
+v0.3.49 closes the doc gap.
+
+### Changes to `docs/v0.3-robotics-guide.md`
+
+- **Cookbook §5 (RT-safe `extern fn` markers)** — added a
+  "→ Worked example" link pointing at `20_rt_motor_ffi.nr`
+  before the existing fixture link. The cookbook's footer
+  pattern previously sent users to verify-gate fixtures only;
+  they now have a runnable application example as the
+  primary reference, with the fixture as the verify-gate
+  proof companion.
+- **Worked example index** (top-level § near the bottom of
+  the guide) — added a row for `20_rt_motor_ffi.nr` after
+  `19_rt_pid.nr` with the differentiator: same L1 stack PLUS
+  the FFI markers, and a cross-reference to the v0.3.26
+  intersection rule that requires both markers per extern
+  for `#[deadline]` callers.
+
+### Verify gate
+
+- 400/400 green. No code change, no fixture change, no new
+  step. Pure documentation refresh.
+- Bootstrap fixed point unchanged at SHA `4cd2d428`.
+
+### Why this matters
+
+The robotics guide is the canonical user-facing entry point
+for the v0.3 RT attribute family. v0.3.48's example is
+already runnable and verify-gate-enforced, but a user
+following the guide flow (TL;DR → attribute reference → diag
+reference → cookbook → worked-example index) wouldn't have
+discovered it from the guide alone. v0.3.49 wires the
+example into both discovery surfaces (cookbook section + index
+section) so it shows up regardless of which path the reader
+takes.
+
 ## [0.3.48] — 2026-04-25
 
 **`examples/20_rt_motor_ffi.nr` — runnable demo of the
