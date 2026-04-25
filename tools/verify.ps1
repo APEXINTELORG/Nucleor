@@ -884,19 +884,22 @@ Step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" {
     return $true
 }
 
-Step "T3.20 DIAG-001 fires for #[allow]/#[deny] unknown-prefix codes" {
-    # v0.3.36 (T3.20): DIAG-001 warning fires for #[allow(_fn)] /
-    # #[deny(_fn)] CODE arguments whose prefix isn't in the
-    # canonical diagnostic series set. Fixture has four offending
-    # attributes (one per allow/deny shape) plus one control with
-    # a known prefix (RT-) that must NOT fire.
+Step "T3.20 DIAG-001 fires for #[allow]/#[deny] unknown codes" {
+    # v0.3.36 (T3.20, extended v0.3.38): DIAG-001 warning fires
+    # for #[allow(_fn)] / #[deny(_fn)] CODE arguments not in the
+    # canonical enumerated diagnostic code set. Fixture has five
+    # offending attributes (4 unknown-prefix + 1 within-series
+    # typo RT-099) plus one control (#[allow_fn(RT-007)]).
     $out = & $bin build "tests/fixtures/t320_diag001_unknown_code.nr" -o "_t320_diag001_check" --no-cache 2>&1 | Out-String
     $count = ([regex]::Matches($out, "warning\[DIAG-001\]")).Count
-    if ($count -ne 4) { return $false }
-    if ($out -notmatch "WAT-001")      { return $false }
-    if ($out -notmatch "BOGUS-002")    { return $false }
-    if ($out -notmatch "GIBBERISH-003") { return $false }
-    if ($out -notmatch "NONSENSE-004") { return $false }
+    if ($count -ne 5) { return $false }
+    if ($out -notmatch "'WAT-001'")      { return $false }
+    if ($out -notmatch "'BOGUS-002'")    { return $false }
+    if ($out -notmatch "'GIBBERISH-003'") { return $false }
+    if ($out -notmatch "'NONSENSE-004'") { return $false }
+    if ($out -notmatch "'RT-099'")       { return $false }
+    # Control: RT-007 must NOT trigger DIAG-001.
+    if ($out -match "'RT-007'") { return $false }
     return $true
 }
 

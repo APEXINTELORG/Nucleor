@@ -341,23 +341,26 @@ extended to the full 130-code spec catalog in v0.2.80).
 |---|---|---|
 | DIAG-001 | Unknown diagnostic code in `#[allow]` / `#[deny]` attribute | v0.3.36 |
 
-**v0.3.36 (T3.20) minted the first DIAG-NNN code.** Prior to v0.3.36
-the namespace was reserved (RFC-0020 phase 1 + 2 shipped only the
-LineMap infrastructure and the error-vs-warning split — no
-user-facing DIAG codes). DIAG-001 fires when an `#[allow(CODE)]`,
+**v0.3.36 (T3.20) minted the first DIAG-NNN code; v0.3.38 (T3.22)
+tightened the check from prefix-only to enumerated.** Prior to
+v0.3.36 the namespace was reserved (RFC-0020 phase 1 + 2 shipped
+only the LineMap infrastructure and the error-vs-warning split —
+no user-facing DIAG codes). DIAG-001 fires when an `#[allow(CODE)]`,
 `#[allow_fn(CODE)]`, `#[deny(CODE)]`, or `#[deny_fn(CODE)]`
-attribute references a CODE whose prefix is not in the canonical
-diagnostic series set (RT-, NR0, NUM-, OWN-, ALLOC-, FRAME-, GOV-,
-TNT-, TYP-, ASSUME-, UNIT-, CONTRACT-, ATOMIC-, ISR-, EFF-, WCET-,
-DLPACK-, CXX-, BINDGEN-, URDF-, DEPTH-, NUM-, MATCH-, COLL-, MOD-,
-PKG-, TST-, TGT-, LAW-, DIAG-). The suppression / promotion has no
-effect at compile time — the diagnostic the author meant to control
-still fires unsuppressed. Suppress DIAG-001 itself during a noisy
-refactor with `#[allow(DIAG-001)]`.
+attribute references a CODE that is not in the canonical
+enumerated diagnostic code set (the same ~150 codes audited
+by `cli_explain_full_smoke`). The suppression / promotion has
+no effect at compile time — the diagnostic the author meant to
+control still fires unsuppressed. Suppress DIAG-001 itself
+during a noisy refactor with `#[allow(DIAG-001)]`.
 
-The check is prefix-only (v1). Within-series typos like `RT-099`
-vs `RT-009` slip through; the v0.4 AST-based RT re-implementation
-will own the strict enumerated check.
+The enumerated check (v0.3.38) catches both unknown-prefix
+codes (e.g. `WAT-001`) and within-series typos (e.g. `RT-099`
+vs `RT-009`) uniformly. The v0.3.36 prefix-only check let the
+within-series class slip through; v0.3.38 closes that gap by
+maintaining a hardcoded set in `is_known_diag_code` parallel
+to the `cli_explain_full_smoke` audit list. When minting a new
+code, add to BOTH locations.
 
 The `nuc explain CODE` command is part of the RFC-0020 surface;
 its error path (unknown code) is reported as a plain

@@ -5,6 +5,104 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.38] — 2026-04-25
+
+**T3.22: DIAG-001 enumerated check — within-series typos now
+caught.** v0.3.36 shipped DIAG-001 with an intentional v1
+prefix-only check (caught unknown prefixes like `WAT-001` but
+let `RT-099` through because the `RT-` prefix is canonical).
+The within-series typo class was deferred to v0.4 in the
+v0.3.36 changelog. v0.3.38 brings that work forward — the
+fix turned out to be mechanical: replace the prefix check with
+an enumerated full-code check.
+
+### Before / After
+
+```
+# v0.3.36 (prefix-only)
+#[allow_fn(RT-099)]   # silently accepted (RT- prefix is canonical)
+#[allow_fn(WAT-001)]  # warning[DIAG-001]: unknown prefix
+
+# v0.3.38 (enumerated)
+#[allow_fn(RT-099)]   # warning[DIAG-001]: not in canonical code set
+#[allow_fn(WAT-001)]  # warning[DIAG-001]: not in canonical code set
+```
+
+### Approach
+
+Replaced `is_known_diag_prefix(code)` with
+`is_known_diag_code(code)` in
+`compiler/nucleor_s1_compiler.nr`. The new fn enumerates the
+full canonical code set (~150 codes) drawn from the
+`cli_explain_full_smoke` audit list — every code that has a
+shipped or spec'd `nuc explain` entry is accepted; everything
+else fires DIAG-001.
+
+The four call sites in `emit_diag001_unknown_codes` switched
+from `is_known_diag_prefix` to `is_known_diag_code`. The
+diagnostic message text updated from "prefix not in canonical
+set" to "not in canonical diagnostic code set" to match.
+
+### Two parallel sources (acknowledged)
+
+`is_known_diag_code` in the s1 compiler and the `codes` array
+in `cli_explain_full_smoke` (verify.sh + verify.ps1) carry
+parallel hardcoded code sets. When minting a new code, add to
+BOTH locations. A future ship may unify via a generated
+header or a runtime registry exposed through `nuc explain`.
+Documented in three places: this changelog, the explain
+registry hint, and the robotics guide cookbook §4.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` —
+  `is_known_diag_prefix` → `is_known_diag_code` (full
+  enumeration). Bootstrap fixed point recomputed at SHA
+  `74cff60e` (was `689004f6`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 cross-build
+  passes.
+- `compiler/nucleor_tools_suite.nr` — DIAG-001 cause + hint
+  updated to reflect the enumerated check.
+- `tools/verify.sh` + `tools/verify.ps1` — T3.20 step assertion
+  bumped from "exactly 4" → "exactly 5" DIAG-001 warnings;
+  added `'RT-099'` substring assertion and `'RT-007'`
+  must-NOT-fire control assertion.
+- `tests/fixtures/t320_diag001_unknown_code.nr` — added
+  `#[allow_fn(RT-099)]` case + comments documenting both
+  v0.3.36 and v0.3.38 coverage.
+- `docs/spec/Nucleor_Error_Codes.md` — DIAG section rewritten
+  to reflect enumerated check + the "two parallel sources"
+  note.
+- `docs/v0.3-robotics-guide.md` — Cookbook §4 unknown-code
+  subsection rewritten with both v0.3.36 and v0.3.38 examples;
+  bootstrap SHA stamp updated.
+
+### Verify gate
+
+- 395/395 green (same step total — T3.20's assertion got
+  stricter, no new step). T3.20 now asserts exactly five
+  DIAG-001 warnings (was four), with each offending code
+  substring quoted in single-quotes. The control
+  `#[allow_fn(RT-007)]` is verified silent.
+- `cli_explain_full_smoke` audits 119 codes (unchanged).
+- Bootstrap stage_b/c/d byte-identical at fixed point
+  `74cff60e`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Coverage table after v0.3.38
+
+DIAG-001:
+
+| Behavior                                    | Caught since | Fixture                                   |
+|---------------------------------------------|--------------|-------------------------------------------|
+| Unknown prefix (e.g. `WAT-001`)             | v0.3.36      | `t320_diag001_unknown_code.nr`            |
+| Within-series typo (e.g. `RT-099`)          | v0.3.38      | `t320_diag001_unknown_code.nr`            |
+| Recursive self-suppression via `#[allow]`   | v0.3.36      | `t321_diag001_self_suppress.nr`           |
+
+The v0.3.36 → v0.3.37 → v0.3.38 trio covers DIAG-001 from
+emit (both classes) to suppress, with verify gate enforcement
+on each.
+
 ## [0.3.37] — 2026-04-25
 
 **T3.21 fixture proves `#[allow(DIAG-001)]` suppresses

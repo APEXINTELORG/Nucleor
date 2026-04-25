@@ -5340,66 +5340,208 @@ fn collect_deny_fn_pairs(source: str) -> Vec<i32> {
 
 // v0.3.36 (T3.20): validation pass for #[allow(_fn)] / #[deny(_fn)]
 // CODE arguments. The four collectors above accept any well-formed
-// substring; a typo like #[allow_fn(RT-099)] is silently absorbed
+// substring; a typo like #[allow_fn(RT-099)] would silently absorb
 // (the user's intended diagnostic still fires, but the suppression
-// they wrote points at nothing). v1 catches the easy class:
-// codes whose prefix doesn't match any known diagnostic series.
-// Within-series typos like RT-099 vs RT-009 still slip through;
-// the v0.4 AST-based RT re-implementation will own the strict
-// enumerated check (see docs/v0.3-robotics-guide.md cookbook §4
-// "Known limitation: unknown codes").
-fn is_known_diag_prefix(code: str) -> i64 {
-    let n: i64 = str_len(code);
-    if n < 3 { return 0; };
-    // NR series uses no dash: NR<NNN>. All others use PREFIX-<digits>.
-    if n >= 3 && str_char_at(code, 0) == 78 && str_char_at(code, 1) == 82 {
-        // NR... — accept if char 2 is a digit (NR0NN, NR123, etc.).
-        let c2: i64 = str_char_at(code, 2);
-        if c2 >= 48 && c2 <= 57 { return 1; };
-        return 0;
-    };
-    // Dash-style codes: PREFIX-<digits>. Match the prefix substring
-    // up to the dash against the canonical set.
-    let mut dash: i64 = 0 - 1;
-    let mut i: i64 = 0;
-    while i < n {
-        if str_char_at(code, i) == 45 { dash = i; break; };
-        i = i + 1;
-    };
-    if dash <= 0 { return 0; };
-    let pfx: str = str_substring(code, 0, dash);
-    // Canonical prefix set drawn from cli_explain_full_smoke /
-    // docs/spec/Nucleor_Error_Codes.md. Add to BOTH this list and
-    // the cli_explain_full_smoke `codes` array when minting a new
-    // series.
-    if str_eq(pfx, "RT") == 1 { return 1; };
-    if str_eq(pfx, "NUM") == 1 { return 1; };
-    if str_eq(pfx, "MATCH") == 1 { return 1; };
-    if str_eq(pfx, "COLL") == 1 { return 1; };
-    if str_eq(pfx, "MOD") == 1 { return 1; };
-    if str_eq(pfx, "PKG") == 1 { return 1; };
-    if str_eq(pfx, "TGT") == 1 { return 1; };
-    if str_eq(pfx, "TST") == 1 { return 1; };
-    if str_eq(pfx, "ALLOC") == 1 { return 1; };
-    if str_eq(pfx, "FRAME") == 1 { return 1; };
-    if str_eq(pfx, "OWN") == 1 { return 1; };
-    if str_eq(pfx, "GOV") == 1 { return 1; };
-    if str_eq(pfx, "TNT") == 1 { return 1; };
-    if str_eq(pfx, "TYP") == 1 { return 1; };
-    if str_eq(pfx, "ASSUME") == 1 { return 1; };
-    if str_eq(pfx, "UNIT") == 1 { return 1; };
-    if str_eq(pfx, "CONTRACT") == 1 { return 1; };
-    if str_eq(pfx, "ATOMIC") == 1 { return 1; };
-    if str_eq(pfx, "ISR") == 1 { return 1; };
-    if str_eq(pfx, "EFF") == 1 { return 1; };
-    if str_eq(pfx, "WCET") == 1 { return 1; };
-    if str_eq(pfx, "DIAG") == 1 { return 1; };
-    if str_eq(pfx, "DLPACK") == 1 { return 1; };
-    if str_eq(pfx, "CXX") == 1 { return 1; };
-    if str_eq(pfx, "BINDGEN") == 1 { return 1; };
-    if str_eq(pfx, "URDF") == 1 { return 1; };
-    if str_eq(pfx, "DEPTH") == 1 { return 1; };
-    if str_eq(pfx, "LAW") == 1 { return 1; };
+// they wrote points at nothing).
+//
+// v0.3.38 (T3.22): tightened from prefix-only to enumerated. The
+// canonical code set below mirrors cli_explain_full_smoke (verify.sh
+// + verify.ps1). When minting a new code, add to BOTH this list and
+// the cli_explain_full_smoke `codes` array. A future ship may unify
+// via a generated header or a runtime registry exposed through
+// `nuc explain`.
+fn is_known_diag_code(code: str) -> i64 {
+    // NR series — RFC-0020 baseline pipeline diagnostics
+    if str_eq(code, "NR001") == 1 { return 1; };
+    if str_eq(code, "NR005") == 1 { return 1; };
+    if str_eq(code, "NR010") == 1 { return 1; };
+    if str_eq(code, "NR020") == 1 { return 1; };
+    if str_eq(code, "NR030") == 1 { return 1; };
+    if str_eq(code, "NR031") == 1 { return 1; };
+    if str_eq(code, "NR032") == 1 { return 1; };
+    if str_eq(code, "NR033") == 1 { return 1; };
+    if str_eq(code, "NR034") == 1 { return 1; };
+    if str_eq(code, "NR040") == 1 { return 1; };
+    if str_eq(code, "NR050") == 1 { return 1; };
+    if str_eq(code, "NR051") == 1 { return 1; };
+    if str_eq(code, "NR070") == 1 { return 1; };
+    if str_eq(code, "NR090") == 1 { return 1; };
+    // RFC-0001 RT
+    if str_eq(code, "RT-001") == 1 { return 1; };
+    if str_eq(code, "RT-002") == 1 { return 1; };
+    if str_eq(code, "RT-003") == 1 { return 1; };
+    if str_eq(code, "RT-004") == 1 { return 1; };
+    if str_eq(code, "RT-005") == 1 { return 1; };
+    if str_eq(code, "RT-006") == 1 { return 1; };
+    if str_eq(code, "RT-007") == 1 { return 1; };
+    if str_eq(code, "RT-008") == 1 { return 1; };
+    // RFC-0002 allocators
+    if str_eq(code, "ALLOC-001") == 1 { return 1; };
+    if str_eq(code, "ALLOC-002") == 1 { return 1; };
+    if str_eq(code, "ALLOC-003") == 1 { return 1; };
+    // RFC-0003 typed frames
+    if str_eq(code, "FRAME-001") == 1 { return 1; };
+    if str_eq(code, "FRAME-002") == 1 { return 1; };
+    if str_eq(code, "FRAME-003") == 1 { return 1; };
+    // OWN — borrow checker
+    if str_eq(code, "OWN-001") == 1 { return 1; };
+    if str_eq(code, "OWN-002") == 1 { return 1; };
+    if str_eq(code, "OWN-003") == 1 { return 1; };
+    if str_eq(code, "OWN-004") == 1 { return 1; };
+    if str_eq(code, "OWN-005") == 1 { return 1; };
+    if str_eq(code, "OWN-006") == 1 { return 1; };
+    if str_eq(code, "OWN-007") == 1 { return 1; };
+    if str_eq(code, "OWN-008") == 1 { return 1; };
+    if str_eq(code, "OWN-009") == 1 { return 1; };
+    if str_eq(code, "OWN-010") == 1 { return 1; };
+    if str_eq(code, "OWN-011") == 1 { return 1; };
+    if str_eq(code, "OWN-012") == 1 { return 1; };
+    if str_eq(code, "OWN-013") == 1 { return 1; };
+    // GOV — governance
+    if str_eq(code, "GOV-001") == 1 { return 1; };
+    if str_eq(code, "GOV-002") == 1 { return 1; };
+    // TNT — taint
+    if str_eq(code, "TNT-001") == 1 { return 1; };
+    // TYP — type checker
+    if str_eq(code, "TYP-001") == 1 { return 1; };
+    if str_eq(code, "TYP-002") == 1 { return 1; };
+    if str_eq(code, "TYP-003") == 1 { return 1; };
+    if str_eq(code, "TYP-004") == 1 { return 1; };
+    if str_eq(code, "TYP-005") == 1 { return 1; };
+    if str_eq(code, "TYP-006") == 1 { return 1; };
+    if str_eq(code, "TYP-007") == 1 { return 1; };
+    if str_eq(code, "TYP-008") == 1 { return 1; };
+    if str_eq(code, "TYP-009") == 1 { return 1; };
+    if str_eq(code, "TYP-010") == 1 { return 1; };
+    // RFC-0004 assume!
+    if str_eq(code, "ASSUME-001") == 1 { return 1; };
+    if str_eq(code, "ASSUME-002") == 1 { return 1; };
+    if str_eq(code, "ASSUME-003") == 1 { return 1; };
+    if str_eq(code, "ASSUME-004") == 1 { return 1; };
+    if str_eq(code, "ASSUME-005") == 1 { return 1; };
+    // RFC-0005 units
+    if str_eq(code, "UNIT-001") == 1 { return 1; };
+    if str_eq(code, "UNIT-002") == 1 { return 1; };
+    if str_eq(code, "UNIT-003") == 1 { return 1; };
+    if str_eq(code, "UNIT-004") == 1 { return 1; };
+    if str_eq(code, "UNIT-005") == 1 { return 1; };
+    // RFC-0006 contracts
+    if str_eq(code, "CONTRACT-001") == 1 { return 1; };
+    if str_eq(code, "CONTRACT-002") == 1 { return 1; };
+    if str_eq(code, "CONTRACT-003") == 1 { return 1; };
+    if str_eq(code, "CONTRACT-004") == 1 { return 1; };
+    if str_eq(code, "CONTRACT-005") == 1 { return 1; };
+    if str_eq(code, "CONTRACT-006") == 1 { return 1; };
+    if str_eq(code, "CONTRACT-007") == 1 { return 1; };
+    // RFC-0007 atomic
+    if str_eq(code, "ATOMIC-001") == 1 { return 1; };
+    if str_eq(code, "ATOMIC-002") == 1 { return 1; };
+    if str_eq(code, "ATOMIC-003") == 1 { return 1; };
+    if str_eq(code, "ATOMIC-004") == 1 { return 1; };
+    // RFC-0008 ISR
+    if str_eq(code, "ISR-001") == 1 { return 1; };
+    if str_eq(code, "ISR-002") == 1 { return 1; };
+    if str_eq(code, "ISR-003") == 1 { return 1; };
+    if str_eq(code, "ISR-004") == 1 { return 1; };
+    if str_eq(code, "ISR-005") == 1 { return 1; };
+    if str_eq(code, "ISR-006") == 1 { return 1; };
+    // RFC-0009 WCET
+    if str_eq(code, "WCET-001") == 1 { return 1; };
+    if str_eq(code, "WCET-002") == 1 { return 1; };
+    if str_eq(code, "WCET-003") == 1 { return 1; };
+    if str_eq(code, "WCET-004") == 1 { return 1; };
+    if str_eq(code, "WCET-005") == 1 { return 1; };
+    if str_eq(code, "WCET-006") == 1 { return 1; };
+    // RFC-0010 DLPack
+    if str_eq(code, "DLPACK-001") == 1 { return 1; };
+    if str_eq(code, "DLPACK-002") == 1 { return 1; };
+    if str_eq(code, "DLPACK-003") == 1 { return 1; };
+    if str_eq(code, "DLPACK-004") == 1 { return 1; };
+    if str_eq(code, "DLPACK-005") == 1 { return 1; };
+    // RFC-0011 nuc-cxx
+    if str_eq(code, "CXX-001") == 1 { return 1; };
+    if str_eq(code, "CXX-002") == 1 { return 1; };
+    if str_eq(code, "CXX-003") == 1 { return 1; };
+    if str_eq(code, "CXX-004") == 1 { return 1; };
+    if str_eq(code, "CXX-005") == 1 { return 1; };
+    // RFC-0012 nuc-bindgen
+    if str_eq(code, "BINDGEN-001") == 1 { return 1; };
+    if str_eq(code, "BINDGEN-002") == 1 { return 1; };
+    if str_eq(code, "BINDGEN-003") == 1 { return 1; };
+    if str_eq(code, "BINDGEN-004") == 1 { return 1; };
+    if str_eq(code, "BINDGEN-005") == 1 { return 1; };
+    // RFC-0013 URDF
+    if str_eq(code, "URDF-001") == 1 { return 1; };
+    if str_eq(code, "URDF-002") == 1 { return 1; };
+    if str_eq(code, "URDF-003") == 1 { return 1; };
+    if str_eq(code, "URDF-004") == 1 { return 1; };
+    if str_eq(code, "URDF-005") == 1 { return 1; };
+    if str_eq(code, "URDF-006") == 1 { return 1; };
+    // RFC-0014 max_depth
+    if str_eq(code, "DEPTH-001") == 1 { return 1; };
+    if str_eq(code, "DEPTH-002") == 1 { return 1; };
+    if str_eq(code, "DEPTH-003") == 1 { return 1; };
+    if str_eq(code, "DEPTH-004") == 1 { return 1; };
+    if str_eq(code, "DEPTH-005") == 1 { return 1; };
+    // RFC-0015 numeric types
+    if str_eq(code, "NUM-001") == 1 { return 1; };
+    if str_eq(code, "NUM-002") == 1 { return 1; };
+    if str_eq(code, "NUM-003") == 1 { return 1; };
+    if str_eq(code, "NUM-004") == 1 { return 1; };
+    if str_eq(code, "NUM-005") == 1 { return 1; };
+    // RFC-0016 Result/Option/match
+    if str_eq(code, "MATCH-001") == 1 { return 1; };
+    if str_eq(code, "MATCH-002") == 1 { return 1; };
+    if str_eq(code, "MATCH-003") == 1 { return 1; };
+    if str_eq(code, "MATCH-004") == 1 { return 1; };
+    if str_eq(code, "MATCH-005") == 1 { return 1; };
+    if str_eq(code, "MATCH-006") == 1 { return 1; };
+    if str_eq(code, "MATCH-007") == 1 { return 1; };
+    if str_eq(code, "MATCH-008") == 1 { return 1; };
+    if str_eq(code, "MATCH-009") == 1 { return 1; };
+    if str_eq(code, "MATCH-010") == 1 { return 1; };
+    // RFC-0017 collections
+    if str_eq(code, "COLL-001") == 1 { return 1; };
+    if str_eq(code, "COLL-002") == 1 { return 1; };
+    if str_eq(code, "COLL-003") == 1 { return 1; };
+    if str_eq(code, "COLL-004") == 1 { return 1; };
+    if str_eq(code, "COLL-005") == 1 { return 1; };
+    // RFC-0018 modules
+    if str_eq(code, "MOD-001") == 1 { return 1; };
+    if str_eq(code, "MOD-002") == 1 { return 1; };
+    if str_eq(code, "MOD-003") == 1 { return 1; };
+    if str_eq(code, "MOD-004") == 1 { return 1; };
+    if str_eq(code, "MOD-005") == 1 { return 1; };
+    if str_eq(code, "MOD-006") == 1 { return 1; };
+    // RFC-0019 packages
+    if str_eq(code, "PKG-001") == 1 { return 1; };
+    if str_eq(code, "PKG-002") == 1 { return 1; };
+    if str_eq(code, "PKG-003") == 1 { return 1; };
+    if str_eq(code, "PKG-004") == 1 { return 1; };
+    if str_eq(code, "PKG-005") == 1 { return 1; };
+    if str_eq(code, "PKG-006") == 1 { return 1; };
+    // RFC-0020 DIAG
+    if str_eq(code, "DIAG-001") == 1 { return 1; };
+    // RFC-0021 test framework
+    if str_eq(code, "TST-001") == 1 { return 1; };
+    if str_eq(code, "TST-002") == 1 { return 1; };
+    if str_eq(code, "TST-003") == 1 { return 1; };
+    // RFC-0022 cross-platform
+    if str_eq(code, "TGT-001") == 1 { return 1; };
+    if str_eq(code, "TGT-002") == 1 { return 1; };
+    if str_eq(code, "TGT-003") == 1 { return 1; };
+    if str_eq(code, "TGT-004") == 1 { return 1; };
+    // RFC-0031 algebraic laws
+    if str_eq(code, "LAW-001") == 1 { return 1; };
+    if str_eq(code, "LAW-002") == 1 { return 1; };
+    if str_eq(code, "LAW-003") == 1 { return 1; };
+    if str_eq(code, "LAW-004") == 1 { return 1; };
+    // RFC-0032 effects
+    if str_eq(code, "EFF-001") == 1 { return 1; };
+    if str_eq(code, "EFF-002") == 1 { return 1; };
+    if str_eq(code, "EFF-003") == 1 { return 1; };
+    if str_eq(code, "EFF-004") == 1 { return 1; };
+    if str_eq(code, "EFF-005") == 1 { return 1; };
     return 0;
 }
 
@@ -5417,8 +5559,8 @@ fn emit_diag001_unknown_codes(diags: Vec<i32>, source: str) -> Vec<i32> {
     let an: i64 = vec_len(allowed);
     while i < an {
         let code: str = vec_get(allowed, i);
-        if is_known_diag_prefix(code) == 0 {
-            let msg: str = str_concat("unknown diagnostic code '", str_concat(code, "' in #[allow(...)] -- prefix not in canonical set; suppression has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"));
+        if is_known_diag_code(code) == 0 {
+            let msg: str = str_concat("unknown diagnostic code '", str_concat(code, "' in #[allow(...)] -- not in canonical diagnostic code set; suppression has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"));
             diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, "", 0, 0, "");
         };
         i = i + 1;
@@ -5427,8 +5569,8 @@ fn emit_diag001_unknown_codes(diags: Vec<i32>, source: str) -> Vec<i32> {
     let dn: i64 = vec_len(denied);
     while i < dn {
         let code: str = vec_get(denied, i);
-        if is_known_diag_prefix(code) == 0 {
-            let msg: str = str_concat("unknown diagnostic code '", str_concat(code, "' in #[deny(...)] -- prefix not in canonical set; promotion has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"));
+        if is_known_diag_code(code) == 0 {
+            let msg: str = str_concat("unknown diagnostic code '", str_concat(code, "' in #[deny(...)] -- not in canonical diagnostic code set; promotion has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"));
             diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, "", 0, 0, "");
         };
         i = i + 1;
@@ -5438,8 +5580,8 @@ fn emit_diag001_unknown_codes(diags: Vec<i32>, source: str) -> Vec<i32> {
     while pi + 1 < pn {
         let fname: str = vec_get(allow_fn_pairs, pi);
         let code: str = vec_get(allow_fn_pairs, pi + 1);
-        if is_known_diag_prefix(code) == 0 {
-            let msg: str = str_concat("unknown diagnostic code '", str_concat(code, str_concat("' in #[allow_fn(...)] on fn '", str_concat(fname, "' -- prefix not in canonical set; suppression has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"))));
+        if is_known_diag_code(code) == 0 {
+            let msg: str = str_concat("unknown diagnostic code '", str_concat(code, str_concat("' in #[allow_fn(...)] on fn '", str_concat(fname, "' -- not in canonical diagnostic code set; suppression has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"))));
             diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, fname, 0, 0, "");
         };
         pi = pi + 2;
@@ -5449,8 +5591,8 @@ fn emit_diag001_unknown_codes(diags: Vec<i32>, source: str) -> Vec<i32> {
     while qi + 1 < qn {
         let fname: str = vec_get(deny_fn_pairs, qi);
         let code: str = vec_get(deny_fn_pairs, qi + 1);
-        if is_known_diag_prefix(code) == 0 {
-            let msg: str = str_concat("unknown diagnostic code '", str_concat(code, str_concat("' in #[deny_fn(...)] on fn '", str_concat(fname, "' -- prefix not in canonical set; promotion has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"))));
+        if is_known_diag_code(code) == 0 {
+            let msg: str = str_concat("unknown diagnostic code '", str_concat(code, str_concat("' in #[deny_fn(...)] on fn '", str_concat(fname, "' -- not in canonical diagnostic code set; promotion has no effect (check spelling against docs/spec/Nucleor_Error_Codes.md)"))));
             diag_add_ex(diags, "warning", "diag", "DIAG-001", msg, fname, 0, 0, "");
         };
         qi = qi + 2;
