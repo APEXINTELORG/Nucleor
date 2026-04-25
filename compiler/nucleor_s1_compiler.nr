@@ -308,12 +308,19 @@ fn lex(src: str) -> Vec<i32> {
         else if c == 60 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(34, 0, p)); p = p + 2; }
         else if c == 62 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(35, 0, p)); p = p + 2; }
         else if c == 38 && p + 1 < slen && str_char_at(src, p + 1) == 38 { tokens.push(tok_new(36, 0, p)); p = p + 2; }
+        // v0.3.105: bitwise compound assigns. `&=` → token 117,
+        // `|=` → 118, `^=` → 119. Lexed BEFORE the bare `&`/`|`/`^`
+        // single-token rules below so `&=` doesn't split as `&` `=`.
+        // `<<=` and `>>=` follow the same pattern (120/121).
+        else if c == 38 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(117, 0, p)); p = p + 2; }
         else if c == 38 { tokens.push(tok_new(82, 0, p)); p = p + 1; }
         else if c == 124 && p + 1 < slen && str_char_at(src, p + 1) == 124 { tokens.push(tok_new(37, 0, p)); p = p + 2; }
+        else if c == 124 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(118, 0, p)); p = p + 2; }
         else if c == 124 { tokens.push(tok_new(65, 0, p)); p = p + 1; }
         // v0.3.103: bitwise XOR `^` as token 94 — paired with the
         // `parse_bitwise` tier (tier between parse_eq and parse_and_expr)
         // and tok_to_ir mapping (94 → iop 15 = LLVM xor i64).
+        else if c == 94 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(119, 0, p)); p = p + 2; }
         else if c == 94 { tokens.push(tok_new(94, 0, p)); p = p + 1; }
         // v0.3.104: shift-left `<<` as token 115. Shift-right `>>`
         // is intentionally NOT lexed as a single token — generic
@@ -322,7 +329,12 @@ fn lex(src: str) -> Vec<i32> {
         // form. Instead, parse_shift detects two adjacent `>` tokens
         // and consumes both as shift-right at parse time. `<<` has
         // no such conflict so a single token is safe here.
+        else if c == 60 && p + 2 < slen && str_char_at(src, p + 1) == 60 && str_char_at(src, p + 2) == 61 { tokens.push(tok_new(120, 0, p)); p = p + 3; }
         else if c == 60 && p + 1 < slen && str_char_at(src, p + 1) == 60 { tokens.push(tok_new(115, 0, p)); p = p + 2; }
+        // v0.3.105: `>>=` lexed as a single token 121 — has no
+        // conflict with generics because `>>=` (3 chars) doesn't
+        // appear in any valid generic-position form.
+        else if c == 62 && p + 2 < slen && str_char_at(src, p + 1) == 62 && str_char_at(src, p + 2) == 61 { tokens.push(tok_new(121, 0, p)); p = p + 3; }
         else if c == 58 && p + 1 < slen && str_char_at(src, p + 1) == 58 { tokens.push(tok_new(46, 0, p)); p = p + 2; }
         // v0.3.77: compound-assignment tokens (`+=`, `-=`, `*=`, `/=`, `%=`).
         // Lex as single tokens kind 110-114 so the parser can desugar
@@ -362,22 +374,53 @@ fn lex(src: str) -> Vec<i32> {
         else if c == 93 { tokens.push(tok_new(55, 0, p)); p = p + 1; }
         else if c == 63 { tokens.push(tok_new(97, 0, p)); p = p + 1; }
         else if c == 39 {
-            // T2.5 (v0.2.351): apostrophe → lifetime token (kind 98).
-            // Nucleor doesn't have char literals as a lex primitive
-            // (chars use u8/u32 via int literals), so `'<ident>` is
-            // unambiguously a lifetime marker (`'a`, `'static`, etc.).
-            // Token value holds the lifetime name (without leading `'`).
-            // Parse-only support — see T2.5 in CHANGELOG: lifetime
-            // params are accepted in generic param lists and reference
-            // types but treated as advisory metadata (the existing
-            // dynamic-scope borrow checker still enforces lifetimes;
-            // real lifetime-parameter checking lands in T2.5b).
+            // v0.3.105: char literals `'X'` and escape forms
+            // `'\n'`/`'\t'`/`'\r'`/`'\0'`/`'\\'`/`'\''`. Emit as int
+            // literal (token kind 2 with the codepoint as the value)
+            // — matches Rust semantics where `'A' as i64 == 65` and
+            // matches the convention documented at the prior
+            // lifetime-only branch ("chars use u8/u32 via int literals").
+            // Pre-v0.3.105, `'\n'` was lexed as a malformed lifetime
+            // marker and silently produced 0 at runtime, a HIGH-blast
+            // miscompute for any code using char escapes (parsers,
+            // I/O, ASCII manipulation). Lifetime parsing is preserved
+            // as the fallback when the pattern doesn't match
+            // `'<one-char>'`.
             let st: i64 = p;
-            p = p + 1;
-            let id_st: i64 = p;
-            while p < slen && (is_alnum(str_char_at(src, p)) == 1 || str_char_at(src, p) == 95) { p = p + 1; };
-            let lt_name: str = str_substring(src, id_st, p);
-            tokens.push(tok_new(98, lt_name, st));
+            // Try to recognize a char literal first.
+            let mut handled: i64 = 0;
+            if p + 2 < slen {
+                let n1: i64 = str_char_at(src, p + 1);
+                let n2: i64 = str_char_at(src, p + 2);
+                // Plain `'X'` form — single non-backslash char.
+                if n1 != 92 && n2 == 39 {
+                    tokens.push(tok_new(2, n1, st));
+                    p = p + 3;
+                    handled = 1;
+                };
+            };
+            if handled == 0 && p + 3 < slen && str_char_at(src, p + 1) == 92 && str_char_at(src, p + 3) == 39 {
+                let esc: i64 = str_char_at(src, p + 2);
+                let mut val: i64 = esc;
+                if esc == 110 { val = 10; };       // \n
+                if esc == 116 { val = 9; };        // \t
+                if esc == 114 { val = 13; };       // \r
+                if esc == 48  { val = 0; };        // \0
+                if esc == 92  { val = 92; };       // \\
+                if esc == 39  { val = 39; };       // \'
+                if esc == 34  { val = 34; };       // \"
+                tokens.push(tok_new(2, val, st));
+                p = p + 4;
+                handled = 1;
+            };
+            if handled == 0 {
+                // T2.5 (v0.2.351) fallback: apostrophe → lifetime token.
+                p = p + 1;
+                let id_st: i64 = p;
+                while p < slen && (is_alnum(str_char_at(src, p)) == 1 || str_char_at(src, p) == 95) { p = p + 1; };
+                let lt_name: str = str_substring(src, id_st, p);
+                tokens.push(tok_new(98, lt_name, st));
+            };
         }
         else { p = p + 1; };
     };
@@ -1325,7 +1368,8 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // required; today only var-ref / field-access / index LHS forms
     // are syntactically allowed, all of which are pure.
     let assign_tok: i64 = pk(tokens, cp);
-    if assign_tok == 110 || assign_tok == 111 || assign_tok == 112 || assign_tok == 113 || assign_tok == 114 {
+    if assign_tok == 110 || assign_tok == 111 || assign_tok == 112 || assign_tok == 113 || assign_tok == 114
+       || assign_tok == 117 || assign_tok == 118 || assign_tok == 119 || assign_tok == 120 || assign_tok == 121 {
         let mut vr: Vec<i32> = parse_expr(tokens, cp + 1, pool);
         cp = pr_pos(vr);
         if pk(tokens, cp) == 43 { cp = cp + 1; };
@@ -1335,6 +1379,16 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if assign_tok == 112 { bin_op = 22; };
         if assign_tok == 113 { bin_op = 23; };
         if assign_tok == 114 { bin_op = 24; };
+        // v0.3.105: bitwise / shift compound assigns. Map to the
+        // raw binop tokens so the existing tok_to_ir + parse_*
+        // tier do the right thing at lowering — `&=` → `&` (82),
+        // `|=` → `|` (65), `^=` → `^` (94), `<<=` → `<<` (115),
+        // `>>=` → `>>` synthesized at lower-time as token 116.
+        if assign_tok == 117 { bin_op = 82; };
+        if assign_tok == 118 { bin_op = 65; };
+        if assign_tok == 119 { bin_op = 94; };
+        if assign_tok == 120 { bin_op = 115; };
+        if assign_tok == 121 { bin_op = 116; };
         let rhs_node: i64 = mk4(pool, 4, bin_op, pr_val(er), pr_val(vr));
         return pr(cp, mk3(pool, 21, pr_val(er), rhs_node));
     };
