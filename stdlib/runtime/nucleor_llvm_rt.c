@@ -3813,6 +3813,14 @@ long long __nucleor_env_get(const char *name) {
     char *v = getenv(name);
     return (long long)(intptr_t)v;
 }
+// v0.3.98: env_get_or — returns the env var if set, else the default.
+// Common Rust idiom: `std::env::var(name).unwrap_or("default")`.
+long long __nucleor_env_get_or(const char *name, const char *default_val) {
+    if (!name) return (long long)(intptr_t)default_val;
+    char *v = getenv(name);
+    if (!v) return (long long)(intptr_t)default_val;
+    return (long long)(intptr_t)v;
+}
 long long __nucleor_env_set(const char *name, const char *value) {
     if (!name || !value) return -1;
 #ifdef _WIN32

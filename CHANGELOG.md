@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.98] — 2026-04-25
+
+**Runtime helper: `env_get_or(name, default)` — Rust ergonomic
+parity for the canonical `env::var(name).unwrap_or("default")`
+idiom.** Pre-v0.3.98, env_get_or wasn't registered as a callable
+runtime helper. Users had to write the manual fallback chain
+(`if env_has("X") { env_get("X") } else { "default" }`) which
+is verbose and error-prone for what's a one-liner in Rust.
+
+### Fix
+
+Three coordinated additions:
+
+1. Runtime: `__nucleor_env_get_or(name, default)` returns the
+   env var if set, else the default — matches Rust's
+   `unwrap_or` idiom.
+2. Compiler: register in get_rt_name + is_ptr_arg (both args)
+   + is_ptr_ret (string return) + IR header declare. Mirrored
+   in nucleor_tools_suite.nr per drift gate.
+3. helper_manifest.toml regenerated.
+
+### Bootstrap re-iteration note
+
+This ship required ONE re-iteration to reach fixed point —
+helper-table additions changed the order in which fn-related
+sym entries get inserted, causing a different fn ordering
+inside the s1 compiler's own output. By stage_d the new helper
+is fully integrated and stage_c → stage_d is byte-identical.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — env_get_or registration in
+  get_rt_name, is_ptr_arg, is_ptr_ret, IR header declare.
+  Bootstrap fixed point at SHA `ce56c26e` (was `d83ef371`).
+- `compiler/nucleor_tools_suite.nr` — mirror entries (drift gate).
+- `stdlib/runtime/nucleor_llvm_rt.c` — `__nucleor_env_get_or`
+  helper added.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t374_env_get_or.nr` — new strict regression
+  fixture.
+- `tools/verify.{sh,ps1}` — new T3.74 verify step.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+
+### Verify gate
+
+- 452/452 green (was 451 + 1 step from T3.74).
+- All prior regression fixtures (T3.28-T3.73) still green.
+- Bootstrap fixed point closes at `ce56c26e`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.98)
+
+- **32 codegen + 3 runtime + 10 parser/check diagnostic = 45 total**
+- **47 strict regression fixtures** (T3.28-T3.74)
+- **6 robotics RT showcase examples** in Tier 4
+
 ## [0.3.97] — 2026-04-25
 
 **Diagnostic: bitwise operators (`&`, `|`, `^`) — silent

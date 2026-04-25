@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 753
+# Total helpers: 754
 # Of which REVIEW REQUIRED: 26
 
 # ============================================================
@@ -1822,6 +1822,20 @@ dispatch         = "RuntimeCall"
 abi              = "(ptr) -> i64"
 effects          = ["io"]
 taint            = "propagates"
+units            = "passthrough"
+proof_obligation = "io_capability_required"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "env_get_or"
+class            = "IO"
+symbol           = "__nucleor_env_get_or"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr) -> i64"
+effects          = ["io"]
+taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "io_capability_required"
 stability        = "stable"
