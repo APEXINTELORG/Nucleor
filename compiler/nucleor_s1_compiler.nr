@@ -5336,6 +5336,152 @@ fn enforce_no_alloc(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+// === T3.2 (v0.3.1): #[no_panic] enforcement (RT-002) ===
+// Mirror of the #[no_alloc] source-level scanner. Walks for the
+// `#[no_panic]` attribute, associates each with the next fn,
+// then scans the fn body for panic-prone call patterns and emits
+// RT-002 per violation.
+//
+// What "can panic" includes:
+//   - `panic("...")`         — explicit panic builtin
+//   - `assert_eq` / `assert_ne` — abort on failure
+//   - `unwrap` / `.unwrap()`  — Option/Result unwrap (panics on None/Err)
+//   - `expect` / `.expect()`  — same with custom message
+//   - `dbg!`                  — convention: panics on assertion fail
+//
+// Same v1 limitations as #[no_alloc]:
+//   - Source-level only (no AST, no transitive call-graph chase)
+//   - String/comment-aware skip
+//   - Per-file scope
+
+fn collect_no_panic_fns(source: str) -> Vec<i32> {
+    let mut fns: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[no_panic]";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut q: i64 = p + plen;
+            while q + 3 <= slen {
+                let c0: i64 = str_char_at(source, q);
+                let c1: i64 = str_char_at(source, q + 1);
+                let c2: i64 = str_char_at(source, q + 2);
+                if c0 == 102 && c1 == 110 && c2 == 32 {
+                    q = q + 3;
+                    let name_start: i64 = q;
+                    while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) {
+                        q = q + 1;
+                    };
+                    if q > name_start {
+                        let name: str = str_substring(source, name_start, q);
+                        fns.push(name);
+                    };
+                    p = q;
+                    break;
+                };
+                q = q + 1;
+            };
+            if q + 3 > slen { p = slen; };
+        } else {
+            p = p + 1;
+        };
+    };
+    return fns;
+}
+
+fn no_panic_check_list() -> Vec<i32> {
+    // Call patterns to flag inside #[no_panic] fns. Each entry is
+    // a literal substring search; the body MUST contain `<entry>(`
+    // (or `.unwrap`/`.expect` for method-call form). Same approach
+    // as no_alloc_check_list — easy to extend as new panic-prone
+    // primitives ship.
+    let mut v: Vec<i32> = Vec::new();
+    v.push("panic");
+    v.push("assert_eq");
+    v.push("assert_ne");
+    v.push("unwrap");
+    v.push("expect");
+    v.push(".unwrap");
+    v.push(".expect");
+    return v;
+}
+
+fn check_no_panic_violations(diags: Vec<i32>, source: str, fn_name: str) {
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < nlen {
+            if str_char_at(source, p + k) != str_char_at(needle, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut q: i64 = p + nlen;
+            while q < slen && str_char_at(source, q) != 123 { q = q + 1; };
+            if q < slen {
+                let body_start: i64 = q + 1;
+                let mut depth: i64 = 1;
+                q = q + 1;
+                while q < slen && depth > 0 {
+                    let c: i64 = str_char_at(source, q);
+                    if c == 123 { depth = depth + 1; };
+                    if c == 125 { depth = depth - 1; };
+                    q = q + 1;
+                };
+                let body: str = str_substring(source, body_start, q - 1);
+                let panic_names: Vec<i32> = no_panic_check_list();
+                let mut ai: i64 = 0;
+                while ai < vec_len(panic_names) {
+                    let n: str = vec_get(panic_names, ai);
+                    let pat: str = str_concat(n, "(");
+                    if str_contains(body, pat) == 1 {
+                        let msg: str = str_concat("`", str_concat(n, str_concat("` can panic but `", str_concat(fn_name, "` is marked #[no_panic]"))));
+                        diag_add_ex(diags, "error", "rt", "RT-002", msg, fn_name, 0, 0, "");
+                    };
+                    ai = ai + 1;
+                };
+            };
+            return;
+        };
+        p = p + 1;
+    };
+}
+
+fn enforce_no_panic(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let no_panic_fns: Vec<i32> = collect_no_panic_fns(source);
+    let mut i: i64 = 0;
+    while i < vec_len(no_panic_fns) {
+        let fn_name: str = vec_get(no_panic_fns, i);
+        check_no_panic_violations(diags, source, fn_name);
+        i = i + 1;
+    };
+    return diags;
+}
+
 fn byte_to_line(source: str, byte_off: i64) -> i64 {
     let slen: i64 = str_len(source);
     let mut line: i64 = 1;
@@ -9616,6 +9762,8 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // appends to diags; if no #[no_alloc] attribute is present in
     // the source it's a no-op.
     diags = enforce_no_alloc(diags, source);
+    // T3.2 (v0.3.1): same pattern for #[no_panic] (RT-002).
+    diags = enforce_no_panic(diags, source);
     if diag_count(diags) > 0 {
         // RFC-0028 §Suppression — drop warnings the user has silenced
         // via `#[allow(CODE)]`, then promote any remaining warnings
