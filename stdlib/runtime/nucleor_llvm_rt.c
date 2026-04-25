@@ -3560,6 +3560,26 @@ long long __nucleor_time_monotonic_ns(void) {
 long long __nucleor_time_monotonic_us(void) { return __nucleor_time_monotonic_ns() / 1000LL; }
 long long __nucleor_time_monotonic_ms(void) { return __nucleor_time_monotonic_ns() / 1000000LL; }
 
+// === v0.3.0 (T3.1): runtime #[deadline] checks ===
+// Compiler-injected at the entry/exit of #[deadline = N] fns. Reads
+// the saved start time, compares against limit, and aborts with a
+// friendly diagnostic if elapsed time exceeded the limit.
+//
+// Returns 0 on pass; aborts (exit 1) on overrun. Returning rather
+// than void so source-rewriter can drop the call into expression
+// position if needed.
+long long __nucleor_deadline_check(long long start_us, long long limit_us) {
+    long long now = __nucleor_time_monotonic_us();
+    long long elapsed = now - start_us;
+    if (elapsed > limit_us) {
+        fprintf(stderr, "error[RT-004]: #[deadline] overrun: elapsed %lld us > limit %lld us\n",
+                elapsed, limit_us);
+        fflush(stderr);
+        exit(1);
+    }
+    return 0;
+}
+
 long long __nucleor_time_wall_ns(void) {
 #ifdef _WIN32
     FILETIME ft;

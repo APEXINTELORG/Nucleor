@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 741
-# Of which REVIEW REQUIRED: 25
+# Total helpers: 742
+# Of which REVIEW REQUIRED: 26
 
 # ============================================================
 # REVIEW REQUIRED
@@ -24,6 +24,7 @@
 #
 #   async_await                              (Unclassified)
 #   async_spawn                              (Unclassified)
+#   deadline_check                           (Unclassified)
 #   dyn_box_data                             (Unclassified)
 #   dyn_box_free                             (Unclassified)
 #   dyn_box_make                             (Unclassified)
@@ -8757,6 +8758,20 @@ notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
 name             = "async_spawn"
 class            = "Unclassified"
 symbol           = "__nucleor_async_spawn"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "deadline_check"
+class            = "Unclassified"
+symbol           = "__nucleor_deadline_check"
 dispatch         = "RuntimeCall"
 abi              = "(i64, i64) -> i64"
 effects          = "TODO"  # TODO

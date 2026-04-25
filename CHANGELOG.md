@@ -5,6 +5,200 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-04-24
+
+**v0.3 robotics foundation lands — `#[deadline = N]` runtime
+checks now actually fire at runtime.** This is the v0.3.0
+release. The locked priority list opens its v0.3 chapter
+with the most-requested robotics primitive: declared
+deadlines that the compiler enforces by injecting a
+runtime check at function exit. On overrun, the binary
+aborts with `error[RT-004]: #[deadline] overrun` carrying
+elapsed and limit microseconds.
+
+### What `#[deadline = N]` does today
+
+Annotate any fn with `#[deadline = N]` (microseconds) and
+the compiler:
+
+1. **Renames the original body** to a synthesized inner fn
+   `__nuc_dl_inner_<hash>_<idx>`.
+2. **Synthesizes an outer wrapper** with the original fn
+   name that:
+   - Captures `time_monotonic_us()` as `__nuc_dl_start`.
+   - Calls the inner fn with the original args, captures
+     the return value into `__nuc_dl_r`.
+   - Calls `deadline_check(__nuc_dl_start, N)` — aborts if
+     elapsed > N.
+   - Returns `__nuc_dl_r`.
+
+Behavior is observably identical to the un-annotated fn
+when it stays within budget; on overrun the runtime fires
+RT-004 to stderr and exits 1.
+
+### New runtime helper
+
+```c
+long long __nucleor_deadline_check(long long start_us, long long limit_us) {
+    long long elapsed = __nucleor_time_monotonic_us() - start_us;
+    if (elapsed > limit_us) {
+        fprintf(stderr, "error[RT-004]: #[deadline] overrun: elapsed %lld us > limit %lld us\n",
+                elapsed, limit_us);
+        exit(1);
+    }
+    return 0;
+}
+```
+
+Built on the existing cross-platform `__nucleor_time_monotonic_us()`
+(Windows `QueryPerformanceCounter`, POSIX `clock_gettime(CLOCK_MONOTONIC)`).
+Exposed as the `deadline_check` builtin on both compilers.
+
+### Source-level wrap mechanism
+
+A new resolver pass `expand_deadline(src)` (synced across
+both compilers) walks the merged source line by line. When
+it sees `#[deadline = N]` (with N parsed as integer microseconds):
+
+1. Scan forward past blank lines, doc comments, and other
+   `#[...]` attributes for the next `fn ...` or `pub fn ...`.
+2. Parse the fn signature via `dl_parse_fn_signature`:
+   name, params text, return type, comma-separated arg names,
+   body brace open + close positions (brace-balanced + string-
+   and comment-aware scan).
+3. Emit two fns in place of the one:
+   - `fn __nuc_dl_inner_<hash>_<idx>(<params>) -> <ret> { <body> }`
+   - `fn <name>(<params>) -> <ret> { let __nuc_dl_start =
+     time_monotonic_us(); let __nuc_dl_r = __nuc_dl_inner_(<args>);
+     deadline_check(__nuc_dl_start, <N>); return __nuc_dl_r; }`
+
+Void returns (`fn name(...)` with no `-> ret`) get a
+slightly different wrapper that calls the inner without
+capturing a return value.
+
+The pass runs in the resolver pipeline AFTER `expand_async_syntax`
+and BEFORE `expand_closures`, so deadline-wrapped fns can
+themselves be `async fn` (the wrapper is sync but the inner
+runs to completion before the check; correct for current
+threads-only async).
+
+### Three new helpers (synced across both compilers)
+
+| Helper | Purpose |
+|---|---|
+| `dl_extract_int_value(line)` | Parses `#[deadline = N]` from an attribute line. Returns N (≥ 0) on success, -1 on parse failure. (tools-suite uses an inlined `dl_find_substring` since it doesn't have s1's `source_find`.) |
+| `dl_parse_fn_signature(src, fn_pos, slen)` | Bracket-balanced + string/comment-aware parse of a fn header + body. Returns `[name, params_text, ret_type, arg_names, body_open, body_end]` or `[]` on parse failure. |
+| `expand_deadline(src)` | Top-level walker. Scans for `#[deadline = N]` markers, emits the inner+outer fn pair for each, drops the attribute line. Other source passes through unchanged. |
+
+### Verify gate
+
+Two new steps land in BOTH `verify.ps1` and `verify.sh`:
+
+- **`v0.3.0 #[deadline=N] runtime check passes within budget`**
+  — runs `tests/smoke/v030_deadline_runtime.nr` (4 `#[test]`
+  cases with `#[deadline = 100000]` (100 ms) on simple ops),
+  asserts all 4 PASS.
+- **`v0.3.0 #[deadline=N] overrun aborts with RT-004`**
+  — builds `tests/fixtures/v030_deadline_overrun.nr` (which
+  has `#[deadline = 1]` on a 5M-iteration loop), runs the
+  binary, asserts non-zero exit AND `error[RT-004]: #[deadline]
+  overrun` in stderr.
+
+Windows: 364/364 PASS. Bootstrap fixpoint refreshed
+(seed sha256 `3f4af45e...`). Helper manifest regenerated.
+
+### Numerics-compatibility
+
+`time_monotonic_us` and `deadline_check` both `(i64) -> i64`.
+The wrapper's `__nuc_dl_start` captures the monotonic
+microsecond timestamp as i64 (cross-platform via
+QueryPerformanceCounter on Windows / clock_gettime
+CLOCK_MONOTONIC on POSIX). No new arithmetic surfaces.
+The injected `let __nuc_dl_r: <ret> = ...` matches the
+original fn's declared return type — works for any
+i64-castable return today.
+
+### Memory safety
+
+Pure source-level wrap. The inner fn has the original body;
+the outer fn is a thin shim with two locals (i64 start
+timestamp + the captured return value). No new allocations,
+no closures, no FFI surface beyond the existing
+`time_monotonic_us` and the new `deadline_check`. The
+wrapper's `__nuc_dl_r` is consumed exactly once (the
+return statement) so no aliasing concerns. The inner fn's
+body retains all its original ownership semantics — the
+borrow checker sees the unchanged body in
+`__nuc_dl_inner_<id>`.
+
+### Files
+
+- `stdlib/runtime/nucleor_llvm_rt.c` — new
+  `__nucleor_deadline_check(start_us, limit_us)` (~10 LOC)
+  after the time_monotonic helpers.
+- `compiler/nucleor_s1_compiler.nr` — three new helpers
+  (~150 LOC) plus the `deadline_check` builtin entry +
+  LLVM declare. Wired into the resolver pipeline.
+- `compiler/nucleor_tools_suite.nr` — synced helpers (with
+  `dl_find_substring` instead of s1's `source_find`).
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+- `tests/smoke/v030_deadline_runtime.nr` — 4-case smoke
+  (pass cases).
+- `tests/fixtures/v030_deadline_overrun.nr` — overrun
+  fixture (used by the dedicated verify step that builds
+  + runs + asserts non-zero exit + RT-004 in stderr).
+- `tools/verify.ps1`, `tools/verify.sh` — TWO new steps.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (424 fns,
+  858 optimized instructions; new sha256 3f4af45e...).
+- `bin/nucleor.exe` — rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Known limitations / v0.3.1 roadmap
+
+- **No static WCET analysis.** RT-004 fires only at
+  runtime today. v0.3.1 adds the static estimator that
+  reports RT-004 at compile time when the body's WCET
+  can be proven to exceed the declared deadline.
+- **No `#[no_alloc]` / `#[no_panic]` cross-check** with
+  deadline. Per RT-007, a `#[deadline]` annotation is
+  incomplete without these companions; v0.3.1 enforces.
+- **No nested deadline composition.** Calling a
+  `#[deadline = A]` fn from inside a `#[deadline = B]` fn
+  doesn't subtract A from the outer budget. v0.3.2 adds
+  the chain accumulator.
+- **Wrapper allocates one extra fn per deadline-annotated
+  fn.** Negligible code size hit (~50 bytes IR per fn) but
+  measurable on robotics codebases with hundreds of
+  deadline'd ops. v0.3.3 may inline the wrapper for
+  small bodies once the static WCET pass is wired.
+- **Same fn signature is required twice** (inner +
+  outer). If you change the inner's body, the outer keeps
+  calling it correctly because the outer is regenerated
+  from the same source on every compile.
+
+### Locked v0.2 design defaults — fully shipped
+
+This release closes the v0.2 → v0.3 transition. All four
+locked design defaults from the cron-loop guidance are now
+shipped:
+
+- **Threads-only async** — v0.2.353 (`async_spawn`/`.await`
+  via OS threads).
+- **GitHub-Pages registry** — v0.2.344 (producer side via
+  `nuc registry export-static`; TLS-fetch consumer side
+  in T1.4b).
+- **Runtime deadline checks** — v0.3.0 (this ship).
+- **Extern-C shims for C++ FFI** — v0.2.345 T1.6
+  (`nuc gen-headers` emits `#[repr(C)]` struct typedefs;
+  cxx-style codegen layered on top in v0.4).
+
+### Next
+
+T3.2 — `#[no_alloc]` / `#[no_panic]` enforcement (RT-001 /
+RT-002 actually fire at compile time, not just at the
+diagnostic-explanation level). T3.3 — static WCET. T3.4 —
+extern-C shim generator for `extern "C++"`.
+
 ## [0.2.353] — 2026-04-24
 
 **T2.8 async runtime decision — threads-only commitment

@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 20
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 22
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -773,6 +773,35 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
     $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
     return $h1 -eq $h2
+}
+
+Step "v0.3.0 #[deadline=N] runtime check passes within budget" {
+    # v0.3.0 (T3.1): #[deadline = N] (microseconds) wraps the
+    # annotated fn with start-capture + deadline_check at exit.
+    # Fixture has 4 #[deadline = 100000] (100 ms) fns + 4 #[test]
+    # cases that all complete well within 100 ms and the runtime
+    # check passes silently. Verify gate: all 4 PASS.
+    $out = & $bin test "tests/smoke/v030_deadline_runtime.nr" 2>&1 | Out-String
+    if ($out -notmatch "PASS: test_deadline_pass_simple_add") { return $false }
+    if ($out -notmatch "PASS: test_deadline_pass_simple_mul") { return $false }
+    if ($out -notmatch "PASS: test_deadline_pass_no_args") { return $false }
+    if ($out -notmatch "PASS: test_deadline_pass_with_loop") { return $false }
+    if ($out -notmatch "test result: PASS \(4 tests\)") { return $false }
+    return $true
+}
+
+Step "v0.3.0 #[deadline=N] overrun aborts with RT-004" {
+    # Build the overrun fixture, run it, expect non-zero exit
+    # and "RT-004" in the captured stderr/stdout.
+    $exe = "target\v030_overrun_check.exe"
+    if (Test-Path $exe) { Remove-Item -Force $exe -ErrorAction SilentlyContinue }
+    $build = & $bin build "tests/fixtures/v030_deadline_overrun.nr" -o "v030_overrun_check" 2>&1 | Out-String
+    if (-not (Test-Path $exe)) { return $false }
+    $runOut = & $exe 2>&1 | Out-String
+    $rc = $LASTEXITCODE
+    if ($rc -eq 0) { return $false }
+    if ($runOut -notmatch "error\[RT-004\]: #\[deadline\] overrun") { return $false }
+    return $true
 }
 
 Step "T2.8 async (threads-only): async fn / async_spawn / .await" {
