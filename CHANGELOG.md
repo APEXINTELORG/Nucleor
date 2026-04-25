@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.101] — 2026-04-25
+
+**Closure literal `-> RetType` annotation parsing.** Pre-v0.3.101,
+the closure parser stopped after the closing `|` and didn't skip
+an optional `-> RetType` clause. With Rust-canonical source like:
+
+```
+let f = |x: i64| -> i64 { return x + n; };
+```
+
+the `->` and `i64` ended up consumed as part of the body — the
+body parser produced an `@i64` global ref, hard-failing at clang
+link with `use of undefined value '@i64'`. Block bodies, expression
+bodies, and zero-param `||` forms were ALL affected when an explicit
+return type was present.
+
+### Fix
+
+After the closing `|` (or after the bare `||` token), check for
+`-> Type` and skip it via `parse_type`. The annotation is advisory
+at lower-time — closures emit i64-returning bodies by convention —
+so we just consume the type and discard it.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t377 returns 10 (n=7 + x=3),
+proving captured ident and parameter both reach the body through
+the annotation. `bin/nucleor.exe` SHA `f2a1563e`. 452/452 verify.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `-> RetType` skip in
+  closure literal at parse_primary.
+- `tests/fixtures/t377_closure_ret_type.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.100] — 2026-04-25
 
 **Receiver-type-aware method dispatch for the collection family.**

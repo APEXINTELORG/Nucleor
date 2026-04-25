@@ -652,6 +652,18 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             };
             cp = cp + 1;
         };
+        // v0.3.101: optional `-> RetType` after the closing `|`. Pre-
+        // v0.3.101, `|x: i64| -> i64 { … }` left the parser pointing
+        // at `->`, which neither matched the `{ … }` block branch nor
+        // parsed cleanly as an expression — the body parser then
+        // produced an `@i64` global ref (clang link error
+        // `use of undefined value '@i64'`). The return type is
+        // advisory at lower-time anyway (closures emit i64 returns
+        // by convention), so we just skip the annotation.
+        if pk(tokens, cp) == 41 {
+            let mut tr: Vec<i32> = parse_type(tokens, cp + 1);
+            cp = pr_pos(tr);
+        };
         if pk(tokens, cp) == 52 {
             cp = expect_tok(tokens, cp, 52);
             let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
