@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 35
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 36
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -867,6 +867,21 @@ Step "T3.9 RT-005 fires on FFI call from RT fn body" {
     $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-005\]: FFI call 'host_telemetry'") { return $false }
     if ($out -notmatch "from #\[no_alloc\] fn 'rt_path'") { return $false }
+    return $true
+}
+
+Step "T3.17 #[allow_fn(RT-004)] suppresses static WCET warning per-fn" {
+    # v0.3.32 (T3.17): closes the coverage gap left by T3.12
+    # (which proved #[allow_fn] works for RT-007 only). Same
+    # shape: two #[deadline = 1] fns whose bodies each blow the
+    # v1 WCET estimate; only the second has #[allow_fn(RT-004)],
+    # so RT-004 should fire exactly ONCE. Validates the v0.3.31
+    # message-text claim that #[allow_fn(RT-004)] is a real
+    # opt-out, not vapor advertisement.
+    $out = & $bin build "tests/fixtures/t317_allow_fn_rt004.nr" -o "_t317_check" --no-cache 2>&1 | Out-String
+    if ($out -notmatch "warning\[RT-004\]") { return $false }
+    $count = ([regex]::Matches($out, "warning\[RT-004\]")).Count
+    if ($count -ne 1) { return $false }
     return $true
 }
 

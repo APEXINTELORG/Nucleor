@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.32] — 2026-04-25
+
+**T3.17 fixture proves `#[allow_fn(RT-004)]` per-fn opt-out is
+real, not vapor.** v0.3.31 updated RT-004's warning text to
+advertise `#[allow_fn(RT-004)]` as a per-fn opt-out, but the
+only existing per-fn allow test was T3.12 — which exercises
+RT-007 only. v0.3.32 closes the coverage gap with a parallel
+fixture for RT-004.
+
+This matters because RT-004 fires from the static WCET
+estimator pass, which runs AFTER T3.1's `#[deadline]`-fn
+expansion (the user-named fn becomes a wrapper plus a
+synthesized `__nuc_dl_inner_<hash>_<idx>` inner). The
+diagnostic's `fn_name` field is the synthesized inner name,
+not the user-visible one — so the v0.3.20 `#[allow_fn]` filter
+must walk the post-resolver post-T3.1-expansion source to pair
+correctly. The same shape works for RT-007 (T3.12) but it's
+worth proving independently for RT-004 because the WCET
+collector runs at a different point in the pipeline.
+
+### Approach
+
+New fixture `tests/fixtures/t317_allow_fn_rt004.nr` —
+two `#[deadline = 1]` fns with identical thousand-iteration
+loop bodies. The v1 WCET estimator scores each at 60us
+(60× over the 1us budget). The first fires RT-004; the
+second has `#[allow_fn(RT-004)]` and stays silent.
+
+New T3.17 verify step in both verify.sh and verify.ps1 —
+exact-count assertion: RT-004 must fire exactly ONCE.
+Greater than one means the suppression failed; zero means the
+estimator broke and no warning fires from either fn (false
+positive on the suppression).
+
+### Verify gate
+
+- 391/391 green (was 390 + 1 new step). Verify total grew by
+  one in both verify.sh and verify.ps1.
+- New fixture confirmed manually before the verify step was
+  written: stage-1 emit shows exactly one `warning[RT-004]:
+  static WCET estimate 60 us ...` for `would_overrun`, no
+  warning for `would_overrun_silenced`.
+- Self-host bootstrap fixed point unchanged at SHA `8ae2941f`
+  (v0.3.31's value — no compiler change, only fixture-and-test).
+
+### Coverage table after v0.3.32
+
+| RT code | Per-fn opt-out fixture | Test step |
+|---------|------------------------|-----------|
+| RT-001 | n/a (error tier — non-suppressible) | n/a |
+| RT-002 | n/a (error tier) | n/a |
+| RT-003 | n/a (error tier) | n/a |
+| RT-004 | `t317_allow_fn_rt004.nr` | T3.17 (v0.3.32) |
+| RT-005 | n/a (per-symbol via `#[ffi_no_*]`, T3.15+T3.16) | T3.15, T3.16 |
+| RT-006 | n/a (error tier) | n/a |
+| RT-007 | `t320_allow_fn.nr` | T3.12 (v0.3.20) |
+| RT-008 | n/a (per-fn via `#[max_depth]`, T3.10) | T3.10 |
+
+Every RT warning that v0.3.31's message text advertises a
+per-fn opt-out for now has automated coverage proving the
+opt-out works. The error-tier codes (RT-001/002/003/006)
+intentionally have no opt-out, and RT-005 + RT-008 have
+domain-specific opt-out attributes covered by their existing
+fixtures rather than the generic `#[allow_fn]`.
+
 ## [0.3.31] — 2026-04-25
 
 **RT-004 warning text now mentions per-fn `#[allow_fn]`.** Final
