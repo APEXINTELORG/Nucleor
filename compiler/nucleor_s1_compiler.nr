@@ -5482,6 +5482,127 @@ fn enforce_no_panic(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+// === T3.6 (v0.3.5): #[no_dyn] enforcement (RT-003) ===
+// Forbids dynamic dispatch in the marked fn — `Box<dyn Trait>`,
+// `&dyn Trait`, `&mut dyn Trait`, and bare `dyn Trait` types.
+// Matches the v1 source-level pattern of #[no_alloc] / #[no_panic]:
+// scan the resolved source for `#[no_dyn]\nfn NAME(...)` pairs,
+// then walk each fn body for the literal substring `dyn ` (a
+// trailing space rules out identifiers like `dyn_var`). The same
+// comment-and-string skip the other RT scanners use guards against
+// false positives on the `let pat: str = "#[no_dyn]"` literal in
+// this very compiler.
+
+fn collect_no_dyn_fns(source: str) -> Vec<i32> {
+    let mut fns: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[no_dyn]";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut q: i64 = p + plen;
+            while q + 3 <= slen {
+                let c0: i64 = str_char_at(source, q);
+                let c1: i64 = str_char_at(source, q + 1);
+                let c2: i64 = str_char_at(source, q + 2);
+                if c0 == 102 && c1 == 110 && c2 == 32 {
+                    q = q + 3;
+                    let name_start: i64 = q;
+                    while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) {
+                        q = q + 1;
+                    };
+                    if q > name_start {
+                        let name: str = str_substring(source, name_start, q);
+                        fns.push(name);
+                    };
+                    p = q;
+                    break;
+                };
+                q = q + 1;
+            };
+            if q + 3 > slen { p = slen; };
+        } else {
+            p = p + 1;
+        };
+    };
+    return fns;
+}
+
+fn check_no_dyn_violations(diags: Vec<i32>, source: str, fn_name: str) {
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < nlen {
+            if str_char_at(source, p + k) != str_char_at(needle, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            // Scan the SIGNATURE (between fn_name and `{`) AND the
+            // body (between matching braces). dyn Trait can appear in
+            // either parameters or local bindings.
+            let mut sig_q: i64 = p + nlen;
+            let sig_start: i64 = sig_q;
+            while sig_q < slen && str_char_at(source, sig_q) != 123 { sig_q = sig_q + 1; };
+            let sig_text: str = str_substring(source, sig_start, sig_q);
+            if sig_q < slen {
+                let body_start: i64 = sig_q + 1;
+                let mut depth: i64 = 1;
+                let mut q: i64 = body_start;
+                while q < slen && depth > 0 {
+                    let c: i64 = str_char_at(source, q);
+                    if c == 123 { depth = depth + 1; };
+                    if c == 125 { depth = depth - 1; };
+                    q = q + 1;
+                };
+                let body: str = str_substring(source, body_start, q - 1);
+                let combined: str = str_concat(sig_text, str_concat(" ", body));
+                if str_contains(combined, "dyn ") == 1 {
+                    let msg: str = str_concat("dynamic dispatch (`dyn`) used but `", str_concat(fn_name, "` is marked #[no_dyn]"));
+                    diag_add_ex(diags, "error", "rt", "RT-003", msg, fn_name, 0, 0, "");
+                };
+            };
+            return;
+        };
+        p = p + 1;
+    };
+}
+
+fn enforce_no_dyn(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let no_dyn_fns: Vec<i32> = collect_no_dyn_fns(source);
+    let mut i: i64 = 0;
+    while i < vec_len(no_dyn_fns) {
+        let fn_name: str = vec_get(no_dyn_fns, i);
+        check_no_dyn_violations(diags, source, fn_name);
+        i = i + 1;
+    };
+    return diags;
+}
+
 // === T3.3 (v0.3.2): static WCET (v1 estimator, RT-004) ===
 // Parses every `#[deadline = N]` fn, estimates its worst-case
 // execution time via a simple statement counter, and emits a
@@ -9961,6 +10082,8 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     diags = enforce_no_alloc(diags, source);
     // T3.2 (v0.3.1): same pattern for #[no_panic] (RT-002).
     diags = enforce_no_panic(diags, source);
+    // T3.6 (v0.3.5): same pattern for #[no_dyn] (RT-003).
+    diags = enforce_no_dyn(diags, source);
     // T3.3 (v0.3.2): static WCET estimator for #[deadline = N] fns.
     // Emits warning[RT-004] when the v1 estimate exceeds the budget.
     diags = enforce_static_wcet(diags, source);

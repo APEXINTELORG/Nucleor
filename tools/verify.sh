@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 24))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 25))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -789,6 +789,17 @@ t34_export_decls() {
     grep -q 'void host_logger(int64_t msg_ptr, int64_t msg_len);' "$hdr" || return 1
 }
 
+t36_no_dyn_clean() {
+    # T3.6 (v0.3.5): #[no_dyn] (RT-003) — same shape as T3.2.
+    # Two #[no_dyn] fns with static-dispatch arithmetic + 2 #[test]
+    # cases that PASS verify the marker mechanism works without
+    # false-positive on the attribute literal itself.
+    "$BIN" test "tests/smoke/t36_no_dyn_clean.nr" >/tmp/_nuc_step.log 2>&1
+    grep -q "PASS: test_no_dyn_pid_static_dispatch" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_no_dyn_fk_static_dispatch" /tmp/_nuc_step.log || return 1
+    grep -q "test result: PASS (2 tests)" /tmp/_nuc_step.log || return 1
+}
+
 t32_no_panic_clean() {
     "$BIN" test "tests/smoke/t32_no_panic_clean.nr" >/tmp/_nuc_step.log 2>&1
     grep -q "PASS: test_no_panic_pure_arithmetic" /tmp/_nuc_step.log || return 1
@@ -1167,6 +1178,7 @@ step "T3.2 #[no_panic] passes when body has no panic-prone calls" t32_no_panic_c
 step "T3.3 static WCET v1 estimator emits warning[RT-004]" t33_wcet_estimator
 step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" t35_rt007_unguarded_deadline
 step "T3.4 #[export] surfaces in nuc gen-headers" t34_export_decls
+step "T3.6 #[no_dyn] passes when body has no dynamic dispatch" t36_no_dyn_clean
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches

@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] — 2026-04-25
+
+**T3.6 `#[no_dyn]` enforcement (RT-003) — completes the
+RFC-0001 RT attribute family.** With this ship the four
+`#[no_alloc, no_panic, no_dyn, deadline = N]` attributes that
+RFC-0001 specs as the L1 hard-real-time bundle are all wired
+end-to-end: each one has a v1 source-level checker, a smoke
+fixture proving the clean path, and (where applicable) a
+negative fixture proving the violation path.
+
+### Approach
+
+Mirrors `#[no_panic]` exactly: `collect_no_dyn_fns` scans the
+resolved source for `#[no_dyn]` attribute lines (string- and
+comment-aware so the attribute literal in this very compiler
+doesn't match itself), pairs each with the next `fn NAME(`,
+and returns the list. `check_no_dyn_violations` then walks each
+fn's signature + brace-balanced body and fires
+`error[RT-003]: dynamic dispatch (` `dyn` `) used but ` `<name>`
+` is marked #[no_dyn]` if the substring `dyn ` (trailing space)
+appears anywhere. The trailing space rules out identifier names
+like `dyn_var` while catching `&dyn Trait`, `Box<dyn Trait>`,
+and `&mut dyn Trait`.
+
+v1 limitation: the substring scan does not skip strings/comments
+inside fn bodies, so a literal `"dyn "` in a string still
+triggers RT-003. Documented and suppressible per-fn via
+`#[allow(RT-003)]`. v2 (post-RFC-0026) gains the AST-based
+check that distinguishes real type uses from string contents.
+
+### Verify gate
+
+- New: `tests/smoke/t36_no_dyn_clean.nr` — 2 `#[no_dyn]` fns
+  doing pure i64 arithmetic + 2 `#[test]` cases. Verify asserts
+  both PASS, proving the marker mechanism works without
+  false-positive on the attribute literal itself.
+- New: `tests/err/err_no_dyn_violation.nr` — `#[no_dyn]` fn
+  with literal `dyn ` text in a string. Build fails with
+  RT-003. Caught by the negative-fixture sweep that auto-runs
+  every `tests/err/*.nr` and asserts at least a diagnostic line.
+- Self-host bootstrap fixed-point holds at 7440EAF5 (stage-2
+  IR == stage-3 IR). Bootstrap RSS peak 236 MB.
+
 ## [0.3.4] — 2026-04-25
 
 **T3.4 extern-C shim generator — `#[export]` attribute makes

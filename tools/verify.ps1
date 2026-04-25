@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 26
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 27
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -796,6 +796,18 @@ Step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" {
     $out = & $bin build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-007\]:") { return $false }
     if ($out -notmatch "has #\[deadline\] but neither #\[no_alloc\] nor #\[no_panic\]") { return $false }
+    return $true
+}
+
+Step "T3.6 #[no_dyn] passes when body has no dynamic dispatch" {
+    # v0.3.5 (T3.6): RFC-0001 RT-003 — dynamic dispatch ban.
+    # Same shape as T3.2 #[no_panic]. Two #[no_dyn] fns + 2
+    # #[test] cases that PASS verify the marker mechanism works
+    # without false-positive on the attribute literal itself.
+    $out = & $bin test "tests/smoke/t36_no_dyn_clean.nr" 2>&1 | Out-String
+    if ($out -notmatch "PASS: test_no_dyn_pid_static_dispatch") { return $false }
+    if ($out -notmatch "PASS: test_no_dyn_fk_static_dispatch") { return $false }
+    if ($out -notmatch "test result: PASS \(2 tests\)") { return $false }
     return $true
 }
 
