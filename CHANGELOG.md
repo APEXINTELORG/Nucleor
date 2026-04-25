@@ -5,6 +5,34 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.13] — 2026-04-25
+
+**RFC-0028 phase 3 — `format3_iis` + `format3_isi` combos.**
+Two more format-string builtins that close the str/int trio:
+
+- `format3_iis(tmpl, i64_a, i64_b, str_c)` — e.g.
+  `format!("{}/{}: {}", done, total, label)` produces
+  `"3/10: items"`.
+- `format3_isi(tmpl, i64_a, str_b, i64_c)` — e.g.
+  `format!("{}: {} ({})", n, kind, count)` produces
+  `"7: kind (42)"`.
+
+After this ship, all 7 useful 3-slot combinations of `i` and
+`s` exist (`iii`, `sii`, `iss`, `sss`, `ssi`, `sis`, `iis`,
+`isi`) plus the `fff` triple-float variant. Ships in the same
+shape as v0.3.12: 5 edit sites in `nucleor_s1_compiler.nr` +
+mirrored in `nucleor_tools_suite.nr` (drift-gate-enforced),
+runtime impl in `nucleor_llvm_rt.c`, both new builtins added
+to the `#[no_alloc]` forbidden-name list.
+
+### Verify gate
+
+- New: `tests/lang/format3_iis_isi.nr` — auto-discovered under
+  the lang directory; prints both combo outputs then
+  `OK format3_iis_isi`.
+- Self-host bootstrap fixed-point holds at 1F4F68DD (stage-3
+  IR == stage-4 IR). Bootstrap RSS peak 263 MB.
+
 ## [0.3.12] — 2026-04-25
 
 **RFC-0028 phase 3 — `format3_ssi` + `format3_sis` combos.**
