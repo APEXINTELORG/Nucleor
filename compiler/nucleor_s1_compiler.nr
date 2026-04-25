@@ -2681,6 +2681,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "time_monotonic_ns") { return "__nucleor_time_monotonic_ns"; };
     if str_eq(name, "time_monotonic_us") { return "__nucleor_time_monotonic_us"; };
     if str_eq(name, "time_monotonic_ms") { return "__nucleor_time_monotonic_ms"; };
+    // v0.3.0 (T3.1): runtime #[deadline] check helper.
+    if str_eq(name, "deadline_check") { return "__nucleor_deadline_check"; };
     if str_eq(name, "time_wall_ns") { return "__nucleor_time_wall_ns"; };
     if str_eq(name, "time_wall_us") { return "__nucleor_time_wall_us"; };
     if str_eq(name, "time_wall_ms") { return "__nucleor_time_wall_ms"; };
@@ -4039,6 +4041,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_time_monotonic_ns()\n");
     sb_append(sb, "declare i64 @__nucleor_time_monotonic_us()\n");
     sb_append(sb, "declare i64 @__nucleor_time_monotonic_ms()\n");
+    sb_append(sb, "declare i64 @__nucleor_deadline_check(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_time_wall_ns()\n");
     sb_append(sb, "declare i64 @__nucleor_time_wall_us()\n");
     sb_append(sb, "declare i64 @__nucleor_time_wall_ms()\n");
@@ -9412,11 +9415,14 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // `<ident>.await` to `async_await(<ident>)`. Threads-only
     // commitment per RFC-0027 phase 1.
     let after_async: str = expand_async_syntax(after_format);
+    // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
+    // + `deadline_check` exit hook. Aborts on overrun (RT-004).
+    let after_deadline: str = expand_deadline(after_async);
     // T2.3 (v0.2.349): expand closure literals `|args| body` in
     // argument position. Synthesizes top-level fns at the head of
     // the source; replaces the closure expression with the synth fn
     // name so downstream parsing sees a normal identifier reference.
-    let source: str = expand_closures(after_async);
+    let source: str = expand_closures(after_deadline);
     if use_cache == 1 {
         system("mkdir .nuc_cache 2>NUL");
         file_write_string(manifest_path, module_records_serialize(module_records));
@@ -9709,7 +9715,278 @@ fn normalize_output_name(raw: str) -> str {
     return sanitize(base);
 }
 
-// ===== T2.8 (v0.2.353): async syntax surface (threads-only) =====
+// ===== v0.3.0 (T3.1): #[deadline = N] runtime check rewrite =====
+//
+// Wraps fns annotated `#[deadline = N]` (microseconds) into a thin
+// shim that captures the start time, calls the original body via
+// a synthesized inner fn, then runs `deadline_check(start, N)`
+// before returning. If the elapsed time exceeded N microseconds,
+// the runtime aborts with `error[RT-004]`.
+//
+// Approach: rather than walking the body to find every `return`
+// (which would need bracket-balanced + block-aware scanning), we
+// rename the user's fn to `__nuc_dl_inner_<idx>` and synthesize a
+// new outer fn with the original name that does:
+//   let __nuc_dl_start: i64 = time_monotonic_us();
+//   let __nuc_dl_r: <ret> = __nuc_dl_inner_<idx>(<args>);
+//   deadline_check(__nuc_dl_start, N);
+//   return __nuc_dl_r;
+//
+// The runtime check runs UNCONDITIONALLY at fn exit. Static WCET
+// bounds (RT-004 at compile time) ship later in v0.3.1.
+
+fn dl_extract_int_value(line: str) -> i64 {
+    // Reads `#[deadline = N]` from the line and returns N (>= 0).
+    // Returns -1 if the line doesn't match the expected shape.
+    let needle: str = "#[deadline";
+    let pos: i64 = source_find(line, needle);
+    if pos < 0 { return 0 - 1; };
+    let llen: i64 = str_len(line);
+    let mut p: i64 = pos + str_len(needle);
+    while p < llen && (str_char_at(line, p) == 32 || str_char_at(line, p) == 9) { p = p + 1; };
+    if p >= llen || str_char_at(line, p) != 61 { return 0 - 1; };
+    p = p + 1;
+    while p < llen && (str_char_at(line, p) == 32 || str_char_at(line, p) == 9) { p = p + 1; };
+    let num_start: i64 = p;
+    while p < llen && is_digit(str_char_at(line, p)) == 1 { p = p + 1; };
+    if p == num_start { return 0 - 1; };
+    return str_to_int(str_substring(line, num_start, p));
+}
+
+fn dl_parse_fn_signature(src: str, fn_pos: i64, slen: i64) -> Vec<i32> {
+    // Given `fn ` at fn_pos, extract:
+    //   [0] = fn name (str)
+    //   [1] = full param decl text "a: T1, b: T2" (str)
+    //   [2] = return type "i64" or "" if void
+    //   [3] = comma-separated arg names "a, b" (str)
+    //   [4] = position of the `{` opening the body (i64)
+    //   [5] = position one past the matching `}` (i64)
+    // On parse failure, returns Vec with vec_len == 0.
+    let mut out: Vec<i32> = Vec::new();
+    let mut p: i64 = fn_pos + 3;  // skip past "fn "
+    while p < slen && (str_char_at(src, p) == 32 || str_char_at(src, p) == 9) { p = p + 1; };
+    let name_start: i64 = p;
+    let mut name_done: i64 = 0;
+    while p < slen && name_done == 0 {
+        let c: i64 = str_char_at(src, p);
+        if is_alnum(c) == 1 || c == 95 { p = p + 1; }
+        else { name_done = 1; };
+    };
+    if p == name_start { return out; };
+    let fn_name: str = str_substring(src, name_start, p);
+    while p < slen && (str_char_at(src, p) == 32 || str_char_at(src, p) == 9) { p = p + 1; };
+    if p >= slen || str_char_at(src, p) != 40 { return out; };
+    let params_start: i64 = p + 1;
+    let mut depth: i64 = 1;
+    p = params_start;
+    while p < slen && depth > 0 {
+        let c: i64 = str_char_at(src, p);
+        if c == 40 { depth = depth + 1; }
+        else if c == 41 { depth = depth - 1; };
+        if depth > 0 { p = p + 1; };
+    };
+    if p >= slen { return out; };
+    let params_text: str = str_substring(src, params_start, p);
+    p = p + 1;
+    while p < slen && (str_char_at(src, p) == 32 || str_char_at(src, p) == 9) { p = p + 1; };
+    let mut ret_type: str = "";
+    if p + 1 < slen && str_char_at(src, p) == 45 && str_char_at(src, p + 1) == 62 {
+        p = p + 2;
+        while p < slen && (str_char_at(src, p) == 32 || str_char_at(src, p) == 9) { p = p + 1; };
+        let rt_start: i64 = p;
+        while p < slen && str_char_at(src, p) != 32 && str_char_at(src, p) != 9 && str_char_at(src, p) != 123 { p = p + 1; };
+        ret_type = str_substring(src, rt_start, p);
+    };
+    while p < slen && str_char_at(src, p) != 123 { p = p + 1; };
+    if p >= slen { return out; };
+    let body_open: i64 = p;
+    let mut q: i64 = p + 1;
+    let mut body_depth: i64 = 1;
+    let mut in_dq: i64 = 0;
+    let mut in_sq: i64 = 0;
+    while q < slen && body_depth > 0 {
+        let c2: i64 = str_char_at(src, q);
+        if in_dq == 1 {
+            if c2 == 92 && q + 1 < slen { q = q + 1; }
+            else if c2 == 34 { in_dq = 0; };
+        } else if in_sq == 1 {
+            if c2 == 92 && q + 1 < slen { q = q + 1; }
+            else if c2 == 39 { in_sq = 0; };
+        } else if c2 == 47 && q + 1 < slen && str_char_at(src, q + 1) == 47 {
+            while q < slen && str_char_at(src, q) != 10 { q = q + 1; };
+        } else if c2 == 34 { in_dq = 1; }
+        else if c2 == 39 { in_sq = 1; }
+        else if c2 == 123 { body_depth = body_depth + 1; }
+        else if c2 == 125 { body_depth = body_depth - 1; };
+        q = q + 1;
+    };
+    if body_depth != 0 { return out; };
+    // Extract arg names from params_text
+    let mut arg_names: str = "";
+    let plen: i64 = str_len(params_text);
+    let mut sp: i64 = 0;
+    let mut first_arg: i64 = 1;
+    while sp < plen {
+        while sp < plen && (str_char_at(params_text, sp) == 32 || str_char_at(params_text, sp) == 9 || str_char_at(params_text, sp) == 44 || str_char_at(params_text, sp) == 10) { sp = sp + 1; };
+        if sp >= plen { sp = plen + 1; }
+        else {
+            let an_start: i64 = sp;
+            while sp < plen && (is_alnum(str_char_at(params_text, sp)) == 1 || str_char_at(params_text, sp) == 95) { sp = sp + 1; };
+            if sp == an_start { sp = sp + 1; }
+            else {
+                let arg_name: str = str_substring(params_text, an_start, sp);
+                if first_arg == 0 { arg_names = str_concat(arg_names, ", "); };
+                arg_names = str_concat(arg_names, arg_name);
+                first_arg = 0;
+                // Skip until next comma at depth 0
+                let mut adepth: i64 = 0;
+                let mut at_comma: i64 = 0;
+                while sp < plen && at_comma == 0 {
+                    let cc: i64 = str_char_at(params_text, sp);
+                    if cc == 40 || cc == 60 || cc == 91 { adepth = adepth + 1; sp = sp + 1; }
+                    else if cc == 41 || cc == 62 || cc == 93 { adepth = adepth - 1; sp = sp + 1; }
+                    else if cc == 44 && adepth == 0 { at_comma = 1; }
+                    else { sp = sp + 1; };
+                };
+            };
+        };
+    };
+    out.push(fn_name);
+    out.push(params_text);
+    out.push(ret_type);
+    out.push(arg_names);
+    out.push(body_open);
+    out.push(q);
+    return out;
+}
+
+fn expand_deadline(src: str) -> str {
+    // Walk source line-by-line. When we see `#[deadline = N]` (after
+    // optional doc comments), find the next `fn ...` declaration and
+    // wrap it. Each rewrite replaces the original fn with two fns:
+    //   __nuc_dl_inner_<idx>  — the original body
+    //   <name>                — the wrapper that does start-cap +
+    //                           inner-call + deadline_check + return
+    let slen: i64 = str_len(src);
+    let mut sb: i64 = sb_new();
+    let mut p: i64 = 0;
+    let mut idx: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(src, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(src, p, eol);
+        let dl_value: i64 = dl_extract_int_value(line);
+        if dl_value >= 0 {
+            // Scan forward past blank lines + doc comments + other
+            // attribute lines for the actual fn start.
+            let mut probe: i64 = eol + 1;
+            let mut found_fn: i64 = 0 - 1;
+            while probe < slen && found_fn < 0 {
+                let mut peol: i64 = probe;
+                while peol < slen && str_char_at(src, peol) != 10 { peol = peol + 1; };
+                let pline: str = str_substring(src, probe, peol);
+                let trimmed: str = strip_spaces(pline);
+                let tlen: i64 = str_len(trimmed);
+                if tlen == 0 {
+                    probe = peol + 1;
+                } else if tlen >= 3 && str_eq(str_substring(trimmed, 0, 3), "///") == 1 {
+                    probe = peol + 1;
+                } else if tlen >= 1 && str_char_at(trimmed, 0) == 35 {
+                    // Other #[...] attribute — skip
+                    probe = peol + 1;
+                } else if tlen >= 2 && str_eq(str_substring(trimmed, 0, 2), "fn") == 1 {
+                    let mut fnpos: i64 = probe;
+                    while fnpos < peol && (str_char_at(src, fnpos) == 32 || str_char_at(src, fnpos) == 9) { fnpos = fnpos + 1; };
+                    found_fn = fnpos;
+                } else if tlen >= 5 && str_eq(str_substring(trimmed, 0, 5), "pub f") == 1 {
+                    let mut fnpos: i64 = probe;
+                    while fnpos < peol && (str_char_at(src, fnpos) == 32 || str_char_at(src, fnpos) == 9) { fnpos = fnpos + 1; };
+                    if fnpos + 4 <= peol && str_eq(str_substring(src, fnpos, fnpos + 4), "pub ") == 1 {
+                        fnpos = fnpos + 4;
+                    };
+                    found_fn = fnpos;
+                } else {
+                    // Anything else — give up; emit original line.
+                    found_fn = 0 - 2;
+                };
+            };
+            if found_fn >= 0 {
+                let info: Vec<i32> = dl_parse_fn_signature(src, found_fn, slen);
+                if vec_len(info) > 0 {
+                    let fn_name: str = vec_get(info, 0);
+                    let params_text: str = vec_get(info, 1);
+                    let ret_type: str = vec_get(info, 2);
+                    let arg_names: str = vec_get(info, 3);
+                    let body_open: i64 = vec_get(info, 4);
+                    let body_end: i64 = vec_get(info, 5);
+                    let inner_name: str = str_concat("__nuc_dl_inner_", str_concat(content_hash(fn_name), str_concat("_", str_from_int(idx))));
+                    idx = idx + 1;
+                    // Drop the #[deadline = N] line itself (do nothing for it).
+                    // Emit everything between the line after the attribute
+                    // and the start of the fn (which is empty/doc/other attrs)
+                    // verbatim — preserves doc comments and other attributes.
+                    sb_append(sb, str_substring(src, eol + 1, found_fn));
+                    // Emit inner fn (original body, renamed).
+                    sb_append(sb, "fn ");
+                    sb_append(sb, inner_name);
+                    sb_append(sb, "(");
+                    sb_append(sb, params_text);
+                    sb_append(sb, ") ");
+                    if str_len(ret_type) > 0 {
+                        sb_append(sb, "-> ");
+                        sb_append(sb, ret_type);
+                        sb_append(sb, " ");
+                    };
+                    sb_append(sb, str_substring(src, body_open, body_end));
+                    sb_append(sb, "\n\n");
+                    // Emit outer wrapper fn with original name.
+                    sb_append(sb, "fn ");
+                    sb_append(sb, fn_name);
+                    sb_append(sb, "(");
+                    sb_append(sb, params_text);
+                    sb_append(sb, ") ");
+                    if str_len(ret_type) > 0 {
+                        sb_append(sb, "-> ");
+                        sb_append(sb, ret_type);
+                        sb_append(sb, " ");
+                    };
+                    sb_append(sb, "{\n");
+                    sb_append(sb, "    let __nuc_dl_start: i64 = time_monotonic_us();\n");
+                    if str_len(ret_type) > 0 && str_eq(ret_type, "void") == 0 {
+                        sb_append(sb, "    let __nuc_dl_r: ");
+                        sb_append(sb, ret_type);
+                        sb_append(sb, " = ");
+                        sb_append(sb, inner_name);
+                        sb_append(sb, "(");
+                        sb_append(sb, arg_names);
+                        sb_append(sb, ");\n");
+                        sb_append(sb, "    deadline_check(__nuc_dl_start, ");
+                        sb_append(sb, str_from_int(dl_value));
+                        sb_append(sb, ");\n");
+                        sb_append(sb, "    return __nuc_dl_r;\n");
+                    } else {
+                        sb_append(sb, "    ");
+                        sb_append(sb, inner_name);
+                        sb_append(sb, "(");
+                        sb_append(sb, arg_names);
+                        sb_append(sb, ");\n");
+                        sb_append(sb, "    deadline_check(__nuc_dl_start, ");
+                        sb_append(sb, str_from_int(dl_value));
+                        sb_append(sb, ");\n");
+                    };
+                    sb_append(sb, "}\n");
+                    p = body_end;
+                    continue;
+                };
+            };
+        };
+        // Default: emit the line as-is.
+        sb_append(sb, str_substring(src, p, eol));
+        if eol < slen { sb_append(sb, "\n"); };
+        p = eol + 1;
+    };
+    return sb_to_str(sb);
+}
 //
 // Resolver-level rewrite of two pieces of async syntax:
 //   `async fn name(...)`  → `fn name(...)` (keyword strip)
