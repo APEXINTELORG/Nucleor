@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.23] — 2026-04-25
+
+**T3.14 negative test — `#[allow_fn]` does not suppress
+error-tier diagnostics.** Locks in the RFC-0001 design intent
+that `#[allow_fn(CODE)]` (and its file-wide cousin
+`#[allow(CODE)]`) only operate on the warning tier. Errors
+remain non-suppressible no matter what the source claims —
+the warning ↔ error line is the only opt-out surface; the
+error-tier line is hard.
+
+The fixture writes `#[allow_fn(RT-001)]` on a `#[no_alloc]`
+fn that calls `Vec::new` and `.push`. Even with the
+suppressor in place, the build fails with two `error[RT-001]`
+lines (one per violation). The negative-fixture sweep auto-
+runs and asserts at least one diagnostic fires — which is
+exactly the invariant we're locking in.
+
+This is easy to regress on if someone refactors
+`filter_allow_suppressed` later; the fixture catches it.
+
+No compiler change. Verify gate: 387 → 388 (one new
+auto-discovered err fixture).
+
 ## [0.3.22] — 2026-04-25
 
 **`docs/v0.3-robotics-guide.md` — per-fn allow/deny attribute
