@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 70))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 71))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1048,6 +1048,20 @@ t321_diag001_self_suppress() {
     [ "$rc" = "0" ] || return 1
     if grep -qE 'warning\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
     if grep -qE 'error\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
+    return 0
+}
+
+t355_nested_field_assign_diagnostic() {
+    # T3.55 (v0.3.80): negative regression for nested struct field
+    # assignment safety net. Pre-v0.3.80, `outer.inner.field = X`
+    # segfaulted the compiler with ACCESS_VIOLATION
+    # (exit -1073741819). Post: clean diagnostic, no crash.
+    "$BIN" build "tests/fixtures/t355_nested_field_assign_diagnostic.nr" -o "_t355_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local code=$?
+    # Must NOT crash with access violation:
+    [ "$code" -ne 139 ] && [ "$code" -ne 134 ] || return 1
+    grep -q "nested struct field assignment is not yet supported" /tmp/_nuc_step.log || return 1
+    grep -q "Workaround:" /tmp/_nuc_step.log || return 1
     return 0
 }
 
@@ -2100,6 +2114,7 @@ step "T3.51 let-shadowing semantics (RHS sees outer binding, not new uninit slot
 step "T3.52 compound assignment desugar (+= -= *= /= %=)" t352_compound_assignment
 step "T3.53 inline closure-with-capture at .map/.filter call sites (T2.1/2/3 partial close)" t353_inline_closure_capture
 step "T3.54 match-arm stmt bodies (return/break/continue) — T1.2 partial close" t354_match_arm_return
+step "T3.55 nested struct field assign safety net (pre-v0.3.80 segfault → clean diagnostic)" t355_nested_field_assign_diagnostic
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
