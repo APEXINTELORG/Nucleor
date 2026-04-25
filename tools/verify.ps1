@@ -1052,14 +1052,21 @@ Step "T3.23 diag-code drift (s1 is_known_diag_code vs smoke list)" {
 }
 
 Step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" {
-    # v0.3.37 (T3.21): #[allow(DIAG-001)] suppresses DIAG-001
-    # itself. Fixture has #[allow(WAT-001)] (would fire DIAG-001
-    # for the WAT- unknown prefix) plus a file-wide
-    # #[allow(DIAG-001)]. The suppression pass runs AFTER the
-    # emit pass, so the DIAG-001 warning gets dropped before
-    # reaching the user. Build must be silent on diagnostics.
+    # v0.3.37 (T3.21, tightened v0.3.47): #[allow(DIAG-001)]
+    # suppresses DIAG-001 itself. Fixture has #[allow(WAT-001)]
+    # (would fire DIAG-001 for the WAT- unknown prefix) plus a
+    # file-wide #[allow(DIAG-001)]. The suppression pass runs
+    # AFTER the emit pass, so the DIAG-001 warning gets dropped
+    # before reaching the user.
+    #
+    # v0.3.47: tightened from 'no DIAG-001 fires' to a real
+    # three-way assertion -- build exits 0, no warning fires,
+    # no error fires (catches a regression that promotes
+    # DIAG-001 to error tier and bypasses the warning suppressor).
     $out = & $bin build "tests/fixtures/t321_diag001_self_suppress.nr" -o "_t321_diag001_self_check" --no-cache 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { return $false }
     if ($out -match "warning\[DIAG-001\]") { return $false }
+    if ($out -match "error\[DIAG-001\]") { return $false }
     return $true
 }
 

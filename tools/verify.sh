@@ -1028,14 +1028,26 @@ t323_diag_code_drift() {
 }
 
 t321_diag001_self_suppress() {
-    # T3.21 (v0.3.37): #[allow(DIAG-001)] suppresses DIAG-001
-    # itself. Fixture has #[allow(WAT-001)] (would fire DIAG-001
-    # for the WAT- unknown prefix) plus a file-wide
-    # #[allow(DIAG-001)]. The suppression pass runs AFTER the
-    # emit pass, so the DIAG-001 warning gets dropped before
-    # reaching the user. Build must be silent on diagnostics.
+    # T3.21 (v0.3.37, tightened v0.3.47): #[allow(DIAG-001)]
+    # suppresses DIAG-001 itself. Fixture has #[allow(WAT-001)]
+    # (would fire DIAG-001 for the WAT- unknown prefix) plus a
+    # file-wide #[allow(DIAG-001)]. The suppression pass runs
+    # AFTER the emit pass, so the DIAG-001 warning gets dropped
+    # before reaching the user.
+    #
+    # v0.3.47: tightened from "no DIAG-001 fires" to a real
+    # three-way assertion -- (1) build exits 0 (compilation
+    # actually succeeded; v0.3.37's check would pass even on a
+    # compile error since no DIAG-001 emits from a non-compiled
+    # file), (2) no DIAG-001 warning surfaces (the suppression
+    # worked), (3) no error fires either (catches a regression
+    # that promotes DIAG-001 to error tier and bypasses the
+    # warning suppressor).
     "$BIN" build "tests/fixtures/t321_diag001_self_suppress.nr" -o "_t321_diag001_self_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" = "0" ] || return 1
     if grep -qE 'warning\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
+    if grep -qE 'error\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
     return 0
 }
 

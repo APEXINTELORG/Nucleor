@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.47] — 2026-04-25
+
+**T3.21 strict assertion: build exit code + error-tier
+absence.** Companion tightening to v0.3.46. T3.21 (v0.3.37)
+asserted "no `warning[DIAG-001]` fires" — but a regression
+that broke `t321_diag001_self_suppress.nr` compilation
+entirely (e.g., a parser regression, a strip-pass change that
+mangled `#[allow(...)]`) would still pass T3.21 because no
+DIAG-001 fires from a non-compiled file.
+
+### Approach
+
+Added two new assertions to T3.21:
+
+1. **Build exit 0**. If compilation failed for any reason
+   (parse error, type error, link failure), the test fails.
+   Closes the "no DIAG-001 fires because nothing compiled"
+   bypass.
+2. **No `error[DIAG-001]` fires**. v0.3.36's design intent
+   makes DIAG-001 a warning; the suppression pass runs after
+   the emit pass and drops it. A regression that promoted
+   DIAG-001 to error tier would (a) bypass the warning
+   suppressor (errors are non-suppressible by `#[allow]` per
+   RFC-0001 design intent — see T3.19), (b) cause the build
+   to fail, and (c) emit `error[DIAG-001]` instead of
+   `warning[DIAG-001]`. T3.21's old check would catch (a)+(b)
+   indirectly via build exit code, but not the tier change
+   directly. Now both checked.
+
+### Pattern: assertion strictness vs implementation surface
+
+The v0.3.36 → v0.3.47 arc has tightened DIAG-001's verify
+coverage from a single existence check to a strict contract
+on:
+
+- Emit count, code substring quoting, attribute-shape phrasing,
+  per-fn name pairing (T3.20, v0.3.36 → v0.3.46)
+- Recursive self-suppression with build-success and tier-equality
+  (T3.21, v0.3.37 → v0.3.47)
+- Drift across all parallel hardcoded canonical sources
+  (T3.23/T3.24/T3.25/T3.26 + tightened cli_explain_full_smoke)
+
+Each tightening was triggered by reading the existing
+assertion and finding a class of regression that would slip
+through. The pattern closes now — DIAG-001's surface is
+locked in all directions a regression could attack from.
+
+### Verify gate
+
+- 399/399 green (same step total — T3.21's strictness grew,
+  no new step). Bootstrap fixed point unchanged at SHA
+  `4cd2d428`.
+- T3.21 confirmed manually: stage-1 returns exit 0 with no
+  warning[DIAG-001] and no error[DIAG-001] for the fixture.
+
 ## [0.3.46] — 2026-04-25
 
 **T3.20 strict shape-prefix assertions.** v0.3.36 + v0.3.38
