@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 67))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 68))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1048,6 +1048,23 @@ t321_diag001_self_suppress() {
     [ "$rc" = "0" ] || return 1
     if grep -qE 'warning\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
     if grep -qE 'error\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
+    return 0
+}
+
+t352_compound_assignment() {
+    # T3.52 (v0.3.77): regression test for compound-assignment desugar.
+    # Pre-v0.3.77, `x += 5;` lexed as two tokens (+, =) and the parser
+    # silently dropped the statement. Post-v0.3.77, lexer emits compound-op
+    # tokens (kind 110-114) and parser desugars `LHS op= RHS` to
+    # `LHS = LHS op RHS`. Pins all five forms (+=/-=/*=//=/%=) on bare
+    # var and struct-field LHS. Expected exit 3.
+    "$BIN" build "tests/fixtures/t352_compound_assignment.nr" -o "_t352_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t352_check" ] || [ -x "target/_t352_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t352_check" ]; then exe="target/_t352_check"; else exe="target/_t352_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    local code=$?
+    [ "$code" -eq 3 ] || return 1
     return 0
 }
 
@@ -2045,6 +2062,7 @@ step "T3.48 module-scope let diagnostic (parser previously dropped silently)" t3
 step "T3.49 trait-method-call indexed operand f64 dispatch (s.samples()[i])" t349_trait_method_vec_index
 step "T3.50 module-scope stmt-keyword diagnostic (return/if/while/for/match/loop/break/continue)" t350_module_stmt_keyword_diagnostic
 step "T3.51 let-shadowing semantics (RHS sees outer binding, not new uninit slot)" t351_shadowing
+step "T3.52 compound assignment desugar (+= -= *= /= %=)" t352_compound_assignment
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
