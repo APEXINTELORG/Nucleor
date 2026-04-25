@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 61))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 62))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1048,6 +1048,23 @@ t321_diag001_self_suppress() {
     [ "$rc" = "0" ] || return 1
     if grep -qE 'warning\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
     if grep -qE 'error\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
+    return 0
+}
+
+t346_assoc_fn_collections() {
+    # T3.46 (v0.3.71): regression test for Rust-style associated-fn
+    # aliases on the lowercase collection helpers. Pre-v0.3.71,
+    # `HashMap::new()` etc hit "unhandled expr kind 12" + broken
+    # `%r.-1` IR. Pins compile-and-run for the five aliases
+    # (HashMap/HashSet/BTreeMap/BTreeSet) plus the lowercase form
+    # baseline. Expected exit code 31 (1+2+4+8+16).
+    "$BIN" build "tests/fixtures/t346_assoc_fn_collections.nr" -o "_t346_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t346_check" ] || [ -x "target/_t346_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t346_check" ]; then exe="target/_t346_check"; else exe="target/_t346_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    local code=$?
+    [ "$code" -eq 31 ] || return 1
     return 0
 }
 
@@ -1942,6 +1959,7 @@ step "T3.42 indexing on fn-call result (make_vec()[i], v0.3.67 fix)" t342_fncall
 step "T3.43 nested indexing (grid[i][j], v0.3.68 fix — matrix CLOSED)" t343_nested_indexing
 step "T3.44 method-result-returning-struct field access (v0.3.69 fix)" t344_method_returning_struct
 step "T3.45 Kalman synthesis (v0.3.65-69 nested-composition lock)" t345_kalman_synthesis
+step "T3.46 assoc-fn collection aliases (HashMap/HashSet/BTreeMap/BTreeSet/VecDeque ::new)" t346_assoc_fn_collections
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

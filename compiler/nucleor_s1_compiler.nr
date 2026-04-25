@@ -9522,6 +9522,29 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             ir_block_add(blk, ir_const_int(zr, 0));
             return lx_new(zr, blk);
         };
+        // v0.3.71: Rust-style associated-fn aliases for the lowercase
+        // collection helpers. Maps `HashMap::new()` → `hashmap_new()`,
+        // `HashSet::new()` → `hashset_new()`, `BTreeMap::new()` →
+        // `btreemap_new()`, `BTreeSet::new()` → `btreeset_new()`,
+        // `VecDeque::new()` → `vecdeque_new()`. Without this, users
+        // coming from Rust who write `let m: HashMap<K,V> = HashMap::new();`
+        // hit "unhandled expr kind 12" with no diagnostic and broken
+        // `%r.-1` IR. The runtime helpers themselves (__nucleor_hashmap_new
+        // etc.) all exist; this is purely surface-level wiring.
+        if str_eq(mname, "new") {
+            let mut helper_n: str = "";
+            if str_eq(tname, "HashMap") { helper_n = "hashmap_new"; };
+            if str_eq(tname, "HashSet") { helper_n = "hashset_new"; };
+            if str_eq(tname, "BTreeMap") { helper_n = "btreemap_new"; };
+            if str_eq(tname, "BTreeSet") { helper_n = "btreeset_new"; };
+            if str_eq(tname, "VecDeque") { helper_n = "vecdeque_new"; };
+            if str_len(helper_n) > 0 {
+                let r: i64 = ctr_next(regs);
+                let mut empty_args: Vec<i32> = Vec::new();
+                ir_block_add(blk, ir_call_ex(r, helper_n, empty_args));
+                return lx_new(r, blk);
+            };
+        };
         if str_eq(tname, "Tensor") {
             let mut t_args: Vec<i32> = Vec::new();
             let ac: i64 = list_len(pool, args_list);
@@ -9561,6 +9584,14 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             };
             return lx_new(vr, cur);
         };
+        // v0.3.71: surface a clear diagnostic instead of falling through
+        // to the generic "unhandled expr kind 12" + broken `%r.-1` IR.
+        // Production-readiness: any unsupported `Type::method(...)` shape
+        // now reports the exact type and method that needs wiring.
+        print(str_concat("ERROR: unsupported associated-fn call ", str_concat(tname, str_concat("::", str_concat(mname, "(...). Supported: Vec/String/Box/HashMap/HSet/BTMap/BTSet/VecDeque ::new, Tensor::{zeros,fill,ones}, enum variants. For Rust-style HashMap/etc operations, use the lowercase API (hashmap_new, hashmap_insert, ...) until method dispatch lands.")))));
+        let zr: i64 = ctr_next(regs);
+        ir_block_add(blk, ir_const_int(zr, 0));
+        return lx_new(zr, blk);
     };
     if kind == 52 {
         let mode: i64 = node_field(pool, nid, 1);

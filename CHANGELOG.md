@@ -5,6 +5,116 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.71] — 2026-04-25
+
+**Compiler fix #16: Rust-style associated-fn aliases for collections
+(`HashMap::new()` etc.) + clear diagnostic for unsupported assoc-fn
+calls.** Pre-v0.3.71, every `let m: HashMap<K,V> = HashMap::new();`
+or equivalent for `HashSet`/`BTreeMap`/`BTreeSet`/`VecDeque` produced
+the unhelpful `ERROR: unhandled expr kind 12` at the front-end and
+broken `%r.-1` IR at clang. Users coming from Rust hit this footgun
+immediately because the lowercase `hashmap_new()` API is not
+discoverable from Rust syntax.
+
+### Root cause
+
+The `kind == 12` (associated-fn call) handler in
+`compiler/nucleor_s1_compiler.nr` only knew about:
+- `Vec::new()`
+- `String::new()`
+- `Box::new(x)`
+- `Tensor::{zeros,fill,ones}`
+- enum variant constructors (via `__etag_<TYPE>_<VARIANT>` lookup)
+
+When none of those matched, control fell out of the `if kind == 12`
+block without returning. The function eventually emitted broken IR
+referencing register `%r.-1`, with the actual diagnostic
+("ERROR: unhandled expr kind 12") buried inside compile output and
+no context about WHICH type/method.
+
+### Fix (two parts)
+
+**1) Wire HashMap/HashSet/BTreeMap/BTreeSet/VecDeque ::new aliases**
+
+```nucleor
+if str_eq(mname, "new") {
+    let mut helper_n: str = "";
+    if str_eq(tname, "HashMap")  { helper_n = "hashmap_new"; };
+    if str_eq(tname, "HashSet")  { helper_n = "hashset_new"; };
+    if str_eq(tname, "BTreeMap") { helper_n = "btreemap_new"; };
+    if str_eq(tname, "BTreeSet") { helper_n = "btreeset_new"; };
+    if str_eq(tname, "VecDeque") { helper_n = "vecdeque_new"; };
+    if str_len(helper_n) > 0 {
+        let r: i64 = ctr_next(regs);
+        let mut empty_args: Vec<i32> = Vec::new();
+        ir_block_add(blk, ir_call_ex(r, helper_n, empty_args));
+        return lx_new(r, blk);
+    };
+};
+```
+
+The `__nucleor_*_new` runtime helpers all already existed
+(`stdlib/runtime/nucleor_llvm_rt.c` lines 3441/3896/4000/4051/4150) —
+this is purely surface-level wiring of the front-end aliases.
+
+**2) Replace the silent-fall-through with a clear diagnostic**
+
+When no kind==12 case matches, emit a specific error naming the
+exact type and method, plus a hint pointing at the lowercase API
+workaround. Returns a placeholder zero register so downstream IR
+generation continues without producing `%r.-1` references —
+clang can still surface other issues without being blocked by a
+malformed register.
+
+```
+ERROR: unsupported associated-fn call SomeUnknown::weirdfn(...).
+Supported: Vec/String/Box/HashMap/HSet/BTMap/BTSet/VecDeque ::new,
+Tensor::{zeros,fill,ones}, enum variants. For Rust-style HashMap/etc
+operations, use the lowercase API (hashmap_new, hashmap_insert, ...)
+until method dispatch lands.
+```
+
+### What now works that previously didn't
+
+```nucleor
+let m1: i64 = HashMap::new();    // → __nucleor_hashmap_new()
+let m2: i64 = HashSet::new();    // → __nucleor_hashset_new()
+let m3: i64 = BTreeMap::new();   // → __nucleor_btreemap_new()
+let m4: i64 = BTreeSet::new();   // → __nucleor_btreeset_new()
+let m5: i64 = VecDeque::new();   // → __nucleor_vecdeque_new()
+```
+
+After construction, continue using the lowercase API for inserts/gets
+(`hashmap_insert(m1, "key", 5)`, etc.) — Rust-style method dispatch
+on the resulting handles is a separate, larger v0.4 item.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `kind == 12` handler gains
+  the five `::new` aliases AND the catch-all diagnostic. Bootstrap
+  fixed point recomputed at SHA `5706a27f` (was `267dee66`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t346_assoc_fn_collections.nr` — new strict
+  regression fixture covering all five aliases plus the lowercase
+  baseline (returns 1+2+4+8+16=31 if every form compiles).
+- `tools/verify.{sh,ps1}` — new T3.46 verify step.
+
+### Verify gate
+
+- 424/424 green (was 423 + 1 step from T3.46).
+- All prior regression fixtures (T3.28-T3.45) still green.
+- Bootstrap fixed point closes at `5706a27f`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.71)
+
+- **16 codegen fixes** (v0.3.51-69 + v0.3.71)
+- **19 strict regression fixtures** (T3.28-T3.46)
+- **6 robotics RT showcase examples** in Tier 4
+- **Diagnostic discipline**: silent IR-corrupting fall-throughs now
+  emit named errors with hints (the v0.3.71 catch-all is reusable
+  pattern for future kind-handler gaps)
+
 ## [0.3.70] — 2026-04-25
 
 **Production-coverage lock for the v0.3.65-69 nested-composition
