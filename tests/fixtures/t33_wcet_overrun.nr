@@ -8,6 +8,7 @@
 // Body has 1 while + 6 `;` → 6 × 100 = 600 units = 60 µs > 1 µs.
 
 #[deadline = 1]
+#[no_alloc]
 fn obvious_overrun(x: i64) -> i64 {
     let mut acc: i64 = 0;
     let mut i: i64 = 0;

@@ -5640,6 +5640,45 @@ fn enforce_static_wcet(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+// === T3.5 (v0.3.3): RT-007 cross-check — #[deadline] without #[no_alloc] / #[no_panic] ===
+// Allocations and panics are non-deterministic and can blow past
+// any fixed deadline budget. The runtime deadline check (RT-004)
+// catches overruns AFTER the fact. RT-007 nudges authors to also
+// declare intent: at least one of #[no_alloc] or #[no_panic]
+// should accompany #[deadline] so the compiler can statically
+// rule out the most common deadline-busters.
+
+fn enforce_deadline_safety(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let dl_entries: Vec<i32> = wcet_collect_deadline_fns(source);
+    let no_alloc_fns: Vec<i32> = collect_no_alloc_fns(source);
+    let no_panic_fns: Vec<i32> = collect_no_panic_fns(source);
+    let n: i64 = vec_len(dl_entries);
+    let mut i: i64 = 0;
+    while i + 1 < n {
+        let inner_name: str = vec_get(dl_entries, i);
+        let mut has_no_alloc: i64 = 0;
+        let mut j: i64 = 0;
+        let na_n: i64 = vec_len(no_alloc_fns);
+        while j < na_n && has_no_alloc == 0 {
+            if str_eq(vec_get(no_alloc_fns, j), inner_name) == 1 { has_no_alloc = 1; };
+            j = j + 1;
+        };
+        let mut has_no_panic: i64 = 0;
+        j = 0;
+        let np_n: i64 = vec_len(no_panic_fns);
+        while j < np_n && has_no_panic == 0 {
+            if str_eq(vec_get(no_panic_fns, j), inner_name) == 1 { has_no_panic = 1; };
+            j = j + 1;
+        };
+        if has_no_alloc == 0 && has_no_panic == 0 {
+            let msg: str = str_concat("'", str_concat(inner_name, "' has #[deadline] but neither #[no_alloc] nor #[no_panic]; allocations or panics can break WCET determinism (use #[allow(RT-007)] to suppress)"));
+            diag_add_ex(diags, "warning", "rt", "RT-007", msg, inner_name, 0, 0, "");
+        };
+        i = i + 2;
+    };
+    return diags;
+}
+
 fn byte_to_line(source: str, byte_off: i64) -> i64 {
     let slen: i64 = str_len(source);
     let mut line: i64 = 1;
@@ -9925,6 +9964,10 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // T3.3 (v0.3.2): static WCET estimator for #[deadline = N] fns.
     // Emits warning[RT-004] when the v1 estimate exceeds the budget.
     diags = enforce_static_wcet(diags, source);
+    // T3.5 (v0.3.3): RT-007 — warn when #[deadline] is paired with
+    // neither #[no_alloc] nor #[no_panic]. Either guard makes the
+    // deadline reachable in the first place.
+    diags = enforce_deadline_safety(diags, source);
     if diag_count(diags) > 0 {
         // RFC-0028 §Suppression — drop warnings the user has silenced
         // via `#[allow(CODE)]`, then promote any remaining warnings

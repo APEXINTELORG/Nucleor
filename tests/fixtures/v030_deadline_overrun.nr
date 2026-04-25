@@ -4,6 +4,7 @@
 // or the negative-fixture sweep.
 
 #[deadline = 1]
+#[no_alloc]
 fn overrun_fn() -> i64 {
     let mut acc: i64 = 0;
     let mut i: i64 = 0;
