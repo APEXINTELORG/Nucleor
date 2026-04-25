@@ -338,6 +338,24 @@ fn lex(src: str) -> Vec<i32> {
         else if c == 91 { tokens.push(tok_new(54, 0, p)); p = p + 1; }
         else if c == 93 { tokens.push(tok_new(55, 0, p)); p = p + 1; }
         else if c == 63 { tokens.push(tok_new(97, 0, p)); p = p + 1; }
+        else if c == 39 {
+            // T2.5 (v0.2.351): apostrophe → lifetime token (kind 98).
+            // Nucleor doesn't have char literals as a lex primitive
+            // (chars use u8/u32 via int literals), so `'<ident>` is
+            // unambiguously a lifetime marker (`'a`, `'static`, etc.).
+            // Token value holds the lifetime name (without leading `'`).
+            // Parse-only support — see T2.5 in CHANGELOG: lifetime
+            // params are accepted in generic param lists and reference
+            // types but treated as advisory metadata (the existing
+            // dynamic-scope borrow checker still enforces lifetimes;
+            // real lifetime-parameter checking lands in T2.5b).
+            let st: i64 = p;
+            p = p + 1;
+            let id_st: i64 = p;
+            while p < slen && (is_alnum(str_char_at(src, p)) == 1 || str_char_at(src, p) == 95) { p = p + 1; };
+            let lt_name: str = str_substring(src, id_st, p);
+            tokens.push(tok_new(98, lt_name, st));
+        }
         else { p = p + 1; };
     };
     tokens.push(tok_new(0, 0, slen));
@@ -783,6 +801,9 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     if pk(tokens, pos) == 82 {
         let mut cp: i64 = pos + 1;
         let mut prefix: str = "&";
+        // T2.5 (v0.2.351): skip optional lifetime annotation `'a` after `&`.
+        // Treated as advisory — does not appear in the parsed type string.
+        if pk(tokens, cp) == 98 { cp = cp + 1; };
         if pk(tokens, cp) == 12 { prefix = "&mut "; cp = cp + 1; };
         let mut tr: Vec<i32> = parse_type(tokens, cp);
         return pr(pr_pos(tr), str_concat(prefix, pr_val(tr)));
@@ -831,16 +852,34 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     };
     if pk(tokens, p2) == 32 {
         // Generic type: Name<T1, T2, ...>
+        // T2.5 (v0.2.351): accept lifetime args alongside type args.
+        // Lifetime args are skipped from the resulting type string —
+        // `Vec<'a, T>` parses as `Vec<T>` since codegen doesn't see
+        // lifetime info. Real lifetime threading lands in T2.5b.
         let mut cp: i64 = p2 + 1;
-        let mut inner: str = "";
+        let mut type_parts: Vec<i32> = Vec::new();
+        let mut first_arg: i64 = 1;
         while pk(tokens, cp) != 33 && pk(tokens, cp) != 0 {
-            if str_len(inner) > 0 {
+            if first_arg == 0 {
                 cp = expect_tok(tokens, cp, 44);
                 if pk(tokens, cp) == 33 { break; };
-                inner = str_concat(inner, ", ");
             };
-            let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
-            inner = str_concat(inner, pr_val(tr));
+            first_arg = 0;
+            if pk(tokens, cp) == 98 {
+                // Skip lifetime arg.
+                cp = cp + 1;
+            } else {
+                let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
+                type_parts.push(pr_val(tr));
+            };
+        };
+        let n: i64 = vec_len(type_parts);
+        if n == 0 { return pr(cp + 1, name); };
+        let mut inner: str = vec_get(type_parts, 0);
+        let mut tpi: i64 = 1;
+        while tpi < n {
+            inner = str_concat(inner, str_concat(", ", vec_get(type_parts, tpi)));
+            tpi = tpi + 1;
         };
         return pr(cp + 1, str_concat(name, str_concat("<", str_concat(inner, ">"))));
     };
@@ -848,7 +887,11 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
 }
 
 fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
-    // pos points at '<', returns (pos_after_>, list of param name strings)
+    // pos points at '<', returns (pos_after_>, list of param name strings).
+    // T2.5 (v0.2.351): accepts lifetime parameters (`'a`, `'static`, etc.)
+    // alongside type parameters. Lifetime params get prepended with `'`
+    // in the returned list so downstream consumers can distinguish them
+    // (today no consumer does, but the marker is preserved for T2.5b).
     let mut cp: i64 = pos + 1;
     let mut params: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 33 && pk(tokens, cp) != 0 {
@@ -856,7 +899,12 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             cp = expect_tok(tokens, cp, 44);
             if pk(tokens, cp) == 33 { break; };
         };
-        params.push(pkv(tokens, cp));
+        if pk(tokens, cp) == 98 {
+            // Lifetime param — store as `'<name>` for traceability.
+            params.push(str_concat("'", pkv(tokens, cp)));
+        } else {
+            params.push(pkv(tokens, cp));
+        };
         cp = cp + 1;
     };
     cp = cp + 1; // skip >

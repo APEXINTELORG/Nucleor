@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 15))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 16))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -758,6 +758,18 @@ tools_suite_memory_budget() {
     _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
 }
 
+t25_lifetime_params() {
+    # v0.2.351 (T2.5): lifetime tokens 'a, 'static lex as kind 98 +
+    # parse in generic params, reference types, generic instantiations.
+    # 4 #[test] cases. Advisory metadata only.
+    "$BIN" test "tests/smoke/t25_lifetime_params.nr" >/tmp/_nuc_step.log 2>&1
+    grep -q "PASS: test_no_lifetime_baseline" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_single_lifetime" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_two_lifetimes" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_mixed_lifetime_and_type_param" /tmp/_nuc_step.log || return 1
+    grep -q "test result: PASS (4 tests)" /tmp/_nuc_step.log || return 1
+}
+
 t24_trait_objects() {
     # v0.2.350 (T2.4): trait object 2-cell handle runtime helpers.
     # 5 #[test] cases covering manual dispatch + polymorphic collection.
@@ -1059,6 +1071,7 @@ step "T2.1 range patterns in match (1..=9 / 1..10)" t21_range_patterns
 step "T2.2 Vec iterator methods (.map/.filter/.fold/.sum/.min/.max)" t22_iter_methods
 step "T2.3 closure literals |args| body (no-capture)" t23_closure_literals
 step "T2.4 trait objects (Box<dyn Trait> 2-cell handle helpers)" t24_trait_objects
+step "T2.5 lifetime parameters parse cleanly (advisory metadata)" t25_lifetime_params
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------
