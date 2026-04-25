@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.11] — 2026-04-25
+
+**Test-framework coverage for the bare `arena_*` builtin path.**
+The `arena_new` / `arena_alloc` / `arena_reset` / `arena_destroy`
+builtins are reserved by the s1 compiler for the
+(still-unimplemented) RFC-0002 `Arena` builtin path. v0.2.150
+flagged that no runtime exported the `__nucleor_arena_*`
+symbols, so any source that called the bare names link-failed.
+v0.2.154 fixed the trap by shipping a minimal bump-arena impl
+in `nucleor_llvm_rt.c` (the always-linked main runtime); the
+only fixture proving that was `tests/lang/arena_builtin.nr` —
+a main-fn shape.
+
+This release adds `tests/smoke/t311_arena_builtin.nr`, an
+explicit `#[test]`-framework round-trip:
+
+```nucleor
+#[test]
+fn test_arena_round_trip() {
+    let a = arena_new(1024);
+    let p1 = arena_alloc(a, 64);
+    let p2 = arena_alloc(a, 64);
+    arena_reset(a);
+    let p3 = arena_alloc(a, 64);
+    arena_destroy(a);
+    assert_eq(1, 1); // reach = all five builtins linked
+    let _ = p1;
+    let _ = p2;
+    let _ = p3;
+}
+```
+
+The `Arena` and `&i64` opaque newtypes block direct
+`assert_ne(handle, 0)` shape, so the test asserts via "reach"
+(if execution gets to the assert, all five builtins linked
+and ran without crashing — that's the contract).
+
+No compiler change. Verify gate adds one explicit T3.11 step
+that runs the new fixture under `nuc test`.
+
 ## [0.3.10] — 2026-04-25
 
 **`examples/19_rt_pid.nr` — fully RT-annotated PID step.** A

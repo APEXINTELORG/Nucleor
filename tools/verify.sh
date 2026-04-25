@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 29))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 30))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -800,6 +800,17 @@ t36_no_dyn_clean() {
     grep -q "test result: PASS (2 tests)" /tmp/_nuc_step.log || return 1
 }
 
+t311_arena_builtin_smoke() {
+    # T3.11 (v0.3.11): #[test]-framework coverage for the bare
+    # arena_new / arena_alloc / arena_reset / arena_destroy
+    # builtin path. The runtime fix shipped in v0.2.154 but
+    # never received #[test] coverage (the existing
+    # tests/lang/arena_builtin.nr is a main-fn shape).
+    "$BIN" test "tests/smoke/t311_arena_builtin.nr" >/tmp/_nuc_step.log 2>&1
+    grep -q "PASS: test_arena_round_trip" /tmp/_nuc_step.log || return 1
+    grep -q "test result: PASS (1 test)" /tmp/_nuc_step.log || return 1
+}
+
 t310_rt008_recursion() {
     # T3.10 (v0.3.9): RT-008 — direct self-recursion in a
     # #[deadline] fn warns. Bounded recursion opts out via
@@ -1235,6 +1246,7 @@ step "T3.7 RT body checks strip strings and line comments" t37_rt_string_skip
 step "T3.8 RT-006 fires on RT attr + async fn" t38_rt006_async_attr
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.10 RT-008 fires on direct recursion in deadline fn" t310_rt008_recursion
+step "T3.11 bare arena_* builtins link + run end-to-end" t311_arena_builtin_smoke
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
