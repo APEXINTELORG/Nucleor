@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] — 2026-04-25
+
+**T3.3 static WCET v1 estimator (RT-004) + critical
+`expand_deadline` leak fix.** The compiler now estimates
+worst-case execution time for every `#[deadline = N]` fn at
+compile time and emits `warning[RT-004]: static WCET
+estimate K us ... exceeds #[deadline = N us]` when the
+estimate exceeds the budget. Combined with the v0.3.0
+runtime check, this gives users *both* compile-time and
+run-time safety nets for deadline annotations.
+
+This release also fixes a previously-undiscovered infinite
+loop in the resolver-level `expand_deadline` rewrite that
+caused 2 GB+ memory allocations on any source containing
+the literal text `#[deadline = N]` inside a `//` comment.
+The bug pre-dated v0.3.0 but was never tripped because no
+shipped fixture had `#[deadline]` text in a comment until
+T3.3's documentation comments did.
+
+### Approach (T3.3 v1 estimator)
+
+Conservative coarse heuristic intended to be a safety net
+rather than a precise WCET tool:
+
+1. Scan for the wrapper template `deadline_check(__nuc_dl_start, N)`
+   that the v0.3.0 T3.1 expander emits, walk back ≤1024 bytes
+   for the matching `__nuc_dl_inner_<...>` ident — that gives
+   us the (inner_name, deadline_us) pair without an AST.
+2. For each inner fn, count `;` statements and `while`
+   keywords inside the brace-balanced body.
+3. Apply a multiplier ladder: 0 whiles → ×1, 1 → ×100,
+   2 → ×1000, 3+ → ×10000. Default loop bound 100 because
+   `#[loop_bound(N)]` ships with WCET-002 in tools-suite.
+4. units / 10 ≈ µs (1 stmt ≈ 0.1 µs); compare to budget,
+   warn if estimate exceeds.
+
+Hard-capped at 1e6 units to bound runtime. `#[allow(RT-004)]`
+suppresses individual false positives — the v1 estimator is
+explicitly documented as crude. v0.3.2b (T3.3b) will swap
+the text scanner for an AST-based v2 with tighter bounds and
+promote unambiguous cases to error.
+
+### Approach (`expand_deadline` leak fix)
+
+The probe loop that scans forward from a `#[deadline]` line
+for the matching `fn` declaration used `found_fn < 0` as the
+"keep searching" condition. The "give up" branch (e.g. the
+next non-skip line is not a `fn`) set `found_fn = 0 - 2` and
+critically did *not* advance the `probe` pointer. Since
+`-2 < 0`, the loop spun forever, allocating fresh
+`str_substring` + `strip_spaces` strings each iteration. On
+a 10-line fixture with a `//` comment containing the literal
+text `#[deadline = 1]`, RSS hit 2 GB in ~3 seconds.
+
+Fix: changed the loop guard to `found_fn == 0 - 1` (initial
+sentinel only) so both -2 (give up) and >= 0 (found) exit
+the loop. Also added a `//` comment-skip guard at the top of
+the outer line-walk so comment lines mentioning `#[deadline]`
+don't bogusly trigger probes against subsequent fn
+declarations.
+
+### Verify gate
+
+- `tests/fixtures/t33_wcet_overrun.nr` — 1-µs deadline on a
+  fn whose v1 estimate is 60 µs (1 while × 6 stmts × 100 / 10).
+  Build emits the RT-004 warning; verify gate asserts the
+  exact text.
+- `tests/fixtures/t33_commentonly.nr` — minimal regression
+  fixture for the leak. Pre-fix: 2122 MB peak RSS in 3 s.
+  Post-fix: 4 MB peak in 0.1 s.
+- Self-host bootstrap fixed-point holds: stage-2 IR SHA-256
+  matches stage-3 IR SHA-256.
+- Stage-2 bootstrap RSS peak: 230 MB (v0.3.1 baseline 112 MB,
+  delta from T3.3 estimator scan over 600k-line compiler
+  source).
+
 ## [0.3.1] — 2026-04-24
 
 **T3.2 `#[no_panic]` enforcement (RT-002) — source-level v1

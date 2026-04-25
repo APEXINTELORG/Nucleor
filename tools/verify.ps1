@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 23
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 24
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -773,6 +773,18 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
     $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
     return $h1 -eq $h2
+}
+
+Step "T3.3 static WCET v1 estimator emits warning[RT-004]" {
+    # v0.3.2 take-2 (T3.3): rewritten without nested-while+continue
+    # after the prior draft caused a 2960 MB allocation runaway at
+    # verify gate step 349. New estimator counts stmts + while
+    # keywords with a coarse multiplier ladder + 1e6 stmt cap.
+    $out = & $bin build "tests/fixtures/t33_wcet_overrun.nr" -o "_t33_wcet_check" 2>&1 | Out-String
+    if ($out -notmatch "warning\[RT-004\]: static WCET estimate \d+ us") { return $false }
+    if ($out -notmatch "exceeds #\[deadline = 1 us\]") { return $false }
+    if ($out -notmatch "v1 estimator") { return $false }
+    return $true
 }
 
 Step "T3.2 #[no_panic] passes when body has no panic-prone calls" {

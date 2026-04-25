@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 21))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 22))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -758,6 +758,13 @@ tools_suite_memory_budget() {
     _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
 }
 
+t33_wcet_estimator() {
+    "$BIN" build "tests/fixtures/t33_wcet_overrun.nr" -o "_t33_wcet_check" >/tmp/_nuc_step.log 2>&1
+    grep -qE 'warning\[RT-004\]: static WCET estimate [0-9]+ us' /tmp/_nuc_step.log || return 1
+    grep -q 'exceeds #\[deadline = 1 us\]' /tmp/_nuc_step.log || return 1
+    grep -q 'v1 estimator' /tmp/_nuc_step.log || return 1
+}
+
 t32_no_panic_clean() {
     "$BIN" test "tests/smoke/t32_no_panic_clean.nr" >/tmp/_nuc_step.log 2>&1
     grep -q "PASS: test_no_panic_pure_arithmetic" /tmp/_nuc_step.log || return 1
@@ -1133,6 +1140,7 @@ step "T2.5 lifetime parameters parse cleanly (advisory metadata)" t25_lifetime_p
 step "T2.7 nuc doc --html emits styled standalone HTML" t27_doc_html
 step "T2.8 async (threads-only): async fn / async_spawn / .await" t28_async_threads
 step "T3.2 #[no_panic] passes when body has no panic-prone calls" t32_no_panic_clean
+step "T3.3 static WCET v1 estimator emits warning[RT-004]" t33_wcet_estimator
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
