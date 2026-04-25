@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 40))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 41))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -897,6 +897,41 @@ t39_rt005_ffi_call() {
     return 0
 }
 
+t325_examples_list_drift() {
+    # T3.25 (v0.3.43): drift gate for tools/examples.list
+    # against the actual examples/ directory. Every .nr file
+    # in examples/ must appear in examples.list, OR be in the
+    # explicit conditional allowlist (07_rust_interop, which
+    # is added by both verify scripts only when RUST_BRIDGE_LIB
+    # is set). Catches the class where a contributor adds a new
+    # example file but forgets to enumerate it in examples.list,
+    # so the verify gate silently skips it.
+    local dir_set list_set extras allowed
+    dir_set=$(ls "$ROOT"/examples/*.nr 2>/dev/null | xargs -n1 basename | sed 's/\.nr$//' | sort -u)
+    list_set=$(grep -v '^#' "$ROOT/tools/examples.list" | grep -v '^$' | sort -u)
+    # Conditional allowlist — examples that verify scripts add only
+    # under specific env conditions and are intentionally not in
+    # examples.list. Mirror in verify.ps1's T3.25 implementation.
+    allowed=$(echo "$list_set"; echo "07_rust_interop")
+    allowed=$(echo "$allowed" | sort -u)
+    extras=$(comm -23 <(echo "$dir_set") <(echo "$allowed"))
+    if [ -n "$extras" ]; then
+        echo "       drift: examples/*.nr not in examples.list (or conditional allowlist):" | sed 's/^/       /'
+        echo "$extras" | sed 's/^/         - /'
+        return 1
+    fi
+    # Reverse: every name in examples.list must correspond to an
+    # actual file. Catches stale entries.
+    local missing
+    missing=$(comm -23 <(echo "$list_set") <(echo "$dir_set"))
+    if [ -n "$missing" ]; then
+        echo "       drift: examples.list entries with no matching examples/*.nr file:" | sed 's/^/       /'
+        echo "$missing" | sed 's/^/         - /'
+        return 1
+    fi
+    return 0
+}
+
 t324_spec_doc_drift() {
     # T3.24 (v0.3.42): drift gate against the docs/spec/
     # Nucleor_Error_Codes.md Markdown table. Every code in the
@@ -1482,6 +1517,7 @@ step "T3.20 DIAG-001 fires for #[allow]/#[deny] unknown-prefix codes" t320_diag0
 step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" t321_diag001_self_suppress
 step "T3.23 diag-code drift (s1 is_known_diag_code vs smoke list)" t323_diag_code_drift
 step "T3.24 spec-doc drift (canonical codes vs Nucleor_Error_Codes.md)" t324_spec_doc_drift
+step "T3.25 examples-list drift (examples/*.nr vs examples.list)" t325_examples_list_drift
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
