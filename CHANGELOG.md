@@ -5,6 +5,77 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.27] — 2026-04-25
+
+**Cache-hit hardening pass for the diagnostic-dependent verify
+steps flagged in v0.3.26.** v0.3.26 noted that the source cache
+hit short-circuits the parse/typecheck/emit pipeline that emits
+RT-005 et al — meaning a stale `.nuc_cache` entry from prior
+interactive debugging silently swallows the warning the verify
+step is grepping for. v0.3.26 patched only T3.15 + T3.16. This
+release propagates the same `--no-cache` fix to every other
+diagnostic-dependent verify step the changelog flagged, plus
+the err-fixture sweep helper that drives all 43
+`tests/err/*.nr` negative tests.
+
+### Steps hardened (verify.sh + verify.ps1)
+
+Eight named diagnostic-grep steps now pass `--no-cache`:
+
+- **T3.3** — `t33_wcet_overrun.nr` (RT-004 static WCET v1)
+- **T3.5** — `t35_rt007.nr` (RT-007 unguarded `#[deadline]`)
+- **T3.8** — `err_rt006_async_no_alloc.nr` (RT-006 async + RT)
+- **T3.9** — `t39_rt005_ffi.nr` (RT-005 FFI from RT body)
+- **T3.10** — `t310_rt008_recursion.nr` + `t310_rt008_bounded.nr`
+  (RT-008 direct recursion + bounded negative)
+- **T3.12** — `t320_allow_fn.nr` (RT-007 with `#[allow_fn]`)
+- **T1.5d** — `err_priv_cross_module.nr` (MOD-003)
+
+Plus the bulk negative-fixture runner:
+
+- **`build_negative` (sh) / err sweep `foreach` (ps1)** —
+  applies to every file in `tests/err/*.nr` (currently 43:
+  ownership, taint, lifetimes, RT-006, deny_fn, allow_fn
+  non-suppression, etc.).
+
+### How v0.3.27 was validated
+
+Populated the source cache for five high-risk fixtures
+(`t33_wcet_overrun`, `t39_rt005_ffi`, `err_rt006_async_no_alloc`,
+`err_priv_cross_module`, `err_no_alloc_violation`) before
+invoking verify. Pre-v0.3.27 those fixtures would have hit the
+cache, silently passed without emitting diagnostics, and
+failed every diagnostic-grep assertion that depended on them.
+With v0.3.27's `--no-cache` propagation, all 390 verify steps
+stayed green against the contaminated cache.
+
+### Why not also harden the runtime / link tests
+
+Steps that build-and-RUN the resulting binary (e.g.
+`v030_deadline_overrun`'s runtime RT-004 abort check, the
+examples/* sweep) rely on the program's runtime behavior, not
+its compile-time diagnostic output. Cache hits return a
+byte-identical compiled artifact, so runtime semantics are
+preserved regardless of cache state. `--no-cache` is reserved
+for the steps where the assertion target is a stderr/stdout
+diagnostic that the cache short-circuit silences.
+
+### Verify gate
+
+- Same 390 steps as v0.3.26. No new fixtures, no new tests —
+  the prior v0.3.26 step count is preserved exactly. This is a
+  pure robustness ship.
+- Self-host bootstrap fixed point unchanged at A7D6876D
+  (no compiler change).
+
+This closes the v0.3.26 changelog's "same fix should propagate
+to T3.5/T3.8/T3.9/T3.10/T3.12/T3.13/T3.14 in a future hardening
+pass — flagged in this changelog rather than bundled into the
+v0.3.26 scope" note. T3.13 and T3.14 turned out to be err-sweep
+fixtures rather than named verify steps, so they're covered by
+the `build_negative` / err-sweep loop change rather than a
+named per-step patch.
+
 ## [0.3.26] — 2026-04-25
 
 **T3.16 negative test — `#[deadline]` intersection rule for the
