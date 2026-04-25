@@ -5004,6 +5004,15 @@ fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
                 };
             };
         };
+        if node_kind(pool, vexpr) == 7 {
+            // make_vec()[i] → fn returns Vec<T>; look up
+            // __fnfulltype_<NAME> seeded by populate_fn_returns_in_sym
+            // (v0.3.67). Mirrors the same kind 7 branch in
+            // binop_float_type's kind==10.
+            let fn_name: str = node_field(pool, vexpr, 1);
+            let ft: i64 = sym_get(sym, str_concat("__fnfulltype_", fn_name));
+            if ft >= 0 { vtype_str = ft; };
+        };
         if str_len(vtype_str) == 0 { return ""; };
         // Vec<T> → return T (base name).
         if str_starts_with(vtype_str, "Vec<") == 1 {
@@ -9994,9 +10003,17 @@ fn populate_fn_returns_in_sym(pool: Vec<i32>, fn_decls: Vec<i32>, sym: Vec<i32>)
     while i < n {
         let fnid: i64 = vec_get(fn_decls, i);
         let name: str = node_field(pool, fnid, 1);
-        let rtype: str = type_base_name(node_field(pool, fnid, 3));
+        let raw_rtype: str = node_field(pool, fnid, 3);
+        let rtype: str = type_base_name(raw_rtype);
         if str_len(name) > 0 && str_len(rtype) > 0 {
             sym_set(sym, str_concat("__fnret_", name), rtype);
+        };
+        // v0.3.67: also store the FULL declared return type
+        // (preserving generics like Vec<f64>) so kind==10 dispatch
+        // can extract the element type when an indexer's operand is
+        // a kind 7 (fn call). Mirrors __fulltype_ for variables.
+        if str_len(name) > 0 && str_len(raw_rtype) > 0 {
+            sym_set(sym, str_concat("__fnfulltype_", name), raw_rtype);
         };
         i = i + 1;
     };
@@ -10132,6 +10149,14 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
                     vtype_str = struct_field_type(pool, vec_get(structs, si), node_field(pool, vexpr, 2));
                 };
             };
+        };
+        if node_kind(pool, vexpr) == 7 {
+            // make_vec()[i] → fn returns Vec<T>; look up
+            // __fnfulltype_<NAME> seeded by populate_fn_returns_in_sym
+            // (v0.3.67) which preserves the generic.
+            let fn_name: str = node_field(pool, vexpr, 1);
+            let ft: i64 = sym_get(sym, str_concat("__fnfulltype_", fn_name));
+            if ft >= 0 { vtype_str = ft; };
         };
         if str_len(vtype_str) == 0 { return ""; };
         // Vec<T> → extract T. Length of "Vec<" = 4.
