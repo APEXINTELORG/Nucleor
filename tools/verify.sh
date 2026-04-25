@@ -1040,13 +1040,19 @@ t321_diag001_self_suppress() {
 }
 
 t320_diag001_unknown_code() {
-    # T3.20 (v0.3.36, extended v0.3.38): DIAG-001 warning fires
-    # for #[allow(_fn)] / #[deny(_fn)] CODE arguments not in the
-    # canonical enumerated diagnostic code set. Fixture has five
-    # offending attributes:
+    # T3.20 (v0.3.36, extended v0.3.38, v0.3.46): DIAG-001
+    # warning fires for #[allow(_fn)] / #[deny(_fn)] CODE
+    # arguments not in the canonical enumerated diagnostic
+    # code set. Fixture has five offending attributes:
     #   - 4 unknown-prefix codes (caught since v0.3.36)
     #   - 1 within-series typo (RT-099 — caught since v0.3.38)
     # Plus one control (#[allow_fn(RT-007)]) that must NOT fire.
+    #
+    # v0.3.46 strict-shape extension: also asserts each of the
+    # four attribute-shape prefixes emit correctly. Catches
+    # regressions where emit_diag001_unknown_codes swaps
+    # shapes (e.g., reports an #[allow] code with the
+    # #[allow_fn] message body and vice versa).
     "$BIN" build "tests/fixtures/t320_diag001_unknown_code.nr" -o "_t320_diag001_check" --no-cache >/tmp/_nuc_step.log 2>&1
     local count
     count=$(grep -cE 'warning\[DIAG-001\]' /tmp/_nuc_step.log)
@@ -1058,6 +1064,15 @@ t320_diag001_unknown_code() {
     grep -qE "'RT-099'"       /tmp/_nuc_step.log || return 1
     # Control: RT-007 must NOT trigger DIAG-001.
     if grep -qE "'RT-007'" /tmp/_nuc_step.log; then return 1; fi
+    # v0.3.46 shape-prefix assertions. Each pairing locks the
+    # diag's attribute-shape body text against the offending
+    # code, so a future swap (e.g., file-wide emitting per-fn
+    # text) is caught.
+    grep -qE "'WAT-001' in #\[allow\(\.\.\.\)\]"           /tmp/_nuc_step.log || return 1
+    grep -qE "'BOGUS-002' in #\[deny\(\.\.\.\)\]"          /tmp/_nuc_step.log || return 1
+    grep -qE "'GIBBERISH-003' in #\[allow_fn\(\.\.\.\)\] on fn 'first_unknown'"     /tmp/_nuc_step.log || return 1
+    grep -qE "'NONSENSE-004' in #\[deny_fn\(\.\.\.\)\] on fn 'second_unknown'"      /tmp/_nuc_step.log || return 1
+    grep -qE "'RT-099' in #\[allow_fn\(\.\.\.\)\] on fn 'within_series_typo'"       /tmp/_nuc_step.log || return 1
     return 0
 }
 

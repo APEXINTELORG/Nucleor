@@ -1064,11 +1064,18 @@ Step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" {
 }
 
 Step "T3.20 DIAG-001 fires for #[allow]/#[deny] unknown codes" {
-    # v0.3.36 (T3.20, extended v0.3.38): DIAG-001 warning fires
-    # for #[allow(_fn)] / #[deny(_fn)] CODE arguments not in the
-    # canonical enumerated diagnostic code set. Fixture has five
-    # offending attributes (4 unknown-prefix + 1 within-series
-    # typo RT-099) plus one control (#[allow_fn(RT-007)]).
+    # v0.3.36 (T3.20, extended v0.3.38, v0.3.46): DIAG-001
+    # warning fires for #[allow(_fn)] / #[deny(_fn)] CODE
+    # arguments not in the canonical enumerated diagnostic code
+    # set. Fixture has five offending attributes (4 unknown-
+    # prefix + 1 within-series typo RT-099) plus one control
+    # (#[allow_fn(RT-007)]).
+    #
+    # v0.3.46 strict-shape extension: also asserts each of the
+    # four attribute-shape prefixes emit correctly. Catches
+    # regressions where emit_diag001_unknown_codes swaps
+    # shapes (e.g., reports an #[allow] code with the
+    # #[allow_fn] message body and vice versa).
     $out = & $bin build "tests/fixtures/t320_diag001_unknown_code.nr" -o "_t320_diag001_check" --no-cache 2>&1 | Out-String
     $count = ([regex]::Matches($out, "warning\[DIAG-001\]")).Count
     if ($count -ne 5) { return $false }
@@ -1079,6 +1086,12 @@ Step "T3.20 DIAG-001 fires for #[allow]/#[deny] unknown codes" {
     if ($out -notmatch "'RT-099'")       { return $false }
     # Control: RT-007 must NOT trigger DIAG-001.
     if ($out -match "'RT-007'") { return $false }
+    # v0.3.46 shape-prefix assertions.
+    if ($out -notmatch "'WAT-001' in #\[allow\(\.\.\.\)\]")           { return $false }
+    if ($out -notmatch "'BOGUS-002' in #\[deny\(\.\.\.\)\]")          { return $false }
+    if ($out -notmatch "'GIBBERISH-003' in #\[allow_fn\(\.\.\.\)\] on fn 'first_unknown'")     { return $false }
+    if ($out -notmatch "'NONSENSE-004' in #\[deny_fn\(\.\.\.\)\] on fn 'second_unknown'")      { return $false }
+    if ($out -notmatch "'RT-099' in #\[allow_fn\(\.\.\.\)\] on fn 'within_series_typo'")       { return $false }
     return $true
 }
 

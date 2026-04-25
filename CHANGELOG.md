@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.46] — 2026-04-25
+
+**T3.20 strict shape-prefix assertions.** v0.3.36 + v0.3.38
+shipped DIAG-001 with four distinct emit shapes for the four
+allow/deny attribute kinds. T3.20 asserted the offending CODE
+substrings and total count, but didn't lock the
+attribute-shape phrasing to its corresponding code. A
+regression where `emit_diag001_unknown_codes` swapped the
+shape body text (e.g., reported a `#[allow]` code with the
+`#[allow_fn]` "on fn '<name>'" suffix, or vice versa) would
+silently pass T3.20.
+
+### Approach
+
+Added five new grep-style assertions to T3.20 that pair each
+offending code with its expected shape phrasing:
+
+```
+'WAT-001' in #[allow(...)]
+'BOGUS-002' in #[deny(...)]
+'GIBBERISH-003' in #[allow_fn(...)] on fn 'first_unknown'
+'NONSENSE-004' in #[deny_fn(...)] on fn 'second_unknown'
+'RT-099' in #[allow_fn(...)] on fn 'within_series_typo'
+```
+
+Each pair locks both:
+
+- Which code came from which shape (file-wide vs per-fn,
+  allow vs deny)
+- For per-fn shapes, that the fn name in the message matches
+  the actual offending fn (catches a regression where the
+  collector returns a wrong fn_name pairing)
+
+The fixture itself is unchanged (still
+`tests/fixtures/t320_diag001_unknown_code.nr`); only T3.20's
+assertion strictness grew.
+
+### Verify gate
+
+- 399/399 green (same step total — T3.20 stricter, no new
+  step). Bootstrap fixed point unchanged at SHA `4cd2d428`.
+- Bash uses `grep -qE` with escaped `(...)` and `#` chars.
+  PowerShell uses `-notmatch` with `\[\]\(\)` regex escapes.
+  Both styles preserve the literal-string match semantics.
+
+### Coverage table after v0.3.46 (DIAG-001)
+
+| Property | Locked since | Fixture | Step |
+|----------|--------------|---------|------|
+| Fires for unknown-prefix code | v0.3.36 | `t320_*.nr` | T3.20 |
+| Fires for within-series typo | v0.3.38 | `t320_*.nr` | T3.20 |
+| Each offending code quoted | v0.3.36 | `t320_*.nr` | T3.20 |
+| Total emit count exact | v0.3.38 | `t320_*.nr` | T3.20 |
+| Each shape phrasing pinned to code | v0.3.46 | `t320_*.nr` | T3.20 |
+| Per-fn shape pins fn name | v0.3.46 | `t320_*.nr` | T3.20 |
+| Suppressible via `#[allow(DIAG-001)]` | v0.3.37 | `t321_*.nr` | T3.21 |
+
+DIAG-001 is now strictly pinned on emit (count + each code +
+each shape + each fn name) and suppress (recursive
+self-allow). The attribute-shape phrasing is part of the
+public diagnostic-text contract; T3.20's tightening makes
+that contract enforceable rather than aspirational.
+
 ## [0.3.45] — 2026-04-25
 
 **Docs ship: robotics guide picks up the drift-gate
