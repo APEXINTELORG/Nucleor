@@ -94903,28 +94903,8 @@ bb.entry:
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
-  %r.2 = load i64, ptr %r.0
-  %r.3 = add i64 40, 0
-  %r.4.cmp = icmp eq i64 %r.2, %r.3
-  %r.4 = zext i1 %r.4.cmp to i64
-  %br.4.cond = icmp ne i64 %r.4, 0
-  br i1 %br.4.cond, label %L0, label %L2
-L0:
-  %r.5 = add i64 1, 0
-  ret i64 %r.5
-L2:
-  %r.6 = load i64, ptr %r.0
-  %r.7 = add i64 44, 0
-  %r.8.cmp = icmp eq i64 %r.6, %r.7
-  %r.8 = zext i1 %r.8.cmp to i64
-  %br.8.cond = icmp ne i64 %r.8, 0
-  br i1 %br.8.cond, label %L3, label %L5
-L3:
-  %r.9 = add i64 1, 0
-  ret i64 %r.9
-L5:
-  %r.10 = add i64 0, 0
-  ret i64 %r.10
+  %r.2 = add i64 0, 0
+  ret i64 %r.2
 }
 
 define i64 @close_parse_arg_list(i64 %p.0, i64 %p.1, i64 %p.2) {

@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 68))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 69))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1048,6 +1048,25 @@ t321_diag001_self_suppress() {
     [ "$rc" = "0" ] || return 1
     if grep -qE 'warning\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
     if grep -qE 'error\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
+    return 0
+}
+
+t353_inline_closure_capture() {
+    # T3.53 (v0.3.78): regression test for inline closure with capture
+    # at .map / .filter call sites. Pre-v0.3.78, the textual closure
+    # preprocessor hoisted arg-position closures into top-level fns
+    # without capture detection, producing cryptic clang link errors
+    # like "use of undefined value '@factor'". v0.3.78 routes
+    # arg-position closures through the AST kind 42 path (which has
+    # full capture support since v0.3.72). Pins five shapes; expected
+    # exit 0 (non-zero = which check failed).
+    "$BIN" build "tests/fixtures/t353_inline_closure_capture.nr" -o "_t353_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t353_check" ] || [ -x "target/_t353_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t353_check" ]; then exe="target/_t353_check"; else exe="target/_t353_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    local code=$?
+    [ "$code" -eq 0 ] || return 1
     return 0
 }
 
@@ -2063,6 +2082,7 @@ step "T3.49 trait-method-call indexed operand f64 dispatch (s.samples()[i])" t34
 step "T3.50 module-scope stmt-keyword diagnostic (return/if/while/for/match/loop/break/continue)" t350_module_stmt_keyword_diagnostic
 step "T3.51 let-shadowing semantics (RHS sees outer binding, not new uninit slot)" t351_shadowing
 step "T3.52 compound assignment desugar (+= -= *= /= %=)" t352_compound_assignment
+step "T3.53 inline closure-with-capture at .map/.filter call sites (T2.1/2/3 partial close)" t353_inline_closure_capture
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

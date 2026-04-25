@@ -12252,19 +12252,27 @@ fn expand_async_syntax(src: str) -> str {
 // a bitwise op.
 
 fn close_is_arg_position_char(c: i64) -> i64 {
-    // ONLY fire in unambiguous call-argument position. Earlier
-    // versions also fired after `=`, `=>`, `[`, `{`, `;` etc., but
-    // the existing parser already has full support for closures in
-    // let-binding RHS via the kind-49 closure-let lower path —
-    // intercepting them here breaks the indirect-call dispatch
-    // (the let-binding makes the local an i64 fn-pointer and the
-    // parser then can't find the global symbol to direct-call).
-    // So T2.3 source-rewriting fires ONLY after `(` and `,`, where
-    // a closure unambiguously means a function-pointer arg to the
-    // surrounding call. The existing parser handles every other
-    // closure context.
-    if c == 40 { return 1; };
-    if c == 44 { return 1; };
+    // v0.3.78 (T2.1/2/3 partial close): textual closure-hoisting is
+    // now FULLY DISABLED. Pre-v0.3.78, this preprocessor hoisted
+    // closures appearing after `(` or `,` into top-level fns, which
+    // produced cryptic `@captured` link errors when the closure body
+    // referenced any outer-scope variables (the textual layer has
+    // no scope info to detect captures).
+    //
+    // The AST closure-literal path (kind 42 in lower_expr at line
+    // ~9915) handles captures correctly via the v0.3.72 capture_set/
+    // capture_get runtime infrastructure. Routing arg-position
+    // closures through the AST path makes `v.map(|x| x * factor)`
+    // work the same way as `let f = |x| x * factor; v.map(f)` —
+    // the documented v1 boundary closes.
+    //
+    // The legacy comment about "indirect-call dispatch" no longer
+    // applies — the AST kind 42 path correctly emits ir_fn_ptr +
+    // capture_set sequence, which works in arg position because
+    // kind 8 (trait method call) lowers each arg via lower_expr,
+    // and lower_expr handles kind 42 by returning the fn pointer
+    // register with capture_set already emitted into the current
+    // block.
     return 0;
 }
 
