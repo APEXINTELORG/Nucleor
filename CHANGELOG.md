@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.105] — 2026-04-25
+
+**Bitwise/shift compound assigns + char literal escapes — closes
+two more silent-miscompute classes.**
+
+### `&=` `|=` `^=` `<<=` `>>=`
+
+Pre-v0.3.105, only the arithmetic family `+= -= *= /= %=`
+(tokens 110-114) was lexed. Writing `x &= 0x0f` lexed as `x` `&`
+`=` `0x0f` — the parser dropped the trailing `= 0x0f` silently
+and produced wrong values, with NO diagnostic. Same HIGH-blast
+silent-miscompute hazard class as bare bitwise ops (closed in
+v0.3.103) and shifts (v0.3.104).
+
+Fix: new lexer tokens 117-121 for the five compound ops; the
+existing `parse_stmt` compound-assign branch maps each one back
+to its bare-binop form and reuses the v0.3.103 / v0.3.104 codegen
+paths. Five-line desugar matrix.
+
+### Char literal escapes `'\n' '\t' '\r' '\0' '\\' '\'' '\"'`
+
+Pre-v0.3.105, every single-quote-prefixed token was treated as a
+lifetime annotation (token kind 98). So `let nl: i64 = '\n';`
+silently produced 0, hard-failing parsers, I/O code, terminal-
+control code, and any ASCII work reaching for the canonical
+char literal. Plain `'A'` had the same fate (silent 0).
+
+Fix: the lexer's `'` branch now first tries to recognize a char
+literal — `'X'` (3 chars: open, non-backslash char, close) or
+`'\X'` (4 chars: open, backslash, escape-char, close) — and
+emits an int literal token (kind 2) with the codepoint as the
+value. Lifetime parsing is preserved as the fallback when
+neither pattern matches, so `'a` / `'static` / `&'a T` still work.
+
+Recognized escapes: `\n` (10), `\t` (9), `\r` (13), `\0` (0),
+`\\` (92), `\'` (39), `\"` (34). Other backslash sequences
+emit the second char's codepoint (forward-compatible default).
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t381 returns 0 across all five
+compound assigns; t382 returns 0 across nine char literal forms
+(plain + 5 standard escapes). `bin/nucleor.exe` SHA `733bb3e7`.
+452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — lexer entries for tokens
+  117-121 and char-literal disambiguation in the `'` branch;
+  parse_stmt compound-assign branch extended.
+- `tests/fixtures/t381_compound_bitwise_assigns.nr` — pin.
+- `tests/fixtures/t382_char_literal_escapes.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.104] — 2026-04-25
 
 **Shift operators `<<` and `>>` — eliminates the second silent-
