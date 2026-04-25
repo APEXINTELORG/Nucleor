@@ -68,6 +68,7 @@ together on a single tight inner loop.
 | 20 | [20_rt_motor_ffi.nr](20_rt_motor_ffi.nr) | RT motor-control kernel calling marker-tagged extern fns | RFC-0001 full stack + `#[ffi_no_alloc]` / `#[ffi_no_panic]` per-extern markers (v0.3.24, intersection rule v0.3.26) |
 | 21 | [21_rt_state_machine.nr](21_rt_state_machine.nr) | Bounded-recursion segment walk (state machine / trajectory accumulator pattern) | `#[no_alloc]`, `#[no_panic]`, `#[deadline = N]`, `#[max_depth = N]` (v0.3.9 RT-008 opt-out) |
 | 22 | [22_rt_export.nr](22_rt_export.nr) | C-callable kernel via `#[export]` (Vec3 ops + scalar add) | `#[export]`, `#[repr(C)]` (v0.3.4 — `nuc gen-headers` produces matching C decls) |
+| 23 | [23_rt_sensor_fusion.nr](23_rt_sensor_fusion.nr) | Production-style sensor-fusion step combining all v0.3.51-63 codegen-fix shapes | `Vec<f64>`, `[f64; N]`, struct fields, trait methods, fn-call results, as-casts — all inline in natural form |
 
 ### Showcase
 

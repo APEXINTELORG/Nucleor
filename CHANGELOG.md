@@ -5,6 +5,87 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.64] — 2026-04-25
+
+**Production-coverage synthesis: `examples/23_rt_sensor_fusion.nr`
+combines all v0.3.51 → v0.3.63 codegen-fix shapes inline.** Per
+the "robust production ready fixes only" direction, the v0.3.51
+→ v0.3.63 arc shipped 10 codegen fixes against 11 strict
+isolated-shape regression fixtures. v0.3.64 adds the cross-shape
+synthesis that locks the production-relevant **composition** —
+all the operand kinds appearing in the same realistic fn body.
+
+### What's exercised inline (no lifted-let workarounds)
+
+```nucleor
+// Pattern 1: trait method on struct (v0.3.60).
+let speed_sq: f64 = v.magnitude();          // → 25.0
+
+// Pattern 2: fixed-array indexing + cast inline
+// (v0.3.62 + v0.3.61).
+let avg: f64 = (imu[0] + imu[1] + imu[2]) / (n as f64);   // → 3.5
+
+// Pattern 3: Vec[i] - fn-call() + fn-call().field
+// (v0.3.55 + v0.3.54 + v0.3.58).
+let drift: f64 = samples[0] - make_bias() + current_velocity().x;  // → 0.6
+
+// Pattern 4: trait method on fn-call() / cast
+// (v0.3.60 + v0.3.54 + v0.3.61 composition).
+let weight: f64 = current_velocity().magnitude() / (n as f64);    // → 4.666...
+```
+
+Each of those patterns is a real production shape — robotics
+control kernels constantly mix sensor reads, fn-call results,
+and casts in single inline expressions. Pre-v0.3.51 each would
+have miscomputed in at least one combination; post-v0.3.63 they
+all compute correctly in the natural form.
+
+### Files touched
+
+- `examples/23_rt_sensor_fusion.nr` — new runnable production-
+  pattern example.
+- `tools/examples.list` — added `23_rt_sensor_fusion` under
+  Tier 4 (T3.25 drift gate enforces).
+- `examples/README.md` — Tier 4 row added.
+- `tools/verify.{sh,ps1}` — new T3.39 verify step strictly
+  asserting all four output values
+  (25.0, 3.5, 0.6, 4.666...).
+- `docs/v0.3-robotics-guide.md` — worked-example index row
+  added.
+
+### Verify gate
+
+- 416/416 green (was 414 + 1 example sweep step from the new
+  file + 1 new T3.39). Verify total grew by 2.
+- All prior regression fixtures (T3.28-T3.38) still green.
+- Bootstrap fixed point unchanged at SHA `27480e3a` (no
+  compiler change — pure synthesis ship).
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc completion (v0.3.51 → v0.3.64)
+
+- **10 codegen fixes** to f64 / struct type resolution
+- **12 strict regression fixtures**: T3.28-T3.39 (the new
+  T3.39 covers cross-shape composition rather than a single
+  AST kind in isolation)
+- **5 robotics example files** (19, 20, 21, 22, 23) covering
+  the cookbook patterns end-to-end with realistic
+  domain code
+- **Reusable infrastructure**: `__fnret_<NAME>`,
+  `__fulltype_<vname>`, pass-1.5 fn_decls extension —
+  drives 7 type-resolver paths total across two parallel
+  resolvers
+- **All fixes coexist**: bootstrap stable through 10 SHA
+  refreshes
+
+The arc closes at the synthesis level. Real-world robotics
+code that combines arrays + fields + trait methods + fn calls
++ casts in inline expressions now compiles to correct LLVM IR
+without any workaround patterns. Future codegen work landing
+on top of this base must keep T3.28-T3.39 green and the
+bootstrap fixed point closing — the regression fixtures
+serve as the contract.
+
 ## [0.3.63] — 2026-04-25
 
 **Compiler fix #10: fixed-array-of-struct field access.**
