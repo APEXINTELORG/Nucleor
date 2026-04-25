@@ -17016,7 +17016,8 @@ bb.entry:
   %r.10 = alloca i64
   %r.21 = alloca i64
   %r.47 = alloca i64
-  %r.57 = alloca i64
+  %r.66 = alloca i64
+  %r.87 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
@@ -17099,43 +17100,85 @@ L5:
   %r.52 = load i64, ptr %r.10
   %r.53 = add i64 1, 0
   %r.54 = add i64 %r.52, %r.53
-  %r.55 = add i64 42, 0
-  %r.56 = call i64 @expect_tok(i64 %r.51, i64 %r.54, i64 %r.55)
-  store i64 %r.56, ptr %r.10
+  %r.55 = call i64 @pk(i64 %r.51, i64 %r.54)
+  %r.56 = add i64 44, 0
+  %r.57.cmp = icmp eq i64 %r.55, %r.56
+  %r.57 = zext i1 %r.57.cmp to i64
   %r.58 = load i64, ptr %r.0
   %r.59 = load i64, ptr %r.10
-  %r.60 = load i64, ptr %r.4
-  %r.61 = call i64 @parse_expr(i64 %r.58, i64 %r.59, i64 %r.60)
-  store i64 %r.61, ptr %r.57
-  %r.62 = load i64, ptr %r.57
-  %r.63 = call i64 @pr_pos(i64 %r.62)
-  store i64 %r.63, ptr %r.10
-  %r.64 = load i64, ptr %r.21
-  %r.65 = load i64, ptr %r.4
-  %r.66 = add i64 35, 0
-  %r.67 = load i64, ptr %r.47
-  %r.68 = load i64, ptr %r.57
-  %r.69 = call i64 @pr_val(i64 %r.68)
-  %r.70 = call i64 @mk3(i64 %r.65, i64 %r.66, i64 %r.67, i64 %r.69)
-  %r.71.a0 = inttoptr i64 %r.64 to ptr
-  call void @__nucleor_vec_push(ptr %r.71.a0, i64 %r.70)
-  %r.71 = add i64 0, 0
+  %r.60 = add i64 1, 0
+  %r.61 = add i64 %r.59, %r.53
+  %r.62 = call i64 @pk(i64 %r.58, i64 %r.61)
+  %r.63 = add i64 53, 0
+  %r.64.cmp = icmp eq i64 %r.62, %r.63
+  %r.64 = zext i1 %r.64.cmp to i64
+  %r.65 = or i64 %r.57, %r.64
+  %br.65.cond = icmp ne i64 %r.65, 0
+  br i1 %br.65.cond, label %L9, label %L10
+L9:
+  %r.67 = load i64, ptr %r.4
+  %r.68 = add i64 3, 0
+  %r.69 = load i64, ptr %r.47
+  %r.70 = call i64 @mk2(i64 %r.67, i64 %r.68, i64 %r.69)
+  store i64 %r.70, ptr %r.66
+  %r.71 = load i64, ptr %r.10
+  %r.72 = add i64 1, 0
+  %r.73 = add i64 %r.71, %r.72
+  store i64 %r.73, ptr %r.10
+  %r.74 = load i64, ptr %r.21
+  %r.75 = load i64, ptr %r.4
+  %r.76 = add i64 35, 0
+  %r.77 = load i64, ptr %r.47
+  %r.78 = load i64, ptr %r.66
+  %r.79 = call i64 @mk3(i64 %r.75, i64 %r.76, i64 %r.77, i64 %r.78)
+  %r.80.a0 = inttoptr i64 %r.74 to ptr
+  call void @__nucleor_vec_push(ptr %r.80.a0, i64 %r.79)
+  %r.80 = add i64 0, 0
+  br label %L11
+L10:
+  %r.81 = load i64, ptr %r.0
+  %r.82 = load i64, ptr %r.10
+  %r.83 = add i64 1, 0
+  %r.84 = add i64 %r.82, %r.83
+  %r.85 = add i64 42, 0
+  %r.86 = call i64 @expect_tok(i64 %r.81, i64 %r.84, i64 %r.85)
+  store i64 %r.86, ptr %r.10
+  %r.88 = load i64, ptr %r.0
+  %r.89 = load i64, ptr %r.10
+  %r.90 = load i64, ptr %r.4
+  %r.91 = call i64 @parse_expr(i64 %r.88, i64 %r.89, i64 %r.90)
+  store i64 %r.91, ptr %r.87
+  %r.92 = load i64, ptr %r.87
+  %r.93 = call i64 @pr_pos(i64 %r.92)
+  store i64 %r.93, ptr %r.10
+  %r.94 = load i64, ptr %r.21
+  %r.95 = load i64, ptr %r.4
+  %r.96 = add i64 35, 0
+  %r.97 = load i64, ptr %r.47
+  %r.98 = load i64, ptr %r.87
+  %r.99 = call i64 @pr_val(i64 %r.98)
+  %r.100 = call i64 @mk3(i64 %r.95, i64 %r.96, i64 %r.97, i64 %r.99)
+  %r.101.a0 = inttoptr i64 %r.94 to ptr
+  call void @__nucleor_vec_push(ptr %r.101.a0, i64 %r.100)
+  %r.101 = add i64 0, 0
+  br label %L11
+L11:
   br label %L0
 L2:
-  %r.72 = load i64, ptr %r.10
-  %r.73 = add i64 1, 0
-  %r.74 = add i64 %r.72, %r.73
-  store i64 %r.74, ptr %r.10
-  %r.75 = load i64, ptr %r.10
-  %r.76 = load i64, ptr %r.4
-  %r.77 = add i64 34, 0
-  %r.78 = load i64, ptr %r.6
-  %r.79 = load i64, ptr %r.4
-  %r.80 = load i64, ptr %r.21
-  %r.81 = call i64 @mk_list(i64 %r.79, i64 %r.80)
-  %r.82 = call i64 @mk3(i64 %r.76, i64 %r.77, i64 %r.78, i64 %r.81)
-  %r.83 = call i64 @pr(i64 %r.75, i64 %r.82)
-  ret i64 %r.83
+  %r.102 = load i64, ptr %r.10
+  %r.103 = add i64 1, 0
+  %r.104 = add i64 %r.102, %r.103
+  store i64 %r.104, ptr %r.10
+  %r.105 = load i64, ptr %r.10
+  %r.106 = load i64, ptr %r.4
+  %r.107 = add i64 34, 0
+  %r.108 = load i64, ptr %r.6
+  %r.109 = load i64, ptr %r.4
+  %r.110 = load i64, ptr %r.21
+  %r.111 = call i64 @mk_list(i64 %r.109, i64 %r.110)
+  %r.112 = call i64 @mk3(i64 %r.106, i64 %r.107, i64 %r.108, i64 %r.111)
+  %r.113 = call i64 @pr(i64 %r.105, i64 %r.112)
+  ret i64 %r.113
 }
 
 define i64 @parse_enum_decl(i64 %p.0, i64 %p.1, i64 %p.2) {

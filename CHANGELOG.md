@@ -5,6 +5,87 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.90] — 2026-04-25
+
+**Feature: shorthand field initialization in struct literals.**
+Pre-v0.3.90, `Point { x: 5, y }` (where `y` is shorthand for
+`y: y` from the surrounding scope, the canonical Rust idiom)
+failed at clang link with `use of undefined value '@Point'`
+because parse_struct_init expected `:` after every field name
+and cascaded badly when it got `,` or `}` instead.
+
+### Fix (with bisect note)
+
+Add shorthand handling inside `parse_struct_init`: if the next
+token after a field name is `,` (44) or `}` (53), synthesize a
+var-ref node with the same name as the field (kind 3) and use
+that as the value.
+
+```nucleor
+let fn2: i64 = pkv(tokens, cp);
+if pk(tokens, cp + 1) == 44 || pk(tokens, cp + 1) == 53 {
+    let var_node: i64 = mk2(pool, 3, fn2);
+    cp = cp + 1;
+    inits.push(mk3(pool, 35, fn2, var_node));
+} else {
+    cp = expect_tok(tokens, cp + 1, 42);
+    let mut er: Vec<i32> = parse_expr(tokens, cp, pool);
+    cp = pr_pos(er);
+    inits.push(mk3(pool, 35, fn2, pr_val(er)));
+};
+```
+
+### Known v1 limitation: pure-shorthand triggers from parse_primary
+
+The initial v0.3.90 attempt also broadened the parse_primary
+struct-init detection to fire on `IDENT { IDENT , ...` and
+`IDENT { IDENT }` (so pure-shorthand `Point { x, y }` would
+parse). This caused a self-host regression — the new triggers
+incorrectly fired on `if cond { intvar }` shapes inside the s1
+compiler source itself, producing broken `%r.-1` IR. Reverted.
+
+What this means in practice: at least ONE field must use the
+explicit `name: value` form to trigger struct-init detection.
+Mixed-shorthand like `Point { x: 5, y }` works (T3.66 pins).
+Pure-shorthand `Point { x, y }` does not — workaround is
+`Point { x: x, y }` or `Point { x: x, y: y }`. Tracked for a
+future ship that needs a smarter disambiguator.
+
+### What now works that previously didn't
+
+```nucleor
+let y: i64 = 4;
+
+let p1: Point = Point { x: 5, y };           // ✓ mixed shorthand
+let p2: Point = Point { x: 5, y: y };        // ✓ explicit (regression)
+
+// Still not supported (workaround above):
+// let p3: Point = Point { x, y };           // ✗ pure shorthand
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `parse_struct_init` gains
+  shorthand handling. Bootstrap fixed point at SHA `acfd7375`
+  (was `f7c3d847`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t366_struct_init_shorthand.nr` — new strict
+  regression fixture covering mixed shorthand + explicit baseline.
+- `tools/verify.{sh,ps1}` — new T3.66 verify step.
+
+### Verify gate
+
+- 444/444 green (was 443 + 1 step from T3.66).
+- All prior regression fixtures (T3.28-T3.65) still green.
+- Bootstrap fixed point closes at `acfd7375`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.90)
+
+- **29 codegen + 2 runtime + 6 parser/check diagnostic = 37 total**
+- **39 strict regression fixtures** (T3.28-T3.66)
+- **6 robotics RT showcase examples** in Tier 4
+
 ## [0.3.89] — 2026-04-25
 
 **Feature: generic params on trait methods (`fn count<T>(self)`).**
