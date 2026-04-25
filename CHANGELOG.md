@@ -5,6 +5,79 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.29] — 2026-04-25
+
+**RT-007 warning text now mentions the v0.3.20 per-fn allow.**
+Companion to v0.3.28's RT-005 update — same staleness class.
+RT-007's runtime warning has said "(use #[allow(RT-007)] to
+suppress)" since v0.3.3, but v0.3.20 introduced
+`#[allow_fn(RT-007)]` (per-fn variant). A user reading the
+warning today learns about the file-wide blunt instrument but
+not about the per-fn surgical opt-out — which is usually what
+you actually want.
+
+### Before / After
+
+```
+# v0.3.3 → v0.3.28 (stale)
+warning[RT-007]: 'pid_step' has #[deadline] but neither
+  #[no_alloc] nor #[no_panic]; allocations or panics can
+  break WCET determinism (use #[allow(RT-007)] to suppress)
+
+# v0.3.29 (current)
+warning[RT-007]: 'pid_step' has #[deadline] but neither
+  #[no_alloc] nor #[no_panic]; allocations or panics can
+  break WCET determinism (use #[allow(RT-007)] file-wide,
+  or #[allow_fn(RT-007)] per-fn)
+```
+
+### Approach
+
+Single-line edit to the `str_concat` chain that builds the
+RT-007 message in `enforce_rt007`. No structural change; only
+the trailing parenthetical hint swapped.
+
+### Verify gate
+
+- All 390 verify steps pass. T3.5 and T3.12 grep for
+  `warning[RT-007]:` prefix and the message body up to
+  `#[no_panic]` — both predate the parenthetical hint and
+  survive the rename.
+- Bootstrap fixed point recomputed at SHA `367b7377` (was
+  `8de96dcb`). New SHA reflects the longer .rodata string.
+- `bootstrap/nucleor_s1_seed.ll` refreshed; T1.7 (Linux
+  cross-build seed-vs-current SHA equality) passes.
+- Stage-2/3/4 chain confirmed byte-identical
+  (`stage_c.ll == stage_d.ll`). RSS during bootstrap stayed
+  comfortably under 2 GB.
+
+### Why not also bundle deny_fn
+
+`#[deny_fn(RT-007)]` (v0.3.21) would PROMOTE RT-007 to error
+rather than SUPPRESS it. Mentioning a promoter in a
+suppression hint is misleading shape-wise — the hint paragraph
+says "suppress this" and a deny mention would be "no, make
+this stricter". The right surface for `#[deny_fn]` is the
+`nuc explain RT-007` registry hint, not the inline warning's
+parenthetical. That registry update is a separate ship
+(documents reference the explain output rather than the
+warning).
+
+### Companion ship arc
+
+v0.3.28 — RT-005 mentions per-symbol `#[ffi_no_alloc]` /
+            `#[ffi_no_panic]` markers (v0.3.24).
+v0.3.29 — RT-007 mentions per-fn `#[allow_fn(RT-007)]`
+            (v0.3.20).
+
+Two of the three RT-warning messages now reference the
+post-v0.3.0 opt-out variants. RT-008's "add #[max_depth = N] to
+opt out" suffix is already current — `#[max_depth]` shipped
+in v0.3.9 alongside RT-008. RT-004's "use #[allow(RT-004)] if
+wrong" doesn't yet mention `#[allow_fn(RT-004)]` but the
+v0.3.20 per-fn allow applies to all warning codes uniformly,
+so it's a candidate for a future hardening pass.
+
 ## [0.3.28] — 2026-04-25
 
 **RT-005 warning text now mentions the v0.3.24 markers.** The

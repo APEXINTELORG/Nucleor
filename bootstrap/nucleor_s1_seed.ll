@@ -4133,7 +4133,7 @@ declare i64 @__nucleor_tensor_sample_gumbel(i64, i64)
 @.str.3379 = private unnamed_addr constant [7 x i8] c"RT-004\00"
 @.str.3380 = private unnamed_addr constant [1 x i8] c"\00"
 @.str.3381 = private unnamed_addr constant [2 x i8] c"'\00"
-@.str.3382 = private unnamed_addr constant [143 x i8] c"' has #[deadline] but neither #[no_alloc] nor #[no_panic]; allocations or panics can break WCET determinism (use #[allow(RT-007)] to suppress)\00"
+@.str.3382 = private unnamed_addr constant [172 x i8] c"' has #[deadline] but neither #[no_alloc] nor #[no_panic]; allocations or panics can break WCET determinism (use #[allow(RT-007)] file-wide, or #[allow_fn(RT-007)] per-fn)\00"
 @.str.3383 = private unnamed_addr constant [8 x i8] c"warning\00"
 @.str.3384 = private unnamed_addr constant [3 x i8] c"rt\00"
 @.str.3385 = private unnamed_addr constant [7 x i8] c"RT-007\00"

@@ -6581,7 +6581,7 @@ fn enforce_deadline_safety(diags: Vec<i32>, source: str) -> Vec<i32> {
             j = j + 1;
         };
         if has_no_alloc == 0 && has_no_panic == 0 {
-            let msg: str = str_concat("'", str_concat(inner_name, "' has #[deadline] but neither #[no_alloc] nor #[no_panic]; allocations or panics can break WCET determinism (use #[allow(RT-007)] to suppress)"));
+            let msg: str = str_concat("'", str_concat(inner_name, "' has #[deadline] but neither #[no_alloc] nor #[no_panic]; allocations or panics can break WCET determinism (use #[allow(RT-007)] file-wide, or #[allow_fn(RT-007)] per-fn)"));
             diag_add_ex(diags, "warning", "rt", "RT-007", msg, inner_name, 0, 0, "");
         };
         i = i + 2;
