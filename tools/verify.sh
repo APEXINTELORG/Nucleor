@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 34))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 35))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -873,6 +873,22 @@ t39_rt005_ffi_call() {
     return 0
 }
 
+t321_deny_fn_promotes_strict() {
+    # T3.18 (v0.3.33): the err-sweep already builds
+    # err_t321_deny_fn.nr and asserts SOME diagnostic fires, but
+    # `build_negative` accepts either error or warning -- so a
+    # regression where #[deny_fn(RT-007)] silently stops
+    # promoting (warning stays warning) would still pass the
+    # sweep. T3.18 strictly asserts that:
+    #   * error[RT-007] fires (the promotion happened), AND
+    #   * warning[RT-007] does NOT fire (the original tier was
+    #     replaced, not added alongside).
+    "$BIN" build "tests/err/err_t321_deny_fn.nr" -o "_t321_strict_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    grep -qE 'error\[RT-007\]' /tmp/_nuc_step.log || return 1
+    if grep -qE 'warning\[RT-007\]' /tmp/_nuc_step.log; then return 1; fi
+    return 0
+}
+
 t317_allow_fn_rt004() {
     # T3.17 (v0.3.32): closes the coverage gap left by T3.12
     # (which proved #[allow_fn] works for RT-007 only). Same
@@ -1316,6 +1332,7 @@ step "T3.7 RT body checks strip strings and line comments" t37_rt_string_skip
 step "T3.8 RT-006 fires on RT attr + async fn" t38_rt006_async_attr
 step "T3.12 #[allow_fn] suppresses one RT diag for one fn" t320_allow_fn_per_fn
 step "T3.17 #[allow_fn(RT-004)] suppresses static WCET warning per-fn" t317_allow_fn_rt004
+step "T3.18 #[deny_fn(RT-007)] promotes warning to error (strict)" t321_deny_fn_promotes_strict
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
