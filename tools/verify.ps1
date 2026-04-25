@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 36
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 37
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -867,6 +867,21 @@ Step "T3.9 RT-005 fires on FFI call from RT fn body" {
     $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-005\]: FFI call 'host_telemetry'") { return $false }
     if ($out -notmatch "from #\[no_alloc\] fn 'rt_path'") { return $false }
+    return $true
+}
+
+Step "T3.18 #[deny_fn(RT-007)] promotes warning to error (strict)" {
+    # v0.3.33 (T3.18): the err-sweep already builds
+    # err_t321_deny_fn.nr and asserts SOME diagnostic fires, but
+    # build_negative accepts either error or warning -- so a
+    # regression where #[deny_fn(RT-007)] silently stops promoting
+    # (warning stays warning) would still pass the sweep. T3.18
+    # strictly asserts error[RT-007] fires AND warning[RT-007]
+    # does NOT fire (the original tier was replaced, not added
+    # alongside).
+    $out = & $bin build "tests/err/err_t321_deny_fn.nr" -o "_t321_strict_check" --no-cache 2>&1 | Out-String
+    if ($out -notmatch "error\[RT-007\]") { return $false }
+    if ($out -match "warning\[RT-007\]") { return $false }
     return $true
 }
 

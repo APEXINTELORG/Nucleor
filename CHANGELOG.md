@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.33] — 2026-04-25
+
+**T3.18 strict assertion: `#[deny_fn(RT-007)]` actually
+promotes warning to error.** v0.3.21 shipped per-fn promotion
+and v0.3.23 added a negative test (`err_t321_deny_fn.nr`) that
+the err-sweep auto-runs — but `build_negative`'s assertion grep
+accepts ANY diagnostic (`error\b|error\[|warning\b|warning\[`),
+so a regression where `#[deny_fn(RT-007)]` silently stopped
+promoting (warning stays warning) would still pass the sweep.
+T3.18 closes that gap with a strict tier-equality assertion.
+
+### Approach
+
+New T3.18 verify step (sh + ps1) that builds the existing
+`err_t321_deny_fn.nr` and asserts:
+
+- `error[RT-007]` MUST fire (the promotion happened)
+- `warning[RT-007]` must NOT fire (the original tier was
+  REPLACED, not added alongside — promote is not add)
+
+Together those pin the deny_fn semantics: the diagnostic moves
+from warning to error tier, doesn't double-fire.
+
+### Why this matters
+
+The promotion path is two pieces glued together:
+1. `collect_deny_fn_pairs(source)` — same shape as the v0.3.20
+   allow_fn collector, walks for `#[deny_fn(CODE)]\n<attrs>\nfn
+   NAME` patterns and returns `(fname, code)` pairs.
+2. `promote_denied_to_errors(diags, ...)` — for each existing
+   warning whose `(fn_name, code)` matches a denied pair, flips
+   the severity field from "warning" to "error".
+
+If either piece breaks (collector misses the pair, promoter
+misses the flip, ordering changes so the deny runs before the
+warnings emit, etc.) the warning-stays-warning regression is
+silent under the sweep — `error[RT-007]` would be absent and
+the sweep wouldn't notice. T3.18 catches that class.
+
+### Verify gate
+
+- 392/392 green (was 391 + 1 new step). Verify total grew by
+  one in both verify.sh and verify.ps1.
+- T3.18 confirmed manually: stage-1 emits exactly one
+  `error[RT-007]` and zero `warning[RT-007]`.
+- Self-host bootstrap fixed point unchanged at SHA `8ae2941f`
+  (no compiler change — verify-step-only).
+
+### Coverage table after v0.3.33
+
+`#[allow_fn]` / `#[deny_fn]` per-fn opt-out / promote pair:
+
+| Per-fn op | Code | Fixture | Step |
+|-----------|------|---------|------|
+| `#[allow_fn]` | RT-004 | `t317_allow_fn_rt004.nr` | T3.17 (v0.3.32) |
+| `#[allow_fn]` | RT-007 | `t320_allow_fn.nr` | T3.12 (v0.3.20) |
+| `#[deny_fn]` | RT-007 | `err_t321_deny_fn.nr` | T3.18 (v0.3.33) |
+
+The four-square ({allow,deny} × {RT-004,RT-007}) is now half
+populated by purpose-built fixtures with strict tier
+assertions. Remaining quadrants (`#[deny_fn(RT-004)]`,
+`#[deny_fn(RT-005)]`, `#[deny_fn(RT-008)]`) are mechanical to
+add — same shape — but lower marginal value than v0.3.33's
+gap-closing strict assertion. They can be added if a future
+ship needs the symmetry, or left for the v0.4 AST-based RT
+re-implementation that supersedes this whole layer.
+
 ## [0.3.32] — 2026-04-25
 
 **T3.17 fixture proves `#[allow_fn(RT-004)]` per-fn opt-out is
