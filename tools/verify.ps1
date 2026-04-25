@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 41
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 42
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -889,6 +889,48 @@ Step "T3.9 RT-005 fires on FFI call from RT fn body" {
     $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-005\]: FFI call 'host_telemetry'") { return $false }
     if ($out -notmatch "from #\[no_alloc\] fn 'rt_path'") { return $false }
+    return $true
+}
+
+Step "T3.24 spec-doc drift (canonical codes vs Nucleor_Error_Codes.md)" {
+    # v0.3.42 (T3.24): drift gate against the spec doc Markdown
+    # table. Every canonical code (verify.ps1 codes array) must
+    # appear in the spec doc; every spec doc code must be in the
+    # canonical set. Catches the drift class that left
+    # NUM-006..020 missing from the spec for ~80 ships after
+    # their v0.2.319 introduction.
+    $shPath   = Join-Path $root "tools\verify.ps1"
+    $specPath = Join-Path $root "docs\spec\Nucleor_Error_Codes.md"
+    function _ExtractCanonical($path) {
+        $lines = Get-Content $path
+        $inBlock = $false
+        $body = New-Object System.Collections.ArrayList
+        foreach ($line in $lines) {
+            if ($line -match '^\s*\$codes\s*=\s*@\(') { $inBlock = $true; continue }
+            if ($inBlock -and $line -match '^\s*\)\s*$') { $inBlock = $false; continue }
+            if ($inBlock) { [void]$body.Add($line) }
+        }
+        $body | Select-String -AllMatches -Pattern '"([A-Z]+-?[0-9]+)"' `
+            | ForEach-Object { $_.Matches } `
+            | ForEach-Object { $_.Groups[1].Value } `
+            | Sort-Object -Unique
+    }
+    $canon = _ExtractCanonical $shPath
+    $spec = Get-Content $specPath `
+        | Select-String -AllMatches -Pattern '\| (NR[0-9]+|[A-Z]+-[0-9]+) \|' `
+        | ForEach-Object { $_.Matches } `
+        | ForEach-Object { $_.Groups[1].Value } `
+        | Sort-Object -Unique
+    $missingFromSpec  = $canon | Where-Object { $spec  -notcontains $_ }
+    $missingFromCanon = $spec  | Where-Object { $canon -notcontains $_ }
+    if ($missingFromSpec) {
+        Write-Host ("       drift: codes in canonical set but missing from spec doc: " + ($missingFromSpec -join ", "))
+        return $false
+    }
+    if ($missingFromCanon) {
+        Write-Host ("       drift: codes in spec doc but missing from canonical set: " + ($missingFromCanon -join ", "))
+        return $false
+    }
     return $true
 }
 

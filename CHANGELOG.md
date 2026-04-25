@@ -5,6 +5,88 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.42] — 2026-04-25
+
+**T3.24 spec-doc drift gate — caught the SAME NUM-006..020
+gap in `docs/spec/Nucleor_Error_Codes.md`.** v0.3.39 closed
+the verify.sh + s1 sync gap for the v0.2.319 NUM expansion;
+v0.3.40 + v0.3.41 hardened the cross-script and explain-entry
+checks. The spec doc was the fourth parallel source the
+v0.2.319 expansion never updated — until v0.3.42 found and
+fixed it.
+
+### What was missing
+
+The `## NUM series` table in `docs/spec/Nucleor_Error_Codes.md`
+listed NUM-001 through NUM-005 and stopped. NUM-006 through
+NUM-020 — present in the explain registry, in verify.sh
+codes, in verify.ps1 codes, and (since v0.3.39) in
+`is_known_diag_code` — were absent from the spec table.
+
+A user reading the spec doc would see only NUM-001..005 and
+miss the v0.2.319 expansion entirely. They could write
+`#[allow(NUM-007)]` and have it work, but they'd have no
+authoritative documentation of what NUM-007 means without
+running `nuc explain NUM-007`.
+
+### Fix
+
+Backfilled 15 spec rows (NUM-006 through NUM-020) directly
+under NUM-005 in the existing table. Synopses were pulled
+from the explain registry's `explain_error_title` entries
+via a `for code in ...; do bin/nucleor_tools.exe explain
+"$code" | head -1` loop, so the spec-doc one-liner exactly
+matches the `nuc explain` synopsis. RFC reference column
+reads "RFC-0015 / v0.2.319 expansion" to mark the lineage.
+
+### T3.24 gate
+
+New verify step (sh + ps1) that diffs the canonical code set
+(verify.{sh,ps1}'s codes array) against codes appearing in
+the spec doc Markdown table (rows matching `\| <CODE> \|`).
+Both directions checked: codes in canonical but missing from
+spec, and codes in spec but missing from canonical.
+
+### Drift gate ecosystem after v0.3.42
+
+| Step | Catches | Sources audited |
+|------|---------|-----------------|
+| T3.23 | Diag-code list drift | s1 ⇄ verify.sh ⇄ verify.ps1 (3-way) |
+| T3.24 | Spec-doc row drift | spec doc ⇄ canonical set (verify.{sh,ps1}) |
+| `cli_explain_full_smoke` | Explain registry completeness | tools_suite explain entries (title + summary + explanation) |
+
+A new diagnostic now requires FIVE parallel updates:
+
+1. `is_known_diag_code` in s1 (T3.23)
+2. codes array in `verify.sh` (T3.23)
+3. codes array in `verify.ps1` (T3.23)
+4. explain registry in tools_suite (cli_explain_full_smoke,
+   tightened in v0.3.41)
+5. spec doc table row in `Nucleor_Error_Codes.md` (T3.24)
+
+Forgetting any one of those five fails the verify gate within
+the same run.
+
+### Verify gate
+
+- 397/397 green (was 396 + 1 new step). Verify total grew by
+  one in both verify.sh and verify.ps1.
+- T3.24 confirmed: after the 15-row spec backfill, canonical
+  set = spec set (177 codes each).
+- Bootstrap fixed point unchanged at SHA `4cd2d428` (no
+  compiler change — spec-doc + verify-script-only).
+
+### Pattern: drift-gate ROI
+
+The v0.3.39 → v0.3.42 arc shows the pattern. Each drift gate
+runs in milliseconds via pure text scans, costs almost
+nothing to maintain, and structurally prevents the
+"forgot to update one of N parallel sources" bug class. The
+NUM-006..020 case was a single mistake that propagated four
+times (sh, s1, spec, all silent for ~80 ships) before any
+gate caught it. With the full ecosystem in place, that
+pattern's maximum lifetime is now one CI run.
+
 ## [0.3.41] — 2026-04-25
 
 **`cli_explain_full_smoke` tightened from synopsis-only to
