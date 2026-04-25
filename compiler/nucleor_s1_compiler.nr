@@ -315,6 +315,14 @@ fn lex(src: str) -> Vec<i32> {
         // `parse_bitwise` tier (tier between parse_eq and parse_and_expr)
         // and tok_to_ir mapping (94 → iop 15 = LLVM xor i64).
         else if c == 94 { tokens.push(tok_new(94, 0, p)); p = p + 1; }
+        // v0.3.104: shift-left `<<` as token 115. Shift-right `>>`
+        // is intentionally NOT lexed as a single token — generic
+        // syntax `Vec<Vec<i64>>` ends in `>>` and the seven angle-
+        // group skips would all need updating to handle the merged
+        // form. Instead, parse_shift detects two adjacent `>` tokens
+        // and consumes both as shift-right at parse time. `<<` has
+        // no such conflict so a single token is safe here.
+        else if c == 60 && p + 1 < slen && str_char_at(src, p + 1) == 60 { tokens.push(tok_new(115, 0, p)); p = p + 2; }
         else if c == 58 && p + 1 < slen && str_char_at(src, p + 1) == 58 { tokens.push(tok_new(46, 0, p)); p = p + 2; }
         // v0.3.77: compound-assignment tokens (`+=`, `-=`, `*=`, `/=`, `%=`).
         // Lex as single tokens kind 110-114 so the parser can desugar
@@ -788,7 +796,31 @@ fn parse_add(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     };
     return pr(cp, node);
 }
-// v0.3.103: bitwise tier — `&` `^` `|` between `+ -` and `< >` so
+// v0.3.104: shift tier — `<<` (token 115) and `>>` (parsed as two
+// adjacent `>` tokens, so generic `Vec<Vec<T>>` keeps working).
+// Between parse_add and parse_bitwise, matching Rust precedence:
+// `* / %` > `+ -` > `<< >>` > `& ^ |` > `< > <= >=` > `== !=` > etc.
+// tok_to_ir maps 115 → iop 16 (LLVM `shl i64`); the parser
+// synthesizes a virtual `>>` token (kind 116) only at lower-time
+// via mk4 → iop 17 (LLVM `ashr i64`) without touching the lexer.
+fn parse_shift(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
+    let mut r: Vec<i32> = parse_add(tokens, pos, pool);
+    let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
+    let mut done: i64 = 0;
+    while done == 0 {
+        let tt: i64 = pk(tokens, cp);
+        if tt == 115 {
+            r = parse_add(tokens, cp + 1, pool); cp = pr_pos(r); node = mk4(pool, 4, 115, node, pr_val(r));
+        } else if tt == 33 && pk(tokens, cp + 1) == 33 {
+            r = parse_add(tokens, cp + 2, pool); cp = pr_pos(r); node = mk4(pool, 4, 116, node, pr_val(r));
+        } else {
+            done = 1;
+        };
+    };
+    return pr(cp, node);
+}
+
+// v0.3.103: bitwise tier — `&` `^` `|` between `<<>>` and `< >` so
 // that `a & b == c` parses as `(a & b) == c` (Rust precedence).
 // All three ops share one tier here for simplicity. tok_to_ir maps
 // `&` (tok 82) → iop 13 (LLVM `and i64`), `|` (tok 65) → iop 14
@@ -796,11 +828,11 @@ fn parse_add(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 // Disambiguates from logical `&&`/`||` because the lexer emits
 // distinct tokens 36/37 for those — never tt == 82/65 here.
 fn parse_bitwise(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
-    let mut r: Vec<i32> = parse_add(tokens, pos, pool);
+    let mut r: Vec<i32> = parse_shift(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
     let mut tt: i64 = pk(tokens, cp);
     while tt == 82 || tt == 65 || tt == 94 {
-        r = parse_add(tokens, cp + 1, pool); cp = pr_pos(r); node = mk4(pool, 4, tt, node, pr_val(r)); tt = pk(tokens, cp);
+        r = parse_shift(tokens, cp + 1, pool); cp = pr_pos(r); node = mk4(pool, 4, tt, node, pr_val(r)); tt = pk(tokens, cp);
     };
     return pr(cp, node);
 }
@@ -2234,6 +2266,7 @@ fn opt_dce_block(blk: Vec<i32>) -> i64 {
         let op: i64 = ir_op(inst);
         // Collect register operands that are used
         if op >= 2 && op <= 15 { used.push(ir_op1(inst)); used.push(ir_op2(inst)); }
+        else if op == 23 || op == 24 { used.push(ir_op1(inst)); used.push(ir_op2(inst)); }
         else if op == 17 { used.push(ir_op1(inst)); }
         else if op == 18 { used.push(ir_op1(inst)); used.push(ir_op2(inst)); }
         else if op == 20 { used.push(ir_op1(inst)); }
@@ -2259,7 +2292,7 @@ fn opt_dce_block(blk: Vec<i32>) -> i64 {
         let d: i64 = ir_dest(inst);
         let mut keep: i64 = 1;
         // Only consider removing pure value-producing ops
-        if op == 0 || (op >= 2 && op <= 15) || op == 17 || op == 26 || op == 27 || op == 28 || op == 29 {
+        if op == 0 || (op >= 2 && op <= 15) || op == 17 || op == 23 || op == 24 || op == 26 || op == 27 || op == 28 || op == 29 {
             if d > 0 {
                 // Check if d is in used set
                 let mut found: i64 = 0;
@@ -3807,6 +3840,8 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
     else if op == 13 { emit_arith(sb, "and", d, ir_op1(inst), ir_op2(inst)); }
     else if op == 14 { emit_arith(sb, "or", d, ir_op1(inst), ir_op2(inst)); }
     else if op == 15 { emit_arith(sb, "xor", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 23 { emit_arith(sb, "shl", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 24 { emit_arith(sb, "ashr", d, ir_op1(inst), ir_op2(inst)); }
     else if op == 16 { sb_append(sb, "  %r."); sb_append(sb, str_from_int(d)); sb_append(sb, " = alloca i64\n"); }
     else if op == 17 { sb_append(sb, "  %r."); sb_append(sb, str_from_int(d)); sb_append(sb, " = load i64, ptr %r."); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, "\n"); }
     else if op == 18 { sb_append(sb, "  store i64 %r."); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, ", ptr %r."); sb_append(sb, str_from_int(ir_op2(inst))); sb_append(sb, "\n"); }
@@ -4990,6 +5025,10 @@ fn tok_to_ir(tok: i64) -> i64 {
     // these operators actually reach the binop chain instead of
     // dying after the LHS with a diag.
     if tok == 82 { return 13; }; if tok == 65 { return 14; }; if tok == 94 { return 15; };
+    // v0.3.104: shift ops. Token 115 = `<<` (lexer), 116 = synthetic
+    // `>>` produced by parse_shift when it sees two adjacent `>`.
+    // iops 16-17 are alloca/load — can't reuse. Use 23/24 (free).
+    if tok == 115 { return 23; }; if tok == 116 { return 24; };
     return 0 - 1;
 }
 fn is_cmp_or_logic(iop: i64) -> i64 { if iop >= 7 && iop <= 14 { return 1; }; return 0; }
