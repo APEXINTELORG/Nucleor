@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 31
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 32
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -796,6 +796,19 @@ Step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" {
     $out = & $bin build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-007\]:") { return $false }
     if ($out -notmatch "has #\[deadline\] but neither #\[no_alloc\] nor #\[no_panic\]") { return $false }
+    return $true
+}
+
+Step "T3.11 bare arena_* builtins link + run end-to-end" {
+    # v0.3.11 (T3.11): #[test]-framework coverage for the bare
+    # arena_new / arena_alloc / arena_reset / arena_destroy
+    # builtin path. The runtime fix shipped in v0.2.154 but the
+    # only existing fixture (tests/lang/arena_builtin.nr) was a
+    # main-fn shape. This step proves the builtin path works
+    # end-to-end through the test framework too.
+    $out = & $bin test "tests/smoke/t311_arena_builtin.nr" 2>&1 | Out-String
+    if ($out -notmatch "PASS: test_arena_round_trip") { return $false }
+    if ($out -notmatch "test result: PASS \(1 test\)") { return $false }
     return $true
 }
 
