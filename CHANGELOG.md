@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.89] — 2026-04-25
+
+**Feature: generic params on trait methods (`fn count<T>(self)`).**
+Pre-v0.3.89, writing a generic param on a trait method cascaded
+into 22+ parse errors as the trait body parser called
+`expect_tok(50)` (`(`) and got `<` (token 32) instead. The impl
+block already supported method generic params via
+`parse_generic_params`; only `parse_trait_decl` was missing it.
+
+### Fix
+
+Add a generic-param skip to `parse_trait_decl`'s method body. The
+generic params are accepted but discarded — Nucleor's trait
+dispatch is monomorphic-by-mangled-name, so generic types resolve
+at impl time. Symmetric with the existing impl-block support.
+
+```nucleor
+if pk(tokens, cp) == 32 {
+    let mut depth: i64 = 1;
+    cp = cp + 1;
+    while depth > 0 && pk(tokens, cp) != 0 {
+        if pk(tokens, cp) == 32 { depth = depth + 1; };
+        if pk(tokens, cp) == 33 { depth = depth - 1; };
+        cp = cp + 1;
+    };
+};
+```
+
+### What now works that previously didn't
+
+```nucleor
+trait Container { fn count<T>(self) -> i64; }
+
+#[repr(C)]
+struct Box1 { items: Vec<i64> }
+
+impl Container for Box1 {
+    fn count<T>(self) -> i64 { return vec_len(self.items); }
+}
+
+let b = Box1 { items: ... };
+b.count();   // dispatches via Container__count → 3
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `parse_trait_decl` skips
+  generic params on method names. Bootstrap fixed point at SHA
+  `f7c3d847` (was `5a452c8f`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t365_trait_generic_method.nr` — new strict
+  regression fixture.
+- `tools/verify.{sh,ps1}` — new T3.65 verify step.
+
+### Verify gate
+
+- 443/443 green (was 442 + 1 step from T3.65).
+- All prior regression fixtures (T3.28-T3.64) still green.
+- Bootstrap fixed point closes at `f7c3d847`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.89)
+
+- **28 codegen + 2 runtime + 6 parser/check diagnostic = 36 total**
+- **38 strict regression fixtures** (T3.28-T3.65)
+- **6 robotics RT showcase examples** in Tier 4
+
 ## [0.3.88] — 2026-04-25
 
 **Feature: `vec.iter().X()` chain — Rust idiom support.**

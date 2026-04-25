@@ -1439,6 +1439,20 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         };
         cp = expect_tok(tokens, cp, 10); // fn
         let mname: i64 = pkv(tokens, cp); cp = cp + 1;
+        // v0.3.89: skip optional generic params on trait method
+        // (`fn count<T>(self)` etc.). Pre-v0.3.89 this cascaded into
+        // 22+ parse errors. The generic params are accepted but
+        // discarded — Nucleor's trait dispatch is monomorphic-by-
+        // mangled-name, and the generic types resolve at impl time.
+        if pk(tokens, cp) == 32 {
+            let mut depth: i64 = 1;
+            cp = cp + 1;
+            while depth > 0 && pk(tokens, cp) != 0 {
+                if pk(tokens, cp) == 32 { depth = depth + 1; };
+                if pk(tokens, cp) == 33 { depth = depth - 1; };
+                cp = cp + 1;
+            };
+        };
         cp = expect_tok(tokens, cp, 50); // (
         let mut params: Vec<i32> = Vec::new();
         while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
