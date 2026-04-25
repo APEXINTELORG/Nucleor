@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.100] — 2026-04-25
+
+**Receiver-type-aware method dispatch for the collection family.**
+Pre-v0.3.100, `m.insert(k, v)` on a `HashMap<str, i64>` lowered to
+`vec_insert(m, k, v)` — undefined symbol at clang link. The Rust-
+idiomatic `let m: HashMap<…> = HashMap::new(); m.insert(…)` was a
+hard adoption blocker even though the lowercase runtime helpers
+(`hashmap_insert`, `hashset_insert`, `btreemap_insert`, …) all
+existed. The missing piece was the surface-level dispatch from the
+`let`-binding type annotation through `expr_struct_type` to the
+right helper prefix.
+
+### Fix
+
+In the kind-8 (trait-method-call) lowering at `lower_expr`, after
+the existing `iter_method_for_vec` branch, consult `type_base_name`
+on the receiver's declared type and route to the matching prefix:
+
+| Receiver base | Helper prefix |
+|---------------|---------------|
+| `HashMap`     | `hashmap_`    |
+| `HashSet`     | `hashset_`    |
+| `BTreeMap`    | `btreemap_`   |
+| `BTreeSet`    | `btreeset_`   |
+| `VecDeque`    | `vecdeque_`   |
+| (other)       | `vec_` (existing fallback) |
+
+So `m.insert(k, v)` where `m: HashMap<…>` now lowers to
+`hashmap_insert(m, k, v)`; `s.insert(x)` where `s: HashSet<str>`
+lowers to `hashset_insert(s, x)`. Iter-method dispatch for Vec
+(`v.map`, `v.fold`, …) is unaffected.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t376 returns 30 from a HashMap
+insert/get round-trip, proving the receiver-prefix dispatch.
+`bin/nucleor.exe` SHA `d38e36db`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — receiver-prefix dispatch
+  block in kind-8 lowering at `lower_expr`.
+- `tests/fixtures/t376_collection_method_dispatch.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed (T1.7).
+
+### Known limitation (deferred)
+
+`HashSet<i64>` / `HashMap<i64, …>` will still segfault at runtime
+because the runtime helpers expect `const char *` keys. Surface-
+level type-check diagnostic for non-string keys is tracked for a
+follow-up ship; v1 collection key type is `str` only.
+
 ## [0.3.99] — 2026-04-25
 
 **`vec![…]` macro — Rust-idiom container literal.** Pre-v0.3.99,

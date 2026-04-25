@@ -9850,7 +9850,34 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 if iter_method_for_vec(mname) == 1 {
                     fn_name = str_concat("vec_", str_concat(mname, "_i64"));
                 } else {
-                    fn_name = str_concat("vec_", mname);
+                    // v0.3.100: receiver-type-aware dispatch for the
+                    // collection family (HashMap/HashSet/BTreeMap/
+                    // BTreeSet/VecDeque). Pre-v0.3.100 the fallback
+                    // was always `vec_<method>`, so a Rust-style
+                    // `m.insert(k, v)` on a `HashMap<K,V>` lowered
+                    // to `vec_insert(m, k, v)` — undefined symbol at
+                    // clang link. The lowercase runtime helpers
+                    // (`hashmap_insert`, `hashset_insert`, etc.) all
+                    // exist; this is the missing surface-level
+                    // dispatch from the `let m: HashMap<...>`
+                    // type annotation through `expr_struct_type` to
+                    // the right prefix. Falls through to `vec_*` for
+                    // unknown receiver types so the existing Vec
+                    // method convention still works.
+                    let stype_base: str = type_base_name(stype);
+                    if str_eq(stype_base, "HashMap") == 1 {
+                        fn_name = str_concat("hashmap_", mname);
+                    } else if str_eq(stype_base, "HashSet") == 1 {
+                        fn_name = str_concat("hashset_", mname);
+                    } else if str_eq(stype_base, "BTreeMap") == 1 {
+                        fn_name = str_concat("btreemap_", mname);
+                    } else if str_eq(stype_base, "BTreeSet") == 1 {
+                        fn_name = str_concat("btreeset_", mname);
+                    } else if str_eq(stype_base, "VecDeque") == 1 {
+                        fn_name = str_concat("vecdeque_", mname);
+                    } else {
+                        fn_name = str_concat("vec_", mname);
+                    };
                 };
             };
         };
