@@ -5159,6 +5159,64 @@ fn promote_denied_to_errors(diags: Vec<i32>, source: str) -> Vec<i32> {
 // AST-based v2 ships with the rest of RFC-0001 (`#[no_panic]`,
 // `#[no_dyn]`, `#[deadline]`).
 
+// T3.7 (v0.3.6): mask string literals + `//` line comments out of a
+// fn body before the RT-001/002/003 substring checks scan it. The
+// v1 checks were naive str_contains, so a literal `"Vec::new"` in
+// a string or `// vec_push(x)` in a comment would false-positive.
+// We replace masked ranges with spaces (preserving length so any
+// downstream position math stays valid) — `(` characters get
+// blanked too, which means the `<name>(` anchor pattern can no
+// longer match anywhere inside a quoted/commented region.
+fn strip_strings_and_line_comments(s: str) -> str {
+    let slen: i64 = str_len(s);
+    let mut sb: i64 = sb_new();
+    let mut p: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(s, p);
+        if c == 47 && p + 1 < slen && str_char_at(s, p + 1) == 47 {
+            // Line comment: emit spaces until newline.
+            while p < slen && str_char_at(s, p) != 10 {
+                sb_append(sb, " ");
+                p = p + 1;
+            };
+            if p < slen { sb_append(sb, "\n"); p = p + 1; };
+        } else if c == 34 {
+            // Double-quoted string: emit space for the opening quote,
+            // then walk past escape sequences until the closing quote.
+            sb_append(sb, " ");
+            p = p + 1;
+            while p < slen && str_char_at(s, p) != 34 {
+                if str_char_at(s, p) == 92 && p + 1 < slen {
+                    sb_append(sb, "  ");
+                    p = p + 2;
+                } else {
+                    sb_append(sb, " ");
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, " "); p = p + 1; };
+        } else if c == 39 {
+            // Single-quoted char: same shape as double-quote but with `'`.
+            sb_append(sb, " ");
+            p = p + 1;
+            while p < slen && str_char_at(s, p) != 39 {
+                if str_char_at(s, p) == 92 && p + 1 < slen {
+                    sb_append(sb, "  ");
+                    p = p + 2;
+                } else {
+                    sb_append(sb, " ");
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, " "); p = p + 1; };
+        } else {
+            sb_append(sb, str_substring(s, p, p + 1));
+            p = p + 1;
+        };
+    };
+    return sb_to_str(sb);
+}
+
 fn collect_no_alloc_fns(source: str) -> Vec<i32> {
     let mut fns: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -5257,7 +5315,11 @@ fn check_no_alloc_violations(diags: Vec<i32>, source: str, fn_name: str) {
                     if c == 125 { depth = depth - 1; };
                     q = q + 1;
                 };
-                let body: str = str_substring(source, body_start, q - 1);
+                let body_raw: str = str_substring(source, body_start, q - 1);
+                // T3.7 (v0.3.6): strip `"..."` strings and `// ...`
+                // line comments before scanning so a `"Vec::new"` or
+                // `// uses vec_push` text doesn't false-positive.
+                let body: str = strip_strings_and_line_comments(body_raw);
                 // Walk every alloc-builtin name and check str_contains
                 // for `<name>(` in the body. Each match becomes one
                 // diag; we don't dedup, so two `vec_push(...)` calls
@@ -5452,7 +5514,8 @@ fn check_no_panic_violations(diags: Vec<i32>, source: str, fn_name: str) {
                     if c == 125 { depth = depth - 1; };
                     q = q + 1;
                 };
-                let body: str = str_substring(source, body_start, q - 1);
+                let body_raw: str = str_substring(source, body_start, q - 1);
+                let body: str = strip_strings_and_line_comments(body_raw);
                 let panic_names: Vec<i32> = no_panic_check_list();
                 let mut ai: i64 = 0;
                 while ai < vec_len(panic_names) {
@@ -5579,7 +5642,13 @@ fn check_no_dyn_violations(diags: Vec<i32>, source: str, fn_name: str) {
                     if c == 125 { depth = depth - 1; };
                     q = q + 1;
                 };
-                let body: str = str_substring(source, body_start, q - 1);
+                let body_raw: str = str_substring(source, body_start, q - 1);
+                let body: str = strip_strings_and_line_comments(body_raw);
+                // The signature itself contains the user-facing type
+                // names (`&dyn Trait` etc.) — we want to KEEP those
+                // matches, so only the body gets the strip pass. (A
+                // `dyn` inside a signature-level string literal is a
+                // pathological edge case; not worth slowing v1 for.)
                 let combined: str = str_concat(sig_text, str_concat(" ", body));
                 if str_contains(combined, "dyn ") == 1 {
                     let msg: str = str_concat("dynamic dispatch (`dyn`) used but `", str_concat(fn_name, "` is marked #[no_dyn]"));

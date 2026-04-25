@@ -1,15 +1,16 @@
 // EXPECT: RT-003 dynamic dispatch
-// T3.6 (v0.3.5) negative — fn marked #[no_dyn] whose source
-// contains the literal `dyn ` token. Production code would
-// have `&dyn Trait` in the signature; this fixture uses a
-// string literal so the v1 text-scan check has something to
-// catch without dragging in trait method dispatch (which
-// arrives in v0.4 RFC-0026 v2).
+// T3.6 (v0.3.5) negative — fn marked #[no_dyn] whose signature
+// declares `&dyn Trait`. The v1 text scan fires on the `dyn `
+// token inside the parameter list. v0.3.6 strips strings/comments
+// from the body before scanning, so this fixture deliberately
+// puts the offending token in the SIGNATURE (which v0.3.6 keeps
+// scanning verbatim).
+
+trait Sensor {}
 
 #[no_dyn]
-fn dispatch_handler(x: i64) -> i64 {
-    let kind: str = "dyn handler mode";
-    return x;
+fn poll(s: &dyn Sensor) -> i64 {
+    return 0;
 }
 
 fn main() -> i64 {
