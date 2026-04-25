@@ -5,6 +5,90 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.82] — 2026-04-25
+
+**Feature: trait default methods.** Pre-v0.3.82, calling a trait
+method that the impl didn't override fell through to the
+`vec_<mname>` fallback in the kind-8 dispatch path and failed at
+clang link with `use of undefined value '@vec_world'`. The trait
+declaration parser already captured default bodies (line 1395-1400)
+but the collect_impls pass only registered explicit impl methods.
+
+### Fix
+
+Add a new pass after collect_impls that:
+
+1. Walks every kind-43 (trait_decl) and every kind-45 (impl block).
+2. For each impl with a non-empty trait_name, finds the
+   corresponding trait_decl by name.
+3. For each default method in the trait (body != -1) that the impl
+   did NOT override:
+   - Builds new params with `Self` substituted for the impl's
+     actual `type_name` (so nested `self.<method>()` calls in the
+     default body dispatch correctly).
+   - Synthesizes a fn `<TypeName>__<method>` using the trait's
+     default body.
+   - Registers in `impl_fns` (for codegen), `fn_decls` (so
+     populate_fn_returns_in_sym sees it), and `trait_impls` (so
+     trait_impl_find returns the mangled name).
+
+```nucleor
+trait Greet {
+    fn hello(self) -> i64;
+    fn world(self) -> i64 { return 100; }     // default
+    fn combined(self) -> i64 { return self.hello() + 50; }
+        // default that calls another trait method
+}
+
+impl Greet for G {
+    fn hello(self) -> i64 { return self.n; }
+    // world() and combined() now correctly inherit from trait
+}
+
+impl Greet for H {
+    fn hello(self) -> i64 { return self.n * 2; }
+    fn world(self) -> i64 { return 999; }     // explicit override
+    // combined() still inherits from trait
+}
+```
+
+### Self substitution
+
+The trait's default body declares params as `(self: Self)` (line
+1387 of parse_trait_decl). When synthesizing for an impl on type
+`G`, the params must become `(self: G)` so `expr_struct_type`
+correctly resolves `self.field` and `self.<method>()` calls. The
+v0.3.82 substitution covers `Self`, `&Self`, and `&mut Self`
+shapes.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — new pass after collect_impls
+  (compile_one ~line 11682) that synthesizes default-method fns
+  with Self substitution. Bootstrap fixed point recomputed at SHA
+  `507a775f` (was `cbed56bb`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t358_trait_default_methods.nr` — new strict
+  regression fixture covering required + default + overridden +
+  default-calling-other-trait-method.
+- `tools/verify.{sh,ps1}` — new T3.58 verify step.
+
+### Verify gate
+
+- 436/436 green (was 435 + 1 step from T3.58).
+- All prior regression fixtures (T3.28-T3.57) still green.
+- Bootstrap fixed point closes at `507a775f`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.82)
+
+- **23 codegen + 1 runtime + 5 parser/check diagnostic = 29 total**
+- **31 strict regression fixtures** (T3.28-T3.58)
+- **6 robotics RT showcase examples** in Tier 4
+- **Trait default methods is a real Rust-feature-parity ship**,
+  not just a diagnostic. Uses the existing trait-declaration
+  storage + adds the missing dispatch wiring.
+
 ## [0.3.81] — 2026-04-25
 
 **Two more compiler-segfault patterns eliminated.** v0.3.80 claimed
