@@ -649,7 +649,32 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let p2: i64 = pos + 1;
         let cp2: i64 = skip_angle_group(tokens, p2);
         if pk(tokens, cp2) == 52 {
-            if pk(tokens, cp2 + 1) == 53 || (pk(tokens, cp2 + 1) == 1 && pk(tokens, cp2 + 2) == 42) {
+            // v0.3.114: also recognize pure-shorthand struct init —
+            // `IDENT,` (multi-field shorthand) and `IDENT}` (single-
+            // field shorthand). Pre-v0.3.114, only `IDENT:` (named
+            // field) and `}` (empty) triggered struct-init parse.
+            // Pure shorthand like `P { x, y }` (no `:`) fell through
+            // to the bare identifier path; the `{ x, y }` was treated
+            // as a separate block which left `@P` as an unresolved
+            // global ref. Hard adoption blocker for any constructor
+            // body using the canonical shorthand form
+            // (`fn make(x, y) -> P { P { x, y } }`).
+            //
+            // For shorthand-only patterns (`,` / `}` after IDENT, no
+            // `:` to confirm field-init shape), require the TYPE
+            // identifier (`name`) to start with an uppercase letter.
+            // Without this guard, `if foo { bar }` and
+            // `while x { y }` patterns misfire — the lowercase `foo`
+            // looks like a struct name to the disambiguator and the
+            // single-ident body `bar` becomes a phantom shorthand
+            // field. Rust convention reserves CamelCase for types,
+            // so the case check is a clean boundary.
+            let name_first: i64 = if str_len(name) > 0 { str_char_at(name, 0) } else { 0 };
+            let is_upper: i64 = if name_first >= 65 && name_first <= 90 { 1 } else { 0 };
+            if pk(tokens, cp2 + 1) == 53
+               || (pk(tokens, cp2 + 1) == 1 && pk(tokens, cp2 + 2) == 42)
+               || (is_upper == 1 && pk(tokens, cp2 + 1) == 1 && pk(tokens, cp2 + 2) == 44)
+               || (is_upper == 1 && pk(tokens, cp2 + 1) == 1 && pk(tokens, cp2 + 2) == 53) {
                 return parse_struct_init(tokens, pos, pool);
             };
         };

@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.114] — 2026-04-25
+
+**Pure-shorthand struct init in expression position.** Pre-v0.3.114,
+the `parse_primary` disambiguator at the `IDENT {` lookahead only
+fired the struct-init branch when the inside was empty (`}`) or
+started with a named field (`IDENT :`). Pure-shorthand patterns
+fell through to the bare-identifier path, the trailing `{ ... }`
+was treated as a separate block expression, and the type identifier
+became an unresolved global ref:
+
+```
+fn make(x: i64, y: i64) -> P { P { x, y } }
+   →  error: use of undefined value '@P'
+```
+
+Hard adoption blocker for any constructor body using the canonical
+Rust shorthand form, which is the most idiomatic constructor pattern.
+
+### Fix
+
+Extend the disambiguator to also recognize `IDENT ,` (multi-field
+shorthand) and `IDENT }` (single-field shorthand) as struct-init
+shapes — but **only** when the type identifier starts with an
+uppercase letter.
+
+Without the case guard, `if foo { bar }` and `while x { y }`
+patterns misfire — the lowercase ident in primary position looks
+like a struct name to the disambiguator and the single-ident body
+becomes a phantom shorthand field, breaking self-host.
+Rust convention reserves CamelCase (uppercase-first) for types,
+so the case check is a clean boundary that avoids touching the
+existing if/while/match grammar.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t391 returns 7 from a multi-field
+shorthand constructor (`P { x, y }`) and a single-field shorthand
+let (`W { v }`). Existing named-field syntax (`P { x: 3, y: 4 }`)
+unaffected. `bin/nucleor.exe` SHA `d441dcd4`. 452/452 verify gate.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — extended disambiguator with
+  uppercase-first case guard at parse_primary IDENT { lookahead.
+- `tests/fixtures/t391_pure_shorthand_struct_init.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.113] — 2026-04-25
 
 **Capture propagation across nested closure literals.** v0.3.107
