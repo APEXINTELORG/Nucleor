@@ -6019,19 +6019,139 @@ fn check_no_ffi_violations(diags: Vec<i32>, source: str, fn_name: str, externs: 
     };
 }
 
+// v0.3.24 (T3.15): per-symbol FFI safety markers. An `extern fn`
+// declaration prefixed with `#[ffi_no_alloc]` tells the RT-005
+// check that this particular FFI symbol is known not to allocate;
+// `#[ffi_no_panic]` does the same for panic-prone behaviour.
+// The two markers can stack on the same extern declaration. RT
+// fns calling an annotated-safe extern stay clean; RT fns calling
+// an UNannotated extern still fire RT-005 (the conservative
+// default — we don't know what the C side does).
+fn collect_externs_with_marker(source: str, marker_pat: str) -> Vec<i32> {
+    let mut names: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let plen: i64 = str_len(marker_pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(marker_pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            // Walk forward past blanks/`///`/other-attribute lines for `extern fn NAME(`.
+            let mut q: i64 = p + plen;
+            while q < slen && str_char_at(source, q) != 10 { q = q + 1; };
+            if q < slen { q = q + 1; };
+            let mut found: i64 = 0;
+            while q + 10 <= slen && found == 0 {
+                while q < slen && (str_char_at(source, q) == 32 || str_char_at(source, q) == 9 || str_char_at(source, q) == 10 || str_char_at(source, q) == 13) {
+                    q = q + 1;
+                };
+                if q + 10 > slen { found = 0 - 1; }
+                else if str_char_at(source, q) == 47 && q + 1 < slen && str_char_at(source, q + 1) == 47 {
+                    while q < slen && str_char_at(source, q) != 10 { q = q + 1; };
+                } else if str_char_at(source, q) == 35 {
+                    while q < slen && str_char_at(source, q) != 10 { q = q + 1; };
+                } else if str_eq_at(source, q, "extern fn ") == 1 {
+                    q = q + 10;
+                    let nm_start: i64 = q;
+                    while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
+                    if q > nm_start {
+                        let nm: str = str_substring(source, nm_start, q);
+                        names.push(nm);
+                        found = 1;
+                    } else {
+                        found = 0 - 1;
+                    };
+                } else {
+                    found = 0 - 1;
+                };
+            };
+            p = q;
+        } else {
+            p = p + 1;
+        };
+    };
+    return names;
+}
+
+// Set difference: returns elements of `all` that are NOT in
+// `removed`. Used to filter FFI symbols safe for a given RT
+// contract out of the "RT-005 fires" list.
+fn filter_externs_keep_unsafe(all: Vec<i32>, safe: Vec<i32>) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let an: i64 = vec_len(all);
+    let sn: i64 = vec_len(safe);
+    let mut i: i64 = 0;
+    while i < an {
+        let nm: str = vec_get(all, i);
+        let mut is_safe: i64 = 0;
+        let mut j: i64 = 0;
+        while j < sn && is_safe == 0 {
+            if str_eq(vec_get(safe, j), nm) == 1 { is_safe = 1; };
+            j = j + 1;
+        };
+        if is_safe == 0 { out.push(nm); };
+        i = i + 1;
+    };
+    return out;
+}
+
 fn enforce_rt005_ffi(diags: Vec<i32>, source: str) -> Vec<i32> {
     let externs: Vec<i32> = collect_extern_fn_names(source);
     if vec_len(externs) == 0 { return diags; };
+    // v0.3.24: per-RT-attr safe extern lists. #[no_alloc] body
+    // calls are clean iff the extern carries #[ffi_no_alloc];
+    // #[no_panic] body iff #[ffi_no_panic]; #[deadline] needs
+    // BOTH (deadline determinism subsumes both no-* contracts).
+    let ffi_no_alloc_safe: Vec<i32> = collect_externs_with_marker(source, "#[ffi_no_alloc]");
+    let ffi_no_panic_safe: Vec<i32> = collect_externs_with_marker(source, "#[ffi_no_panic]");
+    let no_alloc_unsafe_externs: Vec<i32> = filter_externs_keep_unsafe(externs, ffi_no_alloc_safe);
+    let no_panic_unsafe_externs: Vec<i32> = filter_externs_keep_unsafe(externs, ffi_no_panic_safe);
+    // Deadline-safe = intersection; build it as: drop from `externs`
+    // any name that is in BOTH safe lists.
+    let mut dl_safe: Vec<i32> = Vec::new();
+    let an2: i64 = vec_len(ffi_no_alloc_safe);
+    let pn2: i64 = vec_len(ffi_no_panic_safe);
+    let mut ii: i64 = 0;
+    while ii < an2 {
+        let nm2: str = vec_get(ffi_no_alloc_safe, ii);
+        let mut in_panic: i64 = 0;
+        let mut jj: i64 = 0;
+        while jj < pn2 && in_panic == 0 {
+            if str_eq(vec_get(ffi_no_panic_safe, jj), nm2) == 1 { in_panic = 1; };
+            jj = jj + 1;
+        };
+        if in_panic == 1 { dl_safe.push(nm2); };
+        ii = ii + 1;
+    };
+    let dl_unsafe_externs: Vec<i32> = filter_externs_keep_unsafe(externs, dl_safe);
     let no_alloc_fns: Vec<i32> = collect_no_alloc_fns(source);
     let mut i: i64 = 0;
     while i < vec_len(no_alloc_fns) {
-        check_no_ffi_violations(diags, source, vec_get(no_alloc_fns, i), externs, "#[no_alloc]");
+        check_no_ffi_violations(diags, source, vec_get(no_alloc_fns, i), no_alloc_unsafe_externs, "#[no_alloc]");
         i = i + 1;
     };
     let no_panic_fns: Vec<i32> = collect_no_panic_fns(source);
     i = 0;
     while i < vec_len(no_panic_fns) {
-        check_no_ffi_violations(diags, source, vec_get(no_panic_fns, i), externs, "#[no_panic]");
+        check_no_ffi_violations(diags, source, vec_get(no_panic_fns, i), no_panic_unsafe_externs, "#[no_panic]");
         i = i + 1;
     };
     // Deadline fns live as the wcet inner pair after T3.1 expansion.
@@ -6039,7 +6159,7 @@ fn enforce_rt005_ffi(diags: Vec<i32>, source: str) -> Vec<i32> {
     let n: i64 = vec_len(dl_entries);
     let mut k: i64 = 0;
     while k + 1 < n {
-        check_no_ffi_violations(diags, source, vec_get(dl_entries, k), externs, "#[deadline]");
+        check_no_ffi_violations(diags, source, vec_get(dl_entries, k), dl_unsafe_externs, "#[deadline]");
         k = k + 2;
     };
     return diags;
