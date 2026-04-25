@@ -2439,6 +2439,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "dyn_box_type") { return "__nucleor_dyn_box_type"; };
     if str_eq(name, "dyn_box_data") { return "__nucleor_dyn_box_data"; };
     if str_eq(name, "dyn_box_free") { return "__nucleor_dyn_box_free"; };
+    if str_eq(name, "vec_iter_i64") { return "__nucleor_vec_iter_i64"; };
     if str_eq(name, "vec_map_i64") { return "__nucleor_vec_map_i64"; };
     if str_eq(name, "vec_filter_i64") { return "__nucleor_vec_filter_i64"; };
     if str_eq(name, "vec_fold_i64") { return "__nucleor_vec_fold_i64"; };
@@ -3229,6 +3230,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "dyn_box_type") { return 1; };
     if str_eq(name, "dyn_box_data") { return 1; };
     if str_eq(name, "dyn_box_free") { return 1; };
+    if str_eq(name, "vec_iter_i64") { return 1; };
     if str_eq(name, "vec_map_i64") { return 1; };
     if str_eq(name, "vec_filter_i64") { return 1; };
     if str_eq(name, "vec_reverse_i64") { return 1; };
@@ -3409,6 +3411,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "format2_if") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format3_fff") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format_f64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_iter_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_map_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_filter_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_fold_i64") { if idx == 0 { return 1; }; return 0; };
@@ -3846,6 +3849,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_dyn_box_type(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_dyn_box_data(i64)\n");
     sb_append(sb, "declare void @__nucleor_dyn_box_free(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_vec_iter_i64(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_map_i64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_filter_i64(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_fold_i64(ptr, i64, i64)\n");
@@ -4851,6 +4855,11 @@ fn iter_method_for_vec(mname: str) -> i64 {
     // Anything not in this set falls through to the existing
     // `vec_<method>` convention — preserves backward compat with
     // current `.push`, `.pop`, `.len`, `.get`, `.set`, etc.
+    // v0.3.88: `.iter()` is an identity pass-through that lets users
+    // write the Rust idiom `vec.iter().sum()`. Routes to vec_iter_i64
+    // which returns the same Vec ptr. Without this, .iter() was
+    // unwired and the chain failed at clang link.
+    if str_eq(mname, "iter") == 1 { return 1; };
     if str_eq(mname, "map") == 1 { return 1; };
     if str_eq(mname, "filter") == 1 { return 1; };
     if str_eq(mname, "fold") == 1 { return 1; };
