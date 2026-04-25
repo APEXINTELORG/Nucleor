@@ -69,6 +69,7 @@ together on a single tight inner loop.
 | 21 | [21_rt_state_machine.nr](21_rt_state_machine.nr) | Bounded-recursion segment walk (state machine / trajectory accumulator pattern) | `#[no_alloc]`, `#[no_panic]`, `#[deadline = N]`, `#[max_depth = N]` (v0.3.9 RT-008 opt-out) |
 | 22 | [22_rt_export.nr](22_rt_export.nr) | C-callable kernel via `#[export]` (Vec3 ops + scalar add) | `#[export]`, `#[repr(C)]` (v0.3.4 — `nuc gen-headers` produces matching C decls) |
 | 23 | [23_rt_sensor_fusion.nr](23_rt_sensor_fusion.nr) | Production-style sensor-fusion step combining all v0.3.51-63 codegen-fix shapes | `Vec<f64>`, `[f64; N]`, struct fields, trait methods, fn-call results, as-casts — all inline in natural form |
+| 24 | [24_rt_kalman_step.nr](24_rt_kalman_step.nr) | Kalman-style state update — 3×3 matrix-vector multiply via nested indexing, trajectory cumulative dist via Vec\<V3\> indexing, trait method on struct, all composed | `Vec<Vec<f64>>` matrix, `Vec<V3>` trajectory, trait `norm_sq`, cast i64→f64 (synthesizes v0.3.65-69 nested-composition fixes) |
 
 ### Showcase
 
