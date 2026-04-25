@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.112] — 2026-04-25
+
+**`extern "C" fn name(...)` declaration syntax.** Pre-v0.3.112,
+the parser only recognized bare `extern fn`, so the canonical
+Rust FFI form:
+
+```
+extern "C" fn abs(x: i64) -> i64;
+```
+
+cascaded into 4+ parse errors as the `"C"` literal between
+`extern` and `fn` was unhandled. Hard adoption blocker for any
+FFI to libc functions (`abs`, `atoi`, `fopen`, …).
+
+### Fix
+
+Add a parallel branch in `parse_program` that matches token
+sequence `extern STR fn` (instead of just `extern fn`) and skips
+the ABI string literal before delegating to `parse_extern_fn`.
+The ABI string is accepted and discarded — Nucleor's only ABI
+today is the C calling convention used by all extern decls, so
+the explicit marker is informational.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t389 returns 42 from
+`abs(0 - 42)`, proving the linked C runtime function is reachable
+through the new declaration form. `bin/nucleor.exe` SHA `6d09b0e2`.
+452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `extern STR fn` branch in
+  `parse_program`.
+- `tests/fixtures/t389_extern_abi_string.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.111] — 2026-04-25
 
 **User-defined associated fn dispatch + `Self` return-type
