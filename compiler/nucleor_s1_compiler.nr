@@ -678,6 +678,23 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 return parse_struct_init(tokens, pos, pool);
             };
         };
+        // v0.3.115: turbofish syntax `name::<TypeArgs>(args)`. Pre-
+        // v0.3.115, the `::<` after `name` was treated as `::ident` —
+        // qname captured the `<` token's value (garbage), the
+        // following `(` failed to match the kind-12 dispatch shape,
+        // and the call lowered as an associated-fn-call with a bogus
+        // qname → diagnostic + zero placeholder. Adopters reaching
+        // for the canonical `Vec::<i64>::new()` / `id::<T>(x)` pattern
+        // saw silent miscomputes alongside an informational error.
+        // Strip `::<TypeArgs>` and re-dispatch via the regular fn-call
+        // path; the type args are advisory at lower-time anyway.
+        if pk(tokens, cp2) == 46 && pk(tokens, cp2 + 1) == 32 {
+            let after_args: i64 = skip_angle_group(tokens, cp2 + 1);
+            if pk(tokens, after_args) == 50 {
+                let mut ar: Vec<i32> = parse_args(tokens, after_args + 1, pool);
+                return pr(pr_pos(ar), mk3(pool, 7, name, pr_val(ar)));
+            };
+        };
         if pk(tokens, cp2) == 46 {
             let qname: i64 = pkv(tokens, cp2 + 1);
             if pk(tokens, cp2 + 2) == 50 {
