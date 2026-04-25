@@ -5,6 +5,112 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.39] — 2026-04-25
+
+**T3.23 drift gate — caught a real 15-code synchronization
+gap on its first run.** v0.3.38's changelog flagged the
+"two parallel sources" maintenance burden: `is_known_diag_code`
+in `compiler/nucleor_s1_compiler.nr` and the `codes` array in
+`cli_explain_full_smoke` (verify.sh + verify.ps1) both carry
+hardcoded canonical code lists. v0.3.39 adds a verify step
+that diffs the two lists and fails on any divergence.
+
+### What the gate caught
+
+On its first run, T3.23 surfaced 15 NUM codes (NUM-006 through
+NUM-020) that were:
+
+- Present in `verify.ps1`'s codes array — added v0.2.319
+  ("T1.1 Phase 10 — expanded NUM namespace")
+- Present in `compiler/nucleor_tools_suite.nr`'s explain
+  registry — every code has synopsis + cause + hint entries
+- ABSENT from `verify.sh`'s codes array — never mirrored from
+  ps1 when the v0.2.319 expansion landed
+- ABSENT from `is_known_diag_code` in `nucleor_s1_compiler.nr` —
+  the v0.3.38 hardcoded set was built from `verify.sh`'s
+  (incomplete) codes array, so it inherited the gap
+
+That meant: a user writing `#[allow(NUM-007)]` (which IS a
+real shipped diagnostic) would have triggered DIAG-001
+("not in canonical diagnostic code set; suppression has no
+effect") — a false positive on a real code. Bash and
+PowerShell verify gates also disagreed on what the canonical
+audit list was.
+
+### Fix
+
+Three-place patch matching the drift the gate found:
+
+- `tools/verify.sh` — added `NUM-006` through `NUM-020` (15
+  codes) to the codes array under the existing v0.2.319
+  comment line (mirroring verify.ps1's structure exactly).
+- `compiler/nucleor_s1_compiler.nr` — added the same 15 codes
+  to `is_known_diag_code`, in NUM section ordering. Bootstrap
+  fixed point recomputed at SHA `4cd2d428` (was `74cff60e`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 cross-build
+  passes.
+
+After the fix, `#[allow(NUM-007)]` correctly does NOT fire
+DIAG-001, and the verify.sh ⇄ verify.ps1 ⇄ s1 triple is
+consistent: 177 codes in all three locations.
+
+### T3.23 implementation
+
+Single-file pure-text check (no compilation needed):
+
+- **verify.sh** version uses `grep -oE` + `comm` to compute
+  the symmetric difference between the two canonical lists.
+- **verify.ps1** version uses `Select-String -AllMatches` plus
+  `Where-Object { -notcontains }` for the same set diff in
+  PowerShell idioms.
+
+Both directions are checked: codes in cli_explain_full_smoke
+but missing from is_known_diag_code (false positives on real
+codes), and codes in is_known_diag_code but missing from
+cli_explain_full_smoke (no explain audit). Failure output
+lists the missing codes for fast remediation.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — 15 new lines in
+  `is_known_diag_code` (NUM-006..NUM-020). Bootstrap fixed
+  point: `74cff60e` → `4cd2d428`.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed.
+- `tools/verify.sh` — 4 new lines in `cli_explain_full_smoke`
+  codes array; new `t323_diag_code_drift` step body; bumped
+  STEP_TOTAL constant by 1.
+- `tools/verify.ps1` — new `T3.23` step body (set-diff in
+  PowerShell idioms); bumped stepTotal by 1. Note: ps1 codes
+  array already had NUM-006..020 (this was the source of the
+  drift); only the new step body was added.
+- `docs/v0.3-robotics-guide.md` — bootstrap SHA stamp updated.
+
+### Verify gate
+
+- 396/396 green (was 395 + 1 new step).
+- T3.23 confirmed manually: with NUM-006..020 missing from
+  s1, the gate failed and printed the 15 missing codes; after
+  the fix, it passes.
+- `cli_explain_full_smoke` now audits 134 codes (was 119
+  effectively in verify.sh; verify.ps1's 134 was always the
+  intended set).
+- Bootstrap stage_b/c/d byte-identical at SHA `4cd2d428`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Why this matters
+
+The drift gate is meta-tooling: it doesn't catch user bugs,
+it catches Nucleor-team bugs (specifically, the
+"forgot to update one of the two parallel lists" class).
+v0.3.39's first run found a 15-code synchronization gap that
+had been silent for ~80 ships (between v0.2.319 and v0.3.38).
+The class of bug is hard to find without a structural check
+because both lists are syntactically valid in isolation —
+nothing breaks at compile time, the gap only manifests as a
+false positive when a user writes `#[allow(NUM-NNN)]` for a
+code in the gap. The gate runs in milliseconds and covers
+both directions of drift.
+
 ## [0.3.38] — 2026-04-25
 
 **T3.22: DIAG-001 enumerated check — within-series typos now

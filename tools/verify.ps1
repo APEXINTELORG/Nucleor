@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 40
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 41
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -869,6 +869,49 @@ Step "T3.9 RT-005 fires on FFI call from RT fn body" {
     $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-005\]: FFI call 'host_telemetry'") { return $false }
     if ($out -notmatch "from #\[no_alloc\] fn 'rt_path'") { return $false }
+    return $true
+}
+
+Step "T3.23 diag-code drift (s1 is_known_diag_code vs smoke list)" {
+    # v0.3.39 (T3.23): drift gate for the parallel canonical
+    # diagnostic code lists (is_known_diag_code in s1 +
+    # cli_explain_full_smoke codes array). Both directions
+    # checked: a code in s1 but not smoke means the explain
+    # registry has no audit; a code in smoke but not s1 means
+    # DIAG-001 will spuriously fire on a real shipped code.
+    $s1Path    = Join-Path $root "compiler\nucleor_s1_compiler.nr"
+    $smokePath = Join-Path $root "tools\verify.ps1"
+    # Get-Content (line mode) — handles CRLF cleanly. Using -Raw +
+    # -split "\`n" leaves trailing \r on each line and breaks the
+    # `^\s*\$codes...` block-start match.
+    $s1Codes = Get-Content $s1Path `
+        | Select-String -AllMatches -Pattern 'str_eq\(code,\s*"([A-Z]+-?[0-9]+)"\)' `
+        | ForEach-Object { $_.Matches } `
+        | ForEach-Object { $_.Groups[1].Value } `
+        | Sort-Object -Unique
+    $smokeLines = Get-Content $smokePath
+    $inBlock = $false
+    $smokeBody = New-Object System.Collections.ArrayList
+    foreach ($line in $smokeLines) {
+        if ($line -match '^\s*\$codes\s*=\s*@\(') { $inBlock = $true; continue }
+        if ($inBlock -and $line -match '^\s*\)\s*$') { $inBlock = $false; continue }
+        if ($inBlock) { [void]$smokeBody.Add($line) }
+    }
+    $smokeCodes = $smokeBody `
+        | Select-String -AllMatches -Pattern '"([A-Z]+-?[0-9]+)"' `
+        | ForEach-Object { $_.Matches } `
+        | ForEach-Object { $_.Groups[1].Value } `
+        | Sort-Object -Unique
+    $missingFromS1 = $smokeCodes | Where-Object { $s1Codes -notcontains $_ }
+    $missingFromSmoke = $s1Codes | Where-Object { $smokeCodes -notcontains $_ }
+    if ($missingFromS1) {
+        Write-Host ("       drift: codes in cli_explain_full_smoke but missing from is_known_diag_code: " + ($missingFromS1 -join ", "))
+        return $false
+    }
+    if ($missingFromSmoke) {
+        Write-Host ("       drift: codes in is_known_diag_code but missing from cli_explain_full_smoke: " + ($missingFromSmoke -join ", "))
+        return $false
+    }
     return $true
 }
 
