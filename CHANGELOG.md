@@ -5,6 +5,27 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.16] — 2026-04-25
+
+**RFC-0028 phase 3 — `format3_sif` combo.** Str + i64 + f64
+for the benchmark / aggregation output shape:
+
+  `format3_sif(tmpl, str_a, i64_b, f64_c)` — e.g.
+  `format!("{} ({} samples): {}", tag, n, avg)` produces
+  `"iter_ms (100 samples): 0.42"`.
+
+Same five edit sites in s1 + mirrored in tools_suite + runtime
+impl chaining `__nucleor_format_str` -> `__nucleor_format_i64`
+-> `__nucleor_format_f64`. Added to the `#[no_alloc]`
+forbidden-name list.
+
+### Verify gate
+
+- New: `tests/lang/format3_sif.nr` — auto-discovered under the
+  lang directory; prints two combo outputs then `OK format3_sif`.
+- Self-host bootstrap fixed-point holds at 2CCC13AF (stage-3
+  IR == stage-4 IR). Bootstrap RSS peak 207 MB.
+
 ## [0.3.15] — 2026-04-25
 
 **RFC-0028 phase 3 — `format3_ssf` combo.** Two strs followed
