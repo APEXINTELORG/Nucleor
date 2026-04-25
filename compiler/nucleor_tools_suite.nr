@@ -9596,6 +9596,8 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "RT-006") { return "RT attribute on async fn"; };
     if str_eq(code, "RT-007") { return "Deadline annotation without no_alloc or no_panic"; };
     if str_eq(code, "RT-008") { return "Recursive call in #[deadline] function without #[max_depth]"; };
+    // RFC-0020 DIAG series — minted v0.3.36 (DIAG-001 only).
+    if str_eq(code, "DIAG-001") { return "Unknown diagnostic code in #[allow]/#[deny] attribute"; };
     // RFC-0002 allocator types
     if str_eq(code, "ALLOC-001") { return "Allocated value escapes its allocator"; };
     if str_eq(code, "ALLOC-002") { return "Allocator type mismatch"; };
@@ -9805,6 +9807,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "RT-006") { return "RT attributes (#[no_alloc], #[deadline] etc.) cannot be applied to async fn — async semantics break the deadline guarantee."; };
     if str_eq(code, "RT-007") { return "A #[deadline] annotation alone is incomplete — it is hard to reason about deadline without #[no_alloc] or #[no_panic]."; };
     if str_eq(code, "RT-008") { return "A #[deadline] function uses recursion. Bound it with #[max_depth = N] (RFC-0014)."; };
+    if str_eq(code, "DIAG-001") { return "An #[allow(_fn)(CODE)] or #[deny(_fn)(CODE)] attribute references a CODE whose prefix is not in the canonical diagnostic series set. The suppression or promotion has no effect at compile time -- the diagnostic the author meant to control still fires unsuppressed."; };
     if str_eq(code, "ALLOC-001") { return "A value allocated in an arena/pool/tlsf cannot outlive its allocator. The borrow checker rejects returning the value when the allocator goes out of scope."; };
     if str_eq(code, "ALLOC-002") { return "Two values from different allocator types cannot be combined where one is required."; };
     if str_eq(code, "ALLOC-003") { return "An allocation site reaches a #[no_alloc(...)] context that forbids that allocator."; };
@@ -9985,6 +9988,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "RT-006") { return "async fn introduces poll-based scheduling and arbitrary suspend points. RT attributes promise bounded time and no allocation; the two are fundamentally incompatible. Refactor the function as sync, or use rod/tokio (RFC-0030) outside the RT path."; };
     if str_eq(code, "RT-007") { return "Add #[no_alloc] or #[no_panic] (or both) to the fn -- that makes the deadline reasoning sound. To intentionally suppress: #[allow(RT-007)] (file-wide) or #[allow_fn(RT-007)] (per-fn, v0.3.20). The warning surfaces a likely-incomplete annotation."; };
     if str_eq(code, "RT-008") { return "Deadline analysis cannot bound an unbounded recursion. Annotate the function with #[max_depth = N] per RFC-0014 to give the analyzer a depth bound."; };
+    if str_eq(code, "DIAG-001") { return "v1 prefix-only check: the s1 compiler validates that the CODE substring starts with a known diagnostic series prefix (RT-, NR0, NUM-, OWN-, MOD-, TYP-, etc.). Within-series typos (RT-099 vs RT-009) still slip through; the v0.4 AST-based RT re-implementation owns the strict enumerated check. To suppress this DIAG-001 itself during a noisy refactor: #[allow(DIAG-001)]."; };
     if str_eq(code, "ALLOC-001") { return "Per RFC-0002, Box<T, A: Allocator> is bound by the lifetime of A. Returning a Box<T, Arena> from a fn whose Arena is local is rejected. Either pass &Arena into the fn (caller owns the arena), or copy the value into a Box<T, Global> before returning."; };
     if str_eq(code, "ALLOC-002") { return "Allocator type is part of the value type. fn f(x: Box<T, Arena>) cannot accept a Box<T, Pool>. Use generics (fn f<A: Allocator>(x: Box<T, A>)) for allocator-agnostic APIs."; };
     if str_eq(code, "ALLOC-003") { return "RFC-0001 #[no_alloc(...)] accepts an explicit allow-list of allowed allocators. The default #[no_alloc] forbids all four (global/arena/pool/tlsf); narrow with #[no_alloc(global)] etc."; };

@@ -5,6 +5,101 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.36] — 2026-04-25
+
+**T3.20: DIAG-001 — first user-facing code in the RFC-0020
+DIAG namespace.** Closes the unknown-code limitation flagged in
+v0.3.35: `#[allow(WAT-001)]`, `#[allow_fn(GIBBERISH-003)]`,
+`#[deny(BOGUS-002)]`, `#[deny_fn(NONSENSE-004)]` are now all
+flagged with `warning[DIAG-001]` instead of being silently
+absorbed.
+
+### Approach
+
+**`is_known_diag_prefix(code)` in `nucleor_s1_compiler.nr`** —
+takes a code substring and returns 1 iff its prefix matches
+the canonical diagnostic series set: NR (no dash, NR<NNN>) plus
+the 23 dash-style prefixes drawn from the
+`cli_explain_full_smoke` audit list (RT-, NUM-, MATCH-, COLL-,
+MOD-, PKG-, TGT-, TST-, ALLOC-, FRAME-, OWN-, GOV-, TNT-,
+TYP-, ASSUME-, UNIT-, CONTRACT-, ATOMIC-, ISR-, EFF-, WCET-,
+DLPACK-, CXX-, BINDGEN-, URDF-, DEPTH-, LAW-, DIAG-).
+
+**`emit_diag001_unknown_codes(diags, source)`** — single pass
+that walks all four collect_* outputs (`collect_allowed_codes`,
+`collect_denied_codes`, `collect_allow_fn_pairs`,
+`collect_deny_fn_pairs`) and emits a warning for each entry
+whose prefix doesn't match. The diag's fn_name is preserved
+for the per-fn variants so a future reader can map the warning
+back to the offending attribute site.
+
+The new pass runs in the main compile pipeline AFTER
+`enforce_deadline_safety` and BEFORE the
+`if diag_count(diags) > 0` gate that controls suppression +
+emit. That ordering means DIAG-001 itself can be suppressed
+via `#[allow(DIAG-001)]` (DIAG- is in the canonical set, so
+the suppression target is itself well-formed — no recursive
+DIAG-001 emission).
+
+### v1 limitations (intentional)
+
+- **Prefix-only check.** Within-series typos like
+  `#[allow_fn(RT-099)]` vs `#[allow_fn(RT-009)]` still slip
+  through — the prefix `RT-` is canonical, so DIAG-001 doesn't
+  fire even though `RT-099` isn't a real diagnostic. The v0.4
+  AST-based RT re-implementation owns the strict enumerated
+  check (mentioned both in the explain-registry hint and
+  `docs/v0.3-robotics-guide.md` Cookbook §4).
+- **Two prefix sources.** `is_known_diag_prefix` in the s1
+  compiler and the audited `codes` array in
+  `cli_explain_full_smoke` (verify.sh + verify.ps1) carry
+  parallel hardcoded series lists. When minting a new series,
+  add to BOTH lists. Future ship may unify them via a generated
+  header or runtime registry exposed through `nuc explain`.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `is_known_diag_prefix`,
+  `emit_diag001_unknown_codes`, plus the one-line wire into
+  the main pipeline. Bootstrap fixed point recomputed at SHA
+  `689004f6` (was `8ae2941f`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 cross-build
+  seed-vs-current SHA equality check passes.
+- `compiler/nucleor_tools_suite.nr` — three lines added to the
+  `nuc explain` registry (synopsis, cause, hint for DIAG-001).
+- `tools/verify.sh` + `tools/verify.ps1` — `DIAG-001` added to
+  the `cli_explain_full_smoke` audited code list; new T3.20
+  step asserts the fixture emits exactly four DIAG-001
+  warnings (one per allow/deny shape) and quotes each
+  offending code substring.
+- `tests/fixtures/t320_diag001_unknown_code.nr` — new fixture
+  with four offending attributes plus one control
+  (`#[allow_fn(RT-007)]`) that must NOT fire DIAG-001.
+- `docs/spec/Nucleor_Error_Codes.md` — DIAG section rewritten:
+  was "reserved namespace, no codes minted"; now lists
+  DIAG-001 with v0.3.36 ship date.
+- `docs/v0.3-robotics-guide.md` — Cookbook §4
+  "Known limitation: unknown codes" subsection replaced with
+  "Unknown-code validation (v0.3.36, DIAG-001)" subsection
+  showing the new diagnostic in action and pointing at the
+  fixture. Robotics guide SHA stamp updated to `689004f6`.
+
+### Verify gate
+
+- 394/394 green (was 393 + 1 new step). Verify total grew by
+  one in both verify.sh and verify.ps1.
+- `cli_explain_full_smoke` audits 119 codes (was 118 + DIAG-001).
+- T3.20 confirmed manually: stage-1 emits exactly four
+  `warning[DIAG-001]` lines, each quoting the offending code
+  substring; the control `#[allow_fn(RT-007)]` is silent.
+- Bootstrap stage_b/c/d byte-identical at fixed point
+  `689004f6`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+This ship turns the v0.3.35 cookbook §4 "known limitation"
+note into a "now diagnosed" note. The within-series typo gap
+remains as documented limitation for the v0.4 AST work.
+
 ## [0.3.35] — 2026-04-25
 
 **Docs ship: robotics guide cookbook §4 grows a semantics

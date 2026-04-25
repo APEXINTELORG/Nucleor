@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 38
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 39
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -428,7 +428,9 @@ Step "CLI: nuc explain — full spec code set wired" {
         # RFC-0031 algebraic laws
         "LAW-001", "LAW-002", "LAW-003", "LAW-004",
         # RFC-0032 effects
-        "EFF-001", "EFF-002", "EFF-003", "EFF-004", "EFF-005"
+        "EFF-001", "EFF-002", "EFF-003", "EFF-004", "EFF-005",
+        # RFC-0020 DIAG (minted v0.3.36 -- first DIAG-NNN code)
+        "DIAG-001"
     )
     foreach ($c in $codes) {
         $out = & $bin explain $c 2>&1 | Out-String
@@ -867,6 +869,22 @@ Step "T3.9 RT-005 fires on FFI call from RT fn body" {
     $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-005\]: FFI call 'host_telemetry'") { return $false }
     if ($out -notmatch "from #\[no_alloc\] fn 'rt_path'") { return $false }
+    return $true
+}
+
+Step "T3.20 DIAG-001 fires for #[allow]/#[deny] unknown-prefix codes" {
+    # v0.3.36 (T3.20): DIAG-001 warning fires for #[allow(_fn)] /
+    # #[deny(_fn)] CODE arguments whose prefix isn't in the
+    # canonical diagnostic series set. Fixture has four offending
+    # attributes (one per allow/deny shape) plus one control with
+    # a known prefix (RT-) that must NOT fire.
+    $out = & $bin build "tests/fixtures/t320_diag001_unknown_code.nr" -o "_t320_diag001_check" --no-cache 2>&1 | Out-String
+    $count = ([regex]::Matches($out, "warning\[DIAG-001\]")).Count
+    if ($count -ne 4) { return $false }
+    if ($out -notmatch "WAT-001")      { return $false }
+    if ($out -notmatch "BOGUS-002")    { return $false }
+    if ($out -notmatch "GIBBERISH-003") { return $false }
+    if ($out -notmatch "NONSENSE-004") { return $false }
     return $true
 }
 
