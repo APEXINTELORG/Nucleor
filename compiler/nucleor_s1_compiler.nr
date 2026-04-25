@@ -5482,6 +5482,164 @@ fn enforce_no_panic(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+// === T3.3 (v0.3.2): static WCET (v1 estimator, RT-004) ===
+// Parses every `#[deadline = N]` fn, estimates its worst-case
+// execution time via a simple statement counter, and emits a
+// compile-time RT-004 warning when the estimate exceeds the
+// declared deadline.
+//
+// v1 estimator heuristics (conservative, prone to false positives
+// — explicitly documented so users can `#[allow(RT-004)]` when
+// the estimator is wrong):
+//   - Each `;` (statement terminator) = 1 unit = 0.1 µs
+//   - Each `while` keyword multiplies the inner unit count by a
+//     coarse multiplier (1, 100, 1000, 10000 for 0/1/2/3+ whiles)
+//   - Hard cap at 1e6 units to prevent runaway
+// Conversion: estimated_us = ceil(units / 10).
+//
+// Ship shape: warning-level diagnostic (not error) because the
+// estimator is deliberately crude. v0.3.2b's AST-based v2 will
+// tighten the estimate + promote to error for unambiguous cases.
+
+fn wcet_collect_deadline_fns(source: str) -> Vec<i32> {
+    // Returns alternating [inner_name1, limit1_us, ...].
+    // Scans for `deadline_check(__nuc_dl_start, N)` which the
+    // T3.1 expander emits in every wrapper, then walks back up to
+    // 1024 bytes for the matching `__nuc_dl_inner_<...>` ident.
+    let mut out: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let needle: str = "deadline_check(__nuc_dl_start,";
+    let nlen: i64 = str_len(needle);
+    let inner_pat: str = "__nuc_dl_inner_";
+    let ipl: i64 = str_len(inner_pat);
+    let mut p: i64 = 0;
+    let max_outer_iters: i64 = 1000000;  // safety bound
+    let mut outer_iters: i64 = 0;
+    while p + nlen <= slen && outer_iters < max_outer_iters {
+        outer_iters = outer_iters + 1;
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < nlen && m == 1 {
+            if str_char_at(source, p + k) != str_char_at(needle, k) { m = 0; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut q: i64 = p + nlen;
+            while q < slen && (str_char_at(source, q) == 32 || str_char_at(source, q) == 9) { q = q + 1; };
+            let num_start: i64 = q;
+            while q < slen && is_digit(str_char_at(source, q)) == 1 { q = q + 1; };
+            if q > num_start {
+                let limit_us: i64 = str_to_int(str_substring(source, num_start, q));
+                let scan_floor: i64 = if p > 1024 { p - 1024 } else { 0 };
+                let mut bp: i64 = p;
+                let mut found: i64 = 0;
+                while bp > scan_floor && found == 0 {
+                    if bp + ipl <= slen {
+                        let mut im: i64 = 1;
+                        let mut ik: i64 = 0;
+                        while ik < ipl && im == 1 {
+                            if str_char_at(source, bp + ik) != str_char_at(inner_pat, ik) { im = 0; };
+                            ik = ik + 1;
+                        };
+                        if im == 1 {
+                            let mut np: i64 = bp + ipl;
+                            while np < slen && (is_alnum(str_char_at(source, np)) == 1 || str_char_at(source, np) == 95) {
+                                np = np + 1;
+                            };
+                            let inner_name: str = str_substring(source, bp, np);
+                            out.push(inner_name);
+                            out.push(limit_us);
+                            found = 1;
+                        };
+                    };
+                    if found == 0 { bp = bp - 1; };
+                };
+            };
+            p = q + 1;
+        } else {
+            p = p + 1;
+        };
+    };
+    return out;
+}
+
+fn wcet_estimate_fn_units(source: str, fn_name: str) -> i64 {
+    // Counts `;` (statements) inside the named fn body, separately
+    // counts `while` keywords, applies a coarse multiplier ladder
+    // (1, 100, 1000, 10000 for 0/1/2/3+ loops). Hard-capped at 1e6
+    // units. No string/comment skipping — false positives on `;`
+    // inside string literals are an acceptable v1 tradeoff.
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    let mut found_at: i64 = 0 - 1;
+    while p + nlen <= slen && found_at < 0 {
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < nlen && m == 1 {
+            if str_char_at(source, p + k) != str_char_at(needle, k) { m = 0; };
+            k = k + 1;
+        };
+        if m == 1 { found_at = p; }
+        else { p = p + 1; };
+    };
+    if found_at < 0 { return 0; };
+    let mut q: i64 = found_at + nlen;
+    while q < slen && str_char_at(source, q) != 123 { q = q + 1; };
+    if q >= slen { return 0; };
+    q = q + 1;
+    let mut depth: i64 = 1;
+    let mut stmt_count: i64 = 0;
+    let mut while_count: i64 = 0;
+    let stmt_cap: i64 = 1000000;
+    while q < slen && depth > 0 && stmt_count < stmt_cap {
+        let c: i64 = str_char_at(source, q);
+        if c == 123 { depth = depth + 1; };
+        if c == 125 { depth = depth - 1; };
+        if c == 59 { stmt_count = stmt_count + 1; };
+        if c == 119 && q + 5 <= slen {
+            if str_char_at(source, q + 1) == 104 && str_char_at(source, q + 2) == 105
+                && str_char_at(source, q + 3) == 108 && str_char_at(source, q + 4) == 101 {
+                let prev: i64 = if q > 0 { str_char_at(source, q - 1) } else { 32 };
+                let next: i64 = if q + 5 < slen { str_char_at(source, q + 5) } else { 32 };
+                let prev_ok: i64 = if is_alnum(prev) == 0 && prev != 95 { 1 } else { 0 };
+                let next_ok: i64 = if is_alnum(next) == 0 && next != 95 { 1 } else { 0 };
+                if prev_ok == 1 && next_ok == 1 { while_count = while_count + 1; };
+            };
+        };
+        q = q + 1;
+    };
+    let mut multiplier: i64 = 1;
+    if while_count == 1 { multiplier = 100; };
+    if while_count == 2 { multiplier = 1000; };
+    if while_count >= 3 { multiplier = 10000; };
+    let units: i64 = stmt_count * multiplier;
+    if units > stmt_cap { return stmt_cap; };
+    return units;
+}
+
+fn enforce_static_wcet(diags: Vec<i32>, source: str) -> Vec<i32> {
+    // For each #[deadline = N] fn (post-resolver shape — inner +
+    // outer wrapper pair from T3.1), estimate WCET on the inner
+    // body and warn if the estimate exceeds the budget.
+    let entries: Vec<i32> = wcet_collect_deadline_fns(source);
+    let n: i64 = vec_len(entries);
+    let mut i: i64 = 0;
+    while i + 1 < n {
+        let inner_name: str = vec_get(entries, i);
+        let limit_us: i64 = vec_get(entries, i + 1);
+        let units: i64 = wcet_estimate_fn_units(source, inner_name);
+        let estimated_us: i64 = (units + 9) / 10;
+        if estimated_us > limit_us {
+            let msg: str = str_concat("static WCET estimate ", str_concat(str_from_int(estimated_us), str_concat(" us (", str_concat(str_from_int(units), str_concat(" units x 0.1 us) exceeds #[deadline = ", str_concat(str_from_int(limit_us), str_concat(" us] (v1 estimator -- use #[allow(RT-004)] if wrong; default loop multiplier 100x)", "")))))));
+            diag_add_ex(diags, "warning", "rt", "RT-004", msg, inner_name, 0, 0, "");
+        };
+        i = i + 2;
+    };
+    return diags;
+}
+
 fn byte_to_line(source: str, byte_off: i64) -> i64 {
     let slen: i64 = str_len(source);
     let mut line: i64 = 1;
@@ -9764,6 +9922,9 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     diags = enforce_no_alloc(diags, source);
     // T3.2 (v0.3.1): same pattern for #[no_panic] (RT-002).
     diags = enforce_no_panic(diags, source);
+    // T3.3 (v0.3.2): static WCET estimator for #[deadline = N] fns.
+    // Emits warning[RT-004] when the v1 estimate exceeds the budget.
+    diags = enforce_static_wcet(diags, source);
     if diag_count(diags) > 0 {
         // RFC-0028 §Suppression — drop warnings the user has silenced
         // via `#[allow(CODE)]`, then promote any remaining warnings
@@ -10023,13 +10184,27 @@ fn expand_deadline(src: str) -> str {
         let mut eol: i64 = p;
         while eol < slen && str_char_at(src, eol) != 10 { eol = eol + 1; };
         let line: str = str_substring(src, p, eol);
+        // Skip `//` line comments — `#[deadline = N]` text inside a
+        // comment must not trigger wrapping (and previously caused an
+        // infinite probe loop in the give-up branch below).
+        let trimmed_line: str = strip_spaces(line);
+        let tllen: i64 = str_len(trimmed_line);
+        if tllen >= 2 && str_char_at(trimmed_line, 0) == 47 && str_char_at(trimmed_line, 1) == 47 {
+            sb_append(sb, str_substring(src, p, eol));
+            if eol < slen { sb_append(sb, "\n"); };
+            p = eol + 1;
+            continue;
+        };
         let dl_value: i64 = dl_extract_int_value(line);
         if dl_value >= 0 {
             // Scan forward past blank lines + doc comments + other
-            // attribute lines for the actual fn start.
+            // attribute lines for the actual fn start. Use sentinel
+            // -1 = still searching, >= 0 = found, -2 = give up; only
+            // -1 keeps the loop going (older `< 0` form spun forever
+            // on the give-up branch since -2 is also `< 0`).
             let mut probe: i64 = eol + 1;
             let mut found_fn: i64 = 0 - 1;
-            while probe < slen && found_fn < 0 {
+            while probe < slen && found_fn == 0 - 1 {
                 let mut peol: i64 = probe;
                 while peol < slen && str_char_at(src, peol) != 10 { peol = peol + 1; };
                 let pline: str = str_substring(src, probe, peol);
