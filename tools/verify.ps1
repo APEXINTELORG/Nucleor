@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 67
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 68
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1067,6 +1067,15 @@ Step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" {
     if ($LASTEXITCODE -ne 0) { return $false }
     if ($out -match "warning\[DIAG-001\]") { return $false }
     if ($out -match "error\[DIAG-001\]") { return $false }
+    return $true
+}
+
+Step "T3.50 module-scope stmt-keyword diagnostic (return/if/while/for/match/loop/break/continue)" {
+    # v0.3.75 (T3.50): negative regression. Build may succeed but
+    # diagnostic MUST appear in stderr.
+    $out = & $bin build "tests/fixtures/t350_module_stmt_keyword_diagnostic.nr" -o "_t350_check" --no-cache 2>&1 | Out-String
+    if ($out -notmatch "statement-level keyword at module scope") { return $false }
+    if ($out -notmatch "Move statement-level constructs into a fn body") { return $false }
     return $true
 }
 

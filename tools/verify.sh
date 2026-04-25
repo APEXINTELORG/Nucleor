@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 65))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 66))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1048,6 +1048,17 @@ t321_diag001_self_suppress() {
     [ "$rc" = "0" ] || return 1
     if grep -qE 'warning\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
     if grep -qE 'error\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
+    return 0
+}
+
+t350_module_stmt_keyword_diagnostic() {
+    # T3.50 (v0.3.75): negative regression test for module-scope
+    # statement-level keywords. Build may succeed (no downstream
+    # cascade) but the diagnostic MUST appear in stderr — that's
+    # the production-readiness contract.
+    "$BIN" build "tests/fixtures/t350_module_stmt_keyword_diagnostic.nr" -o "_t350_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    grep -q "statement-level keyword at module scope" /tmp/_nuc_step.log || return 1
+    grep -q "Move statement-level constructs into a fn body" /tmp/_nuc_step.log || return 1
     return 0
 }
 
@@ -2014,6 +2025,7 @@ step "T3.46 assoc-fn collection aliases (HashMap/HashSet/BTreeMap/BTreeSet/VecDe
 step "T3.47 closure-capture link correctness (runtime helpers __nucleor_capture_set/get)" t347_closure_capture
 step "T3.48 module-scope let diagnostic (parser previously dropped silently)" t348_module_let_diagnostic
 step "T3.49 trait-method-call indexed operand f64 dispatch (s.samples()[i])" t349_trait_method_vec_index
+step "T3.50 module-scope stmt-keyword diagnostic (return/if/while/for/match/loop/break/continue)" t350_module_stmt_keyword_diagnostic
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

@@ -1673,6 +1673,38 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             cp = sk;
             pending_pub = 0;
         }
+        else if pk(tokens, cp) == 13 || pk(tokens, cp) == 15 || pk(tokens, cp) == 16 || pk(tokens, cp) == 18 || pk(tokens, cp) == 19 || pk(tokens, cp) == 56 || pk(tokens, cp) == 63 || pk(tokens, cp) == 84 {
+            // v0.3.75: catch other statement-level keywords at module
+            // scope. `if` (13), `while` (15), `return` (16), `break` (18),
+            // `continue` (19), `for` (56), `match` (63), `loop` (84) all
+            // belong inside fn bodies — at module scope they have no
+            // meaning and the pre-v0.3.75 silent fall-through dropped
+            // them token-by-token. Surface a clear diagnostic so the
+            // user sees their malformed top-level construct named
+            // explicitly. Recovery: skip to the next semicolon (43)
+            // OR the next opening brace (40) — whichever comes first
+            // — so block-form constructs (`if/while/loop { ... }`)
+            // get cleaned up in one go rather than dribbling broken
+            // body tokens through the rest of the program.
+            print("ERROR: statement-level keyword at module scope. Only `fn`, `extern fn`, `pure fn`, `const`, `type`, `struct`, `enum`, `trait`, `impl`, and `pub` (with the above) are allowed as top-level items. Move statement-level constructs into a fn body.");
+            let mut sk: i64 = cp + 1;
+            while pk(tokens, sk) != 0 && pk(tokens, sk) != 43 && pk(tokens, sk) != 40 { sk = sk + 1; };
+            if pk(tokens, sk) == 43 { sk = sk + 1; };
+            // For a `{`-terminated form (e.g. `if c { ... }`), skip to
+            // the matching close brace (41) so the block body doesn't
+            // keep producing diagnostics. Tracks brace depth.
+            if pk(tokens, sk) == 40 {
+                let mut depth: i64 = 1;
+                sk = sk + 1;
+                while pk(tokens, sk) != 0 && depth > 0 {
+                    if pk(tokens, sk) == 40 { depth = depth + 1; };
+                    if pk(tokens, sk) == 41 { depth = depth - 1; };
+                    sk = sk + 1;
+                };
+            };
+            cp = sk;
+            pending_pub = 0;
+        }
         else { cp = cp + 1; pending_pub = 0; };
     };
     return pr(cp, mk_list(pool, items));

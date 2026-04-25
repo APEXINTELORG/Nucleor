@@ -5,6 +5,97 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.75] — 2026-04-25
+
+**Parser fix #2: clear diagnostic for statement-level keywords at
+module scope.** Pre-v0.3.75, writing `return 5;`, `if cond { ... }`,
+`while ...`, `for ...`, `match ...`, `loop { ... }`, `break;`, or
+`continue;` at module scope produced no diagnostic. The parser
+silently consumed every token and the program built as if those
+constructs weren't there. Users new to Nucleor who put
+statement-level constructs above any fn (often during incremental
+porting from script languages) had no signal that their code was
+being thrown away.
+
+### Root cause
+
+Same pattern as v0.3.73 (`let` at module scope). `parse_program`'s
+catch-all `else { cp = cp + 1; pending_pub = 0; }` swallowed
+unrecognized top-level tokens silently, including the entire
+class of statement-level keywords. v0.3.73 fixed `let` (token 11);
+v0.3.75 closes the rest.
+
+### Fix
+
+Add an explicit branch that catches the eight common
+statement-level keyword tokens — `if` (13), `while` (15),
+`return` (16), `break` (18), `continue` (19), `for` (56),
+`match` (63), `loop` (84) — and emits a uniform diagnostic
+naming what's allowed at module scope. Recovery skips ahead
+to the next `;` (43) OR the next `{` (40) — whichever comes
+first — and for `{`-terminated forms walks the matching close
+brace tracker so block bodies don't dribble downstream
+diagnostics.
+
+```nucleor
+else if pk(tokens, cp) == 13 || pk(tokens, cp) == 15 ||
+        pk(tokens, cp) == 16 || pk(tokens, cp) == 18 ||
+        pk(tokens, cp) == 19 || pk(tokens, cp) == 56 ||
+        pk(tokens, cp) == 63 || pk(tokens, cp) == 84 {
+    print("ERROR: statement-level keyword at module scope. ...");
+    // Skip to next ';' or matching '}' (whichever first).
+    ...
+}
+```
+
+### Production-readiness rationale
+
+This matches the v0.3.71 / v0.3.73 pattern: turn silent
+token-dropping into a named diagnostic. The diagnostic text
+explicitly enumerates what IS allowed at module scope so the
+user can self-correct without reading the language spec.
+
+### What now happens that previously didn't
+
+```nucleor
+return 5;          // Pre-v0.3.75: silently dropped, build "succeeds"
+                   // Post-v0.3.75: clear diagnostic naming the issue
+
+if x > 0 { foo() } // Pre-v0.3.75: silently dropped
+                   // Post-v0.3.75: diagnostic + brace-balanced recovery
+
+while c { ... }    // ditto
+
+match e { ... }    // ditto
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `parse_program` gains the
+  stmt-keyword catch with brace-balanced recovery. Bootstrap
+  fixed point recomputed at SHA `9723e56c` (was `624dff69`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t350_module_stmt_keyword_diagnostic.nr` — new
+  negative regression fixture using `return 5;`.
+- `tools/verify.{sh,ps1}` — new T3.50 verify step. (Build may
+  succeed since `return` at top level has no downstream cascade
+  — the assertion is on diagnostic text only.)
+
+### Verify gate
+
+- 428/428 green (was 427 + 1 step from T3.50).
+- All prior regression fixtures (T3.28-T3.49) still green.
+- Bootstrap fixed point closes at `9723e56c`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.75)
+
+- **18 codegen + 1 runtime + 2 parser diagnostic = 21 total**
+- **23 strict regression fixtures** (T3.28-T3.50)
+- **6 robotics RT showcase examples** in Tier 4
+- **Top-level parser silent fall-throughs eliminated** for the
+  common statement-level keyword class (v0.3.73 + v0.3.75)
+
 ## [0.3.74] — 2026-04-25
 
 **Compiler fix #18: trait-method-call (kind 8) indexed operand
