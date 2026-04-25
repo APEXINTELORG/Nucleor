@@ -1742,6 +1742,21 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         cp2 = cp2 + 1; // )
         let mut rtype: str = "void";
         if pk(tokens, cp2) == 41 { let mut tr: Vec<i32> = parse_type(tokens, cp2 + 1); cp2 = pr_pos(tr); rtype = pr_val(tr); };
+        // v0.3.111: substitute `Self` (and `&Self` / `&mut Self`) in
+        // the return type with the impl's actual `type_name`. Pre-
+        // v0.3.111, `impl Point { fn new() -> Self { ... } }` left
+        // rtype = "Self" verbatim, so the populate_fn_returns_in_sym
+        // pass registered `__fnret_Point__new = "Self"`. Downstream,
+        // expr_struct_type couldn't resolve "Self" to a known struct,
+        // and the call result fell back to a zero placeholder. The
+        // canonical Rust `fn new() -> Self` constructor pattern
+        // silently miscomputed (returned 0 instead of the constructed
+        // value). Param-side substitution already happens for
+        // `&self` / `&mut self` at the param-loop above; this mirrors
+        // it for the return slot.
+        if str_eq(rtype, "Self") == 1 { rtype = type_name; };
+        if str_eq(rtype, "&Self") == 1 { rtype = str_concat("&", type_name); };
+        if str_eq(rtype, "&mut Self") == 1 { rtype = str_concat("&mut ", type_name); };
         if pk(tokens, cp2) == 75 { cp2 = skip_bracket_list(tokens, cp2 + 1); };
         cp2 = skip_where_clause(tokens, cp2);
         cp2 = expect_tok(tokens, cp2, 52); // {
@@ -10253,6 +10268,38 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ai = ai + 1;
             };
             return lx_new(vr, cur);
+        };
+        // v0.3.111: dispatch user-defined associated fns. The impl
+        // block synthesizes each method as `<TypeName>__<methodname>`
+        // (mangled name registered in fn_decls / impl_fns at
+        // collect_impls time). Pre-v0.3.111, `Point::new(7, 3)`
+        // matched none of the built-in Type::method handlers above,
+        // skipped the etag enum-variant check (Point isn't an enum),
+        // hit the diagnostic, and emitted const_int 0 — silent
+        // miscompute returning 0 from any user constructor.
+        // Adopters reaching for the canonical `let p = Point::new(...)`
+        // pattern saw a printed error but their .exe still ran with
+        // wrong values. Lookup `__fnret_<mangled>` to confirm the
+        // method exists; if so, lower as a normal i64 fn call with
+        // the args (the function takes the args directly, not a
+        // self prefix, since this is an associated fn — not an
+        // instance method).
+        let mangled: str = str_concat(tname, str_concat("__", mname));
+        let mret: i64 = sym_get(sym, str_concat("__fnret_", mangled));
+        if mret >= 0 {
+            let mut maa: Vec<i32> = Vec::new();
+            let mac: i64 = list_len(pool, args_list);
+            let mut mai: i64 = 0;
+            let mut mcur: Vec<i32> = blk;
+            while mai < mac {
+                let mut mp: Vec<i32> = lower_expr(pool, list_get(pool, args_list, mai), mcur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                maa.push(lx_reg(mp));
+                mcur = lx_blk(mp);
+                mai = mai + 1;
+            };
+            let mr: i64 = ctr_next(regs);
+            ir_block_add(mcur, ir_call_ex(mr, mangled, maa));
+            return lx_new(mr, mcur);
         };
         // v0.3.71: surface a clear diagnostic instead of falling through
         // to the generic "unhandled expr kind 12" + broken `%r.-1` IR.
