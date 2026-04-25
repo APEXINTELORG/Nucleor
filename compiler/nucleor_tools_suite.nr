@@ -202,6 +202,11 @@ fn lex(src: str) -> Vec<i32> {
         else if c == 58 { tokens.push(tok_new(42, 0, p)); p = p + 1; }
         else if c == 59 { tokens.push(tok_new(43, 0, p)); p = p + 1; }
         else if c == 44 { tokens.push(tok_new(44, 0, p)); p = p + 1; }
+        else if c == 46 && p + 1 < slen && str_char_at(src, p + 1) == 46 && p + 2 < slen && str_char_at(src, p + 2) == 61 {
+            // T2.1 (v0.2.347): ..= inclusive range token (synced from s1)
+            tokens.push(tok_new(96, 0, p));
+            p = p + 3;
+        }
         else if c == 46 && p + 1 < slen && str_char_at(src, p + 1) == 46 { tokens.push(tok_new(58, 0, p)); p = p + 2; }
         else if c == 46 { tokens.push(tok_new(45, 0, p)); p = p + 1; }
         else if c == 40 { tokens.push(tok_new(50, 0, p)); p = p + 1; }
@@ -1107,10 +1112,34 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let mut vname: str = "";
         let mut binding: str = "";
         if att == 2 {
-            // Integer literal pattern (token value is already i64)
-            ename = "__int";
-            vname = pkv(tokens, cp);
+            // T2.1 (v0.2.347): integer literal pattern with optional
+            // range extension (`1..=9`, `1..10`). Synced from
+            // nucleor_s1_compiler.nr — see that file for the encoding.
+            let lo_val: i64 = pkv(tokens, cp);
             cp = cp + 1;
+            let next_tok: i64 = pk(tokens, cp);
+            if next_tok == 96 || next_tok == 58 {
+                let inclusive: i64 = if next_tok == 96 { 1 } else { 0 };
+                cp = cp + 1;
+                if pk(tokens, cp) == 2 {
+                    let hi_raw: i64 = pkv(tokens, cp);
+                    cp = cp + 1;
+                    let hi_norm: i64 = if inclusive == 1 { hi_raw } else { hi_raw - 1 };
+                    if lo_val <= hi_norm {
+                        ename = "__range";
+                    } else {
+                        ename = "__range_bad";
+                    };
+                    vname = lo_val;
+                    binding = str_from_int(hi_norm);
+                } else {
+                    ename = "__int";
+                    vname = lo_val;
+                };
+            } else {
+                ename = "__int";
+                vname = lo_val;
+            };
         } else if att == 3 {
             // String literal pattern
             ename = "__str";
@@ -7863,6 +7892,30 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     ir_block_add(ab, ir_store(rv, tmp));
                     ir_block_add(ab, ir_br(ml));
                 };
+            } else if str_eq(ename, "__range") {
+                // T2.1 (v0.2.347): synced from s1 — vname = LO (i64),
+                // binding = str_from_int(HI). Match if LO <= scrut <= HI.
+                let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
+                let lo_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(lo_r, vname));
+                let hi_n: i64 = str_to_int(binding);
+                let hi_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(hi_r, hi_n));
+                let lo_ok: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(11, lo_ok, lo_r, mv));
+                let hi_ok: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(11, hi_ok, mv, hi_r));
+                let both_r: i64 = ctr_next(regs); ir_block_add(cur, ir_binop(13, both_r, lo_ok, hi_ok));
+                ir_block_add(cur, ir_br_cond(both_r, al, nl));
+                let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
+                let arm_sym: Vec<i32> = sym_clone(sym);
+                let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                ab = lx_blk(bp);
+                let mut rv: i64 = lx_reg(bp);
+                if block_has_term(ab) == 0 {
+                    if rv < 0 { rv = ctr_next(regs); ir_block_add(ab, ir_const_int(rv, 0)); };
+                    ir_block_add(ab, ir_store(rv, tmp));
+                    ir_block_add(ab, ir_br(ml));
+                };
+            } else if str_eq(ename, "__range_bad") {
+                // LO > HI — never matches. Lower as unconditional br nl.
+                ir_block_add(cur, ir_br(nl));
             } else if str_eq(ename, "__str") {
                 let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
                 let sidx: i64 = vec_len(strtab); strtab.push(vname);
@@ -8336,6 +8389,34 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     ab = lower_stmts(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                     if block_has_term(ab) == 0 { ir_block_add(ab, ir_br(ml)); };
                 };
+            } else if str_eq(ename, "__range") {
+                // T2.1 (v0.2.347): synced from s1's match-stmt path —
+                // expression-form match needs the same range support.
+                let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
+                let lo_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(lo_r, vname));
+                let hi_n: i64 = str_to_int(binding);
+                let hi_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(hi_r, hi_n));
+                let lo_ok: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(11, lo_ok, lo_r, mv));
+                let hi_ok: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(11, hi_ok, mv, hi_r));
+                let both_r: i64 = ctr_next(regs); ir_block_add(cur, ir_binop(13, both_r, lo_ok, hi_ok));
+                ir_block_add(cur, ir_br_cond(both_r, al, nl));
+                let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
+                let arm_sym: Vec<i32> = sym_clone(sym);
+                if guard_nid > 0 {
+                    let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    let gr: i64 = lx_reg(gp);
+                    ab = lx_blk(gp);
+                    let gl: i64 = ctr_next(lbls);
+                    ir_block_add(ab, ir_br_cond(gr, gl, nl));
+                    let mut gb: Vec<i32> = ir_block_new(gl); ir_fn_add_block(fir, gb);
+                    gb = lower_stmts(pool, body_list, gb, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    if block_has_term(gb) == 0 { ir_block_add(gb, ir_br(ml)); };
+                } else {
+                    ab = lower_stmts(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    if block_has_term(ab) == 0 { ir_block_add(ab, ir_br(ml)); };
+                };
+            } else if str_eq(ename, "__range_bad") {
+                ir_block_add(cur, ir_br(nl));
             } else if str_eq(ename, "__str") {
                 let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
                 let sidx: i64 = vec_len(strtab); strtab.push(vname);

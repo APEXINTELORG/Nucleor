@@ -1384,14 +1384,42 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let mut binding: str = "";
         if att == 2 {
             // Integer literal pattern (token value is already i64).
-            // RFC-0023 §3.1 range patterns (`1..=9`) deferred to v0.4 with
-            // generic enums — encoding LO/HI in the existing arm tuple
-            // (which assumes vname:i64-or-str + binding:str semantics) is
-            // too fragile without a richer arm AST node. The lower-side
-            // __range / __range_bad handlers below are wired and waiting.
-            ename = "__int";
-            vname = pkv(tokens, cp);
+            // T2.1 (v0.2.347): range patterns now wire through to the
+            // long-existing lower-side __range / __range_bad handlers.
+            // Encoding fits cleanly in the existing arm tuple:
+            //   vname    = LO (i64 cell, raw int from token)
+            //   binding  = str_from_int(HI) (string-encoded HI; lower
+            //              side recovers via str_to_int)
+            //   ename    = "__range" if LO <= HI, else "__range_bad"
+            //   Half-open `LO..HI` normalizes to `LO..=(HI-1)`.
+            // (Earlier worry about arm tuple fragility turned out to
+            // be unfounded — the existing shape handles it fine.)
+            let lo_val: i64 = pkv(tokens, cp);
             cp = cp + 1;
+            let next_tok: i64 = pk(tokens, cp);
+            if next_tok == 96 || next_tok == 58 {
+                let inclusive: i64 = if next_tok == 96 { 1 } else { 0 };
+                cp = cp + 1;
+                if pk(tokens, cp) == 2 {
+                    let hi_raw: i64 = pkv(tokens, cp);
+                    cp = cp + 1;
+                    let hi_norm: i64 = if inclusive == 1 { hi_raw } else { hi_raw - 1 };
+                    if lo_val <= hi_norm {
+                        ename = "__range";
+                    } else {
+                        ename = "__range_bad";
+                    };
+                    vname = lo_val;
+                    binding = str_from_int(hi_norm);
+                } else {
+                    // Malformed range — fall back to plain int.
+                    ename = "__int";
+                    vname = lo_val;
+                };
+            } else {
+                ename = "__int";
+                vname = lo_val;
+            };
         } else if att == 3 {
             // String literal pattern
             ename = "__str";
