@@ -4969,6 +4969,21 @@ fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
         if rt < 0 { return ""; };
         return type_base_name(rt);
     };
+    // v0.3.69 fix: trait method call returning a struct. For
+    // `v.rotated().x` (where `rotated` returns V3), the operand
+    // of the field access is `v.rotated()` (kind 8). Same shape
+    // as v0.3.60 binop_float_type kind 8 — resolve receiver type,
+    // construct mangled name, look up __fnret_<MANGLED>.
+    if kind == 8 {
+        let recv_nid: i64 = node_field(pool, nid, 1);
+        let mname: str = node_field(pool, nid, 2);
+        let rtype: str = expr_struct_type(pool, recv_nid, sym, structs);
+        if str_len(rtype) == 0 { return ""; };
+        let mangled: str = str_concat(rtype, str_concat("__", mname));
+        let rt: i64 = sym_get(sym, str_concat("__fnret_", mangled));
+        if rt < 0 { return ""; };
+        return type_base_name(rt);
+    };
     // v0.3.59 fix: Vec indexing result. For `v[0].x` where v
     // is Vec<V3>, the operand of the field access is `v[0]`
     // (kind 10); same compile-error class as v0.3.58. Reuses

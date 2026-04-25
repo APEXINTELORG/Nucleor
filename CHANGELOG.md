@@ -5,6 +5,113 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.69] — 2026-04-25
+
+**Compiler fix #15: trait method results returning structs +
+immediate field access (`v.rotated().x`).** v0.3.68 closed
+the indexed-operand composition matrix; probing builder/
+transform pipelines surfaced ANOTHER missing kind cell —
+field access on a method-call result that returns a struct.
+Same bug class as v0.3.58/v0.3.60: type-info loss in a
+parallel resolver enumeration.
+
+### The pattern
+
+Builder/transform pipelines pervade robotics:
+
+```nucleor
+pose.rotate(q).translate(t).build().x
+sensor.calibrate().median().value
+state.predict(dt).update(z).position.x
+```
+
+Pre-v0.3.69 every `*.method().field` form failed compilation
+with "ERROR: cannot resolve field access type". `expr_struct_type`
+kind 9 (field access) recursed on the operand, but if the
+operand was kind 8 (trait method call) it returned ""
+because kind 8 wasn't in the enumeration.
+
+### Fix
+
+Mirrored v0.3.60's binop_float_type kind 8 branch into
+expr_struct_type:
+
+```nucleor
+if kind == 8 {
+    let recv_nid: i64 = node_field(pool, nid, 1);
+    let mname: str = node_field(pool, nid, 2);
+    let rtype: str = expr_struct_type(pool, recv_nid, sym, structs);
+    if str_len(rtype) == 0 { return ""; };
+    let mangled: str = str_concat(rtype, str_concat("__", mname));
+    let rt: i64 = sym_get(sym, str_concat("__fnret_", mangled));
+    if rt < 0 { return ""; };
+    return type_base_name(rt);
+};
+```
+
+Resolves the receiver type, constructs the trait-impl
+mangled method name (`<TYPE>__<METHOD>`), looks up the
+return type via `__fnret_<MANGLED>`. Reuses the v0.3.60
+fn_decls + populate_fn_returns_in_sym infrastructure.
+
+### What now works that previously didn't
+
+```nucleor
+let v: V3 = make();
+
+v.rotated().x                                → 2.0  (was: compile error)
+make().rotated().x                           → 2.0  (was: compile error)
+make().rotated().x + make().rotated().y      → 5.0  (was: compile error)
+```
+
+The third example is the production sweet spot — chained
+method-field access composed in inline arithmetic. Pose
+builders, sensor calibrators, state predictors all use
+this shape.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `expr_struct_type`
+  gains kind==8 branch. Bootstrap fixed point recomputed
+  at SHA `267dee66` (was `33910158`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t344_method_returning_struct.nr` — new
+  strict regression fixture covering var/fn-call/inline-binop
+  receivers.
+- `tools/verify.{sh,ps1}` — new T3.44 verify step.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry
+  added; SHA stamp updated.
+
+### Verify gate
+
+- 421/421 green (was 420 + 1 new step from T3.44).
+- All prior regression fixtures (T3.28-T3.43) still green.
+- Bootstrap fixed point closes at `267dee66`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.69)
+
+- **15 codegen fixes**
+- **17 strict regression fixtures**: T3.28-T3.44
+- **Reusable infrastructure**: `__fnret_<NAME>`,
+  `__fnfulltype_<NAME>`, `__fulltype_<vname>`, pass-1.5
+  fn_decls extension, `strip_container_one_level`,
+  `indexed_element_full_type`. **Now also: `expr_struct_type`
+  + `binop_float_type` both handle the same kind 8 (trait
+  method) operand path** — symmetric with the indexed-operand
+  matrix v0.3.68 closed.
+- **All fixes coexist**: bootstrap stable through 15 SHA
+  refreshes
+- **Type-resolver kind enumerations are now symmetric**:
+  binop and expr_struct both handle kinds {3, 7, 8, 9, 10}
+  uniformly (binop additionally handles kinds 4 binop, 5
+  unary, 71 literal, 90/91/92 wrappers, 99 cast — all
+  arithmetic-only)
+
+The arithmetic + struct-resolution surface for f64 on
+production AST shapes is now structurally complete across
+all common composition paths.
+
 ## [0.3.68] — 2026-04-25
 
 **Compiler fix #14: nested indexing (`grid[i][j]`) — closes
