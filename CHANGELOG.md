@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.8] — 2026-04-25
+
+**T3.9 RT-005 — FFI call from inside an RT-marked fn warns.**
+`extern fn` declarations are unknown to the compiler and may
+allocate, panic, take indeterminate time, or do IO. Calling
+one from inside `#[no_alloc]` / `#[no_panic]` / `#[deadline]`
+breaks every RT contract. v1 fires
+`warning[RT-005]: FFI call '<name>' from <attr> fn '<fn>' --
+extern fns may allocate, panic, or block (use #[allow(RT-005)]
+until #[ffi_no_*] ships)`. Suppressible per-fn.
+
+### Approach
+
+Three pieces:
+1. `collect_extern_fn_names(source)` walks the source for
+   `extern fn NAME(` lines (string- and comment-aware so the
+   literal pattern in this very compiler doesn't match itself).
+2. `check_no_ffi_violations(diags, source, fn_name, externs, attr_label)`
+   locates the body via `fn NAME(` then `{` then brace-balanced
+   `}`, runs it through the v0.3.6 strip pass, then for each
+   extern name checks for `<name>(` in the stripped body.
+3. `enforce_rt005_ffi(diags, source)` iterates the union of
+   `collect_no_alloc_fns`, `collect_no_panic_fns`, and
+   `wcet_collect_deadline_fns` (the inner-name slot from each
+   T3.1 deadline pair) and runs the body check on each.
+
+### Verify gate
+
+- New: `tests/fixtures/t39_rt005_ffi.nr` — `extern fn host_telemetry`
+  + `#[no_alloc] fn rt_path` calling it. Verify asserts the exact
+  RT-005 line text (code, fn name, attribute label).
+- Existing fixtures with extern fn but no RT attrs (t34_export.nr)
+  + RT attrs but no extern call (t36_no_dyn_clean.nr) both stay
+  clean — RT-005 fires only on the intersection.
+- Self-host bootstrap fixed-point holds at 87C82347 (stage-2 IR
+  == stage-3 IR). Bootstrap RSS peak 215 MB.
+
+This closes RFC-0001 §3.5 except RT-008 (recursion in #[deadline]
++ `#[max_depth]` annotation), which needs the wrapper-name
+extraction work and is deferred to v0.4.
+
 ## [0.3.7] — 2026-04-25
 
 **T3.8 RT-006 — RT attribute on `async fn` is rejected.** The

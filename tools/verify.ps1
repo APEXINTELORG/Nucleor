@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 29
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 30
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -796,6 +796,16 @@ Step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" {
     $out = & $bin build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-007\]:") { return $false }
     if ($out -notmatch "has #\[deadline\] but neither #\[no_alloc\] nor #\[no_panic\]") { return $false }
+    return $true
+}
+
+Step "T3.9 RT-005 fires on FFI call from RT fn body" {
+    # v0.3.8 (T3.9): RFC-0001 RT-005 — extern fn call from inside
+    # an RT-marked fn body warns. v1 is text-scan: every literal
+    # `<extern_name>(` substring in the stripped body fires.
+    $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" 2>&1 | Out-String
+    if ($out -notmatch "warning\[RT-005\]: FFI call 'host_telemetry'") { return $false }
+    if ($out -notmatch "from #\[no_alloc\] fn 'rt_path'") { return $false }
     return $true
 }
 
