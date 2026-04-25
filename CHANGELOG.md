@@ -5,6 +5,139 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.79] — 2026-04-25
+
+**LOCKED PARTIAL CLOSED — T1.2 match-on-enum-with-data + stmt-style
+arm bodies.** Pre-v0.3.79, writing the canonical Rust pattern:
+
+```nucleor
+match r {
+    Ok(v) => return v,
+    Err(_) => return -1,
+}
+```
+
+produced cascading parse errors ("expected token 64 got 44/16") and
+broken IR with `@_` undefined symbol references. The user explicitly
+asked this partial to close before launch (2026-04-25).
+
+### Root cause — narrower than initially feared
+
+Probing revealed that the entire match-on-enum machinery WORKS
+correctly when arm bodies are expressions:
+
+```nucleor
+let r: i64 = match m {
+    Maybe::Just(v) => v,        // ✓ works
+    Maybe::Nothing => 0,        // ✓ works
+};
+```
+
+Even wildcard + Result patterns work end-to-end with expression
+arms. The ONLY production gap was that `parse_match_stmt`'s
+arm-body handler accepted `{ stmts }` block form OR a single
+expression — but `return EXPR` is a statement, not an expression.
+`parse_expr(return ...)` silently failed, leaving cp parked on
+`return`. The next iteration of the arm loop then tried to parse
+a pattern starting at `return`, which cascaded into "expected
+token 64 got 44/16" errors as the parser got further out of sync.
+
+### Fix
+
+Add explicit `return` (16), `break` (18), and `continue` (19)
+token recognition to the arm-body handler at line ~1571. Each
+produces the corresponding stmt node directly (kind 22 / 26 / 27)
+without going through parse_expr:
+
+```nucleor
+} else if pk(tokens, cp) == 16 {
+    // return EXPR or bare return
+    cp = cp + 1;
+    let mut rstmts: Vec<i32> = Vec::new();
+    if pk(tokens, cp) == 43 {
+        rstmts.push(mk2(pool, 22, 0 - 1));   // bare return
+        cp = cp + 1;
+    } else {
+        let mut rer: Vec<i32> = parse_expr(tokens, cp, pool);
+        cp = pr_pos(rer);
+        rstmts.push(mk2(pool, 22, pr_val(rer)));
+    };
+    body_list = mk_list(pool, rstmts);
+} else if pk(tokens, cp) == 18 {
+    // break;
+    ...
+} else if pk(tokens, cp) == 19 {
+    // continue;
+    ...
+}
+```
+
+### What now works that previously didn't
+
+```nucleor
+fn use_status(s: Status) -> i64 {
+    match s {
+        Status::Ok => return 42,    // ✓
+        Status::Err => return 7,    // ✓
+    }
+}
+
+fn use_maybe(m: Maybe) -> i64 {
+    match m {
+        Maybe::Just(v) => return v, // ✓
+        Maybe::Nothing => return 0, // ✓
+    }
+}
+
+fn use_wildcard(s: Status) -> i64 {
+    match s {
+        Status::Ok => return 1,
+        _ => return 99,             // ✓ wildcard works too
+    }
+}
+```
+
+### Production-readiness — closes the second locked partial
+
+The v0.3.78 ship closed T2.1/2/3 (inline closure capture). This
+v0.3.79 ship closes T1.2 (match-on-enum-with-data). Both locked
+partials from the user's 2026-04-25 instruction are now closed.
+
+Note: the surface I initially feared (variant-tag dispatch,
+wildcard `_` becoming `@_`, parser confusing pattern values with
+arm bodies) all turned out to be downstream symptoms of the
+SINGLE root cause: parse_expr silently failing on `return`. Fixing
+arm-body parsing made every reported symptom disappear.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `parse_match_stmt` gains
+  explicit return/break/continue arm-body handling. Bootstrap
+  fixed point recomputed at SHA `f5236995` (was `49ce5420`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t354_match_arm_return.nr` — new strict
+  regression fixture covering enum-no-data, enum-with-data, and
+  wildcard arms — all with `return` arm bodies.
+- `tools/verify.{sh,ps1}` — new T3.54 verify step.
+
+### Verify gate
+
+- 432/432 green (was 431 + 1 step from T3.54).
+- All prior regression fixtures (T3.28-T3.53) still green.
+- Bootstrap fixed point closes at `f5236995`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.79)
+
+- **22 codegen + 1 runtime + 2 parser diagnostic = 25 total**
+  (arc passes the symbolic 25-fix milestone)
+- **27 strict regression fixtures** (T3.28-T3.54)
+- **6 robotics RT showcase examples** in Tier 4
+- **BOTH LOCKED PARTIALS NOW CLOSED** — T2.1/2/3 (v0.3.78) and
+  T1.2 (v0.3.79). The 2026-04-25 launch criteria for the
+  punchlist are met for the locked priority order. Further fixes
+  continue as production-shape probes surface gaps.
+
 ## [0.3.78] — 2026-04-25
 
 **LOCKED PARTIAL CLOSED — T2.1/2/3 inline closure with capture.**

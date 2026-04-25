@@ -1574,6 +1574,40 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
             cp = expect_tok(tokens, pr_pos(br), 53); // }
             body_list = pr_val(br);
+        } else if pk(tokens, cp) == 16 {
+            // v0.3.79: arm body `return EXPR` — Rust-style. Parse as a
+            // return stmt (kind 22) so the lowering treats it as a
+            // divergent stmt rather than an expression. Pre-v0.3.79 this
+            // hit parse_expr(return ...) which failed silently and left
+            // cp parked on `return`, producing the cascading "expected
+            // token 64 got 44/16" parse errors as the next arm's
+            // pattern-parse re-entered partway through the previous
+            // arm's body.
+            cp = cp + 1;
+            let mut rstmts: Vec<i32> = Vec::new();
+            if pk(tokens, cp) == 43 {
+                rstmts.push(mk2(pool, 22, 0 - 1));
+                cp = cp + 1;
+            } else {
+                let mut rer: Vec<i32> = parse_expr(tokens, cp, pool);
+                cp = pr_pos(rer);
+                rstmts.push(mk2(pool, 22, pr_val(rer)));
+            };
+            body_list = mk_list(pool, rstmts);
+        } else if pk(tokens, cp) == 18 {
+            // v0.3.79: arm body `break;` (or bare `break`).
+            cp = cp + 1;
+            if pk(tokens, cp) == 43 { cp = cp + 1; };
+            let mut bstmts: Vec<i32> = Vec::new();
+            bstmts.push(mk2(pool, 26, 0));
+            body_list = mk_list(pool, bstmts);
+        } else if pk(tokens, cp) == 19 {
+            // v0.3.79: arm body `continue;` (or bare `continue`).
+            cp = cp + 1;
+            if pk(tokens, cp) == 43 { cp = cp + 1; };
+            let mut cstmts: Vec<i32> = Vec::new();
+            cstmts.push(mk2(pool, 27, 0));
+            body_list = mk_list(pool, cstmts);
         } else {
             let mut er: Vec<i32> = parse_expr(tokens, cp, pool);
             cp = pr_pos(er);
