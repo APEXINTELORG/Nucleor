@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 17))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 18))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -758,6 +758,16 @@ tools_suite_memory_budget() {
     _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
 }
 
+t28_async_threads() {
+    # v0.2.353 (T2.8): async runtime — threads-only commitment.
+    "$BIN" test "tests/smoke/t28_async_threads.nr" >/tmp/_nuc_step.log 2>&1
+    grep -q "PASS: test_async_basic_spawn_await" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_async_two_concurrent_tasks" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_async_await_in_arithmetic" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_async_zero_arg_fn" /tmp/_nuc_step.log || return 1
+    grep -q "test result: PASS (4 tests)" /tmp/_nuc_step.log || return 1
+}
+
 t27_doc_html() {
     # v0.2.352 (T2.7): nuc doc --html emits standalone HTML doc.
     local hdr
@@ -1092,6 +1102,7 @@ step "T2.3 closure literals |args| body (no-capture)" t23_closure_literals
 step "T2.4 trait objects (Box<dyn Trait> 2-cell handle helpers)" t24_trait_objects
 step "T2.5 lifetime parameters parse cleanly (advisory metadata)" t25_lifetime_params
 step "T2.7 nuc doc --html emits styled standalone HTML" t27_doc_html
+step "T2.8 async (threads-only): async fn / async_spawn / .await" t28_async_threads
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------

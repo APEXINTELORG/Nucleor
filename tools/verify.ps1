@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 19
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 20
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -773,6 +773,23 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
     $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
     return $h1 -eq $h2
+}
+
+Step "T2.8 async (threads-only): async fn / async_spawn / .await" {
+    # v0.2.353 (T2.8): async runtime committed to threads-only per
+    # RFC-0027 phase 1 (locked v0.2 design vote). `async fn` strips
+    # the keyword; `<ident>.await` rewrites to async_await(<ident>);
+    # async_spawn / async_await runtime helpers capture the i64
+    # result of the spawned task. 4 #[test] cases cover basic
+    # spawn+await, two concurrent tasks, .await in arithmetic
+    # context, and zero-result task.
+    $out = & $bin test "tests/smoke/t28_async_threads.nr" 2>&1 | Out-String
+    if ($out -notmatch "PASS: test_async_basic_spawn_await") { return $false }
+    if ($out -notmatch "PASS: test_async_two_concurrent_tasks") { return $false }
+    if ($out -notmatch "PASS: test_async_await_in_arithmetic") { return $false }
+    if ($out -notmatch "PASS: test_async_zero_arg_fn") { return $false }
+    if ($out -notmatch "test result: PASS \(4 tests\)") { return $false }
+    return $true
 }
 
 Step "T2.7 nuc doc --html emits styled standalone HTML" {

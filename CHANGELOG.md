@@ -5,6 +5,172 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.353] — 2026-04-24
+
+**T2.8 async runtime decision — threads-only commitment
+shipped as working syntax + runtime.** Closes the T2 layer
+of the locked v0.2 priority list. `async fn`, `async_spawn`,
+and `<ident>.await` all work end-to-end today; the async
+runtime is explicitly committed to OS threads (RFC-0030
+phase-1 threaded fallback) per the locked v0.2 design vote.
+RFC-0027's futures-based state-machine rewrite is parked
+for v0.8.
+
+### What ships
+
+Four things wired together:
+
+1. **Source-level rewriting in resolver.** `async fn name(...)`
+   drops the `async` keyword (the function is a regular fn;
+   the `async` marker is advisory). `<ident>.await` rewrites
+   to `async_await(<ident>)`.
+
+2. **Runtime helpers (both Windows + POSIX).**
+   - `__nucleor_async_spawn(fn_ptr, arg) -> task_handle` —
+     allocates an `NAsyncTask` struct, spawns a real OS
+     thread running the fn with arg, captures the i64
+     return into the struct's `result` slot.
+   - `__nucleor_async_await(task_handle) -> i64` — joins
+     the thread, reads `result`, frees the struct, returns
+     the value.
+   
+3. **Compiler builtin wiring** in both compilers:
+   - `async_spawn` → `__nucleor_async_spawn`
+   - `async_await` → `__nucleor_async_await`
+   - LLVM declares for both.
+
+4. **RFC-0030 update** — §7 Definition of Done now marks
+   the threaded fallback as `[x]` shipped, with a
+   block-level explanation of the v0.2.353 scope so
+   future readers know what's today-async vs v0.8-async.
+
+### Difference from `thread_spawn`/`thread_join`
+
+The existing `thread_*` runtime helpers run the fn with
+`THREAD_PRIORITY_IDLE` / `SCHED_IDLE` and discard the fn's
+return value. The new `async_*` helpers:
+- Use **default priority** (async tasks need to make
+  progress; IDLE priority was for background-only work).
+- **Capture the i64 return value** into an `NAsyncTask`
+  struct's `result` slot so `.await` can retrieve it.
+
+Users building low-priority background workers should
+keep using `thread_spawn` / `thread_join`. Users needing
+a return value should use `async_spawn` / `.await`.
+
+### T2.8 smoke
+
+`tests/smoke/t28_async_threads.nr` — 4 `#[test]` cases:
+- `test_async_basic_spawn_await` — spawn, await, get 49
+  from `square(7)`
+- `test_async_two_concurrent_tasks` — two tasks, both
+  awaited, order-independent result capture
+- `test_async_await_in_arithmetic` — `.await` in
+  expression context: `h1.await + h2.await` works
+  because `.await` rewrites to `async_await(h1)` which is
+  an i64-returning call
+- `test_async_zero_arg_fn` — task that returns 0
+
+All 4 PASS.
+
+### Verify gate
+
+Windows: 362/362 PASS. Bootstrap fixpoint refreshed
+(seed sha256 `dfaffd1c...`).
+
+### Numerics-compatibility
+
+`async_spawn` and `async_await` pass and return i64 per
+the locked i64-everywhere FFI convention. The fn_ptr arg
+uses the same fn-pointer passing convention as
+`vec_map_i64` (T2.2) and `thread_spawn` — named fn is
+automatically resolved to its address. Task handles are
+opaque i64 pointers into heap-allocated `NAsyncTask`
+structs.
+
+### Memory safety
+
+Each `async_spawn` allocates exactly one `NAsyncTask`
+struct (sizeof ~40 bytes). `async_await` frees the struct
+after reading `result`. The thread handle is closed
+(Windows) or detached+joined (POSIX) at the same time.
+There's no reference-counting race because await is a
+sync join — the thread has fully finished by the time
+we read `result`. Cross-thread data passing (the arg and
+result i64s) is through the malloc'd struct, not through
+aliased stack memory, so no shared-mutable aliasing.
+
+### Files
+
+- `stdlib/runtime/nucleor_llvm_rt.c` — `NAsyncTask` struct
+  + `__nucleor_async_spawn` + `__nucleor_async_await`,
+  both Windows (HANDLE + CreateThread) and POSIX
+  (pthread_t + pthread_create).
+- `compiler/nucleor_s1_compiler.nr` — `expand_async_syntax`
+  (strip-keyword + `.await` rewrite) wired into the
+  resolver pipeline between `expand_format_macros` and
+  `expand_closures`; `async_spawn` / `async_await`
+  builtin entries; LLVM declares.
+- `compiler/nucleor_tools_suite.nr` — synced.
+- `docs/rfcs/RFC-0030-async-decision.md` — §7 DoD update
+  marking threaded fallback shipped.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+- `tests/smoke/t28_async_threads.nr` — 4-case smoke.
+- `tools/verify.ps1`, `tools/verify.sh` — new T2.8 step.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (421 fns,
+  827 optimized instructions; new sha256 dfaffd1c...).
+- `bin/nucleor.exe` — rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Known limitations / T2.8b roadmap
+
+- **`.await` restricted to `<ident>.await`.** Complex
+  receivers (`compute().await`, `arr[0].await`) require a
+  let-binding first. T2.8b adds a depth-aware backwards
+  receiver scanner (same shape as the closure body
+  scanner in T2.3).
+- **No cancellation.** Once a task is spawned it runs
+  to completion. T2.8c adds an `async_cancel(handle)`
+  helper that sets a cancellation flag the task body can
+  poll (cooperative only — no hard kill).
+- **No timeout on await.** T2.8d adds
+  `async_await_timeout(handle, ms)` returning a tagged
+  result.
+- **One thread per task.** For high-task-count scenarios
+  (thousands of concurrent tasks) this is ~8 MB per task
+  on Windows and ~2 MB on Linux — fine for the tens-to-
+  low-hundreds scale typical of robotics / service code,
+  not for web-scale fan-out. v0.5 `rod/tokio.nr` is the
+  escape hatch there; v0.8 state-machine rewrite is the
+  long-term answer.
+- **Default priority, not IDLE.** `async_spawn` uses the
+  OS default priority (vs `thread_spawn`'s IDLE). This is
+  a deliberate API distinction — see "Difference from
+  thread_spawn/thread_join" above.
+
+### T2 layer complete
+
+With T2.8 shipped, every T2 item in the locked priority
+list has a tagged release:
+
+- T2.1 range patterns (v0.2.347)
+- T2.2 iterator methods (v0.2.348)
+- T2.3 closure literals (v0.2.349)
+- T2.4 trait objects (a) (v0.2.350)
+- T2.5 lifetimes (parse-only) (v0.2.351)
+- T2.6 format strings (v0.2.346)
+- T2.7 nuc doc HTML (v0.2.352)
+- T2.8 async threads-only (v0.2.353) ← this ship
+
+### Next
+
+**v0.3 robotics foundation** per the locked priority order.
+The locked design defaults for v0.3:
+- `#[deadline]` runtime checks (already wired; v0.3 makes
+  them mandatory on robotics code paths).
+- Extern-C shims as the C++ FFI default.
+- Static WCET bounds for any fn that declares `#[deadline]`.
+
 ## [0.2.352] — 2026-04-24
 
 **T2.7 `nuc doc` HTML mode — `--html` flag (with .html /

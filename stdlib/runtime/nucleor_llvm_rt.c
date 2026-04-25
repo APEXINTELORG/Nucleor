@@ -1956,6 +1956,40 @@ void __nucleor_thread_join(long long handle) {
     WaitForSingleObject((HANDLE)handle, INFINITE);
     CloseHandle((HANDLE)handle);
 }
+// === T2.8 (v0.2.353): async runtime — threads-only ===
+// async fn / .await desugar to async_spawn / async_await. Each task
+// is a real OS thread with a captured i64 result slot. Per the
+// locked v0.2 design vote (RFC-0027 phase 1).
+typedef struct NAsyncTask {
+    HANDLE thread_handle;
+    long long (*fn)(long long);
+    long long arg;
+    long long result;
+} NAsyncTask;
+static DWORD WINAPI nucleor_async_proc(LPVOID param) {
+    NAsyncTask *t = (NAsyncTask*)param;
+    t->result = t->fn(t->arg);
+    return 0;
+}
+long long __nucleor_async_spawn(long long fn_ptr, long long arg) {
+    NAsyncTask *t = (NAsyncTask*)malloc(sizeof(NAsyncTask));
+    if (!t) return 0;
+    t->fn = (long long(*)(long long))(void*)fn_ptr;
+    t->arg = arg;
+    t->result = 0;
+    t->thread_handle = CreateThread(NULL, 0, nucleor_async_proc, t, 0, NULL);
+    if (!t->thread_handle) { free(t); return 0; }
+    return (long long)(intptr_t)t;
+}
+long long __nucleor_async_await(long long task_handle) {
+    if (!task_handle) return 0;
+    NAsyncTask *t = (NAsyncTask*)(intptr_t)task_handle;
+    WaitForSingleObject(t->thread_handle, INFINITE);
+    long long r = t->result;
+    CloseHandle(t->thread_handle);
+    free(t);
+    return r;
+}
 long long __nucleor_mutex_new(void) {
     CRITICAL_SECTION *cs = (CRITICAL_SECTION*)malloc(sizeof(CRITICAL_SECTION));
     InitializeCriticalSection(cs);
@@ -2126,6 +2160,38 @@ void __nucleor_thread_join(long long handle) {
     if (!handle) return;
     pthread_join(*(pthread_t*)(void*)handle, NULL);
     free((void*)handle);
+}
+// === T2.8 (v0.2.353): async runtime — POSIX side ===
+typedef struct NAsyncTask {
+    pthread_t thread;
+    long long (*fn)(long long);
+    long long arg;
+    long long result;
+    int started;
+} NAsyncTask;
+static void* nucleor_async_proc(void *param) {
+    NAsyncTask *t = (NAsyncTask*)param;
+    t->result = t->fn(t->arg);
+    return NULL;
+}
+long long __nucleor_async_spawn(long long fn_ptr, long long arg) {
+    NAsyncTask *t = (NAsyncTask*)malloc(sizeof(NAsyncTask));
+    if (!t) return 0;
+    t->fn = (long long(*)(long long))(void*)fn_ptr;
+    t->arg = arg;
+    t->result = 0;
+    t->started = 0;
+    if (pthread_create(&t->thread, NULL, nucleor_async_proc, t) != 0) { free(t); return 0; }
+    t->started = 1;
+    return (long long)(intptr_t)t;
+}
+long long __nucleor_async_await(long long task_handle) {
+    if (!task_handle) return 0;
+    NAsyncTask *t = (NAsyncTask*)(intptr_t)task_handle;
+    if (t->started) pthread_join(t->thread, NULL);
+    long long r = t->result;
+    free(t);
+    return r;
 }
 long long __nucleor_mutex_new(void) {
     pthread_mutex_t *m = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
