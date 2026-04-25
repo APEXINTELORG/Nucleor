@@ -4957,6 +4957,18 @@ fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
         let si: i64 = struct_find_type(pool, structs, outer_type);
         if si >= 0 { return type_base_name(struct_field_type(pool, vec_get(structs, si), node_field(pool, nid, 2))); };
     };
+    // v0.3.58 fix: function call result. For `make_v().x`, the
+    // operand of the field access is `make_v()` (kind 7); without
+    // this branch expr_struct_type returned "" and lower_expr's
+    // kind==9 then errored "cannot resolve field access type".
+    // Reuses the v0.3.54 __fnret_<NAME> sym entry populated by
+    // populate_fn_returns_in_sym at lower_fn entry.
+    if kind == 7 {
+        let fn_name: str = node_field(pool, nid, 1);
+        let rt: i64 = sym_get(sym, str_concat("__fnret_", fn_name));
+        if rt < 0 { return ""; };
+        return type_base_name(rt);
+    };
     return "";
 }
 
