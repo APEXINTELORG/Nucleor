@@ -5,6 +5,154 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.344] — 2026-04-24
+
+**T1.4 packager — `nuc registry export-static` (GitHub-Pages
+publishable static-site shape) + RFC-0019 §5 schema +
+fs_copy_file return-code bug fix.** Producer side of the
+GitHub-Pages-as-registry path lands in v0.2: `nuc registry
+export-static <out_dir>` converts a local file-system registry
+tree into a static site that can be pushed straight to a
+`gh-pages` branch. The consumer side (HTTPS fetch, signature
+verify) stays in T1.4b pending the TLS rod (RFC-0019 §5.5) —
+GitHub Pages enforces HTTPS so the existing plaintext
+`stdlib/rods/socket.nr::nuc_http_get` is not enough.
+
+### Static-site schema (RFC-0019 §5.1)
+
+```
+<out_dir>/
+├── index.json                       # top-level — every package
+├── <package>/
+│   ├── index.json                   # per-package — every version
+│   └── <version>/
+│       ├── Nucleor.toml             # manifest
+│       ├── Nucleor.lock             # lockfile (if present)
+│       └── ...                      # source files (.nr, .md, etc.)
+```
+
+Top-level JSON shape:
+```json
+{"schema_version":"1.0","type":"nucleor_registry_index",
+ "packages":[{"name":"foo","latest":"0.2.0","versions":["0.2.0","0.1.0"]},
+             {"name":"bar","latest":"1.0.0","versions":["1.0.0"]}],
+ "count":2}
+```
+
+`versions` is sorted descending by semver; `latest` matches
+`versions[0]`. Per-package `index.json` is the same shape
+narrowed to one package.
+
+### `nuc registry export-static <out_dir>`
+
+Two new Nucleor-side helpers in `tools_suite.nr`:
+- `registry_export_static_native(registry_dir, out_dir)` —
+  iterates every package directory in `registry_dir`, calls
+  `registry_package_versions_native` to enumerate versions,
+  writes the top-level + per-package index.json, recursively
+  copies each version's file tree to `<out_dir>/<pkg>/<ver>/`.
+  Returns `[pkg_count, version_count, file_count]`.
+- `registry_export_copy_tree_native(src_root, dst_root)` —
+  uses the cross-platform `walk_dir_recursive_native`
+  (T1.7) plus `fs_create_dir_all` and `fs_copy_file`. Returns
+  the count of files actually copied so the CLI can summarize.
+
+### Bug fixed during implementation: `fs_copy_file` return code
+
+`__nucleor_fs_copy_file` returns **1 on success** and **0 on
+failure** — opposite of POSIX `cp` exit conventions. T1.7's
+`publish_copy_files_native` had `if fs_copy_file(...) != 0 {
+return 1; }` which was inverted: it treated success as
+failure. T1.4's first draft of `registry_export_copy_tree_native`
+had `if fs_copy_file(...) == 0 { copied = copied + 1; }` which
+was the opposite inversion: counted failures as successes (and
+the count came out matching `version_count` purely by
+coincidence).
+
+Both call sites fixed in this ship. The first symptom (the
+T1.4 count mismatch) caught the second (T1.7's silent
+inverted check that hadn't been exercised by any err-path
+fixture yet). Production-code review item: when adding new
+fs_* runtime calls, document the `0 = failure / 1 = success`
+contract in the rod source so future callers don't repeat
+the pattern.
+
+### Smoke fixture
+
+`tests/fixtures/t14_registry/` — 2 packages (`foo` with
+versions `0.1.0` + `0.2.0`, `bar` with `1.0.0`), 4 source
+files total. The verify gate runs `nuc registry
+export-static` against this fixture into a temp dir, then
+asserts:
+- output banner reports `packages exported: 2 / versions
+  exported: 3 / files copied: 7` (4 source + 2 per-package
+  index + 1 top-level index)
+- top-level `index.json` exists with the expected shape
+  (`schema_version`, `type`, `count:2`, both package names
+  with correct `latest` pointers)
+- per-package + per-version files all land in expected
+  paths
+
+### Verify gate
+
+Windows: 353/353 PASS. Bootstrap fixpoint stable (s1 didn't
+change so the seed sha256 is unchanged from v0.2.343).
+
+### Numerics-compatibility
+
+No new arithmetic surfaces. Counts return `i64` per the
+locked i64-everywhere convention. JSON shapes use only ASCII
+quotes and braces — no encoding ambiguity.
+
+### Memory safety
+
+The export builders allocate fresh `sb_*` string builders
+for the index.json contents and `Vec<i32>` for the count
+return. The recursive copy walks via the existing
+`walk_dir_recursive_native` (T1.7) which already handles
+ownership cleanly. No new shared mutable state introduced.
+
+### Files
+
+- `compiler/nucleor_tools_suite.nr` — `export-static`
+  subcommand handler in `run_registry_command`, plus the two
+  new native helpers; `publish_copy_files_native` bug fix.
+- `docs/rfcs/RFC-0019-package-manager.md` — new §5 (Remote
+  registry — static-index variant), §5.1–§5.5 covering
+  schema, JSON shapes, producer side (shipped),
+  consumer side (T1.4b), TLS rod gating dependency.
+  Renumbered §5 → §6 (Alternatives).
+- `tests/fixtures/t14_registry/` — 4-file fixture exercising
+  both single-version and multi-version packages.
+- `tools/verify.ps1`, `tools/verify.sh` — new T1.4 step
+  asserting export schema + file layout.
+- `bin/nucleor_tools.exe` — rebuilt with the new helpers.
+- `CHANGELOG.md` — this entry.
+
+### Known limitations (T1.4b scope)
+
+- No `nuc registry remote add/list/remove` yet — the
+  per-user config file format is documented in the RFC but
+  the commands aren't wired. `nuc install <pkg>@<ver>` still
+  resolves only against the local file-system registry.
+- No HTTPS fetch — gated on the TLS rod (RFC-0019 §5.5).
+  Today users can `wget` / `curl` a published static site
+  manually, untar into `.nucleor/registry/`, then
+  `nuc install` works from the local copy.
+- `signature.json` and `checksum.json` are NOT yet emitted
+  by export-static — they exist in the local registry
+  (written by `package_checksum_native` / the package-sign
+  flow) and get copied verbatim if present, but
+  export-static doesn't generate them on the fly. T1.4b
+  adds an `--include-checksums` flag and (if the package
+  is signed) `--sign --key <id>` flag.
+
+### Next
+
+T1.6 C ABI rest — struct-by-value + repr(C) propagation,
+per the locked v0.2 design vote (extern C shims chosen as
+the C++ FFI default for v0.4).
+
 ## [0.2.343] — 2026-04-24
 
 **T1.5d modules — friendly compile-time MOD-003 diagnostic
