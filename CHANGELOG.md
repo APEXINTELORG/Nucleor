@@ -5,6 +5,137 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.65] — 2026-04-25
+
+**Compiler fix #11: nested-operand indexing — `self.samples[i]`
+in trait method bodies.** The v0.3.64 synthesis ship locked
+the production-coverage of single-level operand kinds, but
+probing trait method bodies surfaced a deeper composition
+gap: `self.samples[i]` (Vec/array indexing where the indexed
+expression is itself a struct field, not a direct variable
+ref) returned garbage in inline f64 binops.
+
+### Why this slipped through prior fixtures
+
+v0.3.55's kind==10 branch in `binop_float_type` looked up
+the indexed expression's type via `__fulltype_<vname>` —
+but only when the indexed expression was AST kind 3 (direct
+variable ref). The branch had a guard:
+
+```nucleor
+if node_kind(pool, vexpr) == 3 {
+    let vname: str = node_field(pool, vexpr, 1);
+    let vtype: i64 = sym_get(sym, str_concat("__fulltype_", vname));
+    ...
+};
+```
+
+When `vexpr` was kind 9 (struct field access), the guard
+failed and the branch returned "" → integer arithmetic on
+f64 bit patterns → garbage.
+
+### Production relevance
+
+Trait method bodies routinely access Vec/array fields by
+index. The pattern is canonical:
+
+```nucleor
+trait Window { fn avg(self) -> f64; }
+
+impl Window for Sensor {
+    fn avg(self) -> f64 {
+        // self.samples[i] is the natural form. v0.3.65 makes
+        // it work; pre-v0.3.65 each indexed read poisoned the
+        // arithmetic with garbage from integer dispatch.
+        self.samples[0] + self.samples[1] + self.samples[2]
+    }
+}
+```
+
+Sensor windows, filter histories, IMU sample buffers — all
+store the data in a `samples: Vec<f64>` (or `[f64; N]`)
+field accessed via `self.samples[i]` in the trait method
+body that processes them.
+
+### Fix
+
+Extended the kind==10 branch with a kind 9 (struct field)
+operand path:
+
+```nucleor
+if node_kind(pool, vexpr) == 9 {
+    // self.samples → outer is struct (resolve via expr_struct_type),
+    // then look up field's full type.
+    let parent_type: str = expr_struct_type(pool, node_field(pool, vexpr, 1), sym, structs);
+    if str_len(parent_type) > 0 {
+        let si: i64 = struct_find_type(pool, structs, parent_type);
+        if si >= 0 {
+            vtype_str = struct_field_type(pool, vec_get(structs, si), node_field(pool, vexpr, 2));
+        };
+    };
+};
+```
+
+The `struct_field_type` returns the FULL field annotation
+(e.g. `"Vec<f64>"`), preserving generics — the existing
+`Vec<T>` and `[T; N]` parsing logic then extracts T.
+
+The fix composes naturally:
+- `self.samples` resolves to `"Vec<f64>"` via struct lookup
+- `[T; N]` parser extracts `f64`
+- Dispatcher emits `f64_add` instead of integer add
+- Trait method body returns the correct sum
+
+### What now works that previously didn't
+
+```nucleor
+impl Window for Sensor {
+    fn avg(self) -> f64 {
+        self.samples[0] + self.samples[1] + self.samples[2]
+        // pre-v0.3.65: garbage; post-v0.3.65: correct sum
+    }
+}
+```
+
+Mirrors v0.3.62 (fixed-array indexing) extended to handle
+struct-field operand. Both Vec<f64> and [f64; N] field types
+work.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `binop_float_type`
+  kind==10 branch refactored to handle BOTH kind 3 (var ref)
+  and kind 9 (struct field) operands. Bootstrap fixed point
+  recomputed at SHA `29fb6fb1` (was `27480e3a`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t340_nested_index_field.nr` — new strict
+  regression fixture covering both Vec<f64> field and
+  [f64; N] field indexing inside trait method bodies.
+- `tools/verify.{sh,ps1}` — new T3.40 verify step.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry added;
+  SHA stamp updated.
+
+### Verify gate
+
+- 417/417 green (was 416 + 1 new step from T3.40).
+- All prior regression fixtures (T3.28-T3.39) still green.
+- Bootstrap fixed point closes at `29fb6fb1`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.65)
+
+- **11 codegen fixes**: 10 direct-shape fixes (v0.3.53/54/55/57/58/59/60/61/62/63) + 1 nested-operand fix (v0.3.65)
+- **13 strict regression fixtures**: T3.28-T3.40
+- **Reusable infrastructure**: `__fnret_<NAME>`,
+  `__fulltype_<vname>`, pass-1.5 fn_decls extension
+- **All fixes coexist**: bootstrap stable through 11 SHA
+  refreshes
+
+The dispatcher now handles operand composition — not just
+the leaf kind, but `kind 9 → kind 10 → kind 3` chains
+through struct fields. Trait method bodies that access
+container fields by index are now first-class.
+
 ## [0.3.64] — 2026-04-25
 
 **Production-coverage synthesis: `examples/23_rt_sensor_fusion.nr`

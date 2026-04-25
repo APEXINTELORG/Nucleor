@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 55))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 56))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1051,6 +1051,21 @@ t321_diag001_self_suppress() {
     return 0
 }
 
+t340_nested_index_field() {
+    # T3.40 (v0.3.65): regression test for nested-operand
+    # indexing -- self.samples[i] (Vec/array indexing on a struct
+    # field) inside inline f64 binops. Asserts trait method bodies
+    # compute correctly for both Vec<f64> and [f64;N] fields.
+    "$BIN" build "tests/fixtures/t340_nested_index_field.nr" -o "_t340_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t340_check" ] || [ -x "target/_t340_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t340_check" ]; then exe="target/_t340_check"; else exe="target/_t340_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    grep -qE '^4\.0+$'    /tmp/_nuc_step.log || return 1
+    grep -qE '^2\.50+$'   /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t339_sensor_fusion_synthesis() {
     # T3.39 (v0.3.64): production-coverage lock for the v0.3.51 →
     # v0.3.63 codegen-fix arc. Builds examples/23_rt_sensor_fusion.nr
@@ -1836,6 +1851,7 @@ step "T3.36 as-cast results in inline f64 binops (v0.3.61 fix)" t336_cast_fp_ops
 step "T3.37 fixed-array [T;N] f64 indexing (v0.3.62 fix)" t337_fixed_array_fp_ops
 step "T3.38 fixed-array-of-struct field access (v0.3.63 fix)" t338_fixed_array_of_struct
 step "T3.39 sensor-fusion synthesis (v0.3.51-63 production lock)" t339_sensor_fusion_synthesis
+step "T3.40 nested-operand indexing (self.samples[i], v0.3.65 fix)" t340_nested_index_field
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

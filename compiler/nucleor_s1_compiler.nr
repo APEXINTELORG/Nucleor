@@ -10091,35 +10091,53 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
     // known length.
     if kind == 10 {
         let vexpr: i64 = node_field(pool, nid, 1);
+        // Extract the indexed expression's full type. Two paths:
+        //   - kind 3 (var ref): read __fulltype_<vname> from sym (v0.3.55).
+        //   - kind 9 (struct field): walk expr_struct_type for parent
+        //     type, then struct_field_type for field's full annotation.
+        //     v0.3.65 fix — production code uses `self.samples[i]`
+        //     pattern in trait method bodies.
+        let mut vtype_str: str = "";
         if node_kind(pool, vexpr) == 3 {
             let vname: str = node_field(pool, vexpr, 1);
-            let vtype: i64 = sym_get(sym, str_concat("__fulltype_", vname));
-            if vtype < 0 { return ""; };
-            // Vec<T> → extract T. Length of "Vec<" = 4.
-            if str_starts_with(vtype, "Vec<") == 1 {
-                let tlen: i64 = str_len(vtype);
-                if tlen > 5 && str_char_at(vtype, tlen - 1) == 62 {
-                    let inner: str = type_base_name(str_substring(vtype, 4, tlen - 1));
-                    if str_eq(inner, "f32") == 1 { return "f32"; };
-                    if str_eq(inner, "f64") == 1 { return "f64"; };
+            let vt: i64 = sym_get(sym, str_concat("__fulltype_", vname));
+            if vt >= 0 { vtype_str = vt; };
+        };
+        if node_kind(pool, vexpr) == 9 {
+            // self.samples → outer is struct (resolve via expr_struct_type),
+            // then look up field's full type.
+            let parent_type: str = expr_struct_type(pool, node_field(pool, vexpr, 1), sym, structs);
+            if str_len(parent_type) > 0 {
+                let si: i64 = struct_find_type(pool, structs, parent_type);
+                if si >= 0 {
+                    vtype_str = struct_field_type(pool, vec_get(structs, si), node_field(pool, vexpr, 2));
                 };
             };
-            // [T; N] → extract T. Pattern: leading '[' (char 91),
-            // element type ends at first ';' (char 59) or ',' (char 44).
-            if str_len(vtype) > 1 && str_char_at(vtype, 0) == 91 {
-                let tlen2: i64 = str_len(vtype);
-                let mut sep: i64 = 0 - 1;
-                let mut k: i64 = 1;
-                while k < tlen2 {
-                    let ch: i64 = str_char_at(vtype, k);
-                    if ch == 59 || ch == 44 { sep = k; k = tlen2; }
-                    else { k = k + 1; };
-                };
-                if sep > 1 {
-                    let inner2: str = type_base_name(strip_spaces(str_substring(vtype, 1, sep)));
-                    if str_eq(inner2, "f32") == 1 { return "f32"; };
-                    if str_eq(inner2, "f64") == 1 { return "f64"; };
-                };
+        };
+        if str_len(vtype_str) == 0 { return ""; };
+        // Vec<T> → extract T. Length of "Vec<" = 4.
+        if str_starts_with(vtype_str, "Vec<") == 1 {
+            let tlen: i64 = str_len(vtype_str);
+            if tlen > 5 && str_char_at(vtype_str, tlen - 1) == 62 {
+                let inner: str = type_base_name(str_substring(vtype_str, 4, tlen - 1));
+                if str_eq(inner, "f32") == 1 { return "f32"; };
+                if str_eq(inner, "f64") == 1 { return "f64"; };
+            };
+        };
+        // [T; N] → extract T. Pattern: '[' + T + ';' + N + ']'.
+        if str_len(vtype_str) > 1 && str_char_at(vtype_str, 0) == 91 {
+            let tlen2: i64 = str_len(vtype_str);
+            let mut sep: i64 = 0 - 1;
+            let mut k: i64 = 1;
+            while k < tlen2 {
+                let ch: i64 = str_char_at(vtype_str, k);
+                if ch == 59 || ch == 44 { sep = k; k = tlen2; }
+                else { k = k + 1; };
+            };
+            if sep > 1 {
+                let inner2: str = type_base_name(strip_spaces(str_substring(vtype_str, 1, sep)));
+                if str_eq(inner2, "f32") == 1 { return "f32"; };
+                if str_eq(inner2, "f64") == 1 { return "f64"; };
             };
         };
         return "";
