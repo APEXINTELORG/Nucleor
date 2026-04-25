@@ -5,6 +5,150 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.347] — 2026-04-24
+
+**T2.1 pattern matching beyond enum tags — range patterns
+(`1..=9` inclusive, `1..10` exclusive) wired in both
+compilers + the long-existing __range / __range_bad lower
+handlers + tools-suite `..=` lex token + tools-suite lower
+parity for both stmt and expr match forms.** RFC-0023 §3.1
+ships at last.
+
+The s1 lower side has had `__range` / `__range_bad`
+infrastructure in place since the original RFC-0023 phase,
+along with a typecker arm that fires MATCH-007 for bounds
+in wrong order. The PARSER was the missing piece. T2.1 wires
+it up across all four touch-points: parser (s1 + tools-suite),
+lex (tools-suite was missing `..=`), and lower (tools-suite
+was missing both `__range` and `__range_bad` handlers in
+both the stmt-match and expr-match forms).
+
+### Encoding (existing AST shape preserved)
+
+For an arm `LO..=HI => body`:
+- `ename`   = `"__range"`     (or `"__range_bad"` if LO > HI)
+- `vname`   = LO (i64 cell, raw int from token)
+- `binding` = `str_from_int(HI)` (string-encoded HI; lower
+              side recovers via `str_to_int`)
+- `body_list` = parsed body list (unchanged)
+- `guard_nid` = optional guard (unchanged)
+
+Half-open `LO..HI` normalizes at parse to `LO..=(HI-1)`,
+so the lower side only sees inclusive ranges and the
+existing `LO <= scrut && scrut <= HI` comparison works for
+both. (Earlier comment about arm-tuple shape being "too
+fragile" turned out to be unfounded — the existing
+encoding handles ranges fine.)
+
+### Parser change (synced)
+
+In `parse_match_stmt` (BOTH `nucleor_s1_compiler.nr` and
+`nucleor_tools_suite.nr`), the integer-literal arm branch
+now peeks ahead after consuming the LO int. If the next
+token is `..=` (kind 96) or `..` (kind 58), it consumes the
+range operator + the HI int, normalizes if exclusive, sets
+`ename = "__range"` (or `__range_bad` for LO > HI), packs
+LO into vname and `str_from_int(HI)` into binding.
+
+### Lex change (tools-suite parity)
+
+`nucleor_tools_suite.nr`'s lexer was missing the `..=`
+recognizer. Without it, `1..=9` tokenized as `..` (58) +
+`=` (40), which slipped past my range-parser and triggered
+parse errors at the `=>` expectation downstream. Mirrored
+the `..=` rule from s1 so the tokenization is identical.
+
+### Lower change (tools-suite parity)
+
+Tools-suite is a self-contained second compiler — its lower
+phase has its own copies of every match-arm handler. After
+T2.1 wired range emission in the parser, calling `nuc test`
+on a fixture with range arms triggered a runtime segfault
+because tools-suite's lower had no `__range` /
+`__range_bad` branches and fell through to undefined
+behavior. Ported both branches into BOTH the statement-form
+match (line ~7874) AND the expression-form match (line
+~8366) to mirror the existing s1 implementation
+exactly.
+
+### T2.1 smoke
+
+`tests/smoke/t21_range_patterns.nr` — 3 `#[test]` cases:
+- `test_range_inclusive_boundaries` — `1..=9`, `10..=99`
+  with explicit boundary checks (1, 9, 10, 99, 100)
+- `test_range_exclusive_normalizes` — `0..10`, `10..100`,
+  `100..1000` confirm the high bound is excluded
+- `test_range_falls_through_to_wildcard` — values outside
+  any range hit the `_` arm, including negative inputs
+
+Manual smoke: `/tmp/t21_range.nr` (4-arm classifier) confirms
+`println!` formatting plus range matching together produce
+the correct output for inputs 0/5/42/999/1000/9999.
+
+### Verify gate
+
+Windows: 356/356 PASS. Bootstrap fixpoint refreshed
+(seed sha256 `327e8661...`).
+
+### Numerics-compatibility
+
+Range bounds are stored as i64 cells in vname (matches the
+existing `__int` arm encoding) and as decimal-string in
+binding (matches the existing `__range` lower-side
+contract). The `str_from_int(hi_norm)` call passes an i64
+through the i32-typed `str_from_int` parameter — for
+typical match-arm values (single-digit thousands) this is
+within the narrow-wrap-safe range. Out-of-range bounds
+(beyond ±2³¹) currently produce the same truncation as
+`str_from_int` does in T1.1's other call sites; tightening
+to i64 is a separate ship aligned with the str_from_int
+parameter widening already noted in compiler/nucleor_s1_compiler.nr:14.
+
+### Memory safety
+
+All changes are pure parser + lower additions — no new
+shared mutable state, no runtime helpers, no FFI surface.
+The existing `sym_clone` / `sym_set` / `ir_block_*`
+helpers used by the new `__range` lower handler have well-
+established borrow patterns from the `__int` and `__str`
+neighboring branches.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — range parsing in
+  `parse_match_stmt`.
+- `compiler/nucleor_tools_suite.nr` — synced range parsing
+  + new `..=` lex rule + `__range`/`__range_bad` lower
+  handlers in BOTH stmt-form and expr-form match.
+- `tests/smoke/t21_range_patterns.nr` — 3-case smoke.
+- `tools/verify.ps1`, `tools/verify.sh` — new T2.1 step.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed
+  (412 fns, 792 optimized instructions; new sha256
+  327e8661...).
+- `bin/nucleor.exe` — rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Known limitations
+
+- Negative range bounds (`-5..=-1`) require unary-minus
+  token support; today the lexer parses `-` as a binary
+  operator only. T2.1b will add unary-minus as a pattern
+  prefix. Workaround today: shift the range or use a
+  guard arm.
+- Range patterns are i64-only. Float ranges (`1.0..=2.0`)
+  and char ranges (`'a'..='z'`) ship later (with the
+  generic-pattern overhaul scheduled for v0.4).
+- Or-patterns (`1 | 2 | 3 => ...`) are NOT in this ship —
+  T2.1c.
+- Tuple patterns (`(a, b) => ...`) and struct patterns
+  (`Point { x, y } => ...`) are NOT in this ship — T2.1d
+  and T2.1e respectively.
+
+### Next
+
+T2.2 — iterator trait + adapters (`map`, `filter`,
+`collect`).
+
 ## [0.2.346] — 2026-04-24
 
 **T2.6 format strings — `println!()`, `print!()`, `format!()`

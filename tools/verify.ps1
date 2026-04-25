@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 13
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 14
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -773,6 +773,22 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
     $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
     return $h1 -eq $h2
+}
+
+Step "T2.1 range patterns in match (1..=9 / 1..10)" {
+    # v0.2.347 (T2.1): inclusive `LO..=HI` and exclusive `LO..HI`
+    # range patterns now wire through to the existing __range /
+    # __range_bad lowering. Synced across both compilers (s1 had
+    # the lowering already; tools-suite needed both ..= lex token
+    # AND the __range/__range_bad lower handlers for stmt + expr
+    # match forms). 3 #[test] cases verify inclusive/exclusive
+    # boundaries + wildcard fall-through.
+    $out = & $bin test "tests/smoke/t21_range_patterns.nr" 2>&1 | Out-String
+    if ($out -notmatch "PASS: test_range_inclusive_boundaries") { return $false }
+    if ($out -notmatch "PASS: test_range_exclusive_normalizes") { return $false }
+    if ($out -notmatch "PASS: test_range_falls_through_to_wildcard") { return $false }
+    if ($out -notmatch "test result: PASS \(3 tests\)") { return $false }
+    return $true
 }
 
 Step "T2.6 println!/print!/format! macros expand correctly" {
