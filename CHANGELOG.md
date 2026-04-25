@@ -5,6 +5,87 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.37] — 2026-04-25
+
+**T3.21 fixture proves `#[allow(DIAG-001)]` suppresses
+DIAG-001 itself.** v0.3.36 claimed in three places (changelog,
+explain-registry hint, robotics guide cookbook §4) that the
+new DIAG-001 warning was suppressible the same way every other
+warning is — via `#[allow(DIAG-001)]`. The recursive case
+("can the new diagnostic suppress itself") is non-obvious and
+worth pinning down with a verify step rather than leaving to
+the documentation alone.
+
+### Why recursive suppression actually works
+
+Pipeline ordering (in `compile_one`, around line 10898):
+
+1. `enforce_no_alloc / no_panic / no_dyn / RT-006 / RT-008 /
+    static_wcet / deadline_safety` — produces real diagnostics
+2. `emit_diag001_unknown_codes` — emits DIAG-001 for any
+    `#[allow]` / `#[deny]` / `#[allow_fn]` / `#[deny_fn]` whose
+    CODE has a non-canonical prefix (NEW in v0.3.36)
+3. `if diag_count(diags) > 0` gate
+4. `filter_allow_suppressed` — drops warnings whose code is in
+    `#[allow(CODE)]` / `#[allow_fn(CODE)]`
+5. `promote_denied_to_errors` — flips warnings to errors
+6. emit
+
+DIAG-001 is emitted at step 2; the suppression pass at step 4
+sees both the DIAG-001 warnings AND any `#[allow(DIAG-001)]`
+the user wrote, drops them together. So
+`#[allow(DIAG-001)]` works on DIAG-001 the same way
+`#[allow(RT-007)]` works on RT-007 — the suppressor doesn't
+care which pass produced the warning.
+
+### Approach
+
+New fixture `tests/fixtures/t321_diag001_self_suppress.nr` —
+two attribute lines:
+
+```nucleor
+#[allow(DIAG-001)]
+#[allow(WAT-001)]
+fn main() -> i64 { return 0; }
+```
+
+Without `#[allow(DIAG-001)]` the second attribute would fire
+DIAG-001 (WAT- isn't a canonical prefix). With it, the
+suppression pass drops the DIAG-001 warning before reaching
+the user. T3.21 builds the fixture and asserts NO DIAG-001
+warning surfaces.
+
+### Verify gate
+
+- 395/395 green (was 394 + 1 new step). Verify total grew by
+  one in both verify.sh and verify.ps1.
+- T3.21 confirmed manually: stage-1 emits zero
+  `warning[DIAG-001]` for the fixture (vs four for v0.3.36's
+  T3.20 fixture which has no `#[allow(DIAG-001)]`).
+- Self-host bootstrap fixed point unchanged at SHA `689004f6`
+  (no compiler change — fixture-and-test only).
+
+### Coverage table after v0.3.37
+
+DIAG-001 (v0.3.36):
+
+| Behavior                                            | Fixture                                        | Step  |
+|-----------------------------------------------------|------------------------------------------------|-------|
+| fires for unknown-prefix code (4 shapes)            | `t320_diag001_unknown_code.nr`                 | T3.20 |
+| suppressible via `#[allow(DIAG-001)]` (recursive)   | `t321_diag001_self_suppress.nr`                | T3.21 |
+
+The DIAG-001 surface is now comprehensively pinned: the emit
+side (T3.20 covers all four allow/deny shapes) and the
+suppress side (T3.21 covers the file-wide allow against
+DIAG-001 itself). Per-fn `#[allow_fn(DIAG-001)]` is not
+covered by a dedicated fixture — DIAG-001's `fn_name` field is
+preserved in the per-fn variant cases (`#[allow_fn]` /
+`#[deny_fn]`), so the per-fn allow path uses the same generic
+`filter_allow_suppressed` machinery that T3.12 + T3.17 + T3.19
+already exercise. A dedicated `#[allow_fn(DIAG-001)]` test
+would be lower marginal value than the v0.3.32-34 strict-tier
+fixtures.
+
 ## [0.3.36] — 2026-04-25
 
 **T3.20: DIAG-001 — first user-facing code in the RFC-0020
