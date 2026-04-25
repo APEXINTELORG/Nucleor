@@ -12,8 +12,10 @@ GitHub tag URLs follow the pattern `https://github.com/APEXINTELORG/Nucleor/rele
 
 | Version | Date | Summary |
 |---|---|---|
-| **v0.3.91** | 2026-04-25 | HIGH-BLAST-RADIUS FIX: `?` operator chains were silently
-short-circuiting on Ok instead of Err |
+| **v0.3.91** | 2026-04-25 | HIGH-BLAST-RADIUS FIX: compiler-builtin `Ok(x)`/`Err(x)`
+constructors used different tag values than stdlib
+`result_ok(x)`/`result_err(x)`, breaking the `?` operator
+for compiler-builtin Result |
 | **v0.3.90** | 2026-04-25 | Feature: shorthand field initialization in struct literals |
 | **v0.3.89** | 2026-04-25 | Feature: generic params on trait methods (`fn count<T>(self)`) |
 | **v0.3.88** | 2026-04-25 | Feature: `vec.iter().X()` chain — Rust idiom support |

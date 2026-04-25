@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 83))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 84))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1057,6 +1057,20 @@ t356_indexed_lhs_diagnostic() {
     "$BIN" build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -q "indexed assignment" /tmp/_nuc_step.log || return 1
     grep -q "vec_set" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t368_dyn_keyword_parse() {
+    # T3.68 (v0.3.92): regression test for `dyn Trait` parser
+    # acceptance. Pre-v0.3.92, parse_type didn't recognize the
+    # `dyn` keyword and any use cascaded into parse errors.
+    "$BIN" build "tests/fixtures/t368_dyn_keyword_parse.nr" -o "_t368_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t368_check" ] || [ -x "target/_t368_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t368_check" ]; then exe="target/_t368_check"; else exe="target/_t368_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    local code=$?
+    [ "$code" -eq 42 ] || return 1
     return 0
 }
 
@@ -2295,6 +2309,7 @@ step "T3.64 vec.iter().X() chain (Rust idiom — identity pass-through)" t364_ve
 step "T3.65 trait method with generic param `fn count<T>(self)`" t365_trait_generic_method
 step "T3.66 mixed-shorthand struct init `Point { x: 5, y }`" t366_struct_init_shorthand
 step "T3.67 ? operator chain (Ok/Err labels were swapped pre-v0.3.91)" t367_question_op_chain
+step "T3.68 dyn keyword parser acceptance (Box<dyn Trait>, fn -> dyn ...)" t368_dyn_keyword_parse
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
