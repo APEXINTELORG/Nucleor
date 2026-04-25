@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 9
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 10
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -773,6 +773,24 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
     $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
     return $h1 -eq $h2
+}
+
+Step "T1.5d MOD-003 surfaces with origin + pub hint" {
+    # v0.2.343 (T1.5d): when the resolver privatizes a fn (T1.5c) and
+    # a cross-module caller still references the unmangled name,
+    # clang emits "use of undefined value '@<name>'". The compiler
+    # captures clang's output and lifts each undefined-symbol that
+    # matches a registered private fn name into a friendly
+    # `error[MOD-003]: cannot call private fn '<name>' from outside
+    # its declaring module` line, plus the origin path and the
+    # `add pub` hint. This step builds the err fixture and asserts
+    # all three lines appear.
+    $out = & $bin build "tests/err/err_priv_cross_module.nr" -o "_t15d_check" 2>&1 | Out-String
+    if ($out -notmatch "error\[MOD-003\]: cannot call private fn 'lib_helper'") { return $false }
+    if ($out -notmatch "declared in: .*lib_optin\.nr") { return $false }
+    if ($out -notmatch "hint: add ``pub`` to the fn declaration") { return $false }
+    if ($out -notmatch "MOD-003 violation\(s\) — see error\[MOD-003\] above") { return $false }
+    return $true
 }
 
 Step "T1.5c privatization (cross-module call surfaces succeed)" {

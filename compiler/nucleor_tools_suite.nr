@@ -8867,20 +8867,33 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     let rt_arg: str = resolve_toolchain_path("stdlib/runtime/nucleor_llvm_rt.c");
     let clang_start: i64 = now_ms();
     let stack_flag: str = host_stack_link_flag();
-    let cmd: str = str_concat(llvm_clang_path(), str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags, str_concat(link_flags, " 2>&1"))))))))))));
+    // T1.5d (v0.2.343): capture clang stderr/stdout so we can lift
+    // undefined-symbol errors that match privatized fns into MOD-003.
+    system(str_concat("mkdir .nuc_cache", null_redir));
+    let log_path: str = sanitize(".nuc_cache/clang_link.log");
+    let cmd: str = str_concat(llvm_clang_path(), str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags, str_concat(link_flags, str_concat(" > ", str_concat(log_path, " 2>&1")))))))))))))));
     let rc: i64 = system(cmd);
     print_phase_time(time_passes, "clang", now_ms() - clang_start);
+    let clang_log: str = file_read_string(log_path);
     if rc != 0 {
+        let priv_reg: Vec<i32> = priv_build_global_registry(imported);
+        let lifted: i64 = priv_lift_link_errors(clang_log, priv_reg);
+        if str_len(clang_log) > 0 { print(clang_log); };
         let ll_check: str = file_read_string(ll_path);
         if str_len(ll_check) > 0 {
             print(str_concat("  COMPILE FAILED (clang exit ", str_concat(str_from_int(rc), ")")));
-            print("  note: LLVM IR was emitted; GPU/CUDA experiments may require manual link with CUDA libs");
+            if lifted > 0 {
+                print(str_concat("  ", str_concat(str_from_int(lifted), " MOD-003 violation(s) — see error[MOD-003] above")));
+            } else {
+                print("  note: LLVM IR was emitted; GPU/CUDA experiments may require manual link with CUDA libs");
+            };
         } else {
             print(str_concat("  COMPILE FAILED (clang exit ", str_concat(str_from_int(rc), ")")));
             return 1;
         };
         return 1;
     };
+    if str_len(clang_log) > 0 { print(clang_log); };
     print(str_concat("  compiled: ", exe_path));
     return 0;
 }
@@ -11160,6 +11173,74 @@ fn priv_collect_private_fn_names(source: str) -> Vec<i32> {
         i = i + 1;
     };
     return result;
+}
+
+fn priv_build_global_registry(imported: Vec<i32>) -> Vec<i32> {
+    // T1.5d (v0.2.343): synced from nucleor_s1_compiler.nr.
+    let mut reg: Vec<i32> = Vec::new();
+    let n: i64 = vec_len(imported);
+    let mut i: i64 = 0;
+    while i < n {
+        let path: str = vec_get(imported, i);
+        let isrc: str = file_read_string(path);
+        if str_len(isrc) > 0 {
+            let priv_names: Vec<i32> = priv_collect_private_fn_names(isrc);
+            let m: i64 = vec_len(priv_names);
+            let mut j: i64 = 0;
+            while j < m {
+                reg.push(vec_get(priv_names, j));
+                reg.push(path);
+                j = j + 1;
+            };
+        };
+        i = i + 1;
+    };
+    return reg;
+}
+
+fn priv_lookup_origin(reg: Vec<i32>, name: str) -> str {
+    let n: i64 = vec_len(reg);
+    let mut i: i64 = 0;
+    while i + 1 < n {
+        if str_eq(vec_get(reg, i), name) == 1 { return vec_get(reg, i + 1); };
+        i = i + 2;
+    };
+    return "";
+}
+
+fn priv_lift_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
+    let needle: str = "use of undefined value '@";
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(clang_output);
+    let mut p: i64 = 0;
+    let mut count: i64 = 0;
+    let mut seen: Vec<i32> = Vec::new();
+    while p + nlen <= slen {
+        let mut matched: i64 = 1;
+        let mut k: i64 = 0;
+        while k < nlen && matched == 1 {
+            if str_char_at(clang_output, p + k) != str_char_at(needle, k) { matched = 0; };
+            k = k + 1;
+        };
+        if matched == 1 {
+            let name_start: i64 = p + nlen;
+            let mut name_end: i64 = name_start;
+            while name_end < slen && str_char_at(clang_output, name_end) != 39 { name_end = name_end + 1; };
+            let name: str = str_substring(clang_output, name_start, name_end);
+            let origin: str = priv_lookup_origin(reg, name);
+            if str_len(origin) > 0 && priv_string_vec_contains(seen, name) == 0 {
+                seen.push(name);
+                print(str_concat("error[MOD-003]: cannot call private fn '", str_concat(name, "' from outside its declaring module")));
+                print(str_concat("  --> declared in: ", origin));
+                print("  hint: add `pub` to the fn declaration to expose it cross-module");
+                count = count + 1;
+            };
+            p = name_end + 1;
+        } else {
+            p = p + 1;
+        };
+    };
+    return count;
 }
 
 fn priv_apply_if_opted_in(isrc: str, path: str) -> str {
