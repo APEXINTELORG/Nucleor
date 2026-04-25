@@ -5,6 +5,79 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.30] — 2026-04-25
+
+**`nuc explain RT-005` and `nuc explain RT-007` hints updated.**
+v0.3.28 + v0.3.29 fixed the runtime warning text staleness;
+v0.3.30 fixes the matching staleness in the `nuc explain`
+registry that lives in `compiler/nucleor_tools_suite.nr`.
+
+### Issues fixed
+
+**RT-005 hint** had two distinct accuracy problems:
+
+1. **Invalid attribute syntax**: hint said
+   `#[ffi_no_alloc, ffi_no_panic]` (comma-separated). Nucleor
+   accepts these as two SEPARATE attributes
+   (`#[ffi_no_alloc]\n#[ffi_no_panic]`) — the comma form
+   does not parse. The `nuc explain` text was telling users
+   to write code that would error at the parser.
+2. **Vapor reference**: hint pointed at the "audit manifest
+   mechanism" as an alternative opt-out. The audit manifest
+   is forward-looking design in RFC-0001 §3.5 + §6 (one of
+   the v0.4 deferred features for stdlib rod classification);
+   no implementation exists. Removed the reference; users
+   were chasing a feature that doesn't ship.
+
+Also added the v0.3.24 marker version stamp and the v0.3.26
+`#[deadline]` intersection rule (BOTH markers required) since
+those are non-obvious and the explain hint is the central
+discovery surface.
+
+**RT-007 hint** mentioned only the FIX path
+("add #[no_alloc] or #[no_panic]"). It did not mention any
+suppression path — users who legitimately wanted to acknowledge
+the warning had to discover `#[allow(RT-007)]` from the inline
+warning's parenthetical hint or from the file-wide allow
+documentation. The hint now mentions both file-wide
+`#[allow(RT-007)]` and per-fn `#[allow_fn(RT-007)]` (v0.3.20).
+
+### Approach
+
+Two single-line edits to the `if str_eq(code, "RT-NNN")`
+return-string chain in
+`compiler/nucleor_tools_suite.nr`'s `expand_help` body. No
+structural change.
+
+### Verify gate
+
+- All 390 verify steps pass. The `cli_explain_full_smoke` step
+  walks the full spec code set (RT-001..RT-008, ALLOC-*, FRAME-*,
+  OWN-*, GOV-*, TNT-*, TYP-*, ASSUME-*, UNIT-*, CONTRACT-*,
+  ATOMIC-*, ISR-*) and confirms every code resolves to a
+  non-empty hint via the rebuilt `bin/nucleor_tools.exe`. The
+  step doesn't pin specific text — it pins existence — so the
+  body rewrites pass cleanly.
+- No s1 bootstrap impact: only `compiler/nucleor_tools_suite.nr`
+  changed. Bootstrap fixed point stays at SHA `367b7377`
+  (v0.3.29's value). The verify gate's `tools_rebuild` step
+  rebuilds `bin/nucleor_tools.exe` from the new source so the
+  `cli_explain_full_smoke` audit runs against the current
+  registry, not a stale binary.
+- RSS during tools_suite rebuild stayed comfortably under 2 GB.
+
+### Future hardening candidates
+
+- RT-008 hint: doesn't mention `#[allow_fn(RT-008)]` for
+  legitimate mutual-recursion patterns where bounded depth is
+  the wrong shape. Not shipped here because mutual-recursion
+  detection itself is a v0.4 AST item; the hint would point at
+  a check that isn't yet implemented end-to-end.
+- ALLOC-003 hint mentions "global/arena/pool/tlsf" allocators
+  — the four-allocator system from RFC-0002. Whether all four
+  ship in v0.3 vs v0.4 is the open question; if the surface
+  narrows, the hint will need a corresponding update.
+
 ## [0.3.29] — 2026-04-25
 
 **RT-007 warning text now mentions the v0.3.20 per-fn allow.**
