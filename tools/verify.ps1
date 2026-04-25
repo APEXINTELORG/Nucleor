@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 34
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 35
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -829,9 +829,31 @@ Step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" {
     # v0.3.24 (T3.15): per-symbol opt-out for the v0.3.8 RT-005
     # check. Annotated extern stays clean from a #[no_alloc]
     # caller; un-annotated still fires.
-    $out = & $bin build "tests/fixtures/t324_ffi_no_alloc.nr" -o "_t324_check" 2>&1 | Out-String
+    # --no-cache: see T3.16 comment — diagnostic-dependent
+    # tests must skip the source cache or they silently pass
+    # on stale cache entries.
+    $out = & $bin build "tests/fixtures/t324_ffi_no_alloc.nr" -o "_t324_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-005\]: FFI call 'host_unsafe'") { return $false }
     if ($out -match "warning\[RT-005\]: FFI call 'host_safe'") { return $false }
+    return $true
+}
+
+Step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" {
+    # v0.3.26 (T3.16): #[deadline] determinism subsumes both
+    # no-alloc and no-panic, so a #[deadline] body considers an
+    # extern RT-safe iff it carries BOTH markers (intersection
+    # of #[ffi_no_alloc]-marked and #[ffi_no_panic]-marked).
+    # Three externs (alloc-only / panic-only / both); a
+    # #[deadline] caller invokes all three. Single-marker
+    # externs still fire RT-005; the both-marker extern does not.
+    #
+    # --no-cache: the source cache hit short-circuits the
+    # parse/typecheck/emit pipeline that emits RT-005, so a
+    # stale .nuc_cache would silently swallow the diagnostic.
+    $out = & $bin build "tests/fixtures/t326_ffi_intersection.nr" -o "_t326_check" --no-cache 2>&1 | Out-String
+    if ($out -notmatch "warning\[RT-005\]: FFI call 'h_alloc_only'") { return $false }
+    if ($out -notmatch "warning\[RT-005\]: FFI call 'h_panic_only'") { return $false }
+    if ($out -match "warning\[RT-005\]: FFI call 'h_both'") { return $false }
     return $true
 }
 
