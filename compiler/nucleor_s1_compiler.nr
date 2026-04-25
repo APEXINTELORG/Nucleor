@@ -4980,62 +4980,13 @@ fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
     // Production code uses fixed arrays of structs for known-
     // size pose batches / state vectors.
     if kind == 10 {
-        let vexpr: i64 = node_field(pool, nid, 1);
-        // v0.3.66: extract the indexed expression's full type from
-        // multiple operand kinds — same composition as v0.3.65's
-        // binop_float_type kind==10 fix. Handles kind 3 (var ref)
-        // and kind 9 (struct field) operands; later AST kinds can
-        // be added the same way.
-        let mut vtype_str: str = "";
-        if node_kind(pool, vexpr) == 3 {
-            let vname: str = node_field(pool, vexpr, 1);
-            let vt: i64 = sym_get(sym, str_concat("__fulltype_", vname));
-            if vt >= 0 { vtype_str = vt; };
-        };
-        if node_kind(pool, vexpr) == 9 {
-            // p.rects → outer is struct (resolve via expr_struct_type),
-            // then look up field's full type. Mirrors the v0.3.65 fix
-            // in binop_float_type's kind==10 branch.
-            let parent_type: str = expr_struct_type(pool, node_field(pool, vexpr, 1), sym, structs);
-            if str_len(parent_type) > 0 {
-                let si2: i64 = struct_find_type(pool, structs, parent_type);
-                if si2 >= 0 {
-                    vtype_str = struct_field_type(pool, vec_get(structs, si2), node_field(pool, vexpr, 2));
-                };
-            };
-        };
-        if node_kind(pool, vexpr) == 7 {
-            // make_vec()[i] → fn returns Vec<T>; look up
-            // __fnfulltype_<NAME> seeded by populate_fn_returns_in_sym
-            // (v0.3.67). Mirrors the same kind 7 branch in
-            // binop_float_type's kind==10.
-            let fn_name: str = node_field(pool, vexpr, 1);
-            let ft: i64 = sym_get(sym, str_concat("__fnfulltype_", fn_name));
-            if ft >= 0 { vtype_str = ft; };
-        };
-        if str_len(vtype_str) == 0 { return ""; };
-        // Vec<T> → return T (base name).
-        if str_starts_with(vtype_str, "Vec<") == 1 {
-            let tlen: i64 = str_len(vtype_str);
-            if tlen > 5 && str_char_at(vtype_str, tlen - 1) == 62 {
-                return type_base_name(str_substring(vtype_str, 4, tlen - 1));
-            };
-        };
-        // [T; N] → return T.
-        if str_len(vtype_str) > 1 && str_char_at(vtype_str, 0) == 91 {
-            let tlen2: i64 = str_len(vtype_str);
-            let mut sep: i64 = 0 - 1;
-            let mut k: i64 = 1;
-            while k < tlen2 {
-                let ch: i64 = str_char_at(vtype_str, k);
-                if ch == 59 || ch == 44 { sep = k; k = tlen2; }
-                else { k = k + 1; };
-            };
-            if sep > 1 {
-                return type_base_name(strip_spaces(str_substring(vtype_str, 1, sep)));
-            };
-        };
-        return "";
+        // v0.3.68: refactored to use indexed_element_full_type
+        // which composes all four operand kinds (3, 9, 7, 10).
+        // Returns the BASE name for the struct lookup (callers of
+        // expr_struct_type expect the unparameterized struct name).
+        let elem_full: str = indexed_element_full_type(pool, node_field(pool, nid, 1), sym, structs);
+        if str_len(elem_full) == 0 { return ""; };
+        return type_base_name(elem_full);
     };
     return "";
 }
@@ -10020,6 +9971,75 @@ fn populate_fn_returns_in_sym(pool: Vec<i32>, fn_decls: Vec<i32>, sym: Vec<i32>)
     return 0;
 }
 
+// v0.3.68 helper: strip ONE container layer from a type
+// annotation, returning the inner element type WITH generics
+// preserved. Used by the kind==10 dispatchers to resolve nested
+// indexing chains (`grid[i][j]` where grid: Vec<Vec<f64>>).
+//   "Vec<f64>"          → "f64"
+//   "Vec<Vec<f64>>"     → "Vec<f64>"
+//   "[f64; 3]"          → "f64"
+//   "[Vec<f64>; 4]"     → "Vec<f64>"
+// Returns "" for non-container shapes.
+fn strip_container_one_level(t: str) -> str {
+    let tlen: i64 = str_len(t);
+    if str_starts_with(t, "Vec<") == 1 && tlen > 5 && str_char_at(t, tlen - 1) == 62 {
+        return str_substring(t, 4, tlen - 1);
+    };
+    if tlen > 1 && str_char_at(t, 0) == 91 {
+        let mut sep: i64 = 0 - 1;
+        let mut k: i64 = 1;
+        while k < tlen {
+            let ch: i64 = str_char_at(t, k);
+            if ch == 59 || ch == 44 { sep = k; k = tlen; }
+            else { k = k + 1; };
+        };
+        if sep > 1 {
+            return strip_spaces(str_substring(t, 1, sep));
+        };
+    };
+    return "";
+}
+
+// v0.3.68 helper: recursively walk an indexable expression and
+// return the FULL type of its element (with generics preserved).
+// Composes the v0.3.55/65/66/67 operand-kind handlers — kind 3
+// (var ref), kind 9 (struct field), kind 7 (fn-call), and now
+// kind 10 (nested indexing) — and strips one container layer.
+//
+// Returns "" if the operand kind isn't recognized or the type
+// isn't a container shape.
+fn indexed_element_full_type(pool: Vec<i32>, vexpr: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
+    let vk: i64 = node_kind(pool, vexpr);
+    let mut vtype: str = "";
+    if vk == 3 {
+        let vname: str = node_field(pool, vexpr, 1);
+        let vt: i64 = sym_get(sym, str_concat("__fulltype_", vname));
+        if vt >= 0 { vtype = vt; };
+    };
+    if vk == 9 {
+        let parent_type: str = expr_struct_type(pool, node_field(pool, vexpr, 1), sym, structs);
+        if str_len(parent_type) > 0 {
+            let si: i64 = struct_find_type(pool, structs, parent_type);
+            if si >= 0 {
+                vtype = struct_field_type(pool, vec_get(structs, si), node_field(pool, vexpr, 2));
+            };
+        };
+    };
+    if vk == 7 {
+        let fn_name: str = node_field(pool, vexpr, 1);
+        let ft: i64 = sym_get(sym, str_concat("__fnfulltype_", fn_name));
+        if ft >= 0 { vtype = ft; };
+    };
+    if vk == 10 {
+        // Nested indexing — recurse to get inner expr's element type,
+        // which is itself a container. The outer indexing strips
+        // one MORE level below.
+        vtype = indexed_element_full_type(pool, node_field(pool, vexpr, 1), sym, structs);
+    };
+    if str_len(vtype) == 0 { return ""; };
+    return strip_container_one_level(vtype);
+}
+
 fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
     let kind: i64 = node_kind(pool, nid);
     if kind == 3 {
@@ -10126,64 +10146,16 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
     // uses fixed arrays for state vectors / sensor batches with
     // known length.
     if kind == 10 {
-        let vexpr: i64 = node_field(pool, nid, 1);
-        // Extract the indexed expression's full type. Two paths:
-        //   - kind 3 (var ref): read __fulltype_<vname> from sym (v0.3.55).
-        //   - kind 9 (struct field): walk expr_struct_type for parent
-        //     type, then struct_field_type for field's full annotation.
-        //     v0.3.65 fix — production code uses `self.samples[i]`
-        //     pattern in trait method bodies.
-        let mut vtype_str: str = "";
-        if node_kind(pool, vexpr) == 3 {
-            let vname: str = node_field(pool, vexpr, 1);
-            let vt: i64 = sym_get(sym, str_concat("__fulltype_", vname));
-            if vt >= 0 { vtype_str = vt; };
-        };
-        if node_kind(pool, vexpr) == 9 {
-            // self.samples → outer is struct (resolve via expr_struct_type),
-            // then look up field's full type.
-            let parent_type: str = expr_struct_type(pool, node_field(pool, vexpr, 1), sym, structs);
-            if str_len(parent_type) > 0 {
-                let si: i64 = struct_find_type(pool, structs, parent_type);
-                if si >= 0 {
-                    vtype_str = struct_field_type(pool, vec_get(structs, si), node_field(pool, vexpr, 2));
-                };
-            };
-        };
-        if node_kind(pool, vexpr) == 7 {
-            // make_vec()[i] → fn returns Vec<T>; look up
-            // __fnfulltype_<NAME> seeded by populate_fn_returns_in_sym
-            // (v0.3.67) which preserves the generic.
-            let fn_name: str = node_field(pool, vexpr, 1);
-            let ft: i64 = sym_get(sym, str_concat("__fnfulltype_", fn_name));
-            if ft >= 0 { vtype_str = ft; };
-        };
-        if str_len(vtype_str) == 0 { return ""; };
-        // Vec<T> → extract T. Length of "Vec<" = 4.
-        if str_starts_with(vtype_str, "Vec<") == 1 {
-            let tlen: i64 = str_len(vtype_str);
-            if tlen > 5 && str_char_at(vtype_str, tlen - 1) == 62 {
-                let inner: str = type_base_name(str_substring(vtype_str, 4, tlen - 1));
-                if str_eq(inner, "f32") == 1 { return "f32"; };
-                if str_eq(inner, "f64") == 1 { return "f64"; };
-            };
-        };
-        // [T; N] → extract T. Pattern: '[' + T + ';' + N + ']'.
-        if str_len(vtype_str) > 1 && str_char_at(vtype_str, 0) == 91 {
-            let tlen2: i64 = str_len(vtype_str);
-            let mut sep: i64 = 0 - 1;
-            let mut k: i64 = 1;
-            while k < tlen2 {
-                let ch: i64 = str_char_at(vtype_str, k);
-                if ch == 59 || ch == 44 { sep = k; k = tlen2; }
-                else { k = k + 1; };
-            };
-            if sep > 1 {
-                let inner2: str = type_base_name(strip_spaces(str_substring(vtype_str, 1, sep)));
-                if str_eq(inner2, "f32") == 1 { return "f32"; };
-                if str_eq(inner2, "f64") == 1 { return "f64"; };
-            };
-        };
+        // v0.3.68: refactored to use indexed_element_full_type
+        // which composes all four operand kinds (3, 9, 7, 10) and
+        // strips one container layer per level. The element type
+        // returned has generics preserved; type_base_name strips
+        // the outer wrapper for the f-typed primitive check.
+        let elem_full: str = indexed_element_full_type(pool, node_field(pool, nid, 1), sym, structs);
+        if str_len(elem_full) == 0 { return ""; };
+        let elem_base: str = type_base_name(elem_full);
+        if str_eq(elem_base, "f32") == 1 { return "f32"; };
+        if str_eq(elem_base, "f64") == 1 { return "f64"; };
         return "";
     };
     return "";
