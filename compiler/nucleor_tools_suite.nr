@@ -9293,9 +9293,10 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
                     imported.push(path);
                     let isrc: str = file_read_string(path);
                     if str_len(isrc) > 0 {
-                        module_record_add(module_records, path, isrc);
+                        let isrc_used: str = priv_apply_if_opted_in(isrc, path);
+                        module_record_add(module_records, path, isrc_used);
                         let idir: str = extract_dir(path);
-                        sb_append(result, resolve_source_with_records(isrc, idir, imported, module_records));
+                        sb_append(result, resolve_source_with_records(isrc_used, idir, imported, module_records));
                         sb_append(result, "\n");
                     } else {
                         sb_append(result, str_concat("// ERROR: cannot read mod path ", path));
@@ -9317,9 +9318,10 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
                     imported.push(path);
                     let isrc: str = file_read_string(path);
                     if str_len(isrc) > 0 {
-                        module_record_add(module_records, path, isrc);
+                        let isrc_used: str = priv_apply_if_opted_in(isrc, path);
+                        module_record_add(module_records, path, isrc_used);
                         let idir: str = extract_dir(path);
-                        sb_append(result, resolve_source_with_records(isrc, idir, imported, module_records));
+                        sb_append(result, resolve_source_with_records(isrc_used, idir, imported, module_records));
                         sb_append(result, "\n");
                     } else {
                         sb_append(result, str_concat("// ERROR: cannot read import ", path));
@@ -11078,6 +11080,162 @@ fn content_hash(s: str) -> str {
         hi = hi + 1;
     };
     return result;
+}
+
+// ===== T1.5c (v0.2.342): resolver-layer name privatization (synced) =====
+// Mirror of the helpers in nucleor_s1_compiler.nr — see that file for
+// the design rationale. tools-suite path runs through `nuc test`,
+// `nuc build-strict`, etc., so it must enforce identically.
+
+fn priv_extract_fn_decl_info(line: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    out.push("");
+    out.push(0);
+    let compact: str = strip_spaces(line);
+    let clen: i64 = str_len(compact);
+    let mut start: i64 = 0 - 1;
+    let mut is_pub: i64 = 0;
+    if clen >= 9 && str_eq(str_substring(compact, 0, 9), "pubpurefn") == 1 { start = 9; is_pub = 1; }
+    else if clen >= 5 && str_eq(str_substring(compact, 0, 5), "pubfn") == 1 { start = 5; is_pub = 1; }
+    else if clen >= 6 && str_eq(str_substring(compact, 0, 6), "purefn") == 1 { start = 6; is_pub = 0; }
+    else if clen >= 2 && str_eq(str_substring(compact, 0, 2), "fn") == 1 { start = 2; is_pub = 0; };
+    if start < 0 { return out; };
+    if start >= clen { return out; };
+    let mut stop: i64 = start;
+    let mut done: i64 = 0;
+    while stop < clen && done == 0 {
+        let ch: i64 = str_char_at(compact, stop);
+        if is_alnum(ch) == 1 || ch == 95 { stop = stop + 1; }
+        else { done = 1; };
+    };
+    if stop <= start { return out; };
+    if stop >= clen || str_char_at(compact, stop) != 40 { return out; };
+    vec_set(out, 0, str_substring(compact, start, stop));
+    vec_set(out, 1, is_pub);
+    return out;
+}
+
+fn priv_string_vec_contains(v: Vec<i32>, s: str) -> i64 {
+    let n: i64 = vec_len(v);
+    let mut i: i64 = 0;
+    while i < n {
+        if str_eq(vec_get(v, i), s) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
+fn priv_string_vec_push_unique(v: Vec<i32>, s: str) -> i64 {
+    if priv_string_vec_contains(v, s) == 0 { v.push(s); };
+    return 0;
+}
+
+fn priv_collect_private_fn_names(source: str) -> Vec<i32> {
+    let slen: i64 = str_len(source);
+    let mut pub_names: Vec<i32> = Vec::new();
+    let mut all_names: Vec<i32> = Vec::new();
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let info: Vec<i32> = priv_extract_fn_decl_info(line);
+        let name: str = vec_get(info, 0);
+        if str_len(name) > 0 {
+            let is_pub: i64 = vec_get(info, 1);
+            if is_pub == 1 { priv_string_vec_push_unique(pub_names, name); };
+            priv_string_vec_push_unique(all_names, name);
+        };
+        p = eol + 1;
+    };
+    let mut result: Vec<i32> = Vec::new();
+    if vec_len(pub_names) == 0 { return result; };
+    let n: i64 = vec_len(all_names);
+    let mut i: i64 = 0;
+    while i < n {
+        let nm: str = vec_get(all_names, i);
+        if priv_string_vec_contains(pub_names, nm) == 0 {
+            if str_eq(nm, "main") == 0 { result.push(nm); };
+        };
+        i = i + 1;
+    };
+    return result;
+}
+
+fn priv_apply_if_opted_in(isrc: str, path: str) -> str {
+    let private_names: Vec<i32> = priv_collect_private_fn_names(isrc);
+    if vec_len(private_names) == 0 { return isrc; };
+    let file_id: str = content_hash(path);
+    return priv_mangle_private_fns(isrc, file_id, private_names);
+}
+
+fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> str {
+    let mut sb: i64 = sb_new();
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    let mut last_non_ws: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            while p < slen && str_char_at(src, p) != 10 {
+                sb_append(sb, str_substring(src, p, p + 1));
+                p = p + 1;
+            };
+            last_non_ws = 10;
+        } else if c == 34 {
+            sb_append(sb, "\"");
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 34 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    sb_append(sb, str_substring(src, p, p + 2));
+                    p = p + 2;
+                } else {
+                    sb_append(sb, str_substring(src, p, p + 1));
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, "\""); p = p + 1; };
+            last_non_ws = 34;
+        } else if c == 39 {
+            sb_append(sb, "'");
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 39 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    sb_append(sb, str_substring(src, p, p + 2));
+                    p = p + 2;
+                } else {
+                    sb_append(sb, str_substring(src, p, p + 1));
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, "'"); p = p + 1; };
+            last_non_ws = 39;
+        } else if is_alpha(c) == 1 || c == 95 {
+            let start: i64 = p;
+            let mut id_done: i64 = 0;
+            while p < slen && id_done == 0 {
+                let ch: i64 = str_char_at(src, p);
+                if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
+                else { id_done = 1; };
+            };
+            let name: str = str_substring(src, start, p);
+            let preceded_by_dot: i64 = if last_non_ws == 46 { 1 } else { 0 };
+            if preceded_by_dot == 0 && priv_string_vec_contains(private_names, name) == 1 {
+                sb_append(sb, "__priv_");
+                sb_append(sb, file_id);
+                sb_append(sb, "__");
+                sb_append(sb, name);
+            } else {
+                sb_append(sb, name);
+            };
+            last_non_ws = str_char_at(name, str_len(name) - 1);
+        } else {
+            sb_append(sb, str_substring(src, p, p + 1));
+            if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
+            p = p + 1;
+        };
+    };
+    return sb_to_str(sb);
 }
 
 fn secure_hash(s: str) -> str {
