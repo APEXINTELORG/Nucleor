@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.102] — 2026-04-25
+
+**`.collect()` iterator-chain terminator.** Pre-v0.3.102, the
+canonical Rust pattern:
+
+```
+let w: Vec<i64> = v.iter().map(f).collect();
+```
+
+failed at clang link with `use of undefined value '@vec_collect'`
+even though the `.map(f)` step already returned a fresh Vec.
+`.collect()` had no runtime helper and wasn't in the iter-method
+dispatch table — adopters reaching for the standard iterator
+pipeline hit this on their first program. The chain dies on its
+last step, just before producing the result.
+
+### Fix
+
+Three coordinated additions:
+
+1. Runtime: `__nucleor_vec_collect_i64` (identity pass-through —
+   the prior `.map`/`.filter` already returns a Vec).
+2. Compiler: `collect` added to `iter_method_for_vec` so kind-8
+   dispatch routes `.collect()` to `vec_collect_i64`. Also
+   registered in `get_rt_name`, `is_ptr_arg`, `is_ptr_ret`, and
+   the IR header `declare` list. Mirrored in `nucleor_tools_suite.nr`
+   per drift gate.
+3. helper_manifest.toml regenerated.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t378 returns 12 (vec![1,2,3] ×2),
+proving the full `.iter().map(f).collect()` chain lowers and the
+result Vec is index-able. `bin/nucleor.exe` SHA `3758f523`.
+452/452 verify.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — collect registration.
+- `compiler/nucleor_tools_suite.nr` — drift mirror.
+- `stdlib/runtime/nucleor_llvm_rt.c` — `__nucleor_vec_collect_i64`.
+- `tests/fixtures/t378_iter_collect.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+
 ## [0.3.101] — 2026-04-25
 
 **Closure literal `-> RetType` annotation parsing.** Pre-v0.3.101,

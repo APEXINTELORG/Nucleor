@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 754
+# Total helpers: 755
 # Of which REVIEW REQUIRED: 26
 
 # ============================================================
@@ -9693,6 +9693,20 @@ units            = "passthrough"
 proof_obligation = "bounds_within_len"
 stability        = "stable"
 since            = "0.2.10"
+notes            = ""
+
+[[helper]]
+name             = "vec_collect_i64"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_collect_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
 notes            = ""
 
 [[helper]]

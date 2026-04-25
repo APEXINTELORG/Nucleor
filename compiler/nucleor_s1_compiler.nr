@@ -2514,6 +2514,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "dyn_box_data") { return "__nucleor_dyn_box_data"; };
     if str_eq(name, "dyn_box_free") { return "__nucleor_dyn_box_free"; };
     if str_eq(name, "vec_iter_i64") { return "__nucleor_vec_iter_i64"; };
+    if str_eq(name, "vec_collect_i64") { return "__nucleor_vec_collect_i64"; };
     if str_eq(name, "vec_map_i64") { return "__nucleor_vec_map_i64"; };
     if str_eq(name, "vec_filter_i64") { return "__nucleor_vec_filter_i64"; };
     if str_eq(name, "vec_fold_i64") { return "__nucleor_vec_fold_i64"; };
@@ -3306,6 +3307,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "dyn_box_data") { return 1; };
     if str_eq(name, "dyn_box_free") { return 1; };
     if str_eq(name, "vec_iter_i64") { return 1; };
+    if str_eq(name, "vec_collect_i64") { return 1; };
     if str_eq(name, "vec_map_i64") { return 1; };
     if str_eq(name, "vec_filter_i64") { return 1; };
     if str_eq(name, "vec_reverse_i64") { return 1; };
@@ -3489,6 +3491,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "format3_fff") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format_f64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_iter_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_collect_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_map_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_filter_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_fold_i64") { if idx == 0 { return 1; }; return 0; };
@@ -3927,6 +3930,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_dyn_box_data(i64)\n");
     sb_append(sb, "declare void @__nucleor_dyn_box_free(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_iter_i64(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_vec_collect_i64(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_map_i64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_filter_i64(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_fold_i64(ptr, i64, i64)\n");
@@ -4951,6 +4955,10 @@ fn iter_method_for_vec(mname: str) -> i64 {
     if str_eq(mname, "sort") == 1 { return 1; };
     if str_eq(mname, "clone") == 1 { return 1; };
     if str_eq(mname, "clear") == 1 { return 1; };
+    // v0.3.102: `.collect()` is the canonical Rust terminator for an
+    // iterator chain (`v.iter().map(f).collect()`). It's an identity
+    // pass-through here since the prior `.map` already returns a Vec.
+    if str_eq(mname, "collect") == 1 { return 1; };
     return 0;
 }
 
