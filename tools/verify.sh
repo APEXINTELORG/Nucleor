@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 4))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 5))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -758,6 +758,18 @@ tools_suite_memory_budget() {
     _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
 }
 
+t15a_mod_block_form() {
+    # v0.2.340 (T1.5a): the resolver inlines `mod foo { ... }` block
+    # contents alongside the existing `mod foo;` file-rooted desugaring.
+    # Brace scanner is string- and line-comment-aware. This step runs
+    # the smoke fixture via `nuc test` and asserts all three cases PASS.
+    "$BIN" test "tests/smoke/t15a_mod_block_form.nr" >/tmp/_nuc_step.log 2>&1
+    grep -q "PASS: test_mod_block_helper_visible_outside" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_mod_block_brace_in_string" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_mod_block_brace_in_comment_does_not_close_early" /tmp/_nuc_step.log || return 1
+    grep -q "test result: PASS (3 tests)" /tmp/_nuc_step.log || return 1
+}
+
 t17_bootstrap_seed_matches() {
     # v0.2.339 (T1.7): the Linux verify gate clang-links
     # bootstrap/nucleor_s1_seed.ll against the platform-portable C
@@ -883,6 +895,7 @@ fi
 step "self-host rebuild closes" self_host_rebuild
 step "self-host memory budget (<= 100 MB)" self_host_memory_budget
 step "tools-suite memory budget (<= 200 MB)" tools_suite_memory_budget
+step "T1.5a mod block-form inline" t15a_mod_block_form
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------
