@@ -1617,13 +1617,28 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let mut params: Vec<i32> = Vec::new();
         while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
             if vec_len(params) > 0 { cp = expect_tok(tokens, cp, 44); };
-            let pn: i64 = pkv(tokens, cp); cp = cp + 1;
-            if pk(tokens, cp) == 42 {
+            // v0.3.106: `&self` / `&mut self` in trait method
+            // declarations. Pre-v0.3.106 the trait parser only
+            // recognized bare `self`, so the canonical Rust form
+            // `fn say(&self)` cascaded into 13+ parse errors. Mirror
+            // the parse_impl_block branch (line 1685) but use a
+            // generic `&Self` / `&mut Self` type since no concrete
+            // receiver type is known here.
+            if pk(tokens, cp) == 82 {
                 cp = cp + 1;
-                let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
-                params.push(mk3(pool, 41, pn, pr_val(tr)));
+                let mut ptype: str = "&Self";
+                if pk(tokens, cp) == 12 { ptype = "&mut Self"; cp = cp + 1; };
+                let pn2: i64 = pkv(tokens, cp); cp = cp + 1;
+                params.push(mk3(pool, 41, pn2, ptype));
             } else {
-                params.push(mk3(pool, 41, pn, "Self"));
+                let pn: i64 = pkv(tokens, cp); cp = cp + 1;
+                if pk(tokens, cp) == 42 {
+                    cp = cp + 1;
+                    let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
+                    params.push(mk3(pool, 41, pn, pr_val(tr)));
+                } else {
+                    params.push(mk3(pool, 41, pn, "Self"));
+                };
             };
         };
         cp = cp + 1; // )
@@ -1811,6 +1826,21 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 binding = pr_val(br);
                 cp = pr_pos(br);
             };
+        } else if att == 50 {
+            // v0.3.106: tuple destructure pattern (`(x, y) => …`).
+            // Pre-v0.3.106 the `(` fell into the catch-all else
+            // branch which set ename="__wild" + binding="(", then
+            // expect_tok(=>) on the inner `x` cascaded into 13+
+            // parse errors AND silently returned 0 from the match
+            // (HIGH-blast silent miscompute for any pattern-matching
+            // code reaching for tuple destructure). Real tuple-arm
+            // codegen needs payload-binding for tuple cells; until
+            // that lands, surface a diagnostic and fast-skip to `=>`
+            // so the rest of the body parses cleanly. Workaround:
+            // wildcard `_` and access tuple fields via `.0` / `.1`.
+            print("ERROR: tuple destructure patterns in match (e.g. `(x, y) => …`) are not yet supported. Workaround: use `_ =>` and access tuple fields explicitly via `.0` / `.1` (`match p { _ => return p.0 + p.1, };`). Tracked for a future ship.");
+            while pk(tokens, cp) != 64 && pk(tokens, cp) != 0 && pk(tokens, cp) != 53 { cp = cp + 1; };
+            ename = "__wild";
         } else if att == 1 && (str_eq(pkv(tokens, cp), "Some") == 1 || str_eq(pkv(tokens, cp), "None") == 1 || str_eq(pkv(tokens, cp), "Ok") == 1 || str_eq(pkv(tokens, cp), "Err") == 1) {
             vname = pkv(tokens, cp);
             if str_eq(vname, "Ok") == 1 || str_eq(vname, "Err") == 1 { ename = "Result"; }
