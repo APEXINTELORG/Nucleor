@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 77))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 78))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1057,6 +1057,22 @@ t356_indexed_lhs_diagnostic() {
     "$BIN" build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -q "indexed assignment" /tmp/_nuc_step.log || return 1
     grep -q "vec_set" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t362_match_multi_capture() {
+    # T3.62 (v0.3.86): regression test for multi-capture enum patterns
+    # `Variant(a, b, c)`. Pre-v0.3.86, parser only read ONE binding
+    # and expected `)`, cascading into parse errors. Post: parses
+    # all comma-separated bindings, encodes them as `|`-separated for
+    # the existing match_bind_payloads helper.
+    "$BIN" build "tests/fixtures/t362_match_multi_capture.nr" -o "_t362_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t362_check" ] || [ -x "target/_t362_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t362_check" ]; then exe="target/_t362_check"; else exe="target/_t362_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    local code=$?
+    [ "$code" -eq 0 ] || return 1
     return 0
 }
 
@@ -2196,6 +2212,7 @@ step "T3.58 trait default-method support (impls inherit defaults; Self substitut
 step "T3.59 fn-pointer type syntax `fn(T) -> R` in param positions" t359_fn_pointer_type
 step "T3.60 match-arm assignment body (`pat => x = v`)" t360_match_arm_assign
 step "T3.61 trait/impl associated-const diagnostic (pre-v0.3.85 cascaded parse errors)" t361_assoc_const_diagnostic
+step "T3.62 match multi-capture enum patterns `Variant(a, b, c)`" t362_match_multi_capture
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

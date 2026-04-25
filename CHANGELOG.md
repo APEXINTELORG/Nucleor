@@ -5,6 +5,89 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.86] — 2026-04-25
+
+**Feature: multi-capture enum patterns `Variant(a, b, c)`.**
+Pre-v0.3.86, writing `Pair::Both(a, b)` in a match arm cascaded
+into "expected token 51 got 44" parse errors and broken
+`@x` undefined-symbol IR — the enum-pattern parser only read ONE
+binding then expected `)`, hitting `,` instead.
+
+### Fix
+
+The lowering's `match_bind_payloads` helper at line 9177 already
+supported `|`-separated multi-bindings (each name binds to the
+next payload position). v0.3.86 updates the enum-pattern parser
+in `parse_match_stmt` to walk all comma-separated bindings until
+`)` and encode them as a `|`-separated string in the existing
+`binding` field.
+
+```nucleor
+} else if att == 1 && pk(tokens, cp + 1) == 46 {
+    ename = pkv(tokens, cp);
+    cp = expect_tok(tokens, cp + 1, 46); // ::
+    vname = pkv(tokens, cp); cp = cp + 1;
+    if pk(tokens, cp) == 50 {
+        cp = cp + 1;
+        let mut first: i64 = 1;
+        while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
+            if first == 0 { cp = expect_tok(tokens, cp, 44); };
+            let bn: str = pkv(tokens, cp); cp = cp + 1;
+            if first == 1 { binding = bn; }
+            else { binding = str_concat(binding, str_concat("|", bn)); };
+            first = 0;
+        };
+        cp = expect_tok(tokens, cp, 51);
+    } ...
+};
+```
+
+Note: also fixed a verify.ps1 PowerShell-parser bug — backticks
+in Step name strings (added in v0.3.83/84/86) were being
+interpreted as PowerShell escape characters, breaking string
+parsing. Replaced with single quotes.
+
+### What now works that previously didn't
+
+```nucleor
+enum Pair { Both(i64, i64), Left(i64), Right(i64), Neither }
+
+match p {
+    Pair::Both(a, b) => a + b,    // ✓ multi-capture
+    Pair::Left(x) => x,
+    Pair::Right(y) => y,
+    Pair::Neither => 0,
+}
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `parse_match_stmt`
+  enum-pattern branch reads all comma-separated bindings and
+  encodes as `|`-separated. Bootstrap fixed point recomputed
+  at SHA `a9baa862` (was `d402dc9a`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t362_match_multi_capture.nr` — new strict
+  regression fixture covering 2-capture + single-capture
+  patterns.
+- `tools/verify.{sh,ps1}` — new T3.62 verify step. PowerShell
+  Step name backticks replaced with single quotes (the v0.3.83/
+  84/86 additions all had this latent bug — caught when v0.3.86
+  pushed verify into a failing parse).
+
+### Verify gate
+
+- 440/440 green (was 439 + 1 step from T3.62).
+- All prior regression fixtures (T3.28-T3.61) still green.
+- Bootstrap fixed point closes at `a9baa862`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.86)
+
+- **26 codegen + 1 runtime + 6 parser/check diagnostic = 33 total**
+- **35 strict regression fixtures** (T3.28-T3.62)
+- **6 robotics RT showcase examples** in Tier 4
+
 ## [0.3.85] — 2026-04-25
 
 **Diagnostic: associated constants in trait/impl bodies.** Pre-v0.3.85,
