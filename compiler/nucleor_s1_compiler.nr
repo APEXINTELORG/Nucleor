@@ -11614,6 +11614,129 @@ fn extract_struct_fields_native(src: str, struct_name: str) -> Vec<i32> {
     return out;
 }
 
+// T3.4 (v0.3.4): collect Nucleor fns marked `#[export]` so
+// `nuc gen-headers` emits C forward declarations alongside the
+// `extern fn` imports and `#[repr(C)]` typedefs. Lets external
+// C/C++ code (robotics middleware, embedded firmware) call into
+// Nucleor-compiled kernels through the unmangled symbol that
+// the LLVM IR already emits.
+//
+// Returns alternating [fn_name, args_c_decl, c_rtype, ...].
+// args_c_decl is the C-formatted parameter list ("int64_t a, double b")
+// or "void" for no-args; c_rtype is "void" if the fn has no `-> ret`.
+// Skips fns whose signature contains a non-FFI-safe type.
+fn collect_export_fns_and_sigs(src: str, repr_c: Vec<i32>) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(src);
+    let mut line_starts: Vec<i32> = Vec::new();
+    line_starts.push(0);
+    let mut s: i64 = 0;
+    while s < slen {
+        if str_char_at(src, s) == 10 && s + 1 < slen { line_starts.push(s + 1); };
+        s = s + 1;
+    };
+    let nlines: i64 = vec_len(line_starts);
+    let mut li: i64 = 0;
+    while li < nlines {
+        let p: i64 = vec_get(line_starts, li);
+        let mut eol: i64 = if li + 1 < nlines { vec_get(line_starts, li + 1) - 1 } else { slen };
+        if eol > p && str_char_at(src, eol - 1) == 13 { eol = eol - 1; };
+        let line: str = str_substring(src, p, eol);
+        let llen: i64 = str_len(line);
+        let mut lp: i64 = 0;
+        while lp < llen && (str_char_at(line, lp) == 32 || str_char_at(line, lp) == 9) { lp = lp + 1; };
+        let mut after_kw: i64 = 0 - 1;
+        if lp + 3 <= llen && str_eq_at(line, lp, "fn ") == 1 { after_kw = lp + 3; };
+        if after_kw < 0 && lp + 7 <= llen && str_eq_at(line, lp, "pub fn ") == 1 { after_kw = lp + 7; };
+        if after_kw >= 0 {
+            // Look back at preceding non-blank, non-/// lines for #[export].
+            let mut prev_li: i64 = li - 1;
+            let mut found: i64 = 0;
+            while prev_li >= 0 && found == 0 {
+                let pp: i64 = vec_get(line_starts, prev_li);
+                let mut pend: i64 = if prev_li + 1 < nlines { vec_get(line_starts, prev_li + 1) - 1 } else { slen };
+                if pend > pp && str_char_at(src, pend - 1) == 13 { pend = pend - 1; };
+                let pline: str = str_substring(src, pp, pend);
+                let trimmed: str = strip_spaces(pline);
+                let tlen: i64 = str_len(trimmed);
+                if tlen == 0 {
+                    prev_li = prev_li - 1;
+                } else if tlen >= 3 && str_eq(str_substring(trimmed, 0, 3), "///") == 1 {
+                    prev_li = prev_li - 1;
+                } else if str_eq(trimmed, "#[export]") == 1 {
+                    found = 1;
+                } else if tlen >= 1 && str_char_at(trimmed, 0) == 35 {
+                    // Other #[...] attribute (e.g. #[no_alloc], #[deadline]) — skip
+                    prev_li = prev_li - 1;
+                } else {
+                    prev_li = 0 - 1;
+                };
+            };
+            if found == 1 {
+                // Read fn name.
+                let name_start: i64 = after_kw;
+                let mut q: i64 = name_start;
+                while q < llen && (is_alnum(str_char_at(line, q)) == 1 || str_char_at(line, q) == 95) { q = q + 1; };
+                if q > name_start {
+                    let fname: str = str_substring(line, name_start, q);
+                    // Expect (
+                    while q < llen && str_char_at(line, q) != 40 { q = q + 1; };
+                    if q < llen {
+                        q = q + 1;
+                        // Collect args until ).
+                        let mut args_buf: i64 = sb_new();
+                        let mut narg: i64 = 0;
+                        let mut bad: i64 = 0;
+                        while q < llen && str_char_at(line, q) != 41 && bad == 0 {
+                            while q < llen && (str_char_at(line, q) == 32 || str_char_at(line, q) == 9 || str_char_at(line, q) == 44) { q = q + 1; };
+                            if q >= llen || str_char_at(line, q) == 41 { continue; };
+                            let an_start: i64 = q;
+                            while q < llen && str_char_at(line, q) != 58 && str_char_at(line, q) != 41 { q = q + 1; };
+                            let an_raw: str = str_substring(line, an_start, q);
+                            if q >= llen || str_char_at(line, q) != 58 { bad = 1; continue; };
+                            q = q + 1;
+                            while q < llen && (str_char_at(line, q) == 32 || str_char_at(line, q) == 9) { q = q + 1; };
+                            let at_start: i64 = q;
+                            while q < llen && str_char_at(line, q) != 44 && str_char_at(line, q) != 41 { q = q + 1; };
+                            let at_raw: str = str_substring(line, at_start, q);
+                            let arg_name: str = strip_spaces(an_raw);
+                            let arg_type: str = strip_spaces(at_raw);
+                            let c_type: str = nr_type_to_c_with_structs(arg_type, repr_c);
+                            if str_len(c_type) == 0 { bad = 1; continue; };
+                            if narg > 0 { sb_append(args_buf, ", "); };
+                            sb_append(args_buf, c_type);
+                            sb_append(args_buf, " ");
+                            sb_append(args_buf, arg_name);
+                            narg = narg + 1;
+                        };
+                        if bad == 0 {
+                            if q < llen { q = q + 1; };
+                            while q < llen && (str_char_at(line, q) == 32 || str_char_at(line, q) == 9) { q = q + 1; };
+                            let mut rtype: str = "void";
+                            if q + 1 < llen && str_char_at(line, q) == 45 && str_char_at(line, q + 1) == 62 {
+                                q = q + 2;
+                                while q < llen && (str_char_at(line, q) == 32 || str_char_at(line, q) == 9) { q = q + 1; };
+                                let rt_start: i64 = q;
+                                while q < llen && str_char_at(line, q) != 32 && str_char_at(line, q) != 9 && str_char_at(line, q) != 123 { q = q + 1; };
+                                rtype = str_substring(line, rt_start, q);
+                            };
+                            let c_rtype: str = nr_type_to_c_with_structs(rtype, repr_c);
+                            if str_len(c_rtype) > 0 {
+                                let args_str: str = if narg == 0 { "void" } else { sb_to_str(args_buf) };
+                                out.push(fname);
+                                out.push(args_str);
+                                out.push(c_rtype);
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        li = li + 1;
+    };
+    return out;
+}
+
 // T1.1 Phase 9: nuc gen-headers <input.nr> [-o <out.h>]
 //
 // Scans an .nr source file for `extern fn` declarations and emits a
@@ -11790,13 +11913,38 @@ fn run_gen_headers_command(argc: i64) -> i64 {
         sb_append(out, ");\n");
         emitted = emitted + 1;
     };
+    // T3.4 (v0.3.4): emit C decls for `#[export]`-marked Nucleor
+    // fns. The LLVM IR already uses the unmangled symbol so the
+    // header is the only missing piece for C-side callers.
+    let exports: Vec<i32> = collect_export_fns_and_sigs(src, repr_c);
+    let exn: i64 = vec_len(exports);
+    let mut emitted_exports: i64 = 0;
+    let mut ei: i64 = 0;
+    if exn >= 3 {
+        sb_append(out, "// === #[export] — Nucleor fns callable from C ===\n");
+    };
+    while ei + 2 < exn {
+        let xn: str = vec_get(exports, ei);
+        let xa: str = vec_get(exports, ei + 1);
+        let xr: str = vec_get(exports, ei + 2);
+        sb_append(out, xr);
+        sb_append(out, " ");
+        sb_append(out, xn);
+        sb_append(out, "(");
+        sb_append(out, xa);
+        sb_append(out, ");\n");
+        emitted_exports = emitted_exports + 1;
+        ei = ei + 3;
+    };
     sb_append(out, "\n#ifdef __cplusplus\n}\n#endif\n");
     sb_append(out, "#endif // NUCLEOR_GEN_HEADERS_H\n");
     let _ = file_write_string(out_path, sb_to_str(out));
+    let extern_count: str = str_from_int(emitted);
+    let export_count: str = str_from_int(emitted_exports);
     if emitted_structs > 0 {
-        print(str_concat("nuc gen-headers: wrote ", str_concat(str_from_int(emitted_structs), str_concat(" #[repr(C)] struct(s) and ", str_concat(str_from_int(emitted), str_concat(" extern decl(s) to ", out_path))))));
+        print(str_concat("nuc gen-headers: wrote ", str_concat(str_from_int(emitted_structs), str_concat(" #[repr(C)] struct(s), ", str_concat(extern_count, str_concat(" extern decl(s), ", str_concat(export_count, str_concat(" #[export] decl(s) to ", out_path))))))));
     } else {
-        print(str_concat("nuc gen-headers: wrote ", str_concat(str_from_int(emitted), str_concat(" extern decl(s) to ", out_path))));
+        print(str_concat("nuc gen-headers: wrote ", str_concat(extern_count, str_concat(" extern decl(s), ", str_concat(export_count, str_concat(" #[export] decl(s) to ", out_path))))));
     };
     return 0;
 }

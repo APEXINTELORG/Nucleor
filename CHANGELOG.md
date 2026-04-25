@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] — 2026-04-25
+
+**T3.4 extern-C shim generator — `#[export]` attribute makes
+Nucleor fns callable from C.** `nuc gen-headers` already emits
+forward declarations for `extern fn` *imports* and `#[repr(C)]`
+struct typedefs. v0.3.4 adds the symmetric *export* path: any
+fn (or `pub fn`) prefixed with `#[export]` is added to the
+generated header as a C-callable forward declaration. The LLVM
+IR already emits these fns with their unmangled name, so the
+header is the only missing piece for a robotics C/C++ host to
+call into a Nucleor-compiled kernel.
+
+### Approach
+
+`collect_export_fns_and_sigs(src, repr_c)` mirrors the
+`collect_repr_c_structs` line-lookback walk: for each `fn NAME(...)`
+line, peek backward past blank/`///`/other-attribute lines for
+exactly `#[export]`. If found, parse the signature, convert each
+type via the existing `nr_type_to_c_with_structs` helper (so
+`#[repr(C)]` struct names work as parameters), and stash the
+triple `[name, c_args, c_rtype]`.
+
+`run_gen_headers_command` then emits these decls under a
+`// === #[export] — Nucleor fns callable from C ===` divider,
+right after the existing `extern fn` import decls. The closing
+summary line now reports struct / extern / export counts.
+
+### Verify gate
+
+- New: `tests/fixtures/t34_export.nr` — 3 `#[export]` fns
+  (i64-only, struct-by-value `Vec3`, no-args `void`-return),
+  1 `extern fn` import, 1 private fn that must NOT leak into
+  the header. Verify step asserts each line and the absence
+  of the private one.
+- Self-host bootstrap fixed-point holds at 5AD8C866 (stage-2
+  IR == stage-3 IR). Bootstrap RSS peak 205 MB.
+
 ## [0.3.3] — 2026-04-25
 
 **T3.5 RT-007 cross-check — `#[deadline]` without
