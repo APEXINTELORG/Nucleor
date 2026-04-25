@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.35] — 2026-04-25
+
+**Docs ship: robotics guide cookbook §4 grows a semantics
+summary + known-limitation note.** v0.3.32 → v0.3.34 added
+three strict-tier-assertion fixtures (T3.17/T3.18/T3.19) that
+pinned the warning ↔ error opt-out boundary semantics from
+both sides. Cookbook §4 still listed only the original v0.3.20
++ v0.3.21 fixtures; a reader couldn't see the full semantic
+matrix or know where the proof-fixtures lived. v0.3.35 closes
+that doc gap.
+
+### What changed in §4 of `docs/v0.3-robotics-guide.md`
+
+- New "Semantics summary" subsection with a four-square table
+  mapping each per-fn op × tier behavior to its proof fixture
+  and verify step number. Every cell points at the test that
+  pins it.
+- New "Known limitation: unknown codes" subsection documenting
+  the v1 text-walk's lack of code-registry validation. A typo
+  like `#[allow_fn(RT-099)]` is silently a no-op; the v0.4
+  AST-based re-implementation is the natural place to add
+  validation. Until then, the limitation is documented so
+  contributors don't waste time hunting why their suppression
+  isn't taking effect.
+
+### Verify gate
+
+- 393 steps, all green (no new step). Pure documentation
+  change.
+- No compiler change, no fixture change. Bootstrap fixed
+  point unchanged at SHA `8ae2941f`.
+
+### Side note: the unknown-code-warning ship
+
+While preparing this docs update, the cron uncovered the
+unknown-code limitation by probing
+`#[allow_fn(RT-099)]` / `#[deny_fn(GIBBERISH-CODE)]` against
+the current compiler — both compiled with no diagnostic. That
+behavior is real today, hence the explicit known-limitation
+note rather than a "will be fixed in vN" hand-wave. The fix is
+substantive enough to warrant its own ship: introduce a
+canonical diag-code set in the s1 compiler (currently lives
+only in the tools_suite explain registry) and emit a new
+diagnostic when allow_fn/deny_fn references something not in
+the set. That ship would touch the s1 compiler (bootstrap
+refresh), add a new diagnostic code, and need negative-test
+coverage for both unknown-prefix (`GIBBERISH-`) and
+unknown-suffix-with-known-prefix (`RT-099`) cases. Deferred
+until cron focus shifts or user direction names it.
+
 ## [0.3.34] — 2026-04-25
 
 **T3.19 strict assertion: `#[allow_fn]` cannot demote error
