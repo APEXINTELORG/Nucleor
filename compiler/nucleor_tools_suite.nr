@@ -2034,6 +2034,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "format3_sii") { return "__nucleor_format3_sii"; };
     if str_eq(name, "format3_iss") { return "__nucleor_format3_iss"; };
     if str_eq(name, "format3_sss") { return "__nucleor_format3_sss"; };
+    if str_eq(name, "format3_ssi") { return "__nucleor_format3_ssi"; };
+    if str_eq(name, "format3_sis") { return "__nucleor_format3_sis"; };
     if str_eq(name, "vec_avg_i64") { return "__nucleor_vec_avg_i64"; };
     if str_eq(name, "vec_dot_i64") { return "__nucleor_vec_dot_i64"; };
     if str_eq(name, "vec_count_eq_i64") { return "__nucleor_vec_count_eq_i64"; };
@@ -2718,6 +2720,8 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "format3_sii") { return 1; };
     if str_eq(name, "format3_iss") { return 1; };
     if str_eq(name, "format3_sss") { return 1; };
+    if str_eq(name, "format3_ssi") { return 1; };
+    if str_eq(name, "format3_sis") { return 1; };
     if str_eq(name, "dyn_box_make") { return 1; };
     if str_eq(name, "dyn_box_type") { return 1; };
     if str_eq(name, "dyn_box_data") { return 1; };
@@ -2848,6 +2852,8 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "format3_sii") { if idx == 0 || idx == 1 { return 1; }; return 0; };
     if str_eq(name, "format3_iss") { if idx == 0 || idx == 2 || idx == 3 { return 1; }; return 0; };
     if str_eq(name, "format3_sss") { if idx == 0 || idx == 1 || idx == 2 || idx == 3 { return 1; }; return 0; };
+    if str_eq(name, "format3_ssi") { if idx == 0 || idx == 1 || idx == 2 { return 1; }; return 0; };
+    if str_eq(name, "format3_sis") { if idx == 0 || idx == 1 || idx == 3 { return 1; }; return 0; };
     if str_eq(name, "vec_avg_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_dot_i64") { return 1; };
     if str_eq(name, "vec_count_eq_i64") { if idx == 0 { return 1; }; return 0; };
@@ -3365,6 +3371,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_format3_sii(ptr, ptr, i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_format3_iss(ptr, i64, ptr, ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_format3_sss(ptr, ptr, ptr, ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_format3_ssi(ptr, ptr, ptr, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_format3_sis(ptr, ptr, i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_avg_i64(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_dot_i64(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_count_eq_i64(ptr, i64)\n");

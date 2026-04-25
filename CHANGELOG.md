@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.12] — 2026-04-25
+
+**RFC-0028 phase 3 — `format3_ssi` + `format3_sis` combos.**
+Two new format-string combos that round out the most common
+log-line shapes:
+
+- `format3_ssi(tmpl, str_a, str_b, i64_c)` — e.g.
+  `format!("[{}] {} = {}", level, key, n)` produces
+  `"[INFO] iter = 7"`.
+- `format3_sis(tmpl, str_a, i64_b, str_c)` — e.g.
+  `format!("[{} {}] {}", tag, n, msg)` produces
+  `"[ERR 42] stack overflow"`.
+
+Mirrors the existing `format3_iii` / `sii` / `iss` / `sss` /
+`fff` pattern: ABI-table mapping in `nucleor_s1_compiler.nr` +
+`nucleor_tools_suite.nr` (drift-gate-enforced parity), IR
+`declare ptr @__nucleor_format3_*` lines, runtime impl in
+`nucleor_llvm_rt.c` chaining `__nucleor_format_str` /
+`__nucleor_format_i64` over the template (each chunk frees the
+intermediate). Both new builtins added to the `#[no_alloc]`
+forbidden-name list — calling them from a `#[no_alloc]` body
+fires RT-001 (they allocate).
+
+### Verify gate
+
+- New: `tests/lang/format3_ssi_sis.nr` — auto-discovered under
+  the lang directory; prints `[INFO] iter = 7`,
+  `[ERR 42] stack overflow`, then `OK format3_ssi_sis` so the
+  gate's `grep -qE '^OK '` shape check passes.
+- Self-host bootstrap fixed-point holds at 21809F89 (stage-3
+  IR == stage-4 IR, both built with the new compiler — stage-2
+  IR legitimately differs by exactly the two new `declare`
+  lines because the old compiler doesn't know them yet, the
+  same v0.2.153 gotcha).
+- Bootstrap RSS peak 243 MB.
+
 ## [0.3.11] — 2026-04-25
 
 **Test-framework coverage for the bare `arena_*` builtin path.**
