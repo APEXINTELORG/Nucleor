@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.25] — 2026-04-25
+
+**Docs ship: `docs/v0.3-robotics-guide.md` documents the v0.3.24
+`#[ffi_no_alloc]` / `#[ffi_no_panic]` extern markers.** The
+guide previously listed RT-005 per-symbol opt-out under "v1
+limitations and what's deferred to v0.4" with the note "not yet
+shipped". v0.3.24 actually shipped it; this release closes the
+documentation gap so the guide stops misrepresenting the
+current contract surface.
+
+### What changed in the guide
+
+- Status banner bumped from "as of v0.3.17" → "as of v0.3.24".
+- Attribute reference table grew two new rows for the extern
+  markers, each labelled `(extern)` so readers don't try to
+  attach them to a `fn`.
+- RT-005 row in the diagnostic reference now reads
+  "RT-marked fn calls an unmarked `extern fn`" and the Shipped
+  column reads "v0.3.8 + v0.3.24 opt-out" so the per-symbol
+  story is visible at the table-row level.
+- New Cookbook §5 ("RT-safe `extern fn` markers") shows the
+  one-marker / both-marker / neither-marker matrix, the
+  intersection rule for `#[deadline]` callers, and the rule
+  of thumb that markers are author-asserted contracts (not
+  proofs) so authors should only mark FFI symbols they audited.
+- Cookbook §5 (C-side caller of `#[export]`) renumbered to §6.
+- Deferred-limitations §RT-005 entry rewritten from "not yet
+  shipped" to "shipped in v0.3.24" with a forward-looking note
+  on the v0.4 AST tightening + cross-file marker propagation.
+- Self-host fixed-point note replaced the brittle "currently
+  358/385" step counter with the SHA-pinned form
+  ("currently lands at fixed point SHA `A7D6876D` as of v0.3.24")
+  so the guide stops needing a numeric edit on every ship that
+  changes the verify step total.
+- CHANGELOG range pointer at the bottom updated to v0.3.25.
+
+### Verify gate
+
+No code change; verify gate count unchanged. The compiler,
+runtime, and bootstrap fixed point (`A7D6876D`) are byte-for-byte
+identical to the v0.3.24 release.
+
+This is the documentation-only counterpart to v0.3.22's
+allow_fn/deny_fn doc ship — same pattern: a doc release
+chasing a feature release on the same day so the guide
+matches reality before the next code change layers on top.
+
 ## [0.3.24] — 2026-04-25
 
 **T3.15 `#[ffi_no_alloc]` and `#[ffi_no_panic]` extern markers
