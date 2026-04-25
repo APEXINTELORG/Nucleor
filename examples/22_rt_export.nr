@@ -27,16 +27,12 @@
 //     long nuc_add(long a, long b);
 //     long nuc_print_dot(Vec3 a, Vec3 b);
 //
-// **v1 codegen note**: f64 multiplication of two struct-field
-// accesses INLINE (e.g. `a.x * b.x` directly inside a
-// larger expression) miscomputes to 0 when the struct args
-// are passed by value. Workaround: lift each field to an
-// intermediate `let`-binding before the multiply (e.g.
-// `let ax: f64 = a.x; let bx: f64 = b.x; let prod: f64 =
-// ax * bx;`). The bug is in struct-field-load + fmul
-// scheduling; receive (Vec3, Vec3) works, multiply via
-// intermediate vars works, only the inline form misfires.
-// The v0.4 AST-based codegen owns the fix.
+// (Pre-v0.3.53 a codegen bug forced a lifted-let workaround
+// for inline f64 ops on struct-field operands. v0.3.53
+// extended `binop_float_type` to recognize struct field
+// accesses, nested binops, and parenthesized wrappers as
+// f-typed operands; the natural inline form below now
+// computes correctly.)
 //
 // See docs/v0.3-robotics-guide.md cookbook §6 for the C-side
 // caller pattern; tests/fixtures/t34_export.nr is the verify
@@ -57,20 +53,10 @@ fn nuc_add(a: i64, b: i64) -> i64 {
     return a + b;
 }
 
-// Dot product with the intermediate-let workaround for the
-// v1 codegen bug noted above. Each field is lifted to its
-// own f64 binding AND each multiplication is its own let
-// before being summed; without that splitting the inline
-// `ax * bx + ay * by + az * bz` form mis-schedules the
-// fmuls and the sum comes out wrong.
+// Natural inline dot product — works correctly post-v0.3.53.
 #[export]
 fn nuc_print_dot(a: Vec3, b: Vec3) -> i64 {
-    let ax: f64 = a.x; let ay: f64 = a.y; let az: f64 = a.z;
-    let bx: f64 = b.x; let by: f64 = b.y; let bz: f64 = b.z;
-    let p1: f64 = ax * bx;
-    let p2: f64 = ay * by;
-    let p3: f64 = az * bz;
-    let dp: f64 = p1 + p2 + p3;
+    let dp: f64 = a.x * b.x + a.y * b.y + a.z * b.z;
     print_f64(dp);
     return 0;
 }
