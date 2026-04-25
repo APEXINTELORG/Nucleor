@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 41))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 42))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -897,6 +897,34 @@ t39_rt005_ffi_call() {
     return 0
 }
 
+t326_cli_help_cmds_drift() {
+    # T3.26 (v0.3.44): drift gate for the cli_help_coverage_smoke
+    # cmds list. Both verify.sh and verify.ps1 hardcode the same
+    # ~39-entry CLI command set; a new command added to one but
+    # forgotten in the other would leave the smoke check half-
+    # blind on the corresponding OS. Pure regex scan of both
+    # cmds-array bodies; asserts the sets match exactly.
+    local sh_cmds ps_cmds
+    sh_cmds=$(awk '/local cmds=\(/,/^    \)/' "$ROOT/tools/verify.sh" \
+              | grep -oE '"[a-z][a-z0-9-]*"' | tr -d '"' | sort -u)
+    ps_cmds=$(awk '/\$cmds = @\(/,/^    \)/' "$ROOT/tools/verify.ps1" \
+              | grep -oE '"[a-z][a-z0-9-]*"' | tr -d '"' | sort -u)
+    local missing_a missing_b
+    missing_a=$(comm -23 <(echo "$sh_cmds") <(echo "$ps_cmds"))
+    missing_b=$(comm -13 <(echo "$sh_cmds") <(echo "$ps_cmds"))
+    if [ -n "$missing_a" ]; then
+        echo "       drift: cli help cmds in verify.sh but missing from verify.ps1:" | sed 's/^/       /'
+        echo "$missing_a" | sed 's/^/         - /'
+        return 1
+    fi
+    if [ -n "$missing_b" ]; then
+        echo "       drift: cli help cmds in verify.ps1 but missing from verify.sh:" | sed 's/^/       /'
+        echo "$missing_b" | sed 's/^/         - /'
+        return 1
+    fi
+    return 0
+}
+
 t325_examples_list_drift() {
     # T3.25 (v0.3.43): drift gate for tools/examples.list
     # against the actual examples/ directory. Every .nr file
@@ -1518,6 +1546,7 @@ step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" t321_diag001_self_sup
 step "T3.23 diag-code drift (s1 is_known_diag_code vs smoke list)" t323_diag_code_drift
 step "T3.24 spec-doc drift (canonical codes vs Nucleor_Error_Codes.md)" t324_spec_doc_drift
 step "T3.25 examples-list drift (examples/*.nr vs examples.list)" t325_examples_list_drift
+step "T3.26 cli-help cmds drift (verify.sh ⇄ verify.ps1)" t326_cli_help_cmds_drift
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
