@@ -5,6 +5,120 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.78] — 2026-04-25
+
+**LOCKED PARTIAL CLOSED — T2.1/2/3 inline closure with capture.**
+Pre-v0.3.78, writing `v.map(|x| x * captured)` produced the cryptic
+clang link error `use of undefined value '@captured'`. The textual
+closure preprocessor (`expand_closures` + `close_synthesize_fn`) at
+arg-position closures hoisted the body into a top-level fn without
+any capture detection — the body referenced `captured` as a global
+symbol that didn't exist. Documented as a v1 boundary in v0.3.72,
+the user explicitly asked this to close before launch (2026-04-25
+"don't let any of the partials escape us").
+
+### Root cause
+
+Two closure-handling paths existed in parallel:
+
+1. **AST kind 42 path** (`lower_expr` line ~9915) — handled
+   stored closures (`let f = |x| body;`). Has full capture support
+   via `__nucleor_capture_set` / `__nucleor_capture_get` runtime
+   helpers (added v0.3.72) and `closure_collect_capture_*` walkers.
+
+2. **Textual preprocessor path** (`close_synthesize_fn`) — handled
+   arg-position closures (`v.map(|x| body)`). Hoisted the body text
+   into a top-level fn with NO scope info, so any non-param
+   identifier in the body resolved as a global symbol → link error.
+
+The textual path was a workaround from before the AST path got
+capture support. By v0.3.72, the AST path could handle every case
+the textual path was working around.
+
+### Fix
+
+Make `close_is_arg_position_char` always return 0, fully disabling
+the textual hoisting. Arg-position closures now go through the AST
+kind 42 path the same way stored closures do — same parser route,
+same lower_expr handler, same capture detection and runtime calls.
+
+The legacy comment about "indirect-call dispatch" no longer applies
+because:
+- Kind 8 (trait method call) at line 9448 lowers each arg via
+  lower_expr.
+- For a closure literal arg (kind 42), lower_expr returns the fn
+  pointer register WITH capture_set already emitted into the
+  current block.
+- The kind 8 handler pushes that fn ptr into all_args and dispatches
+  to `vec_map_i64(receiver, fn_ptr)` — the existing iter runtime
+  expects a fn pointer arg and the AST path delivers exactly that.
+
+### What now works that previously didn't
+
+```nucleor
+let factor: i64 = 5;
+let v: Vec<i64> = ...;
+
+// All four shapes link + run correctly post-v0.3.78:
+v.map(|x| x * 2)              // no capture (regression check)
+v.map(|x| x * factor)         // single capture — was the v1 boundary
+v.map(|x| x * factor + off)   // multi-capture
+v.filter(|x| x > threshold)   // capture in filter, same dispatch
+
+// Stored-closure path still works (regression check):
+let mul = |x: i64| x * factor;
+mul(7)  // → 35
+```
+
+### Production-readiness — closes the documented v1 boundary
+
+The v0.3.72 CHANGELOG explicitly listed this as the **known v1
+boundary**:
+
+> Inline closures passed directly to `.map / .filter / .fold`
+> go through a separate source preprocessor path
+> (`close_synthesize_fn`) that synthesizes the body as a top-level
+> fn without capture detection. So:
+>
+>     let mapped = v.map(|x| x * factor);      // STILL FAILS at link
+>
+> Workaround — lift to a let binding so the AST closure-capture
+> path takes over:
+>
+>     let f = |x: i64| x * factor;
+>     let mapped = v.map(f);                   // works post-v0.3.72
+
+Per the user's locked instruction (2026-04-25), this partial is now
+closed — no workaround required, the natural inline form works.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `close_is_arg_position_char`
+  now returns 0 unconditionally, disabling textual closure hoisting.
+  AST kind 42 path takes over for arg-position closures. Bootstrap
+  fixed point recomputed at SHA `49ce5420` (was `8c9a5028`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t353_inline_closure_capture.nr` — new strict
+  regression fixture covering five shapes (no-capture, single,
+  multi, filter, stored-closure regression).
+- `tools/verify.{sh,ps1}` — new T3.53 verify step.
+
+### Verify gate
+
+- 431/431 green (was 430 + 1 step from T3.53).
+- All prior regression fixtures (T3.28-T3.52) still green.
+- Bootstrap fixed point closes at `49ce5420`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.78)
+
+- **21 codegen + 1 runtime + 2 parser diagnostic = 24 total**
+- **26 strict regression fixtures** (T3.28-T3.53)
+- **6 robotics RT showcase examples** in Tier 4
+- **One of two locked partials closed** — T2.1/2/3 inline closure
+  capture. T1.2 match-on-enum-with-data is the remaining partial
+  (3-5 estimated ships).
+
 ## [0.3.77] — 2026-04-25
 
 **Compiler fix #20: compound assignment (`+=`, `-=`, `*=`, `/=`,
