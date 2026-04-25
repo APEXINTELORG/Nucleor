@@ -5,6 +5,123 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.61] — 2026-04-25
+
+**Compiler fix #8: as-cast results in inline f64 binops.**
+`(make_int() as f64) + (make_int() as f64)` returned -0.0
+instead of the sum pre-v0.3.61. Same bug class — kind 99
+(as-cast) wasn't in `binop_float_type`'s enumeration. The
+arithmetic mixed-form gap from earlier probing
+(v0.3.56 T3.31 covered cast×field, cast×vec[i] etc) was
+incomplete: cast×cast fell through to integer add even
+though both operands were f64.
+
+### Why the partial cases worked pre-v0.3.61
+
+Production-relevant cases that DID work pre-v0.3.61:
+
+```nucleor
+(i as f64) * 2.0       // worked: 2.0 literal forced f64 dispatch via kind 71
+(i as f64) * f         // worked: var f was f64 via kind 3
+(i as f64) * v.x       // worked: v.x triggered v0.3.53 kind 9 fix
+(i as f64) * a[0]      // worked: a[0] triggered v0.3.55 kind 10 fix
+(i as f64) * make_two() // worked: make_two() triggered v0.3.54 kind 7 fix
+```
+
+The case that FAILED:
+
+```nucleor
+(make_int() as f64) + (make_int() as f64)  // returned -0.0
+```
+
+Both operands were casts. Without either operand triggering
+the f-typed path via the existing kind enumeration,
+`binop_float_type` returned "" and the dispatcher fell
+through to integer add on f64 bit patterns.
+
+### Fix
+
+```nucleor
+if kind == 99 {
+    let target_type: str = type_base_name(node_field(pool, nid, 2));
+    if str_eq(target_type, "f32") == 1 { return "f32"; };
+    if str_eq(target_type, "f64") == 1 { return "f64"; };
+    return "";
+};
+```
+
+The cast node already carries the target type as a string
+(field 2). Just needs to be recognized as an f-typed
+operand in the dispatcher's enumeration. `type_base_name`
+strips any generic decorations.
+
+### What now works that previously didn't
+
+```
+(make_int() as f64) + (make_int() as f64)   → 14.0 (was: -0.0)
+```
+
+Production-relevant for control loops mixing integer
+counters/timestamps with floating-point computations:
+
+```nucleor
+let dt: f64 = (tick as f64) * dt_per_tick + (frame as f64) * frame_period;
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `binop_float_type`
+  gains kind==99 branch. Bootstrap fixed point recomputed
+  at SHA `cffbff60` (was `c1f676b0`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t336_cast_fp_ops.nr` — new strict
+  regression fixture covering five cast-mixed shapes:
+  literal, var, cast×cast different, fn-call, cast×cast
+  same (the original bug).
+- `tools/verify.{sh,ps1}` — new T3.36 verify step.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry
+  added; SHA stamp updated.
+
+### Verify gate
+
+- 412/412 green (was 411 + 1 new step from T3.36).
+- All prior regression fixtures (T3.28-T3.35) still green.
+- Bootstrap fixed point closes at `cffbff60`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.61)
+
+- **8 codegen fixes** to f64 arithmetic on production AST
+  shapes:
+  - kinds 9 (struct field), 4 (nested binop), 90/91/92
+    (wrappers) — v0.3.53
+  - kind 7 (fn call) — v0.3.54
+  - kind 10 (Vec indexing) — v0.3.55
+  - kind 5 (unary minus) — v0.3.57
+  - kind 7 (fn call in expr_struct_type) — v0.3.58
+  - kind 10 (Vec indexing in expr_struct_type) — v0.3.59
+  - kind 8 (trait method call) + fn_decls extension — v0.3.60
+  - kind 99 (as-cast) — v0.3.61
+- **9 strict regression fixtures**: T3.28-T3.36
+- **Reusable infrastructure**:
+  - `__fnret_<NAME>` (v0.3.54) → drives `binop_float_type`
+    kinds 7 + 8, `expr_struct_type` kind 7
+  - `__fulltype_<vname>` (v0.3.55) → drives `binop_float_type`
+    kind 10, `expr_struct_type` kind 10
+  - Pass-1.5 `fn_decls` extension (v0.3.60) → trait-impl
+    methods get __fnret_ entries too
+- **All fixes coexist**: bootstrap stable through 8 SHA
+  refreshes (4cd2d428 → e5722f24 → cb696a25 → 6b4cd0f3 →
+  13b25308 → 9f19b383 → a4b34d06 → c1f676b0 → cffbff60)
+
+The arithmetic enumeration in `binop_float_type` now covers
+all 8 of: variable refs (kind 3), float literals (kind 71),
+struct field access (kind 9), nested binops (kind 4),
+wrappers (90/91/92), function calls (kind 7), Vec indexing
+(kind 10), method calls (kind 8), and as-casts (kind 99).
+Every operand kind a production Nucleor program could write
+in an inline f64 binop is dispatched correctly.
+
 ## [0.3.60] — 2026-04-25
 
 **Compiler fix #7: trait method results in inline f64
