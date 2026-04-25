@@ -5,6 +5,75 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.31] — 2026-04-25
+
+**RT-004 warning text now mentions per-fn `#[allow_fn]`.** Final
+entry in the v0.3.28 → v0.3.30 message-text completeness pass.
+RT-004's parenthetical hint has said "use #[allow(RT-004)] if
+wrong" since v0.3.2; v0.3.20 introduced `#[allow_fn(CODE)]` as
+a per-fn variant of the file-wide allow. Same staleness pattern
+fixed in v0.3.29 (RT-007); same surgical single-line edit
+applied here.
+
+### Before / After
+
+```
+# v0.3.2 → v0.3.30 (stale)
+warning[RT-004]: static WCET estimate 60 us (600 units x 0.1 us)
+  exceeds #[deadline = 1 us] (v1 estimator -- use #[allow(RT-004)]
+  if wrong; default loop multiplier 100x)
+
+# v0.3.31 (current)
+warning[RT-004]: static WCET estimate 60 us (600 units x 0.1 us)
+  exceeds #[deadline = 1 us] (v1 estimator -- use #[allow(RT-004)]
+  file-wide or #[allow_fn(RT-004)] per-fn if the estimate is
+  wrong; default loop multiplier 100x)
+```
+
+### Approach
+
+Single-line edit to the `str_concat` chain in
+`enforce_static_wcet`. Critically preserves the literal string
+"v1 estimator" since T3.3 verify greps for that token in the
+parenthetical (along with the `warning[RT-004]:` prefix and the
+"exceeds #[deadline = 1 us]" middle).
+
+### Verify gate
+
+- T3.3 stays green — three greps preserved (`warning[RT-004]:
+  static WCET estimate <N> us` prefix, `exceeds #[deadline = 1
+  us]` middle, `v1 estimator` parenthetical token).
+- All 390 verify steps pass.
+- Bootstrap fixed point recomputed at SHA `8ae2941f` (was
+  `367b7377`). New SHA reflects the longer .rodata string
+  (+57 chars).
+- `bootstrap/nucleor_s1_seed.ll` refreshed; T1.7 cross-build
+  seed-vs-current SHA equality check passes.
+- RSS during bootstrap stayed comfortably under 2 GB.
+
+### Completeness pass summary
+
+The four RT warnings (RT-004, RT-005, RT-007, RT-008) now all
+mention their post-v0.3.0 opt-out variants where applicable:
+
+- **RT-004** (v0.3.31): `#[allow(RT-004)]` file-wide,
+  `#[allow_fn(RT-004)]` per-fn (v0.3.20).
+- **RT-005** (v0.3.28): `#[ffi_no_alloc]` / `#[ffi_no_panic]`
+  per-symbol (v0.3.24), `#[allow(RT-005)]` file-wide.
+- **RT-007** (v0.3.29): `#[allow(RT-007)]` file-wide,
+  `#[allow_fn(RT-007)]` per-fn (v0.3.20).
+- **RT-008** (always current): `#[max_depth = N]` per-fn
+  (shipped together in v0.3.9).
+
+The three RT errors (RT-001, RT-002, RT-003, RT-006) do not
+mention opt-outs because they are non-suppressible by design
+(error tier promotion blocks compilation).
+
+`nuc explain` registry hints (v0.3.30) and runtime warning
+text (v0.3.28/29/31) are now in lockstep — a user who reads
+either surface gets the same complete picture of available
+opt-outs.
+
 ## [0.3.30] — 2026-04-25
 
 **`nuc explain RT-005` and `nuc explain RT-007` hints updated.**

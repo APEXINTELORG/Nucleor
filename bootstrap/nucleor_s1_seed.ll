@@ -4126,7 +4126,7 @@ declare i64 @__nucleor_tensor_sample_gumbel(i64, i64)
 @.str.3372 = private unnamed_addr constant [22 x i8] c"static WCET estimate \00"
 @.str.3373 = private unnamed_addr constant [6 x i8] c" us (\00"
 @.str.3374 = private unnamed_addr constant [39 x i8] c" units x 0.1 us) exceeds #[deadline = \00"
-@.str.3375 = private unnamed_addr constant [83 x i8] c" us] (v1 estimator -- use #[allow(RT-004)] if wrong; default loop multiplier 100x)\00"
+@.str.3375 = private unnamed_addr constant [139 x i8] c" us] (v1 estimator -- use #[allow(RT-004)] file-wide or #[allow_fn(RT-004)] per-fn if the estimate is wrong; default loop multiplier 100x)\00"
 @.str.3376 = private unnamed_addr constant [1 x i8] c"\00"
 @.str.3377 = private unnamed_addr constant [8 x i8] c"warning\00"
 @.str.3378 = private unnamed_addr constant [3 x i8] c"rt\00"
