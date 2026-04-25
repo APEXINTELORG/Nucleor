@@ -5,6 +5,75 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.50] — 2026-04-25
+
+**`examples/21_rt_state_machine.nr` — runnable demo of
+`#[max_depth = N]`.** Companion to v0.3.48's ffi-marker
+example. Cookbook §3 of the robotics guide demonstrates
+`#[max_depth = N]` for bounded recursion in `#[deadline]`
+fns but referenced only the verify-gate fixture. v0.3.50
+adds the matching runnable example file, completing the
+cookbook → `examples/` coverage for all three v0.3.x
+attribute-family cases (L1 stack, FFI markers, bounded
+recursion).
+
+### What's in the ship
+
+**`examples/21_rt_state_machine.nr`** — `segment_walk` fn
+that recursively accumulates trajectory-segment costs from
+the goal back to the start. The recursion is structurally
+bounded by `remaining` decreasing each call. Without the
+attribute the build emits `warning[RT-008]` because the
+v0.3.9 RT-008 check fires on any direct self-recursion in a
+`#[deadline]` body; with `#[max_depth = 16]` the author
+declares the bound and RT-008 stays silent. Full L1 stack
+(`#[no_alloc]` + `#[no_panic]` + `#[deadline = 500]`) plus
+the new opt-out attribute.
+
+`main()` exercises `segment_walk` for n in 1..8 and prints
+the triangular numbers — the recursive structure is
+mathematically identical to `n*(n+1)/2`, but the bounded-
+recursion shape is the demo target, not the math.
+
+**`tools/examples.list`** — added `21_rt_state_machine`
+under the Tier 4 robotics RT showcase header. T3.25 drift
+gate (v0.3.43) ensures the list and dir stay in sync.
+
+**`examples/README.md`** — new row in Tier 4 with the RT
+attrs column calling out `#[max_depth = N]` and the v0.3.9
+RT-008 lineage.
+
+**`docs/v0.3-robotics-guide.md`** — Cookbook §3 now leads
+with a "→ Worked example" link before the existing fixture
+links (matching the pattern v0.3.49 set for §5). The
+worked-example index gains a row for `21_rt_state_machine`.
+
+### Verify gate
+
+- 401/401 green (was 400 + 1 new step from the example
+  sweep). Bootstrap fixed point unchanged at SHA `4cd2d428`
+  (no compiler change).
+- `segment_walk`'s static WCET estimator scores 1 unit (no
+  whiles → ×1 multiplier), well under the 500 µs budget —
+  no spurious RT-004.
+- The `#[max_depth = 16]` annotation correctly suppresses
+  RT-008 — `segment_walk` self-recurses but the build is
+  silent.
+- Example exits 0; output is the eight triangular numbers
+  for n=1..8.
+
+### Tier 4 robotics example coverage after v0.3.50
+
+| # | File | Demonstrates |
+|---|------|--------------|
+| 19 | `19_rt_pid.nr` | L1 stack on pure-Nucleor inner loop |
+| 20 | `20_rt_motor_ffi.nr` | L1 stack + FFI markers (intersection rule) |
+| 21 | `21_rt_state_machine.nr` | L1 stack + bounded recursion (`#[max_depth]`) |
+
+Every Cookbook section in the robotics guide now has a
+matching runnable example file. The cookbook → `examples/`
+discovery flow is complete for the v0.3.x attribute family.
+
 ## [0.3.49] — 2026-04-25
 
 **Robotics guide picks up `examples/20_rt_motor_ffi.nr`.**
