@@ -5,6 +5,111 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.63] — 2026-04-25
+
+**Compiler fix #10: fixed-array-of-struct field access.**
+`arr[0].x` where arr: [V3; 2] failed compilation pre-v0.3.63
+with `ERROR: cannot resolve field access type for .x`. Same
+bug class as v0.3.59 but for `[T; N]` arrays instead of
+`Vec<T>`. v0.3.63 mirrors v0.3.62's `[T; N]` extension into
+`expr_struct_type`'s kind==10 branch.
+
+### Production relevance
+
+Fixed-size arrays of structs are common in robotics:
+
+```nucleor
+let waypoints: [Pose; 8] = ...;
+let dx: f64 = waypoints[1].x - waypoints[0].x;
+let imu_samples: [V3; 16] = ...;
+let recent_x: f64 = imu_samples[0].x;
+```
+
+The pattern parallels v0.3.59's `Vec<Pose>` shape but with
+stack-allocated, known-length storage. v0.3.62 fixed the
+arithmetic dispatch for `[f64; N]`; v0.3.63 fixes the type
+resolution for `[Struct; N]`. The two fixes are complementary —
+one for f64 arrays, one for struct arrays.
+
+### Fix
+
+Mirrors v0.3.62 in the parallel `expr_struct_type` resolver:
+
+```nucleor
+// [T; N] → return T. Pattern: '[' + T + ';' + N + ']'.
+if str_len(vtype) > 1 && str_char_at(vtype, 0) == 91 {
+    let tlen2: i64 = str_len(vtype);
+    let mut sep: i64 = 0 - 1;
+    let mut k: i64 = 1;
+    while k < tlen2 {
+        let ch: i64 = str_char_at(vtype, k);
+        if ch == 59 || ch == 44 { sep = k; k = tlen2; }
+        else { k = k + 1; };
+    };
+    if sep > 1 {
+        return type_base_name(strip_spaces(str_substring(vtype, 1, sep)));
+    };
+};
+```
+
+The two type-resolvers (`binop_float_type` for arithmetic
+dispatch, `expr_struct_type` for field/method dispatch) now
+recognize the same set of container shapes via the same
+`__fulltype_<vname>` sym entry — whatever future container
+type lands (e.g. HashMap, Box) needs handling in both.
+
+### What now works that previously didn't
+
+```nucleor
+let arr: [V; 2] = [V { x: 1.0, y: 2.0 }, V { x: 3.0, y: 4.0 }];
+
+arr[0].x                         → 1.0  (was: compile error)
+arr[0].x + arr[1].y              → 5.0
+arr[1].x * arr[0].y              → 6.0
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `expr_struct_type`
+  kind==10 branch extended with `[T; N]` recognition.
+  Bootstrap fixed point recomputed at SHA `27480e3a` (was
+  `e5e9e7c4`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t338_fixed_array_of_struct.nr` — new strict
+  regression fixture covering standalone access + inline
+  binop + cross-element multiplication.
+- `tools/verify.{sh,ps1}` — new T3.38 verify step.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry
+  added; SHA stamp updated.
+
+### Verify gate
+
+- 414/414 green (was 413 + 1 new step from T3.38).
+- All prior regression fixtures (T3.28-T3.37) still green.
+- Bootstrap fixed point closes at `27480e3a`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.63)
+
+- **10 codegen fixes** to f64 / struct type resolution on
+  production AST shapes
+- **11 strict regression fixtures**: T3.28-T3.38
+- **Reusable infrastructure**:
+  - `__fnret_<NAME>` (v0.3.54) → drives 3 type-resolver paths
+  - `__fulltype_<vname>` (v0.3.55) → drives 4 type-resolver
+    paths (Vec<T> + [T;N] in both binop_float_type AND
+    expr_struct_type after v0.3.62/v0.3.63)
+  - Pass-1.5 fn_decls extension (v0.3.60) → trait-impl methods
+- **All fixes coexist**: bootstrap stable through 10 SHA
+  refreshes (4cd2d428 → e5722f24 → cb696a25 → 6b4cd0f3 →
+  13b25308 → 9f19b383 → a4b34d06 → c1f676b0 → cffbff60 →
+  e5e9e7c4 → 27480e3a)
+
+The two type-resolvers (`binop_float_type` and
+`expr_struct_type`) are now structurally aligned — every
+container shape recognized by one is recognized by the other.
+Container-shape additions stay in lockstep going forward.
+
 ## [0.3.62] — 2026-04-25
 
 **Compiler fix #9: fixed-size array `[T; N]` indexing in

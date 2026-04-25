@@ -4974,6 +4974,11 @@ fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
     // (kind 10); same compile-error class as v0.3.58. Reuses
     // the v0.3.55 __fulltype_<vname> sym entry that preserves
     // the generic; extracts T from "Vec<T>" via str_substring.
+    //
+    // v0.3.63 extension: also handles fixed-size arrays
+    // `[T; N]` (mirrors v0.3.62's binop_float_type extension).
+    // Production code uses fixed arrays of structs for known-
+    // size pose batches / state vectors.
     if kind == 10 {
         let vexpr: i64 = node_field(pool, nid, 1);
         if node_kind(pool, vexpr) == 3 {
@@ -4985,6 +4990,20 @@ fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
                 let tlen: i64 = str_len(vtype);
                 if tlen > 5 && str_char_at(vtype, tlen - 1) == 62 {
                     return type_base_name(str_substring(vtype, 4, tlen - 1));
+                };
+            };
+            // [T; N] → return T. Pattern: '[' + T + ';' + N + ']'.
+            if str_len(vtype) > 1 && str_char_at(vtype, 0) == 91 {
+                let tlen2: i64 = str_len(vtype);
+                let mut sep: i64 = 0 - 1;
+                let mut k: i64 = 1;
+                while k < tlen2 {
+                    let ch: i64 = str_char_at(vtype, k);
+                    if ch == 59 || ch == 44 { sep = k; k = tlen2; }
+                    else { k = k + 1; };
+                };
+                if sep > 1 {
+                    return type_base_name(strip_spaces(str_substring(vtype, 1, sep)));
                 };
             };
         };
