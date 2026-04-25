@@ -10362,9 +10362,16 @@ fn narrow_via_as(blk: Vec<i32>, regs: Vec<i32>, vr: i64, tstr: str, src_kind: i6
 fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
     let kind: i64 = node_kind(pool, nid);
     if kind == 20 {
+        // v0.3.76: shadowing fix. Pre-v0.3.76, this lowering bound the
+        // new slot (sym_set) BEFORE lowering the RHS, so a shadowing
+        // statement like `let x: i64 = x + 5;` resolved the inner `x`
+        // to the new (uninitialized) slot and produced garbage.
+        // Fix: allocate the new slot upfront, but bind sym entries
+        // AFTER lowering the RHS expression so the RHS sees the OLD
+        // shadowed binding (Rust shadowing semantics — the new binding
+        // takes effect on the next statement, not within its own RHS).
         let ar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, ar);
         let vname: str = node_field(pool, nid, 1);
-        sym_set(sym, vname, ar);
         let init: i64 = node_field(pool, nid, 4);
         let mut tstr: str = node_field(pool, nid, 3);
         if str_len(tstr) == 0 && init >= 0 {
@@ -10373,13 +10380,9 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             else if ik == 12 { tstr = node_field(pool, init, 1); };
         };
         let sbase: str = type_base_name(tstr);
-        if str_len(sbase) > 0 { sym_set(sym, str_concat("__type_", vname), sbase); };
-        // v0.3.55: also store the FULL declared type (with generics
-        // like Vec<f64>) so binop_float_type can extract Vec<T>'s
-        // element type for kind==10 (indexing) dispatch. type_base_name
-        // strips the <T> for the existing __type_ entry.
-        if str_len(tstr) > 0 { sym_set(sym, str_concat("__fulltype_", vname), tstr); };
         if init >= 0 {
+            // Lower RHS BEFORE rebinding sym so any reference to `vname`
+            // inside the RHS resolves to the OUTER (shadowed) slot.
             let src_kind: i64 = node_kind(pool, init);
             let mut vp: Vec<i32> = lower_expr(pool, init, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
             cur = lx_blk(vp);
@@ -10387,6 +10390,14 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let nvr: i64 = narrow_via_as(cur, regs, vr, sbase, src_kind);
             ir_block_add(cur, ir_store(nvr, ar));
         };
+        // Bind sym entries AFTER the RHS is lowered.
+        sym_set(sym, vname, ar);
+        if str_len(sbase) > 0 { sym_set(sym, str_concat("__type_", vname), sbase); };
+        // v0.3.55: also store the FULL declared type (with generics
+        // like Vec<f64>) so binop_float_type can extract Vec<T>'s
+        // element type for kind==10 (indexing) dispatch. type_base_name
+        // strips the <T> for the existing __type_ entry.
+        if str_len(tstr) > 0 { sym_set(sym, str_concat("__fulltype_", vname), tstr); };
         return cur;
     };
     if kind == 21 {

@@ -5,6 +5,115 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.76] — 2026-04-25
+
+**Compiler fix #19: shadowing semantics — `let x = expr_using_x;`
+silently produced garbage.** Pre-v0.3.76, when a `let x: T = ...;`
+statement shadowed an outer `x`, the codegen bound the new alloca
+slot to `vname` in `sym` BEFORE lowering the RHS. The RHS therefore
+resolved `x` to the new uninitialized slot and added/loaded from
+random memory — silently producing garbage values like 88380461
+where the user expected 15. This is a fundamental semantic bug
+that affected every Rust-style shadowing pattern.
+
+### Root cause
+
+In `lower_stmt`'s kind==20 (let stmt) handler:
+
+```nucleor
+// PRE-v0.3.76 — buggy order:
+let ar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, ar);
+let vname: str = node_field(pool, nid, 1);
+sym_set(sym, vname, ar);                              // (1) bind new slot
+... type bookkeeping ...
+if init >= 0 {
+    let mut vp = lower_expr(pool, init, ...);         // (2) lower RHS — uses NEW slot!
+    ir_block_add(cur, ir_store(nvr, ar));
+};
+```
+
+For `let x: i64 = 10; let x: i64 = x + 5;`, step (1) rebinds
+sym["x"] to the new slot, then step (2) lowers `x + 5` and
+resolves `x` to the new (uninitialized) slot. The IR loaded
+from `%r.2` (uninit) instead of `%r.0` (the prior `x = 10`):
+
+```llvm
+%r.0 = alloca i64       ; first x
+%r.2 = alloca i64       ; shadowed x — uninitialized
+%r.1 = add i64 10, 0
+store i64 %r.1, ptr %r.0
+%r.3 = load i64, ptr %r.2  ; <-- BUG: load from uninit slot
+%r.5 = add i64 %r.3, 5     ; uninit + 5 = garbage
+```
+
+### Fix
+
+Swap the order: lower the RHS expression FIRST (with sym still
+holding the OLD binding), then rebind sym to the new slot. This
+matches Rust's shadowing semantics — the new binding takes effect
+on the next statement, not within its own RHS.
+
+```nucleor
+// POST-v0.3.76 — correct order:
+let ar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, ar);
+let vname: str = node_field(pool, nid, 1);
+let init: i64 = node_field(pool, nid, 4);
+... compute tstr/sbase from declared type ...
+if init >= 0 {
+    let mut vp = lower_expr(pool, init, ...);         // (1) lower RHS first
+    ir_block_add(cur, ir_store(nvr, ar));
+};
+sym_set(sym, vname, ar);                              // (2) bind sym AFTER
+... type entries ...
+```
+
+### Why this wasn't caught earlier
+
+The existing tests/examples nearly all used distinct variable
+names per binding (no shadowing), or shadowed without referencing
+the old value (e.g. `let x = 10; let x = 99;` works because the
+RHS doesn't read `x`). The bug only surfaces when:
+
+1. A variable is shadowed by a new binding of the same name, AND
+2. The new binding's RHS expression references the old name
+
+Both common Rust patterns. Pinned by T3.51 with five shapes
+covering the cell:
+
+```nucleor
+let x: i64 = 10;  let x: i64 = x + 5;            // same-type shadow
+let y: i64 = 4;   let y: f64 = (y as f64) + 1.5; // cross-type shadow
+let n: i64 = 1;   let n = n + 1; ... (sequential)
+let a: i64 = 100; let a: i64 = a / 4;            // inline arithmetic
+let z: i64 = 99;  let z: i64 = 7;                // no-old-use baseline
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `lower_stmt` kind==20
+  reorders sym_set to fire after RHS lowering. Bootstrap fixed
+  point recomputed at SHA `36766081` (was `9723e56c`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t351_shadowing.nr` — new strict regression
+  fixture covering five shadowing shapes (returns 1+2+4+8+16=31).
+- `tools/verify.{sh,ps1}` — new T3.51 verify step.
+
+### Verify gate
+
+- 429/429 green (was 428 + 1 step from T3.51).
+- All prior regression fixtures (T3.28-T3.50) still green.
+- Bootstrap fixed point closes at `36766081`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.76)
+
+- **19 codegen + 1 runtime + 2 parser diagnostic = 22 total**
+- **24 strict regression fixtures** (T3.28-T3.51)
+- **6 robotics RT showcase examples** in Tier 4
+- **Shadowing fix is a high-blast-radius bug** — every program
+  using Rust-style `let x = expr_using_x;` shadowing was silently
+  miscomputing pre-v0.3.76
+
 ## [0.3.75] — 2026-04-25
 
 **Parser fix #2: clear diagnostic for statement-level keywords at
