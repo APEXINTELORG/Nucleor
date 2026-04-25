@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 16))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 17))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -758,6 +758,25 @@ tools_suite_memory_budget() {
     _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
 }
 
+t27_doc_html() {
+    # v0.2.352 (T2.7): nuc doc --html emits standalone HTML doc.
+    local hdr
+    hdr="$(mktemp 2>/dev/null || echo /tmp/_t27_doc.html)"
+    rm -f "$hdr"
+    "$BIN" doc tests/fixtures/t27_doc_input.nr --out "$hdr" >/tmp/_nuc_step.log 2>&1
+    grep -qE 'wrote .*HTML' /tmp/_nuc_step.log || return 1
+    [ -f "$hdr" ] || return 1
+    grep -q "<!doctype html>" "$hdr" || return 1
+    grep -q '<title>tests/fixtures/t27_doc_input.nr</title>' "$hdr" || return 1
+    grep -q '<h2 id="dbl"><code>dbl</code></h2>' "$hdr" || return 1
+    grep -q '<h2 id="add"><code>add</code></h2>' "$hdr" || return 1
+    grep -q '<h2 id="helper_no_doc"><code>helper_no_doc</code></h2>' "$hdr" || return 1
+    grep -q '<a href="#dbl">' "$hdr" || return 1
+    grep -q 'Doubles its argument' "$hdr" || return 1
+    grep -qE 'fn dbl\(x: i64\) -&gt; i64' "$hdr" || return 1
+    rm -f "$hdr"
+}
+
 t25_lifetime_params() {
     # v0.2.351 (T2.5): lifetime tokens 'a, 'static lex as kind 98 +
     # parse in generic params, reference types, generic instantiations.
@@ -1072,6 +1091,7 @@ step "T2.2 Vec iterator methods (.map/.filter/.fold/.sum/.min/.max)" t22_iter_me
 step "T2.3 closure literals |args| body (no-capture)" t23_closure_literals
 step "T2.4 trait objects (Box<dyn Trait> 2-cell handle helpers)" t24_trait_objects
 step "T2.5 lifetime parameters parse cleanly (advisory metadata)" t25_lifetime_params
+step "T2.7 nuc doc --html emits styled standalone HTML" t27_doc_html
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------
