@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.45] — 2026-04-25
+
+**Docs ship: robotics guide picks up the drift-gate
+ecosystem.** v0.3.36 → v0.3.44 added five drift gates and
+moved the bootstrap fixed point through three SHAs. The
+robotics guide's "Where to go next" CHANGELOG link still
+pointed at v0.3.25; the self-host fixed-point section's SHA
+date stamp was current but its lineage note was missing; and
+nothing in the user-facing guide explained why the
+diagnostic surface now requires five parallel updates per
+new code.
+
+### What changed in `docs/v0.3-robotics-guide.md`
+
+- **Stale CHANGELOG link**: "v0.3.0 through v0.3.25" → "v0.3.0
+  through v0.3.45". 19 ships of work (the v0.3.27 cache
+  hardening through v0.3.44 cli-help drift gate) had landed
+  without the pointer being refreshed.
+- **Bootstrap SHA stamp**: refreshed the date qualifier from
+  "as of v0.3.39" to "as of v0.3.45 — held since v0.3.39
+  across the drift-gate maintenance arc that didn't touch the
+  s1 compiler". Same SHA `4cd2d428`; new wording explains why
+  it didn't move.
+- **New "Diagnostic discipline" section** (between v1
+  limitations and self-host fixed point): documents the five
+  parallel hardcoded enumerations that hold the diagnostic
+  surface (~177 codes across 27 series), the five drift gates
+  that lock them in sync, and the contract for adding a new
+  code (update all five locations in the same commit; the
+  gates fail loudly with the missing-from list).
+
+### Verify gate
+
+- 399/399 green. No code change, no fixture change, no new
+  step. Pure documentation refresh.
+- Bootstrap fixed point unchanged at SHA `4cd2d428` (same
+  reason it was unchanged through v0.3.40-44 — no s1
+  compiler touch).
+
+### Why this matters
+
+A reader landing on the robotics guide today sees a CHANGELOG
+pointer that's 19 ships out of date and no explanation of why
+the diagnostic ecosystem has the structural shape it does.
+v0.3.45 fixes both. The "Diagnostic discipline" section is
+the canonical user-facing answer to "why do I need to update
+five files when I add a code"; the previously-only-changelog
+documentation of the drift-gate work now lives in the guide
+that contributors actually read.
+
+This closes the v0.3.27 → v0.3.44 maintenance arc with a
+docs ship that explains the work to its audience. Future v0.4
+contributors land in a codebase where the discipline is
+visible, not just enforced.
+
 ## [0.3.44] — 2026-04-25
 
 **T3.26 cli-help cmds drift gate.** Same drift class as
