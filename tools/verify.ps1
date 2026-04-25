@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 42
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 43
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -889,6 +889,36 @@ Step "T3.9 RT-005 fires on FFI call from RT fn body" {
     $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-005\]: FFI call 'host_telemetry'") { return $false }
     if ($out -notmatch "from #\[no_alloc\] fn 'rt_path'") { return $false }
+    return $true
+}
+
+Step "T3.25 examples-list drift (examples/*.nr vs examples.list)" {
+    # v0.3.43 (T3.25): drift gate for tools/examples.list against
+    # the actual examples/ directory. Every .nr file in examples/
+    # must appear in examples.list, OR be in the explicit
+    # conditional allowlist (07_rust_interop is added by both
+    # verify scripts only when RUST_BRIDGE_LIB is set).
+    $exDir = Join-Path $root "examples"
+    $listPath = Join-Path $root "tools\examples.list"
+    $dirSet = Get-ChildItem -Path $exDir -Filter "*.nr" -ErrorAction SilentlyContinue `
+        | ForEach-Object { $_.BaseName } `
+        | Sort-Object -Unique
+    $listSet = Get-Content $listPath `
+        | Where-Object { $_ -notmatch '^\s*#' -and $_ -notmatch '^\s*$' } `
+        | ForEach-Object { $_.Trim() } `
+        | Sort-Object -Unique
+    # Conditional allowlist — mirror in verify.sh's t325_examples_list_drift.
+    $allowed = @($listSet) + @("07_rust_interop") | Sort-Object -Unique
+    $extras = $dirSet | Where-Object { $allowed -notcontains $_ }
+    if ($extras) {
+        Write-Host ("       drift: examples/*.nr not in examples.list (or conditional allowlist): " + ($extras -join ", "))
+        return $false
+    }
+    $missing = $listSet | Where-Object { $dirSet -notcontains $_ }
+    if ($missing) {
+        Write-Host ("       drift: examples.list entries with no matching examples/*.nr file: " + ($missing -join ", "))
+        return $false
+    }
     return $true
 }
 

@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.43] — 2026-04-25
+
+**T3.25 examples-list drift gate.** Same drift class the
+v0.3.39 → v0.3.42 arc handled for diagnostic codes — applied
+now to `tools/examples.list` against the actual `examples/`
+directory. Both `verify.sh` and `verify.ps1` enumerate the
+example sweep by reading `examples.list`; a contributor adding
+a new `.nr` file to `examples/` but forgetting to enumerate it
+in `examples.list` would cause the verify gate to silently
+skip the new example with no diagnostic.
+
+### Approach
+
+Single-direction diff with explicit conditional allowlist:
+
+- Forward: every `.nr` file in `examples/` must appear in
+  `examples.list` OR the conditional allowlist
+  (`07_rust_interop` is the lone allowlist entry — both verify
+  scripts add it only when `RUST_BRIDGE_LIB` is set, so it's
+  intentionally out of `examples.list`).
+- Reverse: every name in `examples.list` must correspond to an
+  actual file. Catches stale entries (file deleted but list
+  not updated).
+
+Both checks run in milliseconds via filesystem listing + line
+filter — no compilation needed.
+
+### Why a separate allowlist
+
+`examples.list` is the canonical "build-and-run-on-every-CI"
+set. `07_rust_interop` is excluded because it requires a
+prebuilt rust_bridge.dll/so that ships separately and isn't
+guaranteed available — adding it to the unconditional list
+would make the verify gate fail on environments without
+RUST_BRIDGE_LIB. The conditional allowlist makes that
+exception explicit; the gate enforces "every other file must
+be in the unconditional list".
+
+If a future example also needs to be excluded conditionally
+(e.g., a CUDA example requiring a GPU), add it to BOTH the
+conditional inclusion in verify.sh + verify.ps1 AND the
+allowlist in T3.25 — same pattern as `07_rust_interop`.
+
+### Verify gate
+
+- 398/398 green (was 397 + 1 new step). Verify total grew by
+  one in both verify.sh and verify.ps1.
+- Confirmed manually: `examples/` has 19 `.nr` files;
+  `examples.list` has 18 entries (correctly excludes
+  `07_rust_interop`); the gate passes with the conditional
+  allowlist applied.
+- Bootstrap fixed point unchanged at SHA `4cd2d428` (no
+  compiler change — verify-script-only).
+
+### Drift gate ecosystem after v0.3.43
+
+| Step | Catches | Sources audited |
+|------|---------|-----------------|
+| T3.23 | Diag-code list drift | s1 ⇄ verify.sh ⇄ verify.ps1 (3-way) |
+| T3.24 | Spec-doc row drift | spec doc ⇄ canonical set |
+| T3.25 | Examples-list drift | examples/ dir ⇄ examples.list (with conditional allowlist) |
+| `cli_explain_full_smoke` | Explain registry completeness | tools_suite explain entries (title + summary + explanation) |
+
+Five drift gates total. Adding any code, example, or registry
+entry to one place but forgetting another fails the verify
+gate within the same run.
+
 ## [0.3.42] — 2026-04-25
 
 **T3.24 spec-doc drift gate — caught the SAME NUM-006..020
