@@ -9,21 +9,25 @@
 // transparently — same return value, same observable behavior.
 
 #[deadline = 100000]
+#[no_alloc]
 fn fast_add(a: i64, b: i64) -> i64 {
     return a + b;
 }
 
 #[deadline = 100000]
+#[no_alloc]
 fn fast_mul(a: i64, b: i64) -> i64 {
     return a * b;
 }
 
 #[deadline = 100000]
+#[no_alloc]
 fn fast_no_args() -> i64 {
     return 42;
 }
 
 #[deadline = 100000]
+#[no_alloc]
 fn fast_chained(n: i64) -> i64 {
     let mut acc: i64 = 0;
     let mut i: i64 = 0;

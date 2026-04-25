@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] — 2026-04-25
+
+**T3.5 RT-007 cross-check — `#[deadline]` without
+`#[no_alloc]` or `#[no_panic]` now warns.** Allocations and
+panics are non-deterministic and can break any fixed deadline
+budget. RT-004 catches overruns *after* the fact; RT-007 nudges
+authors to also declare intent: at least one of `#[no_alloc]`
+or `#[no_panic]` should accompany every `#[deadline]` so the
+compiler can statically rule out the most common deadline-
+busters.
+
+### Approach
+
+Mirrors the v1 RT-004 cross-check: in the post-resolver source,
+walk the list of inner fns produced by T3.1's deadline wrapper
+(via `wcet_collect_deadline_fns`), then check membership in the
+existing `collect_no_alloc_fns` and `collect_no_panic_fns` lists
+that drive RT-001 and RT-002. If the inner fn appears in
+neither, emit `warning[RT-007]`. Suppressible per-fn via
+`#[allow(RT-007)]`.
+
+### Verify gate
+
+- New: `tests/fixtures/t35_rt007.nr` — bare `#[deadline]` fn
+  with no companion attribute. Verify step asserts the warning
+  text fires.
+- Existing fixtures updated to add `#[no_alloc]` so the new
+  cross-check doesn't add noise:
+  - `tests/smoke/v030_deadline_runtime.nr` (4 fns)
+  - `tests/fixtures/v030_deadline_overrun.nr`
+  - `tests/fixtures/t33_wcet_overrun.nr`
+- Self-host bootstrap fixed-point holds at 6A2821BA (stage-2
+  IR == stage-3 IR).
+
 ## [0.3.2] — 2026-04-25
 
 **T3.3 static WCET v1 estimator (RT-004) + critical

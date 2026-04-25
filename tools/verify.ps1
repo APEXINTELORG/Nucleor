@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 24
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 25
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -784,6 +784,18 @@ Step "T3.3 static WCET v1 estimator emits warning[RT-004]" {
     if ($out -notmatch "warning\[RT-004\]: static WCET estimate \d+ us") { return $false }
     if ($out -notmatch "exceeds #\[deadline = 1 us\]") { return $false }
     if ($out -notmatch "v1 estimator") { return $false }
+    return $true
+}
+
+Step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" {
+    # v0.3.3 (T3.5): cross-check that complements RT-004. When a
+    # #[deadline] fn has neither #[no_alloc] nor #[no_panic],
+    # allocations / panics in the body can blow the budget non-
+    # deterministically. Warning, not error — `#[allow(RT-007)]`
+    # suppresses for unusual cases.
+    $out = & $bin build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" 2>&1 | Out-String
+    if ($out -notmatch "warning\[RT-007\]:") { return $false }
+    if ($out -notmatch "has #\[deadline\] but neither #\[no_alloc\] nor #\[no_panic\]") { return $false }
     return $true
 }
 
