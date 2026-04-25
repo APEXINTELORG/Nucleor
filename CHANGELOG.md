@@ -5,6 +5,24 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.18] — 2026-04-25
+
+**`docs/v0.3-robotics-guide.md` — single-page summary of the
+v0.3 robotics arc.** Collects every shipped attribute
+(`#[no_alloc, no_panic, no_dyn, deadline, max_depth, allow,
+deny, export, repr(C)]`), every diagnostic (RT-001 through
+RT-008), the extern-C interop surface, the worked example
+index, the v1 limitations + what's deferred to v0.4, and the
+self-host fixed-point invariant.
+
+Pure documentation ship. No compiler change, no fixed-point
+check needed. Verify gate count unchanged.
+
+The intent is that a new user reading just this one page can
+write real-time-correct Nucleor today without spelunking
+through the RFC, the spec, the CHANGELOG, and the test
+fixtures separately.
+
 ## [0.3.17] — 2026-04-25
 
 **RFC-0028 phase 3 — `format3_isf` combo.** i64 + str + f64
