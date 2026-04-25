@@ -5,6 +5,119 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.58] — 2026-04-25
+
+**Compiler fix #5: chained field access on fn-call result.**
+`make_v().x` (where `make_v` returns a struct) failed
+compilation pre-v0.3.58 with `ERROR: cannot resolve field
+access type for .x`. Same bug class as v0.3.54 — type-info
+loss when `expr_struct_type` encounters an AST kind that
+isn't in its enumeration. v0.3.58 adds the kind==7 (fn call)
+branch using the v0.3.54-shipped `__fnret_<NAME>` sym entry.
+
+### Production relevance
+
+Builder/factory shapes pervade robotics code. The pattern:
+
+```nucleor
+let pose: Pose = pose_builder().translate(x, y, z).build();
+let dx: f64 = make_target().x - sensor_read().x;
+let dot: f64 = vec3_a().x * vec3_b().x + vec3_a().y * vec3_b().y;
+```
+
+All of those are unworkable pre-v0.3.58 — the moment a struct
+value lives in a fn-call result and gets dot-accessed inline,
+the type checker can't resolve the field. Users had to lift
+to a `let` first. Per "robust production ready fixes only",
+this is the kind of awkward-workaround-or-impossible class
+that needs an actual fix.
+
+### Root cause
+
+`expr_struct_type` (line 4944) handled five AST kinds for
+struct-typed expressions — variable refs (kind 3), type
+ascriptions (kind 34), parenthesized/cast/borrow wrappers
+(kinds 90/91/92), and field access (kind 9). Function calls
+(kind 7) were missed. When `lower_expr` kind==9 (field
+access) called `expr_struct_type` on `make_v()`, it got "" —
+struct-find then errored.
+
+### Fix
+
+```nucleor
+if kind == 7 {
+    let fn_name: str = node_field(pool, nid, 1);
+    let rt: i64 = sym_get(sym, str_concat("__fnret_", fn_name));
+    if rt < 0 { return ""; };
+    return type_base_name(rt);
+};
+```
+
+Reuses the `__fnret_<NAME>` sym entry that `populate_fn_returns_in_sym`
+seeds at lower_fn entry (shipped v0.3.54). The `type_base_name`
+strip ensures generic decorations (e.g. `&V3`) reduce to the
+struct base name that `struct_find_type` expects.
+
+The same `__fnret_` infrastructure now drives TWO codegen
+paths: `binop_float_type` for arithmetic dispatch (v0.3.54)
+and `expr_struct_type` for field-access type resolution
+(v0.3.58). Future generic-aware paths can reuse the same
+sym entries.
+
+### What now works that previously didn't
+
+```
+make_v().x + make_v().y               → 4.0 (was: compile error)
+make_v().z                            → 3.5 (was: compile error)
+pose_builder().translate(...).build() ... → compiles
+```
+
+The original compile error was loud (not silent
+miscompilation), so users would have hit it immediately if
+they tried the pattern. But the workaround was
+"restructure your code to use a `let`", which is a
+real ergonomic regression vs the natural expression form.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `expr_struct_type`
+  gains kind==7 branch. Bootstrap fixed point recomputed at
+  SHA `9f19b383` (was `13b25308`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t333_chained_field_on_fn_call.nr` — new
+  strict regression fixture covering: let-bound baseline,
+  chained-field-in-binop, chained-field-standalone.
+- `tools/verify.{sh,ps1}` — new T3.33 verify step asserting
+  the three output values are correct.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry
+  added; SHA stamp updated.
+
+### Verify gate
+
+- 409/409 green (was 408 + 1 new step from T3.33).
+- All prior regression fixtures (T3.28-T3.32) still green.
+- Bootstrap fixed point closes at `9f19b383`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.58)
+
+- **5 silent miscompilations / compile-failures fixed**:
+  v0.3.53 (binop kinds 9/4/90-92), v0.3.54 (binop kind 7),
+  v0.3.55 (binop kind 10), v0.3.57 (unary minus kind 5),
+  v0.3.58 (field access on fn-call kind 7)
+- **6 strict regression fixtures**: T3.28 (struct field),
+  T3.29 (fn call), T3.30 (Vec indexing), T3.31 (mixed),
+  T3.32 (unary minus), T3.33 (chained field-on-fn-call)
+- **Reusable infrastructure**: `__fnret_` (v0.3.54),
+  `__fulltype_` (v0.3.55) sym entries — `__fnret_` now
+  drives BOTH binop_float_type AND expr_struct_type
+- **All fixes coexist**: bootstrap stable through 5 SHA
+  refreshes (4cd2d428 → e5722f24 → cb696a25 → 6b4cd0f3 →
+  13b25308 → 9f19b383)
+
+The v0.3.x → v0.4 surface is structurally hardened across
+the most common production AST shapes.
+
 ## [0.3.57] — 2026-04-25
 
 **Compiler fix #4: f64 unary minus now compiles correctly.**
