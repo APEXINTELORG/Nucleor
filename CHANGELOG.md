@@ -5,6 +5,130 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.59] — 2026-04-25
+
+**Compiler fix #6: Vec-of-struct field access.** `v[0].x`
+where `v: Vec<V3>` failed compilation pre-v0.3.59 with
+`ERROR: cannot resolve field access type for .x`. Same bug
+class as v0.3.58 but for kind 10 (Vec indexing) instead of
+kind 7 (fn call). v0.3.59 adds the kind==10 branch to
+`expr_struct_type` using the v0.3.55-shipped
+`__fulltype_<vname>` sym entry.
+
+### Production relevance
+
+Time-series of poses, batches of measurements, waypoint
+lists — all the realistic patterns:
+
+```nucleor
+let path: Vec<V3> = ...;
+let dx: f64 = path[i].x - path[i-1].x;
+let dy: f64 = path[i].y - path[i-1].y;
+```
+
+Pre-v0.3.59 every pattern that indexed a Vec-of-struct and
+dot-accessed inline was a compile error. Users had to
+intermediate-bind: `let cur: V3 = path[i]; let dx: f64 =
+cur.x - ...`. Per "robust production ready fixes only",
+that's a real ergonomic regression vs the natural form.
+
+### Root cause
+
+`expr_struct_type`'s post-v0.3.58 enumeration handled six
+kinds: 3 (var), 34 (type ascription), 9 (field access), 7
+(fn call, v0.3.58), 90/91/92 (wrappers). Vec indexing
+(kind 10) was still missing. When `lower_expr` kind==9
+called `expr_struct_type` on `path[i]`, it got "" → struct
+lookup failed → compile error.
+
+### Fix
+
+```nucleor
+if kind == 10 {
+    let vexpr: i64 = node_field(pool, nid, 1);
+    if node_kind(pool, vexpr) == 3 {
+        let vname: str = node_field(pool, vexpr, 1);
+        let vtype: i64 = sym_get(sym, str_concat("__fulltype_", vname));
+        if vtype < 0 { return ""; };
+        if str_starts_with(vtype, "Vec<") == 1 {
+            let tlen: i64 = str_len(vtype);
+            if tlen > 5 && str_char_at(vtype, tlen - 1) == 62 {
+                return type_base_name(str_substring(vtype, 4, tlen - 1));
+            };
+        };
+    };
+    return "";
+};
+```
+
+Mirrors the kind==10 branch already added to
+`binop_float_type` in v0.3.55. Same `__fulltype_` sym entry
+drives both: `binop_float_type` extracts the Vec element
+type to choose between f64_add and integer add;
+`expr_struct_type` extracts it to find the struct definition
+for field-index lookup.
+
+The kind==3 guard restricts to direct-variable Vec indexing
+(`v[i]`); chained shapes like `v[i][j]` or `make_vec()[i]`
+still aren't handled — those need recursive type resolution.
+Acceptable v1 limitation; production code's deepest realistic
+shape is single-level indexing.
+
+### What now works that previously didn't
+
+```
+let path: Vec<V3> = ...;  // path[i] returns V3
+path[0].x                                   → V3::x value
+path[0].x + path[1].y                       → sum across two slots
+path[2].x - path[0].x                       → segment-delta shape
+```
+
+The pose-segment-walk pattern (waypoints, trajectory diffs,
+batch sensor processing) is now writable in the natural form.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `expr_struct_type`
+  gains kind==10 branch. Bootstrap fixed point recomputed
+  at SHA `a4b34d06` (was `9f19b383`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t334_vec_of_struct_field.nr` — new strict
+  regression fixture: standalone access, inline binop,
+  segment-delta shape.
+- `tools/verify.{sh,ps1}` — new T3.34 verify step.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry
+  added; SHA stamp updated.
+
+### Verify gate
+
+- 410/410 green (was 409 + 1 new step from T3.34).
+- All prior regression fixtures (T3.28-T3.33) still green.
+- Bootstrap fixed point closes at `a4b34d06`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.59)
+
+- **6 codegen fixes**: kinds 9/4/90-92 binop (v0.3.53),
+  kind 7 binop (v0.3.54), kind 10 binop (v0.3.55), kind 5
+  unary (v0.3.57), kind 7 expr_struct_type (v0.3.58),
+  kind 10 expr_struct_type (v0.3.59)
+- **7 strict regression fixtures**: T3.28-T3.34
+- **Reusable infrastructure**:
+  - `__fnret_<NAME>` (v0.3.54) → drives `binop_float_type`
+    + `expr_struct_type` (both kind==7)
+  - `__fulltype_<vname>` (v0.3.55) → drives
+    `binop_float_type` + `expr_struct_type` (both kind==10)
+- **All fixes coexist**; bootstrap stable through 6 SHA
+  refreshes (4cd2d428 → e5722f24 → cb696a25 → 6b4cd0f3 →
+  13b25308 → 9f19b383 → a4b34d06)
+
+The pattern is now obvious: the two type-resolver fns
+(`binop_float_type` and `expr_struct_type`) share AST
+kind enumerations and parallel sym infrastructure. Any
+new AST kind producing typed values needs handling in
+both, with the same kind branch logic referencing the
+same sym entries.
+
 ## [0.3.58] — 2026-04-25
 
 **Compiler fix #5: chained field access on fn-call result.**
