@@ -1010,6 +1010,18 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if pk(tokens, cp) == 42 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); tstr = pr_val(tr); };
     let mut init_id: i64 = 0 - 1;
     if pk(tokens, cp) == 40 { let mut er: Vec<i32> = parse_expr(tokens, cp + 1, pool); cp = pr_pos(er); init_id = pr_val(er); };
+    // v0.3.97: detect bitwise ops in let-RHS that parse_expr couldn't
+    // consume. Pre-v0.3.97, `let c: i64 = a & b;` silently parsed the
+    // RHS as just `a` (the `& b` was treated as a separate borrow
+    // expression-statement after), producing wrong values with no
+    // diagnostic. `&`, `|`, `^` need new precedence tiers in the
+    // binop chain to be supported as bitwise ops; until then, surface
+    // a clear diagnostic with the bare-fn workaround.
+    let next_after_rhs: i64 = pk(tokens, cp);
+    if next_after_rhs == 82 || next_after_rhs == 65 || next_after_rhs == 94 {
+        let op_name: str = if next_after_rhs == 82 { "&" } else if next_after_rhs == 65 { "|" } else { "^" };
+        print(str_concat("ERROR: bitwise operator `", str_concat(op_name, "` is not yet supported in expressions. Pre-v0.3.97, the parser silently dropped the RHS after the bitwise op (parsed only the LHS), producing wrong values. Workaround: use the bare-fn helpers `bit_and(a, b)` / `bit_or(a, b)` / `bit_xor(a, b)` (when wired) or do the ops via separate steps with explicit shifts. Tracked for a future ship — bitwise op precedence tiers needed in the binop chain.")));
+    };
     if pk(tokens, cp) == 43 { cp = cp + 1; };
     return pr(cp, mk5(pool, 20, name, is_mut, tstr, init_id));
 }
