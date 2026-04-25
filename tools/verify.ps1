@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 46
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 47
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1067,6 +1067,23 @@ Step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" {
     if ($LASTEXITCODE -ne 0) { return $false }
     if ($out -match "warning\[DIAG-001\]") { return $false }
     if ($out -match "error\[DIAG-001\]") { return $false }
+    return $true
+}
+
+Step "T3.29 inline f64 ops on fn-call results (v0.3.54 fix)" {
+    # v0.3.54 (T3.29): regression test for the f64 inline
+    # binop-on-fn-call codegen bug fixed in v0.3.54.
+    & $bin build "tests/fixtures/t329_fn_call_fp_ops.nr" -o "_t329_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t329_check.exe") { $exe = "target\_t329_check.exe" }
+    elseif (Test-Path "target\_t329_check") { $exe = "target\_t329_check" }
+    if (-not $exe) { return $false }
+    $out = & $exe 2>&1 | Out-String
+    if ($out -notmatch '(?m)^5\.0+\s*$')   { return $false }
+    if ($out -notmatch '(?m)^-3\.0+\s*$')  { return $false }
+    if ($out -notmatch '(?m)^4\.0+\s*$')   { return $false }
+    if ($out -notmatch '(?m)^2\.0+\s*$')   { return $false }
+    if ($out -notmatch '(?m)^32\.0+\s*$')  { return $false }
     return $true
 }
 

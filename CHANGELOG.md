@@ -5,6 +5,164 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.54] — 2026-04-25
+
+**Compiler fix #2: f64 inline binary ops on fn-call results
+now compile correctly.** Companion to v0.3.53. Probing for
+more silent-miscompilation patterns of the same class
+uncovered: `make_one() + make_four()` (where both return
+f64) miscomputed because `binop_float_type`'s post-v0.3.53
+enumeration still missed kind 7 (function call). The fix
+plumbs called-fn return type through a new `__fnret_<NAME>`
+sym convention; binop_float_type's new kind==7 branch
+resolves the called fn's return type via that lookup.
+
+### Production-readiness probe
+
+After v0.3.53 shipped, deliberately probed adjacent silent-bug
+shapes to harden the v0.3 surface per user direction. The
+discovery flow:
+
+```nucleor
+fn make_one() -> f64 { return 1.0; }
+fn make_four() -> f64 { return 4.0; }
+
+fn main() -> i64 {
+    let r1: f64 = make_one() + make_four();  // expected 5.0
+    print_f64(r1);                            // got -0.0 pre-v0.3.54
+    let r2: f64 = make_one() * make_four();  // expected 4.0
+    print_f64(r2);                            // got 0.0 pre-v0.3.54
+    return 0;
+}
+```
+
+The bug class — type-info loss when a binop operand's AST kind
+isn't in `binop_float_type`'s enumeration — is the same one
+v0.3.53 partially fixed. v0.3.53 covered struct field access,
+nested binops, and wrappers; v0.3.54 covers fn-call results.
+
+### Approach
+
+The straightforward fix would have plumbed an `fn_decls` Vec
+through `binop_float_type`'s signature, but `lower_expr` has
+44 call sites — that cascade is more change surface than the
+fix warrants. Instead, the new `populate_fn_returns_in_sym`
+helper seeds the per-fn symbol table with `__fnret_<NAME> =
+rtype` entries at the start of each `lower_fn` invocation,
+mirroring the existing `__type_<VARNAME>` sym convention.
+
+`binop_float_type`'s new kind==7 branch:
+
+```nucleor
+if kind == 7 {
+    let fn_name: str = node_field(pool, nid, 1);
+    let rt: i64 = sym_get(sym, str_concat("__fnret_", fn_name));
+    if rt < 0 { return ""; };
+    if str_eq(rt, "f32") == 1 { return "f32"; };
+    if str_eq(rt, "f64") == 1 { return "f64"; };
+    return "";
+};
+```
+
+Plumbing changes:
+
+- `lower_fn` gains a `fn_decls: Vec<i32>` parameter (the only
+  signature change). Both call sites in `compile_one` updated.
+- `compile_one`'s pass-1 collection loop also pushes kind==30
+  (regular fn) and kind==32 (extern fn) nodes into a new
+  `fn_decls` vec alongside the existing `structs`/`enums`/
+  `externs`/`globals` collections.
+- `populate_fn_returns_in_sym` walks `fn_decls` once at the
+  top of each `lower_fn` invocation (after the existing
+  `enum_populate_sym` call). Adds an entry per fn with a
+  non-empty name and rtype.
+
+`binop_float_type`'s call sites in `lower_expr` (lines 9118,
+9253-9254) are unchanged because the function signature
+itself is unchanged — only its internal sym lookup grew.
+
+### What now works that previously didn't
+
+```
+add (1+4=5):         5.000000     ✓
+sub (1-4=-3):       -3.000000     ✓
+mul (1*4=4):         4.000000     ✓
+div (8/4=2):         2.000000     ✓
+nested (32):        32.000000     ✓  (1*4 + 2*5 + 3*6, all fn-calls)
+```
+
+Pre-v0.3.54: add returned -0.0, sub returned huge garbage,
+mul/div returned 0.0, nested returned 0.0.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` —
+  - `compile_one` pass-1 loop adds `fn_decls` collection.
+  - New helper `populate_fn_returns_in_sym(pool, fn_decls,
+    sym)`.
+  - `lower_fn` signature gains `fn_decls`; calls
+    `populate_fn_returns_in_sym` after `enum_populate_sym`.
+  - Both `lower_fn` call sites pass `fn_decls`.
+  - `binop_float_type` adds kind==7 branch using the
+    `__fnret_<NAME>` sym lookup.
+  - Bootstrap fixed point recomputed at SHA `cb696a25` (was
+    `e5722f24`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t329_fn_call_fp_ops.nr` — new strict
+  regression fixture covering all four primary ops on
+  fn-call results plus the nested-binop dot-product shape.
+- `tools/verify.{sh,ps1}` — new T3.29 verify step asserting
+  the fixture's five output lines match the correct values.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry
+  extended to list both v0.3.53 and v0.3.54 fixes; bootstrap
+  SHA stamp updated.
+
+### Verify gate
+
+- 405/405 green (was 404 + 1 new step from T3.29).
+- T3.28 (v0.3.53 struct-field regression) still green —
+  showing both fixes coexist correctly.
+- T1.7 bootstrap fixed-point passes.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Pattern: surface → pin → fix → harden
+
+The arc continues:
+
+| Ship | Role |
+|------|------|
+| v0.3.51 | Surface bug via runnable example, document workaround |
+| v0.3.52 | Pin workaround behavior with strict regression test |
+| v0.3.53 | Fix root cause for kinds 9 / 4 / 90/91/92 |
+| v0.3.54 | Fix root cause for kind 7 (probed proactively) |
+
+Each ship preserves the contract from the previous; nothing
+silent slips through. v0.4 AST-based codegen will replace the
+enumerated `binop_float_type` kind-list with full type
+inference, but the regression fixtures (T3.28, T3.29) survive
+that transition — the type-inference replacement must keep
+producing the same correct outputs.
+
+### Production readiness pattern
+
+For any future PR that adds a new AST kind producing f-typed
+values (array indexing, method calls, closure call results,
+match expressions with f64 arms, etc.), the contract is:
+
+1. Add the kind to `binop_float_type` (recursing into the
+   appropriate sub-expression for the type info source).
+2. Add a regression fixture in the T3.28/T3.29 shape that
+   exercises the four primary ops + a nested-binop case on
+   the new operand kind.
+3. Document the addition in the v1-limitations section of
+   `docs/v0.3-robotics-guide.md` (FIXED entry, not deferred).
+
+The drift gate ecosystem (T3.23-T3.26) keeps catalog entries
+in sync; the codegen gate ecosystem (T3.28, T3.29) keeps
+type-inference outputs correct. Together they prevent the
+silent-miscompilation class from ever shipping again
+unnoticed.
+
 ## [0.3.53] — 2026-04-25
 
 **Compiler fix: f64 inline binary ops on struct-field operands
