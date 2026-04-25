@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.22] — 2026-04-25
+
+**`docs/v0.3-robotics-guide.md` — per-fn allow/deny attribute
+documentation.** Updates the attribute reference table to
+include `#[allow_fn(CODE)]` (v0.3.20) and `#[deny_fn(CODE)]`
+(v0.3.21), and adds a Cookbook entry showing the three-fn
+pattern (loose-default, deny-fn-strict, allow-fn-exception)
+that demonstrates the precise per-fn diagnostic control the
+pair enables.
+
+The example walks the reader through the three intent
+levels for the same RT-007 cross-check:
+
+- Loose: warning fires, build succeeds (informational).
+- Strict (`#[deny_fn(RT-007)]`): warning promoted to error,
+  build fails until the underlying constraint is satisfied.
+- Acknowledged exception (`#[allow_fn(RT-007)]`): warning
+  silenced for this fn only after audit.
+
+Pure documentation ship. No compiler change. Verify gate
+unchanged at 387.
+
 ## [0.3.21] — 2026-04-25
 
 **T3.13 per-fn `#[deny_fn(CODE)]` attribute.** Sibling of
