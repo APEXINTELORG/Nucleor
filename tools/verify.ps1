@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 77
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 78
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1076,6 +1076,18 @@ Step "T3.56 indexed-LHS assign safety net (pre-v0.3.81 segfault → clean diagno
     if ($LASTEXITCODE -eq -1073741819) { return $false }
     if ($out -notmatch "indexed assignment") { return $false }
     if ($out -notmatch "vec_set") { return $false }
+    return $true
+}
+
+Step "T3.60 match-arm assignment body (`pat => x = v`)" {
+    # v0.3.84 (T3.60): regression test for match-arm assignment.
+    & $bin build "tests/fixtures/t360_match_arm_assign.nr" -o "_t360_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t360_check.exe") { $exe = "target\_t360_check.exe" }
+    elseif (Test-Path "target\_t360_check") { $exe = "target\_t360_check" }
+    if (-not $exe) { return $false }
+    & $exe | Out-Null
+    if ($LASTEXITCODE -ne 0) { return $false }
     return $true
 }
 

@@ -5,6 +5,86 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.84] — 2026-04-25
+
+**High-blast-radius fix: match-arm assignment body silently dropped
+the assignment.** Pre-v0.3.84, writing the canonical Rust pattern:
+
+```nucleor
+match s {
+    Stream::More(v) => total = v,
+    Stream::Done    => total = 0,
+}
+```
+
+silently miscomputed — `total` was never assigned. The arm body
+parser called `parse_expr` which stopped at `=` and wrapped the
+LHS as a kind-25 expression-stmt; the `= RHS` portion was thrown
+away with no diagnostic. Programs compiled and ran but produced
+the wrong value.
+
+### Fix
+
+Mirror parse_stmt's expr-stmt-or-assign discrimination in the arm
+body fallback at line 1654. After parsing the LHS expression, if
+the next token is `=` (token 40), parse the RHS and produce a
+kind-21 (assign) stmt:
+
+```nucleor
+let mut er: Vec<i32> = parse_expr(tokens, cp, pool);
+cp = pr_pos(er);
+let mut stmts: Vec<i32> = Vec::new();
+if pk(tokens, cp) == 40 {
+    let mut vr: Vec<i32> = parse_expr(tokens, cp + 1, pool);
+    cp = pr_pos(vr);
+    stmts.push(mk3(pool, 21, pr_val(er), pr_val(vr)));
+} else {
+    stmts.push(mk2(pool, 25, pr_val(er)));
+};
+```
+
+### Why this is high-blast-radius
+
+The match-arm-assignment pattern is universal in state machine,
+event handler, and command-pattern code:
+
+```nucleor
+match cmd {
+    Cmd::Set(v) => state = v,
+    Cmd::Inc    => state = state + 1,
+    Cmd::Reset  => state = 0,
+}
+```
+
+Every such program was silently mis-computing pre-v0.3.84. The
+canonical Rust pattern is one of the first things a Rust user
+will reach for when porting code; getting wrong-but-quiet output
+is a launch blocker.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `parse_match_stmt` arm-body
+  fallback gains expr-or-assign discrimination. Bootstrap fixed
+  point recomputed at SHA `8476e1d9` (was `a6ace26a`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t360_match_arm_assign.nr` — new strict
+  regression fixture covering assign-arm + expr-arm + multi-arm
+  shapes.
+- `tools/verify.{sh,ps1}` — new T3.60 verify step.
+
+### Verify gate
+
+- 438/438 green (was 437 + 1 step from T3.60).
+- All prior regression fixtures (T3.28-T3.59) still green.
+- Bootstrap fixed point closes at `8476e1d9`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.84)
+
+- **25 codegen + 1 runtime + 5 parser/check diagnostic = 31 total**
+- **33 strict regression fixtures** (T3.28-T3.60)
+- **6 robotics RT showcase examples** in Tier 4
+
 ## [0.3.83] — 2026-04-25
 
 **Feature: fn-pointer type syntax `fn(T1, T2) -> R` in parameter
