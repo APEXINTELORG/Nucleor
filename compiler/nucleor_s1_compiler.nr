@@ -7994,6 +7994,17 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         };
         if node_kind(pool, lhs) == 9 {
             let recv: i64 = node_field(pool, lhs, 1);
+            // v0.3.80 safety net: nested field assignment
+            // (`outer.inner.field = X`) was crashing the compiler with
+            // a segfault during the ownership/type check pass. Detect
+            // the nested kind-9-on-kind-9 LHS and emit a clear
+            // diagnostic instead of crashing. The actual feature
+            // (deep field-path mutation) requires a get-modify-set
+            // lowering tracked for a future ship.
+            if node_kind(pool, recv) == 9 {
+                print("ERROR: nested struct field assignment is not yet supported (e.g. `outer.inner.field = X`). Workaround: copy the inner struct to a local, mutate the local, then assign it back: `let mut tmp = outer.inner; tmp.field = X; outer.inner = tmp;`. Tracked for a future ship — get-modify-set lowering needed.");
+                return warns + 1;
+            };
             if node_kind(pool, recv) == 3 && type_is_shared_ref(own_get_type(own, node_field(pool, recv, 1))) == 1 {
                 let rname: str = node_field(pool, recv, 1);
                 warns = warns + own_diag(own, fn_name, "OWN-006", str_concat("cannot assign through shared reference '", str_concat(rname, "'")), rname);
@@ -10471,6 +10482,22 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
     if kind == 21 {
         let lhs: i64 = node_field(pool, nid, 1);
         let lhs_kind: i64 = node_kind(pool, lhs);
+        // v0.3.80 safety net: nested field assignment (e.g.
+        // `o.inner.val = X`) was crashing the compiler with a
+        // segfault during the kind 21 / kind 9 lowering interaction.
+        // The actual feature (deep field-path mutation) requires a
+        // get-modify-set lowering that is multi-cycle to implement
+        // correctly — copying the inner struct, mutating the copy,
+        // and writing it back. Until that ships, emit a clear
+        // diagnostic with the workaround so users don't hit the
+        // segfault.
+        if lhs_kind == 9 {
+            let parent_kind: i64 = node_kind(pool, node_field(pool, lhs, 1));
+            if parent_kind == 9 {
+                print("ERROR: nested struct field assignment is not yet supported (e.g. `outer.inner.field = X`). Workaround: copy the inner struct to a local, mutate the local, then assign it back: `let mut tmp = outer.inner; tmp.field = X; outer.inner = tmp;`. Tracked for a future ship — get-modify-set lowering needed.");
+                return cur;
+            };
+        };
         if lhs_kind == 9 {
             let mut op: Vec<i32> = lower_expr(pool, node_field(pool, lhs, 1), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
             let obj_r: i64 = lx_reg(op);
