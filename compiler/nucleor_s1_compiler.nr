@@ -3002,6 +3002,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "sleep_us") { return "__nucleor_sleep_us"; };
     // Env
     if str_eq(name, "env_get") { return "__nucleor_env_get"; };
+    if str_eq(name, "env_get_or") { return "__nucleor_env_get_or"; };
     if str_eq(name, "env_set") { return "__nucleor_env_set"; };
     if str_eq(name, "env_unset") { return "__nucleor_env_unset"; };
     if str_eq(name, "env_has") { return "__nucleor_env_has"; };
@@ -3356,6 +3357,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "hashmap_get_or") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "hashmap_remove") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "env_get") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "env_get_or") { return 1; };
     if str_eq(name, "env_set") { return 1; };
     if str_eq(name, "env_unset") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "hashset_insert") { if idx == 1 { return 1; }; return 0; };
@@ -3448,6 +3450,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "py_eval") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "getenv") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "env_get") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "env_get_or") { if idx == 0 || idx == 1 { return 1; }; return 0; };
     if str_eq(name, "env_unset") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "format_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_to_i64") { if idx == 0 { return 1; }; return 0; };
@@ -4393,6 +4396,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_sleep_ms(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sleep_us(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_env_get(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_env_get_or(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_env_set(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_env_unset(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_env_has(ptr)\n");

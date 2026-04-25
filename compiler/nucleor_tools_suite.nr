@@ -1933,6 +1933,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "system") { return "__nucleor_system"; };
     if str_eq(name, "getenv") { return "__nucleor_getenv"; };
     if str_eq(name, "env_get") { return "__nucleor_env_get"; };
+    if str_eq(name, "env_get_or") { return "__nucleor_env_get_or"; };
     if str_eq(name, "env_has") { return "__nucleor_env_has"; };
     if str_eq(name, "env_keys") { return "__nucleor_env_keys"; };
     if str_eq(name, "env_set") { return "__nucleor_env_set"; };
@@ -2807,6 +2808,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "hashmap_get_or") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "hashmap_remove") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "env_get") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "env_get_or") { return 1; };
     if str_eq(name, "env_has") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "env_set") { return 1; };
     if str_eq(name, "env_unset") { if idx == 0 { return 1; }; return 0; };
@@ -2976,6 +2978,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "py_eval") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "getenv") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "env_get") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "env_get_or") { if idx == 0 || idx == 1 { return 1; }; return 0; };
     if str_eq(name, "env_unset") { if idx == 0 { return 1; }; return 0; };
     return 0;
 }
@@ -3299,6 +3302,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_system(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_getenv(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_env_get(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_env_get_or(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_env_set(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_env_unset(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_env_has(ptr)\n");
