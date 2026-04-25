@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.115] — 2026-04-25
+
+**Turbofish syntax `name::<TypeArgs>(args)`.** Pre-v0.3.115, the
+`::<` after a function name was treated as a regular `::ident`
+qualified-path lookup — qname captured the `<` token's value
+(garbage), the following `(` failed to match the kind-12 dispatch
+shape, and the call lowered as an associated-fn-call with a bogus
+qname. The kind-12 fallback path printed an informational
+diagnostic AND emitted a `const_int 0` placeholder — silent
+miscompute for adopters reaching for the canonical Rust generic-call
+form (`Vec::<i64>::new()`, `parse::<u32>()`, `id::<T>(x)` etc.).
+
+### Fix
+
+In `parse_primary`, after the IDENT, detect the `::<…>(…)` shape
+(token 46 followed by token 32). Skip the angle group via
+`skip_angle_group` and dispatch the args through the regular
+`fn-call` path (kind 7). Type args are advisory at lower-time
+anyway — Nucleor's monomorphic dispatch resolves at impl time.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t392 returns 42 from
+`ident::<i64>(42)`, proving the type args are stripped and the
+call lowers to a normal i64 fn invocation. `bin/nucleor.exe` SHA
+`326c0c53`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — turbofish branch in
+  `parse_primary` before the existing `::ident` qualified-path
+  lookup.
+- `tests/fixtures/t392_turbofish.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.114] — 2026-04-25
 
 **Pure-shorthand struct init in expression position.** Pre-v0.3.114,
