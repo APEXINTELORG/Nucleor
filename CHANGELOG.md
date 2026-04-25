@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.9] — 2026-04-25
+
+**T3.10 RT-008 — direct self-recursion in `#[deadline]` fn
+warns; `#[max_depth = N]` opts out. Closes RFC-0001 §3.5.**
+
+### Approach
+
+T3.1's resolver pass renames the user's fn body to
+`__nuc_dl_inner_<id>(...)` and emits the user's original name
+as the wrapper that calls inner + deadline_check. So the
+self-call inside the body still references the user's
+*original* name (the wrapper). To detect that:
+
+1. `dl_get_wrapper_name(source, inner_name)` walks past the
+   inner's brace-balanced body and reads the name of the
+   immediately-following `fn ` declaration — that's the wrapper.
+2. `collect_max_depth_fns(source)` scans for `#[max_depth ...]`
+   attribute lines paired with the next `fn NAME(`. After T3.1
+   the user's `#[max_depth]` lands on the inner fn (preserved
+   verbatim by the expander), so we match the inner_name.
+3. `enforce_rt008_recursion(diags, source)` iterates the
+   `wcet_collect_deadline_fns` pairs. For each (inner, limit),
+   resolve the wrapper name, skip if the inner has #[max_depth],
+   else strip the inner body and check for `<wrapper>(`. If
+   found, emit `warning[RT-008]`.
+
+### Verify gate
+
+- New: `tests/fixtures/t310_rt008_recursion.nr` — `#[deadline]`
+  + `#[no_alloc]` Fibonacci with no `#[max_depth]`. Fires the
+  exact RT-008 line.
+- New: `tests/fixtures/t310_rt008_bounded.nr` — same Fibonacci
+  with `#[max_depth = 8]`. Build is clean (no RT-008).
+- Existing fixtures all stay clean — RT-008 fires only on the
+  recursion+deadline+no-max-depth intersection.
+- Self-host bootstrap fixed-point holds at A2E8896B (stage-2 IR
+  == stage-3 IR). Bootstrap RSS peak 267 MB.
+
+This closes RFC-0001 §3.5 in full. Every diagnostic from the
+spec table (RT-001 through RT-008) now has v1 source-level
+enforcement, smoke fixtures, and verify gate coverage.
+
 ## [0.3.8] — 2026-04-25
 
 **T3.9 RT-005 — FFI call from inside an RT-marked fn warns.**

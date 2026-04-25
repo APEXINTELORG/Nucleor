@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 30
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 31
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -796,6 +796,19 @@ Step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" {
     $out = & $bin build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-007\]:") { return $false }
     if ($out -notmatch "has #\[deadline\] but neither #\[no_alloc\] nor #\[no_panic\]") { return $false }
+    return $true
+}
+
+Step "T3.10 RT-008 fires on direct recursion in deadline fn" {
+    # v0.3.9 (T3.10): RFC-0001 RT-008 — direct self-recursion in
+    # a #[deadline] fn warns. Bounded recursion opts out via
+    # #[max_depth = N]. Two paired fixtures: unbounded fires,
+    # bounded stays clean.
+    $out = & $bin build "tests/fixtures/t310_rt008_recursion.nr" -o "_t310_rt008_check" 2>&1 | Out-String
+    if ($out -notmatch "warning\[RT-008\]: 'fib_unbounded' has #\[deadline\] and recursively calls itself") { return $false }
+    if ($out -notmatch "add #\[max_depth") { return $false }
+    $out2 = & $bin build "tests/fixtures/t310_rt008_bounded.nr" -o "_t310_bounded_check" 2>&1 | Out-String
+    if ($out2 -match "RT-008") { return $false }
     return $true
 }
 

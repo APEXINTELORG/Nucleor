@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 28))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 29))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -800,6 +800,19 @@ t36_no_dyn_clean() {
     grep -q "test result: PASS (2 tests)" /tmp/_nuc_step.log || return 1
 }
 
+t310_rt008_recursion() {
+    # T3.10 (v0.3.9): RT-008 — direct self-recursion in a
+    # #[deadline] fn warns. Bounded recursion opts out via
+    # #[max_depth = N]. Two paired fixtures: unbounded fires
+    # RT-008, bounded stays clean.
+    "$BIN" build "tests/fixtures/t310_rt008_recursion.nr" -o "_t310_rt008_check" >/tmp/_nuc_step.log 2>&1
+    grep -qE "warning\[RT-008\]: 'fib_unbounded' has #\[deadline\] and recursively calls itself" /tmp/_nuc_step.log || return 1
+    grep -q "add #\[max_depth" /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/fixtures/t310_rt008_bounded.nr" -o "_t310_bounded_check" >/tmp/_nuc_step.log 2>&1
+    if grep -q "RT-008" /tmp/_nuc_step.log; then return 1; fi
+    return 0
+}
+
 t39_rt005_ffi_call() {
     # T3.9 (v0.3.8): RT-005 — extern fn call from inside an
     # RT-marked fn body warns. v1 is text-scan: every literal
@@ -1221,6 +1234,7 @@ step "T3.6 #[no_dyn] passes when body has no dynamic dispatch" t36_no_dyn_clean
 step "T3.7 RT body checks strip strings and line comments" t37_rt_string_skip
 step "T3.8 RT-006 fires on RT attr + async fn" t38_rt006_async_attr
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
+step "T3.10 RT-008 fires on direct recursion in deadline fn" t310_rt008_recursion
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
