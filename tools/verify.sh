@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 9))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 10))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -758,6 +758,27 @@ tools_suite_memory_budget() {
     _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
 }
 
+t16_gen_headers_structs() {
+    # v0.2.345 (T1.6): nuc gen-headers walks the source for #[repr(C)]
+    # structs, emits typedef structs in the C header, and accepts
+    # struct names in extern fn signatures. Non-repr(C) structs
+    # (PrivateInternal in the fixture) must be excluded.
+    local hdr
+    hdr="$(mktemp 2>/dev/null || echo /tmp/_t16_struct_ffi.h)"
+    rm -f "$hdr"
+    "$BIN" gen-headers tests/fixtures/t16_struct_ffi.nr -o "$hdr" >/tmp/_nuc_step.log 2>&1
+    grep -qE 'wrote 2 #\[repr\(C\)\] struct\(s\) and 2 extern decl\(s\)' /tmp/_nuc_step.log || return 1
+    [ -f "$hdr" ] || return 1
+    grep -q "typedef struct Point2D" "$hdr" || return 1
+    grep -q "double x;" "$hdr" || return 1
+    grep -q "typedef struct Color" "$hdr" || return 1
+    grep -q "uint8_t r;" "$hdr" || return 1
+    grep -q "double distance(Point2D a, Point2D b);" "$hdr" || return 1
+    grep -q "void fill_pixel(Color c, int64_t count);" "$hdr" || return 1
+    if grep -q "PrivateInternal" "$hdr"; then return 1; fi
+    rm -f "$hdr"
+}
+
 t14_export_static() {
     # v0.2.344 (T1.4): registry export-static produces the
     # GitHub-Pages-publishable static-site shape per RFC-0019 §6.
@@ -971,6 +992,7 @@ step "T1.5b pub introspection (summary surfaces visibility)" t15b_pub_introspect
 step "T1.5c privatization (cross-module call surfaces succeed)" t15c_privatization
 step "T1.5d MOD-003 surfaces with origin + pub hint" t15d_mod003
 step "T1.4 nuc registry export-static (GH-Pages schema)" t14_export_static
+step "T1.6 gen-headers emits #[repr(C)] struct typedefs" t16_gen_headers_structs
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------
