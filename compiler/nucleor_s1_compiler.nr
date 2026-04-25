@@ -925,6 +925,22 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
 fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut is_mut: i64 = 0; let mut cp: i64 = pos;
     if pk(tokens, cp) == 12 { is_mut = 1; cp = cp + 1; };
+    // v0.3.81 safety net: tuple-destructuring `let (a, b) = (5, 7);`
+    // is not yet supported. Pre-v0.3.81, the parser read `(` as a
+    // var name and downstream code segfaulted with ACCESS_VIOLATION
+    // on a garbage string offset. Detect the open-paren and emit a
+    // clear diagnostic, then skip past the destructure-stmt to
+    // recover so the rest of the program still parses.
+    if pk(tokens, cp) == 50 {
+        print("ERROR: tuple destructuring in `let` is not yet supported (e.g. `let (a, b) = (5, 7);`). Workaround: bind to a struct or to two separate `let` statements: `let a: i64 = 5; let b: i64 = 7;`. Tracked for a future ship — tuple-pattern lowering needed.");
+        // Skip ahead to next semicolon (43) for recovery.
+        let mut sk: i64 = cp;
+        while pk(tokens, sk) != 0 && pk(tokens, sk) != 43 { sk = sk + 1; };
+        if pk(tokens, sk) == 43 { sk = sk + 1; };
+        // Emit a placeholder let-stmt with a synthetic name so the
+        // rest of the AST/codegen doesn't trip on the missing node.
+        return pr(sk, mk5(pool, 20, "__tuple_destructure_unsupported__", 0, "", 0 - 1));
+    };
     let name: i64 = pkv(tokens, cp); cp = cp + 1;
     let mut tstr: str = "";
     if pk(tokens, cp) == 42 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); tstr = pr_val(tr); };
@@ -7956,6 +7972,22 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         let lhs: i64 = node_field(pool, nid, 1);
         let rhs: i64 = node_field(pool, nid, 2);
         warns = warns + check_expr(pool, rhs, own, structs, enums, fn_name);
+        // v0.3.81 safety net: assignment LHS shapes that aren't yet
+        // supported. Pre-v0.3.81 these segfaulted the compiler with
+        // ACCESS_VIOLATION because downstream code in lower_stmt
+        // assumed the LHS was a var-ref (kind 3) or field-access
+        // (kind 9) and treated other node-ids as string offsets.
+        // Kind 10 = indexing (`v[i] = X`); other kinds = tuple/literal/
+        // computed expressions that have no addressable storage.
+        let lhs_kind_check: i64 = node_kind(pool, lhs);
+        if lhs_kind_check == 10 {
+            print("ERROR: indexed assignment `v[i] = X` is not yet supported. Workaround: use the lowercase API: `vec_set(v, i, X)`. Tracked for a future ship — direct indexed-LHS lowering needed.");
+            return warns + 1;
+        };
+        if lhs_kind_check != 3 && lhs_kind_check != 9 {
+            print("ERROR: assignment to this LHS form is not supported (only var-ref `x = ...`, field-access `obj.f = ...`, and indexed `v[i] = ...` are recognized; tuple destructuring assignment / computed-expression LHS is not). The pre-v0.3.81 compiler would segfault on this shape.");
+            return warns + 1;
+        };
         if node_kind(pool, lhs) == 3 {
             let lname: str = node_field(pool, lhs, 1);
             if own_get_mutable(own, lname) == 0 && own_get_param(own, lname) == 0 {
@@ -10482,6 +10514,14 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
     if kind == 21 {
         let lhs: i64 = node_field(pool, nid, 1);
         let lhs_kind: i64 = node_kind(pool, lhs);
+        // v0.3.81 safety net: assignment LHS shapes that lower_stmt
+        // can't lower must short-circuit so we don't fall through to
+        // the var-ref code path (which interprets node-id as string
+        // offset and segfaults). Diagnostic was already emitted by
+        // check_stmt; lower_stmt just needs to skip codegen.
+        if lhs_kind != 3 && lhs_kind != 9 {
+            return cur;
+        };
         // v0.3.80 safety net: nested field assignment (e.g.
         // `o.inner.val = X`) was crashing the compiler with a
         // segfault during the kind 21 / kind 9 lowering interaction.

@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 73
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 75
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1067,6 +1067,23 @@ Step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" {
     if ($LASTEXITCODE -ne 0) { return $false }
     if ($out -match "warning\[DIAG-001\]") { return $false }
     if ($out -match "error\[DIAG-001\]") { return $false }
+    return $true
+}
+
+Step "T3.56 indexed-LHS assign safety net (pre-v0.3.81 segfault → clean diagnostic)" {
+    # v0.3.81 (T3.56): negative regression — must NOT segfault.
+    $out = & $bin build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache 2>&1 | Out-String
+    if ($LASTEXITCODE -eq -1073741819) { return $false }
+    if ($out -notmatch "indexed assignment") { return $false }
+    if ($out -notmatch "vec_set") { return $false }
+    return $true
+}
+
+Step "T3.57 tuple-destructure let safety net (pre-v0.3.81 segfault → clean diagnostic)" {
+    # v0.3.81 (T3.57): negative regression — must NOT segfault.
+    $out = & $bin build "tests/fixtures/t357_tuple_let_diagnostic.nr" -o "_t357_check" --no-cache 2>&1 | Out-String
+    if ($LASTEXITCODE -eq -1073741819) { return $false }
+    if ($out -notmatch "tuple destructuring in ``let`` is not yet supported") { return $false }
     return $true
 }
 

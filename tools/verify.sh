@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 71))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 73))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1048,6 +1048,23 @@ t321_diag001_self_suppress() {
     [ "$rc" = "0" ] || return 1
     if grep -qE 'warning\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
     if grep -qE 'error\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
+    return 0
+}
+
+t356_indexed_lhs_diagnostic() {
+    # T3.56 (v0.3.81): negative regression — `v[i] = X` pre-v0.3.81
+    # segfaulted the compiler. Post: clean diagnostic, no crash.
+    "$BIN" build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    grep -q "indexed assignment" /tmp/_nuc_step.log || return 1
+    grep -q "vec_set" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t357_tuple_let_diagnostic() {
+    # T3.57 (v0.3.81): negative regression — `let (a, b) = ...;`
+    # pre-v0.3.81 segfaulted the compiler. Post: clean diagnostic.
+    "$BIN" build "tests/fixtures/t357_tuple_let_diagnostic.nr" -o "_t357_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    grep -q "tuple destructuring in .let. is not yet supported" /tmp/_nuc_step.log || return 1
     return 0
 }
 
@@ -2115,6 +2132,8 @@ step "T3.52 compound assignment desugar (+= -= *= /= %=)" t352_compound_assignme
 step "T3.53 inline closure-with-capture at .map/.filter call sites (T2.1/2/3 partial close)" t353_inline_closure_capture
 step "T3.54 match-arm stmt bodies (return/break/continue) — T1.2 partial close" t354_match_arm_return
 step "T3.55 nested struct field assign safety net (pre-v0.3.80 segfault → clean diagnostic)" t355_nested_field_assign_diagnostic
+step "T3.56 indexed-LHS assign safety net (pre-v0.3.81 segfault → clean diagnostic)" t356_indexed_lhs_diagnostic
+step "T3.57 tuple-destructure let safety net (pre-v0.3.81 segfault → clean diagnostic)" t357_tuple_let_diagnostic
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
