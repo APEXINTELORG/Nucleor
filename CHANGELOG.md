@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.14] — 2026-04-25
+
+**RFC-0028 phase 3 — float-mixing format3 combos.** Three more
+format builtins covering the most common float-mixing shapes:
+
+- `format3_iif(tmpl, i64, i64, f64)` — e.g.
+  `format!("iter {} of {} ({} sec)", done, total, dt)`.
+- `format3_iff(tmpl, i64, f64, f64)` — e.g.
+  `format!("{}: x={} y={}", index, x, y)` for indexed coords.
+- `format3_sff(tmpl, str, f64, f64)` — e.g.
+  `format!("{} at ({}, {})", label, x, y)` for labeled 2D
+  points.
+
+f64 args carry as `i64` bits across the LLVM IR boundary (same
+calling convention as the existing `format2_ff` / `fi` / `if`
+and `format3_fff` combos); the runtime decodes via
+`__nucleor_format_f64`. Same five edit sites in s1 + mirrored
+in tools_suite + runtime impl + `#[no_alloc]` forbidden-name
+list.
+
+### Verify gate
+
+- New: `tests/lang/format3_float_mix.nr` — auto-discovered
+  under the lang directory; prints
+  `iter 3 of 10 (0.033 sec)`, `7: x=1.25 y=0.75`,
+  `origin at (1.25, 0.75)`, then `OK format3_float_mix`.
+- Self-host bootstrap fixed-point holds at 65BFD88B (stage-3
+  IR == stage-4 IR). Bootstrap RSS peak 222 MB.
+
 ## [0.3.13] — 2026-04-25
 
 **RFC-0028 phase 3 — `format3_iis` + `format3_isi` combos.**
