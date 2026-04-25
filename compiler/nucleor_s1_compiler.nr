@@ -13054,6 +13054,22 @@ fn expand_format_macros(src: str) -> str {
             let name: str = str_substring(src, id_start, p);
             let preceded_by_dot: i64 = if last_non_ws == 46 { 1 } else { 0 };
             let mut handled: i64 = 0;
+            // v0.3.94: strip `!` from `panic!` and `assert!` macro
+            // calls. Pre-v0.3.94, `panic!("msg")` was parsed as
+            // `panic` (ident) `!` (negate) `("msg")` and the runtime
+            // call to __nucleor_panic was never emitted, failing at
+            // clang link with `@panic undefined`. Same for assert!.
+            // The textual rewrite drops the `!` so the existing fn
+            // call dispatch handles them via the regular runtime
+            // helpers (already registered as panic / assert at
+            // line 2706 / 2635).
+            if preceded_by_dot == 0 && p < slen && str_char_at(src, p) == 33 && p + 1 < slen && str_char_at(src, p + 1) == 40 {
+                if str_eq(name, "panic") == 1 || str_eq(name, "assert") == 1 || str_eq(name, "dbg") == 1 {
+                    sb_append(sb, name);
+                    p = p + 1;
+                    continue;
+                };
+            };
             if preceded_by_dot == 0 && p < slen && str_char_at(src, p) == 33 && p + 1 < slen && str_char_at(src, p + 1) == 40 {
                 let mut mode: i64 = 0 - 1;
                 if str_eq(name, "println") == 1 { mode = 0; };
