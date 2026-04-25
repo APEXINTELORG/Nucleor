@@ -5,6 +5,103 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.41] — 2026-04-25
+
+**`cli_explain_full_smoke` tightened from synopsis-only to
+full three-entry check.** v0.3.40 noted explain-registry
+drift was "caught indirectly by `cli_explain_full_smoke`" —
+that turned out to be only half-true. The audit only checked
+that `nuc explain CODE` output contained the code substring
+(satisfied by the synopsis line alone). A code with a title
+entry but missing summary or explanation entry would pass
+silently because `explain_error_known()` only checks
+`str_len(explain_error_title(code)) == 0`.
+
+### Verified gap
+
+Each of the 177 canonical codes resolves through three
+independent return-string chains in
+`compiler/nucleor_tools_suite.nr`:
+
+- `explain_error_title(code)` (line ~9575) — synopsis (4-7 word
+  one-liner)
+- `explain_error_summary(code)` (line ~9787) — cause sentence
+  ("A #[no_alloc] function called something that allocates...")
+- `explain_error_explanation(code)` (line ~9968) — hint
+  paragraph (multi-sentence with refs to RFC sections + fix
+  guidance)
+
+Each of the three falls through to `return ""` on a missing
+entry. The render fn (`explain_error_render`) inserts the
+empty string verbatim into the output as a blank line —
+the explain output structure becomes:
+
+```
+RT-XXX: <title>
+[blank if summary missing]
+[blank if explanation missing]
+reference: docs/spec/Nucleor_Error_Codes.md#RT-XXX
+```
+
+The audit's `grep "$code"` passes on the synopsis line
+regardless of whether lines 2 or 3 are blank.
+
+### Fix
+
+Tightened both `cli_explain_full_smoke` implementations
+(verify.sh + verify.ps1) to also assert lines 2 and 3 are
+non-empty. The audit now strictly verifies all three
+registry entries exist for each canonical code.
+
+In bash: `sed -n '2p'` / `sed -n '3p'` extracts each line;
+`[ -z "$line" ]` checks empty. In PowerShell: `$out -split
+"\`r?\`n"` then `[string]::IsNullOrWhiteSpace($lines[1])` /
+`[1]` for line 2 / 3 (zero-indexed).
+
+### Verify gate
+
+- 396/396 green (same step total — `cli_explain_full_smoke`
+  got stricter, no new step). Confirms all 177 canonical
+  codes have complete title+summary+explanation entries in
+  the explain registry today.
+- Bootstrap fixed point unchanged at SHA `4cd2d428` (no
+  compiler change — verify-script-only).
+
+### Combined with v0.3.39 + v0.3.40
+
+The drift-gate triplet now structurally locks the diagnostic
+ecosystem:
+
+- **T3.20 + T3.21 + T3.22** (v0.3.36 + v0.3.37 + v0.3.38) —
+  the DIAG-001 emit + suppress + within-series surface
+- **T3.23** (v0.3.39 + v0.3.40) — three-way
+  is_known_diag_code ⇄ verify.sh ⇄ verify.ps1 sync gate
+- **`cli_explain_full_smoke`** (v0.3.41 tightening) — every
+  audited code has all three registry entries
+
+A new diagnostic now requires four parallel updates:
+1. is_known_diag_code in s1
+2. codes array in verify.sh
+3. codes array in verify.ps1
+4. explain registry in tools_suite (title + summary +
+   explanation, all three)
+
+Forgetting any of those four fails the verify gate within the
+same run rather than slipping through silent for ~80 ships
+(the v0.2.319 → v0.3.39 NUM-006..020 pattern).
+
+### Future tightening candidates (lower marginal value)
+
+- Drift gate against `docs/spec/Nucleor_Error_Codes.md`
+  (every code should appear in the spec doc table). Not
+  currently enforced; would require parsing the Markdown
+  table.
+- Strict assertion on the `next_steps` field in the explain
+  registry. Currently `explain_error_next_steps` returns an
+  empty Vec for codes with no entry; the steps are
+  human-curated additions and missing-steps is an acceptable
+  intermediate state.
+
 ## [0.3.40] — 2026-04-25
 
 **T3.23 extended to three-way drift coverage (verify.sh ⇄

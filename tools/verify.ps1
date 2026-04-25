@@ -436,6 +436,26 @@ Step "CLI: nuc explain — full spec code set wired" {
         $out = & $bin explain $c 2>&1 | Out-String
         if ($out -match "unknown error code") { return $false }
         if ($out -notmatch [regex]::Escape($c)) { return $false }
+        # v0.3.41: tightened from synopsis-only to full-entry
+        # check. explain_error_known() only checks title; a code
+        # with title but missing summary or explanation passed
+        # silently. Now also assert the cause line (2) and hint
+        # line (3) are non-empty -- catches drift where a
+        # contributor adds a code to the title registry but
+        # forgets the matching summary or explanation entry.
+        $lines = $out -split "`r?`n"
+        if ($lines.Length -lt 4) {
+            Write-Host ("       " + $c + ": explain output has fewer than 4 lines (missing summary or explanation)")
+            return $false
+        }
+        if ([string]::IsNullOrWhiteSpace($lines[1])) {
+            Write-Host ("       " + $c + ": missing cause/summary line in explain output")
+            return $false
+        }
+        if ([string]::IsNullOrWhiteSpace($lines[2])) {
+            Write-Host ("       " + $c + ": missing hint/explanation line in explain output")
+            return $false
+        }
     }
     return $true
 }
