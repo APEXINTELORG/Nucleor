@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 27
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 28
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -796,6 +796,20 @@ Step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" {
     $out = & $bin build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-007\]:") { return $false }
     if ($out -notmatch "has #\[deadline\] but neither #\[no_alloc\] nor #\[no_panic\]") { return $false }
+    return $true
+}
+
+Step "T3.7 RT body checks strip strings and line comments" {
+    # v0.3.6 (T3.7): polish — RT-001/002/003 v1 checkers strip
+    # `"..."` string literals and `// ...` line comments before
+    # scanning. A forbidden token mentioned only in a quoted or
+    # commented region no longer false-triggers. Three #[no_alloc/
+    # panic/dyn] fns + 3 PASSing #[test] cases prove the strip pass.
+    $out = & $bin test "tests/smoke/t37_rt_string_skip.nr" 2>&1 | Out-String
+    if ($out -notmatch "PASS: test_alloc_name_in_string_compiles") { return $false }
+    if ($out -notmatch "PASS: test_panic_name_in_comment_compiles") { return $false }
+    if ($out -notmatch "PASS: test_dyn_token_in_string_compiles") { return $false }
+    if ($out -notmatch "test result: PASS \(3 tests\)") { return $false }
     return $true
 }
 

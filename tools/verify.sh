@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 25))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 26))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -800,6 +800,20 @@ t36_no_dyn_clean() {
     grep -q "test result: PASS (2 tests)" /tmp/_nuc_step.log || return 1
 }
 
+t37_rt_string_skip() {
+    # T3.7 (v0.3.6): RT-001/002/003 v1 checkers strip `"..."`
+    # string literals + `// ...` line comments before scanning,
+    # so a forbidden name appearing inside a quoted/commented
+    # region no longer false-triggers. Three #[no_alloc/panic/dyn]
+    # fns that contain forbidden tokens ONLY in stripped regions
+    # + 3 #[test] cases that PASS prove the strip pass works.
+    "$BIN" test "tests/smoke/t37_rt_string_skip.nr" >/tmp/_nuc_step.log 2>&1
+    grep -q "PASS: test_alloc_name_in_string_compiles" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_panic_name_in_comment_compiles" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_dyn_token_in_string_compiles" /tmp/_nuc_step.log || return 1
+    grep -q "test result: PASS (3 tests)" /tmp/_nuc_step.log || return 1
+}
+
 t32_no_panic_clean() {
     "$BIN" test "tests/smoke/t32_no_panic_clean.nr" >/tmp/_nuc_step.log 2>&1
     grep -q "PASS: test_no_panic_pure_arithmetic" /tmp/_nuc_step.log || return 1
@@ -1179,6 +1193,7 @@ step "T3.3 static WCET v1 estimator emits warning[RT-004]" t33_wcet_estimator
 step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" t35_rt007_unguarded_deadline
 step "T3.4 #[export] surfaces in nuc gen-headers" t34_export_decls
 step "T3.6 #[no_dyn] passes when body has no dynamic dispatch" t36_no_dyn_clean
+step "T3.7 RT body checks strip strings and line comments" t37_rt_string_skip
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches

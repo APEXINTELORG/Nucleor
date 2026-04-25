@@ -5,6 +5,33 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6] — 2026-04-25
+
+**T3.7 polish — RT-001/002/003 v1 checkers strip strings and
+line comments before scanning.** The v1 source-level checks
+that ship in `#[no_alloc]` / `#[no_panic]` / `#[no_dyn]` were
+naive `str_contains` over the fn body, so a forbidden name
+appearing inside a `"..."` string literal or `// ...` line
+comment would false-trigger. Now all three checks route the
+body through a single `strip_strings_and_line_comments` pass
+that replaces masked ranges with spaces (length-preserving so
+any future position math stays valid). The `(` separator inside
+a quoted region gets blanked too, which means the `<name>(`
+anchor pattern can no longer match anywhere inside a quoted /
+commented span.
+
+### Verify gate
+
+- New: `tests/smoke/t37_rt_string_skip.nr` — 3 fns, one for each
+  RT attribute, each containing the exact forbidden token
+  *only* inside a stripped region (string for `Vec::new()` and
+  `dyn dispatch is enabled`; line comment for `.unwrap()`). 3
+  `#[test]` cases that PASS prove the build accepts the source.
+- Existing fixtures all still pass — the strip is a strict
+  superset of the prior naive scan.
+- Self-host bootstrap fixed-point holds at 0D1ABE1D (stage-2 IR
+  == stage-3 IR). Bootstrap RSS peak 262 MB.
+
 ## [0.3.5] — 2026-04-25
 
 **T3.6 `#[no_dyn]` enforcement (RT-003) — completes the
