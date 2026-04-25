@@ -1652,10 +1652,23 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             cstmts.push(mk2(pool, 27, 0));
             body_list = mk_list(pool, cstmts);
         } else {
+            // v0.3.84: detect assignment LHS = RHS in arm body. Pre-v0.3.84,
+            // parse_expr stopped at `=` and the result wrapped as kind 25
+            // (expression-stmt) — the `= RHS` was silently dropped, so
+            // `total = v` arm bodies became no-op expression-stmts of just
+            // `total`. Now: parse the LHS expression, then if next token is
+            // `=` (40), parse the RHS and produce a kind 21 (assign) stmt.
+            // Mirrors parse_stmt's expr-stmt-or-assign discrimination.
             let mut er: Vec<i32> = parse_expr(tokens, cp, pool);
             cp = pr_pos(er);
             let mut stmts: Vec<i32> = Vec::new();
-            stmts.push(mk2(pool, 25, pr_val(er)));
+            if pk(tokens, cp) == 40 {
+                let mut vr: Vec<i32> = parse_expr(tokens, cp + 1, pool);
+                cp = pr_pos(vr);
+                stmts.push(mk3(pool, 21, pr_val(er), pr_val(vr)));
+            } else {
+                stmts.push(mk2(pool, 25, pr_val(er)));
+            };
             body_list = mk_list(pool, stmts);
         };
         arms.push(mk6(pool, 39, ename, vname, binding, body_list, guard_nid));
