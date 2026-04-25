@@ -5,6 +5,129 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.57] — 2026-04-25
+
+**Compiler fix #4: f64 unary minus now compiles correctly.**
+Continuing the production-readiness probe arc. The arithmetic
+binop dispatcher was fully fixed by v0.3.53/54/55, but the
+syntactic shortcut `-x` for unary minus has its own codegen
+path (kind 5) that was still emitting integer arithmetic on
+f64 bit patterns.
+
+### Bug
+
+```nucleor
+let v: V = V { x: 3.0 };  // V has x: f64
+let x: f64 = v.x;
+let r: f64 = -x;
+print_f64(r);  // pre-v0.3.57: -1.5    expected: -3.0
+```
+
+`-x`, `-v.x`, `-a[0]`, `-make_pos()` — all four production
+operand kinds returned garbage from negation. The `0.0 - x`
+explicit-binop form always worked (the binop dispatcher
+handles it correctly post-v0.3.53), only the unary
+syntactic shortcut was broken.
+
+### Root cause
+
+`lower_expr`'s kind==5 (unary minus) at line 9270 emitted:
+
+```
+const_int(zr, 0);                  // integer 0
+ir_binop(3, r, zr, opr);          // integer subtract
+```
+
+For f64 operands, this subtracted i64 bit patterns and
+returned garbage. The path was unchanged since the original
+implementation; v0.3.53/54/55 fixed the binop dispatcher
+(kind 4) but didn't touch unary minus (kind 5).
+
+### Fix
+
+`lower_expr` kind==5 now dispatches based on operand type:
+
+```nucleor
+let neg_ftype: str = binop_float_type(pool, inner_nid, sym, structs);
+// ... lower the operand ...
+if str_len(neg_ftype) > 0 {
+    // Float zero literal: scaled-int 0 → f<T>_from_scaled.
+    let scaled_zr: i64 = ctr_next(regs);
+    ir_block_add(cur, ir_const_int(scaled_zr, 0));
+    let zr: i64 = ctr_next(regs);
+    let from_helper: str = if str_eq(neg_ftype, "f32") == 1
+        { "f32_from_scaled" } else { "f64_from_scaled" };
+    ir_block_add(cur, ir_call_ex(zr, from_helper, ...));
+    let sub_helper: str = float_binop_helper(3, neg_ftype);
+    ir_block_add(cur, ir_call_ex(r, sub_helper, ...));
+} else {
+    // Legacy int path unchanged.
+    let zr: i64 = ctr_next(regs);
+    ir_block_add(cur, ir_const_int(zr, 0));
+    ir_block_add(cur, ir_binop(3, r, zr, opr));
+};
+```
+
+Reuses `binop_float_type` (the same fn v0.3.53/54/55
+extended) to detect operand type, including the kind 9
+(struct field), kind 10 (Vec indexing), and kind 7 (fn call)
+branches added in those ships. So unary minus inherits ALL
+of the production-coverage work.
+
+### What now works that previously didn't
+
+```
+-x where x: f64 = 3.0           → -3.0    ✓
+-v.x where v.x: f64 = 3.0       → -3.0    ✓
+-a[0] where a[0]: f64 = 2.5     → -2.5    ✓
+-make_pos() returns f64 = 5.0   → -5.0    ✓
+```
+
+Pre-v0.3.57 each returned a small fraction of the expected
+magnitude (the f64 bit pattern subtracted as i64 then
+re-interpreted as f64).
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — kind==5 branch in
+  `lower_expr` rewritten with float-or-int dispatch.
+  Bootstrap fixed point recomputed at SHA `13b25308` (was
+  `6b4cd0f3`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t332_unary_minus_f64.nr` — new strict
+  regression fixture covering all four operand kinds (var,
+  field, vec[i], fn-call).
+- `tools/verify.{sh,ps1}` — new T3.32 verify step asserting
+  the four negated values produce correct results.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry
+  extended with the v0.3.57 fix; SHA stamp updated.
+
+### Verify gate
+
+- 408/408 green (was 407 + 1 new step from T3.32).
+- All prior regression fixtures (T3.28-T3.31) still green.
+- Bootstrap fixed point closes at `13b25308`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.57)
+
+- **4 silent miscompilations fixed**: kinds 9/4/90-92
+  (v0.3.53), kind 7 (v0.3.54), kind 10 (v0.3.55), kind 5
+  (v0.3.57)
+- **5 strict regression fixtures**: T3.28 (struct field),
+  T3.29 (fn call), T3.30 (Vec indexing), T3.31 (mixed
+  operands), T3.32 (unary minus)
+- **Reusable infrastructure**: `__fnret_<NAME>` (v0.3.54),
+  `__fulltype_<vname>` (v0.3.55) sym entries — available
+  for any future generic-aware dispatch
+- **All fixes coexist**: nothing breaks; bootstrap stable
+  through four refreshes (4cd2d428 → e5722f24 → cb696a25
+  → 6b4cd0f3 → 13b25308)
+
+The silent-miscompilation class for f64 arithmetic on
+production AST shapes is structurally closed across both
+binop and unary-op paths.
+
 ## [0.3.56] — 2026-04-25
 
 **Production-coverage lock for f64 inline binops with mixed

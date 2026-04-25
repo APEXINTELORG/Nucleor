@@ -9268,13 +9268,39 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return lx_new(r, cur);
     };
     if kind == 5 {
-        let zr: i64 = ctr_next(regs);
-        ir_block_add(blk, ir_const_int(zr, 0));
-        let mut op_p: Vec<i32> = lower_expr(pool, node_field(pool, nid, 1), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+        // v0.3.57 fix: dispatch to float-or-int subtract based on
+        // operand type. Pre-v0.3.57 always used integer 0 + integer
+        // sub, which mis-computed for f64 operands (subtracts the
+        // f64 bit pattern as an i64 → garbage). Now: if operand
+        // resolves to f32/f64 via binop_float_type, emit
+        // f<T>_from_scaled(0) + f<T>_sub(zr, opr); otherwise the
+        // legacy int path.
+        let inner_nid: i64 = node_field(pool, nid, 1);
+        let neg_ftype: str = binop_float_type(pool, inner_nid, sym, structs);
+        let mut op_p: Vec<i32> = lower_expr(pool, inner_nid, blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let opr: i64 = lx_reg(op_p);
         let cur: Vec<i32> = lx_blk(op_p);
         let r: i64 = ctr_next(regs);
-        ir_block_add(cur, ir_binop(3, r, zr, opr));
+        if str_len(neg_ftype) > 0 {
+            // Float zero literal: scaled-int 0 → f<T>_from_scaled.
+            let scaled_zr: i64 = ctr_next(regs);
+            ir_block_add(cur, ir_const_int(scaled_zr, 0));
+            let zr: i64 = ctr_next(regs);
+            let mut from_args: Vec<i32> = Vec::new();
+            from_args.push(scaled_zr);
+            let from_helper: str = if str_eq(neg_ftype, "f32") == 1 { "f32_from_scaled" } else { "f64_from_scaled" };
+            ir_block_add(cur, ir_call_ex(zr, from_helper, from_args));
+            // Float sub: f<T>_sub(zr, opr).
+            let sub_helper: str = float_binop_helper(3, neg_ftype);
+            let mut sub_args: Vec<i32> = Vec::new();
+            sub_args.push(zr);
+            sub_args.push(opr);
+            ir_block_add(cur, ir_call_ex(r, sub_helper, sub_args));
+        } else {
+            let zr: i64 = ctr_next(regs);
+            ir_block_add(cur, ir_const_int(zr, 0));
+            ir_block_add(cur, ir_binop(3, r, zr, opr));
+        };
         return lx_new(r, cur);
     };
     if kind == 6 {
