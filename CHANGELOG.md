@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.20] — 2026-04-25
+
+**T3.12 per-fn `#[allow_fn(CODE)]` attribute.** The narrower
+cousin of file-wide `#[allow]` (v0.2.151). Suppresses one
+diagnostic for the next fn declaration only — useful for the
+common case where one fn legitimately violates a check while
+the rest of the file should keep its warnings.
+
+```nucleor
+#[deadline = 1000]
+fn unguarded_one(x: i64) -> i64 { return x + 1; }
+//          ^ RT-007 fires here
+
+#[deadline = 1000]
+#[allow_fn(RT-007)]
+fn unguarded_two(x: i64) -> i64 { return x + 2; }
+//          ^ RT-007 suppressed for *this* fn only
+```
+
+### Approach
+
+`collect_allow_fn_pairs(source)` mirrors the existing
+`collect_allowed_codes` pattern but pairs each `#[allow_fn(CODE)]`
+with the next `fn NAME(` declaration (skipping past `pub`,
+blank lines, doc comments, and other attribute lines).
+Returns alternating `[fn_name, code, ...]`.
+
+`filter_allow_suppressed` now checks both the file-wide
+allowed list AND the per-fn pair list. A diag is suppressed if
+either matches: `(diag.code in allowed)` OR
+`(diag.fn_name, diag.code) in pairs`.
+
+For deadline-related warnings (RT-004/005/007/008), the
+diag's fn_name is the T3.1 inner-fn name (e.g.
+`__nuc_dl_inner_<hash>_<idx>`). That's also what the
+positional walk after `#[allow_fn]` records — the inner is the
+next `fn` in the post-resolver source — so the match works
+without users having to know the mangled name.
+
+Errors stay non-suppressible (RT-001/002/003/006). v0.4 may
+introduce per-fn error opt-outs but only with strong gating
+(audit annotations, package-level policy).
+
+### Verify gate
+
+- New: `tests/fixtures/t320_allow_fn.nr` — two `#[deadline]`
+  fns, only the second has `#[allow_fn(RT-007)]`. New step
+  T3.12 asserts exactly ONE RT-007 fires (file-wide allow
+  would have suppressed both; per-fn must scope correctly).
+- Self-host bootstrap fixed-point holds at 51338CD8 (stage-3
+  IR == stage-4 IR). Bootstrap RSS peak 269 MB.
+
 ## [0.3.19] — 2026-04-25
 
 **`docs/v0.3-robotics-guide.md` Cookbook section.** Adds four

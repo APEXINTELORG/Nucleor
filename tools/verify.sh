@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 30))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 31))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -836,6 +836,24 @@ t39_rt005_ffi_call() {
     return 0
 }
 
+t320_allow_fn_per_fn() {
+    # T3.12 (v0.3.20): per-fn #[allow_fn(CODE)] suppresses
+    # one diagnostic for the next fn declaration only. The
+    # fixture has two #[deadline]-marked fns that would each
+    # fire RT-007; only the second has #[allow_fn(RT-007)],
+    # so RT-007 should mention unguarded_one but NOT
+    # unguarded_two.
+    "$BIN" build "tests/fixtures/t320_allow_fn.nr" -o "_t320_check" >/tmp/_nuc_step.log 2>&1
+    grep -qE 'warning\[RT-007\]' /tmp/_nuc_step.log || return 1
+    # Inner-fn name carries a content-hash; we can't grep for
+    # the user-facing wrapper directly. Assert exactly ONE
+    # RT-007 warning fired (file-wide allow would suppress
+    # both; per-fn must suppress only one).
+    local count
+    count=$(grep -cE 'warning\[RT-007\]' /tmp/_nuc_step.log)
+    [ "$count" = "1" ] || return 1
+}
+
 t38_rt006_async_attr() {
     # T3.8 (v0.3.7): #[no_alloc] / #[no_panic] / #[no_dyn] /
     # #[deadline] on an `async fn` is rejected with RT-006
@@ -1244,6 +1262,7 @@ step "T3.4 #[export] surfaces in nuc gen-headers" t34_export_decls
 step "T3.6 #[no_dyn] passes when body has no dynamic dispatch" t36_no_dyn_clean
 step "T3.7 RT body checks strip strings and line comments" t37_rt_string_skip
 step "T3.8 RT-006 fires on RT attr + async fn" t38_rt006_async_attr
+step "T3.12 #[allow_fn] suppresses one RT diag for one fn" t320_allow_fn_per_fn
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.10 RT-008 fires on direct recursion in deadline fn" t310_rt008_recursion
 step "T3.11 bare arena_* builtins link + run end-to-end" t311_arena_builtin_smoke

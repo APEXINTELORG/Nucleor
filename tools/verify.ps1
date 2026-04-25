@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 32
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 33
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -832,6 +832,20 @@ Step "T3.9 RT-005 fires on FFI call from RT fn body" {
     $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-005\]: FFI call 'host_telemetry'") { return $false }
     if ($out -notmatch "from #\[no_alloc\] fn 'rt_path'") { return $false }
+    return $true
+}
+
+Step "T3.12 #[allow_fn] suppresses one RT diag for one fn" {
+    # v0.3.20 (T3.12): per-fn #[allow_fn(CODE)] — narrower
+    # cousin of file-wide #[allow]. The fixture has two
+    # #[deadline]-marked fns that would each fire RT-007;
+    # only the second has #[allow_fn(RT-007)], so RT-007
+    # should fire exactly ONCE. File-wide allow would suppress
+    # both; per-fn must suppress only the marked one.
+    $out = & $bin build "tests/fixtures/t320_allow_fn.nr" -o "_t320_check" 2>&1 | Out-String
+    if ($out -notmatch "warning\[RT-007\]") { return $false }
+    $count = ([regex]::Matches($out, "warning\[RT-007\]")).Count
+    if ($count -ne 1) { return $false }
     return $true
 }
 

@@ -5080,12 +5080,102 @@ fn collect_allowed_codes(source: str) -> Vec<i32> {
     return allowed;
 }
 
-// Drop every diagnostic whose code is in `allowed`. Errors are
-// always preserved — `#[allow]` only suppresses warnings (Rust
-// model). Modifies the input vec by rebuilding a filtered copy.
+// v0.3.20 (T3.12): per-fn #[allow_fn(CODE)] attribute. Sibling
+// of collect_allowed_codes that ALSO records which fn the
+// attribute attaches to. Returns alternating [fn_name, code, ...]
+// so the diag filter can suppress only when (diag.fn_name,
+// diag.code) matches an entry. Lets users narrow file-wide
+// #[allow] noise to a specific fn — handy when one fn has a
+// legitimate reason to fire RT-007 but the rest of the file
+// shouldn't be silenced too.
+fn collect_allow_fn_pairs(source: str) -> Vec<i32> {
+    let mut pairs: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[allow_fn(";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut q: i64 = p + plen;
+            while q < slen && (str_char_at(source, q) == 32 || str_char_at(source, q) == 9) { q = q + 1; };
+            let code_start: i64 = q;
+            while q < slen {
+                let ch: i64 = str_char_at(source, q);
+                if ch == 41 || ch == 32 || ch == 9 { break; };
+                q = q + 1;
+            };
+            if q == code_start { p = p + 1; continue; };
+            let code: str = str_substring(source, code_start, q);
+            // Skip past `]` to land at the line break / following content.
+            while q < slen && str_char_at(source, q) != 93 { q = q + 1; };
+            if q < slen { q = q + 1; };
+            // Walk past blank/doc/other-attribute lines for the next `fn NAME(`.
+            let mut found: i64 = 0;
+            while q + 3 <= slen && found == 0 {
+                while q < slen && (str_char_at(source, q) == 32 || str_char_at(source, q) == 9 || str_char_at(source, q) == 10 || str_char_at(source, q) == 13) {
+                    q = q + 1;
+                };
+                if q + 3 > slen { found = 0 - 1; }
+                else if str_char_at(source, q) == 47 && q + 1 < slen && str_char_at(source, q + 1) == 47 {
+                    while q < slen && str_char_at(source, q) != 10 { q = q + 1; };
+                } else if str_char_at(source, q) == 35 {
+                    while q < slen && str_char_at(source, q) != 10 { q = q + 1; };
+                } else if str_char_at(source, q) == 102 && str_char_at(source, q + 1) == 110 && str_char_at(source, q + 2) == 32 {
+                    q = q + 3;
+                    let nm_start: i64 = q;
+                    while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
+                    if q > nm_start {
+                        let fname: str = str_substring(source, nm_start, q);
+                        pairs.push(fname);
+                        pairs.push(code);
+                        found = 1;
+                    } else {
+                        found = 0 - 1;
+                    };
+                } else if q + 4 <= slen && str_char_at(source, q) == 112 && str_char_at(source, q + 1) == 117 && str_char_at(source, q + 2) == 98 && str_char_at(source, q + 3) == 32 {
+                    // pub <space> — could be `pub fn`. Skip past `pub `.
+                    q = q + 4;
+                } else {
+                    found = 0 - 1;
+                };
+            };
+            p = q;
+        } else {
+            p = p + 1;
+        };
+    };
+    return pairs;
+}
+
+// Drop every diagnostic whose code is in `allowed` (file-wide)
+// or whose (fn_name, code) is in the per-fn pair list. Errors
+// are always preserved — `#[allow]` / `#[allow_fn]` only
+// suppress warnings (Rust model). Modifies the input vec by
+// rebuilding a filtered copy.
 fn filter_allow_suppressed(diags: Vec<i32>, source: str) -> Vec<i32> {
     let allowed: Vec<i32> = collect_allowed_codes(source);
-    if vec_len(allowed) == 0 { return diags; };
+    let allow_fn_pairs: Vec<i32> = collect_allow_fn_pairs(source);
+    if vec_len(allowed) == 0 && vec_len(allow_fn_pairs) == 0 { return diags; };
     let mut filtered: Vec<i32> = Vec::new();
     let n: i64 = vec_len(diags);
     let mut i: i64 = 0;
@@ -5093,13 +5183,25 @@ fn filter_allow_suppressed(diags: Vec<i32>, source: str) -> Vec<i32> {
         let d: Vec<i32> = vec_get(diags, i);
         let sev: str = vec_get(d, 0);
         let code: str = vec_get(d, 2);
+        let fn_name: str = vec_get(d, 4);
         let mut suppressed: i64 = 0;
         if str_eq(sev, "error") == 0 {
             let mut j: i64 = 0;
             let m: i64 = vec_len(allowed);
-            while j < m {
-                if str_eq(vec_get(allowed, j), code) == 1 { suppressed = 1; break; };
+            while j < m && suppressed == 0 {
+                if str_eq(vec_get(allowed, j), code) == 1 { suppressed = 1; };
                 j = j + 1;
+            };
+            if suppressed == 0 {
+                let pn: i64 = vec_len(allow_fn_pairs);
+                let mut pi: i64 = 0;
+                while pi + 1 < pn && suppressed == 0 {
+                    if str_eq(vec_get(allow_fn_pairs, pi), fn_name) == 1
+                       && str_eq(vec_get(allow_fn_pairs, pi + 1), code) == 1 {
+                        suppressed = 1;
+                    };
+                    pi = pi + 2;
+                };
             };
         };
         if suppressed == 0 { filtered.push(d); };
