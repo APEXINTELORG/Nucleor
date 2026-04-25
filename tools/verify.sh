@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 38))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 39))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -482,6 +482,10 @@ cli_explain_full_smoke() {
         "DEPTH-001" "DEPTH-002" "DEPTH-003" "DEPTH-004" "DEPTH-005"
         # RFC-0015 numeric types (v0.2)
         "NUM-001" "NUM-002" "NUM-003" "NUM-004" "NUM-005"
+        # T1.1 Phase 10 (v0.2.319): expanded NUM namespace.
+        "NUM-006" "NUM-007" "NUM-008" "NUM-009" "NUM-010"
+        "NUM-011" "NUM-012" "NUM-013" "NUM-014" "NUM-015"
+        "NUM-016" "NUM-017" "NUM-018" "NUM-019" "NUM-020"
         # RFC-0016 Result/Option/match (v0.2; 007..010 for v0.4 RFC-0023)
         "MATCH-001" "MATCH-002" "MATCH-003" "MATCH-004" "MATCH-005" "MATCH-006"
         "MATCH-007" "MATCH-008" "MATCH-009" "MATCH-010"
@@ -872,6 +876,41 @@ t39_rt005_ffi_call() {
     "$BIN" build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -qE "warning\[RT-005\]: FFI call 'host_telemetry'" /tmp/_nuc_step.log || return 1
     grep -q "from #\[no_alloc\] fn 'rt_path'" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t323_diag_code_drift() {
+    # T3.23 (v0.3.39): drift gate for the parallel canonical
+    # diagnostic code lists. v0.3.36 + v0.3.38 hardcoded the
+    # canonical set in TWO places — `is_known_diag_code` in
+    # `compiler/nucleor_s1_compiler.nr` and the `codes` array
+    # in `cli_explain_full_smoke` (this file + verify.ps1).
+    # When minting a new code, the contract is to add to BOTH;
+    # this gate catches the failure case where someone updates
+    # only one. Both directions are checked: a code in s1 but
+    # not smoke means the explain registry has no audit; a
+    # code in smoke but not s1 means DIAG-001 will spuriously
+    # fire on a real shipped code.
+    local s1_set
+    local smoke_set
+    s1_set=$(grep -oE 'str_eq\(code, "[A-Z]+-?[0-9]+"\)' "$ROOT/compiler/nucleor_s1_compiler.nr" \
+             | grep -oE '"[A-Z]+-?[0-9]+"' | tr -d '"' | sort -u)
+    smoke_set=$(awk '/local codes=\(/,/^    \)/' "$ROOT/tools/verify.sh" \
+                | grep -oE '"[A-Z]+-?[0-9]+"' | tr -d '"' | sort -u)
+    local diff_a
+    local diff_b
+    diff_a=$(comm -23 <(echo "$smoke_set") <(echo "$s1_set"))
+    diff_b=$(comm -13 <(echo "$smoke_set") <(echo "$s1_set"))
+    if [ -n "$diff_a" ]; then
+        echo "       drift: codes in cli_explain_full_smoke but missing from is_known_diag_code:" | sed 's/^/       /'
+        echo "$diff_a" | sed 's/^/         - /'
+        return 1
+    fi
+    if [ -n "$diff_b" ]; then
+        echo "       drift: codes in is_known_diag_code but missing from cli_explain_full_smoke:" | sed 's/^/       /'
+        echo "$diff_b" | sed 's/^/         - /'
+        return 1
+    fi
     return 0
 }
 
@@ -1391,6 +1430,7 @@ step "T3.18 #[deny_fn(RT-007)] promotes warning to error (strict)" t321_deny_fn_
 step "T3.19 #[allow_fn(RT-001)] cannot demote error tier (strict)" t323_allow_fn_error_tier_strict
 step "T3.20 DIAG-001 fires for #[allow]/#[deny] unknown-prefix codes" t320_diag001_unknown_code
 step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" t321_diag001_self_suppress
+step "T3.23 diag-code drift (s1 is_known_diag_code vs smoke list)" t323_diag_code_drift
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

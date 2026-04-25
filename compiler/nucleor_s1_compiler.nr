@@ -5483,12 +5483,27 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "DEPTH-003") == 1 { return 1; };
     if str_eq(code, "DEPTH-004") == 1 { return 1; };
     if str_eq(code, "DEPTH-005") == 1 { return 1; };
-    // RFC-0015 numeric types
+    // RFC-0015 numeric types — base set + v0.2.319 expansion (NUM-006..020)
     if str_eq(code, "NUM-001") == 1 { return 1; };
     if str_eq(code, "NUM-002") == 1 { return 1; };
     if str_eq(code, "NUM-003") == 1 { return 1; };
     if str_eq(code, "NUM-004") == 1 { return 1; };
     if str_eq(code, "NUM-005") == 1 { return 1; };
+    if str_eq(code, "NUM-006") == 1 { return 1; };
+    if str_eq(code, "NUM-007") == 1 { return 1; };
+    if str_eq(code, "NUM-008") == 1 { return 1; };
+    if str_eq(code, "NUM-009") == 1 { return 1; };
+    if str_eq(code, "NUM-010") == 1 { return 1; };
+    if str_eq(code, "NUM-011") == 1 { return 1; };
+    if str_eq(code, "NUM-012") == 1 { return 1; };
+    if str_eq(code, "NUM-013") == 1 { return 1; };
+    if str_eq(code, "NUM-014") == 1 { return 1; };
+    if str_eq(code, "NUM-015") == 1 { return 1; };
+    if str_eq(code, "NUM-016") == 1 { return 1; };
+    if str_eq(code, "NUM-017") == 1 { return 1; };
+    if str_eq(code, "NUM-018") == 1 { return 1; };
+    if str_eq(code, "NUM-019") == 1 { return 1; };
+    if str_eq(code, "NUM-020") == 1 { return 1; };
     // RFC-0016 Result/Option/match
     if str_eq(code, "MATCH-001") == 1 { return 1; };
     if str_eq(code, "MATCH-002") == 1 { return 1; };
