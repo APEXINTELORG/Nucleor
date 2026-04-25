@@ -5672,6 +5672,50 @@ fn enforce_no_dyn(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+// === T3.8 (v0.3.7): RT-006 — RT attribute on async fn ===
+// expand_async_strip_keyword (in the resolver-level expanders)
+// drops the `async` keyword for good. To still detect "an RT
+// attribute was attached to an `async fn`", that pass leaves
+// behind a marker comment line at column 0 for every offender.
+// The marker prefix is intentionally short and weird so the
+// exact byte sequence (with leading newline) does not appear
+// elsewhere in the s1 compiler source — without that, the
+// scanner would self-match on its own needle.
+//
+// Per the RFC: async is non-deterministic by design (thread
+// scheduling, IO wakeups, etc.) and cannot satisfy any RT
+// guarantee. The two have to be mutually exclusive.
+
+fn enforce_rt006_async(diags: Vec<i32>, source: str) -> Vec<i32> {
+    // Match \n + "//__NUC6T:" — leading newline ensures we only
+    // hit markers that the expander emitted at column 0, not
+    // string-literal contents (preceded by ") or mid-line prose.
+    let needle: str = "\n//__NUC6T:";
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < nlen {
+            if str_char_at(source, p + k) != str_char_at(needle, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let nm_start: i64 = p + nlen;
+            let mut q: i64 = nm_start;
+            while q < slen && str_char_at(source, q) != 10 && str_char_at(source, q) != 13 { q = q + 1; };
+            let fn_name: str = str_substring(source, nm_start, q);
+            let msg: str = str_concat("RT attribute (e.g. #[no_alloc] / #[no_panic] / #[no_dyn] / #[deadline]) on async fn '", str_concat(fn_name, "' -- async is non-deterministic by design and cannot satisfy real-time guarantees"));
+            diag_add_ex(diags, "error", "rt", "RT-006", msg, fn_name, 0, 0, "");
+            p = q;
+        } else {
+            p = p + 1;
+        };
+    };
+    return diags;
+}
+
 // === T3.3 (v0.3.2): static WCET (v1 estimator, RT-004) ===
 // Parses every `#[deadline = N]` fn, estimates its worst-case
 // execution time via a simple statement counter, and emits a
@@ -10153,6 +10197,11 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     diags = enforce_no_panic(diags, source);
     // T3.6 (v0.3.5): same pattern for #[no_dyn] (RT-003).
     diags = enforce_no_dyn(diags, source);
+    // T3.8 (v0.3.7): RT-006 — RT attribute on async fn. Reads the
+    // column-0 markers expand_async_strip_keyword emits, which is
+    // the only way to detect this after the async keyword itself
+    // has been stripped from the resolved source.
+    diags = enforce_rt006_async(diags, source);
     // T3.3 (v0.3.2): static WCET estimator for #[deadline = N] fns.
     // Emits warning[RT-004] when the v1 estimate exceeds the budget.
     diags = enforce_static_wcet(diags, source);
@@ -10606,6 +10655,61 @@ fn expand_async_strip_keyword(src: str) -> str {
                     let after_fn: i64 = peek + 2;
                     let next_after_fn: i64 = if after_fn < slen { str_char_at(src, after_fn) } else { 0 };
                     if next_after_fn == 32 || next_after_fn == 9 || next_after_fn == 10 {
+                        // T3.8 (v0.3.7): RT-006 — async + RT attribute is
+                        // rejected. Look back from `async` for a `#[no_alloc]`,
+                        // `#[no_panic]`, `#[no_dyn]`, or `#[deadline...]`
+                        // attribute on a preceding line (skipping blanks +
+                        // doc comments). If found, emit a marker comment
+                        // the diag pass picks up after expansion strips
+                        // the `async` keyword for good.
+                        let mut lb: i64 = id_start - 1;
+                        let mut prev_attr_found: i64 = 0;
+                        let mut stop: i64 = 0;
+                        while lb >= 0 && stop == 0 && prev_attr_found == 0 {
+                            let mut line_start: i64 = lb;
+                            while line_start > 0 && str_char_at(src, line_start - 1) != 10 {
+                                line_start = line_start - 1;
+                            };
+                            let line_end: i64 = lb + 1;
+                            let line: str = str_substring(src, line_start, line_end);
+                            let trimmed: str = strip_spaces(line);
+                            let tlen: i64 = str_len(trimmed);
+                            if tlen == 0 {
+                                lb = line_start - 2;
+                            } else if tlen >= 3 && str_eq(str_substring(trimmed, 0, 3), "///") == 1 {
+                                lb = line_start - 2;
+                            } else if str_eq(trimmed, "#[no_alloc]") == 1
+                                  || str_eq(trimmed, "#[no_panic]") == 1
+                                  || str_eq(trimmed, "#[no_dyn]") == 1 {
+                                prev_attr_found = 1;
+                            } else if tlen >= 11 && str_eq(str_substring(trimmed, 0, 11), "#[deadline ") == 1 {
+                                prev_attr_found = 1;
+                            } else if tlen >= 11 && str_eq(str_substring(trimmed, 0, 11), "#[deadline=") == 1 {
+                                prev_attr_found = 1;
+                            } else if tlen >= 1 && str_char_at(trimmed, 0) == 35 {
+                                // Different #[...] attribute — keep looking.
+                                lb = line_start - 2;
+                            } else {
+                                stop = 1;
+                            };
+                        };
+                        if prev_attr_found == 1 {
+                            // Read the fn name so the diag references it.
+                            let mut np: i64 = after_fn;
+                            while np < slen && (str_char_at(src, np) == 32 || str_char_at(src, np) == 9) { np = np + 1; };
+                            let nn_start: i64 = np;
+                            while np < slen && (is_alnum(str_char_at(src, np)) == 1 || str_char_at(src, np) == 95) { np = np + 1; };
+                            let async_fn_name: str = if np > nn_start { str_substring(src, nn_start, np) } else { "<unknown>" };
+                            // Prefix with `\n` so the marker always starts
+                            // at column 0 — the diag scanner matches on the
+                            // exact byte sequence "\n//__NUC6T:" which never
+                            // appears mid-line in the s1 compiler source
+                            // (the literal mentions in this file are either
+                            // inside string literals or mid-line in prose).
+                            sb_append(sb, "\n//__NUC6T:");
+                            sb_append(sb, async_fn_name);
+                            sb_append(sb, "\n");
+                        };
                         // Drop `async ` — emit nothing for the keyword
                         // and fast-forward past the trailing whitespace.
                         p = peek;
