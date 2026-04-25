@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 61
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 62
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1067,6 +1067,21 @@ Step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" {
     if ($LASTEXITCODE -ne 0) { return $false }
     if ($out -match "warning\[DIAG-001\]") { return $false }
     if ($out -match "error\[DIAG-001\]") { return $false }
+    return $true
+}
+
+Step "T3.44 method-result-returning-struct field access (v0.3.69 fix)" {
+    # v0.3.69 (T3.44): regression test for trait method calls
+    # returning structs followed by immediate field access.
+    & $bin build "tests/fixtures/t344_method_returning_struct.nr" -o "_t344_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t344_check.exe") { $exe = "target\_t344_check.exe" }
+    elseif (Test-Path "target\_t344_check") { $exe = "target\_t344_check" }
+    if (-not $exe) { return $false }
+    $out = & $exe 2>&1 | Out-String
+    $count2 = ([regex]::Matches($out, '(?m)^2\.0+\s*$')).Count
+    if ($count2 -ne 2) { return $false }
+    if ($out -notmatch '(?m)^5\.0+\s*$') { return $false }
     return $true
 }
 
