@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.10] — 2026-04-25
+
+**`examples/19_rt_pid.nr` — fully RT-annotated PID step.** A
+worked example that puts the entire v0.3 RFC-0001 attribute
+family on a single tight inner control loop:
+
+```nucleor
+#[no_alloc]
+#[no_panic]
+#[no_dyn]
+#[deadline = 100]
+fn pid_step_rt(kp: i64, ki: i64, kd: i64, err: i64,
+               integral: i64, last_err: i64) -> i64 {
+    let derivative: i64 = err - last_err;
+    let p_term: i64 = kp * err;
+    let i_term: i64 = ki * (integral + err);
+    let d_term: i64 = kd * derivative;
+    return p_term + i_term + d_term;
+}
+```
+
+The inner step takes the gain triple and error trio as scalars
+(not a `PidState` by value) so the ownership checker doesn't
+fire `OWN-001` in the loop driver. The outer driver in `main`
+is intentionally NOT RT-annotated — `print` / `str_concat`
+allocate, so they have to live outside the `#[no_alloc]`
+contract.
+
+Compiles clean against all eight RT diagnostics:
+RT-001/002/003/004/005/006/007/008.
+
+Added under Tier 4 of `examples/README.md` as the entry-point
+demo for the v0.3 robotics arc, and to `tools/examples.list` so
+the verify gate exercises it on every release.
+
+### Verify gate
+
+- New example step `example 19_rt_pid` (auto-discovered from
+  `tools/examples.list`).
+- No compiler change → no bootstrap fixed-point check needed.
+
 ## [0.3.9] — 2026-04-25
 
 **T3.10 RT-008 — direct self-recursion in `#[deadline]` fn
