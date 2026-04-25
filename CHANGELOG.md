@@ -5,6 +5,90 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.81] — 2026-04-25
+
+**Two more compiler-segfault patterns eliminated.** v0.3.80 claimed
+"no more known compiler segfaults on user input" — one cycle of
+follow-up probing immediately found two more. Both fixed in this
+ship using the same safety-net pattern.
+
+### Pattern 1: indexed-LHS assignment (`v[i] = X`)
+
+`v[i] = X;` segfaulted with ACCESS_VIOLATION. Root cause: the
+kind-21 lowering's fallback path interpreted the kind-10
+(indexing) LHS node as a string offset and crashed on garbage
+memory access. Two-layer fix:
+
+- `check_stmt` kind-21 detects kind-10 LHS and emits a clear
+  diagnostic pointing at the lowercase API workaround.
+- `lower_stmt` kind-21 short-circuits when LHS is not kind 3
+  or kind 9, preventing the downstream segfault.
+
+```
+ERROR: indexed assignment `v[i] = X` is not yet supported.
+Workaround: use the lowercase API: `vec_set(v, i, X)`. Tracked
+for a future ship — direct indexed-LHS lowering needed.
+```
+
+### Pattern 2: tuple destructuring let (`let (a, b) = (5, 7)`)
+
+`let (a, b): (i64, i64) = (5, 7);` segfaulted with
+ACCESS_VIOLATION. Root cause: `parse_let` read `(` (token kind 50)
+as a var name via `pkv` and downstream code crashed on garbage
+string offset interpretation.
+
+Fix in `parse_let`: detect `(` immediately after `let [mut]`,
+emit a clear diagnostic naming tuple destructuring as the v1
+limitation, recover by skipping past the trailing semicolon and
+emitting a placeholder let-stmt so the rest of the program still
+parses.
+
+```
+ERROR: tuple destructuring in `let` is not yet supported (e.g.
+`let (a, b) = (5, 7);`). Workaround: bind to a struct or to two
+separate `let` statements: `let a: i64 = 5; let b: i64 = 7;`.
+Tracked for a future ship — tuple-pattern lowering needed.
+```
+
+### Why this ship is two fixes
+
+The user's launch criterion is "robust + production ready" —
+which means **zero known compiler segfaults on user-readable
+syntax**. v0.3.80 left two such crashes in the field. v0.3.81
+closes both. The probing-then-safety-net cycle is repeatable
+and will be reapplied as further segfault patterns surface.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `check_stmt` and
+  `lower_stmt` kind-21 LHS-validation; `parse_let`
+  tuple-destructure detection. Bootstrap fixed point recomputed
+  at SHA `cbed56bb` (was `01cbf54f`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t356_indexed_lhs_diagnostic.nr` — new negative
+  fixture for indexed-LHS.
+- `tests/fixtures/t357_tuple_let_diagnostic.nr` — new negative
+  fixture for tuple destructure.
+- `tools/verify.{sh,ps1}` — new T3.56 + T3.57 verify steps.
+
+### Verify gate
+
+- 435/435 green (was 433 + T3.56 + T3.57).
+- All prior regression fixtures (T3.28-T3.55) still green.
+- Bootstrap fixed point closes at `cbed56bb`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.81)
+
+- **22 codegen + 1 runtime + 5 parser/check diagnostic = 28 total**
+- **30 strict regression fixtures** (T3.28-T3.57)
+- **6 robotics RT showcase examples** in Tier 4
+- **All four known compiler-segfault classes eliminated**:
+  - nested struct field assign (v0.3.80)
+  - indexed-LHS assign (v0.3.81)
+  - tuple-destructure let (v0.3.81)
+  - any other unsupported LHS shape (v0.3.81 catch-all)
+
 ## [0.3.80] — 2026-04-25
 
 **Robustness fix: nested struct field assignment was crashing the
