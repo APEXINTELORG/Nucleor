@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 7
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 8
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -773,6 +773,27 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
     $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
     return $h1 -eq $h2
+}
+
+Step "T1.5b pub introspection (summary surfaces visibility)" {
+    # v0.2.341 (T1.5b): the parser now emits a kind-76 marker before
+    # each `pub`-prefixed top-level item. `nuc summary` reads the
+    # markers and prefixes `pub fn` (etc.) accordingly, so users can
+    # see the visibility surface of any module. Smoke fixture has 4
+    # top-level fns (2 pub, 2 non-pub) plus 3 #[test] cases that all
+    # PASS — verifies the marker mechanism doesn't break intra-module
+    # calls. Cross-module enforcement arrives in T1.5c.
+    $sumOut = & $bin summary "tests/smoke/t15b_pub_introspection.nr" 2>&1 | Out-String
+    if ($sumOut -notmatch "pub fn pub_alpha\(\)") { return $false }
+    if ($sumOut -notmatch "pub fn pub_gamma\(\)") { return $false }
+    if ($sumOut -notmatch "(?m)^fn priv_beta\(\)") { return $false }
+    if ($sumOut -notmatch "(?m)^fn priv_delta\(\)") { return $false }
+    $testOut = & $bin test "tests/smoke/t15b_pub_introspection.nr" 2>&1 | Out-String
+    if ($testOut -notmatch "PASS: test_pub_fn_callable") { return $false }
+    if ($testOut -notmatch "PASS: test_non_pub_fn_still_callable_pre_enforcement") { return $false }
+    if ($testOut -notmatch "PASS: test_mixed_pub_arithmetic") { return $false }
+    if ($testOut -notmatch "test result: PASS \(3 tests\)") { return $false }
+    return $true
 }
 
 Step "T1.5a mod block-form inline" {

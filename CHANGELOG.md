@@ -5,6 +5,128 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.341] — 2026-04-24
+
+**T1.5b modules — `pub` parsed + tagged + surfaced via `nuc
+summary`.** The parser stops silently swallowing the `pub`
+keyword; instead, when a top-level item is `pub`-prefixed, a
+kind-76 marker node carrying the item's name is emitted into
+the items list immediately before the item itself. This
+mirrors the existing kind-46 marker pattern for `pure fn`.
+`nuc summary` now reads the kind-76 markers and prefixes
+`pub fn` (`pub struct`, `pub enum`, `pub trait`, `pub const`,
+`pub type`) accordingly. `nuc abi --exports` continues to
+work via the source-text scanner that's already in place.
+
+### Scope
+
+T1.5b ships **introspection** only — visibility is
+**not yet enforced**. A non-pub fn is still callable from
+other modules. The kind-76 marker is the data foundation
+that T1.5c will read when implementing resolver-layer name
+privatization (the chosen enforcement mechanism per the
+design discussion in v0.2.340's CHANGELOG entry).
+
+The opt-in deployment plan stands: enforcement activates
+per-file only when at least one `pub fn` is declared in
+that file. Files with no `pub` declarations stay in
+v0.1.x-compatible flat-namespace mode.
+
+### Parser change
+
+In both `nucleor_s1_compiler.nr` and `nucleor_tools_suite.nr`
+(synced), `parse_program` now tracks a `pending_pub: i64`
+flag. When token 72 (`pub`) is consumed, the flag flips to
+1 (instead of being silently discarded). The next item
+parsed flushes the flag and prepends a `mk2(pool, 76,
+item_name)` marker to the items list. The flag is also
+cleared on extern-fn / impl-block / unrecognized-token
+paths so a stale `pub` doesn't poison the next item.
+
+The marker is invisible to all existing AST walkers — they
+all check for specific kinds (30 fn, 32 extern fn, 33
+struct, 36 enum, 43 trait, etc.) and skip unrecognized
+kinds. The new kind 76 falls through harmlessly anywhere
+the marker isn't explicitly consulted.
+
+### `nuc summary` change
+
+`render_summary_command` (in `tools_suite.nr`) gains a
+`pub_prefix` lookup via the new `program_has_pub_marker`
+helper, applied to fn declarations. The output for the
+T1.5b smoke fixture now shows:
+
+```
+// Module: t15b_pub_introspection.nr
+pub fn pub_alpha() -> i64
+fn priv_beta() -> i64
+pub fn pub_gamma() -> i64
+fn priv_delta() -> i64
+fn main() -> i64 requires [io.write]
+```
+
+Visibility now visible to humans and tooling without
+re-walking the source text — a prerequisite for T1.5c's
+resolver enforcement to know which fns to privatize.
+
+### T1.5b smoke
+
+`tests/smoke/t15b_pub_introspection.nr` — 3 cases:
+- `test_pub_fn_callable` — pub fns are callable as before.
+- `test_non_pub_fn_still_callable_pre_enforcement` — non-pub
+  fns are STILL callable from the same module (verifies
+  marker mechanism doesn't break intra-module calls).
+- `test_mixed_pub_arithmetic` — pub + non-pub mixed call
+  arithmetic produces the right result.
+
+New verify-gate step `T1.5b pub introspection (summary
+surfaces visibility)` runs both `nuc summary` (asserts the
+4 expected lines) and `nuc test` (asserts the 3 PASS).
+
+### Verify gate
+
+Windows: 349/349 PASS. Bootstrap fixpoint refreshed
+(seed sha256 `8906dd03...`).
+
+### Numerics-compatibility
+
+No new arithmetic surfaces. The kind-76 marker stores the
+item's name (str pointer) as field 1 — same `i64` slot
+representation as the existing kind-46 (pure) marker.
+
+### Memory safety
+
+Marker nodes are allocated in the existing `pool` Vec via
+the standard `mk2(pool, k, a)` helper — no new allocators,
+no aliasing. The `pending_pub` flag is a stack local;
+no shared state across calls.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — `parse_program` tracks
+  `pending_pub`, emits kind-76 markers before pub items.
+- `compiler/nucleor_tools_suite.nr` — same parser change
+  (synced) plus `program_has_pub_marker` helper and the
+  `pub_prefix` use in `render_summary_command`.
+- `tests/smoke/t15b_pub_introspection.nr` — new fixture.
+- `tools/verify.ps1`, `tools/verify.sh` — new T1.5b step.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (393 fns,
+  726 optimized instructions; new sha256 8906dd03...).
+- `bin/nucleor.exe`, `bin/nucleor_tools.exe` — both rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Next
+
+T1.5c — resolver-layer name privatization (the actual
+enforcement). Reads the kind-76 markers (or re-scans
+source) to identify private fn names, rewrites them to
+`__priv_<file_id>__<name>` only in files that have at
+least one `pub fn` (opt-in semantics so existing rods
+without `pub` annotations aren't broken). Cross-module
+calls to private fns then fail at link-time with an
+unresolved-name error, which T1.5d turns into a friendly
+MOD-003 diagnostic at compile time.
+
 ## [0.2.340] — 2026-04-24
 
 **T1.5a modules — `mod foo { ... }` inline block-form +

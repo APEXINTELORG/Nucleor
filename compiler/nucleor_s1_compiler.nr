@@ -1503,27 +1503,71 @@ fn remove_main_decl(pool: Vec<i32>, items: Vec<i32>) -> Vec<i32> {
 
 fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
     let mut items: Vec<i32> = Vec::new(); let mut cp: i64 = 0;
+    // T1.5b (v0.2.341): track `pub` keyword on top-level items.
+    // Previously the `pub` token was silently swallowed. Now: when
+    // we see `pub`, we set `pending_pub = 1` and re-enter the loop
+    // without consuming any item. The next item we successfully
+    // parse gets a marker node (kind 76 = pub_marker) emitted into
+    // `items` immediately before the item itself, mirroring the
+    // pattern already established for `pure fn` (kind 46). The
+    // marker carries the item's name so downstream tools (the
+    // visibility surface in `nuc summary`, the `nuc abi --exports`
+    // walker, and T1.5c's resolver-layer enforcement) can identify
+    // pub items without re-walking the source text.
+    let mut pending_pub: i64 = 0;
     while pk(tokens, cp) != 0 {
         if pk(tokens, cp) == 72 {
+            pending_pub = 1;
             cp = cp + 1;
         }
         else if pk(tokens, cp) == 20 && pk(tokens, cp + 1) == 10 {
-            // extern fn
+            // extern fn — never carries `pub` (extern is its own visibility).
             let mut r: Vec<i32> = parse_extern_fn(tokens, cp + 2, pool); items.push(pr_val(r)); cp = pr_pos(r);
+            pending_pub = 0;
         }
-        else if pk(tokens, cp) == 73 { let mut r: Vec<i32> = parse_const_decl(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r); }
-        else if pk(tokens, cp) == 74 { let mut r: Vec<i32> = parse_type_alias_decl(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r); }
-        else if pk(tokens, cp) == 17 { let mut r: Vec<i32> = parse_struct_decl(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r); }
-        else if pk(tokens, cp) == 62 { let mut r: Vec<i32> = parse_enum_decl(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r); }
-        else if pk(tokens, cp) == 66 { let mut r: Vec<i32> = parse_trait_decl(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r); }
-        else if pk(tokens, cp) == 67 { let mut r: Vec<i32> = parse_impl_block(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r); }
+        else if pk(tokens, cp) == 73 {
+            let mut r: Vec<i32> = parse_const_decl(tokens, cp + 1, pool);
+            let nid: i64 = pr_val(r);
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
+            items.push(nid); cp = pr_pos(r);
+        }
+        else if pk(tokens, cp) == 74 {
+            let mut r: Vec<i32> = parse_type_alias_decl(tokens, cp + 1, pool);
+            let nid: i64 = pr_val(r);
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
+            items.push(nid); cp = pr_pos(r);
+        }
+        else if pk(tokens, cp) == 17 {
+            let mut r: Vec<i32> = parse_struct_decl(tokens, cp + 1, pool);
+            let nid: i64 = pr_val(r);
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
+            items.push(nid); cp = pr_pos(r);
+        }
+        else if pk(tokens, cp) == 62 {
+            let mut r: Vec<i32> = parse_enum_decl(tokens, cp + 1, pool);
+            let nid: i64 = pr_val(r);
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
+            items.push(nid); cp = pr_pos(r);
+        }
+        else if pk(tokens, cp) == 66 {
+            let mut r: Vec<i32> = parse_trait_decl(tokens, cp + 1, pool);
+            let nid: i64 = pr_val(r);
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
+            items.push(nid); cp = pr_pos(r);
+        }
+        else if pk(tokens, cp) == 67 {
+            // impl blocks don't carry pub (the items inside do).
+            let mut r: Vec<i32> = parse_impl_block(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r);
+            pending_pub = 0;
+        }
         else if pk(tokens, cp) == 68 && pk(tokens, cp + 1) == 10 {
             // pure fn — parse as fn_decl, mark name with __pure_ prefix internally
             let mut r: Vec<i32> = parse_fn_decl(tokens, cp + 2, pool);
             let fn_nid: i64 = pr_val(r);
             if str_eq(node_field(pool, fn_nid, 1), "main") == 1 && has_main_decl(pool, items) == 1 { items = remove_main_decl(pool, items); };
-            // Tag function as pure by storing a marker node (kind 46)
+            // Tag function as pure by storing a marker node (kind 46).
             items.push(mk2(pool, 46, node_field(pool, fn_nid, 1)));
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, fn_nid, 1))); pending_pub = 0; };
             items.push(fn_nid);
             cp = pr_pos(r);
         }
@@ -1531,10 +1575,11 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             let mut r: Vec<i32> = parse_fn_decl(tokens, cp + 1, pool);
             let fn_nid: i64 = pr_val(r);
             if str_eq(node_field(pool, fn_nid, 1), "main") == 1 && has_main_decl(pool, items) == 1 { items = remove_main_decl(pool, items); };
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, fn_nid, 1))); pending_pub = 0; };
             items.push(fn_nid);
             cp = pr_pos(r);
         }
-        else { cp = cp + 1; };
+        else { cp = cp + 1; pending_pub = 0; };
     };
     return pr(cp, mk_list(pool, items));
 }
