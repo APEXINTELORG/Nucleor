@@ -516,6 +516,24 @@ cli_explain_full_smoke() {
         if ! echo "$out" | grep -q "$code"; then
             return 1
         fi
+        # v0.3.41: tightened from synopsis-only to full-entry
+        # check. explain_error_known() only checks title; a code
+        # with title but missing summary or explanation passed
+        # silently. Now also assert the cause line (2) and hint
+        # line (3) are non-empty -- catches drift where a
+        # contributor adds a code to the title registry but
+        # forgets the matching summary or explanation entry.
+        local line2 line3
+        line2=$(echo "$out" | sed -n '2p')
+        line3=$(echo "$out" | sed -n '3p')
+        if [ -z "$line2" ]; then
+            echo "       $code: missing cause/summary line in explain output" | sed 's/^/       /'
+            return 1
+        fi
+        if [ -z "$line3" ]; then
+            echo "       $code: missing hint/explanation line in explain output" | sed 's/^/       /'
+            return 1
+        fi
     done
     return 0
 }
