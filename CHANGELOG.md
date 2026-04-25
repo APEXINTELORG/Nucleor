@@ -5,6 +5,154 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.67] — 2026-04-25
+
+**Compiler fix #13: indexing on fn-call result
+(`make_vec()[i]`).** Closes the third row of the v0.3.66
+composition matrix. `make_vec()[0] + make_vec()[1]` returned
+-0.0 pre-v0.3.67. Two-part fix: new `__fnfulltype_<NAME>`
+sym entry that preserves generics on fn return types, plus
+kind 7 (fn-call) operand handling in BOTH kind==10 branches
+(binop_float_type + expr_struct_type).
+
+### Why the partial fix slipped through
+
+v0.3.54's `populate_fn_returns_in_sym` stored only
+`__fnret_<NAME> = type_base_name(rtype)` — which strips
+generics. So `__fnret_make_vec = "Vec"` for a fn that
+returns `Vec<f64>`. The Vec<T> parsing in the kind==10
+dispatcher needs the FULL annotation to extract T; it had
+nothing to chew on for fn-call operands.
+
+### Two-part fix
+
+**Part 1 — preserve full fn return type:**
+
+```nucleor
+fn populate_fn_returns_in_sym(...) -> i64 {
+    while i < n {
+        let raw_rtype: str = node_field(pool, fnid, 3);
+        let rtype: str = type_base_name(raw_rtype);
+        if str_len(name) > 0 && str_len(rtype) > 0 {
+            sym_set(sym, str_concat("__fnret_", name), rtype);
+        };
+        // v0.3.67: also store the FULL annotation.
+        if str_len(name) > 0 && str_len(raw_rtype) > 0 {
+            sym_set(sym, str_concat("__fnfulltype_", name), raw_rtype);
+        };
+        ...
+```
+
+**Part 2 — kind 7 operand branch in both kind==10 dispatchers:**
+
+```nucleor
+if node_kind(pool, vexpr) == 7 {
+    let fn_name: str = node_field(pool, vexpr, 1);
+    let ft: i64 = sym_get(sym, str_concat("__fnfulltype_", fn_name));
+    if ft >= 0 { vtype_str = ft; };
+};
+```
+
+The Vec<T> / [T;N] parsing logic stays unchanged — it sees
+"Vec<f64>" as the operand type and extracts "f64" correctly.
+
+### Composition matrix after v0.3.67
+
+| Operand kind of indexed expr | binop_float_type | expr_struct_type |
+|------------------------------|------------------|------------------|
+| 3 (var ref `v[i]`)           | v0.3.55          | v0.3.59          |
+| 9 (struct field `self.s[i]`) | v0.3.65          | v0.3.66          |
+| 7 (fn-call `make_vec()[i]`)  | v0.3.67 (this)   | v0.3.67 (this)   |
+| 10 (nested `vv[i][j]`)       | not yet          | not yet          |
+
+Three of four cells now closed in BOTH parallel resolvers.
+The kind 10 (nested indexing) cell is the rarest production
+shape — defer until probed.
+
+### What now works that previously didn't
+
+```nucleor
+fn make_vec() -> Vec<f64> { ... }
+fn make_vstruct() -> Vec<V> { ... }
+
+make_vec()[0] + make_vec()[1]              → 7.0  (was -0.0)
+make_vec()[0] * make_vec()[2]              → 15.0
+make_vstruct()[0].x + make_vstruct()[1].y  → 5.0  (cross-resolver)
+```
+
+The third example is particularly interesting: it touches
+BOTH resolvers — `expr_struct_type kind 9 → kind 10 → kind 7`
+to find that `make_vstruct()[0]` has type V, then field
+access for `.x` returns f64. v0.3.67's symmetric fix in both
+resolvers handles this composition.
+
+### Production relevance
+
+Factory functions returning Vec<T> or [T; N] are common in
+robotics:
+
+```nucleor
+let bias: Vec<f64> = load_calibration();
+let dx: f64 = make_target_offsets()[0] + sensor_drift()[0];
+```
+
+Pre-v0.3.67 these required intermediate-let workarounds:
+
+```nucleor
+let off = make_target_offsets();
+let dr = sensor_drift();
+let dx: f64 = off[0] + dr[0];   // worked, but awkward
+```
+
+Post-v0.3.67 the natural inline form compiles correctly.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` —
+  - `populate_fn_returns_in_sym` adds `__fnfulltype_<NAME>`
+    entry alongside existing `__fnret_<NAME>`.
+  - `binop_float_type` kind==10 branch adds kind 7 operand
+    handling.
+  - `expr_struct_type` kind==10 branch adds kind 7 operand
+    handling.
+  - Bootstrap fixed point recomputed at SHA `675a44a0` (was
+    `c5061e2d`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t342_fncall_indexing.nr` — new strict
+  regression fixture covering binop on fn-call indexing
+  + cross-resolver field-on-fn-call-indexing.
+- `tools/verify.{sh,ps1}` — new T3.42 verify step.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry
+  added; SHA stamp updated.
+
+### Verify gate
+
+- 419/419 green (was 418 + 1 new step from T3.42).
+- All prior regression fixtures (T3.28-T3.41) still green.
+- Bootstrap fixed point closes at `675a44a0`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.67)
+
+- **13 codegen fixes**
+- **15 strict regression fixtures**: T3.28-T3.42
+- **Reusable infrastructure** grown:
+  - `__fnret_<NAME>` (v0.3.54) — base name
+  - `__fnfulltype_<NAME>` (v0.3.67) — full annotation with generics
+  - `__fulltype_<vname>` (v0.3.55) — full var/param/global annotation
+  - Pass-1.5 fn_decls extension (v0.3.60) — trait-impl methods
+- **All fixes coexist**: bootstrap stable through 13 SHA
+  refreshes
+- **Composition matrix**: 6 of 8 cells (3 of 4 indexed-operand
+  kinds × 2 resolvers) closed; kind 10 nested indexing
+  (rarest) deferred
+
+The dispatcher now handles three-deep operand composition
+chains via three parallel sym infrastructures and two
+parallel resolvers. The pattern is fully systematic —
+adding the kind 10 nested case (when probed) follows the
+exact same shape.
+
 ## [0.3.66] — 2026-04-25
 
 **Compiler fix #12: method calls on indexed struct field
