@@ -1576,6 +1576,34 @@ long long __nucleor_vec_count_i64(NVec *v) {
     return v->len;
 }
 
+// v0.3.109: iterator combinators commonly reached for in Rust
+// adoption — `.take(n)`, `.skip(n)`. The `any`/`all` helpers
+// already existed earlier in this file (v0.2.x); v0.3.109 adds
+// the compiler-side surface dispatch for all four through
+// `iter_method_for_vec`. take/skip are new helpers — they return
+// fresh Vec views so the rest of the chain operates on the
+// truncated/skipped slice. Without these, the canonical chain
+// `v.iter().take(N).sum()` failed at clang link with
+// `@vec_take undefined`.
+long long __nucleor_vec_take_i64(NVec *v, long long n) {
+    NVec *out = (NVec*)__nucleor_vec_new();
+    if (!v || n <= 0) return (long long)(intptr_t)out;
+    long long take = n < v->len ? n : v->len;
+    for (long long i = 0; i < take; i++) {
+        __nucleor_vec_push(out, v->data[i]);
+    }
+    return (long long)(intptr_t)out;
+}
+long long __nucleor_vec_skip_i64(NVec *v, long long n) {
+    NVec *out = (NVec*)__nucleor_vec_new();
+    if (!v) return (long long)(intptr_t)out;
+    long long start = n < 0 ? 0 : n;
+    for (long long i = start; i < v->len; i++) {
+        __nucleor_vec_push(out, v->data[i]);
+    }
+    return (long long)(intptr_t)out;
+}
+
 long long __nucleor_vec_sum_f64(NVec *v) {
     if (!v) return 0;
     union { long long i; double d; } acc;

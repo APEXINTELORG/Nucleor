@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.109] — 2026-04-25
+
+**Iterator combinators `.any()` / `.all()` / `.take(n)` / `.skip(n)`.**
+Pre-v0.3.109, none of these were in `iter_method_for_vec`, so
+kind-8 dispatch fell through to the `vec_<method>` convention —
+clang link unresolved (`@vec_take undefined` etc.) the moment a
+user wrote any of these canonical Rust iterator methods. The
+`any`/`all` runtime helpers had been present since v0.2.x; only
+the surface dispatch was missing for those two. `take_i64` /
+`skip_i64` are new helpers that allocate fresh Vecs holding the
+truncated/skipped slice so the rest of the chain (which expects
+a Vec receiver) operates on the right view.
+
+### Fix
+
+1. `iter_method_for_vec` extended with `take`, `skip`, `any`, `all`.
+2. Runtime: new `__nucleor_vec_take_i64` and `__nucleor_vec_skip_i64`.
+3. Compiler: `take_i64` / `skip_i64` registered in `get_rt_name`,
+   `is_ptr_arg`, `is_ptr_ret`, and the IR header `declare` list.
+   Mirrored in `nucleor_tools_suite.nr` per drift gate.
+4. helper_manifest.toml regenerated.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t386 returns 0 across all four
+combinators (any/all booleans + take/skip view sums).
+`bin/nucleor.exe` SHA `a65a800c`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `iter_method_for_vec`,
+  `get_rt_name`, `is_ptr_arg`, `is_ptr_ret`, IR header.
+- `compiler/nucleor_tools_suite.nr` — drift mirror for take/skip.
+- `stdlib/runtime/nucleor_llvm_rt.c` — `vec_take_i64`, `vec_skip_i64`.
+- `tests/fixtures/t386_iter_combinators.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+
 ## [0.3.108] — 2026-04-25
 
 **`.iter().count()` iterator-length terminator.** Pre-v0.3.108,
