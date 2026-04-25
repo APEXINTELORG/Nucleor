@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 5))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 6))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -758,6 +758,25 @@ tools_suite_memory_budget() {
     _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
 }
 
+t15b_pub_introspection() {
+    # v0.2.341 (T1.5b): the parser emits a kind-76 marker before each
+    # `pub`-prefixed top-level item; `nuc summary` reads the markers
+    # and prefixes `pub fn` accordingly. Smoke fixture verifies both
+    # the summary surface AND that intra-module fn calls are
+    # unaffected (3 #[test] cases all PASS). Cross-module enforcement
+    # arrives in T1.5c.
+    "$BIN" summary "tests/smoke/t15b_pub_introspection.nr" >/tmp/_nuc_step.log 2>&1
+    grep -q "pub fn pub_alpha()" /tmp/_nuc_step.log || return 1
+    grep -q "pub fn pub_gamma()" /tmp/_nuc_step.log || return 1
+    grep -q "^fn priv_beta()" /tmp/_nuc_step.log || return 1
+    grep -q "^fn priv_delta()" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t15b_pub_introspection.nr" >/tmp/_nuc_step.log 2>&1
+    grep -q "PASS: test_pub_fn_callable" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_non_pub_fn_still_callable_pre_enforcement" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_mixed_pub_arithmetic" /tmp/_nuc_step.log || return 1
+    grep -q "test result: PASS (3 tests)" /tmp/_nuc_step.log || return 1
+}
+
 t15a_mod_block_form() {
     # v0.2.340 (T1.5a): the resolver inlines `mod foo { ... }` block
     # contents alongside the existing `mod foo;` file-rooted desugaring.
@@ -896,6 +915,7 @@ step "self-host rebuild closes" self_host_rebuild
 step "self-host memory budget (<= 100 MB)" self_host_memory_budget
 step "tools-suite memory budget (<= 200 MB)" tools_suite_memory_budget
 step "T1.5a mod block-form inline" t15a_mod_block_form
+step "T1.5b pub introspection (summary surfaces visibility)" t15b_pub_introspection
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------

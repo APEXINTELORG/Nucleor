@@ -1222,20 +1222,56 @@ fn remove_main_decl(pool: Vec<i32>, items: Vec<i32>) -> Vec<i32> {
 
 fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
     let mut items: Vec<i32> = Vec::new(); let mut cp: i64 = 0;
+    // T1.5b (v0.2.341): mirror of nucleor_s1_compiler.nr — track `pub`
+    // and emit a kind-76 marker node before each `pub`-prefixed
+    // top-level item. Lets `nuc summary` (which routes through
+    // tools-suite) display visibility, and sets up T1.5c's
+    // resolver-layer privatization to drive cross-module enforcement.
+    let mut pending_pub: i64 = 0;
     while pk(tokens, cp) != 0 {
         if pk(tokens, cp) == 72 {
+            pending_pub = 1;
             cp = cp + 1;
         }
         else if pk(tokens, cp) == 20 && pk(tokens, cp + 1) == 10 {
-            // extern fn
+            // extern fn — never carries `pub`.
             let mut r: Vec<i32> = parse_extern_fn(tokens, cp + 2, pool); items.push(pr_val(r)); cp = pr_pos(r);
+            pending_pub = 0;
         }
-        else if pk(tokens, cp) == 73 { let mut r: Vec<i32> = parse_const_decl(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r); }
-        else if pk(tokens, cp) == 74 { let mut r: Vec<i32> = parse_type_alias_decl(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r); }
-        else if pk(tokens, cp) == 17 { let mut r: Vec<i32> = parse_struct_decl(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r); }
-        else if pk(tokens, cp) == 62 { let mut r: Vec<i32> = parse_enum_decl(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r); }
-        else if pk(tokens, cp) == 66 { let mut r: Vec<i32> = parse_trait_decl(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r); }
-        else if pk(tokens, cp) == 67 { let mut r: Vec<i32> = parse_impl_block(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r); }
+        else if pk(tokens, cp) == 73 {
+            let mut r: Vec<i32> = parse_const_decl(tokens, cp + 1, pool);
+            let nid: i64 = pr_val(r);
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
+            items.push(nid); cp = pr_pos(r);
+        }
+        else if pk(tokens, cp) == 74 {
+            let mut r: Vec<i32> = parse_type_alias_decl(tokens, cp + 1, pool);
+            let nid: i64 = pr_val(r);
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
+            items.push(nid); cp = pr_pos(r);
+        }
+        else if pk(tokens, cp) == 17 {
+            let mut r: Vec<i32> = parse_struct_decl(tokens, cp + 1, pool);
+            let nid: i64 = pr_val(r);
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
+            items.push(nid); cp = pr_pos(r);
+        }
+        else if pk(tokens, cp) == 62 {
+            let mut r: Vec<i32> = parse_enum_decl(tokens, cp + 1, pool);
+            let nid: i64 = pr_val(r);
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
+            items.push(nid); cp = pr_pos(r);
+        }
+        else if pk(tokens, cp) == 66 {
+            let mut r: Vec<i32> = parse_trait_decl(tokens, cp + 1, pool);
+            let nid: i64 = pr_val(r);
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
+            items.push(nid); cp = pr_pos(r);
+        }
+        else if pk(tokens, cp) == 67 {
+            let mut r: Vec<i32> = parse_impl_block(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r);
+            pending_pub = 0;
+        }
         else if pk(tokens, cp) == 68 && pk(tokens, cp + 1) == 10 {
             // pure fn — parse as fn_decl, mark name with __pure_ prefix internally
             let mut r: Vec<i32> = parse_fn_decl(tokens, cp + 2, pool);
@@ -1243,6 +1279,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             if str_eq(node_field(pool, fn_nid, 1), "main") == 1 && has_main_decl(pool, items) == 1 { items = remove_main_decl(pool, items); };
             // Tag function as pure by storing a marker node (kind 46)
             items.push(mk2(pool, 46, node_field(pool, fn_nid, 1)));
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, fn_nid, 1))); pending_pub = 0; };
             items.push(fn_nid);
             cp = pr_pos(r);
         }
@@ -1250,10 +1287,11 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             let mut r: Vec<i32> = parse_fn_decl(tokens, cp + 1, pool);
             let fn_nid: i64 = pr_val(r);
             if str_eq(node_field(pool, fn_nid, 1), "main") == 1 && has_main_decl(pool, items) == 1 { items = remove_main_decl(pool, items); };
+            if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, fn_nid, 1))); pending_pub = 0; };
             items.push(fn_nid);
             cp = pr_pos(r);
         }
-        else { cp = cp + 1; };
+        else { cp = cp + 1; pending_pub = 0; };
     };
     return pr(cp, mk_list(pool, items));
 }
@@ -12916,6 +12954,23 @@ fn program_has_pure_marker(pool: Vec<i32>, prog: i64, name: str) -> i64 {
     return 0;
 }
 
+fn program_has_pub_marker(pool: Vec<i32>, prog: i64, name: str) -> i64 {
+    // T1.5b (v0.2.341): companion to program_has_pure_marker. The
+    // parser emits a kind-76 marker carrying the item's name
+    // immediately before each `pub`-prefixed top-level item. Used by
+    // render_summary_command to surface visibility in `nuc summary`,
+    // and (future) by T1.5c's resolver-layer privatization to drive
+    // cross-module enforcement.
+    let cnt: i64 = list_len(pool, prog);
+    let mut i: i64 = 0;
+    while i < cnt {
+        let nid: i64 = list_get(pool, prog, i);
+        if node_kind(pool, nid) == 76 && str_eq(node_field(pool, nid, 1), name) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
 fn param_list_text(pool: Vec<i32>, params_lid: i64) -> str {
     let mut parts: Vec<i32> = Vec::new();
     let cnt: i64 = list_len(pool, params_lid);
@@ -13082,13 +13137,16 @@ fn render_summary_command(src_path: str, source: str, pool: Vec<i32>, prog: i64,
         let kind: i64 = node_kind(pool, nid);
         if kind == 30 {
             let name: str = node_field(pool, nid, 1);
+            // T1.5b (v0.2.341): visibility is now surfaced — `pub fn`
+            // declarations show up with a `pub` prefix in summary.
+            let pub_prefix: str = if program_has_pub_marker(pool, prog, name) == 1 { "pub " } else { "" };
             let pure_prefix: str = if program_has_pure_marker(pool, prog, name) == 1 { "pure " } else { "" };
             let ret: str = node_field(pool, nid, 3);
             let ret_suffix: str = if str_eq(ret, "void") == 1 { "" } else { str_concat(" -> ", ret) };
             let effect_text: str = csv_pretty(inferred_effects_for(effs, name));
             let req_suffix: str = if str_len(effect_text) == 0 { "" } else { str_concat(" requires [", str_concat(effect_text, "]")) };
             let test_suffix: str = if string_vec_contains(tests, name) == 1 { " @test" } else { "" };
-            lines.push(str_concat(pure_prefix, str_concat("fn ", str_concat(name, str_concat(generic_list_text(pool, node_field(pool, nid, 5)), str_concat("(", str_concat(param_list_text(pool, node_field(pool, nid, 2)), str_concat(")", str_concat(ret_suffix, str_concat(req_suffix, test_suffix))))))))));
+            lines.push(str_concat(pub_prefix, str_concat(pure_prefix, str_concat("fn ", str_concat(name, str_concat(generic_list_text(pool, node_field(pool, nid, 5)), str_concat("(", str_concat(param_list_text(pool, node_field(pool, nid, 2)), str_concat(")", str_concat(ret_suffix, str_concat(req_suffix, test_suffix)))))))))));
         } else if kind == 32 {
             let ret2: str = node_field(pool, nid, 3);
             let ret_suffix2: str = if str_eq(ret2, "void") == 1 { "" } else { str_concat(" -> ", ret2) };
