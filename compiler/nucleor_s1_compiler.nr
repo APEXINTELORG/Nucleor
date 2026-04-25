@@ -9341,7 +9341,12 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // imports are inlined and BEFORE caching, so the cache holds the
     // post-expansion text. Identifier-and-quote-aware so a `!` inside
     // a string literal (e.g. `"err!"`) survives untouched.
-    let source: str = expand_format_macros(resolved);
+    let after_format: str = expand_format_macros(resolved);
+    // T2.3 (v0.2.349): expand closure literals `|args| body` in
+    // argument position. Synthesizes top-level fns at the head of
+    // the source; replaces the closure expression with the synth fn
+    // name so downstream parsing sees a normal identifier reference.
+    let source: str = expand_closures(after_format);
     if use_cache == 1 {
         system("mkdir .nuc_cache 2>NUL");
         file_write_string(manifest_path, module_records_serialize(module_records));
@@ -9632,6 +9637,234 @@ fn normalize_output_name(raw: str) -> str {
         i = i + 1;
     };
     return sanitize(base);
+}
+
+// ===== T2.3 (v0.2.349): closure literals (no-capture) =====
+//
+// Source-level rewriting of `|args| body` closure expressions in
+// argument position. Each closure is lifted into a synthesized
+// top-level fn (`__closure_<hash>_<idx>`), prepended to the merged
+// source, and the closure expression is replaced with a bare
+// identifier reference to that fn. The Vec iterator helpers
+// (T2.2 dispatch) then receive a function-pointer value through
+// the existing i64-cell convention — no runtime change required.
+//
+// Scope: NO-CAPTURE closures only (the body must not reference
+// any name that would be undefined at the top-level scope).
+// Closures with captures land in T2.3b once the runtime gains
+// `(fn_ptr, env_ptr)` pair-call support.
+//
+// Disambiguation from bitwise `|`: closures are recognized only
+// when `|` appears in an expression-arg position — immediately
+// preceded (after whitespace) by `(`, `,`, `=`, `=>`, `[`, or
+// the start of source. A `|` between values (e.g. `a | b`) stays
+// a bitwise op.
+
+fn close_is_arg_position_char(c: i64) -> i64 {
+    // ONLY fire in unambiguous call-argument position. Earlier
+    // versions also fired after `=`, `=>`, `[`, `{`, `;` etc., but
+    // the existing parser already has full support for closures in
+    // let-binding RHS via the kind-49 closure-let lower path —
+    // intercepting them here breaks the indirect-call dispatch
+    // (the let-binding makes the local an i64 fn-pointer and the
+    // parser then can't find the global symbol to direct-call).
+    // So T2.3 source-rewriting fires ONLY after `(` and `,`, where
+    // a closure unambiguously means a function-pointer arg to the
+    // surrounding call. The existing parser handles every other
+    // closure context.
+    if c == 40 { return 1; };
+    if c == 44 { return 1; };
+    return 0;
+}
+
+fn close_parse_arg_list(src: str, start: i64, slen: i64) -> Vec<i32> {
+    // Parses `<ident>(, <ident>)*` from start. Returns
+    // [end_pos_at_closing_pipe_plus_1, name1, name2, ...].
+    // Returns [0 - 1] on parse error.
+    let mut out: Vec<i32> = Vec::new();
+    out.push(0 - 1);
+    let mut p: i64 = start;
+    let mut first: i64 = 1;
+    while p < slen && str_char_at(src, p) != 124 {
+        // skip whitespace
+        while p < slen && (str_char_at(src, p) == 32 || str_char_at(src, p) == 9) { p = p + 1; };
+        if p < slen && str_char_at(src, p) == 124 { p = p; }
+        else if first == 0 {
+            if p < slen && str_char_at(src, p) == 44 {
+                p = p + 1;
+                while p < slen && (str_char_at(src, p) == 32 || str_char_at(src, p) == 9) { p = p + 1; };
+            } else {
+                return out;
+            };
+        };
+        if p < slen && (is_alpha(str_char_at(src, p)) == 1 || str_char_at(src, p) == 95) {
+            let name_start: i64 = p;
+            let mut name_done: i64 = 0;
+            while p < slen && name_done == 0 {
+                let cc: i64 = str_char_at(src, p);
+                if is_alnum(cc) == 1 || cc == 95 { p = p + 1; }
+                else { name_done = 1; };
+            };
+            out.push(str_substring(src, name_start, p));
+            first = 0;
+            // Optional `: type` annotation — skip over it.
+            while p < slen && (str_char_at(src, p) == 32 || str_char_at(src, p) == 9) { p = p + 1; };
+            if p < slen && str_char_at(src, p) == 58 {
+                p = p + 1;
+                while p < slen && str_char_at(src, p) != 44 && str_char_at(src, p) != 124 { p = p + 1; };
+            };
+        } else if p >= slen || str_char_at(src, p) != 124 {
+            return out;
+        };
+    };
+    if p >= slen || str_char_at(src, p) != 124 { return out; };
+    vec_set(out, 0, p + 1);
+    return out;
+}
+
+fn close_parse_body_end(src: str, start: i64, slen: i64) -> i64 {
+    // Walk forward from start. Body ends at the first `,` or `)`
+    // or `]` at the same paren/bracket depth as where we started.
+    // String/char literals and line comments don't count.
+    let mut p: i64 = start;
+    let mut depth: i64 = 0;
+    let mut in_dq: i64 = 0;
+    let mut in_sq: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        if in_dq == 1 {
+            if c == 92 && p + 1 < slen { p = p + 2; }
+            else if c == 34 { in_dq = 0; p = p + 1; }
+            else { p = p + 1; };
+        } else if in_sq == 1 {
+            if c == 92 && p + 1 < slen { p = p + 2; }
+            else if c == 39 { in_sq = 0; p = p + 1; }
+            else { p = p + 1; };
+        } else if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+        } else if c == 34 { in_dq = 1; p = p + 1; }
+        else if c == 39 { in_sq = 1; p = p + 1; }
+        else if c == 40 || c == 91 || c == 123 { depth = depth + 1; p = p + 1; }
+        else if c == 41 || c == 93 || c == 125 {
+            if depth == 0 { return p; };
+            depth = depth - 1;
+            p = p + 1;
+        } else if c == 44 && depth == 0 { return p; }
+        else { p = p + 1; };
+    };
+    return p;
+}
+
+fn close_synthesize_fn(name: str, args: Vec<i32>, body_text: str) -> str {
+    let mut sb: i64 = sb_new();
+    sb_append(sb, "fn ");
+    sb_append(sb, name);
+    sb_append(sb, "(");
+    let na: i64 = vec_len(args);
+    let mut i: i64 = 0;
+    while i < na {
+        if i > 0 { sb_append(sb, ", "); };
+        sb_append(sb, vec_get(args, i));
+        sb_append(sb, ": i64");
+        i = i + 1;
+    };
+    sb_append(sb, ") -> i64 {\n    return ");
+    sb_append(sb, body_text);
+    sb_append(sb, ";\n}\n\n");
+    return sb_to_str(sb);
+}
+
+fn expand_closures(src: str) -> str {
+    let mut prepend: i64 = sb_new();
+    let mut sb: i64 = sb_new();
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    let mut last_non_ws: i64 = 0;
+    let mut idx: i64 = 0;
+    let src_id: str = content_hash(src);
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            while p < slen && str_char_at(src, p) != 10 {
+                sb_append(sb, str_substring(src, p, p + 1));
+                p = p + 1;
+            };
+            last_non_ws = 10;
+        } else if c == 34 {
+            sb_append(sb, "\"");
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 34 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    sb_append(sb, str_substring(src, p, p + 2));
+                    p = p + 2;
+                } else {
+                    sb_append(sb, str_substring(src, p, p + 1));
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, "\""); p = p + 1; };
+            last_non_ws = 34;
+        } else if c == 39 {
+            sb_append(sb, "'");
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 39 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    sb_append(sb, str_substring(src, p, p + 2));
+                    p = p + 2;
+                } else {
+                    sb_append(sb, str_substring(src, p, p + 1));
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, "'"); p = p + 1; };
+            last_non_ws = 39;
+        } else if c == 124 && close_is_arg_position_char(last_non_ws) == 1 {
+            // Possible closure. Parse args between `|...|`.
+            let arg_parse: Vec<i32> = close_parse_arg_list(src, p + 1, slen);
+            let after_args: i64 = vec_get(arg_parse, 0);
+            if after_args >= 0 {
+                let mut args: Vec<i32> = Vec::new();
+                let mut ai: i64 = 1;
+                while ai < vec_len(arg_parse) {
+                    args.push(vec_get(arg_parse, ai));
+                    ai = ai + 1;
+                };
+                // Skip whitespace before body
+                let mut bp: i64 = after_args;
+                while bp < slen && (str_char_at(src, bp) == 32 || str_char_at(src, bp) == 9) { bp = bp + 1; };
+                let body_end: i64 = close_parse_body_end(src, bp, slen);
+                let body_text: str = str_substring(src, bp, body_end);
+                // Synthesize fn name + emit
+                let synth_name: str = str_concat("__closure_", str_concat(src_id, str_concat("_", str_from_int(idx))));
+                idx = idx + 1;
+                sb_append(prepend, close_synthesize_fn(synth_name, args, body_text));
+                sb_append(sb, synth_name);
+                p = body_end;
+                last_non_ws = if p > 0 { str_char_at(src, p - 1) } else { 0 };
+                continue;
+            };
+            // Not a closure — emit `|` as-is.
+            sb_append(sb, "|");
+            p = p + 1;
+            last_non_ws = 124;
+        } else if is_alpha(c) == 1 || c == 95 {
+            let id_start: i64 = p;
+            let mut id_done: i64 = 0;
+            while p < slen && id_done == 0 {
+                let ch: i64 = str_char_at(src, p);
+                if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
+                else { id_done = 1; };
+            };
+            let name: str = str_substring(src, id_start, p);
+            sb_append(sb, name);
+            last_non_ws = str_char_at(name, str_len(name) - 1);
+        } else {
+            sb_append(sb, str_substring(src, p, p + 1));
+            if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
+            p = p + 1;
+        };
+    };
+    return str_concat(sb_to_str(prepend), sb_to_str(sb));
 }
 
 // ===== T2.6 (v0.2.346): format-string macro expansion =====
