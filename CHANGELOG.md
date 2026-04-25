@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.94] — 2026-04-25
+
+**Feature: `panic!`, `assert!`, and `dbg!` macro forms.** Pre-v0.3.94,
+writing `panic!("msg")` or `assert!(cond)` failed at clang link with
+`@panic undefined` / `@assert undefined`. The textual macro
+preprocessor only recognized `println!`, `format!`, and `print!`;
+other `name!()` forms were parsed as `name` (ident) `!` (negate)
+`(...)` (parens), which produced a global symbol reference for
+the bare name.
+
+The runtime helpers `__nucleor_panic` and `__nucleor_assert` were
+already wired (line 2706 / 2635). All that was needed was for the
+preprocessor to strip the trailing `!` so the existing fn call
+dispatch handles them.
+
+### Fix
+
+Add a branch to the macro preprocessor at line 13057 that drops
+the `!` for `panic`, `assert`, and `dbg` (also added — common Rust
+debugging idiom). Sits BEFORE the println!/format!/print! mode
+detection so it catches these forms first:
+
+```nucleor
+if str_eq(name, "panic") == 1 || str_eq(name, "assert") == 1 || str_eq(name, "dbg") == 1 {
+    sb_append(sb, name);
+    p = p + 1;       // skip the `!`
+    continue;
+};
+```
+
+### What now works that previously didn't
+
+```nucleor
+panic!("intentional");        // ✓ runtime PANIC: intentional, exit 1
+assert!(2 + 2 == 4);          // ✓ no-op when true
+dbg!(some_value);             // ✓ delegates to dbg() runtime helper
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — macro preprocessor at
+  line ~13057 gains panic/assert/dbg `!` strip. Bootstrap fixed
+  point at SHA `3cd21d68` (was `eda5a0ee`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t370_panic_assert_macros.nr` — new strict
+  regression fixture.
+- `tools/verify.{sh,ps1}` — new T3.70 verify step.
+
+### Verify gate
+
+- 448/448 green (was 447 + 1 step from T3.70).
+- All prior regression fixtures (T3.28-T3.69) still green.
+- Bootstrap fixed point closes at `3cd21d68`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.94)
+
+- **31 codegen + 2 runtime + 8 parser/check diagnostic = 41 total**
+- **43 strict regression fixtures** (T3.28-T3.70)
+- **6 robotics RT showcase examples** in Tier 4
+
 ## [0.3.93] — 2026-04-25
 
 **Diagnostic: `&mut T` reference parameters surface a clear error
