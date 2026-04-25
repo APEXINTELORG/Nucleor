@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 10))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 11))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -758,6 +758,20 @@ tools_suite_memory_budget() {
     _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
 }
 
+t26_format_macros() {
+    # v0.2.346 (T2.6): source-level macro expansion. 6 #[test] cases
+    # cover int placeholder, two placeholders, {:s} str passthrough,
+    # literal-only, {{ }} escapes, {:b} bool spec.
+    "$BIN" test "tests/smoke/t26_format_macros.nr" >/tmp/_nuc_step.log 2>&1
+    grep -q "PASS: test_format_basic_int" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_format_two_placeholders" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_format_str_passthrough" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_format_literal_only" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_format_escaped_braces" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_format_bool_spec" /tmp/_nuc_step.log || return 1
+    grep -q "test result: PASS (6 tests)" /tmp/_nuc_step.log || return 1
+}
+
 t16_gen_headers_structs() {
     # v0.2.345 (T1.6): nuc gen-headers walks the source for #[repr(C)]
     # structs, emits typedef structs in the C header, and accepts
@@ -993,6 +1007,7 @@ step "T1.5c privatization (cross-module call surfaces succeed)" t15c_privatizati
 step "T1.5d MOD-003 surfaces with origin + pub hint" t15d_mod003
 step "T1.4 nuc registry export-static (GH-Pages schema)" t14_export_static
 step "T1.6 gen-headers emits #[repr(C)] struct typedefs" t16_gen_headers_structs
+step "T2.6 println!/print!/format! macros expand correctly" t26_format_macros
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------
