@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.113] — 2026-04-25
+
+**Capture propagation across nested closure literals.** v0.3.107
+fixed the id collision (both nested closures got `__closure_0`);
+v0.3.113 fixes the related capture-propagation bug.
+
+Pre-v0.3.113, the outer closure's capture-collect ignored inner
+closure literals entirely (no `kind == 42` case in
+`closure_collect_capture_expr`). When the inner closure referenced
+a name that ONLY existed in the caller's (e.g. `main`'s) scope,
+outer never captured that name — so when inner's lowering queried
+outer's `clo_sym` for it, it wasn't there, inner emitted `@<name>`
+global refs, and clang link failed:
+
+```
+error: use of undefined value '@n'
+```
+
+Hard-blocked any nested closure pattern that captures outer-scope
+state — common in functional / curried API designs and event
+handlers.
+
+### Fix
+
+In `closure_collect_capture_expr`, add a `kind == 42` arm that
+walks the inner closure's body recursively, passing inner's
+params as the shadow set so inner-bound names don't bubble up.
+Names that resolve in the caller-scope sym become outer's
+captures; those then re-propagate to inner via the existing
+param→capture wiring at inner's own lowering time.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t390 returns 112 (5 + 100 + 7),
+proving the inner closure correctly reads `n` (captured by outer
+from main, then by inner from outer) and `x` (outer's param
+captured by inner) alongside its own param `y`. `bin/nucleor.exe`
+SHA `36d7aca4`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `kind == 42` arm in
+  `closure_collect_capture_expr` (after the kind == 52 case).
+- `tests/fixtures/t390_nested_closure_capture.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.112] — 2026-04-25
 
 **`extern "C" fn name(...)` declaration syntax.** Pre-v0.3.112,

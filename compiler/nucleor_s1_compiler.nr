@@ -9734,6 +9734,30 @@ fn closure_collect_capture_expr(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params:
         };
         return 0;
     };
+    // v0.3.113: nested closure literal (kind 42). Pre-v0.3.113, the
+    // outer closure's capture-collect ignored inner closure literals
+    // entirely (no kind-42 case). Outer never captured names that
+    // ONLY the inner closure referenced — so when inner's lowering
+    // queried outer's clo_sym for those names, they weren't there,
+    // inner emitted `@<name>` global refs, and clang link failed
+    // (`use of undefined value '@n'`). Walk the inner's body and
+    // bubble up any var-refs that resolve in OUTER's sym AND are
+    // NOT inner's params (those are inner-local and shouldn't
+    // propagate to outer's capture set).
+    if kind == 42 {
+        let inner_params: i64 = node_field(pool, nid, 1);
+        let inner_body: i64 = node_field(pool, nid, 2);
+        let ibc: i64 = list_len(pool, inner_body);
+        let mut ibi: i64 = 0;
+        while ibi < ibc {
+            // Use inner's params as the "shadow" param list so a name
+            // that's an inner-param is treated as bound (skipped).
+            // Otherwise the existing capture-collect rules apply.
+            closure_collect_capture_stmt(pool, list_get(pool, inner_body, ibi), sym, inner_params, caps);
+            ibi = ibi + 1;
+        };
+        return 0;
+    };
     return 0;
 }
 

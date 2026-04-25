@@ -79048,6 +79048,10 @@ bb.entry:
   %r.345 = alloca i64
   %r.350 = alloca i64
   %r.354 = alloca i64
+  %r.375 = alloca i64
+  %r.380 = alloca i64
+  %r.385 = alloca i64
+  %r.389 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
@@ -79582,8 +79586,58 @@ L62:
   %r.371 = add i64 0, 0
   ret i64 %r.371
 L59:
-  %r.372 = add i64 0, 0
-  ret i64 %r.372
+  %r.372 = load i64, ptr %r.14
+  %r.373 = add i64 42, 0
+  %r.374.cmp = icmp eq i64 %r.372, %r.373
+  %r.374 = zext i1 %r.374.cmp to i64
+  %br.374.cond = icmp ne i64 %r.374, 0
+  br i1 %br.374.cond, label %L63, label %L65
+L63:
+  %r.376 = load i64, ptr %r.0
+  %r.377 = load i64, ptr %r.2
+  %r.378 = add i64 1, 0
+  %r.379 = call i64 @node_field(i64 %r.376, i64 %r.377, i64 %r.378)
+  store i64 %r.379, ptr %r.375
+  %r.381 = load i64, ptr %r.0
+  %r.382 = load i64, ptr %r.2
+  %r.383 = add i64 2, 0
+  %r.384 = call i64 @node_field(i64 %r.381, i64 %r.382, i64 %r.383)
+  store i64 %r.384, ptr %r.380
+  %r.386 = load i64, ptr %r.0
+  %r.387 = load i64, ptr %r.380
+  %r.388 = call i64 @list_len(i64 %r.386, i64 %r.387)
+  store i64 %r.388, ptr %r.385
+  %r.390 = add i64 0, 0
+  store i64 %r.390, ptr %r.389
+  br label %L66
+L66:
+  %r.391 = load i64, ptr %r.389
+  %r.392 = load i64, ptr %r.385
+  %r.393.cmp = icmp slt i64 %r.391, %r.392
+  %r.393 = zext i1 %r.393.cmp to i64
+  %br.393.cond = icmp ne i64 %r.393, 0
+  br i1 %br.393.cond, label %L67, label %L68
+L67:
+  %r.394 = load i64, ptr %r.0
+  %r.395 = load i64, ptr %r.0
+  %r.396 = load i64, ptr %r.380
+  %r.397 = load i64, ptr %r.389
+  %r.398 = call i64 @list_get(i64 %r.395, i64 %r.396, i64 %r.397)
+  %r.399 = load i64, ptr %r.4
+  %r.400 = load i64, ptr %r.375
+  %r.401 = load i64, ptr %r.8
+  %r.402 = call i64 @closure_collect_capture_stmt(i64 %r.394, i64 %r.398, i64 %r.399, i64 %r.400, i64 %r.401)
+  %r.403 = load i64, ptr %r.389
+  %r.404 = add i64 1, 0
+  %r.405 = add i64 %r.403, %r.404
+  store i64 %r.405, ptr %r.389
+  br label %L66
+L68:
+  %r.406 = add i64 0, 0
+  ret i64 %r.406
+L65:
+  %r.407 = add i64 0, 0
+  ret i64 %r.407
 }
 
 define i64 @closure_collect_capture_stmt(i64 %p.0, i64 %p.1, i64 %p.2, i64 %p.3, i64 %p.4) {
