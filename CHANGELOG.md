@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.104] — 2026-04-25
+
+**Shift operators `<<` and `>>` — eliminates the second silent-
+miscompute hazard in the same family as v0.3.103 bitwise.**
+Pre-v0.3.104, neither `<<` nor `>>` was lexed; `let y: i64 = x << 4;`
+parsed as `x` plus garbage that was silently dropped, producing
+the LHS or 0 (depending on optimizer state). Same HIGH-blast risk
+class as the bitwise `& | ^` issue: any code doing mask building,
+pack/unpack, hash mixing, or fast division-by-power-of-two hit
+silent wrong values with no diagnostic.
+
+### Fix
+
+1. Lexer: `<<` lexes as a new token 115. `>>` is **intentionally
+   not lexed as a single token** — generic syntax `Vec<Vec<T>>`
+   ends in `>>` and the seven angle-group skips would all need
+   updating to handle the merged form. Instead:
+2. Parser: new `parse_shift` tier between `parse_add` and
+   `parse_bitwise` (matching Rust precedence: arith > shift >
+   bitwise > comparison). It consumes `<<` (token 115) directly,
+   and detects two adjacent `>` tokens (33, 33) as `>>` —
+   synthesizing a virtual `>>` AST op (kind 116) without touching
+   the lexer or breaking generic disambiguation.
+3. tok_to_ir: 115 → iop 23 (LLVM `shl i64`); 116 → iop 24 (LLVM
+   `ashr i64`, signed/arithmetic right shift). iop 17 was taken
+   by `load`, so 23/24 (free) used.
+4. emit_inst: ops 23/24 emit `shl`/`ashr i64`.
+5. DCE + opt_fold pure-op ranges extended.
+
+Precedence verification (in fixture t380): `a & 0xff << 1` parses
+as `a & (0xff << 1)` = `3 & 510` = `2`, matching Rust.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t380 returns 0 across five
+shift tests including precedence interaction with bitwise `&`.
+Generic `Vec<Vec<i64>>` still parses correctly. `bin/nucleor.exe`
+SHA `749cfc18`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — lexer `<<` entry, new
+  `parse_shift` tier (rebinds parse_bitwise to call it),
+  tok_to_ir entries 115/116, emit_inst ops 23/24, DCE/opt_fold
+  pure-op range extensions.
+- `tests/fixtures/t380_shift_ops.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.103] — 2026-04-25
 
 **Real bitwise op codegen + `str_from_int` alias.** Two related
