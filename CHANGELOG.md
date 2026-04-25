@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.110] — 2026-04-25
+
+**Supertrait syntax `trait Sub: Super` / `trait Foo: Bar + Baz`.**
+Pre-v0.3.110, `parse_trait_decl` expected `{` immediately after the
+trait name, so the canonical Rust supertrait declaration cascaded
+into 13+ parse errors:
+
+```
+trait Dog: Animal {
+    fn bark(&self) -> i64 { return self.sound() + 10; }
+}
+```
+
+Hard adoption blocker for any code modeling trait hierarchies.
+
+### Fix
+
+Between the optional generic-params clause and the body `{`, accept
+an optional `:` followed by one or more comma-`+`-separated trait
+references (each may carry its own `<…>` generic args). Plus an
+optional `where`-clause skip (already had a helper). Supertrait
+names are syntactically accepted but not wired into method
+dispatch — trait inheritance semantics already work because the
+impl block separately implements both traits and method dispatch
+resolves through the impl_table.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t387 returns 11 (`Husky.bark() =
+sound() + 10 = 1 + 10`), proving both `Animal` and `Dog` defaults
+are reachable through the same impl set when the syntactic
+relationship is declared. `bin/nucleor.exe` SHA `7b1dbb6a`.
+452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — supertrait clause skip in
+  `parse_trait_decl` between generic params and body `{`.
+- `tests/fixtures/t387_supertrait_syntax.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.109] — 2026-04-25
 
 **Iterator combinators `.any()` / `.all()` / `.take(n)` / `.skip(n)`.**
