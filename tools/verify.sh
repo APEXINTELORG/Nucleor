@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 74))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 75))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1057,6 +1057,21 @@ t356_indexed_lhs_diagnostic() {
     "$BIN" build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -q "indexed assignment" /tmp/_nuc_step.log || return 1
     grep -q "vec_set" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t359_fn_pointer_type() {
+    # T3.59 (v0.3.83): regression test for fn-pointer type syntax
+    # `fn(T) -> R` in parameter positions. Pre-v0.3.83, parse_type
+    # didn't recognize `fn` as a type-starter and cascaded into 26+
+    # parse errors. Post: parsed as i64 (Nucleor fn-ptr ABI).
+    "$BIN" build "tests/fixtures/t359_fn_pointer_type.nr" -o "_t359_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t359_check" ] || [ -x "target/_t359_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t359_check" ]; then exe="target/_t359_check"; else exe="target/_t359_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    local code=$?
+    [ "$code" -eq 0 ] || return 1
     return 0
 }
 
@@ -2152,6 +2167,7 @@ step "T3.55 nested struct field assign safety net (pre-v0.3.80 segfault → clea
 step "T3.56 indexed-LHS assign safety net (pre-v0.3.81 segfault → clean diagnostic)" t356_indexed_lhs_diagnostic
 step "T3.57 tuple-destructure let safety net (pre-v0.3.81 segfault → clean diagnostic)" t357_tuple_let_diagnostic
 step "T3.58 trait default-method support (impls inherit defaults; Self substitution)" t358_trait_default_methods
+step "T3.59 fn-pointer type syntax `fn(T) -> R` in param positions" t359_fn_pointer_type
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
