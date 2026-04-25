@@ -1296,7 +1296,19 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if vec_len(params) > 0 { cp = expect_tok(tokens, cp, 44); };
         let pn: i64 = pkv(tokens, cp); cp = expect_tok(tokens, cp + 1, 42);
         let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
-        params.push(mk3(pool, 41, pn, pr_val(tr)));
+        let ptype: str = pr_val(tr);
+        // v0.3.93: detect &mut T parameter and emit a clear diagnostic.
+        // Pre-v0.3.93, &mut T params silently passed by value (not by
+        // reference), so any caller mutation via `*x = ...` was a no-op
+        // — `add_one(&mut n)` returned without modifying caller's n.
+        // Real implementation requires get/store-via-pointer codegen
+        // (ptrtoint of alloca slot at call site, inttoptr+load/store
+        // at deref). Until then, emit a clear error pointing at the
+        // workaround.
+        if str_len(ptype) >= 5 && str_eq(str_substring(ptype, 0, 5), "&mut ") == 1 {
+            print(str_concat("ERROR: &mut reference parameter `", str_concat(pn, str_concat(": ", str_concat(ptype, "` in fn signature is not yet supported. Mutations via `*x = ...` would silently NOT propagate back to the caller. Workaround: return the new value (`fn foo(x: i64) -> i64 { return x + 1; }`) or use a `Vec<i64>` for shared state. Tracked for a future ship — get/store-via-pointer codegen needed.")))));
+        };
+        params.push(mk3(pool, 41, pn, ptype));
     };
     cp = cp + 1;
     let mut rtype: str = "void";
