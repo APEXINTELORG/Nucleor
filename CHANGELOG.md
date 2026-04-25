@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.99] — 2026-04-25
+
+**`vec![…]` macro — Rust-idiom container literal.** Pre-v0.3.99,
+`let v: Vec<i64> = vec![1, 2, 3];` failed at clang link with
+`use of undefined value '@vec'`. The lexer split the surface
+form `vec![a, b, c]` as `vec` (identifier) + `!` (logical-NOT)
++ `[a, b, c]` (array-literal); the let-init bound `vec` to a
+non-existent global symbol while the array-literal payload
+became unreachable dead code. This was a hard-stop adoption
+blocker for any Rust user reaching for the canonical container
+constructor.
+
+### Fix
+
+Added textual `vec!` rewrite to the macro preprocessor
+(`expand_format_macros`), mirroring the existing `panic!` /
+`assert!` `!`-strip pattern. Empty `vec![]` collapses to
+`Vec::new()` for clean IR; non-empty `vec![a, b, c]` rewrites
+to a block expression that allocates a Vec and pushes each
+arg in source order:
+
+```
+vec![a, b, c]
+  =>  { let mut __nuc_vec: Vec<i64> = Vec::new();
+        __nuc_vec.push(a); __nuc_vec.push(b);
+        __nuc_vec.push(c); __nuc_vec }
+```
+
+Top-level commas are split with full bracket-balance and
+string/char-literal awareness, so `vec![(1,2), [3,4], "x,y"]`
+all parse correctly. Inner items recurse through the macro
+preprocessor so nested `vec![]` / `format!()` / etc. expand.
+
+### Bootstrap
+
+Single-pass fixed point — fixture t375 returns 60 (10+20+30
+via three-element literal indexed access). `bin/nucleor.exe`
+SHA `1dd3b157`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `vec!` block in
+  `expand_format_macros` (after the panic!/assert! `!`-strip).
+- `tests/fixtures/t375_vec_macro.nr` — regression pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed (T1.7).
+
 ## [0.3.98] — 2026-04-25
 
 **Runtime helper: `env_get_or(name, default)` — Rust ergonomic

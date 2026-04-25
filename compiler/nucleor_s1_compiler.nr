@@ -13105,6 +13105,102 @@ fn expand_format_macros(src: str) -> str {
                     continue;
                 };
             };
+            // v0.3.99: vec![…] macro. Pre-v0.3.99 the lexer split
+            // `vec![a, b, c]` as `vec` (ident) + `!` (logical-NOT) +
+            // `[a, b, c]` (array-literal). The let-init bound `vec`
+            // (an undefined global → clang link error `@vec undefined`)
+            // and the array-literal payload became dead code. Rewrite
+            // textually to a block expression that constructs a Vec
+            // and pushes each element. Empty `vec![]` collapses to
+            // `Vec::new()` for cleaner IR. Top-level commas split the
+            // arg list; nested (), [], {}, and "/'/' string literals
+            // are tracked so `vec![(1,2), [3,4]]` works.
+            if preceded_by_dot == 0 && p < slen && str_char_at(src, p) == 33 && p + 1 < slen && str_char_at(src, p + 1) == 91 {
+                if str_eq(name, "vec") == 1 {
+                    p = p + 2;
+                    let lit_start: i64 = p;
+                    let mut depth: i64 = 1;
+                    let mut q: i64 = lit_start;
+                    let mut in_dq: i64 = 0;
+                    let mut in_sq: i64 = 0;
+                    while q < slen && depth > 0 {
+                        let ch: i64 = str_char_at(src, q);
+                        if in_dq == 1 {
+                            if ch == 92 && q + 1 < slen { q = q + 1; }
+                            else if ch == 34 { in_dq = 0; };
+                        } else if in_sq == 1 {
+                            if ch == 92 && q + 1 < slen { q = q + 1; }
+                            else if ch == 39 { in_sq = 0; };
+                        } else if ch == 34 { in_dq = 1; }
+                        else if ch == 39 { in_sq = 1; }
+                        else if ch == 91 { depth = depth + 1; }
+                        else if ch == 93 { depth = depth - 1; };
+                        q = q + 1;
+                    };
+                    if depth == 0 {
+                        let lit_end: i64 = q - 1;
+                        let inner: str = str_substring(src, lit_start, lit_end);
+                        let inner_expanded: str = expand_format_macros(inner);
+                        let mut all_ws: i64 = 1;
+                        let il: i64 = str_len(inner_expanded);
+                        let mut ic: i64 = 0;
+                        while ic < il {
+                            let cw: i64 = str_char_at(inner_expanded, ic);
+                            if cw != 32 && cw != 9 && cw != 10 && cw != 13 { all_ws = 0; ic = il; };
+                            ic = ic + 1;
+                        };
+                        if all_ws == 1 {
+                            sb_append(sb, "Vec::new()");
+                        } else {
+                            sb_append(sb, "{ let mut __nuc_vec: Vec<i64> = Vec::new(); ");
+                            let mut sd: i64 = 0;
+                            let mut s_dq: i64 = 0;
+                            let mut s_sq: i64 = 0;
+                            let mut item_start: i64 = 0;
+                            let mut idx: i64 = 0;
+                            while idx < il {
+                                let ch2: i64 = str_char_at(inner_expanded, idx);
+                                if s_dq == 1 {
+                                    if ch2 == 92 && idx + 1 < il { idx = idx + 1; }
+                                    else if ch2 == 34 { s_dq = 0; };
+                                } else if s_sq == 1 {
+                                    if ch2 == 92 && idx + 1 < il { idx = idx + 1; }
+                                    else if ch2 == 39 { s_sq = 0; };
+                                } else if ch2 == 34 { s_dq = 1; }
+                                else if ch2 == 39 { s_sq = 1; }
+                                else if ch2 == 40 || ch2 == 91 || ch2 == 123 { sd = sd + 1; }
+                                else if ch2 == 41 || ch2 == 93 || ch2 == 125 { sd = sd - 1; }
+                                else if ch2 == 44 && sd == 0 {
+                                    let it: str = str_substring(inner_expanded, item_start, idx);
+                                    sb_append(sb, "__nuc_vec.push(");
+                                    sb_append(sb, it);
+                                    sb_append(sb, "); ");
+                                    item_start = idx + 1;
+                                };
+                                idx = idx + 1;
+                            };
+                            let last_it: str = str_substring(inner_expanded, item_start, il);
+                            let lil: i64 = str_len(last_it);
+                            let mut last_ws: i64 = 1;
+                            let mut lic: i64 = 0;
+                            while lic < lil {
+                                let cw2: i64 = str_char_at(last_it, lic);
+                                if cw2 != 32 && cw2 != 9 && cw2 != 10 && cw2 != 13 { last_ws = 0; lic = lil; };
+                                lic = lic + 1;
+                            };
+                            if last_ws == 0 {
+                                sb_append(sb, "__nuc_vec.push(");
+                                sb_append(sb, last_it);
+                                sb_append(sb, "); ");
+                            };
+                            sb_append(sb, "__nuc_vec }");
+                        };
+                        p = q;
+                        last_non_ws = 41;
+                        continue;
+                    };
+                };
+            };
             if preceded_by_dot == 0 && p < slen && str_char_at(src, p) == 33 && p + 1 < slen && str_char_at(src, p + 1) == 40 {
                 let mut mode: i64 = 0 - 1;
                 if str_eq(name, "println") == 1 { mode = 0; };
