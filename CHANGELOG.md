@@ -5,6 +5,89 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.66] — 2026-04-25
+
+**Compiler fix #12: method calls on indexed struct field
+receivers (`p.rects[0].area()`).** Same bug class as v0.3.65
+but in `expr_struct_type` instead of `binop_float_type`. The
+v0.3.59 kind==10 branch in expr_struct_type only handled
+direct variable indexing; when the indexed expression was a
+struct field (`p.rects[i]`), type info was lost and the
+method dispatcher generated a wrong mangled name
+(`Vec__area` instead of `R__area`). v0.3.66 mirrors the same
+kind-9-operand fix from v0.3.65 into the parallel resolver.
+
+### Production relevance
+
+The pattern `container.collection[i].method()` is canonical
+in robotics:
+
+```nucleor
+let r1: f64 = pool.rects[0].area() * pool.weight;
+let total: f64 = pool.rects[0].area() + pool.rects[1].area();
+```
+
+Pools of shapes, particle batches, struct containers with
+`Vec<T>` fields whose elements need trait-dispatched
+processing — every variant uses this shape.
+
+### The pattern formalized
+
+The two type-resolvers (`binop_float_type` and
+`expr_struct_type`) have parallel kind enumerations. Container
+shapes (`Vec<T>`, `[T; N]`) need the SAME kind composition
+matrix in BOTH resolvers:
+
+| Operand kind of the indexed expression | binop fix | expr_struct fix |
+|---------------------------------------|-----------|-----------------|
+| 3 (var ref `v[i]`)                    | v0.3.55   | v0.3.59         |
+| 9 (struct field `self.samples[i]`)    | v0.3.65   | v0.3.66 (this)  |
+| 7 (fn-call `make_vec()[i]`)           | not yet   | not yet         |
+| 10 (nested indexing `vv[i][j]`)       | not yet   | not yet         |
+
+The fix shape is identical: walk the operand's type via the
+parallel kind handler, parse the resulting `Vec<T>` /
+`[T; N]` shape, return T.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `expr_struct_type`
+  kind==10 refactored to handle BOTH kind 3 (var ref) and
+  kind 9 (struct field) operands; the parsing logic for
+  Vec<T> / [T; N] shape extraction shared between both paths.
+  Bootstrap fixed point recomputed at SHA `c5061e2d` (was
+  `29fb6fb1`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t341_method_on_indexed_field.nr` — new
+  strict regression fixture covering method × scalar and
+  method × method patterns on indexed struct field receivers.
+- `tools/verify.{sh,ps1}` — new T3.41 verify step.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry added;
+  SHA stamp updated.
+
+### Verify gate
+
+- 418/418 green (was 417 + 1 new step from T3.41).
+- All prior regression fixtures (T3.28-T3.40) still green.
+- Bootstrap fixed point closes at `c5061e2d`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.66)
+
+- **12 codegen fixes**
+- **14 strict regression fixtures**: T3.28-T3.41
+- **Reusable infrastructure** + **parallel resolvers stay in
+  sync** — the v0.3.65/66 pair shows the fix shape transfers
+  directly between binop_float_type and expr_struct_type
+- **All fixes coexist**: bootstrap stable through 12 SHA
+  refreshes
+
+The two parallel resolvers now handle the same operand-
+composition matrix for the most common production cases.
+Method receivers on indexed struct fields work; arithmetic
+on indexed struct fields works; the dispatch mechanism is
+symmetric.
+
 ## [0.3.65] — 2026-04-25
 
 **Compiler fix #11: nested-operand indexing — `self.samples[i]`
