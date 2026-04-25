@@ -5,6 +5,141 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.60] — 2026-04-25
+
+**Compiler fix #7: trait method results in inline f64
+binops.** `r1.area() + r2.area()` where `area` is a trait
+method returning f64 returned -0.0 instead of the sum
+pre-v0.3.60. Same bug class as v0.3.54 — type-info loss
+when `binop_float_type` encounters an AST kind that isn't
+in its enumeration. Trait methods are kind 8
+(`obj.method(args)`); regular fn calls are kind 7. v0.3.54
+fixed kind 7; v0.3.60 closes kind 8.
+
+### Production relevance
+
+Traits are core Nucleor surface. The natural way to use them
+in numeric code is inline composition:
+
+```nucleor
+let total: f64 = shape1.area() + shape2.area();
+let weight: f64 = particle.mass() * particle.velocity_sq();
+let cost: f64 = path.length() + node.heuristic();
+```
+
+Pre-v0.3.60 every such inline form silently miscomputed.
+Per "robust production ready fixes only", this is exactly
+the production-blocking class — traits compose by design,
+and the compose-then-arithmetic shape is the workload.
+
+### Two-part fix
+
+The fix has **two interlocking parts** because trait methods
+go through a different path than regular fns:
+
+**Part 1 — extend the binop_float_type enumeration:**
+
+```nucleor
+if kind == 8 {
+    let recv_nid: i64 = node_field(pool, nid, 1);
+    let mname: str = node_field(pool, nid, 2);
+    let rtype: str = expr_struct_type(pool, recv_nid, sym, structs);
+    if str_len(rtype) == 0 { return ""; };
+    let mangled: str = str_concat(rtype, str_concat("__", mname));
+    let rt: i64 = sym_get(sym, str_concat("__fnret_", mangled));
+    ...
+};
+```
+
+The mangling matches what compile_one's pass-1.5
+(collect_impls at line 11304) generates: `Type__method`. So
+`r1.area()` looks up `__fnret_Rect__area`.
+
+**Part 2 — extend fn_decls collection:**
+
+The original v0.3.54 `fn_decls` collection (in
+`compile_one`'s pass-1) ran BEFORE the impl-mangling pass-1.5.
+Trait-impl methods get added to `impl_fns` at line 11308 —
+those mangled fns weren't in `fn_decls`, so
+`populate_fn_returns_in_sym` never seeded their `__fnret_`
+entries. Fix: also push to `fn_decls` at the impl-mangling
+site:
+
+```nucleor
+impl_fns.push(new_fn);
+fn_decls.push(new_fn);  // v0.3.60 — trait method __fnret_<MANGLED>
+trait_impl_register(trait_impls, type_name, orig_name, mangled);
+```
+
+Without Part 2, Part 1's lookup would always return -1
+(missing key) and the kind 8 branch would silently fall back
+to integer arithmetic. The two-part shape is structural —
+this is the first time the production-readiness arc has
+needed to extend BOTH a type-resolver kind enumeration AND
+its underlying sym infrastructure together.
+
+### What now works that previously didn't
+
+```
+r1.area() + r2.area()       → 22.0  (was: -0.0)
+r1.area() * 2.0             → 24.0  (was: 0.0)
+r1.area() * r2.area()       → 120.0 (was: 0.0)
+```
+
+The literal-as-second-operand case `r1.area() * 2.0` worked
+pre-v0.3.60 ONLY because the literal `2.0` triggers the
+kind==71 dispatch — but the LEFT operand still passed
+through integer arithmetic and got garbage. v0.3.60 fixes the
+underlying type detection so both halves of every binop see
+the f64 dispatch.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` —
+  - `binop_float_type` gains kind==8 branch.
+  - `compile_one` pass-1.5 collect_impls also pushes mangled
+    methods to `fn_decls`.
+  - Bootstrap fixed point recomputed at SHA `c1f676b0` (was
+    `a4b34d06`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t335_trait_method_fp_ops.nr` — new strict
+  regression fixture: trait + trait, trait + literal,
+  trait × trait.
+- `tools/verify.{sh,ps1}` — new T3.35 verify step.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry
+  added; SHA stamp updated.
+
+### Verify gate
+
+- 411/411 green (was 410 + 1 new step from T3.35).
+- All prior regression fixtures (T3.28-T3.34) still green.
+- Bootstrap fixed point closes at `c1f676b0`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.60)
+
+- **7 codegen fixes**: kinds 9/4/90-92 binop (v0.3.53),
+  kind 7 binop (v0.3.54), kind 10 binop (v0.3.55),
+  kind 5 unary (v0.3.57), kind 7 expr_struct_type (v0.3.58),
+  kind 10 expr_struct_type (v0.3.59), kind 8 binop +
+  fn_decls extension (v0.3.60)
+- **8 strict regression fixtures**: T3.28-T3.35
+- **Reusable infrastructure**:
+  - `__fnret_<NAME>` (v0.3.54) → drives `binop_float_type`
+    kind 7 + kind 8, `expr_struct_type` kind 7
+  - `__fulltype_<vname>` (v0.3.55) → drives `binop_float_type`
+    kind 10, `expr_struct_type` kind 10
+- **All fixes coexist**: bootstrap stable through 7 SHA
+  refreshes (4cd2d428 → e5722f24 → cb696a25 → 6b4cd0f3 →
+  13b25308 → 9f19b383 → a4b34d06 → c1f676b0)
+
+The trait-impl path was the last common-production AST shape
+the type-resolver enumeration missed. With Vec-of-struct
+(v0.3.59), fn-call-result (v0.3.58), trait-method-result
+(v0.3.60), and the binop coverage from v0.3.53/54/55, the
+silent-miscompilation surface for f64 arithmetic on
+realistic Nucleor code is structurally closed.
+
 ## [0.3.59] — 2026-04-25
 
 **Compiler fix #6: Vec-of-struct field access.** `v[0].x`

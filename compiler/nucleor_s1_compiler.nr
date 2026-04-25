@@ -10025,6 +10025,26 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
         if str_eq(rt, "f64") == 1 { return "f64"; };
         return "";
     };
+    // v0.3.60 fix: trait method call (`obj.method(args)` is
+    // AST kind 8). Real production case: trait method results
+    // used inline in binops (`r1.area() + r2.area()`) miscompiled
+    // because kind 8 wasn't in the enumeration. Resolve receiver
+    // type via expr_struct_type, construct the trait_impl mangled
+    // name (`<TYPE>__<METHOD>`), look up __fnret_<MANGLED>. The
+    // mangling matches what compile_one's pass-1.5 (collect_impls
+    // at line 11144) generates for trait methods.
+    if kind == 8 {
+        let recv_nid: i64 = node_field(pool, nid, 1);
+        let mname: str = node_field(pool, nid, 2);
+        let rtype: str = expr_struct_type(pool, recv_nid, sym, structs);
+        if str_len(rtype) == 0 { return ""; };
+        let mangled: str = str_concat(rtype, str_concat("__", mname));
+        let rt: i64 = sym_get(sym, str_concat("__fnret_", mangled));
+        if rt < 0 { return ""; };
+        if str_eq(rt, "f32") == 1 { return "f32"; };
+        if str_eq(rt, "f64") == 1 { return "f64"; };
+        return "";
+    };
     // v0.3.55 fix: Vec indexing (`v[i]` is AST kind 10).
     // Extract the element type from the variable's full declared
     // type (Vec<f64>) via the __fulltype_ sym entry. The existing
@@ -11287,6 +11307,13 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
                 let mangled: str = str_concat(type_name, str_concat("__", orig_name));
                 let new_fn: i64 = mk6(pool, 30, mangled, node_field(pool, method_nid, 2), node_field(pool, method_nid, 3), node_field(pool, method_nid, 4), node_field(pool, method_nid, 5));
                 impl_fns.push(new_fn);
+                // v0.3.60: also append to fn_decls so the mangled
+                // trait method has an `__fnret_<MANGLED>` sym entry
+                // populated by populate_fn_returns_in_sym at lower_fn
+                // entry. binop_float_type's kind==8 (method call)
+                // branch reads that entry to dispatch f64 ops on
+                // trait-method results.
+                fn_decls.push(new_fn);
                 trait_impl_register(trait_impls, type_name, orig_name, mangled);
                 mi = mi + 1;
             };
