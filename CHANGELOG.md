@@ -5,6 +5,90 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.40] — 2026-04-25
+
+**T3.23 extended to three-way drift coverage (verify.sh ⇄
+verify.ps1 ⇄ s1).** v0.3.39's drift gate caught the
+NUM-006..020 sync gap, but only because both verify.sh and
+verify.ps1 each ran their own T3.23 against s1 — and one of
+those checks happened to fire. The gap could also have been
+ps1-only-extension (added to verify.ps1, missing from
+verify.sh AND s1) — that case would only fire on Windows.
+Or sh-only-extension — only fires on Linux. v0.3.40 makes
+T3.23 explicitly check ALL THREE locations against each other,
+catching every direction of drift regardless of which OS the
+verify gate runs on.
+
+### Pairwise checks added
+
+T3.23 (in both verify.sh and verify.ps1) now runs six pairwise
+diffs:
+
+| From → To | Catches |
+|-----------|---------|
+| verify.sh → s1 | code in sh codes array but missing from is_known_diag_code |
+| s1 → verify.sh | code in is_known_diag_code but missing from sh codes array |
+| verify.ps1 → s1 | code in ps1 codes array but missing from is_known_diag_code |
+| s1 → verify.ps1 | code in is_known_diag_code but missing from ps1 codes array |
+| verify.sh → verify.ps1 | code in sh but missing from ps1 (the v0.3.39 NUM-006..020 case in reverse) |
+| verify.ps1 → verify.sh | code in ps1 but missing from sh (the EXACT bug class the v0.3.39 first-run found) |
+
+The last two pairs close the cross-script gap that v0.3.39's
+same-script-only check couldn't see. Pre-v0.3.40, a drift
+that landed in only one of the verify scripts would only be
+caught when running THAT script, not the other — meaning a
+contributor on one OS could merge a half-synced change.
+
+### Approach
+
+**verify.sh**: factored the diff into a `_drift_diff` local
+helper that takes (label_a, label_b, set_a, set_b) and reports
+codes in A missing from B. Six invocations cover the pairwise
+matrix. Both directions of each pair (A→B and B→A) check
+strict equality.
+
+**verify.ps1**: same structure with PowerShell idioms — added
+two helper functions `_ExtractBlock` (parses
+`local codes=(...)` or `$codes = @(...)` body) and `_DriftDiff`
+(set diff with Write-Host on missing). Six invocations mirror
+the bash matrix.
+
+Both scripts now parse the OTHER language's verify file as
+plain text — verify.sh greps `$codes = @(` in verify.ps1;
+verify.ps1 matches `local codes=(` in verify.sh. No
+language-aware parsing needed; both are just regex scans for
+the canonical block boundary markers.
+
+### Verify gate
+
+- 396/396 green (same step total — T3.23's check matrix grew
+  from 2 pairs to 6, no new step). T3.23 confirmed the three
+  lists are consistent: 177 codes in each.
+- Bootstrap fixed point unchanged at SHA `4cd2d428` (no
+  compiler change — verify-script-only).
+
+### Why this matters
+
+v0.3.39 caught a real drift, but only because the s1 check
+happened to surface it. The cross-script gap (the original
+pattern of the NUM-006..020 bug — added to one verify script,
+forgotten in the other) remained uncatchable by either
+script's T3.23 in isolation. v0.3.40 closes that gap. The
+gate is now structurally complete: any code added to any one
+of the three locations and forgotten in either of the other
+two will fail the next verify run on either OS.
+
+Future tightening candidates (lower marginal value):
+- Drift gate against the explain registry in
+  `compiler/nucleor_tools_suite.nr` (each code's synopsis,
+  cause, and hint must all be present). Currently caught
+  indirectly by `cli_explain_full_smoke` since it asserts
+  `nuc explain CODE` produces non-empty output for each
+  audited code.
+- Drift gate against `docs/spec/Nucleor_Error_Codes.md` (every
+  code should appear in the spec doc table). Not currently
+  enforced.
+
 ## [0.3.39] — 2026-04-25
 
 **T3.23 drift gate — caught a real 15-code synchronization

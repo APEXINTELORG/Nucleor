@@ -880,37 +880,40 @@ t39_rt005_ffi_call() {
 }
 
 t323_diag_code_drift() {
-    # T3.23 (v0.3.39): drift gate for the parallel canonical
-    # diagnostic code lists. v0.3.36 + v0.3.38 hardcoded the
-    # canonical set in TWO places — `is_known_diag_code` in
-    # `compiler/nucleor_s1_compiler.nr` and the `codes` array
-    # in `cli_explain_full_smoke` (this file + verify.ps1).
-    # When minting a new code, the contract is to add to BOTH;
-    # this gate catches the failure case where someone updates
-    # only one. Both directions are checked: a code in s1 but
-    # not smoke means the explain registry has no audit; a
-    # code in smoke but not s1 means DIAG-001 will spuriously
-    # fire on a real shipped code.
-    local s1_set
-    local smoke_set
+    # T3.23 (v0.3.39, extended v0.3.40): three-way drift gate
+    # for the parallel canonical diagnostic code lists. The
+    # set lives in THREE places:
+    #   * `is_known_diag_code` in compiler/nucleor_s1_compiler.nr
+    #   * `local codes=(...)` in tools/verify.sh
+    #   * `$codes = @(...)` in tools/verify.ps1
+    # v0.3.39 caught s1 vs same-script drift; v0.3.40 closes
+    # the cross-script gap (the original NUM-006..020 gap was
+    # sh-vs-ps1 drift, which a same-script check can't see).
+    # Asserts all three sets are pairwise equal.
+    local s1_set sh_set ps1_set
     s1_set=$(grep -oE 'str_eq\(code, "[A-Z]+-?[0-9]+"\)' "$ROOT/compiler/nucleor_s1_compiler.nr" \
              | grep -oE '"[A-Z]+-?[0-9]+"' | tr -d '"' | sort -u)
-    smoke_set=$(awk '/local codes=\(/,/^    \)/' "$ROOT/tools/verify.sh" \
-                | grep -oE '"[A-Z]+-?[0-9]+"' | tr -d '"' | sort -u)
-    local diff_a
-    local diff_b
-    diff_a=$(comm -23 <(echo "$smoke_set") <(echo "$s1_set"))
-    diff_b=$(comm -13 <(echo "$smoke_set") <(echo "$s1_set"))
-    if [ -n "$diff_a" ]; then
-        echo "       drift: codes in cli_explain_full_smoke but missing from is_known_diag_code:" | sed 's/^/       /'
-        echo "$diff_a" | sed 's/^/         - /'
-        return 1
-    fi
-    if [ -n "$diff_b" ]; then
-        echo "       drift: codes in is_known_diag_code but missing from cli_explain_full_smoke:" | sed 's/^/       /'
-        echo "$diff_b" | sed 's/^/         - /'
-        return 1
-    fi
+    sh_set=$(awk '/local codes=\(/,/^    \)/' "$ROOT/tools/verify.sh" \
+             | grep -oE '"[A-Z]+-?[0-9]+"' | tr -d '"' | sort -u)
+    ps1_set=$(awk '/\$codes = @\(/,/^    \)/' "$ROOT/tools/verify.ps1" \
+              | grep -oE '"[A-Z]+-?[0-9]+"' | tr -d '"' | sort -u)
+    _drift_diff() {
+        local label_a="$1" label_b="$2" set_a="$3" set_b="$4"
+        local missing_b
+        missing_b=$(comm -23 <(echo "$set_a") <(echo "$set_b"))
+        if [ -n "$missing_b" ]; then
+            echo "       drift: codes in $label_a but missing from $label_b:" | sed 's/^/       /'
+            echo "$missing_b" | sed 's/^/         - /'
+            return 1
+        fi
+        return 0
+    }
+    _drift_diff "verify.sh"  "is_known_diag_code" "$sh_set"  "$s1_set"  || return 1
+    _drift_diff "is_known_diag_code" "verify.sh"  "$s1_set"  "$sh_set"  || return 1
+    _drift_diff "verify.ps1" "is_known_diag_code" "$ps1_set" "$s1_set"  || return 1
+    _drift_diff "is_known_diag_code" "verify.ps1" "$s1_set"  "$ps1_set" || return 1
+    _drift_diff "verify.sh"  "verify.ps1"         "$sh_set"  "$ps1_set" || return 1
+    _drift_diff "verify.ps1" "verify.sh"          "$ps1_set" "$sh_set"  || return 1
     return 0
 }
 
