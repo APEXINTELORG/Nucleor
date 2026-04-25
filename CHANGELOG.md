@@ -5,6 +5,118 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.348] — 2026-04-24
+
+**T2.2 iterator trait + adapters — Vec method-call dispatch
+for `.map(f)`, `.filter(p)`, `.fold(init, f)`, `.each(f)`,
+`.sum()`, `.min()`, `.max()`, `.contains(x)`, `.index_of(x)`,
+`.reverse()`, `.sort()`, `.clone()`, `.clear()` routes to the
+typed `vec_*_i64` runtime helpers that have been wired in
+`stdlib/runtime/nucleor_llvm_rt.c` since RFC-0024 phase 1.**
+Closes the ergonomics gap — users get `v.map(dbl).filter(even).
+fold(0, add)` chain syntax instead of the awkward
+`vec_fold_i64(vec_filter_i64(vec_map_i64(v, dbl), even), 0, add)`.
+
+### Mechanism
+
+The parser already lowered `obj.method(args)` to kind-8 nodes,
+and the kind-8 lower-side already constructed a fallback
+`vec_<method>` symbol for any unrecognized method (the `.push`
+/ `.pop` / `.len` convention). The gap was the suffix:
+runtime helpers are named `vec_map_i64`, not `vec_map`. T2.2
+adds a single dispatch helper per compiler:
+
+```nucleor
+fn iter_method_for_vec(mname: str) -> i64 {
+    if str_eq(mname, "map") == 1 { return 1; };
+    if str_eq(mname, "filter") == 1 { return 1; };
+    // ... 11 more iterator method names
+    return 0;
+}
+```
+
+When kind-8 lowering would have produced `vec_<mname>`, it now
+checks `iter_method_for_vec(mname)`. If true, it produces
+`vec_<mname>_i64` instead — landing on the typed helper.
+
+Trait impls take precedence (via the existing `trait_impl_find`
+call), and Tensor methods take precedence (via
+`tensor_builtin_method_name`). Both are checked first so this
+new dispatch only kicks in for plain Vec method calls.
+
+### Function-pointer args
+
+Today's helpers take the function pointer as an i64 cell. The
+existing convention is to pass a fn name by reference:
+`v.map(dbl)` resolves `dbl` to its address and passes it as
+the second arg. Closure literals (`|x| x * 2`) ship in T2.3.
+
+### T2.2 smoke
+
+`tests/smoke/t22_iter_methods.nr` — 5 `#[test]` cases:
+- `test_map`        — `v.map(dbl)` doubles each element
+- `test_filter`     — `v.filter(even)` keeps only evens
+- `test_fold_and_sum` — `v.fold(0, add)` matches `v.sum()`,
+  with non-zero init verified separately
+- `test_min_max`    — both work on a 4-element Vec
+- `test_chain`      — `v.map(dbl).filter(even).fold(0, add)`
+  pipeline, the most common functional-style usage
+
+### Verify gate
+
+Windows: 357/357 PASS. Bootstrap fixpoint refreshed
+(seed sha256 `05e0bce3...`).
+
+### Numerics-compatibility
+
+All 13 dispatch targets are existing i64-typed runtime helpers
+— no new arithmetic surfaces, no narrow-wrap interaction. The
+helpers store function addresses in i64 cells per Nucleor's
+locked i64-everywhere FFI convention.
+
+### Memory safety
+
+The dispatch helper is a pure name lookup. The kind-8 lower
+path's existing argument lowering and reference-passing
+patterns are unchanged. Closure capture (which would introduce
+new borrow concerns) is deferred to T2.3.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — `iter_method_for_vec`
+  helper + dispatch in kind-8 lower.
+- `compiler/nucleor_tools_suite.nr` — synced helper + same
+  dispatch (so `nuc test`/`nuc build-strict` paths produce
+  identical IR).
+- `tests/smoke/t22_iter_methods.nr` — 5-case smoke including
+  the chain pipeline.
+- `tools/verify.ps1`, `tools/verify.sh` — new T2.2 step.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (413 fns,
+  792 optimized instructions; new sha256 05e0bce3...).
+- `bin/nucleor.exe` — rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Known limitations
+
+- Vec<i32> only — for f64 vecs use the `vec_*_f64` helpers
+  by name (e.g. `vec_sum_f64(v)`). T2.2b adds typed dispatch
+  by inspecting `Vec<T>` parameter `T` once the type checker
+  preserves generic args through method calls.
+- No `iter()` adapter chain yet — today the methods consume
+  the Vec; chained `v.iter().map().collect()` style needs a
+  separate Iterator type. Today's `v.map(f)` is roughly
+  Rust's `v.into_iter().map(f).collect()` collapsed.
+- Closure literals (`|x| x * 2`) NOT in this ship — T2.3.
+  Workaround today: define a named helper fn and pass it.
+- `take`, `skip`, `chain`, `zip`, `enumerate` adapters NOT
+  implemented — runtime helpers don't exist for them yet.
+  Add when they do.
+
+### Next
+
+T2.3 — closures with capture (`|x| x * 2` and
+`|x| x > threshold` with environment access).
+
 ## [0.2.347] — 2026-04-24
 
 **T2.1 pattern matching beyond enum tags — range patterns
