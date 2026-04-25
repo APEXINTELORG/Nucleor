@@ -312,10 +312,21 @@ fn lex(src: str) -> Vec<i32> {
         else if c == 124 && p + 1 < slen && str_char_at(src, p + 1) == 124 { tokens.push(tok_new(37, 0, p)); p = p + 2; }
         else if c == 124 { tokens.push(tok_new(65, 0, p)); p = p + 1; }
         else if c == 58 && p + 1 < slen && str_char_at(src, p + 1) == 58 { tokens.push(tok_new(46, 0, p)); p = p + 2; }
+        // v0.3.77: compound-assignment tokens (`+=`, `-=`, `*=`, `/=`, `%=`).
+        // Lex as single tokens kind 110-114 so the parser can desugar
+        // `LHS op= RHS` to `LHS = LHS op RHS` cleanly. Without this,
+        // `x += 5;` lexed as separate `+` and `=` tokens which the parser
+        // dropped silently. Token kinds 110/111/112/113/114 are reserved
+        // for the five compound-op forms in op-token order.
+        else if c == 43 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(110, 0, p)); p = p + 2; }
         else if c == 43 { tokens.push(tok_new(20, 0, p)); p = p + 1; }
+        else if c == 45 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(111, 0, p)); p = p + 2; }
         else if c == 45 { tokens.push(tok_new(21, 0, p)); p = p + 1; }
+        else if c == 42 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(112, 0, p)); p = p + 2; }
         else if c == 42 { tokens.push(tok_new(22, 0, p)); p = p + 1; }
+        else if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(113, 0, p)); p = p + 2; }
         else if c == 47 { tokens.push(tok_new(23, 0, p)); p = p + 1; }
+        else if c == 37 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(114, 0, p)); p = p + 2; }
         else if c == 37 { tokens.push(tok_new(24, 0, p)); p = p + 1; }
         else if c == 61 { tokens.push(tok_new(40, 0, p)); p = p + 1; }
         else if c == 60 { tokens.push(tok_new(32, 0, p)); p = p + 1; }
@@ -1154,6 +1165,29 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut er: Vec<i32> = parse_expr(tokens, pos, pool);
     let mut cp: i64 = pr_pos(er);
     if pk(tokens, cp) == 40 { let mut vr: Vec<i32> = parse_expr(tokens, cp + 1, pool); cp = pr_pos(vr); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, mk3(pool, 21, pr_val(er), pr_val(vr))); };
+    // v0.3.77: compound assignment desugar. `x += y` → `x = x + y`,
+    // and likewise for `-=` (111→21), `*=` (112→22), `/=` (113→23),
+    // `%=` (114→24). LHS AST node is shared between the assign LHS and
+    // the desugared binop LHS; this is safe because pool nodes are
+    // immutable after creation and the lowering walks each AST exactly
+    // once. For LHS forms with side effects (e.g. method calls in
+    // future expansions), a real Get-Modify-Set lowering would be
+    // required; today only var-ref / field-access / index LHS forms
+    // are syntactically allowed, all of which are pure.
+    let assign_tok: i64 = pk(tokens, cp);
+    if assign_tok == 110 || assign_tok == 111 || assign_tok == 112 || assign_tok == 113 || assign_tok == 114 {
+        let mut vr: Vec<i32> = parse_expr(tokens, cp + 1, pool);
+        cp = pr_pos(vr);
+        if pk(tokens, cp) == 43 { cp = cp + 1; };
+        let mut bin_op: i64 = 20;
+        if assign_tok == 110 { bin_op = 20; };
+        if assign_tok == 111 { bin_op = 21; };
+        if assign_tok == 112 { bin_op = 22; };
+        if assign_tok == 113 { bin_op = 23; };
+        if assign_tok == 114 { bin_op = 24; };
+        let rhs_node: i64 = mk4(pool, 4, bin_op, pr_val(er), pr_val(vr));
+        return pr(cp, mk3(pool, 21, pr_val(er), rhs_node));
+    };
     if pk(tokens, cp) == 43 { cp = cp + 1; };
     return pr(cp, mk2(pool, 25, pr_val(er)));
 }

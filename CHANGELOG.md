@@ -5,6 +5,112 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.77] — 2026-04-25
+
+**Compiler fix #20: compound assignment (`+=`, `-=`, `*=`, `/=`,
+`%=`) — pre-v0.3.77 was silently dropped.** Pre-v0.3.77, writing
+`x += 5;` lexed `+` and `=` as two distinct tokens. The parser's
+assignment branch only recognized bare `=` (token 40), so the
+entire statement fell through to the expression-stmt fallback
+which couldn't make sense of `x + (= 5)` and silently produced
+no IR. The variable retained its original value with no diagnostic.
+
+### Root cause
+
+The lexer at lines 315-319 emitted single-char tokens for `+`,
+`-`, `*`, `/`, `%` without checking for a following `=`. The
+parser's stmt-position assignment recognizer at line 1156 only
+checked for token 40 (`=`). Compound assignments fell through
+all parser branches and got silently dropped during stmt-list
+flattening.
+
+### Fix (lexer + parser)
+
+**Lexer** — emit single compound-op tokens (kind 110-114) when
+the operator is followed by `=`:
+
+```nucleor
+else if c == 43 && p + 1 < slen && str_char_at(src, p + 1) == 61
+    { tokens.push(tok_new(110, 0, p)); p = p + 2; }   // +=
+else if c == 43 { tokens.push(tok_new(20, 0, p)); p = p + 1; }
+... same pattern for `-=` (111), `*=` (112), `/=` (113), `%=` (114)
+```
+
+**Parser** — recognize compound-op tokens after a parsed expression
+and desugar `LHS op= RHS` to `LHS = LHS op RHS`:
+
+```nucleor
+let assign_tok: i64 = pk(tokens, cp);
+if assign_tok == 110 || ... || assign_tok == 114 {
+    let mut vr = parse_expr(tokens, cp + 1, pool);
+    cp = pr_pos(vr);
+    if pk(tokens, cp) == 43 { cp = cp + 1; };
+    let mut bin_op: i64 = 20;
+    if assign_tok == 110 { bin_op = 20; };  // +
+    if assign_tok == 111 { bin_op = 21; };  // -
+    ...
+    let rhs_node: i64 = mk4(pool, 4, bin_op, pr_val(er), pr_val(vr));
+    return pr(cp, mk3(pool, 21, pr_val(er), rhs_node));
+};
+```
+
+The LHS AST node is shared between the assign LHS and the
+desugared binop LHS. This is safe because pool nodes are
+immutable after creation and the lowering walks each AST exactly
+once.
+
+### Future-proofing note
+
+For LHS forms with side effects (e.g. method calls in future
+expansions), a real Get-Modify-Set lowering would be required.
+Today only var-ref / field-access / index LHS forms are
+syntactically allowed, all of which are pure — naive desugar
+is correct.
+
+### What now works that previously didn't
+
+```nucleor
+let mut x: i64 = 10;
+x += 5;     // 15  (pre-v0.3.77: silently 10)
+x -= 2;     // 13
+x *= 3;     // 39
+x /= 3;     // 13
+x %= 5;     // 3
+
+let mut p: Point = ...;
+p.x += 50;  // field-LHS form also works (LHS-share desugar
+            //   correctly handles kind 9 field access)
+```
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — lexer +=/-=/*=//=/%=
+  branches added; parse_stmt gains compound-op desugar branch.
+  Bootstrap fixed point recomputed at SHA `8c9a5028` (was
+  `36766081`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t352_compound_assignment.nr` — new strict
+  regression fixture covering all five forms on bare-var and
+  struct-field LHS.
+- `tools/verify.{sh,ps1}` — new T3.52 verify step.
+
+### Verify gate
+
+- 430/430 green (was 429 + 1 step from T3.52).
+- All prior regression fixtures (T3.28-T3.51) still green.
+- Bootstrap fixed point closes at `8c9a5028`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.77)
+
+- **20 codegen + 1 runtime + 2 parser diagnostic = 23 total**
+- **25 strict regression fixtures** (T3.28-T3.52)
+- **6 robotics RT showcase examples** in Tier 4
+- **Rust ergonomic parity gaps closing**: shadowing (v0.3.76),
+  compound assignment (v0.3.77) — these are reflexive operations
+  Rust users reach for without thinking, and silent failure was
+  a launch blocker
+
 ## [0.3.76] — 2026-04-25
 
 **Compiler fix #19: shadowing semantics — `let x = expr_using_x;`
