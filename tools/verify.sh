@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 76))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 77))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1057,6 +1057,17 @@ t356_indexed_lhs_diagnostic() {
     "$BIN" build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -q "indexed assignment" /tmp/_nuc_step.log || return 1
     grep -q "vec_set" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t361_assoc_const_diagnostic() {
+    # T3.61 (v0.3.85): negative regression for trait/impl associated
+    # constants. Pre-v0.3.85, `const NAME: T;` in trait body or
+    # `const NAME: T = V;` in impl body cascaded into 18+ parse
+    # errors. Post: clean diagnostic from both parsers.
+    "$BIN" build "tests/fixtures/t361_assoc_const_diagnostic.nr" -o "_t361_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    grep -q "associated constants in traits" /tmp/_nuc_step.log || return 1
+    grep -q "associated constants in impl blocks" /tmp/_nuc_step.log || return 1
     return 0
 }
 
@@ -2184,6 +2195,7 @@ step "T3.57 tuple-destructure let safety net (pre-v0.3.81 segfault → clean dia
 step "T3.58 trait default-method support (impls inherit defaults; Self substitution)" t358_trait_default_methods
 step "T3.59 fn-pointer type syntax `fn(T) -> R` in param positions" t359_fn_pointer_type
 step "T3.60 match-arm assignment body (`pat => x = v`)" t360_match_arm_assign
+step "T3.61 trait/impl associated-const diagnostic (pre-v0.3.85 cascaded parse errors)" t361_assoc_const_diagnostic
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

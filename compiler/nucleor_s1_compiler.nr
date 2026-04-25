@@ -1399,6 +1399,18 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     cp = expect_tok(tokens, cp, 52); // {
     let mut methods: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
+        // v0.3.85: associated constants in trait bodies aren't yet
+        // supported. Pre-v0.3.85 the `const NAME: T;` line cascaded
+        // into 18+ parse errors as expect_tok(fn) failed and the
+        // recovery walked through the rest of the trait body
+        // mis-aligned. Detect `const` (token 73) and skip to the
+        // next stmt boundary with a clear diagnostic.
+        if pk(tokens, cp) == 73 {
+            print("ERROR: associated constants in traits are not yet supported (e.g. `trait T { const MAX: i64; }`). Workaround: declare the constant at module scope (`const MAX: i64 = 100;`) or as an inherent fn that returns the value. Tracked for a future ship.");
+            while pk(tokens, cp) != 0 && pk(tokens, cp) != 43 && pk(tokens, cp) != 53 { cp = cp + 1; };
+            if pk(tokens, cp) == 43 { cp = cp + 1; };
+            continue;
+        };
         cp = expect_tok(tokens, cp, 10); // fn
         let mname: i64 = pkv(tokens, cp); cp = cp + 1;
         cp = expect_tok(tokens, cp, 50); // (
@@ -1449,6 +1461,14 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     cp = expect_tok(tokens, cp, 52); // {
     let mut methods: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
+        // v0.3.85: associated constants in impl bodies aren't yet
+        // supported. Same diagnostic+recovery as trait body.
+        if pk(tokens, cp) == 73 {
+            print("ERROR: associated constants in impl blocks are not yet supported. Workaround: declare the constant at module scope or as an inherent fn that returns the value. Tracked for a future ship.");
+            while pk(tokens, cp) != 0 && pk(tokens, cp) != 43 && pk(tokens, cp) != 53 { cp = cp + 1; };
+            if pk(tokens, cp) == 43 { cp = cp + 1; };
+            continue;
+        };
         cp = expect_tok(tokens, cp, 10); // fn
         let mname: i64 = pkv(tokens, cp);
         // Parse as fn_decl but handle self without type annotation
