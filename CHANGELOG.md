@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.17] — 2026-04-25
+
+**RFC-0028 phase 3 — `format3_isf` combo.** i64 + str + f64
+for profile/step output:
+
+  `format3_isf(tmpl, i64_a, str_b, f64_c)` — e.g.
+  `format!("Step {} ({}): {}", n, stage, t_ms)` produces
+  `"Step 1 (warmup): 0.42"`.
+
+Same five edit sites in s1 + mirrored in tools_suite + runtime
+impl chaining `__nucleor_format_i64` -> `__nucleor_format_str`
+-> `__nucleor_format_f64`. Added to the `#[no_alloc]`
+forbidden-name list.
+
+### Verify gate
+
+- New: `tests/lang/format3_isf.nr` — auto-discovered under the
+  lang directory; prints two profile-style outputs then `OK
+  format3_isf`.
+- Self-host bootstrap fixed-point holds at AE09C218 (stage-3
+  IR == stage-4 IR). Bootstrap RSS peak 243 MB.
+
 ## [0.3.16] — 2026-04-25
 
 **RFC-0028 phase 3 — `format3_sif` combo.** Str + i64 + f64

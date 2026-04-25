@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 751
+# Total helpers: 752
 # Of which REVIEW REQUIRED: 26
 
 # ============================================================
@@ -6620,6 +6620,20 @@ class            = "StringFormat"
 symbol           = "__nucleor_format3_iis"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, i64, i64, ptr) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "format3_isf"
+class            = "StringFormat"
+symbol           = "__nucleor_format3_isf"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64, ptr, i64) -> ptr"
 effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
