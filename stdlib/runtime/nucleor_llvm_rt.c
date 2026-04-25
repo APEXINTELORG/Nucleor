@@ -300,6 +300,36 @@ const char *__nucleor_format3_isi(const char *tmpl, long long a, const char *b, 
     return out;
 }
 
+// v0.3.14 — float-mixing trio. f64 args carry as i64 bits;
+// __nucleor_format_f64 decodes and renders %g.
+//   iif = i64 then i64 then f64 (e.g. "iter {} of {} ({} sec)")
+//   iff = i64 then f64 then f64 (e.g. "{}: x={} y={}")
+//   sff = str then f64 then f64 (e.g. "{} at ({}, {})")
+const char *__nucleor_format3_iif(const char *tmpl, long long a, long long b, long long c_bits) {
+    const char *s1 = __nucleor_format_i64(tmpl, a);
+    const char *s2 = __nucleor_format_i64(s1, b);
+    free((void *)s1);
+    const char *out = __nucleor_format_f64(s2, c_bits);
+    free((void *)s2);
+    return out;
+}
+const char *__nucleor_format3_iff(const char *tmpl, long long a, long long b_bits, long long c_bits) {
+    const char *s1 = __nucleor_format_i64(tmpl, a);
+    const char *s2 = __nucleor_format_f64(s1, b_bits);
+    free((void *)s1);
+    const char *out = __nucleor_format_f64(s2, c_bits);
+    free((void *)s2);
+    return out;
+}
+const char *__nucleor_format3_sff(const char *tmpl, const char *a, long long b_bits, long long c_bits) {
+    const char *s1 = __nucleor_format_str(tmpl, a);
+    const char *s2 = __nucleor_format_f64(s1, b_bits);
+    free((void *)s1);
+    const char *out = __nucleor_format_f64(s2, c_bits);
+    free((void *)s2);
+    return out;
+}
+
 // --- v0.2.24: parse / stringify primitives ---
 // Parsers tolerate leading whitespace and an optional sign; return 0 on
 // completely-malformed input. Stringifiers always allocate fresh strings.

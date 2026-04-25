@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 746
+# Total helpers: 749
 # Of which REVIEW REQUIRED: 26
 
 # ============================================================
@@ -6573,6 +6573,34 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "format3_iff"
+class            = "StringFormat"
+symbol           = "__nucleor_format3_iff"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64, i64, i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "format3_iif"
+class            = "StringFormat"
+symbol           = "__nucleor_format3_iif"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64, i64, i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "format3_iii"
 class            = "StringFormat"
 symbol           = "__nucleor_format3_iii"
@@ -6620,6 +6648,20 @@ class            = "StringFormat"
 symbol           = "__nucleor_format3_iss"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, i64, ptr, ptr) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "format3_sff"
+class            = "StringFormat"
+symbol           = "__nucleor_format3_sff"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr, i64, i64) -> ptr"
 effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
