@@ -5,6 +5,145 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] — 2026-04-24
+
+**T3.2 `#[no_panic]` enforcement (RT-002) — source-level v1
+check matching the existing `#[no_alloc]` shape.** Annotate
+any fn with `#[no_panic]` and the compiler walks its body
+text for forbidden panic-prone call patterns
+(`panic`, `assert_eq`, `assert_ne`, `unwrap`, `expect`, plus
+the `.unwrap` / `.expect` method-call sugar). Each match
+fires `error[RT-002]: '<name>' can panic but '<fn>' is
+marked #[no_panic]`. The build fails before reaching link.
+
+### Approach
+
+Mirrors the v1 `#[no_alloc]` source-level check that's been
+in s1_compiler since RFC-0001 phase 1:
+
+1. `collect_no_panic_fns(source)` walks the merged source
+   for `#[no_panic]` attribute lines (string- and
+   comment-aware), associates each with the next `fn NAME(`,
+   returns the list of fn names to enforce.
+2. `check_no_panic_violations(diags, source, fn_name)`
+   locates the fn body via `fn NAME(` then `{` then
+   brace-balanced `}`, scans the body for each entry in
+   `no_panic_check_list()` (`panic(`, `assert_eq(`,
+   `assert_ne(`, `unwrap(`, `expect(`, `.unwrap(`,
+   `.expect(`), emits one RT-002 diag per match.
+3. `enforce_no_panic(diags, source)` is the top-level entry
+   that combines (1) + (2). Wired into the s1 pipeline
+   right after `enforce_no_alloc`.
+
+Same v1 limitations as `#[no_alloc]`:
+- Source-level only (no AST, no transitive call-graph chase
+  — `#[no_panic]` fn calling `helper()` that internally
+  calls `assert_eq` is NOT flagged today)
+- String/comment-aware skip handles "panic" inside string
+  literals or `// comments`
+- Per-file scope only
+
+### Pipeline placement
+
+```
+enforce_no_alloc(diags, source);   // RT-001 (existing)
+enforce_no_panic(diags, source);   // RT-002 (this ship)
+// suppression filter, warning→error promotion, etc.
+```
+
+Both passes run BEFORE the suppression filter so users can
+`#[allow(RT-002)]` on a per-fn basis (same convention).
+
+### T3.2 fixtures
+
+- **Pass case** (`tests/smoke/t32_no_panic_clean.nr`):
+  2 `#[no_panic]` fns (`safe_add`, `safe_loop`) with
+  arithmetic-only bodies. 2 `#[test]` cases verify
+  `safe_add(10, 20) == 30` and `safe_loop(5) == 10`.
+  Both PASS.
+- **Negative case** (`tests/err/err_no_panic_violation.nr`):
+  `#[no_panic] fn bad_op(x) { assert_eq(x, 42); ... }`.
+  The negative-fixture sweep auto-discovers it and
+  asserts the build emits "error" or "warning" in stderr.
+  RT-002 specifically appears in the captured output.
+
+### Verify gate
+
+Windows: 366/366 PASS. Bootstrap fixpoint refreshed
+(seed sha256 `a7339b07...`). The new T3.2 step plus the
+auto-discovered err fixture both green.
+
+### Numerics-compatibility
+
+No new arithmetic surfaces. The scanner operates on `str`
+data through existing string helpers. RT-002 diagnostics
+go through the same `diag_add_ex` channel as RT-001 (and
+all other compiler diagnostics) — same i64-pointer
+calling convention, same JSON serialization for
+`nuc audit --json`, same `nuc explain RT-002` registry
+hit (already wired in tools-suite).
+
+### Memory safety
+
+Pure source-text scan. New helpers (`collect_no_panic_fns`,
+`check_no_panic_violations`, `no_panic_check_list`,
+`enforce_no_panic`) own their `Vec<i32>` returns and never
+mutate the input source. Same borrow patterns as the
+neighboring `#[no_alloc]` helpers — no new shared state,
+no closures, no FFI.
+
+### Files
+
+- `compiler/nucleor_s1_compiler.nr` — four new helpers
+  (~125 LOC) + pipeline wire-in.
+- `tests/smoke/t32_no_panic_clean.nr` — pass-case smoke.
+- `tests/err/err_no_panic_violation.nr` — negative case
+  for the auto-discovered err sweep.
+- `tools/verify.ps1`, `tools/verify.sh` — new T3.2 step
+  asserting the smoke PASSes.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (428 fns,
+  863 optimized instructions; new sha256 a7339b07...).
+- `bin/nucleor.exe` — rebuilt.
+- `CHANGELOG.md` — this entry.
+
+### Tools-suite parity (deliberate skip)
+
+`enforce_no_panic` lives in `nucleor_s1_compiler.nr` only.
+`nucleor_tools_suite.nr` doesn't have the existing
+`enforce_no_alloc` / RT-001 enforcement either — those
+diagnostic passes only run on the s1 path (`nuc build`,
+`nuc check`). Tools-suite paths (`nuc test`, `nuc
+build-strict`) use a different driver. Keeping the
+asymmetry is consistent with the existing #[no_alloc]
+shape; v0.3.2 may port the enforcement passes to
+tools_suite if the test framework needs them.
+
+### Known limitations / T3.2b roadmap
+
+- **No transitive panic detection.** `#[no_panic] fn outer
+  { helper(); }` where `helper()` internally calls `panic("")`
+  is NOT flagged today. v0.3.2 (T3.2b) adds the call-graph
+  walker.
+- **Source-level scan can produce false positives** on
+  identifiers that contain `unwrap` or `expect` as
+  substring inside string literals or comments. Same
+  caveat as `#[no_alloc]` v1; v0.3.2's AST-based v2
+  removes the class.
+- **RT-007 cross-check** (deadline alone is incomplete
+  without no_alloc + no_panic) doesn't yet fire. v0.3.3
+  wires the explicit cross-check.
+- **Numeric overflow / div-by-zero** are NOT in
+  `no_panic_check_list()` because the runtime today
+  wraps on overflow (RT) and traps on div-by-zero (LLVM
+  default). T3.2c adds the explicit check once the
+  numeric-trap policy is locked.
+
+### Next
+
+T3.3 — static WCET analysis. RT-004 fires at compile time
+when the body's worst-case execution time can be proven
+to exceed the declared `#[deadline]`.
+
 ## [0.3.0] — 2026-04-24
 
 **v0.3 robotics foundation lands — `#[deadline = N]` runtime
