@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 42))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 43))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1051,6 +1051,27 @@ t321_diag001_self_suppress() {
     return 0
 }
 
+t327_export_workaround_dot() {
+    # T3.27 (v0.3.52): regression test for the v0.3.51 codegen
+    # workaround. examples/22_rt_export.nr's nuc_print_dot
+    # uses lifted-let bindings to compute (1,2,3)·(4,5,6) = 32.
+    # The example sweep already builds + runs ex22 but only
+    # checks for non-empty stdout; if the workaround broke,
+    # nuc_print_dot would print 0 and the sweep would silently
+    # pass. T3.27 strictly asserts the example output contains
+    # the literal "32.0" — the dot product the workaround
+    # produces. If the underlying inline-multiply codegen bug
+    # is later fixed (v0.4 AST codegen), this test still
+    # passes because the workaround pattern remains correct.
+    "$BIN" build "examples/22_rt_export.nr" -o "_t327_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t327_check" ] || [ -x "target/_t327_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t327_check" ]; then exe="target/_t327_check"; else exe="target/_t327_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    grep -qE '32\.0+' /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t320_diag001_unknown_code() {
     # T3.20 (v0.3.36, extended v0.3.38, v0.3.46): DIAG-001
     # warning fires for #[allow(_fn)] / #[deny(_fn)] CODE
@@ -1574,6 +1595,7 @@ step "T3.23 diag-code drift (s1 is_known_diag_code vs smoke list)" t323_diag_cod
 step "T3.24 spec-doc drift (canonical codes vs Nucleor_Error_Codes.md)" t324_spec_doc_drift
 step "T3.25 examples-list drift (examples/*.nr vs examples.list)" t325_examples_list_drift
 step "T3.26 cli-help cmds drift (verify.sh ⇄ verify.ps1)" t326_cli_help_cmds_drift
+step "T3.27 #[export] workaround produces correct dot product" t327_export_workaround_dot
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
