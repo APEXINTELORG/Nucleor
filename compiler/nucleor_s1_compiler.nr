@@ -9115,7 +9115,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // f64 literal), dispatch to the float↔int / float↔float
         // converter helper. Otherwise fall through to the existing
         // int-only `as_<T>` mask path.
-        let src_ftype: str = binop_float_type(pool, inner_nid, sym);
+        let src_ftype: str = binop_float_type(pool, inner_nid, sym, structs);
         let mut conv_helper: str = "";
         // Float → narrow int / float → float dispatch. i64 target
         // is INTENTIONALLY left to the bitcast-preserving as_i64
@@ -9250,8 +9250,8 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // declared as f32/f64, or a kind==71 float literal. The f32
         // type wins precedence (matches narrowing cast rule). Only
         // applies to + - * / and the comparison ops.
-        let lt: str = binop_float_type(pool, node_field(pool, nid, 2), sym);
-        let rt: str = binop_float_type(pool, node_field(pool, nid, 3), sym);
+        let lt: str = binop_float_type(pool, node_field(pool, nid, 2), sym, structs);
+        let rt: str = binop_float_type(pool, node_field(pool, nid, 3), sym, structs);
         let mut ftype: str = "";
         if str_eq(lt, "f32") == 1 { ftype = "f32"; }
         else if str_eq(rt, "f32") == 1 { ftype = "f32"; }
@@ -9880,7 +9880,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
 // T1.1 Phase 5: detect whether an AST expression node has a known
 // float type (f32 or f64), looking through variable reads (kind==3)
 // and float literals (kind==71). Returns "f32"/"f64"/"" .
-fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>) -> str {
+fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
     let kind: i64 = node_kind(pool, nid);
     if kind == 3 {
         let vname: str = node_field(pool, nid, 1);
@@ -9891,6 +9891,42 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>) -> str {
         return "";
     };
     if kind == 71 { return "f64"; };
+    // v0.3.53 fix: struct field access. Pre-v0.3.53 this fell
+    // through to "" → integer binop, mis-computing inline
+    // f64 ops on struct-field operands (`a.x * b.x` etc).
+    // Look up the struct via expr_struct_type → struct_field_type.
+    if kind == 9 {
+        let outer_type: str = expr_struct_type(pool, node_field(pool, nid, 1), sym, structs);
+        if str_len(outer_type) == 0 { return ""; };
+        let si: i64 = struct_find_type(pool, structs, outer_type);
+        if si >= 0 {
+            let ftype: str = type_base_name(struct_field_type(pool, vec_get(structs, si), node_field(pool, nid, 2)));
+            if str_eq(ftype, "f32") == 1 { return "f32"; };
+            if str_eq(ftype, "f64") == 1 { return "f64"; };
+        };
+        return "";
+    };
+    // v0.3.53 fix: nested binop. For `(a.x*b.x) + (a.y*b.y)`,
+    // the outer + has binop operands. Recurse into each operand's
+    // own binop type — f32 wins precedence, then f64 (matches the
+    // outer dispatch rule). Without this, the + fell through to
+    // integer add even though both halves were correctly compiled
+    // as f64 muls.
+    if kind == 4 {
+        let lt: str = binop_float_type(pool, node_field(pool, nid, 2), sym, structs);
+        let rt: str = binop_float_type(pool, node_field(pool, nid, 3), sym, structs);
+        if str_eq(lt, "f32") == 1 { return "f32"; };
+        if str_eq(rt, "f32") == 1 { return "f32"; };
+        if str_eq(lt, "f64") == 1 { return "f64"; };
+        if str_eq(rt, "f64") == 1 { return "f64"; };
+        return "";
+    };
+    // v0.3.53 fix: parenthesized expression / cast / borrow
+    // wrappers preserve the inner type. Mirror the precedence
+    // chain that expr_struct_type already handles.
+    if kind == 90 || kind == 91 || kind == 92 {
+        return binop_float_type(pool, node_field(pool, nid, 1), sym, structs);
+    };
     return "";
 }
 

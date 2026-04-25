@@ -5,6 +5,146 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.53] — 2026-04-25
+
+**Compiler fix: f64 inline binary ops on struct-field operands
+now compile correctly.** v0.3.51 surfaced the bug and shipped
+a documented workaround; v0.3.52 added a regression test to
+pin the workaround. v0.3.53 fixes the underlying defect at
+the codegen layer. The natural inline form
+`a.x * b.x + a.y * b.y + a.z * b.z` now produces the correct
+dot product without any lifted-let workaround.
+
+### Root cause
+
+`binop_float_type` in `compiler/nucleor_s1_compiler.nr` (line
+9883) determined whether a binop's operands were f-typed so
+the dispatcher could route to `__nucleor_f64_*` runtime
+helpers instead of integer arithmetic. The function only
+recognized two AST kinds:
+
+- `kind == 3` — variable references (looks up `__type_<vname>`
+  from the symbol table)
+- `kind == 71` — float literals (always f64)
+
+Three other AST kinds that produce f-typed values were missed:
+
+- `kind == 9` — **struct field access** (`a.x` in
+  `Vec3 { x: f64, ... }`). Most visible failure path —
+  surfaced by `examples/22_rt_export.nr` returning `0.000000`
+  for `(1,2,3) · (4,5,6)`.
+- `kind == 4` — **nested binop** result. `(a.x*b.x) + (a.y*b.y)`
+  has an outer `+` whose operands are themselves binops.
+  Even after fixing kind 9 the outer add fell through.
+- `kinds 90/91/92` — **parenthesized / cast / borrow**
+  wrappers. Same precedence chain `expr_struct_type`
+  already handles.
+
+For all three missing kinds, `binop_float_type` returned `""`
+→ the binop dispatcher fell through to `ir_binop(iop, ...)`
+which emits integer arithmetic (`add`, `mul`) on what should
+be f64 bit-pattern values. The result was garbage that the
+runtime f64 print helper rendered as nonsense numbers.
+
+### Fix
+
+Three new branches in `binop_float_type`:
+
+```nucleor
+// Struct field access — look up the field's declared type
+// via expr_struct_type → struct_find_type → struct_field_type.
+if kind == 9 {
+    let outer_type: str = expr_struct_type(pool, node_field(pool, nid, 1), sym, structs);
+    // ... resolve to f32/f64/"" ...
+};
+// Nested binop — recurse into both operands; f32 wins precedence.
+if kind == 4 {
+    let lt: str = binop_float_type(pool, node_field(pool, nid, 2), sym, structs);
+    let rt: str = binop_float_type(pool, node_field(pool, nid, 3), sym, structs);
+    // ... return the wider precedence type ...
+};
+// Wrapper passes through.
+if kind == 90 || kind == 91 || kind == 92 {
+    return binop_float_type(pool, node_field(pool, nid, 1), sym, structs);
+};
+```
+
+The function signature gained a `structs: Vec<i32>` parameter
+since field access needs the struct table; the two existing
+call sites (lines 9118 and 9253-9254) pass it through (they
+already had `structs` in scope as `lower_expr` parameters).
+
+### What now works that previously didn't
+
+Confirmed via probe — all four primary f64 binary ops work
+inline on struct-field operands:
+
+```
+add (1+4=5):     5.000000     ✓
+sub (1-4=-3):   -3.000000     ✓
+mul (1*4=4):     4.000000     ✓
+div (8/4=2):     2.000000     ✓
+dot (32):       32.000000     ✓  (nested-binop case)
+```
+
+Pre-v0.3.53: add returned -0.0; sub returned a 350-digit
+garbage number; mul/div returned 0.0; nested dot returned
+-176.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `binop_float_type`
+  extended (3 new kind-handlers, signature change). Both
+  call sites updated. Bootstrap fixed point recomputed at
+  SHA `e5722f24` (was `4cd2d428`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 cross-build
+  passes.
+- `examples/22_rt_export.nr` — `nuc_print_dot` reverted to the
+  natural inline form `a.x * b.x + a.y * b.y + a.z * b.z`.
+  The lifted-let workaround comment is replaced with a brief
+  historical note. Output unchanged: `32.000000`.
+- `tests/fixtures/t328_struct_field_fp_ops.nr` — new strict
+  regression fixture covering all four primary ops on
+  struct-field operands plus the nested-binop dot product.
+- `tools/verify.{sh,ps1}` — new T3.28 verify step asserting
+  the fixture's five output lines match the mathematically
+  correct values to multiple precision (`5.0+`, `-3.0+`,
+  `4.0+`, `2.0+`, `32.0+`).
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry
+  rewritten as "FIXED v0.3.53" with the root-cause summary.
+  Bootstrap SHA stamp updated `4cd2d428` → `e5722f24`.
+
+### Verify gate
+
+- 404/404 green (was 403 + 1 new step from T3.28).
+- T3.27 (v0.3.52) still passes — the workaround pattern and
+  the natural inline form both produce 32; T3.27's regex
+  is loose enough to match either.
+- T1.7 bootstrap fixed-point passes — the new compiler
+  self-hosts cleanly to byte-identical IR.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production readiness implications
+
+The bug class — type-info loss when an AST node kind isn't in
+a hardcoded enumeration — is structural. Any future node kind
+that produces f-typed values (e.g., array indexing on a
+struct-of-arrays, method returns, closure call results) would
+suffer the same silent integer-arithmetic miscompilation. The
+v0.4 AST-based codegen will replace this enumerated check
+with a full type-inference pass; until then, contributors
+adding new f-typed expression shapes must extend
+`binop_float_type` AND add a regression fixture in the T3.28
+shape so silent miscompilation can't slip through unnoticed
+again.
+
+The discovery → fix arc (v0.3.51 surface → v0.3.52 pin →
+v0.3.53 fix) demonstrates the ratchet pattern: surface a bug
+with a runnable example, lock the workaround behavior, then
+fix the root cause without losing the regression test. Each
+step preserves the contract; nothing silent slips through
+the v0.3 → v0.4 transition.
+
 ## [0.3.52] — 2026-04-25
 
 **T3.27 strict regression test for the v0.3.51 codegen

@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 43))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 44))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1051,6 +1051,27 @@ t321_diag001_self_suppress() {
     return 0
 }
 
+t328_struct_field_fp_ops() {
+    # T3.28 (v0.3.53): regression test for the f64 inline
+    # binary-op-on-struct-field codegen bug fixed in v0.3.53.
+    # Builds the fixture, runs it, asserts each of the four
+    # primary ops + the nested-binop dot product produce the
+    # mathematically correct value:
+    #   add: 1+4 = 5     mul: 1*4 = 4     dot: 1*4+2*5+3*6 = 32
+    #   sub: 1-4 = -3    div: 8/4 = 2
+    "$BIN" build "tests/fixtures/t328_struct_field_fp_ops.nr" -o "_t328_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t328_check" ] || [ -x "target/_t328_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t328_check" ]; then exe="target/_t328_check"; else exe="target/_t328_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    grep -qE '^5\.0+$'    /tmp/_nuc_step.log || return 1
+    grep -qE '^-3\.0+$'   /tmp/_nuc_step.log || return 1
+    grep -qE '^4\.0+$'    /tmp/_nuc_step.log || return 1
+    grep -qE '^2\.0+$'    /tmp/_nuc_step.log || return 1
+    grep -qE '^32\.0+$'   /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t327_export_workaround_dot() {
     # T3.27 (v0.3.52): regression test for the v0.3.51 codegen
     # workaround. examples/22_rt_export.nr's nuc_print_dot
@@ -1596,6 +1617,7 @@ step "T3.24 spec-doc drift (canonical codes vs Nucleor_Error_Codes.md)" t324_spe
 step "T3.25 examples-list drift (examples/*.nr vs examples.list)" t325_examples_list_drift
 step "T3.26 cli-help cmds drift (verify.sh ⇄ verify.ps1)" t326_cli_help_cmds_drift
 step "T3.27 #[export] workaround produces correct dot product" t327_export_workaround_dot
+step "T3.28 inline f64 ops on struct-field operands (v0.3.53 fix)" t328_struct_field_fp_ops
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
