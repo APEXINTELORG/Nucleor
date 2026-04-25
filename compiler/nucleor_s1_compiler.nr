@@ -13064,7 +13064,10 @@ fn expand_format_macros(src: str) -> str {
             // helpers (already registered as panic / assert at
             // line 2706 / 2635).
             if preceded_by_dot == 0 && p < slen && str_char_at(src, p) == 33 && p + 1 < slen && str_char_at(src, p + 1) == 40 {
-                if str_eq(name, "panic") == 1 || str_eq(name, "assert") == 1 || str_eq(name, "dbg") == 1 {
+                if str_eq(name, "panic") == 1 || str_eq(name, "assert") == 1
+                   || str_eq(name, "assert_eq") == 1 || str_eq(name, "assert_ne") == 1
+                   || str_eq(name, "dbg") == 1 || str_eq(name, "todo") == 1
+                   || str_eq(name, "unimplemented") == 1 || str_eq(name, "unreachable") == 1 {
                     sb_append(sb, name);
                     p = p + 1;
                     continue;
