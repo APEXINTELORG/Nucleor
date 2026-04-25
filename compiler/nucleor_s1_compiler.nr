@@ -2023,6 +2023,18 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             let mut r: Vec<i32> = parse_extern_fn(tokens, cp + 2, pool); items.push(pr_val(r)); cp = pr_pos(r);
             pending_pub = 0;
         }
+        else if pk(tokens, cp) == 20 && pk(tokens, cp + 1) == 3 && pk(tokens, cp + 2) == 10 {
+            // v0.3.112: `extern "C" fn name(...)` (or any ABI string).
+            // Pre-v0.3.112, the parser only recognized bare `extern fn`,
+            // so the canonical Rust form `extern "C" fn abs(x: i64) -> i64;`
+            // cascaded into 4+ parse errors. The ABI string is accepted
+            // and discarded — Nucleor's only ABI today is the C calling
+            // convention used by all extern declarations, so the explicit
+            // marker is informational. Skip ABI literal then call into
+            // parse_extern_fn at the `fn` token.
+            let mut r: Vec<i32> = parse_extern_fn(tokens, cp + 3, pool); items.push(pr_val(r)); cp = pr_pos(r);
+            pending_pub = 0;
+        }
         else if pk(tokens, cp) == 73 {
             let mut r: Vec<i32> = parse_const_decl(tokens, cp + 1, pool);
             let nid: i64 = pr_val(r);
