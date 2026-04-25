@@ -56,6 +56,16 @@ for real-data inputs.
 | 17 | [17_linecount.nr](17_linecount.nr) | `wc`-style multi-file counter | `fs_exists`, `file_read_string`, `str_lines`, per-file + TOTAL aggregation |
 | 18 | [18_benchmark.nr](18_benchmark.nr) | Micro-benchmark harness | `time_wall_ns`, `time_elapsed_ms`, `vec_min/max/mean/median/stddev/percentile`, seeded RNG via `rng_seed` |
 
+### Tier 4 — v0.3.x robotics RT showcase
+
+Demonstrates the v0.3 RFC-0001 real-time attribute family
+(`#[no_alloc, no_panic, no_dyn, deadline = N]`) all working
+together on a single tight inner loop.
+
+| # | File | Topic | RT attrs exercised |
+|---|---|---|---|
+| 19 | [19_rt_pid.nr](19_rt_pid.nr) | RT-annotated PID control step | `#[no_alloc]`, `#[no_panic]`, `#[no_dyn]`, `#[deadline = N]` (RFC-0001 full stack) |
+
 ### Showcase
 
 `showcase/` contains larger programs that span multiple rods.

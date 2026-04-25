@@ -38,3 +38,6 @@
 16_histogram
 17_linecount
 18_benchmark
+
+# Tier 4 — v0.3.x robotics RT showcase
+19_rt_pid
