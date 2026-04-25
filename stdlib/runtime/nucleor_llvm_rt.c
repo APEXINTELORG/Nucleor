@@ -1566,6 +1566,16 @@ long long __nucleor_vec_collect_i64(NVec *v) {
     return (long long)(intptr_t)v;
 }
 
+// v0.3.108: vec_count_i64 — Rust-style `.iter().count()`
+// terminator. Returns the number of elements in the underlying
+// Vec, mirroring `Iterator::count()`. Without this, the canonical
+// pattern `let n = v.iter().count();` failed at clang link with
+// `@vec_count` undefined.
+long long __nucleor_vec_count_i64(NVec *v) {
+    if (!v) return 0;
+    return v->len;
+}
+
 long long __nucleor_vec_sum_f64(NVec *v) {
     if (!v) return 0;
     union { long long i; double d; } acc;

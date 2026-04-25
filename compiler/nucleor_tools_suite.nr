@@ -2002,6 +2002,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "dyn_box_free") { return "__nucleor_dyn_box_free"; };
     if str_eq(name, "vec_iter_i64") { return "__nucleor_vec_iter_i64"; };
     if str_eq(name, "vec_collect_i64") { return "__nucleor_vec_collect_i64"; };
+    if str_eq(name, "vec_count_i64") { return "__nucleor_vec_count_i64"; };
     if str_eq(name, "vec_map_i64") { return "__nucleor_vec_map_i64"; };
     if str_eq(name, "vec_filter_i64") { return "__nucleor_vec_filter_i64"; };
     if str_eq(name, "vec_fold_i64") { return "__nucleor_vec_fold_i64"; };
@@ -2749,6 +2750,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "dyn_box_free") { return 1; };
     if str_eq(name, "vec_iter_i64") { return 1; };
     if str_eq(name, "vec_collect_i64") { return 1; };
+    if str_eq(name, "vec_count_i64") { return 0; };
     if str_eq(name, "vec_map_i64") { return 1; };
     if str_eq(name, "vec_filter_i64") { return 1; };
     if str_eq(name, "vec_reverse_i64") { return 1; };
@@ -2842,6 +2844,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "format_f64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_iter_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_collect_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_count_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_map_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_filter_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_fold_i64") { if idx == 0 { return 1; }; return 0; };
@@ -3373,6 +3376,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare void @__nucleor_dyn_box_free(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_iter_i64(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_collect_i64(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_count_i64(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_map_i64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_filter_i64(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_fold_i64(ptr, i64, i64)\n");
