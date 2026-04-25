@@ -5,6 +5,79 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.92] — 2026-04-25
+
+**Parser fix: `dyn Trait` syntax acceptance.** Pre-v0.3.92, using
+`dyn` in any type position (e.g. `Box<dyn Trait>`, `fn(...) -> dyn T`)
+cascaded into parse errors because parse_type didn't recognize the
+`dyn` keyword. Post-v0.3.92, `dyn` is consumed and the following
+Trait name is used as the type — symmetric with how Nucleor handles
+fn-pointer types (return "i64" via the existing dispatch).
+
+```nucleor
+if pk(tokens, pos) == 1 && str_eq(pkv(tokens, pos), "dyn") == 1 {
+    let mut tr: Vec<i32> = parse_type(tokens, pos + 1);
+    return pr(pr_pos(tr), pr_val(tr));
+};
+```
+
+### Known v1 limitation: `Box<dyn Trait>` typecheck
+
+The parser now accepts `Box<dyn Trait>` syntactically. However the
+ownership/type checker still reports TYP-008 type mismatch when
+binding `Box<dyn Trait>` from `Box::new(ConcreteType { ... })` —
+trait-object up-casting is not yet implemented. Workaround: bind to
+the concrete struct type without `dyn`. Tracked for a future ship
+that wires the trait-object dispatch through dyn_box runtime
+helpers.
+
+### Probe-batch findings (queued for future ships)
+
+This v0.3.92 cycle ran an 8-probe batch and found 4 issues, of
+which only `dyn` parsing is a clean parser fix. The other three
+are deeper semantic bugs requiring substantial implementation:
+
+- **`&mut` reference parameter silently no-op** (HIGH-BLAST):
+  `fn add_one(x: &mut i64) { *x = *x + 1; }` — the borrow doesn't
+  propagate back to the caller because kind 91 (&mut) lowering
+  recurses on the inner expr's value instead of producing a pointer.
+  Workaround: return the new value, or use `Vec<i64>` for shared
+  state.
+- **Mutable closure capture writeback silently no-op**: closures
+  that mutate captured vars via assignment (`|n| total = total + n`)
+  don't propagate the mutation back. Same root cause class as
+  &mut. Workaround: closure returns the new value, or use a
+  Vec<i64> as the capture.
+- **Large literal lexer overflow**: `9223372036854775807 + 1`
+  cascades because str_to_int overflows i64 silently. Workaround:
+  use slightly smaller literals (e.g. `i64::MAX - 1`) or
+  explicit hex.
+
+These three are queued for individual fix ships.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `parse_type` gains `dyn`
+  keyword skip. Bootstrap fixed point at SHA `4b11a95e`
+  (was `f92686c8`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t368_dyn_keyword_parse.nr` — new strict
+  regression fixture.
+- `tools/verify.{sh,ps1}` — new T3.68 verify step.
+
+### Verify gate
+
+- 446/446 green (was 445 + 1 step from T3.68).
+- All prior regression fixtures (T3.28-T3.67) still green.
+- Bootstrap fixed point closes at `4b11a95e`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.92)
+
+- **30 codegen + 2 runtime + 7 parser/check diagnostic = 39 total**
+- **41 strict regression fixtures** (T3.28-T3.68)
+- **6 robotics RT showcase examples** in Tier 4
+
 ## [0.3.91] — 2026-04-25
 
 **HIGH-BLAST-RADIUS FIX: compiler-builtin `Ok(x)`/`Err(x)`

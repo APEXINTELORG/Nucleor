@@ -863,6 +863,17 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         };
         return pr(cp + 1, str_concat("(", str_concat(inner, ")")));
     };
+    // v0.3.92: trait object syntax `dyn Trait` (and `Box<dyn Trait>`).
+    // Skip the `dyn` keyword (lexed as identifier) and parse the
+    // following Trait name as the type. Trait objects are
+    // represented as i64-shaped fn-pointer-like values in Nucleor's
+    // ABI (the existing dyn_box runtime helpers handle dispatch),
+    // so we just need the parser to accept the syntax. Pre-v0.3.92,
+    // `Box<dyn Greet>` cascaded into parse errors.
+    if pk(tokens, pos) == 1 && str_eq(pkv(tokens, pos), "dyn") == 1 {
+        let mut tr: Vec<i32> = parse_type(tokens, pos + 1);
+        return pr(pr_pos(tr), pr_val(tr));
+    };
     // v0.3.83: fn-pointer type syntax `fn(T1, T2) -> R`. Nucleor stores
     // function pointers as i64, so we consume the syntactic shape and
     // return "i64" — the existing fn-pointer/closure dispatch already
