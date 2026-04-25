@@ -721,7 +721,10 @@ build_test() {
 build_negative() {
     local ename="$1"
     local out
-    out=$("$BIN" build "tests/err/$ename.nr" -o "$ename" 2>&1)
+    # --no-cache: see v0.3.26 — diagnostic-dependent tests must skip
+    # the source cache, or a stale .nuc_cache silently swallows the
+    # error/warning the assertion grep is looking for.
+    out=$("$BIN" build "tests/err/$ename.nr" -o "$ename" --no-cache 2>&1)
     echo "$out" | grep -qiE 'error\b|error\[|warning\b|warning\[' && return 0 || return 1
 }
 
@@ -759,7 +762,7 @@ tools_suite_memory_budget() {
 }
 
 t33_wcet_estimator() {
-    "$BIN" build "tests/fixtures/t33_wcet_overrun.nr" -o "_t33_wcet_check" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t33_wcet_overrun.nr" -o "_t33_wcet_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -qE 'warning\[RT-004\]: static WCET estimate [0-9]+ us' /tmp/_nuc_step.log || return 1
     grep -q 'exceeds #\[deadline = 1 us\]' /tmp/_nuc_step.log || return 1
     grep -q 'v1 estimator' /tmp/_nuc_step.log || return 1
@@ -768,7 +771,7 @@ t33_wcet_estimator() {
 t35_rt007_unguarded_deadline() {
     # T3.5 (v0.3.3): warn when #[deadline] has neither #[no_alloc]
     # nor #[no_panic] — alloc/panic break WCET determinism.
-    "$BIN" build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -qE 'warning\[RT-007\]:' /tmp/_nuc_step.log || return 1
     grep -q 'has #\[deadline\] but neither #\[no_alloc\] nor #\[no_panic\]' /tmp/_nuc_step.log || return 1
 }
@@ -816,10 +819,10 @@ t310_rt008_recursion() {
     # #[deadline] fn warns. Bounded recursion opts out via
     # #[max_depth = N]. Two paired fixtures: unbounded fires
     # RT-008, bounded stays clean.
-    "$BIN" build "tests/fixtures/t310_rt008_recursion.nr" -o "_t310_rt008_check" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t310_rt008_recursion.nr" -o "_t310_rt008_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -qE "warning\[RT-008\]: 'fib_unbounded' has #\[deadline\] and recursively calls itself" /tmp/_nuc_step.log || return 1
     grep -q "add #\[max_depth" /tmp/_nuc_step.log || return 1
-    "$BIN" build "tests/fixtures/t310_rt008_bounded.nr" -o "_t310_bounded_check" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t310_rt008_bounded.nr" -o "_t310_bounded_check" --no-cache >/tmp/_nuc_step.log 2>&1
     if grep -q "RT-008" /tmp/_nuc_step.log; then return 1; fi
     return 0
 }
@@ -864,7 +867,7 @@ t39_rt005_ffi_call() {
     # `<extern_name>(` substring in the stripped body fires.
     # Until #[ffi_no_*] annotations land, every FFI call is
     # treated as RT-unsafe.
-    "$BIN" build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -qE "warning\[RT-005\]: FFI call 'host_telemetry'" /tmp/_nuc_step.log || return 1
     grep -q "from #\[no_alloc\] fn 'rt_path'" /tmp/_nuc_step.log || return 1
     return 0
@@ -877,7 +880,7 @@ t320_allow_fn_per_fn() {
     # fire RT-007; only the second has #[allow_fn(RT-007)],
     # so RT-007 should mention unguarded_one but NOT
     # unguarded_two.
-    "$BIN" build "tests/fixtures/t320_allow_fn.nr" -o "_t320_check" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t320_allow_fn.nr" -o "_t320_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -qE 'warning\[RT-007\]' /tmp/_nuc_step.log || return 1
     # Inner-fn name carries a content-hash; we can't grep for
     # the user-facing wrapper directly. Assert exactly ONE
@@ -895,7 +898,7 @@ t38_rt006_async_attr() {
     # fixtures err_rt006_async_no_alloc.nr +
     # err_rt006_async_deadline.nr cover both spellings; this
     # step asserts the no_alloc variant fires the exact text.
-    "$BIN" build "tests/err/err_rt006_async_no_alloc.nr" -o "_t38_rt006_check" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/err/err_rt006_async_no_alloc.nr" -o "_t38_rt006_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -qE 'error\[RT-006\]: RT attribute' /tmp/_nuc_step.log || return 1
     grep -q "on async fn 'poll_loop'" /tmp/_nuc_step.log || return 1
     grep -q "async is non-deterministic" /tmp/_nuc_step.log || return 1
@@ -1097,7 +1100,7 @@ t15d_mod003() {
     # and the `add pub` hint. Builds the err fixture (which calls
     # lib_helper from outside lib_optin.nr) and asserts the friendly
     # diagnostic appears in stderr.
-    "$BIN" build "tests/err/err_priv_cross_module.nr" -o "_t15d_check" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/err/err_priv_cross_module.nr" -o "_t15d_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -q "error\[MOD-003\]: cannot call private fn 'lib_helper'" /tmp/_nuc_step.log || return 1
     grep -q "declared in:.*lib_optin\.nr" /tmp/_nuc_step.log || return 1
     grep -q 'hint: add `pub` to the fn declaration' /tmp/_nuc_step.log || return 1

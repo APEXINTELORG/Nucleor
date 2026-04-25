@@ -689,7 +689,10 @@ foreach ($e in $errFiles) {
     $ename = $e.BaseName
     Step "negative $ename" {
         $src = "tests/err/$($e.Name)"
-        $out = & $bin build $src -o $ename 2>&1
+        # --no-cache: see v0.3.26 — diagnostic-dependent tests must
+        # skip the source cache, or a stale .nuc_cache silently
+        # swallows the error/warning the assertion is grepping for.
+        $out = & $bin build $src -o $ename --no-cache 2>&1
         $sawErr = $out | Select-String "ERROR|WARNING|error:" | Select-Object -First 1
         return $null -ne $sawErr
     }
@@ -780,7 +783,7 @@ Step "T3.3 static WCET v1 estimator emits warning[RT-004]" {
     # after the prior draft caused a 2960 MB allocation runaway at
     # verify gate step 349. New estimator counts stmts + while
     # keywords with a coarse multiplier ladder + 1e6 stmt cap.
-    $out = & $bin build "tests/fixtures/t33_wcet_overrun.nr" -o "_t33_wcet_check" 2>&1 | Out-String
+    $out = & $bin build "tests/fixtures/t33_wcet_overrun.nr" -o "_t33_wcet_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-004\]: static WCET estimate \d+ us") { return $false }
     if ($out -notmatch "exceeds #\[deadline = 1 us\]") { return $false }
     if ($out -notmatch "v1 estimator") { return $false }
@@ -793,7 +796,7 @@ Step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" {
     # allocations / panics in the body can blow the budget non-
     # deterministically. Warning, not error — `#[allow(RT-007)]`
     # suppresses for unusual cases.
-    $out = & $bin build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" 2>&1 | Out-String
+    $out = & $bin build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-007\]:") { return $false }
     if ($out -notmatch "has #\[deadline\] but neither #\[no_alloc\] nor #\[no_panic\]") { return $false }
     return $true
@@ -817,10 +820,10 @@ Step "T3.10 RT-008 fires on direct recursion in deadline fn" {
     # a #[deadline] fn warns. Bounded recursion opts out via
     # #[max_depth = N]. Two paired fixtures: unbounded fires,
     # bounded stays clean.
-    $out = & $bin build "tests/fixtures/t310_rt008_recursion.nr" -o "_t310_rt008_check" 2>&1 | Out-String
+    $out = & $bin build "tests/fixtures/t310_rt008_recursion.nr" -o "_t310_rt008_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-008\]: 'fib_unbounded' has #\[deadline\] and recursively calls itself") { return $false }
     if ($out -notmatch "add #\[max_depth") { return $false }
-    $out2 = & $bin build "tests/fixtures/t310_rt008_bounded.nr" -o "_t310_bounded_check" 2>&1 | Out-String
+    $out2 = & $bin build "tests/fixtures/t310_rt008_bounded.nr" -o "_t310_bounded_check" --no-cache 2>&1 | Out-String
     if ($out2 -match "RT-008") { return $false }
     return $true
 }
@@ -861,7 +864,7 @@ Step "T3.9 RT-005 fires on FFI call from RT fn body" {
     # v0.3.8 (T3.9): RFC-0001 RT-005 — extern fn call from inside
     # an RT-marked fn body warns. v1 is text-scan: every literal
     # `<extern_name>(` substring in the stripped body fires.
-    $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" 2>&1 | Out-String
+    $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-005\]: FFI call 'host_telemetry'") { return $false }
     if ($out -notmatch "from #\[no_alloc\] fn 'rt_path'") { return $false }
     return $true
@@ -874,7 +877,7 @@ Step "T3.12 #[allow_fn] suppresses one RT diag for one fn" {
     # only the second has #[allow_fn(RT-007)], so RT-007
     # should fire exactly ONCE. File-wide allow would suppress
     # both; per-fn must suppress only the marked one.
-    $out = & $bin build "tests/fixtures/t320_allow_fn.nr" -o "_t320_check" 2>&1 | Out-String
+    $out = & $bin build "tests/fixtures/t320_allow_fn.nr" -o "_t320_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-007\]") { return $false }
     $count = ([regex]::Matches($out, "warning\[RT-007\]")).Count
     if ($count -ne 1) { return $false }
@@ -887,7 +890,7 @@ Step "T3.8 RT-006 fires on RT attr + async fn" {
     # #[deadline]) because async scheduling is non-deterministic.
     # Two negative fixtures cover both attribute spellings; this
     # step asserts the no_alloc variant fires the exact text.
-    $out = & $bin build "tests/err/err_rt006_async_no_alloc.nr" -o "_t38_rt006_check" 2>&1 | Out-String
+    $out = & $bin build "tests/err/err_rt006_async_no_alloc.nr" -o "_t38_rt006_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "error\[RT-006\]: RT attribute") { return $false }
     if ($out -notmatch "on async fn 'poll_loop'") { return $false }
     if ($out -notmatch "async is non-deterministic") { return $false }
@@ -1178,7 +1181,7 @@ Step "T1.5d MOD-003 surfaces with origin + pub hint" {
     # its declaring module` line, plus the origin path and the
     # `add pub` hint. This step builds the err fixture and asserts
     # all three lines appear.
-    $out = & $bin build "tests/err/err_priv_cross_module.nr" -o "_t15d_check" 2>&1 | Out-String
+    $out = & $bin build "tests/err/err_priv_cross_module.nr" -o "_t15d_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "error\[MOD-003\]: cannot call private fn 'lib_helper'") { return $false }
     if ($out -notmatch "declared in: .*lib_optin\.nr") { return $false }
     if ($out -notmatch "hint: add ``pub`` to the fn declaration") { return $false }
