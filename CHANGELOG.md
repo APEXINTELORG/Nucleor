@@ -5,6 +5,78 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.26] — 2026-04-25
+
+**T3.16 negative test — `#[deadline]` intersection rule for the
+v0.3.24 `#[ffi_no_*]` markers.** v0.3.24 shipped per-symbol
+opt-outs and documented the intersection rule (a `#[deadline]`
+caller treats an extern as RT-safe iff it carries BOTH
+`#[ffi_no_alloc]` AND `#[ffi_no_panic]`, since deadline
+determinism subsumes both no-* contracts), but the only verify
+fixture exercised a `#[no_alloc]` caller — the panic-side and
+intersection-side semantics had no automated coverage.
+
+### Approach
+
+Single new fixture, `tests/fixtures/t326_ffi_intersection.nr`,
+with three extern declarations:
+
+```nucleor
+#[ffi_no_alloc]
+extern fn h_alloc_only(x: i64) -> i64;
+
+#[ffi_no_panic]
+extern fn h_panic_only(x: i64) -> i64;
+
+#[ffi_no_alloc]
+#[ffi_no_panic]
+extern fn h_both(x: i64) -> i64;
+
+#[deadline = 100]
+#[allow_fn(RT-007)]
+fn dl_caller(x: i64) -> i64 {
+    let a: i64 = h_alloc_only(x);
+    let b: i64 = h_panic_only(x);
+    let c: i64 = h_both(x);
+    return a + b + c;
+}
+```
+
+The `#[allow_fn(RT-007)]` is purely cosmetic — `dl_caller`
+deliberately omits `#[no_alloc]` / `#[no_panic]` so the test
+exercises the `#[deadline]` contract surface only, and v0.3.20's
+per-fn allow keeps the fixture output focused on RT-005.
+
+### Verify gate
+
+- New: `tests/fixtures/t326_ffi_intersection.nr` + new step
+  `T3.16` ("`#[deadline]` needs BOTH ffi_no_* markers
+  (intersection rule)") in both verify.sh and verify.ps1.
+  Asserts RT-005 mentions `h_alloc_only` (alloc-only marker
+  insufficient for deadline), mentions `h_panic_only`
+  (panic-only marker insufficient for deadline), and does NOT
+  mention `h_both` (intersection silences).
+- Hardening: T3.15 and T3.16 both pass `--no-cache` to the
+  build invocation. The source cache hit short-circuits the
+  parse/typecheck/emit pipeline that emits RT-005, so a stale
+  `.nuc_cache` entry from prior interactive debugging would
+  silently swallow the diagnostic and the test would pass on
+  no output. CI starts cold and was unaffected; `--no-cache`
+  is for local re-run robustness. Same fix should propagate
+  to T3.5/T3.8/T3.9/T3.10/T3.12/T3.13/T3.14 in a future
+  hardening pass — flagged in this changelog rather than
+  bundled into the v0.3.26 scope.
+- Self-host bootstrap fixed point unchanged at A7D6876D
+  (no compiler change — fixture-and-test only).
+- Verify total grew from 389 → 390 steps.
+
+This is the panic-side and intersection-side coverage gap that
+v0.3.24's note "deadline determinism subsumes both no-*
+contracts, so only externs marked safe in BOTH dimensions get
+a pass" promised but did not exercise. T3.15 + T3.16 now cover
+all three RT contract surfaces (`#[no_alloc]`, `#[no_panic]`,
+`#[deadline]`) against the v0.3.24 marker family.
+
 ## [0.3.25] — 2026-04-25
 
 **Docs ship: `docs/v0.3-robotics-guide.md` documents the v0.3.24

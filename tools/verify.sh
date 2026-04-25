@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 32))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 33))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -829,9 +829,33 @@ t324_ffi_no_alloc_marker() {
     # markers on extern declarations narrow the RT-005 scope.
     # Annotated extern is not flagged when called from a
     # matching RT body; un-annotated still fires.
-    "$BIN" build "tests/fixtures/t324_ffi_no_alloc.nr" -o "_t324_check" >/tmp/_nuc_step.log 2>&1
+    # --no-cache: see T3.16 comment — diagnostic-dependent
+    # tests must skip the source cache or they silently pass
+    # on stale cache entries.
+    "$BIN" build "tests/fixtures/t324_ffi_no_alloc.nr" -o "_t324_check" --no-cache >/tmp/_nuc_step.log 2>&1
     grep -qE "warning\[RT-005\]: FFI call 'host_unsafe'" /tmp/_nuc_step.log || return 1
     if grep -qE "warning\[RT-005\]: FFI call 'host_safe'" /tmp/_nuc_step.log; then return 1; fi
+}
+
+t326_ffi_intersection() {
+    # T3.16 (v0.3.26): #[deadline] intersection rule for the
+    # v0.3.24 #[ffi_no_*] markers. A #[deadline] caller treats
+    # an extern as RT-safe iff it carries BOTH markers
+    # (deadline determinism subsumes the no-alloc + no-panic
+    # contracts). Three externs: alloc-only, panic-only, both.
+    # RT-005 should mention the two single-marker externs but
+    # NOT the both-marker one.
+    #
+    # --no-cache because the source cache hit short-circuits the
+    # parse/typecheck/emit pipeline that produces RT-005, so a
+    # stale .nuc_cache from prior interactive debugging would
+    # silently swallow the diagnostic. CI starts cold and would
+    # pass without --no-cache; --no-cache is for local rerun
+    # robustness.
+    "$BIN" build "tests/fixtures/t326_ffi_intersection.nr" -o "_t326_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    grep -qE "warning\[RT-005\]: FFI call 'h_alloc_only'" /tmp/_nuc_step.log || return 1
+    grep -qE "warning\[RT-005\]: FFI call 'h_panic_only'" /tmp/_nuc_step.log || return 1
+    if grep -qE "warning\[RT-005\]: FFI call 'h_both'" /tmp/_nuc_step.log; then return 1; fi
 }
 
 t39_rt005_ffi_call() {
@@ -1275,6 +1299,7 @@ step "T3.8 RT-006 fires on RT attr + async fn" t38_rt006_async_attr
 step "T3.12 #[allow_fn] suppresses one RT diag for one fn" t320_allow_fn_per_fn
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
+step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
 step "T3.10 RT-008 fires on direct recursion in deadline fn" t310_rt008_recursion
 step "T3.11 bare arena_* builtins link + run end-to-end" t311_arena_builtin_smoke
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
