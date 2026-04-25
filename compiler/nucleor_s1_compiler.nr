@@ -10025,6 +10025,19 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
         if str_eq(rt, "f64") == 1 { return "f64"; };
         return "";
     };
+    // v0.3.61 fix: as-cast (`x as f64` is AST kind 99). The
+    // target type is stored directly on the cast node (field 2).
+    // Pre-v0.3.61: `(make_int() as f64) + (make_int() as f64)`
+    // miscomputed because both operands were casts and neither
+    // triggered the existing literal/var f-typed paths. Fix:
+    // strip type_base_name in case the target carries generic
+    // decorations, then return f32/f64 if matched.
+    if kind == 99 {
+        let target_type: str = type_base_name(node_field(pool, nid, 2));
+        if str_eq(target_type, "f32") == 1 { return "f32"; };
+        if str_eq(target_type, "f64") == 1 { return "f64"; };
+        return "";
+    };
     // v0.3.60 fix: trait method call (`obj.method(args)` is
     // AST kind 8). Real production case: trait method results
     // used inline in binops (`r1.area() + r2.area()`) miscompiled

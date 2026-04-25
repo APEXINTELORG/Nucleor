@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 51))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 52))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1051,6 +1051,30 @@ t321_diag001_self_suppress() {
     return 0
 }
 
+t336_cast_fp_ops() {
+    # T3.36 (v0.3.61): regression test for as-cast-result-in-
+    # binop codegen, fixed by adding kind==99 branch to
+    # binop_float_type. Asserts five cast-mixed forms compute
+    # correctly:
+    #   (i as f64) * 2.0          = 8    (cast × literal)
+    #   (i as f64) + f            = 7    (cast × var)
+    #   (i as f64) + (m() as f64) = 11   (cast × cast different)
+    #   (i as f64) * make_two()   = 8    (cast × fn-call)
+    #   (m() as f64) + (m() as f64) = 14 (cast × cast same — original bug)
+    "$BIN" build "tests/fixtures/t336_cast_fp_ops.nr" -o "_t336_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t336_check" ] || [ -x "target/_t336_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t336_check" ]; then exe="target/_t336_check"; else exe="target/_t336_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    local count_8
+    count_8=$(grep -cE '^8\.0+$' /tmp/_nuc_step.log)
+    [ "$count_8" = "2" ] || return 1
+    grep -qE '^7\.0+$'   /tmp/_nuc_step.log || return 1
+    grep -qE '^11\.0+$'  /tmp/_nuc_step.log || return 1
+    grep -qE '^14\.0+$'  /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t335_trait_method_fp_ops() {
     # T3.35 (v0.3.60): regression test for trait-method-result-in-
     # binop codegen, fixed by extending binop_float_type with
@@ -1755,6 +1779,7 @@ step "T3.32 unary minus on f64 operand kinds (v0.3.57 fix)" t332_unary_minus_f64
 step "T3.33 chained field access on fn-call result (v0.3.58 fix)" t333_chained_field_on_fn_call
 step "T3.34 Vec-of-struct field access (v0.3.59 fix)" t334_vec_of_struct_field
 step "T3.35 trait method results in inline f64 binops (v0.3.60 fix)" t335_trait_method_fp_ops
+step "T3.36 as-cast results in inline f64 binops (v0.3.61 fix)" t336_cast_fp_ops
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
