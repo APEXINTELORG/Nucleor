@@ -888,19 +888,24 @@ t321_diag001_self_suppress() {
 }
 
 t320_diag001_unknown_code() {
-    # T3.20 (v0.3.36): DIAG-001 warning fires for #[allow(_fn)] /
-    # #[deny(_fn)] CODE arguments whose prefix isn't in the
-    # canonical diagnostic series set. Fixture has four
-    # offending attributes (one per allow/deny shape) plus one
-    # control with a known prefix (RT-) that must NOT fire.
+    # T3.20 (v0.3.36, extended v0.3.38): DIAG-001 warning fires
+    # for #[allow(_fn)] / #[deny(_fn)] CODE arguments not in the
+    # canonical enumerated diagnostic code set. Fixture has five
+    # offending attributes:
+    #   - 4 unknown-prefix codes (caught since v0.3.36)
+    #   - 1 within-series typo (RT-099 — caught since v0.3.38)
+    # Plus one control (#[allow_fn(RT-007)]) that must NOT fire.
     "$BIN" build "tests/fixtures/t320_diag001_unknown_code.nr" -o "_t320_diag001_check" --no-cache >/tmp/_nuc_step.log 2>&1
     local count
     count=$(grep -cE 'warning\[DIAG-001\]' /tmp/_nuc_step.log)
-    [ "$count" = "4" ] || return 1
-    grep -qE "WAT-001"      /tmp/_nuc_step.log || return 1
-    grep -qE "BOGUS-002"    /tmp/_nuc_step.log || return 1
-    grep -qE "GIBBERISH-003" /tmp/_nuc_step.log || return 1
-    grep -qE "NONSENSE-004" /tmp/_nuc_step.log || return 1
+    [ "$count" = "5" ] || return 1
+    grep -qE "'WAT-001'"      /tmp/_nuc_step.log || return 1
+    grep -qE "'BOGUS-002'"    /tmp/_nuc_step.log || return 1
+    grep -qE "'GIBBERISH-003'" /tmp/_nuc_step.log || return 1
+    grep -qE "'NONSENSE-004'" /tmp/_nuc_step.log || return 1
+    grep -qE "'RT-099'"       /tmp/_nuc_step.log || return 1
+    # Control: RT-007 must NOT trigger DIAG-001.
+    if grep -qE "'RT-007'" /tmp/_nuc_step.log; then return 1; fi
     return 0
 }
 
