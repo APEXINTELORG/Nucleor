@@ -1542,6 +1542,19 @@ long long __nucleor_vec_clear_i64(NVec *v) {
 }
 
 // f64 reductions — values are i64 bit-patterns.
+// v0.3.88: __nucleor_vec_iter — identity pass-through. The Rust idiom
+// `vec.iter().sum()` requires .iter() to return something the rest of
+// the iter chain can be called on. Since Nucleor's iter methods are
+// all defined on Vec directly (vec_sum_i64, vec_map_i64, etc.),
+// .iter() is a no-op that returns the same Vec. Without this helper,
+// every `vec.iter().X()` chain failed at clang link.
+long long __nucleor_vec_iter(NVec *v) {
+    return (long long)(intptr_t)v;
+}
+long long __nucleor_vec_iter_i64(NVec *v) {
+    return (long long)(intptr_t)v;
+}
+
 long long __nucleor_vec_sum_f64(NVec *v) {
     if (!v) return 0;
     union { long long i; double d; } acc;

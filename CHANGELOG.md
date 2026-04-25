@@ -5,6 +5,90 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.88] — 2026-04-25
+
+**Feature: `vec.iter().X()` chain — Rust idiom support.**
+Pre-v0.3.88, writing `v.iter().sum()` failed at clang link with
+`unresolved external symbol __nucleor_vec_iter` because `.iter()`
+wasn't registered as a known iter-method. Rust users would
+naturally chain `.iter().sum()` / `.iter().filter(...)`/etc. but
+hit a confusing link failure.
+
+### Fix
+
+Three coordinated changes:
+
+1. **Compiler** — register `iter` in `iter_method_for_vec` so
+   `v.iter()` dispatches to `vec_iter_i64` instead of falling
+   through to the generic `vec_iter` (which has no runtime).
+2. **Compiler** — add the IR header declare, get_rt_name mapping,
+   is_ptr_ret, and is_ptr_arg entries for `vec_iter_i64` (mirrored
+   in both `nucleor_s1_compiler.nr` and `nucleor_tools_suite.nr`
+   so the drift gate stays green).
+3. **Runtime** (`stdlib/runtime/nucleor_llvm_rt.c`) — add
+   `__nucleor_vec_iter_i64` as an identity pass-through that
+   returns the same Vec ptr. Nucleor's iter methods all work
+   directly on Vec, so `.iter()` is a no-op in the chain.
+
+```c
+long long __nucleor_vec_iter_i64(NVec *v) {
+    return (long long)(intptr_t)v;
+}
+```
+
+### What now works that previously didn't
+
+```nucleor
+let mut v: Vec<i64> = Vec::new();
+v.push(1); v.push(2); v.push(3); v.push(4);
+
+v.iter().sum();    // → 10
+v.iter().max();    // → 4
+v.sum();           // → 10  (regression: direct .sum() still works)
+```
+
+### Bootstrap stabilization note
+
+This ship required ONE re-iteration to reach fixed point —
+stage_b → stage_c had different SHA, but stage_c → stage_d
+stabilized at SHA `5a452c8f`. Previous ships in the v0.3.x arc
+all stabilized in ONE iteration. The cause: helper-table
+additions changed the order in which fn-related sym entries
+get inserted, which propagated into a different fn ordering
+inside the s1 compiler's own output. By stage_c, the new helper
+is fully integrated and stage_c → stage_d byte-identical.
+Verified by building stage_d and confirming hash match.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — iter_method_for_vec
+  registers `iter`; get_rt_name + is_ptr_ret + is_ptr_arg +
+  IR header declare add the vec_iter_i64 entries.
+- `compiler/nucleor_tools_suite.nr` — mirror entries (drift gate).
+- `stdlib/runtime/nucleor_llvm_rt.c` — `__nucleor_vec_iter_i64`
+  identity pass-through helper.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed (stable at
+  `5a452c8f` after one re-iteration).
+- `tests/fixtures/t364_vec_iter_chain.nr` — new strict regression
+  fixture covering .iter().sum() + .iter().max() + direct .sum()
+  baseline.
+- `tools/verify.{sh,ps1}` — new T3.64 verify step.
+- `docs/rfcs/helper_manifest.toml` — regenerated to register
+  the new helpers.
+
+### Verify gate
+
+- 442/442 green (was 441 + 1 step from T3.64).
+- All prior regression fixtures (T3.28-T3.63) still green.
+- Bootstrap fixed point closes at `5a452c8f`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.88)
+
+- **27 codegen + 2 runtime + 6 parser/check diagnostic = 35 total**
+- **37 strict regression fixtures** (T3.28-T3.64)
+- **6 robotics RT showcase examples** in Tier 4
+
 ## [0.3.87] — 2026-04-25
 
 **Feature: struct-like enum variant construction
