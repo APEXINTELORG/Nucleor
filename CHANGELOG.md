@@ -5,6 +5,146 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.68] — 2026-04-25
+
+**Compiler fix #14: nested indexing (`grid[i][j]`) — closes
+the composition matrix.** The v0.3.66 ship formalized the
+production "operand kind × resolver" matrix with 4 cells per
+resolver. v0.3.65/66/67 closed three of four cells per resolver
+(kind 3, kind 9, kind 7). v0.3.68 closes the fourth (kind 10
+nested indexing) AND refactors all four into a single recursive
+helper used by both resolvers.
+
+### What this enables
+
+Real production matrix/grid code:
+
+```nucleor
+let grid: Vec<Vec<f64>> = ...;
+let total: f64 = grid[0][0] + grid[1][1];      // 2D matrix sum
+let dot: f64 = row[0] * col[0] + row[1] * col[1] + row[2] * col[2];
+```
+
+Pre-v0.3.68 every nested-indexing arithmetic expression
+silently miscomputed. 2D matrices, image data buffers,
+trajectory grids — all unworkable in the natural inline
+form. Per "robust production ready fixes only", this is the
+matrix-indexing class that any robotics codebase will hit.
+
+### Refactor: single shared helper
+
+Rather than duplicate the 4-operand-kind dispatcher in BOTH
+resolvers, v0.3.68 introduces:
+
+```nucleor
+// indexed_element_full_type — walks the operand chain through
+// any number of nested indexings, stripping one container layer
+// per level. Returns the FULL element type (with generics).
+fn indexed_element_full_type(pool, vexpr, sym, structs) -> str {
+    let vk = node_kind(pool, vexpr);
+    let mut vtype = "";
+    if vk == 3 { /* var ref via __fulltype_ */ };
+    if vk == 9 { /* struct field via expr_struct_type → struct_field_type */ };
+    if vk == 7 { /* fn-call via __fnfulltype_ */ };
+    if vk == 10 {
+        // RECURSIVE: nested indexing.
+        vtype = indexed_element_full_type(pool, node_field(pool, vexpr, 1), sym, structs);
+    };
+    if str_len(vtype) == 0 { return ""; };
+    return strip_container_one_level(vtype);
+}
+
+fn strip_container_one_level(t: str) -> str {
+    // "Vec<f64>"          → "f64"
+    // "Vec<Vec<f64>>"     → "Vec<f64>"
+    // "[f64; 3]"          → "f64"
+    // "[Vec<f64>; 4]"     → "Vec<f64>"
+    ...
+}
+```
+
+Both `binop_float_type` kind==10 and `expr_struct_type`
+kind==10 collapse to a single helper call. The 4-cell
+operand matrix becomes a SINGLE DAG: every operand-kind
+recognized once, every container shape stripped once,
+nested indexing handled by recursion.
+
+### Composition matrix CLOSED
+
+| Operand kind of indexed expr | binop_float_type | expr_struct_type |
+|------------------------------|------------------|------------------|
+| 3 (var ref `v[i]`)           | v0.3.55→v0.3.68  | v0.3.59→v0.3.68  |
+| 9 (struct field `self.s[i]`) | v0.3.65→v0.3.68  | v0.3.66→v0.3.68  |
+| 7 (fn-call `make_vec()[i]`)  | v0.3.67→v0.3.68  | v0.3.67→v0.3.68  |
+| 10 (nested `vv[i][j]`)       | **v0.3.68**      | **v0.3.68**      |
+
+All 8 cells now closed. Adding a new operand kind (e.g.,
+trait method returning Vec<f64>) requires extending ONE
+function (`indexed_element_full_type`) instead of four.
+
+### What now works that previously didn't
+
+```nucleor
+let grid: Vec<Vec<f64>> = ...;
+
+grid[0][0]                     →  1.0  (worked pre-v0.3.68)
+grid[0][0] + grid[1][1]        →  5.0  (was: -0.0)
+grid[1][0] * grid[0][1]        →  6.0
+grid[1][1] - grid[0][0]        →  3.0
+```
+
+Plus all the prior shapes still work via the unified helper.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` —
+  - `strip_container_one_level` new helper.
+  - `indexed_element_full_type` new recursive helper.
+  - `binop_float_type` kind==10 collapsed to a single helper
+    call.
+  - `expr_struct_type` kind==10 collapsed to a single helper
+    call.
+  - Bootstrap fixed point recomputed at SHA `33910158` (was
+    `675a44a0`).
+- `bootstrap/nucleor_s1_seed.ll` — refreshed; T1.7 passes.
+- `tests/fixtures/t343_nested_indexing.nr` — new strict
+  regression fixture covering 4 nested-indexing patterns
+  on Vec<Vec<f64>>.
+- `tools/verify.{sh,ps1}` — new T3.43 verify step.
+- `docs/v0.3-robotics-guide.md` — v1 limitations entry
+  added; SHA stamp updated.
+
+### Verify gate
+
+- 420/420 green (was 419 + 1 new step from T3.43).
+- All prior regression fixtures (T3.28-T3.42) still green —
+  the refactor preserved every prior shape's behavior.
+- Bootstrap fixed point closes at `33910158`.
+- RSS during full bootstrap stayed comfortably under 2 GB.
+
+### Production-readiness arc tally (v0.3.51 → v0.3.68)
+
+- **14 codegen fixes**: 13 direct bug fixes + 1 unifying
+  refactor (v0.3.68)
+- **16 strict regression fixtures**: T3.28-T3.43
+- **Reusable infrastructure**:
+  - `__fnret_<NAME>` (v0.3.54)
+  - `__fnfulltype_<NAME>` (v0.3.67)
+  - `__fulltype_<vname>` (v0.3.55)
+  - Pass-1.5 fn_decls extension (v0.3.60)
+  - `strip_container_one_level` (v0.3.68)
+  - `indexed_element_full_type` (v0.3.68 — single shared
+    composition resolver)
+- **All fixes coexist**: bootstrap stable through 14 SHA
+  refreshes
+- **Composition matrix CLOSED**: all 8 cells (4 operand
+  kinds × 2 resolvers)
+
+The arithmetic surface for f64 on production AST shapes is
+now structurally complete AND structurally unified — adding
+new operand kinds extends ONE recursive helper instead of
+two parallel kind enumerations.
+
 ## [0.3.67] — 2026-04-25
 
 **Compiler fix #13: indexing on fn-call result
