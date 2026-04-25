@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.107] — 2026-04-25
+
+**Nested closures get distinct LLVM function names.** Pre-v0.3.107,
+both the outer and inner closures queried `vec_len(closures)` for
+their id while the closures Vec was still empty — both got id 0,
+hard-failing at clang link with:
+
+```
+error: invalid redefinition of function '__closure_0'
+```
+
+The push-after-lower order in `lower_expr` at kind 42 reserved
+the closure slot only AFTER the body (which contained the inner
+closure) had been lowered. Adopters reaching for the canonical
+Rust returns-a-closure pattern hit the link error on first use:
+
+```
+let make = |n: i64| -> fn(i64) -> i64 {
+    return |x: i64| -> i64 { return x + n; };
+};
+```
+
+A hard adoption blocker for any functional / curried API design.
+
+### Fix
+
+Push the outer closure into `closures` BEFORE lowering its body.
+The push reserves the slot for the already-allocated `clo_idx`,
+so nested closures get the next id (1, 2, …). Safe because
+`clo_fir` is a `Vec` reference and `lower_stmts` mutates it in
+place — the `closures` list holds the same pointer either way.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t384 returns 12 (5 + 7), proving
+the captured `n` from the outer closure correctly reaches the
+inner closure's body and both closures emit distinct LLVM
+functions. `bin/nucleor.exe` SHA `f89a7caa`. 452/452 verify.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — push order in lower_expr
+  kind-42 closure literal lowering.
+- `tests/fixtures/t384_nested_closures.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.106] — 2026-04-25
 
 **`&self` / `&mut self` in trait declarations + tuple-pattern

@@ -10575,13 +10575,24 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             sym_set(clo_sym, capname, car);
             capi = capi + 1;
         };
+        // v0.3.107: push the closure into `closures` BEFORE lowering
+        // its body. Pre-v0.3.107 the push happened AFTER body lowering,
+        // so nested closures (a closure inside another closure's body)
+        // queried `vec_len(closures)` at line 10541 and saw the same
+        // count as the outer closure — both got `__closure_0`, which
+        // hard-failed at clang link with `invalid redefinition of
+        // function '__closure_0'`. Pushing first reserves the slot
+        // for clo_idx (already allocated above) so nested closures
+        // get the next id (1, 2, …). Safe because clo_fir is a Vec
+        // reference and lower_stmts mutates it in place — the
+        // closures list holds the same pointer either way.
+        closures.push(clo_fir);
         let mut clo_fb: Vec<i32> = lower_stmts(pool, body_list, clo_b0, clo_regs, clo_lbls, clo_sym, clo_fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
         if block_has_term(clo_fb) == 0 {
             let czr: i64 = ctr_next(clo_regs);
             ir_block_add(clo_fb, ir_const_int(czr, 0));
             ir_block_add(clo_fb, ir_ret(czr));
         };
-        closures.push(clo_fir);
         let mut capi2: i64 = 0;
         let mut cur: Vec<i32> = blk;
         while capi2 < vec_len(captures) {
