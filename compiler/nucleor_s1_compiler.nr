@@ -1356,9 +1356,22 @@ fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             cp = expect_tok(tokens, cp, 44);
             if pk(tokens, cp) == 53 { break; };
         };
-        let fn2: i64 = pkv(tokens, cp); cp = expect_tok(tokens, cp + 1, 42);
-        let mut er: Vec<i32> = parse_expr(tokens, cp, pool); cp = pr_pos(er);
-        inits.push(mk3(pool, 35, fn2, pr_val(er)));
+        let fn2: i64 = pkv(tokens, cp);
+        // v0.3.90: shorthand struct init `Point { x, y }`. If the
+        // next token after the field name is `,` (44) or `}` (53),
+        // synthesize a var-ref expression with the same name as the
+        // field (Rust shorthand `Point { x }` → `Point { x: x }`).
+        // Without this, the parser called expect_tok(42) (`:`) and
+        // failed when the user wrote shorthand.
+        if pk(tokens, cp + 1) == 44 || pk(tokens, cp + 1) == 53 {
+            let var_node: i64 = mk2(pool, 3, fn2);
+            cp = cp + 1;
+            inits.push(mk3(pool, 35, fn2, var_node));
+        } else {
+            cp = expect_tok(tokens, cp + 1, 42);
+            let mut er: Vec<i32> = parse_expr(tokens, cp, pool); cp = pr_pos(er);
+            inits.push(mk3(pool, 35, fn2, pr_val(er)));
+        };
     };
     cp = cp + 1;
     return pr(cp, mk3(pool, 34, name, mk_list(pool, inits)));
