@@ -9966,6 +9966,31 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
         if str_eq(rt, "f64") == 1 { return "f64"; };
         return "";
     };
+    // v0.3.55 fix: Vec indexing (`v[i]` is AST kind 10).
+    // Extract the element type from the variable's full declared
+    // type (Vec<f64>) via the __fulltype_ sym entry. The existing
+    // __type_ sym entry only stores the base name ("Vec") because
+    // type_base_name strips generics; v0.3.55 added a parallel
+    // __fulltype_ entry that preserves the generic so the kind==10
+    // dispatcher can extract the element type.
+    if kind == 10 {
+        let vexpr: i64 = node_field(pool, nid, 1);
+        if node_kind(pool, vexpr) == 3 {
+            let vname: str = node_field(pool, vexpr, 1);
+            let vtype: i64 = sym_get(sym, str_concat("__fulltype_", vname));
+            if vtype < 0 { return ""; };
+            // Vec<T> → extract T. Length of "Vec<" = 4.
+            if str_starts_with(vtype, "Vec<") == 1 {
+                let tlen: i64 = str_len(vtype);
+                if tlen > 5 && str_char_at(vtype, tlen - 1) == 62 {
+                    let inner: str = type_base_name(str_substring(vtype, 4, tlen - 1));
+                    if str_eq(inner, "f32") == 1 { return "f32"; };
+                    if str_eq(inner, "f64") == 1 { return "f64"; };
+                };
+            };
+        };
+        return "";
+    };
     return "";
 }
 
@@ -10057,6 +10082,11 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         };
         let sbase: str = type_base_name(tstr);
         if str_len(sbase) > 0 { sym_set(sym, str_concat("__type_", vname), sbase); };
+        // v0.3.55: also store the FULL declared type (with generics
+        // like Vec<f64>) so binop_float_type can extract Vec<T>'s
+        // element type for kind==10 (indexing) dispatch. type_base_name
+        // strips the <T> for the existing __type_ entry.
+        if str_len(tstr) > 0 { sym_set(sym, str_concat("__fulltype_", vname), tstr); };
         if init >= 0 {
             let src_kind: i64 = node_kind(pool, init);
             let mut vp: Vec<i32> = lower_expr(pool, init, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
@@ -10391,6 +10421,9 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
         let ptype: str = node_field(pool, pnid, 2);
         let sbase: str = type_base_name(ptype);
         if str_len(sbase) > 0 { sym_set(sym, str_concat("__type_", pname), sbase); };
+        // v0.3.55: also store full declared type for generic-aware
+        // dispatch (mirror the same change at the let binding site).
+        if str_len(ptype) > 0 { sym_set(sym, str_concat("__fulltype_", pname), ptype); };
         pi = pi + 1;
     };
     let mut gi: i64 = 0;
@@ -10409,6 +10442,8 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
         else if str_len(gtype) == 0 && node_kind(pool, ginit) == 12 { gtype = node_field(pool, ginit, 1); };
         let gbase: str = type_base_name(gtype);
         if str_len(gbase) > 0 { sym_set(sym, str_concat("__type_", gname), gbase); };
+        // v0.3.55: full declared type (mirror let / param sites).
+        if str_len(gtype) > 0 { sym_set(sym, str_concat("__fulltype_", gname), gtype); };
         gi = gi + 1;
     };
     let bcnt: i64 = list_len(pool, blist);

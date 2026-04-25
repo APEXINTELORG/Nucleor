@@ -169,7 +169,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 45))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 46))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1051,6 +1051,25 @@ t321_diag001_self_suppress() {
     return 0
 }
 
+t330_vec_index_fp_ops() {
+    # T3.30 (v0.3.55): regression test for the f64 inline
+    # binop-on-Vec-indexing codegen bug fixed in v0.3.55.
+    # Asserts five ops on Vec<f64>[i] produce correct values:
+    #   add: 1+4=5    sub: 1-4=-3   mul: 1*4=4   div: 8/4=2
+    #   nested: v[0]*v[1] + v[2]*v[5] + v[4]*v[6] = 32
+    "$BIN" build "tests/fixtures/t330_vec_index_fp_ops.nr" -o "_t330_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ -x "target/_t330_check" ] || [ -x "target/_t330_check.exe" ] || return 1
+    local exe
+    if [ -x "target/_t330_check" ]; then exe="target/_t330_check"; else exe="target/_t330_check.exe"; fi
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    grep -qE '^5\.0+$'    /tmp/_nuc_step.log || return 1
+    grep -qE '^-3\.0+$'   /tmp/_nuc_step.log || return 1
+    grep -qE '^4\.0+$'    /tmp/_nuc_step.log || return 1
+    grep -qE '^2\.0+$'    /tmp/_nuc_step.log || return 1
+    grep -qE '^32\.0+$'   /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t329_fn_call_fp_ops() {
     # T3.29 (v0.3.54): regression test for the f64 inline
     # binop-on-fn-call codegen bug fixed in v0.3.54.
@@ -1638,6 +1657,7 @@ step "T3.26 cli-help cmds drift (verify.sh ⇄ verify.ps1)" t326_cli_help_cmds_d
 step "T3.27 #[export] workaround produces correct dot product" t327_export_workaround_dot
 step "T3.28 inline f64 ops on struct-field operands (v0.3.53 fix)" t328_struct_field_fp_ops
 step "T3.29 inline f64 ops on fn-call results (v0.3.54 fix)" t329_fn_call_fp_ops
+step "T3.30 inline f64 ops on Vec indexing (v0.3.55 fix)" t330_vec_index_fp_ops
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
