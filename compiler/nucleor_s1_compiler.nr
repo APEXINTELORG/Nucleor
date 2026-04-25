@@ -5802,6 +5802,189 @@ fn enforce_rt005_ffi(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+// === T3.10 (v0.3.9): RT-008 — direct recursion in #[deadline] fn ===
+// Recursion blows the deadline budget unless the call depth is
+// bounded. We detect *direct* self-recursion: the inner fn's
+// body contains a literal call to the original (wrapper) name.
+// `#[max_depth = N]` opts out — bounded recursion is fine if
+// the user has declared a static bound that fits in the budget.
+//
+// Indirect recursion (A→B→A) requires a call graph and is left
+// for the v2 AST-based check.
+
+fn dl_get_wrapper_name(source: str, inner_name: str) -> str {
+    // The T3.1 expander emits the inner fn first, then a blank,
+    // then the wrapper fn whose body calls deadline_check. Walk
+    // forward from the inner's brace-balanced body close, skip
+    // whitespace, and read the next `fn NAME(` identifier.
+    let needle: str = str_concat("fn ", str_concat(inner_name, "("));
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    let mut found_at: i64 = 0 - 1;
+    while p + nlen <= slen && found_at < 0 {
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < nlen && m == 1 {
+            if str_char_at(source, p + k) != str_char_at(needle, k) { m = 0; };
+            k = k + 1;
+        };
+        if m == 1 { found_at = p; }
+        else { p = p + 1; };
+    };
+    if found_at < 0 { return ""; };
+    let mut q: i64 = found_at + nlen;
+    while q < slen && str_char_at(source, q) != 123 { q = q + 1; };
+    if q >= slen { return ""; };
+    q = q + 1;
+    let mut depth: i64 = 1;
+    while q < slen && depth > 0 {
+        let c: i64 = str_char_at(source, q);
+        if c == 123 { depth = depth + 1; };
+        if c == 125 { depth = depth - 1; };
+        q = q + 1;
+    };
+    while q < slen && (str_char_at(source, q) == 32 || str_char_at(source, q) == 9 || str_char_at(source, q) == 10 || str_char_at(source, q) == 13) {
+        q = q + 1;
+    };
+    if q + 3 > slen { return ""; };
+    if str_char_at(source, q) != 102 || str_char_at(source, q + 1) != 110 || str_char_at(source, q + 2) != 32 {
+        return "";
+    };
+    q = q + 3;
+    let nm_start: i64 = q;
+    while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
+    if q == nm_start { return ""; };
+    return str_substring(source, nm_start, q);
+}
+
+fn collect_max_depth_fns(source: str) -> Vec<i32> {
+    // Returns the list of fn names tagged with `#[max_depth ...]`
+    // (either `#[max_depth = N]` or `#[max_depth(N)]`). Matches the
+    // existing collect_no_alloc_fns pattern: skip `//` comments and
+    // string literals so the literal in this very compiler doesn't
+    // self-match.
+    let mut fns: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[max_depth";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            // Skip past `]` so we land at the next line.
+            let mut q: i64 = p + plen;
+            while q < slen && str_char_at(source, q) != 93 { q = q + 1; };
+            if q < slen { q = q + 1; };
+            // Walk to next `fn NAME(`.
+            while q + 3 <= slen {
+                let c0: i64 = str_char_at(source, q);
+                let c1: i64 = str_char_at(source, q + 1);
+                let c2: i64 = str_char_at(source, q + 2);
+                if c0 == 102 && c1 == 110 && c2 == 32 {
+                    q = q + 3;
+                    let nm_start: i64 = q;
+                    while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
+                    if q > nm_start {
+                        let nm: str = str_substring(source, nm_start, q);
+                        fns.push(nm);
+                    };
+                    p = q;
+                    break;
+                };
+                q = q + 1;
+            };
+            if q + 3 > slen { p = slen; };
+        } else {
+            p = p + 1;
+        };
+    };
+    return fns;
+}
+
+fn enforce_rt008_recursion(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let dl_entries: Vec<i32> = wcet_collect_deadline_fns(source);
+    let n: i64 = vec_len(dl_entries);
+    if n == 0 { return diags; };
+    let max_depth_fns: Vec<i32> = collect_max_depth_fns(source);
+    let mut k: i64 = 0;
+    while k + 1 < n {
+        let inner_name: str = vec_get(dl_entries, k);
+        let wrapper_name: str = dl_get_wrapper_name(source, inner_name);
+        if str_len(wrapper_name) > 0 {
+            // Is the inner (the one carrying the user's #[max_depth]
+            // attribute after T3.1 preserves it) opted out?
+            let mut bounded: i64 = 0;
+            let mut j: i64 = 0;
+            let mn: i64 = vec_len(max_depth_fns);
+            while j < mn && bounded == 0 {
+                if str_eq(vec_get(max_depth_fns, j), inner_name) == 1 { bounded = 1; };
+                j = j + 1;
+            };
+            if bounded == 0 {
+                // Scan the inner body (stripped) for `<wrapper>(`.
+                let needle: str = str_concat("fn ", str_concat(inner_name, "("));
+                let nlen: i64 = str_len(needle);
+                let slen: i64 = str_len(source);
+                let mut p: i64 = 0;
+                while p + nlen <= slen {
+                    let mut m: i64 = 1;
+                    let mut q: i64 = 0;
+                    while q < nlen && m == 1 {
+                        if str_char_at(source, p + q) != str_char_at(needle, q) { m = 0; };
+                        q = q + 1;
+                    };
+                    if m == 1 { break; };
+                    p = p + 1;
+                };
+                if p + nlen <= slen {
+                    let mut bp: i64 = p + nlen;
+                    while bp < slen && str_char_at(source, bp) != 123 { bp = bp + 1; };
+                    if bp < slen {
+                        let body_start: i64 = bp + 1;
+                        let mut depth: i64 = 1;
+                        bp = bp + 1;
+                        while bp < slen && depth > 0 {
+                            let c: i64 = str_char_at(source, bp);
+                            if c == 123 { depth = depth + 1; };
+                            if c == 125 { depth = depth - 1; };
+                            bp = bp + 1;
+                        };
+                        let body_raw: str = str_substring(source, body_start, bp - 1);
+                        let body: str = strip_strings_and_line_comments(body_raw);
+                        let call_pat: str = str_concat(wrapper_name, "(");
+                        if str_contains(body, call_pat) == 1 {
+                            let msg: str = str_concat("'", str_concat(wrapper_name, "' has #[deadline] and recursively calls itself; add #[max_depth = N] to opt out (recursion can blow the deadline budget)"));
+                            diag_add_ex(diags, "warning", "rt", "RT-008", msg, wrapper_name, 0, 0, "");
+                        };
+                    };
+                };
+            };
+        };
+        k = k + 2;
+    };
+    return diags;
+}
+
 // === T3.8 (v0.3.7): RT-006 — RT attribute on async fn ===
 // expand_async_strip_keyword (in the resolver-level expanders)
 // drops the `async` keyword for good. To still detect "an RT
@@ -10338,6 +10521,11 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // warns; users suppress per-fn via #[allow(RT-005)] until the
     // #[ffi_no_*] annotation family ships in v0.4.
     diags = enforce_rt005_ffi(diags, source);
+    // T3.10 (v0.3.9): RT-008 — direct self-recursion in a
+    // #[deadline] fn warns. Bounded recursion opts out via
+    // `#[max_depth = N]`; indirect (mutual) recursion is left
+    // for the v2 AST-based check.
+    diags = enforce_rt008_recursion(diags, source);
     // T3.3 (v0.3.2): static WCET estimator for #[deadline = N] fns.
     // Emits warning[RT-004] when the v1 estimate exceeds the budget.
     diags = enforce_static_wcet(diags, source);
