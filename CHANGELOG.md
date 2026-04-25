@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.108] — 2026-04-25
+
+**`.iter().count()` iterator-length terminator.** Pre-v0.3.108,
+the canonical Rust pattern `let n = v.iter().count();` failed at
+clang link with `unresolved external symbol __nucleor_vec_count` —
+`count` was not in `iter_method_for_vec` and there was no runtime
+helper. Adopters reaching for this terminator (very common in
+iterator pipelines that report a count rather than collect to a
+Vec) hit this on first use.
+
+### Fix
+
+Mirrors the v0.3.102 `.collect()` ship pattern:
+
+1. Runtime: `__nucleor_vec_count_i64(NVec *v)` returns `v->len`.
+2. Compiler: `count` added to `iter_method_for_vec` so kind-8
+   dispatch routes `.count()` to `vec_count_i64`. Registered in
+   `get_rt_name`, `is_ptr_arg` (arg 0 = ptr), `is_ptr_ret` (=0,
+   returns i64), and the IR header `declare` list. Mirrored in
+   `nucleor_tools_suite.nr` per drift gate.
+3. helper_manifest.toml regenerated.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t385 returns 5 from a 5-element
+vec, proving the chain `vec![1,2,3,4,5].iter().count()` lowers
+and the int return reaches the call site without ABI mismatches.
+`bin/nucleor.exe` SHA `967e4ff8`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — count registration.
+- `compiler/nucleor_tools_suite.nr` — drift mirror.
+- `stdlib/runtime/nucleor_llvm_rt.c` — `__nucleor_vec_count_i64`.
+- `tests/fixtures/t385_iter_count.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+
 ## [0.3.107] — 2026-04-25
 
 **Nested closures get distinct LLVM function names.** Pre-v0.3.107,
