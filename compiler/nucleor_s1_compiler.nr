@@ -6007,7 +6007,7 @@ fn check_no_ffi_violations(diags: Vec<i32>, source: str, fn_name: str, externs: 
                     let ext_name: str = vec_get(externs, ei);
                     let pat: str = str_concat(ext_name, "(");
                     if str_contains(body, pat) == 1 {
-                        let msg: str = str_concat("FFI call '", str_concat(ext_name, str_concat("' from ", str_concat(attr_label, str_concat(" fn '", str_concat(fn_name, "' -- extern fns may allocate, panic, or block (use #[allow(RT-005)] until #[ffi_no_*] ships)"))))));
+                        let msg: str = str_concat("FFI call '", str_concat(ext_name, str_concat("' from ", str_concat(attr_label, str_concat(" fn '", str_concat(fn_name, "' -- extern fns may allocate, panic, or block (mark the extern with #[ffi_no_alloc] / #[ffi_no_panic] for per-symbol opt-out, or #[allow(RT-005)] for file-wide)"))))));
                         diag_add_ex(diags, "warning", "rt", "RT-005", msg, fn_name, 0, 0, "");
                     };
                     ei = ei + 1;
