@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 43
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 44
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -889,6 +889,43 @@ Step "T3.9 RT-005 fires on FFI call from RT fn body" {
     $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-005\]: FFI call 'host_telemetry'") { return $false }
     if ($out -notmatch "from #\[no_alloc\] fn 'rt_path'") { return $false }
+    return $true
+}
+
+Step "T3.26 cli-help cmds drift (verify.sh <-> verify.ps1)" {
+    # v0.3.44 (T3.26): drift gate for the cli_help_coverage_smoke
+    # cmds list. Both verify.sh and verify.ps1 hardcode the same
+    # ~39-entry CLI command set; a new command added to one but
+    # forgotten in the other would leave the smoke check half-blind
+    # on the corresponding OS.
+    $shPath  = Join-Path $root "tools\verify.sh"
+    $ps1Path = Join-Path $root "tools\verify.ps1"
+    function _ExtractCmds($path, $startPattern) {
+        $lines = Get-Content $path
+        $inBlock = $false
+        $body = New-Object System.Collections.ArrayList
+        foreach ($line in $lines) {
+            if ($line -match $startPattern) { $inBlock = $true; continue }
+            if ($inBlock -and $line -match '^\s*\)\s*$') { $inBlock = $false; continue }
+            if ($inBlock) { [void]$body.Add($line) }
+        }
+        $body | Select-String -AllMatches -Pattern '"([a-z][a-z0-9-]*)"' `
+            | ForEach-Object { $_.Matches } `
+            | ForEach-Object { $_.Groups[1].Value } `
+            | Sort-Object -Unique
+    }
+    $shCmds  = _ExtractCmds $shPath  '^\s*local cmds=\('
+    $psCmds  = _ExtractCmds $ps1Path '^\s*\$cmds = @\('
+    $missingFromPs = $shCmds | Where-Object { $psCmds -notcontains $_ }
+    $missingFromSh = $psCmds | Where-Object { $shCmds -notcontains $_ }
+    if ($missingFromPs) {
+        Write-Host ("       drift: cli help cmds in verify.sh but missing from verify.ps1: " + ($missingFromPs -join ", "))
+        return $false
+    }
+    if ($missingFromSh) {
+        Write-Host ("       drift: cli help cmds in verify.ps1 but missing from verify.sh: " + ($missingFromSh -join ", "))
+        return $false
+    }
     return $true
 }
 

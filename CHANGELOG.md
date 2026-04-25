@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.44] — 2026-04-25
+
+**T3.26 cli-help cmds drift gate.** Same drift class as
+T3.23/T3.24/T3.25 but for the `cli_help_coverage_smoke`
+command list. Both verify.sh and verify.ps1 hardcode the same
+~39-entry CLI command set; a new command added to one but
+forgotten in the other would leave the smoke check half-blind
+on the corresponding OS.
+
+### Approach
+
+Same shape as T3.23's cross-script gate: pure regex scan of
+both `cmds=(...)` array bodies (bash `local cmds=(...)` and
+PowerShell `$cmds = @(...)`), diffed in both directions.
+Failure output lists missing commands by side.
+
+### Verify gate
+
+- 399/399 green (was 398 + 1 new step). Verify total grew by
+  one in both verify.sh and verify.ps1.
+- T3.26 confirmed: both lists currently hold 39 commands, all
+  pairwise equal.
+- Bootstrap fixed point unchanged at SHA `4cd2d428` (no
+  compiler change — verify-script-only).
+
+### Drift gate ecosystem after v0.3.44
+
+| Step | Catches | Sources audited |
+|------|---------|-----------------|
+| T3.23 | Diag-code list drift | s1 ⇄ verify.sh ⇄ verify.ps1 (3-way) |
+| T3.24 | Spec-doc row drift | spec doc ⇄ canonical set |
+| T3.25 | Examples-list drift | examples/ dir ⇄ examples.list |
+| T3.26 | CLI-help cmds drift | verify.sh cmds ⇄ verify.ps1 cmds |
+| `cli_explain_full_smoke` | Explain registry completeness | tools_suite explain entries (3 fns) |
+
+Five pure-text drift checks. Combined with the explain
+registry's three-fn completeness assertion, every parallel
+hardcoded list in the diag-code, examples, and CLI-help
+ecosystems is now structurally locked. Adding any item to one
+side and forgetting another fails the verify gate within the
+same run.
+
+The pattern: each gate runs in milliseconds, costs almost
+nothing to add, and structurally prevents the
+"forgot to update one of N parallel sources" bug class. At
+six gates the marginal value is dropping, but the work
+remains cheap and defensive.
+
 ## [0.3.43] — 2026-04-25
 
 **T3.25 examples-list drift gate.** Same drift class the
