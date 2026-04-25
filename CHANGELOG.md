@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.19] — 2026-04-25
+
+**`docs/v0.3-robotics-guide.md` Cookbook section.** Adds four
+copy-paste-ready patterns covering the day-one needs of a
+robotics author reaching for the v0.3 attribute family:
+
+1. **Basic PID step (full L1 stack)** — the four-attribute
+   sandwich on a tight inner loop, with the non-RT driver
+   pattern explained.
+2. **Sensor reading with `#[no_panic]` only** — when the
+   constraint is "must not panic" but allocation and dispatch
+   are fine. Avoids the RT-007 noise.
+3. **State-machine step with bounded recursion** — Fibonacci
+   carrying both `#[deadline]` and `#[max_depth = N]`,
+   pointing at the matched positive/negative gate fixtures.
+4. **C-side caller of an `#[export]`ed Nucleor fn** — the full
+   round trip: Nucleor source, `nuc gen-headers` invocation,
+   C-side `#include` + call. No FFI wrapper hand-rolling.
+
+Pure documentation ship. No compiler change. Verify gate count
+unchanged at 385.
+
 ## [0.3.18] — 2026-04-25
 
 **`docs/v0.3-robotics-guide.md` — single-page summary of the
