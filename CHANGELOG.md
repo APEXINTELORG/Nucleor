@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.168] — 2026-04-26
+
+**Five more `print()` dispatch shapes fixed: cast, unary minus,
+unary not, user method calls, and builtin methods (Vec::len etc.).**
+Closes the largest batch of remaining print()-dispatch SIGSEGVs.
+
+Pre-v0.3.168, the print() type-aware dispatch handled AST kinds
+1, 71/72, 3, 7, 9, 10, 4. Several more shapes silently
+miscompiled (printed bit patterns, garbage, or SIGSEGV'd):
+- kind 99 (cast):       `print(x as i64)` → SIGSEGV
+- kind 5 (unary minus): `print(-n)` → SIGSEGV
+- kind 6 (unary not):   `print(!b)` → "(null)" / SIGSEGV
+- kind 8 (user method): `print(h.get())` → SIGSEGV
+- kind 8 (builtin method): `print(v.len())` → SIGSEGV
+- kind 12 (assoc fn):   `print(Foo::bar())` if scalar return →
+  SIGSEGV
+
+Same hazard class as v0.3.143/163/164/165 — adopter writes a
+canonical pattern, gets garbage or crashes with no diagnostic.
+
+Fix: six new branches in the print() dispatch, plus a builtin
+fallback for the kind-8 path:
+- **kind 99 (cast)**: use cast target type (node field 2);
+  dispatch on i*/u*/f64/f32/bool.
+- **kind 5 (unary minus)**: inherit operand type via
+  `binop_float_type`, default to i64.
+- **kind 6 (unary not)**: always bool.
+- **kind 8 (user method call)**: receiver via `expr_struct_type`,
+  method via `__fnret_<TYPE>__<METHOD>` mangled lookup.
+- **kind 8 (builtin fallback)**: when the mangled lookup misses,
+  dispatch by well-known method name: `len`/`count`/`capacity`
+  → i64; `is_empty`/`contains`/`contains_key` → bool. Catches
+  `print(v.len())` etc. without needing per-builtin sig entries.
+- **kind 12 (assoc fn call)**: same `__fnret_<TYPE>__<METHOD>`
+  lookup pattern as kind 8.
+
+Note: `print(x as i64)` for `x: f64` correctly dispatches to
+`print_i64`, but the printed value remains the f64 bit pattern
+because the `as` cast itself is currently a no-op for `f64→i64`
+in Nucleor's i64-everywhere ABI. That's a separate ABI fix
+(queued).
+
+Pinned by `tests/fixtures/t435_print_cast_unary_method_dispatch.nr`.
+Bootstrap fixed point at stage_d
+`79511738c4f291b2a2e60c628be0244a7fa0342f195c763848d7b2e90a6f6ad4`.
+
 ## [0.3.167] — 2026-04-26
 
 **`println!("{}", a == b)` and friends now print `"true"`/`"false"`
