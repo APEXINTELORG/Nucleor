@@ -2009,8 +2009,14 @@ t28_async_threads() {
 
 t27_doc_html() {
     # v0.2.352 (T2.7): nuc doc --html emits standalone HTML doc.
-    local hdr
-    hdr="$(mktemp 2>/dev/null || echo /tmp/_t27_doc.html)"
+    # Auto-detection of HTML mode keys off the `.html` extension on the
+    # --out filename. Pre-v0.3.148, this bash mirror used mktemp which
+    # produces a random extension-less filename so the doc emitter
+    # silently fell back to Markdown (visible only as the wrote-banner
+    # saying "with index + signatures" instead of "HTML"). Test failed
+    # at the first grep. The .ps1 mirror uses an explicit _t27_doc.html
+    # filename and worked correctly. v0.3.148 sync.
+    local hdr="/tmp/_t27_doc_$$.html"
     rm -f "$hdr"
     "$BIN" doc tests/fixtures/t27_doc_input.nr --out "$hdr" >/tmp/_nuc_step.log 2>&1
     grep -qE 'wrote .*HTML' /tmp/_nuc_step.log || return 1
