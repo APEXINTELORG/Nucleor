@@ -139,6 +139,27 @@ helper to assert the actual short-circuit semantic (RHS not called
 when LHS determines result). Verify gate green (448/450 -- only
 env-dep memory budgets remain).
 
+### Compiler-internal hazard: runtime helpers skip arg type-check
+**Status: OPEN -- non-trivial; needs per-helper sig wiring.**
+**Priority: MEDIUM (silent SIGSEGV when wrong type passed)**
+
+Pre-fix behaviour: type_expr's call-handling at line 9669 looks up
+sigs for the callee. Runtime helpers (str_len, vec_get, str_concat,
+str_eq, str_substring, str_char_at, etc.) have NO sig entries, so
+the type checker falls through to builtin_rtype(callee) and skips
+arg type-check entirely. Adopter writes str_len(42) and gets SIGSEGV
+when the helper dereferences 42 as a const char *.
+
+Fix path: add sig entries for the common runtime helpers (~30-50
+of them). For each, register expected arg types and return type.
+type_expr's existing arg-mismatch logic then fires TYP-006 cleanly.
+Tedious but mechanical -- one entry per helper.
+
+Workaround in user code: explicit type annotations on call sites
+help adopters notice mistakes before runtime. Documentation should
+flag this as "runtime helpers don't validate argument types --
+crashes are easy to debug via the helper name in the traceback".
+
 The generated test harness emits a parse error
 (`Parse error at token position 8927: expected token 51 got 1`) on the
 ML_Suite tensor smoke test, even though the same code compiles via
