@@ -10912,6 +10912,30 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         if str_eq(etype, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
                     };
                 };
+                // v0.3.165: also handle binop results (kind 4).
+                // `print(a + b)` where a, b: i64 SIGSEGV'd pre-fix --
+                // the dispatch fell through to print_str. Same hazard
+                // class. Three buckets:
+                //   - comparison/equality/logical ops (30-37) -> bool
+                //   - float binop (binop_float_type returns f32/f64) -> f64
+                //   - everything else -> i64 (arith on ints + bitwise)
+                // The default-to-i64 is sound because Nucleor binops only
+                // produce i64, f32/f64, or bool (no operator overloading;
+                // str + str not supported; bool arith is TYP-002).
+                if parg_kind == 4 {
+                    let bop: i64 = node_field(pool, parg_nid, 1);
+                    if bop == 30 || bop == 31 || bop == 32 || bop == 33 || bop == 34 || bop == 35 || bop == 36 || bop == 37 {
+                        p_helper = "__nucleor_print_bool";
+                    };
+                    if str_len(p_helper) == 0 {
+                        let bft: str = binop_float_type(pool, parg_nid, sym, structs);
+                        if str_eq(bft, "f32") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(bft, "f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                    };
+                    if str_len(p_helper) == 0 {
+                        p_helper = "__nucleor_print_i64";
+                    };
+                };
                 if str_len(p_helper) > 0 {
                     let pr_r: i64 = ctr_next(regs);
                     ir_block_add(cur, ir_call_ex(pr_r, p_helper, arg_regs));
@@ -15277,7 +15301,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.164";
+    return "0.3.165";
 }
 
 fn compiler_backend_label() -> str {
