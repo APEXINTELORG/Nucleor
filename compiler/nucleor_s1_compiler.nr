@@ -9740,7 +9740,10 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 || str_eq(callee, "str_count") == 1
                 || str_eq(callee, "str_is_empty") == 1
                 || str_eq(callee, "str_intern") == 1
-                || str_eq(callee, "str_free") == 1 { 1 } else { 0 };
+                || str_eq(callee, "str_free") == 1
+                || str_eq(callee, "getenv") == 1
+                || str_eq(callee, "print_raw") == 1
+                || str_eq(callee, "panic") == 1 { 1 } else { 0 };
             if needs_str_arg0 == 1 {
                 let arg0_t: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
                 if str_len(arg0_t) > 0 && str_eq(arg0_t, "str") == 0 && str_eq(arg0_t, "_") == 0 {
@@ -15055,7 +15058,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.156";
+    return "0.3.157";
 }
 
 fn compiler_backend_label() -> str {

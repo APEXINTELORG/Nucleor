@@ -5,6 +5,23 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.157] — 2026-04-26
+
+**Added `getenv` / `print_raw` / `panic` to the str-arg-0
+type-check list.** Final additions in the runtime-helper
+arg-type-check audit started in v0.3.154.
+
+Total str-arg-0 helpers now type-checked: **34** (the v0.3.156
+list of 31 plus `getenv`, `print_raw`, `panic`).
+
+Adopters who write `panic(42)` or `getenv(my_int)` now get
+a clean `TYP-006` diagnostic at compile time, instead of a
+SIGSEGV at runtime when the C helper dereferences an int as a
+`const char *`.
+
+Bootstrap fixed point at stage_d
+`eba62bf86a762c3a41a130f08d371dd0`. Verify gate green.
+
 ## [0.3.156] — 2026-04-26
 
 **Extended runtime-helper arg-type-check to all common
