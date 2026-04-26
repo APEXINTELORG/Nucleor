@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 226
-# Total fn definitions: 2114
-# Total LOC: 9393
+# Total fn definitions: 2118
+# Total LOC: 9401
 
 [[rod]]
 name           = "activation2"
@@ -1869,9 +1869,9 @@ imports        = ["time_typed"]
 name           = "tokenizer"
 path           = "stdlib/rods/tokenizer.nr"
 description    = "Byte-Pair Encoding (BPE) and char-level tokenization"
-function_count = 7
+function_count = 11
 cfile_count    = 1
-loc            = 17
+loc            = 25
 imports        = []
 
 [[rod]]
