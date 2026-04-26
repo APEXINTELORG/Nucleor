@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.167] — 2026-04-26
+
+**`println!("{}", a == b)` and friends now print `"true"`/`"false"`
+instead of `"0"`/`"1"`** — top-level comparison/equality/logical
+ops in the format heuristic now dispatch to `bool_to_str`.
+
+Pre-v0.3.167, the println! `{}` heuristic did not detect top-level
+comparison or logical operators in textual arg expressions:
+- `println!("{}", a == b)` → `"0"`/`"1"` via `int_to_str` (correct
+  but not Rust-style)
+- `println!("{}", x && y)` → same
+- `println!("{}", a < b)`, `>=`, `<=`, `!=`, `||` → same
+
+Stylistic miscompute that confuses adopter Rust-style debug
+output (Rust's `Display` for bool emits `true`/`false`).
+
+Fix: walk arg_expr with paren/bracket depth tracking; if any
+4-char window matches `" == "`, `" != "`, `" <= "`, `" >= "`,
+`" && "`, or `" || "` at depth 0, dispatch to `bool_to_str`.
+Conservative (requires whitespace around the op) so generic
+types like `Vec<T>` and shift exprs like `a << 2` don't trip
+the heuristic.
+
+Single `<` and `>` (without `=`) deliberately NOT detected — too
+ambiguous with generic context. Adopters using `a < b` directly
+in `{}` should write the result to a `let b: bool` first (the
+v0.3.152 heuristic catches that).
+
+Pinned by `tests/fixtures/t434_println_bool_binop_dispatch.nr`.
+Bootstrap fixed point at stage_d
+`d171af6863c2646944101a2c5a6a5fb47e3b9f25ce5aaf8208bb1468f5a81585`.
+
 ## [0.3.166] — 2026-04-26
 
 **`println!("{}", X)` now correctly dispatches for struct fields,
