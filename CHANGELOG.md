@@ -5,6 +5,26 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.155] — 2026-04-26
+
+**Extended runtime-helper arg-type-check (v0.3.154 follow-up) to
+`str_eq`, `str_concat`, `str_substring`, `str_char_at`.** Pre-fix,
+calling any of these with a non-str arg 0 (or arg 1 for the binary
+helpers) compiled cleanly and SIGSEGV'd at runtime when the C
+helper dereferenced an int as a `const char *`.
+
+Also added arg-1 type check for the binary helpers `str_eq` and
+`str_concat`. Same pattern as v0.3.154 -- conservative,
+incremental, falls through to the existing no-arg-check path for
+unknown helpers so legitimate code never regresses.
+
+Total str-arg-0 helpers now type-checked: 8
+(`str_len`, `str_to_int`, `str_to_f64`, `str_to_int_with_base`,
+`str_eq`, `str_concat`, `str_substring`, `str_char_at`).
+
+Bootstrap fixed point at stage_d
+`537ae4133aa7741bd7e46c7e3ff6c1d4`. Verify gate green.
+
 ## [0.3.154] — 2026-04-26
 
 **Runtime helpers `str_len` / `str_to_int` / `str_to_f64` /
