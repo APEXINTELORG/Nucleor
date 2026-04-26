@@ -3,7 +3,7 @@
 // confirm world position is at the offset (no rotation applied).
 import "stdlib/rods/fk_chain.nr"
 
-fn f64_to_bits(x: f64) -> i64 { return x as i64; }
+// v0.3.211: removed local f64_to_bits -- builtin in runtime helper table now bit-casts; local x as i64 body would now numeric-truncate.
 
 fn main() -> i64 {
     let mut fail: i64 = 0;

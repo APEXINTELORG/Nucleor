@@ -15,17 +15,20 @@
 fn main() -> i64 {
     // f8e5m2 +inf preservation: 1e30 (overflows e5m2's ~57344 range)
     // should pack to +inf (S11111_00 = 0x7C in low byte).
+    // v0.3.211: `f32 as i64` now NUMERIC-truncates. The pack
+    // helpers expect the f32 BIT PATTERN as i64, so use the
+    // explicit f32_to_bits surface instead.
     let big: f32 = 100000.0 as f32;
-    let e5_big: i64 = f8e5m2_from_f32(big as i64);
+    let e5_big: i64 = f8e5m2_from_f32(f32_to_bits(big));
     println!("{}", e5_big);   // expect 124 (= 0x7C = +inf)
 
     // Negative overflow -> -inf (0xFC).
     let nbig: f32 = (0.0 - 100000.0) as f32;
-    let e5_nbig: i64 = f8e5m2_from_f32(nbig as i64);
+    let e5_nbig: i64 = f8e5m2_from_f32(f32_to_bits(nbig));
     println!("{}", e5_nbig);  // expect 252 (= 0xFC = -inf)
 
     // f8e4m3 saturation (no inf): 1e30 saturates to MAX = ±448.
-    let e4_big: i64 = f8e4m3_from_f32(big as i64);
+    let e4_big: i64 = f8e4m3_from_f32(f32_to_bits(big));
     println!("{}", e4_big);   // expect 126 (= 0x7E = MAX = +448)
 
     // RNE on the f8e5m2 boundary: 12.0 is exactly representable in
@@ -33,7 +36,7 @@ fn main() -> i64 {
     // value that exercises the rounding path: 12.5 should round to
     // 12.0 (round half to even, lower neighbor has even mantissa).
     let mid: f32 = 12.5 as f32;
-    let e5_mid: i64 = f8e5m2_from_f32(mid as i64);
+    let e5_mid: i64 = f8e5m2_from_f32(f32_to_bits(mid));
     let back: f32 = f8e5m2_to_f32(e5_mid);
     println!("{}", back);     // expect 12 (RNE chose the even nbr)
 

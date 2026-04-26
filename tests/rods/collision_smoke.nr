@@ -3,7 +3,7 @@
 // Two unit spheres at (0,0,0) and (1.0,0,0): overlap (dist 1.0 < 1+1).
 import "stdlib/rods/collision.nr"
 
-fn f64_to_bits(x: f64) -> i64 { return x as i64; }
+// v0.3.211: removed local f64_to_bits -- builtin in runtime helper table now bit-casts; local x as i64 body would now numeric-truncate.
 
 fn main() -> i64 {
     let mut fail: i64 = 0;

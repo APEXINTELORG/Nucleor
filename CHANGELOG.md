@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.211] — 2026-04-26
+
+**`f64 as i64` / `f64 as u64` / `f32 as i64` / `f32 as u64`
+now numeric-truncate (Rust `as` semantics).** This is the
+deepest item in the runtime safety series: it removes the
+silent miscompute when adopters copy-paste Rust code
+expecting `1.5_f64 as i64` to be `1`.
+
+Pre-fix the cast lowering for `f64 as i64` (and the three
+sibling forms) fell through to the bit-cast preserving
+`as_i64` / `as_u64` helpers. That made `1.5_f64 as i64`
+return the i64 bit pattern of 1.5_f64
+(≈4607182418800017408) instead of `1`. Plus the original
+hazard on the strict-mode runtime safety bar -- a real
+silent miscompute, not a defensive fallback.
+
+Fix:
+- `f64 as i64` / `as isize` → `__nucleor_f64_to_i64` (saturating)
+- `f64 as u64` / `as usize` → `__nucleor_f64_to_u64` (new helper)
+- `f32 as i64` / `as isize` → `__nucleor_f32_to_i64`
+- `f32 as u64` / `as usize` → `__nucleor_f32_to_u64` (new helper)
+
+Two new runtime helpers (`__nucleor_f64_to_u64`,
+`__nucleor_f32_to_u64`); compiler tables (s1 + tools_suite
+mirror) updated accordingly.
+
+**Adopter migration**: bit-pattern transit (the thing the
+old `as i64` was useful for) now requires the explicit
+reinterpret surface:
+
+```nr
+// OLD (silently bit-casted under previous compiler):
+let bits: i64 = my_f64 as i64;
+
+// NEW (numeric truncation; bit-cast requires explicit call):
+let bits: i64 = f64_to_bits(my_f64);
+let truncated: i64 = my_f64 as i64;  // 3.7 → 3
+```
+
+Migrated thirteen rod-smoke tests
+(`tests/rods/{bvh,collision,dynamics,fk_chain,grasp,
+kinematics,octree,pgs,prm,pursuit,sgrid,trajectory,voxel}_smoke.nr`)
+that defined a local `fn f64_to_bits(x: f64) -> i64 {
+return x as i64; }` -- those now rely on the runtime helper
+of the same name (already in the compiler's name table)
+which is the correct bit-cast identity. Same migration
+applied to internal fixtures (t462, t465,
+probe_vec_f32_via_i64).
+
+Pinned by `tests/fixtures/t466_f_as_int_numeric.nr`:
+```
+1.5 as i64    → 1
+3.7 as i64    → 3
+-2.9 as i64   → -2  (truncate toward zero)
+7.6 as i64    → 7   (from f32)
+1e24 as i64   → 9223372036854775807  (saturated at i64::MAX)
+f64_from_bits(f64_to_bits(0.5)) → 0.5  (round-trip)
+```
+
+Bootstrap fixed point at stage_d
+`053126253860962881a96095dcc47b52d7ceb2197c985abcc33003fb906fdfae`.
+452/452 verify PASS.
+
 ## [0.3.210] — 2026-04-26
 
 **`str_char_at` negative-index PANIC + documented residual.**

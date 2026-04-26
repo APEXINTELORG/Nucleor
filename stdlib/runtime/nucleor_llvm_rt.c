@@ -5743,6 +5743,21 @@ long long __nucleor_f64_to_u32(long long b) {
 long long __nucleor_i64_to_f64(long long i) {
     return __nuc_d2b((double)i);
 }
+// v0.3.211: f64/f32 -> u64 saturating, completes the matrix needed
+// to redesign `f64 as i64` / `f64 as u64` from no-op-bitcast to
+// Rust `as` semantics (numeric truncation, saturating at the bound).
+long long __nucleor_f64_to_u64(long long b) {
+    double d = __nuc_b2d(b);
+    if (d <= 0.0) return 0;
+    if (d >= 18446744073709550000.0) return (long long)0xFFFFFFFFFFFFFFFFULL;
+    return (long long)(unsigned long long)d;
+}
+long long __nucleor_f32_to_u64(long long a) {
+    float f = __nuc_bits_to_f32(a);
+    if (f <= 0.0f) return 0;
+    if (f >= 18446744000000000000.0f) return (long long)0xFFFFFFFFFFFFFFFFULL;
+    return (long long)(unsigned long long)f;
+}
 // Legacy unprefixed names referenced by the IR header for cross-compat.
 long long __nucleor_fabs(long long b)  { return __nuc_d2b(fabs(__nuc_b2d(b))); }
 long long __nucleor_fmod(long long a, long long b) { return __nuc_d2b(fmod(__nuc_b2d(a), __nuc_b2d(b))); }
