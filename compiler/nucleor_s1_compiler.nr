@@ -11842,6 +11842,13 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let cpr: i64 = ctr_next(clo_regs); ir_block_add(clo_b0, ir_param_ref(cpr, cpi));
             ir_block_add(clo_b0, ir_store(cpr, car));
             sym_set(clo_sym, cpname, car);
+            // v0.3.177: register the closure parameter's type so
+            // print(p) inside the closure body doesn't fall through
+            // to print_str. Default to i64 (matches Nucleor's
+            // i64-everywhere ABI for closure params; the
+            // param_list only stores names, not parsed types).
+            // Pre-fix `apply(|n: i64| { print(n); }, 42)` SIGSEGV'd.
+            sym_set(clo_sym, str_concat("__type_", cpname), "i64");
             cpi = cpi + 1;
         };
         let mut capi: i64 = 0;
@@ -16013,7 +16020,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.176";
+    return "0.3.177";
 }
 
 fn compiler_backend_label() -> str {
