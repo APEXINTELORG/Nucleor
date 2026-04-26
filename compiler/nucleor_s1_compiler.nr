@@ -3553,6 +3553,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "hashmap_insert") { return "__nucleor_hashmap_insert"; };
     if str_eq(name, "hashmap_get") { return "__nucleor_hashmap_get"; };
     if str_eq(name, "hashmap_contains") { return "__nucleor_hashmap_contains"; };
+    if str_eq(name, "hashmap_contains_key") { return "__nucleor_hashmap_contains_key"; };
     if str_eq(name, "hashmap_remove") { return "__nucleor_hashmap_remove"; };
     if str_eq(name, "hashmap_len") { return "__nucleor_hashmap_len"; };
     if str_eq(name, "hashmap_capacity") { return "__nucleor_hashmap_capacity"; };
@@ -3620,6 +3621,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "btreemap_insert") { return "__nucleor_btreemap_insert"; };
     if str_eq(name, "btreemap_get") { return "__nucleor_btreemap_get"; };
     if str_eq(name, "btreemap_contains") { return "__nucleor_btreemap_contains"; };
+    if str_eq(name, "btreemap_contains_key") { return "__nucleor_btreemap_contains_key"; };
     if str_eq(name, "btreemap_remove") { return "__nucleor_btreemap_remove"; };
     if str_eq(name, "btreemap_len") { return "__nucleor_btreemap_len"; };
     if str_eq(name, "btreemap_key_at") { return "__nucleor_btreemap_key_at"; };
@@ -4637,6 +4639,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare void @__nucleor_hashmap_insert(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_get(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_contains(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashmap_contains_key(i64, i64)\n");
     // V2: parallelism runtime
     sb_append(sb, "declare i64 @__nucleor_par_map(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_par_fold(i64, i64, i64)\n");
@@ -5047,6 +5050,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_btreemap_insert(i64, ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_btreemap_get(i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_btreemap_contains(i64, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_btreemap_contains_key(i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_btreemap_remove(i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_btreemap_len(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_btreemap_key_at(i64, i64)\n");
@@ -11574,7 +11578,15 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 // already wired up in stdlib/runtime/nucleor_llvm_rt.c.
                 // Anything else falls through to the existing
                 // `vec_<method>` convention.
-                if iter_method_for_vec(mname) == 1 {
+                // v0.3.190: only use the vec_*_i64 iterator dispatch
+                // when the receiver IS a Vec. Pre-fix `h.contains(k)`
+                // for HashMap fell through here and called
+                // vec_contains_i64 instead of hashmap_contains --
+                // returning the wrong answer (false on present keys).
+                let stype_for_iter: str = type_base_name(stype);
+                let recv_is_vec: i64 = if str_len(stype_for_iter) == 0
+                    || str_eq(stype_for_iter, "Vec") == 1 { 1 } else { 0 };
+                if recv_is_vec == 1 && iter_method_for_vec(mname) == 1 {
                     fn_name = str_concat("vec_", str_concat(mname, "_i64"));
                 } else {
                     // v0.3.100: receiver-type-aware dispatch for the
@@ -13335,7 +13347,28 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     // `'C:\Program' is not recognized`.
     let clang_quoted: str = str_concat("\"", str_concat(llvm_clang_path(), "\""));
     let cmd: str = str_concat(clang_quoted, str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags, str_concat(link_flags, str_concat(" > ", str_concat(log_path, " 2>&1")))))))))))))));
-    let rc: i64 = system(cmd);
+    let mut rc: i64 = system(cmd);
+    // v0.3.190: NUC-FEEDBACK-009 retry loop. ML adopters reported
+    // intermittent post-LLVM-emit/no-compiled-line failures during
+    // long verifier passes (rc=4294967295 = Windows spawn failure).
+    // The agent added retry in their harness; mirror that at the
+    // compiler level. Retry up to 2 more times when clang fails AND
+    // the captured log is empty (process-spawn failure heuristic).
+    // Real clang errors leave a non-empty log and won't be retried.
+    if rc != 0 {
+        let log_first: str = file_read_string(log_path);
+        if str_len(log_first) == 0 {
+            let mut retry_i: i64 = 0;
+            while retry_i < 2 && rc != 0 {
+                rc = system(cmd);
+                if rc != 0 {
+                    let log_check: str = file_read_string(log_path);
+                    if str_len(log_check) > 0 { retry_i = 2; };
+                };
+                retry_i = retry_i + 1;
+            };
+        };
+    };
     print_phase_time(time_passes, "clang", now_ms() - clang_start);
     let clang_log: str = file_read_string(log_path);
     if rc != 0 {
@@ -16512,7 +16545,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.188";
+    return "0.3.191";
 }
 
 fn compiler_backend_label() -> str {
@@ -17495,7 +17528,24 @@ fn main() -> i64 {
         let rc: i64 = compile_file_mode(src_path, out_name, 0, use_cache, time_passes, 1);
         if rc != 0 { return rc; };
         let exe: str = str_concat("target\\", str_concat(out_name, ".exe"));
-        return system(exe);
+        let mut run_rc: i64 = system(exe);
+        // v0.3.191: NUC-FEEDBACK-009 follow-on. ML adopters reported
+        // post-compiled rc=4294967295 (= -1 = Windows spawn failure
+        // even after a successful build). Retry up to 2 more times
+        // on spawn failure (rc == -1 / 4294967295), preserving real
+        // runtime exit codes (which are typically 0..255).
+        let mut retry: i64 = 0;
+        while retry < 2 && (run_rc == 0 - 1 || run_rc == 4294967295) {
+            run_rc = system(exe);
+            retry = retry + 1;
+        };
+        if run_rc != 0 {
+            print(str_concat("nuc run: child exited rc=", str_concat(str_from_int(run_rc), str_concat(" from ", exe))));
+            if run_rc == 0 - 1 || run_rc == 4294967295 {
+                print("  note: rc=-1/4294967295 indicates the child process never started (Windows spawn failure: file-lock, antivirus, missing exe, or process-spawn failure). Retried 2 times. Try killing orphan nucleor.exe / clang.exe / <out>.exe processes and rerun.");
+            };
+        };
+        return run_rc;
     } else if str_eq(cmd, "build-wasm") || str_eq(cmd, "build-ptx") {
         return run_external_tool(argc);
     } else if str_eq(cmd, "emit") {
