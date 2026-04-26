@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.181] — 2026-04-26
+
+**`print(vec_get(vec_of_str, i))` now prints the string instead
+of the pointer address.** Closes NUC-FEEDBACK-006 (Nucleor_ML_
+Suite_ParallelAgent agent, 2026-04-26) — the v0.3.178
+over-aggressive `vec_get → i64` fallback was treating Vec<str>
+elements as integers.
+
+The pandas string-key parity examples (`pandas_string_groupby_
+f64`, `pandas_string_value_counts_f64`, `pandas_string_drop_
+duplicates_f64`, `pandas_string_sort_describe_f64`,
+`pandas_string_nullable_f64`, string joins) all printed pointer
+integers like `2878868296144` where category strings (`"red"`,
+`"blue"`, `"green"`) should appear.
+
+Same hazard class as v0.3.143/163/164/178 — a real expression
+adopters write produces nonsense output with no diagnostic.
+
+Fix:
+- **Kind 7 fn-call dispatch** for `vec_get`/`vec_first`/
+  `vec_last`/`vec_pop`: use `indexed_element_full_type` on the
+  receiver Vec (arg-0) to derive `T` from `Vec<T>`. Dispatch by
+  element type. For `str` elements, leave `p_helper` empty so
+  the default `print_str` fires (correct).
+- **Kind 8 method-call dispatch** for `.get`/`.first`/`.last`/
+  `.pop`/`.front`/`.back`: same element-type lookup on the
+  receiver.
+
+The v0.3.178 hardcoded `vec_get → i64` line was removed (the
+new element-type lookup supersedes it).
+
+`hashmap_get`/`btreemap_get` still default to i64 — adopters
+using `HashMap<K, str>` would hit the same NUC-FEEDBACK-006
+hazard. Queued for a follow-on if it surfaces.
+
+Pinned by `tests/fixtures/t447_print_vec_str_element.nr`.
+Bootstrap fixed point at stage_d
+`11a5dba14f47af97a54f032f1ecc81a80e7842cbb1afa8eeb6b7227ffb2a0fac`.
+
 ## [0.3.180] — 2026-04-26
 
 **`Vec<f32>` (and `Vec<f16>`/`Vec<bf16>`/`Vec<f8e4m3>`/
