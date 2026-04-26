@@ -15204,7 +15204,73 @@ fn infer_var_type_from_source(src: str, var_name: str) -> str {
         i = i + 1;
     };
     if conflict == 1 { return ""; };
-    return found_type;
+    if str_len(found_type) > 0 { return found_type; };
+    // v0.3.188: also check for for-loop bindings `for <var_name> in
+    // <iter_expr>`. The element type is derived from the iter
+    // expression: if iter_expr is `<ident>` or `<ident>.iter()`,
+    // look up ident's type and strip the container layer.
+    let mut i2: i64 = 0;
+    while i2 + 4 < slen {
+        // "for " = 'f','o','r',' ' = 102,111,114,32
+        if str_char_at(src, i2) == 102
+            && str_char_at(src, i2 + 1) == 111
+            && str_char_at(src, i2 + 2) == 114
+            && str_char_at(src, i2 + 3) == 32 {
+            let mut p: i64 = i2 + 4;
+            let mut k: i64 = 0;
+            let mut matched: i64 = 1;
+            while k < vlen {
+                if p + k >= slen { matched = 0; k = vlen; }
+                else if str_char_at(src, p + k) != str_char_at(var_name, k) { matched = 0; k = vlen; };
+                k = k + 1;
+            };
+            if matched == 1 {
+                let after: i64 = p + vlen;
+                if after < slen {
+                    let nc: i64 = str_char_at(src, after);
+                    let is_id_continue: i64 = if (nc >= 65 && nc <= 90) || (nc >= 97 && nc <= 122) || (nc >= 48 && nc <= 57) || nc == 95 { 1 } else { 0 };
+                    if is_id_continue == 1 { matched = 0; };
+                };
+            };
+            if matched == 1 {
+                let mut q: i64 = p + vlen;
+                while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
+                // expect "in "
+                if q + 3 < slen
+                    && str_char_at(src, q) == 105
+                    && str_char_at(src, q + 1) == 110
+                    && str_char_at(src, q + 2) == 32 {
+                    q = q + 3;
+                    while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
+                    // Read iter expression up to '{' or '\n'
+                    let iter_start: i64 = q;
+                    while q < slen && str_char_at(src, q) != 123 && str_char_at(src, q) != 10 {
+                        q = q + 1;
+                    };
+                    let iter_end: i64 = q;
+                    let iter_expr: str = strip_spaces(str_substring(src, iter_start, iter_end));
+                    // Strip trailing `.iter()` / `.into_iter()` / `.iter_mut()` if present.
+                    let ielen: i64 = str_len(iter_expr);
+                    let mut base_iter: str = iter_expr;
+                    if ielen >= 7 && str_eq(str_substring(iter_expr, ielen - 7, ielen), ".iter()") == 1 {
+                        base_iter = str_substring(iter_expr, 0, ielen - 7);
+                    };
+                    let belen: i64 = str_len(base_iter);
+                    if belen >= 12 && str_eq(str_substring(base_iter, belen - 12, belen), ".into_iter()") == 1 {
+                        base_iter = str_substring(base_iter, 0, belen - 12);
+                    };
+                    // Look up the receiver's full type via recursive call.
+                    let recv_full: str = infer_var_type_from_source(src, base_iter);
+                    if str_len(recv_full) > 0 {
+                        let stripped: str = strip_container_one_level(recv_full);
+                        if str_len(stripped) > 0 { return stripped; };
+                    };
+                };
+            };
+        };
+        i2 = i2 + 1;
+    };
+    return "";
 }
 
 // v0.3.166: companion to infer_var_type_from_source. Scans src for
@@ -16446,7 +16512,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.187";
+    return "0.3.188";
 }
 
 fn compiler_backend_label() -> str {
