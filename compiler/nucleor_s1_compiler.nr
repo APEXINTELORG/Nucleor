@@ -14688,6 +14688,42 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
     // behavior; the heuristic only corrects the obvious cases.
     if str_eq(spec, "") == 1 {
         let alen: i64 = str_len(arg_expr);
+        // v0.3.167: detect top-level comparison/equality/logical ops
+        // for bool dispatch. `println!("{}", a == b)` pre-fix printed
+        // 0/1 via int_to_str (correct accidentally) but `a < b` etc.
+        // do too -- adopters should see "true"/"false" instead. More
+        // importantly, this catches the textual `&&`/`||` cases that
+        // the lowering treats as bool. Walk the expression with paren/
+        // bracket depth tracking; only fire on depth-0 matches.
+        if alen >= 4 {
+            let mut bdepth: i64 = 0;
+            let mut bii: i64 = 0;
+            let mut bool_op_found: i64 = 0;
+            while bii + 4 <= alen && bool_op_found == 0 {
+                let bc: i64 = str_char_at(arg_expr, bii);
+                if bc == 40 || bc == 91 { bdepth = bdepth + 1; }
+                else if bc == 41 || bc == 93 { bdepth = bdepth - 1; };
+                if bdepth == 0 && bii > 0 && bii + 3 < alen {
+                    let c0: i64 = str_char_at(arg_expr, bii);
+                    let c1: i64 = str_char_at(arg_expr, bii + 1);
+                    let c2: i64 = str_char_at(arg_expr, bii + 2);
+                    let c3: i64 = str_char_at(arg_expr, bii + 3);
+                    // Patterns: " == ", " != ", " <= ", " >= ", " && ", " || "
+                    if c0 == 32 && c3 == 32 {
+                        if c1 == 61 && c2 == 61 { bool_op_found = 1; };
+                        if c1 == 33 && c2 == 61 { bool_op_found = 1; };
+                        if c1 == 60 && c2 == 61 { bool_op_found = 1; };
+                        if c1 == 62 && c2 == 61 { bool_op_found = 1; };
+                        if c1 == 38 && c2 == 38 { bool_op_found = 1; };
+                        if c1 == 124 && c2 == 124 { bool_op_found = 1; };
+                    };
+                };
+                bii = bii + 1;
+            };
+            if bool_op_found == 1 {
+                return str_concat("bool_to_str(", str_concat(arg_expr, ")"));
+            };
+        };
         if alen >= 2 && str_char_at(arg_expr, 0) == 34 && str_char_at(arg_expr, alen - 1) == 34 {
             return arg_expr;
         };
@@ -15554,7 +15590,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.166";
+    return "0.3.167";
 }
 
 fn compiler_backend_label() -> str {
