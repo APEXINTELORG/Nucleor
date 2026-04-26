@@ -10936,6 +10936,109 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         p_helper = "__nucleor_print_i64";
                     };
                 };
+                // v0.3.168: cast expression (kind 99). Target type is
+                // stored on the node; dispatch directly. Catches
+                // print(x as i64) -- pre-fix dereferenced the i64 as
+                // a string pointer. (For cast-to-str the dispatch falls
+                // through to the default print_str, which is correct.)
+                if parg_kind == 99 {
+                    let ctype: str = type_base_name(node_field(pool, parg_nid, 2));
+                    if str_eq(ctype, "i64") == 1 { p_helper = "__nucleor_print_i64"; };
+                    if str_eq(ctype, "i32") == 1 { p_helper = "__nucleor_print_i64"; };
+                    if str_eq(ctype, "i16") == 1 { p_helper = "__nucleor_print_i64"; };
+                    if str_eq(ctype, "i8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                    if str_eq(ctype, "isize") == 1 { p_helper = "__nucleor_print_i64"; };
+                    if str_eq(ctype, "u64") == 1 { p_helper = "__nucleor_print_i64"; };
+                    if str_eq(ctype, "u32") == 1 { p_helper = "__nucleor_print_i64"; };
+                    if str_eq(ctype, "u16") == 1 { p_helper = "__nucleor_print_i64"; };
+                    if str_eq(ctype, "u8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                    if str_eq(ctype, "usize") == 1 { p_helper = "__nucleor_print_i64"; };
+                    if str_eq(ctype, "f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                    if str_eq(ctype, "f32") == 1 { p_helper = "__nucleor_print_f64"; };
+                    if str_eq(ctype, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
+                };
+                // v0.3.168: unary minus (kind 5) inherits operand type.
+                // Reuse binop_float_type; default to i64.
+                if parg_kind == 5 {
+                    let inner_nid: i64 = node_field(pool, parg_nid, 1);
+                    let nft: str = binop_float_type(pool, inner_nid, sym, structs);
+                    if str_eq(nft, "f32") == 1 { p_helper = "__nucleor_print_f64"; }
+                    else if str_eq(nft, "f64") == 1 { p_helper = "__nucleor_print_f64"; }
+                    else { p_helper = "__nucleor_print_i64"; };
+                };
+                // v0.3.168: unary not (kind 6) is always bool.
+                if parg_kind == 6 {
+                    p_helper = "__nucleor_print_bool";
+                };
+                // v0.3.168: method call (kind 8) and associated fn
+                // call (kind 12). Both use mangled symbol lookup
+                // `__fnret_<TYPE>__<METHOD>` for typed return.
+                // For kind 8, receiver is in field 1, method name
+                // field 2; resolve receiver type via expr_struct_type.
+                // For kind 12, struct/type name is in field 1
+                // directly, method name field 2.
+                if parg_kind == 8 {
+                    let recv_nid: i64 = node_field(pool, parg_nid, 1);
+                    let mname: str = node_field(pool, parg_nid, 2);
+                    let rtype: str = expr_struct_type(pool, recv_nid, sym, structs);
+                    if str_len(rtype) > 0 && str_len(mname) > 0 {
+                        let mangled: str = str_concat(rtype, str_concat("__", mname));
+                        let mret: i64 = sym_get(sym, str_concat("__fnret_", mangled));
+                        if mret >= 0 {
+                            let mt: str = type_base_name(mret);
+                            if str_eq(mt, "i64") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt, "i32") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt, "i16") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt, "i8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt, "isize") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt, "u64") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt, "u32") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt, "u16") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt, "u8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt, "usize") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt, "f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                            if str_eq(mt, "f32") == 1 { p_helper = "__nucleor_print_f64"; };
+                            if str_eq(mt, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
+                        };
+                    };
+                    // v0.3.168: fallback for builtin methods that
+                    // don't have __fnret_ entries (Vec::len, str::len,
+                    // HashMap::is_empty, etc.). These methods have
+                    // unambiguous return types by name across the
+                    // stdlib container family.
+                    if str_len(p_helper) == 0 && str_len(mname) > 0 {
+                        if str_eq(mname, "len") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(mname, "count") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(mname, "capacity") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(mname, "is_empty") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(mname, "contains") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(mname, "contains_key") == 1 { p_helper = "__nucleor_print_bool"; };
+                    };
+                };
+                if parg_kind == 12 {
+                    let tname12: str = node_field(pool, parg_nid, 1);
+                    let mname12: str = node_field(pool, parg_nid, 2);
+                    if str_len(tname12) > 0 && str_len(mname12) > 0 {
+                        let mangled12: str = str_concat(tname12, str_concat("__", mname12));
+                        let mret12: i64 = sym_get(sym, str_concat("__fnret_", mangled12));
+                        if mret12 >= 0 {
+                            let mt12: str = type_base_name(mret12);
+                            if str_eq(mt12, "i64") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt12, "i32") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt12, "i16") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt12, "i8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt12, "isize") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt12, "u64") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt12, "u32") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt12, "u16") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt12, "u8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt12, "usize") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(mt12, "f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                            if str_eq(mt12, "f32") == 1 { p_helper = "__nucleor_print_f64"; };
+                            if str_eq(mt12, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
+                        };
+                    };
+                };
                 if str_len(p_helper) > 0 {
                     let pr_r: i64 = ctr_next(regs);
                     ir_block_add(cur, ir_call_ex(pr_r, p_helper, arg_regs));
@@ -15590,7 +15693,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.167";
+    return "0.3.168";
 }
 
 fn compiler_backend_label() -> str {
