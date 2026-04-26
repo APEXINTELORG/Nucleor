@@ -10240,6 +10240,44 @@ fn preflight_source_check(source: str) -> i64 {
 // Sanitize is a no-op at runtime (identity function)
 // It is handled by the taint checker at compile time
 
+fn match_bind_payload_type(ename: str, vname: str) -> str {
+    // v0.3.184: variant-aware payload type for match_bind_payloads.
+    // Result::Err is conventionally str; everything else defaults to
+    // i64 (Nucleor's i64-everywhere ABI for enum payloads). Avoids
+    // print(err_str_var) printing the str pointer as int.
+    if str_eq(ename, "Result") == 1 {
+        if str_eq(vname, "Err") == 1 { return "str"; };
+        return "i64";
+    };
+    return "i64";
+}
+
+fn match_bind_payloads_typed(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>, payload_type: str) -> Vec<i32> {
+    let mut cur: Vec<i32> = blk;
+    let blen: i64 = str_len(binding);
+    if blen == 0 { return cur; };
+    let mut start: i64 = 0;
+    let mut payload_idx: i64 = 1;
+    while start < blen {
+        let mut end: i64 = start;
+        while end < blen && str_char_at(binding, end) != 124 { end = end + 1; };
+        let name: str = str_substring(binding, start, end);
+        if str_len(name) > 0 {
+            let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
+            sym_set(sym, name, bar);
+            sym_set(sym, str_concat("__type_", name), payload_type);
+            let mv2: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv2, mslot));
+            let idx_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(idx_r, payload_idx));
+            let mut get_args: Vec<i32> = Vec::new(); get_args.push(mv2); get_args.push(idx_r);
+            let pv_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(pv_r, "vec_get", get_args));
+            ir_block_add(cur, ir_store(pv_r, bar));
+            payload_idx = payload_idx + 1;
+        };
+        start = end + 1;
+    };
+    return cur;
+}
+
 fn match_bind_payloads(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>) -> Vec<i32> {
     let mut cur: Vec<i32> = blk;
     let blen: i64 = str_len(binding);
@@ -11922,7 +11960,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
-                ab = match_bind_payloads(binding, ab, regs, arm_sym, mslot, fir);
+                ab = match_bind_payloads_typed(binding, ab, regs, arm_sym, mslot, fir, match_bind_payload_type(ename, vname));
                 let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                 ab = lx_blk(bp);
                 let mut rv: i64 = lx_reg(bp);
@@ -12873,7 +12911,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
-                ab = match_bind_payloads(binding, ab, regs, arm_sym, mslot, fir);
+                ab = match_bind_payloads_typed(binding, ab, regs, arm_sym, mslot, fir, match_bind_payload_type(ename, vname));
                 if guard_nid > 0 {
                     let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                     let gr: i64 = lx_reg(gp);
@@ -16321,7 +16359,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.183";
+    return "0.3.184";
 }
 
 fn compiler_backend_label() -> str {
