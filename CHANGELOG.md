@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.202] — 2026-04-26
+
+**HashMap/BTreeMap missing-key access now PANICs by default.**
+Same hazard class as v0.3.200/201 — silent-zero on missing
+key was the worst silent-miscompute in the runtime: a
+returned 0 was indistinguishable from a legitimately stored
+0, so adopters had no API-level way to tell "key absent"
+from "key present, value 0".
+
+Pre-v0.3.202:
+- `hashmap_get(m, "missing")` silently returned 0
+- `btreemap_get(m, "missing")` silently returned 0
+
+Fix: PANIC by default with the offending key name:
+
+```
+PANIC: hashmap_get missing key 'missing' (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+PANIC: btreemap_get missing key 'missing' (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+```
+
+The same env var (`NUCLEOR_VEC_OOB_LENIENT=1`) covers both
+vec OOB and map missing-key — the lenient mode is "don't
+panic on lookup-shaped errors" across the runtime.
+Null-handle / null-key still return 0 silently.
+
+Code that uses the safe pattern keeps working:
+
+```nr
+if hashmap_contains(m, k) {
+    let v = hashmap_get(m, k);   // safe — won't panic
+    ...
+};
+let v = hashmap_get_or(m, k, default);  // safe — internally checks contains
+```
+
+Caught two self-pinning lang tests
+(`tests/lang/btreemap_basic.nr` and
+`tests/lang/hashmap_str_i64.nr` were asserting `get(missing)
+== 0`). Updated both to use `contains(missing) == 0`
+instead. Negative cases pinned by
+`tests/fixtures/probe_hashmap_missing.nr` and
+`tests/fixtures/probe_btreemap_missing.nr`.
+
+Bootstrap fixed point at stage_d
+`fc0215cf4e3f1c9079969358566d32bee760a78a1b0c9991f08fcf911471fe13`.
+453/453 verify PASS.
+
 ## [0.3.201] — 2026-04-26
 
 **Vec OOB panic class extended.** Same hazard as v0.3.200 —
