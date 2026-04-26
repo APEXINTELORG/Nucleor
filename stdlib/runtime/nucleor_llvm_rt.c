@@ -897,12 +897,38 @@ long long __nucleor_tensor_ones(long long rows, long long cols) {
 }
 long long __nucleor_tensor_rows(long long h) { return ((NTensor*)(void*)h)->rows; }
 long long __nucleor_tensor_cols(long long h) { return ((NTensor*)(void*)h)->cols; }
+// v0.3.203: NUC-FEEDBACK runtime safety -- Tensor row/col bounds.
+// Pre-fix tensor_get/tensor_set had ZERO bounds checking (no NULL
+// guard, no row/col check), so passing OOB indices read/wrote
+// arbitrary memory -- worse than silent-zero, this was a memory
+// safety hazard. Same env var (NUCLEOR_VEC_OOB_LENIENT=1) opts
+// back into the unchecked legacy path for adopters running tight
+// ML kernels who want zero-overhead access after their own
+// validation. (Forward-declared here; definition lives near the
+// vec_get strict-mode helpers further down in this file.)
+static int _vec_oob_lenient(void);
 long long __nucleor_tensor_get(long long h, long long r, long long c) {
     NTensor *t = (NTensor*)(void*)h;
+    if (!t) return 0;
+    if (r < 0 || c < 0 || r >= t->rows || c >= t->cols) {
+        if (_vec_oob_lenient()) return 0;
+        fprintf(stderr, "PANIC: tensor_get OOB: index (%lld,%lld), shape (%lld,%lld) (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                r, c, (long long)t->rows, (long long)t->cols);
+        fflush(stderr);
+        exit(1);
+    }
     return _t_f2i(t->data[(int)r * t->cols + (int)c]);
 }
 void __nucleor_tensor_set(long long h, long long r, long long c, long long v) {
     NTensor *t = (NTensor*)(void*)h;
+    if (!t) return;
+    if (r < 0 || c < 0 || r >= t->rows || c >= t->cols) {
+        if (_vec_oob_lenient()) return;
+        fprintf(stderr, "PANIC: tensor_set OOB: index (%lld,%lld), shape (%lld,%lld) (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                r, c, (long long)t->rows, (long long)t->cols);
+        fflush(stderr);
+        exit(1);
+    }
     t->data[(int)r * t->cols + (int)c] = _t_i2f(v);
 }
 long long __nucleor_tensor_sum(long long h) {

@@ -64,25 +64,72 @@ long long nuc_t3_total(long long h) { return ((Tensor3D *)(void *)h)->total; }
 //  Get / Set (flat index or multi-index)
 // ================================================================
 
+// v0.3.203: NUC-FEEDBACK runtime safety. Same hazard class as the
+// 2D tensor accessor in nucleor_llvm_rt.c -- zero bounds checking
+// meant OOB indices read/wrote arbitrary memory. Local cached
+// lookup of NUCLEOR_VEC_OOB_LENIENT (the same env var that
+// governs vec / hashmap / 2D tensor strict mode) opts back into
+// the legacy unchecked path for production ML kernels.
+static int g_t3_oob_lenient = 0;  /* 0=uncached, 1=panic, 2=lenient */
+static int _t3_lenient(void) {
+    if (g_t3_oob_lenient == 0) {
+        const char *e = getenv("NUCLEOR_VEC_OOB_LENIENT");
+        g_t3_oob_lenient = (e && e[0] == '1') ? 2 : 1;
+    }
+    return g_t3_oob_lenient == 2;
+}
+
 long long nuc_t3_get(long long h, long long i, long long j, long long k) {
     Tensor3D *t = (Tensor3D *)(void *)h;
+    if (!t) return 0;
+    if (i < 0 || j < 0 || k < 0 || i >= t->shape[0] || j >= t->shape[1] || k >= t->shape[2]) {
+        if (_t3_lenient()) return 0;
+        fprintf(stderr, "PANIC: nuc_t3_get OOB: index (%lld,%lld,%lld), shape (%lld,%lld,%lld) (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                i, j, k, (long long)t->shape[0], (long long)t->shape[1], (long long)t->shape[2]);
+        fflush(stderr);
+        exit(1);
+    }
     int idx = (int)i * t->strides[0] + (int)j * t->strides[1] + (int)k * t->strides[2];
     return _t3_f2i(t->data[idx]);
 }
 
 void nuc_t3_set(long long h, long long i, long long j, long long k, long long val_bits) {
     Tensor3D *t = (Tensor3D *)(void *)h;
+    if (!t) return;
+    if (i < 0 || j < 0 || k < 0 || i >= t->shape[0] || j >= t->shape[1] || k >= t->shape[2]) {
+        if (_t3_lenient()) return;
+        fprintf(stderr, "PANIC: nuc_t3_set OOB: index (%lld,%lld,%lld), shape (%lld,%lld,%lld) (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                i, j, k, (long long)t->shape[0], (long long)t->shape[1], (long long)t->shape[2]);
+        fflush(stderr);
+        exit(1);
+    }
     int idx = (int)i * t->strides[0] + (int)j * t->strides[1] + (int)k * t->strides[2];
     t->data[idx] = _t3_i2f(val_bits);
 }
 
 long long nuc_t3_get_flat(long long h, long long idx) {
     Tensor3D *t = (Tensor3D *)(void *)h;
+    if (!t) return 0;
+    if (idx < 0 || idx >= t->total) {
+        if (_t3_lenient()) return 0;
+        fprintf(stderr, "PANIC: nuc_t3_get_flat OOB: index %lld, total %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                idx, (long long)t->total);
+        fflush(stderr);
+        exit(1);
+    }
     return _t3_f2i(t->data[(int)idx]);
 }
 
 void nuc_t3_set_flat(long long h, long long idx, long long val_bits) {
     Tensor3D *t = (Tensor3D *)(void *)h;
+    if (!t) return;
+    if (idx < 0 || idx >= t->total) {
+        if (_t3_lenient()) return;
+        fprintf(stderr, "PANIC: nuc_t3_set_flat OOB: index %lld, total %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                idx, (long long)t->total);
+        fflush(stderr);
+        exit(1);
+    }
     t->data[(int)idx] = _t3_i2f(val_bits);
 }
 
