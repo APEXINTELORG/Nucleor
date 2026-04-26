@@ -69,6 +69,10 @@ Fix:
 **Status: CLOSED in v0.3.122. resolve_import_path now probes NUCLEOR_STDLIB env, exe_dir, exe_dir/.. — same pattern as resolve_toolchain_path. Fixture t399.**
 **Priority: HIGH (any external import was broken — adoption blocker for the entire OSS distribution)**
 
+### NUC-IMPROVE-004 — Typed f64 text parser / f64_from_bits reinterpret helper
+**Status: CLOSED in v0.3.125. Four runtime helpers added: f64_from_bits / f64_to_bits / f32_from_bits / f32_to_bits. Fixture t401.**
+**Priority: MEDIUM (was silent miscompute on `str_to_f64(s) as f64` decimal-text ingest; ML adopter pattern)**
+
 The generated test harness emits a parse error
 (`Parse error at token position 8927: expected token 51 got 1`) on the
 ML_Suite tensor smoke test, even though the same code compiles via

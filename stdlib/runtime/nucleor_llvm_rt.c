@@ -5420,6 +5420,30 @@ static long long __nuc_d2b(double d) { NucF64Bits u; u.d = d; return u.i; }
 long long __nucleor_f64_from_scaled(long long scaled) {
     return __nuc_d2b((double)scaled / 1000000.0);
 }
+
+// v0.3.125: NUC-IMPROVE-004 — explicit reinterpret of an i64
+// holding an f64 bit pattern back to a typed f64. Identity at the
+// runtime ABI level (Nucleor's f64 IS the i64 bit pattern), but
+// the existence of a named helper documents intent and lets
+// adopters convert `str_to_f64("1.25")` (which returns the i64 bit
+// pattern) into the typed f64 needed by f64_add/f64_mul/etc. without
+// reaching for a lossy `as f64` numeric cast (which would convert
+// the LARGE bit-pattern integer numerically to ~4.6e18, not 1.25).
+// f32 sibling has the same shape but only the lower 32 bits are
+// meaningful; preserves the convention that f32 lives in the lower
+// half of an i64 cell.
+long long __nucleor_f64_from_bits(long long bits) {
+    return bits;
+}
+long long __nucleor_f64_to_bits(long long f) {
+    return f;
+}
+long long __nucleor_f32_from_bits(long long bits) {
+    return bits;
+}
+long long __nucleor_f32_to_bits(long long f) {
+    return f;
+}
 long long __nucleor_f64_to_i32(long long b) {
     return (long long)(int)__nuc_b2d(b);
 }
