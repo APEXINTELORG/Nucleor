@@ -10855,6 +10855,63 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         if str_eq(prts, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
                     };
                 };
+                // v0.3.163: also handle struct field access (kind 9).
+                // Look up the struct via expr_struct_type, then find the
+                // field's type via struct_field_type. Catches the
+                // canonical `print(p.x)` where p.x is f64 -- pre-fix
+                // SIGSEGV'd (printed the f64 bit pattern as a string
+                // pointer). For unknown field types or non-struct receivers
+                // (Box<dyn Trait>, generic param, etc.) the dispatch
+                // falls through to __nucleor_print_str, preserving the
+                // original behavior.
+                if parg_kind == 9 {
+                    let outer_type: str = expr_struct_type(pool, node_field(pool, parg_nid, 1), sym, structs);
+                    if str_len(outer_type) > 0 {
+                        let si: i64 = struct_find_type(pool, structs, outer_type);
+                        if si >= 0 {
+                            let ftype: str = type_base_name(struct_field_type(pool, vec_get(structs, si), node_field(pool, parg_nid, 2)));
+                            if str_eq(ftype, "i64") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(ftype, "i32") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(ftype, "i16") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(ftype, "i8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(ftype, "isize") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(ftype, "u64") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(ftype, "u32") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(ftype, "u16") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(ftype, "u8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(ftype, "usize") == 1 { p_helper = "__nucleor_print_i64"; };
+                            if str_eq(ftype, "f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                            if str_eq(ftype, "f32") == 1 { p_helper = "__nucleor_print_f64"; };
+                            if str_eq(ftype, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
+                        };
+                    };
+                };
+                // v0.3.164: also handle index expressions (kind 10).
+                // `print(v[0])` where v: Vec<i64> SIGSEGV'd pre-fix
+                // because the dispatch fell through to print_str which
+                // dereferenced the i64 element as const char *. Reuse
+                // indexed_element_full_type which already knows how to
+                // strip one container layer (Vec<T> -> T) for var refs,
+                // struct fields, fn-call results, and nested index.
+                if parg_kind == 10 {
+                    let etype_full: str = indexed_element_full_type(pool, node_field(pool, parg_nid, 1), sym, structs);
+                    if str_len(etype_full) > 0 {
+                        let etype: str = type_base_name(etype_full);
+                        if str_eq(etype, "i64") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(etype, "i32") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(etype, "i16") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(etype, "i8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(etype, "isize") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(etype, "u64") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(etype, "u32") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(etype, "u16") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(etype, "u8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(etype, "usize") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(etype, "f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(etype, "f32") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(etype, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
+                    };
+                };
                 if str_len(p_helper) > 0 {
                     let pr_r: i64 = ctr_next(regs);
                     ir_block_add(cur, ir_call_ex(pr_r, p_helper, arg_regs));
@@ -15220,7 +15277,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.162";
+    return "0.3.164";
 }
 
 fn compiler_backend_label() -> str {

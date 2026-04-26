@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.164] — 2026-04-26
+
+**`print(v[i])` for typed vec elements now dispatches by element
+type instead of SIGSEGVing.** Closes another print-dispatch gap
+from v0.3.143/163.
+
+Pre-v0.3.164, the print() type-aware dispatch handled AST kinds
+1 (int literal), 71/72 (f64 literals), 3 (var ref), 7 (fn call),
+and 9 (struct field, added v0.3.163). Index expressions (kind 10)
+fell through to the default `__nucleor_print_str`. For typed Vec
+elements (i64, f64, bool), `print(v[0])` treated the element as
+a pointer — SIGSEGV when the helper dereferenced.
+
+`print(v[0])` where `v: Vec<i64>` SIGSEGV'd. Same hazard class as
+the v0.3.143 `print(int)` fix and v0.3.163 struct-field fix —
+adopter writes the canonical Vec-element print, gets a crash with
+no diagnostic.
+
+Fix: in the print() dispatch, when arg kind is 10 (index expr),
+reuse `indexed_element_full_type` (the same helper the binop
+dispatch uses) to derive the element type with one container
+layer stripped (`Vec<T>` → `T`), then `type_base_name` to strip
+generics, then dispatch on `i*`/`u*`/`f32`/`f64`/`bool` to the
+right helper. Falls through to `__nucleor_print_str` for unknown
+element types — preserves the pre-fix behaviour for those edge
+cases.
+
+Pinned by `tests/fixtures/t431_print_index_dispatch.nr`.
+Bootstrap fixed point at stage_d
+`909ba8bceab23b92948ffb23481e721e6ad4506f1228b5b7c68a6b8ea2dcc68e`.
+Verify gate green.
+
+## [0.3.163] — 2026-04-26
+
+**`print(p.field)` for struct fields now dispatches by field type
+instead of SIGSEGVing.** Closes a print-dispatch gap from v0.3.143.
+
+Pre-v0.3.163, the print() type-aware dispatch added in v0.3.143
+only handled AST kinds 1 (int literal), 71/72 (f64 literals), 3
+(var ref), and 7 (fn call). Struct field access (kind 9) fell
+through to the default `__nucleor_print_str`. For non-str fields
+(f64, i64, bool), `print(p.field)` treated the value as a pointer
+— SIGSEGV when the helper dereferenced.
+
+`print(p.x)` where `p.x: f64` SIGSEGV'd. Same hazard class as the
+v0.3.143 `print(int)` fix — adopter writes the canonical pattern,
+gets a crash with no diagnostic.
+
+Fix: in the print() dispatch, when arg kind is 9 (field access),
+look up the receiver's struct type via `expr_struct_type`, then
+look up the field's type via `struct_field_type`. Use the field
+type to pick the right helper:
+- `str` → `__nucleor_print_str` (default, unchanged)
+- `i*`/`u*` → `__nucleor_print_i64`
+- `f32`/`f64` → `__nucleor_print_f64`
+- `bool` → `__nucleor_print_bool`
+
+Falls through to the default for unknown field types or non-struct
+receivers (Box<dyn Trait>, generic params, etc.) — preserves the
+original pre-fix behaviour for those edge cases.
+
+Pinned by `tests/fixtures/t430_print_struct_field_dispatch.nr`.
+Bootstrap fixed point at stage_d
+`e92e2a3e6f4c971b6ef21f86ad115473`. Verify gate green.
+
 ## [0.3.162] — 2026-04-26
 
 **Added literal-only WARNING for `f64_to_str(int_literal)` /
