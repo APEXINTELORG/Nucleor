@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.203] — 2026-04-26
+
+**Tensor 2D and 3D accessors now bounds-check + PANIC on OOB.**
+Same hazard class as v0.3.200/201/202 — but worse: pre-fix
+`tensor_get`/`tensor_set` (2D) and `nuc_t3_get`/`nuc_t3_set`/
+`nuc_t3_get_flat`/`nuc_t3_set_flat` (3D) had ZERO bounds
+checking. OOB indices read/wrote arbitrary memory beyond the
+tensor buffer — a memory safety hazard, not just a silent
+miscompute.
+
+Fix: PANIC by default with the offending index and the actual
+shape:
+
+```
+PANIC: tensor_get OOB: index (5,5), shape (2,3) (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+PANIC: nuc_t3_get OOB: index (i,j,k), shape (S0,S1,S2) (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+PANIC: nuc_t3_get_flat OOB: index N, total T (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+```
+
+Same env var (`NUCLEOR_VEC_OOB_LENIENT=1`) opts back into the
+unchecked legacy path for adopters running tight ML kernels
+who want zero-overhead access after their own validation.
+Null-handle still returns 0 silently.
+
+Implementation: 2D path lives in `stdlib/runtime/nucleor_llvm_rt.c`
+(forward-declares the existing `_vec_oob_lenient` helper from
+the vec_get strict-mode block). 3D path lives in
+`stdlib/runtime/tensor3d_rt.c` and has its own local cached
+env-var lookup (`_t3_lenient`) since the file is compiled
+separately when the tensor_nd rod is included.
+
+Bootstrap fixed point at stage_d
+`bee503416d4987fcf2217b038d21a2e65719e0034774b9d8e2cd590499200fa5`.
+453/453 verify PASS.
+
 ## [0.3.202] — 2026-04-26
 
 **HashMap/BTreeMap missing-key access now PANICs by default.**
