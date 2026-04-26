@@ -12157,7 +12157,25 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(r, "vec_get", get_args));
             return lx_new(r, cur);
         };
+        // v0.3.193: NUC-FEEDBACK-010 ask -- improve the error so
+        // adopters know what to do instead of seeing the cryptic
+        // downstream `use of undefined value '%r.-1'` from clang.
+        // The build still fails (clang rejects the -1 reg), but
+        // adopters now have actionable guidance up-front. A true
+        // pre-IR halt would need lower_error plumbing through ~44
+        // call sites and is queued for a separate ship.
         print(str_concat("ERROR: cannot resolve field access type for .", fname));
+        print("       BUILD WILL FAIL at clang link with `use of undefined value '%r.-1'`.");
+        print("       Likely causes:");
+        print("         (1) Receiver expression type couldn't be inferred (try");
+        print("             extracting to a `let x: StructName = ...` binding first).");
+        print("         (2) Field name not found in the receiver struct (check");
+        print("             spelling against the struct definition).");
+        print("         (3) Receiver struct was defined in a different module that");
+        print("             isn't imported / publicly visible.");
+        print("       If field name contains a substring matching a Nucleor keyword");
+        print("       (e.g. `static`, `loop`, `as`), try renaming -- contextual-keyword");
+        print("       lexer interactions are an open hazard class.");
         return lx_new(0 - 1, cur);
     };
     if kind == 42 {
@@ -16554,7 +16572,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.192";
+    return "0.3.193";
 }
 
 fn compiler_backend_label() -> str {

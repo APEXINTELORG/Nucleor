@@ -103,6 +103,30 @@ infer arg static type and dispatch to typed runtime helper
 (__nucleor_print_i64 / __nucleor_print_f64 / __nucleor_print_bool /
 __nucleor_print_str default).
 
+### NUC-FEEDBACK-010 — Unresolved struct field access emits invalid LLVM (`%r.-1`) instead of stopping cleanly
+**Status: PARTIAL CLOSED in v0.3.193 (improved error message; pre-IR halt deferred). No fixture (front-end behavior change).**
+**Priority: MEDIUM (build fails at clang either way; just confusing error chain)**
+
+Source: ML_Suite agent (main), 2026-04-26. Adopter on v0.3.191
+saw "ERROR: cannot resolve field access type for .X" plus
+clang's "use of undefined value '%r.-1'". Front-end error
+text was correct; the secondary clang message was confusing.
+
+Also reported: field-name-specific failures
+(`compile_time_shape_assertion_count`, `static_shape_count`)
+where `ct_shape_count` worked. Suggested reserved-keyword
+substring interaction.
+
+I could NOT reproduce the field-name-specific failure on
+v0.3.192/193 (renaming back to static_shape_count in the
+actual ML_Suite contract_facade compiled cleanly). Either
+v0.3.192 fixed it incidentally OR there's additional state
+I'm missing.
+
+v0.3.193 ships the actionable error message enhancement
+(three hints + the keyword-substring caveat). Pre-IR halt
+needs ~44-call-site lower_error plumbing — queued.
+
 ### NUC-FEEDBACK-006 (parallel agent) — String values printed as pointer-like integers (Vec<str> element)
 **Status: CLOSED in v0.3.181. Fixture t447.**
 **Priority: HIGH (silent miscompute on adopter pandas string-key parity examples)**

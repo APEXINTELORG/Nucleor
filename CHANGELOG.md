@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.193] — 2026-04-26
+
+**Improved unresolved field-access error message
+(NUC-FEEDBACK-010 partial close).** The compiler was already
+printing `ERROR: cannot resolve field access type for .X` and
+emitting `%r.-1` which clang rejected (so the build DID fail) —
+but adopters had to chase clang's confusing message instead of
+acting on the front-end one.
+
+The agent's full ask was for a pre-IR halt + investigation of
+why specific field names (`compile_time_shape_assertion_count`,
+`static_shape_count`) failed where `ct_shape_count` worked.
+
+I tried to reproduce the field-name-specific bug on v0.3.192
+(renaming back to `static_shape_count` in the actual ML_Suite
+contract_facade) and it built cleanly. Either v0.3.192 fixed
+something incidentally OR the original issue had additional
+state I'm missing.
+
+Fix shipped in v0.3.193: enhanced error with three actionable
+hints (let-binding extraction, field-spelling check, module
+visibility) plus a note about contextual-keyword substring
+hazards (the agent's `static` observation). Build still fails
+at clang, but adopters now have the front-end hints up front.
+
+A true pre-IR halt would need lower_error plumbing through
+~44 call sites and is queued for a separate ship.
+
+Bootstrap fixed point at stage_d
+`5f711b9d61787243e2defcbd7a22f6aded9dfa2cc62f5ce711bae45489aa98bf`.
+
 ## [0.3.192] — 2026-04-26
 
 **`print(if cond { x } else { y })` no longer SIGSEGVs.**
