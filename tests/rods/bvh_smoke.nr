@@ -2,7 +2,9 @@
 // Build a 3-AABB BVH, query an overlap, enumerate self-pairs.
 import "stdlib/rods/bvh.nr"
 
-fn f64_to_bits(x: f64) -> i64 { return x as i64; }
+// v0.3.211: removed local `fn f64_to_bits` -- the builtin runtime
+// helper table now provides bit-cast semantics; the local body
+// `x as i64` would now numeric-truncate (new Rust `as` semantic).
 
 fn main() -> i64 {
     let mut fail: i64 = 0;

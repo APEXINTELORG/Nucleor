@@ -5,9 +5,10 @@ fn main() -> i64 {
     let x1: f32 = 1.5 as f32;
     let x2: f32 = 2.5 as f32;
     let x3: f32 = 3.5 as f32;
-    v.push(x1 as i64);
-    v.push(x2 as i64);
-    v.push(x3 as i64);
+    // v0.3.211: `f32 as i64` now NUMERIC-truncates. Use f32_to_bits for transit.
+    v.push(f32_to_bits(x1));
+    v.push(f32_to_bits(x2));
+    v.push(f32_to_bits(x3));
 
     // Read back: i64 cells hold f32 bit patterns, use f32_from_bits to
     // reinterpret without numeric conversion (which `as f32` would do).

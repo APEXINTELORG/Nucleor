@@ -3495,6 +3495,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "f32_to_i32") { return "__nucleor_f32_to_i32"; };
     if str_eq(name, "f32_to_i64") { return "__nucleor_f32_to_i64"; };
     if str_eq(name, "f32_to_u32") { return "__nucleor_f32_to_u32"; };
+    if str_eq(name, "f32_to_u64") { return "__nucleor_f32_to_u64"; };
+    if str_eq(name, "f64_to_u64") { return "__nucleor_f64_to_u64"; };
     if str_eq(name, "i32_to_f32") { return "__nucleor_i32_to_f32"; };
     if str_eq(name, "i64_to_f32") { return "__nucleor_i64_to_f32"; };
     if str_eq(name, "f64_to_i64") { return "__nucleor_f64_to_i64"; };
@@ -4839,6 +4841,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_f32_to_i32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_to_i64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_to_u32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_u64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_to_u64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_i32_to_f32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_i64_to_f32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_to_i64(i64)\n");
@@ -10707,20 +10711,39 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // int-only `as_<T>` mask path.
         let src_ftype: str = binop_float_type(pool, inner_nid, sym, structs);
         let mut conv_helper: str = "";
-        // Float → narrow int / float → float dispatch. i64 target
-        // is INTENTIONALLY left to the bitcast-preserving as_i64
-        // helper because Nucleor's i64-everywhere ABI relies on
-        // `f64 as i64` being a no-op bit-preservation for FFI to C
-        // runtime functions. To truncate float→i64 explicitly use
-        // `(x as i32) as i64` or call `f64_to_i64()` directly.
+        // Float → int / float → float dispatch.
+        //
+        // v0.3.211: NUC-FEEDBACK runtime safety / Rust-semantic alignment.
+        // Pre-fix `f64 as i64` (and `f64 as u64`, `f32 as i64`, `f32 as
+        // u64`) fell through to the bitcast-preserving `as_i64` /
+        // `as_u64` helpers. That made `1.5_f64 as i64` return the i64
+        // bit pattern of 1.5_f64 (~4607182418800017408) instead of `1`
+        // -- a silent miscompute when adopters copy-pasted Rust code
+        // expecting numeric truncation semantics.
+        //
+        // Now: f-source / i64-or-u64 target dispatches to the saturating
+        // numeric-truncation helper (matches Rust `as` semantics on
+        // overflow). Adopters who genuinely need bit-pattern transit
+        // (e.g. pushing f32 values into a Vec<i64> for narrow storage)
+        // must use the explicit reinterpret surface: f64_to_bits(x) or
+        // f32_to_bits(x). That makes intent local to the call site
+        // instead of relying on a non-Rust-semantic `as` quirk.
         if str_eq(src_ftype, "f32") == 1 {
             if str_eq(target_type, "i32") == 1 { conv_helper = "f32_to_i32"; };
+            if str_eq(target_type, "i64") == 1 { conv_helper = "f32_to_i64"; };
+            if str_eq(target_type, "isize") == 1 { conv_helper = "f32_to_i64"; };
             if str_eq(target_type, "u32") == 1 { conv_helper = "f32_to_u32"; };
+            if str_eq(target_type, "u64") == 1 { conv_helper = "f32_to_u64"; };
+            if str_eq(target_type, "usize") == 1 { conv_helper = "f32_to_u64"; };
             if str_eq(target_type, "f64") == 1 { conv_helper = "f32_to_f64"; };
         };
         if str_eq(src_ftype, "f64") == 1 {
             if str_eq(target_type, "i32") == 1 { conv_helper = "f64_to_i32"; };
+            if str_eq(target_type, "i64") == 1 { conv_helper = "f64_to_i64"; };
+            if str_eq(target_type, "isize") == 1 { conv_helper = "f64_to_i64"; };
             if str_eq(target_type, "u32") == 1 { conv_helper = "f64_to_u32"; };
+            if str_eq(target_type, "u64") == 1 { conv_helper = "f64_to_u64"; };
+            if str_eq(target_type, "usize") == 1 { conv_helper = "f64_to_u64"; };
             if str_eq(target_type, "f32") == 1 { conv_helper = "f64_to_f32"; };
         };
         // int → float: detect if source has int type and target is float.
@@ -16826,7 +16849,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.210";
+    return "0.3.211";
 }
 
 fn compiler_backend_label() -> str {

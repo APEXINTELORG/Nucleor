@@ -2409,6 +2409,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "f32_to_i32") { return "__nucleor_f32_to_i32"; };
     if str_eq(name, "f32_to_i64") { return "__nucleor_f32_to_i64"; };
     if str_eq(name, "f32_to_u32") { return "__nucleor_f32_to_u32"; };
+    if str_eq(name, "f32_to_u64") { return "__nucleor_f32_to_u64"; };
+    if str_eq(name, "f64_to_u64") { return "__nucleor_f64_to_u64"; };
     if str_eq(name, "i32_to_f32") { return "__nucleor_i32_to_f32"; };
     if str_eq(name, "i64_to_f32") { return "__nucleor_i64_to_f32"; };
     if str_eq(name, "f64_to_i64") { return "__nucleor_f64_to_i64"; };
@@ -3850,6 +3852,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_f32_to_i32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_to_i64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_to_u32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_u64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_to_u64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_i32_to_f32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_i64_to_f32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_to_i64(i64)\n");

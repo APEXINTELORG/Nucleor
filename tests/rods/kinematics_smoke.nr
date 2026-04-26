@@ -5,11 +5,8 @@
 // result (e.g. non-zero norm, identity-quat composition is identity).
 import "stdlib/rods/kinematics.nr"
 
-fn f64_to_bits(x: f64) -> i64 {
-    // Reinterpret-cast f64 → i64. Used to pass f64 values across the
-    // i64 FFI to the runtime helpers.
-    return x as i64;
-}
+// v0.3.211: removed local f64_to_bits -- builtin in runtime helper
+// table now bit-casts; local body would now numeric-truncate.
 
 fn main() -> i64 {
     let mut fail: i64 = 0;
