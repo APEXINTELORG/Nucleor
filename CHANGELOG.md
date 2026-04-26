@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.129] — 2026-04-25
+
+**Struct-field access on captured variables inside closures.**
+Pre-v0.3.129, the closure setup populated `clo_sym` with each
+captured variable's storage slot but did NOT propagate the
+parent's `__type_<name>` entry. When the closure body did
+`cfg.factor` on a captured struct `cfg`, `expr_struct_type`
+returned `""`, the field-access lowering produced register `-1`,
+and clang link failed with `use of undefined value '%r.-1'`.
+
+Hard-blocked the very common Rust adopter pattern of "closure
+captures a config / context struct and reads a field":
+
+```rust
+struct Cfg { factor: i64 }
+let cfg: Cfg = Cfg { factor: 5 };
+let f = |x: i64| -> i64 { return x * cfg.factor; };  // failed pre-v0.3.129
+```
+
+Builder patterns, dependency-injection wrappers, event handlers
+that capture state, partial-application closures — all impacted.
+
+### Fix
+
+In `lower_expr` kind-42 (closure literal), after pushing each
+captured slot into `clo_sym`, also propagate `__type_<capname>`
+and `__fulltype_<capname>` from the parent sym. `expr_struct_type`
+can then resolve the captured struct's type and find the field.
+
+The propagation is fail-soft via the `>= 0` check on each lookup,
+so non-struct captures (i64, bool, str) are unaffected — they
+simply have no `__type_` entry to copy.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t405 returns 40 = 5 * 8, proving
+cfg.factor (the captured struct's field) is read correctly and
+used in arithmetic with the closure's parameter. `bin/nucleor.exe`
+SHA `e381aa7f`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `__type_` / `__fulltype_`
+  propagation in the kind-42 captures loop.
+- `tests/fixtures/t405_closure_capture_struct_field.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.128] — 2026-04-25
 
 **Enum-variant equality (`t == Tag::A`) — closes a HIGH-blast
