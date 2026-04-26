@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.127] — 2026-04-25
+
+**NUC-IMPROVE-005 closed — `stdlib/rods/math_typed.nr` typed-f64
+elementary math wrappers.** ML_Suite agent requested typed
+`f64 -> f64` wrappers around the existing bit-pattern math
+runtime helpers so neural-network / scientific code using typed
+arithmetic could call elementary functions (sqrt, exp, log, tanh,
+sin, cos, pow) directly without manual `f64_from_bits` /
+`f64_to_bits` plumbing. Critical for cross entropy, softmax,
+sigmoid, Adam denominator, GELU, LayerNorm — everywhere the ML
+suite needs elementary math.
+
+### Fix
+
+New `stdlib/rods/math_typed.nr` rod with seven wrappers:
+
+```rust
+sqrt_f64(x: f64) -> f64
+exp_f64(x: f64)  -> f64    // e^x
+log_f64(x: f64)  -> f64    // natural log
+tanh_f64(x: f64) -> f64
+sin_f64(x: f64)  -> f64
+cos_f64(x: f64)  -> f64
+pow_f64(base: f64, exp: f64) -> f64
+```
+
+Each wrapper is a one-line identity around the existing runtime
+helper of the same base name. At the runtime ABI level Nucleor's
+f64 IS the i64 bit pattern, so the wrapper adds zero overhead;
+the named entries document intent and give type-checkers + IDEs
+the right signatures.
+
+### Bootstrap
+
+No compiler change. Fixture t403 verifies sqrt/exp/log produce
+the expected values within tolerance. `bin/nucleor.exe` SHA
+`af2506e9` (unchanged from v0.3.126). 452/452 verify gate green.
+
+### Files touched
+
+- `stdlib/rods/math_typed.nr` — new rod.
+- `tests/fixtures/t403_math_typed_rod.nr` — pin.
+- `docs/rfcs/rod_manifest.toml` — regenerated (2114 fns total).
+
 ## [0.3.126] — 2026-04-25
 
 **User-defined fns shadow runtime helpers of the same name —
