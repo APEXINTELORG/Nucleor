@@ -10951,6 +10951,25 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let cval: i64 = ctr_next(clo_regs); ir_block_add(clo_b0, ir_call_ex(cval, "__nucleor_capture_get", get_args));
             ir_block_add(clo_b0, ir_store(cval, car));
             sym_set(clo_sym, capname, car);
+            // v0.3.129: propagate the captured variable's TYPE entry
+            // from the parent sym so expr_struct_type can resolve
+            // field accesses inside the closure body. Pre-v0.3.129
+            // the closure's clo_sym had the captured slot but no
+            // `__type_<capname>` entry — `cfg.factor` (where cfg was
+            // captured) failed to resolve to a struct field, lowered
+            // to register -1, and clang link errored with
+            // `use of undefined value '%r.-1'`. Without this entry
+            // adopters couldn't access fields of any captured struct
+            // inside a closure (very common pattern: closure
+            // capturing a config / context struct).
+            let parent_type: i64 = sym_get(sym, str_concat("__type_", capname));
+            if parent_type >= 0 {
+                sym_set(clo_sym, str_concat("__type_", capname), parent_type);
+            };
+            let parent_full: i64 = sym_get(sym, str_concat("__fulltype_", capname));
+            if parent_full >= 0 {
+                sym_set(clo_sym, str_concat("__fulltype_", capname), parent_full);
+            };
             capi = capi + 1;
         };
         // v0.3.107: push the closure into `closures` BEFORE lowering
