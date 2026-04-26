@@ -9750,6 +9750,21 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                     type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 0 of '", str_concat(callee, "' must be str (runtime helper)")));
                 };
             };
+            // v0.3.159: validate arg 0 type for f64-arg-0 helpers
+            // (currently f64_to_str / f32_to_str). Pre-fix, calling
+            // f64_to_str(100) returned "4.94066e-322" -- the i64 100
+            // bit-reinterpreted as a subnormal f64. Silent miscompute
+            // for adopters who confuse i64 / f64 in mixed arithmetic.
+            // Skip helpers that LEGITIMATELY take i64 (f64_from_bits,
+            // f64_from_scaled, f64_from_int).
+            let needs_f64_arg0: i64 = if str_eq(callee, "f64_to_str") == 1
+                || str_eq(callee, "f32_to_str") == 1 { 1 } else { 0 };
+            if needs_f64_arg0 == 1 {
+                let arg0_ft: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+                if str_len(arg0_ft) > 0 && str_eq(arg0_ft, "f64") == 0 && str_eq(arg0_ft, "f32") == 0 && str_eq(arg0_ft, "_") == 0 {
+                    type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 0 of '", str_concat(callee, "' must be f64/f32 (runtime helper)")));
+                };
+            };
             // v0.3.155/156: also validate arg 1 of helpers that take a
             // second str.
             if argc > 1 {
@@ -15179,7 +15194,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.158";
+    return "0.3.159";
 }
 
 fn compiler_backend_label() -> str {

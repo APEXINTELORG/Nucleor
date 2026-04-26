@@ -5,6 +5,26 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.159] — 2026-04-26
+
+**`f64_to_str(int)` now emits TYP-006 instead of returning a
+subnormal-looking f64 garbage.** Closes the f64-helper analogue
+of the v0.3.154-157 str-helper arg-type-check work.
+
+Pre-v0.3.159, calling `f64_to_str(100)` returned `"4.94066e-322"`
+— the i64 `100` bit-reinterpreted as a subnormal f64. Adopters
+who confused i64 / f64 in mixed arithmetic got garbage output
+with no diagnostic. Same hazard class as the earlier silent
+miscompile fixes — a real call you wrote produces nonsense.
+
+Fix: validate arg 0 type for `f64_to_str` and `f32_to_str`. If
+arg 0 isn't typed as `f64` or `f32`, emit a clean TYP-006
+diagnostic. Helpers that legitimately take i64 (`f64_from_bits`,
+`f64_from_scaled`, `f64_from_int`) are excluded by design.
+
+Bootstrap fixed point at stage_d
+`f16a2109337b5d278379ac5d2666a12e`. Verify gate green.
+
 ## [0.3.158] — 2026-04-26
 
 **Bare `{}` format spec now infers types for FN-CALL return values
