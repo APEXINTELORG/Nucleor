@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.210] — 2026-04-26
+
+**`str_char_at` negative-index PANIC + documented residual.**
+Closes the obvious bug class (negative index from upstream
+arithmetic mistake) cheaply; documents the remaining surface.
+
+Pre-fix `str_char_at(s, i)` had ZERO bounds check — a
+negative `i` cast to `int` indexed backwards into memory
+(undefined). A first attempt with a strlen-by-pointer hash
+cache thrashed under the lexer's allocation pattern (each
+str_substring creates a fresh pointer, so the cache filled
+with one-off entries and degraded to per-call recompute) —
+made compilation pathologically slow. Reverted.
+
+Final shape:
+
+1. **Negative index → PANIC by default** with the offending
+   value:
+   ```
+   PANIC: str_char_at OOB: negative index -5 (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+   ```
+   This is O(1), no bookkeeping, catches every observed real-
+   world bug pattern in this surface.
+
+2. **Index past `strlen(s)` is NOT bounded.** Reads walk the
+   malloc'd buffer up to its real boundary; the byte returned
+   is "garbage" from the user's perspective but stays inside
+   the process's memory map (allocators round up). Not a
+   CVE-class memory safety hazard in practice. A truly
+   bound-checked surface needs length-tagged strings (a new
+   core type with header-prefixed length) — tracked as a
+   future architectural ship.
+
+3. **`i == strlen(s)` returns 0** (the well-defined NUL
+   terminator), preserving the lexer end-of-input idiom.
+
+Same `NUCLEOR_VEC_OOB_LENIENT=1` env var opts out of the
+negative-index panic for adopters porting code that
+deliberately uses negative indices as a sentinel.
+
+Pinned by `tests/fixtures/probe_str_char_at_negative.nr`
+(must exit 1 with PANIC line on negative index).
+
+Bootstrap fixed point at stage_d
+`0157339e63c3ccc37fede0fc62b2470f4ac228273e1540a6fe12690187419cc0`.
+452/452 verify PASS.
+
 ## [0.3.209] — 2026-04-26
 
 **f8e4m3 / f8e5m2 pack: round-to-nearest-even + NaN/inf
