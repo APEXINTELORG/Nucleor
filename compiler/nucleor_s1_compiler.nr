@@ -5656,6 +5656,22 @@ fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
         if rt < 0 { return ""; };
         return type_base_name(rt);
     };
+    // v0.3.123 fix: associated-fn call returning a struct. For
+    // `Counter::new().add(10)` the receiver of `.add(10)` is
+    // `Counter::new()` (kind 12). The kind-8 method dispatch
+    // needs the receiver's struct type to construct the mangled
+    // method name; without this branch expr_struct_type returned
+    // "" for kind 12 receivers and the chain fell through to
+    // `vec_<method>` (clang link `@vec_add undefined`). Lookup
+    // mirrors kind 7 — sym entry `__fnret_<TypeName>__<methodname>`.
+    if kind == 12 {
+        let tname: str = node_field(pool, nid, 1);
+        let mname12: str = node_field(pool, nid, 2);
+        let mangled12: str = str_concat(tname, str_concat("__", mname12));
+        let rt12: i64 = sym_get(sym, str_concat("__fnret_", mangled12));
+        if rt12 < 0 { return ""; };
+        return type_base_name(rt12);
+    };
     // v0.3.59 fix: Vec indexing result. For `v[0].x` where v
     // is Vec<V3>, the operand of the field access is `v[0]`
     // (kind 10); same compile-error class as v0.3.58. Reuses
@@ -10268,7 +10284,26 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     } else if str_eq(stype_base, "VecDeque") == 1 {
                         fn_name = str_concat("vecdeque_", mname);
                     } else {
-                        fn_name = str_concat("vec_", mname);
+                        // v0.3.123: user-defined inherent-impl method
+                        // dispatch via mangled name. Pre-v0.3.123 the
+                        // fallback was always `vec_<method>`, so a
+                        // chained inherent fn call like
+                        // `Counter::new().add(10).add(5)` lowered the
+                        // SECOND `.add(...)` to `vec_add(...)` —
+                        // undefined symbol at clang link. The kind-12
+                        // path (Counter::new) was fixed in v0.3.111
+                        // via the same `__fnret_<mangled>` lookup;
+                        // mirror that here for instance-method chains.
+                        // Falls through to `vec_<method>` for receiver
+                        // types that aren't registered impl methods,
+                        // preserving the existing Vec convention.
+                        let user_mangled: str = str_concat(stype_base, str_concat("__", mname));
+                        let user_ret: i64 = sym_get(sym, str_concat("__fnret_", user_mangled));
+                        if user_ret >= 0 {
+                            fn_name = user_mangled;
+                        } else {
+                            fn_name = str_concat("vec_", mname);
+                        };
                     };
                 };
             };

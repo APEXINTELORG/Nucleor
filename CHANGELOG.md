@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.123] — 2026-04-25
+
+**Chained inherent-method calls (`Counter::new().add(10).add(5)`).**
+Pre-v0.3.123, the canonical Rust fluent-builder pattern failed at
+clang link with `@vec_add undefined` — the second and subsequent
+`.add(...)` in the chain fell through the kind-8 dispatch's
+`vec_<method>` fallback because the receiver's struct type wasn't
+known to `expr_struct_type` for kind-12 (associated-fn-call)
+receivers. Two coordinated gaps:
+
+1. `expr_struct_type` had no `kind == 12` branch — returned "" for
+   `Counter::new()` receivers, so the kind-8 `.add(10)` couldn't
+   see the receiver type.
+2. The kind-8 dispatch fallback was always `vec_<method>` for
+   unknown receiver types — even when a registered impl method
+   `Counter__add` existed.
+
+### Fix
+
+1. New `kind == 12` branch in `expr_struct_type` mirrors the
+   existing kind-7 / kind-8 patterns: look up
+   `__fnret_<TypeName>__<methodname>` and return its base type.
+2. New `else` arm in kind-8 dispatch (after the collection-family
+   prefix routes): if a registered impl method
+   `<stype_base>__<mname>` exists (probed via the same
+   `__fnret_<mangled>` sym entry), route to it; otherwise fall
+   through to `vec_<method>` as before so existing Vec method
+   calls remain unaffected.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t400 returns 15 = 0 + 10 + 5,
+proving each step in the chain dispatches to the right impl
+method. `bin/nucleor.exe` SHA `a1bd27a0`. 452/452 verify gate.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — kind-12 branch in
+  `expr_struct_type`; user-method fallback in kind-8 dispatch.
+- `tests/fixtures/t400_method_chain_inherent.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.122] — 2026-04-25
 
 **NUC-FEEDBACK-004 closed — stdlib import resolution from outside
