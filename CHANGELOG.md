@@ -5,6 +5,34 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.179] — 2026-04-26
+
+**Better link-failure diagnostic — always print the failing
+clang command and flag empty-log spawn failures.** Closes
+NUC-FEEDBACK-009 (ML_Suite agent, 2026-04-26).
+
+ML adopters using long verifier passes saw `emitted: target/X.ll
+(...)` then a nonzero exit with no clear signal whether clang
+errored, never started (file lock / antivirus / process-spawn),
+or something else. Same hazard class as v0.3.156-160 sweep —
+adopter sees failure with insufficient evidence to triage.
+
+Fix:
+- On `rc != 0` from clang, always print the link command (the
+  full `clang …` invocation) so adopters can repro and inspect.
+- When the captured `.nuc_cache/clang_link.log` is EMPTY,
+  explicitly note that clang likely never started and provide a
+  triage hint (file lock, antivirus, missing exe, orphan
+  process holding `bin/nucleor.exe`).
+
+The on-disk log capture (added pre-v0.3.179) was already in
+place; this fix surfaces it and adds the empty-log case.
+
+Pinned by `tests/fixtures/t446_link_failure_diagnostic.nr`
+(positive smoke — happy-path build doesn't regress).
+Bootstrap fixed point at stage_d
+`2bf9e986839857bdfd32f28d4523b8e6b0f773a15bb264f56941a4ffb84f2c0e`.
+
 ## [0.3.178] — 2026-04-26
 
 **`print(hashmap_get(h, k))` and `print(h.get(k))` now work
