@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.208] — 2026-04-26
+
+**Default `+`/`-`/`*`/`/`/`%` is now panic-on-overflow.** This
+is the deepest item in the runtime safety series, and the one
+that "no silent miscomputes" most directly demands. v0.3.207
+shipped the opt-in `panic_*` ergonomic surface; v0.3.208 wires
+the binop lowerer to use those helpers as the DEFAULT for all
+i64 integer arithmetic.
+
+What changed in lowering: `lower_expr` for kind == 4 (binop)
+now emits `__nucleor_panic_add_i64(a, b)` instead of native
+`add nsw i64 a, b` for `+`, similarly for `-`, `*`, `/`, `%`.
+Float binops, comparisons, bitwise (and/or/xor), and shifts are
+unchanged (no overflow semantics).
+
+What's still allowed and how to opt out:
+
+```nr
+// modular / wrap-by-design code: call wrapping_* explicitly
+let h = wrapping_mul(hash_state, 31);
+let next = wrapping_add(h, char as i64);
+
+// global opt-out at build time:
+//   NUCLEOR_INT_STRICT_ARITH=0 nucleor build foo.nr
+// (re-emits LLVM nsw/nuw silent-wrap as the default)
+```
+
+Compiler-internal arithmetic that intentionally wraps was
+audited and migrated:
+- `str_to_int` (decimal literal accumulator) → `wrapping_*`
+- Lexer hex/octal/binary literal accumulators → `wrapping_*`
+- Const folder for `+`, `-`, `*` → `wrapping_*` (matches
+  runtime fold/unfold behavior)
+- Const folder for bitwise `&` `|` `^` (bit-position counter
+  inside the per-bit emulator) → `wrapping_*`
+
+Three fixtures that previously relied on silent-wrap parsing
+of `u64::MAX`-shaped literals (`tests/lang/print_widths`,
+`tests/lang/atomic_bit_ops`, `tests/fixtures/t373_bitwise_op_diagnostic`)
+all PASS unchanged because the lexer now wraps internally
+where appropriate.
+
+PANIC messages include the operands:
+
+```
+PANIC: i64 add overflow: 9223372036854775000 + 9223372036854775000
+PANIC: i64 mul overflow: 12345 * 67890
+PANIC: i64 division by zero: 100 / 0
+PANIC: i64 div overflow: i64::MIN / -1
+PANIC: i64 mod by zero: 100 % 0
+```
+
+Three-stage bootstrap fixed point holds under strict default.
+452/452 verify PASS. Bootstrap fixed point at stage_d
+`e9e5147bb9e3aebc8fe4a56e8ca0e06efcd7ae66c7e04c8ae08b1908284f3e46`.
+
 ## [0.3.207] — 2026-04-26
 
 **Ergonomic strict-arithmetic surface: `panic_add` / `panic_sub`
