@@ -1083,10 +1083,41 @@ long long __nucleor_str_char_at(const char *s, long long i) {
     return (unsigned char)s[(int)i];
 }
 
+// v0.3.205: NUC-FEEDBACK runtime safety -- str_substring bounds.
+// Pre-fix had no length check on start/end vs strlen(s), so OOB
+// values read garbage past the null terminator (memory safety
+// hazard, undefined behavior). The substring already does O(n)
+// work copying bytes, so an extra strlen is asymptotic-free.
+// Negative start, end < start, or end > strlen all trigger PANIC
+// by default (NUCLEOR_VEC_OOB_LENIENT=1 opts back into legacy
+// undefined behavior for porting purposes).
 const char *__nucleor_str_substring(const char *s, long long start, long long end) {
     if (!s) return "";
+    long long slen = (long long)strlen(s);
+    if (start < 0 || end < start || end > slen) {
+        if (_vec_oob_lenient()) {
+            // Legacy clamp: return empty string for any malformed range.
+            int nn = (int)(end - start);
+            if (nn < 0) nn = 0;
+            g_str_substring_count++;
+            g_str_substring_bytes += nn + 1;
+            char *rr = (char *)malloc(nn + 1);
+            if (start >= 0 && start <= slen) {
+                int safe_n = (int)(end > slen ? slen - start : end - start);
+                if (safe_n < 0) safe_n = 0;
+                memcpy(rr, s + (int)start, safe_n);
+                rr[safe_n] = 0;
+            } else {
+                rr[0] = 0;
+            }
+            return rr;
+        }
+        fprintf(stderr, "PANIC: str_substring OOB: start=%lld end=%lld len=%lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                start, end, slen);
+        fflush(stderr);
+        exit(1);
+    }
     int n = (int)(end - start);
-    if (n < 0) n = 0;
     g_str_substring_count++;
     g_str_substring_bytes += n + 1;
     char *r = (char *)malloc(n + 1);

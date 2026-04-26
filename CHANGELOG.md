@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.205] — 2026-04-26
+
+**`str_substring` bounds-check + PANIC on OOB.** Same hazard
+class as v0.3.200/201/202/203. Pre-fix had no length check
+on `start` / `end` vs `strlen(s)`, so OOB values read garbage
+past the null terminator (memory safety hazard, undefined
+behavior).
+
+Fix: PANIC by default with start/end/len in the message:
+
+```
+PANIC: str_substring OOB: start=0 end=100 len=2 (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+```
+
+The substring already does O(n) work copying bytes, so the
+extra `strlen` is asymptotic-free. Same env var
+(`NUCLEOR_VEC_OOB_LENIENT=1`) opts back into the legacy
+undefined-behavior path with defensive clamping (returns the
+in-bounds prefix or empty string).
+
+Pinned by `tests/fixtures/probe_str_substring_oob.nr`.
+`str_char_at` is intentionally NOT panicking yet — it's on
+the per-byte source-walking hot path in the compiler itself
+(every lex token consumes 5-50 char_at calls), and adding an
+O(n) per-call `strlen` would tank compilation time. Tracked
+as a follow-on; needs length-tagged strings for an O(1)
+bounds check.
+
+Bootstrap fixed point at stage_d
+`26aacc89470c83112d267628751449f2add63d44b1776007be90f87fd815279c`.
+453/453 verify PASS.
+
 ## [0.3.204] — 2026-04-26
 
 **`Vec<f32>` works end-to-end + missing `f32_to_str` helper.**
