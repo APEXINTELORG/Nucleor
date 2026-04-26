@@ -62,6 +62,7 @@ Fix:
    in `Nucleor.toml`.
 
 ### NUC-FEEDBACK-001 — `nuc test` parse error + harness divergence
+**Status: CLOSED in v0.3.121 (panic/assert strip mirrored into nucleor_tools_suite expand_format_macros). Fixture t398.**
 **Priority: MEDIUM (test-surface trust)**
 
 The generated test harness emits a parse error

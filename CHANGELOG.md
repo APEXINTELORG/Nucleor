@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.121] — 2026-04-25
+
+**NUC-FEEDBACK-001 closed — `nuc test` harness now passes panic!/
+assert! family macros through correctly.** Pre-v0.3.121, `nuc test`
+went through `nucleor_tools.exe` which had its own
+`expand_format_macros` missing the v0.3.94 panic/assert strip
+block. Test bodies using `panic!(…)` / `assert!(…)` etc. emitted
+`@panic` global refs and clang link failed with `use of undefined
+value '@panic'`. Equivalent code in `nuc run` worked correctly
+because `nucleor.exe` (the s1 compiler) had the strip.
+
+This was the harness divergence the ML_Suite agent reported —
+their tensor smoke test's `assert!` calls failed under `nuc test`
+while compiling cleanly under `nuc run`.
+
+### Fix
+
+Mirror the v0.3.94 panic/assert strip block from
+`nucleor_s1_compiler.nr` into `nucleor_tools_suite.nr`'s copy of
+`expand_format_macros`. Same eight-name set:
+`panic`, `assert`, `assert_eq`, `assert_ne`, `dbg`, `todo`,
+`unimplemented`, `unreachable`.
+
+### Bootstrap
+
+Compiler unchanged (s1 already had the strip). Only
+`nucleor_tools.exe` rebuilt. Fixture t398 verifies test bodies
+using `panic!` and `assert!` compile cleanly through `nuc test`.
+`bin/nucleor.exe` SHA `9e9b28d7` (unchanged). 452/452 verify
+gate green.
+
+### Files touched
+
+- `compiler/nucleor_tools_suite.nr` — panic/assert strip block in
+  `expand_format_macros` (mirror of s1 v0.3.94).
+- `bin/nucleor_tools.exe` — rebuilt.
+- `tests/fixtures/t398_nuc_test_panic_macro.nr` — pin.
+
 ## [0.3.120] — 2026-04-25
 
 **JSONL evidence-emit rod (NUC-IMPROVE-003).** ML_Suite agent
