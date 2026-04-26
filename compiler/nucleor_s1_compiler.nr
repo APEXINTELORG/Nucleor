@@ -5988,18 +5988,20 @@ fn enum_populate_sym(pool: Vec<i32>, enums: Vec<i32>, sym: Vec<i32>) -> i64 {
             let pcount: i64 = list_len(pool, ptypes);
             sym_set(sym, str_concat("__etag_", str_concat(ename, str_concat("_", vname))), vi);
             sym_set(sym, str_concat("__eargs_", str_concat(ename, str_concat("_", vname))), pcount);
-            // v0.3.185: store first payload's type for variant-aware
+            // v0.3.185/186: store ALL payload types for variant-aware
             // print() dispatch. Catches `Msg::Text(s)` where Text(str)
-            // -- pre-fix print(s) defaulted to i64 and printed pointer.
-            // Stored as __epayload0_<ename>_<vname>. Note: ptypes
-            // elements are TYPE STRINGS (per parse_enum_decl) stored
-            // directly in the list -- not nodes. list_get returns the
-            // string value; no node_field unwrap.
-            if pcount > 0 {
-                let p0_t: str = list_get(pool, ptypes, 0);
-                if str_len(p0_t) > 0 {
-                    sym_set(sym, str_concat("__epayload0_", str_concat(ename, str_concat("_", vname))), p0_t);
+            // and multi-payload `Variant(str, i64)` where each binding
+            // gets its own type. Stored as __epayload<i>_<ename>_<vname>.
+            // ptypes elements are TYPE STRINGS (per parse_enum_decl)
+            // stored directly in the list -- not nodes. list_get
+            // returns the string value; no node_field unwrap.
+            let mut pi: i64 = 0;
+            while pi < pcount {
+                let pt: str = list_get(pool, ptypes, pi);
+                if str_len(pt) > 0 {
+                    sym_set(sym, str_concat("__epayload", str_concat(str_from_int(pi), str_concat("_", str_concat(ename, str_concat("_", vname))))), pt);
                 };
+                pi = pi + 1;
             };
             vi = vi + 1;
         };
@@ -10309,6 +10311,49 @@ fn match_bind_payloads_typed(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: V
     return cur;
 }
 
+fn match_bind_payloads_per_idx(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>, ename: str, vname: str) -> Vec<i32> {
+    // v0.3.186: per-index payload type lookup. Each binding in the
+    // pipe-separated list gets its own __type_<name> based on
+    // __epayload<i>_<ename>_<vname>. Catches multi-payload variants
+    // like Variant(str, i64) where binding 0 is str and binding 1
+    // is i64. Pre-fix all bindings shared the same type default.
+    let mut cur: Vec<i32> = blk;
+    let blen: i64 = str_len(binding);
+    if blen == 0 { return cur; };
+    let mut start: i64 = 0;
+    let mut payload_idx: i64 = 1;
+    let mut bind_idx: i64 = 0;
+    while start < blen {
+        let mut end: i64 = start;
+        while end < blen && str_char_at(binding, end) != 124 { end = end + 1; };
+        let name: str = str_substring(binding, start, end);
+        if str_len(name) > 0 {
+            let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
+            sym_set(sym, name, bar);
+            // Look up this binding's specific payload type.
+            let pkey: str = str_concat("__epayload", str_concat(str_from_int(bind_idx), str_concat("_", str_concat(ename, str_concat("_", vname)))));
+            let pstored: i64 = sym_get(sym, pkey);
+            let mut ptype: str = "i64";
+            if pstored >= 0 {
+                let pt_s: str = pstored;
+                if str_len(pt_s) > 0 { ptype = type_base_name(pt_s); };
+            } else {
+                if str_eq(ename, "Result") == 1 && str_eq(vname, "Err") == 1 && bind_idx == 0 { ptype = "str"; };
+            };
+            sym_set(sym, str_concat("__type_", name), ptype);
+            let mv2: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv2, mslot));
+            let idx_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(idx_r, payload_idx));
+            let mut get_args: Vec<i32> = Vec::new(); get_args.push(mv2); get_args.push(idx_r);
+            let pv_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(pv_r, "vec_get", get_args));
+            ir_block_add(cur, ir_store(pv_r, bar));
+            payload_idx = payload_idx + 1;
+            bind_idx = bind_idx + 1;
+        };
+        start = end + 1;
+    };
+    return cur;
+}
+
 fn match_bind_payloads(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>) -> Vec<i32> {
     let mut cur: Vec<i32> = blk;
     let blen: i64 = str_len(binding);
@@ -11991,7 +12036,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
-                ab = match_bind_payloads_typed(binding, ab, regs, arm_sym, mslot, fir, match_bind_payload_type_lookup(sym, ename, vname));
+                ab = match_bind_payloads_per_idx(binding, ab, regs, arm_sym, mslot, fir, ename, vname);
                 let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                 ab = lx_blk(bp);
                 let mut rv: i64 = lx_reg(bp);
@@ -12942,7 +12987,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
-                ab = match_bind_payloads_typed(binding, ab, regs, arm_sym, mslot, fir, match_bind_payload_type_lookup(sym, ename, vname));
+                ab = match_bind_payloads_per_idx(binding, ab, regs, arm_sym, mslot, fir, ename, vname);
                 if guard_nid > 0 {
                     let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                     let gr: i64 = lx_reg(gp);
@@ -16390,7 +16435,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.185";
+    return "0.3.186";
 }
 
 fn compiler_backend_label() -> str {

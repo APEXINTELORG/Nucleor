@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.186] — 2026-04-26
+
+**Multi-payload enum variants like `Variant(str, i64)` now
+dispatch print() per-binding instead of all-bindings-share-
+one-type.** Removes the v0.3.185 limitation.
+
+Pre-v0.3.186, `match Pair::Mixed(s, n) => { print(s); print(n) }`
+for `enum Pair { Mixed(str, i64) }` SIGSEGV'd on `print(n)` —
+the v0.3.185 fix shared the FIRST payload's type ("str") across
+ALL bindings, so `n` (which is i64) got dispatched as str and
+the helper dereferenced the i64 value as a char*.
+
+Same hazard class as v0.3.184/185 — match arm bindings
+dispatched by wrong type.
+
+Fix:
+1. `enum_populate_sym` now stores ALL payload types per variant
+   as `__epayload<i>_<ename>_<vname>` (was just `__epayload0_`
+   for variant-first-payload only).
+2. New `match_bind_payloads_per_idx` helper looks up each
+   binding's specific payload type by index. Per-binding
+   `__type_<name>` registration replaces the v0.3.185
+   single-type-for-all approach.
+3. Fallback chain: stored per-index type → Result::Err(0) →
+   "str" → i64 default.
+
+Multi-payload variants like `Triple(str, i64, str)` now
+correctly dispatch each binding by its actual type.
+
+Pinned by `tests/fixtures/t452_match_multi_payload_per_idx.nr`.
+Bootstrap fixed point at stage_d
+`0f9f01892418d1abcf415dab31a33c949750d2362b69f6752fa06d5e206e3582`.
+
 ## [0.3.185] — 2026-04-26
 
 **`match Msg::Text(s) => print(s)` for user-defined `enum Msg
