@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.173] — 2026-04-26
+
+**Extended literal-only WARNING to tokenizer helpers
+(`tok_*`/`nuc_tok_*`).** Same SIGSEGV hazard fixed for
+`vec_*`/`hashmap_*`/etc. — tokenizer handles are passed as
+i64, so `tok_encode(42, "text")` (passing an int instead of a
+real handle) compiled cleanly and SIGSEGV'd at runtime when
+the helper dereferenced the int as a tokenizer pointer.
+
+ML adopters use the tokenizer family heavily (per ML_Suite
+agent feedback).
+
+Fix: explicit list of `tok_encode`/`tok_decode`/
+`tok_vocab_size`/`tok_save`/`tok_free`/`tok_vec_len`/
+`tok_vec_at`/`tok_vec_free` (and their `nuc_tok_*` extern
+counterparts). When `arg-0` is an INT LITERAL (AST kind 1),
+emit a WARNING. Variables — which legitimately hold tokenizer
+handles via the i64-everywhere ABI — are NOT flagged.
+
+Diagnostic is INFORMATIONAL (uses `print`) so the build
+doesn't halt.
+
+Pinned by `tests/fixtures/t440_tok_helper_int_literal_diag.nr`.
+Bootstrap fixed point at stage_d
+`2782d0bf123415d4fc7ed880b772f9d65b5c1bb425a455340067b2317cae14d2`.
+
 ## [0.3.172] — 2026-04-26
 
 **`println!("{}", s.method())` for method calls returning typed
