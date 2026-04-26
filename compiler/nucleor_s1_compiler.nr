@@ -9700,25 +9700,64 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         // as we audit them; missing checks fall through to the original
         // no-arg-check path so legitimate code never regresses.
         if argc > 0 {
+            // v0.3.156: extended the str-arg-0 list to cover the rest of
+            // the obvious string-taking helpers. Excludes:
+            //   - str_from_int / str_arena_new / str_arena_free (take
+            //     i64, not str)
+            //   - str_join (takes Vec as arg 0, str as arg 1)
+            //   - str_arena_concat / str_arena_substring / str_arena_bytes
+            //     (take arena handle i64 as arg 0)
+            //   - str_to_i64_radix / str_to_int (already in arg-0 list)
             let needs_str_arg0: i64 = if str_eq(callee, "str_len") == 1
                 || str_eq(callee, "str_to_int") == 1
                 || str_eq(callee, "str_to_f64") == 1
                 || str_eq(callee, "str_to_int_with_base") == 1
+                || str_eq(callee, "str_to_i64") == 1
+                || str_eq(callee, "str_to_i64_radix") == 1
+                || str_eq(callee, "str_to_bool") == 1
+                || str_eq(callee, "str_to_lower") == 1
+                || str_eq(callee, "str_to_upper") == 1
                 || str_eq(callee, "str_eq") == 1
                 || str_eq(callee, "str_concat") == 1
                 || str_eq(callee, "str_substring") == 1
-                || str_eq(callee, "str_char_at") == 1 { 1 } else { 0 };
+                || str_eq(callee, "str_char_at") == 1
+                || str_eq(callee, "str_contains") == 1
+                || str_eq(callee, "str_starts_with") == 1
+                || str_eq(callee, "str_ends_with") == 1
+                || str_eq(callee, "str_index_of") == 1
+                || str_eq(callee, "str_split") == 1
+                || str_eq(callee, "str_lines") == 1
+                || str_eq(callee, "str_chars") == 1
+                || str_eq(callee, "str_pad_left") == 1
+                || str_eq(callee, "str_pad_right") == 1
+                || str_eq(callee, "str_center") == 1
+                || str_eq(callee, "str_repeat") == 1
+                || str_eq(callee, "str_replace") == 1
+                || str_eq(callee, "str_reverse") == 1
+                || str_eq(callee, "str_trim") == 1
+                || str_eq(callee, "str_trim_end") == 1
+                || str_eq(callee, "str_trim_start") == 1
+                || str_eq(callee, "str_count") == 1
+                || str_eq(callee, "str_is_empty") == 1
+                || str_eq(callee, "str_intern") == 1
+                || str_eq(callee, "str_free") == 1 { 1 } else { 0 };
             if needs_str_arg0 == 1 {
                 let arg0_t: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
                 if str_len(arg0_t) > 0 && str_eq(arg0_t, "str") == 0 && str_eq(arg0_t, "_") == 0 {
                     type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 0 of '", str_concat(callee, "' must be str (runtime helper)")));
                 };
             };
-            // v0.3.155: also validate arg 1 of helpers that take a second
-            // str. str_eq and str_concat are the obvious ones.
+            // v0.3.155/156: also validate arg 1 of helpers that take a
+            // second str.
             if argc > 1 {
                 let needs_str_arg1: i64 = if str_eq(callee, "str_eq") == 1
-                    || str_eq(callee, "str_concat") == 1 { 1 } else { 0 };
+                    || str_eq(callee, "str_concat") == 1
+                    || str_eq(callee, "str_contains") == 1
+                    || str_eq(callee, "str_starts_with") == 1
+                    || str_eq(callee, "str_ends_with") == 1
+                    || str_eq(callee, "str_index_of") == 1
+                    || str_eq(callee, "str_split") == 1
+                    || str_eq(callee, "str_replace") == 1 { 1 } else { 0 };
                 if needs_str_arg1 == 1 {
                     let arg1_t: str = type_expr(pool, list_get(pool, args, 1), env, sigs, structs, fn_name, diags, source, tprof);
                     if str_len(arg1_t) > 0 && str_eq(arg1_t, "str") == 0 && str_eq(arg1_t, "_") == 0 {
@@ -15016,7 +15055,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.155";
+    return "0.3.156";
 }
 
 fn compiler_backend_label() -> str {

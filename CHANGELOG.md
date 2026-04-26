@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.156] — 2026-04-26
+
+**Extended runtime-helper arg-type-check to all common
+str-taking helpers.** Continues the v0.3.154 / v0.3.155 incremental
+audit.
+
+Total str-arg-0 helpers now type-checked: **31** —
+`str_len`, `str_to_int`, `str_to_f64`, `str_to_int_with_base`,
+`str_to_i64`, `str_to_i64_radix`, `str_to_bool`, `str_to_lower`,
+`str_to_upper`, `str_eq`, `str_concat`, `str_substring`,
+`str_char_at`, `str_contains`, `str_starts_with`, `str_ends_with`,
+`str_index_of`, `str_split`, `str_lines`, `str_chars`,
+`str_pad_left`, `str_pad_right`, `str_center`, `str_repeat`,
+`str_replace`, `str_reverse`, `str_trim`, `str_trim_end`,
+`str_trim_start`, `str_count`, `str_is_empty`, `str_intern`,
+`str_free`.
+
+Total str-arg-1 helpers now type-checked: **8** —
+`str_eq`, `str_concat`, `str_contains`, `str_starts_with`,
+`str_ends_with`, `str_index_of`, `str_split`, `str_replace`.
+
+Excluded by design (different arg-0 type):
+`str_from_int` (i64 → str), `str_join` (Vec → str),
+`str_arena_new` / `str_arena_free` (arena handle), and the
+`str_arena_concat` / `str_arena_substring` / `str_arena_bytes`
+family (arena handle as arg 0).
+
+Each adopter who hits one of these now gets a clean `TYP-006`
+diagnostic at compile time naming the helper and the arg position,
+instead of a SIGSEGV at runtime when the C helper dereferences an
+int as a `const char *`.
+
+Bootstrap fixed point at stage_d
+`7478b144157e86f7e8c404754aa3f9c3`. Verify gate green.
+
 ## [0.3.155] — 2026-04-26
 
 **Extended runtime-helper arg-type-check (v0.3.154 follow-up) to
