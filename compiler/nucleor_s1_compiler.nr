@@ -14791,6 +14791,94 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
     // behavior; the heuristic only corrects the obvious cases.
     if str_eq(spec, "") == 1 {
         let alen: i64 = str_len(arg_expr);
+        // v0.3.169: unary not (`!expr`) is always bool. Adopters
+        // writing `println!("{}", !flag)` got "0"/"1" via int_to_str
+        // pre-fix; should be "false"/"true" per Rust's Display.
+        if alen >= 2 && str_char_at(arg_expr, 0) == 33 {
+            // First char must be `!` and the next char must NOT be `=`
+            // (which would make this `!=` not unary not).
+            let c1: i64 = str_char_at(arg_expr, 1);
+            if c1 != 61 {
+                return str_concat("bool_to_str(", str_concat(arg_expr, ")"));
+            };
+        };
+        // v0.3.169: typed float binop. Detect top-level arithmetic
+        // ops (` + `, ` - `, ` * `, ` / `, ` % `) at depth 0; if at
+        // least one operand resolves to f64/f32 via existing scalar
+        // helpers (decimal-literal, _f64( suffix, var lookup), use
+        // f64_to_str. Pre-fix `println!("{}", a + b)` for typed f64
+        // a, b printed the result's bit pattern -- silent miscompute
+        // on the canonical ML adopter pattern.
+        if alen >= 5 {
+            let mut adepth: i64 = 0;
+            let mut aii: i64 = 0;
+            let mut arith_pos: i64 = 0 - 1;
+            while aii + 3 <= alen && arith_pos < 0 {
+                let ac: i64 = str_char_at(arg_expr, aii);
+                if ac == 40 || ac == 91 { adepth = adepth + 1; }
+                else if ac == 41 || ac == 93 { adepth = adepth - 1; };
+                if adepth == 0 && aii > 0 && aii + 2 < alen {
+                    let p0: i64 = str_char_at(arg_expr, aii);
+                    let p1: i64 = str_char_at(arg_expr, aii + 1);
+                    let p2: i64 = str_char_at(arg_expr, aii + 2);
+                    if p0 == 32 && p2 == 32 {
+                        // ` + `, ` - `, ` * `, ` / `, ` % `
+                        if p1 == 43 || p1 == 45 || p1 == 42 || p1 == 47 || p1 == 37 {
+                            arith_pos = aii;
+                        };
+                    };
+                };
+                aii = aii + 1;
+            };
+            if arith_pos > 0 {
+                let lhs: str = str_substring(arg_expr, 0, arith_pos);
+                let rhs: str = str_substring(arg_expr, arith_pos + 3, alen);
+                let mut is_float: i64 = 0;
+                // Check each operand for float shape: decimal literal,
+                // _f64(/_f32( suffix, or bare ident with f-typed.
+                let mut k: i64 = 0;
+                while k < 2 {
+                    let opnd: str = if k == 0 { lhs } else { rhs };
+                    let olen: i64 = str_len(opnd);
+                    let mut has_dot: i64 = 0;
+                    let mut has_alpha: i64 = 0;
+                    let mut oi: i64 = 0;
+                    while oi < olen {
+                        let oc: i64 = str_char_at(opnd, oi);
+                        if oc == 46 { has_dot = 1; };
+                        if (oc >= 65 && oc <= 90) || (oc >= 97 && oc <= 122) || oc == 95 || oc == 40 || oc == 91 { has_alpha = 1; };
+                        oi = oi + 1;
+                    };
+                    if has_dot == 1 && has_alpha == 0 { is_float = 1; };
+                    if olen >= 5 {
+                        let mut sj: i64 = 0;
+                        while sj + 5 <= olen {
+                            let probe: str = str_substring(opnd, sj, sj + 5);
+                            if str_eq(probe, "_f64(") == 1 || str_eq(probe, "_f32(") == 1 { is_float = 1; sj = olen; };
+                            sj = sj + 1;
+                        };
+                    };
+                    // Bare ident: look up type.
+                    let mut bare: i64 = 1;
+                    if olen == 0 { bare = 0; };
+                    let mut bi3: i64 = 0;
+                    while bi3 < olen {
+                        let bc3: i64 = str_char_at(opnd, bi3);
+                        let bok: i64 = if (bc3 >= 65 && bc3 <= 90) || (bc3 >= 97 && bc3 <= 122) || bc3 == 95 || ((bc3 >= 48 && bc3 <= 57) && bi3 > 0) { 1 } else { 0 };
+                        if bok == 0 { bare = 0; bi3 = olen; };
+                        bi3 = bi3 + 1;
+                    };
+                    if bare == 1 {
+                        let bt: str = type_base_name(infer_var_type_from_source(src, opnd));
+                        if str_eq(bt, "f64") == 1 || str_eq(bt, "f32") == 1 { is_float = 1; };
+                    };
+                    k = k + 1;
+                };
+                if is_float == 1 {
+                    return str_concat("f64_to_str(", str_concat(arg_expr, ")"));
+                };
+            };
+        };
         // v0.3.167: detect top-level comparison/equality/logical ops
         // for bool dispatch. `println!("{}", a == b)` pre-fix printed
         // 0/1 via int_to_str (correct accidentally) but `a < b` etc.
@@ -15693,7 +15781,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.168";
+    return "0.3.169";
 }
 
 fn compiler_backend_label() -> str {
