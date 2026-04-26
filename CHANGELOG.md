@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.180] — 2026-04-26
+
+**`Vec<f32>` (and `Vec<f16>`/`Vec<bf16>`/`Vec<f8e4m3>`/
+`Vec<f8e5m2>`) is now a HARD compile error (TYP-009)** instead
+of an informational warning. Closes the silent-shipping path of
+NUC-FEEDBACK-002 — production-readiness contract for v1 OSS
+launch.
+
+Pre-v0.3.180, the parse-time `print` warning could be ignored
+and adopters compiled cleanly to a binary that returned 0 from
+`f32_add(v[0], v[1])` etc. (the f32 bit pattern stored in the
+underlying i64 cell loses its type tag through the
+`vec_get → let-init` chain). The diagnostic existed but was
+informational only — the build succeeded.
+
+This closes the silent-shipping path: `let v: Vec<f32> = ...`
+now fails with `error[TYP-009]: narrow-float vector
+'Vec<f32>' is not yet supported as user-facing storage` and
+the binary is not produced. Adopters MUST switch to one of:
+
+1. `Vec<i64>` of bit patterns + manual `f32_*` runtime helpers
+   (the workaround the ML_Suite agent adopted).
+2. `Vec<f64>` (works correctly today because both i64 cells
+   and f64 are 64-bit).
+3. `Tensor::*` for ML kernels (typed at the runtime level).
+
+`Vec<f64>` is intentionally NOT in the rejected set — many
+existing fixtures depend on it and it works.
+
+The deeper "real" fix (make `Vec<f32>` actually work via
+element-type propagation through `vec_get`) is still queued for
+v1 OSS launch. This commit upgrades the existing diagnostic to
+prevent silent-ship.
+
+Pinned by `tests/err/err_vec_narrow_float.nr` (negative test).
+Bootstrap fixed point at stage_d
+`4141f7538532b7dc35557e7a8f1541c1a23499cbcbfd9323dde8b51a69fd3b54`.
+
 ## [0.3.179] — 2026-04-26
 
 **Better link-failure diagnostic — always print the failing

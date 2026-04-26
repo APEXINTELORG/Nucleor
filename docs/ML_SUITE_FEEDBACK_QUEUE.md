@@ -11,7 +11,7 @@ fix-plan is at:
 ## Active queue
 
 ### NUC-FEEDBACK-002 — `Vec<f32>` round-trip silent miscompute
-**Status: PARTIAL CLOSED in v0.3.119 (diag landed; real type-prop fix queued). Fixture t396.**
+**Status: SILENT-SHIPPING CLOSED in v0.3.180 (parse-time warning promoted to TYP-009 hard error; real type-prop fix still queued). Fixtures t396 + err_vec_narrow_float.**
 **Priority: HIGH (silent miscompute, ML-launch blocker)**
 
 Reproducer pinned upstream:
