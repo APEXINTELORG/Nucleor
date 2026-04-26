@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.209] — 2026-04-26
+
+**f8e4m3 / f8e5m2 pack: round-to-nearest-even + NaN/inf
+preservation.** Closes the f8eXmY precision follow-on from
+v0.3.206.
+
+Pre-fix:
+- f8e4m3_from_f32 / f8e5m2_from_f32 used round-to-zero
+  (truncation: `mant >> 20`).
+- Special values were lost: f32 NaN packed to a regular finite
+  pattern; f32 ±inf went through the same truncate-and-shift
+  path as a finite overflow.
+
+Fix in `stdlib/runtime/nucleor_llvm_rt.c`:
+
+1. **Round-to-nearest-even (RNE)** on the discarded mantissa
+   bits. Standard IEEE-754 rounding mode adopters expect for
+   ML quantization. Implementation extracts round + sticky
+   bits, increments truncated mantissa when (round && (sticky
+   || lsb_set)), then handles mantissa carry-out into the
+   exponent.
+
+2. **NaN preservation:**
+   - f32 NaN (exp=0xFF, mant!=0) → f8e4m3 NaN (`S1111111` =
+     0x7F/0xFF), → f8e5m2 NaN (`S11111_NN` where NN!=0).
+
+3. **Inf preservation / saturation:**
+   - f32 ±inf → f8e5m2 ±inf (`S11111_00` = 0x7C/0xFC).
+   - f8e4m3 has no inf in the OFP8 spec, so f32 ±inf → f8e4m3
+     ±MAX = ±448.
+   - Finite-overflow input also saturates to ±MAX (e4m3) or
+     ±inf (e5m2).
+
+Pinned by `tests/fixtures/t465_f8_nan_inf_preservation.nr`:
+- 100000 → e5m2: 124 (= 0x7C = +inf) exact
+- -100000 → e5m2: 252 (= 0xFC = -inf) exact
+- 100000 → e4m3: 126 (= 0x7E = +MAX = +448) exact
+- 12.5 → e5m2 → f32 round-trip: 12 (RNE chose even neighbor)
+
+`t463_vec_narrow_float_round_trip.nr` still PASS unchanged
+(powers of 2 round exactly under both old truncate and new
+RNE).
+
+Bootstrap fixed point at stage_d
+`1b4d180927d9148c95f16b6e1e6a416ff3ed48c0b2c509fb1d711ef6d0f73cc4`.
+452/452 verify PASS.
+
 ## [0.3.208] — 2026-04-26
 
 **Default `+`/`-`/`*`/`/`/`%` is now panic-on-overflow.** This
