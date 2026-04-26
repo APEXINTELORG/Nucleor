@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.158] — 2026-04-26
+
+**Bare `{}` format spec now infers types for FN-CALL return values
+too, not just `let X: TYPE` declarations.** Closes the second-most-
+common adopter format-string hazard.
+
+Pre-v0.3.158, the source-scan heuristic added in v0.3.152 only handled
+BARE IDENTIFIERS. Function call results (`make_str()`, `helper()`)
+fell through to the default `int_to_str` even when the existing
+textual heuristics (`_f64(` substring, `sqrt`/`exp`/`log` prefixes)
+didn't fire. `println!("{}", make_str())` printed the string's
+POINTER ADDRESS — same hazard class as v0.3.152 for variables.
+
+Fix: companion helper `infer_fn_return_type_from_source(src, fn_name)`
+scans src for `fn <name>(...) -> TYPE` declarations with the same
+conflict-detection as the v0.3.153 var-version. Wired into
+`fmt_conversion_for_spec` when arg_expr looks like a fn call
+(`<ident>(...)` shape). Returns the right format helper for
+str / f64 / f32 / bool returns; integer returns and unknown-type
+returns continue to use `int_to_str`.
+
+Conservative-by-construction:
+- Requires arg_expr to end in `)` and have a paren-matched identifier head
+- Requires every matching `fn <name>(...) -> TYPE` declaration to agree on TYPE
+- Falls back to int_to_str on conflict / no-match (safe pre-fix behaviour)
+
+Pinned by `tests/fixtures/t429_format_fn_call_type_inference.nr`.
+Bootstrap fixed point at stage_d
+`40c741198b6c4cd80b8a2deadeec9f16`. Verify gate green.
+
 ## [0.3.157] — 2026-04-26
 
 **Added `getenv` / `print_raw` / `panic` to the str-arg-0

@@ -14259,6 +14259,88 @@ fn fmt_strip_outer_quotes(s: str) -> str {
 // Also requires the matched `let` to be followed by a TYPE (not
 // elision via `let x = ...;` without a type annotation) so we never
 // invent a type out of thin air.
+// v0.3.158: companion to infer_var_type_from_source. Scans src for
+// `fn <name>(...) -> TYPE` declarations and returns TYPE if every
+// matching fn agrees. Same conflict-detection as the var version.
+// Used by fmt_conversion_for_spec when arg_expr looks like a fn call
+// (`<ident>(...)` shape) to dispatch the format type. Catches
+// `println!("{}", make_str())` returning the pointer address pre-fix.
+fn infer_fn_return_type_from_source(src: str, fn_name: str) -> str {
+    let slen: i64 = str_len(src);
+    let fnlen: i64 = str_len(fn_name);
+    if fnlen == 0 { return ""; };
+    let mut found_type: str = "";
+    let mut conflict: i64 = 0;
+    let mut i: i64 = 0;
+    while i + 3 < slen {
+        // "fn " = 'f','n',' ' = 102,110,32
+        if str_char_at(src, i) == 102
+            && str_char_at(src, i + 1) == 110
+            && str_char_at(src, i + 2) == 32 {
+            let mut p: i64 = i + 3;
+            // Try to match fn_name
+            let mut k: i64 = 0;
+            let mut matched: i64 = 1;
+            while k < fnlen {
+                if p + k >= slen { matched = 0; k = fnlen; }
+                else if str_char_at(src, p + k) != str_char_at(fn_name, k) { matched = 0; k = fnlen; };
+                k = k + 1;
+            };
+            // Identifier boundary: char after fn_name must not be alpha/digit/underscore
+            if matched == 1 {
+                let after: i64 = p + fnlen;
+                if after < slen {
+                    let nc: i64 = str_char_at(src, after);
+                    let is_id_continue: i64 = if (nc >= 65 && nc <= 90) || (nc >= 97 && nc <= 122) || (nc >= 48 && nc <= 57) || nc == 95 { 1 } else { 0 };
+                    if is_id_continue == 1 { matched = 0; };
+                };
+            };
+            if matched == 1 {
+                let after2: i64 = p + fnlen;
+                let mut q: i64 = after2;
+                // Skip whitespace then expect `(`
+                while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
+                if q < slen && str_char_at(src, q) == 40 {
+                    // Find matching `)` by depth
+                    let mut depth: i64 = 1;
+                    q = q + 1;
+                    while q < slen && depth > 0 {
+                        let dc: i64 = str_char_at(src, q);
+                        if dc == 40 { depth = depth + 1; }
+                        else if dc == 41 { depth = depth - 1; };
+                        q = q + 1;
+                    };
+                    // Now look for ` -> TYPE`
+                    while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
+                    if q + 1 < slen && str_char_at(src, q) == 45 && str_char_at(src, q + 1) == 62 {
+                        q = q + 2;
+                        while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
+                        let ts: i64 = q;
+                        while q < slen {
+                            let tc: i64 = str_char_at(src, q);
+                            if tc == 32 || tc == 123 || tc == 59 || tc == 60 || tc == 10 || tc == 13 {
+                                let this_type: str = str_substring(src, ts, q);
+                                if str_len(found_type) == 0 {
+                                    found_type = this_type;
+                                } else {
+                                    if str_eq(found_type, this_type) == 0 {
+                                        conflict = 1;
+                                    };
+                                };
+                                q = slen;
+                            };
+                            q = q + 1;
+                        };
+                    };
+                };
+            };
+        };
+        i = i + 1;
+    };
+    if conflict == 1 { return ""; };
+    return found_type;
+}
+
 fn infer_var_type_from_source(src: str, var_name: str) -> str {
     let slen: i64 = str_len(src);
     let vlen: i64 = str_len(var_name);
@@ -14420,6 +14502,45 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
             if str_eq(inferred, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
             if str_eq(inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
             // i8/i16/i32/i64/etc fall through to int_to_str (default).
+        };
+        // v0.3.158: also try to detect fn-call shape `<ident>(...)` and
+        // infer the type from `fn <ident>(...) -> TYPE` in source. Catches
+        // the canonical println!("{}", make_str()) which pre-fix printed
+        // the string's POINTER ADDRESS. Conservative-by-construction:
+        // requires the call's identifier to be paren-bounded, the fn to
+        // have a parseable return type, and all matching fn declarations
+        // to agree on the type.
+        if alen >= 3 && str_char_at(arg_expr, alen - 1) == 41 {
+            let mut paren_at: i64 = 0 - 1;
+            let mut ci: i64 = 0;
+            while ci < alen {
+                if str_char_at(arg_expr, ci) == 40 { paren_at = ci; ci = alen; };
+                ci = ci + 1;
+            };
+            if paren_at > 0 {
+                let head: str = str_substring(arg_expr, 0, paren_at);
+                let mut head_ok: i64 = 1;
+                let hlen: i64 = str_len(head);
+                let mut hi2: i64 = 0;
+                while hi2 < hlen {
+                    let hc2: i64 = str_char_at(head, hi2);
+                    let hc2_ok: i64 = if (hc2 >= 65 && hc2 <= 90) || (hc2 >= 97 && hc2 <= 122) || (hc2 >= 48 && hc2 <= 57) || hc2 == 95 { 1 } else { 0 };
+                    if hi2 == 0 {
+                        let first_ok: i64 = if (hc2 >= 65 && hc2 <= 90) || (hc2 >= 97 && hc2 <= 122) || hc2 == 95 { 1 } else { 0 };
+                        if first_ok == 0 { head_ok = 0; hi2 = hlen; };
+                    } else {
+                        if hc2_ok == 0 { head_ok = 0; hi2 = hlen; };
+                    };
+                    hi2 = hi2 + 1;
+                };
+                if head_ok == 1 {
+                    let fn_inferred: str = infer_fn_return_type_from_source(src, head);
+                    if str_eq(fn_inferred, "str") == 1 { return arg_expr; };
+                    if str_eq(fn_inferred, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(fn_inferred, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(fn_inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                };
+            };
         };
         return str_concat("int_to_str(", str_concat(arg_expr, ")"));
     };
@@ -15058,7 +15179,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.157";
+    return "0.3.158";
 }
 
 fn compiler_backend_label() -> str {
