@@ -9685,6 +9685,32 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             tprof_mark(tprof, 9, 10, call_start);
             return vec_get(sentry, 1);
         };
+        // v0.3.154: validate arg 0 type for known runtime helpers whose
+        // first arg must be str. Pre-fix, runtime helpers had no sigs
+        // so type_expr fell straight to builtin_rtype with no arg check.
+        // str_len(42) compiled cleanly and SIGSEGV'd at runtime when the
+        // helper dereferenced 42 as a const char *. Same hazard class as
+        // v0.3.137-v0.3.153 silent miscompiles -- a real call you wrote
+        // produces a crash with no diagnostic.
+        //
+        // Conservative: only check arg 0 of the most common str-taking
+        // helpers. Adopters who pass non-str to str_len / str_to_int /
+        // str_to_f64 / print get a clean TYP-006 instead of a SIGSEGV.
+        // Other arg positions and other helpers will be added incrementally
+        // as we audit them; missing checks fall through to the original
+        // no-arg-check path.
+        if argc > 0 {
+            let needs_str_arg0: i64 = if str_eq(callee, "str_len") == 1
+                || str_eq(callee, "str_to_int") == 1
+                || str_eq(callee, "str_to_f64") == 1
+                || str_eq(callee, "str_to_int_with_base") == 1 { 1 } else { 0 };
+            if needs_str_arg0 == 1 {
+                let arg0_t: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+                if str_len(arg0_t) > 0 && str_eq(arg0_t, "str") == 0 && str_eq(arg0_t, "_") == 0 {
+                    type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 0 of '", str_concat(callee, "' must be str (runtime helper)")));
+                };
+            };
+        };
         tprof_mark(tprof, 9, 10, call_start);
         return builtin_rtype(callee);
     };
@@ -14974,7 +15000,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.153";
+    return "0.3.154";
 }
 
 fn compiler_backend_label() -> str {
