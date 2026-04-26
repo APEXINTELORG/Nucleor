@@ -2240,6 +2240,20 @@ fn ir_call_ex(d: i64, fn_name: str, args: Vec<i32>) -> Vec<i32> {
     return ii;
 }
 
+// v0.3.126: ir_user_call — bypass the runtime-helper name lookup
+// in emit_inst so a user-defined fn that happens to share a name
+// with a runtime helper (e.g. user `pow(base, exp)`) dispatches
+// to `@pow` (the user-emitted definition) instead of being
+// hijacked by `@__nucleor_pow` (the f64 floating-point helper).
+// Pre-v0.3.126 the runtime helper always won — silent miscompute
+// with NO diagnostic for the very-common pattern of writing a
+// math helper named the same as a builtin.
+fn ir_user_call(d: i64, fn_name: str, args: Vec<i32>) -> Vec<i32> {
+    let mut ii: Vec<i32> = Vec::new();
+    ii.push(31); ii.push(d); ii.push(0); ii.push(fn_name); ii.push(vec_len(args)); ii.push(args);
+    return ii;
+}
+
 fn ir_fn_ptr(d: i64, fn_name: str) -> Vec<i32> {
     let mut ii: Vec<i32> = Vec::new();
     ii.push(29); ii.push(d); ii.push(0); ii.push(fn_name); ii.push(0); ii.push(0);
@@ -2475,7 +2489,7 @@ fn opt_dce_block(blk: Vec<i32>) -> i64 {
         else if op == 22 { used.push(ir_op1(inst)); }
         else if op == 28 { used.push(ir_op1(inst)); used.push(ir_op2(inst)); used.push(ir_extra(inst)); }
         else if op == 30 { used.push(ir_op1(inst)); let cargs: Vec<i32> = vec_get(inst, 5); let mut ci: i64 = 0; while ci < vec_len(cargs) { used.push(vec_get(cargs, ci)); ci = ci + 1; }; }
-        else if op == 19 {
+        else if op == 19 || op == 31 {
             // Call: args are in the args Vec (index 5)
             let args: Vec<i32> = vec_get(inst, 5);
             let ac: i64 = vec_len(args);
@@ -2551,7 +2565,7 @@ fn opt_prop_block(blk: Vec<i32>) -> i64 {
                 };
             };
         }
-        else if op == 19 || op == 30 { sv = cmap_new(); };
+        else if op == 19 || op == 30 || op == 31 { sv = cmap_new(); };
         i = i + 1;
     };
     return count;
@@ -2581,7 +2595,7 @@ fn opt_dead_store_block(blk: Vec<i32>) -> i64 {
             let ptr: i64 = ir_op1(inst);
             cmap_set(last_store, ptr, 0 - 1);
         }
-        else if op == 19 || op == 20 || op == 21 || op == 22 || op == 30 {
+        else if op == 19 || op == 20 || op == 21 || op == 22 || op == 30 || op == 31 {
             last_store = cmap_new();
         };
         i = i + 1;
@@ -4081,6 +4095,17 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
                 emit_builtin_call(sb, fn_name, rn, d, argc, args);
             };
         };
+    }
+    else if op == 31 {
+        // v0.3.126: user-fn call — bypasses get_rt_name lookup so
+        // user-defined fns shadow runtime helpers of the same name.
+        // Always emits `call i64 @<fn_name>(...)` directly.
+        let fn_name: str = ir_op1(inst); let argc: i64 = ir_op2(inst); let args: Vec<i32> = ir_extra(inst);
+        sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
+        sb_append(sb, " = call i64 @"); sb_append(sb, fn_name); sb_append(sb, "(");
+        let mut ai: i64 = 0;
+        while ai < argc { if ai > 0 { sb_append(sb, ", "); }; sb_append(sb, "i64 %r."); sb_append(sb, str_from_int(vec_get(args, ai))); ai = ai + 1; };
+        sb_append(sb, ")\n");
     }
     else if op == 20 { sb_append(sb, "  ret i64 %r."); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, "\n"); }
     else if op == 21 { sb_append(sb, "  br label %L"); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, "\n"); }
@@ -10229,7 +10254,21 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             return lx_new(r, cur);
         };
         let r: i64 = ctr_next(regs);
-        ir_block_add(cur, ir_call_ex(r, fn_name, arg_regs));
+        // v0.3.126: when fn_name is a registered user fn (its return
+        // type is in sym as `__fnret_<name>`), emit a USER call op
+        // (31) that bypasses the runtime-helper name lookup. Without
+        // this, user fns that share a name with a runtime helper
+        // (e.g. user `pow(base, exp)` vs `__nucleor_pow(f64, f64)`)
+        // dispatched to the runtime helper — silent miscompute since
+        // the int args were treated as f64 bit patterns by the
+        // float helper. Adopters writing math/utility wrappers with
+        // common names hit this on the very first probe.
+        let user_ret: i64 = sym_get(sym, str_concat("__fnret_", fn_name));
+        if user_ret >= 0 {
+            ir_block_add(cur, ir_user_call(r, fn_name, arg_regs));
+        } else {
+            ir_block_add(cur, ir_call_ex(r, fn_name, arg_regs));
+        };
         return lx_new(r, cur);
     };
     if kind == 8 {

@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.126] — 2026-04-25
+
+**User-defined fns shadow runtime helpers of the same name —
+closes a HIGH-blast silent miscompute hidden in name collisions.**
+Pre-v0.3.126, a user-defined `fn pow(base, exp) -> i64` was hijacked
+by `__nucleor_pow` (the f64 floating-point runtime helper) — every
+`pow(2, 8)` call dispatched to the float helper instead of the
+user's int loop. Silent miscompute with NO diagnostic. Adopters
+writing math/utility wrappers with common names (pow, abs, min,
+max, log, sin, sqrt, exp, …) hit this on the first probe — and the
+failure mode (a wildly wrong number) was indistinguishable from
+any other arithmetic bug in their code.
+
+Same hazard class as `Vec::with_capacity` returning 0 (v0.3.116)
+and `panic!` not stripping (v0.3.94) — silent dispatch failure
+under what looks like the right name.
+
+### Fix
+
+New IR op 31 (`ir_user_call`) bypasses the runtime-helper name
+lookup in `emit_inst`. In `lower_expr` kind-7 (fn-call), check if
+the called name is a registered user fn (lookup
+`__fnret_<fn_name>` in sym, populated by `populate_fn_returns_in_sym`).
+If yes, emit op 31 — `emit_inst` always lowers it as
+`call i64 @<fn_name>` directly. If no, fall through to the existing
+op-19 path (extern → runtime helper → bare-name fallback).
+
+Optimizer effect-analysis updated: op 31 has the same side-effect
+profile as op 19 (clears the const-prop cache, counts as a
+boundary in dead-store elimination, marks args as used in DCE).
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t402 returns 0 (256 mod 256),
+proving the user `pow(2, 8) = 256` dispatches correctly instead
+of the float helper. `bin/nucleor.exe` SHA `af2506e9`. 452/452
+verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `ir_user_call`, op 31 emit,
+  user-fn dispatch in lower_expr kind-7, optimizer effect updates.
+- `tests/fixtures/t402_user_fn_shadows_runtime.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.125] — 2026-04-25
 
 **NUC-IMPROVE-004 closed — explicit `f64_from_bits` /
