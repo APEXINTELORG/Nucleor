@@ -14453,7 +14453,12 @@ fn content_hash(s: str) -> str {
 }
 
 fn compiler_version_label() -> str {
-    return "0.2.0-v2";
+    // v0.3.134: bumped from `0.2.0-v2`. The previous string was stuck
+    // pre-OSS-launch and was confusing adopters comparing against the
+    // CHANGELOG / git tag stream (the s1 source had been shipping
+    // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
+    // time. Update when cutting each new release.
+    return "0.3.134";
 }
 
 fn compiler_backend_label() -> str {

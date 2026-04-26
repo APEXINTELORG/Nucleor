@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.134] — 2026-04-25
+
+**`--version` string bumped from `0.2.0-v2` to current tag.** The
+ML_Suite agent flagged in their NUC-FEEDBACK-006 sync that
+`bin/nucleor.exe --version` reports `nucleor 0.2.0-v2 (self-hosted,
+llvm backend)`, which made it hard to tell whether their local
+binary had picked up recent fixes. Cosmetic only — the actual
+fixes were shipping at every release; just the version constant
+was stuck pre-OSS-launch.
+
+### Fix
+
+`compiler_version_label()` returns `0.3.134` instead of `0.2.0-v2`.
+Will bump on each new release going forward.
+
+### Bootstrap
+
+Single-pass fixed point. `nucleor.exe --version` now prints
+`nucleor 0.3.134 (self-hosted, llvm backend)`. `bin/nucleor.exe`
+SHA `c1cf96aa`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `compiler_version_label()`.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.133] — 2026-04-25
 
 **NUC-FEEDBACK-006 closed — sub-micro f64 literals via runtime
