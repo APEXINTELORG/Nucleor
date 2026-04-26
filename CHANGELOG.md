@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.149] — 2026-04-26
+
+**`unsafe` is now a contextual keyword — user fns named `unsafe`
+no longer silently miscompile to `0` after a noisy parse-error
+cascade.** Eighth fix in the contextual-keyword silent-miscompute
+series (after v0.3.137-v0.3.142).
+
+Pre-v0.3.149, `classify_kw` mapped `unsafe` to a hard kw token (77)
+for the RFC-0003 `unsafe { ... }` block prefix. `parse_primary`'s
+`tt == 77` branch called `parse_passthrough_block_expr` which
+expected `{`. When the user wrote `unsafe(x)`:
+1. parse_passthrough_block_expr saw `(`, printed two parse errors
+   (`expected token 52 got 50` then a cascade)
+2. Build did NOT halt — codegen still emitted .ll, clang linked,
+   exe ran and returned 0 instead of the user fn's result
+
+Worse than the simpler `int_lit 0` default of pure/scope/spawn —
+this one produced LOUD parse-error output that adopters might
+assume halted the build. Adopters then ran the exe expecting a
+clean failure, got a wrong-value path instead.
+
+`unsafe` is a common identifier name in any code that does
+system-level work, FFI wrappers, manual memory management
+(`unsafe(ptr)` for a deref, `unsafe(cast)` etc.).
+
+Fix: contextual kw. `classify_kw` stops mapping `unsafe` to 77.
+`parse_primary`'s branch checks pkv lookahead — only recognises
+the block form when next token is `{`. Uses the v0.3.148
+short-circuit `&&` to safely guard the pkv dereference. The kw
+block form `unsafe { ... }` continues to work via the new check.
+Mirrored in `nucleor_tools_suite.nr` (the dead `tt == 77` branch
+removed).
+
+Pinned by `tests/fixtures/t424_user_fn_named_unsafe.nr`. Bootstrap
+fixed point at stage_d `a697ba83a435c00ea6f4b2ab0ae81e6c`. Verify
+gate green.
+
 ## [0.3.148] — 2026-04-26
 
 **`&&` and `||` now properly short-circuit.** The biggest deferred
