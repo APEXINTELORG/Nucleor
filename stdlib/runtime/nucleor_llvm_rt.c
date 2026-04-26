@@ -6025,6 +6025,95 @@ static inline long long __nuc_f8e5m2_to_f32_bits(long long b) {
 long long __nucleor_f8e4m3_to_f32(long long v) { return __nuc_f8e4m3_to_f32_bits(v); }
 long long __nucleor_f8e5m2_to_f32(long long v) { return __nuc_f8e5m2_to_f32_bits(v); }
 
+// v0.3.206: NUC-FEEDBACK-002 follow-on -- pack helpers for f8e4m3
+// and f8e5m2, plus display helpers for f16/bf16/f8e4m3/f8e5m2.
+// Pre-fix the narrow-float family had asymmetric runtime support
+// (read-only for f8eXmY, no display for any), which kept Vec<f16>/
+// Vec<bf16>/Vec<f8eXmY> behind the TYP-009 hard error.
+//
+// f8e4m3 layout: 1 sign + 4 exp + 3 mantissa, bias 7 (NVIDIA Hopper)
+// f8e5m2 layout: 1 sign + 5 exp + 2 mantissa, bias 15 (NVIDIA Hopper)
+
+static inline long long __nuc_f32_to_f8e4m3_bits(long long f) {
+    unsigned int x = (unsigned int)(f & 0xFFFFFFFFLL);
+    unsigned int sign = (x >> 31) & 0x1;
+    int exp = (int)((x >> 23) & 0xFF) - 127 + 7;  // f8e4m3 bias = 7
+    unsigned int mant = x & 0x7FFFFF;
+    unsigned int e4m3;
+    if (exp <= 0) {
+        // Denormal or underflow.
+        if (exp < -3) { e4m3 = sign << 7; }
+        else {
+            mant = (mant | 0x800000) >> (1 - exp);
+            e4m3 = (sign << 7) | (mant >> 20);
+        }
+    } else if (exp >= 16) {
+        // Overflow -> max representable (f8e4m3 has no inf, S1111110 = 448)
+        e4m3 = (sign << 7) | (0xF << 3) | 0x6;
+    } else {
+        e4m3 = (sign << 7) | ((unsigned int)exp << 3) | (mant >> 20);
+    }
+    return (long long)(e4m3 & 0xFF);
+}
+
+static inline long long __nuc_f32_to_f8e5m2_bits(long long f) {
+    unsigned int x = (unsigned int)(f & 0xFFFFFFFFLL);
+    unsigned int sign = (x >> 31) & 0x1;
+    int exp = (int)((x >> 23) & 0xFF) - 127 + 15;  // f8e5m2 bias = 15
+    unsigned int mant = x & 0x7FFFFF;
+    unsigned int e5m2;
+    if (exp <= 0) {
+        if (exp < -2) { e5m2 = sign << 7; }
+        else {
+            mant = (mant | 0x800000) >> (1 - exp);
+            e5m2 = (sign << 7) | (mant >> 21);
+        }
+    } else if (exp >= 31) {
+        // Overflow -> inf (S11111_00)
+        e5m2 = (sign << 7) | (0x1F << 2);
+    } else {
+        e5m2 = (sign << 7) | ((unsigned int)exp << 2) | (mant >> 21);
+    }
+    return (long long)(e5m2 & 0xFF);
+}
+
+long long __nucleor_f8e4m3_from_f32(long long f32_bits) {
+    return __nuc_f32_to_f8e4m3_bits(f32_bits);
+}
+long long __nucleor_f8e5m2_from_f32(long long f32_bits) {
+    return __nuc_f32_to_f8e5m2_bits(f32_bits);
+}
+
+// Display helpers: convert to f32, reinterpret as float, print %g.
+const char *__nucleor_f16_to_str(long long b) {
+    long long f32_bits = __nuc_f16_to_f32_bits(b);
+    union { unsigned int i; float f; } u; u.i = (unsigned int)(f32_bits & 0xFFFFFFFFLL);
+    char buf[64]; snprintf(buf, sizeof(buf), "%g", (double)u.f);
+    size_t L = strlen(buf); char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1); return out;
+}
+const char *__nucleor_bf16_to_str(long long b) {
+    long long f32_bits = __nuc_bf16_to_f32_bits(b);
+    union { unsigned int i; float f; } u; u.i = (unsigned int)(f32_bits & 0xFFFFFFFFLL);
+    char buf[64]; snprintf(buf, sizeof(buf), "%g", (double)u.f);
+    size_t L = strlen(buf); char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1); return out;
+}
+const char *__nucleor_f8e4m3_to_str(long long b) {
+    long long f32_bits = __nuc_f8e4m3_to_f32_bits(b);
+    union { unsigned int i; float f; } u; u.i = (unsigned int)(f32_bits & 0xFFFFFFFFLL);
+    char buf[64]; snprintf(buf, sizeof(buf), "%g", (double)u.f);
+    size_t L = strlen(buf); char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1); return out;
+}
+const char *__nucleor_f8e5m2_to_str(long long b) {
+    long long f32_bits = __nuc_f8e5m2_to_f32_bits(b);
+    union { unsigned int i; float f; } u; u.i = (unsigned int)(f32_bits & 0xFFFFFFFFLL);
+    char buf[64]; snprintf(buf, sizeof(buf), "%g", (double)u.f);
+    size_t L = strlen(buf); char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1); return out;
+}
+
 // === RNG ===
 // Pull in rng_rt.c so nuc_rng_* symbols are available without a separate
 // link step. The compiler emits __nucleor_rng_seed/etc. which forward to
