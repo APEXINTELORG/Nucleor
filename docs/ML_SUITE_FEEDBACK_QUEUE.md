@@ -103,6 +103,30 @@ infer arg static type and dispatch to typed runtime helper
 (__nucleor_print_i64 / __nucleor_print_f64 / __nucleor_print_bool /
 __nucleor_print_str default).
 
+### NUC-FEEDBACK-009 — Intermittent nonzero `nuc run` exit after LLVM emit (post-emit link/spawn opacity)
+**Status: CLOSED in v0.3.179. Fixture t446.**
+**Priority: MEDIUM (long-running ML adopter verifier flakes lacked triage signal)**
+
+ML_Suite verifier saw "emitted: target/X.ll (...)" then nonzero
+exit, no clear signal whether clang errored, never started, or
+something else. Same example passed on isolated rerun.
+
+Fix: on rc != 0 from clang, always print the failing link
+command (the full `clang …` invocation). When the captured
+.nuc_cache/clang_link.log is EMPTY, explicitly note that clang
+likely never started (file lock / antivirus / process-spawn
+failure / orphan process holding bin/nucleor.exe) with a triage
+hint. Pre-fix the log capture existed but adopters had no way
+to know whether the empty log meant clang silently succeeded
+(no, since rc != 0) or never started.
+
+The intermittent root cause appears to be the Windows clang/.exe
+file-lock contention pattern this session has observed
+extensively -- orphan nucleor.exe / clang.exe processes from
+prior aborted builds hold the .exe handle, blocking the next
+clang invocation's link step. Adopter mitigation (until OS-level
+fix): kill orphan processes after any abrupt build interruption.
+
 ### NUC-IMPROVE-006 — Tokenizer rod returns opaque handles without readable accessors
 **Status: CLOSED in v0.3.144. Fixture t419.**
 **Priority: LOW (workaround: build a char-level facade in user code)**

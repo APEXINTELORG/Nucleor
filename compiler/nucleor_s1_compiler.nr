@@ -13071,7 +13071,19 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
             };
         } else {
             print(str_concat("  COMPILE FAILED (clang exit ", str_concat(str_from_int(rc), ")")));
-            return 1;
+        };
+        // v0.3.179: NUC-FEEDBACK-009 -- always print the failing
+        // command and a hint on what the captured log contains so
+        // adopters can distinguish "clang errored" from "clang
+        // never started" (process-spawn / file-lock / antivirus).
+        // Pre-fix the post-emit failure path was opaque on Windows
+        // -- adopters saw "emitted: ..." then a nonzero exit with
+        // no COMMAND/STDERR signal to triage cache/file-lock vs
+        // genuine clang errors.
+        print("  link command:");
+        print(str_concat("    ", cmd));
+        if str_len(clang_log) == 0 {
+            print("  note: clang_link.log is EMPTY -- clang likely never started (file lock, missing exe, antivirus, or process-spawn failure). Check that bin/nucleor.exe is not held open by an orphan process and retry.");
         };
         return 1;
     };
@@ -16102,7 +16114,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.178";
+    return "0.3.179";
 }
 
 fn compiler_backend_label() -> str {
