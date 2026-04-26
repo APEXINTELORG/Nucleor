@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.143] — 2026-04-26
+
+**`print(arg)` now dispatches by arg's static type — `print(int)`
+no longer SIGSEGVs when the integer happens to look like a small
+pointer.** Closes NUC-FEEDBACK-008 (reported 2026-04-26 by the
+ML_Suite agent).
+
+Pre-v0.3.143, `get_rt_name` mapped every `print` call to
+`__nucleor_print_str` regardless of arg type. When an adopter
+wrote `print(text_token_count_i64(&tokens))` or even `print(42)`,
+the call lowered to `__nucleor_print_str(arg)` which dereferenced
+the i64 as a `const char *`. For small integers that's a deref of
+e.g. `0x2A` (= 42) — guaranteed SIGSEGV. For larger integers it's
+sometimes a deref of garbage memory — could crash, could print
+garbage. Visible to the adopter as the program silently
+terminating mid-output (exit 1 or 139, remaining `print()` calls
+just gone, no diagnostic). Same hazard class as the contextual-kw
+silent miscompiles: a real call you wrote produces nothing useful
+and no error.
+
+The s1 self-host source never triggered this because every
+`print(int)` in the compiler uses `print(str_from_int(...))`
+explicitly. Adopter code without that idiom hit it on the first
+non-string `print`.
+
+Fix: at the call site for `print(arg)` with `argc == 1`, infer
+arg's static type and dispatch to the typed runtime helper:
+
+| Arg type                                        | Helper                       |
+|------------------------------------------------|------------------------------|
+| int (`i8`/`i16`/`i32`/`i64`/`isize`/`u*`/`usize`) | `__nucleor_print_i64`     |
+| float (`f32`/`f64`)                             | `__nucleor_print_f64`        |
+| `bool`                                          | `__nucleor_print_bool`       |
+| `str` / unknown                                 | `__nucleor_print_str` (default) |
+
+Type inference covers AST kinds 1 (int literal), 71/72 (f64
+literals), 3 (var ref via `__type_<name>` sym), and 7 (fn-call
+result via `__fnret_<name>` sym). Unknown types fall through to
+the existing string path so behaviour is unchanged for any
+non-typed-arg case.
+
+Pinned by `tests/fixtures/t418_print_type_dispatch.nr` which
+prints a string, an int literal, and an int variable in
+sequence — pre-v0.3.143 returned RC=139 (SIGSEGV) on the first
+int print; post-v0.3.143 prints all four values cleanly and
+returns RC=42.
+
+Bootstrap fixed point at stage_d
+`16816bfaa3c8bfae3b9a33fb3c9e2f13`. Verify gate green; bootstrap
+seed refreshed.
+
 ## [0.3.142] — 2026-04-26
 
 **`as` is now a contextual keyword — user fns named `as` no longer
