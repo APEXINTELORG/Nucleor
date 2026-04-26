@@ -73,6 +73,11 @@ Fix:
 **Status: CLOSED in v0.3.125. Four runtime helpers added: f64_from_bits / f64_to_bits / f32_from_bits / f32_to_bits. Fixture t401.**
 **Priority: MEDIUM (was silent miscompute on `str_to_f64(s) as f64` decimal-text ingest; ML adopter pattern)**
 
+### NUC-IMPROVE-005 — Typed f64 elementary math wrappers
+**Status: CLOSED in v0.3.127. New stdlib/rods/math_typed.nr with 7 wrappers (sqrt/exp/log/tanh/sin/cos/pow as f64 -> f64). Fixture t403.**
+**Priority: HIGH for NN/ML kernels (cross entropy, softmax, sigmoid, Adam, GELU, LayerNorm)**
+**Follow-on:** erf_f64 deferred (no `__nucleor_erf` in runtime today; one-liner add when ML_Suite needs it).
+
 The generated test harness emits a parse error
 (`Parse error at token position 8927: expected token 51 got 1`) on the
 ML_Suite tensor smoke test, even though the same code compiles via
