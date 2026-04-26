@@ -2112,6 +2112,10 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "cpu_count") { return "__nucleor_cpu_count"; };
     if str_eq(name, "print_f64") { return "__nucleor_print_f64"; };
     if str_eq(name, "f64_from_scaled") { return "__nucleor_f64_from_scaled"; };
+    if str_eq(name, "f64_from_bits") { return "__nucleor_f64_from_bits"; };
+    if str_eq(name, "f64_to_bits") { return "__nucleor_f64_to_bits"; };
+    if str_eq(name, "f32_from_bits") { return "__nucleor_f32_from_bits"; };
+    if str_eq(name, "f32_to_bits") { return "__nucleor_f32_to_bits"; };
     if str_eq(name, "f64_to_i32") { return "__nucleor_f64_to_i32"; };
     if str_eq(name, "i32_to_f64") { return "__nucleor_i32_to_f64"; };
     if str_eq(name, "fabs") { return "__nucleor_fabs"; };
@@ -3504,6 +3508,10 @@ fn emit_externs() -> str {
     // f64 (always available via nucleor_llvm_rt.c)
     sb_append(sb, "declare void @__nucleor_print_f64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_from_scaled(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_from_bits(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_to_bits(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_from_bits(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_to_bits(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_to_i32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_i32_to_f64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_fabs(i64)\n");

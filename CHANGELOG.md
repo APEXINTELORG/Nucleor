@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.125] — 2026-04-25
+
+**NUC-IMPROVE-004 closed — explicit `f64_from_bits` /
+`f64_to_bits` (and f32 siblings) reinterpret helpers.** ML_Suite
+agent reported that the canonical adopter pattern for parsing
+decimal text into typed `f64`:
+
+```rust
+data.push(str_to_f64(cell) as f64);
+```
+
+silently miscomputed. `str_to_f64("1.25")` returns the i64 BIT
+PATTERN of 1.25 (per Nucleor's runtime convention), and `as f64`
+then NUMERICALLY converts that large integer (~4.6e18) into a
+large floating value rather than reinterpreting the bits as a
+typed f64. The fixture value `1.25` printed as
+`4608308318706860032.000000` instead of `1.250000`.
+
+### Fix
+
+Four new runtime helpers — `__nucleor_f64_from_bits`,
+`__nucleor_f64_to_bits`, `__nucleor_f32_from_bits`,
+`__nucleor_f32_to_bits` — registered in compiler + tools_suite
+drift mirror + IR header `declare` list. All four are identity
+functions at the runtime ABI level (Nucleor's f64/f32 IS the
+i64 bit pattern in the underlying storage), but the named
+entries document intent and give adopters the right primitive to
+reach for instead of the lossy `as f64` numeric cast.
+
+Adopter pattern:
+```rust
+let bits: i64 = str_to_f64("1.25");
+let v: f64 = f64_from_bits(bits);   // typed f64, no numeric drift
+print_f64(v);                        // prints "1.250000"
+```
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t401 verifies the round-trip
+`str_to_f64 → f64_from_bits → f64_to_bits` preserves bits exactly.
+`bin/nucleor.exe` SHA `f89f751e`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — get_rt_name + IR header
+  for the four reinterpret helpers.
+- `compiler/nucleor_tools_suite.nr` — drift mirror.
+- `stdlib/runtime/nucleor_llvm_rt.c` — four new helpers (identity).
+- `tests/fixtures/t401_f64_from_bits.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+
 ## [0.3.124] — 2026-04-25
 
 **Real `v[i] = X` indexed-LHS lowering (replaces v0.3.81 diag-only
