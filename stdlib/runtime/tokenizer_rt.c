@@ -276,3 +276,40 @@ void nuc_tok_free(long long tok_h) {
     for (int i = 0; i < tok->vocab_size; i++) free(tok->vocab[i]);
     free(tok->vocab); free(tok->merge_a); free(tok->merge_b); free(tok->merge_id); free(tok);
 }
+
+// ================================================================
+//  Token-vector accessors (NUC-IMPROVE-006, v0.3.144)
+// ================================================================
+//
+// Pre-v0.3.144, nuc_tok_encode and nuc_tok_char_level returned an
+// opaque i64 handle to a TKVec but the .nr surface had no way to
+// read the encoded length, index into the token sequence, free the
+// vec, or call nuc_tok_decode (which existed in this file but was
+// never exposed). These four accessors plus the existing decode
+// close the gap. Adopters can now write the canonical round-trip:
+//
+//   let ids: i64 = tok_encode(tok, "hello");
+//   let n: i64 = tok_vec_len(ids);
+//   for i in 0..n { print(tok_vec_at(ids, i)); }
+//   let decoded: str = tok_decode(tok, ids);
+//   tok_vec_free(ids);
+
+long long nuc_tok_vec_len(long long ids_h) {
+    TKVec *v = (TKVec *)(void *)ids_h;
+    if (!v) return 0;
+    return (long long)v->len;
+}
+
+long long nuc_tok_vec_at(long long ids_h, long long idx) {
+    TKVec *v = (TKVec *)(void *)ids_h;
+    if (!v) return 0;
+    if (idx < 0 || idx >= v->len) return 0;
+    return v->data[idx];
+}
+
+void nuc_tok_vec_free(long long ids_h) {
+    TKVec *v = (TKVec *)(void *)ids_h;
+    if (!v) return;
+    free(v->data);
+    free(v);
+}

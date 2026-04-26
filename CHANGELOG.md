@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.144] — 2026-04-26
+
+**`stdlib/rods/tokenizer.nr` now exposes token-vector accessors and
+the existing `nuc_tok_decode` runtime helper.** Closes
+NUC-IMPROVE-006 (reported 2026-04-26 by the ML_Suite agent).
+
+Pre-v0.3.144, `tok_encode(tok, text)` and `tok_char_level(text)`
+returned an opaque `i64` handle to the internal `TKVec` of token
+ids — but the `.nr` surface had no way to read the encoded length,
+index into the sequence, free the vec, or call `nuc_tok_decode`
+(which existed in `tokenizer_rt.c` since the rod first shipped but
+was never exposed). Adopters who wanted to do anything beyond
+"did the tokenizer initialize?" had to write a duplicate
+char-level facade in user code.
+
+Added in `stdlib/runtime/tokenizer_rt.c`:
+- `nuc_tok_vec_len(ids_h: i64) -> i64`
+- `nuc_tok_vec_at(ids_h: i64, idx: i64) -> i64` (returns 0 on OOB)
+- `nuc_tok_vec_free(ids_h: i64)`
+
+Exposed in `stdlib/rods/tokenizer.nr` (extern + Nucleor wrapper):
+- `tok_decode(t: i64, ids: i64) -> str`
+- `tok_vec_len(ids: i64) -> i64`
+- `tok_vec_at(ids: i64, idx: i64) -> i64`
+- `tok_vec_free(ids: i64)`
+
+Canonical round-trip now works:
+```
+let ids: i64 = tok_encode(tok, "hello");
+let n: i64 = tok_vec_len(ids);
+for i in 0..n { print(tok_vec_at(ids, i)); }
+let decoded: str = tok_decode(tok, ids);
+tok_vec_free(ids);
+```
+
+Pinned by `tests/fixtures/t419_tokenizer_accessors.nr` — encodes
+"Nu" via `tok_char_level`, asserts len == 2 and ids == [78, 117]
+(the byte values), exercises out-of-bounds (returns 0), then frees.
+
+Bootstrap fixed point at stage_d
+`3c1f44b8e084813ab969acb67ca57e41`. Verify gate green.
+
 ## [0.3.143] — 2026-04-26
 
 **`print(arg)` now dispatches by arg's static type — `print(int)`
