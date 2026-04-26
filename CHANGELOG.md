@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.214] — 2026-04-26
+
+**Shift-overflow now PANICs.** Closes the documented residual
+from v0.3.213's punchlist sanity-scan: `<<` and `>>` for
+shift amount >= 64 or < 0 produced LLVM `poison` (observable
+but ill-defined). Strict-arith default now panics with both
+operands.
+
+Two new runtime helpers (`__nucleor_panic_shl_i64`,
+`__nucleor_panic_shr_i64`); compiler binop lowerer extended
+to dispatch iops 23 (shl) and 24 (ashr) to them under the
+strict-arith gate. Tools_suite mirror updated.
+
+```
+PANIC: i64 shl out-of-range: 1 << 64 (shift amount must be 0..63)
+PANIC: i64 shr out-of-range: 1 >> 64 (shift amount must be 0..63)
+```
+
+Opt-out via `NUCLEOR_INT_STRICT_ARITH=0` (re-emits native
+LLVM `shl` / `ashr`).
+
+Pinned by `tests/fixtures/probe_shift_overflow.nr`. Bootstrap
+fixed point at stage_d
+`a785fae8096c16d937d0f107b9e348d38ec89a18822b9a42aa4922790537eb95`.
+452/452 verify PASS.
+
 ## [0.3.213] — 2026-04-26
 
 **Unary minus `-x` for i64 now panics on overflow.** Closes
