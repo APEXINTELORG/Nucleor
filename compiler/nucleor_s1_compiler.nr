@@ -3376,6 +3376,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "panic_div") { return "__nucleor_panic_div_i64"; };
     if str_eq(name, "panic_rem") { return "__nucleor_panic_rem_i64"; };
     if str_eq(name, "panic_neg") { return "__nucleor_panic_neg_i64"; };
+    if str_eq(name, "panic_shl") { return "__nucleor_panic_shl_i64"; };
+    if str_eq(name, "panic_shr") { return "__nucleor_panic_shr_i64"; };
     // RFC-0015 phase 4 — per-narrow-width overflow primitives
     if str_eq(name, "wrapping_add_i8") { return "__nucleor_wrapping_add_i8"; };
     if str_eq(name, "wrapping_sub_i8") { return "__nucleor_wrapping_sub_i8"; };
@@ -4871,6 +4873,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_panic_div_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_rem_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_neg_i64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_shl_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_shr_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_add_i8(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_sub_i8(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_mul_i8(i64, i64)\n");
@@ -11053,6 +11057,12 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 if iop == 4 { sh = "panic_mul"; };
                 if iop == 5 { sh = "panic_div"; };
                 if iop == 6 { sh = "panic_rem"; };
+                // v0.3.214: shifts get the panic surface too. Iops 23 (shl)
+                // and 24 (ashr) for << and >>. Pre-fix amounts >= 64 or < 0
+                // produced LLVM poison (observable but not silent); now they
+                // panic with operands.
+                if iop == 23 { sh = "panic_shl"; };
+                if iop == 24 { sh = "panic_shr"; };
             };
             if str_len(sh) > 0 {
                 let mut sa: Vec<i32> = Vec::new();
@@ -16863,7 +16873,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.213";
+    return "0.3.214";
 }
 
 fn compiler_backend_label() -> str {

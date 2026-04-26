@@ -2982,6 +2982,25 @@ long long __nucleor_panic_neg_i64(long long v) {
     return -v;
 }
 
+// v0.3.214: shift-overflow panics. Pre-fix `<<` and `>>` for shift
+// amount >= 64 or < 0 produced LLVM poison (observable but not
+// silent miscompute). Strict-arith default now panics with
+// operands; opt-out via NUCLEOR_INT_STRICT_ARITH=0.
+long long __nucleor_panic_shl_i64(long long a, long long b) {
+    if (b < 0 || b >= 64) {
+        fprintf(stderr, "PANIC: i64 shl out-of-range: %lld << %lld (shift amount must be 0..63)\n", a, b);
+        fflush(stderr); exit(1);
+    }
+    return (long long)((unsigned long long)a << (int)b);
+}
+long long __nucleor_panic_shr_i64(long long a, long long b) {
+    if (b < 0 || b >= 64) {
+        fprintf(stderr, "PANIC: i64 shr out-of-range: %lld >> %lld (shift amount must be 0..63)\n", a, b);
+        fflush(stderr); exit(1);
+    }
+    return a >> (int)b;
+}
+
 // --- v0.2.28: division / remainder / negation variants ---
 // checked_div_i64 / checked_rem_i64: 0 + overflow flag set on
 //   (a) divide-by-zero, OR (b) i64::MIN / -1 (would overflow).

@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 781
+# Total helpers: 783
 # Of which REVIEW REQUIRED: 30
 
 # ============================================================
@@ -3267,6 +3267,34 @@ notes            = ""
 name             = "panic_rem"
 class            = "PanickingArith"
 symbol           = "__nucleor_panic_rem_i64"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "panic_shl"
+class            = "PanickingArith"
+symbol           = "__nucleor_panic_shl_i64"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "panic_shr"
+class            = "PanickingArith"
+symbol           = "__nucleor_panic_shr_i64"
 dispatch         = "RuntimeCall"
 abi              = "(i64, i64) -> i64"
 effects          = "TODO"  # TODO
