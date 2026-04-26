@@ -1,16 +1,24 @@
-// t356_indexed_lhs_diagnostic.nr — v0.3.81 negative regression fixture.
+// t356_indexed_lhs_diagnostic.nr — v0.3.124 positive regression fixture.
 //
-// Pre-v0.3.81, writing `v[i] = X;` segfaulted the compiler with
-// ACCESS_VIOLATION (exit -1073741819) — the kind-21 lowering's
-// fallback path interpreted the kind-10 indexing-node as a string
-// offset and crashed on garbage memory access.
+// Originally a v0.3.81 negative pin for the diag-only stub.
+// v0.3.124 replaces the stub with real `v[i] = X` lowering to
+// `vec_set(v, i, X)`.
 //
-// Post-v0.3.81: clean diagnostic in check_stmt + lower_stmt
-// short-circuits to skip codegen. Build completes without segfault.
+// Timeline:
+// - Pre-v0.3.81: compiler segfaulted on the kind-10 LHS path
+//   (ACCESS_VIOLATION, exit -1073741819).
+// - v0.3.81-v0.3.123: diag fired but build still produced a .exe
+//   with the assignment SILENTLY DROPPED — read-back of v[i]
+//   returned the original value (HIGH-blast silent miscompute
+//   hidden behind an informational diag).
+// - v0.3.124+: real lowering — assignment takes effect; read-back
+//   returns the assigned X.
+//
+// Returns 999, proving the v[1] = 999 assignment actually mutates.
 
 fn main() -> i64 {
     let mut v: Vec<i64> = Vec::new();
     v.push(10); v.push(20); v.push(30);
-    v[1] = 999;     // <-- pre-v0.3.81: segfault, post: clean diagnostic
+    v[1] = 999;
     return v[1];
 }

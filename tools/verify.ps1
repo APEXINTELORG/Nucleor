@@ -1070,13 +1070,17 @@ Step "T3.21 #[allow(DIAG-001)] suppresses DIAG-001 itself" {
     return $true
 }
 
-Step "T3.56 indexed-LHS assign safety net (pre-v0.3.81 segfault → clean diagnostic)" {
-    # v0.3.81 (T3.56): negative regression — must NOT segfault.
-    $out = & $bin build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache 2>&1 | Out-String
-    if ($LASTEXITCODE -eq -1073741819) { return $false }
-    if ($out -notmatch "indexed assignment") { return $false }
-    if ($out -notmatch "vec_set") { return $false }
-    return $true
+Step "T3.56 indexed-LHS assignment lowers to vec_set (was diag-only pre-v0.3.124)" {
+    # v0.3.124 (T3.56): real `v[i] = X` codegen replaces the
+    # v0.3.81 diag-only stub. Fixture exits 999 when the assignment
+    # actually mutates (instead of being silently dropped).
+    & $bin build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t356_check.exe") { $exe = "target\_t356_check.exe" }
+    elseif (Test-Path "target\_t356_check") { $exe = "target\_t356_check" }
+    if (-not $exe) { return $false }
+    & $exe | Out-Null
+    return $LASTEXITCODE -eq 999
 }
 
 Step "T3.74 env_get_or runtime helper" {
