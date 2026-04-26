@@ -90,7 +90,18 @@ fn classify_kw(w: str) -> i64 {
     if str_eq(w, "pub") { return 72; };
     if str_eq(w, "const") { return 73; };
     if str_eq(w, "type") { return 74; };
-    if str_eq(w, "requires") { return 75; };
+    // v0.3.139: `requires` is contextual — only meaningful as a fn-decl
+    // annotation (`fn foo() -> T requires [<predicate>]`) per RFC-0030.
+    // Pre-v0.3.139, classifying it as kw 75 unconditionally triggered the
+    // same silent-miscompute trap as the v0.3.137 `pure` and v0.3.138
+    // `scope`/`spawn` fixes — `parse_primary` had no branch for token 75
+    // and silently fell through to its `int_lit 0` default. Any user fn
+    // or call site named `requires` (e.g. auth gates `requires_admin`,
+    // capability checks, type-class witness fns) collapsed to constant 0
+    // in the IR with no diagnostic. The 4 `pk(...) == 75` annotation
+    // checks in parse_fn_decl / parse_extern_fn / parse_trait_method /
+    // parse_impl_method are rewritten to identifier-with-pkv lookahead
+    // so the annotation form still works.
     if str_eq(w, "restricts") { return 76; };
     if str_eq(w, "unsafe") { return 77; };
     if str_eq(w, "wrapping") { return 78; };
@@ -1574,7 +1585,7 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     cp = cp + 1;
     let mut rtype: str = "void";
     if pk(tokens, cp) == 41 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); rtype = pr_val(tr); };
-    if pk(tokens, cp) == 75 { cp = skip_bracket_list(tokens, cp + 1); };
+    if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "requires") == 1 { cp = skip_bracket_list(tokens, cp + 1); };
     cp = skip_where_clause(tokens, cp);
     cp = expect_tok(tokens, cp, 52);
     let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
@@ -1596,7 +1607,7 @@ fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     cp = cp + 1;
     let mut rtype: str = "void";
     if pk(tokens, cp) == 41 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); rtype = pr_val(tr); };
-    if pk(tokens, cp) == 75 { cp = skip_bracket_list(tokens, cp + 1); };
+    if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "requires") == 1 { cp = skip_bracket_list(tokens, cp + 1); };
     cp = skip_where_clause(tokens, cp);
     if pk(tokens, cp) == 43 { cp = cp + 1; };
     return pr(cp, mk4(pool, 32, name, mk_list(pool, params), rtype));
@@ -1805,7 +1816,7 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         cp = cp + 1; // )
         let mut rtype: str = "void";
         if pk(tokens, cp) == 41 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); rtype = pr_val(tr); };
-        if pk(tokens, cp) == 75 { cp = skip_bracket_list(tokens, cp + 1); };
+        if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "requires") == 1 { cp = skip_bracket_list(tokens, cp + 1); };
         cp = skip_where_clause(tokens, cp);
         if pk(tokens, cp) == 52 {
             // Default method with body
@@ -1894,7 +1905,7 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if str_eq(rtype, "Self") == 1 { rtype = type_name; };
         if str_eq(rtype, "&Self") == 1 { rtype = str_concat("&", type_name); };
         if str_eq(rtype, "&mut Self") == 1 { rtype = str_concat("&mut ", type_name); };
-        if pk(tokens, cp2) == 75 { cp2 = skip_bracket_list(tokens, cp2 + 1); };
+        if pk(tokens, cp2) == 1 && str_eq(pkv(tokens, cp2), "requires") == 1 { cp2 = skip_bracket_list(tokens, cp2 + 1); };
         cp2 = skip_where_clause(tokens, cp2);
         cp2 = expect_tok(tokens, cp2, 52); // {
         let mut br: Vec<i32> = parse_stmts(tokens, cp2, pool);
@@ -14497,7 +14508,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.138";
+    return "0.3.139";
 }
 
 fn compiler_backend_label() -> str {

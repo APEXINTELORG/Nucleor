@@ -1052,11 +1052,18 @@ t321_diag001_self_suppress() {
 }
 
 t356_indexed_lhs_diagnostic() {
-    # T3.56 (v0.3.81): negative regression — `v[i] = X` pre-v0.3.81
-    # segfaulted the compiler. Post: clean diagnostic, no crash.
+    # T3.56: originally a v0.3.81 negative regression -- v[i] = X
+    # pre-v0.3.81 segfaulted the compiler. v0.3.124 replaced the
+    # diag-only stub with real indexed-assignment codegen via
+    # vec_set lowering. The fixture became positive (exits 0 iff
+    # the assignment lands the value at the right index). The bash
+    # mirror lagged the .ps1 update; v0.3.139 sync.
     "$BIN" build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -q "indexed assignment" /tmp/_nuc_step.log || return 1
-    grep -q "vec_set" /tmp/_nuc_step.log || return 1
+    local exe
+    if [ -x "target/_t356_check" ]; then exe="target/_t356_check"; else exe="target/_t356_check.exe"; fi
+    [ -x "$exe" ] || return 1
+    "$exe" >/dev/null 2>&1
+    [ "$?" -eq 0 ] || return 1
     return 0
 }
 
@@ -1075,12 +1082,19 @@ t374_env_get_or() {
 }
 
 t373_bitwise_op_diagnostic() {
-    # T3.73 (v0.3.97): negative regression for bitwise op diagnostic.
-    # Pre-v0.3.97, `a & b` etc. silently dropped the RHS bitwise op,
-    # producing wrong values. Post: parse_let emits a clear diagnostic.
+    # T3.73 (v0.3.97 → v0.3.103): originally a negative regression for
+    # the bitwise op diagnostic (pre-v0.3.97 `a & b` silently dropped
+    # the RHS). v0.3.103 replaced the diag-only stub with real bitwise
+    # codegen via a new `parse_bitwise` precedence tier and LLVM xor/and/or
+    # ops. The fixture became positive — exits 0 iff all three operators
+    # produce correct results across constant-fold and runtime paths.
+    # The bash mirror lagged the .ps1 update; v0.3.139 sync.
     "$BIN" build "tests/fixtures/t373_bitwise_op_diagnostic.nr" -o "_t373_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -q "bitwise operator" /tmp/_nuc_step.log || return 1
-    grep -q "is not yet supported in expressions" /tmp/_nuc_step.log || return 1
+    local exe
+    if [ -x "target/_t373_check" ]; then exe="target/_t373_check"; else exe="target/_t373_check.exe"; fi
+    [ -x "$exe" ] || return 1
+    "$exe" >/dev/null 2>&1
+    [ "$?" -eq 0 ] || return 1
     return 0
 }
 
