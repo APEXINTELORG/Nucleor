@@ -86,6 +86,10 @@ Fix:
 **Status: CLOSED in v0.3.133. Lexer detects sub-micro literals and falls back to runtime str_to_f64 for full IEEE-754 precision. New token kind 124 / AST kind 72 path; existing scaled-int fast-path preserved for ≥1e-6. Fixture t409.**
 **Priority: HIGH (NaN cascade in canonical ML optimizers using PyTorch defaults)**
 
+### NUC-FEEDBACK-007 — Stale cache hit after compiler version bump
+**Status: CLOSED in v0.3.135. Both build_cache_key and module_graph_cache_id now include compiler_version_label. Schemes bumped to native-cache-v5 / module-graph-v2.**
+**Priority: MEDIUM (blocks adopters from validating fixes after compiler upgrades; --no-cache was the workaround)**
+
 The generated test harness emits a parse error
 (`Parse error at token position 8927: expected token 51 got 1`) on the
 ML_Suite tensor smoke test, even though the same code compiles via

@@ -11936,7 +11936,19 @@ fn print_phase_time(enabled: i64, label: str, elapsed_ms: i64) {
 
 fn build_cache_key(source: str, strict_mode: i64) -> str {
     let mut sb: i64 = sb_new();
-    sb_append(sb, "native-cache-v4|");
+    // v0.3.135: NUC-FEEDBACK-007 — include compiler_version_label
+    // in the cache key so a binary upgrade invalidates the cache.
+    // Pre-v0.3.135 the key was {scheme | exe_path | mode | source}.
+    // The agent flipped a literal back-and-forth across versions
+    // (`0.00000001` → `0.000001` → `0.00000001`); after the
+    // v0.3.133 lexer fix, the SAME source text from before the fix
+    // keyed identically and hit the OLD IR (which still produced
+    // the NaN cascade). Adding the version label means each tagged
+    // release has its own cache namespace; stale IR from older
+    // tags is never reused.
+    sb_append(sb, "native-cache-v5|");
+    sb_append(sb, compiler_version_label());
+    sb_append(sb, "|");
     if args_count() > 0 { sb_append(sb, args_get(0)); };
     sb_append(sb, "|");
     sb_append(sb, build_mode_name(strict_mode));
@@ -12257,7 +12269,12 @@ fn module_records_validate(manifest: str) -> Vec<i32> {
     return ok;
 }
 fn module_graph_cache_id(src_path: str) -> str {
-    return content_hash(str_concat("module-graph-v1|", sanitize(src_path)));
+    // v0.3.135: NUC-FEEDBACK-007 — include compiler_version_label
+    // so a binary upgrade invalidates the resolved-source cache
+    // alongside the IR cache. Without this, a recompile after
+    // a compiler bump would re-use cached resolved source from
+    // before the lexer/parser fix landed.
+    return content_hash(str_concat("module-graph-v2|", str_concat(compiler_version_label(), str_concat("|", sanitize(src_path)))));
 }
 fn module_graph_manifest_path(src_path: str) -> str {
     return sanitize(str_concat(".nuc_cache/modgraph_", str_concat(module_graph_cache_id(src_path), ".manifest")));
@@ -14458,7 +14475,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.134";
+    return "0.3.135";
 }
 
 fn compiler_backend_label() -> str {
