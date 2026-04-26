@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 773
+# Total helpers: 779
 # Of which REVIEW REQUIRED: 30
 
 # ============================================================
@@ -3203,6 +3203,90 @@ effects          = ["panic"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "callsite_unreachable_or_recoverable"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "panic_add"
+class            = "PanickingArith"
+symbol           = "__nucleor_panic_add_i64"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "panic_div"
+class            = "PanickingArith"
+symbol           = "__nucleor_panic_div_i64"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "panic_mul"
+class            = "PanickingArith"
+symbol           = "__nucleor_panic_mul_i64"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "panic_neg"
+class            = "PanickingArith"
+symbol           = "__nucleor_panic_neg_i64"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "panic_rem"
+class            = "PanickingArith"
+symbol           = "__nucleor_panic_rem_i64"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "panic_sub"
+class            = "PanickingArith"
+symbol           = "__nucleor_panic_sub_i64"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
 stability        = "stable"
 since            = "0.1.0"
 notes            = ""

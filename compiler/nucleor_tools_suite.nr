@@ -2358,6 +2358,12 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "wrapping_rem") { return "__nucleor_wrapping_rem_i64"; };
     if str_eq(name, "wrapping_neg") { return "__nucleor_wrapping_neg_i64"; };
     if str_eq(name, "saturating_neg") { return "__nucleor_saturating_neg_i64"; };
+    if str_eq(name, "panic_add") { return "__nucleor_panic_add_i64"; };
+    if str_eq(name, "panic_sub") { return "__nucleor_panic_sub_i64"; };
+    if str_eq(name, "panic_mul") { return "__nucleor_panic_mul_i64"; };
+    if str_eq(name, "panic_div") { return "__nucleor_panic_div_i64"; };
+    if str_eq(name, "panic_rem") { return "__nucleor_panic_rem_i64"; };
+    if str_eq(name, "panic_neg") { return "__nucleor_panic_neg_i64"; };
     if str_eq(name, "checked_sub") { return "__nucleor_checked_sub_i64"; };
     if str_eq(name, "checked_sub_i16") { return "__nucleor_checked_sub_i16"; };
     if str_eq(name, "checked_sub_i32") { return "__nucleor_checked_sub_i32"; };
@@ -3795,6 +3801,12 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_wrapping_rem_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_neg_i64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_saturating_neg_i64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_add_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_sub_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_mul_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_div_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_rem_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_neg_i64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_checked_sub_i16(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_checked_sub_i32(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_checked_sub_i64(i64, i64)\n");

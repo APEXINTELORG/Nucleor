@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.207] — 2026-04-26
+
+**Ergonomic strict-arithmetic surface: `panic_add` / `panic_sub`
+/ `panic_mul` / `panic_div` / `panic_rem` / `panic_neg`.**
+Closes the integer-overflow line item from the runtime safety
+series.
+
+Pre-fix the runtime had `checked_*_i64` (returns 0 + sets a
+flag the caller had to check), `wrapping_*` (always wraps),
+and `saturating_*` (clamps at MIN/MAX). The strict path
+required this dance after every op:
+
+```nr
+let r1 = checked_add(a, b);
+if checked_overflow_flag() { panic("..."); };
+let r2 = checked_mul(r1, c);
+if checked_overflow_flag() { panic("..."); };
+```
+
+Verbose enough that real adopter code skipped it -- and the
+silent-wrap hazard kept biting. New surface is fire-and-forget
+"compute-or-die":
+
+```nr
+let r = panic_add(panic_mul(a, b), c);   // panics on overflow, well-defined otherwise
+```
+
+PANIC messages include the operands:
+
+```
+PANIC: i64 add overflow: 9223372036854775000 + 9223372036854775000
+PANIC: i64 mul overflow: 12345 * 67890
+PANIC: i64 division by zero: 100 / 0
+PANIC: i64 div overflow: i64::MIN / -1
+PANIC: i64 mod by zero: 100 % 0
+PANIC: i64 neg overflow: -(i64::MIN)
+```
+
+Wrapping and saturating helpers remain available for code
+that explicitly wants modular or clamping arithmetic.
+Default `+`, `-`, `*` operators still use native LLVM
+nsw/nuw (silent wrap) -- a compile-time switch to make the
+default panic-on-overflow is a separate larger change
+(would touch every binop lowering site and require auditing
+all internal compiler arithmetic for intentional wrap).
+This release ships the ergonomic opt-in surface so adopters
+who care can use it everywhere.
+
+Pinned by `tests/fixtures/t464_panic_overflow.nr` (positive:
+all six surfaces work for in-range values) and
+`tests/fixtures/probe_panic_add_overflow.nr` (negative:
+panic_add(big, big) exits 1 with PANIC line).
+
+Drift mirror updated. Bootstrap fixed point at stage_d
+`5a026ed26c4257b3158ce11dba8f70245c6544449be1e7708b44aacced6cd8d6`.
+452/452 verify PASS.
+
 ## [0.3.206] — 2026-04-26
 
 **NUC-FEEDBACK-002 fully closed.** All four narrow-float
