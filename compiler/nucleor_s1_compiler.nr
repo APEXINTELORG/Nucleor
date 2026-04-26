@@ -11004,6 +11004,76 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         if str_eq(prts, "f32") == 1 { p_helper = "__nucleor_print_f64"; };
                         if str_eq(prts, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
                     };
+                    // v0.3.178: builtin runtime helper fallback for
+                    // direct calls. Mirrors the v0.3.168 fallback for
+                    // method calls (kind 8). Pre-fix
+                    // print(hashmap_get(h, "k")) SIGSEGV'd because no
+                    // __fnret_hashmap_get entry exists. Hardcoded list
+                    // of well-known runtime helpers with deterministic
+                    // i64/bool return types.
+                    if str_len(p_helper) == 0 {
+                        // i64 returns: hashmap_get, vec_get, vec_len,
+                        // vec_first, vec_last, hashmap_len,
+                        // hashmap_capacity, hashset_len, btreemap_len,
+                        // vecdeque_len, str_len, str_to_int,
+                        // str_to_i64, tok_vocab_size, tok_vec_len,
+                        // tok_vec_at, etc.
+                        if str_eq(pfn_name, "hashmap_get") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "hashmap_len") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "hashmap_capacity") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "hashmap_remove") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "hashmap_get_or") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "hashset_len") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "btreemap_len") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "btreemap_get") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "btreeset_len") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "vecdeque_len") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "vec_get") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "vec_len") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "vec_first") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "vec_last") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "vec_pop") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "str_len") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "str_to_int") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "str_to_i64") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "str_to_int_with_base") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "str_index_of") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "str_count") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "str_char_at") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "tok_encode") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "tok_vocab_size") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "tok_vec_len") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "tok_vec_at") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "arena_alloc") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pfn_name, "str_arena_bytes") == 1 { p_helper = "__nucleor_print_i64"; };
+                        // bool returns
+                        if str_eq(pfn_name, "hashmap_contains") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(pfn_name, "hashmap_is_empty") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(pfn_name, "hashset_contains") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(pfn_name, "hashset_is_empty") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(pfn_name, "btreemap_contains_key") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(pfn_name, "btreeset_contains") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(pfn_name, "vecdeque_is_empty") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(pfn_name, "vec_is_empty") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(pfn_name, "str_is_empty") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(pfn_name, "str_eq") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(pfn_name, "str_contains") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(pfn_name, "str_starts_with") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(pfn_name, "str_ends_with") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(pfn_name, "str_to_bool") == 1 { p_helper = "__nucleor_print_bool"; };
+                        // f64 returns (typed math wrappers from v0.3.127 math_typed.nr)
+                        if str_eq(pfn_name, "sqrt_f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(pfn_name, "exp_f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(pfn_name, "log_f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(pfn_name, "tanh_f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(pfn_name, "sin_f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(pfn_name, "cos_f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(pfn_name, "pow_f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(pfn_name, "f64_from_int") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(pfn_name, "f64_from_bits") == 1 { p_helper = "__nucleor_print_f64"; };
+                        // str returns: str_concat / str_substring fall
+                        // through to default print_str (correct).
+                    };
                 };
                 // v0.3.163: also handle struct field access (kind 9).
                 // Look up the struct via expr_struct_type, then find the
@@ -11163,6 +11233,18 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         if str_eq(mname, "is_empty") == 1 { p_helper = "__nucleor_print_bool"; };
                         if str_eq(mname, "contains") == 1 { p_helper = "__nucleor_print_bool"; };
                         if str_eq(mname, "contains_key") == 1 { p_helper = "__nucleor_print_bool"; };
+                        // v0.3.178: extended fallback. `get`/`first`/
+                        // `last`/`pop`/`remove` are i64 returns for
+                        // HashMap/Vec/BTreeMap idioms.
+                        if str_eq(mname, "get") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(mname, "first") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(mname, "last") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(mname, "pop") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(mname, "remove") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(mname, "front") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(mname, "back") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(mname, "starts_with") == 1 { p_helper = "__nucleor_print_bool"; };
+                        if str_eq(mname, "ends_with") == 1 { p_helper = "__nucleor_print_bool"; };
                     };
                 };
                 if parg_kind == 12 {
@@ -16020,7 +16102,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.177";
+    return "0.3.178";
 }
 
 fn compiler_backend_label() -> str {

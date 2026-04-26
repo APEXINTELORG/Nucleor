@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.178] — 2026-04-26
+
+**`print(hashmap_get(h, k))` and `print(h.get(k))` now work
+instead of SIGSEGVing.** Closes the runtime-helper return-type
+gap in the print() dispatch chain — last big remaining
+silent-miscompute hazard for adopter-canonical patterns.
+
+Pre-v0.3.178, print() of a direct call to a runtime helper
+(e.g. `hashmap_get`, `vec_get`, `str_len`) SIGSEGV'd because
+the runtime helpers have no `__fnret_<name>` entry in sym —
+the kind-7 (fn call) print() dispatch fell through to
+`print_str` which dereferenced the i64 result as a string
+pointer. Same hazard for kind-8 method calls with names
+outside the v0.3.168 fallback list (e.g. `h.get(k)`).
+
+Same hazard class as v0.3.143/163/164/165/168 print()-dispatch
+gaps — adopter writes a canonical pattern, gets a crash with
+no diagnostic.
+
+Fix:
+- **Kind 7 fn call**: hardcoded list of well-known runtime
+  helpers with deterministic returns:
+  - i64: `hashmap_get/len/capacity/remove/get_or`,
+    `hashset_len`, `btreemap_get/len`, `btreeset_len`,
+    `vecdeque_len`, `vec_get/len/first/last/pop`,
+    `str_len/to_int/to_i64/index_of/count/char_at`,
+    `tok_encode/vocab_size/vec_len/vec_at`, `arena_alloc`,
+    `str_arena_bytes`.
+  - bool: `hashmap_contains/is_empty`,
+    `hashset_contains/is_empty`, `btreemap_contains_key`,
+    `btreeset_contains`, `vecdeque_is_empty`, `vec_is_empty`,
+    `str_is_empty/eq/contains/starts_with/ends_with/to_bool`.
+  - f64: `sqrt_f64/exp_f64/log_f64/tanh_f64/sin_f64/cos_f64/
+    pow_f64/f64_from_int/f64_from_bits`.
+- **Kind 8 method call**: extended fallback with `get`/`first`/
+  `last`/`pop`/`remove`/`front`/`back` (i64) and
+  `starts_with`/`ends_with` (bool).
+
+Pinned by `tests/fixtures/t445_print_runtime_helper_dispatch.nr`.
+Bootstrap fixed point at stage_d
+`19de8e0d624a5a9c4cef465e60b7ac3bd6f7b6791354c50cc4911acfe7eb7ddf`.
+
 ## [0.3.177] — 2026-04-26
 
 **`print(p)` inside a closure body now works for closure
