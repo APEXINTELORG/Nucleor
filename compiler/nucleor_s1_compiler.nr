@@ -102,7 +102,18 @@ fn classify_kw(w: str) -> i64 {
     // checks in parse_fn_decl / parse_extern_fn / parse_trait_method /
     // parse_impl_method are rewritten to identifier-with-pkv lookahead
     // so the annotation form still works.
-    if str_eq(w, "restricts") { return 76; };
+    // v0.3.140: removed `restricts` kw classification. Same hazard
+    // class as v0.3.137 `pure`, v0.3.138 `scope`/`spawn`, v0.3.139
+    // `requires` — `restricts [...] { ... }` was a planned RFC-0030
+    // contract-block form that had ZERO usage in stdlib, examples,
+    // tests, or docs. The kw classification still forced the lexer
+    // to refuse the name as identifier, and parse_primary's branch
+    // for token 76 (skip_bracket_list + parse_passthrough_block_expr)
+    // mangled `restricts(x)` call sites — bracket-list skip silently
+    // returned pos unchanged when it found `(` instead of `[`, and
+    // parse_passthrough_block_expr swallowed the rest of main's body
+    // into a phantom block expression. Result: silent miscompute,
+    // returns 0 instead of the user fn's return value.
     if str_eq(w, "unsafe") { return 77; };
     if str_eq(w, "wrapping") { return 78; };
     if str_eq(w, "saturating") { return 79; };
@@ -709,10 +720,11 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // if-expression
     if tt == 13 { let mut r: Vec<i32> = parse_if(tokens, pos + 1, pool); return r; };
     if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool); return r; };
-    if tt == 76 {
-        let cp: i64 = skip_bracket_list(tokens, pos + 1);
-        return parse_passthrough_block_expr(tokens, cp, pool);
-    };
+    // v0.3.140: removed dead `tt == 76` branch (restricts) — see
+    // classify_kw notes. The `restricts [...] { ... }` form had zero
+    // usage so this branch was unreachable for legitimate code; in
+    // practice it only fired on user fns named `restricts` and
+    // mangled the call site into a phantom block expression.
     if tt == 77 { return parse_passthrough_block_expr(tokens, pos + 1, pool); };
     if tt == 78 { return parse_wrapped_block_expr(tokens, pos + 1, pool, 1); };
     if tt == 79 { return parse_wrapped_block_expr(tokens, pos + 1, pool, 2); };
@@ -1488,13 +1500,9 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     };
     if tt == 56 { let mut r: Vec<i32> = parse_for_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
-    if tt == 76 {
-        let cp2: i64 = skip_bracket_list(tokens, pos + 1);
-        let mut r: Vec<i32> = parse_passthrough_block_expr(tokens, cp2, pool);
-        let mut cp: i64 = pr_pos(r);
-        if pk(tokens, cp) == 43 { cp = cp + 1; };
-        return pr(cp, pr_val(r));
-    };
+    // v0.3.140: removed dead `tt == 76` branch (restricts) — see
+    // classify_kw notes. Same dead-code pattern as the v0.3.138
+    // scope/spawn removal below.
     // v0.3.138: removed dead `tt == 80 || tt == 81` branch (the
     // `scope { … }` / `spawn { … }` passthrough-block form). The
     // surrounding kw classifications were dropped — see classify_kw
@@ -14508,7 +14516,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.139";
+    return "0.3.140";
 }
 
 fn compiler_backend_label() -> str {

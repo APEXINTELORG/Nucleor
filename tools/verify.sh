@@ -1055,15 +1055,18 @@ t356_indexed_lhs_diagnostic() {
     # T3.56: originally a v0.3.81 negative regression -- v[i] = X
     # pre-v0.3.81 segfaulted the compiler. v0.3.124 replaced the
     # diag-only stub with real indexed-assignment codegen via
-    # vec_set lowering. The fixture became positive (exits 0 iff
-    # the assignment lands the value at the right index). The bash
-    # mirror lagged the .ps1 update; v0.3.139 sync.
+    # vec_set lowering. The fixture returns the post-assignment
+    # value of v[1] which is 999 -- proves the assignment landed.
+    # Bash truncates exit status to 8 bits, so we compare against
+    # 231 (= 999 mod 256). The .ps1 mirror compares against 999
+    # directly because PowerShell preserves the full DWORD.
+    # Bash mirror lagged the .ps1 update; v0.3.140 sync.
     "$BIN" build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache >/tmp/_nuc_step.log 2>&1
     local exe
     if [ -x "target/_t356_check" ]; then exe="target/_t356_check"; else exe="target/_t356_check.exe"; fi
     [ -x "$exe" ] || return 1
     "$exe" >/dev/null 2>&1
-    [ "$?" -eq 0 ] || return 1
+    [ "$?" -eq 231 ] || return 1
     return 0
 }
 
