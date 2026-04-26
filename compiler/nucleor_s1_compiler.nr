@@ -95,8 +95,18 @@ fn classify_kw(w: str) -> i64 {
     if str_eq(w, "unsafe") { return 77; };
     if str_eq(w, "wrapping") { return 78; };
     if str_eq(w, "saturating") { return 79; };
-    if str_eq(w, "scope") { return 80; };
-    if str_eq(w, "spawn") { return 81; };
+    // v0.3.138: removed reserved-but-unused `scope` (was 80) and
+    // `spawn` (was 81) keyword classifications. Same hazard class
+    // as the v0.3.137 `pure` fix — the lexer hard-classified these
+    // names as keywords, but parse_primary had no branch for tokens
+    // 80/81 in expression position so any user fn or call site named
+    // `scope` or `spawn` collapsed to silent `int_lit 0` in the IR.
+    // Both names are common in user code (RAII helpers, threading /
+    // async wrappers, parser combinators) and zero `scope { … }` /
+    // `spawn { … }` block-form usage exists in the entire repo —
+    // the parse_stmts branch that consumed those tokens was dead.
+    // Future RFCs that resurrect block-form `scope { … }` will need
+    // contextual lexing (pkv lookahead) instead of hard kw mapping.
     if str_eq(w, "loop") { return 84; };
     if str_eq(w, "as") { return 86; };
     return 1;
@@ -1474,12 +1484,11 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if pk(tokens, cp) == 43 { cp = cp + 1; };
         return pr(cp, pr_val(r));
     };
-    if tt == 80 || tt == 81 {
-        let mut r: Vec<i32> = parse_passthrough_block_expr(tokens, pos + 1, pool);
-        let mut cp: i64 = pr_pos(r);
-        if pk(tokens, cp) == 43 { cp = cp + 1; };
-        return pr(cp, pr_val(r));
-    };
+    // v0.3.138: removed dead `tt == 80 || tt == 81` branch (the
+    // `scope { … }` / `spawn { … }` passthrough-block form). The
+    // surrounding kw classifications were dropped — see classify_kw
+    // for the rationale (silent-miscompute hazard for user fns named
+    // `scope` or `spawn`).
     if tt == 16 { return parse_return_stmt(tokens, pos + 1, pool); };
     if tt == 18 { let mut cp: i64 = pos + 1; if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, mk2(pool, 26, 0)); };
     if tt == 19 { let mut cp: i64 = pos + 1; if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, mk2(pool, 27, 0)); };
@@ -14488,7 +14497,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.137";
+    return "0.3.138";
 }
 
 fn compiler_backend_label() -> str {
