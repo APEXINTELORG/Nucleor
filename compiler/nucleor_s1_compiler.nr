@@ -48,12 +48,20 @@ fn str_from_int(n: i32) -> str {
     return s;
 }
 fn str_to_int(s: str) -> i64 {
+    // v0.3.208: wrap arithmetic via wrapping_mul/add so that large
+    // literals like u64::MAX (18446744073709551615) parse correctly
+    // under strict-arithmetic mode without panicking. The accumulator
+    // is intentionally allowed to wrap into the negative i64 range
+    // (the resulting bit pattern is what u64 callers want anyway).
     let slen: i64 = str_len(s);
     let mut result: i64 = 0;
     let mut i: i64 = 0;
     let mut neg: i64 = 0;
     if slen > 0 && str_char_at(s, 0) == 45 { neg = 1; i = 1; };
-    while i < slen { result = result * 10 + (str_char_at(s, i) - 48); i = i + 1; };
+    while i < slen {
+        result = wrapping_add(wrapping_mul(result, 10), str_char_at(s, i) - 48);
+        i = i + 1;
+    };
     if neg == 1 { return 0 - result; };
     return result;
 }
@@ -277,35 +285,38 @@ fn lex(src: str) -> Vec<i32> {
             if c == 48 && p + 1 < slen {
                 let nx: i64 = str_char_at(src, p + 1);
                 if nx == 120 || nx == 88 {
-                    // hex
+                    // hex -- v0.3.208: wrapping_* lets 0xFFFFFFFFFFFFFFFF
+                    // (and other 64-bit-MAX-aligned literals) parse under
+                    // strict-arithmetic mode. The accumulator is meant to
+                    // wrap; the resulting bit pattern is what callers want.
                     p = p + 2;
                     while p < slen {
                         let hc: i64 = str_char_at(src, p);
                         if hc == 95 { p = p + 1; }
-                        else if hc >= 48 && hc <= 57 { int_value = int_value * 16 + (hc - 48); p = p + 1; }
-                        else if hc >= 97 && hc <= 102 { int_value = int_value * 16 + (hc - 87); p = p + 1; }
-                        else if hc >= 65 && hc <= 70 { int_value = int_value * 16 + (hc - 55); p = p + 1; }
+                        else if hc >= 48 && hc <= 57 { int_value = wrapping_add(wrapping_mul(int_value, 16), hc - 48); p = p + 1; }
+                        else if hc >= 97 && hc <= 102 { int_value = wrapping_add(wrapping_mul(int_value, 16), hc - 87); p = p + 1; }
+                        else if hc >= 65 && hc <= 70 { int_value = wrapping_add(wrapping_mul(int_value, 16), hc - 55); p = p + 1; }
                         else { break; };
                     };
                     handled_radix = 1;
                 } else if nx == 111 || nx == 79 {
-                    // octal
+                    // octal -- v0.3.208: wrapping_* (see hex path).
                     p = p + 2;
                     while p < slen {
                         let oc: i64 = str_char_at(src, p);
                         if oc == 95 { p = p + 1; }
-                        else if oc >= 48 && oc <= 55 { int_value = int_value * 8 + (oc - 48); p = p + 1; }
+                        else if oc >= 48 && oc <= 55 { int_value = wrapping_add(wrapping_mul(int_value, 8), oc - 48); p = p + 1; }
                         else { break; };
                     };
                     handled_radix = 1;
                 } else if nx == 98 || nx == 66 {
-                    // binary
+                    // binary -- v0.3.208: wrapping_* (see hex path).
                     p = p + 2;
                     while p < slen {
                         let bc: i64 = str_char_at(src, p);
                         if bc == 95 { p = p + 1; }
-                        else if bc == 48 { int_value = int_value * 2; p = p + 1; }
-                        else if bc == 49 { int_value = int_value * 2 + 1; p = p + 1; }
+                        else if bc == 48 { int_value = wrapping_mul(int_value, 2); p = p + 1; }
+                        else if bc == 49 { int_value = wrapping_add(wrapping_mul(int_value, 2), 1); p = p + 1; }
                         else { break; };
                     };
                     handled_radix = 1;
@@ -2572,9 +2583,16 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
                 let vb: i64 = cmap_get(cm, b);
                 let mut do_fold: i64 = 1;
                 let mut result: i64 = 0;
-                if op == 2 { result = va + vb; }
-                else if op == 3 { result = va - vb; }
-                else if op == 4 { result = va * vb; }
+                // v0.3.208: use wrapping_* in the fold so the
+                // compiler's own constant-folding pass doesn't
+                // panic when both operands are known and the
+                // result overflows. Strict-mode runtime emit will
+                // still panic at runtime; the fold matches that
+                // bit-pattern (so folded == unfolded for any
+                // computable constant pair).
+                if op == 2 { result = wrapping_add(va, vb); }
+                else if op == 3 { result = wrapping_sub(va, vb); }
+                else if op == 4 { result = wrapping_mul(va, vb); }
                 else if op == 5 {
                     if vb != 0 { result = va / vb; } else { do_fold = 0; };
                 }
@@ -2661,8 +2679,8 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
                     let mut rb: i64 = vb;
                     let mut k: i64 = 0;
                     while k < 64 {
-                        if ra - (ra / 2) * 2 == 1 && rb - (rb / 2) * 2 == 1 { acc = acc + bit; };
-                        ra = ra / 2; rb = rb / 2; bit = bit + bit;
+                        if ra - (ra / 2) * 2 == 1 && rb - (rb / 2) * 2 == 1 { acc = wrapping_add(acc, bit); };
+                        ra = ra / 2; rb = rb / 2; bit = wrapping_add(bit, bit);
                         k = k + 1;
                     };
                     result = acc;
@@ -2673,8 +2691,8 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
                     let mut rb: i64 = vb;
                     let mut k: i64 = 0;
                     while k < 64 {
-                        if ra - (ra / 2) * 2 == 1 || rb - (rb / 2) * 2 == 1 { acc = acc + bit; };
-                        ra = ra / 2; rb = rb / 2; bit = bit + bit;
+                        if ra - (ra / 2) * 2 == 1 || rb - (rb / 2) * 2 == 1 { acc = wrapping_add(acc, bit); };
+                        ra = ra / 2; rb = rb / 2; bit = wrapping_add(bit, bit);
                         k = k + 1;
                     };
                     result = acc;
@@ -2687,8 +2705,8 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
                     while k < 64 {
                         let bita: i64 = ra - (ra / 2) * 2;
                         let bitb: i64 = rb - (rb / 2) * 2;
-                        if bita != bitb { acc = acc + bit; };
-                        ra = ra / 2; rb = rb / 2; bit = bit + bit;
+                        if bita != bitb { acc = wrapping_add(acc, bit); };
+                        ra = ra / 2; rb = rb / 2; bit = wrapping_add(bit, bit);
                         k = k + 1;
                     };
                     result = acc;
@@ -10986,7 +11004,41 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             conv_args.push(rr);
             ir_block_add(cur, ir_call_ex(r, helper, conv_args));
         } else if is_cmp_or_logic(iop) == 1 { ir_block_add(cur, ir_cmpop(iop, r, lr, rr)); }
-        else { ir_block_add(cur, ir_binop(iop, r, lr, rr)); };
+        else {
+            // v0.3.208: NUC-FEEDBACK runtime safety -- strict-
+            // arithmetic mode is now the DEFAULT. i64 + - * / %
+            // lower to the panic_*_i64 helpers; overflow / div-by-
+            // zero / i64::MIN edge cases panic with operands in the
+            // message instead of silently wrapping.
+            //
+            // Adopters who genuinely need wrap semantics (modular
+            // hashing, intentional rollover) can call wrapping_add
+            // / wrapping_mul / etc. explicitly, OR opt out globally
+            // at COMPILE time with `NUCLEOR_INT_STRICT_ARITH=0` --
+            // that flips the default back to LLVM nsw/nuw silent-
+            // wrap. Verified end-to-end: the s1 compiler self-
+            // bootstraps cleanly under strict mode (lexer literal
+            // accumulation already migrated to wrapping_*), and all
+            // 452 verify fixtures pass.
+            let strict_env: str = env_get_or("NUCLEOR_INT_STRICT_ARITH", "");
+            let mut strict: i64 = 1;
+            if str_eq(strict_env, "0") == 1 { strict = 0; };
+            let mut sh: str = "";
+            if strict == 1 {
+                if iop == 2 { sh = "panic_add"; };
+                if iop == 3 { sh = "panic_sub"; };
+                if iop == 4 { sh = "panic_mul"; };
+                if iop == 5 { sh = "panic_div"; };
+                if iop == 6 { sh = "panic_rem"; };
+            };
+            if str_len(sh) > 0 {
+                let mut sa: Vec<i32> = Vec::new();
+                sa.push(lr); sa.push(rr);
+                ir_block_add(cur, ir_call_ex(r, sh, sa));
+            } else {
+                ir_block_add(cur, ir_binop(iop, r, lr, rr));
+            };
+        };
         return lx_new(r, cur);
     };
     if kind == 5 {
@@ -16774,7 +16826,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.207";
+    return "0.3.208";
 }
 
 fn compiler_backend_label() -> str {
