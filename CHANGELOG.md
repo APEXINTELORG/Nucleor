@@ -5,6 +5,31 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.195] — 2026-04-26
+
+**`println!("{}", if cond { f } else { 0.0 })` for f64 if-expr
+now dispatches to f64_to_str instead of int_to_str.** Sister
+fix to v0.3.192 (print(if-expr)) on the println! `{}` heuristic
+side.
+
+Pre-fix the format heuristic didn't recognize `if cond { ... }
+else { ... }` shape and fell through to int_to_str. For an
+if-expr returning f64, that printed the f64 bit pattern as i64
+(`4612811918334230528` instead of `2.5`).
+
+Same hazard class as v0.3.131/152/158/166/167/169/172/188 —
+the println! `{}` heuristic chain.
+
+Fix: detect leading `if ` prefix in the textual arg
+expression. Scan the entire expression for a float-shaped
+substring (decimal literal with digits on both sides, or
+`_f64(`/`_f32(` suffix). If found → f64_to_str; else
+int_to_str (the existing default for unknown types).
+
+Pinned by `tests/fixtures/t457_println_if_expr_float.nr`.
+Bootstrap fixed point at stage_d
+`37a432acaea37950b20c141e282d5e5b64fe8e9145ecb1de6469c0a4b261897c`.
+
 ## [0.3.194] — 2026-04-26
 
 **`print(h.get(k))` for `HashMap<K, V>` now dispatches by V

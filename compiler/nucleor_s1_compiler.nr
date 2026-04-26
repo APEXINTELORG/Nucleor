@@ -15513,6 +15513,45 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
     // behavior; the heuristic only corrects the obvious cases.
     if str_eq(spec, "") == 1 {
         let alen: i64 = str_len(arg_expr);
+        // v0.3.195: `if cond { ... } else { ... }` expression. Detect
+        // by leading "if " prefix. Scan the entire expression for a
+        // float-shaped substring (decimal literal, _f64(/_f32(
+        // suffix). If found -> f64_to_str. Otherwise int default.
+        // Catches `println!("{}", if f > 0.0 { f } else { 0.0 })`
+        // which pre-fix printed the f64 bit pattern as int.
+        if alen >= 3 && str_char_at(arg_expr, 0) == 105 && str_char_at(arg_expr, 1) == 102 && str_char_at(arg_expr, 2) == 32 {
+            let mut has_dot: i64 = 0;
+            let mut hi3: i64 = 0;
+            while hi3 < alen {
+                let hc3: i64 = str_char_at(arg_expr, hi3);
+                if hc3 == 46 {
+                    // Decimal literal candidate -- the `.` must have
+                    // a digit on at least one side and not be a
+                    // method-call separator. Quick heuristic: prev
+                    // and next must both be digit (e.g. "0.0", "3.14").
+                    let prev_c: i64 = if hi3 > 0 { str_char_at(arg_expr, hi3 - 1) } else { 32 };
+                    let next_c: i64 = if hi3 + 1 < alen { str_char_at(arg_expr, hi3 + 1) } else { 32 };
+                    let pd: i64 = if prev_c >= 48 && prev_c <= 57 { 1 } else { 0 };
+                    let nd: i64 = if next_c >= 48 && next_c <= 57 { 1 } else { 0 };
+                    if pd == 1 && nd == 1 { has_dot = 1; };
+                };
+                hi3 = hi3 + 1;
+            };
+            if has_dot == 0 {
+                let mut sj4: i64 = 0;
+                while sj4 + 5 <= alen {
+                    let probe4: str = str_substring(arg_expr, sj4, sj4 + 5);
+                    if str_eq(probe4, "_f64(") == 1 || str_eq(probe4, "_f32(") == 1 {
+                        has_dot = 1; sj4 = alen;
+                    };
+                    sj4 = sj4 + 1;
+                };
+            };
+            if has_dot == 1 {
+                return str_concat("f64_to_str(", str_concat(arg_expr, ")"));
+            };
+            return str_concat("int_to_str(", str_concat(arg_expr, ")"));
+        };
         // v0.3.169: unary not (`!expr`) is always bool. Adopters
         // writing `println!("{}", !flag)` got "0"/"1" via int_to_str
         // pre-fix; should be "false"/"true" per Rust's Display.
@@ -16606,7 +16645,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.194";
+    return "0.3.195";
 }
 
 fn compiler_backend_label() -> str {
