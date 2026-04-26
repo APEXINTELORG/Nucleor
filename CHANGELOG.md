@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.133] — 2026-04-25
+
+**NUC-FEEDBACK-006 closed — sub-micro f64 literals via runtime
+str_to_f64.** v0.3.130's truncate-to-6 fix handled long literals
+with meaningful digits in the first 6 fractional positions. But
+for SUB-MICRO literals like `0.00000001` (`1e-8`, the canonical
+AdamW eps), the first 6 frac digits are all `0` and truncation
+still produced zero. ML_Suite agent's PyTorch AdamW classifier
+loop saw NaN on the second optimizer step because
+`0 / (sqrt(0) + 0) = 0/0`.
+
+### Fix
+
+In the f64-literal lexer, detect when `raw_frac_len > 6` AND the
+first 6 frac digits are all `'0'` (i.e. the value is below the
+scaled-int's 1e-6 precision floor). In that case, build the
+literal text and call `str_to_f64` at lex time to get the i64
+bit pattern via the C runtime's `strtod`.
+
+Three coordinated additions:
+1. **Token kind 124** (raw-bits f64 literal) — value IS the i64
+   bit pattern.
+2. **AST kind 72** — emitted by parse_primary on tt==124.
+3. **lower_expr kind 72** — emits the bit pattern as a direct
+   `const_int`. No `f64_from_scaled` divide needed since Nucleor's
+   f64 IS the i64 bit pattern at the runtime ABI level.
+
+Type-tracking helpers (`binop_float_type`, `expr_struct_type`,
+ownership check) updated to recognize kind 72 as f64.
+
+The scaled-int fast path (kind 71) is preserved for normal-range
+literals (≥ 1e-6) so existing programs are unaffected.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t409 verifies the canonical
+AdamW eps pattern: `let eps: f64 = 0.00000001; let denom = sqrt(0.0)
++ eps; if denom > 0.0 { 42 }` returns 42 (denom is non-zero
+because eps preserves the bit pattern of 1e-8).
+`bin/nucleor.exe` SHA `2094458f`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — sub-micro detection in lexer,
+  token 124 / AST kind 72 paths, type-tracking updates.
+- `tests/fixtures/t409_sub_micro_f64_literal.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.132] — 2026-04-25
 
 **Format heuristic extension — `_f64(` / `_f32(` typed-wrapper
