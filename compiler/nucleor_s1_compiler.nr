@@ -132,7 +132,19 @@ fn classify_kw(w: str) -> i64 {
     // parse_passthrough_block_expr swallowed the rest of main's body
     // into a phantom block expression. Result: silent miscompute,
     // returns 0 instead of the user fn's return value.
-    if str_eq(w, "unsafe") { return 77; };
+    // v0.3.149: `unsafe` is contextual — only meaningful as the
+    // RFC-0003 `unsafe { ... }` block prefix. Pre-v0.3.149, classifying
+    // it as kw 77 unconditionally meant a user fn or call site named
+    // `unsafe(x)` lex'd to a non-identifier token. parse_primary's
+    // tt==77 branch called parse_passthrough_block_expr which expected
+    // `{`, found `(` instead, and printed two parse errors -- but the
+    // build did NOT halt. Downstream codegen still emitted .ll, clang
+    // still linked, and the exe returned 0 instead of the user fn's
+    // result. Silent miscompute hidden behind loud-looking but
+    // non-fatal parse-error output. Same hazard class as v0.3.137-v0.3.142
+    // contextual-kw fixes. Now: lexer emits identifier token 1 with
+    // value `"unsafe"`. parse_primary's branch checks pkv lookahead.
+    // Block form `unsafe { ... }` continues to work.
     if str_eq(w, "wrapping") { return 78; };
     if str_eq(w, "saturating") { return 79; };
     // v0.3.138: removed reserved-but-unused `scope` (was 80) and
@@ -765,7 +777,13 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // usage so this branch was unreachable for legitimate code; in
     // practice it only fired on user fns named `restricts` and
     // mangled the call site into a phantom block expression.
-    if tt == 77 { return parse_passthrough_block_expr(tokens, pos + 1, pool); };
+    // v0.3.149: `unsafe` contextual block — only when followed by `{`.
+    // Otherwise let the identifier path handle it (so `unsafe(x)` as
+    // a user fn call works). Uses && short-circuit (now correct since
+    // v0.3.148) to safely guard the pkv dereference.
+    if tt == 1 && str_eq(pkv(tokens, pos), "unsafe") == 1 && pk(tokens, pos + 1) == 52 {
+        return parse_passthrough_block_expr(tokens, pos + 1, pool);
+    };
     if tt == 78 { return parse_wrapped_block_expr(tokens, pos + 1, pool, 1); };
     if tt == 79 { return parse_wrapped_block_expr(tokens, pos + 1, pool, 2); };
     if tt == 1 {
@@ -14813,7 +14831,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.148";
+    return "0.3.149";
 }
 
 fn compiler_backend_label() -> str {
