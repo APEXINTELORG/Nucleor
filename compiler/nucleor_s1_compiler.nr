@@ -76,7 +76,17 @@ fn classify_kw(w: str) -> i64 {
     if str_eq(w, "for") { return 56; }; if str_eq(w, "in") { return 57; };
     if str_eq(w, "enum") { return 62; }; if str_eq(w, "match") { return 63; };
     if str_eq(w, "trait") { return 66; }; if str_eq(w, "impl") { return 67; };
-    if str_eq(w, "pure") { return 68; };
+    // v0.3.137: `pure` is contextual — only a keyword when followed by `fn`.
+    // Pre-v0.3.137, classifying `pure` as kw 68 unconditionally meant a user
+    // fn or call site named `pure(...)` lexed to a non-identifier token,
+    // parse_primary silently fell through to its `int_lit 0` default, and
+    // the entire call was replaced by 0 in the IR with NO diagnostic.
+    // Same hazard class as the v0.3.126 user-fn shadowing bug — silent
+    // miscompute for any adopter who happens to name a fn `pure`. The
+    // `pure fn` declaration form is recognised in parse_program by
+    // checking `pkv == "pure" && pk(cp+1) == 10`, so the modifier still
+    // works without paying the contextual-keyword tax in expression
+    // position. See tests/fixtures/t411_user_fn_named_pure.nr.
     if str_eq(w, "pub") { return 72; };
     if str_eq(w, "const") { return 73; };
     if str_eq(w, "type") { return 74; };
@@ -2188,7 +2198,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             let mut r: Vec<i32> = parse_impl_block(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r);
             pending_pub = 0;
         }
-        else if pk(tokens, cp) == 68 && pk(tokens, cp + 1) == 10 {
+        else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "pure") == 1 && pk(tokens, cp + 1) == 10 {
             // pure fn — parse as fn_decl, mark name with __pure_ prefix internally
             let mut r: Vec<i32> = parse_fn_decl(tokens, cp + 2, pool);
             let fn_nid: i64 = pr_val(r);
@@ -14478,7 +14488,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.136";
+    return "0.3.137";
 }
 
 fn compiler_backend_label() -> str {

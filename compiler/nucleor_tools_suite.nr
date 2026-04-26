@@ -75,7 +75,10 @@ fn classify_kw(w: str) -> i64 {
     if str_eq(w, "for") { return 56; }; if str_eq(w, "in") { return 57; };
     if str_eq(w, "enum") { return 62; }; if str_eq(w, "match") { return 63; };
     if str_eq(w, "trait") { return 66; }; if str_eq(w, "impl") { return 67; };
-    if str_eq(w, "pure") { return 68; };
+    // v0.3.137: `pure` is contextual — only kw when followed by `fn`.
+    // Mirrored from compiler; user fn or call site `pure(...)` was being
+    // silently miscompiled to const 0 because parse_primary fell through
+    // its default int_lit branch on the unrecognised keyword token.
     if str_eq(w, "pub") { return 72; };
     if str_eq(w, "const") { return 73; };
     if str_eq(w, "type") { return 74; };
@@ -1331,7 +1334,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             let mut r: Vec<i32> = parse_impl_block(tokens, cp + 1, pool); items.push(pr_val(r)); cp = pr_pos(r);
             pending_pub = 0;
         }
-        else if pk(tokens, cp) == 68 && pk(tokens, cp + 1) == 10 {
+        else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "pure") == 1 && pk(tokens, cp + 1) == 10 {
             // pure fn — parse as fn_decl, mark name with __pure_ prefix internally
             let mut r: Vec<i32> = parse_fn_decl(tokens, cp + 2, pool);
             let fn_nid: i64 = pr_val(r);
