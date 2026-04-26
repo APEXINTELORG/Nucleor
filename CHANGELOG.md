@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.165] — 2026-04-26
+
+**`print(a + b)` for binop results now dispatches by op/type
+instead of SIGSEGVing.** Closes another print-dispatch gap from
+the v0.3.143/163/164 chain.
+
+Pre-v0.3.165, the print() type-aware dispatch handled AST kinds
+1 (int literal), 71/72 (f64 literals), 3 (var ref), 7 (fn call),
+9 (struct field, v0.3.163), and 10 (index expression, v0.3.164).
+Binop results (kind 4) fell through to the default
+`__nucleor_print_str`. For typed arithmetic (i64+i64, f64*f64) and
+comparisons, `print(a + b)` treated the numeric/bool result as a
+pointer — SIGSEGV when the helper dereferenced.
+
+`print(a + b)` where `a, b: i64` SIGSEGV'd. Same hazard class as
+the rest of the print() chain — adopter writes the canonical
+arithmetic-print pattern, gets a crash with no diagnostic.
+
+Fix: in the print() dispatch, when arg kind is 4 (binop), select
+the helper by op code:
+- 30/31/32/33/34/35/36/37 (`==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`,
+  `||`) → `__nucleor_print_bool`
+- `binop_float_type` returns `f32`/`f64` → `__nucleor_print_f64`
+- else → `__nucleor_print_i64` (arith on ints + bitwise)
+
+The default-to-i64 is sound because Nucleor binops only produce
+i64, f32/f64, or bool: no operator overloading; `str + str` not
+supported; bool arith is a `TYP-002` compile-time error.
+
+Pinned by `tests/fixtures/t432_print_binop_dispatch.nr`.
+Bootstrap fixed point at stage_d
+`90947209213ec3f27b262c6fbf85e8bfe53f7dc7c430ac1470c898f7cbbce4e6`.
+Verify gate green.
+
 ## [0.3.164] — 2026-04-26
 
 **`print(v[i])` for typed vec elements now dispatches by element
