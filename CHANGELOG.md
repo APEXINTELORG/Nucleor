@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.188] — 2026-04-26
+
+**`for s in stats.iter() { println!("{}", s.field) }` now infers
+s's type from the for-loop expression and dispatches struct
+fields correctly.** Sister fix to v0.3.166 (println! struct
+field) and v0.3.175 (for-loop var type registration).
+
+Pre-v0.3.188, `for s in stats.iter() { println!("{} = {}",
+s.name, s.mean) }` printed pointer addresses for `s.name` and
+`s.mean` even though `Stat` is `{ name: str, mean: f64, ... }`.
+The println! `{}` heuristic detected the `<recv>.<field>` shape
+but `infer_var_type_from_source` only knew about `let X: TYPE`
+declarations — not for-loop bindings.
+
+Same hazard class as v0.3.166/167/172 — adopters writing
+canonical iterate-and-print patterns get pointer addresses with
+no diagnostic.
+
+Fix: extend `infer_var_type_from_source` to also recognize
+`for <var_name> in <iter_expr>` patterns. When found, recurse
+on the iter expression to derive the receiver's full type, then
+strip one container layer (`Vec<T>` → T). Also strips trailing
+`.iter()` / `.into_iter()` from the iter expression.
+
+This change is additive — the existing `let X: TYPE` lookup
+runs first; the for-loop scan only fires as a fallback when no
+`let` declaration is found. Existing callers unaffected.
+
+Pinned by `tests/fixtures/t454_println_for_loop_struct_field.nr`.
+Bootstrap fixed point at stage_d
+`887200676d1b11f8dd20903bcceaefab80432af1d0dee313603d42dd2823b4cd`.
+
 ## [0.3.187] — 2026-04-26
 
 **`for n in v.iter() { print(n); }` now works instead of
