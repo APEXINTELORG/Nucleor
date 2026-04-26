@@ -145,8 +145,18 @@ fn classify_kw(w: str) -> i64 {
     // contextual-kw fixes. Now: lexer emits identifier token 1 with
     // value `"unsafe"`. parse_primary's branch checks pkv lookahead.
     // Block form `unsafe { ... }` continues to work.
-    if str_eq(w, "wrapping") { return 78; };
-    if str_eq(w, "saturating") { return 79; };
+    // v0.3.150: `wrapping` and `saturating` are contextual. Pre-fix,
+    // both lex'd as hard kw tokens for the RFC overflow-block forms
+    // `wrapping { ... }` / `saturating { ... }` -- but parse_primary's
+    // tt == 78/79 branches called parse_wrapped_block_expr, which when
+    // given `(x)` instead of `{x}` parsed the inner expression as the
+    // wrap target and emitted a call to __nucleor_wrap_i32. That helper
+    // doesn't exist for the i64 ABI -- adopters writing
+    // `fn wrapping(x) { ... }` and calling `wrapping(41)` got a clang
+    // LINK error pointing at IR they didn't write. Same hazard class
+    // as the v0.3.149 unsafe fix: noisy non-fatal-looking failure mode
+    // that doesn't actually halt cleanly. Both names have ZERO block-form
+    // usage in the codebase, same as v0.3.140 restricts.
     // v0.3.138: removed reserved-but-unused `scope` (was 80) and
     // `spawn` (was 81) keyword classifications. Same hazard class
     // as the v0.3.137 `pure` fix — the lexer hard-classified these
@@ -784,8 +794,10 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 1 && str_eq(pkv(tokens, pos), "unsafe") == 1 && pk(tokens, pos + 1) == 52 {
         return parse_passthrough_block_expr(tokens, pos + 1, pool);
     };
-    if tt == 78 { return parse_wrapped_block_expr(tokens, pos + 1, pool, 1); };
-    if tt == 79 { return parse_wrapped_block_expr(tokens, pos + 1, pool, 2); };
+    // v0.3.150: removed dead tt == 78/79 branches (wrapping/saturating).
+    // classify_kw no longer maps these to 78/79; the kw block forms had
+    // zero usage anywhere in the codebase. User fns named `wrapping` or
+    // `saturating` now lex/parse as normal identifiers.
     if tt == 1 {
         let name: i64 = pkv(tokens, pos);
         if str_eq(name, "Some") == 1 || str_eq(name, "None") == 1 || str_eq(name, "Ok") == 1 || str_eq(name, "Err") == 1 {
@@ -14831,7 +14843,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.149";
+    return "0.3.150";
 }
 
 fn compiler_backend_label() -> str {
