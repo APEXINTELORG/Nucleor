@@ -12390,6 +12390,13 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let ar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, ar);
         let mut loop_sym: Vec<i32> = sym_clone(sym);
         sym_set(loop_sym, name, ar);
+        // v0.3.175: register the for-loop variable's type as i64 so
+        // print(i) and other type-aware dispatches don't fall through
+        // to print_str. Pre-fix `for i in 0..3 { print(i); }` SIGSEGV'd
+        // because __type_i was never set, the dispatch defaulted to
+        // print_str, and print_str dereferenced the i64 loop value as
+        // a string pointer.
+        sym_set(loop_sym, str_concat("__type_", name), "i64");
         let mut sp: Vec<i32> = lower_expr(pool, node_field(pool, nid, 2), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let sv: i64 = lx_reg(sp);
         cur = lx_blk(sp);
@@ -12422,6 +12429,17 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let idx_slot: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, idx_slot);
         let mut loop_sym: Vec<i32> = sym_clone(sym);
         sym_set(loop_sym, name, item_slot);
+        // v0.3.175: register the loop item's type when the iterator
+        // is a known container (Vec<T> -> T). Same fix as kind 28.
+        // Falls through silently when iterator type isn't a container,
+        // preserving existing behaviour.
+        let iter_etype_full: str = indexed_element_full_type(pool, node_field(pool, nid, 2), sym, structs);
+        if str_len(iter_etype_full) > 0 {
+            let iter_etype_base: str = type_base_name(iter_etype_full);
+            if str_len(iter_etype_base) > 0 {
+                sym_set(loop_sym, str_concat("__type_", name), iter_etype_base);
+            };
+        };
         let mut sp: Vec<i32> = lower_expr(pool, node_field(pool, nid, 2), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let sv: i64 = lx_reg(sp);
         cur = lx_blk(sp);
@@ -15984,7 +16002,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.174";
+    return "0.3.175";
 }
 
 fn compiler_backend_label() -> str {
