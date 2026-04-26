@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.120] — 2026-04-25
+
+**JSONL evidence-emit rod (NUC-IMPROVE-003).** ML_Suite agent
+requested a structured stdout schema in their feedback doc; this
+ship delivers it as a stdlib rod (no compiler change).
+
+The rod emits one JSON object per line to stdout, designed for
+Python parity runners that want `json.loads`-clean output instead
+of fragile numeric stdout scraping.
+
+### API
+
+```
+import "stdlib/rods/jsonl.nr"
+
+emit_json_run_meta(case, suite, surface, dtype, rows, cols, policy);
+emit_json_metric_f64(name, value);
+emit_json_metric_i64(name, value);
+emit_json_array_f64(name, values_as_i64_bits, rows, cols);
+emit_json_array_i64(name, values, rows, cols);
+emit_json_status(passed);
+```
+
+### Schema
+
+Each emitter writes a single newline-terminated line. Examples:
+
+```json
+{"kind":"run_meta","case":"numpy_matmul_f64","suite":"nucleor_ml_suite","surface":"nuc::tensor::matmul","dtype":"f64","shape":[2,2],"policy":"strict"}
+{"kind":"metric","name":"max_abs_error","dtype":"f64","value":0.0}
+{"kind":"array","name":"result","dtype":"f64","shape":[2,2],"values":[19.0,22.0,43.0,50.0]}
+{"kind":"status","passed":true}
+```
+
+`jsonl_quote()` escapes `\`, `"`, `\n`, `\r`, `\t` for safe
+embedding of arbitrary string identifiers.
+
+The agent's schema also requested SHA-256 in array entries — that
+needs a runtime helper for hashing and is deferred to a follow-up
+ship. The rod is forward-compatible: the array emitters can grow
+the field without breaking existing consumers.
+
+### Bootstrap
+
+No compiler change. Fixture t397 verifies all five API calls
+produce well-formed JSON-per-line output. `bin/nucleor.exe` SHA
+`9e9b28d7` (unchanged from v0.3.119). 452/452 verify gate green.
+
+### Files touched
+
+- `stdlib/rods/jsonl.nr` — new rod.
+- `tests/fixtures/t397_jsonl_emit.nr` — pin.
+- `docs/rfcs/rod_manifest.toml` — regenerated.
+- `Nucleor_ML_Suite/docs/NUCLEOR_LANGUAGE_FEEDBACK_RESPONSE.md` —
+  status updated to CLOSED.
+
 ## [0.3.119] — 2026-04-25
 
 **ML_Suite feedback batch — closes NUC-FEEDBACK-002 (narrow-float
