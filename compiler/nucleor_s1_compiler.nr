@@ -11027,6 +11027,49 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     // of well-known runtime helpers with deterministic
                     // i64/bool return types.
                     if str_len(p_helper) == 0 {
+                        // v0.3.182: HashMap<K, V>.get / hashmap_get
+                        // value-type lookup. Same hazard class as the
+                        // v0.3.181 Vec<str> fix -- pre-fix
+                        // print(hashmap_get(h, k)) for HashMap<K, str>
+                        // printed the str pointer as int. Parse the
+                        // receiver's full type to extract V (the second
+                        // generic parameter).
+                        let hm_val_callee: i64 = if str_eq(pfn_name, "hashmap_get") == 1
+                            || str_eq(pfn_name, "hashmap_get_or") == 1
+                            || str_eq(pfn_name, "hashmap_remove") == 1
+                            || str_eq(pfn_name, "btreemap_get") == 1 { 1 } else { 0 };
+                        if hm_val_callee == 1 {
+                            let pfn_args_h: i64 = node_field(pool, parg_nid, 2);
+                            if list_len(pool, pfn_args_h) > 0 {
+                                let recv_h_nid: i64 = list_get(pool, pfn_args_h, 0);
+                                let mut recv_h_full: str = "";
+                                if node_kind(pool, recv_h_nid) == 3 {
+                                    let rh_name: str = node_field(pool, recv_h_nid, 1);
+                                    let rh_t: i64 = sym_get(sym, str_concat("__fulltype_", rh_name));
+                                    if rh_t >= 0 { recv_h_full = rh_t; };
+                                };
+                                let v_type: str = generic_second_type(recv_h_full);
+                                if str_len(v_type) > 0 {
+                                    let v_base: str = type_base_name(v_type);
+                                    if str_eq(v_base, "i64") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(v_base, "i32") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(v_base, "i16") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(v_base, "i8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(v_base, "isize") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(v_base, "u64") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(v_base, "u32") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(v_base, "u16") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(v_base, "u8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(v_base, "usize") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(v_base, "f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                                    if str_eq(v_base, "f32") == 1 { p_helper = "__nucleor_print_f64"; };
+                                    if str_eq(v_base, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
+                                    // str -> fall through to default print_str.
+                                };
+                            };
+                        };
+                    };
+                    if str_len(p_helper) == 0 {
                         // v0.3.181: NUC-FEEDBACK-006 (parallel agent) --
                         // for vec_get/first/last/pop and similar Vec
                         // element returns, the element type comes from
@@ -11079,14 +11122,14 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         // 006 hazard; queued for a follow-on if it
                         // surfaces.
                         if str_len(p_helper) == 0 {
-                        if str_eq(pfn_name, "hashmap_get") == 1 { p_helper = "__nucleor_print_i64"; };
+                        // v0.3.182 superseded hashmap_get/hashmap_get_or/
+                        // hashmap_remove/btreemap_get -- those are now
+                        // handled by the value-type lookup above. Only
+                        // *_len/*_capacity (always i64) remain here.
                         if str_eq(pfn_name, "hashmap_len") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "hashmap_capacity") == 1 { p_helper = "__nucleor_print_i64"; };
-                        if str_eq(pfn_name, "hashmap_remove") == 1 { p_helper = "__nucleor_print_i64"; };
-                        if str_eq(pfn_name, "hashmap_get_or") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "hashset_len") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "btreemap_len") == 1 { p_helper = "__nucleor_print_i64"; };
-                        if str_eq(pfn_name, "btreemap_get") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "btreeset_len") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "vecdeque_len") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "vec_len") == 1 { p_helper = "__nucleor_print_i64"; };
@@ -12133,6 +12176,41 @@ fn populate_fn_returns_in_sym(pool: Vec<i32>, fn_decls: Vec<i32>, sym: Vec<i32>)
 //   "[f64; 3]"          → "f64"
 //   "[Vec<f64>; 4]"     → "Vec<f64>"
 // Returns "" for non-container shapes.
+// v0.3.182: extract the SECOND generic parameter (the value type)
+// from a HashMap<K, V> / BTreeMap<K, V> / similar two-arg generic.
+// Returns "" if the type isn't a recognized two-arg generic shape.
+// Used by the print() dispatch for hashmap_get etc. so
+// HashMap<str, str>.get returns the str element instead of dispatching
+// to print_i64 (NUC-FEEDBACK-006 follow-on).
+fn generic_second_type(t: str) -> str {
+    let tlen: i64 = str_len(t);
+    if tlen < 6 { return ""; };
+    // Find first `<`
+    let mut lt_pos: i64 = 0 - 1;
+    let mut i: i64 = 0;
+    while i < tlen {
+        if str_char_at(t, i) == 60 { lt_pos = i; i = tlen; };
+        i = i + 1;
+    };
+    if lt_pos < 0 { return ""; };
+    if str_char_at(t, tlen - 1) != 62 { return ""; };
+    // Walk inside `<...>` tracking depth; find first `,` at depth 0.
+    let mut depth: i64 = 0;
+    let mut comma_pos: i64 = 0 - 1;
+    let mut j: i64 = lt_pos + 1;
+    while j < tlen - 1 {
+        let cj: i64 = str_char_at(t, j);
+        if cj == 60 { depth = depth + 1; }
+        else if cj == 62 { depth = depth - 1; }
+        else if cj == 44 && depth == 0 { comma_pos = j; j = tlen; };
+        j = j + 1;
+    };
+    if comma_pos < 0 { return ""; };
+    let mut vs: i64 = comma_pos + 1;
+    while vs < tlen - 1 && str_char_at(t, vs) == 32 { vs = vs + 1; };
+    return str_substring(t, vs, tlen - 1);
+}
+
 fn strip_container_one_level(t: str) -> str {
     let tlen: i64 = str_len(t);
     if str_starts_with(t, "Vec<") == 1 && tlen > 5 && str_char_at(t, tlen - 1) == 62 {
@@ -16198,7 +16276,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.181";
+    return "0.3.182";
 }
 
 fn compiler_backend_label() -> str {
