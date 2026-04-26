@@ -5,6 +5,33 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.175] — 2026-04-26
+
+**`for i in 0..n { print(i); }` now works instead of SIGSEGVing.**
+Closes another print()-dispatch SIGSEGV gap — for-loop variables
+were never registered with `__type_<name>` in the sym table, so
+the kind-3 (var ref) print() dispatch fell through to
+`__nucleor_print_str` and dereferenced the i64 loop value as a
+string pointer.
+
+Same hazard class as v0.3.143/163/164/165/168 print()-dispatch
+gaps — adopter writes a canonical for-loop and gets a crash with
+no diagnostic.
+
+Fix in two for-loop AST kinds:
+- **kind 28 (range form, `for i in 0..n`)**: unconditionally
+  set `__type_<name>` to `"i64"` (range elements are always
+  i64 in Nucleor).
+- **kind 49 (iter form, `for x in vec`)**: use
+  `indexed_element_full_type` to derive the element type from
+  the iterator (`Vec<T>` → `T`) and set `__type_<name>`
+  accordingly. Falls through silently when the iterator type
+  isn't a known container, preserving existing behaviour.
+
+Pinned by `tests/fixtures/t442_for_loop_var_print_dispatch.nr`.
+Bootstrap fixed point at stage_d
+`1d0c42e542a1147af0010294c9792573b466313c11945e159d9f30ddd38d2bd7`.
+
 ## [0.3.174] — 2026-04-26
 
 **Extended literal-only WARNING to remaining adopter-facing
