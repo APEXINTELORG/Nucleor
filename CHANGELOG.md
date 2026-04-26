@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.176] — 2026-04-26
+
+**`match Some(v) => print(v)` and friends now work instead of
+SIGSEGVing.** Closes the match-arm-binding sibling of v0.3.175's
+for-loop variable fix.
+
+Pre-v0.3.176, match arm pattern bindings (the variables bound by
+matching an enum variant payload, e.g. `Some(v)`, or by literal
+patterns `__wild`/`__int`/`__str`) were never registered with
+`__type_<name>` in the sym table. So `match x { Some(v) =>
+print(v), ... }` SIGSEGV'd because the kind-3 (var ref) print()
+dispatch fell through to `print_str` and dereferenced the
+payload as a string pointer.
+
+Same hazard class as v0.3.175 for-loop variable fix.
+
+Fix in two sites:
+1. **`match_bind_payloads` helper** (used by enum variant arms,
+   e.g. `Some(v)`, `Variant(a, b, c)`): set `__type_<name>` to
+   `"i64"` after each payload binding.
+2. **The 6 `sym_set(arm_sym, binding, bar)` sites** (used by
+   `__wild`/`__int`/`__str` pattern bindings): same i64 default.
+
+All bindings default to i64 (Nucleor's i64-everywhere ABI for
+enum payloads and primitive match captures). For non-i64 payload
+types (e.g. f64 inside an enum), adopters should still use the
+typed format spec (`{:f}`).
+
+Pinned by `tests/fixtures/t443_match_arm_payload_print.nr`.
+Bootstrap fixed point at stage_d
+`224d94248d1d8f5de81382493139ab91c410c8df95daaf3842b69ba74e560556`.
+
 ## [0.3.175] — 2026-04-26
 
 **`for i in 0..n { print(i); }` now works instead of SIGSEGVing.**

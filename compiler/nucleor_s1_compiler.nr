@@ -10238,6 +10238,11 @@ fn match_bind_payloads(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32
         if str_len(name) > 0 {
             let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
             sym_set(sym, name, bar);
+            // v0.3.176: register the payload's type so print(v) on
+            // an enum variant binding doesn't fall through to print_str.
+            // Default to i64 (Nucleor's i64-everywhere ABI for enum
+            // payloads). Pre-fix `match Some(v) => print(v)` SIGSEGV'd.
+            sym_set(sym, str_concat("__type_", name), "i64");
             let mv2: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv2, mslot));
             let idx_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(idx_r, payload_idx));
             let mut get_args: Vec<i32> = Vec::new(); get_args.push(mv2); get_args.push(idx_r);
@@ -11591,6 +11596,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 if str_len(binding) > 0 {
                     let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
                     sym_set(arm_sym, binding, bar);
+                    sym_set(arm_sym, str_concat("__type_", binding), "i64");
                     let mv: i64 = ctr_next(regs); ir_block_add(ab, ir_load(mv, mslot));
                     ir_block_add(ab, ir_store(mv, bar));
                 };
@@ -11629,6 +11635,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 if str_len(binding) > 0 {
                     let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
                     sym_set(arm_sym, binding, bar);
+                    sym_set(arm_sym, str_concat("__type_", binding), "i64");
                     let mv2: i64 = ctr_next(regs); ir_block_add(ab, ir_load(mv2, mslot));
                     ir_block_add(ab, ir_store(mv2, bar));
                 };
@@ -11680,6 +11687,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 if str_len(binding) > 0 {
                     let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
                     sym_set(arm_sym, binding, bar);
+                    sym_set(arm_sym, str_concat("__type_", binding), "i64");
                     let mv2: i64 = ctr_next(regs); ir_block_add(ab, ir_load(mv2, mslot));
                     ir_block_add(ab, ir_store(mv2, bar));
                 };
@@ -12503,6 +12511,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 if str_len(binding) > 0 {
                     let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
                     sym_set(arm_sym, binding, bar);
+                    sym_set(arm_sym, str_concat("__type_", binding), "i64");
                     let mv: i64 = ctr_next(regs); ir_block_add(ab, ir_load(mv, mslot));
                     ir_block_add(ab, ir_store(mv, bar));
                 };
@@ -12529,6 +12538,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 if str_len(binding) > 0 {
                     let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
                     sym_set(arm_sym, binding, bar);
+                    sym_set(arm_sym, str_concat("__type_", binding), "i64");
                     let mv2: i64 = ctr_next(regs); ir_block_add(ab, ir_load(mv2, mslot));
                     ir_block_add(ab, ir_store(mv2, bar));
                 };
@@ -12557,6 +12567,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 if str_len(binding) > 0 {
                     let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
                     sym_set(arm_sym, binding, bar);
+                    sym_set(arm_sym, str_concat("__type_", binding), "i64");
                     let mv2: i64 = ctr_next(regs); ir_block_add(ab, ir_load(mv2, mslot));
                     ir_block_add(ab, ir_store(mv2, bar));
                 };
@@ -16002,7 +16013,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.175";
+    return "0.3.176";
 }
 
 fn compiler_backend_label() -> str {
