@@ -9732,6 +9732,33 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                     };
                 };
             };
+            // v0.3.173: extend the literal-only WARNING to tokenizer
+            // (tok_*, nuc_tok_*) helpers that take a handle at arg-0.
+            // Same hazard class as vec_*/hashmap_*: passing an int
+            // literal where a tokenizer handle is expected SIGSEGVs
+            // at runtime. ML adopters use these heavily.
+            let needs_tok_lit_check: i64 = if str_eq(callee, "tok_encode") == 1
+                || str_eq(callee, "tok_decode") == 1
+                || str_eq(callee, "tok_vocab_size") == 1
+                || str_eq(callee, "tok_save") == 1
+                || str_eq(callee, "tok_free") == 1
+                || str_eq(callee, "tok_vec_len") == 1
+                || str_eq(callee, "tok_vec_at") == 1
+                || str_eq(callee, "tok_vec_free") == 1
+                || str_eq(callee, "nuc_tok_encode") == 1
+                || str_eq(callee, "nuc_tok_decode") == 1
+                || str_eq(callee, "nuc_tok_vocab_size") == 1
+                || str_eq(callee, "nuc_tok_save") == 1
+                || str_eq(callee, "nuc_tok_free") == 1
+                || str_eq(callee, "nuc_tok_vec_len") == 1
+                || str_eq(callee, "nuc_tok_vec_at") == 1
+                || str_eq(callee, "nuc_tok_vec_free") == 1 { 1 } else { 0 };
+            if needs_tok_lit_check == 1 {
+                let larg_t: i64 = list_get(pool, args, 0);
+                if node_kind(pool, larg_t) == 1 {
+                    print(str_concat("WARNING: ", str_concat(callee, "(<int_literal>, ...) passes an int literal where a tokenizer handle is expected. This will SIGSEGV at runtime. Pass a real handle (e.g. let t: i64 = tok_bpe_train(text, 1024); ...).")));
+                };
+            };
         };
         if type_dynamic_helper(callee) == 1 { tprof_mark(tprof, 9, 10, call_start); return ""; };
         let sig_start: i64 = tprof_start(tprof);
@@ -15910,7 +15937,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.172";
+    return "0.3.173";
 }
 
 fn compiler_backend_label() -> str {
