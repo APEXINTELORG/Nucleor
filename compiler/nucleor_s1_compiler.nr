@@ -10370,6 +10370,107 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 return lx_new(er, ecur);
             };
         };
+        // v0.3.148: short-circuit lowering for `&&` (op 36) and `||` (op 37).
+        // Pre-v0.3.148, both lowered to bitwise `and i64` / `or i64` of
+        // both operand values, evaluating the RHS unconditionally even
+        // when the LHS already determined the result. The LOGIC was
+        // correct for boolean (0/1) values, but any RHS with side
+        // effects or pointer-deref would run when the LHS guard said
+        // it shouldn't. The canonical hazard:
+        //
+        //   if x != 0 && deref(x).field == y { ... }
+        //
+        // pre-fix evaluates deref(x) even when x == 0, which crashes
+        // for any caller relying on short-circuit safety.
+        //
+        // Fix: emit branch IR. For `A && B`:
+        //   1. eval A → a_r
+        //   2. cmp a_r != 0 → cond
+        //   3. result alloca (in entry block, hoisted via ir_fn_add_entry_alloca)
+        //   4. br cond, eval_b, false_lbl
+        //   eval_b: eval B → b_r ; cmp b_r != 0 → b_bool ; store b_bool, result ; br merge
+        //   false_lbl: store 0, result ; br merge
+        //   merge: load result → final
+        //
+        // For `A || B`: invert — true branch stores 1, false branch
+        // evals B and stores its truthy projection.
+        //
+        // The earlier v0.3.145 attempt at this fix used `ir_block_add` for
+        // the result alloca (mid-function placement), which broke stage C
+        // self-host with a silent exit on large source. Stage A's compiler
+        // didn't tolerate mid-function allocas in the way LLVM expected.
+        // v0.3.148 hoists allocas to the entry block via
+        // `ir_fn_add_entry_alloca` — the same pattern the while/loop
+        // lowering already uses for its loop-counter alloca.
+        let bopz: i64 = node_field(pool, nid, 1);
+        if bopz == 36 {
+            let mut lpz: Vec<i32> = lower_expr(pool, node_field(pool, nid, 2), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+            let lrz: i64 = lx_reg(lpz);
+            let mut lcur: Vec<i32> = lx_blk(lpz);
+            let res_slot: i64 = ctr_next(regs);
+            ir_fn_add_entry_alloca(fir, res_slot);
+            let z1: i64 = ctr_next(regs); ir_block_add(lcur, ir_const_int(z1, 0));
+            let lcond: i64 = ctr_next(regs);
+            ir_block_add(lcur, ir_cmpop(8, lcond, lrz, z1));
+            let r_lbl_a: i64 = ctr_next(lbls);
+            let f_lbl_a: i64 = ctr_next(lbls);
+            let m_lbl_a: i64 = ctr_next(lbls);
+            ir_block_add(lcur, ir_br_cond(lcond, r_lbl_a, f_lbl_a));
+            let mut rblk_a: Vec<i32> = ir_block_new(r_lbl_a);
+            ir_fn_add_block(fir, rblk_a);
+            let mut rpa: Vec<i32> = lower_expr(pool, node_field(pool, nid, 3), rblk_a, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+            let rra: i64 = lx_reg(rpa);
+            let rcur_a: Vec<i32> = lx_blk(rpa);
+            let z2: i64 = ctr_next(regs); ir_block_add(rcur_a, ir_const_int(z2, 0));
+            let rcond_a: i64 = ctr_next(regs);
+            ir_block_add(rcur_a, ir_cmpop(8, rcond_a, rra, z2));
+            ir_block_add(rcur_a, ir_store(rcond_a, res_slot));
+            ir_block_add(rcur_a, ir_br(m_lbl_a));
+            let mut fblk_a: Vec<i32> = ir_block_new(f_lbl_a);
+            ir_fn_add_block(fir, fblk_a);
+            let z3: i64 = ctr_next(regs); ir_block_add(fblk_a, ir_const_int(z3, 0));
+            ir_block_add(fblk_a, ir_store(z3, res_slot));
+            ir_block_add(fblk_a, ir_br(m_lbl_a));
+            let mut mblk_a: Vec<i32> = ir_block_new(m_lbl_a);
+            ir_fn_add_block(fir, mblk_a);
+            let final_a: i64 = ctr_next(regs);
+            ir_block_add(mblk_a, ir_load(final_a, res_slot));
+            return lx_new(final_a, mblk_a);
+        };
+        if bopz == 37 {
+            let mut lpo: Vec<i32> = lower_expr(pool, node_field(pool, nid, 2), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+            let lro: i64 = lx_reg(lpo);
+            let mut ocur: Vec<i32> = lx_blk(lpo);
+            let res_slot_o: i64 = ctr_next(regs);
+            ir_fn_add_entry_alloca(fir, res_slot_o);
+            let z1o: i64 = ctr_next(regs); ir_block_add(ocur, ir_const_int(z1o, 0));
+            let lcond_o: i64 = ctr_next(regs);
+            ir_block_add(ocur, ir_cmpop(8, lcond_o, lro, z1o));
+            let t_lbl_o: i64 = ctr_next(lbls);
+            let f_lbl_o: i64 = ctr_next(lbls);
+            let m_lbl_o: i64 = ctr_next(lbls);
+            ir_block_add(ocur, ir_br_cond(lcond_o, t_lbl_o, f_lbl_o));
+            let mut tblk_o: Vec<i32> = ir_block_new(t_lbl_o);
+            ir_fn_add_block(fir, tblk_o);
+            let one_o: i64 = ctr_next(regs); ir_block_add(tblk_o, ir_const_int(one_o, 1));
+            ir_block_add(tblk_o, ir_store(one_o, res_slot_o));
+            ir_block_add(tblk_o, ir_br(m_lbl_o));
+            let mut fblk_o: Vec<i32> = ir_block_new(f_lbl_o);
+            ir_fn_add_block(fir, fblk_o);
+            let mut rpo: Vec<i32> = lower_expr(pool, node_field(pool, nid, 3), fblk_o, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+            let rro: i64 = lx_reg(rpo);
+            let rcur_o: Vec<i32> = lx_blk(rpo);
+            let z2o: i64 = ctr_next(regs); ir_block_add(rcur_o, ir_const_int(z2o, 0));
+            let rcond_o: i64 = ctr_next(regs);
+            ir_block_add(rcur_o, ir_cmpop(8, rcond_o, rro, z2o));
+            ir_block_add(rcur_o, ir_store(rcond_o, res_slot_o));
+            ir_block_add(rcur_o, ir_br(m_lbl_o));
+            let mut mblk_o: Vec<i32> = ir_block_new(m_lbl_o);
+            ir_fn_add_block(fir, mblk_o);
+            let final_o: i64 = ctr_next(regs);
+            ir_block_add(mblk_o, ir_load(final_o, res_slot_o));
+            return lx_new(final_o, mblk_o);
+        };
         let mut lp: Vec<i32> = lower_expr(pool, node_field(pool, nid, 2), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let lr: i64 = lx_reg(lp);
         let mut cur: Vec<i32> = lx_blk(lp);
@@ -14712,7 +14813,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.147";
+    return "0.3.148";
 }
 
 fn compiler_backend_label() -> str {

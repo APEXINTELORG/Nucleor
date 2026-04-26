@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.148] — 2026-04-26
+
+**`&&` and `||` now properly short-circuit.** The biggest deferred
+hazard from this session — closes the silent-miscompute /
+side-effect-leak class for adopter null-check and lazy-eval idioms.
+Earlier v0.3.145 attempt was reverted because it broke stage C
+self-host; v0.3.148 fixes the alloca placement and self-hosts
+cleanly.
+
+Pre-v0.3.148, `parse_and_expr` / `parse_or_expr` lowered `&&` (op 36)
+and `||` (op 37) to bitwise `and i64` / `or i64` of both operand
+values via `tok_to_ir(tok) → iop 13/14`. The LOGIC was correct for
+strict 0/1 booleans but the RHS was ALWAYS evaluated even when the
+LHS guard already determined the result. Adopters hit two hazards:
+
+1. **Crashes from unguarded RHS deref:**
+   ```
+   if x != 0 && deref(x).field == y { ... }   // crashes when x == 0
+   ```
+2. **Silent perf and double-side-effect:**
+   ```
+   if cached != null || compute_expensive() { ... }
+   ```
+   `compute_expensive()` ran every time, defeating the cache. Same
+   for any `&&`-guarded fn call with side effects (counter bumps,
+   logging, retries).
+
+The s1 self-host source dodges this hazard because every `&&` chain
+in the compiler is null-safe by construction. Adopter code with the
+standard null-check idiom hit it on the first probe.
+
+Fix: emit branch IR for op 36 / op 37. For `A && B`:
+1. eval A → `a_r`
+2. cmp `a_r != 0` → `cond`
+3. allocate result slot in **entry block** via `ir_fn_add_entry_alloca`
+4. `br cond, eval_b, false_lbl`
+5. `eval_b`: eval B → `b_r`; cmp `b_r != 0` → `b_bool`; store
+   `b_bool` to result; br to merge
+6. `false_lbl`: store 0 to result; br to merge
+7. `merge`: load result → final value
+
+For `A || B`: invert — true branch stores 1, false branch evaluates
+B and stores its truthy projection.
+
+The earlier v0.3.145 attempt at this fix used `ir_block_add` for
+the result alloca (mid-function placement), which broke stage C
+self-host with a silent-exit-no-output on s1 source. Stage A's
+binary didn't tolerate the mid-function alloca shape in the way
+LLVM expected. v0.3.148 hoists the result alloca to the entry block
+via `ir_fn_add_entry_alloca` — the same pattern the while/loop
+lowering at kind 24 / kind 28 already uses for its loop-counter
+alloca. With that fix, stage B → C → D → E all converge.
+
+Pinned by `tests/fixtures/t423_short_circuit_and_or.nr` — a
+side-effecting `touch(v: Vec<i64>) -> i64` increments a tracker
+each time it runs, asserts the four short-circuit cases:
+- `false && touch()` → touch NOT called
+- `true && touch()` → touch called once (RHS reached)
+- `true || touch()` → touch NOT called
+- `false || touch()` → touch called once
+
+Bootstrap fixed point at stage_d
+`232850a4269b5061d67aa8f4aac94b99`. (Stage B differs because stage A
+still uses bitwise lowering; stages C/D/E converge with the new
+short-circuit lowering.) Verify gate green.
+
 ## [0.3.147] — 2026-04-26
 
 **`opt_fold_block` no longer silently miscompiles bitwise `&` `|` `^`
