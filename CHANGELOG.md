@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.183] — 2026-04-26
+
+**`println!("{}", str_concat(a, b))` and friends now dispatch
+correctly via runtime-helper return-type fallback in the
+println! heuristic.** Sister fix to v0.3.178 — closes the same
+gap on the println! side.
+
+Pre-v0.3.183, the println! `{}` heuristic only knew about
+USER-declared fns (via `infer_fn_return_type_from_source`) and
+lacked a fallback for RUNTIME helpers. `println!("{}",
+str_concat(a, b))` printed the str pointer as int.
+
+Same hazard class as v0.3.178 — a real adopter expression
+produces nonsense output with no diagnostic.
+
+Fix: add hardcoded fallback list of well-known runtime helpers
+to the println! `{}` fn-call dispatch:
+- **str returns** (identity, default `{}`): `str_concat` /
+  `str_substring` / `str_to_lower`/`upper` / `str_trim` variants /
+  `str_replace` / `str_repeat` / `str_reverse` / `str_pad_*` /
+  `str_center` / `str_intern` / `str_arena_concat`/`substring` /
+  `tok_decode` / `f64_to_str` / `f32_to_str` / `int_to_str` /
+  `bool_to_str` / `getenv`.
+- **i64 returns** (`int_to_str` wrap): `str_len` / `str_to_int` /
+  `str_to_i64` / `str_index_of` / `str_count` / `vec_len` /
+  `hashmap_len`.
+- **bool returns** (`bool_to_str` wrap): `str_eq` / `str_contains` /
+  `str_starts_with` / `str_ends_with` / `str_is_empty` /
+  `vec_is_empty` / `hashmap_contains` / `hashmap_is_empty`.
+
+Pinned by `tests/fixtures/t449_println_runtime_helper_dispatch.nr`.
+Bootstrap fixed point at stage_d
+`bd951d55b68f76f29b05b8bd443a193ed71f581441169414a584cda82f44eade`.
+
 ## [0.3.182] — 2026-04-26
 
 **`print(hashmap_get(h, k))` for `HashMap<K, str>` now prints
