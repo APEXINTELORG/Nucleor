@@ -9662,6 +9662,39 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             if is_tainted_type(arg_t) == 1 { return taint_inner_type(arg_t); };
             return arg_t;
         };
+        // v0.3.170: literal-only WARNING for vec_*(int_literal, ...).
+        // Passing an int LITERAL where a Vec handle is expected is
+        // an unambiguous adopter mistake (e.g. `vec_get(42, 0)`) --
+        // pre-fix this compiled cleanly and SIGSEGV'd at runtime.
+        // Variables (which may legitimately hold Vec handles in
+        // Nucleor's i64-everywhere ABI -- the compiler self-host
+        // does this pervasively) are NOT flagged. Same conservative
+        // pattern as v0.3.162 f64_to_str(int_literal). Fires before
+        // the dynamic_helper early-return below so the warning
+        // surfaces. Diagnostic is INFORMATIONAL (uses print, not
+        // type_diag) so the build doesn't halt.
+        if argc > 0 {
+            let needs_vec_lit_check: i64 = if str_eq(callee, "vec_get") == 1
+                || str_eq(callee, "vec_set") == 1
+                || str_eq(callee, "vec_len") == 1
+                || str_eq(callee, "vec_push") == 1
+                || str_eq(callee, "vec_pop") == 1
+                || str_eq(callee, "vec_first") == 1
+                || str_eq(callee, "vec_last") == 1
+                || str_eq(callee, "vec_is_empty") == 1
+                || str_eq(callee, "vec_swap") == 1
+                || str_eq(callee, "vec_extend") == 1
+                || str_eq(callee, "vec_remove_at") == 1
+                || str_eq(callee, "vec_insert_at") == 1
+                || str_eq(callee, "vec_free") == 1
+                || str_eq(callee, "vec_clear") == 1 { 1 } else { 0 };
+            if needs_vec_lit_check == 1 {
+                let larg_v: i64 = list_get(pool, args, 0);
+                if node_kind(pool, larg_v) == 1 {
+                    print(str_concat("WARNING: ", str_concat(callee, "(<int_literal>, ...) passes an int literal where a Vec handle is expected. This will SIGSEGV at runtime when the helper dereferences the int as an NVec*. Pass a Vec value (e.g. let v: Vec<i64> = Vec::new(); ...) or a typed Vec handle.")));
+                };
+            };
+        };
         if type_dynamic_helper(callee) == 1 { tprof_mark(tprof, 9, 10, call_start); return ""; };
         let sig_start: i64 = tprof_start(tprof);
         let sentry: i64 = sig_find(sigs, callee);
@@ -15781,7 +15814,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.169";
+    return "0.3.170";
 }
 
 fn compiler_backend_label() -> str {
