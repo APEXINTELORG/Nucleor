@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.184] — 2026-04-26
+
+**`match Err(s) => print(s)` for `Result<T, str>` now prints the
+string instead of the pointer.** Closes a regression I introduced
+in v0.3.176 (match arm payload type registration).
+
+Pre-v0.3.184, the v0.3.176 fix unconditionally set
+`__type_<name>` to `"i64"` for every match arm payload binding.
+That works for `Some(i64)` and `Ok(i64)` but BROKE for
+`Result::Err(str)` — `print(err_str)` dispatched to `print_i64`
+and printed the str pointer as int.
+
+Same hazard class as v0.3.181/182 vec_get/hashmap_get str fixes
+— the i64 default was too aggressive.
+
+Fix: variant-aware payload type via new
+`match_bind_payload_type(ename, vname)` helper. `Result::Err`
+defaults to `"str"` (the conventional payload). Everything else
+stays `"i64"`. New `match_bind_payloads_typed` is the entry
+point that takes a `payload_type` parameter.
+
+Future enhancement: real per-variant payload-type lookup from
+the receiver's full type would handle arbitrary user-defined
+enums with non-i64 payloads (e.g. `enum Foo { Bar(str), Baz(f64) }`).
+Today the heuristic special-cases the standard library Result
+variant; user enums with str payloads still need the
+workaround of explicit `print_str(s)` instead of `print(s)`.
+
+Pinned by `tests/fixtures/t450_match_result_err_str_print.nr`.
+Bootstrap fixed point at stage_d
+`98ce54cb7cba4be28f13aad29203b4e1651d79936a12639074c05a300d05548c`.
+
 ## [0.3.183] — 2026-04-26
 
 **`println!("{}", str_concat(a, b))` and friends now dispatch
