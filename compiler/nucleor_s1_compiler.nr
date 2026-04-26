@@ -9759,6 +9759,53 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                     print(str_concat("WARNING: ", str_concat(callee, "(<int_literal>, ...) passes an int literal where a tokenizer handle is expected. This will SIGSEGV at runtime. Pass a real handle (e.g. let t: i64 = tok_bpe_train(text, 1024); ...).")));
                 };
             };
+            // v0.3.174: extend the literal-only WARNING to remaining
+            // adopter-facing handle-taking helper families:
+            //   - str_arena_* / arena_* (arena handles)
+            //   - nuc_graph_*, nuc_bm25_*, nuc_hnsw_*, nuc_emb_*,
+            //     nuc_sym_*, nuc_stat_* (NS_Sage / search subsystems)
+            // Same hazard: passing an int literal where a handle is
+            // expected -> SIGSEGV at runtime. Variables remain
+            // unflagged. Detected by prefix match; constructors and
+            // helpers without a handle arg are excluded individually.
+            let nbar_pref: i64 = if str_starts_with(callee, "str_arena_") == 1
+                || str_starts_with(callee, "arena_") == 1
+                || str_starts_with(callee, "nuc_graph_") == 1
+                || str_starts_with(callee, "nuc_bm25_") == 1
+                || str_starts_with(callee, "nuc_hnsw_") == 1
+                || str_starts_with(callee, "nuc_emb_") == 1
+                || str_starts_with(callee, "nuc_sym_") == 1
+                || str_starts_with(callee, "nuc_stat_") == 1 { 1 } else { 0 };
+            if nbar_pref == 1 {
+                // Exclude constructors / no-handle entry points.
+                let is_misc_ctor: i64 = if str_eq(callee, "str_arena_new") == 1
+                    || str_eq(callee, "arena_new") == 1
+                    || str_eq(callee, "nuc_graph_new") == 1
+                    || str_eq(callee, "nuc_bm25_new") == 1
+                    || str_eq(callee, "nuc_hnsw_new") == 1
+                    || str_eq(callee, "nuc_emb_new") == 1
+                    || str_eq(callee, "nuc_sym_new") == 1
+                    || str_eq(callee, "nuc_stat_new") == 1 { 1 } else { 0 };
+                if is_misc_ctor == 0 {
+                    let larg_n: i64 = list_get(pool, args, 0);
+                    if node_kind(pool, larg_n) == 1 {
+                        let mut sub_label: str = "subsystem";
+                        if str_starts_with(callee, "str_arena_") == 1 { sub_label = "string arena"; };
+                        if str_starts_with(callee, "arena_") == 1 { sub_label = "arena"; };
+                        if str_starts_with(callee, "nuc_graph_") == 1 { sub_label = "graph"; };
+                        if str_starts_with(callee, "nuc_bm25_") == 1 { sub_label = "BM25 index"; };
+                        if str_starts_with(callee, "nuc_hnsw_") == 1 { sub_label = "HNSW index"; };
+                        if str_starts_with(callee, "nuc_emb_") == 1 { sub_label = "embedding"; };
+                        if str_starts_with(callee, "nuc_sym_") == 1 { sub_label = "sym table"; };
+                        if str_starts_with(callee, "nuc_stat_") == 1 { sub_label = "stats"; };
+                        let n1: str = str_concat("WARNING: ", callee);
+                        let n2: str = str_concat(n1, "(<int_literal>, ...) passes an int literal where a ");
+                        let n3: str = str_concat(n2, sub_label);
+                        let n4: str = str_concat(n3, " handle is expected. This will SIGSEGV at runtime when the helper dereferences the int as a pointer. Pass a real handle returned from the matching constructor.");
+                        print(n4);
+                    };
+                };
+            };
         };
         if type_dynamic_helper(callee) == 1 { tprof_mark(tprof, 9, 10, call_start); return ""; };
         let sig_start: i64 = tprof_start(tprof);
@@ -15937,7 +15984,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.173";
+    return "0.3.174";
 }
 
 fn compiler_backend_label() -> str {

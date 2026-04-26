@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.174] — 2026-04-26
+
+**Extended literal-only WARNING to remaining adopter-facing
+handle-taking helper families.** Closes the same SIGSEGV hazard
+across `str_arena_*`, `arena_*`, `nuc_graph_*`, `nuc_bm25_*`,
+`nuc_hnsw_*`, `nuc_emb_*`, `nuc_sym_*`, `nuc_stat_*`.
+
+These families all take a handle as `arg-0` (passed as i64). A
+literal int (e.g. `arena_alloc(42, 64)`) compiled cleanly and
+SIGSEGV'd at runtime when the C helper dereferenced the int as
+a pointer.
+
+Fix: prefix-match the callee against the eight families above;
+when `arg-0` is an INT LITERAL (AST kind 1) and the callee
+isn't a constructor (excludes `*_new`), emit a WARNING with the
+subsystem label (`arena`, `string arena`, `graph`, `BM25 index`,
+`HNSW index`, `embedding`, `sym table`, `stats`).
+
+Diagnostic is INFORMATIONAL (uses `print`) so the build doesn't
+halt. Variables remain unflagged.
+
+This is the closing batch of the literal-only-WARNING sweep
+(v0.3.162/170/171/173/174). All adopter-facing handle-taking
+helper families now flag the canonical int-literal-as-handle
+mistake at compile time.
+
+Pinned by `tests/fixtures/t441_handle_helper_int_literal_diag.nr`.
+Bootstrap fixed point at stage_d
+`036b0c826eda1263446e672002ddafdb3aee17f6b7ba736a899628aea9dc98bc`.
+
 ## [0.3.173] — 2026-04-26
 
 **Extended literal-only WARNING to tokenizer helpers
