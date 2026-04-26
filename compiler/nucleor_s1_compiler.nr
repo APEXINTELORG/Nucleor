@@ -14159,7 +14159,68 @@ fn fmt_strip_outer_quotes(s: str) -> str {
     return str_substring(s, 1, slen - 1);
 }
 
-fn fmt_conversion_for_spec(spec: str, arg_expr: str) -> str {
+// v0.3.152: helper for the bare-`{}` heuristic. When the arg
+// expression is a bare identifier, scan src for a `let <name>: TYPE`
+// or `let mut <name>: TYPE` declaration and return TYPE if found.
+// Empty string means no declaration matched. Used by
+// fmt_conversion_for_spec to disambiguate `{}` for typed locals.
+fn infer_var_type_from_source(src: str, var_name: str) -> str {
+    let slen: i64 = str_len(src);
+    let vlen: i64 = str_len(var_name);
+    if vlen == 0 { return ""; };
+    // Look for "let " or "let mut " prefix followed by var_name + ":"
+    // Walk through src; when we see `let `, check if it's followed by
+    // (optionally `mut `) + var_name + `:` + TYPE.
+    let mut i: i64 = 0;
+    while i + 4 < slen {
+        // "let " = 'l','e','t',' ' = 108,101,116,32
+        if str_char_at(src, i) == 108
+            && str_char_at(src, i + 1) == 101
+            && str_char_at(src, i + 2) == 116
+            && str_char_at(src, i + 3) == 32 {
+            let mut p: i64 = i + 4;
+            // Skip optional "mut "
+            if p + 4 < slen
+                && str_char_at(src, p) == 109
+                && str_char_at(src, p + 1) == 117
+                && str_char_at(src, p + 2) == 116
+                && str_char_at(src, p + 3) == 32 {
+                p = p + 4;
+            };
+            // Try to match var_name
+            let mut k: i64 = 0;
+            let mut matched: i64 = 1;
+            while k < vlen {
+                if p + k >= slen { matched = 0; k = vlen; }
+                else if str_char_at(src, p + k) != str_char_at(var_name, k) { matched = 0; k = vlen; };
+                k = k + 1;
+            };
+            if matched == 1 {
+                let after: i64 = p + vlen;
+                // Next char must be `:` (with optional space before it)
+                let mut q: i64 = after;
+                while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
+                if q < slen && str_char_at(src, q) == 58 {
+                    q = q + 1;
+                    while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
+                    let ts: i64 = q;
+                    while q < slen {
+                        let tc: i64 = str_char_at(src, q);
+                        // type ends at ` `, `=`, `;`, `,`, `<`, end of line
+                        if tc == 32 || tc == 61 || tc == 59 || tc == 44 || tc == 60 || tc == 10 || tc == 13 {
+                            return str_substring(src, ts, q);
+                        };
+                        q = q + 1;
+                    };
+                };
+            };
+        };
+        i = i + 1;
+    };
+    return "";
+}
+
+fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
     // spec is the contents of `{...}` after the `{` and before `}`,
     // i.e. `` for `{}`, `:s` for `{:s}`, etc.
     // v0.3.131: bare `{}` heuristic dispatch for the obvious-from-
@@ -14218,6 +14279,37 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str) -> str {
             sub_i = sub_i + 1;
         };
         if found_typed == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+        // v0.3.152: when arg_expr is a bare identifier and the textual
+        // heuristics didn't fire, try to infer its type from a `let X: TYPE`
+        // declaration in src. Catches the canonical `println!("{}", f)`
+        // (where `f: f64` was declared earlier) which pre-fix printed the
+        // f64 BIT PATTERN as an int. Same hazard class as the v0.3.137-150
+        // silent miscompiles -- a real expression you wrote produces a
+        // wildly wrong number with no diagnostic. Only fires when arg_expr
+        // is a single bare identifier (no parens, no dots) -- complex
+        // expressions still need explicit `:s` / `:f` / `:i`.
+        let mut is_bare_ident: i64 = 1;
+        if alen == 0 { is_bare_ident = 0; };
+        let mut bi: i64 = 0;
+        while bi < alen {
+            let bc: i64 = str_char_at(arg_expr, bi);
+            let is_alpha_or_under: i64 = if (bc >= 65 && bc <= 90) || (bc >= 97 && bc <= 122) || bc == 95 { 1 } else { 0 };
+            let is_digit_or_under: i64 = if (bc >= 48 && bc <= 57) || bc == 95 { 1 } else { 0 };
+            if bi == 0 {
+                if is_alpha_or_under == 0 { is_bare_ident = 0; bi = alen; };
+            } else {
+                if is_alpha_or_under == 0 && is_digit_or_under == 0 { is_bare_ident = 0; bi = alen; };
+            };
+            bi = bi + 1;
+        };
+        if is_bare_ident == 1 {
+            let inferred: str = infer_var_type_from_source(src, arg_expr);
+            if str_eq(inferred, "str") == 1 { return arg_expr; };
+            if str_eq(inferred, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+            if str_eq(inferred, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
+            if str_eq(inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+            // i8/i16/i32/i64/etc fall through to int_to_str (default).
+        };
         return str_concat("int_to_str(", str_concat(arg_expr, ")"));
     };
     if str_eq(spec, ":i") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
@@ -14249,7 +14341,7 @@ fn fmt_build_concat_chain(segments: Vec<i32>, parities: Vec<i32>) -> str {
     return chain;
 }
 
-fn fmt_build_expansion(args_text: str, mode: i64) -> str {
+fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     // mode: 0 = println! → print(...)
     //       1 = format!  → bare str expression
     //       2 = print!   → print_raw(...)
@@ -14289,7 +14381,7 @@ fn fmt_build_expansion(args_text: str, mode: i64) -> str {
                 current = sb_new();
                 if arg_idx < n_args {
                     let arg_expr: str = vec_get(parts, arg_idx + 1);
-                    segments.push(fmt_conversion_for_spec(spec, arg_expr));
+                    segments.push(fmt_conversion_for_spec(spec, arg_expr, src));
                     parities.push(1);
                     arg_idx = arg_idx + 1;
                 } else {
@@ -14513,7 +14605,7 @@ fn expand_format_macros(src: str) -> str {
                         let args_end: i64 = q - 1;
                         let args_text: str = str_substring(src, args_start, args_end);
                         let inner_expanded: str = expand_format_macros(args_text);
-                        let expansion: str = fmt_build_expansion(inner_expanded, mode);
+                        let expansion: str = fmt_build_expansion(inner_expanded, mode, src);
                         sb_append(sb, expansion);
                         p = q;
                         last_non_ws = 41;
@@ -14855,7 +14947,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.151";
+    return "0.3.152";
 }
 
 fn compiler_backend_label() -> str {

@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.152] — 2026-04-26
+
+**Bare `{}` format spec now infers types from `let X: TYPE`
+declarations in source.** `println!("{}", str_var)` no longer
+prints the pointer address; `println!("{}", f64_var)` no longer
+prints the bit pattern.
+
+Pre-v0.3.152, the bare `{}` heuristic in `fmt_conversion_for_spec`
+only fired for unambiguous textual shapes: quoted string literals,
+decimal-with-dot, and fn calls starting with `sqrt`/`exp`/`log`
+etc. For BARE IDENTIFIERS naming user variables, the heuristic
+fell through to the default `int_to_str(arg)` — printing strs as
+their pointer addresses, f64s as their raw bit patterns, bools as
+0/1.
+
+Same hazard class as v0.3.137-v0.3.151 silent miscompiles: an
+adopter writing the canonical debug idiom `println!("{}", x)` got
+nonsense output with no diagnostic. The s1 self-host source
+sidesteps this by always using `print(str_concat(...))` instead of
+macros, but adopter code with the standard format pattern hit it.
+
+Fix: new helper `infer_var_type_from_source(src, var_name)` scans
+src for `let X: TYPE` and `let mut X: TYPE` patterns and returns
+the type. Invoked in `fmt_conversion_for_spec` ONLY when arg_expr
+is a bare identifier and the existing textual heuristics didn't
+fire. Threads `src` through `fmt_build_expansion` so the scan has
+access to the full source. Type→helper mapping:
+
+| Inferred type | Conversion |
+|---|---|
+| `str` | pass-through (no conversion) |
+| `f64` | `f64_to_str(arg)` |
+| `f32` | `f32_to_str(arg)` |
+| `bool` | `bool_to_str(arg)` |
+| `i8`/.../`i64`/`isize`/`u*`/`usize` / unknown | `int_to_str(arg)` (existing default) |
+
+Complex expressions (parens, dots, ops) still need explicit
+`:s` / `:f` / `:i` — only bare identifiers benefit from the scan.
+
+Pinned by `tests/fixtures/t426_format_var_type_inference.nr`.
+Bootstrap fixed point at stage_d
+`bc3637ee650ce5c4d8a178aafcfdc396`. Verify gate green.
+
 ## [0.3.151] — 2026-04-26
 
 **`print(a, b, c)` no longer silently drops extra args without a
