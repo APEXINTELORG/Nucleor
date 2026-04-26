@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.142] — 2026-04-26
+
+**`as` is now a contextual keyword — user fns named `as` no longer
+silently miscompile to `0`. The `x as T` postfix cast operator
+still works.** Seventh and likely final fix in the contextual-keyword
+silent-miscompute series (after v0.3.137 `pure`, v0.3.138
+`scope`/`spawn`, v0.3.139 `requires`, v0.3.140 `restricts`,
+v0.3.141 `loop`).
+
+Pre-v0.3.142, `classify_kw` mapped `as` to a hard kw token (86)
+unconditionally for the postfix cast operator (RFC-0015 phase 2).
+The cast is heavily used, but it ALWAYS appears AFTER an
+expression — never at the start of a primary. `parse_primary` had
+no branch for token 86, so any `as(x)` call site collapsed to
+silent `int_lit 0` in the IR with NO diagnostic.
+
+Fix: `classify_kw` no longer maps `as` to 86. The `parse_postfix_cast`
+loop is rewritten to use pkv lookahead (`pk == 1 && pkv == "as"`).
+Both call-site usage and the cast operator continue to work.
+
+Defensive nesting: the `pkv == "as"` check is wrapped in a nested
+`if` to force short-circuit, since Nucleor's `&&` currently lowers
+to bitwise AND of i64 operands and the RHS would dereference `pkv`
+on a non-pointer token if the LHS guard fails. The 3-operand
+`&&` short-circuit gap is queued as a separate fix.
+
+Pinned by `tests/fixtures/t417_user_fn_named_as.nr`. Bootstrap
+fixed point at stage_d `7fdbd97ccb7b5355cf248512b99f98d2`. Verify
+gate green; bootstrap seed refreshed.
+
 ## [0.3.141] — 2026-04-26
 
 **`loop` is now a contextual keyword — user fns named `loop` no
