@@ -1357,17 +1357,11 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // fixtures (t330-t349) depend on `Vec<f64>` and would break.
     // The narrow-float family (`f32`, `f16`, `bf16`, `f8e4m3`, `f8e5m2`)
     // are all <64-bit and need the conversion-helper round-trip.
-    // v0.3.204: Vec<f32> downgrade. Round-trip pattern verified to
-    // work end-to-end via f32_from_bits(v[i]) on the read side --
-    // see tests/fixtures/t462_vec_f32_round_trip.nr. f16/bf16/f8eXmY
-    // still have no runtime pack/unpack path; the type-check stage
-    // (TYP-009) keeps the hard error for those.
-    if str_eq(tstr, "Vec<f16>") == 1
-       || str_eq(tstr, "Vec<bf16>") == 1
-       || str_eq(tstr, "Vec<f8e4m3>") == 1
-       || str_eq(tstr, "Vec<f8e5m2>") == 1 {
-        print(str_concat("ERROR: narrow-float vector `", str_concat(tstr, "` has no runtime pack/unpack path yet. Use Vec<f32>/Vec<f64> with f32_from_bits/f64_from_bits round-trip (see tests/fixtures/t462), Vec<i64> with manual pack helpers, or Tensor::* for ML kernels. Tracked as NUC-FEEDBACK-002 follow-on.")));
-    };
+    // v0.3.204: Vec<f32> downgrade. Round-trip via f32_from_bits.
+    // v0.3.206: Vec<f16>/Vec<bf16>/Vec<f8e4m3>/Vec<f8e5m2> downgraded
+    // -- runtime now has pack/unpack/display helpers for all narrow-
+    // float types. See tests/fixtures/t463_vec_narrow_float_round_trip.nr
+    // for the canonical round-trip patterns.
     let mut init_id: i64 = 0 - 1;
     if pk(tokens, cp) == 40 { let mut er: Vec<i32> = parse_expr(tokens, cp + 1, pool); cp = pr_pos(er); init_id = pr_val(er); };
     // v0.3.103: bitwise ops (`&`, `|`, `^`) are now supported via
@@ -3508,6 +3502,12 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "f16_to_f32") { return "__nucleor_f16_to_f32"; };
     if str_eq(name, "f16_add") { return "__nucleor_f16_add"; };
     if str_eq(name, "f16_mul") { return "__nucleor_f16_mul"; };
+    if str_eq(name, "f16_to_str") { return "__nucleor_f16_to_str"; };
+    if str_eq(name, "bf16_to_str") { return "__nucleor_bf16_to_str"; };
+    if str_eq(name, "f8e4m3_from_f32") { return "__nucleor_f8e4m3_from_f32"; };
+    if str_eq(name, "f8e5m2_from_f32") { return "__nucleor_f8e5m2_from_f32"; };
+    if str_eq(name, "f8e4m3_to_str") { return "__nucleor_f8e4m3_to_str"; };
+    if str_eq(name, "f8e5m2_to_str") { return "__nucleor_f8e5m2_to_str"; };
     if str_eq(name, "f8e4m3_to_f32") { return "__nucleor_f8e4m3_to_f32"; };
     if str_eq(name, "f8e5m2_to_f32") { return "__nucleor_f8e5m2_to_f32"; };
     // Debug + stderr helpers
@@ -3850,6 +3850,10 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "str_from_int") { return 1; };
     if str_eq(name, "f64_to_str") { return 1; };
     if str_eq(name, "f32_to_str") { return 1; };
+    if str_eq(name, "f16_to_str") { return 1; };
+    if str_eq(name, "bf16_to_str") { return 1; };
+    if str_eq(name, "f8e4m3_to_str") { return 1; };
+    if str_eq(name, "f8e5m2_to_str") { return 1; };
     if str_eq(name, "bool_to_str") { return 1; };
     if str_eq(name, "int_to_hex") { return 1; };
     if str_eq(name, "int_to_bin") { return 1; };
@@ -4951,6 +4955,12 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_f16_to_f32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f16_add(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f16_mul(i64, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f16_to_str(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_bf16_to_str(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f8e4m3_from_f32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f8e5m2_from_f32(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f8e4m3_to_str(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f8e5m2_to_str(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f8e4m3_to_f32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f8e5m2_to_f32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_dbg_i64(i64)\n");
@@ -10063,20 +10073,18 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         // continues to work transparently (i64 cells hold f64 bit
         // patterns at the same width). f16/bf16/f8eXmY still need
         // their own pack/unpack helpers (no runtime support yet).
-        if str_eq(tstr, "Vec<f32>") == 1 {
-            // Advisory only; adopter can use Vec<f32> with the
-            // round-trip pattern documented in t462.
-            // (No diagnostic emitted -- verified working surface.)
-        };
-        if str_eq(tstr, "Vec<f16>") == 1
-           || str_eq(tstr, "Vec<bf16>") == 1
-           || str_eq(tstr, "Vec<f8e4m3>") == 1
-           || str_eq(tstr, "Vec<f8e5m2>") == 1 {
-            // f16/bf16/f8eXmY have no runtime pack/unpack helpers yet
-            // -- keep the hard error until a real round-trip path
-            // exists. Tracked as NUC-FEEDBACK-002 follow-on.
-            type_diag(diags, source, fn_name, vname, "TYP-009", str_concat("narrow-float vector `", str_concat(tstr, "` has no runtime pack/unpack path yet. Only Vec<f32>/Vec<f64> are supported for user-facing storage today. f16/bf16/f8eXmY need their own bit-encode helpers (tracked as NUC-FEEDBACK-002 follow-on).")));
-        };
+        // v0.3.206: NUC-FEEDBACK-002 fully closed.
+        // All narrow-float vectors now have a verified round-trip
+        // path:
+        //   Vec<f32>:   v.push(x as i64); f32_from_bits(v[i])
+        //   Vec<f16>:   v.push(f16_from_f32(x as f32)); f16_to_f32(v[i])
+        //   Vec<bf16>:  v.push(bf16_from_f32(x as f32)); bf16_to_f32(v[i])
+        //   Vec<f8e4m3>: v.push(f8e4m3_from_f32(x as f32)); f8e4m3_to_f32(v[i])
+        //   Vec<f8e5m2>: v.push(f8e5m2_from_f32(x as f32)); f8e5m2_to_f32(v[i])
+        // Display via println!("{}", val) dispatches to the
+        // *_to_str runtime helpers added in v0.3.206. Pinned by
+        // tests/fixtures/t463_vec_narrow_float_round_trip.nr.
+        // (No diagnostic emitted for any narrow-float vector type.)
         let mut init_t: str = "";
         if init >= 0 {
             init_t = type_expr(pool, init, env, sigs, structs, fn_name, diags, source, tprof);
@@ -16753,7 +16761,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.205";
+    return "0.3.206";
 }
 
 fn compiler_backend_label() -> str {

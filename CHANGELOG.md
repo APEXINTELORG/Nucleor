@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.206] — 2026-04-26
+
+**NUC-FEEDBACK-002 fully closed.** All four narrow-float
+vector types (`Vec<f16>`, `Vec<bf16>`, `Vec<f8e4m3>`,
+`Vec<f8e5m2>`) now round-trip end-to-end. Closes the
+follow-on from v0.3.204 (which closed `Vec<f32>`).
+
+Pre-fix:
+- `Vec<f16>` and `Vec<bf16>` had pack/unpack helpers but no
+  `_to_str` runtime, so println would link-fail.
+- `Vec<f8e4m3>` and `Vec<f8e5m2>` had `_to_f32` (unpack) but
+  NO `_from_f32` (pack), so adopters couldn't construct
+  values to push into the vector.
+- All four still hit the TYP-009 hard error at the type-check
+  stage even if you tried.
+
+Six new runtime helpers added to
+`stdlib/runtime/nucleor_llvm_rt.c`:
+- `__nucleor_f8e4m3_from_f32(i64) -> i64` — pack
+- `__nucleor_f8e5m2_from_f32(i64) -> i64` — pack
+- `__nucleor_f16_to_str(i64) -> ptr` — display
+- `__nucleor_bf16_to_str(i64) -> ptr` — display
+- `__nucleor_f8e4m3_to_str(i64) -> ptr` — display
+- `__nucleor_f8e5m2_to_str(i64) -> ptr` — display
+
+Compiler tables updated in both `nucleor_s1_compiler.nr` and
+the `nucleor_tools_suite.nr` drift mirror: get_rt_name,
+is_str_returning, IR declares all six.
+
+TYP-009 hard error is now removed for all narrow-float Vec
+types. The obsolete `tests/err/err_vec_narrow_float.nr`
+negative test was deleted (no narrow-float vector
+hard-errors anymore).
+
+Pinned by `tests/fixtures/t463_vec_narrow_float_round_trip.nr`
+which exercises all four types: pushes 2 values per type,
+reads back via `*_to_f32(v[i])`, prints via `println!("{}",
+val)`. Output: `1.5 2.5 0.5 4 2 8 0.25 64` — exact for the
+chosen test values (powers of 2 + halves stay exact through
+all four narrow representations).
+
+Bootstrap fixed point at stage_d
+`cf4f824e5d3c98cd04e87394cb5be554bf72c83f3293f5c3d4d72852c4736fee`.
+452/452 verify PASS.
+
 ## [0.3.205] — 2026-04-26
 
 **`str_substring` bounds-check + PANIC on OOB.** Same hazard

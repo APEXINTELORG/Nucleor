@@ -1995,6 +1995,12 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "str_from_int") { return "__nucleor_int_to_str"; };
     if str_eq(name, "f64_to_str") { return "__nucleor_f64_to_str"; };
     if str_eq(name, "f32_to_str") { return "__nucleor_f32_to_str"; };
+    if str_eq(name, "f16_to_str") { return "__nucleor_f16_to_str"; };
+    if str_eq(name, "bf16_to_str") { return "__nucleor_bf16_to_str"; };
+    if str_eq(name, "f8e4m3_from_f32") { return "__nucleor_f8e4m3_from_f32"; };
+    if str_eq(name, "f8e5m2_from_f32") { return "__nucleor_f8e5m2_from_f32"; };
+    if str_eq(name, "f8e4m3_to_str") { return "__nucleor_f8e4m3_to_str"; };
+    if str_eq(name, "f8e5m2_to_str") { return "__nucleor_f8e5m2_to_str"; };
     if str_eq(name, "bool_to_str") { return "__nucleor_bool_to_str"; };
     if str_eq(name, "int_to_hex") { return "__nucleor_int_to_hex"; };
     if str_eq(name, "int_to_bin") { return "__nucleor_int_to_bin"; };
@@ -2742,6 +2748,10 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "str_from_int") { return 1; };
     if str_eq(name, "f64_to_str") { return 1; };
     if str_eq(name, "f32_to_str") { return 1; };
+    if str_eq(name, "f16_to_str") { return 1; };
+    if str_eq(name, "bf16_to_str") { return 1; };
+    if str_eq(name, "f8e4m3_to_str") { return 1; };
+    if str_eq(name, "f8e5m2_to_str") { return 1; };
     if str_eq(name, "bool_to_str") { return 1; };
     if str_eq(name, "int_to_hex") { return 1; };
     if str_eq(name, "int_to_bin") { return 1; };
@@ -3388,6 +3398,12 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_int_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_f64_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_f32_to_str(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f16_to_str(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_bf16_to_str(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f8e4m3_from_f32(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f8e5m2_from_f32(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f8e4m3_to_str(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f8e5m2_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_bool_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_int_to_hex(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_int_to_bin(i64)\n");
