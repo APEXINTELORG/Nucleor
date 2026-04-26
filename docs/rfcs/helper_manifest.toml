@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 766
+# Total helpers: 767
 # Of which REVIEW REQUIRED: 26
 
 # ============================================================
@@ -4864,6 +4864,20 @@ class            = "PureMath"
 symbol           = "__nucleor_f32_to_int"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f32_to_str"
+class            = "PureMath"
+symbol           = "__nucleor_f32_to_str"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> ptr"
 effects          = []
 taint            = "passthrough"
 units            = "passthrough"

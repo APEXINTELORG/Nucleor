@@ -446,6 +446,21 @@ const char *__nucleor_f64_to_str(long long b) {
     return out;
 }
 
+// v0.3.204: f32 display helper. The println!/format dispatch chain
+// for f32 routed to `f32_to_str` but no implementation existed --
+// linking would fail with `undefined value '@f32_to_str'`. The i64
+// holds the f32 bit pattern in the low 32 bits (zero-extended), so
+// reinterpret as float and print with %g.
+const char *__nucleor_f32_to_str(long long b) {
+    union { unsigned int i; float f; } u; u.i = (unsigned int)(b & 0xFFFFFFFFLL);
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%g", (double)u.f);
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return out;
+}
+
 const char *__nucleor_bool_to_str(long long v) {
     const char *src = v != 0 ? "true" : "false";
     size_t L = strlen(src);
