@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.140] — 2026-04-26
+
+**Removed reserved-but-unused `restricts` keyword — user fns named
+`restricts` no longer silently miscompile to `0`.** Fifth and likely
+final fix in the contextual-keyword silent-miscompute series
+(after v0.3.137 `pure`, v0.3.138 `scope`/`spawn`, v0.3.139
+`requires`).
+
+Pre-v0.3.140, `restricts` was hard-classified as token 76 by the
+lexer for a planned `restricts [...] { ... }` RFC-0030 contract
+block form. Zero usage of that form existed in stdlib, examples,
+tests, or docs — but the kw classification still forced the lexer
+to refuse the name as identifier. Worse, the parse_primary branch
+for token 76 (`skip_bracket_list + parse_passthrough_block_expr`)
+*didn't* simply fall through to the silent `int_lit 0` default
+like the other unrecognised-kw cases. When a user wrote
+`restricts(41)`:
+
+  1. `skip_bracket_list` looked for `[`, found `(`, returned the
+     position unchanged.
+  2. `parse_passthrough_block_expr` then tried to parse `(41)` as
+     a `{ ... }` block. It didn't see `{`, so it consumed the rest
+     of `main`'s body as a phantom block expression instead.
+
+The result: silent miscompute. The IR for `main` showed a series
+of conditional branches and stores into a phantom alloca,
+returning 0. NO diagnostic, no parse error, no warning — just a
+mangled control-flow graph that returned the wrong number.
+
+Fix: `classify_kw` no longer maps `restricts` to token 76. The
+two dead `tt == 76` branches in `parse_primary` and `parse_stmts`
+were also removed. Mirrored in `compiler/nucleor_tools_suite.nr`.
+
+Pinned by `tests/fixtures/t415_user_fn_named_restricts.nr`.
+Bootstrap fixed point at stage_d
+`942f98ab7f8dc4989eb40d40dfab527b`. Verify gate green; bootstrap
+seed refreshed.
+
 ## [0.3.139] — 2026-04-26
 
 **`requires` is now a contextual keyword — user fns named

@@ -87,7 +87,10 @@ fn classify_kw(w: str) -> i64 {
     // parse_primary fell through its int_lit 0 default on token 75. The
     // 4 fn-decl annotation checks (parse_fn_decl, parse_extern_fn,
     // parse_trait_method, parse_impl_method) now use pkv lookahead.
-    if str_eq(w, "restricts") { return 76; };
+    // v0.3.140: removed `restricts` kw classification — mirror of
+    // compiler-side fix. See nucleor_s1_compiler.nr classify_kw notes.
+    // The `restricts [...] { ... }` form had zero usage anywhere; kw
+    // was only causing silent miscompute for user fns named `restricts`.
     if str_eq(w, "unsafe") { return 77; };
     if str_eq(w, "wrapping") { return 78; };
     if str_eq(w, "saturating") { return 79; };
@@ -438,10 +441,9 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // if-expression
     if tt == 13 { let mut r: Vec<i32> = parse_if(tokens, pos + 1, pool); return r; };
     if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool); return r; };
-    if tt == 76 {
-        let cp: i64 = skip_bracket_list(tokens, pos + 1);
-        return parse_passthrough_block_expr(tokens, cp, pool);
-    };
+    // v0.3.140: removed dead tt==76 (restricts) parse_primary branch.
+    // See compiler-side notes — kw classification was dropped to close
+    // the silent-miscompute hazard for user fns named `restricts`.
     if tt == 77 { return parse_passthrough_block_expr(tokens, pos + 1, pool); };
     if tt == 78 { return parse_wrapped_block_expr(tokens, pos + 1, pool, 1); };
     if tt == 79 { return parse_wrapped_block_expr(tokens, pos + 1, pool, 2); };
@@ -855,13 +857,8 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 15 { let mut r: Vec<i32> = parse_while_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 56 { let mut r: Vec<i32> = parse_for_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
-    if tt == 76 {
-        let cp2: i64 = skip_bracket_list(tokens, pos + 1);
-        let mut r: Vec<i32> = parse_passthrough_block_expr(tokens, cp2, pool);
-        let mut cp: i64 = pr_pos(r);
-        if pk(tokens, cp) == 43 { cp = cp + 1; };
-        return pr(cp, pr_val(r));
-    };
+    // v0.3.140: removed dead tt==76 (restricts) parse_stmts branch.
+    // Same dead-code pattern as the v0.3.138 scope/spawn removal.
     // v0.3.138: removed dead `tt == 80 || tt == 81` branch — see
     // compiler-side notes (the `scope` / `spawn` kw classifications
     // were dropped to close the silent-miscompute hazard).
