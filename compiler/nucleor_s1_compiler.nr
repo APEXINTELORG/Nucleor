@@ -11375,6 +11375,15 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         p_helper = "__nucleor_print_i64";
                     };
                 };
+                // v0.3.192: print(if cond { x } else { y }) -- if-expr
+                // (kind 23) defaults to i64 dispatch. Pre-fix the
+                // dispatch fell through to print_str and SIGSEGV'd.
+                // Same hazard class as v0.3.143/163-178 print() gaps.
+                // Most adopter if-exprs produce i64; complex types
+                // can use let-binding to assign first.
+                if parg_kind == 23 {
+                    p_helper = "__nucleor_print_i64";
+                };
                 // v0.3.168: cast expression (kind 99). Target type is
                 // stored on the node; dispatch directly. Catches
                 // print(x as i64) -- pre-fix dereferenced the i64 as
@@ -16545,7 +16554,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.191";
+    return "0.3.192";
 }
 
 fn compiler_backend_label() -> str {

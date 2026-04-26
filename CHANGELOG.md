@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.192] — 2026-04-26
+
+**`print(if cond { x } else { y })` no longer SIGSEGVs.**
+Closes another print()-dispatch gap — kind 23 (if-expr) was
+the last common AST shape missing from the dispatch chain.
+
+Pre-v0.3.192, `print(if cond { 100 } else { -1 })` SIGSEGV'd
+because the dispatch fell through to `print_str` which
+dereferenced the i64 if-result as a string pointer.
+
+Same hazard class as v0.3.143/163-178 — adopter writes a
+canonical pattern, gets a crash with no diagnostic.
+
+Fix: kind 23 (if-expr) defaults to `print_i64`. Most adopter
+if-exprs produce i64 (the default arm-result type for
+arithmetic / int branches). Adopters with non-i64 if-exprs
+can use let-binding to assign first (which gets proper type
+inference via the existing `__type_<name>` dispatch).
+
+Pinned by `tests/fixtures/t456_print_if_expr_dispatch.nr`.
+Bootstrap fixed point at stage_d
+`47147c08357ddffa812ddbd387c04a1caba6a74a4e565331b61a75e54ccb3042`.
+
 ## [0.3.191] — 2026-04-26
 
 **Two follow-ons bundled:** drift-gate fix for v0.3.190
