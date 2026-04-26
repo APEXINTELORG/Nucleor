@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.135] — 2026-04-25
+
+**NUC-FEEDBACK-007 closed — cache key now includes compiler
+version so binary upgrades invalidate cached IR.** ML_Suite agent
+flipped a literal (`0.00000001` → `0.000001` → `0.00000001`)
+across the v0.3.130/v0.3.133 boundary. After v0.3.133 fixed the
+sub-micro literal lexer, the SAME source text from before the fix
+(now restored) keyed identically and hit the OLD cached IR (which
+still produced the NaN cascade). The bug was visible AFTER the
+fix shipped — adopters could see `--version` report 0.3.134+ and
+still observe pre-fix behavior on cached compiles.
+
+Hard-blocks adopters from validating that any silent-miscompute
+fix actually took effect. Critical for any iterative debugging
+workflow where the compiler is updated mid-session.
+
+### Fix
+
+Two coordinated cache-key updates:
+
+1. `build_cache_key` (the IR cache at `.nuc_cache/<key>.ll`) now
+   includes `compiler_version_label()`. Scheme bumped to
+   `native-cache-v5|<version>|...`.
+2. `module_graph_cache_id` (the resolved-source cache at
+   `.nuc_cache/modgraph_<id>.{manifest,resolved}`) now includes
+   `compiler_version_label()`. Scheme bumped to
+   `module-graph-v2|<version>|...`.
+
+Each tagged release has its own cache namespace; stale IR or
+resolved source from any prior tag is never reused by a newer
+binary.
+
+### Bootstrap
+
+Two-pass fixed point (compiler self-rebuild then version-bump
+re-bootstrap). `bin/nucleor.exe` SHA `a5b37858`. 452/452 verify
+gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `build_cache_key` and
+  `module_graph_cache_id` include version label; version label
+  bumped to `0.3.135`.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.134] — 2026-04-25
 
 **`--version` string bumped from `0.2.0-v2` to current tag.** The
