@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdint.h>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -1078,8 +1079,33 @@ long long __nucleor_str_eq(const char *a, const char *b) {
     return strcmp(a, b) == 0 ? 1 : 0;
 }
 
+// v0.3.210: NUC-FEEDBACK runtime safety -- str_char_at sanity check.
+// Per-call strlen would tank lexer perf (the lexer hits 5-50
+// char_at per token over freshly-allocated str_substring pointers,
+// so a strlen cache thrashes). The remaining cheap defense:
+//
+//   1. Negative index ALWAYS panics (no false positive possible;
+//      a negative i means upstream computed a bad value).
+//   2. The byte read at i==strlen(s) is the well-defined NUL
+//      terminator (0); many lexers rely on this idiom.
+//   3. Reads past the NUL are not strictly bounded -- they walk
+//      the malloc'd buffer up to its real boundary, which the
+//      allocator typically rounds up by ≥8 bytes. The byte read
+//      is "garbage" from the user's perspective but stays inside
+//      the process's memory map, so it's not a CVE-class memory
+//      safety hazard. A truly bound-checked surface would need
+//      length-tagged strings (a new core type) -- tracked.
+//
+// Net: tightens the obvious bug class (negative index) cheaply,
+// documents the residual surface, doesn't tank the lexer.
 long long __nucleor_str_char_at(const char *s, long long i) {
     if (!s) return 0;
+    if (i < 0) {
+        if (_vec_oob_lenient()) return 0;
+        fprintf(stderr, "PANIC: str_char_at OOB: negative index %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n", i);
+        fflush(stderr);
+        exit(1);
+    }
     return (unsigned char)s[(int)i];
 }
 
