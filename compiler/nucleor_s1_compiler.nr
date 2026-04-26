@@ -5988,6 +5988,19 @@ fn enum_populate_sym(pool: Vec<i32>, enums: Vec<i32>, sym: Vec<i32>) -> i64 {
             let pcount: i64 = list_len(pool, ptypes);
             sym_set(sym, str_concat("__etag_", str_concat(ename, str_concat("_", vname))), vi);
             sym_set(sym, str_concat("__eargs_", str_concat(ename, str_concat("_", vname))), pcount);
+            // v0.3.185: store first payload's type for variant-aware
+            // print() dispatch. Catches `Msg::Text(s)` where Text(str)
+            // -- pre-fix print(s) defaulted to i64 and printed pointer.
+            // Stored as __epayload0_<ename>_<vname>. Note: ptypes
+            // elements are TYPE STRINGS (per parse_enum_decl) stored
+            // directly in the list -- not nodes. list_get returns the
+            // string value; no node_field unwrap.
+            if pcount > 0 {
+                let p0_t: str = list_get(pool, ptypes, 0);
+                if str_len(p0_t) > 0 {
+                    sym_set(sym, str_concat("__epayload0_", str_concat(ename, str_concat("_", vname))), p0_t);
+                };
+            };
             vi = vi + 1;
         };
         ei = ei + 1;
@@ -10240,11 +10253,29 @@ fn preflight_source_check(source: str) -> i64 {
 // Sanitize is a no-op at runtime (identity function)
 // It is handled by the taint checker at compile time
 
+fn match_bind_payload_type_lookup(sym: Vec<i32>, ename: str, vname: str) -> str {
+    // v0.3.185: prefer the stored __epayload0_<ename>_<vname> entry
+    // for user-defined enum variants (populated by enum_populate_sym).
+    // Falls back to Result::Err -> "str" (v0.3.184 special case) and
+    // i64 default for the rest.
+    let key: str = str_concat("__epayload0_", str_concat(ename, str_concat("_", vname)));
+    let stored: i64 = sym_get(sym, key);
+    if stored >= 0 {
+        let st: str = stored;
+        if str_len(st) > 0 { return type_base_name(st); };
+    };
+    if str_eq(ename, "Result") == 1 {
+        if str_eq(vname, "Err") == 1 { return "str"; };
+        return "i64";
+    };
+    return "i64";
+}
+
 fn match_bind_payload_type(ename: str, vname: str) -> str {
     // v0.3.184: variant-aware payload type for match_bind_payloads.
-    // Result::Err is conventionally str; everything else defaults to
-    // i64 (Nucleor's i64-everywhere ABI for enum payloads). Avoids
-    // print(err_str_var) printing the str pointer as int.
+    // (DEPRECATED in v0.3.185 -- use match_bind_payload_type_lookup
+    // for sym-aware variant payload type. Kept for callers that
+    // don't have sym yet -- currently none.)
     if str_eq(ename, "Result") == 1 {
         if str_eq(vname, "Err") == 1 { return "str"; };
         return "i64";
@@ -11960,7 +11991,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
-                ab = match_bind_payloads_typed(binding, ab, regs, arm_sym, mslot, fir, match_bind_payload_type(ename, vname));
+                ab = match_bind_payloads_typed(binding, ab, regs, arm_sym, mslot, fir, match_bind_payload_type_lookup(sym, ename, vname));
                 let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                 ab = lx_blk(bp);
                 let mut rv: i64 = lx_reg(bp);
@@ -12911,7 +12942,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
-                ab = match_bind_payloads_typed(binding, ab, regs, arm_sym, mslot, fir, match_bind_payload_type(ename, vname));
+                ab = match_bind_payloads_typed(binding, ab, regs, arm_sym, mslot, fir, match_bind_payload_type_lookup(sym, ename, vname));
                 if guard_nid > 0 {
                     let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                     let gr: i64 = lx_reg(gp);
@@ -16359,7 +16390,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.184";
+    return "0.3.185";
 }
 
 fn compiler_backend_label() -> str {

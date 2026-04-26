@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.185] — 2026-04-26
+
+**`match Msg::Text(s) => print(s)` for user-defined `enum Msg
+{ Text(str), ... }` now prints the string instead of pointer.**
+Generalizes v0.3.184 (Result::Err only) to ALL user-defined
+enum variants.
+
+Pre-v0.3.185, user-defined enum variants with non-i64 payloads
+hit the v0.3.176 i64 default and printed pointer addresses for
+str payloads. v0.3.184 fixed Result::Err specifically; this
+generalizes the fix to arbitrary user enums.
+
+Same hazard class as v0.3.181/182 vec_get/hashmap_get str fixes
+— the i64 default was too aggressive for non-i64 payload types.
+
+Fix:
+1. `enum_populate_sym` now stores the first payload's type per
+   variant as `__epayload0_<ename>_<vname>`. The ptypes list
+   stores type strings directly (per `parse_enum_decl`), so
+   `list_get` returns the string with no `node_field` unwrap.
+2. New `match_bind_payload_type_lookup(sym, ename, vname)`
+   consults the stored payload type first; falls back to the
+   v0.3.184 Result::Err → "str" special case; then i64 default.
+3. Match arm dispatch uses the lookup helper.
+
+Limitation: today only the FIRST payload's type is tracked
+(`__epayload0_`). Multi-payload variants like
+`Variant(str, i64, f64)` only get the str dispatch on the
+first payload binding — the rest still default to i64. Multi-
+payload generalization is queued.
+
+Pinned by `tests/fixtures/t451_match_user_enum_str_payload.nr`.
+Bootstrap fixed point at stage_d
+`201a4779076c11ea947dad07a042ad3d2fa658cb215a51dd0fce7dbfd4f7d68b`.
+
 ## [0.3.184] — 2026-04-26
 
 **`match Err(s) => print(s)` for `Result<T, str>` now prints the
