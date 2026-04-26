@@ -14159,18 +14159,28 @@ fn fmt_strip_outer_quotes(s: str) -> str {
     return str_substring(s, 1, slen - 1);
 }
 
-// v0.3.152: helper for the bare-`{}` heuristic. When the arg
-// expression is a bare identifier, scan src for a `let <name>: TYPE`
-// or `let mut <name>: TYPE` declaration and return TYPE if found.
-// Empty string means no declaration matched. Used by
-// fmt_conversion_for_spec to disambiguate `{}` for typed locals.
+// v0.3.152: helper for the bare-`{}` heuristic. Scan src for ALL
+// `let <name>: TYPE` and `let mut <name>: TYPE` declarations and
+// return TYPE only if every declaration of <name> agrees. If the
+// same name has conflicting types (e.g. `let x: str` in one fn and
+// `let x: i64` in another), return "" so the heuristic falls back
+// to the default int_to_str.
+//
+// Conservative-by-construction: if there's any ambiguity, do nothing.
+// Worst case the adopter sees the original int-as-pointer output and
+// switches to explicit `:s` / `:f` -- still a hazard but a less harmful
+// one than the v0.3.152-rev1 bug where the scan picked the WRONG
+// declaration and crashed (SIGSEGV when an i64 was passed to print_str).
+//
+// Also requires the matched `let` to be followed by a TYPE (not
+// elision via `let x = ...;` without a type annotation) so we never
+// invent a type out of thin air.
 fn infer_var_type_from_source(src: str, var_name: str) -> str {
     let slen: i64 = str_len(src);
     let vlen: i64 = str_len(var_name);
     if vlen == 0 { return ""; };
-    // Look for "let " or "let mut " prefix followed by var_name + ":"
-    // Walk through src; when we see `let `, check if it's followed by
-    // (optionally `mut `) + var_name + `:` + TYPE.
+    let mut found_type: str = "";
+    let mut conflict: i64 = 0;
     let mut i: i64 = 0;
     while i + 4 < slen {
         // "let " = 'l','e','t',' ' = 108,101,116,32
@@ -14195,10 +14205,19 @@ fn infer_var_type_from_source(src: str, var_name: str) -> str {
                 else if str_char_at(src, p + k) != str_char_at(var_name, k) { matched = 0; k = vlen; };
                 k = k + 1;
             };
+            // Also require the char after var_name to NOT be alpha/digit/underscore
+            // -- so `foo` doesn't match `foobar`.
             if matched == 1 {
                 let after: i64 = p + vlen;
-                // Next char must be `:` (with optional space before it)
-                let mut q: i64 = after;
+                if after < slen {
+                    let nc: i64 = str_char_at(src, after);
+                    let is_id_continue: i64 = if (nc >= 65 && nc <= 90) || (nc >= 97 && nc <= 122) || (nc >= 48 && nc <= 57) || nc == 95 { 1 } else { 0 };
+                    if is_id_continue == 1 { matched = 0; };
+                };
+            };
+            if matched == 1 {
+                let after2: i64 = p + vlen;
+                let mut q: i64 = after2;
                 while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
                 if q < slen && str_char_at(src, q) == 58 {
                     q = q + 1;
@@ -14206,9 +14225,16 @@ fn infer_var_type_from_source(src: str, var_name: str) -> str {
                     let ts: i64 = q;
                     while q < slen {
                         let tc: i64 = str_char_at(src, q);
-                        // type ends at ` `, `=`, `;`, `,`, `<`, end of line
                         if tc == 32 || tc == 61 || tc == 59 || tc == 44 || tc == 60 || tc == 10 || tc == 13 {
-                            return str_substring(src, ts, q);
+                            let this_type: str = str_substring(src, ts, q);
+                            if str_len(found_type) == 0 {
+                                found_type = this_type;
+                            } else {
+                                if str_eq(found_type, this_type) == 0 {
+                                    conflict = 1;
+                                };
+                            };
+                            q = slen;
                         };
                         q = q + 1;
                     };
@@ -14217,7 +14243,8 @@ fn infer_var_type_from_source(src: str, var_name: str) -> str {
         };
         i = i + 1;
     };
-    return "";
+    if conflict == 1 { return ""; };
+    return found_type;
 }
 
 fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
@@ -14947,7 +14974,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.152";
+    return "0.3.153";
 }
 
 fn compiler_backend_label() -> str {
