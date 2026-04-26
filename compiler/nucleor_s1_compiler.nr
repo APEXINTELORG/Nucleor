@@ -13449,6 +13449,39 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
             };
         };
     };
+    // v0.3.199: NUC-FEEDBACK-009 follow-on #3 — also retry the
+    // post-clang LOCKED-OUTPUT case. The empty-log retry above only
+    // catches "clang never started"; if clang RAN but failed because
+    // the output exe was held open (Windows AV scan, antivirus
+    // dropper, prior orphan exe), the log is non-empty and contains
+    // strings like "used by another process", "LNK1104", or
+    // "could not open output file". Retry a couple of times with a
+    // short sleep so the AV/file-handle window can close.
+    if rc != 0 {
+        let lock_log: str = file_read_string(log_path);
+        if str_len(lock_log) > 0 {
+            let lock_seen: i64 = if str_contains(lock_log, "used by another process") == 1
+                || str_contains(lock_log, "LNK1104") == 1
+                || str_contains(lock_log, "could not open output") == 1
+                || str_contains(lock_log, "Permission denied") == 1 { 1 } else { 0 };
+            if lock_seen == 1 {
+                let mut lr: i64 = 0;
+                while lr < 2 && rc != 0 {
+                    sleep_ms(150);
+                    rc = system(cmd);
+                    if rc != 0 {
+                        let chk: str = file_read_string(log_path);
+                        let still_lock: i64 = if str_contains(chk, "used by another process") == 1
+                            || str_contains(chk, "LNK1104") == 1
+                            || str_contains(chk, "could not open output") == 1
+                            || str_contains(chk, "Permission denied") == 1 { 1 } else { 0 };
+                        if still_lock == 0 { lr = 2; };
+                    };
+                    lr = lr + 1;
+                };
+            };
+        };
+    };
     print_phase_time(time_passes, "clang", now_ms() - clang_start);
     let clang_log: str = file_read_string(log_path);
     if rc != 0 {
@@ -13484,6 +13517,37 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
         print(str_concat("    ", cmd));
         if str_len(clang_log) == 0 {
             print("  note: clang_link.log is EMPTY -- clang likely never started (file lock, missing exe, antivirus, or process-spawn failure). Check that bin/nucleor.exe is not held open by an orphan process and retry.");
+        };
+        // v0.3.199: NUC-FEEDBACK-009 follow-on #3 — locked-output
+        // hint. If the link failure shows the well-known Windows
+        // file-lock signature, print the locked path and a
+        // path-specific cleanup command (PowerShell + cmd) so
+        // adopters don't have to extract the basename themselves
+        // from a long verbose link line.
+        let lock_after: i64 = if str_len(clang_log) > 0 && (str_contains(clang_log, "used by another process") == 1
+            || str_contains(clang_log, "LNK1104") == 1
+            || str_contains(clang_log, "could not open output") == 1
+            || str_contains(clang_log, "Permission denied") == 1) { 1 } else { 0 };
+        if lock_after == 1 {
+            print(str_concat("  locked output: ", exe_path));
+            // Extract the basename (no dir, no .exe) for the
+            // taskkill / Stop-Process command.
+            let pl: i64 = str_len(exe_path);
+            let mut bs: i64 = pl;
+            let mut k: i64 = 0;
+            while k < pl {
+                let ch: i64 = str_char_at(exe_path, k);
+                if ch == 47 || ch == 92 { bs = k + 1; };
+                k = k + 1;
+            };
+            let mut be: i64 = pl;
+            if pl >= 4 && str_eq(str_substring(exe_path, pl - 4, pl), ".exe") == 1 {
+                be = pl - 4;
+            };
+            let base: str = if bs < be { str_substring(exe_path, bs, be) } else { exe_path };
+            print(str_concat("  hint: Stop-Process -Name ", str_concat(base, " -Force -ErrorAction SilentlyContinue")));
+            print(str_concat("  hint: taskkill /F /IM ", str_concat(base, ".exe 2> NUL")));
+            print("  note: persistent lock after 3 internal retries (150ms apart) usually means an orphan instance of the output exe is still running, an AV scanner is mid-scan, or another build is touching the same target path.");
         };
         return 1;
     };
@@ -16664,7 +16728,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.198";
+    return "0.3.199";
 }
 
 fn compiler_backend_label() -> str {
