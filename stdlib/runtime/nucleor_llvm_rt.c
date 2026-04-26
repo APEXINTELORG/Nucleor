@@ -2808,6 +2808,78 @@ long long __nucleor_checked_overflow_flag(void) {
     return __nucleor_overflow_flag;
 }
 
+// v0.3.207: NUC-FEEDBACK runtime safety -- panic-on-overflow
+// arithmetic. The existing checked_* surface returns 0 + sets a
+// flag the caller has to check; that's awkward enough that
+// adopters tend to skip it, so the silent-wrap hazard persists
+// in user code even when they "tried to be careful". The
+// panic_* surface here is fire-and-forget: result is always
+// well-defined (returns a+b/a-b/a*b on success, panics on
+// overflow), no flag check needed.
+//
+// Adopters who want the legacy wrap behavior can use the
+// existing wrapping_* helpers; adopters who want clamp can use
+// the saturating_* helpers. This is the ergonomic strict-mode
+// surface.
+
+long long __nucleor_panic_add_i64(long long a, long long b) {
+    if (b > 0 && a > LLONG_MAX - b) {
+        fprintf(stderr, "PANIC: i64 add overflow: %lld + %lld\n", a, b);
+        fflush(stderr); exit(1);
+    }
+    if (b < 0 && a < LLONG_MIN - b) {
+        fprintf(stderr, "PANIC: i64 add overflow: %lld + %lld\n", a, b);
+        fflush(stderr); exit(1);
+    }
+    return a + b;
+}
+long long __nucleor_panic_sub_i64(long long a, long long b) {
+    if (b < 0 && a > LLONG_MAX + b) {
+        fprintf(stderr, "PANIC: i64 sub overflow: %lld - %lld\n", a, b);
+        fflush(stderr); exit(1);
+    }
+    if (b > 0 && a < LLONG_MIN + b) {
+        fprintf(stderr, "PANIC: i64 sub overflow: %lld - %lld\n", a, b);
+        fflush(stderr); exit(1);
+    }
+    return a - b;
+}
+long long __nucleor_panic_mul_i64(long long a, long long b) {
+    if (a == 0 || b == 0) return 0;
+    long long r = a * b;
+    if (a != r / b) {
+        fprintf(stderr, "PANIC: i64 mul overflow: %lld * %lld\n", a, b);
+        fflush(stderr); exit(1);
+    }
+    return r;
+}
+long long __nucleor_panic_div_i64(long long a, long long b) {
+    if (b == 0) {
+        fprintf(stderr, "PANIC: i64 division by zero: %lld / 0\n", a);
+        fflush(stderr); exit(1);
+    }
+    if (a == LLONG_MIN && b == -1) {
+        fprintf(stderr, "PANIC: i64 div overflow: i64::MIN / -1\n");
+        fflush(stderr); exit(1);
+    }
+    return a / b;
+}
+long long __nucleor_panic_rem_i64(long long a, long long b) {
+    if (b == 0) {
+        fprintf(stderr, "PANIC: i64 mod by zero: %lld %% 0\n", a);
+        fflush(stderr); exit(1);
+    }
+    if (a == LLONG_MIN && b == -1) return 0;
+    return a % b;
+}
+long long __nucleor_panic_neg_i64(long long v) {
+    if (v == LLONG_MIN) {
+        fprintf(stderr, "PANIC: i64 neg overflow: -(i64::MIN)\n");
+        fflush(stderr); exit(1);
+    }
+    return -v;
+}
+
 // --- v0.2.28: division / remainder / negation variants ---
 // checked_div_i64 / checked_rem_i64: 0 + overflow flag set on
 //   (a) divide-by-zero, OR (b) i64::MIN / -1 (would overflow).

@@ -3351,6 +3351,13 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "wrapping_rem") { return "__nucleor_wrapping_rem_i64"; };
     if str_eq(name, "wrapping_neg") { return "__nucleor_wrapping_neg_i64"; };
     if str_eq(name, "saturating_neg") { return "__nucleor_saturating_neg_i64"; };
+    // v0.3.207: panic-on-overflow ergonomic surface (no flag-check needed)
+    if str_eq(name, "panic_add") { return "__nucleor_panic_add_i64"; };
+    if str_eq(name, "panic_sub") { return "__nucleor_panic_sub_i64"; };
+    if str_eq(name, "panic_mul") { return "__nucleor_panic_mul_i64"; };
+    if str_eq(name, "panic_div") { return "__nucleor_panic_div_i64"; };
+    if str_eq(name, "panic_rem") { return "__nucleor_panic_rem_i64"; };
+    if str_eq(name, "panic_neg") { return "__nucleor_panic_neg_i64"; };
     // RFC-0015 phase 4 — per-narrow-width overflow primitives
     if str_eq(name, "wrapping_add_i8") { return "__nucleor_wrapping_add_i8"; };
     if str_eq(name, "wrapping_sub_i8") { return "__nucleor_wrapping_sub_i8"; };
@@ -4836,6 +4843,12 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_wrapping_rem_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_neg_i64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_saturating_neg_i64(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_add_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_sub_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_mul_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_div_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_rem_i64(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_neg_i64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_add_i8(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_sub_i8(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_mul_i8(i64, i64)\n");
@@ -16761,7 +16774,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.206";
+    return "0.3.207";
 }
 
 fn compiler_backend_label() -> str {
