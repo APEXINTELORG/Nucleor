@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.187] — 2026-04-26
+
+**`for n in v.iter() { print(n); }` now works instead of
+SIGSEGVing.** Sister fix to v0.3.175 (for-loop variable type
+registration).
+
+Pre-v0.3.187, `for n in v.iter() { print(n); }` SIGSEGV'd
+because `indexed_element_full_type` lookup on the iter() method
+call (kind 8) failed — `iter()` is identity pass-through (per
+t364) but the helper doesn't recognize the builtin method, so
+it returned `""` and `__type_n` was never registered.
+`print(n)` then fell through to `print_str`.
+
+Same hazard class as v0.3.175 (for-loop var) and v0.3.176-186
+(var/binding type registration).
+
+Fix: in the for-loop kind-49 (iter form) lowering, when the
+receiver is a kind 8 (method call) with mname `iter` or
+`into_iter`, strip the method call and look up the ELEMENT
+type from the underlying receiver Vec. Reuses the existing
+`indexed_element_full_type` helper.
+
+Pinned by `tests/fixtures/t453_for_iter_method_print.nr`.
+Bootstrap fixed point at stage_d
+`22d83101c08346f87b6615d17231e932f624063c18e43b55c9ae777df7d71509`.
+
 ## [0.3.186] — 2026-04-26
 
 **Multi-payload enum variants like `Variant(str, i64)` now

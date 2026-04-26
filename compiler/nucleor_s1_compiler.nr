@@ -12806,7 +12806,18 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // is a known container (Vec<T> -> T). Same fix as kind 28.
         // Falls through silently when iterator type isn't a container,
         // preserving existing behaviour.
-        let iter_etype_full: str = indexed_element_full_type(pool, node_field(pool, nid, 2), sym, structs);
+        // v0.3.187: also handle `for x in v.iter()` -- the iter() method
+        // is identity pass-through (per t364), but indexed_element_full_type
+        // doesn't recognize it. Strip the .iter() and look up the
+        // receiver Vec's element type.
+        let mut iter_recv_nid: i64 = node_field(pool, nid, 2);
+        if node_kind(pool, iter_recv_nid) == 8 {
+            let iter_mname: str = node_field(pool, iter_recv_nid, 2);
+            if str_eq(iter_mname, "iter") == 1 || str_eq(iter_mname, "into_iter") == 1 {
+                iter_recv_nid = node_field(pool, iter_recv_nid, 1);
+            };
+        };
+        let iter_etype_full: str = indexed_element_full_type(pool, iter_recv_nid, sym, structs);
         if str_len(iter_etype_full) > 0 {
             let iter_etype_base: str = type_base_name(iter_etype_full);
             if str_len(iter_etype_base) > 0 {
@@ -16435,7 +16446,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.186";
+    return "0.3.187";
 }
 
 fn compiler_backend_label() -> str {
