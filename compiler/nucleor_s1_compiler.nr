@@ -229,7 +229,22 @@ fn lex(src: str) -> Vec<i32> {
                     };
                     p = p + 1;
                 };
-                let frac_str: str = sb_to_str(frac_sb);
+                let raw_frac_str: str = sb_to_str(frac_sb);
+                // v0.3.130: NUC-FEEDBACK-005 — truncate fractional digits to
+                // the encoder's 6-digit (millionth) precision BEFORE
+                // computing frac_div. Pre-v0.3.130, a literal like
+                // `0.7978845608028654` (16 frac digits) computed
+                // frac_div = 10^16, then `1000000 / frac_div = 0`
+                // (integer division), then `frac_val * 0 = 0`. The
+                // encoded value collapsed to `int_part * 1000000` and
+                // the entire fractional part was silently lost — every
+                // long-precision literal became a clean integer with
+                // zero fraction. HIGH-blast for any ML / scientific
+                // code reaching for canonical constants
+                // (sqrt(2/π) ≈ 0.7978845608…, log(2) ≈ 0.6931471805…,
+                // e ≈ 2.7182818284…, etc.).
+                let raw_frac_len: i64 = str_len(raw_frac_str);
+                let frac_str: str = if raw_frac_len > 6 { str_substring(raw_frac_str, 0, 6) } else { raw_frac_str };
                 let frac_val: i64 = str_to_int(frac_str);
                 let frac_len: i64 = str_len(frac_str);
                 // Compute frac_divisor = 10^frac_len

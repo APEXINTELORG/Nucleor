@@ -6929,27 +6929,30 @@ bb.entry:
   %r.584 = alloca i64
   %r.587 = alloca i64
   %r.590 = alloca i64
-  %r.593 = alloca i64
-  %r.595 = alloca i64
-  %r.606 = alloca i64
-  %r.631 = alloca i64
-  %r.646 = alloca i64
-  %r.681 = alloca i64
-  %r.685 = alloca i64
-  %r.712 = alloca i64
-  %r.727 = alloca i64
-  %r.732 = alloca i64
-  %r.831 = alloca i64
-  %r.836 = alloca i64
-  %r.858 = alloca i64
-  %r.1806 = alloca i64
-  %r.1808 = alloca i64
-  %r.1815 = alloca i64
-  %r.1821 = alloca i64
-  %r.1869 = alloca i64
-  %r.1875 = alloca i64
-  %r.1921 = alloca i64
-  %r.1942 = alloca i64
+  %r.594 = alloca i64
+  %r.601 = alloca i64
+  %r.604 = alloca i64
+  %r.607 = alloca i64
+  %r.609 = alloca i64
+  %r.620 = alloca i64
+  %r.645 = alloca i64
+  %r.660 = alloca i64
+  %r.695 = alloca i64
+  %r.699 = alloca i64
+  %r.726 = alloca i64
+  %r.741 = alloca i64
+  %r.746 = alloca i64
+  %r.845 = alloca i64
+  %r.850 = alloca i64
+  %r.872 = alloca i64
+  %r.1820 = alloca i64
+  %r.1822 = alloca i64
+  %r.1829 = alloca i64
+  %r.1835 = alloca i64
+  %r.1883 = alloca i64
+  %r.1889 = alloca i64
+  %r.1935 = alloca i64
+  %r.1956 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
@@ -8010,1773 +8013,1782 @@ L143:
   %r.586 = ptrtoint ptr %r.586.rv to i64
   store i64 %r.586, ptr %r.584
   %r.588 = load i64, ptr %r.584
-  %r.589 = call i64 @str_to_int(i64 %r.588)
+  %r.589.a0 = inttoptr i64 %r.588 to ptr
+  %r.589 = call i64 @__nucleor_str_len(ptr %r.589.a0)
   store i64 %r.589, ptr %r.587
-  %r.591 = load i64, ptr %r.584
-  %r.592.a0 = inttoptr i64 %r.591 to ptr
-  %r.592 = call i64 @__nucleor_str_len(ptr %r.592.a0)
-  store i64 %r.592, ptr %r.590
-  %r.594 = add i64 1, 0
-  store i64 %r.594, ptr %r.593
-  %r.596 = add i64 0, 0
-  store i64 %r.596, ptr %r.595
-  br label %L147
+  %r.591 = load i64, ptr %r.587
+  %r.592 = add i64 6, 0
+  %r.593.cmp = icmp sgt i64 %r.591, %r.592
+  %r.593 = zext i1 %r.593.cmp to i64
+  %br.593.cond = icmp ne i64 %r.593, 0
+  br i1 %br.593.cond, label %L147, label %L148
 L147:
-  %r.597 = load i64, ptr %r.595
-  %r.598 = load i64, ptr %r.590
-  %r.599.cmp = icmp slt i64 %r.597, %r.598
-  %r.599 = zext i1 %r.599.cmp to i64
-  %br.599.cond = icmp ne i64 %r.599, 0
-  br i1 %br.599.cond, label %L148, label %L149
+  %r.595 = load i64, ptr %r.584
+  %r.596 = add i64 0, 0
+  %r.597 = add i64 6, 0
+  %r.598.a0 = inttoptr i64 %r.595 to ptr
+  %r.598.rv = call ptr @__nucleor_str_substring(ptr %r.598.a0, i64 %r.596, i64 %r.597)
+  %r.598 = ptrtoint ptr %r.598.rv to i64
+  store i64 %r.598, ptr %r.594
+  br label %L149
 L148:
-  %r.600 = load i64, ptr %r.593
-  %r.601 = add i64 10, 0
-  %r.602 = mul i64 %r.600, %r.601
-  store i64 %r.602, ptr %r.593
-  %r.603 = load i64, ptr %r.595
-  %r.604 = add i64 1, 0
-  %r.605 = add i64 %r.603, %r.604
-  store i64 %r.605, ptr %r.595
-  br label %L147
+  %r.599 = load i64, ptr %r.584
+  store i64 %r.599, ptr %r.594
+  br label %L149
 L149:
-  %r.607 = load i64, ptr %r.541
-  %r.608 = add i64 1000000, 0
-  %r.609 = mul i64 %r.607, %r.608
-  %r.610 = load i64, ptr %r.587
-  %r.611 = add i64 1000000, 0
-  %r.612 = load i64, ptr %r.593
-  %r.613 = sdiv i64 %r.608, %r.612
-  %r.614 = mul i64 %r.610, %r.613
-  %r.615 = add i64 %r.609, %r.614
-  store i64 %r.615, ptr %r.606
-  %r.616 = load i64, ptr %r.2
-  %r.617 = add i64 70, 0
-  %r.618 = load i64, ptr %r.606
-  %r.619 = load i64, ptr %r.299
-  %r.620 = call i64 @tok_new(i64 %r.617, i64 %r.618, i64 %r.619)
-  %r.621.a0 = inttoptr i64 %r.616 to ptr
-  call void @__nucleor_vec_push(ptr %r.621.a0, i64 %r.620)
-  %r.621 = add i64 0, 0
-  %r.622 = load i64, ptr %r.7
-  %r.623 = load i64, ptr %r.4
-  %r.624.cmp = icmp slt i64 %r.622, %r.623
-  %r.624 = zext i1 %r.624.cmp to i64
-  %r.625 = load i64, ptr %r.0
-  %r.626 = load i64, ptr %r.7
-  %r.627.a0 = inttoptr i64 %r.625 to ptr
-  %r.627 = call i64 @__nucleor_str_char_at(ptr %r.627.a0, i64 %r.626)
-  %r.628 = add i64 102, 0
-  %r.629.cmp = icmp eq i64 %r.627, %r.628
-  %r.629 = zext i1 %r.629.cmp to i64
-  %r.630 = and i64 %r.624, %r.629
-  %br.630.cond = icmp ne i64 %r.630, 0
-  br i1 %br.630.cond, label %L150, label %L152
+  %r.600 = load i64, ptr %r.594
+  store i64 %r.600, ptr %r.590
+  %r.602 = load i64, ptr %r.590
+  %r.603 = call i64 @str_to_int(i64 %r.602)
+  store i64 %r.603, ptr %r.601
+  %r.605 = load i64, ptr %r.590
+  %r.606.a0 = inttoptr i64 %r.605 to ptr
+  %r.606 = call i64 @__nucleor_str_len(ptr %r.606.a0)
+  store i64 %r.606, ptr %r.604
+  %r.608 = add i64 1, 0
+  store i64 %r.608, ptr %r.607
+  %r.610 = add i64 0, 0
+  store i64 %r.610, ptr %r.609
+  br label %L150
 L150:
-  %r.632 = load i64, ptr %r.7
-  store i64 %r.632, ptr %r.631
-  br label %L153
+  %r.611 = load i64, ptr %r.609
+  %r.612 = load i64, ptr %r.604
+  %r.613.cmp = icmp slt i64 %r.611, %r.612
+  %r.613 = zext i1 %r.613.cmp to i64
+  %br.613.cond = icmp ne i64 %r.613, 0
+  br i1 %br.613.cond, label %L151, label %L152
+L151:
+  %r.614 = load i64, ptr %r.607
+  %r.615 = add i64 10, 0
+  %r.616 = mul i64 %r.614, %r.615
+  store i64 %r.616, ptr %r.607
+  %r.617 = load i64, ptr %r.609
+  %r.618 = add i64 1, 0
+  %r.619 = add i64 %r.617, %r.618
+  store i64 %r.619, ptr %r.609
+  br label %L150
+L152:
+  %r.621 = load i64, ptr %r.541
+  %r.622 = add i64 1000000, 0
+  %r.623 = mul i64 %r.621, %r.622
+  %r.624 = load i64, ptr %r.601
+  %r.625 = add i64 1000000, 0
+  %r.626 = load i64, ptr %r.607
+  %r.627 = sdiv i64 %r.622, %r.626
+  %r.628 = mul i64 %r.624, %r.627
+  %r.629 = add i64 %r.623, %r.628
+  store i64 %r.629, ptr %r.620
+  %r.630 = load i64, ptr %r.2
+  %r.631 = add i64 70, 0
+  %r.632 = load i64, ptr %r.620
+  %r.633 = load i64, ptr %r.299
+  %r.634 = call i64 @tok_new(i64 %r.631, i64 %r.632, i64 %r.633)
+  %r.635.a0 = inttoptr i64 %r.630 to ptr
+  call void @__nucleor_vec_push(ptr %r.635.a0, i64 %r.634)
+  %r.635 = add i64 0, 0
+  %r.636 = load i64, ptr %r.7
+  %r.637 = load i64, ptr %r.4
+  %r.638.cmp = icmp slt i64 %r.636, %r.637
+  %r.638 = zext i1 %r.638.cmp to i64
+  %r.639 = load i64, ptr %r.0
+  %r.640 = load i64, ptr %r.7
+  %r.641.a0 = inttoptr i64 %r.639 to ptr
+  %r.641 = call i64 @__nucleor_str_char_at(ptr %r.641.a0, i64 %r.640)
+  %r.642 = add i64 102, 0
+  %r.643.cmp = icmp eq i64 %r.641, %r.642
+  %r.643 = zext i1 %r.643.cmp to i64
+  %r.644 = and i64 %r.638, %r.643
+  %br.644.cond = icmp ne i64 %r.644, 0
+  br i1 %br.644.cond, label %L153, label %L155
 L153:
-  %r.633 = load i64, ptr %r.7
-  %r.634 = load i64, ptr %r.4
-  %r.635.cmp = icmp slt i64 %r.633, %r.634
-  %r.635 = zext i1 %r.635.cmp to i64
-  %r.636 = load i64, ptr %r.0
-  %r.637 = load i64, ptr %r.7
-  %r.638.a0 = inttoptr i64 %r.636 to ptr
-  %r.638 = call i64 @__nucleor_str_char_at(ptr %r.638.a0, i64 %r.637)
-  %r.639 = call i64 @is_alnum(i64 %r.638)
-  %r.640 = add i64 1, 0
-  %r.641.cmp = icmp eq i64 %r.639, %r.640
-  %r.641 = zext i1 %r.641.cmp to i64
-  %r.642 = and i64 %r.635, %r.641
-  %br.642.cond = icmp ne i64 %r.642, 0
-  br i1 %br.642.cond, label %L154, label %L155
-L154:
-  %r.643 = load i64, ptr %r.7
-  %r.644 = add i64 1, 0
-  %r.645 = add i64 %r.643, %r.644
-  store i64 %r.645, ptr %r.7
-  br label %L153
-L155:
-  %r.647 = load i64, ptr %r.0
-  %r.648 = load i64, ptr %r.631
-  %r.649 = load i64, ptr %r.7
-  %r.650.a0 = inttoptr i64 %r.647 to ptr
-  %r.650.rv = call ptr @__nucleor_str_substring(ptr %r.650.a0, i64 %r.648, i64 %r.649)
-  %r.650 = ptrtoint ptr %r.650.rv to i64
-  store i64 %r.650, ptr %r.646
-  %r.651 = load i64, ptr %r.646
-  %r.652 = ptrtoint ptr @.str.43 to i64
-  %r.653.a0 = inttoptr i64 %r.651 to ptr
-  %r.653.a1 = inttoptr i64 %r.652 to ptr
-  %r.653 = call i64 @__nucleor_str_eq(ptr %r.653.a0, ptr %r.653.a1)
-  %r.654 = add i64 0, 0
+  %r.646 = load i64, ptr %r.7
+  store i64 %r.646, ptr %r.645
+  br label %L156
+L156:
+  %r.647 = load i64, ptr %r.7
+  %r.648 = load i64, ptr %r.4
+  %r.649.cmp = icmp slt i64 %r.647, %r.648
+  %r.649 = zext i1 %r.649.cmp to i64
+  %r.650 = load i64, ptr %r.0
+  %r.651 = load i64, ptr %r.7
+  %r.652.a0 = inttoptr i64 %r.650 to ptr
+  %r.652 = call i64 @__nucleor_str_char_at(ptr %r.652.a0, i64 %r.651)
+  %r.653 = call i64 @is_alnum(i64 %r.652)
+  %r.654 = add i64 1, 0
   %r.655.cmp = icmp eq i64 %r.653, %r.654
   %r.655 = zext i1 %r.655.cmp to i64
-  %r.656 = load i64, ptr %r.646
-  %r.657 = ptrtoint ptr @.str.44 to i64
-  %r.658.a0 = inttoptr i64 %r.656 to ptr
-  %r.658.a1 = inttoptr i64 %r.657 to ptr
-  %r.658 = call i64 @__nucleor_str_eq(ptr %r.658.a0, ptr %r.658.a1)
-  %r.659 = add i64 0, 0
-  %r.660.cmp = icmp eq i64 %r.658, %r.654
-  %r.660 = zext i1 %r.660.cmp to i64
-  %r.661 = and i64 %r.655, %r.660
-  %br.661.cond = icmp ne i64 %r.661, 0
-  br i1 %br.661.cond, label %L156, label %L158
-L156:
-  %r.662 = load i64, ptr %r.631
-  store i64 %r.662, ptr %r.7
-  br label %L158
+  %r.656 = and i64 %r.649, %r.655
+  %br.656.cond = icmp ne i64 %r.656, 0
+  br i1 %br.656.cond, label %L157, label %L158
+L157:
+  %r.657 = load i64, ptr %r.7
+  %r.658 = add i64 1, 0
+  %r.659 = add i64 %r.657, %r.658
+  store i64 %r.659, ptr %r.7
+  br label %L156
 L158:
-  br label %L152
-L152:
+  %r.661 = load i64, ptr %r.0
+  %r.662 = load i64, ptr %r.645
   %r.663 = load i64, ptr %r.7
-  %r.664 = load i64, ptr %r.4
-  %r.665.cmp = icmp slt i64 %r.663, %r.664
-  %r.665 = zext i1 %r.665.cmp to i64
-  %r.666 = load i64, ptr %r.0
-  %r.667 = load i64, ptr %r.7
-  %r.668.a0 = inttoptr i64 %r.666 to ptr
-  %r.668 = call i64 @__nucleor_str_char_at(ptr %r.668.a0, i64 %r.667)
-  %r.669 = add i64 123, 0
-  %r.670.cmp = icmp eq i64 %r.668, %r.669
-  %r.670 = zext i1 %r.670.cmp to i64
-  %r.671 = and i64 %r.665, %r.670
-  %br.671.cond = icmp ne i64 %r.671, 0
-  br i1 %br.671.cond, label %L159, label %L161
+  %r.664.a0 = inttoptr i64 %r.661 to ptr
+  %r.664.rv = call ptr @__nucleor_str_substring(ptr %r.664.a0, i64 %r.662, i64 %r.663)
+  %r.664 = ptrtoint ptr %r.664.rv to i64
+  store i64 %r.664, ptr %r.660
+  %r.665 = load i64, ptr %r.660
+  %r.666 = ptrtoint ptr @.str.43 to i64
+  %r.667.a0 = inttoptr i64 %r.665 to ptr
+  %r.667.a1 = inttoptr i64 %r.666 to ptr
+  %r.667 = call i64 @__nucleor_str_eq(ptr %r.667.a0, ptr %r.667.a1)
+  %r.668 = add i64 0, 0
+  %r.669.cmp = icmp eq i64 %r.667, %r.668
+  %r.669 = zext i1 %r.669.cmp to i64
+  %r.670 = load i64, ptr %r.660
+  %r.671 = ptrtoint ptr @.str.44 to i64
+  %r.672.a0 = inttoptr i64 %r.670 to ptr
+  %r.672.a1 = inttoptr i64 %r.671 to ptr
+  %r.672 = call i64 @__nucleor_str_eq(ptr %r.672.a0, ptr %r.672.a1)
+  %r.673 = add i64 0, 0
+  %r.674.cmp = icmp eq i64 %r.672, %r.668
+  %r.674 = zext i1 %r.674.cmp to i64
+  %r.675 = and i64 %r.669, %r.674
+  %br.675.cond = icmp ne i64 %r.675, 0
+  br i1 %br.675.cond, label %L159, label %L161
 L159:
-  %r.672 = load i64, ptr %r.2
-  %r.673 = add i64 83, 0
-  %r.674 = add i64 0, 0
-  %r.675 = load i64, ptr %r.7
-  %r.676 = call i64 @tok_new(i64 %r.673, i64 %r.674, i64 %r.675)
-  %r.677.a0 = inttoptr i64 %r.672 to ptr
-  call void @__nucleor_vec_push(ptr %r.677.a0, i64 %r.676)
-  %r.677 = add i64 0, 0
-  %r.678 = load i64, ptr %r.7
-  %r.679 = add i64 1, 0
-  %r.680 = add i64 %r.678, %r.679
-  store i64 %r.680, ptr %r.7
+  %r.676 = load i64, ptr %r.645
+  store i64 %r.676, ptr %r.7
   br label %L161
 L161:
-  br label %L140
-L139:
-  %r.682 = load i64, ptr %r.303
-  %r.683 = add i64 1, 0
+  br label %L155
+L155:
+  %r.677 = load i64, ptr %r.7
+  %r.678 = load i64, ptr %r.4
+  %r.679.cmp = icmp slt i64 %r.677, %r.678
+  %r.679 = zext i1 %r.679.cmp to i64
+  %r.680 = load i64, ptr %r.0
+  %r.681 = load i64, ptr %r.7
+  %r.682.a0 = inttoptr i64 %r.680 to ptr
+  %r.682 = call i64 @__nucleor_str_char_at(ptr %r.682.a0, i64 %r.681)
+  %r.683 = add i64 123, 0
   %r.684.cmp = icmp eq i64 %r.682, %r.683
   %r.684 = zext i1 %r.684.cmp to i64
-  %br.684.cond = icmp ne i64 %r.684, 0
-  br i1 %br.684.cond, label %L162, label %L163
+  %r.685 = and i64 %r.679, %r.684
+  %br.685.cond = icmp ne i64 %r.685, 0
+  br i1 %br.685.cond, label %L162, label %L164
 L162:
-  %r.686 = load i64, ptr %r.301
-  store i64 %r.686, ptr %r.685
-  br label %L164
-L163:
-  %r.687 = load i64, ptr %r.480
-  %r.688.rv = call ptr @__nucleor_sb_to_str(i64 %r.687)
-  %r.688 = ptrtoint ptr %r.688.rv to i64
-  %r.689 = call i64 @str_to_int(i64 %r.688)
-  store i64 %r.689, ptr %r.685
+  %r.686 = load i64, ptr %r.2
+  %r.687 = add i64 83, 0
+  %r.688 = add i64 0, 0
+  %r.689 = load i64, ptr %r.7
+  %r.690 = call i64 @tok_new(i64 %r.687, i64 %r.688, i64 %r.689)
+  %r.691.a0 = inttoptr i64 %r.686 to ptr
+  call void @__nucleor_vec_push(ptr %r.691.a0, i64 %r.690)
+  %r.691 = add i64 0, 0
+  %r.692 = load i64, ptr %r.7
+  %r.693 = add i64 1, 0
+  %r.694 = add i64 %r.692, %r.693
+  store i64 %r.694, ptr %r.7
   br label %L164
 L164:
-  %r.690 = load i64, ptr %r.685
-  store i64 %r.690, ptr %r.681
-  %r.691 = load i64, ptr %r.2
-  %r.692 = add i64 2, 0
-  %r.693 = load i64, ptr %r.681
-  %r.694 = load i64, ptr %r.299
-  %r.695 = call i64 @tok_new(i64 %r.692, i64 %r.693, i64 %r.694)
-  %r.696.a0 = inttoptr i64 %r.691 to ptr
-  call void @__nucleor_vec_push(ptr %r.696.a0, i64 %r.695)
-  %r.696 = add i64 0, 0
-  %r.697 = load i64, ptr %r.7
-  %r.698 = load i64, ptr %r.4
-  %r.699.cmp = icmp slt i64 %r.697, %r.698
-  %r.699 = zext i1 %r.699.cmp to i64
-  %r.700 = load i64, ptr %r.0
-  %r.701 = load i64, ptr %r.7
-  %r.702.a0 = inttoptr i64 %r.700 to ptr
-  %r.702 = call i64 @__nucleor_str_char_at(ptr %r.702.a0, i64 %r.701)
-  %r.703 = add i64 105, 0
-  %r.704.cmp = icmp eq i64 %r.702, %r.703
-  %r.704 = zext i1 %r.704.cmp to i64
-  %r.705 = load i64, ptr %r.0
-  %r.706 = load i64, ptr %r.7
-  %r.707.a0 = inttoptr i64 %r.705 to ptr
-  %r.707 = call i64 @__nucleor_str_char_at(ptr %r.707.a0, i64 %r.706)
-  %r.708 = add i64 117, 0
-  %r.709.cmp = icmp eq i64 %r.707, %r.708
-  %r.709 = zext i1 %r.709.cmp to i64
-  %r.710 = or i64 %r.704, %r.709
-  %r.711 = and i64 %r.699, %r.710
-  %br.711.cond = icmp ne i64 %r.711, 0
-  br i1 %br.711.cond, label %L165, label %L167
+  br label %L140
+L139:
+  %r.696 = load i64, ptr %r.303
+  %r.697 = add i64 1, 0
+  %r.698.cmp = icmp eq i64 %r.696, %r.697
+  %r.698 = zext i1 %r.698.cmp to i64
+  %br.698.cond = icmp ne i64 %r.698, 0
+  br i1 %br.698.cond, label %L165, label %L166
 L165:
-  %r.713 = load i64, ptr %r.7
-  store i64 %r.713, ptr %r.712
-  br label %L168
-L168:
-  %r.714 = load i64, ptr %r.7
-  %r.715 = load i64, ptr %r.4
-  %r.716.cmp = icmp slt i64 %r.714, %r.715
-  %r.716 = zext i1 %r.716.cmp to i64
-  %r.717 = load i64, ptr %r.0
-  %r.718 = load i64, ptr %r.7
-  %r.719.a0 = inttoptr i64 %r.717 to ptr
-  %r.719 = call i64 @__nucleor_str_char_at(ptr %r.719.a0, i64 %r.718)
-  %r.720 = call i64 @is_alnum(i64 %r.719)
-  %r.721 = add i64 1, 0
-  %r.722.cmp = icmp eq i64 %r.720, %r.721
-  %r.722 = zext i1 %r.722.cmp to i64
-  %r.723 = and i64 %r.716, %r.722
-  %br.723.cond = icmp ne i64 %r.723, 0
-  br i1 %br.723.cond, label %L169, label %L170
-L169:
-  %r.724 = load i64, ptr %r.7
-  %r.725 = add i64 1, 0
-  %r.726 = add i64 %r.724, %r.725
-  store i64 %r.726, ptr %r.7
-  br label %L168
-L170:
-  %r.728 = load i64, ptr %r.0
-  %r.729 = load i64, ptr %r.712
-  %r.730 = load i64, ptr %r.7
-  %r.731.a0 = inttoptr i64 %r.728 to ptr
-  %r.731.rv = call ptr @__nucleor_str_substring(ptr %r.731.a0, i64 %r.729, i64 %r.730)
-  %r.731 = ptrtoint ptr %r.731.rv to i64
-  store i64 %r.731, ptr %r.727
-  %r.733 = add i64 0, 0
-  store i64 %r.733, ptr %r.732
-  %r.734 = load i64, ptr %r.727
-  %r.735 = ptrtoint ptr @.str.45 to i64
-  %r.736.a0 = inttoptr i64 %r.734 to ptr
-  %r.736.a1 = inttoptr i64 %r.735 to ptr
-  %r.736 = call i64 @__nucleor_str_eq(ptr %r.736.a0, ptr %r.736.a1)
-  %r.737 = add i64 1, 0
-  %r.738.cmp = icmp eq i64 %r.736, %r.737
-  %r.738 = zext i1 %r.738.cmp to i64
-  %br.738.cond = icmp ne i64 %r.738, 0
-  br i1 %br.738.cond, label %L171, label %L173
-L171:
-  %r.739 = add i64 1, 0
-  store i64 %r.739, ptr %r.732
-  br label %L173
-L173:
-  %r.740 = load i64, ptr %r.727
-  %r.741 = ptrtoint ptr @.str.46 to i64
-  %r.742.a0 = inttoptr i64 %r.740 to ptr
-  %r.742.a1 = inttoptr i64 %r.741 to ptr
-  %r.742 = call i64 @__nucleor_str_eq(ptr %r.742.a0, ptr %r.742.a1)
-  %r.743 = add i64 1, 0
-  %r.744.cmp = icmp eq i64 %r.742, %r.743
-  %r.744 = zext i1 %r.744.cmp to i64
-  %br.744.cond = icmp ne i64 %r.744, 0
-  br i1 %br.744.cond, label %L174, label %L176
-L174:
-  %r.745 = add i64 1, 0
-  store i64 %r.745, ptr %r.732
-  br label %L176
-L176:
-  %r.746 = load i64, ptr %r.727
-  %r.747 = ptrtoint ptr @.str.47 to i64
-  %r.748.a0 = inttoptr i64 %r.746 to ptr
-  %r.748.a1 = inttoptr i64 %r.747 to ptr
-  %r.748 = call i64 @__nucleor_str_eq(ptr %r.748.a0, ptr %r.748.a1)
-  %r.749 = add i64 1, 0
-  %r.750.cmp = icmp eq i64 %r.748, %r.749
-  %r.750 = zext i1 %r.750.cmp to i64
-  %br.750.cond = icmp ne i64 %r.750, 0
-  br i1 %br.750.cond, label %L177, label %L179
-L177:
-  %r.751 = add i64 1, 0
-  store i64 %r.751, ptr %r.732
-  br label %L179
-L179:
-  %r.752 = load i64, ptr %r.727
-  %r.753 = ptrtoint ptr @.str.48 to i64
-  %r.754.a0 = inttoptr i64 %r.752 to ptr
-  %r.754.a1 = inttoptr i64 %r.753 to ptr
-  %r.754 = call i64 @__nucleor_str_eq(ptr %r.754.a0, ptr %r.754.a1)
-  %r.755 = add i64 1, 0
-  %r.756.cmp = icmp eq i64 %r.754, %r.755
-  %r.756 = zext i1 %r.756.cmp to i64
-  %br.756.cond = icmp ne i64 %r.756, 0
-  br i1 %br.756.cond, label %L180, label %L182
-L180:
-  %r.757 = add i64 1, 0
-  store i64 %r.757, ptr %r.732
-  br label %L182
-L182:
-  %r.758 = load i64, ptr %r.727
-  %r.759 = ptrtoint ptr @.str.49 to i64
-  %r.760.a0 = inttoptr i64 %r.758 to ptr
-  %r.760.a1 = inttoptr i64 %r.759 to ptr
-  %r.760 = call i64 @__nucleor_str_eq(ptr %r.760.a0, ptr %r.760.a1)
-  %r.761 = add i64 1, 0
-  %r.762.cmp = icmp eq i64 %r.760, %r.761
-  %r.762 = zext i1 %r.762.cmp to i64
-  %br.762.cond = icmp ne i64 %r.762, 0
-  br i1 %br.762.cond, label %L183, label %L185
-L183:
-  %r.763 = add i64 1, 0
-  store i64 %r.763, ptr %r.732
-  br label %L185
-L185:
-  %r.764 = load i64, ptr %r.727
-  %r.765 = ptrtoint ptr @.str.50 to i64
-  %r.766.a0 = inttoptr i64 %r.764 to ptr
-  %r.766.a1 = inttoptr i64 %r.765 to ptr
-  %r.766 = call i64 @__nucleor_str_eq(ptr %r.766.a0, ptr %r.766.a1)
-  %r.767 = add i64 1, 0
-  %r.768.cmp = icmp eq i64 %r.766, %r.767
-  %r.768 = zext i1 %r.768.cmp to i64
-  %br.768.cond = icmp ne i64 %r.768, 0
-  br i1 %br.768.cond, label %L186, label %L188
-L186:
-  %r.769 = add i64 1, 0
-  store i64 %r.769, ptr %r.732
-  br label %L188
-L188:
-  %r.770 = load i64, ptr %r.727
-  %r.771 = ptrtoint ptr @.str.51 to i64
-  %r.772.a0 = inttoptr i64 %r.770 to ptr
-  %r.772.a1 = inttoptr i64 %r.771 to ptr
-  %r.772 = call i64 @__nucleor_str_eq(ptr %r.772.a0, ptr %r.772.a1)
-  %r.773 = add i64 1, 0
-  %r.774.cmp = icmp eq i64 %r.772, %r.773
-  %r.774 = zext i1 %r.774.cmp to i64
-  %br.774.cond = icmp ne i64 %r.774, 0
-  br i1 %br.774.cond, label %L189, label %L191
-L189:
-  %r.775 = add i64 1, 0
-  store i64 %r.775, ptr %r.732
-  br label %L191
-L191:
-  %r.776 = load i64, ptr %r.727
-  %r.777 = ptrtoint ptr @.str.52 to i64
-  %r.778.a0 = inttoptr i64 %r.776 to ptr
-  %r.778.a1 = inttoptr i64 %r.777 to ptr
-  %r.778 = call i64 @__nucleor_str_eq(ptr %r.778.a0, ptr %r.778.a1)
-  %r.779 = add i64 1, 0
-  %r.780.cmp = icmp eq i64 %r.778, %r.779
-  %r.780 = zext i1 %r.780.cmp to i64
-  %br.780.cond = icmp ne i64 %r.780, 0
-  br i1 %br.780.cond, label %L192, label %L194
-L192:
-  %r.781 = add i64 1, 0
-  store i64 %r.781, ptr %r.732
-  br label %L194
-L194:
-  %r.782 = load i64, ptr %r.727
-  %r.783 = ptrtoint ptr @.str.53 to i64
-  %r.784.a0 = inttoptr i64 %r.782 to ptr
-  %r.784.a1 = inttoptr i64 %r.783 to ptr
-  %r.784 = call i64 @__nucleor_str_eq(ptr %r.784.a0, ptr %r.784.a1)
-  %r.785 = add i64 1, 0
-  %r.786.cmp = icmp eq i64 %r.784, %r.785
-  %r.786 = zext i1 %r.786.cmp to i64
-  %br.786.cond = icmp ne i64 %r.786, 0
-  br i1 %br.786.cond, label %L195, label %L197
-L195:
-  %r.787 = add i64 1, 0
-  store i64 %r.787, ptr %r.732
-  br label %L197
-L197:
-  %r.788 = load i64, ptr %r.727
-  %r.789 = ptrtoint ptr @.str.54 to i64
-  %r.790.a0 = inttoptr i64 %r.788 to ptr
-  %r.790.a1 = inttoptr i64 %r.789 to ptr
-  %r.790 = call i64 @__nucleor_str_eq(ptr %r.790.a0, ptr %r.790.a1)
-  %r.791 = add i64 1, 0
-  %r.792.cmp = icmp eq i64 %r.790, %r.791
-  %r.792 = zext i1 %r.792.cmp to i64
-  %br.792.cond = icmp ne i64 %r.792, 0
-  br i1 %br.792.cond, label %L198, label %L200
-L198:
-  %r.793 = add i64 1, 0
-  store i64 %r.793, ptr %r.732
-  br label %L200
-L200:
-  %r.794 = load i64, ptr %r.727
-  %r.795 = ptrtoint ptr @.str.55 to i64
-  %r.796.a0 = inttoptr i64 %r.794 to ptr
-  %r.796.a1 = inttoptr i64 %r.795 to ptr
-  %r.796 = call i64 @__nucleor_str_eq(ptr %r.796.a0, ptr %r.796.a1)
-  %r.797 = add i64 1, 0
-  %r.798.cmp = icmp eq i64 %r.796, %r.797
-  %r.798 = zext i1 %r.798.cmp to i64
-  %br.798.cond = icmp ne i64 %r.798, 0
-  br i1 %br.798.cond, label %L201, label %L203
-L201:
-  %r.799 = add i64 1, 0
-  store i64 %r.799, ptr %r.732
-  br label %L203
-L203:
-  %r.800 = load i64, ptr %r.727
-  %r.801 = ptrtoint ptr @.str.56 to i64
-  %r.802.a0 = inttoptr i64 %r.800 to ptr
-  %r.802.a1 = inttoptr i64 %r.801 to ptr
-  %r.802 = call i64 @__nucleor_str_eq(ptr %r.802.a0, ptr %r.802.a1)
-  %r.803 = add i64 1, 0
-  %r.804.cmp = icmp eq i64 %r.802, %r.803
-  %r.804 = zext i1 %r.804.cmp to i64
-  %br.804.cond = icmp ne i64 %r.804, 0
-  br i1 %br.804.cond, label %L204, label %L206
-L204:
-  %r.805 = add i64 1, 0
-  store i64 %r.805, ptr %r.732
-  br label %L206
-L206:
-  %r.806 = load i64, ptr %r.732
-  %r.807 = add i64 0, 0
-  %r.808.cmp = icmp eq i64 %r.806, %r.807
-  %r.808 = zext i1 %r.808.cmp to i64
-  %br.808.cond = icmp ne i64 %r.808, 0
-  br i1 %br.808.cond, label %L207, label %L209
-L207:
-  %r.809 = load i64, ptr %r.712
-  store i64 %r.809, ptr %r.7
-  br label %L209
-L209:
+  %r.700 = load i64, ptr %r.301
+  store i64 %r.700, ptr %r.699
+  br label %L167
+L166:
+  %r.701 = load i64, ptr %r.480
+  %r.702.rv = call ptr @__nucleor_sb_to_str(i64 %r.701)
+  %r.702 = ptrtoint ptr %r.702.rv to i64
+  %r.703 = call i64 @str_to_int(i64 %r.702)
+  store i64 %r.703, ptr %r.699
   br label %L167
 L167:
-  %r.810 = load i64, ptr %r.7
-  %r.811 = load i64, ptr %r.4
-  %r.812.cmp = icmp slt i64 %r.810, %r.811
+  %r.704 = load i64, ptr %r.699
+  store i64 %r.704, ptr %r.695
+  %r.705 = load i64, ptr %r.2
+  %r.706 = add i64 2, 0
+  %r.707 = load i64, ptr %r.695
+  %r.708 = load i64, ptr %r.299
+  %r.709 = call i64 @tok_new(i64 %r.706, i64 %r.707, i64 %r.708)
+  %r.710.a0 = inttoptr i64 %r.705 to ptr
+  call void @__nucleor_vec_push(ptr %r.710.a0, i64 %r.709)
+  %r.710 = add i64 0, 0
+  %r.711 = load i64, ptr %r.7
+  %r.712 = load i64, ptr %r.4
+  %r.713.cmp = icmp slt i64 %r.711, %r.712
+  %r.713 = zext i1 %r.713.cmp to i64
+  %r.714 = load i64, ptr %r.0
+  %r.715 = load i64, ptr %r.7
+  %r.716.a0 = inttoptr i64 %r.714 to ptr
+  %r.716 = call i64 @__nucleor_str_char_at(ptr %r.716.a0, i64 %r.715)
+  %r.717 = add i64 105, 0
+  %r.718.cmp = icmp eq i64 %r.716, %r.717
+  %r.718 = zext i1 %r.718.cmp to i64
+  %r.719 = load i64, ptr %r.0
+  %r.720 = load i64, ptr %r.7
+  %r.721.a0 = inttoptr i64 %r.719 to ptr
+  %r.721 = call i64 @__nucleor_str_char_at(ptr %r.721.a0, i64 %r.720)
+  %r.722 = add i64 117, 0
+  %r.723.cmp = icmp eq i64 %r.721, %r.722
+  %r.723 = zext i1 %r.723.cmp to i64
+  %r.724 = or i64 %r.718, %r.723
+  %r.725 = and i64 %r.713, %r.724
+  %br.725.cond = icmp ne i64 %r.725, 0
+  br i1 %br.725.cond, label %L168, label %L170
+L168:
+  %r.727 = load i64, ptr %r.7
+  store i64 %r.727, ptr %r.726
+  br label %L171
+L171:
+  %r.728 = load i64, ptr %r.7
+  %r.729 = load i64, ptr %r.4
+  %r.730.cmp = icmp slt i64 %r.728, %r.729
+  %r.730 = zext i1 %r.730.cmp to i64
+  %r.731 = load i64, ptr %r.0
+  %r.732 = load i64, ptr %r.7
+  %r.733.a0 = inttoptr i64 %r.731 to ptr
+  %r.733 = call i64 @__nucleor_str_char_at(ptr %r.733.a0, i64 %r.732)
+  %r.734 = call i64 @is_alnum(i64 %r.733)
+  %r.735 = add i64 1, 0
+  %r.736.cmp = icmp eq i64 %r.734, %r.735
+  %r.736 = zext i1 %r.736.cmp to i64
+  %r.737 = and i64 %r.730, %r.736
+  %br.737.cond = icmp ne i64 %r.737, 0
+  br i1 %br.737.cond, label %L172, label %L173
+L172:
+  %r.738 = load i64, ptr %r.7
+  %r.739 = add i64 1, 0
+  %r.740 = add i64 %r.738, %r.739
+  store i64 %r.740, ptr %r.7
+  br label %L171
+L173:
+  %r.742 = load i64, ptr %r.0
+  %r.743 = load i64, ptr %r.726
+  %r.744 = load i64, ptr %r.7
+  %r.745.a0 = inttoptr i64 %r.742 to ptr
+  %r.745.rv = call ptr @__nucleor_str_substring(ptr %r.745.a0, i64 %r.743, i64 %r.744)
+  %r.745 = ptrtoint ptr %r.745.rv to i64
+  store i64 %r.745, ptr %r.741
+  %r.747 = add i64 0, 0
+  store i64 %r.747, ptr %r.746
+  %r.748 = load i64, ptr %r.741
+  %r.749 = ptrtoint ptr @.str.45 to i64
+  %r.750.a0 = inttoptr i64 %r.748 to ptr
+  %r.750.a1 = inttoptr i64 %r.749 to ptr
+  %r.750 = call i64 @__nucleor_str_eq(ptr %r.750.a0, ptr %r.750.a1)
+  %r.751 = add i64 1, 0
+  %r.752.cmp = icmp eq i64 %r.750, %r.751
+  %r.752 = zext i1 %r.752.cmp to i64
+  %br.752.cond = icmp ne i64 %r.752, 0
+  br i1 %br.752.cond, label %L174, label %L176
+L174:
+  %r.753 = add i64 1, 0
+  store i64 %r.753, ptr %r.746
+  br label %L176
+L176:
+  %r.754 = load i64, ptr %r.741
+  %r.755 = ptrtoint ptr @.str.46 to i64
+  %r.756.a0 = inttoptr i64 %r.754 to ptr
+  %r.756.a1 = inttoptr i64 %r.755 to ptr
+  %r.756 = call i64 @__nucleor_str_eq(ptr %r.756.a0, ptr %r.756.a1)
+  %r.757 = add i64 1, 0
+  %r.758.cmp = icmp eq i64 %r.756, %r.757
+  %r.758 = zext i1 %r.758.cmp to i64
+  %br.758.cond = icmp ne i64 %r.758, 0
+  br i1 %br.758.cond, label %L177, label %L179
+L177:
+  %r.759 = add i64 1, 0
+  store i64 %r.759, ptr %r.746
+  br label %L179
+L179:
+  %r.760 = load i64, ptr %r.741
+  %r.761 = ptrtoint ptr @.str.47 to i64
+  %r.762.a0 = inttoptr i64 %r.760 to ptr
+  %r.762.a1 = inttoptr i64 %r.761 to ptr
+  %r.762 = call i64 @__nucleor_str_eq(ptr %r.762.a0, ptr %r.762.a1)
+  %r.763 = add i64 1, 0
+  %r.764.cmp = icmp eq i64 %r.762, %r.763
+  %r.764 = zext i1 %r.764.cmp to i64
+  %br.764.cond = icmp ne i64 %r.764, 0
+  br i1 %br.764.cond, label %L180, label %L182
+L180:
+  %r.765 = add i64 1, 0
+  store i64 %r.765, ptr %r.746
+  br label %L182
+L182:
+  %r.766 = load i64, ptr %r.741
+  %r.767 = ptrtoint ptr @.str.48 to i64
+  %r.768.a0 = inttoptr i64 %r.766 to ptr
+  %r.768.a1 = inttoptr i64 %r.767 to ptr
+  %r.768 = call i64 @__nucleor_str_eq(ptr %r.768.a0, ptr %r.768.a1)
+  %r.769 = add i64 1, 0
+  %r.770.cmp = icmp eq i64 %r.768, %r.769
+  %r.770 = zext i1 %r.770.cmp to i64
+  %br.770.cond = icmp ne i64 %r.770, 0
+  br i1 %br.770.cond, label %L183, label %L185
+L183:
+  %r.771 = add i64 1, 0
+  store i64 %r.771, ptr %r.746
+  br label %L185
+L185:
+  %r.772 = load i64, ptr %r.741
+  %r.773 = ptrtoint ptr @.str.49 to i64
+  %r.774.a0 = inttoptr i64 %r.772 to ptr
+  %r.774.a1 = inttoptr i64 %r.773 to ptr
+  %r.774 = call i64 @__nucleor_str_eq(ptr %r.774.a0, ptr %r.774.a1)
+  %r.775 = add i64 1, 0
+  %r.776.cmp = icmp eq i64 %r.774, %r.775
+  %r.776 = zext i1 %r.776.cmp to i64
+  %br.776.cond = icmp ne i64 %r.776, 0
+  br i1 %br.776.cond, label %L186, label %L188
+L186:
+  %r.777 = add i64 1, 0
+  store i64 %r.777, ptr %r.746
+  br label %L188
+L188:
+  %r.778 = load i64, ptr %r.741
+  %r.779 = ptrtoint ptr @.str.50 to i64
+  %r.780.a0 = inttoptr i64 %r.778 to ptr
+  %r.780.a1 = inttoptr i64 %r.779 to ptr
+  %r.780 = call i64 @__nucleor_str_eq(ptr %r.780.a0, ptr %r.780.a1)
+  %r.781 = add i64 1, 0
+  %r.782.cmp = icmp eq i64 %r.780, %r.781
+  %r.782 = zext i1 %r.782.cmp to i64
+  %br.782.cond = icmp ne i64 %r.782, 0
+  br i1 %br.782.cond, label %L189, label %L191
+L189:
+  %r.783 = add i64 1, 0
+  store i64 %r.783, ptr %r.746
+  br label %L191
+L191:
+  %r.784 = load i64, ptr %r.741
+  %r.785 = ptrtoint ptr @.str.51 to i64
+  %r.786.a0 = inttoptr i64 %r.784 to ptr
+  %r.786.a1 = inttoptr i64 %r.785 to ptr
+  %r.786 = call i64 @__nucleor_str_eq(ptr %r.786.a0, ptr %r.786.a1)
+  %r.787 = add i64 1, 0
+  %r.788.cmp = icmp eq i64 %r.786, %r.787
+  %r.788 = zext i1 %r.788.cmp to i64
+  %br.788.cond = icmp ne i64 %r.788, 0
+  br i1 %br.788.cond, label %L192, label %L194
+L192:
+  %r.789 = add i64 1, 0
+  store i64 %r.789, ptr %r.746
+  br label %L194
+L194:
+  %r.790 = load i64, ptr %r.741
+  %r.791 = ptrtoint ptr @.str.52 to i64
+  %r.792.a0 = inttoptr i64 %r.790 to ptr
+  %r.792.a1 = inttoptr i64 %r.791 to ptr
+  %r.792 = call i64 @__nucleor_str_eq(ptr %r.792.a0, ptr %r.792.a1)
+  %r.793 = add i64 1, 0
+  %r.794.cmp = icmp eq i64 %r.792, %r.793
+  %r.794 = zext i1 %r.794.cmp to i64
+  %br.794.cond = icmp ne i64 %r.794, 0
+  br i1 %br.794.cond, label %L195, label %L197
+L195:
+  %r.795 = add i64 1, 0
+  store i64 %r.795, ptr %r.746
+  br label %L197
+L197:
+  %r.796 = load i64, ptr %r.741
+  %r.797 = ptrtoint ptr @.str.53 to i64
+  %r.798.a0 = inttoptr i64 %r.796 to ptr
+  %r.798.a1 = inttoptr i64 %r.797 to ptr
+  %r.798 = call i64 @__nucleor_str_eq(ptr %r.798.a0, ptr %r.798.a1)
+  %r.799 = add i64 1, 0
+  %r.800.cmp = icmp eq i64 %r.798, %r.799
+  %r.800 = zext i1 %r.800.cmp to i64
+  %br.800.cond = icmp ne i64 %r.800, 0
+  br i1 %br.800.cond, label %L198, label %L200
+L198:
+  %r.801 = add i64 1, 0
+  store i64 %r.801, ptr %r.746
+  br label %L200
+L200:
+  %r.802 = load i64, ptr %r.741
+  %r.803 = ptrtoint ptr @.str.54 to i64
+  %r.804.a0 = inttoptr i64 %r.802 to ptr
+  %r.804.a1 = inttoptr i64 %r.803 to ptr
+  %r.804 = call i64 @__nucleor_str_eq(ptr %r.804.a0, ptr %r.804.a1)
+  %r.805 = add i64 1, 0
+  %r.806.cmp = icmp eq i64 %r.804, %r.805
+  %r.806 = zext i1 %r.806.cmp to i64
+  %br.806.cond = icmp ne i64 %r.806, 0
+  br i1 %br.806.cond, label %L201, label %L203
+L201:
+  %r.807 = add i64 1, 0
+  store i64 %r.807, ptr %r.746
+  br label %L203
+L203:
+  %r.808 = load i64, ptr %r.741
+  %r.809 = ptrtoint ptr @.str.55 to i64
+  %r.810.a0 = inttoptr i64 %r.808 to ptr
+  %r.810.a1 = inttoptr i64 %r.809 to ptr
+  %r.810 = call i64 @__nucleor_str_eq(ptr %r.810.a0, ptr %r.810.a1)
+  %r.811 = add i64 1, 0
+  %r.812.cmp = icmp eq i64 %r.810, %r.811
   %r.812 = zext i1 %r.812.cmp to i64
-  %r.813 = load i64, ptr %r.0
-  %r.814 = load i64, ptr %r.7
-  %r.815.a0 = inttoptr i64 %r.813 to ptr
-  %r.815 = call i64 @__nucleor_str_char_at(ptr %r.815.a0, i64 %r.814)
-  %r.816 = add i64 123, 0
-  %r.817.cmp = icmp eq i64 %r.815, %r.816
-  %r.817 = zext i1 %r.817.cmp to i64
-  %r.818 = and i64 %r.812, %r.817
+  %br.812.cond = icmp ne i64 %r.812, 0
+  br i1 %br.812.cond, label %L204, label %L206
+L204:
+  %r.813 = add i64 1, 0
+  store i64 %r.813, ptr %r.746
+  br label %L206
+L206:
+  %r.814 = load i64, ptr %r.741
+  %r.815 = ptrtoint ptr @.str.56 to i64
+  %r.816.a0 = inttoptr i64 %r.814 to ptr
+  %r.816.a1 = inttoptr i64 %r.815 to ptr
+  %r.816 = call i64 @__nucleor_str_eq(ptr %r.816.a0, ptr %r.816.a1)
+  %r.817 = add i64 1, 0
+  %r.818.cmp = icmp eq i64 %r.816, %r.817
+  %r.818 = zext i1 %r.818.cmp to i64
   %br.818.cond = icmp ne i64 %r.818, 0
-  br i1 %br.818.cond, label %L210, label %L212
-L210:
-  %r.819 = load i64, ptr %r.2
-  %r.820 = add i64 83, 0
+  br i1 %br.818.cond, label %L207, label %L209
+L207:
+  %r.819 = add i64 1, 0
+  store i64 %r.819, ptr %r.746
+  br label %L209
+L209:
+  %r.820 = load i64, ptr %r.746
   %r.821 = add i64 0, 0
-  %r.822 = load i64, ptr %r.7
-  %r.823 = call i64 @tok_new(i64 %r.820, i64 %r.821, i64 %r.822)
-  %r.824.a0 = inttoptr i64 %r.819 to ptr
-  call void @__nucleor_vec_push(ptr %r.824.a0, i64 %r.823)
-  %r.824 = add i64 0, 0
-  %r.825 = load i64, ptr %r.7
-  %r.826 = add i64 1, 0
-  %r.827 = add i64 %r.825, %r.826
-  store i64 %r.827, ptr %r.7
+  %r.822.cmp = icmp eq i64 %r.820, %r.821
+  %r.822 = zext i1 %r.822.cmp to i64
+  %br.822.cond = icmp ne i64 %r.822, 0
+  br i1 %br.822.cond, label %L210, label %L212
+L210:
+  %r.823 = load i64, ptr %r.726
+  store i64 %r.823, ptr %r.7
   br label %L212
 L212:
+  br label %L170
+L170:
+  %r.824 = load i64, ptr %r.7
+  %r.825 = load i64, ptr %r.4
+  %r.826.cmp = icmp slt i64 %r.824, %r.825
+  %r.826 = zext i1 %r.826.cmp to i64
+  %r.827 = load i64, ptr %r.0
+  %r.828 = load i64, ptr %r.7
+  %r.829.a0 = inttoptr i64 %r.827 to ptr
+  %r.829 = call i64 @__nucleor_str_char_at(ptr %r.829.a0, i64 %r.828)
+  %r.830 = add i64 123, 0
+  %r.831.cmp = icmp eq i64 %r.829, %r.830
+  %r.831 = zext i1 %r.831.cmp to i64
+  %r.832 = and i64 %r.826, %r.831
+  %br.832.cond = icmp ne i64 %r.832, 0
+  br i1 %br.832.cond, label %L213, label %L215
+L213:
+  %r.833 = load i64, ptr %r.2
+  %r.834 = add i64 83, 0
+  %r.835 = add i64 0, 0
+  %r.836 = load i64, ptr %r.7
+  %r.837 = call i64 @tok_new(i64 %r.834, i64 %r.835, i64 %r.836)
+  %r.838.a0 = inttoptr i64 %r.833 to ptr
+  call void @__nucleor_vec_push(ptr %r.838.a0, i64 %r.837)
+  %r.838 = add i64 0, 0
+  %r.839 = load i64, ptr %r.7
+  %r.840 = add i64 1, 0
+  %r.841 = add i64 %r.839, %r.840
+  store i64 %r.841, ptr %r.7
+  br label %L215
+L215:
   br label %L140
 L140:
   br label %L80
 L79:
-  %r.828 = load i64, ptr %r.12
-  %r.829 = add i64 34, 0
-  %r.830.cmp = icmp eq i64 %r.828, %r.829
-  %r.830 = zext i1 %r.830.cmp to i64
-  %br.830.cond = icmp ne i64 %r.830, 0
-  br i1 %br.830.cond, label %L213, label %L214
-L213:
-  %r.832 = load i64, ptr %r.7
-  store i64 %r.832, ptr %r.831
-  %r.833 = load i64, ptr %r.7
-  %r.834 = add i64 1, 0
-  %r.835 = add i64 %r.833, %r.834
-  store i64 %r.835, ptr %r.7
-  %r.837 = call i64 @__nucleor_sb_new()
-  store i64 %r.837, ptr %r.836
-  br label %L216
+  %r.842 = load i64, ptr %r.12
+  %r.843 = add i64 34, 0
+  %r.844.cmp = icmp eq i64 %r.842, %r.843
+  %r.844 = zext i1 %r.844.cmp to i64
+  %br.844.cond = icmp ne i64 %r.844, 0
+  br i1 %br.844.cond, label %L216, label %L217
 L216:
-  %r.838 = load i64, ptr %r.7
-  %r.839 = load i64, ptr %r.4
-  %r.840.cmp = icmp slt i64 %r.838, %r.839
-  %r.840 = zext i1 %r.840.cmp to i64
-  %r.841 = load i64, ptr %r.0
-  %r.842 = load i64, ptr %r.7
-  %r.843.a0 = inttoptr i64 %r.841 to ptr
-  %r.843 = call i64 @__nucleor_str_char_at(ptr %r.843.a0, i64 %r.842)
-  %r.844 = add i64 34, 0
-  %r.845.cmp = icmp ne i64 %r.843, %r.844
-  %r.845 = zext i1 %r.845.cmp to i64
-  %r.846 = and i64 %r.840, %r.845
-  %br.846.cond = icmp ne i64 %r.846, 0
-  br i1 %br.846.cond, label %L217, label %L218
-L217:
-  %r.847 = load i64, ptr %r.0
-  %r.848 = load i64, ptr %r.7
-  %r.849.a0 = inttoptr i64 %r.847 to ptr
-  %r.849 = call i64 @__nucleor_str_char_at(ptr %r.849.a0, i64 %r.848)
-  %r.850 = add i64 92, 0
-  %r.851.cmp = icmp eq i64 %r.849, %r.850
-  %r.851 = zext i1 %r.851.cmp to i64
-  %r.852 = load i64, ptr %r.7
-  %r.853 = add i64 1, 0
-  %r.854 = add i64 %r.852, %r.853
-  %r.855 = load i64, ptr %r.4
-  %r.856.cmp = icmp slt i64 %r.854, %r.855
-  %r.856 = zext i1 %r.856.cmp to i64
-  %r.857 = and i64 %r.851, %r.856
-  %br.857.cond = icmp ne i64 %r.857, 0
-  br i1 %br.857.cond, label %L219, label %L220
+  %r.846 = load i64, ptr %r.7
+  store i64 %r.846, ptr %r.845
+  %r.847 = load i64, ptr %r.7
+  %r.848 = add i64 1, 0
+  %r.849 = add i64 %r.847, %r.848
+  store i64 %r.849, ptr %r.7
+  %r.851 = call i64 @__nucleor_sb_new()
+  store i64 %r.851, ptr %r.850
+  br label %L219
 L219:
-  %r.859 = load i64, ptr %r.0
-  %r.860 = load i64, ptr %r.7
-  %r.861 = add i64 1, 0
-  %r.862 = add i64 %r.860, %r.861
-  %r.863.a0 = inttoptr i64 %r.859 to ptr
+  %r.852 = load i64, ptr %r.7
+  %r.853 = load i64, ptr %r.4
+  %r.854.cmp = icmp slt i64 %r.852, %r.853
+  %r.854 = zext i1 %r.854.cmp to i64
+  %r.855 = load i64, ptr %r.0
+  %r.856 = load i64, ptr %r.7
+  %r.857.a0 = inttoptr i64 %r.855 to ptr
+  %r.857 = call i64 @__nucleor_str_char_at(ptr %r.857.a0, i64 %r.856)
+  %r.858 = add i64 34, 0
+  %r.859.cmp = icmp ne i64 %r.857, %r.858
+  %r.859 = zext i1 %r.859.cmp to i64
+  %r.860 = and i64 %r.854, %r.859
+  %br.860.cond = icmp ne i64 %r.860, 0
+  br i1 %br.860.cond, label %L220, label %L221
+L220:
+  %r.861 = load i64, ptr %r.0
+  %r.862 = load i64, ptr %r.7
+  %r.863.a0 = inttoptr i64 %r.861 to ptr
   %r.863 = call i64 @__nucleor_str_char_at(ptr %r.863.a0, i64 %r.862)
-  store i64 %r.863, ptr %r.858
-  %r.864 = load i64, ptr %r.858
-  %r.865 = add i64 110, 0
-  %r.866.cmp = icmp eq i64 %r.864, %r.865
-  %r.866 = zext i1 %r.866.cmp to i64
-  %br.866.cond = icmp ne i64 %r.866, 0
-  br i1 %br.866.cond, label %L222, label %L223
+  %r.864 = add i64 92, 0
+  %r.865.cmp = icmp eq i64 %r.863, %r.864
+  %r.865 = zext i1 %r.865.cmp to i64
+  %r.866 = load i64, ptr %r.7
+  %r.867 = add i64 1, 0
+  %r.868 = add i64 %r.866, %r.867
+  %r.869 = load i64, ptr %r.4
+  %r.870.cmp = icmp slt i64 %r.868, %r.869
+  %r.870 = zext i1 %r.870.cmp to i64
+  %r.871 = and i64 %r.865, %r.870
+  %br.871.cond = icmp ne i64 %r.871, 0
+  br i1 %br.871.cond, label %L222, label %L223
 L222:
-  %r.867 = load i64, ptr %r.836
-  %r.868 = ptrtoint ptr @.str.57 to i64
-  %r.869.a1 = inttoptr i64 %r.868 to ptr
-  call void @__nucleor_sb_append(i64 %r.867, ptr %r.869.a1)
-  %r.869 = add i64 0, 0
-  br label %L224
-L223:
-  %r.870 = load i64, ptr %r.858
-  %r.871 = add i64 116, 0
-  %r.872.cmp = icmp eq i64 %r.870, %r.871
-  %r.872 = zext i1 %r.872.cmp to i64
-  %br.872.cond = icmp ne i64 %r.872, 0
-  br i1 %br.872.cond, label %L225, label %L226
+  %r.873 = load i64, ptr %r.0
+  %r.874 = load i64, ptr %r.7
+  %r.875 = add i64 1, 0
+  %r.876 = add i64 %r.874, %r.875
+  %r.877.a0 = inttoptr i64 %r.873 to ptr
+  %r.877 = call i64 @__nucleor_str_char_at(ptr %r.877.a0, i64 %r.876)
+  store i64 %r.877, ptr %r.872
+  %r.878 = load i64, ptr %r.872
+  %r.879 = add i64 110, 0
+  %r.880.cmp = icmp eq i64 %r.878, %r.879
+  %r.880 = zext i1 %r.880.cmp to i64
+  %br.880.cond = icmp ne i64 %r.880, 0
+  br i1 %br.880.cond, label %L225, label %L226
 L225:
-  %r.873 = load i64, ptr %r.836
-  %r.874 = ptrtoint ptr @.str.58 to i64
-  %r.875.a1 = inttoptr i64 %r.874 to ptr
-  call void @__nucleor_sb_append(i64 %r.873, ptr %r.875.a1)
-  %r.875 = add i64 0, 0
+  %r.881 = load i64, ptr %r.850
+  %r.882 = ptrtoint ptr @.str.57 to i64
+  %r.883.a1 = inttoptr i64 %r.882 to ptr
+  call void @__nucleor_sb_append(i64 %r.881, ptr %r.883.a1)
+  %r.883 = add i64 0, 0
   br label %L227
 L226:
-  %r.876 = load i64, ptr %r.858
-  %r.877 = add i64 34, 0
-  %r.878.cmp = icmp eq i64 %r.876, %r.877
-  %r.878 = zext i1 %r.878.cmp to i64
-  %br.878.cond = icmp ne i64 %r.878, 0
-  br i1 %br.878.cond, label %L228, label %L229
+  %r.884 = load i64, ptr %r.872
+  %r.885 = add i64 116, 0
+  %r.886.cmp = icmp eq i64 %r.884, %r.885
+  %r.886 = zext i1 %r.886.cmp to i64
+  %br.886.cond = icmp ne i64 %r.886, 0
+  br i1 %br.886.cond, label %L228, label %L229
 L228:
-  %r.879 = load i64, ptr %r.836
-  %r.880 = ptrtoint ptr @.str.59 to i64
-  %r.881.a1 = inttoptr i64 %r.880 to ptr
-  call void @__nucleor_sb_append(i64 %r.879, ptr %r.881.a1)
-  %r.881 = add i64 0, 0
+  %r.887 = load i64, ptr %r.850
+  %r.888 = ptrtoint ptr @.str.58 to i64
+  %r.889.a1 = inttoptr i64 %r.888 to ptr
+  call void @__nucleor_sb_append(i64 %r.887, ptr %r.889.a1)
+  %r.889 = add i64 0, 0
   br label %L230
 L229:
-  %r.882 = load i64, ptr %r.858
-  %r.883 = add i64 92, 0
-  %r.884.cmp = icmp eq i64 %r.882, %r.883
-  %r.884 = zext i1 %r.884.cmp to i64
-  %br.884.cond = icmp ne i64 %r.884, 0
-  br i1 %br.884.cond, label %L231, label %L232
+  %r.890 = load i64, ptr %r.872
+  %r.891 = add i64 34, 0
+  %r.892.cmp = icmp eq i64 %r.890, %r.891
+  %r.892 = zext i1 %r.892.cmp to i64
+  %br.892.cond = icmp ne i64 %r.892, 0
+  br i1 %br.892.cond, label %L231, label %L232
 L231:
-  %r.885 = load i64, ptr %r.836
-  %r.886 = ptrtoint ptr @.str.60 to i64
-  %r.887.a1 = inttoptr i64 %r.886 to ptr
-  call void @__nucleor_sb_append(i64 %r.885, ptr %r.887.a1)
-  %r.887 = add i64 0, 0
+  %r.893 = load i64, ptr %r.850
+  %r.894 = ptrtoint ptr @.str.59 to i64
+  %r.895.a1 = inttoptr i64 %r.894 to ptr
+  call void @__nucleor_sb_append(i64 %r.893, ptr %r.895.a1)
+  %r.895 = add i64 0, 0
   br label %L233
 L232:
-  %r.888 = load i64, ptr %r.836
-  %r.889 = load i64, ptr %r.0
-  %r.890 = load i64, ptr %r.7
-  %r.891 = add i64 1, 0
-  %r.892 = add i64 %r.890, %r.891
-  %r.893 = load i64, ptr %r.7
-  %r.894 = add i64 2, 0
-  %r.895 = add i64 %r.893, %r.894
-  %r.896.a0 = inttoptr i64 %r.889 to ptr
-  %r.896.rv = call ptr @__nucleor_str_substring(ptr %r.896.a0, i64 %r.892, i64 %r.895)
-  %r.896 = ptrtoint ptr %r.896.rv to i64
-  %r.897.a1 = inttoptr i64 %r.896 to ptr
-  call void @__nucleor_sb_append(i64 %r.888, ptr %r.897.a1)
-  %r.897 = add i64 0, 0
+  %r.896 = load i64, ptr %r.872
+  %r.897 = add i64 92, 0
+  %r.898.cmp = icmp eq i64 %r.896, %r.897
+  %r.898 = zext i1 %r.898.cmp to i64
+  %br.898.cond = icmp ne i64 %r.898, 0
+  br i1 %br.898.cond, label %L234, label %L235
+L234:
+  %r.899 = load i64, ptr %r.850
+  %r.900 = ptrtoint ptr @.str.60 to i64
+  %r.901.a1 = inttoptr i64 %r.900 to ptr
+  call void @__nucleor_sb_append(i64 %r.899, ptr %r.901.a1)
+  %r.901 = add i64 0, 0
+  br label %L236
+L235:
+  %r.902 = load i64, ptr %r.850
+  %r.903 = load i64, ptr %r.0
+  %r.904 = load i64, ptr %r.7
+  %r.905 = add i64 1, 0
+  %r.906 = add i64 %r.904, %r.905
+  %r.907 = load i64, ptr %r.7
+  %r.908 = add i64 2, 0
+  %r.909 = add i64 %r.907, %r.908
+  %r.910.a0 = inttoptr i64 %r.903 to ptr
+  %r.910.rv = call ptr @__nucleor_str_substring(ptr %r.910.a0, i64 %r.906, i64 %r.909)
+  %r.910 = ptrtoint ptr %r.910.rv to i64
+  %r.911.a1 = inttoptr i64 %r.910 to ptr
+  call void @__nucleor_sb_append(i64 %r.902, ptr %r.911.a1)
+  %r.911 = add i64 0, 0
+  br label %L236
+L236:
   br label %L233
 L233:
   br label %L230
 L230:
   br label %L227
 L227:
+  %r.912 = load i64, ptr %r.7
+  %r.913 = add i64 2, 0
+  %r.914 = add i64 %r.912, %r.913
+  store i64 %r.914, ptr %r.7
+  br label %L224
+L223:
+  %r.915 = load i64, ptr %r.850
+  %r.916 = load i64, ptr %r.0
+  %r.917 = load i64, ptr %r.7
+  %r.918 = load i64, ptr %r.7
+  %r.919 = add i64 1, 0
+  %r.920 = add i64 %r.918, %r.919
+  %r.921.a0 = inttoptr i64 %r.916 to ptr
+  %r.921.rv = call ptr @__nucleor_str_substring(ptr %r.921.a0, i64 %r.917, i64 %r.920)
+  %r.921 = ptrtoint ptr %r.921.rv to i64
+  %r.922.a1 = inttoptr i64 %r.921 to ptr
+  call void @__nucleor_sb_append(i64 %r.915, ptr %r.922.a1)
+  %r.922 = add i64 0, 0
+  %r.923 = load i64, ptr %r.7
+  %r.924 = add i64 1, 0
+  %r.925 = add i64 %r.923, %r.919
+  store i64 %r.925, ptr %r.7
   br label %L224
 L224:
-  %r.898 = load i64, ptr %r.7
-  %r.899 = add i64 2, 0
-  %r.900 = add i64 %r.898, %r.899
-  store i64 %r.900, ptr %r.7
-  br label %L221
-L220:
-  %r.901 = load i64, ptr %r.836
-  %r.902 = load i64, ptr %r.0
-  %r.903 = load i64, ptr %r.7
-  %r.904 = load i64, ptr %r.7
-  %r.905 = add i64 1, 0
-  %r.906 = add i64 %r.904, %r.905
-  %r.907.a0 = inttoptr i64 %r.902 to ptr
-  %r.907.rv = call ptr @__nucleor_str_substring(ptr %r.907.a0, i64 %r.903, i64 %r.906)
-  %r.907 = ptrtoint ptr %r.907.rv to i64
-  %r.908.a1 = inttoptr i64 %r.907 to ptr
-  call void @__nucleor_sb_append(i64 %r.901, ptr %r.908.a1)
-  %r.908 = add i64 0, 0
-  %r.909 = load i64, ptr %r.7
-  %r.910 = add i64 1, 0
-  %r.911 = add i64 %r.909, %r.905
-  store i64 %r.911, ptr %r.7
-  br label %L221
+  br label %L219
 L221:
-  br label %L216
-L218:
-  %r.912 = load i64, ptr %r.7
-  %r.913 = load i64, ptr %r.4
-  %r.914.cmp = icmp slt i64 %r.912, %r.913
-  %r.914 = zext i1 %r.914.cmp to i64
-  %br.914.cond = icmp ne i64 %r.914, 0
-  br i1 %br.914.cond, label %L234, label %L236
-L234:
-  %r.915 = load i64, ptr %r.7
-  %r.916 = add i64 1, 0
-  %r.917 = add i64 %r.915, %r.916
-  store i64 %r.917, ptr %r.7
-  br label %L236
-L236:
-  %r.918 = load i64, ptr %r.2
-  %r.919 = add i64 3, 0
-  %r.920 = load i64, ptr %r.836
-  %r.921.rv = call ptr @__nucleor_sb_to_str(i64 %r.920)
-  %r.921 = ptrtoint ptr %r.921.rv to i64
-  %r.922 = load i64, ptr %r.831
-  %r.923 = call i64 @tok_new(i64 %r.919, i64 %r.921, i64 %r.922)
-  %r.924.a0 = inttoptr i64 %r.918 to ptr
-  call void @__nucleor_vec_push(ptr %r.924.a0, i64 %r.923)
-  %r.924 = add i64 0, 0
-  br label %L215
-L214:
-  %r.925 = load i64, ptr %r.12
-  %r.926 = add i64 45, 0
-  %r.927.cmp = icmp eq i64 %r.925, %r.926
-  %r.927 = zext i1 %r.927.cmp to i64
-  %r.928 = load i64, ptr %r.7
-  %r.929 = add i64 1, 0
-  %r.930 = add i64 %r.928, %r.929
-  %r.931 = load i64, ptr %r.4
-  %r.932.cmp = icmp slt i64 %r.930, %r.931
-  %r.932 = zext i1 %r.932.cmp to i64
-  %r.933 = and i64 %r.927, %r.932
-  %r.934 = load i64, ptr %r.0
-  %r.935 = load i64, ptr %r.7
-  %r.936 = add i64 1, 0
-  %r.937 = add i64 %r.935, %r.929
-  %r.938.a0 = inttoptr i64 %r.934 to ptr
-  %r.938 = call i64 @__nucleor_str_char_at(ptr %r.938.a0, i64 %r.937)
-  %r.939 = add i64 62, 0
-  %r.940.cmp = icmp eq i64 %r.938, %r.939
-  %r.940 = zext i1 %r.940.cmp to i64
-  %r.941 = and i64 %r.933, %r.940
-  %br.941.cond = icmp ne i64 %r.941, 0
-  br i1 %br.941.cond, label %L237, label %L238
+  %r.926 = load i64, ptr %r.7
+  %r.927 = load i64, ptr %r.4
+  %r.928.cmp = icmp slt i64 %r.926, %r.927
+  %r.928 = zext i1 %r.928.cmp to i64
+  %br.928.cond = icmp ne i64 %r.928, 0
+  br i1 %br.928.cond, label %L237, label %L239
 L237:
-  %r.942 = load i64, ptr %r.2
-  %r.943 = add i64 41, 0
-  %r.944 = add i64 0, 0
-  %r.945 = load i64, ptr %r.7
-  %r.946 = call i64 @tok_new(i64 %r.943, i64 %r.944, i64 %r.945)
-  %r.947.a0 = inttoptr i64 %r.942 to ptr
-  call void @__nucleor_vec_push(ptr %r.947.a0, i64 %r.946)
-  %r.947 = add i64 0, 0
-  %r.948 = load i64, ptr %r.7
-  %r.949 = add i64 2, 0
-  %r.950 = add i64 %r.948, %r.949
-  store i64 %r.950, ptr %r.7
+  %r.929 = load i64, ptr %r.7
+  %r.930 = add i64 1, 0
+  %r.931 = add i64 %r.929, %r.930
+  store i64 %r.931, ptr %r.7
   br label %L239
-L238:
-  %r.951 = load i64, ptr %r.12
-  %r.952 = add i64 61, 0
-  %r.953.cmp = icmp eq i64 %r.951, %r.952
-  %r.953 = zext i1 %r.953.cmp to i64
-  %r.954 = load i64, ptr %r.7
-  %r.955 = add i64 1, 0
-  %r.956 = add i64 %r.954, %r.955
-  %r.957 = load i64, ptr %r.4
-  %r.958.cmp = icmp slt i64 %r.956, %r.957
-  %r.958 = zext i1 %r.958.cmp to i64
-  %r.959 = and i64 %r.953, %r.958
-  %r.960 = load i64, ptr %r.0
-  %r.961 = load i64, ptr %r.7
-  %r.962 = add i64 1, 0
-  %r.963 = add i64 %r.961, %r.955
-  %r.964.a0 = inttoptr i64 %r.960 to ptr
-  %r.964 = call i64 @__nucleor_str_char_at(ptr %r.964.a0, i64 %r.963)
-  %r.965 = add i64 61, 0
-  %r.966.cmp = icmp eq i64 %r.964, %r.952
-  %r.966 = zext i1 %r.966.cmp to i64
-  %r.967 = and i64 %r.959, %r.966
-  %br.967.cond = icmp ne i64 %r.967, 0
-  br i1 %br.967.cond, label %L240, label %L241
+L239:
+  %r.932 = load i64, ptr %r.2
+  %r.933 = add i64 3, 0
+  %r.934 = load i64, ptr %r.850
+  %r.935.rv = call ptr @__nucleor_sb_to_str(i64 %r.934)
+  %r.935 = ptrtoint ptr %r.935.rv to i64
+  %r.936 = load i64, ptr %r.845
+  %r.937 = call i64 @tok_new(i64 %r.933, i64 %r.935, i64 %r.936)
+  %r.938.a0 = inttoptr i64 %r.932 to ptr
+  call void @__nucleor_vec_push(ptr %r.938.a0, i64 %r.937)
+  %r.938 = add i64 0, 0
+  br label %L218
+L217:
+  %r.939 = load i64, ptr %r.12
+  %r.940 = add i64 45, 0
+  %r.941.cmp = icmp eq i64 %r.939, %r.940
+  %r.941 = zext i1 %r.941.cmp to i64
+  %r.942 = load i64, ptr %r.7
+  %r.943 = add i64 1, 0
+  %r.944 = add i64 %r.942, %r.943
+  %r.945 = load i64, ptr %r.4
+  %r.946.cmp = icmp slt i64 %r.944, %r.945
+  %r.946 = zext i1 %r.946.cmp to i64
+  %r.947 = and i64 %r.941, %r.946
+  %r.948 = load i64, ptr %r.0
+  %r.949 = load i64, ptr %r.7
+  %r.950 = add i64 1, 0
+  %r.951 = add i64 %r.949, %r.943
+  %r.952.a0 = inttoptr i64 %r.948 to ptr
+  %r.952 = call i64 @__nucleor_str_char_at(ptr %r.952.a0, i64 %r.951)
+  %r.953 = add i64 62, 0
+  %r.954.cmp = icmp eq i64 %r.952, %r.953
+  %r.954 = zext i1 %r.954.cmp to i64
+  %r.955 = and i64 %r.947, %r.954
+  %br.955.cond = icmp ne i64 %r.955, 0
+  br i1 %br.955.cond, label %L240, label %L241
 L240:
-  %r.968 = load i64, ptr %r.2
-  %r.969 = add i64 30, 0
-  %r.970 = add i64 0, 0
-  %r.971 = load i64, ptr %r.7
-  %r.972 = call i64 @tok_new(i64 %r.969, i64 %r.970, i64 %r.971)
-  %r.973.a0 = inttoptr i64 %r.968 to ptr
-  call void @__nucleor_vec_push(ptr %r.973.a0, i64 %r.972)
-  %r.973 = add i64 0, 0
-  %r.974 = load i64, ptr %r.7
-  %r.975 = add i64 2, 0
-  %r.976 = add i64 %r.974, %r.975
-  store i64 %r.976, ptr %r.7
+  %r.956 = load i64, ptr %r.2
+  %r.957 = add i64 41, 0
+  %r.958 = add i64 0, 0
+  %r.959 = load i64, ptr %r.7
+  %r.960 = call i64 @tok_new(i64 %r.957, i64 %r.958, i64 %r.959)
+  %r.961.a0 = inttoptr i64 %r.956 to ptr
+  call void @__nucleor_vec_push(ptr %r.961.a0, i64 %r.960)
+  %r.961 = add i64 0, 0
+  %r.962 = load i64, ptr %r.7
+  %r.963 = add i64 2, 0
+  %r.964 = add i64 %r.962, %r.963
+  store i64 %r.964, ptr %r.7
   br label %L242
 L241:
-  %r.977 = load i64, ptr %r.12
-  %r.978 = add i64 61, 0
-  %r.979.cmp = icmp eq i64 %r.977, %r.978
-  %r.979 = zext i1 %r.979.cmp to i64
-  %r.980 = load i64, ptr %r.7
-  %r.981 = add i64 1, 0
-  %r.982 = add i64 %r.980, %r.981
-  %r.983 = load i64, ptr %r.4
-  %r.984.cmp = icmp slt i64 %r.982, %r.983
-  %r.984 = zext i1 %r.984.cmp to i64
-  %r.985 = and i64 %r.979, %r.984
-  %r.986 = load i64, ptr %r.0
-  %r.987 = load i64, ptr %r.7
-  %r.988 = add i64 1, 0
-  %r.989 = add i64 %r.987, %r.981
-  %r.990.a0 = inttoptr i64 %r.986 to ptr
-  %r.990 = call i64 @__nucleor_str_char_at(ptr %r.990.a0, i64 %r.989)
-  %r.991 = add i64 62, 0
-  %r.992.cmp = icmp eq i64 %r.990, %r.991
-  %r.992 = zext i1 %r.992.cmp to i64
-  %r.993 = and i64 %r.985, %r.992
-  %br.993.cond = icmp ne i64 %r.993, 0
-  br i1 %br.993.cond, label %L243, label %L244
+  %r.965 = load i64, ptr %r.12
+  %r.966 = add i64 61, 0
+  %r.967.cmp = icmp eq i64 %r.965, %r.966
+  %r.967 = zext i1 %r.967.cmp to i64
+  %r.968 = load i64, ptr %r.7
+  %r.969 = add i64 1, 0
+  %r.970 = add i64 %r.968, %r.969
+  %r.971 = load i64, ptr %r.4
+  %r.972.cmp = icmp slt i64 %r.970, %r.971
+  %r.972 = zext i1 %r.972.cmp to i64
+  %r.973 = and i64 %r.967, %r.972
+  %r.974 = load i64, ptr %r.0
+  %r.975 = load i64, ptr %r.7
+  %r.976 = add i64 1, 0
+  %r.977 = add i64 %r.975, %r.969
+  %r.978.a0 = inttoptr i64 %r.974 to ptr
+  %r.978 = call i64 @__nucleor_str_char_at(ptr %r.978.a0, i64 %r.977)
+  %r.979 = add i64 61, 0
+  %r.980.cmp = icmp eq i64 %r.978, %r.966
+  %r.980 = zext i1 %r.980.cmp to i64
+  %r.981 = and i64 %r.973, %r.980
+  %br.981.cond = icmp ne i64 %r.981, 0
+  br i1 %br.981.cond, label %L243, label %L244
 L243:
-  %r.994 = load i64, ptr %r.2
-  %r.995 = add i64 64, 0
-  %r.996 = add i64 0, 0
-  %r.997 = load i64, ptr %r.7
-  %r.998 = call i64 @tok_new(i64 %r.995, i64 %r.996, i64 %r.997)
-  %r.999.a0 = inttoptr i64 %r.994 to ptr
-  call void @__nucleor_vec_push(ptr %r.999.a0, i64 %r.998)
-  %r.999 = add i64 0, 0
-  %r.1000 = load i64, ptr %r.7
-  %r.1001 = add i64 2, 0
-  %r.1002 = add i64 %r.1000, %r.1001
-  store i64 %r.1002, ptr %r.7
+  %r.982 = load i64, ptr %r.2
+  %r.983 = add i64 30, 0
+  %r.984 = add i64 0, 0
+  %r.985 = load i64, ptr %r.7
+  %r.986 = call i64 @tok_new(i64 %r.983, i64 %r.984, i64 %r.985)
+  %r.987.a0 = inttoptr i64 %r.982 to ptr
+  call void @__nucleor_vec_push(ptr %r.987.a0, i64 %r.986)
+  %r.987 = add i64 0, 0
+  %r.988 = load i64, ptr %r.7
+  %r.989 = add i64 2, 0
+  %r.990 = add i64 %r.988, %r.989
+  store i64 %r.990, ptr %r.7
   br label %L245
 L244:
-  %r.1003 = load i64, ptr %r.12
-  %r.1004 = add i64 33, 0
-  %r.1005.cmp = icmp eq i64 %r.1003, %r.1004
-  %r.1005 = zext i1 %r.1005.cmp to i64
-  %r.1006 = load i64, ptr %r.7
-  %r.1007 = add i64 1, 0
-  %r.1008 = add i64 %r.1006, %r.1007
-  %r.1009 = load i64, ptr %r.4
-  %r.1010.cmp = icmp slt i64 %r.1008, %r.1009
-  %r.1010 = zext i1 %r.1010.cmp to i64
-  %r.1011 = and i64 %r.1005, %r.1010
-  %r.1012 = load i64, ptr %r.0
-  %r.1013 = load i64, ptr %r.7
-  %r.1014 = add i64 1, 0
-  %r.1015 = add i64 %r.1013, %r.1007
-  %r.1016.a0 = inttoptr i64 %r.1012 to ptr
-  %r.1016 = call i64 @__nucleor_str_char_at(ptr %r.1016.a0, i64 %r.1015)
-  %r.1017 = add i64 61, 0
-  %r.1018.cmp = icmp eq i64 %r.1016, %r.1017
-  %r.1018 = zext i1 %r.1018.cmp to i64
-  %r.1019 = and i64 %r.1011, %r.1018
-  %br.1019.cond = icmp ne i64 %r.1019, 0
-  br i1 %br.1019.cond, label %L246, label %L247
+  %r.991 = load i64, ptr %r.12
+  %r.992 = add i64 61, 0
+  %r.993.cmp = icmp eq i64 %r.991, %r.992
+  %r.993 = zext i1 %r.993.cmp to i64
+  %r.994 = load i64, ptr %r.7
+  %r.995 = add i64 1, 0
+  %r.996 = add i64 %r.994, %r.995
+  %r.997 = load i64, ptr %r.4
+  %r.998.cmp = icmp slt i64 %r.996, %r.997
+  %r.998 = zext i1 %r.998.cmp to i64
+  %r.999 = and i64 %r.993, %r.998
+  %r.1000 = load i64, ptr %r.0
+  %r.1001 = load i64, ptr %r.7
+  %r.1002 = add i64 1, 0
+  %r.1003 = add i64 %r.1001, %r.995
+  %r.1004.a0 = inttoptr i64 %r.1000 to ptr
+  %r.1004 = call i64 @__nucleor_str_char_at(ptr %r.1004.a0, i64 %r.1003)
+  %r.1005 = add i64 62, 0
+  %r.1006.cmp = icmp eq i64 %r.1004, %r.1005
+  %r.1006 = zext i1 %r.1006.cmp to i64
+  %r.1007 = and i64 %r.999, %r.1006
+  %br.1007.cond = icmp ne i64 %r.1007, 0
+  br i1 %br.1007.cond, label %L246, label %L247
 L246:
-  %r.1020 = load i64, ptr %r.2
-  %r.1021 = add i64 31, 0
-  %r.1022 = add i64 0, 0
-  %r.1023 = load i64, ptr %r.7
-  %r.1024 = call i64 @tok_new(i64 %r.1021, i64 %r.1022, i64 %r.1023)
-  %r.1025.a0 = inttoptr i64 %r.1020 to ptr
-  call void @__nucleor_vec_push(ptr %r.1025.a0, i64 %r.1024)
-  %r.1025 = add i64 0, 0
-  %r.1026 = load i64, ptr %r.7
-  %r.1027 = add i64 2, 0
-  %r.1028 = add i64 %r.1026, %r.1027
-  store i64 %r.1028, ptr %r.7
+  %r.1008 = load i64, ptr %r.2
+  %r.1009 = add i64 64, 0
+  %r.1010 = add i64 0, 0
+  %r.1011 = load i64, ptr %r.7
+  %r.1012 = call i64 @tok_new(i64 %r.1009, i64 %r.1010, i64 %r.1011)
+  %r.1013.a0 = inttoptr i64 %r.1008 to ptr
+  call void @__nucleor_vec_push(ptr %r.1013.a0, i64 %r.1012)
+  %r.1013 = add i64 0, 0
+  %r.1014 = load i64, ptr %r.7
+  %r.1015 = add i64 2, 0
+  %r.1016 = add i64 %r.1014, %r.1015
+  store i64 %r.1016, ptr %r.7
   br label %L248
 L247:
-  %r.1029 = load i64, ptr %r.12
-  %r.1030 = add i64 60, 0
-  %r.1031.cmp = icmp eq i64 %r.1029, %r.1030
-  %r.1031 = zext i1 %r.1031.cmp to i64
-  %r.1032 = load i64, ptr %r.7
-  %r.1033 = add i64 1, 0
-  %r.1034 = add i64 %r.1032, %r.1033
-  %r.1035 = load i64, ptr %r.4
-  %r.1036.cmp = icmp slt i64 %r.1034, %r.1035
-  %r.1036 = zext i1 %r.1036.cmp to i64
-  %r.1037 = and i64 %r.1031, %r.1036
-  %r.1038 = load i64, ptr %r.0
-  %r.1039 = load i64, ptr %r.7
-  %r.1040 = add i64 1, 0
-  %r.1041 = add i64 %r.1039, %r.1033
-  %r.1042.a0 = inttoptr i64 %r.1038 to ptr
-  %r.1042 = call i64 @__nucleor_str_char_at(ptr %r.1042.a0, i64 %r.1041)
-  %r.1043 = add i64 61, 0
-  %r.1044.cmp = icmp eq i64 %r.1042, %r.1043
-  %r.1044 = zext i1 %r.1044.cmp to i64
-  %r.1045 = and i64 %r.1037, %r.1044
-  %br.1045.cond = icmp ne i64 %r.1045, 0
-  br i1 %br.1045.cond, label %L249, label %L250
+  %r.1017 = load i64, ptr %r.12
+  %r.1018 = add i64 33, 0
+  %r.1019.cmp = icmp eq i64 %r.1017, %r.1018
+  %r.1019 = zext i1 %r.1019.cmp to i64
+  %r.1020 = load i64, ptr %r.7
+  %r.1021 = add i64 1, 0
+  %r.1022 = add i64 %r.1020, %r.1021
+  %r.1023 = load i64, ptr %r.4
+  %r.1024.cmp = icmp slt i64 %r.1022, %r.1023
+  %r.1024 = zext i1 %r.1024.cmp to i64
+  %r.1025 = and i64 %r.1019, %r.1024
+  %r.1026 = load i64, ptr %r.0
+  %r.1027 = load i64, ptr %r.7
+  %r.1028 = add i64 1, 0
+  %r.1029 = add i64 %r.1027, %r.1021
+  %r.1030.a0 = inttoptr i64 %r.1026 to ptr
+  %r.1030 = call i64 @__nucleor_str_char_at(ptr %r.1030.a0, i64 %r.1029)
+  %r.1031 = add i64 61, 0
+  %r.1032.cmp = icmp eq i64 %r.1030, %r.1031
+  %r.1032 = zext i1 %r.1032.cmp to i64
+  %r.1033 = and i64 %r.1025, %r.1032
+  %br.1033.cond = icmp ne i64 %r.1033, 0
+  br i1 %br.1033.cond, label %L249, label %L250
 L249:
-  %r.1046 = load i64, ptr %r.2
-  %r.1047 = add i64 34, 0
-  %r.1048 = add i64 0, 0
-  %r.1049 = load i64, ptr %r.7
-  %r.1050 = call i64 @tok_new(i64 %r.1047, i64 %r.1048, i64 %r.1049)
-  %r.1051.a0 = inttoptr i64 %r.1046 to ptr
-  call void @__nucleor_vec_push(ptr %r.1051.a0, i64 %r.1050)
-  %r.1051 = add i64 0, 0
-  %r.1052 = load i64, ptr %r.7
-  %r.1053 = add i64 2, 0
-  %r.1054 = add i64 %r.1052, %r.1053
-  store i64 %r.1054, ptr %r.7
+  %r.1034 = load i64, ptr %r.2
+  %r.1035 = add i64 31, 0
+  %r.1036 = add i64 0, 0
+  %r.1037 = load i64, ptr %r.7
+  %r.1038 = call i64 @tok_new(i64 %r.1035, i64 %r.1036, i64 %r.1037)
+  %r.1039.a0 = inttoptr i64 %r.1034 to ptr
+  call void @__nucleor_vec_push(ptr %r.1039.a0, i64 %r.1038)
+  %r.1039 = add i64 0, 0
+  %r.1040 = load i64, ptr %r.7
+  %r.1041 = add i64 2, 0
+  %r.1042 = add i64 %r.1040, %r.1041
+  store i64 %r.1042, ptr %r.7
   br label %L251
 L250:
-  %r.1055 = load i64, ptr %r.12
-  %r.1056 = add i64 62, 0
-  %r.1057.cmp = icmp eq i64 %r.1055, %r.1056
-  %r.1057 = zext i1 %r.1057.cmp to i64
-  %r.1058 = load i64, ptr %r.7
-  %r.1059 = add i64 1, 0
-  %r.1060 = add i64 %r.1058, %r.1059
-  %r.1061 = load i64, ptr %r.4
-  %r.1062.cmp = icmp slt i64 %r.1060, %r.1061
-  %r.1062 = zext i1 %r.1062.cmp to i64
-  %r.1063 = and i64 %r.1057, %r.1062
-  %r.1064 = load i64, ptr %r.0
-  %r.1065 = load i64, ptr %r.7
-  %r.1066 = add i64 1, 0
-  %r.1067 = add i64 %r.1065, %r.1059
-  %r.1068.a0 = inttoptr i64 %r.1064 to ptr
-  %r.1068 = call i64 @__nucleor_str_char_at(ptr %r.1068.a0, i64 %r.1067)
-  %r.1069 = add i64 61, 0
-  %r.1070.cmp = icmp eq i64 %r.1068, %r.1069
-  %r.1070 = zext i1 %r.1070.cmp to i64
-  %r.1071 = and i64 %r.1063, %r.1070
-  %br.1071.cond = icmp ne i64 %r.1071, 0
-  br i1 %br.1071.cond, label %L252, label %L253
+  %r.1043 = load i64, ptr %r.12
+  %r.1044 = add i64 60, 0
+  %r.1045.cmp = icmp eq i64 %r.1043, %r.1044
+  %r.1045 = zext i1 %r.1045.cmp to i64
+  %r.1046 = load i64, ptr %r.7
+  %r.1047 = add i64 1, 0
+  %r.1048 = add i64 %r.1046, %r.1047
+  %r.1049 = load i64, ptr %r.4
+  %r.1050.cmp = icmp slt i64 %r.1048, %r.1049
+  %r.1050 = zext i1 %r.1050.cmp to i64
+  %r.1051 = and i64 %r.1045, %r.1050
+  %r.1052 = load i64, ptr %r.0
+  %r.1053 = load i64, ptr %r.7
+  %r.1054 = add i64 1, 0
+  %r.1055 = add i64 %r.1053, %r.1047
+  %r.1056.a0 = inttoptr i64 %r.1052 to ptr
+  %r.1056 = call i64 @__nucleor_str_char_at(ptr %r.1056.a0, i64 %r.1055)
+  %r.1057 = add i64 61, 0
+  %r.1058.cmp = icmp eq i64 %r.1056, %r.1057
+  %r.1058 = zext i1 %r.1058.cmp to i64
+  %r.1059 = and i64 %r.1051, %r.1058
+  %br.1059.cond = icmp ne i64 %r.1059, 0
+  br i1 %br.1059.cond, label %L252, label %L253
 L252:
-  %r.1072 = load i64, ptr %r.2
-  %r.1073 = add i64 35, 0
-  %r.1074 = add i64 0, 0
-  %r.1075 = load i64, ptr %r.7
-  %r.1076 = call i64 @tok_new(i64 %r.1073, i64 %r.1074, i64 %r.1075)
-  %r.1077.a0 = inttoptr i64 %r.1072 to ptr
-  call void @__nucleor_vec_push(ptr %r.1077.a0, i64 %r.1076)
-  %r.1077 = add i64 0, 0
-  %r.1078 = load i64, ptr %r.7
-  %r.1079 = add i64 2, 0
-  %r.1080 = add i64 %r.1078, %r.1079
-  store i64 %r.1080, ptr %r.7
+  %r.1060 = load i64, ptr %r.2
+  %r.1061 = add i64 34, 0
+  %r.1062 = add i64 0, 0
+  %r.1063 = load i64, ptr %r.7
+  %r.1064 = call i64 @tok_new(i64 %r.1061, i64 %r.1062, i64 %r.1063)
+  %r.1065.a0 = inttoptr i64 %r.1060 to ptr
+  call void @__nucleor_vec_push(ptr %r.1065.a0, i64 %r.1064)
+  %r.1065 = add i64 0, 0
+  %r.1066 = load i64, ptr %r.7
+  %r.1067 = add i64 2, 0
+  %r.1068 = add i64 %r.1066, %r.1067
+  store i64 %r.1068, ptr %r.7
   br label %L254
 L253:
-  %r.1081 = load i64, ptr %r.12
-  %r.1082 = add i64 38, 0
-  %r.1083.cmp = icmp eq i64 %r.1081, %r.1082
-  %r.1083 = zext i1 %r.1083.cmp to i64
-  %r.1084 = load i64, ptr %r.7
-  %r.1085 = add i64 1, 0
-  %r.1086 = add i64 %r.1084, %r.1085
-  %r.1087 = load i64, ptr %r.4
-  %r.1088.cmp = icmp slt i64 %r.1086, %r.1087
-  %r.1088 = zext i1 %r.1088.cmp to i64
-  %r.1089 = and i64 %r.1083, %r.1088
-  %r.1090 = load i64, ptr %r.0
-  %r.1091 = load i64, ptr %r.7
-  %r.1092 = add i64 1, 0
-  %r.1093 = add i64 %r.1091, %r.1085
-  %r.1094.a0 = inttoptr i64 %r.1090 to ptr
-  %r.1094 = call i64 @__nucleor_str_char_at(ptr %r.1094.a0, i64 %r.1093)
-  %r.1095 = add i64 38, 0
-  %r.1096.cmp = icmp eq i64 %r.1094, %r.1082
-  %r.1096 = zext i1 %r.1096.cmp to i64
-  %r.1097 = and i64 %r.1089, %r.1096
-  %br.1097.cond = icmp ne i64 %r.1097, 0
-  br i1 %br.1097.cond, label %L255, label %L256
+  %r.1069 = load i64, ptr %r.12
+  %r.1070 = add i64 62, 0
+  %r.1071.cmp = icmp eq i64 %r.1069, %r.1070
+  %r.1071 = zext i1 %r.1071.cmp to i64
+  %r.1072 = load i64, ptr %r.7
+  %r.1073 = add i64 1, 0
+  %r.1074 = add i64 %r.1072, %r.1073
+  %r.1075 = load i64, ptr %r.4
+  %r.1076.cmp = icmp slt i64 %r.1074, %r.1075
+  %r.1076 = zext i1 %r.1076.cmp to i64
+  %r.1077 = and i64 %r.1071, %r.1076
+  %r.1078 = load i64, ptr %r.0
+  %r.1079 = load i64, ptr %r.7
+  %r.1080 = add i64 1, 0
+  %r.1081 = add i64 %r.1079, %r.1073
+  %r.1082.a0 = inttoptr i64 %r.1078 to ptr
+  %r.1082 = call i64 @__nucleor_str_char_at(ptr %r.1082.a0, i64 %r.1081)
+  %r.1083 = add i64 61, 0
+  %r.1084.cmp = icmp eq i64 %r.1082, %r.1083
+  %r.1084 = zext i1 %r.1084.cmp to i64
+  %r.1085 = and i64 %r.1077, %r.1084
+  %br.1085.cond = icmp ne i64 %r.1085, 0
+  br i1 %br.1085.cond, label %L255, label %L256
 L255:
-  %r.1098 = load i64, ptr %r.2
-  %r.1099 = add i64 36, 0
-  %r.1100 = add i64 0, 0
-  %r.1101 = load i64, ptr %r.7
-  %r.1102 = call i64 @tok_new(i64 %r.1099, i64 %r.1100, i64 %r.1101)
-  %r.1103.a0 = inttoptr i64 %r.1098 to ptr
-  call void @__nucleor_vec_push(ptr %r.1103.a0, i64 %r.1102)
-  %r.1103 = add i64 0, 0
-  %r.1104 = load i64, ptr %r.7
-  %r.1105 = add i64 2, 0
-  %r.1106 = add i64 %r.1104, %r.1105
-  store i64 %r.1106, ptr %r.7
+  %r.1086 = load i64, ptr %r.2
+  %r.1087 = add i64 35, 0
+  %r.1088 = add i64 0, 0
+  %r.1089 = load i64, ptr %r.7
+  %r.1090 = call i64 @tok_new(i64 %r.1087, i64 %r.1088, i64 %r.1089)
+  %r.1091.a0 = inttoptr i64 %r.1086 to ptr
+  call void @__nucleor_vec_push(ptr %r.1091.a0, i64 %r.1090)
+  %r.1091 = add i64 0, 0
+  %r.1092 = load i64, ptr %r.7
+  %r.1093 = add i64 2, 0
+  %r.1094 = add i64 %r.1092, %r.1093
+  store i64 %r.1094, ptr %r.7
   br label %L257
 L256:
-  %r.1107 = load i64, ptr %r.12
-  %r.1108 = add i64 38, 0
-  %r.1109.cmp = icmp eq i64 %r.1107, %r.1108
-  %r.1109 = zext i1 %r.1109.cmp to i64
-  %r.1110 = load i64, ptr %r.7
-  %r.1111 = add i64 1, 0
-  %r.1112 = add i64 %r.1110, %r.1111
-  %r.1113 = load i64, ptr %r.4
-  %r.1114.cmp = icmp slt i64 %r.1112, %r.1113
-  %r.1114 = zext i1 %r.1114.cmp to i64
-  %r.1115 = and i64 %r.1109, %r.1114
-  %r.1116 = load i64, ptr %r.0
-  %r.1117 = load i64, ptr %r.7
-  %r.1118 = add i64 1, 0
-  %r.1119 = add i64 %r.1117, %r.1111
-  %r.1120.a0 = inttoptr i64 %r.1116 to ptr
-  %r.1120 = call i64 @__nucleor_str_char_at(ptr %r.1120.a0, i64 %r.1119)
-  %r.1121 = add i64 61, 0
-  %r.1122.cmp = icmp eq i64 %r.1120, %r.1121
-  %r.1122 = zext i1 %r.1122.cmp to i64
-  %r.1123 = and i64 %r.1115, %r.1122
-  %br.1123.cond = icmp ne i64 %r.1123, 0
-  br i1 %br.1123.cond, label %L258, label %L259
+  %r.1095 = load i64, ptr %r.12
+  %r.1096 = add i64 38, 0
+  %r.1097.cmp = icmp eq i64 %r.1095, %r.1096
+  %r.1097 = zext i1 %r.1097.cmp to i64
+  %r.1098 = load i64, ptr %r.7
+  %r.1099 = add i64 1, 0
+  %r.1100 = add i64 %r.1098, %r.1099
+  %r.1101 = load i64, ptr %r.4
+  %r.1102.cmp = icmp slt i64 %r.1100, %r.1101
+  %r.1102 = zext i1 %r.1102.cmp to i64
+  %r.1103 = and i64 %r.1097, %r.1102
+  %r.1104 = load i64, ptr %r.0
+  %r.1105 = load i64, ptr %r.7
+  %r.1106 = add i64 1, 0
+  %r.1107 = add i64 %r.1105, %r.1099
+  %r.1108.a0 = inttoptr i64 %r.1104 to ptr
+  %r.1108 = call i64 @__nucleor_str_char_at(ptr %r.1108.a0, i64 %r.1107)
+  %r.1109 = add i64 38, 0
+  %r.1110.cmp = icmp eq i64 %r.1108, %r.1096
+  %r.1110 = zext i1 %r.1110.cmp to i64
+  %r.1111 = and i64 %r.1103, %r.1110
+  %br.1111.cond = icmp ne i64 %r.1111, 0
+  br i1 %br.1111.cond, label %L258, label %L259
 L258:
-  %r.1124 = load i64, ptr %r.2
-  %r.1125 = add i64 117, 0
-  %r.1126 = add i64 0, 0
-  %r.1127 = load i64, ptr %r.7
-  %r.1128 = call i64 @tok_new(i64 %r.1125, i64 %r.1126, i64 %r.1127)
-  %r.1129.a0 = inttoptr i64 %r.1124 to ptr
-  call void @__nucleor_vec_push(ptr %r.1129.a0, i64 %r.1128)
-  %r.1129 = add i64 0, 0
-  %r.1130 = load i64, ptr %r.7
-  %r.1131 = add i64 2, 0
-  %r.1132 = add i64 %r.1130, %r.1131
-  store i64 %r.1132, ptr %r.7
+  %r.1112 = load i64, ptr %r.2
+  %r.1113 = add i64 36, 0
+  %r.1114 = add i64 0, 0
+  %r.1115 = load i64, ptr %r.7
+  %r.1116 = call i64 @tok_new(i64 %r.1113, i64 %r.1114, i64 %r.1115)
+  %r.1117.a0 = inttoptr i64 %r.1112 to ptr
+  call void @__nucleor_vec_push(ptr %r.1117.a0, i64 %r.1116)
+  %r.1117 = add i64 0, 0
+  %r.1118 = load i64, ptr %r.7
+  %r.1119 = add i64 2, 0
+  %r.1120 = add i64 %r.1118, %r.1119
+  store i64 %r.1120, ptr %r.7
   br label %L260
 L259:
-  %r.1133 = load i64, ptr %r.12
-  %r.1134 = add i64 38, 0
-  %r.1135.cmp = icmp eq i64 %r.1133, %r.1134
-  %r.1135 = zext i1 %r.1135.cmp to i64
-  %br.1135.cond = icmp ne i64 %r.1135, 0
-  br i1 %br.1135.cond, label %L261, label %L262
+  %r.1121 = load i64, ptr %r.12
+  %r.1122 = add i64 38, 0
+  %r.1123.cmp = icmp eq i64 %r.1121, %r.1122
+  %r.1123 = zext i1 %r.1123.cmp to i64
+  %r.1124 = load i64, ptr %r.7
+  %r.1125 = add i64 1, 0
+  %r.1126 = add i64 %r.1124, %r.1125
+  %r.1127 = load i64, ptr %r.4
+  %r.1128.cmp = icmp slt i64 %r.1126, %r.1127
+  %r.1128 = zext i1 %r.1128.cmp to i64
+  %r.1129 = and i64 %r.1123, %r.1128
+  %r.1130 = load i64, ptr %r.0
+  %r.1131 = load i64, ptr %r.7
+  %r.1132 = add i64 1, 0
+  %r.1133 = add i64 %r.1131, %r.1125
+  %r.1134.a0 = inttoptr i64 %r.1130 to ptr
+  %r.1134 = call i64 @__nucleor_str_char_at(ptr %r.1134.a0, i64 %r.1133)
+  %r.1135 = add i64 61, 0
+  %r.1136.cmp = icmp eq i64 %r.1134, %r.1135
+  %r.1136 = zext i1 %r.1136.cmp to i64
+  %r.1137 = and i64 %r.1129, %r.1136
+  %br.1137.cond = icmp ne i64 %r.1137, 0
+  br i1 %br.1137.cond, label %L261, label %L262
 L261:
-  %r.1136 = load i64, ptr %r.2
-  %r.1137 = add i64 82, 0
-  %r.1138 = add i64 0, 0
-  %r.1139 = load i64, ptr %r.7
-  %r.1140 = call i64 @tok_new(i64 %r.1137, i64 %r.1138, i64 %r.1139)
-  %r.1141.a0 = inttoptr i64 %r.1136 to ptr
-  call void @__nucleor_vec_push(ptr %r.1141.a0, i64 %r.1140)
-  %r.1141 = add i64 0, 0
-  %r.1142 = load i64, ptr %r.7
-  %r.1143 = add i64 1, 0
-  %r.1144 = add i64 %r.1142, %r.1143
-  store i64 %r.1144, ptr %r.7
+  %r.1138 = load i64, ptr %r.2
+  %r.1139 = add i64 117, 0
+  %r.1140 = add i64 0, 0
+  %r.1141 = load i64, ptr %r.7
+  %r.1142 = call i64 @tok_new(i64 %r.1139, i64 %r.1140, i64 %r.1141)
+  %r.1143.a0 = inttoptr i64 %r.1138 to ptr
+  call void @__nucleor_vec_push(ptr %r.1143.a0, i64 %r.1142)
+  %r.1143 = add i64 0, 0
+  %r.1144 = load i64, ptr %r.7
+  %r.1145 = add i64 2, 0
+  %r.1146 = add i64 %r.1144, %r.1145
+  store i64 %r.1146, ptr %r.7
   br label %L263
 L262:
-  %r.1145 = load i64, ptr %r.12
-  %r.1146 = add i64 124, 0
-  %r.1147.cmp = icmp eq i64 %r.1145, %r.1146
-  %r.1147 = zext i1 %r.1147.cmp to i64
-  %r.1148 = load i64, ptr %r.7
-  %r.1149 = add i64 1, 0
-  %r.1150 = add i64 %r.1148, %r.1149
-  %r.1151 = load i64, ptr %r.4
-  %r.1152.cmp = icmp slt i64 %r.1150, %r.1151
-  %r.1152 = zext i1 %r.1152.cmp to i64
-  %r.1153 = and i64 %r.1147, %r.1152
-  %r.1154 = load i64, ptr %r.0
-  %r.1155 = load i64, ptr %r.7
-  %r.1156 = add i64 1, 0
-  %r.1157 = add i64 %r.1155, %r.1149
-  %r.1158.a0 = inttoptr i64 %r.1154 to ptr
-  %r.1158 = call i64 @__nucleor_str_char_at(ptr %r.1158.a0, i64 %r.1157)
-  %r.1159 = add i64 124, 0
-  %r.1160.cmp = icmp eq i64 %r.1158, %r.1146
-  %r.1160 = zext i1 %r.1160.cmp to i64
-  %r.1161 = and i64 %r.1153, %r.1160
-  %br.1161.cond = icmp ne i64 %r.1161, 0
-  br i1 %br.1161.cond, label %L264, label %L265
+  %r.1147 = load i64, ptr %r.12
+  %r.1148 = add i64 38, 0
+  %r.1149.cmp = icmp eq i64 %r.1147, %r.1148
+  %r.1149 = zext i1 %r.1149.cmp to i64
+  %br.1149.cond = icmp ne i64 %r.1149, 0
+  br i1 %br.1149.cond, label %L264, label %L265
 L264:
-  %r.1162 = load i64, ptr %r.2
-  %r.1163 = add i64 37, 0
-  %r.1164 = add i64 0, 0
-  %r.1165 = load i64, ptr %r.7
-  %r.1166 = call i64 @tok_new(i64 %r.1163, i64 %r.1164, i64 %r.1165)
-  %r.1167.a0 = inttoptr i64 %r.1162 to ptr
-  call void @__nucleor_vec_push(ptr %r.1167.a0, i64 %r.1166)
-  %r.1167 = add i64 0, 0
-  %r.1168 = load i64, ptr %r.7
-  %r.1169 = add i64 2, 0
-  %r.1170 = add i64 %r.1168, %r.1169
-  store i64 %r.1170, ptr %r.7
+  %r.1150 = load i64, ptr %r.2
+  %r.1151 = add i64 82, 0
+  %r.1152 = add i64 0, 0
+  %r.1153 = load i64, ptr %r.7
+  %r.1154 = call i64 @tok_new(i64 %r.1151, i64 %r.1152, i64 %r.1153)
+  %r.1155.a0 = inttoptr i64 %r.1150 to ptr
+  call void @__nucleor_vec_push(ptr %r.1155.a0, i64 %r.1154)
+  %r.1155 = add i64 0, 0
+  %r.1156 = load i64, ptr %r.7
+  %r.1157 = add i64 1, 0
+  %r.1158 = add i64 %r.1156, %r.1157
+  store i64 %r.1158, ptr %r.7
   br label %L266
 L265:
-  %r.1171 = load i64, ptr %r.12
-  %r.1172 = add i64 124, 0
-  %r.1173.cmp = icmp eq i64 %r.1171, %r.1172
-  %r.1173 = zext i1 %r.1173.cmp to i64
-  %r.1174 = load i64, ptr %r.7
-  %r.1175 = add i64 1, 0
-  %r.1176 = add i64 %r.1174, %r.1175
-  %r.1177 = load i64, ptr %r.4
-  %r.1178.cmp = icmp slt i64 %r.1176, %r.1177
-  %r.1178 = zext i1 %r.1178.cmp to i64
-  %r.1179 = and i64 %r.1173, %r.1178
-  %r.1180 = load i64, ptr %r.0
-  %r.1181 = load i64, ptr %r.7
-  %r.1182 = add i64 1, 0
-  %r.1183 = add i64 %r.1181, %r.1175
-  %r.1184.a0 = inttoptr i64 %r.1180 to ptr
-  %r.1184 = call i64 @__nucleor_str_char_at(ptr %r.1184.a0, i64 %r.1183)
-  %r.1185 = add i64 61, 0
-  %r.1186.cmp = icmp eq i64 %r.1184, %r.1185
-  %r.1186 = zext i1 %r.1186.cmp to i64
-  %r.1187 = and i64 %r.1179, %r.1186
-  %br.1187.cond = icmp ne i64 %r.1187, 0
-  br i1 %br.1187.cond, label %L267, label %L268
+  %r.1159 = load i64, ptr %r.12
+  %r.1160 = add i64 124, 0
+  %r.1161.cmp = icmp eq i64 %r.1159, %r.1160
+  %r.1161 = zext i1 %r.1161.cmp to i64
+  %r.1162 = load i64, ptr %r.7
+  %r.1163 = add i64 1, 0
+  %r.1164 = add i64 %r.1162, %r.1163
+  %r.1165 = load i64, ptr %r.4
+  %r.1166.cmp = icmp slt i64 %r.1164, %r.1165
+  %r.1166 = zext i1 %r.1166.cmp to i64
+  %r.1167 = and i64 %r.1161, %r.1166
+  %r.1168 = load i64, ptr %r.0
+  %r.1169 = load i64, ptr %r.7
+  %r.1170 = add i64 1, 0
+  %r.1171 = add i64 %r.1169, %r.1163
+  %r.1172.a0 = inttoptr i64 %r.1168 to ptr
+  %r.1172 = call i64 @__nucleor_str_char_at(ptr %r.1172.a0, i64 %r.1171)
+  %r.1173 = add i64 124, 0
+  %r.1174.cmp = icmp eq i64 %r.1172, %r.1160
+  %r.1174 = zext i1 %r.1174.cmp to i64
+  %r.1175 = and i64 %r.1167, %r.1174
+  %br.1175.cond = icmp ne i64 %r.1175, 0
+  br i1 %br.1175.cond, label %L267, label %L268
 L267:
-  %r.1188 = load i64, ptr %r.2
-  %r.1189 = add i64 118, 0
-  %r.1190 = add i64 0, 0
-  %r.1191 = load i64, ptr %r.7
-  %r.1192 = call i64 @tok_new(i64 %r.1189, i64 %r.1190, i64 %r.1191)
-  %r.1193.a0 = inttoptr i64 %r.1188 to ptr
-  call void @__nucleor_vec_push(ptr %r.1193.a0, i64 %r.1192)
-  %r.1193 = add i64 0, 0
-  %r.1194 = load i64, ptr %r.7
-  %r.1195 = add i64 2, 0
-  %r.1196 = add i64 %r.1194, %r.1195
-  store i64 %r.1196, ptr %r.7
+  %r.1176 = load i64, ptr %r.2
+  %r.1177 = add i64 37, 0
+  %r.1178 = add i64 0, 0
+  %r.1179 = load i64, ptr %r.7
+  %r.1180 = call i64 @tok_new(i64 %r.1177, i64 %r.1178, i64 %r.1179)
+  %r.1181.a0 = inttoptr i64 %r.1176 to ptr
+  call void @__nucleor_vec_push(ptr %r.1181.a0, i64 %r.1180)
+  %r.1181 = add i64 0, 0
+  %r.1182 = load i64, ptr %r.7
+  %r.1183 = add i64 2, 0
+  %r.1184 = add i64 %r.1182, %r.1183
+  store i64 %r.1184, ptr %r.7
   br label %L269
 L268:
-  %r.1197 = load i64, ptr %r.12
-  %r.1198 = add i64 124, 0
-  %r.1199.cmp = icmp eq i64 %r.1197, %r.1198
-  %r.1199 = zext i1 %r.1199.cmp to i64
-  %br.1199.cond = icmp ne i64 %r.1199, 0
-  br i1 %br.1199.cond, label %L270, label %L271
+  %r.1185 = load i64, ptr %r.12
+  %r.1186 = add i64 124, 0
+  %r.1187.cmp = icmp eq i64 %r.1185, %r.1186
+  %r.1187 = zext i1 %r.1187.cmp to i64
+  %r.1188 = load i64, ptr %r.7
+  %r.1189 = add i64 1, 0
+  %r.1190 = add i64 %r.1188, %r.1189
+  %r.1191 = load i64, ptr %r.4
+  %r.1192.cmp = icmp slt i64 %r.1190, %r.1191
+  %r.1192 = zext i1 %r.1192.cmp to i64
+  %r.1193 = and i64 %r.1187, %r.1192
+  %r.1194 = load i64, ptr %r.0
+  %r.1195 = load i64, ptr %r.7
+  %r.1196 = add i64 1, 0
+  %r.1197 = add i64 %r.1195, %r.1189
+  %r.1198.a0 = inttoptr i64 %r.1194 to ptr
+  %r.1198 = call i64 @__nucleor_str_char_at(ptr %r.1198.a0, i64 %r.1197)
+  %r.1199 = add i64 61, 0
+  %r.1200.cmp = icmp eq i64 %r.1198, %r.1199
+  %r.1200 = zext i1 %r.1200.cmp to i64
+  %r.1201 = and i64 %r.1193, %r.1200
+  %br.1201.cond = icmp ne i64 %r.1201, 0
+  br i1 %br.1201.cond, label %L270, label %L271
 L270:
-  %r.1200 = load i64, ptr %r.2
-  %r.1201 = add i64 65, 0
-  %r.1202 = add i64 0, 0
-  %r.1203 = load i64, ptr %r.7
-  %r.1204 = call i64 @tok_new(i64 %r.1201, i64 %r.1202, i64 %r.1203)
-  %r.1205.a0 = inttoptr i64 %r.1200 to ptr
-  call void @__nucleor_vec_push(ptr %r.1205.a0, i64 %r.1204)
-  %r.1205 = add i64 0, 0
-  %r.1206 = load i64, ptr %r.7
-  %r.1207 = add i64 1, 0
-  %r.1208 = add i64 %r.1206, %r.1207
-  store i64 %r.1208, ptr %r.7
+  %r.1202 = load i64, ptr %r.2
+  %r.1203 = add i64 118, 0
+  %r.1204 = add i64 0, 0
+  %r.1205 = load i64, ptr %r.7
+  %r.1206 = call i64 @tok_new(i64 %r.1203, i64 %r.1204, i64 %r.1205)
+  %r.1207.a0 = inttoptr i64 %r.1202 to ptr
+  call void @__nucleor_vec_push(ptr %r.1207.a0, i64 %r.1206)
+  %r.1207 = add i64 0, 0
+  %r.1208 = load i64, ptr %r.7
+  %r.1209 = add i64 2, 0
+  %r.1210 = add i64 %r.1208, %r.1209
+  store i64 %r.1210, ptr %r.7
   br label %L272
 L271:
-  %r.1209 = load i64, ptr %r.12
-  %r.1210 = add i64 94, 0
-  %r.1211.cmp = icmp eq i64 %r.1209, %r.1210
-  %r.1211 = zext i1 %r.1211.cmp to i64
-  %r.1212 = load i64, ptr %r.7
-  %r.1213 = add i64 1, 0
-  %r.1214 = add i64 %r.1212, %r.1213
-  %r.1215 = load i64, ptr %r.4
-  %r.1216.cmp = icmp slt i64 %r.1214, %r.1215
-  %r.1216 = zext i1 %r.1216.cmp to i64
-  %r.1217 = and i64 %r.1211, %r.1216
-  %r.1218 = load i64, ptr %r.0
-  %r.1219 = load i64, ptr %r.7
-  %r.1220 = add i64 1, 0
-  %r.1221 = add i64 %r.1219, %r.1213
-  %r.1222.a0 = inttoptr i64 %r.1218 to ptr
-  %r.1222 = call i64 @__nucleor_str_char_at(ptr %r.1222.a0, i64 %r.1221)
-  %r.1223 = add i64 61, 0
-  %r.1224.cmp = icmp eq i64 %r.1222, %r.1223
-  %r.1224 = zext i1 %r.1224.cmp to i64
-  %r.1225 = and i64 %r.1217, %r.1224
-  %br.1225.cond = icmp ne i64 %r.1225, 0
-  br i1 %br.1225.cond, label %L273, label %L274
+  %r.1211 = load i64, ptr %r.12
+  %r.1212 = add i64 124, 0
+  %r.1213.cmp = icmp eq i64 %r.1211, %r.1212
+  %r.1213 = zext i1 %r.1213.cmp to i64
+  %br.1213.cond = icmp ne i64 %r.1213, 0
+  br i1 %br.1213.cond, label %L273, label %L274
 L273:
-  %r.1226 = load i64, ptr %r.2
-  %r.1227 = add i64 119, 0
-  %r.1228 = add i64 0, 0
-  %r.1229 = load i64, ptr %r.7
-  %r.1230 = call i64 @tok_new(i64 %r.1227, i64 %r.1228, i64 %r.1229)
-  %r.1231.a0 = inttoptr i64 %r.1226 to ptr
-  call void @__nucleor_vec_push(ptr %r.1231.a0, i64 %r.1230)
-  %r.1231 = add i64 0, 0
-  %r.1232 = load i64, ptr %r.7
-  %r.1233 = add i64 2, 0
-  %r.1234 = add i64 %r.1232, %r.1233
-  store i64 %r.1234, ptr %r.7
+  %r.1214 = load i64, ptr %r.2
+  %r.1215 = add i64 65, 0
+  %r.1216 = add i64 0, 0
+  %r.1217 = load i64, ptr %r.7
+  %r.1218 = call i64 @tok_new(i64 %r.1215, i64 %r.1216, i64 %r.1217)
+  %r.1219.a0 = inttoptr i64 %r.1214 to ptr
+  call void @__nucleor_vec_push(ptr %r.1219.a0, i64 %r.1218)
+  %r.1219 = add i64 0, 0
+  %r.1220 = load i64, ptr %r.7
+  %r.1221 = add i64 1, 0
+  %r.1222 = add i64 %r.1220, %r.1221
+  store i64 %r.1222, ptr %r.7
   br label %L275
 L274:
-  %r.1235 = load i64, ptr %r.12
-  %r.1236 = add i64 94, 0
-  %r.1237.cmp = icmp eq i64 %r.1235, %r.1236
-  %r.1237 = zext i1 %r.1237.cmp to i64
-  %br.1237.cond = icmp ne i64 %r.1237, 0
-  br i1 %br.1237.cond, label %L276, label %L277
+  %r.1223 = load i64, ptr %r.12
+  %r.1224 = add i64 94, 0
+  %r.1225.cmp = icmp eq i64 %r.1223, %r.1224
+  %r.1225 = zext i1 %r.1225.cmp to i64
+  %r.1226 = load i64, ptr %r.7
+  %r.1227 = add i64 1, 0
+  %r.1228 = add i64 %r.1226, %r.1227
+  %r.1229 = load i64, ptr %r.4
+  %r.1230.cmp = icmp slt i64 %r.1228, %r.1229
+  %r.1230 = zext i1 %r.1230.cmp to i64
+  %r.1231 = and i64 %r.1225, %r.1230
+  %r.1232 = load i64, ptr %r.0
+  %r.1233 = load i64, ptr %r.7
+  %r.1234 = add i64 1, 0
+  %r.1235 = add i64 %r.1233, %r.1227
+  %r.1236.a0 = inttoptr i64 %r.1232 to ptr
+  %r.1236 = call i64 @__nucleor_str_char_at(ptr %r.1236.a0, i64 %r.1235)
+  %r.1237 = add i64 61, 0
+  %r.1238.cmp = icmp eq i64 %r.1236, %r.1237
+  %r.1238 = zext i1 %r.1238.cmp to i64
+  %r.1239 = and i64 %r.1231, %r.1238
+  %br.1239.cond = icmp ne i64 %r.1239, 0
+  br i1 %br.1239.cond, label %L276, label %L277
 L276:
-  %r.1238 = load i64, ptr %r.2
-  %r.1239 = add i64 94, 0
-  %r.1240 = add i64 0, 0
-  %r.1241 = load i64, ptr %r.7
-  %r.1242 = call i64 @tok_new(i64 %r.1239, i64 %r.1240, i64 %r.1241)
-  %r.1243.a0 = inttoptr i64 %r.1238 to ptr
-  call void @__nucleor_vec_push(ptr %r.1243.a0, i64 %r.1242)
-  %r.1243 = add i64 0, 0
-  %r.1244 = load i64, ptr %r.7
-  %r.1245 = add i64 1, 0
-  %r.1246 = add i64 %r.1244, %r.1245
-  store i64 %r.1246, ptr %r.7
+  %r.1240 = load i64, ptr %r.2
+  %r.1241 = add i64 119, 0
+  %r.1242 = add i64 0, 0
+  %r.1243 = load i64, ptr %r.7
+  %r.1244 = call i64 @tok_new(i64 %r.1241, i64 %r.1242, i64 %r.1243)
+  %r.1245.a0 = inttoptr i64 %r.1240 to ptr
+  call void @__nucleor_vec_push(ptr %r.1245.a0, i64 %r.1244)
+  %r.1245 = add i64 0, 0
+  %r.1246 = load i64, ptr %r.7
+  %r.1247 = add i64 2, 0
+  %r.1248 = add i64 %r.1246, %r.1247
+  store i64 %r.1248, ptr %r.7
   br label %L278
 L277:
-  %r.1247 = load i64, ptr %r.12
-  %r.1248 = add i64 60, 0
-  %r.1249.cmp = icmp eq i64 %r.1247, %r.1248
-  %r.1249 = zext i1 %r.1249.cmp to i64
-  %r.1250 = load i64, ptr %r.7
-  %r.1251 = add i64 2, 0
-  %r.1252 = add i64 %r.1250, %r.1251
-  %r.1253 = load i64, ptr %r.4
-  %r.1254.cmp = icmp slt i64 %r.1252, %r.1253
-  %r.1254 = zext i1 %r.1254.cmp to i64
-  %r.1255 = and i64 %r.1249, %r.1254
-  %r.1256 = load i64, ptr %r.0
-  %r.1257 = load i64, ptr %r.7
-  %r.1258 = add i64 1, 0
-  %r.1259 = add i64 %r.1257, %r.1258
-  %r.1260.a0 = inttoptr i64 %r.1256 to ptr
-  %r.1260 = call i64 @__nucleor_str_char_at(ptr %r.1260.a0, i64 %r.1259)
-  %r.1261 = add i64 60, 0
-  %r.1262.cmp = icmp eq i64 %r.1260, %r.1248
-  %r.1262 = zext i1 %r.1262.cmp to i64
-  %r.1263 = and i64 %r.1255, %r.1262
-  %r.1264 = load i64, ptr %r.0
-  %r.1265 = load i64, ptr %r.7
-  %r.1266 = add i64 2, 0
-  %r.1267 = add i64 %r.1265, %r.1251
-  %r.1268.a0 = inttoptr i64 %r.1264 to ptr
-  %r.1268 = call i64 @__nucleor_str_char_at(ptr %r.1268.a0, i64 %r.1267)
-  %r.1269 = add i64 61, 0
-  %r.1270.cmp = icmp eq i64 %r.1268, %r.1269
-  %r.1270 = zext i1 %r.1270.cmp to i64
-  %r.1271 = and i64 %r.1263, %r.1270
-  %br.1271.cond = icmp ne i64 %r.1271, 0
-  br i1 %br.1271.cond, label %L279, label %L280
+  %r.1249 = load i64, ptr %r.12
+  %r.1250 = add i64 94, 0
+  %r.1251.cmp = icmp eq i64 %r.1249, %r.1250
+  %r.1251 = zext i1 %r.1251.cmp to i64
+  %br.1251.cond = icmp ne i64 %r.1251, 0
+  br i1 %br.1251.cond, label %L279, label %L280
 L279:
-  %r.1272 = load i64, ptr %r.2
-  %r.1273 = add i64 120, 0
-  %r.1274 = add i64 0, 0
-  %r.1275 = load i64, ptr %r.7
-  %r.1276 = call i64 @tok_new(i64 %r.1273, i64 %r.1274, i64 %r.1275)
-  %r.1277.a0 = inttoptr i64 %r.1272 to ptr
-  call void @__nucleor_vec_push(ptr %r.1277.a0, i64 %r.1276)
-  %r.1277 = add i64 0, 0
-  %r.1278 = load i64, ptr %r.7
-  %r.1279 = add i64 3, 0
-  %r.1280 = add i64 %r.1278, %r.1279
-  store i64 %r.1280, ptr %r.7
+  %r.1252 = load i64, ptr %r.2
+  %r.1253 = add i64 94, 0
+  %r.1254 = add i64 0, 0
+  %r.1255 = load i64, ptr %r.7
+  %r.1256 = call i64 @tok_new(i64 %r.1253, i64 %r.1254, i64 %r.1255)
+  %r.1257.a0 = inttoptr i64 %r.1252 to ptr
+  call void @__nucleor_vec_push(ptr %r.1257.a0, i64 %r.1256)
+  %r.1257 = add i64 0, 0
+  %r.1258 = load i64, ptr %r.7
+  %r.1259 = add i64 1, 0
+  %r.1260 = add i64 %r.1258, %r.1259
+  store i64 %r.1260, ptr %r.7
   br label %L281
 L280:
-  %r.1281 = load i64, ptr %r.12
-  %r.1282 = add i64 60, 0
-  %r.1283.cmp = icmp eq i64 %r.1281, %r.1282
-  %r.1283 = zext i1 %r.1283.cmp to i64
-  %r.1284 = load i64, ptr %r.7
-  %r.1285 = add i64 1, 0
-  %r.1286 = add i64 %r.1284, %r.1285
-  %r.1287 = load i64, ptr %r.4
-  %r.1288.cmp = icmp slt i64 %r.1286, %r.1287
-  %r.1288 = zext i1 %r.1288.cmp to i64
-  %r.1289 = and i64 %r.1283, %r.1288
-  %r.1290 = load i64, ptr %r.0
-  %r.1291 = load i64, ptr %r.7
-  %r.1292 = add i64 1, 0
-  %r.1293 = add i64 %r.1291, %r.1285
-  %r.1294.a0 = inttoptr i64 %r.1290 to ptr
-  %r.1294 = call i64 @__nucleor_str_char_at(ptr %r.1294.a0, i64 %r.1293)
-  %r.1295 = add i64 60, 0
-  %r.1296.cmp = icmp eq i64 %r.1294, %r.1282
-  %r.1296 = zext i1 %r.1296.cmp to i64
-  %r.1297 = and i64 %r.1289, %r.1296
-  %br.1297.cond = icmp ne i64 %r.1297, 0
-  br i1 %br.1297.cond, label %L282, label %L283
+  %r.1261 = load i64, ptr %r.12
+  %r.1262 = add i64 60, 0
+  %r.1263.cmp = icmp eq i64 %r.1261, %r.1262
+  %r.1263 = zext i1 %r.1263.cmp to i64
+  %r.1264 = load i64, ptr %r.7
+  %r.1265 = add i64 2, 0
+  %r.1266 = add i64 %r.1264, %r.1265
+  %r.1267 = load i64, ptr %r.4
+  %r.1268.cmp = icmp slt i64 %r.1266, %r.1267
+  %r.1268 = zext i1 %r.1268.cmp to i64
+  %r.1269 = and i64 %r.1263, %r.1268
+  %r.1270 = load i64, ptr %r.0
+  %r.1271 = load i64, ptr %r.7
+  %r.1272 = add i64 1, 0
+  %r.1273 = add i64 %r.1271, %r.1272
+  %r.1274.a0 = inttoptr i64 %r.1270 to ptr
+  %r.1274 = call i64 @__nucleor_str_char_at(ptr %r.1274.a0, i64 %r.1273)
+  %r.1275 = add i64 60, 0
+  %r.1276.cmp = icmp eq i64 %r.1274, %r.1262
+  %r.1276 = zext i1 %r.1276.cmp to i64
+  %r.1277 = and i64 %r.1269, %r.1276
+  %r.1278 = load i64, ptr %r.0
+  %r.1279 = load i64, ptr %r.7
+  %r.1280 = add i64 2, 0
+  %r.1281 = add i64 %r.1279, %r.1265
+  %r.1282.a0 = inttoptr i64 %r.1278 to ptr
+  %r.1282 = call i64 @__nucleor_str_char_at(ptr %r.1282.a0, i64 %r.1281)
+  %r.1283 = add i64 61, 0
+  %r.1284.cmp = icmp eq i64 %r.1282, %r.1283
+  %r.1284 = zext i1 %r.1284.cmp to i64
+  %r.1285 = and i64 %r.1277, %r.1284
+  %br.1285.cond = icmp ne i64 %r.1285, 0
+  br i1 %br.1285.cond, label %L282, label %L283
 L282:
-  %r.1298 = load i64, ptr %r.2
-  %r.1299 = add i64 115, 0
-  %r.1300 = add i64 0, 0
-  %r.1301 = load i64, ptr %r.7
-  %r.1302 = call i64 @tok_new(i64 %r.1299, i64 %r.1300, i64 %r.1301)
-  %r.1303.a0 = inttoptr i64 %r.1298 to ptr
-  call void @__nucleor_vec_push(ptr %r.1303.a0, i64 %r.1302)
-  %r.1303 = add i64 0, 0
-  %r.1304 = load i64, ptr %r.7
-  %r.1305 = add i64 2, 0
-  %r.1306 = add i64 %r.1304, %r.1305
-  store i64 %r.1306, ptr %r.7
+  %r.1286 = load i64, ptr %r.2
+  %r.1287 = add i64 120, 0
+  %r.1288 = add i64 0, 0
+  %r.1289 = load i64, ptr %r.7
+  %r.1290 = call i64 @tok_new(i64 %r.1287, i64 %r.1288, i64 %r.1289)
+  %r.1291.a0 = inttoptr i64 %r.1286 to ptr
+  call void @__nucleor_vec_push(ptr %r.1291.a0, i64 %r.1290)
+  %r.1291 = add i64 0, 0
+  %r.1292 = load i64, ptr %r.7
+  %r.1293 = add i64 3, 0
+  %r.1294 = add i64 %r.1292, %r.1293
+  store i64 %r.1294, ptr %r.7
   br label %L284
 L283:
-  %r.1307 = load i64, ptr %r.12
-  %r.1308 = add i64 62, 0
-  %r.1309.cmp = icmp eq i64 %r.1307, %r.1308
-  %r.1309 = zext i1 %r.1309.cmp to i64
-  %r.1310 = load i64, ptr %r.7
-  %r.1311 = add i64 2, 0
-  %r.1312 = add i64 %r.1310, %r.1311
-  %r.1313 = load i64, ptr %r.4
-  %r.1314.cmp = icmp slt i64 %r.1312, %r.1313
-  %r.1314 = zext i1 %r.1314.cmp to i64
-  %r.1315 = and i64 %r.1309, %r.1314
-  %r.1316 = load i64, ptr %r.0
-  %r.1317 = load i64, ptr %r.7
-  %r.1318 = add i64 1, 0
-  %r.1319 = add i64 %r.1317, %r.1318
-  %r.1320.a0 = inttoptr i64 %r.1316 to ptr
-  %r.1320 = call i64 @__nucleor_str_char_at(ptr %r.1320.a0, i64 %r.1319)
-  %r.1321 = add i64 62, 0
-  %r.1322.cmp = icmp eq i64 %r.1320, %r.1308
-  %r.1322 = zext i1 %r.1322.cmp to i64
-  %r.1323 = and i64 %r.1315, %r.1322
-  %r.1324 = load i64, ptr %r.0
-  %r.1325 = load i64, ptr %r.7
-  %r.1326 = add i64 2, 0
-  %r.1327 = add i64 %r.1325, %r.1311
-  %r.1328.a0 = inttoptr i64 %r.1324 to ptr
-  %r.1328 = call i64 @__nucleor_str_char_at(ptr %r.1328.a0, i64 %r.1327)
-  %r.1329 = add i64 61, 0
-  %r.1330.cmp = icmp eq i64 %r.1328, %r.1329
-  %r.1330 = zext i1 %r.1330.cmp to i64
-  %r.1331 = and i64 %r.1323, %r.1330
-  %br.1331.cond = icmp ne i64 %r.1331, 0
-  br i1 %br.1331.cond, label %L285, label %L286
+  %r.1295 = load i64, ptr %r.12
+  %r.1296 = add i64 60, 0
+  %r.1297.cmp = icmp eq i64 %r.1295, %r.1296
+  %r.1297 = zext i1 %r.1297.cmp to i64
+  %r.1298 = load i64, ptr %r.7
+  %r.1299 = add i64 1, 0
+  %r.1300 = add i64 %r.1298, %r.1299
+  %r.1301 = load i64, ptr %r.4
+  %r.1302.cmp = icmp slt i64 %r.1300, %r.1301
+  %r.1302 = zext i1 %r.1302.cmp to i64
+  %r.1303 = and i64 %r.1297, %r.1302
+  %r.1304 = load i64, ptr %r.0
+  %r.1305 = load i64, ptr %r.7
+  %r.1306 = add i64 1, 0
+  %r.1307 = add i64 %r.1305, %r.1299
+  %r.1308.a0 = inttoptr i64 %r.1304 to ptr
+  %r.1308 = call i64 @__nucleor_str_char_at(ptr %r.1308.a0, i64 %r.1307)
+  %r.1309 = add i64 60, 0
+  %r.1310.cmp = icmp eq i64 %r.1308, %r.1296
+  %r.1310 = zext i1 %r.1310.cmp to i64
+  %r.1311 = and i64 %r.1303, %r.1310
+  %br.1311.cond = icmp ne i64 %r.1311, 0
+  br i1 %br.1311.cond, label %L285, label %L286
 L285:
-  %r.1332 = load i64, ptr %r.2
-  %r.1333 = add i64 121, 0
-  %r.1334 = add i64 0, 0
-  %r.1335 = load i64, ptr %r.7
-  %r.1336 = call i64 @tok_new(i64 %r.1333, i64 %r.1334, i64 %r.1335)
-  %r.1337.a0 = inttoptr i64 %r.1332 to ptr
-  call void @__nucleor_vec_push(ptr %r.1337.a0, i64 %r.1336)
-  %r.1337 = add i64 0, 0
-  %r.1338 = load i64, ptr %r.7
-  %r.1339 = add i64 3, 0
-  %r.1340 = add i64 %r.1338, %r.1339
-  store i64 %r.1340, ptr %r.7
+  %r.1312 = load i64, ptr %r.2
+  %r.1313 = add i64 115, 0
+  %r.1314 = add i64 0, 0
+  %r.1315 = load i64, ptr %r.7
+  %r.1316 = call i64 @tok_new(i64 %r.1313, i64 %r.1314, i64 %r.1315)
+  %r.1317.a0 = inttoptr i64 %r.1312 to ptr
+  call void @__nucleor_vec_push(ptr %r.1317.a0, i64 %r.1316)
+  %r.1317 = add i64 0, 0
+  %r.1318 = load i64, ptr %r.7
+  %r.1319 = add i64 2, 0
+  %r.1320 = add i64 %r.1318, %r.1319
+  store i64 %r.1320, ptr %r.7
   br label %L287
 L286:
-  %r.1341 = load i64, ptr %r.12
-  %r.1342 = add i64 58, 0
-  %r.1343.cmp = icmp eq i64 %r.1341, %r.1342
-  %r.1343 = zext i1 %r.1343.cmp to i64
-  %r.1344 = load i64, ptr %r.7
-  %r.1345 = add i64 1, 0
-  %r.1346 = add i64 %r.1344, %r.1345
-  %r.1347 = load i64, ptr %r.4
-  %r.1348.cmp = icmp slt i64 %r.1346, %r.1347
-  %r.1348 = zext i1 %r.1348.cmp to i64
-  %r.1349 = and i64 %r.1343, %r.1348
-  %r.1350 = load i64, ptr %r.0
-  %r.1351 = load i64, ptr %r.7
-  %r.1352 = add i64 1, 0
-  %r.1353 = add i64 %r.1351, %r.1345
-  %r.1354.a0 = inttoptr i64 %r.1350 to ptr
-  %r.1354 = call i64 @__nucleor_str_char_at(ptr %r.1354.a0, i64 %r.1353)
-  %r.1355 = add i64 58, 0
-  %r.1356.cmp = icmp eq i64 %r.1354, %r.1342
-  %r.1356 = zext i1 %r.1356.cmp to i64
-  %r.1357 = and i64 %r.1349, %r.1356
-  %br.1357.cond = icmp ne i64 %r.1357, 0
-  br i1 %br.1357.cond, label %L288, label %L289
+  %r.1321 = load i64, ptr %r.12
+  %r.1322 = add i64 62, 0
+  %r.1323.cmp = icmp eq i64 %r.1321, %r.1322
+  %r.1323 = zext i1 %r.1323.cmp to i64
+  %r.1324 = load i64, ptr %r.7
+  %r.1325 = add i64 2, 0
+  %r.1326 = add i64 %r.1324, %r.1325
+  %r.1327 = load i64, ptr %r.4
+  %r.1328.cmp = icmp slt i64 %r.1326, %r.1327
+  %r.1328 = zext i1 %r.1328.cmp to i64
+  %r.1329 = and i64 %r.1323, %r.1328
+  %r.1330 = load i64, ptr %r.0
+  %r.1331 = load i64, ptr %r.7
+  %r.1332 = add i64 1, 0
+  %r.1333 = add i64 %r.1331, %r.1332
+  %r.1334.a0 = inttoptr i64 %r.1330 to ptr
+  %r.1334 = call i64 @__nucleor_str_char_at(ptr %r.1334.a0, i64 %r.1333)
+  %r.1335 = add i64 62, 0
+  %r.1336.cmp = icmp eq i64 %r.1334, %r.1322
+  %r.1336 = zext i1 %r.1336.cmp to i64
+  %r.1337 = and i64 %r.1329, %r.1336
+  %r.1338 = load i64, ptr %r.0
+  %r.1339 = load i64, ptr %r.7
+  %r.1340 = add i64 2, 0
+  %r.1341 = add i64 %r.1339, %r.1325
+  %r.1342.a0 = inttoptr i64 %r.1338 to ptr
+  %r.1342 = call i64 @__nucleor_str_char_at(ptr %r.1342.a0, i64 %r.1341)
+  %r.1343 = add i64 61, 0
+  %r.1344.cmp = icmp eq i64 %r.1342, %r.1343
+  %r.1344 = zext i1 %r.1344.cmp to i64
+  %r.1345 = and i64 %r.1337, %r.1344
+  %br.1345.cond = icmp ne i64 %r.1345, 0
+  br i1 %br.1345.cond, label %L288, label %L289
 L288:
-  %r.1358 = load i64, ptr %r.2
-  %r.1359 = add i64 46, 0
-  %r.1360 = add i64 0, 0
-  %r.1361 = load i64, ptr %r.7
-  %r.1362 = call i64 @tok_new(i64 %r.1359, i64 %r.1360, i64 %r.1361)
-  %r.1363.a0 = inttoptr i64 %r.1358 to ptr
-  call void @__nucleor_vec_push(ptr %r.1363.a0, i64 %r.1362)
-  %r.1363 = add i64 0, 0
-  %r.1364 = load i64, ptr %r.7
-  %r.1365 = add i64 2, 0
-  %r.1366 = add i64 %r.1364, %r.1365
-  store i64 %r.1366, ptr %r.7
+  %r.1346 = load i64, ptr %r.2
+  %r.1347 = add i64 121, 0
+  %r.1348 = add i64 0, 0
+  %r.1349 = load i64, ptr %r.7
+  %r.1350 = call i64 @tok_new(i64 %r.1347, i64 %r.1348, i64 %r.1349)
+  %r.1351.a0 = inttoptr i64 %r.1346 to ptr
+  call void @__nucleor_vec_push(ptr %r.1351.a0, i64 %r.1350)
+  %r.1351 = add i64 0, 0
+  %r.1352 = load i64, ptr %r.7
+  %r.1353 = add i64 3, 0
+  %r.1354 = add i64 %r.1352, %r.1353
+  store i64 %r.1354, ptr %r.7
   br label %L290
 L289:
-  %r.1367 = load i64, ptr %r.12
-  %r.1368 = add i64 43, 0
-  %r.1369.cmp = icmp eq i64 %r.1367, %r.1368
-  %r.1369 = zext i1 %r.1369.cmp to i64
-  %r.1370 = load i64, ptr %r.7
-  %r.1371 = add i64 1, 0
-  %r.1372 = add i64 %r.1370, %r.1371
-  %r.1373 = load i64, ptr %r.4
-  %r.1374.cmp = icmp slt i64 %r.1372, %r.1373
-  %r.1374 = zext i1 %r.1374.cmp to i64
-  %r.1375 = and i64 %r.1369, %r.1374
-  %r.1376 = load i64, ptr %r.0
-  %r.1377 = load i64, ptr %r.7
-  %r.1378 = add i64 1, 0
-  %r.1379 = add i64 %r.1377, %r.1371
-  %r.1380.a0 = inttoptr i64 %r.1376 to ptr
-  %r.1380 = call i64 @__nucleor_str_char_at(ptr %r.1380.a0, i64 %r.1379)
-  %r.1381 = add i64 61, 0
-  %r.1382.cmp = icmp eq i64 %r.1380, %r.1381
-  %r.1382 = zext i1 %r.1382.cmp to i64
-  %r.1383 = and i64 %r.1375, %r.1382
-  %br.1383.cond = icmp ne i64 %r.1383, 0
-  br i1 %br.1383.cond, label %L291, label %L292
+  %r.1355 = load i64, ptr %r.12
+  %r.1356 = add i64 58, 0
+  %r.1357.cmp = icmp eq i64 %r.1355, %r.1356
+  %r.1357 = zext i1 %r.1357.cmp to i64
+  %r.1358 = load i64, ptr %r.7
+  %r.1359 = add i64 1, 0
+  %r.1360 = add i64 %r.1358, %r.1359
+  %r.1361 = load i64, ptr %r.4
+  %r.1362.cmp = icmp slt i64 %r.1360, %r.1361
+  %r.1362 = zext i1 %r.1362.cmp to i64
+  %r.1363 = and i64 %r.1357, %r.1362
+  %r.1364 = load i64, ptr %r.0
+  %r.1365 = load i64, ptr %r.7
+  %r.1366 = add i64 1, 0
+  %r.1367 = add i64 %r.1365, %r.1359
+  %r.1368.a0 = inttoptr i64 %r.1364 to ptr
+  %r.1368 = call i64 @__nucleor_str_char_at(ptr %r.1368.a0, i64 %r.1367)
+  %r.1369 = add i64 58, 0
+  %r.1370.cmp = icmp eq i64 %r.1368, %r.1356
+  %r.1370 = zext i1 %r.1370.cmp to i64
+  %r.1371 = and i64 %r.1363, %r.1370
+  %br.1371.cond = icmp ne i64 %r.1371, 0
+  br i1 %br.1371.cond, label %L291, label %L292
 L291:
-  %r.1384 = load i64, ptr %r.2
-  %r.1385 = add i64 110, 0
-  %r.1386 = add i64 0, 0
-  %r.1387 = load i64, ptr %r.7
-  %r.1388 = call i64 @tok_new(i64 %r.1385, i64 %r.1386, i64 %r.1387)
-  %r.1389.a0 = inttoptr i64 %r.1384 to ptr
-  call void @__nucleor_vec_push(ptr %r.1389.a0, i64 %r.1388)
-  %r.1389 = add i64 0, 0
-  %r.1390 = load i64, ptr %r.7
-  %r.1391 = add i64 2, 0
-  %r.1392 = add i64 %r.1390, %r.1391
-  store i64 %r.1392, ptr %r.7
+  %r.1372 = load i64, ptr %r.2
+  %r.1373 = add i64 46, 0
+  %r.1374 = add i64 0, 0
+  %r.1375 = load i64, ptr %r.7
+  %r.1376 = call i64 @tok_new(i64 %r.1373, i64 %r.1374, i64 %r.1375)
+  %r.1377.a0 = inttoptr i64 %r.1372 to ptr
+  call void @__nucleor_vec_push(ptr %r.1377.a0, i64 %r.1376)
+  %r.1377 = add i64 0, 0
+  %r.1378 = load i64, ptr %r.7
+  %r.1379 = add i64 2, 0
+  %r.1380 = add i64 %r.1378, %r.1379
+  store i64 %r.1380, ptr %r.7
   br label %L293
 L292:
-  %r.1393 = load i64, ptr %r.12
-  %r.1394 = add i64 43, 0
-  %r.1395.cmp = icmp eq i64 %r.1393, %r.1394
-  %r.1395 = zext i1 %r.1395.cmp to i64
-  %br.1395.cond = icmp ne i64 %r.1395, 0
-  br i1 %br.1395.cond, label %L294, label %L295
+  %r.1381 = load i64, ptr %r.12
+  %r.1382 = add i64 43, 0
+  %r.1383.cmp = icmp eq i64 %r.1381, %r.1382
+  %r.1383 = zext i1 %r.1383.cmp to i64
+  %r.1384 = load i64, ptr %r.7
+  %r.1385 = add i64 1, 0
+  %r.1386 = add i64 %r.1384, %r.1385
+  %r.1387 = load i64, ptr %r.4
+  %r.1388.cmp = icmp slt i64 %r.1386, %r.1387
+  %r.1388 = zext i1 %r.1388.cmp to i64
+  %r.1389 = and i64 %r.1383, %r.1388
+  %r.1390 = load i64, ptr %r.0
+  %r.1391 = load i64, ptr %r.7
+  %r.1392 = add i64 1, 0
+  %r.1393 = add i64 %r.1391, %r.1385
+  %r.1394.a0 = inttoptr i64 %r.1390 to ptr
+  %r.1394 = call i64 @__nucleor_str_char_at(ptr %r.1394.a0, i64 %r.1393)
+  %r.1395 = add i64 61, 0
+  %r.1396.cmp = icmp eq i64 %r.1394, %r.1395
+  %r.1396 = zext i1 %r.1396.cmp to i64
+  %r.1397 = and i64 %r.1389, %r.1396
+  %br.1397.cond = icmp ne i64 %r.1397, 0
+  br i1 %br.1397.cond, label %L294, label %L295
 L294:
-  %r.1396 = load i64, ptr %r.2
-  %r.1397 = add i64 20, 0
-  %r.1398 = add i64 0, 0
-  %r.1399 = load i64, ptr %r.7
-  %r.1400 = call i64 @tok_new(i64 %r.1397, i64 %r.1398, i64 %r.1399)
-  %r.1401.a0 = inttoptr i64 %r.1396 to ptr
-  call void @__nucleor_vec_push(ptr %r.1401.a0, i64 %r.1400)
-  %r.1401 = add i64 0, 0
-  %r.1402 = load i64, ptr %r.7
-  %r.1403 = add i64 1, 0
-  %r.1404 = add i64 %r.1402, %r.1403
-  store i64 %r.1404, ptr %r.7
+  %r.1398 = load i64, ptr %r.2
+  %r.1399 = add i64 110, 0
+  %r.1400 = add i64 0, 0
+  %r.1401 = load i64, ptr %r.7
+  %r.1402 = call i64 @tok_new(i64 %r.1399, i64 %r.1400, i64 %r.1401)
+  %r.1403.a0 = inttoptr i64 %r.1398 to ptr
+  call void @__nucleor_vec_push(ptr %r.1403.a0, i64 %r.1402)
+  %r.1403 = add i64 0, 0
+  %r.1404 = load i64, ptr %r.7
+  %r.1405 = add i64 2, 0
+  %r.1406 = add i64 %r.1404, %r.1405
+  store i64 %r.1406, ptr %r.7
   br label %L296
 L295:
-  %r.1405 = load i64, ptr %r.12
-  %r.1406 = add i64 45, 0
-  %r.1407.cmp = icmp eq i64 %r.1405, %r.1406
-  %r.1407 = zext i1 %r.1407.cmp to i64
-  %r.1408 = load i64, ptr %r.7
-  %r.1409 = add i64 1, 0
-  %r.1410 = add i64 %r.1408, %r.1409
-  %r.1411 = load i64, ptr %r.4
-  %r.1412.cmp = icmp slt i64 %r.1410, %r.1411
-  %r.1412 = zext i1 %r.1412.cmp to i64
-  %r.1413 = and i64 %r.1407, %r.1412
-  %r.1414 = load i64, ptr %r.0
-  %r.1415 = load i64, ptr %r.7
-  %r.1416 = add i64 1, 0
-  %r.1417 = add i64 %r.1415, %r.1409
-  %r.1418.a0 = inttoptr i64 %r.1414 to ptr
-  %r.1418 = call i64 @__nucleor_str_char_at(ptr %r.1418.a0, i64 %r.1417)
-  %r.1419 = add i64 61, 0
-  %r.1420.cmp = icmp eq i64 %r.1418, %r.1419
-  %r.1420 = zext i1 %r.1420.cmp to i64
-  %r.1421 = and i64 %r.1413, %r.1420
-  %br.1421.cond = icmp ne i64 %r.1421, 0
-  br i1 %br.1421.cond, label %L297, label %L298
+  %r.1407 = load i64, ptr %r.12
+  %r.1408 = add i64 43, 0
+  %r.1409.cmp = icmp eq i64 %r.1407, %r.1408
+  %r.1409 = zext i1 %r.1409.cmp to i64
+  %br.1409.cond = icmp ne i64 %r.1409, 0
+  br i1 %br.1409.cond, label %L297, label %L298
 L297:
-  %r.1422 = load i64, ptr %r.2
-  %r.1423 = add i64 111, 0
-  %r.1424 = add i64 0, 0
-  %r.1425 = load i64, ptr %r.7
-  %r.1426 = call i64 @tok_new(i64 %r.1423, i64 %r.1424, i64 %r.1425)
-  %r.1427.a0 = inttoptr i64 %r.1422 to ptr
-  call void @__nucleor_vec_push(ptr %r.1427.a0, i64 %r.1426)
-  %r.1427 = add i64 0, 0
-  %r.1428 = load i64, ptr %r.7
-  %r.1429 = add i64 2, 0
-  %r.1430 = add i64 %r.1428, %r.1429
-  store i64 %r.1430, ptr %r.7
+  %r.1410 = load i64, ptr %r.2
+  %r.1411 = add i64 20, 0
+  %r.1412 = add i64 0, 0
+  %r.1413 = load i64, ptr %r.7
+  %r.1414 = call i64 @tok_new(i64 %r.1411, i64 %r.1412, i64 %r.1413)
+  %r.1415.a0 = inttoptr i64 %r.1410 to ptr
+  call void @__nucleor_vec_push(ptr %r.1415.a0, i64 %r.1414)
+  %r.1415 = add i64 0, 0
+  %r.1416 = load i64, ptr %r.7
+  %r.1417 = add i64 1, 0
+  %r.1418 = add i64 %r.1416, %r.1417
+  store i64 %r.1418, ptr %r.7
   br label %L299
 L298:
-  %r.1431 = load i64, ptr %r.12
-  %r.1432 = add i64 45, 0
-  %r.1433.cmp = icmp eq i64 %r.1431, %r.1432
-  %r.1433 = zext i1 %r.1433.cmp to i64
-  %br.1433.cond = icmp ne i64 %r.1433, 0
-  br i1 %br.1433.cond, label %L300, label %L301
+  %r.1419 = load i64, ptr %r.12
+  %r.1420 = add i64 45, 0
+  %r.1421.cmp = icmp eq i64 %r.1419, %r.1420
+  %r.1421 = zext i1 %r.1421.cmp to i64
+  %r.1422 = load i64, ptr %r.7
+  %r.1423 = add i64 1, 0
+  %r.1424 = add i64 %r.1422, %r.1423
+  %r.1425 = load i64, ptr %r.4
+  %r.1426.cmp = icmp slt i64 %r.1424, %r.1425
+  %r.1426 = zext i1 %r.1426.cmp to i64
+  %r.1427 = and i64 %r.1421, %r.1426
+  %r.1428 = load i64, ptr %r.0
+  %r.1429 = load i64, ptr %r.7
+  %r.1430 = add i64 1, 0
+  %r.1431 = add i64 %r.1429, %r.1423
+  %r.1432.a0 = inttoptr i64 %r.1428 to ptr
+  %r.1432 = call i64 @__nucleor_str_char_at(ptr %r.1432.a0, i64 %r.1431)
+  %r.1433 = add i64 61, 0
+  %r.1434.cmp = icmp eq i64 %r.1432, %r.1433
+  %r.1434 = zext i1 %r.1434.cmp to i64
+  %r.1435 = and i64 %r.1427, %r.1434
+  %br.1435.cond = icmp ne i64 %r.1435, 0
+  br i1 %br.1435.cond, label %L300, label %L301
 L300:
-  %r.1434 = load i64, ptr %r.2
-  %r.1435 = add i64 21, 0
-  %r.1436 = add i64 0, 0
-  %r.1437 = load i64, ptr %r.7
-  %r.1438 = call i64 @tok_new(i64 %r.1435, i64 %r.1436, i64 %r.1437)
-  %r.1439.a0 = inttoptr i64 %r.1434 to ptr
-  call void @__nucleor_vec_push(ptr %r.1439.a0, i64 %r.1438)
-  %r.1439 = add i64 0, 0
-  %r.1440 = load i64, ptr %r.7
-  %r.1441 = add i64 1, 0
-  %r.1442 = add i64 %r.1440, %r.1441
-  store i64 %r.1442, ptr %r.7
+  %r.1436 = load i64, ptr %r.2
+  %r.1437 = add i64 111, 0
+  %r.1438 = add i64 0, 0
+  %r.1439 = load i64, ptr %r.7
+  %r.1440 = call i64 @tok_new(i64 %r.1437, i64 %r.1438, i64 %r.1439)
+  %r.1441.a0 = inttoptr i64 %r.1436 to ptr
+  call void @__nucleor_vec_push(ptr %r.1441.a0, i64 %r.1440)
+  %r.1441 = add i64 0, 0
+  %r.1442 = load i64, ptr %r.7
+  %r.1443 = add i64 2, 0
+  %r.1444 = add i64 %r.1442, %r.1443
+  store i64 %r.1444, ptr %r.7
   br label %L302
 L301:
-  %r.1443 = load i64, ptr %r.12
-  %r.1444 = add i64 42, 0
-  %r.1445.cmp = icmp eq i64 %r.1443, %r.1444
-  %r.1445 = zext i1 %r.1445.cmp to i64
-  %r.1446 = load i64, ptr %r.7
-  %r.1447 = add i64 1, 0
-  %r.1448 = add i64 %r.1446, %r.1447
-  %r.1449 = load i64, ptr %r.4
-  %r.1450.cmp = icmp slt i64 %r.1448, %r.1449
-  %r.1450 = zext i1 %r.1450.cmp to i64
-  %r.1451 = and i64 %r.1445, %r.1450
-  %r.1452 = load i64, ptr %r.0
-  %r.1453 = load i64, ptr %r.7
-  %r.1454 = add i64 1, 0
-  %r.1455 = add i64 %r.1453, %r.1447
-  %r.1456.a0 = inttoptr i64 %r.1452 to ptr
-  %r.1456 = call i64 @__nucleor_str_char_at(ptr %r.1456.a0, i64 %r.1455)
-  %r.1457 = add i64 61, 0
-  %r.1458.cmp = icmp eq i64 %r.1456, %r.1457
-  %r.1458 = zext i1 %r.1458.cmp to i64
-  %r.1459 = and i64 %r.1451, %r.1458
-  %br.1459.cond = icmp ne i64 %r.1459, 0
-  br i1 %br.1459.cond, label %L303, label %L304
+  %r.1445 = load i64, ptr %r.12
+  %r.1446 = add i64 45, 0
+  %r.1447.cmp = icmp eq i64 %r.1445, %r.1446
+  %r.1447 = zext i1 %r.1447.cmp to i64
+  %br.1447.cond = icmp ne i64 %r.1447, 0
+  br i1 %br.1447.cond, label %L303, label %L304
 L303:
-  %r.1460 = load i64, ptr %r.2
-  %r.1461 = add i64 112, 0
-  %r.1462 = add i64 0, 0
-  %r.1463 = load i64, ptr %r.7
-  %r.1464 = call i64 @tok_new(i64 %r.1461, i64 %r.1462, i64 %r.1463)
-  %r.1465.a0 = inttoptr i64 %r.1460 to ptr
-  call void @__nucleor_vec_push(ptr %r.1465.a0, i64 %r.1464)
-  %r.1465 = add i64 0, 0
-  %r.1466 = load i64, ptr %r.7
-  %r.1467 = add i64 2, 0
-  %r.1468 = add i64 %r.1466, %r.1467
-  store i64 %r.1468, ptr %r.7
+  %r.1448 = load i64, ptr %r.2
+  %r.1449 = add i64 21, 0
+  %r.1450 = add i64 0, 0
+  %r.1451 = load i64, ptr %r.7
+  %r.1452 = call i64 @tok_new(i64 %r.1449, i64 %r.1450, i64 %r.1451)
+  %r.1453.a0 = inttoptr i64 %r.1448 to ptr
+  call void @__nucleor_vec_push(ptr %r.1453.a0, i64 %r.1452)
+  %r.1453 = add i64 0, 0
+  %r.1454 = load i64, ptr %r.7
+  %r.1455 = add i64 1, 0
+  %r.1456 = add i64 %r.1454, %r.1455
+  store i64 %r.1456, ptr %r.7
   br label %L305
 L304:
-  %r.1469 = load i64, ptr %r.12
-  %r.1470 = add i64 42, 0
-  %r.1471.cmp = icmp eq i64 %r.1469, %r.1470
-  %r.1471 = zext i1 %r.1471.cmp to i64
-  %br.1471.cond = icmp ne i64 %r.1471, 0
-  br i1 %br.1471.cond, label %L306, label %L307
+  %r.1457 = load i64, ptr %r.12
+  %r.1458 = add i64 42, 0
+  %r.1459.cmp = icmp eq i64 %r.1457, %r.1458
+  %r.1459 = zext i1 %r.1459.cmp to i64
+  %r.1460 = load i64, ptr %r.7
+  %r.1461 = add i64 1, 0
+  %r.1462 = add i64 %r.1460, %r.1461
+  %r.1463 = load i64, ptr %r.4
+  %r.1464.cmp = icmp slt i64 %r.1462, %r.1463
+  %r.1464 = zext i1 %r.1464.cmp to i64
+  %r.1465 = and i64 %r.1459, %r.1464
+  %r.1466 = load i64, ptr %r.0
+  %r.1467 = load i64, ptr %r.7
+  %r.1468 = add i64 1, 0
+  %r.1469 = add i64 %r.1467, %r.1461
+  %r.1470.a0 = inttoptr i64 %r.1466 to ptr
+  %r.1470 = call i64 @__nucleor_str_char_at(ptr %r.1470.a0, i64 %r.1469)
+  %r.1471 = add i64 61, 0
+  %r.1472.cmp = icmp eq i64 %r.1470, %r.1471
+  %r.1472 = zext i1 %r.1472.cmp to i64
+  %r.1473 = and i64 %r.1465, %r.1472
+  %br.1473.cond = icmp ne i64 %r.1473, 0
+  br i1 %br.1473.cond, label %L306, label %L307
 L306:
-  %r.1472 = load i64, ptr %r.2
-  %r.1473 = add i64 22, 0
-  %r.1474 = add i64 0, 0
-  %r.1475 = load i64, ptr %r.7
-  %r.1476 = call i64 @tok_new(i64 %r.1473, i64 %r.1474, i64 %r.1475)
-  %r.1477.a0 = inttoptr i64 %r.1472 to ptr
-  call void @__nucleor_vec_push(ptr %r.1477.a0, i64 %r.1476)
-  %r.1477 = add i64 0, 0
-  %r.1478 = load i64, ptr %r.7
-  %r.1479 = add i64 1, 0
-  %r.1480 = add i64 %r.1478, %r.1479
-  store i64 %r.1480, ptr %r.7
+  %r.1474 = load i64, ptr %r.2
+  %r.1475 = add i64 112, 0
+  %r.1476 = add i64 0, 0
+  %r.1477 = load i64, ptr %r.7
+  %r.1478 = call i64 @tok_new(i64 %r.1475, i64 %r.1476, i64 %r.1477)
+  %r.1479.a0 = inttoptr i64 %r.1474 to ptr
+  call void @__nucleor_vec_push(ptr %r.1479.a0, i64 %r.1478)
+  %r.1479 = add i64 0, 0
+  %r.1480 = load i64, ptr %r.7
+  %r.1481 = add i64 2, 0
+  %r.1482 = add i64 %r.1480, %r.1481
+  store i64 %r.1482, ptr %r.7
   br label %L308
 L307:
-  %r.1481 = load i64, ptr %r.12
-  %r.1482 = add i64 47, 0
-  %r.1483.cmp = icmp eq i64 %r.1481, %r.1482
-  %r.1483 = zext i1 %r.1483.cmp to i64
-  %r.1484 = load i64, ptr %r.7
-  %r.1485 = add i64 1, 0
-  %r.1486 = add i64 %r.1484, %r.1485
-  %r.1487 = load i64, ptr %r.4
-  %r.1488.cmp = icmp slt i64 %r.1486, %r.1487
-  %r.1488 = zext i1 %r.1488.cmp to i64
-  %r.1489 = and i64 %r.1483, %r.1488
-  %r.1490 = load i64, ptr %r.0
-  %r.1491 = load i64, ptr %r.7
-  %r.1492 = add i64 1, 0
-  %r.1493 = add i64 %r.1491, %r.1485
-  %r.1494.a0 = inttoptr i64 %r.1490 to ptr
-  %r.1494 = call i64 @__nucleor_str_char_at(ptr %r.1494.a0, i64 %r.1493)
-  %r.1495 = add i64 61, 0
-  %r.1496.cmp = icmp eq i64 %r.1494, %r.1495
-  %r.1496 = zext i1 %r.1496.cmp to i64
-  %r.1497 = and i64 %r.1489, %r.1496
-  %br.1497.cond = icmp ne i64 %r.1497, 0
-  br i1 %br.1497.cond, label %L309, label %L310
+  %r.1483 = load i64, ptr %r.12
+  %r.1484 = add i64 42, 0
+  %r.1485.cmp = icmp eq i64 %r.1483, %r.1484
+  %r.1485 = zext i1 %r.1485.cmp to i64
+  %br.1485.cond = icmp ne i64 %r.1485, 0
+  br i1 %br.1485.cond, label %L309, label %L310
 L309:
-  %r.1498 = load i64, ptr %r.2
-  %r.1499 = add i64 113, 0
-  %r.1500 = add i64 0, 0
-  %r.1501 = load i64, ptr %r.7
-  %r.1502 = call i64 @tok_new(i64 %r.1499, i64 %r.1500, i64 %r.1501)
-  %r.1503.a0 = inttoptr i64 %r.1498 to ptr
-  call void @__nucleor_vec_push(ptr %r.1503.a0, i64 %r.1502)
-  %r.1503 = add i64 0, 0
-  %r.1504 = load i64, ptr %r.7
-  %r.1505 = add i64 2, 0
-  %r.1506 = add i64 %r.1504, %r.1505
-  store i64 %r.1506, ptr %r.7
+  %r.1486 = load i64, ptr %r.2
+  %r.1487 = add i64 22, 0
+  %r.1488 = add i64 0, 0
+  %r.1489 = load i64, ptr %r.7
+  %r.1490 = call i64 @tok_new(i64 %r.1487, i64 %r.1488, i64 %r.1489)
+  %r.1491.a0 = inttoptr i64 %r.1486 to ptr
+  call void @__nucleor_vec_push(ptr %r.1491.a0, i64 %r.1490)
+  %r.1491 = add i64 0, 0
+  %r.1492 = load i64, ptr %r.7
+  %r.1493 = add i64 1, 0
+  %r.1494 = add i64 %r.1492, %r.1493
+  store i64 %r.1494, ptr %r.7
   br label %L311
 L310:
-  %r.1507 = load i64, ptr %r.12
-  %r.1508 = add i64 47, 0
-  %r.1509.cmp = icmp eq i64 %r.1507, %r.1508
-  %r.1509 = zext i1 %r.1509.cmp to i64
-  %br.1509.cond = icmp ne i64 %r.1509, 0
-  br i1 %br.1509.cond, label %L312, label %L313
+  %r.1495 = load i64, ptr %r.12
+  %r.1496 = add i64 47, 0
+  %r.1497.cmp = icmp eq i64 %r.1495, %r.1496
+  %r.1497 = zext i1 %r.1497.cmp to i64
+  %r.1498 = load i64, ptr %r.7
+  %r.1499 = add i64 1, 0
+  %r.1500 = add i64 %r.1498, %r.1499
+  %r.1501 = load i64, ptr %r.4
+  %r.1502.cmp = icmp slt i64 %r.1500, %r.1501
+  %r.1502 = zext i1 %r.1502.cmp to i64
+  %r.1503 = and i64 %r.1497, %r.1502
+  %r.1504 = load i64, ptr %r.0
+  %r.1505 = load i64, ptr %r.7
+  %r.1506 = add i64 1, 0
+  %r.1507 = add i64 %r.1505, %r.1499
+  %r.1508.a0 = inttoptr i64 %r.1504 to ptr
+  %r.1508 = call i64 @__nucleor_str_char_at(ptr %r.1508.a0, i64 %r.1507)
+  %r.1509 = add i64 61, 0
+  %r.1510.cmp = icmp eq i64 %r.1508, %r.1509
+  %r.1510 = zext i1 %r.1510.cmp to i64
+  %r.1511 = and i64 %r.1503, %r.1510
+  %br.1511.cond = icmp ne i64 %r.1511, 0
+  br i1 %br.1511.cond, label %L312, label %L313
 L312:
-  %r.1510 = load i64, ptr %r.2
-  %r.1511 = add i64 23, 0
-  %r.1512 = add i64 0, 0
-  %r.1513 = load i64, ptr %r.7
-  %r.1514 = call i64 @tok_new(i64 %r.1511, i64 %r.1512, i64 %r.1513)
-  %r.1515.a0 = inttoptr i64 %r.1510 to ptr
-  call void @__nucleor_vec_push(ptr %r.1515.a0, i64 %r.1514)
-  %r.1515 = add i64 0, 0
-  %r.1516 = load i64, ptr %r.7
-  %r.1517 = add i64 1, 0
-  %r.1518 = add i64 %r.1516, %r.1517
-  store i64 %r.1518, ptr %r.7
+  %r.1512 = load i64, ptr %r.2
+  %r.1513 = add i64 113, 0
+  %r.1514 = add i64 0, 0
+  %r.1515 = load i64, ptr %r.7
+  %r.1516 = call i64 @tok_new(i64 %r.1513, i64 %r.1514, i64 %r.1515)
+  %r.1517.a0 = inttoptr i64 %r.1512 to ptr
+  call void @__nucleor_vec_push(ptr %r.1517.a0, i64 %r.1516)
+  %r.1517 = add i64 0, 0
+  %r.1518 = load i64, ptr %r.7
+  %r.1519 = add i64 2, 0
+  %r.1520 = add i64 %r.1518, %r.1519
+  store i64 %r.1520, ptr %r.7
   br label %L314
 L313:
-  %r.1519 = load i64, ptr %r.12
-  %r.1520 = add i64 37, 0
-  %r.1521.cmp = icmp eq i64 %r.1519, %r.1520
-  %r.1521 = zext i1 %r.1521.cmp to i64
-  %r.1522 = load i64, ptr %r.7
-  %r.1523 = add i64 1, 0
-  %r.1524 = add i64 %r.1522, %r.1523
-  %r.1525 = load i64, ptr %r.4
-  %r.1526.cmp = icmp slt i64 %r.1524, %r.1525
-  %r.1526 = zext i1 %r.1526.cmp to i64
-  %r.1527 = and i64 %r.1521, %r.1526
-  %r.1528 = load i64, ptr %r.0
-  %r.1529 = load i64, ptr %r.7
-  %r.1530 = add i64 1, 0
-  %r.1531 = add i64 %r.1529, %r.1523
-  %r.1532.a0 = inttoptr i64 %r.1528 to ptr
-  %r.1532 = call i64 @__nucleor_str_char_at(ptr %r.1532.a0, i64 %r.1531)
-  %r.1533 = add i64 61, 0
-  %r.1534.cmp = icmp eq i64 %r.1532, %r.1533
-  %r.1534 = zext i1 %r.1534.cmp to i64
-  %r.1535 = and i64 %r.1527, %r.1534
-  %br.1535.cond = icmp ne i64 %r.1535, 0
-  br i1 %br.1535.cond, label %L315, label %L316
+  %r.1521 = load i64, ptr %r.12
+  %r.1522 = add i64 47, 0
+  %r.1523.cmp = icmp eq i64 %r.1521, %r.1522
+  %r.1523 = zext i1 %r.1523.cmp to i64
+  %br.1523.cond = icmp ne i64 %r.1523, 0
+  br i1 %br.1523.cond, label %L315, label %L316
 L315:
-  %r.1536 = load i64, ptr %r.2
-  %r.1537 = add i64 114, 0
-  %r.1538 = add i64 0, 0
-  %r.1539 = load i64, ptr %r.7
-  %r.1540 = call i64 @tok_new(i64 %r.1537, i64 %r.1538, i64 %r.1539)
-  %r.1541.a0 = inttoptr i64 %r.1536 to ptr
-  call void @__nucleor_vec_push(ptr %r.1541.a0, i64 %r.1540)
-  %r.1541 = add i64 0, 0
-  %r.1542 = load i64, ptr %r.7
-  %r.1543 = add i64 2, 0
-  %r.1544 = add i64 %r.1542, %r.1543
-  store i64 %r.1544, ptr %r.7
+  %r.1524 = load i64, ptr %r.2
+  %r.1525 = add i64 23, 0
+  %r.1526 = add i64 0, 0
+  %r.1527 = load i64, ptr %r.7
+  %r.1528 = call i64 @tok_new(i64 %r.1525, i64 %r.1526, i64 %r.1527)
+  %r.1529.a0 = inttoptr i64 %r.1524 to ptr
+  call void @__nucleor_vec_push(ptr %r.1529.a0, i64 %r.1528)
+  %r.1529 = add i64 0, 0
+  %r.1530 = load i64, ptr %r.7
+  %r.1531 = add i64 1, 0
+  %r.1532 = add i64 %r.1530, %r.1531
+  store i64 %r.1532, ptr %r.7
   br label %L317
 L316:
-  %r.1545 = load i64, ptr %r.12
-  %r.1546 = add i64 37, 0
-  %r.1547.cmp = icmp eq i64 %r.1545, %r.1546
-  %r.1547 = zext i1 %r.1547.cmp to i64
-  %br.1547.cond = icmp ne i64 %r.1547, 0
-  br i1 %br.1547.cond, label %L318, label %L319
+  %r.1533 = load i64, ptr %r.12
+  %r.1534 = add i64 37, 0
+  %r.1535.cmp = icmp eq i64 %r.1533, %r.1534
+  %r.1535 = zext i1 %r.1535.cmp to i64
+  %r.1536 = load i64, ptr %r.7
+  %r.1537 = add i64 1, 0
+  %r.1538 = add i64 %r.1536, %r.1537
+  %r.1539 = load i64, ptr %r.4
+  %r.1540.cmp = icmp slt i64 %r.1538, %r.1539
+  %r.1540 = zext i1 %r.1540.cmp to i64
+  %r.1541 = and i64 %r.1535, %r.1540
+  %r.1542 = load i64, ptr %r.0
+  %r.1543 = load i64, ptr %r.7
+  %r.1544 = add i64 1, 0
+  %r.1545 = add i64 %r.1543, %r.1537
+  %r.1546.a0 = inttoptr i64 %r.1542 to ptr
+  %r.1546 = call i64 @__nucleor_str_char_at(ptr %r.1546.a0, i64 %r.1545)
+  %r.1547 = add i64 61, 0
+  %r.1548.cmp = icmp eq i64 %r.1546, %r.1547
+  %r.1548 = zext i1 %r.1548.cmp to i64
+  %r.1549 = and i64 %r.1541, %r.1548
+  %br.1549.cond = icmp ne i64 %r.1549, 0
+  br i1 %br.1549.cond, label %L318, label %L319
 L318:
-  %r.1548 = load i64, ptr %r.2
-  %r.1549 = add i64 24, 0
-  %r.1550 = add i64 0, 0
-  %r.1551 = load i64, ptr %r.7
-  %r.1552 = call i64 @tok_new(i64 %r.1549, i64 %r.1550, i64 %r.1551)
-  %r.1553.a0 = inttoptr i64 %r.1548 to ptr
-  call void @__nucleor_vec_push(ptr %r.1553.a0, i64 %r.1552)
-  %r.1553 = add i64 0, 0
-  %r.1554 = load i64, ptr %r.7
-  %r.1555 = add i64 1, 0
-  %r.1556 = add i64 %r.1554, %r.1555
-  store i64 %r.1556, ptr %r.7
+  %r.1550 = load i64, ptr %r.2
+  %r.1551 = add i64 114, 0
+  %r.1552 = add i64 0, 0
+  %r.1553 = load i64, ptr %r.7
+  %r.1554 = call i64 @tok_new(i64 %r.1551, i64 %r.1552, i64 %r.1553)
+  %r.1555.a0 = inttoptr i64 %r.1550 to ptr
+  call void @__nucleor_vec_push(ptr %r.1555.a0, i64 %r.1554)
+  %r.1555 = add i64 0, 0
+  %r.1556 = load i64, ptr %r.7
+  %r.1557 = add i64 2, 0
+  %r.1558 = add i64 %r.1556, %r.1557
+  store i64 %r.1558, ptr %r.7
   br label %L320
 L319:
-  %r.1557 = load i64, ptr %r.12
-  %r.1558 = add i64 61, 0
-  %r.1559.cmp = icmp eq i64 %r.1557, %r.1558
-  %r.1559 = zext i1 %r.1559.cmp to i64
-  %br.1559.cond = icmp ne i64 %r.1559, 0
-  br i1 %br.1559.cond, label %L321, label %L322
+  %r.1559 = load i64, ptr %r.12
+  %r.1560 = add i64 37, 0
+  %r.1561.cmp = icmp eq i64 %r.1559, %r.1560
+  %r.1561 = zext i1 %r.1561.cmp to i64
+  %br.1561.cond = icmp ne i64 %r.1561, 0
+  br i1 %br.1561.cond, label %L321, label %L322
 L321:
-  %r.1560 = load i64, ptr %r.2
-  %r.1561 = add i64 40, 0
-  %r.1562 = add i64 0, 0
-  %r.1563 = load i64, ptr %r.7
-  %r.1564 = call i64 @tok_new(i64 %r.1561, i64 %r.1562, i64 %r.1563)
-  %r.1565.a0 = inttoptr i64 %r.1560 to ptr
-  call void @__nucleor_vec_push(ptr %r.1565.a0, i64 %r.1564)
-  %r.1565 = add i64 0, 0
-  %r.1566 = load i64, ptr %r.7
-  %r.1567 = add i64 1, 0
-  %r.1568 = add i64 %r.1566, %r.1567
-  store i64 %r.1568, ptr %r.7
+  %r.1562 = load i64, ptr %r.2
+  %r.1563 = add i64 24, 0
+  %r.1564 = add i64 0, 0
+  %r.1565 = load i64, ptr %r.7
+  %r.1566 = call i64 @tok_new(i64 %r.1563, i64 %r.1564, i64 %r.1565)
+  %r.1567.a0 = inttoptr i64 %r.1562 to ptr
+  call void @__nucleor_vec_push(ptr %r.1567.a0, i64 %r.1566)
+  %r.1567 = add i64 0, 0
+  %r.1568 = load i64, ptr %r.7
+  %r.1569 = add i64 1, 0
+  %r.1570 = add i64 %r.1568, %r.1569
+  store i64 %r.1570, ptr %r.7
   br label %L323
 L322:
-  %r.1569 = load i64, ptr %r.12
-  %r.1570 = add i64 60, 0
-  %r.1571.cmp = icmp eq i64 %r.1569, %r.1570
-  %r.1571 = zext i1 %r.1571.cmp to i64
-  %br.1571.cond = icmp ne i64 %r.1571, 0
-  br i1 %br.1571.cond, label %L324, label %L325
+  %r.1571 = load i64, ptr %r.12
+  %r.1572 = add i64 61, 0
+  %r.1573.cmp = icmp eq i64 %r.1571, %r.1572
+  %r.1573 = zext i1 %r.1573.cmp to i64
+  %br.1573.cond = icmp ne i64 %r.1573, 0
+  br i1 %br.1573.cond, label %L324, label %L325
 L324:
-  %r.1572 = load i64, ptr %r.2
-  %r.1573 = add i64 32, 0
-  %r.1574 = add i64 0, 0
-  %r.1575 = load i64, ptr %r.7
-  %r.1576 = call i64 @tok_new(i64 %r.1573, i64 %r.1574, i64 %r.1575)
-  %r.1577.a0 = inttoptr i64 %r.1572 to ptr
-  call void @__nucleor_vec_push(ptr %r.1577.a0, i64 %r.1576)
-  %r.1577 = add i64 0, 0
-  %r.1578 = load i64, ptr %r.7
-  %r.1579 = add i64 1, 0
-  %r.1580 = add i64 %r.1578, %r.1579
-  store i64 %r.1580, ptr %r.7
+  %r.1574 = load i64, ptr %r.2
+  %r.1575 = add i64 40, 0
+  %r.1576 = add i64 0, 0
+  %r.1577 = load i64, ptr %r.7
+  %r.1578 = call i64 @tok_new(i64 %r.1575, i64 %r.1576, i64 %r.1577)
+  %r.1579.a0 = inttoptr i64 %r.1574 to ptr
+  call void @__nucleor_vec_push(ptr %r.1579.a0, i64 %r.1578)
+  %r.1579 = add i64 0, 0
+  %r.1580 = load i64, ptr %r.7
+  %r.1581 = add i64 1, 0
+  %r.1582 = add i64 %r.1580, %r.1581
+  store i64 %r.1582, ptr %r.7
   br label %L326
 L325:
-  %r.1581 = load i64, ptr %r.12
-  %r.1582 = add i64 62, 0
-  %r.1583.cmp = icmp eq i64 %r.1581, %r.1582
-  %r.1583 = zext i1 %r.1583.cmp to i64
-  %br.1583.cond = icmp ne i64 %r.1583, 0
-  br i1 %br.1583.cond, label %L327, label %L328
+  %r.1583 = load i64, ptr %r.12
+  %r.1584 = add i64 60, 0
+  %r.1585.cmp = icmp eq i64 %r.1583, %r.1584
+  %r.1585 = zext i1 %r.1585.cmp to i64
+  %br.1585.cond = icmp ne i64 %r.1585, 0
+  br i1 %br.1585.cond, label %L327, label %L328
 L327:
-  %r.1584 = load i64, ptr %r.2
-  %r.1585 = add i64 33, 0
-  %r.1586 = add i64 0, 0
-  %r.1587 = load i64, ptr %r.7
-  %r.1588 = call i64 @tok_new(i64 %r.1585, i64 %r.1586, i64 %r.1587)
-  %r.1589.a0 = inttoptr i64 %r.1584 to ptr
-  call void @__nucleor_vec_push(ptr %r.1589.a0, i64 %r.1588)
-  %r.1589 = add i64 0, 0
-  %r.1590 = load i64, ptr %r.7
-  %r.1591 = add i64 1, 0
-  %r.1592 = add i64 %r.1590, %r.1591
-  store i64 %r.1592, ptr %r.7
+  %r.1586 = load i64, ptr %r.2
+  %r.1587 = add i64 32, 0
+  %r.1588 = add i64 0, 0
+  %r.1589 = load i64, ptr %r.7
+  %r.1590 = call i64 @tok_new(i64 %r.1587, i64 %r.1588, i64 %r.1589)
+  %r.1591.a0 = inttoptr i64 %r.1586 to ptr
+  call void @__nucleor_vec_push(ptr %r.1591.a0, i64 %r.1590)
+  %r.1591 = add i64 0, 0
+  %r.1592 = load i64, ptr %r.7
+  %r.1593 = add i64 1, 0
+  %r.1594 = add i64 %r.1592, %r.1593
+  store i64 %r.1594, ptr %r.7
   br label %L329
 L328:
-  %r.1593 = load i64, ptr %r.12
-  %r.1594 = add i64 33, 0
-  %r.1595.cmp = icmp eq i64 %r.1593, %r.1594
-  %r.1595 = zext i1 %r.1595.cmp to i64
-  %br.1595.cond = icmp ne i64 %r.1595, 0
-  br i1 %br.1595.cond, label %L330, label %L331
+  %r.1595 = load i64, ptr %r.12
+  %r.1596 = add i64 62, 0
+  %r.1597.cmp = icmp eq i64 %r.1595, %r.1596
+  %r.1597 = zext i1 %r.1597.cmp to i64
+  %br.1597.cond = icmp ne i64 %r.1597, 0
+  br i1 %br.1597.cond, label %L330, label %L331
 L330:
-  %r.1596 = load i64, ptr %r.2
-  %r.1597 = add i64 38, 0
-  %r.1598 = add i64 0, 0
-  %r.1599 = load i64, ptr %r.7
-  %r.1600 = call i64 @tok_new(i64 %r.1597, i64 %r.1598, i64 %r.1599)
-  %r.1601.a0 = inttoptr i64 %r.1596 to ptr
-  call void @__nucleor_vec_push(ptr %r.1601.a0, i64 %r.1600)
-  %r.1601 = add i64 0, 0
-  %r.1602 = load i64, ptr %r.7
-  %r.1603 = add i64 1, 0
-  %r.1604 = add i64 %r.1602, %r.1603
-  store i64 %r.1604, ptr %r.7
+  %r.1598 = load i64, ptr %r.2
+  %r.1599 = add i64 33, 0
+  %r.1600 = add i64 0, 0
+  %r.1601 = load i64, ptr %r.7
+  %r.1602 = call i64 @tok_new(i64 %r.1599, i64 %r.1600, i64 %r.1601)
+  %r.1603.a0 = inttoptr i64 %r.1598 to ptr
+  call void @__nucleor_vec_push(ptr %r.1603.a0, i64 %r.1602)
+  %r.1603 = add i64 0, 0
+  %r.1604 = load i64, ptr %r.7
+  %r.1605 = add i64 1, 0
+  %r.1606 = add i64 %r.1604, %r.1605
+  store i64 %r.1606, ptr %r.7
   br label %L332
 L331:
-  %r.1605 = load i64, ptr %r.12
-  %r.1606 = add i64 58, 0
-  %r.1607.cmp = icmp eq i64 %r.1605, %r.1606
-  %r.1607 = zext i1 %r.1607.cmp to i64
-  %br.1607.cond = icmp ne i64 %r.1607, 0
-  br i1 %br.1607.cond, label %L333, label %L334
+  %r.1607 = load i64, ptr %r.12
+  %r.1608 = add i64 33, 0
+  %r.1609.cmp = icmp eq i64 %r.1607, %r.1608
+  %r.1609 = zext i1 %r.1609.cmp to i64
+  %br.1609.cond = icmp ne i64 %r.1609, 0
+  br i1 %br.1609.cond, label %L333, label %L334
 L333:
-  %r.1608 = load i64, ptr %r.2
-  %r.1609 = add i64 42, 0
-  %r.1610 = add i64 0, 0
-  %r.1611 = load i64, ptr %r.7
-  %r.1612 = call i64 @tok_new(i64 %r.1609, i64 %r.1610, i64 %r.1611)
-  %r.1613.a0 = inttoptr i64 %r.1608 to ptr
-  call void @__nucleor_vec_push(ptr %r.1613.a0, i64 %r.1612)
-  %r.1613 = add i64 0, 0
-  %r.1614 = load i64, ptr %r.7
-  %r.1615 = add i64 1, 0
-  %r.1616 = add i64 %r.1614, %r.1615
-  store i64 %r.1616, ptr %r.7
+  %r.1610 = load i64, ptr %r.2
+  %r.1611 = add i64 38, 0
+  %r.1612 = add i64 0, 0
+  %r.1613 = load i64, ptr %r.7
+  %r.1614 = call i64 @tok_new(i64 %r.1611, i64 %r.1612, i64 %r.1613)
+  %r.1615.a0 = inttoptr i64 %r.1610 to ptr
+  call void @__nucleor_vec_push(ptr %r.1615.a0, i64 %r.1614)
+  %r.1615 = add i64 0, 0
+  %r.1616 = load i64, ptr %r.7
+  %r.1617 = add i64 1, 0
+  %r.1618 = add i64 %r.1616, %r.1617
+  store i64 %r.1618, ptr %r.7
   br label %L335
 L334:
-  %r.1617 = load i64, ptr %r.12
-  %r.1618 = add i64 59, 0
-  %r.1619.cmp = icmp eq i64 %r.1617, %r.1618
-  %r.1619 = zext i1 %r.1619.cmp to i64
-  %br.1619.cond = icmp ne i64 %r.1619, 0
-  br i1 %br.1619.cond, label %L336, label %L337
+  %r.1619 = load i64, ptr %r.12
+  %r.1620 = add i64 58, 0
+  %r.1621.cmp = icmp eq i64 %r.1619, %r.1620
+  %r.1621 = zext i1 %r.1621.cmp to i64
+  %br.1621.cond = icmp ne i64 %r.1621, 0
+  br i1 %br.1621.cond, label %L336, label %L337
 L336:
-  %r.1620 = load i64, ptr %r.2
-  %r.1621 = add i64 43, 0
-  %r.1622 = add i64 0, 0
-  %r.1623 = load i64, ptr %r.7
-  %r.1624 = call i64 @tok_new(i64 %r.1621, i64 %r.1622, i64 %r.1623)
-  %r.1625.a0 = inttoptr i64 %r.1620 to ptr
-  call void @__nucleor_vec_push(ptr %r.1625.a0, i64 %r.1624)
-  %r.1625 = add i64 0, 0
-  %r.1626 = load i64, ptr %r.7
-  %r.1627 = add i64 1, 0
-  %r.1628 = add i64 %r.1626, %r.1627
-  store i64 %r.1628, ptr %r.7
+  %r.1622 = load i64, ptr %r.2
+  %r.1623 = add i64 42, 0
+  %r.1624 = add i64 0, 0
+  %r.1625 = load i64, ptr %r.7
+  %r.1626 = call i64 @tok_new(i64 %r.1623, i64 %r.1624, i64 %r.1625)
+  %r.1627.a0 = inttoptr i64 %r.1622 to ptr
+  call void @__nucleor_vec_push(ptr %r.1627.a0, i64 %r.1626)
+  %r.1627 = add i64 0, 0
+  %r.1628 = load i64, ptr %r.7
+  %r.1629 = add i64 1, 0
+  %r.1630 = add i64 %r.1628, %r.1629
+  store i64 %r.1630, ptr %r.7
   br label %L338
 L337:
-  %r.1629 = load i64, ptr %r.12
-  %r.1630 = add i64 44, 0
-  %r.1631.cmp = icmp eq i64 %r.1629, %r.1630
-  %r.1631 = zext i1 %r.1631.cmp to i64
-  %br.1631.cond = icmp ne i64 %r.1631, 0
-  br i1 %br.1631.cond, label %L339, label %L340
+  %r.1631 = load i64, ptr %r.12
+  %r.1632 = add i64 59, 0
+  %r.1633.cmp = icmp eq i64 %r.1631, %r.1632
+  %r.1633 = zext i1 %r.1633.cmp to i64
+  %br.1633.cond = icmp ne i64 %r.1633, 0
+  br i1 %br.1633.cond, label %L339, label %L340
 L339:
-  %r.1632 = load i64, ptr %r.2
-  %r.1633 = add i64 44, 0
-  %r.1634 = add i64 0, 0
-  %r.1635 = load i64, ptr %r.7
-  %r.1636 = call i64 @tok_new(i64 %r.1633, i64 %r.1634, i64 %r.1635)
-  %r.1637.a0 = inttoptr i64 %r.1632 to ptr
-  call void @__nucleor_vec_push(ptr %r.1637.a0, i64 %r.1636)
-  %r.1637 = add i64 0, 0
-  %r.1638 = load i64, ptr %r.7
-  %r.1639 = add i64 1, 0
-  %r.1640 = add i64 %r.1638, %r.1639
-  store i64 %r.1640, ptr %r.7
+  %r.1634 = load i64, ptr %r.2
+  %r.1635 = add i64 43, 0
+  %r.1636 = add i64 0, 0
+  %r.1637 = load i64, ptr %r.7
+  %r.1638 = call i64 @tok_new(i64 %r.1635, i64 %r.1636, i64 %r.1637)
+  %r.1639.a0 = inttoptr i64 %r.1634 to ptr
+  call void @__nucleor_vec_push(ptr %r.1639.a0, i64 %r.1638)
+  %r.1639 = add i64 0, 0
+  %r.1640 = load i64, ptr %r.7
+  %r.1641 = add i64 1, 0
+  %r.1642 = add i64 %r.1640, %r.1641
+  store i64 %r.1642, ptr %r.7
   br label %L341
 L340:
-  %r.1641 = load i64, ptr %r.12
-  %r.1642 = add i64 46, 0
-  %r.1643.cmp = icmp eq i64 %r.1641, %r.1642
-  %r.1643 = zext i1 %r.1643.cmp to i64
-  %r.1644 = load i64, ptr %r.7
-  %r.1645 = add i64 1, 0
-  %r.1646 = add i64 %r.1644, %r.1645
-  %r.1647 = load i64, ptr %r.4
-  %r.1648.cmp = icmp slt i64 %r.1646, %r.1647
-  %r.1648 = zext i1 %r.1648.cmp to i64
-  %r.1649 = and i64 %r.1643, %r.1648
-  %r.1650 = load i64, ptr %r.0
-  %r.1651 = load i64, ptr %r.7
-  %r.1652 = add i64 1, 0
-  %r.1653 = add i64 %r.1651, %r.1645
-  %r.1654.a0 = inttoptr i64 %r.1650 to ptr
-  %r.1654 = call i64 @__nucleor_str_char_at(ptr %r.1654.a0, i64 %r.1653)
-  %r.1655 = add i64 46, 0
-  %r.1656.cmp = icmp eq i64 %r.1654, %r.1642
-  %r.1656 = zext i1 %r.1656.cmp to i64
-  %r.1657 = and i64 %r.1649, %r.1656
+  %r.1643 = load i64, ptr %r.12
+  %r.1644 = add i64 44, 0
+  %r.1645.cmp = icmp eq i64 %r.1643, %r.1644
+  %r.1645 = zext i1 %r.1645.cmp to i64
+  %br.1645.cond = icmp ne i64 %r.1645, 0
+  br i1 %br.1645.cond, label %L342, label %L343
+L342:
+  %r.1646 = load i64, ptr %r.2
+  %r.1647 = add i64 44, 0
+  %r.1648 = add i64 0, 0
+  %r.1649 = load i64, ptr %r.7
+  %r.1650 = call i64 @tok_new(i64 %r.1647, i64 %r.1648, i64 %r.1649)
+  %r.1651.a0 = inttoptr i64 %r.1646 to ptr
+  call void @__nucleor_vec_push(ptr %r.1651.a0, i64 %r.1650)
+  %r.1651 = add i64 0, 0
+  %r.1652 = load i64, ptr %r.7
+  %r.1653 = add i64 1, 0
+  %r.1654 = add i64 %r.1652, %r.1653
+  store i64 %r.1654, ptr %r.7
+  br label %L344
+L343:
+  %r.1655 = load i64, ptr %r.12
+  %r.1656 = add i64 46, 0
+  %r.1657.cmp = icmp eq i64 %r.1655, %r.1656
+  %r.1657 = zext i1 %r.1657.cmp to i64
   %r.1658 = load i64, ptr %r.7
-  %r.1659 = add i64 2, 0
+  %r.1659 = add i64 1, 0
   %r.1660 = add i64 %r.1658, %r.1659
   %r.1661 = load i64, ptr %r.4
   %r.1662.cmp = icmp slt i64 %r.1660, %r.1661
@@ -9784,505 +9796,524 @@ L340:
   %r.1663 = and i64 %r.1657, %r.1662
   %r.1664 = load i64, ptr %r.0
   %r.1665 = load i64, ptr %r.7
-  %r.1666 = add i64 2, 0
+  %r.1666 = add i64 1, 0
   %r.1667 = add i64 %r.1665, %r.1659
   %r.1668.a0 = inttoptr i64 %r.1664 to ptr
   %r.1668 = call i64 @__nucleor_str_char_at(ptr %r.1668.a0, i64 %r.1667)
-  %r.1669 = add i64 61, 0
-  %r.1670.cmp = icmp eq i64 %r.1668, %r.1669
+  %r.1669 = add i64 46, 0
+  %r.1670.cmp = icmp eq i64 %r.1668, %r.1656
   %r.1670 = zext i1 %r.1670.cmp to i64
   %r.1671 = and i64 %r.1663, %r.1670
-  %br.1671.cond = icmp ne i64 %r.1671, 0
-  br i1 %br.1671.cond, label %L342, label %L343
-L342:
-  %r.1672 = load i64, ptr %r.2
-  %r.1673 = add i64 96, 0
-  %r.1674 = add i64 0, 0
-  %r.1675 = load i64, ptr %r.7
-  %r.1676 = call i64 @tok_new(i64 %r.1673, i64 %r.1674, i64 %r.1675)
-  %r.1677.a0 = inttoptr i64 %r.1672 to ptr
-  call void @__nucleor_vec_push(ptr %r.1677.a0, i64 %r.1676)
-  %r.1677 = add i64 0, 0
-  %r.1678 = load i64, ptr %r.7
-  %r.1679 = add i64 3, 0
-  %r.1680 = add i64 %r.1678, %r.1679
-  store i64 %r.1680, ptr %r.7
-  br label %L344
-L343:
-  %r.1681 = load i64, ptr %r.12
-  %r.1682 = add i64 46, 0
-  %r.1683.cmp = icmp eq i64 %r.1681, %r.1682
-  %r.1683 = zext i1 %r.1683.cmp to i64
-  %r.1684 = load i64, ptr %r.7
-  %r.1685 = add i64 1, 0
-  %r.1686 = add i64 %r.1684, %r.1685
-  %r.1687 = load i64, ptr %r.4
-  %r.1688.cmp = icmp slt i64 %r.1686, %r.1687
-  %r.1688 = zext i1 %r.1688.cmp to i64
-  %r.1689 = and i64 %r.1683, %r.1688
-  %r.1690 = load i64, ptr %r.0
-  %r.1691 = load i64, ptr %r.7
-  %r.1692 = add i64 1, 0
-  %r.1693 = add i64 %r.1691, %r.1685
-  %r.1694.a0 = inttoptr i64 %r.1690 to ptr
-  %r.1694 = call i64 @__nucleor_str_char_at(ptr %r.1694.a0, i64 %r.1693)
-  %r.1695 = add i64 46, 0
-  %r.1696.cmp = icmp eq i64 %r.1694, %r.1682
-  %r.1696 = zext i1 %r.1696.cmp to i64
-  %r.1697 = and i64 %r.1689, %r.1696
-  %br.1697.cond = icmp ne i64 %r.1697, 0
-  br i1 %br.1697.cond, label %L345, label %L346
+  %r.1672 = load i64, ptr %r.7
+  %r.1673 = add i64 2, 0
+  %r.1674 = add i64 %r.1672, %r.1673
+  %r.1675 = load i64, ptr %r.4
+  %r.1676.cmp = icmp slt i64 %r.1674, %r.1675
+  %r.1676 = zext i1 %r.1676.cmp to i64
+  %r.1677 = and i64 %r.1671, %r.1676
+  %r.1678 = load i64, ptr %r.0
+  %r.1679 = load i64, ptr %r.7
+  %r.1680 = add i64 2, 0
+  %r.1681 = add i64 %r.1679, %r.1673
+  %r.1682.a0 = inttoptr i64 %r.1678 to ptr
+  %r.1682 = call i64 @__nucleor_str_char_at(ptr %r.1682.a0, i64 %r.1681)
+  %r.1683 = add i64 61, 0
+  %r.1684.cmp = icmp eq i64 %r.1682, %r.1683
+  %r.1684 = zext i1 %r.1684.cmp to i64
+  %r.1685 = and i64 %r.1677, %r.1684
+  %br.1685.cond = icmp ne i64 %r.1685, 0
+  br i1 %br.1685.cond, label %L345, label %L346
 L345:
-  %r.1698 = load i64, ptr %r.2
-  %r.1699 = add i64 58, 0
-  %r.1700 = add i64 0, 0
-  %r.1701 = load i64, ptr %r.7
-  %r.1702 = call i64 @tok_new(i64 %r.1699, i64 %r.1700, i64 %r.1701)
-  %r.1703.a0 = inttoptr i64 %r.1698 to ptr
-  call void @__nucleor_vec_push(ptr %r.1703.a0, i64 %r.1702)
-  %r.1703 = add i64 0, 0
-  %r.1704 = load i64, ptr %r.7
-  %r.1705 = add i64 2, 0
-  %r.1706 = add i64 %r.1704, %r.1705
-  store i64 %r.1706, ptr %r.7
+  %r.1686 = load i64, ptr %r.2
+  %r.1687 = add i64 96, 0
+  %r.1688 = add i64 0, 0
+  %r.1689 = load i64, ptr %r.7
+  %r.1690 = call i64 @tok_new(i64 %r.1687, i64 %r.1688, i64 %r.1689)
+  %r.1691.a0 = inttoptr i64 %r.1686 to ptr
+  call void @__nucleor_vec_push(ptr %r.1691.a0, i64 %r.1690)
+  %r.1691 = add i64 0, 0
+  %r.1692 = load i64, ptr %r.7
+  %r.1693 = add i64 3, 0
+  %r.1694 = add i64 %r.1692, %r.1693
+  store i64 %r.1694, ptr %r.7
   br label %L347
 L346:
-  %r.1707 = load i64, ptr %r.12
-  %r.1708 = add i64 46, 0
-  %r.1709.cmp = icmp eq i64 %r.1707, %r.1708
-  %r.1709 = zext i1 %r.1709.cmp to i64
-  %br.1709.cond = icmp ne i64 %r.1709, 0
-  br i1 %br.1709.cond, label %L348, label %L349
+  %r.1695 = load i64, ptr %r.12
+  %r.1696 = add i64 46, 0
+  %r.1697.cmp = icmp eq i64 %r.1695, %r.1696
+  %r.1697 = zext i1 %r.1697.cmp to i64
+  %r.1698 = load i64, ptr %r.7
+  %r.1699 = add i64 1, 0
+  %r.1700 = add i64 %r.1698, %r.1699
+  %r.1701 = load i64, ptr %r.4
+  %r.1702.cmp = icmp slt i64 %r.1700, %r.1701
+  %r.1702 = zext i1 %r.1702.cmp to i64
+  %r.1703 = and i64 %r.1697, %r.1702
+  %r.1704 = load i64, ptr %r.0
+  %r.1705 = load i64, ptr %r.7
+  %r.1706 = add i64 1, 0
+  %r.1707 = add i64 %r.1705, %r.1699
+  %r.1708.a0 = inttoptr i64 %r.1704 to ptr
+  %r.1708 = call i64 @__nucleor_str_char_at(ptr %r.1708.a0, i64 %r.1707)
+  %r.1709 = add i64 46, 0
+  %r.1710.cmp = icmp eq i64 %r.1708, %r.1696
+  %r.1710 = zext i1 %r.1710.cmp to i64
+  %r.1711 = and i64 %r.1703, %r.1710
+  %br.1711.cond = icmp ne i64 %r.1711, 0
+  br i1 %br.1711.cond, label %L348, label %L349
 L348:
-  %r.1710 = load i64, ptr %r.2
-  %r.1711 = add i64 45, 0
-  %r.1712 = add i64 0, 0
-  %r.1713 = load i64, ptr %r.7
-  %r.1714 = call i64 @tok_new(i64 %r.1711, i64 %r.1712, i64 %r.1713)
-  %r.1715.a0 = inttoptr i64 %r.1710 to ptr
-  call void @__nucleor_vec_push(ptr %r.1715.a0, i64 %r.1714)
-  %r.1715 = add i64 0, 0
-  %r.1716 = load i64, ptr %r.7
-  %r.1717 = add i64 1, 0
-  %r.1718 = add i64 %r.1716, %r.1717
-  store i64 %r.1718, ptr %r.7
+  %r.1712 = load i64, ptr %r.2
+  %r.1713 = add i64 58, 0
+  %r.1714 = add i64 0, 0
+  %r.1715 = load i64, ptr %r.7
+  %r.1716 = call i64 @tok_new(i64 %r.1713, i64 %r.1714, i64 %r.1715)
+  %r.1717.a0 = inttoptr i64 %r.1712 to ptr
+  call void @__nucleor_vec_push(ptr %r.1717.a0, i64 %r.1716)
+  %r.1717 = add i64 0, 0
+  %r.1718 = load i64, ptr %r.7
+  %r.1719 = add i64 2, 0
+  %r.1720 = add i64 %r.1718, %r.1719
+  store i64 %r.1720, ptr %r.7
   br label %L350
 L349:
-  %r.1719 = load i64, ptr %r.12
-  %r.1720 = add i64 40, 0
-  %r.1721.cmp = icmp eq i64 %r.1719, %r.1720
-  %r.1721 = zext i1 %r.1721.cmp to i64
-  %br.1721.cond = icmp ne i64 %r.1721, 0
-  br i1 %br.1721.cond, label %L351, label %L352
+  %r.1721 = load i64, ptr %r.12
+  %r.1722 = add i64 46, 0
+  %r.1723.cmp = icmp eq i64 %r.1721, %r.1722
+  %r.1723 = zext i1 %r.1723.cmp to i64
+  %br.1723.cond = icmp ne i64 %r.1723, 0
+  br i1 %br.1723.cond, label %L351, label %L352
 L351:
-  %r.1722 = load i64, ptr %r.2
-  %r.1723 = add i64 50, 0
-  %r.1724 = add i64 0, 0
-  %r.1725 = load i64, ptr %r.7
-  %r.1726 = call i64 @tok_new(i64 %r.1723, i64 %r.1724, i64 %r.1725)
-  %r.1727.a0 = inttoptr i64 %r.1722 to ptr
-  call void @__nucleor_vec_push(ptr %r.1727.a0, i64 %r.1726)
-  %r.1727 = add i64 0, 0
-  %r.1728 = load i64, ptr %r.7
-  %r.1729 = add i64 1, 0
-  %r.1730 = add i64 %r.1728, %r.1729
-  store i64 %r.1730, ptr %r.7
+  %r.1724 = load i64, ptr %r.2
+  %r.1725 = add i64 45, 0
+  %r.1726 = add i64 0, 0
+  %r.1727 = load i64, ptr %r.7
+  %r.1728 = call i64 @tok_new(i64 %r.1725, i64 %r.1726, i64 %r.1727)
+  %r.1729.a0 = inttoptr i64 %r.1724 to ptr
+  call void @__nucleor_vec_push(ptr %r.1729.a0, i64 %r.1728)
+  %r.1729 = add i64 0, 0
+  %r.1730 = load i64, ptr %r.7
+  %r.1731 = add i64 1, 0
+  %r.1732 = add i64 %r.1730, %r.1731
+  store i64 %r.1732, ptr %r.7
   br label %L353
 L352:
-  %r.1731 = load i64, ptr %r.12
-  %r.1732 = add i64 41, 0
-  %r.1733.cmp = icmp eq i64 %r.1731, %r.1732
-  %r.1733 = zext i1 %r.1733.cmp to i64
-  %br.1733.cond = icmp ne i64 %r.1733, 0
-  br i1 %br.1733.cond, label %L354, label %L355
+  %r.1733 = load i64, ptr %r.12
+  %r.1734 = add i64 40, 0
+  %r.1735.cmp = icmp eq i64 %r.1733, %r.1734
+  %r.1735 = zext i1 %r.1735.cmp to i64
+  %br.1735.cond = icmp ne i64 %r.1735, 0
+  br i1 %br.1735.cond, label %L354, label %L355
 L354:
-  %r.1734 = load i64, ptr %r.2
-  %r.1735 = add i64 51, 0
-  %r.1736 = add i64 0, 0
-  %r.1737 = load i64, ptr %r.7
-  %r.1738 = call i64 @tok_new(i64 %r.1735, i64 %r.1736, i64 %r.1737)
-  %r.1739.a0 = inttoptr i64 %r.1734 to ptr
-  call void @__nucleor_vec_push(ptr %r.1739.a0, i64 %r.1738)
-  %r.1739 = add i64 0, 0
-  %r.1740 = load i64, ptr %r.7
-  %r.1741 = add i64 1, 0
-  %r.1742 = add i64 %r.1740, %r.1741
-  store i64 %r.1742, ptr %r.7
+  %r.1736 = load i64, ptr %r.2
+  %r.1737 = add i64 50, 0
+  %r.1738 = add i64 0, 0
+  %r.1739 = load i64, ptr %r.7
+  %r.1740 = call i64 @tok_new(i64 %r.1737, i64 %r.1738, i64 %r.1739)
+  %r.1741.a0 = inttoptr i64 %r.1736 to ptr
+  call void @__nucleor_vec_push(ptr %r.1741.a0, i64 %r.1740)
+  %r.1741 = add i64 0, 0
+  %r.1742 = load i64, ptr %r.7
+  %r.1743 = add i64 1, 0
+  %r.1744 = add i64 %r.1742, %r.1743
+  store i64 %r.1744, ptr %r.7
   br label %L356
 L355:
-  %r.1743 = load i64, ptr %r.12
-  %r.1744 = add i64 123, 0
-  %r.1745.cmp = icmp eq i64 %r.1743, %r.1744
-  %r.1745 = zext i1 %r.1745.cmp to i64
-  %br.1745.cond = icmp ne i64 %r.1745, 0
-  br i1 %br.1745.cond, label %L357, label %L358
+  %r.1745 = load i64, ptr %r.12
+  %r.1746 = add i64 41, 0
+  %r.1747.cmp = icmp eq i64 %r.1745, %r.1746
+  %r.1747 = zext i1 %r.1747.cmp to i64
+  %br.1747.cond = icmp ne i64 %r.1747, 0
+  br i1 %br.1747.cond, label %L357, label %L358
 L357:
-  %r.1746 = load i64, ptr %r.2
-  %r.1747 = add i64 52, 0
-  %r.1748 = add i64 0, 0
-  %r.1749 = load i64, ptr %r.7
-  %r.1750 = call i64 @tok_new(i64 %r.1747, i64 %r.1748, i64 %r.1749)
-  %r.1751.a0 = inttoptr i64 %r.1746 to ptr
-  call void @__nucleor_vec_push(ptr %r.1751.a0, i64 %r.1750)
-  %r.1751 = add i64 0, 0
-  %r.1752 = load i64, ptr %r.7
-  %r.1753 = add i64 1, 0
-  %r.1754 = add i64 %r.1752, %r.1753
-  store i64 %r.1754, ptr %r.7
+  %r.1748 = load i64, ptr %r.2
+  %r.1749 = add i64 51, 0
+  %r.1750 = add i64 0, 0
+  %r.1751 = load i64, ptr %r.7
+  %r.1752 = call i64 @tok_new(i64 %r.1749, i64 %r.1750, i64 %r.1751)
+  %r.1753.a0 = inttoptr i64 %r.1748 to ptr
+  call void @__nucleor_vec_push(ptr %r.1753.a0, i64 %r.1752)
+  %r.1753 = add i64 0, 0
+  %r.1754 = load i64, ptr %r.7
+  %r.1755 = add i64 1, 0
+  %r.1756 = add i64 %r.1754, %r.1755
+  store i64 %r.1756, ptr %r.7
   br label %L359
 L358:
-  %r.1755 = load i64, ptr %r.12
-  %r.1756 = add i64 125, 0
-  %r.1757.cmp = icmp eq i64 %r.1755, %r.1756
-  %r.1757 = zext i1 %r.1757.cmp to i64
-  %br.1757.cond = icmp ne i64 %r.1757, 0
-  br i1 %br.1757.cond, label %L360, label %L361
+  %r.1757 = load i64, ptr %r.12
+  %r.1758 = add i64 123, 0
+  %r.1759.cmp = icmp eq i64 %r.1757, %r.1758
+  %r.1759 = zext i1 %r.1759.cmp to i64
+  %br.1759.cond = icmp ne i64 %r.1759, 0
+  br i1 %br.1759.cond, label %L360, label %L361
 L360:
-  %r.1758 = load i64, ptr %r.2
-  %r.1759 = add i64 53, 0
-  %r.1760 = add i64 0, 0
-  %r.1761 = load i64, ptr %r.7
-  %r.1762 = call i64 @tok_new(i64 %r.1759, i64 %r.1760, i64 %r.1761)
-  %r.1763.a0 = inttoptr i64 %r.1758 to ptr
-  call void @__nucleor_vec_push(ptr %r.1763.a0, i64 %r.1762)
-  %r.1763 = add i64 0, 0
-  %r.1764 = load i64, ptr %r.7
-  %r.1765 = add i64 1, 0
-  %r.1766 = add i64 %r.1764, %r.1765
-  store i64 %r.1766, ptr %r.7
+  %r.1760 = load i64, ptr %r.2
+  %r.1761 = add i64 52, 0
+  %r.1762 = add i64 0, 0
+  %r.1763 = load i64, ptr %r.7
+  %r.1764 = call i64 @tok_new(i64 %r.1761, i64 %r.1762, i64 %r.1763)
+  %r.1765.a0 = inttoptr i64 %r.1760 to ptr
+  call void @__nucleor_vec_push(ptr %r.1765.a0, i64 %r.1764)
+  %r.1765 = add i64 0, 0
+  %r.1766 = load i64, ptr %r.7
+  %r.1767 = add i64 1, 0
+  %r.1768 = add i64 %r.1766, %r.1767
+  store i64 %r.1768, ptr %r.7
   br label %L362
 L361:
-  %r.1767 = load i64, ptr %r.12
-  %r.1768 = add i64 91, 0
-  %r.1769.cmp = icmp eq i64 %r.1767, %r.1768
-  %r.1769 = zext i1 %r.1769.cmp to i64
-  %br.1769.cond = icmp ne i64 %r.1769, 0
-  br i1 %br.1769.cond, label %L363, label %L364
+  %r.1769 = load i64, ptr %r.12
+  %r.1770 = add i64 125, 0
+  %r.1771.cmp = icmp eq i64 %r.1769, %r.1770
+  %r.1771 = zext i1 %r.1771.cmp to i64
+  %br.1771.cond = icmp ne i64 %r.1771, 0
+  br i1 %br.1771.cond, label %L363, label %L364
 L363:
-  %r.1770 = load i64, ptr %r.2
-  %r.1771 = add i64 54, 0
-  %r.1772 = add i64 0, 0
-  %r.1773 = load i64, ptr %r.7
-  %r.1774 = call i64 @tok_new(i64 %r.1771, i64 %r.1772, i64 %r.1773)
-  %r.1775.a0 = inttoptr i64 %r.1770 to ptr
-  call void @__nucleor_vec_push(ptr %r.1775.a0, i64 %r.1774)
-  %r.1775 = add i64 0, 0
-  %r.1776 = load i64, ptr %r.7
-  %r.1777 = add i64 1, 0
-  %r.1778 = add i64 %r.1776, %r.1777
-  store i64 %r.1778, ptr %r.7
+  %r.1772 = load i64, ptr %r.2
+  %r.1773 = add i64 53, 0
+  %r.1774 = add i64 0, 0
+  %r.1775 = load i64, ptr %r.7
+  %r.1776 = call i64 @tok_new(i64 %r.1773, i64 %r.1774, i64 %r.1775)
+  %r.1777.a0 = inttoptr i64 %r.1772 to ptr
+  call void @__nucleor_vec_push(ptr %r.1777.a0, i64 %r.1776)
+  %r.1777 = add i64 0, 0
+  %r.1778 = load i64, ptr %r.7
+  %r.1779 = add i64 1, 0
+  %r.1780 = add i64 %r.1778, %r.1779
+  store i64 %r.1780, ptr %r.7
   br label %L365
 L364:
-  %r.1779 = load i64, ptr %r.12
-  %r.1780 = add i64 93, 0
-  %r.1781.cmp = icmp eq i64 %r.1779, %r.1780
-  %r.1781 = zext i1 %r.1781.cmp to i64
-  %br.1781.cond = icmp ne i64 %r.1781, 0
-  br i1 %br.1781.cond, label %L366, label %L367
+  %r.1781 = load i64, ptr %r.12
+  %r.1782 = add i64 91, 0
+  %r.1783.cmp = icmp eq i64 %r.1781, %r.1782
+  %r.1783 = zext i1 %r.1783.cmp to i64
+  %br.1783.cond = icmp ne i64 %r.1783, 0
+  br i1 %br.1783.cond, label %L366, label %L367
 L366:
-  %r.1782 = load i64, ptr %r.2
-  %r.1783 = add i64 55, 0
-  %r.1784 = add i64 0, 0
-  %r.1785 = load i64, ptr %r.7
-  %r.1786 = call i64 @tok_new(i64 %r.1783, i64 %r.1784, i64 %r.1785)
-  %r.1787.a0 = inttoptr i64 %r.1782 to ptr
-  call void @__nucleor_vec_push(ptr %r.1787.a0, i64 %r.1786)
-  %r.1787 = add i64 0, 0
-  %r.1788 = load i64, ptr %r.7
-  %r.1789 = add i64 1, 0
-  %r.1790 = add i64 %r.1788, %r.1789
-  store i64 %r.1790, ptr %r.7
+  %r.1784 = load i64, ptr %r.2
+  %r.1785 = add i64 54, 0
+  %r.1786 = add i64 0, 0
+  %r.1787 = load i64, ptr %r.7
+  %r.1788 = call i64 @tok_new(i64 %r.1785, i64 %r.1786, i64 %r.1787)
+  %r.1789.a0 = inttoptr i64 %r.1784 to ptr
+  call void @__nucleor_vec_push(ptr %r.1789.a0, i64 %r.1788)
+  %r.1789 = add i64 0, 0
+  %r.1790 = load i64, ptr %r.7
+  %r.1791 = add i64 1, 0
+  %r.1792 = add i64 %r.1790, %r.1791
+  store i64 %r.1792, ptr %r.7
   br label %L368
 L367:
-  %r.1791 = load i64, ptr %r.12
-  %r.1792 = add i64 63, 0
-  %r.1793.cmp = icmp eq i64 %r.1791, %r.1792
-  %r.1793 = zext i1 %r.1793.cmp to i64
-  %br.1793.cond = icmp ne i64 %r.1793, 0
-  br i1 %br.1793.cond, label %L369, label %L370
+  %r.1793 = load i64, ptr %r.12
+  %r.1794 = add i64 93, 0
+  %r.1795.cmp = icmp eq i64 %r.1793, %r.1794
+  %r.1795 = zext i1 %r.1795.cmp to i64
+  %br.1795.cond = icmp ne i64 %r.1795, 0
+  br i1 %br.1795.cond, label %L369, label %L370
 L369:
-  %r.1794 = load i64, ptr %r.2
-  %r.1795 = add i64 97, 0
-  %r.1796 = add i64 0, 0
-  %r.1797 = load i64, ptr %r.7
-  %r.1798 = call i64 @tok_new(i64 %r.1795, i64 %r.1796, i64 %r.1797)
-  %r.1799.a0 = inttoptr i64 %r.1794 to ptr
-  call void @__nucleor_vec_push(ptr %r.1799.a0, i64 %r.1798)
-  %r.1799 = add i64 0, 0
-  %r.1800 = load i64, ptr %r.7
-  %r.1801 = add i64 1, 0
-  %r.1802 = add i64 %r.1800, %r.1801
-  store i64 %r.1802, ptr %r.7
+  %r.1796 = load i64, ptr %r.2
+  %r.1797 = add i64 55, 0
+  %r.1798 = add i64 0, 0
+  %r.1799 = load i64, ptr %r.7
+  %r.1800 = call i64 @tok_new(i64 %r.1797, i64 %r.1798, i64 %r.1799)
+  %r.1801.a0 = inttoptr i64 %r.1796 to ptr
+  call void @__nucleor_vec_push(ptr %r.1801.a0, i64 %r.1800)
+  %r.1801 = add i64 0, 0
+  %r.1802 = load i64, ptr %r.7
+  %r.1803 = add i64 1, 0
+  %r.1804 = add i64 %r.1802, %r.1803
+  store i64 %r.1804, ptr %r.7
   br label %L371
 L370:
-  %r.1803 = load i64, ptr %r.12
-  %r.1804 = add i64 39, 0
-  %r.1805.cmp = icmp eq i64 %r.1803, %r.1804
-  %r.1805 = zext i1 %r.1805.cmp to i64
-  %br.1805.cond = icmp ne i64 %r.1805, 0
-  br i1 %br.1805.cond, label %L372, label %L373
+  %r.1805 = load i64, ptr %r.12
+  %r.1806 = add i64 63, 0
+  %r.1807.cmp = icmp eq i64 %r.1805, %r.1806
+  %r.1807 = zext i1 %r.1807.cmp to i64
+  %br.1807.cond = icmp ne i64 %r.1807, 0
+  br i1 %br.1807.cond, label %L372, label %L373
 L372:
-  %r.1807 = load i64, ptr %r.7
-  store i64 %r.1807, ptr %r.1806
-  %r.1809 = add i64 0, 0
-  store i64 %r.1809, ptr %r.1808
-  %r.1810 = load i64, ptr %r.7
-  %r.1811 = add i64 2, 0
-  %r.1812 = add i64 %r.1810, %r.1811
-  %r.1813 = load i64, ptr %r.4
-  %r.1814.cmp = icmp slt i64 %r.1812, %r.1813
-  %r.1814 = zext i1 %r.1814.cmp to i64
-  %br.1814.cond = icmp ne i64 %r.1814, 0
-  br i1 %br.1814.cond, label %L375, label %L377
+  %r.1808 = load i64, ptr %r.2
+  %r.1809 = add i64 97, 0
+  %r.1810 = add i64 0, 0
+  %r.1811 = load i64, ptr %r.7
+  %r.1812 = call i64 @tok_new(i64 %r.1809, i64 %r.1810, i64 %r.1811)
+  %r.1813.a0 = inttoptr i64 %r.1808 to ptr
+  call void @__nucleor_vec_push(ptr %r.1813.a0, i64 %r.1812)
+  %r.1813 = add i64 0, 0
+  %r.1814 = load i64, ptr %r.7
+  %r.1815 = add i64 1, 0
+  %r.1816 = add i64 %r.1814, %r.1815
+  store i64 %r.1816, ptr %r.7
+  br label %L374
+L373:
+  %r.1817 = load i64, ptr %r.12
+  %r.1818 = add i64 39, 0
+  %r.1819.cmp = icmp eq i64 %r.1817, %r.1818
+  %r.1819 = zext i1 %r.1819.cmp to i64
+  %br.1819.cond = icmp ne i64 %r.1819, 0
+  br i1 %br.1819.cond, label %L375, label %L376
 L375:
-  %r.1816 = load i64, ptr %r.0
-  %r.1817 = load i64, ptr %r.7
-  %r.1818 = add i64 1, 0
-  %r.1819 = add i64 %r.1817, %r.1818
-  %r.1820.a0 = inttoptr i64 %r.1816 to ptr
-  %r.1820 = call i64 @__nucleor_str_char_at(ptr %r.1820.a0, i64 %r.1819)
-  store i64 %r.1820, ptr %r.1815
-  %r.1822 = load i64, ptr %r.0
-  %r.1823 = load i64, ptr %r.7
-  %r.1824 = add i64 2, 0
-  %r.1825 = add i64 %r.1823, %r.1824
-  %r.1826.a0 = inttoptr i64 %r.1822 to ptr
-  %r.1826 = call i64 @__nucleor_str_char_at(ptr %r.1826.a0, i64 %r.1825)
-  store i64 %r.1826, ptr %r.1821
-  %r.1827 = load i64, ptr %r.1815
-  %r.1828 = add i64 92, 0
-  %r.1829.cmp = icmp ne i64 %r.1827, %r.1828
-  %r.1829 = zext i1 %r.1829.cmp to i64
-  %r.1830 = load i64, ptr %r.1821
-  %r.1831 = add i64 39, 0
-  %r.1832.cmp = icmp eq i64 %r.1830, %r.1831
-  %r.1832 = zext i1 %r.1832.cmp to i64
-  %r.1833 = and i64 %r.1829, %r.1832
-  %br.1833.cond = icmp ne i64 %r.1833, 0
-  br i1 %br.1833.cond, label %L378, label %L380
+  %r.1821 = load i64, ptr %r.7
+  store i64 %r.1821, ptr %r.1820
+  %r.1823 = add i64 0, 0
+  store i64 %r.1823, ptr %r.1822
+  %r.1824 = load i64, ptr %r.7
+  %r.1825 = add i64 2, 0
+  %r.1826 = add i64 %r.1824, %r.1825
+  %r.1827 = load i64, ptr %r.4
+  %r.1828.cmp = icmp slt i64 %r.1826, %r.1827
+  %r.1828 = zext i1 %r.1828.cmp to i64
+  %br.1828.cond = icmp ne i64 %r.1828, 0
+  br i1 %br.1828.cond, label %L378, label %L380
 L378:
-  %r.1834 = load i64, ptr %r.2
-  %r.1835 = add i64 2, 0
-  %r.1836 = load i64, ptr %r.1815
-  %r.1837 = load i64, ptr %r.1806
-  %r.1838 = call i64 @tok_new(i64 %r.1835, i64 %r.1836, i64 %r.1837)
-  %r.1839.a0 = inttoptr i64 %r.1834 to ptr
-  call void @__nucleor_vec_push(ptr %r.1839.a0, i64 %r.1838)
-  %r.1839 = add i64 0, 0
-  %r.1840 = load i64, ptr %r.7
-  %r.1841 = add i64 3, 0
-  %r.1842 = add i64 %r.1840, %r.1841
-  store i64 %r.1842, ptr %r.7
-  %r.1843 = add i64 1, 0
-  store i64 %r.1843, ptr %r.1808
-  br label %L380
-L380:
-  br label %L377
-L377:
-  %r.1844 = load i64, ptr %r.1808
-  %r.1845 = add i64 0, 0
+  %r.1830 = load i64, ptr %r.0
+  %r.1831 = load i64, ptr %r.7
+  %r.1832 = add i64 1, 0
+  %r.1833 = add i64 %r.1831, %r.1832
+  %r.1834.a0 = inttoptr i64 %r.1830 to ptr
+  %r.1834 = call i64 @__nucleor_str_char_at(ptr %r.1834.a0, i64 %r.1833)
+  store i64 %r.1834, ptr %r.1829
+  %r.1836 = load i64, ptr %r.0
+  %r.1837 = load i64, ptr %r.7
+  %r.1838 = add i64 2, 0
+  %r.1839 = add i64 %r.1837, %r.1838
+  %r.1840.a0 = inttoptr i64 %r.1836 to ptr
+  %r.1840 = call i64 @__nucleor_str_char_at(ptr %r.1840.a0, i64 %r.1839)
+  store i64 %r.1840, ptr %r.1835
+  %r.1841 = load i64, ptr %r.1829
+  %r.1842 = add i64 92, 0
+  %r.1843.cmp = icmp ne i64 %r.1841, %r.1842
+  %r.1843 = zext i1 %r.1843.cmp to i64
+  %r.1844 = load i64, ptr %r.1835
+  %r.1845 = add i64 39, 0
   %r.1846.cmp = icmp eq i64 %r.1844, %r.1845
   %r.1846 = zext i1 %r.1846.cmp to i64
-  %r.1847 = load i64, ptr %r.7
-  %r.1848 = add i64 3, 0
-  %r.1849 = add i64 %r.1847, %r.1848
-  %r.1850 = load i64, ptr %r.4
-  %r.1851.cmp = icmp slt i64 %r.1849, %r.1850
-  %r.1851 = zext i1 %r.1851.cmp to i64
-  %r.1852 = and i64 %r.1846, %r.1851
-  %r.1853 = load i64, ptr %r.0
-  %r.1854 = load i64, ptr %r.7
-  %r.1855 = add i64 1, 0
-  %r.1856 = add i64 %r.1854, %r.1855
-  %r.1857.a0 = inttoptr i64 %r.1853 to ptr
-  %r.1857 = call i64 @__nucleor_str_char_at(ptr %r.1857.a0, i64 %r.1856)
-  %r.1858 = add i64 92, 0
-  %r.1859.cmp = icmp eq i64 %r.1857, %r.1858
-  %r.1859 = zext i1 %r.1859.cmp to i64
-  %r.1860 = and i64 %r.1852, %r.1859
-  %r.1861 = load i64, ptr %r.0
-  %r.1862 = load i64, ptr %r.7
-  %r.1863 = add i64 3, 0
-  %r.1864 = add i64 %r.1862, %r.1848
-  %r.1865.a0 = inttoptr i64 %r.1861 to ptr
-  %r.1865 = call i64 @__nucleor_str_char_at(ptr %r.1865.a0, i64 %r.1864)
-  %r.1866 = add i64 39, 0
-  %r.1867.cmp = icmp eq i64 %r.1865, %r.1866
-  %r.1867 = zext i1 %r.1867.cmp to i64
-  %r.1868 = and i64 %r.1860, %r.1867
-  %br.1868.cond = icmp ne i64 %r.1868, 0
-  br i1 %br.1868.cond, label %L381, label %L383
+  %r.1847 = and i64 %r.1843, %r.1846
+  %br.1847.cond = icmp ne i64 %r.1847, 0
+  br i1 %br.1847.cond, label %L381, label %L383
 L381:
-  %r.1870 = load i64, ptr %r.0
-  %r.1871 = load i64, ptr %r.7
-  %r.1872 = add i64 2, 0
-  %r.1873 = add i64 %r.1871, %r.1872
-  %r.1874.a0 = inttoptr i64 %r.1870 to ptr
-  %r.1874 = call i64 @__nucleor_str_char_at(ptr %r.1874.a0, i64 %r.1873)
-  store i64 %r.1874, ptr %r.1869
-  %r.1876 = load i64, ptr %r.1869
-  store i64 %r.1876, ptr %r.1875
-  %r.1877 = load i64, ptr %r.1869
-  %r.1878 = add i64 110, 0
-  %r.1879.cmp = icmp eq i64 %r.1877, %r.1878
-  %r.1879 = zext i1 %r.1879.cmp to i64
-  %br.1879.cond = icmp ne i64 %r.1879, 0
-  br i1 %br.1879.cond, label %L384, label %L386
-L384:
-  %r.1880 = add i64 10, 0
-  store i64 %r.1880, ptr %r.1875
-  br label %L386
-L386:
-  %r.1881 = load i64, ptr %r.1869
-  %r.1882 = add i64 116, 0
-  %r.1883.cmp = icmp eq i64 %r.1881, %r.1882
-  %r.1883 = zext i1 %r.1883.cmp to i64
-  %br.1883.cond = icmp ne i64 %r.1883, 0
-  br i1 %br.1883.cond, label %L387, label %L389
-L387:
-  %r.1884 = add i64 9, 0
-  store i64 %r.1884, ptr %r.1875
-  br label %L389
-L389:
-  %r.1885 = load i64, ptr %r.1869
-  %r.1886 = add i64 114, 0
-  %r.1887.cmp = icmp eq i64 %r.1885, %r.1886
-  %r.1887 = zext i1 %r.1887.cmp to i64
-  %br.1887.cond = icmp ne i64 %r.1887, 0
-  br i1 %br.1887.cond, label %L390, label %L392
-L390:
-  %r.1888 = add i64 13, 0
-  store i64 %r.1888, ptr %r.1875
-  br label %L392
-L392:
-  %r.1889 = load i64, ptr %r.1869
-  %r.1890 = add i64 48, 0
-  %r.1891.cmp = icmp eq i64 %r.1889, %r.1890
-  %r.1891 = zext i1 %r.1891.cmp to i64
-  %br.1891.cond = icmp ne i64 %r.1891, 0
-  br i1 %br.1891.cond, label %L393, label %L395
-L393:
-  %r.1892 = add i64 0, 0
-  store i64 %r.1892, ptr %r.1875
-  br label %L395
-L395:
-  %r.1893 = load i64, ptr %r.1869
-  %r.1894 = add i64 92, 0
-  %r.1895.cmp = icmp eq i64 %r.1893, %r.1894
-  %r.1895 = zext i1 %r.1895.cmp to i64
-  %br.1895.cond = icmp ne i64 %r.1895, 0
-  br i1 %br.1895.cond, label %L396, label %L398
-L396:
-  %r.1896 = add i64 92, 0
-  store i64 %r.1896, ptr %r.1875
-  br label %L398
-L398:
-  %r.1897 = load i64, ptr %r.1869
-  %r.1898 = add i64 39, 0
-  %r.1899.cmp = icmp eq i64 %r.1897, %r.1898
-  %r.1899 = zext i1 %r.1899.cmp to i64
-  %br.1899.cond = icmp ne i64 %r.1899, 0
-  br i1 %br.1899.cond, label %L399, label %L401
-L399:
-  %r.1900 = add i64 39, 0
-  store i64 %r.1900, ptr %r.1875
-  br label %L401
-L401:
-  %r.1901 = load i64, ptr %r.1869
-  %r.1902 = add i64 34, 0
-  %r.1903.cmp = icmp eq i64 %r.1901, %r.1902
-  %r.1903 = zext i1 %r.1903.cmp to i64
-  %br.1903.cond = icmp ne i64 %r.1903, 0
-  br i1 %br.1903.cond, label %L402, label %L404
-L402:
-  %r.1904 = add i64 34, 0
-  store i64 %r.1904, ptr %r.1875
-  br label %L404
-L404:
-  %r.1905 = load i64, ptr %r.2
-  %r.1906 = add i64 2, 0
-  %r.1907 = load i64, ptr %r.1875
-  %r.1908 = load i64, ptr %r.1806
-  %r.1909 = call i64 @tok_new(i64 %r.1906, i64 %r.1907, i64 %r.1908)
-  %r.1910.a0 = inttoptr i64 %r.1905 to ptr
-  call void @__nucleor_vec_push(ptr %r.1910.a0, i64 %r.1909)
-  %r.1910 = add i64 0, 0
-  %r.1911 = load i64, ptr %r.7
-  %r.1912 = add i64 4, 0
-  %r.1913 = add i64 %r.1911, %r.1912
-  store i64 %r.1913, ptr %r.7
-  %r.1914 = add i64 1, 0
-  store i64 %r.1914, ptr %r.1808
+  %r.1848 = load i64, ptr %r.2
+  %r.1849 = add i64 2, 0
+  %r.1850 = load i64, ptr %r.1829
+  %r.1851 = load i64, ptr %r.1820
+  %r.1852 = call i64 @tok_new(i64 %r.1849, i64 %r.1850, i64 %r.1851)
+  %r.1853.a0 = inttoptr i64 %r.1848 to ptr
+  call void @__nucleor_vec_push(ptr %r.1853.a0, i64 %r.1852)
+  %r.1853 = add i64 0, 0
+  %r.1854 = load i64, ptr %r.7
+  %r.1855 = add i64 3, 0
+  %r.1856 = add i64 %r.1854, %r.1855
+  store i64 %r.1856, ptr %r.7
+  %r.1857 = add i64 1, 0
+  store i64 %r.1857, ptr %r.1822
   br label %L383
 L383:
-  %r.1915 = load i64, ptr %r.1808
-  %r.1916 = add i64 0, 0
+  br label %L380
+L380:
+  %r.1858 = load i64, ptr %r.1822
+  %r.1859 = add i64 0, 0
+  %r.1860.cmp = icmp eq i64 %r.1858, %r.1859
+  %r.1860 = zext i1 %r.1860.cmp to i64
+  %r.1861 = load i64, ptr %r.7
+  %r.1862 = add i64 3, 0
+  %r.1863 = add i64 %r.1861, %r.1862
+  %r.1864 = load i64, ptr %r.4
+  %r.1865.cmp = icmp slt i64 %r.1863, %r.1864
+  %r.1865 = zext i1 %r.1865.cmp to i64
+  %r.1866 = and i64 %r.1860, %r.1865
+  %r.1867 = load i64, ptr %r.0
+  %r.1868 = load i64, ptr %r.7
+  %r.1869 = add i64 1, 0
+  %r.1870 = add i64 %r.1868, %r.1869
+  %r.1871.a0 = inttoptr i64 %r.1867 to ptr
+  %r.1871 = call i64 @__nucleor_str_char_at(ptr %r.1871.a0, i64 %r.1870)
+  %r.1872 = add i64 92, 0
+  %r.1873.cmp = icmp eq i64 %r.1871, %r.1872
+  %r.1873 = zext i1 %r.1873.cmp to i64
+  %r.1874 = and i64 %r.1866, %r.1873
+  %r.1875 = load i64, ptr %r.0
+  %r.1876 = load i64, ptr %r.7
+  %r.1877 = add i64 3, 0
+  %r.1878 = add i64 %r.1876, %r.1862
+  %r.1879.a0 = inttoptr i64 %r.1875 to ptr
+  %r.1879 = call i64 @__nucleor_str_char_at(ptr %r.1879.a0, i64 %r.1878)
+  %r.1880 = add i64 39, 0
+  %r.1881.cmp = icmp eq i64 %r.1879, %r.1880
+  %r.1881 = zext i1 %r.1881.cmp to i64
+  %r.1882 = and i64 %r.1874, %r.1881
+  %br.1882.cond = icmp ne i64 %r.1882, 0
+  br i1 %br.1882.cond, label %L384, label %L386
+L384:
+  %r.1884 = load i64, ptr %r.0
+  %r.1885 = load i64, ptr %r.7
+  %r.1886 = add i64 2, 0
+  %r.1887 = add i64 %r.1885, %r.1886
+  %r.1888.a0 = inttoptr i64 %r.1884 to ptr
+  %r.1888 = call i64 @__nucleor_str_char_at(ptr %r.1888.a0, i64 %r.1887)
+  store i64 %r.1888, ptr %r.1883
+  %r.1890 = load i64, ptr %r.1883
+  store i64 %r.1890, ptr %r.1889
+  %r.1891 = load i64, ptr %r.1883
+  %r.1892 = add i64 110, 0
+  %r.1893.cmp = icmp eq i64 %r.1891, %r.1892
+  %r.1893 = zext i1 %r.1893.cmp to i64
+  %br.1893.cond = icmp ne i64 %r.1893, 0
+  br i1 %br.1893.cond, label %L387, label %L389
+L387:
+  %r.1894 = add i64 10, 0
+  store i64 %r.1894, ptr %r.1889
+  br label %L389
+L389:
+  %r.1895 = load i64, ptr %r.1883
+  %r.1896 = add i64 116, 0
+  %r.1897.cmp = icmp eq i64 %r.1895, %r.1896
+  %r.1897 = zext i1 %r.1897.cmp to i64
+  %br.1897.cond = icmp ne i64 %r.1897, 0
+  br i1 %br.1897.cond, label %L390, label %L392
+L390:
+  %r.1898 = add i64 9, 0
+  store i64 %r.1898, ptr %r.1889
+  br label %L392
+L392:
+  %r.1899 = load i64, ptr %r.1883
+  %r.1900 = add i64 114, 0
+  %r.1901.cmp = icmp eq i64 %r.1899, %r.1900
+  %r.1901 = zext i1 %r.1901.cmp to i64
+  %br.1901.cond = icmp ne i64 %r.1901, 0
+  br i1 %br.1901.cond, label %L393, label %L395
+L393:
+  %r.1902 = add i64 13, 0
+  store i64 %r.1902, ptr %r.1889
+  br label %L395
+L395:
+  %r.1903 = load i64, ptr %r.1883
+  %r.1904 = add i64 48, 0
+  %r.1905.cmp = icmp eq i64 %r.1903, %r.1904
+  %r.1905 = zext i1 %r.1905.cmp to i64
+  %br.1905.cond = icmp ne i64 %r.1905, 0
+  br i1 %br.1905.cond, label %L396, label %L398
+L396:
+  %r.1906 = add i64 0, 0
+  store i64 %r.1906, ptr %r.1889
+  br label %L398
+L398:
+  %r.1907 = load i64, ptr %r.1883
+  %r.1908 = add i64 92, 0
+  %r.1909.cmp = icmp eq i64 %r.1907, %r.1908
+  %r.1909 = zext i1 %r.1909.cmp to i64
+  %br.1909.cond = icmp ne i64 %r.1909, 0
+  br i1 %br.1909.cond, label %L399, label %L401
+L399:
+  %r.1910 = add i64 92, 0
+  store i64 %r.1910, ptr %r.1889
+  br label %L401
+L401:
+  %r.1911 = load i64, ptr %r.1883
+  %r.1912 = add i64 39, 0
+  %r.1913.cmp = icmp eq i64 %r.1911, %r.1912
+  %r.1913 = zext i1 %r.1913.cmp to i64
+  %br.1913.cond = icmp ne i64 %r.1913, 0
+  br i1 %br.1913.cond, label %L402, label %L404
+L402:
+  %r.1914 = add i64 39, 0
+  store i64 %r.1914, ptr %r.1889
+  br label %L404
+L404:
+  %r.1915 = load i64, ptr %r.1883
+  %r.1916 = add i64 34, 0
   %r.1917.cmp = icmp eq i64 %r.1915, %r.1916
   %r.1917 = zext i1 %r.1917.cmp to i64
   %br.1917.cond = icmp ne i64 %r.1917, 0
   br i1 %br.1917.cond, label %L405, label %L407
 L405:
-  %r.1918 = load i64, ptr %r.7
-  %r.1919 = add i64 1, 0
-  %r.1920 = add i64 %r.1918, %r.1919
-  store i64 %r.1920, ptr %r.7
-  %r.1922 = load i64, ptr %r.7
-  store i64 %r.1922, ptr %r.1921
-  br label %L408
-L408:
-  %r.1923 = load i64, ptr %r.7
-  %r.1924 = load i64, ptr %r.4
-  %r.1925.cmp = icmp slt i64 %r.1923, %r.1924
-  %r.1925 = zext i1 %r.1925.cmp to i64
-  %r.1926 = load i64, ptr %r.0
-  %r.1927 = load i64, ptr %r.7
-  %r.1928.a0 = inttoptr i64 %r.1926 to ptr
-  %r.1928 = call i64 @__nucleor_str_char_at(ptr %r.1928.a0, i64 %r.1927)
-  %r.1929 = call i64 @is_alnum(i64 %r.1928)
-  %r.1930 = add i64 1, 0
-  %r.1931.cmp = icmp eq i64 %r.1929, %r.1930
-  %r.1931 = zext i1 %r.1931.cmp to i64
-  %r.1932 = load i64, ptr %r.0
-  %r.1933 = load i64, ptr %r.7
-  %r.1934.a0 = inttoptr i64 %r.1932 to ptr
-  %r.1934 = call i64 @__nucleor_str_char_at(ptr %r.1934.a0, i64 %r.1933)
-  %r.1935 = add i64 95, 0
-  %r.1936.cmp = icmp eq i64 %r.1934, %r.1935
-  %r.1936 = zext i1 %r.1936.cmp to i64
-  %r.1937 = or i64 %r.1931, %r.1936
-  %r.1938 = and i64 %r.1925, %r.1937
-  %br.1938.cond = icmp ne i64 %r.1938, 0
-  br i1 %br.1938.cond, label %L409, label %L410
-L409:
-  %r.1939 = load i64, ptr %r.7
-  %r.1940 = add i64 1, 0
-  %r.1941 = add i64 %r.1939, %r.1940
-  store i64 %r.1941, ptr %r.7
-  br label %L408
-L410:
-  %r.1943 = load i64, ptr %r.0
-  %r.1944 = load i64, ptr %r.1921
-  %r.1945 = load i64, ptr %r.7
-  %r.1946.a0 = inttoptr i64 %r.1943 to ptr
-  %r.1946.rv = call ptr @__nucleor_str_substring(ptr %r.1946.a0, i64 %r.1944, i64 %r.1945)
-  %r.1946 = ptrtoint ptr %r.1946.rv to i64
-  store i64 %r.1946, ptr %r.1942
-  %r.1947 = load i64, ptr %r.2
-  %r.1948 = add i64 98, 0
-  %r.1949 = load i64, ptr %r.1942
-  %r.1950 = load i64, ptr %r.1806
-  %r.1951 = call i64 @tok_new(i64 %r.1948, i64 %r.1949, i64 %r.1950)
-  %r.1952.a0 = inttoptr i64 %r.1947 to ptr
-  call void @__nucleor_vec_push(ptr %r.1952.a0, i64 %r.1951)
-  %r.1952 = add i64 0, 0
+  %r.1918 = add i64 34, 0
+  store i64 %r.1918, ptr %r.1889
   br label %L407
 L407:
-  br label %L374
-L373:
+  %r.1919 = load i64, ptr %r.2
+  %r.1920 = add i64 2, 0
+  %r.1921 = load i64, ptr %r.1889
+  %r.1922 = load i64, ptr %r.1820
+  %r.1923 = call i64 @tok_new(i64 %r.1920, i64 %r.1921, i64 %r.1922)
+  %r.1924.a0 = inttoptr i64 %r.1919 to ptr
+  call void @__nucleor_vec_push(ptr %r.1924.a0, i64 %r.1923)
+  %r.1924 = add i64 0, 0
+  %r.1925 = load i64, ptr %r.7
+  %r.1926 = add i64 4, 0
+  %r.1927 = add i64 %r.1925, %r.1926
+  store i64 %r.1927, ptr %r.7
+  %r.1928 = add i64 1, 0
+  store i64 %r.1928, ptr %r.1822
+  br label %L386
+L386:
+  %r.1929 = load i64, ptr %r.1822
+  %r.1930 = add i64 0, 0
+  %r.1931.cmp = icmp eq i64 %r.1929, %r.1930
+  %r.1931 = zext i1 %r.1931.cmp to i64
+  %br.1931.cond = icmp ne i64 %r.1931, 0
+  br i1 %br.1931.cond, label %L408, label %L410
+L408:
+  %r.1932 = load i64, ptr %r.7
+  %r.1933 = add i64 1, 0
+  %r.1934 = add i64 %r.1932, %r.1933
+  store i64 %r.1934, ptr %r.7
+  %r.1936 = load i64, ptr %r.7
+  store i64 %r.1936, ptr %r.1935
+  br label %L411
+L411:
+  %r.1937 = load i64, ptr %r.7
+  %r.1938 = load i64, ptr %r.4
+  %r.1939.cmp = icmp slt i64 %r.1937, %r.1938
+  %r.1939 = zext i1 %r.1939.cmp to i64
+  %r.1940 = load i64, ptr %r.0
+  %r.1941 = load i64, ptr %r.7
+  %r.1942.a0 = inttoptr i64 %r.1940 to ptr
+  %r.1942 = call i64 @__nucleor_str_char_at(ptr %r.1942.a0, i64 %r.1941)
+  %r.1943 = call i64 @is_alnum(i64 %r.1942)
+  %r.1944 = add i64 1, 0
+  %r.1945.cmp = icmp eq i64 %r.1943, %r.1944
+  %r.1945 = zext i1 %r.1945.cmp to i64
+  %r.1946 = load i64, ptr %r.0
+  %r.1947 = load i64, ptr %r.7
+  %r.1948.a0 = inttoptr i64 %r.1946 to ptr
+  %r.1948 = call i64 @__nucleor_str_char_at(ptr %r.1948.a0, i64 %r.1947)
+  %r.1949 = add i64 95, 0
+  %r.1950.cmp = icmp eq i64 %r.1948, %r.1949
+  %r.1950 = zext i1 %r.1950.cmp to i64
+  %r.1951 = or i64 %r.1945, %r.1950
+  %r.1952 = and i64 %r.1939, %r.1951
+  %br.1952.cond = icmp ne i64 %r.1952, 0
+  br i1 %br.1952.cond, label %L412, label %L413
+L412:
   %r.1953 = load i64, ptr %r.7
   %r.1954 = add i64 1, 0
   %r.1955 = add i64 %r.1953, %r.1954
   store i64 %r.1955, ptr %r.7
+  br label %L411
+L413:
+  %r.1957 = load i64, ptr %r.0
+  %r.1958 = load i64, ptr %r.1935
+  %r.1959 = load i64, ptr %r.7
+  %r.1960.a0 = inttoptr i64 %r.1957 to ptr
+  %r.1960.rv = call ptr @__nucleor_str_substring(ptr %r.1960.a0, i64 %r.1958, i64 %r.1959)
+  %r.1960 = ptrtoint ptr %r.1960.rv to i64
+  store i64 %r.1960, ptr %r.1956
+  %r.1961 = load i64, ptr %r.2
+  %r.1962 = add i64 98, 0
+  %r.1963 = load i64, ptr %r.1956
+  %r.1964 = load i64, ptr %r.1820
+  %r.1965 = call i64 @tok_new(i64 %r.1962, i64 %r.1963, i64 %r.1964)
+  %r.1966.a0 = inttoptr i64 %r.1961 to ptr
+  call void @__nucleor_vec_push(ptr %r.1966.a0, i64 %r.1965)
+  %r.1966 = add i64 0, 0
+  br label %L410
+L410:
+  br label %L377
+L376:
+  %r.1967 = load i64, ptr %r.7
+  %r.1968 = add i64 1, 0
+  %r.1969 = add i64 %r.1967, %r.1968
+  store i64 %r.1969, ptr %r.7
+  br label %L377
+L377:
   br label %L374
 L374:
   br label %L371
@@ -10373,10 +10404,8 @@ L248:
 L245:
   br label %L242
 L242:
-  br label %L239
-L239:
-  br label %L215
-L215:
+  br label %L218
+L218:
   br label %L80
 L80:
   br label %L74
@@ -10393,16 +10422,16 @@ L8:
 L5:
   br label %L0
 L2:
-  %r.1956 = load i64, ptr %r.2
-  %r.1957 = add i64 0, 0
-  %r.1958 = add i64 0, 0
-  %r.1959 = load i64, ptr %r.4
-  %r.1960 = call i64 @tok_new(i64 %r.1957, i64 %r.1958, i64 %r.1959)
-  %r.1961.a0 = inttoptr i64 %r.1956 to ptr
-  call void @__nucleor_vec_push(ptr %r.1961.a0, i64 %r.1960)
-  %r.1961 = add i64 0, 0
-  %r.1962 = load i64, ptr %r.2
-  ret i64 %r.1962
+  %r.1970 = load i64, ptr %r.2
+  %r.1971 = add i64 0, 0
+  %r.1972 = add i64 0, 0
+  %r.1973 = load i64, ptr %r.4
+  %r.1974 = call i64 @tok_new(i64 %r.1971, i64 %r.1972, i64 %r.1973)
+  %r.1975.a0 = inttoptr i64 %r.1970 to ptr
+  call void @__nucleor_vec_push(ptr %r.1975.a0, i64 %r.1974)
+  %r.1975 = add i64 0, 0
+  %r.1976 = load i64, ptr %r.2
+  ret i64 %r.1976
 }
 
 define i64 @tok_at(i64 %p.0, i64 %p.1) {

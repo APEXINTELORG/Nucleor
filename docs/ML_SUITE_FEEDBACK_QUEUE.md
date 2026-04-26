@@ -78,6 +78,10 @@ Fix:
 **Priority: HIGH for NN/ML kernels (cross entropy, softmax, sigmoid, Adam, GELU, LayerNorm)**
 **Follow-on:** erf_f64 deferred (no `__nucleor_erf` in runtime today; one-liner add when ML_Suite needs it).
 
+### NUC-FEEDBACK-005 — Long-precision f64 literal silently collapses to 0
+**Status: CLOSED in v0.3.130. f64-literal lexer truncates fractional digits to 6-decimal precision before computing frac_div (was integer-division underflow when frac_len > 6, zeroing the entire fractional part). Fixture t406.**
+**Priority: HIGH (silent miscompute on canonical ML constants — sqrt(2/π), log(2), etc.)**
+
 The generated test harness emits a parse error
 (`Parse error at token position 8927: expected token 51 got 1`) on the
 ML_Suite tensor smoke test, even though the same code compiles via

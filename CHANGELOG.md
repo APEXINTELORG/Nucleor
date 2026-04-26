@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.130] — 2026-04-25
+
+**NUC-FEEDBACK-005 closed — long-precision f64 literals silently
+collapsed to 0.** ML_Suite agent diagnosed this themselves while
+debugging a GELU-tanh PyTorch parity test. The literal
+`0.7978845608028654` (`sqrt(2/π)`, the canonical GELU constant)
+encoded as 0 because the lexer's millionths-precision encoder
+hit integer-division underflow:
+
+```
+frac_str = "7978845608028654"  (16 digits)
+frac_div = 10 ^ 16             = 10000000000000000
+1000000 / frac_div             = 0       (integer division underflow)
+encoded = 0 * 1000000 + 7978845608028654 * 0 = 0
+```
+
+`f64_from_scaled(0)` then returned 0.0. Every long-precision
+literal became a clean integer with zero fractional part —
+HIGH-blast for any ML / scientific code reaching for canonical
+constants:
+
+```
+sqrt(2/π) ≈ 0.7978845608028654   (GELU)
+log(2)    ≈ 0.6931471805599453   (entropy)
+1/√(2π)   ≈ 0.3989422804014327   (gaussian normalization)
+e         ≈ 2.7182818284590452
+π         ≈ 3.1415926535897932
+golden    ≈ 1.6180339887498949
+```
+
+GELU silently produced `0.5 * x` for nonzero inputs because the
+inner term was zero — exactly the parity drift the agent noticed.
+
+### Fix
+
+In the f64-literal lexer, truncate the fractional digit string
+to the encoder's 6-digit (millionth) precision BEFORE computing
+`frac_div`. The truncation matches the existing scaled-int
+convention and is preferable to rejecting the literal — adopters
+get the right 6-decimal value (close enough for typical `1e-6`
+ML parity tolerance) instead of a silent zero.
+
+Future improvement: full IEEE-754 parsing via runtime helper
+would handle arbitrary precision and exponent notation, but
+6-decimal precision matches Nucleor's existing scaled-int
+contract and is non-breaking.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t406 verifies three canonical
+ML constants (`sqrt(2/π)`, `log(2)`, `1/√(2π)`) all decode to
+their correct 6-decimal values within tolerance.
+`bin/nucleor.exe` SHA `520f7293`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — fractional-digit truncation
+  in the f64-literal lexer at line 232.
+- `tests/fixtures/t406_long_f64_literal.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.129] — 2026-04-25
 
 **Struct-field access on captured variables inside closures.**
