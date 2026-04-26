@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.201] — 2026-04-26
+
+**Vec OOB panic class extended.** Same hazard as v0.3.200 —
+silent-zero / silent-noop on `vec_first` / `vec_last` /
+`vec_swap` / `vec_remove_at` was hiding adopter bugs.
+
+Pre-v0.3.201:
+- `vec_first(empty)` / `vec_last(empty)` silently returned 0
+- `vec_swap(v, oob_i, oob_j)` silently no-op'd
+- `vec_remove_at(v, oob)` silently no-op'd
+
+Fix: each now PANICs by default with the relevant index/len:
+
+```
+PANIC: vec_first on empty Vec (len 0) (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+PANIC: vec_last on empty Vec (len 0) (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+PANIC: vec_swap OOB: indices I,J len M (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+PANIC: vec_remove_at OOB: index I, len M (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+```
+
+`vec_pop` on empty stays a silent no-op (pop-the-top
+semantics reasonably maps to no-op when nothing to pop).
+`vec_is_empty` is a query and never errors.
+
+The legacy lenient escape hatch from v0.3.200
+(`NUCLEOR_VEC_OOB_LENIENT=1`) covers all five surfaces.
+
+Caught one fixture pinning the old contract:
+`tests/runtime/vec_extras.nr` was explicitly asserting
+`vec_first(empty) == 0` and `vec_last(empty) == 0`. Updated
+to drop the silent-zero assertions; the negative case is
+now in `tests/fixtures/probe_vec_first_empty.nr` (must
+exit 1 with PANIC line).
+
+Bootstrap fixed point at stage_d
+`6988d6c407e10f768001ba1e9e6ae5fd21d976099d39f32681e7360851cafe1a`.
+453/453 verify PASS.
+
 ## [0.3.200] — 2026-04-26
 
 **Vec OOB now PANICs by default with index/len in the

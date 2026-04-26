@@ -45,10 +45,11 @@ fn main() -> i64 {
     if vec_len(v) != 5       { fail = fail + 1; print("FAIL extend len"); };
     if vec_last(v) != 8      { fail = fail + 1; print("FAIL extend last"); };
 
-    // vec_first / vec_last on empty Vec return 0
-    let empty: Vec<i64> = vec_new();
-    if vec_first(empty) != 0 { fail = fail + 1; print("FAIL first empty"); };
-    if vec_last(empty) != 0  { fail = fail + 1; print("FAIL last empty"); };
+    // v0.3.201: vec_first / vec_last on empty Vec now PANIC by default
+    // (silent-zero hazard closed). The empty-input behavior is exercised
+    // separately in tests/fixtures/probe_vec_first_empty.nr (negative
+    // case, must exit 1 with PANIC line) and via the NUCLEOR_VEC_OOB_LENIENT
+    // env var for adopters porting old code.
 
     if fail == 0 { print("OK vec_extras"); return 0; };
     return 1;
