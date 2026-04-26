@@ -76,8 +76,10 @@ Fix targets:
 
 ## Backlog (not actively queued)
 
-### NUC-IMPROVE-001 — JSON-line metric output for parity testing
-Stdlib rod (no compiler change). Will land when the schema is settled.
+### NUC-IMPROVE-001 / NUC-IMPROVE-003 — JSON-line metric output for parity testing
+**Status: CLOSED in v0.3.120 (`stdlib/rods/jsonl.nr` shipped). Fixture t397.**
+Schema delivered exactly as agent specified in NUC-IMPROVE-003.
+Deferred: SHA-256 in array entries (needs runtime helper for hashing — schema is forward-compatible).
 
 ### NUC-IMPROVE-002 — First-class `Tensor<T, Shape, Device>`
 RFC-scale. Post-v1.

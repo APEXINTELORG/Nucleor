@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 224
-# Total fn definitions: 2100
-# Total LOC: 9266
+# Total rods: 225
+# Total fn definitions: 2107
+# Total LOC: 9372
 
 [[rod]]
 name           = "activation2"
@@ -928,6 +928,15 @@ function_count = 35
 cfile_count    = 0
 loc            = 397
 imports        = ["complex", "fmt", "json", "strings"]
+
+[[rod]]
+name           = "jsonl"
+path           = "stdlib/rods/jsonl.nr"
+description    = "JSONL evidence-emit rod (NUC-IMPROVE-003)"
+function_count = 7
+cfile_count    = 0
+loc            = 106
+imports        = ["jsonl"]
 
 [[rod]]
 name           = "kdt"
