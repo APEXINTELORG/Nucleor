@@ -10014,6 +10014,21 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         let vname: str = node_field(pool, nid, 1);
         let tstr: str = node_field(pool, nid, 3);
         let init: i64 = node_field(pool, nid, 4);
+        // v0.3.180: NUC-FEEDBACK-002 -- promote the parse-time
+        // narrow-float-vector warning to a HARD type-check error
+        // here. Pre-fix, the print-only warning could be ignored
+        // and adopters shipped silently-zero results from
+        // f32_add(v[0], v[1]) etc. Now the build fails (TYP-009)
+        // unless they switch to Vec<i64>+manual helpers, Vec<f64>,
+        // or Tensor::*. Vec<f64> intentionally allowed (i64 cells
+        // hold f64 bit patterns directly).
+        if str_eq(tstr, "Vec<f32>") == 1
+           || str_eq(tstr, "Vec<f16>") == 1
+           || str_eq(tstr, "Vec<bf16>") == 1
+           || str_eq(tstr, "Vec<f8e4m3>") == 1
+           || str_eq(tstr, "Vec<f8e5m2>") == 1 {
+            type_diag(diags, source, fn_name, vname, "TYP-009", str_concat("narrow-float vector `", str_concat(tstr, "` is not yet supported as user-facing storage. The push/get round-trip silently drops the float type tag and downstream f*_* helpers operate on raw i64 storage (returning 0). Workaround: store explicit float bit patterns in Vec<i64> and call the runtime helpers manually, or use Vec<f64> (which works today because both i64 cells and f64 are 64-bit), or Tensor::* for ML kernels. Tracked as NUC-FEEDBACK-002.")));
+        };
         let mut init_t: str = "";
         if init >= 0 {
             init_t = type_expr(pool, init, env, sigs, structs, fn_name, diags, source, tprof);
@@ -16114,7 +16129,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.179";
+    return "0.3.180";
 }
 
 fn compiler_backend_label() -> str {
