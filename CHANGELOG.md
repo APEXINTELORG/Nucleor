@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.169] — 2026-04-26
+
+**Two more `println!("{}", X)` silent-miscompute shapes fixed:
+typed float binop and unary not.** Closes more gaps in the
+v0.3.166/167 println! heuristic chain.
+
+Pre-v0.3.169:
+- `println!("{}", a + b)` for `a, b: f64` printed the result's
+  i64 bit pattern instead of the float value (silent miscompute
+  on the canonical ML adopter pattern — additions in tensor /
+  loss / etc.)
+- `println!("{}", !flag)` printed `"0"`/`"1"` via int_to_str
+  instead of `"false"`/`"true"` per Rust Display
+
+Same hazard class as the v0.3.166/167 println! extensions.
+
+Fix:
+- **Unary not**: when `arg_expr` starts with `!` (and next char
+  isn't `=`, ruling out `!=`), dispatch to `bool_to_str`.
+- **Float binop**: detect top-level arithmetic op (`" + "`,
+  `" - "`, `" * "`, `" / "`, `" % "`) at depth 0; split arg into
+  operands; for each operand, check for float shape (decimal
+  literal, `_f64(`/`_f32(` suffix, or bare ident with f-typed
+  via `infer_var_type_from_source`). If any operand is float,
+  dispatch to `f64_to_str`.
+
+Pinned by `tests/fixtures/t436_println_float_binop_unary_not.nr`.
+Bootstrap fixed point at stage_d
+`e61fc2d67c819abd7104cf34aeb0b595c44d6aa497e4d607c43985c6463b37fb`.
+
 ## [0.3.168] — 2026-04-26
 
 **Five more `print()` dispatch shapes fixed: cast, unary minus,
