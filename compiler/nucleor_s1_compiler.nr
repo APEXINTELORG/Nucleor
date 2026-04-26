@@ -2590,12 +2590,34 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
         // bitwise `&` `|` `^` now wired through these iops too, fold
         // bitwise so both paths produce identical answers for constant
         // inputs (e.g. 255 & 15 → 15, not 1 from "both truthy").
+        //
+        // v0.3.103: Fold bitwise: and(13), or(14), xor(15).
+        //
+        // v0.3.147: skip the bitwise fold when either operand is negative.
+        // The while-shift bit-extraction below uses
+        // `ra - (ra/2)*2 == 1` to detect a set LSB. For negative odd ra,
+        // C-style integer division (Nucleor's semantics) rounds toward
+        // zero so `ra/2` underflows: `-1/2 == 0` and `-1 - 0*2 == -1`,
+        // not `1`. The `== 1` check fails, the bit is never recorded as
+        // set, and the entire fold collapses high-bit operands to ~0.
+        // `255 & -1` const-folded to `0` instead of `255`. Adopters
+        // using bitmasks against `-1` (all-ones sentinel) silently
+        // computed wrong values. The runtime LLVM `and i64` is correct
+        // on signed-i64-as-bits — the bug is purely the s1-emulated fold.
+        // Safe fallback: don't fold negative operands; let runtime LLVM
+        // compute it. (The same fold-skip pattern as v0.3.145 div/mod
+        // by zero, using a do_fold flag so the loop counter isn't
+        // touched.)
         else if op == 13 || op == 14 || op == 15 {
             let a: i64 = ir_op1(inst);
             let b: i64 = ir_op2(inst);
             if cmap_has(cm, a) == 1 && cmap_has(cm, b) == 1 {
                 let va: i64 = cmap_get(cm, a);
                 let vb: i64 = cmap_get(cm, b);
+                let mut do_bit_fold: i64 = 1;
+                if va < 0 { do_bit_fold = 0; };
+                if vb < 0 { do_bit_fold = 0; };
+                if do_bit_fold == 1 {
                 let mut result: i64 = 0;
                 // Use sym_get's hash-style int-pair AND emulation: Nucleor
                 // doesn't expose a `&` operator at this self-host level
@@ -2645,6 +2667,7 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
                 vec_set(inst, 5, 0);
                 cmap_set(cm, d, result);
                 folded = folded + 1;
+                };
             };
         };
         i = i + 1;
@@ -14689,7 +14712,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.146";
+    return "0.3.147";
 }
 
 fn compiler_backend_label() -> str {

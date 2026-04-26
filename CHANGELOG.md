@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.147] — 2026-04-26
+
+**`opt_fold_block` no longer silently miscompiles bitwise `&` `|` `^`
+on negative operands.** The const fold for `0xff & -1` returned `0`
+instead of `255`. Same hazard class as v0.3.137-v0.3.146 silent
+miscompiles.
+
+Pre-v0.3.147, the bitwise fold loop emulated 64-bit & | ^ via a
+while-shift using `ra - (ra/2)*2 == 1` to detect a set LSB. For
+negative odd `ra` (e.g. `-1`), C-style integer division (Nucleor's
+semantics) rounds toward zero — `-1/2 == 0` and `-1 - 0*2 == -1`,
+not `1`. The `== 1` check failed, no bit was recorded as set, and
+the loop body never ran. After 64 iterations, `acc` stayed `0` and
+the const fold replaced `255 & -1` with `0`.
+
+Adopters using `-1` (the canonical all-ones sentinel) for bitmasks —
+e.g. `mask & -1` for "compute width from max", `flags & -1` for
+"unset all bits via inversion" — silently got `0` with no
+diagnostic. The runtime LLVM `and i64` is correct on
+signed-i64-as-bits; the bug was purely the s1-emulated fold.
+
+Fix: skip the bitwise const fold when either operand is negative —
+let runtime LLVM compute it. Tracked via a `do_bit_fold` flag, same
+pattern as the v0.3.145 div/mod-by-zero fold-skip. Positive-operand
+folds (e.g. `255 & 15 → 15`) still fire.
+
+Pinned by `tests/fixtures/t422_bitwise_neg_no_silent_fold.nr` —
+exercises four `&` `^` `|` cases against `-1` and asserts the
+LLVM-correct results.
+
+Bootstrap fixed point at stage_d
+`f1d0563183a10247fcec4bf35f346076`. Verify gate green.
+
 ## [0.3.146] — 2026-04-26
 
 **`str_from_int` no longer returns just `"-"` for `i64::MIN`. Const-

@@ -5734,7 +5734,7 @@ declare i64 @__nucleor_tensor_sample_gumbel(i64, i64)
 @.str.4968 = private unnamed_addr constant [3 x i8] c"__\00"
 @.str.4969 = private unnamed_addr constant [1 x i8] c"\00"
 @.str.4970 = private unnamed_addr constant [17 x i8] c"0123456789abcdef\00"
-@.str.4971 = private unnamed_addr constant [8 x i8] c"0.3.146\00"
+@.str.4971 = private unnamed_addr constant [8 x i8] c"0.3.147\00"
 @.str.4972 = private unnamed_addr constant [5 x i8] c"llvm\00"
 @.str.4973 = private unnamed_addr constant [9 x i8] c"nucleor \00"
 @.str.4974 = private unnamed_addr constant [16 x i8] c" (self-hosted, \00"
@@ -23384,23 +23384,24 @@ bb.entry:
   %r.267 = alloca i64
   %r.271 = alloca i64
   %r.275 = alloca i64
-  %r.280 = alloca i64
-  %r.282 = alloca i64
-  %r.284 = alloca i64
-  %r.286 = alloca i64
   %r.288 = alloca i64
-  %r.331 = alloca i64
-  %r.333 = alloca i64
-  %r.335 = alloca i64
-  %r.337 = alloca i64
-  %r.339 = alloca i64
-  %r.379 = alloca i64
-  %r.381 = alloca i64
-  %r.383 = alloca i64
-  %r.385 = alloca i64
-  %r.387 = alloca i64
+  %r.293 = alloca i64
+  %r.295 = alloca i64
+  %r.297 = alloca i64
+  %r.299 = alloca i64
+  %r.301 = alloca i64
+  %r.344 = alloca i64
+  %r.346 = alloca i64
+  %r.348 = alloca i64
+  %r.350 = alloca i64
+  %r.352 = alloca i64
   %r.392 = alloca i64
+  %r.394 = alloca i64
+  %r.396 = alloca i64
+  %r.398 = alloca i64
   %r.400 = alloca i64
+  %r.405 = alloca i64
+  %r.413 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
@@ -23903,268 +23904,301 @@ L81:
   %r.273 = load i64, ptr %r.253
   %r.274 = call i64 @cmap_get(i64 %r.272, i64 %r.273)
   store i64 %r.274, ptr %r.271
-  %r.276 = add i64 0, 0
+  %r.276 = add i64 1, 0
   store i64 %r.276, ptr %r.275
-  %r.277 = load i64, ptr %r.22
-  %r.278 = add i64 13, 0
-  %r.279.cmp = icmp eq i64 %r.277, %r.278
+  %r.277 = load i64, ptr %r.267
+  %r.278 = add i64 0, 0
+  %r.279.cmp = icmp slt i64 %r.277, %r.278
   %r.279 = zext i1 %r.279.cmp to i64
   %br.279.cond = icmp ne i64 %r.279, 0
-  br i1 %br.279.cond, label %L84, label %L85
+  br i1 %br.279.cond, label %L84, label %L86
 L84:
-  %r.281 = add i64 0, 0
-  store i64 %r.281, ptr %r.280
-  %r.283 = add i64 1, 0
-  store i64 %r.283, ptr %r.282
-  %r.285 = load i64, ptr %r.267
-  store i64 %r.285, ptr %r.284
-  %r.287 = load i64, ptr %r.271
-  store i64 %r.287, ptr %r.286
-  %r.289 = add i64 0, 0
-  store i64 %r.281, ptr %r.288
-  br label %L87
-L87:
-  %r.290 = load i64, ptr %r.288
-  %r.291 = add i64 64, 0
-  %r.292.cmp = icmp slt i64 %r.290, %r.291
-  %r.292 = zext i1 %r.292.cmp to i64
-  %br.292.cond = icmp ne i64 %r.292, 0
-  br i1 %br.292.cond, label %L88, label %L89
-L88:
-  %r.293 = load i64, ptr %r.284
-  %r.294 = load i64, ptr %r.284
-  %r.295 = add i64 2, 0
-  %r.296 = sdiv i64 %r.294, %r.295
-  %r.297 = add i64 2, 0
-  %r.298 = mul i64 %r.296, %r.295
-  %r.299 = sub i64 %r.293, %r.298
-  %r.300 = add i64 1, 0
-  %r.301.cmp = icmp eq i64 %r.299, %r.300
-  %r.301 = zext i1 %r.301.cmp to i64
-  %r.302 = load i64, ptr %r.286
-  %r.303 = load i64, ptr %r.286
-  %r.304 = add i64 2, 0
-  %r.305 = sdiv i64 %r.303, %r.295
-  %r.306 = add i64 2, 0
-  %r.307 = mul i64 %r.305, %r.295
-  %r.308 = sub i64 %r.302, %r.307
-  %r.309 = add i64 1, 0
-  %r.310.cmp = icmp eq i64 %r.308, %r.300
-  %r.310 = zext i1 %r.310.cmp to i64
-  %r.311 = and i64 %r.301, %r.310
-  %br.311.cond = icmp ne i64 %r.311, 0
-  br i1 %br.311.cond, label %L90, label %L92
-L90:
-  %r.312 = load i64, ptr %r.280
-  %r.313 = load i64, ptr %r.282
-  %r.314 = add i64 %r.312, %r.313
-  store i64 %r.314, ptr %r.280
-  br label %L92
-L92:
-  %r.315 = load i64, ptr %r.284
-  %r.316 = add i64 2, 0
-  %r.317 = sdiv i64 %r.315, %r.316
-  store i64 %r.317, ptr %r.284
-  %r.318 = load i64, ptr %r.286
-  %r.319 = add i64 2, 0
-  %r.320 = sdiv i64 %r.318, %r.316
-  store i64 %r.320, ptr %r.286
-  %r.321 = load i64, ptr %r.282
-  %r.322 = load i64, ptr %r.282
-  %r.323 = add i64 %r.321, %r.322
-  store i64 %r.323, ptr %r.282
-  %r.324 = load i64, ptr %r.288
-  %r.325 = add i64 1, 0
-  %r.326 = add i64 %r.324, %r.325
-  store i64 %r.326, ptr %r.288
-  br label %L87
-L89:
-  %r.327 = load i64, ptr %r.280
-  store i64 %r.327, ptr %r.275
-  br label %L86
-L85:
-  %r.328 = load i64, ptr %r.22
-  %r.329 = add i64 14, 0
-  %r.330.cmp = icmp eq i64 %r.328, %r.329
-  %r.330 = zext i1 %r.330.cmp to i64
-  %br.330.cond = icmp ne i64 %r.330, 0
-  br i1 %br.330.cond, label %L93, label %L94
-L93:
-  %r.332 = add i64 0, 0
-  store i64 %r.332, ptr %r.331
-  %r.334 = add i64 1, 0
-  store i64 %r.334, ptr %r.333
-  %r.336 = load i64, ptr %r.267
-  store i64 %r.336, ptr %r.335
-  %r.338 = load i64, ptr %r.271
-  store i64 %r.338, ptr %r.337
-  %r.340 = add i64 0, 0
-  store i64 %r.332, ptr %r.339
-  br label %L96
-L96:
-  %r.341 = load i64, ptr %r.339
-  %r.342 = add i64 64, 0
-  %r.343.cmp = icmp slt i64 %r.341, %r.342
-  %r.343 = zext i1 %r.343.cmp to i64
-  %br.343.cond = icmp ne i64 %r.343, 0
-  br i1 %br.343.cond, label %L97, label %L98
-L97:
-  %r.344 = load i64, ptr %r.335
-  %r.345 = load i64, ptr %r.335
-  %r.346 = add i64 2, 0
-  %r.347 = sdiv i64 %r.345, %r.346
-  %r.348 = add i64 2, 0
-  %r.349 = mul i64 %r.347, %r.346
-  %r.350 = sub i64 %r.344, %r.349
-  %r.351 = add i64 1, 0
-  %r.352.cmp = icmp eq i64 %r.350, %r.351
-  %r.352 = zext i1 %r.352.cmp to i64
-  %r.353 = load i64, ptr %r.337
-  %r.354 = load i64, ptr %r.337
-  %r.355 = add i64 2, 0
-  %r.356 = sdiv i64 %r.354, %r.346
-  %r.357 = add i64 2, 0
-  %r.358 = mul i64 %r.356, %r.346
-  %r.359 = sub i64 %r.353, %r.358
-  %r.360 = add i64 1, 0
-  %r.361.cmp = icmp eq i64 %r.359, %r.351
-  %r.361 = zext i1 %r.361.cmp to i64
-  %r.362 = or i64 %r.352, %r.361
-  %br.362.cond = icmp ne i64 %r.362, 0
-  br i1 %br.362.cond, label %L99, label %L101
-L99:
-  %r.363 = load i64, ptr %r.331
-  %r.364 = load i64, ptr %r.333
-  %r.365 = add i64 %r.363, %r.364
-  store i64 %r.365, ptr %r.331
-  br label %L101
-L101:
-  %r.366 = load i64, ptr %r.335
-  %r.367 = add i64 2, 0
-  %r.368 = sdiv i64 %r.366, %r.367
-  store i64 %r.368, ptr %r.335
-  %r.369 = load i64, ptr %r.337
-  %r.370 = add i64 2, 0
-  %r.371 = sdiv i64 %r.369, %r.367
-  store i64 %r.371, ptr %r.337
-  %r.372 = load i64, ptr %r.333
-  %r.373 = load i64, ptr %r.333
-  %r.374 = add i64 %r.372, %r.373
-  store i64 %r.374, ptr %r.333
-  %r.375 = load i64, ptr %r.339
-  %r.376 = add i64 1, 0
-  %r.377 = add i64 %r.375, %r.376
-  store i64 %r.377, ptr %r.339
-  br label %L96
-L98:
-  %r.378 = load i64, ptr %r.331
-  store i64 %r.378, ptr %r.275
-  br label %L95
-L94:
-  %r.380 = add i64 0, 0
-  store i64 %r.380, ptr %r.379
-  %r.382 = add i64 1, 0
-  store i64 %r.382, ptr %r.381
-  %r.384 = load i64, ptr %r.267
-  store i64 %r.384, ptr %r.383
-  %r.386 = load i64, ptr %r.271
-  store i64 %r.386, ptr %r.385
-  %r.388 = add i64 0, 0
-  store i64 %r.380, ptr %r.387
-  br label %L102
-L102:
-  %r.389 = load i64, ptr %r.387
-  %r.390 = add i64 64, 0
-  %r.391.cmp = icmp slt i64 %r.389, %r.390
-  %r.391 = zext i1 %r.391.cmp to i64
-  %br.391.cond = icmp ne i64 %r.391, 0
-  br i1 %br.391.cond, label %L103, label %L104
-L103:
-  %r.393 = load i64, ptr %r.383
-  %r.394 = load i64, ptr %r.383
-  %r.395 = add i64 2, 0
-  %r.396 = sdiv i64 %r.394, %r.395
-  %r.397 = add i64 2, 0
-  %r.398 = mul i64 %r.396, %r.395
-  %r.399 = sub i64 %r.393, %r.398
-  store i64 %r.399, ptr %r.392
-  %r.401 = load i64, ptr %r.385
-  %r.402 = load i64, ptr %r.385
-  %r.403 = add i64 2, 0
-  %r.404 = sdiv i64 %r.402, %r.395
-  %r.405 = add i64 2, 0
-  %r.406 = mul i64 %r.404, %r.395
-  %r.407 = sub i64 %r.401, %r.406
-  store i64 %r.407, ptr %r.400
-  %r.408 = load i64, ptr %r.392
-  %r.409 = load i64, ptr %r.400
-  %r.410.cmp = icmp ne i64 %r.408, %r.409
-  %r.410 = zext i1 %r.410.cmp to i64
-  %br.410.cond = icmp ne i64 %r.410, 0
-  br i1 %br.410.cond, label %L105, label %L107
-L105:
-  %r.411 = load i64, ptr %r.379
-  %r.412 = load i64, ptr %r.381
-  %r.413 = add i64 %r.411, %r.412
-  store i64 %r.413, ptr %r.379
-  br label %L107
-L107:
-  %r.414 = load i64, ptr %r.383
-  %r.415 = add i64 2, 0
-  %r.416 = sdiv i64 %r.414, %r.415
-  store i64 %r.416, ptr %r.383
-  %r.417 = load i64, ptr %r.385
-  %r.418 = add i64 2, 0
-  %r.419 = sdiv i64 %r.417, %r.415
-  store i64 %r.419, ptr %r.385
-  %r.420 = load i64, ptr %r.381
-  %r.421 = load i64, ptr %r.381
-  %r.422 = add i64 %r.420, %r.421
-  store i64 %r.422, ptr %r.381
-  %r.423 = load i64, ptr %r.387
-  %r.424 = add i64 1, 0
-  %r.425 = add i64 %r.423, %r.424
-  store i64 %r.425, ptr %r.387
-  br label %L102
-L104:
-  %r.426 = load i64, ptr %r.379
-  store i64 %r.426, ptr %r.275
-  br label %L95
-L95:
+  %r.280 = add i64 0, 0
+  store i64 %r.280, ptr %r.275
   br label %L86
 L86:
-  %r.427 = load i64, ptr %r.18
-  %r.428 = add i64 0, 0
-  %r.429 = add i64 0, 0
-  %r.430.a0 = inttoptr i64 %r.427 to ptr
-  call void @__nucleor_vec_set(ptr %r.430.a0, i64 %r.428, i64 %r.428)
-  %r.430 = add i64 0, 0
-  %r.431 = load i64, ptr %r.18
-  %r.432 = add i64 3, 0
-  %r.433 = load i64, ptr %r.275
-  %r.434.a0 = inttoptr i64 %r.431 to ptr
-  call void @__nucleor_vec_set(ptr %r.434.a0, i64 %r.432, i64 %r.433)
-  %r.434 = add i64 0, 0
-  %r.435 = load i64, ptr %r.18
-  %r.436 = add i64 4, 0
-  %r.437 = add i64 0, 0
-  %r.438.a0 = inttoptr i64 %r.435 to ptr
-  call void @__nucleor_vec_set(ptr %r.438.a0, i64 %r.436, i64 %r.428)
-  %r.438 = add i64 0, 0
-  %r.439 = load i64, ptr %r.18
-  %r.440 = add i64 5, 0
+  %r.281 = load i64, ptr %r.271
+  %r.282 = add i64 0, 0
+  %r.283.cmp = icmp slt i64 %r.281, %r.282
+  %r.283 = zext i1 %r.283.cmp to i64
+  %br.283.cond = icmp ne i64 %r.283, 0
+  br i1 %br.283.cond, label %L87, label %L89
+L87:
+  %r.284 = add i64 0, 0
+  store i64 %r.284, ptr %r.275
+  br label %L89
+L89:
+  %r.285 = load i64, ptr %r.275
+  %r.286 = add i64 1, 0
+  %r.287.cmp = icmp eq i64 %r.285, %r.286
+  %r.287 = zext i1 %r.287.cmp to i64
+  %br.287.cond = icmp ne i64 %r.287, 0
+  br i1 %br.287.cond, label %L90, label %L92
+L90:
+  %r.289 = add i64 0, 0
+  store i64 %r.289, ptr %r.288
+  %r.290 = load i64, ptr %r.22
+  %r.291 = add i64 13, 0
+  %r.292.cmp = icmp eq i64 %r.290, %r.291
+  %r.292 = zext i1 %r.292.cmp to i64
+  %br.292.cond = icmp ne i64 %r.292, 0
+  br i1 %br.292.cond, label %L93, label %L94
+L93:
+  %r.294 = add i64 0, 0
+  store i64 %r.294, ptr %r.293
+  %r.296 = add i64 1, 0
+  store i64 %r.296, ptr %r.295
+  %r.298 = load i64, ptr %r.267
+  store i64 %r.298, ptr %r.297
+  %r.300 = load i64, ptr %r.271
+  store i64 %r.300, ptr %r.299
+  %r.302 = add i64 0, 0
+  store i64 %r.294, ptr %r.301
+  br label %L96
+L96:
+  %r.303 = load i64, ptr %r.301
+  %r.304 = add i64 64, 0
+  %r.305.cmp = icmp slt i64 %r.303, %r.304
+  %r.305 = zext i1 %r.305.cmp to i64
+  %br.305.cond = icmp ne i64 %r.305, 0
+  br i1 %br.305.cond, label %L97, label %L98
+L97:
+  %r.306 = load i64, ptr %r.297
+  %r.307 = load i64, ptr %r.297
+  %r.308 = add i64 2, 0
+  %r.309 = sdiv i64 %r.307, %r.308
+  %r.310 = add i64 2, 0
+  %r.311 = mul i64 %r.309, %r.308
+  %r.312 = sub i64 %r.306, %r.311
+  %r.313 = add i64 1, 0
+  %r.314.cmp = icmp eq i64 %r.312, %r.313
+  %r.314 = zext i1 %r.314.cmp to i64
+  %r.315 = load i64, ptr %r.299
+  %r.316 = load i64, ptr %r.299
+  %r.317 = add i64 2, 0
+  %r.318 = sdiv i64 %r.316, %r.308
+  %r.319 = add i64 2, 0
+  %r.320 = mul i64 %r.318, %r.308
+  %r.321 = sub i64 %r.315, %r.320
+  %r.322 = add i64 1, 0
+  %r.323.cmp = icmp eq i64 %r.321, %r.313
+  %r.323 = zext i1 %r.323.cmp to i64
+  %r.324 = and i64 %r.314, %r.323
+  %br.324.cond = icmp ne i64 %r.324, 0
+  br i1 %br.324.cond, label %L99, label %L101
+L99:
+  %r.325 = load i64, ptr %r.293
+  %r.326 = load i64, ptr %r.295
+  %r.327 = add i64 %r.325, %r.326
+  store i64 %r.327, ptr %r.293
+  br label %L101
+L101:
+  %r.328 = load i64, ptr %r.297
+  %r.329 = add i64 2, 0
+  %r.330 = sdiv i64 %r.328, %r.329
+  store i64 %r.330, ptr %r.297
+  %r.331 = load i64, ptr %r.299
+  %r.332 = add i64 2, 0
+  %r.333 = sdiv i64 %r.331, %r.329
+  store i64 %r.333, ptr %r.299
+  %r.334 = load i64, ptr %r.295
+  %r.335 = load i64, ptr %r.295
+  %r.336 = add i64 %r.334, %r.335
+  store i64 %r.336, ptr %r.295
+  %r.337 = load i64, ptr %r.301
+  %r.338 = add i64 1, 0
+  %r.339 = add i64 %r.337, %r.338
+  store i64 %r.339, ptr %r.301
+  br label %L96
+L98:
+  %r.340 = load i64, ptr %r.293
+  store i64 %r.340, ptr %r.288
+  br label %L95
+L94:
+  %r.341 = load i64, ptr %r.22
+  %r.342 = add i64 14, 0
+  %r.343.cmp = icmp eq i64 %r.341, %r.342
+  %r.343 = zext i1 %r.343.cmp to i64
+  %br.343.cond = icmp ne i64 %r.343, 0
+  br i1 %br.343.cond, label %L102, label %L103
+L102:
+  %r.345 = add i64 0, 0
+  store i64 %r.345, ptr %r.344
+  %r.347 = add i64 1, 0
+  store i64 %r.347, ptr %r.346
+  %r.349 = load i64, ptr %r.267
+  store i64 %r.349, ptr %r.348
+  %r.351 = load i64, ptr %r.271
+  store i64 %r.351, ptr %r.350
+  %r.353 = add i64 0, 0
+  store i64 %r.345, ptr %r.352
+  br label %L105
+L105:
+  %r.354 = load i64, ptr %r.352
+  %r.355 = add i64 64, 0
+  %r.356.cmp = icmp slt i64 %r.354, %r.355
+  %r.356 = zext i1 %r.356.cmp to i64
+  %br.356.cond = icmp ne i64 %r.356, 0
+  br i1 %br.356.cond, label %L106, label %L107
+L106:
+  %r.357 = load i64, ptr %r.348
+  %r.358 = load i64, ptr %r.348
+  %r.359 = add i64 2, 0
+  %r.360 = sdiv i64 %r.358, %r.359
+  %r.361 = add i64 2, 0
+  %r.362 = mul i64 %r.360, %r.359
+  %r.363 = sub i64 %r.357, %r.362
+  %r.364 = add i64 1, 0
+  %r.365.cmp = icmp eq i64 %r.363, %r.364
+  %r.365 = zext i1 %r.365.cmp to i64
+  %r.366 = load i64, ptr %r.350
+  %r.367 = load i64, ptr %r.350
+  %r.368 = add i64 2, 0
+  %r.369 = sdiv i64 %r.367, %r.359
+  %r.370 = add i64 2, 0
+  %r.371 = mul i64 %r.369, %r.359
+  %r.372 = sub i64 %r.366, %r.371
+  %r.373 = add i64 1, 0
+  %r.374.cmp = icmp eq i64 %r.372, %r.364
+  %r.374 = zext i1 %r.374.cmp to i64
+  %r.375 = or i64 %r.365, %r.374
+  %br.375.cond = icmp ne i64 %r.375, 0
+  br i1 %br.375.cond, label %L108, label %L110
+L108:
+  %r.376 = load i64, ptr %r.344
+  %r.377 = load i64, ptr %r.346
+  %r.378 = add i64 %r.376, %r.377
+  store i64 %r.378, ptr %r.344
+  br label %L110
+L110:
+  %r.379 = load i64, ptr %r.348
+  %r.380 = add i64 2, 0
+  %r.381 = sdiv i64 %r.379, %r.380
+  store i64 %r.381, ptr %r.348
+  %r.382 = load i64, ptr %r.350
+  %r.383 = add i64 2, 0
+  %r.384 = sdiv i64 %r.382, %r.380
+  store i64 %r.384, ptr %r.350
+  %r.385 = load i64, ptr %r.346
+  %r.386 = load i64, ptr %r.346
+  %r.387 = add i64 %r.385, %r.386
+  store i64 %r.387, ptr %r.346
+  %r.388 = load i64, ptr %r.352
+  %r.389 = add i64 1, 0
+  %r.390 = add i64 %r.388, %r.389
+  store i64 %r.390, ptr %r.352
+  br label %L105
+L107:
+  %r.391 = load i64, ptr %r.344
+  store i64 %r.391, ptr %r.288
+  br label %L104
+L103:
+  %r.393 = add i64 0, 0
+  store i64 %r.393, ptr %r.392
+  %r.395 = add i64 1, 0
+  store i64 %r.395, ptr %r.394
+  %r.397 = load i64, ptr %r.267
+  store i64 %r.397, ptr %r.396
+  %r.399 = load i64, ptr %r.271
+  store i64 %r.399, ptr %r.398
+  %r.401 = add i64 0, 0
+  store i64 %r.393, ptr %r.400
+  br label %L111
+L111:
+  %r.402 = load i64, ptr %r.400
+  %r.403 = add i64 64, 0
+  %r.404.cmp = icmp slt i64 %r.402, %r.403
+  %r.404 = zext i1 %r.404.cmp to i64
+  %br.404.cond = icmp ne i64 %r.404, 0
+  br i1 %br.404.cond, label %L112, label %L113
+L112:
+  %r.406 = load i64, ptr %r.396
+  %r.407 = load i64, ptr %r.396
+  %r.408 = add i64 2, 0
+  %r.409 = sdiv i64 %r.407, %r.408
+  %r.410 = add i64 2, 0
+  %r.411 = mul i64 %r.409, %r.408
+  %r.412 = sub i64 %r.406, %r.411
+  store i64 %r.412, ptr %r.405
+  %r.414 = load i64, ptr %r.398
+  %r.415 = load i64, ptr %r.398
+  %r.416 = add i64 2, 0
+  %r.417 = sdiv i64 %r.415, %r.408
+  %r.418 = add i64 2, 0
+  %r.419 = mul i64 %r.417, %r.408
+  %r.420 = sub i64 %r.414, %r.419
+  store i64 %r.420, ptr %r.413
+  %r.421 = load i64, ptr %r.405
+  %r.422 = load i64, ptr %r.413
+  %r.423.cmp = icmp ne i64 %r.421, %r.422
+  %r.423 = zext i1 %r.423.cmp to i64
+  %br.423.cond = icmp ne i64 %r.423, 0
+  br i1 %br.423.cond, label %L114, label %L116
+L114:
+  %r.424 = load i64, ptr %r.392
+  %r.425 = load i64, ptr %r.394
+  %r.426 = add i64 %r.424, %r.425
+  store i64 %r.426, ptr %r.392
+  br label %L116
+L116:
+  %r.427 = load i64, ptr %r.396
+  %r.428 = add i64 2, 0
+  %r.429 = sdiv i64 %r.427, %r.428
+  store i64 %r.429, ptr %r.396
+  %r.430 = load i64, ptr %r.398
+  %r.431 = add i64 2, 0
+  %r.432 = sdiv i64 %r.430, %r.428
+  store i64 %r.432, ptr %r.398
+  %r.433 = load i64, ptr %r.394
+  %r.434 = load i64, ptr %r.394
+  %r.435 = add i64 %r.433, %r.434
+  store i64 %r.435, ptr %r.394
+  %r.436 = load i64, ptr %r.400
+  %r.437 = add i64 1, 0
+  %r.438 = add i64 %r.436, %r.437
+  store i64 %r.438, ptr %r.400
+  br label %L111
+L113:
+  %r.439 = load i64, ptr %r.392
+  store i64 %r.439, ptr %r.288
+  br label %L104
+L104:
+  br label %L95
+L95:
+  %r.440 = load i64, ptr %r.18
   %r.441 = add i64 0, 0
-  %r.442.a0 = inttoptr i64 %r.439 to ptr
-  call void @__nucleor_vec_set(ptr %r.442.a0, i64 %r.440, i64 %r.428)
   %r.442 = add i64 0, 0
-  %r.443 = load i64, ptr %r.2
-  %r.444 = load i64, ptr %r.25
-  %r.445 = load i64, ptr %r.275
-  %r.446 = call i64 @cmap_set(i64 %r.443, i64 %r.444, i64 %r.445)
-  %r.447 = load i64, ptr %r.11
-  %r.448 = add i64 1, 0
-  %r.449 = add i64 %r.447, %r.448
-  store i64 %r.449, ptr %r.11
+  %r.443.a0 = inttoptr i64 %r.440 to ptr
+  call void @__nucleor_vec_set(ptr %r.443.a0, i64 %r.441, i64 %r.441)
+  %r.443 = add i64 0, 0
+  %r.444 = load i64, ptr %r.18
+  %r.445 = add i64 3, 0
+  %r.446 = load i64, ptr %r.288
+  %r.447.a0 = inttoptr i64 %r.444 to ptr
+  call void @__nucleor_vec_set(ptr %r.447.a0, i64 %r.445, i64 %r.446)
+  %r.447 = add i64 0, 0
+  %r.448 = load i64, ptr %r.18
+  %r.449 = add i64 4, 0
+  %r.450 = add i64 0, 0
+  %r.451.a0 = inttoptr i64 %r.448 to ptr
+  call void @__nucleor_vec_set(ptr %r.451.a0, i64 %r.449, i64 %r.441)
+  %r.451 = add i64 0, 0
+  %r.452 = load i64, ptr %r.18
+  %r.453 = add i64 5, 0
+  %r.454 = add i64 0, 0
+  %r.455.a0 = inttoptr i64 %r.452 to ptr
+  call void @__nucleor_vec_set(ptr %r.455.a0, i64 %r.453, i64 %r.441)
+  %r.455 = add i64 0, 0
+  %r.456 = load i64, ptr %r.2
+  %r.457 = load i64, ptr %r.25
+  %r.458 = load i64, ptr %r.288
+  %r.459 = call i64 @cmap_set(i64 %r.456, i64 %r.457, i64 %r.458)
+  %r.460 = load i64, ptr %r.11
+  %r.461 = add i64 1, 0
+  %r.462 = add i64 %r.460, %r.461
+  store i64 %r.462, ptr %r.11
+  br label %L92
+L92:
   br label %L83
 L83:
   br label %L80
@@ -24175,14 +24209,14 @@ L38:
 L8:
   br label %L5
 L5:
-  %r.450 = load i64, ptr %r.13
-  %r.451 = add i64 1, 0
-  %r.452 = add i64 %r.450, %r.451
-  store i64 %r.452, ptr %r.13
+  %r.463 = load i64, ptr %r.13
+  %r.464 = add i64 1, 0
+  %r.465 = add i64 %r.463, %r.464
+  store i64 %r.465, ptr %r.13
   br label %L0
 L2:
-  %r.453 = load i64, ptr %r.11
-  ret i64 %r.453
+  %r.466 = load i64, ptr %r.11
+  ret i64 %r.466
 }
 
 define i64 @opt_dce_block(i64 %p.0) {
