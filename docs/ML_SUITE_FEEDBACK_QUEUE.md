@@ -140,25 +140,46 @@ when LHS determines result). Verify gate green (448/450 -- only
 env-dep memory budgets remain).
 
 ### Compiler-internal hazard: runtime helpers skip arg type-check
-**Status: OPEN -- non-trivial; needs per-helper sig wiring.**
+**Status: PARTIALLY CLOSED in v0.3.154-157 (38 str-helper arg-0/arg-1 checks).**
 **Priority: MEDIUM (silent SIGSEGV when wrong type passed)**
 
 Pre-fix behaviour: type_expr's call-handling at line 9669 looks up
-sigs for the callee. Runtime helpers (str_len, vec_get, str_concat,
-str_eq, str_substring, str_char_at, etc.) have NO sig entries, so
-the type checker falls through to builtin_rtype(callee) and skips
-arg type-check entirely. Adopter writes str_len(42) and gets SIGSEGV
-when the helper dereferences 42 as a const char *.
+sigs for the callee. Runtime helpers had NO sig entries, so the
+type checker fell through to builtin_rtype(callee) and skipped
+arg type-check entirely. Adopter writing str_len(42) got SIGSEGV
+when the helper dereferenced 42 as a const char *.
 
-Fix path: add sig entries for the common runtime helpers (~30-50
-of them). For each, register expected arg types and return type.
-type_expr's existing arg-mismatch logic then fires TYP-006 cleanly.
-Tedious but mechanical -- one entry per helper.
+v0.3.154-157 shipped: 34 str-arg-0 helpers + 8 str-arg-1 helpers
+now type-checked. Adopters who pass non-str to str_len, str_eq,
+str_concat, str_substring, str_char_at, str_to_int, str_to_f64,
+str_contains, str_starts_with, str_ends_with, str_index_of,
+str_split, str_replace, str_trim, str_trim_end, str_trim_start,
+str_pad_left, str_pad_right, str_center, str_repeat, str_reverse,
+str_count, str_is_empty, str_intern, str_free, str_lines,
+str_chars, str_to_lower, str_to_upper, str_to_i64, str_to_i64_radix,
+str_to_bool, str_to_int_with_base, getenv, print_raw, panic now
+get a clean TYP-006 diagnostic at compile time.
 
-Workaround in user code: explicit type annotations on call sites
-help adopters notice mistakes before runtime. Documentation should
-flag this as "runtime helpers don't validate argument types --
-crashes are easy to debug via the helper name in the traceback".
+v0.3.159 attempt at f64_to_str / f32_to_str type-check + v0.3.160
+extension to f64_to_int et al was ROLLED BACK in v0.3.161 because
+Nucleor's i64-everywhere ABI legitimately treats f64_to_str(i64)
+as bit-pattern conversion (the i64 IS the float's bit pattern).
+This breaks tests/rods/numeric.nr's round-trip pattern. Strict
+type checking on these helpers needs a different approach:
+
+  Option A: deprecate the bit-pattern helpers and add explicit
+            f64_value_to_str(f: f64) helpers that take real f64.
+  Option B: add a compile-time WARNING (not error) when arg looks
+            like an int LITERAL specifically (e.g. f64_to_str(100))
+            but allow i64 variables.
+
+Both need careful design and cross-stdlib audit. Deferred.
+
+Remaining helpers without type checks (need sig audit):
+  - vec_* family (Vec is type-loose in types_compatible)
+  - print_int/print_f64/print_bool (already covered by v0.3.143
+    type-aware print() dispatch via different mechanism)
+  - tokenizer / hash / time / fs helpers (per-helper audit needed)
 
 The generated test harness emits a parse error
 (`Parse error at token position 8927: expected token 51 got 1`) on the
