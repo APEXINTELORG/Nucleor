@@ -82,6 +82,10 @@ Fix:
 **Status: CLOSED in v0.3.130. f64-literal lexer truncates fractional digits to 6-decimal precision before computing frac_div (was integer-division underflow when frac_len > 6, zeroing the entire fractional part). Fixture t406.**
 **Priority: HIGH (silent miscompute on canonical ML constants — sqrt(2/π), log(2), etc.)**
 
+### NUC-FEEDBACK-006 — Sub-micro f64 literals silently zero (NaN cascade in AdamW eps=1e-8)
+**Status: CLOSED in v0.3.133. Lexer detects sub-micro literals and falls back to runtime str_to_f64 for full IEEE-754 precision. New token kind 124 / AST kind 72 path; existing scaled-int fast-path preserved for ≥1e-6. Fixture t409.**
+**Priority: HIGH (NaN cascade in canonical ML optimizers using PyTorch defaults)**
+
 The generated test harness emits a parse error
 (`Parse error at token position 8927: expected token 51 got 1`) on the
 ML_Suite tensor smoke test, even though the same code compiles via

@@ -232,29 +232,48 @@ fn lex(src: str) -> Vec<i32> {
                 let raw_frac_str: str = sb_to_str(frac_sb);
                 // v0.3.130: NUC-FEEDBACK-005 — truncate fractional digits to
                 // the encoder's 6-digit (millionth) precision BEFORE
-                // computing frac_div. Pre-v0.3.130, a literal like
-                // `0.7978845608028654` (16 frac digits) computed
-                // frac_div = 10^16, then `1000000 / frac_div = 0`
-                // (integer division), then `frac_val * 0 = 0`. The
-                // encoded value collapsed to `int_part * 1000000` and
-                // the entire fractional part was silently lost — every
-                // long-precision literal became a clean integer with
-                // zero fraction. HIGH-blast for any ML / scientific
-                // code reaching for canonical constants
-                // (sqrt(2/π) ≈ 0.7978845608…, log(2) ≈ 0.6931471805…,
-                // e ≈ 2.7182818284…, etc.).
+                // computing frac_div. The truncate path handles literals
+                // where the first 6 frac digits carry meaningful value.
+                //
+                // v0.3.133: NUC-FEEDBACK-006 — for SUB-MICRO literals
+                // (`0.00000001` = 1e-8 used as AdamW eps, etc.), the
+                // first 6 frac digits are all '0' and truncation still
+                // produces zero. Falling back to the runtime
+                // `__nucleor_str_to_f64` parser via the str_to_f64
+                // helper gives full IEEE-754 precision. The bit
+                // pattern is stored as token kind 124 (raw-bits f64
+                // literal); parse_primary emits AST kind 72 which
+                // lower_expr emits as a direct const_int (no
+                // f64_from_scaled divide needed since the value IS
+                // already the f64 bit pattern).
                 let raw_frac_len: i64 = str_len(raw_frac_str);
-                let frac_str: str = if raw_frac_len > 6 { str_substring(raw_frac_str, 0, 6) } else { raw_frac_str };
-                let frac_val: i64 = str_to_int(frac_str);
-                let frac_len: i64 = str_len(frac_str);
-                // Compute frac_divisor = 10^frac_len
-                let mut frac_div: i64 = 1;
-                let mut fi: i64 = 0;
-                while fi < frac_len { frac_div = frac_div * 10; fi = fi + 1; };
-                // Encode: store int_part and frac as token type 70 (f64 literal)
-                // Value = int_part * 1000000 + frac_val * (1000000 / frac_div)
-                let encoded: i64 = int_part * 1000000 + frac_val * (1000000 / frac_div);
-                tokens.push(tok_new(70, encoded, st));
+                let mut use_raw_bits: i64 = 0;
+                if raw_frac_len > 6 {
+                    let mut all_zero: i64 = 1;
+                    let mut zi: i64 = 0;
+                    while zi < 6 {
+                        if str_char_at(raw_frac_str, zi) != 48 { all_zero = 0; zi = 6; };
+                        zi = zi + 1;
+                    };
+                    if all_zero == 1 { use_raw_bits = 1; };
+                };
+                if use_raw_bits == 1 {
+                    let lit_text: str = str_concat(str_from_int(int_part), str_concat(".", raw_frac_str));
+                    let bits: i64 = str_to_f64(lit_text);
+                    tokens.push(tok_new(124, bits, st));
+                } else {
+                    let frac_str: str = if raw_frac_len > 6 { str_substring(raw_frac_str, 0, 6) } else { raw_frac_str };
+                    let frac_val: i64 = str_to_int(frac_str);
+                    let frac_len: i64 = str_len(frac_str);
+                    // Compute frac_divisor = 10^frac_len
+                    let mut frac_div: i64 = 1;
+                    let mut fi: i64 = 0;
+                    while fi < frac_len { frac_div = frac_div * 10; fi = fi + 1; };
+                    // Encode: store int_part and frac as token type 70 (f64 literal)
+                    // Value = int_part * 1000000 + frac_val * (1000000 / frac_div)
+                    let encoded: i64 = int_part * 1000000 + frac_val * (1000000 / frac_div);
+                    tokens.push(tok_new(70, encoded, st));
+                };
                 // Consume optional float suffix: f32 or f64
                 if p < slen && str_char_at(src, p) == 102 {
                     let suf_st: i64 = p;
@@ -608,6 +627,23 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             };
         };
         return pr(cp, mk2(pool, 71, pkv(tokens, pos)));
+    };
+    // v0.3.133: f64 raw-bits literal (token 124) — value IS the i64
+    // bit pattern of the parsed float (via str_to_f64 at lex time).
+    // Emits AST kind 72 which lower_expr handles by emitting the
+    // bit pattern directly as a const_int (no scaled-int divide).
+    if tt == 124 {
+        let mut cp: i64 = pos + 1;
+        if pk(tokens, cp) == 83 {
+            let mut depth: i64 = 1;
+            cp = cp + 1;
+            while depth > 0 && pk(tokens, cp) != 0 {
+                if pk(tokens, cp) == 52 { depth = depth + 1; }
+                else if pk(tokens, cp) == 53 { depth = depth - 1; };
+                cp = cp + 1;
+            };
+        };
+        return pr(cp, mk2(pool, 72, pkv(tokens, pos)));
     };
     if tt == 3 { return pr(pos + 1, mk2(pool, 2, pkv(tokens, pos))); };
     if tt == 52 { return parse_passthrough_block_expr(tokens, pos, pool); };
@@ -8330,7 +8366,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     let mut warns: i64 = 0;
     let source_text: str = own_get_type(own, "__source");
     let diag_vec: Vec<i32> = own_get_type(own, "__diags");
-    if kind == 1 || kind == 2 || kind == 71 { return 0; }; // literals
+    if kind == 1 || kind == 2 || kind == 71 || kind == 72 { return 0; }; // literals
     if kind == 3 {
         // IDENT — check for use-after-move
         let vname: str = node_field(pool, nid, 1);
@@ -9332,6 +9368,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
     let kind: i64 = node_kind(pool, nid);
     if kind == 1 { return "i32"; };
     if kind == 71 { return "f64"; };
+    if kind == 72 { return "f64"; };
     if kind == 2 { return "str"; };
     if kind == 122 {
         // RFC-0016 phase 1: ? operator. Until generic enums land we treat
@@ -10064,6 +10101,15 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         conv_args.push(scaled_r);
         let r: i64 = ctr_next(regs);
         ir_block_add(blk, ir_call_ex(r, "f64_from_scaled", conv_args));
+        return lx_new(r, blk);
+    };
+    // v0.3.133: f64 raw-bits literal (AST kind 72). Value IS the i64
+    // bit pattern of the parsed float (via str_to_f64 at lex time).
+    // Lower as a direct const_int — Nucleor's f64 IS the i64 bit
+    // pattern at the runtime ABI level, so no conversion needed.
+    if kind == 72 {
+        let r: i64 = ctr_next(regs);
+        ir_block_add(blk, ir_const_int(r, node_field(pool, nid, 1)));
         return lx_new(r, blk);
     };
     if kind == 122 {
@@ -11159,6 +11205,7 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
         return "";
     };
     if kind == 71 { return "f64"; };
+    if kind == 72 { return "f64"; };
     // v0.3.53 fix: struct field access. Pre-v0.3.53 this fell
     // through to "" → integer binop, mis-computing inline
     // f64 ops on struct-field operands (`a.x * b.x` etc).
