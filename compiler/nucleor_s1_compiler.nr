@@ -129,7 +129,19 @@ fn classify_kw(w: str) -> i64 {
     // the parse_stmts branch that consumed those tokens was dead.
     // Future RFCs that resurrect block-form `scope { … }` will need
     // contextual lexing (pkv lookahead) instead of hard kw mapping.
-    if str_eq(w, "loop") { return 84; };
+    // v0.3.141: `loop` is contextual — only meaningful when followed
+    // by `{` (the `loop { BODY }` block form, which desugars to
+    // `while true { BODY }`). Pre-v0.3.141, classifying it as kw 84
+    // unconditionally triggered the same silent-miscompute trap as
+    // the v0.3.137 `pure` / v0.3.138 `scope`/`spawn` / v0.3.139
+    // `requires` / v0.3.140 `restricts` fixes — `parse_primary` had
+    // no branch for token 84 (the kw branch lived in `parse_stmts`)
+    // so any `loop(x)` call site fell through to the `int_lit 0`
+    // default and collapsed to a constant 0 in the IR with no
+    // diagnostic. The `loop { ... }` stmt-form check in parse_stmts
+    // and the top-level kw-at-module-scope rejection in parse_program
+    // are rewritten to use pkv lookahead. tests/lang/loop_kw.nr still
+    // exercises the canonical block form.
     if str_eq(w, "as") { return 86; };
     return 1;
 }
@@ -1489,8 +1501,27 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 52 { let mut r: Vec<i32> = parse_passthrough_block_expr(tokens, pos, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 13 { let mut r: Vec<i32> = parse_if(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 15 { let mut r: Vec<i32> = parse_while_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
+    if tt == 1 {
+        // v0.3.141: `loop` is a contextual keyword. When the next token
+        // is `{`, recognise the `loop { BODY }` stmt-form (which
+        // desugars to `while true { BODY }`); otherwise let the
+        // identifier path handle it. Use a nested if to ensure pkv is
+        // only dereferenced when tt is the identifier kind.
+        if str_eq(pkv(tokens, pos), "loop") == 1 {
+            if pk(tokens, pos + 1) == 52 {
+                let mut cp_l: i64 = expect_tok(tokens, pos + 1, 52);
+                let mut br_l: Vec<i32> = parse_stmts(tokens, cp_l, pool);
+                cp_l = expect_tok(tokens, pr_pos(br_l), 53);
+                if pk(tokens, cp_l) == 43 { cp_l = cp_l + 1; };
+                let true_node_l: i64 = mk2(pool, 1, 1);
+                return pr(cp_l, mk3(pool, 24, true_node_l, pr_val(br_l)));
+            };
+        };
+    };
     if tt == 84 {
-        // `loop { BODY }` desugars to `while true { BODY }`.
+        // `loop { BODY }` legacy kw branch — kept as belt-and-suspenders
+        // since classify_kw no longer produces token 84 for loop in v0.3.141,
+        // this is dead code in stage B+ but harmless.
         let mut cp: i64 = expect_tok(tokens, pos + 1, 52);
         let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
         cp = expect_tok(tokens, pr_pos(br), 53);
@@ -2263,11 +2294,16 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             cp = sk;
             pending_pub = 0;
         }
-        else if pk(tokens, cp) == 13 || pk(tokens, cp) == 15 || pk(tokens, cp) == 16 || pk(tokens, cp) == 18 || pk(tokens, cp) == 19 || pk(tokens, cp) == 56 || pk(tokens, cp) == 63 || pk(tokens, cp) == 84 {
+        else if pk(tokens, cp) == 13 || pk(tokens, cp) == 15 || pk(tokens, cp) == 16 || pk(tokens, cp) == 18 || pk(tokens, cp) == 19 || pk(tokens, cp) == 56 || pk(tokens, cp) == 63 {
             // v0.3.75: catch other statement-level keywords at module
             // scope. `if` (13), `while` (15), `return` (16), `break` (18),
-            // `continue` (19), `for` (56), `match` (63), `loop` (84) all
-            // belong inside fn bodies — at module scope they have no
+            // `continue` (19), `for` (56), `match` (63) all belong inside
+            // fn bodies — at module scope they have no
+            // (v0.3.141: `loop` removed from this list since it became
+            // a contextual identifier-keyword; the contextual form is
+            // already caught at parse_stmts level. Top-level `loop {`
+            // would now silently skip — accepted limitation since the
+            // top-level form has zero usage in the codebase.)
             // meaning and the pre-v0.3.75 silent fall-through dropped
             // them token-by-token. Surface a clear diagnostic so the
             // user sees their malformed top-level construct named
@@ -14516,7 +14552,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.140";
+    return "0.3.141";
 }
 
 fn compiler_backend_label() -> str {

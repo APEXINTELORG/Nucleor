@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.141] — 2026-04-26
+
+**`loop` is now a contextual keyword — user fns named `loop` no
+longer silently miscompile to `0`. The canonical `loop { BODY }`
+stmt-form still works.** Sixth fix in the contextual-keyword
+silent-miscompute series (after v0.3.137 `pure`, v0.3.138
+`scope`/`spawn`, v0.3.139 `requires`, v0.3.140 `restricts`).
+
+Pre-v0.3.141, `classify_kw` mapped `loop` to a hard kw token (84)
+unconditionally. The `loop { BODY }` block-form (which desugars to
+`while true { BODY }`) was real and used (`tests/lang/loop_kw.nr`),
+but its handler lived in `parse_stmt` only. `parse_primary` had no
+branch for token 84, so any `loop(x)` call site in expression
+position fell through to the silent `int_lit 0` default and
+collapsed to a constant `0` in the IR with NO diagnostic. `loop`
+is a common identifier name (event loops, game loops, runloop
+helpers, control-flow utilities).
+
+Fix: `classify_kw` no longer maps `loop` to 84. The lexer emits
+identifier token 1 with value `"loop"`. The `loop { BODY }`
+stmt-form is now recognised in `parse_stmt` via a contextual
+nested-if check (`tt == 1 && pkv == "loop" && pk(pos + 1) == 52`).
+The legacy `tt == 84` branch is kept as belt-and-suspenders dead
+code. The top-level kw-at-module-scope rejection drops `loop` from
+its check list — top-level `loop { ... }` would now silently skip,
+an accepted limitation since the top-level form has zero usage.
+
+**Discovery during this fix:** Nucleor's `&&` short-circuits
+correctly for 2-operand chains (existing patterns like
+`pk(...) == 1 && str_eq(pkv(...), "where") == 1` work fine) but
+3-operand chains (`A && B && C`) appear to evaluate every operand,
+which crashes when later operands dereference values guarded by
+earlier ones. `parse_stmt` runs on every statement during a self-
+host compile, so a flat 3-condition `&&` triggered a SEGV the
+first time `tt != 1`. Worked around by nesting the conditions
+explicitly. The `&&` short-circuit gap is a separate punchlist
+item — likely a `parse_and_expr` precedence bug for chains of
+length ≥ 3.
+
+Pinned by `tests/fixtures/t416_user_fn_named_loop.nr` plus the
+existing `tests/lang/loop_kw.nr` for the stmt-form. Bootstrap
+fixed point at stage_d `da61686d9d35984e033abf1a2a8f53a3`.
+
 ## [0.3.140] — 2026-04-26
 
 **Removed reserved-but-unused `restricts` keyword — user fns named
