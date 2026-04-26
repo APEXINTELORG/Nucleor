@@ -5,6 +5,33 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.177] — 2026-04-26
+
+**`print(p)` inside a closure body now works for closure
+parameters.** Closes the third var-type-registration gap in the
+v0.3.175/176 sweep.
+
+Pre-v0.3.177, closure parameters were never registered with
+`__type_<name>` in `clo_sym`. So `print(n)` inside a closure
+body where `n: i64` is the param fell through the kind-3 (var
+ref) print() dispatch to `print_str`, which dereferenced the
+i64 param value as a string pointer — SIGSEGV.
+
+Same hazard class as v0.3.175 (for-loop variables) and v0.3.176
+(match arm bindings) — closure params were the third missing
+site in the var-type-registration sweep.
+
+Fix: in the closure-lowering param loop, after
+`sym_set(clo_sym, cpname, car)` also set
+`sym_set(clo_sym, "__type_<cpname>", "i64")`. Default i64
+matches Nucleor's i64-everywhere ABI. The closure `param_list`
+stores only names (not parsed types), so type inference for
+non-i64 closure params is deferred.
+
+Pinned by `tests/fixtures/t444_closure_param_print.nr`.
+Bootstrap fixed point at stage_d
+`2237c765d40c0de4d400be40e41d7322ed768953815444f6291039a1997a5959`.
+
 ## [0.3.176] — 2026-04-26
 
 **`match Some(v) => print(v)` and friends now work instead of
