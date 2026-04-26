@@ -142,7 +142,17 @@ fn classify_kw(w: str) -> i64 {
     // and the top-level kw-at-module-scope rejection in parse_program
     // are rewritten to use pkv lookahead. tests/lang/loop_kw.nr still
     // exercises the canonical block form.
-    if str_eq(w, "as") { return 86; };
+    // v0.3.142: `as` is contextual — only meaningful as a postfix cast
+    // operator (`x as T`), which always follows an expression. When `as`
+    // appears at the start of a primary expression (e.g. `as(41)` as a
+    // user fn call), it MUST be an identifier. Pre-v0.3.142, classifying
+    // it as kw 86 unconditionally triggered the same silent-miscompute
+    // trap as the v0.3.137 `pure` / v0.3.138 `scope`/`spawn` /
+    // v0.3.139 `requires` / v0.3.140 `restricts` / v0.3.141 `loop`
+    // fixes — `parse_primary` had no branch for token 86 so any user
+    // fn or call site named `as` collapsed to silent `int_lit 0` in
+    // the IR with no diagnostic. The cast operator's parse_postfix_cast
+    // check is rewritten to use pkv lookahead.
     return 1;
 }
 fn lex(src: str) -> Vec<i32> {
@@ -960,13 +970,26 @@ fn parse_unary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut base: Vec<i32> = parse_postfix(tokens, pos, pool);
     let mut cp: i64 = pr_pos(base);
     let mut node: i64 = pr_val(base);
-    // RFC-0015 phase 2: postfix `as TYPE` cast
-    while pk(tokens, cp) == 86 {
+    // RFC-0015 phase 2: postfix `as TYPE` cast. v0.3.142: `as` is now
+    // a contextual identifier-keyword. Recognised here (post-primary)
+    // only when the current token is identifier "as". Use nested `&&`
+    // to ensure short-circuit (Nucleor's && currently lowers to bitwise
+    // AND, so flat 2-operand chains call the RHS even when LHS is false
+    // -- hazardous when RHS dereferences pkv on a non-pointer token).
+    let mut as_match: i64 = 0;
+    if pk(tokens, cp) == 1 {
+        if str_eq(pkv(tokens, cp), "as") == 1 { as_match = 1; };
+    };
+    while as_match == 1 {
         cp = cp + 1;
         let mut tr: Vec<i32> = parse_type(tokens, cp);
         cp = pr_pos(tr);
         // AST node kind 99 = "as cast"; field 1 = expr, field 2 = type name
         node = mk3(pool, 99, node, pr_val(tr));
+        as_match = 0;
+        if pk(tokens, cp) == 1 {
+            if str_eq(pkv(tokens, cp), "as") == 1 { as_match = 1; };
+        };
     };
     return pr(cp, node);
 }
@@ -14552,7 +14575,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.141";
+    return "0.3.142";
 }
 
 fn compiler_backend_label() -> str {
