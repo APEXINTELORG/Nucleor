@@ -5,6 +5,33 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.182] — 2026-04-26
+
+**`print(hashmap_get(h, k))` for `HashMap<K, str>` now prints
+the string instead of the pointer.** Follow-on to v0.3.181 — the
+v0.3.178 hardcoded `hashmap_get → i64` fallback was overriding
+correct value-type lookup for HashMap with str values.
+
+Same hazard class as v0.3.181 — adopters using `HashMap<str, str>`
+or `HashMap<str, str>` got pointer addresses where strings should
+appear.
+
+Fix:
+1. New helper `generic_second_type(t: str)` extracts V from
+   `"HashMap<K, V>"` / `"BTreeMap<K, V>"` by paren-balanced
+   comma splitting (handles nested generics like
+   `HashMap<str, Vec<i64>>`).
+2. Kind 7 print() dispatch for `hashmap_get` / `hashmap_get_or` /
+   `hashmap_remove` / `btreemap_get` parses the receiver's
+   `__fulltype_<name>` entry, extracts V, and dispatches by V's
+   type. `str` falls through to default `print_str` (correct).
+3. Removed the four helpers above from the v0.3.178 hardcoded
+   i64 fallback list (the new value-type lookup supersedes).
+
+Pinned by `tests/fixtures/t448_print_hashmap_value_dispatch.nr`.
+Bootstrap fixed point at stage_d
+`031fd7965152e19127985ff826340ba992587f5f485076ce97e274f0e6954347`.
+
 ## [0.3.181] — 2026-04-26
 
 **`print(vec_get(vec_of_str, i))` now prints the string instead
