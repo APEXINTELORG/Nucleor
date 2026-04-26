@@ -10668,6 +10668,18 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // helper instead of __nucleor_print_str. Default falls through
         // to the existing __nucleor_print_str path for str / unknown.
         if str_eq(fn_name, "print") == 1 {
+            // v0.3.151: emit a diagnostic when print is called with > 1
+            // argument. Pre-fix, the C ABI for the runtime helper
+            // __nucleor_print_str(ptr) silently accepted extra args
+            // (varargs-style behaviour) and dropped all but the first.
+            // Adopters writing `print("x is", x)` got "x is" with no
+            // diagnostic that x was lost. Same hazard class as the
+            // v0.3.143 print(int) SIGSEGV: silent data loss with no
+            // error. Direct adopters to println!/print! macros for
+            // multi-arg formatting.
+            if argc > 1 {
+                print(str_concat("ERROR: print() takes exactly 1 argument (got ", str_concat(str_from_int(argc), "). For multi-arg formatting, use print!/println! macros (e.g. println!(\"x={} y={}\", x, y)). The bare print() function lowers to __nucleor_print_str/i64/f64/bool and only consumes the first arg.")));
+            };
             if argc == 1 {
                 let parg_nid: i64 = list_get(pool, args_list, 0);
                 let parg_kind: i64 = node_kind(pool, parg_nid);
@@ -14843,7 +14855,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.150";
+    return "0.3.151";
 }
 
 fn compiler_backend_label() -> str {

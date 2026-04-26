@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.151] — 2026-04-26
+
+**`print(a, b, c)` no longer silently drops extra args without a
+diagnostic.** Pre-v0.3.151, `print` always lowered to a runtime
+helper expecting exactly one argument; the C ABI for the helper
+silently accepted extra args (varargs-style behaviour) and
+discarded all but the first. Adopters writing `print("x is", x)`
+got `x is` printed and `x` lost without any error.
+
+Same hazard class as the v0.3.143 `print(int)` SIGSEGV fix: a
+real call you wrote produces wrong output / silent data loss with
+no diagnostic.
+
+Fix: in the print-call dispatch added in v0.3.143, check `argc > 1`
+and emit a clear diagnostic naming the count and pointing adopters
+at `print!`/`println!` macros for multi-arg formatting:
+```
+ERROR: print() takes exactly 1 argument (got N). For multi-arg
+formatting, use print!/println! macros (e.g. println!("x={} y={}",
+x, y)). The bare print() function lowers to
+__nucleor_print_str/i64/f64/bool and only consumes the first arg.
+```
+
+The build still proceeds (the diagnostic is informational, like
+many parser warnings) but the ERROR is loud and named — adopters
+can't miss it. Single-arg `print()` continues to dispatch by type
+as in v0.3.143.
+
+Bootstrap fixed point at stage_d
+`fc3c6e45200b8e0b78975e0982b8f567`. Verify gate green; bootstrap
+seed refreshed.
+
 ## [0.3.150] — 2026-04-26
 
 **Removed reserved-but-unused `wrapping` and `saturating` keywords —
