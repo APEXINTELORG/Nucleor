@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.196] — 2026-04-26
+
+**`print(match x { ... })` and `print({ ... block ... })` no
+longer SIGSEGV.** Sister fix to v0.3.192 (print(if-expr)) for
+two more expression-as-value AST kinds.
+
+Pre-v0.3.196, `print(match x { 0 => 100, _ => 200 })` and
+`print({ let a: i64 = 3; a + 2 })` SIGSEGV'd because the
+print() dispatch fell through to print_str and dereferenced
+the i64 result as a string pointer.
+
+Same hazard class as v0.3.143/163-178/192 print() gaps.
+
+Fix: kind 38 (match-expr) and kind 52 (block-expr) default to
+print_i64. Most adopter match/block exprs produce i64 (the
+default arm/expression-result type). Adopters with non-i64
+results can use let-binding to assign first.
+
+Pinned by `tests/fixtures/t458_print_match_block_dispatch.nr`.
+Bootstrap fixed point at stage_d
+`c29e3940fdddf74c85ec901296b4be6d1a95a8f99dba70ecc18981f97ffa76a2`.
+
 ## [0.3.195] — 2026-04-26
 
 **`println!("{}", if cond { f } else { 0.0 })` for f64 if-expr

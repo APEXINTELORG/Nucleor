@@ -11384,6 +11384,15 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 if parg_kind == 23 {
                     p_helper = "__nucleor_print_i64";
                 };
+                // v0.3.196: print(match x { ... }) -- match-expr
+                // (kind 38) and block-expr (kind 52) default to i64.
+                // Same hazard class as kind 23 if-expr.
+                if parg_kind == 38 {
+                    p_helper = "__nucleor_print_i64";
+                };
+                if parg_kind == 52 {
+                    p_helper = "__nucleor_print_i64";
+                };
                 // v0.3.168: cast expression (kind 99). Target type is
                 // stored on the node; dispatch directly. Catches
                 // print(x as i64) -- pre-fix dereferenced the i64 as
@@ -16645,7 +16654,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.195";
+    return "0.3.196";
 }
 
 fn compiler_backend_label() -> str {
