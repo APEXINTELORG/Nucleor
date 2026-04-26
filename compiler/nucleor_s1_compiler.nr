@@ -10457,6 +10457,79 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             cur = lx_blk(ap);
             ai = ai + 1;
         };
+        // v0.3.143: NUC-FEEDBACK-008 — type-aware `print()` dispatch.
+        // Pre-v0.3.143, every `print(arg)` call lowered to
+        // __nucleor_print_str(arg) regardless of arg's type. When arg
+        // was an i64 (e.g. a token count, a counter, a literal), the
+        // string helper dereferenced the integer as a `const char *`
+        // and crashed with SIGSEGV — visible to the adopter as a
+        // silent program termination mid-output (exit code 1 or 139,
+        // remaining prints just gone). Same hazard class as the
+        // contextual-kw silent miscompiles: a real call you wrote
+        // produces nothing useful and no diagnostic.
+        //
+        // Fix: when the call is `print` with a single arg whose static
+        // type is an int / float / bool, dispatch to the typed runtime
+        // helper instead of __nucleor_print_str. Default falls through
+        // to the existing __nucleor_print_str path for str / unknown.
+        if str_eq(fn_name, "print") == 1 {
+            if argc == 1 {
+                let parg_nid: i64 = list_get(pool, args_list, 0);
+                let parg_kind: i64 = node_kind(pool, parg_nid);
+                let mut p_helper: str = "";
+                // Int literal (kind 1) and f64 literals (kinds 71/72).
+                if parg_kind == 1 { p_helper = "__nucleor_print_i64"; };
+                if parg_kind == 71 { p_helper = "__nucleor_print_f64"; };
+                if parg_kind == 72 { p_helper = "__nucleor_print_f64"; };
+                // Var ref (kind 3): look up __type_<name> in sym.
+                if parg_kind == 3 {
+                    let pvname: str = node_field(pool, parg_nid, 1);
+                    let pvtype: i64 = sym_get(sym, str_concat("__type_", pvname));
+                    if pvtype >= 0 {
+                        let pvts: str = pvtype;
+                        if str_eq(pvts, "i64") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pvts, "i32") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pvts, "i16") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pvts, "i8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pvts, "isize") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pvts, "u64") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pvts, "u32") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pvts, "u16") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pvts, "u8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pvts, "usize") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(pvts, "f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(pvts, "f32") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(pvts, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
+                    };
+                };
+                // Fn-call result (kind 7): look up __fnret_<name> in sym.
+                if parg_kind == 7 {
+                    let pfn_name: str = node_field(pool, parg_nid, 1);
+                    let pfn_rt: i64 = sym_get(sym, str_concat("__fnret_", pfn_name));
+                    if pfn_rt >= 0 {
+                        let prts: str = pfn_rt;
+                        if str_eq(prts, "i64") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(prts, "i32") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(prts, "i16") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(prts, "i8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(prts, "isize") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(prts, "u64") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(prts, "u32") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(prts, "u16") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(prts, "u8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(prts, "usize") == 1 { p_helper = "__nucleor_print_i64"; };
+                        if str_eq(prts, "f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(prts, "f32") == 1 { p_helper = "__nucleor_print_f64"; };
+                        if str_eq(prts, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
+                    };
+                };
+                if str_len(p_helper) > 0 {
+                    let pr_r: i64 = ctr_next(regs);
+                    ir_block_add(cur, ir_call_ex(pr_r, p_helper, arg_regs));
+                    return lx_new(pr_r, cur);
+                };
+            };
+        };
         let fn_slot: i64 = sym_get(sym, fn_name);
         if fn_slot >= 0 {
             let fp_r: i64 = ctr_next(regs); ir_block_add(cur, ir_load(fp_r, fn_slot));
@@ -14575,7 +14648,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.142";
+    return "0.3.143";
 }
 
 fn compiler_backend_label() -> str {

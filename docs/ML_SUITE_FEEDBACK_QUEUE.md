@@ -90,6 +90,37 @@ Fix:
 **Status: CLOSED in v0.3.135. Both build_cache_key and module_graph_cache_id now include compiler_version_label. Schemes bumped to native-cache-v5 / module-graph-v2.**
 **Priority: MEDIUM (blocks adopters from validating fixes after compiler upgrades; --no-cache was the workaround)**
 
+### NUC-FEEDBACK-008 — Print after dynamically assembled string/tokenizer output terminates with exit 1
+**Status: OPEN — investigating. Reported 2026-04-26.**
+**Priority: HIGH (silent runtime termination — adopters lose remaining program output without diagnostic)**
+
+Adopter pattern: tensor_i64_print_flat → print("label:") → print(decoded_str)
+→ print("label2:") → print(int_value). Output stops after "label2:" with
+exit code 1. The same dynamically-assembled string works fine in str_eq
+and as input to retokenization — failure is tied to the print/output
+sequencing path, not to string construction itself.
+
+Possible root causes to investigate:
+1. C runtime stdout buffering interaction with Vec<i64> drop after tensor_i64_print_flat.
+2. print() implementation for i64 vs str — type dispatch mistakenly calls
+   wrong helper after a previous str print.
+3. Memory arena interaction — string assembled via str_concat lives in an
+   arena that's freed before the later print scans it.
+
+### NUC-IMPROVE-006 — Tokenizer rod returns opaque handles without readable accessors
+**Status: OPEN — additive API request. Reported 2026-04-26.**
+**Priority: LOW (workaround: build a char-level facade in user code)**
+
+stdlib/rods/tokenizer.nr exposes tok_encode/tok_char_level returning an
+i64 handle but no nuc_tok_vec_len / nuc_tok_vec_at / tok_decode public
+fns to read or convert the encoded sequence. ML Suite is shipping a
+suite-local char-level facade as workaround. The asks:
+  - nuc_tok_vec_len(ids_h) -> i64
+  - nuc_tok_vec_at(ids_h, idx) -> i64
+  - nuc_tok_vec_free(ids_h)
+  - nuc_tok_decode(tok_h, ids_h) -> str
+Plus public Nucleor wrappers tok_vec_len/at/free/decode in tokenizer.nr.
+
 The generated test harness emits a parse error
 (`Parse error at token position 8927: expected token 51 got 1`) on the
 ML_Suite tensor smoke test, even though the same code compiles via
