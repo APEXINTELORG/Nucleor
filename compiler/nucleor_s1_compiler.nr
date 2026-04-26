@@ -15456,6 +15456,51 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
                     if str_eq(fn_inferred, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
                     if str_eq(fn_inferred, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
                     if str_eq(fn_inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                    // v0.3.183: builtin runtime-helper return-type
+                    // fallback for the println! `{}` heuristic. Mirrors
+                    // the v0.3.178 print() kind-7 builtin fallback.
+                    // Pre-fix `println!("{}", str_concat(a, b))` printed
+                    // the str pointer as int. Hardcoded list of well-
+                    // known runtime helpers with deterministic returns.
+                    if str_eq(head, "str_concat") == 1 { return arg_expr; };
+                    if str_eq(head, "str_substring") == 1 { return arg_expr; };
+                    if str_eq(head, "str_to_lower") == 1 { return arg_expr; };
+                    if str_eq(head, "str_to_upper") == 1 { return arg_expr; };
+                    if str_eq(head, "str_trim") == 1 { return arg_expr; };
+                    if str_eq(head, "str_trim_start") == 1 { return arg_expr; };
+                    if str_eq(head, "str_trim_end") == 1 { return arg_expr; };
+                    if str_eq(head, "str_replace") == 1 { return arg_expr; };
+                    if str_eq(head, "str_repeat") == 1 { return arg_expr; };
+                    if str_eq(head, "str_reverse") == 1 { return arg_expr; };
+                    if str_eq(head, "str_pad_left") == 1 { return arg_expr; };
+                    if str_eq(head, "str_pad_right") == 1 { return arg_expr; };
+                    if str_eq(head, "str_center") == 1 { return arg_expr; };
+                    if str_eq(head, "str_intern") == 1 { return arg_expr; };
+                    if str_eq(head, "str_arena_concat") == 1 { return arg_expr; };
+                    if str_eq(head, "str_arena_substring") == 1 { return arg_expr; };
+                    if str_eq(head, "tok_decode") == 1 { return arg_expr; };
+                    if str_eq(head, "f64_to_str") == 1 { return arg_expr; };
+                    if str_eq(head, "f32_to_str") == 1 { return arg_expr; };
+                    if str_eq(head, "int_to_str") == 1 { return arg_expr; };
+                    if str_eq(head, "bool_to_str") == 1 { return arg_expr; };
+                    if str_eq(head, "getenv") == 1 { return arg_expr; };
+                    // i64 returns
+                    if str_eq(head, "str_len") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(head, "str_to_int") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(head, "str_to_i64") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(head, "str_index_of") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(head, "str_count") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(head, "vec_len") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(head, "hashmap_len") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
+                    // bool returns
+                    if str_eq(head, "str_eq") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(head, "str_contains") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(head, "str_starts_with") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(head, "str_ends_with") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(head, "str_is_empty") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(head, "vec_is_empty") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(head, "hashmap_contains") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(head, "hashmap_is_empty") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
                 };
                 // v0.3.172: also recognize method-call shape
                 // `<recv>.<method>(...)`. Treat the trailing `<method>`
@@ -16276,7 +16321,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.182";
+    return "0.3.183";
 }
 
 fn compiler_backend_label() -> str {
