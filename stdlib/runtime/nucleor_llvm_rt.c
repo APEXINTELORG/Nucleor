@@ -6106,24 +6106,66 @@ long long __nucleor_f8e5m2_to_f32(long long v) { return __nuc_f8e5m2_to_f32_bits
 // f8e4m3 layout: 1 sign + 4 exp + 3 mantissa, bias 7 (NVIDIA Hopper)
 // f8e5m2 layout: 1 sign + 5 exp + 2 mantissa, bias 15 (NVIDIA Hopper)
 
+// v0.3.209: NUC-FEEDBACK-002 follow-on -- f8eXmY pack precision.
+// Pre-fix used round-to-zero (truncation, mant >> 20). Now uses
+// round-to-nearest-even (the IEEE-754 rounding mode adopters
+// expect for ML quantization), and preserves NaN / +inf / -inf
+// from the f32 input to the f8 output (per OFP8 spec / NVIDIA
+// Hopper convention).
+//
+// f8e4m3: max exp 0xF + max mant 0x7 = NaN (no inf -- saturates
+//         at S1111110 = ±448 for finite-overflow input).
+// f8e5m2: max exp 0x1F + zero mant = ±inf, max exp + nonzero
+//         mant = NaN.
 static inline long long __nuc_f32_to_f8e4m3_bits(long long f) {
     unsigned int x = (unsigned int)(f & 0xFFFFFFFFLL);
     unsigned int sign = (x >> 31) & 0x1;
-    int exp = (int)((x >> 23) & 0xFF) - 127 + 7;  // f8e4m3 bias = 7
+    unsigned int f32_exp = (x >> 23) & 0xFF;
     unsigned int mant = x & 0x7FFFFF;
     unsigned int e4m3;
+    // NaN preservation: f32 NaN (exp=0xFF, mant!=0) -> f8e4m3 NaN.
+    if (f32_exp == 0xFF) {
+        if (mant != 0) {
+            e4m3 = (sign << 7) | (0xF << 3) | 0x7;  // S1111111 = NaN
+        } else {
+            // f32 inf saturates to +/-MAX (f8e4m3 has no inf).
+            e4m3 = (sign << 7) | (0xF << 3) | 0x6;  // ±448
+        }
+        return (long long)(e4m3 & 0xFF);
+    }
+    int exp = (int)f32_exp - 127 + 7;  // f8e4m3 bias = 7
     if (exp <= 0) {
-        // Denormal or underflow.
+        // Subnormal or underflow.
         if (exp < -3) { e4m3 = sign << 7; }
         else {
-            mant = (mant | 0x800000) >> (1 - exp);
-            e4m3 = (sign << 7) | (mant >> 20);
+            // Round-to-nearest-even (RNE) on the shifted mantissa.
+            unsigned int full_m = mant | 0x800000;
+            int sh = 21 + (1 - exp);
+            unsigned int round = (full_m >> (sh - 1)) & 0x1;
+            unsigned int sticky = (full_m & ((1u << (sh - 1)) - 1)) ? 1 : 0;
+            unsigned int truncated = full_m >> sh;
+            unsigned int rounded = truncated + ((round && (sticky || (truncated & 1))) ? 1 : 0);
+            e4m3 = (sign << 7) | (rounded & 0x7);
         }
     } else if (exp >= 16) {
-        // Overflow -> max representable (f8e4m3 has no inf, S1111110 = 448)
+        // Finite-overflow -> saturate at +/-MAX = ±448 (no inf in e4m3).
         e4m3 = (sign << 7) | (0xF << 3) | 0x6;
     } else {
-        e4m3 = (sign << 7) | ((unsigned int)exp << 3) | (mant >> 20);
+        // Normal: RNE on the 20-bit-wider mantissa.
+        unsigned int round = (mant >> 19) & 0x1;
+        unsigned int sticky = (mant & 0x7FFFF) ? 1 : 0;
+        unsigned int truncated = mant >> 20;
+        unsigned int rounded = truncated + ((round && (sticky || (truncated & 1))) ? 1 : 0);
+        // Mantissa carry-out: rounded = 8 means we incremented past 0x7;
+        // treat as carry into exponent.
+        if (rounded > 0x7) { exp = exp + 1; rounded = 0; }
+        if (exp >= 16) { e4m3 = (sign << 7) | (0xF << 3) | 0x6; }
+        else if (exp >= 0xF && rounded >= 0x7) {
+            // Would land on the NaN slot S1111111: saturate to MAX instead.
+            e4m3 = (sign << 7) | (0xF << 3) | 0x6;
+        } else {
+            e4m3 = (sign << 7) | ((unsigned int)exp << 3) | rounded;
+        }
     }
     return (long long)(e4m3 & 0xFF);
 }
@@ -6131,20 +6173,42 @@ static inline long long __nuc_f32_to_f8e4m3_bits(long long f) {
 static inline long long __nuc_f32_to_f8e5m2_bits(long long f) {
     unsigned int x = (unsigned int)(f & 0xFFFFFFFFLL);
     unsigned int sign = (x >> 31) & 0x1;
-    int exp = (int)((x >> 23) & 0xFF) - 127 + 15;  // f8e5m2 bias = 15
+    unsigned int f32_exp = (x >> 23) & 0xFF;
     unsigned int mant = x & 0x7FFFFF;
     unsigned int e5m2;
+    // NaN / inf preservation.
+    if (f32_exp == 0xFF) {
+        if (mant != 0) {
+            e5m2 = (sign << 7) | (0x1F << 2) | 0x1;  // NaN payload
+        } else {
+            e5m2 = (sign << 7) | (0x1F << 2);  // ±inf
+        }
+        return (long long)(e5m2 & 0xFF);
+    }
+    int exp = (int)f32_exp - 127 + 15;  // f8e5m2 bias = 15
     if (exp <= 0) {
         if (exp < -2) { e5m2 = sign << 7; }
         else {
-            mant = (mant | 0x800000) >> (1 - exp);
-            e5m2 = (sign << 7) | (mant >> 21);
+            unsigned int full_m = mant | 0x800000;
+            int sh = 22 + (1 - exp);
+            unsigned int round = (full_m >> (sh - 1)) & 0x1;
+            unsigned int sticky = (full_m & ((1u << (sh - 1)) - 1)) ? 1 : 0;
+            unsigned int truncated = full_m >> sh;
+            unsigned int rounded = truncated + ((round && (sticky || (truncated & 1))) ? 1 : 0);
+            e5m2 = (sign << 7) | (rounded & 0x3);
         }
     } else if (exp >= 31) {
-        // Overflow -> inf (S11111_00)
+        // Overflow -> inf
         e5m2 = (sign << 7) | (0x1F << 2);
     } else {
-        e5m2 = (sign << 7) | ((unsigned int)exp << 2) | (mant >> 21);
+        // Normal: RNE on 21-bit-wider mantissa.
+        unsigned int round = (mant >> 20) & 0x1;
+        unsigned int sticky = (mant & 0xFFFFF) ? 1 : 0;
+        unsigned int truncated = mant >> 21;
+        unsigned int rounded = truncated + ((round && (sticky || (truncated & 1))) ? 1 : 0);
+        if (rounded > 0x3) { exp = exp + 1; rounded = 0; }
+        if (exp >= 31) { e5m2 = (sign << 7) | (0x1F << 2); }
+        else { e5m2 = (sign << 7) | ((unsigned int)exp << 2) | rounded; }
     }
     return (long long)(e5m2 & 0xFF);
 }
