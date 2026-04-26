@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.132] — 2026-04-25
+
+**Format heuristic extension — `_f64(` / `_f32(` typed-wrapper
+suffix detection.** v0.3.131 caught `sqrt(`/`exp(`/`log(`/`tanh(`
+and `f64_*`/`f32_*` *prefixes*, but missed the v0.3.127
+math_typed.nr typed-wrapper *suffix* form (sqrt_f64, exp_f64,
+log_f64, tanh_f64, sin_f64, cos_f64, pow_f64). Adopters using
+the typed wrappers inline in `println!("{}", sqrt_f64(16.0))`
+still got the i64 bit pattern.
+
+### Fix
+
+In `fmt_conversion_for_spec`, after the prefix probes, scan the
+arg expression once for any `_f64(` or `_f32(` substring. The call
+form means the suffix is always followed by `(`. If found,
+dispatch as `:f` (f64_to_str).
+
+Documented limitation: variable-form (`let r: f64 = sqrt_f64(x);
+println!("{}", r)`) still falls back to int_to_str — the macro
+expander runs before parse so it can't see r's type. Adopters
+using typed f64 *variables* should still write `{:f}` explicitly
+or `f64_to_str(r)` directly.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t408 verifies inline-call forms
+of two typed wrappers format correctly. `bin/nucleor.exe` SHA
+`79b3aa49`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `_f64(`/`_f32(` substring
+  scan in `fmt_conversion_for_spec`.
+- `tests/fixtures/t408_typed_wrapper_format.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.131] — 2026-04-25
 
 **Bare `{}` format heuristic — closes a HIGH-blast silent

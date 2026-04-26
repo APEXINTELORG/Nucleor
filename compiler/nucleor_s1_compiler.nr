@@ -13758,6 +13758,22 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str) -> str {
         if alen >= 5 && str_eq(str_substring(arg_expr, 0, 5), "tanh(") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
         if alen >= 4 && str_eq(str_substring(arg_expr, 0, 4), "f64_") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
         if alen >= 4 && str_eq(str_substring(arg_expr, 0, 4), "f32_") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+        // v0.3.132: also handle the v0.3.127 math_typed.nr typed
+        // wrappers (sqrt_f64, exp_f64, log_f64, tanh_f64, sin_f64,
+        // cos_f64, pow_f64) — they all end with `_f64(` or `_f32(`.
+        // Scan once for a `_f64(` / `_f32(` substring; the call form
+        // means the suffix is followed by `(`.
+        let mut sub_i: i64 = 0;
+        let mut found_typed: i64 = 0;
+        while sub_i + 5 <= alen {
+            let probe: str = str_substring(arg_expr, sub_i, sub_i + 5);
+            if str_eq(probe, "_f64(") == 1 || str_eq(probe, "_f32(") == 1 {
+                found_typed = 1;
+                sub_i = alen;
+            };
+            sub_i = sub_i + 1;
+        };
+        if found_typed == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
         return str_concat("int_to_str(", str_concat(arg_expr, ")"));
     };
     if str_eq(spec, ":i") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
