@@ -91,35 +91,52 @@ Fix:
 **Priority: MEDIUM (blocks adopters from validating fixes after compiler upgrades; --no-cache was the workaround)**
 
 ### NUC-FEEDBACK-008 — Print after dynamically assembled string/tokenizer output terminates with exit 1
-**Status: OPEN — investigating. Reported 2026-04-26.**
+**Status: CLOSED in v0.3.143. Fixture t418.**
 **Priority: HIGH (silent runtime termination — adopters lose remaining program output without diagnostic)**
 
-Adopter pattern: tensor_i64_print_flat → print("label:") → print(decoded_str)
-→ print("label2:") → print(int_value). Output stops after "label2:" with
-exit code 1. The same dynamically-assembled string works fine in str_eq
-and as input to retokenization — failure is tied to the print/output
-sequencing path, not to string construction itself.
-
-Possible root causes to investigate:
-1. C runtime stdout buffering interaction with Vec<i64> drop after tensor_i64_print_flat.
-2. print() implementation for i64 vs str — type dispatch mistakenly calls
-   wrong helper after a previous str print.
-3. Memory arena interaction — string assembled via str_concat lives in an
-   arena that's freed before the later print scans it.
+Root cause was simpler than the three hypotheses: get_rt_name mapped EVERY
+print call to __nucleor_print_str regardless of arg type. When arg was an
+int (token count, counter, literal), the string helper dereferenced the
+i64 as const char *. For small ints like 42, that's deref of 0x2A —
+guaranteed SIGSEGV. Fix: at the call site for print(arg) with argc == 1,
+infer arg static type and dispatch to typed runtime helper
+(__nucleor_print_i64 / __nucleor_print_f64 / __nucleor_print_bool /
+__nucleor_print_str default).
 
 ### NUC-IMPROVE-006 — Tokenizer rod returns opaque handles without readable accessors
-**Status: OPEN — additive API request. Reported 2026-04-26.**
+**Status: CLOSED in v0.3.144. Fixture t419.**
 **Priority: LOW (workaround: build a char-level facade in user code)**
 
-stdlib/rods/tokenizer.nr exposes tok_encode/tok_char_level returning an
-i64 handle but no nuc_tok_vec_len / nuc_tok_vec_at / tok_decode public
-fns to read or convert the encoded sequence. ML Suite is shipping a
-suite-local char-level facade as workaround. The asks:
-  - nuc_tok_vec_len(ids_h) -> i64
-  - nuc_tok_vec_at(ids_h, idx) -> i64
-  - nuc_tok_vec_free(ids_h)
-  - nuc_tok_decode(tok_h, ids_h) -> str
-Plus public Nucleor wrappers tok_vec_len/at/free/decode in tokenizer.nr.
+Shipped exactly as spec'd. nuc_tok_decode already existed in
+tokenizer_rt.c — was just never exposed in .nr surface. v0.3.144 added
+tok_vec_len/at/free runtime helpers and exposed all four (plus decode)
+via stdlib/rods/tokenizer.nr. Canonical round-trip now works:
+encode → vec_len → vec_at → decode → vec_free.
+
+### Compiler-internal hazard: `&&` and `||` do NOT short-circuit
+**Status: OPEN — high blast, design needed.**
+**Priority: HIGH (silent miscompute for adopter null-check idioms)**
+
+Pre-fix behaviour: parse_and_expr / parse_or_expr lower to bitwise
+`and i64` / `or i64` of both operand values. The LOGIC is correct for
+strict 0/1 boolean values but the RHS is ALWAYS evaluated, so any
+adopter relying on short-circuit safety (e.g. `if x != 0 && deref(x).f`)
+hits an unguarded RHS evaluation. Crashes for null deref / OOB / etc.
+
+Attempted fix in v0.3.145: inline branch IR per && (alloca + cmp +
+br_cond + 3 blocks + store/load merge). Stage A→B compiled fine, but
+stage B-built stage C silently exits 0 with no output when given a
+large input source — broken IR somewhere in my emit, likely an alloca
+placement issue (allocas mid-function vs entry-block requirement) or
+label/block management bug. Reverted to v0.3.144 source state.
+
+Proper fix needs:
+- alloca hoisting to entry block, OR
+- a new IR op (ir_select / ir_short_and / ir_short_or) that the
+  emitter handles atomically without leaking allocas mid-flow.
+Plus a careful audit that `*every* &&` chain in s1 source still
+yields the same logical result (the existing chains are safe-by-
+construction so behaviour shouldn't change, just emission shape).
 
 The generated test harness emits a parse error
 (`Parse error at token position 8927: expected token 51 got 1`) on the
