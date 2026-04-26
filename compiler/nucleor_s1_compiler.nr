@@ -2496,26 +2496,49 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
         if op == 0 {
             cmap_set(cm, d, ir_op1(inst));
         }
-        // Fold arithmetic: add(2), sub(3), mul(4), div(5), mod(6)
+        // Fold arithmetic: add(2), sub(3), mul(4), div(5), mod(6).
+        // v0.3.145: div/mod by zero must NOT fold. Pre-v0.3.145, the
+        // `else { i = i + 1; }` branch on `vb == 0` pre-incremented `i`
+        // (so the outer `i = i + 1` at the bottom of the loop skipped
+        // the next instruction entirely) AND fell through to the
+        // vec_set lines that replaced the divide with `const_int 0`.
+        // Two compounding bugs: (a) silent miscompute — `100 / 0` became
+        // const 0 instead of trapping at runtime, (b) the very next
+        // IR instruction silently disappeared from the block. Adopters
+        // who wrote any literal `x / 0` (typically as a deliberate
+        // panic test or a bug introduced during refactoring) saw the
+        // program return 0 and silently skip whatever statement
+        // followed.
+        //
+        // Fix: when divisor is zero, skip the fold entirely (leave the
+        // div/mod instruction in place — at runtime LLVM `sdiv i64 X, 0`
+        // is undefined behavior, typically SIGFPE, which is a loud
+        // failure the adopter actually sees). Do NOT touch `i`.
         else if op >= 2 && op <= 6 {
             let a: i64 = ir_op1(inst);
             let b: i64 = ir_op2(inst);
             if cmap_has(cm, a) == 1 && cmap_has(cm, b) == 1 {
                 let va: i64 = cmap_get(cm, a);
                 let vb: i64 = cmap_get(cm, b);
+                let mut do_fold: i64 = 1;
                 let mut result: i64 = 0;
                 if op == 2 { result = va + vb; }
                 else if op == 3 { result = va - vb; }
                 else if op == 4 { result = va * vb; }
-                else if op == 5 { if vb != 0 { result = va / vb; } else { i = i + 1; }; }
-                else if op == 6 { if vb != 0 { result = va - (va / vb) * vb; } else { i = i + 1; }; };
-                // Replace instruction with const_int
-                vec_set(inst, 0, 0);
-                vec_set(inst, 3, result);
-                vec_set(inst, 4, 0);
-                vec_set(inst, 5, 0);
-                cmap_set(cm, d, result);
-                folded = folded + 1;
+                else if op == 5 {
+                    if vb != 0 { result = va / vb; } else { do_fold = 0; };
+                }
+                else if op == 6 {
+                    if vb != 0 { result = va - (va / vb) * vb; } else { do_fold = 0; };
+                };
+                if do_fold == 1 {
+                    vec_set(inst, 0, 0);
+                    vec_set(inst, 3, result);
+                    vec_set(inst, 4, 0);
+                    vec_set(inst, 5, 0);
+                    cmap_set(cm, d, result);
+                    folded = folded + 1;
+                };
             };
         }
         // Fold comparisons: eq(7), ne(8), slt(9), sgt(10), sle(11), sge(12)
@@ -14648,7 +14671,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.144";
+    return "0.3.145";
 }
 
 fn compiler_backend_label() -> str {

@@ -1476,26 +1476,36 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
         if op == 0 {
             cmap_set(cm, d, ir_op1(inst));
         }
-        // Fold arithmetic: add(2), sub(3), mul(4), div(5), mod(6)
+        // Fold arithmetic: add(2), sub(3), mul(4), div(5), mod(6).
+        // v0.3.145: div/mod by zero must NOT fold. See nucleor_s1_compiler
+        // notes for the bug class -- pre-fix, vb == 0 branch pre-incremented
+        // i (skipping the next inst) and fell through to vec_set replacing
+        // the divide with const_int 0. Two compounding bugs.
         else if op >= 2 && op <= 6 {
             let a: i64 = ir_op1(inst);
             let b: i64 = ir_op2(inst);
             if cmap_has(cm, a) == 1 && cmap_has(cm, b) == 1 {
                 let va: i64 = cmap_get(cm, a);
                 let vb: i64 = cmap_get(cm, b);
+                let mut do_fold: i64 = 1;
                 let mut result: i64 = 0;
                 if op == 2 { result = va + vb; }
                 else if op == 3 { result = va - vb; }
                 else if op == 4 { result = va * vb; }
-                else if op == 5 { if vb != 0 { result = va / vb; } else { i = i + 1; }; }
-                else if op == 6 { if vb != 0 { result = va - (va / vb) * vb; } else { i = i + 1; }; };
-                // Replace instruction with const_int
-                vec_set(inst, 0, 0);
-                vec_set(inst, 3, result);
-                vec_set(inst, 4, 0);
-                vec_set(inst, 5, 0);
-                cmap_set(cm, d, result);
-                folded = folded + 1;
+                else if op == 5 {
+                    if vb != 0 { result = va / vb; } else { do_fold = 0; };
+                }
+                else if op == 6 {
+                    if vb != 0 { result = va - (va / vb) * vb; } else { do_fold = 0; };
+                };
+                if do_fold == 1 {
+                    vec_set(inst, 0, 0);
+                    vec_set(inst, 3, result);
+                    vec_set(inst, 4, 0);
+                    vec_set(inst, 5, 0);
+                    cmap_set(cm, d, result);
+                    folded = folded + 1;
+                };
             };
         }
         // Fold comparisons: eq(7), ne(8), slt(9), sgt(10), sle(11), sge(12)

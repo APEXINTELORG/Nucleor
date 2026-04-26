@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.145] — 2026-04-26
+
+**`opt_fold_block` no longer silently miscompiles `x / 0` and `x % 0`
+to constant `0` AND no longer skips the next IR instruction in the
+block.** Two compounding bugs in the const-fold path for div/mod
+when the divisor was a constant zero. Same hazard class as the
+contextual-keyword silent-miscompile series and the `print(int)`
+crash — a real expression you wrote produces nothing useful and no
+diagnostic.
+
+Pre-v0.3.145, the fold for ops 5 (div) and 6 (mod) read:
+```
+else if op == 5 { if vb != 0 { result = va / vb; } else { i = i + 1; }; }
+```
+When `vb == 0`:
+1. `i = i + 1` pre-incremented the loop counter, then the outer
+   `i = i + 1` at the bottom of the loop incremented it AGAIN —
+   silently SKIPPING the very next IR instruction in the block.
+2. The code AFTER the inner if-else fell through to the `vec_set`
+   lines that replaced the divide with `const_int 0` regardless —
+   silent miscompute, `100 / 0` returned 0 instead of trapping.
+
+Adopters who hit a literal `x / 0` (deliberate panic test, debug
+marker, refactoring artefact) saw the program return 0 silently and
+silently skip whatever statement followed. The s1 self-host source
+never tripped this because no chain in the compiler does literal
+divide-by-zero on constants.
+
+Fix: introduce a `do_fold` flag. When divisor is const zero, set
+`do_fold = 0`, leave the loop counter alone, and gate the
+inst-replacement on `if do_fold == 1`. The divide stays in the IR
+(at runtime LLVM's `sdiv i64 X, 0` is undefined behaviour, typically
+SIGFPE, which is a loud failure the adopter actually sees). Mirrored
+in `compiler/nucleor_tools_suite.nr`.
+
+Pinned by `tests/fixtures/t420_div_zero_no_silent_fold.nr` — wraps
+the divide in a never-taken branch so the SIGFPE is avoided at
+runtime. Pre-fix, the fixture compiled to IR with `add i64 0, 0`
+(const 0 substituted for the divide); post-fix, the IR contains
+`sdiv i64 ?, ?` as expected.
+
+Bootstrap fixed point at stage_d
+`bc77dac126243bc9b2a1e31314748029`. Verify gate green; bootstrap
+seed refreshed.
+
 ## [0.3.144] — 2026-04-26
 
 **`stdlib/rods/tokenizer.nr` now exposes token-vector accessors and
