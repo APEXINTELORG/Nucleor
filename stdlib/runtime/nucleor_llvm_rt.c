@@ -1394,12 +1394,29 @@ void __nucleor_vec_set(NVec *v, long long i, long long x) {
 }
 
 // --- v0.2.22: vec extras ---
+// v0.3.201: same hazard class as v0.3.200 — extend strict OOB
+// PANIC to vec_first/vec_last on empty and vec_swap on OOB index.
+// vec_pop on empty stays a silent no-op (pop-the-top semantics
+// reasonably maps to no-op when nothing to pop). vec_is_empty is
+// a query, never errors.
 long long __nucleor_vec_first(NVec *v) {
-    if (!v || v->len <= 0) return 0;
+    if (!v) return 0;
+    if (v->len <= 0) {
+        if (_vec_oob_lenient()) return 0;
+        fprintf(stderr, "PANIC: vec_first on empty Vec (len 0) (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n");
+        fflush(stderr);
+        exit(1);
+    }
     return v->data[0];
 }
 long long __nucleor_vec_last(NVec *v) {
-    if (!v || v->len <= 0) return 0;
+    if (!v) return 0;
+    if (v->len <= 0) {
+        if (_vec_oob_lenient()) return 0;
+        fprintf(stderr, "PANIC: vec_last on empty Vec (len 0) (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n");
+        fflush(stderr);
+        exit(1);
+    }
     return v->data[v->len - 1];
 }
 long long __nucleor_vec_is_empty(NVec *v) {
@@ -1408,7 +1425,13 @@ long long __nucleor_vec_is_empty(NVec *v) {
 }
 void __nucleor_vec_swap(NVec *v, long long i, long long j) {
     if (!v) return;
-    if (i < 0 || j < 0 || i >= v->len || j >= v->len) return;
+    if (i < 0 || j < 0 || i >= v->len || j >= v->len) {
+        if (_vec_oob_lenient()) return;
+        fprintf(stderr, "PANIC: vec_swap OOB: indices %lld,%lld len %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                i, j, (long long)v->len);
+        fflush(stderr);
+        exit(1);
+    }
     long long tmp = v->data[(int)i];
     v->data[(int)i] = v->data[(int)j];
     v->data[(int)j] = tmp;
@@ -1420,7 +1443,14 @@ void __nucleor_vec_extend(NVec *dst, NVec *src) {
     }
 }
 void __nucleor_vec_remove_at(NVec *v, long long i) {
-    if (!v || i < 0 || i >= v->len) return;
+    if (!v) return;
+    if (i < 0 || i >= v->len) {
+        if (_vec_oob_lenient()) return;
+        fprintf(stderr, "PANIC: vec_remove_at OOB: index %lld, len %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                i, (long long)v->len);
+        fflush(stderr);
+        exit(1);
+    }
     int idx = (int)i;
     for (int k = idx; k < v->len - 1; k++) {
         v->data[k] = v->data[k + 1];
