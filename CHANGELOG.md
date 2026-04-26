@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.204] — 2026-04-26
+
+**`Vec<f32>` works end-to-end + missing `f32_to_str` helper.**
+NUC-FEEDBACK-002 deeper fix.
+
+Three changes that together unblock f32 storage in user code:
+
+1. **`__nucleor_f32_to_str` runtime helper added.** The compiler's
+   println!/format dispatch chain has been routing f32 values to
+   `f32_to_str` since the f32 typed-math surface shipped, but the
+   runtime helper itself never existed — linking would fail with
+   `undefined value '@f32_to_str'`. The new helper reinterprets the
+   low 32 bits of the i64 as an `unsigned int`, bit-casts to `float`,
+   and prints with `%g`.
+
+2. **TYP-009 hard error downgraded for `Vec<f32>`.** v0.3.180 made
+   `let v: Vec<f32> = ...;` a hard error because the round-trip
+   silently miscomputed when adopters wrote `f32_add(v[0], v[1])`
+   (the f32 bit pattern in the underlying i64 cell got numerically
+   reinterpreted as integer arithmetic). With this release, the
+   round-trip pattern is verifiable end-to-end via
+   `f32_from_bits(v[i])` on the read side. f16 / bf16 / f8eXmY
+   keep the hard error since they have no runtime pack/unpack
+   helpers (NUC-FEEDBACK-002 follow-on).
+
+3. **Pinned by `tests/fixtures/t462_vec_f32_round_trip.nr`** — pushes
+   3 f32 values, reads them back via `f32_from_bits`, sums via
+   `f32_add`, prints via `println!("{}", val)`. Output: `7.5 / 1.5
+   / 2.5 / 3.5` exactly. The negative `tests/err/err_vec_narrow_float.nr`
+   was updated to use `Vec<f16>` (still hard-errored).
+
+Why `v[i] as f32` doesn't work and why we need `f32_from_bits`:
+the `as` cast assumes numeric conversion. `v[i]` is i64 holding
+the bit pattern of an f32; numeric-casting it would convert the
+integer value to float (e.g., bit pattern `0x3FC00000 = 1069547520`
+would cast to `1069547520.0f32`, NOT to `1.5f32`).
+`f32_from_bits` is the reinterpret-cast surface; `as` stays as
+numeric conversion semantics.
+
+Drift gate kept current: tools-suite mirror got the same
+`f32_to_str` ABI-table entries.
+
+Bootstrap fixed point at stage_d
+`551df9f425f75fffad67073859f04bb38f583720d0bf63417bc3a00018a87e41`.
+453/453 verify PASS.
+
 ## [0.3.203] — 2026-04-26
 
 **Tensor 2D and 3D accessors now bounds-check + PANIC on OOB.**

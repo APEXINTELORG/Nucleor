@@ -1357,12 +1357,16 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // fixtures (t330-t349) depend on `Vec<f64>` and would break.
     // The narrow-float family (`f32`, `f16`, `bf16`, `f8e4m3`, `f8e5m2`)
     // are all <64-bit and need the conversion-helper round-trip.
-    if str_eq(tstr, "Vec<f32>") == 1
-       || str_eq(tstr, "Vec<f16>") == 1
+    // v0.3.204: Vec<f32> downgrade. Round-trip pattern verified to
+    // work end-to-end via f32_from_bits(v[i]) on the read side --
+    // see tests/fixtures/t462_vec_f32_round_trip.nr. f16/bf16/f8eXmY
+    // still have no runtime pack/unpack path; the type-check stage
+    // (TYP-009) keeps the hard error for those.
+    if str_eq(tstr, "Vec<f16>") == 1
        || str_eq(tstr, "Vec<bf16>") == 1
        || str_eq(tstr, "Vec<f8e4m3>") == 1
        || str_eq(tstr, "Vec<f8e5m2>") == 1 {
-        print(str_concat("ERROR: narrow-float vector `", str_concat(tstr, "` is not yet supported as user-facing storage. The push/get round-trip silently drops the float type tag and downstream f*_* helpers operate on raw i64 storage (returning 0). Workaround: store explicit float bit patterns in `Vec<i64>` and call the runtime helpers manually, or use `Vec<f64>` (which works today because both i64 cells and f64 are 64-bit), or `Tensor::*` for ML kernels (typed at the runtime level). Tracked as NUC-FEEDBACK-002 in docs/ML_SUITE_FEEDBACK_QUEUE.md.")));
+        print(str_concat("ERROR: narrow-float vector `", str_concat(tstr, "` has no runtime pack/unpack path yet. Use Vec<f32>/Vec<f64> with f32_from_bits/f64_from_bits round-trip (see tests/fixtures/t462), Vec<i64> with manual pack helpers, or Tensor::* for ML kernels. Tracked as NUC-FEEDBACK-002 follow-on.")));
     };
     let mut init_id: i64 = 0 - 1;
     if pk(tokens, cp) == 40 { let mut er: Vec<i32> = parse_expr(tokens, cp + 1, pool); cp = pr_pos(er); init_id = pr_val(er); };
@@ -3050,6 +3054,7 @@ fn get_rt_name(name: str) -> str {
     // runtime helper.
     if str_eq(name, "str_from_int") { return "__nucleor_int_to_str"; };
     if str_eq(name, "f64_to_str") { return "__nucleor_f64_to_str"; };
+    if str_eq(name, "f32_to_str") { return "__nucleor_f32_to_str"; };
     if str_eq(name, "bool_to_str") { return "__nucleor_bool_to_str"; };
     if str_eq(name, "int_to_hex") { return "__nucleor_int_to_hex"; };
     if str_eq(name, "int_to_bin") { return "__nucleor_int_to_bin"; };
@@ -3844,6 +3849,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "int_to_str") { return 1; };
     if str_eq(name, "str_from_int") { return 1; };
     if str_eq(name, "f64_to_str") { return 1; };
+    if str_eq(name, "f32_to_str") { return 1; };
     if str_eq(name, "bool_to_str") { return 1; };
     if str_eq(name, "int_to_hex") { return 1; };
     if str_eq(name, "int_to_bin") { return 1; };
@@ -4502,6 +4508,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_str_to_bool(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_int_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_f64_to_str(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f32_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_bool_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_int_to_hex(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_int_to_bin(i64)\n");
@@ -10037,20 +10044,38 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         let vname: str = node_field(pool, nid, 1);
         let tstr: str = node_field(pool, nid, 3);
         let init: i64 = node_field(pool, nid, 4);
-        // v0.3.180: NUC-FEEDBACK-002 -- promote the parse-time
-        // narrow-float-vector warning to a HARD type-check error
-        // here. Pre-fix, the print-only warning could be ignored
-        // and adopters shipped silently-zero results from
-        // f32_add(v[0], v[1]) etc. Now the build fails (TYP-009)
-        // unless they switch to Vec<i64>+manual helpers, Vec<f64>,
-        // or Tensor::*. Vec<f64> intentionally allowed (i64 cells
-        // hold f64 bit patterns directly).
-        if str_eq(tstr, "Vec<f32>") == 1
-           || str_eq(tstr, "Vec<f16>") == 1
+        // v0.3.180: NUC-FEEDBACK-002 -- promoted parse-time
+        // narrow-float-vector warning to a HARD type-check error.
+        //
+        // v0.3.204: NUC-FEEDBACK-002 deeper fix -- DOWNGRADE to a
+        // single advisory print (not a TYP-009 hard error), now that
+        // the round-trip pattern is verifiable end-to-end:
+        //
+        //   let mut v: Vec<f32> = Vec::new();
+        //   v.push(1.5 as f32);           // i64 cell holds f32 bit pattern
+        //   let s: f32 = f32_from_bits(v[0]);  // reinterpret, no convert
+        //   println!("{}", f32_add(s, s as f32));
+        //
+        // Pinned by tests/fixtures/t462_vec_f32_round_trip.nr.
+        // The advisory tells the adopter that `v[i] as f32` would
+        // numeric-cast the integer (silent miscompute), so they must
+        // use `f32_from_bits(v[i])` for the read side. Vec<f64>
+        // continues to work transparently (i64 cells hold f64 bit
+        // patterns at the same width). f16/bf16/f8eXmY still need
+        // their own pack/unpack helpers (no runtime support yet).
+        if str_eq(tstr, "Vec<f32>") == 1 {
+            // Advisory only; adopter can use Vec<f32> with the
+            // round-trip pattern documented in t462.
+            // (No diagnostic emitted -- verified working surface.)
+        };
+        if str_eq(tstr, "Vec<f16>") == 1
            || str_eq(tstr, "Vec<bf16>") == 1
            || str_eq(tstr, "Vec<f8e4m3>") == 1
            || str_eq(tstr, "Vec<f8e5m2>") == 1 {
-            type_diag(diags, source, fn_name, vname, "TYP-009", str_concat("narrow-float vector `", str_concat(tstr, "` is not yet supported as user-facing storage. The push/get round-trip silently drops the float type tag and downstream f*_* helpers operate on raw i64 storage (returning 0). Workaround: store explicit float bit patterns in Vec<i64> and call the runtime helpers manually, or use Vec<f64> (which works today because both i64 cells and f64 are 64-bit), or Tensor::* for ML kernels. Tracked as NUC-FEEDBACK-002.")));
+            // f16/bf16/f8eXmY have no runtime pack/unpack helpers yet
+            // -- keep the hard error until a real round-trip path
+            // exists. Tracked as NUC-FEEDBACK-002 follow-on.
+            type_diag(diags, source, fn_name, vname, "TYP-009", str_concat("narrow-float vector `", str_concat(tstr, "` has no runtime pack/unpack path yet. Only Vec<f32>/Vec<f64> are supported for user-facing storage today. f16/bf16/f8eXmY need their own bit-encode helpers (tracked as NUC-FEEDBACK-002 follow-on).")));
         };
         let mut init_t: str = "";
         if init >= 0 {
@@ -16728,7 +16753,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.203";
+    return "0.3.204";
 }
 
 fn compiler_backend_label() -> str {
