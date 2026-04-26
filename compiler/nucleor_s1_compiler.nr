@@ -11458,6 +11458,30 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     ab = lower_stmts(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                     if block_has_term(ab) == 0 { ir_block_add(ab, ir_br(ml)); };
                 };
+            } else if str_eq(ename, "__range") {
+                // v0.3.118: range pattern in stmt-position match.
+                // Mirrors the lower_expr __range arm at line 10592.
+                // Pre-v0.3.118 this branch fell through to the
+                // enum-tag-decode path, which treated the i64
+                // scrutinee as a Vec pointer and segfaulted at runtime
+                // (`vec_get(inttoptr i64_value, 0)`). HIGH-blast
+                // silent miscompute → segfault for any program using
+                // range patterns in statement-form match (the
+                // expression-position match was already correct).
+                let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
+                let lo_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(lo_r, vname));
+                let hi_n: i64 = str_to_int(binding);
+                let hi_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(hi_r, hi_n));
+                let lo_ok: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(11, lo_ok, lo_r, mv));
+                let hi_ok: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(11, hi_ok, mv, hi_r));
+                let both_r: i64 = ctr_next(regs); ir_block_add(cur, ir_binop(13, both_r, lo_ok, hi_ok));
+                ir_block_add(cur, ir_br_cond(both_r, al, nl));
+                let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
+                let arm_sym: Vec<i32> = sym_clone(sym);
+                ab = lower_stmts(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                if block_has_term(ab) == 0 { ir_block_add(ab, ir_br(ml)); };
+            } else if str_eq(ename, "__range_bad") {
+                ir_block_add(cur, ir_br(nl));
             } else {
                 if tag_r < 0 {
                     let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));

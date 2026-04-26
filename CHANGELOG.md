@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.118] — 2026-04-25
+
+**Range patterns in stmt-position match — closes a HIGH-blast
+silent-miscompute → segfault.** Pre-v0.3.118, two of the four
+kind-38 (match) lowering paths existed: `lower_expr` (expression-
+position match) handled `__range`, but `lower_stmt` (statement-
+position match) did NOT. Range arms in stmt-position fell through
+to the default enum-tag-decode path, which treated the i64
+scrutinee as a Vec pointer (`vec_get(inttoptr i64_value, 0)`)
+and SEGFAULTED at runtime.
+
+Common adopter pattern that crashed:
+
+```
+match x {
+    0..=9   => return 1,
+    10..=99 => return 2,
+    _       => return 3,
+}
+```
+
+Expression-position range match (`let r = match x { 0..=9 => 1, _ => 2 };`)
+was already correct since v0.2.347; only the early-return arm-body
+form used in classify-style functions hit the bug.
+
+### Fix
+
+Mirror the `__range` arm from the lower_expr kind-38 handler into
+the lower_stmt kind-38 handler. Same load + lo<=mv && mv<=hi
+compare + br_cond pattern; arm body lowered via `lower_stmts` (not
+the expr-branch helper) since stmt-form bodies are full statement
+lists. Also wire `__range_bad` to a never-match `br` for the
+MATCH-007 paired-pass diagnostic case.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t395 returns 2 from a multi-arm
+range-pattern classify function, proving range arms dispatch
+correctly without the prior segfault. `bin/nucleor.exe` SHA
+`21fc94e8`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `__range` / `__range_bad`
+  arms in lower_stmt kind-38 handler.
+- `tests/fixtures/t395_stmt_match_range.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.117] — 2026-04-25
 
 **`with_capacity(N)` for the collection family.** v0.3.116 wired
