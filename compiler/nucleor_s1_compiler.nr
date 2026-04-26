@@ -11487,6 +11487,40 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 // str element -> fall through to default
                                 // print_str path (correct for str).
                             };
+                            // v0.3.194: HashMap<K, V>.get / similar -- when
+                            // indexed_element_full_type fails (it only knows
+                            // Vec<T>), try generic_second_type on the
+                            // receiver's full type for HashMap-style 2-arg
+                            // generics. Pre-fix `print(h.get("a"))` for
+                            // HashMap<str, i64> SIGSEGV'd because the
+                            // method-name fallback for "get" was removed in
+                            // v0.3.181 and the Vec-only lookup didn't match.
+                            if str_len(p_helper) == 0 {
+                                let mut mrecv_full: str = "";
+                                if node_kind(pool, mrecv_nid) == 3 {
+                                    let mrn: str = node_field(pool, mrecv_nid, 1);
+                                    let mrt: i64 = sym_get(sym, str_concat("__fulltype_", mrn));
+                                    if mrt >= 0 { mrecv_full = mrt; };
+                                };
+                                let mv_type: str = generic_second_type(mrecv_full);
+                                if str_len(mv_type) > 0 {
+                                    let mv_base: str = type_base_name(mv_type);
+                                    if str_eq(mv_base, "i64") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(mv_base, "i32") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(mv_base, "i16") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(mv_base, "i8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(mv_base, "isize") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(mv_base, "u64") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(mv_base, "u32") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(mv_base, "u16") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(mv_base, "u8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(mv_base, "usize") == 1 { p_helper = "__nucleor_print_i64"; };
+                                    if str_eq(mv_base, "f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                                    if str_eq(mv_base, "f32") == 1 { p_helper = "__nucleor_print_f64"; };
+                                    if str_eq(mv_base, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
+                                    // str -> fall through to default.
+                                };
+                            };
                         };
                         if str_len(p_helper) == 0 {
                         if str_eq(mname, "len") == 1 { p_helper = "__nucleor_print_i64"; };
@@ -16572,7 +16606,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.193";
+    return "0.3.194";
 }
 
 fn compiler_backend_label() -> str {

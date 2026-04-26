@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.194] — 2026-04-26
+
+**`print(h.get(k))` for `HashMap<K, V>` now dispatches by V
+instead of SIGSEGVing.** Fixes a self-introduced regression
+from v0.3.181/190 (`get` method removed from i64 fallback for
+Vec<str> correctness, but no HashMap value-type analogue
+added).
+
+Pre-fix `print(h.get("a"))` for `HashMap<str, i64>` SIGSEGV'd
+because:
+1. v0.3.181 removed `get` from the `mname == "get" -> i64`
+   hardcoded fallback (it was wrong for Vec<str>).
+2. v0.3.181 added `indexed_element_full_type` lookup for
+   Vec<T>, but that helper doesn't know HashMap.
+3. The dispatch fell through to `print_str` and dereferenced
+   the i64 value as a string pointer.
+
+Caught by my own regression sweep (t445).
+
+Fix: add HashMap value-type lookup to the kind-8 method-call
+dispatch path. When `indexed_element_full_type` returns "" and
+the receiver is a kind-3 (var ref) with `__fulltype_<name>`
+matching `HashMap<K, V>` / `BTreeMap<K, V>` shape, parse out V
+via the existing `generic_second_type` helper (added v0.3.182
+for the kind-7 path) and dispatch on V's type.
+
+Pinned by existing `tests/fixtures/t445_print_runtime_helper_
+dispatch.nr` which now passes again.
+
+Bootstrap fixed point at stage_d
+`2bc6a4e48ff66302511686d596f0c46f81e822843d83237c195aa1f2ad24c1c1`.
+
 ## [0.3.193] — 2026-04-26
 
 **Improved unresolved field-access error message
