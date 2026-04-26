@@ -122,8 +122,16 @@ the receiver Vec to derive T from Vec<T>; dispatch by element
 type. str elements correctly fall through to print_str.
 
 ### NUC-FEEDBACK-009 — Intermittent nonzero `nuc run` exit after LLVM emit (post-emit link/spawn opacity)
-**Status: CLOSED in v0.3.179. Fixture t446.**
+**Status: CLOSED in v0.3.179 (diagnostic) + v0.3.190 (auto-retry). Fixture t446.**
 **Priority: MEDIUM (long-running ML adopter verifier flakes lacked triage signal)**
+
+v0.3.190 follow-on: ML_Suite agent reported additional
+occurrences (rc=4294967295 = Windows spawn failure) and added
+their own harness retry. v0.3.190 mirrors the retry at the
+compiler level: when clang fails AND clang_link.log is empty
+(process-spawn failure heuristic), the build automatically
+retries up to 2 more times. Real clang errors leave a
+non-empty log and won't be retried.
 
 ML_Suite verifier saw "emitted: target/X.ll (...)" then nonzero
 exit, no clear signal whether clang errored, never started, or

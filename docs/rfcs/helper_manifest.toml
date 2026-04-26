@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 764
+# Total helpers: 766
 # Of which REVIEW REQUIRED: 26
 
 # ============================================================
@@ -216,6 +216,20 @@ symbol           = "__nucleor_btreemap_contains"
 dispatch         = "RuntimeCall"
 abi              = "(i64, ptr) -> i64"
 effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "btreemap_contains_key"
+class            = "Collection"
+symbol           = "__nucleor_btreemap_contains_key"
+dispatch         = "RuntimeCall"
+abi              = "(i64, ptr) -> i64"
+effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "none"
@@ -496,6 +510,20 @@ symbol           = "__nucleor_hashmap_contains"
 dispatch         = "RuntimeCall"
 abi              = "(i64, i64) -> i64"
 effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "hashmap_contains_key"
+class            = "Collection"
+symbol           = "__nucleor_hashmap_contains_key"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "none"

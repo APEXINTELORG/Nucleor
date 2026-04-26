@@ -3599,6 +3599,12 @@ long long __nucleor_hashmap_contains(long long h, const char *key) {
     }
     return 0;
 }
+// v0.3.189: Rust-canonical name alias. h.contains_key(k) is the
+// idiomatic call shape; pre-fix it lowered to hashmap_contains_key
+// which did not exist (link error). Mirror to hashmap_contains.
+long long __nucleor_hashmap_contains_key(long long h, const char *key) {
+    return __nucleor_hashmap_contains(h, key);
+}
 long long __nucleor_hashmap_remove(long long h, const char *key) {
     NHashMap *m = (NHashMap *)(intptr_t)h;
     if (!m || !key) return 0;
@@ -4198,6 +4204,10 @@ long long __nucleor_btreemap_contains(long long h, const char *key) {
     NBTreeMap *m = (NBTreeMap *)(intptr_t)h;
     if (!m || !key) return 0;
     return __nuc_btreemap_bsearch(m, key) >= 0 ? 1 : 0;
+}
+// v0.3.189: Rust-canonical name alias.
+long long __nucleor_btreemap_contains_key(long long h, const char *key) {
+    return __nucleor_btreemap_contains(h, key);
 }
 long long __nucleor_btreemap_remove(long long h, const char *key) {
     NBTreeMap *m = (NBTreeMap *)(intptr_t)h;

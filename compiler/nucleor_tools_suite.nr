@@ -2295,6 +2295,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "bf16_to_f32") { return "__nucleor_bf16_to_f32"; };
     if str_eq(name, "btreemap_clear") { return "__nucleor_btreemap_clear"; };
     if str_eq(name, "btreemap_contains") { return "__nucleor_btreemap_contains"; };
+    if str_eq(name, "btreemap_contains_key") { return "__nucleor_btreemap_contains_key"; };
     if str_eq(name, "btreemap_free") { return "__nucleor_btreemap_free"; };
     if str_eq(name, "btreemap_get") { return "__nucleor_btreemap_get"; };
     if str_eq(name, "btreemap_insert") { return "__nucleor_btreemap_insert"; };
@@ -2501,6 +2502,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "hashmap_capacity") { return "__nucleor_hashmap_capacity"; };
     if str_eq(name, "hashmap_clear") { return "__nucleor_hashmap_clear"; };
     if str_eq(name, "hashmap_contains") { return "__nucleor_hashmap_contains"; };
+    if str_eq(name, "hashmap_contains_key") { return "__nucleor_hashmap_contains_key"; };
     if str_eq(name, "hashmap_free") { return "__nucleor_hashmap_free"; };
     if str_eq(name, "hashmap_is_empty") { return "__nucleor_hashmap_is_empty"; };
     if str_eq(name, "hashmap_get_or") { return "__nucleor_hashmap_get_or"; };
@@ -3520,6 +3522,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare void @__nucleor_hashmap_insert(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_get(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_contains(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_hashmap_contains_key(i64, i64)\n");
     // V2: parallelism runtime
     sb_append(sb, "declare i64 @__nucleor_par_map(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_par_fold(i64, i64, i64)\n");
@@ -3717,6 +3720,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_bf16_to_f32(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_btreemap_clear(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_btreemap_contains(i64, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_btreemap_contains_key(i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_btreemap_free(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_btreemap_get(i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_btreemap_insert(i64, ptr, i64)\n");

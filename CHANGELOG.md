@@ -5,6 +5,83 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.191] — 2026-04-26
+
+**Two follow-ons bundled:** drift-gate fix for v0.3.190
+contains_key (tools-suite mirror) + `nuc run` post-compiled
+spawn-failure auto-retry (NUC-FEEDBACK-009 third class).
+
+**Fix 1 (drift gate):** v0.3.190 added
+`hashmap_contains_key`/`btreemap_contains_key` to
+nucleor_s1_compiler.nr but NOT to nucleor_tools_suite.nr,
+breaking `nuc test`/`nuc check`/`nuc build-strict` paths and
+the drift gate. Mirrored entries to tools-suite + regenerated
+helper_manifest.toml.
+
+**Fix 2 (post-compiled spawn retry):** ML adopters reported a
+NEW class of NUC-FEEDBACK-009 — `compiled:` line APPEARS
+(build succeeded), output looks complete, but `nuc run`
+returns rc=4294967295 anyway. Same Windows spawn-failure
+signature as the link-step retry (v0.3.190), but on the
+compiled .exe spawn step.
+
+Fix: `nuc run` now retries `system(exe)` up to 2 more times
+when rc indicates a Windows spawn failure (-1 / 4294967295).
+Real runtime exit codes (0..255) are NOT retried — they're
+genuine app failures and propagate immediately. On final
+failure, surface the exit code and triage hint.
+
+The agent's harness retry remains as belt-and-suspenders;
+the compiler-level retry should substantially reduce
+adopter-visible flakes before they bubble to the harness.
+
+Bootstrap fixed point at stage_d
+`f69ab24d2bc57491a5e46b6652e3c54e1ef9a56044b11a0b2bb223ad72bcf0cd`.
+
+## [0.3.190] — 2026-04-26
+
+**Three fixes bundled:** `h.contains_key(k)` now works,
+`h.contains(k)` for HashMap stops dispatching to `vec_contains`,
+and clang-spawn-failure auto-retry up to 2x (NUC-FEEDBACK-009
+follow-on).
+
+**Bug 1: `h.contains_key(k)` link error.** Canonical Rust name
+lowered to `hashmap_contains_key` which didn't exist in the
+runtime → link error. Fix: new runtime aliases
+`__nucleor_hashmap_contains_key` / `__nucleor_btreemap_contains_key`
+(both delegate to `*_contains`). Compiler `get_rt_name` + LL
+declare list extended.
+
+**Bug 2: `h.contains(k)` for HashMap silently miscomputes.**
+The dispatch site at `lower_expr` kind 8 unconditionally
+matched `iter_method_for_vec("contains")` and lowered to
+`vec_contains_i64` even when the receiver was a HashMap →
+the helper checked the i64 storage cells (which hold ptrs to
+str keys) and never found the key → ALWAYS returned false.
+
+Fix: only fire `iter_method_for_vec` when the receiver is a Vec
+(or unknown type). For HashMap/HashSet/BTreeMap/etc. receivers,
+fall through to the v0.3.100 receiver-type-aware dispatch,
+which correctly maps `h.contains(k)` → `hashmap_contains(h, k)`.
+
+**Bug 3: link spawn failure retry (NUC-FEEDBACK-009 follow-on).**
+ML adopters reported intermittent post-LLVM-emit/no-compiled
+failures during long verifier passes (rc=4294967295 = Windows
+spawn failure). The agent added retry in their harness; this
+mirrors the retry at the compiler level: when clang fails AND
+the captured log is empty (process-spawn failure heuristic),
+retry up to 2 more times. Real clang errors leave a non-empty
+log and won't be retried.
+
+Pinned by `tests/fixtures/t455_hashmap_contains_method_dispatch.nr`
+(bugs 1+2). The link-retry behavior (bug 3) doesn't have a
+deterministic fixture (transient by definition) but the
+diagnostic addition from v0.3.179 + the new retry loop should
+substantially reduce adopter-visible failures.
+
+Bootstrap fixed point at stage_d
+`5f38c49bb42f391b91eb9df2b6a22447c5c98df7d812c0eedba31caf45ef8f19`.
+
 ## [0.3.188] — 2026-04-26
 
 **`for s in stats.iter() { println!("{}", s.field) }` now infers
