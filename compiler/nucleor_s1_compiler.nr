@@ -13718,7 +13718,48 @@ fn fmt_strip_outer_quotes(s: str) -> str {
 fn fmt_conversion_for_spec(spec: str, arg_expr: str) -> str {
     // spec is the contents of `{...}` after the `{` and before `}`,
     // i.e. `` for `{}`, `:s` for `{:s}`, etc.
-    if str_eq(spec, "") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
+    // v0.3.131: bare `{}` heuristic dispatch for the obvious-from-
+    // textual-shape cases that adopters reach for. Pre-v0.3.131 bare
+    // `{}` always called int_to_str, so `println!("{}", str_var)`
+    // printed the string's POINTER ADDRESS and `println!("{}", f64_var)`
+    // printed the i64 BIT PATTERN — silent miscompute on the most
+    // common debug pattern. The heuristic only fires when the arg
+    // expression is unambiguously typed by its textual shape:
+    //   - quoted string literal (`"..."`)              → :s
+    //   - decimal numeric literal (contains `.`)       → :f
+    //   - call to a known float-returning helper
+    //     (sqrt, exp, log, tanh, pow, sin, cos,
+    //      f64_*, f32_*)                               → :f
+    // For any other expression (variable refs to
+    // unknown-typed locals, non-float fn calls, complex exprs) the
+    // default falls back to int_to_str — adopters of typed `f64`
+    // variables should still write `{:f}` explicitly. Documented
+    // behavior; the heuristic only corrects the obvious cases.
+    if str_eq(spec, "") == 1 {
+        let alen: i64 = str_len(arg_expr);
+        if alen >= 2 && str_char_at(arg_expr, 0) == 34 && str_char_at(arg_expr, alen - 1) == 34 {
+            return arg_expr;
+        };
+        let mut has_dot: i64 = 0;
+        let mut has_alpha: i64 = 0;
+        let mut hi: i64 = 0;
+        while hi < alen {
+            let hc: i64 = str_char_at(arg_expr, hi);
+            if hc == 46 { has_dot = 1; };
+            if (hc >= 65 && hc <= 90) || (hc >= 97 && hc <= 122) || hc == 95 || hc == 40 || hc == 91 { has_alpha = 1; };
+            hi = hi + 1;
+        };
+        if has_dot == 1 && has_alpha == 0 {
+            return str_concat("f64_to_str(", str_concat(arg_expr, ")"));
+        };
+        if alen >= 5 && str_eq(str_substring(arg_expr, 0, 5), "sqrt(") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+        if alen >= 4 && str_eq(str_substring(arg_expr, 0, 4), "exp(") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+        if alen >= 4 && str_eq(str_substring(arg_expr, 0, 4), "log(") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+        if alen >= 5 && str_eq(str_substring(arg_expr, 0, 5), "tanh(") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+        if alen >= 4 && str_eq(str_substring(arg_expr, 0, 4), "f64_") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+        if alen >= 4 && str_eq(str_substring(arg_expr, 0, 4), "f32_") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+        return str_concat("int_to_str(", str_concat(arg_expr, ")"));
+    };
     if str_eq(spec, ":i") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
     if str_eq(spec, ":s") == 1 { return arg_expr; };
     if str_eq(spec, ":f") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
