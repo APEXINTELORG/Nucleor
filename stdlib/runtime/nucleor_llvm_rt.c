@@ -13,6 +13,46 @@
 #include <windows.h>
 #endif
 
+// v0.3.215: NUC-FEEDBACK runtime safety -- OOM PANIC. Pre-fix any
+// of the 171 malloc/realloc call sites that returned NULL on memory
+// exhaustion would silently feed NULL into the next memcpy/store
+// and segfault (effectively abort, but with no diagnostic and no
+// indication that allocation failed). The strict-by-default safety
+// bar requires explicit panic with allocation size in the message.
+//
+// Implementation: wrap all malloc/realloc through static inline
+// xmalloc/xrealloc that panic on NULL, then redefine the standard
+// names via macros so all 171 sites pick up the wrapper without
+// per-site edits. Opt-out via NUCLEOR_OOM_LENIENT=1 (returns NULL,
+// adopters then need their own handling -- the legacy segfault
+// path is restored).
+static int g_oom_lenient_cached = 0;  /* 0=uncached, 1=panic, 2=lenient */
+static int _oom_lenient(void) {
+    if (g_oom_lenient_cached == 0) {
+        const char *e = getenv("NUCLEOR_OOM_LENIENT");
+        g_oom_lenient_cached = (e && e[0] == '1') ? 2 : 1;
+    }
+    return g_oom_lenient_cached == 2;
+}
+static void *_nuc_xmalloc(size_t n) {
+    void *p = malloc(n);
+    if (!p && !_oom_lenient()) {
+        fprintf(stderr, "PANIC: out of memory: malloc(%zu) failed (set NUCLEOR_OOM_LENIENT=1 to suppress)\n", n);
+        fflush(stderr); exit(1);
+    }
+    return p;
+}
+static void *_nuc_xrealloc(void *p, size_t n) {
+    void *r = realloc(p, n);
+    if (!r && n > 0 && !_oom_lenient()) {
+        fprintf(stderr, "PANIC: out of memory: realloc(%zu) failed (set NUCLEOR_OOM_LENIENT=1 to suppress)\n", n);
+        fflush(stderr); exit(1);
+    }
+    return r;
+}
+#define malloc(N) _nuc_xmalloc(N)
+#define realloc(P, N) _nuc_xrealloc((P), (N))
+
 // DIAGNOSTIC: allocation counters (active when NUC_TRACE_ALLOC=1)
 static long long g_vec_new_count = 0;
 static long long g_vec_realloc_bytes = 0;
