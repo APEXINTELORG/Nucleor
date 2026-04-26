@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.131] — 2026-04-25
+
+**Bare `{}` format heuristic — closes a HIGH-blast silent
+miscompute on the most common debug pattern.** Pre-v0.3.131,
+`println!("{}", v)` always called `int_to_str(v)` regardless of
+v's actual type. So:
+
+```
+println!("{}", "hello")   →  "140699...."   (pointer address)
+println!("{}", 3.14)      →  "4614253..."   (i64 bit pattern)
+```
+
+Adopters reaching for the standard Rust-style debug print got
+nonsense for any string or float — and the failure mode (a huge
+unrelated number) was indistinguishable from any other bug. The
+ML_Suite agent already noted this category of issue in their
+NUC-FEEDBACK-002/005 sequence; the format-default fix closes the
+adjacent debug-print failure.
+
+### Fix
+
+In `fmt_conversion_for_spec` for the empty `""` spec (bare `{}`),
+added a textual heuristic that runs at macro-expand time (before
+parse, no type info available — that's the constraint). The
+heuristic only fires on cases unambiguously typed by their textual
+shape:
+
+- Quoted string literal (`"..."`) → `:s` passthrough.
+- Decimal numeric literal (contains `.`) → `:f` (f64_to_str).
+- Call to known float helper (`sqrt(`, `exp(`, `log(`, `tanh(`,
+  `f64_*`, `f32_*`) → `:f`.
+- Everything else → `:i` (back-compat default).
+
+Adopters with typed `f64` *variables* should still write `{:f}`
+explicitly — the heuristic only corrects the obvious-from-text
+cases. The fix preserves all existing tests where `{}` was used
+with int args (the back-compat default still applies for
+identifiers and complex expressions).
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t407 verifies all three
+canonical cases (str literal, float literal, int literal) format
+to the correct lengths. `bin/nucleor.exe` SHA `d85aadf5`.
+452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — heuristic-dispatch block
+  in `fmt_conversion_for_spec` for empty spec.
+- `tests/fixtures/t407_format_default_dispatch.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.130] — 2026-04-25
 
 **NUC-FEEDBACK-005 closed — long-precision f64 literals silently
