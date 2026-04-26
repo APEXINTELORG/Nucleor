@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.162] — 2026-04-26
+
+**Added literal-only WARNING for `f64_to_str(int_literal)` /
+`f32_to_str(int_literal)`.** Conservative middle ground between
+the rolled-back v0.3.159/160 strict check (broke
+`tests/rods/numeric.nr`'s legitimate ABI round-trip) and pre-fix
+silence on the canonical adopter mistake.
+
+When the arg is an INT LITERAL specifically (AST kind 1), emit a
+WARNING explaining that Nucleor's i64-everywhere ABI reinterprets
+the int as a f64 bit pattern, producing subnormal-looking garbage
+(e.g. `f64_to_str(100)` → `"4.94066e-322"`). Suggests three
+workarounds:
+1. Write the literal as a decimal: `f64_to_str(100.0)`
+2. Use `f64_to_str(f64_from_int(100))`
+3. Pass an i64 variable holding a real bit pattern (the rods
+   pattern that v0.3.161 preserved)
+
+Variables (which may legitimately hold f64 bit patterns) are NOT
+flagged. The diagnostic is informational (uses `print`, not
+`type_diag`) so the build doesn't halt — adopters who genuinely
+want the bit-pattern behavior can suppress by routing through a
+variable.
+
+This catches the specific "user wrote a numeric literal" mistake
+without breaking the documented bit-pattern ABI. Worst case the
+adopter sees the WARNING + the actual garbage output and fixes
+their literal.
+
+Bootstrap fixed point at stage_d
+`2b788d2a7572ac230d0d0f27e8fe3dfc`. Verify gate green.
+
 ## [0.3.161] — 2026-04-26
 
 **Rolled back v0.3.159/160 f64-helper arg-type-check.** Caught a

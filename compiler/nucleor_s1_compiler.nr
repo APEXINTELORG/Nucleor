@@ -9766,6 +9766,31 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             // warning (not error) when arg looks like an int literal.
             // Deferred for proper design.
             //
+            // v0.3.162: literal-only diagnostic for f64_to_str /
+            // f32_to_str when arg 0 is an INT LITERAL (kind 1). Catches
+            // the specific adopter mistake `f64_to_str(100)` -- where
+            // the user means "print the number 100" but the i64-everywhere
+            // ABI reinterprets 100 as a subnormal f64 bit pattern,
+            // printing "4.94066e-322". Variables (which might
+            // legitimately hold f64 bit patterns per the rods/numeric
+            // pattern) are NOT flagged. This is the conservative middle
+            // ground between the rolled-back v0.3.159/160 (too strict)
+            // and pre-fix (no diagnostic at all).
+            //
+            // Diagnostic is INFORMATIONAL (uses print, not type_diag) so
+            // the build doesn't halt. Adopters who genuinely want the
+            // bit-pattern behavior can suppress by calling via a variable
+            // (e.g. `let b: i64 = 100; f64_to_str(b);`).
+            if argc > 0 {
+                let lit_helper: i64 = if str_eq(callee, "f64_to_str") == 1
+                    || str_eq(callee, "f32_to_str") == 1 { 1 } else { 0 };
+                if lit_helper == 1 {
+                    let larg_nid: i64 = list_get(pool, args, 0);
+                    if node_kind(pool, larg_nid) == 1 {
+                        print(str_concat("WARNING: ", str_concat(callee, "(<int_literal>) reinterprets the int as an f64 bit pattern (Nucleor's i64-everywhere ABI), producing subnormal-looking garbage like \"4.94066e-322\". To print the numeric value, write the literal as a decimal (e.g. 100.0) or use f64_from_int(100) -- or pass an i64 variable holding a real bit pattern.")));
+                    };
+                };
+            };
             // v0.3.155/156: also validate arg 1 of helpers that take a
             // second str.
             if argc > 1 {
@@ -15195,7 +15220,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.161";
+    return "0.3.162";
 }
 
 fn compiler_backend_label() -> str {
