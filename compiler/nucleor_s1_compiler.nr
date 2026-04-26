@@ -14511,9 +14511,17 @@ fn infer_var_type_from_source(src: str, var_name: str) -> str {
                     q = q + 1;
                     while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
                     let ts: i64 = q;
+                    // v0.3.166: track <> depth so `Vec<f64>` returns
+                    // "Vec<f64>" (full type), not "Vec" truncated at `<`.
+                    // Existing callers checking `str_eq(inferred, "f64")`
+                    // etc. are unaffected -- a generic-bearing type
+                    // still doesn't match a bare scalar name.
+                    let mut gd: i64 = 0;
                     while q < slen {
                         let tc: i64 = str_char_at(src, q);
-                        if tc == 32 || tc == 61 || tc == 59 || tc == 44 || tc == 60 || tc == 10 || tc == 13 {
+                        if tc == 60 { gd = gd + 1; q = q + 1; }
+                        else if tc == 62 && gd > 0 { gd = gd - 1; q = q + 1; }
+                        else if gd == 0 && (tc == 32 || tc == 61 || tc == 59 || tc == 44 || tc == 10 || tc == 13) {
                             let this_type: str = str_substring(src, ts, q);
                             if str_len(found_type) == 0 {
                                 found_type = this_type;
@@ -14523,8 +14531,131 @@ fn infer_var_type_from_source(src: str, var_name: str) -> str {
                                 };
                             };
                             q = slen;
-                        };
+                        } else { q = q + 1; };
+                    };
+                };
+            };
+        };
+        i = i + 1;
+    };
+    if conflict == 1 { return ""; };
+    return found_type;
+}
+
+// v0.3.166: companion to infer_var_type_from_source. Scans src for
+// `struct STRUCT_NAME { ... field: TYPE, ... }` declarations and
+// returns TYPE (with container generics intact) for the named
+// field, "" if not found or conflict. Used by
+// fmt_conversion_for_spec to dispatch println!("{}", p.field) for
+// any field type. Conflict-detection mirrors the var/fn helpers.
+fn infer_struct_field_type_from_source(src: str, struct_name: str, field_name: str) -> str {
+    let slen: i64 = str_len(src);
+    let snlen: i64 = str_len(struct_name);
+    let fnlen: i64 = str_len(field_name);
+    if snlen == 0 || fnlen == 0 { return ""; };
+    let mut found_type: str = "";
+    let mut conflict: i64 = 0;
+    let mut i: i64 = 0;
+    while i + 7 < slen {
+        // "struct " = 's','t','r','u','c','t',' ' = 115,116,114,117,99,116,32
+        if str_char_at(src, i) == 115
+            && str_char_at(src, i + 1) == 116
+            && str_char_at(src, i + 2) == 114
+            && str_char_at(src, i + 3) == 117
+            && str_char_at(src, i + 4) == 99
+            && str_char_at(src, i + 5) == 116
+            && str_char_at(src, i + 6) == 32 {
+            let mut p: i64 = i + 7;
+            // Try to match struct_name
+            let mut k: i64 = 0;
+            let mut matched: i64 = 1;
+            while k < snlen {
+                if p + k >= slen { matched = 0; k = snlen; }
+                else if str_char_at(src, p + k) != str_char_at(struct_name, k) { matched = 0; k = snlen; };
+                k = k + 1;
+            };
+            // Identifier boundary
+            if matched == 1 {
+                let after: i64 = p + snlen;
+                if after < slen {
+                    let nc: i64 = str_char_at(src, after);
+                    let is_id_continue: i64 = if (nc >= 65 && nc <= 90) || (nc >= 97 && nc <= 122) || (nc >= 48 && nc <= 57) || nc == 95 { 1 } else { 0 };
+                    if is_id_continue == 1 { matched = 0; };
+                };
+            };
+            if matched == 1 {
+                let after2: i64 = p + snlen;
+                let mut q: i64 = after2;
+                // Skip whitespace, optional generics, then expect `{`
+                while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
+                // Skip generic params if any: `<...>` -- one nesting level
+                if q < slen && str_char_at(src, q) == 60 {
+                    let mut gd: i64 = 1; q = q + 1;
+                    while q < slen && gd > 0 {
+                        let gc: i64 = str_char_at(src, q);
+                        if gc == 60 { gd = gd + 1; } else if gc == 62 { gd = gd - 1; };
                         q = q + 1;
+                    };
+                    while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
+                };
+                if q < slen && str_char_at(src, q) == 123 {
+                    q = q + 1;
+                    // Find matching `}` for the struct body
+                    let body_start: i64 = q;
+                    let mut bdepth: i64 = 1;
+                    while q < slen && bdepth > 0 {
+                        let bc: i64 = str_char_at(src, q);
+                        if bc == 123 { bdepth = bdepth + 1; }
+                        else if bc == 125 { bdepth = bdepth - 1; };
+                        if bdepth > 0 { q = q + 1; };
+                    };
+                    let body_end: i64 = q;
+                    // Scan body for `field_name : TYPE,` (allow whitespace)
+                    let mut bp: i64 = body_start;
+                    while bp + fnlen < body_end {
+                        // Find start of identifier token: previous char is whitespace/comma/{
+                        let prev_c: i64 = if bp == 0 { 32 } else { str_char_at(src, bp - 1) };
+                        let prev_ok: i64 = if prev_c == 32 || prev_c == 9 || prev_c == 10 || prev_c == 13 || prev_c == 44 || prev_c == 123 { 1 } else { 0 };
+                        if prev_ok == 1 {
+                            let mut fmatched: i64 = 1;
+                            let mut fk: i64 = 0;
+                            while fk < fnlen {
+                                if bp + fk >= body_end { fmatched = 0; fk = fnlen; }
+                                else if str_char_at(src, bp + fk) != str_char_at(field_name, fk) { fmatched = 0; fk = fnlen; };
+                                fk = fk + 1;
+                            };
+                            if fmatched == 1 {
+                                let after_field: i64 = bp + fnlen;
+                                if after_field < body_end {
+                                    let nc2: i64 = str_char_at(src, after_field);
+                                    let is_id_continue2: i64 = if (nc2 >= 65 && nc2 <= 90) || (nc2 >= 97 && nc2 <= 122) || (nc2 >= 48 && nc2 <= 57) || nc2 == 95 { 1 } else { 0 };
+                                    if is_id_continue2 == 1 { fmatched = 0; };
+                                };
+                            };
+                            if fmatched == 1 {
+                                let mut fq: i64 = bp + fnlen;
+                                while fq < body_end && str_char_at(src, fq) == 32 { fq = fq + 1; };
+                                if fq < body_end && str_char_at(src, fq) == 58 {
+                                    fq = fq + 1;
+                                    while fq < body_end && str_char_at(src, fq) == 32 { fq = fq + 1; };
+                                    let fts: i64 = fq;
+                                    while fq < body_end {
+                                        let ftc: i64 = str_char_at(src, fq);
+                                        if ftc == 44 || ftc == 32 || ftc == 10 || ftc == 13 || ftc == 125 {
+                                            let this_type: str = str_substring(src, fts, fq);
+                                            if str_len(found_type) == 0 {
+                                                found_type = this_type;
+                                            } else {
+                                                if str_eq(found_type, this_type) == 0 { conflict = 1; };
+                                            };
+                                            fq = body_end;
+                                        };
+                                        fq = fq + 1;
+                                    };
+                                };
+                            };
+                        };
+                        bp = bp + 1;
                     };
                 };
             };
@@ -14661,6 +14792,128 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
                     if str_eq(fn_inferred, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
                     if str_eq(fn_inferred, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
                     if str_eq(fn_inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                };
+            };
+        };
+        // v0.3.166: cast expression `<expr> as TYPE`. The trailing
+        // TYPE is unambiguous, so dispatch by the cast target. Catches
+        // println!("{}", n as f64) which pre-fix printed the int as
+        // its f64 bit pattern. Find the LAST " as " substring (handles
+        // chained casts conservatively -- innermost wins).
+        if alen >= 5 {
+            let mut as_pos: i64 = 0 - 1;
+            let mut sci: i64 = alen - 4;
+            while sci >= 0 {
+                if str_char_at(arg_expr, sci) == 32
+                    && str_char_at(arg_expr, sci + 1) == 97
+                    && str_char_at(arg_expr, sci + 2) == 115
+                    && str_char_at(arg_expr, sci + 3) == 32 {
+                    as_pos = sci;
+                    sci = 0 - 1;
+                };
+                sci = sci - 1;
+            };
+            if as_pos > 0 {
+                // Trailing TYPE: trim leading/trailing spaces.
+                let mut ts: i64 = as_pos + 4;
+                while ts < alen && str_char_at(arg_expr, ts) == 32 { ts = ts + 1; };
+                let mut te: i64 = alen;
+                while te > ts && str_char_at(arg_expr, te - 1) == 32 { te = te - 1; };
+                if te > ts {
+                    let target_type: str = type_base_name(str_substring(arg_expr, ts, te));
+                    if str_eq(target_type, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(target_type, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(target_type, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                    // i*/u* fall through to int_to_str (the default below).
+                };
+            };
+        };
+        // v0.3.166: struct field access `<recv>.<field>`. If the
+        // receiver is a bare ident with a known var type, look up the
+        // field's type via infer_struct_field_type_from_source. Catches
+        // println!("{}", p.x) where p.x: f64 (was printing the f64
+        // bit pattern as int pre-fix). Conservative: only fires when
+        // both receiver and field are simple bare identifiers.
+        let mut dot_pos: i64 = 0 - 1;
+        let mut dpi: i64 = alen - 1;
+        while dpi >= 0 {
+            if str_char_at(arg_expr, dpi) == 46 { dot_pos = dpi; dpi = 0 - 1; };
+            dpi = dpi - 1;
+        };
+        if dot_pos > 0 && dot_pos < alen - 1 {
+            let recv_str: str = str_substring(arg_expr, 0, dot_pos);
+            let field_str: str = str_substring(arg_expr, dot_pos + 1, alen);
+            // Both must be bare identifiers.
+            let mut recv_ok: i64 = 1;
+            let rlen: i64 = str_len(recv_str);
+            if rlen == 0 { recv_ok = 0; };
+            let mut ri: i64 = 0;
+            while ri < rlen {
+                let rc: i64 = str_char_at(recv_str, ri);
+                let rok: i64 = if (rc >= 65 && rc <= 90) || (rc >= 97 && rc <= 122) || rc == 95 || ((rc >= 48 && rc <= 57) && ri > 0) { 1 } else { 0 };
+                if rok == 0 { recv_ok = 0; ri = rlen; };
+                ri = ri + 1;
+            };
+            let mut field_ok: i64 = 1;
+            let flen: i64 = str_len(field_str);
+            if flen == 0 { field_ok = 0; };
+            let mut fi: i64 = 0;
+            while fi < flen {
+                let fc: i64 = str_char_at(field_str, fi);
+                let fok: i64 = if (fc >= 65 && fc <= 90) || (fc >= 97 && fc <= 122) || fc == 95 || ((fc >= 48 && fc <= 57) && fi > 0) { 1 } else { 0 };
+                if fok == 0 { field_ok = 0; fi = flen; };
+                fi = fi + 1;
+            };
+            if recv_ok == 1 && field_ok == 1 {
+                let recv_type: str = type_base_name(infer_var_type_from_source(src, recv_str));
+                if str_len(recv_type) > 0 {
+                    let field_type: str = type_base_name(infer_struct_field_type_from_source(src, recv_type, field_str));
+                    if str_eq(field_type, "str") == 1 { return arg_expr; };
+                    if str_eq(field_type, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(field_type, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(field_type, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                };
+            };
+        };
+        // v0.3.166: index expression `<recv>[<expr>]`. If receiver is
+        // a bare ident with type Vec<T> (or similar container), strip
+        // one container layer to get T and dispatch. Catches
+        // println!("{}", v[0]) where v: Vec<f64> -- pre-fix printed
+        // the f64 bit pattern as int.
+        if alen >= 3 && str_char_at(arg_expr, alen - 1) == 93 {
+            // Find matching `[` by depth.
+            let mut bdepth: i64 = 1;
+            let mut bi2: i64 = alen - 2;
+            let mut br_pos: i64 = 0 - 1;
+            while bi2 >= 0 && br_pos < 0 {
+                let bc2: i64 = str_char_at(arg_expr, bi2);
+                if bc2 == 93 { bdepth = bdepth + 1; }
+                else if bc2 == 91 { bdepth = bdepth - 1; if bdepth == 0 { br_pos = bi2; }; };
+                bi2 = bi2 - 1;
+            };
+            if br_pos > 0 {
+                let recv2: str = str_substring(arg_expr, 0, br_pos);
+                // Receiver must be bare ident.
+                let mut r2_ok: i64 = 1;
+                let r2len: i64 = str_len(recv2);
+                if r2len == 0 { r2_ok = 0; };
+                let mut r2i: i64 = 0;
+                while r2i < r2len {
+                    let r2c: i64 = str_char_at(recv2, r2i);
+                    let r2ok: i64 = if (r2c >= 65 && r2c <= 90) || (r2c >= 97 && r2c <= 122) || r2c == 95 || ((r2c >= 48 && r2c <= 57) && r2i > 0) { 1 } else { 0 };
+                    if r2ok == 0 { r2_ok = 0; r2i = r2len; };
+                    r2i = r2i + 1;
+                };
+                if r2_ok == 1 {
+                    let recv_full: str = infer_var_type_from_source(src, recv2);
+                    if str_len(recv_full) > 0 {
+                        let elem_full: str = strip_container_one_level(recv_full);
+                        let elem_type: str = type_base_name(elem_full);
+                        if str_eq(elem_type, "str") == 1 { return arg_expr; };
+                        if str_eq(elem_type, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+                        if str_eq(elem_type, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
+                        if str_eq(elem_type, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                    };
                 };
             };
         };
@@ -15301,7 +15554,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.165";
+    return "0.3.166";
 }
 
 fn compiler_backend_label() -> str {

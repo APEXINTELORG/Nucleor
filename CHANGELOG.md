@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.166] — 2026-04-26
+
+**`println!("{}", X)` now correctly dispatches for struct fields,
+vec indexing, and casts** — three more silent-miscompute shapes
+fixed in the format heuristic chain.
+
+Pre-v0.3.166, the source-scan format heuristic (added v0.3.152,
+extended v0.3.158) only recognized bare identifiers and fn-call
+shapes. Three other adopter-canonical shapes silently miscompiled:
+- `println!("{}", p.x)` (struct field) → printed f64 bit pattern
+  (`4609434218613702656`) instead of `1.5`
+- `println!("{}", v[0])` (vec index) → printed bit pattern instead
+  of element value
+- `println!("{}", n as f64)` (cast) → printed bit pattern instead
+  of float value
+- `println!("{}", p.name)` (struct field str) → printed pointer
+  address instead of string content
+
+Same hazard class as the v0.3.137-150 silent miscomputes — a real
+expression you wrote produces garbage with no diagnostic.
+
+Fix:
+1. New helper `infer_struct_field_type_from_source(src, struct,
+   field)` scans `struct STRUCT { ... field: TYPE, ... }` decls.
+2. Three new heuristics in `fmt_conversion_for_spec`:
+   - **Cast** `<expr> as TYPE`: detect ` as ` suffix, dispatch by
+     trailing TYPE (uses `type_base_name` to strip generics).
+   - **Struct field** `<recv>.<field>`: when both are bare idents,
+     look up receiver type via `infer_var_type_from_source` →
+     struct → field type.
+   - **Index** `<recv>[<idx>]`: when receiver is bare ident with
+     `Vec<T>` (or container) type, strip one container layer via
+     `strip_container_one_level` to get T.
+3. `infer_var_type_from_source` upgraded to track `<>` depth so
+   `Vec<f64>` returns `"Vec<f64>"` (full type) instead of `"Vec"`
+   (truncated). Existing scalar-name callers (which check for
+   exact matches like `"f64"`) are unaffected because a
+   generic-bearing type still doesn't match a bare scalar name.
+
+Binop result `println!("{}", a + b)` is the next gap in this
+chain — saved for v0.3.167.
+
+Pinned by `tests/fixtures/t433_println_format_extended_heuristics.nr`.
+Bootstrap fixed point at stage_d
+`f6d58cbebaa672d83b66b61bbbcc481cdd01f8615f6a3ad3208d2646988ec515`.
+
 ## [0.3.165] — 2026-04-26
 
 **`print(a + b)` for binop results now dispatches by op/type
