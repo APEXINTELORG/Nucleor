@@ -15091,6 +15091,64 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
                     if str_eq(fn_inferred, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
                     if str_eq(fn_inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
                 };
+                // v0.3.172: also recognize method-call shape
+                // `<recv>.<method>(...)`. Treat the trailing `<method>`
+                // as the fn name to look up. Catches
+                // `println!("{}", s.total())` where total() returns
+                // f64 -- pre-fix printed the bit pattern via int_to_str.
+                // Conservative: head must split cleanly into ident + .
+                // + ident.
+                if head_ok == 0 {
+                    // Check for `<recv>.<method>` pattern.
+                    let mut last_dot: i64 = 0 - 1;
+                    let mut di2: i64 = hlen - 1;
+                    while di2 >= 0 {
+                        if str_char_at(head, di2) == 46 { last_dot = di2; di2 = 0 - 1; };
+                        di2 = di2 - 1;
+                    };
+                    if last_dot > 0 && last_dot < hlen - 1 {
+                        let recv_h: str = str_substring(head, 0, last_dot);
+                        let mname_h: str = str_substring(head, last_dot + 1, hlen);
+                        // Both must be bare idents (recv may have its
+                        // own `.` chain -- not handled, conservative).
+                        let mut rh_ok: i64 = 1;
+                        let rhl: i64 = str_len(recv_h);
+                        if rhl == 0 { rh_ok = 0; };
+                        let mut ri4: i64 = 0;
+                        while ri4 < rhl {
+                            let rc4: i64 = str_char_at(recv_h, ri4);
+                            let rc4_ok: i64 = if (rc4 >= 65 && rc4 <= 90) || (rc4 >= 97 && rc4 <= 122) || rc4 == 95 || ((rc4 >= 48 && rc4 <= 57) && ri4 > 0) { 1 } else { 0 };
+                            if rc4_ok == 0 { rh_ok = 0; ri4 = rhl; };
+                            ri4 = ri4 + 1;
+                        };
+                        let mut mh_ok: i64 = 1;
+                        let mhl: i64 = str_len(mname_h);
+                        if mhl == 0 { mh_ok = 0; };
+                        let mut mi4: i64 = 0;
+                        while mi4 < mhl {
+                            let mc4: i64 = str_char_at(mname_h, mi4);
+                            let mc4_ok: i64 = if (mc4 >= 65 && mc4 <= 90) || (mc4 >= 97 && mc4 <= 122) || mc4 == 95 || ((mc4 >= 48 && mc4 <= 57) && mi4 > 0) { 1 } else { 0 };
+                            if mc4_ok == 0 { mh_ok = 0; mi4 = mhl; };
+                            mi4 = mi4 + 1;
+                        };
+                        if rh_ok == 1 && mh_ok == 1 {
+                            // Try the existing fn-name return type
+                            // helper -- works if the impl method
+                            // is declared as `fn <method>(self) -> TYPE`
+                            // (the helper's regex matches any `fn NAME`
+                            // declaration and uses conflict-detection).
+                            let m_inferred: str = infer_fn_return_type_from_source(src, mname_h);
+                            if str_eq(m_inferred, "str") == 1 { return arg_expr; };
+                            if str_eq(m_inferred, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+                            if str_eq(m_inferred, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
+                            if str_eq(m_inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                            // Builtin fallback for well-known method names.
+                            if str_eq(mname_h, "is_empty") == 1 || str_eq(mname_h, "contains") == 1 || str_eq(mname_h, "contains_key") == 1 {
+                                return str_concat("bool_to_str(", str_concat(arg_expr, ")"));
+                            };
+                        };
+                    };
+                };
             };
         };
         // v0.3.166: cast expression `<expr> as TYPE`. The trailing
@@ -15852,7 +15910,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.171";
+    return "0.3.172";
 }
 
 fn compiler_backend_label() -> str {

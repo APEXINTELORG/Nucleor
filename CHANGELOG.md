@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.172] — 2026-04-26
+
+**`println!("{}", s.method())` for method calls returning typed
+scalars now dispatches correctly.** Closes another silent
+miscompute in the format-heuristic chain.
+
+Pre-v0.3.172, the println! `{}` heuristic recognized fn-call
+shape `<ident>(...)` (v0.3.158) but NOT method-call shape
+`<recv>.<method>(...)`. So `println!("{}", s.total())` where
+`total()` returns f64 silently printed the bit pattern via
+`int_to_str` (e.g. `"4614253070214989087"` instead of `"3.14"`).
+
+Same hazard class as the rest of the format-heuristic chain
+(v0.3.131/152/158/166/167/169) — a real expression you wrote
+produces nonsense output with no diagnostic.
+
+Fix: when the head fails the bare-ident check (because it
+contains a `.`), try splitting on the last `.` to extract
+receiver and method. If both are bare idents, look up the
+method's return type via the existing
+`infer_fn_return_type_from_source` helper (which scans for
+`fn <name>(...) -> TYPE` declarations — works for `impl`
+methods declared with `(self) -> TYPE`).
+
+Also adds a builtin-fallback for method names with unambiguous
+return types: `is_empty` / `contains` / `contains_key` → bool.
+
+Pinned by `tests/fixtures/t439_println_method_call_dispatch.nr`.
+Bootstrap fixed point at stage_d
+`542ac366d77d7b8e9435f36b25f0b8e47f0bf6a2bd861ad20eb465e2b352d467`.
+
 ## [0.3.171] — 2026-04-26
 
 **Extended literal-only WARNING to all container helper families
