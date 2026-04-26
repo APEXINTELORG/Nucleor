@@ -11027,12 +11027,58 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     // of well-known runtime helpers with deterministic
                     // i64/bool return types.
                     if str_len(p_helper) == 0 {
+                        // v0.3.181: NUC-FEEDBACK-006 (parallel agent) --
+                        // for vec_get/first/last/pop and similar Vec
+                        // element returns, the element type comes from
+                        // the receiver Vec, not a fixed i64 default.
+                        // Pre-fix `print(vec_get(vec_of_str, i))` printed
+                        // the str pointer as int (e.g. 2444806475504)
+                        // instead of dispatching to print_str. Reuse
+                        // indexed_element_full_type on args[0] to derive
+                        // T from Vec<T>.
+                        let vec_elem_callee: i64 = if str_eq(pfn_name, "vec_get") == 1
+                            || str_eq(pfn_name, "vec_first") == 1
+                            || str_eq(pfn_name, "vec_last") == 1
+                            || str_eq(pfn_name, "vec_pop") == 1 { 1 } else { 0 };
+                        if vec_elem_callee == 1 {
+                            let pfn_args: i64 = node_field(pool, parg_nid, 2);
+                            if list_len(pool, pfn_args) > 0 {
+                            let recv_e_full: str = indexed_element_full_type(pool, list_get(pool, pfn_args, 0), sym, structs);
+                            if str_len(recv_e_full) > 0 {
+                                let recv_e_base: str = type_base_name(recv_e_full);
+                                if str_eq(recv_e_base, "i64") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(recv_e_base, "i32") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(recv_e_base, "i16") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(recv_e_base, "i8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(recv_e_base, "isize") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(recv_e_base, "u64") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(recv_e_base, "u32") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(recv_e_base, "u16") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(recv_e_base, "u8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(recv_e_base, "usize") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(recv_e_base, "f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                                if str_eq(recv_e_base, "f32") == 1 { p_helper = "__nucleor_print_f64"; };
+                                if str_eq(recv_e_base, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
+                                // str element: leave p_helper empty so we
+                                // fall through to the default print_str
+                                // path below -- which is correct for str
+                                // values.
+                            };
+                            };
+                        };
                         // i64 returns: hashmap_get, vec_get, vec_len,
                         // vec_first, vec_last, hashmap_len,
                         // hashmap_capacity, hashset_len, btreemap_len,
                         // vecdeque_len, str_len, str_to_int,
                         // str_to_i64, tok_vocab_size, tok_vec_len,
                         // tok_vec_at, etc.
+                        // hashmap_get / btreemap_get also have value-
+                        // type variation but the i64 default is the
+                        // historical assumption -- adopters using
+                        // HashMap<K, str> will hit the same NUC-FEEDBACK-
+                        // 006 hazard; queued for a follow-on if it
+                        // surfaces.
+                        if str_len(p_helper) == 0 {
                         if str_eq(pfn_name, "hashmap_get") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "hashmap_len") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "hashmap_capacity") == 1 { p_helper = "__nucleor_print_i64"; };
@@ -11043,11 +11089,8 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         if str_eq(pfn_name, "btreemap_get") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "btreeset_len") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "vecdeque_len") == 1 { p_helper = "__nucleor_print_i64"; };
-                        if str_eq(pfn_name, "vec_get") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "vec_len") == 1 { p_helper = "__nucleor_print_i64"; };
-                        if str_eq(pfn_name, "vec_first") == 1 { p_helper = "__nucleor_print_i64"; };
-                        if str_eq(pfn_name, "vec_last") == 1 { p_helper = "__nucleor_print_i64"; };
-                        if str_eq(pfn_name, "vec_pop") == 1 { p_helper = "__nucleor_print_i64"; };
+                        };
                         if str_eq(pfn_name, "str_len") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "str_to_int") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(pfn_name, "str_to_i64") == 1 { p_helper = "__nucleor_print_i64"; };
@@ -11242,24 +11285,50 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     // unambiguous return types by name across the
                     // stdlib container family.
                     if str_len(p_helper) == 0 && str_len(mname) > 0 {
+                        // v0.3.181: NUC-FEEDBACK-006 element-type
+                        // lookup for container .get()/.first()/.last()/
+                        // .pop() methods. Pre-fix v.get(i) on Vec<str>
+                        // printed the str pointer as int. Reuse
+                        // indexed_element_full_type on the receiver.
+                        let m_elem_call: i64 = if str_eq(mname, "get") == 1
+                            || str_eq(mname, "first") == 1
+                            || str_eq(mname, "last") == 1
+                            || str_eq(mname, "pop") == 1
+                            || str_eq(mname, "front") == 1
+                            || str_eq(mname, "back") == 1 { 1 } else { 0 };
+                        if m_elem_call == 1 {
+                            let mrecv_nid: i64 = node_field(pool, parg_nid, 1);
+                            let m_e_full: str = indexed_element_full_type(pool, mrecv_nid, sym, structs);
+                            if str_len(m_e_full) > 0 {
+                                let m_e_base: str = type_base_name(m_e_full);
+                                if str_eq(m_e_base, "i64") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(m_e_base, "i32") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(m_e_base, "i16") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(m_e_base, "i8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(m_e_base, "isize") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(m_e_base, "u64") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(m_e_base, "u32") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(m_e_base, "u16") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(m_e_base, "u8")  == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(m_e_base, "usize") == 1 { p_helper = "__nucleor_print_i64"; };
+                                if str_eq(m_e_base, "f64") == 1 { p_helper = "__nucleor_print_f64"; };
+                                if str_eq(m_e_base, "f32") == 1 { p_helper = "__nucleor_print_f64"; };
+                                if str_eq(m_e_base, "bool") == 1 { p_helper = "__nucleor_print_bool"; };
+                                // str element -> fall through to default
+                                // print_str path (correct for str).
+                            };
+                        };
+                        if str_len(p_helper) == 0 {
                         if str_eq(mname, "len") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(mname, "count") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(mname, "capacity") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(mname, "is_empty") == 1 { p_helper = "__nucleor_print_bool"; };
                         if str_eq(mname, "contains") == 1 { p_helper = "__nucleor_print_bool"; };
                         if str_eq(mname, "contains_key") == 1 { p_helper = "__nucleor_print_bool"; };
-                        // v0.3.178: extended fallback. `get`/`first`/
-                        // `last`/`pop`/`remove` are i64 returns for
-                        // HashMap/Vec/BTreeMap idioms.
-                        if str_eq(mname, "get") == 1 { p_helper = "__nucleor_print_i64"; };
-                        if str_eq(mname, "first") == 1 { p_helper = "__nucleor_print_i64"; };
-                        if str_eq(mname, "last") == 1 { p_helper = "__nucleor_print_i64"; };
-                        if str_eq(mname, "pop") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(mname, "remove") == 1 { p_helper = "__nucleor_print_i64"; };
-                        if str_eq(mname, "front") == 1 { p_helper = "__nucleor_print_i64"; };
-                        if str_eq(mname, "back") == 1 { p_helper = "__nucleor_print_i64"; };
                         if str_eq(mname, "starts_with") == 1 { p_helper = "__nucleor_print_bool"; };
                         if str_eq(mname, "ends_with") == 1 { p_helper = "__nucleor_print_bool"; };
+                        };
                     };
                 };
                 if parg_kind == 12 {
@@ -16129,7 +16198,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.180";
+    return "0.3.181";
 }
 
 fn compiler_backend_label() -> str {

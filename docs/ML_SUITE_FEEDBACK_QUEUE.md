@@ -103,6 +103,24 @@ infer arg static type and dispatch to typed runtime helper
 (__nucleor_print_i64 / __nucleor_print_f64 / __nucleor_print_bool /
 __nucleor_print_str default).
 
+### NUC-FEEDBACK-006 (parallel agent) — String values printed as pointer-like integers (Vec<str> element)
+**Status: CLOSED in v0.3.181. Fixture t447.**
+**Priority: HIGH (silent miscompute on adopter pandas string-key parity examples)**
+
+Source: Nucleor_ML_Suite_ParallelAgent feedback doc, 2026-04-26.
+Distinct from the original NUC-FEEDBACK-006 (AdamW eps=1e-8,
+closed v0.3.133) -- the parallel agent reused the number for
+their own finding.
+
+Root cause: v0.3.178's over-aggressive vec_get -> i64 fallback
+treated Vec<str> elements as integers in the print() dispatch,
+printing the str pointer as e.g. "2878868296144".
+
+Fix: kind 7 (vec_get/first/last/pop) and kind 8 (.get/.first/
+.last/.pop/.front/.back) now use indexed_element_full_type on
+the receiver Vec to derive T from Vec<T>; dispatch by element
+type. str elements correctly fall through to print_str.
+
 ### NUC-FEEDBACK-009 — Intermittent nonzero `nuc run` exit after LLVM emit (post-emit link/spawn opacity)
 **Status: CLOSED in v0.3.179. Fixture t446.**
 **Priority: MEDIUM (long-running ML adopter verifier flakes lacked triage signal)**
