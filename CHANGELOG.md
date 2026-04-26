@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.199] — 2026-04-26
+
+**Locked-output retry + path-specific cleanup hint.**
+NUC-FEEDBACK-009 follow-on #3. v0.3.190 added a retry loop
+for the empty-log "clang never started" case (Windows
+process-spawn failure). The remaining adopter pain was the
+non-empty-log "clang RAN but the output exe was held open"
+case (AV scan, antivirus dropper, prior orphan exe). Pre-
+v0.3.199 that surfaced as the raw clang error with no
+target-specific cleanup guidance.
+
+Two changes:
+
+1. Detect the well-known Windows file-lock signatures in
+   the captured `clang_link.log` — `"used by another
+   process"`, `LNK1104`, `"could not open output"`,
+   `"Permission denied"` — and retry up to 2 more times
+   with a 150ms sleep between attempts. Real clang errors
+   still won't match and won't be retried.
+
+2. If the lock persists past the internal retries, the
+   final FAIL block prints the exact locked output path,
+   extracts the basename (no dir, no `.exe`), and emits
+   path-specific cleanup commands:
+
+   ```
+     locked output: target\nuc_shape_dtype_contract_smoke.exe
+     hint: Stop-Process -Name nuc_shape_dtype_contract_smoke -Force -ErrorAction SilentlyContinue
+     hint: taskkill /F /IM nuc_shape_dtype_contract_smoke.exe 2> NUL
+     note: persistent lock after 3 internal retries (150ms apart) usually means an orphan instance of the output exe is still running, an AV scanner is mid-scan, or another build is touching the same target path.
+   ```
+
+Adopters no longer have to mentally extract the basename
+from a long verbose link line. PID lookup would require a
+Windows-specific RestartManager call (out of scope for the
+portable runtime); the basename hint covers the common case.
+
+Bootstrap fixed point at stage_d
+`14bfc1f348e7154bc9576887a5d762c935f5612bb5c0aeb0a0f44d8f096bf0b7`.
+
 ## [0.3.198] — 2026-04-26
 
 **Pre-IR halt for unresolved field access.** NUC-FEEDBACK-010
