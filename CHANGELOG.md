@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.139] — 2026-04-26
+
+**`requires` is now a contextual keyword — user fns named
+`requires` no longer silently miscompile to `0`.** Same hazard
+class as the v0.3.137 `pure` and v0.3.138 `scope`/`spawn` fixes.
+Pre-v0.3.139, `classify_kw` mapped `requires` to a hard keyword
+token (75) because of the RFC-0030 fn-decl annotation form
+(`fn foo(x) -> T requires [<predicate>]`). The annotation is rare
+in user code; the identifier collision is common — auth gates
+(`requires_admin(user)`), capability checks, type-class witness
+fns, parser combinators all reach for the name.
+
+`parse_fn_decl` reads the token's *value* regardless of token
+kind, so `fn requires(x) { … }` registered correctly. At call
+sites `parse_primary` had no branch for token 75 and silently
+fell through to its `int_lit 0` default — every `requires(x)`
+call collapsed to a constant `0` in the IR with NO diagnostic.
+
+Fix: `classify_kw` no longer maps `requires` to token 75. The
+4 fn-decl annotation checks (`parse_fn_decl`, `parse_extern_fn`,
+`parse_trait_method`, `parse_impl_method`) now use pkv lookahead
+(`pk == 1 && pkv == "requires"`) to recognise the annotation
+form. Mirrored in `compiler/nucleor_tools_suite.nr`.
+
+Pinned by `tests/fixtures/t414_user_fn_named_requires.nr`.
+Bootstrap fixed point at stage_d
+`f2ba734449b4b20562fee5108991ea57`. Verify gate green; bootstrap
+seed refreshed.
+
 ## [0.3.138] — 2026-04-26
 
 **Removed reserved-but-unused `scope` and `spawn` keywords — user

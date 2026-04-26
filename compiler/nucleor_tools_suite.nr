@@ -82,7 +82,11 @@ fn classify_kw(w: str) -> i64 {
     if str_eq(w, "pub") { return 72; };
     if str_eq(w, "const") { return 73; };
     if str_eq(w, "type") { return 74; };
-    if str_eq(w, "requires") { return 75; };
+    // v0.3.139: `requires` is contextual. Mirror of compiler-side fix —
+    // user fns named `requires` were silently miscompiling to 0 because
+    // parse_primary fell through its int_lit 0 default on token 75. The
+    // 4 fn-decl annotation checks (parse_fn_decl, parse_extern_fn,
+    // parse_trait_method, parse_impl_method) now use pkv lookahead.
     if str_eq(w, "restricts") { return 76; };
     if str_eq(w, "unsafe") { return 77; };
     if str_eq(w, "wrapping") { return 78; };
@@ -900,7 +904,7 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     cp = cp + 1;
     let mut rtype: str = "void";
     if pk(tokens, cp) == 41 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); rtype = pr_val(tr); };
-    if pk(tokens, cp) == 75 { cp = skip_bracket_list(tokens, cp + 1); };
+    if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "requires") == 1 { cp = skip_bracket_list(tokens, cp + 1); };
     cp = skip_where_clause(tokens, cp);
     cp = expect_tok(tokens, cp, 52);
     let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
@@ -922,7 +926,7 @@ fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     cp = cp + 1;
     let mut rtype: str = "void";
     if pk(tokens, cp) == 41 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); rtype = pr_val(tr); };
-    if pk(tokens, cp) == 75 { cp = skip_bracket_list(tokens, cp + 1); };
+    if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "requires") == 1 { cp = skip_bracket_list(tokens, cp + 1); };
     cp = skip_where_clause(tokens, cp);
     if pk(tokens, cp) == 43 { cp = cp + 1; };
     return pr(cp, mk4(pool, 32, name, mk_list(pool, params), rtype));
@@ -1053,7 +1057,7 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         cp = cp + 1; // )
         let mut rtype: str = "void";
         if pk(tokens, cp) == 41 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); rtype = pr_val(tr); };
-        if pk(tokens, cp) == 75 { cp = skip_bracket_list(tokens, cp + 1); };
+        if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "requires") == 1 { cp = skip_bracket_list(tokens, cp + 1); };
         cp = skip_where_clause(tokens, cp);
         if pk(tokens, cp) == 52 {
             // Default method with body
@@ -1119,7 +1123,7 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         cp2 = cp2 + 1; // )
         let mut rtype: str = "void";
         if pk(tokens, cp2) == 41 { let mut tr: Vec<i32> = parse_type(tokens, cp2 + 1); cp2 = pr_pos(tr); rtype = pr_val(tr); };
-        if pk(tokens, cp2) == 75 { cp2 = skip_bracket_list(tokens, cp2 + 1); };
+        if pk(tokens, cp2) == 1 && str_eq(pkv(tokens, cp2), "requires") == 1 { cp2 = skip_bracket_list(tokens, cp2 + 1); };
         cp2 = skip_where_clause(tokens, cp2);
         cp2 = expect_tok(tokens, cp2, 52); // {
         let mut br: Vec<i32> = parse_stmts(tokens, cp2, pool);
