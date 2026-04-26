@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.170] — 2026-04-26
+
+**Added literal-only WARNING for `vec_*(int_literal, ...)`.**
+Catches the canonical adopter mistake `vec_get(42, 0)` — pre-fix
+this compiled cleanly and SIGSEGV'd at runtime.
+
+The `vec_*` family helpers (`vec_get`, `vec_set`, `vec_len`,
+`vec_push`, `vec_pop`, `vec_first`, `vec_last`, `vec_is_empty`,
+`vec_swap`, `vec_extend`, `vec_remove_at`, `vec_insert_at`,
+`vec_free`, `vec_clear`) all expect a Vec handle (NVec*) at
+arg-0. Passing a raw int (e.g. `vec_get(42, 0)`) silently
+compiled because Nucleor's i64-everywhere ABI passes Vec handles
+*as* i64 — there's no way to differentiate "Vec handle stored
+as i64" from "wrong i64 passed accidentally". So the existing
+`type_dynamic_helper` exemption skipped per-arg type checking.
+
+Adopter result: SIGSEGV at runtime when the C helper
+dereferenced 42 as `NVec *`.
+
+Fix: conservative literal-only WARNING (mirrors v0.3.162
+`f64_to_str(int_literal)` pattern). When `arg-0` is an INT
+LITERAL specifically (AST kind 1), emit a WARNING explaining the
+SIGSEGV hazard and suggesting `let v: Vec<T> = Vec::new();`.
+Variables — which legitimately hold Vec handles via the i64
+ABI (the compiler self-host does this pervasively, e.g.
+`let entry: i64 = sig_find(...); vec_get(entry, 0)`) — are NOT
+flagged, preserving all existing legitimate code.
+
+Diagnostic is INFORMATIONAL (uses `print`, not `type_diag`) so
+the build doesn't halt. Adopters who genuinely want the
+bit-cast behavior can suppress by passing through a variable.
+
+Pinned by `tests/fixtures/t437_vec_helper_int_literal_diag.nr`.
+Bootstrap fixed point at stage_d
+`62791d89d836d61146a432c29d9350be98de0c8e89b5f275e33174cce532260d`.
+
 ## [0.3.169] — 2026-04-26
 
 **Two more `println!("{}", X)` silent-miscompute shapes fixed:
