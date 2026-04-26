@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.171] — 2026-04-26
+
+**Extended literal-only WARNING to all container helper families
+(hashmap_*/hashset_*/btreemap_*/btreeset_*/vecdeque_*).** Closes
+the same SIGSEGV hazard fixed for `vec_*` in v0.3.170, across
+all stdlib collection types.
+
+Pre-fix, `hashmap_get(42, "key")` (and similar mistakes for the
+other container families) compiled cleanly and SIGSEGV'd at
+runtime when the C helper dereferenced 42 as a container
+pointer. Same hazard class as v0.3.170 (`vec_*`) and v0.3.162
+`f64_to_str(int_literal)`.
+
+Fix: extend the literal-only WARNING pattern to all container
+helper families. Detects callee starting with `hashmap_` /
+`hashset_` / `btreemap_` / `btreeset_` / `vecdeque_`; if `arg-0`
+is an INT LITERAL (AST kind 1) and the helper isn't a
+constructor (excludes `*_new` / `*_with_capacity`), emit a
+WARNING with the container type label and a code suggestion.
+
+Diagnostic is INFORMATIONAL (uses `print`) so the build doesn't
+halt. Variables (which legitimately hold container handles via
+the i64-everywhere ABI) are NOT flagged.
+
+Pinned by
+`tests/fixtures/t438_collection_helper_int_literal_diag.nr`.
+Bootstrap fixed point at stage_d
+`79853ed844440e6bae5765c2194c275e3e194f170404013d009ced361df82261`.
+
 ## [0.3.170] — 2026-04-26
 
 **Added literal-only WARNING for `vec_*(int_literal, ...)`.**
