@@ -10332,6 +10332,32 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 return lx_new(r, blk);
             };
         };
+        // v0.3.117: `with_capacity(N)` for the collection family.
+        // Pre-v0.3.117 only `Vec::with_capacity` (added in v0.3.116)
+        // was wired; HashMap/HashSet/BTreeMap/BTreeSet/VecDeque/String
+        // all silently dispatched to the diagnostic+zero path,
+        // returning an empty handle that no subsequent insert/push
+        // could populate. Runtime helpers `__nucleor_<type>_with_capacity`
+        // already exist for each (with v0.3.116 just adding the Vec one).
+        if str_eq(mname, "with_capacity") {
+            let mut wch: str = "";
+            if str_eq(tname, "HashMap") { wch = "hashmap_with_capacity"; };
+            if str_eq(tname, "HashSet") { wch = "hashset_with_capacity"; };
+            if str_eq(tname, "VecDeque") { wch = "vecdeque_with_capacity"; };
+            if str_eq(tname, "String") { wch = "string_with_capacity"; };
+            if str_len(wch) > 0 {
+                let mut wcc: Vec<i32> = blk;
+                let mut wca: Vec<i32> = Vec::new();
+                if list_len(pool, args_list) >= 1 {
+                    let mut ap: Vec<i32> = lower_expr(pool, list_get(pool, args_list, 0), wcc, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    wca.push(lx_reg(ap));
+                    wcc = lx_blk(ap);
+                };
+                let r: i64 = ctr_next(regs);
+                ir_block_add(wcc, ir_call_ex(r, wch, wca));
+                return lx_new(r, wcc);
+            };
+        };
         if str_eq(tname, "Tensor") {
             let mut t_args: Vec<i32> = Vec::new();
             let ac: i64 = list_len(pool, args_list);
