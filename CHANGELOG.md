@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.150] — 2026-04-26
+
+**Removed reserved-but-unused `wrapping` and `saturating` keywords —
+user fns named `wrapping` or `saturating` no longer fail to link with
+a confusing `__nucleor_wrap_i32` undefined-reference error.** Ninth
+contextual-keyword silent-miscompute fix.
+
+Pre-v0.3.150, `classify_kw` mapped `wrapping` (78) and `saturating`
+(79) to hard kw tokens for planned RFC overflow-block forms
+(`wrapping { x + y }` etc.). Both block forms had ZERO usage in
+the codebase. `parse_primary`'s `tt == 78/79` branches called
+`parse_wrapped_block_expr` which, when given `(x)` instead of
+`{x}`, parsed the inner expression as the wrap target and emitted
+a call to `__nucleor_wrap_i32` — a runtime helper that doesn't
+exist for the i64 ABI.
+
+Adopters writing `fn wrapping(x) { ... }` and calling
+`wrapping(41)` got a clang LINK error pointing at IR they didn't
+write (`undefined reference to __nucleor_wrap_i32`). Same hazard
+class as v0.3.149 `unsafe`: noisy non-fatal-LOOKING failure that
+lands at the wrong place — adopter spends time chasing a
+"missing runtime symbol" instead of looking at their identifier
+choice.
+
+Both names are common in user code (`fn saturating(x: i64, max: i64)
+-> i64 { ... }`, `fn wrapping(x: i64) -> i64 { ... }` for fixed-
+width arithmetic helpers).
+
+Fix: removed both names from `classify_kw` and removed the dead
+`parse_primary` `tt == 78/79` branches. Same pattern as v0.3.140
+`restricts` removal. Mirrored in `nucleor_tools_suite.nr`.
+
+Pinned by `tests/fixtures/t425_user_fn_named_wrapping_saturating.nr`.
+Bootstrap fixed point at stage_d
+`fe5a20d9bc5d76ffd29544ede20cd170`. Verify gate green.
+
 ## [0.3.149] — 2026-04-26
 
 **`unsafe` is now a contextual keyword — user fns named `unsafe`

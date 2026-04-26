@@ -100,8 +100,7 @@ fn classify_kw(w: str) -> i64 {
     // was only causing silent miscompute for user fns named `restricts`.
     // v0.3.149: `unsafe` is contextual. Mirror of compiler-side fix --
     // see nucleor_s1_compiler classify_kw notes.
-    if str_eq(w, "wrapping") { return 78; };
-    if str_eq(w, "saturating") { return 79; };
+    // v0.3.150: wrapping/saturating no longer kw -- mirror of compiler-side fix.
     // v0.3.138: removed `scope`/`spawn` kw classifications. Mirror
     // of compiler-side fix — silent miscompute for user fns named
     // `scope` or `spawn` because parse_primary fell through its
@@ -455,8 +454,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // v0.3.149: tt == 77 (unsafe) branch is dead code since classify_kw
     // no longer maps unsafe to 77. The block form `unsafe { ... }` is
     // unused in any source the tools-suite parses.
-    if tt == 78 { return parse_wrapped_block_expr(tokens, pos + 1, pool, 1); };
-    if tt == 79 { return parse_wrapped_block_expr(tokens, pos + 1, pool, 2); };
+    // v0.3.150: dead tt == 78/79 branches removed (wrapping/saturating).
     if tt == 1 {
         let name: i64 = pkv(tokens, pos);
         if str_eq(name, "Some") == 1 || str_eq(name, "None") == 1 || str_eq(name, "Ok") == 1 || str_eq(name, "Err") == 1 {
