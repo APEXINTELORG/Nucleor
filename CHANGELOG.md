@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.137] — 2026-04-26
+
+**`pure` is now a contextual keyword — user fns named `pure` no
+longer silently miscompile to `0`.** Pre-v0.3.137, `classify_kw`
+mapped the bare identifier `pure` to a hard keyword token (68)
+unconditionally — the lexer always preferred the kw classification
+even when `pure` appeared in identifier position (a fn name like
+`fn pure(x: i64) -> i64 { … }` or a call site like `pure(41)`).
+The fn declaration still parsed correctly because `parse_fn_decl`
+reads the token's *value* (the original string `"pure"`) regardless
+of token kind, so the fn was registered under the right name. But
+at the call site, `parse_primary` had no branch for token 68 and
+silently fell through to its `int_lit 0` default — the entire call
+collapsed to a constant `0` in the IR with NO diagnostic. Same
+hazard class as the v0.3.126 user-fn-shadowing-runtime bug
+(silent dispatch failure under what looks like the right name) and
+the v0.3.130 / v0.3.133 silent-zero f64 literal bugs.
+
+`pure` is rare as a NUCleor effect annotation; it is common as an
+identifier — math helpers, parser combinators, functional utilities,
+side-effect-free callbacks all reach for the name. Any adopter who
+happened to write `fn pure(x) { … }` would hit the trap on the very
+first probe and the failure mode (a wildly wrong number) was
+indistinguishable from any other arithmetic bug in their code.
+
+Fix: `classify_kw` no longer maps `pure` to token 68. The lexer
+emits identifier token 1 with value `"pure"`. The `pure fn`
+declaration form (`pure fn name(…) { … }`) is still recognised at
+top level by checking `pkv == "pure" && pk(cp+1) == 10` in
+`parse_program` — the contextual keyword pattern. Both the
+declaration and the identifier paths now work; mirrored in
+`compiler/nucleor_tools_suite.nr` to satisfy the drift gate.
+
+Pinned by `tests/fixtures/t411_user_fn_named_pure.nr`. Bootstrap
+fixed point reached at stage_d.ll = 4ec1c9eb5dc2b71b1a8563b746b6a600.
+Verify gate green (452/452 + 287/287 self-host steps).
+
 ## [0.3.136] — 2026-04-25
 
 **`str_to_int` as a user-callable runtime helper.** The s1
