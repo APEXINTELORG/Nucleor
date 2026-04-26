@@ -11931,6 +11931,31 @@ fn resolve_import_path(base_dir: str, raw_path: str) -> str {
     };
     let from_cwd: str = sanitize(raw_path);
     if str_len(file_read_string(from_cwd)) > 0 { return from_cwd; };
+    // v0.3.122: NUC-FEEDBACK-004 — when the source file is OUTSIDE
+    // the Nucleor_OSS repo (adopters using nucleor.exe as an external
+    // tool), `import "stdlib/rods/jsonl.nr"` and other stdlib imports
+    // silently fail to resolve via the base_dir walk above — the
+    // compiler had no idea where stdlib lives. The import then
+    // produces zero injected source and every `emit_json_*` (or other
+    // stdlib symbol) fails at clang link with `@<name> undefined`.
+    // Fix: also probe `NUCLEOR_STDLIB` env override, and the
+    // `<exe_dir>/..` (i.e. OSS-root sibling of `bin/`) — same pattern
+    // as resolve_toolchain_path. Both checks fail-soft via
+    // file_read_string > 0, so users with custom layouts still get
+    // their relative-to-source resolution from the loop above.
+    let env_root: str = env_get_or("NUCLEOR_STDLIB", "");
+    if str_len(env_root) > 0 {
+        let from_env: str = sanitize(str_concat(env_root, str_concat("/", raw_path)));
+        if str_len(file_read_string(from_env)) > 0 { return from_env; };
+    };
+    if args_count() > 0 {
+        let exe_dir: str = extract_dir(args_get(0));
+        let from_exe_dir: str = sanitize(str_concat(exe_dir, raw_path));
+        if str_len(file_read_string(from_exe_dir)) > 0 { return from_exe_dir; };
+        let repo_dir: str = parent_dir(exe_dir);
+        let from_repo_dir: str = sanitize(str_concat(repo_dir, raw_path));
+        if str_len(file_read_string(from_repo_dir)) > 0 { return from_repo_dir; };
+    };
     return sanitize(str_concat(base_dir, raw_path));
 }
 
