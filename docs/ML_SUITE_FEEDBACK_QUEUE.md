@@ -65,6 +65,10 @@ Fix:
 **Status: CLOSED in v0.3.121 (panic/assert strip mirrored into nucleor_tools_suite expand_format_macros). Fixture t398.**
 **Priority: MEDIUM (test-surface trust)**
 
+### NUC-FEEDBACK-004 — `stdlib/rods/jsonl.nr` undefined-symbol cascade from external repos
+**Status: CLOSED in v0.3.122. resolve_import_path now probes NUCLEOR_STDLIB env, exe_dir, exe_dir/.. — same pattern as resolve_toolchain_path. Fixture t399.**
+**Priority: HIGH (any external import was broken — adoption blocker for the entire OSS distribution)**
+
 The generated test harness emits a parse error
 (`Parse error at token position 8927: expected token 51 got 1`) on the
 ML_Suite tensor smoke test, even though the same code compiles via

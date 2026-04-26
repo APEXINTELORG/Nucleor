@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.122] — 2026-04-25
+
+**NUC-FEEDBACK-004 closed — stdlib import resolution from outside
+the OSS repo.** Pre-v0.3.122, `import "stdlib/rods/jsonl.nr"` (or
+any other stdlib rod) silently failed when the source file lived
+outside the Nucleor_OSS repo — the import-path search walked from
+source base_dir UP to filesystem root, then CWD; since external
+adopters typically have neither, the import injected zero source
+and every imported symbol failed at clang link with
+`@<name> undefined`. The ML_Suite agent reported this for
+`emit_json_array_f64`, `emit_json_metric_i64`, and `emit_json_array_i64`
+on a `Nucleor_ML_Suite/examples/jsonl_evidence_smoke.nr` build.
+
+Hard adoption blocker for **anyone** using `nucleor.exe` as an
+external tool (which is the entire point of the OSS distribution).
+
+### Fix
+
+In `resolve_import_path`, after the source-relative walk and CWD
+fallback, add three new search candidates:
+
+1. `$NUCLEOR_STDLIB/<raw_path>` — explicit env override.
+2. `<exe_dir>/<raw_path>` — compiler binary's own directory.
+3. `<exe_dir>/../<raw_path>` — OSS-root sibling of `bin/`
+   (so a deployed `<root>/bin/nucleor.exe` finds
+   `<root>/stdlib/...`).
+
+Same pattern as the existing `resolve_toolchain_path` (which
+finds `.c` runtime files relative to the binary). All checks
+fail-soft via `file_read_string > 0`, so users with custom
+layouts still get their relative-to-source resolution from the
+existing loop.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t399 verifies that
+`import "stdlib/rods/jsonl.nr"` resolves and emits a usable
+`emit_json_status` from a fixture inside the repo. The new
+external-path branches are exercised by the ML_Suite reproducer
+which now compiles cleanly. `bin/nucleor.exe` SHA `0ca2288e`.
+452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — three new search candidates
+  in `resolve_import_path`.
+- `tests/fixtures/t399_external_stdlib_import.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.121] — 2026-04-25
 
 **NUC-FEEDBACK-001 closed — `nuc test` harness now passes panic!/
