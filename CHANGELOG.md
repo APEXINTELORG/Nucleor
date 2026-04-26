@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.128] — 2026-04-25
+
+**Enum-variant equality (`t == Tag::A`) — closes a HIGH-blast
+silent miscompute.** Pre-v0.3.128, equality between an enum value
+and a variant constructor compared the underlying Vec pointers.
+Each `Tag::A` constructor allocates a fresh Vec, so pointer
+equality was always false — every enum-discriminator comparison
+adopters wrote silently returned the wrong branch.
+
+HIGH-blast for state machines, parser dispatch tables, AST
+walkers, and any code reaching for the canonical Rust idiom:
+
+```rust
+enum Tag { A, B, C }
+let t: Tag = Tag::A;
+if t == Tag::A { /* never entered before v0.3.128 */ }
+```
+
+Most adopters route this through `match` (which works correctly
+because match arms compare tags via vec_get), but `if`-equality
+is the natural form for single-variant tests and was completely
+broken.
+
+### Fix
+
+In `lower_expr` kind-4 (binop), when op is `==` (token 30) or
+`!=` (token 31), check whether either operand is a kind-12
+associated-fn-call matching a registered enum etag (sym key
+`__etag_<tname>_<mname>` populated at enum-collection time). If
+yes, emit a tag-compare instead of pointer compare:
+- Extract `vec_get(lhs, 0)` and `vec_get(rhs, 0)` (the etag stored
+  at slot 0 of each enum value).
+- Compare the two i64 tags via the existing icmp eq/ne path.
+
+New helper `enum_etag_for_node` encapsulates the kind-12 + sym
+lookup. Falls back to the existing pointer-compare path for non-
+enum operands so all other binop semantics (int/float arith,
+&&/||, etc.) are untouched.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t404 returns 0 from a four-way
+classify-and-compare round-trip on Tag::{A,B,C} plus a `!=` test.
+`bin/nucleor.exe` SHA `b5c89a84`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `enum_etag_for_node` helper;
+  enum-eq dispatch in lower_expr kind-4.
+- `tests/fixtures/t404_enum_equality.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.127] — 2026-04-25
 
 **NUC-IMPROVE-005 closed — `stdlib/rods/math_typed.nr` typed-f64

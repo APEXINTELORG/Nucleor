@@ -9955,6 +9955,19 @@ fn lower_if_expr_branch(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>,
     return lx_new(zr, b);
 }
 
+// v0.3.128: helper for enum-equality dispatch in lower_expr kind-4.
+// Returns the etag (>= 0) if the node is a kind-12 associated-fn-call
+// matching a registered enum variant constructor (sym key
+// `__etag_<tname>_<mname>` populated at enum-collection time).
+// Returns -1 otherwise.
+fn enum_etag_for_node(pool: Vec<i32>, nid: i64, sym: Vec<i32>) -> i64 {
+    if node_kind(pool, nid) != 12 { return 0 - 1; };
+    let tname: str = node_field(pool, nid, 1);
+    let mname: str = node_field(pool, nid, 2);
+    let key: str = str_concat("__etag_", str_concat(tname, str_concat("_", mname)));
+    return sym_get(sym, key);
+}
+
 fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
     let kind: i64 = node_kind(pool, nid);
     // RFC-0015 phase 2: `as` cast. Lower inner, then call __nucleor_as_<T>
@@ -10095,6 +10108,43 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return lx_new(r, blk);
     };
     if kind == 4 {
+        // v0.3.128: enum-equality dispatch. Pre-v0.3.128, `t == Tag::A`
+        // (where t is an enum value) compared the underlying Vec
+        // pointers — each Tag::A constructor allocates a fresh Vec, so
+        // pointer equality was always false. Silent miscompute for
+        // every enum-discriminator comparison adopters wrote.
+        // Detect: if BOTH operands resolve to known enum etags (the
+        // sym entry `__etag_<tname>_<mname>` populated at enum
+        // collection), OR if exactly one is a kind-12 enum-variant
+        // constructor and the other is presumed to be an enum value
+        // of the same type (var-ref / fn-call result), emit a tag
+        // compare instead of pointer compare. Tag is at vec_get(_, 0).
+        let bop: i64 = node_field(pool, nid, 1);
+        if bop == 30 || bop == 31 {
+            let lhs_n: i64 = node_field(pool, nid, 2);
+            let rhs_n: i64 = node_field(pool, nid, 3);
+            let lhs_etag: i64 = enum_etag_for_node(pool, lhs_n, sym);
+            let rhs_etag: i64 = enum_etag_for_node(pool, rhs_n, sym);
+            // At least one side is a kind-12 enum constructor with a known etag.
+            // The other side is treated as an enum value (its Vec[0] is its tag).
+            if lhs_etag >= 0 || rhs_etag >= 0 {
+                let mut elp: Vec<i32> = lower_expr(pool, lhs_n, blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                let elr: i64 = lx_reg(elp);
+                let mut ecur: Vec<i32> = lx_blk(elp);
+                let mut erp: Vec<i32> = lower_expr(pool, rhs_n, ecur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                let err: i64 = lx_reg(erp);
+                ecur = lx_blk(erp);
+                let zero_r: i64 = ctr_next(regs); ir_block_add(ecur, ir_const_int(zero_r, 0));
+                let mut lt_args: Vec<i32> = Vec::new(); lt_args.push(elr); lt_args.push(zero_r);
+                let lt_tag: i64 = ctr_next(regs); ir_block_add(ecur, ir_call_ex(lt_tag, "vec_get", lt_args));
+                let mut rt_args: Vec<i32> = Vec::new(); rt_args.push(err); rt_args.push(zero_r);
+                let rt_tag: i64 = ctr_next(regs); ir_block_add(ecur, ir_call_ex(rt_tag, "vec_get", rt_args));
+                let er: i64 = ctr_next(regs);
+                let eiop: i64 = if bop == 30 { 7 } else { 8 };
+                ir_block_add(ecur, ir_cmpop(eiop, er, lt_tag, rt_tag));
+                return lx_new(er, ecur);
+            };
+        };
         let mut lp: Vec<i32> = lower_expr(pool, node_field(pool, nid, 2), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let lr: i64 = lx_reg(lp);
         let mut cur: Vec<i32> = lx_blk(lp);
