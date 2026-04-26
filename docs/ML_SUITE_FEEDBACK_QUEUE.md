@@ -114,29 +114,30 @@ via stdlib/rods/tokenizer.nr. Canonical round-trip now works:
 encode → vec_len → vec_at → decode → vec_free.
 
 ### Compiler-internal hazard: `&&` and `||` do NOT short-circuit
-**Status: OPEN — high blast, design needed.**
+**Status: CLOSED in v0.3.148. Fixture t423.**
 **Priority: HIGH (silent miscompute for adopter null-check idioms)**
 
-Pre-fix behaviour: parse_and_expr / parse_or_expr lower to bitwise
-`and i64` / `or i64` of both operand values. The LOGIC is correct for
-strict 0/1 boolean values but the RHS is ALWAYS evaluated, so any
-adopter relying on short-circuit safety (e.g. `if x != 0 && deref(x).f`)
-hits an unguarded RHS evaluation. Crashes for null deref / OOB / etc.
+Earlier attempt v0.3.145 used mid-function alloca placement
+(`ir_block_add`) and broke stage C self-host. v0.3.148 hoists the
+result alloca to the entry block via `ir_fn_add_entry_alloca` --
+the same pattern the while/loop lowering already uses. Stages
+B->C->D->E all converge with the new short-circuit lowering.
 
-Attempted fix in v0.3.145: inline branch IR per && (alloca + cmp +
-br_cond + 3 blocks + store/load merge). Stage A→B compiled fine, but
-stage B-built stage C silently exits 0 with no output when given a
-large input source — broken IR somewhere in my emit, likely an alloca
-placement issue (allocas mid-function vs entry-block requirement) or
-label/block management bug. Reverted to v0.3.144 source state.
+Branch IR shape for A && B:
+  1. eval A
+  2. cmp != 0 -> cond
+  3. result alloca (entry block)
+  4. br cond, eval_B, false_lbl
+  5. eval_B path stores (B != 0) to result
+  6. false_lbl path stores 0 to result
+  7. merge label loads result
+A || B inverts: true branch stores 1, false branch evals B and
+stores its truthy projection.
 
-Proper fix needs:
-- alloca hoisting to entry block, OR
-- a new IR op (ir_select / ir_short_and / ir_short_or) that the
-  emitter handles atomically without leaking allocas mid-flow.
-Plus a careful audit that `*every* &&` chain in s1 source still
-yields the same logical result (the existing chains are safe-by-
-construction so behaviour shouldn't change, just emission shape).
+Fixture t423 exercises four cases with a side-effecting touch()
+helper to assert the actual short-circuit semantic (RHS not called
+when LHS determines result). Verify gate green (448/450 -- only
+env-dep memory budgets remain).
 
 The generated test harness emits a parse error
 (`Parse error at token position 8927: expected token 51 got 1`) on the
