@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.153] — 2026-04-26
+
+**Hardened the v0.3.152 source-scan heuristic to detect type
+conflicts.** The v0.3.152 fix introduced a NEW silent-miscompute
+(SIGSEGV) when the same identifier was declared with different
+types in different functions — caught during ship-validation
+probing.
+
+Pre-v0.3.153, `infer_var_type_from_source` returned the FIRST
+matching `let X: TYPE` declaration it found in the full source,
+without checking whether other declarations of `X` agreed. With
+`let x: str` in `helper()` and `let x: i64` in `main()`,
+`println!("{}", x)` in main treated x as str — passing the i64
+value 999 to `__nucleor_print_str` which dereferenced 999 as a
+`const char *` and SIGSEGV'd.
+
+Same hazard class as v0.3.137-v0.3.151 silent miscompiles, but this
+one was INTRODUCED by my own v0.3.152 fix instead of being a pre-
+existing one. Caught in time before the gate, rolled forward (not
+reverted — the heuristic still helps when there's no conflict).
+
+Fix: scan ALL `let X: TYPE` declarations and only return TYPE if
+every declaration agrees. On conflict, fall back to `int_to_str`
+(the existing pre-v0.3.152 default). Worst case the adopter sees
+the original int-as-pointer behavior and switches to explicit
+`:s` / `:f` — still a hazard but the same one as pre-v0.3.152,
+NOT a worse one. Conservative-by-construction.
+
+Also added two correctness checks while at it:
+- Identifier boundary: require the char after `<var_name>` not be
+  alpha/digit/underscore so `foo` doesn't match `foobar`.
+- Require the matched `let` to have an explicit `: TYPE` annotation
+  (not elision via `let x = ...;` without a type) so we never
+  invent a type out of thin air.
+
+Pinned by `tests/fixtures/t427_format_var_type_conflict.nr`.
+Bootstrap fixed point at stage_d
+`ede8169878069d2f179a8118ffda6123`. Verify gate green.
+
 ## [0.3.152] — 2026-04-26
 
 **Bare `{}` format spec now infers types from `let X: TYPE`
