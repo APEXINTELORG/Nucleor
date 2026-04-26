@@ -391,6 +391,21 @@ long long __nucleor_str_to_f64(const char *s) {
     return u.i;
 }
 
+// v0.3.136: str_to_int as user-callable runtime helper. The s1
+// compiler defines its own internal `str_to_int` fn (compiler/
+// nucleor_s1_compiler.nr:32) for lex-time digit parsing, but
+// adopters writing `str_to_int("123")` in their .nr code hit
+// `clang: undefined value '@str_to_int'` because no runtime helper
+// was registered. Symmetric to `__nucleor_str_to_f64`.
+// Returns 0 on parse failure (matches str_to_f64's failure mode).
+long long __nucleor_str_to_int(const char *s) {
+    if (!s) return 0;
+    char *end;
+    long long v = strtoll(s, &end, 10);
+    if (end == s) return 0;
+    return v;
+}
+
 long long __nucleor_str_to_bool(const char *s) {
     if (!s) return 0;
     while (*s == ' ' || *s == '\t') s++;
