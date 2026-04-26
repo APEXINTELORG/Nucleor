@@ -14,7 +14,9 @@ fn main() -> i32 {
     if hashmap_get(m, "alice") != 30 { fail = fail + 1; print("FAIL: get alice\n"); };
     if hashmap_get(m, "bob") != 42 { fail = fail + 1; print("FAIL: get bob\n"); };
     if hashmap_get(m, "carol") != 17 { fail = fail + 1; print("FAIL: get carol\n"); };
-    if hashmap_get(m, "nobody") != 0 { fail = fail + 1; print("FAIL: get missing\n"); };
+    // v0.3.202: hashmap_get on missing key now PANICs by default. Use
+    // hashmap_contains to probe presence; negative case in
+    // tests/fixtures/probe_hashmap_missing.nr.
 
     if hashmap_contains(m, "alice") != 1 { fail = fail + 1; print("FAIL: contains alice\n"); };
     if hashmap_contains(m, "nobody") != 0 { fail = fail + 1; print("FAIL: contains missing\n"); };

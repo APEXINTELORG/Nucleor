@@ -3633,6 +3633,18 @@ long long __nucleor_hashmap_insert(long long h, const char *key, long long val) 
     m->len++;
     return 0;
 }
+// v0.3.202: NUC-FEEDBACK runtime safety -- HashMap missing-key
+// access now PANICs by default. Silent-zero on missing key was
+// indistinguishable from a legitimate stored 0 -- adopters had no
+// way to tell "key absent" from "key present with value 0" via
+// the get() return. The launch bar (no silent miscomputes)
+// requires PANIC. Adopters who genuinely need the legacy behavior
+// can opt back in with `NUCLEOR_VEC_OOB_LENIENT=1` (same env var
+// covers vec OOB, hashmap missing, btreemap missing -- the
+// "lenient" mode is "don't panic on lookup-shaped errors").
+// Null-handle / null-key still return 0 silently (defensive).
+// Code that uses the contains-then-get pattern or the
+// hashmap_get_or(h, k, default) helper never reaches the panic.
 long long __nucleor_hashmap_get(long long h, const char *key) {
     NHashMap *m = (NHashMap *)(intptr_t)h;
     if (!m || !key) return 0;
@@ -3646,7 +3658,10 @@ long long __nucleor_hashmap_get(long long h, const char *key) {
         idx = (idx + 1) & (m->cap - 1);
         if (idx == start) break;
     }
-    return 0;
+    if (_vec_oob_lenient()) return 0;
+    fprintf(stderr, "PANIC: hashmap_get missing key '%s' (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n", key);
+    fflush(stderr);
+    exit(1);
 }
 long long __nucleor_hashmap_contains(long long h, const char *key) {
     NHashMap *m = (NHashMap *)(intptr_t)h;
@@ -4259,7 +4274,12 @@ long long __nucleor_btreemap_get(long long h, const char *key) {
     NBTreeMap *m = (NBTreeMap *)(intptr_t)h;
     if (!m || !key) return 0;
     long long idx = __nuc_btreemap_bsearch(m, key);
-    if (idx < 0) return 0;
+    if (idx < 0) {
+        if (_vec_oob_lenient()) return 0;
+        fprintf(stderr, "PANIC: btreemap_get missing key '%s' (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n", key);
+        fflush(stderr);
+        exit(1);
+    }
     return m->vals[idx];
 }
 long long __nucleor_btreemap_contains(long long h, const char *key) {

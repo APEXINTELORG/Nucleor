@@ -19,7 +19,10 @@ fn main() -> i32 {
     // get returns correct value
     if btreemap_get(m, "alice") != 1 { fail = fail + 1; print("FAIL: get alice\n"); };
     if btreemap_get(m, "delta") != 4 { fail = fail + 1; print("FAIL: get delta\n"); };
-    if btreemap_get(m, "missing") != 0 { fail = fail + 1; print("FAIL: get missing\n"); };
+    // v0.3.202: btreemap_get on missing key now PANICs by default. Use
+    // btreemap_contains to probe presence; negative case in
+    // tests/fixtures/probe_btreemap_missing.nr.
+    if btreemap_contains(m, "missing") != 0 { fail = fail + 1; print("FAIL: contains missing\n"); };
 
     // contains
     if btreemap_contains(m, "bob") != 1 { fail = fail + 1; print("FAIL: contains bob\n"); };
