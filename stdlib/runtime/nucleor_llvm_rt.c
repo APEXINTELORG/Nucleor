@@ -25,6 +25,69 @@ static long long g_sb_realloc_bytes = 0;
 static long long g_misc_str_count = 0;
 static long long g_misc_str_bytes = 0;
 static int g_alloc_tracer_init = 0;
+
+// v0.3.212: NUCLEOR_PROFILE=1 -- per-runtime-helper call counters,
+// dumped at exit. Catches the "this program is calling vec_get 50M
+// times" / "str_char_at is the bottleneck" hot-helper class without
+// needing a real profiler. Zero overhead for the common (env unset)
+// case beyond the unconditional increment per call (~1ns); the env
+// check happens once at exit.
+static long long g_p_vec_get = 0;
+static long long g_p_vec_set = 0;
+static long long g_p_vec_push = 0;
+static long long g_p_vec_len = 0;
+static long long g_p_vec_pop = 0;
+static long long g_p_str_char_at = 0;
+static long long g_p_str_eq = 0;
+static long long g_p_str_len = 0;
+static long long g_p_str_concat = 0;
+static long long g_p_str_substring = 0;
+static long long g_p_hashmap_get = 0;
+static long long g_p_hashmap_insert = 0;
+static long long g_p_hashmap_contains = 0;
+static long long g_p_panic_add = 0;
+static long long g_p_panic_mul = 0;
+static long long g_p_panic_sub = 0;
+
+static void _profile_summary(void) {
+    if (getenv("NUCLEOR_PROFILE")) {
+        long long total =
+            g_p_vec_get + g_p_vec_set + g_p_vec_push + g_p_vec_len + g_p_vec_pop +
+            g_p_str_char_at + g_p_str_eq + g_p_str_len + g_p_str_concat + g_p_str_substring +
+            g_p_hashmap_get + g_p_hashmap_insert + g_p_hashmap_contains +
+            g_p_panic_add + g_p_panic_mul + g_p_panic_sub;
+        fprintf(stderr, "\n[NUCLEOR_PROFILE] runtime helper call counts (top-N hot helpers):\n");
+        fprintf(stderr, "  vec_get          %12lld\n", g_p_vec_get);
+        fprintf(stderr, "  vec_set          %12lld\n", g_p_vec_set);
+        fprintf(stderr, "  vec_push         %12lld\n", g_p_vec_push);
+        fprintf(stderr, "  vec_len          %12lld\n", g_p_vec_len);
+        fprintf(stderr, "  vec_pop          %12lld\n", g_p_vec_pop);
+        fprintf(stderr, "  str_char_at      %12lld\n", g_p_str_char_at);
+        fprintf(stderr, "  str_eq           %12lld\n", g_p_str_eq);
+        fprintf(stderr, "  str_len          %12lld\n", g_p_str_len);
+        fprintf(stderr, "  str_concat       %12lld\n", g_p_str_concat);
+        fprintf(stderr, "  str_substring    %12lld\n", g_p_str_substring);
+        fprintf(stderr, "  hashmap_get      %12lld\n", g_p_hashmap_get);
+        fprintf(stderr, "  hashmap_insert   %12lld\n", g_p_hashmap_insert);
+        fprintf(stderr, "  hashmap_contains %12lld\n", g_p_hashmap_contains);
+        fprintf(stderr, "  panic_add        %12lld\n", g_p_panic_add);
+        fprintf(stderr, "  panic_mul        %12lld\n", g_p_panic_mul);
+        fprintf(stderr, "  panic_sub        %12lld\n", g_p_panic_sub);
+        fprintf(stderr, "  TOTAL TRACKED    %12lld\n", total);
+        if (total > 0) {
+            fprintf(stderr, "  hint: any helper > 1M calls may be a hot-loop bottleneck;\n");
+            fprintf(stderr, "        any helper > 100M calls usually points at quadratic\n");
+            fprintf(stderr, "        algorithmic complexity (e.g. nested loop over Vec.len).\n");
+        }
+        fflush(stderr);
+    }
+}
+
+static int g_profile_init = 0;
+static inline void _profile_init_once(void) {
+    if (!g_profile_init) { atexit(_profile_summary); g_profile_init = 1; }
+}
+
 static void _alloc_summary(void) {
     if (getenv("NUC_TRACE_ALLOC")) {
         long long total = g_vec_realloc_bytes + g_str_concat_bytes + g_str_substring_bytes + g_sb_realloc_bytes + g_misc_str_bytes;
@@ -1070,11 +1133,13 @@ long long nuc_f64_min(long long a, long long b) {
 
 // === String operations ===
 long long __nucleor_str_len(const char *s) {
+    g_p_str_len++; _profile_init_once();
     if (!s) return 0;
     return (long long)strlen(s);
 }
 
 long long __nucleor_str_eq(const char *a, const char *b) {
+    g_p_str_eq++; _profile_init_once();
     if (!a || !b) return a == b ? 1 : 0;
     return strcmp(a, b) == 0 ? 1 : 0;
 }
@@ -1099,6 +1164,7 @@ long long __nucleor_str_eq(const char *a, const char *b) {
 // Net: tightens the obvious bug class (negative index) cheaply,
 // documents the residual surface, doesn't tank the lexer.
 long long __nucleor_str_char_at(const char *s, long long i) {
+    g_p_str_char_at++; _profile_init_once();
     if (!s) return 0;
     if (i < 0) {
         if (_vec_oob_lenient()) return 0;
@@ -1118,6 +1184,7 @@ long long __nucleor_str_char_at(const char *s, long long i) {
 // by default (NUCLEOR_VEC_OOB_LENIENT=1 opts back into legacy
 // undefined behavior for porting purposes).
 const char *__nucleor_str_substring(const char *s, long long start, long long end) {
+    g_p_str_substring++; _profile_init_once();
     if (!s) return "";
     long long slen = (long long)strlen(s);
     if (start < 0 || end < start || end > slen) {
@@ -1153,6 +1220,7 @@ const char *__nucleor_str_substring(const char *s, long long start, long long en
 }
 
 const char *__nucleor_str_concat(const char *a, const char *b) {
+    g_p_str_concat++; _profile_init_once();
     if (!a) a = "";
     if (!b) b = "";
     int la = (int)strlen(a), lb = (int)strlen(b);
@@ -1429,6 +1497,7 @@ void __nucleor_str_free(const char *s) {
 }
 
 void __nucleor_vec_push(NVec *v, long long x) {
+    g_p_vec_push++; _profile_init_once();
     if (!v) return;
     if (v->len >= v->cap) {
         long long old_cap = v->cap;
@@ -1458,6 +1527,7 @@ static int _vec_oob_lenient(void) {
 }
 
 long long __nucleor_vec_get(NVec *v, long long i) {
+    g_p_vec_get++; _profile_init_once();
     if (!v) return 0;
     if (i < 0 || i >= v->len) {
         if (_vec_oob_lenient()) return 0;
@@ -1470,16 +1540,19 @@ long long __nucleor_vec_get(NVec *v, long long i) {
 }
 
 long long __nucleor_vec_len(NVec *v) {
+    g_p_vec_len++; _profile_init_once();
     if (!v) return 0;
     return (long long)v->len;
 }
 
 void __nucleor_vec_pop(NVec *v) {
+    g_p_vec_pop++; _profile_init_once();
     if (!v || v->len <= 0) return;
     v->len--;
 }
 
 void __nucleor_vec_set(NVec *v, long long i, long long x) {
+    g_p_vec_set++; _profile_init_once();
     if (!v) return;
     if (i < 0 || i >= v->len) {
         if (_vec_oob_lenient()) return;
@@ -2849,6 +2922,7 @@ long long __nucleor_checked_overflow_flag(void) {
 // surface.
 
 long long __nucleor_panic_add_i64(long long a, long long b) {
+    g_p_panic_add++; _profile_init_once();
     if (b > 0 && a > LLONG_MAX - b) {
         fprintf(stderr, "PANIC: i64 add overflow: %lld + %lld\n", a, b);
         fflush(stderr); exit(1);
@@ -2860,6 +2934,7 @@ long long __nucleor_panic_add_i64(long long a, long long b) {
     return a + b;
 }
 long long __nucleor_panic_sub_i64(long long a, long long b) {
+    g_p_panic_sub++; _profile_init_once();
     if (b < 0 && a > LLONG_MAX + b) {
         fprintf(stderr, "PANIC: i64 sub overflow: %lld - %lld\n", a, b);
         fflush(stderr); exit(1);
@@ -2871,6 +2946,7 @@ long long __nucleor_panic_sub_i64(long long a, long long b) {
     return a - b;
 }
 long long __nucleor_panic_mul_i64(long long a, long long b) {
+    g_p_panic_mul++; _profile_init_once();
     if (a == 0 || b == 0) return 0;
     long long r = a * b;
     if (a != r / b) {
@@ -3782,6 +3858,7 @@ long long __nucleor_hashmap_with_capacity(long long n) {
     return (long long)(intptr_t)m;
 }
 long long __nucleor_hashmap_insert(long long h, const char *key, long long val) {
+    g_p_hashmap_insert++; _profile_init_once();
     NHashMap *m = (NHashMap *)(intptr_t)h;
     if (!m || !key) return 0;
     if ((m->len + 1) * 2 > m->cap) __nuc_hashmap_grow(m);
@@ -3816,6 +3893,7 @@ long long __nucleor_hashmap_insert(long long h, const char *key, long long val) 
 // Code that uses the contains-then-get pattern or the
 // hashmap_get_or(h, k, default) helper never reaches the panic.
 long long __nucleor_hashmap_get(long long h, const char *key) {
+    g_p_hashmap_get++; _profile_init_once();
     NHashMap *m = (NHashMap *)(intptr_t)h;
     if (!m || !key) return 0;
     unsigned long long hash = __nuc_str_hash(key);
@@ -3834,6 +3912,7 @@ long long __nucleor_hashmap_get(long long h, const char *key) {
     exit(1);
 }
 long long __nucleor_hashmap_contains(long long h, const char *key) {
+    g_p_hashmap_contains++; _profile_init_once();
     NHashMap *m = (NHashMap *)(intptr_t)h;
     if (!m || !key) return 0;
     unsigned long long hash = __nuc_str_hash(key);

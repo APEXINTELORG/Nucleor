@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.212] — 2026-04-26
+
+**`NUCLEOR_PROFILE=1` runtime helper hot-spot detector.**
+First deliverable of the optimization-detector workstream
+(per user side-quest). Catches "this program calls vec_get
+50M times" / "str_char_at is the bottleneck" without
+needing a real profiler.
+
+Adds per-runtime-helper call counters for the common hot
+helpers, with an `atexit` dump to stderr when
+`NUCLEOR_PROFILE=1` is set. Zero overhead beyond a single
+unconditional increment per call (~1ns); the env-var check
+runs once at exit.
+
+Instrumented (16 helpers):
+- `vec_get`, `vec_set`, `vec_push`, `vec_len`, `vec_pop`
+- `str_char_at`, `str_eq`, `str_len`, `str_concat`, `str_substring`
+- `hashmap_get`, `hashmap_insert`, `hashmap_contains`
+- `panic_add`, `panic_sub`, `panic_mul` (the new strict
+  arithmetic helpers from v0.3.207/208)
+
+Output shape:
+```
+[NUCLEOR_PROFILE] runtime helper call counts (top-N hot helpers):
+  vec_get                  9553
+  vec_set                    12
+  vec_push                 2633
+  ...
+  TOTAL TRACKED           96852
+  hint: any helper > 1M calls may be a hot-loop bottleneck;
+        any helper > 100M calls usually points at quadratic
+        algorithmic complexity (e.g. nested loop over Vec.len).
+```
+
+When `NUCLEOR_PROFILE=1` is set on a `nucleor run` invocation,
+both the compiler-side profile (lex/parse/typecheck/lower
+helper usage) and the user program's profile dump separately
+on exit -- useful for distinguishing compiler vs adopter hot
+spots.
+
+Backstop for the strlen-cache thrash incident from v0.3.210
+work: under `NUCLEOR_PROFILE=1` that pathological case would
+have shown `str_char_at: 50M+` after a few seconds, surfacing
+the issue before 20 minutes of CPU got wasted.
+
+Pinned by `tests/fixtures/probe_profile_dump.nr`. Bootstrap
+fixed point at stage_d
+`70b9ff936f972749de815cc6d09ad23ad72a4ccd41074bf40081d51a382770a7`.
+452/452 verify PASS.
+
 ## [0.3.211] — 2026-04-26
 
 **`f64 as i64` / `f64 as u64` / `f32 as i64` / `f32 as u64`
