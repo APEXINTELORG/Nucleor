@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.198] — 2026-04-26
+
+**Pre-IR halt for unresolved field access.** NUC-FEEDBACK-010
+follow-on. Pre-v0.3.198 the lower_expr field-access path
+printed an actionable diagnostic (v0.3.193) but still emitted
+`%r.-1` to the IR, which then surfaced downstream as a
+confusing `clang: use of undefined value '%r.-1'` link error
+mixed with the already-printed Nucleor diagnostic.
+
+The architectural blocker on a clean halt was that lower_expr
+returns a `(reg, block)` pair to ~44 call sites with no error
+channel — threading `lower_error` through every site is days
+of work and would touch every IR-emitting function.
+
+Sidestep the plumbing: call `panic()` from the compiler
+itself. The s1 compiler IS a Nucleor program, so a panic()
+call here invokes `__nucleor_panic` in the COMPILER's runtime,
+exiting the compiler process with status 1 BEFORE clang is
+ever invoked. Adopters now see the diagnostic followed by
+`PANIC: nucleor: cannot resolve field access .NAME` on
+stderr, no clang spew, no `%r.-1`. Build artifact is not
+created; rerun adopter tooling sees the nonzero exit cleanly.
+
+Pinned by `tests/fixtures/t460_unresolved_field_pre_ir_halt.nr`
+(positive case — fields named `static_count`, `loop_count`,
+`as_count` resolve correctly) and
+`tests/fixtures/probe_unresolved_field.nr` (negative case —
+verifies stderr PANIC + exit 1).
+
+Bootstrap fixed point at stage_d
+`003a7c6e019f8827d20b442584e5e5a3af68bf5e0ffae9ebc222a3fc02acf7f0`.
+
 ## [0.3.197] — 2026-04-26
 
 **`let k: f64 = 0.7978845608028654;` no longer silently

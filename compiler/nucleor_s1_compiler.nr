@@ -12207,12 +12207,17 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // v0.3.193: NUC-FEEDBACK-010 ask -- improve the error so
         // adopters know what to do instead of seeing the cryptic
         // downstream `use of undefined value '%r.-1'` from clang.
-        // The build still fails (clang rejects the -1 reg), but
-        // adopters now have actionable guidance up-front. A true
-        // pre-IR halt would need lower_error plumbing through ~44
-        // call sites and is queued for a separate ship.
+        //
+        // v0.3.198: NUC-FEEDBACK-010 follow-on -- TRUE pre-IR halt.
+        // Threading lower_error through ~44 lower_expr sites was the
+        // architectural blocker; sidestep it by calling panic() from
+        // the compiler itself. The s1 compiler IS a Nucleor program,
+        // so a panic() call here invokes __nucleor_panic in the
+        // compiler's own runtime, exiting the COMPILER process with
+        // status 1 BEFORE clang is ever invoked. Adopters see the
+        // diagnostic followed by a clean `panic` line, no `%r.-1`
+        // confusion, no clang link spew.
         print(str_concat("ERROR: cannot resolve field access type for .", fname));
-        print("       BUILD WILL FAIL at clang link with `use of undefined value '%r.-1'`.");
         print("       Likely causes:");
         print("         (1) Receiver expression type couldn't be inferred (try");
         print("             extracting to a `let x: StructName = ...` binding first).");
@@ -12223,6 +12228,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         print("       If field name contains a substring matching a Nucleor keyword");
         print("       (e.g. `static`, `loop`, `as`), try renaming -- contextual-keyword");
         print("       lexer interactions are an open hazard class.");
+        panic(str_concat("nucleor: cannot resolve field access .", fname));
         return lx_new(0 - 1, cur);
     };
     if kind == 42 {
@@ -16658,7 +16664,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.197";
+    return "0.3.198";
 }
 
 fn compiler_backend_label() -> str {
