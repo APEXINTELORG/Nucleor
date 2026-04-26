@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.200] — 2026-04-26
+
+**Vec OOB now PANICs by default with index/len in the
+message.** Runtime safety closes the silent-zero hazard
+class on Vec indexing.
+
+Pre-v0.3.200, `__nucleor_vec_get(v, i)` with `i` out of
+bounds silently returned 0 and `__nucleor_vec_set(v, i, x)`
+silently no-op'd. Adopters hitting a stale index, off-by-
+one walk, or wrong-len assumption got 0s threaded forward
+into downstream computations as if it were valid data — a
+silent miscompute hazard that the launch-bar (`no silent
+miscomputes`) explicitly forbids.
+
+Fix: PANIC by default with the offending index and the
+actual length:
+
+```
+PANIC: vec_get OOB: index 10, len 3 (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+```
+
+Same surface for `vec_set`. Null-vector reads still return
+0 (null-safety, not OOB). Compiler self-bootstraps cleanly
+under the strict default — no compiler vec usage was
+relying on silent-zero. 453/453 verify PASS — no fixture
+regressed (the hazard was real but no positive fixture had
+been silently relying on it).
+
+Adopters porting old code that genuinely needs the legacy
+behavior can opt in with the env var
+`NUCLEOR_VEC_OOB_LENIENT=1` — the value is cached at first
+call so there's no per-access getenv() cost.
+
+Pinned by `tests/fixtures/t461_vec_oob_panic.nr` (positive
+case — in-bounds reads/writes work) and
+`tests/fixtures/probe_vec_oob.nr` (negative case — exit 1
+with PANIC line; lenient env var returns 0).
+
+Bootstrap fixed point at stage_d
+`b6d3a6b05ae2d5ce09062bd275a7ef432fcd0bc5de18a8287da65d890a4dad7d`.
+
 ## [0.3.199] — 2026-04-26
 
 **Locked-output retry + path-specific cleanup hint.**
