@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.215] — 2026-04-26
+
+**OOM PANIC instead of silent NULL → segfault.** All 171
+malloc/realloc call sites in the runtime now panic with the
+allocation size on memory exhaustion, instead of letting
+NULL flow into the next memcpy/store and segfault with no
+diagnostic.
+
+Implementation: thin static-inline wrappers
+(`_nuc_xmalloc`, `_nuc_xrealloc`) check NULL after the
+underlying alloc, panic if not lenient, return the pointer
+otherwise. Then `#define malloc(N) _nuc_xmalloc(N)` and
+`#define realloc(P, N) _nuc_xrealloc(P, N)` capture all
+171 sites without per-site edits.
+
+```
+PANIC: out of memory: malloc(8388608) failed (set NUCLEOR_OOM_LENIENT=1 to suppress)
+PANIC: out of memory: realloc(16777216) failed (set NUCLEOR_OOM_LENIENT=1 to suppress)
+```
+
+`NUCLEOR_OOM_LENIENT=1` opts back into the legacy NULL-
+return behavior — adopters then need their own NULL handling
+(at the cost of restoring the segfault path on malloc
+failure).
+
+`realloc(p, 0)` is intentionally allowed to return NULL
+(implementation-defined free behavior, not OOM).
+
+Bootstrap fixed point at stage_d
+`dfa1ad8933b434d5c6124bffc71712e1d219a5181a3aa541101b7ef6cf4298a4`.
+452/452 verify PASS.
+
 ## [0.3.214] — 2026-04-26
 
 **Shift-overflow now PANICs.** Closes the documented residual
