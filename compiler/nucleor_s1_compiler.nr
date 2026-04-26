@@ -350,17 +350,21 @@ fn lex(src: str) -> Vec<i32> {
                 // lower_expr emits as a direct const_int (no
                 // f64_from_scaled divide needed since the value IS
                 // already the f64 bit pattern).
+                //
+                // v0.3.197: NUC-FEEDBACK-005 corrected — the all-zero
+                // gate was too narrow. Long literals with non-zero
+                // first six digits like `0.7978845608028654` still
+                // fell into the truncate-to-six path and silently lost
+                // 10+ decimal digits of precision (the literal became
+                // `0.797884` after divide-by-1e6). Promote ANY literal
+                // with more than six fractional digits to the raw-bits
+                // path. Short literals (≤ 6 frac digits) still use the
+                // scaled-int path — frac_div is an exact power of ten,
+                // so the runtime divide rounds once to the closest f64
+                // (same precision an IEEE parser would give).
                 let raw_frac_len: i64 = str_len(raw_frac_str);
                 let mut use_raw_bits: i64 = 0;
-                if raw_frac_len > 6 {
-                    let mut all_zero: i64 = 1;
-                    let mut zi: i64 = 0;
-                    while zi < 6 {
-                        if str_char_at(raw_frac_str, zi) != 48 { all_zero = 0; zi = 6; };
-                        zi = zi + 1;
-                    };
-                    if all_zero == 1 { use_raw_bits = 1; };
-                };
+                if raw_frac_len > 6 { use_raw_bits = 1; };
                 if use_raw_bits == 1 {
                     let lit_text: str = str_concat(str_from_int(int_part), str_concat(".", raw_frac_str));
                     let bits: i64 = str_to_f64(lit_text);
@@ -16654,7 +16658,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.196";
+    return "0.3.197";
 }
 
 fn compiler_backend_label() -> str {

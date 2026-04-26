@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.197] — 2026-04-26
+
+**`let k: f64 = 0.7978845608028654;` no longer silently
+truncates to `0.797884`.** NUC-FEEDBACK-005 corrected — the
+ML Suite's GELU tanh constant was lowering with 10+ decimal
+digits of precision lost.
+
+The v0.3.133 sub-micro carve-out for `0.00000001` (raw-bits
+IEEE-754 path via `__nucleor_str_to_f64`) only triggered when
+the FIRST SIX fractional digits were ALL zero. Long literals
+with non-zero leading digits — like the GELU normalization
+constant `0.7978845608028654`, the AdamW eps `0.7071067811865476`,
+and pi `3.141592653589793` — fell through to the legacy
+truncate-to-six + scaled-by-1e6 path. The literal became its
+six-digit prefix divided by 1e6 (so `0.7978845608028654`
+became `797884 / 1e6 = 0.797884`). This was a silent
+miscompute that turned tanh-GELU into `0.5 * x` and broke
+PyTorch parity slices.
+
+Fix: promote ANY f64 literal with > 6 fractional digits to
+the raw-bits path. Short literals (≤ 6) still use the scaled
+divide — `frac_div` is an exact power of ten, so the runtime
+divide rounds once to the closest f64 (same precision an
+IEEE-754 parser would give).
+
+Validated: `0.7978845608028654` lowers to bit-pattern
+`4605361924766709329` (0x3FE9884533D43653, the exact closest
+f64). Pi, e, sqrt2_inv, and the AdamW eps all round-trip to
+their canonical Python `struct.pack('d', ...)` bit patterns.
+
+Pinned by `tests/fixtures/t459_f64_literal_precision.nr`.
+Bootstrap fixed point at stage_d
+`5b7539bcc1775c59041fd995b84f13c3b314ebccab9f504a4dea39b5c465fb0e`.
+
 ## [0.3.196] — 2026-04-26
 
 **`print(match x { ... })` and `print({ ... block ... })` no
