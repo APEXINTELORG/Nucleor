@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.136] — 2026-04-25
+
+**`str_to_int` as a user-callable runtime helper.** The s1
+compiler defined its own internal `str_to_int` fn for lex-time
+digit parsing, but adopters writing `str_to_int("123")` in their
+`.nr` code hit `clang: undefined value '@str_to_int'` because no
+runtime helper was registered. Symmetric to `__nucleor_str_to_f64`
+which has been user-callable for a long time.
+
+Common adoption pattern blocked: any program parsing CLI args,
+config values, CSV/TSV cells, environment variables, or other
+text-to-int input.
+
+### Fix
+
+Three-piece coordinated change:
+
+1. Runtime: `__nucleor_str_to_int(const char *s)` wraps `strtoll`
+   (base 10). Returns 0 on parse failure to match `str_to_f64`.
+2. Compiler: registered in `get_rt_name`, `is_ptr_arg`, and the
+   IR header `declare` list. Mirrored in `nucleor_tools_suite.nr`
+   per drift gate.
+3. helper_manifest.toml regenerated.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t410 returns 57 (12345 mod 256),
+proving the parse + i64 return work end to end.
+`bin/nucleor.exe` SHA `1170b7fc`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — str_to_int registration;
+  version bumped to `0.3.136`.
+- `compiler/nucleor_tools_suite.nr` — drift mirror.
+- `stdlib/runtime/nucleor_llvm_rt.c` — `__nucleor_str_to_int`.
+- `tests/fixtures/t410_str_to_int_user.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+- `docs/rfcs/helper_manifest.toml` — regenerated.
+
 ## [0.3.135] — 2026-04-25
 
 **NUC-FEEDBACK-007 closed — cache key now includes compiler
