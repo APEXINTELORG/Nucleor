@@ -1158,6 +1158,31 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let name: i64 = pkv(tokens, cp); cp = cp + 1;
     let mut tstr: str = "";
     if pk(tokens, cp) == 42 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); tstr = pr_val(tr); };
+    // v0.3.119: NUC-FEEDBACK-002 silent-miscompute defense.
+    // `let v: Vec<f32> = …; v.push(1.0f32);` compiles cleanly today
+    // but `let s: f32 = v[0]; f32_add(s, …)` produces 0 — the f32
+    // bit pattern stored in the underlying i64 cell loses its type
+    // tag through the vec_get → let-init chain, so the f32_add helper
+    // operates on raw i64 storage. HIGH-blast for any ML/scientific
+    // code reaching for narrow-float typed vectors. Real fix needs
+    // expr_struct_type to propagate Vec element type through indexing
+    // and let-init type propagation; until that lands, surface a hard
+    // diagnostic for the broken types so adopters don't ship silently-
+    // wrong tensor kernels.
+    //
+    // `Vec<f64>` is intentionally NOT in the rejected set — it works
+    // correctly today because i64 storage cells naturally hold f64 bit
+    // patterns via direct memory load (both are 64-bit). Many existing
+    // fixtures (t330-t349) depend on `Vec<f64>` and would break.
+    // The narrow-float family (`f32`, `f16`, `bf16`, `f8e4m3`, `f8e5m2`)
+    // are all <64-bit and need the conversion-helper round-trip.
+    if str_eq(tstr, "Vec<f32>") == 1
+       || str_eq(tstr, "Vec<f16>") == 1
+       || str_eq(tstr, "Vec<bf16>") == 1
+       || str_eq(tstr, "Vec<f8e4m3>") == 1
+       || str_eq(tstr, "Vec<f8e5m2>") == 1 {
+        print(str_concat("ERROR: narrow-float vector `", str_concat(tstr, "` is not yet supported as user-facing storage. The push/get round-trip silently drops the float type tag and downstream f*_* helpers operate on raw i64 storage (returning 0). Workaround: store explicit float bit patterns in `Vec<i64>` and call the runtime helpers manually, or use `Vec<f64>` (which works today because both i64 cells and f64 are 64-bit), or `Tensor::*` for ML kernels (typed at the runtime level). Tracked as NUC-FEEDBACK-002 in docs/ML_SUITE_FEEDBACK_QUEUE.md.")));
+    };
     let mut init_id: i64 = 0 - 1;
     if pk(tokens, cp) == 40 { let mut er: Vec<i32> = parse_expr(tokens, cp + 1, pool); cp = pr_pos(er); init_id = pr_val(er); };
     // v0.3.103: bitwise ops (`&`, `|`, `^`) are now supported via
@@ -11719,10 +11744,36 @@ fn resolve_toolchain_path(raw_path: str) -> str {
 }
 
 fn llvm_clang_path() -> str {
-    // Returns the clang executable name. The launcher (nuc.bat / nuc_router.ps1)
-    // is responsible for ensuring clang is reachable on PATH before invoking the
-    // compiler — see the launcher script for the resolution order
-    // (NUCLEOR_CLANG_PATH, LLVM_SYS_180_PREFIX, default install path).
+    // v0.3.119: NUC-FEEDBACK-003 toolchain detection. The launcher
+    // scripts SHOULD set up PATH before invoking the compiler, but
+    // when users invoke `nucleor.exe` directly (or run from a fresh
+    // shell that hasn't sourced the launcher), the bare `clang` PATH
+    // lookup fails with the unhelpful Windows error
+    // `'clang' is not recognized as an internal or external command`.
+    // Probe the canonical install paths in order and return an
+    // absolute path when found. Falls back to bare `clang` (PATH
+    // lookup) if none match — preserves prior behavior for users
+    // with a custom install elsewhere.
+    //
+    // Resolution order:
+    //   1. NUCLEOR_CLANG env override (highest priority — explicit user wish)
+    //   2. Windows: C:\Program Files\LLVM\bin\clang.exe (default LLVM installer)
+    //   3. Windows: C:\msys64\mingw64\bin\clang.exe (MSYS2)
+    //   4. macOS: /opt/homebrew/opt/llvm/bin/clang (homebrew)
+    //   5. macOS: /usr/local/opt/llvm/bin/clang (older homebrew)
+    //   6. Linux: /usr/bin/clang, /usr/local/bin/clang
+    //   7. Bare `clang` (PATH fallback)
+    let envc: str = env_get_or("NUCLEOR_CLANG", "");
+    if str_len(envc) > 0 { return envc; };
+    if host_is_windows() == 1 {
+        // Windows: probe canonical LLVM install paths. file_read_string
+        // returns the binary contents (PE files start with `MZ` so
+        // strlen > 0); empty string ⇒ file doesn't exist.
+        let p1: str = "C:\\Program Files\\LLVM\\bin\\clang.exe";
+        if str_len(file_read_string(p1)) > 0 { return p1; };
+        let p2: str = "C:\\msys64\\mingw64\\bin\\clang.exe";
+        if str_len(file_read_string(p2)) > 0 { return p2; };
+    };
     return "clang";
 }
 
@@ -11788,7 +11839,13 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     // can't tell whether any of its errors are MOD-003-worthy.
     system(str_concat("mkdir .nuc_cache", null_redir));
     let log_path: str = sanitize(".nuc_cache/clang_link.log");
-    let cmd: str = str_concat(llvm_clang_path(), str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags, str_concat(link_flags, str_concat(" > ", str_concat(log_path, " 2>&1")))))))))))))));
+    // v0.3.119: NUC-FEEDBACK-003 — quote the clang path so spaces
+    // (e.g. `C:\Program Files\LLVM\bin\clang.exe`) survive the shell
+    // command split. Without quoting, cmd.exe sees `C:\Program` as
+    // the executable and the rest as args, failing with
+    // `'C:\Program' is not recognized`.
+    let clang_quoted: str = str_concat("\"", str_concat(llvm_clang_path(), "\""));
+    let cmd: str = str_concat(clang_quoted, str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags, str_concat(link_flags, str_concat(" > ", str_concat(log_path, " 2>&1")))))))))))))));
     let rc: i64 = system(cmd);
     print_phase_time(time_passes, "clang", now_ms() - clang_start);
     let clang_log: str = file_read_string(log_path);

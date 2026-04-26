@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.119] — 2026-04-25
+
+**ML_Suite feedback batch — closes NUC-FEEDBACK-002 (narrow-float
+vec silent miscompute) and NUC-FEEDBACK-003 (clang toolchain
+detection on Windows).** Inbound from
+`Nucleor_ML_Suite/docs/NUCLEOR_LANGUAGE_FEEDBACK.md`; see queue at
+`docs/ML_SUITE_FEEDBACK_QUEUE.md` and full response at
+`Nucleor_ML_Suite/docs/NUCLEOR_LANGUAGE_FEEDBACK_RESPONSE.md`.
+
+### NUC-FEEDBACK-002 — narrow-float vector defense
+
+Pre-v0.3.119, `let v: Vec<f32> = …; v.push(1.0f32);` compiled
+cleanly but `let s: f32 = f32_add(v[0], v[1])` produced 0 — the
+f32 bit pattern stored in the underlying i64 cell loses its type
+tag through the vec_get → let-init chain, so f32_add operates on
+raw i64 storage. HIGH-blast for any ML/scientific code reaching
+for narrow-float typed vectors.
+
+Hard diagnostic added in `parse_let` for `Vec<f32>`, `Vec<f16>`,
+`Vec<bf16>`, `Vec<f8e4m3>`, `Vec<f8e5m2>` with a clear workaround:
+either store explicit float bit patterns in `Vec<i64>`, use
+`Vec<f64>` (which works because i64 cells natively hold f64 bit
+patterns), or use `Tensor::*` for ML kernels. `Vec<f64>` is
+intentionally NOT rejected — many existing fixtures (t330-t349)
+depend on it.
+
+Real fix (proper element-type propagation through vec_get + let-
+init type inference) is queued for a future ship.
+
+### NUC-FEEDBACK-003 — clang toolchain detection on Windows
+
+Pre-v0.3.119, the compiler emitted LLVM IR successfully then died
+at link with `'clang' is not recognized as an internal or external
+command` if LLVM wasn't on PATH — even when
+`C:\Program Files\LLVM\bin\clang.exe` existed. New users hit this
+on first compile.
+
+Fix in `llvm_clang_path`:
+1. Honor `NUCLEOR_CLANG` env override (highest priority).
+2. On Windows, probe `C:\Program Files\LLVM\bin\clang.exe` and
+   `C:\msys64\mingw64\bin\clang.exe`. First match wins.
+3. Fall back to bare `clang` (PATH lookup) so existing setups
+   remain unaffected.
+
+Also fixed: the resolved path is now properly quoted in the shell
+command so spaces (the entire reason `Program Files` is the default
+LLVM install location) survive the `system()` invocation. Pre-fix,
+even after correctly resolving the path, cmd.exe split it on the
+space and tried `'C:\Program'` as the executable.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t396 verifies the
+`Vec<f64>`-still-works half (returns 0 from a 1.0+2.0 round-trip);
+the diag-fires half is verified by the unchanged behavior of the
+ML_Suite reproducer (now prints the diag instead of silently
+returning 0). `bin/nucleor.exe` SHA `9e9b28d7`. 452/452 verify.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — narrow-float diag in
+  parse_let; `llvm_clang_path` Windows probe + path-quoting in
+  link command.
+- `tests/fixtures/t396_vec_narrow_float_diag.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+- `docs/ML_SUITE_FEEDBACK_QUEUE.md` — new (inbound queue).
+
 ## [0.3.118] — 2026-04-25
 
 **Range patterns in stmt-position match — closes a HIGH-blast
