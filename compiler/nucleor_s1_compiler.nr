@@ -9694,6 +9694,44 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                     print(str_concat("WARNING: ", str_concat(callee, "(<int_literal>, ...) passes an int literal where a Vec handle is expected. This will SIGSEGV at runtime when the helper dereferences the int as an NVec*. Pass a Vec value (e.g. let v: Vec<i64> = Vec::new(); ...) or a typed Vec handle.")));
                 };
             };
+            // v0.3.171: extend the literal-only WARNING to other
+            // container helper families (hashmap_*, hashset_*,
+            // btreemap_*, vecdeque_*). Same hazard class as vec_*:
+            // adopter passes int literal where a handle is expected,
+            // SIGSEGVs at runtime with no diagnostic.
+            let needs_map_lit_check: i64 = if str_starts_with(callee, "hashmap_") == 1
+                || str_starts_with(callee, "hashset_") == 1
+                || str_starts_with(callee, "btreemap_") == 1
+                || str_starts_with(callee, "btreeset_") == 1
+                || str_starts_with(callee, "vecdeque_") == 1 { 1 } else { 0 };
+            if needs_map_lit_check == 1 {
+                // Excludes constructors (no handle arg).
+                let is_ctor: i64 = if str_eq(callee, "hashmap_new") == 1
+                    || str_eq(callee, "hashmap_with_capacity") == 1
+                    || str_eq(callee, "hashset_new") == 1
+                    || str_eq(callee, "hashset_with_capacity") == 1
+                    || str_eq(callee, "btreemap_new") == 1
+                    || str_eq(callee, "btreeset_new") == 1
+                    || str_eq(callee, "vecdeque_new") == 1
+                    || str_eq(callee, "vecdeque_with_capacity") == 1 { 1 } else { 0 };
+                if is_ctor == 0 {
+                    let larg_m: i64 = list_get(pool, args, 0);
+                    if node_kind(pool, larg_m) == 1 {
+                        let mut kind_label: str = "VecDeque";
+                        if str_starts_with(callee, "hashmap_") == 1 { kind_label = "HashMap"; };
+                        if str_starts_with(callee, "hashset_") == 1 { kind_label = "HashSet"; };
+                        if str_starts_with(callee, "btreemap_") == 1 { kind_label = "BTreeMap"; };
+                        if str_starts_with(callee, "btreeset_") == 1 { kind_label = "BTreeSet"; };
+                        let m1: str = str_concat("WARNING: ", callee);
+                        let m2: str = str_concat(m1, "(<int_literal>, ...) passes an int literal where a ");
+                        let m3: str = str_concat(m2, kind_label);
+                        let m4: str = str_concat(m3, " handle is expected. This will SIGSEGV at runtime when the helper dereferences the int as a container pointer. Pass a real handle (e.g. let h = ");
+                        let m5: str = str_concat(m4, kind_label);
+                        let m6: str = str_concat(m5, "::new(); ...).");
+                        print(m6);
+                    };
+                };
+            };
         };
         if type_dynamic_helper(callee) == 1 { tprof_mark(tprof, 9, 10, call_start); return ""; };
         let sig_start: i64 = tprof_start(tprof);
@@ -15814,7 +15852,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.170";
+    return "0.3.171";
 }
 
 fn compiler_backend_label() -> str {
