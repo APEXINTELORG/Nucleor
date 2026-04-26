@@ -3493,18 +3493,21 @@ long long __nucleor_f32_to_f64(long long a) {
 // saturating at i32/i64 max/min if the float is out of range.
 long long __nucleor_f32_to_i32(long long a) {
     float f = __nuc_bits_to_f32(a);
+    if (f != f) return 0;  /* NaN -> 0 (Rust as semantic) */
     if (f > 2147483647.0f)  return 2147483647LL;
     if (f < -2147483648.0f) return -2147483648LL;
     return (long long)(int)f;
 }
 long long __nucleor_f32_to_i64(long long a) {
     float f = __nuc_bits_to_f32(a);
+    if (f != f) return 0;  /* NaN -> 0 */
     if (f >  9223372036854775000.0f) return 9223372036854775807LL;
     if (f < -9223372036854775000.0f) return -9223372036854775807LL - 1LL;
     return (long long)f;
 }
 long long __nucleor_f32_to_u32(long long a) {
     float f = __nuc_bits_to_f32(a);
+    if (f != f) return 0;  /* NaN -> 0 */
     if (f < 0.0f) return 0;
     if (f > 4294967295.0f) return 4294967295LL;
     return (long long)(unsigned int)f;
@@ -5860,7 +5863,11 @@ long long __nucleor_f32_to_bits(long long f) {
     return f;
 }
 long long __nucleor_f64_to_i32(long long b) {
-    return (long long)(int)__nuc_b2d(b);
+    double d = __nuc_b2d(b);
+    if (d != d) return 0;  /* NaN -> 0 (Rust as semantic) */
+    if (d >  2147483647.0)  return 2147483647LL;
+    if (d < -2147483648.0) return -2147483648LL;
+    return (long long)(int)d;
 }
 long long __nucleor_i32_to_f64(long long i) {
     return __nuc_d2b((double)(int)i);
@@ -5868,12 +5875,14 @@ long long __nucleor_i32_to_f64(long long i) {
 // T1.1 Phase 4: f64 ↔ i64/u32 converters (saturating, Rust `as` semantics).
 long long __nucleor_f64_to_i64(long long b) {
     double d = __nuc_b2d(b);
+    if (d != d) return 0;  /* NaN -> 0 */
     if (d >  9223372036854775000.0) return 9223372036854775807LL;
     if (d < -9223372036854775000.0) return -9223372036854775807LL - 1LL;
     return (long long)d;
 }
 long long __nucleor_f64_to_u32(long long b) {
     double d = __nuc_b2d(b);
+    if (d != d) return 0;  /* NaN -> 0 */
     if (d < 0.0) return 0;
     if (d > 4294967295.0) return 4294967295LL;
     return (long long)(unsigned int)d;
@@ -5886,12 +5895,14 @@ long long __nucleor_i64_to_f64(long long i) {
 // Rust `as` semantics (numeric truncation, saturating at the bound).
 long long __nucleor_f64_to_u64(long long b) {
     double d = __nuc_b2d(b);
+    if (d != d) return 0;  /* NaN -> 0 */
     if (d <= 0.0) return 0;
     if (d >= 18446744073709550000.0) return (long long)0xFFFFFFFFFFFFFFFFULL;
     return (long long)(unsigned long long)d;
 }
 long long __nucleor_f32_to_u64(long long a) {
     float f = __nuc_bits_to_f32(a);
+    if (f != f) return 0;  /* NaN -> 0 */
     if (f <= 0.0f) return 0;
     if (f >= 18446744000000000000.0f) return (long long)0xFFFFFFFFFFFFFFFFULL;
     return (long long)(unsigned long long)f;

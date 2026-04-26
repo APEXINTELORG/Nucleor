@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.216] — 2026-04-26
+
+**`f32::NAN as i64` (and friends) now returns 0 (Rust `as`
+semantic) instead of being undefined behavior.** Closes a
+small but real silent-miscompute hazard in v0.3.211's float-
+to-int cast helpers.
+
+Pre-fix every f→int helper checked saturation bounds via
+`if (d > MAX) return MAX;` etc., but for `d == NaN` both
+comparisons returned false (NaN compares unordered) and the
+function fell through to `(long long)d` which is undefined
+behavior in C. On x86 typically returns INT_MIN; not
+guaranteed by spec.
+
+Fix: add `if (d != d) return 0;` (NaN-detection idiom) at
+the head of each helper. Matches Rust's saturating-as
+semantic for NaN. Eight helpers updated:
+- `__nucleor_f32_to_i32`, `__nucleor_f32_to_i64`
+- `__nucleor_f32_to_u32`, `__nucleor_f32_to_u64`
+- `__nucleor_f64_to_i32`, `__nucleor_f64_to_i64`
+- `__nucleor_f64_to_u32`, `__nucleor_f64_to_u64`
+
+Also fixed `__nucleor_f64_to_i32` which was missing its
+saturation bounds entirely (raw `(int)d` cast for any value)
+— it now saturates at i32::MAX / i32::MIN like its
+siblings.
+
+Pinned by `tests/fixtures/probe_nan_cast.nr`. Bootstrap
+fixed point at stage_d
+`c5ae4b71f29104df06109047773124e69b9bc3d254c2e22778a430e758092cbd`.
+452/452 verify PASS.
+
 ## [0.3.215] — 2026-04-26
 
 **OOM PANIC instead of silent NULL → segfault.** All 171
