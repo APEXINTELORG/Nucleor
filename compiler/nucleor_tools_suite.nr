@@ -87,8 +87,10 @@ fn classify_kw(w: str) -> i64 {
     if str_eq(w, "unsafe") { return 77; };
     if str_eq(w, "wrapping") { return 78; };
     if str_eq(w, "saturating") { return 79; };
-    if str_eq(w, "scope") { return 80; };
-    if str_eq(w, "spawn") { return 81; };
+    // v0.3.138: removed `scope`/`spawn` kw classifications. Mirror
+    // of compiler-side fix — silent miscompute for user fns named
+    // `scope` or `spawn` because parse_primary fell through its
+    // int_lit 0 default on the unrecognised kw token.
     return 1;
 }
 fn lex(src: str) -> Vec<i32> {
@@ -856,12 +858,9 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if pk(tokens, cp) == 43 { cp = cp + 1; };
         return pr(cp, pr_val(r));
     };
-    if tt == 80 || tt == 81 {
-        let mut r: Vec<i32> = parse_passthrough_block_expr(tokens, pos + 1, pool);
-        let mut cp: i64 = pr_pos(r);
-        if pk(tokens, cp) == 43 { cp = cp + 1; };
-        return pr(cp, pr_val(r));
-    };
+    // v0.3.138: removed dead `tt == 80 || tt == 81` branch — see
+    // compiler-side notes (the `scope` / `spawn` kw classifications
+    // were dropped to close the silent-miscompute hazard).
     if tt == 16 { return parse_return_stmt(tokens, pos + 1, pool); };
     if tt == 18 { let mut cp: i64 = pos + 1; if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, mk2(pool, 26, 0)); };
     if tt == 19 { let mut cp: i64 = pos + 1; if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, mk2(pool, 27, 0)); };

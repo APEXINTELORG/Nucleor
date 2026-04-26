@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.138] — 2026-04-26
+
+**Removed reserved-but-unused `scope` and `spawn` keywords — user
+fns named `scope` or `spawn` no longer silently miscompile to `0`.**
+Same hazard class as the v0.3.137 `pure` fix. Pre-v0.3.138, both
+names were hard-classified by the lexer (tokens 80 and 81) for a
+planned-but-never-implemented `scope { … }` / `spawn { … }`
+block-form construct. The reservation was speculative — zero usage
+of either form existed in the entire codebase, including stdlib,
+examples, fixtures, and docs — but the kw classifications still
+forced the lexer to refuse `scope` and `spawn` as identifier names.
+
+`parse_fn_decl` reads the token's *value* regardless of token kind,
+so `fn scope(x) { … }` and `fn spawn(x) { … }` registered correctly.
+At the call site, `parse_primary` had no branch for tokens 80 / 81
+and silently fell through to its `int_lit 0` default. The entire
+call collapsed to a constant `0` in the IR with NO diagnostic.
+
+Both names are common in user code: `scope` for RAII helpers,
+scoped resource guards, parser combinators; `spawn` for threading
+or async wrappers (the runtime helpers `__nucleor_thread_spawn` /
+`__nucleor_async_spawn` are accessed via fn-call mapping in
+`get_rt_name`, not the bare keyword form).
+
+Fix: `classify_kw` no longer maps `scope` or `spawn` to tokens
+80 / 81. The lexer emits identifier token 1 with the original
+string. The dead `tt == 80 || tt == 81` branch in `parse_stmts`
+(passthrough block consumer) was also removed since it became
+unreachable. Mirrored in `compiler/nucleor_tools_suite.nr` to
+satisfy the drift gate. Future RFCs that resurrect block-form
+`scope { … }` / `spawn { … }` will need contextual lexing
+(pkv lookahead) instead of hard kw mapping.
+
+Pinned by `tests/fixtures/t412_user_fn_named_scope.nr` and
+`tests/fixtures/t413_user_fn_named_spawn.nr`. Bootstrap fixed point
+reached; verify gate green.
+
 ## [0.3.137] — 2026-04-26
 
 **`pure` is now a contextual keyword — user fns named `pure` no
