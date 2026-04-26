@@ -8543,11 +8543,10 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         // Kind 10 = indexing (`v[i] = X`); other kinds = tuple/literal/
         // computed expressions that have no addressable storage.
         let lhs_kind_check: i64 = node_kind(pool, lhs);
-        if lhs_kind_check == 10 {
-            print("ERROR: indexed assignment `v[i] = X` is not yet supported. Workaround: use the lowercase API: `vec_set(v, i, X)`. Tracked for a future ship — direct indexed-LHS lowering needed.");
-            return warns + 1;
-        };
-        if lhs_kind_check != 3 && lhs_kind_check != 9 {
+        // v0.3.124: kind-10 indexed assignment now lowered to vec_set
+        // in lower_stmt; the prior diag-only stub here is no longer
+        // needed.
+        if lhs_kind_check != 3 && lhs_kind_check != 9 && lhs_kind_check != 10 {
             print("ERROR: assignment to this LHS form is not supported (only var-ref `x = ...`, field-access `obj.f = ...`, and indexed `v[i] = ...` are recognized; tuple destructuring assignment / computed-expression LHS is not). The pre-v0.3.81 compiler would segfault on this shape.");
             return warns + 1;
         };
@@ -11261,6 +11260,32 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // the var-ref code path (which interprets node-id as string
         // offset and segfaults). Diagnostic was already emitted by
         // check_stmt; lower_stmt just needs to skip codegen.
+        // v0.3.124: real `v[i] = X` indexed-LHS lowering. Pre-v0.3.124
+        // the kind-10 LHS shape silently dropped the assignment AND
+        // its diag was informational (build still produced a .exe with
+        // wrong values — the read-back of v[i] returned the original
+        // value instead of the assigned X). Adopters writing
+        // `v[i] = …` (a basic Rust pattern) saw silent miscomputes.
+        // Fix: lower the receiver expr, the index expr, and the value
+        // expr; emit `vec_set(v, i, X)`. The runtime helper exists.
+        if lhs_kind == 10 {
+            let mut recv_p: Vec<i32> = lower_expr(pool, node_field(pool, lhs, 1), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+            let recv_r: i64 = lx_reg(recv_p);
+            cur = lx_blk(recv_p);
+            let mut idx_p: Vec<i32> = lower_expr(pool, node_field(pool, lhs, 2), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+            let idx_r: i64 = lx_reg(idx_p);
+            cur = lx_blk(idx_p);
+            let mut val_p: Vec<i32> = lower_expr(pool, node_field(pool, nid, 2), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+            let val_r: i64 = lx_reg(val_p);
+            cur = lx_blk(val_p);
+            let mut set_args: Vec<i32> = Vec::new();
+            set_args.push(recv_r);
+            set_args.push(idx_r);
+            set_args.push(val_r);
+            let sr: i64 = ctr_next(regs);
+            ir_block_add(cur, ir_call_ex(sr, "vec_set", set_args));
+            return cur;
+        };
         if lhs_kind != 3 && lhs_kind != 9 {
             return cur;
         };

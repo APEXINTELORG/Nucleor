@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.124] — 2026-04-25
+
+**Real `v[i] = X` indexed-LHS lowering (replaces v0.3.81 diag-only
+stub).** Pre-v0.3.124, indexed assignment was a SILENT MISCOMPUTE
+hidden behind an informational diagnostic — `lower_stmt`'s kind-21
+(assignment) handler short-circuited on the kind-10 (indexing) LHS
+shape and returned without emitting any IR. The .exe still built
+and ran; the assignment was silently dropped. The next read-back
+of `v[i]` returned the original (unmutated) value.
+
+The diag was "informational" in that it printed before the build
+proceeded — but adopters following Rust idioms (`v[i] = …` is
+idiomatic everywhere) typically didn't notice the diag in build
+output and saw their programs computing wrong values.
+
+HIGH-blast for any code mutating Vec contents in place — sorting
+algorithms, in-place filters, accumulator updates, simulation
+state, etc.
+
+### Fix
+
+In `lower_stmt` kind-21 handler, before the kind-3/kind-9 dispatch,
+add a kind-10 arm that:
+
+1. Lowers the receiver expression (the Vec).
+2. Lowers the index expression.
+3. Lowers the value expression.
+4. Emits `vec_set(receiver, index, value)`.
+
+Removed the diag-only stub from `check_stmt` since the path now
+codegens correctly. Updated fixture t356 from a negative
+(diag-pinning) to a positive (codegen-pinning) regression that
+exits 999 only when the assignment actually mutates.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t356 returns 999 from a
+`v[1] = 999; return v[1]` round-trip. `bin/nucleor.exe` SHA
+`3bf004d4`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — kind-10 LHS arm in
+  lower_stmt; diag-only stub removed from check_stmt.
+- `tests/fixtures/t356_indexed_lhs_diagnostic.nr` — flipped to
+  positive regression.
+- `tools/verify.ps1` — T3.56 step now tests positive behavior.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.123] — 2026-04-25
 
 **Chained inherent-method calls (`Counter::new().add(10).add(5)`).**
