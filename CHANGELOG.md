@@ -5,6 +5,31 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.213] — 2026-04-26
+
+**Unary minus `-x` for i64 now panics on overflow.** Closes
+the kind-5 hole in v0.3.208's strict-arithmetic default.
+
+Found while sanity-checking the punchlist surfaces: kind 5
+(unary minus) for i64 lowered to a direct `ir_binop(3, ...)`
+emit (LLVM `sub i64 0, x`), bypassing the strict-arith binop
+gate I added in v0.3.208. As a result `-i64::MIN` silently
+wrapped back to `i64::MIN` instead of panicking. Same hazard
+class the strict default was meant to close.
+
+Fix: lower `-x` for i64 via `panic_neg` (the existing helper
+from v0.3.207) under the same env-var gate as binop. Float
+negation path (`-x` for f32/f64) is unchanged.
+
+```
+PANIC: i64 neg overflow: -(i64::MIN)
+```
+
+Pinned by `tests/fixtures/probe_neg_overflow.nr`. Bootstrap
+fixed point at stage_d
+`d540a9ee97bf0f5ec37f1c2b77d58d58bbc8d848148f5f5e2a64cc8df69a4600`.
+452/452 verify PASS.
+
 ## [0.3.212] — 2026-04-26
 
 **`NUCLEOR_PROFILE=1` runtime helper hot-spot detector.**

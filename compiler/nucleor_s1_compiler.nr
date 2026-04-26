@@ -11094,9 +11094,23 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             sub_args.push(opr);
             ir_block_add(cur, ir_call_ex(r, sub_helper, sub_args));
         } else {
-            let zr: i64 = ctr_next(regs);
-            ir_block_add(cur, ir_const_int(zr, 0));
-            ir_block_add(cur, ir_binop(3, r, zr, opr));
+            // v0.3.213: integer negation must respect strict-arith default
+            // (panic on overflow) just like binop kind == 4. Pre-fix the
+            // `ir_binop(3, r, zr, opr)` emitted a native LLVM `sub` which
+            // silently wraps on `-i64::MIN`. Now we route through
+            // panic_neg_i64 by default; opt-out via NUCLEOR_INT_STRICT_ARITH=0.
+            let strict_env: str = env_get_or("NUCLEOR_INT_STRICT_ARITH", "");
+            let mut strict: i64 = 1;
+            if str_eq(strict_env, "0") == 1 { strict = 0; };
+            if strict == 1 {
+                let mut na: Vec<i32> = Vec::new();
+                na.push(opr);
+                ir_block_add(cur, ir_call_ex(r, "panic_neg", na));
+            } else {
+                let zr: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_const_int(zr, 0));
+                ir_block_add(cur, ir_binop(3, r, zr, opr));
+            };
         };
         return lx_new(r, cur);
     };
@@ -16849,7 +16863,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.212";
+    return "0.3.213";
 }
 
 fn compiler_backend_label() -> str {
