@@ -1341,8 +1341,33 @@ void __nucleor_vec_push(NVec *v, long long x) {
     v->data[v->len++] = x;
 }
 
+// v0.3.200: NUC-FEEDBACK runtime safety — Vec OOB now PANICs by
+// default with index/len in the message, instead of silently
+// returning 0 (read) or no-op (write). Silent zero on OOB hides
+// real bugs; the launch-bar is "no silent miscomputes". An
+// adopter who needs the legacy behavior can set
+// `NUCLEOR_VEC_OOB_LENIENT=1` in the environment to opt back in
+// (e.g., when porting old programs that reached past end as a
+// "is this slot empty?" idiom). Null-vector reads still return 0
+// silently (null-safety, not OOB). Cached lookup at first call.
+static int g_vec_oob_mode_cached = 0;  /* 0=uncached, 1=panic, 2=lenient */
+static int _vec_oob_lenient(void) {
+    if (g_vec_oob_mode_cached == 0) {
+        const char *e = getenv("NUCLEOR_VEC_OOB_LENIENT");
+        g_vec_oob_mode_cached = (e && e[0] == '1') ? 2 : 1;
+    }
+    return g_vec_oob_mode_cached == 2;
+}
+
 long long __nucleor_vec_get(NVec *v, long long i) {
-    if (!v || i < 0 || i >= v->len) return 0;
+    if (!v) return 0;
+    if (i < 0 || i >= v->len) {
+        if (_vec_oob_lenient()) return 0;
+        fprintf(stderr, "PANIC: vec_get OOB: index %lld, len %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                i, (long long)v->len);
+        fflush(stderr);
+        exit(1);
+    }
     return v->data[(int)i];
 }
 
@@ -1357,7 +1382,14 @@ void __nucleor_vec_pop(NVec *v) {
 }
 
 void __nucleor_vec_set(NVec *v, long long i, long long x) {
-    if (!v || i < 0 || i >= v->len) return;
+    if (!v) return;
+    if (i < 0 || i >= v->len) {
+        if (_vec_oob_lenient()) return;
+        fprintf(stderr, "PANIC: vec_set OOB: index %lld, len %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                i, (long long)v->len);
+        fflush(stderr);
+        exit(1);
+    }
     v->data[(int)i] = x;
 }
 
