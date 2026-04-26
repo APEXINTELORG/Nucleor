@@ -14,6 +14,24 @@
 // narrow-as-i32 hook truncating values that exceed i32 range.
 fn str_from_int(n: i32) -> str {
     if n == 0 { return "0"; };
+    // v0.3.146: handle i64::MIN specially. `0 - MIN_I64` overflows
+    // back to MIN_I64 (because -MIN_I64 = MAX_I64 + 1, doesn't fit
+    // in signed i64). Pre-fix, the `while val > 0` loop never executed
+    // because val stayed negative — `s` ended as `""`, then the `n < 0`
+    // branch prepended `"-"` and we returned just `"-"`. Any const-fold
+    // that produced MIN_I64 (e.g. `i64::MAX + 1`) emitted invalid IR
+    // like `add i64 -, 0`, which clang rejected with `expected value
+    // token`. Same hazard class as the contextual-keyword and div-by-
+    // zero const-fold silent miscompiles — adopter writes a real
+    // expression and gets a confusing clang error instead of a clean
+    // wrap-around or trap.
+    //
+    // Detect MIN_I64 without using its literal (chicken-and-egg: the
+    // compiler that builds this source is the buggy one and can't
+    // const-fold MIN_I64 either). Instead test: `n < -MAX_I64` is
+    // only true when n == MIN_I64 (since MIN_I64 == -MAX_I64 - 1).
+    let neg_max: i64 = 0 - 9223372036854775807;
+    if n < neg_max { return "-9223372036854775808"; };
     let mut val: i64 = n;
     if val < 0 { val = 0 - val; };
     let mut s: str = "";
@@ -14671,7 +14689,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.145";
+    return "0.3.146";
 }
 
 fn compiler_backend_label() -> str {

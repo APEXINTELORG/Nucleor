@@ -13,6 +13,13 @@
 // hook.
 fn str_from_int(n: i32) -> str {
     if n == 0 { return "0"; };
+    // v0.3.146: handle i64::MIN specially. Mirror of compiler-side
+    // fix -- 0 - MIN_I64 overflows to MIN_I64 so the divide loop never
+    // executes and we'd return just "-". Detect via `n < -MAX_I64`
+    // (only true for n == MIN_I64) to avoid using the MIN_I64 literal
+    // directly (which the v0.3.145 stage A compiler can't const-fold).
+    let neg_max_t: i64 = 0 - 9223372036854775807;
+    if n < neg_max_t { return "-9223372036854775808"; };
     let mut val: i64 = n;
     if val < 0 { val = 0 - val; };
     let mut s: str = "";
