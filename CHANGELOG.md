@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.154] — 2026-04-26
+
+**Runtime helpers `str_len` / `str_to_int` / `str_to_f64` /
+`str_to_int_with_base` now type-check arg 0.** Pre-v0.3.154,
+calling `str_len(42)` (passing an int where str is expected) compiled
+cleanly and SIGSEGV'd at runtime when the C helper dereferenced 42 as
+a `const char *`. Now: clean `TYP-006` diagnostic at compile time
+pointing at the offending call site.
+
+Same hazard class as v0.3.137-v0.3.153 silent miscompiles — a real
+call you wrote produces a crash with no diagnostic. Adopters whose
+code passes the wrong type to a string helper got an unexplained
+crash; debugging it required guessing which helper was being called.
+
+Root cause: runtime helpers had no sig entries in the type checker.
+`type_expr`'s call-handling at line 9669 looked up sigs for the callee
+via `sig_find`. For runtime helpers the lookup returned -1 and the
+checker fell straight to `builtin_rtype(callee)` without validating
+any argument types.
+
+Fix (conservative, incremental): validate arg 0 type for the most
+common str-taking helpers (`str_len`, `str_to_int`, `str_to_f64`,
+`str_to_int_with_base`). Other helpers fall through to the existing
+no-arg-check path. As we audit more helpers, each addition pins
+another adopter pain point behind a clean diagnostic instead of
+SIGSEGV.
+
+Pinned by `tests/fixtures/t428_str_len_int_arg_diag.nr`. Bootstrap
+fixed point at stage_d `891facd856ab038d321be91bc73c2581`. Verify
+gate green.
+
 ## [0.3.153] — 2026-04-26
 
 **Hardened the v0.3.152 source-scan heuristic to detect type
