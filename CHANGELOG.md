@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.117] — 2026-04-25
+
+**`with_capacity(N)` for the collection family.** v0.3.116 wired
+`Vec::with_capacity`; v0.3.117 extends that dispatch to HashMap,
+HashSet, VecDeque, and String. Pre-v0.3.117, every other
+collection's `with_capacity` fell through to the diagnostic+zero
+path, returning a zero handle and silently breaking subsequent
+inserts/pushes — adopters reaching for the pre-allocation
+optimization on any non-Vec collection saw their .exe return 0.
+
+### Fix
+
+Add a `with_capacity` arm in the kind-12 lowering paralleling the
+existing `new` dispatch. For each known collection type, call the
+matching runtime helper (`hashmap_with_capacity` etc., all of
+which already exist — only the surface-level dispatch was missing).
+BTreeMap/BTreeSet are intentionally NOT in the dispatch — they're
+trees not flat arrays at the runtime level, so capacity has no
+meaning and no helper exists; users get the existing
+diagnostic-and-fall-back behavior with the suggestion to use
+`::new()`.
+
+### Bootstrap
+
+Single-pass fixed point. Fixture t394 returns 1 — proves
+`HashMap::with_capacity(100)` returns a usable handle that accepts
+an insert and reports the correct len. `bin/nucleor.exe` SHA
+`d3c08a07`. 452/452 verify gate green.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr` — `with_capacity` arm in
+  kind-12 lowering after the existing `new` arm.
+- `tests/fixtures/t394_collection_with_capacity.nr` — pin.
+- `bootstrap/nucleor_s1_seed.ll` — refreshed seed.
+
 ## [0.3.116] — 2026-04-25
 
 **`Vec::with_capacity(N)` constructor.** Pre-v0.3.116, the kind-12
