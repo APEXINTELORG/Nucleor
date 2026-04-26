@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.161] — 2026-04-26
+
+**Rolled back v0.3.159/160 f64-helper arg-type-check.** Caught a
+regression: `tests/rods/numeric.nr` calls `f32_to_int(b)` where
+`b: i64` holds a f32 bit pattern — Nucleor's i64-everywhere ABI
+treats `f32_to_int(i64)` and `f64_to_str(i64)` as bit-pattern
+conversions where the i64 IS the float value's bit
+representation. Adopters who store f32/f64 values in i64 (the
+canonical pattern in stdlib/rods) pass the i64 directly. Strict
+type checking on these helpers breaks the legitimate round-trip
+pattern.
+
+The ADOPTER HAZARD that v0.3.159/160 was trying to address —
+calling `f64_to_str(100)` thinking 100 is a numeric value, getting
+a subnormal-looking garbage string — is real but the fix needs a
+different approach:
+
+1. Deprecate the bit-pattern semantics and add explicit
+   `f64_value_to_str(f: f64)` helpers that take a real f64.
+2. OR add a compile-time WARNING (not error) when arg looks like
+   an int literal (e.g. `f64_to_str(100)` flagged, but
+   `f64_to_str(some_f32_bit_pattern_var)` not).
+
+Both approaches need careful design and cross-stdlib audit.
+Deferred for proper handling.
+
+This is the second self-introduced regression caught + fixed
+this session (after v0.3.152 → v0.3.153 source-scan conflict
+detection). Same pattern: ship-validation probing caught the
+issue before adopters did, rolled forward (not reverted to
+broken state) with the fix on top.
+
+The v0.3.154-158 str-helper type-checks (38 helpers in
+str-arg-0/arg-1) remain in place — those don't have the
+bit-pattern ABI conflation since str is genuinely a pointer type
+with no i64-as-bit-pattern semantics.
+
+Bootstrap fixed point at stage_d
+`644838de5bdf4b34bec68e10ce9fa0de`. Verify gate green.
+
+## [0.3.160] — 2026-04-26
+
+**Extended f64-arg-0 type-check to all f64/f32 conversion helpers.**
+Continues v0.3.159 incremental audit.
+
+Total f64-arg-0 helpers now type-checked: **12** —
+`f64_to_str`, `f32_to_str`, `f64_to_int`, `f32_to_int`,
+`f64_to_bits`, `f32_to_bits`, `f64_to_i32`, `f32_to_i32`,
+`f64_to_u32`, `f32_to_u32`, `f64_to_f32`, `f32_to_f64`.
+
+These are the conversion helpers that REQUIRE a real f64/f32 input
+(not the i64-bit-pattern that other Nucleor f64 helpers accept).
+Adopters who pass an i64 to any of these get a clean TYP-006
+diagnostic instead of subnormal-looking garbage output or
+nonsensical converted values.
+
+Excluded by design (legitimately take i64 as bit pattern):
+`f64_from_bits`, `f64_from_scaled`, `f64_from_int`, `f32_from_bits`,
+`f32_from_int`, and the binary arithmetic family
+(`f64_add`/`sub`/`mul`/`div`/cmp) which all operate on i64-as-bits
+per Nucleor's i64-everywhere ABI.
+
+Bootstrap fixed point at stage_d
+`c8bca2f4b37d1afad77b443b30e6911c`. Verify gate green.
+
 ## [0.3.159] — 2026-04-26
 
 **`f64_to_str(int)` now emits TYP-006 instead of returning a
