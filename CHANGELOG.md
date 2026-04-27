@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.229] — 2026-04-27
+
+**`hashmap_with_capacity` + `hashmap_grow` overflow PANICs.**
+
+Pre-fix `hashmap_with_capacity(n)`:
+- `n * 2` overflowed long long on hostile huge `n` → loop
+  exited at cap=16 → silent under-allocation (user requests
+  billions, gets 16 slots, all subsequent inserts collide).
+- `cap *= 2` doubling could overflow if user requested
+  ~LLONG_MAX/2 capacity.
+- Negative `n` wasn't validated.
+
+Pre-fix `__nuc_hashmap_grow`:
+- Same `cap *= 2` overflow at the upper end (cap ≥ 2^62).
+
+Fix:
+- `hashmap_with_capacity`: PANIC on `n < 0` or
+  `n > 2^30` (max cap = 1GB hashmap header). Loop uses
+  overflow-safe `cap / 2 < n` check.
+- `__nuc_hashmap_grow`: PANIC at cap == 2^30 instead of
+  overflowing into negative cap.
+
+```
+PANIC: hashmap_with_capacity: negative capacity -1
+PANIC: hashmap_with_capacity: requested 9223372036854775000 exceeds max 1073741824
+PANIC: hashmap grow exceeded max cap 2^30 (cap was 1073741824)
+```
+
+Bootstrap fixed point at stage_d
+`63c21beb3b68ce7b3607baf9b7e31d73199e529434301e5f704cf9c9db29159c`.
+453/453 verify PASS. T1.8 perf+memory monitor steady at
+6.5s cold / 0.78s hot / 502MB peak.
+
 ## [0.3.228] — 2026-04-26
 
 **`nuc_t3_new_nd` safety: NULL/empty shape PANICs + dim
