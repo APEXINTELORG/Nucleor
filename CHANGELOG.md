@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.19] — 2026-04-27
+
+**Cold compile time: bounded source-text scans (modest 5% gain).**
+
+Per-NUCLEOR_PROFILE counters showed v0.4.18 made **1.6 BILLION
+str_char_at calls** -- the new source-text scanners
+(infer_pattern_binding_type_from_source, infer_user_variant_binding_type,
+infer_enum_variant_payload_type, infer_var_type_local_back) re-walk
+the FULL bundled source on every format-macro arg, every match-arm
+binding lookup.
+
+User target: cold compile <5s. v0.4.18 was 8.79s.
+
+### v0.4.19: bound the scans
+
+The bundled source has stdlib PRE-pended (~700+ KB) then user code at
+the tail. format-macro args and match-arm bindings reference user-code
+declarations 99% of the time. Bound the four new scanners to the last
+256 KB of source (or the full source for sub-256KB compiles).
+
+`infer_var_type_local_back` (the bounded backward scan from match
+position) tightens further to 1 KB (was 4 KB).
+
+### Result
+
+Cold: 8.79s → 8.58s (~2.4% gain on this workload). Hot: 0.9s
+unchanged. Memory: 539MB unchanged.
+
+### What v0.4.20 needs to do
+
+The bounded scan is the easy first pass. The bigger win requires
+caching the scanner results per (src_ptr, var_name) like the
+existing `__nucleor_infer_var_type` C-side cache (v0.3.220 pattern).
+That's a Phase A runtime ratchet for ~3 new helpers; expected to
+push cold under 6s, possibly under 5s if the cache hit rate is
+high (likely -- format-macro args repeat the same names many times
+across the compiler source).
+
+Verify gate 477/477. Bootstrap fixed point preserved.
+
 ## [0.4.18] — 2026-04-27
 
 **Format-macro dispatch for user-defined enum variant bindings +
