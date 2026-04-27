@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.226] — 2026-04-26
+
+**Tensor reduction safety: empty-input + null-handle PANICs +
+matmul shape validation.** Same hazard family as v0.3.203's
+tensor OOB fix, on the reduction (sum/mean/max/min/variance)
+and matmul surfaces.
+
+Pre-fix:
+- `tensor_mean(empty)` and `tensor_variance(empty)` divided
+  by zero (SIGFPE on x86 — loud but not actionable; no
+  diagnostic).
+- `tensor_max(empty)` and `tensor_min(empty)` read
+  `t->data[0]` OOB on a zero-size buffer (typically segfault
+  but undefined).
+- All seven helpers (`sum`/`mean`/`max`/`min`/`variance`/
+  `stddev`/`matmul`) had no NULL handle check — segfault on
+  null input.
+- `tensor_matmul` had no shape validation — silently
+  produced wrong-sized result or read OOB on shape mismatch.
+
+Fix: new `_check_tensor_nonempty` helper used by max/min/
+mean/variance (sum on empty is well-defined as 0; only NULL
+is fatal). `tensor_matmul` now validates `a->cols ==
+b->rows`, panics with both shapes on mismatch. All loops
+upgraded to `long long` total to eliminate signed-int
+product overflow.
+
+```
+PANIC: tensor_max: empty tensor (rows=0, cols=0)
+PANIC: tensor_matmul: shape mismatch (a=2x3, b=4x5 -- a.cols must equal b.rows)
+PANIC: tensor_mean: null tensor handle
+```
+
+Bootstrap fixed point at stage_d
+`506957d4993d7bacceb8d0b3fa40379d52581557b3823a4498a2d3f1520d1a30`.
+453/453 verify PASS.
+
 ## [0.3.225] — 2026-04-26
 
 **Two more pattern-extension fixes from earlier hazard family

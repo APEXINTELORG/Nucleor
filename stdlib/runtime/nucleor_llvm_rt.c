@@ -1142,42 +1142,88 @@ void __nucleor_tensor_set(long long h, long long r, long long c, long long v) {
     }
     t->data[(int)r * t->cols + (int)c] = _t_i2f(v);
 }
+// v0.3.226: tensor reductions PANIC on null/empty input. Pre-fix
+// tensor_mean/_variance silently divided by zero (SIGFPE on x86),
+// tensor_max/_min read t->data[0] OOB on empty tensors. NULL handle
+// segfaulted across all of them.
+static void _check_tensor_nonempty(NTensor *t, const char *fn) {
+    if (!t) {
+        fprintf(stderr, "PANIC: %s: null tensor handle\n", fn);
+        fflush(stderr); exit(1);
+    }
+    if (t->rows <= 0 || t->cols <= 0) {
+        fprintf(stderr, "PANIC: %s: empty tensor (rows=%d, cols=%d)\n", fn, t->rows, t->cols);
+        fflush(stderr); exit(1);
+    }
+}
 long long __nucleor_tensor_sum(long long h) {
     NTensor *t = (NTensor*)(void*)h;
-    double s = 0; for (int i = 0; i < t->rows*t->cols; i++) s += t->data[i];
+    if (!t) { fprintf(stderr, "PANIC: tensor_sum: null tensor handle\n"); fflush(stderr); exit(1); }
+    /* sum on empty tensor is well-defined as 0; only NULL is fatal. */
+    double s = 0;
+    long long total = (long long)t->rows * (long long)t->cols;
+    for (long long i = 0; i < total; i++) s += t->data[i];
     return _t_f2i(s);
 }
 long long __nucleor_tensor_mean(long long h) {
     NTensor *t = (NTensor*)(void*)h;
-    double s = 0; int n = t->rows*t->cols;
-    for (int i = 0; i < n; i++) s += t->data[i];
-    return _t_f2i(s / n);
+    _check_tensor_nonempty(t, "tensor_mean");
+    double s = 0;
+    long long n = (long long)t->rows * (long long)t->cols;
+    for (long long i = 0; i < n; i++) s += t->data[i];
+    return _t_f2i(s / (double)n);
 }
 long long __nucleor_tensor_max(long long h) {
     NTensor *t = (NTensor*)(void*)h;
-    double m = t->data[0]; for (int i = 1; i < t->rows*t->cols; i++) if (t->data[i] > m) m = t->data[i];
+    _check_tensor_nonempty(t, "tensor_max");
+    double m = t->data[0];
+    long long total = (long long)t->rows * (long long)t->cols;
+    for (long long i = 1; i < total; i++) if (t->data[i] > m) m = t->data[i];
     return _t_f2i(m);
 }
 long long __nucleor_tensor_min(long long h) {
     NTensor *t = (NTensor*)(void*)h;
-    double m = t->data[0]; for (int i = 1; i < t->rows*t->cols; i++) if (t->data[i] < m) m = t->data[i];
+    _check_tensor_nonempty(t, "tensor_min");
+    double m = t->data[0];
+    long long total = (long long)t->rows * (long long)t->cols;
+    for (long long i = 1; i < total; i++) if (t->data[i] < m) m = t->data[i];
     return _t_f2i(m);
 }
 long long __nucleor_tensor_variance(long long h) {
     NTensor *t = (NTensor*)(void*)h;
-    int n = t->rows*t->cols; double s=0;
-    for (int i=0;i<n;i++) s+=t->data[i]; double m=s/n; double v=0;
-    for (int i=0;i<n;i++){double d=t->data[i]-m;v+=d*d;}
-    return _t_f2i(v/n);
+    _check_tensor_nonempty(t, "tensor_variance");
+    long long n = (long long)t->rows * (long long)t->cols;
+    double s = 0;
+    for (long long i = 0; i < n; i++) s += t->data[i];
+    double m = s / (double)n;
+    double v = 0;
+    for (long long i = 0; i < n; i++) { double d = t->data[i] - m; v += d * d; }
+    return _t_f2i(v / (double)n);
 }
 long long __nucleor_tensor_stddev(long long h) {
     return _t_f2i(sqrt(_t_i2f(__nucleor_tensor_variance(h))));
 }
+// v0.3.226: tensor_matmul shape validation. Pre-fix no NULL check, no
+// validation that a->cols == b->rows -- silently produced wrong-sized
+// results or read OOB on shape mismatch.
 long long __nucleor_tensor_matmul(long long ah, long long bh) {
     NTensor *a=(NTensor*)(void*)ah, *b=(NTensor*)(void*)bh;
+    if (!a || !b) {
+        fprintf(stderr, "PANIC: tensor_matmul: null tensor handle (a=%p, b=%p)\n", (void*)a, (void*)b);
+        fflush(stderr); exit(1);
+    }
+    if (a->cols != b->rows) {
+        fprintf(stderr, "PANIC: tensor_matmul: shape mismatch (a=%dx%d, b=%dx%d -- a.cols must equal b.rows)\n",
+                a->rows, a->cols, b->rows, b->cols);
+        fflush(stderr); exit(1);
+    }
+    if (a->rows < 0 || a->cols < 0 || b->cols < 0) {
+        fprintf(stderr, "PANIC: tensor_matmul: negative dim (a=%dx%d, b=%dx%d)\n", a->rows, a->cols, b->rows, b->cols);
+        fflush(stderr); exit(1);
+    }
     NTensor *c=(NTensor*)malloc(sizeof(NTensor));
     c->rows=a->rows; c->cols=b->cols;
-    c->data=(double*)calloc(c->rows*c->cols,sizeof(double));
+    c->data=(double*)calloc((size_t)c->rows*(size_t)c->cols,sizeof(double));
     for(int i=0;i<a->rows;i++)for(int j=0;j<b->cols;j++){
         double s=0;for(int k=0;k<a->cols;k++)s+=a->data[i*a->cols+k]*b->data[k*b->cols+j];
         c->data[i*c->cols+j]=s;}
