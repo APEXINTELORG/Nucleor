@@ -5,6 +5,31 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.225] — 2026-04-26
+
+**Two more pattern-extension fixes from earlier hazard family
+audits.**
+
+**(1) `__nucleor_str_to_i64_radix` overflow PANIC.** Same
+hazard as v0.3.217's `str_to_i64`. `v = v * radix + digit`
+silently wrapped past i64::MAX on hostile input. Now: pre-
+multiply overflow check + panic with offending input string
+and radix. Fixes `parse_hex` and `parse_bin` (which delegate
+to it). Same `NUCLEOR_INT_STRICT_ARITH=0` opt-out as
+v0.3.217.
+
+**(2) `nuc_t3_new` (3D tensor constructor) overflow PANIC.**
+Same hazard as v0.3.223's `tensor_zeros`/`tensor_fill`.
+Pre-fix `(int)d1` truncated dimensions ≥ 2^31 to negative,
+and `t->total = strides[0] * shape[0]` (signed-int product)
+could overflow at modest shape sizes. New `_check_t3_dims`
+helper validates non-negative + i32-fits + total fits in
+signed int.
+
+Bootstrap fixed point at stage_d
+`214dbc4525b4a9fd3947d0207dd17fe0699681f3a9b282e6e87cdfb99a0fe682`.
+453/453 verify PASS.
+
 ## [0.3.224] — 2026-04-26
 
 **Third instance of the v0.3.218 ftell-CVE pattern fixed in
