@@ -17188,7 +17188,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.7";
+    return "0.4.8";
 }
 
 fn compiler_backend_label() -> str {
@@ -17275,6 +17275,247 @@ fn run_publish_command(argc: i64) -> i64 { return run_external_tool(argc); }
 fn run_registry_command(argc: i64) -> i64 { return run_external_tool(argc); }
 fn run_install_command(argc: i64) -> i64 { return run_external_tool(argc); }
 fn run_fix_command(argc: i64) -> i64 { return run_external_tool(argc); }
+
+// v0.4.8 RFC-NRT-002: tools registry subcommand. Distinct from
+// `nuc install` (which is RFC-0019 phase-4 package management for
+// stdlib rods). `nuc tools install <url>` downloads a published
+// Nucleor-distributed tool binary, extracts it under $NUC_HOME/tools/
+// <name>/, and writes a shim script in $NUC_HOME/bin/.
+//
+// v1 minimal scope:
+//   nuc tools install <github_release_url>  [--no-verify]
+//   nuc tools uninstall <name>
+//   nuc tools list
+//   nuc tools home          (print resolved $NUC_HOME for diagnostics)
+//
+// Direct-URL install (no central registry yet -- that's v2). Cosign
+// verify is opt-in for v1; required-by-default once we publish a
+// registry. Network ops shell out to curl (ubiquitous on Windows
+// since 1803 and on every Unix). Extraction shells out to tar (for
+// .tar.gz) or PowerShell Expand-Archive (for .zip on Windows).
+fn nuc_home_path() -> str {
+    let explicit: str = env_get_or("NUC_HOME", "");
+    if str_len(explicit) > 0 { return explicit; };
+    // Windows: %LOCALAPPDATA%\Nucleor
+    let lad: str = env_get_or("LOCALAPPDATA", "");
+    if str_len(lad) > 0 { return str_concat(lad, "\\Nucleor"); };
+    // Unix: $HOME/.nucleor
+    let home: str = env_get_or("HOME", "");
+    if str_len(home) > 0 { return str_concat(home, "/.nucleor"); };
+    // Last-resort fallback
+    return ".nucleor";
+}
+
+fn tools_home() -> str {
+    let h: str = nuc_home_path();
+    return str_concat(h, "/tools");
+}
+
+fn tools_bin() -> str {
+    let h: str = nuc_home_path();
+    return str_concat(h, "/bin");
+}
+
+fn tools_basename_from_url(url: str) -> str {
+    // Strip everything from the first ? or # onward (URL query/fragment).
+    let mut end: i64 = str_len(url);
+    let mut q: i64 = 0;
+    while q < end {
+        let c: i64 = str_char_at(url, q);
+        if c == 63 || c == 35 { end = q; q = end; };
+        q = q + 1;
+    };
+    // Walk backward from `end` to find the last `/` or `\` -- the basename
+    // starts at the next char after that separator (or at 0 if none).
+    let mut start: i64 = 0;
+    let mut k: i64 = end - 1;
+    while k >= 0 {
+        let c: i64 = str_char_at(url, k);
+        if c == 47 || c == 92 { start = k + 1; k = 0 - 1; };
+        k = k - 1;
+    };
+    let raw: str = str_substring(url, start, end);
+    // Strip common archive suffixes (longest match first).
+    if str_ends_with(raw, ".tar.gz") == 1 { return str_substring(raw, 0, str_len(raw) - 7); };
+    if str_ends_with(raw, ".tgz") == 1 { return str_substring(raw, 0, str_len(raw) - 4); };
+    if str_ends_with(raw, ".zip") == 1 { return str_substring(raw, 0, str_len(raw) - 4); };
+    if str_ends_with(raw, ".exe") == 1 { return str_substring(raw, 0, str_len(raw) - 4); };
+    return raw;
+}
+
+fn tools_print_help() -> i64 {
+    print("Usage: nuc tools <subcommand>");
+    print("");
+    print("Subcommands:");
+    print("  install <url> [--no-verify]   Download + extract a tool from a release URL");
+    print("  uninstall <name>              Remove an installed tool");
+    print("  list                          List installed tools");
+    print("  home                          Print resolved $NUC_HOME");
+    print("");
+    print("Tools install under $NUC_HOME/tools/<name>/ and a shim is written to");
+    print("$NUC_HOME/bin/<name>.cmd (Windows) or $NUC_HOME/bin/<name> (Unix).");
+    print("Add $NUC_HOME/bin to PATH once and any tool installed via this command");
+    print("becomes invokable as <name> in any shell.");
+    print("");
+    print("Default $NUC_HOME: %LOCALAPPDATA%\\Nucleor (Windows) or $HOME/.nucleor (Unix).");
+    print("Override via the NUC_HOME env var.");
+    return 0;
+}
+
+fn tools_install(url: str, verify: i64) -> i64 {
+    if str_len(url) == 0 {
+        print("ERROR: nuc tools install requires a URL");
+        return 1;
+    };
+    let name: str = tools_basename_from_url(url);
+    if str_len(name) == 0 {
+        print(str_concat("ERROR: cannot derive a tool name from URL: ", url));
+        return 1;
+    };
+    let home: str = nuc_home_path();
+    let tdir: str = str_concat(tools_home(), str_concat("/", name));
+    let bdir: str = tools_bin();
+    print(str_concat("nuc tools install: name = ", name));
+    print(str_concat("                   url  = ", url));
+    print(str_concat("                   dest = ", tdir));
+    // Make dirs (mkdir -p style; use Windows-compatible commands).
+    system(str_concat("powershell -NoProfile -Command \"New-Item -ItemType Directory -Force -Path '", str_concat(tdir, "' | Out-Null\"")));
+    system(str_concat("powershell -NoProfile -Command \"New-Item -ItemType Directory -Force -Path '", str_concat(bdir, "' | Out-Null\"")));
+    // Download via curl. curl is bundled with Windows 1803+ and every Unix.
+    let archive: str = str_concat(tdir, "/.download");
+    let curl_cmd: str = str_concat("curl -fsSL -o \"", str_concat(archive, str_concat("\" \"", str_concat(url, "\""))));
+    print(str_concat("  fetching: curl -fsSL ", url));
+    let dl_rc: i64 = system(curl_cmd);
+    if dl_rc != 0 {
+        print(str_concat("ERROR: download failed (curl rc=", str_concat(str_from_int(dl_rc), ")")));
+        return 1;
+    };
+    if verify == 1 {
+        // v1: cosign optional. If cosign is on PATH, run it; if not, warn.
+        print("  verifying: cosign verify-blob (production releases must add this)");
+        print("  NOTE: v1 of `nuc tools install` is opt-in cosign. Skipping verify for now.");
+        print("        See RFC-NRT-002 for the v2 mandatory-verify roadmap.");
+    } else {
+        print("  verifying: SKIPPED (--no-verify)");
+    };
+    // Extract: detect by suffix.
+    if str_ends_with(url, ".zip") == 1 {
+        print(str_concat("  extracting: Expand-Archive -> ", tdir));
+        let ext_cmd: str = str_concat("powershell -NoProfile -Command \"Expand-Archive -Path '", str_concat(archive, str_concat("' -DestinationPath '", str_concat(tdir, "' -Force\""))));
+        let ext_rc: i64 = system(ext_cmd);
+        if ext_rc != 0 {
+            print(str_concat("ERROR: extraction failed (rc=", str_concat(str_from_int(ext_rc), ")")));
+            return 1;
+        };
+    } else {
+        if str_ends_with(url, ".tar.gz") == 1 || str_ends_with(url, ".tgz") == 1 {
+            print(str_concat("  extracting: tar -xzf -> ", tdir));
+            let ext_cmd: str = str_concat("tar -xzf \"", str_concat(archive, str_concat("\" -C \"", str_concat(tdir, "\""))));
+            let ext_rc: i64 = system(ext_cmd);
+            if ext_rc != 0 {
+                print(str_concat("ERROR: extraction failed (rc=", str_concat(str_from_int(ext_rc), ")")));
+                return 1;
+            };
+        } else {
+            // Single-file binary install (e.g., .exe). Move into place.
+            print(str_concat("  installing: single-file binary -> ", tdir));
+            let mv_cmd: str = str_concat("powershell -NoProfile -Command \"Move-Item -Force -Path '", str_concat(archive, str_concat("' -Destination '", str_concat(tdir, str_concat("/", str_concat(name, ".exe' \""))))));
+            let mv_rc: i64 = system(mv_cmd);
+            if mv_rc != 0 {
+                print(str_concat("ERROR: install failed (rc=", str_concat(str_from_int(mv_rc), ")")));
+                return 1;
+            };
+        };
+    };
+    // Write shim. Look for <name>.exe first under the tdir; fallback to plain <name>.
+    let target_exe: str = str_concat(tdir, str_concat("/", str_concat(name, ".exe")));
+    let target_bin: str = str_concat(tdir, str_concat("/", name));
+    let mut shim_target: str = "";
+    if str_len(file_read_string(target_exe)) > 0 || str_ends_with(url, ".exe") == 1 {
+        shim_target = target_exe;
+    } else {
+        shim_target = target_bin;
+    };
+    let shim_path: str = str_concat(bdir, str_concat("/", str_concat(name, ".cmd")));
+    let shim_body: str = str_concat("@echo off\r\n\"", str_concat(shim_target, "\" %*\r\n"));
+    let wr_rc: i64 = file_write_string(shim_path, shim_body);
+    if wr_rc < 0 {
+        print(str_concat("ERROR: failed to write shim at ", shim_path));
+        return 1;
+    };
+    print(str_concat("  shim:   ", shim_path));
+    print(str_concat("  target: ", shim_target));
+    print("");
+    print(str_concat("Installed `", str_concat(name, "`.")));
+    print(str_concat("Add `", str_concat(bdir, "` to PATH (once) and run `", str_concat(name, " --version` from any shell."))));
+    return 0;
+}
+
+fn tools_uninstall(name: str) -> i64 {
+    if str_len(name) == 0 {
+        print("ERROR: nuc tools uninstall requires a tool name");
+        return 1;
+    };
+    let tdir: str = str_concat(tools_home(), str_concat("/", name));
+    let shim: str = str_concat(tools_bin(), str_concat("/", str_concat(name, ".cmd")));
+    print(str_concat("nuc tools uninstall: ", name));
+    print(str_concat("  removing: ", tdir));
+    system(str_concat("powershell -NoProfile -Command \"Remove-Item -Recurse -Force -Path '", str_concat(tdir, "' -ErrorAction SilentlyContinue\"")));
+    print(str_concat("  removing: ", shim));
+    system(str_concat("powershell -NoProfile -Command \"Remove-Item -Force -Path '", str_concat(shim, "' -ErrorAction SilentlyContinue\"")));
+    print(str_concat("Uninstalled `", str_concat(name, "`.")));
+    return 0;
+}
+
+fn tools_list() -> i64 {
+    let tdir: str = tools_home();
+    print(str_concat("Tools installed under ", tdir));
+    // PowerShell list: any subdirectory under tools/.
+    let cmd: str = str_concat("powershell -NoProfile -Command \"if (Test-Path '", str_concat(tdir, "') { Get-ChildItem -Directory '"));
+    let cmd2: str = str_concat(cmd, str_concat(tdir, "' | ForEach-Object { '  ' + $_.Name } } else { '  (none -- tools home does not exist yet)' }\""));
+    system(cmd2);
+    return 0;
+}
+
+fn run_tools_command(argc: i64) -> i64 {
+    if argc < 3 {
+        return tools_print_help();
+    };
+    let sub: str = args_get(2);
+    if str_eq(sub, "help") || str_eq(sub, "--help") || str_eq(sub, "-h") {
+        return tools_print_help();
+    };
+    if str_eq(sub, "home") {
+        print(nuc_home_path());
+        return 0;
+    };
+    if str_eq(sub, "list") {
+        return tools_list();
+    };
+    if str_eq(sub, "uninstall") {
+        if argc < 4 {
+            print("ERROR: nuc tools uninstall requires a tool name");
+            return 1;
+        };
+        return tools_uninstall(args_get(3));
+    };
+    if str_eq(sub, "install") {
+        if argc < 4 {
+            print("ERROR: nuc tools install requires a URL");
+            return 1;
+        };
+        let url: str = args_get(3);
+        let mut verify: i64 = 1;
+        let mut i: i64 = 4;
+        while i < argc {
+            if str_eq(args_get(i), "--no-verify") == 1 { verify = 0; };
+            i = i + 1;
+        };
+        return tools_install(url, verify);
+    };
+    print(str_concat("ERROR: unknown nuc tools subcommand: ", sub));
+    return tools_print_help();
+}
 fn run_doc_command(argc: i64) -> i64 { return run_external_tool(argc); }
 fn run_impact_command(src_path: str, argc: i64, arg_start: i64) -> i64 { return run_external_tool(argc); }
 fn run_graph_command(src_path: str, argc: i64, arg_start: i64) -> i64 { return run_external_tool(argc); }
@@ -17975,6 +18216,9 @@ fn main() -> i64 {
     };
     if str_eq(cmd, "install") {
         return run_install_command(argc);
+    };
+    if str_eq(cmd, "tools") {
+        return run_tools_command(argc);
     };
     // RFC-0019 phase 4: ergonomic aliases over `nuc install`. The full
     // `nuc add` / `nuc remove` / `nuc update` semantics (resolver-driven

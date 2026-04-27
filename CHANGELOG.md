@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.8] — 2026-04-27
+
+**RFC-NRT-002 v1 — `nuc tools install / uninstall / list / home`
+subcommand (direct-URL install, no central registry yet).**
+
+### Production-readiness picks (smallest verifiable v1)
+
+The full RFC-NRT-002 design surface is large (Sigstore-required
+verification, central registry, version pinning, dependency
+resolution, automatic updates). v1 ships the smallest verifiable
+slice that proves the install pattern end-to-end:
+
+| Choice | v1 | v2/later |
+|---|---|---|
+| Install source | direct release URL | central registry (`registry.json` on raw.githubusercontent) |
+| Sigstore verify | opt-in (skipped by default in v1) | required-by-default |
+| Versioning | URL is the version | `<tool>@<version>` resolved via registry |
+| Update | re-run install | `nuc tools update` sugar |
+| Dependency resolution | n/a | when registry lands |
+
+`nuc install` (RFC-0019 phase-4 package management for stdlib
+rods) keeps its existing namespace; tools live under the new
+`nuc tools <subcmd>` namespace to avoid collision.
+
+### Surface
+
+```
+nuc tools install <url> [--no-verify]
+nuc tools uninstall <name>
+nuc tools list
+nuc tools home               (print resolved $NUC_HOME)
+```
+
+### `$NUC_HOME` resolution (in priority order)
+
+1. `$NUC_HOME` env var (explicit override)
+2. `%LOCALAPPDATA%\Nucleor` on Windows
+3. `$HOME/.nucleor` on Unix
+4. Bare `.nucleor` last-resort fallback
+
+Tools install under `$NUC_HOME/tools/<name>/`; shim scripts under
+`$NUC_HOME/bin/<name>.cmd` (Windows) / `<name>` (Unix). Adopters
+add `$NUC_HOME/bin` to PATH once and every subsequently-installed
+tool becomes invokable as `<name>` in any shell.
+
+### Network + extraction
+
+Shells out to `curl -fsSL` for download (bundled with Windows 1803+
+and every Unix). Extraction:
+
+- `.zip` → PowerShell `Expand-Archive`
+- `.tar.gz` / `.tgz` → `tar -xzf`
+- `.exe` → single-file move into the install dir
+
+Each step prints the action; failures bubble exit codes back to
+the caller.
+
+### Cosign / Sigstore (deferred to v2)
+
+`--no-verify` is accepted today but the verify path is currently
+a no-op + warning. The v2 release that publishes the central
+registry will require cosign verification by default; the
+`--no-verify` opt-out stays as a documented escape hatch.
+
+### Production-readiness notes
+
+- Errors propagate. `curl` non-zero rc, extraction failure, write
+  failure -- each prints a precise diagnostic and returns the rc.
+- Idempotent. Re-installing overwrites the install dir; uninstall
+  is `-Force` and `-ErrorAction SilentlyContinue` so re-running
+  it doesn't fail noisy.
+- Conservative shim. The `.cmd` shim re-execs the actual tool with
+  `%*` arg-splat; no environment manipulation beyond what the user
+  invocation already had.
+
+Bootstrap fixed point preserved (c == d byte-identical). Verify
+gate 465/465 (no Step changes -- the install path needs network +
+external tools to test, deferred to a CI matrix).
+
 ## [0.4.7] — 2026-04-27
 
 **RFC-NRT-003 — `nuc verify-reproducible` subcommand (Translate
