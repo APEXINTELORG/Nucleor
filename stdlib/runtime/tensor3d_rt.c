@@ -66,15 +66,39 @@ long long nuc_t3_new(long long d1, long long d2, long long d3) {
 }
 
 // Create N-D tensor from shape Vec
+// v0.3.228: nuc_t3_new_nd safety -- NULL shape handle, dim
+// validation, total overflow check. Same hazard class as
+// v0.3.225's nuc_t3_new fix.
 long long nuc_t3_new_nd(long long shape_h) {
     typedef struct { long long *data; int len; int cap; } NVec;
     NVec *sh = (NVec *)(void *)shape_h;
+    if (!sh) {
+        fprintf(stderr, "PANIC: nuc_t3_new_nd: null shape handle\n");
+        fflush(stderr); exit(1);
+    }
+    if (sh->len <= 0) {
+        fprintf(stderr, "PANIC: nuc_t3_new_nd: empty shape (len %d)\n", sh->len);
+        fflush(stderr); exit(1);
+    }
     Tensor3D *t = (Tensor3D *)calloc(1, sizeof(Tensor3D));
     t->ndim = sh->len;
     if (t->ndim > T3_MAX_DIMS) t->ndim = T3_MAX_DIMS;
-    for (int i = 0; i < t->ndim; i++) t->shape[i] = (int)sh->data[i];
+    long long total_check = 1;
+    for (int i = 0; i < t->ndim; i++) {
+        long long d = sh->data[i];
+        if (d < 0 || d > 2147483647LL) {
+            fprintf(stderr, "PANIC: nuc_t3_new_nd: dim[%d] out of i32 range (%lld)\n", i, d);
+            fflush(stderr); free(t); exit(1);
+        }
+        if (d > 0 && total_check > 2147483647LL / d) {
+            fprintf(stderr, "PANIC: nuc_t3_new_nd: total elements exceed i32 (dim[%d]=%lld)\n", i, d);
+            fflush(stderr); free(t); exit(1);
+        }
+        total_check *= d;
+        t->shape[i] = (int)d;
+    }
     t3_compute_strides(t);
-    t->data = (double *)calloc(t->total, sizeof(double));
+    t->data = (double *)calloc((size_t)t->total, sizeof(double));
     return (long long)t;
 }
 
