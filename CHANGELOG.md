@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.218] — 2026-04-26
+
+**File I/O safety: buffer-overflow CVE fix +
+strict-variant + write-error PANIC.** Three changes to the
+file_read_string / file_write_string surface.
+
+**(1) `file_read_string` buffer-overflow fix.** Pre-fix if
+`ftell()` returned -1 (seek error on a non-seekable stream),
+the code did `malloc(0)` then `fread(buf, 1, (size_t)-1, f)`
+which reads SIZE_MAX bytes into a 1-byte buffer — real
+CVE-class memory safety bug. Now: detect ftell failure and
+short-circuit to `""`. Also added fseek error checks.
+
+**(2) `file_read_string_or_panic` (new strict variant).**
+The original `file_read_string` returns `""` silently on
+missing file because the compiler intentionally uses
+silent-empty as a "does this file exist?" probe (path
+resolution, log existence, etc.) — keeping that behavior
+intact. Adopters who want loud failure can use the new
+strict variant which panics with the path and OS error:
+
+```
+PANIC: file_read_string_or_panic: cannot open 'foo.txt' (No such file or directory)
+```
+
+**(3) `file_write_string` PANIC on write failure.** Pre-fix
+silently swallowed fopen / fwrite errors — adopters writing
+to read-only paths got nothing with no diagnostic. Now
+panics with path and OS error. Opt-out via
+`NUCLEOR_FILE_LENIENT=1` for legacy behavior.
+
+```
+PANIC: file_write_string: cannot open '/readonly/foo.txt' for writing (Permission denied)
+```
+
+Compiler tables (s1 + tools_suite mirror) wire the new
+helper. Bootstrap fixed point at stage_d
+`7027c0a9d6923f3445c0410ec0e44c65c0708713240b4994a0a1dab4cae4ca91`.
+452/452 verify PASS.
+
 ## [0.3.217] — 2026-04-26
 
 **`str_to_int` / `str_to_i64` on overflowing input now PANICs

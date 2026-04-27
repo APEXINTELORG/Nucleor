@@ -1480,26 +1480,98 @@ const char *__nucleor_str_repeat(const char *s, long long n) {
 // NVec typedef). It returns NVec* (Vec<str>) of substrings.
 
 // === File I/O ===
+// v0.3.218: file_read_string -- two safety fixes.
+// (1) Memory safety: pre-fix, if ftell() returned -1 (seek error
+//     on a non-seekable stream), the code did `malloc(0)` then
+//     `fread(buf, 1, (size_t)-1, f)` which reads SIZE_MAX bytes
+//     into a 1-byte buffer -- real CVE-class buffer overflow.
+//     Now: detect ftell failure and short-circuit to "".
+// (2) Lenient default: the compiler intentionally uses silent-
+//     empty-on-missing as a "does this file exist?" probe
+//     (path resolution, log existence, etc.). Keep that default
+//     intact. Adopters who want strict semantics can call the
+//     new __nucleor_file_read_string_or_panic helper.
 const char *__nucleor_file_read_string(const char *path) {
     if (!path) return "";
     FILE *f = fopen(path, "rb");
     if (!f) return "";
-    fseek(f, 0, SEEK_END);
+    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return ""; }
     long sz = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    char *buf = (char *)malloc(sz + 1);
-    fread(buf, 1, sz, f);
+    if (sz < 0) { fclose(f); return ""; }   /* CVE-class: prevent SIZE_MAX fread */
+    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return ""; }
+    char *buf = (char *)malloc((size_t)sz + 1);
+    size_t n_read = fread(buf, 1, (size_t)sz, f);
     fclose(f);
-    buf[sz] = 0;
+    buf[n_read] = 0;
     return buf;
 }
 
+// v0.3.218: file_read_string_or_panic -- strict variant. Panics on
+// missing file, fopen failure, or read error. Adopter-facing
+// surface for code that wants OS-level reads to fail loud.
+const char *__nucleor_file_read_string_or_panic(const char *path) {
+    if (!path) {
+        fprintf(stderr, "PANIC: file_read_string_or_panic: null path\n");
+        fflush(stderr); exit(1);
+    }
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        fprintf(stderr, "PANIC: file_read_string_or_panic: cannot open '%s' (%s)\n", path, strerror(errno));
+        fflush(stderr); exit(1);
+    }
+    if (fseek(f, 0, SEEK_END) != 0) {
+        fprintf(stderr, "PANIC: file_read_string_or_panic: fseek failed on '%s'\n", path);
+        fflush(stderr); fclose(f); exit(1);
+    }
+    long sz = ftell(f);
+    if (sz < 0) {
+        fprintf(stderr, "PANIC: file_read_string_or_panic: ftell failed on '%s'\n", path);
+        fflush(stderr); fclose(f); exit(1);
+    }
+    if (fseek(f, 0, SEEK_SET) != 0) {
+        fprintf(stderr, "PANIC: file_read_string_or_panic: fseek failed on '%s'\n", path);
+        fflush(stderr); fclose(f); exit(1);
+    }
+    char *buf = (char *)malloc((size_t)sz + 1);
+    size_t n_read = fread(buf, 1, (size_t)sz, f);
+    fclose(f);
+    buf[n_read] = 0;
+    return buf;
+}
+
+// v0.3.218: file_write_string now panics on fopen / fwrite failure.
+// Pre-fix it silently swallowed the error -- adopters writing to
+// read-only paths got nothing with no diagnostic. The new behavior:
+// panic. Opt-out via NUCLEOR_FILE_LENIENT=1 for legacy semantics.
+static int g_file_lenient_cached = 0;  /* 0=uncached, 1=panic, 2=lenient */
+static int _file_lenient(void) {
+    if (g_file_lenient_cached == 0) {
+        const char *e = getenv("NUCLEOR_FILE_LENIENT");
+        g_file_lenient_cached = (e && e[0] == '1') ? 2 : 1;
+    }
+    return g_file_lenient_cached == 2;
+}
 void __nucleor_file_write_string(const char *path, const char *data) {
-    if (!path || !data) return;
+    if (!path || !data) {
+        if (_file_lenient()) return;
+        fprintf(stderr, "PANIC: file_write_string: null %s (set NUCLEOR_FILE_LENIENT=1 to suppress)\n",
+                !path ? "path" : "data");
+        fflush(stderr); exit(1);
+    }
     FILE *f = fopen(path, "wb");
-    if (f) {
-        fwrite(data, 1, strlen(data), f);
-        fclose(f);
+    if (!f) {
+        if (_file_lenient()) return;
+        fprintf(stderr, "PANIC: file_write_string: cannot open '%s' for writing (%s) (set NUCLEOR_FILE_LENIENT=1 to suppress)\n",
+                path, strerror(errno));
+        fflush(stderr); exit(1);
+    }
+    size_t len = strlen(data);
+    size_t written = fwrite(data, 1, len, f);
+    if (fclose(f) != 0 || written != len) {
+        if (_file_lenient()) return;
+        fprintf(stderr, "PANIC: file_write_string: write failed on '%s' (wrote %zu of %zu bytes) (set NUCLEOR_FILE_LENIENT=1 to suppress)\n",
+                path, written, len);
+        fflush(stderr); exit(1);
     }
 }
 
