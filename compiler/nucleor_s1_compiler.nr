@@ -5490,11 +5490,26 @@ fn ctr_new() -> Vec<i32> { let mut c: Vec<i32> = Vec::new(); c.push(0); return c
 fn ctr_next(c: Vec<i32>) -> i64 { let v: i64 = vec_get(c, vec_len(c) - 1); c.push(v + 1); return v; }
 fn sym_new() -> Vec<i32> { return Vec::new(); }
 fn sym_set(s: Vec<i32>, name: str, reg: i64) -> i64 { s.push(name); s.push(reg); return 0; }
+
+// v0.3.237: Phase B (source migration to hash-backed sym_get) was
+// prototyped but reverted before ship. The hash backing is functionally
+// correct (bootstrap stage_b == stage_c == stage_d byte-identical) but
+// caused a 1.8x peak-memory regression (502MB -> 888MB) at no measurable
+// compile-time gain on the current 947K-byte source: the per-sym aux
+// hashmap allocations dominated the savings from O(1) lookups on the
+// few large syms.
+//
+// The Phase A runtime infrastructure (sym-aux side hashmap helpers)
+// stays in v0.3.236+ as dormant -- ready for a redesigned Phase B in
+// a future 0.4.x release that uses a single global warm-cache
+// hashmap (cleared on sym-handle context switch) instead of one
+// allocation per sym vec.
+//
+// For now the linear scan with most-recent-entry fast path remains
+// the live impl. It's already O(1) on the just-set lookup (the
+// dominant pattern), and the backward scan is cache-friendly enough
+// that the v0.3.235 perf baseline holds.
 fn sym_get(s: Vec<i32>, name: str) -> i64 {
-    // v0.3.222 perf: most-recent-entry fast path. Common pattern is
-    // sym_set(name, val) then sym_get(name) immediately or in a tight
-    // loop. Backward scan would still find it in 1 iteration, but the
-    // loop overhead adds up over 100M+ sym_get calls.
     let n: i64 = vec_len(s);
     if n >= 2 && str_eq(vec_get(s, n - 2), name) == 1 { return vec_get(s, n - 1); };
     let mut i: i64 = n - 4;
@@ -16937,7 +16952,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.236";
+    return "0.3.237";
 }
 
 fn compiler_backend_label() -> str {
