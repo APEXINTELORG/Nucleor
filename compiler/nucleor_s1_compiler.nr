@@ -10671,21 +10671,27 @@ fn match_bind_payloads_per_idx(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym:
                 let pt_s: str = pstored;
                 if str_len(pt_s) > 0 { ptype = type_base_name(pt_s); };
             } else {
-                // v0.4.4 SPEC-1.5 wishlist: Option<str> Some payload defaults
-                // to "str" (matching the existing Result<i64, str> Err = str
-                // special case). Without this, `Option<str>` struct fields
-                // like `alias: Option<str>` couldn't be unwrapped + printed
-                // -- println!("{}", s) where s came from `match self.alias {
-                // Some(s) => ... }` printed a raw pointer integer because
-                // the binding's type defaulted to i64.
-                //
-                // The full generic typed-Option<T> propagation (which would
-                // also catch Option<i64>, Option<MyStruct>, etc) requires
-                // scrutinee-type tracking through lower_match -- queued for
-                // a focused 0.4.x cycle. Until then, Option<str> is the
-                // common case and gets the same treatment Result::Err does.
-                if str_eq(ename, "Option") == 1 && str_eq(vname, "Some") == 1 && bind_idx == 0 { ptype = "str"; };
-                if str_eq(ename, "Result") == 1 && str_eq(vname, "Err") == 1 && bind_idx == 0 { ptype = "str"; };
+                // v0.4.11 Phase B: full generic Option<T> / Result<T,E>
+                // propagation. Pull the resolved compile source from the
+                // runtime side table (set at compile_file_mode entry),
+                // then call infer_pattern_binding_type_from_source which
+                // walks back from `Some(<name>)` to `match <scrutinee>`
+                // and extracts T from the scrutinee's declared
+                // `Option<T>` / `Result<T,E>`. Falls back to the v0.4.4
+                // hardcoded "str" defaults when the side table is empty
+                // (rare -- only when compile_file_mode wasn't the entry,
+                // e.g., direct test harness invocations) or when the
+                // pattern is too complex to scan (field-access scrutinee).
+                let mut resolved: i64 = 0;
+                let src: str = __nucleor_compile_src_get();
+                if str_len(src) > 0 {
+                    let pat_t: str = infer_pattern_binding_type_from_source(src, name);
+                    if str_len(pat_t) > 0 { ptype = pat_t; resolved = 1; };
+                };
+                if resolved == 0 {
+                    if str_eq(ename, "Option") == 1 && str_eq(vname, "Some") == 1 && bind_idx == 0 { ptype = "str"; };
+                    if str_eq(ename, "Result") == 1 && str_eq(vname, "Err") == 1 && bind_idx == 0 { ptype = "str"; };
+                };
             };
             sym_set(sym, str_concat("__type_", name), ptype);
             let mv2: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv2, mslot));
@@ -14541,6 +14547,11 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     if strict_mode == 0 { print("  mode: fast (ownership + type)"); };
     if link_native == 0 { print("  mode: llvm-only (--no-link)"); };
     if vec_get(bundle, 2) == 1 { print("  incremental: module graph cache hit"); };
+    // v0.4.11 Phase B: stash the resolved source in the compile-src
+    // side table so deep lowering helpers (match_bind_payloads_per_idx)
+    // can do scrutinee-type inference for Option<T> / Result<T,E>
+    // without threading `src` through 30+ call sites.
+    __nucleor_compile_src_set(source);
     print_phase_time(time_passes, "resolve_source", now_ms() - resolve_start);
     let preflight_start: i64 = now_ms();
     if preflight_source_check(source) != 0 { return 1; };
@@ -17388,7 +17399,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.10";
+    return "0.4.11";
 }
 
 fn compiler_backend_label() -> str {
