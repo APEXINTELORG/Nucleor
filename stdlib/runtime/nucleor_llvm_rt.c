@@ -4559,136 +4559,101 @@ long long __nucleor_hashmap_clone(long long h) {
     return out;
 }
 
-// === sym-aux side hashmap (v0.3.236 — hash-backed sym_get) ===
+// === sym-aux warm cache (v0.4.3 redesign) ===
 //
 // The s1 self-host compiler stores its symbol/ownership tables as
 // flat `Vec<i32>` (interleaved name/reg pairs). Lookup was a
 // backward linear scan with a most-recent-entry fast path. For
 // large source files this is O(N) per lookup -> O(N^2) total.
 //
-// Phase A (v0.3.236) ships ONLY these runtime helpers + the
-// matching get_rt_name mappings. No source migration yet -- the
-// shipped Phase A binary is functionally identical to v0.3.235;
-// the helpers are dormant.
+// Phase A (v0.3.236) shipped four runtime helpers
+// (__nucleor_sym_aux_get / _create / _built_at / _set_built_at)
+// designed for a per-sym aux model: each Vec<i32> sym got its own
+// NHashMap mirroring it.
 //
-// Phase B (v0.3.237+) migrates sym_get / own_put_i to call
-// these helpers. Phase A is required as a separate cycle so
-// Phase B's source can be compiled by a binary that already
-// recognises the new helper names (the bootstrap-name-recognition
-// ratchet -- old bin/nucleor.exe without the get_rt_name entries
-// would emit bare `call @sym_aux_get(...)` and clang link-fails).
+// Phase B (v0.3.237) migrated source to use them and reverted in
+// the same release: per-sym aux caused a 1.8x peak-memory regression
+// (502MB -> 888MB) at no compile-time gain, because every sym_clone
+// (one per branch in type-check / lowering) registered a new handle
+// in a side table that never freed entries.
 //
-// Side-table design: a global open-addressed map from
-// `sym_handle (Vec<i32> heap pointer cast to i64)` to a record
-// holding (a) the aux NHashMap handle (created lazily) and
-// (b) the vec length when the aux was last fully synced. sym_get
-// is responsible for catching up the aux from the vec since the
-// last sync. sym_set may either eagerly insert into the aux or
-// leave the catch-up entirely to sym_get -- both are correct.
+// v0.4.3 redesign: SINGLE WARM-CACHE slot. There is exactly one
+// NHashMap allocated for the whole runtime. It mirrors the most-
+// recently-accessed sym vec ("warm handle"). When sym_get is called
+// on a different handle, the hashmap is cleared and rebuilt from
+// the new sym. When sym_get is called on the warm handle, lookups
+// are O(1).
 //
-// The helpers below are conservative wrt OOM (route through
-// _nuc_alloc_xmalloc, panic if not lenient) and conservative wrt
-// concurrency (the s1 self-host compiler is single-threaded; the
-// global side table is not protected by a mutex).
+// Workload pattern: lower a function body -> many sym_gets on that
+// function's sym -> switch to the next function. Warm-cache rebuild
+// happens once per function-body boundary, not once per sym vec
+// allocation. Source-side size threshold (skip the warm path for
+// small syms) bounds the worst-case clone-thrash overhead.
+//
+// Memory cost: ONE NHashMap. Size grows with the largest single
+// sym ever cached but never accumulates across cloned syms.
+//
+// Backward-compatible API: the same four helpers from Phase A;
+// only the SEMANTICS change. _create returns the (single) warm
+// handle; _built_at returns built_at if the queried sym is warm,
+// else 0 (force rebuild). The s1 source code that was prototyped
+// in Phase B works as-is against the new semantics.
+//
+// Concurrency: the s1 self-host compiler is single-threaded; the
+// warm cache is not protected by a mutex.
 
-typedef struct {
-    long long sym_handle;   /* Vec<i32> ptr (cast to i64); 0 = empty slot */
-    long long aux_handle;   /* NHashMap ptr (cast to i64); 0 = not yet built */
-    long long built_at_len; /* vec_len when aux was last fully synced */
-} SymAuxSlot;
+static long long g_sym_warm_handle = 0;
+static long long g_sym_warm_aux = 0;          /* NHashMap handle, lazily created */
+static long long g_sym_warm_built_at = 0;     /* vec_len when aux was last fully synced for warm_handle */
 
-static SymAuxSlot *g_sym_aux_table = 0;
-static long long g_sym_aux_cap = 0;
-static long long g_sym_aux_len = 0;
-
-static void _sym_aux_init(void) {
-    if (g_sym_aux_table) return;
-    g_sym_aux_cap = 256;  /* power of 2 for fast modulo */
-    g_sym_aux_table = (SymAuxSlot *)calloc((size_t)g_sym_aux_cap, sizeof(SymAuxSlot));
-    g_sym_aux_len = 0;
-}
-
-static void _sym_aux_grow(void) {
-    long long old_cap = g_sym_aux_cap;
-    SymAuxSlot *old = g_sym_aux_table;
-    g_sym_aux_cap = _grow_cap(g_sym_aux_cap, sizeof(SymAuxSlot), "sym_aux table grow");
-    g_sym_aux_table = (SymAuxSlot *)calloc((size_t)g_sym_aux_cap, sizeof(SymAuxSlot));
-    g_sym_aux_len = 0;
-    long long i;
-    for (i = 0; i < old_cap; i++) {
-        if (old[i].sym_handle != 0) {
-            unsigned long long h = (unsigned long long)old[i].sym_handle;
-            h ^= h >> 33; h *= 0xff51afd7ed558ccdULL;
-            h ^= h >> 33; h *= 0xc4ceb9fe1a85ec53ULL;
-            h ^= h >> 33;
-            long long idx = (long long)(h & (unsigned long long)(g_sym_aux_cap - 1));
-            while (g_sym_aux_table[idx].sym_handle != 0) {
-                idx = (idx + 1) & (g_sym_aux_cap - 1);
-            }
-            g_sym_aux_table[idx] = old[i];
-            g_sym_aux_len++;
-        }
+static void _sym_warm_init_if_needed(void) {
+    if (g_sym_warm_aux == 0) {
+        g_sym_warm_aux = __nucleor_hashmap_new();
     }
-    free(old);
 }
 
-static SymAuxSlot *_sym_aux_lookup(long long sym_handle, int create) {
-    if (!g_sym_aux_table) _sym_aux_init();
-    if (g_sym_aux_len * 2 >= g_sym_aux_cap) _sym_aux_grow();
-    unsigned long long h = (unsigned long long)sym_handle;
-    h ^= h >> 33; h *= 0xff51afd7ed558ccdULL;
-    h ^= h >> 33; h *= 0xc4ceb9fe1a85ec53ULL;
-    h ^= h >> 33;
-    long long idx = (long long)(h & (unsigned long long)(g_sym_aux_cap - 1));
-    long long start = idx;
-    while (g_sym_aux_table[idx].sym_handle != 0) {
-        if (g_sym_aux_table[idx].sym_handle == sym_handle) {
-            return &g_sym_aux_table[idx];
-        }
-        idx = (idx + 1) & (g_sym_aux_cap - 1);
-        if (idx == start) break;
-    }
-    if (!create) return 0;
-    g_sym_aux_table[idx].sym_handle = sym_handle;
-    g_sym_aux_table[idx].aux_handle = 0;
-    g_sym_aux_table[idx].built_at_len = -1;
-    g_sym_aux_len++;
-    return &g_sym_aux_table[idx];
-}
-
-/* Return the aux NHashMap handle for sym_handle; -1 if none yet
-   (caller can choose to create-then-build, see _create below).   */
+/* Return the aux NHashMap handle for sym_handle, or -1 if the
+   queried sym isn't currently warm. (The runtime owns ONE hashmap;
+   it returns -1 when the caller's sym isn't the one mirrored.)  */
 long long __nucleor_sym_aux_get(long long sym_handle) {
-    SymAuxSlot *s = _sym_aux_lookup(sym_handle, 0);
-    if (!s) return -1;
-    return s->aux_handle == 0 ? -1 : s->aux_handle;
-}
-
-/* Get-or-create the aux NHashMap handle for sym_handle. Always
-   returns a valid handle; lazy-allocates on first call.          */
-long long __nucleor_sym_aux_create(long long sym_handle) {
-    SymAuxSlot *s = _sym_aux_lookup(sym_handle, 1);
-    if (s->aux_handle == 0) {
-        s->aux_handle = __nucleor_hashmap_new();
-        s->built_at_len = 0;
+    if (sym_handle == g_sym_warm_handle && g_sym_warm_aux != 0) {
+        return g_sym_warm_aux;
     }
-    return s->aux_handle;
+    return -1;
 }
 
-/* Return the vec length at which the aux was last fully synced;
-   -1 if no sync has happened. Phase B sym_get uses this to drive
-   incremental catch-up scans of any pairs added since.           */
+/* Get-or-set-warm the aux NHashMap. If `sym_handle` is already
+   the warm handle, return the existing aux. Otherwise: clear the
+   hashmap, set warm = sym_handle, reset built_at = 0, return the
+   (now-empty) aux handle. The caller's catchup loop will then
+   repopulate from the new sym's vec.                              */
+long long __nucleor_sym_aux_create(long long sym_handle) {
+    _sym_warm_init_if_needed();
+    if (sym_handle != g_sym_warm_handle) {
+        __nucleor_hashmap_clear(g_sym_warm_aux);
+        g_sym_warm_handle = sym_handle;
+        g_sym_warm_built_at = 0;
+    }
+    return g_sym_warm_aux;
+}
+
+/* Return the vec length at which the warm aux was last fully synced
+   for `sym_handle`. If `sym_handle` isn't the warm handle, returns 0
+   so the caller's catchup loop runs over the entire vec.           */
 long long __nucleor_sym_aux_built_at(long long sym_handle) {
-    SymAuxSlot *s = _sym_aux_lookup(sym_handle, 0);
-    if (!s) return -1;
-    return s->built_at_len;
+    if (sym_handle == g_sym_warm_handle && g_sym_warm_aux != 0) {
+        return g_sym_warm_built_at;
+    }
+    return 0;
 }
 
-/* Record that the aux is synced up to vec length n. Phase B
-   sym_get calls this after the catch-up loop completes.          */
+/* Record that the warm aux is synced up to vec length n. No-op if
+   `sym_handle` isn't the current warm handle (caller raced with a
+   context-switch -- the next sym_get will rebuild).                 */
 long long __nucleor_sym_aux_set_built_at(long long sym_handle, long long n) {
-    SymAuxSlot *s = _sym_aux_lookup(sym_handle, 1);
-    s->built_at_len = n;
+    if (sym_handle == g_sym_warm_handle) {
+        g_sym_warm_built_at = n;
+    }
     return 0;
 }
 

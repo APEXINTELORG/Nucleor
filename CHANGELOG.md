@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] — 2026-04-27
+
+**Hash-backed sym_get — warm-cache redesign (closes the 0.3 carryover).**
+
+The v0.3.236 Phase A runtime infrastructure (4 sym-aux helpers) sat
+dormant after v0.3.237's per-sym aux model was reverted for a 1.8x
+peak-memory regression. v0.4.3 ships the redesigned model that
+the v0.3.237 commit message called out as the right shape.
+
+### The redesign — single warm-cache slot
+
+Instead of one NHashMap per sym vec (the model that caused 1.8x
+memory blowup because every `sym_clone` registered a new handle in
+a side table that never freed), the runtime now owns ONE NHashMap
+plus a `warm_handle` slot. When `sym_get` is called on a different
+handle than the cached one, the hashmap is cleared and rebuilt
+from the new sym. When the same sym is queried again, lookups are
+O(1).
+
+Workload pattern: lower a function body -> many sym_gets on that
+function's sym -> switch to next function. Warm-cache rebuild
+happens once per function-body boundary, not once per sym vec
+allocation.
+
+### Source side
+
+`sym_get` now does the hash path only for syms above a size
+threshold (256 entries / 128 pairs). Below threshold the linear
+backward scan is competitive (cache-friendly, no warm-cache
+touch) AND avoids warm-cache thrash on the many small clones that
+branch isolation creates. Only the long-lived outer module-scope
+sym -- exactly the one linear scan was actually slow on -- hits
+the hash path.
+
+`own_put_i` / `own_put_s` keep the warm aux in sync on in-place
+updates IF the put target is the warm sym (`__nucleor_sym_aux_get`
+returns -1 otherwise; no allocation).
+
+`own_restore` clears the warm aux + resets built_at if the restore
+target is the warm sym. Otherwise no-op (the next sym_get on this
+sym will rebuild from scratch when it switches the warm slot).
+
+### Results
+
+| Metric | v0.3.235 baseline | v0.3.237 (per-sym, reverted) | v0.4.3 (warm-cache) |
+|---|---|---|---|
+| Peak memory | 502 MB | 888 MB (1.8x) | 510 MB (+1.6%) |
+| Cold compile | 6.5 s | 6.4 s | 6.55 s |
+| Hot compile | 0.83 s | 0.83 s | 0.75 s |
+
+Memory cost is bounded by the size of one hashmap (the largest
+single sym ever cached). Compile time roughly flat -- the hash
+path's throughput equals linear at current source size; the win
+appears as the source grows past where linear scan slows down.
+
+### Backward-compat
+
+The four `__nucleor_sym_aux_*` runtime helpers keep the same
+signatures from v0.3.236 Phase A; only the SEMANTICS change.
+Phase A binaries (v0.3.236+) recognize the helper names already,
+so no bootstrap-name-recognition ratchet is needed for this swap.
+
+Bootstrap fixed point preserved (stage_b == stage_c == stage_d
+byte-identical). Verify gate 461/461. T1.8 perf+memory clean.
+
 ## [0.4.2] — 2026-04-27
 
 **RFC-NRT-004 §G — last open Nucleor_Translate ask closed.**
