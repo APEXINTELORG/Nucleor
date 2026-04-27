@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.11] — 2026-04-27
+
+**Phase B — generic Option<T> / Result<T,E> propagation via the
+compile-src side table (closes Translate's last actively-shaping
+defect for bare-ident scrutinees).**
+
+v0.4.10 shipped Phase A (3 dormant runtime helpers
+`__nucleor_compile_src_set/get/clear`). v0.4.11 wires them in:
+
+- `compile_file_mode` calls `__nucleor_compile_src_set(source)` at
+  entry. Subsequent `_set` calls overwrite (defensive clear is a
+  no-op since each compile owns the slot).
+- `match_bind_payloads_per_idx`: when the per-variant
+  `__epayload<i>_<ename>_<vname>` lookup misses (i.e., Option /
+  Result built-in variants without user-stored payload types),
+  pulls the source via `__nucleor_compile_src_get()` and calls
+  `infer_pattern_binding_type_from_source(src, binding_name)` to
+  walk back from `Some(<name>)` to `match <scrutinee>` and extract
+  T from the scrutinee's declared `Option<T>` / `Result<T,E>`.
+- The v0.4.4 hardcoded "str" defaults still fire as a fallback
+  (when the side table is empty -- rare; only for harness paths
+  that don't go through `compile_file_mode`).
+
+### What this closes
+
+```nucleor
+let report: GapReport = GapReport { severity: 7, message: "boom" };
+let gr: Option<GapReport> = Some(report);
+match gr {
+    None => return 1,
+    Some(g) => {
+        if g.severity != 7 { return 1; };       // works -- g typed as GapReport
+        if str_eq(g.message, "boom") != 1 { return 1; };
+    },
+};
+```
+
+This is the pattern that closes Translate's `PipelineSuccess.gap_
+report_present + gap_report` flag/slot pair workaround. They can
+now use `pub gap_report: Option<GapReport>` directly.
+
+### Still pending — field-access scrutinee
+
+`match self.gap_report { Some(g) => ... }` (where `self.gap_report:
+Option<GapReport>` is a struct field, not a let-bound local) does
+NOT yet work in v0.4.11. The pattern-binding helper bails on
+field-access scrutinees (it requires a bare-ident scrutinee that
+can be looked up via `infer_var_type_from_source`). Closing this
+needs an additional `infer_struct_field_type_from_source` helper
+that walks struct declarations -- queued for v0.4.12.
+
+Translate's specific `match s.gap_report` usage will need this
+follow-up; their `match gr` shape (where `gr` is a let-bound
+local) works today.
+
+### Verification
+
+Bootstrap fixed point preserved (stage_b == stage_c == stage_d
+both IR AND EXE byte-identical, courtesy of v0.4.10's `/Brepro`).
+Verify gate 467/467.
+
 ## [0.4.10] — 2026-04-27
 
 **SLSA-Build-Level-3 unblocker — `-Wl,/Brepro` for byte-reproducible
