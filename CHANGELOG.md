@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.6] — 2026-04-27
+
+**Diagnostic: `extern fn __nucleor_*` declarations that conflict with
+runtime helpers.**
+
+The trap I hit on the first NUC-FEEDBACK-011 attempt: writing
+`extern fn __nucleor_f64_erf(x: f64) -> f64;` in source emits a
+`declare double @__nucleor_f64_erf(double)` IR `declare`, which
+conflicts with the compiler's already-emitted
+`declare i64 @__nucleor_f64_erf(i64)` (i64-everywhere ABI -- f64/str
+payloads pass through bit-cast i64). clang fails late with
+`invalid redefinition of function`, and the error log doesn't
+explain the i64-ABI rule.
+
+v0.4.6: `emit_user_externs` now detects this collision before
+emission. When the user's extern fn name starts with `__nucleor_`
+and matches a `get_rt_name` entry, the compiler panics with a
+precise diagnostic naming the conflict + the workaround:
+
+```
+ERROR: extern fn name '__nucleor_f64_erf' conflicts with the
+compiler runtime helper of the same name.
+  The compiler emits `declare i64 @<name>(i64, ...)` for every
+  runtime helper (i64-everywhere ABI -- f64/str/etc are passed
+  bit-cast through i64). Your typed extern fn declaration emits
+  a second `declare` with conflicting types and clang fails to
+  link with `invalid redefinition of function`.
+  Workaround: drop the `extern fn` and just call the bare-name
+  helper directly: `f64_erf(...)`. The compiler's get_rt_name
+  table already maps the bare name to `__nucleor_f64_erf` for
+  you (i64 ABI applied automatically).
+PANIC: extern fn redeclares runtime helper: __nucleor_f64_erf
+```
+
+### Pinned regression
+
+`tests/fixtures/t478_extern_runtime_helper_diag.nr` (NEGATIVE --
+must FAIL with the diagnostic).
+
+Bootstrap fixed point preserved. Verify gate 464/464.
+
 ## [0.4.5] — 2026-04-27
 
 **RFC-NRT-001 — `.nucprov` PE/ELF section (Nucleor_Translate SPEC-2

@@ -5502,6 +5502,35 @@ fn emit_user_externs(pool: Vec<i32>, externs: Vec<i32>) -> str {
     while i < vec_len(externs) {
         let nid: i64 = vec_get(externs, i);
         let name: str = node_field(pool, nid, 1);
+        // v0.4.6 RFC-NRT-001 follow-on: detect `extern fn __nucleor_*`
+        // declarations that conflict with the compiler-emitted runtime
+        // helper IR `declare`s. The runtime helpers all use the
+        // i64-everywhere ABI (i64 args, i64 return, even for f64/str
+        // payloads which are passed as bit-cast i64). A user `extern fn
+        // __nucleor_f64_erf(x: f64) -> f64` declares `declare double @...
+        // (double)` -- which then conflicts with the compiler's already-
+        // emitted `declare i64 @__nucleor_f64_erf(i64)` and clang fails
+        // with `invalid redefinition of function`. The trap I hit on
+        // first NUC-FEEDBACK-011 attempt -- saved here for adopters.
+        if str_starts_with(name, "__nucleor_") == 1 {
+            let bare: str = str_substring(name, 10, str_len(name));
+            let mapped: str = get_rt_name(bare);
+            // If the bare name maps to this same prefixed name in the
+            // runtime table, the compiler already declared it. User's
+            // re-declaration is the wrong shape (i64 ABI vs typed).
+            if str_eq(mapped, name) == 1 {
+                print(str_concat("ERROR: extern fn name '", str_concat(name, "' conflicts with the compiler runtime helper of the same name.")));
+                print("  The compiler emits `declare i64 @<name>(i64, ...)` for");
+                print("  every runtime helper (i64-everywhere ABI -- f64/str/etc are");
+                print("  passed bit-cast through i64). Your typed extern fn declaration");
+                print("  emits a second `declare` with conflicting types and clang");
+                print("  fails to link with `invalid redefinition of function`.");
+                print(str_concat("  Workaround: drop the `extern fn` and just call the bare-name helper directly: `", str_concat(bare, "(...)`.")));
+                print("  The compiler's get_rt_name table already maps the bare name");
+                print(str_concat("  to `", str_concat(name, "` for you (i64 ABI applied automatically).")));
+                panic(str_concat("extern fn redeclares runtime helper: ", name));
+            };
+        };
         let plist: i64 = node_field(pool, nid, 2);
         let rtype: str = node_field(pool, nid, 3);
         let pc: i64 = list_len(pool, plist);
@@ -17159,7 +17188,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.5";
+    return "0.4.6";
 }
 
 fn compiler_backend_label() -> str {
