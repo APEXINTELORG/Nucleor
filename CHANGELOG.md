@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.21] — 2026-04-27
+
+**Phase B cache-wiring attempt: reverted (net-zero perf gain).**
+
+After v0.4.20 shipped the str_cache runtime helpers, v0.4.21 wired
+them into `infer_pattern_binding_type_from_source` and
+`infer_user_variant_binding_type` expecting a big perf win. Result:
+8.69s vs 8.54s baseline -- WORSE by measurement-noise margin.
+
+Diagnosis: the `str_concat("uv:", var_name)` per-call key
+construction allocates, and the cache-miss branch does the full
+scan PLUS the put -- net cost ≥ original cost. Cache hit rate
+must be near-zero for this workload (most format-macro args are
+distinct names; repeats are rare in the bundled compiler source).
+
+The 1.6 BILLION str_char_at calls per compile aren't coming from
+my new helpers -- they're coming from existing
+`infer_var_type_from_source` / `infer_fn_return_type_from_source`
+calls that ALREADY have C-side caches but fall through to manual
+scans on cache miss.
+
+### What this release ships
+
+Phase B reverted; v0.4.21 binary is functionally identical to
+v0.4.20 (the cache helpers stay shipped + dormant for future use).
+Source code restored to the v0.4.19 source-text scan baseline.
+
+### Sub-5s target — deeper investigation needed
+
+The bottleneck is the 1.6B str_char_at, but it's not where I
+thought. Next investigation candidates:
+- Profile with finer-grained counters per source-scanning helper
+  to identify which is the actual hotspot.
+- Move scanner internals to C runtime (eliminate Nucleor-side
+  loops entirely; would also eliminate the str_concat allocation
+  overhead).
+- Pre-build all source-name caches in one pass at compile entry,
+  amortizing the scan cost across all subsequent lookups.
+
+Bootstrap fixed point preserved (c == d byte-identical IR + EXE).
+Verify gate 477/477. Memory steady (539 MB, under all caps).
+
 ## [0.4.20] — 2026-04-27
 
 **Phase A: generic str-keyed source-cache helpers (sub-5s perf
