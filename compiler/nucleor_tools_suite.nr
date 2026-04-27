@@ -4676,6 +4676,21 @@ fn enum_populate_sym(pool: Vec<i32>, enums: Vec<i32>, sym: Vec<i32>) -> i64 {
             let pcount: i64 = list_len(pool, ptypes);
             sym_set(sym, str_concat("__etag_", str_concat(ename, str_concat("_", vname))), vi);
             sym_set(sym, str_concat("__eargs_", str_concat(ename, str_concat("_", vname))), pcount);
+            // v0.4.2 RFC-NRT-004 §G: sync payload-type storage from
+            // nucleor_s1_compiler.nr:6168-6175. Without this, match-arm
+            // bindings of struct-typed enum payloads were lowered with
+            // unknown type, so subsequent field access (e.message)
+            // produced %r.-1 invalid SSA register and clang link
+            // failed. Stored as __epayload<i>_<ename>_<vname> per
+            // index so multi-payload variants work too.
+            let mut pi: i64 = 0;
+            while pi < pcount {
+                let pt: str = list_get(pool, ptypes, pi);
+                if str_len(pt) > 0 {
+                    sym_set(sym, str_concat("__epayload", str_concat(str_from_int(pi), str_concat("_", str_concat(ename, str_concat("_", vname))))), pt);
+                };
+                pi = pi + 1;
+            };
             vi = vi + 1;
         };
         ei = ei + 1;
@@ -7606,11 +7621,31 @@ fn preflight_source_check(source: str) -> i64 {
 // It is handled by the taint checker at compile time
 
 fn match_bind_payloads(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64) -> Vec<i32> {
+    // v0.4.2 RFC-NRT-004 §G: kept for back-compat. Untyped path; calls
+    // through to the typed variant with ename/vname == "" so the
+    // __type_<name> sym_set is a no-op (unknown enum/variant -> no
+    // payload type information available).
+    return match_bind_payloads_typed(binding, blk, regs, sym, mslot, "", "");
+}
+
+fn match_bind_payloads_typed(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, ename: str, vname: str) -> Vec<i32> {
+    // v0.4.2 RFC-NRT-004 §G (sync from nucleor_s1_compiler.nr:
+    // match_bind_payloads_per_idx, lines 10498-10540): per-binding
+    // payload-type lookup. Each binding in the pipe-separated list
+    // gets its own __type_<name> based on the variant's payload-
+    // type table populated by enum_populate_sym. Without this, a
+    // struct-typed enum payload binding (Outcome::Err(e) where e:
+    // ErrInfo) leaves the binding's type unknown; the subsequent
+    // e.message lookup in the lowering returns -1 (the field-not-
+    // resolved sentinel) which clang rejects as an undefined SSA
+    // register %r.-1.
     let mut cur: Vec<i32> = blk;
     let blen: i64 = str_len(binding);
     if blen == 0 { return cur; };
     let mut start: i64 = 0;
     let mut payload_idx: i64 = 1;
+    let mut bind_idx: i64 = 0;
+    let has_enum: i64 = if str_len(ename) > 0 && str_len(vname) > 0 { 1 } else { 0 };
     while start < blen {
         let mut end: i64 = start;
         while end < blen && str_char_at(binding, end) != 124 { end = end + 1; };
@@ -7618,12 +7653,24 @@ fn match_bind_payloads(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32
         if str_len(name) > 0 {
             let bar: i64 = ctr_next(regs); ir_block_add(cur, ir_alloca(bar));
             sym_set(sym, name, bar);
+            // Look up the per-binding payload type if we have ename/vname.
+            if has_enum == 1 {
+                let pkey: str = str_concat("__epayload", str_concat(str_from_int(bind_idx), str_concat("_", str_concat(ename, str_concat("_", vname)))));
+                let pstored: i64 = sym_get(sym, pkey);
+                if pstored >= 0 {
+                    let ptype: str = pstored;
+                    if str_len(ptype) > 0 {
+                        sym_set(sym, str_concat("__type_", name), ptype);
+                    };
+                };
+            };
             let mv2: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv2, mslot));
             let idx_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(idx_r, payload_idx));
             let mut get_args: Vec<i32> = Vec::new(); get_args.push(mv2); get_args.push(idx_r);
             let pv_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(pv_r, "vec_get", get_args));
             ir_block_add(cur, ir_store(pv_r, bar));
             payload_idx = payload_idx + 1;
+            bind_idx = bind_idx + 1;
         };
         start = end + 1;
     };
@@ -8263,7 +8310,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
-                ab = match_bind_payloads(binding, ab, regs, arm_sym, mslot);
+                ab = match_bind_payloads_typed(binding, ab, regs, arm_sym, mslot, ename, vname);
                 let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                 ab = lx_blk(bp);
                 let mut rv: i64 = lx_reg(bp);
@@ -8769,7 +8816,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
-                ab = match_bind_payloads(binding, ab, regs, arm_sym, mslot);
+                ab = match_bind_payloads_typed(binding, ab, regs, arm_sym, mslot, ename, vname);
                 if guard_nid > 0 {
                     let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                     let gr: i64 = lx_reg(gp);

@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 100 # +1 T1.8, +4 RFC-NRT-004 §A/§B/§C/stress (v0.3.235), +3 RFC-NRT-004 §F/§D/§H (v0.4.1)
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 101 # +1 T1.8, +4 RFC-NRT-004 §A/§B/§C/stress (v0.3.235), +3 RFC-NRT-004 §F/§D/§H (v0.4.1), +1 RFC-NRT-004 §G (v0.4.2)
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1259,6 +1259,18 @@ Step "RFC-NRT-004 §D: pub on struct fields no longer crashes" {
     if (-not $exe) { return $false }
     & $exe | Out-Null
     if ($LASTEXITCODE -ne 0) { return $false }
+    return $true
+}
+
+Step "RFC-NRT-004 §G: struct-typed enum payload field access (nuc test arm)" {
+    # v0.4.2 (§G): tools_suite enum_populate_sym sync of __epayload<i>_*
+    # storage + match_bind_payloads_typed sync from s1. Pre-fix the
+    # harness path (`nuc test`) emitted %r.-1 invalid SSA register on
+    # `e.message` where e was bound from `Outcome::Err(e)` and
+    # `Err(ErrInfo)` declared a struct payload.
+    $out = & $bin test "tests/fixtures/t475_rfc_nrt_004_G_struct_payload_field.nr" 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { return $false }
+    if ($out -notmatch "PASS: struct_payload_field_access") { return $false }
     return $true
 }
 

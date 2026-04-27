@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] — 2026-04-27
+
+**RFC-NRT-004 §G — last open Nucleor_Translate ask closed.**
+
+§G (struct-typed enum payload field access in `nuc test` arms)
+was deferred from v0.4.1 because the workaround was documented
+and the fix needed deeper tools_suite type-propagation work.
+Now fixed.
+
+**Root cause.** Tools_suite's `enum_populate_sym` was missing the
+v0.3.185/186 sync that stores per-variant payload types as
+`__epayload<i>_<ename>_<vname>` in the symbol table. And
+tools_suite's `match_bind_payloads` (the binding lowering used
+on the harness path) didn't read those entries to set
+`__type_<name>` on the binding. Net effect: a struct-typed
+enum payload binding (`Outcome::Err(e)` where `Err(ErrInfo)`)
+left `e`'s type unknown; the subsequent `e.message` field-
+access lookup in the lowering returned -1 (the field-not-
+resolved sentinel) which clang rejected as `use of undefined
+value '%r.-1'`.
+
+**Fix (two synced hunks):**
+1. `enum_populate_sym` -- mirror s1:6168-6175 ptype write loop
+   (`__epayload<i>_<ename>_<vname>` per index).
+2. `match_bind_payloads` -- thread ename/vname through; new
+   `match_bind_payloads_typed` variant looks up the per-binding
+   payload type and writes `__type_<name>` so subsequent
+   field-access lowering knows the binding's struct type.
+
+The two existing call sites switched to the typed variant.
+
+### Pinned regression
+
+`tests/fixtures/t475_rfc_nrt_004_G_struct_payload_field.nr`
+exercises the exact RFC repro via `nuc test` and asserts
+`PASS: struct_payload_field_access`.
+
+### RFC-NRT-004 status (final)
+
+| § | Status |
+|---|--------|
+| §A single-payload recursive USE | ✅ closed v0.3.231 |
+| §B multi-payload bind USE        | ✅ closed v0.3.235 |
+| §C multi-multi dispatch          | ✅ closed v0.3.235 |
+| §D pub field crash               | ✅ closed v0.4.1 |
+| §D follow-on Vec<T> field        | ✓ not reproducible |
+| §E NUCLEOR_STDLIB POSIX path     | ✅ closed v0.4.1 |
+| §F s1 ↔ tools_suite parser drift | ✅ closed v0.4.1 |
+| §G struct payload field access   | ✅ closed v0.4.2 |
+| §H same-name pub fn collision    | ✅ closed v0.4.1 (diagnostic) |
+| §I `\\` discards backslash       | ✓ not reproducible |
+
+**All adopter-reported defects in the consolidated working
+doc are now either closed or confirmed not-reproducible.**
+
+Verify gate: 461/461. Bootstrap fixed point preserved
+(c == d byte-identical). T1.8 perf+memory steady (6.19s cold /
+0.83s hot / 502MB peak).
+
 ## [0.4.1] — 2026-04-27
 
 **RFC-NRT-004 §F + §D + §H + §E + investigation of §B/§C/§I/§D-followon/§G
