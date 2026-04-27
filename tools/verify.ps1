@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 116 # +9 Option/Result/format chain, +4 hazard sweeps (v0.4.17)
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 117 # +9 Option/Result/format chain, +5 hazard sweeps (v0.4.18)
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1304,6 +1304,14 @@ Step "RFC-NRT-001: .nucprov section present in built binary (empty default)" {
     if (-not $llvmReadObj) { return $true }   # skip the section check if the tool isn't present
     $out = & $llvmReadObj --sections "target\_t477_check.exe" 2>&1 | Out-String
     if ($out -notmatch "\.nucprov") { return $false }
+    return $true
+}
+
+Step "Hazard sweep #8 (v0.4.18): file IO + user-defined enum variant binding format" {
+    & $bin build "tests/fixtures/t490_io_user_enum_dispatch.nr" -o "_t490_check" --no-cache 2>&1 | Out-Null
+    if (-not (Test-Path "target\_t490_check.exe")) { return $false }
+    & "target\_t490_check.exe" | Out-Null
+    if ($LASTEXITCODE -ne 0) { return $false }
     return $true
 }
 

@@ -15712,6 +15712,233 @@ fn fmt_strip_outer_quotes(s: str) -> str {
 // Also requires the matched `let` to be followed by a TYPE (not
 // elision via `let x = ...;` without a type annotation) so we never
 // invent a type out of thin air.
+// v0.4.18: pattern-binding type inference for user-defined enum
+// variants (the existing infer_pattern_binding_type_from_source
+// only handles built-in Some/Ok/Err). Scans source for arms of
+// the form `<EnumName>::<VariantName>(<binding>, ...)` and locates
+// `<binding>` by index. Looks up the variant's payload-i type via
+// infer_enum_variant_payload_type. Conflict-detects across all
+// occurrences of the same binding name.
+//
+// Conservative-by-construction: the variant-name pattern requires
+// EnumName and VariantName both to start with uppercase letters,
+// avoiding false-positive match on lowercase fn calls (e.g., a
+// function call `foo(s, n)` is NOT misread as a variant pattern).
+fn infer_user_variant_binding_type(src: str, var_name: str) -> str {
+    let slen: i64 = str_len(src);
+    let vlen: i64 = str_len(var_name);
+    if vlen == 0 || slen < 8 { return ""; };
+    let mut found_type: str = "";
+    let mut conflict: i64 = 0;
+    let mut i: i64 = 0;
+    // Scan for `::<UpperVariant>(` -- the `::` anchors the user-variant
+    // shape, eliminating most false positives (function-call form
+    // `foo(...)` doesn't have `::`).
+    while i + 4 < slen {
+        if str_char_at(src, i) == 58 && str_char_at(src, i + 1) == 58 {
+            // Walk back to find the EnumName (uppercase ident).
+            let mut en_end: i64 = i;
+            let mut en_start: i64 = i;
+            let mut walked: i64 = 0;
+            while en_start > 0 && walked < 64 {
+                let c: i64 = str_char_at(src, en_start - 1);
+                let id_cont: i64 = if (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c == 95 { 1 } else { 0 };
+                if id_cont == 0 { walked = 64; }
+                else { en_start = en_start - 1; walked = walked + 1; };
+            };
+            if en_start < en_end {
+                let first_ch: i64 = str_char_at(src, en_start);
+                if first_ch >= 65 && first_ch <= 90 {
+                    // Read VariantName after `::`.
+                    let mut vp: i64 = i + 2;
+                    let var_start: i64 = vp;
+                    let mut keep_v: i64 = 1;
+                    while keep_v == 1 && vp < slen {
+                        let c2: i64 = str_char_at(src, vp);
+                        let id_cont2: i64 = if (c2 >= 65 && c2 <= 90) || (c2 >= 97 && c2 <= 122) || (c2 >= 48 && c2 <= 57) || c2 == 95 { 1 } else { 0 };
+                        if id_cont2 == 1 { vp = vp + 1; } else { keep_v = 0; };
+                    };
+                    let var_end: i64 = vp;
+                    if var_end > var_start {
+                        let v_first: i64 = str_char_at(src, var_start);
+                        if v_first >= 65 && v_first <= 90 && vp < slen && str_char_at(src, vp) == 40 {
+                            // Parse binding list inside `(...)` and find var_name by index.
+                            let enum_name: str = str_substring(src, en_start, en_end);
+                            let variant_name: str = str_substring(src, var_start, var_end);
+                            let mut bp: i64 = vp + 1;
+                            let mut bind_idx: i64 = 0;
+                            let mut depth_b: i64 = 0;
+                            let mut bind_start: i64 = bp;
+                            let mut hit_idx: i64 = 0 - 1;
+                            while bp < slen {
+                                let bc: i64 = str_char_at(src, bp);
+                                if bc == 40 || bc == 60 { depth_b = depth_b + 1; }
+                                else if bc == 62 { depth_b = depth_b - 1; }
+                                else if (bc == 41 || bc == 44) && depth_b == 0 {
+                                    let mut bs2: i64 = bind_start;
+                                    while bs2 < bp && str_char_at(src, bs2) == 32 { bs2 = bs2 + 1; };
+                                    let mut be2: i64 = bp;
+                                    while be2 > bs2 && str_char_at(src, be2 - 1) == 32 { be2 = be2 - 1; };
+                                    let cur_name: str = str_substring(src, bs2, be2);
+                                    if str_eq(cur_name, var_name) == 1 { hit_idx = bind_idx; bp = slen; };
+                                    if bc == 41 { bp = slen; }
+                                    else { bind_idx = bind_idx + 1; bind_start = bp + 1; };
+                                };
+                                bp = bp + 1;
+                            };
+                            if hit_idx >= 0 {
+                                let candidate: str = infer_enum_variant_payload_type(src, enum_name, variant_name, hit_idx);
+                                if str_len(candidate) > 0 {
+                                    if str_len(found_type) == 0 { found_type = candidate; }
+                                    else { if str_eq(found_type, candidate) == 0 { conflict = 1; }; };
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        i = i + 1;
+    };
+    if conflict == 1 { return ""; };
+    return found_type;
+}
+
+// v0.4.18: parse user-defined enum variant payload type from source.
+// For `pub enum MyErr { ... BadInput(str, i64), ... }`, returns the
+// idx-th payload type ("str" for idx=0, "i64" for idx=1). Returns ""
+// if not found. Conflict-detects across multiple enum decls with
+// the same name (rare but possible across imports).
+fn infer_enum_variant_payload_type(src: str, enum_name: str, variant_name: str, idx: i64) -> str {
+    let slen: i64 = str_len(src);
+    let enlen: i64 = str_len(enum_name);
+    let vnlen: i64 = str_len(variant_name);
+    if enlen == 0 || vnlen == 0 { return ""; };
+    let mut found_type: str = "";
+    let mut conflict: i64 = 0;
+    let mut i: i64 = 0;
+    while i + 5 < slen {
+        // "enum " = 'e','n','u','m',' ' = 101,110,117,109,32
+        if str_char_at(src, i) == 101
+            && str_char_at(src, i + 1) == 110
+            && str_char_at(src, i + 2) == 117
+            && str_char_at(src, i + 3) == 109
+            && str_char_at(src, i + 4) == 32 {
+            let mut bdry_ok: i64 = 1;
+            if i > 0 {
+                let pc: i64 = str_char_at(src, i - 1);
+                if (pc >= 65 && pc <= 90) || (pc >= 97 && pc <= 122) || (pc >= 48 && pc <= 57) || pc == 95 { bdry_ok = 0; };
+            };
+            if bdry_ok == 1 {
+                let mut p: i64 = i + 5;
+                let mut k: i64 = 0;
+                let mut nm_ok: i64 = 1;
+                while k < enlen {
+                    if p + k >= slen { nm_ok = 0; k = enlen; }
+                    else if str_char_at(src, p + k) != str_char_at(enum_name, k) { nm_ok = 0; k = enlen; };
+                    k = k + 1;
+                };
+                if nm_ok == 1 {
+                    let after: i64 = p + enlen;
+                    if after < slen {
+                        let nc: i64 = str_char_at(src, after);
+                        let id_cont: i64 = if (nc >= 65 && nc <= 90) || (nc >= 97 && nc <= 122) || (nc >= 48 && nc <= 57) || nc == 95 { 1 } else { 0 };
+                        if id_cont == 0 {
+                            // Skip ws + optional generics + ws, expect `{`.
+                            let mut q: i64 = after;
+                            while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
+                            if q < slen && str_char_at(src, q) == 60 {
+                                let mut gd: i64 = 1; q = q + 1;
+                                while q < slen && gd > 0 {
+                                    let gc: i64 = str_char_at(src, q);
+                                    if gc == 60 { gd = gd + 1; } else { if gc == 62 { gd = gd - 1; }; };
+                                    q = q + 1;
+                                };
+                                while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
+                            };
+                            if q < slen && str_char_at(src, q) == 123 {
+                                q = q + 1;
+                                let body_start: i64 = q;
+                                let mut bdepth: i64 = 1;
+                                while q < slen && bdepth > 0 {
+                                    let bc: i64 = str_char_at(src, q);
+                                    if bc == 123 { bdepth = bdepth + 1; }
+                                    else { if bc == 125 { bdepth = bdepth - 1; }; };
+                                    if bdepth > 0 { q = q + 1; };
+                                };
+                                let body_end: i64 = q;
+                                // Scan body for `<variant_name>(...)` token.
+                                let mut bp: i64 = body_start;
+                                while bp + vnlen < body_end {
+                                    let prev_c: i64 = if bp == 0 { 32 } else { str_char_at(src, bp - 1) };
+                                    let prev_ok: i64 = if prev_c == 32 || prev_c == 9 || prev_c == 10 || prev_c == 13 || prev_c == 44 || prev_c == 123 { 1 } else { 0 };
+                                    if prev_ok == 1 {
+                                        let mut vmatched: i64 = 1;
+                                        let mut vk: i64 = 0;
+                                        while vk < vnlen {
+                                            if bp + vk >= body_end { vmatched = 0; vk = vnlen; }
+                                            else if str_char_at(src, bp + vk) != str_char_at(variant_name, vk) { vmatched = 0; vk = vnlen; };
+                                            vk = vk + 1;
+                                        };
+                                        if vmatched == 1 {
+                                            let after_v: i64 = bp + vnlen;
+                                            if after_v < body_end && str_char_at(src, after_v) == 40 {
+                                                // Parse comma-separated payload types until `)`.
+                                                let mut pp: i64 = after_v + 1;
+                                                let mut payload_idx: i64 = 0;
+                                                let mut payload_start: i64 = pp;
+                                                let mut depth_p: i64 = 0;
+                                                let mut found_this: str = "";
+                                                while pp < body_end {
+                                                    let pc2: i64 = str_char_at(src, pp);
+                                                    if pc2 == 60 || pc2 == 40 { depth_p = depth_p + 1; }
+                                                    else if pc2 == 62 { depth_p = depth_p - 1; }
+                                                    else if pc2 == 41 && depth_p == 0 {
+                                                        if payload_idx == idx {
+                                                            let mut ps2: i64 = payload_start;
+                                                            while ps2 < pp && str_char_at(src, ps2) == 32 { ps2 = ps2 + 1; };
+                                                            let mut pe2: i64 = pp;
+                                                            while pe2 > ps2 && str_char_at(src, pe2 - 1) == 32 { pe2 = pe2 - 1; };
+                                                            found_this = type_base_name(str_substring(src, ps2, pe2));
+                                                        };
+                                                        pp = body_end;
+                                                    }
+                                                    else if pc2 == 44 && depth_p == 0 {
+                                                        if payload_idx == idx {
+                                                            let mut ps2: i64 = payload_start;
+                                                            while ps2 < pp && str_char_at(src, ps2) == 32 { ps2 = ps2 + 1; };
+                                                            let mut pe2: i64 = pp;
+                                                            while pe2 > ps2 && str_char_at(src, pe2 - 1) == 32 { pe2 = pe2 - 1; };
+                                                            found_this = type_base_name(str_substring(src, ps2, pe2));
+                                                            pp = body_end;
+                                                        };
+                                                        payload_idx = payload_idx + 1;
+                                                        payload_start = pp + 1;
+                                                    };
+                                                    pp = pp + 1;
+                                                };
+                                                if str_len(found_this) > 0 {
+                                                    if str_len(found_type) == 0 { found_type = found_this; }
+                                                    else { if str_eq(found_type, found_this) == 0 { conflict = 1; }; };
+                                                };
+                                                bp = body_end;
+                                            };
+                                        };
+                                    };
+                                    bp = bp + 1;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        i = i + 1;
+    };
+    if conflict == 1 { return ""; };
+    return found_type;
+}
+
 // v0.4.14: bounded backward `let <name>: T = ...` scanner. When
 // the source bundle has many `let <name>: T` declarations across
 // imports, the global infer_var_type_from_source returns "" on
@@ -16625,17 +16852,41 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
             if str_eq(inferred, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
             if str_eq(inferred, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
             if str_eq(inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+            // v0.4.18: when the let-scan returned a struct/enum
+            // type (not a format-dispatch primitive), the binding
+            // could shadow a same-named variant payload. Treat as
+            // "no info" and try the pattern-binding fallbacks --
+            // they may find a primitive answer from the variant
+            // payload type. Avoids misdispatching as int_to_str
+            // when one fn has `let s: Stats` and another has
+            // `match e { MyErr::BadInput(s, _) => ... s }`.
+            let mut try_pattern: i64 = if str_len(inferred) == 0 { 1 } else { 0 };
+            if try_pattern == 0 {
+                // inferred is a non-primitive type name -- treat as
+                // potentially-shadowed and let pattern path also try.
+                let is_int_like: i64 = if str_eq(inferred, "i64") == 1 || str_eq(inferred, "i32") == 1 || str_eq(inferred, "i16") == 1 || str_eq(inferred, "i8") == 1 || str_eq(inferred, "u64") == 1 || str_eq(inferred, "u32") == 1 || str_eq(inferred, "u16") == 1 || str_eq(inferred, "u8") == 1 || str_eq(inferred, "isize") == 1 || str_eq(inferred, "usize") == 1 { 1 } else { 0 };
+                if is_int_like == 0 { try_pattern = 1; };
+            };
             // v0.4.9: pattern-binding fallback. If `let X: T = ...`
             // didn't find anything, the binding may come from a
             // match arm pattern (Some(s), Ok(s), Err(s)). Walk back
             // to the enclosing `match <scrutinee>` and infer T from
             // the scrutinee's declared Option<T> / Result<T,E>.
-            if str_len(inferred) == 0 {
+            if try_pattern == 1 {
                 let pat_inferred: str = infer_pattern_binding_type_from_source(src, arg_expr);
                 if str_eq(pat_inferred, "str") == 1 { return arg_expr; };
                 if str_eq(pat_inferred, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
                 if str_eq(pat_inferred, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
                 if str_eq(pat_inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                // v0.4.18: secondary fallback for user-defined enum variant
+                // bindings (MyErr::BadInput(s, n) etc).
+                if str_len(pat_inferred) == 0 {
+                    let user_inferred: str = infer_user_variant_binding_type(src, arg_expr);
+                    if str_eq(user_inferred, "str") == 1 { return arg_expr; };
+                    if str_eq(user_inferred, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(user_inferred, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
+                    if str_eq(user_inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                };
                 // i*-typed bindings fall through to int_to_str default.
             };
             // i8/i16/i32/i64/etc fall through to int_to_str (default).
@@ -17625,7 +17876,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.17";
+    return "0.4.18";
 }
 
 fn compiler_backend_label() -> str {

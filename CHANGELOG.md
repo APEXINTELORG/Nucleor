@@ -5,6 +5,78 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.18] — 2026-04-27
+
+**Format-macro dispatch for user-defined enum variant bindings +
+shadow-aware fallback when let-scan returns a struct/enum.**
+
+A new hazard-sweep probe (file IO + user-enum error formatting)
+surfaced two related issues:
+
+### Bug 1: User-defined variant bindings in format!()
+
+```nucleor
+pub enum MyErr { NotFound(str), BadInput(str, i64) }
+match e {
+    MyErr::BadInput(s, n) => format!("bad input: {} (code {})", s, n),
+    ...
+}
+```
+
+The format-macro fallback chain handled `Some(x)` / `Ok(x)` /
+`Err(x)` from built-in Option/Result, but USER-defined variant
+bindings (`MyErr::BadInput(s, n)` etc) had no fallback path. `s`
+defaulted to int_to_str → printed the str pointer.
+
+### Bug 2: Shadowed-name same-source interference
+
+```nucleor
+fn other() -> i64 { let s: Stats = ...; s.count + s.total }
+fn main() {
+    match e { MyErr::BadInput(s, n) => println!("{}", s) }
+    //                                              ^
+    //                              s shadows other's `let s: Stats`,
+    //                              format dispatched as int (Stats handle)
+}
+```
+
+`infer_var_type_from_source(src, "s")` found `let s: Stats` in
+`other()` (different scope) and returned "Stats". Since "Stats"
+isn't a primitive format-dispatch type, the existing fallback
+chain SHOULD have run -- but it only ran on `inferred == ""`,
+not on `inferred == <non-primitive>`.
+
+### Fixes
+
+**New helper** `infer_user_variant_binding_type(src, var_name)`:
+scans source for `<EnumName>::<VariantName>(<binding...>)` patterns
+(EnumName + VariantName must start uppercase to avoid false-
+positive on lowercase fn calls), locates `<var_name>` by index,
+then looks up the variant's payload-i type via the new
+`infer_enum_variant_payload_type` helper that parses
+`pub enum EnumName { ... VariantName(T1, T2, ...), ... }`. Both
+helpers conflict-detect across multiple matching declarations.
+
+**Shadow-aware fallback** in fmt_conversion_for_spec: when the
+let-scan returns a NON-primitive type (anything other than
+str/f64/f32/bool/i*/u*), treat as "no info" and run the
+pattern-binding + user-variant fallbacks. They may find a
+primitive answer from the variant payload type that the let-scan
+shadowed.
+
+### Pinned regression
+
+`tests/fixtures/t490_io_user_enum_dispatch.nr` covers 5 cases:
+- file_write_string + file_read_string round trip
+- file_read_string of missing file (deterministic)
+- env_get_or with default
+- USER-defined enum variant binding via format! (the bug above)
+- nested format with arithmetic + struct field
+
+Bootstrap fixed point preserved (c == d byte-identical IR + EXE).
+T1.8 perf monitor: cold 8.79s (under 10s cap, +1.4s vs v0.4.17 --
+the two new source-text scanners add overhead).
+
 ## [0.4.17] — 2026-04-27
 
 **Hazard-sweep regression pinning — 20 adopter patterns locked into
