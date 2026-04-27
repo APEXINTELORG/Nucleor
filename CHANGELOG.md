@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.16] — 2026-04-27
+
+**Two more hazard-sweep finds: `mut` struct field qualifier +
+nested `format!()` type-src threading.**
+
+### `mut` struct field silently miscompiles (HIGH)
+
+```nucleor
+pub struct Counter { mut value: i64 }
+fn main() -> i64 {
+    let mut c: Counter = Counter { value: 0 };
+    c.value = 7;          // PANIC: vec_set OOB index -1
+    return 0;
+}
+```
+
+`mut` was parsed as the field name (the field became literally
+`"mut"`); the actual `value` field shifted to a non-existent
+slot. Runtime then tried `vec_set(struct, -1, 7)` and panicked.
+
+Fix: `parse_struct_decl` (s1 + tools_suite mirror) now skips an
+optional `mut` token after the optional `pub`. Field-level mut is
+informational only -- Nucleor's mutability model is per-binding
+(`let mut x: T`), not per-field.
+
+### Nested `format!()` couldn't infer types in inner expansion
+
+```nucleor
+let outer: str = "hello";
+let inner: str = "world";
+let s: str = format!("[{}]({})", outer, format!("nested:{}", inner));
+//                                       ^                        ^
+//                                  inner format -- inner str dispatched as int
+```
+
+The recursive `expand_format_macros` call passed the args_text
+SUBSTRING as both the text-to-process AND the type-inference src.
+The inner `format!`'s `inner` arg lookup couldn't find
+`let inner: str` (declared in outer scope, not in args_text), so
+it defaulted to `int_to_str` → printed the str pointer.
+
+Fix: split into `expand_format_macros(src)` (top-level wrapper)
++ `expand_format_macros_with_src(text, type_src)`. Recursion
+passes the OUTER type_src for type inference while expanding the
+nested args_text. fmt_build_expansion also gets type_src, not the
+substring.
+
+### Pinned regression
+
+`tests/fixtures/t485_mut_field_and_nested_format.nr` covers 5
+hazards including hz18 (mut field) and hz19 (nested format).
+
+Bootstrap fixed point preserved (c == d byte-identical IR + EXE).
+Verify gate 472/472.
+
 ## [0.4.15] — 2026-04-27
 
 **Format-macro dispatch for builtin container getters

@@ -1766,6 +1766,12 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // enforcement can land later without breaking existing
         // sources).
         if pk(tokens, cp) == 72 { cp = cp + 1; };
+        // v0.4.16: optional `mut` field qualifier. Nucleor's current
+        // model treats fields as mutable if the owning binding is
+        // `let mut`, so the field-level mut is informational only.
+        // Pre-fix: `mut value: i64` was parsed as field name = "mut",
+        // value field index slipped to -1, runtime vec_set panicked.
+        if pk(tokens, cp) == 12 { cp = cp + 1; };
         let fn2: i64 = pkv(tokens, cp); cp = expect_tok(tokens, cp + 1, 42);
         let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
         fields.push(mk3(pool, 41, fn2, pr_val(tr)));
@@ -17059,6 +17065,19 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
 }
 
 fn expand_format_macros(src: str) -> str {
+    // Top-level T2.6 entry. At top level, the text being walked IS
+    // the type-inference src (the full resolved source bundle).
+    return expand_format_macros_with_src(src, src);
+}
+// v0.4.16: nested format!() recursion needs the OUTER source for
+// type inference, even when expanding a substring (`args_text`).
+// Previously the recursive call passed args_text as both the text
+// to process AND the type-inference src -- so an inner Format
+// like `format!("nested:{}", inner_str)` couldn't find the
+// `let inner_str: str = ...` declaration that lives in the outer
+// scope, dispatched as int_to_str default, and printed the str
+// pointer.
+fn expand_format_macros_with_src(src: str, type_src: str) -> str {
     // Top-level T2.6 entry. Walks the merged source and replaces every
     // `<name>!(...)` macro call (where name is `println`/`print`/`format`)
     // with the desugared expression. Identifier- and quote-aware so a
@@ -17169,7 +17188,9 @@ fn expand_format_macros(src: str) -> str {
                     if depth == 0 {
                         let lit_end: i64 = q - 1;
                         let inner: str = str_substring(src, lit_start, lit_end);
-                        let inner_expanded: str = expand_format_macros(inner);
+                        // v0.4.16: pass type_src so nested fmt_conversion
+                        // type-inference still sees outer-scope declarations.
+                        let inner_expanded: str = expand_format_macros_with_src(inner, type_src);
                         let mut all_ws: i64 = 1;
                         let il: i64 = str_len(inner_expanded);
                         let mut ic: i64 = 0;
@@ -17259,8 +17280,10 @@ fn expand_format_macros(src: str) -> str {
                     if depth == 0 {
                         let args_end: i64 = q - 1;
                         let args_text: str = str_substring(src, args_start, args_end);
-                        let inner_expanded: str = expand_format_macros(args_text);
-                        let expansion: str = fmt_build_expansion(inner_expanded, mode, src);
+                        // v0.4.16: pass type_src so nested fmt_conversion
+                        // type-inference still sees outer-scope declarations.
+                        let inner_expanded: str = expand_format_macros_with_src(args_text, type_src);
+                        let expansion: str = fmt_build_expansion(inner_expanded, mode, type_src);
                         sb_append(sb, expansion);
                         p = q;
                         last_non_ws = 41;
@@ -17602,7 +17625,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.15";
+    return "0.4.16";
 }
 
 fn compiler_backend_label() -> str {
