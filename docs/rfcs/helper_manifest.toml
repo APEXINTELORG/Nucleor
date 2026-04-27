@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 783
+# Total helpers: 784
 # Of which REVIEW REQUIRED: 30
 
 # ============================================================
@@ -1990,6 +1990,20 @@ notes            = ""
 name             = "file_read_string"
 class            = "IO"
 symbol           = "__nucleor_file_read_string"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> ptr"
+effects          = ["io"]
+taint            = "propagates"
+units            = "passthrough"
+proof_obligation = "io_capability_required"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "file_read_string_or_panic"
+class            = "IO"
+symbol           = "__nucleor_file_read_string_or_panic"
 dispatch         = "RuntimeCall"
 abi              = "(ptr) -> ptr"
 effects          = ["io"]
