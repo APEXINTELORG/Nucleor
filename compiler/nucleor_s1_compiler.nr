@@ -16715,6 +16715,64 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
                     if str_eq(head, "vec_is_empty") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
                     if str_eq(head, "hashmap_contains") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
                     if str_eq(head, "hashmap_is_empty") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                    // v0.4.15: container-element-type dispatch for the
+                    // builtin getters whose return type comes from the
+                    // RECEIVER's container generic, not the fn name.
+                    // Parse the first arg (the receiver), look up its
+                    // declared Vec<T> / HashMap<K,V> / BTreeMap<K,V>
+                    // type, extract the element/value type T.
+                    let mut is_container_get: i64 = 0;
+                    let mut take_first_generic: i64 = 0;  // 1 = T from Vec<T>, 0 = V from K,V
+                    if str_eq(head, "vec_get") == 1 { is_container_get = 1; take_first_generic = 1; };
+                    if str_eq(head, "vec_first") == 1 { is_container_get = 1; take_first_generic = 1; };
+                    if str_eq(head, "vec_last") == 1 { is_container_get = 1; take_first_generic = 1; };
+                    if str_eq(head, "vec_pop") == 1 { is_container_get = 1; take_first_generic = 1; };
+                    if str_eq(head, "hashmap_get") == 1 { is_container_get = 1; take_first_generic = 0; };
+                    if str_eq(head, "hashmap_get_or") == 1 { is_container_get = 1; take_first_generic = 0; };
+                    if str_eq(head, "hashmap_remove") == 1 { is_container_get = 1; take_first_generic = 0; };
+                    if str_eq(head, "btreemap_get") == 1 { is_container_get = 1; take_first_generic = 0; };
+                    if is_container_get == 1 {
+                        // Parse the first arg by finding the outer `,` or `)`
+                        // matching paren_at. Receiver runs from paren_at+1 to
+                        // the comma (or to alen-1 for single-arg calls).
+                        let mut arg_end: i64 = alen - 1;
+                        let mut depth_p: i64 = 0;
+                        let mut ap: i64 = paren_at + 1;
+                        while ap < alen - 1 {
+                            let apc: i64 = str_char_at(arg_expr, ap);
+                            if apc == 40 || apc == 60 || apc == 91 { depth_p = depth_p + 1; }
+                            else if apc == 41 || apc == 62 || apc == 93 { depth_p = depth_p - 1; }
+                            else if apc == 44 && depth_p == 0 { arg_end = ap; ap = alen; };
+                            ap = ap + 1;
+                        };
+                        let mut recv_start: i64 = paren_at + 1;
+                        while recv_start < arg_end && str_char_at(arg_expr, recv_start) == 32 { recv_start = recv_start + 1; };
+                        let mut recv_e: i64 = arg_end;
+                        while recv_e > recv_start && str_char_at(arg_expr, recv_e - 1) == 32 { recv_e = recv_e - 1; };
+                        let recv_id: str = str_substring(arg_expr, recv_start, recv_e);
+                        // Recv must be a bare identifier for v1.
+                        let mut rok2: i64 = 1;
+                        let rlen2: i64 = str_len(recv_id);
+                        if rlen2 == 0 { rok2 = 0; };
+                        let mut ri2: i64 = 0;
+                        while ri2 < rlen2 {
+                            let rc2: i64 = str_char_at(recv_id, ri2);
+                            let r_ok2: i64 = if (rc2 >= 65 && rc2 <= 90) || (rc2 >= 97 && rc2 <= 122) || rc2 == 95 || ((rc2 >= 48 && rc2 <= 57) && ri2 > 0) { 1 } else { 0 };
+                            if r_ok2 == 0 { rok2 = 0; ri2 = rlen2; };
+                            ri2 = ri2 + 1;
+                        };
+                        if rok2 == 1 {
+                            let recv_full: str = infer_var_type_from_source(src, recv_id);
+                            if str_len(recv_full) > 0 {
+                                let elem_full: str = if take_first_generic == 1 { strip_container_one_level(recv_full) } else { generic_second_type(recv_full) };
+                                let elem_type: str = type_base_name(elem_full);
+                                if str_eq(elem_type, "str") == 1 { return arg_expr; };
+                                if str_eq(elem_type, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+                                if str_eq(elem_type, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
+                                if str_eq(elem_type, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                            };
+                        };
+                    };
                 };
                 // v0.3.172: also recognize method-call shape
                 // `<recv>.<method>(...)`. Treat the trailing `<method>`
@@ -17544,7 +17602,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.14";
+    return "0.4.15";
 }
 
 fn compiler_backend_label() -> str {

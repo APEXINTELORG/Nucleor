@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.15] — 2026-04-27
+
+**Format-macro dispatch for builtin container getters
+(`vec_get`/`hashmap_get`/`btreemap_get`/etc).**
+
+A second hazard-sweep probe surfaced:
+
+```nucleor
+let mut v: Vec<str> = Vec::new();
+vec_push(v, "alpha"); vec_push(v, "beta");
+println!("got: {}", vec_get(v, 1));   // prints "got: 14069...." not "got: beta"
+```
+
+`vec_get` is a builtin runtime helper whose IR return type is i64
+(everything's i64-cast under our ABI). The format-macro fn-call
+dispatch had hardcoded handlers for known-typed-return helpers
+(`str_concat` -> str, `vec_len` -> int, etc) but no handler for
+the container-getters whose return type comes from the
+RECEIVER's container generic.
+
+### Fix
+
+When the format-macro fn-call dispatch sees `vec_get` / `vec_first`
+/ `vec_last` / `vec_pop` / `hashmap_get` / `hashmap_get_or` /
+`hashmap_remove` / `btreemap_get`:
+
+1. Parse the first arg (the receiver).
+2. Look up its declared `Vec<T>` / `HashMap<K,V>` / etc type via
+   `infer_var_type_from_source`.
+3. For Vec: extract T via `strip_container_one_level`.
+   For HashMap/BTreeMap: extract V via `generic_second_type`.
+4. Dispatch the format helper based on T (str → identity, f64 →
+   f64_to_str, f32 → f32_to_str, bool → bool_to_str, int → int
+   default).
+
+### Pinned regression
+
+`tests/fixtures/t484_format_container_get_dispatch.nr` covers
+5 cases:
+- `format!("{}", str_concat(a, b))` (existing handler, regression-pinned)
+- `format!("{}", vec_get(v, i))` for Vec<str> (NEW)
+- `format!("{} = {}", p.b, p.a)` field access in format chain
+- nested `Result<Option<str>, str>` → `format!("{}", s)`
+- match dispatch on negative ints
+
+Bootstrap fixed point preserved (c == d byte-identical IR + EXE).
+Verify gate 471/471.
+
 ## [0.4.14] — 2026-04-27
 
 **Scope-local scrutinee inference + multi-occurrence conflict
