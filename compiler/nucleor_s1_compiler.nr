@@ -16925,7 +16925,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.234";
+    return "0.3.235";
 }
 
 fn compiler_backend_label() -> str {
