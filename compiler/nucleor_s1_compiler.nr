@@ -3784,6 +3784,15 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "f64_cosh") { return "__nucleor_f64_cosh"; };
     if str_eq(name, "f64_tanh") { return "__nucleor_f64_tanh"; };
     if str_eq(name, "f64_exp") { return "__nucleor_f64_exp"; };
+    // v0.3.230: NUC-IMPROVE-007 special functions for SciPy stats parity
+    if str_eq(name, "f64_erf") { return "__nucleor_f64_erf"; };
+    if str_eq(name, "f64_erfc") { return "__nucleor_f64_erfc"; };
+    if str_eq(name, "f64_lgamma") { return "__nucleor_f64_lgamma"; };
+    if str_eq(name, "f64_tgamma") { return "__nucleor_f64_tgamma"; };
+    if str_eq(name, "f64_betainc") { return "__nucleor_f64_betainc"; };
+    if str_eq(name, "f64_student_t_sf2") { return "__nucleor_f64_student_t_sf2"; };
+    if str_eq(name, "f64_norm_cdf") { return "__nucleor_f64_norm_cdf"; };
+    if str_eq(name, "f64_norm_sf") { return "__nucleor_f64_norm_sf"; };
     if str_eq(name, "f64_exp2") { return "__nucleor_f64_exp2"; };
     if str_eq(name, "f64_log") { return "__nucleor_f64_log"; };
     if str_eq(name, "f64_log2") { return "__nucleor_f64_log2"; };
@@ -5230,6 +5239,14 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_f64_cosh(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_tanh(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_exp(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_erf(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_erfc(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_lgamma(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_tgamma(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_betainc(i64, i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_student_t_sf2(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_norm_cdf(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f64_norm_sf(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_exp2(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_log(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_log2(i64)\n");
@@ -16894,7 +16911,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.229";
+    return "0.3.230";
 }
 
 fn compiler_backend_label() -> str {

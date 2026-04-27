@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 787
+# Total helpers: 795
 # Of which REVIEW REQUIRED: 32
 
 # ============================================================
@@ -5159,6 +5159,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f64_betainc"
+class            = "PureMath"
+symbol           = "__nucleor_f64_betainc"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f64_ceil"
 class            = "PureMath"
 symbol           = "__nucleor_f64_ceil"
@@ -5276,6 +5290,34 @@ class            = "PureMath"
 symbol           = "__nucleor_f64_eq"
 dispatch         = "RuntimeCall"
 abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_erf"
+class            = "PureMath"
+symbol           = "__nucleor_f64_erf"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_erfc"
+class            = "PureMath"
+symbol           = "__nucleor_f64_erfc"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
 effects          = []
 taint            = "passthrough"
 units            = "passthrough"
@@ -5481,6 +5523,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f64_lgamma"
+class            = "PureMath"
+symbol           = "__nucleor_f64_lgamma"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f64_ln10"
 class            = "PureMath"
 symbol           = "__nucleor_f64_ln10"
@@ -5621,6 +5677,34 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f64_norm_cdf"
+class            = "PureMath"
+symbol           = "__nucleor_f64_norm_cdf"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_norm_sf"
+class            = "PureMath"
+symbol           = "__nucleor_f64_norm_sf"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f64_pi"
 class            = "PureMath"
 symbol           = "__nucleor_f64_pi"
@@ -5733,6 +5817,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f64_student_t_sf2"
+class            = "PureMath"
+symbol           = "__nucleor_f64_student_t_sf2"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f64_sub"
 class            = "PureMath"
 symbol           = "__nucleor_f64_sub"
@@ -5780,6 +5878,20 @@ class            = "PureMath"
 symbol           = "__nucleor_f64_tau"
 dispatch         = "RuntimeCall"
 abi              = "() -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_tgamma"
+class            = "PureMath"
+symbol           = "__nucleor_f64_tgamma"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
 effects          = []
 taint            = "passthrough"
 units            = "passthrough"

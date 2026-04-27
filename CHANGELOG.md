@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.230] — 2026-04-27
+
+**NUC-IMPROVE-007: typed special functions for exact SciPy
+stats p-values.**
+
+ML Suite was blocked from upgrading from "normal-approximate"
+p-values to exact `scipy.stats.ttest_*` parity because the
+typed math surface lacked `erf`/`erfc`/`lgamma`/`gamma` and
+the regularized incomplete beta needed for Student-t and
+related distributions. This release adds them.
+
+**New runtime helpers (in `stdlib/runtime/nucleor_llvm_rt.c`):**
+- `__nucleor_f64_erf(x)`, `__nucleor_f64_erfc(x)` — C99
+  `erf`/`erfc`
+- `__nucleor_f64_lgamma(x)`, `__nucleor_f64_tgamma(x)` — C99
+  `lgamma`/`tgamma`
+- `__nucleor_f64_betainc(x, a, b)` — regularized incomplete
+  beta `I_x(a, b)`. Numerical Recipes 6.4 continued-fraction
+  algorithm (Lentz's method, 200-iter cap, `1e-7` convergence).
+  Returns NaN bits on invalid input (`a<=0`, `b<=0`, `x` not
+  in `[0,1]`).
+- `__nucleor_f64_student_t_sf2(t, df)` — two-sided Student-t
+  survival `P(|T| > |t|) = I_{df/(df+t²)}(df/2, 1/2)`.
+- `__nucleor_f64_norm_cdf(x)` and `__nucleor_f64_norm_sf(x)`
+  — standard normal CDF / survival via `erfc(±x/√2)/2`.
+
+**New typed surface in `stdlib/rods/math_typed.nr`:**
+```nr
+fn erf_f64(x: f64) -> f64
+fn erfc_f64(x: f64) -> f64
+fn lgamma_f64(x: f64) -> f64
+fn gamma_f64(x: f64) -> f64
+fn betainc_f64(x: f64, a: f64, b: f64) -> f64
+fn student_t_sf2_f64(t: f64, df: f64) -> f64
+fn norm_cdf_f64(x: f64) -> f64
+fn norm_sf_f64(x: f64) -> f64
+```
+
+**Pinned by `tests/fixtures/t467_special_functions.nr`** —
+verifies all 10 reference values against SciPy/Wolfram:
+
+| input | expected | got |
+|---|---|---|
+| `erf_f64(0)` | 0 | 0 |
+| `erf_f64(1)` | ~0.842701 | 0.842701 |
+| `erfc_f64(0)` | 1 | 1 |
+| `lgamma_f64(1)` | 0 | 0 |
+| `lgamma_f64(5)` | ~3.17805 | 3.17805 |
+| `gamma_f64(5)` | 24 | 24 |
+| `norm_cdf_f64(0)` | 0.5 | 0.5 |
+| `norm_cdf_f64(1.96)` | ~0.97500 | 0.975002 |
+| `student_t_sf2_f64(2, 10)` | ~0.07338 | 0.073388 |
+
+ML Suite can now ship exact `scipy.stats.ttest_1samp.pvalue`
+and Welch `ttest_ind` parity.
+
+Bootstrap fixed point at stage_d
+`a3226e933a94070302bc00acb5dbaa3e7a734524325d719842a8abcb279faad1`.
+453/453 verify PASS. T1.8 perf+memory monitor steady.
+
 ## [0.3.229] — 2026-04-27
 
 **`hashmap_with_capacity` + `hashmap_grow` overflow PANICs.**
