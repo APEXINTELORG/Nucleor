@@ -5,6 +5,100 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] — 2026-04-27
+
+**RFC-NRT-004 §F + §D + §H + §E + investigation of §B/§C/§I/§D-followon/§G
+(Nucleor_Translate consolidated working doc).**
+
+The Nucleor_Translate team expanded RFC-NRT-004 with six additional
+sections (§D pub field crash, §D-follow-on Vec field codegen, §E
+NUCLEOR_STDLIB POSIX path, §F s1↔tools_suite parser drift, §G
+struct payload field access, §H same-name pub fn collision, §I
+backslash escape).
+
+### Closed in v0.4.1
+
+**§F (HIGH process bug) — s1 ↔ tools_suite parse_match_stmt drift.**
+The harness path (`nuc test`, which routes through nucleor_tools.exe)
+was running on a stale parser. §A/§B/§C closed via `nuc build` were
+still BROKEN via `nuc test`. Sync of two hunks from
+`nucleor_s1_compiler.nr:parse_match_stmt` into
+`nucleor_tools_suite.nr:parse_match_stmt`:
+
+  1. Multi-binding enum pattern loop (s1:2110-2119) -- without it,
+     `Pair(a, b)` patterns failed with cascading "expected token 51
+     got 44" errors.
+  2. Arm-body return / break / continue branches (s1:2189-2222) --
+     without them, `=> return EXPR,` arm bodies cascaded into
+     "expected token 64 got 16" errors.
+
+ALSO extended `tools/check_compiler_drift.sh` with a parser-fn
+token-shape parity check (`check_parser_fn_drift parse_match_stmt`,
+`parse_stmt`, `parse_expr`) so this class of drift can't recur
+silently.
+
+**§D (HIGH crash) — `pub struct S { pub x: i64 }` crashes parser.**
+Added optional `pub` token (id 72) skip before each field name in
+`parse_struct_decl` (s1 + tools_suite). Field-level visibility is
+parsed and discarded for now (matches Rust shape; field-private
+enforcement can land later without breaking existing sources).
+
+**§H (MEDIUM, latent) — same-name pub fn collision across modules.**
+Two modules both declaring `pub fn error_kind_to_str` (with
+different param types, structurally typed) emitted two
+`define i64 @error_kind_to_str(...)` -- clang failed deep in the
+log with `invalid redefinition`. Now: s1 emit pass detects
+duplicates upfront and panics with a precise diagnostic naming
+the symbol + recommending the `<module>_<fn>` rename convention.
+
+**§E (MEDIUM, Windows-specific) — NUCLEOR_STDLIB POSIX path.**
+Bash wrappers on Windows (MSYS2/Git Bash) inherit POSIX-form paths
+like `/c/Users/.../repo` for NUCLEOR_STDLIB. Win32 file APIs in
+nucleor.exe can't open them; stdlib imports silently failed.
+New helper `posix_drive_to_windows()` rewrites leading
+`/<drive>/...` -> `<drive>:/...` before the env-rooted probe.
+No-op on POSIX hosts and on already-Windows-form paths.
+
+### Investigated, NOT REPRODUCIBLE in v0.4.0/v0.4.1
+
+These were filed against v0.3.231/v0.3.235 but don't reproduce
+against the current binary. Likely closed by adjacent fixes between
+v0.3.231 and v0.4.0 (most likely the v0.3.231 parser-drift fix,
+same path as §A/§B/§C):
+
+- **§I -- `\\` discards backslash in string literals.** Tested
+  literal "a\\\\b" and `system("target\\\\out.txt")` against
+  v0.4.1 binary: produces 3-char "a\\b" with backslash at index
+  1 (ASCII 92). System call with backslash path executes the
+  command and the output file gets created correctly.
+- **§D follow-on -- Vec<T> struct field emits vec_get(struct, -1)
+  panic.** `vec_len(b.stmts)` where stmts: Vec<i64> is a struct
+  field returns the correct length (1) and exits 0.
+
+### Deferred (workaround exists; non-trivial to fix)
+
+- **§G -- struct-typed enum payload field access in nuc test arms.**
+  Reproduces only via the harness path (`nuc test`), not via
+  `nuc build`. Type-checker doesn't propagate struct type from
+  enum variant declaration to match arm block-body scope on the
+  tools_suite path. Workaround documented (helper fn taking the
+  struct as typed parameter). Deferred to a focused 0.4.x patch
+  -- requires deeper tools_suite type-propagation work.
+
+### Pinned regressions
+
+- `tests/fixtures/t472_rfc_nrt_004_F_harness_path.nr` -- §A/§B/§C
+  via `nuc test` (3 sub-tests).
+- `tests/fixtures/t473_rfc_nrt_004_D_pub_field.nr` -- §D positive
+  regression (must compile + return 0).
+- `tests/fixtures/t474_rfc_nrt_004_H_collision_diag.nr` (+ two
+  `_aux.nr` modules) -- §H NEGATIVE regression (must FAIL with
+  the diagnostic).
+
+Verify gate: 460/460 (457 + 3 new). Bootstrap fixed point
+preserved (stage_c == stage_d byte-identical). T1.8 perf+memory
+steady (6.34s cold / 0.83s hot / 502MB peak).
+
 ## [0.4.0] — 2026-04-27
 
 **0.4.0 cut — 0.3 closeout milestone marker.**

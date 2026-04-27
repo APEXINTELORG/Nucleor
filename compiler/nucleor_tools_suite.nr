@@ -955,6 +955,9 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             cp = expect_tok(tokens, cp, 44);
             if pk(tokens, cp) == 53 { break; };
         };
+        // v0.4.1 RFC-NRT-004 §D: optional `pub` field qualifier
+        // (sync from nucleor_s1_compiler.nr:parse_struct_decl).
+        if pk(tokens, cp) == 72 { cp = cp + 1; };
         let fn2: i64 = pkv(tokens, cp); cp = expect_tok(tokens, cp + 1, 42);
         let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
         fields.push(mk3(pool, 41, fn2, pr_val(tr)));
@@ -1191,13 +1194,27 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             ename = "__wild";
             cp = cp + 1;
         } else if att == 1 && pk(tokens, cp + 1) == 46 {
-            // Enum pattern: EnumName::Variant or EnumName::Variant(binding)
+            // Enum pattern: EnumName::Variant or EnumName::Variant(b1, b2, ...)
+            // v0.4.1 RFC-NRT-004 §F: sync from nucleor_s1_compiler.nr:2110-2119.
+            // Pre-sync: this site only handled a single binding -- the second
+            // and later bindings cascaded into "expected token 51 got 44"
+            // parse errors, so multi-payload variants like Pair(a, b) failed
+            // through the harness path even though the s1 compile path was
+            // already correct. The multi-bindings are encoded as a single
+            // pipe-separated string ("a|b|c") which the typed-payload binder
+            // (match_bind_payloads at s1:9177) already understands.
             ename = pkv(tokens, cp);
             cp = expect_tok(tokens, cp + 1, 46); // ::
             vname = pkv(tokens, cp); cp = cp + 1;
             if pk(tokens, cp) == 50 {
                 cp = cp + 1;
-                binding = pkv(tokens, cp); cp = cp + 1;
+                let mut first: i64 = 1;
+                while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
+                    if first == 0 { cp = expect_tok(tokens, cp, 44); };
+                    let bn: str = pkv(tokens, cp); cp = cp + 1;
+                    if first == 1 { binding = bn; } else { binding = str_concat(binding, str_concat("|", bn)); };
+                    first = 0;
+                };
                 cp = expect_tok(tokens, cp, 51); // )
             } else if pk(tokens, cp) == 52 {
                 let mut br: Vec<i32> = parse_match_binding_block(tokens, cp + 1);
@@ -1253,6 +1270,42 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
             cp = expect_tok(tokens, pr_pos(br), 53); // }
             body_list = pr_val(br);
+        } else if pk(tokens, cp) == 16 {
+            // v0.4.1 RFC-NRT-004 §F: sync from nucleor_s1_compiler.nr:2189-2207.
+            // Pre-sync: arm body `return EXPR` fell into the parse_expr
+            // fallback below, which left cp parked on `return`, producing
+            // cascading "expected token 64 got 44/16" parse errors as the
+            // next arm's pattern-parse re-entered partway through the
+            // previous arm's body. Recognize Rust-style `return EXPR,` /
+            // `return,` / `return X,` arm bodies as proper return stmts
+            // (kind 22) so the lowering treats them as divergent.
+            cp = cp + 1;
+            let mut rstmts: Vec<i32> = Vec::new();
+            if pk(tokens, cp) == 43 {
+                rstmts.push(mk2(pool, 22, 0 - 1));
+                cp = cp + 1;
+            } else {
+                let mut rer: Vec<i32> = parse_expr(tokens, cp, pool);
+                cp = pr_pos(rer);
+                rstmts.push(mk2(pool, 22, pr_val(rer)));
+            };
+            body_list = mk_list(pool, rstmts);
+        } else if pk(tokens, cp) == 18 {
+            // v0.4.1 RFC-NRT-004 §F: sync from nucleor_s1_compiler.nr:2210-2215.
+            // Arm body `break;` (or bare `break`).
+            cp = cp + 1;
+            if pk(tokens, cp) == 43 { cp = cp + 1; };
+            let mut bstmts: Vec<i32> = Vec::new();
+            bstmts.push(mk2(pool, 26, 0));
+            body_list = mk_list(pool, bstmts);
+        } else if pk(tokens, cp) == 19 {
+            // v0.4.1 RFC-NRT-004 §F: sync from nucleor_s1_compiler.nr:2217-2222.
+            // Arm body `continue;` (or bare `continue`).
+            cp = cp + 1;
+            if pk(tokens, cp) == 43 { cp = cp + 1; };
+            let mut cstmts: Vec<i32> = Vec::new();
+            cstmts.push(mk2(pool, 27, 0));
+            body_list = mk_list(pool, cstmts);
         } else {
             let mut er: Vec<i32> = parse_expr(tokens, cp, pool);
             cp = pr_pos(er);

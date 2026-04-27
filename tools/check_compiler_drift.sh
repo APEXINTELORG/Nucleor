@@ -93,6 +93,60 @@ report_drift "is_ptr_ret"   "$TMP/s1_pr.txt"  "$TMP/tools_pr.txt"
 report_drift "is_ptr_arg"   "$TMP/s1_pa.txt"  "$TMP/tools_pa.txt"
 report_drift "IR declare"   "$TMP/s1_dec.txt" "$TMP/tools_dec.txt"
 
+# v0.4.1 RFC-NRT-004 §F: parser-function token-shape parity.
+# The original drift gate only enforced ABI-table parity. Parser-
+# function divergence (e.g., parse_match_stmt missing the v0.3.79
+# return/break/continue arm-body branches OR the v0.3.86 multi-binding
+# loop) was un-detectable, leading to silent harness-path breakage:
+# `nuc build` was correct on §A/§B/§C while `nuc test` was broken,
+# because the harness routes through tools_suite's parser.
+#
+# The check below extracts a small set of "load-bearing token-shape
+# witnesses" from a named parser function in each file and asserts
+# both files contain the same set. The witnesses are token-id
+# comparisons (`pk(tokens, cp) == NN`) inside the function body --
+# these stay stable across cosmetic edits while still flipping
+# clearly when a branch is added or removed. False positives are
+# fine: they force a manual look at the fn, which is exactly what
+# we want when the parser shape changes.
+extract_fn_token_witnesses() {
+    # $1 = file, $2 = function name
+    awk -v fn="$2" '
+        $0 ~ "^fn " fn "\\b" { in_block = 1 }
+        in_block && /pk\(tokens,[^)]*\) == [0-9]+/ {
+            n = split($0, parts, /pk\(tokens,[^)]*\) == /)
+            for (i = 2; i <= n; i++) {
+                if (match(parts[i], /[0-9]+/, m)) print m[0]
+            }
+        }
+        in_block && /^\}/ { exit }
+    ' "$1" | sort -u
+}
+
+check_parser_fn_drift() {
+    local fn="$1"
+    extract_fn_token_witnesses "$S1"    "$fn" > "$TMP/s1_${fn}.txt"
+    extract_fn_token_witnesses "$TOOLS" "$fn" > "$TMP/tools_${fn}.txt"
+    if [ ! -s "$TMP/s1_${fn}.txt" ] || [ ! -s "$TMP/tools_${fn}.txt" ]; then
+        # one side missing the function entirely -- skip rather than
+        # false-positive on optional-only-in-s1 helpers
+        return 0
+    fi
+    local missing
+    missing=$(comm -23 "$TMP/s1_${fn}.txt" "$TMP/tools_${fn}.txt" | wc -l | tr -d ' ')
+    if [ "$missing" -gt 0 ]; then
+        echo "DRIFT in parser fn '$fn': $missing token-id checks in s1 missing from tools_suite"
+        comm -23 "$TMP/s1_${fn}.txt" "$TMP/tools_${fn}.txt" | sed 's/^/  + missing pk == /'
+        echo "  Patch the matching parser branches in compiler/nucleor_tools_suite.nr"
+        echo "  to mirror compiler/nucleor_s1_compiler.nr (RFC-NRT-004 §F class)."
+        drift_count=$((drift_count + missing))
+    fi
+}
+
+check_parser_fn_drift parse_match_stmt
+check_parser_fn_drift parse_stmt
+check_parser_fn_drift parse_expr
+
 if [ "$drift_count" -gt 0 ]; then
     echo ""
     echo "FAIL: $drift_count total entries drifted."
