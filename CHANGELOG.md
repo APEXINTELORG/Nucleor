@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.235] — 2026-04-27
+
+**RFC-NRT-004 §B + §C (Nucleor_Translate) regression-pin: multi-payload
+recursive enum binding USE + multi-multi-payload variant dispatch.**
+
+The Nucleor_Translate team expanded RFC-NRT-004 after the v0.3.231 §A
+fix landed, reporting two further defects against v0.3.231:
+
+- **§B (High):** `match E::Pair(a, b) => { ...use a/b... }` for an
+  enum with multi-payload variants emitted `@a` / `@b` undefined-global
+  symbol references (same `@<name>` symptom as the original §A bug,
+  but on the multi-payload lowering path which the §A fix didn't cover).
+- **§C (Critical, silent miscompute):** when a recursive enum had two
+  or more multi-payload variants, constructing variants beyond the
+  first multi-payload one dispatched at runtime to the **first**
+  multi-payload arm body. Build succeeded, runtime was wrong --
+  exactly the silent-miscompute hazard class we've been hunting.
+
+Status by v0.3.235: **neither §B nor §C reproduces.** Both were closed
+as side effects of the v0.3.231 parser-drift fix that closed §A
+(the same `parse_match_stmt` cascading-parse-failure root cause
+affected single-payload, multi-payload, and dispatch paths alike).
+The RFC was filed against v0.3.231 before the side-effect closures
+had been validated for adjacent cases.
+
+Pinned by three new regression fixtures so the working behavior
+can't silently regress:
+
+- `tests/fixtures/t468_recursive_enum_match.nr` -- §A original repro
+  (was already in tree from v0.3.231 but not wired into verify.ps1)
+- `tests/fixtures/t469_multi_payload_bind.nr` -- §B exact RFC repro
+- `tests/fixtures/t470_multi_multi_dispatch.nr` -- §C exact RFC repro
+- `tests/fixtures/t471_recursive_enum_stress.nr` -- 6-variant
+  permutations: unit / single-payload / 2-payload / 3-payload /
+  3-payload-with-recursion / 4-payload-with-recursion, all
+  multi-payload bindings USED, recursive payload bindings used as
+  inner-match scrutinees.
+
+All four wired into `tools/verify.ps1` as explicit Steps. Verify gate
+now 457/457 (453 + 4 new). Bootstrap fixed point preserved.
+
 ## [0.3.234] — 2026-04-27
 
 **0.3 closeout series — runtime safety hardening (all hazards I had

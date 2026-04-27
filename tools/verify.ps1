@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 93  # +1 for T1.8 perf monitor
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 97  # +1 T1.8, +4 RFC-NRT-004 §A/§B/§C/stress (v0.3.235)
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1169,6 +1169,65 @@ Step "T3.66 mixed-shorthand struct init 'Point { x: 5, y }'" {
     $exe = $null
     if (Test-Path "target\_t366_check.exe") { $exe = "target\_t366_check.exe" }
     elseif (Test-Path "target\_t366_check") { $exe = "target\_t366_check" }
+    if (-not $exe) { return $false }
+    & $exe | Out-Null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    return $true
+}
+
+Step "RFC-NRT-004 §A: recursive enum payload USE (was @inner global)" {
+    # v0.3.231 fixed (parser drift sync); pinned by t468 in v0.3.235
+    # so it can't silently regress.
+    & $bin build "tests/fixtures/t468_recursive_enum_match.nr" -o "_t468_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t468_check.exe") { $exe = "target\_t468_check.exe" }
+    elseif (Test-Path "target\_t468_check") { $exe = "target\_t468_check" }
+    if (-not $exe) { return $false }
+    & $exe | Out-Null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    return $true
+}
+
+Step "RFC-NRT-004 §B: multi-payload variant bind USE (was @a/@b global)" {
+    # v0.3.235: pin §B working behavior (closed as side effect of §A
+    # parser-drift fix). Repro: enum E { Pair(i64,i64), Other }
+    # match e { E::Pair(a, b) => ...use a/b... }
+    & $bin build "tests/fixtures/t469_multi_payload_bind.nr" -o "_t469_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t469_check.exe") { $exe = "target\_t469_check.exe" }
+    elseif (Test-Path "target\_t469_check") { $exe = "target\_t469_check" }
+    if (-not $exe) { return $false }
+    & $exe | Out-Null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    return $true
+}
+
+Step "RFC-NRT-004 §C: multi-multi-payload dispatch (was silent miscompute)" {
+    # v0.3.235: pin §C working behavior (CRITICAL silent miscompute --
+    # pre-fix, constructing E::BinOp dispatched to E::Call arm body).
+    # Most important fixture in this set: build succeeded and runtime
+    # was wrong, so a regression here would be invisible w/o pinning.
+    & $bin build "tests/fixtures/t470_multi_multi_dispatch.nr" -o "_t470_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t470_check.exe") { $exe = "target\_t470_check.exe" }
+    elseif (Test-Path "target\_t470_check") { $exe = "target\_t470_check" }
+    if (-not $exe) { return $false }
+    & $exe | Out-Null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    return $true
+}
+
+Step "RFC-NRT-004 stress: 6-variant recursive enum dispatch + bind USE" {
+    # v0.3.235: tortious permutations -- 6 variants in one enum
+    # mixing unit / single-payload / 2-payload / 3-payload / 3-payload-
+    # with-recursion / 4-payload-with-recursion, all multi-payload
+    # bindings USED, recursive payload bindings used as inner-match
+    # scrutinees. Anything still broken beyond the minimal repros
+    # surfaces here.
+    & $bin build "tests/fixtures/t471_recursive_enum_stress.nr" -o "_t471_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t471_check.exe") { $exe = "target\_t471_check.exe" }
+    elseif (Test-Path "target\_t471_check") { $exe = "target\_t471_check" }
     if (-not $exe) { return $false }
     & $exe | Out-Null
     if ($LASTEXITCODE -ne 0) { return $false }
