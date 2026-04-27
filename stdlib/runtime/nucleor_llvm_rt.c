@@ -4559,6 +4559,139 @@ long long __nucleor_hashmap_clone(long long h) {
     return out;
 }
 
+// === sym-aux side hashmap (v0.3.236 — hash-backed sym_get) ===
+//
+// The s1 self-host compiler stores its symbol/ownership tables as
+// flat `Vec<i32>` (interleaved name/reg pairs). Lookup was a
+// backward linear scan with a most-recent-entry fast path. For
+// large source files this is O(N) per lookup -> O(N^2) total.
+//
+// Phase A (v0.3.236) ships ONLY these runtime helpers + the
+// matching get_rt_name mappings. No source migration yet -- the
+// shipped Phase A binary is functionally identical to v0.3.235;
+// the helpers are dormant.
+//
+// Phase B (v0.3.237+) migrates sym_get / own_put_i to call
+// these helpers. Phase A is required as a separate cycle so
+// Phase B's source can be compiled by a binary that already
+// recognises the new helper names (the bootstrap-name-recognition
+// ratchet -- old bin/nucleor.exe without the get_rt_name entries
+// would emit bare `call @sym_aux_get(...)` and clang link-fails).
+//
+// Side-table design: a global open-addressed map from
+// `sym_handle (Vec<i32> heap pointer cast to i64)` to a record
+// holding (a) the aux NHashMap handle (created lazily) and
+// (b) the vec length when the aux was last fully synced. sym_get
+// is responsible for catching up the aux from the vec since the
+// last sync. sym_set may either eagerly insert into the aux or
+// leave the catch-up entirely to sym_get -- both are correct.
+//
+// The helpers below are conservative wrt OOM (route through
+// _nuc_alloc_xmalloc, panic if not lenient) and conservative wrt
+// concurrency (the s1 self-host compiler is single-threaded; the
+// global side table is not protected by a mutex).
+
+typedef struct {
+    long long sym_handle;   /* Vec<i32> ptr (cast to i64); 0 = empty slot */
+    long long aux_handle;   /* NHashMap ptr (cast to i64); 0 = not yet built */
+    long long built_at_len; /* vec_len when aux was last fully synced */
+} SymAuxSlot;
+
+static SymAuxSlot *g_sym_aux_table = 0;
+static long long g_sym_aux_cap = 0;
+static long long g_sym_aux_len = 0;
+
+static void _sym_aux_init(void) {
+    if (g_sym_aux_table) return;
+    g_sym_aux_cap = 256;  /* power of 2 for fast modulo */
+    g_sym_aux_table = (SymAuxSlot *)calloc((size_t)g_sym_aux_cap, sizeof(SymAuxSlot));
+    g_sym_aux_len = 0;
+}
+
+static void _sym_aux_grow(void) {
+    long long old_cap = g_sym_aux_cap;
+    SymAuxSlot *old = g_sym_aux_table;
+    g_sym_aux_cap = _grow_cap(g_sym_aux_cap, sizeof(SymAuxSlot), "sym_aux table grow");
+    g_sym_aux_table = (SymAuxSlot *)calloc((size_t)g_sym_aux_cap, sizeof(SymAuxSlot));
+    g_sym_aux_len = 0;
+    long long i;
+    for (i = 0; i < old_cap; i++) {
+        if (old[i].sym_handle != 0) {
+            unsigned long long h = (unsigned long long)old[i].sym_handle;
+            h ^= h >> 33; h *= 0xff51afd7ed558ccdULL;
+            h ^= h >> 33; h *= 0xc4ceb9fe1a85ec53ULL;
+            h ^= h >> 33;
+            long long idx = (long long)(h & (unsigned long long)(g_sym_aux_cap - 1));
+            while (g_sym_aux_table[idx].sym_handle != 0) {
+                idx = (idx + 1) & (g_sym_aux_cap - 1);
+            }
+            g_sym_aux_table[idx] = old[i];
+            g_sym_aux_len++;
+        }
+    }
+    free(old);
+}
+
+static SymAuxSlot *_sym_aux_lookup(long long sym_handle, int create) {
+    if (!g_sym_aux_table) _sym_aux_init();
+    if (g_sym_aux_len * 2 >= g_sym_aux_cap) _sym_aux_grow();
+    unsigned long long h = (unsigned long long)sym_handle;
+    h ^= h >> 33; h *= 0xff51afd7ed558ccdULL;
+    h ^= h >> 33; h *= 0xc4ceb9fe1a85ec53ULL;
+    h ^= h >> 33;
+    long long idx = (long long)(h & (unsigned long long)(g_sym_aux_cap - 1));
+    long long start = idx;
+    while (g_sym_aux_table[idx].sym_handle != 0) {
+        if (g_sym_aux_table[idx].sym_handle == sym_handle) {
+            return &g_sym_aux_table[idx];
+        }
+        idx = (idx + 1) & (g_sym_aux_cap - 1);
+        if (idx == start) break;
+    }
+    if (!create) return 0;
+    g_sym_aux_table[idx].sym_handle = sym_handle;
+    g_sym_aux_table[idx].aux_handle = 0;
+    g_sym_aux_table[idx].built_at_len = -1;
+    g_sym_aux_len++;
+    return &g_sym_aux_table[idx];
+}
+
+/* Return the aux NHashMap handle for sym_handle; -1 if none yet
+   (caller can choose to create-then-build, see _create below).   */
+long long __nucleor_sym_aux_get(long long sym_handle) {
+    SymAuxSlot *s = _sym_aux_lookup(sym_handle, 0);
+    if (!s) return -1;
+    return s->aux_handle == 0 ? -1 : s->aux_handle;
+}
+
+/* Get-or-create the aux NHashMap handle for sym_handle. Always
+   returns a valid handle; lazy-allocates on first call.          */
+long long __nucleor_sym_aux_create(long long sym_handle) {
+    SymAuxSlot *s = _sym_aux_lookup(sym_handle, 1);
+    if (s->aux_handle == 0) {
+        s->aux_handle = __nucleor_hashmap_new();
+        s->built_at_len = 0;
+    }
+    return s->aux_handle;
+}
+
+/* Return the vec length at which the aux was last fully synced;
+   -1 if no sync has happened. Phase B sym_get uses this to drive
+   incremental catch-up scans of any pairs added since.           */
+long long __nucleor_sym_aux_built_at(long long sym_handle) {
+    SymAuxSlot *s = _sym_aux_lookup(sym_handle, 0);
+    if (!s) return -1;
+    return s->built_at_len;
+}
+
+/* Record that the aux is synced up to vec length n. Phase B
+   sym_get calls this after the catch-up loop completes.          */
+long long __nucleor_sym_aux_set_built_at(long long sym_handle, long long n) {
+    SymAuxSlot *s = _sym_aux_lookup(sym_handle, 1);
+    s->built_at_len = n;
+    return 0;
+}
+
 // === HashMap iteration (RFC-0017 stdlib enrichment) ===
 // hashmap_keys(h)   -> Vec<str>  : every occupied slot's key (newly strdup'd)
 // hashmap_values(h) -> Vec<i64>  : every occupied slot's value (in same order

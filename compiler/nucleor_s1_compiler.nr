@@ -3836,6 +3836,13 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_hashmap_insert") { return "__nucleor_hashmap_insert"; };
     if str_eq(name, "__nucleor_hashmap_get") { return "__nucleor_hashmap_get"; };
     if str_eq(name, "__nucleor_hashmap_contains") { return "__nucleor_hashmap_contains"; };
+    // v0.3.236 Phase A — sym-aux side hashmap helpers (hash-backed
+    // sym_get refactor). Mappings ship in Phase A so that Phase B
+    // source migration can be compiled by a Phase-A binary.
+    if str_eq(name, "__nucleor_sym_aux_get") { return "__nucleor_sym_aux_get"; };
+    if str_eq(name, "__nucleor_sym_aux_create") { return "__nucleor_sym_aux_create"; };
+    if str_eq(name, "__nucleor_sym_aux_built_at") { return "__nucleor_sym_aux_built_at"; };
+    if str_eq(name, "__nucleor_sym_aux_set_built_at") { return "__nucleor_sym_aux_set_built_at"; };
     return "";
 }
 fn is_void_ret(name: str) -> i64 {
@@ -4700,6 +4707,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_hashmap_get(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_contains(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_contains_key(i64, i64)\n");
+    // v0.3.236 Phase A — sym-aux side hashmap helpers
+    sb_append(sb, "declare i64 @__nucleor_sym_aux_get(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_sym_aux_create(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_sym_aux_built_at(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_sym_aux_set_built_at(i64, i64)\n");
     // V2: parallelism runtime
     sb_append(sb, "declare i64 @__nucleor_par_map(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_par_fold(i64, i64, i64)\n");
@@ -16925,7 +16937,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.235";
+    return "0.3.236";
 }
 
 fn compiler_backend_label() -> str {

@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 795
-# Of which REVIEW REQUIRED: 32
+# Total helpers: 799
+# Of which REVIEW REQUIRED: 36
 
 # ============================================================
 # REVIEW REQUIRED
@@ -22,6 +22,10 @@
 # Each row is still emitted below with `stability = "experimental"`
 # or `class = "Unclassified"` so callers can find them.
 #
+#   __nucleor_sym_aux_built_at               (Unclassified)
+#   __nucleor_sym_aux_create                 (Unclassified)
+#   __nucleor_sym_aux_get                    (Unclassified)
+#   __nucleor_sym_aux_set_built_at           (Unclassified)
 #   async_await                              (Unclassified)
 #   async_spawn                              (Unclassified)
 #   deadline_check                           (Unclassified)
@@ -9319,6 +9323,62 @@ notes            = "intentional v0.4 placeholder; declared in IR for forward com
 
 
 # ----- class: Unclassified -----
+
+[[helper]]
+name             = "__nucleor_sym_aux_built_at"
+class            = "Unclassified"
+symbol           = "__nucleor_sym_aux_built_at"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "__nucleor_sym_aux_create"
+class            = "Unclassified"
+symbol           = "__nucleor_sym_aux_create"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "__nucleor_sym_aux_get"
+class            = "Unclassified"
+symbol           = "__nucleor_sym_aux_get"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "__nucleor_sym_aux_set_built_at"
+class            = "Unclassified"
+symbol           = "__nucleor_sym_aux_set_built_at"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
 
 [[helper]]
 name             = "async_await"

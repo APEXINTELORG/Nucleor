@@ -2252,6 +2252,11 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_hashmap_insert") { return "__nucleor_hashmap_insert"; };
     if str_eq(name, "__nucleor_hashmap_get") { return "__nucleor_hashmap_get"; };
     if str_eq(name, "__nucleor_hashmap_contains") { return "__nucleor_hashmap_contains"; };
+    // v0.3.236 Phase A — sym-aux side hashmap helpers
+    if str_eq(name, "__nucleor_sym_aux_get") { return "__nucleor_sym_aux_get"; };
+    if str_eq(name, "__nucleor_sym_aux_create") { return "__nucleor_sym_aux_create"; };
+    if str_eq(name, "__nucleor_sym_aux_built_at") { return "__nucleor_sym_aux_built_at"; };
+    if str_eq(name, "__nucleor_sym_aux_set_built_at") { return "__nucleor_sym_aux_set_built_at"; };
     // --- Synced from nucleor_s1_compiler.nr (v0.1.56) — RFC-0022 drift fix ---
     // T1.1 Phase 3a: sizeof_<T>() primitive byte-size queries.
     if str_eq(name, "sizeof_i8") { return "__nucleor_sizeof_i8"; };
@@ -3567,6 +3572,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_hashmap_get(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_contains(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_hashmap_contains_key(i64, i64)\n");
+    // v0.3.236 Phase A — sym-aux side hashmap helpers
+    sb_append(sb, "declare i64 @__nucleor_sym_aux_get(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_sym_aux_create(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_sym_aux_built_at(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_sym_aux_set_built_at(i64, i64)\n");
     // V2: parallelism runtime
     sb_append(sb, "declare i64 @__nucleor_par_map(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_par_fold(i64, i64, i64)\n");
