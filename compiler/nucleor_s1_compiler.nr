@@ -15706,6 +15706,84 @@ fn fmt_strip_outer_quotes(s: str) -> str {
 // Also requires the matched `let` to be followed by a TYPE (not
 // elision via `let x = ...;` without a type annotation) so we never
 // invent a type out of thin air.
+// v0.4.14: bounded backward `let <name>: T = ...` scanner. When
+// the source bundle has many `let <name>: T` declarations across
+// imports, the global infer_var_type_from_source returns "" on
+// conflict. This bounded variant scans BACKWARD from `match_pos`
+// to find the most-recent `let <name>: T` -- the closest scope-
+// local declaration, which is what shadowing semantics actually
+// resolve to. Limited to ~2 KB scan back.
+fn infer_var_type_local_back(src: str, var_name: str, match_pos: i64) -> str {
+    let slen: i64 = str_len(src);
+    let vlen: i64 = str_len(var_name);
+    if vlen == 0 || match_pos <= 4 { return ""; };
+    let scan_back_limit: i64 = if match_pos > 4096 { match_pos - 4096 } else { 0 };
+    let mut j: i64 = match_pos - 1;
+    while j >= scan_back_limit {
+        // Look for "let " at j (with optional "let mut ").
+        if j + 3 < slen
+            && str_char_at(src, j) == 108
+            && str_char_at(src, j + 1) == 101
+            && str_char_at(src, j + 2) == 116
+            && str_char_at(src, j + 3) == 32 {
+            // Boundary: char before `let` must not be id-continue.
+            let mut bdry_ok: i64 = 1;
+            if j > 0 {
+                let bpc: i64 = str_char_at(src, j - 1);
+                if (bpc >= 65 && bpc <= 90) || (bpc >= 97 && bpc <= 122) || (bpc >= 48 && bpc <= 57) || bpc == 95 { bdry_ok = 0; };
+            };
+            if bdry_ok == 1 {
+                let mut p: i64 = j + 4;
+                // Optional "mut ".
+                if p + 4 <= slen
+                    && str_char_at(src, p) == 109
+                    && str_char_at(src, p + 1) == 117
+                    && str_char_at(src, p + 2) == 116
+                    && str_char_at(src, p + 3) == 32 {
+                    p = p + 4;
+                };
+                // Match var_name.
+                let mut k: i64 = 0;
+                let mut nm_ok: i64 = 1;
+                while k < vlen {
+                    if p + k >= slen { nm_ok = 0; k = vlen; }
+                    else if str_char_at(src, p + k) != str_char_at(var_name, k) { nm_ok = 0; k = vlen; };
+                    k = k + 1;
+                };
+                if nm_ok == 1 {
+                    let after: i64 = p + vlen;
+                    if after < slen {
+                        let nc: i64 = str_char_at(src, after);
+                        let id_cont: i64 = if (nc >= 65 && nc <= 90) || (nc >= 97 && nc <= 122) || (nc >= 48 && nc <= 57) || nc == 95 { 1 } else { 0 };
+                        if id_cont == 0 {
+                            // Skip whitespace; expect ":".
+                            let mut q: i64 = after;
+                            while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
+                            if q < slen && str_char_at(src, q) == 58 {
+                                q = q + 1;
+                                while q < slen && str_char_at(src, q) == 32 { q = q + 1; };
+                                let ts: i64 = q;
+                                let mut gd: i64 = 0;
+                                while q < slen {
+                                    let tc: i64 = str_char_at(src, q);
+                                    if tc == 60 { gd = gd + 1; }
+                                    else if tc == 62 { gd = gd - 1; };
+                                    if gd == 0 && (tc == 32 || tc == 61 || tc == 59 || tc == 10 || tc == 13) {
+                                        return str_substring(src, ts, q);
+                                    };
+                                    q = q + 1;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        j = j - 1;
+    };
+    return "";
+}
+
 // v0.4.9: companion to infer_var_type_from_source. Scans src for
 // match-arm pattern bindings of the form `Some(<var_name>)`,
 // `Ok(<var_name>)`, `Err(<var_name>)`. When found, walks back to
@@ -15725,6 +15803,15 @@ fn infer_pattern_binding_type_from_source(src: str, var_name: str) -> str {
     let slen: i64 = str_len(src);
     let vlen: i64 = str_len(var_name);
     if vlen == 0 || slen < 8 { return ""; };
+    // v0.4.14: scan ALL occurrences and conflict-detect. If the same
+    // binding name appears in multiple match arms with different
+    // scrutinee types, return "" -- safer than picking the first one
+    // (which previously miscompiled `Some(v)` for both Option<i64>
+    // and Option<f64> when `v` was reused). Adopters with the same-
+    // name-multi-arm shape see the conservative int_to_str default,
+    // not a wrong-type guess.
+    let mut found_type: str = "";
+    let mut conflict: i64 = 0;
     // Look for occurrences of "Some(<var_name>)" / "Ok(<var_name>)"
     // / "Err(<var_name>)". Identifier-aware: char before the first
     // letter must not be alpha/digit/underscore, and the closing `)`
@@ -15839,14 +15926,25 @@ fn infer_pattern_binding_type_from_source(src: str, var_name: str) -> str {
                                         let mut tp2: i64 = fp_end;
                                         while tp2 < slen && str_char_at(src, tp2) == 32 { tp2 = tp2 + 1; };
                                         if tp2 < slen && str_char_at(src, tp2) == 46 { return ""; };
-                                        let struct_full: str = infer_var_type_from_source(src, scrut_name);
+                                        // v0.4.14: try the bounded backward
+                                        // scan first (handles common-name
+                                        // conflicts in big bundles), then
+                                        // fall back to global scan.
+                                        let mut struct_full: str = infer_var_type_local_back(src, scrut_name, match_at);
+                                        if str_len(struct_full) == 0 {
+                                            struct_full = infer_var_type_from_source(src, scrut_name);
+                                        };
                                         let struct_name: str = type_base_name(struct_full);
                                         if str_len(struct_name) > 0 {
                                             scrut_full_type = infer_struct_field_type_from_source(src, struct_name, field_name);
                                         };
                                     };
                                 } else {
-                                    scrut_full_type = infer_var_type_from_source(src, scrut_name);
+                                    // v0.4.14: same bounded-then-global chain.
+                                    scrut_full_type = infer_var_type_local_back(src, scrut_name, match_at);
+                                    if str_len(scrut_full_type) == 0 {
+                                        scrut_full_type = infer_var_type_from_source(src, scrut_name);
+                                    };
                                 };
                                 if str_len(scrut_full_type) > 0 {
                                     // Extract generic parameter T from Option<T>
@@ -15864,8 +15962,9 @@ fn infer_pattern_binding_type_from_source(src: str, var_name: str) -> str {
                                         let inside_start: i64 = lt_at + 1;
                                         let inside_end: i64 = if str_char_at(scrut_full_type, stl - 1) == 62 { stl - 1 } else { stl };
                                         let inside: str = str_substring(scrut_full_type, inside_start, inside_end);
+                                        let mut candidate: str = "";
                                         if str_eq(base, "Option") == 1 && str_eq(variant, "Some") == 1 {
-                                            return type_base_name(inside);
+                                            candidate = type_base_name(inside);
                                         };
                                         if str_eq(base, "Result") == 1 {
                                             // Split inside on `,` to get T and E.
@@ -15885,11 +15984,15 @@ fn infer_pattern_binding_type_from_source(src: str, var_name: str) -> str {
                                                 let mut e_start: i64 = comma_at + 1;
                                                 while e_start < inlen && str_char_at(inside, e_start) == 32 { e_start = e_start + 1; };
                                                 let e_part_raw: str = str_substring(inside, e_start, inlen);
-                                                if str_eq(variant, "Ok") == 1 { return type_base_name(t_part_raw); };
-                                                if str_eq(variant, "Err") == 1 { return type_base_name(e_part_raw); };
+                                                if str_eq(variant, "Ok") == 1 { candidate = type_base_name(t_part_raw); };
+                                                if str_eq(variant, "Err") == 1 { candidate = type_base_name(e_part_raw); };
                                             } else {
-                                                if str_eq(variant, "Ok") == 1 { return type_base_name(inside); };
+                                                if str_eq(variant, "Ok") == 1 { candidate = type_base_name(inside); };
                                             };
+                                        };
+                                        if str_len(candidate) > 0 {
+                                            if str_len(found_type) == 0 { found_type = candidate; }
+                                            else { if str_eq(found_type, candidate) == 0 { conflict = 1; }; };
                                         };
                                     };
                                 };
@@ -15901,7 +16004,8 @@ fn infer_pattern_binding_type_from_source(src: str, var_name: str) -> str {
         };
         i = i + 1;
     };
-    return "";
+    if conflict == 1 { return ""; };
+    return found_type;
 }
 
 // v0.3.158: companion to infer_var_type_from_source. Scans src for
@@ -17440,7 +17544,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.13";
+    return "0.4.14";
 }
 
 fn compiler_backend_label() -> str {
