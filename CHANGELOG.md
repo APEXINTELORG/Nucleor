@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.236] — 2026-04-27
+
+**Hash-backed sym_get refactor — Phase A (dormant infrastructure).**
+
+The s1 self-host compiler stores its symbol/ownership tables as
+flat `Vec<i32>` (interleaved name/reg pairs). Lookup is a backward
+linear scan with a most-recent-entry fast path. For large source
+files this is O(N) per lookup -> O(N^2) total compile-time work.
+
+Phase A ships only the runtime helpers + the matching `get_rt_name`
+mappings (s1 + tools_suite mirror) + the matching IR `declare`
+lines. **No source migration in Phase A** -- the shipped binary
+is functionally identical to v0.3.235; the helpers are dormant.
+
+The split is required by the bootstrap-name-recognition ratchet:
+the Phase B source migration calls helpers that didn't exist in
+v0.3.235's `get_rt_name` table, so a Phase B-only release would
+clang-link-fail at stage_b (the old bin would emit bare
+`call @sym_aux_get(...)` against no global). Phase A first means
+the v0.3.236 binary already recognises the helpers when v0.3.237
+modifies the source.
+
+### Runtime helpers added (`stdlib/runtime/nucleor_llvm_rt.c`)
+
+```
+long long __nucleor_sym_aux_get(long long sym_handle)
+long long __nucleor_sym_aux_create(long long sym_handle)
+long long __nucleor_sym_aux_built_at(long long sym_handle)
+long long __nucleor_sym_aux_set_built_at(long long sym_handle, long long n)
+```
+
+The side table is a global open-addressed map from sym_handle
+(`Vec<i32>` heap pointer cast to i64) to a record holding
+(a) an aux NHashMap handle (created lazily) and
+(b) the vec length when the aux was last fully synced.
+
+Phase B (v0.3.237+) will modify `sym_get` / `own_put_i` / `own_get`
+in `compiler/nucleor_s1_compiler.nr` to use the hash backing,
+gated by `NUCLEOR_SYM_HASH_VALIDATE=1` for diagnostic agreement
+checking with the legacy linear-scan path during the first
+bootstrap cycle.
+
+Pin: `tests/fixtures/probe_sym_aux.nr` exercises the helpers
+end-to-end (create -> populate -> probe -> built-at-roundtrip).
+
+Bootstrap fixed point at stage_d (b ≠ c expected -- the new IR
+declares are emitted only by the v0.3.236 binary; c == d is
+the live fixed point). Verify gate 457/457.
+
 ## [0.3.235] — 2026-04-27
 
 **RFC-NRT-004 §B + §C (Nucleor_Translate) regression-pin: multi-payload
