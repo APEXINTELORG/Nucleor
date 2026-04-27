@@ -2310,6 +2310,10 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_sym_aux_create") { return "__nucleor_sym_aux_create"; };
     if str_eq(name, "__nucleor_sym_aux_built_at") { return "__nucleor_sym_aux_built_at"; };
     if str_eq(name, "__nucleor_sym_aux_set_built_at") { return "__nucleor_sym_aux_set_built_at"; };
+    // v0.4.10 Phase A — compile-source side table
+    if str_eq(name, "__nucleor_compile_src_set") { return "__nucleor_compile_src_set"; };
+    if str_eq(name, "__nucleor_compile_src_get") { return "__nucleor_compile_src_get"; };
+    if str_eq(name, "__nucleor_compile_src_clear") { return "__nucleor_compile_src_clear"; };
     // --- Synced from nucleor_s1_compiler.nr (v0.1.56) — RFC-0022 drift fix ---
     // T1.1 Phase 3a: sizeof_<T>() primitive byte-size queries.
     if str_eq(name, "sizeof_i8") { return "__nucleor_sizeof_i8"; };
@@ -3630,6 +3634,10 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_sym_aux_create(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_built_at(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_set_built_at(i64, i64)\n");
+    // v0.4.10 Phase A — compile-source side table
+    sb_append(sb, "declare i64 @__nucleor_compile_src_set(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_compile_src_get()\n");
+    sb_append(sb, "declare i64 @__nucleor_compile_src_clear()\n");
     // V2: parallelism runtime
     sb_append(sb, "declare i64 @__nucleor_par_map(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_par_fold(i64, i64, i64)\n");
