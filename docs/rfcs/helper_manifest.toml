@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 799
-# Of which REVIEW REQUIRED: 36
+# Total helpers: 802
+# Of which REVIEW REQUIRED: 39
 
 # ============================================================
 # REVIEW REQUIRED
@@ -22,6 +22,9 @@
 # Each row is still emitted below with `stability = "experimental"`
 # or `class = "Unclassified"` so callers can find them.
 #
+#   __nucleor_compile_src_clear              (Unclassified)
+#   __nucleor_compile_src_get                (Unclassified)
+#   __nucleor_compile_src_set                (Unclassified)
 #   __nucleor_sym_aux_built_at               (Unclassified)
 #   __nucleor_sym_aux_create                 (Unclassified)
 #   __nucleor_sym_aux_get                    (Unclassified)
@@ -9323,6 +9326,48 @@ notes            = "intentional v0.4 placeholder; declared in IR for forward com
 
 
 # ----- class: Unclassified -----
+
+[[helper]]
+name             = "__nucleor_compile_src_clear"
+class            = "Unclassified"
+symbol           = "__nucleor_compile_src_clear"
+dispatch         = "RuntimeCall"
+abi              = "() -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "__nucleor_compile_src_get"
+class            = "Unclassified"
+symbol           = "__nucleor_compile_src_get"
+dispatch         = "RuntimeCall"
+abi              = "() -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "__nucleor_compile_src_set"
+class            = "Unclassified"
+symbol           = "__nucleor_compile_src_set"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
 
 [[helper]]
 name             = "__nucleor_sym_aux_built_at"

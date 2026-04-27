@@ -5,6 +5,91 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.10] — 2026-04-27
+
+**SLSA-Build-Level-3 unblocker — `-Wl,/Brepro` for byte-reproducible
+PE/COFF + Phase A compile-source side table + verify-reproducible
+EXE comparison.**
+
+### Translate SPEC-2 Task 2 finding
+
+The Translate team's SPEC-2 Task 2 surfaced a critical reproducibility
+break: clang/lld-link embeds a wall-clock timestamp in the PE COFF
+header (offset 0x108) by default. **Two builds of the same source
+on the same machine produce different .exe even when the LLVM IR
+is byte-identical.** This blocks SLSA-Build-Level-3 attestation
+(which requires that anyone can independently rebuild from source
+and verify the binary matches).
+
+The IR-side determinism we shipped in v0.4.7 (`nuc verify-reproducible`)
+was necessary but not sufficient -- the linker's timestamp was
+silently breaking the EXE-side invariant.
+
+### Fix
+
+`host_stack_link_flag()` on Windows now returns
+`-Wl,/STACK:16777216 -Wl,/Brepro`. `/Brepro` tells lld-link to
+write a deterministic content-hash into the COFF timestamp field
+instead of the wall-clock value. Two builds with byte-identical
+IR now produce byte-identical .exe.
+
+ELF (Linux/macOS lld) is already deterministic by default --
+`-Wl,--build-id=none` could go further but isn't required for
+the same-machine byte-identity invariant. No change there.
+
+### `nuc verify-reproducible` now also compares the linked .exe
+
+Previously the subcommand built with `link_native = 0` (skip
+clang) and only compared `.ll` output. v0.4.10 builds with link
+ENABLED and compares both IR AND linked .exe via Python
+`filecmp.cmp` (chosen over `fc.exe` / `Get-FileHash` /
+`certutil` after each had a path-quoting / shell-version
+compatibility issue under various invocation contexts).
+
+```
+$ nuc verify-reproducible foo.nr
+verify-reproducible: source = foo.nr
+  IR  build A: target/foo_repro_a.ll (35209 bytes, hash=c3e95b35)
+  IR  build B: target/foo_repro_b.ll (35209 bytes, hash=c3e95b35)
+  EXE build A: target/foo_repro_a.exe
+  EXE build B: target/foo_repro_b.exe
+  EXE diff: byte-identical
+PASS: byte-identical IR + EXE across two cold-cache builds.
+  This file satisfies the RFC-NRT-003 reproducibility invariant.
+  Suitable for SLSA-Build-Level-3 attestation.
+```
+
+On EXE divergence with IR-identical, prints a precise diagnostic
+naming the linker as the determinism break source plus the
+`/Brepro` / `--build-id=none` / debug-info hints.
+
+### v0.4.10 Phase A — compile-source side table (dormant)
+
+Three new runtime helpers shipped dormant:
+- `__nucleor_compile_src_set(s)`
+- `__nucleor_compile_src_get()`
+- `__nucleor_compile_src_clear()`
+
+Single global slot (single-threaded by design). Phase B will use
+them to give deep lowering helpers (e.g.,
+`match_bind_payloads_per_idx`) access to the original source text
+without threading `src` through 30+ call sites. Specifically
+unblocks `Option<MyStruct>` payload type propagation -- the
+last item Translate flagged as actively shaping their source
+(their `PipelineSuccess.gap_report_present + gap_report` flag/slot
+pair stays until Phase B lands).
+
+Phase A binary is functionally identical to v0.4.9 -- the helpers
+are dormant, just present in the runtime + `get_rt_name` mappings
++ IR `declare`s.
+
+### Verification
+
+Bootstrap fixed point preserved (stage_b == stage_c == stage_d
+**both IR and EXE byte-identical** -- the strongest determinism
+check available, since the compiler bootstrapping itself is the
+gold-standard reproducibility test). Verify gate 466/466.
+
 ## [0.4.9] — 2026-04-27
 
 **Format-macro pattern-binding inference for `Some(s)` / `Ok(s)` /

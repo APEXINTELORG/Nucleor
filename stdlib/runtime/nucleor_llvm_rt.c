@@ -4657,6 +4657,40 @@ long long __nucleor_sym_aux_set_built_at(long long sym_handle, long long n) {
     return 0;
 }
 
+// === Compile-source side table (v0.4.10 Phase A) ===
+//
+// The s1 self-host compiler frequently needs the original source
+// text to do source-text inference (infer_var_type_from_source,
+// infer_pattern_binding_type_from_source). Some lowering helpers
+// deep in the call chain don't currently have `src` in their
+// signatures; threading it through (lower_fn -> lower_stmts ->
+// lower_expr -> match_bind_payloads_per_idx) would be a 30+
+// call-site refactor.
+//
+// This side table holds ONE source string, set at compile entry
+// and cleared at compile exit. Any source-side helper can read it
+// via __nucleor_compile_src_get(). Single-threaded by design --
+// the s1 self-host compile is single-threaded.
+//
+// Phase A (this release) ships the helpers + get_rt_name mappings
+// dormant; Phase B migrates source to use them.
+
+static const char *g_compile_src = 0;
+
+long long __nucleor_compile_src_set(const char *s) {
+    g_compile_src = s;
+    return 0;
+}
+
+const char *__nucleor_compile_src_get(void) {
+    return g_compile_src ? g_compile_src : "";
+}
+
+long long __nucleor_compile_src_clear(void) {
+    g_compile_src = 0;
+    return 0;
+}
+
 // === HashMap iteration (RFC-0017 stdlib enrichment) ===
 // hashmap_keys(h)   -> Vec<str>  : every occupied slot's key (newly strdup'd)
 // hashmap_values(h) -> Vec<i64>  : every occupied slot's value (in same order

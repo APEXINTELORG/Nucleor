@@ -3855,6 +3855,10 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_sym_aux_create") { return "__nucleor_sym_aux_create"; };
     if str_eq(name, "__nucleor_sym_aux_built_at") { return "__nucleor_sym_aux_built_at"; };
     if str_eq(name, "__nucleor_sym_aux_set_built_at") { return "__nucleor_sym_aux_set_built_at"; };
+    // v0.4.10 Phase A — compile-source side table for deep helpers
+    if str_eq(name, "__nucleor_compile_src_set") { return "__nucleor_compile_src_set"; };
+    if str_eq(name, "__nucleor_compile_src_get") { return "__nucleor_compile_src_get"; };
+    if str_eq(name, "__nucleor_compile_src_clear") { return "__nucleor_compile_src_clear"; };
     return "";
 }
 fn is_void_ret(name: str) -> i64 {
@@ -4724,6 +4728,10 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_sym_aux_create(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_built_at(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sym_aux_set_built_at(i64, i64)\n");
+    // v0.4.10 Phase A — compile-source side table
+    sb_append(sb, "declare i64 @__nucleor_compile_src_set(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_compile_src_get()\n");
+    sb_append(sb, "declare i64 @__nucleor_compile_src_clear()\n");
     // V2: parallelism runtime
     sb_append(sb, "declare i64 @__nucleor_par_map(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_par_fold(i64, i64, i64)\n");
@@ -13788,7 +13796,20 @@ fn host_stack_link_flag() -> str {
     // Windows: clang-cl-style flag passed through to MSVC link.exe / lld-link.
     // POSIX: GNU ld accepts -z stacksize=N (in bytes). Both expand the main
     // thread stack to 16 MiB so deep recursion in the compiler works.
-    if host_is_windows() == 1 { return " -Wl,/STACK:16777216"; };
+    //
+    // v0.4.10 RFC-NRT-003 follow-on (Translate SPEC-2 Task 2 finding):
+    // lld-link embeds wall-clock timestamps in the PE COFF header
+    // (offset 0x108) by default, breaking byte-reproducible builds
+    // even when the LLVM IR is byte-identical. This blocked SLSA-
+    // Build-Level-3 attestation for the Translate team. /Brepro tells
+    // lld-link to write a deterministic content-hash instead of a
+    // timestamp, matching the SOURCE_DATE_EPOCH spirit.
+    //
+    // ELF: clang/lld already produce deterministic output by default
+    // (no timestamp in ELF header equivalent). No analogous flag
+    // needed; -Wl,--build-id=none could go further but isn't required
+    // for byte-reproducibility of two builds on the same machine.
+    if host_is_windows() == 1 { return " -Wl,/STACK:16777216 -Wl,/Brepro"; };
     return " -Wl,-z,stacksize=16777216";
 }
 
@@ -17367,7 +17388,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.9";
+    return "0.4.10";
 }
 
 fn compiler_backend_label() -> str {
@@ -18634,55 +18655,106 @@ fn main() -> i64 {
         return compile_file_mode(src_path, out_name, 0, use_cache, time_passes, 0);
     } else if str_eq(cmd, "verify-reproducible") {
         // v0.4.7 RFC-NRT-003: build the file twice with --no-cache,
-        // emit only LLVM IR (skip clang link to keep the check fast +
-        // independent of linker flakiness), hash both .ll outputs,
-        // report pass/fail. The IR is the determinism boundary the
-        // self-host fixed-point invariant already enforces; clang's
-        // PE/COFF output is byte-identical given byte-identical IR
-        // and a deterministic linker (which we already exercise via
-        // T1.7 on the self-host).
+        // hash both .ll AND .exe outputs, report pass/fail.
+        //
+        // v0.4.10 (Translate SPEC-2 Task 2): now builds with link
+        // ENABLED so we also catch linker-side determinism breaks
+        // (the lld-link COFF timestamp issue that v0.4.10 fixed
+        // with -Wl,/Brepro). IR-only check is necessary but not
+        // sufficient for SLSA-Build-Level-3 attestation.
         let out_a: str = str_concat(out_name, "_repro_a");
         let out_b: str = str_concat(out_name, "_repro_b");
-        let rc_a: i64 = compile_file_mode(src_path, out_a, 0, 0, 0, 0);
+        let rc_a: i64 = compile_file_mode(src_path, out_a, 0, 0, 0, 1);
         if rc_a != 0 {
             print("verify-reproducible: first build failed; aborting.");
             return rc_a;
         };
-        let rc_b: i64 = compile_file_mode(src_path, out_b, 0, 0, 0, 0);
+        let rc_b: i64 = compile_file_mode(src_path, out_b, 0, 0, 0, 1);
         if rc_b != 0 {
             print("verify-reproducible: second build failed; aborting.");
             return rc_b;
         };
         let ll_a: str = str_concat("target/", str_concat(out_a, ".ll"));
         let ll_b: str = str_concat("target/", str_concat(out_b, ".ll"));
-        let bytes_a: str = file_read_string(ll_a);
-        let bytes_b: str = file_read_string(ll_b);
-        if str_len(bytes_a) == 0 {
-            print(str_concat("verify-reproducible: cannot read ", ll_a));
+        let exe_a: str = str_concat("target/", str_concat(out_a, ".exe"));
+        let exe_b: str = str_concat("target/", str_concat(out_b, ".exe"));
+        let ll_bytes_a: str = file_read_string(ll_a);
+        let ll_bytes_b: str = file_read_string(ll_b);
+        if str_len(ll_bytes_a) == 0 || str_len(ll_bytes_b) == 0 {
+            print("verify-reproducible: cannot read IR outputs");
             return 1;
         };
-        if str_len(bytes_b) == 0 {
-            print(str_concat("verify-reproducible: cannot read ", ll_b));
-            return 1;
+        let ll_hash_a: str = content_hash(ll_bytes_a);
+        let ll_hash_b: str = content_hash(ll_bytes_b);
+        let ll_len_a: i64 = str_len(ll_bytes_a);
+        let ll_len_b: i64 = str_len(ll_bytes_b);
+        // EXE comparison via shell-out (file_read_string truncates at
+        // the first NUL byte, which PE files have just past the DOS
+        // header -- a tempting but BROKEN comparison shape). fc.exe
+        // /b on Windows does a real byte-compare and exits 0 if
+        // identical. POSIX uses cmp.
+        let mut exe_check_ran: i64 = 0;
+        let mut exe_match: i64 = 0;
+        // Confirm both EXEs exist before invoking fc / cmp -- a missing
+        // EXE is otherwise indistinguishable from a tool error.
+        let exe_a_check: str = file_read_string(exe_a);
+        let exe_b_check: str = file_read_string(exe_b);
+        let exe_a_present: i64 = if str_len(exe_a_check) > 0 { 1 } else { 0 };
+        let exe_b_present: i64 = if str_len(exe_b_check) > 0 { 1 } else { 0 };
+        // Note: file_read_string truncates at first NUL, but PE/ELF files
+        // start with a non-NUL signature, so a non-zero len means "exists
+        // and has content" -- enough for the presence check.
+        if exe_a_present == 1 && exe_b_present == 1 {
+            if host_is_windows() == 1 {
+                // Use Python's filecmp.cmp for byte-equality. Python is
+                // already a build dependency (manifest generators use it)
+                // and filecmp.cmp does a true byte-compare without the
+                // path-quoting / shell-version pitfalls of fc.exe / cmd.exe
+                // / Get-FileHash (which needs PS >= 4.0; some pwsh-nested
+                // distros don't expose it). Exits 0 if equal, 1 if differ.
+                let cmp_cmd: str = str_concat("python -c \"import filecmp,sys; sys.exit(0 if filecmp.cmp(r'", str_concat(exe_a, str_concat("', r'", str_concat(exe_b, "', shallow=False) else 1)\""))));
+                let cmp_rc: i64 = system(cmp_cmd);
+                exe_check_ran = 1;
+                if cmp_rc == 0 { exe_match = 1; };
+            } else {
+                let cmp_cmd: str = str_concat("cmp -s \"", str_concat(exe_a, str_concat("\" \"", str_concat(exe_b, "\""))));
+                let cmp_rc: i64 = system(cmp_cmd);
+                exe_check_ran = 1;
+                if cmp_rc == 0 { exe_match = 1; };
+            };
         };
-        let hash_a: str = content_hash(bytes_a);
-        let hash_b: str = content_hash(bytes_b);
-        let len_a: i64 = str_len(bytes_a);
-        let len_b: i64 = str_len(bytes_b);
         print(str_concat("verify-reproducible: source = ", src_path));
-        print(str_concat("  build A: ", str_concat(ll_a, str_concat(" (", str_concat(str_from_int(len_a), str_concat(" bytes, hash=", str_concat(hash_a, ")")))))));
-        print(str_concat("  build B: ", str_concat(ll_b, str_concat(" (", str_concat(str_from_int(len_b), str_concat(" bytes, hash=", str_concat(hash_b, ")")))))));
-        if str_eq(hash_a, hash_b) == 1 && len_a == len_b {
-            print("PASS: byte-identical IR across two cold-cache builds.");
+        print(str_concat("  IR  build A: ", str_concat(ll_a, str_concat(" (", str_concat(str_from_int(ll_len_a), str_concat(" bytes, hash=", str_concat(ll_hash_a, ")")))))));
+        print(str_concat("  IR  build B: ", str_concat(ll_b, str_concat(" (", str_concat(str_from_int(ll_len_b), str_concat(" bytes, hash=", str_concat(ll_hash_b, ")")))))));
+        if exe_check_ran == 1 {
+            print(str_concat("  EXE build A: ", exe_a));
+            print(str_concat("  EXE build B: ", exe_b));
+            if exe_match == 1 { print("  EXE diff: byte-identical"); }
+            else { print("  EXE diff: DIFFER"); };
+        } else {
+            print("  EXE: skipped (one or both linked binaries missing)");
+        };
+        let ir_match: i64 = if str_eq(ll_hash_a, ll_hash_b) == 1 && ll_len_a == ll_len_b { 1 } else { 0 };
+        if ir_match == 1 && (exe_check_ran == 0 || exe_match == 1) {
+            print("PASS: byte-identical IR + EXE across two cold-cache builds.");
             print("  This file satisfies the RFC-NRT-003 reproducibility invariant.");
+            print("  Suitable for SLSA-Build-Level-3 attestation.");
             return 0;
         };
-        print("FAIL: build outputs differ.");
-        print("  Determinism break detected. Common causes:");
-        print("    - timestamps in cached intermediates");
-        print("    - hash-table iteration order in symbol lowering");
-        print("    - absolute build paths embedded in IR");
-        print("    - random seeding in an optimization pass");
+        if ir_match == 0 {
+            print("FAIL: IR outputs differ.");
+            print("  Determinism break in the compiler. Common causes:");
+            print("    - timestamps in cached intermediates");
+            print("    - hash-table iteration order in symbol lowering");
+            print("    - absolute build paths embedded in IR");
+            print("    - random seeding in an optimization pass");
+            return 1;
+        };
+        print("FAIL: IR identical but EXE outputs differ.");
+        print("  Determinism break in the linker. Common causes:");
+        print("    - PE/COFF timestamp not suppressed (use -Wl,/Brepro)");
+        print("    - ELF build-id varies (use -Wl,--build-id=none)");
+        print("    - debug info embeds absolute paths");
         return 1;
     } else if str_eq(cmd, "test") || str_eq(cmd, "bench") || str_eq(cmd, "check") || str_eq(cmd, "audit") || str_eq(cmd, "policy") || str_eq(cmd, "certify") || str_eq(cmd, "translate") {
         return run_external_tool(argc);
