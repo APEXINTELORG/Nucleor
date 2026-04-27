@@ -6630,7 +6630,7 @@ declare i64 @__nucleor_tensor_sample_gumbel(i64, i64)
 @.str.5841 = private unnamed_addr constant [3 x i8] c"__\00"
 @.str.5842 = private unnamed_addr constant [1 x i8] c"\00"
 @.str.5843 = private unnamed_addr constant [17 x i8] c"0123456789abcdef\00"
-@.str.5844 = private unnamed_addr constant [8 x i8] c"0.3.220\00"
+@.str.5844 = private unnamed_addr constant [8 x i8] c"0.3.221\00"
 @.str.5845 = private unnamed_addr constant [5 x i8] c"llvm\00"
 @.str.5846 = private unnamed_addr constant [9 x i8] c"nucleor \00"
 @.str.5847 = private unnamed_addr constant [16 x i8] c" (self-hosted, \00"
@@ -77624,7 +77624,6 @@ bb.entry:
 define i64 @own_put_i(i64 %p.0, i64 %p.1, i64 %p.2) {
 bb.entry:
   %r.6 = alloca i64
-  %r.10 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
@@ -77634,83 +77633,69 @@ bb.entry:
   %r.4 = alloca i64
   %r.5 = add i64 %p.2, 0
   store i64 %r.5, ptr %r.4
-  %r.7 = add i64 0, 0
-  %r.8 = add i64 1, 0
-  %r.9 = add i64 -1, 0
-  store i64 %r.9, ptr %r.6
-  %r.11 = add i64 0, 0
-  store i64 %r.7, ptr %r.10
+  %r.7 = load i64, ptr %r.0
+  %r.8.a0 = inttoptr i64 %r.7 to ptr
+  %r.8 = call i64 @__nucleor_vec_len(ptr %r.8.a0)
+  %r.9 = add i64 2, 0
+  %r.10 = sub i64 %r.8, %r.9
+  store i64 %r.10, ptr %r.6
   br label %L0
 L0:
-  %r.12 = load i64, ptr %r.10
-  %r.13 = load i64, ptr %r.0
-  %r.14.a0 = inttoptr i64 %r.13 to ptr
-  %r.14 = call i64 @__nucleor_vec_len(ptr %r.14.a0)
-  %r.15.cmp = icmp slt i64 %r.12, %r.14
-  %r.15 = zext i1 %r.15.cmp to i64
-  %br.15.cond = icmp ne i64 %r.15, 0
-  br i1 %br.15.cond, label %L1, label %L2
+  %r.11 = load i64, ptr %r.6
+  %r.12 = add i64 0, 0
+  %r.13.cmp = icmp sge i64 %r.11, %r.12
+  %r.13 = zext i1 %r.13.cmp to i64
+  %br.13.cond = icmp ne i64 %r.13, 0
+  br i1 %br.13.cond, label %L1, label %L2
 L1:
-  %r.16 = load i64, ptr %r.0
-  %r.17 = load i64, ptr %r.10
+  %r.14 = load i64, ptr %r.0
+  %r.15 = load i64, ptr %r.6
+  %r.16.a0 = inttoptr i64 %r.14 to ptr
+  %r.16 = call i64 @__nucleor_vec_get(ptr %r.16.a0, i64 %r.15)
+  %r.17 = load i64, ptr %r.2
   %r.18.a0 = inttoptr i64 %r.16 to ptr
-  %r.18 = call i64 @__nucleor_vec_get(ptr %r.18.a0, i64 %r.17)
-  %r.19 = load i64, ptr %r.2
-  %r.20.a0 = inttoptr i64 %r.18 to ptr
-  %r.20.a1 = inttoptr i64 %r.19 to ptr
-  %r.20 = call i64 @__nucleor_str_eq(ptr %r.20.a0, ptr %r.20.a1)
-  %r.21 = add i64 1, 0
-  %r.22.cmp = icmp eq i64 %r.20, %r.21
-  %r.22 = zext i1 %r.22.cmp to i64
-  %br.22.cond = icmp ne i64 %r.22, 0
-  br i1 %br.22.cond, label %L3, label %L5
+  %r.18.a1 = inttoptr i64 %r.17 to ptr
+  %r.18 = call i64 @__nucleor_str_eq(ptr %r.18.a0, ptr %r.18.a1)
+  %r.19 = add i64 1, 0
+  %r.20.cmp = icmp eq i64 %r.18, %r.19
+  %r.20 = zext i1 %r.20.cmp to i64
+  %br.20.cond = icmp ne i64 %r.20, 0
+  br i1 %br.20.cond, label %L3, label %L5
 L3:
-  %r.23 = load i64, ptr %r.10
-  %r.24 = add i64 1, 0
-  %r.25 = add i64 %r.23, %r.24
-  store i64 %r.25, ptr %r.6
-  br label %L5
+  %r.21 = load i64, ptr %r.0
+  %r.22 = load i64, ptr %r.6
+  %r.23 = add i64 1, 0
+  %r.24 = add i64 %r.22, %r.23
+  %r.25 = load i64, ptr %r.4
+  %r.26.a0 = inttoptr i64 %r.21 to ptr
+  call void @__nucleor_vec_set(ptr %r.26.a0, i64 %r.24, i64 %r.25)
+  %r.26 = add i64 0, 0
+  %r.27 = add i64 0, 0
+  ret i64 %r.27
 L5:
-  %r.26 = load i64, ptr %r.10
-  %r.27 = add i64 2, 0
-  %r.28 = add i64 %r.26, %r.27
-  store i64 %r.28, ptr %r.10
+  %r.28 = load i64, ptr %r.6
+  %r.29 = add i64 2, 0
+  %r.30 = sub i64 %r.28, %r.29
+  store i64 %r.30, ptr %r.6
   br label %L0
 L2:
-  %r.29 = load i64, ptr %r.6
-  %r.30 = add i64 0, 0
-  %r.31.cmp = icmp sge i64 %r.29, %r.30
-  %r.31 = zext i1 %r.31.cmp to i64
-  %br.31.cond = icmp ne i64 %r.31, 0
-  br i1 %br.31.cond, label %L6, label %L8
-L6:
-  %r.32 = load i64, ptr %r.0
-  %r.33 = load i64, ptr %r.6
-  %r.34 = load i64, ptr %r.4
-  %r.35.a0 = inttoptr i64 %r.32 to ptr
-  call void @__nucleor_vec_set(ptr %r.35.a0, i64 %r.33, i64 %r.34)
-  %r.35 = add i64 0, 0
+  %r.31 = load i64, ptr %r.0
+  %r.32 = load i64, ptr %r.2
+  %r.33.a0 = inttoptr i64 %r.31 to ptr
+  call void @__nucleor_vec_push(ptr %r.33.a0, i64 %r.32)
+  %r.33 = add i64 0, 0
+  %r.34 = load i64, ptr %r.0
+  %r.35 = load i64, ptr %r.4
+  %r.36.a0 = inttoptr i64 %r.34 to ptr
+  call void @__nucleor_vec_push(ptr %r.36.a0, i64 %r.35)
   %r.36 = add i64 0, 0
-  ret i64 %r.36
-L8:
-  %r.37 = load i64, ptr %r.0
-  %r.38 = load i64, ptr %r.2
-  %r.39.a0 = inttoptr i64 %r.37 to ptr
-  call void @__nucleor_vec_push(ptr %r.39.a0, i64 %r.38)
-  %r.39 = add i64 0, 0
-  %r.40 = load i64, ptr %r.0
-  %r.41 = load i64, ptr %r.4
-  %r.42.a0 = inttoptr i64 %r.40 to ptr
-  call void @__nucleor_vec_push(ptr %r.42.a0, i64 %r.41)
-  %r.42 = add i64 0, 0
-  %r.43 = add i64 0, 0
-  ret i64 %r.43
+  %r.37 = add i64 0, 0
+  ret i64 %r.37
 }
 
 define i64 @own_put_s(i64 %p.0, i64 %p.1, i64 %p.2) {
 bb.entry:
   %r.6 = alloca i64
-  %r.10 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
@@ -77720,77 +77705,64 @@ bb.entry:
   %r.4 = alloca i64
   %r.5 = add i64 %p.2, 0
   store i64 %r.5, ptr %r.4
-  %r.7 = add i64 0, 0
-  %r.8 = add i64 1, 0
-  %r.9 = add i64 -1, 0
-  store i64 %r.9, ptr %r.6
-  %r.11 = add i64 0, 0
-  store i64 %r.7, ptr %r.10
+  %r.7 = load i64, ptr %r.0
+  %r.8.a0 = inttoptr i64 %r.7 to ptr
+  %r.8 = call i64 @__nucleor_vec_len(ptr %r.8.a0)
+  %r.9 = add i64 2, 0
+  %r.10 = sub i64 %r.8, %r.9
+  store i64 %r.10, ptr %r.6
   br label %L0
 L0:
-  %r.12 = load i64, ptr %r.10
-  %r.13 = load i64, ptr %r.0
-  %r.14.a0 = inttoptr i64 %r.13 to ptr
-  %r.14 = call i64 @__nucleor_vec_len(ptr %r.14.a0)
-  %r.15.cmp = icmp slt i64 %r.12, %r.14
-  %r.15 = zext i1 %r.15.cmp to i64
-  %br.15.cond = icmp ne i64 %r.15, 0
-  br i1 %br.15.cond, label %L1, label %L2
+  %r.11 = load i64, ptr %r.6
+  %r.12 = add i64 0, 0
+  %r.13.cmp = icmp sge i64 %r.11, %r.12
+  %r.13 = zext i1 %r.13.cmp to i64
+  %br.13.cond = icmp ne i64 %r.13, 0
+  br i1 %br.13.cond, label %L1, label %L2
 L1:
-  %r.16 = load i64, ptr %r.0
-  %r.17 = load i64, ptr %r.10
+  %r.14 = load i64, ptr %r.0
+  %r.15 = load i64, ptr %r.6
+  %r.16.a0 = inttoptr i64 %r.14 to ptr
+  %r.16 = call i64 @__nucleor_vec_get(ptr %r.16.a0, i64 %r.15)
+  %r.17 = load i64, ptr %r.2
   %r.18.a0 = inttoptr i64 %r.16 to ptr
-  %r.18 = call i64 @__nucleor_vec_get(ptr %r.18.a0, i64 %r.17)
-  %r.19 = load i64, ptr %r.2
-  %r.20.a0 = inttoptr i64 %r.18 to ptr
-  %r.20.a1 = inttoptr i64 %r.19 to ptr
-  %r.20 = call i64 @__nucleor_str_eq(ptr %r.20.a0, ptr %r.20.a1)
-  %r.21 = add i64 1, 0
-  %r.22.cmp = icmp eq i64 %r.20, %r.21
-  %r.22 = zext i1 %r.22.cmp to i64
-  %br.22.cond = icmp ne i64 %r.22, 0
-  br i1 %br.22.cond, label %L3, label %L5
+  %r.18.a1 = inttoptr i64 %r.17 to ptr
+  %r.18 = call i64 @__nucleor_str_eq(ptr %r.18.a0, ptr %r.18.a1)
+  %r.19 = add i64 1, 0
+  %r.20.cmp = icmp eq i64 %r.18, %r.19
+  %r.20 = zext i1 %r.20.cmp to i64
+  %br.20.cond = icmp ne i64 %r.20, 0
+  br i1 %br.20.cond, label %L3, label %L5
 L3:
-  %r.23 = load i64, ptr %r.10
-  %r.24 = add i64 1, 0
-  %r.25 = add i64 %r.23, %r.24
-  store i64 %r.25, ptr %r.6
-  br label %L5
+  %r.21 = load i64, ptr %r.0
+  %r.22 = load i64, ptr %r.6
+  %r.23 = add i64 1, 0
+  %r.24 = add i64 %r.22, %r.23
+  %r.25 = load i64, ptr %r.4
+  %r.26.a0 = inttoptr i64 %r.21 to ptr
+  call void @__nucleor_vec_set(ptr %r.26.a0, i64 %r.24, i64 %r.25)
+  %r.26 = add i64 0, 0
+  %r.27 = add i64 0, 0
+  ret i64 %r.27
 L5:
-  %r.26 = load i64, ptr %r.10
-  %r.27 = add i64 2, 0
-  %r.28 = add i64 %r.26, %r.27
-  store i64 %r.28, ptr %r.10
+  %r.28 = load i64, ptr %r.6
+  %r.29 = add i64 2, 0
+  %r.30 = sub i64 %r.28, %r.29
+  store i64 %r.30, ptr %r.6
   br label %L0
 L2:
-  %r.29 = load i64, ptr %r.6
-  %r.30 = add i64 0, 0
-  %r.31.cmp = icmp sge i64 %r.29, %r.30
-  %r.31 = zext i1 %r.31.cmp to i64
-  %br.31.cond = icmp ne i64 %r.31, 0
-  br i1 %br.31.cond, label %L6, label %L8
-L6:
-  %r.32 = load i64, ptr %r.0
-  %r.33 = load i64, ptr %r.6
-  %r.34 = load i64, ptr %r.4
-  %r.35.a0 = inttoptr i64 %r.32 to ptr
-  call void @__nucleor_vec_set(ptr %r.35.a0, i64 %r.33, i64 %r.34)
-  %r.35 = add i64 0, 0
+  %r.31 = load i64, ptr %r.0
+  %r.32 = load i64, ptr %r.2
+  %r.33.a0 = inttoptr i64 %r.31 to ptr
+  call void @__nucleor_vec_push(ptr %r.33.a0, i64 %r.32)
+  %r.33 = add i64 0, 0
+  %r.34 = load i64, ptr %r.0
+  %r.35 = load i64, ptr %r.4
+  %r.36.a0 = inttoptr i64 %r.34 to ptr
+  call void @__nucleor_vec_push(ptr %r.36.a0, i64 %r.35)
   %r.36 = add i64 0, 0
-  ret i64 %r.36
-L8:
-  %r.37 = load i64, ptr %r.0
-  %r.38 = load i64, ptr %r.2
-  %r.39.a0 = inttoptr i64 %r.37 to ptr
-  call void @__nucleor_vec_push(ptr %r.39.a0, i64 %r.38)
-  %r.39 = add i64 0, 0
-  %r.40 = load i64, ptr %r.0
-  %r.41 = load i64, ptr %r.4
-  %r.42.a0 = inttoptr i64 %r.40 to ptr
-  call void @__nucleor_vec_push(ptr %r.42.a0, i64 %r.41)
-  %r.42 = add i64 0, 0
-  %r.43 = add i64 0, 0
-  ret i64 %r.43
+  %r.37 = add i64 0, 0
+  ret i64 %r.37
 }
 
 define i64 @own_set(i64 %p.0, i64 %p.1, i64 %p.2) {

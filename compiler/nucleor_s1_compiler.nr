@@ -8344,25 +8344,26 @@ fn diag_emit_text_with_source(diags: Vec<i32>, source: str) -> i64 {
 // =====================================================
 fn own_new() -> Vec<i32> { return Vec::new(); }
 fn own_put_i(o: Vec<i32>, key: str, val: i64) -> i64 {
-    let mut slot: i64 = 0 - 1;
-    let mut i: i64 = 0;
-    while i < vec_len(o) {
-        if str_eq(vec_get(o, i), key) == 1 { slot = i + 1; };
-        i = i + 2;
+    // v0.3.221 perf: scan backward and break on first match. Pre-fix
+    // this scanned the WHOLE table every put even after finding a
+    // match -- O(N) per put regardless of position. Most puts hit
+    // the most recently set entry; backward scan finds it immediately.
+    let mut i: i64 = vec_len(o) - 2;
+    while i >= 0 {
+        if str_eq(vec_get(o, i), key) == 1 { vec_set(o, i + 1, val); return 0; };
+        i = i - 2;
     };
-    if slot >= 0 { vec_set(o, slot, val); return 0; };
     o.push(key);
     o.push(val);
     return 0;
 }
 fn own_put_s(o: Vec<i32>, key: str, val: str) -> i64 {
-    let mut slot: i64 = 0 - 1;
-    let mut i: i64 = 0;
-    while i < vec_len(o) {
-        if str_eq(vec_get(o, i), key) == 1 { slot = i + 1; };
-        i = i + 2;
+    // v0.3.221 perf: same backward-scan break-on-match optimization.
+    let mut i: i64 = vec_len(o) - 2;
+    while i >= 0 {
+        if str_eq(vec_get(o, i), key) == 1 { vec_set(o, i + 1, val); return 0; };
+        i = i - 2;
     };
-    if slot >= 0 { vec_set(o, slot, val); return 0; };
     o.push(key);
     o.push(val);
     return 0;
@@ -16890,7 +16891,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.220";
+    return "0.3.221";
 }
 
 fn compiler_backend_label() -> str {
