@@ -1,0 +1,15 @@
+{
+  "_comment": "Self-build perf baseline. Update via tools/check_perf_regression.ps1 -Update after intentional changes. Cold = full rebuild from scratch (Remove-Item .nuc_cache,target). Hot = immediate re-run with caches warm.",
+  "version_locked_at": "v0.3.221",
+  "locked_at_date": "2026-04-26",
+  "cold_self_build_seconds": 6.5,
+  "cold_max_allowed_seconds": 10.0,
+  "hot_self_build_seconds": 1.0,
+  "hot_max_allowed_seconds": 2.5,
+  "_history": [
+    {"version": "pre-v0.3.205", "cold_seconds": 4, "note": "estimated user recall"},
+    {"version": "v0.3.205-v0.3.219", "cold_seconds": 81, "note": "REGRESSION: strlen-in-str_substring; lost 13x"},
+    {"version": "v0.3.220", "cold_seconds": 6.1, "note": "REVERT: removed strlen from str_substring default"},
+    {"version": "v0.3.221", "cold_seconds": 6.3, "note": "ownership own_put scan break-on-match (marginal)"}
+  ]
+}

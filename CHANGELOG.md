@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.221] — 2026-04-26
+
+**Perf regression monitor + own_put early-exit + perf-pattern memo.**
+
+Three-part shipment after the v0.3.220 13x recovery:
+
+**(1) Perf regression monitor.** `tools/check_perf_regression.ps1`
+times cold + hot self-build and compares against a locked baseline
+in `tools/perf_baseline.json`. Default thresholds: cold ≤ 10s, hot
+≤ 2.5s. Exits nonzero on regression with diagnostic + likely-cause
+checklist. Updates baseline with `-Update` flag after intentional
+changes. Catches the v0.3.205 footgun pattern automatically going
+forward so a single one-line addition can't again silently 13x the
+compile time.
+
+**(2) `own_put_i` / `own_put_s` early-exit.** Pre-fix the ownership
+table put scanned the FULL table even after finding a match (no
+break). Fixed: backward scan with early-return on first match.
+Modest win on UPDATE puts (most-recently-set found in 1-2 iters);
+fresh-key inserts are still O(N) since there's no match to find
+early.
+
+**(3) Memo: `feedback_perf_regression_pattern.md`** documents the
+class of bug to watch for — ANY runtime helper that calls
+`strlen()`, `vec_len()`, or scans a parameter linearly is a
+candidate regression. Reviewers should diff each PR's runtime
+helpers for these patterns.
+
+Cold self-build: 6.5s (was 6.1s — slight regression from added
+helper instrumentation, well within threshold). Hot: 0.82s.
+
+Bootstrap fixed point at stage_d
+`30d6ea2dfaa4f3c49824181c9c0f701e4bba45f15f83a0d50422123554d6fb52`.
+452/452 verify PASS.
+
 ## [0.3.220] — 2026-04-26
 
 **13x compile-time perf recovery: cold self-build 81.5s → 6.3s.**
