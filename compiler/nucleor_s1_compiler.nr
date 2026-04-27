@@ -16742,7 +16742,16 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
                 fi = fi + 1;
             };
             if recv_ok == 1 && field_ok == 1 {
-                let recv_type: str = type_base_name(infer_var_type_from_source(src, recv_str));
+                // v0.4.13: when the receiver isn't a let-bound local
+                // (returns "" from infer_var_type_from_source), fall
+                // back to the pattern-binding helper -- catches the
+                // `match Some(g) => println!("{}", g.message)` shape
+                // where g came from an Option<MyStruct> Some payload.
+                let mut recv_full: str = infer_var_type_from_source(src, recv_str);
+                if str_len(recv_full) == 0 {
+                    recv_full = infer_pattern_binding_type_from_source(src, recv_str);
+                };
+                let recv_type: str = type_base_name(recv_full);
                 if str_len(recv_type) > 0 {
                     let field_type: str = type_base_name(infer_struct_field_type_from_source(src, recv_type, field_str));
                     if str_eq(field_type, "str") == 1 { return arg_expr; };
@@ -17431,7 +17440,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.12";
+    return "0.4.13";
 }
 
 fn compiler_backend_label() -> str {

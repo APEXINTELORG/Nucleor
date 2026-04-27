@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 108 # +1 T1.8, +4 §A/§B/§C/stress, +3 §F/§D/§H, +1 §G, +1 Option<str> bind (v0.4.4), +1 .nucprov (v0.4.5), +1 extern-redecl-diag (v0.4.6), +1 verify-reproducible (v0.4.7), +1 Option<str> macro (v0.4.9), +1 Option<MyStruct> bare-ident (v0.4.11), +1 field-access scrutinee (v0.4.12)
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 109 # +1 T1.8, +4 §A/§B/§C/stress, +3 §F/§D/§H, +1 §G, +6 Option/Result/format chain (v0.4.4-4.13)
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1304,6 +1304,21 @@ Step "RFC-NRT-001: .nucprov section present in built binary (empty default)" {
     if (-not $llvmReadObj) { return $true }   # skip the section check if the tool isn't present
     $out = & $llvmReadObj --sections "target\_t477_check.exe" 2>&1 | Out-String
     if ($out -notmatch "\.nucprov") { return $false }
+    return $true
+}
+
+Step "println of struct field on Some(g) payload binding -- format dispatch" {
+    # v0.4.13: pattern-binding fallback in fmt_conversion_for_spec's
+    # field-access branch. Pre-fix: println!("{}", g.message) for
+    # str field on a Some(g) binding printed the raw pointer.
+    & $bin build "tests/fixtures/t482_format_field_access_payload_binding.nr" -o "_t482_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t482_check.exe") { $exe = "target\_t482_check.exe" }
+    elseif (Test-Path "target\_t482_check") { $exe = "target\_t482_check" }
+    if (-not $exe) { return $false }
+    $out = & $exe 2>&1 | Out-String
+    if ($out -notmatch "severity=7") { return $false }
+    if ($out -notmatch "message=missing capability") { return $false }
     return $true
 }
 

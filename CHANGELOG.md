@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.13] — 2026-04-27
+
+**Format-macro field-access dispatch on pattern bindings — closes
+the println side of v0.4.11/4.12.**
+
+The lowering side of `Option<MyStruct>` propagation landed in
+v0.4.11 (bare-ident scrutinee) and v0.4.12 (field-access scrutinee).
+This release closes the matching format-macro dispatch:
+
+```nucleor
+match w.gap {
+    None => println!("no gap"),
+    Some(g) => {
+        println!("severity={}", g.severity);   // worked since v0.4.11
+        println!("message={}", g.message);     // FIXED v0.4.13
+    },
+};
+```
+
+Pre-v0.4.13: `println!("{}", g.message)` printed the raw string
+pointer (`140697...`) because `fmt_conversion_for_spec`'s field-
+access dispatch only consulted `infer_var_type_from_source` (which
+returns "" for pattern-bound variables -- they're not declared via
+`let X: T`).
+
+v0.4.13: when the receiver-type lookup misses, fall back to
+`infer_pattern_binding_type_from_source` (the v0.4.9 helper that
+walks back to `match <scrutinee>` and extracts T from the
+scrutinee's declared `Option<T>` / `Result<T,E>`). The receiver
+type is then used by `infer_struct_field_type_from_source` to
+look up the field's actual type, dispatching the format helper
+correctly (str → no-conversion / f64/f32 → f-to-str / bool →
+bool-to-str / int → int default).
+
+### Pinned regression
+
+`tests/fixtures/t482_format_field_access_payload_binding.nr`
+exercises both `g.severity` (i64) and `g.message` (str) field-
+access println calls on a Some(g) binding, asserting both
+output lines.
+
+Bootstrap fixed point preserved (c == d both IR AND EXE byte-
+identical). Verify gate 469/469.
+
 ## [0.4.12] — 2026-04-27
 
 **Field-access scrutinee for `match s.field { Some(g) => ... }`
