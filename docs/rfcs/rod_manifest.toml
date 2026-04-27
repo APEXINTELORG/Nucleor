@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 226
+# Total rods: 227
 # Total fn definitions: 2126
-# Total LOC: 9409
+# Total LOC: 9425
 
 [[rod]]
 name           = "activation2"
@@ -1041,10 +1041,19 @@ imports        = ["math"]
 name           = "math_typed"
 path           = "stdlib/rods/math_typed.nr"
 description    = "Typed f64 elementary math wrappers (NUC-IMPROVE-005)"
-function_count = 15
+function_count = 7
 cfile_count    = 0
-loc            = 29
-imports        = ["math_typed"]
+loc            = 21
+imports        = ["math_typed", "math_typed_special"]
+
+[[rod]]
+name           = "math_typed_special"
+path           = "stdlib/rods/math_typed_special.nr"
+description    = "Typed f64 special functions (NUC-IMPROVE-007)"
+function_count = 8
+cfile_count    = 0
+loc            = 24
+imports        = ["math_typed", "math_typed_special"]
 
 [[rod]]
 name           = "mecanum"

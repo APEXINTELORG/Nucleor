@@ -1,4 +1,7 @@
 // t467_special_functions.nr -- v0.3.230 NUC-IMPROVE-007 fixture.
+// v0.3.232 NUC-FEEDBACK-011: import path moved to the new
+// `math_typed_special.nr` rod (split out of math_typed.nr so the
+// base typed-math rod stays importable without v0.3.230+ helpers).
 //
 // Typed special functions for exact SciPy stats parity:
 //   erf, erfc, lgamma, gamma, betainc (regularized incomplete beta),
@@ -16,7 +19,7 @@
 //   norm_cdf(1.96) ≈ 0.97500210  (the classic 95% CI bound)
 //   student_t_sf2(2.0, df=10) ≈ 0.07338  (two-sided p for t=2 at df=10)
 
-import "stdlib/rods/math_typed.nr"
+import "stdlib/rods/math_typed_special.nr"
 
 fn main() -> i64 {
     println!("{}", erf_f64(0.0));            // 0

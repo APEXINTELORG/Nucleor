@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.232] — 2026-04-27
+
+**NUC-FEEDBACK-011 (ML_Suite): split out special-function
+wrappers so importing `math_typed.nr` doesn't require a
+v0.3.230+ compiler.**
+
+The v0.3.230 release added typed wrappers for the SciPy-style
+special functions (`erf_f64`, `lgamma_f64`, `betainc_f64`,
+`student_t_sf2_f64`, `norm_cdf_f64`, etc) directly inside
+`stdlib/rods/math_typed.nr`. The wrappers' bodies call
+`f64_erf` / `f64_betainc` / etc — runtime helpers whose
+`get_rt_name` mappings landed in the same release.
+
+Adopters running an older `bin/nucleor.exe` (< v0.3.230) and
+upgrading their stdlib (or tracking `main`) hit clang link
+errors of the form `use of undefined value '@f64_erf'`
+*even when their program never called the special wrappers* —
+the wrapper bodies were emitted as part of the rod and the
+old compiler couldn't rename the bare-helper calls.
+
+Fix in v0.3.232: the eight special-function wrappers move to
+a new opt-in rod `stdlib/rods/math_typed_special.nr`. The
+base `math_typed.nr` rod returns to the v0.3.229 surface
+(sqrt / exp / log / tanh / sin / cos / pow only) so importing
+it stays compatible with pre-v0.3.230 compilers. Adopters who
+want erf / lgamma / betainc / etc add a second import:
+
+```nucleor
+import "stdlib/rods/math_typed.nr"
+import "stdlib/rods/math_typed_special.nr"   // requires bin >= v0.3.230
+```
+
+Probe `tests/fixtures/probe_math_typed_only.nr` confirms the
+emitted IR for an `import "stdlib/rods/math_typed.nr"`-only
+program no longer references any `f64_erf` / `f64_betainc` /
+`f64_lgamma` / `f64_norm*` symbols. Fixture
+`tests/fixtures/t467_special_functions.nr` is rewired to the
+new opt-in rod and continues to produce the SciPy reference
+values exactly (erf(1)≈0.842701, lgamma(5)≈3.17805,
+gamma(5)=24, norm_cdf(1.96)≈0.97500, student_t_sf2(2,10)≈0.07338).
+
+No compiler / runtime / s1 source changes — rod-only refactor
+plus rod_manifest.toml regen. Bootstrap fixed point preserved
+(stage_b == stage_c == stage_d byte-identical).
+Verify gate 453/453.
+
 ## [0.3.231] — 2026-04-27
 
 **RFC-NRT-004 (Nucleor_Translate) regression-pin: recursive
