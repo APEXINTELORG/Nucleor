@@ -666,8 +666,13 @@ const char *__nucleor_int_to_oct(long long v) {
 // Parsers tolerate leading whitespace, optional sign, and the standard
 // "0x" / "0X" / "0b" / "0B" / "0o" / "0O" prefixes when radix matches.
 // Returns 0 on completely-malformed input.
+// v0.3.225: same overflow check as v0.3.217's str_to_i64. Pre-fix
+// `v = v * radix + digit` silently wrapped past i64::MAX on hostile
+// input. Now panic with offending input. NUCLEOR_INT_STRICT_ARITH=0
+// opts back into legacy wrap.
 long long __nucleor_str_to_i64_radix(const char *s, long long radix) {
     if (!s || radix < 2 || radix > 36) return 0;
+    const char *orig = s;
     while (*s == ' ' || *s == '\t' || *s == '\n' || *s == '\r') s++;
     int neg = 0;
     if (*s == '-') { neg = 1; s++; }
@@ -678,6 +683,7 @@ long long __nucleor_str_to_i64_radix(const char *s, long long radix) {
     else if (s[0] == '0' && (s[1] == 'o' || s[1] == 'O') && radix == 8) s += 2;
     long long v = 0;
     int saw = 0;
+    int overflow = 0;
     while (*s) {
         long long digit;
         if (*s >= '0' && *s <= '9') digit = (long long)(*s - '0');
@@ -685,11 +691,19 @@ long long __nucleor_str_to_i64_radix(const char *s, long long radix) {
         else if (*s >= 'A' && *s <= 'Z') digit = (long long)(*s - 'A' + 10);
         else break;
         if (digit >= radix) break;
+        if (v > (LLONG_MAX - digit) / radix) overflow = 1;
         v = v * radix + digit;
         saw = 1;
         s++;
     }
     if (!saw) return 0;
+    if (overflow) {
+        const char *e = getenv("NUCLEOR_INT_STRICT_ARITH");
+        if (!e || e[0] != '0') {
+            fprintf(stderr, "PANIC: str_to_i64_radix overflow: input '%s' radix %lld exceeds i64 range (set NUCLEOR_INT_STRICT_ARITH=0 to suppress)\n", orig, radix);
+            fflush(stderr); exit(1);
+        }
+    }
     return neg ? -v : v;
 }
 long long __nucleor_parse_hex(const char *s) {

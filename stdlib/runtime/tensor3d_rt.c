@@ -33,13 +33,35 @@ static void t3_compute_strides(Tensor3D *t) {
     t->total = t->strides[0] * t->shape[0];
 }
 
+// v0.3.225: same overflow PANIC class as v0.3.223's tensor_zeros.
+// (int) cast truncated >= 2^31 to negative, t->total signed-int
+// product overflowed, calloc with negative -> garbage. Now: validate
+// each dim non-negative + i32-fits, and check d1*d2*d3 fits in
+// signed int total.
+static void _check_t3_dims(long long d1, long long d2, long long d3) {
+    if (d1 < 0 || d2 < 0 || d3 < 0) {
+        fprintf(stderr, "PANIC: nuc_t3_new: negative dim (%lld, %lld, %lld)\n", d1, d2, d3);
+        fflush(stderr); exit(1);
+    }
+    if (d1 > 2147483647LL || d2 > 2147483647LL || d3 > 2147483647LL) {
+        fprintf(stderr, "PANIC: nuc_t3_new: dim exceeds i32 (%lld, %lld, %lld)\n", d1, d2, d3);
+        fflush(stderr); exit(1);
+    }
+    /* Total fits in signed int? */
+    if (d1 > 0 && d2 > 0 && d3 > (long long)(2147483647LL / (d1 * d2))) {
+        fprintf(stderr, "PANIC: nuc_t3_new: total elements %lld * %lld * %lld exceeds i32\n", d1, d2, d3);
+        fflush(stderr); exit(1);
+    }
+}
+
 // Create 3D tensor
 long long nuc_t3_new(long long d1, long long d2, long long d3) {
+    _check_t3_dims(d1, d2, d3);
     Tensor3D *t = (Tensor3D *)calloc(1, sizeof(Tensor3D));
     t->ndim = 3;
     t->shape[0] = (int)d1; t->shape[1] = (int)d2; t->shape[2] = (int)d3;
     t3_compute_strides(t);
-    t->data = (double *)calloc(t->total, sizeof(double));
+    t->data = (double *)calloc((size_t)t->total, sizeof(double));
     return (long long)t;
 }
 
