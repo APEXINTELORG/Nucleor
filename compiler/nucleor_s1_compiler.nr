@@ -15674,6 +15674,172 @@ fn fmt_strip_outer_quotes(s: str) -> str {
 // Also requires the matched `let` to be followed by a TYPE (not
 // elision via `let x = ...;` without a type annotation) so we never
 // invent a type out of thin air.
+// v0.4.9: companion to infer_var_type_from_source. Scans src for
+// match-arm pattern bindings of the form `Some(<var_name>)`,
+// `Ok(<var_name>)`, `Err(<var_name>)`. When found, walks back to
+// the enclosing `match <scrutinee>`, infers the scrutinee's type
+// via infer_var_type_from_source, and extracts the generic parameter
+// (T from Option<T>, T from Result<T, E> for Ok, E for Err).
+//
+// Returns "" if no match or the scrutinee type isn't recognized.
+//
+// This closes the println!/format! gap for typed Option/Result
+// payload bindings: `match x { Some(s) => println!("{}", s) }`
+// where `x: Option<str>` previously printed the raw pointer
+// integer because the source-scanner couldn't find `let s: T = ...`
+// (s is bound by a pattern, not a let). The non-macro path
+// (let-assign / str_eq / field access) was closed in v0.4.4.
+fn infer_pattern_binding_type_from_source(src: str, var_name: str) -> str {
+    let slen: i64 = str_len(src);
+    let vlen: i64 = str_len(var_name);
+    if vlen == 0 || slen < 8 { return ""; };
+    // Look for occurrences of "Some(<var_name>)" / "Ok(<var_name>)"
+    // / "Err(<var_name>)". Identifier-aware: char before the first
+    // letter must not be alpha/digit/underscore, and the closing `)`
+    // must immediately follow var_name (no extra args).
+    let mut i: i64 = 0;
+    while i + 6 < slen {
+        let mut variant_len: i64 = 0;
+        let mut variant: str = "";
+        // "Some(" = 83,111,109,101,40
+        if str_char_at(src, i) == 83 && str_char_at(src, i+1) == 111 && str_char_at(src, i+2) == 109 && str_char_at(src, i+3) == 101 && str_char_at(src, i+4) == 40 {
+            variant = "Some"; variant_len = 5;
+        };
+        // "Ok(" = 79,107,40
+        if variant_len == 0 && i + 3 < slen && str_char_at(src, i) == 79 && str_char_at(src, i+1) == 107 && str_char_at(src, i+2) == 40 {
+            variant = "Ok"; variant_len = 3;
+        };
+        // "Err(" = 69,114,114,40
+        if variant_len == 0 && i + 4 < slen && str_char_at(src, i) == 69 && str_char_at(src, i+1) == 114 && str_char_at(src, i+2) == 114 && str_char_at(src, i+3) == 40 {
+            variant = "Err"; variant_len = 4;
+        };
+        if variant_len > 0 {
+            // Boundary check: char before `Some/Ok/Err` must not be id-continue.
+            let mut bdry_ok: i64 = 1;
+            if i > 0 {
+                let pc: i64 = str_char_at(src, i - 1);
+                if (pc >= 65 && pc <= 90) || (pc >= 97 && pc <= 122) || (pc >= 48 && pc <= 57) || pc == 95 { bdry_ok = 0; };
+            };
+            if bdry_ok == 1 {
+                let p: i64 = i + variant_len;
+                // Match var_name immediately after `(`
+                let mut k: i64 = 0;
+                let mut nm_match: i64 = 1;
+                while k < vlen {
+                    if p + k >= slen || str_char_at(src, p + k) != str_char_at(var_name, k) { nm_match = 0; k = vlen; };
+                    k = k + 1;
+                };
+                if nm_match == 1 {
+                    // Must be followed immediately by `)` (so we know we
+                    // matched the whole binding name, not a prefix of a
+                    // longer one or a multi-arg pattern).
+                    let after: i64 = p + vlen;
+                    if after < slen && str_char_at(src, after) == 41 {
+                        // Walk back to find the enclosing `match <expr> {`.
+                        // Look for "match " keyword. This is a heuristic
+                        // limited-by-design: if the source structure is
+                        // weird (commented match, nested matches), we may
+                        // pick the wrong scrutinee. False positives here
+                        // produce a wrong type guess; the failure mode is
+                        // a wrong format helper which prints differently
+                        // than expected. Conservative bound: scan back
+                        // at most 2KB; if no `match ` found, give up.
+                        let scan_back_limit: i64 = if i > 2048 { i - 2048 } else { 0 };
+                        let mut j: i64 = i - 1;
+                        let mut match_at: i64 = 0 - 1;
+                        while j >= scan_back_limit {
+                            // "match " = 109,97,116,99,104,32
+                            if j + 5 < slen && str_char_at(src, j) == 109 && str_char_at(src, j+1) == 97 && str_char_at(src, j+2) == 116 && str_char_at(src, j+3) == 99 && str_char_at(src, j+4) == 104 && str_char_at(src, j+5) == 32 {
+                                // Boundary: char before `match` must not be id-continue.
+                                let mut mb_ok: i64 = 1;
+                                if j > 0 {
+                                    let mpc: i64 = str_char_at(src, j - 1);
+                                    if (mpc >= 65 && mpc <= 90) || (mpc >= 97 && mpc <= 122) || (mpc >= 48 && mpc <= 57) || mpc == 95 { mb_ok = 0; };
+                                };
+                                if mb_ok == 1 { match_at = j; j = scan_back_limit - 1; };
+                            };
+                            j = j - 1;
+                        };
+                        if match_at >= 0 {
+                            // Read the scrutinee identifier after "match ".
+                            let mut sp: i64 = match_at + 6;
+                            // Skip whitespace.
+                            while sp < slen && str_char_at(src, sp) == 32 { sp = sp + 1; };
+                            // Read identifier (letters / digits / `_`). Field-access
+                            // scrutinees (`x.alias`) are not handled in v1 -- bail.
+                            let scrut_start: i64 = sp;
+                            let mut scrut_end: i64 = sp;
+                            let mut keep_scan: i64 = 1;
+                            while keep_scan == 1 && scrut_end < slen {
+                                let sc: i64 = str_char_at(src, scrut_end);
+                                let id_cont: i64 = if (sc >= 65 && sc <= 90) || (sc >= 97 && sc <= 122) || (sc >= 48 && sc <= 57) || sc == 95 { 1 } else { 0 };
+                                if id_cont == 1 { scrut_end = scrut_end + 1; }
+                                else { keep_scan = 0; };
+                            };
+                            if scrut_end > scrut_start {
+                                let scrut_name: str = str_substring(src, scrut_start, scrut_end);
+                                // If next non-space char is `.`, this is field access -- bail
+                                // (v1 doesn't handle struct-field scrutinees).
+                                let mut tp: i64 = scrut_end;
+                                while tp < slen && str_char_at(src, tp) == 32 { tp = tp + 1; };
+                                if tp < slen && str_char_at(src, tp) == 46 { return ""; };
+                                let scrut_full_type: str = infer_var_type_from_source(src, scrut_name);
+                                if str_len(scrut_full_type) > 0 {
+                                    // Extract generic parameter T from Option<T>
+                                    // / Result<T, E>. We just want the FIRST type
+                                    // parameter for Some/Ok, the SECOND for Err.
+                                    let stl: i64 = str_len(scrut_full_type);
+                                    let mut lt_at: i64 = 0 - 1;
+                                    let mut sj: i64 = 0;
+                                    while sj < stl {
+                                        if str_char_at(scrut_full_type, sj) == 60 { lt_at = sj; sj = stl; };
+                                        sj = sj + 1;
+                                    };
+                                    if lt_at >= 0 {
+                                        let base: str = str_substring(scrut_full_type, 0, lt_at);
+                                        let inside_start: i64 = lt_at + 1;
+                                        let inside_end: i64 = if str_char_at(scrut_full_type, stl - 1) == 62 { stl - 1 } else { stl };
+                                        let inside: str = str_substring(scrut_full_type, inside_start, inside_end);
+                                        if str_eq(base, "Option") == 1 && str_eq(variant, "Some") == 1 {
+                                            return type_base_name(inside);
+                                        };
+                                        if str_eq(base, "Result") == 1 {
+                                            // Split inside on `,` to get T and E.
+                                            let inlen: i64 = str_len(inside);
+                                            let mut comma_at: i64 = 0 - 1;
+                                            let mut depth_lt: i64 = 0;
+                                            let mut ck: i64 = 0;
+                                            while ck < inlen {
+                                                let cc: i64 = str_char_at(inside, ck);
+                                                if cc == 60 { depth_lt = depth_lt + 1; };
+                                                if cc == 62 { depth_lt = depth_lt - 1; };
+                                                if cc == 44 && depth_lt == 0 { comma_at = ck; ck = inlen; };
+                                                ck = ck + 1;
+                                            };
+                                            if comma_at > 0 {
+                                                let t_part_raw: str = str_substring(inside, 0, comma_at);
+                                                let mut e_start: i64 = comma_at + 1;
+                                                while e_start < inlen && str_char_at(inside, e_start) == 32 { e_start = e_start + 1; };
+                                                let e_part_raw: str = str_substring(inside, e_start, inlen);
+                                                if str_eq(variant, "Ok") == 1 { return type_base_name(t_part_raw); };
+                                                if str_eq(variant, "Err") == 1 { return type_base_name(e_part_raw); };
+                                            } else {
+                                                if str_eq(variant, "Ok") == 1 { return type_base_name(inside); };
+                                            };
+                                        };
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        i = i + 1;
+    };
+    return "";
+}
+
 // v0.3.158: companion to infer_var_type_from_source. Scans src for
 // `fn <name>(...) -> TYPE` declarations and returns TYPE if every
 // matching fn agrees. Same conflict-detection as the var version.
@@ -16285,6 +16451,19 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
             if str_eq(inferred, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
             if str_eq(inferred, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
             if str_eq(inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+            // v0.4.9: pattern-binding fallback. If `let X: T = ...`
+            // didn't find anything, the binding may come from a
+            // match arm pattern (Some(s), Ok(s), Err(s)). Walk back
+            // to the enclosing `match <scrutinee>` and infer T from
+            // the scrutinee's declared Option<T> / Result<T,E>.
+            if str_len(inferred) == 0 {
+                let pat_inferred: str = infer_pattern_binding_type_from_source(src, arg_expr);
+                if str_eq(pat_inferred, "str") == 1 { return arg_expr; };
+                if str_eq(pat_inferred, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+                if str_eq(pat_inferred, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
+                if str_eq(pat_inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+                // i*-typed bindings fall through to int_to_str default.
+            };
             // i8/i16/i32/i64/etc fall through to int_to_str (default).
         };
         // v0.3.158: also try to detect fn-call shape `<ident>(...)` and
@@ -17188,7 +17367,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.8";
+    return "0.4.9";
 }
 
 fn compiler_backend_label() -> str {

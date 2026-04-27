@@ -5,6 +5,88 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.9] — 2026-04-27
+
+**Format-macro pattern-binding inference for `Some(s)` / `Ok(s)` /
+`Err(e)` (closes Translate SPEC-1.5/1.6 macro-path wishlist).**
+
+The Translate team's PROGRESS.md explicitly flagged this as still
+pending after v0.4.4 closed the non-macro Option<str> path. Their
+`IrImport.alias: Option<str>` migration works in let-assign / str_eq
+contexts but `println!("{}", s)` still printed the raw pointer
+because format-macro expansion happens at SOURCE level (before
+lowering) and `infer_var_type_from_source` only scans for
+`let X: T = ...` patterns -- it can't see match-arm bindings.
+
+### What v0.4.9 ships
+
+New helper `infer_pattern_binding_type_from_source(src, var_name)`
+scans the source for `Some(<var_name>)` / `Ok(<var_name>)` /
+`Err(<var_name>)` patterns. When found, walks back to the enclosing
+`match <scrutinee> {`, extracts the scrutinee identifier (bare-
+ident only in v1; field-access scrutinees bail), looks up its
+type via `infer_var_type_from_source`, and extracts the generic
+parameter:
+
+- `Option<T>` + `Some(s)` → T
+- `Result<T, E>` + `Ok(s)` → T
+- `Result<T, E>` + `Err(e)` → E
+
+Wired into `fmt_conversion_for_spec` as a fallback after
+`infer_var_type_from_source` returns "" (no `let X: T` found).
+Conservative-by-construction: only fires when the binding's name
+appears in a recognized variant pattern AND the scrutinee is a
+bare-ident with a parseable Option/Result type AND the generic
+parameter is one of the recognized format types (str / f64 / f32 /
+bool). Anything else falls through to the int_to_str default
+unchanged.
+
+### Examples that now work
+
+```nucleor
+fn main() -> i64 {
+    let alias: Option<str> = Some("hello");
+    match alias {
+        None => println!("alias: <none>"),
+        Some(s) => println!("alias: {}", s),     // prints "alias: hello"
+    };
+    let result: Result<i64, str> = Err("bad input");
+    match result {
+        Ok(v) => println!("ok: {}", v),
+        Err(e) => println!("err: {}", e),         // prints "err: bad input"
+    };
+    return 0;
+}
+```
+
+### What's still deferred
+
+Generic Option<T> / Result<T,E> for non-str types beyond the
+Option<str>/Result<*,str> sweet spot was actually the original
+v0.4.4 hardcoded-default's limitation. v0.4.9 already extends to
+the FULL Option<T>/Result<T,E> generic for the format-macro path
+(see the helper -- it returns the actual T/E from the scrutinee's
+declared type). The runtime `__type_<binding>` write in
+match_bind_payloads_per_idx still has the hardcoded "str" default
+for Some/Err -- a focused 0.4.x cycle could plumb the scrutinee
+type through to that lowering site too. For now: macros work
+generically, lowering still needs the hardcoded path for non-str
+in match-arm bodies.
+
+Field-access scrutinees (`match self.alias { Some(s) => ... }`)
+also bail in v1 -- the helper requires the scrutinee to be a
+bare identifier with a `let X: Option<T>` declaration. Field-typed
+scrutinees need the helper to walk struct field declarations,
+queued for follow-up.
+
+### Pinned regression
+
+`tests/fixtures/t479_option_str_macro_println.nr` exercises both
+Some(s) and Err(e) via `println!`; verify-gate Step asserts both
+output lines.
+
+Bootstrap fixed point preserved (c == d). Verify gate 466/466.
+
 ## [0.4.8] — 2026-04-27
 
 **RFC-NRT-002 v1 — `nuc tools install / uninstall / list / home`
