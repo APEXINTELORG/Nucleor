@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.14] — 2026-04-27
+
+**Scope-local scrutinee inference + multi-occurrence conflict
+detection (closes 3/4 of a hazard-sweep probe).**
+
+A 4-hazard probe sweep against v0.4.13 surfaced two related issues
+in `infer_pattern_binding_type_from_source`:
+
+1. **Common-name conflict** — when the scrutinee variable has a
+   common name like `s` / `r` / `x`, the bundled source has many
+   `let s: T = ...` declarations across imports, and the global
+   `infer_var_type_from_source` returns "" on conflict-detection.
+   Pattern-binding helper then fell through to the v0.4.4
+   hardcoded "str" default, which produced a wrong-type guess and
+   ultimately a panic during field-access lowering for non-str
+   payload types.
+
+2. **Multi-occurrence ambiguity** — when the same binding name
+   appears in multiple match arms with different scrutinee types
+   (e.g., `Some(v)` for `Option<i64>` AND for `Option<f64>`), the
+   helper picked the first occurrence and miscompiled the second.
+
+### Fixes
+
+**Bounded backward `let X: T` scanner** (new helper
+`infer_var_type_local_back`): scans backward from the match
+position for the most-recent `let <scrut_name>: T`, limited to
+~4 KB. The closest scope-local declaration wins -- which is what
+shadowing semantics actually resolve to. Used for both bare-ident
+and field-access scrutinee paths.
+
+**ALL-occurrences conflict detection** in
+`infer_pattern_binding_type_from_source`: instead of returning the
+first-found type, accumulate candidate types across all
+`Some(<name>)` / `Ok(<name>)` / `Err(<name>)` occurrences in
+source. If any two disagree, return "" (conservative -- format
+dispatches to int_to_str default rather than guessing wrong).
+
+### What this closes
+
+Pinned by `tests/fixtures/t483_format_macro_scope_local_inference.nr`
+exercising:
+- `format!("got {} {}", g.severity, g.message)` where `g` came from
+  `match s.gap_report { Some(g) => ... }` and `s: PipelineSuccess`
+  is a common-name local
+- `format!("error: {}", e)` where `e` came from `match r {
+  Err(e) => ... }` and `r: Result<i64, str>`
+- `format!("vi={}", vi)` where `vi: i64` came from
+  `match xi { Some(vi) => ... }`
+
+### Known limitation (deferred)
+
+When a binding name is reused across match arms with different
+scrutinee types (e.g., the same binding `v` for `Option<i64>` AND
+`Option<f64>` in two different fns), the conflict-detector returns
+"" and the format-macro dispatches to int_to_str default --
+printing the bit pattern as int for the f64 case. Adopters should
+disambiguate binding names (e.g., `vi` vs `vf`). A position-aware
+helper is the proper fix; queued.
+
+Bootstrap fixed point preserved (c == d byte-identical IR + EXE).
+Verify gate 470/470.
+
 ## [0.4.13] — 2026-04-27
 
 **Format-macro field-access dispatch on pattern bindings — closes
