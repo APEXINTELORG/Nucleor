@@ -1754,6 +1754,18 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             cp = expect_tok(tokens, cp, 44);
             if pk(tokens, cp) == 53 { break; };
         };
+        // v0.4.1 RFC-NRT-004 §D: optional `pub` field-visibility
+        // qualifier. Pre-fix the parser misread `pub x: i64` as a
+        // top-level `pub` item nested inside the struct body and
+        // crashed with cascading "statement-level keyword at module
+        // scope" errors followed by AST corruption (segfault on
+        // some hosts). Nucleor's current visibility model treats
+        // all struct fields as accessible from importing modules
+        // regardless of field-level pub, so the qualifier is parsed
+        // and discarded for now (matching Rust shape; field-private
+        // enforcement can land later without breaking existing
+        // sources).
+        if pk(tokens, cp) == 72 { cp = cp + 1; };
         let fn2: i64 = pkv(tokens, cp); cp = expect_tok(tokens, cp + 1, 42);
         let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
         fields.push(mk3(pool, 41, fn2, pr_val(tr)));
@@ -5478,8 +5490,42 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
     sb_append(sb, emit_externs());
     sb_append(sb, emit_user_externs(pool, externs));
     sb_append(sb, emit_str_constants(strtab));
+    // v0.4.1 RFC-NRT-004 §H: detect same-name pub fn collisions across
+    // imported modules BEFORE clang sees the IR. Pre-fix, two modules
+    // both declaring `pub fn error_kind_to_str` (with different param
+    // types -- structural typing erases that at IR level) emitted two
+    // `define i64 @error_kind_to_str(...)` blocks; clang failed with
+    // `invalid redefinition of function`. The diagnostic landed in
+    // clang's compile log, far away from the actual culprits. Now we
+    // catch it at compile time with a precise message naming the
+    // duplicate symbol; user can resolve by renaming one definition
+    // (already the recommended naming convention).
+    let mut seen_fns: Vec<i32> = Vec::new();
     let mut fi: i64 = 0;
-    while fi < vec_len(fns) { sb_append(sb, emit_fn(vec_get(fns, fi), pool, externs)); sb_append(sb, "\n"); fi = fi + 1; };
+    while fi < vec_len(fns) {
+        let f: Vec<i32> = vec_get(fns, fi);
+        let fn_name: str = ir_fn_name(f);
+        // skip empty / generated names (they get unique numeric suffixes)
+        if str_len(fn_name) > 0 && str_eq(fn_name, "main") == 0 {
+            let mut sj: i64 = 0;
+            while sj < vec_len(seen_fns) {
+                if str_eq(vec_get(seen_fns, sj), fn_name) == 1 {
+                    print(str_concat("ERROR: duplicate top-level fn name '", str_concat(fn_name, "'")));
+                    print("  Two modules in this compile unit both declare a `pub fn` with");
+                    print("  this name. Nucleor emits one LLVM `define @<name>` per fn and");
+                    print("  doesn't namespace by source module, so the link fails.");
+                    print("  Workaround: rename one of the definitions (convention");
+                    print("  `<module>_<fn>`, e.g. `config_error_kind_to_str` /");
+                    print("  `pipeline_error_kind_to_str`) until module-prefixed lowering");
+                    print("  lands in a future release (RFC-NRT-004 §H).");
+                    panic(str_concat("duplicate pub fn name across modules: ", fn_name));
+                };
+                sj = sj + 1;
+            };
+            seen_fns.push(fn_name);
+        };
+        sb_append(sb, emit_fn(f, pool, externs)); sb_append(sb, "\n"); fi = fi + 1;
+    };
     return sb_to_str(sb);
 }
 
@@ -13813,6 +13859,28 @@ fn parent_dir(path: str) -> str {
     return extract_dir(trimmed);
 }
 
+// v0.4.1 RFC-NRT-004 §E: rewrite leading `/<drive>/...` (POSIX-form
+// drive path inherited from a bash/MSYS2 parent) to `<drive>:/...`
+// so Win32 file APIs accept it. No-op for paths that don't match
+// that exact shape -- POSIX hosts pass through unchanged, and any
+// path already in Windows form (e.g. "C:/...") is left alone.
+fn posix_drive_to_windows(p: str) -> str {
+    let n: i64 = str_len(p);
+    if n < 3 { return p; };
+    if str_char_at(p, 0) != 47 { return p; };  // not leading '/'
+    let drive: i64 = str_char_at(p, 1);
+    let lower_drive: i64 = if drive >= 65 && drive <= 90 { drive + 32 } else { drive };
+    if lower_drive < 97 || lower_drive > 122 { return p; };  // not [a-z]
+    if str_char_at(p, 2) != 47 { return p; };  // no slash after drive
+    // Build "<drive>:" + rest (rest starts at index 2, the second slash)
+    let mut sb: i64 = sb_new();
+    sb_append_char(sb, lower_drive);
+    sb_append_char(sb, 58);  // ':'
+    let mut i: i64 = 2;
+    while i < n { sb_append_char(sb, str_char_at(p, i)); i = i + 1; };
+    return sb_to_str(sb);
+}
+
 fn resolve_import_path(base_dir: str, raw_path: str) -> str {
     if path_is_absolute(raw_path) == 1 { return sanitize(raw_path); };
     let mut search_dir: str = base_dir;
@@ -13836,7 +13904,20 @@ fn resolve_import_path(base_dir: str, raw_path: str) -> str {
     // as resolve_toolchain_path. Both checks fail-soft via
     // file_read_string > 0, so users with custom layouts still get
     // their relative-to-source resolution from the loop above.
-    let env_root: str = env_get_or("NUCLEOR_STDLIB", "");
+    let env_root_raw: str = env_get_or("NUCLEOR_STDLIB", "");
+    // v0.4.1 RFC-NRT-004 §E: when NUCLEOR_STDLIB is set by a bash
+    // wrapper on Windows it commonly inherits a POSIX-style path
+    // like "/c/Users/.../repo". nucleor.exe runs natively under
+    // Win32 file APIs which can't open that path; the env-rooted
+    // probe silently misses and the fallback `base_dir + raw_path`
+    // (which also doesn't have the stdlib) fires, leaving stdlib
+    // imports unresolved at link time.
+    //
+    // Rewrite leading `/<drive>/...` -> `<drive>:/...` so the same
+    // path works under either shell. POSIX hosts are unaffected
+    // (the rewrite is a no-op when the second char isn't a
+    // drive-letter slash sequence).
+    let env_root: str = posix_drive_to_windows(env_root_raw);
     if str_len(env_root) > 0 {
         let from_env: str = sanitize(str_concat(env_root, str_concat("/", raw_path)));
         if str_len(file_read_string(from_env)) > 0 { return from_env; };
@@ -16952,7 +17033,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.0";
+    return "0.4.1";
 }
 
 fn compiler_backend_label() -> str {

@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 97  # +1 T1.8, +4 RFC-NRT-004 §A/§B/§C/stress (v0.3.235)
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 100 # +1 T1.8, +4 RFC-NRT-004 §A/§B/§C/stress (v0.3.235), +3 RFC-NRT-004 §F/§D/§H (v0.4.1)
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1231,6 +1231,45 @@ Step "RFC-NRT-004 stress: 6-variant recursive enum dispatch + bind USE" {
     if (-not $exe) { return $false }
     & $exe | Out-Null
     if ($LASTEXITCODE -ne 0) { return $false }
+    return $true
+}
+
+Step "RFC-NRT-004 §F: harness path (nuc test) -- multi-payload + recursive enum" {
+    # v0.4.1 (§F): tools_suite parse_match_stmt sync from s1.
+    # Pre-fix: §A/§B/§C closed via `nuc build` but BROKEN via `nuc test`
+    # because the harness routes through nucleor_tools.exe which had drifted
+    # parser. Post-fix: all three pass via the harness path. The drift gate
+    # is also extended to enforce parser-fn token-shape parity.
+    $out = & $bin test "tests/fixtures/t472_rfc_nrt_004_F_harness_path.nr" 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { return $false }
+    if ($out -notmatch "PASS: pair_use") { return $false }
+    if ($out -notmatch "PASS: recursive_use") { return $false }
+    if ($out -notmatch "PASS: multi_multi_dispatch") { return $false }
+    return $true
+}
+
+Step "RFC-NRT-004 §D: pub on struct fields no longer crashes" {
+    # v0.4.1 (§D): parse_struct_decl in s1 + tools_suite now skips
+    # optional `pub` token before each field name. Pre-fix: cascading
+    # parse errors + segfault on some hosts.
+    & $bin build "tests/fixtures/t473_rfc_nrt_004_D_pub_field.nr" -o "_t473_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t473_check.exe") { $exe = "target\_t473_check.exe" }
+    elseif (Test-Path "target\_t473_check") { $exe = "target\_t473_check" }
+    if (-not $exe) { return $false }
+    & $exe | Out-Null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    return $true
+}
+
+Step "RFC-NRT-004 §H: same-name pub fn collision diagnostic (negative regression)" {
+    # v0.4.1 (§H): emit clean diagnostic instead of cryptic clang
+    # 'invalid redefinition' when two modules declare same-name pub fn.
+    # NEGATIVE regression: this fixture must FAIL with the diagnostic.
+    $out = & $bin build "tests/fixtures/t474_rfc_nrt_004_H_collision_diag.nr" -o "_t474_check" --no-cache 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0) { return $false }   # build must FAIL
+    if ($out -notmatch "duplicate.*fn name") { return $false }
+    if ($out -notmatch "error_kind_to_str") { return $false }
     return $true
 }
 
