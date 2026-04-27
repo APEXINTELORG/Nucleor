@@ -5,6 +5,31 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.224] — 2026-04-26
+
+**Third instance of the v0.3.218 ftell-CVE pattern fixed in
+`__nucleor_toml_parse_file`.** Same bug, different file
+reader.
+
+Pre-fix `__nucleor_toml_parse_file`:
+```c
+fseek(f, 0, SEEK_END);
+long sz = ftell(f);          // returns -1 on seek error
+char *buf = malloc((size_t)sz + 1);   // (size_t)-1 = SIZE_MAX
+fread(buf, 1, (size_t)sz, f);  // reads SIZE_MAX bytes into 1-byte buffer
+```
+
+CVE-class memory corruption on hostile non-seekable input.
+
+Fix: same pattern as v0.3.218 — check fseek return code, check
+sz < 0 short-circuit. Audited all `ftell()` uses in the
+runtime (3 total): `file_read_string` and
+`file_read_string_or_panic` were already fixed in v0.3.218;
+`toml_parse_file` was missed. All three now safe.
+
+453/453 verify PASS. Bootstrap fixed point at stage_d
+`8159c82bcc9d88b419d1646ce5304d4ec08119e90c39a27a889fbac84306356c`.
+
 ## [0.3.223] — 2026-04-26
 
 **Three CVE-class fixes + perf/memory monitor wired into every
