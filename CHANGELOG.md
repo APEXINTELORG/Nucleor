@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.231] — 2026-04-27
+
+**RFC-NRT-004 (Nucleor_Translate) regression-pin: recursive
+enum payload extraction in `match` arms.**
+
+The Nucleor_Translate team filed RFC-NRT-004 against v0.3.223:
+declaring `enum Tree { Leaf(i64), Node(Tree) }` with
+`match Tree::Node(inner) => match inner { ... }` emitted
+`%r.X = ptrtoint ptr @inner to i64` — the bound payload
+lowered as a global `@inner` instead of the SSA local
+`%inner`, breaking clang link with "use of undefined value
+'@inner'".
+
+Status as of v0.3.231: **the bug no longer reproduces.**
+Likely closed as a side effect of the v0.3.184 / v0.3.186
+match_bind_payloads_typed work for typed enum payloads
+(which generalizes to recursive variants since the recursive
+case is just a payload of the same enum type).
+
+This release ships `tests/fixtures/t468_recursive_enum_match.nr`
+as a regression pin so the working behavior can't silently
+regress in future releases — exactly the minimal repro from
+the RFC, returning 0 per the acceptance criterion.
+
+Adopters of the Nucleor_Translate workaround (string-handle
+encoding for variants that need recursion in `core/ir.nr`)
+can now refactor to use structural recursion (`Vec(IrType)`,
+`Fn(IrType, IrType)`, etc.) and drop the workaround.
+
+Bootstrap fixed point at stage_d
+`46c5242bd1e90ac8e48dfd245a64079395fc756222190553761a1cb8322c8761`.
+453/453 verify PASS. T1.8 perf+memory monitor steady.
+
 ## [0.3.230] — 2026-04-27
 
 **NUC-IMPROVE-007: typed special functions for exact SciPy
