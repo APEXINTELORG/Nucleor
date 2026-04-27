@@ -2651,6 +2651,10 @@ long long __nucleor_vec_percentile_f64(NVec *v, long long p_bits) {
     if (!v || v->len <= 0) { u.d = 0.0; return u.i; }
     union { long long i; double d; } pu; pu.i = p_bits;
     double p = pu.d;
+    /* v0.3.227: NaN -> 0.0 (Rust as semantic). Pre-fix NaN passed
+       through both bounds (NaN < 0 false, NaN > 1 false), then
+       `(int)(NaN * (v->len-1))` was C undefined behavior. */
+    if (p != p) p = 0.0;
     if (p < 0.0) p = 0.0;
     if (p > 1.0) p = 1.0;
     long long *copy = (long long *)malloc(sizeof(long long) * v->len);
