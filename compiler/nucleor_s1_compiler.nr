@@ -15814,8 +15814,40 @@ fn infer_pattern_binding_type_from_source(src: str, var_name: str) -> str {
                                 // (v1 doesn't handle struct-field scrutinees).
                                 let mut tp: i64 = scrut_end;
                                 while tp < slen && str_char_at(src, tp) == 32 { tp = tp + 1; };
-                                if tp < slen && str_char_at(src, tp) == 46 { return ""; };
-                                let scrut_full_type: str = infer_var_type_from_source(src, scrut_name);
+                                // v0.4.12: handle field-access scrutinee
+                                // (`match s.gap_report { Some(g) => ... }`).
+                                // Look up s's struct type, then walk the
+                                // struct's field declarations to find
+                                // gap_report's declared type. Single-level
+                                // field access only (.a.b chains are deeper
+                                // structural work; defer).
+                                let mut scrut_full_type: str = "";
+                                if tp < slen && str_char_at(src, tp) == 46 {
+                                    let fp_start: i64 = tp + 1;
+                                    let mut fp_end: i64 = fp_start;
+                                    let mut fp_keep: i64 = 1;
+                                    while fp_keep == 1 && fp_end < slen {
+                                        let fc: i64 = str_char_at(src, fp_end);
+                                        let fc_ok: i64 = if (fc >= 65 && fc <= 90) || (fc >= 97 && fc <= 122) || (fc >= 48 && fc <= 57) || fc == 95 { 1 } else { 0 };
+                                        if fc_ok == 1 { fp_end = fp_end + 1; }
+                                        else { fp_keep = 0; };
+                                    };
+                                    if fp_end > fp_start {
+                                        let field_name: str = str_substring(src, fp_start, fp_end);
+                                        // If next is another `.`, bail
+                                        // (multi-level chain).
+                                        let mut tp2: i64 = fp_end;
+                                        while tp2 < slen && str_char_at(src, tp2) == 32 { tp2 = tp2 + 1; };
+                                        if tp2 < slen && str_char_at(src, tp2) == 46 { return ""; };
+                                        let struct_full: str = infer_var_type_from_source(src, scrut_name);
+                                        let struct_name: str = type_base_name(struct_full);
+                                        if str_len(struct_name) > 0 {
+                                            scrut_full_type = infer_struct_field_type_from_source(src, struct_name, field_name);
+                                        };
+                                    };
+                                } else {
+                                    scrut_full_type = infer_var_type_from_source(src, scrut_name);
+                                };
                                 if str_len(scrut_full_type) > 0 {
                                     // Extract generic parameter T from Option<T>
                                     // / Result<T, E>. We just want the FIRST type
@@ -17399,7 +17431,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.11";
+    return "0.4.12";
 }
 
 fn compiler_backend_label() -> str {
