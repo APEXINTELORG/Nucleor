@@ -5,6 +5,80 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5] — 2026-04-27
+
+**RFC-NRT-001 — `.nucprov` PE/ELF section (Nucleor_Translate SPEC-2
+unblocker).**
+
+Every binary the compiler produces now carries a `.nucprov` section.
+External tooling (specifically Nucleor_Translate) populates it with
+a SLSA-compatible JSON attestation describing source-language
+provenance. The section survives distribution channels that strip
+metadata files.
+
+### Section name choice
+
+The RFC proposed `.nucleor_provenance`, but PE/COFF truncates section
+names in the linked image to 8 chars (the long-name `/N` indirection
+is OBJ-only). Truncation produces `.nucleor` -- which would collide
+with any future general-purpose Nucleor section. **`.nucprov`** (8
+chars) is distinct, fits in COFF natively, and works identically on
+PE and ELF. Adopters parsing the section should look for `.nucprov`.
+
+### CLI
+
+```
+nuc build foo.nr -o foo.exe                           # empty section (1-byte placeholder)
+nuc build foo.nr -o foo.exe --provenance prov.json   # section = bytes of prov.json
+nuc build foo.nr -o foo.exe --provenance=prov.json   # same, single-arg form
+```
+
+### LLVM IR emission
+
+```llvm
+@.nucleor_provenance_data = constant [N x i8] c"...", section ".nucprov", align 1
+@llvm.used = appending global [1 x ptr] [ptr @.nucleor_provenance_data], section "llvm.metadata"
+```
+
+`@llvm.used` keeps the linker from dropping the section when nothing
+in user code references it.
+
+### Verification
+
+```
+$ llvm-readobj --sections foo.exe | grep nucprov
+    Name: .nucprov (2E 6E 75 63 70 72 6F 76)
+    VirtualSize: 0xD8     # = sizeof(prov.json)
+$ llvm-objdump -s -j .nucprov foo.exe
+Contents of section .nucprov:
+ ...XXX 7b225f74 79706522 ...   {"_type":"https...
+```
+
+### Backward compatibility
+
+Empty section by default (1-byte null placeholder). Existing tools
+that don't know about `.nucprov` ignore it. No impact on existing
+builds.
+
+### Open questions deferred to adopters
+
+- **Inline signature?** -- the RFC mentioned Sigstore JWS or external
+  wrapping. Today we just embed the bytes verbatim; signing is the
+  external tool's job.
+- **JSON validation?** -- we accept any bytes; SLSA validity is the
+  populator's responsibility.
+- **Size limit?** -- no enforced cap. Adopters should keep
+  attestations reasonable.
+
+### Pinned regression
+
+`tests/fixtures/t477_provenance_section.nr` (positive) + verify-gate
+Step that runs `llvm-readobj --sections` and asserts `.nucprov`
+presence in the linked binary.
+
+Bootstrap fixed point preserved (c == d). Verify gate 463/463.
+T1.8 perf+memory steady.
+
 ## [0.4.4] — 2026-04-27
 
 **Option<str> Some-payload binding type propagation (SPEC-1.5

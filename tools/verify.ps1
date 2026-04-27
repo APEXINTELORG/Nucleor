@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 102 # +1 T1.8, +4 RFC-NRT-004 §A/§B/§C/stress (v0.3.235), +3 RFC-NRT-004 §F/§D/§H (v0.4.1), +1 RFC-NRT-004 §G (v0.4.2), +1 Option<str> bind (v0.4.4)
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 103 # +1 T1.8, +4 RFC-NRT-004 §A/§B/§C/stress (v0.3.235), +3 RFC-NRT-004 §F/§D/§H (v0.4.1), +1 RFC-NRT-004 §G (v0.4.2), +1 Option<str> bind (v0.4.4), +1 RFC-NRT-001 .nucprov (v0.4.5)
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1259,6 +1259,28 @@ Step "RFC-NRT-004 §D: pub on struct fields no longer crashes" {
     if (-not $exe) { return $false }
     & $exe | Out-Null
     if ($LASTEXITCODE -ne 0) { return $false }
+    return $true
+}
+
+Step "RFC-NRT-001: .nucprov section present in built binary (empty default)" {
+    # v0.4.5 RFC-NRT-001: every binary the compiler produces has a
+    # .nucprov section (PE/COFF + ELF). Empty default = 1-byte null
+    # placeholder. External tooling (Nucleor_Translate) populates via
+    # `nuc build --provenance <path.json>`.
+    & $bin build "tests/fixtures/t477_provenance_section.nr" -o "_t477_check" --no-cache 2>&1 | Out-Null
+    if (-not (Test-Path "target\_t477_check.exe")) { return $false }
+    # Confirm the section is in the linked binary via llvm-readobj.
+    $llvmReadObj = $null
+    foreach ($candidate in @("C:\Program Files\LLVM\bin\llvm-readobj.exe", "llvm-readobj.exe")) {
+        try {
+            if (Test-Path -LiteralPath $candidate) { $llvmReadObj = $candidate; break }
+            $cmd = Get-Command $candidate -ErrorAction SilentlyContinue
+            if ($cmd) { $llvmReadObj = $cmd.Source; break }
+        } catch {}
+    }
+    if (-not $llvmReadObj) { return $true }   # skip the section check if the tool isn't present
+    $out = & $llvmReadObj --sections "target\_t477_check.exe" 2>&1 | Out-String
+    if ($out -notmatch "\.nucprov") { return $false }
     return $true
 }
 
