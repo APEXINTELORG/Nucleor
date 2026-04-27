@@ -1049,18 +1049,44 @@ typedef struct { int rows; int cols; double *data; } NTensor;
 static double _t_i2f(long long x) { double d; memcpy(&d, &x, sizeof(double)); return d; }
 static long long _t_f2i(double f) { long long i; memcpy(&i, &f, sizeof(long long)); return i; }
 
+// v0.3.223: tensor_zeros / tensor_fill overflow PANIC. Pre-fix
+// `rows * cols * sizeof(double)` could overflow long-long on hostile
+// dimensions, leading to under-allocation + out-of-bounds writes
+// when the for-loop iterates rows*cols times.
+//
+// Also: cast (int)rows / (int)cols truncates ≥2^31 to negative, which
+// would silently corrupt indexing. Now: panic if either dim doesn't
+// fit in i32, or if total byte count overflows.
+static void _check_tensor_dims(long long rows, long long cols, const char *fn) {
+    if (rows < 0 || cols < 0) {
+        fprintf(stderr, "PANIC: %s: negative dimensions (rows=%lld, cols=%lld)\n", fn, rows, cols);
+        fflush(stderr); exit(1);
+    }
+    if (rows > 2147483647LL || cols > 2147483647LL) {
+        fprintf(stderr, "PANIC: %s: dimension exceeds i32 (rows=%lld, cols=%lld)\n", fn, rows, cols);
+        fflush(stderr); exit(1);
+    }
+    /* Overflow check: rows * cols * sizeof(double) must fit in size_t. */
+    if (rows > 0 && cols > (long long)((SIZE_MAX / sizeof(double)) / (size_t)rows)) {
+        fprintf(stderr, "PANIC: %s: rows %lld * cols %lld * 8 bytes exceeds SIZE_MAX\n", fn, rows, cols);
+        fflush(stderr); exit(1);
+    }
+}
 long long __nucleor_tensor_zeros(long long rows, long long cols) {
+    _check_tensor_dims(rows, cols, "tensor_zeros");
     NTensor *t = (NTensor *)malloc(sizeof(NTensor));
     t->rows = (int)rows; t->cols = (int)cols;
-    t->data = (double *)calloc(t->rows * t->cols, sizeof(double));
+    t->data = (double *)calloc((size_t)t->rows * (size_t)t->cols, sizeof(double));
     return (long long)t;
 }
 long long __nucleor_tensor_fill(long long rows, long long cols, long long val_bits) {
+    _check_tensor_dims(rows, cols, "tensor_fill");
     NTensor *t = (NTensor *)malloc(sizeof(NTensor));
     t->rows = (int)rows; t->cols = (int)cols;
-    t->data = (double *)malloc(t->rows * t->cols * sizeof(double));
+    t->data = (double *)malloc((size_t)t->rows * (size_t)t->cols * sizeof(double));
     double v = _t_i2f(val_bits);
-    for (int i = 0; i < t->rows * t->cols; i++) t->data[i] = v;
+    long long total = (long long)t->rows * (long long)t->cols;
+    for (long long i = 0; i < total; i++) t->data[i] = v;
     return (long long)t;
 }
 long long __nucleor_tensor_ones(long long rows, long long cols) {
@@ -1666,11 +1692,20 @@ const char *__nucleor_str_replace(const char *s, const char *find, const char *r
     return out;
 }
 
+// v0.3.223: str_repeat overflow PANIC. Pre-fix `L * n` could overflow
+// size_t on hostile input (large L and large n) -- malloc(small) +
+// memcpy past buffer = CVE-class memory corruption. Now: detect
+// overflow before malloc and panic with the offending sizes.
 const char *__nucleor_str_repeat(const char *s, long long n) {
     if (!s || n <= 0) {
         char *empty = (char *)malloc(1); empty[0] = 0; return empty;
     }
     size_t L = strlen(s);
+    /* Overflow check: would L * n exceed SIZE_MAX? */
+    if (L > 0 && (size_t)n > (SIZE_MAX - 1) / L) {
+        fprintf(stderr, "PANIC: str_repeat overflow: %zu bytes * %lld reps would exceed SIZE_MAX\n", L, n);
+        fflush(stderr); exit(1);
+    }
     size_t total = L * (size_t)n;
     char *out = (char *)malloc(total + 1);
     for (long long i = 0; i < n; i++) memcpy(out + ((size_t)i * L), s, L);
