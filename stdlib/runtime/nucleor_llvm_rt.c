@@ -5607,16 +5607,21 @@ long long __nucleor_toml_parse_string(const char *src) {
 }
 
 long long __nucleor_toml_parse_file(const char *path) {
+    // v0.3.224: same ftell-CVE fix as v0.3.218's file_read_string.
+    // Pre-fix if ftell returned -1 (seek error), (size_t)sz cast to
+    // SIZE_MAX -> fread reads SIZE_MAX bytes into a 1-byte buffer.
+    // CVE-class memory corruption.
     if (!path) return __nucleor_hashmap_new();
     FILE *f = fopen(path, "rb");
     if (!f) return __nucleor_hashmap_new();
-    fseek(f, 0, SEEK_END);
+    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return __nucleor_hashmap_new(); }
     long sz = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    if (sz < 0) { fclose(f); return __nucleor_hashmap_new(); }
+    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return __nucleor_hashmap_new(); }
     char *buf = (char *)malloc((size_t)sz + 1);
-    fread(buf, 1, (size_t)sz, f);
-    buf[sz] = 0;
+    size_t n_read = fread(buf, 1, (size_t)sz, f);
     fclose(f);
+    buf[n_read] = 0;
     long long m = __nucleor_toml_parse_string(buf);
     free(buf);
     return m;
