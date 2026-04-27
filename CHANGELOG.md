@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-04-27
+
+**0.4.0 cut — 0.3 closeout milestone marker.**
+
+The 0.3.x series accumulated a dense run of silent-miscompute hazard
+closures, runtime-safety hardening, and adopter-feedback closures.
+Tagging 0.4.0 as the line: 0.3 enters maintenance, 0.4.x is the
+window where breaking changes (dropped legacy paths, runtime ABI
+adjustments, internal-data-structure redesigns) are explicitly
+allowed.
+
+No source changes from v0.3.237 except the version constant bump.
+Bootstrap fixed point preserved (stage_b == stage_c == stage_d
+byte-identical). Verify gate 457/457. T1.8 perf+memory steady at
+the v0.3.235 baseline (502MB peak / 6.29s cold / 0.76s hot).
+
+### State at the cut
+
+**Stable / load-bearing for adopters:**
+- Self-host compile of `nucleor_s1_compiler.nr` (947K bytes) at
+  6.5s cold, 0.83s hot, 502MB peak. Bootstrap fixed point preserved
+  on every release that touched compiler/runtime since v0.2.0.
+- 457-step verify gate including the T1.8 perf+memory monitor,
+  drift gate (s1 ↔ tools_suite ABI tables, helper/rod manifests),
+  RFC regression pins (NRT-004 §A/§B/§C + stress).
+- Runtime-wide OOM-aware `malloc` / `realloc` / `calloc` wrappers
+  routing every Nucleor C TU through the panic-on-NULL contract
+  (or `NUCLEOR_OOM_LENIENT=1` opt-out).
+- Cap-doubling overflow guard on every growable container helper.
+- Strict-by-default integer arithmetic, vec OOB checks, file I/O
+  panic-on-error -- all with documented `NUCLEOR_*_LENIENT=1`
+  opt-outs for adopters who handle the conditions themselves.
+- 200+ runtime helpers across 150+ rt files (math, ML, statistics,
+  graph algorithms, robotics, sparse linear algebra, FFT, MPS,
+  Carleman/Vlasov plasma, quantum sensing, ...).
+
+**Adopter feedback channels closed in 0.3:**
+- NUC-FEEDBACK-001 through 011 (ML_Suite)
+- NUC-IMPROVE-001 through 007 (ML_Suite)
+- RFC-NRT-004 §A, §B, §C (Nucleor_Translate)
+
+**Phase A infrastructure dormant for 0.4 redesign:**
+- `__nucleor_sym_aux_*` runtime helpers (4) -- ready for the
+  warm-cache hash sym redesign that v0.3.237's per-sym aux
+  approach showed wasn't the right shape.
+
+### 0.4.x charter (forward-looking, no commitments)
+
+Items I'd expect to land somewhere in 0.4.x. Order subject to
+adopter pressure:
+
+- **Hash-backed sym_get with warm-cache redesign** (single global
+  hashmap cleared on sym-handle context switch; no per-sym
+  allocation overhead -- the v0.3.236/237 attempt's failure mode).
+- **RFC-NRT-001** -- `.nucleor_provenance` PE/ELF section.
+- **RFC-NRT-002** -- `nuc install <tool>` distribution.
+- **RFC-NRT-003** -- reproducible-build CI gate +
+  `nuc verify-reproducible`.
+- **DCE at rod-import boundary** -- would have prevented
+  NUC-FEEDBACK-011 directly (importing a rod no longer drags
+  unreferenced wrapper bodies into the IR).
+- **Better extern-fn / get_rt_name signature-mismatch diagnostic**
+  -- the trap I hit on first NUC-FEEDBACK-011 attempt
+  (`declare double @__nucleor_f64_erf(double)` vs
+  `declare i64 @__nucleor_f64_erf(i64)` clang error).
+- Continued silent-miscompute hazard sweeps as adopters surface
+  them.
+
 ## [0.3.237] — 2026-04-27
 
 **Hash-backed sym_get refactor — Phase B prototyped + reverted (honest
