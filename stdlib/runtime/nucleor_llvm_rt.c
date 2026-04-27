@@ -4291,6 +4291,12 @@ static unsigned long long __nuc_str_hash(const char *s) {
 static void __nuc_hashmap_grow(NHashMap *m) {
     long long old_cap = m->cap;
     NHMSlot *old_slots = m->slots;
+    /* v0.3.229: cap doubling overflow guard. Past 2^30, refusing to
+       grow further is more honest than silently overflowing. */
+    if (m->cap >= (1LL << 30)) {
+        fprintf(stderr, "PANIC: hashmap grow exceeded max cap 2^30 (cap was %lld)\n", m->cap);
+        fflush(stderr); exit(1);
+    }
     m->cap *= 2;
     m->slots = (NHMSlot *)calloc((size_t)m->cap, sizeof(NHMSlot));
     m->len = 0;
@@ -4319,10 +4325,27 @@ long long __nucleor_hashmap_new(void) {
     m->len = 0;
     return (long long)(intptr_t)m;
 }
+// v0.3.229: hashmap_with_capacity(n) safety. Pre-fix:
+// - `n * 2` could overflow long long on hostile n -> negative ->
+//   loop exits at cap=16 -> silent under-allocation.
+// - `cap *= 2` could overflow if user requests huge capacity.
+// - n < 0 wasn't validated.
 long long __nucleor_hashmap_with_capacity(long long n) {
+    if (n < 0) {
+        fprintf(stderr, "PANIC: hashmap_with_capacity: negative capacity %lld\n", n);
+        fflush(stderr); exit(1);
+    }
+    /* Cap at 2^30 buckets (=128 GB hashmap header). Beyond that the
+       intended workload doesn't fit in any reasonable machine. */
+    const long long MAX_CAP = 1LL << 30;
+    if (n > MAX_CAP) {
+        fprintf(stderr, "PANIC: hashmap_with_capacity: requested %lld exceeds max %lld\n", n, MAX_CAP);
+        fflush(stderr); exit(1);
+    }
     NHashMap *m = (NHashMap *)malloc(sizeof(NHashMap));
     long long cap = 16;
-    while (cap < n * 2) cap *= 2;
+    /* Compare cap < n*2 in safe form: cap/2 < n */
+    while (cap / 2 < n && cap < MAX_CAP) cap *= 2;
     m->cap = cap;
     m->slots = (NHMSlot *)calloc((size_t)cap, sizeof(NHMSlot));
     m->len = 0;
