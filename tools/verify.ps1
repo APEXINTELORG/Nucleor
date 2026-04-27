@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 104 # +1 T1.8, +4 RFC-NRT-004 §A/§B/§C/stress (v0.3.235), +3 RFC-NRT-004 §F/§D/§H (v0.4.1), +1 RFC-NRT-004 §G (v0.4.2), +1 Option<str> bind (v0.4.4), +1 RFC-NRT-001 .nucprov (v0.4.5), +1 extern-redecl-diag (v0.4.6)
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 105 # +1 T1.8, +4 RFC-NRT-004 §A/§B/§C/stress (v0.3.235), +3 RFC-NRT-004 §F/§D/§H (v0.4.1), +1 RFC-NRT-004 §G (v0.4.2), +1 Option<str> bind (v0.4.4), +1 RFC-NRT-001 .nucprov (v0.4.5), +1 extern-redecl-diag (v0.4.6), +1 RFC-NRT-003 verify-reproducible (v0.4.7)
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1259,6 +1259,17 @@ Step "RFC-NRT-004 §D: pub on struct fields no longer crashes" {
     if (-not $exe) { return $false }
     & $exe | Out-Null
     if ($LASTEXITCODE -ne 0) { return $false }
+    return $true
+}
+
+Step "RFC-NRT-003: nuc verify-reproducible PASSes on a sample fixture" {
+    # v0.4.7 RFC-NRT-003: verify-reproducible builds a file twice with
+    # --no-cache and asserts byte-identical IR. The self-host fixed
+    # point gate (T1.7) already covers the compiler itself; this Step
+    # exercises the new subcommand on a small fixture.
+    $out = & $bin verify-reproducible "tests/fixtures/t477_provenance_section.nr" 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { return $false }
+    if ($out -notmatch "PASS: byte-identical IR") { return $false }
     return $true
 }
 
