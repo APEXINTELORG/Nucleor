@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.234] — 2026-04-27
+
+**0.3 closeout series — runtime safety hardening (all hazards I had
+flagged as remaining for 0.3 are now closed).**
+
+Bundles two related fixes:
+
+### v0.3.233 — cap-doubling overflow guard
+
+Every growable container in the runtime previously did
+`v->cap *= 2` followed by `realloc(..., v->cap * sizeof(T))`.
+If `v->cap` ever reached `LLONG_MAX/2`, the multiply wrapped to
+negative, the byte-size compute then produced a huge `size_t`,
+realloc failed, and the OOM panic fired with a confusing message
+that hid the actual root cause (cap overflow, not memory exhaustion).
+
+A central helper `_grow_cap(old_cap, elem_size, what)` now panics
+cleanly with a precise diagnostic when doubling would wrap. Patched
+sites:
+
+- `stdin readline buffer` (`__nucleor_input`)
+- `vec_push` / `vec_insert` (NVec)
+- `stringbuf push` / `stringbuf append` (NStringBuf)
+- `vec_u8 push` / `vec_u8 append` (NVecU8)
+- `vec_f32 push` (NVecF32)
+- `string push_byte` / `string append_str` (NString)
+- `vecdeque_with_capacity` / `vecdeque grow` (NVecDeque)
+- `btreemap insert` (NBTreeMap)
+- `intern table grow` (string interning)
+
+`hashmap_grow` was already guarded at 2^30 in v0.3.229 — left as is
+(tighter than the generic `_grow_cap` bound on its struct size,
+keeping the existing PANIC message).
+
+### v0.3.234 — runtime-wide allocation audit
+
+Pre-fix, only `nucleor_llvm_rt.c` had OOM-aware
+`malloc`/`realloc`/`calloc` wrappers (added in v0.3.215). The
+~150 other runtime translation units (`tensor_rt.c`, `linalg_rt.c`,
+`nn_rt.c`, ...) called bare libc allocators and silently crashed on
+NULL returns deep inside whatever helper triggered the alloc.
+
+Fix: shared header `stdlib/runtime/nuc_alloc.h` defining the same
+panic-on-NULL wrappers, force-included into every Nucleor C TU via
+`-include` in the s1 link command (`compiler/nucleor_s1_compiler.nr`).
+The header honors `NUCLEOR_OOM_LENIENT=1` so adopters who handle
+OOM themselves still get the legacy NULL-return behavior on opt-in.
+
+`nucleor_llvm_rt.c` collapsed its private wrappers down to thin
+aliases (`_nuc_xmalloc` etc -> `_nuc_alloc_xmalloc`) so existing
+explicit call sites stay readable.
+
+`-Wdeprecated-declarations` warnings on `getenv` (which the header
+calls to read the lenient-mode env var) suppressed via
+`_CRT_SECURE_NO_WARNINGS` defined inside the header guard, matching
+nucleor_llvm_rt.c's existing posture.
+
+### Verification
+
+Bootstrap fixed point (stage_b == stage_c == stage_d) preserved.
+Verify gate 453/453. T1.8 perf+memory monitor steady (6.4s cold /
+0.83s hot — no regression from v0.3.232; the additional
+`-include` flag adds <1ms per clang invocation).
+
 ## [0.3.232] — 2026-04-27
 
 **NUC-FEEDBACK-011 (ML_Suite): split out special-function

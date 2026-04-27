@@ -15,6 +15,13 @@
 #include <windows.h>
 #endif
 
+/* v0.3.234: shared OOM-aware allocator wrappers. The header is
+   also force-included into every other rt TU via clang -include
+   from the s1 link command, but we include it explicitly here so
+   this file still compiles cleanly when invoked outside the s1
+   wrapping (e.g., during runtime smoke tests).                  */
+#include "nuc_alloc.h"
+
 // v0.3.215: NUC-FEEDBACK runtime safety -- OOM PANIC. Pre-fix any
 // of the 171 malloc/realloc call sites that returned NULL on memory
 // exhaustion would silently feed NULL into the next memcpy/store
@@ -28,32 +35,54 @@
 // per-site edits. Opt-out via NUCLEOR_OOM_LENIENT=1 (returns NULL,
 // adopters then need their own handling -- the legacy segfault
 // path is restored).
-static int g_oom_lenient_cached = 0;  /* 0=uncached, 1=panic, 2=lenient */
-static int _oom_lenient(void) {
-    if (g_oom_lenient_cached == 0) {
-        const char *e = getenv("NUCLEOR_OOM_LENIENT");
-        g_oom_lenient_cached = (e && e[0] == '1') ? 2 : 1;
-    }
-    return g_oom_lenient_cached == 2;
-}
-static void *_nuc_xmalloc(size_t n) {
-    void *p = malloc(n);
-    if (!p && !_oom_lenient()) {
-        fprintf(stderr, "PANIC: out of memory: malloc(%zu) failed (set NUCLEOR_OOM_LENIENT=1 to suppress)\n", n);
+/* v0.3.234: OOM-aware malloc/realloc/calloc wrappers were
+   collapsed into the shared header `nuc_alloc.h` (force-included
+   into every Nucleor runtime TU via clang -include in the s1
+   link command). The header preserves the v0.3.232+ panic
+   contract and honors NUCLEOR_OOM_LENIENT=1.
+
+   Local thin aliases keep the legacy `_nuc_xmalloc` / `_nuc_xrealloc`
+   names available so call sites in this file (which call the
+   wrappers explicitly) stay readable. */
+#define _oom_lenient _nuc_alloc_oom_lenient
+#define _nuc_xmalloc _nuc_alloc_xmalloc
+#define _nuc_xrealloc _nuc_alloc_xrealloc
+#define _nuc_xcalloc _nuc_alloc_xcalloc
+
+// v0.3.233: cap-doubling overflow guard. Centralizes the
+// "doubling cap exceeds safe i64 range" check used by every
+// vec/sb/string growth path. Pre-fix every site did
+// `cap *= 2` -> if cap was >= LLONG_MAX/2 the multiply wrapped
+// negative, the subsequent `cap * sizeof(T)` cast to size_t
+// produced a huge value, and realloc failed with a confusing
+// OOM panic. Post-fix every grow-by-doubling site routes through
+// this helper which fails fast with a precise diagnostic.
+//
+// elem_size is the per-element byte count; we want both
+//   cap * 2                           in long long range, AND
+//   (cap * 2) * elem_size             in size_t range.
+// The combined safe upper bound is (size_t)LLONG_MAX/elem_size/2.
+static long long _grow_cap(long long old_cap, size_t elem_size, const char *what) {
+    if (old_cap < 0) {
+        fprintf(stderr, "PANIC: %s capacity overflow (cap was negative: %lld)\n", what, old_cap);
         fflush(stderr); exit(1);
     }
-    return p;
-}
-static void *_nuc_xrealloc(void *p, size_t n) {
-    void *r = realloc(p, n);
-    if (!r && n > 0 && !_oom_lenient()) {
-        fprintf(stderr, "PANIC: out of memory: realloc(%zu) failed (set NUCLEOR_OOM_LENIENT=1 to suppress)\n", n);
+    /* compute the largest old_cap that survives doubling and
+       byte-size compute without wrapping size_t.                */
+    long long max_safe;
+    if (elem_size == 0) {
+        max_safe = LLONG_MAX / 2;
+    } else {
+        size_t byte_max = (size_t)LLONG_MAX / 2;  /* room for *2 */
+        max_safe = (long long)(byte_max / elem_size);
+    }
+    if (old_cap > max_safe) {
+        fprintf(stderr, "PANIC: %s capacity overflow (cap was %lld, doubling at elem_size=%zu would wrap)\n",
+                what, old_cap, elem_size);
         fflush(stderr); exit(1);
     }
-    return r;
+    return old_cap * 2;
 }
-#define malloc(N) _nuc_xmalloc(N)
-#define realloc(P, N) _nuc_xrealloc((P), (N))
 
 // DIAGNOSTIC: allocation counters (active when NUC_TRACE_ALLOC=1)
 static long long g_vec_new_count = 0;
@@ -774,7 +803,7 @@ const char *__nucleor_read_line(void) {
     int c;
     while ((c = fgetc(stdin)) != EOF && c != '\n') {
         if (len + 1 >= cap) {
-            cap *= 2;
+            cap = (int)_grow_cap((long long)cap, sizeof(char), "stdin readline buffer");
             char *grown = (char *)realloc(buf, cap);
             if (!grown) { free(buf); return ""; }
             buf = grown;
@@ -900,7 +929,11 @@ static void _intern_grow(void) {
     long long old_cap = g_intern.capacity;
     char **old_slots = g_intern.slots;
     long long *old_hashes = g_intern.hashes;
-    _intern_init(old_cap * 2);
+    /* v0.3.233: cap-doubling overflow guard for the string-intern
+       table. Use the larger of (char *) / (long long) since both
+       arrays are allocated alongside.                              */
+    size_t pair_elem = sizeof(char *) >= sizeof(long long) ? sizeof(char *) : sizeof(long long);
+    _intern_init(_grow_cap(old_cap, pair_elem, "intern table grow"));
     for (long long i = 0; i < old_cap; i++) {
         if (old_slots[i] == 0) continue;
         long long h = old_hashes[i];
@@ -1946,7 +1979,7 @@ void __nucleor_vec_push(NVec *v, long long x) {
     if (!v) return;
     if (v->len >= v->cap) {
         long long old_cap = v->cap;
-        v->cap *= 2;
+        v->cap = _grow_cap(v->cap, sizeof(long long), "vec_push");
         v->data = (long long *)realloc(v->data, v->cap * sizeof(long long));
         g_vec_realloc_bytes += (v->cap - old_cap) * sizeof(long long);
     }
@@ -2079,7 +2112,7 @@ void __nucleor_vec_insert_at(NVec *v, long long i, long long x) {
     if (idx < 0) idx = 0;
     if (idx > v->len) idx = v->len;
     if (v->len >= v->cap) {
-        v->cap *= 2;
+        v->cap = _grow_cap(v->cap, sizeof(long long), "vec_insert");
         v->data = (long long *)realloc(v->data, v->cap * sizeof(long long));
     }
     for (int k = v->len; k > idx; k--) {
@@ -2721,7 +2754,7 @@ void __nucleor_sb_append_char(long long handle, long long c) {
     if (!sb) return;
     if (sb->len + 2 > sb->cap) {
         long long old_cap = sb->cap;
-        sb->cap *= 2;
+        sb->cap = _grow_cap(sb->cap, sizeof(char), "stringbuf push");
         sb->data = (char *)realloc(sb->data, sb->cap);
         g_sb_realloc_bytes += sb->cap - old_cap;
     }
@@ -2735,7 +2768,7 @@ void __nucleor_sb_append(long long handle, const char *s) {
     int slen = (int)strlen(s);
     while (sb->len + slen + 1 > sb->cap) {
         long long old_cap = sb->cap;
-        sb->cap *= 2;
+        sb->cap = _grow_cap(sb->cap, sizeof(char), "stringbuf append");
         sb->data = (char *)realloc(sb->data, sb->cap);
         g_sb_realloc_bytes += sb->cap - old_cap;
     }
@@ -3755,7 +3788,7 @@ long long __nucleor_vec_u8_push(long long h, long long x) {
     NVecU8 *v = (NVecU8 *)(intptr_t)h;
     if (!v) return 0;
     if (v->len >= v->cap) {
-        v->cap *= 2;
+        v->cap = _grow_cap(v->cap, sizeof(unsigned char), "vec_u8 push");
         v->data = (unsigned char *)realloc(v->data, (size_t)v->cap);
     }
     v->data[v->len++] = (unsigned char)(x & 0xFFLL);
@@ -3800,7 +3833,7 @@ long long __nucleor_vec_u8_extend_from_ptr(long long h, const unsigned char *src
     NVecU8 *v = (NVecU8 *)(intptr_t)h;
     if (!v || !src || n <= 0) return 0;
     while (v->len + n > v->cap) {
-        v->cap *= 2;
+        v->cap = _grow_cap(v->cap, sizeof(unsigned char), "vec_u8 append");
         v->data = (unsigned char *)realloc(v->data, (size_t)v->cap);
     }
     memcpy(v->data + v->len, src, (size_t)n);
@@ -3830,7 +3863,7 @@ long long __nucleor_vec_f32_push_bits(long long h, long long bits) {
     NVecF32 *v = (NVecF32 *)(intptr_t)h;
     if (!v) return 0;
     if (v->len >= v->cap) {
-        v->cap *= 2;
+        v->cap = _grow_cap(v->cap, sizeof(float), "vec_f32 push");
         v->data = (float *)realloc(v->data, (size_t)v->cap * sizeof(float));
     }
     union { unsigned int u; float f; } cv;
@@ -4160,7 +4193,7 @@ long long __nucleor_string_push_byte(long long h, long long b) {
     NString *s = (NString *)(intptr_t)h;
     if (!s) return 0;
     if (s->len + 1 > s->cap) {
-        s->cap *= 2;
+        s->cap = _grow_cap(s->cap, sizeof(char), "string push_byte");
         s->data = (char *)realloc(s->data, (size_t)s->cap + 1);
     }
     s->data[s->len++] = (char)(b & 0xFFLL);
@@ -4172,7 +4205,7 @@ long long __nucleor_string_push_str(long long h, const char *src) {
     if (!s || !src) return 0;
     long long n = (long long)strlen(src);
     while (s->len + n > s->cap) {
-        s->cap *= 2;
+        s->cap = _grow_cap(s->cap, sizeof(char), "string append_str");
         s->data = (char *)realloc(s->data, (size_t)s->cap + 1);
     }
     memcpy(s->data + s->len, src, (size_t)n);
@@ -4831,9 +4864,16 @@ long long __nucleor_vecdeque_new(void) {
     return (long long)(intptr_t)d;
 }
 long long __nucleor_vecdeque_with_capacity(long long n) {
+    if (n < 0) {
+        fprintf(stderr, "PANIC: vecdeque_with_capacity: negative capacity %lld\n", n);
+        fflush(stderr); exit(1);
+    }
     NVecDeque *d = (NVecDeque *)malloc(sizeof(NVecDeque));
     long long cap = 16;
-    while (cap < n) cap *= 2;
+    /* v0.3.233: bounded doubling -- prior loop could spin until cap
+       wrapped negative if n was hostile. _grow_cap panics cleanly
+       once doubling would exceed the safe range.                    */
+    while (cap < n) cap = _grow_cap(cap, sizeof(long long), "vecdeque_with_capacity");
     d->cap = cap;
     d->data = (long long *)malloc((size_t)cap * sizeof(long long));
     d->head = 0;
@@ -4841,7 +4881,7 @@ long long __nucleor_vecdeque_with_capacity(long long n) {
     return (long long)(intptr_t)d;
 }
 static void __nuc_vecdeque_grow(NVecDeque *d) {
-    long long new_cap = d->cap * 2;
+    long long new_cap = _grow_cap(d->cap, sizeof(long long), "vecdeque grow");
     long long *new_data = (long long *)malloc((size_t)new_cap * sizeof(long long));
     long long i;
     for (i = 0; i < d->len; i++) {
@@ -4996,7 +5036,11 @@ long long __nucleor_btreemap_insert(long long h, const char *key, long long val)
     }
     long long ins = -idx - 1;
     if (m->len >= m->cap) {
-        m->cap *= 2;
+        /* v0.3.233: cap-doubling overflow guard. The pair grow uses
+           the larger element (sizeof(char *) on 64-bit == sizeof(long long)),
+           so a single _grow_cap call suffices for both arrays.        */
+        size_t pair_elem = sizeof(char *) >= sizeof(long long) ? sizeof(char *) : sizeof(long long);
+        m->cap = _grow_cap(m->cap, pair_elem, "btreemap insert");
         m->keys = (char **)realloc(m->keys, (size_t)m->cap * sizeof(char *));
         m->vals = (long long *)realloc(m->vals, (size_t)m->cap * sizeof(long long));
     }
