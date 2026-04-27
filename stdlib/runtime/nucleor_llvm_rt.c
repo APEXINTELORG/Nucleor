@@ -9,6 +9,8 @@
 #include <string.h>
 #include <math.h>
 #include <stdint.h>
+#include <errno.h>
+#include <limits.h>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -468,20 +470,46 @@ const char *__nucleor_format3_isf(const char *tmpl, long long a, const char *b, 
 // --- v0.2.24: parse / stringify primitives ---
 // Parsers tolerate leading whitespace and an optional sign; return 0 on
 // completely-malformed input. Stringifiers always allocate fresh strings.
+// v0.3.217: NUC-FEEDBACK runtime safety -- str_to_int / str_to_i64
+// overflow detection. Pre-fix the digit accumulator silently wrapped
+// past i64::MAX (a hostile input like "99999999999999999999" would
+// return whatever the wrapped accumulator landed at). Same hazard
+// class as the binop strict-arith default. Now: use overflow-checked
+// arithmetic during accumulation; panic with the offending input on
+// overflow. Opt-out via NUCLEOR_INT_STRICT_ARITH=0 (matches the
+// runtime opt-out for arithmetic strict mode -- if you wanted wrap
+// semantics in your code, you wanted them in your str-to-int parser
+// too).
 long long __nucleor_str_to_i64(const char *s) {
     if (!s) return 0;
+    const char *orig = s;
     while (*s == ' ' || *s == '\t' || *s == '\n' || *s == '\r') s++;
     int neg = 0;
     if (*s == '-') { neg = 1; s++; }
     else if (*s == '+') { s++; }
     long long v = 0;
     int saw = 0;
+    int overflow = 0;
     while (*s >= '0' && *s <= '9') {
-        v = v * 10 + (long long)(*s - '0');
+        long long digit = (long long)(*s - '0');
+        /* overflow check: v*10 + digit must fit in i64. */
+        if (v > (LLONG_MAX - digit) / 10) overflow = 1;
+        v = v * 10 + digit;
         saw = 1;
         s++;
     }
     if (!saw) return 0;
+    if (overflow) {
+        /* respect NUCLEOR_INT_STRICT_ARITH opt-out (cached at compile
+           time on first arithmetic; here we re-check getenv directly
+           since this helper may be called before any binop). */
+        const char *e = getenv("NUCLEOR_INT_STRICT_ARITH");
+        if (!e || e[0] != '0') {
+            fprintf(stderr, "PANIC: str_to_i64 overflow: input '%s' exceeds i64 range (set NUCLEOR_INT_STRICT_ARITH=0 to suppress)\n", orig);
+            fflush(stderr); exit(1);
+        }
+        /* lenient: return the wrapped accumulator */
+    }
     return neg ? -v : v;
 }
 
@@ -505,8 +533,16 @@ long long __nucleor_str_to_f64(const char *s) {
 long long __nucleor_str_to_int(const char *s) {
     if (!s) return 0;
     char *end;
+    errno = 0;
     long long v = strtoll(s, &end, 10);
     if (end == s) return 0;
+    if (errno == ERANGE) {
+        const char *e = getenv("NUCLEOR_INT_STRICT_ARITH");
+        if (!e || e[0] != '0') {
+            fprintf(stderr, "PANIC: str_to_int overflow: input '%s' exceeds i64 range (set NUCLEOR_INT_STRICT_ARITH=0 to suppress)\n", s);
+            fflush(stderr); exit(1);
+        }
+    }
     return v;
 }
 

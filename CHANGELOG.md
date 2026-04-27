@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.217] — 2026-04-26
+
+**`str_to_int` / `str_to_i64` on overflowing input now PANICs
+instead of silently returning a wrapped or clamped value.**
+Closes a hostile-input silent-miscompute hazard in the user-
+facing string parsers.
+
+Pre-fix:
+- `str_to_i64("99999999999999999999")` (20 nines) silently
+  wrapped the digit accumulator past i64::MAX (the C-level
+  `v = v * 10 + digit` accumulator wraps).
+- `str_to_int(...)` used `strtoll` but ignored its `errno =
+  ERANGE` signal — silent clamp at LLONG_MAX/LLONG_MIN.
+
+Both behaviors made adopters parsing hostile / malformed
+input get a wrong number with no diagnostic. Rust's
+`str::parse::<i64>()` returns `Result::Err` for this; we
+panic.
+
+Fix:
+- `__nucleor_str_to_i64`: detect overflow during digit
+  accumulation via `v > (LLONG_MAX - digit) / 10`, panic
+  with the offending input string.
+- `__nucleor_str_to_int`: check `errno == ERANGE` post-
+  `strtoll`, panic if set.
+
+Same `NUCLEOR_INT_STRICT_ARITH=0` env var opts out of both
+(matches the binop opt-out — if you wanted wrap arithmetic
+in your code, you wanted it in your str parser too).
+
+```
+PANIC: str_to_int overflow: input '99999999999999999999999' exceeds i64 range (set NUCLEOR_INT_STRICT_ARITH=0 to suppress)
+```
+
+Pinned by `tests/fixtures/probe_str_to_int_overflow.nr`.
+Bootstrap fixed point at stage_d
+`188516de263f6463c00567f6b1482cbb752999327dddcd3dd431ace4a8e5c198`.
+452/452 verify PASS.
+
 ## [0.3.216] — 2026-04-26
 
 **`f32::NAN as i64` (and friends) now returns 0 (Rust `as`
