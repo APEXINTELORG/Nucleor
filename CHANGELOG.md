@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.222] — 2026-04-26
+
+**`sym_get` most-recent-entry fast path; hash-table refactor
+attempted and reverted as too invasive.**
+
+The marginal win this cycle: sym_get checks the LAST set entry
+directly before entering the backward-scan loop. The pattern
+`sym_set(name, val); sym_get(name)` (or sym_set followed by
+sym_get of the same name within a few ops) is common, and
+direct-slot check is ~2x faster than even one-iteration loop
+overhead.
+
+A bigger ambition this cycle — switching sym tables to a 128-
+bucket hashed layout with auto-upgrade-on-first-set — was
+prototyped, broke stage_c silently during bootstrap, and
+reverted. Too many compiler paths assume the [name, val,
+name, val] linear layout; safe refactor needs per-call-site
+audit, multi-cycle. Filed as future architectural work.
+
+Cold self-build: 6.3s. Hot: 0.73s. Within perf monitor
+thresholds (cold ≤ 10s, hot ≤ 2.5s).
+
+Bootstrap fixed point at stage_d
+`78fb9785ebe397570582eb32f127f671ac57319027275ffeb6ec663137467e78`.
+452/452 verify PASS.
+
 ## [0.3.221] — 2026-04-26
 
 **Perf regression monitor + own_put early-exit + perf-pattern memo.**
