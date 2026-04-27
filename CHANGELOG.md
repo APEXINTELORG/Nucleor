@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.12] — 2026-04-27
+
+**Field-access scrutinee for `match s.field { Some(g) => ... }`
+(closes Translate's exact PipelineSuccess.gap_report shape).**
+
+v0.4.11 closed bare-ident `Option<MyStruct>` scrutinees. v0.4.12
+extends to field-access scrutinees, the actual shape Translate
+uses:
+
+```nucleor
+pub struct PipelineSuccess {
+    pub artifact: str,
+    pub gap_report: Option<GapReport>,
+}
+
+let s: PipelineSuccess = ...;
+match s.gap_report {
+    None => ...,
+    Some(g) => {
+        if g.severity != 5 { return 1; };  // works -- g typed as GapReport
+        if str_eq(g.message, "warn") != 1 { return 1; };
+    },
+};
+```
+
+### How
+
+`infer_pattern_binding_type_from_source` previously bailed when
+the scrutinee scan hit a `.` (deferring to v0.4.4 hardcoded
+defaults). v0.4.12 instead:
+
+1. Parses `<var>.<field>` from the scrutinee position.
+2. Looks up `<var>`'s declared struct type via
+   `infer_var_type_from_source` (e.g., "PipelineSuccess").
+3. Looks up `<field>`'s declared type via the existing
+   `infer_struct_field_type_from_source` (e.g., "Option<GapReport>").
+4. Extracts the generic param T from `Option<T>` / `Result<T,E>`
+   exactly as the bare-ident path already does.
+
+Single-level field access only (chains like `s.a.b` still bail --
+defer to a focused follow-up if adopters hit it).
+
+### What this lets the Translate team do
+
+The `PipelineSuccess.gap_report_present + gap_report` flag/slot
+pair workaround they were forced to keep can finally drop. They
+can use `pub gap_report: Option<GapReport>` directly.
+
+### Verification
+
+Bootstrap fixed point preserved (c == d both IR AND EXE byte-
+identical). Verify gate 468/468.
+
 ## [0.4.11] — 2026-04-27
 
 **Phase B — generic Option<T> / Result<T,E> propagation via the
