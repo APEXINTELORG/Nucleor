@@ -5355,6 +5355,49 @@ fn emit_str_constants(strtab: Vec<i32>) -> str {
     return sb_to_str(sb);
 }
 
+// v0.4.5 RFC-NRT-001: emit a `.nucleor_provenance` PE/ELF section
+// in every binary the compiler produces. External tooling (e.g.
+// Nucleor_Translate) populates this with a SLSA-compatible JSON
+// attestation describing source-language provenance. Empty by
+// default (1-byte placeholder so the section exists in the linked
+// output); populated when the env var NUCLEOR_PROVENANCE_PATH is
+// set (the --provenance <path> CLI flag sets it).
+//
+// LLVM IR shape:
+//   @.nucleor_provenance_data = constant [N x i8] c"...", section ".nucprov"
+//   @llvm.used = appending global [1 x ptr] [ptr @.nucleor_provenance_data], section "llvm.metadata"
+//
+// llvm.used keeps the linker from dropping the section when nothing
+// else references it. clang on both -fuse-ld=link (PE/COFF) and
+// -fuse-ld=lld (ELF) honors the section attribute and produces the
+// named section in the output binary. Section name length (>8 chars)
+// is handled by clang's COFF string-table mechanism automatically.
+fn emit_provenance_section() -> str {
+    let mut sb: i64 = sb_new();
+    let path: str = env_get_or("NUCLEOR_PROVENANCE_PATH", "");
+    let mut content: str = "";
+    let mut content_len: i64 = 0;
+    if str_len(path) > 0 {
+        content = file_read_string(path);
+        content_len = str_len(content);
+    };
+    // Always emit the section. Empty case = 1-byte null placeholder so
+    // the section is present in the linked binary even with no payload.
+    if content_len == 0 {
+        sb_append(sb, "@.nucleor_provenance_data = constant [1 x i8] c\"\\00\", section \".nucprov\", align 1\n");
+    } else {
+        sb_append(sb, "@.nucleor_provenance_data = constant [");
+        sb_append(sb, str_from_int(content_len));
+        sb_append(sb, " x i8] c\"");
+        sb_append(sb, escape_llvm_str(content));
+        sb_append(sb, "\", section \".nucprov\", align 1\n");
+    };
+    // llvm.used pin so the linker keeps the section even though nothing
+    // in user code references it.
+    sb_append(sb, "@llvm.used = appending global [1 x ptr] [ptr @.nucleor_provenance_data], section \"llvm.metadata\"\n\n");
+    return sb_to_str(sb);
+}
+
 fn nr_type_to_llvm(t: str) -> str {
     if str_eq(t, "str") { return "ptr"; };
     if str_eq(t, "ptr") { return "ptr"; };
@@ -5490,6 +5533,8 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
     sb_append(sb, emit_externs());
     sb_append(sb, emit_user_externs(pool, externs));
     sb_append(sb, emit_str_constants(strtab));
+    // v0.4.5 RFC-NRT-001: always-emit .nucleor_provenance section
+    sb_append(sb, emit_provenance_section());
     // v0.4.1 RFC-NRT-004 §H: detect same-name pub fn collisions across
     // imported modules BEFORE clang sees the IR. Pre-fix, two modules
     // both declaring `pub fn error_kind_to_str` (with different param
@@ -17114,7 +17159,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.4";
+    return "0.4.5";
 }
 
 fn compiler_backend_label() -> str {
@@ -18010,6 +18055,20 @@ fn main() -> i64 {
         let flag: str = args_get(argi_build);
         if str_eq(flag, "--time-passes") { time_passes = 1; }
         else if str_eq(flag, "--no-cache") { use_cache = 0; }
+        else if str_eq(flag, "--provenance") {
+            // v0.4.5 RFC-NRT-001: --provenance <path> populates the
+            // .nucleor_provenance section of the output binary with
+            // the bytes of <path>. Without this flag the section
+            // exists with a 1-byte null placeholder.
+            if argi_build + 1 >= argc {
+                print("ERROR: --provenance requires a path to a JSON file");
+                return 1;
+            };
+            env_set("NUCLEOR_PROVENANCE_PATH", args_get(argi_build + 1));
+            argi_build = argi_build + 1;
+        } else if str_starts_with(flag, "--provenance=") == 1 {
+            env_set("NUCLEOR_PROVENANCE_PATH", str_substring(flag, 13, str_len(flag)));
+        }
         else if str_eq(cmd, "test") && str_eq(flag, "--list") { test_list_only = 1; }
         else if str_eq(cmd, "bench") && str_eq(flag, "--iterations") {
             if argi_build + 1 >= argc {
