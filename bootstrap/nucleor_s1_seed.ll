@@ -6817,7 +6817,7 @@ declare i64 @__nucleor_tensor_sample_gumbel(i64, i64)
 @.str.6009 = private unnamed_addr constant [3 x i8] c"__\00"
 @.str.6010 = private unnamed_addr constant [1 x i8] c"\00"
 @.str.6011 = private unnamed_addr constant [17 x i8] c"0123456789abcdef\00"
-@.str.6012 = private unnamed_addr constant [7 x i8] c"0.4.20\00"
+@.str.6012 = private unnamed_addr constant [7 x i8] c"0.4.21\00"
 @.str.6013 = private unnamed_addr constant [5 x i8] c"llvm\00"
 @.str.6014 = private unnamed_addr constant [9 x i8] c"nucleor \00"
 @.str.6015 = private unnamed_addr constant [16 x i8] c" (self-hosted, \00"
