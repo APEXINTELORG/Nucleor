@@ -13585,6 +13585,20 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     let cfiles: str = vec_get(native_d, 1);
     let libpath_flags: str = vec_get(native_d, 2);
     let rt_arg: str = resolve_toolchain_path("stdlib/runtime/nucleor_llvm_rt.c");
+    // v0.3.234: force-include the shared OOM-aware allocator
+    // header into every C TU clang sees so the whole-runtime malloc/
+    // realloc/calloc surface routes through the panic-on-NULL
+    // wrappers (honoring NUCLEOR_OOM_LENIENT=1). Without this,
+    // pre-v0.3.234 the wrappers only covered nucleor_llvm_rt.c
+    // and the ~150 other rt files were left with bare libc allocs.
+    let alloc_hdr: str = resolve_toolchain_path("stdlib/runtime/nuc_alloc.h");
+    // v0.3.234: do NOT add quotes around the header path. The
+    // surrounding system() call already wraps the whole clang
+    // command in cmd.exe /c "...", and adding two more quotes
+    // here flips the cmd.exe quote-parity rule that strips the
+    // outer wrapper -- which then breaks the C:\Program Files\
+    // clang path quoting elsewhere in the line. Keep it bare.
+    let alloc_include_flag: str = str_concat(" -include ", alloc_hdr);
     let clang_start: i64 = now_ms();
     let stack_flag: str = host_stack_link_flag();
     // T1.5d (v0.2.343): capture clang stderr to a log file so the
@@ -13600,7 +13614,7 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     // the executable and the rest as args, failing with
     // `'C:\Program' is not recognized`.
     let clang_quoted: str = str_concat("\"", str_concat(llvm_clang_path(), "\""));
-    let cmd: str = str_concat(clang_quoted, str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags, str_concat(link_flags, str_concat(" > ", str_concat(log_path, " 2>&1")))))))))))))));
+    let cmd: str = str_concat(clang_quoted, str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(alloc_include_flag, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags, str_concat(link_flags, str_concat(" > ", str_concat(log_path, " 2>&1"))))))))))))))));
     let mut rc: i64 = system(cmd);
     // v0.3.190: NUC-FEEDBACK-009 retry loop. ML adopters reported
     // intermittent post-LLVM-emit/no-compiled-line failures during
@@ -16911,7 +16925,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.232";
+    return "0.3.234";
 }
 
 fn compiler_backend_label() -> str {
