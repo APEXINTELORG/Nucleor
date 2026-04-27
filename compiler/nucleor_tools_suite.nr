@@ -958,6 +958,8 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // v0.4.1 RFC-NRT-004 §D: optional `pub` field qualifier
         // (sync from nucleor_s1_compiler.nr:parse_struct_decl).
         if pk(tokens, cp) == 72 { cp = cp + 1; };
+        // v0.4.16: optional `mut` field qualifier (sync).
+        if pk(tokens, cp) == 12 { cp = cp + 1; };
         let fn2: i64 = pkv(tokens, cp); cp = expect_tok(tokens, cp + 1, 42);
         let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
         fields.push(mk3(pool, 41, fn2, pr_val(tr)));
