@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.17] — 2026-04-27
+
+**Hazard-sweep regression pinning — 20 adopter patterns locked into
+the verify gate.**
+
+Continuing the production-readiness sweep. v0.4.13 / v0.4.15 / v0.4.16
+each found and closed a real silent miscompute by probing adopter
+patterns. v0.4.17 takes the OPPOSITE side of the sweep: 20 patterns
+that PASS today get pinned into the verify gate so they fail-fast
+on any future regression.
+
+### Patterns pinned
+
+| Step | Patterns covered |
+|---|---|
+| t486 (sweep #4) | fn-returning-struct field access, arith in format, while+format!() loop, Vec<Option<str>> cons, neg-int format |
+| t487 (sweep #5) | method call on bound payload, recursive enum traversal w/ format, comparison chain in if, neg literal in format, empty-string format |
+| t488 (sweep #6) | div-by-zero handling, int-overflow guards, str_to_int empty/garbage, Vec capacity stress (100 pushes) |
+| t489 (sweep #7) | nested struct field access (a.b.c), arith safety, Vec sum via while, HashMap iteration via keys, bool field via `if struct.flag` |
+
+Each fixture is a single binary that runs all 5 sub-hazards and
+asserts exit 0; the gate Step builds + runs and fails if any
+sub-hazard returns non-zero. So a regression in ANY of the 20
+patterns surfaces as a clean named-step FAIL instead of being
+discovered later by adopters.
+
+### What this gives adopters
+
+Translate / ML_Suite / future Nucleor users get an implicit
+"these 20 patterns are guaranteed to keep working" contract. Combined
+with the prior v0.4.x adopter-feedback closures (RFC-NRT-001/002/003/
+004 §A-§I, all the Option<T>/Result<T,E> propagation work, all the
+format-macro dispatch fixes), the v0.4.x line covers the full
+adopter-shape surface that's been exercised so far.
+
+### Verification
+
+Bootstrap fixed point preserved (c == d byte-identical IR + EXE).
+Verify gate 476/476.
+
 ## [0.4.16] — 2026-04-27
 
 **Two more hazard-sweep finds: `mut` struct field qualifier +
