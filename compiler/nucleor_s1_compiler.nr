@@ -17188,7 +17188,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.6";
+    return "0.4.7";
 }
 
 fn compiler_backend_label() -> str {
@@ -17205,14 +17205,14 @@ fn cli_is_flag(arg: str) -> i64 {
 }
 
 fn cmd_accepts_source(cmd: str) -> i64 {
-    if str_eq(cmd, "build") || str_eq(cmd, "build-fast") || str_eq(cmd, "build-strict") || str_eq(cmd, "build-shared") || str_eq(cmd, "run") || str_eq(cmd, "emit") || str_eq(cmd, "build-wasm") || str_eq(cmd, "build-ptx") || str_eq(cmd, "check") || str_eq(cmd, "audit") || str_eq(cmd, "policy") || str_eq(cmd, "certify") || str_eq(cmd, "translate") || str_eq(cmd, "test") || str_eq(cmd, "bench") || str_eq(cmd, "summary") || str_eq(cmd, "impact") || str_eq(cmd, "query") || str_eq(cmd, "graph") || str_eq(cmd, "perf") || str_eq(cmd, "evidence") || str_eq(cmd, "abi") {
+    if str_eq(cmd, "build") || str_eq(cmd, "build-fast") || str_eq(cmd, "build-strict") || str_eq(cmd, "build-shared") || str_eq(cmd, "run") || str_eq(cmd, "emit") || str_eq(cmd, "build-wasm") || str_eq(cmd, "build-ptx") || str_eq(cmd, "check") || str_eq(cmd, "audit") || str_eq(cmd, "policy") || str_eq(cmd, "certify") || str_eq(cmd, "translate") || str_eq(cmd, "test") || str_eq(cmd, "bench") || str_eq(cmd, "summary") || str_eq(cmd, "impact") || str_eq(cmd, "query") || str_eq(cmd, "graph") || str_eq(cmd, "perf") || str_eq(cmd, "evidence") || str_eq(cmd, "abi") || str_eq(cmd, "verify-reproducible") {
         return 1;
     };
     return 0;
 }
 
 fn cmd_allows_output_name(cmd: str) -> i64 {
-    if str_eq(cmd, "build") || str_eq(cmd, "build-fast") || str_eq(cmd, "build-strict") || str_eq(cmd, "build-shared") || str_eq(cmd, "run") || str_eq(cmd, "emit") || str_eq(cmd, "build-wasm") || str_eq(cmd, "build-ptx") || str_eq(cmd, "certify") || str_eq(cmd, "test") || str_eq(cmd, "bench") {
+    if str_eq(cmd, "build") || str_eq(cmd, "build-fast") || str_eq(cmd, "build-strict") || str_eq(cmd, "build-shared") || str_eq(cmd, "run") || str_eq(cmd, "emit") || str_eq(cmd, "build-wasm") || str_eq(cmd, "build-ptx") || str_eq(cmd, "certify") || str_eq(cmd, "test") || str_eq(cmd, "bench") || str_eq(cmd, "verify-reproducible") {
         return 1;
     };
     return 0;
@@ -17862,6 +17862,8 @@ fn print_help() -> i64 {
     print("  emit [file]            Emit LLVM IR only (alias for --no-link)");
     print("  build-wasm [file]      Compile to WebAssembly (.wasm)");
     print("  build-ptx [file]       Compile to NVIDIA PTX (.ptx)");
+    print("  verify-reproducible [file]  Build twice with --no-cache and assert byte-identical IR (RFC-NRT-003)");
+    print("    --provenance <path>  Embed a SLSA JSON attestation in the .nucprov section (RFC-NRT-001)");
     print("    -o, --out <name>     Set output base name");
     print("    --emit llvm          Keep the LLVM IR artifact");
     print("    --no-link            Stop after writing target/<name>.ll");
@@ -18207,6 +18209,58 @@ fn main() -> i64 {
         return run_external_tool(argc);
     } else if str_eq(cmd, "emit") {
         return compile_file_mode(src_path, out_name, 0, use_cache, time_passes, 0);
+    } else if str_eq(cmd, "verify-reproducible") {
+        // v0.4.7 RFC-NRT-003: build the file twice with --no-cache,
+        // emit only LLVM IR (skip clang link to keep the check fast +
+        // independent of linker flakiness), hash both .ll outputs,
+        // report pass/fail. The IR is the determinism boundary the
+        // self-host fixed-point invariant already enforces; clang's
+        // PE/COFF output is byte-identical given byte-identical IR
+        // and a deterministic linker (which we already exercise via
+        // T1.7 on the self-host).
+        let out_a: str = str_concat(out_name, "_repro_a");
+        let out_b: str = str_concat(out_name, "_repro_b");
+        let rc_a: i64 = compile_file_mode(src_path, out_a, 0, 0, 0, 0);
+        if rc_a != 0 {
+            print("verify-reproducible: first build failed; aborting.");
+            return rc_a;
+        };
+        let rc_b: i64 = compile_file_mode(src_path, out_b, 0, 0, 0, 0);
+        if rc_b != 0 {
+            print("verify-reproducible: second build failed; aborting.");
+            return rc_b;
+        };
+        let ll_a: str = str_concat("target/", str_concat(out_a, ".ll"));
+        let ll_b: str = str_concat("target/", str_concat(out_b, ".ll"));
+        let bytes_a: str = file_read_string(ll_a);
+        let bytes_b: str = file_read_string(ll_b);
+        if str_len(bytes_a) == 0 {
+            print(str_concat("verify-reproducible: cannot read ", ll_a));
+            return 1;
+        };
+        if str_len(bytes_b) == 0 {
+            print(str_concat("verify-reproducible: cannot read ", ll_b));
+            return 1;
+        };
+        let hash_a: str = content_hash(bytes_a);
+        let hash_b: str = content_hash(bytes_b);
+        let len_a: i64 = str_len(bytes_a);
+        let len_b: i64 = str_len(bytes_b);
+        print(str_concat("verify-reproducible: source = ", src_path));
+        print(str_concat("  build A: ", str_concat(ll_a, str_concat(" (", str_concat(str_from_int(len_a), str_concat(" bytes, hash=", str_concat(hash_a, ")")))))));
+        print(str_concat("  build B: ", str_concat(ll_b, str_concat(" (", str_concat(str_from_int(len_b), str_concat(" bytes, hash=", str_concat(hash_b, ")")))))));
+        if str_eq(hash_a, hash_b) == 1 && len_a == len_b {
+            print("PASS: byte-identical IR across two cold-cache builds.");
+            print("  This file satisfies the RFC-NRT-003 reproducibility invariant.");
+            return 0;
+        };
+        print("FAIL: build outputs differ.");
+        print("  Determinism break detected. Common causes:");
+        print("    - timestamps in cached intermediates");
+        print("    - hash-table iteration order in symbol lowering");
+        print("    - absolute build paths embedded in IR");
+        print("    - random seeding in an optimization pass");
+        return 1;
     } else if str_eq(cmd, "test") || str_eq(cmd, "bench") || str_eq(cmd, "check") || str_eq(cmd, "audit") || str_eq(cmd, "policy") || str_eq(cmd, "certify") || str_eq(cmd, "translate") {
         return run_external_tool(argc);
     } else {

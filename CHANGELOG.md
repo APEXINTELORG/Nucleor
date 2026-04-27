@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.7] — 2026-04-27
+
+**RFC-NRT-003 — `nuc verify-reproducible` subcommand (Translate
+SPEC-2 SLSA-Build-Level-3 unblocker, partial).**
+
+The bootstrap fixed-point invariant has guaranteed byte-identical
+self-host IR since v0.2.0, validated by the T1.7 verify-gate Step
+on every release. RFC-NRT-003 asks for the same guarantee to be
+extended to user code via a `nuc verify-reproducible <file>`
+subcommand and to be exposed as a first-class compiler feature.
+
+### CLI
+
+```
+$ nuc verify-reproducible foo.nr
+verify-reproducible: source = foo.nr
+  build A: target/foo_repro_a.ll (35081 bytes, hash=f7021d23)
+  build B: target/foo_repro_b.ll (35081 bytes, hash=f7021d23)
+PASS: byte-identical IR across two cold-cache builds.
+  This file satisfies the RFC-NRT-003 reproducibility invariant.
+```
+
+On failure, prints the FAIL diagnostic with common-causes hints
+(timestamps in caches, hash-table iteration order, absolute build
+paths in IR, RNG in optimization passes).
+
+### What it does
+
+Builds the file twice with `--no-cache` (forcing cold-path
+compile both times), emits LLVM IR only (skip clang link to keep
+the check fast and independent of linker flakiness), hashes both
+.ll outputs via `content_hash`, compares.
+
+The IR is the determinism boundary: if IR is byte-identical, the
+linker's PE/COFF or ELF output is byte-identical too (LLVM lld
+and clang's link path are deterministic given identical IR + the
+same toolchain version). The self-host T1.7 gate already exercises
+the IR→linked binary path daily.
+
+### What it doesn't do (yet)
+
+Acceptance criteria 2 (cross-machine determinism) and 4 (CI gate
+on non-self-host fixtures running every release) are still partial:
+
+- **Cross-machine** — depends on no embedded absolute paths, no
+  machine-specific timestamps, no per-machine cache content. Self-
+  host evidence suggests this holds today, but the RFC asks for it
+  to be CI-tested. That's a multi-machine CI setup, not a compiler
+  change.
+- **`SOURCE_DATE_EPOCH` honored?** — not yet probed; documented
+  as an open question in the RFC. We don't currently embed any
+  timestamps anywhere, so the variable is a no-op for now.
+
+### Pinned regression
+
+`tests/fixtures/t477_provenance_section.nr` is a sample fixture;
+new verify-gate Step runs `nuc verify-reproducible` on it and
+asserts PASS.
+
+Bootstrap fixed point preserved (c == d). Verify gate 465/465.
+
 ## [0.4.6] — 2026-04-27
 
 **Diagnostic: `extern fn __nucleor_*` declarations that conflict with
