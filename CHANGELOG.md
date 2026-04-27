@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.237] — 2026-04-27
+
+**Hash-backed sym_get refactor — Phase B prototyped + reverted (honest
+result; Phase A infrastructure stays dormant for redesigned 0.4.x).**
+
+Phase B migrated `sym_get` / `own_put_i` / `own_put_s` / `own_restore`
+in `compiler/nucleor_s1_compiler.nr` to use the v0.3.236 sym-aux
+side hashmap. The migration was functionally correct (bootstrap
+stage_b == stage_c == stage_d byte-identical -- the strongest end-
+to-end correctness check available, since byte-identical IR across
+self-host iterations means every sym_get during a 947K-byte compile
+agreed with the new hash backing).
+
+But: Phase B caused a **1.8x peak-memory regression** (502MB ->
+888MB) at no measurable compile-time gain. The per-sym aux hashmap
+allocations dominated -- every `sym_clone` (one per branch in
+type-check / lowering, many per function) registered a new sym_handle
+in the side table, and any sym that crossed the hash threshold got
+its own NHashMap permanent for the rest of the compile (the side
+table doesn't free entries when the underlying Vec is dropped).
+
+Tried mitigations:
+- size threshold (only hash for large syms): still 1.8x at threshold 512
+- threshold 2048: still significant overhead (most large syms cross it)
+- the underlying issue is the 1-aux-per-sym model, not the threshold
+
+The **right redesign** is a single global warm-cache hashmap that's
+cleared on sym-handle context switch. Compile workloads churn through
+symbols in spurts (hot for one function, then move on), so a
+warm-cache fits the access pattern perfectly without per-sym
+allocation overhead. That's a 0.4.x milestone -- it requires more
+runtime contract changes than fits the 0.3 close window.
+
+**Phase A infrastructure stays in place** (the four
+`__nucleor_sym_aux_*` runtime helpers, the get_rt_name mappings in
+both s1 and tools_suite, the IR `declare` lines). They're dormant
+under the linear-scan live impl but ready for the warm-cache
+redesign without another bootstrap-name-recognition ratchet.
+
+The linear scan with most-recent-entry fast path remains the live
+sym_get -- the v0.3.235 perf baseline (502MB / 6.5s) is preserved.
+
+Verify gate: 457/457. Bootstrap fixed point preserved. T1.8 perf+memory
+clean (6.29s cold / 0.76s hot / 502MB peak).
+
 ## [0.3.236] — 2026-04-27
 
 **Hash-backed sym_get refactor — Phase A (dormant infrastructure).**
