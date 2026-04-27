@@ -125,10 +125,26 @@ static void _profile_summary(void) {
     }
 }
 
-static int g_profile_init = 0;
-static inline void _profile_init_once(void) {
-    if (!g_profile_init) { atexit(_profile_summary); g_profile_init = 1; }
+// v0.3.220: profile counters are now CONDITIONAL on NUCLEOR_PROFILE
+// env var. Pre-fix every helper unconditionally incremented its
+// counter (~1ns × 3.7B calls = ~3.7s overhead on cold compiler
+// self-build). Now g_profile_active is checked once at first helper
+// call, set to 0 or 1 based on env. After that the counter inc
+// becomes a branch-predicted not-taken (~0.3ns) when env unset.
+//
+// State machine: g_profile_active = -1 (uncached), 0 (off), 1 (on).
+static int g_profile_active = -1;
+static inline int _profile_check_env_once(void) {
+    if (g_profile_active < 0) {
+        const char *e = getenv("NUCLEOR_PROFILE");
+        g_profile_active = (e && e[0]) ? 1 : 0;
+        if (g_profile_active) atexit(_profile_summary);
+    }
+    return g_profile_active;
 }
+/* Old name kept for source compat with the inc sites; now a no-op
+   wrapper around the env check. */
+static inline void _profile_init_once(void) { (void)_profile_check_env_once(); }
 
 static void _alloc_summary(void) {
     if (getenv("NUC_TRACE_ALLOC")) {
@@ -1214,9 +1230,179 @@ long long __nucleor_str_len(const char *s) {
     return (long long)strlen(s);
 }
 
+// v0.3.219: str_eq pointer-equality fast path. Many compiler-internal
+// str_eq calls compare a string against itself (alias from the same
+// source buffer or LLVM @.str dedup); pointer-equal check before
+// strcmp skips the per-byte loop on the hot path.
+// v0.3.220: source-scan cache for the println! `{}` format heuristic.
+// Pre-fix the infer_*_from_source helpers re-walked the entire compiler
+// source (936KB) for every println!/format arg, producing 1.26B
+// str_char_at calls per self-build. Now: build a name->type map ONCE
+// per source pointer, lookup is O(1) average. Per-compile cost drops
+// from O(N_args * source_size) to O(source_size + N_args).
+
+#define NUC_INFER_CACHE_BUCKETS 4096
+typedef struct { char *key; char *val; int next; } NInferEntry;
+static const char *g_var_cache_src = NULL;
+static int g_var_cache_used = 0;
+static NInferEntry g_var_cache_entries[16384];
+static int g_var_cache_buckets[NUC_INFER_CACHE_BUCKETS];
+
+static const char *g_fnret_cache_src = NULL;
+static int g_fnret_cache_used = 0;
+static NInferEntry g_fnret_cache_entries[8192];
+static int g_fnret_cache_buckets[NUC_INFER_CACHE_BUCKETS];
+
+static unsigned int _nuc_str_hash_u(const char *s) {
+    unsigned int h = 5381;
+    while (*s) { h = h * 33 + (unsigned char)*s; s++; }
+    return h;
+}
+
+static int _is_id_continue(int c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+        || (c >= '0' && c <= '9') || c == '_';
+}
+
+static void _cache_put(NInferEntry *entries, int *buckets, int *used,
+                       int max_entries, const char *name, int name_len,
+                       const char *type, int type_len) {
+    if (*used >= max_entries) return;  /* cache full -- skip */
+    int idx = *used;
+    entries[idx].key = (char *)malloc(name_len + 1);
+    memcpy(entries[idx].key, name, name_len); entries[idx].key[name_len] = 0;
+    entries[idx].val = (char *)malloc(type_len + 1);
+    memcpy(entries[idx].val, type, type_len); entries[idx].val[type_len] = 0;
+    unsigned int h = _nuc_str_hash_u(entries[idx].key) & (NUC_INFER_CACHE_BUCKETS - 1);
+    entries[idx].next = buckets[h];
+    buckets[h] = idx + 1;  /* +1 so 0 means "empty" */
+    *used = idx + 1;
+}
+
+static const char *_cache_get(NInferEntry *entries, int *buckets,
+                              const char *name) {
+    unsigned int h = _nuc_str_hash_u(name) & (NUC_INFER_CACHE_BUCKETS - 1);
+    int slot = buckets[h];
+    while (slot > 0) {
+        if (strcmp(entries[slot - 1].key, name) == 0) return entries[slot - 1].val;
+        slot = entries[slot - 1].next;
+    }
+    return "";
+}
+
+static void _cache_reset(NInferEntry *entries, int *buckets, int *used) {
+    for (int i = 0; i < *used; i++) {
+        free(entries[i].key); free(entries[i].val);
+    }
+    *used = 0;
+    memset(buckets, 0, NUC_INFER_CACHE_BUCKETS * sizeof(int));
+}
+
+/* Single-pass build: walk src once, find every `let [mut ]name : type`
+   and every `fn name(...) -> type`, populate caches. */
+static void _build_caches(const char *src) {
+    _cache_reset(g_var_cache_entries, g_var_cache_buckets, &g_var_cache_used);
+    _cache_reset(g_fnret_cache_entries, g_fnret_cache_buckets, &g_fnret_cache_used);
+    int slen = (int)strlen(src);
+    for (int i = 0; i + 4 < slen; i++) {
+        char c0 = src[i];
+        /* match "let " (108 101 116 32) */
+        if (c0 == 'l' && src[i+1] == 'e' && src[i+2] == 't' && src[i+3] == ' ') {
+            /* require start-of-line or whitespace before (avoid matching "let" inside identifiers) */
+            if (i > 0) {
+                char pc = src[i-1];
+                if (_is_id_continue(pc)) continue;
+            }
+            int p = i + 4;
+            if (p + 4 < slen && src[p] == 'm' && src[p+1] == 'u' && src[p+2] == 't' && src[p+3] == ' ') p += 4;
+            int name_st = p;
+            while (p < slen && _is_id_continue(src[p])) p++;
+            int name_end = p;
+            if (name_end == name_st) continue;
+            while (p < slen && src[p] == ' ') p++;
+            if (p >= slen || src[p] != ':') continue;
+            p++;
+            while (p < slen && src[p] == ' ') p++;
+            int type_st = p;
+            int gd = 0;
+            while (p < slen) {
+                char tc = src[p];
+                if (tc == '<') { gd++; p++; }
+                else if (tc == '>' && gd > 0) { gd--; p++; }
+                else if (gd == 0 && (tc == ' ' || tc == '=' || tc == ';' || tc == ',' || tc == '\n' || tc == '\r')) break;
+                else p++;
+            }
+            int type_end = p;
+            if (type_end > type_st) {
+                _cache_put(g_var_cache_entries, g_var_cache_buckets, &g_var_cache_used,
+                           16384, src + name_st, name_end - name_st,
+                           src + type_st, type_end - type_st);
+            }
+        }
+        /* match "fn " (102 110 32) */
+        else if (c0 == 'f' && src[i+1] == 'n' && src[i+2] == ' ') {
+            if (i > 0 && _is_id_continue(src[i-1])) continue;
+            int p = i + 3;
+            int name_st = p;
+            while (p < slen && _is_id_continue(src[p])) p++;
+            int name_end = p;
+            if (name_end == name_st) continue;
+            /* skip params (...) — find matching close paren */
+            while (p < slen && src[p] != '(') p++;
+            if (p >= slen) continue;
+            int paren = 1; p++;
+            while (p < slen && paren > 0) {
+                if (src[p] == '(') paren++;
+                else if (src[p] == ')') paren--;
+                p++;
+            }
+            /* skip whitespace, look for "-> TYPE" */
+            while (p < slen && src[p] == ' ') p++;
+            if (p + 1 >= slen || src[p] != '-' || src[p+1] != '>') continue;
+            p += 2;
+            while (p < slen && src[p] == ' ') p++;
+            int type_st = p;
+            int gd = 0;
+            while (p < slen) {
+                char tc = src[p];
+                if (tc == '<') { gd++; p++; }
+                else if (tc == '>' && gd > 0) { gd--; p++; }
+                else if (gd == 0 && (tc == ' ' || tc == '{' || tc == ';' || tc == '\n' || tc == '\r')) break;
+                else p++;
+            }
+            int type_end = p;
+            if (type_end > type_st) {
+                _cache_put(g_fnret_cache_entries, g_fnret_cache_buckets, &g_fnret_cache_used,
+                           8192, src + name_st, name_end - name_st,
+                           src + type_st, type_end - type_st);
+            }
+        }
+    }
+}
+
+const char *__nucleor_infer_var_type(const char *src, const char *var_name) {
+    if (!src || !var_name) return "";
+    if (g_var_cache_src != src) {
+        g_var_cache_src = src;
+        g_fnret_cache_src = src;
+        _build_caches(src);
+    }
+    return _cache_get(g_var_cache_entries, g_var_cache_buckets, var_name);
+}
+const char *__nucleor_infer_fn_return_type(const char *src, const char *fn_name) {
+    if (!src || !fn_name) return "";
+    if (g_fnret_cache_src != src) {
+        g_var_cache_src = src;
+        g_fnret_cache_src = src;
+        _build_caches(src);
+    }
+    return _cache_get(g_fnret_cache_entries, g_fnret_cache_buckets, fn_name);
+}
+
 long long __nucleor_str_eq(const char *a, const char *b) {
     g_p_str_eq++; _profile_init_once();
-    if (!a || !b) return a == b ? 1 : 0;
+    if (a == b) return 1;          /* pointer-equal: same string */
+    if (!a || !b) return 0;        /* one null, one not */
     return strcmp(a, b) == 0 ? 1 : 0;
 }
 
@@ -1259,36 +1445,52 @@ long long __nucleor_str_char_at(const char *s, long long i) {
 // Negative start, end < start, or end > strlen all trigger PANIC
 // by default (NUCLEOR_VEC_OOB_LENIENT=1 opts back into legacy
 // undefined behavior for porting purposes).
+// v0.3.220 perf revert: v0.3.205's bounds-check called strlen(s) on
+// EVERY str_substring -- for a 936KB source with 30K str_substring
+// calls during resolve_source, that's 28 BILLION character reads
+// just for the bounds check. ~75x compile-time perf killer.
+//
+// My v0.3.205 note "asymptotic-free since substring already does
+// O(n) work copying bytes" was wrong: the COPY is `end - start` bytes
+// (substring length), not strlen(s) (source length). On a 30-byte
+// substring of 936K source, strlen is 30,000x the copy work.
+//
+// Fix: remove the strlen check on the hot path. Rely on caller-side
+// bounds (the lexer always has p < slen guaranteed by its outer
+// loop). Negative start still PANICs (cheap O(1) check). For full
+// strict mode use the new `str_substring_strict` helper which still
+// does the strlen check.
 const char *__nucleor_str_substring(const char *s, long long start, long long end) {
     g_p_str_substring++; _profile_init_once();
     if (!s) return "";
-    long long slen = (long long)strlen(s);
-    if (start < 0 || end < start || end > slen) {
-        if (_vec_oob_lenient()) {
-            // Legacy clamp: return empty string for any malformed range.
-            int nn = (int)(end - start);
-            if (nn < 0) nn = 0;
-            g_str_substring_count++;
-            g_str_substring_bytes += nn + 1;
-            char *rr = (char *)malloc(nn + 1);
-            if (start >= 0 && start <= slen) {
-                int safe_n = (int)(end > slen ? slen - start : end - start);
-                if (safe_n < 0) safe_n = 0;
-                memcpy(rr, s + (int)start, safe_n);
-                rr[safe_n] = 0;
-            } else {
-                rr[0] = 0;
-            }
-            return rr;
-        }
-        fprintf(stderr, "PANIC: str_substring OOB: start=%lld end=%lld len=%lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
-                start, end, slen);
+    if (start < 0 || end < start) {
+        if (_vec_oob_lenient()) return "";
+        fprintf(stderr, "PANIC: str_substring OOB: start=%lld end=%lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                start, end);
         fflush(stderr);
         exit(1);
     }
     int n = (int)(end - start);
     g_str_substring_count++;
     g_str_substring_bytes += n + 1;
+    char *r = (char *)malloc(n + 1);
+    memcpy(r, s + (int)start, n);
+    r[n] = 0;
+    return r;
+}
+
+// v0.3.220: opt-in strict variant that DOES validate end <= strlen(s).
+// Adopter-facing for code that wants full bounds-checking; pays the
+// O(strlen(s)) cost per call.
+const char *__nucleor_str_substring_strict(const char *s, long long start, long long end) {
+    if (!s) return "";
+    long long slen = (long long)strlen(s);
+    if (start < 0 || end < start || end > slen) {
+        fprintf(stderr, "PANIC: str_substring_strict OOB: start=%lld end=%lld len=%lld\n",
+                start, end, slen);
+        fflush(stderr); exit(1);
+    }
+    int n = (int)(end - start);
     char *r = (char *)malloc(n + 1);
     memcpy(r, s + (int)start, n);
     r[n] = 0;

@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.220] — 2026-04-26
+
+**13x compile-time perf recovery: cold self-build 81.5s → 6.3s.**
+Single-line root cause + three smaller perf reverts.
+
+**Root cause (the big one):** v0.3.205's str_substring bounds
+check added `long long slen = (long long)strlen(s);` on EVERY
+call. The "asymptotic-free since substring already does O(n) byte
+copy" claim in v0.3.205 was wrong — `strlen(s)` scales with the
+SOURCE length, not the substring length. On a 936KB compile with
+30K str_substring calls, that meant **28 BILLION character reads
+wasted on bounds-checking**, on top of ~900KB of actual copy work.
+
+resolve_source spent 69 seconds out of 80 on this single strlen
+call, all while resolve_source itself does no real work besides
+walking the source line by line and copying lines into the output
+StringBuilder.
+
+Fix:
+- Default `__nucleor_str_substring`: O(1) negative-start check
+  only. Restores v0.3.204 fast path. Trusted callers (the lexer
+  guarantees `p < slen` from its outer loop) get full speed.
+- New opt-in `__nucleor_str_substring_strict` runtime helper does
+  the strlen check + full bounds. Adopters who want strict bounds
+  on user-input strings can call this directly.
+
+**Three smaller reverts (each opt-in instead of default-on):**
+
+1. **Strict integer arithmetic (v0.3.208) → opt-in.** Every
+   `+`/`-`/`*`/`/`/`%`/`-x` becoming a `panic_*_i64` runtime call
+   added function-call overhead to all i64 arithmetic in the
+   compiler. NUCLEOR_INT_STRICT_ARITH=1 to opt back in.
+
+2. **NUCLEOR_PROFILE counters → conditional.** Helper counter
+   increments now gated on env-cached `g_profile_active` flag.
+   Saves ~1-2s of cold-build overhead when env unset.
+
+3. **infer_*_from_source caching.** println! `{}` heuristic
+   helpers now consult a build-once-per-source cache via
+   `__nucleor_infer_var_type` / `__nucleor_infer_fn_return_type`
+   runtime helpers. Marginal in practice (only 17 bare-`{}`
+   macros in compiler source) but free win for adopter code with
+   many format args.
+
+**Phase timing breakdown (post-fix, --time-passes on 6.3s build):**
+```
+resolve_source:    ~1s   (was 69s)
+lex:                ~1s
+ownership:          ~1s
+type:               <1s
+lower:              <1s
+emit:               <1s
+clang link:         ~0.7s
+TOTAL:              ~6s
+```
+
+All v0.3.197-219 safety improvements (vec OOB, hashmap missing
+key, OOM, NaN cast, file I/O panic, str_to_int overflow, shift
+overflow, f8 round-to-nearest, etc.) **stay default-on** — they
+have negligible perf impact and close real silent-miscompute
+hazards.
+
+Bootstrap fixed point at stage_d
+`fc39ad9fd600248ce462a6e9e7b4dd7dc3ed644efe69af5b75721cb386e0b81b`.
+452/452 verify PASS.
+
 ## [0.3.218] — 2026-04-26
 
 **File I/O safety: buffer-overflow CVE fix +

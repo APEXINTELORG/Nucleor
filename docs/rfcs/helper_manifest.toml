@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 784
-# Of which REVIEW REQUIRED: 30
+# Total helpers: 787
+# Of which REVIEW REQUIRED: 32
 
 # ============================================================
 # REVIEW REQUIRED
@@ -33,6 +33,8 @@
 #   f8e4m3_to_str                            (Unclassified)
 #   f8e5m2_from_f32                          (Unclassified)
 #   f8e5m2_to_str                            (Unclassified)
+#   infer_fn_return_type_cached              (Unclassified)
+#   infer_var_type_cached                    (Unclassified)
 #   sizeof_bf16                              (Unclassified)
 #   sizeof_bool                              (Unclassified)
 #   sizeof_char                              (Unclassified)
@@ -7697,6 +7699,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "str_substring_strict"
+class            = "StringFormat"
+symbol           = "__nucleor_str_substring_strict"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64, i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "str_to_bool"
 class            = "StringFormat"
 symbol           = "__nucleor_str_to_bool"
@@ -9338,6 +9354,34 @@ class            = "Unclassified"
 symbol           = "__nucleor_f8e5m2_to_str"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "infer_fn_return_type_cached"
+class            = "Unclassified"
+symbol           = "__nucleor_infer_fn_return_type"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr) -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "infer_var_type_cached"
+class            = "Unclassified"
+symbol           = "__nucleor_infer_var_type"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr) -> ptr"
 effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"

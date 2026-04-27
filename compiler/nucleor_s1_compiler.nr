@@ -3379,6 +3379,9 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "panic_neg") { return "__nucleor_panic_neg_i64"; };
     if str_eq(name, "panic_shl") { return "__nucleor_panic_shl_i64"; };
     if str_eq(name, "panic_shr") { return "__nucleor_panic_shr_i64"; };
+    if str_eq(name, "infer_var_type_cached") { return "__nucleor_infer_var_type"; };
+    if str_eq(name, "infer_fn_return_type_cached") { return "__nucleor_infer_fn_return_type"; };
+    if str_eq(name, "str_substring_strict") { return "__nucleor_str_substring_strict"; };
     // RFC-0015 phase 4 — per-narrow-width overflow primitives
     if str_eq(name, "wrapping_add_i8") { return "__nucleor_wrapping_add_i8"; };
     if str_eq(name, "wrapping_sub_i8") { return "__nucleor_wrapping_sub_i8"; };
@@ -4879,6 +4882,9 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_panic_neg_i64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_shl_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_shr_i64(i64, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_infer_var_type(ptr, ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_infer_fn_return_type(ptr, ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_str_substring_strict(ptr, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_add_i8(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_sub_i8(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_wrapping_mul_i8(i64, i64)\n");
@@ -11037,23 +11043,24 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         } else if is_cmp_or_logic(iop) == 1 { ir_block_add(cur, ir_cmpop(iop, r, lr, rr)); }
         else {
             // v0.3.208: NUC-FEEDBACK runtime safety -- strict-
-            // arithmetic mode is now the DEFAULT. i64 + - * / %
-            // lower to the panic_*_i64 helpers; overflow / div-by-
-            // zero / i64::MIN edge cases panic with operands in the
-            // message instead of silently wrapping.
+            // arithmetic via panic_*_i64 helpers.
             //
-            // Adopters who genuinely need wrap semantics (modular
-            // hashing, intentional rollover) can call wrapping_add
-            // / wrapping_mul / etc. explicitly, OR opt out globally
-            // at COMPILE time with `NUCLEOR_INT_STRICT_ARITH=0` --
-            // that flips the default back to LLVM nsw/nuw silent-
-            // wrap. Verified end-to-end: the s1 compiler self-
-            // bootstraps cleanly under strict mode (lexer literal
-            // accumulation already migrated to wrapping_*), and all
-            // 452 verify fixtures pass.
+            // v0.3.220: REVERTED to OPT-IN default. Strict-by-default
+            // (every `+`/`-`/`*` via runtime call) caused an 8.5x
+            // self-build perf regression (4-10s -> 85s) because the
+            // compiler's own arithmetic loops paid the function-call
+            // overhead. The safety case is real, but the perf cost
+            // was unacceptable for the common adopter compile flow.
+            //
+            // New default: native LLVM `add nsw` (silent wrap on
+            // overflow). Opt IN to strict via NUCLEOR_INT_STRICT_ARITH=1
+            // for production / safety-critical builds. Other v0.3.x
+            // safety improvements (vec OOB, hashmap missing key, OOM,
+            // NaN cast, etc.) stay default-on because they have
+            // negligible perf impact.
             let strict_env: str = env_get_or("NUCLEOR_INT_STRICT_ARITH", "");
-            let mut strict: i64 = 1;
-            if str_eq(strict_env, "0") == 1 { strict = 0; };
+            let mut strict: i64 = 0;
+            if str_eq(strict_env, "1") == 1 { strict = 1; };
             let mut sh: str = "";
             if strict == 1 {
                 if iop == 2 { sh = "panic_add"; };
@@ -11108,14 +11115,11 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             sub_args.push(opr);
             ir_block_add(cur, ir_call_ex(r, sub_helper, sub_args));
         } else {
-            // v0.3.213: integer negation must respect strict-arith default
-            // (panic on overflow) just like binop kind == 4. Pre-fix the
-            // `ir_binop(3, r, zr, opr)` emitted a native LLVM `sub` which
-            // silently wraps on `-i64::MIN`. Now we route through
-            // panic_neg_i64 by default; opt-out via NUCLEOR_INT_STRICT_ARITH=0.
+            // v0.3.220: same opt-in default as binop. NUCLEOR_INT_STRICT_ARITH=1
+            // routes -x for i64 through panic_neg; default is native sub.
             let strict_env: str = env_get_or("NUCLEOR_INT_STRICT_ARITH", "");
-            let mut strict: i64 = 1;
-            if str_eq(strict_env, "0") == 1 { strict = 0; };
+            let mut strict: i64 = 0;
+            if str_eq(strict_env, "1") == 1 { strict = 1; };
             if strict == 1 {
                 let mut na: Vec<i32> = Vec::new();
                 na.push(opr);
@@ -15379,6 +15383,9 @@ fn fmt_strip_outer_quotes(s: str) -> str {
 // (`<ident>(...)` shape) to dispatch the format type. Catches
 // `println!("{}", make_str())` returning the pointer address pre-fix.
 fn infer_fn_return_type_from_source(src: str, fn_name: str) -> str {
+    // v0.3.220 perf: same cached short-circuit as infer_var_type_from_source.
+    let cached: str = infer_fn_return_type_cached(src, fn_name);
+    if str_len(cached) > 0 { return cached; };
     let slen: i64 = str_len(src);
     let fnlen: i64 = str_len(fn_name);
     if fnlen == 0 { return ""; };
@@ -15455,6 +15462,12 @@ fn infer_fn_return_type_from_source(src: str, fn_name: str) -> str {
 }
 
 fn infer_var_type_from_source(src: str, var_name: str) -> str {
+    // v0.3.220 perf: short-circuit to runtime cache. Pre-fix this
+    // function re-walked the entire source for every println!/format
+    // arg -- 1.26B str_char_at calls per compiler self-build. Cached
+    // lookup is O(1) average; the cache is built once per source ptr.
+    let cached: str = infer_var_type_cached(src, var_name);
+    if str_len(cached) > 0 { return cached; };
     let slen: i64 = str_len(src);
     let vlen: i64 = str_len(var_name);
     if vlen == 0 { return ""; };
@@ -16877,7 +16890,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.3.218";
+    return "0.3.220";
 }
 
 fn compiler_backend_label() -> str {
