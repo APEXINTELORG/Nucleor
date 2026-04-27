@@ -5,6 +5,27 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.227] — 2026-04-26
+
+**`vec_percentile_f64` NaN-input UB fix.** Same hazard family
+as v0.3.216's NaN-cast UB fix.
+
+Pre-fix `vec_percentile_f64` clamped `p` to `[0.0, 1.0]` via
+`if (p < 0.0) p = 0.0; if (p > 1.0) p = 1.0;` — but NaN
+fails BOTH comparisons (NaN compares unordered) and falls
+through. Then `idx = NaN * (v->len-1) = NaN`, and `int lo =
+(int)NaN` is undefined behavior in C — could be any value
+including a large negative one, leading to OOB read at
+`copy[lo]`.
+
+Fix: explicit `if (p != p) p = 0.0;` (NaN-detection idiom)
+ahead of the bound clamp. Matches the v0.3.216 pattern for
+all f-to-int casts.
+
+Bootstrap fixed point at stage_d
+`c78cba839818d45438b8c0e39cdb682eb4528ebb4239e4c30146d385aac2f53e`.
+453/453 verify PASS.
+
 ## [0.3.226] — 2026-04-26
 
 **Tensor reduction safety: empty-input + null-handle PANICs +
