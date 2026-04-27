@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.223] — 2026-04-26
+
+**Three CVE-class fixes + perf/memory monitor wired into every
+verify.**
+
+**(1) `str_repeat` overflow PANIC.** Pre-fix `L * n` could
+overflow `size_t` on hostile input (e.g., `L=1MB, n=100MB`),
+leading to under-allocation + memcpy past the buffer — real
+CVE-class memory corruption. Now: detect `n > (SIZE_MAX-1)/L`
+and panic with the offending sizes before alloc.
+
+**(2) `tensor_zeros` / `tensor_fill` overflow PANIC.** Three
+hazards in one helper-pair:
+- `(int)rows` truncation: dimensions ≥ 2^31 silently became
+  negative → buffer underflow on indexing.
+- `rows * cols * sizeof(double)` overflow: hostile dims could
+  wrap `size_t`.
+- The for-loop iterated `t->rows * t->cols` (signed int
+  multiplication) which also could overflow.
+
+Now: `_check_tensor_dims()` validates non-negative + i32-fits
++ no SIZE_MAX overflow, panics cleanly otherwise. Internal
+loop uses `long long` total to avoid the signed-int product
+overflow.
+
+**(3) Memory regression monitor.** `tools/check_perf_regression.ps1`
+now also measures peak working-set memory via
+`Process.PeakWorkingSet64`. Default thresholds (in
+`tools/perf_baseline.json`): cold ≤ 10s, hot ≤ 2.5s, peak
+memory ≤ 700MB. Current baseline: 502MB peak.
+
+Wired into `tools/verify.ps1` as new step **T1.8 perf +
+memory regression monitor** — runs on every `verify.ps1`
+invocation, fails the gate on any regression. Catches the
+v0.3.205 footgun pattern (single line that adds O(N-source)
+overhead per call) AND memory blowups automatically going
+forward.
+
+Cold self-build: 6.5s, hot 0.78s, peak memory 502MB. All
+within thresholds.
+
+Bootstrap fixed point at stage_d
+`4c84deb0221db8ff1cd402555e80fa3397c354ee4beaeb0738324d92c1e7e8a4`.
+453/453 verify PASS (was 452/452; +1 for the new perf monitor
+step).
+
 ## [0.3.222] — 2026-04-26
 
 **`sym_get` most-recent-entry fast path; hash-table refactor

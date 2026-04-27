@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 92
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 93  # +1 for T1.8 perf monitor
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -2176,6 +2176,18 @@ Step "T1.7 bootstrap seed matches current compiler" {
     $hSeed  = (Get-FileHash $seed  -Algorithm SHA256).Hash
     $hFresh = (Get-FileHash $fresh -Algorithm SHA256).Hash
     return $hSeed -eq $hFresh
+}
+
+# v0.3.223: perf + memory regression monitor. Runs check_perf_regression.ps1
+# which times cold + hot self-build and measures peak working-set memory,
+# compares against tools/perf_baseline.json. Catches the v0.3.205 footgun
+# pattern (single line that adds O(N-source) overhead per call) and
+# memory blowups automatically on every verify.
+Step "T1.8 perf + memory regression monitor" {
+    $check = Join-Path $root "tools\check_perf_regression.ps1"
+    if (-not (Test-Path $check)) { return $false }
+    & pwsh.exe -NoProfile -File $check -Quiet 2>&1 | Out-Null
+    return $LASTEXITCODE -eq 0
 }
 
 Remove-Item -Recurse -Force (Join-Path $root "target") -ErrorAction SilentlyContinue
