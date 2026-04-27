@@ -3865,6 +3865,11 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_compile_src_set") { return "__nucleor_compile_src_set"; };
     if str_eq(name, "__nucleor_compile_src_get") { return "__nucleor_compile_src_get"; };
     if str_eq(name, "__nucleor_compile_src_clear") { return "__nucleor_compile_src_clear"; };
+    // v0.4.20 perf: generic str-keyed source-cache for new scanners
+    if str_eq(name, "__nucleor_str_cache_get") { return "__nucleor_str_cache_get"; };
+    if str_eq(name, "__nucleor_str_cache_put") { return "__nucleor_str_cache_put"; };
+    if str_eq(name, "__nucleor_str_cache_put_miss") { return "__nucleor_str_cache_put_miss"; };
+    if str_eq(name, "__nucleor_str_cache_is_miss_marker") { return "__nucleor_str_cache_is_miss_marker"; };
     return "";
 }
 fn is_void_ret(name: str) -> i64 {
@@ -4738,6 +4743,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_compile_src_set(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_compile_src_get()\n");
     sb_append(sb, "declare i64 @__nucleor_compile_src_clear()\n");
+    // v0.4.20 perf: generic str-keyed source-cache
+    sb_append(sb, "declare ptr @__nucleor_str_cache_get(ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_cache_put(ptr, ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_cache_put_miss(ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_cache_is_miss_marker(ptr)\n");
     // V2: parallelism runtime
     sb_append(sb, "declare i64 @__nucleor_par_map(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_par_fold(i64, i64, i64)\n");
@@ -17892,7 +17902,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.19";
+    return "0.4.20";
 }
 
 fn compiler_backend_label() -> str {

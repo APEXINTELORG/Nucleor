@@ -2316,6 +2316,11 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_compile_src_set") { return "__nucleor_compile_src_set"; };
     if str_eq(name, "__nucleor_compile_src_get") { return "__nucleor_compile_src_get"; };
     if str_eq(name, "__nucleor_compile_src_clear") { return "__nucleor_compile_src_clear"; };
+    // v0.4.20 perf: generic str-keyed source-cache
+    if str_eq(name, "__nucleor_str_cache_get") { return "__nucleor_str_cache_get"; };
+    if str_eq(name, "__nucleor_str_cache_put") { return "__nucleor_str_cache_put"; };
+    if str_eq(name, "__nucleor_str_cache_put_miss") { return "__nucleor_str_cache_put_miss"; };
+    if str_eq(name, "__nucleor_str_cache_is_miss_marker") { return "__nucleor_str_cache_is_miss_marker"; };
     // --- Synced from nucleor_s1_compiler.nr (v0.1.56) — RFC-0022 drift fix ---
     // T1.1 Phase 3a: sizeof_<T>() primitive byte-size queries.
     if str_eq(name, "sizeof_i8") { return "__nucleor_sizeof_i8"; };
@@ -3640,6 +3645,11 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_compile_src_set(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_compile_src_get()\n");
     sb_append(sb, "declare i64 @__nucleor_compile_src_clear()\n");
+    // v0.4.20 perf: generic str-keyed source-cache
+    sb_append(sb, "declare ptr @__nucleor_str_cache_get(ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_cache_put(ptr, ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_cache_put_miss(ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_cache_is_miss_marker(ptr)\n");
     // V2: parallelism runtime
     sb_append(sb, "declare i64 @__nucleor_par_map(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_par_fold(i64, i64, i64)\n");

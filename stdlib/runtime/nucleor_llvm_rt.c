@@ -1508,6 +1508,56 @@ const char *__nucleor_infer_var_type(const char *src, const char *var_name) {
     }
     return _cache_get(g_var_cache_entries, g_var_cache_buckets, var_name);
 }
+
+/* v0.4.20 perf: generic str-keyed source-cache for the new pattern-
+   binding / user-variant / enum-payload scanners. Each scanner is
+   expensive (full bundled-source walk per call); per-compile cost
+   was 1.6 BILLION str_char_at calls because the same var_name
+   gets looked up many times across the format-macro pass.
+   This cache stores arbitrary (key -> value) entries scoped to a
+   single src pointer; cache resets when the src ptr changes.
+   Source-side helpers wrap their existing scan with: check cache;
+   if hit, return; else scan + store + return. */
+#define NUC_GENERIC_CACHE_ENTRIES 32768
+static const char *g_generic_cache_src = NULL;
+static int g_generic_cache_used = 0;
+static NInferEntry g_generic_cache_entries[NUC_GENERIC_CACHE_ENTRIES];
+static int g_generic_cache_buckets[NUC_INFER_CACHE_BUCKETS];
+
+const char *__nucleor_str_cache_get(const char *src, const char *key) {
+    if (!src || !key) return "";
+    if (g_generic_cache_src != src) {
+        _cache_reset(g_generic_cache_entries, g_generic_cache_buckets, &g_generic_cache_used);
+        g_generic_cache_src = src;
+    }
+    return _cache_get(g_generic_cache_entries, g_generic_cache_buckets, key);
+}
+
+long long __nucleor_str_cache_put(const char *src, const char *key, const char *value) {
+    if (!src || !key || !value) return 0;
+    if (g_generic_cache_src != src) {
+        _cache_reset(g_generic_cache_entries, g_generic_cache_buckets, &g_generic_cache_used);
+        g_generic_cache_src = src;
+    }
+    int klen = (int)strlen(key);
+    int vlen = (int)strlen(value);
+    _cache_put(g_generic_cache_entries, g_generic_cache_buckets, &g_generic_cache_used,
+               NUC_GENERIC_CACHE_ENTRIES, key, klen, value, vlen);
+    return 0;
+}
+
+/* Sentinel: cache stores values as "" if the lookup yielded a real
+   empty answer (we want to remember "miss" too -- otherwise every
+   miss re-runs the expensive scan). Use a non-empty sentinel as the
+   stored "miss" marker so cache_get's "" return distinguishes
+   "not yet looked up" from "looked up, no answer". */
+long long __nucleor_str_cache_put_miss(const char *src, const char *key) {
+    return __nucleor_str_cache_put(src, key, "\x01");
+}
+
+long long __nucleor_str_cache_is_miss_marker(const char *value) {
+    return (value && value[0] == '\x01' && value[1] == 0) ? 1 : 0;
+}
 const char *__nucleor_infer_fn_return_type(const char *src, const char *fn_name) {
     if (!src || !fn_name) return "";
     if (g_fnret_cache_src != src) {

@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.20] — 2026-04-27
+
+**Phase A: generic str-keyed source-cache helpers (sub-5s perf
+prep, dormant).**
+
+The cold-compile slowdown after v0.4.18 (8.79s, +1.4s vs v0.4.17)
+is dominated by the new source-text scanners doing 1.6 BILLION
+str_char_at calls per compile -- each `infer_pattern_binding_type_from_source` /
+`infer_user_variant_binding_type` call re-walks the full bundled
+source. The fix is to cache by (src_ptr, var_name) like the
+existing `__nucleor_infer_var_type` does (v0.3.220 pattern).
+
+### Phase A: cache helpers in C runtime
+
+Three new runtime helpers + matching get_rt_name mappings + IR
+declares (s1 + tools_suite mirror):
+
+- `__nucleor_str_cache_get(src, key)` — generic (src_ptr-scoped)
+  hashmap lookup; returns "" if not cached.
+- `__nucleor_str_cache_put(src, key, value)` — store.
+- `__nucleor_str_cache_put_miss(src, key)` — store sentinel `\x01`
+  to remember "looked up, no answer" (otherwise every miss
+  re-runs the expensive scan).
+- `__nucleor_str_cache_is_miss_marker(value)` — distinguish stored
+  miss from real "not yet looked up".
+
+Backing store is 32K-entry hashmap, reset whenever the src ptr
+changes (mirrors the existing `__nucleor_infer_var_type` cache
+shape).
+
+**Phase A is dormant.** No source uses these helpers yet -- the
+v0.4.20 binary is functionally identical to v0.4.19. Phase B
+(v0.4.21) will wire them into `infer_pattern_binding_type_from_source`
+and `infer_user_variant_binding_type` to land the actual perf
+gain.
+
+### Why the ratchet
+
+A combined Phase A + B in one release would clang-link-fail at
+stage_b: the v0.4.19 bin doesn't know about the new helpers, so
+it emits bare `call @__nucleor_str_cache_get(...)` against no
+matching IR `declare`. Phase A alone teaches the binary the
+helpers; Phase B (next cycle) safely adds the call sites.
+
+Verify gate 477/477. Bootstrap fixed point preserved
+(c == d byte-identical IR + EXE). Memory steady at 539 MB
+(under the 700 MB cap, well under the 2 GB hard cap).
+
 ## [0.4.19] — 2026-04-27
 
 **Cold compile time: bounded source-text scans (modest 5% gain).**
