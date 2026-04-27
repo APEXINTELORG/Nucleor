@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.228] — 2026-04-26
+
+**`nuc_t3_new_nd` safety: NULL/empty shape PANICs + dim
+overflow check.** Same hazard family as v0.3.225's `nuc_t3_new`
+fix, applied to the N-dim constructor.
+
+Pre-fix `nuc_t3_new_nd(shape_h)`:
+- NULL `shape_h` → segfault on `sh->len` deref.
+- Empty shape Vec (`sh->len == 0`) → `t->total = 0`, calloc(0)
+  with subsequent OOB writes from caller's tensor ops.
+- Each `(int)sh->data[i]` truncated >= 2^31 to negative.
+- Cumulative `total = strides[0] * shape[0]` could overflow
+  signed int.
+
+Fix: NULL handle PANIC, empty shape PANIC, per-dim i32-fits
++ non-negative validation, cumulative `total_check` overflow
+detection before each multiplication.
+
+Bootstrap fixed point at stage_d
+`d12103a800b5d7ddfbe7e09aee8aa5d3e22374fde93d493ed6e998a2cd9f1d3f`.
+453/453 verify PASS (T1.8 perf+memory monitor steady at
+cold 6.5s / hot 0.78s / peak 502MB).
+
 ## [0.3.227] — 2026-04-26
 
 **`vec_percentile_f64` NaN-input UB fix.** Same hazard family
