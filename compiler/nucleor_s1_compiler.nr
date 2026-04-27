@@ -5537,29 +5537,71 @@ fn ctr_next(c: Vec<i32>) -> i64 { let v: i64 = vec_get(c, vec_len(c) - 1); c.pus
 fn sym_new() -> Vec<i32> { return Vec::new(); }
 fn sym_set(s: Vec<i32>, name: str, reg: i64) -> i64 { s.push(name); s.push(reg); return 0; }
 
-// v0.3.237: Phase B (source migration to hash-backed sym_get) was
-// prototyped but reverted before ship. The hash backing is functionally
-// correct (bootstrap stage_b == stage_c == stage_d byte-identical) but
-// caused a 1.8x peak-memory regression (502MB -> 888MB) at no measurable
-// compile-time gain on the current 947K-byte source: the per-sym aux
-// hashmap allocations dominated the savings from O(1) lookups on the
-// few large syms.
+// v0.4.3 Phase B redo — hash-backed sym_get on a single warm-cache
+// hashmap (one allocation total in the runtime; see nucleor_llvm_rt.c
+// __nucleor_sym_aux_create comment for the design rationale).
 //
-// The Phase A runtime infrastructure (sym-aux side hashmap helpers)
-// stays in v0.3.236+ as dormant -- ready for a redesigned Phase B in
-// a future 0.4.x release that uses a single global warm-cache
-// hashmap (cleared on sym-handle context switch) instead of one
-// allocation per sym vec.
+// v0.3.237's per-sym aux model failed because sym_clone -> new aux
+// per clone -> 1.8x peak-memory regression. The warm cache fixes
+// that: ONE NHashMap exists in the runtime; when sym_get is called
+// on a different handle than the cached one, the hashmap is cleared
+// and rebuilt from the new sym. Memory cost is bounded by the size
+// of the largest single sym ever cached.
 //
-// For now the linear scan with most-recent-entry fast path remains
-// the live impl. It's already O(1) on the just-set lookup (the
-// dominant pattern), and the backward scan is cache-friendly enough
-// that the v0.3.235 perf baseline holds.
+// Size threshold: for small syms (< 128 pairs / 256 vec entries),
+// the linear backward scan is competitive (cache-friendly, no
+// hashmap touch) AND avoids warm-cache thrash on the many small
+// clones that branch isolation creates. The hash path only fires
+// for syms above the threshold -- in practice, the long-lived
+// outer module-scope sym that linear scan was actually slow on.
+//
+// Most-recent-entry vec fast path is preserved -- the just-set
+// lookup never touches the hashmap or the threshold check.
+//
+// Correctness invariants (validated by the bootstrap fixed-point
+// gate -- if any of these are wrong, stage_b != stage_c IR diff
+// fires):
+//
+//   sym_set: appends to vec only. Catchup loop in sym_get re-inserts;
+//     hashmap_insert overwrites on duplicate key, so last-write-wins
+//     gives the same answer the backward scan would.
+//
+//   own_put_i / own_put_s: in-place vec_set + hashmap_insert sync
+//     IF this sym is currently the warm one. Without the sync the
+//     hash would return the stale pre-update value.
+//
+//   own_restore: clears the hash if this sym is warm + resets
+//     built_at = 0 so the next sym_get rebuilds from the post-
+//     restore vec.
+//
+//   sym_clone: copies vec contents only. The new sym_handle is
+//     different; on first sym_get against the clone, the warm
+//     cache will reset and rebuild from the clone's vec.
 fn sym_get(s: Vec<i32>, name: str) -> i64 {
     let n: i64 = vec_len(s);
     if n >= 2 && str_eq(vec_get(s, n - 2), name) == 1 { return vec_get(s, n - 1); };
-    let mut i: i64 = n - 4;
-    while i >= 0 { if str_eq(vec_get(s, i), name) { return vec_get(s, i + 1); }; i = i - 2; };
+    if n < 4 { return 0 - 1; };
+    // Size-gated warm hash path. Below threshold, linear is faster
+    // (cache-friendly + no warm-cache touch). Threshold 256 entries
+    // = 128 pairs.
+    if n < 256 {
+        let mut j: i64 = n - 4;
+        while j >= 0 { if str_eq(vec_get(s, j), name) == 1 { return vec_get(s, j + 1); }; j = j - 2; };
+        return 0 - 1;
+    };
+    // Large sym: warm hash path. The runtime _create returns the
+    // single warm hashmap; if `s` isn't the currently-warm handle,
+    // the hashmap is cleared and built_at reset to 0 so the catchup
+    // loop below repopulates from this sym's vec.
+    let h: i64 = __nucleor_sym_aux_create(s);
+    let built: i64 = __nucleor_sym_aux_built_at(s);
+    let mut i: i64 = if built < 0 { 0 } else { built };
+    while i + 1 < n {
+        __nucleor_hashmap_insert(h, vec_get(s, i), vec_get(s, i + 1));
+        i = i + 2;
+    };
+    __nucleor_sym_aux_set_built_at(s, n);
+    if __nucleor_hashmap_contains(h, name) == 1 { return __nucleor_hashmap_get(h, name); };
     return 0 - 1;
 }
 fn sym_clone(s: Vec<i32>) -> Vec<i32> {
@@ -8441,9 +8483,17 @@ fn diag_emit_text_with_source(diags: Vec<i32>, source: str) -> i64 {
 fn own_new() -> Vec<i32> { return Vec::new(); }
 fn own_put_i(o: Vec<i32>, key: str, val: i64) -> i64 {
     // v0.3.221 perf: scan backward and break on first match.
+    // v0.4.3: sync the warm aux hashmap on in-place updates IF this
+    // sym is currently warm. __nucleor_sym_aux_get returns the warm
+    // handle if `o` matches, else -1; we only touch on match.
     let mut i: i64 = vec_len(o) - 2;
     while i >= 0 {
-        if str_eq(vec_get(o, i), key) == 1 { vec_set(o, i + 1, val); return 0; };
+        if str_eq(vec_get(o, i), key) == 1 {
+            vec_set(o, i + 1, val);
+            let h: i64 = __nucleor_sym_aux_get(o);
+            if h > 0 { __nucleor_hashmap_insert(h, key, val); };
+            return 0;
+        };
         i = i - 2;
     };
     o.push(key);
@@ -8452,9 +8502,16 @@ fn own_put_i(o: Vec<i32>, key: str, val: i64) -> i64 {
 }
 fn own_put_s(o: Vec<i32>, key: str, val: str) -> i64 {
     // v0.3.221 perf: same backward-scan break-on-match optimization.
+    // v0.4.3: same warm-aux sync as own_put_i. str values are stored
+    // as i64-cast pointers under the i64-everywhere ABI.
     let mut i: i64 = vec_len(o) - 2;
     while i >= 0 {
-        if str_eq(vec_get(o, i), key) == 1 { vec_set(o, i + 1, val); return 0; };
+        if str_eq(vec_get(o, i), key) == 1 {
+            vec_set(o, i + 1, val);
+            let h: i64 = __nucleor_sym_aux_get(o);
+            if h > 0 { __nucleor_hashmap_insert(h, key, val); };
+            return 0;
+        };
         i = i - 2;
     };
     o.push(key);
@@ -8673,6 +8730,16 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
     while i < vec_len(snap) {
         o.push(vec_get(snap, i)); o.push(vec_get(snap, i + 1));
         i = i + 2;
+    };
+    // v0.4.3: if this sym is the currently-warm one, the aux hashmap
+    // holds stale entries from inside-the-branch own_put_i calls.
+    // Clear it and reset built_at so the next sym_get rebuilds from
+    // the post-restore vec. If it's not warm, the next sym_get will
+    // rebuild anyway when it switches the warm slot.
+    let h: i64 = __nucleor_sym_aux_get(o);
+    if h > 0 {
+        hashmap_clear(h);
+        __nucleor_sym_aux_set_built_at(o, 0);
     };
     // Keep snap alive — caller in check_expr (kind == 23 if-else) may
     // still hold pointers into snap's storage via downstream check
@@ -17033,7 +17100,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.2";
+    return "0.4.3";
 }
 
 fn compiler_backend_label() -> str {
