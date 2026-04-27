@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] — 2026-04-27
+
+**Option<str> Some-payload binding type propagation (SPEC-1.5
+wishlist, partial — non-macro path).**
+
+The Nucleor_Translate SPEC-1.5 cleanup report flagged that they
+couldn't use `Option<T>` as struct fields cleanly because Some(s)
+bindings didn't carry their generic T. They had to use explicit-
+flag pairs like `has_alias: bool` + `alias: str`.
+
+Probe confirmed: `match self.alias { Some(s) => println!("{}", s) }`
+where `alias: Option<str>` printed the raw pointer integer
+(140702...) instead of the string content. Same root-cause shape
+as the existing v0.3.184 `Result::Err = "str"` hardcoded default
+that already shipped.
+
+### v0.4.4 ships the matching hardcoded default
+
+`match_bind_payloads_per_idx` (s1 + tools_suite mirror) now sets
+`__type_<binding> = "str"` for `Option::Some(s)` (and continues
+to do so for `Result::Err`) when no per-variant payload type is
+otherwise available. This unblocks:
+
+- `let extracted: str = match self.alias { Some(s) => s, None => "" };` ✓
+- `if str_eq(extracted, "expected") == 1 { ... }` ✓
+- field access on str-typed bindings ✓
+- §G-class struct-payload access where applicable
+
+### Macro path NOT yet covered
+
+`println!("{}", s)` and `format!("{}", s)` still print the raw
+pointer for Option<str> Some bindings. Format-macro expansion
+happens at SOURCE level (before lowering) and uses
+`infer_var_type_from_source` which scans for `let X: T = ...`
+patterns -- it doesn't look inside match-arm patterns and has
+no access to the runtime sym table.
+
+The fix is a deeper redesign: extend `infer_var_type_from_source`
+with pattern-binding detection (scan for `Some(s)` patterns and
+infer `s`'s type from the surrounding match scrutinee
+declaration), OR move format expansion AFTER lowering so the
+runtime sym table is available. Both touch the source-scanning
+infra meaningfully; queued for a focused 0.4.x cycle.
+
+### Generic Option<T> for non-str types
+
+Same constraint: today only Option<str> gets the special-case
+default. Option<i64>, Option<MyStruct>, etc. still default to i64
+binding type. Full generic propagation requires scrutinee-type
+tracking through lower_match -- same redesign window as the
+macro path.
+
+### What this lets the team do today
+
+The Nucleor_Translate `IrImport.has_alias: bool` + `alias: str`
+explicit-flag pair can now be replaced with `pub alias: Option<str>`
++ standard `match self.alias { Some(s) => ..., None => ... }`
+pattern in any non-println context. Macro-path output still
+needs a workaround (e.g., bind to a typed local first).
+
+### Pinned regression
+
+`tests/fixtures/t476_option_str_payload_letassign.nr` exercises
+match-bind + let-assign + str_eq round-trip and asserts exit 0.
+
+Bootstrap fixed point preserved. Verify gate 462/462. T1.8 perf+
+memory steady (no regression from v0.4.3).
+
 ## [0.4.3] — 2026-04-27
 
 **Hash-backed sym_get — warm-cache redesign (closes the 0.3 carryover).**
