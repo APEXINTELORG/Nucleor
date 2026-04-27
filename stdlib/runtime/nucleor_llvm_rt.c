@@ -6520,6 +6520,93 @@ long long __nucleor_f64_clamp(long long v, long long lo, long long hi) {
 long long __nucleor_f64_abs(long long b) {
     return __nuc_d2b(fabs(__nuc_b2d(b)));
 }
+
+// v0.3.230: NUC-IMPROVE-007 -- typed special functions for exact
+// SciPy stats p-values. Adopter (ML Suite) needs erf/erfc/lgamma/
+// gamma plus regularized incomplete beta and Student-t survival
+// to ship parity with scipy.stats.ttest_*. C99 math.h provides erf,
+// erfc, lgamma, tgamma directly. Incomplete beta + Student-t SF
+// use Numerical Recipes continued-fraction algorithms (well-known,
+// numerically stable for the typical p-value tail probabilities
+// adopters compute).
+long long __nucleor_f64_erf(long long b)    { return __nuc_d2b(erf(__nuc_b2d(b))); }
+long long __nucleor_f64_erfc(long long b)   { return __nuc_d2b(erfc(__nuc_b2d(b))); }
+long long __nucleor_f64_lgamma(long long b) { return __nuc_d2b(lgamma(__nuc_b2d(b))); }
+long long __nucleor_f64_tgamma(long long b) { return __nuc_d2b(tgamma(__nuc_b2d(b))); }
+
+/* Regularized incomplete beta I_x(a, b) via Numerical Recipes 6.4
+   (Lentz's continued-fraction algorithm). Stable for x in [0,1] and
+   moderate a,b (the regime adopter stats code uses).
+
+   Returns NaN bits on invalid input (a<=0, b<=0, x not in [0,1]). */
+static double __nuc_betacf(double a, double b, double x) {
+    int i, m;
+    double aa, c, d, del, h, qab, qam, qap;
+    qab = a + b; qap = a + 1.0; qam = a - 1.0;
+    c = 1.0;
+    d = 1.0 - qab * x / qap;
+    if (fabs(d) < 1e-300) d = 1e-300;
+    d = 1.0 / d;
+    h = d;
+    for (i = 1; i <= 200; i++) {
+        m = i;
+        aa = (double)m * (b - m) * x / ((qam + 2.0 * m) * (a + 2.0 * m));
+        d = 1.0 + aa * d;
+        if (fabs(d) < 1e-300) d = 1e-300;
+        c = 1.0 + aa / c;
+        if (fabs(c) < 1e-300) c = 1e-300;
+        d = 1.0 / d;
+        h *= d * c;
+        aa = -(a + m) * (qab + m) * x / ((a + 2.0 * m) * (qap + 2.0 * m));
+        d = 1.0 + aa * d;
+        if (fabs(d) < 1e-300) d = 1e-300;
+        c = 1.0 + aa / c;
+        if (fabs(c) < 1e-300) c = 1e-300;
+        d = 1.0 / d;
+        del = d * c;
+        h *= del;
+        if (fabs(del - 1.0) < 3e-7) break;
+    }
+    return h;
+}
+static double __nuc_betai(double a, double b, double x) {
+    if (a <= 0.0 || b <= 0.0) return 0.0/0.0;       /* NaN */
+    if (x < 0.0 || x > 1.0)   return 0.0/0.0;
+    if (x == 0.0 || x == 1.0) return x;
+    double bt = exp(lgamma(a + b) - lgamma(a) - lgamma(b)
+                   + a * log(x) + b * log(1.0 - x));
+    if (x < (a + 1.0) / (a + b + 2.0)) {
+        return bt * __nuc_betacf(a, b, x) / a;
+    }
+    return 1.0 - bt * __nuc_betacf(b, a, 1.0 - x) / b;
+}
+
+/* Regularized incomplete beta I_x(a, b). User-facing helper. */
+long long __nucleor_f64_betainc(long long x_b, long long a_b, long long b_b) {
+    return __nuc_d2b(__nuc_betai(__nuc_b2d(a_b), __nuc_b2d(b_b), __nuc_b2d(x_b)));
+}
+
+/* Student-t two-sided survival function: P(|T| > t) = I_{df/(df+t^2)}(df/2, 1/2).
+   Useful for `scipy.stats.ttest_1samp.pvalue` two-sided. */
+long long __nucleor_f64_student_t_sf2(long long t_b, long long df_b) {
+    double t = __nuc_b2d(t_b);
+    double df = __nuc_b2d(df_b);
+    if (df <= 0.0) return __nuc_d2b(0.0/0.0);
+    double x = df / (df + t * t);
+    return __nuc_d2b(__nuc_betai(0.5 * df, 0.5, x));
+}
+
+/* Standard normal CDF: 0.5 * erfc(-x / sqrt(2)). */
+long long __nucleor_f64_norm_cdf(long long x_b) {
+    double x = __nuc_b2d(x_b);
+    return __nuc_d2b(0.5 * erfc(-x * 0.7071067811865476));
+}
+
+/* Standard normal survival function: 1 - cdf = 0.5 * erfc(x / sqrt(2)). */
+long long __nucleor_f64_norm_sf(long long x_b) {
+    double x = __nuc_b2d(x_b);
+    return __nuc_d2b(0.5 * erfc(x * 0.7071067811865476));
+}
 long long __nucleor_f64_min(long long a, long long b) {
     double da = __nuc_b2d(a), db = __nuc_b2d(b);
     return __nuc_d2b(da < db ? da : db);

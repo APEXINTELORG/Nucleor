@@ -50,3 +50,17 @@ fn cos_f64(x: f64) -> f64 {
 fn pow_f64(base: f64, exp: f64) -> f64 {
     return pow(base, exp);
 }
+
+// v0.3.230 — NUC-IMPROVE-007: typed special functions for exact SciPy
+// stats p-values. C99 erf/erfc/lgamma/tgamma plus Numerical Recipes
+// continued-fraction incomplete-beta for Student-t and related families.
+// Returns NaN bits on invalid input (a<=0, b<=0, x out of [0,1] for
+// betainc; df<=0 for student_t_sf2).
+fn erf_f64(x: f64) -> f64 { return f64_erf(x); }
+fn erfc_f64(x: f64) -> f64 { return f64_erfc(x); }
+fn lgamma_f64(x: f64) -> f64 { return f64_lgamma(x); }
+fn gamma_f64(x: f64) -> f64 { return f64_tgamma(x); }
+fn betainc_f64(x: f64, a: f64, b: f64) -> f64 { return f64_betainc(x, a, b); }
+fn student_t_sf2_f64(t: f64, df: f64) -> f64 { return f64_student_t_sf2(t, df); }
+fn norm_cdf_f64(x: f64) -> f64 { return f64_norm_cdf(x); }
+fn norm_sf_f64(x: f64) -> f64 { return f64_norm_sf(x); }
