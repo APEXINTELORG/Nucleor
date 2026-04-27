@@ -176,7 +176,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 105 # +1 T1.8, +4 RFC-NRT-004 §A/§B/§C/stress (v0.3.235), +3 RFC-NRT-004 §F/§D/§H (v0.4.1), +1 RFC-NRT-004 §G (v0.4.2), +1 Option<str> bind (v0.4.4), +1 RFC-NRT-001 .nucprov (v0.4.5), +1 extern-redecl-diag (v0.4.6), +1 RFC-NRT-003 verify-reproducible (v0.4.7)
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 106 # +1 T1.8, +4 RFC-NRT-004 §A/§B/§C/stress (v0.3.235), +3 RFC-NRT-004 §F/§D/§H (v0.4.1), +1 RFC-NRT-004 §G (v0.4.2), +1 Option<str> bind (v0.4.4), +1 RFC-NRT-001 .nucprov (v0.4.5), +1 extern-redecl-diag (v0.4.6), +1 RFC-NRT-003 verify-reproducible (v0.4.7), +1 Option<str> macro path (v0.4.9)
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -1304,6 +1304,21 @@ Step "RFC-NRT-001: .nucprov section present in built binary (empty default)" {
     if (-not $llvmReadObj) { return $true }   # skip the section check if the tool isn't present
     $out = & $llvmReadObj --sections "target\_t477_check.exe" 2>&1 | Out-String
     if ($out -notmatch "\.nucprov") { return $false }
+    return $true
+}
+
+Step "Option<str>::Some(s) + Result<i64,str>::Err(e) flow through println! macro" {
+    # v0.4.9: format-macro pattern-binding inference. Closes the
+    # SPEC-1.5 wishlist item the Translate team called out (and
+    # explicitly noted as still pending in their PROGRESS.md).
+    & $bin build "tests/fixtures/t479_option_str_macro_println.nr" -o "_t479_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t479_check.exe") { $exe = "target\_t479_check.exe" }
+    elseif (Test-Path "target\_t479_check") { $exe = "target\_t479_check" }
+    if (-not $exe) { return $false }
+    $out = & $exe 2>&1 | Out-String
+    if ($out -notmatch "alias: hello") { return $false }
+    if ($out -notmatch "err: bad input") { return $false }
     return $true
 }
 
