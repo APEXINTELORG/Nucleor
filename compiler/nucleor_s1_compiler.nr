@@ -10589,6 +10589,20 @@ fn match_bind_payloads_per_idx(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym:
                 let pt_s: str = pstored;
                 if str_len(pt_s) > 0 { ptype = type_base_name(pt_s); };
             } else {
+                // v0.4.4 SPEC-1.5 wishlist: Option<str> Some payload defaults
+                // to "str" (matching the existing Result<i64, str> Err = str
+                // special case). Without this, `Option<str>` struct fields
+                // like `alias: Option<str>` couldn't be unwrapped + printed
+                // -- println!("{}", s) where s came from `match self.alias {
+                // Some(s) => ... }` printed a raw pointer integer because
+                // the binding's type defaulted to i64.
+                //
+                // The full generic typed-Option<T> propagation (which would
+                // also catch Option<i64>, Option<MyStruct>, etc) requires
+                // scrutinee-type tracking through lower_match -- queued for
+                // a focused 0.4.x cycle. Until then, Option<str> is the
+                // common case and gets the same treatment Result::Err does.
+                if str_eq(ename, "Option") == 1 && str_eq(vname, "Some") == 1 && bind_idx == 0 { ptype = "str"; };
                 if str_eq(ename, "Result") == 1 && str_eq(vname, "Err") == 1 && bind_idx == 0 { ptype = "str"; };
             };
             sym_set(sym, str_concat("__type_", name), ptype);
@@ -17100,7 +17114,7 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.3";
+    return "0.4.4";
 }
 
 fn compiler_backend_label() -> str {

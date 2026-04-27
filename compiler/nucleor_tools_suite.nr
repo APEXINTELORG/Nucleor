@@ -7657,10 +7657,22 @@ fn match_bind_payloads_typed(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: V
             if has_enum == 1 {
                 let pkey: str = str_concat("__epayload", str_concat(str_from_int(bind_idx), str_concat("_", str_concat(ename, str_concat("_", vname)))));
                 let pstored: i64 = sym_get(sym, pkey);
+                let mut resolved: i64 = 0;
                 if pstored >= 0 {
                     let ptype: str = pstored;
                     if str_len(ptype) > 0 {
                         sym_set(sym, str_concat("__type_", name), ptype);
+                        resolved = 1;
+                    };
+                };
+                // v0.4.4 SPEC-1.5 wishlist: Option<str> / Result<*, str>
+                // hardcoded defaults (sync from s1's match_bind_payloads_per_idx).
+                if resolved == 0 {
+                    if str_eq(ename, "Option") == 1 && str_eq(vname, "Some") == 1 && bind_idx == 0 {
+                        sym_set(sym, str_concat("__type_", name), "str");
+                    };
+                    if str_eq(ename, "Result") == 1 && str_eq(vname, "Err") == 1 && bind_idx == 0 {
+                        sym_set(sym, str_concat("__type_", name), "str");
                     };
                 };
             };
