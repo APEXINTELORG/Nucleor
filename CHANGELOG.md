@@ -5,6 +5,21 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.69] — 2026-04-28
+
+**`=` vs `==` typo guard in `while` / `if` conditions.**
+
+`while x = 0` and `if x = 0` are typos for `==`. Pre-fix the parser
+printed parse-error lines and silently continued, building broken
+IR. Both sites now panic at parse-time with a clear "did you mean
+==?" hint.
+
+### Verify
+
+- 488/488 PASS
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v69_eq_typo_guard.nr`
+
 ## [0.4.68] — 2026-04-28
 
 **Vec<T> ordering ops `<`, `<=`, `>`, `>=` — TYP-011 ptr-compare close.**
