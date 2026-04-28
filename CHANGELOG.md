@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.48] — 2026-04-28
+
+**NUC-FEEDBACK-002 silent-miscompute guard extended to the fn-call
+form: `vec_get(v, i) as f32` (and `vec_first` / `vec_last` /
+`vec_pop`) on a `Vec<NarrowFloat>` now also emits NUM-006.**
+
+v0.4.47 caught the bracket form (`v[i] as f32`); adopters who
+reach for the named accessor instead of bracket indexing got the
+same silent miscompute with no diagnostic. v0.4.48 closes that
+gap by adding a kind-7 (fn-call) branch to the same guard.
+
+### Fix
+
+`type_expr` kind-99 (`as` cast) handler now also dispatches when:
+
+- source is kind-7 fn-call to `vec_get` / `vec_first` /
+  `vec_last` / `vec_pop`, AND
+- arg-0 is a kind-3 var ref to a `Vec<NarrowFloat>`, AND
+- the cast target matches the corresponding read-side primitive.
+
+Diagnostic message renders as
+``vec_get(v, ...) as f32` numeric-casts ... use f32_from_bits(vec_get(v, ...))``
+(the surface text adapts to the call name).
+
+### Verify
+
+- 469/469 PASS at ~303s per-step (within v0.4.46 baseline)
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v48_vec_get_as_cast_guard.nr`
+
 ## [0.4.47] — 2026-04-28
 
 **NUC-FEEDBACK-002 silent-miscompute guard: `v[i] as <NarrowFloat>`

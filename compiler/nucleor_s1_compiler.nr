@@ -10230,36 +10230,63 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         // would cast to 1069547520.0_f32 instead of 1.5_f32). Tell
         // the adopter to use the explicit reinterpret surface.
         let src_nid: i64 = node_field(pool, nid, 1);
+        let mut guard_v_nid: i64 = 0 - 1;
+        let mut guard_call_name: str = "";
         if node_kind(pool, src_nid) == 10 {
-            let v_nid: i64 = node_field(pool, src_nid, 1);
-            if node_kind(pool, v_nid) == 3 {
-                let vname: str = node_field(pool, v_nid, 1);
-                let mut vt: str = tenv_get(env, vname);
-                if str_len(vt) == 0 { vt = infer_var_type_from_source(source, vname); };
-                let velt: str = strip_container_one_level(vt);
-                if str_len(velt) > 0 {
-                    let mut hint: str = "";
-                    if str_eq(velt, "f32") == 1 && str_eq(target_type, "f32") == 1 {
-                        hint = "f32_from_bits";
+            guard_v_nid = node_field(pool, src_nid, 1);
+        };
+        // v0.4.48: extend the guard to the fn-call form
+        // `vec_get(v, i) as f32`, `vec_first(v) as f32`,
+        // `vec_last(v) as f32`, `vec_pop(v) as f32`. Same hazard
+        // as the `v[i] as f32` form caught in v0.4.47.
+        if node_kind(pool, src_nid) == 7 {
+            let cname: str = node_field(pool, src_nid, 1);
+            let is_vec_read: i64 = if str_eq(cname, "vec_get") == 1
+                || str_eq(cname, "vec_first") == 1
+                || str_eq(cname, "vec_last") == 1
+                || str_eq(cname, "vec_pop") == 1 { 1 } else { 0 };
+            if is_vec_read == 1 {
+                let cargs: i64 = node_field(pool, src_nid, 2);
+                if list_len(pool, cargs) > 0 {
+                    let first_arg: i64 = list_get(pool, cargs, 0);
+                    if node_kind(pool, first_arg) == 3 {
+                        guard_v_nid = first_arg;
+                        guard_call_name = cname;
                     };
-                    if str_eq(velt, "f16") == 1 && str_eq(target_type, "f32") == 1 {
-                        hint = "f16_to_f32";
+                };
+            };
+        };
+        if guard_v_nid >= 0 && node_kind(pool, guard_v_nid) == 3 {
+            let vname: str = node_field(pool, guard_v_nid, 1);
+            let mut vt: str = tenv_get(env, vname);
+            if str_len(vt) == 0 { vt = infer_var_type_from_source(source, vname); };
+            let velt: str = strip_container_one_level(vt);
+            if str_len(velt) > 0 {
+                let mut hint: str = "";
+                if str_eq(velt, "f32") == 1 && str_eq(target_type, "f32") == 1 {
+                    hint = "f32_from_bits";
+                };
+                if str_eq(velt, "f16") == 1 && str_eq(target_type, "f32") == 1 {
+                    hint = "f16_to_f32";
+                };
+                if str_eq(velt, "bf16") == 1 && str_eq(target_type, "f32") == 1 {
+                    hint = "bf16_to_f32";
+                };
+                if str_eq(velt, "f8e4m3") == 1 && str_eq(target_type, "f32") == 1 {
+                    hint = "f8e4m3_to_f32";
+                };
+                if str_eq(velt, "f8e5m2") == 1 && str_eq(target_type, "f32") == 1 {
+                    hint = "f8e5m2_to_f32";
+                };
+                if str_len(hint) > 0 {
+                    let mut surface: str = str_concat(vname, "[i]");
+                    if str_len(guard_call_name) > 0 {
+                        surface = str_concat(guard_call_name, str_concat("(", str_concat(vname, ", ...)")));
                     };
-                    if str_eq(velt, "bf16") == 1 && str_eq(target_type, "f32") == 1 {
-                        hint = "bf16_to_f32";
-                    };
-                    if str_eq(velt, "f8e4m3") == 1 && str_eq(target_type, "f32") == 1 {
-                        hint = "f8e4m3_to_f32";
-                    };
-                    if str_eq(velt, "f8e5m2") == 1 && str_eq(target_type, "f32") == 1 {
-                        hint = "f8e5m2_to_f32";
-                    };
-                    if str_len(hint) > 0 {
-                        let nloc2: Vec<i32> = find_linecol_in_source(source, fn_name, vname);
-                        let part1: str = str_concat("`", str_concat(vname, str_concat("[i] as ", str_concat(target_type, "` numeric-casts the i64 cell holding the "))));
-                        let part2: str = str_concat(velt, str_concat(" bit pattern; use ", str_concat(hint, str_concat("(", str_concat(vname, "[i]) for bit-reinterpret")))));
-                        diag_add_ex(diags, "error", "type", "NUM-006", str_concat(part1, part2), fn_name, vec_get(nloc2, 0), vec_get(nloc2, 1), "");
-                    };
+                    let nloc2: Vec<i32> = find_linecol_in_source(source, fn_name, vname);
+                    let part1: str = str_concat("`", str_concat(surface, str_concat(" as ", str_concat(target_type, "` numeric-casts the i64 cell holding the "))));
+                    let part2: str = str_concat(velt, str_concat(" bit pattern; use ", str_concat(hint, str_concat("(", str_concat(surface, ") for bit-reinterpret")))));
+                    diag_add_ex(diags, "error", "type", "NUM-006", str_concat(part1, part2), fn_name, vec_get(nloc2, 0), vec_get(nloc2, 1), "");
                 };
             };
         };
