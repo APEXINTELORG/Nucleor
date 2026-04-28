@@ -187,6 +187,34 @@ tok_vec_len/at/free runtime helpers and exposed all four (plus decode)
 via stdlib/rods/tokenizer.nr. Canonical round-trip now works:
 encode → vec_len → vec_at → decode → vec_free.
 
+### NUC-IMPROVE-007 — Typed special functions for SciPy stats parity
+**Status: CLOSED in v0.3.230. Eight new typed wrappers (betainc / gammaincc / fdtrc / fdtr / chdtrc / student_t_sf2 / norm_sf / norm_cdf) added to stdlib/rods/math_typed.nr (later split out — see FEEDBACK-011).**
+**Priority: MEDIUM (SciPy stats parity for ML adopter probability metrics)**
+
+### NUC-FEEDBACK-011 — math_typed.nr import-without-use link failure
+**Status: CLOSED in v0.3.232. Special-function wrappers split into a separate `stdlib/rods/math_typed_special.nr` rod so importing the base typed-math rod no longer requires v0.3.230+ at link time.**
+**Priority: HIGH (any program importing math_typed.nr cross-version broke at link)**
+
+Root cause: v0.3.230 added eight special-function wrappers to
+`stdlib/rods/math_typed.nr` whose runtime symbols (`f64_betainc`,
+`f64_student_t_sf2`, etc.) were only registered in the v0.3.230+
+compiler's `get_rt_name` table. Adopters running an older
+`bin/nucleor.exe` who imported the rod without calling those
+functions still got `undefined value '@f64_betainc'` at clang
+link because every `import` lowers all top-level fns it sees.
+
+Fix: split the eight wrappers into `math_typed_special.nr`. Code
+that wants only the elementary set (sqrt/exp/log/tanh/sin/cos/pow)
+keeps importing `math_typed.nr` and runs cross-version cleanly;
+code that explicitly wants special functions imports the new rod
+and pins to ≥ v0.3.230. Comment at top of the new rod documents
+the rationale.
+
+Bonus follow-up: v0.4.23 added rod-import-boundary DCE which
+*also* would have fixed the symptom by eliminating unreferenced
+top-level fns. Both fixes layered — the rod split is the
+contract-level guarantee; DCE is the optimization.
+
 ### Compiler-internal hazard: `&&` and `||` do NOT short-circuit
 **Status: CLOSED in v0.3.148. Fixture t423.**
 **Priority: HIGH (silent miscompute for adopter null-check idioms)**

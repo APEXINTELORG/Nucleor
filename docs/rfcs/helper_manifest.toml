@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 806
-# Of which REVIEW REQUIRED: 43
+# Total helpers: 815
+# Of which REVIEW REQUIRED: 45
 
 # ============================================================
 # REVIEW REQUIRED
@@ -46,6 +46,8 @@
 #   f8e5m2_to_str                            (Unclassified)
 #   infer_fn_return_type_cached              (Unclassified)
 #   infer_var_type_cached                    (Unclassified)
+#   int_to_hex_upper                         (Unclassified)
+#   int_to_str_force_sign                    (Unclassified)
 #   sizeof_bf16                              (Unclassified)
 #   sizeof_bool                              (Unclassified)
 #   sizeof_char                              (Unclassified)
@@ -4806,6 +4808,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "f32_from_scaled"
+class            = "PureMath"
+symbol           = "__nucleor_f32_from_scaled"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "f32_ge"
 class            = "PureMath"
 symbol           = "__nucleor_f32_ge"
@@ -5049,6 +5065,20 @@ class            = "PureMath"
 symbol           = "__nucleor_f32_to_str"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> ptr"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f32_to_str_prec"
+class            = "PureMath"
+symbol           = "__nucleor_f32_to_str_prec"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> ptr"
 effects          = []
 taint            = "passthrough"
 units            = "passthrough"
@@ -5959,6 +5989,76 @@ class            = "PureMath"
 symbol           = "__nucleor_f64_to_i64"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> i64"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_to_str_prec"
+class            = "PureMath"
+symbol           = "__nucleor_f64_to_str_prec"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> ptr"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_to_str_sci"
+class            = "PureMath"
+symbol           = "__nucleor_f64_to_str_sci"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> ptr"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_to_str_sci_prec"
+class            = "PureMath"
+symbol           = "__nucleor_f64_to_str_sci_prec"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> ptr"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_to_str_sci_prec_upper"
+class            = "PureMath"
+symbol           = "__nucleor_f64_to_str_sci_prec_upper"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> ptr"
+effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "f64_to_str_sci_upper"
+class            = "PureMath"
+symbol           = "__nucleor_f64_to_str_sci_upper"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> ptr"
 effects          = []
 taint            = "passthrough"
 units            = "passthrough"
@@ -9659,6 +9759,34 @@ class            = "Unclassified"
 symbol           = "__nucleor_infer_var_type"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, ptr) -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "int_to_hex_upper"
+class            = "Unclassified"
+symbol           = "__nucleor_int_to_hex_upper"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "int_to_str_force_sign"
+class            = "Unclassified"
+symbol           = "__nucleor_int_to_str_force_sign"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> ptr"
 effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"

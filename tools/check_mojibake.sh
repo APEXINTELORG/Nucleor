@@ -38,20 +38,29 @@ mapfile -t files < <(find . \
         -name '*.txt' \
     \) -print)
 
-found=0
+# v0.4.29: filter the self-reference up front so we can pass the entire
+# file list to a SINGLE grep invocation rather than spawning ~3000 greps.
+# On Windows this drops the verify step from ~18s to under 2s.
+filtered=()
 for f in "${files[@]}"; do
-    # Skip our own check script + the Python equivalent (these intentionally
-    # mention the mojibake bytes in comments or test data).
     case "$f" in
         ./tools/check_mojibake.sh) continue ;;
     esac
-    # `LC_ALL=C grep -P` lets us match raw bytes via PCRE \xNN escapes
-    # without locale interference.
-    if LC_ALL=C grep -lP '\xc3\xa2\xe2\x82\xac' "$f" >/dev/null 2>&1; then
+    filtered+=("$f")
+done
+
+found=0
+# Single batch grep — `LC_ALL=C grep -lP` matches raw bytes via PCRE
+# \xNN escapes without locale interference. -l prints only matching paths;
+# rc 1 (no matches) is the OK case so we tolerate it via `|| true`.
+flagged=$(LC_ALL=C grep -lP '\xc3\xa2\xe2\x82\xac' "${filtered[@]}" 2>/dev/null || true)
+if [ -n "$flagged" ]; then
+    while IFS= read -r f; do
+        [ -z "$f" ] && continue
         echo "FAIL: mojibake bytes (c3 a2 e2 82 ac = cp1252-as-utf8 'â€') in $f"
         found=1
-    fi
-done
+    done <<< "$flagged"
+fi
 
 if [ $found -eq 0 ]; then
     echo "OK: no mojibake byte sequences detected"

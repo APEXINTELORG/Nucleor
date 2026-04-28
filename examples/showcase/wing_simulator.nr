@@ -130,7 +130,7 @@ fn render_frame(lbm: i64, em: i64, Nx: i64, Ny: i64, step: i64,
     print(paint(str_concat("  Step ", str_concat(viz_int_to_str(step),
                 str_concat("  |  EM energy: ",
                 str_concat(viz_f64_str(em_total_energy, 4),
-                "  |  airfoil = X"))))), col_white());
+                "  |  airfoil = X")))), col_white()));
     print(paint("  --- Fluid density (Lattice Boltzmann, D2Q9) ---", col_grey()));
     let mut y: i64 = 0;
     while y < Ny {

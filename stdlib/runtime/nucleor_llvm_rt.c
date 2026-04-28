@@ -621,6 +621,26 @@ const char *__nucleor_int_to_str(long long v) {
     return out;
 }
 
+// v0.4.30 RFC-0028 phase 5: `{:+}` force-sign — prints "+N" for v >= 0,
+// "-N" for v < 0 (snprintf already prefixes negatives with "-"). The
+// macro dispatcher routes `{:+}` here so the arg expression is
+// evaluated exactly once (a `cond ? "+" + s : s` lowering would
+// double-evaluate side-effecting fn-call args).
+const char *__nucleor_int_to_str_force_sign(long long v) {
+    g_misc_str_count++;
+    char buf[34];
+    if (v >= 0) {
+        snprintf(buf, sizeof(buf), "+%lld", v);
+    } else {
+        snprintf(buf, sizeof(buf), "%lld", v);
+    }
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    g_misc_str_bytes += L + 1;
+    memcpy(out, buf, L + 1);
+    return out;
+}
+
 const char *__nucleor_f64_to_str(long long b) {
     union { long long i; double d; } u; u.i = b;
     char buf[64];
@@ -646,6 +666,39 @@ const char *__nucleor_f32_to_str(long long b) {
     return out;
 }
 
+// v0.4.27 RFC-0028 phase 5: precision-aware float-to-string for
+// `{:.N}` format spec semantics. Pre-v0.4.27 the spec text was parsed
+// but ignored (type dispatch was correct since v0.4.24 — no silent
+// miscompute — but the precision had no effect). Now the format-macro
+// lowering can route `{:.N}` for f64/f32 args through these helpers.
+//   f64_to_str_prec(bits, prec) -> "%.<prec>f"
+//   f32_to_str_prec(bits, prec) -> "%.<prec>f" on float reinterpret
+// Precision is clamped to [0, 32]. Buffer sized for worst-case
+// (f64 max exponent ~308 digits + sign + dot + 32 frac digits = ~344).
+const char *__nucleor_f64_to_str_prec(long long b, long long prec) {
+    union { long long i; double d; } u; u.i = b;
+    if (prec < 0) prec = 0;
+    if (prec > 32) prec = 32;
+    char buf[384];
+    snprintf(buf, sizeof(buf), "%.*f", (int)prec, u.d);
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return out;
+}
+
+const char *__nucleor_f32_to_str_prec(long long b, long long prec) {
+    union { unsigned int i; float f; } u; u.i = (unsigned int)(b & 0xFFFFFFFFLL);
+    if (prec < 0) prec = 0;
+    if (prec > 32) prec = 32;
+    char buf[384];
+    snprintf(buf, sizeof(buf), "%.*f", (int)prec, (double)u.f);
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return out;
+}
+
 const char *__nucleor_bool_to_str(long long v) {
     const char *src = v != 0 ? "true" : "false";
     size_t L = strlen(src);
@@ -661,6 +714,58 @@ const char *__nucleor_bool_to_str(long long v) {
 const char *__nucleor_int_to_hex(long long v) {
     char buf[20];
     snprintf(buf, sizeof(buf), "%llx", (unsigned long long)v);
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return out;
+}
+// v0.4.37 RFC-0028 phase 5: `{:X}` upper-case hex digits.
+const char *__nucleor_int_to_hex_upper(long long v) {
+    char buf[20];
+    snprintf(buf, sizeof(buf), "%llX", (unsigned long long)v);
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return out;
+}
+
+// v0.4.38 RFC-0028 phase 5: `{:e}` scientific notation for f64.
+// `{:.Ne}` uses precision N. The `arg` is the f64 bit pattern.
+const char *__nucleor_f64_to_str_sci(long long bits) {
+    union { long long i; double d; } u; u.i = bits;
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%e", u.d);
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return out;
+}
+const char *__nucleor_f64_to_str_sci_upper(long long bits) {
+    union { long long i; double d; } u; u.i = bits;
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%E", u.d);
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return out;
+}
+const char *__nucleor_f64_to_str_sci_prec(long long bits, long long prec) {
+    union { long long i; double d; } u; u.i = bits;
+    if (prec < 0) prec = 0;
+    if (prec > 32) prec = 32;
+    char buf[80];
+    snprintf(buf, sizeof(buf), "%.*e", (int)prec, u.d);
+    size_t L = strlen(buf);
+    char *out = (char *)malloc(L + 1);
+    memcpy(out, buf, L + 1);
+    return out;
+}
+const char *__nucleor_f64_to_str_sci_prec_upper(long long bits, long long prec) {
+    union { long long i; double d; } u; u.i = bits;
+    if (prec < 0) prec = 0;
+    if (prec > 32) prec = 32;
+    char buf[80];
+    snprintf(buf, sizeof(buf), "%.*E", (int)prec, u.d);
     size_t L = strlen(buf);
     char *out = (char *)malloc(L + 1);
     memcpy(out, buf, L + 1);
@@ -6500,6 +6605,19 @@ static long long __nuc_d2b(double d) { NucF64Bits u; u.d = d; return u.i; }
 // f64-bit-pattern convention.
 long long __nucleor_f64_from_scaled(long long scaled) {
     return __nuc_d2b((double)scaled / 1000000.0);
+}
+
+// v0.4.24 (NUC-FEEDBACK-002): f32 sibling of f64_from_scaled. Decode
+// the scaled-int to a double, narrow to float, return the 32-bit IEEE
+// bit pattern in the low 32 bits of an i64. Pre-v0.4.24 `1.0f32`
+// literals routed through f64_from_scaled, storing the f64 bits of
+// 1.0 (=0x3FF0000000000000) in Vec<f32> slots — when later read as
+// f32 the upper 32 bits were truncated, leaving 0.
+long long __nucleor_f32_from_scaled(long long scaled) {
+    float f = (float)((double)scaled / 1000000.0);
+    union { float f; unsigned int i; } u;
+    u.f = f;
+    return (long long)(unsigned long long)u.i;
 }
 
 // v0.3.125: NUC-IMPROVE-004 — explicit reinterpret of an i64

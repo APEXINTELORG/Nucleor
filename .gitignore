@@ -47,3 +47,12 @@ Thumbs.db
 # Test scratch
 _verify_*.exe
 _test_*.exe
+
+# Operational verify-gate timing data — regenerates per run; the
+# recipe in tools/VERIFY_TIMING_RECIPE.md is the contract, the CSV
+# is rolling local-machine output that bloats history if committed.
+tools/verify_timings.csv
+
+# Bootstrap iteration scratch (3-iter fixed-point check artifacts)
+out_v*.txt
+err_v*.txt

@@ -2051,6 +2051,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "str_from_int") { return "__nucleor_int_to_str"; };
     if str_eq(name, "f64_to_str") { return "__nucleor_f64_to_str"; };
     if str_eq(name, "f32_to_str") { return "__nucleor_f32_to_str"; };
+    if str_eq(name, "f64_to_str_prec") { return "__nucleor_f64_to_str_prec"; };
+    if str_eq(name, "f32_to_str_prec") { return "__nucleor_f32_to_str_prec"; };
     if str_eq(name, "f16_to_str") { return "__nucleor_f16_to_str"; };
     if str_eq(name, "bf16_to_str") { return "__nucleor_bf16_to_str"; };
     if str_eq(name, "f8e4m3_from_f32") { return "__nucleor_f8e4m3_from_f32"; };
@@ -2061,6 +2063,12 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "int_to_hex") { return "__nucleor_int_to_hex"; };
     if str_eq(name, "int_to_bin") { return "__nucleor_int_to_bin"; };
     if str_eq(name, "int_to_oct") { return "__nucleor_int_to_oct"; };
+    if str_eq(name, "int_to_str_force_sign") { return "__nucleor_int_to_str_force_sign"; };
+    if str_eq(name, "int_to_hex_upper") { return "__nucleor_int_to_hex_upper"; };
+    if str_eq(name, "f64_to_str_sci") { return "__nucleor_f64_to_str_sci"; };
+    if str_eq(name, "f64_to_str_sci_upper") { return "__nucleor_f64_to_str_sci_upper"; };
+    if str_eq(name, "f64_to_str_sci_prec") { return "__nucleor_f64_to_str_sci_prec"; };
+    if str_eq(name, "f64_to_str_sci_prec_upper") { return "__nucleor_f64_to_str_sci_prec_upper"; };
     if str_eq(name, "str_to_i64_radix") { return "__nucleor_str_to_i64_radix"; };
     if str_eq(name, "parse_hex") { return "__nucleor_parse_hex"; };
     if str_eq(name, "parse_bin") { return "__nucleor_parse_bin"; };
@@ -2197,6 +2205,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "cpu_count") { return "__nucleor_cpu_count"; };
     if str_eq(name, "print_f64") { return "__nucleor_print_f64"; };
     if str_eq(name, "f64_from_scaled") { return "__nucleor_f64_from_scaled"; };
+    if str_eq(name, "f32_from_scaled") { return "__nucleor_f32_from_scaled"; };
     if str_eq(name, "f64_from_bits") { return "__nucleor_f64_from_bits"; };
     if str_eq(name, "f64_to_bits") { return "__nucleor_f64_to_bits"; };
     if str_eq(name, "f32_from_bits") { return "__nucleor_f32_from_bits"; };
@@ -2840,6 +2849,8 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "str_from_int") { return 1; };
     if str_eq(name, "f64_to_str") { return 1; };
     if str_eq(name, "f32_to_str") { return 1; };
+    if str_eq(name, "f64_to_str_prec") { return 1; };
+    if str_eq(name, "f32_to_str_prec") { return 1; };
     if str_eq(name, "f16_to_str") { return 1; };
     if str_eq(name, "bf16_to_str") { return 1; };
     if str_eq(name, "f8e4m3_to_str") { return 1; };
@@ -2848,6 +2859,12 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "int_to_hex") { return 1; };
     if str_eq(name, "int_to_bin") { return 1; };
     if str_eq(name, "int_to_oct") { return 1; };
+    if str_eq(name, "int_to_str_force_sign") { return 1; };
+    if str_eq(name, "int_to_hex_upper") { return 1; };
+    if str_eq(name, "f64_to_str_sci") { return 1; };
+    if str_eq(name, "f64_to_str_sci_upper") { return 1; };
+    if str_eq(name, "f64_to_str_sci_prec") { return 1; };
+    if str_eq(name, "f64_to_str_sci_prec_upper") { return 1; };
     if str_eq(name, "str_pad_left") { return 1; };
     if str_eq(name, "str_pad_right") { return 1; };
     if str_eq(name, "str_center") { return 1; };
@@ -3135,6 +3152,21 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
 
 fn emit_builtin_call(sb: i64, name: str, rn: str, d: i64, argc: i64, args: Vec<i32>) -> i64 {
     let ds: str = str_from_int(d);
+    // v0.4.22 perf: inline str_char_at as GEP+load (mirror of s1 — see
+    // detailed comment in nucleor_s1_compiler.nr's emit_builtin_call).
+    if str_eq(name, "str_char_at") == 1 && argc == 2 {
+        let s_reg: str = str_from_int(vec_get(args, 0));
+        let i_reg: str = str_from_int(vec_get(args, 1));
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".sca.ptr = inttoptr i64 %r.");
+        sb_append(sb, s_reg); sb_append(sb, " to ptr\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".sca.gep = getelementptr i8, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".sca.ptr, i64 %r."); sb_append(sb, i_reg); sb_append(sb, "\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".sca.byte = load i8, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".sca.gep\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = zext i8 %r.");
+        sb_append(sb, ds); sb_append(sb, ".sca.byte to i64\n");
+        return 0;
+    };
     // Step 1: inttoptr for ptr args
     let mut ai: i64 = 0;
     while ai < argc {
@@ -3491,6 +3523,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_str_to_bool(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_int_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_f64_to_str(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f64_to_str_prec(i64, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f32_to_str_prec(i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_f32_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_f16_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_bf16_to_str(i64)\n");
@@ -3502,6 +3536,12 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_int_to_hex(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_int_to_bin(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_int_to_oct(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_int_to_str_force_sign(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_int_to_hex_upper(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f64_to_str_sci(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f64_to_str_sci_upper(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f64_to_str_sci_prec(i64, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f64_to_str_sci_prec_upper(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_str_to_i64_radix(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_parse_hex(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_parse_bin(ptr)\n");
@@ -3662,6 +3702,7 @@ fn emit_externs() -> str {
     // f64 (always available via nucleor_llvm_rt.c)
     sb_append(sb, "declare void @__nucleor_print_f64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_from_scaled(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_from_scaled(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_from_bits(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_to_bits(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_from_bits(i64)\n");
@@ -12342,7 +12383,12 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str) -> str {
     if str_eq(spec, ":i") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
     if str_eq(spec, ":s") == 1 { return arg_expr; };
     if str_eq(spec, ":f") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
-    if str_eq(spec, ":b") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+    // v0.4.29: drift-parity with s1_compiler — `:b` is binary radix (Rust),
+    // routes to int_to_bin. Pre-v0.4.29 routed to bool_to_str.
+    if str_eq(spec, ":b") == 1 { return str_concat("int_to_bin(", str_concat(arg_expr, ")")); };
+    if str_eq(spec, ":x") == 1 { return str_concat("int_to_hex(", str_concat(arg_expr, ")")); };
+    if str_eq(spec, ":X") == 1 { return str_concat("int_to_hex(", str_concat(arg_expr, ")")); };
+    if str_eq(spec, ":o") == 1 { return str_concat("int_to_oct(", str_concat(arg_expr, ")")); };
     return str_concat("int_to_str(", str_concat(arg_expr, ")"));
 }
 
