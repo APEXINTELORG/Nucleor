@@ -12670,6 +12670,35 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         if user_ret >= 0 {
                             fn_name = user_mangled;
                         } else {
+                            // v0.4.53: NUC-FEEDBACK silent-undefined-symbol guard.
+                            // Pre-fix `x.unwrap()` (and .expect, .ok, .err,
+                            // .unwrap_or) on a non-Option/Result receiver
+                            // (e.g. bare i64) lowered to `vec_unwrap(x)`,
+                            // which is not a runtime helper. Build failed
+                            // late at clang link with `undefined value
+                            // '@vec_unwrap'`. Adopters got a confusing
+                            // LLVM-IR error pointing at compiler-emitted
+                            // text rather than their source. Halt now with
+                            // a clear diagnostic naming the call.
+                            let bad_on_vec: i64 = if str_eq(mname, "unwrap") == 1
+                                || str_eq(mname, "expect") == 1
+                                || str_eq(mname, "unwrap_or") == 1
+                                || str_eq(mname, "unwrap_or_else") == 1
+                                || str_eq(mname, "ok") == 1
+                                || str_eq(mname, "err") == 1
+                                || str_eq(mname, "is_ok") == 1
+                                || str_eq(mname, "is_err") == 1
+                                || str_eq(mname, "is_some") == 1
+                                || str_eq(mname, "is_none") == 1
+                                || str_eq(mname, "and_then") == 1
+                                || str_eq(mname, "or_else") == 1 { 1 } else { 0 };
+                            if bad_on_vec == 1 {
+                                let part_a: str = str_concat("ERROR: `.", str_concat(mname, "()` is an Option/Result method, not a Vec method."));
+                                let part_b: str = str_concat(" Receiver type unknown to the type-checker; pre-v0.4.53 this lowered to `vec_", str_concat(mname, "(...)` and failed late at clang link with an undefined-symbol error."));
+                                let part_c: str = " Workaround: ensure the receiver binding is typed `Option<T>` / `Result<T,E>`, or use the explicit `match expr { Some(x) => x, None => default }` pattern.";
+                                print(str_concat(part_a, str_concat(part_b, part_c)));
+                                panic(str_concat("nucleor: Option/Result method `.", str_concat(mname, "()` called on non-Option receiver")));
+                            };
                             fn_name = str_concat("vec_", mname);
                         };
                     };
