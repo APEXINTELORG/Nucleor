@@ -5,6 +5,26 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.67] — 2026-04-28
+
+**str ordering ops `<`, `<=`, `>`, `>=` — TYP-011 pointer-compare close.**
+
+Pre-fix `a < b` for two str values did integer pointer compare —
+disconnected from lexicographic byte order. v0.4.52 closed `==`
+and `!=`; the ordering ops were silently doing pointer compare.
+
+### Fix
+
+Extended kind-4 (binop) handler to detect ops 32/33/34/35 with
+str/str operands and emit TYP-011 pointing at `str_cmp(a, b) <op> 0`
+for canonical lex ordering.
+
+### Verify
+
+- 487/487 PASS
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v67_str_ord_pointer_guard.nr`
+
 ## [0.4.66] — 2026-04-28
 
 **Mixed str/int arithmetic — TYP-011 close (also covers `+=` desugar).**
