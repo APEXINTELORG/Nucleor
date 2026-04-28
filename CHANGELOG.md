@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.63] — 2026-04-28
+
+**Struct init extra-field silent-drop — TYP-013 hard error.**
+
+Pre-fix `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently
+dropped the extra `z` field — the lower walked the init list in
+declared order, so any past-end entries were ignored. Rust errors
+here with E0560 (`no field named ...`).
+
+### Fix
+
+Extended the v0.4.62 `check_expr` kind-34 (STRUCT_INIT) handler:
+after the missing-field check, walk the init-list and validate
+each field name against the struct's declared fields via
+`struct_field_idx`. If the lookup returns -1, emit TYP-013 with
+location pointing right at the unknown field name.
+
+Diagnostic registry updated in lockstep:
+- `is_error_tier_code` list in s1
+- both verify smoke lists
+- short + long-form explain registry
+- `Nucleor_Error_Codes.md`
+
+### Verify
+
+- 483/483 PASS at baseline timing
+- T1.7 bootstrap seed matches
+- T3.23 diag-code drift gate green
+- New pin: `tests/fixtures/repro_v63_struct_extra_field_guard.nr`
+
 ## [0.4.62] — 2026-04-28
 
 **Struct init missing-field silent-default-zero — TYP-012 hard error.**
