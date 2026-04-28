@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.47] — 2026-04-28
+
+**NUC-FEEDBACK-002 silent-miscompute guard: `v[i] as <NarrowFloat>`
+on a `Vec<NarrowFloat>` is now a hard error, not a quiet wrong
+result.**
+
+The cell of a `Vec<f32>` (and `Vec<f16>`, `Vec<bf16>`,
+`Vec<f8e4m3>`, `Vec<f8e5m2>`) holds the bit pattern of the float
+in an i64. Writing `v[i] as f32` does a numeric i64→f32
+conversion (so bit pattern `0x3FC00000 = 1069547520` becomes
+`1069547520.0_f32`, not `1.5_f32`). Pre-v0.4.47 the compiler
+accepted this silently and the program ran with garbage data.
+
+### Fix
+
+`type_expr` kind-99 (`as` cast) now detects:
+
+- source is kind-10 indexing on a kind-3 var ref, AND
+- the var's declared type is `Vec<NarrowFloat>` (looked up via
+  `tenv_get` falling back to `infer_var_type_from_source` because
+  the typecker currently stores `""` for `let v: Vec<f32> = Vec::new()`
+  when the init expression has unknown type), AND
+- the cast target matches the corresponding read-side primitive.
+
+When all match, NUM-006 fires pointing at the correct reinterpret
+surface (`f32_from_bits`, `f16_to_f32`, `bf16_to_f32`,
+`f8e4m3_to_f32`, `f8e5m2_to_f32`).
+
+### Verify
+
+- 468/468 PASS at ~300s per-step time (no regression vs v0.4.46
+  baseline of 295-304s)
+- Bootstrap fixed point holds (T1.7 PASS, seed sha matches
+  fresh-build sha)
+- New pin: `tests/fixtures/repro_v47_vec_narrow_float_as_cast_guard.nr`
+  asserts `v[0] as f32` on `Vec<f32>` emits NUM-006 mentioning
+  `f32_from_bits`
+
+### Not in this release
+
+- The auto-bitcast at indexing (so `v[i]` returns an `f32` value
+  directly without the explicit `f32_from_bits` round-trip) is
+  RFC-0024 Phase 4 proper and lands in a follow-on release; it
+  needs codegen-level changes that touch the IR shape.
+- This release ships the GUARD only. Adopters still write the
+  explicit reinterpret surface as documented in
+  `tests/fixtures/t462_vec_f32_round_trip.nr` and
+  `tests/fixtures/t463_vec_narrow_float_round_trip.nr`.
+
 ## [0.4.46] — 2026-04-28
 
 **RFC-0024 Phase 2 follow-up: type-compat bridge tolerates the new

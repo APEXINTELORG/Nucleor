@@ -1108,6 +1108,20 @@ t356_indexed_lhs_diagnostic() {
     return 0
 }
 
+t392_vec_narrow_float_as_cast_guard() {
+    # T3.92 (v0.4.47): NUC-FEEDBACK-002 silent-miscompute guard.
+    # `v[i] as f32` on a Vec<f32> is a numeric i64→f32 conversion,
+    # NOT a bit-reinterpret of the f32 bit pattern stored in the
+    # cell. Pre-v0.4.47 the compiler accepted it and the result was
+    # garbage (e.g. 1069547520.0_f32 instead of 1.5_f32). v0.4.47
+    # emits NUM-006 pointing at the correct surface
+    # (f32_from_bits / f16_to_f32 / bf16_to_f32 / etc.).
+    "$BIN" build "tests/fixtures/repro_v47_vec_narrow_float_as_cast_guard.nr" -o "_t392_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    grep -q "error\[NUM-006\]" /tmp/_nuc_step.log || return 1
+    grep -q "f32_from_bits" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t391_format_debug() {
     # T3.91 (v0.4.41): RFC-0028 phase 5 follow-on — `{:?}` Debug
     # formatter. Strings wrap in quotes ("..."), primitives pass
@@ -2745,6 +2759,7 @@ step "T3.88 v0.4.37 RFC-0028 phase 5 — :X upper-case hex digits" t388_format_h
 step "T3.89 v0.4.38 RFC-0028 phase 5 — :e/:E scientific notation" t389_format_sci
 step "T3.90 v0.4.40 RFC-0028 phase 5 — custom fill char (closes phase 5)" t390_format_fill_char
 step "T3.91 v0.4.41 RFC-0028 phase 5+ — :? Debug formatter (str quoting)" t391_format_debug
+step "T3.92 v0.4.47 NUC-FEEDBACK-002 — Vec<f32>/[i] as f32 silent-miscompute guard" t392_vec_narrow_float_as_cast_guard
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
