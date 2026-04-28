@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.50] — 2026-04-28
+
+**`if let Some(...) = v.first()` (and .last/.pop, vec_first/last/pop)
+no longer silently SEGFAULTs at runtime — parse-time guard halts
+the build with a clear workaround hint.**
+
+Pre-v0.4.50 the canonical Rust idiom
+
+```
+if let Some(first) = v.first() { ... } else { ... }
+```
+
+silently SEGFAULTed at runtime when `v: Vec<i64>`. Root cause:
+`v.first()` (and the other Vec accessor helpers) returns a bare i64
+in Nucleor's i64-everywhere ABI, NOT an `Option<T>`. The match-arm
+dispatcher's `Some` path then called `vec_get(scrutinee, 0)` to
+read the Option tag, dereferencing the i64 value (1 in the canonical
+fixture) as a pointer. Adopters writing the canonical Rust pattern
+got a bare SIGSEGV with no compile-time signal.
+
+Sister hazard: `while let Some(x) = stack.pop() { ... }` did NOT
+segfault but DID infinite-loop printing 0s — pop() returns 0 when
+the Vec is empty, the Some-arm always matched, the loop never
+terminated.
+
+### Fix
+
+`parse_if` (RFC-0016 sugar handler at line 1442) and
+`parse_while_stmt` now detect:
+
+- pattern is `Option` (Some/None), AND
+- source expression is kind-8 method call to `first` / `last` /
+  `pop`, OR kind-7 fn call to `vec_first` / `vec_last` / `vec_pop`
+
+When matched, the compiler emits a clear `ERROR:` line naming the
+offending call and pointing at the workaround
+(`if vec_len(v) > 0 { let x: i64 = v[0]; ... }`), then `panic()`s
+the compiler process — exiting with status 1 BEFORE clang is
+invoked (same trick used by NUC-FEEDBACK-010 close in v0.3.198).
+
+Real fix is to wrap the Vec accessor helpers in `Option<T>` at the
+stdlib level, which is RFC-0024 Phase 4 territory. v0.4.50 is the
+silent-miscompute close; the real fix lands later.
+
+### Verify
+
+- 471/471 PASS at ~307s per-step (within 295-310s baseline)
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v50_iflet_first_guard.nr` —
+  asserts compiler exits status 1 with the diagnostic + hint
+- Legitimate if-let-Some on real `Option<T>` scrutinees
+  (`with_alias.alias` in t476/t479/t480/t481) still pass — no
+  false positives on actual Option types
+
 ## [0.4.49] — 2026-04-28
 
 **RFC-0023 partial: int-literal + wildcard or-patterns

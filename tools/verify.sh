@@ -1108,6 +1108,21 @@ t356_indexed_lhs_diagnostic() {
     return 0
 }
 
+t395_iflet_first_guard() {
+    # T3.95 (v0.4.50): NUC-FEEDBACK silent-segfault guard.
+    # `if let Some(x) = v.first()` SILENTLY SEGFAULTED pre-v0.4.50
+    # because v.first() returns a bare i64 (not Option<T>). The
+    # parse-time guard now panics the compiler with a workaround
+    # hint pointing at `vec_len(v) > 0`. Mirrored for while-let
+    # at parse_while_stmt.
+    "$BIN" build "tests/fixtures/repro_v50_iflet_first_guard.nr" -o "_t395_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "silently segfaults" /tmp/_nuc_step.log || return 1
+    grep -q "vec_len" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t394_or_patterns() {
     # T3.94 (v0.4.49): RFC-0023 partial — `A | B | C => body` or-patterns
     # for int literals + wildcards. Pre-v0.4.49 the parser silently
@@ -2790,6 +2805,7 @@ step "T3.91 v0.4.41 RFC-0028 phase 5+ — :? Debug formatter (str quoting)" t391
 step "T3.92 v0.4.47 NUC-FEEDBACK-002 — Vec<f32>/[i] as f32 silent-miscompute guard" t392_vec_narrow_float_as_cast_guard
 step "T3.93 v0.4.48 NUC-FEEDBACK-002 — vec_get(v, i) as f32 fn-call form silent-miscompute guard" t393_vec_get_as_cast_guard
 step "T3.94 v0.4.49 RFC-0023 partial — int-literal/wildcard or-patterns (silent miscompute close)" t394_or_patterns
+step "T3.95 v0.4.50 NUC-FEEDBACK — if-let Some on .first/.last/.pop silent-segfault guard" t395_iflet_first_guard
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
