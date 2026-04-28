@@ -1108,6 +1108,20 @@ t356_indexed_lhs_diagnostic() {
     return 0
 }
 
+t405_vec_eq_arith_guard() {
+    # T3.105 (v0.4.61): Vec<T> arithmetic and ==/!= silent miscompute
+    # close (deferral #1). Source-scan fallback recovers Vec<T> from
+    # `let v: Vec<T> = vec![...]` even when tenv stores "" — the path
+    # that crashed the compiler in v0.4.55 now ships cleanly.
+    "$BIN" build "tests/fixtures/repro_v61_vec_eq_arith_guard.nr" -o "_t405_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\[TYP-011\]" /tmp/_nuc_step.log || return 1
+    grep -q "Vec == Vec" /tmp/_nuc_step.log || return 1
+    grep -q "vec_len" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t404_undefined_fn_warn() {
     # T3.104 (v0.4.60): undefined-fn-call warning at type-check.
     # Closes deferral #2. Filters: __-prefix (closure-gen), uppercase
@@ -2942,6 +2956,7 @@ step "T3.101 v0.4.56 NUC-FEEDBACK — non-exhaustive match (stmt form) silent-mi
 step "T3.102 v0.4.58 NUC-FEEDBACK — str -/*//% silent-segfault guard (extends v0.4.51 + close)" t402_str_arith_guard
 step "T3.103 v0.4.59 NUC-FEEDBACK — non-exhaustive match in EXPR context halts (closes deferral #306)" t403_match_expr_exhaustive_guard
 step "T3.104 v0.4.60 NUC-FEEDBACK — undefined fn call surfaces at type-check (closes deferral #2)" t404_undefined_fn_warn
+step "T3.105 v0.4.61 NUC-FEEDBACK — Vec<T> arithmetic + ==/!= silent miscompute (closes deferral #1)" t405_vec_eq_arith_guard
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

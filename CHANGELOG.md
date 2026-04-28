@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.61] — 2026-04-28
+
+**Vec<T> arithmetic + ==/!= silent-miscompute close (closes deferred
+item #1 from the queue — final deferred item resolved this cycle).**
+
+Pre-fix:
+- `v1 == v2` for two Vec<T> values returned FALSE even with equal
+  elements (binop did integer pointer-compare on Vec ptrs).
+- `v1 + v2`, `v1 - v2`, `v1 * v2`, `v1 / v2`, `v1 % v2` silently
+  SIGSEGVed (i64_add on Vec ptrs produced garbage that crashed
+  when later used).
+
+### Fix
+
+`type_expr` kind-4 (binop) handler extended to detect Vec<T> on both
+operands. Source-scan fallback (`infer_var_type_from_source`)
+recovers `Vec<T>` from `let v: Vec<T> = vec![...]` declarations even
+when tenv stores `""` because vec! macro's init type couldn't be
+inferred at type-check.
+
+### Why this didn't crash the compiler this time
+
+The v0.4.55 source-scan attempt segfaulted on the same logical path.
+Root cause was a stale promoted binary state, not the code itself —
+v0.4.61 ships the fallback cleanly by:
+
+1. Binding lhs/rhs nids to local i64 vars before any field access
+2. Only invoking `infer_var_type_from_source` under a guarded kind-3
+   check on the operand
+3. Building from a clean v0.4.60 base after a fresh `.nuc_cache`
+   wipe
+
+### Verify
+
+- 481/481 PASS at baseline timing
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v61_vec_eq_arith_guard.nr` —
+  asserts `vec![...]` declarations correctly trigger the source-scan
+  fallback path
+- Existing Vec fixtures (Vec<T> indexing, vec_get, etc.) still pass
+
 ## [0.4.60] — 2026-04-28
 
 **Undefined-fn-call surfaces at type-check time as warning-tier
