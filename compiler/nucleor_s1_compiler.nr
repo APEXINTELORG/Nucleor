@@ -9748,13 +9748,23 @@ fn types_compatible(expected: str, actual: str) -> i64 {
     // T1.2 (v0.2.336): Option/Result constructors lower to a Vec<i32>
     // tag-payload runtime representation. Allow them to flow into
     // Vec / Vec<i32> / Vec<i64> return types.
-    if (str_eq(actual, "Option") == 1 || str_eq(actual, "Result") == 1) &&
+    // v0.4.46: switched the actual-side bare-name checks to abase
+    // (and expected-side to ebase) so the compat survives v0.4.45's
+    // Phase 2 change which now returns `Option<T>` / `Result<T>`
+    // (with generic) from constructor expressions instead of bare
+    // `Option` / `Result`. Pre-fix this caused
+    // tests/features/option_result_basic.nr to fail TYP-010 because
+    // `Ok(100)` typed as `Result<i64>` no longer matched `actual ==
+    // "Result"`. Switching to abase strips the generic for the
+    // family-equality check while preserving the rest of the
+    // type-prop information for downstream Phase 3+ work.
+    if (str_eq(abase, "Option") == 1 || str_eq(abase, "Result") == 1) &&
        (str_eq(ebase, "Vec") == 1 || str_eq(ebase, "Option") == 1 || str_eq(ebase, "Result") == 1) { return 1; };
-    if (str_eq(expected, "Option") == 1 || str_eq(expected, "Result") == 1) &&
+    if (str_eq(ebase, "Option") == 1 || str_eq(ebase, "Result") == 1) &&
        (str_eq(abase, "Vec") == 1 || str_eq(abase, "Option") == 1 || str_eq(abase, "Result") == 1) { return 1; };
     // Option ↔ Result interop (rare but useful for ? in ad-hoc contexts).
-    if (str_eq(expected, "Option") == 1 && str_eq(actual, "Result") == 1) { return 1; };
-    if (str_eq(expected, "Result") == 1 && str_eq(actual, "Option") == 1) { return 1; };
+    if (str_eq(ebase, "Option") == 1 && str_eq(abase, "Result") == 1) { return 1; };
+    if (str_eq(ebase, "Result") == 1 && str_eq(abase, "Option") == 1) { return 1; };
     if (str_eq(expected, "i64") == 1 || str_eq(expected, "i32") == 1) && str_eq(actual, "bool") == 1 { return 1; };
     if str_eq(expected, "bool") == 1 && (str_eq(actual, "i64") == 1 || str_eq(actual, "i32") == 1) { return 1; };
     if str_eq(expected, "Int") == 1 && (str_eq(actual, "i32") == 1 || str_eq(actual, "i64") == 1) { return 1; };
@@ -10614,8 +10624,30 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             return "Box<i64>";
         };
         if str_eq(tname, "Tensor") == 1 { return "Tensor<f64>"; };
-        if str_eq(tname, "Option") == 1 { return "Option"; };
-        if str_eq(tname, "Result") == 1 { return "Result"; };
+        // v0.4.45 — RFC-0024 Phase 2: constructor type propagation.
+        // `Some(value)` → `Option<T>` where T = static type of value.
+        // `Ok(value)`   → `Result<T>` (E inferred from context later).
+        // `None` and `Err(...)` keep returning the bare type — variant
+        // doesn't constrain T meaningfully on its own (None) or only
+        // constrains E (Err), and existing type-compat code at
+        // ~lines 9751-9757 already lets bare `Option`/`Result` mix with
+        // `Option<T>`/`Result<T>` shapes so this is additive.
+        if str_eq(tname, "Option") == 1 {
+            let variant: str = node_field(pool, nid, 2);
+            if str_eq(variant, "Some") == 1 && list_len(pool, args) > 0 {
+                let inner: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+                if str_len(inner) > 0 { return str_concat("Option<", str_concat(inner, ">")); };
+            };
+            return "Option";
+        };
+        if str_eq(tname, "Result") == 1 {
+            let variant: str = node_field(pool, nid, 2);
+            if str_eq(variant, "Ok") == 1 && list_len(pool, args) > 0 {
+                let inner: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+                if str_len(inner) > 0 { return str_concat("Result<", str_concat(inner, ">")); };
+            };
+            return "Result";
+        };
         return "";
     };
     if kind == 34 { return node_field(pool, nid, 1); };
