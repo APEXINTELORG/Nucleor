@@ -11227,6 +11227,31 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
             tprof_mark(tprof, 7, 8, compat_start);
             if compat_ok == 0 { type_diag(diags, source, fn_name, node_field(pool, lhs, 1), "TYP-009", "assignment type mismatch"); };
         };
+        // v0.4.64: NUC-FEEDBACK silent-miscompute close for indexed
+        // assignment. Pre-fix `v[0] = "string"` on `let v: Vec<i64>`
+        // silently accepted the str pointer as i64. Adopters writing
+        // canonical Rust (which errors on type mismatch) got a quiet
+        // wrong value. Validate RHS against the Vec's element type
+        // when LHS is kind-10 (indexing) on a kind-3 var ref.
+        if node_kind(pool, lhs) == 10 {
+            let v_op: i64 = node_field(pool, lhs, 1);
+            if node_kind(pool, v_op) == 3 {
+                let vname: str = node_field(pool, v_op, 1);
+                let mut vt: str = tenv_get(env, vname);
+                if str_len(vt) == 0 { vt = infer_var_type_from_source(source, vname); };
+                if str_starts_with(vt, "Vec<") == 1 {
+                    let elem_t: str = strip_container_one_level(vt);
+                    if str_len(elem_t) > 0 && str_len(rhs_t) > 0 {
+                        let compat_idx: i64 = types_compatible(elem_t, rhs_t);
+                        if compat_idx == 0 {
+                            let pa: str = str_concat("indexed assignment type mismatch on `", str_concat(vname, str_concat("`: element type `", str_concat(elem_t, str_concat("` vs RHS type `", str_concat(rhs_t, "`."))))));
+                            let pb: str = " Pre-v0.4.64 the i64-everywhere ABI silently coerced any RHS to fit. List the conversion explicitly or use a typed Vec.";
+                            type_diag(diags, source, fn_name, vname, "TYP-009", str_concat(pa, pb));
+                        };
+                    };
+                };
+            };
+        };
         return warns;
     };
     if kind == 22 {
