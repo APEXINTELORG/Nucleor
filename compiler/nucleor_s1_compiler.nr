@@ -11252,6 +11252,33 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
                 };
             };
         };
+        // v0.4.65: NUC-FEEDBACK silent-coerce close for field
+        // assignment. Pre-fix `p.x = "string"` on `let p: Point` with
+        // `x: i64` silently stored the str ptr as i64. Same hazard
+        // class as v0.4.64. Look up the struct's field type via
+        // expr_struct_type + struct_field_type and validate RHS.
+        if node_kind(pool, lhs) == 9 {
+            let recv_nid: i64 = node_field(pool, lhs, 1);
+            let fname: str = node_field(pool, lhs, 2);
+            if node_kind(pool, recv_nid) == 3 {
+                let recv_name: str = node_field(pool, recv_nid, 1);
+                let mut recv_t: str = tenv_get(env, recv_name);
+                if str_len(recv_t) == 0 { recv_t = infer_var_type_from_source(source, recv_name); };
+                let s_idx2: i64 = struct_find_type(pool, structs, recv_t);
+                if s_idx2 >= 0 {
+                    let s_nid2: i64 = vec_get(structs, s_idx2);
+                    let f_t: str = struct_field_type(pool, s_nid2, fname);
+                    if str_len(f_t) > 0 && str_len(rhs_t) > 0 {
+                        let compat_fld: i64 = types_compatible(f_t, rhs_t);
+                        if compat_fld == 0 {
+                            let pa2: str = str_concat("field assignment type mismatch on `", str_concat(recv_name, str_concat(".", str_concat(fname, str_concat("`: field type `", str_concat(f_t, str_concat("` vs RHS type `", str_concat(rhs_t, "`."))))))));
+                            let pb2: str = " Pre-v0.4.65 the i64-everywhere ABI silently coerced any RHS to fit.";
+                            type_diag(diags, source, fn_name, recv_name, "TYP-009", str_concat(pa2, pb2));
+                        };
+                    };
+                };
+            };
+        };
         return warns;
     };
     if kind == 22 {

@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.65] — 2026-04-28
+
+**Struct field assignment type mismatch — TYP-009 close.**
+
+Pre-fix `p.x = "string"` on `let p: Point` with `x: i64` silently
+stored the str pointer as i64. Same hazard class as v0.4.64 (indexed
+assign). Adopters writing canonical Rust got a quiet wrong value.
+
+### Fix
+
+Extended type_check_stmt's kind-21 (assign) handler: detect kind-9
+(field access) on a kind-3 var ref, look up the receiver's struct
+type via `struct_find_type` + the field's type via
+`struct_field_type`, validate via `types_compatible`. Same TYP-009
+code as the existing var-assign mismatch.
+
+### Verify
+
+- 485/485 PASS at baseline timing
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v65_field_assign_typecheck.nr`
+- No false positives — no fixture or compiler-source uses
+  intentional cross-type field assignment
+
 ## [0.4.64] — 2026-04-28
 
 **Indexed assignment type mismatch — TYP-009 close.**
