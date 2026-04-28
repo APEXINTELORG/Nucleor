@@ -382,7 +382,7 @@ Step "CLI: nuc explain — full spec code set wired" {
         "TNT-001",
         # TYP series — type checker (expansion of NR030, since v0.2.119)
         "TYP-001", "TYP-002", "TYP-003", "TYP-004", "TYP-005",
-        "TYP-006", "TYP-007", "TYP-008", "TYP-009", "TYP-010",
+        "TYP-006", "TYP-007", "TYP-008", "TYP-009", "TYP-010", "TYP-011",
         # RFC-0004 assume!
         "ASSUME-001", "ASSUME-002", "ASSUME-003", "ASSUME-004", "ASSUME-005",
         # RFC-0005 units

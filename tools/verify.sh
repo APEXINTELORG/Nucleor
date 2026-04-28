@@ -492,7 +492,7 @@ cli_explain_full_smoke() {
         "TNT-001"
         # TYP series — type checker (expansion of NR030, since v0.2.119)
         "TYP-001" "TYP-002" "TYP-003" "TYP-004" "TYP-005"
-        "TYP-006" "TYP-007" "TYP-008" "TYP-009" "TYP-010"
+        "TYP-006" "TYP-007" "TYP-008" "TYP-009" "TYP-010" "TYP-011"
         # RFC-0004 assume!
         "ASSUME-001" "ASSUME-002" "ASSUME-003" "ASSUME-004" "ASSUME-005"
         # RFC-0005 units
@@ -1105,6 +1105,19 @@ t356_indexed_lhs_diagnostic() {
     [ -x "$exe" ] || return 1
     "$exe" >/dev/null 2>&1
     [ "$?" -eq 231 ] || return 1
+    return 0
+}
+
+t396_str_plus_str_guard() {
+    # T3.96 (v0.4.51): NUC-FEEDBACK silent-segfault guard for `str + str`.
+    # Pre-fix the binop lower emitted i64_add on the two str pointers,
+    # producing a garbage pointer that crashed in print_str. v0.4.51
+    # emits TYP-011 with a str_concat hint and halts the build.
+    "$BIN" build "tests/fixtures/repro_v51_str_plus_str_guard.nr" -o "_t396_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\[TYP-011\]" /tmp/_nuc_step.log || return 1
+    grep -q "str_concat" /tmp/_nuc_step.log || return 1
     return 0
 }
 
@@ -2806,6 +2819,7 @@ step "T3.92 v0.4.47 NUC-FEEDBACK-002 — Vec<f32>/[i] as f32 silent-miscompute g
 step "T3.93 v0.4.48 NUC-FEEDBACK-002 — vec_get(v, i) as f32 fn-call form silent-miscompute guard" t393_vec_get_as_cast_guard
 step "T3.94 v0.4.49 RFC-0023 partial — int-literal/wildcard or-patterns (silent miscompute close)" t394_or_patterns
 step "T3.95 v0.4.50 NUC-FEEDBACK — if-let Some on .first/.last/.pop silent-segfault guard" t395_iflet_first_guard
+step "T3.96 v0.4.51 NUC-FEEDBACK — str + str silent-segfault guard (use str_concat)" t396_str_plus_str_guard
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
