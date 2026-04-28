@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.53] — 2026-04-28
+
+**`x.unwrap()` (and 11 other Option/Result methods) on a non-Option
+receiver no longer fails late at clang link with `undefined value
+'@vec_unwrap'` — compiler now halts at dispatch with a clear hint.**
+
+Pre-v0.4.53 the canonical Rust idiom
+
+```
+let x: i64 = 42;
+let y: i64 = x.unwrap();
+```
+
+failed late at clang link with `undefined value '@vec_unwrap'`
+because the lower_expr fallback for unknown-receiver method calls
+was `vec_<method>`, but no `vec_unwrap` runtime helper exists.
+Adopters got a confusing LLVM-IR error pointing at compiler-emitted
+text rather than their source.
+
+### Fix
+
+`lower_expr` kind-8 (method call) fallback path now special-cases the
+12 Option/Result methods (`unwrap`, `expect`, `unwrap_or`,
+`unwrap_or_else`, `ok`, `err`, `is_ok`, `is_err`, `is_some`,
+`is_none`, `and_then`, `or_else`). When the user-impl lookup misses
+AND the method is in this list, the compiler emits a clear ERROR
+naming the call and pointing at the canonical `match expr { Some(x)
+=> x, None => default }` workaround, then `panic()`s the compiler
+process — exiting status 1 BEFORE clang is invoked.
+
+### Verify
+
+- 474/474 PASS at ~309s per-step (within baseline)
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v53_unwrap_on_non_option_guard.nr`
+- No false positives — no fixture or compiler-source uses these
+  methods on non-Option receivers
+
 ## [0.4.52] — 2026-04-28
 
 **`str == str` and `str != str` no longer silently miscompute —

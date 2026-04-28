@@ -1108,6 +1108,21 @@ t356_indexed_lhs_diagnostic() {
     return 0
 }
 
+t398_unwrap_on_non_option_guard() {
+    # T3.98 (v0.4.53): NUC-FEEDBACK silent-undefined-symbol guard.
+    # `x.unwrap()` on a bare i64 (or any non-Option/Result receiver)
+    # used to fall through to `vec_unwrap(x)` and fail late at
+    # clang link with `undefined value '@vec_unwrap'`. v0.4.53
+    # halts the build at the dispatch site with a clear hint.
+    "$BIN" build "tests/fixtures/repro_v53_unwrap_on_non_option_guard.nr" -o "_t398_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "Option/Result method" /tmp/_nuc_step.log || return 1
+    grep -q "vec_unwrap" /tmp/_nuc_step.log || return 1
+    grep -q "match expr" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t397_str_eq_pointer_guard() {
     # T3.97 (v0.4.52): NUC-FEEDBACK silent-miscompute guard for
     # `str == str` and `str != str`. Pre-fix the binop did pointer
@@ -2836,6 +2851,7 @@ step "T3.94 v0.4.49 RFC-0023 partial — int-literal/wildcard or-patterns (silen
 step "T3.95 v0.4.50 NUC-FEEDBACK — if-let Some on .first/.last/.pop silent-segfault guard" t395_iflet_first_guard
 step "T3.96 v0.4.51 NUC-FEEDBACK — str + str silent-segfault guard (use str_concat)" t396_str_plus_str_guard
 step "T3.97 v0.4.52 NUC-FEEDBACK — str == str pointer-comparison silent-miscompute guard (use str_eq)" t397_str_eq_pointer_guard
+step "T3.98 v0.4.53 NUC-FEEDBACK — Option/Result method on non-Option receiver silent-link-error guard" t398_unwrap_on_non_option_guard
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
