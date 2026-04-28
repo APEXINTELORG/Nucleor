@@ -5,6 +5,99 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.46] — 2026-04-28
+
+**RFC-0024 Phase 2 follow-up: type-compat bridge tolerates the new
+`Option<T>`/`Result<T>` shapes.**
+
+v0.4.45 broke `tests/features/option_result_basic.nr` (TYP-010
+return-type mismatch on `fn lookup() -> Vec<i32> { return Ok(100); }`)
+because the type-compat bridge at lines ~9751-9757 used strict
+`str_eq(actual, "Result")` checks that didn't match the new
+`"Result<i64>"` form.
+
+### Fix
+
+Switched the 4 bare-name comparisons in the Option/Result/Vec
+compat block from `actual`/`expected` (full strings) to `abase`/
+`ebase` (already computed via `type_base_name`). This strips the
+generic for the family-equality check while preserving the rest
+of the type-prop information for downstream Phase 3+ work.
+
+Same compat surface, just generic-aware.
+
+### Verify gate
+
+Bootstrap fixed point C==D byte-identical at 5,806,956 bytes (vs
+v0.4.45's 5,806,948 — `+8` bytes for the comment).
+
+| Iter | Time | Peak RSS |
+|---|---|---|
+| 1 (v46_b) | 4.41 s | 422.6 MB |
+| 2 (v46_c) | 4.42 s | 437.6 MB |
+| 3 (v46_d) | 4.46 s | 428.7 MB |
+
+Standalone confirmation: `tests/features/option_result_basic.nr`
+now compiles + runs cleanly with output `OK option_result_basic`.
+
+## [0.4.45] — 2026-04-28
+
+**RFC-0024 Phase 2: constructor type propagation for `Some(x)` and `Ok(x)`.**
+
+The first real type-prop change. `type_expr` for `Some(value)` and
+`Ok(value)` now derives `Option<T>` / `Result<T>` from the static
+type of the argument instead of returning the bare `"Option"` /
+`"Result"` strings.
+
+### Implementation
+
+In `type_expr` kind-12 (assoc-fn-like call) handler:
+
+- If `tname == "Option"` and variant is `Some` with at least 1 arg:
+  recursively type the arg, return `Option<T>`.
+- If `tname == "Result"` and variant is `Ok` with at least 1 arg:
+  recursively type the arg, return `Result<T>` (single param —
+  E inferred from context later in Phase 5).
+- `None` / `Err(...)` keep returning bare `"Option"` / `"Result"` —
+  variant doesn't constrain T meaningfully on its own (None has no
+  payload) or only constrains E (Err), not the more-useful T.
+
+Existing type-compat code at lines ~9751-9757 already lets bare
+`Option`/`Result` mix with `Option<T>`/`Result<T>` shapes, so this
+change is additive — no existing user code breaks.
+
+### What this enables
+
+- `let x = Some(3.14_f64)` now records type `Option<f64>` instead of
+  bare `Option`. Downstream Phase 3 (pattern binding inference) can
+  then bind `Some(y) => ...`'s `y` with type `f64`.
+- `let r: Result<i64, str> = Ok(42)` types `Ok(42)` as `Result<i64>`
+  which is still compatible with the explicit `Result<i64, str>`
+  annotation under existing compat rules.
+- Foundation for Phase 4 — Vec<T> element type extraction uses the
+  same machinery (different kind, same `type_first_arg` lookup).
+
+### Verify gate
+
+Bootstrap fixed point C==D byte-identical at 5,806,948 bytes (vs
+v0.4.44's 5,800,716 — `+6,232` bytes for the Phase 2 dispatch +
+`type_expr` recursion).
+
+| Iter | Time | Peak RSS |
+|---|---|---|
+| 1 (v45_b) | 4.37 s | 432.4 MB |
+| 2 (v45_c) | 4.42 s | 433.9 MB |
+| 3 (v45_d) | 4.35 s | 431.5 MB |
+
+### RFC-0024 phased plan progress
+
+- [x] Phase 1 (parser accepts `<T, E>`) — done in v0.2.x
+- [x] **Phase 2 (constructor type propagation) — DONE in v0.4.45**
+- [ ] Phase 3 (pattern binding inference)
+- [ ] Phase 4 (Vec<T> element type — NUC-FEEDBACK-002 close)
+- [ ] Phase 5 (`From`/`Into` + `?` auto-conv — closes v0.2 row #5)
+- [ ] Phase 6 (resolver visibility + mangling — closes v0.2 rows #6+#7)
+
 ## [0.4.44] — 2026-04-28
 
 **RFC-0024 Phase 2 foundation: `type_first_arg(t)` helper.**
