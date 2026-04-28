@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.59] — 2026-04-28
+
+**MATCH-001 now fires for match-as-expression (closes the v0.4.56
+follow-on; deferred item #306 from the queue resolved).**
+
+Pre-v0.4.59 `let n: i64 = match c { Color::Red => 1 };` over a non-Red
+value silently returned 0 because `check_expr` lacked a kind-38
+handler — only `check_stmt` did the exhaustiveness check, so matches
+in expression position entirely escaped MATCH-001.
+
+### Fix
+
+Added a kind-38 handler to `check_expr` that mirrors the
+`check_stmt` exhaustiveness logic: walk arms, detect wildcard, and
+if no wildcard + first arm is enum, compare arm count to variant
+count. Diagnostic message reads "non-exhaustive match (in expression
+context)" so the source of the check is obvious.
+
+The handler also recurses into the scrutinee + arm bodies via
+`check_expr` / `check_stmts` so use-after-move + other ownership
+checks fire inside expression-context match arms (which they
+silently skipped pre-v0.4.59 too).
+
+### Verify
+
+- 479/479 PASS at baseline timing
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v59_match_expr_exhaustive_guard.nr`
+- Existing match-as-statement fixtures still pass — handler is
+  additive
+
 ## [0.4.58] — 2026-04-28
 
 **`str - str` / `str * str` / `str / str` / `str % str` no longer

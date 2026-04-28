@@ -9479,6 +9479,49 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         return warns;
     };
     if kind == 42 { return 0; }; // closure — skip for now
+    if kind == 38 {
+        // v0.4.59 (deferred from v0.4.56): MATCH-001 in match-as-expression.
+        // Pre-fix `let n: i64 = match c { Color::Red => 1 };` over a non-Red
+        // value silently returned 0 because check_expr lacked a kind-38
+        // handler — only check_stmt did the exhaustiveness check, so
+        // matches in expression position escaped MATCH-001 entirely.
+        // Mirror the check_stmt logic: walk arms, detect wildcard,
+        // and if no wildcard + first arm is enum, compare ac < vcnt.
+        warns = warns + check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name);
+        let arms_e: i64 = node_field(pool, nid, 2);
+        let ac_e: i64 = list_len(pool, arms_e);
+        let mut has_wild_e: i64 = 0;
+        let mut ai_e: i64 = 0;
+        while ai_e < ac_e {
+            let arm_e: i64 = list_get(pool, arms_e, ai_e);
+            let ename_e: str = node_field(pool, arm_e, 1);
+            if str_eq(ename_e, "__wild") == 1 { has_wild_e = 1; };
+            // Recurse into the arm body so use-after-move etc. fires.
+            warns = warns + check_stmts(pool, node_field(pool, arm_e, 4), own, structs, enums, fn_name);
+            ai_e = ai_e + 1;
+        };
+        if has_wild_e == 0 && ac_e > 0 {
+            let first_arm_e: i64 = list_get(pool, arms_e, 0);
+            let first_ename_e: str = node_field(pool, first_arm_e, 1);
+            if str_eq(first_ename_e, "__int") == 0 && str_eq(first_ename_e, "__str") == 0 && str_eq(first_ename_e, "__wild") == 0 && str_eq(first_ename_e, "__range") == 0 && str_eq(first_ename_e, "__range_bad") == 0 {
+                let ei_e: i64 = enum_find(pool, enums, first_ename_e);
+                if ei_e >= 0 {
+                    let e_nid_e: i64 = vec_get(enums, ei_e);
+                    let vlist_e: i64 = node_field(pool, e_nid_e, 2);
+                    let vcnt_e: i64 = list_len(pool, vlist_e);
+                    if ac_e < vcnt_e {
+                        let lc_e: Vec<i32> = find_linecol_in_source(source_text, fn_name, "match");
+                        let msg_e: str = str_concat("non-exhaustive match (in expression context): ", str_concat(str_from_int(ac_e), str_concat(" arms for enum with ", str_from_int(vcnt_e))));
+                        let canon_e: str = str_concat(msg_e, ". Workaround: add a `_ => default_value,` arm or list every variant explicitly.");
+                        diag_add_ex(diag_vec, "error", "type", "TYP-001", canon_e, fn_name, vec_get(lc_e, 0), vec_get(lc_e, 1), "");
+                        diag_add_ex(diag_vec, "error", "type", "MATCH-001", canon_e, fn_name, vec_get(lc_e, 0), vec_get(lc_e, 1), "");
+                        warns = warns + 2;
+                    };
+                };
+            };
+        };
+        return warns;
+    };
     return warns;
 }
 
