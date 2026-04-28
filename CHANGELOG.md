@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.60] — 2026-04-28
+
+**Undefined-fn-call surfaces at type-check time as warning-tier
+TYP-005 (closes deferred item #2 from the queue).**
+
+Pre-fix `let x: i64 = nonexistent_function(42);` silently emitted
+`call i64 @nonexistent_function(...)` and failed late at clang
+link with `undefined value '@nonexistent_function'`.
+
+### Fix
+
+`type_expr` kind-7 (call) handler emits TYP-005 at WARNING tier
+when ALL these miss for the callee:
+- `sig_find` (registered fn)
+- `type_dynamic_helper` (polymorphic helper)
+- `get_rt_name` (runtime helper mapping)
+- `builtin_rtype` (builtin)
+- `sym_get(env, callee) >= 0` (registered variable holding fn-ptr)
+
+Filters to suppress false positives:
+- skip if callee starts with `__` (closure-generated, capture
+  helpers)
+- skip if first character is uppercase (Type-prefixed names)
+- skip if registered as a variable in env (fn-pointer dispatch)
+
+### Why warning, not error
+
+Cross-module privatized fns (lib_helper, etc.) miss type-check too
+but get cleanly upgraded to MOD-003 by `priv_lift_link_errors`
+after clang errors. If TYP-005 halted the build, MOD-003 wouldn't
+get a chance — adopters with privatization mistakes would see
+TYP-005 instead of the helpful "add `pub`" hint. Warning means:
+print a compile-time signal up front, but let the link path
+produce the canonical diagnostic. For truly-undefined fns, clang
+link error halts the build naturally.
+
+### Verify
+
+- 480/480 PASS at baseline timing
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v60_undefined_fn_warn.nr`
+- T1.5d (MOD-003 cross-module) still passes — warning tier lets
+  MOD-003 run
+
 ## [0.4.59] — 2026-04-28
 
 **MATCH-001 now fires for match-as-expression (closes the v0.4.56
