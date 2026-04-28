@@ -103,6 +103,7 @@ v0.2.119**; same drift class as the OWN series above.
 | TYP-009 | Assignment type mismatch | assign stmt type-check | error |
 | TYP-010 | Return type mismatch | return stmt type-check | error |
 | TYP-011 | `str + str` not supported (would silently segfault) | binop type-check, v0.4.51 | error |
+| TYP-012 | Missing field(s) in struct initialization (would silently default to 0/empty) | struct-init type-check, v0.4.62 | error |
 
 Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 `err_deref_nonref`, `err_taint_arg/leak/propagation`,

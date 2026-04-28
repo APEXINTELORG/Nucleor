@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.62] — 2026-04-28
+
+**Struct init missing-field silent-default-zero — TYP-012 hard error.**
+
+Pre-fix `Point { x: 1, y: 2 }` for a struct with 3 declared fields
+silently defaulted the missing field (z) to 0 (or `""` for str).
+Adopters writing the canonical Rust idiom (which errors with E0063)
+got a quiet wrong value with no compile-time signal.
+
+### Fix
+
+`check_expr` kind-34 (STRUCT_INIT) handler now compares the init-list
+length to the struct's declared field count via `struct_find_type` +
+`list_len`. If `ic < expected_fc`, emit TYP-012 with a clear message
+("only N of M fields supplied") and a workaround hint pointing at
+explicit listing or a constructor fn.
+
+TYP-012 added to:
+- `is_error_tier_code` list in s1
+- both verify smoke lists (sh + ps1)
+- short + long-form explain registry in nucleor_tools_suite.nr
+- `Nucleor_Error_Codes.md`
+
+### Verify
+
+- 482/482 PASS at baseline timing
+- T1.7 bootstrap seed matches
+- T3.23 diag-code drift gate green (TYP-012 added in lockstep)
+- New pin: `tests/fixtures/repro_v62_struct_missing_field_guard.nr`
+- No false positives — no fixture or compiler-source uses partial
+  struct init
+
 ## [0.4.61] — 2026-04-28
 
 **Vec<T> arithmetic + ==/!= silent-miscompute close (closes deferred

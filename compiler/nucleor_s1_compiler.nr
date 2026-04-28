@@ -7152,6 +7152,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "TYP-009") == 1 { return 1; };
     if str_eq(code, "TYP-010") == 1 { return 1; };
     if str_eq(code, "TYP-011") == 1 { return 1; };
+    if str_eq(code, "TYP-012") == 1 { return 1; };
     // RFC-0004 assume!
     if str_eq(code, "ASSUME-001") == 1 { return 1; };
     if str_eq(code, "ASSUME-002") == 1 { return 1; };
@@ -9467,6 +9468,27 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 if is_copy_type(vt, pool, structs, enums) == 0 { own_set(own, vn, 2); };
             };
             ii = ii + 1;
+        };
+        // v0.4.62: NUC-FEEDBACK silent-default-zero close. Pre-fix
+        // `Point { x: 1, y: 2 }` for a struct with 3 fields silently
+        // defaulted the missing field to 0 (or ""). Adopters writing
+        // the canonical Rust idiom (which errors with E0063 — missing
+        // field) got a quiet wrong value. Emit TYP-012 listing the
+        // missing field count when ic < struct's declared field count.
+        let struct_name: str = node_field(pool, nid, 1);
+        let s_idx: i64 = struct_find_type(pool, structs, struct_name);
+        if s_idx >= 0 {
+            let s_nid: i64 = vec_get(structs, s_idx);
+            let s_flist: i64 = node_field(pool, s_nid, 2);
+            let expected_fc: i64 = list_len(pool, s_flist);
+            if ic < expected_fc {
+                let lc_si: Vec<i32> = find_linecol_in_source(source_text, fn_name, struct_name);
+                let part_a: str = str_concat("missing field(s) in `", str_concat(struct_name, "` initialization: only "));
+                let part_b: str = str_concat(str_from_int(ic), str_concat(" of ", str_concat(str_from_int(expected_fc), " fields supplied.")));
+                let part_c: str = " Pre-v0.4.62 missing fields silently defaulted to 0 / empty. List every field explicitly or use a constructor fn.";
+                diag_add_ex(diag_vec, "error", "type", "TYP-012", str_concat(part_a, str_concat(part_b, part_c)), fn_name, vec_get(lc_si, 0), vec_get(lc_si, 1), "");
+                warns = warns + 1;
+            };
         };
         return warns;
     };
