@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.64] — 2026-04-28
+
+**Indexed assignment type mismatch — TYP-009 close.**
+
+Pre-fix `v[0] = "string"` on `let v: Vec<i64>` silently stored the
+str pointer as i64. The kind-21 (assign) handler in `type_check_stmt`
+only validated the type when LHS was kind-3 (var ref), skipping
+indexed assignment entirely. Adopters writing canonical Rust got a
+quiet wrong value.
+
+### Fix
+
+Extended the kind-21 handler: if LHS is kind-10 (indexing) on a
+kind-3 var ref, look up the var's declared `Vec<T>` (with source-scan
+fallback when tenv stores `""`) and validate RHS via
+`types_compatible(elem_t, rhs_t)`. Same TYP-009 code as the existing
+var-assign mismatch — just extended to cover the indexed surface.
+
+### Verify
+
+- 484/484 PASS at baseline timing
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v64_indexed_assign_typecheck.nr`
+
 ## [0.4.63] — 2026-04-28
 
 **Struct init extra-field silent-drop — TYP-013 hard error.**
