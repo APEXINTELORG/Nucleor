@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.44] — 2026-04-28
+
+**RFC-0024 Phase 2 foundation: `type_first_arg(t)` helper.**
+
+Pure addition. Building block for RFC-0024 Phase 2 (constructor type
+propagation) and Phase 4 (Vec<T> element type extraction for
+NUC-FEEDBACK-002 close).
+
+### Implementation
+
+```nucleor
+type_first_arg("Vec<i32>")        → "i32"
+type_first_arg("Option<f64>")     → "f64"
+type_first_arg("Result<T, E>")    → "T"   (first arg only, whitespace trimmed)
+type_first_arg("HashMap<str,i64>")→ "str"
+type_first_arg("Vec<Vec<i32>>")   → "Vec<i32>"  (depth-tracked)
+type_first_arg("i64")             → ""    (no generic args)
+type_first_arg("")                → ""
+```
+
+Single-pass scan with `<>` depth tracking + leading/trailing space
+trim. Same complexity as `type_base_name`; co-located in the type-
+infra section of `nucleor_s1_compiler.nr`.
+
+### What this enables
+
+Per RFC-0024 phased plan
+([scoping doc](docs/rfcs/RFC-0024-generics-scoping-2026-04-28.md)):
+
+- **Phase 2** (next ship, v0.4.45): `let x = Some(value);` infers
+  `Option<T>` where T = static type of `value`. Will use
+  `type_first_arg` to read back T from the stored type tag for
+  downstream binding inference.
+- **Phase 4** (v0.4.46-47, NUC-FEEDBACK-002 close): `vec_get(v, i)`
+  on `Vec<f32>` returns `f32` — the element type extracted via
+  `type_first_arg` on the Vec's inferred type.
+
+### Verify gate
+
+Bootstrap fixed point C==D byte-identical at 5,800,716 bytes (vs
+v0.4.43's 5,800,539 — `+177` bytes for the helper + comment).
+
+| Iter | Time | Peak RSS |
+|---|---|---|
+| 1 (v44_b) | 4.18 s | 433.4 MB |
+| 2 (v44_c) | 4.21 s | 437.1 MB |
+| 3 (v44_d) | 4.11 s | 436.5 MB |
+
+Helper isn't yet wired to any caller (Phase 2/4 do that); bootstrap
+holding is the test that the function itself parses + lowers
+correctly.
+
 ## [0.4.43] — 2026-04-28
 
 **Span migration: 4 line-only diagnostic call sites → line+col spans.**
