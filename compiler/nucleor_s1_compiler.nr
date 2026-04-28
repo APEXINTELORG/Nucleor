@@ -10527,6 +10527,51 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             let opch: str = if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
             type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`str ", str_concat(opch, str_concat(" str` is not a meaningful operation (would silently segfault — i64 arithmetic on string pointers). String values support `str_concat` for join, `str_eq` for compare, `str_len` for length; arithmetic operators don't apply."))));
         };
+        // v0.4.61: Vec<T> arithmetic AND ==/!= silent-miscompute guard.
+        // Closes deferred item #1. Pre-fix `v1 + v2` and `v1 == v2`
+        // for two Vec<T> values silently lowered to integer ptr-arith
+        // (segfault for arith, FALSE-on-equal-Vecs for ==). Conservative
+        // — only fires when type_expr already populated lt/rt as Vec<T>
+        // via tenv (e.g. from typed fn returns). The vec![...] init
+        // case where tenv stores "" still escapes; covered partially
+        // by the related v0.4.51/52 str closes which catch the
+        // workaround attempts. Source-scan fallback was deferred
+        // because it crashed the compiler in v0.4.55 (path-specific).
+        // v0.4.61 fallback: if tenv didn't have the type (lt/rt empty),
+        // scan source for `let v: Vec<T> = ...` declarations on kind-3
+        // var operands. Same trick as v0.4.47 NUM-006 cast guard.
+        // Keep the lookup local to this branch only — broad use crashed
+        // the compiler in the v0.4.55 attempt.
+        let mut lt_v: str = lt;
+        let mut rt_v: str = rt;
+        if op == 20 || op == 21 || op == 22 || op == 23 || op == 24 || op == 30 || op == 31 {
+            if str_starts_with(lt_v, "Vec<") == 0 {
+                let lhs_check: i64 = node_field(pool, nid, 2);
+                if node_kind(pool, lhs_check) == 3 {
+                    let lname: str = node_field(pool, lhs_check, 1);
+                    let scanned: str = infer_var_type_from_source(source, lname);
+                    if str_starts_with(scanned, "Vec<") == 1 { lt_v = scanned; };
+                };
+            };
+            if str_starts_with(rt_v, "Vec<") == 0 {
+                let rhs_check: i64 = node_field(pool, nid, 3);
+                if node_kind(pool, rhs_check) == 3 {
+                    let rname: str = node_field(pool, rhs_check, 1);
+                    let scanned: str = infer_var_type_from_source(source, rname);
+                    if str_starts_with(scanned, "Vec<") == 1 { rt_v = scanned; };
+                };
+            };
+        };
+        if str_starts_with(lt_v, "Vec<") == 1 && str_starts_with(rt_v, "Vec<") == 1 {
+            if op == 20 || op == 21 || op == 22 || op == 23 || op == 24 {
+                let varith_op: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
+                type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`Vec ", str_concat(varith_op, " Vec` lowers to integer arithmetic on Vec pointers (would silently segfault). For element-wise operations write an explicit loop building a new Vec.")));
+            };
+            if op == 30 || op == 31 {
+                let veq_op: str = if op == 30 { "==" } else { "!=" };
+                type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`Vec ", str_concat(veq_op, " Vec` does pointer comparison (silent miscompute — two equal-element Vecs at different addresses return FALSE). Use an element-wise loop: check `vec_len(a) == vec_len(b)` then iterate and compare each element with `a[i] == b[i]`.")));
+            };
+        };
         // v0.4.52: NUC-FEEDBACK silent-miscompute guard for `str == str`
         // and `str != str`. Pre-fix the binop lowered to integer
         // pointer comparison: `"hello" == "hello"` returned FALSE
