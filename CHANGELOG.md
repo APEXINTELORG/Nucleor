@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.58] — 2026-04-28
+
+**`str - str` / `str * str` / `str / str` / `str % str` no longer
+silently SIGSEGV — extends v0.4.51's `+` close to all arithmetic ops.**
+
+Pre-fix `let bad: str = a - b;` silently SIGSEGVed at runtime: the
+binop lowered to `i64_sub(a_ptr, b_ptr)` and the resulting garbage
+pointer crashed when later passed to a string helper. Only `+` had
+the v0.4.51 guard; `-`, `*`, `/`, `%` fell through.
+
+### Fix
+
+`type_expr` kind-4 (binop) handler extended: detects ops 21/22/23/24
+on both-str operands and emits TYP-011 with a clear message that
+strings only support `str_concat` / `str_eq` / `str_len` (not
+arithmetic).
+
+### Verify
+
+- 478/478 PASS at baseline timing
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v58_str_arith_guard.nr`
+
 ## [0.4.56] — 2026-04-28
 
 **Non-exhaustive match (statement form) on enum now halts at compile
