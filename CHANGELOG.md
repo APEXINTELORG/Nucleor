@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.56] — 2026-04-28
+
+**Non-exhaustive match (statement form) on enum now halts at compile
+time with MATCH-001 instead of silently returning 0.**
+
+Pre-v0.4.56 the canonical Rust idiom
+
+```
+enum Color { Red, Green, Blue, }
+let c: Color = Color::Green;
+match c {
+    Color::Red => println!("red"),
+};
+```
+
+silently no-op'd: the lower defaulted to 0 for unmatched scrutinee
+values. The MATCH-001 diagnostic was already in the error-tier code
+list but emitted at "warning" severity, so the build didn't halt.
+
+### Fix
+
+`check_stmt` kind-38 (match) — promoted MATCH-001 + the legacy
+TYP-001 alias from "warning" to "error" severity. Added
+"Workaround: add a `_ => default_value,` arm or list every variant
+explicitly." hint to the diagnostic message.
+
+### Verify
+
+- 477/477 PASS at ~313s per-step (within baseline)
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v56_match_exhaustive_stmt_guard.nr`
+- No false positives — no fixture or compiler-source has a
+  non-exhaustive top-level match
+
+### Not in this release (deferred)
+
+- **Match-as-expression** (e.g. `let n: i64 = match c { ... };`)
+  still escapes the check because `check_expr` lacks a kind-38
+  handler. The MATCH-001 logic only fires from `check_stmt`. Adding
+  the same exhaustiveness check to `check_expr` is queued for the
+  next ship — non-trivial because it touches more code paths and
+  needs careful audit for false positives in expression contexts.
+
 ## [0.4.55] — 2026-04-28
 
 **Slice expressions `expr[lo..hi]` halt at compile time with clear

@@ -9773,8 +9773,19 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                         // RFC-0016 phase 5 — MATCH-001 (canonical) alongside
                         // legacy TYP-001 for backwards compatibility.
                         let msg: str = str_concat("non-exhaustive match: ", str_concat(str_from_int(ac), str_concat(" arms for enum with ", str_concat(str_from_int(vcnt), " variants"))));
-                        diag_add_ex(own_get_type(own, "__diags"), "warning", "type", "TYP-001", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
-                        diag_add_ex(own_get_type(own, "__diags"), "warning", "type", "MATCH-001", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                        // v0.4.56: NUC-FEEDBACK silent-miscompute close.
+                        // Pre-fix non-exhaustive match silently returned 0
+                        // for unmatched scrutinee values (e.g. `match
+                        // Color::Green { Color::Red => 1 }` returned 0).
+                        // Adopters writing the canonical Rust idiom got
+                        // a quiet wrong result. MATCH-001 was already in
+                        // the error-tier code list but emitted as warning
+                        // severity, so the build didn't halt. Promote
+                        // both diags to "error" severity so MATCH-001
+                        // halts the build like every other TYP-* error.
+                        let canon_msg: str = str_concat(msg, ". Workaround: add a `_ => default_value,` arm or list every variant explicitly.");
+                        diag_add_ex(own_get_type(own, "__diags"), "error", "type", "TYP-001", canon_msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                        diag_add_ex(own_get_type(own, "__diags"), "error", "type", "MATCH-001", canon_msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                         warns = warns + 2;
                     };
                 };

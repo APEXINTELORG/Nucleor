@@ -1108,6 +1108,21 @@ t356_indexed_lhs_diagnostic() {
     return 0
 }
 
+t401_match_exhaustive_stmt_guard() {
+    # T3.101 (v0.4.56): NUC-FEEDBACK silent-miscompute close —
+    # non-exhaustive match (statement form) on enum now halts with
+    # MATCH-001 error instead of silently returning 0. Diagnostic
+    # severity promoted from "warning" to "error" (the code was
+    # already in the error-tier code list).
+    "$BIN" build "tests/fixtures/repro_v56_match_exhaustive_stmt_guard.nr" -o "_t401_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\[MATCH-001\]" /tmp/_nuc_step.log || return 1
+    grep -q "non-exhaustive match" /tmp/_nuc_step.log || return 1
+    grep -q "Workaround" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t400_slice_syntax_guard() {
     # T3.100 (v0.4.55): NUC-FEEDBACK silent-segfault guard for slice
     # syntax `expr[lo..hi]`. Pre-fix the parser printed a parse-error
@@ -2883,6 +2898,7 @@ step "T3.97 v0.4.52 NUC-FEEDBACK — str == str pointer-comparison silent-miscom
 step "T3.98 v0.4.53 NUC-FEEDBACK — Option/Result method on non-Option receiver silent-link-error guard" t398_unwrap_on_non_option_guard
 step "T3.99 v0.4.54 NUC-FEEDBACK — `?` on non-Option/Result receiver silent-segfault guard" t399_question_on_non_option_guard
 step "T3.100 v0.4.55 NUC-FEEDBACK — slice expression `expr[lo..hi]` silent-segfault guard" t400_slice_syntax_guard
+step "T3.101 v0.4.56 NUC-FEEDBACK — non-exhaustive match (stmt form) silent-miscompute close — MATCH-001 promoted to error" t401_match_exhaustive_stmt_guard
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
