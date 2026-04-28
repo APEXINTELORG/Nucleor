@@ -9951,6 +9951,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "TYP-010") { return "Return type mismatch"; };
     if str_eq(code, "TYP-011") { return "`str + str` not supported (would silently segfault)"; };
     if str_eq(code, "TYP-012") { return "Missing field(s) in struct initialization (would silently default to 0/empty)"; };
+    if str_eq(code, "TYP-013") { return "Unknown field in struct initialization (would silently drop the extra field)"; };
     // RFC-0015 numeric types
     if str_eq(code, "NUM-001") { return "Mixed-width arithmetic without cast"; };
     if str_eq(code, "NUM-002") { return "Numeric literal out of range for declared type"; };
@@ -10157,6 +10158,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "TYP-010") { return "`return expr` requires `expr` to type-check as the function's declared return type. The body type and the signature type must agree."; };
     if str_eq(code, "TYP-011") { return "`str + str` (and longer chains like `\"a\" + \"b\" + \"c\"`) silently SIGSEGVed pre-v0.4.51 because the binop lowered to i64_add on the string pointers, producing a garbage pointer that crashed in print_str. Use `str_concat(a, b)` to concatenate strings."; };
     if str_eq(code, "TYP-012") { return "Pre-v0.4.62 `Point { x: 1, y: 2 }` for a struct with 3 fields silently defaulted the missing field to 0 / empty. Adopters writing the canonical Rust idiom (which errors with E0063) got a quiet wrong value. Either list every field explicitly or define a `Point::new(x, y)` constructor fn that supplies the rest."; };
+    if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra `z` field (Rust E0560 errors). Check the struct definition and remove the unknown field, or add it to the struct decl."; };
     if str_eq(code, "NUM-001") { return "Nucleor follows Rust's no-implicit-conversion rule. Cast explicitly with `as`: `(u8_val as i32) + i32_val`."; };
     if str_eq(code, "NUM-002") { return "The literal does not fit in the declared type — e.g. 256u8 overflows u8."; };
     if str_eq(code, "NUM-003") { return "An `as` cast may truncate or round. The warning is informational; promote to error with #![deny(precision_loss)]."; };
@@ -10340,6 +10342,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "TYP-010") { return "`return expr` (or implicit tail-expression return) requires `expr` to type-check as the function's declared `-> T`. Body type and signature type must agree."; };
     if str_eq(code, "TYP-011") { return "Nucleor's i64-everywhere ABI lowers `+` to integer addition. For `str + str` that meant adding two string pointers as i64, producing a garbage pointer that SIGSEGVed when later passed to a string helper (e.g. `print_str`). Pre-v0.4.51 this was silent at compile time. v0.4.51 promotes the pattern to a hard error pointing at `str_concat(a, b)`. Reasoning: the canonical Rust idiom `&str + &str` doesn't compile in Rust either, so adopters expected a compile error and got runtime garbage instead."; };
     if str_eq(code, "TYP-012") { return "Struct constructor expressions like `Point { x: 1, y: 2 }` must list ALL declared fields. Pre-v0.4.62 the lower silently zero-initialized any missing field — equivalent to a quiet `field: 0` (or `field: \"\"` for str). Rust errors here with E0063, so adopters writing the canonical idiom got a wrong value with no compile-time signal. Workaround: list every field explicitly, OR write a `Point::new(x, y)` constructor fn that supplies the rest."; };
+    if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra field — the lower walked the init list in declared order, so any extra entries past the declared count were ignored. Rust errors here with E0560 — adopters writing canonical struct literals got a quiet wrong shape. Either remove the unknown field from the literal, or add it to the struct definition."; };
     if str_eq(code, "NUM-001") { return "Nucleor models on Rust: numeric types are distinct, no implicit conversion. Cast explicitly with `as`. Reasoning: silent conversions are a recurring bug source (truncation, sign extension)."; };
     if str_eq(code, "NUM-002") { return "Numeric literal exceeds the declared type's range — e.g. 256u8, -1u32, 4_000_000_000i32. Use a wider type or change the literal."; };
     if str_eq(code, "NUM-003") { return "Casting f64 to i32, i64 to i8 etc. may lose precision or wrap. The warning surfaces the risk; if intentional, suppress with #[allow(precision_loss)] on the call site."; };

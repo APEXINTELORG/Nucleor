@@ -492,7 +492,7 @@ cli_explain_full_smoke() {
         "TNT-001"
         # TYP series — type checker (expansion of NR030, since v0.2.119)
         "TYP-001" "TYP-002" "TYP-003" "TYP-004" "TYP-005"
-        "TYP-006" "TYP-007" "TYP-008" "TYP-009" "TYP-010" "TYP-011" "TYP-012"
+        "TYP-006" "TYP-007" "TYP-008" "TYP-009" "TYP-010" "TYP-011" "TYP-012" "TYP-013"
         # RFC-0004 assume!
         "ASSUME-001" "ASSUME-002" "ASSUME-003" "ASSUME-004" "ASSUME-005"
         # RFC-0005 units
@@ -1105,6 +1105,20 @@ t356_indexed_lhs_diagnostic() {
     [ -x "$exe" ] || return 1
     "$exe" >/dev/null 2>&1
     [ "$?" -eq 231 ] || return 1
+    return 0
+}
+
+t407_struct_extra_field_guard() {
+    # T3.107 (v0.4.63): NUC-FEEDBACK silent-extra-field close.
+    # `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped z.
+    # v0.4.63 emits TYP-013 in check_expr's kind-34 with field-name lookup
+    # via struct_field_idx.
+    "$BIN" build "tests/fixtures/repro_v63_struct_extra_field_guard.nr" -o "_t407_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\[TYP-013\]" /tmp/_nuc_step.log || return 1
+    grep -q "unknown field" /tmp/_nuc_step.log || return 1
+    grep -q "z" /tmp/_nuc_step.log || return 1
     return 0
 }
 
@@ -2972,6 +2986,7 @@ step "T3.103 v0.4.59 NUC-FEEDBACK — non-exhaustive match in EXPR context halts
 step "T3.104 v0.4.60 NUC-FEEDBACK — undefined fn call surfaces at type-check (closes deferral #2)" t404_undefined_fn_warn
 step "T3.105 v0.4.61 NUC-FEEDBACK — Vec<T> arithmetic + ==/!= silent miscompute (closes deferral #1)" t405_vec_eq_arith_guard
 step "T3.106 v0.4.62 NUC-FEEDBACK — struct init missing-field silent-default-zero (TYP-012)" t406_struct_missing_field_guard
+step "T3.107 v0.4.63 NUC-FEEDBACK — struct init unknown-field silent-drop (TYP-013)" t407_struct_extra_field_guard
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

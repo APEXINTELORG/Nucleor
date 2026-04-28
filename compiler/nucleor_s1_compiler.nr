@@ -7153,6 +7153,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "TYP-010") == 1 { return 1; };
     if str_eq(code, "TYP-011") == 1 { return 1; };
     if str_eq(code, "TYP-012") == 1 { return 1; };
+    if str_eq(code, "TYP-013") == 1 { return 1; };
     // RFC-0004 assume!
     if str_eq(code, "ASSUME-001") == 1 { return 1; };
     if str_eq(code, "ASSUME-002") == 1 { return 1; };
@@ -9488,6 +9489,25 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 let part_c: str = " Pre-v0.4.62 missing fields silently defaulted to 0 / empty. List every field explicitly or use a constructor fn.";
                 diag_add_ex(diag_vec, "error", "type", "TYP-012", str_concat(part_a, str_concat(part_b, part_c)), fn_name, vec_get(lc_si, 0), vec_get(lc_si, 1), "");
                 warns = warns + 1;
+            };
+            // v0.4.63: NUC-FEEDBACK silent-extra-field close. Pre-fix
+            // `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently
+            // dropped the extra `z` field (Rust E0560 errors here).
+            // Walk the init-list and check each field name against the
+            // struct's declared fields via struct_field_idx; emit
+            // TYP-013 for any unknown name.
+            let mut fii: i64 = 0;
+            while fii < ic {
+                let init_check: i64 = list_get(pool, inits, fii);
+                let fname: str = node_field(pool, init_check, 1);
+                if struct_field_idx(pool, s_nid, fname) < 0 {
+                    let lc_uf: Vec<i32> = find_linecol_in_source(source_text, fn_name, fname);
+                    let p1: str = str_concat("unknown field `", str_concat(fname, "` in `"));
+                    let p2: str = str_concat(struct_name, "` initialization. Pre-v0.4.63 the extra field was silently dropped (Rust E0560 errors).");
+                    diag_add_ex(diag_vec, "error", "type", "TYP-013", str_concat(p1, p2), fn_name, vec_get(lc_uf, 0), vec_get(lc_uf, 1), "");
+                    warns = warns + 1;
+                };
+                fii = fii + 1;
             };
         };
         return warns;
