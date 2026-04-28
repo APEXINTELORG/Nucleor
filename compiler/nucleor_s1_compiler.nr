@@ -9559,9 +9559,11 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             // RFC-0023 §3.1 + MATCH-007: range pattern with bounds in
             // wrong order (LO > HI) — would never match.
             if str_eq(ename, "__range_bad") {
+                // v0.4.43 (RFC-0020 Phase 3, v0.2 deferred row #8):
+                // span migration — use line + col instead of line-only.
                 let src: str = source_text;
-                let ln: i64 = find_in_source(src, fn_name, "match");
-                diag_add(own_get_type(own, "__diags"), "warning", "type", "MATCH-007", str_concat("range pattern bounds in wrong order at arm ", str_concat(str_from_int(ai + 1), " — pattern can never match")), fn_name, ln);
+                let lc: Vec<i32> = find_linecol_in_source(src, fn_name, "match");
+                diag_add_ex(own_get_type(own, "__diags"), "warning", "type", "MATCH-007", str_concat("range pattern bounds in wrong order at arm ", str_concat(str_from_int(ai + 1), " — pattern can never match")), fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                 warns = warns + 1;
             };
             let binding: str = node_field(pool, arm_nid, 3);
@@ -9585,9 +9587,10 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         // RFC-0016 phase 5 — MATCH-002: any arm following a wildcard is
         // unreachable (the wildcard already captures every value).
         if wildcard_idx >= 0 && wildcard_idx < ac - 1 {
+            // v0.4.43 span migration: line+col via diag_add_ex.
             let src: str = source_text;
-            let ln: i64 = find_in_source(src, fn_name, "match");
-            diag_add(own_get_type(own, "__diags"), "warning", "type", "MATCH-002", str_concat("unreachable match arm after wildcard at arm ", str_concat(str_from_int(wildcard_idx + 1), str_concat(" of ", str_from_int(ac)))), fn_name, ln);
+            let lc: Vec<i32> = find_linecol_in_source(src, fn_name, "match");
+            diag_add_ex(own_get_type(own, "__diags"), "warning", "type", "MATCH-002", str_concat("unreachable match arm after wildcard at arm ", str_concat(str_from_int(wildcard_idx + 1), str_concat(" of ", str_from_int(ac)))), fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
             warns = warns + 1;
         };
         if has_wildcard == 0 && ac > 0 {
@@ -9600,13 +9603,14 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     let vlist: i64 = node_field(pool, e_nid, 2);
                     let vcnt: i64 = list_len(pool, vlist);
                     if ac < vcnt {
+                        // v0.4.43 span migration: line+col via diag_add_ex.
                         let src: str = source_text;
-                        let ln: i64 = find_in_source(src, fn_name, "match");
+                        let lc: Vec<i32> = find_linecol_in_source(src, fn_name, "match");
                         // RFC-0016 phase 5 — MATCH-001 (canonical) alongside
                         // legacy TYP-001 for backwards compatibility.
                         let msg: str = str_concat("non-exhaustive match: ", str_concat(str_from_int(ac), str_concat(" arms for enum with ", str_concat(str_from_int(vcnt), " variants"))));
-                        diag_add(own_get_type(own, "__diags"), "warning", "type", "TYP-001", msg, fn_name, ln);
-                        diag_add(own_get_type(own, "__diags"), "warning", "type", "MATCH-001", msg, fn_name, ln);
+                        diag_add_ex(own_get_type(own, "__diags"), "warning", "type", "TYP-001", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                        diag_add_ex(own_get_type(own, "__diags"), "warning", "type", "MATCH-001", msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                         warns = warns + 2;
                     };
                 };
