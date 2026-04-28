@@ -1483,6 +1483,40 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 let mut empty_stmts: Vec<i32> = Vec::new();
                 else_body = mk_list(pool, empty_stmts);
             };
+            // v0.4.50: NUC-FEEDBACK silent-segfault guard.
+            // Pre-fix `if let Some(x) = v.first()` (and .last() / .pop() /
+            // vec_first / vec_last / vec_pop) silently segfaulted at
+            // runtime: the helper returns a bare i64 (not Option<T>), the
+            // match-arm dispatcher then called vec_get on the i64 value
+            // treating it as an Option pointer, dereferencing garbage.
+            // Adopters writing the canonical Rust idiom got a SIGSEGV
+            // with no compile-time signal.
+            //
+            // Real fix is to wrap these helpers in Option<T> at the
+            // stdlib level (RFC-0024 Phase 4 territory). Until then,
+            // halt the build with a clear diagnostic that names the
+            // call and points to the workaround.
+            if str_eq(ename, "Option") == 1 {
+                let src_nid: i64 = pr_val(sr);
+                let src_kind: i64 = node_kind(pool, src_nid);
+                let mut bad_call: str = "";
+                if src_kind == 8 {
+                    let mname: str = node_field(pool, src_nid, 2);
+                    if str_eq(mname, "first") == 1 || str_eq(mname, "last") == 1 || str_eq(mname, "pop") == 1 {
+                        bad_call = str_concat(".", mname);
+                    };
+                };
+                if src_kind == 7 {
+                    let cname: str = node_field(pool, src_nid, 1);
+                    if str_eq(cname, "vec_first") == 1 || str_eq(cname, "vec_last") == 1 || str_eq(cname, "vec_pop") == 1 {
+                        bad_call = cname;
+                    };
+                };
+                if str_len(bad_call) > 0 {
+                    print(str_concat("ERROR: `if let Some(...) = ", str_concat(bad_call, "(...)` silently segfaults — the helper returns a bare i64, not Option<T>. Workaround: branch on length explicitly: `if vec_len(v) > 0 { let x: i64 = v[0]; ... } else { ... }`. Pinned for a future Option<T> wrapper ship (RFC-0024 Phase 4).")));
+                    panic(str_concat("nucleor: if-let on non-Option-returning helper ", bad_call));
+                };
+            };
             // Build match arms: [PATTERN => then_body, _ => else_body]
             let mut arms: Vec<i32> = Vec::new();
             arms.push(mk6(pool, 39, ename, vname, binding, pr_val(br), 0));
@@ -1548,6 +1582,34 @@ fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             let mut sp: i64 = expect_tok(tokens, pr_pos(sr), 52); // `{`
             let mut br: Vec<i32> = parse_stmts(tokens, sp, pool);
             sp = expect_tok(tokens, pr_pos(br), 53); // `}`
+            // v0.4.50: NUC-FEEDBACK silent-infinite-loop guard.
+            // Pre-fix `while let Some(x) = stack.pop()` did NOT
+            // segfault but DID infinite-loop printing 0s — pop()
+            // returns a bare i64 (not Option), the match-arm
+            // dispatcher's "Some" path always succeeded and the
+            // loop never terminated. Mirrors the if-let guard at
+            // line 1487+.
+            if str_eq(ename, "Option") == 1 {
+                let wsrc_nid: i64 = pr_val(sr);
+                let wsrc_kind: i64 = node_kind(pool, wsrc_nid);
+                let mut wbad: str = "";
+                if wsrc_kind == 8 {
+                    let wmname: str = node_field(pool, wsrc_nid, 2);
+                    if str_eq(wmname, "first") == 1 || str_eq(wmname, "last") == 1 || str_eq(wmname, "pop") == 1 {
+                        wbad = str_concat(".", wmname);
+                    };
+                };
+                if wsrc_kind == 7 {
+                    let wcname: str = node_field(pool, wsrc_nid, 1);
+                    if str_eq(wcname, "vec_first") == 1 || str_eq(wcname, "vec_last") == 1 || str_eq(wcname, "vec_pop") == 1 {
+                        wbad = wcname;
+                    };
+                };
+                if str_len(wbad) > 0 {
+                    print(str_concat("ERROR: `while let Some(...) = ", str_concat(wbad, "(...)` silently infinite-loops — the helper returns a bare i64, not Option<T>, so the Some arm always matches and the loop never terminates. Workaround: use a `while vec_len(v) > 0 { ... v.pop(); ... }` pattern. Pinned for a future Option<T> wrapper ship (RFC-0024 Phase 4).")));
+                    panic(str_concat("nucleor: while-let on non-Option-returning helper ", wbad));
+                };
+            };
             // Build break statement (node kind 26)
             let break_stmt: i64 = mk2(pool, 26, 0);
             let mut break_stmts: Vec<i32> = Vec::new();
