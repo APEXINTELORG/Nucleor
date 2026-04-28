@@ -1108,6 +1108,20 @@ t356_indexed_lhs_diagnostic() {
     return 0
 }
 
+t403_match_expr_exhaustive_guard() {
+    # T3.103 (v0.4.59): MATCH-001 now also fires when the match is in
+    # expression position (let n = match c { ... };). v0.4.56 only
+    # caught match-as-statement; check_expr was missing the kind-38
+    # handler. This closes #306.
+    "$BIN" build "tests/fixtures/repro_v59_match_expr_exhaustive_guard.nr" -o "_t403_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\[MATCH-001\]" /tmp/_nuc_step.log || return 1
+    grep -q "in expression context" /tmp/_nuc_step.log || return 1
+    grep -q "Workaround" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t402_str_arith_guard() {
     # T3.102 (v0.4.58): NUC-FEEDBACK silent-segfault guard for the
     # other arithmetic ops on str (-, *, /, %). v0.4.51 closed `+`;
@@ -2913,6 +2927,7 @@ step "T3.99 v0.4.54 NUC-FEEDBACK — `?` on non-Option/Result receiver silent-se
 step "T3.100 v0.4.55 NUC-FEEDBACK — slice expression `expr[lo..hi]` silent-segfault guard" t400_slice_syntax_guard
 step "T3.101 v0.4.56 NUC-FEEDBACK — non-exhaustive match (stmt form) silent-miscompute close — MATCH-001 promoted to error" t401_match_exhaustive_stmt_guard
 step "T3.102 v0.4.58 NUC-FEEDBACK — str -/*//% silent-segfault guard (extends v0.4.51 + close)" t402_str_arith_guard
+step "T3.103 v0.4.59 NUC-FEEDBACK — non-exhaustive match in EXPR context halts (closes deferral #306)" t403_match_expr_exhaustive_guard
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
