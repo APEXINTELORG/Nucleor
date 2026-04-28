@@ -104,8 +104,15 @@ infer arg static type and dispatch to typed runtime helper
 __nucleor_print_str default).
 
 ### NUC-FEEDBACK-010 — Unresolved struct field access emits invalid LLVM (`%r.-1`) instead of stopping cleanly
-**Status: PARTIAL CLOSED in v0.3.193 (improved error message; pre-IR halt deferred). No fixture (front-end behavior change).**
+**Status: CLOSED in v0.3.198 (true pre-IR halt via compiler-side `panic()` before clang is invoked; v0.3.193 added the actionable error text first). No fixture (front-end behavior change).**
 **Priority: MEDIUM (build fails at clang either way; just confusing error chain)**
+
+v0.3.198 sidesteps the architectural blocker of threading `lower_error`
+through ~44 lower_expr sites: the s1 compiler IS a Nucleor program,
+so a `panic()` from inside the compiler invokes `__nucleor_panic` in
+the compiler's own runtime, exiting the compiler process with status 1
+BEFORE clang is ever invoked. Adopters now see the diagnostic followed
+by a clean `panic` line — no `%r.-1`, no clang link spew.
 
 Source: ML_Suite agent (main), 2026-04-26. Adopter on v0.3.191
 saw "ERROR: cannot resolve field access type for .X" plus
