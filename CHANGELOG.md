@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.66] — 2026-04-28
+
+**Mixed str/int arithmetic — TYP-011 close (also covers `+=` desugar).**
+
+Pre-fix `x + "string"` (and `x += "string"` which desugars to it)
+with `x: i64` silently i64-added the str pointer to x, producing
+garbage. The v0.4.51 close required BOTH operands to be str; mixed
+str/int hazard was open. Adopters writing canonical Rust got a
+quiet wrong value (Rust E0277).
+
+### Fix
+
+`type_expr` kind-4 (binop) handler extended: detect arith ops 20-24
+when EXACTLY one side is str. Diagnostic message names both types
+and points at the canonical conversion surfaces (`str_to_int(s)`,
+`int_to_str(n)`).
+
+### Verify
+
+- 486/486 PASS at baseline timing (320s last run, back from 339s spike)
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v66_mixed_str_int_arith_guard.nr`
+
 ## [0.4.65] — 2026-04-28
 
 **Struct field assignment type mismatch — TYP-009 close.**

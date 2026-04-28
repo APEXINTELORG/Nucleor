@@ -1108,6 +1108,20 @@ t356_indexed_lhs_diagnostic() {
     return 0
 }
 
+t410_mixed_str_int_arith_guard() {
+    # T3.110 (v0.4.66): NUC-FEEDBACK silent-coerce close for mixed
+    # str/int arithmetic. `x += "string"` desugars to `x + "string"`
+    # binop. Pre-fix only str+str fired TYP-011; mixed str+int
+    # silently i64-added the str pointer to x. v0.4.66 catches arith
+    # ops 20-24 with exactly one side being str.
+    "$BIN" build "tests/fixtures/repro_v66_mixed_str_int_arith_guard.nr" -o "_t410_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\[TYP-011\]" /tmp/_nuc_step.log || return 1
+    grep -q "mixed-type arithmetic" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t409_field_assign_typecheck() {
     # T3.109 (v0.4.65): NUC-FEEDBACK silent-coerce close for struct
     # field assignment. `p.x = "string"` on Point with x: i64 silently
@@ -3015,6 +3029,7 @@ step "T3.106 v0.4.62 NUC-FEEDBACK — struct init missing-field silent-default-z
 step "T3.107 v0.4.63 NUC-FEEDBACK — struct init unknown-field silent-drop (TYP-013)" t407_struct_extra_field_guard
 step "T3.108 v0.4.64 NUC-FEEDBACK — indexed assignment type-mismatch (TYP-009)" t408_indexed_assign_typecheck
 step "T3.109 v0.4.65 NUC-FEEDBACK — field assignment type-mismatch (TYP-009)" t409_field_assign_typecheck
+step "T3.110 v0.4.66 NUC-FEEDBACK — mixed str/int arithmetic (TYP-011, also catches += desugar)" t410_mixed_str_int_arith_guard
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
