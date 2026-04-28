@@ -2253,6 +2253,40 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             binding = pkv(tokens, cp);
             cp = cp + 1;
         };
+        // v0.4.49: or-patterns (`A | B | C => body`). Pre-fix this
+        // silently miscomputed: the parser printed parse errors but
+        // continued, the build succeeded, and the match returned the
+        // wildcard arm value (e.g. `match 2 { 1 | 2 => 100, _ => 0 }`
+        // returned 0). Now: collect the OR'd patterns into pat_list,
+        // parse the body once, and push one arm per pattern with the
+        // same body + guard. Currently supports int-literal and
+        // wildcard patterns (the common case for matching numeric
+        // values); enum or-patterns and binding or-patterns fall
+        // through to the existing parse-error path with a clear
+        // diagnostic for now.
+        let mut pat_list: Vec<i32> = Vec::new();
+        pat_list.push(ename); pat_list.push(vname); pat_list.push(binding);
+        while pk(tokens, cp) == 65 {
+            cp = cp + 1;
+            let oratt: i64 = pk(tokens, cp);
+            let mut oren: str = "";
+            let mut orvn: str = "";
+            let mut orbn: str = "";
+            if oratt == 2 {
+                oren = "__int";
+                orvn = pkv(tokens, cp);
+                cp = cp + 1;
+            } else if oratt == 1 && str_eq(pkv(tokens, cp), "_") == 1 {
+                oren = "__wild";
+                cp = cp + 1;
+            } else {
+                print("ERROR: or-patterns currently only support int literals and wildcards (e.g. `1 | 2 | _ => ...`). Other pattern kinds in `|` chains are not yet supported.");
+                while pk(tokens, cp) != 64 && pk(tokens, cp) != 0 && pk(tokens, cp) != 53 { cp = cp + 1; };
+            };
+            if str_len(oren) > 0 {
+                pat_list.push(oren); pat_list.push(orvn); pat_list.push(orbn);
+            };
+        };
         // Optional guard: if condition
         let mut guard_nid: i64 = 0;
         if pk(tokens, cp) == 13 {
@@ -2322,7 +2356,18 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             };
             body_list = mk_list(pool, stmts);
         };
-        arms.push(mk6(pool, 39, ename, vname, binding, body_list, guard_nid));
+        // v0.4.49: emit one arm per pattern in pat_list (or-patterns).
+        // For the common single-pattern case pat_list has exactly one
+        // triplet so this is identical to the pre-fix behavior.
+        let pcount: i64 = vec_len(pat_list) / 3;
+        let mut pi: i64 = 0;
+        while pi < pcount {
+            let pen: str = vec_get(pat_list, pi * 3);
+            let pvn: str = vec_get(pat_list, pi * 3 + 1);
+            let pbn: str = vec_get(pat_list, pi * 3 + 2);
+            arms.push(mk6(pool, 39, pen, pvn, pbn, body_list, guard_nid));
+            pi = pi + 1;
+        };
     };
     cp = cp + 1;
     return pr(cp, mk3(pool, 38, pr_val(er), mk_list(pool, arms)));

@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0023 |
 | **Title** | Rich pattern matching — ranges, guards, nested destructure, `|` or-patterns, `@`-bindings, slice patterns |
-| **Status** | Implemented (partial) — range patterns `1..=9` / `1..10` shipped (T2.1, v0.2.x); guards / slice / `\|` or-patterns / `@`-bindings deferred to v0.4 follow-up |
+| **Status** | Implemented (partial) — range patterns `1..=9` / `1..10` shipped (T2.1, v0.2.x); int-literal + wildcard or-patterns (`A \| B \| _ => ...`) shipped v0.4.49 (T3.94); guards / slice / enum-and-binding or-patterns / `@`-bindings deferred to v0.4 / v0.5 follow-up |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.4.0 |
