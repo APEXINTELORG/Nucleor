@@ -6222,6 +6222,50 @@ fn type_base_name(t: str) -> str {
     };
     return base;
 }
+
+// v0.4.44 — RFC-0024 Phase 2 building block. Extract the FIRST generic
+// type arg from a type string. Examples:
+//   type_first_arg("Vec<i32>")        → "i32"
+//   type_first_arg("Option<f64>")     → "f64"
+//   type_first_arg("Result<T, E>")    → "T"   (first arg only; whitespace trimmed)
+//   type_first_arg("HashMap<str,i64>")→ "str"
+//   type_first_arg("Vec<Vec<i32>>")   → "Vec<i32>" (depth-tracked nesting)
+//   type_first_arg("i64")             → ""    (no generic args)
+//   type_first_arg("")                → ""
+//
+// Used by Phase 2 (constructor type propagation: `let x = Some(value)`
+// to derive `Option<T>` where T = static type of value) and Phase 4
+// (Vec<T> element type extraction for vec_get/first/last/pop dispatch).
+fn type_first_arg(t: str) -> str {
+    let tlen: i64 = str_len(t);
+    if tlen == 0 { return ""; };
+    // Find first '<'
+    let mut i: i64 = 0;
+    while i < tlen && str_char_at(t, i) != 60 { i = i + 1; };
+    if i >= tlen { return ""; };
+    let arg_start: i64 = i + 1;
+    // Walk to matching '>' or first depth-0 ',' — whichever comes first.
+    let mut depth: i64 = 1;
+    let mut j: i64 = arg_start;
+    let mut arg_end: i64 = 0 - 1;
+    while j < tlen && arg_end < 0 {
+        let c: i64 = str_char_at(t, j);
+        if c == 60 { depth = depth + 1; }
+        else if c == 62 {
+            depth = depth - 1;
+            if depth == 0 { arg_end = j; };
+        }
+        else if c == 44 && depth == 1 { arg_end = j; };
+        j = j + 1;
+    };
+    if arg_end < 0 { return ""; };
+    // Trim leading + trailing spaces.
+    let mut s: i64 = arg_start;
+    while s < arg_end && str_char_at(t, s) == 32 { s = s + 1; };
+    let mut e: i64 = arg_end;
+    while e > s && str_char_at(t, e - 1) == 32 { e = e - 1; };
+    return str_substring(t, s, e);
+}
 // RFC-0015 phase 1: numeric-type lattice — width + signedness + class.
 // type_width:    bit width of a numeric type (0 if non-numeric)
 // type_signedness: 1 = signed int, 2 = unsigned int, 3 = float, 0 = other
