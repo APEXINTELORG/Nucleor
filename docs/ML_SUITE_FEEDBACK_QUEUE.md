@@ -314,6 +314,16 @@ RFC-scale. Post-v1.
 
 ## Deferred — known silent miscomputes awaiting compiler fixes
 
+### Undefined fn-call silent-link-error (DEFERRED, attempted v0.4.57)
+Pre-fix `let x: i64 = nonexistent_function(42);` silently emitted
+`call i64 @nonexistent_function(...)` and failed late at clang link
+with `undefined value '@nonexistent_function'`. v0.4.57 attempted a
+guard at the type_expr kind-7 fall-through but had too many false
+positives (closure-generated callees like `__closure_0`, fn-pointer
+dispatch sites, closure-capture helpers). Need to thread a
+closure-known-name table through type_expr to filter those out
+before flagging undefined callees. Tracked for a follow-on ship.
+
 ### Vec<T> == Vec<T> pointer comparison (DEFERRED, found 2026-04-28)
 Pre-fix `if v1 == v2` for two Vec<T> values returned FALSE even when
 the elements matched — the binop lowered to integer pointer compare

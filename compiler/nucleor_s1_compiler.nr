@@ -10850,6 +10850,12 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 };
             };
         };
+        // v0.4.57 (DEFERRED): undefined-fn-call guard tried here but
+        // had too many false positives (closure-generated names like
+        // __closure_0, fn-pointer dispatch sites, closure-capture
+        // helpers). Need to thread a closure-known-name table through
+        // type_expr to filter those out before flagging undefined
+        // callees. Hazard documented in ML_SUITE_FEEDBACK_QUEUE.md.
         tprof_mark(tprof, 9, 10, call_start);
         return builtin_rtype(callee);
     };
