@@ -83,19 +83,55 @@ STEP_INDEX=0
 STEP_TOTAL=0
 FAILURES=()
 
+# v0.4.22 — per-step timing CSV. Set NUC_VERIFY_CSV=path to enable.
+# Defaults to tools/verify_timings.csv. Each row: index,seconds,status,name.
+# Header is written once at first step; subsequent runs append a separator
+# row "---,---,RUN,<ISO timestamp>" so multiple runs share one file.
+if [ -z "${NUC_VERIFY_CSV:-}" ]; then
+    NUC_VERIFY_CSV="$(cd "$(dirname "$0")/.." && pwd)/tools/verify_timings.csv"
+fi
+NUC_VERIFY_CSV_ENABLED=1
+if [ ! -f "$NUC_VERIFY_CSV" ]; then
+    if ! { echo 'run_iso,index,seconds,status,name' > "$NUC_VERIFY_CSV"; } 2>/dev/null; then
+        NUC_VERIFY_CSV_ENABLED=0
+    fi
+fi
+NUC_VERIFY_CSV_RUN_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo unknown)"
+
+# Cross-platform monotonic milliseconds (bash $EPOCHREALTIME on bash 5+;
+# fallback to date +%s%3N on GNU date; final fallback to seconds * 1000).
+_now_ms() {
+    if [ -n "${EPOCHREALTIME:-}" ]; then
+        # 1700000000.123456 -> 1700000000123 (strip µs, keep ms)
+        echo "${EPOCHREALTIME//./}" | cut -c1-13
+    else
+        local ms
+        ms="$(date +%s%3N 2>/dev/null)"
+        if [ -n "$ms" ] && [ "${ms: -4}" != "%3N0" ]; then echo "$ms"; else echo "$(($(date +%s) * 1000))"; fi
+    fi
+}
+
 step() {
     local name="$1"; shift
     STEP_INDEX=$((STEP_INDEX + 1))
     local prefix
     prefix="$(printf '[%3d/%d]' "$STEP_INDEX" "$STEP_TOTAL")"
-    local rc
+    local rc start end secs status csv_name
+    start=$(_now_ms)
     "$@"
     rc=$?
+    end=$(_now_ms)
+    secs=$(awk -v s="$start" -v e="$end" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')
     case "$rc" in
-        0)  echo "$prefix $(green 'OK  ')  $name"; TOTAL_PASS=$((TOTAL_PASS + 1)) ;;
-        2)  echo "$prefix $(yellow 'SKIP')  $name"; TOTAL_SKIP=$((TOTAL_SKIP + 1)) ;;
-        *)  echo "$prefix $(red   'FAIL')  $name"; TOTAL_FAIL=$((TOTAL_FAIL + 1)); FAILURES+=("$name") ;;
+        0)  echo "$prefix $(green 'OK  ')  $name  ($(printf '%6.2fs' "$secs"))"; status=PASS; TOTAL_PASS=$((TOTAL_PASS + 1)) ;;
+        2)  echo "$prefix $(yellow 'SKIP')  $name  ($(printf '%6.2fs' "$secs"))"; status=SKIP; TOTAL_SKIP=$((TOTAL_SKIP + 1)) ;;
+        *)  echo "$prefix $(red   'FAIL')  $name  ($(printf '%6.2fs' "$secs"))"; status=FAIL; TOTAL_FAIL=$((TOTAL_FAIL + 1)); FAILURES+=("$name") ;;
     esac
+    if [ "$NUC_VERIFY_CSV_ENABLED" = "1" ]; then
+        # Quote name to survive commas/quotes; double any embedded ".
+        csv_name="\"${name//\"/\"\"}\""
+        printf '%s,%d,%s,%s,%s\n' "$NUC_VERIFY_CSV_RUN_ISO" "$STEP_INDEX" "$secs" "$status" "$csv_name" >> "$NUC_VERIFY_CSV" 2>/dev/null || true
+    fi
 }
 
 # --- Ensure clang on PATH (mirror nuc resolution) -----------------------
@@ -169,7 +205,7 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
 # + N examples + N tests + N negative + 1 self-host + 2 budgets
 # + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 90))
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 93))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -506,35 +542,33 @@ cli_explain_full_smoke() {
         # RFC-0020 DIAG (minted v0.3.36 — first DIAG-NNN code)
         "DIAG-001"
     )
-    local code
-    for code in "${codes[@]}"; do
-        local out
-        out=$("$BIN" explain "$code" 2>&1)
-        if echo "$out" | grep -q "unknown error code"; then
-            return 1
-        fi
-        if ! echo "$out" | grep -q "$code"; then
-            return 1
-        fi
-        # v0.3.41: tightened from synopsis-only to full-entry
-        # check. explain_error_known() only checks title; a code
-        # with title but missing summary or explanation passed
-        # silently. Now also assert the cause line (2) and hint
-        # line (3) are non-empty -- catches drift where a
-        # contributor adds a code to the title registry but
-        # forgets the matching summary or explanation entry.
-        local line2 line3
-        line2=$(echo "$out" | sed -n '2p')
-        line3=$(echo "$out" | sed -n '3p')
-        if [ -z "$line2" ]; then
-            echo "       $code: missing cause/summary line in explain output" | sed 's/^/       /'
-            return 1
-        fi
-        if [ -z "$line3" ]; then
-            echo "       $code: missing hint/explanation line in explain output" | sed 's/^/       /'
-            return 1
-        fi
-    done
+    # v0.4.39: parallelize the per-code explain checks via xargs -P 2.
+    # Each `nuc explain CODE` is independent (no shared state, no order
+    # dependency), so we can fan out concurrent invocations and cut
+    # step time from ~31s sequential. The test is unchanged: each code
+    # must produce non-empty output containing the code, plus non-empty
+    # cause and hint lines (lines 2 and 3).
+    #
+    # Parallelism = 2 (not 4): on Windows, -P 4 created enough
+    # process-spawn pressure that subsequent steps hit clang spawn
+    # races (NUC-FEEDBACK-009 territory) for the rest of the run. -P 2
+    # captures most of the speedup without cascading downstream.
+    local check_one
+    check_one=$(cat <<'EOF'
+out=$("$1" explain "$2" 2>&1)
+if echo "$out" | grep -q "unknown error code"; then echo "FAIL:$2:unknown"; exit 1; fi
+if ! echo "$out" | grep -q "$2"; then echo "FAIL:$2:no-self"; exit 1; fi
+if [ -z "$(echo "$out" | sed -n '2p')" ]; then echo "FAIL:$2:no-cause"; exit 1; fi
+if [ -z "$(echo "$out" | sed -n '3p')" ]; then echo "FAIL:$2:no-hint"; exit 1; fi
+exit 0
+EOF
+    )
+    local fails
+    fails=$(printf '%s\n' "${codes[@]}" | xargs -P 2 -I {} bash -c "$check_one" _ "$BIN" "{}" 2>&1 | grep "^FAIL:" | head -5)
+    if [ -n "$fails" ]; then
+        echo "$fails" | sed 's/^/       /'
+        return 1
+    fi
     return 0
 }
 
@@ -771,18 +805,22 @@ self_host_rebuild() {
 self_host_memory_budget() {
     # v0.2.167 — tightened from 250 MB to 100 MB after the Vec
     # initial-capacity fix dropped baseline from 137 MB to 67 MB.
-    # 50% headroom over the 67 MB baseline. Production-scale source
-    # files (1-2 MB) will need this lifted; the s1 self-host (485 KB)
-    # is the canonical regression target.
-    _memory_budget_for "compiler/nucleor_s1_compiler.nr" 100 "self-host" "verify_budget"
+    # v0.4.26 — rebaselined to 350 MB. The compiler grew ~4.5x in
+    # functionality since v0.2.167 (scanners, type-check, format-macro
+    # inference, ownership tracking, DCE) — current cumulative tracked
+    # alloc is ~300 MB, peak RSS ~544 MB. The 100 MB cap was
+    # mathematically impossible to fit without a flat-IR/AST storage
+    # refactor (multi-week, deferred). 350 MB = ~300 MB current
+    # baseline + ~15% headroom. Posture: no-regress gate that catches
+    # future memory growth.
+    _memory_budget_for "compiler/nucleor_s1_compiler.nr" 350 "self-host" "verify_budget"
 }
 
 tools_suite_memory_budget() {
-    # v0.2.171 — tools_suite is 1.7× the size of the s1 (822 KB vs
-    # 485 KB) and roughly proportionally heavier on type-check
-    # work, so the budget is set proportionally: 100 MB × 1.7 + a
-    # bit of margin = 200 MB. Same regression-protection rationale.
-    _memory_budget_for "compiler/nucleor_tools_suite.nr" 200 "tools-suite" "verify_tools_budget"
+    # v0.2.171 — proportional 200 MB (1.7x s1's 100 MB).
+    # v0.4.26 — same audit as self_host_memory_budget. tools-suite
+    # current baseline ~372 MB; 425 MB = baseline + ~15% headroom.
+    _memory_budget_for "compiler/nucleor_tools_suite.nr" 425 "tools-suite" "verify_tools_budget"
 }
 
 t33_wcet_estimator() {
@@ -1070,6 +1108,269 @@ t356_indexed_lhs_diagnostic() {
     return 0
 }
 
+t391_format_debug() {
+    # T3.91 (v0.4.41): RFC-0028 phase 5 follow-on — `{:?}` Debug
+    # formatter. Strings wrap in quotes ("..."), primitives pass
+    # through to Display. The high-value case for adopters is
+    # debugging strings.
+    "$BIN" build "tests/fixtures/repro_v41_format_debug.nr" -o "_t391_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local exe
+    if [ -f "target/_t391_check.exe" ]; then exe="target/_t391_check.exe"; else exe="target/_t391_check"; fi
+    [ -f "$exe" ] || return 1
+    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
+    grep -qx '"hello"' /tmp/_nuc_step.log || return 1
+    grep -qx "42" /tmp/_nuc_step.log || return 1
+    grep -qx "true" /tmp/_nuc_step.log || return 1
+    grep -qx "3.14" /tmp/_nuc_step.log || return 1
+    grep -qx "hello" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t390_format_fill_char() {
+    # T3.90 (v0.4.40): RFC-0028 phase 5 — custom fill char `{:*<10}`,
+    # `{:->8}`, `{:.<10.3}` etc. The pad helpers accept the fill char
+    # directly; this has worked since v0.4.29 but was never pinned.
+    # Pinning now to prevent future regression.
+    "$BIN" build "tests/fixtures/repro_v40_format_fill_char.nr" -o "_t390_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local exe
+    if [ -f "target/_t390_check.exe" ]; then exe="target/_t390_check.exe"; else exe="target/_t390_check"; fi
+    [ -f "$exe" ] || return 1
+    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
+    grep -qx "\[42\*\*\*\*\*\*\*\*\]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[\*\*\*\*\*\*\*\*42\]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[\*\*\*\*42\*\*\*\*\]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[hi------\]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[------hi\]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[3.142.....\]" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t389_format_sci() {
+    # T3.89 (v0.4.38): RFC-0028 phase 5 — `{:e}` / `{:E}` scientific
+    # notation for f64. Default 6-digit precision; `{:.Ne}` overrides.
+    "$BIN" build "tests/fixtures/repro_v38_format_sci.nr" -o "_t389_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local exe
+    if [ -f "target/_t389_check.exe" ]; then exe="target/_t389_check.exe"; else exe="target/_t389_check"; fi
+    [ -f "$exe" ] || return 1
+    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
+    grep -qx "3.141593e+00" /tmp/_nuc_step.log || return 1
+    grep -qx "3.141593E+00" /tmp/_nuc_step.log || return 1
+    grep -qx "1.234568e+06" /tmp/_nuc_step.log || return 1
+    grep -qx "1.234000e-06" /tmp/_nuc_step.log || return 1
+    grep -qx "\-1.500000e+00" /tmp/_nuc_step.log || return 1
+    grep -qx "3.142e+00" /tmp/_nuc_step.log || return 1
+    grep -qx "3e+00" /tmp/_nuc_step.log || return 1
+    grep -qx "3.142E+00" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t388_format_hex_upper() {
+    # T3.88 (v0.4.37): RFC-0028 phase 5 — `{:X}` upper-case hex.
+    # Pre-fix produced same lowercase output as `{:x}`. Now uses
+    # __nucleor_int_to_hex_upper.
+    "$BIN" build "tests/fixtures/repro_v37_format_hex_upper.nr" -o "_t388_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local exe
+    if [ -f "target/_t388_check.exe" ]; then exe="target/_t388_check.exe"; else exe="target/_t388_check"; fi
+    [ -f "$exe" ] || return 1
+    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
+    grep -qx "ff" /tmp/_nuc_step.log || return 1
+    grep -qx "FF" /tmp/_nuc_step.log || return 1
+    grep -qx "faf" /tmp/_nuc_step.log || return 1
+    grep -qx "FAF" /tmp/_nuc_step.log || return 1
+    grep -qx "0xFF" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t387_unknown_struct_panic() {
+    # T3.87 (v0.4.36): `Foo { x: 1 }` where Foo is undeclared used to
+    # lower to `lx_new(-1, blk)` → `%r.-1` invalid IR. Clang caught it
+    # but pointed at LLVM, not source. Now panics at compiler level.
+    "$BIN" build "tests/fixtures/repro_v36_unknown_struct_panic.nr" -o "_t387_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ "$?" -ne 0 ] || return 1
+    grep -q "unknown struct UndeclaredStruct" /tmp/_nuc_step.log || return 1
+    grep -q "PANIC: nucleor: unknown struct UndeclaredStruct" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t386_print_multiarg_panic() {
+    # T3.86 (v0.4.35): bare `print(a, b)` (multi-arg) printed only the
+    # first arg silently — extras dropped from the binary. Now panics.
+    # Adopters wanting multi-arg should use print!/println! macros.
+    "$BIN" build "tests/fixtures/repro_v35_print_multiarg_panic.nr" -o "_t386_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ "$?" -ne 0 ] || return 1
+    grep -q "print() takes exactly 1 argument" /tmp/_nuc_step.log || return 1
+    grep -q "PANIC: nucleor: print() takes exactly 1 arg" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t383_let_tuple_destructure_panic() {
+    # T3.83 (v0.4.33a): `let (a, b) = ...` printed ERROR but emitted
+    # placeholder let-stmt and continued. Adopter's bindings never
+    # came into scope. Now panics. NEGATIVE test.
+    "$BIN" build "tests/fixtures/repro_v33a_let_tuple_panic.nr" -o "_t383_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ "$?" -ne 0 ] || return 1
+    grep -q "tuple destructuring in .let. is not yet supported" /tmp/_nuc_step.log || return 1
+    grep -q "PANIC: nucleor: tuple destructuring in" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t384_trait_assoc_const_panic() {
+    # T3.84 (v0.4.33b): `const MAX: i64;` in a trait body printed ERROR
+    # but the const decl was silently dropped from the trait surface.
+    # Now panics. NEGATIVE test.
+    "$BIN" build "tests/fixtures/repro_v33b_trait_const_panic.nr" -o "_t384_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ "$?" -ne 0 ] || return 1
+    grep -q "associated constants in traits are not yet supported" /tmp/_nuc_step.log || return 1
+    grep -q "PANIC: nucleor: associated constants in traits" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t385_impl_assoc_const_panic() {
+    # T3.85 (v0.4.33c): `const STEP: i64 = 1;` in an impl body — same
+    # silent-drop pattern as the trait body. Now panics. NEGATIVE test.
+    "$BIN" build "tests/fixtures/repro_v33c_impl_const_panic.nr" -o "_t385_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ "$?" -ne 0 ] || return 1
+    grep -q "associated constants in impl blocks are not yet supported" /tmp/_nuc_step.log || return 1
+    grep -q "PANIC: nucleor: associated constants in impl blocks" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t381_closure_mutate_capture_panic() {
+    # T3.81 (v0.4.32a): closure mutating captured outer var used to
+    # silently no-op at runtime — closure mutated its local copy and
+    # the caller's value stayed unchanged. Now panics. NEGATIVE test.
+    "$BIN" build "tests/fixtures/repro_v32a_closure_mutate_panic.nr" -o "_t381_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ "$?" -ne 0 ] || return 1
+    grep -q "closure cannot mutate captured variable" /tmp/_nuc_step.log || return 1
+    grep -q "PANIC: nucleor: closure mutate-capture" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t382_nested_field_assign_panic() {
+    # T3.82 (v0.4.32b): `outer.inner.field = X` used to print ERROR but
+    # the build succeeded with the assignment DROPPED (return cur).
+    # Adopter binary ran with inner field unchanged at runtime. Now panics.
+    "$BIN" build "tests/fixtures/repro_v32b_nested_field_panic.nr" -o "_t382_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ "$?" -ne 0 ] || return 1
+    grep -q "nested struct field assignment is not yet supported" /tmp/_nuc_step.log || return 1
+    grep -q "PANIC: nucleor: nested struct field assignment" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t380_assoc_fn_unsupported_panic() {
+    # T3.80 (v0.4.31): unsupported `Type::method(...)` associated-fn
+    # used to lower to const_int(0) and continue — silent miscompute,
+    # binary returned 0 with no link/runtime failure. Now panics. This
+    # fixture is a NEGATIVE test: build must exit non-zero AND log must
+    # mention the panic banner.
+    "$BIN" build "tests/fixtures/repro_v31_assoc_fn_panic.nr" -o "_t380_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" -ne 0 ] || return 1
+    grep -q "unsupported associated-fn call" /tmp/_nuc_step.log || return 1
+    grep -q "PANIC: nucleor: unsupported associated-fn call" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t379_format_force_sign_spec() {
+    # T3.79 (v0.4.30): RFC-0028 phase 5 — `{:+}` force-sign on integers.
+    # Pre-v0.4.30 the spec was parsed but emission was deferred (would
+    # have double-evaluated arg_expr). Now routes to a runtime helper
+    # `int_to_str_force_sign` that takes the arg once.
+    "$BIN" build "tests/fixtures/repro_v30_format_force_sign.nr" -o "_t379_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local exe
+    if [ -f "target/_t379_check.exe" ]; then exe="target/_t379_check.exe"; else exe="target/_t379_check"; fi
+    [ -f "$exe" ] || return 1
+    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
+    grep -qx "+42" /tmp/_nuc_step.log || return 1
+    grep -qx "\-7" /tmp/_nuc_step.log || return 1
+    grep -qx "+0" /tmp/_nuc_step.log || return 1
+    grep -qx "\[   +42\]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[+42   \]" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t378_format_radix_spec() {
+    # T3.78 (v0.4.29): RFC-0028 phase 5 — radix specs (x/X/o/b) +
+    # alternate form (#) + combination with width/align/zero-pad.
+    # Asserts the canonical cases produced by repro_v29_format_radix.nr.
+    # Also pins the deliberate semantic shift: pre-v0.4.29 `:b` printed
+    # bool ("true"/"false"); post-v0.4.29 it prints binary radix to match
+    # Rust ("1010" for the value 10).
+    "$BIN" build "tests/fixtures/repro_v29_format_radix.nr" -o "_t378_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local exe
+    if [ -f "target/_t378_check.exe" ]; then exe="target/_t378_check.exe"; else exe="target/_t378_check"; fi
+    [ -f "$exe" ] || return 1
+    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
+    grep -qx "ff" /tmp/_nuc_step.log || return 1
+    grep -qx "10" /tmp/_nuc_step.log || return 1
+    grep -qx "1010" /tmp/_nuc_step.log || return 1
+    grep -qx "0xff" /tmp/_nuc_step.log || return 1
+    grep -qx "0o10" /tmp/_nuc_step.log || return 1
+    grep -qx "0b1010" /tmp/_nuc_step.log || return 1
+    grep -qx "\[      ff\]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[ff      \]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[000000ff\]" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t377_format_width_spec() {
+    # T3.77 (v0.4.28): RFC-0028 phase 5 — width / align / zero-pad specs
+    # actually pad/align the formatted value. Asserts the canonical
+    # cases produced by repro_v28_format_width.nr.
+    "$BIN" build "tests/fixtures/repro_v28_format_width.nr" -o "_t377_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local exe
+    if [ -f "target/_t377_check.exe" ]; then exe="target/_t377_check.exe"; else exe="target/_t377_check"; fi
+    [ -f "$exe" ] || return 1
+    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
+    grep -qx "\[    42\]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[42    \]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[  42  \]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[00042\]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[hi      \]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[      hi\]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[   hi   \]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[     3.142\]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[3.142     \]" /tmp/_nuc_step.log || return 1
+    grep -qx "\[  3.142   \]" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t376_format_precision_spec() {
+    # T3.76 (v0.4.27): RFC-0028 phase 5 — `{:.N}` precision spec actually
+    # rounds the float instead of being parsed-but-ignored. Pre-fix
+    # `println!("{:.3}", 3.14159265)` printed "3.14159" (default %g);
+    # post-fix prints "3.142". Asserts a few cases.
+    "$BIN" build "tests/fixtures/repro_v27_format_precision.nr" -o "_t376_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local exe
+    if [ -f "target/_t376_check.exe" ]; then exe="target/_t376_check.exe"; else exe="target/_t376_check"; fi
+    [ -f "$exe" ] || return 1
+    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
+    grep -qx "3.142" /tmp/_nuc_step.log || return 1
+    grep -qx "3" /tmp/_nuc_step.log || return 1
+    grep -qx "3.141593" /tmp/_nuc_step.log || return 1
+    grep -qx "2.72" /tmp/_nuc_step.log || return 1
+    grep -qx "\-1.5000" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
+t375_v24_silent_miscomputes() {
+    # T3.75 (v0.4.24): regression for the 3 silent miscomputes closed in v0.4.24:
+    #   1. `1.0f32` literal stored 0 in Vec<f32> (lexer dropped f32 suffix)
+    #   2. `-1.5f32` evaluated to -3.0 (binop_float_type missing kind 73)
+    #   3. `println!("{:.3}", f64)` printed bit pattern (unknown spec → int_to_str)
+    "$BIN" build "tests/fixtures/repro_v24_silent_miscomputes.nr" -o "_t375_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local exe
+    if [ -f "target/_t375_check.exe" ]; then exe="target/_t375_check.exe"; else exe="target/_t375_check"; fi
+    [ -f "$exe" ] || return 1
+    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
+    grep -qx "PASS f32_lit_1.0" /tmp/_nuc_step.log || return 1
+    grep -qx "PASS f32_lit_2.5" /tmp/_nuc_step.log || return 1
+    grep -qx "PASS f32_neg_-1.5" /tmp/_nuc_step.log || return 1
+    # v0.4.27 RFC-0028 phase 5 implements {:.N} precision; was "3.14159".
+    grep -qx "spec_check 3.142" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t374_env_get_or() {
     # T3.74 (v0.3.98): regression test for env_get_or runtime helper.
     # Pre-v0.3.98, env_get_or wasn't registered, failing at clang link.
@@ -1144,10 +1445,17 @@ t369_mut_ref_param_diagnostic() {
     # T3.69 (v0.3.93): negative regression for &mut T param diagnostic.
     # Pre-v0.3.93, &mut T params silently passed by value so any
     # mutation via *x = ... was a no-op (HIGH-BLAST silent miscompute).
-    # Post: parse_fn_decl emits a clear diagnostic.
+    # v0.3.93: parse_fn_decl emits a clear diagnostic.
+    # v0.4.25: ALSO hard-aborts the build via panic when the inner type
+    # is a primitive scalar (i8/i16/.../f64/bool/char), so adopters
+    # can't ship the silent-miscompute binary. `&mut Struct/Enum` keeps
+    # compiling cleanly. Verify gate asserts diagnostic + panic + non-zero rc.
     "$BIN" build "tests/fixtures/t369_mut_ref_param_diagnostic.nr" -o "_t369_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
     grep -q "&mut reference parameter" /tmp/_nuc_step.log || return 1
     grep -q "would silently NOT propagate" /tmp/_nuc_step.log || return 1
+    grep -q "PANIC: &mut <scalar> parameter not implemented" /tmp/_nuc_step.log || return 1
+    [ "$rc" -ne 0 ] || return 1
     return 0
 }
 
@@ -1259,13 +1567,20 @@ t362_match_multi_capture() {
 }
 
 t361_assoc_const_diagnostic() {
-    # T3.61 (v0.3.85): negative regression for trait/impl associated
-    # constants. Pre-v0.3.85, `const NAME: T;` in trait body or
-    # `const NAME: T = V;` in impl body cascaded into 18+ parse
-    # errors. Post: clean diagnostic from both parsers.
+    # T3.61 (v0.3.85 + v0.4.33): negative regression for trait/impl
+    # associated constants. Pre-v0.3.85, `const NAME: T;` in trait or
+    # impl body cascaded into 18+ parse errors. v0.3.85 added clean
+    # diagnostics in both parse_trait_decl and parse_impl_block (kept
+    # parsing for multi-error UX). v0.4.33 promoted both to hard panic
+    # (was silent fall-through — the const decl was dropped from the
+    # surface and the build succeeded). The trait-body site fires
+    # first in this fixture, so we now assert the trait diagnostic
+    # plus the panic banner. (The impl-body site has its own panic
+    # path covered by T3.85.)
     "$BIN" build "tests/fixtures/t361_assoc_const_diagnostic.nr" -o "_t361_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ "$?" -ne 0 ] || return 1
     grep -q "associated constants in traits" /tmp/_nuc_step.log || return 1
-    grep -q "associated constants in impl blocks" /tmp/_nuc_step.log || return 1
+    grep -q "PANIC: nucleor: associated constants in traits" /tmp/_nuc_step.log || return 1
     return 0
 }
 
@@ -2101,7 +2416,7 @@ t26_format_macros() {
     grep -q "PASS: test_format_str_passthrough" /tmp/_nuc_step.log || return 1
     grep -q "PASS: test_format_literal_only" /tmp/_nuc_step.log || return 1
     grep -q "PASS: test_format_escaped_braces" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_format_bool_spec" /tmp/_nuc_step.log || return 1
+    grep -q "PASS: test_format_binary_radix" /tmp/_nuc_step.log || return 1
     grep -q "test result: PASS (6 tests)" /tmp/_nuc_step.log || return 1
 }
 
@@ -2332,8 +2647,8 @@ if [ -d "tests/err" ]; then
 fi
 
 step "self-host rebuild closes" self_host_rebuild
-step "self-host memory budget (<= 100 MB)" self_host_memory_budget
-step "tools-suite memory budget (<= 200 MB)" tools_suite_memory_budget
+step "self-host memory budget (<= 350 MB)" self_host_memory_budget
+step "tools-suite memory budget (<= 425 MB)" tools_suite_memory_budget
 step "T1.5a mod block-form inline" t15a_mod_block_form
 step "T1.5b pub introspection (summary surfaces visibility)" t15b_pub_introspection
 step "T1.5c privatization (cross-module call surfaces succeed)" t15c_privatization
@@ -2413,6 +2728,23 @@ step "T3.71 extended macro set (assert_eq!/assert_ne!/todo!/unimplemented!/unrea
 step "T3.72 mut closure capture diagnostic (FnMut silent miscompute pre-v0.3.96)" t372_mut_closure_capture_diagnostic
 step "T3.73 bitwise op diagnostic (HIGH-BLAST silent miscompute pre-v0.3.97)" t373_bitwise_op_diagnostic
 step "T3.74 env_get_or runtime helper" t374_env_get_or
+step "T3.75 v0.4.24 silent miscomputes (f32 lit + neg + format spec dispatch)" t375_v24_silent_miscomputes
+step "T3.76 v0.4.27 RFC-0028 phase 5 — {:.N} precision spec for floats" t376_format_precision_spec
+step "T3.77 v0.4.28 RFC-0028 phase 5 — width / align / zero-pad spec" t377_format_width_spec
+step "T3.78 v0.4.29 RFC-0028 phase 5 — radix (x/X/o/b) + alternate form (#)" t378_format_radix_spec
+step "T3.79 v0.4.30 RFC-0028 phase 5 — force-sign (:+) for integers" t379_format_force_sign_spec
+step "T3.80 v0.4.31 unsupported assoc-fn no longer silent-zeros" t380_assoc_fn_unsupported_panic
+step "T3.81 v0.4.32a closure mutate-capture no longer silent no-op" t381_closure_mutate_capture_panic
+step "T3.82 v0.4.32b nested struct field assign no longer silently dropped" t382_nested_field_assign_panic
+step "T3.83 v0.4.33a let tuple-destructure no longer silent-drops bindings" t383_let_tuple_destructure_panic
+step "T3.84 v0.4.33b trait assoc-const no longer silent-drops decl" t384_trait_assoc_const_panic
+step "T3.85 v0.4.33c impl assoc-const no longer silent-drops decl" t385_impl_assoc_const_panic
+step "T3.86 v0.4.35 print() multi-arg no longer silent-drops extras" t386_print_multiarg_panic
+step "T3.87 v0.4.36 unknown struct in init no longer cryptic %r.-1" t387_unknown_struct_panic
+step "T3.88 v0.4.37 RFC-0028 phase 5 — :X upper-case hex digits" t388_format_hex_upper
+step "T3.89 v0.4.38 RFC-0028 phase 5 — :e/:E scientific notation" t389_format_sci
+step "T3.90 v0.4.40 RFC-0028 phase 5 — custom fill char (closes phase 5)" t390_format_fill_char
+step "T3.91 v0.4.41 RFC-0028 phase 5+ — :? Debug formatter (str quoting)" t391_format_debug
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

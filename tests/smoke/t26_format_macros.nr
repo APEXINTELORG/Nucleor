@@ -5,7 +5,9 @@
 //   {:i}  — int_to_str(arg)   (alias)
 //   {:s}  — arg as-is         (str passthrough)
 //   {:f}  — f64_to_str(arg)
-//   {:b}  — bool_to_str(arg)
+//   {:b}  — binary radix (v0.4.29; was bool_to_str pre-v0.4.29)
+//   {:x}  — hex radix (v0.4.29)
+//   {:o}  — octal radix (v0.4.29)
 //   {{ }} — literal `{` / `}`
 
 #[test]
@@ -58,10 +60,14 @@ fn test_format_escaped_braces() {
 }
 
 #[test]
-fn test_format_bool_spec() {
-    let yes: i64 = 1;
-    let out: str = format!("flag = {:b}", yes);
-    // "flag = true" = 11 chars
+fn test_format_binary_radix() {
+    // v0.4.29: `:b` is binary radix (Rust convention).
+    // Pre-v0.4.29 it routed to bool_to_str; that was a non-Rust dialect
+    // and is now corrected.
+    let n: i64 = 10;
+    let out: str = format!("bits = {:b}", n);
+    // "bits = 1010" = 11 chars
     assert_eq(str_len(out), 11);
-    assert_eq(str_char_at(out, 7), 116);   // 't'
+    assert_eq(str_char_at(out, 7), 49);    // '1'
+    assert_eq(str_char_at(out, 10), 48);   // '0'
 }

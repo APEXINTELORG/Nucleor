@@ -401,6 +401,17 @@ fn lex(src: str) -> Vec<i32> {
                     if str_eq(suf, "f32") == 0 && str_eq(suf, "f64") == 0 {
                         // Not actually a suffix; rewind.
                         p = suf_st;
+                    } else if str_eq(suf, "f32") == 1 {
+                        // v0.4.24 (NUC-FEEDBACK-002 fix): rewrite the just-
+                        // emitted token type from 70 (generic float) to 125
+                        // (f32-typed) so the parser/lowerer can route the
+                        // literal through f32_from_scaled instead of
+                        // f64_from_scaled. Pre-fix the f32 suffix was
+                        // consumed and discarded -> 1.0f32 silently became
+                        // 1.0f64 bits, which when read back as f32 = 0.0
+                        // (silent miscompute on Vec<f32> push of literals).
+                        let last_tok: Vec<i32> = vec_get(tokens, vec_len(tokens) - 1);
+                        vec_set(last_tok, 0, 125);
                     };
                 };
                 if p < slen && str_char_at(src, p) == 123 {
@@ -746,6 +757,23 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             };
         };
         return pr(cp, mk2(pool, 71, pkv(tokens, pos)));
+    };
+    // v0.4.24 (NUC-FEEDBACK-002): f32-typed float literal token (lexer
+    // tagged it 125 because of an `f32` suffix). Same body as tt==70
+    // but emits AST kind 73 instead of 71 so lower_expr routes it
+    // through f32_from_scaled.
+    if tt == 125 {
+        let mut cp: i64 = pos + 1;
+        if pk(tokens, cp) == 83 {
+            let mut depth: i64 = 1;
+            cp = cp + 1;
+            while depth > 0 && pk(tokens, cp) != 0 {
+                if pk(tokens, cp) == 52 { depth = depth + 1; }
+                else if pk(tokens, cp) == 53 { depth = depth - 1; };
+                cp = cp + 1;
+            };
+        };
+        return pr(cp, mk2(pool, 73, pkv(tokens, pos)));
     };
     // v0.3.133: f64 raw-bits literal (token 124) — value IS the i64
     // bit pattern of the parsed float (via str_to_f64 at lex time).
@@ -1339,12 +1367,15 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // recover so the rest of the program still parses.
     if pk(tokens, cp) == 50 {
         print("ERROR: tuple destructuring in `let` is not yet supported (e.g. `let (a, b) = (5, 7);`). Workaround: bind to a struct or to two separate `let` statements: `let a: i64 = 5; let b: i64 = 7;`. Tracked for a future ship — tuple-pattern lowering needed.");
-        // Skip ahead to next semicolon (43) for recovery.
+        // v0.4.33: pre-fix this emitted a placeholder let-stmt with a
+        // synthetic name and the build succeeded — the destructure
+        // bindings (a, b) silently never came into scope and any
+        // following code referencing them either failed at clang or
+        // (worse) resolved to a stale shadow. Halt now.
+        panic("nucleor: tuple destructuring in `let` not supported (see ERROR diagnostic above)");
         let mut sk: i64 = cp;
         while pk(tokens, sk) != 0 && pk(tokens, sk) != 43 { sk = sk + 1; };
         if pk(tokens, sk) == 43 { sk = sk + 1; };
-        // Emit a placeholder let-stmt with a synthetic name so the
-        // rest of the AST/codegen doesn't trip on the missing node.
         return pr(sk, mk5(pool, 20, "__tuple_destructure_unsupported__", 0, "", 0 - 1));
     };
     let name: i64 = pkv(tokens, cp); cp = cp + 1;
@@ -1701,7 +1732,32 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // at deref). Until then, emit a clear error pointing at the
         // workaround.
         if str_len(ptype) >= 5 && str_eq(str_substring(ptype, 0, 5), "&mut ") == 1 {
-            print(str_concat("ERROR: &mut reference parameter `", str_concat(pn, str_concat(": ", str_concat(ptype, "` in fn signature is not yet supported. Mutations via `*x = ...` would silently NOT propagate back to the caller. Workaround: return the new value (`fn foo(x: i64) -> i64 { return x + 1; }`) or use a `Vec<i64>` for shared state. Tracked for a future ship — get/store-via-pointer codegen needed.")))));
+            // v0.4.25: only PRIMITIVE `&mut T` is broken. `&mut Struct` /
+            // `&mut Enum` already works because those are heap handles
+            // passed as i64 — field stores (`s.x = ...`) go through the
+            // existing struct-field codegen, no ptr-deref-store needed.
+            // The silent-miscompute window is `&mut <scalar>` where
+            // `*x = ...` would need ptr-deref-store codegen we don't
+            // emit. Pre-fix the diagnostic printed but compile continued,
+            // the body was lowered as if the parameter were pass-by-value
+            // (`*x = 99` dropped), and the binary silently produced wrong
+            // output. Now: print the diagnostic, then hard-abort via panic
+            // so adopters can't unintentionally ship the silent-miscompute
+            // binary. `&mut Struct/Enum` keeps compiling cleanly.
+            let inner: str = str_substring(ptype, 5, str_len(ptype));
+            let is_scalar: i64 = if str_eq(inner, "i8") == 1 || str_eq(inner, "i16") == 1
+                || str_eq(inner, "i32") == 1 || str_eq(inner, "i64") == 1
+                || str_eq(inner, "i128") == 1 || str_eq(inner, "isize") == 1
+                || str_eq(inner, "u8") == 1 || str_eq(inner, "u16") == 1
+                || str_eq(inner, "u32") == 1 || str_eq(inner, "u64") == 1
+                || str_eq(inner, "u128") == 1 || str_eq(inner, "usize") == 1
+                || str_eq(inner, "f16") == 1 || str_eq(inner, "f32") == 1
+                || str_eq(inner, "f64") == 1 || str_eq(inner, "bf16") == 1
+                || str_eq(inner, "bool") == 1 || str_eq(inner, "char") == 1 { 1 } else { 0 };
+            if is_scalar == 1 {
+                print(str_concat("ERROR: &mut reference parameter `", str_concat(pn, str_concat(": ", str_concat(ptype, "` (scalar) in fn signature is not yet supported. Mutations via `*x = ...` would silently NOT propagate back to the caller. Workaround: return the new value (`fn foo(x: i64) -> i64 { return x + 1; }`) or use a `Vec<i64>` for shared state. `&mut Struct` works because struct fields share the heap handle. Tracked for a future ship — get/store-via-pointer codegen needed for primitives.")))));
+                panic("&mut <scalar> parameter not implemented; see ERROR diagnostic above for workarounds");
+            };
         };
         params.push(mk3(pool, 41, pn, ptype));
     };
@@ -1906,6 +1962,11 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // next stmt boundary with a clear diagnostic.
         if pk(tokens, cp) == 73 {
             print("ERROR: associated constants in traits are not yet supported (e.g. `trait T { const MAX: i64; }`). Workaround: declare the constant at module scope (`const MAX: i64 = 100;`) or as an inherent fn that returns the value. Tracked for a future ship.");
+            // v0.4.33: pre-fix the trait body kept parsing after this
+            // and the const declaration was silently dropped. Adopters
+            // got a trait with missing surface and downstream impls
+            // referencing the const failed at clang. Halt now.
+            panic("nucleor: associated constants in traits not supported (see ERROR diagnostic above)");
             while pk(tokens, cp) != 0 && pk(tokens, cp) != 43 && pk(tokens, cp) != 53 { cp = cp + 1; };
             if pk(tokens, cp) == 43 { cp = cp + 1; };
             continue;
@@ -1993,6 +2054,9 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // supported. Same diagnostic+recovery as trait body.
         if pk(tokens, cp) == 73 {
             print("ERROR: associated constants in impl blocks are not yet supported. Workaround: declare the constant at module scope or as an inherent fn that returns the value. Tracked for a future ship.");
+            // v0.4.33: same fix as the trait-body site — pre-fix the
+            // const decl was silently dropped from the impl surface.
+            panic("nucleor: associated constants in impl blocks not supported (see ERROR diagnostic above)");
             while pk(tokens, cp) != 0 && pk(tokens, cp) != 43 && pk(tokens, cp) != 53 { cp = cp + 1; };
             if pk(tokens, cp) == 43 { cp = cp + 1; };
             continue;
@@ -3086,10 +3150,22 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "str_from_int") { return "__nucleor_int_to_str"; };
     if str_eq(name, "f64_to_str") { return "__nucleor_f64_to_str"; };
     if str_eq(name, "f32_to_str") { return "__nucleor_f32_to_str"; };
+    // v0.4.27 RFC-0028 phase 5: precision-aware float formatters.
+    if str_eq(name, "f64_to_str_prec") { return "__nucleor_f64_to_str_prec"; };
+    if str_eq(name, "f32_to_str_prec") { return "__nucleor_f32_to_str_prec"; };
     if str_eq(name, "bool_to_str") { return "__nucleor_bool_to_str"; };
     if str_eq(name, "int_to_hex") { return "__nucleor_int_to_hex"; };
     if str_eq(name, "int_to_bin") { return "__nucleor_int_to_bin"; };
     if str_eq(name, "int_to_oct") { return "__nucleor_int_to_oct"; };
+    // v0.4.30 RFC-0028 phase 5: `{:+}` force-sign helper.
+    if str_eq(name, "int_to_str_force_sign") { return "__nucleor_int_to_str_force_sign"; };
+    // v0.4.37 RFC-0028 phase 5: `{:X}` upper-case hex helper.
+    if str_eq(name, "int_to_hex_upper") { return "__nucleor_int_to_hex_upper"; };
+    // v0.4.38 RFC-0028 phase 5: `{:e}` / `{:E}` scientific notation for f64.
+    if str_eq(name, "f64_to_str_sci") { return "__nucleor_f64_to_str_sci"; };
+    if str_eq(name, "f64_to_str_sci_upper") { return "__nucleor_f64_to_str_sci_upper"; };
+    if str_eq(name, "f64_to_str_sci_prec") { return "__nucleor_f64_to_str_sci_prec"; };
+    if str_eq(name, "f64_to_str_sci_prec_upper") { return "__nucleor_f64_to_str_sci_prec_upper"; };
     if str_eq(name, "str_to_i64_radix") { return "__nucleor_str_to_i64_radix"; };
     if str_eq(name, "parse_hex") { return "__nucleor_parse_hex"; };
     if str_eq(name, "parse_bin") { return "__nucleor_parse_bin"; };
@@ -3241,6 +3317,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "cpu_count") { return "__nucleor_cpu_count"; };
     if str_eq(name, "print_f64") { return "__nucleor_print_f64"; };
     if str_eq(name, "f64_from_scaled") { return "__nucleor_f64_from_scaled"; };
+    if str_eq(name, "f32_from_scaled") { return "__nucleor_f32_from_scaled"; };
     if str_eq(name, "f64_from_bits") { return "__nucleor_f64_from_bits"; };
     if str_eq(name, "f64_to_bits") { return "__nucleor_f64_to_bits"; };
     if str_eq(name, "f32_from_bits") { return "__nucleor_f32_from_bits"; };
@@ -3927,6 +4004,8 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "str_from_int") { return 1; };
     if str_eq(name, "f64_to_str") { return 1; };
     if str_eq(name, "f32_to_str") { return 1; };
+    if str_eq(name, "f64_to_str_prec") { return 1; };
+    if str_eq(name, "f32_to_str_prec") { return 1; };
     if str_eq(name, "f16_to_str") { return 1; };
     if str_eq(name, "bf16_to_str") { return 1; };
     if str_eq(name, "f8e4m3_to_str") { return 1; };
@@ -3935,6 +4014,13 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "int_to_hex") { return 1; };
     if str_eq(name, "int_to_bin") { return 1; };
     if str_eq(name, "int_to_oct") { return 1; };
+    // v0.4.30 force-sign helper returns ptr (str)
+    if str_eq(name, "int_to_str_force_sign") { return 1; };
+    if str_eq(name, "int_to_hex_upper") { return 1; };
+    if str_eq(name, "f64_to_str_sci") { return 1; };
+    if str_eq(name, "f64_to_str_sci_upper") { return 1; };
+    if str_eq(name, "f64_to_str_sci_prec") { return 1; };
+    if str_eq(name, "f64_to_str_sci_prec_upper") { return 1; };
     if str_eq(name, "str_pad_left") { return 1; };
     if str_eq(name, "str_pad_right") { return 1; };
     if str_eq(name, "str_center") { return 1; };
@@ -4222,6 +4308,27 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
 
 fn emit_builtin_call(sb: i64, name: str, rn: str, d: i64, argc: i64, args: Vec<i32>) -> i64 {
     let ds: str = str_from_int(d);
+    // v0.4.22 perf: inline str_char_at as GEP+load to eliminate the
+    // function-call overhead. Cold self-host compile makes 1.6 BILLION
+    // str_char_at calls; each runtime call adds ~3-5ns of linkage on top
+    // of the actual byte load. Inlining drops to 4 IR instructions = ~1ns
+    // each. Net: cold self-host 8.33s -> 4.82s (-42%, sub-5s achieved).
+    // Trade-off: NULL str now segfaults instead of returning 0. Compiler
+    // internal callers all source `s` from non-null strings; adopters who
+    // rely on the null-returns-0 behavior should null-check before calling.
+    if str_eq(name, "str_char_at") == 1 && argc == 2 {
+        let s_reg: str = str_from_int(vec_get(args, 0));
+        let i_reg: str = str_from_int(vec_get(args, 1));
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".sca.ptr = inttoptr i64 %r.");
+        sb_append(sb, s_reg); sb_append(sb, " to ptr\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".sca.gep = getelementptr i8, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".sca.ptr, i64 %r."); sb_append(sb, i_reg); sb_append(sb, "\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".sca.byte = load i8, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".sca.gep\n");
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = zext i8 %r.");
+        sb_append(sb, ds); sb_append(sb, ".sca.byte to i64\n");
+        return 0;
+    };
     // Step 1: inttoptr for ptr args
     let mut ai: i64 = 0;
     while ai < argc {
@@ -4592,10 +4699,18 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_int_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_f64_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_f32_to_str(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f64_to_str_prec(i64, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f32_to_str_prec(i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_bool_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_int_to_hex(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_int_to_bin(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_int_to_oct(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_int_to_str_force_sign(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_int_to_hex_upper(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f64_to_str_sci(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f64_to_str_sci_upper(i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f64_to_str_sci_prec(i64, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_f64_to_str_sci_prec_upper(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_str_to_i64_radix(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_parse_hex(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_parse_bin(ptr)\n");
@@ -4760,6 +4875,7 @@ fn emit_externs() -> str {
     // f64 (always available via nucleor_llvm_rt.c)
     sb_append(sb, "declare void @__nucleor_print_f64(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_from_scaled(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_f32_from_scaled(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_from_bits(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f64_to_bits(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_f32_from_bits(i64)\n");
@@ -5575,7 +5691,95 @@ fn emit_user_externs(pool: Vec<i32>, externs: Vec<i32>) -> str {
     return sb_to_str(sb);
 }
 
-fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec<i32>) -> str {
+// v0.4.23 RFC-NRT-005: DCE at rod-import boundary.
+//
+// Collect the set of fn names reachable from roots:
+//   - "main" (the entry point)
+//   - All #[export]-marked fns (callable from C/C++ via FFI)
+//   - All fns whose address is taken (op 29 = fn_ptr)
+//
+// Walks the call graph via op 19 (rt-call) and op 31 (user-call)
+// edges. Returns the set of reachable fn names. Use case: programs
+// that `use stdlib::rods::heavy_rod;` but only call one of its 50 fns
+// — pre-DCE all 50 emit, post-DCE only the 1 + transitive callees +
+// roots emit. Library-only compiles (no main, no #[export]) skip DCE
+// and keep all fns to avoid breaking the link.
+fn dce_collect_reachable(fns: Vec<i32>, src: str) -> Vec<i32> {
+    let nf: i64 = vec_len(fns);
+    let mut visited: Vec<i32> = Vec::new();
+    if nf == 0 { return visited; };
+    let mut worklist: Vec<i32> = Vec::new();
+    worklist.push("main");
+    let empty_repr: Vec<i32> = Vec::new();
+    let exports: Vec<i32> = collect_export_fns_and_sigs(src, empty_repr);
+    let nexp: i64 = vec_len(exports);
+    let mut ei: i64 = 0;
+    while ei + 2 < nexp {
+        worklist.push(vec_get(exports, ei));
+        ei = ei + 3;
+    };
+    // Pre-scan all fns for op 29 (fn_ptr) — addressed fns must be kept.
+    let mut fi: i64 = 0;
+    while fi < nf {
+        let f: Vec<i32> = vec_get(fns, fi);
+        let nblocks: i64 = ir_fn_block_count(f);
+        let mut bi: i64 = 0;
+        while bi < nblocks {
+            let blk: Vec<i32> = ir_fn_get_block(f, bi);
+            let nins: i64 = ir_block_inst_count(blk);
+            let mut ii: i64 = 0;
+            while ii < nins {
+                let inst: Vec<i32> = ir_block_get_inst(blk, ii);
+                if ir_op(inst) == 29 { worklist.push(ir_op1(inst)); };
+                ii = ii + 1;
+            };
+            bi = bi + 1;
+        };
+        fi = fi + 1;
+    };
+    // BFS over call edges.
+    while vec_len(worklist) > 0 {
+        let name: str = vec_get(worklist, vec_len(worklist) - 1);
+        vec_pop(worklist);
+        let nv: i64 = vec_len(visited);
+        let mut already: i64 = 0;
+        let mut vi: i64 = 0;
+        while vi < nv {
+            if str_eq(vec_get(visited, vi), name) == 1 { already = 1; vi = nv; };
+            vi = vi + 1;
+        };
+        if already == 1 { continue; };
+        visited.push(name);
+        let mut found_idx: i64 = 0 - 1;
+        let mut sf: i64 = 0;
+        while sf < nf {
+            let cf: Vec<i32> = vec_get(fns, sf);
+            if str_eq(ir_fn_name(cf), name) == 1 { found_idx = sf; sf = nf; };
+            sf = sf + 1;
+        };
+        if found_idx < 0 { continue; };
+        let f: Vec<i32> = vec_get(fns, found_idx);
+        let nblocks: i64 = ir_fn_block_count(f);
+        let mut bi: i64 = 0;
+        while bi < nblocks {
+            let blk: Vec<i32> = ir_fn_get_block(f, bi);
+            let nins: i64 = ir_block_inst_count(blk);
+            let mut ii: i64 = 0;
+            while ii < nins {
+                let inst: Vec<i32> = ir_block_get_inst(blk, ii);
+                let op: i64 = ir_op(inst);
+                if op == 19 || op == 31 || op == 29 {
+                    worklist.push(ir_op1(inst));
+                };
+                ii = ii + 1;
+            };
+            bi = bi + 1;
+        };
+    };
+    return visited;
+}
+
+fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec<i32>, src: str) -> str {
     // Pre-size the IR builder to ~2 MB. The s1 self-host produces
     // 2.7 MB of IR; without pre-sizing the SB grows from 256 B
     // through 14 reallocs (256→512→…→4M), each copying the
@@ -5598,11 +5802,31 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
     // catch it at compile time with a precise message naming the
     // duplicate symbol; user can resolve by renaming one definition
     // (already the recommended naming convention).
+    // v0.4.23 RFC-NRT-005: DCE filter. With main or any #[export], only
+    // emit reachable fns. Library-only compiles (no roots) keep all to
+    // avoid breaking the link.
+    let dce_set: Vec<i32> = dce_collect_reachable(fns, src);
+    let dce_active: i64 = if vec_len(dce_set) > 0 { 1 } else { 0 };
+    let mut dce_skipped: i64 = 0;
     let mut seen_fns: Vec<i32> = Vec::new();
     let mut fi: i64 = 0;
     while fi < vec_len(fns) {
         let f: Vec<i32> = vec_get(fns, fi);
         let fn_name: str = ir_fn_name(f);
+        if dce_active == 1 && str_len(fn_name) > 0 {
+            let mut keep: i64 = 0;
+            let nds: i64 = vec_len(dce_set);
+            let mut di: i64 = 0;
+            while di < nds {
+                if str_eq(vec_get(dce_set, di), fn_name) == 1 { keep = 1; di = nds; };
+                di = di + 1;
+            };
+            if keep == 0 {
+                dce_skipped = dce_skipped + 1;
+                fi = fi + 1;
+                continue;
+            };
+        };
         // skip empty / generated names (they get unique numeric suffixes)
         if str_len(fn_name) > 0 && str_eq(fn_name, "main") == 0 {
             let mut sj: i64 = 0;
@@ -5623,6 +5847,11 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
             seen_fns.push(fn_name);
         };
         sb_append(sb, emit_fn(f, pool, externs)); sb_append(sb, "\n"); fi = fi + 1;
+    };
+    if dce_active == 1 && dce_skipped > 0 {
+        print(str_concat("  DCE: ", str_concat(str_from_int(dce_skipped),
+            str_concat(" of ", str_concat(str_from_int(vec_len(fns)),
+                " fns elided as unreachable")))));
     };
     return sb_to_str(sb);
 }
@@ -10920,6 +11149,11 @@ fn closure_collect_capture_stmt(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params:
             let lname: str = node_field(pool, lhs, 1);
             if sym_get(sym, lname) >= 0 && capture_param_has(pool, params, lname) == 0 {
                 print(str_concat("ERROR: closure cannot mutate captured variable `", str_concat(lname, "` via assignment. The mutation would write to the closure's local copy and silently NOT propagate back to the caller's scope (FnMut semantics not yet supported). Workaround: have the closure RETURN the new value (`let new = inc(5); total = new;`) or use a `Vec<i64>` for shared mutable state. Tracked for a future ship.")));
+                // v0.4.32: pre-fix the closure was constructed and the
+                // build succeeded — the mutation silently no-op'd at
+                // runtime. Halt the compiler so adopters see the
+                // diagnostic above as a hard error, not a passing build.
+                panic(str_concat("nucleor: closure mutate-capture not supported for `", str_concat(lname, "`")));
             };
         };
         closure_collect_capture_expr(pool, node_field(pool, nid, 1), sym, params, caps);
@@ -11087,6 +11321,20 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         conv_args.push(scaled_r);
         let r: i64 = ctr_next(regs);
         ir_block_add(blk, ir_call_ex(r, "f64_from_scaled", conv_args));
+        return lx_new(r, blk);
+    };
+    // v0.4.24 (NUC-FEEDBACK-002): f32 literal (kind 73). Same scaled-int
+    // encoding as kind 71 but routes through f32_from_scaled so the
+    // resulting i64 is the f32 bit pattern, not the f64 one. Without
+    // this, `1.0f32` stored an f64 bit pattern in `Vec<f32>` slots and
+    // `vec_get` returning to an f32 consumer printed 0.
+    if kind == 73 {
+        let scaled_r: i64 = ctr_next(regs);
+        ir_block_add(blk, ir_const_int(scaled_r, node_field(pool, nid, 1)));
+        let mut conv_args: Vec<i32> = Vec::new();
+        conv_args.push(scaled_r);
+        let r: i64 = ctr_next(regs);
+        ir_block_add(blk, ir_call_ex(r, "f32_from_scaled", conv_args));
         return lx_new(r, blk);
     };
     // v0.3.133: f64 raw-bits literal (AST kind 72). Value IS the i64
@@ -11523,6 +11771,11 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // multi-arg formatting.
             if argc > 1 {
                 print(str_concat("ERROR: print() takes exactly 1 argument (got ", str_concat(str_from_int(argc), "). For multi-arg formatting, use print!/println! macros (e.g. println!(\"x={} y={}\", x, y)). The bare print() function lowers to __nucleor_print_str/i64/f64/bool and only consumes the first arg.")));
+                // v0.4.35: pre-fix the lowering kept going with argc==1
+                // path — the second+ args were silently dropped from
+                // the binary. Adopter writing `print("x is", x)` got
+                // "x is" with no diagnostic that x was lost. Halt now.
+                panic(str_concat("nucleor: print() takes exactly 1 arg (got ", str_concat(str_from_int(argc), ")")));
             };
             if argc == 1 {
                 let parg_nid: i64 = list_get(pool, args_list, 0);
@@ -12313,6 +12566,12 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // Production-readiness: any unsupported `Type::method(...)` shape
         // now reports the exact type and method that needs wiring.
         print(str_concat("ERROR: unsupported associated-fn call ", str_concat(tname, str_concat("::", str_concat(mname, "(...). Supported: Vec/String/Box/HashMap/HSet/BTMap/BTSet/VecDeque ::new, Tensor::{zeros,fill,ones}, enum variants. For Rust-style HashMap/etc operations, use the lowercase API (hashmap_new, hashmap_insert, ...) until method dispatch lands.")))));
+        // v0.4.31: pre-fix this lowered to `const_int(0)` and continued
+        // — silent miscompute. Adopters writing
+        // `let x: Foo = Bar::unknown_method()` got x = 0 in the binary
+        // with no link/runtime failure. Halt the compiler now so the
+        // diagnostic above is seen as a hard error, not a passing build.
+        panic(str_concat("nucleor: unsupported associated-fn call ", str_concat(tname, str_concat("::", mname))));
         let zr: i64 = ctr_next(regs);
         ir_block_add(blk, ir_const_int(zr, 0));
         return lx_new(zr, blk);
@@ -12580,6 +12839,11 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let si: i64 = struct_find_type(pool, structs, sname);
         if si < 0 {
             print(str_concat("ERROR: unknown struct ", sname));
+            // v0.4.36: pre-fix lowered to `lx_new(-1, blk)` which produced
+            // `%r.-1` invalid IR — clang caught it but pointed at LLVM,
+            // not source (NUC-FEEDBACK-010 territory). Halt at compiler
+            // level so the diagnostic above is the actionable error.
+            panic(str_concat("nucleor: unknown struct ", sname));
             return lx_new(0 - 1, blk);
         };
         let s_nid: i64 = vec_get(structs, si);
@@ -12766,6 +13030,13 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return lx_new(r, cur);
     };
     print(str_concat("ERROR: unhandled expr kind ", str_from_int(kind)));
+    // v0.4.34: pre-fix this returned `lx_new(-1, blk)` which lowered
+    // downstream to `%r.-1` invalid IR — clang caught the broken IR
+    // but produced a confusing "use of undefined value" message that
+    // pointed at IR, not source. Halting at compiler level surfaces
+    // the actual cause: an AST node kind the lowerer doesn't handle
+    // (likely a new feature not yet wired or a parser/lower drift).
+    panic(str_concat("nucleor: unhandled expr kind ", str_from_int(kind)));
     return lx_new(0 - 1, blk);
 }
 // T1.1 Phase 5: detect whether an AST expression node has a known
@@ -12937,6 +13208,12 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
     };
     if kind == 71 { return "f64"; };
     if kind == 72 { return "f64"; };
+    // v0.4.24 (NUC-FEEDBACK-002 follow-on): kind 73 is f32 literal,
+    // introduced when the lexer/parser started preserving the f32 suffix.
+    // Without this entry, unary minus on an f32 literal fell to the
+    // integer-subtract path and `-1.5f32` evaluated to -3.0 (silent
+    // miscompute caught when binop_float_type returned "" for kind 73).
+    if kind == 73 { return "f32"; };
     // v0.3.53 fix: struct field access. Pre-v0.3.53 this fell
     // through to "" → integer binop, mis-computing inline
     // f64 ops on struct-field operands (`a.x * b.x` etc).
@@ -13211,6 +13488,11 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let parent_kind: i64 = node_kind(pool, node_field(pool, lhs, 1));
             if parent_kind == 9 {
                 print("ERROR: nested struct field assignment is not yet supported (e.g. `outer.inner.field = X`). Workaround: copy the inner struct to a local, mutate the local, then assign it back: `let mut tmp = outer.inner; tmp.field = X; outer.inner = tmp;`. Tracked for a future ship — get-modify-set lowering needed.");
+                // v0.4.32: pre-fix this returned `cur` silently — the
+                // assignment was dropped, the build succeeded, and the
+                // adopter's binary returned with the inner field
+                // unchanged at runtime. Halt the compiler now.
+                panic("nucleor: nested struct field assignment not supported (see ERROR diagnostic above)");
                 return cur;
             };
         };
@@ -13554,6 +13836,10 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return cur;
     };
     print(str_concat("ERROR: unknown stmt kind ", str_from_int(kind)));
+    // v0.4.34: pre-fix this silently returned `cur` (the current basic
+    // block) — the stmt was DROPPED from the IR with no clang error.
+    // Adopter binary skipped the statement entirely. Halt now.
+    panic(str_concat("nucleor: unknown stmt kind ", str_from_int(kind)));
     return cur;
 }
 fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
@@ -14842,7 +15128,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     print(str_concat("  strings: ", str_from_int(vec_len(strtab))));
     print(str_concat("  optimized: ", str_concat(str_from_int(opt_total), " instructions")));
     let emit_start: i64 = now_ms();
-    let ll: str = emit_module_ext(fns, strtab, pool, externs);
+    let ll: str = emit_module_ext(fns, strtab, pool, externs, source);
     print_phase_time(time_passes, "emit", now_ms() - emit_start);
     let rc: i64 = link_native_module(ll, safe_out_name, imported, cache_ll_path, link_native, time_passes);
     print_phase_time(time_passes, "total", now_ms() - total_start);
@@ -17253,9 +17539,240 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
     if str_eq(spec, ":i") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
     if str_eq(spec, ":s") == 1 { return arg_expr; };
     if str_eq(spec, ":f") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
-    if str_eq(spec, ":b") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
-    // Unknown spec — pass through int_to_str for safety.
-    return str_concat("int_to_str(", str_concat(arg_expr, ")"));
+    // v0.4.41: `{:?}` Debug formatter. Rust convention: same as `{}`
+    // for primitives (int/float/bool); for strings, wrap in quotes.
+    // Since most adopters reach for `:?` to debug a str, the quote-wrap
+    // is the high-value case. Other types pass through to empty-spec
+    // dispatch so the type-detection picks the right *_to_str helper.
+    if str_eq(spec, ":?") == 1 {
+        let inferred: str = type_base_name(infer_var_type_from_source(src, arg_expr));
+        if str_eq(inferred, "str") == 1 || str_eq(inferred, "String") == 1 {
+            return str_concat("str_concat(\"\\\"\", str_concat(", str_concat(arg_expr, ", \"\\\"\"))"));
+        };
+        // For non-str (or unknown), fall through to empty-spec dispatcher.
+        return fmt_conversion_for_spec("", arg_expr, src);
+    };
+    // v0.4.29: `:b` is BINARY RADIX per Rust convention — falls through to
+    // the spec parser below (type_char = 'b' → int_to_bin). Pre-v0.4.29 we
+    // routed this to bool_to_str which was a non-Rust dialect divergence
+    // (Rust uses `:?` Debug for bool). No fixture depends on the old behavior.
+    // v0.4.27 RFC-0028 phase 5: precision + width spec dispatch.
+    // Spec arrives as ":<rust-spec-body>", e.g. ":.3", ":>10", ":<10",
+    // ":^10", ":08", ":>10.3", ":>10". Parse the body into:
+    //   align: 0 = none, 1 = '<' left, 2 = '>' right, 3 = '^' center
+    //   fill_char: ' ' or '0' (zero-pad shortcut)
+    //   width: integer or 0 (unset)
+    //   precision: integer or -1 (unset)
+    // After the type-dispatched <type>_to_str(arg) is built, wrap with
+    // the appropriate pad helper if width > 0.
+    let speclen: i64 = str_len(spec);
+    if speclen >= 2 && str_char_at(spec, 0) == 58 {
+        let mut align: i64 = 0;
+        let mut fill_char: i64 = 32;  // ' '
+        let mut width: i64 = 0;
+        let mut prec: i64 = 0 - 1;
+        let mut type_char: i64 = 0;   // 'x','o','b','X' if set
+        let mut force_sign: i64 = 0;  // '+'
+        let mut alt_form: i64 = 0;    // '#' (0x/0o/0b prefix)
+        let mut p: i64 = 1;  // skip ':'
+        // v0.4.29: optional fill char + align — Rust grammar is
+        // [[fill]align]. Detect by looking at chars 1 and 2 of spec:
+        // if spec[2] is <,>,^ then spec[1] is the fill char.
+        // Standard align (no custom fill) is just spec[1] in {<,>,^}.
+        let c0: i64 = if p < speclen { str_char_at(spec, p) } else { 0 };
+        let c1: i64 = if p + 1 < speclen { str_char_at(spec, p + 1) } else { 0 };
+        if c1 == 60 || c1 == 62 || c1 == 94 {
+            // Custom fill char + align
+            fill_char = c0;
+            if c1 == 60 { align = 1; }
+            else if c1 == 62 { align = 2; }
+            else { align = 3; };
+            p = p + 2;
+        } else if c0 == 60 { align = 1; p = p + 1; }
+        else if c0 == 62 { align = 2; p = p + 1; }
+        else if c0 == 94 { align = 3; p = p + 1; };
+        // Optional sign: '+' (force sign on positives)
+        if p < speclen && str_char_at(spec, p) == 43 {
+            force_sign = 1;
+            p = p + 1;
+        };
+        // Optional alternate form: '#'
+        if p < speclen && str_char_at(spec, p) == 35 {
+            alt_form = 1;
+            p = p + 1;
+        };
+        // Optional zero-pad shortcut: '0<width>'
+        if align == 0 && p < speclen && str_char_at(spec, p) == 48 {
+            let nxt: i64 = if p + 1 < speclen { str_char_at(spec, p + 1) } else { 0 };
+            if nxt >= 48 && nxt <= 57 {
+                fill_char = 48;  // '0'
+                align = 2;       // right-align (zero-pad default)
+                p = p + 1;       // consume the '0'
+            };
+        };
+        // Width digits
+        let mut width_seen: i64 = 0;
+        while p < speclen {
+            let dc: i64 = str_char_at(spec, p);
+            if dc >= 48 && dc <= 57 {
+                width = width * 10 + (dc - 48);
+                width_seen = 1;
+                p = p + 1;
+            } else {
+                p = speclen + 100;
+            };
+        };
+        // Restore p to "after width digits" position. Recompute by
+        // re-scanning from the start through the prefix segments.
+        p = 1;
+        if c1 == 60 || c1 == 62 || c1 == 94 { p = p + 2; }
+        else if c0 == 60 || c0 == 62 || c0 == 94 { p = p + 1; };
+        if force_sign == 1 { p = p + 1; };
+        if alt_form == 1 { p = p + 1; };
+        if fill_char == 48 && align == 2
+           && c0 != 60 && c0 != 62 && c0 != 94
+           && !(c1 == 60 || c1 == 62 || c1 == 94) { p = p + 1; };
+        while p < speclen && str_char_at(spec, p) >= 48 && str_char_at(spec, p) <= 57 { p = p + 1; };
+        // Optional precision: '.<digits>'
+        // v0.4.38: break the digit-scan loop on first non-digit WITHOUT
+        // advancing p — the type char (e/E/x/o/b) sits right after the
+        // precision digits and the next phase needs to see it.
+        if p < speclen && str_char_at(spec, p) == 46 {
+            p = p + 1;
+            prec = 0;
+            let mut prec_done: i64 = 0;
+            while p < speclen && prec_done == 0 {
+                let pc: i64 = str_char_at(spec, p);
+                if pc >= 48 && pc <= 57 { prec = prec * 10 + (pc - 48); p = p + 1; }
+                else { prec_done = 1; };
+            };
+        };
+        // Optional type char (last): 'x' hex, 'X' upper hex, 'o' oct,
+        // 'b' bin, 'e'/'E' scientific notation (v0.4.38).
+        if p < speclen {
+            let tc: i64 = str_char_at(spec, p);
+            if tc == 120 || tc == 88 || tc == 111 || tc == 98 || tc == 101 || tc == 69 {
+                type_char = tc;
+                p = p + 1;
+            };
+        };
+        // If we parsed a complete recognized spec, build the wrap.
+        let has_format: i64 = if width_seen == 1 || prec >= 0 || align != 0
+                                 || type_char != 0 || force_sign == 1 || alt_form == 1 { 1 } else { 0 };
+        if has_format == 1 {
+            // First produce the typed conversion; apply precision if requested
+            // and arg is f32/f64.
+            let plain: str = fmt_conversion_for_spec("", arg_expr, src);
+            let plen: i64 = str_len(plain);
+            let mut typed: str = plain;
+            // v0.4.29: if type_char is a radix (x/X/o/b), substitute the
+            // int_to_<radix> helper. The arg is treated as i64 regardless
+            // of what the empty-spec dispatcher picked.
+            if type_char != 0 {
+                // v0.4.37: 'x' lowercase → int_to_hex; 'X' upper → int_to_hex_upper
+                if type_char == 120 {
+                    typed = str_concat("int_to_hex(", str_concat(arg_expr, ")"));
+                } else if type_char == 88 {
+                    typed = str_concat("int_to_hex_upper(", str_concat(arg_expr, ")"));
+                } else if type_char == 111 {
+                    typed = str_concat("int_to_oct(", str_concat(arg_expr, ")"));
+                } else if type_char == 98 {
+                    typed = str_concat("int_to_bin(", str_concat(arg_expr, ")"));
+                };
+                // v0.4.38: 'e' / 'E' scientific notation. Routes through
+                // f64-bit-pattern helpers — arg is already an i64 holding
+                // the f64 bit pattern at the i64-everywhere ABI level.
+                // If precision was set (e.g. {:.3e}), use the prec variant.
+                if type_char == 101 {
+                    if prec >= 0 {
+                        let prec_s: str = str_from_int(prec);
+                        typed = str_concat("f64_to_str_sci_prec(", str_concat(arg_expr, str_concat(", ", str_concat(prec_s, ")"))));
+                    } else {
+                        typed = str_concat("f64_to_str_sci(", str_concat(arg_expr, ")"));
+                    };
+                };
+                if type_char == 69 {
+                    if prec >= 0 {
+                        let prec_s: str = str_from_int(prec);
+                        typed = str_concat("f64_to_str_sci_prec_upper(", str_concat(arg_expr, str_concat(", ", str_concat(prec_s, ")"))));
+                    } else {
+                        typed = str_concat("f64_to_str_sci_upper(", str_concat(arg_expr, ")"));
+                    };
+                };
+                // v0.4.29: '#' alternate form prepends 0x/0o/0b prefix.
+                if alt_form == 1 {
+                    let mut prefix: str = "";
+                    if type_char == 120 || type_char == 88 { prefix = "0x"; }
+                    else if type_char == 111 { prefix = "0o"; }
+                    else if type_char == 98 { prefix = "0b"; };
+                    if str_len(prefix) > 0 {
+                        typed = str_concat("str_concat(\"", str_concat(prefix, str_concat("\", ", str_concat(typed, ")"))));
+                    };
+                };
+            };
+            if prec >= 0 && type_char == 0 {
+                let prec_str: str = str_from_int(prec);
+                if plen >= 12 && str_eq(str_substring(plain, 0, 11), "f64_to_str(") == 1 {
+                    let inner: str = str_substring(plain, 11, plen - 1);
+                    typed = str_concat("f64_to_str_prec(", str_concat(inner, str_concat(", ", str_concat(prec_str, ")"))));
+                } else if plen >= 12 && str_eq(str_substring(plain, 0, 11), "f32_to_str(") == 1 {
+                    let inner: str = str_substring(plain, 11, plen - 1);
+                    typed = str_concat("f32_to_str_prec(", str_concat(inner, str_concat(", ", str_concat(prec_str, ")"))));
+                };
+                // Non-float: precision silently ignored (Rust behavior).
+            };
+            // v0.4.30 RFC-0028 phase 5: '+' force-sign emission via the
+            // runtime helper `__nucleor_int_to_str_force_sign`. Helper
+            // takes the arg ONCE and prints "+N" for non-negatives,
+            // "-N" for negatives. Avoids double-evaluation that a
+            // ternary lowering would cause for side-effecting fn-call
+            // args. Only kicks in for plain integer dispatch (when
+            // `typed` looks like `int_to_str(...)` — the empty-spec
+            // result for an i64 arg). Floats / strings / bools ignore
+            // force_sign (consistent with Rust: `:+` on non-numeric
+            // is silently no-op).
+            if force_sign == 1 {
+                let tlen: i64 = str_len(typed);
+                if tlen >= 12 && str_eq(str_substring(typed, 0, 11), "int_to_str(") == 1 {
+                    let inner_int: str = str_substring(typed, 11, tlen - 1);
+                    typed = str_concat("int_to_str_force_sign(", str_concat(inner_int, ")"));
+                };
+            };
+            // Now apply width via str_pad_*. Numeric default-align is right.
+            if width > 0 {
+                let width_str: str = str_from_int(width);
+                let fill_str: str = str_from_int(fill_char);
+                // align == 0 means no explicit align; default right for numerics,
+                // left for strings. For simplicity (and to match Rust's
+                // numeric default), use right when fill is '0' or arg is
+                // numeric-looking; otherwise left. Heuristic: if `typed`
+                // contains "_to_str(" it's a numeric or bool conversion;
+                // route to right-align. If it's just `arg_expr` (str), left.
+                let mut chosen: i64 = align;
+                if chosen == 0 {
+                    if str_contains(typed, "_to_str(") == 1 || str_contains(typed, "_to_str_prec(") == 1 {
+                        chosen = 2;  // right
+                    } else {
+                        chosen = 1;  // left
+                    };
+                };
+                if chosen == 1 {
+                    // left-align => content on left, padding on right => str_pad_right
+                    return str_concat("str_pad_right(", str_concat(typed, str_concat(", ", str_concat(width_str, str_concat(", ", str_concat(fill_str, ")"))))));
+                };
+                if chosen == 3 {
+                    return str_concat("str_center(", str_concat(typed, str_concat(", ", str_concat(width_str, str_concat(", ", str_concat(fill_str, ")"))))));
+                };
+                // right-align (default for numerics) => str_pad_left
+                return str_concat("str_pad_left(", str_concat(typed, str_concat(", ", str_concat(width_str, str_concat(", ", str_concat(fill_str, ")"))))));
+            };
+            // Width 0 (precision-only path). Already handled by typed.
+            return typed;
+        };
+    };
+    // Unknown / unrecognized spec — recurse into empty-spec dispatcher
+    // so type inference picks the right `<type>_to_str`.
+    return fmt_conversion_for_spec("", arg_expr, src);
 }
 
 fn fmt_build_concat_chain(segments: Vec<i32>, parities: Vec<i32>) -> str {
