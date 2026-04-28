@@ -1108,6 +1108,23 @@ t356_indexed_lhs_diagnostic() {
     return 0
 }
 
+t394_or_patterns() {
+    # T3.94 (v0.4.49): RFC-0023 partial — `A | B | C => body` or-patterns
+    # for int literals + wildcards. Pre-v0.4.49 the parser silently
+    # miscomputed (printed parse errors but continued, build succeeded,
+    # match returned the wildcard arm for every input).
+    "$BIN" build "tests/fixtures/repro_v49_or_patterns.nr" -o "_t394_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local exe
+    if [ -f "target/_t394_check.exe" ]; then exe="target/_t394_check.exe"; else exe="target/_t394_check"; fi
+    [ -f "$exe" ] || return 1
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    # main returns total = 100+100+200+200+200+0 = 800; bash truncates to 8 bits => 800 mod 256 = 32.
+    [ "$rc" = "32" ] || return 1
+    grep -qx "800" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t393_vec_get_as_cast_guard() {
     # T3.93 (v0.4.48): NUC-FEEDBACK-002 silent-miscompute guard extended
     # to the fn-call form `vec_get(v, i) as f32` (and vec_first/vec_last/
@@ -2772,6 +2789,7 @@ step "T3.90 v0.4.40 RFC-0028 phase 5 — custom fill char (closes phase 5)" t390
 step "T3.91 v0.4.41 RFC-0028 phase 5+ — :? Debug formatter (str quoting)" t391_format_debug
 step "T3.92 v0.4.47 NUC-FEEDBACK-002 — Vec<f32>/[i] as f32 silent-miscompute guard" t392_vec_narrow_float_as_cast_guard
 step "T3.93 v0.4.48 NUC-FEEDBACK-002 — vec_get(v, i) as f32 fn-call form silent-miscompute guard" t393_vec_get_as_cast_guard
+step "T3.94 v0.4.49 RFC-0023 partial — int-literal/wildcard or-patterns (silent miscompute close)" t394_or_patterns
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

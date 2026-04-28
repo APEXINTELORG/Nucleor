@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.49] — 2026-04-28
+
+**RFC-0023 partial: int-literal + wildcard or-patterns
+(`A | B | C => body`) — silent miscompute closed.**
+
+Pre-v0.4.49 the parser printed parse errors at each `|` token but
+continued silently; the build succeeded and the match returned the
+wildcard arm value for every input. Adopters writing the canonical
+Rust idiom got a quiet wrong result.
+
+```
+match x {
+    1 | 2 => 100,        // pre-v0.4.49: returned 0 for any input
+    3 | 4 | 5 => 200,    // (the wildcard `_` arm)
+    _ => 0,
+};
+```
+
+### Fix
+
+`parse_match_stmt` now collects OR'd patterns into `pat_list`,
+parses the body once, and emits one match arm per pattern (sharing
+the body + guard). Each per-pattern arm uses the existing single-
+pattern lower path, so the fix needs no codegen change beyond the
+parser.
+
+Currently supports int-literal and wildcard patterns in `|` chains
+(the common case for matching numeric values). Enum or-patterns
+(e.g. `Some(x) | None => ...`) and binding or-patterns are
+NOT YET supported — they fall through to a clear diagnostic.
+
+### Verify
+
+- 470/470 PASS at ~302s per-step (within 295-304s baseline)
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v49_or_patterns.nr` exercises 6
+  inputs across two or-pattern arms + the wildcard fallback,
+  asserts main returns 800 (process exit 32 = 800 mod 256)
+
 ## [0.4.48] — 2026-04-28
 
 **NUC-FEEDBACK-002 silent-miscompute guard extended to the fn-call
