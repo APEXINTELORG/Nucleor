@@ -10903,12 +10903,55 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 };
             };
         };
-        // v0.4.57 (DEFERRED): undefined-fn-call guard tried here but
-        // had too many false positives (closure-generated names like
-        // __closure_0, fn-pointer dispatch sites, closure-capture
-        // helpers). Need to thread a closure-known-name table through
-        // type_expr to filter those out before flagging undefined
-        // callees. Hazard documented in ML_SUITE_FEEDBACK_QUEUE.md.
+        // v0.4.60: NUC-FEEDBACK silent-undefined-symbol guard.
+        // Closes deferral #2 from the queue. Pre-fix `let x: i64 =
+        // nonexistent_function(42);` silently emitted broken IR and
+        // failed late at clang link with `undefined value
+        // '@nonexistent_function'`.
+        //
+        // The v0.4.57 attempt fired on closure-generated callees
+        // (`__closure_N`) and fn-pointer dispatch sites. v0.4.60 adds
+        // 3 filters to suppress those false positives:
+        //   1. Skip if callee starts with `__` (compiler-generated)
+        //   2. Skip if first character is uppercase (Type-prefixed
+        //      mangled names, though most go through kind 12)
+        //   3. Skip if `tenv_get(env, callee)` is non-empty
+        //      (callee is a registered variable holding an fn pointer)
+        if sentry < 0 && type_dynamic_helper(callee) == 0 && str_len(get_rt_name(callee)) == 0 && str_len(builtin_rtype(callee)) == 0 {
+            let clen: i64 = str_len(callee);
+            let mut suppress: i64 = 0;
+            if clen >= 2 && str_char_at(callee, 0) == 95 && str_char_at(callee, 1) == 95 {
+                suppress = 1;
+            };
+            if clen >= 1 {
+                let c0: i64 = str_char_at(callee, 0);
+                if c0 >= 65 && c0 <= 90 { suppress = 1; };
+            };
+            if suppress == 0 {
+                // Check existence via sym_get directly — tenv_get returns
+                // "" both for "missing" and for "registered but type
+                // unknown" (the latter happens for closure bindings whose
+                // init type is "").
+                if sym_get(env, callee) >= 0 { suppress = 1; };
+            };
+            if suppress == 0 {
+                // v0.4.60: emit at WARNING tier, not ERROR. Cross-module
+                // private fns (e.g. `lib_helper` from a non-pub'd
+                // sibling module) are unknown at type-check time but
+                // get cleanly upgraded to MOD-003 by priv_lift_link_errors
+                // after clang errors with `use of undefined value`.
+                // If we halted the build at type-check, MOD-003 would
+                // never get a chance — adopters with privatization
+                // mistakes would see TYP-005 instead of the more
+                // helpful "add `pub`" hint. Warning means: print a
+                // compile-time signal up front, but let the link path
+                // produce the canonical diagnostic. For truly-undefined
+                // fns (no privatization match), clang link error halts
+                // the build naturally.
+                let nloc_undef: Vec<i32> = find_linecol_in_source(source, fn_name, callee);
+                diag_add_ex(diags, "warning", "type", "TYP-005", str_concat("undefined function `", str_concat(callee, "()` at type-check time (will fail at clang link if not a privatized cross-module fn). Check spelling, or import the rod that defines it.")), fn_name, vec_get(nloc_undef, 0), vec_get(nloc_undef, 1), "");
+            };
+        };
         tprof_mark(tprof, 9, 10, call_start);
         return builtin_rtype(callee);
     };
