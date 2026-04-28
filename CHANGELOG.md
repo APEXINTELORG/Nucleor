@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.70] — 2026-04-28
+
+**Audit-derived batch close: NUM-002 promoted to error + format
+placeholder/arg-count mismatch halts at preprocess.**
+
+Per the v0.4 audit (`docs/milestones/AUDIT_RESPONSE_2026-04-28.md`):
+
+### Section 1 (partial): NUM-002 warning → error
+
+Pre-fix `let x: u8 = 256;` truncated silently to 0 with only a
+warning. Adopters writing canonical Rust got E0080 in Rust; in
+Nucleor the wrong value propagated. Promoted to "error" severity +
+added "Use a wider type or change the literal." workaround hint.
+
+### Section 10 (partial): format placeholder/arg-count mismatch
+
+Pre-fix `println!("{} and {}", 42)` rendered the literal text
+`<MISSING>` at runtime where the second arg should have been —
+silent wrong output. `expand_format_macros` now panic()s at
+preprocess when placeholder count > arg count, naming the format
+body and arg count.
+
+### Verify
+
+- 491/491 PASS
+- T1.7 bootstrap seed matches
+- 2 new pins: `repro_v70a_num002_promoted.nr`,
+  `repro_v70b_format_arg_count.nr`
+- Single verify gate run for both closes (per new batched-ship
+  protocol — see audit-response doc)
+
 ## [0.4.69] — 2026-04-28
 
 **`=` vs `==` typo guard in `while` / `if` conditions.**
