@@ -312,6 +312,21 @@ RFC-scale. Post-v1.
 
 ## Sync protocol
 
+## Deferred — known silent miscomputes awaiting compiler fixes
+
+### Vec<T> == Vec<T> pointer comparison (DEFERRED, found 2026-04-28)
+Pre-fix `if v1 == v2` for two Vec<T> values returned FALSE even when
+the elements matched — the binop lowered to integer pointer compare
+on the Vec ptrs, silently miscomputing. Same root cause as the str==
+close in v0.4.52, but the source-scan fallback path needed to recover
+`Vec<T>` from `let v: Vec<T> = vec![...]` (where tenv stores `""`)
+crashed the compiler with a segfault inside infer_var_type_from_source
+when called from the binop type_expr branch. Rolled back at v0.4.53.
+Workaround for adopters: write an explicit element-wise loop
+(`let mut eq: bool = vec_len(a) == vec_len(b); let mut i: i64 = 0;
+while eq && i < vec_len(a) { eq = a[i] == b[i]; i = i + 1; };`).
+**Tracked for v0.4.54+ once the recursion path is debugged.**
+
 When a fix ships:
 1. Update CHANGELOG with the `NUC-FEEDBACK-NNN` reference in the body.
 2. Update `Nucleor_ML_Suite/docs/NUCLEOR_LANGUAGE_FEEDBACK_RESPONSE.md`

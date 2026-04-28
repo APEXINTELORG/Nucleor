@@ -10443,6 +10443,21 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             let hint: str = if op == 30 { "str_eq(a, b) == 1" } else { "str_eq(a, b) == 0" };
             type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`str ", str_concat(opname, str_concat(" str` does pointer comparison (silent miscompute — two equal-bytes literals at different addresses return FALSE). Use `", str_concat(hint, "` for value comparison.")))));
         };
+        // v0.4.53: NUC-FEEDBACK silent-miscompute guard for
+        // `Vec<T> == Vec<T>` and `Vec<T> != Vec<T>`. Same root
+        // cause as the str-equality close in v0.4.52: the binop
+        // lowered to integer pointer comparison, silently returning
+        // FALSE for two equal-element Vecs at different addresses.
+        // Rust's `==` on `Vec<T>` does element-wise comparison via
+        // `PartialEq` (requiring `T: PartialEq`). Adopters writing
+        // the canonical idiom got a quiet wrong result.
+        // v0.4.53 (DEFERRED): Vec<T> == Vec<T> guard. Pre-fix `v1 == v2`
+        // for two equal-element Vecs returned FALSE (pointer compare).
+        // Initial implementation crashed the compiler on the source-
+        // scan fallback path (segfault inside infer_var_type_from_source
+        // when called from binop type_expr). Deferred to v0.4.54+ once
+        // the recursion path is debugged. Hazard documented in
+        // tests/fixtures/repro_v53_vec_eq_pointer_guard_DEFERRED.nr.
         // RFC-0015 phase 6 (NUM-001 firing) is gated behind the stdlib
         // audit (phase 5) — the existing v0.1.x codebase relies on
         // implicit i32→i64 widening pervasively. The classifier
