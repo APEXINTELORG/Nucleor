@@ -102,6 +102,7 @@ v0.2.119**; same drift class as the OWN series above.
 | TYP-008 | Type mismatch for binding | let stmt type-check | error |
 | TYP-009 | Assignment type mismatch | assign stmt type-check | error |
 | TYP-010 | Return type mismatch | return stmt type-check | error |
+| TYP-011 | `str + str` not supported (would silently segfault) | binop type-check, v0.4.51 | error |
 
 Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 `err_deref_nonref`, `err_taint_arg/leak/propagation`,

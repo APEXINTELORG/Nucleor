@@ -7139,6 +7139,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "TYP-008") == 1 { return 1; };
     if str_eq(code, "TYP-009") == 1 { return 1; };
     if str_eq(code, "TYP-010") == 1 { return 1; };
+    if str_eq(code, "TYP-011") == 1 { return 1; };
     // RFC-0004 assume!
     if str_eq(code, "ASSUME-001") == 1 { return 1; };
     if str_eq(code, "ASSUME-002") == 1 { return 1; };
@@ -10416,6 +10417,18 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         };
         if (op == 20 || op == 21) && type_is_unit(lt) == 1 && type_is_unit(rt) == 1 && str_eq(unit_dim(lt), unit_dim(rt)) == 0 {
             type_diag(diags, source, fn_name, fn_name, "TYP-003", "unit operands for addition/subtraction must match");
+        };
+        // v0.4.51: NUC-FEEDBACK silent-segfault guard — `str + str`.
+        // Pre-fix `let s: str = "a" + "b"` silently SIGSEGVed at
+        // runtime because the lower emitted i64_add on the two str
+        // pointers, producing a garbage pointer that crashed when
+        // passed to print_str. Adopters writing the canonical Rust
+        // expectation got SIGSEGV with no compile-time signal (Rust
+        // itself errors here too — `&str + &str` doesn't compile —
+        // so this is a learnability hazard for adopters coming from
+        // OTHER languages too). Halt with a clear hint.
+        if op == 20 && str_eq(lt, "str") == 1 && str_eq(rt, "str") == 1 {
+            type_diag(diags, source, fn_name, fn_name, "TYP-011", "`str + str` is not supported (would silently segfault — i64_add on string pointers). Use `str_concat(a, b)` to concatenate strings.");
         };
         // RFC-0015 phase 6 (NUM-001 firing) is gated behind the stdlib
         // audit (phase 5) — the existing v0.1.x codebase relies on

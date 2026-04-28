@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.51] — 2026-04-28
+
+**`str + str` no longer silently SIGSEGVs at runtime — TYP-011
+hard error at compile time pointing at `str_concat()`.**
+
+Pre-v0.4.51 the canonical Rust expectation
+
+```
+let s: str = "hello" + " " + "world";
+println!("{}", s);
+```
+
+silently SIGSEGVed at runtime: the binop lower emitted i64_add on
+the two str pointers (Nucleor's i64-everywhere ABI), producing a
+garbage pointer that crashed when later passed to `print_str`.
+Adopters got a bare SIGSEGV with no compile-time signal — and Rust
+itself errors here too (`&str + &str` doesn't compile in Rust),
+so adopters expected a compile error and got runtime garbage instead.
+
+### Fix
+
+`type_expr` kind-4 (binop) handler now detects `op == 20` (binary
+`+`) AND `lt == "str"` AND `rt == "str"`, and emits TYP-011 with
+a hint pointing at the canonical `str_concat(a, b)` surface.
+TYP-011 added to the error-tier code list in s1, the smoke list
+in tools/verify.{sh,ps1}, and the explain registry in
+nucleor_tools_suite.nr (short + long-form definitions).
+
+### Verify
+
+- 472/472 PASS at ~314s per-step (within 295-315s baseline)
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v51_str_plus_str_guard.nr` —
+  asserts compiler exits status 1 with TYP-011 + str_concat hint
+- T3.23 diag-code drift gate stays green (TYP-011 added to all
+  three lists in lockstep)
+
 ## [0.4.50] — 2026-04-28
 
 **`if let Some(...) = v.first()` (and .last/.pop, vec_first/last/pop)
