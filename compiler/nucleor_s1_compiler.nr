@@ -11235,7 +11235,12 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
                 };
                 if out_of_range == 1 {
                     let nloc: Vec<i32> = find_linecol_in_source(source, fn_name, vname);
-                    diag_add_ex(diags, "warning", "type", "NUM-002", str_concat("numeric literal ", str_concat(str_from_int(lit_v), str_concat(" out of range for declared type ", tstr))), fn_name, vec_get(nloc, 0), vec_get(nloc, 1), "");
+                    // v0.4.70: promote NUM-002 from warning to error
+                    // (audit section 1). Pre-fix `let x: u8 = 256;`
+                    // truncated to 0 silently with only a warning;
+                    // adopters writing canonical Rust got E0080
+                    // (unconditional_recursion). Now hard error.
+                    diag_add_ex(diags, "error", "type", "NUM-002", str_concat("numeric literal ", str_concat(str_from_int(lit_v), str_concat(" out of range for declared type ", str_concat(tstr, ". Use a wider type or change the literal.")))), fn_name, vec_get(nloc, 0), vec_get(nloc, 1), "");
                 };
             };
             // RFC-0015 phase 6: NUM-005 — usize/isize mixed with an
@@ -18494,8 +18499,13 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
                     parities.push(1);
                     arg_idx = arg_idx + 1;
                 } else {
-                    segments.push("\"<MISSING>\"");
-                    parities.push(1);
+                    // v0.4.70: NUC-FEEDBACK silent-MISSING close (audit
+                    // section 10). Pre-fix `println!("{} and {}", 42)`
+                    // emitted "42 and <MISSING>" at runtime — silent
+                    // wrong output. Halt at preprocess with a clear
+                    // hint naming the placeholder count vs arg count.
+                    print(str_concat("ERROR: format string has more `{}` placeholders than args supplied. Format body: `", str_concat(body, str_concat("`. Args supplied: ", str_concat(str_from_int(n_args), ". Pre-v0.4.70 missing args were rendered as the literal text `<MISSING>` at runtime.")))));
+                    panic("nucleor: format placeholder count > arg count");
                 };
                 i = spec_end + 1;
             };
