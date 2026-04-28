@@ -10640,6 +10640,17 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             let hint: str = if op == 30 { "str_eq(a, b) == 1" } else { "str_eq(a, b) == 0" };
             type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`str ", str_concat(opname, str_concat(" str` does pointer comparison (silent miscompute — two equal-bytes literals at different addresses return FALSE). Use `", str_concat(hint, "` for value comparison.")))));
         };
+        // v0.4.67: NUC-FEEDBACK silent-miscompute close for str
+        // ordering ops `<`, `<=`, `>`, `>=`. Pre-fix `a < b` for two
+        // str values did integer pointer compare — wholly disconnected
+        // from lexicographic byte order. Adopters writing canonical
+        // Rust (which does lex compare via PartialOrd) got a quiet
+        // wrong result. Workaround text points at the canonical
+        // `str_cmp(a, b)` helper (returns -1/0/1).
+        if (op == 32 || op == 33 || op == 34 || op == 35) && str_eq(lt, "str") == 1 && str_eq(rt, "str") == 1 {
+            let ord_op: str = if op == 32 { "<" } else if op == 33 { "<=" } else if op == 34 { ">" } else { ">=" };
+            type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`str ", str_concat(ord_op, str_concat(" str` does pointer comparison (silent miscompute — disconnected from lexicographic byte order). Use `str_cmp(a, b) ", str_concat(ord_op, " 0` for canonical lex ordering.")))));
+        };
         // v0.4.53: NUC-FEEDBACK silent-miscompute guard for
         // `Vec<T> == Vec<T>` and `Vec<T> != Vec<T>`. Same root
         // cause as the str-equality close in v0.4.52: the binop
