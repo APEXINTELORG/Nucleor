@@ -5,6 +5,26 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.68] — 2026-04-28
+
+**Vec<T> ordering ops `<`, `<=`, `>`, `>=` — TYP-011 ptr-compare close.**
+
+Pre-fix `a < b` for two Vec<T> values did integer pointer compare —
+disconnected from Rust's Vec<T>: PartialOrd lex element-wise compare.
+v0.4.61 only caught arith + ==/!=; ordering ops were open.
+
+### Fix
+
+Extended the v0.4.61 Vec binop branch to also detect ops 32/33/34/35.
+Diagnostic message uses the same source-scan-fallback path so vec!
+macro init forms also trigger.
+
+### Verify
+
+- 488/488 PASS
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v68_vec_ord_pointer_guard.nr`
+
 ## [0.4.67] — 2026-04-28
 
 **str ordering ops `<`, `<=`, `>`, `>=` — TYP-011 pointer-compare close.**
