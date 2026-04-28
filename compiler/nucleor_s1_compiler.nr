@@ -10222,6 +10222,47 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             let nloc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
             diag_add_ex(diags, "warning", "type", "NUM-003", str_concat("`as` cast loses precision: ", str_concat(source_t, str_concat(" (", str_concat(str_from_int(sw), str_concat("-bit) -> ", str_concat(target_type, str_concat(" (", str_concat(str_from_int(tw), "-bit)")))))))), fn_name, vec_get(nloc, 0), vec_get(nloc, 1), "");
         };
+        // v0.4.47: NUC-FEEDBACK-002 silent-miscompute guard. Detect
+        // `v[i] as <NarrowFloat>` where v: Vec<NarrowFloat>. The cell
+        // holds the bit pattern of the float in an i64; `as` is a
+        // numeric conversion (i64 → f32), not a bit-reinterpret, so
+        // the result is wrong (e.g. bit pattern 0x3FC00000 = 1069547520
+        // would cast to 1069547520.0_f32 instead of 1.5_f32). Tell
+        // the adopter to use the explicit reinterpret surface.
+        let src_nid: i64 = node_field(pool, nid, 1);
+        if node_kind(pool, src_nid) == 10 {
+            let v_nid: i64 = node_field(pool, src_nid, 1);
+            if node_kind(pool, v_nid) == 3 {
+                let vname: str = node_field(pool, v_nid, 1);
+                let mut vt: str = tenv_get(env, vname);
+                if str_len(vt) == 0 { vt = infer_var_type_from_source(source, vname); };
+                let velt: str = strip_container_one_level(vt);
+                if str_len(velt) > 0 {
+                    let mut hint: str = "";
+                    if str_eq(velt, "f32") == 1 && str_eq(target_type, "f32") == 1 {
+                        hint = "f32_from_bits";
+                    };
+                    if str_eq(velt, "f16") == 1 && str_eq(target_type, "f32") == 1 {
+                        hint = "f16_to_f32";
+                    };
+                    if str_eq(velt, "bf16") == 1 && str_eq(target_type, "f32") == 1 {
+                        hint = "bf16_to_f32";
+                    };
+                    if str_eq(velt, "f8e4m3") == 1 && str_eq(target_type, "f32") == 1 {
+                        hint = "f8e4m3_to_f32";
+                    };
+                    if str_eq(velt, "f8e5m2") == 1 && str_eq(target_type, "f32") == 1 {
+                        hint = "f8e5m2_to_f32";
+                    };
+                    if str_len(hint) > 0 {
+                        let nloc2: Vec<i32> = find_linecol_in_source(source, fn_name, vname);
+                        let part1: str = str_concat("`", str_concat(vname, str_concat("[i] as ", str_concat(target_type, "` numeric-casts the i64 cell holding the "))));
+                        let part2: str = str_concat(velt, str_concat(" bit pattern; use ", str_concat(hint, str_concat("(", str_concat(vname, "[i]) for bit-reinterpret")))));
+                        diag_add_ex(diags, "error", "type", "NUM-006", str_concat(part1, part2), fn_name, vec_get(nloc2, 0), vec_get(nloc2, 1), "");
+                    };
+                };
+            };
+        };
         return "";
     };
     if kind == 3 {
