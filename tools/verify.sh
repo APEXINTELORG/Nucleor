@@ -1108,6 +1108,19 @@ t356_indexed_lhs_diagnostic() {
     return 0
 }
 
+t402_str_arith_guard() {
+    # T3.102 (v0.4.58): NUC-FEEDBACK silent-segfault guard for the
+    # other arithmetic ops on str (-, *, /, %). v0.4.51 closed `+`;
+    # v0.4.58 extends to the rest with TYP-011 + a clear message.
+    "$BIN" build "tests/fixtures/repro_v58_str_arith_guard.nr" -o "_t402_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\[TYP-011\]" /tmp/_nuc_step.log || return 1
+    grep -q "str - str" /tmp/_nuc_step.log || return 1
+    grep -q "str_concat" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t401_match_exhaustive_stmt_guard() {
     # T3.101 (v0.4.56): NUC-FEEDBACK silent-miscompute close —
     # non-exhaustive match (statement form) on enum now halts with
@@ -2899,6 +2912,7 @@ step "T3.98 v0.4.53 NUC-FEEDBACK — Option/Result method on non-Option receiver
 step "T3.99 v0.4.54 NUC-FEEDBACK — `?` on non-Option/Result receiver silent-segfault guard" t399_question_on_non_option_guard
 step "T3.100 v0.4.55 NUC-FEEDBACK — slice expression `expr[lo..hi]` silent-segfault guard" t400_slice_syntax_guard
 step "T3.101 v0.4.56 NUC-FEEDBACK — non-exhaustive match (stmt form) silent-miscompute close — MATCH-001 promoted to error" t401_match_exhaustive_stmt_guard
+step "T3.102 v0.4.58 NUC-FEEDBACK — str -/*//% silent-segfault guard (extends v0.4.51 + close)" t402_str_arith_guard
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

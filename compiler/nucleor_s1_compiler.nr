@@ -10474,6 +10474,16 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if op == 20 && str_eq(lt, "str") == 1 && str_eq(rt, "str") == 1 {
             type_diag(diags, source, fn_name, fn_name, "TYP-011", "`str + str` is not supported (would silently segfault — i64_add on string pointers). Use `str_concat(a, b)` to concatenate strings.");
         };
+        // v0.4.58: extend the v0.4.51 str-arithmetic guard to the
+        // other binop ops (-, *, /, %). Pre-fix `str - str` lowered
+        // to `i64_sub(a_ptr, b_ptr)` and the resulting garbage pointer
+        // SIGSEGVed at runtime when used. Only `+` had a workaround
+        // surface (str_concat); -, *, /, % have no meaningful str
+        // semantic in Rust either, so emit a clear compile-time error.
+        if (op == 21 || op == 22 || op == 23 || op == 24) && str_eq(lt, "str") == 1 && str_eq(rt, "str") == 1 {
+            let opch: str = if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
+            type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`str ", str_concat(opch, str_concat(" str` is not a meaningful operation (would silently segfault — i64 arithmetic on string pointers). String values support `str_concat` for join, `str_eq` for compare, `str_len` for length; arithmetic operators don't apply."))));
+        };
         // v0.4.52: NUC-FEEDBACK silent-miscompute guard for `str == str`
         // and `str != str`. Pre-fix the binop lowered to integer
         // pointer comparison: `"hello" == "hello"` returned FALSE
