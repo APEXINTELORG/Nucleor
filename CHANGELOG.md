@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.55] — 2026-04-28
+
+**Slice expressions `expr[lo..hi]` halt at compile time with clear
+diagnostic instead of silently SIGSEGVing at runtime.**
+
+Pre-v0.4.55 the canonical Rust slice idiom
+
+```
+let s: str = "hello world";
+let part: str = s[0..5];           // silently SIGSEGVed at runtime
+println!("{}", part);
+```
+
+emitted a `Parse error at token position N: expected token 55 got 58`
+line and silently kept going — building broken IR that SIGSEGVed at
+runtime. Adopters got cryptic crash + a parse-error line that
+looked informational, not blocking.
+
+### Fix
+
+`parse_postfix` indexer branch now peeks the token after the index
+expression. If it's `..` (token 58) or `..=` (token 96), the
+compiler `panic()`s immediately with a workaround pointing at
+`str_substring(s, lo, hi)` for strings (Vec slicing is a separate
+queued feature).
+
+### Verify
+
+- 476/476 PASS at ~313s per-step (within baseline)
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v55_slice_syntax_guard.nr`
+- Range patterns inside `match` (the legitimate use of `..` /
+  `..=`) continue to parse cleanly — the guard only fires on
+  postfix indexing, not pattern positions
+
 ## [0.4.54] — 2026-04-28
 
 **`?` operator on a non-Option/Result receiver no longer silently

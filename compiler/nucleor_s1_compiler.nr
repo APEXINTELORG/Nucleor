@@ -1036,6 +1036,18 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             } else { cp = p2; node = mk3(pool, 9, node, fname); };
         } else {
             let mut ir: Vec<i32> = parse_expr(tokens, cp + 1, pool);
+            // v0.4.55: NUC-FEEDBACK silent-segfault guard for str/Vec
+            // slice syntax. Pre-fix `s[0..5]` printed "Parse error
+            // ... expected token 55 got 58" but the build silently
+            // continued, producing broken IR that SIGSEGVed at runtime.
+            // Slice expressions aren't yet supported in the indexer
+            // surface; halt cleanly with a workaround pointing at
+            // `str_substring(s, lo, hi)` (or vec_slice when shipped).
+            let after_idx_tok: i64 = pk(tokens, pr_pos(ir));
+            if after_idx_tok == 58 || after_idx_tok == 96 {
+                print("ERROR: slice syntax `expr[lo..hi]` is not yet supported (was a silent SIGSEGV pre-v0.4.55). Workarounds: for `str` use `str_substring(s, lo, hi)`; for `Vec<T>` use an explicit element-wise loop or build a new Vec via `vec_push` over the desired range.");
+                panic("nucleor: slice expression `expr[lo..hi]` not supported");
+            };
             cp = expect_tok(tokens, pr_pos(ir), 55); node = mk3(pool, 10, node, pr_val(ir));
         };
         };
