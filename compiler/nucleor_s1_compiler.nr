@@ -10430,6 +10430,19 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if op == 20 && str_eq(lt, "str") == 1 && str_eq(rt, "str") == 1 {
             type_diag(diags, source, fn_name, fn_name, "TYP-011", "`str + str` is not supported (would silently segfault — i64_add on string pointers). Use `str_concat(a, b)` to concatenate strings.");
         };
+        // v0.4.52: NUC-FEEDBACK silent-miscompute guard for `str == str`
+        // and `str != str`. Pre-fix the binop lowered to integer
+        // pointer comparison: `"hello" == "hello"` returned FALSE
+        // because the two str literals lived at different addresses
+        // even though their bytes matched. Adopters writing the
+        // canonical Rust idiom got a silent wrong result. Rust's `==`
+        // on `&str` does value comparison via `PartialEq`; Nucleor's
+        // i64-everywhere ABI doesn't auto-route to `str_eq`.
+        if (op == 30 || op == 31) && str_eq(lt, "str") == 1 && str_eq(rt, "str") == 1 {
+            let opname: str = if op == 30 { "==" } else { "!=" };
+            let hint: str = if op == 30 { "str_eq(a, b) == 1" } else { "str_eq(a, b) == 0" };
+            type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`str ", str_concat(opname, str_concat(" str` does pointer comparison (silent miscompute — two equal-bytes literals at different addresses return FALSE). Use `", str_concat(hint, "` for value comparison.")))));
+        };
         // RFC-0015 phase 6 (NUM-001 firing) is gated behind the stdlib
         // audit (phase 5) — the existing v0.1.x codebase relies on
         // implicit i32→i64 widening pervasively. The classifier

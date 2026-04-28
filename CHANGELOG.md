@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.52] — 2026-04-28
+
+**`str == str` and `str != str` no longer silently miscompute —
+TYP-011 hard error pointing at `str_eq()`.**
+
+Pre-v0.4.52 the binop lowered to integer pointer comparison:
+
+```
+let a: str = "hello";
+let b: str = "hello";
+if a == b { println!("equal"); } else { println!("not equal"); };
+// Prints "not equal" — silent wrong result.
+```
+
+The two `"hello"` literals lived at different addresses even though
+their bytes matched, so pointer-eq returned FALSE. Adopters writing
+the canonical Rust idiom (Rust's `&str == &str` does value-compare
+via `PartialEq`) got a silent wrong result with no compile-time
+signal.
+
+### Fix
+
+`type_expr` kind-4 (binop) handler extended: detects `op == 30`
+(binary `==`) or `op == 31` (binary `!=`) AND both operands typed
+`str`. Emits TYP-011 with a hint pointing at the canonical surface:
+
+- `==` → `str_eq(a, b) == 1`
+- `!=` → `str_eq(a, b) == 0`
+
+### Verify
+
+- 473/473 PASS at ~316s per-step (within 295-320s baseline)
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v52_str_eq_pointer_guard.nr` —
+  asserts compiler exits status 1 with TYP-011 + str_eq hint
+- No false positives — no fixture or compiler-source site uses
+  `str == str` legitimately
+
 ## [0.4.51] — 2026-04-28
 
 **`str + str` no longer silently SIGSEGVs at runtime — TYP-011

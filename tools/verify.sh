@@ -1108,6 +1108,21 @@ t356_indexed_lhs_diagnostic() {
     return 0
 }
 
+t397_str_eq_pointer_guard() {
+    # T3.97 (v0.4.52): NUC-FEEDBACK silent-miscompute guard for
+    # `str == str` and `str != str`. Pre-fix the binop did pointer
+    # comparison, silently returning FALSE for two equal-bytes string
+    # literals at different addresses. v0.4.52 emits TYP-011 with a
+    # str_eq() hint and halts the build.
+    "$BIN" build "tests/fixtures/repro_v52_str_eq_pointer_guard.nr" -o "_t397_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\[TYP-011\]" /tmp/_nuc_step.log || return 1
+    grep -q "pointer comparison" /tmp/_nuc_step.log || return 1
+    grep -q "str_eq" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t396_str_plus_str_guard() {
     # T3.96 (v0.4.51): NUC-FEEDBACK silent-segfault guard for `str + str`.
     # Pre-fix the binop lower emitted i64_add on the two str pointers,
@@ -2820,6 +2835,7 @@ step "T3.93 v0.4.48 NUC-FEEDBACK-002 — vec_get(v, i) as f32 fn-call form silen
 step "T3.94 v0.4.49 RFC-0023 partial — int-literal/wildcard or-patterns (silent miscompute close)" t394_or_patterns
 step "T3.95 v0.4.50 NUC-FEEDBACK — if-let Some on .first/.last/.pop silent-segfault guard" t395_iflet_first_guard
 step "T3.96 v0.4.51 NUC-FEEDBACK — str + str silent-segfault guard (use str_concat)" t396_str_plus_str_guard
+step "T3.97 v0.4.52 NUC-FEEDBACK — str == str pointer-comparison silent-miscompute guard (use str_eq)" t397_str_eq_pointer_guard
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
