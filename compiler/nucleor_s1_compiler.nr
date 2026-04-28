@@ -10557,6 +10557,14 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24) && (str_eq(lt, "bool") == 1 || str_eq(rt, "bool") == 1) {
             type_diag(diags, source, fn_name, fn_name, "TYP-002", "boolean values cannot be used in arithmetic");
         };
+        // v0.4.71 audit S1 partial: bool with bitwise ops (& | ^ << >>)
+        // is also illegal in Rust. Pre-fix `let r: i64 = a & x` for
+        // a: bool, x: i64 silently emitted i64_and on the bool's i64
+        // representation. Catch ops 65 (|), 82 (&), 94 (^), 115 (<<),
+        // 116 (>>) when ANY side is bool.
+        if (op == 65 || op == 82 || op == 94 || op == 115 || op == 116) && (str_eq(lt, "bool") == 1 || str_eq(rt, "bool") == 1) {
+            type_diag(diags, source, fn_name, fn_name, "TYP-002", "boolean values cannot be used in bitwise/shift ops; use logical && / || or cast bool to i64 first");
+        };
         if (op == 20 || op == 21) && type_is_unit(lt) == 1 && type_is_unit(rt) == 1 && str_eq(unit_dim(lt), unit_dim(rt)) == 0 {
             type_diag(diags, source, fn_name, fn_name, "TYP-003", "unit operands for addition/subtraction must match");
         };
