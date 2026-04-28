@@ -1108,6 +1108,20 @@ t356_indexed_lhs_diagnostic() {
     return 0
 }
 
+t400_slice_syntax_guard() {
+    # T3.100 (v0.4.55): NUC-FEEDBACK silent-segfault guard for slice
+    # syntax `expr[lo..hi]`. Pre-fix the parser printed a parse-error
+    # line but silently continued, building a broken binary that
+    # SIGSEGVed at runtime. v0.4.55 detects the .. / ..= token after
+    # the index expression and panics with a str_substring hint.
+    "$BIN" build "tests/fixtures/repro_v55_slice_syntax_guard.nr" -o "_t400_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "slice syntax" /tmp/_nuc_step.log || return 1
+    grep -q "str_substring" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t399_question_on_non_option_guard() {
     # T3.99 (v0.4.54): NUC-FEEDBACK silent-segfault guard for `?` on
     # non-Option/Result receivers. Pre-v0.4.54 `let x: i64 = f()?;`
@@ -2868,6 +2882,7 @@ step "T3.96 v0.4.51 NUC-FEEDBACK — str + str silent-segfault guard (use str_co
 step "T3.97 v0.4.52 NUC-FEEDBACK — str == str pointer-comparison silent-miscompute guard (use str_eq)" t397_str_eq_pointer_guard
 step "T3.98 v0.4.53 NUC-FEEDBACK — Option/Result method on non-Option receiver silent-link-error guard" t398_unwrap_on_non_option_guard
 step "T3.99 v0.4.54 NUC-FEEDBACK — `?` on non-Option/Result receiver silent-segfault guard" t399_question_on_non_option_guard
+step "T3.100 v0.4.55 NUC-FEEDBACK — slice expression `expr[lo..hi]` silent-segfault guard" t400_slice_syntax_guard
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
