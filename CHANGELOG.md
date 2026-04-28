@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.54] — 2026-04-28
+
+**`?` operator on a non-Option/Result receiver no longer silently
+SIGSEGVs at runtime — TYP-011 hard error at compile time.**
+
+Pre-v0.4.54 the canonical Rust pattern
+
+```
+fn some_fn() -> i64 { return 42; }
+fn main() -> i64 {
+    let x: i64 = some_fn()?;       // silently SIGSEGVs
+    println!("{}", x);
+    return 0;
+}
+```
+
+silently SIGSEGVed at runtime: the `?` lower called
+`vec_get(val_r, 0)` to extract the Result tag, dereferencing the
+returned i64 value as a pointer. Adopters writing the canonical
+Rust idiom got a bare SIGSEGV with no compile-time signal.
+
+### Fix
+
+`type_expr` kind-122 (`?` operator) handler extended: when the inner
+expression is a kind-7 fn call, look up the callee's return type via
+`sig_rtype`. If the return type's base name is NOT `Result`,
+`Option`, or `Vec` (the legacy untyped Result<i64,i64> stub uses
+Vec), emit TYP-011 with a clear hint. Diagnostic location points at
+the `?`-marked call.
+
+### Verify
+
+- 475/475 PASS at ~312s per-step (within baseline)
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v54_question_on_non_option_guard.nr`
+- No false positives — existing fixtures using `?` on Result-typed
+  fns (t467_question_chain etc.) continue to pass
+
 ## [0.4.53] — 2026-04-28
 
 **`x.unwrap()` (and 11 other Option/Result methods) on a non-Option

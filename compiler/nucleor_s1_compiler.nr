@@ -10311,6 +10311,27 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         // RFC-0016 phase 1: ? operator. Until generic enums land we treat
         // the unwrapped payload as i64 — matches the existing untyped
         // Result<i64,i64> stub layout in stdlib/rods/result.nr.
+        //
+        // v0.4.54: NUC-FEEDBACK silent-segfault guard. Pre-fix
+        // `let x: i64 = some_fn()?;` where some_fn returns bare i64
+        // (not Result<T,E> or Option<T>) silently SIGSEGVed at runtime.
+        // The `?` lower called `vec_get(val_r, 0)` to extract the tag,
+        // dereferencing the i64 value as a pointer. Halt now with a
+        // clear diagnostic naming the call.
+        let qinner: i64 = node_field(pool, nid, 1);
+        if node_kind(pool, qinner) == 7 {
+            let qcallee: str = node_field(pool, qinner, 1);
+            let qrtype: str = sig_rtype(sigs, qcallee);
+            if str_len(qrtype) > 0 {
+                let qbase: str = type_base_name(qrtype);
+                let qok: i64 = if str_eq(qbase, "Result") == 1
+                    || str_eq(qbase, "Option") == 1
+                    || str_eq(qbase, "Vec") == 1 { 1 } else { 0 };
+                if qok == 0 {
+                    type_diag(diags, source, fn_name, qcallee, "TYP-011", str_concat("`?` operator requires receiver to return `Result<T,E>` or `Option<T>` (or the legacy untyped `Vec<i32>` stub) — `", str_concat(qcallee, str_concat("()` returns `", str_concat(qrtype, "`. Pre-v0.4.54 this silently SIGSEGVed at runtime. Workaround: change the fn signature to return Result/Option, or check the value explicitly with `if ... { return ...; }`.")))));
+                };
+            };
+        };
         return "i64";
     };
     if kind == 99 {
