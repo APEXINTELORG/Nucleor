@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.43] — 2026-04-28
+
+**Span migration: 4 line-only diagnostic call sites → line+col spans.**
+
+Closes one of the v0.2.0.md "DEFERRED to v0.4" rows
+(RFC-0020 Phase 3, row #8 — span migration). The LineMap
+infrastructure landed in v0.1.59; this release wires the last
+4 call sites that still used the line-only `diag_add()` convenience
+wrapper to use `diag_add_ex()` with explicit column.
+
+### Sites migrated
+
+| Line | Diagnostic | Source |
+|---|---|---|
+| 9564 | MATCH-007 (range bounds wrong order) | `check_match_stmt` |
+| 9590 | MATCH-002 (unreachable arm after wildcard) | `check_match_stmt` |
+| 9608 | TYP-001 (non-exhaustive match — legacy code) | `check_match_stmt` |
+| 9609 | MATCH-001 (non-exhaustive match — canonical) | `check_match_stmt` |
+
+All four now compute column via the existing `find_linecol_in_source`
+helper (returns Vec<i32>=[line, col]) and pass both to `diag_add_ex`.
+
+### Verify gate
+
+Bootstrap fixed point C==D byte-identical at 5,800,539 bytes (vs
+v0.4.41's 5,799,793 — `+746` bytes for the find_linecol_in_source
+calls + tuple unpacking).
+
+| Iter | Time | Peak RSS |
+|---|---|---|
+| 1 (v43_b) | 4.01 s | 426.1 MB |
+| 2 (v43_c) | 4.04 s | 435.4 MB |
+| 3 (v43_d) | 4.08 s | 422.9 MB |
+
+### v0.2.0 deferred row scoreboard
+
+Of the 8 v0.2 rows marked `DEFERRED to v0.4`:
+- **#8 (RFC-0020 Phase 3 span migration) — DONE in v0.4.43**
+- #5 (RFC-0016 `From`/`Into` + `?` auto-conversion) — blocked on RFC-0024 generic enums
+- #6 (RFC-0018 resolver path-to-symbol with visibility) — blocked on RFC-0024 generic enums
+- #7 (RFC-0018 codegen name mangling) — blocked on RFC-0018 #6
+- #1-4 (RFC-0015 strict-mode flip — Phases 3+5+7 bundle) — coordinated push, NUC-FEEDBACK-002 territory
+
+Next: RFC-0024 generic enums is the keystone; once it ships, rows
+#5/#6/#7 unblock as a chain.
+
 ## [0.4.41] — 2026-04-28
 
 **`{:?}` Debug formatter — Rust-style string quoting.**
