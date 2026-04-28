@@ -10626,6 +10626,13 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 let veq_op: str = if op == 30 { "==" } else { "!=" };
                 type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`Vec ", str_concat(veq_op, " Vec` does pointer comparison (silent miscompute — two equal-element Vecs at different addresses return FALSE). Use an element-wise loop: check `vec_len(a) == vec_len(b)` then iterate and compare each element with `a[i] == b[i]`.")));
             };
+            // v0.4.68: Vec ordering ops <, <=, >, >= — same ptr-compare
+            // hazard. Rust's Vec<T>: PartialOrd does lexicographic
+            // element-wise compare, not ptr compare.
+            if op == 32 || op == 33 || op == 34 || op == 35 {
+                let vord_op: str = if op == 32 { "<" } else if op == 33 { "<=" } else if op == 34 { ">" } else { ">=" };
+                type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`Vec ", str_concat(vord_op, " Vec` does pointer comparison (silent miscompute — disconnected from element-wise lex order). Write an explicit element-by-element comparison loop.")));
+            };
         };
         // v0.4.52: NUC-FEEDBACK silent-miscompute guard for `str == str`
         // and `str != str`. Pre-fix the binop lowered to integer
