@@ -1538,6 +1538,11 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // `let` not followed by a recognized pattern — fall through to plain if.
     };
     let mut cr: Vec<i32> = parse_expr(tokens, pos, pool);
+    // v0.4.69: same `=` vs `==` typo guard as parse_while_stmt.
+    if pk(tokens, pr_pos(cr)) == 40 {
+        print("ERROR: condition position has `=` (assignment) where `==` (equality) was expected. Pre-v0.4.69 the parser printed a parse error and silently continued. Did you mean `if x == y { ... }` instead of `if x = y { ... }`?");
+        panic("nucleor: `=` in if-condition position (probably `==` typo)");
+    };
     let mut cp: i64 = expect_tok(tokens, pr_pos(cr), 52);
     let mut tr: Vec<i32> = parse_stmts(tokens, cp, pool);
     cp = expect_tok(tokens, pr_pos(tr), 53);
@@ -1640,6 +1645,14 @@ fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         };
     };
     let mut cr: Vec<i32> = parse_expr(tokens, pos, pool);
+    // v0.4.69: NUC-FEEDBACK silent-miscompute close — detect `=` vs
+    // `==` typo. Pre-fix `while x = 0 { ... }` printed a parse error
+    // but silently continued, building a binary with broken IR.
+    // Halt cleanly at parse time with a clear hint.
+    if pk(tokens, pr_pos(cr)) == 40 {
+        print("ERROR: condition position has `=` (assignment) where `==` (equality) was expected. Pre-v0.4.69 the parser printed a parse error and silently continued, building broken IR. Did you mean `while x == y { ... }` instead of `while x = y { ... }`?");
+        panic("nucleor: `=` in while-condition position (probably `==` typo)");
+    };
     let mut cp: i64 = expect_tok(tokens, pr_pos(cr), 52);
     let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
     cp = expect_tok(tokens, pr_pos(br), 53);
