@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0028 |
 | **Title** | Format strings — `format!("x = {}", x)`, `println!`, `write!`, `Display` / `Debug` traits |
-| **Status** | Implemented (partial) v0.2.6 — `format_i64/str/hex/2_ii/2_si` builtins, one `{}` per call; full variadic + `Display` / `Debug` traits deferred to v0.4 |
+| **Status** | **Phase 5 spec semantics COMPLETE in v0.4.41** — all everyday format spec dispatch shipped: type/precision/width/align/zero-pad/radix/alt-form/sign/upper-X/sci-e-E/custom-fill-char/`:?` Debug-str-quoting (T3.78–T3.91 pinned in verify gate). `Display` / `Debug` traits as user-implementable (`#[derive]`-style) still deferred to v0.5+ once RFC-0024 generics ship. |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2 partial (v0.2.6 — `format_i64/str/hex/2_ii/2_si` builtins) → v0.4.0 (full variadic + `Display` / `Debug` traits) |
@@ -168,11 +168,34 @@ error[FMT-001]: 2 positional arguments in format string, but 1 argument provided
 
 ## 7. Definition of done
 
-- [ ] All 7 macros work
-- [ ] `Display` / `Debug` for all stdlib types
-- [ ] `#[derive(Debug)]` works
+### Phase 5 (format spec semantics) — DONE in v0.4.41
+
+- [x] **Type dispatch on unknown specs** (v0.4.24)
+- [x] **Precision `{:.N}` for floats** (v0.4.27)
+- [x] **Width / align / zero-pad / combination** (v0.4.28)
+- [x] **Radix `{:x}` `{:o}` `{:b}` + alternate `{:#x}`** (v0.4.29)
+- [x] **Force-sign `{:+}`** (v0.4.30)
+- [x] **`{:X}` upper-case hex** (v0.4.37)
+- [x] **`{:e}` `{:E}` scientific notation + precision combos** (v0.4.38)
+- [x] **Custom fill char `{:*<10}`** (v0.4.40 — pin only; emit worked since v0.4.29)
+- [x] **`{:?}` Debug formatter — str quoting** (v0.4.41)
+- [x] All v0.4.x dispatch pinned at T3.78–T3.91 in verify gate
+- [x] CHANGELOG documents each release
+- [x] Bootstrap fixed point holds at every release
+
+### Phase 6+ (user-implementable Display / Debug traits) — DEFERRED to v0.5+
+
+- [ ] User `impl Display for MyType { fn fmt(...) }`
+- [ ] User `impl Debug for MyType { fn fmt(...) }`
+- [ ] `#[derive(Debug)]` for structs/enums
+- [ ] Container `:?` (Vec/Option/Result/HashMap recursive Debug)
+- [ ] `:#?` Debug pretty-print (multi-line indented)
 - [ ] Compile-time arg-count check
-- [ ] CHANGELOG documents
+- [ ] `format_args!` macro for zero-alloc paths
+- [ ] `write!(stderr(), ...)` / `Write` trait
+
+These all depend on RFC-0024 generic enums + a real trait dispatch
+mechanism that goes beyond the 2-cell `Box<dyn Trait>` handle.
 
 ## 8. Future extensions
 
