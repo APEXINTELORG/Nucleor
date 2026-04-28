@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.71] — 2026-04-28
+
+**bool with bitwise/shift ops (`a & x`, `a | x`, `a ^ x`, `a << x`,
+`a >> x`) — TYP-002 close.**
+
+Pre-fix `let r: i64 = a & x;` for `a: bool`, `x: i64` silently
+emitted integer i64_and on the bool's i64 representation. Rust
+errors here. Extended TYP-002 (existing arithmetic+bool guard) to
+cover bitwise/shift ops 65/82/94/115/116 when ANY operand is bool.
+
+### Verify
+
+- 492/492 PASS at baseline timing
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v71_bool_bitwise_guard.nr`
+
+### Attempted but reverted (queued for v0.4.72+)
+
+- **Vec.push() arg type check** — kind 8 method handler addition
+  crashed the compiler when building tools_suite. Push/method walk
+  needs a guard against recursive type_expr cycles. Logic verified
+  to fire correctly on simple probes; needs a guard pass before
+  re-enabling.
+- **Struct literal field type check (TYP-009)** — kind 34 type_expr
+  extension crashed the compiler when walking tools_suite's many
+  struct literals. Likely an infinite recursion through type_expr
+  on init values. Same guard-pass need.
+
+Both deferred to next cycle. Audit response section 2 partial work.
+
 ## [0.4.70] — 2026-04-28
 
 **Audit-derived batch close: NUM-002 promoted to error + format

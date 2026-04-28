@@ -1117,6 +1117,15 @@ t414_num002_promoted() {
     return 0
 }
 
+t416_bool_bitwise_guard() {
+    "$BIN" build "tests/fixtures/repro_v71_bool_bitwise_guard.nr" -o "_t416_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\[TYP-002\]" /tmp/_nuc_step.log || return 1
+    grep -q "bitwise" /tmp/_nuc_step.log || return 1
+    return 0
+}
+
 t415_format_arg_count() {
     "$BIN" build "tests/fixtures/repro_v70b_format_arg_count.nr" -o "_t415_check" --no-cache >/tmp/_nuc_step.log 2>&1
     local rc=$?
@@ -3087,6 +3096,7 @@ step "T3.112 v0.4.68 NUC-FEEDBACK — Vec ordering ops <, <=, >, >= ptr-compare 
 step "T3.113 v0.4.69 NUC-FEEDBACK — `=` vs `==` typo guard in while/if conditions" t413_eq_typo_guard
 step "T3.114 v0.4.70 audit S1 — NUM-002 literal-out-of-range promoted to error" t414_num002_promoted
 step "T3.115 v0.4.70 audit S10 — format placeholder/arg count mismatch halt at preprocess" t415_format_arg_count
+step "T3.116 v0.4.71 audit S1 — bool with bitwise/shift ops (TYP-002 extended)" t416_bool_bitwise_guard
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
