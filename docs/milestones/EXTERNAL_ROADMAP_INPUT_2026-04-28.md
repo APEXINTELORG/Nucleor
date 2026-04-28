@@ -31,6 +31,24 @@ section that points back here for context.
 | #5 Memory safety / allocator model | RFC-0001 / RFC-0002 (v0.3 / v0.4); arena/pool/TLSF in v0.5 |
 | #11 Robotics RT + ROS 2 / Isaac integration | v0.5 milestone theme |
 
+## Heavy crossover: Nucleor_Translate (active project)
+
+Picks A / C / D have substantial overlap with the **Nucleor_Translate**
+project (`C:\Users\JoeWe\Desktop\Nucleor_Translate`, spec phase
+2026-04-26). Translate is a translator that ingests 10 source
+languages (Python, Rust, C, C++, C#, Go, Java, JS/TS, Swift, Kotlin)
+and emits Nucleor `.nr` source / rods / exes.
+
+| External Pick | Nucleor_Translate overlap |
+|---|---|
+| **D — `nuc port` Python** | Translate's **Phase A Python front-end** is exactly this. Likely correct move: make `nuc port` the CLI surface over the Translate engine, not a parallel implementation. |
+| **C — RFC-0031 native capsule signing** | Translate's coordination item #1 (`.nucleor_provenance` PE/ELF section emitted by `nuc build`) is a subset. RFC-0031 is the bigger story. |
+| **A — `nuc fmt` + LSP** | Translate emits Nucleor source; building `nuc fmt` first means emitted code can self-format instead of every Translate rod re-implementing layout. |
+
+**Action:** before starting Picks A / C / D in the v0.5 cycle, read
+`Nucleor_Translate\docs\superpowers\specs\2026-04-26-nucleor-translate-design.md`
+to confirm dependency graph and avoid duplicate implementation paths.
+
 ## Picked — 6 items integrated into milestones
 
 ### Pick A — `nuc fmt` + LSP MVP → v0.5.0
