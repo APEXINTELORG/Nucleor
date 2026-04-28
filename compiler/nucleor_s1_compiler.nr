@@ -10559,6 +10559,19 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if op == 20 && str_eq(lt, "str") == 1 && str_eq(rt, "str") == 1 {
             type_diag(diags, source, fn_name, fn_name, "TYP-011", "`str + str` is not supported (would silently segfault — i64_add on string pointers). Use `str_concat(a, b)` to concatenate strings.");
         };
+        // v0.4.66: NUC-FEEDBACK silent-coerce close for mixed str/int
+        // arithmetic. Pre-fix `x + "string"` (or `x += "string"` which
+        // desugars to it) with `x: i64` silently i64-added the str
+        // pointer to x, producing garbage. Adopters writing canonical
+        // Rust got a quiet wrong value. Catches arith ops 20-24 with
+        // exactly ONE side being str.
+        if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24) {
+            let one_is_str: i64 = if (str_eq(lt, "str") == 1) != (str_eq(rt, "str") == 1) { 1 } else { 0 };
+            if one_is_str == 1 {
+                let mxopch: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
+                type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("mixed-type arithmetic `", str_concat(lt, str_concat(" ", str_concat(mxopch, str_concat(" ", str_concat(rt, "` lowers to integer arithmetic on the str pointer, producing garbage. Convert types explicitly first (e.g. `str_to_int(s)` or `int_to_str(n)`)."))))));
+            };
+        };
         // v0.4.58: extend the v0.4.51 str-arithmetic guard to the
         // other binop ops (-, *, /, %). Pre-fix `str - str` lowered
         // to `i64_sub(a_ptr, b_ptr)` and the resulting garbage pointer
