@@ -11840,6 +11840,17 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
             if str_len(rtype) > 0 && str_eq(rtype, "void") == 0 && compat_ok == 0 {
                 type_diag(diags, source, fn_name, fn_name, "TYP-010", "return type mismatch");
             };
+        } else {
+            // v0.4.112: bare `return;` in a non-void fn. Pre-fix the
+            // val < 0 branch was skipped silently, so codegen emitted
+            // `ret i64 undef` (LLVM optimised that to the alloca's
+            // zero-init slot) and the caller got 0 / garbage with no
+            // diagnostic. Sister to v0.4.108's tail-expr ret check.
+            if str_len(rtype) > 0 && str_eq(rtype, "void") == 0 {
+                let pa112: str = str_concat("bare `return;` in fn `", str_concat(fn_name, str_concat("` declared to return `", str_concat(rtype, "`."))));
+                let pb112: str = " Pre-v0.4.112 the codegen silently emitted an undef return register; the caller saw 0 / garbage with no signal. Either supply a value (`return <expr>;`) or change the fn signature to `-> ()` / drop the return type.";
+                type_diag(diags, source, fn_name, fn_name, "TYP-010", str_concat(pa112, pb112));
+            };
         };
         return warns;
     };
@@ -15252,11 +15263,25 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return mb;
     };
     if kind == 26 {
-        if lx >= 0 { ir_block_add(cur, ir_br(lx)); };
+        // v0.4.112: `break` outside any loop. Pre-fix the codegen
+        // silently no-op'd (the if-guard's `else` branch did
+        // nothing), so `fn main() { break; 0 }` compiled to
+        // `fn main() { 0 }` and exited successfully — adopters
+        // typo'ing a misplaced control-flow stmt got no signal at
+        // all. Halt cleanly with NR024.
+        if lx < 0 {
+            panic("error[NR024]: `break` outside any loop. Pre-v0.4.112 the codegen silently no-op'd misplaced control-flow stmts; the build succeeded with `break;` deleted from the program. Move the `break;` inside a `loop`/`while`/`for` body, or remove it entirely.");
+        };
+        ir_block_add(cur, ir_br(lx));
         return cur;
     };
     if kind == 27 {
-        if lh >= 0 { ir_block_add(cur, ir_br(lh)); };
+        // v0.4.112: `continue` outside any loop. Same hazard class
+        // as the break case above.
+        if lh < 0 {
+            panic("error[NR024]: `continue` outside any loop. Pre-v0.4.112 the codegen silently no-op'd misplaced control-flow stmts; the build succeeded with `continue;` deleted from the program. Move the `continue;` inside a `loop`/`while`/`for` body, or remove it entirely.");
+        };
+        ir_block_add(cur, ir_br(lh));
         return cur;
     };
     print(str_concat("ERROR: unknown stmt kind ", str_from_int(kind)));
