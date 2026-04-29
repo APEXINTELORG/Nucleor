@@ -1738,7 +1738,18 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         // (already validated: `<T>(a: T, b: T) -> T { a + b }` works).
         if pk(tokens, cp) == 42 {
             cp = cp + 1; // skip ':'
+            // v0.4.130: capture each bound trait name as a `?<name>`
+            // entry alongside the param name. Pre-v0.4.103 the bound
+            // clause was an NR020 parse error; v0.4.103 parse-skipped
+            // it (no signal); now we store it so a later type-check
+            // pass can verify the trait exists / has at least one
+            // impl. Multiple bounds (`<T: A + B>`) all get `?A`,
+            // `?B` entries.
             while pk(tokens, cp) != 33 && pk(tokens, cp) != 44 && pk(tokens, cp) != 0 {
+                if pk(tokens, cp) == 1 {
+                    let bname: str = pkv(tokens, cp);
+                    if str_len(bname) > 0 { params.push(str_concat("?", bname)); };
+                };
                 cp = cp + 1;
             };
         };
@@ -12415,6 +12426,49 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
         if node_kind(pool, nid) == 30 { sig_add(sigs, node_field(pool, nid, 1), node_field(pool, nid, 2), node_field(pool, nid, 3), 0); };
         if node_kind(pool, nid) == 32 { sig_add(sigs, node_field(pool, nid, 1), node_field(pool, nid, 2), node_field(pool, nid, 3), 1); };
         i = i + 1;
+    };
+    // v0.4.130: trait-bound NAME verification (audit doc-#1 §8 closer).
+    // Walk every fn (kind 30), inspect its generic params (field 5).
+    // For each `?<bound>` marker captured by parse_generic_params,
+    // verify a matching trait declaration (kind 43) exists in prog.
+    // Pre-v0.4.130 the bound name was discarded — typo'd or undefined
+    // bounds compiled clean and the codegen ignored bounds entirely
+    // (Nucleor's monomorphic generic dispatch). Now: typo'd or
+    // forgotten-import trait names halt with TYP-019.
+    let mut tb_i: i64 = 0;
+    while tb_i < cnt {
+        let tb_nid: i64 = list_get(pool, prog, tb_i);
+        if node_kind(pool, tb_nid) == 30 {
+            let tb_fname: str = node_field(pool, tb_nid, 1);
+            let tb_gparams: i64 = node_field(pool, tb_nid, 5);
+            if tb_gparams >= 0 {
+                let tb_pc: i64 = list_len(pool, tb_gparams);
+                let mut tb_p: i64 = 0;
+                while tb_p < tb_pc {
+                    let tb_entry: str = list_get(pool, tb_gparams, tb_p);
+                    if str_len(tb_entry) > 1 && str_char_at(tb_entry, 0) == 63 {
+                        let tb_trait: str = str_substring(tb_entry, 1, str_len(tb_entry));
+                        // Walk prog for matching kind==43 trait decl.
+                        let mut found_v130: i64 = 0;
+                        let mut walk_v130: i64 = 0;
+                        while walk_v130 < cnt && found_v130 == 0 {
+                            let walk_nid: i64 = list_get(pool, prog, walk_v130);
+                            if node_kind(pool, walk_nid) == 43
+                                && str_eq(node_field(pool, walk_nid, 1), tb_trait) == 1 {
+                                found_v130 = 1;
+                            };
+                            walk_v130 = walk_v130 + 1;
+                        };
+                        if found_v130 == 0 {
+                            let t19_msg: str = str_concat("trait bound `<T: ", str_concat(tb_trait, str_concat(">` on fn `", str_concat(tb_fname, str_concat("` references unknown trait `", str_concat(tb_trait, "`. Pre-v0.4.130 the bound was parse-skipped and the typo silently compiled. Define the trait, fix the spelling, or import the rod that declares it."))))));
+                            type_diag(diags, source, tb_fname, tb_fname, "TYP-019", t19_msg);
+                        };
+                    };
+                    tb_p = tb_p + 1;
+                };
+            };
+        };
+        tb_i = tb_i + 1;
     };
     let mut warns: i64 = 0;
     i = 0;
