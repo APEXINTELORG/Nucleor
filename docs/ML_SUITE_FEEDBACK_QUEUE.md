@@ -314,15 +314,15 @@ RFC-scale. Post-v1.
 
 ## Deferred — known silent miscomputes awaiting compiler fixes
 
-### Undefined fn-call silent-link-error (DEFERRED, attempted v0.4.57)
-Pre-fix `let x: i64 = nonexistent_function(42);` silently emitted
-`call i64 @nonexistent_function(...)` and failed late at clang link
-with `undefined value '@nonexistent_function'`. v0.4.57 attempted a
-guard at the type_expr kind-7 fall-through but had too many false
-positives (closure-generated callees like `__closure_0`, fn-pointer
-dispatch sites, closure-capture helpers). Need to thread a
-closure-known-name table through type_expr to filter those out
-before flagging undefined callees. Tracked for a follow-on ship.
+### Undefined fn-call silent-link-error (CLOSED in v0.4.106)
+v0.4.60 added the type-check warning with closure-gen / Type-prefix /
+registered-var filters. v0.4.106 added the link-fail companion lift
+`lift_undefined_fn_link_errors` that scans clang output for
+`use of undefined value '@<name>'` not claimed by MOD-003 and
+emits a clean TYP-005 error with the readable
+`undefined function `bar()`. Check spelling, or import the rod
+that defines it.` line. Same false-positive filters apply.
+Negative gate: `tests/err/err_undefined_fn_link.nr`.
 
 ### Vec<T> == Vec<T> pointer comparison (DEFERRED, found 2026-04-28)
 Pre-fix `if v1 == v2` for two Vec<T> values returned FALSE even when
