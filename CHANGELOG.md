@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.136] — 2026-04-29
+
+**TYP-021: bare-let RHS evaluating to `void` silently bound as 0
+— sister to v0.4.132 (binop void). Now halts cleanly.**
+
+```nucleor
+let x = print_int(5);  // pre-fix: x bound to 0
+print_int(x);          // pre-fix: prints 0
+```
+
+The annotated form `let x: i64 = print_int(5);` already halted
+with TYP-008 (type mismatch) since the type-checker compared
+"void" against "i64". The bare-let case sailed through every
+check because at the kind-20 type-check site the
+`if str_len(tstr) > 0` branch was skipped (no annotation = empty
+tstr), so neither `types_compatible_context` nor any of the v0.4
+sibling checks (NUM-018, NUM-020, TYP-016, TYP-007) ever saw the
+void init. The binding env got `init_t = "void"` and codegen
+silently allocated a slot that read as 0.
+
+This release detects `init_t == "void" || type_is_unit(init_t)`
+when there's no type annotation, BEFORE the existing
+`str_len(tstr) > 0` branch. Halts with TYP-021. The check skips
+`let _ = ...` (idiomatic discard pattern) so users can still write
+`let _ = side_effect_only_call();` to silence
+unused-result lints if/when those land. Mirrored to
+`nucleor_tools_suite.nr`.
+
+Negative fixture: `tests/err/err_let_void_rhs.nr`. Bootstrap
+fixed-point holds first-pass. Fast-verify 190 PASS / 2
+baseline-FAIL.
+
 ## [0.4.135] — 2026-04-29
 
 **str-literal method dispatch: `"abc".len()` silently returned 0

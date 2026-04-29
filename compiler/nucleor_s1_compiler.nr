@@ -12160,6 +12160,19 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
         let mut init_t: str = "";
         if init >= 0 {
             init_t = type_expr(pool, prog, init, env, sigs, structs, fn_name, diags, source, tprof);
+            // v0.4.136: TYP-021 — void-typed RHS in `let` binding without
+            // type annotation. Pre-fix `let x = print_int(5);` silently
+            // bound `x` to the void return coerced to 0 — sister bug to
+            // v0.4.132 (binop void). The annotated form
+            // `let x: i64 = print_int(5);` already halts with TYP-008
+            // (type mismatch); the bare-let case sailed through every
+            // check because tstr is empty so the str_len(tstr) > 0
+            // branch below is skipped. Detect init_t == void here.
+            if str_len(tstr) == 0 && (str_eq(init_t, "void") == 1 || type_is_unit(init_t) == 1)
+                && str_eq(vname, "_") == 0 {
+                let v21msg: str = str_concat("`void`-typed expression cannot initialize binding `", str_concat(vname, "`. Pre-v0.4.136 the void return was silently coerced to 0 — adopters who confused side-effect-only fns (`print_int`, `print`, etc.) with value-returning fns got a 0-valued binding with no signal. Use the value-returning sibling fn (e.g. `int_to_str` instead of `print_int`) or split the side-effect into its own statement above the let."));
+                type_diag(diags, source, fn_name, vname, "TYP-021", v21msg);
+            };
             if str_len(tstr) > 0 {
                 if type_is_unit(tstr) == 1 && (node_kind(pool, init) == 1 || node_kind(pool, init) == 71) && line_has_unit_literal(source, fn_name, vname) == 0 {
                     type_diag(diags, source, fn_name, vname, "TYP-007", "bare numeric literal cannot initialize a unit value");
