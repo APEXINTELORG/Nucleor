@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 840
+# Total helpers: 850
 # Of which REVIEW REQUIRED: 66
 
 # ============================================================
@@ -8111,12 +8111,40 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "string_as_str"
+class            = "StringFormat"
+symbol           = "__nucleor_string_as_str"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "string_capacity"
 class            = "StringFormat"
 symbol           = "__nucleor_string_capacity"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> i64"
 effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "string_char_at"
+class            = "StringFormat"
+symbol           = "__nucleor_string_char_at"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "none"
@@ -8209,6 +8237,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "string_find"
+class            = "StringFormat"
+symbol           = "__nucleor_string_find"
+dispatch         = "RuntimeCall"
+abi              = "(i64, ptr) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "string_free"
 class            = "StringFormat"
 symbol           = "__nucleor_string_free"
@@ -8243,6 +8285,20 @@ symbol           = "__nucleor_string_get_byte"
 dispatch         = "RuntimeCall"
 abi              = "(i64, i64) -> i64"
 effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "string_is_empty"
+class            = "StringFormat"
+symbol           = "__nucleor_string_is_empty"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "none"
@@ -8327,6 +8383,90 @@ symbol           = "__nucleor_string_starts_with"
 dispatch         = "RuntimeCall"
 abi              = "(i64, ptr) -> i64"
 effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "string_substring"
+class            = "StringFormat"
+symbol           = "__nucleor_string_substring"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64, i64) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "string_to_lowercase"
+class            = "StringFormat"
+symbol           = "__nucleor_string_to_lowercase"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "string_to_uppercase"
+class            = "StringFormat"
+symbol           = "__nucleor_string_to_uppercase"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "string_trim"
+class            = "StringFormat"
+symbol           = "__nucleor_string_trim"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "string_trim_end"
+class            = "StringFormat"
+symbol           = "__nucleor_string_trim_end"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "string_trim_start"
+class            = "StringFormat"
+symbol           = "__nucleor_string_trim_start"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "none"

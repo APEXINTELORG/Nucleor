@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.124] — 2026-04-29
+
+**Extended `String` heap-string surface — 10 new methods (closes
+v0.4 residual #4).**
+
+The v0.4.114 `String` baseline shipped only `new/push/push_str/
+len/capacity/clear/print/eq/eq_str/starts_with/ends_with/contains/
+clone/free/get_byte/as_ptr`. This release adds the canonical
+Rust-idiom methods that adopters reach for:
+
+- `is_empty() -> bool`
+- `to_uppercase() -> String` / `to_lowercase() -> String`
+  (ASCII-only — Unicode case-fold is a v0.5 lift)
+- `trim() -> String` / `trim_start() -> String` / `trim_end() -> String`
+- `find(needle: str) -> i64` (returns -1 if not found)
+- `substring(lo: i64, hi: i64) -> String`
+- `char_at(i: i64) -> i64`
+- `as_str() -> str` (zero-copy view onto the heap buffer)
+
+All routed through new `__nucleor_string_*` runtime helpers in
+`stdlib/runtime/nucleor_llvm_rt.c` with the standard 5-table mirror
+(get_rt_name, is_ptr_arg where applicable, IR declares, dispatch
+table in `lower_expr` kind 8 catch-all, mirrored in
+`nucleor_tools_suite.nr`).
+
+Positive fixture: `tests/features/string_methods.nr` exercises
+to_uppercase / to_lowercase / trim / is_empty / find / substring /
+char_at end-to-end. Bootstrap fixed-point sha `4bf2cacb…`.
+Fast-verify 178 PASS / 2 baseline-FAIL clean.
+
 ## [0.4.123] — 2026-04-29
 
 **TYP-015: struct-field-as-method-call (`p.x(42)` where `x` is
