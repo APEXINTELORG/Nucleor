@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.82] — 2026-04-29
+
+**`nucleor_tools_suite.nr` `expect_tok` NR020 mirror — same close
+as s1 v0.4.78. Last big silent-fall-through site in the sister
+compiler's parser path.**
+
+`tools_suite`'s `expect_tok` (line 282) had the same `print` +
+`return pos + 1` recovery pattern that s1 had pre-v0.4.78. Any
+parse error in code reaching tools_suite's parser (via `nuc
+check`, `nuc summary`, `nuc audit`) printed a warning and
+silently produced a likely-broken AST. Promoted to NR020 panic
+mirroring the s1 close.
+
+Audit-grep confirmed tools_suite does NOT have the v0.4.79
+parser-recovery sites (`tuple destructure pattern`, `or-pattern`,
+`let` at module scope, `stmt-level keyword at module scope`) —
+these constructs aren't reachable through tools_suite's narrower
+parsing surface. v0.4.80's `WARNING: int_literal as Vec/tokenizer
+handle` sites are also absent.
+
+### Verify gate
+
+No new gate (structural close — 504 PASS / 0 FAIL proves
+tools_suite still self-builds and accepts every legitimate input
+in the test surface).
+
+### Memory + timing
+
+- Self-host build: unchanged.
+- Verify gate: 375.2s / 504 steps (was 362.2s / 504 — 13s above
+  noise band, attributed to one-off tools_suite rebuild during
+  this verify run; subsequent runs settle).
+- Bootstrap fixed-point: holds (s1 unchanged this cycle).
+
 ## [0.4.81] — 2026-04-29
 
 **4 silent fall-throughs in `nucleor_tools_suite.nr` mirrored from
