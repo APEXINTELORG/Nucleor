@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.109] — 2026-04-29
+
+**Int/str match without `_` arm now halts as MATCH-001 (closes
+silent-fall-through-to-0 sister hazard).**
+
+Discovered alongside v0.4.108 in the same triage tick. v0.4.59
+closed enum match-as-expression non-exhaustive cases as MATCH-001,
+but the check at lines 9760 / 10060 explicitly EXCLUDED `__int`
+and `__str` arm patterns — meaning:
+
+```nucleor
+let y: i32 = match x {
+    1 => 10,
+    2 => 20,
+};   // x=5 silently returned 0
+```
+
+Adopters writing the canonical Rust idiom got a quiet wrong result
+because the integer set is unbounded and there's no way to be
+exhaustive without a `_` arm. The previous "exclude int/str"
+guard was correct *for the enum-cardinality logic* (you can't
+count int variants) but wrong *for the safety property* (any
+int/str match without wildcard is provably non-exhaustive).
+
+Both check_expr (line 9737) and check_stmt (line 10057) sites now
+emit MATCH-001 when the first arm is `__int` / `__str` and there
+is no `__wild`. Mirror'd in tools_suite via the existing drift
+ABI parity (no source change there). Diagnostic spells out the
+silent-fall-through history and the `_ =>` fix.
+
+Fast-verify 158 PASS / 2 baseline-FAIL clean (no existing fixture
+uses int-match-without-wild — every match in the suite either
+uses enums-with-wildcard or lists every variant explicitly).
+Sequential gate 543/543. Negative fixture:
+`tests/err/err_int_match_no_wild.nr`.
+
 ## [0.4.108] — 2026-04-29
 
 **Tail-expression return-type check closes a SIGSEGV-class silent
