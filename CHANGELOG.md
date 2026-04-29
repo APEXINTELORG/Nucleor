@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.122] — 2026-04-29
+
+**TYP-014: calling a non-callable typed binding (`s(args)` for
+`s: str`) silently SIGSEGV'd; now halts at codegen with clear
+diagnostic.**
+
+```nucleor
+let s: str = "hello";
+s(42);   // pre-fix: SIGSEGV (str pointer interpreted as fn ptr)
+```
+
+The codegen call-path at line 14086 looked up `fn_name` in `sym`
+and, when it found a slot, lowered to an indirect call via
+`inttoptr` on the slot's value. For str / Vec / numeric / bool
+bindings, that interpreted the binding's bits as a function
+pointer — a runtime crash with no compile-time signal. Adopters
+who typo'd a fn name into a string-typed variable name (or vice
+versa) hit this immediately.
+
+This release adds a `__type_<name>` lookup before the indirect
+call and rejects the cases where the binding's base type is a
+known non-callable (str, i*, u*, f*, bool, Vec). fn-pointer
+bindings (whose `__type_<name>` is `fn(...)`) and closure
+bindings still flow through the indirect call as before.
+
+Diagnostic names the binding, its actual type, and suggests
+the likely user intent (`[i]` for indexing, `.method(args)`
+for a method call).
+
+Negative fixture: `tests/err/err_call_str_as_fn.nr`.
+Bootstrap fixed-point sha `5f50ff75…`. Fast-verify 176 PASS /
+2 baseline-FAIL clean.
+
 ## [0.4.121] — 2026-04-29
 
 **Two silent miscompute closes in one tick: bare `print()` no

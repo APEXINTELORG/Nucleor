@@ -14084,6 +14084,35 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         };
         let fn_slot: i64 = sym_get(sym, fn_name);
         if fn_slot >= 0 {
+            // v0.4.122: catch `s(args)` for `s: str` (and other
+            // non-callable typed bindings) at codegen time. Pre-fix
+            // the indirect-call below treated the str pointer as a
+            // fn-ptr and SIGSEGV'd at runtime — adopters who typo'd
+            // a fn name into a string-typed variable name (or vice
+            // versa) got a runtime crash with no compile-time signal.
+            // Halt cleanly when the binding's `__type_<name>` is a
+            // known non-callable scalar/string type.
+            let type_v122: i64 = sym_get(sym, str_concat("__type_", fn_name));
+            if type_v122 >= 0 {
+                let type_str_v122: str = type_v122;
+                let tbase_v122: str = type_base_name(type_str_v122);
+                let is_uncallable: i64 = if str_eq(tbase_v122, "str") == 1
+                    || str_eq(tbase_v122, "i8") == 1
+                    || str_eq(tbase_v122, "i16") == 1
+                    || str_eq(tbase_v122, "i32") == 1
+                    || str_eq(tbase_v122, "i64") == 1
+                    || str_eq(tbase_v122, "u8") == 1
+                    || str_eq(tbase_v122, "u16") == 1
+                    || str_eq(tbase_v122, "u32") == 1
+                    || str_eq(tbase_v122, "u64") == 1
+                    || str_eq(tbase_v122, "f32") == 1
+                    || str_eq(tbase_v122, "f64") == 1
+                    || str_eq(tbase_v122, "bool") == 1
+                    || str_eq(tbase_v122, "Vec") == 1 { 1 } else { 0 };
+                if is_uncallable == 1 {
+                    panic(str_concat("error[TYP-014]: cannot call `", str_concat(fn_name, str_concat("(...)` — `", str_concat(fn_name, str_concat("` is bound as type `", str_concat(type_str_v122, "`, which is not callable. Pre-v0.4.122 this lowered to an indirect call that interpreted the value's bits as a function pointer and SIGSEGV'd at runtime. Did you mean to call a different identifier, or to access an element via `[i]` / a method via `.method(args)`?"))))))));
+                };
+            };
             let fp_r: i64 = ctr_next(regs); ir_block_add(cur, ir_load(fp_r, fn_slot));
             let r: i64 = ctr_next(regs);
             ir_block_add(cur, ir_indirect_call(r, fp_r, arg_regs));
