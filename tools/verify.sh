@@ -1275,7 +1275,7 @@ t427_match_tuple_pat_halts() {
     "$BIN" build "tests/fixtures/repro_v79_match_tuple_pat.nr" -o "_t427_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" != "0" ] || return 1
-    grep -q "tuple destructure pattern in match" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "tuple/slice pattern requires Vec" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1372,6 +1372,39 @@ t460_question_from_conversion() {
     local rc3=$?
     if [ "$rc3" -eq 0 ]; then return 1; fi
     grep -q "error\\[TRAIT-001\\]" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
+t446_rich_pattern_forms() {
+    for case in \
+        repro_match_full_or_patterns \
+        repro_match_at_binding \
+        repro_match_struct_destructure \
+        repro_match_slice \
+        repro_match_tuple_destructure
+    do
+        "$BIN" build "tests/fixtures/${case}.nr" -o "_t446_${case}" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+        local exe="target/_t446_${case}"
+        [ -x "$exe.exe" ] && exe="$exe.exe"
+        [ -x "$exe" ] || return 1
+        "$exe" >>$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    done
+
+    "$BIN" build "tests/err/err_match_or_binding_mismatch.nr" -o "_t446_or_mismatch" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" != "0" ] || return 1
+    grep -q "MATCH-008" $NUC_VERIFY_STEP_LOG || return 1
+
+    "$BIN" build "tests/err/err_match_pattern_wrong_type.nr" -o "_t446_wrong_type" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" != "0" ] || return 1
+    grep -q "tuple/slice pattern requires Vec" $NUC_VERIFY_STEP_LOG || return 1
+
+    "$BIN" build "tests/err/err_match_at_binding_collision.nr" -o "_t446_at_collision" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" != "0" ] || return 1
+    grep -q "MATCH-010" $NUC_VERIFY_STEP_LOG || return 1
+
+    "$BIN" build "tests/err/err_match_slice_overlap.nr" -o "_t446_slice_overlap" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" != "0" ] || return 1
+    grep -q "MATCH-009" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -3563,6 +3596,7 @@ step "T3.143 v0.4.97 — recursive Debug for Vec<i64>/Option<i64>/Result<i64,i64
 step "T3.144 v0.4.98 — Vec debug element-type dispatch: Vec<str> + Vec<Option<i64>>" t444_debug_vec_str_and_option
 step "T3.145 v0.4.99 §_p — parse_primary fall-through panics for non-recovery tokens (audit doc-#1)" t445_parse_primary_narrow_panic
 step "T3.146 v0.4.115 RFC-0016 §3.7 — ? applies From<SrcErr> for DstErr conversion; explicit Into<T> parses" t460_question_from_conversion
+step "T3.147 v0.4.119 rich match patterns — enum or, @, struct, slice, tuple, MATCH-008/009/010" t446_rich_pattern_forms
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

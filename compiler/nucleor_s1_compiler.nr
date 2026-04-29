@@ -214,27 +214,32 @@ fn lex(src: str) -> Vec<i32> {
         let c: i64 = str_char_at(src, p);
         if is_ws(c) == 1 { p = p + 1; }
         else if c == 64 {
-            // Skip attributes like @authored(...), @policy(...), @hot, @const_fn.
-            p = p + 1;
-            while p < slen && is_alnum(str_char_at(src, p)) == 1 { p = p + 1; };
-            if p < slen && str_char_at(src, p) == 40 {
-                let mut depth: i64 = 1;
+            if p + 1 < slen && is_alnum(str_char_at(src, p + 1)) == 1 {
+                // Skip attributes like @authored(...), @policy(...), @hot, @const_fn.
                 p = p + 1;
-                while p < slen && depth > 0 {
-                    let ch: i64 = str_char_at(src, p);
-                    if ch == 34 {
-                        p = p + 1;
-                        while p < slen && str_char_at(src, p) != 34 {
-                            if str_char_at(src, p) == 92 && p + 1 < slen { p = p + 2; }
-                            else { p = p + 1; };
+                while p < slen && is_alnum(str_char_at(src, p)) == 1 { p = p + 1; };
+                if p < slen && str_char_at(src, p) == 40 {
+                    let mut depth: i64 = 1;
+                    p = p + 1;
+                    while p < slen && depth > 0 {
+                        let ch: i64 = str_char_at(src, p);
+                        if ch == 34 {
+                            p = p + 1;
+                            while p < slen && str_char_at(src, p) != 34 {
+                                if str_char_at(src, p) == 92 && p + 1 < slen { p = p + 2; }
+                                else { p = p + 1; };
+                            };
+                            if p < slen { p = p + 1; };
+                        } else {
+                            if ch == 40 { depth = depth + 1; }
+                            else if ch == 41 { depth = depth - 1; };
+                            p = p + 1;
                         };
-                        if p < slen { p = p + 1; };
-                    } else {
-                        if ch == 40 { depth = depth + 1; }
-                        else if ch == 41 { depth = depth - 1; };
-                        p = p + 1;
                     };
                 };
+            } else {
+                tokens.push(tok_new(122, 0, p));
+                p = p + 1;
             };
         }
         else if c == 35 && p + 1 < slen && str_char_at(src, p + 1) == 91 {
@@ -748,6 +753,259 @@ fn parse_match_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     };
     cp = expect_tok(tokens, cp, 53);
     return pr(cp, binding);
+}
+
+fn str_find_char_local(s: str, ch: i64) -> i64 {
+    let slen: i64 = str_len(s);
+    let mut i: i64 = 0;
+    while i < slen {
+        if str_char_at(s, i) == ch { return i; };
+        i = i + 1;
+    };
+    return 0 - 1;
+}
+
+fn str_before_char_local(s: str, ch: i64) -> str {
+    let p: i64 = str_find_char_local(s, ch);
+    if p < 0 { return s; };
+    return str_substring(s, 0, p);
+}
+
+fn str_after_char_local(s: str, ch: i64) -> str {
+    let p: i64 = str_find_char_local(s, ch);
+    if p < 0 { return ""; };
+    return str_substring(s, p + 1, str_len(s));
+}
+
+fn pattern_append_binding(binding: str, piece: str) -> str {
+    if str_len(piece) == 0 { return binding; };
+    if str_len(binding) == 0 { return piece; };
+    return str_concat(binding, str_concat("|", piece));
+}
+
+fn pattern_prepend_at_binding(binding: str, at_name: str) -> str {
+    if str_len(at_name) == 0 { return binding; };
+    let head: str = str_concat("@", at_name);
+    if str_len(binding) == 0 { return head; };
+    return str_concat(head, str_concat("|", binding));
+}
+
+fn pattern_binding_item_name(item: str) -> str {
+    if str_len(item) == 0 { return ""; };
+    if str_eq(item, "_") == 1 || str_eq(item, "..") == 1 { return ""; };
+    let mut s: str = item;
+    if str_char_at(s, 0) == 64 { s = str_substring(s, 1, str_len(s)); };
+    let colon: i64 = str_find_char_local(s, 58);
+    if colon >= 0 { s = str_substring(s, colon + 1, str_len(s)); };
+    if str_eq(s, "_") == 1 || str_eq(s, "..") == 1 { return ""; };
+    return s;
+}
+
+fn pattern_binding_key_from_list(binding: str) -> str {
+    let blen: i64 = str_len(binding);
+    let mut key: str = "";
+    let mut start: i64 = 0;
+    while start < blen {
+        let mut end: i64 = start;
+        while end < blen && str_char_at(binding, end) != 124 { end = end + 1; };
+        let item: str = str_substring(binding, start, end);
+        let name: str = pattern_binding_item_name(item);
+        key = pattern_append_binding(key, name);
+        start = end + 1;
+    };
+    return key;
+}
+
+fn pattern_binding_key(ename: str, binding: str) -> str {
+    if str_eq(ename, "__range") == 1 || str_eq(ename, "__range_bad") == 1 { return ""; };
+    if str_eq(ename, "__range_at") == 1 || str_eq(ename, "__range_bad_at") == 1 {
+        return pattern_binding_key_from_list(str_after_char_local(binding, 124));
+    };
+    return pattern_binding_key_from_list(binding);
+}
+
+fn parse_match_struct_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
+    let mut cp: i64 = pos;
+    let mut binding: str = "";
+    while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
+        if str_len(binding) > 0 {
+            cp = expect_tok(tokens, cp, 44);
+            if pk(tokens, cp) == 53 { break; };
+        };
+        let fname: str = pkv(tokens, cp);
+        let mut bname: str = fname;
+        cp = cp + 1;
+        if pk(tokens, cp) == 42 {
+            cp = cp + 1;
+            bname = pkv(tokens, cp);
+            cp = cp + 1;
+        };
+        binding = pattern_append_binding(binding, str_concat(fname, str_concat(":", bname)));
+    };
+    cp = expect_tok(tokens, cp, 53);
+    return pr(cp, binding);
+}
+
+fn parse_match_list_binding(tokens: Vec<i32>, pos: i64, end_tok: i64, allow_rest: i64) -> Vec<i32> {
+    let mut cp: i64 = pos;
+    let mut binding: str = "";
+    let mut saw_rest: i64 = 0;
+    while pk(tokens, cp) != end_tok && pk(tokens, cp) != 0 {
+        if str_len(binding) > 0 {
+            cp = expect_tok(tokens, cp, 44);
+            if pk(tokens, cp) == end_tok { break; };
+        };
+        let mut piece: str = "";
+        if allow_rest == 1 && pk(tokens, cp) == 58 {
+            if saw_rest == 1 {
+                print("error[MATCH-009]: slice pattern contains more than one `..` rest marker");
+                panic("nucleor: MATCH-009 slice pattern overlap");
+            };
+            piece = "..";
+            saw_rest = 1;
+            cp = cp + 1;
+        } else if pk(tokens, cp) == 1 {
+            piece = pkv(tokens, cp);
+            cp = cp + 1;
+        } else {
+            print("error[MATCH-009]: only identifier, `_`, and `..` elements are supported in tuple/slice patterns");
+            panic("nucleor: unsupported tuple/slice pattern element");
+        };
+        binding = pattern_append_binding(binding, piece);
+    };
+    cp = expect_tok(tokens, cp, end_tok);
+    return pr(cp, binding);
+}
+
+fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
+    let mut cp: i64 = pos;
+    let mut at_name: str = "";
+    if pk(tokens, cp) == 1 && pk(tokens, cp + 1) == 122 {
+        at_name = pkv(tokens, cp);
+        cp = cp + 2;
+    };
+    let att: i64 = pk(tokens, cp);
+    let mut ename: str = "";
+    let mut vname: str = "";
+    let mut binding: str = "";
+    if att == 2 {
+        let lo_val: i64 = pkv(tokens, cp);
+        cp = cp + 1;
+        let next_tok: i64 = pk(tokens, cp);
+        if next_tok == 96 || next_tok == 58 {
+            let inclusive: i64 = if next_tok == 96 { 1 } else { 0 };
+            cp = cp + 1;
+            if pk(tokens, cp) == 2 {
+                let hi_raw: i64 = pkv(tokens, cp);
+                cp = cp + 1;
+                let hi_norm: i64 = if inclusive == 1 { hi_raw } else { hi_raw - 1 };
+                if lo_val <= hi_norm { ename = "__range"; } else { ename = "__range_bad"; };
+                vname = lo_val;
+                binding = str_from_int(hi_norm);
+            } else {
+                ename = "__int";
+                vname = lo_val;
+            };
+        } else {
+            ename = "__int";
+            vname = lo_val;
+        };
+    } else if att == 3 {
+        ename = "__str";
+        vname = pkv(tokens, cp);
+        cp = cp + 1;
+    } else if att == 1 && str_eq(pkv(tokens, cp), "_") == 1 {
+        ename = "__wild";
+        cp = cp + 1;
+    } else if att == 1 && pk(tokens, cp + 1) == 46 {
+        ename = pkv(tokens, cp);
+        cp = expect_tok(tokens, cp + 1, 46);
+        vname = pkv(tokens, cp); cp = cp + 1;
+        if pk(tokens, cp) == 50 {
+            cp = cp + 1;
+            let mut first: i64 = 1;
+            while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
+                if first == 0 { cp = expect_tok(tokens, cp, 44); };
+                let bn: str = pkv(tokens, cp); cp = cp + 1;
+                binding = pattern_append_binding(binding, bn);
+                first = 0;
+            };
+            cp = expect_tok(tokens, cp, 51);
+        } else if pk(tokens, cp) == 52 {
+            let mut br: Vec<i32> = parse_match_binding_block(tokens, cp + 1);
+            binding = pr_val(br);
+            cp = pr_pos(br);
+        };
+    } else if att == 1 && pk(tokens, cp + 1) == 45 {
+        ename = pkv(tokens, cp);
+        cp = cp + 2;
+        vname = pkv(tokens, cp); cp = cp + 1;
+        if pk(tokens, cp) == 50 {
+            cp = cp + 1;
+            binding = pkv(tokens, cp); cp = cp + 1;
+            cp = expect_tok(tokens, cp, 51);
+        } else if pk(tokens, cp) == 52 {
+            let mut br: Vec<i32> = parse_match_binding_block(tokens, cp + 1);
+            binding = pr_val(br);
+            cp = pr_pos(br);
+        };
+    } else if att == 1 && pk(tokens, cp + 1) == 52
+        && str_eq(pkv(tokens, cp), "Some") == 0
+        && str_eq(pkv(tokens, cp), "None") == 0
+        && str_eq(pkv(tokens, cp), "Ok") == 0
+        && str_eq(pkv(tokens, cp), "Err") == 0 {
+        ename = "__struct";
+        vname = pkv(tokens, cp);
+        let mut br: Vec<i32> = parse_match_struct_binding_block(tokens, cp + 2);
+        binding = pr_val(br);
+        cp = pr_pos(br);
+    } else if att == 50 {
+        ename = "__tuple";
+        let mut br: Vec<i32> = parse_match_list_binding(tokens, cp + 1, 51, 0);
+        binding = pr_val(br);
+        vname = str_from_int(pattern_list_value_count(binding));
+        cp = pr_pos(br);
+    } else if att == 54 {
+        ename = "__slice";
+        let mut br: Vec<i32> = parse_match_list_binding(tokens, cp + 1, 55, 1);
+        binding = pr_val(br);
+        vname = "slice";
+        cp = pr_pos(br);
+    } else if att == 1 && (str_eq(pkv(tokens, cp), "Some") == 1 || str_eq(pkv(tokens, cp), "None") == 1 || str_eq(pkv(tokens, cp), "Ok") == 1 || str_eq(pkv(tokens, cp), "Err") == 1) {
+        vname = pkv(tokens, cp);
+        if str_eq(vname, "Ok") == 1 || str_eq(vname, "Err") == 1 { ename = "Result"; }
+        else { ename = "Option"; };
+        cp = cp + 1;
+        if pk(tokens, cp) == 50 {
+            cp = cp + 1;
+            if pk(tokens, cp) != 51 { binding = pkv(tokens, cp); cp = cp + 1; };
+            cp = expect_tok(tokens, cp, 51);
+        } else if pk(tokens, cp) == 52 {
+            let mut br: Vec<i32> = parse_match_binding_block(tokens, cp + 1);
+            binding = pr_val(br);
+            cp = pr_pos(br);
+        };
+    } else {
+        ename = "__wild";
+        binding = pkv(tokens, cp);
+        cp = cp + 1;
+    };
+    if str_len(at_name) > 0 {
+        if str_eq(ename, "__range") == 1 {
+            ename = "__range_at";
+            binding = str_concat(binding, str_concat("|@", at_name));
+        } else if str_eq(ename, "__range_bad") == 1 {
+            ename = "__range_bad_at";
+            binding = str_concat(binding, str_concat("|@", at_name));
+        } else if str_eq(ename, "__int") == 1 || str_eq(ename, "__str") == 1 || str_eq(ename, "__wild") == 1 {
+            binding = at_name;
+        } else {
+            binding = pattern_prepend_at_binding(binding, at_name);
+        };
+    };
+    let mut out: Vec<i32> = Vec::new();
+    out.push(cp); out.push(ename); out.push(vname); out.push(binding);
+    return out;
 }
 
 fn mk_passthrough_block_expr(pool: Vec<i32>, body: i64) -> i64 {
@@ -2346,131 +2604,11 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
         if vec_len(arms) > 0 && pk(tokens, cp) == 44 { cp = cp + 1; };
         if pk(tokens, cp) == 53 || pk(tokens, cp) == 0 { break; };
-        let att: i64 = pk(tokens, cp);
-        let mut ename: str = "";
-        let mut vname: str = "";
-        let mut binding: str = "";
-        if att == 2 {
-            // Integer literal pattern (token value is already i64).
-            // T2.1 (v0.2.347): range patterns now wire through to the
-            // long-existing lower-side __range / __range_bad handlers.
-            // Encoding fits cleanly in the existing arm tuple:
-            //   vname    = LO (i64 cell, raw int from token)
-            //   binding  = str_from_int(HI) (string-encoded HI; lower
-            //              side recovers via str_to_int)
-            //   ename    = "__range" if LO <= HI, else "__range_bad"
-            //   Half-open `LO..HI` normalizes to `LO..=(HI-1)`.
-            // (Earlier worry about arm tuple fragility turned out to
-            // be unfounded — the existing shape handles it fine.)
-            let lo_val: i64 = pkv(tokens, cp);
-            cp = cp + 1;
-            let next_tok: i64 = pk(tokens, cp);
-            if next_tok == 96 || next_tok == 58 {
-                let inclusive: i64 = if next_tok == 96 { 1 } else { 0 };
-                cp = cp + 1;
-                if pk(tokens, cp) == 2 {
-                    let hi_raw: i64 = pkv(tokens, cp);
-                    cp = cp + 1;
-                    let hi_norm: i64 = if inclusive == 1 { hi_raw } else { hi_raw - 1 };
-                    if lo_val <= hi_norm {
-                        ename = "__range";
-                    } else {
-                        ename = "__range_bad";
-                    };
-                    vname = lo_val;
-                    binding = str_from_int(hi_norm);
-                } else {
-                    // Malformed range — fall back to plain int.
-                    ename = "__int";
-                    vname = lo_val;
-                };
-            } else {
-                ename = "__int";
-                vname = lo_val;
-            };
-        } else if att == 3 {
-            // String literal pattern
-            ename = "__str";
-            vname = pkv(tokens, cp);
-            cp = cp + 1;
-        } else if att == 1 && str_eq(pkv(tokens, cp), "_") {
-            // Wildcard pattern
-            ename = "__wild";
-            cp = cp + 1;
-        } else if att == 1 && pk(tokens, cp + 1) == 46 {
-            // Enum pattern: EnumName::Variant or EnumName::Variant(b1, b2, ...)
-            // v0.3.86: multi-capture support — bindings separated by `|`
-            // in the binding string (match_bind_payloads at line 9177
-            // already handles this format).
-            ename = pkv(tokens, cp);
-            cp = expect_tok(tokens, cp + 1, 46); // ::
-            vname = pkv(tokens, cp); cp = cp + 1;
-            if pk(tokens, cp) == 50 {
-                cp = cp + 1;
-                let mut first: i64 = 1;
-                while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
-                    if first == 0 { cp = expect_tok(tokens, cp, 44); };
-                    let bn: str = pkv(tokens, cp); cp = cp + 1;
-                    if first == 1 { binding = bn; } else { binding = str_concat(binding, str_concat("|", bn)); };
-                    first = 0;
-                };
-                cp = expect_tok(tokens, cp, 51); // )
-            } else if pk(tokens, cp) == 52 {
-                let mut br: Vec<i32> = parse_match_binding_block(tokens, cp + 1);
-                binding = pr_val(br);
-                cp = pr_pos(br);
-            };
-        } else if att == 1 && pk(tokens, cp + 1) == 45 {
-            // Enum pattern: EnumName.Variant { binding }
-            ename = pkv(tokens, cp);
-            cp = cp + 2;
-            vname = pkv(tokens, cp); cp = cp + 1;
-            if pk(tokens, cp) == 50 {
-                cp = cp + 1;
-                binding = pkv(tokens, cp); cp = cp + 1;
-                cp = expect_tok(tokens, cp, 51);
-            } else if pk(tokens, cp) == 52 {
-                let mut br: Vec<i32> = parse_match_binding_block(tokens, cp + 1);
-                binding = pr_val(br);
-                cp = pr_pos(br);
-            };
-        } else if att == 50 {
-            // v0.3.106: tuple destructure pattern (`(x, y) => …`).
-            // Pre-v0.3.106 the `(` fell into the catch-all else
-            // branch which set ename="__wild" + binding="(", then
-            // expect_tok(=>) on the inner `x` cascaded into 13+
-            // parse errors AND silently returned 0 from the match
-            // (HIGH-blast silent miscompute for any pattern-matching
-            // code reaching for tuple destructure). Real tuple-arm
-            // codegen needs payload-binding for tuple cells; until
-            // that lands, surface a diagnostic and fast-skip to `=>`
-            // so the rest of the body parses cleanly. Workaround:
-            // wildcard `_` and access tuple fields via `.0` / `.1`.
-            // v0.4.79: was print + recover ename="__wild" — silent
-            // miscompute, the tuple match arm fired for ALL inputs
-            // because the pattern was downgraded to wildcard.
-            print("ERROR: tuple destructure patterns in match (e.g. `(x, y) => …`) are not yet supported. Workaround: use `_ =>` and access tuple fields explicitly via `.0` / `.1` (`match p { _ => return p.0 + p.1, };`). Tracked for a future ship.");
-            panic("nucleor: tuple destructure pattern in match not supported (see ERROR diagnostic above)");
-        } else if att == 1 && (str_eq(pkv(tokens, cp), "Some") == 1 || str_eq(pkv(tokens, cp), "None") == 1 || str_eq(pkv(tokens, cp), "Ok") == 1 || str_eq(pkv(tokens, cp), "Err") == 1) {
-            vname = pkv(tokens, cp);
-            if str_eq(vname, "Ok") == 1 || str_eq(vname, "Err") == 1 { ename = "Result"; }
-            else { ename = "Option"; };
-            cp = cp + 1;
-            if pk(tokens, cp) == 50 {
-                cp = cp + 1;
-                if pk(tokens, cp) != 51 { binding = pkv(tokens, cp); cp = cp + 1; };
-                cp = expect_tok(tokens, cp, 51);
-            } else if pk(tokens, cp) == 52 {
-                let mut br: Vec<i32> = parse_match_binding_block(tokens, cp + 1);
-                binding = pr_val(br);
-                cp = pr_pos(br);
-            };
-        } else {
-            // Identifier as value pattern (variable binding like wildcard)
-            ename = "__wild";
-            binding = pkv(tokens, cp);
-            cp = cp + 1;
-        };
+        let mut pat: Vec<i32> = parse_match_one_pattern(tokens, cp, pool);
+        cp = vec_get(pat, 0);
+        let ename: str = vec_get(pat, 1);
+        let vname: str = vec_get(pat, 2);
+        let binding: str = vec_get(pat, 3);
         // v0.4.49: or-patterns (`A | B | C => body`). Pre-fix this
         // silently miscomputed: the parser printed parse errors but
         // continued, the build succeeded, and the match returned the
@@ -2486,23 +2624,14 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         pat_list.push(ename); pat_list.push(vname); pat_list.push(binding);
         while pk(tokens, cp) == 65 {
             cp = cp + 1;
-            let oratt: i64 = pk(tokens, cp);
-            let mut oren: str = "";
-            let mut orvn: str = "";
-            let mut orbn: str = "";
-            if oratt == 2 {
-                oren = "__int";
-                orvn = pkv(tokens, cp);
-                cp = cp + 1;
-            } else if oratt == 1 && str_eq(pkv(tokens, cp), "_") == 1 {
-                oren = "__wild";
-                cp = cp + 1;
-            } else {
-                // v0.4.79: was print + recover (skip to `=>`) — silent
-                // miscompute, the rest of the or-chain was dropped and
-                // the match might have selected the wrong arm.
-                print("ERROR: or-patterns currently only support int literals and wildcards (e.g. `1 | 2 | _ => ...`). Other pattern kinds in `|` chains are not yet supported.");
-                panic("nucleor: unsupported or-pattern kind (see ERROR diagnostic above)");
+            let mut orpat: Vec<i32> = parse_match_one_pattern(tokens, cp, pool);
+            cp = vec_get(orpat, 0);
+            let oren: str = vec_get(orpat, 1);
+            let orvn: str = vec_get(orpat, 2);
+            let orbn: str = vec_get(orpat, 3);
+            if str_eq(pattern_binding_key(ename, binding), pattern_binding_key(oren, orbn)) == 0 {
+                print("error[MATCH-008]: or-pattern alternatives must bind the same names");
+                panic("nucleor: MATCH-008 or-pattern binding mismatch");
             };
             if str_len(oren) > 0 {
                 pat_list.push(oren); pat_list.push(orvn); pat_list.push(orbn);
@@ -10672,6 +10801,46 @@ fn tenv_get(env: Vec<i32>, name: str) -> str {
     if v < 0 { return ""; };
     return v;
 }
+fn tenv_set_pattern_item(env: Vec<i32>, item: str, tstr: str) -> i64 {
+    let name: str = pattern_binding_item_name(item);
+    if str_len(name) == 0 { return 0; };
+    let btype: str = if str_len(tstr) > 0 { tstr } else { "i64" };
+    tenv_set(env, name, btype);
+    return 0;
+}
+fn tenv_set_pattern_list(env: Vec<i32>, binding: str, tstr: str) -> i64 {
+    let work: str = pattern_after_at_prefix(binding);
+    let blen: i64 = str_len(work);
+    let mut start: i64 = 0;
+    while start < blen {
+        let mut end: i64 = start;
+        while end < blen && str_char_at(work, end) != 124 { end = end + 1; };
+        tenv_set_pattern_item(env, str_substring(work, start, end), tstr);
+        start = end + 1;
+    };
+    return 0;
+}
+fn tenv_set_struct_pattern(pool: Vec<i32>, structs: Vec<i32>, env: Vec<i32>, sname: str, binding: str) -> i64 {
+    let si: i64 = struct_find_type(pool, structs, sname);
+    if si < 0 { return 0; };
+    let s_nid: i64 = vec_get(structs, si);
+    let work: str = pattern_after_at_prefix(binding);
+    let blen: i64 = str_len(work);
+    let mut start: i64 = 0;
+    while start < blen {
+        let mut end: i64 = start;
+        while end < blen && str_char_at(work, end) != 124 { end = end + 1; };
+        let item: str = str_substring(work, start, end);
+        let field_name: str = str_before_char_local(item, 58);
+        let bind_name: str = pattern_binding_item_name(item);
+        if str_len(bind_name) > 0 {
+            let ft: str = struct_field_type(pool, s_nid, field_name);
+            tenv_set(env, bind_name, if str_len(ft) > 0 { ft } else { "i64" });
+        };
+        start = end + 1;
+    };
+    return 0;
+}
 fn strip_spaces(s: str) -> str {
     // Fast path: most type strings (the dominant caller) have no
     // whitespace. Scan once to detect; if clean, return the input
@@ -11716,6 +11885,48 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         };
         return tt;
     };
+    if kind == 38 {
+        let scrut_t: str = type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        let arms: i64 = node_field(pool, nid, 2);
+        let ac: i64 = list_len(pool, arms);
+        let mut out_t: str = "";
+        let mut ai: i64 = 0;
+        while ai < ac {
+            let arm_nid: i64 = list_get(pool, arms, ai);
+            let arm_env: Vec<i32> = own_snapshot(env);
+            let ename: str = node_field(pool, arm_nid, 1);
+            let vname: str = node_field(pool, arm_nid, 2);
+            let binding: str = node_field(pool, arm_nid, 3);
+            let at_name: str = if str_eq(ename, "__range_at") == 1 || str_eq(ename, "__range_bad_at") == 1 { pattern_binding_item_name(str_after_char_local(binding, 124)) } else { pattern_at_prefix_name(binding) };
+            if str_len(at_name) > 0 {
+                if str_len(tenv_get(env, at_name)) > 0 {
+                    type_diag(diags, source, fn_name, at_name, "MATCH-010", str_concat("@-binding name collides with an outer binding: ", at_name));
+                };
+                tenv_set(arm_env, at_name, if str_len(scrut_t) > 0 { scrut_t } else { "i64" });
+            };
+            if str_eq(ename, "__struct") == 1 {
+                if str_eq(type_base_name(scrut_t), type_base_name(vname)) == 0 {
+                    type_diag(diags, source, fn_name, "match", "TYP-010", str_concat("struct pattern type mismatch: expected ", str_concat(vname, str_concat(" but scrutinee is ", scrut_t))));
+                };
+                tenv_set_struct_pattern(pool, structs, arm_env, vname, binding);
+            } else if str_eq(ename, "__tuple") == 1 || str_eq(ename, "__slice") == 1 {
+                if str_len(scrut_t) > 0 && str_eq(type_base_name(scrut_t), "Vec") == 0 {
+                    type_diag(diags, source, fn_name, "match", "TYP-010", str_concat("tuple/slice pattern requires Vec<T> scrutinee, found ", scrut_t));
+                };
+                let elem_t: str = type_first_arg(scrut_t);
+                tenv_set_pattern_list(arm_env, binding, if str_len(elem_t) > 0 { elem_t } else { "i64" });
+            } else {
+                let payload_binding: str = pattern_after_at_prefix(binding);
+                let bind_t: str = match_payload_type_from_scrutinee(scrut_t, ename, vname, 0);
+                tenv_set_pattern_list(arm_env, payload_binding, if str_len(bind_t) > 0 { bind_t } else { "i64" });
+            };
+            let bt: str = type_last_stmt(pool, prog, node_field(pool, arm_nid, 4), arm_env, sigs, structs, fn_name, diags, source, tprof);
+            if str_len(out_t) == 0 { out_t = bt; };
+            vec_free(arm_env);
+            ai = ai + 1;
+        };
+        return out_t;
+    };
     return "";
 }
 fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, rtype: str, tprof: Vec<i32>) -> i64 {
@@ -12017,11 +12228,37 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             let arm_nid: i64 = list_get(pool, arms, ai);
             let arm_env: Vec<i32> = own_snapshot(env);
             let binding: str = node_field(pool, arm_nid, 3);
+            let ename: str = node_field(pool, arm_nid, 1);
+            let vname: str = node_field(pool, arm_nid, 2);
+            let at_name: str = if str_eq(ename, "__range_at") == 1 || str_eq(ename, "__range_bad_at") == 1 { pattern_binding_item_name(str_after_char_local(binding, 124)) } else { pattern_at_prefix_name(binding) };
+            if str_len(at_name) > 0 {
+                if str_len(tenv_get(env, at_name)) > 0 {
+                    type_diag(diags, source, fn_name, at_name, "MATCH-010", str_concat("@-binding name collides with an outer binding: ", at_name));
+                    warns = warns + 1;
+                };
+                tenv_set(arm_env, at_name, if str_len(scrut_t) > 0 { scrut_t } else { "i64" });
+            };
+            if str_eq(ename, "__struct") == 1 {
+                if str_eq(type_base_name(scrut_t), type_base_name(vname)) == 0 {
+                    type_diag(diags, source, fn_name, "match", "TYP-010", str_concat("struct pattern type mismatch: expected ", str_concat(vname, str_concat(" but scrutinee is ", scrut_t))));
+                    warns = warns + 1;
+                };
+                tenv_set_struct_pattern(pool, structs, arm_env, vname, binding);
+            } else if str_eq(ename, "__tuple") == 1 || str_eq(ename, "__slice") == 1 {
+                if str_len(scrut_t) > 0 && str_eq(type_base_name(scrut_t), "Vec") == 0 {
+                    type_diag(diags, source, fn_name, "match", "TYP-010", str_concat("tuple/slice pattern requires Vec<T> scrutinee, found ", scrut_t));
+                    warns = warns + 1;
+                };
+                let elem_t: str = type_first_arg(scrut_t);
+                tenv_set_pattern_list(arm_env, binding, if str_len(elem_t) > 0 { elem_t } else { "i64" });
+            } else if str_eq(ename, "__range_at") == 1 || str_eq(ename, "__range_bad_at") == 1 {
+            } else {
+                let payload_binding: str = pattern_after_at_prefix(binding);
+                tenv_set_pattern_list(arm_env, payload_binding, "i64");
+            };
             if str_len(binding) > 0 {
-                let ename: str = node_field(pool, arm_nid, 1);
-                let vname: str = node_field(pool, arm_nid, 2);
                 let bind_t: str = match_payload_type_from_scrutinee(scrut_t, ename, vname, 0);
-                if str_len(bind_t) > 0 { tenv_set(arm_env, binding, bind_t); };
+                if str_len(bind_t) > 0 { tenv_set_pattern_list(arm_env, binding, bind_t); };
             };
             warns = warns + type_check_stmts(pool, prog, node_field(pool, arm_nid, 4), arm_env, sigs, structs, fn_name, diags, source, rtype, tprof);
             vec_free(arm_env);
@@ -12173,6 +12410,181 @@ fn match_bind_payload_type(ename: str, vname: str) -> str {
         return "i64";
     };
     return "i64";
+}
+
+fn pattern_binding_has_at_prefix(binding: str) -> i64 {
+    if str_len(binding) > 0 && str_char_at(binding, 0) == 64 { return 1; };
+    return 0;
+}
+
+fn pattern_at_prefix_name(binding: str) -> str {
+    if pattern_binding_has_at_prefix(binding) == 0 { return ""; };
+    let blen: i64 = str_len(binding);
+    let mut end: i64 = 1;
+    while end < blen && str_char_at(binding, end) != 124 { end = end + 1; };
+    return str_substring(binding, 1, end);
+}
+
+fn pattern_after_at_prefix(binding: str) -> str {
+    if pattern_binding_has_at_prefix(binding) == 0 { return binding; };
+    let blen: i64 = str_len(binding);
+    let mut end: i64 = 1;
+    while end < blen && str_char_at(binding, end) != 124 { end = end + 1; };
+    if end >= blen { return ""; };
+    return str_substring(binding, end + 1, blen);
+}
+
+fn pattern_list_value_count(binding: str) -> i64 {
+    let work: str = pattern_after_at_prefix(binding);
+    let blen: i64 = str_len(work);
+    if blen == 0 { return 0; };
+    let mut count: i64 = 0;
+    let mut start: i64 = 0;
+    while start < blen {
+        let mut end: i64 = start;
+        while end < blen && str_char_at(work, end) != 124 { end = end + 1; };
+        let item: str = str_substring(work, start, end);
+        if str_eq(item, "..") == 0 { count = count + 1; };
+        start = end + 1;
+    };
+    return count;
+}
+
+fn pattern_list_has_rest(binding: str) -> i64 {
+    let work: str = pattern_after_at_prefix(binding);
+    let blen: i64 = str_len(work);
+    let mut start: i64 = 0;
+    while start < blen {
+        let mut end: i64 = start;
+        while end < blen && str_char_at(work, end) != 124 { end = end + 1; };
+        if str_eq(str_substring(work, start, end), "..") == 1 { return 1; };
+        start = end + 1;
+    };
+    return 0;
+}
+
+fn pattern_list_suffix_count(binding: str) -> i64 {
+    let work: str = pattern_after_at_prefix(binding);
+    let blen: i64 = str_len(work);
+    let mut count: i64 = 0;
+    let mut after_rest: i64 = 0;
+    let mut start: i64 = 0;
+    while start < blen {
+        let mut end: i64 = start;
+        while end < blen && str_char_at(work, end) != 124 { end = end + 1; };
+        let item: str = str_substring(work, start, end);
+        if str_eq(item, "..") == 1 { after_rest = 1; }
+        else if after_rest == 1 { count = count + 1; };
+        start = end + 1;
+    };
+    return count;
+}
+
+fn match_bind_whole(name: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>, ptype: str) -> Vec<i32> {
+    let mut cur: Vec<i32> = blk;
+    if str_len(name) == 0 || str_eq(name, "_") == 1 || str_eq(name, "..") == 1 { return cur; };
+    let mut n: str = name;
+    if str_char_at(n, 0) == 64 { n = str_substring(n, 1, str_len(n)); };
+    if str_len(n) == 0 || str_eq(n, "_") == 1 { return cur; };
+    let btype: str = if str_len(ptype) > 0 { ptype } else { "i64" };
+    let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
+    sym_set(sym, n, bar);
+    sym_set(sym, str_concat("__type_", n), type_base_name(btype));
+    sym_set(sym, str_concat("__fulltype_", n), btype);
+    let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
+    ir_block_add(cur, ir_store(mv, bar));
+    return cur;
+}
+
+fn match_bind_struct_fields(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>, structs: Vec<i32>, pool: Vec<i32>, sname: str, scrut_t: str) -> Vec<i32> {
+    let mut cur: Vec<i32> = blk;
+    let at_name: str = pattern_at_prefix_name(binding);
+    if str_len(at_name) > 0 { cur = match_bind_whole(at_name, cur, regs, sym, mslot, fir, scrut_t); };
+    let work: str = pattern_after_at_prefix(binding);
+    let si: i64 = struct_find_type(pool, structs, sname);
+    if si < 0 { return cur; };
+    let s_nid: i64 = vec_get(structs, si);
+    let blen: i64 = str_len(work);
+    let mut start: i64 = 0;
+    while start < blen {
+        let mut end: i64 = start;
+        while end < blen && str_char_at(work, end) != 124 { end = end + 1; };
+        let item: str = str_substring(work, start, end);
+        let field_name: str = str_before_char_local(item, 58);
+        let mut bind_name: str = str_after_char_local(item, 58);
+        if str_len(bind_name) == 0 { bind_name = field_name; };
+        if str_len(bind_name) > 0 && str_eq(bind_name, "_") == 0 {
+            let fi: i64 = struct_field_idx(pool, s_nid, field_name);
+            if fi >= 0 {
+                let ftype: str = struct_field_type(pool, s_nid, field_name);
+                let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
+                sym_set(sym, bind_name, bar);
+                sym_set(sym, str_concat("__type_", bind_name), type_base_name(ftype));
+                sym_set(sym, str_concat("__fulltype_", bind_name), ftype);
+                let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
+                let idx_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(idx_r, fi));
+                let mut get_args: Vec<i32> = Vec::new(); get_args.push(mv); get_args.push(idx_r);
+                let fv: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(fv, "vec_get", get_args));
+                ir_block_add(cur, ir_store(fv, bar));
+            };
+        };
+        start = end + 1;
+    };
+    return cur;
+}
+
+fn match_bind_vec_pattern(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>, scrut_t: str, len_r: i64) -> Vec<i32> {
+    let mut cur: Vec<i32> = blk;
+    let at_name: str = pattern_at_prefix_name(binding);
+    if str_len(at_name) > 0 { cur = match_bind_whole(at_name, cur, regs, sym, mslot, fir, scrut_t); };
+    let work: str = pattern_after_at_prefix(binding);
+    let elem_full_raw: str = type_first_arg(scrut_t);
+    let elem_full: str = if str_len(elem_full_raw) > 0 { elem_full_raw } else { "i64" };
+    let has_rest: i64 = pattern_list_has_rest(work);
+    let suffix_cnt: i64 = pattern_list_suffix_count(work);
+    let blen: i64 = str_len(work);
+    let mut start: i64 = 0;
+    let mut prefix_idx: i64 = 0;
+    let mut suffix_idx: i64 = 0;
+    let mut after_rest: i64 = 0;
+    while start < blen {
+        let mut end: i64 = start;
+        while end < blen && str_char_at(work, end) != 124 { end = end + 1; };
+        let item: str = str_substring(work, start, end);
+        if str_eq(item, "..") == 1 {
+            after_rest = 1;
+        } else {
+            let name: str = pattern_binding_item_name(item);
+            if str_len(name) > 0 {
+                let idx_v: i64 = ctr_next(regs);
+                if has_rest == 1 && after_rest == 1 {
+                    let suffix_base: i64 = ctr_next(regs);
+                    let suffix_cnt_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(suffix_cnt_r, suffix_cnt));
+                    ir_block_add(cur, ir_binop(3, suffix_base, len_r, suffix_cnt_r));
+                    let suffix_off: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(suffix_off, suffix_idx));
+                    ir_block_add(cur, ir_binop(2, idx_v, suffix_base, suffix_off));
+                    suffix_idx = suffix_idx + 1;
+                } else {
+                    ir_block_add(cur, ir_const_int(idx_v, prefix_idx));
+                    prefix_idx = prefix_idx + 1;
+                };
+                let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
+                sym_set(sym, name, bar);
+                sym_set(sym, str_concat("__type_", name), type_base_name(elem_full));
+                sym_set(sym, str_concat("__fulltype_", name), elem_full);
+                let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
+                let mut get_args: Vec<i32> = Vec::new(); get_args.push(mv); get_args.push(idx_v);
+                let ev: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(ev, "vec_get", get_args));
+                ir_block_add(cur, ir_store(ev, bar));
+            } else if has_rest == 0 || after_rest == 0 {
+                prefix_idx = prefix_idx + 1;
+            } else {
+                suffix_idx = suffix_idx + 1;
+            };
+        };
+        start = end + 1;
+    };
+    return cur;
 }
 
 fn match_bind_payloads_typed(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>, payload_type: str) -> Vec<i32> {
@@ -14242,11 +14654,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
                 if str_len(binding) > 0 {
-                    let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
-                    sym_set(arm_sym, binding, bar);
-                    sym_set(arm_sym, str_concat("__type_", binding), "i64");
-                    let mv: i64 = ctr_next(regs); ir_block_add(ab, ir_load(mv, mslot));
-                    ir_block_add(ab, ir_store(mv, bar));
+                    ab = match_bind_whole(binding, ab, regs, arm_sym, mslot, fir, scrut_t);
                 };
                 if guard_nid > 0 {
                     let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
@@ -14281,11 +14689,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
                 if str_len(binding) > 0 {
-                    let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
-                    sym_set(arm_sym, binding, bar);
-                    sym_set(arm_sym, str_concat("__type_", binding), "i64");
-                    let mv2: i64 = ctr_next(regs); ir_block_add(ab, ir_load(mv2, mslot));
-                    ir_block_add(ab, ir_store(mv2, bar));
+                    ab = match_bind_whole(binding, ab, regs, arm_sym, mslot, fir, scrut_t);
                 };
                 let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                 ab = lx_blk(bp);
@@ -14295,14 +14699,15 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     ir_block_add(ab, ir_store(rv, tmp));
                     ir_block_add(ab, ir_br(ml));
                 };
-            } else if str_eq(ename, "__range") {
+            } else if str_eq(ename, "__range") == 1 || str_eq(ename, "__range_at") == 1 {
                 // RFC-0023 §3.1: range pattern. vname = LO (i64 cell),
                 // binding = str_from_int(HI) (inclusive — half-open ranges
                 // were normalized at parse). Match if LO <= scrut && scrut
                 // <= HI.
                 let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
                 let lo_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(lo_r, vname));
-                let hi_n: i64 = str_to_int(binding);
+                let hi_s: str = str_before_char_local(binding, 124);
+                let hi_n: i64 = str_to_int(hi_s);
                 let hi_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(hi_r, hi_n));
                 let lo_ok: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(11, lo_ok, lo_r, mv));
                 let hi_ok: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(11, hi_ok, mv, hi_r));
@@ -14310,6 +14715,9 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(both_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let arm_sym: Vec<i32> = sym_clone(sym);
+                if str_eq(ename, "__range_at") == 1 {
+                    ab = match_bind_whole(str_after_char_local(binding, 124), ab, regs, arm_sym, mslot, fir, scrut_t);
+                };
                 let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                 ab = lx_blk(bp);
                 let mut rv: i64 = lx_reg(bp);
@@ -14318,7 +14726,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     ir_block_add(ab, ir_store(rv, tmp));
                     ir_block_add(ab, ir_br(ml));
                 };
-            } else if str_eq(ename, "__range_bad") {
+            } else if str_eq(ename, "__range_bad") == 1 || str_eq(ename, "__range_bad_at") == 1 {
                 // MATCH-007 fired by the typecker (paired pass). Lower as
                 // never-match so program compiles; warning surfaces in the
                 // diagnostic stream.
@@ -14333,12 +14741,45 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
                 if str_len(binding) > 0 {
-                    let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
-                    sym_set(arm_sym, binding, bar);
-                    sym_set(arm_sym, str_concat("__type_", binding), "i64");
-                    let mv2: i64 = ctr_next(regs); ir_block_add(ab, ir_load(mv2, mslot));
-                    ir_block_add(ab, ir_store(mv2, bar));
+                    ab = match_bind_whole(binding, ab, regs, arm_sym, mslot, fir, "str");
                 };
+                let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                ab = lx_blk(bp);
+                let mut rv: i64 = lx_reg(bp);
+                if block_has_term(ab) == 0 {
+                    if rv < 0 { rv = ctr_next(regs); ir_block_add(ab, ir_const_int(rv, 0)); };
+                    ir_block_add(ab, ir_store(rv, tmp));
+                    ir_block_add(ab, ir_br(ml));
+                };
+            } else if str_eq(ename, "__struct") {
+                ir_block_add(cur, ir_br(al));
+                let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
+                let mut arm_sym: Vec<i32> = sym_clone(sym);
+                ab = match_bind_struct_fields(binding, ab, regs, arm_sym, mslot, fir, structs, pool, vname, scrut_t);
+                let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                ab = lx_blk(bp);
+                let mut rv: i64 = lx_reg(bp);
+                if block_has_term(ab) == 0 {
+                    if rv < 0 { rv = ctr_next(regs); ir_block_add(ab, ir_const_int(rv, 0)); };
+                    ir_block_add(ab, ir_store(rv, tmp));
+                    ir_block_add(ab, ir_br(ml));
+                };
+            } else if str_eq(ename, "__tuple") == 1 || str_eq(ename, "__slice") == 1 {
+                let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
+                let mut len_args: Vec<i32> = Vec::new(); len_args.push(mv);
+                let len_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(len_r, "vec_len", len_args));
+                let needed: i64 = pattern_list_value_count(binding);
+                let needed_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(needed_r, needed));
+                let cmp_r: i64 = ctr_next(regs);
+                if str_eq(ename, "__slice") == 1 && pattern_list_has_rest(binding) == 1 {
+                    ir_block_add(cur, ir_cmpop(11, cmp_r, needed_r, len_r));
+                } else {
+                    ir_block_add(cur, ir_cmpop(7, cmp_r, len_r, needed_r));
+                };
+                ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
+                let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
+                let mut arm_sym: Vec<i32> = sym_clone(sym);
+                ab = match_bind_vec_pattern(binding, ab, regs, arm_sym, mslot, fir, scrut_t, len_r);
                 let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                 ab = lx_blk(bp);
                 let mut rv: i64 = lx_reg(bp);
@@ -14361,7 +14802,10 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
-                ab = match_bind_payloads_per_idx(binding, ab, regs, arm_sym, mslot, fir, ename, vname, scrut_t);
+                let payload_binding: str = pattern_after_at_prefix(binding);
+                let at_name: str = pattern_at_prefix_name(binding);
+                if str_len(at_name) > 0 { ab = match_bind_whole(at_name, ab, regs, arm_sym, mslot, fir, scrut_t); };
+                ab = match_bind_payloads_per_idx(payload_binding, ab, regs, arm_sym, mslot, fir, ename, vname, scrut_t);
                 let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                 ab = lx_blk(bp);
                 let mut rv: i64 = lx_reg(bp);
@@ -15389,11 +15833,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
                 if str_len(binding) > 0 {
-                    let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
-                    sym_set(arm_sym, binding, bar);
-                    sym_set(arm_sym, str_concat("__type_", binding), "i64");
-                    let mv: i64 = ctr_next(regs); ir_block_add(ab, ir_load(mv, mslot));
-                    ir_block_add(ab, ir_store(mv, bar));
+                    ab = match_bind_whole(binding, ab, regs, arm_sym, mslot, fir, scrut_t);
                 };
                 if guard_nid > 0 {
                     let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
@@ -15416,11 +15856,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
                 if str_len(binding) > 0 {
-                    let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
-                    sym_set(arm_sym, binding, bar);
-                    sym_set(arm_sym, str_concat("__type_", binding), "i64");
-                    let mv2: i64 = ctr_next(regs); ir_block_add(ab, ir_load(mv2, mslot));
-                    ir_block_add(ab, ir_store(mv2, bar));
+                    ab = match_bind_whole(binding, ab, regs, arm_sym, mslot, fir, scrut_t);
                 };
                 if guard_nid > 0 {
                     let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
@@ -15445,11 +15881,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
                 if str_len(binding) > 0 {
-                    let bar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, bar);
-                    sym_set(arm_sym, binding, bar);
-                    sym_set(arm_sym, str_concat("__type_", binding), "i64");
-                    let mv2: i64 = ctr_next(regs); ir_block_add(ab, ir_load(mv2, mslot));
-                    ir_block_add(ab, ir_store(mv2, bar));
+                    ab = match_bind_whole(binding, ab, regs, arm_sym, mslot, fir, "str");
                 };
                 if guard_nid > 0 {
                     let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
@@ -15464,7 +15896,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     ab = lower_stmts(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                     if block_has_term(ab) == 0 { ir_block_add(ab, ir_br(ml)); };
                 };
-            } else if str_eq(ename, "__range") {
+            } else if str_eq(ename, "__range") == 1 || str_eq(ename, "__range_at") == 1 {
                 // v0.3.118: range pattern in stmt-position match.
                 // Mirrors the lower_expr __range arm at line 10592.
                 // Pre-v0.3.118 this branch fell through to the
@@ -15476,7 +15908,8 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 // expression-position match was already correct).
                 let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
                 let lo_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(lo_r, vname));
-                let hi_n: i64 = str_to_int(binding);
+                let hi_s: str = str_before_char_local(binding, 124);
+                let hi_n: i64 = str_to_int(hi_s);
                 let hi_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(hi_r, hi_n));
                 let lo_ok: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(11, lo_ok, lo_r, mv));
                 let hi_ok: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(11, hi_ok, mv, hi_r));
@@ -15484,10 +15917,60 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(both_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let arm_sym: Vec<i32> = sym_clone(sym);
+                if str_eq(ename, "__range_at") == 1 {
+                    ab = match_bind_whole(str_after_char_local(binding, 124), ab, regs, arm_sym, mslot, fir, scrut_t);
+                };
                 ab = lower_stmts(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                 if block_has_term(ab) == 0 { ir_block_add(ab, ir_br(ml)); };
-            } else if str_eq(ename, "__range_bad") {
+            } else if str_eq(ename, "__range_bad") == 1 || str_eq(ename, "__range_bad_at") == 1 {
                 ir_block_add(cur, ir_br(nl));
+            } else if str_eq(ename, "__struct") {
+                ir_block_add(cur, ir_br(al));
+                let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
+                let mut arm_sym: Vec<i32> = sym_clone(sym);
+                ab = match_bind_struct_fields(binding, ab, regs, arm_sym, mslot, fir, structs, pool, vname, scrut_t);
+                if guard_nid > 0 {
+                    let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    let gr: i64 = lx_reg(gp);
+                    ab = lx_blk(gp);
+                    let gl: i64 = ctr_next(lbls);
+                    ir_block_add(ab, ir_br_cond(gr, gl, nl));
+                    let mut gb: Vec<i32> = ir_block_new(gl); ir_fn_add_block(fir, gb);
+                    gb = lower_stmts(pool, body_list, gb, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    if block_has_term(gb) == 0 { ir_block_add(gb, ir_br(ml)); };
+                } else {
+                    ab = lower_stmts(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    if block_has_term(ab) == 0 { ir_block_add(ab, ir_br(ml)); };
+                };
+            } else if str_eq(ename, "__tuple") == 1 || str_eq(ename, "__slice") == 1 {
+                let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
+                let mut len_args: Vec<i32> = Vec::new(); len_args.push(mv);
+                let len_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(len_r, "vec_len", len_args));
+                let needed: i64 = pattern_list_value_count(binding);
+                let needed_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(needed_r, needed));
+                let cmp_r: i64 = ctr_next(regs);
+                if str_eq(ename, "__slice") == 1 && pattern_list_has_rest(binding) == 1 {
+                    ir_block_add(cur, ir_cmpop(11, cmp_r, needed_r, len_r));
+                } else {
+                    ir_block_add(cur, ir_cmpop(7, cmp_r, len_r, needed_r));
+                };
+                ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
+                let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
+                let mut arm_sym: Vec<i32> = sym_clone(sym);
+                ab = match_bind_vec_pattern(binding, ab, regs, arm_sym, mslot, fir, scrut_t, len_r);
+                if guard_nid > 0 {
+                    let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    let gr: i64 = lx_reg(gp);
+                    ab = lx_blk(gp);
+                    let gl: i64 = ctr_next(lbls);
+                    ir_block_add(ab, ir_br_cond(gr, gl, nl));
+                    let mut gb: Vec<i32> = ir_block_new(gl); ir_fn_add_block(fir, gb);
+                    gb = lower_stmts(pool, body_list, gb, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    if block_has_term(gb) == 0 { ir_block_add(gb, ir_br(ml)); };
+                } else {
+                    ab = lower_stmts(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    if block_has_term(ab) == 0 { ir_block_add(ab, ir_br(ml)); };
+                };
             } else {
                 if tag_r < 0 {
                     let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
@@ -15502,7 +15985,10 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
-                ab = match_bind_payloads_per_idx(binding, ab, regs, arm_sym, mslot, fir, ename, vname, scrut_t);
+                let payload_binding: str = pattern_after_at_prefix(binding);
+                let at_name: str = pattern_at_prefix_name(binding);
+                if str_len(at_name) > 0 { ab = match_bind_whole(at_name, ab, regs, arm_sym, mslot, fir, scrut_t); };
+                ab = match_bind_payloads_per_idx(payload_binding, ab, regs, arm_sym, mslot, fir, ename, vname, scrut_t);
                 if guard_nid > 0 {
                     let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                     let gr: i64 = lx_reg(gp);
