@@ -7224,6 +7224,13 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         let vname: str = node_field(pool, nid, 1);
         let tstr: str = node_field(pool, nid, 3);
         let init: i64 = node_field(pool, nid, 4);
+        // v0.4.155 mirror: TYP-008 — reject named no-init bindings
+        // uniformly (both `let x: T;` and `let mut x: T;`).
+        if init < 0 && str_len(vname) > 0 && str_eq(vname, "_") == 0 {
+            if str_eq(vname, "__tuple_destructure_unsupported__") == 0 {
+                type_diag(diags, source, fn_name, vname, "TYP-008", str_concat("binding `", str_concat(vname, "` declared without initializer (type-only). Nucleor has no flow-sensitive definite-assignment pass, so this would silently read as 0 from the alloca's zero-init slot on any path that reaches the read before an assignment. Assign at declaration, or introduce the binding where the value exists.")));
+            };
+        };
         let mut init_t: str = "";
         if init >= 0 {
             init_t = type_expr(pool, init, env, sigs, structs, fn_name, diags, source, tprof);
