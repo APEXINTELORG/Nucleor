@@ -11,13 +11,9 @@
 // (parallel to compiler/nucleor_s1_compiler.nr:str_from_int) so
 // large IR constants format correctly under Phase 1's narrow-as
 // hook.
-fn str_from_int(n: i32) -> str {
+// v0.4.72: doc-#2 §5 P1 mirror — see nucleor_s1_compiler.nr.
+fn str_from_i64(n: i64) -> str {
     if n == 0 { return "0"; };
-    // v0.3.146: handle i64::MIN specially. Mirror of compiler-side
-    // fix -- 0 - MIN_I64 overflows to MIN_I64 so the divide loop never
-    // executes and we'd return just "-". Detect via `n < -MAX_I64`
-    // (only true for n == MIN_I64) to avoid using the MIN_I64 literal
-    // directly (which the v0.3.145 stage A compiler can't const-fold).
     let neg_max_t: i64 = 0 - 9223372036854775807;
     if n < neg_max_t { return "-9223372036854775808"; };
     let mut val: i64 = n;
@@ -34,6 +30,10 @@ fn str_from_int(n: i32) -> str {
     };
     if n < 0 { s = str_concat("-", s); };
     return s;
+}
+
+fn str_from_int(n: i32) -> str {
+    return str_from_i64(n);
 }
 fn str_to_int(s: str) -> i64 {
     let slen: i64 = str_len(s);

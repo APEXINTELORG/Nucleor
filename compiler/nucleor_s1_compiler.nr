@@ -12,24 +12,23 @@
 // formatted correctly. The parameter remains `i32` for source
 // compatibility; arithmetic moves to i64 to avoid Phase 1's
 // narrow-as-i32 hook truncating values that exceed i32 range.
-fn str_from_int(n: i32) -> str {
+// v0.4.72: doc-#2 §5 P1 — str_from_int(i32) signature was lying.
+// Body handled i64::MIN, but the param is declared i32. Nucleor's
+// i64-everywhere ABI lets i64 values flow through the i32 param at
+// runtime — so the i64::MIN branch IS reachable. Added str_from_i64
+// as the truthful entry point; str_from_int kept as a wrapper for
+// backward compat. No call-site changes required; adopters who want
+// to be type-honest can switch to str_from_i64 going forward.
+fn str_from_i64(n: i64) -> str {
     if n == 0 { return "0"; };
     // v0.3.146: handle i64::MIN specially. `0 - MIN_I64` overflows
     // back to MIN_I64 (because -MIN_I64 = MAX_I64 + 1, doesn't fit
     // in signed i64). Pre-fix, the `while val > 0` loop never executed
     // because val stayed negative — `s` ended as `""`, then the `n < 0`
     // branch prepended `"-"` and we returned just `"-"`. Any const-fold
-    // that produced MIN_I64 (e.g. `i64::MAX + 1`) emitted invalid IR
-    // like `add i64 -, 0`, which clang rejected with `expected value
-    // token`. Same hazard class as the contextual-keyword and div-by-
-    // zero const-fold silent miscompiles — adopter writes a real
-    // expression and gets a confusing clang error instead of a clean
-    // wrap-around or trap.
-    //
-    // Detect MIN_I64 without using its literal (chicken-and-egg: the
-    // compiler that builds this source is the buggy one and can't
-    // const-fold MIN_I64 either). Instead test: `n < -MAX_I64` is
-    // only true when n == MIN_I64 (since MIN_I64 == -MAX_I64 - 1).
+    // that produced MIN_I64 (e.g. `i64::MAX + 1`) emitted invalid IR.
+    // Detect MIN_I64 without using its literal: `n < -MAX_I64` is
+    // only true when n == MIN_I64.
     let neg_max: i64 = 0 - 9223372036854775807;
     if n < neg_max { return "-9223372036854775808"; };
     let mut val: i64 = n;
@@ -46,6 +45,10 @@ fn str_from_int(n: i32) -> str {
     };
     if n < 0 { s = str_concat("-", s); };
     return s;
+}
+
+fn str_from_int(n: i32) -> str {
+    return str_from_i64(n);
 }
 fn str_to_int(s: str) -> i64 {
     // v0.3.208: wrap arithmetic via wrapping_mul/add so that large
@@ -981,6 +984,13 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             return pr(cp, mk3(pool, 42, mk_list(pool, cparams), mk_list(pool, rbody)));
         };
     };
+    // v0.4.72: 3rd-opinion review CRITICAL #1.1 partially deferred —
+    // converting parse_primary fall-through to panic broke
+    // tests/runtime/rng + tests/rods/pgs_smoke (legitimate parser
+    // edge case the audit found, where unhandled-token cases are
+    // intentionally permitted by the recovery flow). Needs a
+    // narrower predicate that excludes recovery contexts before
+    // panicking. Tracked for v0.4.73+.
     return pr(pos + 1, mk2(pool, 1, 0));
 }
 
@@ -10472,6 +10482,11 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             let nloc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
             diag_add_ex(diags, "warning", "type", "NUM-003", str_concat("`as` cast loses precision: ", str_concat(source_t, str_concat(" (", str_concat(str_from_int(sw), str_concat("-bit) -> ", str_concat(target_type, str_concat(" (", str_concat(str_from_int(tw), "-bit)")))))))), fn_name, vec_get(nloc, 0), vec_get(nloc, 1), "");
         };
+        // v0.4.72 NOT enforcing `str as <numeric>` — Nucleor's
+        // i64-everywhere ABI makes str pointers castable to i64 by
+        // convention (used by intern/hash code in tools_suite + s1).
+        // Rust errors here but Nucleor does not. Documented as a
+        // Nucleor design choice, not a silent miscompute.
         // v0.4.47: NUC-FEEDBACK-002 silent-miscompute guard. Detect
         // `v[i] as <NarrowFloat>` where v: Vec<NarrowFloat>. The cell
         // holds the bit pattern of the float in an i64; `as` is a
@@ -10704,6 +10719,11 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if is_tainted_type(lt) == 1 { return lt; };
         if is_tainted_type(rt) == 1 { return rt; };
         if (op == 20 || op == 21) && type_is_unit(lt) == 1 && str_eq(unit_dim(lt), unit_dim(rt)) == 1 { return lt; };
+        // v0.4.72 NOT enforcing && / || bool-only — Nucleor's
+        // i64-everywhere ABI accepts integer truthiness in logical
+        // ops by convention (used pervasively in tools_suite + s1).
+        // Rust errors here but Nucleor does not. Documented as a
+        // Nucleor design choice, not a silent miscompute.
         if op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35 || op == 36 || op == 37 { return "bool"; };
         return lt;
     };

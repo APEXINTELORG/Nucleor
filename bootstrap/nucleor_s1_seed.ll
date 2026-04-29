@@ -7783,7 +7783,7 @@ declare i64 @__nucleor_tensor_sample_gumbel(i64, i64)
 @.nucleor_provenance_data = constant [1 x i8] c"\00", section ".nucprov", align 1
 @llvm.used = appending global [1 x ptr] [ptr @.nucleor_provenance_data], section "llvm.metadata"
 
-define i64 @str_from_int(i64 %p.0) {
+define i64 @str_from_i64(i64 %p.0) {
 bb.entry:
   %r.6 = alloca i64
   %r.14 = alloca i64
@@ -7999,6 +7999,16 @@ L39:
 L41:
   %r.85 = load i64, ptr %r.22
   ret i64 %r.85
+}
+
+define i64 @str_from_int(i64 %p.0) {
+bb.entry:
+  %r.0 = alloca i64
+  %r.1 = add i64 %p.0, 0
+  store i64 %r.1, ptr %r.0
+  %r.2 = load i64, ptr %r.0
+  %r.3 = call i64 @str_from_i64(i64 %r.2)
+  ret i64 %r.3
 }
 
 define i64 @str_to_int(i64 %p.0) {

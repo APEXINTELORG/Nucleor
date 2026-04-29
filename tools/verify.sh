@@ -1117,6 +1117,23 @@ t414_num002_promoted() {
     return 0
 }
 
+t417_str_from_i64_contract() {
+    # v0.4.72: str_from_i64 added as truthful internal entry; str_from_int
+    # kept as i32-signature wrapper. Adopters using `str_from_int(...)` in
+    # .nr source still go through __nucleor_int_to_str (runtime helper
+    # alias). This step asserts the wrapper still BUILDS and the binary
+    # RUNS. (Format dispatch for str_from_int return-type detection is a
+    # pre-existing limitation, not a v0.4.72 regression.)
+    "$BIN" build "tests/fixtures/repro_v72_str_from_i64_contract.nr" -o "_t417_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe
+    if [ -f "target/_t417_check.exe" ]; then exe="target/_t417_check.exe"; else exe="target/_t417_check"; fi
+    [ -f "$exe" ] || return 1
+    "$exe" >/tmp/_nuc_step.log 2>&1
+    [ "$?" = "0" ] || return 1
+    return 0
+}
+
 t416_bool_bitwise_guard() {
     "$BIN" build "tests/fixtures/repro_v71_bool_bitwise_guard.nr" -o "_t416_check" --no-cache >/tmp/_nuc_step.log 2>&1
     local rc=$?
@@ -3097,6 +3114,7 @@ step "T3.113 v0.4.69 NUC-FEEDBACK — `=` vs `==` typo guard in while/if conditi
 step "T3.114 v0.4.70 audit S1 — NUM-002 literal-out-of-range promoted to error" t414_num002_promoted
 step "T3.115 v0.4.70 audit S10 — format placeholder/arg count mismatch halt at preprocess" t415_format_arg_count
 step "T3.116 v0.4.71 audit S1 — bool with bitwise/shift ops (TYP-002 extended)" t416_bool_bitwise_guard
+step "T3.117 v0.4.72 doc-#2 §5 — str_from_i64(i64) contract honesty (str_from_int kept as wrapper)" t417_str_from_i64_contract
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
