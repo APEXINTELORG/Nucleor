@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.83] — 2026-04-29
+
+**TYP-008 ext — immutable `let` binding without initializer halts
+(was silent zero-read miscompute).**
+
+Pre-fix `let x: i64;` (no `mut`, no init expression) silently
+compiled — the binding used the LLVM alloca's zero-init memory,
+so reads returned 0 with no diagnostic. Adopters thought Nucleor
+zero-defaults all bindings; in fact this is undefined behavior
+territory in any real codegen. Rust E0381 rejects it at first
+read.
+
+Nucleor doesn't do flow-sensitive uninit analysis, but the
+immutable-no-init case is unambiguous: the binding can NEVER be
+assigned later (would hit OWN-008), so any read is a definite
+zero with no path to a real value. Caught at let-binding
+type-check.
+
+### Accepted patterns (still compile)
+
+- `let mut x: i64;` — mutable, can be assigned later (OK)
+- `let x: i64 = 5;` — immutable with init (OK)
+- `let _: i64 = anything;` — wildcard binding, intentional discard (OK)
+
+### Rejected pattern
+
+- `let x: i64;` — immutable, never assignable, reads as silent 0
+  → error[TYP-008]
+
+### Verify gate
+
+- T3.130 — `tests/fixtures/repro_v83_uninit_immutable_let.nr`
+  asserts `let x: i64;` errors with TYP-008 at build time.
+
+### Memory + timing
+
+- Self-host build: unchanged.
+- Verify gate: 362.3s / 505 steps (was 370.1s / 504 — actually
+  slightly faster, within noise).
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha fe7d0e96…).
+
 ## [0.4.82] — 2026-04-29
 
 **`nucleor_tools_suite.nr` `expect_tok` NR020 mirror — same close
