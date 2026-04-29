@@ -7116,6 +7116,15 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 walk_ai_v144_t = walk_ai_v144_t + 1;
             };
         };
+        // v0.4.146 mirror: closure call-site argc check.
+        let v146_argc_str_t: str = tenv_get(env, str_concat("__closure_argc_", callee));
+        if str_len(v146_argc_str_t) > 0 {
+            let v146_expected_t: i64 = str_to_int(v146_argc_str_t);
+            if argc != v146_expected_t {
+                let v146msg_t: str = str_concat("wrong number of arguments to closure `", str_concat(callee, str_concat("`: expected ", str_concat(str_from_int(v146_expected_t), str_concat(", got ", str_from_int(argc))))));
+                type_diag(diags, source, fn_name, callee, "TYP-005", v146msg_t);
+            };
+        };
         tprof_mark(tprof, 9, 10, call_start);
         return builtin_rtype(callee);
     };
@@ -7214,6 +7223,11 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
             else { tenv_set(env, vname, tstr); };
         }
         else { tenv_set(env, vname, init_t); };
+        // v0.4.146 mirror: register closure argc on the binding.
+        if init >= 0 && node_kind(pool, init) == 42 {
+            let v146_pc_t: i64 = list_len(pool, node_field(pool, init, 1));
+            tenv_set(env, str_concat("__closure_argc_", vname), str_from_int(v146_pc_t));
+        };
         return warns;
     };
     if kind == 21 {

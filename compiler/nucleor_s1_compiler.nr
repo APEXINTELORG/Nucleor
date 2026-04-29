@@ -11953,6 +11953,24 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 walk_ai_v144 = walk_ai_v144 + 1;
             };
         };
+        // v0.4.146: closure call-site argc check. Closures aren't
+        // in sigs (their binding lives in tenv with no plist), so
+        // sig_find returned -1 and the kind-7 path silently lowered
+        // an indirect call with the wrong arg count. Pre-fix
+        // `let f = |x: i64, y: i64| x + y; f(5);` ran the closure
+        // body with the second param reading whatever register
+        // happened to be live → garbage. Detect via the
+        // `__closure_argc_<callee>` entry registered at let-stmt
+        // type-check time (v0.4.146 sister fix in type_check_stmt).
+        let v146_argc_str: str = tenv_get(env, str_concat("__closure_argc_", callee));
+        if str_len(v146_argc_str) > 0 {
+            let v146_expected_argc: i64 = str_to_int(v146_argc_str);
+            if argc != v146_expected_argc {
+                let v146a: str = str_concat("wrong number of arguments to closure `", str_concat(callee, str_concat("`: expected ", str_concat(str_from_int(v146_expected_argc), str_concat(", got ", str_from_int(argc))))));
+                let v146b: str = ". Pre-v0.4.146 the indirect call lowered with the supplied arg count and the closure body read undefined registers for the missing params (or ignored extra args), producing garbage at runtime. Match the closure's declared parameter list at every call site.";
+                type_diag(diags, source, fn_name, callee, "TYP-005", str_concat(v146a, v146b));
+            };
+        };
         if sentry < 0 && type_dynamic_helper(callee) == 0 && str_len(get_rt_name(callee)) == 0 && str_len(builtin_rtype(callee)) == 0 {
             let clen: i64 = str_len(callee);
             let mut suppress: i64 = 0;
@@ -12460,6 +12478,17 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             else { tenv_set(env, vname, tstr); };
         }
         else { tenv_set(env, vname, init_t); };
+        // v0.4.146: register closure argc on the binding so the
+        // call-site type-check can verify `f(args)` has the right
+        // arity. Pre-fix `let f = |x: i64, y: i64| x + y; f(5);`
+        // silently passed every kind-7 check (closure binding
+        // wasn't in sigs and had no type_expr branch for kind 42)
+        // and the indirect call lowered with arg_regs of length 1
+        // for a 2-param closure → garbage at runtime.
+        if init >= 0 && node_kind(pool, init) == 42 {
+            let v146_pc: i64 = list_len(pool, node_field(pool, init, 1));
+            tenv_set(env, str_concat("__closure_argc_", vname), str_from_int(v146_pc));
+        };
         return warns;
     };
     if kind == 21 {

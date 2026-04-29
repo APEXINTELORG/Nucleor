@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.146] — 2026-04-29
+
+**TYP-005 ext: closure called with wrong argc silently lowered
+to an indirect call with garbage params. `let f = |x: i64, y:
+i64| x + y; f(5);` silently passed and ran with the second
+param undefined. Now halts.**
+
+```nucleor
+let f = |x: i64, y: i64| x + y;
+print_int(f(5));   // pre-fix: garbage value (e.g. 1746198209445)
+```
+
+The kind-7 (call) type-check's `argc != expected_argc` branch
+guards on `sentry >= 0` (`sig_find` returning a registered
+plist). User fns get registered in sigs at line 12628; closures
+do NOT — their binding is tracked in `tenv` (with type "" since
+kind-42 has no `type_expr` branch) and in `sym` via
+`__closure_id_<name>` / `__closure_caps_<name>` (set during
+codegen). Net result: `f(5)` for a 2-param closure walked
+sentry-not-found → fell through → indirect call with one arg in
+`arg_regs`. The closure body's second-param load read whatever
+register was live at that slot, producing garbage at runtime.
+
+This release adds a parallel registration in `tenv` at let-stmt
+type-check time: when `init` is kind 42 (closure), set
+`__closure_argc_<vname>` to the param count. At the kind-7 call
+site, look up `tenv_get(env, str_concat("__closure_argc_",
+callee))`; if non-empty, compare with argc and halt on mismatch.
+
+Same TYP-005 family as the existing user-fn argc check; message
+specifically names the binding as a closure and explains the
+garbage-register hazard. Mirrored to `nucleor_tools_suite.nr`.
+
+Negative fixture: `tests/err/err_closure_argc.nr`. Bootstrap
+fixed-point holds first-pass. Fast-verify 200 PASS / 2
+baseline-FAIL.
+
 ## [0.4.145] — 2026-04-29
 
 **TYP-024: if-expression branches with incompatible types
