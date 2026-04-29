@@ -11882,6 +11882,32 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                 pi = pi + 1;
             };
             warns = warns + type_check_stmts(pool, body, env, sigs, structs, fn_name, diags, source, rtype, tprof);
+            // v0.4.108: tail-expression return-type check. Pre-fix
+            // `fn add(a: i32, b: i32) -> str { a + b }` type-checked
+            // clean (TYP-010 only fired for explicit `return val;` —
+            // kind 22), then codegen lowered the i64 sum into the
+            // str return register and the caller dereferenced it as
+            // a pointer → SIGSEGV. Adopters saw a runtime crash
+            // pointing at fn-call sites with no compile-time signal.
+            // Now: if the last stmt in the fn body is a tail-expr
+            // (kind 25), evaluate its type and compare to rtype.
+            // void/empty rtype skip is preserved (statements-only
+            // fns terminate via implicit unit).
+            if str_len(rtype) > 0 && str_eq(rtype, "void") == 0 {
+                let body_cnt: i64 = list_len(pool, body);
+                if body_cnt > 0 {
+                    let last_stmt: i64 = list_get(pool, body, body_cnt - 1);
+                    if node_kind(pool, last_stmt) == 25 {
+                        let tail_expr: i64 = node_field(pool, last_stmt, 1);
+                        let tail_t: str = type_expr(pool, tail_expr, env, sigs, structs, fn_name, diags, source, tprof);
+                        if str_len(tail_t) > 0 && types_compatible(rtype, tail_t) == 0 {
+                            let pa108: str = str_concat("tail-expression type `", str_concat(tail_t, str_concat("` does not match declared return type `", str_concat(rtype, str_concat("` for fn `", str_concat(fn_name, "`."))))));
+                            let pb108: str = " Pre-v0.4.108 the tail-expr slipped past TYP-010 (which only checked explicit `return val;`) and codegen reinterpreted the value's bits → silent SIGSEGV at the caller. Either change the fn signature to match the tail expression's type or change the body to produce the declared type.";
+                            type_diag(diags, source, fn_name, fn_name, "TYP-010", str_concat(pa108, pb108));
+                        };
+                    };
+                };
+            };
         };
         i = i + 1;
     };

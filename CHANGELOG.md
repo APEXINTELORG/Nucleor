@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.108] — 2026-04-29
+
+**Tail-expression return-type check closes a SIGSEGV-class silent
+miscompute.**
+
+Discovered via in-cycle triage. Pre-fix:
+
+```nucleor
+fn add(a: i32, b: i32) -> str {
+    a + b   // i32 tail-expr returned as declared type str
+}
+
+fn main() -> i32 {
+    let x: str = add(1, 2);
+    print(x);   // SIGSEGV — i64 sum reinterpreted as str pointer
+    0
+}
+```
+
+The fn body type-checked clean, codegen lowered the `i32` sum into
+the `str` return register, and the caller dereferenced it as a
+pointer producing a SIGSEGV at runtime. The TYP-010 check at line
+11799 only fired for explicit `return val;` (kind 22) — tail-
+expressions (kind 25) slipped past with no diagnostic.
+
+This release adds a tail-expr check to `type_check_program` after
+`type_check_stmts`. If the last stmt in the fn body is a tail-expr,
+its type is computed via `type_expr` and compared against the
+declared return type using the same `types_compatible` predicate
+TYP-010 already used for explicit returns. Mismatch → clean
+diagnostic before codegen runs:
+
+```
+error[TYP-010]: tail-expression type `i32` does not match declared
+return type `str` for fn `add`. Pre-v0.4.108 the tail-expr slipped
+past TYP-010 (which only checked explicit `return val;`) and codegen
+reinterpreted the value's bits → silent SIGSEGV at the caller.
+```
+
+void/empty rtype skips the check (statements-only fns terminate via
+implicit unit). Fast-verify 158 PASS / 2 baseline-FAIL clean (no
+existing legit fixture mis-fires). Sequential gate 541/541. Negative
+fixture: `tests/err/err_tail_expr_ret_mismatch.nr`.
+
 ## [0.4.107] — 2026-04-29
 
 **Primitive-receiver method guard: `5.no_such_method()` halts with
