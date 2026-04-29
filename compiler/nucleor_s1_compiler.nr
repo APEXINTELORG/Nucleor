@@ -15480,7 +15480,17 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     // capture, clang's output goes straight to the terminal and we
     // can't tell whether any of its errors are MOD-003-worthy.
     system(str_concat("mkdir .nuc_cache", null_redir));
-    let log_path: str = sanitize(".nuc_cache/clang_link.log");
+    // v0.4.104: per-output clang_link log. Pre-fix this was a single
+    // shared `.nuc_cache/clang_link.log` that every concurrent compile
+    // raced on (parallel verify harness at -j 8 lost ~3 fixtures to
+    // empty-log false-failures; -j 12 lost 125+). Concurrency-safe-
+    // by-construction is a Nucleor design promise — the compiler
+    // violating it on its own build cache was a self-inflicted
+    // regression. Per-output suffix lets N concurrent compilers each
+    // own their own log; the post-link MOD-003 scan and the empty-log
+    // retry loop both keep working unchanged because they read the
+    // same path this function wrote.
+    let log_path: str = sanitize(str_concat(".nuc_cache/clang_link.", str_concat(out_name, ".log")));
     // v0.3.119: NUC-FEEDBACK-003 — quote the clang path so spaces
     // (e.g. `C:\Program Files\LLVM\bin\clang.exe`) survive the shell
     // command split. Without quoting, cmd.exe sees `C:\Program` as
