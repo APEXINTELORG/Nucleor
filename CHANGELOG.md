@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.78] — 2026-04-29
+
+**NR020 — parse errors halt the build (was print-and-recover →
+silently broken binary).**
+
+The biggest silent-fall-through class still in the pipeline.
+Pre-fix `expect_tok` printed `"Parse error at token position N:
+expected token X got Y"` via `print()` and returned `pos + 1`,
+continuing the parse on garbage input. Downstream type-check +
+lower happily consumed the broken AST, codegen emitted a
+"successful" binary, and the user got a likely-broken executable
+with no compile-time signal that anything went wrong.
+
+Triaged this cycle via the `@` binding pattern probe
+(`x @ 1..=10`) which printed the parse error AND produced a binary
+that ran to exit=0 with no output. The parser doesn't yet support
+`@` patterns; the silent recovery hid this from adopters.
+
+### Collateral
+
+`tests/features/trait_bounds.nr` was previously "passing" only
+because the `<T: Addable>` trait-bound clause silently parse-
+recovered and the bound was ignored at runtime. Moved to
+`tests/features/_unimplemented/trait_bounds.nr` — restore once
+the trait-bound parser is wired (audit doc-#1 §8). No other test
+was relying on parse recovery.
+
+### Verify gate
+
+- T3.126 — `tests/fixtures/repro_v78_parse_error_halts.nr` builds
+  the `@` binding pattern fixture and asserts the build exits
+  non-zero with NR020 in the output.
+
+### Memory + timing
+
+- Self-host build: unchanged.
+- Verify gate: 357.0s / 501 steps (was 365.8s / 501 — actually
+  faster after dropping the trait_bounds noisy step).
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha d2b21b4e…).
+
 ## [0.4.77] — 2026-04-29
 
 **NUM-019 — negative literal in unsigned binding halts at compile

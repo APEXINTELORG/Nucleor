@@ -1251,6 +1251,19 @@ t425_neg_to_unsigned() {
     return 0
 }
 
+t426_parse_error_halts() {
+    # v0.4.78 NR020 — parse errors halt the build (pre-fix they
+    # printed and recovered, producing a likely-broken binary that
+    # ran to exit=0). Repro uses `@` binding pattern not yet
+    # supported by the parser.
+    "$BIN" build "tests/fixtures/repro_v78_parse_error_halts.nr" -o "_t426_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" != "0" ] || return 1
+    grep -q "NR020" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "parse error" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t413_eq_typo_guard() {
     "$BIN" build "tests/fixtures/repro_v69_eq_typo_guard.nr" -o "_t413_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
@@ -3223,6 +3236,7 @@ step "T3.122 v0.4.75 NUM-008 — shift amount out of range for i64 (LLVM poison 
 step "T3.123 v0.4.76 NUM-018 — float literal in integer-typed binding (silent IEEE-bits-as-i64 → halt)" t423_float_in_int_context
 step "T3.124 v0.4.76 TYP-002 — unary `!` on non-bool (silent xor-with-1 → halt)" t424_not_on_int
 step "T3.125 v0.4.77 NUM-019 — negative literal in unsigned binding (silent two's-complement-wrap → halt)" t425_neg_to_unsigned
+step "T3.126 v0.4.78 NR020 — parse error halts (was print-and-recover → broken binary)" t426_parse_error_halts
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
