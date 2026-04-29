@@ -7364,6 +7364,72 @@ long long __nucleor_result_expect(NVec *res, const char *msg) {
     return __nucleor_vec_get(res, 1);
 }
 
+// === Option/Result fn-arg helpers (v0.4.92) ===
+// Same fn_ptr ABI as vec_map_i64 (i64 → i64 via cast). Tag layout
+// per v0.4.90 helpers above.
+NVec *__nucleor_option_map(NVec *opt, long long fn_ptr) {
+    if (!opt || !fn_ptr) return opt;
+    NVec *out = __nucleor_vec_new();
+    if (__nucleor_vec_get(opt, 0) == 0) {
+        long long (*fn)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
+        long long mapped = fn(__nucleor_vec_get(opt, 1));
+        __nucleor_vec_push(out, 0); // Some tag
+        __nucleor_vec_push(out, mapped);
+    } else {
+        __nucleor_vec_push(out, 1); // None tag
+    }
+    return out;
+}
+NVec *__nucleor_option_and_then(NVec *opt, long long fn_ptr) {
+    // f returns Option<U>; if Some, call f on payload and return f's result.
+    if (!opt || !fn_ptr) return opt;
+    if (__nucleor_vec_get(opt, 0) == 0) {
+        NVec *(*fn)(long long) = (NVec *(*)(long long))(void *)(intptr_t)fn_ptr;
+        return fn(__nucleor_vec_get(opt, 1));
+    }
+    NVec *out = __nucleor_vec_new();
+    __nucleor_vec_push(out, 1);
+    return out;
+}
+long long __nucleor_option_unwrap_or_else(NVec *opt, long long fn_ptr) {
+    if (opt && __nucleor_vec_get(opt, 0) == 0) return __nucleor_vec_get(opt, 1);
+    if (!fn_ptr) return 0;
+    long long (*fn)(void) = (long long (*)(void))(void *)(intptr_t)fn_ptr;
+    return fn();
+}
+NVec *__nucleor_result_map(NVec *res, long long fn_ptr) {
+    if (!res || !fn_ptr) return res;
+    NVec *out = __nucleor_vec_new();
+    if (__nucleor_vec_get(res, 0) == 1) {
+        long long (*fn)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
+        long long mapped = fn(__nucleor_vec_get(res, 1));
+        __nucleor_vec_push(out, 1);
+        __nucleor_vec_push(out, mapped);
+    } else {
+        __nucleor_vec_push(out, 0);
+        __nucleor_vec_push(out, __nucleor_vec_get(res, 1));
+    }
+    return out;
+}
+NVec *__nucleor_result_and_then(NVec *res, long long fn_ptr) {
+    if (!res || !fn_ptr) return res;
+    if (__nucleor_vec_get(res, 0) == 1) {
+        NVec *(*fn)(long long) = (NVec *(*)(long long))(void *)(intptr_t)fn_ptr;
+        return fn(__nucleor_vec_get(res, 1));
+    }
+    // Pass through Err.
+    NVec *out = __nucleor_vec_new();
+    __nucleor_vec_push(out, 0);
+    __nucleor_vec_push(out, __nucleor_vec_get(res, 1));
+    return out;
+}
+long long __nucleor_result_unwrap_or_else(NVec *res, long long fn_ptr) {
+    if (res && __nucleor_vec_get(res, 0) == 1) return __nucleor_vec_get(res, 1);
+    if (!fn_ptr) return 0;
+    long long (*fn)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
+    return fn(res ? __nucleor_vec_get(res, 1) : 0);
+}
+
 // === RNG ===
 // Pull in rng_rt.c so nuc_rng_* symbols are available without a separate
 // link step. The compiler emits __nucleor_rng_seed/etc. which forward to

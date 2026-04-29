@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.92] — 2026-04-29
+
+**Option/Result fn-arg methods: `.map(f)`, `.and_then(f)`,
+`.unwrap_or_else(f)` for both Option and Result.**
+
+Pre-fix `opt.map(f)` for `opt: Option<T>` fell through
+`iter_method_for_vec(mname) == 1` → `vec_map_i64(opt, f)`, which
+linker-failed because `__nucleor_vec_map` doesn't exist (the
+typed runtime helper is `vec_map_i64`). `unwrap_or_else` hit the
+v0.4.90 var-ref fallback but no `vec_unwrap_or_else` helper exists
+either.
+
+### What's added
+
+- 6 C runtime helpers in `nucleor_llvm_rt.c`:
+  - `__nucleor_option_map`, `_and_then`, `_unwrap_or_else`
+  - `__nucleor_result_map`, `_and_then`, `_unwrap_or_else`
+- Same fn_ptr ABI as `vec_map_i64` (i64 cast to fn pointer).
+- Dispatch route extended: methods added to the Option/Result
+  `stype_base` branch (s1) AND mirrored to tools_suite.
+- New `recv_is_vec` guard in s1 so `Option/Result` receivers don't
+  fall through `iter_method_for_vec` for `.map` (was the silent
+  routing bug).
+- `is_ptr_ret` updated for the 4 helpers that return `NVec*`.
+- LLVM declares mirrored in both compilers.
+- `helper_manifest.toml` regenerated.
+
+### Verify gate
+
+- T3.138 — `tests/fixtures/repro_v92_option_result_fn_arg_methods.nr`
+  asserts `Some(5).map(double).unwrap()=10`,
+  `None.unwrap_or_else(fallback)=99`,
+  `Ok(42).map(identity).unwrap()=42`,
+  `Err(0).unwrap_or_else(err_to_77)=77`.
+
+### Memory + timing
+
+- Verify gate: 513 PASS / 0 FAIL.
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha 0ae7b06e…).
+
 ## [0.4.91] — 2026-04-29
 
 **Mirror v0.4.90 Option/Result dispatch into tools_suite.**

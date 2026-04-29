@@ -2049,6 +2049,13 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "result_ok") { return "__nucleor_result_ok"; };
     if str_eq(name, "result_err") { return "__nucleor_result_err"; };
     if str_eq(name, "result_expect") { return "__nucleor_result_expect"; };
+    // v0.4.92 mirror.
+    if str_eq(name, "option_map") { return "__nucleor_option_map"; };
+    if str_eq(name, "option_and_then") { return "__nucleor_option_and_then"; };
+    if str_eq(name, "option_unwrap_or_else") { return "__nucleor_option_unwrap_or_else"; };
+    if str_eq(name, "result_map") { return "__nucleor_result_map"; };
+    if str_eq(name, "result_and_then") { return "__nucleor_result_and_then"; };
+    if str_eq(name, "result_unwrap_or_else") { return "__nucleor_result_unwrap_or_else"; };
     if str_eq(name, "args_count") { return "__nucleor_args_count"; };
     if str_eq(name, "args_get") { return "__nucleor_args_get"; };
     if str_eq(name, "print_int") { return "__nucleor_print_i64"; };
@@ -2841,6 +2848,13 @@ fn is_void_ret(name: str) -> i64 {
     if str_eq(name, "result_ok") { return 1; };
     if str_eq(name, "result_err") { return 1; };
     if str_eq(name, "result_expect") { return 1; };
+    // v0.4.92 mirror.
+    if str_eq(name, "option_map") { return 1; };
+    if str_eq(name, "option_and_then") { return 1; };
+    if str_eq(name, "option_unwrap_or_else") { return 1; };
+    if str_eq(name, "result_map") { return 1; };
+    if str_eq(name, "result_and_then") { return 1; };
+    if str_eq(name, "result_unwrap_or_else") { return 1; };
     if str_eq(name, "vec_shuffle") { return 1; };
     if str_eq(name, "random_fill") { return 1; };
     if str_eq(name, "print_bool") { return 1; };
@@ -2859,6 +2873,11 @@ fn is_void_ret(name: str) -> i64 {
     return 0;
 }
 fn is_ptr_ret(name: str) -> i64 {
+    // v0.4.92 mirror: Option/Result helpers that return NVec*.
+    if str_eq(name, "option_map") { return 1; };
+    if str_eq(name, "option_and_then") { return 1; };
+    if str_eq(name, "result_map") { return 1; };
+    if str_eq(name, "result_and_then") { return 1; };
     if str_eq(name, "str_concat") { return 1; };
     if str_eq(name, "str_intern") { return 1; };
     if str_eq(name, "str_arena_concat") { return 1; };
@@ -3545,6 +3564,13 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_result_ok(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_result_err(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_result_expect(ptr, ptr)\n");
+    // v0.4.92 mirror.
+    sb_append(sb, "declare ptr @__nucleor_option_map(ptr, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_option_and_then(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_option_unwrap_or_else(ptr, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_result_map(ptr, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_result_and_then(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_unwrap_or_else(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sb_new()\n");
     sb_append(sb, "declare void @__nucleor_sb_append(i64, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_append_char(i64, i64)\n");

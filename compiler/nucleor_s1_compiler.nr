@@ -3279,6 +3279,13 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "result_ok") { return "__nucleor_result_ok"; };
     if str_eq(name, "result_err") { return "__nucleor_result_err"; };
     if str_eq(name, "result_expect") { return "__nucleor_result_expect"; };
+    // v0.4.92: Option/Result fn-arg helpers (map/and_then/unwrap_or_else).
+    if str_eq(name, "option_map") { return "__nucleor_option_map"; };
+    if str_eq(name, "option_and_then") { return "__nucleor_option_and_then"; };
+    if str_eq(name, "option_unwrap_or_else") { return "__nucleor_option_unwrap_or_else"; };
+    if str_eq(name, "result_map") { return "__nucleor_result_map"; };
+    if str_eq(name, "result_and_then") { return "__nucleor_result_and_then"; };
+    if str_eq(name, "result_unwrap_or_else") { return "__nucleor_result_unwrap_or_else"; };
     if str_eq(name, "args_count") { return "__nucleor_args_count"; };
     if str_eq(name, "args_get") { return "__nucleor_args_get"; };
     if str_eq(name, "print_int") { return "__nucleor_print_i64"; };
@@ -4145,6 +4152,11 @@ fn is_void_ret(name: str) -> i64 {
     return 0;
 }
 fn is_ptr_ret(name: str) -> i64 {
+    // v0.4.92: Option/Result helpers that return NVec* (ptr).
+    if str_eq(name, "option_map") { return 1; };
+    if str_eq(name, "option_and_then") { return 1; };
+    if str_eq(name, "result_map") { return 1; };
+    if str_eq(name, "result_and_then") { return 1; };
     if str_eq(name, "str_concat") { return 1; };
     if str_eq(name, "str_intern") { return 1; };
     if str_eq(name, "str_arena_concat") { return 1; };
@@ -4851,6 +4863,13 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_result_ok(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_result_err(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_result_expect(ptr, ptr)\n");
+    // v0.4.92: Option/Result fn-arg helpers.
+    sb_append(sb, "declare ptr @__nucleor_option_map(ptr, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_option_and_then(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_option_unwrap_or_else(ptr, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_result_map(ptr, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_result_and_then(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_unwrap_or_else(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sb_new()\n");
     sb_append(sb, "declare void @__nucleor_sb_append(i64, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_append_char(i64, i64)\n");
@@ -13303,8 +13322,26 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 // vec_contains_i64 instead of hashmap_contains --
                 // returning the wrong answer (false on present keys).
                 let stype_for_iter: str = type_base_name(stype);
-                let recv_is_vec: i64 = if str_len(stype_for_iter) == 0
+                let mut recv_is_vec: i64 = if str_len(stype_for_iter) == 0
                     || str_eq(stype_for_iter, "Vec") == 1 { 1 } else { 0 };
+                // v0.4.92: also exclude Option/Result via var-ref
+                // __type_<name> lookup (when stype was empty). Without
+                // this, `opt.map(f)` for opt: Option<T> falls through
+                // recv_is_vec==1 → vec_map_i64 which links-fails or
+                // returns Vec instead of Option.
+                if recv_is_vec == 1 && str_len(stype_for_iter) == 0 {
+                    let recv_check_v92: i64 = node_field(pool, nid, 1);
+                    if node_kind(pool, recv_check_v92) == 3 {
+                        let recv_n_v92: str = node_field(pool, recv_check_v92, 1);
+                        let recv_t_v92: i64 = sym_get(sym, str_concat("__type_", recv_n_v92));
+                        if recv_t_v92 >= 0 {
+                            let recv_b_v92: str = type_base_name(recv_t_v92);
+                            if str_eq(recv_b_v92, "Option") == 1 || str_eq(recv_b_v92, "Result") == 1 {
+                                recv_is_vec = 0;
+                            };
+                        };
+                    };
+                };
                 if recv_is_vec == 1 && iter_method_for_vec(mname) == 1 {
                     fn_name = str_concat("vec_", str_concat(mname, "_i64"));
                 } else {
@@ -13333,7 +13370,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         fn_name = str_concat("btreeset_", mname);
                     } else if str_eq(stype_base, "VecDeque") == 1 {
                         fn_name = str_concat("vecdeque_", mname);
-                    } else if str_eq(stype_base, "Option") == 1 && (str_eq(mname, "unwrap") == 1 || str_eq(mname, "unwrap_or") == 1 || str_eq(mname, "is_some") == 1 || str_eq(mname, "is_none") == 1 || str_eq(mname, "expect") == 1) {
+                    } else if str_eq(stype_base, "Option") == 1 && (str_eq(mname, "unwrap") == 1 || str_eq(mname, "unwrap_or") == 1 || str_eq(mname, "is_some") == 1 || str_eq(mname, "is_none") == 1 || str_eq(mname, "expect") == 1 || str_eq(mname, "map") == 1 || str_eq(mname, "and_then") == 1 || str_eq(mname, "unwrap_or_else") == 1) {
                         // v0.4.90: Option<T> method dispatch — was hitting
                         // the v0.4.53 "non-Option receiver" panic-guard
                         // even when receiver IS typed Option<T>, because
@@ -13341,7 +13378,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         // fell through to the user-fn lookup. Runtime
                         // helpers added in nucleor_llvm_rt.c v0.4.90.
                         fn_name = str_concat("option_", mname);
-                    } else if str_eq(stype_base, "Result") == 1 && (str_eq(mname, "unwrap") == 1 || str_eq(mname, "unwrap_or") == 1 || str_eq(mname, "is_ok") == 1 || str_eq(mname, "is_err") == 1 || str_eq(mname, "ok") == 1 || str_eq(mname, "err") == 1 || str_eq(mname, "expect") == 1) {
+                    } else if str_eq(stype_base, "Result") == 1 && (str_eq(mname, "unwrap") == 1 || str_eq(mname, "unwrap_or") == 1 || str_eq(mname, "is_ok") == 1 || str_eq(mname, "is_err") == 1 || str_eq(mname, "ok") == 1 || str_eq(mname, "err") == 1 || str_eq(mname, "expect") == 1 || str_eq(mname, "map") == 1 || str_eq(mname, "and_then") == 1 || str_eq(mname, "unwrap_or_else") == 1) {
                         // v0.4.90: Result<T,E> method dispatch — same
                         // root cause as Option above.
                         fn_name = str_concat("result_", mname);
