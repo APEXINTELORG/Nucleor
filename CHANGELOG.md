@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.153] — 2026-04-29
+
+**Per-operation saturating dispatch in `saturating { ... }`
+blocks. Pre-fix the v0.4.105 single-final-clamp approach left
+inner i64 arithmetic to wrap before the i32 sat clamp. Now
+each `+`/`-`/`*` inside a saturating block routes through
+`saturating_{add,sub,mul}_i64` runtime helpers.**
+
+```nucleor
+let max: i64 = 9223372036854775807;
+let r: i64 = saturating { (max + 1) - 5 };
+// pre-fix: r == wrap(max+1)-5 (wrong)
+// now:     r == max - 5         (correct — sat clamp on add)
+```
+
+Integration of `spike/v04-saturating-per-op-v2` (commit
+`eea4f2f`) from the parallel agent's residual-#3 workstream.
+
+The v0.4.105 design lowered the entire saturating block as
+plain i64 arithmetic and clamped only the block's final value
+through `__nucleor_sat_i32`. For multi-step expressions where
+inner operations could overflow i64 — or where sat-then-unsat
+semantics were intended (e.g. `saturating { (max + 1) - 5 }`
+should produce `max - 5`, not `min - 4`) — the inner wrap broke
+the contract. The spike re-routes the dispatch:
+
+- **Mode propagation**: kind-52 (passthrough/wrapped block) now
+  sets `sym["__arith_mode"] = 2` in the body's cloned sym
+  before lowering when `mode == 2` (saturating). Previously the
+  body lowered with the parent's sym unchanged.
+- **Per-op dispatch**: kind-4 (binop) lowering checks
+  `sym["__arith_mode"]` for ops 2/3/4 (add/sub/mul) and routes
+  to `saturating_add` / `saturating_sub` / `saturating_mul`
+  (which resolve to the i64-saturating runtime helpers) when
+  mode is 2.
+- **Final clamp removed for sat mode**: the kind-52 emitter no
+  longer wraps the body's exit value through `sat_i32` —
+  per-op handling already pinned every intermediate.
+  `wrapping { ... }` (mode == 1) keeps the final `wrap_i32`
+  shape since that's the documented Nucleor wrapping contract.
+
+Mirrored to `nucleor_tools_suite.nr` (parser branch + kind-4
+binop dispatch + kind-52 mode propagation) so `nuc check` /
+`nuc test` over saturating-block code recognize the syntax.
+
+Closes residual #3 from `PARALLEL_AGENT_HANDOFF_v0.4_RESIDUALS`.
+Spike branch `spike/v04-saturating-per-op-v2` validated by the
+parallel agent before handoff; main-agent rebased the source
+changes onto v0.4.152 (since the spike was based on v0.4.149,
+the bin/seed had to be regenerated against the new base).
+
+Positive fixture: `tests/fixtures/repro_saturating_block_per_op.nr`
+(repro fixture, also wired into verify.sh as
+`t_saturating_block_per_op`). Bootstrap fixed-point holds
+first-pass. Fast-verify 207 PASS / 2 baseline-FAIL.
+
 ## [0.4.152] — 2026-04-29
 
 **TYP-011 ext: `for c in <str/String/scalar/bool>` silently

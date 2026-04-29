@@ -1458,6 +1458,24 @@ t441_var_div_zero_runtime_panic() {
     return 0
 }
 
+t_saturating_block_per_op() {
+    # Saturating blocks lower add/sub/mul per operation,
+    # not as a final i32 clamp after wrapped inner arithmetic.
+    "$BIN" build "tests/fixtures/repro_saturating_block_per_op.nr" -o "_sat_block_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "0" ] || return 1
+    grep -q "__nucleor_saturating_add_i64" "target/_sat_block_check.ll" || return 1
+    grep -q "__nucleor_saturating_sub_i64" "target/_sat_block_check.ll" || return 1
+    grep -q "__nucleor_saturating_mul_i64" "target/_sat_block_check.ll" || return 1
+    local exe="target/_sat_block_check"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local out
+    out=$("$exe" 2>&1)
+    echo "$out" | grep -q "OK saturating block per op" || return 1
+    return 0
+}
+
 t440_str_index_halts() {
     # v0.4.94 TYP-011 — `s[i]` for s:str halts (was silent vec_get
     # on str pointer → OOB panic / garbage).
@@ -3597,6 +3615,7 @@ step "T3.144 v0.4.98 — Vec debug element-type dispatch: Vec<str> + Vec<Option<
 step "T3.145 v0.4.99 §_p — parse_primary fall-through panics for non-recovery tokens (audit doc-#1)" t445_parse_primary_narrow_panic
 step "T3.146 v0.4.115 RFC-0016 §3.7 — ? applies From<SrcErr> for DstErr conversion; explicit Into<T> parses" t460_question_from_conversion
 step "T3.147 v0.4.119 rich match patterns — enum or, @, struct, slice, tuple, MATCH-008/009/010" t446_rich_pattern_forms
+step "T3.saturating block add/sub/mul lower per operation" t_saturating_block_per_op
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
