@@ -7110,6 +7110,18 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
     if kind == 8 {
         let recv_t: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let mname: str = node_field(pool, nid, 2);
+        // v0.4.139 mirror: TYP-023 + void-mutator return type.
+        if str_eq(recv_t, "void") == 1 {
+            let v23msg_t: str = str_concat("chained method `.", str_concat(mname, "()` on a void-returning receiver. Pre-v0.4.139 the chain silently lowered with the void result coerced as a Vec/str header. Split into separate statements."));
+            type_diag(diags, source, fn_name, fn_name, "TYP-023", v23msg_t);
+        };
+        if (str_starts_with(recv_t, "Vec<") == 1 || str_eq(recv_t, "Vec") == 1)
+            && (str_eq(mname, "push") == 1 || str_eq(mname, "pop") == 1
+                || str_eq(mname, "swap") == 1 || str_eq(mname, "extend") == 1
+                || str_eq(mname, "shuffle") == 1 || str_eq(mname, "free") == 1
+                || str_eq(mname, "remove") == 1 || str_eq(mname, "insert") == 1) {
+            return "void";
+        };
         if str_eq(mname, "sum") == 1 || str_eq(mname, "mean") == 1 || str_eq(mname, "max") == 1 || str_eq(mname, "min") == 1 {
             if str_eq(type_base_name(recv_t), "Tensor") == 1 { return "f64"; };
             return "i32";

@@ -11953,6 +11953,37 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             recv_t = infer_var_type_from_source(source, node_field(pool, recv_nid, 1));
         };
         let mname: str = node_field(pool, nid, 2);
+        // v0.4.139: TYP-023 — chained method call on void-returning
+        // receiver. Pre-fix `v.push(30).len()` silently lowered the
+        // outer .len() against vec_push's discarded result, returning
+        // 0 (and `v.push(N).contains(K)` returned wrong-bool with the
+        // void result misread as a Vec/str header). The inner
+        // void-mutator returns "void" via the route added below; here
+        // we halt before dispatching the outer call against it.
+        if str_eq(recv_t, "void") == 1 {
+            let inner_mn_v139: str = if node_kind(pool, recv_nid) == 8 { node_field(pool, recv_nid, 2) } else { "" };
+            let v23a: str = str_concat("chained method `.", str_concat(mname, "()` on a void-returning receiver."));
+            let v23b: str = if str_len(inner_mn_v139) > 0 { str_concat(" The inner `.", str_concat(inner_mn_v139, "()` is a void-mutator (push/pop/set/swap/extend/remove/insert/shuffle/free) — these don't return self for chaining in Nucleor.")) } else { "" };
+            let v23c: str = " Pre-v0.4.139 the chain silently lowered with the void result coerced as a Vec/str header, producing 0 / wrong bool / garbage at runtime. Split into separate statements: call the mutator on its own line, then call the chained method on the receiver.";
+            type_diag(diags, source, fn_name, fn_name, "TYP-023", str_concat(v23a, str_concat(v23b, v23c)));
+        };
+        // v0.4.139: route void-mutator vec methods to return "void"
+        // so the existing TYP-021 (let-RHS void), TYP-020 (binop void),
+        // and NUM-022-style checks auto-extend without per-call
+        // duplication. The runtime helpers `__nucleor_vec_{push, pop,
+        // set, swap, extend, remove_at, insert_at, shuffle, free}` all
+        // have `void` return. Without this, kind-8 type_expr fell to
+        // the catch-all `return ""` which made `let x = v.push(N);`
+        // bind `x` to "" (empty) silently — TYP-021 didn't see "void"
+        // so it didn't fire.
+        if (str_starts_with(recv_t, "Vec<") == 1 || str_eq(recv_t, "Vec") == 1)
+            && (str_eq(mname, "push") == 1 || str_eq(mname, "pop") == 1
+                || str_eq(mname, "set") == 1 || str_eq(mname, "swap") == 1
+                || str_eq(mname, "extend") == 1 || str_eq(mname, "shuffle") == 1
+                || str_eq(mname, "free") == 1 || str_eq(mname, "remove") == 1
+                || str_eq(mname, "insert") == 1) {
+            return "void";
+        };
         // v0.4.85: TYP-008 ext — Vec<T>.push(literal) narrow type
         // mismatch check. v0.4.86: extended to .insert(idx, val)
         // (val at arg position 1) and .set(idx, val) (same).
