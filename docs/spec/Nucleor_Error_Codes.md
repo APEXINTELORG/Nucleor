@@ -106,6 +106,12 @@ v0.2.119**; same drift class as the OWN series above.
 | TYP-012 | Missing field(s) in struct initialization (would silently default to 0/empty) | struct-init type-check, v0.4.62 | error |
 | TYP-013 | Unknown field in struct initialization (would silently drop the extra field) | struct-init type-check, v0.4.63 | error |
 
+### FMT series — format macro expansion
+
+| Code | Title | Source | Notes |
+|---|---|---|---|
+| FMT-002 | Type does not implement Display for bare `{}` formatting | format macro expansion, v0.4.91 | error |
+
 Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 `err_deref_nonref`, `err_taint_arg/leak/propagation`,
 `err_taint_to_clean`.

@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.96] — 2026-04-29
+
+**Display / Debug for structs (audit doc-#1 §10) — `println!("{}", p)`
+on a struct with `impl Display` actually prints the struct now,
+instead of emitting a pointer integer.**
+
+Implemented by parallel agent on `spike/v04-display-debug` worktree,
+rebased onto main + manifests refreshed:
+
+- `{}` on struct with `impl Display` routes to `Type__fmt(value)`.
+- `{}` on struct without Display errors with **FMT-002**.
+- `{:?}` on struct emits structural debug text.
+- Fixed Windows verify runner stdin handling so `stdin_read.exe`
+  doesn't hang.
+
+### New diagnostic
+
+- **FMT-002** — registered in:
+  - `compiler/nucleor_s1_compiler.nr` `is_known_diag_code`
+  - `compiler/nucleor_tools_suite.nr` mirror
+  - `docs/spec/Nucleor_Error_Codes.md`
+  - `tools/verify.sh` STEP_FULL_DIAG_CODES list
+  - `tools/verify.ps1` mirror
+
+### New verify gate
+
+- T3.142 — `tests/fixtures/repro_v91_format_struct_display.nr`,
+  `repro_v91_format_struct_debug.nr`,
+  `tests/err/err_format_struct_no_display.nr`.
+
+### Memory + timing
+
+- Self-host tracked alloc: 350.4 MB (flat vs baseline 350.4 MB).
+- Fixed-point on rebased state: 3-pass B==C==D byte-identical IR
+  at sha 25b765b9…
+- Spike-side full Windows verify (pre-rebase): 332.1s,
+  476 PASS / 1 SKIP.
+
 ## [0.4.95] — 2026-04-29
 
 **Variable-divisor div/mod by zero now panics with clean message

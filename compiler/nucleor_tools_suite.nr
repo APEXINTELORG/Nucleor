@@ -5427,7 +5427,22 @@ fn str_starts_with(s: str, prefix: str) -> i64 {
     let slen: i64 = str_len(s);
     let plen: i64 = str_len(prefix);
     if slen < plen { return 0; };
-    return str_eq(str_substring(s, 0, plen), prefix);
+    let mut i: i64 = 0;
+    while i < plen {
+        if str_char_at(s, i) != str_char_at(prefix, i) { return 0; };
+        i = i + 1;
+    };
+    return 1;
+}
+
+fn str_eq_at(source: str, pos: i64, target: str) -> i64 {
+    let tlen: i64 = str_len(target);
+    let mut k: i64 = 0;
+    while k < tlen {
+        if str_char_at(source, pos + k) != str_char_at(target, k) { return 0; };
+        k = k + 1;
+    };
+    return 1;
 }
 fn path_overlaps(a: str, b: str) -> i64 {
     if str_len(a) == 0 || str_len(b) == 0 { return 0; };
@@ -10062,6 +10077,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "TYP-011") { return "`str + str` not supported (would silently segfault)"; };
     if str_eq(code, "TYP-012") { return "Missing field(s) in struct initialization (would silently default to 0/empty)"; };
     if str_eq(code, "TYP-013") { return "Unknown field in struct initialization (would silently drop the extra field)"; };
+    if str_eq(code, "FMT-002") { return "Type does not implement Display for bare `{}` formatting"; };
     // RFC-0015 numeric types
     if str_eq(code, "NUM-001") { return "Mixed-width arithmetic without cast"; };
     if str_eq(code, "NUM-002") { return "Numeric literal out of range for declared type"; };
@@ -10269,6 +10285,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "TYP-011") { return "`str + str` (and longer chains like `\"a\" + \"b\" + \"c\"`) silently SIGSEGVed pre-v0.4.51 because the binop lowered to i64_add on the string pointers, producing a garbage pointer that crashed in print_str. Use `str_concat(a, b)` to concatenate strings."; };
     if str_eq(code, "TYP-012") { return "Pre-v0.4.62 `Point { x: 1, y: 2 }` for a struct with 3 fields silently defaulted the missing field to 0 / empty. Adopters writing the canonical Rust idiom (which errors with E0063) got a quiet wrong value. Either list every field explicitly or define a `Point::new(x, y)` constructor fn that supplies the rest."; };
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra `z` field (Rust E0560 errors). Check the struct definition and remove the unknown field, or add it to the struct decl."; };
+    if str_eq(code, "FMT-002") { return "Bare `{}` formatting for a user struct requires an `impl Display for Type` with `fn fmt(self) -> str`; use `{:?}` for derived structural debug output."; };
     if str_eq(code, "NUM-001") { return "Nucleor follows Rust's no-implicit-conversion rule. Cast explicitly with `as`: `(u8_val as i32) + i32_val`."; };
     if str_eq(code, "NUM-002") { return "The literal does not fit in the declared type — e.g. 256u8 overflows u8."; };
     if str_eq(code, "NUM-003") { return "An `as` cast may truncate or round. The warning is informational; promote to error with #![deny(precision_loss)]."; };
@@ -10453,6 +10470,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "TYP-011") { return "Nucleor's i64-everywhere ABI lowers `+` to integer addition. For `str + str` that meant adding two string pointers as i64, producing a garbage pointer that SIGSEGVed when later passed to a string helper (e.g. `print_str`). Pre-v0.4.51 this was silent at compile time. v0.4.51 promotes the pattern to a hard error pointing at `str_concat(a, b)`. Reasoning: the canonical Rust idiom `&str + &str` doesn't compile in Rust either, so adopters expected a compile error and got runtime garbage instead."; };
     if str_eq(code, "TYP-012") { return "Struct constructor expressions like `Point { x: 1, y: 2 }` must list ALL declared fields. Pre-v0.4.62 the lower silently zero-initialized any missing field — equivalent to a quiet `field: 0` (or `field: \"\"` for str). Rust errors here with E0063, so adopters writing the canonical idiom got a wrong value with no compile-time signal. Workaround: list every field explicitly, OR write a `Point::new(x, y)` constructor fn that supplies the rest."; };
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra field — the lower walked the init list in declared order, so any extra entries past the declared count were ignored. Rust errors here with E0560 — adopters writing canonical struct literals got a quiet wrong shape. Either remove the unknown field from the literal, or add it to the struct definition."; };
+    if str_eq(code, "FMT-002") { return "`println!(\"{}\", value)` previously fell through to `int_to_str(value)` for struct values, printing an ABI handle instead of user-facing text. The format expander now hard-errors unless the struct has a Display impl; `println!(\"{:?}\", value)` remains the structural debug path."; };
     if str_eq(code, "NUM-001") { return "Nucleor models on Rust: numeric types are distinct, no implicit conversion. Cast explicitly with `as`. Reasoning: silent conversions are a recurring bug source (truncation, sign extension)."; };
     if str_eq(code, "NUM-002") { return "Numeric literal exceeds the declared type's range — e.g. 256u8, -1u32, 4_000_000_000i32. Use a wider type or change the literal."; };
     if str_eq(code, "NUM-003") { return "Casting f64 to i32, i64 to i8 etc. may lose precision or wrap. The warning surfaces the risk; if intentional, suppress with #[allow(precision_loss)] on the call site."; };
@@ -12497,11 +12515,196 @@ fn fmt_strip_outer_quotes(s: str) -> str {
     return str_substring(s, 1, slen - 1);
 }
 
-fn fmt_conversion_for_spec(spec: str, arg_expr: str) -> str {
-    if str_eq(spec, "") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
+fn fmt_infer_var_type_from_source(src: str, var_name: str) -> str {
+    let vlen: i64 = str_len(var_name);
+    let slen: i64 = str_len(src);
+    let mut i: i64 = 0;
+    while i + 4 + vlen < slen {
+        if str_eq_at(src, i, "let ") == 1 {
+            let name_start: i64 = i + 4;
+            if name_start + vlen <= slen && str_eq_at(src, name_start, var_name) == 1 {
+                let after: i64 = name_start + vlen;
+                let ac: i64 = if after < slen { str_char_at(src, after) } else { 0 };
+                let boundary: i64 = if is_alnum(ac) == 0 && ac != 95 { 1 } else { 0 };
+                if boundary == 1 {
+                    let mut p: i64 = after;
+                    while p < slen && str_char_at(src, p) != 58 && str_char_at(src, p) != 61 && str_char_at(src, p) != 10 { p = p + 1; };
+                    if p < slen && str_char_at(src, p) == 58 {
+                        p = p + 1;
+                        while p < slen {
+                            let ws: i64 = str_char_at(src, p);
+                            if ws == 32 || ws == 9 || ws == 10 || ws == 13 { p = p + 1; }
+                            else { break; };
+                        };
+                        let ts: i64 = p;
+                        let mut tdepth: i64 = 0;
+                        let mut done: i64 = 0;
+                        while p < slen && done == 0 {
+                            let c: i64 = str_char_at(src, p);
+                            if c == 60 || c == 40 || c == 91 { tdepth = tdepth + 1; }
+                            else if c == 62 || c == 41 || c == 93 { tdepth = tdepth - 1; }
+                            else if (c == 61 || c == 44 || c == 10 || c == 13 || c == 59) && tdepth == 0 { done = 1; };
+                            if done == 0 { p = p + 1; };
+                        };
+                        return fmt_trim_ws(str_substring(src, ts, p));
+                    };
+                };
+            };
+        };
+        i = i + 1;
+    };
+    return "";
+}
+
+fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
+    if str_eq(spec, "") == 1 {
+        let alen: i64 = str_len(arg_expr);
+        let mut is_bare_ident: i64 = 1;
+        if alen == 0 { is_bare_ident = 0; };
+        if is_bare_ident == 1 {
+            let first_ident_ch: i64 = str_char_at(arg_expr, 0);
+            if is_alpha(first_ident_ch) == 0 && first_ident_ch != 95 { is_bare_ident = 0; };
+        };
+        let mut bare_i: i64 = 1;
+        while bare_i < alen && is_bare_ident == 1 {
+            let bare_ch: i64 = str_char_at(arg_expr, bare_i);
+            if is_alnum(bare_ch) == 0 && bare_ch != 95 { is_bare_ident = 0; };
+            bare_i = bare_i + 1;
+        };
+        if is_bare_ident == 1 {
+            let inferred: str = fmt_infer_var_type_from_source(src, arg_expr);
+            if str_eq(inferred, "str") == 1 { return arg_expr; };
+            if str_eq(inferred, "f64") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+            if str_eq(inferred, "f32") == 1 { return str_concat("f32_to_str(", str_concat(arg_expr, ")")); };
+            if str_eq(inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
+            let inferred_base: str = type_base_name(inferred);
+            if str_len(inferred_base) > 0 && str_contains(src, str_concat("struct ", inferred_base)) == 1 {
+                if str_contains(src, str_concat("impl Display for ", inferred_base)) == 1 {
+                    return str_concat(inferred_base, str_concat("__fmt(", str_concat(arg_expr, ")")));
+                };
+                print(str_concat("ERROR: error[FMT-002]: type '", str_concat(inferred_base, "' does not implement Display for '{}'")));
+                panic("nucleor: FMT-002 missing Display impl for struct format");
+            };
+        };
+        return str_concat("int_to_str(", str_concat(arg_expr, ")"));
+    };
     if str_eq(spec, ":i") == 1 { return str_concat("int_to_str(", str_concat(arg_expr, ")")); };
     if str_eq(spec, ":s") == 1 { return arg_expr; };
     if str_eq(spec, ":f") == 1 { return str_concat("f64_to_str(", str_concat(arg_expr, ")")); };
+    if str_eq(spec, ":?") == 1 {
+        let inferred: str = type_base_name(fmt_infer_var_type_from_source(src, arg_expr));
+        if str_eq(inferred, "str") == 1 || str_eq(inferred, "String") == 1 {
+            return str_concat("str_concat(\"\\\"\", str_concat(", str_concat(arg_expr, ", \"\\\"\"))"));
+        };
+        if str_len(inferred) > 0 && str_contains(src, str_concat("struct ", inferred)) == 1 {
+            let mut dbg_segments: Vec<i32> = Vec::new();
+            let mut dbg_parities: Vec<i32> = Vec::new();
+            dbg_segments.push(str_concat(inferred, " { "));
+            dbg_parities.push(0);
+            let dbg_needle: str = str_concat("struct ", inferred);
+            let dbg_nlen: i64 = str_len(dbg_needle);
+            let dbg_slen: i64 = str_len(src);
+            let mut dbg_body_start: i64 = 0 - 1;
+            let mut dbg_body_end: i64 = 0 - 1;
+            let mut dbg_i: i64 = 0;
+            while dbg_i + dbg_nlen <= dbg_slen && dbg_body_start < 0 {
+                if str_eq_at(src, dbg_i, dbg_needle) == 1 {
+                    let mut dbg_q: i64 = dbg_i + dbg_nlen;
+                    while dbg_q < dbg_slen && str_char_at(src, dbg_q) != 123 { dbg_q = dbg_q + 1; };
+                    if dbg_q < dbg_slen {
+                        dbg_body_start = dbg_q + 1;
+                        dbg_q = dbg_q + 1;
+                        let mut dbg_depth: i64 = 1;
+                        while dbg_q < dbg_slen && dbg_depth > 0 {
+                            let dbg_c: i64 = str_char_at(src, dbg_q);
+                            if dbg_c == 123 { dbg_depth = dbg_depth + 1; }
+                            else if dbg_c == 125 {
+                                dbg_depth = dbg_depth - 1;
+                                if dbg_depth == 0 { dbg_body_end = dbg_q; };
+                            };
+                            dbg_q = dbg_q + 1;
+                        };
+                    };
+                };
+                dbg_i = dbg_i + 1;
+            };
+            if dbg_body_start >= 0 && dbg_body_end > dbg_body_start {
+                let mut dbg_p: i64 = dbg_body_start;
+                let mut dbg_count: i64 = 0;
+                while dbg_p < dbg_body_end {
+                    while dbg_p < dbg_body_end {
+                        let dbg_ws: i64 = str_char_at(src, dbg_p);
+                        if dbg_ws == 32 || dbg_ws == 9 || dbg_ws == 10 || dbg_ws == 13 || dbg_ws == 44 { dbg_p = dbg_p + 1; }
+                        else { break; };
+                    };
+                    if dbg_p < dbg_body_end {
+                        let dbg_name_start: i64 = dbg_p;
+                        let dbg_fc0: i64 = str_char_at(src, dbg_p);
+                        if is_alpha(dbg_fc0) == 1 || dbg_fc0 == 95 {
+                            dbg_p = dbg_p + 1;
+                            while dbg_p < dbg_body_end {
+                                let dbg_nc: i64 = str_char_at(src, dbg_p);
+                                if is_alnum(dbg_nc) == 1 || dbg_nc == 95 { dbg_p = dbg_p + 1; }
+                                else { break; };
+                            };
+                            let dbg_field_name: str = str_substring(src, dbg_name_start, dbg_p);
+                            while dbg_p < dbg_body_end {
+                                let dbg_cws: i64 = str_char_at(src, dbg_p);
+                                if dbg_cws == 32 || dbg_cws == 9 || dbg_cws == 10 || dbg_cws == 13 { dbg_p = dbg_p + 1; }
+                                else { break; };
+                            };
+                            if dbg_p < dbg_body_end && str_char_at(src, dbg_p) == 58 {
+                                dbg_p = dbg_p + 1;
+                                while dbg_p < dbg_body_end {
+                                    let dbg_tws: i64 = str_char_at(src, dbg_p);
+                                    if dbg_tws == 32 || dbg_tws == 9 || dbg_tws == 10 || dbg_tws == 13 { dbg_p = dbg_p + 1; }
+                                    else { break; };
+                                };
+                                let dbg_type_start: i64 = dbg_p;
+                                let mut dbg_tdepth: i64 = 0;
+                                let mut dbg_done_type: i64 = 0;
+                                while dbg_p < dbg_body_end && dbg_done_type == 0 {
+                                    let dbg_tc: i64 = str_char_at(src, dbg_p);
+                                    if dbg_tc == 60 || dbg_tc == 40 || dbg_tc == 91 { dbg_tdepth = dbg_tdepth + 1; }
+                                    else if dbg_tc == 62 || dbg_tc == 41 || dbg_tc == 93 { dbg_tdepth = dbg_tdepth - 1; }
+                                    else if dbg_tc == 44 && dbg_tdepth == 0 { dbg_done_type = 1; };
+                                    if dbg_done_type == 0 { dbg_p = dbg_p + 1; };
+                                };
+                                let dbg_field_type: str = fmt_trim_ws(str_substring(src, dbg_type_start, dbg_p));
+                                if dbg_count > 0 {
+                                    dbg_segments.push(", ");
+                                    dbg_parities.push(0);
+                                };
+                                dbg_segments.push(str_concat(dbg_field_name, ": "));
+                                dbg_parities.push(0);
+                                let dbg_field_expr: str = str_concat(arg_expr, str_concat(".", dbg_field_name));
+                                let dbg_base: str = type_base_name(dbg_field_type);
+                                if str_eq(dbg_base, "str") == 1 || str_eq(dbg_base, "String") == 1 {
+                                    dbg_segments.push(str_concat("str_concat(\"\\\"\", str_concat(", str_concat(dbg_field_expr, ", \"\\\"\"))"));
+                                } else if str_eq(dbg_base, "f64") == 1 {
+                                    dbg_segments.push(str_concat("f64_to_str(", str_concat(dbg_field_expr, ")")));
+                                } else if str_eq(dbg_base, "f32") == 1 {
+                                    dbg_segments.push(str_concat("f32_to_str(", str_concat(dbg_field_expr, ")")));
+                                } else if str_eq(dbg_base, "bool") == 1 {
+                                    dbg_segments.push(str_concat("bool_to_str(", str_concat(dbg_field_expr, ")")));
+                                } else {
+                                    dbg_segments.push(str_concat("int_to_str(", str_concat(dbg_field_expr, ")")));
+                                };
+                                dbg_parities.push(1);
+                                dbg_count = dbg_count + 1;
+                            };
+                        } else {
+                            dbg_p = dbg_p + 1;
+                        };
+                    };
+                };
+            };
+            dbg_segments.push(" }");
+            dbg_parities.push(0);
+            return fmt_build_concat_chain(dbg_segments, dbg_parities);
+        };
+        return fmt_conversion_for_spec("", arg_expr, src);
+    };
     // v0.4.29: drift-parity with s1_compiler — `:b` is binary radix (Rust),
     // routes to int_to_bin. Pre-v0.4.29 routed to bool_to_str.
     if str_eq(spec, ":b") == 1 { return str_concat("int_to_bin(", str_concat(arg_expr, ")")); };
@@ -12529,7 +12732,7 @@ fn fmt_build_concat_chain(segments: Vec<i32>, parities: Vec<i32>) -> str {
     return chain;
 }
 
-fn fmt_build_expansion(args_text: str, mode: i64) -> str {
+fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     let parts: Vec<i32> = fmt_split_args(args_text);
     if vec_len(parts) == 0 {
         if mode == 0 { return "print(\"\")"; };
@@ -12566,7 +12769,7 @@ fn fmt_build_expansion(args_text: str, mode: i64) -> str {
                 current = sb_new();
                 if arg_idx < n_args {
                     let arg_expr: str = vec_get(parts, arg_idx + 1);
-                    segments.push(fmt_conversion_for_spec(spec, arg_expr));
+                    segments.push(fmt_conversion_for_spec(spec, arg_expr, src));
                     parities.push(1);
                     arg_idx = arg_idx + 1;
                 } else {
@@ -12589,6 +12792,10 @@ fn fmt_build_expansion(args_text: str, mode: i64) -> str {
 }
 
 fn expand_format_macros(src: str) -> str {
+    return expand_format_macros_with_src(src, src);
+}
+
+fn expand_format_macros_with_src(src: str, type_src: str) -> str {
     let mut sb: i64 = sb_new();
     let slen: i64 = str_len(src);
     let mut p: i64 = 0;
@@ -12686,8 +12893,8 @@ fn expand_format_macros(src: str) -> str {
                     if depth == 0 {
                         let args_end: i64 = q - 1;
                         let args_text: str = str_substring(src, args_start, args_end);
-                        let inner_expanded: str = expand_format_macros(args_text);
-                        let expansion: str = fmt_build_expansion(inner_expanded, mode);
+                        let inner_expanded: str = expand_format_macros_with_src(args_text, type_src);
+                        let expansion: str = fmt_build_expansion(inner_expanded, mode, type_src);
                         sb_append(sb, expansion);
                         p = q;
                         last_non_ws = 41;
@@ -17865,8 +18072,3 @@ fn main() -> i64 {
         return 1;
     };
 }
-
-
-
-
-

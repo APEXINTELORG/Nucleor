@@ -509,6 +509,8 @@ cli_explain_full_smoke() {
         # TYP series — type checker (expansion of NR030, since v0.2.119)
         "TYP-001" "TYP-002" "TYP-003" "TYP-004" "TYP-005"
         "TYP-006" "TYP-007" "TYP-008" "TYP-009" "TYP-010" "TYP-011" "TYP-012" "TYP-013"
+        # FMT series — format macro expansion
+        "FMT-002"
         # RFC-0004 assume!
         "ASSUME-001" "ASSUME-002" "ASSUME-003" "ASSUME-004" "ASSUME-005"
         # RFC-0005 units
@@ -1422,6 +1424,35 @@ t437_option_result_method_dispatch() {
     echo "$out" | sed -n '6p' | grep -q "^0$"  || return 1
     echo "$out" | sed -n '7p' | grep -q "^7$"  || return 1
     echo "$out" | sed -n '8p' | grep -q "^9$"  || return 1
+    return 0
+}
+
+t442_format_struct_display_debug() {
+    # v0.4.91 — user structs no longer silently fall through to
+    # int_to_str for bare `{}`. Display routes through impl fmt;
+    # Debug derives structural text.
+    "$BIN" build "tests/fixtures/repro_v91_format_struct_display.nr" -o "_t438_display" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe1="target/_t438_display"
+    [ -x "$exe1.exe" ] && exe1="$exe1.exe"
+    [ -x "$exe1" ] || return 1
+    local out1
+    out1=$("$exe1" 2>&1)
+    echo "$out1" | tail -1 | grep -q "^Point(3, 4)$" || return 1
+
+    "$BIN" build "tests/fixtures/repro_v91_format_struct_debug.nr" -o "_t438_debug" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe2="target/_t438_debug"
+    [ -x "$exe2.exe" ] && exe2="$exe2.exe"
+    [ -x "$exe2" ] || return 1
+    local out2
+    out2=$("$exe2" 2>&1)
+    echo "$out2" | tail -1 | grep -q '^Sample { name: "alpha", count: 7, ok: true }$' || return 1
+
+    "$BIN" build "tests/err/err_format_struct_no_display.nr" -o "_t438_err" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\\[FMT-002\\]" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -3459,6 +3490,7 @@ step "T3.138 v0.4.92 — Option/Result fn-arg methods (.map/.and_then/.unwrap_or
 step "T3.139 v0.4.93 — Result.or_else(f) recovery method" t439_result_or_else
 step "T3.140 v0.4.94 TYP-011 — `s[i]` on str halts (was silent vec_get on str pointer → OOB/garbage)" t440_str_index_halts
 step "T3.141 v0.4.95 — variable-divisor zero panics with clean message (was silent SIGFPE / exit 127)" t441_var_div_zero_runtime_panic
+step "T3.142 v0.4.96 RFC-0028 — struct Display/Debug format dispatch + FMT-002 (audit doc-#1 §10)" t442_format_struct_display_debug
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
