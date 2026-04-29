@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.119] — 2026-04-29
+
+**NUM-021: decimal literal beyond u64::MAX silently wrapped to
+garbage — now panics at lex time.**
+
+```nucleor
+let x: i64 = 99999999999999999999;
+print_int(x);   // pre-fix: 7766279631452241919 (silent wrap)
+```
+
+`str_to_int` (line 53) intentionally uses `wrapping_mul/add` so
+that u64::MAX = 18446744073709551615 produces the correct bit
+pattern (-1 as i64) — a real and useful behavior preserved by
+v0.3.208. But ANY decimal literal > u64::MAX wraps further into
+meaningless territory: 99999999999999999999 (~5×u64::MAX) became
+7766279631452241919, a garbage value with no signal to the
+adopter that anything went wrong.
+
+This release adds a length + lexicographic check at the lexer's
+decimal-literal site (line 425). Decimal literals of 21+ digits
+reject unconditionally; 20-digit literals reject if they compare
+strictly greater than `"18446744073709551615"`. Hex/oct/bin
+literals (`handled_radix == 1`) keep the existing wrap behavior
+since their bit pattern is intentional. u64::MAX itself still
+parses cleanly.
+
+Single `sb_to_str(digit_sb)` capture so the same string feeds
+both the overflow check and the subsequent `str_to_int` call
+(StringBuilder consumes on read).
+
+Negative fixture: `tests/err/err_int_lit_overflow.nr`.
+Bootstrap fixed-point sha `1ec41864…`. Fast-verify
+169 PASS / 2 baseline-FAIL clean.
+
 ## [0.4.118] — 2026-04-29
 
 **`Box<dyn Trait>` binding/call coercion now type-checks when the

@@ -422,7 +422,37 @@ fn lex(src: str) -> Vec<i32> {
                     p = p + 1;
                 }
             } else {
-                let int_lit_value: i64 = if handled_radix == 1 { int_value } else { str_to_int(sb_to_str(digit_sb)) };
+                // v0.4.119: NUM-021 — decimal literal too wide for u64.
+                // Pre-fix `let x: i64 = 99999999999999999999;` (a 20-digit
+                // value > u64::MAX) silently wrapped through str_to_int's
+                // wrapping_mul/add accumulator, producing
+                // 7766279631452241919 — a meaningless garbage bit pattern.
+                // Single sb_to_str call (consumes digit_sb), use the
+                // string both for the check AND the str_to_int call.
+                // Hex/oct/bin literals (handled_radix == 1) keep the
+                // existing wrap behavior since their bit pattern is
+                // expected.
+                let dig_str_v119: str = if handled_radix == 1 { "" } else { sb_to_str(digit_sb) };
+                if handled_radix == 0 {
+                    let dig_len_v119: i64 = str_len(dig_str_v119);
+                    let mut overflow_v119: i64 = 0;
+                    if dig_len_v119 > 20 { overflow_v119 = 1; };
+                    if dig_len_v119 == 20 {
+                        let u64_max_v119: str = "18446744073709551615";
+                        let mut cmp_i_v119: i64 = 0;
+                        while cmp_i_v119 < 20 {
+                            let dc_v119: i64 = str_char_at(dig_str_v119, cmp_i_v119);
+                            let mc_v119: i64 = str_char_at(u64_max_v119, cmp_i_v119);
+                            if dc_v119 > mc_v119 { overflow_v119 = 1; cmp_i_v119 = 20; }
+                            else if dc_v119 < mc_v119 { cmp_i_v119 = 20; }
+                            else { cmp_i_v119 = cmp_i_v119 + 1; };
+                        };
+                    };
+                    if overflow_v119 == 1 {
+                        panic(str_concat("error[NUM-021]: integer literal `", str_concat(dig_str_v119, "` exceeds u64::MAX (18446744073709551615). Pre-v0.4.119 the value silently wrapped through the str_to_int accumulator and produced a meaningless bit pattern. Use a smaller literal, switch to a wide-int library, or write the value as a hex literal `0x...` if you intentionally want a specific bit pattern."))));
+                    };
+                };
+                let int_lit_value: i64 = if handled_radix == 1 { int_value } else { str_to_int(dig_str_v119) };
                 tokens.push(tok_new(2, int_lit_value, st));
                 // Consume optional integer suffix: i8 i16 i32 i64 u8 u16 u32 u64 usize isize
                 if p < slen && (str_char_at(src, p) == 105 || str_char_at(src, p) == 117) {
