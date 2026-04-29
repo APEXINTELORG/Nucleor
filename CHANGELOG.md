@@ -5,6 +5,31 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.93] — 2026-04-29
+
+**`Result.or_else(f)` recovery method.**
+
+Pre-fix `r.or_else(recover)` for `r: Result<T,E>` fell through
+the v0.4.92 dispatch (or_else wasn't in the method list) → routed
+to `vec_or_else` (no helper) → linker fail.
+
+Adds `__nucleor_result_or_else(res, fn_ptr)` C helper: if Ok,
+shallow-clone Ok; if Err, call `fn(err_payload)` and return its
+`Result<T, E2>`. Same `fn_ptr` ABI as v0.4.92 family. Mirrored
+into tools_suite.
+
+### Verify gate
+
+- T3.139 — `tests/fixtures/repro_v93_result_or_else.nr` asserts
+  `Err(7).or_else(recover).unwrap() = 70` (recover returns
+  `Ok(e*10)`) and `Ok(42).or_else(recover).unwrap() = 42`
+  (passthrough).
+
+### Memory + timing
+
+- Verify gate: 514 PASS / 0 FAIL.
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha f29b5cfa…).
+
 ## [0.4.92] — 2026-04-29
 
 **Option/Result fn-arg methods: `.map(f)`, `.and_then(f)`,

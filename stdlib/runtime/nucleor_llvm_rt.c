@@ -7429,6 +7429,19 @@ long long __nucleor_result_unwrap_or_else(NVec *res, long long fn_ptr) {
     long long (*fn)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
     return fn(res ? __nucleor_vec_get(res, 1) : 0);
 }
+NVec *__nucleor_result_or_else(NVec *res, long long fn_ptr) {
+    // f takes the err payload, returns a Result<T,E2>. If Ok, pass through.
+    if (!res || !fn_ptr) return res;
+    if (__nucleor_vec_get(res, 0) == 1) {
+        // Pass-through Ok: shallow clone.
+        NVec *out = __nucleor_vec_new();
+        __nucleor_vec_push(out, 1);
+        __nucleor_vec_push(out, __nucleor_vec_get(res, 1));
+        return out;
+    }
+    NVec *(*fn)(long long) = (NVec *(*)(long long))(void *)(intptr_t)fn_ptr;
+    return fn(__nucleor_vec_get(res, 1));
+}
 
 // === RNG ===
 // Pull in rng_rt.c so nuc_rng_* symbols are available without a separate
