@@ -7125,6 +7125,11 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 walk_ai_v144_t = walk_ai_v144_t + 1;
             };
         };
+        // v0.4.148 mirror: TYP-022 ext — struct as fn call.
+        if struct_find_type(pool, structs, callee) >= 0 {
+            let v148msg_t: str = str_concat("`", str_concat(callee, "(...)` is not how struct values are constructed — `<Name>` is a struct type, not a fn. Use struct-init syntax `<Name> { field1: val1, ... }`."));
+            type_diag(diags, source, fn_name, callee, "TYP-022", v148msg_t);
+        };
         // v0.4.146 mirror: closure call-site argc check.
         let v146_argc_str_t: str = tenv_get(env, str_concat("__closure_argc_", callee));
         if str_len(v146_argc_str_t) > 0 {
