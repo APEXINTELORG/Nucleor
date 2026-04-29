@@ -990,15 +990,40 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             return pr(cp, mk3(pool, 42, mk_list(pool, cparams), mk_list(pool, rbody)));
         };
     };
-    // v0.4.72: 3rd-opinion review CRITICAL #1.1 partially deferred —
-    // converting parse_primary fall-through to panic broke
-    // tests/rods/pgs_smoke (legitimate parser edge case the audit
-    // found, where unhandled-token cases are intentionally permitted
-    // by the recovery flow). Re-tried v0.4.81 after NR020 expect_tok
-    // hardening — still breaks pgs_smoke (the macro-expanded source
-    // hits this fall-through with token 51 = `(` at byte 6571 from
-    // legitimate code). Needs a narrower predicate that excludes
-    // recovery contexts before panicking. Tracked for future ship.
+    // v0.4.99 audit doc-#1 §_p (parse_primary close): pragmatic
+    // narrow-predicate approach. Pre-fix the fall-through silently
+    // returned `int_lit(0)` and advanced past the unhandled token
+    // for ALL tokens — including ones like `@` (binding pattern)
+    // and `i:` (incomplete annotation) that adopters write
+    // legitimately as Rust idioms but Nucleor doesn't yet parse.
+    // Result: silent miscompute → working binary that does the
+    // wrong thing.
+    //
+    // v0.4.72 / v0.4.81 attempts to panic unconditionally broke
+    // tests/rods/pgs_smoke (token 51 = `)` legitimately reached
+    // here from macro-expanded code at byte 6571). Per change-map
+    // §9 the proper fix is a `parse_primary_or_recover(allow_recovery)`
+    // two-arg API — but that requires finding every recovery
+    // context call site of parse_primary. For now: keep silent
+    // fallback ONLY for tokens that mark expression-end /
+    // recovery-context (`)` `,` `;` `}` `]` `=` `EOF`). For ANY
+    // OTHER unhandled token (including `@`, raw `:`, etc.), halt
+    // with NR020. This catches the silent-miscompute class while
+    // preserving pgs_smoke's legit recovery.
+    let fall_tt: i64 = pk(tokens, pos);
+    let is_recovery_marker: i64 = if fall_tt == 0
+        || fall_tt == 40  // `=`
+        || fall_tt == 41  // `}`
+        || fall_tt == 43  // `;`
+        || fall_tt == 44  // `,`
+        || fall_tt == 51  // `)`
+        || fall_tt == 55  // `]`
+        { 1 } else { 0 };
+    if is_recovery_marker == 0 {
+        let fall_tok: Vec<i32> = tok_at(tokens, pos);
+        let fall_byte: i64 = vec_get(fall_tok, 2);
+        panic(str_concat("error[NR020]: parse_primary cannot start an expression at token kind ", str_concat(str_from_int(fall_tt), str_concat(" (byte position ", str_concat(str_from_int(fall_byte), "). Pre-v0.4.99 this silently became int_lit(0), producing a likely-broken AST node downstream consumed without diagnostic.")))));
+    };
     return pr(pos + 1, mk2(pool, 1, 0));
 }
 
