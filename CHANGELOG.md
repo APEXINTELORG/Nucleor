@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.145] — 2026-04-29
+
+**TYP-024: if-expression branches with incompatible types
+silently picked the then-branch type and bit-cast the else
+value into that slot. Now halts.**
+
+```nucleor
+let x = if cond { 1 } else { "two" };
+// pre-fix: x is i32; when cond=false, x = ("two".as_ptr() as i64) as i32 = garbage
+```
+
+The kind-23 (if-expr) `type_expr` had this logic:
+```
+let tt = type_last_stmt(then_branch);
+let et = type_last_stmt(else_branch);
+if tt == et { return tt; };
+return tt;   // ← BUG: silently returns then-type when branches differ
+```
+
+The "fall-through to tt" pre-fix was a v0.1-era convenience for
+when one branch's type was unknown (returned ""). It also
+silently masked the actual mismatch case. Rust rejects with
+E0308 "if and else have incompatible types" at first read.
+Adopters who wrote canonical Rust (e.g. `if x.is_some() { x.unwrap() } else { default_str }` for x: Option<i32>)
+got a passing build that quietly bit-cast the else value into the
+then-type slot.
+
+This release adds a check between the equality-check and the
+fall-through: if both tt and et have known types AND
+`types_compatible_context(tt, et)` says they're incompatible AND
+neither is void/unit (early-return branches like `if cond {
+return x; } else { val }` legitimately have void on one side),
+halt with TYP-024. Falls through unchanged for compatible
+unequal types (i32 vs i64, etc.) and for unknown-type branches.
+
+s1-only fix.
+
+Negative fixture: `tests/err/err_if_branches_diff_types.nr`.
+Bootstrap fixed-point holds first-pass. Fast-verify 199 PASS / 2
+baseline-FAIL.
+
 ## [0.4.144] — 2026-04-29
 
 **TYP-005 ext: nested fn call inside a runtime-helper arg

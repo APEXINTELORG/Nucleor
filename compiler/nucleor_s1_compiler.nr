@@ -12164,6 +12164,27 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         if enode >= 0 {
             let et: str = type_last_stmt(pool, prog, enode, env, sigs, structs, fn_name, diags, source, tprof);
             if str_eq(strip_spaces(tt), strip_spaces(et)) == 1 { return tt; };
+            // v0.4.145: TYP-024 — `if`-expr branches with incompatible
+            // types silently picked the then-branch type. Pre-fix
+            // `let x = if cond { 1 } else { "two" };` returned "i32"
+            // for x; the else branch's str pointer got bit-cast as
+            // i64 when cond was false → meaningless garbage at use
+            // sites. Rust rejects with E0308 "if and else have
+            // incompatible types". Detect here when both sides have
+            // known types AND types_compatible_context says they're
+            // not compatible AND neither is void/unit (early-return
+            // branches are skipped — `if cond { return x; } else {
+            // val }` legitimately has tt=void/unit for the then side).
+            let v24_tt_skip: i64 = if str_len(tt) == 0 || str_eq(tt, "void") == 1 || type_is_unit(tt) == 1 { 1 } else { 0 };
+            let v24_et_skip: i64 = if str_len(et) == 0 || str_eq(et, "void") == 1 || type_is_unit(et) == 1 { 1 } else { 0 };
+            if v24_tt_skip == 0 && v24_et_skip == 0 {
+                let v24_compat: i64 = types_compatible_context(pool, prog, tt, et);
+                if v24_compat == 0 {
+                    let v24a: str = str_concat("`if`-expression branches have incompatible types: then-branch is `", str_concat(tt, str_concat("`, else-branch is `", str_concat(et, "`."))));
+                    let v24b: str = " Pre-v0.4.145 the if-expr silently returned the then-branch type and bit-cast the else-branch value into the then-type slot — meaningless garbage at use sites when the else branch was taken. Both branches must have compatible types (Rust E0308). Use a `match` if you need value-vs-type alternation, or convert one branch to match the other.";
+                    type_diag(diags, source, fn_name, fn_name, "TYP-024", str_concat(v24a, v24b));
+                };
+            };
         };
         return tt;
     };
