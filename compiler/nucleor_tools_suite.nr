@@ -2126,6 +2126,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "vec_collect_i64") { return "__nucleor_vec_collect_i64"; };
     if str_eq(name, "vec_count_i64") { return "__nucleor_vec_count_i64"; };
     if str_eq(name, "vec_take_i64") { return "__nucleor_vec_take_i64"; };
+    if str_eq(name, "vec_chain_i64") { return "__nucleor_vec_chain_i64"; };
     if str_eq(name, "vec_skip_i64") { return "__nucleor_vec_skip_i64"; };
     if str_eq(name, "vec_map_i64") { return "__nucleor_vec_map_i64"; };
     if str_eq(name, "vec_filter_i64") { return "__nucleor_vec_filter_i64"; };
@@ -2881,6 +2882,8 @@ fn is_void_ret(name: str) -> i64 {
     return 0;
 }
 fn is_ptr_ret(name: str) -> i64 {
+    // v0.4.101 mirror: vec_chain_i64 returns NVec*.
+    if str_eq(name, "vec_chain_i64") { return 1; };
     // v0.4.92 mirror: Option/Result helpers that return NVec*.
     if str_eq(name, "option_map") { return 1; };
     if str_eq(name, "option_and_then") { return 1; };
@@ -2966,6 +2969,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "vec_collect_i64") { return 1; };
     if str_eq(name, "vec_count_i64") { return 0; };
     if str_eq(name, "vec_take_i64") { return 1; };
+    if str_eq(name, "vec_chain_i64") { return 1; };
     if str_eq(name, "vec_skip_i64") { return 1; };
     if str_eq(name, "vec_map_i64") { return 1; };
     if str_eq(name, "vec_filter_i64") { return 1; };
@@ -3063,6 +3067,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "vec_collect_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_count_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_take_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_chain_i64") { if idx == 0 { return 1; }; if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "vec_skip_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_map_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_filter_i64") { if idx == 0 { return 1; }; return 0; };
@@ -3658,6 +3663,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_vec_collect_i64(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_vec_count_i64(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_take_i64(ptr, i64)\n");
+    sb_append(sb, "declare ptr @__nucleor_vec_chain_i64(ptr, ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_skip_i64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_map_i64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_filter_i64(ptr, i64)\n");
@@ -4651,6 +4657,8 @@ fn iter_method_for_vec(mname: str) -> i64 {
     if str_eq(mname, "sort") == 1 { return 1; };
     if str_eq(mname, "clone") == 1 { return 1; };
     if str_eq(mname, "clear") == 1 { return 1; };
+    // v0.4.101 mirror.
+    if str_eq(mname, "chain") == 1 { return 1; };
     return 0;
 }
 

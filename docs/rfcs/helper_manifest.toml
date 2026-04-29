@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 839
+# Total helpers: 840
 # Of which REVIEW REQUIRED: 66
 
 # ============================================================
@@ -10784,6 +10784,20 @@ proof_obligation = "bounds_within_len"
 stability        = "unstable"
 since            = "0.1.0"
 notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
+
+[[helper]]
+name             = "vec_chain_i64"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_chain_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, ptr) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
 
 [[helper]]
 name             = "vec_clear_i64"
