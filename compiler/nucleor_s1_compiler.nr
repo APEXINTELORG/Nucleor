@@ -10005,6 +10005,11 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     let mut mismatch: i64 = 0;
                     let mut got_kind: str = "";
                     if val_kind == 1 && str_eq(f_type, "str") == 1 { mismatch = 1; got_kind = "int literal"; };
+                    // v0.4.133: int literal into bool field. Pre-fix
+                    // `P { x: 5 }` for `x: bool` silently stored 5 as
+                    // i64; reads of p.x evaluated truthy (5 != 0) but
+                    // adopters lost the type guarantee. Rust E0308.
+                    if val_kind == 1 && str_eq(f_type, "bool") == 1 { mismatch = 1; got_kind = "int literal (use `true`/`false`)"; };
                     if val_kind == 2 && (str_eq(f_type, "i64") == 1 || str_eq(f_type, "i32") == 1 || str_eq(f_type, "i16") == 1 || str_eq(f_type, "i8") == 1 || str_eq(f_type, "u64") == 1 || str_eq(f_type, "u32") == 1 || str_eq(f_type, "u16") == 1 || str_eq(f_type, "u8") == 1 || str_eq(f_type, "bool") == 1 || str_eq(f_type, "f64") == 1 || str_eq(f_type, "f32") == 1) { mismatch = 1; got_kind = "str literal"; };
                     if val_kind == 71 && (str_eq(f_type, "i64") == 1 || str_eq(f_type, "i32") == 1 || str_eq(f_type, "i16") == 1 || str_eq(f_type, "i8") == 1 || str_eq(f_type, "u64") == 1 || str_eq(f_type, "u32") == 1 || str_eq(f_type, "u16") == 1 || str_eq(f_type, "u8") == 1 || str_eq(f_type, "bool") == 1 || str_eq(f_type, "str") == 1) { mismatch = 1; got_kind = "float literal"; };
                     if mismatch == 1 {
