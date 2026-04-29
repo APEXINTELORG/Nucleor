@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.134] — 2026-04-29
+
+**MATCH-001 ext: `match b { true => 1 }` on a bool was a wildcard-
+binding silent miscompute (matched ANY value, returned 1 for
+b=false too).**
+
+```nucleor
+let b: bool = false;
+let r: i64 = match b { true => 1 };   // pre-fix: r == 1
+```
+
+The match-arm parser at line 1003 falls into a default catch-all
+for bare identifiers that aren't `_` / `Some` / `None` / `Ok` /
+`Err` / `Ident::variant` / `Ident { ... }`. That branch sets
+`ename = "__wild"; binding = pkv(tokens, cp)`. So `true` / `false`
+arms get parsed as wildcards with binding="true" or "false" —
+they match ANY value of any type and shadow the scrutinee with
+that name. `match false { true => 1 }` returned 1 silently.
+
+This release detects the pattern in the kind 38 (match-as-expr)
+post-walk pass: any arm with `ename == "__wild"` AND `binding`
+is exactly `"true"` or `"false"` is a bool-literal-arm parser
+mishandle. Halt cleanly:
+
+```
+error[MATCH-001]: bool literal arm in `match` (`true => ...` or
+`false => ...`) is parsed as a wildcard binding pre-v0.4.134, not
+as a value comparison — `match b { true => 1 }` matches ANY bool
+and silently returns 1 even for b=false. Use `if cond { ... } else
+{ ... }` for two-way bool branching, or convert the bool to i64.
+```
+
+The check lives OUTSIDE the existing `has_wild_e == 0` gate
+because the parser-misparsed arms register as wildcards — the
+gate would otherwise skip the new check entirely.
+
+Negative fixture: `tests/err/err_match_bool_literal_arm.nr`.
+Bootstrap fixed-point holds. Fast-verify 188 PASS / 2 baseline-FAIL.
+
 ## [0.4.133] — 2026-04-29
 
 **TYP-008 ext: int literal in bool struct-field init silently stored

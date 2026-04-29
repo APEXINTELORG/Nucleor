@@ -10090,6 +10090,29 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 };
             };
         };
+        // v0.4.134: bool literal match arm detection. Outside the
+        // `has_wild_e == 0` gate above because the parser misparses
+        // `true => ...` as `__wild` with binding="true" (silently
+        // matches ANY bool, returns the body for ALL inputs —
+        // `match false { true => 1 }` returns 1).
+        let mut bool_arm_v134: i64 = 0;
+        let mut chk_v134: i64 = 0;
+        while chk_v134 < ac_e {
+            let arm_v134: i64 = list_get(pool, arms_e, chk_v134);
+            let arm_n_v134: str = node_field(pool, arm_v134, 1);
+            let arm_b_v134: str = node_field(pool, arm_v134, 3);
+            if str_eq(arm_n_v134, "__wild") == 1
+                && (str_eq(arm_b_v134, "true") == 1 || str_eq(arm_b_v134, "false") == 1) {
+                bool_arm_v134 = 1;
+            };
+            chk_v134 = chk_v134 + 1;
+        };
+        if bool_arm_v134 == 1 {
+            let lc_b_v134: Vec<i32> = find_linecol_in_source(source_text, fn_name, "match");
+            let msg_b_v134: str = "bool literal arm in `match` (`true => ...` or `false => ...`) is parsed as a wildcard binding pre-v0.4.134, not as a value comparison — `match b { true => 1 }` matches ANY bool and silently returns 1 even for b=false. Use `if cond { ... } else { ... }` for two-way bool branching, or convert the bool to i64 (`match b as i64 { 1 => ..., 0 => ..., _ => ... }`).";
+            diag_add_ex(diag_vec, "error", "type", "MATCH-001", msg_b_v134, fn_name, vec_get(lc_b_v134, 0), vec_get(lc_b_v134, 1), "");
+            warns = warns + 1;
+        };
         return warns;
     };
     return warns;
