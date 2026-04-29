@@ -512,6 +512,8 @@ cli_explain_full_smoke() {
         "TYP-006" "TYP-007" "TYP-008" "TYP-009" "TYP-010" "TYP-011" "TYP-012" "TYP-013"
         # FMT series — format macro expansion
         "FMT-002"
+        # TRAIT series — trait dispatch and conversions
+        "TRAIT-001"
         # RFC-0004 assume!
         "ASSUME-001" "ASSUME-002" "ASSUME-003" "ASSUME-004" "ASSUME-005"
         # RFC-0005 units
@@ -1352,6 +1354,24 @@ t445_parse_primary_narrow_panic() {
     local rc=$?
     [ "$rc" != "0" ] || return 1
     grep -q "NR020" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
+t460_question_from_conversion() {
+    "$BIN" build "tests/fixtures/repro_question_from_conversion.nr" -o "_t460_question_from" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    target/_t460_question_from.exe >$NUC_VERIFY_STEP_LOG.run 2>&1
+    local rc1=$?
+    if [ "$rc1" -ne 107 ]; then return 1; fi
+
+    "$BIN" build "tests/fixtures/repro_into_explicit.nr" -o "_t460_into_explicit" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    target/_t460_into_explicit.exe >$NUC_VERIFY_STEP_LOG.run 2>&1
+    local rc2=$?
+    if [ "$rc2" -ne 12 ]; then return 1; fi
+
+    "$BIN" build "tests/err/err_question_missing_from_conversion.nr" -o "_t460_missing_from" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc3=$?
+    if [ "$rc3" -eq 0 ]; then return 1; fi
+    grep -q "error\\[TRAIT-001\\]" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -3539,6 +3559,7 @@ step "T3.142 v0.4.96 RFC-0028 — struct Display/Debug format dispatch + FMT-002
 step "T3.143 v0.4.97 — recursive Debug for Vec<i64>/Option<i64>/Result<i64,i64> (audit doc-#1 §10b)" t443_recursive_debug
 step "T3.144 v0.4.98 — Vec debug element-type dispatch: Vec<str> + Vec<Option<i64>>" t444_debug_vec_str_and_option
 step "T3.145 v0.4.99 §_p — parse_primary fall-through panics for non-recovery tokens (audit doc-#1)" t445_parse_primary_narrow_panic
+step "T3.146 v0.4.115 RFC-0016 §3.7 — ? applies From<SrcErr> for DstErr conversion; explicit Into<T> parses" t460_question_from_conversion
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

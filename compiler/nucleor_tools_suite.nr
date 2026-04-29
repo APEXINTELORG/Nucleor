@@ -1097,14 +1097,21 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 
 fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // Supports both `impl Trait for Type { ... }` and `impl Type { ... }`
-    let first_name: i64 = pkv(tokens, pos);
+    let mut first_name: str = pkv(tokens, pos);
     let mut trait_name: str = "";
     let mut type_name: str = first_name;
     let mut cp: i64 = pos + 1;
+    if pk(tokens, cp) == 32 {
+        let mut first_tr: Vec<i32> = parse_type(tokens, pos);
+        first_name = pr_val(first_tr);
+        type_name = first_name;
+        cp = pr_pos(first_tr);
+    };
     if pk(tokens, cp) == 56 {
         trait_name = first_name;
-        type_name = pkv(tokens, cp + 1);
-        cp = cp + 2;
+        let mut target_tr: Vec<i32> = parse_type(tokens, cp + 1);
+        type_name = pr_val(target_tr);
+        cp = pr_pos(target_tr);
     };
     cp = expect_tok(tokens, cp, 52); // {
     let mut methods: Vec<i32> = Vec::new();
@@ -10116,6 +10123,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "TYP-012") { return "Missing field(s) in struct initialization (would silently default to 0/empty)"; };
     if str_eq(code, "TYP-013") { return "Unknown field in struct initialization (would silently drop the extra field)"; };
     if str_eq(code, "FMT-002") { return "Type does not implement Display for bare `{}` formatting"; };
+    if str_eq(code, "TRAIT-001") { return "Missing From conversion for `?` error propagation"; };
     // RFC-0015 numeric types
     if str_eq(code, "NUM-001") { return "Mixed-width arithmetic without cast"; };
     if str_eq(code, "NUM-002") { return "Numeric literal out of range for declared type"; };
@@ -10324,6 +10332,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "TYP-012") { return "Pre-v0.4.62 `Point { x: 1, y: 2 }` for a struct with 3 fields silently defaulted the missing field to 0 / empty. Adopters writing the canonical Rust idiom (which errors with E0063) got a quiet wrong value. Either list every field explicitly or define a `Point::new(x, y)` constructor fn that supplies the rest."; };
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra `z` field (Rust E0560 errors). Check the struct definition and remove the unknown field, or add it to the struct decl."; };
     if str_eq(code, "FMT-002") { return "Bare `{}` formatting for a user struct requires an `impl Display for Type` with `fn fmt(self) -> str`; use `{:?}` for derived structural debug output."; };
+    if str_eq(code, "TRAIT-001") { return "`?` on `Result<T, SrcErr>` inside a function returning `Result<U, DstErr>` requires `impl From<SrcErr> for DstErr` when the error payload types differ."; };
     if str_eq(code, "NUM-001") { return "Nucleor follows Rust's no-implicit-conversion rule. Cast explicitly with `as`: `(u8_val as i32) + i32_val`."; };
     if str_eq(code, "NUM-002") { return "The literal does not fit in the declared type — e.g. 256u8 overflows u8."; };
     if str_eq(code, "NUM-003") { return "An `as` cast may truncate or round. The warning is informational; promote to error with #![deny(precision_loss)]."; };
@@ -10509,6 +10518,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "TYP-012") { return "Struct constructor expressions like `Point { x: 1, y: 2 }` must list ALL declared fields. Pre-v0.4.62 the lower silently zero-initialized any missing field — equivalent to a quiet `field: 0` (or `field: \"\"` for str). Rust errors here with E0063, so adopters writing the canonical idiom got a wrong value with no compile-time signal. Workaround: list every field explicitly, OR write a `Point::new(x, y)` constructor fn that supplies the rest."; };
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra field — the lower walked the init list in declared order, so any extra entries past the declared count were ignored. Rust errors here with E0560 — adopters writing canonical struct literals got a quiet wrong shape. Either remove the unknown field from the literal, or add it to the struct definition."; };
     if str_eq(code, "FMT-002") { return "`println!(\"{}\", value)` previously fell through to `int_to_str(value)` for struct values, printing an ABI handle instead of user-facing text. The format expander now hard-errors unless the struct has a Display impl; `println!(\"{:?}\", value)` remains the structural debug path."; };
+    if str_eq(code, "TRAIT-001") { return "The `?` operator propagates the Err payload early. When the callee error type and enclosing function error type differ, Nucleor now performs the Rust-style `From<SrcErr> for DstErr` conversion. If that impl is absent, continuing would either return the wrong payload layout or silently expose the source error type through the destination API, so the compiler stops with TRAIT-001."; };
     if str_eq(code, "NUM-001") { return "Nucleor models on Rust: numeric types are distinct, no implicit conversion. Cast explicitly with `as`. Reasoning: silent conversions are a recurring bug source (truncation, sign extension)."; };
     if str_eq(code, "NUM-002") { return "Numeric literal exceeds the declared type's range — e.g. 256u8, -1u32, 4_000_000_000i32. Use a wider type or change the literal."; };
     if str_eq(code, "NUM-003") { return "Casting f64 to i32, i64 to i8 etc. may lose precision or wrap. The warning surfaces the risk; if intentional, suppress with #[allow(precision_loss)] on the call site."; };

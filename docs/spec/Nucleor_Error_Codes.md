@@ -112,6 +112,12 @@ v0.2.119**; same drift class as the OWN series above.
 |---|---|---|---|
 | FMT-002 | Type does not implement Display for bare `{}` formatting | format macro expansion, v0.4.91 | error |
 
+### TRAIT series — trait dispatch and conversions
+
+| Code | Title | Source | Notes |
+|---|---|---|---|
+| TRAIT-001 | Missing From conversion for `?` error propagation | `?` lowering, RFC-0016 §3.7 | error |
+
 Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 `err_deref_nonref`, `err_taint_arg/leak/propagation`,
 `err_taint_to_clean`.
