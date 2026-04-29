@@ -12134,6 +12134,25 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let ename: str = node_field(pool, arm_nid, 1);
             let vname: str = node_field(pool, arm_nid, 2);
             let binding: str = node_field(pool, arm_nid, 3);
+            // v0.4.140: MATCH-011 — arm pattern literal type doesn't
+            // match scrutinee. Pre-fix `match n: i64 { 1 => ..., "a"
+            // => ..., _ => ... }` for n=2 SIGSEGVed at runtime: the
+            // str-literal arm lowered to `str_eq(<scrut_i64>, "a")`,
+            // which dereferences the scrutinee value as a char ptr —
+            // for n=2 that reads memory at address 0x2 → segfault.
+            // Symmetric hazard for `match s: str { 1 => ... }` (silent
+            // miscompare of ptr i64 vs literal). Catch both at
+            // type-check before lowering.
+            if str_eq(ename, "__str") == 1 && type_is_int(scrut_t) == 1 {
+                let m11a: str = str_concat("string literal arm in `match` on integer scrutinee (`", str_concat(scrut_t, "`)."));
+                let m11b: str = " Pre-v0.4.140 this lowered to `str_eq(<scrut_i64>, \"<lit>\")` — when the scrutinee value didn't match an earlier int arm, str_eq dereferenced the i64 as a char ptr and SIGSEGV'd at runtime. Use integer literal arms (`1 => ..., 2 => ...`) for an int match, or convert the scrutinee to str (`int_to_str(n)`) to use string literal arms.";
+                type_diag(diags, source, fn_name, "match", "MATCH-011", str_concat(m11a, m11b));
+            };
+            if str_eq(ename, "__int") == 1 && str_eq(scrut_t, "str") == 1 {
+                let m11ia: str = "integer literal arm in `match` on string scrutinee (`str`).";
+                let m11ib: str = " Pre-v0.4.140 this lowered to integer compare against the str pointer's i64 value — meaningless and silently FALSE in nearly all cases. Use string literal arms (`\"a\" => ..., \"b\" => ...`) for a str match, or convert the scrutinee with `str_to_int(s)` to match on integer values.";
+                type_diag(diags, source, fn_name, "match", "MATCH-011", str_concat(m11ia, m11ib));
+            };
             let at_name: str = if str_eq(ename, "__range_at") == 1 || str_eq(ename, "__range_bad_at") == 1 { pattern_binding_item_name(str_after_char_local(binding, 124)) } else { pattern_at_prefix_name(binding) };
             if str_len(at_name) > 0 {
                 if str_len(tenv_get(env, at_name)) > 0 {
