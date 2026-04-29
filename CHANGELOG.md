@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.143] — 2026-04-29
+
+**NUM-023 (URGENT — runtime SIGSEGV close): float / bool
+as-cast to `str` silently produced an invalid str pointer.
+`let s: str = x as str` for `x: f64` SIGSEGV'd on print.
+Now halts.**
+
+```nucleor
+let x: f64 = 3.14;
+let s: str = x as str;
+print(s);              // pre-fix: SIGSEGV
+```
+
+The kind-99 (as-cast) lowering doesn't actually emit any
+conversion when the i64 cell width is the same on both sides —
+it's a no-op type relabel. For `f64 as str`, the i64 cell
+holding the f64 bit pattern (`0x40091EB851EB851F` for 3.14)
+gets relabeled as a char ptr; the next `print(s)` /
+`str_len(s)` dereferences that bit pattern as a heap address →
+access violation. Same hazard for `bool as str` (i64=1, reads
+memory at 0x1) and narrow-float types.
+
+The v0.4.72 design note explicitly allows `str as <numeric>`
+and the converse `<numeric> as str` for i*/u* sources because
+the i64-everywhere ABI uses str pointers as i64 by convention
+(intern/hash/etc.). That justification covers integer sources
+where the i64 might be a legitimate heap pointer, but doesn't
+extend to floats or bool — those bit patterns are never valid
+heap addresses. This release halts at type-check for
+`<f*/bool> as str` only; integer-source `as str` continues to
+work.
+
+s1-only fix — tools_suite has no kind-99 in `type_expr`.
+
+Negative fixture: `tests/err/err_float_as_str.nr`. Bootstrap
+fixed-point holds first-pass. Fast-verify 197 PASS / 2
+baseline-FAIL.
+
 ## [0.4.142] — 2026-04-29
 
 **TYP-010 ext: `return <expr>;` in void / implicit-void fn

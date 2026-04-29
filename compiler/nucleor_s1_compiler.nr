@@ -11140,6 +11140,22 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // convention (used by intern/hash code in tools_suite + s1).
         // Rust errors here but Nucleor does not. Documented as a
         // Nucleor design choice, not a silent miscompute.
+        // v0.4.143: NUM-023 — float / bool as-cast to `str`. Pre-fix
+        // `let s: str = x as str` for `x: f64` lowered to a no-op
+        // (the i64-cell holding the f64 bit pattern was reinterpreted
+        // as a char ptr) and SIGSEGV'd at print time when the bit
+        // pattern was dereferenced. Same hazard for bool — `true as
+        // str` produced a str ptr equal to 1, segfault on print. The
+        // i*/u* -> str direction stays allowed (the v0.4.72
+        // i64-everywhere convention covers heap-pointer pun); only
+        // f* and bool sources halt because their i64 cells are
+        // never legitimate heap pointers.
+        if str_eq(target_type, "str") == 1 && (type_is_float(source_t) == 1 || str_eq(source_t, "bool") == 1) {
+            let v23a: str = str_concat("`", str_concat(source_t, "` cannot be `as`-cast to `str`."));
+            let v23b: str = str_concat(" Pre-v0.4.143 `let s: str = x as str` for `x: ", str_concat(source_t, "` lowered to a no-op (the i64 cell holding the value was reinterpreted as a char ptr) and SIGSEGV'd at the next print/str operation when the bit pattern was dereferenced as a heap address."));
+            let v23c: str = if type_is_float(source_t) == 1 { " Use `f64_to_str(x)` (or the matching narrow-float helper) to get a heap-allocated string of the value." } else { " Use `if b { \"true\" } else { \"false\" }` (or convert via `b as i64` then `int_to_str`) to get a heap-allocated string of the bool." };
+            type_diag(diags, source, fn_name, fn_name, "NUM-023", str_concat(v23a, str_concat(v23b, v23c)));
+        };
         // v0.4.47: NUC-FEEDBACK-002 silent-miscompute guard. Detect
         // `v[i] as <NarrowFloat>` where v: Vec<NarrowFloat>. The cell
         // holds the bit pattern of the float in an i64; `as` is a
