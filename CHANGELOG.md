@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.121] — 2026-04-29
+
+**Two silent miscompute closes in one tick: bare `print()` no
+longer SIGSEGVs at runtime; unknown string escapes (`"a\zb"`)
+no longer silently drop the backslash.**
+
+### print() with zero args
+
+Pre-fix `print()` (no args) silently lowered to
+`__nucleor_print_str(garbage_ptr)` and SIGSEGV'd at runtime.
+Sister to v0.4.35 (print >1 arg, also a silent-data-loss / crash
+hazard): adopters typo'ing or deleting the arg got a runtime
+crash with no compile-time signal. The `argc == 1` and `argc > 1`
+branches existed but `argc == 0` fell through to lower with no
+arg consumption. Now halts cleanly at lower-time:
+
+```
+ERROR: print() takes exactly 1 argument (got 0). Use `print("")`
+for an empty line, or supply the value to print.
+```
+
+Negative fixture: `tests/err/err_print_no_arg.nr`.
+
+### Unknown string-literal escapes
+
+Pre-fix the lexer's escape branch silently dropped the backslash
+and appended the next char as-is for any unrecognized escape:
+
+```nucleor
+print("a\zb");   // pre-fix: prints "azb"  (silent backslash drop)
+```
+
+Adopters typo'ing escapes or pasting Rust raw-string content got
+silent miscomputed strings with no signal. Halt now with `NR025`
+listing the recognized escapes. Three new escapes also wired in
+this release: `\r`, `\0`, `\'` (placeholder behavior — emit the
+literal char until v0.5 routes through proper byte values).
+Recognized set: `\n`, `\t`, `\"`, `\\`, `\r`, `\0`, `\'`.
+
+Negative fixture: `tests/err/err_invalid_string_escape.nr`.
+
+Bootstrap fixed-point sha `12ae4765…`. Fast-verify 175 PASS / 2
+baseline-FAIL clean.
+
 ## [0.4.120] — 2026-04-29
 
 **Rich match patterns: enum or-patterns with bindings, `@` range

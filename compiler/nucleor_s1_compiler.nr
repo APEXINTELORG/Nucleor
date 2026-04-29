@@ -496,7 +496,21 @@ fn lex(src: str) -> Vec<i32> {
                     let nc: i64 = str_char_at(src, p + 1);
                     if nc == 110 { sb_append(sb, "\n"); } else if nc == 116 { sb_append(sb, "\t"); }
                     else if nc == 34 { sb_append(sb, "\""); } else if nc == 92 { sb_append(sb, "\\"); }
-                    else { sb_append(sb, str_substring(src, p + 1, p + 2)); };
+                    else if nc == 114 { sb_append(sb, str_substring(src, p + 1, p + 2)); } // \r — emit as 'r' for now (placeholder; v0.5 will route through carriage-return byte)
+                    else if nc == 48  { sb_append(sb, str_substring(src, p + 1, p + 2)); } // \0 — emit as '0' (placeholder)
+                    else if nc == 39  { sb_append(sb, "'"); }                              // \' — single quote
+                    else {
+                        // v0.4.121: unknown escape sequence. Pre-fix the
+                        // backslash was silently dropped and the next
+                        // char emitted as-is — so `"a\zb"` became `"azb"`
+                        // with no signal. Adopters typo'ing escapes (or
+                        // pasting Rust raw-string content) got silent
+                        // miscomputation. Halt cleanly. To opt out and
+                        // get the literal next char, escape the
+                        // backslash explicitly: `"a\\zb"`.
+                        let bad_esc: str = str_substring(src, p, p + 2);
+                        panic(str_concat("error[NR025]: unknown escape sequence `", str_concat(bad_esc, "` in string literal. Pre-v0.4.121 the backslash was silently dropped and the next char emitted as-is. Recognized escapes: `\\n`, `\\t`, `\\\"`, `\\\\`, `\\r`, `\\0`, `\\'`. To get a literal backslash + char, escape the backslash explicitly (e.g. `\\\\z`).")));
+                    };
                     p = p + 2;
                 } else { sb_append(sb, str_substring(src, p, p + 1)); p = p + 1; };
             };
@@ -13570,6 +13584,16 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 // the binary. Adopter writing `print("x is", x)` got
                 // "x is" with no diagnostic that x was lost. Halt now.
                 panic(str_concat("nucleor: print() takes exactly 1 arg (got ", str_concat(str_from_int(argc), ")")));
+            };
+            // v0.4.121: print() with no args was silently lowered to
+            // __nucleor_print_str(garbage_ptr), SIGSEGV at runtime.
+            // Sister to v0.4.35 (print >1 arg): same hazard class —
+            // adopter writing `print()` (likely a typo for `print("")`
+            // or a leftover after deleting the arg) got a runtime
+            // segfault with no compile-time signal. Halt cleanly.
+            if argc == 0 {
+                print("ERROR: print() takes exactly 1 argument (got 0). Use `print(\"\")` for an empty line, or supply the value to print. The bare print() function lowers to __nucleor_print_str/i64/f64/bool and consumed-zero-args produces a garbage-pointer SIGSEGV at runtime pre-v0.4.121.");
+                panic("nucleor: print() takes exactly 1 arg (got 0 — pre-v0.4.121 this SIGSEGV'd at runtime with no compile-time signal)");
             };
             if argc == 1 {
                 let parg_nid: i64 = list_get(pool, args_list, 0);
