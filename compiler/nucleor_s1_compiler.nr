@@ -12611,6 +12611,17 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 if iop == 23 { sh = "panic_shl"; };
                 if iop == 24 { sh = "panic_shr"; };
             };
+            // v0.4.95: div/mod ALWAYS use the panic helper, regardless of
+            // NUCLEOR_INT_STRICT_ARITH. Pre-fix `let z = 0; let q = 10/z;`
+            // (variable divisor zero — v0.4.74's literal-only NUM-009
+            // didn't catch it) emitted raw `sdiv i64 10, 0` → SIGFPE
+            // → exit 127 with no error message. The panic_div_i64 helper
+            // already exists with a nice message; div is rare enough in
+            // hot loops that the function-call overhead is negligible
+            // (the v0.3.220 perf-revert was for + - * which dominate
+            // tight numeric loops, not div).
+            if iop == 5 { sh = "panic_div"; };
+            if iop == 6 { sh = "panic_rem"; };
             if str_len(sh) > 0 {
                 let mut sa: Vec<i32> = Vec::new();
                 sa.push(lr); sa.push(rr);
