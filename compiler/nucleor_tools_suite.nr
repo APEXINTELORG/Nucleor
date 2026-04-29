@@ -8426,7 +8426,10 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let init_list: i64 = node_field(pool, nid, 2);
         let si: i64 = struct_find_type(pool, structs, sname);
         if si < 0 {
+            // v0.4.81: mirror s1's v0.4.36 close — was silent
+            // -1 register that produced %r.-1 invalid IR.
             print(str_concat("ERROR: unknown struct ", sname));
+            panic(str_concat("nucleor_tools: unknown struct ", sname));
             return lx_new(0 - 1, blk);
         };
         let s_nid: i64 = vec_get(structs, si);
@@ -8483,7 +8486,9 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(r, "vec_get", get_args));
             return lx_new(r, cur);
         };
+        // v0.4.81: mirror s1's v0.4.36 close — was silent -1 reg.
         print(str_concat("ERROR: cannot resolve field access type for .", fname));
+        panic(str_concat("nucleor_tools: cannot resolve field access .", fname));
         return lx_new(0 - 1, cur);
     };
     if kind == 42 {
@@ -8551,7 +8556,9 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         ir_block_add(cur, ir_fn_ptr(r, clo_name));
         return lx_new(r, cur);
     };
+    // v0.4.81: mirror s1's v0.4.34 close — was silent -1 reg.
     print(str_concat("ERROR: unhandled expr kind ", str_from_int(kind)));
+    panic(str_concat("nucleor_tools: unhandled expr kind ", str_from_int(kind)));
     return lx_new(0 - 1, blk);
 }
 // T1.1 Phase 1+2+3c+5 (synced from nucleor_s1_compiler.nr at v0.2.337
@@ -8920,7 +8927,9 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         if lh >= 0 { ir_block_add(cur, ir_br(lh)); };
         return cur;
     };
+    // v0.4.81: mirror s1's v0.4.34 close — was silent stmt drop.
     print(str_concat("ERROR: unknown stmt kind ", str_from_int(kind)));
+    panic(str_concat("nucleor_tools: unknown stmt kind ", str_from_int(kind)));
     return cur;
 }
 fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {

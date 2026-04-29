@@ -992,11 +992,13 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     };
     // v0.4.72: 3rd-opinion review CRITICAL #1.1 partially deferred —
     // converting parse_primary fall-through to panic broke
-    // tests/runtime/rng + tests/rods/pgs_smoke (legitimate parser
-    // edge case the audit found, where unhandled-token cases are
-    // intentionally permitted by the recovery flow). Needs a
-    // narrower predicate that excludes recovery contexts before
-    // panicking. Tracked for v0.4.73+.
+    // tests/rods/pgs_smoke (legitimate parser edge case the audit
+    // found, where unhandled-token cases are intentionally permitted
+    // by the recovery flow). Re-tried v0.4.81 after NR020 expect_tok
+    // hardening — still breaks pgs_smoke (the macro-expanded source
+    // hits this fall-through with token 51 = `(` at byte 6571 from
+    // legitimate code). Needs a narrower predicate that excludes
+    // recovery contexts before panicking. Tracked for future ship.
     return pr(pos + 1, mk2(pool, 1, 0));
 }
 
