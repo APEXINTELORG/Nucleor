@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.147] — 2026-04-29
+
+**TYP-011 ext: `struct == struct` / `!= ` / `<` etc. silently
+did pointer comparison. Two equal-field structs at different
+addresses returned FALSE. Now halts.**
+
+```nucleor
+struct P { x: i64 }
+let a: P = P { x: 1 };
+let b: P = P { x: 1 };
+if a == b { ... } else { ... }   // pre-fix: takes else branch
+```
+
+The kind-4 (binop) type-check had explicit guards for `Vec ==
+Vec` (v0.4.61), `str == str` (v0.4.52), and the ordering
+variants of both. Adding a third sibling for user-defined
+structs was deferred — turns out canonical Rust adopters reach
+for `struct == struct` more often than expected (config
+comparison, test assertions, equality helpers). Pre-fix the
+kind-4 lowering ran `icmp eq i64` on the two struct pointers
+and returned 0/1 based on heap address equality, not field
+content. Equal-field structs allocated separately (which is the
+common case — `let a = X { ... }; let b = X { ... };`) returned
+FALSE.
+
+This release detects when both sides of `==` / `!=` / `<` /
+`<=` / `>` / `>=` resolve to the same user-defined struct type
+(via `struct_find_type` on the post-`strip_spaces` `lt`/`rt`)
+and halts with TYP-011. Hint points at field-wise comparison
+or a helper fn. Cross-struct cmp goes through existing TYP-008
+machinery; struct cmp against scalars hits the existing arith /
+cmp guards. Mirrored to `nucleor_tools_suite.nr`.
+
+Negative fixture: `tests/err/err_struct_eq_ptr_compare.nr`.
+Bootstrap fixed-point holds first-pass. Fast-verify 201 PASS / 2
+baseline-FAIL.
+
 ## [0.4.146] — 2026-04-29
 
 **TYP-005 ext: closure called with wrong argc silently lowered
