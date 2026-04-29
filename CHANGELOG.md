@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.75] — 2026-04-29
+
+**NUM-008 — shift amount out of range for i64 halts at compile time
+(audit doc-#1 §1 numeric-soundness extension, batch with v0.4.74).**
+
+Pre-fix `1 << 64` returned 1 (LLVM `shl i64 X, 64` is poison;
+downstream code observed an undefined value, which for the const
+case folded to 1). `1 << -1` returned i64::MIN
+(-9223372036854775808) for the same reason. Adopters writing
+canonical Rust got overflow_left_shift (debug) or wrapping
+behavior (release) — either way explicit. Nucleor's i64-everywhere
+ABI fixes the operand width at 64.
+
+NUM-008 was already reserved (RFC-0015 / v0.2.319 expansion) but
+never wired.
+
+### What now halts
+
+- `1 << 64`, `x << 99` (literal-int RHS ≥ 64) — error[NUM-008]
+- `1 << -1`, `x << -3` (literal-int RHS < 0; walks through unary
+  minus AST node) — error[NUM-008]
+- Same for `>>` (token kind 116, iop 24).
+
+### What does NOT halt (deferred)
+
+- `let n = 64; let q = 1 << n;` — would need const-prop tracking.
+  Falls back to existing runtime panic_shl helper when
+  NUCLEOR_INT_STRICT_ARITH=1, otherwise emits LLVM poison
+  (silent on the i64-everywhere path).
+- Shift on numeric types narrower than i64 (e.g. u8 — needs the
+  per-type width table once RFC-0015 lands generic numeric ops).
+
+### Verify gate
+
+- T3.122 — `tests/fixtures/repro_v75_shift_out_of_range.nr` asserts
+  `1 << 64` errors with NUM-008 at build time.
+
+### Memory + timing
+
+- Self-host build: unchanged (one extra literal-check + unary-minus
+  walk-through at lower-time, no measurable cost).
+- Verify gate: 356.0s / 498 steps (was 346.1s / 497 — within noise
+  band of recent runs 346-387s, no regression).
+- Bootstrap fixed-point: holds (3-pass B==C==D byte-identical IR
+  on the post-fix compiler, sha 62eaa271…).
+
 ## [0.4.74] — 2026-04-29
 
 **NUM-009 — division/remainder by literal zero halts at compile time

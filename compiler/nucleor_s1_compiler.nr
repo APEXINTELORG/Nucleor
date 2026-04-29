@@ -10758,6 +10758,38 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 type_diag(diags, source, fn_name, fn_name, "NUM-009", nm9_msg);
             };
         };
+        // v0.4.75: NUM-008 — shift amount equals or exceeds operand width
+        // (UB-prone). Pre-fix `1 << 64` returned 1 (LLVM `shl i64 X, 64`
+        // is poison; downstream code observed an undefined value, which
+        // for the const case folded to 1). `1 << -1` returned i64::MIN
+        // for the same reason. Adopters writing canonical Rust got
+        // overflow_left_shift (debug) or wrapping behavior (release) —
+        // either way explicit. Nucleor's i64-everywhere ABI fixes the
+        // operand width at 64. NUM-008 was reserved (RFC-0015 / v0.2.319
+        // expansion) but never wired. Catches literal-int RHS only.
+        if op == 115 || op == 116 {
+            let rhs_check_sh: i64 = node_field(pool, nid, 3);
+            let mut sh_amt: i64 = 0;
+            let mut sh_have: i64 = 0;
+            if node_kind(pool, rhs_check_sh) == 1 {
+                sh_amt = node_field(pool, rhs_check_sh, 1);
+                sh_have = 1;
+            };
+            // Walk through unary-minus (kind 5) wrapping int literal —
+            // `1 << -1` parses as shl(1, neg(1)), not shl(1, lit(-1)).
+            if node_kind(pool, rhs_check_sh) == 5 {
+                let inner: i64 = node_field(pool, rhs_check_sh, 1);
+                if node_kind(pool, inner) == 1 {
+                    sh_amt = 0 - node_field(pool, inner, 1);
+                    sh_have = 1;
+                };
+            };
+            if sh_have == 1 && (sh_amt < 0 || sh_amt >= 64) {
+                let sh_op: str = if op == 115 { "<<" } else { ">>" };
+                let nm8_msg: str = str_concat("shift amount ", str_concat(str_from_int(sh_amt), str_concat(" is out of range for i64 (`", str_concat(sh_op, "` requires 0..=63). LLVM `shl`/`ashr` is undefined behavior outside this range — pre-fix the result was poison (silent miscompute). Mask the shift amount (`amt & 63`) or use a wider type."))));
+                type_diag(diags, source, fn_name, fn_name, "NUM-008", nm8_msg);
+            };
+        };
         // v0.4.53: NUC-FEEDBACK silent-miscompute guard for
         // `Vec<T> == Vec<T>` and `Vec<T> != Vec<T>`. Same root
         // cause as the str-equality close in v0.4.52: the binop
