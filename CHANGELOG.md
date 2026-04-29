@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.73] — 2026-04-29
+
+**Generic Option<T> / Result<T,E> / Vec<T> type propagation
+(audit S2 keystone close).**
+
+Implemented by parallel agent on `spike/v04-generic-type-prop`
+worktree, rebased onto main + manifests refreshed:
+
+- `Some(x)` records full `Option<T>` from x's static type — no
+  source-scan fallback for the constructor path.
+- `Ok(x)` / `Err(e)` records `Result<T,_>` / `Result<_,E>`
+  contextually.
+- Match payload bindings derive type from scrutinee type, not from
+  source-scan.
+- `Vec<T>` element type flows through `v[i]`, `vec_get`, `.first`,
+  `.last`, `.pop`.
+
+3 new verify gates:
+- T3.118 generic Option payload type propagates into match arm
+- T3.119 generic Result payload type propagates into match arm
+- T3.120 Vec element type propagates through index, vec_get, first
+
+### Closes audit Section 2 keystone
+
+Doc-#1 `Nucleor_v0.4_root_cause_corrective_actions_2026-04-28.md`
+Section 2 identified this as the highest-leverage v0.4 close because
+4 separate downstream items unblock once generic type propagation
+is real (RFC-0016 `?` From/Into, RFC-0018 resolver, NUC-FEEDBACK-002,
+RFC-0028 user Display/Debug).
+
+### Tradeoff
+
+Kept the legacy Vec<i32> cell carveout because the compiler uses
+that internally as a heterogeneous cell vector. Future cleanup
+queued for v0.5.
+
+### Verify
+
+- 494/494 PASS at ~372s per-step (rebased state)
+- Bootstrap B/C/D fixed-point holds on the spike branch
+- Memory: peak WS 572.7 MB / Private 627.6 MB (within 2GB ceiling)
+- Manifest refresh required: helper_manifest.toml + rod_manifest.toml
+
 ## [0.4.72] — 2026-04-28
 
 **`str_from_int(i32)` signature was lying — added `str_from_i64(i64)`
