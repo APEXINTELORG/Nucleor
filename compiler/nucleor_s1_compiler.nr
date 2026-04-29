@@ -6408,6 +6408,25 @@ fn type_first_arg(t: str) -> str {
     while e > s && str_char_at(t, e - 1) == 32 { e = e - 1; };
     return str_substring(t, s, e);
 }
+
+fn match_payload_type_from_scrutinee(scrut_t: str, ename: str, vname: str, bind_idx: i64) -> str {
+    if bind_idx != 0 { return ""; };
+    let sbase: str = type_base_name(scrut_t);
+    if str_eq(sbase, "Option") == 1 && str_eq(ename, "Option") == 1 && str_eq(vname, "Some") == 1 {
+        return type_first_arg(scrut_t);
+    };
+    if str_eq(sbase, "Result") == 1 && str_eq(ename, "Result") == 1 {
+        if str_eq(vname, "Ok") == 1 { return type_first_arg(scrut_t); };
+        if str_eq(vname, "Err") == 1 { return generic_second_type(scrut_t); };
+    };
+    return "";
+}
+
+fn vec_element_type_is_legacy_cell(elem_t: str) -> i64 {
+    if str_eq(elem_t, "i32") == 1 { return 1; };
+    return 0;
+}
+
 // RFC-0015 phase 1: numeric-type lattice — width + signedness + class.
 // type_width:    bit width of a numeric type (0 if non-numeric)
 // type_signedness: 1 = signed int, 2 = unsigned int, 3 = float, 0 = other
@@ -9982,6 +10001,31 @@ fn types_compatible(expected: str, actual: str) -> i64 {
     if str_eq(expected, actual) == 1 { return 1; };
     let ebase: str = type_base_name(expected);
     let abase: str = type_base_name(actual);
+    if str_eq(ebase, abase) == 1 {
+        if str_eq(ebase, "Option") == 1 || str_eq(ebase, "Vec") == 1 {
+            let earg: str = type_first_arg(expected);
+            let aarg: str = type_first_arg(actual);
+            if str_eq(ebase, "Vec") == 1 && (vec_element_type_is_legacy_cell(earg) == 1 || vec_element_type_is_legacy_cell(aarg) == 1) {
+                return 1;
+            };
+            if str_len(earg) > 0 && str_len(aarg) > 0 {
+                return types_compatible(earg, aarg);
+            };
+        };
+        if str_eq(ebase, "Result") == 1 {
+            let eok: str = type_first_arg(expected);
+            let aok: str = type_first_arg(actual);
+            if str_len(eok) > 0 && str_len(aok) > 0 {
+                if types_compatible(eok, aok) == 0 { return 0; };
+            };
+            let eerr: str = generic_second_type(expected);
+            let aerr: str = generic_second_type(actual);
+            if str_len(eerr) > 0 && str_len(aerr) > 0 {
+                if types_compatible(eerr, aerr) == 0 { return 0; };
+            };
+            return 1;
+        };
+    };
     if str_eq(ebase, "Vec") == 1 && (str_eq(actual, "i64") == 1 || str_eq(actual, "i32") == 1 || str_eq(actual, "ptr") == 1) { return 1; };
     if str_eq(abase, "Vec") == 1 && (str_eq(expected, "i64") == 1 || str_eq(expected, "i32") == 1 || str_eq(expected, "ptr") == 1) { return 1; };
     // T1.2 (v0.2.336): Option/Result constructors lower to a Vec<i32>
@@ -10914,6 +10958,24 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 };
             };
         };
+        if argc > 0 {
+            let vec_read_call: i64 = if str_eq(callee, "vec_get") == 1
+                || str_eq(callee, "vec_first") == 1
+                || str_eq(callee, "vec_last") == 1
+                || str_eq(callee, "vec_pop") == 1 { 1 } else { 0 };
+            if vec_read_call == 1 {
+                let recv_nid: i64 = list_get(pool, args, 0);
+                let mut recv_t: str = type_expr(pool, recv_nid, env, sigs, structs, fn_name, diags, source, tprof);
+                if str_len(recv_t) == 0 && node_kind(pool, recv_nid) == 3 {
+                    recv_t = infer_var_type_from_source(source, node_field(pool, recv_nid, 1));
+                };
+                let elem_t: str = strip_container_one_level(recv_t);
+                if str_len(elem_t) > 0 && vec_element_type_is_legacy_cell(elem_t) == 0 {
+                    tprof_mark(tprof, 9, 10, call_start);
+                    return elem_t;
+                };
+            };
+        };
         if type_dynamic_helper(callee) == 1 { tprof_mark(tprof, 9, 10, call_start); return ""; };
         let sig_start: i64 = tprof_start(tprof);
         let sentry: i64 = sig_find(sigs, callee);
@@ -11115,7 +11177,11 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         return builtin_rtype(callee);
     };
     if kind == 8 {
-        let recv_t: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        let recv_nid: i64 = node_field(pool, nid, 1);
+        let mut recv_t: str = type_expr(pool, recv_nid, env, sigs, structs, fn_name, diags, source, tprof);
+        if str_len(recv_t) == 0 && node_kind(pool, recv_nid) == 3 {
+            recv_t = infer_var_type_from_source(source, node_field(pool, recv_nid, 1));
+        };
         let mname: str = node_field(pool, nid, 2);
         if str_eq(mname, "sum") == 1 || str_eq(mname, "mean") == 1 || str_eq(mname, "max") == 1 || str_eq(mname, "min") == 1 {
             if str_eq(type_base_name(recv_t), "Tensor") == 1 { return "f64"; };
@@ -11123,6 +11189,10 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         };
         if str_eq(mname, "any") == 1 || str_eq(mname, "all") == 1 { return "bool"; };
         if str_eq(mname, "len") == 1 { return "i64"; };
+        if str_eq(mname, "get") == 1 || str_eq(mname, "first") == 1 || str_eq(mname, "last") == 1 || str_eq(mname, "pop") == 1 {
+            let elem_t: str = strip_container_one_level(recv_t);
+            if str_len(elem_t) > 0 && vec_element_type_is_legacy_cell(elem_t) == 0 { return elem_t; };
+        };
         if str_eq(mname, "matmul") == 1 { return recv_t; };
         if str_eq(mname, "set") == 1 { return "void"; };
         if str_eq(mname, "iter") == 1 { return recv_t; };
@@ -11133,6 +11203,16 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         let si: i64 = struct_find_type(pool, structs, recv_t);
         if si >= 0 { return struct_field_type(pool, vec_get(structs, si), node_field(pool, nid, 2)); };
         return "";
+    };
+    if kind == 10 {
+        let recv_nid: i64 = node_field(pool, nid, 1);
+        let mut recv_t: str = type_expr(pool, recv_nid, env, sigs, structs, fn_name, diags, source, tprof);
+        if str_len(recv_t) == 0 && node_kind(pool, recv_nid) == 3 {
+            recv_t = infer_var_type_from_source(source, node_field(pool, recv_nid, 1));
+        };
+        let elem_t: str = strip_container_one_level(recv_t);
+        if vec_element_type_is_legacy_cell(elem_t) == 1 { return ""; };
+        return elem_t;
     };
     if kind == 12 {
         let tname: str = node_field(pool, nid, 1);
@@ -11147,7 +11227,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if str_eq(tname, "Tensor") == 1 { return "Tensor<f64>"; };
         // v0.4.45 — RFC-0024 Phase 2: constructor type propagation.
         // `Some(value)` → `Option<T>` where T = static type of value.
-        // `Ok(value)`   → `Result<T>` (E inferred from context later).
+        // `Ok(value)`   → `Result<T,_>` (E inferred from context later).
         // `None` and `Err(...)` keep returning the bare type — variant
         // doesn't constrain T meaningfully on its own (None) or only
         // constrains E (Err), and existing type-compat code at
@@ -11165,7 +11245,11 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             let variant: str = node_field(pool, nid, 2);
             if str_eq(variant, "Ok") == 1 && list_len(pool, args) > 0 {
                 let inner: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
-                if str_len(inner) > 0 { return str_concat("Result<", str_concat(inner, ">")); };
+                if str_len(inner) > 0 { return str_concat("Result<", str_concat(inner, ",_>")); };
+            };
+            if str_eq(variant, "Err") == 1 && list_len(pool, args) > 0 {
+                let inner_err: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+                if str_len(inner_err) > 0 { return str_concat("Result<_,", str_concat(inner_err, ">")); };
             };
             return "Result";
         };
@@ -11389,13 +11473,21 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
     if kind == 28 { return type_check_stmts(pool, node_field(pool, nid, 4), env, sigs, structs, fn_name, diags, source, rtype, tprof); };
     if kind == 49 { type_expr(pool, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, tprof); return type_check_stmts(pool, node_field(pool, nid, 3), env, sigs, structs, fn_name, diags, source, rtype, tprof); };
     if kind == 38 {
-        type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        let scrut_t: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let arms: i64 = node_field(pool, nid, 2);
         let ac: i64 = list_len(pool, arms);
         let mut ai: i64 = 0;
         while ai < ac {
+            let arm_nid: i64 = list_get(pool, arms, ai);
             let arm_env: Vec<i32> = own_snapshot(env);
-            warns = warns + type_check_stmts(pool, node_field(pool, list_get(pool, arms, ai), 4), arm_env, sigs, structs, fn_name, diags, source, rtype, tprof);
+            let binding: str = node_field(pool, arm_nid, 3);
+            if str_len(binding) > 0 {
+                let ename: str = node_field(pool, arm_nid, 1);
+                let vname: str = node_field(pool, arm_nid, 2);
+                let bind_t: str = match_payload_type_from_scrutinee(scrut_t, ename, vname, 0);
+                if str_len(bind_t) > 0 { tenv_set(arm_env, binding, bind_t); };
+            };
+            warns = warns + type_check_stmts(pool, node_field(pool, arm_nid, 4), arm_env, sigs, structs, fn_name, diags, source, rtype, tprof);
             vec_free(arm_env);
             ai = ai + 1;
         };
@@ -11547,7 +11639,7 @@ fn match_bind_payloads_typed(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: V
     return cur;
 }
 
-fn match_bind_payloads_per_idx(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>, ename: str, vname: str) -> Vec<i32> {
+fn match_bind_payloads_per_idx(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>, ename: str, vname: str, scrut_t: str) -> Vec<i32> {
     // v0.3.186: per-index payload type lookup. Each binding in the
     // pipe-separated list gets its own __type_<name> based on
     // __epayload<i>_<ename>_<vname>. Catches multi-payload variants
@@ -11574,6 +11666,9 @@ fn match_bind_payloads_per_idx(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym:
                 let pt_s: str = pstored;
                 if str_len(pt_s) > 0 { ptype = type_base_name(pt_s); };
             } else {
+                let direct_t: str = match_payload_type_from_scrutinee(scrut_t, ename, vname, bind_idx);
+                let mut resolved: i64 = 0;
+                if str_len(direct_t) > 0 { ptype = direct_t; resolved = 1; };
                 // v0.4.11 Phase B: full generic Option<T> / Result<T,E>
                 // propagation. Pull the resolved compile source from the
                 // runtime side table (set at compile_file_mode entry),
@@ -11585,11 +11680,12 @@ fn match_bind_payloads_per_idx(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym:
                 // (rare -- only when compile_file_mode wasn't the entry,
                 // e.g., direct test harness invocations) or when the
                 // pattern is too complex to scan (field-access scrutinee).
-                let mut resolved: i64 = 0;
-                let src: str = __nucleor_compile_src_get();
-                if str_len(src) > 0 {
-                    let pat_t: str = infer_pattern_binding_type_from_source(src, name);
-                    if str_len(pat_t) > 0 { ptype = pat_t; resolved = 1; };
+                if resolved == 0 {
+                    let src: str = __nucleor_compile_src_get();
+                    if str_len(src) > 0 {
+                        let pat_t: str = infer_pattern_binding_type_from_source(src, name);
+                        if str_len(pat_t) > 0 { ptype = pat_t; resolved = 1; };
+                    };
                 };
                 if resolved == 0 {
                     if str_eq(ename, "Option") == 1 && str_eq(vname, "Some") == 1 && bind_idx == 0 { ptype = "str"; };
@@ -13338,7 +13434,9 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return lx_new(r, mb);
     };
     if kind == 38 {
-        let mut mp: Vec<i32> = lower_expr(pool, node_field(pool, nid, 1), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+        let scrut_nid: i64 = node_field(pool, nid, 1);
+        let scrut_t: str = expr_full_type_from_sym(pool, scrut_nid, sym, structs);
+        let mut mp: Vec<i32> = lower_expr(pool, scrut_nid, blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let mexpr_r: i64 = lx_reg(mp);
         let mut cur: Vec<i32> = lx_blk(mp);
         let mslot: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, mslot);
@@ -13482,7 +13580,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
-                ab = match_bind_payloads_per_idx(binding, ab, regs, arm_sym, mslot, fir, ename, vname);
+                ab = match_bind_payloads_per_idx(binding, ab, regs, arm_sym, mslot, fir, ename, vname, scrut_t);
                 let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                 ab = lx_blk(bp);
                 let mut rv: i64 = lx_reg(bp);
@@ -13883,6 +13981,91 @@ fn indexed_element_full_type(pool: Vec<i32>, vexpr: i64, sym: Vec<i32>, structs:
     return strip_container_one_level(vtype);
 }
 
+fn expr_full_type_from_sym(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
+    let kind: i64 = node_kind(pool, nid);
+    if kind == 1 { return "i32"; };
+    if kind == 71 { return "f64"; };
+    if kind == 72 { return "f64"; };
+    if kind == 73 { return "f32"; };
+    if kind == 2 { return "str"; };
+    if kind == 3 {
+        let name: str = node_field(pool, nid, 1);
+        let ft: i64 = sym_get(sym, str_concat("__fulltype_", name));
+        if ft >= 0 { return ft; };
+        let bt: i64 = sym_get(sym, str_concat("__type_", name));
+        if bt >= 0 { return bt; };
+        return "";
+    };
+    if kind == 9 {
+        let parent_t: str = expr_full_type_from_sym(pool, node_field(pool, nid, 1), sym, structs);
+        let parent_base: str = type_base_name(parent_t);
+        if str_len(parent_base) > 0 {
+            let si: i64 = struct_find_type(pool, structs, parent_base);
+            if si >= 0 { return struct_field_type(pool, vec_get(structs, si), node_field(pool, nid, 2)); };
+        };
+        return "";
+    };
+    if kind == 10 { return indexed_element_full_type(pool, node_field(pool, nid, 1), sym, structs); };
+    if kind == 7 {
+        let fn_name: str = node_field(pool, nid, 1);
+        let ft2: i64 = sym_get(sym, str_concat("__fnfulltype_", fn_name));
+        if ft2 >= 0 { return ft2; };
+        let rt2: i64 = sym_get(sym, str_concat("__fnret_", fn_name));
+        if rt2 >= 0 { return rt2; };
+        return "";
+    };
+    if kind == 8 {
+        let recv_t: str = expr_full_type_from_sym(pool, node_field(pool, nid, 1), sym, structs);
+        let mname: str = node_field(pool, nid, 2);
+        if str_eq(mname, "get") == 1 || str_eq(mname, "first") == 1 || str_eq(mname, "last") == 1 || str_eq(mname, "pop") == 1 {
+            let elem_t: str = strip_container_one_level(recv_t);
+            if str_len(elem_t) > 0 { return elem_t; };
+        };
+        let recv_base: str = type_base_name(recv_t);
+        if str_len(recv_base) > 0 {
+            let mangled: str = str_concat(recv_base, str_concat("__", mname));
+            let ft3: i64 = sym_get(sym, str_concat("__fnfulltype_", mangled));
+            if ft3 >= 0 { return ft3; };
+            let rt3: i64 = sym_get(sym, str_concat("__fnret_", mangled));
+            if rt3 >= 0 { return rt3; };
+        };
+        return "";
+    };
+    if kind == 12 {
+        let tname: str = node_field(pool, nid, 1);
+        let mname12: str = node_field(pool, nid, 2);
+        let args: i64 = node_field(pool, nid, 3);
+        if str_eq(tname, "Option") == 1 {
+            if str_eq(mname12, "Some") == 1 && list_len(pool, args) > 0 {
+                let inner: str = expr_full_type_from_sym(pool, list_get(pool, args, 0), sym, structs);
+                if str_len(inner) > 0 { return str_concat("Option<", str_concat(inner, ">")); };
+            };
+            return "Option";
+        };
+        if str_eq(tname, "Result") == 1 {
+            if str_eq(mname12, "Ok") == 1 && list_len(pool, args) > 0 {
+                let ok_t: str = expr_full_type_from_sym(pool, list_get(pool, args, 0), sym, structs);
+                if str_len(ok_t) > 0 { return str_concat("Result<", str_concat(ok_t, ",_>")); };
+            };
+            if str_eq(mname12, "Err") == 1 && list_len(pool, args) > 0 {
+                let err_t: str = expr_full_type_from_sym(pool, list_get(pool, args, 0), sym, structs);
+                if str_len(err_t) > 0 { return str_concat("Result<_,", str_concat(err_t, ">")); };
+            };
+            return "Result";
+        };
+        if str_eq(tname, "Box") == 1 && list_len(pool, args) > 0 {
+            let box_t: str = expr_full_type_from_sym(pool, list_get(pool, args, 0), sym, structs);
+            if str_len(box_t) > 0 { return str_concat("Box<", str_concat(box_t, ">")); };
+        };
+        let mangled12: str = str_concat(tname, str_concat("__", mname12));
+        let ft12: i64 = sym_get(sym, str_concat("__fnfulltype_", mangled12));
+        if ft12 >= 0 { return ft12; };
+        let rt12: i64 = sym_get(sym, str_concat("__fnret_", mangled12));
+        if rt12 >= 0 { return rt12; };
+    };
+    return "";
+}
+
 fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
     let kind: i64 = node_kind(pool, nid);
     if kind == 3 {
@@ -14102,7 +14285,11 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         if str_len(tstr) == 0 && init >= 0 {
             let ik: i64 = node_kind(pool, init);
             if ik == 34 { tstr = node_field(pool, init, 1); }
-            else if ik == 12 { tstr = node_field(pool, init, 1); };
+            else if ik == 12 {
+                let ctor_t: str = expr_full_type_from_sym(pool, init, sym, structs);
+                if str_len(ctor_t) > 0 { tstr = ctor_t; }
+                else { tstr = node_field(pool, init, 1); };
+            };
         };
         let sbase: str = type_base_name(tstr);
         if init >= 0 {
@@ -14354,7 +14541,9 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return lx_blk(ep);
     };
     if kind == 38 {
-        let mut mp: Vec<i32> = lower_expr(pool, node_field(pool, nid, 1), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+        let scrut_nid: i64 = node_field(pool, nid, 1);
+        let scrut_t: str = expr_full_type_from_sym(pool, scrut_nid, sym, structs);
+        let mut mp: Vec<i32> = lower_expr(pool, scrut_nid, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let mexpr_r: i64 = lx_reg(mp);
         cur = lx_blk(mp);
         let mslot: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, mslot);
@@ -14491,7 +14680,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br_cond(cmp_r, al, nl));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
-                ab = match_bind_payloads_per_idx(binding, ab, regs, arm_sym, mslot, fir, ename, vname);
+                ab = match_bind_payloads_per_idx(binding, ab, regs, arm_sym, mslot, fir, ename, vname, scrut_t);
                 if guard_nid > 0 {
                     let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                     let gr: i64 = lx_reg(gp);
@@ -20488,8 +20677,3 @@ fn main() -> i64 {
         return 1;
     };
 }
-
-
-
-
-

@@ -54,6 +54,22 @@ for arg in "$@"; do
 done
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+NUC_VERIFY_TMPDIR_OWNED=0
+if [ -z "${NUC_VERIFY_TMPDIR:-}" ]; then
+    NUC_VERIFY_TMPDIR="$(mktemp -d 2>/dev/null || echo "/tmp/nuc_verify_$$")"
+    NUC_VERIFY_TMPDIR_OWNED=1
+else
+    mkdir -p "$NUC_VERIFY_TMPDIR" 2>/dev/null || true
+fi
+NUC_VERIFY_STEP_LOG="$NUC_VERIFY_TMPDIR/step.log"
+NUC_VERIFY_EX_OUT_LOG="$NUC_VERIFY_TMPDIR/example.out"
+NUC_VERIFY_RUN_LOG="$NUC_VERIFY_TMPDIR/run.log"
+cleanup_verify_tmpdir() {
+    if [ "$NUC_VERIFY_TMPDIR_OWNED" = "1" ]; then
+        rm -rf "$NUC_VERIFY_TMPDIR" 2>/dev/null || true
+    fi
+}
+trap cleanup_verify_tmpdir EXIT
 case "$(uname -s)" in
     Linux*|Darwin*|CYGWIN*|MINGW*) BIN="$ROOT/bin/nucleor" ;;
     *) BIN="$ROOT/bin/nucleor" ;;
@@ -175,6 +191,7 @@ EXAMPLES_FILE="$ROOT/tools/examples.list"
 EXAMPLES=()
 if [ -f "$EXAMPLES_FILE" ]; then
     while IFS= read -r line; do
+        line="${line%$'\r'}"
         # Skip blank lines and comments
         case "$line" in
             ""|"#"*) continue ;;
@@ -203,9 +220,8 @@ ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -
 # + 1 utility smoke + 1 json + 1 version + 1 showcase build
 # + 1 CLI explain + 1 explain-full + 1 bootstrap + 1 check+abi
 # + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
-# + N examples + N tests + N negative + 1 self-host + 2 budgets
-# + 1 T1.7 bootstrap-seed (v0.2.339)
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 93))
+# + N examples + N tests + N negative + fixed smoke/regression tail
+STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 134))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -724,27 +740,27 @@ NREOF
 
 build_example() {
     local ex="$1"
-    "$BIN" build "examples/$ex.nr" -o "$ex" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "examples/$ex.nr" -o "$ex" >$NUC_VERIFY_STEP_LOG 2>&1
     if [ ! -x "target/$ex" ] && [ ! -x "target/$ex.exe" ]; then
-        tail -1 /tmp/_nuc_step.log | sed 's/^/       /'
+        tail -1 $NUC_VERIFY_STEP_LOG | sed 's/^/       /'
         return 1
     fi
-    # Capture stdout to /tmp/_nuc_ex_out.log so we can shape-check it.
+    # Capture stdout to $NUC_VERIFY_EX_OUT_LOG so we can shape-check it.
     # Catches the silent-regression case where an example builds + exits
     # 0 but produces wrong/no output (added v0.2.61).
     if [ -x "target/$ex" ]; then
-        "target/$ex" >/tmp/_nuc_ex_out.log 2>&1
+        "target/$ex" >$NUC_VERIFY_EX_OUT_LOG 2>&1
     else
-        "target/$ex.exe" >/tmp/_nuc_ex_out.log 2>&1
+        "target/$ex.exe" >$NUC_VERIFY_EX_OUT_LOG 2>&1
     fi
     local rc=$?
     if [ "$rc" -ne 0 ]; then
-        tail -1 /tmp/_nuc_ex_out.log | sed 's/^/       /'
+        tail -1 $NUC_VERIFY_EX_OUT_LOG | sed 's/^/       /'
         return 1
     fi
     # Non-empty stdout shape check (added v0.2.61) — catches silent
     # regressions where the binary builds + exits 0 but prints nothing.
-    if [ ! -s /tmp/_nuc_ex_out.log ]; then
+    if [ ! -s $NUC_VERIFY_EX_OUT_LOG ]; then
         echo "       example produced empty output" | sed 's/^/       /'
         return 1
     fi
@@ -756,7 +772,7 @@ build_test() {
     if [ "$tname" = "rust_interop" ] && [ -z "$RUST_BRIDGE_LIB" ]; then
         return 2
     fi
-    "$BIN" build "tests/$dir/$tname.nr" -o "$tname" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/$dir/$tname.nr" -o "$tname" >$NUC_VERIFY_STEP_LOG 2>&1
     local exe="target/$tname"
     [ -x "$exe.exe" ] && exe="$exe.exe"
     if [ ! -x "$exe" ]; then
@@ -787,7 +803,7 @@ build_negative() {
 }
 
 self_host_rebuild() {
-    "$BIN" build "compiler/nucleor_s1_compiler.nr" -o "verify_compiler" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "compiler/nucleor_s1_compiler.nr" -o "verify_compiler" >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/verify_compiler" ] || [ -x "target/verify_compiler.exe" ]
 }
 
@@ -824,18 +840,18 @@ tools_suite_memory_budget() {
 }
 
 t33_wcet_estimator() {
-    "$BIN" build "tests/fixtures/t33_wcet_overrun.nr" -o "_t33_wcet_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -qE 'warning\[RT-004\]: static WCET estimate [0-9]+ us' /tmp/_nuc_step.log || return 1
-    grep -q 'exceeds #\[deadline = 1 us\]' /tmp/_nuc_step.log || return 1
-    grep -q 'v1 estimator' /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/fixtures/t33_wcet_overrun.nr" -o "_t33_wcet_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE 'warning\[RT-004\]: static WCET estimate [0-9]+ us' $NUC_VERIFY_STEP_LOG || return 1
+    grep -q 'exceeds #\[deadline = 1 us\]' $NUC_VERIFY_STEP_LOG || return 1
+    grep -q 'v1 estimator' $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t35_rt007_unguarded_deadline() {
     # T3.5 (v0.3.3): warn when #[deadline] has neither #[no_alloc]
     # nor #[no_panic] — alloc/panic break WCET determinism.
-    "$BIN" build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -qE 'warning\[RT-007\]:' /tmp/_nuc_step.log || return 1
-    grep -q 'has #\[deadline\] but neither #\[no_alloc\] nor #\[no_panic\]' /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE 'warning\[RT-007\]:' $NUC_VERIFY_STEP_LOG || return 1
+    grep -q 'has #\[deadline\] but neither #\[no_alloc\] nor #\[no_panic\]' $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t34_export_decls() {
@@ -843,7 +859,7 @@ t34_export_decls() {
     # in `nuc gen-headers` output. Lets external C code call into
     # Nucleor-compiled fns through the unmangled LLVM symbol.
     local hdr="/tmp/_t34_export.h"
-    "$BIN" gen-headers "tests/fixtures/t34_export.nr" -o "$hdr" >/tmp/_nuc_step.log 2>&1
+    "$BIN" gen-headers "tests/fixtures/t34_export.nr" -o "$hdr" >$NUC_VERIFY_STEP_LOG 2>&1
     [ -f "$hdr" ] || return 1
     grep -q 'int64_t nuc_add(int64_t a, int64_t b);' "$hdr" || return 1
     grep -q 'double nuc_dot(Vec3 a, Vec3 b);' "$hdr" || return 1
@@ -859,10 +875,10 @@ t36_no_dyn_clean() {
     # Two #[no_dyn] fns with static-dispatch arithmetic + 2 #[test]
     # cases that PASS verify the marker mechanism works without
     # false-positive on the attribute literal itself.
-    "$BIN" test "tests/smoke/t36_no_dyn_clean.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_no_dyn_pid_static_dispatch" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_no_dyn_fk_static_dispatch" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (2 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t36_no_dyn_clean.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_no_dyn_pid_static_dispatch" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_no_dyn_fk_static_dispatch" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (2 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t311_arena_builtin_smoke() {
@@ -871,9 +887,9 @@ t311_arena_builtin_smoke() {
     # builtin path. The runtime fix shipped in v0.2.154 but
     # never received #[test] coverage (the existing
     # tests/lang/arena_builtin.nr is a main-fn shape).
-    "$BIN" test "tests/smoke/t311_arena_builtin.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_arena_round_trip" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (1 test)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t311_arena_builtin.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_arena_round_trip" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (1 test)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t310_rt008_recursion() {
@@ -881,11 +897,11 @@ t310_rt008_recursion() {
     # #[deadline] fn warns. Bounded recursion opts out via
     # #[max_depth = N]. Two paired fixtures: unbounded fires
     # RT-008, bounded stays clean.
-    "$BIN" build "tests/fixtures/t310_rt008_recursion.nr" -o "_t310_rt008_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -qE "warning\[RT-008\]: 'fib_unbounded' has #\[deadline\] and recursively calls itself" /tmp/_nuc_step.log || return 1
-    grep -q "add #\[max_depth" /tmp/_nuc_step.log || return 1
-    "$BIN" build "tests/fixtures/t310_rt008_bounded.nr" -o "_t310_bounded_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    if grep -q "RT-008" /tmp/_nuc_step.log; then return 1; fi
+    "$BIN" build "tests/fixtures/t310_rt008_recursion.nr" -o "_t310_rt008_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "warning\[RT-008\]: 'fib_unbounded' has #\[deadline\] and recursively calls itself" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "add #\[max_depth" $NUC_VERIFY_STEP_LOG || return 1
+    "$BIN" build "tests/fixtures/t310_rt008_bounded.nr" -o "_t310_bounded_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    if grep -q "RT-008" $NUC_VERIFY_STEP_LOG; then return 1; fi
     return 0
 }
 
@@ -897,9 +913,9 @@ t324_ffi_no_alloc_marker() {
     # --no-cache: see T3.16 comment — diagnostic-dependent
     # tests must skip the source cache or they silently pass
     # on stale cache entries.
-    "$BIN" build "tests/fixtures/t324_ffi_no_alloc.nr" -o "_t324_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -qE "warning\[RT-005\]: FFI call 'host_unsafe'" /tmp/_nuc_step.log || return 1
-    if grep -qE "warning\[RT-005\]: FFI call 'host_safe'" /tmp/_nuc_step.log; then return 1; fi
+    "$BIN" build "tests/fixtures/t324_ffi_no_alloc.nr" -o "_t324_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "warning\[RT-005\]: FFI call 'host_unsafe'" $NUC_VERIFY_STEP_LOG || return 1
+    if grep -qE "warning\[RT-005\]: FFI call 'host_safe'" $NUC_VERIFY_STEP_LOG; then return 1; fi
 }
 
 t326_ffi_intersection() {
@@ -917,10 +933,10 @@ t326_ffi_intersection() {
     # silently swallow the diagnostic. CI starts cold and would
     # pass without --no-cache; --no-cache is for local rerun
     # robustness.
-    "$BIN" build "tests/fixtures/t326_ffi_intersection.nr" -o "_t326_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -qE "warning\[RT-005\]: FFI call 'h_alloc_only'" /tmp/_nuc_step.log || return 1
-    grep -qE "warning\[RT-005\]: FFI call 'h_panic_only'" /tmp/_nuc_step.log || return 1
-    if grep -qE "warning\[RT-005\]: FFI call 'h_both'" /tmp/_nuc_step.log; then return 1; fi
+    "$BIN" build "tests/fixtures/t326_ffi_intersection.nr" -o "_t326_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "warning\[RT-005\]: FFI call 'h_alloc_only'" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE "warning\[RT-005\]: FFI call 'h_panic_only'" $NUC_VERIFY_STEP_LOG || return 1
+    if grep -qE "warning\[RT-005\]: FFI call 'h_both'" $NUC_VERIFY_STEP_LOG; then return 1; fi
 }
 
 t39_rt005_ffi_call() {
@@ -929,9 +945,9 @@ t39_rt005_ffi_call() {
     # `<extern_name>(` substring in the stripped body fires.
     # Until #[ffi_no_*] annotations land, every FFI call is
     # treated as RT-unsafe.
-    "$BIN" build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -qE "warning\[RT-005\]: FFI call 'host_telemetry'" /tmp/_nuc_step.log || return 1
-    grep -q "from #\[no_alloc\] fn 'rt_path'" /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "warning\[RT-005\]: FFI call 'host_telemetry'" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "from #\[no_alloc\] fn 'rt_path'" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1081,11 +1097,11 @@ t321_diag001_self_suppress() {
     # worked), (3) no error fires either (catches a regression
     # that promotes DIAG-001 to error tier and bypasses the
     # warning suppressor).
-    "$BIN" build "tests/fixtures/t321_diag001_self_suppress.nr" -o "_t321_diag001_self_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t321_diag001_self_suppress.nr" -o "_t321_diag001_self_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "0" ] || return 1
-    if grep -qE 'warning\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
-    if grep -qE 'error\[DIAG-001\]' /tmp/_nuc_step.log; then return 1; fi
+    if grep -qE 'warning\[DIAG-001\]' $NUC_VERIFY_STEP_LOG; then return 1; fi
+    if grep -qE 'error\[DIAG-001\]' $NUC_VERIFY_STEP_LOG; then return 1; fi
     return 0
 }
 
@@ -1099,7 +1115,7 @@ t356_indexed_lhs_diagnostic() {
     # 231 (= 999 mod 256). The .ps1 mirror compares against 999
     # directly because PowerShell preserves the full DWORD.
     # Bash mirror lagged the .ps1 update; v0.3.140 sync.
-    "$BIN" build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t356_indexed_lhs_diagnostic.nr" -o "_t356_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
     if [ -x "target/_t356_check" ]; then exe="target/_t356_check"; else exe="target/_t356_check.exe"; fi
     [ -x "$exe" ] || return 1
@@ -1109,11 +1125,11 @@ t356_indexed_lhs_diagnostic() {
 }
 
 t414_num002_promoted() {
-    "$BIN" build "tests/fixtures/repro_v70a_num002_promoted.nr" -o "_t414_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v70a_num002_promoted.nr" -o "_t414_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[NUM-002\]" /tmp/_nuc_step.log || return 1
-    grep -q "out of range" /tmp/_nuc_step.log || return 1
+    grep -q "error\[NUM-002\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "out of range" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1144,19 +1160,48 @@ t416_bool_bitwise_guard() {
 }
 
 t415_format_arg_count() {
-    "$BIN" build "tests/fixtures/repro_v70b_format_arg_count.nr" -o "_t415_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v70b_format_arg_count.nr" -o "_t415_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "more.*placeholders than args" /tmp/_nuc_step.log || return 1
+    grep -q "more.*placeholders than args" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
+t418_generic_option_payload_type() {
+    "$BIN" build "tests/fixtures/repro_generic_option_payload_type.nr" -o "_t418_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\\[TYP-008\\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "bad" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
+t419_generic_result_payload_type() {
+    "$BIN" build "tests/fixtures/repro_generic_result_payload_type.nr" -o "_t419_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\\[TYP-008\\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "bad" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
+t420_vec_element_type_propagation() {
+    "$BIN" build "tests/fixtures/repro_vec_element_type_propagation.nr" -o "_t420_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\\[TYP-008\\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "bad_index" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "bad_get" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "bad_first" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
 t413_eq_typo_guard() {
-    "$BIN" build "tests/fixtures/repro_v69_eq_typo_guard.nr" -o "_t413_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v69_eq_typo_guard.nr" -o "_t413_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "condition position has" /tmp/_nuc_step.log || return 1
-    grep -q "==" /tmp/_nuc_step.log || return 1
+    grep -q "condition position has" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "==" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1164,11 +1209,11 @@ t412_vec_ord_pointer_guard() {
     # T3.112 (v0.4.68): NUC-FEEDBACK silent-miscompute close for Vec
     # ordering ops <, <=, >, >=. v0.4.61 only caught arith + ==/!=;
     # ordering ops were silently ptr-comparing. v0.4.68 extends.
-    "$BIN" build "tests/fixtures/repro_v68_vec_ord_pointer_guard.nr" -o "_t412_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v68_vec_ord_pointer_guard.nr" -o "_t412_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[TYP-011\]" /tmp/_nuc_step.log || return 1
-    grep -q "Vec < Vec" /tmp/_nuc_step.log || return 1
+    grep -q "error\[TYP-011\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "Vec < Vec" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1177,12 +1222,12 @@ t411_str_ord_pointer_guard() {
     # ordering ops <, <=, >, >=. v0.4.52 only caught ==/!=; the
     # ordering ops were silently doing pointer compare. v0.4.67
     # extends to ops 32/33/34/35 with str/str operands.
-    "$BIN" build "tests/fixtures/repro_v67_str_ord_pointer_guard.nr" -o "_t411_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v67_str_ord_pointer_guard.nr" -o "_t411_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[TYP-011\]" /tmp/_nuc_step.log || return 1
-    grep -q "str < str" /tmp/_nuc_step.log || return 1
-    grep -q "str_cmp" /tmp/_nuc_step.log || return 1
+    grep -q "error\[TYP-011\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "str < str" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "str_cmp" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1192,11 +1237,11 @@ t410_mixed_str_int_arith_guard() {
     # binop. Pre-fix only str+str fired TYP-011; mixed str+int
     # silently i64-added the str pointer to x. v0.4.66 catches arith
     # ops 20-24 with exactly one side being str.
-    "$BIN" build "tests/fixtures/repro_v66_mixed_str_int_arith_guard.nr" -o "_t410_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v66_mixed_str_int_arith_guard.nr" -o "_t410_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[TYP-011\]" /tmp/_nuc_step.log || return 1
-    grep -q "mixed-type arithmetic" /tmp/_nuc_step.log || return 1
+    grep -q "error\[TYP-011\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "mixed-type arithmetic" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1205,11 +1250,11 @@ t409_field_assign_typecheck() {
     # field assignment. `p.x = "string"` on Point with x: i64 silently
     # stored str ptr as i64. v0.4.65 emits TYP-009 in the kind-21
     # assign handler when LHS is kind-9 (field access).
-    "$BIN" build "tests/fixtures/repro_v65_field_assign_typecheck.nr" -o "_t409_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v65_field_assign_typecheck.nr" -o "_t409_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[TYP-009\]" /tmp/_nuc_step.log || return 1
-    grep -q "field assignment type mismatch" /tmp/_nuc_step.log || return 1
+    grep -q "error\[TYP-009\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "field assignment type mismatch" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1218,11 +1263,11 @@ t408_indexed_assign_typecheck() {
     # assignment. `v[0] = "string"` on Vec<i64> silently stored the
     # str ptr as i64. v0.4.64 emits TYP-009 in the kind-21 assign
     # handler when LHS is kind-10 indexing on a kind-3 Vec<T> var.
-    "$BIN" build "tests/fixtures/repro_v64_indexed_assign_typecheck.nr" -o "_t408_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v64_indexed_assign_typecheck.nr" -o "_t408_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[TYP-009\]" /tmp/_nuc_step.log || return 1
-    grep -q "indexed assignment type mismatch" /tmp/_nuc_step.log || return 1
+    grep -q "error\[TYP-009\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "indexed assignment type mismatch" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1231,12 +1276,12 @@ t407_struct_extra_field_guard() {
     # `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped z.
     # v0.4.63 emits TYP-013 in check_expr's kind-34 with field-name lookup
     # via struct_field_idx.
-    "$BIN" build "tests/fixtures/repro_v63_struct_extra_field_guard.nr" -o "_t407_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v63_struct_extra_field_guard.nr" -o "_t407_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[TYP-013\]" /tmp/_nuc_step.log || return 1
-    grep -q "unknown field" /tmp/_nuc_step.log || return 1
-    grep -q "z" /tmp/_nuc_step.log || return 1
+    grep -q "error\[TYP-013\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "unknown field" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "z" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1245,12 +1290,12 @@ t406_struct_missing_field_guard() {
     # `Point { x: 1, y: 2 }` for a 3-field struct silently defaulted
     # the missing field to 0. v0.4.62 emits TYP-012 in check_expr's
     # kind-34 handler.
-    "$BIN" build "tests/fixtures/repro_v62_struct_missing_field_guard.nr" -o "_t406_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v62_struct_missing_field_guard.nr" -o "_t406_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[TYP-012\]" /tmp/_nuc_step.log || return 1
-    grep -q "missing field" /tmp/_nuc_step.log || return 1
-    grep -q "Point" /tmp/_nuc_step.log || return 1
+    grep -q "error\[TYP-012\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "missing field" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "Point" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1259,12 +1304,12 @@ t405_vec_eq_arith_guard() {
     # close (deferral #1). Source-scan fallback recovers Vec<T> from
     # `let v: Vec<T> = vec![...]` even when tenv stores "" — the path
     # that crashed the compiler in v0.4.55 now ships cleanly.
-    "$BIN" build "tests/fixtures/repro_v61_vec_eq_arith_guard.nr" -o "_t405_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v61_vec_eq_arith_guard.nr" -o "_t405_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[TYP-011\]" /tmp/_nuc_step.log || return 1
-    grep -q "Vec == Vec" /tmp/_nuc_step.log || return 1
-    grep -q "vec_len" /tmp/_nuc_step.log || return 1
+    grep -q "error\[TYP-011\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "Vec == Vec" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "vec_len" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1274,10 +1319,10 @@ t404_undefined_fn_warn() {
     # first char (Type-prefixed), and sym_get-existence (fn-pointer
     # var). Severity is warning so MOD-003 cross-module path still
     # takes precedence at link time.
-    "$BIN" build "tests/fixtures/repro_v60_undefined_fn_warn.nr" -o "_t404_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -q "warning\[TYP-005\]" /tmp/_nuc_step.log || return 1
-    grep -q "undefined function" /tmp/_nuc_step.log || return 1
-    grep -q "nonexistent_function" /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/fixtures/repro_v60_undefined_fn_warn.nr" -o "_t404_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "warning\[TYP-005\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "undefined function" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "nonexistent_function" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1286,12 +1331,12 @@ t403_match_expr_exhaustive_guard() {
     # expression position (let n = match c { ... };). v0.4.56 only
     # caught match-as-statement; check_expr was missing the kind-38
     # handler. This closes #306.
-    "$BIN" build "tests/fixtures/repro_v59_match_expr_exhaustive_guard.nr" -o "_t403_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v59_match_expr_exhaustive_guard.nr" -o "_t403_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[MATCH-001\]" /tmp/_nuc_step.log || return 1
-    grep -q "in expression context" /tmp/_nuc_step.log || return 1
-    grep -q "Workaround" /tmp/_nuc_step.log || return 1
+    grep -q "error\[MATCH-001\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "in expression context" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "Workaround" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1299,12 +1344,12 @@ t402_str_arith_guard() {
     # T3.102 (v0.4.58): NUC-FEEDBACK silent-segfault guard for the
     # other arithmetic ops on str (-, *, /, %). v0.4.51 closed `+`;
     # v0.4.58 extends to the rest with TYP-011 + a clear message.
-    "$BIN" build "tests/fixtures/repro_v58_str_arith_guard.nr" -o "_t402_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v58_str_arith_guard.nr" -o "_t402_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[TYP-011\]" /tmp/_nuc_step.log || return 1
-    grep -q "str - str" /tmp/_nuc_step.log || return 1
-    grep -q "str_concat" /tmp/_nuc_step.log || return 1
+    grep -q "error\[TYP-011\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "str - str" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "str_concat" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1314,12 +1359,12 @@ t401_match_exhaustive_stmt_guard() {
     # MATCH-001 error instead of silently returning 0. Diagnostic
     # severity promoted from "warning" to "error" (the code was
     # already in the error-tier code list).
-    "$BIN" build "tests/fixtures/repro_v56_match_exhaustive_stmt_guard.nr" -o "_t401_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v56_match_exhaustive_stmt_guard.nr" -o "_t401_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[MATCH-001\]" /tmp/_nuc_step.log || return 1
-    grep -q "non-exhaustive match" /tmp/_nuc_step.log || return 1
-    grep -q "Workaround" /tmp/_nuc_step.log || return 1
+    grep -q "error\[MATCH-001\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "non-exhaustive match" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "Workaround" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1329,11 +1374,11 @@ t400_slice_syntax_guard() {
     # line but silently continued, building a broken binary that
     # SIGSEGVed at runtime. v0.4.55 detects the .. / ..= token after
     # the index expression and panics with a str_substring hint.
-    "$BIN" build "tests/fixtures/repro_v55_slice_syntax_guard.nr" -o "_t400_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v55_slice_syntax_guard.nr" -o "_t400_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "slice syntax" /tmp/_nuc_step.log || return 1
-    grep -q "str_substring" /tmp/_nuc_step.log || return 1
+    grep -q "slice syntax" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "str_substring" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1343,12 +1388,12 @@ t399_question_on_non_option_guard() {
     # where f returns bare i64 silently SIGSEGVed (?-lower called
     # vec_get on the i64 value). v0.4.54 emits TYP-011 at type-check
     # naming the call + return type and pointing at the workaround.
-    "$BIN" build "tests/fixtures/repro_v54_question_on_non_option_guard.nr" -o "_t399_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v54_question_on_non_option_guard.nr" -o "_t399_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[TYP-011\]" /tmp/_nuc_step.log || return 1
-    grep -q "operator requires receiver" /tmp/_nuc_step.log || return 1
-    grep -q "Result<T,E>" /tmp/_nuc_step.log || return 1
+    grep -q "error\[TYP-011\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "operator requires receiver" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "Result<T,E>" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1358,12 +1403,12 @@ t398_unwrap_on_non_option_guard() {
     # used to fall through to `vec_unwrap(x)` and fail late at
     # clang link with `undefined value '@vec_unwrap'`. v0.4.53
     # halts the build at the dispatch site with a clear hint.
-    "$BIN" build "tests/fixtures/repro_v53_unwrap_on_non_option_guard.nr" -o "_t398_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v53_unwrap_on_non_option_guard.nr" -o "_t398_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "Option/Result method" /tmp/_nuc_step.log || return 1
-    grep -q "vec_unwrap" /tmp/_nuc_step.log || return 1
-    grep -q "match expr" /tmp/_nuc_step.log || return 1
+    grep -q "Option/Result method" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "vec_unwrap" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "match expr" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1373,12 +1418,12 @@ t397_str_eq_pointer_guard() {
     # comparison, silently returning FALSE for two equal-bytes string
     # literals at different addresses. v0.4.52 emits TYP-011 with a
     # str_eq() hint and halts the build.
-    "$BIN" build "tests/fixtures/repro_v52_str_eq_pointer_guard.nr" -o "_t397_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v52_str_eq_pointer_guard.nr" -o "_t397_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[TYP-011\]" /tmp/_nuc_step.log || return 1
-    grep -q "pointer comparison" /tmp/_nuc_step.log || return 1
-    grep -q "str_eq" /tmp/_nuc_step.log || return 1
+    grep -q "error\[TYP-011\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "pointer comparison" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "str_eq" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1387,11 +1432,11 @@ t396_str_plus_str_guard() {
     # Pre-fix the binop lower emitted i64_add on the two str pointers,
     # producing a garbage pointer that crashed in print_str. v0.4.51
     # emits TYP-011 with a str_concat hint and halts the build.
-    "$BIN" build "tests/fixtures/repro_v51_str_plus_str_guard.nr" -o "_t396_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v51_str_plus_str_guard.nr" -o "_t396_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "error\[TYP-011\]" /tmp/_nuc_step.log || return 1
-    grep -q "str_concat" /tmp/_nuc_step.log || return 1
+    grep -q "error\[TYP-011\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "str_concat" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1402,11 +1447,11 @@ t395_iflet_first_guard() {
     # parse-time guard now panics the compiler with a workaround
     # hint pointing at `vec_len(v) > 0`. Mirrored for while-let
     # at parse_while_stmt.
-    "$BIN" build "tests/fixtures/repro_v50_iflet_first_guard.nr" -o "_t395_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v50_iflet_first_guard.nr" -o "_t395_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" = "1" ] || return 1
-    grep -q "silently segfaults" /tmp/_nuc_step.log || return 1
-    grep -q "vec_len" /tmp/_nuc_step.log || return 1
+    grep -q "silently segfaults" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "vec_len" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1415,15 +1460,15 @@ t394_or_patterns() {
     # for int literals + wildcards. Pre-v0.4.49 the parser silently
     # miscomputed (printed parse errors but continued, build succeeded,
     # match returned the wildcard arm for every input).
-    "$BIN" build "tests/fixtures/repro_v49_or_patterns.nr" -o "_t394_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v49_or_patterns.nr" -o "_t394_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
     if [ -f "target/_t394_check.exe" ]; then exe="target/_t394_check.exe"; else exe="target/_t394_check"; fi
     [ -f "$exe" ] || return 1
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     # main returns total = 100+100+200+200+200+0 = 800; bash truncates to 8 bits => 800 mod 256 = 32.
     [ "$rc" = "32" ] || return 1
-    grep -qx "800" /tmp/_nuc_step.log || return 1
+    grep -qx "800" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1431,10 +1476,10 @@ t393_vec_get_as_cast_guard() {
     # T3.93 (v0.4.48): NUC-FEEDBACK-002 silent-miscompute guard extended
     # to the fn-call form `vec_get(v, i) as f32` (and vec_first/vec_last/
     # vec_pop). Same hazard + diagnostic + hint as the [i] form.
-    "$BIN" build "tests/fixtures/repro_v48_vec_get_as_cast_guard.nr" -o "_t393_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -q "error\[NUM-006\]" /tmp/_nuc_step.log || return 1
-    grep -q "vec_get(v, ...)" /tmp/_nuc_step.log || return 1
-    grep -q "f32_from_bits" /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/fixtures/repro_v48_vec_get_as_cast_guard.nr" -o "_t393_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "error\[NUM-006\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "vec_get(v, ...)" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "f32_from_bits" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1446,9 +1491,9 @@ t392_vec_narrow_float_as_cast_guard() {
     # garbage (e.g. 1069547520.0_f32 instead of 1.5_f32). v0.4.47
     # emits NUM-006 pointing at the correct surface
     # (f32_from_bits / f16_to_f32 / bf16_to_f32 / etc.).
-    "$BIN" build "tests/fixtures/repro_v47_vec_narrow_float_as_cast_guard.nr" -o "_t392_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -q "error\[NUM-006\]" /tmp/_nuc_step.log || return 1
-    grep -q "f32_from_bits" /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/fixtures/repro_v47_vec_narrow_float_as_cast_guard.nr" -o "_t392_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "error\[NUM-006\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "f32_from_bits" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1457,16 +1502,16 @@ t391_format_debug() {
     # formatter. Strings wrap in quotes ("..."), primitives pass
     # through to Display. The high-value case for adopters is
     # debugging strings.
-    "$BIN" build "tests/fixtures/repro_v41_format_debug.nr" -o "_t391_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v41_format_debug.nr" -o "_t391_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
     if [ -f "target/_t391_check.exe" ]; then exe="target/_t391_check.exe"; else exe="target/_t391_check"; fi
     [ -f "$exe" ] || return 1
-    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
-    grep -qx '"hello"' /tmp/_nuc_step.log || return 1
-    grep -qx "42" /tmp/_nuc_step.log || return 1
-    grep -qx "true" /tmp/_nuc_step.log || return 1
-    grep -qx "3.14" /tmp/_nuc_step.log || return 1
-    grep -qx "hello" /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    grep -qx '"hello"' $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "42" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "true" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "3.14" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "hello" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1475,36 +1520,36 @@ t390_format_fill_char() {
     # `{:->8}`, `{:.<10.3}` etc. The pad helpers accept the fill char
     # directly; this has worked since v0.4.29 but was never pinned.
     # Pinning now to prevent future regression.
-    "$BIN" build "tests/fixtures/repro_v40_format_fill_char.nr" -o "_t390_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v40_format_fill_char.nr" -o "_t390_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
     if [ -f "target/_t390_check.exe" ]; then exe="target/_t390_check.exe"; else exe="target/_t390_check"; fi
     [ -f "$exe" ] || return 1
-    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
-    grep -qx "\[42\*\*\*\*\*\*\*\*\]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[\*\*\*\*\*\*\*\*42\]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[\*\*\*\*42\*\*\*\*\]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[hi------\]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[------hi\]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[3.142.....\]" /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    grep -qx "\[42\*\*\*\*\*\*\*\*\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[\*\*\*\*\*\*\*\*42\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[\*\*\*\*42\*\*\*\*\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[hi------\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[------hi\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[3.142.....\]" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
 t389_format_sci() {
     # T3.89 (v0.4.38): RFC-0028 phase 5 — `{:e}` / `{:E}` scientific
     # notation for f64. Default 6-digit precision; `{:.Ne}` overrides.
-    "$BIN" build "tests/fixtures/repro_v38_format_sci.nr" -o "_t389_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v38_format_sci.nr" -o "_t389_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
     if [ -f "target/_t389_check.exe" ]; then exe="target/_t389_check.exe"; else exe="target/_t389_check"; fi
     [ -f "$exe" ] || return 1
-    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
-    grep -qx "3.141593e+00" /tmp/_nuc_step.log || return 1
-    grep -qx "3.141593E+00" /tmp/_nuc_step.log || return 1
-    grep -qx "1.234568e+06" /tmp/_nuc_step.log || return 1
-    grep -qx "1.234000e-06" /tmp/_nuc_step.log || return 1
-    grep -qx "\-1.500000e+00" /tmp/_nuc_step.log || return 1
-    grep -qx "3.142e+00" /tmp/_nuc_step.log || return 1
-    grep -qx "3e+00" /tmp/_nuc_step.log || return 1
-    grep -qx "3.142E+00" /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    grep -qx "3.141593e+00" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "3.141593E+00" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "1.234568e+06" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "1.234000e-06" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\-1.500000e+00" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "3.142e+00" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "3e+00" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "3.142E+00" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1512,16 +1557,16 @@ t388_format_hex_upper() {
     # T3.88 (v0.4.37): RFC-0028 phase 5 — `{:X}` upper-case hex.
     # Pre-fix produced same lowercase output as `{:x}`. Now uses
     # __nucleor_int_to_hex_upper.
-    "$BIN" build "tests/fixtures/repro_v37_format_hex_upper.nr" -o "_t388_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v37_format_hex_upper.nr" -o "_t388_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
     if [ -f "target/_t388_check.exe" ]; then exe="target/_t388_check.exe"; else exe="target/_t388_check"; fi
     [ -f "$exe" ] || return 1
-    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
-    grep -qx "ff" /tmp/_nuc_step.log || return 1
-    grep -qx "FF" /tmp/_nuc_step.log || return 1
-    grep -qx "faf" /tmp/_nuc_step.log || return 1
-    grep -qx "FAF" /tmp/_nuc_step.log || return 1
-    grep -qx "0xFF" /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    grep -qx "ff" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "FF" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "faf" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "FAF" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "0xFF" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1529,10 +1574,10 @@ t387_unknown_struct_panic() {
     # T3.87 (v0.4.36): `Foo { x: 1 }` where Foo is undeclared used to
     # lower to `lx_new(-1, blk)` → `%r.-1` invalid IR. Clang caught it
     # but pointed at LLVM, not source. Now panics at compiler level.
-    "$BIN" build "tests/fixtures/repro_v36_unknown_struct_panic.nr" -o "_t387_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v36_unknown_struct_panic.nr" -o "_t387_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" -ne 0 ] || return 1
-    grep -q "unknown struct UndeclaredStruct" /tmp/_nuc_step.log || return 1
-    grep -q "PANIC: nucleor: unknown struct UndeclaredStruct" /tmp/_nuc_step.log || return 1
+    grep -q "unknown struct UndeclaredStruct" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PANIC: nucleor: unknown struct UndeclaredStruct" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1540,10 +1585,10 @@ t386_print_multiarg_panic() {
     # T3.86 (v0.4.35): bare `print(a, b)` (multi-arg) printed only the
     # first arg silently — extras dropped from the binary. Now panics.
     # Adopters wanting multi-arg should use print!/println! macros.
-    "$BIN" build "tests/fixtures/repro_v35_print_multiarg_panic.nr" -o "_t386_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v35_print_multiarg_panic.nr" -o "_t386_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" -ne 0 ] || return 1
-    grep -q "print() takes exactly 1 argument" /tmp/_nuc_step.log || return 1
-    grep -q "PANIC: nucleor: print() takes exactly 1 arg" /tmp/_nuc_step.log || return 1
+    grep -q "print() takes exactly 1 argument" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PANIC: nucleor: print() takes exactly 1 arg" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1551,10 +1596,10 @@ t383_let_tuple_destructure_panic() {
     # T3.83 (v0.4.33a): `let (a, b) = ...` printed ERROR but emitted
     # placeholder let-stmt and continued. Adopter's bindings never
     # came into scope. Now panics. NEGATIVE test.
-    "$BIN" build "tests/fixtures/repro_v33a_let_tuple_panic.nr" -o "_t383_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v33a_let_tuple_panic.nr" -o "_t383_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" -ne 0 ] || return 1
-    grep -q "tuple destructuring in .let. is not yet supported" /tmp/_nuc_step.log || return 1
-    grep -q "PANIC: nucleor: tuple destructuring in" /tmp/_nuc_step.log || return 1
+    grep -q "tuple destructuring in .let. is not yet supported" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PANIC: nucleor: tuple destructuring in" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1562,20 +1607,20 @@ t384_trait_assoc_const_panic() {
     # T3.84 (v0.4.33b): `const MAX: i64;` in a trait body printed ERROR
     # but the const decl was silently dropped from the trait surface.
     # Now panics. NEGATIVE test.
-    "$BIN" build "tests/fixtures/repro_v33b_trait_const_panic.nr" -o "_t384_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v33b_trait_const_panic.nr" -o "_t384_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" -ne 0 ] || return 1
-    grep -q "associated constants in traits are not yet supported" /tmp/_nuc_step.log || return 1
-    grep -q "PANIC: nucleor: associated constants in traits" /tmp/_nuc_step.log || return 1
+    grep -q "associated constants in traits are not yet supported" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PANIC: nucleor: associated constants in traits" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
 t385_impl_assoc_const_panic() {
     # T3.85 (v0.4.33c): `const STEP: i64 = 1;` in an impl body — same
     # silent-drop pattern as the trait body. Now panics. NEGATIVE test.
-    "$BIN" build "tests/fixtures/repro_v33c_impl_const_panic.nr" -o "_t385_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v33c_impl_const_panic.nr" -o "_t385_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" -ne 0 ] || return 1
-    grep -q "associated constants in impl blocks are not yet supported" /tmp/_nuc_step.log || return 1
-    grep -q "PANIC: nucleor: associated constants in impl blocks" /tmp/_nuc_step.log || return 1
+    grep -q "associated constants in impl blocks are not yet supported" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PANIC: nucleor: associated constants in impl blocks" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1583,10 +1628,10 @@ t381_closure_mutate_capture_panic() {
     # T3.81 (v0.4.32a): closure mutating captured outer var used to
     # silently no-op at runtime — closure mutated its local copy and
     # the caller's value stayed unchanged. Now panics. NEGATIVE test.
-    "$BIN" build "tests/fixtures/repro_v32a_closure_mutate_panic.nr" -o "_t381_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v32a_closure_mutate_panic.nr" -o "_t381_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" -ne 0 ] || return 1
-    grep -q "closure cannot mutate captured variable" /tmp/_nuc_step.log || return 1
-    grep -q "PANIC: nucleor: closure mutate-capture" /tmp/_nuc_step.log || return 1
+    grep -q "closure cannot mutate captured variable" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PANIC: nucleor: closure mutate-capture" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1594,10 +1639,10 @@ t382_nested_field_assign_panic() {
     # T3.82 (v0.4.32b): `outer.inner.field = X` used to print ERROR but
     # the build succeeded with the assignment DROPPED (return cur).
     # Adopter binary ran with inner field unchanged at runtime. Now panics.
-    "$BIN" build "tests/fixtures/repro_v32b_nested_field_panic.nr" -o "_t382_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v32b_nested_field_panic.nr" -o "_t382_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" -ne 0 ] || return 1
-    grep -q "nested struct field assignment is not yet supported" /tmp/_nuc_step.log || return 1
-    grep -q "PANIC: nucleor: nested struct field assignment" /tmp/_nuc_step.log || return 1
+    grep -q "nested struct field assignment is not yet supported" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PANIC: nucleor: nested struct field assignment" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1607,11 +1652,11 @@ t380_assoc_fn_unsupported_panic() {
     # binary returned 0 with no link/runtime failure. Now panics. This
     # fixture is a NEGATIVE test: build must exit non-zero AND log must
     # mention the panic banner.
-    "$BIN" build "tests/fixtures/repro_v31_assoc_fn_panic.nr" -o "_t380_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v31_assoc_fn_panic.nr" -o "_t380_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
     [ "$rc" -ne 0 ] || return 1
-    grep -q "unsupported associated-fn call" /tmp/_nuc_step.log || return 1
-    grep -q "PANIC: nucleor: unsupported associated-fn call" /tmp/_nuc_step.log || return 1
+    grep -q "unsupported associated-fn call" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PANIC: nucleor: unsupported associated-fn call" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1620,16 +1665,16 @@ t379_format_force_sign_spec() {
     # Pre-v0.4.30 the spec was parsed but emission was deferred (would
     # have double-evaluated arg_expr). Now routes to a runtime helper
     # `int_to_str_force_sign` that takes the arg once.
-    "$BIN" build "tests/fixtures/repro_v30_format_force_sign.nr" -o "_t379_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v30_format_force_sign.nr" -o "_t379_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
     if [ -f "target/_t379_check.exe" ]; then exe="target/_t379_check.exe"; else exe="target/_t379_check"; fi
     [ -f "$exe" ] || return 1
-    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
-    grep -qx "+42" /tmp/_nuc_step.log || return 1
-    grep -qx "\-7" /tmp/_nuc_step.log || return 1
-    grep -qx "+0" /tmp/_nuc_step.log || return 1
-    grep -qx "\[   +42\]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[+42   \]" /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    grep -qx "+42" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\-7" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "+0" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[   +42\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[+42   \]" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1640,20 +1685,20 @@ t378_format_radix_spec() {
     # Also pins the deliberate semantic shift: pre-v0.4.29 `:b` printed
     # bool ("true"/"false"); post-v0.4.29 it prints binary radix to match
     # Rust ("1010" for the value 10).
-    "$BIN" build "tests/fixtures/repro_v29_format_radix.nr" -o "_t378_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v29_format_radix.nr" -o "_t378_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
     if [ -f "target/_t378_check.exe" ]; then exe="target/_t378_check.exe"; else exe="target/_t378_check"; fi
     [ -f "$exe" ] || return 1
-    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
-    grep -qx "ff" /tmp/_nuc_step.log || return 1
-    grep -qx "10" /tmp/_nuc_step.log || return 1
-    grep -qx "1010" /tmp/_nuc_step.log || return 1
-    grep -qx "0xff" /tmp/_nuc_step.log || return 1
-    grep -qx "0o10" /tmp/_nuc_step.log || return 1
-    grep -qx "0b1010" /tmp/_nuc_step.log || return 1
-    grep -qx "\[      ff\]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[ff      \]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[000000ff\]" /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    grep -qx "ff" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "10" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "1010" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "0xff" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "0o10" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "0b1010" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[      ff\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[ff      \]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[000000ff\]" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1661,21 +1706,21 @@ t377_format_width_spec() {
     # T3.77 (v0.4.28): RFC-0028 phase 5 — width / align / zero-pad specs
     # actually pad/align the formatted value. Asserts the canonical
     # cases produced by repro_v28_format_width.nr.
-    "$BIN" build "tests/fixtures/repro_v28_format_width.nr" -o "_t377_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v28_format_width.nr" -o "_t377_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
     if [ -f "target/_t377_check.exe" ]; then exe="target/_t377_check.exe"; else exe="target/_t377_check"; fi
     [ -f "$exe" ] || return 1
-    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
-    grep -qx "\[    42\]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[42    \]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[  42  \]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[00042\]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[hi      \]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[      hi\]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[   hi   \]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[     3.142\]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[3.142     \]" /tmp/_nuc_step.log || return 1
-    grep -qx "\[  3.142   \]" /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    grep -qx "\[    42\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[42    \]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[  42  \]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[00042\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[hi      \]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[      hi\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[   hi   \]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[     3.142\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[3.142     \]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\[  3.142   \]" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1684,16 +1729,16 @@ t376_format_precision_spec() {
     # rounds the float instead of being parsed-but-ignored. Pre-fix
     # `println!("{:.3}", 3.14159265)` printed "3.14159" (default %g);
     # post-fix prints "3.142". Asserts a few cases.
-    "$BIN" build "tests/fixtures/repro_v27_format_precision.nr" -o "_t376_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v27_format_precision.nr" -o "_t376_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
     if [ -f "target/_t376_check.exe" ]; then exe="target/_t376_check.exe"; else exe="target/_t376_check"; fi
     [ -f "$exe" ] || return 1
-    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
-    grep -qx "3.142" /tmp/_nuc_step.log || return 1
-    grep -qx "3" /tmp/_nuc_step.log || return 1
-    grep -qx "3.141593" /tmp/_nuc_step.log || return 1
-    grep -qx "2.72" /tmp/_nuc_step.log || return 1
-    grep -qx "\-1.5000" /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    grep -qx "3.142" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "3" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "3.141593" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "2.72" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "\-1.5000" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1702,16 +1747,16 @@ t375_v24_silent_miscomputes() {
     #   1. `1.0f32` literal stored 0 in Vec<f32> (lexer dropped f32 suffix)
     #   2. `-1.5f32` evaluated to -3.0 (binop_float_type missing kind 73)
     #   3. `println!("{:.3}", f64)` printed bit pattern (unknown spec → int_to_str)
-    "$BIN" build "tests/fixtures/repro_v24_silent_miscomputes.nr" -o "_t375_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/repro_v24_silent_miscomputes.nr" -o "_t375_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
     if [ -f "target/_t375_check.exe" ]; then exe="target/_t375_check.exe"; else exe="target/_t375_check"; fi
     [ -f "$exe" ] || return 1
-    "$exe" >/tmp/_nuc_step.log 2>&1 || return 1
-    grep -qx "PASS f32_lit_1.0" /tmp/_nuc_step.log || return 1
-    grep -qx "PASS f32_lit_2.5" /tmp/_nuc_step.log || return 1
-    grep -qx "PASS f32_neg_-1.5" /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    grep -qx "PASS f32_lit_1.0" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "PASS f32_lit_2.5" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qx "PASS f32_neg_-1.5" $NUC_VERIFY_STEP_LOG || return 1
     # v0.4.27 RFC-0028 phase 5 implements {:.N} precision; was "3.14159".
-    grep -qx "spec_check 3.142" /tmp/_nuc_step.log || return 1
+    grep -qx "spec_check 3.142" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1719,11 +1764,11 @@ t374_env_get_or() {
     # T3.74 (v0.3.98): regression test for env_get_or runtime helper.
     # Pre-v0.3.98, env_get_or wasn't registered, failing at clang link.
     # Post: returns the default fallback string (len 7 = "default").
-    "$BIN" build "tests/fixtures/t374_env_get_or.nr" -o "_t374_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t374_env_get_or.nr" -o "_t374_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t374_check" ] || [ -x "target/_t374_check.exe" ] || return 1
     local exe
     if [ -x "target/_t374_check" ]; then exe="target/_t374_check"; else exe="target/_t374_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 7 ] || return 1
     return 0
@@ -1737,7 +1782,7 @@ t373_bitwise_op_diagnostic() {
     # ops. The fixture became positive — exits 0 iff all three operators
     # produce correct results across constant-fold and runtime paths.
     # The bash mirror lagged the .ps1 update; v0.3.139 sync.
-    "$BIN" build "tests/fixtures/t373_bitwise_op_diagnostic.nr" -o "_t373_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t373_bitwise_op_diagnostic.nr" -o "_t373_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local exe
     if [ -x "target/_t373_check" ]; then exe="target/_t373_check"; else exe="target/_t373_check.exe"; fi
     [ -x "$exe" ] || return 1
@@ -1751,20 +1796,20 @@ t372_mut_closure_capture_diagnostic() {
     # writeback. Pre-v0.3.96 silently no-op'd (FnMut not yet supported).
     # Post: closure_collect_capture_stmt detects assignment-to-captured
     # var and emits a clear diagnostic.
-    "$BIN" build "tests/fixtures/t372_mut_closure_capture_diagnostic.nr" -o "_t372_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -q "closure cannot mutate captured variable" /tmp/_nuc_step.log || return 1
-    grep -q "FnMut semantics not yet supported" /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/fixtures/t372_mut_closure_capture_diagnostic.nr" -o "_t372_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "closure cannot mutate captured variable" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "FnMut semantics not yet supported" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
 t371_extended_macro_set() {
     # T3.71 (v0.3.95): regression test for extended macro set
     # (assert_eq!, assert_ne!, todo!, unimplemented!, unreachable!).
-    "$BIN" build "tests/fixtures/t371_extended_macro_set.nr" -o "_t371_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t371_extended_macro_set.nr" -o "_t371_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t371_check" ] || [ -x "target/_t371_check.exe" ] || return 1
     local exe
     if [ -x "target/_t371_check" ]; then exe="target/_t371_check"; else exe="target/_t371_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
     return 0
@@ -1775,11 +1820,11 @@ t370_panic_assert_macros() {
     # Pre-v0.3.94, these failed at clang link (`@panic undefined`,
     # `@assert undefined`) because the macro `!` was parsed as
     # negate-then-parens. Post: textual rewrite drops the `!`.
-    "$BIN" build "tests/fixtures/t370_panic_assert_macros.nr" -o "_t370_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t370_panic_assert_macros.nr" -o "_t370_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t370_check" ] || [ -x "target/_t370_check.exe" ] || return 1
     local exe
     if [ -x "target/_t370_check" ]; then exe="target/_t370_check"; else exe="target/_t370_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
     return 0
@@ -1794,11 +1839,11 @@ t369_mut_ref_param_diagnostic() {
     # is a primitive scalar (i8/i16/.../f64/bool/char), so adopters
     # can't ship the silent-miscompute binary. `&mut Struct/Enum` keeps
     # compiling cleanly. Verify gate asserts diagnostic + panic + non-zero rc.
-    "$BIN" build "tests/fixtures/t369_mut_ref_param_diagnostic.nr" -o "_t369_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t369_mut_ref_param_diagnostic.nr" -o "_t369_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
-    grep -q "&mut reference parameter" /tmp/_nuc_step.log || return 1
-    grep -q "would silently NOT propagate" /tmp/_nuc_step.log || return 1
-    grep -q "PANIC: &mut <scalar> parameter not implemented" /tmp/_nuc_step.log || return 1
+    grep -q "&mut reference parameter" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "would silently NOT propagate" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PANIC: &mut <scalar> parameter not implemented" $NUC_VERIFY_STEP_LOG || return 1
     [ "$rc" -ne 0 ] || return 1
     return 0
 }
@@ -1807,11 +1852,11 @@ t368_dyn_keyword_parse() {
     # T3.68 (v0.3.92): regression test for `dyn Trait` parser
     # acceptance. Pre-v0.3.92, parse_type didn't recognize the
     # `dyn` keyword and any use cascaded into parse errors.
-    "$BIN" build "tests/fixtures/t368_dyn_keyword_parse.nr" -o "_t368_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t368_dyn_keyword_parse.nr" -o "_t368_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t368_check" ] || [ -x "target/_t368_check.exe" ] || return 1
     local exe
     if [ -x "target/_t368_check" ]; then exe="target/_t368_check"; else exe="target/_t368_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 42 ] || return 1
     return 0
@@ -1821,11 +1866,11 @@ t367_question_op_chain() {
     # T3.67 (v0.3.91): regression test for the `?` operator chain.
     # Pre-v0.3.91, ir_br_cond labels were swapped — Ok early-returned
     # instead of Err. Every chain after the first ? was dead code.
-    "$BIN" build "tests/fixtures/t367_question_op_chain.nr" -o "_t367_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t367_question_op_chain.nr" -o "_t367_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t367_check" ] || [ -x "target/_t367_check.exe" ] || return 1
     local exe
     if [ -x "target/_t367_check" ]; then exe="target/_t367_check"; else exe="target/_t367_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 100 ] || return 1
     return 0
@@ -1838,11 +1883,11 @@ t366_struct_init_shorthand() {
     # name. Post: shorthand synthesizes a var-ref expr with the same
     # name. Pure-shorthand `Point { x, y }` not yet supported (the
     # parse_primary trigger needs the `IDENT :` shape).
-    "$BIN" build "tests/fixtures/t366_struct_init_shorthand.nr" -o "_t366_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t366_struct_init_shorthand.nr" -o "_t366_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t366_check" ] || [ -x "target/_t366_check.exe" ] || return 1
     local exe
     if [ -x "target/_t366_check" ]; then exe="target/_t366_check"; else exe="target/_t366_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
     return 0
@@ -1852,11 +1897,11 @@ t365_trait_generic_method() {
     # T3.65 (v0.3.89): regression test for trait method with generic
     # param. Pre-v0.3.89, `fn count<T>(self)` in trait body cascaded
     # into 22+ parse errors. Post: generic-param shape consumed.
-    "$BIN" build "tests/fixtures/t365_trait_generic_method.nr" -o "_t365_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t365_trait_generic_method.nr" -o "_t365_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t365_check" ] || [ -x "target/_t365_check.exe" ] || return 1
     local exe
     if [ -x "target/_t365_check" ]; then exe="target/_t365_check"; else exe="target/_t365_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 3 ] || return 1
     return 0
@@ -1867,11 +1912,11 @@ t364_vec_iter_chain() {
     # Pre-v0.3.88, .iter() was unwired and the chain failed at clang
     # link with `unresolved external symbol __nucleor_vec_iter`.
     # Post: .iter() routes to vec_iter_i64 (identity pass-through).
-    "$BIN" build "tests/fixtures/t364_vec_iter_chain.nr" -o "_t364_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t364_vec_iter_chain.nr" -o "_t364_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t364_check" ] || [ -x "target/_t364_check.exe" ] || return 1
     local exe
     if [ -x "target/_t364_check" ]; then exe="target/_t364_check"; else exe="target/_t364_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
     return 0
@@ -1884,11 +1929,11 @@ t363_struct_like_enum_variant() {
     # parser treated `{ r: 5 }` as a block expression after the
     # zero-arg variant call. Post: struct-init form parsed and
     # values pushed in source order.
-    "$BIN" build "tests/fixtures/t363_struct_like_enum_variant.nr" -o "_t363_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t363_struct_like_enum_variant.nr" -o "_t363_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t363_check" ] || [ -x "target/_t363_check.exe" ] || return 1
     local exe
     if [ -x "target/_t363_check" ]; then exe="target/_t363_check"; else exe="target/_t363_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
     return 0
@@ -1900,11 +1945,11 @@ t362_match_multi_capture() {
     # and expected `)`, cascading into parse errors. Post: parses
     # all comma-separated bindings, encodes them as `|`-separated for
     # the existing match_bind_payloads helper.
-    "$BIN" build "tests/fixtures/t362_match_multi_capture.nr" -o "_t362_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t362_match_multi_capture.nr" -o "_t362_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t362_check" ] || [ -x "target/_t362_check.exe" ] || return 1
     local exe
     if [ -x "target/_t362_check" ]; then exe="target/_t362_check"; else exe="target/_t362_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
     return 0
@@ -1921,10 +1966,10 @@ t361_assoc_const_diagnostic() {
     # first in this fixture, so we now assert the trait diagnostic
     # plus the panic banner. (The impl-body site has its own panic
     # path covered by T3.85.)
-    "$BIN" build "tests/fixtures/t361_assoc_const_diagnostic.nr" -o "_t361_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t361_assoc_const_diagnostic.nr" -o "_t361_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" -ne 0 ] || return 1
-    grep -q "associated constants in traits" /tmp/_nuc_step.log || return 1
-    grep -q "PANIC: nucleor: associated constants in traits" /tmp/_nuc_step.log || return 1
+    grep -q "associated constants in traits" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PANIC: nucleor: associated constants in traits" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1933,11 +1978,11 @@ t360_match_arm_assign() {
     # Pre-v0.3.84, `pat => x = v,` silently dropped the `= v` and
     # wrapped the LHS as a no-op expr-stmt. Programs compiled but
     # mis-computed.
-    "$BIN" build "tests/fixtures/t360_match_arm_assign.nr" -o "_t360_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t360_match_arm_assign.nr" -o "_t360_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t360_check" ] || [ -x "target/_t360_check.exe" ] || return 1
     local exe
     if [ -x "target/_t360_check" ]; then exe="target/_t360_check"; else exe="target/_t360_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
     return 0
@@ -1948,11 +1993,11 @@ t359_fn_pointer_type() {
     # `fn(T) -> R` in parameter positions. Pre-v0.3.83, parse_type
     # didn't recognize `fn` as a type-starter and cascaded into 26+
     # parse errors. Post: parsed as i64 (Nucleor fn-ptr ABI).
-    "$BIN" build "tests/fixtures/t359_fn_pointer_type.nr" -o "_t359_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t359_fn_pointer_type.nr" -o "_t359_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t359_check" ] || [ -x "target/_t359_check.exe" ] || return 1
     local exe
     if [ -x "target/_t359_check" ]; then exe="target/_t359_check"; else exe="target/_t359_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
     return 0
@@ -1965,11 +2010,11 @@ t358_trait_default_methods() {
     # "use of undefined value". Post: synthesized fns from trait
     # defaults dispatch correctly, including Self substitution for
     # nested self.method() calls.
-    "$BIN" build "tests/fixtures/t358_trait_default_methods.nr" -o "_t358_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t358_trait_default_methods.nr" -o "_t358_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t358_check" ] || [ -x "target/_t358_check.exe" ] || return 1
     local exe
     if [ -x "target/_t358_check" ]; then exe="target/_t358_check"; else exe="target/_t358_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
     return 0
@@ -1978,8 +2023,8 @@ t358_trait_default_methods() {
 t357_tuple_let_diagnostic() {
     # T3.57 (v0.3.81): negative regression — `let (a, b) = ...;`
     # pre-v0.3.81 segfaulted the compiler. Post: clean diagnostic.
-    "$BIN" build "tests/fixtures/t357_tuple_let_diagnostic.nr" -o "_t357_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -q "tuple destructuring in .let. is not yet supported" /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/fixtures/t357_tuple_let_diagnostic.nr" -o "_t357_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "tuple destructuring in .let. is not yet supported" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -1988,12 +2033,12 @@ t355_nested_field_assign_diagnostic() {
     # assignment safety net. Pre-v0.3.80, `outer.inner.field = X`
     # segfaulted the compiler with ACCESS_VIOLATION
     # (exit -1073741819). Post: clean diagnostic, no crash.
-    "$BIN" build "tests/fixtures/t355_nested_field_assign_diagnostic.nr" -o "_t355_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t355_nested_field_assign_diagnostic.nr" -o "_t355_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     # Must NOT crash with access violation:
     [ "$code" -ne 139 ] && [ "$code" -ne 134 ] || return 1
-    grep -q "nested struct field assignment is not yet supported" /tmp/_nuc_step.log || return 1
-    grep -q "Workaround:" /tmp/_nuc_step.log || return 1
+    grep -q "nested struct field assignment is not yet supported" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "Workaround:" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2003,11 +2048,11 @@ t354_match_arm_return() {
     # only accepted block `{ stmts }` or single expression as arm body,
     # so `Status::Ok => return 42,` produced cascading parse errors.
     # Pins enum-no-data, enum-with-data, wildcard, all with return arms.
-    "$BIN" build "tests/fixtures/t354_match_arm_return.nr" -o "_t354_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t354_match_arm_return.nr" -o "_t354_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t354_check" ] || [ -x "target/_t354_check.exe" ] || return 1
     local exe
     if [ -x "target/_t354_check" ]; then exe="target/_t354_check"; else exe="target/_t354_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
     return 0
@@ -2022,11 +2067,11 @@ t353_inline_closure_capture() {
     # arg-position closures through the AST kind 42 path (which has
     # full capture support since v0.3.72). Pins five shapes; expected
     # exit 0 (non-zero = which check failed).
-    "$BIN" build "tests/fixtures/t353_inline_closure_capture.nr" -o "_t353_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t353_inline_closure_capture.nr" -o "_t353_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t353_check" ] || [ -x "target/_t353_check.exe" ] || return 1
     local exe
     if [ -x "target/_t353_check" ]; then exe="target/_t353_check"; else exe="target/_t353_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 0 ] || return 1
     return 0
@@ -2039,11 +2084,11 @@ t352_compound_assignment() {
     # tokens (kind 110-114) and parser desugars `LHS op= RHS` to
     # `LHS = LHS op RHS`. Pins all five forms (+=/-=/*=//=/%=) on bare
     # var and struct-field LHS. Expected exit 3.
-    "$BIN" build "tests/fixtures/t352_compound_assignment.nr" -o "_t352_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t352_compound_assignment.nr" -o "_t352_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t352_check" ] || [ -x "target/_t352_check.exe" ] || return 1
     local exe
     if [ -x "target/_t352_check" ]; then exe="target/_t352_check"; else exe="target/_t352_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 3 ] || return 1
     return 0
@@ -2057,11 +2102,11 @@ t351_shadowing() {
     # garbage. Pins five shapes (same-type / cross-type / sequential
     # / inline-arith / no-old-use). Returns 1+2+4+8+16=31 if every
     # shadow resolves correctly.
-    "$BIN" build "tests/fixtures/t351_shadowing.nr" -o "_t351_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t351_shadowing.nr" -o "_t351_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t351_check" ] || [ -x "target/_t351_check.exe" ] || return 1
     local exe
     if [ -x "target/_t351_check" ]; then exe="target/_t351_check"; else exe="target/_t351_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 31 ] || return 1
     return 0
@@ -2072,9 +2117,9 @@ t350_module_stmt_keyword_diagnostic() {
     # statement-level keywords. Build may succeed (no downstream
     # cascade) but the diagnostic MUST appear in stderr — that's
     # the production-readiness contract.
-    "$BIN" build "tests/fixtures/t350_module_stmt_keyword_diagnostic.nr" -o "_t350_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -q "statement-level keyword at module scope" /tmp/_nuc_step.log || return 1
-    grep -q "Move statement-level constructs into a fn body" /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/fixtures/t350_module_stmt_keyword_diagnostic.nr" -o "_t350_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "statement-level keyword at module scope" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "Move statement-level constructs into a fn body" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2084,11 +2129,11 @@ t349_trait_method_vec_index() {
     # a trait-method-call result inline (`s.samples()[i]`) where the
     # method returns Vec<f64> dispatched to integer add on packed
     # f64 bit patterns. Pins compile + run + value (1.0+2.0+3.0=6).
-    "$BIN" build "tests/fixtures/t349_trait_method_vec_index.nr" -o "_t349_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t349_trait_method_vec_index.nr" -o "_t349_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t349_check" ] || [ -x "target/_t349_check.exe" ] || return 1
     local exe
     if [ -x "target/_t349_check" ]; then exe="target/_t349_check"; else exe="target/_t349_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 6 ] || return 1
     return 0
@@ -2100,11 +2145,11 @@ t348_module_let_diagnostic() {
     # at module scope and downstream codegen emitted broken @NAME refs.
     # Asserts: (1) the build fails, (2) the diagnostic text mentioning
     # "module scope" + "const" appears in stderr.
-    "$BIN" build "tests/fixtures/t348_module_let_diagnostic.nr" -o "_t348_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t348_module_let_diagnostic.nr" -o "_t348_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -ne 0 ] || return 1
-    grep -q "let.* not allowed at module scope" /tmp/_nuc_step.log || return 1
-    grep -q "Use .const NAME" /tmp/_nuc_step.log || return 1
+    grep -q "let.* not allowed at module scope" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "Use .const NAME" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2119,11 +2164,11 @@ t347_closure_capture() {
     # single capture, multi-capture, capture-reused-in-body,
     # multiple distinct closures (slot non-aliasing).
     # Expected exit code 15 (1+2+4+8).
-    "$BIN" build "tests/fixtures/t347_closure_capture.nr" -o "_t347_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t347_closure_capture.nr" -o "_t347_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t347_check" ] || [ -x "target/_t347_check.exe" ] || return 1
     local exe
     if [ -x "target/_t347_check" ]; then exe="target/_t347_check"; else exe="target/_t347_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 15 ] || return 1
     return 0
@@ -2136,11 +2181,11 @@ t346_assoc_fn_collections() {
     # `%r.-1` IR. Pins compile-and-run for the five aliases
     # (HashMap/HashSet/BTreeMap/BTreeSet) plus the lowercase form
     # baseline. Expected exit code 31 (1+2+4+8+16).
-    "$BIN" build "tests/fixtures/t346_assoc_fn_collections.nr" -o "_t346_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t346_assoc_fn_collections.nr" -o "_t346_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t346_check" ] || [ -x "target/_t346_check.exe" ] || return 1
     local exe
     if [ -x "target/_t346_check" ]; then exe="target/_t346_check"; else exe="target/_t346_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
     [ "$code" -eq 31 ] || return 1
     return 0
@@ -2152,17 +2197,17 @@ t345_kalman_synthesis() {
     # which combines 3x3 matrix-vector multiply (nested indexing),
     # Vec<V3> trajectory, struct trait method, and cast inline,
     # then asserts all six output values are mathematically correct.
-    "$BIN" build "examples/24_rt_kalman_step.nr" -o "_t345_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "examples/24_rt_kalman_step.nr" -o "_t345_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t345_check" ] || [ -x "target/_t345_check.exe" ] || return 1
     local exe
     if [ -x "target/_t345_check" ]; then exe="target/_t345_check"; else exe="target/_t345_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^5\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^7\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^6\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^25\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^50\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^16\.66[67]' /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^5\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^7\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^6\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^25\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^50\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^16\.66[67]' $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2171,15 +2216,15 @@ t344_method_returning_struct() {
     # returning structs followed by immediate field access
     # (`v.rotated().x`). Asserts var/fn-call/inline-binop
     # receivers all resolve correctly.
-    "$BIN" build "tests/fixtures/t344_method_returning_struct.nr" -o "_t344_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t344_method_returning_struct.nr" -o "_t344_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t344_check" ] || [ -x "target/_t344_check.exe" ] || return 1
     local exe
     if [ -x "target/_t344_check" ]; then exe="target/_t344_check"; else exe="target/_t344_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local count_2
-    count_2=$(grep -cE '^2\.0+$' /tmp/_nuc_step.log)
+    count_2=$(grep -cE '^2\.0+$' $NUC_VERIFY_STEP_LOG)
     [ "$count_2" = "2" ] || return 1
-    grep -qE '^5\.0+$' /tmp/_nuc_step.log || return 1
+    grep -qE '^5\.0+$' $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2187,15 +2232,15 @@ t343_nested_indexing() {
     # T3.43 (v0.3.68): regression test for nested indexing
     # (`grid[i][j]`) inline f64 binops. Closes the kind 10
     # operand cell of the composition matrix in BOTH resolvers.
-    "$BIN" build "tests/fixtures/t343_nested_indexing.nr" -o "_t343_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t343_nested_indexing.nr" -o "_t343_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t343_check" ] || [ -x "target/_t343_check.exe" ] || return 1
     local exe
     if [ -x "target/_t343_check" ]; then exe="target/_t343_check"; else exe="target/_t343_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^1\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^5\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^6\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^3\.0+$'   /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^1\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^5\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^6\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^3\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2205,14 +2250,14 @@ t342_fncall_indexing() {
     #   make_vec()[0] + make_vec()[1] = 7
     #   make_vec()[0] * make_vec()[2] = 15
     #   make_vstruct()[0].x + make_vstruct()[1].y = 5 (cross-resolver)
-    "$BIN" build "tests/fixtures/t342_fncall_indexing.nr" -o "_t342_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t342_fncall_indexing.nr" -o "_t342_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t342_check" ] || [ -x "target/_t342_check.exe" ] || return 1
     local exe
     if [ -x "target/_t342_check" ]; then exe="target/_t342_check"; else exe="target/_t342_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^7\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^15\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^5\.0+$'    /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^7\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^15\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^5\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2221,13 +2266,13 @@ t341_method_on_indexed_field() {
     # indexed struct field receivers (`p.rects[0].area()`).
     # Mirrors v0.3.65 in expr_struct_type. Asserts both
     # method × scalar and method × method patterns compute.
-    "$BIN" build "tests/fixtures/t341_method_on_indexed_field.nr" -o "_t341_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t341_method_on_indexed_field.nr" -o "_t341_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t341_check" ] || [ -x "target/_t341_check.exe" ] || return 1
     local exe
     if [ -x "target/_t341_check" ]; then exe="target/_t341_check"; else exe="target/_t341_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^6\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^22\.0+$'   /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^6\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^22\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2236,13 +2281,13 @@ t340_nested_index_field() {
     # indexing -- self.samples[i] (Vec/array indexing on a struct
     # field) inside inline f64 binops. Asserts trait method bodies
     # compute correctly for both Vec<f64> and [f64;N] fields.
-    "$BIN" build "tests/fixtures/t340_nested_index_field.nr" -o "_t340_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t340_nested_index_field.nr" -o "_t340_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t340_check" ] || [ -x "target/_t340_check.exe" ] || return 1
     local exe
     if [ -x "target/_t340_check" ]; then exe="target/_t340_check"; else exe="target/_t340_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^4\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^2\.50+$'   /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^4\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^2\.50+$'   $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2254,15 +2299,15 @@ t339_sensor_fusion_synthesis() {
     # as-casts) and asserts the four output values are
     # mathematically correct. Catches any regression that breaks
     # the cross-shape composition.
-    "$BIN" build "examples/23_rt_sensor_fusion.nr" -o "_t339_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "examples/23_rt_sensor_fusion.nr" -o "_t339_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t339_check" ] || [ -x "target/_t339_check.exe" ] || return 1
     local exe
     if [ -x "target/_t339_check" ]; then exe="target/_t339_check"; else exe="target/_t339_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^25\.0+$'      /tmp/_nuc_step.log || return 1
-    grep -qE '^3\.50+$'      /tmp/_nuc_step.log || return 1
-    grep -qE '^0\.60+$'      /tmp/_nuc_step.log || return 1
-    grep -qE '^4\.66[67]'    /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^25\.0+$'      $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^3\.50+$'      $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^0\.60+$'      $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^4\.66[67]'    $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2270,14 +2315,14 @@ t338_fixed_array_of_struct() {
     # T3.38 (v0.3.63): regression test for fixed-array-of-struct
     # field access (`arr[0].x` where arr: [V; N]). Mirrors v0.3.59
     # for Vec<struct>. Asserts three patterns compile + compute.
-    "$BIN" build "tests/fixtures/t338_fixed_array_of_struct.nr" -o "_t338_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t338_fixed_array_of_struct.nr" -o "_t338_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t338_check" ] || [ -x "target/_t338_check.exe" ] || return 1
     local exe
     if [ -x "target/_t338_check" ]; then exe="target/_t338_check"; else exe="target/_t338_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^1\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^5\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^6\.0+$'   /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^1\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^5\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^6\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2286,16 +2331,16 @@ t337_fixed_array_fp_ops() {
     # indexing in inline f64 binops, fixed by extending the
     # kind==10 branch in binop_float_type to also handle
     # `[T; N]` (not just `Vec<T>`).
-    "$BIN" build "tests/fixtures/t337_fixed_array_fp_ops.nr" -o "_t337_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t337_fixed_array_fp_ops.nr" -o "_t337_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t337_check" ] || [ -x "target/_t337_check.exe" ] || return 1
     local exe
     if [ -x "target/_t337_check" ]; then exe="target/_t337_check"; else exe="target/_t337_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^5\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^-3\.0+$'  /tmp/_nuc_step.log || return 1
-    grep -qE '^4\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^2\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^20\.0+$'  /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^5\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^-3\.0+$'  $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^4\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^2\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^20\.0+$'  $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2309,17 +2354,17 @@ t336_cast_fp_ops() {
     #   (i as f64) + (m() as f64) = 11   (cast × cast different)
     #   (i as f64) * make_two()   = 8    (cast × fn-call)
     #   (m() as f64) + (m() as f64) = 14 (cast × cast same — original bug)
-    "$BIN" build "tests/fixtures/t336_cast_fp_ops.nr" -o "_t336_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t336_cast_fp_ops.nr" -o "_t336_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t336_check" ] || [ -x "target/_t336_check.exe" ] || return 1
     local exe
     if [ -x "target/_t336_check" ]; then exe="target/_t336_check"; else exe="target/_t336_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local count_8
-    count_8=$(grep -cE '^8\.0+$' /tmp/_nuc_step.log)
+    count_8=$(grep -cE '^8\.0+$' $NUC_VERIFY_STEP_LOG)
     [ "$count_8" = "2" ] || return 1
-    grep -qE '^7\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^11\.0+$'  /tmp/_nuc_step.log || return 1
-    grep -qE '^14\.0+$'  /tmp/_nuc_step.log || return 1
+    grep -qE '^7\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^11\.0+$'  $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^14\.0+$'  $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2332,14 +2377,14 @@ t335_trait_method_fp_ops() {
     #   r1.area() + r2.area()   = 22.0
     #   r1.area() * 2.0         = 24.0
     #   r1.area() * r2.area()   = 120.0
-    "$BIN" build "tests/fixtures/t335_trait_method_fp_ops.nr" -o "_t335_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t335_trait_method_fp_ops.nr" -o "_t335_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t335_check" ] || [ -x "target/_t335_check.exe" ] || return 1
     local exe
     if [ -x "target/_t335_check" ]; then exe="target/_t335_check"; else exe="target/_t335_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^22\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^24\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^120\.0+$'  /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^22\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^24\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^120\.0+$'  $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2348,14 +2393,14 @@ t334_vec_of_struct_field() {
     # field-access codegen, fixed by adding kind==10 branch
     # to expr_struct_type. Asserts path[i].x patterns compile
     # AND compute correctly.
-    "$BIN" build "tests/fixtures/t334_vec_of_struct_field.nr" -o "_t334_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t334_vec_of_struct_field.nr" -o "_t334_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t334_check" ] || [ -x "target/_t334_check.exe" ] || return 1
     local exe
     if [ -x "target/_t334_check" ]; then exe="target/_t334_check"; else exe="target/_t334_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^1\.0+$' /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^1\.0+$' $NUC_VERIFY_STEP_LOG || return 1
     local count
-    count=$(grep -cE '^6\.0+$' /tmp/_nuc_step.log)
+    count=$(grep -cE '^6\.0+$' $NUC_VERIFY_STEP_LOG)
     [ "$count" = "2" ] || return 1
     return 0
 }
@@ -2365,15 +2410,15 @@ t333_chained_field_on_fn_call() {
     # on fn-call result, fixed by adding kind==7 branch to
     # expr_struct_type. Asserts builder/factory pattern
     # `make_v().x + make_v().y` compiles AND computes correctly.
-    "$BIN" build "tests/fixtures/t333_chained_field_on_fn_call.nr" -o "_t333_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t333_chained_field_on_fn_call.nr" -o "_t333_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t333_check" ] || [ -x "target/_t333_check.exe" ] || return 1
     local exe
     if [ -x "target/_t333_check" ]; then exe="target/_t333_check"; else exe="target/_t333_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local count
-    count=$(grep -cE '^4\.0+$' /tmp/_nuc_step.log)
+    count=$(grep -cE '^4\.0+$' $NUC_VERIFY_STEP_LOG)
     [ "$count" = "2" ] || return 1
-    grep -qE '^3\.50+$' /tmp/_nuc_step.log || return 1
+    grep -qE '^3\.50+$' $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2382,16 +2427,16 @@ t332_unary_minus_f64() {
     # codegen bug fixed in v0.3.57. Asserts -x on the four
     # operand kinds produces correct values:
     #   var: -3   field: -3   vec[i]: -2.5   fn-call: -5
-    "$BIN" build "tests/fixtures/t332_unary_minus_f64.nr" -o "_t332_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t332_unary_minus_f64.nr" -o "_t332_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t332_check" ] || [ -x "target/_t332_check.exe" ] || return 1
     local exe
     if [ -x "target/_t332_check" ]; then exe="target/_t332_check"; else exe="target/_t332_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local count
-    count=$(grep -cE '^-3\.0+$' /tmp/_nuc_step.log)
+    count=$(grep -cE '^-3\.0+$' $NUC_VERIFY_STEP_LOG)
     [ "$count" = "2" ] || return 1
-    grep -qE '^-2\.50+$' /tmp/_nuc_step.log || return 1
-    grep -qE '^-5\.0+$'   /tmp/_nuc_step.log || return 1
+    grep -qE '^-2\.50+$' $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^-5\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2402,16 +2447,16 @@ t331_mixed_fp_ops() {
     #   field × fn-call → 3    (cast) × field  → 21
     #   field × vec[i]  → 6    (cast) × vec[i] → 20
     #   fn-call × vec[i] → 5
-    "$BIN" build "tests/fixtures/t331_mixed_fp_ops.nr" -o "_t331_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t331_mixed_fp_ops.nr" -o "_t331_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t331_check" ] || [ -x "target/_t331_check.exe" ] || return 1
     local exe
     if [ -x "target/_t331_check" ]; then exe="target/_t331_check"; else exe="target/_t331_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^3\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^6\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^5\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^21\.0+$'  /tmp/_nuc_step.log || return 1
-    grep -qE '^20\.0+$'  /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^3\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^6\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^5\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^21\.0+$'  $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^20\.0+$'  $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2421,16 +2466,16 @@ t330_vec_index_fp_ops() {
     # Asserts five ops on Vec<f64>[i] produce correct values:
     #   add: 1+4=5    sub: 1-4=-3   mul: 1*4=4   div: 8/4=2
     #   nested: v[0]*v[1] + v[2]*v[5] + v[4]*v[6] = 32
-    "$BIN" build "tests/fixtures/t330_vec_index_fp_ops.nr" -o "_t330_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t330_vec_index_fp_ops.nr" -o "_t330_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t330_check" ] || [ -x "target/_t330_check.exe" ] || return 1
     local exe
     if [ -x "target/_t330_check" ]; then exe="target/_t330_check"; else exe="target/_t330_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^5\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^-3\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^4\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^2\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^32\.0+$'   /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^5\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^-3\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^4\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^2\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^32\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2440,16 +2485,16 @@ t329_fn_call_fp_ops() {
     # Asserts five ops on fn-call results compute correctly:
     #   add: 1+4=5    sub: 1-4=-3   mul: 1*4=4   div: 8/4=2
     #   nested: 1*4 + 2*5 + 3*6 = 32
-    "$BIN" build "tests/fixtures/t329_fn_call_fp_ops.nr" -o "_t329_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t329_fn_call_fp_ops.nr" -o "_t329_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t329_check" ] || [ -x "target/_t329_check.exe" ] || return 1
     local exe
     if [ -x "target/_t329_check" ]; then exe="target/_t329_check"; else exe="target/_t329_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^5\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^-3\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^4\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^2\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^32\.0+$'   /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^5\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^-3\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^4\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^2\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^32\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2461,16 +2506,16 @@ t328_struct_field_fp_ops() {
     # mathematically correct value:
     #   add: 1+4 = 5     mul: 1*4 = 4     dot: 1*4+2*5+3*6 = 32
     #   sub: 1-4 = -3    div: 8/4 = 2
-    "$BIN" build "tests/fixtures/t328_struct_field_fp_ops.nr" -o "_t328_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t328_struct_field_fp_ops.nr" -o "_t328_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t328_check" ] || [ -x "target/_t328_check.exe" ] || return 1
     local exe
     if [ -x "target/_t328_check" ]; then exe="target/_t328_check"; else exe="target/_t328_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '^5\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^-3\.0+$'   /tmp/_nuc_step.log || return 1
-    grep -qE '^4\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^2\.0+$'    /tmp/_nuc_step.log || return 1
-    grep -qE '^32\.0+$'   /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '^5\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^-3\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^4\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^2\.0+$'    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE '^32\.0+$'   $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2486,12 +2531,12 @@ t327_export_workaround_dot() {
     # produces. If the underlying inline-multiply codegen bug
     # is later fixed (v0.4 AST codegen), this test still
     # passes because the workaround pattern remains correct.
-    "$BIN" build "examples/22_rt_export.nr" -o "_t327_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "examples/22_rt_export.nr" -o "_t327_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t327_check" ] || [ -x "target/_t327_check.exe" ] || return 1
     local exe
     if [ -x "target/_t327_check" ]; then exe="target/_t327_check"; else exe="target/_t327_check.exe"; fi
-    "$exe" >/tmp/_nuc_step.log 2>&1
-    grep -qE '32\.0+' /tmp/_nuc_step.log || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE '32\.0+' $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2509,26 +2554,26 @@ t320_diag001_unknown_code() {
     # regressions where emit_diag001_unknown_codes swaps
     # shapes (e.g., reports an #[allow] code with the
     # #[allow_fn] message body and vice versa).
-    "$BIN" build "tests/fixtures/t320_diag001_unknown_code.nr" -o "_t320_diag001_check" --no-cache >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "tests/fixtures/t320_diag001_unknown_code.nr" -o "_t320_diag001_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local count
-    count=$(grep -cE 'warning\[DIAG-001\]' /tmp/_nuc_step.log)
+    count=$(grep -cE 'warning\[DIAG-001\]' $NUC_VERIFY_STEP_LOG)
     [ "$count" = "5" ] || return 1
-    grep -qE "'WAT-001'"      /tmp/_nuc_step.log || return 1
-    grep -qE "'BOGUS-002'"    /tmp/_nuc_step.log || return 1
-    grep -qE "'GIBBERISH-003'" /tmp/_nuc_step.log || return 1
-    grep -qE "'NONSENSE-004'" /tmp/_nuc_step.log || return 1
-    grep -qE "'RT-099'"       /tmp/_nuc_step.log || return 1
+    grep -qE "'WAT-001'"      $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE "'BOGUS-002'"    $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE "'GIBBERISH-003'" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE "'NONSENSE-004'" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE "'RT-099'"       $NUC_VERIFY_STEP_LOG || return 1
     # Control: RT-007 must NOT trigger DIAG-001.
-    if grep -qE "'RT-007'" /tmp/_nuc_step.log; then return 1; fi
+    if grep -qE "'RT-007'" $NUC_VERIFY_STEP_LOG; then return 1; fi
     # v0.3.46 shape-prefix assertions. Each pairing locks the
     # diag's attribute-shape body text against the offending
     # code, so a future swap (e.g., file-wide emitting per-fn
     # text) is caught.
-    grep -qE "'WAT-001' in #\[allow\(\.\.\.\)\]"           /tmp/_nuc_step.log || return 1
-    grep -qE "'BOGUS-002' in #\[deny\(\.\.\.\)\]"          /tmp/_nuc_step.log || return 1
-    grep -qE "'GIBBERISH-003' in #\[allow_fn\(\.\.\.\)\] on fn 'first_unknown'"     /tmp/_nuc_step.log || return 1
-    grep -qE "'NONSENSE-004' in #\[deny_fn\(\.\.\.\)\] on fn 'second_unknown'"      /tmp/_nuc_step.log || return 1
-    grep -qE "'RT-099' in #\[allow_fn\(\.\.\.\)\] on fn 'within_series_typo'"       /tmp/_nuc_step.log || return 1
+    grep -qE "'WAT-001' in #\[allow\(\.\.\.\)\]"           $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE "'BOGUS-002' in #\[deny\(\.\.\.\)\]"          $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE "'GIBBERISH-003' in #\[allow_fn\(\.\.\.\)\] on fn 'first_unknown'"     $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE "'NONSENSE-004' in #\[deny_fn\(\.\.\.\)\] on fn 'second_unknown'"      $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE "'RT-099' in #\[allow_fn\(\.\.\.\)\] on fn 'within_series_typo'"       $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -2545,9 +2590,9 @@ t323_allow_fn_error_tier_strict() {
     #   * warning[RT-001] does NOT fire (would indicate the
     #     allow_fn improperly demoted the diag tier instead of
     #     leaving it at error tier untouched)
-    "$BIN" build "tests/err/err_t323_allow_fn_no_error_suppress.nr" -o "_t323_strict_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -qE 'error\[RT-001\]' /tmp/_nuc_step.log || return 1
-    if grep -qE 'warning\[RT-001\]' /tmp/_nuc_step.log; then return 1; fi
+    "$BIN" build "tests/err/err_t323_allow_fn_no_error_suppress.nr" -o "_t323_strict_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE 'error\[RT-001\]' $NUC_VERIFY_STEP_LOG || return 1
+    if grep -qE 'warning\[RT-001\]' $NUC_VERIFY_STEP_LOG; then return 1; fi
     return 0
 }
 
@@ -2561,9 +2606,9 @@ t321_deny_fn_promotes_strict() {
     #   * error[RT-007] fires (the promotion happened), AND
     #   * warning[RT-007] does NOT fire (the original tier was
     #     replaced, not added alongside).
-    "$BIN" build "tests/err/err_t321_deny_fn.nr" -o "_t321_strict_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -qE 'error\[RT-007\]' /tmp/_nuc_step.log || return 1
-    if grep -qE 'warning\[RT-007\]' /tmp/_nuc_step.log; then return 1; fi
+    "$BIN" build "tests/err/err_t321_deny_fn.nr" -o "_t321_strict_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE 'error\[RT-007\]' $NUC_VERIFY_STEP_LOG || return 1
+    if grep -qE 'warning\[RT-007\]' $NUC_VERIFY_STEP_LOG; then return 1; fi
     return 0
 }
 
@@ -2575,10 +2620,10 @@ t317_allow_fn_rt004() {
     # so RT-004 should fire exactly ONCE. Validates the v0.3.31
     # message-text claim that #[allow_fn(RT-004)] is a real
     # opt-out, not vapor advertisement.
-    "$BIN" build "tests/fixtures/t317_allow_fn_rt004.nr" -o "_t317_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -qE 'warning\[RT-004\]' /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/fixtures/t317_allow_fn_rt004.nr" -o "_t317_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE 'warning\[RT-004\]' $NUC_VERIFY_STEP_LOG || return 1
     local count
-    count=$(grep -cE 'warning\[RT-004\]' /tmp/_nuc_step.log)
+    count=$(grep -cE 'warning\[RT-004\]' $NUC_VERIFY_STEP_LOG)
     [ "$count" = "1" ] || return 1
 }
 
@@ -2589,14 +2634,14 @@ t320_allow_fn_per_fn() {
     # fire RT-007; only the second has #[allow_fn(RT-007)],
     # so RT-007 should mention unguarded_one but NOT
     # unguarded_two.
-    "$BIN" build "tests/fixtures/t320_allow_fn.nr" -o "_t320_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -qE 'warning\[RT-007\]' /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/fixtures/t320_allow_fn.nr" -o "_t320_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE 'warning\[RT-007\]' $NUC_VERIFY_STEP_LOG || return 1
     # Inner-fn name carries a content-hash; we can't grep for
     # the user-facing wrapper directly. Assert exactly ONE
     # RT-007 warning fired (file-wide allow would suppress
     # both; per-fn must suppress only one).
     local count
-    count=$(grep -cE 'warning\[RT-007\]' /tmp/_nuc_step.log)
+    count=$(grep -cE 'warning\[RT-007\]' $NUC_VERIFY_STEP_LOG)
     [ "$count" = "1" ] || return 1
 }
 
@@ -2607,10 +2652,10 @@ t38_rt006_async_attr() {
     # fixtures err_rt006_async_no_alloc.nr +
     # err_rt006_async_deadline.nr cover both spellings; this
     # step asserts the no_alloc variant fires the exact text.
-    "$BIN" build "tests/err/err_rt006_async_no_alloc.nr" -o "_t38_rt006_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -qE 'error\[RT-006\]: RT attribute' /tmp/_nuc_step.log || return 1
-    grep -q "on async fn 'poll_loop'" /tmp/_nuc_step.log || return 1
-    grep -q "async is non-deterministic" /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/err/err_rt006_async_no_alloc.nr" -o "_t38_rt006_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE 'error\[RT-006\]: RT attribute' $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "on async fn 'poll_loop'" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "async is non-deterministic" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t37_rt_string_skip() {
@@ -2620,50 +2665,50 @@ t37_rt_string_skip() {
     # region no longer false-triggers. Three #[no_alloc/panic/dyn]
     # fns that contain forbidden tokens ONLY in stripped regions
     # + 3 #[test] cases that PASS prove the strip pass works.
-    "$BIN" test "tests/smoke/t37_rt_string_skip.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_alloc_name_in_string_compiles" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_panic_name_in_comment_compiles" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_dyn_token_in_string_compiles" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (3 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t37_rt_string_skip.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_alloc_name_in_string_compiles" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_panic_name_in_comment_compiles" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_dyn_token_in_string_compiles" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (3 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t32_no_panic_clean() {
-    "$BIN" test "tests/smoke/t32_no_panic_clean.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_no_panic_pure_arithmetic" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_no_panic_loop_with_arithmetic" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (2 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t32_no_panic_clean.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_no_panic_pure_arithmetic" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_no_panic_loop_with_arithmetic" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (2 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 v030_deadline_pass() {
-    "$BIN" test "tests/smoke/v030_deadline_runtime.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_deadline_pass_simple_add" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_deadline_pass_simple_mul" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_deadline_pass_no_args" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_deadline_pass_with_loop" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (4 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/v030_deadline_runtime.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_deadline_pass_simple_add" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_deadline_pass_simple_mul" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_deadline_pass_no_args" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_deadline_pass_with_loop" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (4 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 v030_deadline_overrun() {
     rm -f target/v030_overrun_check.exe target/v030_overrun_check
-    "$BIN" build tests/fixtures/v030_deadline_overrun.nr -o "v030_overrun_check" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build tests/fixtures/v030_deadline_overrun.nr -o "v030_overrun_check" >$NUC_VERIFY_STEP_LOG 2>&1
     local exe=""
     if [ -x target/v030_overrun_check.exe ]; then exe=target/v030_overrun_check.exe; fi
     if [ -z "$exe" ] && [ -x target/v030_overrun_check ]; then exe=target/v030_overrun_check; fi
     [ -n "$exe" ] || return 1
-    "$exe" >/tmp/_nuc_run.log 2>&1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
     local rc=$?
     [ "$rc" -ne 0 ] || return 1
-    grep -qE 'error\[RT-004\]: #\[deadline\] overrun' /tmp/_nuc_run.log || return 1
+    grep -qE 'error\[RT-004\]: #\[deadline\] overrun' $NUC_VERIFY_RUN_LOG || return 1
 }
 
 t28_async_threads() {
     # v0.2.353 (T2.8): async runtime — threads-only commitment.
-    "$BIN" test "tests/smoke/t28_async_threads.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_async_basic_spawn_await" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_async_two_concurrent_tasks" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_async_await_in_arithmetic" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_async_zero_arg_fn" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (4 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t28_async_threads.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_async_basic_spawn_await" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_async_two_concurrent_tasks" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_async_await_in_arithmetic" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_async_zero_arg_fn" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (4 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t27_doc_html() {
@@ -2677,8 +2722,8 @@ t27_doc_html() {
     # filename and worked correctly. v0.3.148 sync.
     local hdr="/tmp/_t27_doc_$$.html"
     rm -f "$hdr"
-    "$BIN" doc tests/fixtures/t27_doc_input.nr --out "$hdr" >/tmp/_nuc_step.log 2>&1
-    grep -qE 'wrote .*HTML' /tmp/_nuc_step.log || return 1
+    "$BIN" doc tests/fixtures/t27_doc_input.nr --out "$hdr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE 'wrote .*HTML' $NUC_VERIFY_STEP_LOG || return 1
     [ -f "$hdr" ] || return 1
     grep -q "<!doctype html>" "$hdr" || return 1
     grep -q '<title>tests/fixtures/t27_doc_input.nr</title>' "$hdr" || return 1
@@ -2695,73 +2740,73 @@ t25_lifetime_params() {
     # v0.2.351 (T2.5): lifetime tokens 'a, 'static lex as kind 98 +
     # parse in generic params, reference types, generic instantiations.
     # 4 #[test] cases. Advisory metadata only.
-    "$BIN" test "tests/smoke/t25_lifetime_params.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_no_lifetime_baseline" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_single_lifetime" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_two_lifetimes" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_mixed_lifetime_and_type_param" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (4 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t25_lifetime_params.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_no_lifetime_baseline" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_single_lifetime" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_two_lifetimes" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_mixed_lifetime_and_type_param" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (4 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t24_trait_objects() {
     # v0.2.350 (T2.4): trait object 2-cell handle runtime helpers.
     # 5 #[test] cases covering manual dispatch + polymorphic collection.
-    "$BIN" test "tests/smoke/t24_trait_objects.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_dyn_box_make_type_data" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_dyn_box_dispatch_a" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_dyn_box_dispatch_b" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_dyn_box_polymorphic_collection" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_dyn_box_unknown_tag_returns_default" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (5 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t24_trait_objects.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_dyn_box_make_type_data" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_dyn_box_dispatch_a" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_dyn_box_dispatch_b" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_dyn_box_polymorphic_collection" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_dyn_box_unknown_tag_returns_default" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (5 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t23_closure_literals() {
     # v0.2.349 (T2.3): closure literals lifted into synthesized
     # top-level fns. 4 #[test] cases including a 3-step pipeline.
-    "$BIN" test "tests/smoke/t23_closure_literals.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_map_with_closure" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_filter_with_closure" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_fold_with_closure" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_chain_with_closures" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (4 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t23_closure_literals.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_map_with_closure" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_filter_with_closure" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_fold_with_closure" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_chain_with_closures" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (4 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t22_iter_methods() {
     # v0.2.348 (T2.2): Vec method-call dispatch for iterator methods
     # routes to typed `vec_*_i64` runtime helpers. 5 #[test] cases
     # including a `.map().filter().fold()` chain.
-    "$BIN" test "tests/smoke/t22_iter_methods.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_map" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_filter" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_fold_and_sum" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_min_max" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_chain" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (5 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t22_iter_methods.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_map" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_filter" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_fold_and_sum" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_min_max" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_chain" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (5 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t21_range_patterns() {
     # v0.2.347 (T2.1): inclusive `LO..=HI` and exclusive `LO..HI`
     # range patterns wired through to existing __range / __range_bad
     # lowering. Synced across both compilers. 3 #[test] cases.
-    "$BIN" test "tests/smoke/t21_range_patterns.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_range_inclusive_boundaries" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_range_exclusive_normalizes" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_range_falls_through_to_wildcard" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (3 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t21_range_patterns.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_range_inclusive_boundaries" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_range_exclusive_normalizes" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_range_falls_through_to_wildcard" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (3 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t26_format_macros() {
     # v0.2.346 (T2.6): source-level macro expansion. 6 #[test] cases
     # cover int placeholder, two placeholders, {:s} str passthrough,
     # literal-only, {{ }} escapes, {:b} bool spec.
-    "$BIN" test "tests/smoke/t26_format_macros.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_format_basic_int" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_format_two_placeholders" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_format_str_passthrough" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_format_literal_only" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_format_escaped_braces" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_format_binary_radix" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (6 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t26_format_macros.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_format_basic_int" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_format_two_placeholders" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_format_str_passthrough" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_format_literal_only" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_format_escaped_braces" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_format_binary_radix" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (6 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t16_gen_headers_structs() {
@@ -2772,8 +2817,8 @@ t16_gen_headers_structs() {
     local hdr
     hdr="$(mktemp 2>/dev/null || echo /tmp/_t16_struct_ffi.h)"
     rm -f "$hdr"
-    "$BIN" gen-headers tests/fixtures/t16_struct_ffi.nr -o "$hdr" >/tmp/_nuc_step.log 2>&1
-    grep -qE 'wrote 2 #\[repr\(C\)\] struct\(s\), 2 extern decl\(s\), 0 #\[export\] decl\(s\)' /tmp/_nuc_step.log || return 1
+    "$BIN" gen-headers tests/fixtures/t16_struct_ffi.nr -o "$hdr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE 'wrote 2 #\[repr\(C\)\] struct\(s\), 2 extern decl\(s\), 0 #\[export\] decl\(s\)' $NUC_VERIFY_STEP_LOG || return 1
     [ -f "$hdr" ] || return 1
     grep -q "typedef struct Point2D" "$hdr" || return 1
     grep -q "double x;" "$hdr" || return 1
@@ -2793,10 +2838,10 @@ t14_export_static() {
     local out_dir
     out_dir="$(mktemp -d 2>/dev/null || echo /tmp/_t14_verify_out)"
     rm -rf "$out_dir"
-    "$BIN" registry export-static "$out_dir" --registry tests/fixtures/t14_registry >/tmp/_nuc_step.log 2>&1
-    grep -q "packages exported: 2" /tmp/_nuc_step.log || return 1
-    grep -q "versions exported: 3" /tmp/_nuc_step.log || return 1
-    grep -qE "files copied:\s*7" /tmp/_nuc_step.log || return 1
+    "$BIN" registry export-static "$out_dir" --registry tests/fixtures/t14_registry >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "packages exported: 2" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "versions exported: 3" $NUC_VERIFY_STEP_LOG || return 1
+    grep -qE "files copied:[[:space:]]*7" $NUC_VERIFY_STEP_LOG || return 1
     [ -f "$out_dir/index.json" ] || return 1
     [ -f "$out_dir/foo/index.json" ] || return 1
     [ -f "$out_dir/foo/0.2.0/Nucleor.toml" ] || return 1
@@ -2815,11 +2860,11 @@ t15d_mod003() {
     # and the `add pub` hint. Builds the err fixture (which calls
     # lib_helper from outside lib_optin.nr) and asserts the friendly
     # diagnostic appears in stderr.
-    "$BIN" build "tests/err/err_priv_cross_module.nr" -o "_t15d_check" --no-cache >/tmp/_nuc_step.log 2>&1
-    grep -q "error\[MOD-003\]: cannot call private fn 'lib_helper'" /tmp/_nuc_step.log || return 1
-    grep -q "declared in:.*lib_optin\.nr" /tmp/_nuc_step.log || return 1
-    grep -q 'hint: add `pub` to the fn declaration' /tmp/_nuc_step.log || return 1
-    grep -q "MOD-003 violation(s)" /tmp/_nuc_step.log || return 1
+    "$BIN" build "tests/err/err_priv_cross_module.nr" -o "_t15d_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "error\[MOD-003\]: cannot call private fn 'lib_helper'" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "declared in:.*lib_optin\.nr" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q 'hint: add `pub` to the fn declaration' $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "MOD-003 violation(s)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t15c_privatization() {
@@ -2831,10 +2876,10 @@ t15c_privatization() {
     # cross-module. Negative case (cross-module non-pub call from
     # opt-in lib must FAIL) is covered by the err-fixture
     # tests/err/err_priv_cross_module.nr in the main negative sweep.
-    "$BIN" test "tests/smoke/t15c_privatization.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_cross_module_pub_call_opt_in_lib" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_cross_module_non_pub_call_opt_out_lib" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (2 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t15c_privatization.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_cross_module_pub_call_opt_in_lib" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_cross_module_non_pub_call_opt_out_lib" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (2 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t15b_pub_introspection() {
@@ -2844,16 +2889,16 @@ t15b_pub_introspection() {
     # the summary surface AND that intra-module fn calls are
     # unaffected (3 #[test] cases all PASS). Cross-module enforcement
     # arrives in T1.5c.
-    "$BIN" summary "tests/smoke/t15b_pub_introspection.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "pub fn pub_alpha()" /tmp/_nuc_step.log || return 1
-    grep -q "pub fn pub_gamma()" /tmp/_nuc_step.log || return 1
-    grep -q "^fn priv_beta()" /tmp/_nuc_step.log || return 1
-    grep -q "^fn priv_delta()" /tmp/_nuc_step.log || return 1
-    "$BIN" test "tests/smoke/t15b_pub_introspection.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_pub_fn_callable" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_non_pub_fn_still_callable_pre_enforcement" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_mixed_pub_arithmetic" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (3 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" summary "tests/smoke/t15b_pub_introspection.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "pub fn pub_alpha()" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "pub fn pub_gamma()" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "^fn priv_beta()" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "^fn priv_delta()" $NUC_VERIFY_STEP_LOG || return 1
+    "$BIN" test "tests/smoke/t15b_pub_introspection.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_pub_fn_callable" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_non_pub_fn_still_callable_pre_enforcement" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_mixed_pub_arithmetic" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (3 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t15a_mod_block_form() {
@@ -2861,11 +2906,11 @@ t15a_mod_block_form() {
     # contents alongside the existing `mod foo;` file-rooted desugaring.
     # Brace scanner is string- and line-comment-aware. This step runs
     # the smoke fixture via `nuc test` and asserts all three cases PASS.
-    "$BIN" test "tests/smoke/t15a_mod_block_form.nr" >/tmp/_nuc_step.log 2>&1
-    grep -q "PASS: test_mod_block_helper_visible_outside" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_mod_block_brace_in_string" /tmp/_nuc_step.log || return 1
-    grep -q "PASS: test_mod_block_brace_in_comment_does_not_close_early" /tmp/_nuc_step.log || return 1
-    grep -q "test result: PASS (3 tests)" /tmp/_nuc_step.log || return 1
+    "$BIN" test "tests/smoke/t15a_mod_block_form.nr" >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -q "PASS: test_mod_block_helper_visible_outside" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_mod_block_brace_in_string" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "PASS: test_mod_block_brace_in_comment_does_not_close_early" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "test result: PASS (3 tests)" $NUC_VERIFY_STEP_LOG || return 1
 }
 
 t17_bootstrap_seed_matches() {
@@ -2878,7 +2923,7 @@ t17_bootstrap_seed_matches() {
     # Refresh workflow: see bootstrap/README.md.
     local seed="bootstrap/nucleor_s1_seed.ll"
     [ -f "$seed" ] || return 1
-    "$BIN" build "compiler/nucleor_s1_compiler.nr" -o "_seed_check" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "compiler/nucleor_s1_compiler.nr" -o "_seed_check" >$NUC_VERIFY_STEP_LOG 2>&1
     local fresh="target/_seed_check.ll"
     [ -f "$fresh" ] || return 1
     local seed_sha
@@ -2925,7 +2970,7 @@ tools_rebuild() {
     # user's stale bin/nucleor_tools.exe in place and the
     # cli_explain_full_smoke step would fail spuriously (or, worse,
     # pass against the stale binary while the new code was broken).
-    "$BIN" build "compiler/nucleor_tools_suite.nr" -o "nucleor_tools" >/tmp/_nuc_step.log 2>&1
+    "$BIN" build "compiler/nucleor_tools_suite.nr" -o "nucleor_tools" >$NUC_VERIFY_STEP_LOG 2>&1
     if [ -x "target/nucleor_tools" ]; then
         cp "target/nucleor_tools" "$ROOT/bin/nucleor_tools" 2>/dev/null
         return 0
@@ -2938,14 +2983,14 @@ tools_rebuild() {
 }
 
 compiler_tables_synced() {
-    bash "$ROOT/tools/check_compiler_drift.sh" >/tmp/_nuc_step.log 2>&1
+    bash "$ROOT/tools/check_compiler_drift.sh" >$NUC_VERIFY_STEP_LOG 2>&1
 }
 
 mojibake_clean() {
     # v0.2.91 — flag cp1252-as-utf8 mojibake byte sequences across
     # the source/doc surface. Catches the drift class that bit
     # rod_manifest.toml in v0.2.58 and vqe_h2.nr in v0.2.90.
-    bash "$ROOT/tools/check_mojibake.sh" >/tmp/_nuc_step.log 2>&1
+    bash "$ROOT/tools/check_mojibake.sh" >$NUC_VERIFY_STEP_LOG 2>&1
 }
 
 # --- Run gate -----------------------------------------------------------
@@ -3056,14 +3101,14 @@ step "T3.55 nested struct field assign safety net (pre-v0.3.80 segfault → clea
 step "T3.56 indexed-LHS assign safety net (pre-v0.3.81 segfault → clean diagnostic)" t356_indexed_lhs_diagnostic
 step "T3.57 tuple-destructure let safety net (pre-v0.3.81 segfault → clean diagnostic)" t357_tuple_let_diagnostic
 step "T3.58 trait default-method support (impls inherit defaults; Self substitution)" t358_trait_default_methods
-step "T3.59 fn-pointer type syntax `fn(T) -> R` in param positions" t359_fn_pointer_type
-step "T3.60 match-arm assignment body (`pat => x = v`)" t360_match_arm_assign
+step "T3.59 fn-pointer type syntax 'fn(T) -> R' in param positions" t359_fn_pointer_type
+step "T3.60 match-arm assignment body ('pat => x = v')" t360_match_arm_assign
 step "T3.61 trait/impl associated-const diagnostic (pre-v0.3.85 cascaded parse errors)" t361_assoc_const_diagnostic
-step "T3.62 match multi-capture enum patterns `Variant(a, b, c)`" t362_match_multi_capture
-step "T3.63 struct-like enum variant construction `Variant { field: val }`" t363_struct_like_enum_variant
+step "T3.62 match multi-capture enum patterns 'Variant(a, b, c)'" t362_match_multi_capture
+step "T3.63 struct-like enum variant construction 'Variant { field: val }'" t363_struct_like_enum_variant
 step "T3.64 vec.iter().X() chain (Rust idiom — identity pass-through)" t364_vec_iter_chain
-step "T3.65 trait method with generic param `fn count<T>(self)`" t365_trait_generic_method
-step "T3.66 mixed-shorthand struct init `Point { x: 5, y }`" t366_struct_init_shorthand
+step "T3.65 trait method with generic param 'fn count<T>(self)'" t365_trait_generic_method
+step "T3.66 mixed-shorthand struct init 'Point { x: 5, y }'" t366_struct_init_shorthand
 step "T3.67 ? operator chain (Ok/Err labels were swapped pre-v0.3.91)" t367_question_op_chain
 step "T3.68 dyn keyword parser acceptance (Box<dyn Trait>, fn -> dyn ...)" t368_dyn_keyword_parse
 step "T3.69 &mut T param diagnostic (HIGH-BLAST silent miscompute pre-v0.3.93)" t369_mut_ref_param_diagnostic
@@ -3096,8 +3141,8 @@ step "T3.95 v0.4.50 NUC-FEEDBACK — if-let Some on .first/.last/.pop silent-seg
 step "T3.96 v0.4.51 NUC-FEEDBACK — str + str silent-segfault guard (use str_concat)" t396_str_plus_str_guard
 step "T3.97 v0.4.52 NUC-FEEDBACK — str == str pointer-comparison silent-miscompute guard (use str_eq)" t397_str_eq_pointer_guard
 step "T3.98 v0.4.53 NUC-FEEDBACK — Option/Result method on non-Option receiver silent-link-error guard" t398_unwrap_on_non_option_guard
-step "T3.99 v0.4.54 NUC-FEEDBACK — `?` on non-Option/Result receiver silent-segfault guard" t399_question_on_non_option_guard
-step "T3.100 v0.4.55 NUC-FEEDBACK — slice expression `expr[lo..hi]` silent-segfault guard" t400_slice_syntax_guard
+step "T3.99 v0.4.54 NUC-FEEDBACK — '?' on non-Option/Result receiver silent-segfault guard" t399_question_on_non_option_guard
+step "T3.100 v0.4.55 NUC-FEEDBACK — slice expression 'expr[lo..hi]' silent-segfault guard" t400_slice_syntax_guard
 step "T3.101 v0.4.56 NUC-FEEDBACK — non-exhaustive match (stmt form) silent-miscompute close — MATCH-001 promoted to error" t401_match_exhaustive_stmt_guard
 step "T3.102 v0.4.58 NUC-FEEDBACK — str -/*//% silent-segfault guard (extends v0.4.51 + close)" t402_str_arith_guard
 step "T3.103 v0.4.59 NUC-FEEDBACK — non-exhaustive match in EXPR context halts (closes deferral #306)" t403_match_expr_exhaustive_guard
@@ -3110,11 +3155,14 @@ step "T3.109 v0.4.65 NUC-FEEDBACK — field assignment type-mismatch (TYP-009)" 
 step "T3.110 v0.4.66 NUC-FEEDBACK — mixed str/int arithmetic (TYP-011, also catches += desugar)" t410_mixed_str_int_arith_guard
 step "T3.111 v0.4.67 NUC-FEEDBACK — str ordering ops <, <=, >, >= ptr-compare (TYP-011)" t411_str_ord_pointer_guard
 step "T3.112 v0.4.68 NUC-FEEDBACK — Vec ordering ops <, <=, >, >= ptr-compare (TYP-011)" t412_vec_ord_pointer_guard
-step "T3.113 v0.4.69 NUC-FEEDBACK — `=` vs `==` typo guard in while/if conditions" t413_eq_typo_guard
+step "T3.113 v0.4.69 NUC-FEEDBACK — '=' vs '==' typo guard in while/if conditions" t413_eq_typo_guard
 step "T3.114 v0.4.70 audit S1 — NUM-002 literal-out-of-range promoted to error" t414_num002_promoted
 step "T3.115 v0.4.70 audit S10 — format placeholder/arg count mismatch halt at preprocess" t415_format_arg_count
 step "T3.116 v0.4.71 audit S1 — bool with bitwise/shift ops (TYP-002 extended)" t416_bool_bitwise_guard
 step "T3.117 v0.4.72 doc-#2 §5 — str_from_i64(i64) contract honesty (str_from_int kept as wrapper)" t417_str_from_i64_contract
+step "T3.118 v0.4.73 audit S2 — generic Option payload type propagates into match arm" t418_generic_option_payload_type
+step "T3.119 v0.4.73 audit S2 — generic Result payload type propagates into match arm" t419_generic_result_payload_type
+step "T3.120 v0.4.73 audit S2 — Vec element type propagates through index, vec_get, first" t420_vec_element_type_propagation
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
