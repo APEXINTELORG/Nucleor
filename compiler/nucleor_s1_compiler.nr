@@ -14388,7 +14388,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             cur = lx_blk(ap);
             ai = ai + 1;
         };
-        let stype: str = expr_struct_type(pool, node_field(pool, nid, 1), sym, structs);
+        let mut stype: str = expr_struct_type(pool, node_field(pool, nid, 1), sym, structs);
         let mut fn_name: str = "";
         if str_len(stype) > 0 { fn_name = trait_impl_find(trait_impls, stype, mname); };
         if str_len(fn_name) == 0 {
@@ -14426,6 +14426,22 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 recv_is_vec = 0;
                             };
                         };
+                    };
+                };
+                // v0.4.135: str-literal receiver (kind 2). expr_struct_type
+                // returns "" for literals, so stype was empty and recv_is_vec
+                // stayed 1. `"abc".len()` lowered to vec_len on the str ptr
+                // (silent miscompute, returned 0); `"abc".contains("b")` and
+                // friends would have routed to vec_contains_i64 (also a
+                // silent miscompute reading the str header as a vec header).
+                // Detect kind-2 receiver here, clear recv_is_vec, and stamp
+                // stype = "str" so the existing v0.4.88 str-method dispatch
+                // (str_len / str_contains / str_replace / etc.) picks it up.
+                if recv_is_vec == 1 {
+                    let recv_check_v4135: i64 = node_field(pool, nid, 1);
+                    if node_kind(pool, recv_check_v4135) == 2 {
+                        recv_is_vec = 0;
+                        stype = "str";
                     };
                 };
                 if recv_is_vec == 1 && iter_method_for_vec(mname) == 1 {
