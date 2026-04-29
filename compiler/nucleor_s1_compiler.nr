@@ -1423,6 +1423,22 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             params.push(pkv(tokens, cp));
         };
         cp = cp + 1;
+        // v0.4.103: trait-bound clause `<T: Addable>` / `<T: A + B>`.
+        // Pre-fix this hit NR020 panic at the `:` token (42). Today
+        // Nucleor's generics are type-passthrough — codegen emits one
+        // monomorphic version regardless of bound — so the bound is
+        // semantically a no-op at the IR level. Skip past `:` and
+        // discard the bound expression up to the next `,` or `>`.
+        // Closes audit doc-#1 §8 (parse-side). A future bound-enforcing
+        // pass would consume + record these bounds; for now they parse
+        // cleanly and the binary behaves as if the bound were omitted
+        // (already validated: `<T>(a: T, b: T) -> T { a + b }` works).
+        if pk(tokens, cp) == 42 {
+            cp = cp + 1; // skip ':'
+            while pk(tokens, cp) != 33 && pk(tokens, cp) != 44 && pk(tokens, cp) != 0 {
+                cp = cp + 1;
+            };
+        };
     };
     cp = cp + 1; // skip >
     return pr(cp, params);
