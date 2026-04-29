@@ -10908,7 +10908,14 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             if needs_vec_lit_check == 1 {
                 let larg_v: i64 = list_get(pool, args, 0);
                 if node_kind(pool, larg_v) == 1 {
-                    print(str_concat("WARNING: ", str_concat(callee, "(<int_literal>, ...) passes an int literal where a Vec handle is expected. This will SIGSEGV at runtime when the helper dereferences the int as an NVec*. Pass a Vec value (e.g. let v: Vec<i64> = Vec::new(); ...) or a typed Vec handle.")));
+                    // v0.4.80: was print + continue. The runtime
+                    // SIGSEGV was guaranteed (literal int dereferenced
+                    // as NVec*); shipping the binary anyway was a
+                    // silent fall-through. Promoted to compile-time
+                    // panic. Literal-int Vec-handle is never a valid
+                    // adopter pattern.
+                    print(str_concat("ERROR: ", str_concat(callee, "(<int_literal>, ...) passes an int literal where a Vec handle is expected. This would SIGSEGV at runtime when the helper dereferences the int as an NVec*. Pass a Vec value (e.g. let v: Vec<i64> = Vec::new(); ...) or a typed Vec handle.")));
+                    panic(str_concat("nucleor: ", str_concat(callee, "(<int_literal>) cannot pass int literal as Vec handle (see ERROR above)")));
                 };
             };
             // v0.3.171: extend the literal-only WARNING to other
@@ -10973,7 +10980,12 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             if needs_tok_lit_check == 1 {
                 let larg_t: i64 = list_get(pool, args, 0);
                 if node_kind(pool, larg_t) == 1 {
-                    print(str_concat("WARNING: ", str_concat(callee, "(<int_literal>, ...) passes an int literal where a tokenizer handle is expected. This will SIGSEGV at runtime. Pass a real handle (e.g. let t: i64 = tok_bpe_train(text, 1024); ...).")));
+                    // v0.4.80: same class as the Vec-handle close
+                    // above — SIGSEGV-guaranteed silent fall-through
+                    // promoted to panic. Literal-int tokenizer handle
+                    // is never a valid adopter pattern.
+                    print(str_concat("ERROR: ", str_concat(callee, "(<int_literal>, ...) passes an int literal where a tokenizer handle is expected. This would SIGSEGV at runtime. Pass a real handle (e.g. let t: i64 = tok_bpe_train(text, 1024); ...).")));
+                    panic(str_concat("nucleor: ", str_concat(callee, "(<int_literal>) cannot pass int literal as tokenizer handle (see ERROR above)")));
                 };
             };
             // v0.3.174: extend the literal-only WARNING to remaining

@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.80] — 2026-04-29
+
+**Two `print("WARNING: …")` runtime-SIGSEGV sites promoted to panic.
+Continues the v0.4.78/79 silent-fall-through closure at the call-
+expression type-check pass.**
+
+Pre-fix `vec_len(42)` (literal int passed where a Vec handle was
+expected) printed a WARNING and continued. The compiler shipped a
+binary that SIGSEGVed at runtime when the helper dereferenced the
+int as `NVec*`. Same pattern for tokenizer-handle helpers
+(`tok_*`, `nuc_tok_*`).
+
+The diagnostic was always "this WILL SIGSEGV at runtime" — yet
+the build produced the binary anyway. Adopters got a passing build
+and a crashing executable. Promoted to compile-time panic.
+
+The third `print("WARNING: …")` site (`f64_to_str(<int_literal>)`
+bit-pattern reinterpretation) is documented as INFORMATIONAL —
+adopters can legitimately want bit-pattern behavior. Kept as
+warning per existing comment.
+
+### What now halts
+
+- `vec_len(42)`, `vec_get(0, 0)`, `vec_push(1, x)`, etc. (12 vec_*
+  helpers covered)
+- `hashmap_get(42, k)`, `hashset_*`, `btreemap_*`, `vecdeque_*`
+  (any container helper with literal-int handle)
+- `tok_bpe_encode(0, ...)`, `nuc_tok_vec_at(99, ...)` (tokenizer
+  handles)
+
+Detection unchanged — only fires when the handle arg is a literal
+integer (kind 1). Variable-handle calls (`vec_len(v)` for any
+identifier `v`) are not affected.
+
+### Verify gate
+
+- T3.129 — `tests/fixtures/repro_v80_int_lit_as_handle.nr` asserts
+  `vec_len(42)` halts with the new ERROR + panic.
+
+### Memory + timing
+
+- Self-host build: unchanged.
+- Verify gate: 371.6s / 504 steps (was 369.7s / 503 — flat).
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha c4808a52…).
+
 ## [0.4.79] — 2026-04-29
 
 **Four parser silent fall-throughs closed (batch). Same class as

@@ -1284,6 +1284,17 @@ t428_let_at_module_scope_halts() {
     return 0
 }
 
+t429_int_lit_as_handle_halts() {
+    # v0.4.80 — `vec_len(42)` literal-int-as-Vec-handle (was print
+    # WARNING + continue → guaranteed runtime SIGSEGV).
+    "$BIN" build "tests/fixtures/repro_v80_int_lit_as_handle.nr" -o "_t429_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" != "0" ] || return 1
+    grep -q "int literal" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "Vec handle" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t413_eq_typo_guard() {
     "$BIN" build "tests/fixtures/repro_v69_eq_typo_guard.nr" -o "_t413_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
@@ -3259,6 +3270,7 @@ step "T3.125 v0.4.77 NUM-019 — negative literal in unsigned binding (silent tw
 step "T3.126 v0.4.78 NR020 — parse error halts (was print-and-recover → broken binary)" t426_parse_error_halts
 step "T3.127 v0.4.79 — tuple destructure pattern in match halts (was silent downgrade to wildcard)" t427_match_tuple_pat_halts
 step "T3.128 v0.4.79 — let at module scope halts (was silent skip)" t428_let_at_module_scope_halts
+step "T3.129 v0.4.80 — int literal as Vec/tokenizer handle halts (was print WARNING + guaranteed runtime SIGSEGV)" t429_int_lit_as_handle_halts
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
