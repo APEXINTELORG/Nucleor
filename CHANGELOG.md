@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.131] — 2026-04-29
+
+**TYP-018 sister fix: assignment to unknown struct field
+(`p.y = 99`) halts at type-check.**
+
+```nucleor
+struct P { x: i64 }
+let mut p: P = P { x: 5 };
+p.y = 99;   // pre-fix: runtime PANIC: vec_set OOB index -1
+```
+
+v0.4.129 closed the read-side (`let y = p.y`) via the kind 9
+type_expr path. Assignments go through kind 21 with kind 9 LHS,
+which has its own struct-field handling at line 12293 — that
+path computed `struct_field_type` (which silently returned ""
+for unknown fields) but never validated the field name itself.
+Codegen then lowered to `vec_set(struct, -1, ...)` and surfaced
+as a runtime OOB.
+
+This release adds a `struct_field_idx` lookup before the existing
+field-type RHS check. Missing field → TYP-018:
+
+```
+error[TYP-018]: unknown field `.y` on receiver type `P` (assignment LHS).
+Pre-v0.4.131 this lowered to vec_set(struct, -1, ...) and OOB-panicked
+at runtime with no compile-time signal. Check the field name spelling
+against the struct definition.
+```
+
+Negative fixture: `tests/err/err_unknown_struct_field_assign.nr`.
+Bootstrap fixed-point holds. Fast-verify 185 PASS / 2 baseline-FAIL.
+
 ## [0.4.130] — 2026-04-29
 
 **TYP-019: trait-bound NAME verification — typo'd or undefined

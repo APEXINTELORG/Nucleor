@@ -12300,6 +12300,21 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                 let s_idx2: i64 = struct_find_type(pool, structs, recv_t);
                 if s_idx2 >= 0 {
                     let s_nid2: i64 = vec_get(structs, s_idx2);
+                    // v0.4.131: TYP-018 sister fix — assignment to
+                    // unknown struct field. Pre-fix `p.y = 99` for
+                    // `struct P { x: i64 }` (no y) lowered to
+                    // `vec_set(p, -1, 99)` and OOB-panicked at runtime
+                    // with no compile-time signal. Same misdiag class
+                    // as v0.4.129 (read-side close); this catches the
+                    // assignment LHS that v0.4.129 misses because
+                    // assignment goes through kind 21 (not kind 9
+                    // type_expr).
+                    let f_idx_v131: i64 = struct_field_idx(pool, s_nid2, fname);
+                    if f_idx_v131 < 0 {
+                        let t18a131: str = str_concat("unknown field `.", str_concat(fname, str_concat("` on receiver type `", str_concat(recv_t, "` (assignment LHS)."))));
+                        let t18b131: str = " Pre-v0.4.131 this lowered to vec_set(struct, -1, ...) and OOB-panicked at runtime with no compile-time signal. Check the field name spelling against the struct definition.";
+                        type_diag(diags, source, fn_name, recv_name, "TYP-018", str_concat(t18a131, t18b131));
+                    };
                     let f_t: str = struct_field_type(pool, s_nid2, fname);
                     if str_len(f_t) > 0 && str_len(rhs_t) > 0 {
                         let compat_fld: i64 = types_compatible_context(pool, prog, f_t, rhs_t);
