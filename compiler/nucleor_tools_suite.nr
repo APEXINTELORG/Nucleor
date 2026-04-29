@@ -8234,6 +8234,10 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         fn_name = str_concat("option_", mname);
                     } else if str_eq(opt_res_base, "Result") == 1 && (str_eq(mname, "unwrap") == 1 || str_eq(mname, "unwrap_or") == 1 || str_eq(mname, "is_ok") == 1 || str_eq(mname, "is_err") == 1 || str_eq(mname, "ok") == 1 || str_eq(mname, "err") == 1 || str_eq(mname, "expect") == 1) {
                         fn_name = str_concat("result_", mname);
+                    } else if str_eq(stype_base_t, "String") == 1 && (str_eq(mname, "push") == 1 || str_eq(mname, "push_str") == 1 || str_eq(mname, "len") == 1 || str_eq(mname, "capacity") == 1 || str_eq(mname, "get_byte") == 1 || str_eq(mname, "clear") == 1 || str_eq(mname, "as_ptr") == 1 || str_eq(mname, "print") == 1 || str_eq(mname, "eq") == 1 || str_eq(mname, "eq_str") == 1 || str_eq(mname, "starts_with") == 1 || str_eq(mname, "ends_with") == 1 || str_eq(mname, "contains") == 1 || str_eq(mname, "clone") == 1 || str_eq(mname, "free") == 1) {
+                        let mut sm_t: str = mname;
+                        if str_eq(mname, "push") == 1 { sm_t = "push_byte"; };
+                        fn_name = str_concat("string_", sm_t);
                     } else if str_eq(stype_base_t, "str") == 1 && (str_eq(mname, "len") == 1 || str_eq(mname, "contains") == 1 || str_eq(mname, "replace") == 1 || str_eq(mname, "split") == 1 || str_eq(mname, "starts_with") == 1 || str_eq(mname, "ends_with") == 1 || str_eq(mname, "to_lower") == 1 || str_eq(mname, "to_upper") == 1 || str_eq(mname, "trim") == 1 || str_eq(mname, "trim_start") == 1 || str_eq(mname, "trim_end") == 1 || str_eq(mname, "substring") == 1 || str_eq(mname, "char_at") == 1) {
                         fn_name = str_concat("str_", mname);
                     } else {
@@ -8268,10 +8272,9 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             return lx_new(r, blk);
         };
         if str_eq(tname, "String") && str_eq(mname, "new") {
-            let idx: i64 = vec_len(strtab);
-            strtab.push("");
             let r: i64 = ctr_next(regs);
-            ir_block_add(blk, ir_const_str(r, idx));
+            let mut empty_args: Vec<i32> = Vec::new();
+            ir_block_add(blk, ir_call_ex(r, "string_new", empty_args));
             return lx_new(r, blk);
         };
         if str_eq(tname, "Box") && str_eq(mname, "new") {

@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.114] — 2026-04-29
+
+**`String` heap-string type lands; `string_basic.nr` restored to
+active gate (closes the last `_unimplemented/` fixture).**
+
+Parallel-agent spike rebased onto v0.4.113 + bootstrap fixed-point
+re-emitted + drift gate green.
+
+Adds runtime support for the canonical `String` heap-string type
+with the basic Rust idiom:
+
+```nucleor
+let s: String = String::new();
+s.push(72);   // H
+s.push(101);  // e
+s.push(108);  // l
+s.push(108);  // l
+s.push(111);  // o
+let length: i32 = s.len();
+print_int(length);   // 5
+```
+
+The OSS distribution had previously shipped only `str` + sb_*
+builders, leaving the `String::new()` / `.push(char)` / `.len()`
+trio unsupported and the canonical Rust string-construction idiom
+SIGSEGV'd. `tests/features/_unimplemented/string_basic.nr` was
+the last fixture parked in `_unimplemented/`; this release moves
+it back to the active gate and the `_unimplemented/` directory is
+now empty for v0.4.
+
+Compiler change: 9 lines in `nucleor_s1_compiler.nr`, 9 in
+`nucleor_tools_suite.nr` for the `String::*` dispatch surface.
+Runtime helpers wired through the existing 5-table mirror pattern.
+Bootstrap fixed-point holds (sha `0c9bfd5e…`); fast-verify
+167 PASS / 2 baseline-FAIL clean.
+
 ## [0.4.113] — 2026-04-29
 
 **NUM-020: integer-typed expression in float binding silent
