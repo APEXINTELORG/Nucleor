@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.76] — 2026-04-29
+
+**Two silent-coerce miscomputes closed: NUM-018 (float literal in
+integer binding) and TYP-002 extension (unary `!` on non-bool).
+Batch ship — both root-cause from over-permissive types_compatible.**
+
+### NUM-018 — float literal in integer-typed binding
+
+Pre-fix `let x: i64 = 3.14;` types_compatible returned 1 (line
+10063 in `nucleor_s1_compiler.nr` allows i*/u* expected to accept
+f64 actual — legacy from when narrow-float values flowed through
+i64 cells). The init was bit-cast: x got 4614253070214989087
+(the IEEE 754 bit pattern of 3.14 reinterpreted as i64). Total
+silent miscompute. Adopters writing canonical Rust got E0308
+mismatched types. NUM-018 was already reserved (RFC-0015 / v0.2.319
+expansion) but never wired.
+
+### TYP-002 extension — unary `!` on non-bool
+
+Pre-fix `let r: bool = !x;` for `x: i64` typed-checked as ok (kind
+6 just returned inner type "i64", and types_compatible("bool",
+"i64") returns 1 — i64-truthiness convention). The lower emitted
+i64_xor with 1 against the i64 value, producing "no" for any
+non-zero x rather than a type error. Adopters writing canonical
+Rust got E0600. `!` in Rust is bitwise on integers (returns same
+type), never bool — and Nucleor's i64-truthiness convention does
+NOT extend to `!` since the desired meaning is unambiguously
+`x == 0`.
+
+### What now halts
+
+- `let x: i64 = 3.14;` — error[NUM-018]
+- `let x: u32 = 1.0;` — error[NUM-018] (any int-type binding)
+- `let r: bool = !x;` for any x with non-bool type — error[TYP-002]
+- `if !x { ... }` for non-bool x — error[TYP-002]
+
+### What does NOT halt (deferred)
+
+- `let x: i64 = some_f64_var;` — types_compatible still allows the
+  variable form (only literal float-init caught). Conservative —
+  removing the i*/u* ↔ f64 row in types_compatible would also
+  break the legacy narrow-float-via-i64-cell pattern.
+
+### Verify gates
+
+- T3.123 — `tests/fixtures/repro_v76_float_in_int_context.nr`
+  asserts `let x: i64 = 3.14;` errors with NUM-018.
+- T3.124 — `tests/fixtures/repro_v76_not_on_int.nr` asserts
+  `let r: bool = !x;` (x: i64) errors with TYP-002.
+
+### Memory + timing
+
+- Self-host build: unchanged.
+- Verify gate: 354.6s / 500 steps (was 356.0s / 498 — flat).
+- Bootstrap fixed-point: holds (3-pass B==C==D byte-identical IR,
+  sha 48fe742d…).
+
 ## [0.4.75] — 2026-04-29
 
 **NUM-008 — shift amount out of range for i64 halts at compile time

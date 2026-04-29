@@ -10823,7 +10823,25 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35 || op == 36 || op == 37 { return "bool"; };
         return lt;
     };
-    if kind == 5 || kind == 6 { return type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof); };
+    if kind == 5 || kind == 6 {
+        let inner_ty: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        // v0.4.76: TYP-002 — unary `!` on non-bool. Pre-fix `let r:
+        // bool = !x;` for `x: i64` typed-checked as ok (kind 6 just
+        // returned inner type "i64", and types_compatible("bool",
+        // "i64") returns 1 — i64-truthiness convention). The lower
+        // emitted i64_xor with 1 against the i64 value, producing
+        // "no" for any non-zero x rather than a type error. Adopters
+        // writing canonical Rust got E0600. `!` in Rust is bitwise on
+        // integers (returns same type) — never bool. Catches kind 6
+        // (unary `!`) when inner is not bool. Logical negation should
+        // be `x == 0` for ints; `!` is reserved for bool only here
+        // (matches Rust's `!` on bool — bitwise on int isn't
+        // separately needed since Nucleor exposes `^` for that).
+        if kind == 6 && str_len(inner_ty) > 0 && str_eq(inner_ty, "bool") == 0 {
+            type_diag(diags, source, fn_name, fn_name, "TYP-002", str_concat("unary `!` requires a `bool` operand (got `", str_concat(inner_ty, "`). Pre-fix this silently lowered to xor-with-1 on the i64 representation. Use `x == 0` for logical negation of an integer, or cast to bool first (`(x != 0) == false`).")));
+        };
+        return inner_ty;
+    };
     if kind == 90 {
         let inner: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         if str_len(inner) == 0 { return ""; };
@@ -11372,6 +11390,20 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
                     if compat_ok == 0 {
                     type_diag(diags, source, fn_name, vname, "TYP-008", str_concat("type mismatch for binding '", str_concat(vname, "'")));
                     };
+                };
+                // v0.4.76: NUM-018 — float literal in integer context.
+                // Pre-fix `let x: i64 = 3.14;` types_compatible returned
+                // 1 (line 10063 allows i*/u* expected to accept f64
+                // actual — legacy from when narrow-float values flowed
+                // through i64 cells). The init was bit-cast: x got
+                // 4614253070214989087 (the IEEE 754 bit pattern of
+                // 3.14 reinterpreted as i64). Total silent miscompute.
+                // Adopters writing canonical Rust got E0308 mismatched
+                // types. NUM-018 was already reserved (RFC-0015 /
+                // v0.2.319 expansion) but never wired. Catches the
+                // literal float (kind 71) in integer-typed binding.
+                if node_kind(pool, init) == 71 && type_is_int(tstr) == 1 {
+                    type_diag(diags, source, fn_name, vname, "NUM-018", str_concat("float literal cannot initialize integer binding `", str_concat(vname, str_concat("` of type ", str_concat(tstr, " — pre-fix this silently bit-cast the IEEE 754 representation into the i64 slot. Use `as i64` to truncate explicitly, or change the type to `f64`.")))));
                 };
             };
             // RFC-0015 phase 6: NUM-002 — integer literal out of range for
