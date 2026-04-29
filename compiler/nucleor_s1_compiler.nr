@@ -11352,6 +11352,24 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let opch: str = if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
             type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`str ", str_concat(opch, str_concat(" str` is not a meaningful operation (would silently segfault — i64 arithmetic on string pointers). String values support `str_concat` for join, `str_eq` for compare, `str_len` for length; arithmetic operators don't apply."))));
         };
+        // v0.4.150: TYP-011 ext — String arith. Sister to v0.4.51
+        // (str + str) and v0.4.66 (mixed str/int arith). Pre-fix
+        // `let r = s + 5;` for `s: String` lowered to i64_add on
+        // the String heap pointer + 5 — the result is a wild
+        // pointer, garbage at use sites or SIGSEGV on next read.
+        // Catches arith ops 20-24 when EITHER side is String
+        // (typed `String` or `String<...>` if generic — currently
+        // all-or-nothing since Nucleor's String is non-generic).
+        if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24) {
+            let lt_is_string_v150: i64 = if str_eq(type_base_name(lt), "String") == 1 { 1 } else { 0 };
+            let rt_is_string_v150: i64 = if str_eq(type_base_name(rt), "String") == 1 { 1 } else { 0 };
+            if lt_is_string_v150 == 1 || rt_is_string_v150 == 1 {
+                let v150op: str = if op == 20 { "+" } else if op == 21 { "-" } else if op == 22 { "*" } else if op == 23 { "/" } else { "%" };
+                let v150a: str = str_concat("`String", str_concat(" ", str_concat(v150op, " <other>` arithmetic is not meaningful — String is a heap-allocated buffer, and arithmetic lowers to i64 ops on the heap pointer, producing a garbage pointer / SIGSEGV at next use.")));
+                let v150b: str = " For string concatenation use `s.push_str(other)` (or build via the StringBuilder helpers `sb_append`); to compute on a numeric value, convert with `str_to_int(s.as_str())` first.";
+                type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat(v150a, v150b));
+            };
+        };
         // v0.4.61: Vec<T> arithmetic AND ==/!= silent-miscompute guard.
         // Closes deferred item #1. Pre-fix `v1 + v2` and `v1 == v2`
         // for two Vec<T> values silently lowered to integer ptr-arith
@@ -12219,6 +12237,19 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             };
             return "Result";
         };
+        // v0.4.150: kind-12 type_expr for String::new / String::with_capacity
+        // returned "" pre-fix, so `let s: String = String::new();` ended
+        // up with `s` typed as "" in tenv (the let-stmt logic at line
+        // 12459 stores "" when init_t is empty even with an explicit
+        // annotation). That made every downstream check on `s`'s type
+        // fail silently — including the new TYP-011 String-arith check.
+        if str_eq(tname, "String") == 1 { return "String"; };
+        if str_eq(tname, "Vec") == 1 { return "Vec"; };
+        if str_eq(tname, "HashMap") == 1 { return "HashMap"; };
+        if str_eq(tname, "HashSet") == 1 { return "HashSet"; };
+        if str_eq(tname, "BTreeMap") == 1 { return "BTreeMap"; };
+        if str_eq(tname, "BTreeSet") == 1 { return "BTreeSet"; };
+        if str_eq(tname, "VecDeque") == 1 { return "VecDeque"; };
         return "";
     };
     if kind == 34 { return node_field(pool, nid, 1); };
