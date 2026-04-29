@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.154] — 2026-04-29
+
+**OWN-001: String use-after-move on binding transfer.
+`let s = String::new(); let t = s; s.len();` now warns OWN-001
+(use of moved variable). Closes the deferred-from-v0.4-session
+"use-after-move on String/Vec" item.**
+
+```nucleor
+let s: String = String::new();
+let t: String = s;
+let n: i64 = s.len();   // pre-fix: silently returns 0
+                         // now:     warning[OWN-001]: use of moved variable 's'
+```
+
+Integration of `spike/v04-use-after-move-heap-v2` (commit
+`6f58a8c`) from the parallel agent's deferred-items workstream.
+
+The pre-fix ownership tracker treated `String` as Copy (because
+the existing `is_copy_type` check returned 1 for any non-tracked
+named type), so binding transfer `let t = s;` did not flip
+`s`'s state to `moved`. Subsequent `s.len()` lowered without an
+OWN diagnostic; at runtime the binding read whatever value
+happened to be in the original alloca slot — typically 0
+because vec_len-on-moved-handle reads the zero-init slot — so
+adopters got a quiet wrong result.
+
+Spike adds `own_binding_move_type(tstr, ...)` which returns 1
+for non-Copy types AND for `String` specifically (heap-allocated
+buffer with handle semantics), and replaces `is_copy_type(...)
+== 0` with `own_binding_move_type(...) == 1` at three call
+sites in `check_expr` / `check_stmt`. Diagnostic surface
+unchanged — same OWN-001 warning that already fires for Vec
+moves; just no longer skipped for String.
+
+Mirrored to `nucleor_tools_suite.nr` (the helper + 3 call sites)
+so `nuc check` / `nuc test` over String-using code surfaces the
+warning consistently with `nuc build`.
+
+Spike validated by parallel agent before handoff (fixed-point
+clean, focused checks passed). Main agent rebased — spike was
+based on v0.4.153, same as current main, so cherry-pick was
+fast-forward; bin/seed regenerated from the new build.
+
+Negative fixture: `tests/err/err_use_after_move_string_binding.nr`.
+Bootstrap fixed-point holds first-pass. Fast-verify 207 PASS / 2
+baseline-FAIL.
+
 ## [0.4.153] — 2026-04-29
 
 **Per-operation saturating dispatch in `saturating { ... }`
