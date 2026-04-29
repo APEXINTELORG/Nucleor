@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.72] — 2026-04-28
+
+**`str_from_int(i32)` signature was lying — added `str_from_i64(i64)`
+as truthful internal entry, kept `str_from_int` as wrapper.**
+
+Per doc-#2 §5 P1: the body of `str_from_int(n: i32)` handled
+`i64::MIN` (line 33-34: `if n < neg_max`), but the param is declared
+i32 — which means the i64::MIN branch should be dead. In Nucleor's
+i64-everywhere ABI, callers actually CAN pass i64 values through the
+i32 param (types are labels at runtime), so the body was correct
+behavior — but the signature lied.
+
+### Fix
+
+Added `fn str_from_i64(n: i64) -> str` with the actual implementation.
+`str_from_int(n: i32)` reduced to a 1-line wrapper that calls
+`str_from_i64(n)`. Both files updated (`nucleor_s1_compiler.nr` +
+`nucleor_tools_suite.nr`).
+
+Adopters using `str_from_int(...)` in `.nr` source continue to route
+through `__nucleor_int_to_str` runtime helper (no behavior change).
+Compiler internals can now use `str_from_i64` for type honesty.
+
+### Verify
+
+- 493/493 PASS at baseline timing
+- T1.7 bootstrap seed matches
+- New pin: `tests/fixtures/repro_v72_str_from_i64_contract.nr`
+
 ## [0.4.71] — 2026-04-28
 
 **bool with bitwise/shift ops (`a & x`, `a | x`, `a ^ x`, `a << x`,
