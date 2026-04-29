@@ -11877,6 +11877,10 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 || str_eq(callee, "str_free") == 1
                 || str_eq(callee, "getenv") == 1
                 || str_eq(callee, "print_raw") == 1
+                || str_eq(callee, "print") == 1
+                || str_eq(callee, "println") == 1
+                || str_eq(callee, "eprint") == 1
+                || str_eq(callee, "eprintln") == 1
                 || str_eq(callee, "panic") == 1 { 1 } else { 0 };
             if needs_str_arg0 == 1 {
                 let arg0_t: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
