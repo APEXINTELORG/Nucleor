@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.123] — 2026-04-29
+
+**TYP-015: struct-field-as-method-call (`p.x(42)` where `x` is
+a field) halts at codegen with the right hint instead of
+surfacing a confusing `vec_x()` TYP-005.**
+
+```nucleor
+struct P { x: i64 }
+fn main() -> i32 {
+    let p: P = P { x: 5 };
+    p.x(42);   // pre-fix: error[TYP-005]: undefined function `vec_x()`
+    0
+}
+```
+
+The kind 8 (method-call) catch-all for unrecognized methods on
+unrecognized receivers fell through to the `vec_<method>` lowering,
+which my v0.4.106 lift then surfaced as a TYP-005 about the
+synthetic `vec_x` name — adopters had no clue why a field-access
+typo produced a Vec-related error.
+
+This release adds a `struct_find_type` + `struct_field_idx` lookup
+in the same kind 8 catch-all (right next to v0.4.107's primitive
+guard). When the receiver type is a known struct AND `mname`
+matches a field on that struct, halt cleanly with TYP-015:
+
+```
+error[TYP-015]: `.x(args)` is invalid — `.x` is a FIELD on struct
+`P`, not a method. Drop the parentheses to read the field as a
+value, or assign with `<recv>.<field> = <value>;`.
+```
+
+Negative fixture: `tests/err/err_struct_field_called.nr`.
+Bootstrap fixed-point sha `e625190b…`. Fast-verify 178 PASS /
+2 baseline-FAIL clean.
+
 ## [0.4.122] — 2026-04-29
 
 **TYP-014: calling a non-callable typed binding (`s(args)` for

@@ -14371,6 +14371,28 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 print(str_concat(pa, str_concat(pb, pc)));
                                 panic(str_concat("nucleor: no method `.", str_concat(mname, str_concat("()` for primitive receiver `", str_concat(stype_base_v107, "`")))));
                             };
+                            // v0.4.123: struct-field-as-method-call guard.
+                            // Pre-fix `p.x(42)` where `x` is a STRUCT FIELD
+                            // (not a method) lowered to `vec_x(p, 42)`,
+                            // surfaced by my v0.4.106 lift as
+                            // `error[TYP-005]: undefined function `vec_x()``
+                            // — confusing because the source has nothing
+                            // about Vec. Detect: receiver type is a known
+                            // struct AND mname matches a field name on
+                            // that struct. Emit TYP-015 with the right
+                            // hint (likely `p.x = ...` or `let v = p.x;`).
+                            let struct_idx_v123: i64 = struct_find_type(pool, structs, stype);
+                            if struct_idx_v123 >= 0 {
+                                let struct_nid_v123: i64 = vec_get(structs, struct_idx_v123);
+                                let field_idx_v123: i64 = struct_field_idx(pool, struct_nid_v123, mname);
+                                if field_idx_v123 >= 0 {
+                                    let msg15a: str = str_concat("error[TYP-015]: `.", str_concat(mname, str_concat("(args)` is invalid — `.", str_concat(mname, str_concat("` is a FIELD on struct `", str_concat(stype, "`, not a method."))))));
+                                    let msg15b: str = str_concat(" Pre-v0.4.123 the call lowered to `vec_", str_concat(mname, "(...)` and surfaced as an undefined-symbol TYP-005."));
+                                    let msg15c: str = " Drop the parentheses to read the field as a value, or assign with `<recv>.<field> = <value>;`.";
+                                    print(str_concat(msg15a, str_concat(msg15b, msg15c)));
+                                    panic(str_concat("nucleor: `.", str_concat(mname, str_concat("` is a field on `", str_concat(stype, "`, not a method")))));
+                                };
+                            };
                             // v0.4.87: dispatch-name drift fix. Pre-fix
                             // `v.insert(idx, val)` lowered to `vec_insert(...)`
                             // but the runtime helper is `vec_insert_at`;
