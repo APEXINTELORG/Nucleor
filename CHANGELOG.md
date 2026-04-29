@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.138] — 2026-04-29
+
+**TYP-022: bare struct name in value position lowered to a
+nonsense `ptrtoint @<Name>` and failed late at clang link with
+`undefined value '@<Name>'`. Now halts cleanly with the right
+hint.**
+
+```nucleor
+struct E { x: i64 }
+let e: E = E;          // pre-fix: clang error '@E' undefined
+```
+
+Pre-v0.4.138 the kind-3 (var-ref) type-check returned `""` from
+`tenv_get` for the bare `E` (no binding by that name), and the
+let-stmt path silently accepted the empty type. Lowering then
+emitted `%r.N = ptrtoint ptr @E to i64` for the var-ref load —
+a global named `@E` that doesn't exist in IR. clang halted with
+`error: use of undefined value '@E'`. The v0.4.106 lift
+specifically suppresses uppercase-leading names from the TYP-005
+surface (because most uppercase identifiers in undefined-symbol
+errors are legitimate type-prefixed mangled calls — `Vec::new`,
+`Counter::new` etc. — handled via kind 12), so adopters got the
+raw clang error pointing at compiler-emitted IR rather than at
+their source.
+
+This release adds a check at the kind-3 type-check site: if
+`tenv_get` returns empty AND `struct_find_type` finds the name
+in the structs table, halt with TYP-022 directing the adopter to
+struct-init syntax (`E { field: val }`) or an inherent
+constructor (`E::new(...)`). Mirrored to
+`nucleor_tools_suite.nr`.
+
+Negative fixture: `tests/err/err_struct_as_value.nr`. Bootstrap
+fixed-point holds first-pass. Fast-verify 192 PASS / 2
+baseline-FAIL.
+
 ## [0.4.137] — 2026-04-29
 
 **NUM-022: int vs float in comparison binop silently
