@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.84] — 2026-04-29
+
+**TYP-008 ext — struct-field type mismatch on literal RHS halts
+(was silent ptr-as-i64 / bit-cast miscompute).**
+
+Pre-fix `Point { x: "hello", y: 2 }` for `x: i64` silently
+i64-stored the str pointer; reads of `p.x` then produced garbage
+(e.g. `140700202648688`). Adopters writing canonical Rust got
+E0308 mismatched types. The existing TYP-012 (missing field) and
+TYP-013 (unknown field) checks (v0.4.62/63) didn't validate the
+init expression's type against the declared field type.
+
+### Detection
+
+Added at the existing struct-init field-walk loop
+(`type_check_stmt`, kind 34 path). Narrow check — fires only when
+the init RHS is a literal node:
+- `kind 1` (int literal) into `str` field
+- `kind 2` (str literal) into any int / bool / float field
+- `kind 71` (float literal) into any int / bool / str field
+
+Variable-RHS cases (`Point { x: some_str, y: 2 }`) would need
+full `type_expr` recursion which has crashed compiler self-build
+in prior attempts (v0.4.71, v0.4.61 history). Kept narrow.
+
+### Verify gate
+
+- T3.131 — `tests/fixtures/repro_v84_struct_field_type_mismatch.nr`
+  asserts `Point { x: "hello", y: 2 }` errors with TYP-008 at
+  build time (msg contains "struct-field type mismatch").
+
+### Memory + timing
+
+- Self-host build: unchanged (literal-only kind check, no recursion).
+- Verify gate: 376.1s / 506 steps (was 362.3s / 505 — one-step
+  add accounts for the extra time, rest within noise).
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha 1d85fd18…).
+
 ## [0.4.83] — 2026-04-29
 
 **TYP-008 ext — immutable `let` binding without initializer halts

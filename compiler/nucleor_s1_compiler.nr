@@ -9540,12 +9540,40 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             while fii < ic {
                 let init_check: i64 = list_get(pool, inits, fii);
                 let fname: str = node_field(pool, init_check, 1);
-                if struct_field_idx(pool, s_nid, fname) < 0 {
+                let f_idx: i64 = struct_field_idx(pool, s_nid, fname);
+                if f_idx < 0 {
                     let lc_uf: Vec<i32> = find_linecol_in_source(source_text, fn_name, fname);
                     let p1: str = str_concat("unknown field `", str_concat(fname, "` in `"));
                     let p2: str = str_concat(struct_name, "` initialization. Pre-v0.4.63 the extra field was silently dropped (Rust E0560 errors).");
                     diag_add_ex(diag_vec, "error", "type", "TYP-013", str_concat(p1, p2), fn_name, vec_get(lc_uf, 0), vec_get(lc_uf, 1), "");
                     warns = warns + 1;
+                } else {
+                    // v0.4.84: TYP-008 ext — narrow struct-field type
+                    // mismatch check (literal RHS only, avoids
+                    // type_expr recursion which has crashed compiler
+                    // self-build in prior attempts). Pre-fix `Point {
+                    // x: "hello", y: 2 }` for `x: i64` silently
+                    // i64-stored the str pointer; reads of p.x then
+                    // produced garbage like 140700202648688. Adopters
+                    // got a quiet wrong value with no diagnostic.
+                    // Fires for: int-lit (kind 1) into str field;
+                    // str-lit (kind 2) into int/bool field;
+                    // float-lit (kind 71) into int/bool/str field.
+                    let val_nid: i64 = node_field(pool, init_check, 2);
+                    let val_kind: i64 = node_kind(pool, val_nid);
+                    let f_param: i64 = list_get(pool, s_flist, f_idx);
+                    let f_type: str = node_field(pool, f_param, 2);
+                    let mut mismatch: i64 = 0;
+                    let mut got_kind: str = "";
+                    if val_kind == 1 && str_eq(f_type, "str") == 1 { mismatch = 1; got_kind = "int literal"; };
+                    if val_kind == 2 && (str_eq(f_type, "i64") == 1 || str_eq(f_type, "i32") == 1 || str_eq(f_type, "i16") == 1 || str_eq(f_type, "i8") == 1 || str_eq(f_type, "u64") == 1 || str_eq(f_type, "u32") == 1 || str_eq(f_type, "u16") == 1 || str_eq(f_type, "u8") == 1 || str_eq(f_type, "bool") == 1 || str_eq(f_type, "f64") == 1 || str_eq(f_type, "f32") == 1) { mismatch = 1; got_kind = "str literal"; };
+                    if val_kind == 71 && (str_eq(f_type, "i64") == 1 || str_eq(f_type, "i32") == 1 || str_eq(f_type, "i16") == 1 || str_eq(f_type, "i8") == 1 || str_eq(f_type, "u64") == 1 || str_eq(f_type, "u32") == 1 || str_eq(f_type, "u16") == 1 || str_eq(f_type, "u8") == 1 || str_eq(f_type, "bool") == 1 || str_eq(f_type, "str") == 1) { mismatch = 1; got_kind = "float literal"; };
+                    if mismatch == 1 {
+                        let lc_tm: Vec<i32> = find_linecol_in_source(source_text, fn_name, fname);
+                        let tm_msg: str = str_concat("struct-field type mismatch: `", str_concat(struct_name, str_concat(".", str_concat(fname, str_concat("` declared `", str_concat(f_type, str_concat("`, got ", str_concat(got_kind, ". Pre-v0.4.84 this silently bit-cast the value into the field's slot, producing garbage at read sites."))))))));
+                        diag_add_ex(diag_vec, "error", "type", "TYP-008", tm_msg, fn_name, vec_get(lc_tm, 0), vec_get(lc_tm, 1), "");
+                        warns = warns + 1;
+                    };
                 };
                 fii = fii + 1;
             };
