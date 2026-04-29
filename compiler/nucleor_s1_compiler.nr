@@ -7247,6 +7247,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "TYP-011") == 1 { return 1; };
     if str_eq(code, "TYP-012") == 1 { return 1; };
     if str_eq(code, "TYP-013") == 1 { return 1; };
+    if str_eq(code, "FMT-002") == 1 { return 1; };
     // RFC-0004 assume!
     if str_eq(code, "ASSUME-001") == 1 { return 1; };
     if str_eq(code, "ASSUME-002") == 1 { return 1; };
@@ -18376,17 +18377,15 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
         // expressions still need explicit `:s` / `:f` / `:i`.
         let mut is_bare_ident: i64 = 1;
         if alen == 0 { is_bare_ident = 0; };
-        let mut bi: i64 = 0;
-        while bi < alen {
-            let bc: i64 = str_char_at(arg_expr, bi);
-            let is_alpha_or_under: i64 = if (bc >= 65 && bc <= 90) || (bc >= 97 && bc <= 122) || bc == 95 { 1 } else { 0 };
-            let is_digit_or_under: i64 = if (bc >= 48 && bc <= 57) || bc == 95 { 1 } else { 0 };
-            if bi == 0 {
-                if is_alpha_or_under == 0 { is_bare_ident = 0; bi = alen; };
-            } else {
-                if is_alpha_or_under == 0 && is_digit_or_under == 0 { is_bare_ident = 0; bi = alen; };
-            };
-            bi = bi + 1;
+        if is_bare_ident == 1 {
+            let first_ident_ch: i64 = str_char_at(arg_expr, 0);
+            if is_alpha(first_ident_ch) == 0 && first_ident_ch != 95 { is_bare_ident = 0; };
+        };
+        let mut bare_i: i64 = 1;
+        while bare_i < alen && is_bare_ident == 1 {
+            let bare_ch: i64 = str_char_at(arg_expr, bare_i);
+            if is_alnum(bare_ch) == 0 && bare_ch != 95 { is_bare_ident = 0; };
+            bare_i = bare_i + 1;
         };
         if is_bare_ident == 1 {
             let inferred: str = infer_var_type_from_source(src, arg_expr);
@@ -18430,6 +18429,14 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
                     if str_eq(user_inferred, "bool") == 1 { return str_concat("bool_to_str(", str_concat(arg_expr, ")")); };
                 };
                 // i*-typed bindings fall through to int_to_str default.
+            };
+            let inferred_base: str = type_base_name(inferred);
+            if str_len(inferred_base) > 0 && str_contains(src, str_concat("struct ", inferred_base)) == 1 {
+                if str_contains(src, str_concat("impl Display for ", inferred_base)) == 1 {
+                    return str_concat(inferred_base, str_concat("__fmt(", str_concat(arg_expr, ")")));
+                };
+                print(str_concat("ERROR: error[FMT-002]: type '", str_concat(inferred_base, "' does not implement Display for '{}'")));
+                panic("nucleor: FMT-002 missing Display impl for struct format");
             };
             // i8/i16/i32/i64/etc fall through to int_to_str (default).
         };
@@ -18778,6 +18785,44 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
         let inferred: str = type_base_name(infer_var_type_from_source(src, arg_expr));
         if str_eq(inferred, "str") == 1 || str_eq(inferred, "String") == 1 {
             return str_concat("str_concat(\"\\\"\", str_concat(", str_concat(arg_expr, ", \"\\\"\"))"));
+        };
+        if str_len(inferred) > 0 && str_contains(src, str_concat("struct ", inferred)) == 1 {
+            let mut dbg_segments: Vec<i32> = Vec::new();
+            let mut dbg_parities: Vec<i32> = Vec::new();
+            dbg_segments.push(str_concat(inferred, " { "));
+            dbg_parities.push(0);
+            let dbg_fields: Vec<i32> = extract_struct_fields_native(src, inferred);
+            let mut dbg_i: i64 = 0;
+            let mut dbg_count: i64 = 0;
+            while dbg_i + 1 < vec_len(dbg_fields) {
+                let dbg_field_name: str = vec_get(dbg_fields, dbg_i);
+                let dbg_field_type: str = vec_get(dbg_fields, dbg_i + 1);
+                if dbg_count > 0 {
+                    dbg_segments.push(", ");
+                    dbg_parities.push(0);
+                };
+                dbg_segments.push(str_concat(dbg_field_name, ": "));
+                dbg_parities.push(0);
+                let dbg_field_expr: str = str_concat(arg_expr, str_concat(".", dbg_field_name));
+                let dbg_base: str = type_base_name(dbg_field_type);
+                if str_eq(dbg_base, "str") == 1 || str_eq(dbg_base, "String") == 1 {
+                    dbg_segments.push(str_concat("str_concat(\"\\\"\", str_concat(", str_concat(dbg_field_expr, ", \"\\\"\"))"));
+                } else if str_eq(dbg_base, "f64") == 1 {
+                    dbg_segments.push(str_concat("f64_to_str(", str_concat(dbg_field_expr, ")")));
+                } else if str_eq(dbg_base, "f32") == 1 {
+                    dbg_segments.push(str_concat("f32_to_str(", str_concat(dbg_field_expr, ")")));
+                } else if str_eq(dbg_base, "bool") == 1 {
+                    dbg_segments.push(str_concat("bool_to_str(", str_concat(dbg_field_expr, ")")));
+                } else {
+                    dbg_segments.push(str_concat("int_to_str(", str_concat(dbg_field_expr, ")")));
+                };
+                dbg_parities.push(1);
+                dbg_count = dbg_count + 1;
+                dbg_i = dbg_i + 2;
+            };
+            dbg_segments.push(" }");
+            dbg_parities.push(0);
+            return fmt_build_concat_chain(dbg_segments, dbg_parities);
         };
         // For non-str (or unknown), fall through to empty-spec dispatcher.
         return fmt_conversion_for_spec("", arg_expr, src);

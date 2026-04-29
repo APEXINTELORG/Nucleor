@@ -141,6 +141,24 @@ if (-not (Get-Command clang -ErrorAction SilentlyContinue)) {
 
 Push-Location $root
 
+function Invoke-BinaryNoInput([string]$exePath) {
+    $psi = [System.Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName = $exePath
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardInput = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $p = [System.Diagnostics.Process]::Start($psi)
+    $p.StandardInput.Close()
+    $stdout = $p.StandardOutput.ReadToEnd()
+    $stderr = $p.StandardError.ReadToEnd()
+    $p.WaitForExit()
+    return [pscustomobject]@{
+        Output = ($stdout + $stderr)
+        ExitCode = $p.ExitCode
+    }
+}
+
 # --- Compute total step count for the [N/T] counter ---------------------
 $rustBridgeLib = Join-Path $root "stdlib\rods\rust_bridge\target\release\nucleor_rust_bridge.lib"
 # Read example list from the single source of truth (shared with
@@ -383,6 +401,8 @@ Step "CLI: nuc explain — full spec code set wired" {
         # TYP series — type checker (expansion of NR030, since v0.2.119)
         "TYP-001", "TYP-002", "TYP-003", "TYP-004", "TYP-005",
         "TYP-006", "TYP-007", "TYP-008", "TYP-009", "TYP-010", "TYP-011", "TYP-012", "TYP-013",
+        # FMT series — format macro expansion
+        "FMT-002",
         # RFC-0004 assume!
         "ASSUME-001", "ASSUME-002", "ASSUME-003", "ASSUME-004", "ASSUME-005",
         # RFC-0005 units
@@ -662,8 +682,9 @@ foreach ($ex in $examples) {
             Write-Host (Dim ("       " + ($out.Trim() -split "`n" | Select-Object -Last 1)))
             return $false
         }
-        $runOut = & "target\$ex.exe" 2>&1 | Out-String
-        if ($LASTEXITCODE -ne 0) {
+        $run = Invoke-BinaryNoInput (Join-Path $root "target\$ex.exe")
+        $runOut = $run.Output
+        if ($run.ExitCode -ne 0) {
             Write-Host (Dim ("       " + ($runOut.Trim() -split "`n" | Select-Object -Last 1)))
             return $false
         }
@@ -693,8 +714,9 @@ foreach ($dir in $testDirs) {
                 Write-Host (Dim "       build failed")
                 return $false
             }
-            $runOut = (& $exePath 2>&1) | Out-String
-            $exit = $LASTEXITCODE
+            $run = Invoke-BinaryNoInput $exePath
+            $runOut = $run.Output
+            $exit = $run.ExitCode
             if ($dir -eq "features") {
                 # Feature parity tests: pass if the program built and ran without
                 # an access-violation crash. They exercise language constructs by
@@ -1538,9 +1560,11 @@ Step "T3.62 match multi-capture enum patterns 'Variant(a, b, c)'" {
 
 Step "T3.61 trait/impl associated-const diagnostic (pre-v0.3.85 cascaded parse errors)" {
     # v0.3.85 (T3.61): negative regression for trait/impl assoc consts.
+    # Mirrors verify.sh: the trait-body site fires first in this
+    # fixture, and the impl-body path is covered by T3.85.
     $out = & $bin build "tests/fixtures/t361_assoc_const_diagnostic.nr" -o "_t361_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "associated constants in traits") { return $false }
-    if ($out -notmatch "associated constants in impl blocks") { return $false }
+    if ($out -notmatch "PANIC: nucleor: associated constants in traits") { return $false }
     return $true
 }
 
@@ -2339,7 +2363,7 @@ Step "T2.6 println!/print!/format! macros expand correctly" {
     # v0.2.346 (T2.6): source-level macro expansion in resolver.
     # Smoke fixture has 6 #[test] cases covering int placeholder, two
     # placeholders, {:s} str passthrough, literal-only, {{ }} escapes,
-    # {:b} bool spec. Every test verifies the resulting str matches
+    # {:b} binary radix. Every test verifies the resulting str matches
     # the expected length and first/middle chars.
     $out = & $bin test "tests/smoke/t26_format_macros.nr" 2>&1 | Out-String
     if ($out -notmatch "PASS: test_format_basic_int") { return $false }
@@ -2347,7 +2371,7 @@ Step "T2.6 println!/print!/format! macros expand correctly" {
     if ($out -notmatch "PASS: test_format_str_passthrough") { return $false }
     if ($out -notmatch "PASS: test_format_literal_only") { return $false }
     if ($out -notmatch "PASS: test_format_escaped_braces") { return $false }
-    if ($out -notmatch "PASS: test_format_bool_spec") { return $false }
+    if ($out -notmatch "PASS: test_format_binary_radix") { return $false }
     if ($out -notmatch "test result: PASS \(6 tests\)") { return $false }
     return $true
 }
@@ -2470,6 +2494,35 @@ Step "T1.5a mod block-form inline" {
     if ($out -notmatch "PASS: test_mod_block_brace_in_string") { return $false }
     if ($out -notmatch "PASS: test_mod_block_brace_in_comment_does_not_close_early") { return $false }
     if ($out -notmatch "test result: PASS \(3 tests\)") { return $false }
+    return $true
+}
+
+Step "T3.138 v0.4.91 RFC-0028 struct Display/Debug format dispatch + FMT-002" {
+    $build1 = & $bin build "tests/fixtures/repro_v91_format_struct_display.nr" -o "_t438_display" --no-cache 2>&1
+    if ($LASTEXITCODE -ne 0) { return $false }
+    $exe1 = "target\_t438_display.exe"
+    if (-not (Test-Path $exe1)) { $exe1 = "target\_t438_display" }
+    if (-not (Test-Path $exe1)) { return $false }
+    $run1 = Invoke-BinaryNoInput (Join-Path $root $exe1)
+    $out1 = $run1.Output
+    if ($run1.ExitCode -ne 0) { return $false }
+    if ($out1.Trim() -ne "Point(3, 4)") { return $false }
+
+    $build2 = & $bin build "tests/fixtures/repro_v91_format_struct_debug.nr" -o "_t438_debug" --no-cache 2>&1
+    if ($LASTEXITCODE -ne 0) { return $false }
+    $exe2 = "target\_t438_debug.exe"
+    if (-not (Test-Path $exe2)) { $exe2 = "target\_t438_debug" }
+    if (-not (Test-Path $exe2)) { return $false }
+    $run2 = Invoke-BinaryNoInput (Join-Path $root $exe2)
+    $out2 = $run2.Output
+    if ($run2.ExitCode -ne 0) { return $false }
+    if ($out2.Trim() -ne 'Sample { name: "alpha", count: 7, ok: true }') { return $false }
+
+    $errLines = & $bin build "tests/err/err_format_struct_no_display.nr" -o "_t438_err" --no-cache 2>&1
+    $errExit = $LASTEXITCODE
+    $errOut = $errLines | Out-String
+    if ($errExit -ne 1) { return $false }
+    if ($errOut -notmatch "error\[FMT-002\]") { return $false }
     return $true
 }
 
