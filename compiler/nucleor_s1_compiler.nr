@@ -11689,6 +11689,26 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
                 if node_kind(pool, init) == 71 && type_is_int(tstr) == 1 {
                     type_diag(diags, source, fn_name, vname, "NUM-018", str_concat("float literal cannot initialize integer binding `", str_concat(vname, str_concat("` of type ", str_concat(tstr, " — pre-fix this silently bit-cast the IEEE 754 representation into the i64 slot. Use `as i64` to truncate explicitly, or change the type to `f64`.")))));
                 };
+                // v0.4.113: NUM-020 — int-typed expr (non-literal) in
+                // float binding. Pre-fix `let f: f64 = i;` where `i: i64`
+                // type-checked clean (types_compatible at line 10298
+                // accepts any i*/f* combo) and codegen lowered without
+                // a sitofp — the i64 bit pattern was stored directly
+                // in the f64 slot. `let f: f64 = 5;` for an i64=5 prints
+                // `0.000000` (5 as a denormal f64) instead of `5.0`.
+                // Total silent miscompute. The literal path
+                // (kind 1 int_lit) is handled separately by the
+                // parser-side coercion that emits the literal as
+                // f64 directly when tstr is float — that's why
+                // `let f: f64 = 5;` works correctly. The bug fires
+                // only when init is a non-literal int expression.
+                let init_kind_n20: i64 = node_kind(pool, init);
+                if type_is_float(tstr) == 1 && type_is_int(init_t) == 1
+                    && init_kind_n20 != 1 && init_kind_n20 != 71 {
+                    let n20msg_a: str = str_concat("integer-typed expression (`", str_concat(init_t, str_concat("`) cannot initialize float binding `", str_concat(vname, str_concat("` of type `", str_concat(tstr, "`."))))));
+                    let n20msg_b: str = " Pre-v0.4.113 the i64 bit pattern was stored directly in the f64 slot — e.g. `let f: f64 = i;` for `i: i64 = 5` printed `0.000000` (5 as a denormal f64). Use an explicit conversion (`i as f64`) or `f64_from_bits(i)` if you really meant to reinterpret the bits.";
+                    type_diag(diags, source, fn_name, vname, "NUM-020", str_concat(n20msg_a, n20msg_b));
+                };
                 // v0.4.77: NUM-019 — negative literal in unsigned binding.
                 // Pre-fix `let x: u32 = -5;` two's-complement-wrapped to
                 // 4294967291 silently (the LLVM `i64 -5` truncates to

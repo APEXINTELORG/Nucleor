@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.113] — 2026-04-29
+
+**NUM-020: integer-typed expression in float binding silent
+miscompute closed.**
+
+```nucleor
+fn main() -> i32 {
+    let i: i64 = 5;
+    let f: f64 = i;
+    print_f64(f);   // pre-fix: 0.000000  (5 as a denormal f64)
+    0
+}
+```
+
+`types_compatible` (line 10298) accepted any `i*` ↔ `f*` combo
+because of the legacy "i64 storage cell" pattern (Vec<f32>
+roundtrip via i64 cells). Codegen at the let-stmt site stored
+the i64 bit pattern directly into the f64 alloca with no
+`sitofp` — the f64 read decoded the bit pattern as IEEE 754,
+which for small ints is a denormal printed as `0.000000`. Total
+silent miscompute on the canonical Rust idiom.
+
+Sister to **NUM-018** (v0.4.76, float literal in int binding).
+The literal-int-into-f64 case (`let f: f64 = 5;`) is intentionally
+preserved — the parser's narrow-numeric coercion emits the literal
+as f64 directly, which works correctly. NUM-020 fires only when
+the init expression's type is integer AND the init AST node kind
+is NOT a literal int (kinds 1 or 71).
+
+Use `i as f64` for explicit conversion or `f64_from_bits(i)` for
+an intentional bit-cast. Negative fixture:
+`tests/err/err_int_var_in_float_let.nr`. Fast verify 165 PASS /
+2 baseline-FAIL clean (no existing fixture relied on the silent
+compat). Bootstrap fixed-point sha `ebe909ea…`.
+
 ## [0.4.112] — 2026-04-29
 
 **Three control-flow silent fall-throughs closed: `break`/`continue`
