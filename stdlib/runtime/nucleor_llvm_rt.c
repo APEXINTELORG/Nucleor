@@ -2511,6 +2511,63 @@ long long __nucleor_vec_chain_i64(NVec *a, NVec *b) {
     return (long long)(intptr_t)out;
 }
 
+// v0.4.125 audit doc-#1 §6 (iterator surface extension):
+//   position, product, step_by, nth, reduce.
+// All operate on the i64 element type. position/nth use the i64 ABI's
+// fn-pointer convention (i64 cast to function pointer at call site).
+//
+// position(pred) -> i64 — index of first elem where pred(x) != 0,
+//                        or -1 if none. Pred is fn(i64) -> i64.
+long long __nucleor_vec_position_i64(NVec *v, long long fn_ptr) {
+    if (!v || fn_ptr == 0) return -1;
+    long long (*pred)(long long) = (long long (*)(long long))(intptr_t)fn_ptr;
+    for (long long i = 0; i < v->len; i++) {
+        if (pred(v->data[i]) != 0) return i;
+    }
+    return -1;
+}
+
+// product() -> i64 — multiplies all elements. Empty vec returns 1
+//                    (matches Rust's Iterator::product convention).
+long long __nucleor_vec_product_i64(NVec *v) {
+    if (!v) return 1;
+    long long acc = 1;
+    for (long long i = 0; i < v->len; i++) acc *= v->data[i];
+    return acc;
+}
+
+// step_by(n) -> Vec — returns every n-th element (starting at 0).
+//                     n must be > 0; n <= 0 yields empty vec.
+long long __nucleor_vec_step_by_i64(NVec *v, long long n) {
+    NVec *out = (NVec*)__nucleor_vec_new();
+    if (!v || n <= 0) return (long long)(intptr_t)out;
+    for (long long i = 0; i < v->len; i += n) __nucleor_vec_push(out, v->data[i]);
+    return (long long)(intptr_t)out;
+}
+
+// nth(n) -> i64 — returns the n-th element (0-indexed). Panics on OOB
+//                 to match the v0.4.106-class clean-halt pattern.
+long long __nucleor_vec_nth_i64(NVec *v, long long n) {
+    if (!v || n < 0 || n >= v->len) {
+        fprintf(stderr, "PANIC: vec_nth OOB: index %lld, len %lld\n",
+                n, v ? v->len : 0LL);
+        exit(1);
+    }
+    return v->data[n];
+}
+
+// reduce(fn) -> i64 — like fold but uses first element as init.
+//                     Empty vec returns 0 (Rust returns Option::None;
+//                     the i64-everywhere ABI doesn't yet box the
+//                     return, so callers should pre-check is_empty).
+long long __nucleor_vec_reduce_i64(NVec *v, long long fn_ptr) {
+    if (!v || v->len == 0 || fn_ptr == 0) return 0;
+    long long (*fn)(long long, long long) = (long long (*)(long long, long long))(intptr_t)fn_ptr;
+    long long acc = v->data[0];
+    for (long long i = 1; i < v->len; i++) acc = fn(acc, v->data[i]);
+    return acc;
+}
+
 long long __nucleor_vec_sum_f64(NVec *v) {
     if (!v) return 0;
     union { long long i; double d; } acc;

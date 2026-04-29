@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.125] — 2026-04-29
+
+**Extended Vec/iterator surface — 5 new methods (closes v0.4
+residual #5).**
+
+Adds `position`, `product`, `step_by`, `nth`, `reduce` on top
+of v0.4.101's chain baseline. Together with the existing
+`map / filter / fold / sum / min / max / each / take / skip /
+chain / iter / collect / count / contains / index_of / any /
+all / clone / clear / sort / reverse` set, this covers the
+canonical Rust Iterator surface adopters reach for first.
+
+Semantics:
+- `position(pred: fn(i64) -> i64) -> i64` — index of first
+  elem where `pred(x) != 0`, or `-1`.
+- `product() -> i64` — multiplies all elements (1 if empty).
+- `step_by(n: i64) -> Vec<i64>` — every n-th elem; n<=0 yields
+  empty vec.
+- `nth(n: i64) -> i64` — n-th element; OOB panics with
+  `vec_nth OOB: index N, len M`.
+- `reduce(fn: fn(i64, i64) -> i64) -> i64` — like fold but
+  uses first elem as init. Empty vec returns 0 (the
+  i64-everywhere ABI doesn't yet box Option<T>; pre-check
+  `is_empty` if needed).
+
+All routed through new `__nucleor_vec_*_i64` runtime helpers
+in `nucleor_llvm_rt.c` with the standard 5-table mirror
+(get_rt_name, is_ptr_ret where applicable, is_ptr_arg, IR
+declares, dispatch in `iter_method_for_vec`, mirrored in
+`nucleor_tools_suite.nr`).
+
+Positive fixture: `tests/features/iter_more.nr` exercises all
+5 end-to-end with i64 elements + fn-pointer predicates/folders.
+Bootstrap fixed-point sha `36d81b5f…`. Fast-verify 179 PASS /
+2 baseline-FAIL clean. Audit doc-#1 §6 closer (still partial
+— full Iterator trait with vtable dispatch is v0.5).
+
 ## [0.4.124] — 2026-04-29
 
 **Extended `String` heap-string surface — 10 new methods (closes

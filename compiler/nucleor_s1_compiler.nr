@@ -3620,6 +3620,12 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "vec_count_i64") { return "__nucleor_vec_count_i64"; };
     if str_eq(name, "vec_take_i64") { return "__nucleor_vec_take_i64"; };
     if str_eq(name, "vec_chain_i64") { return "__nucleor_vec_chain_i64"; };
+    // v0.4.125: extended iter surface
+    if str_eq(name, "vec_position_i64") { return "__nucleor_vec_position_i64"; };
+    if str_eq(name, "vec_product_i64") { return "__nucleor_vec_product_i64"; };
+    if str_eq(name, "vec_step_by_i64") { return "__nucleor_vec_step_by_i64"; };
+    if str_eq(name, "vec_nth_i64") { return "__nucleor_vec_nth_i64"; };
+    if str_eq(name, "vec_reduce_i64") { return "__nucleor_vec_reduce_i64"; };
     if str_eq(name, "vec_skip_i64") { return "__nucleor_vec_skip_i64"; };
     if str_eq(name, "vec_map_i64") { return "__nucleor_vec_map_i64"; };
     if str_eq(name, "vec_filter_i64") { return "__nucleor_vec_filter_i64"; };
@@ -4427,6 +4433,8 @@ fn is_void_ret(name: str) -> i64 {
 fn is_ptr_ret(name: str) -> i64 {
     // v0.4.101: vec_chain_i64 returns NVec*.
     if str_eq(name, "vec_chain_i64") { return 1; };
+    // v0.4.125: vec_step_by_i64 returns NVec* (new vec).
+    if str_eq(name, "vec_step_by_i64") { return 1; };
     // v0.4.92: Option/Result helpers that return NVec* (ptr).
     if str_eq(name, "option_map") { return 1; };
     if str_eq(name, "option_and_then") { return 1; };
@@ -4514,6 +4522,12 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "vec_count_i64") { return 0; };
     if str_eq(name, "vec_take_i64") { return 1; };
     if str_eq(name, "vec_chain_i64") { return 1; };
+    // v0.4.125: extended iter — only step_by returns ptr; rest are i64.
+    if str_eq(name, "vec_step_by_i64") { return 1; };
+    if str_eq(name, "vec_position_i64") { return 0; };
+    if str_eq(name, "vec_product_i64") { return 0; };
+    if str_eq(name, "vec_nth_i64") { return 0; };
+    if str_eq(name, "vec_reduce_i64") { return 0; };
     if str_eq(name, "vec_skip_i64") { return 1; };
     if str_eq(name, "vec_map_i64") { return 1; };
     if str_eq(name, "vec_filter_i64") { return 1; };
@@ -4706,6 +4720,12 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "vec_count_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_take_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_chain_i64") { if idx == 0 { return 1; }; if idx == 1 { return 1; }; return 0; };
+    // v0.4.125: extended iter — Vec arg is at idx 0 for all five.
+    if str_eq(name, "vec_position_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_product_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_step_by_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_nth_i64") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "vec_reduce_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_skip_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_map_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_filter_i64") { if idx == 0 { return 1; }; return 0; };
@@ -5223,6 +5243,12 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_vec_count_i64(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_take_i64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_chain_i64(ptr, ptr)\n");
+    // v0.4.125: extended iter surface
+    sb_append(sb, "declare i64 @__nucleor_vec_position_i64(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_product_i64(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_vec_step_by_i64(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_nth_i64(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_vec_reduce_i64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_skip_i64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_map_i64(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_vec_filter_i64(ptr, i64)\n");
@@ -6635,6 +6661,14 @@ fn iter_method_for_vec(mname: str) -> i64 {
     // v0.4.101: `.chain` (audit doc-#1 §6 partial). Routes to
     // vec_chain_i64 runtime helper.
     if str_eq(mname, "chain") == 1 { return 1; };
+    // v0.4.125: extended iter surface — position/product/step_by/
+    // nth/reduce. Audit doc-#1 §6 closer (still partial, no full
+    // Iterator trait — these are the most-reached-for methods).
+    if str_eq(mname, "position") == 1 { return 1; };
+    if str_eq(mname, "product") == 1 { return 1; };
+    if str_eq(mname, "step_by") == 1 { return 1; };
+    if str_eq(mname, "nth") == 1 { return 1; };
+    if str_eq(mname, "reduce") == 1 { return 1; };
     return 0;
 }
 
