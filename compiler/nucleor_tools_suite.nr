@@ -7231,6 +7231,14 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
             if str_len(rtype) > 0 && str_eq(rtype, "void") == 0 && compat_ok == 0 {
                 type_diag(diags, source, fn_name, fn_name, "TYP-010", "return type mismatch");
             };
+            // v0.4.142 mirror: TYP-010 ext — return-with-value in
+            // void/unit/implicit-void fn.
+            let v142_void_ret_t: i64 = if str_len(rtype) == 0 || str_eq(rtype, "void") == 1 || type_is_unit(rtype) == 1 { 1 } else { 0 };
+            let v142_val_nonvoid_t: i64 = if str_len(val_t) > 0 && str_eq(val_t, "void") == 0 && type_is_unit(val_t) == 0 { 1 } else { 0 };
+            if v142_void_ret_t == 1 && v142_val_nonvoid_t == 1 {
+                let v142msg_t: str = str_concat("`return ", str_concat(val_t, str_concat("`-typed value in fn `", str_concat(fn_name, "` declared to return void. Pre-v0.4.142 the value was silently discarded. Either remove the value (`return;`) or add `-> <Type>` to the fn signature."))));
+                type_diag(diags, source, fn_name, fn_name, "TYP-010", v142msg_t);
+            };
         };
         return warns;
     };

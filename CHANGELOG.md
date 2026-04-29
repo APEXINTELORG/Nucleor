@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.142] — 2026-04-29
+
+**TYP-010 ext: `return <expr>;` in void / implicit-void fn
+silently discarded the value at codegen.
+`fn f() { return 42; }` — value vanished, fn appeared to
+return cleanly. Now halts.**
+
+```nucleor
+fn f() {
+    return 42;     // pre-fix: silently discarded
+}
+fn main() {
+    f();           // pre-fix: nothing happens
+}
+```
+
+The existing kind-22 (return-stmt) check guarded with
+`str_len(rtype) > 0 && str_eq(rtype, "void") == 0`. The
+`fn f() -> () { return 42; }` form had `rtype = "()"` which
+fails `type_is_unit` early-return — caught. But `fn f() { ... }`
+left rtype as `"void"` (or empty in some paths), which the gate
+skipped → silent discard. Adopters writing canonical Rust
+(where ML-style "early return with computed value, side-effects
+ignored" is invalid) got a passing build that quietly threw
+their value away.
+
+This release adds a dedicated branch: if rtype is void / `()` /
+implicit-void AND val_t is non-void / non-unit, halt with
+TYP-010 directing the user to either drop the value (`return;`)
+or add `-> <Type>` to the fn signature.
+
+The bare `return;` case (no value at all in non-void fn) was
+already covered by v0.4.112. Same TYP-010 family. Mirrored to
+`nucleor_tools_suite.nr`.
+
+Negative fixture: `tests/err/err_return_value_in_void_fn.nr`.
+Bootstrap fixed-point holds first-pass. Fast-verify 196 PASS / 2
+baseline-FAIL.
+
 ## [0.4.141] — 2026-04-29
 
 **NUM-022 ext: int vs float in arithmetic binop produced
