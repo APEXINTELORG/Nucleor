@@ -11194,6 +11194,26 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         let op: i64 = node_field(pool, nid, 1);
         let lt: str = type_expr(pool, prog, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, tprof);
         let rt: str = type_expr(pool, prog, node_field(pool, nid, 3), env, sigs, structs, fn_name, diags, source, tprof);
+        // v0.4.132: TYP-020 — void-typed expression in arithmetic /
+        // comparison binop. Pre-fix `5 + print_int(10)` silently
+        // accepted print_int's void return as 0 — adopters who
+        // confused side-effect-only fns with value-returning fns got
+        // wrong results with no signal. Catches arithmetic (20/21/
+        // 22/23/24) AND comparison (25/26/27/28/29/30/31/32) since
+        // both presume value operands. Skips logical ops because
+        // && / || already short-circuit. The void detection uses
+        // the existing builtin_rtype "void" string + the
+        // type_is_unit predicate.
+        let lt_is_void: i64 = if str_eq(lt, "void") == 1 || type_is_unit(lt) == 1 { 1 } else { 0 };
+        let rt_is_void: i64 = if str_eq(rt, "void") == 1 || type_is_unit(rt) == 1 { 1 } else { 0 };
+        if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24
+            || op == 25 || op == 26 || op == 27 || op == 28 || op == 29
+            || op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35)
+            && (lt_is_void == 1 || rt_is_void == 1) {
+            let void_side: str = if lt_is_void == 1 { "left" } else { "right" };
+            let v20msg: str = str_concat("`void`-typed expression on the ", str_concat(void_side, " side of binop. Pre-v0.4.132 the void return was silently coerced to 0 — adopters who confused side-effect-only fns (`print_int`, `print`, etc.) with value-returning fns got wrong arithmetic with no signal. Use the value-returning sibling fn (e.g. `int_to_str` instead of `print_int`) or split the side-effect into its own statement."));
+            type_diag(diags, source, fn_name, fn_name, "TYP-020", v20msg);
+        };
         if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24) && (str_eq(lt, "bool") == 1 || str_eq(rt, "bool") == 1) {
             type_diag(diags, source, fn_name, fn_name, "TYP-002", "boolean values cannot be used in arithmetic");
         };

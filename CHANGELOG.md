@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.132] — 2026-04-29
+
+**TYP-020: void-typed expression in arithmetic/comparison binop
+silently coerced to 0 — now halts cleanly.**
+
+```nucleor
+let x: i64 = 5 + print_int(10);
+print_int(x);   // pre-fix: prints "10" then "5" (5 + 0 from void)
+```
+
+`print_int` returns void (its job is the side effect), but the
+binop type-check accepted void as a numeric operand and codegen
+silently coerced it to 0. Adopters who confused side-effect-only
+fns with value-returning fns got wrong arithmetic with no signal.
+
+The kind 4 (binop) type-check at line 11193 now detects void/unit
+operands on arithmetic ops (20-24) AND comparison ops (25-35) and
+emits TYP-020 naming the void side. Logical && / || are excluded
+since they short-circuit. Diagnostic suggests the value-returning
+sibling fn (`int_to_str` for `print_int`, etc.) or splitting the
+side-effect into its own statement.
+
+```
+error[TYP-020]: `void`-typed expression on the right side of binop.
+Pre-v0.4.132 the void return was silently coerced to 0 — adopters
+who confused side-effect-only fns (`print_int`, `print`, etc.)
+with value-returning fns got wrong arithmetic with no signal.
+```
+
+Negative fixture: `tests/err/err_void_in_arith.nr`. Bootstrap
+fixed-point holds. Fast-verify 186 PASS / 2 baseline-FAIL.
+
 ## [0.4.131] — 2026-04-29
 
 **TYP-018 sister fix: assignment to unknown struct field
