@@ -1341,6 +1341,23 @@ t433_vec_set_wrong_type_halts() {
     return 0
 }
 
+t438_option_result_fn_arg_methods() {
+    # v0.4.92 — Option/Result fn-arg methods (.map/.and_then/.unwrap_or_else).
+    "$BIN" build "tests/fixtures/repro_v92_option_result_fn_arg_methods.nr" -o "_t438_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "0" ] || return 1
+    local exe="target/_t438_check"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local out
+    out=$("$exe" 2>&1)
+    echo "$out" | sed -n '1p' | grep -q "^10$" || return 1
+    echo "$out" | sed -n '2p' | grep -q "^99$" || return 1
+    echo "$out" | sed -n '3p' | grep -q "^42$" || return 1
+    echo "$out" | sed -n '4p' | grep -q "^77$" || return 1
+    return 0
+}
+
 t437_option_result_method_dispatch() {
     # v0.4.90 CRITICAL — typed Option<T>/Result<T,E> receivers can
     # now call .unwrap/.is_some/.is_none/.unwrap_or/.is_ok/.is_err
@@ -3395,6 +3412,7 @@ step "T3.134 v0.4.87 dispatch fix — v.insert/v.remove now route to vec_insert_
 step "T3.135 v0.4.88 dispatch fix — s.len/contains/replace/split/starts_with/ends_with route to str_* (was silent vec_* miscompute)" t435_str_method_dispatch
 step "T3.136 v0.4.89 — extend str dispatch to to_lower/to_upper/trim/trim_start/trim_end/substring/char_at (7 more methods)" t436_str_more_methods_dispatch
 step "T3.137 v0.4.90 CRITICAL — Option/Result method dispatch (was unusable v0.4.53..v0.4.89 due to false non-Option panic)" t437_option_result_method_dispatch
+step "T3.138 v0.4.92 — Option/Result fn-arg methods (.map/.and_then/.unwrap_or_else)" t438_option_result_fn_arg_methods
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

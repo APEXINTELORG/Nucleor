@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 827
-# Of which REVIEW REQUIRED: 57
+# Total helpers: 833
+# Of which REVIEW REQUIRED: 63
 
 # ============================================================
 # REVIEW REQUIRED
@@ -48,18 +48,24 @@
 #   infer_var_type_cached                    (Unclassified)
 #   int_to_hex_upper                         (Unclassified)
 #   int_to_str_force_sign                    (Unclassified)
+#   option_and_then                          (Unclassified)
 #   option_expect                            (Unclassified)
 #   option_is_none                           (Unclassified)
 #   option_is_some                           (Unclassified)
+#   option_map                               (Unclassified)
 #   option_unwrap                            (Unclassified)
 #   option_unwrap_or                         (Unclassified)
+#   option_unwrap_or_else                    (Unclassified)
+#   result_and_then                          (Unclassified)
 #   result_err                               (Unclassified)
 #   result_expect                            (Unclassified)
 #   result_is_err                            (Unclassified)
 #   result_is_ok                             (Unclassified)
+#   result_map                               (Unclassified)
 #   result_ok                                (Unclassified)
 #   result_unwrap                            (Unclassified)
 #   result_unwrap_or                         (Unclassified)
+#   result_unwrap_or_else                    (Unclassified)
 #   sizeof_bf16                              (Unclassified)
 #   sizeof_bool                              (Unclassified)
 #   sizeof_char                              (Unclassified)
@@ -9808,6 +9814,20 @@ since            = "0.1.0"
 notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
 
 [[helper]]
+name             = "option_and_then"
+class            = "Unclassified"
+symbol           = "__nucleor_option_and_then"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
 name             = "option_expect"
 class            = "Unclassified"
 symbol           = "__nucleor_option_expect"
@@ -9850,6 +9870,20 @@ since            = "0.1.0"
 notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
 
 [[helper]]
+name             = "option_map"
+class            = "Unclassified"
+symbol           = "__nucleor_option_map"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
 name             = "option_unwrap"
 class            = "Unclassified"
 symbol           = "__nucleor_option_unwrap"
@@ -9869,6 +9903,34 @@ class            = "Unclassified"
 symbol           = "__nucleor_option_unwrap_or"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "option_unwrap_or_else"
+class            = "Unclassified"
+symbol           = "__nucleor_option_unwrap_or_else"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "result_and_then"
+class            = "Unclassified"
+symbol           = "__nucleor_result_and_then"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> ptr"
 effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
@@ -9934,6 +9996,20 @@ since            = "0.1.0"
 notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
 
 [[helper]]
+name             = "result_map"
+class            = "Unclassified"
+symbol           = "__nucleor_result_map"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
 name             = "result_ok"
 class            = "Unclassified"
 symbol           = "__nucleor_result_ok"
@@ -9965,6 +10041,20 @@ notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
 name             = "result_unwrap_or"
 class            = "Unclassified"
 symbol           = "__nucleor_result_unwrap_or"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "result_unwrap_or_else"
+class            = "Unclassified"
+symbol           = "__nucleor_result_unwrap_or_else"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, i64) -> i64"
 effects          = "TODO"  # TODO
