@@ -1264,6 +1264,26 @@ t426_parse_error_halts() {
     return 0
 }
 
+t427_match_tuple_pat_halts() {
+    # v0.4.79 — tuple destructure pattern in match (was silent
+    # downgrade-to-wildcard pre-fix).
+    "$BIN" build "tests/fixtures/repro_v79_match_tuple_pat.nr" -o "_t427_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" != "0" ] || return 1
+    grep -q "tuple destructure pattern in match" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
+t428_let_at_module_scope_halts() {
+    # v0.4.79 — `let` at module scope (was silent skip-to-`;` pre-fix).
+    "$BIN" build "tests/fixtures/repro_v79_let_at_module_scope.nr" -o "_t428_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" != "0" ] || return 1
+    grep -q "at module scope" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "let" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t413_eq_typo_guard() {
     "$BIN" build "tests/fixtures/repro_v69_eq_typo_guard.nr" -o "_t413_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
@@ -3237,6 +3257,8 @@ step "T3.123 v0.4.76 NUM-018 — float literal in integer-typed binding (silent 
 step "T3.124 v0.4.76 TYP-002 — unary `!` on non-bool (silent xor-with-1 → halt)" t424_not_on_int
 step "T3.125 v0.4.77 NUM-019 — negative literal in unsigned binding (silent two's-complement-wrap → halt)" t425_neg_to_unsigned
 step "T3.126 v0.4.78 NR020 — parse error halts (was print-and-recover → broken binary)" t426_parse_error_halts
+step "T3.127 v0.4.79 — tuple destructure pattern in match halts (was silent downgrade to wildcard)" t427_match_tuple_pat_halts
+step "T3.128 v0.4.79 — let at module scope halts (was silent skip)" t428_let_at_module_scope_halts
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
