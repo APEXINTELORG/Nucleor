@@ -9947,6 +9947,27 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             while fii < ic {
                 let init_check: i64 = list_get(pool, inits, fii);
                 let fname: str = node_field(pool, init_check, 1);
+                // v0.4.128: TYP-017 — duplicate field in struct init.
+                // Pre-fix `Pt { x: 1, y: 2, x: 3 }` silently took the
+                // FIRST occurrence of `x` (=1) with no signal —
+                // adopter's intent (was 3 the override?) opaque, and
+                // Rust rejects this with E0062. Walk the init list
+                // back from current index and check for any prior
+                // entry with the same field name.
+                let mut dup_chk: i64 = 0;
+                while dup_chk < fii {
+                    let prior_init: i64 = list_get(pool, inits, dup_chk);
+                    let prior_name: str = node_field(pool, prior_init, 1);
+                    if str_eq(prior_name, fname) == 1 {
+                        let lc_dup: Vec<i32> = find_linecol_in_source(source_text, fn_name, fname);
+                        let dp1: str = str_concat("duplicate field `", str_concat(fname, "` in `"));
+                        let dp2: str = str_concat(struct_name, "` initialization. Pre-v0.4.128 the FIRST occurrence won silently with no signal — adopter intent (was the second value the override?) was opaque. Remove one of the duplicate field assignments.");
+                        diag_add_ex(diag_vec, "error", "type", "TYP-017", str_concat(dp1, dp2), fn_name, vec_get(lc_dup, 0), vec_get(lc_dup, 1), "");
+                        warns = warns + 1;
+                        dup_chk = fii;
+                    };
+                    dup_chk = dup_chk + 1;
+                };
                 let f_idx: i64 = struct_field_idx(pool, s_nid, fname);
                 if f_idx < 0 {
                     let lc_uf: Vec<i32> = find_linecol_in_source(source_text, fn_name, fname);

@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.128] — 2026-04-29
+
+**TYP-017: duplicate field name in struct init silently took the
+first occurrence — now halts cleanly.**
+
+```nucleor
+struct Pt { x: i64, y: i64 }
+let p: Pt = Pt { x: 1, y: 2, x: 3 };   // pre-fix: p.x == 1, no signal
+```
+
+Adopter intent (was 3 the intended override?) was opaque, and
+Rust rejects this with E0062. Same silent-miscompute family as
+v0.4.62 missing-field (TYP-012) and v0.4.63 unknown-field (TYP-013)
+closes. The struct-init type-check at line 9946 now back-walks
+the init list at each entry and rejects any duplicate name.
+
+```
+error[TYP-017]: duplicate field `x` in `Pt` initialization.
+Pre-v0.4.128 the FIRST occurrence won silently with no signal —
+adopter intent (was the second value the override?) was opaque.
+Remove one of the duplicate field assignments.
+```
+
+Negative fixture: `tests/err/err_struct_dup_field.nr`. Bootstrap
+fixed-point sha `9f4de60c…`. Fast-verify 182 PASS / 2 baseline-FAIL.
+
 ## [0.4.127] — 2026-04-29
 
 **TYP-005 lift now detects synthetic `vec_<method>` names from
