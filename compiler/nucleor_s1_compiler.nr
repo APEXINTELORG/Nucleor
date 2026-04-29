@@ -11904,7 +11904,23 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
     if kind == 9 {
         let recv_t: str = type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let si: i64 = struct_find_type(pool, structs, recv_t);
-        if si >= 0 { return struct_field_type(pool, vec_get(structs, si), node_field(pool, nid, 2)); };
+        if si >= 0 {
+            let fname_v9: str = node_field(pool, nid, 2);
+            let f_idx_v9: i64 = struct_field_idx(pool, vec_get(structs, si), fname_v9);
+            // v0.4.129: TYP-018 — field access on a known struct with
+            // an unknown field name silently lowered to vec_get(struct,
+            // -1) and surfaced at runtime as a misleading "vec_get OOB
+            // index -1" panic. Adopters typo'ing field names got a
+            // runtime crash with no compile-time signal pointing at
+            // the struct or the typo. Halt now with TYP-018 listing
+            // the typo'd name and the receiver struct type.
+            if f_idx_v9 < 0 {
+                let t18a: str = str_concat("unknown field `.", str_concat(fname_v9, str_concat("` on receiver type `", str_concat(recv_t, "`."))));
+                let t18b: str = " Pre-v0.4.129 this lowered to vec_get(struct, -1) and surfaced at runtime as a misleading `vec_get OOB index -1` panic with no compile-time signal. Check the field name spelling against the struct definition.";
+                type_diag(diags, source, fn_name, fn_name, "TYP-018", str_concat(t18a, t18b));
+            };
+            return struct_field_type(pool, vec_get(structs, si), fname_v9);
+        };
         return "";
     };
     if kind == 10 {

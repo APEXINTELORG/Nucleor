@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.129] — 2026-04-29
+
+**TYP-018: unknown field access (`p.y` where struct has no `y`)
+halts at type-check instead of runtime "vec_get OOB index -1".**
+
+```nucleor
+struct P { x: i64 }
+let p: P = P { x: 0 };
+let y: i64 = p.y;   // pre-fix: runtime PANIC: vec_get OOB index -1
+```
+
+The kind 9 (field-access) type-check at line 11904 found the
+struct via `struct_find_type` then called `struct_field_type`
+which silently returned "" for unknown field names. Codegen
+then lowered the access to `vec_get(struct, -1)` (because
+`struct_field_idx` returned -1) and surfaced as a runtime OOB
+with no signal pointing at the typo or the struct.
+
+Adds a `struct_field_idx` lookup before the struct_field_type
+call. If the index is -1 (unknown name), emit TYP-018 with the
+typo'd field name + receiver struct type:
+
+```
+error[TYP-018]: unknown field `.y` on receiver type `P`. Pre-v0.4.129
+this lowered to vec_get(struct, -1) and surfaced at runtime as a
+misleading `vec_get OOB index -1` panic with no compile-time
+signal. Check the field name spelling against the struct definition.
+```
+
+Catches the let-RHS form (`let y: i64 = p.y;`). The
+`print_int(p.y)` form still hits the runtime OOB because
+print_int isn't on the dynamic-helper arg-walk path — followup.
+
+Sister to v0.4.123 (struct-field-as-method-call TYP-015).
+Negative fixture: `tests/err/err_unknown_struct_field_access.nr`.
+Bootstrap fixed-point holds. Fast-verify 183 PASS / 2 baseline-FAIL.
+
 ## [0.4.128] — 2026-04-29
 
 **TYP-017: duplicate field name in struct init silently took the
