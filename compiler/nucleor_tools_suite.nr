@@ -281,10 +281,11 @@ fn pk(tokens: Vec<i32>, pos: i64) -> i64 { return tok_type_at(tokens, pos); }
 fn pkv(tokens: Vec<i32>, pos: i64) -> i64 { return tok_val_at(tokens, pos); }
 fn expect_tok(tokens: Vec<i32>, pos: i64, tt: i64) -> i64 {
     if pk(tokens, pos) != tt {
-        // Get byte position from token for line number
+        // v0.4.82: mirror s1's v0.4.78 NR020 close — was print +
+        // return pos+1, silently producing a likely-broken AST.
         let tok: Vec<i32> = tok_at(tokens, pos);
         let byte_pos: i64 = vec_get(tok, 2);
-        print(str_concat("Parse error at token position ", str_concat(str_from_int(byte_pos), str_concat(": expected token ", str_concat(str_from_int(tt), str_concat(" got ", str_from_int(pk(tokens, pos))))))));
+        panic(str_concat("error[NR020]: parse error at token position ", str_concat(str_from_int(byte_pos), str_concat(": expected token ", str_concat(str_from_int(tt), str_concat(" got ", str_concat(str_from_int(pk(tokens, pos)), " — pre-fix this printed a warning and continued, producing a likely-broken binary."))))));
     };
     return pos + 1;
 }
