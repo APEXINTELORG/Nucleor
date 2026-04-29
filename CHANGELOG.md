@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.150] — 2026-04-29
+
+**TYP-011 ext: `String + <scalar>` (or any String arith) silently
+did i64_add on the String heap pointer, producing a wild
+pointer. Now halts. Plus kind-12 type_expr now propagates
+String/Vec/HashMap/etc. types from constructor calls.**
+
+```nucleor
+let s: String = String::new();
+let r = s + 5;            // pre-fix: garbage pointer in r
+```
+
+Two-part fix:
+
+1. **kind-12 type_expr returned `""` for known constructors.**
+   `String::new()`, `String::with_capacity(n)`, `Vec::new()`,
+   `HashMap::new()`, etc. all returned the empty type from
+   `type_expr` (only `Box`, `Tensor`, `Option`, `Result` had
+   branches). Combined with the let-stmt logic at line 12459
+   (which stores `""` in tenv when `init_t` is empty even with
+   an explicit annotation), every downstream check on
+   `s: String` saw an empty type and silently accepted any
+   operation. Adding the missing constructor branches makes
+   `s` properly typed as `"String"` (etc.) in tenv.
+
+2. **kind-4 binop didn't catch String arith.** v0.4.51 caught
+   `str + str`; v0.4.66 caught mixed str/int; v0.4.61 caught
+   Vec arith — but no one had added String. Pre-fix `s + 5`
+   for `s: String` lowered to `i64_add(s_heap_ptr, 5)`. The
+   resulting wild pointer SIGSEGVed at next access. This
+   release adds a TYP-011 check for arith ops 20-24 when
+   `type_base_name(lt) == "String"` or `type_base_name(rt) ==
+   "String"`.
+
+s1-only fix (the kind-12 String/Vec/HashMap/etc. branches were
+added to s1's type_expr; tools_suite has its own type_expr that
+already handles these via different paths). The kind-4 String
+arith check is a sibling to v0.4.51/.66 in the same kind-4
+block.
+
+Negative fixture: `tests/err/err_string_arith.nr`. Bootstrap
+fixed-point holds first-pass. Fast-verify 204 PASS / 2
+baseline-FAIL.
+
 ## [0.4.149] — 2026-04-29
 
 **TYP-006 ext: `print(<non_str>)` / `println(<non_str>)` /
