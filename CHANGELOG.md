@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.98] — 2026-04-29
+
+**Vec debug element-type dispatch — `Vec<str>` and `Vec<Option<i64>>`
+print correctly (extends v0.4.97 §10b).**
+
+Pre-fix `println!("{:?}", v)` for `v: Vec<str>` printed pointer
+integers `[140701..., ...]`. Same for `Vec<Option<i64>>` —
+printed inner Vec pointers.
+
+Adds 2 C runtime helpers + element-type dispatch in `{:?}` Vec
+branch using `type_first_arg` on the inferred receiver type:
+
+- `__nucleor_vec_to_debug_str_str(NVec*)` → `["a", "b", "c"]`
+- `__nucleor_vec_to_debug_str_option_i64(NVec*)` →
+  `[Some(1), None, Some(3)]`
+- Falls back to `vec_to_debug_str_i64` when element type unknown
+  or numeric.
+
+Mirrored into tools_suite. Helper manifest regenerated.
+
+### Verify gate
+
+- T3.144 — `tests/fixtures/repro_v98_debug_vec_str_and_option.nr`
+  asserts `["a", "b", "c"]` and `[Some(1), None, Some(3)]`.
+
+### Memory + timing
+
+- Verify gate: 520 PASS / 0 FAIL.
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha bbb97dea…).
+
 ## [0.4.97] — 2026-04-29
 
 **Recursive Debug for `Vec<i64>` / `Option<i64>` / `Result<i64,i64>`

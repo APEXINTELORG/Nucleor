@@ -2059,6 +2059,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "result_or_else") { return "__nucleor_result_or_else"; };
     // v0.4.97 mirror: recursive Debug formatters.
     if str_eq(name, "vec_to_debug_str_i64") { return "__nucleor_vec_to_debug_str_i64"; };
+    if str_eq(name, "vec_to_debug_str_str") { return "__nucleor_vec_to_debug_str_str"; };
+    if str_eq(name, "vec_to_debug_str_option_i64") { return "__nucleor_vec_to_debug_str_option_i64"; };
     if str_eq(name, "option_to_debug_str_i64") { return "__nucleor_option_to_debug_str_i64"; };
     if str_eq(name, "result_to_debug_str_i64") { return "__nucleor_result_to_debug_str_i64"; };
     if str_eq(name, "args_count") { return "__nucleor_args_count"; };
@@ -2901,6 +2903,8 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "int_to_str") { return 1; };
     // v0.4.97 mirror: recursive Debug formatters return ptr (heap str).
     if str_eq(name, "vec_to_debug_str_i64") { return 1; };
+    if str_eq(name, "vec_to_debug_str_str") { return 1; };
+    if str_eq(name, "vec_to_debug_str_option_i64") { return 1; };
     if str_eq(name, "option_to_debug_str_i64") { return 1; };
     if str_eq(name, "result_to_debug_str_i64") { return 1; };
     if str_eq(name, "str_from_int") { return 1; };
@@ -3585,6 +3589,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_result_or_else(ptr, i64)\n");
     // v0.4.97 mirror: recursive Debug formatters.
     sb_append(sb, "declare ptr @__nucleor_vec_to_debug_str_i64(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_vec_to_debug_str_str(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_vec_to_debug_str_option_i64(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_option_to_debug_str_i64(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_result_to_debug_str_i64(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_sb_new()\n");
