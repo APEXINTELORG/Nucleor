@@ -5,6 +5,31 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.94] — 2026-04-29
+
+**TYP-011 close — `s[i]` on `str` halts (was silent vec_get on
+str pointer → OOB panic / garbage).**
+
+Pre-fix `s[0]` for `s: str` lowered to `vec_get(s, 0)` which read
+the str pointer as if it were an `NVec` header. At best returned
+garbage; at worst SIGSEGVed. Adopters writing canonical Rust
+string indexing got `vec_get OOB: index 0, len 0` — confusing
+because `s` clearly had bytes.
+
+Halt at type-check (kind 10 indexing path) when the receiver type
+is exactly `str`. Diagnostic points at `str_char_at(s, i)` for
+single-byte access and `str_substring(s, i, j)` for substrings.
+
+### Verify gate
+
+- T3.140 — `tests/fixtures/repro_v94_str_index_halts.nr` asserts
+  `s[0]` on `s: str` errors with TYP-011.
+
+### Memory + timing
+
+- Verify gate: 515 PASS / 0 FAIL.
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha 68234136…).
+
 ## [0.4.93] — 2026-04-29
 
 **`Result.or_else(f)` recovery method.**
