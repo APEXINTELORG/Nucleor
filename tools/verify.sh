@@ -150,6 +150,7 @@ step() {
     fi
 }
 
+
 # --- Ensure clang on PATH (mirror nuc resolution) -----------------------
 # Probe for clang on Windows accepts either `clang` or `clang.exe`, since
 # MSVC LLVM packages ship only the .exe. Path-not-found env vars (e.g.
