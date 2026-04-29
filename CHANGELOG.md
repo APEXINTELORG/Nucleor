@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.133] — 2026-04-29
+
+**TYP-008 ext: int literal in bool struct-field init silently stored
+truthy garbage — now halts cleanly.**
+
+```nucleor
+struct P { x: bool }
+let p: P = P { x: 5 };       // pre-fix: silent compile
+if p.x { print("t"); }       // pre-fix: prints "t" (5 != 0)
+```
+
+v0.4.84 closed `int-lit into str`, `str-lit into int|bool|float`,
+and `float-lit into int|bool|str` paths. The `int-lit into bool`
+case was left open — `P { x: 5 }` for `x: bool` silently stored
+5 as i64, then `if p.x` evaluated truthy because 5 != 0.
+Adopters writing `P { x: 1 }` (intending true) got the right
+runtime answer but lost the type guarantee — and writing
+`P { x: 5 }` is just confusing.
+
+This release adds the missing case at line 10007. Diagnostic
+suggests `true` / `false` literals instead.
+
+```
+error[TYP-008]: struct-field type mismatch: `P.x` declared `bool`,
+got int literal (use `true`/`false`).
+```
+
+Negative fixture: `tests/err/err_struct_int_to_bool.nr`. Bootstrap
+fixed-point holds. Fast-verify 187 PASS / 2 baseline-FAIL.
+
 ## [0.4.132] — 2026-04-29
 
 **TYP-020: void-typed expression in arithmetic/comparison binop
