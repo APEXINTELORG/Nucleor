@@ -12109,6 +12109,22 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     let n20msg_b: str = " Pre-v0.4.113 the i64 bit pattern was stored directly in the f64 slot — e.g. `let f: f64 = i;` for `i: i64 = 5` printed `0.000000` (5 as a denormal f64). Use an explicit conversion (`i as f64`) or `f64_from_bits(i)` if you really meant to reinterpret the bits.";
                     type_diag(diags, source, fn_name, vname, "NUM-020", str_concat(n20msg_a, n20msg_b));
                 };
+                // v0.4.126: TYP-016 — `if cond { val }` with NO else branch
+                // assigned to a non-void/unit binding. Pre-fix
+                // `let x: i64 = if false { 5 };` silently lowered the
+                // taken-branch path with the false branch reaching the
+                // alloca's zero-init slot — `x` ends up as 0 with no
+                // diagnostic. Rust rejects with "if expression of type
+                // X must have an else clause." Detect: init kind == 23
+                // (if-expr), enode (else branch) field 3 == -1, and
+                // tstr is non-void/unit. Emit clean halt directing the
+                // user to add the missing else.
+                if init_kind_n20 == 23 && node_field(pool, init, 3) < 0
+                    && str_eq(tstr, "void") == 0 && type_is_unit(tstr) == 0 {
+                    let t16a: str = str_concat("`if` expression assigned to binding `", str_concat(vname, str_concat("` of type `", str_concat(tstr, "` is missing an `else` branch."))));
+                    let t16b: str = " Pre-v0.4.126 the false-condition path silently fell through to the alloca's zero-init slot — `let x: i64 = if false { 5 };` produced `x == 0` with no signal. Add an `else { ... }` arm that produces the same type, or restructure to a stmt-form `if` that doesn't assign.";
+                    type_diag(diags, source, fn_name, vname, "TYP-016", str_concat(t16a, t16b));
+                };
                 // v0.4.77: NUM-019 — negative literal in unsigned binding.
                 // Pre-fix `let x: u32 = -5;` two's-complement-wrapped to
                 // 4294967291 silently (the LLVM `i64 -5` truncates to

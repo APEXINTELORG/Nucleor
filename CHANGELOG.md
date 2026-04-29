@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.126] — 2026-04-29
+
+**TYP-016: `if cond { val }` with no else branch assigned to a
+non-void binding now halts with clean diagnostic instead of
+silently lowering to alloca-zero-init.**
+
+```nucleor
+let x: i64 = if false { 5 };
+print_int(x);   // pre-fix: 0  (silent fall-through to zero-init)
+```
+
+The kind 23 (if-expr) type-check at line 11951 returned the
+then-branch's type unconditionally even when no else was present.
+At lower-time the false-condition path skipped the assignment to
+the alloca, leaving the zero-init slot read on the merge label.
+`let x: i64 = if false { 5 };` produced `x == 0` with no signal.
+
+Detection added at the let-stmt site (sister to v0.4.108 tail-expr
+return-type check, v0.4.112 bare-return-in-non-void): if init
+kind == 23 (if-expr), enode (else branch) field 3 == -1, AND
+tstr is non-void/unit, halt with TYP-016 directing the user to
+add the missing else.
+
+```
+error[TYP-016]: `if` expression assigned to binding `x` of type
+`i64` is missing an `else` branch. Add an `else { ... }` arm
+that produces the same type, or restructure to a stmt-form `if`
+that doesn't assign.
+```
+
+Negative fixture: `tests/err/err_if_no_else_assigned.nr`.
+Bootstrap fixed-point sha `3fb3fbbe…`. Fast-verify 180 PASS /
+2 baseline-FAIL clean.
+
 ## [0.4.125] — 2026-04-29
 
 **Extended Vec/iterator surface — 5 new methods (closes v0.4
