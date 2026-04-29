@@ -1318,6 +1318,17 @@ t431_struct_field_type_mismatch_halts() {
     return 0
 }
 
+t432_vec_push_wrong_type_halts() {
+    # v0.4.85 TYP-008 ext — Vec<i64>.push("str") halts at compile
+    # time (was silent str-ptr-as-i64-cell miscompute pre-fix).
+    "$BIN" build "tests/fixtures/repro_v85_vec_push_wrong_type.nr" -o "_t432_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\\[TYP-008\\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "Vec<i64>.push" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t413_eq_typo_guard() {
     "$BIN" build "tests/fixtures/repro_v69_eq_typo_guard.nr" -o "_t413_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
@@ -3296,6 +3307,7 @@ step "T3.128 v0.4.79 — let at module scope halts (was silent skip)" t428_let_a
 step "T3.129 v0.4.80 — int literal as Vec/tokenizer handle halts (was print WARNING + guaranteed runtime SIGSEGV)" t429_int_lit_as_handle_halts
 step "T3.130 v0.4.83 TYP-008 ext — immutable let without initializer halts (was silent zero-read)" t430_uninit_immutable_let_halts
 step "T3.131 v0.4.84 TYP-008 ext — struct field type mismatch on literal RHS halts (was silent ptr-as-i64 miscompute)" t431_struct_field_type_mismatch_halts
+step "T3.132 v0.4.85 TYP-008 ext — Vec<T>.push(literal) wrong type halts (was silent str-ptr-as-i64-cell miscompute)" t432_vec_push_wrong_type_halts
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

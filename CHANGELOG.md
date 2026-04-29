@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.85] — 2026-04-29
+
+**TYP-008 ext — Vec<T>.push(literal) wrong-type halts (was silent
+str-ptr-as-i64-cell miscompute).**
+
+Pre-fix `v.push("hello")` for `Vec<i64>` silently i64-stored the
+str pointer; reads of `v[0]` then produced garbage like
+`140700340798576`. Adopters writing canonical Rust got E0308
+mismatched types. Same bug class as v0.4.84's struct-field close
+— this is the Vec.method() variant of the same silent bit-cast.
+
+### Detection
+
+Added at `type_expr` kind 8 (method call) path. Narrow check —
+fires only when:
+- method name is `push`
+- receiver type starts with `Vec<` (literal-RHS Vec recognized
+  via `recv_t` from type_expr or `infer_var_type_from_source`)
+- the single arg is a literal node (kind 1 / 2 / 71)
+- the literal kind doesn't match the Vec's element type
+
+Variable-RHS cases (`v.push(some_str)`) need full `type_expr`
+recursion which has crashed compiler self-build in prior attempts
+(v0.4.71, v0.4.61 history). Kept narrow.
+
+### Verify gate
+
+- T3.132 — `tests/fixtures/repro_v85_vec_push_wrong_type.nr`
+  asserts `Vec<i64>.push("hello")` errors with TYP-008 at build
+  time (msg contains "Vec<i64>.push").
+
+### Memory + timing
+
+- Self-host build: unchanged (literal-only kind check, no recursion).
+- Verify gate: 374.9s / 507 steps (was 370.3s / 506 — within noise).
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha 92e888ae…).
+
 ## [0.4.84] — 2026-04-29
 
 **TYP-008 ext — struct-field type mismatch on literal RHS halts

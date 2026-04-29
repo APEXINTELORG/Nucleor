@@ -11291,6 +11291,33 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             recv_t = infer_var_type_from_source(source, node_field(pool, recv_nid, 1));
         };
         let mname: str = node_field(pool, nid, 2);
+        // v0.4.85: TYP-008 ext — Vec<T>.push(literal) narrow type
+        // mismatch check. Pre-fix `v.push("hello")` for `Vec<i64>`
+        // silently i64-stored the str pointer; reads of v[0] then
+        // produced garbage like 140700340798576. Adopters writing
+        // canonical Rust got E0308. Same shape as v0.4.84
+        // struct-field check — narrow to literal RHS only (kinds
+        // 1 / 2 / 71) to avoid type_expr recursion that crashed
+        // self-build in v0.4.71/v0.4.61 attempts.
+        if str_eq(mname, "push") == 1 && str_starts_with(recv_t, "Vec<") == 1 {
+            let push_args: i64 = node_field(pool, nid, 3);
+            if list_len(pool, push_args) == 1 {
+                let push_arg_nid: i64 = list_get(pool, push_args, 0);
+                let push_arg_kind: i64 = node_kind(pool, push_arg_nid);
+                let push_elem_t: str = strip_container_one_level(recv_t);
+                if str_len(push_elem_t) > 0 && vec_element_type_is_legacy_cell(push_elem_t) == 0 {
+                    let mut push_mismatch: i64 = 0;
+                    let mut push_got: str = "";
+                    if push_arg_kind == 1 && str_eq(push_elem_t, "str") == 1 { push_mismatch = 1; push_got = "int literal"; };
+                    if push_arg_kind == 2 && (str_eq(push_elem_t, "i64") == 1 || str_eq(push_elem_t, "i32") == 1 || str_eq(push_elem_t, "i16") == 1 || str_eq(push_elem_t, "i8") == 1 || str_eq(push_elem_t, "u64") == 1 || str_eq(push_elem_t, "u32") == 1 || str_eq(push_elem_t, "u16") == 1 || str_eq(push_elem_t, "u8") == 1 || str_eq(push_elem_t, "bool") == 1 || str_eq(push_elem_t, "f64") == 1 || str_eq(push_elem_t, "f32") == 1) { push_mismatch = 1; push_got = "str literal"; };
+                    if push_arg_kind == 71 && (str_eq(push_elem_t, "i64") == 1 || str_eq(push_elem_t, "i32") == 1 || str_eq(push_elem_t, "i16") == 1 || str_eq(push_elem_t, "i8") == 1 || str_eq(push_elem_t, "u64") == 1 || str_eq(push_elem_t, "u32") == 1 || str_eq(push_elem_t, "u16") == 1 || str_eq(push_elem_t, "u8") == 1 || str_eq(push_elem_t, "bool") == 1 || str_eq(push_elem_t, "str") == 1) { push_mismatch = 1; push_got = "float literal"; };
+                    if push_mismatch == 1 {
+                        let push_msg: str = str_concat("Vec<", str_concat(push_elem_t, str_concat(">.push(...) type mismatch: declared element type `", str_concat(push_elem_t, str_concat("`, got ", str_concat(push_got, ". Pre-v0.4.85 this silently bit-cast the value into the i64 cell, producing garbage at read sites."))))));
+                        type_diag(diags, source, fn_name, fn_name, "TYP-008", push_msg);
+                    };
+                };
+            };
+        };
         if str_eq(mname, "sum") == 1 || str_eq(mname, "mean") == 1 || str_eq(mname, "max") == 1 || str_eq(mname, "min") == 1 {
             if str_eq(type_base_name(recv_t), "Tensor") == 1 { return "f64"; };
             return "i32";
