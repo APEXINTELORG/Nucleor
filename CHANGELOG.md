@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.120] — 2026-04-29
+
+**Rich match patterns: enum or-patterns with bindings, `@` range
+bindings, struct destructure, and Vec-backed tuple/slice patterns
+(parallel-agent spike integrated on 2nd pass; closes audit
+doc-#1 §5).**
+
+This expands RFC-0023 pattern support beyond the earlier
+int-literal/wildcard/Option/Result path. The implementation adds
+binding-key validation, `@` binding capture, struct field
+destructure, and Vec-backed tuple/slice destructure while
+preserving the existing typed Option/Result match-arm behavior
+(the v0.4.119 spike's earlier TYP-010 over-fired on `Err(e)`
+arms of `Result<T, E>` — fixed in this iteration).
+
+New guards:
+
+- `MATCH-008`: or-pattern alternatives must bind the same names.
+- `MATCH-009`: slice patterns may contain only one `..` rest marker.
+- `MATCH-010`: `@` bindings cannot collide with an outer binding.
+- `TYP-010`: tuple/slice patterns require a known non-scalar
+  scrutinee (now correctly skips Result/Option enum-variant arms).
+
+Pinned by `tests/fixtures/repro_match_at_binding.nr`,
+`repro_match_full_or_patterns.nr`, `repro_match_struct_destructure.nr`,
+`repro_match_slice.nr`, `repro_match_tuple_destructure.nr`, and four
+negative err fixtures `tests/err/err_match_*`.
+
+Spike rebased onto v0.4.119 with `-X theirs` strategy + bootstrap
+fixed-point re-emitted + drift gate green. Fast-verify 174 PASS /
+2 baseline-FAIL clean (`option_result_f64.nr` regression resolved).
+
 ## [0.4.119] — 2026-04-29
 
 **NUM-021: decimal literal beyond u64::MAX silently wrapped to
@@ -36,8 +68,6 @@ both the overflow check and the subsequent `str_to_int` call
 (StringBuilder consumes on read).
 
 Negative fixture: `tests/err/err_int_lit_overflow.nr`.
-Bootstrap fixed-point sha `1ec41864…`. Fast-verify
-169 PASS / 2 baseline-FAIL clean.
 
 ## [0.4.118] — 2026-04-29
 
@@ -354,7 +384,6 @@ uses int-match-without-wild — every match in the suite either
 uses enums-with-wildcard or lists every variant explicitly).
 Sequential gate 543/543. Negative fixture:
 `tests/err/err_int_match_no_wild.nr`.
-
 ## [0.4.108] — 2026-04-29
 
 **Tail-expression return-type check closes a SIGSEGV-class silent
