@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.107] — 2026-04-29
+
+**Primitive-receiver method guard: `5.no_such_method()` halts with
+clean TYP-007 instead of confusing `vec_*` lift.**
+
+Sister UX bug to v0.4.106's TYP-005 lift. Pre-fix:
+
+```
+let x: i64 = 5;
+x.no_such_method();
+// → error[TYP-005]: undefined function `vec_no_such_method()`. ...
+```
+
+The `vec_` prefix in the error message was puzzling — the user's
+source had no Vec anywhere. The type-checker had inferred `i64`
+correctly but the kind==8 method-call dispatch fell through every
+receiver-typed branch (HashMap/Set/Option/Result/str/user-impl)
+to the catch-all `vec_<method>` lowering, leaving the v0.4.106
+lift to surface the synthetic name.
+
+Adds a `type_base_name(stype)` check ahead of the `vec_*` catch-
+all in `lower_expr` kind==8: if the receiver's base type is one
+of `i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool`, emit a clean
+`error[TYP-007]` and panic before the `vec_*` synthesis runs.
+
+```
+error[TYP-007]: receiver type `i64` has no method `.no_such_method()`.
+Pre-v0.4.107 this lowered to `vec_no_such_method(...)` and failed
+late at clang link with an undefined-symbol error. Primitive
+numeric and bool types in Nucleor have no inherent methods today;
+use a free fn (e.g. `i64_to_str(x)`) or wrap in a struct that
+impls the method.
+```
+
+`str` keeps its existing receiver-type-aware dispatch (v0.4.88)
+so this guard only fires for true-primitive-no-method cases. Vec
+methods on `Vec<T>` continue to work unchanged (sanity probe:
+`v.len()`, `v[0]` regress-clean).
+
+Negative gate: `tests/err/err_method_on_primitive.nr`. Fast verify
+156 PASS / 2 baseline-FAIL / 37s; sequential gate 540 steps.
+
 ## [0.4.106] — 2026-04-29
 
 **Undefined fn-call link error lifted to clean TYP-005 diagnostic

@@ -13588,6 +13588,41 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                     panic(str_concat("nucleor: Option/Result method `.", str_concat(mname, "()` called on non-Option receiver")));
                                 };
                             };
+                            // v0.4.107: primitive-receiver method guard.
+                            // Pre-fix `let x: i64 = 5; x.no_such_method();`
+                            // fell through every receiver-typed branch
+                            // and lowered to `vec_no_such_method(x)`,
+                            // which the v0.4.106 lift then surfaced as
+                            // `error[TYP-005]: undefined function
+                            // 'vec_no_such_method()'`. Adopters had to
+                            // mentally translate the `vec_` prefix back
+                            // to "the type-checker thought my receiver
+                            // was a Vec when it isn't" — confusing.
+                            // Detect primitive receivers (i*, u*, f*,
+                            // bool) here and emit a method-targeted
+                            // diagnostic naming both the call site and
+                            // the receiver type. str has its own
+                            // receiver-type-aware dispatch above
+                            // (v0.4.88) so it doesn't reach this path.
+                            let stype_base_v107: str = type_base_name(stype);
+                            let is_primitive_recv: i64 = if str_eq(stype_base_v107, "i8") == 1
+                                || str_eq(stype_base_v107, "i16") == 1
+                                || str_eq(stype_base_v107, "i32") == 1
+                                || str_eq(stype_base_v107, "i64") == 1
+                                || str_eq(stype_base_v107, "u8") == 1
+                                || str_eq(stype_base_v107, "u16") == 1
+                                || str_eq(stype_base_v107, "u32") == 1
+                                || str_eq(stype_base_v107, "u64") == 1
+                                || str_eq(stype_base_v107, "f32") == 1
+                                || str_eq(stype_base_v107, "f64") == 1
+                                || str_eq(stype_base_v107, "bool") == 1 { 1 } else { 0 };
+                            if is_primitive_recv == 1 {
+                                let pa: str = str_concat("error[TYP-007]: receiver type `", str_concat(stype_base_v107, str_concat("` has no method `.", str_concat(mname, "()`."))));
+                                let pb: str = str_concat(" Pre-v0.4.107 this lowered to `vec_", str_concat(mname, "(...)` and failed late at clang link with an undefined-symbol error."));
+                                let pc: str = " Primitive numeric and bool types in Nucleor have no inherent methods today; use a free fn (e.g. `i64_to_str(x)`) or wrap in a struct that impls the method.";
+                                print(str_concat(pa, str_concat(pb, pc)));
+                                panic(str_concat("nucleor: no method `.", str_concat(mname, str_concat("()` for primitive receiver `", str_concat(stype_base_v107, "`")))));
+                            };
                             // v0.4.87: dispatch-name drift fix. Pre-fix
                             // `v.insert(idx, val)` lowered to `vec_insert(...)`
                             // but the runtime helper is `vec_insert_at`;
