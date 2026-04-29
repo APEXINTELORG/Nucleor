@@ -2221,14 +2221,21 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 
 fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // Supports both `impl Trait for Type { ... }` and `impl Type { ... }`
-    let first_name: i64 = pkv(tokens, pos);
+    let mut first_name: str = pkv(tokens, pos);
     let mut trait_name: str = "";
     let mut type_name: str = first_name;
     let mut cp: i64 = pos + 1;
+    if pk(tokens, cp) == 32 {
+        let mut first_tr: Vec<i32> = parse_type(tokens, pos);
+        first_name = pr_val(first_tr);
+        type_name = first_name;
+        cp = pr_pos(first_tr);
+    };
     if pk(tokens, cp) == 56 {
         trait_name = first_name;
-        type_name = pkv(tokens, cp + 1);
-        cp = cp + 2;
+        let mut target_tr: Vec<i32> = parse_type(tokens, cp + 1);
+        type_name = pr_val(target_tr);
+        cp = pr_pos(target_tr);
     };
     cp = expect_tok(tokens, cp, 52); // {
     let mut methods: Vec<i32> = Vec::new();
@@ -6377,6 +6384,19 @@ fn trait_impl_find(impls: Vec<i32>, type_name: str, method_name: str) -> str {
     return "";
 }
 
+fn from_method_key(src_err: str) -> str {
+    return str_concat("__from__", src_err);
+}
+
+fn from_impl_call_name(impls: Vec<i32>, src_err: str, dst_err: str) -> str {
+    return trait_impl_find(impls, dst_err, from_method_key(src_err));
+}
+
+fn from_impl_exists(impls: Vec<i32>, src_err: str, dst_err: str) -> i64 {
+    if str_len(from_impl_call_name(impls, src_err, dst_err)) > 0 { return 1; };
+    return 0;
+}
+
 fn iter_method_for_vec(mname: str) -> i64 {
     // T2.2 (v0.2.348): method names that map to the typed
     // `vec_<name>_i64` runtime helpers in
@@ -7353,6 +7373,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "TYP-012") == 1 { return 1; };
     if str_eq(code, "TYP-013") == 1 { return 1; };
     if str_eq(code, "FMT-002") == 1 { return 1; };
+    if str_eq(code, "TRAIT-001") == 1 { return 1; };
     // RFC-0004 assume!
     if str_eq(code, "ASSUME-001") == 1 { return 1; };
     if str_eq(code, "ASSUME-002") == 1 { return 1; };
@@ -10695,10 +10716,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
     if kind == 72 { return "f64"; };
     if kind == 2 { return "str"; };
     if kind == 122 {
-        // RFC-0016 phase 1: ? operator. Until generic enums land we treat
-        // the unwrapped payload as i64 — matches the existing untyped
-        // Result<i64,i64> stub layout in stdlib/rods/result.nr.
-        //
+        // RFC-0016 phase 1: ? operator.
         // v0.4.54: NUC-FEEDBACK silent-segfault guard. Pre-fix
         // `let x: i64 = some_fn()?;` where some_fn returns bare i64
         // (not Result<T,E> or Option<T>) silently SIGSEGVed at runtime.
@@ -10718,6 +10736,12 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                     type_diag(diags, source, fn_name, qcallee, "TYP-011", str_concat("`?` operator requires receiver to return `Result<T,E>` or `Option<T>` (or the legacy untyped `Vec<i32>` stub) — `", str_concat(qcallee, str_concat("()` returns `", str_concat(qrtype, "`. Pre-v0.4.54 this silently SIGSEGVed at runtime. Workaround: change the fn signature to return Result/Option, or check the value explicitly with `if ... { return ...; }`.")))));
                 };
             };
+        };
+        let qfull: str = type_expr(pool, qinner, env, sigs, structs, fn_name, diags, source, tprof);
+        let qbase2: str = type_base_name(qfull);
+        if str_eq(qbase2, "Result") == 1 || str_eq(qbase2, "Option") == 1 {
+            let qpayload: str = type_first_arg(qfull);
+            if str_len(qpayload) > 0 { return qpayload; };
         };
         return "i64";
     };
@@ -12565,7 +12589,38 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // cmp_r == 1 (tag==0, Err) → err_lbl (return); cmp_r == 0 (tag!=0, Ok) → ok_lbl (extract).
         ir_block_add(cur, ir_br_cond(cmp_r, err_lbl, ok_lbl));
         let mut err_blk: Vec<i32> = ir_block_new(err_lbl); ir_fn_add_block(fir, err_blk);
-        ir_block_add(err_blk, ir_ret(val_r));
+        let qinner_nid: i64 = node_field(pool, nid, 1);
+        let qfull: str = expr_full_type_from_sym(pool, qinner_nid, sym, structs);
+        let cur_ret_id: i64 = sym_get(sym, "__current_fn_full_return");
+        let mut cur_ret: str = "";
+        if cur_ret_id >= 0 { cur_ret = cur_ret_id; };
+        let mut ret_r: i64 = val_r;
+        if str_eq(type_base_name(qfull), "Result") == 1 && str_eq(type_base_name(cur_ret), "Result") == 1 {
+            let src_err: str = generic_second_type(qfull);
+            let dst_err: str = generic_second_type(cur_ret);
+            if str_len(src_err) > 0 && str_len(dst_err) > 0 && str_eq(src_err, dst_err) == 0 {
+                let conv_fn: str = from_impl_call_name(trait_impls, src_err, dst_err);
+                if str_len(conv_fn) == 0 {
+                    print(str_concat("ERROR: error[TRAIT-001]: missing From<", str_concat(src_err, str_concat("> for ", str_concat(dst_err, " conversion required by `?`")))));
+                    panic("nucleor: TRAIT-001 missing From conversion for question operator");
+                };
+                let one_err_r: i64 = ctr_next(regs); ir_block_add(err_blk, ir_const_int(one_err_r, 1));
+                let mut err_pay_args: Vec<i32> = Vec::new(); err_pay_args.push(val_r); err_pay_args.push(one_err_r);
+                let err_pay_r: i64 = ctr_next(regs); ir_block_add(err_blk, ir_call_ex(err_pay_r, "vec_get", err_pay_args));
+                let mut conv_args: Vec<i32> = Vec::new(); conv_args.push(err_pay_r);
+                let conv_r: i64 = ctr_next(regs); ir_block_add(err_blk, ir_user_call(conv_r, conv_fn, conv_args));
+                let err_vec_r: i64 = ctr_next(regs);
+                let mut err_vec_args: Vec<i32> = Vec::new();
+                ir_block_add(err_blk, ir_call_ex(err_vec_r, "vec_new", err_vec_args));
+                let zero_tag_r: i64 = ctr_next(regs); ir_block_add(err_blk, ir_const_int(zero_tag_r, 0));
+                let mut push_tag_args: Vec<i32> = Vec::new(); push_tag_args.push(err_vec_r); push_tag_args.push(zero_tag_r);
+                let push_tag_r: i64 = ctr_next(regs); ir_block_add(err_blk, ir_call_ex(push_tag_r, "vec_push", push_tag_args));
+                let mut push_payload_args: Vec<i32> = Vec::new(); push_payload_args.push(err_vec_r); push_payload_args.push(conv_r);
+                let push_payload_r: i64 = ctr_next(regs); ir_block_add(err_blk, ir_call_ex(push_payload_r, "vec_push", push_payload_args));
+                ret_r = err_vec_r;
+            };
+        };
+        ir_block_add(err_blk, ir_ret(ret_r));
         let mut ok_blk: Vec<i32> = ir_block_new(ok_lbl); ir_fn_add_block(fir, ok_blk);
         let one_r: i64 = ctr_next(regs); ir_block_add(ok_blk, ir_const_int(one_r, 1));
         let mut pay_args: Vec<i32> = Vec::new(); pay_args.push(val_r); pay_args.push(one_r);
@@ -15334,6 +15389,7 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
     // called fn's return type without signature plumbing through
     // 44 lower_expr call sites.
     populate_fn_returns_in_sym(pool, fn_decls, sym);
+    sym_set(sym, "__current_fn_full_return", node_field(pool, fn_nid, 3));
     let mut fir: Vec<i32> = ir_fn_new(name, pc);
     let mut ebb0: Vec<i32> = ir_block_new(0);
     ir_fn_add_block(fir, ebb0);
@@ -16415,6 +16471,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
         if node_kind(pool, fn_nid) == 45 {
+            let trait_name: str = node_field(pool, fn_nid, 1);
             let type_name: str = node_field(pool, fn_nid, 2);
             let methods: i64 = node_field(pool, fn_nid, 3);
             let mc: i64 = list_len(pool, methods);
@@ -16433,6 +16490,18 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
                 // trait-method results.
                 fn_decls.push(new_fn);
                 trait_impl_register(trait_impls, type_name, orig_name, mangled);
+                if str_eq(type_base_name(trait_name), "From") == 1 && str_eq(orig_name, "from") == 1 {
+                    let mut src_err: str = type_first_arg(trait_name);
+                    if str_len(src_err) == 0 {
+                        let params_list: i64 = node_field(pool, method_nid, 2);
+                        if list_len(pool, params_list) > 0 {
+                            src_err = node_field(pool, list_get(pool, params_list, 0), 2);
+                        };
+                    };
+                    if str_len(src_err) > 0 {
+                        trait_impl_register(trait_impls, type_name, from_method_key(src_err), mangled);
+                    };
+                };
                 mi = mi + 1;
             };
         };

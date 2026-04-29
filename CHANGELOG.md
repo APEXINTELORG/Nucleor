@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.115] — 2026-04-29
+
+**RFC-0016 §3.7: `?` operator now invokes `From::from` for error
+conversion; generic `impl Trait<Arg> for Type` headers parse +
+dispatch (parallel-agent spike integrated; closes audit doc-#1
+§3 / RFC-0024 Phase 5 / v0.2 deferred row #5).**
+
+Pre-fix, `parse_fail()?` inside a function returning a different
+Result error type either returned the source Err payload unchanged
+or forced users into manual match plumbing. The compiler also
+parsed `impl Trait for Type` but not `impl Trait<Arg> for Type`,
+so idiomatic conversion impls could not be represented.
+
+This release parses generic trait impl headers, registers
+`From<SrcErr>` impls under a conversion key, tracks the enclosing
+function's full return type during lowering, and rewrites the `?`
+Err path to call the registered `DstErr__from(src_payload)` before
+early return. Missing conversions now halt with `TRAIT-001`.
+
+Pinned by `tests/fixtures/repro_question_from_conversion.nr`,
+`tests/fixtures/repro_into_explicit.nr`, and
+`tests/err/err_question_missing_from_conversion.nr`.
+
+Spike rebased onto v0.4.114 + bootstrap fixed-point re-emitted +
+drift gate green.
+
 ## [0.4.114] — 2026-04-29
 
 **`String` heap-string type lands; `string_basic.nr` restored to

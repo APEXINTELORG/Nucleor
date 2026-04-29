@@ -403,6 +403,8 @@ Step "CLI: nuc explain — full spec code set wired" {
         "TYP-006", "TYP-007", "TYP-008", "TYP-009", "TYP-010", "TYP-011", "TYP-012", "TYP-013",
         # FMT series — format macro expansion
         "FMT-002",
+        # TRAIT series — trait dispatch and conversions
+        "TRAIT-001",
         # RFC-0004 assume!
         "ASSUME-001", "ASSUME-002", "ASSUME-003", "ASSUME-004", "ASSUME-005",
         # RFC-0005 units
@@ -2523,6 +2525,31 @@ Step "T3.138 v0.4.91 RFC-0028 struct Display/Debug format dispatch + FMT-002" {
     $errOut = $errLines | Out-String
     if ($errExit -ne 1) { return $false }
     if ($errOut -notmatch "error\[FMT-002\]") { return $false }
+    return $true
+}
+
+Step "T3.146 v0.4.115 RFC-0016 §3.7 ? applies From<SrcErr> for DstErr conversion; explicit Into<T> parses" {
+    $build1 = & $bin build "tests/fixtures/repro_question_from_conversion.nr" -o "_t460_question_from" --no-cache 2>&1
+    if ($LASTEXITCODE -ne 0) { return $false }
+    $exe1 = "target\_t460_question_from.exe"
+    if (-not (Test-Path $exe1)) { $exe1 = "target\_t460_question_from" }
+    if (-not (Test-Path $exe1)) { return $false }
+    $run1 = Invoke-BinaryNoInput (Join-Path $root $exe1)
+    if ($run1.ExitCode -ne 107) { return $false }
+
+    $build2 = & $bin build "tests/fixtures/repro_into_explicit.nr" -o "_t460_into_explicit" --no-cache 2>&1
+    if ($LASTEXITCODE -ne 0) { return $false }
+    $exe2 = "target\_t460_into_explicit.exe"
+    if (-not (Test-Path $exe2)) { $exe2 = "target\_t460_into_explicit" }
+    if (-not (Test-Path $exe2)) { return $false }
+    $run2 = Invoke-BinaryNoInput (Join-Path $root $exe2)
+    if ($run2.ExitCode -ne 12) { return $false }
+
+    $errLines = & $bin build "tests/err/err_question_missing_from_conversion.nr" -o "_t460_missing_from" --no-cache 2>&1
+    $errExit = $LASTEXITCODE
+    $errOut = $errLines | Out-String
+    if ($errExit -eq 0) { return $false }
+    if ($errOut -notmatch "error\[TRAIT-001\]") { return $false }
     return $true
 }
 
