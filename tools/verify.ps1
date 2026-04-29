@@ -1168,14 +1168,14 @@ Step "T3.69 &mut T param diagnostic (HIGH-BLAST silent miscompute pre-v0.3.93)" 
     return $true
 }
 
-Step "T3.68 dyn keyword parser acceptance (Box<dyn Trait>, fn -> dyn ...)" {
+Step "T3.68 Box<dyn Trait> binding/call accepts Box<Concrete> with impl" {
     & $bin build "tests/fixtures/t368_dyn_keyword_parse.nr" -o "_t368_check" --no-cache 2>&1 | Out-Null
     $exe = $null
     if (Test-Path "target\_t368_check.exe") { $exe = "target\_t368_check.exe" }
     elseif (Test-Path "target\_t368_check") { $exe = "target\_t368_check" }
     if (-not $exe) { return $false }
     & $exe | Out-Null
-    if ($LASTEXITCODE -ne 42) { return $false }
+    if ($LASTEXITCODE -ne 47) { return $false }
     return $true
 }
 

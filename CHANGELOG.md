@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.118] — 2026-04-29
+
+**`Box<dyn Trait>` binding/call coercion now type-checks when the
+concrete type has a matching trait impl (parallel-agent spike
+integrated on 2nd pass; closes audit doc-#1 §9).**
+
+Pre-fix, `Box<dyn Greet>` parsed syntactically but erased `dyn`
+during type parsing, so:
+
+```nucleor
+let _b: Box<dyn Greet> = Box::new(A { n: 7 });
+```
+
+failed as `TYP-008` even when `impl Greet for A` existed.
+
+`parse_type` now preserves the `dyn` marker, and binding /
+assignment / return / call-argument compatibility uses a
+context-aware check (`types_compatible_context`) that permits
+`Box<Concrete>` into `Box<dyn Trait>` only when the program
+contains the matching `impl Trait for Concrete`. The check
+threads the `prog` AST root through `type_expr` (signature
+change adopted at every call site) so the impl table can be
+walked at type-check time.
+
+`tests/fixtures/t368_dyn_keyword_parse.nr` pins the positive
+case (returns 47); `tests/err/err_box_dyn_missing_impl.nr`
+pins the negative case (TYP-008 when no impl exists).
+
+Spike rebased onto v0.4.117 with `-X theirs` strategy + my
+v0.4.117 type_expr call-arg walker patched to thread the
+new `prog` arg + bootstrap fixed-point re-emitted + drift
+gate green. Fast-verify 169 PASS / 2 baseline-FAIL.
+
 ## [0.4.117] — 2026-04-29
 
 **TYP-011 str-indexing guard moved to codegen side — catches
@@ -31,10 +64,7 @@ catches every silent-compile path.
 Diagnostic now points at `str_char_at(s, i)` for byte access or
 `str_substring(s, i, j)` for substrings.
 
-Negative fixture: `tests/err/err_str_index_in_arg.nr`. Fast-verify
-167 PASS / 2 baseline-FAIL clean. Bootstrap fixed-point sha
-`9a91dd5a…`. (Type-check side guard kept as the early-fail path
-for the let-RHS form.)
+Negative fixture: `tests/err/err_str_index_in_arg.nr`.
 
 ## [0.4.116] — 2026-04-29
 
