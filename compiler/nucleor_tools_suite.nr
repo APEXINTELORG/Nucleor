@@ -8249,7 +8249,19 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             cur = lx_blk(ap);
             ai = ai + 1;
         };
-        let stype: str = expr_struct_type(pool, node_field(pool, nid, 1), sym, structs);
+        let mut stype: str = expr_struct_type(pool, node_field(pool, nid, 1), sym, structs);
+        // v0.4.135 mirror: str-literal receiver (kind 2) gets empty stype
+        // from expr_struct_type. Without this, .len/.contains/etc. on a
+        // str literal would route to vec_*_i64 in the iter check below
+        // and silent-miscompute reading the str header as a vec header.
+        // Stamp stype = "str" so the existing v0.4.90 str-method branch
+        // catches it.
+        {
+            let recv_v4135_t: i64 = node_field(pool, nid, 1);
+            if node_kind(pool, recv_v4135_t) == 2 {
+                stype = "str";
+            };
+        };
         let mut fn_name: str = "";
         if str_len(stype) > 0 { fn_name = trait_impl_find(trait_impls, stype, mname); };
         if str_len(fn_name) == 0 {
@@ -8259,7 +8271,10 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             if str_len(fn_name) == 0 {
                 // T2.2 (v0.2.348) — synced from s1: route Vec iterator
                 // methods to typed `vec_*_i64` runtime helpers.
-                if iter_method_for_vec(mname) == 1 {
+                // v0.4.135: gate the iter dispatch on receiver-not-being-str,
+                // so `"abc".contains("b")` falls through to the str_contains
+                // branch below instead of hitting vec_contains_i64.
+                if iter_method_for_vec(mname) == 1 && str_eq(type_base_name(stype), "str") != 1 {
                     fn_name = str_concat("vec_", str_concat(mname, "_i64"));
                 } else {
                     // v0.4.90: mirror s1 v0.4.87/88/89 — str-receiver

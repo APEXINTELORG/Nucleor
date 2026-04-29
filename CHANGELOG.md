@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.135] — 2026-04-29
+
+**str-literal method dispatch: `"abc".len()` silently returned 0
+(read the str header as a Vec header). Fixed; routes correctly to
+`str_*` runtime helpers.**
+
+```nucleor
+let n: i64 = "abc".len();           // pre-fix: n == 0
+let c: i64 = "hi there".contains("the");  // pre-fix: garbage
+```
+
+The kind-8 (method-call) lowering at `lower_expr` looks up the
+receiver's type via `expr_struct_type`, which returns "" for
+literal AST nodes (kind 2 = string literal). With empty `stype`,
+`recv_is_vec` stayed 1, and the dispatch chain fell through to
+either `vec_<m>` (for `.len`) or `vec_<m>_i64` (for the iterator
+methods like `.contains` / `.clone`) — each running the runtime
+helper on the str pointer as if it were a Vec header. `.len()`
+returned 0 because the i64 at the matching offset in the
+heap-allocated str struct happened to be 0; `.contains` /
+`.starts_with` / `.ends_with` would have read past the str's tail
+into adjacent heap memory.
+
+This release detects kind-2 receivers in the kind-8 dispatch path,
+clears `recv_is_vec`, and stamps `stype = "str"` so the existing
+v0.4.88 str-method dispatch (introduced for `let s: str = ...;
+s.len()`) catches the literal case too. Mirrored to
+`nucleor_tools_suite.nr` so `nuc check` / `nuc test` / `nuc
+build-strict` get the same fix.
+
+Positive fixture: `tests/features/str_literal_methods.nr`.
+Bootstrap fixed-point holds first-pass. Fast-verify 189 PASS / 2
+baseline-FAIL.
+
 ## [0.4.134] — 2026-04-29
 
 **MATCH-001 ext: `match b { true => 1 }` on a bool was a wildcard-
