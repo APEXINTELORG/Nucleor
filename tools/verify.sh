@@ -1341,6 +1341,17 @@ t433_vec_set_wrong_type_halts() {
     return 0
 }
 
+t440_str_index_halts() {
+    # v0.4.94 TYP-011 — `s[i]` for s:str halts (was silent vec_get
+    # on str pointer → OOB panic / garbage).
+    "$BIN" build "tests/fixtures/repro_v94_str_index_halts.nr" -o "_t440_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\\[TYP-011\\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "does not support direct indexing" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t439_result_or_else() {
     # v0.4.93 — Result.or_else(f) recovery method.
     "$BIN" build "tests/fixtures/repro_v93_result_or_else.nr" -o "_t439_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
@@ -3429,6 +3440,7 @@ step "T3.136 v0.4.89 — extend str dispatch to to_lower/to_upper/trim/trim_star
 step "T3.137 v0.4.90 CRITICAL — Option/Result method dispatch (was unusable v0.4.53..v0.4.89 due to false non-Option panic)" t437_option_result_method_dispatch
 step "T3.138 v0.4.92 — Option/Result fn-arg methods (.map/.and_then/.unwrap_or_else)" t438_option_result_fn_arg_methods
 step "T3.139 v0.4.93 — Result.or_else(f) recovery method" t439_result_or_else
+step "T3.140 v0.4.94 TYP-011 — `s[i]` on str halts (was silent vec_get on str pointer → OOB/garbage)" t440_str_index_halts
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

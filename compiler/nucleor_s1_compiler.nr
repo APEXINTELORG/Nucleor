@@ -11401,6 +11401,15 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if str_len(recv_t) == 0 && node_kind(pool, recv_nid) == 3 {
             recv_t = infer_var_type_from_source(source, node_field(pool, recv_nid, 1));
         };
+        // v0.4.94: TYP-011 close — `s[i]` for `s: str` silently
+        // dispatched to vec_get(s, i), which read the str pointer
+        // as if it were an NVec header — at best returned garbage,
+        // at worst SIGSEGVed. Adopters writing canonical Rust
+        // string indexing got an OOB panic with "len 0" or random
+        // garbage. Halt with a clear hint to use str_char_at.
+        if str_eq(recv_t, "str") == 1 {
+            type_diag(diags, source, fn_name, fn_name, "TYP-011", "`str` does not support direct indexing with `s[i]` — that lowers to vec_get on the str pointer (OOB-panics or returns garbage). Use `str_char_at(s, i)` to get a byte, or `str_substring(s, i, j)` to get a substring.");
+        };
         let elem_t: str = strip_container_one_level(recv_t);
         if vec_element_type_is_legacy_cell(elem_t) == 1 { return ""; };
         return elem_t;
