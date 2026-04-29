@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.86] — 2026-04-29
+
+**TYP-008 ext — Vec<T>.set(idx, literal) and .insert(idx, literal)
+wrong-type halts (extends v0.4.85 to elem-arg-at-position-1
+methods).**
+
+Pre-fix `v.set(0, "hello")` for `Vec<i64>` silently bit-cast the
+str pointer into the i64 cell (same root cause as v0.4.85's
+push). Adopters writing canonical Rust got E0308.
+
+### Detection
+
+Generalized the v0.4.85 push check via a method-name → elem-arg-
+position table:
+- `push` → arg 0
+- `insert` → arg 1
+- `set` → arg 1
+
+Same narrow literal-RHS check (kinds 1 / 2 / 71 mismatched
+against Vec's element type). Variable-RHS cases still need full
+type_expr recursion (deferred per v0.4.85 history).
+
+### Sister bug discovered
+
+The dispatch for `v.insert(idx, val)` lowers to runtime helper
+`vec_insert` — but no such helper exists; the actual helper is
+`vec_insert_at`. Pre-fix `v.insert(0, 99)` (with a valid `i64`
+arg) failed at clang link with `undefined value '@vec_insert'`.
+This is a separate pre-existing bug (method-name dispatch drift)
+that v0.4.86's wrong-type check fires AHEAD of, so the new
+TYP-008 is a strict superset of the old "passes type but link-
+fails" experience. Tracked for a future rewire-dispatch ship.
+
+### Verify gate
+
+- T3.133 — `tests/fixtures/repro_v86_vec_set_wrong_type.nr`
+  asserts `Vec<i64>.set(0, "hello")` errors with TYP-008 at
+  build time (msg contains "Vec<i64>.set").
+
+### Memory + timing
+
+- Self-host build: unchanged (added one int-comparison + small
+  table dispatch).
+- Verify gate: 376.8s / 508 steps (was 368.7s / 507 — 8s within
+  noise).
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha 61d41d1b…).
+
 ## [0.4.85] — 2026-04-29
 
 **TYP-008 ext — Vec<T>.push(literal) wrong-type halts (was silent
