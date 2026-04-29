@@ -11435,6 +11435,21 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let hint: str = if op == 30 { "str_eq(a, b) == 1" } else { "str_eq(a, b) == 0" };
             type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`str ", str_concat(opname, str_concat(" str` does pointer comparison (silent miscompute — two equal-bytes literals at different addresses return FALSE). Use `", str_concat(hint, "` for value comparison.")))));
         };
+        // v0.4.151: TYP-011 ext — `String == String` / `String != String`
+        // silent ptr compare. Sister to v0.4.52 (str == str) and
+        // v0.4.147 (struct ==). String is a heap-allocated buffer
+        // (NOT a user-defined struct, so v0.4.147's struct_find_type
+        // check skipped it). Pre-fix `s == s2` for `s, s2: String`
+        // returned FALSE for two String values at different heap
+        // addresses even when their bytes matched. The runtime helper
+        // `__nucleor_string_eq` exists; this is the missing
+        // surface-level dispatch from `==` to it.
+        if (op == 30 || op == 31) && str_eq(type_base_name(lt), "String") == 1 && str_eq(type_base_name(rt), "String") == 1 {
+            let v151_op: str = if op == 30 { "==" } else { "!=" };
+            let v151_hint: str = if op == 30 { "a.eq(b) == 1" } else { "a.eq(b) == 0" };
+            let v151msg: str = str_concat("`String ", str_concat(v151_op, str_concat(" String` does pointer comparison (silent miscompute — two equal-bytes Strings at different heap addresses return FALSE). Use `", str_concat(v151_hint, "` (which dispatches to __nucleor_string_eq) for value comparison, or compare via `.eq_str(\"...\")` against a str literal.")))));
+            type_diag(diags, source, fn_name, fn_name, "TYP-011", v151msg);
+        };
         // v0.4.67: NUC-FEEDBACK silent-miscompute close for str
         // ordering ops `<`, `<=`, `>`, `>=`. Pre-fix `a < b` for two
         // str values did integer pointer compare — wholly disconnected

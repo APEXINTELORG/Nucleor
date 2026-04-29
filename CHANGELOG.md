@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.151] — 2026-04-29
+
+**TYP-011 ext: `String == String` / `String != String` silently
+did pointer comparison. Two equal-bytes Strings at different
+heap addresses returned FALSE. Now halts.**
+
+```nucleor
+let s: String = String::new();
+let s2: String = String::new();
+if s == s2 { ... }   // pre-fix: takes else branch
+```
+
+The kind-4 (binop) v0.4.52 check covered `str == str`. v0.4.147
+covered user-defined `struct == struct`. String — a heap-
+allocated buffer — fell into neither: it's a built-in (not in
+`structs`) and not a `str`. Pre-fix the binop lowered to
+`icmp eq i64` on the two String heap pointers and returned
+0/1 by address equality. Adopters who reached for `==` to
+compare String values got a quiet wrong result.
+
+This release adds a sibling check using `type_base_name(lt) ==
+"String" && type_base_name(rt) == "String"` for ops 30/31.
+Hint points at `a.eq(b)` (which routes through
+`__nucleor_string_eq` via the v0.4.124 String method dispatch).
+s1-only.
+
+Negative fixture: `tests/err/err_string_eq_ptr_compare.nr`.
+Bootstrap fixed-point holds first-pass. Fast-verify 205 PASS / 2
+baseline-FAIL.
+
 ## [0.4.150] — 2026-04-29
 
 **TYP-011 ext: `String + <scalar>` (or any String arith) silently
