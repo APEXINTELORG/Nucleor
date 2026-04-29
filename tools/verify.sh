@@ -1218,6 +1218,28 @@ t422_shift_out_of_range() {
     return 0
 }
 
+t423_float_in_int_context() {
+    # v0.4.76 NUM-018 — `let x: i64 = 3.14;` halts at compile time
+    # (was silent IEEE-754-bits-as-i64 miscompute pre-fix).
+    "$BIN" build "tests/fixtures/repro_v76_float_in_int_context.nr" -o "_t423_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\\[NUM-018\\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "float literal" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
+t424_not_on_int() {
+    # v0.4.76 TYP-002 ext — `let r: bool = !x;` for x: i64 halts
+    # (was silent xor-with-1 miscompute pre-fix).
+    "$BIN" build "tests/fixtures/repro_v76_not_on_int.nr" -o "_t424_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\\[TYP-002\\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "unary" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t413_eq_typo_guard() {
     "$BIN" build "tests/fixtures/repro_v69_eq_typo_guard.nr" -o "_t413_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
@@ -3187,6 +3209,8 @@ step "T3.119 v0.4.73 audit S2 — generic Result payload type propagates into ma
 step "T3.120 v0.4.73 audit S2 — Vec element type propagates through index, vec_get, first" t420_vec_element_type_propagation
 step "T3.121 v0.4.74 NUM-009 — division/remainder by literal zero (silent runtime SIGFPE → compile-time halt)" t421_div_by_literal_zero
 step "T3.122 v0.4.75 NUM-008 — shift amount out of range for i64 (LLVM poison → compile-time halt)" t422_shift_out_of_range
+step "T3.123 v0.4.76 NUM-018 — float literal in integer-typed binding (silent IEEE-bits-as-i64 → halt)" t423_float_in_int_context
+step "T3.124 v0.4.76 TYP-002 — unary `!` on non-bool (silent xor-with-1 → halt)" t424_not_on_int
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
