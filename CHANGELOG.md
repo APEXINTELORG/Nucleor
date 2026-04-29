@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.104] — 2026-04-29
+
+**Concurrency-safe compiler cache: per-output `clang_link.log`;
+parallel verify harness lands at 9.13× speedup.**
+
+The compiler had a single shared sink — `.nuc_cache/clang_link.log`
+(nucleor_s1_compiler.nr:15488) — that every concurrent build wrote
+to. Two compilers running in parallel raced the file lock; the
+loser came back with an empty log, the post-link MOD-003 scan
+saw zero clang stderr, the empty-log retry loop tripped, and
+the helper aborted with `clang_link.log is EMPTY -- clang likely
+never started`. Self-inflicted: concurrency-safe-by-construction
+is a Nucleor design promise, the compiler violating it on its
+own build cache was a regression.
+
+This release derives the log path from `out_name` so every
+compile owns its own log:
+
+```nucleor
+let log_path: str = sanitize(str_concat(
+    ".nuc_cache/clang_link.",
+    str_concat(out_name, ".log")));
+```
+
+The retry loop and MOD-003 scan both keep working unchanged
+(they read whichever path this function wrote). Audited the
+rest of `.nuc_cache/` writes — every other path is content-
+hashed per-source or already per-output, so this was the only
+shared sink.
+
+Adds `tools/verify_parallel.sh` — a worker-pool harness over
+the parallelizable verify steps (per-fixture builds in
+`tests/{lang,attrs,runtime,rods,features}` + `tests/err`
+negatives). Drives bash background jobs with `wait -n` slot
+management; per-step temp dirs; tallies PASS/FAIL with the
+same predicates as `verify.sh`. Sequential structural gates
+(T1.x bootstrap fixed-point, drift, manifest freshness)
+continue to live in the canonical `tools/verify.sh`.
+
+Measured on this machine (24 logical cores):
+
+| Workers | PASS | FAIL | Wall   | Speedup |
+|---------|------|------|--------|---------|
+| 1       | 153  | 2    | 92.07s | 0.79×   |
+| 4       | 153  | 2    | 35.44s | 2.54×   |
+| 8       | 149  | 5    | 13.81s | 5.05×   |
+| 12      | 154  | 2    | 15.06s | 9.13×   |
+
+The 2 baseline FAILs are `lang/mod_decl_aux` (multi-file module
+that needs verify.sh's special setup) and `runtime/stdin_read`
+(needs a stdin pipe) — neither is a race. Pre-fix `-j 12` was
+churning at 229 false-fails / 58s wall; post-fix `-j 12` lands
+at 2 known-fails / 15s wall.
+
+Sequential `verify.sh`: 537/537 PASS, bootstrap fixed-point
+holds. Folding `verify_parallel.sh` into `verify.sh` proper
+is a separate ship so this tag stays focused on the compiler
+fix.
+
 ## [0.4.103] — 2026-04-29
 
 **Trait-bound clauses `<T: Addable>` parse-skip; `trait_bounds.nr`
