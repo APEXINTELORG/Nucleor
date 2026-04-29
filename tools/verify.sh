@@ -1343,6 +1343,17 @@ t433_vec_set_wrong_type_halts() {
     return 0
 }
 
+t445_parse_primary_narrow_panic() {
+    # v0.4.99 §_p — parse_primary fall-through panics for non-recovery
+    # tokens. Pgs_smoke continues to work (token 51 = `)` is in the
+    # recovery-marker set).
+    "$BIN" build "tests/fixtures/repro_v99_parse_primary_narrow_panic.nr" -o "_t445_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" != "0" ] || return 1
+    grep -q "NR020" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t444_debug_vec_str_and_option() {
     # v0.4.98 — extends v0.4.97 Vec debug dispatch by element type.
     "$BIN" build "tests/fixtures/repro_v98_debug_vec_str_and_option.nr" -o "_t444_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
@@ -3526,6 +3537,7 @@ step "T3.141 v0.4.95 — variable-divisor zero panics with clean message (was si
 step "T3.142 v0.4.96 RFC-0028 — struct Display/Debug format dispatch + FMT-002 (audit doc-#1 §10)" t442_format_struct_display_debug
 step "T3.143 v0.4.97 — recursive Debug for Vec<i64>/Option<i64>/Result<i64,i64> (audit doc-#1 §10b)" t443_recursive_debug
 step "T3.144 v0.4.98 — Vec debug element-type dispatch: Vec<str> + Vec<Option<i64>>" t444_debug_vec_str_and_option
+step "T3.145 v0.4.99 §_p — parse_primary fall-through panics for non-recovery tokens (audit doc-#1)" t445_parse_primary_narrow_panic
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

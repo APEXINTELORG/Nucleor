@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.99] — 2026-04-29
+
+**parse_primary fall-through narrowed (audit doc-#1 §_p — closes
+the long-deferred v0.4.72 / v0.4.81 attempts).**
+
+Pre-fix `parse_primary` silently returned `int_lit(0)` for ALL
+unhandled tokens — adopters who wrote constructs the parser
+didn't recognize (binding patterns `x @ 1..=10`, raw type
+annotations, etc.) shipped binaries containing silent zero
+substitutions.
+
+v0.4.72 and v0.4.81 both attempted unconditional panic at this
+site; both broke `tests/rods/pgs_smoke.nr` because token 51 (`)`)
+is legitimately reached here from macro-expanded code at byte 6571.
+
+v0.4.99 takes the pragmatic narrow-predicate route per change-map
+§9 spirit:
+- For `EOF` (0), `=` (40), `}` (41), `;` (43), `,` (44), `)` (51),
+  `]` (55) — keep silent fallback (these are recovery-context
+  markers; the legit pgs_smoke case is one of these).
+- For ANY OTHER unhandled token — panic with NR020 + token kind
+  + byte position.
+
+This catches the silent-miscompute class while preserving the
+known-legit recovery cases. Note: most "real" silent fall-throughs
+(like `@` patterns) are now intercepted earlier by v0.4.78
+expect_tok NR020, so this is the safety net for tokens that slip
+past expect_tok.
+
+### Verify gate
+
+- T3.145 — `tests/fixtures/repro_v99_parse_primary_narrow_panic.nr`
+  asserts the build halts with NR020.
+
+### Memory + timing
+
+- Verify gate: 521 PASS / 0 FAIL.
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha 135c25bb…).
+- pgs_smoke.nr still builds and runs (legit recovery preserved).
+
 ## [0.4.98] — 2026-04-29
 
 **Vec debug element-type dispatch — `Vec<str>` and `Vec<Option<i64>>`
