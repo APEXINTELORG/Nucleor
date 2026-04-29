@@ -33,3 +33,25 @@ clause silently parse-recovered pre-fix, producing a binary that
 "ran" only because the bound was ignored entirely. Made hidden
 when v0.4.78 promoted parse errors to NR020 panics. Move back
 once the trait bound parser is wired (audit doc-#1 §8).
+
+## v0.4.100 — 13 fixtures restored to active gate
+
+After v0.4.97-99 closures/Display-Debug/parse_primary work, these
+fixtures now build + run without SIGSEGV and have been moved
+back to `tests/features/`:
+
+- closure_capture.nr
+- math_extended.nr / math_float.nr / math_int.nr / math_lib.nr
+  / math_stdlib.nr
+- option_result_f64.nr
+- selective_import.nr
+- string_ops.nr
+- vec_fold.nr / vec_iter.nr / vec_iter_combinators.nr
+  / vec_map_filter.nr
+
+Still in `_unimplemented/`:
+- iter_combinators.nr (build fail — needs full Iterator trait, audit §6)
+- overflow_comprehensive.nr / overflow_saturating.nr
+  / overflow_wrapping.nr (build fail — needs overflow-attr scaffolding)
+- string_basic.nr (builds but SIGSEGV at runtime)
+- trait_bounds.nr (build fail — audit §8)
