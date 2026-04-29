@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 834
-# Of which REVIEW REQUIRED: 64
+# Total helpers: 837
+# Of which REVIEW REQUIRED: 66
 
 # ============================================================
 # REVIEW REQUIRED
@@ -53,6 +53,7 @@
 #   option_is_none                           (Unclassified)
 #   option_is_some                           (Unclassified)
 #   option_map                               (Unclassified)
+#   option_to_debug_str_i64                  (Unclassified)
 #   option_unwrap                            (Unclassified)
 #   option_unwrap_or                         (Unclassified)
 #   option_unwrap_or_else                    (Unclassified)
@@ -64,6 +65,7 @@
 #   result_map                               (Unclassified)
 #   result_ok                                (Unclassified)
 #   result_or_else                           (Unclassified)
+#   result_to_debug_str_i64                  (Unclassified)
 #   result_unwrap                            (Unclassified)
 #   result_unwrap_or                         (Unclassified)
 #   result_unwrap_or_else                    (Unclassified)
@@ -9885,6 +9887,20 @@ since            = "0.1.0"
 notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
 
 [[helper]]
+name             = "option_to_debug_str_i64"
+class            = "Unclassified"
+symbol           = "__nucleor_option_to_debug_str_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
 name             = "option_unwrap"
 class            = "Unclassified"
 symbol           = "__nucleor_option_unwrap"
@@ -10030,6 +10046,20 @@ class            = "Unclassified"
 symbol           = "__nucleor_result_or_else"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, i64) -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "result_to_debug_str_i64"
+class            = "Unclassified"
+symbol           = "__nucleor_result_to_debug_str_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> ptr"
 effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
@@ -11559,6 +11589,20 @@ class            = "VectorOps"
 symbol           = "__nucleor_vec_take_i64"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "vec_to_debug_str_i64"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_to_debug_str_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> ptr"
 effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"

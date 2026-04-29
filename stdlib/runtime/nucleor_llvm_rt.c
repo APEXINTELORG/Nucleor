@@ -7429,6 +7429,56 @@ long long __nucleor_result_unwrap_or_else(NVec *res, long long fn_ptr) {
     long long (*fn)(long long) = (long long (*)(long long))(void *)(intptr_t)fn_ptr;
     return fn(res ? __nucleor_vec_get(res, 1) : 0);
 }
+// === Recursive Debug formatters for Vec/Option/Result (v0.4.97) ===
+// Format element/payload as i64 (Nucleor cell convention). Strings
+// returned are heap-allocated; caller responsible for free.
+const char *__nucleor_vec_to_debug_str_i64(NVec *v) {
+    if (!v) {
+        char *s = (char *)malloc(3); s[0]='['; s[1]=']'; s[2]=0; return s;
+    }
+    // Estimate buffer: 24 chars per element max + 2 brackets + commas.
+    long long cap = (v->len * 26) + 16;
+    char *out = (char *)malloc(cap);
+    long long pos = 0;
+    out[pos++] = '[';
+    for (int i = 0; i < v->len; i++) {
+        if (i > 0) { out[pos++] = ','; out[pos++] = ' '; }
+        char buf[32];
+        int n = snprintf(buf, sizeof(buf), "%lld", (long long)v->data[i]);
+        memcpy(out + pos, buf, n);
+        pos += n;
+    }
+    out[pos++] = ']';
+    out[pos] = 0;
+    return out;
+}
+const char *__nucleor_option_to_debug_str_i64(NVec *opt) {
+    if (!opt || __nucleor_vec_get(opt, 0) != 0) {
+        char *s = (char *)malloc(5); memcpy(s, "None", 5); return s;
+    }
+    char buf[64];
+    int n = snprintf(buf, sizeof(buf), "Some(%lld)", (long long)__nucleor_vec_get(opt, 1));
+    char *out = (char *)malloc(n + 1);
+    memcpy(out, buf, n + 1);
+    return out;
+}
+const char *__nucleor_result_to_debug_str_i64(NVec *res) {
+    if (!res) {
+        char *s = (char *)malloc(7); memcpy(s, "Err(0)", 7); return s;
+    }
+    char buf[64];
+    if (__nucleor_vec_get(res, 0) == 1) {
+        int n = snprintf(buf, sizeof(buf), "Ok(%lld)", (long long)__nucleor_vec_get(res, 1));
+        char *out = (char *)malloc(n + 1);
+        memcpy(out, buf, n + 1);
+        return out;
+    }
+    int n = snprintf(buf, sizeof(buf), "Err(%lld)", (long long)__nucleor_vec_get(res, 1));
+    char *out = (char *)malloc(n + 1);
+    memcpy(out, buf, n + 1);
+    return out;
+}
+
 NVec *__nucleor_result_or_else(NVec *res, long long fn_ptr) {
     // f takes the err payload, returns a Result<T,E2>. If Ok, pass through.
     if (!res || !fn_ptr) return res;

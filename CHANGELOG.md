@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.97] — 2026-04-29
+
+**Recursive Debug for `Vec<i64>` / `Option<i64>` / `Result<i64,i64>`
+(audit doc-#1 §10b — extends v0.4.96 §10).**
+
+Pre-fix `println!("{:?}", v)` for `v: Vec<i64>` emitted the
+pointer integer (silent miscompute). Same for Option/Result.
+
+Adds 3 C runtime helpers:
+- `__nucleor_vec_to_debug_str_i64(NVec*)` → `[1, 2, 3]`
+- `__nucleor_option_to_debug_str_i64(NVec*)` → `Some(42)` / `None`
+- `__nucleor_result_to_debug_str_i64(NVec*)` → `Ok(99)` / `Err(7)`
+
+Compiler-side `{:?}` dispatch in `fmt_conversion_for_spec` routes
+to the new helpers when inferred receiver type is Vec/Option/Result.
+
+Element/payload formatted as i64 (Nucleor cell convention). Mirrored
+into tools_suite. Helper manifest regenerated.
+
+### Verify gate
+
+- T3.143 — `tests/fixtures/repro_v97_recursive_debug.nr` asserts
+  end-to-end output `[1, 2, 3]`, `Some(42)`, `None`, `Ok(99)`,
+  `Err(7)`.
+
+### Memory + timing
+
+- Verify gate: 519 PASS / 0 FAIL.
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha 9390c3f6…).
+
 ## [0.4.96] — 2026-04-29
 
 **Display / Debug for structs (audit doc-#1 §10) — `println!("{}", p)`

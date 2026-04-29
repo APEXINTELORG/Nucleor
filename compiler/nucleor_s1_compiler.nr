@@ -3287,6 +3287,10 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "result_and_then") { return "__nucleor_result_and_then"; };
     if str_eq(name, "result_unwrap_or_else") { return "__nucleor_result_unwrap_or_else"; };
     if str_eq(name, "result_or_else") { return "__nucleor_result_or_else"; };
+    // v0.4.97: recursive Debug formatters (audit doc-#1 §10b).
+    if str_eq(name, "vec_to_debug_str_i64") { return "__nucleor_vec_to_debug_str_i64"; };
+    if str_eq(name, "option_to_debug_str_i64") { return "__nucleor_option_to_debug_str_i64"; };
+    if str_eq(name, "result_to_debug_str_i64") { return "__nucleor_result_to_debug_str_i64"; };
     if str_eq(name, "args_count") { return "__nucleor_args_count"; };
     if str_eq(name, "args_get") { return "__nucleor_args_get"; };
     if str_eq(name, "print_int") { return "__nucleor_print_i64"; };
@@ -4173,6 +4177,10 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "read_line") { return 1; };
     if str_eq(name, "format_i64") { return 1; };
     if str_eq(name, "int_to_str") { return 1; };
+    // v0.4.97: recursive Debug formatters return ptr (heap str).
+    if str_eq(name, "vec_to_debug_str_i64") { return 1; };
+    if str_eq(name, "option_to_debug_str_i64") { return 1; };
+    if str_eq(name, "result_to_debug_str_i64") { return 1; };
     if str_eq(name, "str_from_int") { return 1; };
     if str_eq(name, "f64_to_str") { return 1; };
     if str_eq(name, "f32_to_str") { return 1; };
@@ -4873,6 +4881,10 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_result_and_then(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_result_unwrap_or_else(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_result_or_else(ptr, i64)\n");
+    // v0.4.97: recursive Debug formatters.
+    sb_append(sb, "declare ptr @__nucleor_vec_to_debug_str_i64(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_option_to_debug_str_i64(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_result_to_debug_str_i64(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_sb_new()\n");
     sb_append(sb, "declare void @__nucleor_sb_append(i64, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_append_char(i64, i64)\n");
@@ -18785,6 +18797,20 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
         let inferred: str = type_base_name(infer_var_type_from_source(src, arg_expr));
         if str_eq(inferred, "str") == 1 || str_eq(inferred, "String") == 1 {
             return str_concat("str_concat(\"\\\"\", str_concat(", str_concat(arg_expr, ", \"\\\"\"))"));
+        };
+        // v0.4.97 audit doc-#1 §10b: recursive Debug for Vec/Option/Result.
+        // Pre-fix `println!("{:?}", v)` for v: Vec<i64> emitted the
+        // pointer integer (silent miscompute). Now routes to runtime
+        // helpers that produce `[1, 2, 3]` / `Some(42)` / `Err(7)`.
+        // Element/payload formatted as i64 (Nucleor cell convention).
+        if str_eq(inferred, "Vec") == 1 {
+            return str_concat("vec_to_debug_str_i64(", str_concat(arg_expr, ")"));
+        };
+        if str_eq(inferred, "Option") == 1 {
+            return str_concat("option_to_debug_str_i64(", str_concat(arg_expr, ")"));
+        };
+        if str_eq(inferred, "Result") == 1 {
+            return str_concat("result_to_debug_str_i64(", str_concat(arg_expr, ")"));
         };
         if str_len(inferred) > 0 && str_contains(src, str_concat("struct ", inferred)) == 1 {
             let mut dbg_segments: Vec<i32> = Vec::new();
