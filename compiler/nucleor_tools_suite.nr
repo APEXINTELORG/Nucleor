@@ -5696,6 +5696,13 @@ fn is_copy_type(tstr: str, pool: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -
     return 1; // unknown types default to Copy
 }
 
+fn own_binding_move_type(tstr: str, pool: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
+    if is_copy_type(tstr, pool, structs, enums) == 0 { return 1; };
+    let base: str = type_base_name(tstr);
+    if str_eq(base, "String") { return 1; };
+    return 0;
+}
+
 fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, fn_name: str) -> i64 {
     if nid < 0 { return 0; };
     if nid >= vec_len(pool) { return 0; };
@@ -5867,7 +5874,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             if node_kind(pool, val_nid) == 3 {
                 let vn: str = node_field(pool, val_nid, 1);
                 let vt: str = own_get_type(own, vn);
-                if is_copy_type(vt, pool, structs, enums) == 0 { own_set(own, vn, 2); };
+                if own_binding_move_type(vt, pool, structs, enums) == 1 { own_set(own, vn, 2); };
             };
             ii = ii + 1;
         };
@@ -5938,7 +5945,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 let hinted_box: str = own_box_hint(own, fn_name, vname);
                 if str_len(hinted_box) > 0 && str_eq(type_base_name(st), "Box") == 0 { st = hinted_box; };
                 if str_len(st) == 0 { st = tstr; };
-                if is_copy_type(st, pool, structs, enums) == 0 {
+                if own_binding_move_type(st, pool, structs, enums) == 1 {
                     if own_has_shared_overlap(own, src) == 1 || own_has_mut_overlap(own, src) == 1 {
                         warns = warns + own_diag(own, fn_name, "OWN-003", str_concat("cannot move '", str_concat(src, "': value is borrowed")), src);
                     } else {
@@ -5984,7 +5991,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                         own_set_ref_kind(own, src, 0);
                         own_set(own, src, 2);
                     };
-                } else if is_copy_type(st, pool, structs, enums) == 0 {
+                } else if own_binding_move_type(st, pool, structs, enums) == 1 {
                     if own_has_shared_overlap(own, src) == 1 || own_has_mut_overlap(own, src) == 1 {
                         warns = warns + own_diag(own, fn_name, "OWN-003", str_concat("cannot move '", str_concat(src, "': value is borrowed")), src);
                     } else {
