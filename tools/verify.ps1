@@ -1129,11 +1129,14 @@ Step "T3.73 bitwise op codegen (`&`/`|`/`^` real impl, was diag-only pre-v0.3.10
     return $LASTEXITCODE -eq 0
 }
 
-Step "T3.72 mut closure capture diagnostic (FnMut silent miscompute pre-v0.3.96)" {
-    $out = & $bin build "tests/fixtures/t372_mut_closure_capture_diagnostic.nr" -o "_t372_check" --no-cache 2>&1 | Out-String
-    if ($out -notmatch "closure cannot mutate captured variable") { return $false }
-    if ($out -notmatch "FnMut semantics not yet supported") { return $false }
-    return $true
+Step "T3.72 mut closure capture writeback (FnMut direct closure call)" {
+    & $bin build "tests/fixtures/t372_mut_closure_capture_diagnostic.nr" -o "_t372_check" --no-cache 2>&1 | Out-Null
+    $exe = $null
+    if (Test-Path "target\_t372_check.exe") { $exe = "target\_t372_check.exe" }
+    elseif (Test-Path "target\_t372_check") { $exe = "target\_t372_check" }
+    if (-not $exe) { return $false }
+    & $exe | Out-Null
+    return $LASTEXITCODE -eq 12
 }
 
 Step "T3.71 extended macro set (assert_eq!/assert_ne!/todo!/unimplemented!/unreachable!)" {
