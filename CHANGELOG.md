@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.140] — 2026-04-29
+
+**MATCH-011 (URGENT — runtime SIGSEGV close): heterogeneous
+match arm literal types silently lowered to a runtime crash.
+`match n: i64 { 1 => ..., "a" => ..., _ => ... }` for n=2
+SIGSEGV'd. Now halts at type-check.**
+
+```nucleor
+let n: i64 = 2;
+let r = match n { 1 => 100, "a" => 200, _ => 300 };
+// pre-fix: SIGSEGV
+```
+
+The match-as-expr (kind 38) `type_expr` walker accepts every
+literal arm pattern and registers each in `arm_env` without
+checking the literal's type against the scrutinee. Lowering then
+emits the canonical compare for the literal kind:
+- `__int` arm → integer compare against scrutinee
+- `__str` arm → `str_eq(scrutinee, "<lit>")` — and if scrutinee
+  is an i64 (not a str pointer), the scrutinee value is
+  dereferenced as a char ptr at runtime → SIGSEGV when the value
+  doesn't point at a readable address.
+
+For `match n: i64 { 1 => 100, "a" => 200, _ => 300 }` and n=2,
+the runtime took the "a" arm's str_eq dispatch with arg=2,
+read memory at 0x2 → access violation. Symmetric silent
+miscompare (no crash) for `match s: str { 1 => ... }` where
+the i64 literal compares against the str pointer's i64 value.
+
+This release detects both at type-check: `__str` arm with
+int scrutinee, and `__int` arm with str scrutinee. Halts with
+MATCH-011. Pure-int and pure-str matches unaffected.
+
+s1-only fix — tools_suite has no kind-38 in `type_expr`.
+
+Negative fixture: `tests/err/err_match_arm_type_mismatch.nr`.
+Bootstrap fixed-point holds first-pass. Fast-verify 194 PASS / 2
+baseline-FAIL.
+
 ## [0.4.139] — 2026-04-29
 
 **TYP-023: chained method on void-returning receiver silently
