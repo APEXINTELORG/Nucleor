@@ -24,3 +24,12 @@ Each is a punchlist item: implement the listed builtin in
 
 `tools/verify.ps1` enumerates `tests\features\*.nr` non-recursively, so
 nothing in this directory blocks CI.
+
+## trait_bounds.nr
+
+Added 2026-04-29 (v0.4.78). The `<T: Addable>` trait-bound syntax
+on generic fns is not yet implemented in the parser — the bound
+clause silently parse-recovered pre-fix, producing a binary that
+"ran" only because the bound was ignored entirely. Made hidden
+when v0.4.78 promoted parse errors to NR020 panics. Move back
+once the trait bound parser is wired (audit doc-#1 §8).

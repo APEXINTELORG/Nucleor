@@ -627,10 +627,16 @@ fn pk(tokens: Vec<i32>, pos: i64) -> i64 { return tok_type_at(tokens, pos); }
 fn pkv(tokens: Vec<i32>, pos: i64) -> i64 { return tok_val_at(tokens, pos); }
 fn expect_tok(tokens: Vec<i32>, pos: i64, tt: i64) -> i64 {
     if pk(tokens, pos) != tt {
-        // Get byte position from token for line number
+        // v0.4.78 NR020 — was a `print()` warning that returned `pos + 1`
+        // and continued parsing. The parser produced a likely-broken AST,
+        // type-check + lower happily consumed it, and codegen emitted a
+        // silently-wrong binary. Triaged via the `@` binding pattern
+        // probe (`x @ 1..=10`) which printed a parse error AND ran to
+        // exit=0 with no output. Promoted to a hard panic — adopters
+        // who hit this previously shipped broken binaries.
         let tok: Vec<i32> = tok_at(tokens, pos);
         let byte_pos: i64 = vec_get(tok, 2);
-        print(str_concat("Parse error at token position ", str_concat(str_from_int(byte_pos), str_concat(": expected token ", str_concat(str_from_int(tt), str_concat(" got ", str_from_int(pk(tokens, pos))))))));
+        panic(str_concat("error[NR020]: parse error at token position ", str_concat(str_from_int(byte_pos), str_concat(": expected token ", str_concat(str_from_int(tt), str_concat(" got ", str_concat(str_from_int(pk(tokens, pos)), " — pre-fix this printed a warning and continued, producing a likely-broken binary."))))));
     };
     return pos + 1;
 }
