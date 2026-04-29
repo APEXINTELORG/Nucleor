@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.137] — 2026-04-29
+
+**NUM-022: int vs float in comparison binop silently
+bit-pattern-compared. `5 == 5.0` returned FALSE; `5 < 5.0`
+returned TRUE. Now halts cleanly.**
+
+```nucleor
+let r1: bool = 5 == 5.0;   // pre-fix: r1 == false
+let r2: bool = 5 < 5.0;    // pre-fix: r2 == true (denormal compare)
+```
+
+Pre-v0.4.137 the `kind == 4` (binop) lowering ran cmp ops 30-37
+(==, !=, <, <=, >, >=) on the raw i64 cells holding each side
+without reconciling the type difference. For `5 == 5.0`: i64=5 is
+`0x5`, f64=5.0 is `0x4014000000000000` — icmp eq returns 0. For
+`5 < 5.0`: i64=5 reinterpreted as f64 is `~2.5e-323` (a tiny
+denormal), which IS less than 5.0, so fcmp olt returns 1.
+Adopters writing the canonical Rust idiom `if x == 5.0` for
+`x: i64` got a quiet wrong result.
+
+This release extends the kind-4 type-check site (sister to
+v0.4.132's TYP-020 void check) with NUM-022: when op is in 30-37
+AND one side is int (i*/u*) AND the other is float (f64/f32/f16/
+bf16), halt cleanly. Same-type cmp (`5 == 5`, `5.0 == 5.0`)
+unaffected. Arith int+float crosses (`5 + 5.0`) are still wrong
+but produce non-numeric garbage that adopters notice; only the
+cmp case produces a plausible-looking bool that hides the bug —
+deferred to a future tag if/when adopter feedback warrants it.
+
+Mirrored to `nucleor_tools_suite.nr` with inlined int/float
+predicate (tools_suite has no `type_is_int` / `type_is_float`
+helpers).
+
+Negative fixture: `tests/err/err_cmp_int_vs_float.nr`. Bootstrap
+fixed-point holds first-pass. Fast-verify 191 PASS / 2
+baseline-FAIL.
+
 ## [0.4.136] — 2026-04-29
 
 **TYP-021: bare-let RHS evaluating to `void` silently bound as 0
