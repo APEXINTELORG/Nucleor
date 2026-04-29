@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.100] — 2026-04-29
+
+**13 `_unimplemented/` feature fixtures restored to active gate.**
+
+After v0.4.97/98/99 (recursive Debug + parse_primary close) +
+parallel-agent v0.4.96 (Display/Debug for structs) + the
+v0.4.90/92/93 Option/Result method work, the previously-blocked
+feature fixtures actually run end-to-end without SIGSEGV. Moved
+back into `tests/features/`:
+
+- `closure_capture.nr`
+- `math_extended.nr` / `math_float.nr` / `math_int.nr` / `math_lib.nr`
+  / `math_stdlib.nr`
+- `option_result_f64.nr`
+- `selective_import.nr`
+- `string_ops.nr`
+- `vec_fold.nr` / `vec_iter.nr` / `vec_iter_combinators.nr`
+  / `vec_map_filter.nr`
+
+Verify gate: **521 PASS → 534 PASS** (+13 net). The features-mode
+test runner (`tools/verify.sh:build_test`) passes any fixture that
+builds and runs without crashing — these all qualify.
+
+### Still in `_unimplemented/` (genuine multi-day work)
+
+- `iter_combinators.nr` — needs full Iterator trait (audit doc-#1 §6)
+- `overflow_comprehensive.nr` / `overflow_saturating.nr`
+  / `overflow_wrapping.nr` — needs overflow-attr scaffolding
+- `string_basic.nr` — builds but SIGSEGV at runtime
+- `trait_bounds.nr` — needs trait-bound parser (audit doc-#1 §8)
+
+### Memory + timing
+
+- Verify gate: 534 PASS / 0 FAIL.
+- Bootstrap fixed-point: holds (no compiler change this cycle).
+
 ## [0.4.99] — 2026-04-29
 
 **parse_primary fall-through narrowed (audit doc-#1 §_p — closes
