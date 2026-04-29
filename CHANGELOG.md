@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.81] — 2026-04-29
+
+**4 silent fall-throughs in `nucleor_tools_suite.nr` mirrored from
+the s1 v0.4.34/v0.4.36 closes (sister-compiler drift cleanup).**
+
+`nucleor_tools.exe` is the binary invoked for `nuc check`, `nuc
+summary`, `nuc audit`, etc. — a separate Nucleor source tree that
+shares much of s1's structure but had drifted from s1's safety
+fixes. Audit-grep this cycle found 4 silent fall-through sites
+that s1 had already promoted to panic in v0.4.34 / v0.4.36 but
+that tools_suite still recovered from with `lx_new(-1, blk)` /
+`return cur`:
+
+1. `unknown struct` in struct-init lower (s1: v0.4.36)
+2. `cannot resolve field access type` (s1: v0.4.36)
+3. `unhandled expr kind` (s1: v0.4.34)
+4. `unknown stmt kind` (s1: v0.4.34)
+
+All 4 now panic in tools_suite with `nucleor_tools:` prefix to
+distinguish from s1's `nucleor:` prefix in stack traces.
+
+### Audit deferral
+
+Tried v0.4.81 to also close the v0.4.72 `parse_primary`
+fall-through defer in s1 (catches unhandled tokens that produce
+silent `int_lit(0)`). Re-confirmed it still breaks
+`tests/rods/pgs_smoke.nr` even after the v0.4.78 expect_tok NR020
+hardening — pgs_smoke has a legitimate macro-expanded site at
+byte 6571 that hits this catch-all. Defer remains; needs a
+narrower predicate. Comment updated.
+
+### Verify gate
+
+No new gate — coverage is structural (504 PASS proves tools_suite
+still self-builds + every path that previously hit one of these
+fall-throughs now panics with the diagnostic preserved).
+
+### Memory + timing
+
+- Self-host build: unchanged.
+- Verify gate: 362.2s / 504 steps (was 371.6s / 504 — within
+  noise band).
+- Bootstrap fixed-point: holds (s1 unchanged this cycle, T1.7 OK).
+
 ## [0.4.80] — 2026-04-29
 
 **Two `print("WARNING: …")` runtime-SIGSEGV sites promoted to panic.
