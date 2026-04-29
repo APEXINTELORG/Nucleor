@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.130] — 2026-04-29
+
+**TYP-019: trait-bound NAME verification — typo'd or undefined
+trait names in `<T: Trait>` bounds halt cleanly (closes v0.4
+residual #1 / audit doc-#1 §8 partial).**
+
+```nucleor
+fn add_values<T: NoSuchTrait>(a: T, b: T) -> T { a + b }
+fn main() -> i32 { print_int(add_values(10, 20)); 0 }
+```
+
+Pre-v0.4.103 this hit NR020 parse error at `:`. v0.4.103 fixed
+the parse error by silently parse-skipping the bound clause —
+typo'd trait names then compiled clean because Nucleor's
+monomorphic generic dispatch ignores bounds entirely at codegen.
+Adopters got no signal that their bound was meaningless.
+
+This release wires the bound name through to type-check:
+
+1. **`parse_generic_params`** now pushes a `?<trait>` marker
+   into the params list alongside the param name. `<T: A + B>`
+   becomes `params = ["T", "?A", "?B"]`. (Mirrored in
+   `nucleor_tools_suite.nr`.)
+
+2. **`type_check_program`** gains a NAME-verification pass that
+   walks every fn (kind 30), inspects its generic params field
+   (5), and for each `?<bound>` marker looks up a matching trait
+   declaration (kind 43) in `prog`. Missing trait → TYP-019:
+
+```
+error[TYP-019]: trait bound `<T: NoSuchTrait>` on fn `add_values`
+references unknown trait `NoSuchTrait`. Pre-v0.4.130 the bound
+was parse-skipped and the typo silently compiled. Define the
+trait, fix the spelling, or import the rod that declares it.
+```
+
+The existing `tests/features/trait_bounds.nr` fixture still
+passes (the `Addable` trait is defined; bound resolves clean).
+
+**Per-call-site impl-existence check** (resolve T → concrete
+type from arg types, verify `impl Trait for T` exists) is its
+own follow-on ship — needs sig storage to retain bounds beyond
+parse time + concrete T resolution from arg types. The NAME
+check shipped here catches the most common adopter failure mode
+(typo / missing import) at zero false-positive risk.
+
+Negative fixture: `tests/err/err_unknown_trait_bound.nr`.
+Bootstrap fixed-point holds. Fast-verify 184 PASS / 2 baseline-FAIL.
+
 ## [0.4.129] — 2026-04-29
 
 **TYP-018: unknown field access (`p.y` where struct has no `y`)

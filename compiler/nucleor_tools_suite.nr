@@ -770,7 +770,12 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         // codegen so we discard the bound text. Audit §8.
         if pk(tokens, cp) == 42 {
             cp = cp + 1; // skip ':'
+            // v0.4.130 mirror: capture each bound trait name as `?<name>`.
             while pk(tokens, cp) != 33 && pk(tokens, cp) != 44 && pk(tokens, cp) != 0 {
+                if pk(tokens, cp) == 1 {
+                    let bname: str = pkv(tokens, cp);
+                    if str_len(bname) > 0 { params.push(str_concat("?", bname)); };
+                };
                 cp = cp + 1;
             };
         };
