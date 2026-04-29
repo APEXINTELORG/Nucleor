@@ -11294,7 +11294,28 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 };
             };
         };
-        if type_dynamic_helper(callee) == 1 { tprof_mark(tprof, 9, 10, call_start); return ""; };
+        // v0.4.117: walk every call arg through type_expr BEFORE the
+        // dynamic-helper early-return so the diagnostics inside arg
+        // expressions still fire for runtime-helper / extern-helper
+        // calls. Pre-fix `print_int(s[0])` for `s: str` skipped the
+        // arg's type_expr entirely — TYP-011's "str does not support
+        // direct indexing" check at line 11567 (kind == 10) never
+        // saw the index expression because dynamic_helper returned
+        // before the arg walker. Same for `s[0] as i64` (kind 99 also
+        // calls type_expr internally but it gets short-circuited
+        // when the outer call's argc > 0). Net result: every arg
+        // gets one type_expr pass for diagnostic side effects only;
+        // the result type is discarded since this fn returns "" for
+        // dynamic helpers.
+        if type_dynamic_helper(callee) == 1 {
+            let mut dh_ai: i64 = 0;
+            while dh_ai < argc {
+                type_expr(pool, list_get(pool, args, dh_ai), env, sigs, structs, fn_name, diags, source, tprof);
+                dh_ai = dh_ai + 1;
+            };
+            tprof_mark(tprof, 9, 10, call_start);
+            return "";
+        };
         let sig_start: i64 = tprof_start(tprof);
         let sentry: i64 = sig_find(sigs, callee);
         tprof_mark(tprof, 5, 6, sig_start);
@@ -13838,6 +13859,25 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return lx_new(r, cur);
     };
     if kind == 10 {
+        // v0.4.117: catch `s[i]` for `s: str` at codegen-time. The
+        // type-check side has had a TYP-011 guard since v0.4.94 but
+        // it only fires when the index expression reaches type_expr
+        // via the let-stmt RHS path — fn-call args, `as` casts, and
+        // anything else that uses kind 10 inside a larger expression
+        // sail past it (the `if type_dynamic_helper(callee) == 1`
+        // early-return at line 11297 short-circuits arg-walk for
+        // every runtime helper, which is most of them). Codegen
+        // path catches every kind 10 unconditionally — when the
+        // receiver is a var-ref to a `__type_<name>` of `str`,
+        // halt cleanly before emitting `vec_get` on the str pointer.
+        let recv_v117: i64 = node_field(pool, nid, 1);
+        if node_kind(pool, recv_v117) == 3 {
+            let recv_n_v117: str = node_field(pool, recv_v117, 1);
+            let recv_t_v117: i64 = sym_get(sym, str_concat("__type_", recv_n_v117));
+            if recv_t_v117 >= 0 && str_eq(recv_t_v117, "str") == 1 {
+                panic(str_concat("error[TYP-011]: `str` does not support direct indexing with `", str_concat(recv_n_v117, str_concat("[i]`. The codegen would lower this to `vec_get` on the str pointer, returning garbage or OOB-panicking. Use `str_char_at(", str_concat(recv_n_v117, ", i)` to get a byte, or `str_substring(<name>, i, j)` for a substring."))))));
+            };
+        };
         let mut obj_p: Vec<i32> = lower_expr(pool, node_field(pool, nid, 1), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let obj_r: i64 = lx_reg(obj_p);
         let mut cur: Vec<i32> = lx_blk(obj_p);
