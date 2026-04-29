@@ -7462,6 +7462,60 @@ const char *__nucleor_option_to_debug_str_i64(NVec *opt) {
     memcpy(out, buf, n + 1);
     return out;
 }
+// v0.4.98: Vec<str> debug — element is char*. Prints ["a", "b"].
+const char *__nucleor_vec_to_debug_str_str(NVec *v) {
+    if (!v) {
+        char *s = (char *)malloc(3); s[0]='['; s[1]=']'; s[2]=0; return s;
+    }
+    // Estimate buffer: assume avg 32 chars per element plus quotes/commas.
+    long long cap = 16;
+    for (int i = 0; i < v->len; i++) {
+        const char *p = (const char *)(intptr_t)v->data[i];
+        cap += (p ? strlen(p) : 0) + 6;
+    }
+    char *out = (char *)malloc(cap);
+    long long pos = 0;
+    out[pos++] = '[';
+    for (int i = 0; i < v->len; i++) {
+        if (i > 0) { out[pos++] = ','; out[pos++] = ' '; }
+        out[pos++] = '"';
+        const char *p = (const char *)(intptr_t)v->data[i];
+        if (p) {
+            size_t n = strlen(p);
+            memcpy(out + pos, p, n);
+            pos += n;
+        }
+        out[pos++] = '"';
+    }
+    out[pos++] = ']';
+    out[pos] = 0;
+    return out;
+}
+// v0.4.98: Vec<Option<i64>> debug — element is NVec* (Option layout).
+const char *__nucleor_vec_to_debug_str_option_i64(NVec *v) {
+    if (!v) {
+        char *s = (char *)malloc(3); s[0]='['; s[1]=']'; s[2]=0; return s;
+    }
+    long long cap = (v->len * 32) + 16;
+    char *out = (char *)malloc(cap);
+    long long pos = 0;
+    out[pos++] = '[';
+    for (int i = 0; i < v->len; i++) {
+        if (i > 0) { out[pos++] = ','; out[pos++] = ' '; }
+        NVec *opt = (NVec *)(intptr_t)v->data[i];
+        if (!opt || __nucleor_vec_get(opt, 0) != 0) {
+            memcpy(out + pos, "None", 4); pos += 4;
+        } else {
+            char buf[32];
+            int n = snprintf(buf, sizeof(buf), "Some(%lld)", (long long)__nucleor_vec_get(opt, 1));
+            memcpy(out + pos, buf, n);
+            pos += n;
+        }
+    }
+    out[pos++] = ']';
+    out[pos] = 0;
+    return out;
+}
 const char *__nucleor_result_to_debug_str_i64(NVec *res) {
     if (!res) {
         char *s = (char *)malloc(7); memcpy(s, "Err(0)", 7); return s;

@@ -3289,6 +3289,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "result_or_else") { return "__nucleor_result_or_else"; };
     // v0.4.97: recursive Debug formatters (audit doc-#1 §10b).
     if str_eq(name, "vec_to_debug_str_i64") { return "__nucleor_vec_to_debug_str_i64"; };
+    if str_eq(name, "vec_to_debug_str_str") { return "__nucleor_vec_to_debug_str_str"; };
+    if str_eq(name, "vec_to_debug_str_option_i64") { return "__nucleor_vec_to_debug_str_option_i64"; };
     if str_eq(name, "option_to_debug_str_i64") { return "__nucleor_option_to_debug_str_i64"; };
     if str_eq(name, "result_to_debug_str_i64") { return "__nucleor_result_to_debug_str_i64"; };
     if str_eq(name, "args_count") { return "__nucleor_args_count"; };
@@ -4179,6 +4181,8 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "int_to_str") { return 1; };
     // v0.4.97: recursive Debug formatters return ptr (heap str).
     if str_eq(name, "vec_to_debug_str_i64") { return 1; };
+    if str_eq(name, "vec_to_debug_str_str") { return 1; };
+    if str_eq(name, "vec_to_debug_str_option_i64") { return 1; };
     if str_eq(name, "option_to_debug_str_i64") { return 1; };
     if str_eq(name, "result_to_debug_str_i64") { return 1; };
     if str_eq(name, "str_from_int") { return 1; };
@@ -4883,6 +4887,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare ptr @__nucleor_result_or_else(ptr, i64)\n");
     // v0.4.97: recursive Debug formatters.
     sb_append(sb, "declare ptr @__nucleor_vec_to_debug_str_i64(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_vec_to_debug_str_str(ptr)\n");
+    sb_append(sb, "declare ptr @__nucleor_vec_to_debug_str_option_i64(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_option_to_debug_str_i64(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_result_to_debug_str_i64(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_sb_new()\n");
@@ -18804,6 +18810,17 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
         // helpers that produce `[1, 2, 3]` / `Some(42)` / `Err(7)`.
         // Element/payload formatted as i64 (Nucleor cell convention).
         if str_eq(inferred, "Vec") == 1 {
+            // v0.4.98: dispatch by element type for Vec<str> /
+            // Vec<Option<i64>>. Default i64 for primitives.
+            let inferred_full: str = infer_var_type_from_source(src, arg_expr);
+            let elem_t98: str = type_first_arg(inferred_full);
+            let elem_b98: str = type_base_name(elem_t98);
+            if str_eq(elem_b98, "str") == 1 || str_eq(elem_b98, "String") == 1 {
+                return str_concat("vec_to_debug_str_str(", str_concat(arg_expr, ")"));
+            };
+            if str_eq(elem_b98, "Option") == 1 {
+                return str_concat("vec_to_debug_str_option_i64(", str_concat(arg_expr, ")"));
+            };
             return str_concat("vec_to_debug_str_i64(", str_concat(arg_expr, ")"));
         };
         if str_eq(inferred, "Option") == 1 {

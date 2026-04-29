@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 837
+# Total helpers: 839
 # Of which REVIEW REQUIRED: 66
 
 # ============================================================
@@ -11601,6 +11601,34 @@ notes            = ""
 name             = "vec_to_debug_str_i64"
 class            = "VectorOps"
 symbol           = "__nucleor_vec_to_debug_str_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "vec_to_debug_str_option_i64"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_to_debug_str_option_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "vec_to_debug_str_str"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_to_debug_str_str"
 dispatch         = "RuntimeCall"
 abi              = "(ptr) -> ptr"
 effects          = ["alloc"]
