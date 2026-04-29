@@ -7148,6 +7148,12 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         let mut init_t: str = "";
         if init >= 0 {
             init_t = type_expr(pool, init, env, sigs, structs, fn_name, diags, source, tprof);
+            // v0.4.136 mirror: TYP-021 — void RHS in bare-let.
+            if str_len(tstr) == 0 && (str_eq(init_t, "void") == 1 || type_is_unit(init_t) == 1)
+                && str_eq(vname, "_") == 0 {
+                let v21msg_t: str = str_concat("`void`-typed expression cannot initialize binding `", str_concat(vname, "`. Pre-v0.4.136 the void return was silently coerced to 0 — adopters who confused side-effect-only fns with value-returning fns got a 0-valued binding with no signal. Use the value-returning sibling fn or split the side-effect into its own statement above the let."));
+                type_diag(diags, source, fn_name, vname, "TYP-021", v21msg_t);
+            };
             if str_len(tstr) > 0 {
                 if type_is_unit(tstr) == 1 && (node_kind(pool, init) == 1 || node_kind(pool, init) == 71) && line_has_unit_literal(source, fn_name, vname) == 0 {
                     type_diag(diags, source, fn_name, vname, "TYP-007", "bare numeric literal cannot initialize a unit value");
