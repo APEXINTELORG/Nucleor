@@ -11354,8 +11354,29 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
     let mut warns: i64 = 0;
     if kind == 20 {
         let vname: str = node_field(pool, nid, 1);
+        let is_mut_let: i64 = node_field(pool, nid, 2);
         let tstr: str = node_field(pool, nid, 3);
         let init: i64 = node_field(pool, nid, 4);
+        // v0.4.83: TYP-008 ext — `let x: i64;` (immutable, no
+        // initializer) is unambiguously a bug. Pre-fix the binding
+        // silently used the LLVM alloca's zero-init memory (printed
+        // as 0), leading adopters to think Nucleor zero-defaults all
+        // bindings. Rust E0381 rejects this at first read; Nucleor
+        // doesn't have flow analysis, but the immutable-no-init
+        // case is unambiguous (the binding can never be assigned
+        // later — would hit OWN-008 — so it's a definite zero).
+        // Accepted patterns:
+        //   let mut x: i64;        — mutable, can be assigned later (OK)
+        //   let x: i64 = 5;        — immutable with init (OK)
+        // Rejected:
+        //   let x: i64;            — immutable, never settable, reads as 0 (BUG)
+        if init < 0 && is_mut_let == 0 && str_len(vname) > 0 && str_eq(vname, "_") == 0 {
+            // Skip the special `__tuple_destructure_unsupported__`
+            // placeholder name (already panics at parse time).
+            if str_eq(vname, "__tuple_destructure_unsupported__") == 0 {
+                type_diag(diags, source, fn_name, vname, "TYP-008", str_concat("immutable binding `", str_concat(vname, "` declared without initializer (type-only). Nucleor has no flow-sensitive uninit detection, so this would silently read as 0 from the alloca's zero-init slot. Either assign at declaration (`let ", str_concat(vname, str_concat(": ", str_concat(tstr, " = <value>;`)) or make it mutable and assign on every reachable path before use (`let mut ", str_concat(vname, ": ...`)."))))));
+            };
+        };
         // v0.3.180: NUC-FEEDBACK-002 -- promoted parse-time
         // narrow-float-vector warning to a HARD type-check error.
         //
