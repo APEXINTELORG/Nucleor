@@ -40,11 +40,26 @@ Validation harness: parallel verify lost
 `tests/features/option_result_f64.nr` after rebase
 (168 PASS / 3 FAIL vs baseline 167 PASS / 2 FAIL).
 
-## spike/v04-trait-objects (HEAD `4c1f257`)
+## spike/v04-trait-objects — INTEGRATED v0.4.118 (was blocker)
 
-**Blocker: the new context-aware `Box<Concrete>` →
-`Box<dyn Trait>` coercion check fails to find a registered impl
-even when `impl Trait for Concrete` is in the program.**
+Resolved in 2nd-pass merge. Two fixes:
+1. Used `git rebase -X theirs` to take spike's full compiler.nr
+   wholesale (auto-merge had been dropping the agent's
+   `type_expr` signature changes mid-call-site).
+2. Added the new `prog: i64` arg to my v0.4.117 `type_expr`
+   call inside `lift_undefined_fn_link_errors`'s sibling
+   call-arg walker (line 11355). Auto-merge missed it because
+   that call-site was added in main AFTER the spike branched.
+
+Positive fixture t368 returns 47 as expected. Negative fixture
+TYP-008-rejects when no impl exists. 169 PASS / 2 baseline-FAIL.
+
+## spike/v04-trait-objects (HEAD `4c1f257`) — HISTORICAL
+
+**Original blocker (resolved): the new context-aware
+`Box<Concrete>` → `Box<dyn Trait>` coercion check fails to
+find a registered impl even when `impl Trait for Concrete`
+is in the program.**
 
 Repro after rebase onto current main:
 
