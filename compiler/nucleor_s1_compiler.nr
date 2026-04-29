@@ -10738,6 +10738,26 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             let ord_op: str = if op == 32 { "<" } else if op == 33 { "<=" } else if op == 34 { ">" } else { ">=" };
             type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`str ", str_concat(ord_op, str_concat(" str` does pointer comparison (silent miscompute — disconnected from lexicographic byte order). Use `str_cmp(a, b) ", str_concat(ord_op, " 0` for canonical lex ordering.")))));
         };
+        // v0.4.74: NUM-009 — division or remainder by literal zero.
+        // Pre-fix `let x: i64 = 100 / 0;` const-fold-skipped (good — see
+        // opt_fold_block v0.3.145) but emitted `sdiv i64 100, 0` to LLVM,
+        // which traps at runtime as SIGFPE (exit 127). Loud, but
+        // runtime-only — adopters who wrote literal `/0` (typo, refactor
+        // residue, dead-code branch) shipped a binary that crashed on
+        // first execution instead of failing the build. NUM-009 was
+        // already reserved (RFC-0015 / v0.2.319 expansion) but never
+        // wired. Rust E0080 does the equivalent compile-time halt.
+        // Catches the literal-int-zero case only — `let z = 0; let q =
+        // 1 / z;` is not detected here (would need const-prop tracking).
+        if op == 23 || op == 24 {
+            let rhs_check_div: i64 = node_field(pool, nid, 3);
+            if node_kind(pool, rhs_check_div) == 1 && node_field(pool, rhs_check_div, 1) == 0 {
+                let div_op: str = if op == 23 { "/" } else { "%" };
+                let div_kind: str = if op == 23 { "division" } else { "remainder" };
+                let nm9_msg: str = str_concat(div_kind, str_concat(" by literal zero (`", str_concat(div_op, str_concat("0`) traps at runtime as SIGFPE. Remove the dead expression, use a non-zero divisor, or guard with a runtime check (`if d != 0 { x ", str_concat(div_op, " d } else { ... } }`)."))));
+                type_diag(diags, source, fn_name, fn_name, "NUM-009", nm9_msg);
+            };
+        };
         // v0.4.53: NUC-FEEDBACK silent-miscompute guard for
         // `Vec<T> == Vec<T>` and `Vec<T> != Vec<T>`. Same root
         // cause as the str-equality close in v0.4.52: the binop

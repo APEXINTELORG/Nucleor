@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.74] — 2026-04-29
+
+**NUM-009 — division/remainder by literal zero halts at compile time
+(audit doc-#1 §1 numeric-soundness extension).**
+
+Pre-fix `let x: i64 = 100 / 0;` const-fold-skipped (good — see
+opt_fold_block v0.3.145) but emitted `sdiv i64 100, 0` to LLVM,
+which traps at runtime as SIGFPE (exit 127). Loud, but runtime-only
+— adopters who wrote literal `/0` (typo, refactor residue,
+dead-code branch) shipped a binary that crashed on first execution
+instead of failing the build.
+
+NUM-009 was already reserved in the spec table (RFC-0015 / v0.2.319
+expansion) but never wired. Rust E0080 does the equivalent
+compile-time halt.
+
+### What now halts
+
+- `100 / 0` and `x / 0` (where `x` is any expression) — error[NUM-009]
+- `100 % 0` and `x % 0` — error[NUM-009]
+- Detected at type-check time on the binop AST node — covers literal
+  zero on the RHS only (kind 1 node with field 1 == 0).
+
+### What does NOT halt (deferred)
+
+- `let z = 0; let q = 1 / z;` — would need const-prop tracking
+  through let bindings. Left for a future pass; falls back to
+  the existing runtime SIGFPE.
+- Const-fold-time detection of zero divisors via constant
+  propagation (cm_has tracking) — opt_fold_block already correctly
+  skips the fold (no silent miscompute) but doesn't halt the build.
+  The new check at lower-time covers the most common adopter
+  pattern (literal `/0`).
+
+### Verify gate
+
+- T3.121 — `tests/fixtures/repro_v74_div_by_literal_zero.nr`
+  asserts `100 / 0` errors with NUM-009 at build time.
+
+### Memory + timing
+
+- Self-host build: unchanged (single literal-check at lower-time,
+  no measurable cost).
+- Verify gate: 346.1s / 497 steps (was 352.1s / 496 — within noise
+  band, no regression).
+- Bootstrap fixed-point: holds (3-pass B==C==D byte-identical IR
+  on the post-fix compiler).
+
 ## [0.4.73] — 2026-04-29
 
 **Generic Option<T> / Result<T,E> / Vec<T> type propagation

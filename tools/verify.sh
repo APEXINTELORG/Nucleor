@@ -1196,6 +1196,17 @@ t420_vec_element_type_propagation() {
     return 0
 }
 
+t421_div_by_literal_zero() {
+    # v0.4.74 NUM-009 — `/0` and `%0` literal halt at compile time
+    # (was runtime SIGFPE pre-fix).
+    "$BIN" build "tests/fixtures/repro_v74_div_by_literal_zero.nr" -o "_t421_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\\[NUM-009\\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "literal zero" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t413_eq_typo_guard() {
     "$BIN" build "tests/fixtures/repro_v69_eq_typo_guard.nr" -o "_t413_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
@@ -3163,6 +3174,7 @@ step "T3.117 v0.4.72 doc-#2 §5 — str_from_i64(i64) contract honesty (str_from
 step "T3.118 v0.4.73 audit S2 — generic Option payload type propagates into match arm" t418_generic_option_payload_type
 step "T3.119 v0.4.73 audit S2 — generic Result payload type propagates into match arm" t419_generic_result_payload_type
 step "T3.120 v0.4.73 audit S2 — Vec element type propagates through index, vec_get, first" t420_vec_element_type_propagation
+step "T3.121 v0.4.74 NUM-009 — division/remainder by literal zero (silent runtime SIGFPE → compile-time halt)" t421_div_by_literal_zero
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
