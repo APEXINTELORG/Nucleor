@@ -7003,6 +7003,11 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         let env_start: i64 = tprof_start(tprof);
         let out: str = tenv_get(env, name);
         tprof_mark(tprof, 3, 4, env_start);
+        // v0.4.138 mirror: TYP-022 — struct name used as a value.
+        if str_len(out) == 0 && struct_find_type(pool, structs, name) >= 0 {
+            let v22sval_msg_t: str = str_concat("`", str_concat(name, str_concat("` is a struct type, not a value. Pre-v0.4.138 this lowered to `ptrtoint ptr @", str_concat(name, " to i64` and failed late at clang link with an undefined-symbol error. Use struct-init syntax `<Name> { field1: val1, ... }` to construct a value, or call an inherent constructor."))));
+            type_diag(diags, source, fn_name, name, "TYP-022", v22sval_msg_t);
+        };
         return out;
     };
     if kind == 4 {

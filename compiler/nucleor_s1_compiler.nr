@@ -11216,6 +11216,22 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         let env_start: i64 = tprof_start(tprof);
         let out: str = tenv_get(env, name);
         tprof_mark(tprof, 3, 4, env_start);
+        // v0.4.138: TYP-022 — struct name used as a value. Pre-fix
+        // `let e: E = E;` for `struct E { ... }` lowered the RHS as
+        // a kind-3 var-ref to "E", emitting `ptrtoint ptr @E to i64`
+        // — failed late at clang link with `error: use of undefined
+        // value '@E'`. The v0.4.106 lift suppresses uppercase-leading
+        // names from the TYP-005 surface (because most uppercase names
+        // are legitimate type-prefixed mangled calls handled via kind
+        // 12), so adopters got the raw clang error text pointing at
+        // compiler-emitted IR rather than their source. Detect: name
+        // is not in tenv AND matches a defined struct in the structs
+        // table. Halt cleanly with the right hint.
+        if str_len(out) == 0 && struct_find_type(pool, structs, name) >= 0 {
+            let v22a: str = str_concat("`", str_concat(name, "` is a struct type, not a value. Pre-v0.4.138 a bare struct name in value position (e.g. `let e = E;`) lowered to `ptrtoint ptr @<Name> to i64` and failed late at clang link with `error: use of undefined value '@<Name>'`."));
+            let v22b: str = str_concat(" Use struct-init syntax `", str_concat(name, " { field1: val1, field2: val2, ... }` to construct a value of this type, or call an inherent constructor `<Name>::new(...)` if one is defined."));
+            type_diag(diags, source, fn_name, name, "TYP-022", str_concat(v22a, v22b));
+        };
         return out;
     };
     if kind == 4 {
