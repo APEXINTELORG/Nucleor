@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.139] — 2026-04-29
+
+**TYP-023: chained method on void-returning receiver silently
+returned 0 / wrong bool / garbage. `v.push(30).len()` returned
+0; `let x = v.push(20)` bound x=0. Now halts cleanly.**
+
+```nucleor
+let mut v: Vec<i64> = Vec::new();
+let r = v.push(30).len();   // pre-fix: r == 0
+let x = v.push(40);          // pre-fix: x == 0
+```
+
+Pre-v0.4.139 the kind-8 (method-call) `type_expr` returned `""`
+(empty string) for unrecognized methods — including the void
+mutators `push/pop/set/swap/extend/remove/insert/shuffle/free`.
+With recv_t empty, three separate downstream checks silently
+let bad code through:
+
+1. **Bare-let**: `let x = v.push(N);` — init_t was `""`, not
+   `"void"`, so the v0.4.136 TYP-021 check never fired. The
+   binding silently held the discarded i64 cell from the void
+   call (read as 0).
+2. **Chained call**: `v.push(30).len()` — outer recv_t was
+   `""`, the dispatch fell through to `vec_len` against the
+   discarded result, returning 0.
+3. **Binop / cmp / fn-arg**: `5 + v.push(N)`, `v.push(N) ==
+   0`, `print_int(v.push(N))` — same root cause; the void
+   was treated as i64 and silently coerced to 0.
+
+This release fixes the root cause: kind-8 type_expr now returns
+`"void"` (instead of `""`) for the Vec void-mutator methods.
+That single change cascades through every existing void check:
+TYP-020 (binop), TYP-021 (let-RHS), NUM-022 (cmp), TYP-006 (fn
+arg). Plus a new TYP-023 added for the chained-on-void case
+specifically (when the outer kind-8's `recv_t == "void"`).
+
+Mirrored to `nucleor_tools_suite.nr` so `nuc check` / `nuc test`
+get the same fix.
+
+Negative fixture: `tests/err/err_chained_method_on_void.nr`.
+Bootstrap fixed-point holds first-pass. Fast-verify 192 PASS / 2
+baseline-FAIL.
+
 ## [0.4.138] — 2026-04-29
 
 **TYP-022: bare struct name in value position lowered to a
