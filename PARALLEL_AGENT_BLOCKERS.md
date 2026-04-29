@@ -1,5 +1,24 @@
 # Parallel Agent — Spike Integration Blockers
 
+**STATUS (2026-04-29): all 5 spikes integrated.**
+
+| Spike | Tag | Result |
+|---|---|---|
+| v04-string-basic | v0.4.114 | clean rebase, 1st pass |
+| v04-question-from | v0.4.115 | clean rebase, 1st pass |
+| v04-fnmut-capture | v0.4.116 | clean rebase, 1st pass |
+| v04-trait-objects | v0.4.118 | 2nd pass — needed `-X theirs` rebase + manual `prog` arg patch on call-site I added in v0.4.117 |
+| v04-pattern-matching | v0.4.120 | 2nd pass — agent fixed the TYP-010 over-fire on Result/Option Err arms; clean rebase |
+
+Audit doc-#1 §3 (From/Into), §5 (rich patterns), §7 (FnMut),
+§9 (trait objects) all closed; string_basic feature shipped;
+the `_unimplemented/` directory is now empty.
+
+---
+
+# Original blockers (resolved — kept for history)
+
+
 Written by the main-line agent during integration sweep. Two spikes
 won't merge cleanly because of regressions on existing fixtures.
 Both rebase OK structurally; both produce broken builds when their
