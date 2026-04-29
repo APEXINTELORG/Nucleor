@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.112] — 2026-04-29
+
+**Three control-flow silent fall-throughs closed: `break`/`continue`
+outside loop, bare `return;` in non-void fn.**
+
+Found in one triage pass. All three compiled clean and ran
+silently with no diagnostic pre-fix:
+
+```nucleor
+fn main() -> i32 { break; 0 }       // exit 0, `break` deleted
+fn main() -> i32 { continue; 0 }    // exit 0, `continue` deleted
+fn main() -> i32 { return; }        // exit 0, undef return register
+```
+
+**break/continue outside loop (NR024):** the kind==26/27 codegen
+paths guarded their `br` emissions with `if lx >= 0` / `if lh >= 0`.
+Outside any loop those labels are negative, so the if-guard
+silently no-op'd the stmt. Promoting the guard to a panic when
+the loop-context label isn't valid catches both cases at codegen
+time.
+
+**bare `return;` in non-void fn (TYP-010):** the kind==22 type-check
+gated its return-type compatibility check on `if val >= 0`.
+A bare `return;` produces `mk2(pool, 22, -1)` — val == -1 — so
+the type check was SKIPPED. Codegen emitted `ret i64 undef` and
+LLVM optimised that to the alloca's zero-init slot. Caller saw
+0 / garbage with no signal. Sister to v0.4.108's tail-expr
+return check; same TYP-010 code, different node-shape branch.
+
+Three negative fixtures: `tests/err/err_break_outside_loop.nr`,
+`tests/err/err_continue_outside_loop.nr`,
+`tests/err/err_bare_return_nonvoid.nr`. Fast-verify 162 PASS / 2
+baseline-FAIL clean. Bootstrap fixed-point: OK
+(sha 3dcc7039…). Drift gate clean.
+
 ## [0.4.111] — 2026-04-29
 
 **Chained assignment `a = b = c` rejected at parse time (silent
