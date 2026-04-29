@@ -1341,6 +1341,22 @@ t433_vec_set_wrong_type_halts() {
     return 0
 }
 
+t434_vec_insert_remove_dispatch() {
+    # v0.4.87 dispatch-name drift fix — `v.insert(idx, val)` and
+    # `v.remove(idx)` now alias to vec_insert_at / vec_remove_at
+    # (was `undefined value '@vec_insert'` clang link failure).
+    "$BIN" build "tests/fixtures/repro_v87_vec_insert_remove_dispatch.nr" -o "_t434_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "0" ] || return 1
+    local out
+    out=$("target/_t434_check.exe" 2>&1 || "target/_t434_check" 2>&1)
+    echo "$out" | head -1 | grep -q "^1$" || return 1
+    echo "$out" | head -2 | tail -1 | grep -q "^99$" || return 1
+    echo "$out" | head -3 | tail -1 | grep -q "^1$" || return 1
+    echo "$out" | head -4 | tail -1 | grep -q "^2$" || return 1
+    return 0
+}
+
 t413_eq_typo_guard() {
     "$BIN" build "tests/fixtures/repro_v69_eq_typo_guard.nr" -o "_t413_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
@@ -3321,6 +3337,7 @@ step "T3.130 v0.4.83 TYP-008 ext — immutable let without initializer halts (wa
 step "T3.131 v0.4.84 TYP-008 ext — struct field type mismatch on literal RHS halts (was silent ptr-as-i64 miscompute)" t431_struct_field_type_mismatch_halts
 step "T3.132 v0.4.85 TYP-008 ext — Vec<T>.push(literal) wrong type halts (was silent str-ptr-as-i64-cell miscompute)" t432_vec_push_wrong_type_halts
 step "T3.133 v0.4.86 TYP-008 ext — Vec<T>.set/.insert(idx, literal) wrong type halts (extends v0.4.85)" t433_vec_set_wrong_type_halts
+step "T3.134 v0.4.87 dispatch fix — v.insert/v.remove now route to vec_insert_at/vec_remove_at (was clang link failure)" t434_vec_insert_remove_dispatch
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
