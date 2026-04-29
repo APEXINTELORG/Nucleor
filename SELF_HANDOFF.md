@@ -332,3 +332,81 @@ catches CHANGELOG↔tag mismatches.
 - Don't ship-batch (one bug per tag). Don't run full sequential
   verify per ship (parallel + drift + T1.7 only). Don't write
   multi-paragraph commit messages.
+
+## FAQ from incoming agent (answered 2026-04-29)
+
+**Q1 — Is the v0.4.135 mid-flight partial recoverable from reflog
+or stash?**
+No. Reflog shows the doc commits directly on top of v0.4.134 with
+no intervening WIP commit, and none of the 3 stash entries are
+mine for v0.4.135 (stash@{0,1} are parallel-agent worktree state,
+stash@{2} is unrelated v0.4.22-v0.4.35 era). My `git checkout HEAD
+--` reverted the working tree without stashing first, so the
+edit is gone. Re-derive from scratch — it's small (the diff was
+~10 lines: declare `stype` as `let mut` and add a 6-line
+kind-2-receiver detection block that clears `recv_is_vec` and
+stamps `stype = "str"`). Detail in §"Mid-flight" of this doc.
+
+**Q2 — Is kind 2 the str-literal AST node tag in a numeric
+dispatch switch?**
+Confirmed yes. Line 1106 in `compiler/nucleor_s1_compiler.nr`:
+`if tt == 3 { return pr(pos + 1, mk2(pool, 2, pkv(tokens, pos))); };`
+That's the parser turning lexer token type 3 (string literal) into
+AST kind 2 (str literal). Other relevant kinds you'll see:
+1=int_lit, 3=var-ref, 4=binop, 7=call, 8=method-call, 9=field-
+access, 10=index, 12=Type::method or enum constructor, 17=block,
+20=let, 21=assign, 22=return, 23=if, 25=tail-expr-stmt, 30=fn,
+38=match-expr, 39=match-arm, 42=closure, 43=trait-decl, 44=trait-
+method, 45=impl-block, 52=passthrough/wrapped block, 99=as-cast.
+This list isn't exhaustive but covers >90% of what you'll touch.
+
+**Q3 — Push authorization?**
+Per-ship autonomous push is the established pattern this entire
+session (34 ships, all auto-pushed). Workflow is:
+`commit → tag → git push origin main → git push origin v0.4.NNN`.
+Confirm once at the start of session if you're cautious; I never
+re-confirmed after the first push. If a push hits an unexpected
+non-fast-forward (parallel agent shipped between your fetch and
+your push), `git fetch && git rebase origin/main` and re-tag at
+the new HEAD before retrying.
+
+**Q4 — Parallel-agent fetch cadence?**
+Every loop tick. Cost is ~1s on typical network and the agent
+can push at any time. Even when prior tick showed `ahead=0`, the
+agent might push a fresh spike commit during the inter-tick
+sleep. The fetch also keeps the local view of `origin/spike/*`
+fresh which matters if you `git rebase origin/main` mid-tick.
+
+**Q5 — ML_Suite feedback queue cadence?**
+`docs/ML_SUITE_FEEDBACK_QUEUE.md` — currently all entries CLOSED
+as of v0.4.134. Check at the START of every session (not every
+tick — file is mirrored manually from `Nucleor_ML_Suite/docs/
+NUCLEOR_LANGUAGE_FEEDBACK.md` and updates are infrequent). If the
+ML_Suite agent has pushed new findings, my user memory entry
+`project_nucleor_ml_suite_feedback.md` will mention it
+("user wants me to re-check each cron cycle and fold new entries
+into the punchlist"). Don't poll mid-session unless the user
+flags an inbound item.
+
+**Q6 — Drift-gate scope for v0.4.135 (str-literal `.len()` fix)?**
+The fix lives in the kind-8 method-dispatch path in
+`nucleor_s1_compiler.nr` around line 14418-14430 (the `recv_is_vec`
++ `stype` resolution block). It steers method dispatch but adds
+no new C runtime helpers and no new IR declares.
+**HOWEVER:** `nucleor_tools_suite.nr` has `iter_method_for_vec`
+(line 4709) and uses it for its own method-dispatch path (line
+8262). Search the tools_suite for an analogous `recv_is_vec`
+block — if it exists, mirror the kind-2 detection there too.
+If it doesn't, the v0.4.135 change is s1-only. Drift gate runs
+the existing parity checks (ABI tables, manifest freshness,
+RELEASES freshness, CHANGELOG↔tag) and won't fire on dispatch-
+logic divergence — but tools_suite IS exercised by some verify
+steps, so a divergence could surface as a fixture failure rather
+than a drift-gate fail. Run parallel verifier after building to
+confirm.
+
+In short: **no `helper_manifest.toml` regen**, **no
+`rod_manifest.toml` regen**, **no IR declare changes** for
+v0.4.135. Only `gen_releases_index.py` (every commit) and
+CHANGELOG entry. Mirror to tools_suite IF it has the same
+dispatch path (verify by grep).
