@@ -2333,9 +2333,11 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             // that lands, surface a diagnostic and fast-skip to `=>`
             // so the rest of the body parses cleanly. Workaround:
             // wildcard `_` and access tuple fields via `.0` / `.1`.
+            // v0.4.79: was print + recover ename="__wild" — silent
+            // miscompute, the tuple match arm fired for ALL inputs
+            // because the pattern was downgraded to wildcard.
             print("ERROR: tuple destructure patterns in match (e.g. `(x, y) => …`) are not yet supported. Workaround: use `_ =>` and access tuple fields explicitly via `.0` / `.1` (`match p { _ => return p.0 + p.1, };`). Tracked for a future ship.");
-            while pk(tokens, cp) != 64 && pk(tokens, cp) != 0 && pk(tokens, cp) != 53 { cp = cp + 1; };
-            ename = "__wild";
+            panic("nucleor: tuple destructure pattern in match not supported (see ERROR diagnostic above)");
         } else if att == 1 && (str_eq(pkv(tokens, cp), "Some") == 1 || str_eq(pkv(tokens, cp), "None") == 1 || str_eq(pkv(tokens, cp), "Ok") == 1 || str_eq(pkv(tokens, cp), "Err") == 1) {
             vname = pkv(tokens, cp);
             if str_eq(vname, "Ok") == 1 || str_eq(vname, "Err") == 1 { ename = "Result"; }
@@ -2383,8 +2385,11 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 oren = "__wild";
                 cp = cp + 1;
             } else {
+                // v0.4.79: was print + recover (skip to `=>`) — silent
+                // miscompute, the rest of the or-chain was dropped and
+                // the match might have selected the wrong arm.
                 print("ERROR: or-patterns currently only support int literals and wildcards (e.g. `1 | 2 | _ => ...`). Other pattern kinds in `|` chains are not yet supported.");
-                while pk(tokens, cp) != 64 && pk(tokens, cp) != 0 && pk(tokens, cp) != 53 { cp = cp + 1; };
+                panic("nucleor: unsupported or-pattern kind (see ERROR diagnostic above)");
             };
             if str_len(oren) > 0 {
                 pat_list.push(oren); pat_list.push(orvn); pat_list.push(orbn);
@@ -2600,13 +2605,11 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             // diagnostic with the canonical workaround (`const`) and
             // skip the let-stmt cleanly so the rest of the program
             // still parses for any other diagnostics the user needs.
+            // v0.4.79: was print + skip to `;` — silent miscompute,
+            // the `let` binding was dropped from the module surface
+            // and any downstream reference produced broken IR.
             print("ERROR: `let` is not allowed at module scope. Use `const NAME: T = VALUE;` for module-scope constants. (`let` is statement-only — the parser previously dropped this declaration silently and emitted broken IR.)");
-            // Skip ahead to the next semicolon (token kind 43) to recover.
-            let mut sk: i64 = cp + 1;
-            while pk(tokens, sk) != 0 && pk(tokens, sk) != 43 { sk = sk + 1; };
-            if pk(tokens, sk) == 43 { sk = sk + 1; };
-            cp = sk;
-            pending_pub = 0;
+            panic("nucleor: `let` at module scope not allowed (see ERROR diagnostic above)");
         }
         else if pk(tokens, cp) == 13 || pk(tokens, cp) == 15 || pk(tokens, cp) == 16 || pk(tokens, cp) == 18 || pk(tokens, cp) == 19 || pk(tokens, cp) == 56 || pk(tokens, cp) == 63 {
             // v0.3.75: catch other statement-level keywords at module
@@ -2626,24 +2629,11 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             // — so block-form constructs (`if/while/loop { ... }`)
             // get cleaned up in one go rather than dribbling broken
             // body tokens through the rest of the program.
+            // v0.4.79: was print + skip-block recover — silent
+            // miscompute, the stmt at module scope was dropped and
+            // any reference to its bindings produced broken IR.
             print("ERROR: statement-level keyword at module scope. Only `fn`, `extern fn`, `pure fn`, `const`, `type`, `struct`, `enum`, `trait`, `impl`, and `pub` (with the above) are allowed as top-level items. Move statement-level constructs into a fn body.");
-            let mut sk: i64 = cp + 1;
-            while pk(tokens, sk) != 0 && pk(tokens, sk) != 43 && pk(tokens, sk) != 40 { sk = sk + 1; };
-            if pk(tokens, sk) == 43 { sk = sk + 1; };
-            // For a `{`-terminated form (e.g. `if c { ... }`), skip to
-            // the matching close brace (41) so the block body doesn't
-            // keep producing diagnostics. Tracks brace depth.
-            if pk(tokens, sk) == 40 {
-                let mut depth: i64 = 1;
-                sk = sk + 1;
-                while pk(tokens, sk) != 0 && depth > 0 {
-                    if pk(tokens, sk) == 40 { depth = depth + 1; };
-                    if pk(tokens, sk) == 41 { depth = depth - 1; };
-                    sk = sk + 1;
-                };
-            };
-            cp = sk;
-            pending_pub = 0;
+            panic("nucleor: statement-level keyword at module scope (see ERROR diagnostic above)");
         }
         else { cp = cp + 1; pending_pub = 0; };
     };

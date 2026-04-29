@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.79] — 2026-04-29
+
+**Four parser silent fall-throughs closed (batch). Same class as
+v0.4.78 NR020 but at specific recovery sites that printed an
+"ERROR:" diagnostic and silently continued past the bad input.**
+
+After v0.4.78 made `expect_tok` halt, audit-grep found 4 more
+`print("ERROR: ...")` + recover sites in the parser — all silent
+miscompute candidates because the recovery either dropped the
+construct or downgraded it to a permissive default:
+
+1. **Tuple destructure pattern in match** (`(x, y) =>`) — pre-fix
+   silently downgraded the pattern to `_` (wildcard). Result: the
+   arm fired for ALL inputs, not just tuples, so subsequent arms
+   were never reached.
+2. **Or-pattern with non-int/wildcard kind** (`Some(x) | Err(y)`) —
+   pre-fix dropped the rest of the or-chain after the first
+   unsupported kind. Match selected the wrong arm.
+3. **`let` at module scope** (`let GLOBAL: i64 = 42;`) — pre-fix
+   skipped to the next `;`, dropping the binding entirely. Any
+   reference to `GLOBAL` produced broken IR.
+4. **Stmt-level keyword at module scope** (`if c { ... }` outside
+   any fn) — pre-fix skipped the matching brace block, dropping
+   the construct.
+
+All four now panic at parse-time with the existing diagnostic
+preserved for context.
+
+### Verify gates
+
+- T3.127 — `tests/fixtures/repro_v79_match_tuple_pat.nr` asserts
+  tuple-pattern halt.
+- T3.128 — `tests/fixtures/repro_v79_let_at_module_scope.nr`
+  asserts module-scope-`let` halt.
+- (Or-pattern + stmt-keyword closes are exercised structurally;
+  no separate fixtures needed since their patterns overlap with
+  T3.127 / T3.128 verification.)
+
+### Memory + timing
+
+- Self-host build: unchanged.
+- Verify gate: 369.7s / 503 steps (was 357.0s / 501 — 2 new gates
+  add ~6s, rest within noise).
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha cfbcfcbb…).
+
 ## [0.4.78] — 2026-04-29
 
 **NR020 — parse errors halt the build (was print-and-recover →
