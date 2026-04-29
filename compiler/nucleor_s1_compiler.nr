@@ -11931,6 +11931,28 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         //      mangled names, though most go through kind 12)
         //   3. Skip if `tenv_get(env, callee)` is non-empty
         //      (callee is a registered variable holding an fn pointer)
+        // v0.4.144: walk every arg through type_expr for diagnostic
+        // side effects when we haven't already (sig_find branch walks
+        // them at lines 11781-91; type_dynamic_helper branch walks
+        // them at 11765-69). For runtime helpers like `print_int` /
+        // `print` / etc. that are NEITHER in sigs (no plist registered)
+        // NOR in type_dynamic_helper, the previous code only walked
+        // specific arg positions for known-string-arg helpers
+        // (str_len etc.). Pre-fix `print_int(add(5))` for `fn add(a:
+        // i64, b: i64) -> i64` silently passed: the inner `add(5)`
+        // (kind-7) had its own argc=1 vs expected=2 which would
+        // normally fire TYP-005, but type_expr was never called on
+        // it because `print_int` falls into the non-walking path.
+        // Net effect: nested calls escaped every diagnostic.
+        // Mirrors v0.4.117 (which fixed the same hazard for
+        // type_dynamic_helper callees).
+        if argc > 0 && sentry < 0 && type_dynamic_helper(callee) == 0 {
+            let mut walk_ai_v144: i64 = 0;
+            while walk_ai_v144 < argc {
+                type_expr(pool, prog, list_get(pool, args, walk_ai_v144), env, sigs, structs, fn_name, diags, source, tprof);
+                walk_ai_v144 = walk_ai_v144 + 1;
+            };
+        };
         if sentry < 0 && type_dynamic_helper(callee) == 0 && str_len(get_rt_name(callee)) == 0 && str_len(builtin_rtype(callee)) == 0 {
             let clen: i64 = str_len(callee);
             let mut suppress: i64 = 0;

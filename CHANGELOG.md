@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.144] — 2026-04-29
+
+**TYP-005 ext: nested fn call inside a runtime-helper arg
+escaped every diagnostic. `print_int(add(5))` for `fn add(a:
+i64, b: i64)` silently lowered with garbage. Now halts.**
+
+```nucleor
+fn add(a: i64, b: i64) -> i64 { a + b }
+fn main() {
+    print_int(add(5));   // pre-fix: silent build, garbage at runtime
+}
+```
+
+The kind-7 (call) `type_expr` had three arg-walking paths:
+
+1. **`type_dynamic_helper(callee)` is true** (compiler-internals
+   like `tok_type`, `node_field`, etc.) → walks every arg via
+   `type_expr` (line 11765-69, added in v0.4.117).
+2. **`sig_find(sigs, callee) >= 0`** (user-defined fns) → walks
+   each arg with the registered param's expected type (line
+   11781-91).
+3. **Otherwise** (runtime helpers like `print_int`, `print`,
+   `panic`, etc. — registered via `builtin_rtype` but not in
+   sigs and not in type_dynamic_helper) → only specific known
+   string-arg positions walked (str_len, str_eq, etc.). Every
+   other arg position **never** went through `type_expr`.
+
+Net effect: `print_int(add(5))` looked like a successful build
+because the outer print_int's argc=1 matched its expected_argc=1,
+and the inner `add(5)` was never type-checked. Codegen lowered
+both calls; the C runtime received a single arg for add (the
+second was an undefined register) and add silently returned
+garbage. Adopters who typo'd args inside any print/panic/log
+call got a quiet wrong result.
+
+This release adds a generic arg walker for the otherwise-path:
+when callee is neither in sigs nor in type_dynamic_helper but
+argc > 0, walk every arg through `type_expr`. Each nested call
+then triggers its own kind-7 type-check recursively, including
+sigs-driven argc/argtype checks for user fns and the v0.4.143
+narrow-cast guards. Mirrored to `nucleor_tools_suite.nr`.
+
+Negative fixture: `tests/err/err_nested_call_argc.nr`. Bootstrap
+fixed-point holds first-pass. Fast-verify 198 PASS / 2
+baseline-FAIL.
+
 ## [0.4.143] — 2026-04-29
 
 **NUM-023 (URGENT — runtime SIGSEGV close): float / bool

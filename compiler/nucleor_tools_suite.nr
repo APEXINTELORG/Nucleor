@@ -7106,6 +7106,16 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             tprof_mark(tprof, 9, 10, call_start);
             return vec_get(sentry, 1);
         };
+        // v0.4.144 mirror: walk every arg through type_expr for
+        // diagnostic side effects on non-sig non-dynamic-helper
+        // callees so nested calls' TYP-005 / TYP-008 etc. fire.
+        if argc > 0 {
+            let mut walk_ai_v144_t: i64 = 0;
+            while walk_ai_v144_t < argc {
+                type_expr(pool, list_get(pool, args, walk_ai_v144_t), env, sigs, structs, fn_name, diags, source, tprof);
+                walk_ai_v144_t = walk_ai_v144_t + 1;
+            };
+        };
         tprof_mark(tprof, 9, 10, call_start);
         return builtin_rtype(callee);
     };
