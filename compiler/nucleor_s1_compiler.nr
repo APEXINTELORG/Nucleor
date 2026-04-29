@@ -12224,6 +12224,46 @@ fn capture_param_has(pool: Vec<i32>, params: i64, name: str) -> i64 {
     return 0;
 }
 
+fn capture_names_to_string(caps: Vec<i32>) -> str {
+    let mut out: str = "";
+    let mut i: i64 = 0;
+    while i < vec_len(caps) {
+        let name: str = vec_get(caps, i);
+        if str_len(name) > 0 {
+            if str_len(out) > 0 { out = str_concat(out, "|"); };
+            out = str_concat(out, name);
+        };
+        i = i + 1;
+    };
+    return out;
+}
+
+fn closure_writeback_captures(cap_names: str, clo_id: i64, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>) -> Vec<i32> {
+    let mut cur: Vec<i32> = blk;
+    let clen: i64 = str_len(cap_names);
+    if clo_id < 0 || clen == 0 { return cur; };
+    let mut start: i64 = 0;
+    let mut capi: i64 = 0;
+    while start < clen {
+        let mut end: i64 = start;
+        while end < clen && str_char_at(cap_names, end) != 124 { end = end + 1; };
+        let name: str = str_substring(cap_names, start, end);
+        if str_len(name) > 0 {
+            let slot: i64 = sym_get(sym, name);
+            if slot >= 0 {
+                let clo_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(clo_r, clo_id));
+                let cap_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(cap_r, capi));
+                let mut get_args: Vec<i32> = Vec::new(); get_args.push(clo_r); get_args.push(cap_r);
+                let val_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(val_r, "__nucleor_capture_get", get_args));
+                ir_block_add(cur, ir_store(val_r, slot));
+            };
+        };
+        capi = capi + 1;
+        start = end + 1;
+    };
+    return cur;
+}
+
 fn closure_collect_capture_expr(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params: i64, caps: Vec<i32>) -> i64 {
     if nid < 0 { return 0; };
     let kind: i64 = node_kind(pool, nid);
@@ -12358,27 +12398,11 @@ fn closure_collect_capture_stmt(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params:
         return 0;
     };
     if kind == 21 {
-        // v0.3.96: detect mutable capture writeback. If the LHS of an
-        // assignment in a closure body is a captured variable
-        // (kind 3 var ref whose name resolves in the OUTER sym AND
-        // isn't a closure param), emit a clear diagnostic. Pre-v0.3.96
-        // this silently no-op'd — the assignment wrote to the closure's
-        // local copy of the captured value (loaded once at entry via
-        // __nucleor_capture_get) and never propagated back to the
-        // caller's scope. Programs using FnMut-style mutation in
-        // closures silently mis-computed.
+        // FnMut capture writeback: assignment to a captured outer
+        // variable is allowed. The lowerer writes the local assignment
+        // through to the capture table, and direct closure-variable
+        // calls refresh the caller's slot from that table afterward.
         let lhs: i64 = node_field(pool, nid, 1);
-        if node_kind(pool, lhs) == 3 {
-            let lname: str = node_field(pool, lhs, 1);
-            if sym_get(sym, lname) >= 0 && capture_param_has(pool, params, lname) == 0 {
-                print(str_concat("ERROR: closure cannot mutate captured variable `", str_concat(lname, "` via assignment. The mutation would write to the closure's local copy and silently NOT propagate back to the caller's scope (FnMut semantics not yet supported). Workaround: have the closure RETURN the new value (`let new = inc(5); total = new;`) or use a `Vec<i64>` for shared mutable state. Tracked for a future ship.")));
-                // v0.4.32: pre-fix the closure was constructed and the
-                // build succeeded — the mutation silently no-op'd at
-                // runtime. Halt the compiler so adopters see the
-                // diagnostic above as a hard error, not a passing build.
-                panic(str_concat("nucleor: closure mutate-capture not supported for `", str_concat(lname, "`")));
-            };
-        };
         closure_collect_capture_expr(pool, node_field(pool, nid, 1), sym, params, caps);
         closure_collect_capture_expr(pool, node_field(pool, nid, 2), sym, params, caps);
         return 0;
@@ -13534,6 +13558,14 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let fp_r: i64 = ctr_next(regs); ir_block_add(cur, ir_load(fp_r, fn_slot));
             let r: i64 = ctr_next(regs);
             ir_block_add(cur, ir_indirect_call(r, fp_r, arg_regs));
+            let clo_id_meta: i64 = sym_get(sym, str_concat("__closure_id_", fn_name));
+            if clo_id_meta >= 0 {
+                let caps_meta: i64 = sym_get(sym, str_concat("__closure_caps_", fn_name));
+                if caps_meta >= 0 {
+                    let cap_names: str = caps_meta;
+                    cur = closure_writeback_captures(cap_names, clo_id_meta, cur, regs, sym);
+                };
+            };
             return lx_new(r, cur);
         };
         let r: i64 = ctr_next(regs);
@@ -14358,6 +14390,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let mut clo_regs: Vec<i32> = ctr_new();
         let mut clo_lbls: Vec<i32> = ctr_new();
         let mut clo_sym: Vec<i32> = sym_new();
+        sym_set(clo_sym, "__closure_id", clo_idx);
         let mut clo_fir: Vec<i32> = ir_fn_new(clo_name, pc);
         let mut clo_b0: Vec<i32> = ir_block_new(0);
         ir_fn_add_block(clo_fir, clo_b0);
@@ -14394,6 +14427,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let cval: i64 = ctr_next(clo_regs); ir_block_add(clo_b0, ir_call_ex(cval, "__nucleor_capture_get", get_args));
             ir_block_add(clo_b0, ir_store(cval, car));
             sym_set(clo_sym, capname, car);
+            sym_set(clo_sym, str_concat("__capid_", capname), capi);
             // v0.3.129: propagate the captured variable's TYPE entry
             // from the parent sym so expr_struct_type can resolve
             // field accesses inside the closure body. Pre-v0.3.129
@@ -14447,6 +14481,8 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             };
             capi2 = capi2 + 1;
         };
+        sym_set(sym, "__last_closure_id", clo_idx);
+        sym_set(sym, "__last_closure_caps", capture_names_to_string(captures));
         let r: i64 = ctr_next(regs);
         ir_block_add(cur, ir_fn_ptr(r, clo_name));
         return lx_new(r, cur);
@@ -14947,6 +14983,19 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // element type for kind==10 (indexing) dispatch. type_base_name
         // strips the <T> for the existing __type_ entry.
         if str_len(tstr) > 0 { sym_set(sym, str_concat("__fulltype_", vname), tstr); };
+        if init >= 0 && node_kind(pool, init) == 42 {
+            let cid_meta: i64 = sym_get(sym, "__last_closure_id");
+            let caps_meta: i64 = sym_get(sym, "__last_closure_caps");
+            if cid_meta >= 0 {
+                sym_set(sym, str_concat("__closure_id_", vname), cid_meta);
+            };
+            if caps_meta >= 0 {
+                let caps_s: str = caps_meta;
+                if str_len(caps_s) > 0 {
+                    sym_set(sym, str_concat("__closure_caps_", vname), caps_s);
+                };
+            };
+        };
         return cur;
     };
     if kind == 21 {
@@ -15025,11 +15074,35 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             };
             return cur;
         };
-        let ar: i64 = sym_get(sym, node_field(pool, lhs, 1));
+        let lhs_name: str = node_field(pool, lhs, 1);
+        let ar: i64 = sym_get(sym, lhs_name);
         let mut vp: Vec<i32> = lower_expr(pool, node_field(pool, nid, 2), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let vr: i64 = lx_reg(vp);
         cur = lx_blk(vp);
         ir_block_add(cur, ir_store(vr, ar));
+        let clo_id: i64 = sym_get(sym, "__closure_id");
+        if clo_id >= 0 {
+            let cap_id: i64 = sym_get(sym, str_concat("__capid_", lhs_name));
+            if cap_id >= 0 {
+                let clo_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(clo_r, clo_id));
+                let cap_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(cap_r, cap_id));
+                let mut set_args: Vec<i32> = Vec::new(); set_args.push(clo_r); set_args.push(cap_r); set_args.push(vr);
+                let dr: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(dr, "__nucleor_capture_set", set_args));
+            };
+        };
+        if node_kind(pool, node_field(pool, nid, 2)) == 42 {
+            let cid_meta2: i64 = sym_get(sym, "__last_closure_id");
+            let caps_meta2: i64 = sym_get(sym, "__last_closure_caps");
+            if cid_meta2 >= 0 {
+                sym_set(sym, str_concat("__closure_id_", lhs_name), cid_meta2);
+            };
+            if caps_meta2 >= 0 {
+                let caps_s2: str = caps_meta2;
+                if str_len(caps_s2) > 0 {
+                    sym_set(sym, str_concat("__closure_caps_", lhs_name), caps_s2);
+                };
+            };
+        };
         return cur;
     };
     if kind == 22 {

@@ -1995,14 +1995,16 @@ t385_impl_assoc_const_panic() {
     return 0
 }
 
-t381_closure_mutate_capture_panic() {
+t381_closure_mutate_capture_writeback() {
     # T3.81 (v0.4.32a): closure mutating captured outer var used to
     # silently no-op at runtime — closure mutated its local copy and
-    # the caller's value stayed unchanged. Now panics. NEGATIVE test.
+    # the caller's value stayed unchanged. Now writes back.
     "$BIN" build "tests/fixtures/repro_v32a_closure_mutate_panic.nr" -o "_t381_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    [ "$?" -ne 0 ] || return 1
-    grep -q "closure cannot mutate captured variable" $NUC_VERIFY_STEP_LOG || return 1
-    grep -q "PANIC: nucleor: closure mutate-capture" $NUC_VERIFY_STEP_LOG || return 1
+    local exe
+    if [ -x "target/_t381_check" ]; then exe="target/_t381_check"; else exe="target/_t381_check.exe"; fi
+    [ -x "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" -eq 5 ] || return 1
     return 0
 }
 
@@ -2163,13 +2165,15 @@ t373_bitwise_op_diagnostic() {
 }
 
 t372_mut_closure_capture_diagnostic() {
-    # T3.72 (v0.3.96): negative regression for mut closure capture
-    # writeback. Pre-v0.3.96 silently no-op'd (FnMut not yet supported).
-    # Post: closure_collect_capture_stmt detects assignment-to-captured
-    # var and emits a clear diagnostic.
+    # T3.72: mut closure capture writeback. This used to diagnose after
+    # v0.3.96 because writeback did not exist; now it must run and return
+    # the updated captured total.
     "$BIN" build "tests/fixtures/t372_mut_closure_capture_diagnostic.nr" -o "_t372_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    grep -q "closure cannot mutate captured variable" $NUC_VERIFY_STEP_LOG || return 1
-    grep -q "FnMut semantics not yet supported" $NUC_VERIFY_STEP_LOG || return 1
+    local exe
+    if [ -x "target/_t372_check" ]; then exe="target/_t372_check"; else exe="target/_t372_check.exe"; fi
+    [ -x "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" -eq 12 ] || return 1
     return 0
 }
 
@@ -3485,7 +3489,7 @@ step "T3.68 dyn keyword parser acceptance (Box<dyn Trait>, fn -> dyn ...)" t368_
 step "T3.69 &mut T param diagnostic (HIGH-BLAST silent miscompute pre-v0.3.93)" t369_mut_ref_param_diagnostic
 step "T3.70 panic!/assert!/dbg! macro forms (textual ! strip)" t370_panic_assert_macros
 step "T3.71 extended macro set (assert_eq!/assert_ne!/todo!/unimplemented!/unreachable!)" t371_extended_macro_set
-step "T3.72 mut closure capture diagnostic (FnMut silent miscompute pre-v0.3.96)" t372_mut_closure_capture_diagnostic
+step "T3.72 mut closure capture writeback (FnMut direct closure call)" t372_mut_closure_capture_diagnostic
 step "T3.73 bitwise op diagnostic (HIGH-BLAST silent miscompute pre-v0.3.97)" t373_bitwise_op_diagnostic
 step "T3.74 env_get_or runtime helper" t374_env_get_or
 step "T3.75 v0.4.24 silent miscomputes (f32 lit + neg + format spec dispatch)" t375_v24_silent_miscomputes
@@ -3494,7 +3498,7 @@ step "T3.77 v0.4.28 RFC-0028 phase 5 — width / align / zero-pad spec" t377_for
 step "T3.78 v0.4.29 RFC-0028 phase 5 — radix (x/X/o/b) + alternate form (#)" t378_format_radix_spec
 step "T3.79 v0.4.30 RFC-0028 phase 5 — force-sign (:+) for integers" t379_format_force_sign_spec
 step "T3.80 v0.4.31 unsupported assoc-fn no longer silent-zeros" t380_assoc_fn_unsupported_panic
-step "T3.81 v0.4.32a closure mutate-capture no longer silent no-op" t381_closure_mutate_capture_panic
+step "T3.81 v0.4.32a closure mutate-capture writeback" t381_closure_mutate_capture_writeback
 step "T3.82 v0.4.32b nested struct field assign no longer silently dropped" t382_nested_field_assign_panic
 step "T3.83 v0.4.33a let tuple-destructure no longer silent-drops bindings" t383_let_tuple_destructure_panic
 step "T3.84 v0.4.33b trait assoc-const no longer silent-drops decl" t384_trait_assoc_const_panic
@@ -3553,7 +3557,7 @@ step "T3.136 v0.4.89 — extend str dispatch to to_lower/to_upper/trim/trim_star
 step "T3.137 v0.4.90 CRITICAL — Option/Result method dispatch (was unusable v0.4.53..v0.4.89 due to false non-Option panic)" t437_option_result_method_dispatch
 step "T3.138 v0.4.92 — Option/Result fn-arg methods (.map/.and_then/.unwrap_or_else)" t438_option_result_fn_arg_methods
 step "T3.139 v0.4.93 — Result.or_else(f) recovery method" t439_result_or_else
-step "T3.140 v0.4.94 TYP-011 — `s[i]` on str halts (was silent vec_get on str pointer → OOB/garbage)" t440_str_index_halts
+step "T3.140 v0.4.94 TYP-011 — s[i] on str halts (was silent vec_get on str pointer → OOB/garbage)" t440_str_index_halts
 step "T3.141 v0.4.95 — variable-divisor zero panics with clean message (was silent SIGFPE / exit 127)" t441_var_div_zero_runtime_panic
 step "T3.142 v0.4.96 RFC-0028 — struct Display/Debug format dispatch + FMT-002 (audit doc-#1 §10)" t442_format_struct_display_debug
 step "T3.143 v0.4.97 — recursive Debug for Vec<i64>/Option<i64>/Result<i64,i64> (audit doc-#1 §10b)" t443_recursive_debug

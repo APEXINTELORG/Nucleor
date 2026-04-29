@@ -5,6 +5,33 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.116] — 2026-04-29
+
+**FnMut-style direct closure capture writeback (parallel-agent
+spike integrated; closes audit doc-#1 §7).**
+
+Closures that assigned to a captured outer variable used to be
+blocked because the runtime closure table loaded captures into
+closure-local slots. If the assignment were allowed, it changed
+only that local copy and the caller's variable stayed unchanged.
+
+This release records each closure variable's closure id and
+capture slot list. Assignment to a captured local inside the
+closure writes the new value back to `__nucleor_capture_set`,
+and a direct closure-variable call refreshes the caller's
+captured slots from `__nucleor_capture_get` after the indirect
+call returns.
+
+Pinned by updated closure writeback gates:
+
+- `tests/fixtures/t372_mut_closure_capture_diagnostic.nr` now
+  returns `12` after two captured writes.
+- `tests/fixtures/repro_v32a_closure_mutate_panic.nr` now
+  returns `5` instead of expecting the old panic.
+
+Spike rebased onto v0.4.115 + bootstrap fixed-point re-emitted +
+drift gate green.
+
 ## [0.4.115] — 2026-04-29
 
 **RFC-0016 §3.7: `?` operator now invokes `From::from` for error
