@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.149] — 2026-04-29
+
+**TYP-006 ext: `print(<non_str>)` / `println(<non_str>)` /
+`eprint(<non_str>)` / `eprintln(<non_str>)` silently passed any
+i64 to the C printf-style helper, printing garbage bytes
+(or SIGSEGVing on bad pointers). Now halts.**
+
+```nucleor
+struct P { x: i64 }
+let p: P = P { x: 1 };
+print(p);    // pre-fix: prints heap garbage bytes from struct ptr
+```
+
+The kind-7 type-check has a `needs_str_arg0` list (added in
+v0.3.155 to catch `str_len(42)`-style runtime helper misuse)
+that includes `str_*`, `getenv`, `print_raw`, `panic`. The
+output-side helpers `print` / `println` / `eprint` /
+`eprintln` were missing. They all call the
+`__nucleor_print_str` C runtime helper which expects const
+char*, so passing any non-str silently lowered to a printf("%s",
+non_str_value_as_ptr) — for an i64 value, that's a wild
+pointer; for a struct value, it's a heap address whose content
+gets read as bytes until a NUL. Adopters who typo'd `print(x)`
+when they meant `print_int(x)` got either nonsense output or
+a SIGSEGV.
+
+This release adds the four print/println/eprint/eprintln names
+to the existing `needs_str_arg0` list. Same TYP-006 family
+("argument 0 of '<callee>' must be str"), s1-only since
+tools_suite has no equivalent runtime-helper-arg-check
+machinery.
+
+Negative fixture: `tests/err/err_print_non_str.nr`. Bootstrap
+fixed-point holds first-pass. Fast-verify 203 PASS / 2
+baseline-FAIL.
+
 ## [0.4.148] — 2026-04-29
 
 **TYP-022 ext: struct name called like a fn (`P(42)`) silently
