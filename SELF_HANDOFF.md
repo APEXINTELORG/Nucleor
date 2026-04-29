@@ -131,12 +131,12 @@ but DO NOT EDIT):**
 
 ## Where we are right now
 
-- **Main HEAD:** v0.4.134 (commit `ee70cb8`) + a docs commit
-  `7530246` for the parallel-agent handoff. No uncommitted changes.
-- **Bootstrap fixed-point:** holds at v0.4.134 (sha was the one
-  in v0.4.134's CHANGELOG entry). Drift gate green.
+- **Main HEAD:** v0.4.152 (commit `79e55fe`). 18 ships this session
+  (v0.4.135 → v0.4.152). All commits + tags pushed to origin.
+- **Bootstrap fixed-point:** holds at v0.4.152 (first-pass on every
+  ship). Drift gate green.
 - **Verify:** parallel verifier (`tools/verify_parallel.sh -j 12`)
-  reports 188 PASS / 2 baseline-FAIL / ~17s wall.
+  reports 206 PASS / 2 baseline-FAIL / ~45s wall.
 - **Baseline FAILs (NEVER count as regressions):**
   `lang/mod_decl_aux` (multi-file module that needs verify.sh's
   special setup) and `runtime/stdin_read` (needs a stdin pipe).
@@ -145,24 +145,86 @@ but DO NOT EDIT):**
   doc-#1 sections (§3 / §5 / §6 partial / §7 / §8 NAME-only /
   §9 / §10) are closed.
 
+### Ships v0.4.135–v0.4.152 (this session)
+
+Each ship: dual-compiler edit (where applicable), T1.7 first-pass,
+drift clean, parallel verifier no regression, fixture, CHANGELOG,
+RELEASES regen, single-bug single-tag.
+
+- **v0.4.135** — `"abc".len()` returned 0. kind-2 (str-literal)
+  receiver routed to vec_len; now stamps stype="str" → str_*.
+- **v0.4.136** — `let x = print_int(5);` silently bound x=0
+  (TYP-021 bare-let void RHS).
+- **v0.4.137** — `5 == 5.0` returned FALSE; `5 < 5.0` returned
+  TRUE. NUM-022 cmp int-vs-float.
+- **v0.4.138** — `let e: E = E;` failed with cryptic clang `@E
+  undefined`. TYP-022 struct-as-value at kind-3.
+- **v0.4.139** — `v.push(N).len()` and `let x = v.push(N);`
+  silently returned 0. Void-mutator route to "void" + TYP-023.
+- **v0.4.140** — `match n: i64 { 1 => ..., "a" => ... }` for
+  n=2 SIGSEGV'd. MATCH-011 pattern-literal-vs-scrutinee mismatch.
+- **v0.4.141** — `5 + 5.0` produced garbage i64. NUM-022 ext to
+  arith ops 20-24.
+- **v0.4.142** — `fn f() { return 42; }` silently discarded the
+  value. TYP-010 ext for void/implicit-void rtype with non-void val.
+- **v0.4.143** — `let s: str = x as str;` for x:f64 SIGSEGV'd
+  on print. NUM-023 float/bool as-cast to str.
+- **v0.4.144** — `print_int(add(5))` for 2-param add silently
+  lowered with garbage second param. TYP-005 ext: kind-7 generic
+  arg walker for non-sig non-dynamic-helper callees (mirrors
+  v0.4.117 fix for dynamic-helper path).
+- **v0.4.145** — `let x = if c { 1 } else { "two" };` silently
+  picked then-type. TYP-024 incompatible if-expr branches.
+- **v0.4.146** — `let f = |x,y| x+y; f(5);` ran with garbage
+  second param. TYP-005 ext: closure call argc check via new
+  `__closure_argc_<vname>` tenv entry.
+- **v0.4.147** — `a == b` for two equal-field structs returned
+  FALSE. TYP-011 ext for struct == / != / ord (sister to
+  v0.4.52 str== and v0.4.61 Vec==).
+- **v0.4.148** — `P(42)` for struct P silently emitted `call
+  @P` (cryptic clang link error). TYP-022 ext at kind-7
+  (sister to v0.4.138 at kind-3).
+- **v0.4.149** — `print(struct)` printed heap garbage bytes.
+  TYP-006 ext: print/println/eprint/eprintln added to
+  needs_str_arg0 list.
+- **v0.4.150** — `s + 5` for s:String silently did i64_add on
+  heap ptr (wild pointer). TYP-011 ext for String arith. Also
+  fixed kind-12 type_expr to return "String"/"Vec"/"HashMap"/
+  "HashSet"/"BTreeMap"/"BTreeSet"/"VecDeque" (was "" — the
+  let-stmt logic stored "" in tenv even with explicit
+  annotation, breaking every downstream type check).
+- **v0.4.151** — `s == s2` for two String values returned FALSE.
+  TYP-011 ext for String == / != (sister to v0.4.52, v0.4.147).
+- **v0.4.152** — `for c in s` for s:str silently produced 0
+  iterations. TYP-011 ext for kind-49 with non-iterable type
+  (str / String / scalar / bool).
+
 ## What just happened (don't repeat)
 
-- 34 ships this session: silent-miscompute closes, parallel-agent
-  spike integrations (5 of them, all in main), residual #1 / #4 /
-  #5 from the v0.4 punchlist.
-- Parallel agent has a fresh handoff doc at
+**Session ending v0.4.152:** 18 ships from probe-driven hunting
+across 6 probe rounds. Patterns hit: type-mismatch in let RHS
+(v0.4.136), method-dispatch fall-through (v0.4.135/.139/.149),
+match exhaustiveness/literal-type gaps (v0.4.140), cryptic clang
+errors lifted (v0.4.138/.143/.148), parser/type-check fall-throughs
+(v0.4.142/.144/.145/.146), silent ptr-compare on heap types
+(v0.4.147/.151), arith on heap types (v0.4.150), unsupported
+iteration shapes (v0.4.152). All ships tagged + pushed.
+
+### Earlier session notes (kept for context)
+
+- 34 ships in the previous session before this one: silent-
+  miscompute closes, parallel-agent spike integrations (5 of
+  them, all in main), residual #1 / #4 / #5 from the v0.4
+  punchlist.
+- Parallel agent has a handoff doc at
   `PARALLEL_AGENT_HANDOFF_v0.4_RESIDUALS.md` (commit `7530246`).
   They have 4 multi-day items: trait-bound call-site impl-existence
   check, saturating per-op via LLVM intrinsics, verify_parallel.sh
-  fold-in to verify.sh, var-RHS shift bounds.
-- I had a v0.4.135 mid-edit that hit a `let mut` issue on `stype` —
-  reverted before writing this doc. The fix is one character: the
-  declaration of `stype` at compiler.nr line ~14391 needs to be
-  `let mut stype: str = ...` (instead of `let stype: str = ...`)
-  so the kind-2 receiver branch I added inside v0.4.135 can stamp
-  `stype = "str"`. Resume by re-reading the v0.4.135 partial in
-  the git reflog if the work has rotted; otherwise just probe-find
-  the next silent miscompute and ship that.
+  fold-in to verify.sh, var-RHS shift bounds. As of v0.4.152
+  spike branches all have `ahead=0` from main.
+- The v0.4.135 mid-flight `let mut stype` issue mentioned in
+  earlier handoff is **CLOSED** (shipped as v0.4.135 this
+  session — first ship of the run).
 
 ## Workflow protocol — READ THIS
 
@@ -222,26 +284,26 @@ but DO NOT EDIT):**
 
 ## Known mid-flight or punted (ship the next time you find them)
 
-These are silent miscomputes I confirmed via probe but haven't
-shipped yet:
+**Session ending v0.4.152: all 4 prior held items SHIPPED** —
+v0.4.135 (`"abc".len()`), v0.4.136 (`let x = print_int(5)`),
+v0.4.137 (`5 == 5.0`), v0.4.138 (`let e: E = E;`).
 
-- **`let x = print_int(5)`** binds x to void coerced to 0. Sister
-  to v0.4.132 (binop void) — needs let-RHS void check at the
-  let-stmt type-check site (kind 20). Probably 10 lines.
-- **`5 == 5.0`** (i64 == f64) silent bit-pattern compare returns
-  "ne" — needs binop type-mismatch check on comparison ops
-  (25-32 family) when one side is int and the other float. The
-  v0.4.132 check covers void; this is a sibling. ~20 lines.
-- **`let e: E = E;`** (struct used as value) gets cryptic clang
-  `@E` undefined. My v0.4.106 lift suppresses uppercase-leading
-  names. Need a separate detection: if undefined symbol matches
-  a defined struct name, surface as TYP-022 "struct cannot be
-  used as a value." ~15 lines.
-- **`"abc".len()`** silently returns 0 (str literal goes through
-  vec_len_i64 instead of str_len). The v0.4.135 mid-edit was
-  THIS fix — the `let mut stype` issue is the only blocker. Pick
-  this one up first: it's a confirmed silent miscompute and the
-  edit is 90% done.
+Items confirmed via probe but **deferred** (need infrastructure
+beyond a single-tag fix):
+
+- **Use-after-move on String/Vec.** Probe `let s = String::new();
+  let t = s; s.len()` returns 0 silently. Nucleor's ownership
+  tracker has no move state today — adding it is a v0.5-class
+  change (broad surface, breaks current test fixtures that pass
+  values around freely).
+- **Uninit-mut binding.** Probe `let mut x: i64; if false { x =
+  5; }; print_int(x);` reads uninit (alloca zero-slot) → prints
+  0. Needs flow-sensitive uninit detection. v0.4.83 caught the
+  immutable-no-init form; the mutable case requires conditional
+  assignment tracking.
+- **Reverse range `for i in 5..0`.** Currently produces 0
+  iterations silently. Rust does the same — leaving this alone
+  unless adopter feedback says otherwise.
 
 ## What NOT to attack
 
@@ -311,13 +373,11 @@ fall-through points.
 
 ## Tag numbering
 
-Main is at v0.4.134. Pick v0.4.135 first (the str-literal close
-in the mid-flight v0.4.135 — that's the easiest immediate ship).
-Parallel agent will pick higher numbers as they ship. We don't
-collide because every tag is created by `git tag vX.Y.Z` AFTER
-checking `git tag -l | sort -V | tail` — if the agent shipped
-v0.4.137 between my fetches, I move to v0.4.138. The drift gate
-catches CHANGELOG↔tag mismatches.
+Main is at v0.4.152. Next ship is v0.4.153 (or higher if parallel
+agent pushes a tag during your fetch). Every tag is created by
+`git tag vX.Y.Z` AFTER checking `git tag -l | sort -V | tail` —
+if the agent shipped v0.4.155 between fetches, move to v0.4.156.
+The drift gate catches CHANGELOG↔tag mismatches.
 
 ## You-have-context defaults
 
