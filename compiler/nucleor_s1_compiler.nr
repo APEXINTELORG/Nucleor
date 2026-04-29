@@ -20817,7 +20817,23 @@ fn lift_undefined_fn_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
             };
             if suppress == 0 && priv_string_vec_contains(seen, name) == 0 {
                 seen.push(name);
-                print(str_concat("error[TYP-005]: undefined function `", str_concat(name, "()`. Check spelling, or import the rod that defines it. (raised at clang link; type-checker emitted a TYP-005 warning earlier in this build.)")));
+                // v0.4.127: detect synthetic `vec_<method>` names that
+                // come from method-call dispatch fall-through (e.g.
+                // user wrote `v.lenn()` for a Vec, the kind 8 catch-all
+                // lowered to `vec_lenn(v)`). Show the user the actual
+                // source-side method name with a Vec-method hint
+                // instead of the confusing internal `vec_<method>`.
+                if clen > 4 && str_char_at(name, 0) == 118
+                    && str_char_at(name, 1) == 101
+                    && str_char_at(name, 2) == 99
+                    && str_char_at(name, 3) == 95 {
+                    let user_method: str = str_substring(name, 4, clen);
+                    print(str_concat("error[TYP-005]: receiver type `Vec<T>` has no method `.", str_concat(user_method, "()`. (Internal symbol: `vec_")));
+                    print(str_concat("                ", str_concat(user_method, "`. The kind-8 method-dispatch catch-all lowered the call to a synthetic helper that doesn't exist.)")));
+                    print("                Supported Vec method families: push, pop, len, get, set, first, last, is_empty, insert (insert_at), remove (remove_at), iter, map, filter, fold, each, sum, min, max, contains, index_of, reverse, sort, clone, clear, collect, count, take, skip, any, all, chain, position, product, step_by, nth, reduce.");
+                } else {
+                    print(str_concat("error[TYP-005]: undefined function `", str_concat(name, "()`. Check spelling, or import the rod that defines it. (raised at clang link; type-checker emitted a TYP-005 warning earlier in this build.)")));
+                };
                 count = count + 1;
             };
             p = name_end + 1;
