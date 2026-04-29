@@ -7308,6 +7308,62 @@ const char *__nucleor_f8e5m2_to_str(long long b) {
     memcpy(out, buf, L + 1); return out;
 }
 
+// === Option<T> / Result<T,E> method helpers (v0.4.90) ===
+// Layout: Option<T> and Result<T,E> are both lowered to NVec* of i64
+// cells with [0] = tag, [1] = payload. Tag conventions per
+// nucleor_s1_compiler.nr line 6752 / 6764-6767:
+//   Option: Some=0, None=1
+//   Result: Ok=1,    Err=0
+// These helpers let `opt.unwrap()` / `res.is_ok()` etc. dispatch from
+// the compiler's method-name → str_concat("option_"/"result_", mname)
+// without needing inline IR for each method.
+long long __nucleor_option_unwrap(NVec *opt) {
+    return __nucleor_vec_get(opt, 1);
+}
+long long __nucleor_option_unwrap_or(NVec *opt, long long def) {
+    if (__nucleor_vec_get(opt, 0) == 0) return __nucleor_vec_get(opt, 1);
+    return def;
+}
+long long __nucleor_option_is_some(NVec *opt) {
+    return __nucleor_vec_get(opt, 0) == 0 ? 1 : 0;
+}
+long long __nucleor_option_is_none(NVec *opt) {
+    return __nucleor_vec_get(opt, 0) != 0 ? 1 : 0;
+}
+long long __nucleor_result_unwrap(NVec *res) {
+    return __nucleor_vec_get(res, 1);
+}
+long long __nucleor_result_unwrap_or(NVec *res, long long def) {
+    if (__nucleor_vec_get(res, 0) == 1) return __nucleor_vec_get(res, 1);
+    return def;
+}
+long long __nucleor_result_is_ok(NVec *res) {
+    return __nucleor_vec_get(res, 0) == 1 ? 1 : 0;
+}
+long long __nucleor_result_is_err(NVec *res) {
+    return __nucleor_vec_get(res, 0) != 1 ? 1 : 0;
+}
+long long __nucleor_result_ok(NVec *res) {
+    return __nucleor_vec_get(res, 1);
+}
+long long __nucleor_result_err(NVec *res) {
+    return __nucleor_vec_get(res, 1);
+}
+long long __nucleor_option_expect(NVec *opt, const char *msg) {
+    if (__nucleor_vec_get(opt, 0) != 0) {
+        fprintf(stderr, "PANIC: %s\n", msg ? msg : "expect on None");
+        exit(1);
+    }
+    return __nucleor_vec_get(opt, 1);
+}
+long long __nucleor_result_expect(NVec *res, const char *msg) {
+    if (__nucleor_vec_get(res, 0) != 1) {
+        fprintf(stderr, "PANIC: %s\n", msg ? msg : "expect on Err");
+        exit(1);
+    }
+    return __nucleor_vec_get(res, 1);
+}
+
 // === RNG ===
 // Pull in rng_rt.c so nuc_rng_* symbols are available without a separate
 // link step. The compiler emits __nucleor_rng_seed/etc. which forward to

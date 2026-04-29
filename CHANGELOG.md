@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.90] — 2026-04-29
+
+**CRITICAL: Option<T> / Result<T,E> method dispatch restored.
+Plus verify-count display fix.**
+
+Per `nucleor_v04_error_fix_plan.md`. Items addressed:
+
+### 1. Option/Result method dispatch (CRITICAL)
+
+Pre-fix even typed `let x: Option<i64> = Some(42); x.unwrap();`
+hit the v0.4.53 "non-Option receiver" panic-guard because the
+dispatch chain had no Option/Result receiver branch — these
+methods were COMPLETELY UNUSABLE in v0.4.53 .. v0.4.89.
+
+Fixed by:
+- Adding 12 C runtime helpers in `nucleor_llvm_rt.c`
+  (`__nucleor_option_unwrap`, `_unwrap_or`, `_is_some`, `_is_none`,
+  `_expect`; same for `result_*` plus `_ok` / `_err` accessors).
+- Routing dispatch in `lower_expr` kind-8 method-call:
+  - First-pass: `stype_base == "Option"` / `"Result"` from
+    `expr_struct_type`.
+  - Fallback at the v0.4.53 panic-guard: when receiver is a
+    var-ref, look up `__type_<name>` directly and route to
+    `option_<mname>` / `result_<mname>` instead of panicking.
+
+Tag layout (per `nucleor_s1_compiler.nr` line 6793-6808):
+- Option: Some=0  None=1
+- Result: Ok=1    Err=0
+
+Mirrored into `nucleor_tools_suite.nr` (12 entries each in
+`get_rt_name`, runtime existence, LLVM declares).
+
+### 2. Verify-count display fix
+
+Pre-fix `tools/verify.sh` showed `[511/493] OK` because the
+`STEP_TOTAL=$((20 + ... + 134))` constant drifted as new steps
+were added. v0.4.90 makes `STEP_TOTAL_FIXED` self-counting via
+`grep -c '^step "' "$BASH_SOURCE"`. Now displays `[512/512]`.
+
+### 3. Methods that now work
+
+```rust
+let x: Option<i64> = Some(42);
+x.unwrap();        // 42
+x.is_some();       // 1
+x.is_none();       // 0
+x.unwrap_or(7);    // 42
+x.expect("msg");   // 42 (panics with msg on None)
+
+let y: Result<i64, i64> = Ok(10);
+y.unwrap();        // 10
+y.is_ok();         // 1
+y.is_err();        // 0
+y.unwrap_or(9);    // 10
+y.expect("msg");   // 10 (panics with msg on Err)
+```
+
+### Verify gates
+
+- T3.137 — `tests/fixtures/repro_v90_option_result_method_dispatch.nr`
+  asserts end-to-end output `42, 1, 0, 10, 1, 0, 7, 9` for the 8
+  method calls.
+
+### Memory + timing
+
+- Self-host build: unchanged.
+- Verify gate: 512 PASS / 0 FAIL.
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha 6ed8b76b…).
+
+### Known limitations not solved here (per error-fix plan §13)
+
+- `expect(message)` panic-on-None/Err semantics: implemented in
+  the C helper but adopters who want full `match`-equivalent
+  semantics should still use match.
+- `map`, `and_then`, `or_else`: not implemented (deferred to
+  RFC-0024 Phase 5 / Iterator trait work).
+- Full `Result<T,E>` type propagation through `?`: still RFC-0024
+  Phase 5 work.
+
 ## [0.4.89] — 2026-04-29
 
 **Extends v0.4.88's str dispatch to 7 more methods:
