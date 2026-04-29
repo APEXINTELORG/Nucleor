@@ -3264,6 +3264,21 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "vec_extend") { return "__nucleor_vec_extend"; };
     if str_eq(name, "vec_remove_at") { return "__nucleor_vec_remove_at"; };
     if str_eq(name, "vec_insert_at") { return "__nucleor_vec_insert_at"; };
+    // v0.4.90: Option<T> / Result<T,E> method runtime helpers.
+    // See nucleor_llvm_rt.c v0.4.90 block. Tag layout:
+    // Option Some=0 None=1; Result Ok=1 Err=0.
+    if str_eq(name, "option_unwrap") { return "__nucleor_option_unwrap"; };
+    if str_eq(name, "option_unwrap_or") { return "__nucleor_option_unwrap_or"; };
+    if str_eq(name, "option_is_some") { return "__nucleor_option_is_some"; };
+    if str_eq(name, "option_is_none") { return "__nucleor_option_is_none"; };
+    if str_eq(name, "option_expect") { return "__nucleor_option_expect"; };
+    if str_eq(name, "result_unwrap") { return "__nucleor_result_unwrap"; };
+    if str_eq(name, "result_unwrap_or") { return "__nucleor_result_unwrap_or"; };
+    if str_eq(name, "result_is_ok") { return "__nucleor_result_is_ok"; };
+    if str_eq(name, "result_is_err") { return "__nucleor_result_is_err"; };
+    if str_eq(name, "result_ok") { return "__nucleor_result_ok"; };
+    if str_eq(name, "result_err") { return "__nucleor_result_err"; };
+    if str_eq(name, "result_expect") { return "__nucleor_result_expect"; };
     if str_eq(name, "args_count") { return "__nucleor_args_count"; };
     if str_eq(name, "args_get") { return "__nucleor_args_get"; };
     if str_eq(name, "print_int") { return "__nucleor_print_i64"; };
@@ -4107,6 +4122,9 @@ fn is_void_ret(name: str) -> i64 {
     if str_eq(name, "vec_extend") { return 1; };
     if str_eq(name, "vec_remove_at") { return 1; };
     if str_eq(name, "vec_insert_at") { return 1; };
+    // v0.4.90: Option/Result helpers all return i64 — NOT in is_void_ret.
+    // (Their existence-table entries are below in the runtime-helper-
+    // exists fn around line 4196; this table is for void-returning fns.)
     if str_eq(name, "vec_shuffle") { return 1; };
     if str_eq(name, "random_fill") { return 1; };
     if str_eq(name, "print_bool") { return 1; };
@@ -4820,6 +4838,19 @@ fn emit_externs() -> str {
     sb_append(sb, "declare void @__nucleor_vec_extend(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_vec_remove_at(ptr, i64)\n");
     sb_append(sb, "declare void @__nucleor_vec_insert_at(ptr, i64, i64)\n");
+    // v0.4.90: Option<T> / Result<T,E> method helpers.
+    sb_append(sb, "declare i64 @__nucleor_option_unwrap(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_option_unwrap_or(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_option_is_some(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_option_is_none(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_option_expect(ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_unwrap(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_unwrap_or(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_is_ok(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_is_err(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_ok(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_err(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_expect(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_sb_new()\n");
     sb_append(sb, "declare void @__nucleor_sb_append(i64, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_append_char(i64, i64)\n");
@@ -13302,6 +13333,18 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         fn_name = str_concat("btreeset_", mname);
                     } else if str_eq(stype_base, "VecDeque") == 1 {
                         fn_name = str_concat("vecdeque_", mname);
+                    } else if str_eq(stype_base, "Option") == 1 && (str_eq(mname, "unwrap") == 1 || str_eq(mname, "unwrap_or") == 1 || str_eq(mname, "is_some") == 1 || str_eq(mname, "is_none") == 1 || str_eq(mname, "expect") == 1) {
+                        // v0.4.90: Option<T> method dispatch — was hitting
+                        // the v0.4.53 "non-Option receiver" panic-guard
+                        // even when receiver IS typed Option<T>, because
+                        // no Option dispatch branch existed and the chain
+                        // fell through to the user-fn lookup. Runtime
+                        // helpers added in nucleor_llvm_rt.c v0.4.90.
+                        fn_name = str_concat("option_", mname);
+                    } else if str_eq(stype_base, "Result") == 1 && (str_eq(mname, "unwrap") == 1 || str_eq(mname, "unwrap_or") == 1 || str_eq(mname, "is_ok") == 1 || str_eq(mname, "is_err") == 1 || str_eq(mname, "ok") == 1 || str_eq(mname, "err") == 1 || str_eq(mname, "expect") == 1) {
+                        // v0.4.90: Result<T,E> method dispatch — same
+                        // root cause as Option above.
+                        fn_name = str_concat("result_", mname);
                     } else if str_eq(stype_base, "str") == 1 && (str_eq(mname, "len") == 1 || str_eq(mname, "contains") == 1 || str_eq(mname, "replace") == 1 || str_eq(mname, "split") == 1 || str_eq(mname, "starts_with") == 1 || str_eq(mname, "ends_with") == 1 || str_eq(mname, "to_lower") == 1 || str_eq(mname, "to_upper") == 1 || str_eq(mname, "trim") == 1 || str_eq(mname, "trim_start") == 1 || str_eq(mname, "trim_end") == 1 || str_eq(mname, "substring") == 1 || str_eq(mname, "char_at") == 1) {
                         // v0.4.88: str method receiver-type-aware dispatch.
                         // Pre-fix `s.len()` lowered to `vec_len(s)` which
@@ -13359,11 +13402,40 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 || str_eq(mname, "and_then") == 1
                                 || str_eq(mname, "or_else") == 1 { 1 } else { 0 };
                             if bad_on_vec == 1 {
-                                let part_a: str = str_concat("ERROR: `.", str_concat(mname, "()` is an Option/Result method, not a Vec method."));
-                                let part_b: str = str_concat(" Receiver type unknown to the type-checker; pre-v0.4.53 this lowered to `vec_", str_concat(mname, "(...)` and failed late at clang link with an undefined-symbol error."));
-                                let part_c: str = " Workaround: ensure the receiver binding is typed `Option<T>` / `Result<T,E>`, or use the explicit `match expr { Some(x) => x, None => default }` pattern.";
-                                print(str_concat(part_a, str_concat(part_b, part_c)));
-                                panic(str_concat("nucleor: Option/Result method `.", str_concat(mname, "()` called on non-Option receiver")));
+                                // v0.4.90: before panicking, look up the
+                                // receiver's declared __type_<name> to see
+                                // if it IS Option/Result. The earlier
+                                // type_base_name(stype) chain doesn't catch
+                                // this because expr_struct_type returned ""
+                                // for the var-ref-to-Option case in some
+                                // code paths. Route to option_/result_
+                                // runtime helpers (added in
+                                // nucleor_llvm_rt.c v0.4.90) if so.
+                                let recv_for_opt: i64 = node_field(pool, nid, 1);
+                                let mut routed_v490: i64 = 0;
+                                if node_kind(pool, recv_for_opt) == 3 {
+                                    let recv_name_v490: str = node_field(pool, recv_for_opt, 1);
+                                    let recv_type_id_v490: i64 = sym_get(sym, str_concat("__type_", recv_name_v490));
+                                    if recv_type_id_v490 >= 0 {
+                                        let recv_type_v490: str = recv_type_id_v490;
+                                        let recv_base_v490: str = type_base_name(recv_type_v490);
+                                        if str_eq(recv_base_v490, "Option") == 1 {
+                                            fn_name = str_concat("option_", mname);
+                                            routed_v490 = 1;
+                                        };
+                                        if str_eq(recv_base_v490, "Result") == 1 {
+                                            fn_name = str_concat("result_", mname);
+                                            routed_v490 = 1;
+                                        };
+                                    };
+                                };
+                                if routed_v490 == 0 {
+                                    let part_a: str = str_concat("ERROR: `.", str_concat(mname, "()` is an Option/Result method, not a Vec method."));
+                                    let part_b: str = str_concat(" Receiver type unknown to the type-checker; pre-v0.4.53 this lowered to `vec_", str_concat(mname, "(...)` and failed late at clang link with an undefined-symbol error."));
+                                    let part_c: str = " Workaround: ensure the receiver binding is typed `Option<T>` / `Result<T,E>`, or use the explicit `match expr { Some(x) => x, None => default }` pattern.";
+                                    print(str_concat(part_a, str_concat(part_b, part_c)));
+                                    panic(str_concat("nucleor: Option/Result method `.", str_concat(mname, "()` called on non-Option receiver")));
+                                };
                             };
                             // v0.4.87: dispatch-name drift fix. Pre-fix
                             // `v.insert(idx, val)` lowered to `vec_insert(...)`

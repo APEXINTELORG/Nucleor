@@ -2036,6 +2036,19 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "vec_extend") { return "__nucleor_vec_extend"; };
     if str_eq(name, "vec_remove_at") { return "__nucleor_vec_remove_at"; };
     if str_eq(name, "vec_insert_at") { return "__nucleor_vec_insert_at"; };
+    // v0.4.90 mirror: Option<T> / Result<T,E> method runtime helpers.
+    if str_eq(name, "option_unwrap") { return "__nucleor_option_unwrap"; };
+    if str_eq(name, "option_unwrap_or") { return "__nucleor_option_unwrap_or"; };
+    if str_eq(name, "option_is_some") { return "__nucleor_option_is_some"; };
+    if str_eq(name, "option_is_none") { return "__nucleor_option_is_none"; };
+    if str_eq(name, "option_expect") { return "__nucleor_option_expect"; };
+    if str_eq(name, "result_unwrap") { return "__nucleor_result_unwrap"; };
+    if str_eq(name, "result_unwrap_or") { return "__nucleor_result_unwrap_or"; };
+    if str_eq(name, "result_is_ok") { return "__nucleor_result_is_ok"; };
+    if str_eq(name, "result_is_err") { return "__nucleor_result_is_err"; };
+    if str_eq(name, "result_ok") { return "__nucleor_result_ok"; };
+    if str_eq(name, "result_err") { return "__nucleor_result_err"; };
+    if str_eq(name, "result_expect") { return "__nucleor_result_expect"; };
     if str_eq(name, "args_count") { return "__nucleor_args_count"; };
     if str_eq(name, "args_get") { return "__nucleor_args_get"; };
     if str_eq(name, "print_int") { return "__nucleor_print_i64"; };
@@ -2815,6 +2828,19 @@ fn is_void_ret(name: str) -> i64 {
     if str_eq(name, "vec_extend") { return 1; };
     if str_eq(name, "vec_remove_at") { return 1; };
     if str_eq(name, "vec_insert_at") { return 1; };
+    // v0.4.90 mirror: Option<T> / Result<T,E> method helpers (existence).
+    if str_eq(name, "option_unwrap") { return 1; };
+    if str_eq(name, "option_unwrap_or") { return 1; };
+    if str_eq(name, "option_is_some") { return 1; };
+    if str_eq(name, "option_is_none") { return 1; };
+    if str_eq(name, "option_expect") { return 1; };
+    if str_eq(name, "result_unwrap") { return 1; };
+    if str_eq(name, "result_unwrap_or") { return 1; };
+    if str_eq(name, "result_is_ok") { return 1; };
+    if str_eq(name, "result_is_err") { return 1; };
+    if str_eq(name, "result_ok") { return 1; };
+    if str_eq(name, "result_err") { return 1; };
+    if str_eq(name, "result_expect") { return 1; };
     if str_eq(name, "vec_shuffle") { return 1; };
     if str_eq(name, "random_fill") { return 1; };
     if str_eq(name, "print_bool") { return 1; };
@@ -3506,6 +3532,19 @@ fn emit_externs() -> str {
     sb_append(sb, "declare void @__nucleor_vec_extend(ptr, ptr)\n");
     sb_append(sb, "declare void @__nucleor_vec_remove_at(ptr, i64)\n");
     sb_append(sb, "declare void @__nucleor_vec_insert_at(ptr, i64, i64)\n");
+    // v0.4.90 mirror: Option<T> / Result<T,E> method helpers (declares).
+    sb_append(sb, "declare i64 @__nucleor_option_unwrap(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_option_unwrap_or(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_option_is_some(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_option_is_none(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_option_expect(ptr, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_unwrap(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_unwrap_or(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_is_ok(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_is_err(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_ok(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_err(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_expect(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_sb_new()\n");
     sb_append(sb, "declare void @__nucleor_sb_append(i64, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_append_char(i64, i64)\n");
@@ -8088,7 +8127,21 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 if iter_method_for_vec(mname) == 1 {
                     fn_name = str_concat("vec_", str_concat(mname, "_i64"));
                 } else {
-                    fn_name = str_concat("vec_", mname);
+                    // v0.4.90: mirror s1 v0.4.87/88/89 — str-receiver
+                    // dispatch + insert/remove _at aliasing. Pre-fix
+                    // tools_suite paths (nuc check, summary, audit)
+                    // had the same vec_<mname> fall-through that s1
+                    // had, so adopters running diagnostic commands hit
+                    // identical clang-link / silent-miscompute paths.
+                    let stype_base_t: str = type_base_name(stype);
+                    let mut alias_mname_t: str = mname;
+                    if str_eq(mname, "insert") == 1 { alias_mname_t = "insert_at"; };
+                    if str_eq(mname, "remove") == 1 { alias_mname_t = "remove_at"; };
+                    if str_eq(stype_base_t, "str") == 1 && (str_eq(mname, "len") == 1 || str_eq(mname, "contains") == 1 || str_eq(mname, "replace") == 1 || str_eq(mname, "split") == 1 || str_eq(mname, "starts_with") == 1 || str_eq(mname, "ends_with") == 1 || str_eq(mname, "to_lower") == 1 || str_eq(mname, "to_upper") == 1 || str_eq(mname, "trim") == 1 || str_eq(mname, "trim_start") == 1 || str_eq(mname, "trim_end") == 1 || str_eq(mname, "substring") == 1 || str_eq(mname, "char_at") == 1) {
+                        fn_name = str_concat("str_", mname);
+                    } else {
+                        fn_name = str_concat("vec_", alias_mname_t);
+                    };
                 };
             };
         };

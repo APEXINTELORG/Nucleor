@@ -215,13 +215,13 @@ for d in "${TEST_DIRS[@]}"; do
 done
 ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
 
-# Step count: 1 binary present + 1 ABI parity + 1 tools-rebuild
-# + 1 mojibake check + 1 err-EXPECT-headers + 1 help coverage
-# + 1 utility smoke + 1 json + 1 version + 1 showcase build
-# + 1 CLI explain + 1 explain-full + 1 bootstrap + 1 check+abi
-# + 1 inspectors + 1 diagnostics + 1 init + 1 doc + 1 lock + 1 test
-# + N examples + N tests + N negative + fixed smoke/regression tail
-STEP_TOTAL=$((20 + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT + 134))
+# Step count: derive dynamically from the `step "..."` line count
+# in this file, then add the dynamic dirs (examples + tests + err).
+# v0.4.90 fix: was hardcoded `20 + ... + 134` which drifted as new
+# steps were added (showed [511/493] for the last 18 steps). Now
+# self-counting so future additions don't need a manual bump.
+STEP_TOTAL_FIXED=$(grep -c '^step "' "${BASH_SOURCE[0]:-$0}")
+STEP_TOTAL=$((STEP_TOTAL_FIXED + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
@@ -1338,6 +1338,30 @@ t433_vec_set_wrong_type_halts() {
     [ "$rc" = "1" ] || return 1
     grep -q "error\\[TYP-008\\]" $NUC_VERIFY_STEP_LOG || return 1
     grep -q "Vec<i64>.set" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
+t437_option_result_method_dispatch() {
+    # v0.4.90 CRITICAL — typed Option<T>/Result<T,E> receivers can
+    # now call .unwrap/.is_some/.is_none/.unwrap_or/.is_ok/.is_err
+    # (was hitting v0.4.53 false panic — these methods were
+    # completely unusable v0.4.53..v0.4.89).
+    "$BIN" build "tests/fixtures/repro_v90_option_result_method_dispatch.nr" -o "_t437_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "0" ] || return 1
+    local exe="target/_t437_check"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local out
+    out=$("$exe" 2>&1)
+    echo "$out" | sed -n '1p' | grep -q "^42$" || return 1
+    echo "$out" | sed -n '2p' | grep -q "^1$"  || return 1
+    echo "$out" | sed -n '3p' | grep -q "^0$"  || return 1
+    echo "$out" | sed -n '4p' | grep -q "^10$" || return 1
+    echo "$out" | sed -n '5p' | grep -q "^1$"  || return 1
+    echo "$out" | sed -n '6p' | grep -q "^0$"  || return 1
+    echo "$out" | sed -n '7p' | grep -q "^7$"  || return 1
+    echo "$out" | sed -n '8p' | grep -q "^9$"  || return 1
     return 0
 }
 
@@ -3370,6 +3394,7 @@ step "T3.133 v0.4.86 TYP-008 ext — Vec<T>.set/.insert(idx, literal) wrong type
 step "T3.134 v0.4.87 dispatch fix — v.insert/v.remove now route to vec_insert_at/vec_remove_at (was clang link failure)" t434_vec_insert_remove_dispatch
 step "T3.135 v0.4.88 dispatch fix — s.len/contains/replace/split/starts_with/ends_with route to str_* (was silent vec_* miscompute)" t435_str_method_dispatch
 step "T3.136 v0.4.89 — extend str dispatch to to_lower/to_upper/trim/trim_start/trim_end/substring/char_at (7 more methods)" t436_str_more_methods_dispatch
+step "T3.137 v0.4.90 CRITICAL — Option/Result method dispatch (was unusable v0.4.53..v0.4.89 due to false non-Option panic)" t437_option_result_method_dispatch
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
