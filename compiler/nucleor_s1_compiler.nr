@@ -9757,6 +9757,22 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         if has_wild_e == 0 && ac_e > 0 {
             let first_arm_e: i64 = list_get(pool, arms_e, 0);
             let first_ename_e: str = node_field(pool, first_arm_e, 1);
+            // v0.4.109: int/str match-as-expr without wildcard is
+            // provably non-exhaustive (cannot list every i32/i64/str
+            // value). Pre-fix `match x { 1 => 10, 2 => 20 }` for
+            // x=5 silently returned 0 — same hazard class as the
+            // v0.4.59 enum match-as-expr close, but the existing
+            // exhaustiveness check explicitly excluded __int/__str
+            // (lines 9760/10060) so int/str matches escaped MATCH-001
+            // entirely. Now: any int/str match-as-expr without an
+            // `_` arm is MATCH-001.
+            if (str_eq(first_ename_e, "__int") == 1 || str_eq(first_ename_e, "__str") == 1) && has_wild_e == 0 {
+                let lc_int_e: Vec<i32> = find_linecol_in_source(source_text, fn_name, "match");
+                let kind_label: str = if str_eq(first_ename_e, "__int") == 1 { "integer" } else { "string" };
+                let msg_int_e: str = str_concat("non-exhaustive ", str_concat(kind_label, str_concat(" match (in expression context): ", str_concat(str_from_int(ac_e), " arms with no `_` wildcard. The set of values is unbounded so the unmatched case silently fell through to 0 pre-v0.4.109 — add a `_ => default_value,` arm to cover it explicitly."))));
+                diag_add_ex(diag_vec, "error", "type", "MATCH-001", msg_int_e, fn_name, vec_get(lc_int_e, 0), vec_get(lc_int_e, 1), "");
+                warns = warns + 1;
+            };
             if str_eq(first_ename_e, "__int") == 0 && str_eq(first_ename_e, "__str") == 0 && str_eq(first_ename_e, "__wild") == 0 && str_eq(first_ename_e, "__range") == 0 && str_eq(first_ename_e, "__range_bad") == 0 {
                 let ei_e: i64 = enum_find(pool, enums, first_ename_e);
                 if ei_e >= 0 {
@@ -10057,6 +10073,17 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         if has_wildcard == 0 && ac > 0 {
             let first_arm: i64 = list_get(pool, arms, 0);
             let first_ename: str = node_field(pool, first_arm, 1);
+            // v0.4.109: int/str match-as-stmt without wildcard.
+            // Mirror of the match-as-expr check at line 9757; same
+            // silent-fall-through hazard (statement form quietly did
+            // nothing for unmatched values pre-v0.4.109).
+            if (str_eq(first_ename, "__int") == 1 || str_eq(first_ename, "__str") == 1) && has_wildcard == 0 {
+                let lc_int: Vec<i32> = find_linecol_in_source(source_text, fn_name, "match");
+                let kind_label_s: str = if str_eq(first_ename, "__int") == 1 { "integer" } else { "string" };
+                let msg_int_s: str = str_concat("non-exhaustive ", str_concat(kind_label_s, str_concat(" match: ", str_concat(str_from_int(ac), " arms with no `_` wildcard. The set of values is unbounded so unmatched cases silently no-op'd pre-v0.4.109 — add a `_ => { … }` arm to cover them explicitly."))));
+                diag_add_ex(own_get_type(own, "__diags"), "error", "type", "MATCH-001", msg_int_s, fn_name, vec_get(lc_int, 0), vec_get(lc_int, 1), "");
+                warns = warns + 1;
+            };
             if str_eq(first_ename, "__int") == 0 && str_eq(first_ename, "__str") == 0 && str_eq(first_ename, "__wild") == 0 {
                 let ei: i64 = enum_find(pool, enums, first_ename);
                 if ei >= 0 {
