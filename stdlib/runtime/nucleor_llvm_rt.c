@@ -2503,6 +2503,14 @@ long long __nucleor_vec_skip_i64(NVec *v, long long n) {
     return (long long)(intptr_t)out;
 }
 
+// v0.4.101 audit doc-#1 §6 partial: vec_chain — concat two iterators.
+long long __nucleor_vec_chain_i64(NVec *a, NVec *b) {
+    NVec *out = (NVec*)__nucleor_vec_new();
+    if (a) for (long long i = 0; i < a->len; i++) __nucleor_vec_push(out, a->data[i]);
+    if (b) for (long long i = 0; i < b->len; i++) __nucleor_vec_push(out, b->data[i]);
+    return (long long)(intptr_t)out;
+}
+
 long long __nucleor_vec_sum_f64(NVec *v) {
     if (!v) return 0;
     union { long long i; double d; } acc;

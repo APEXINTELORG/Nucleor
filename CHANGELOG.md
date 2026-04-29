@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.101] — 2026-04-29
+
+**`Vec.chain(other)` runtime helper added; `iter_combinators.nr`
+restored to active gate (audit doc-#1 §6 partial).**
+
+`tests/features/_unimplemented/iter_combinators.nr` was blocked
+on a single missing helper: `__nucleor_vec_chain`. Adopters who
+wrote `a.chain(b)` got a clang link failure for an undefined
+symbol.
+
+Adds `__nucleor_vec_chain_i64(NVec*, NVec*) → NVec*` to the
+runtime, plus the standard 5-table mirror (get_rt_name,
+existence, ptr-ret, ptr-arg, LLVM declare) in both compilers,
+plus `chain` to `iter_method_for_vec`.
+
+This is NOT the full Iterator trait (still §6 multi-day work),
+just the missing helper that unblocks the existing fixture.
+`take`, `skip`, `any`, `all`, `sum`, `count` already worked.
+
+### Verify gate
+
+- 534 PASS → **535 PASS** (+1 from iter_combinators).
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha c2b386e5…).
+
 ## [0.4.100] — 2026-04-29
 
 **13 `_unimplemented/` feature fixtures restored to active gate.**
