@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.89] — 2026-04-29
+
+**Extends v0.4.88's str dispatch to 7 more methods:
+`to_lower`, `to_upper`, `trim`, `trim_start`, `trim_end`,
+`substring`, `char_at`.**
+
+All 7 helpers (`str_to_lower`, etc.) already existed in the
+runtime. Pre-fix all 7 fell through to `vec_<mname>` and clang-
+link-failed. Same root cause as v0.4.88 — only the dispatch
+branch was missing. Detection narrowed to literal `str`-typed
+receiver via `stype_base == "str"`.
+
+### Verify gate
+
+- T3.136 — `tests/fixtures/repro_v89_str_more_methods.nr` asserts
+  end-to-end output of trim+to_upper+to_lower+substring+char_at
+  on `"  Hello, World  "`.
+
+### Memory + timing
+
+- Self-host build: unchanged.
+- Verify gate: 511 PASS / 0 FAIL.
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha 2b9ee333…).
+
 ## [0.4.88] — 2026-04-29
 
 **str method dispatch fix — `s.len/contains/replace/split/

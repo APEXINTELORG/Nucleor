@@ -1341,6 +1341,23 @@ t433_vec_set_wrong_type_halts() {
     return 0
 }
 
+t436_str_more_methods_dispatch() {
+    # v0.4.89 — extends v0.4.88 str dispatch to to_lower/to_upper/
+    # trim/trim_start/trim_end/substring/char_at (7 more methods,
+    # all helpers exist, only dispatch was missing).
+    "$BIN" build "tests/fixtures/repro_v89_str_more_methods.nr" -o "_t436_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "0" ] || return 1
+    local out
+    out=$("target/_t436_check.exe" 2>&1 || "target/_t436_check" 2>&1)
+    echo "$out" | head -1 | grep -q "^Hello, World$" || return 1
+    echo "$out" | head -2 | tail -1 | grep -q "^HELLO, WORLD$" || return 1
+    echo "$out" | head -3 | tail -1 | grep -q "^hello, world$" || return 1
+    echo "$out" | head -4 | tail -1 | grep -q "^HELLO$" || return 1
+    echo "$out" | head -5 | tail -1 | grep -q "^72$" || return 1
+    return 0
+}
+
 t435_str_method_dispatch() {
     # v0.4.88 dispatch fix — `s.len()` (and contains/replace/split/
     # starts_with/ends_with) now route to str_* runtime helpers
@@ -3352,6 +3369,7 @@ step "T3.132 v0.4.85 TYP-008 ext — Vec<T>.push(literal) wrong type halts (was 
 step "T3.133 v0.4.86 TYP-008 ext — Vec<T>.set/.insert(idx, literal) wrong type halts (extends v0.4.85)" t433_vec_set_wrong_type_halts
 step "T3.134 v0.4.87 dispatch fix — v.insert/v.remove now route to vec_insert_at/vec_remove_at (was clang link failure)" t434_vec_insert_remove_dispatch
 step "T3.135 v0.4.88 dispatch fix — s.len/contains/replace/split/starts_with/ends_with route to str_* (was silent vec_* miscompute)" t435_str_method_dispatch
+step "T3.136 v0.4.89 — extend str dispatch to to_lower/to_upper/trim/trim_start/trim_end/substring/char_at (7 more methods)" t436_str_more_methods_dispatch
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
