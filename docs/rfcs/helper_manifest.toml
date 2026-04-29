@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 850
+# Total helpers: 855
 # Of which REVIEW REQUIRED: 66
 
 # ============================================================
@@ -11486,6 +11486,20 @@ since            = "0.1.0"
 notes            = ""
 
 [[helper]]
+name             = "vec_nth_i64"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_nth_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
 name             = "vec_percentile_f64"
 class            = "VectorOps"
 symbol           = "__nucleor_vec_percentile_f64"
@@ -11505,6 +11519,34 @@ class            = "VectorOps"
 symbol           = "__nucleor_vec_pop"
 dispatch         = "RuntimeCall"
 abi              = "(ptr) -> void"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "vec_position_i64"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_position_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "vec_product_i64"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_product_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
 effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
@@ -11539,6 +11581,20 @@ units            = "passthrough"
 proof_obligation = "bounds_within_len"
 stability        = "stable"
 since            = "0.2.30"
+notes            = ""
+
+[[helper]]
+name             = "vec_reduce_i64"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_reduce_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> i64"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
 notes            = ""
 
 [[helper]]
@@ -11665,6 +11721,20 @@ units            = "passthrough"
 proof_obligation = "bounds_within_len"
 stability        = "stable"
 since            = "0.2.30"
+notes            = ""
+
+[[helper]]
+name             = "vec_step_by_i64"
+class            = "VectorOps"
+symbol           = "__nucleor_vec_step_by_i64"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> ptr"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "bounds_within_len"
+stability        = "stable"
+since            = "0.1.0"
 notes            = ""
 
 [[helper]]
