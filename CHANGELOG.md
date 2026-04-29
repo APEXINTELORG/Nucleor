@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.87] — 2026-04-29
+
+**Vec method dispatch-name drift fix — `v.insert(idx, val)` and
+`v.remove(idx)` now route to the correct runtime helpers.**
+
+Pre-fix `v.insert(idx, val)` lowered to runtime helper `vec_insert`
+but no such helper exists; the actual helper is `vec_insert_at`.
+Same for `v.remove(idx)` → `vec_remove_at`. Pre-fix both failed at
+clang link with `undefined value '@vec_insert' / '@vec_remove'` —
+adopters got a confusing LLVM-IR-level error pointing at compiler-
+emitted text rather than their source. The Vec method-name
+dispatch convention assumed `vec_<mname>` matched a runtime
+helper; this drifted from reality for these two methods.
+
+Discovered as a sister bug while shipping v0.4.86's narrow-RHS
+type check for `.insert/.set`. The wrong-type case (`v.insert(0,
+"hello")`) was already handled by v0.4.86; this cycle fixes the
+correct-type case (`v.insert(0, 99)`) so the method actually works
+end-to-end.
+
+### What now works
+
+- `v.insert(idx, val)` → `vec_insert_at(v, idx, val)` ✓
+- `v.remove(idx)` → `vec_remove_at(v, idx)` ✓
+- (`v.swap(i, j)` already worked — `vec_swap` helper exists.)
+
+### Verify gate
+
+- T3.134 — `tests/fixtures/repro_v87_vec_insert_remove_dispatch.nr`
+  asserts `v.insert(1, 99)` followed by `v.remove(1)` builds and
+  runs end-to-end with output `1 99 1 2`.
+
+### Memory + timing
+
+- Self-host build: unchanged (one-line method-name aliasing).
+- Verify gate: 372.8s / 509 steps (was 376.8s / 508 — within noise).
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha c07531b6…).
+
 ## [0.4.86] — 2026-04-29
 
 **TYP-008 ext — Vec<T>.set(idx, literal) and .insert(idx, literal)

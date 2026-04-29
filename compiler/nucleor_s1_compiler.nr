@@ -13350,7 +13350,21 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 print(str_concat(part_a, str_concat(part_b, part_c)));
                                 panic(str_concat("nucleor: Option/Result method `.", str_concat(mname, "()` called on non-Option receiver")));
                             };
-                            fn_name = str_concat("vec_", mname);
+                            // v0.4.87: dispatch-name drift fix. Pre-fix
+                            // `v.insert(idx, val)` lowered to `vec_insert(...)`
+                            // but the runtime helper is `vec_insert_at`;
+                            // same for `v.remove(idx)` → `vec_remove_at`.
+                            // Both failed at clang link with `undefined
+                            // value '@vec_insert' / '@vec_remove'`. Add
+                            // suffix here so user-side method names match
+                            // Rust convention without breaking the
+                            // existing helper names. Discovered as a
+                            // sister bug while shipping v0.4.86's
+                            // narrow-RHS check for `.insert/.set`.
+                            let mut alias_mname: str = mname;
+                            if str_eq(mname, "insert") == 1 { alias_mname = "insert_at"; };
+                            if str_eq(mname, "remove") == 1 { alias_mname = "remove_at"; };
+                            fn_name = str_concat("vec_", alias_mname);
                         };
                     };
                 };
