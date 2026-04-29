@@ -11405,6 +11405,26 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
                 if node_kind(pool, init) == 71 && type_is_int(tstr) == 1 {
                     type_diag(diags, source, fn_name, vname, "NUM-018", str_concat("float literal cannot initialize integer binding `", str_concat(vname, str_concat("` of type ", str_concat(tstr, " — pre-fix this silently bit-cast the IEEE 754 representation into the i64 slot. Use `as i64` to truncate explicitly, or change the type to `f64`.")))));
                 };
+                // v0.4.77: NUM-019 — negative literal in unsigned binding.
+                // Pre-fix `let x: u32 = -5;` two's-complement-wrapped to
+                // 4294967291 silently (the LLVM `i64 -5` truncates to
+                // u32::MAX-4 when stored in a 32-bit slot). Adopters
+                // writing canonical Rust got E0080 (overflowing_literals
+                // in debug; wrapping in release). NUM-019 was already
+                // reserved (RFC-0015 / v0.2.319 expansion) but never
+                // wired. Detection: init is unary-minus (kind 5) wrapping
+                // a positive int literal (kind 1), declared type is
+                // unsigned (signedness == 2).
+                if node_kind(pool, init) == 5 && str_len(tstr) > 0 && type_is_int(tstr) == 1 && type_signedness(tstr) == 2 {
+                    let inner_neg: i64 = node_field(pool, init, 1);
+                    if node_kind(pool, inner_neg) == 1 {
+                        let lit_n: i64 = node_field(pool, inner_neg, 1);
+                        if lit_n > 0 {
+                            let nm19_msg: str = str_concat("negative literal `-", str_concat(str_from_int(lit_n), str_concat("` cannot initialize unsigned binding `", str_concat(vname, str_concat("` of type ", str_concat(tstr, " — pre-fix this silently two's-complement-wrapped (e.g. `-5` became u32::MAX-4 = 4294967291). Use a non-negative literal, change the type to a signed equivalent, or wrap explicitly with `(-N) as <type>`."))))));
+                            type_diag(diags, source, fn_name, vname, "NUM-019", nm19_msg);
+                        };
+                    };
+                };
             };
             // RFC-0015 phase 6: NUM-002 — integer literal out of range for
             // declared type. Only fires for bare integer literal init

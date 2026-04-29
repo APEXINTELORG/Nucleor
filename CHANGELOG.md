@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.77] — 2026-04-29
+
+**NUM-019 — negative literal in unsigned binding halts at compile
+time (audit doc-#1 §1 numeric-soundness extension, batched series
+with v0.4.74/75/76).**
+
+Pre-fix `let x: u32 = -5;` two's-complement-wrapped to 4294967291
+silently (the LLVM `i64 -5` truncates to u32::MAX-4 when stored in
+a 32-bit slot). Adopters writing canonical Rust got E0080
+(overflowing_literals in debug; wrapping in release). NUM-019 was
+already reserved (RFC-0015 / v0.2.319 expansion) but never wired.
+
+### What now halts
+
+- `let x: u32 = -5;` — error[NUM-019]
+- `let x: u8 = -1;`, `let x: usize = -42;` — same
+- Detection: init is unary-minus AST (kind 5) wrapping a positive
+  int literal (kind 1), declared type is unsigned (signedness == 2).
+
+### What does NOT halt
+
+- `let x: u32 = 0;` — ok (zero is non-negative)
+- `let x: i32 = -5;` — ok (signed)
+- `let x: u32 = -y;` — not detected (would need value-flow tracking
+  through variables; conservative until adopter feedback shows
+  this matters)
+
+### Verify gate
+
+- T3.125 — `tests/fixtures/repro_v77_neg_to_unsigned.nr` asserts
+  `let x: u32 = -5;` errors with NUM-019.
+
+### Memory + timing
+
+- Self-host build: unchanged.
+- Verify gate: 365.8s / 501 steps (was 354.6s / 500 — +11s within
+  historical noise band 346-387s).
+- Bootstrap fixed-point: holds (3-pass B==C==D byte-identical IR,
+  sha 3a36ce94…).
+
 ## [0.4.76] — 2026-04-29
 
 **Two silent-coerce miscomputes closed: NUM-018 (float literal in

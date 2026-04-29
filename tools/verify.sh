@@ -1240,6 +1240,17 @@ t424_not_on_int() {
     return 0
 }
 
+t425_neg_to_unsigned() {
+    # v0.4.77 NUM-019 — `let x: u32 = -5;` halts at compile time
+    # (was silent two's-complement-wrap to u32::MAX-4 pre-fix).
+    "$BIN" build "tests/fixtures/repro_v77_neg_to_unsigned.nr" -o "_t425_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\\[NUM-019\\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "negative literal" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t413_eq_typo_guard() {
     "$BIN" build "tests/fixtures/repro_v69_eq_typo_guard.nr" -o "_t413_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     local rc=$?
@@ -3211,6 +3222,7 @@ step "T3.121 v0.4.74 NUM-009 — division/remainder by literal zero (silent runt
 step "T3.122 v0.4.75 NUM-008 — shift amount out of range for i64 (LLVM poison → compile-time halt)" t422_shift_out_of_range
 step "T3.123 v0.4.76 NUM-018 — float literal in integer-typed binding (silent IEEE-bits-as-i64 → halt)" t423_float_in_int_context
 step "T3.124 v0.4.76 TYP-002 — unary `!` on non-bool (silent xor-with-1 → halt)" t424_not_on_int
+step "T3.125 v0.4.77 NUM-019 — negative literal in unsigned binding (silent two's-complement-wrap → halt)" t425_neg_to_unsigned
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
