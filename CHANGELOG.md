@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.155] — 2026-04-29
+
+**TYP-008 ext: `let mut x: T;` (mutable, no initializer) now
+rejected. Closes the deferred-from-v0.4-session "uninit-mut
+binding" item.**
+
+```nucleor
+let mut x: i64;
+if false { x = 5; };
+println!("{}", x);   // pre-fix: prints 0 silently
+                      // now:     error[TYP-008]: binding `x` declared without initializer
+```
+
+Integration of `spike/v04-uninit-mut-binding-v2` (commit
+`a288778`) from the parallel agent's deferred-items workstream.
+
+v0.4.83 caught the immutable form `let x: T;` because that's
+unambiguously a bug (the binding can never be assigned later
+since OWN-008 would fire). The mutable form `let mut x: T;`
+was left as a deferred case pending flow-sensitive definite-
+assignment tracking — Nucleor doesn't have that pass, so the
+binding silently used the alloca's zero slot on any path that
+reached a read before an assignment. Adopters writing canonical
+Rust got E0381 from `rustc`; from Nucleor they got a quiet
+zero.
+
+This release drops the `is_mut_let == 0` guard on the existing
+v0.4.83 TYP-008 check, so both forms are rejected uniformly.
+The error message updated to reflect the new scope ("any path
+that reaches the read before an assignment"). Mirrored to
+`nucleor_tools_suite.nr` (added the same kind-20 TYP-008 branch
+at the top of the let-stmt type-check, before the v0.4.136
+TYP-021 void-RHS check).
+
+**Breaking-change note**: any source that relied on
+`let mut x: T;` followed by conditional assignment now needs an
+explicit init at the declaration site (e.g. `let mut x: T = 0;`
+for primitives, or restructure to introduce the binding where
+the value exists). The verify suite confirmed no test fixtures
+in `tests/` or stdlib `.nr` files use this pattern.
+
+Spike validated by parallel agent before handoff (fixed-point
+clean from earlier separated-bootstrap C/D run, drift gate
+clean). Main agent rebased — spike was based on v0.4.153, but
+current main is v0.4.154; cherry-pick of source files
+overwrote v0.4.154's tools_suite changes, so I restored
+tools_suite + s1 to v0.4.154 first and applied only spike B's
+targeted TYP-008 additions on top.
+
+Positive fixture: `tests/fixtures/repro_uninit_mut_binding.nr`
+(repro form — confirms the build halts). Bootstrap fixed-point
+holds first-pass. Fast-verify 208 PASS / 2 baseline-FAIL.
+
 ## [0.4.154] — 2026-04-29
 
 **OWN-001: String use-after-move on binding transfer.
