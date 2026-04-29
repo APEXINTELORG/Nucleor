@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.117] — 2026-04-29
+
+**TYP-011 str-indexing guard moved to codegen side — catches
+`print_int(s[0])`, `s[0] as i64`, and every other context where
+`s[i]` was previously slipping past the type-check guard.**
+
+The v0.4.94 type-check guard at line 11567 only fired when
+`s[i]` was the LET stmt's RHS — anywhere else the runtime-helper
+early-return at line 11297 short-circuited the arg-walk:
+
+```nucleor
+let s: str = "hello";
+print_int(s[0]);     // pre-fix: silent compile, runtime OOB-panic
+                     //          on misleading "vec_get OOB len 0"
+let c: i64 = s[0] as i64;   // pre-fix: same silent compile path
+```
+
+This release adds the same str-receiver check at the kind 10
+codegen site (`lower_expr` line 13861). Every kind-10 lowering
+runs unconditionally regardless of how the index expression was
+embedded in the surrounding code, so the codegen-side guard
+catches every silent-compile path.
+
+Diagnostic now points at `str_char_at(s, i)` for byte access or
+`str_substring(s, i, j)` for substrings.
+
+Negative fixture: `tests/err/err_str_index_in_arg.nr`. Fast-verify
+167 PASS / 2 baseline-FAIL clean. Bootstrap fixed-point sha
+`9a91dd5a…`. (Type-check side guard kept as the early-fail path
+for the let-RHS form.)
+
 ## [0.4.116] — 2026-04-29
 
 **FnMut-style direct closure capture writeback (parallel-agent
