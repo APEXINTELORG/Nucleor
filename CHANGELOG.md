@@ -5,6 +5,34 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.95] — 2026-04-29
+
+**Variable-divisor div/mod by zero now panics with clean message
+(was silent SIGFPE / exit 127).**
+
+Pre-fix `let z = 0; let q = 10 / z;` (variable divisor zero —
+v0.4.74's literal-only NUM-009 didn't catch this) emitted raw
+`sdiv i64 10, 0` → SIGFPE → exit 127 with no error message.
+Adopters got a confusing crash.
+
+`__nucleor_panic_div_i64` / `_panic_rem_i64` already existed in
+the runtime (opt-in via `NUCLEOR_INT_STRICT_ARITH=1` since
+v0.3.220) with nice messages. v0.4.95 makes div/mod ALWAYS route
+through them, regardless of the strict env var. Div/mod is rare
+enough in hot loops that the function-call overhead is negligible
+— the v0.3.220 perf revert was for `+ - *` which dominate tight
+numeric loops, not div.
+
+### Verify gate
+
+- T3.141 — `tests/fixtures/repro_v95_var_div_by_zero_runtime_panic.nr`
+  asserts `let z = 0; 10 / z;` runtime-panics with
+  "i64 division by zero" message and non-zero exit code.
+
+### Memory + timing
+
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha fd5b5f80…).
+
 ## [0.4.94] — 2026-04-29
 
 **TYP-011 close — `s[i]` on `str` halts (was silent vec_get on
