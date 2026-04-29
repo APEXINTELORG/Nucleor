@@ -1827,7 +1827,22 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 19 { let mut cp: i64 = pos + 1; if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, mk2(pool, 27, 0)); };
     let mut er: Vec<i32> = parse_expr(tokens, pos, pool);
     let mut cp: i64 = pr_pos(er);
-    if pk(tokens, cp) == 40 { let mut vr: Vec<i32> = parse_expr(tokens, cp + 1, pool); cp = pr_pos(vr); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, mk3(pool, 21, pr_val(er), pr_val(vr))); };
+    if pk(tokens, cp) == 40 {
+        let mut vr: Vec<i32> = parse_expr(tokens, cp + 1, pool);
+        cp = pr_pos(vr);
+        // v0.4.111: reject chained assignment `a = b = c`. Nucleor (like
+        // Rust) does not treat assignment as an expression that yields
+        // a value, so `a = b = 5` would parse as `a = b` followed by
+        // a stray `= 5` that the recovery loop silently dropped --
+        // adopters got `a == 0, b == 0` instead of `a == 5, b == 5`.
+        // Catch the trailing `=` after the RHS expression and panic
+        // with NR023 before the broken stmt makes it into the AST.
+        if pk(tokens, cp) == 40 {
+            panic("error[NR023]: chained assignment `a = b = c` is not supported in Nucleor — assignment is a statement, not an expression. Pre-v0.4.111 the second `= c` was silently dropped, leaving `a` and `b` with their pre-assignment values. Workaround: split into two statements — `b = c; a = b;` — which makes the order of evaluation explicit.");
+        };
+        if pk(tokens, cp) == 43 { cp = cp + 1; };
+        return pr(cp, mk3(pool, 21, pr_val(er), pr_val(vr)));
+    };
     // v0.3.77: compound assignment desugar. `x += y` → `x = x + y`,
     // and likewise for `-=` (111→21), `*=` (112→22), `/=` (113→23),
     // `%=` (114→24). LHS AST node is shared between the assign LHS and
@@ -15663,7 +15678,15 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
         // cover every `use of undefined value '@<name>'` clang
         // emits into a clean TYP-005/MOD-003 line.
         let lifted_undef: i64 = lift_undefined_fn_link_errors(clang_log, priv_reg);
-        if (lifted + lifted_undef) == 0 && str_len(clang_log) > 0 { print(clang_log); };
+        // v0.4.110: lift the no-main-fn link error (Windows LNK1561 /
+        // POSIX `undefined reference to main`) to a clean diagnostic.
+        // Pre-fix a `.nr` file with no `fn main` failed at clang link
+        // with `LINK : fatal error LNK1561: entry point must be
+        // defined` and clang's `linker command failed with exit code
+        // 1561` cryptic line — adopters had to know what LNK1561
+        // means. Same lift pattern as the v0.4.106 undefined-fn lift.
+        let lifted_main: i64 = lift_no_main_link_error(clang_log);
+        if (lifted + lifted_undef + lifted_main) == 0 && str_len(clang_log) > 0 { print(clang_log); };
         let ll_check: str = file_read_string(ll_path);
         if str_len(ll_check) > 0 {
             print(str_concat("  COMPILE FAILED (clang exit ", str_concat(str_from_int(rc), ")")));
@@ -15673,7 +15696,10 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
             if lifted_undef > 0 {
                 print(str_concat("  ", str_concat(str_from_int(lifted_undef), " TYP-005 undefined-fn violation(s) — see error[TYP-005] above")));
             };
-            if (lifted + lifted_undef) == 0 {
+            if lifted_main > 0 {
+                print("  no `fn main` defined — see error[NR022] above");
+            };
+            if (lifted + lifted_undef + lifted_main) == 0 {
                 print("  note: LLVM IR was emitted; GPU/CUDA experiments may require manual link with CUDA libs");
             };
         } else {
@@ -19857,6 +19883,29 @@ fn lift_undefined_fn_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
         };
     };
     return count;
+}
+
+fn lift_no_main_link_error(clang_output: str) -> i64 {
+    // v0.4.110: companion to lift_undefined_fn_link_errors. Catches
+    // the no-main-fn link error class. Pre-fix a `.nr` file with no
+    // `fn main` failed at clang link with the cryptic Windows
+    // `LINK : fatal error LNK1561: entry point must be defined` /
+    // POSIX `undefined reference to ...main` lines that adopters
+    // had to know meant "your program has no entry point". Emits a
+    // single readable NR022 error before suppressing the raw clang
+    // dump. Returns 1 if it lifted, 0 otherwise.
+    let win_marker: str = "LNK1561";
+    let posix_marker_a: str = "undefined reference to `main'";
+    let posix_marker_b: str = "undefined reference to `_main'";
+    let posix_marker_c: str = "Undefined symbols for architecture";
+    let mut hit: i64 = 0;
+    if str_contains(clang_output, win_marker) == 1 { hit = 1; };
+    if hit == 0 && str_contains(clang_output, posix_marker_a) == 1 { hit = 1; };
+    if hit == 0 && str_contains(clang_output, posix_marker_b) == 1 { hit = 1; };
+    if hit == 0 && str_contains(clang_output, posix_marker_c) == 1 && str_contains(clang_output, "_main") == 1 { hit = 1; };
+    if hit == 0 { return 0; };
+    print("error[NR022]: no `fn main()` defined in this build unit. Nucleor expects every binary build to have a `fn main() -> i32` entry point. Either add one (`fn main() -> i32 { 0 }`), or build the file as part of a larger program that already has main, or use `nuc check` if you only want to type-check without linking.");
+    return 1;
 }
 
 fn priv_apply_if_opted_in(isrc: str, path: str) -> str {

@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.111] — 2026-04-29
+
+**Chained assignment `a = b = c` rejected at parse time (silent
+miscompute close).**
+
+Pre-fix:
+
+```nucleor
+let mut a: i32 = 0;
+let mut b: i32 = 0;
+a = b = 5;
+print_int(a);  // 0
+print_int(b);  // 0
+```
+
+The parser silently dropped the second `= 5` because Nucleor (like
+Rust) doesn't treat assignment as an expression that yields a
+value. After consuming `a = ...`, parse_expr returned just `b`
+(since `=` isn't a binary operator), leaving `= 5` unconsumed; the
+recovery loop then dropped it without diagnostic. Adopters writing
+the C/Java idiom got `a == 0, b == 0` — a quiet wrong result.
+
+`parse_stmt`'s assignment branch now peeks for a trailing `=`
+(token 40) after the RHS expression and panics with a clean
+NR023 diagnostic explaining the workaround
+(`b = c; a = b;`). Sister fix to v0.4.108 (tail-expr return
+mismatch) and v0.4.109 (int-match without `_`); same hazard
+class — silent fall-through on a pattern adopters get from
+muscle memory.
+
+Negative fixture: `tests/err/err_chained_assignment.nr`.
+
+## [0.4.110] — 2026-04-29
+
+**No-main-fn link error lifted to clean NR022 diagnostic.**
+
+Pre-fix a `.nr` file with no `fn main` failed at clang link with:
+
+```
+LINK : fatal error LNK1561: entry point must be defined
+clang: error: linker command failed with exit code 1561
+```
+
+Adopters had to know what LNK1561 means (Windows linker code)
+or `undefined reference to 'main'` (POSIX). Now lifted to:
+
+```
+error[NR022]: no `fn main()` defined in this build unit. Nucleor
+expects every binary build to have a `fn main() -> i32` entry
+point. Either add one (`fn main() -> i32 { 0 }`), or build the
+file as part of a larger program that already has main, or use
+`nuc check` if you only want to type-check without linking.
+```
+
+`lift_no_main_link_error` scans for the Windows LNK1561 marker,
+POSIX `undefined reference to 'main'` / `_main`, and macOS
+`Undefined symbols for architecture` + `_main`. Same lift
+pattern as v0.4.106 (TYP-005 lift). Negative fixture:
+`tests/err/err_no_main_fn.nr`.
+
 ## [0.4.109] — 2026-04-29
 
 **Int/str match without `_` arm now halts as MATCH-001 (closes
