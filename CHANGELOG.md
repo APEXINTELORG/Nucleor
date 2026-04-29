@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.91] — 2026-04-29
+
+**Mirror v0.4.90 Option/Result dispatch into tools_suite.**
+
+`nucleor_tools.exe` (used for `nuc check`, `nuc summary`, `nuc
+audit`) had the runtime helper tables mirrored in v0.4.90 but
+NOT the actual lower_expr dispatch route. Adopters running
+diagnostic commands on Option/Result method code hit the same
+v0.4.53 false panic that was fixed in s1.
+
+This cycle adds the dispatch branch to tools_suite at the
+equivalent location (~line 8128-8143), with the same dual lookup
+(expr_struct_type first, then var-ref `__type_<name>` sym lookup
+fallback). Now `nuc check on a file using x.unwrap() / r.is_ok()`
+behaves identically to `bin/nucleor.exe build` of the same file.
+
+### Verify
+
+- 512 PASS / 0 FAIL.
+- Drift gate clean.
+- Bootstrap fixed-point: holds (s1 unchanged this cycle).
+
 ## [0.4.90] — 2026-04-29
 
 **CRITICAL: Option<T> / Result<T,E> method dispatch restored.

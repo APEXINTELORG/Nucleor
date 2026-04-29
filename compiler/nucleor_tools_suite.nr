@@ -8137,7 +8137,24 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     let mut alias_mname_t: str = mname;
                     if str_eq(mname, "insert") == 1 { alias_mname_t = "insert_at"; };
                     if str_eq(mname, "remove") == 1 { alias_mname_t = "remove_at"; };
-                    if str_eq(stype_base_t, "str") == 1 && (str_eq(mname, "len") == 1 || str_eq(mname, "contains") == 1 || str_eq(mname, "replace") == 1 || str_eq(mname, "split") == 1 || str_eq(mname, "starts_with") == 1 || str_eq(mname, "ends_with") == 1 || str_eq(mname, "to_lower") == 1 || str_eq(mname, "to_upper") == 1 || str_eq(mname, "trim") == 1 || str_eq(mname, "trim_start") == 1 || str_eq(mname, "trim_end") == 1 || str_eq(mname, "substring") == 1 || str_eq(mname, "char_at") == 1) {
+                    // v0.4.91: mirror s1 v0.4.90 Option/Result dispatch.
+                    // Falls back to var-ref __type_<name> lookup when
+                    // expr_struct_type returned empty stype (some code
+                    // paths don't populate it for Option/Result vars).
+                    let mut opt_res_base: str = stype_base_t;
+                    if str_len(opt_res_base) == 0 {
+                        let recv_or_t: i64 = node_field(pool, nid, 1);
+                        if node_kind(pool, recv_or_t) == 3 {
+                            let recv_n_or_t: str = node_field(pool, recv_or_t, 1);
+                            let recv_t_id: i64 = sym_get(sym, str_concat("__type_", recv_n_or_t));
+                            if recv_t_id >= 0 { opt_res_base = type_base_name(recv_t_id); };
+                        };
+                    };
+                    if str_eq(opt_res_base, "Option") == 1 && (str_eq(mname, "unwrap") == 1 || str_eq(mname, "unwrap_or") == 1 || str_eq(mname, "is_some") == 1 || str_eq(mname, "is_none") == 1 || str_eq(mname, "expect") == 1) {
+                        fn_name = str_concat("option_", mname);
+                    } else if str_eq(opt_res_base, "Result") == 1 && (str_eq(mname, "unwrap") == 1 || str_eq(mname, "unwrap_or") == 1 || str_eq(mname, "is_ok") == 1 || str_eq(mname, "is_err") == 1 || str_eq(mname, "ok") == 1 || str_eq(mname, "err") == 1 || str_eq(mname, "expect") == 1) {
+                        fn_name = str_concat("result_", mname);
+                    } else if str_eq(stype_base_t, "str") == 1 && (str_eq(mname, "len") == 1 || str_eq(mname, "contains") == 1 || str_eq(mname, "replace") == 1 || str_eq(mname, "split") == 1 || str_eq(mname, "starts_with") == 1 || str_eq(mname, "ends_with") == 1 || str_eq(mname, "to_lower") == 1 || str_eq(mname, "to_upper") == 1 || str_eq(mname, "trim") == 1 || str_eq(mname, "trim_start") == 1 || str_eq(mname, "trim_end") == 1 || str_eq(mname, "substring") == 1 || str_eq(mname, "char_at") == 1) {
                         fn_name = str_concat("str_", mname);
                     } else {
                         fn_name = str_concat("vec_", alias_mname_t);
