@@ -856,12 +856,17 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 1 && str_eq(pkv(tokens, pos), "wrapping") == 1 && pk(tokens, pos + 1) == 52 {
         return parse_passthrough_block_expr(tokens, pos + 1, pool);
     };
-    // v0.4.102: `saturating { ... }` halts cleanly. Saturation requires
-    // real per-op clamp logic (sadd.sat/ssub.sat/smul.sat or runtime
-    // helpers) which is not yet wired. Pre-fix this hit clang LNK error
-    // on `@saturating` -- same hazard class as the v0.3.149 unsafe fix.
+    // v0.4.105: `saturating { ... }` block. Routes the block's final
+    // expression value through `__nucleor_sat_i32` which clamps to
+    // [INT32_MIN, INT32_MAX]. Inner arithmetic happens in i64 (so
+    // `2147483647 + 100` = `2147483747` does NOT overflow at the
+    // i64 level), then the saturating clamp at block exit pins the
+    // result into i32 range. v0.4.102 halted with NR021 here; runtime
+    // helper `__nucleor_sat_i32` landed in this release alongside the
+    // dispatch wire-up. Same lookahead gate as `unsafe`/`wrapping`
+    // above so user fns named `saturating` keep working.
     if tt == 1 && str_eq(pkv(tokens, pos), "saturating") == 1 && pk(tokens, pos + 1) == 52 {
-        panic("error[NR021]: `saturating { ... }` block is not yet implemented. Use `wrapping { ... }` for two's-complement wrap, or default trap-on-overflow arithmetic. Tracked in tests/features/_unimplemented/overflow_saturating.nr");
+        return parse_wrapped_block_expr(tokens, pos + 1, pool, 2);
     };
     // v0.3.150: removed dead tt == 78/79 branches (wrapping/saturating).
     // classify_kw no longer maps these to 78/79; the kw block forms had

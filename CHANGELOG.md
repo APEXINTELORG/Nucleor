@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.105] — 2026-04-29
+
+**`saturating { ... }` block lands; overflow_saturating.nr +
+overflow_comprehensive.nr restored to active gate (audit doc-#1
+§3a closes).**
+
+The compiler IR has carried `declare i64 @__nucleor_sat_i32(i64)`
+(and `__nucleor_wrap_i32`) since pre-v0.3.150 but the runtime
+implementations were never landed — the parse path that called
+them was removed before the missing symbols were noticed.
+v0.4.102 papered over the gap with an `NR021` halt.
+
+This release closes the gap end-to-end:
+
+- Adds `__nucleor_sat_i32(long long)` to
+  `stdlib/runtime/nucleor_llvm_rt.c` — clamps i64 input to
+  `[INT32_MIN, INT32_MAX]`, returns as i64.
+- Adds `__nucleor_wrap_i32(long long)` — low-32-bit truncate
+  with sign extension. Mathematically `as_i32`; kept distinct
+  because the compiler dispatch table maps `wrap_i32` to it.
+- `parse_primary` now routes `saturating { ... }` to
+  `parse_wrapped_block_expr(mode=2)` instead of the v0.4.102
+  NR021 halt. Mode 2 lowers via the existing kind==52 path
+  which calls `sat_i32` on the block's final expression value.
+
+The block-level saturation strategy: inner arithmetic happens
+in i64 (so `2147483647 + 100` = `2147483747` does NOT overflow
+at the i64 level), and the saturating clamp at block exit
+pins the result into i32 range. Validated end-to-end on both
+restored fixtures including the nested case
+`saturating { let a: i32 = wrapping { 2147483647 + 1 }; a + 1 }`
+which correctly yields `-2147483647` (load truncates `a` to
+`-2147483648`, add gives `-2147483647`, sat_i32 passthroughs).
+
+Same lookahead gate as `unsafe`/`wrapping` so user fns named
+`saturating` continue to lex/parse as ordinary identifiers.
+
+Restores `tests/features/overflow_saturating.nr` and
+`tests/features/overflow_comprehensive.nr` to the active gate
+(539/539 PASS). Bootstrap fixed-point holds. Drift clean.
+Audit doc-#1 §3a closed (overflow modes shipped: wrapping
+since v0.4.102, saturating now).
+
 ## [0.4.104] — 2026-04-29
 
 **Concurrency-safe compiler cache: per-output `clang_link.log`;

@@ -50,9 +50,6 @@ back to `tests/features/`:
   / vec_map_filter.nr
 
 Still in `_unimplemented/`:
-- overflow_comprehensive.nr / overflow_saturating.nr
-  (halts with NR021 — needs `sadd.sat`/`ssub.sat`/`smul.sat`
-  per-op clamp logic; tracked in audit §3a)
 - string_basic.nr (builds but SIGSEGV at runtime — needs
   full `String` heap-string type with `push`/`len`)
 
@@ -72,3 +69,12 @@ still halts cleanly with NR021. Fixture moved back to
 `parse_generic_params`. Nucleor's monomorphic codegen has always
 ignored bounds, so the fixture builds + runs identically to
 `<T>(...)`. Fixture moved back to `tests/features/`.
+
+## v0.4.105 — `overflow_saturating.nr` + `overflow_comprehensive.nr` restored
+`saturating { ... }` blocks now route through the existing
+kind==52 `__nucleor_sat_i32` lowering path (runtime helper
+landed this release). Block-level saturation: inner arithmetic
+runs in i64, the saturating clamp at block exit pins the
+result to i32 range. Both fixtures' expected outputs verified
+end-to-end including the nested `saturating { wrapping { ... } }`
+case. Audit doc-#1 §3a closed.

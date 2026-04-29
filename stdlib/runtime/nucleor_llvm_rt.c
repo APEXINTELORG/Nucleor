@@ -3431,6 +3431,38 @@ long long __nucleor_as_u16(long long v) { return v & 0xFFFFLL; }
 long long __nucleor_as_u32(long long v) { return v & 0xFFFFFFFFLL; }
 long long __nucleor_as_u64(long long v) { return v; }
 
+/*
+ * v0.4.105: block-form `wrapping { ... }` / `saturating { ... }` helpers.
+ *
+ * The compiler's kind==52 lowering wraps the block's final expression
+ * value through one of these two helpers. Both take the i64 expression
+ * result and reduce to an i32-range result returned as i64. The
+ * compiler IR has carried the `declare` lines for both since pre-
+ * v0.3.150 but the runtime impls were never landed -- the parse path
+ * was removed before they were noticed.
+ *
+ * v0.4.105 restores parse_primary's `saturating { ... }` to call
+ * parse_wrapped_block_expr(mode=2) instead of the v0.4.102 NR021 halt;
+ * this requires sat_i32 to actually link.
+ *
+ * `wrap_i32` is mathematically equivalent to `as_i32` (low 32 bits
+ * sign-extended); kept as a distinct symbol because the compiler
+ * dispatch table maps `wrap_i32` to it. v0.4.102's wrapping {}
+ * passthrough path doesn't go through this helper, but a future
+ * mode-tagged wrapping {} ship would.
+ */
+long long __nucleor_sat_i32(long long v) {
+    if (v > 2147483647LL) return 2147483647LL;
+    if (v < -2147483648LL) return -2147483648LL;
+    return v;
+}
+
+long long __nucleor_wrap_i32(long long v) {
+    long long t = v & 0xFFFFFFFFLL;
+    if (t & 0x80000000LL) t |= 0xFFFFFFFF00000000LL;
+    return t;
+}
+
 // Float casts: f64 storage uses bit-cast i64. f32 storage stores the
 // f32 bit-pattern in the low 32 bits with high bits zero.
 long long __nucleor_as_f64(long long v) {
