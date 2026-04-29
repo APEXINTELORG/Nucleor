@@ -21249,6 +21249,8 @@ bb.entry:
   %r.4 = alloca i64
   %r.8 = alloca i64
   %r.15 = alloca i64
+  %r.73 = alloca i64
+  %r.85 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
@@ -21359,16 +21361,94 @@ L14:
   %r.58 = add i64 1, 0
   %r.59 = add i64 %r.57, %r.58
   store i64 %r.59, ptr %r.4
+  %r.60 = load i64, ptr %r.0
+  %r.61 = load i64, ptr %r.4
+  %r.62 = call i64 @pk(i64 %r.60, i64 %r.61)
+  %r.63 = add i64 42, 0
+  %r.64.cmp = icmp eq i64 %r.62, %r.63
+  %r.64 = zext i1 %r.64.cmp to i64
+  %br.64.cond = icmp ne i64 %r.64, 0
+  br i1 %br.64.cond, label %L15, label %L17
+L15:
+  %r.65 = load i64, ptr %r.4
+  %r.66 = add i64 1, 0
+  %r.67 = add i64 %r.65, %r.66
+  store i64 %r.67, ptr %r.4
+  br label %L18
+L18:
+  %r.68 = load i64, ptr %r.0
+  %r.69 = load i64, ptr %r.4
+  %r.70 = call i64 @pk(i64 %r.68, i64 %r.69)
+  %r.71 = add i64 33, 0
+  %r.72.cmp = icmp ne i64 %r.70, %r.71
+  %r.72 = zext i1 %r.72.cmp to i64
+  %r.74 = add i64 0, 0
+  %r.75.cmp = icmp ne i64 %r.72, %r.74
+  %r.75 = zext i1 %r.75.cmp to i64
+  %br.75.cond = icmp ne i64 %r.75, 0
+  br i1 %br.75.cond, label %L21, label %L22
+L21:
+  %r.76 = load i64, ptr %r.0
+  %r.77 = load i64, ptr %r.4
+  %r.78 = call i64 @pk(i64 %r.76, i64 %r.77)
+  %r.79 = add i64 44, 0
+  %r.80.cmp = icmp ne i64 %r.78, %r.79
+  %r.80 = zext i1 %r.80.cmp to i64
+  %r.81 = add i64 0, 0
+  %r.82.cmp = icmp ne i64 %r.80, %r.81
+  %r.82 = zext i1 %r.82.cmp to i64
+  store i64 %r.82, ptr %r.73
+  br label %L23
+L22:
+  %r.83 = add i64 0, 0
+  store i64 %r.83, ptr %r.73
+  br label %L23
+L23:
+  %r.84 = load i64, ptr %r.73
+  %r.86 = add i64 0, 0
+  %r.87.cmp = icmp ne i64 %r.84, %r.86
+  %r.87 = zext i1 %r.87.cmp to i64
+  %br.87.cond = icmp ne i64 %r.87, 0
+  br i1 %br.87.cond, label %L24, label %L25
+L24:
+  %r.88 = load i64, ptr %r.0
+  %r.89 = load i64, ptr %r.4
+  %r.90 = call i64 @pk(i64 %r.88, i64 %r.89)
+  %r.91 = add i64 0, 0
+  %r.92.cmp = icmp ne i64 %r.90, %r.91
+  %r.92 = zext i1 %r.92.cmp to i64
+  %r.93 = add i64 0, 0
+  %r.94.cmp = icmp ne i64 %r.92, %r.91
+  %r.94 = zext i1 %r.94.cmp to i64
+  store i64 %r.94, ptr %r.85
+  br label %L26
+L25:
+  %r.95 = add i64 0, 0
+  store i64 %r.95, ptr %r.85
+  br label %L26
+L26:
+  %r.96 = load i64, ptr %r.85
+  %br.96.cond = icmp ne i64 %r.96, 0
+  br i1 %br.96.cond, label %L19, label %L20
+L19:
+  %r.97 = load i64, ptr %r.4
+  %r.98 = add i64 1, 0
+  %r.99 = add i64 %r.97, %r.98
+  store i64 %r.99, ptr %r.4
+  br label %L18
+L20:
+  br label %L17
+L17:
   br label %L0
 L2:
-  %r.60 = load i64, ptr %r.4
-  %r.61 = add i64 1, 0
-  %r.62 = add i64 %r.60, %r.61
-  store i64 %r.62, ptr %r.4
-  %r.63 = load i64, ptr %r.4
-  %r.64 = load i64, ptr %r.8
-  %r.65 = call i64 @pr(i64 %r.63, i64 %r.64)
-  ret i64 %r.65
+  %r.100 = load i64, ptr %r.4
+  %r.101 = add i64 1, 0
+  %r.102 = add i64 %r.100, %r.101
+  store i64 %r.102, ptr %r.4
+  %r.103 = load i64, ptr %r.4
+  %r.104 = load i64, ptr %r.8
+  %r.105 = call i64 @pr(i64 %r.103, i64 %r.104)
+  ret i64 %r.105
 }
 
 define i64 @parse_let(i64 %p.0, i64 %p.1, i64 %p.2) {

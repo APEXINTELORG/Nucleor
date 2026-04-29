@@ -765,6 +765,15 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             params.push(pkv(tokens, cp));
         };
         cp = cp + 1;
+        // v0.4.103: trait-bound clause `<T: Addable>` parse-skip. Mirror
+        // of nucleor_s1_compiler.nr — bounds are no-ops in monomorphic
+        // codegen so we discard the bound text. Audit §8.
+        if pk(tokens, cp) == 42 {
+            cp = cp + 1; // skip ':'
+            while pk(tokens, cp) != 33 && pk(tokens, cp) != 44 && pk(tokens, cp) != 0 {
+                cp = cp + 1;
+            };
+        };
     };
     cp = cp + 1; // skip >
     return pr(cp, params);

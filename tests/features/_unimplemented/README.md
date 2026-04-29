@@ -55,7 +55,6 @@ Still in `_unimplemented/`:
   per-op clamp logic; tracked in audit §3a)
 - string_basic.nr (builds but SIGSEGV at runtime — needs
   full `String` heap-string type with `push`/`len`)
-- trait_bounds.nr (build fail — audit §8)
 
 ## v0.4.101 — `iter_combinators.nr` restored
 After adding `__nucleor_vec_chain_i64`, `iter_combinators.nr`
@@ -67,3 +66,9 @@ default i32/i64 ABI already wraps two's-complement on overflow,
 so the block is semantically a no-op today. `saturating { ... }`
 still halts cleanly with NR021. Fixture moved back to
 `tests/features/`.
+
+## v0.4.103 — `trait_bounds.nr` restored
+`<T: Addable>` parse-skips the bound clause in
+`parse_generic_params`. Nucleor's monomorphic codegen has always
+ignored bounds, so the fixture builds + runs identically to
+`<T>(...)`. Fixture moved back to `tests/features/`.

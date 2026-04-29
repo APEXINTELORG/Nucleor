@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.103] — 2026-04-29
+
+**Trait-bound clauses `<T: Addable>` parse-skip; `trait_bounds.nr`
+restored to active gate (audit doc-#1 §8 parse-side).**
+
+`tests/features/_unimplemented/trait_bounds.nr` (added v0.4.78
+when NR020 promotion exposed it) hit:
+
+```
+PANIC: error[NR020]: parse error at token position 157:
+  expected token 44 got 42
+```
+
+`parse_generic_params` walked `<T, U>`-style param lists and
+expected only identifiers + commas — when it saw the `:`
+(token 42) of a bound clause it bailed via `expect_tok(., 44)`.
+Pre-NR020 (v0.4.78) the parser silently parse-recovered, so the
+generic compiled as if the bound were absent — the binary
+"ran" only because Nucleor's monomorphic codegen has always
+ignored bounds. NR020 promoted the silent recovery to a panic
+without adding the parse path.
+
+This release adds the missing parse path: after each generic
+param ident, peek for `:` (token 42), and if present consume
+tokens up to the next `,` (44) or `>` (33), discarding the
+bound expression. Validated end-to-end:
+
+```
+fn add_values<T: Addable>(a: T, b: T) -> T { a + b }
+fn main() -> i32 { print_int(add_values(10, 20)); 0 }
+// → "30"
+```
+
+Same behavior today as `<T>(a: T, b: T) -> T { a + b }` (probe
+verified pre-fix: identical output). A future bound-enforcing
+pass would consume + record these bounds; for now they parse
+cleanly and codegen treats them as if omitted. Mirrored in
+both `nucleor_s1_compiler.nr` and `nucleor_tools_suite.nr`.
+
+Restores `tests/features/trait_bounds.nr` to active gate
+(537/537 PASS). Bootstrap fixed-point holds.
+
 ## [0.4.102] — 2026-04-29
 
 **`wrapping { ... }` block restored as passthrough; `saturating { ... }`
