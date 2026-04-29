@@ -13302,7 +13302,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         fn_name = str_concat("btreeset_", mname);
                     } else if str_eq(stype_base, "VecDeque") == 1 {
                         fn_name = str_concat("vecdeque_", mname);
-                    } else if str_eq(stype_base, "str") == 1 && (str_eq(mname, "len") == 1 || str_eq(mname, "contains") == 1 || str_eq(mname, "replace") == 1 || str_eq(mname, "split") == 1 || str_eq(mname, "starts_with") == 1 || str_eq(mname, "ends_with") == 1) {
+                    } else if str_eq(stype_base, "str") == 1 && (str_eq(mname, "len") == 1 || str_eq(mname, "contains") == 1 || str_eq(mname, "replace") == 1 || str_eq(mname, "split") == 1 || str_eq(mname, "starts_with") == 1 || str_eq(mname, "ends_with") == 1 || str_eq(mname, "to_lower") == 1 || str_eq(mname, "to_upper") == 1 || str_eq(mname, "trim") == 1 || str_eq(mname, "trim_start") == 1 || str_eq(mname, "trim_end") == 1 || str_eq(mname, "substring") == 1 || str_eq(mname, "char_at") == 1) {
                         // v0.4.88: str method receiver-type-aware dispatch.
                         // Pre-fix `s.len()` lowered to `vec_len(s)` which
                         // reads the str pointer as if it were a Vec
