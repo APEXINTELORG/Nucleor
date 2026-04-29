@@ -7038,6 +7038,15 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if is_tainted_type(lt) == 1 { return lt; };
         if is_tainted_type(rt) == 1 { return rt; };
         if (op == 20 || op == 21) && type_is_unit(lt) == 1 && str_eq(unit_dim(lt), unit_dim(rt)) == 1 { return lt; };
+        // v0.4.147 mirror: TYP-011 — struct == / != / ord silently
+        // does pointer comparison.
+        if (op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35) && str_len(lt) > 0 && str_eq(strip_spaces(lt), strip_spaces(rt)) == 1 {
+            let v147_lstruct_t: i64 = struct_find_type(pool, structs, lt);
+            if v147_lstruct_t >= 0 {
+                let v147msg_t: str = str_concat("`", str_concat(lt, " <op> <same-struct>` does pointer comparison (silent miscompute — equal-field structs at different addresses return FALSE). Compare fields explicitly."));
+                type_diag(diags, source, fn_name, fn_name, "TYP-011", v147msg_t);
+            };
+        };
         if op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35 || op == 36 || op == 37 { return "bool"; };
         return lt;
     };

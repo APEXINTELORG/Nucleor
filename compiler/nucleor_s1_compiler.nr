@@ -11428,6 +11428,33 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let ord_op: str = if op == 32 { "<" } else if op == 33 { "<=" } else if op == 34 { ">" } else { ">=" };
             type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`str ", str_concat(ord_op, str_concat(" str` does pointer comparison (silent miscompute — disconnected from lexicographic byte order). Use `str_cmp(a, b) ", str_concat(ord_op, " 0` for canonical lex ordering.")))));
         };
+        // v0.4.147: TYP-011 ext — struct == / != silently did
+        // pointer comparison. Pre-fix `a == b` for two struct
+        // values at different heap addresses returned FALSE even
+        // when every field matched. Adopters writing canonical Rust
+        // (which would derive PartialEq and do field-wise compare)
+        // got a quiet wrong result. Sister to v0.4.52 (str ==) and
+        // v0.4.61 (Vec ==). Catches when both sides resolve to the
+        // SAME user-defined struct type — cross-struct cmp is a
+        // type error caught elsewhere; struct cmp against
+        // non-struct goes through the existing TYP-008 machinery.
+        if (op == 30 || op == 31) && str_len(lt) > 0 && str_eq(strip_spaces(lt), strip_spaces(rt)) == 1 {
+            let v147_lstruct: i64 = struct_find_type(pool, structs, lt);
+            if v147_lstruct >= 0 {
+                let v147_op: str = if op == 30 { "==" } else { "!=" };
+                let v147a: str = str_concat("`", str_concat(lt, str_concat(" ", str_concat(v147_op, str_concat(" ", str_concat(lt, "` does pointer comparison."))))));
+                let v147b: str = " Pre-v0.4.147 the binop lowered to `icmp eq i64` on the two struct pointers — two equal-field structs at different heap addresses returned FALSE. Rust derives PartialEq with field-wise comparison; Nucleor doesn't auto-derive. Compare fields explicitly: `a.field1 == b.field1 && a.field2 == b.field2 && ...`, or write a helper fn that does the field walk.";
+                type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat(v147a, v147b));
+            };
+        };
+        if (op == 32 || op == 33 || op == 34 || op == 35) && str_len(lt) > 0 && str_eq(strip_spaces(lt), strip_spaces(rt)) == 1 {
+            let v147ord_lstruct: i64 = struct_find_type(pool, structs, lt);
+            if v147ord_lstruct >= 0 {
+                let v147ord_op: str = if op == 32 { "<" } else if op == 33 { "<=" } else if op == 34 { ">" } else { ">=" };
+                let v147c: str = str_concat("`", str_concat(lt, str_concat(" ", str_concat(v147ord_op, str_concat(" ", str_concat(lt, "` does pointer comparison (silent miscompute — disconnected from any field-wise ordering). Compare specific fields explicitly with the desired ordering."))))));
+                type_diag(diags, source, fn_name, fn_name, "TYP-011", v147c);
+            };
+        };
         // v0.4.74: NUM-009 — division or remainder by literal zero.
         // Pre-fix `let x: i64 = 100 / 0;` const-fold-skipped (good — see
         // opt_fold_block v0.3.145) but emitted `sdiv i64 100, 0` to LLVM,
