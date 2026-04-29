@@ -12495,6 +12495,21 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             if str_len(rtype) > 0 && str_eq(rtype, "void") == 0 && compat_ok == 0 {
                 type_diag(diags, source, fn_name, fn_name, "TYP-010", "return type mismatch");
             };
+            // v0.4.142: TYP-010 ext — return-with-value in void/unit/
+            // implicit-void fn. Pre-fix `fn f() { return 42; }`
+            // silently discarded the value at codegen time; the
+            // returned i64 register was thrown away and the fn
+            // appeared to return cleanly. The `fn f() -> () { ... }`
+            // form was already caught (rtype = "()", non-void check
+            // path), but the `fn f() { ... }` form with rtype = ""
+            // sailed past every existing branch.
+            let v142_void_ret: i64 = if str_len(rtype) == 0 || str_eq(rtype, "void") == 1 || type_is_unit(rtype) == 1 { 1 } else { 0 };
+            let v142_val_nonvoid: i64 = if str_len(val_t) > 0 && str_eq(val_t, "void") == 0 && type_is_unit(val_t) == 0 { 1 } else { 0 };
+            if v142_void_ret == 1 && v142_val_nonvoid == 1 {
+                let v142a: str = str_concat("`return ", str_concat(val_t, str_concat("`-typed value in fn `", str_concat(fn_name, "` whose return type is void / `()` (or no `-> T` declared, defaulting to void)."))));
+                let v142b: str = " Pre-v0.4.142 the value was silently discarded by codegen with no signal — the fn appeared to return cleanly and the value vanished. Either remove the value (`return;`), drop the explicit `return` if it's a tail position, or add `-> <Type>` to the fn signature so the value is part of the contract.";
+                type_diag(diags, source, fn_name, fn_name, "TYP-010", str_concat(v142a, v142b));
+            };
         } else {
             // v0.4.112: bare `return;` in a non-void fn. Pre-fix the
             // val < 0 branch was skipped silently, so codegen emitted
