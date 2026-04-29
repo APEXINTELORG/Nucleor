@@ -50,8 +50,20 @@ back to `tests/features/`:
   / vec_map_filter.nr
 
 Still in `_unimplemented/`:
-- iter_combinators.nr (build fail — needs full Iterator trait, audit §6)
 - overflow_comprehensive.nr / overflow_saturating.nr
-  / overflow_wrapping.nr (build fail — needs overflow-attr scaffolding)
-- string_basic.nr (builds but SIGSEGV at runtime)
+  (halts with NR021 — needs `sadd.sat`/`ssub.sat`/`smul.sat`
+  per-op clamp logic; tracked in audit §3a)
+- string_basic.nr (builds but SIGSEGV at runtime — needs
+  full `String` heap-string type with `push`/`len`)
 - trait_bounds.nr (build fail — audit §8)
+
+## v0.4.101 — `iter_combinators.nr` restored
+After adding `__nucleor_vec_chain_i64`, `iter_combinators.nr`
+builds + runs and is back in `tests/features/`.
+
+## v0.4.102 — `overflow_wrapping.nr` restored
+`wrapping { ... }` is now a parse_primary passthrough block —
+default i32/i64 ABI already wraps two's-complement on overflow,
+so the block is semantically a no-op today. `saturating { ... }`
+still halts cleanly with NR021. Fixture moved back to
+`tests/features/`.

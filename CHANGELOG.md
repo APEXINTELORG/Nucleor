@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.102] — 2026-04-29
+
+**`wrapping { ... }` block restored as passthrough; `saturating { ... }`
+halts cleanly with NR021 (audit doc-#1 §3a partial).**
+
+`tests/features/_unimplemented/overflow_wrapping.nr` failed at
+link time on `@wrapping` because pre-fix `parse_primary` treated
+`wrapping` as a plain identifier (after the v0.3.150 hard-kw
+removal), which the call-site lowering then resolved to a symbol
+that doesn't exist. Same hazard class as the v0.3.149 `unsafe`
+fix — noisy non-fatal-looking failure mode that doesn't halt.
+
+This release adds two `parse_primary` branches mirroring the
+existing `unsafe { ... }` lookahead gate:
+
+- `wrapping { ... }` → `parse_passthrough_block_expr`. The
+  default i32/i64 ABI already wraps two's-complement on overflow
+  (probe verified: `2147483647 + 1` i32 = `-2147483648`,
+  `100000 * 100000` i32 = `1410065408`), so the block is
+  semantically a passthrough today. A future overflow-checked
+  default mode would route arithmetic ops inside this block back
+  to wrapping intrinsics.
+
+- `saturating { ... }` → clean `NR021` halt at compile time.
+  Saturation requires real per-op clamp logic
+  (`sadd.sat`/`ssub.sat`/`smul.sat` or runtime helpers) that is
+  not yet wired. Pre-fix this hit clang LNK error on
+  `@saturating`; users now get a one-line message pointing at
+  `_unimplemented/overflow_saturating.nr`.
+
+Both branches use the same `tt == 1 && pkv == "name" && pk(pos+1)
+== 52` lookahead pattern, so user fns named `wrapping` /
+`saturating` continue to lex/parse as ordinary identifiers — the
+v0.3.150 deferred-fix invariant is preserved.
+
+Restores `tests/features/overflow_wrapping.nr` to the active
+gate (verify gate auto-picks it up; 536/536 PASS). Bootstrap
+fixed-point holds. `overflow_saturating.nr` and
+`overflow_comprehensive.nr` remain in `_unimplemented/` until
+the saturating intrinsics land.
+
 ## [0.4.101] — 2026-04-29
 
 **`Vec.chain(other)` runtime helper added; `iter_combinators.nr`
