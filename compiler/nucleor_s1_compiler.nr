@@ -12721,7 +12721,25 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
     if kind == 24 { type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof); return type_check_stmts(pool, prog, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, rtype, tprof); };
     if kind == 25 { type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof); return warns; };
     if kind == 28 { return type_check_stmts(pool, prog, node_field(pool, nid, 4), env, sigs, structs, fn_name, diags, source, rtype, tprof); };
-    if kind == 49 { type_expr(pool, prog, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, tprof); return type_check_stmts(pool, prog, node_field(pool, nid, 3), env, sigs, structs, fn_name, diags, source, rtype, tprof); };
+    if kind == 49 {
+        let v152_iter_t: str = type_expr(pool, prog, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, tprof);
+        // v0.4.152: TYP-011 ext — `for c in s` for `s: str` silently
+        // produced 0 iterations. kind-49 codegen calls vec_len/vec_get
+        // on the iterable; for a str pointer that returns 0 / garbage
+        // (same v0.4.135 hazard class). The loop body never ran and
+        // adopters got silent-no-output. Detect at type-check: str /
+        // String / scalar / bool → halt with TYP-011 and a hint at
+        // the canonical Nucleor surface.
+        let v152_iter_base: str = type_base_name(v152_iter_t);
+        if str_eq(v152_iter_t, "str") == 1 {
+            type_diag(diags, source, fn_name, fn_name, "TYP-011", "`for <var> in <str>` is not supported — Nucleor's for-loop expects a container iterable (Vec<T> or range `a..b`); the kind-49 codegen calls `vec_len` / `vec_get` which silently return 0 / garbage on a str pointer. Use `for byte in str_chars(s) { ... }` (returns Vec<i64> of byte values) or `let mut i: i64 = 0; while i < str_len(s) { let c = str_char_at(s, i); ...; i = i + 1; }` for byte-by-byte iteration.");
+        } else if str_eq(v152_iter_base, "String") == 1 {
+            type_diag(diags, source, fn_name, fn_name, "TYP-011", "`for <var> in <String>` is not supported — String is a heap-allocated buffer; the kind-49 for-loop expects a container iterable. Convert via `str_chars(s.as_str())` and iterate that Vec<i64>, or walk byte-by-byte with `let mut i: i64 = 0; while i < s.len() { let c = s.get_byte(i); ...; i = i + 1; }`.");
+        } else if type_is_int(v152_iter_t) == 1 || type_is_float(v152_iter_t) == 1 || str_eq(v152_iter_t, "bool") == 1 {
+            type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`for <var> in <", str_concat(v152_iter_t, ">` is not supported — scalar / bool values are not iterable. Use a range (`for i in 0..n`), a Vec, or another container.")));
+        };
+        return type_check_stmts(pool, prog, node_field(pool, nid, 3), env, sigs, structs, fn_name, diags, source, rtype, tprof);
+    };
     if kind == 38 {
         let scrut_t: str = type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let arms: i64 = node_field(pool, nid, 2);

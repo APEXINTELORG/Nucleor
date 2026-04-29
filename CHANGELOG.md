@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.152] — 2026-04-29
+
+**TYP-011 ext: `for c in <str/String/scalar/bool>` silently
+produced 0 iterations. The loop body never ran and the build
+emitted nothing. Now halts.**
+
+```nucleor
+let s: str = "hello";
+for c in s {
+    print_int(c);
+}
+// pre-fix: prints nothing (0 iterations), exits 0
+```
+
+The kind-49 (for-collection) codegen at line 16415 calls
+`vec_len(iter)` to bound the loop. For a `str` pointer that
+returns 0 (str layout != Vec layout — same v0.4.135 hazard
+class), so the loop's idx<len check fails immediately and the
+body never runs. Same for `String` (heap buffer ptr read as
+Vec header → garbage len, often 0). Same for scalar / bool
+values used as iterables.
+
+Pre-fix the type-check at line 12724 was a one-liner that just
+typed the iterable for diagnostic side effects and recursed
+into the body — no shape check. This release adds the iterable-
+type guard: `str` / `String` / int / float / bool all halt
+with TYP-011, hint pointing at `str_chars(s)` (returns
+`Vec<i64>` of byte values) or the explicit `while i < str_len(s)`
+walk. Range form (`for i in 0..n`) and Vec iteration unchanged.
+
+s1-only fix.
+
+Negative fixture: `tests/err/err_for_in_str.nr`. Bootstrap
+fixed-point holds first-pass. Fast-verify 206 PASS / 2
+baseline-FAIL.
+
 ## [0.4.151] — 2026-04-29
 
 **TYP-011 ext: `String == String` / `String != String` silently
