@@ -1310,16 +1310,12 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         };
         return pr(cp + 1, str_concat("(", str_concat(inner, ")")));
     };
-    // v0.3.92: trait object syntax `dyn Trait` (and `Box<dyn Trait>`).
-    // Skip the `dyn` keyword (lexed as identifier) and parse the
-    // following Trait name as the type. Trait objects are
-    // represented as i64-shaped fn-pointer-like values in Nucleor's
-    // ABI (the existing dyn_box runtime helpers handle dispatch),
-    // so we just need the parser to accept the syntax. Pre-v0.3.92,
-    // `Box<dyn Greet>` cascaded into parse errors.
+    // v0.3.92/v0.4.112: trait object syntax `dyn Trait`.
+    // Preserve the `dyn` marker so Box<dyn Trait> can be distinguished
+    // from Box<Trait> during type checking.
     if pk(tokens, pos) == 1 && str_eq(pkv(tokens, pos), "dyn") == 1 {
         let mut tr: Vec<i32> = parse_type(tokens, pos + 1);
-        return pr(pr_pos(tr), pr_val(tr));
+        return pr(pr_pos(tr), str_concat("dyn ", pr_val(tr)));
     };
     // v0.3.83: fn-pointer type syntax `fn(T1, T2) -> R`. Nucleor stores
     // function pointers as i64, so we consume the syntactic shape and
@@ -10326,6 +10322,52 @@ fn types_compatible(expected: str, actual: str) -> i64 {
     if str_eq(ebase, abase) == 1 { return 1; };
     return 0;
 }
+fn dyn_trait_name(t: str) -> str {
+    let s: str = t;
+    if str_starts_with(s, "dyn ") == 1 {
+        return strip_spaces(str_substring(s, 4, str_len(s)));
+    };
+    return "";
+}
+fn box_dyn_trait_name(t: str) -> str {
+    let s: str = t;
+    let dyn_pos: i64 = str_index_of(s, "dyn ");
+    if dyn_pos >= 0 && str_starts_with(s, "Box<") == 1 {
+        let mut end: i64 = str_len(s);
+        if end > 0 && str_char_at(s, end - 1) == 62 { end = end - 1; };
+        return strip_spaces(str_substring(s, dyn_pos + 4, end));
+    };
+    if str_starts_with(s, "Box<") == 1 {
+        return dyn_trait_name(type_first_arg(s));
+    };
+    return "";
+}
+fn type_implements_trait(pool: Vec<i32>, prog: i64, type_name: str, trait_name: str) -> i64 {
+    let tbase: str = type_base_name(type_name);
+    let cnt: i64 = list_len(pool, prog);
+    let mut i: i64 = 0;
+    while i < cnt {
+        let nid: i64 = list_get(pool, prog, i);
+        if node_kind(pool, nid) == 45 &&
+           str_eq(node_field(pool, nid, 1), trait_name) == 1 &&
+           str_eq(type_base_name(node_field(pool, nid, 2)), tbase) == 1 {
+            return 1;
+        };
+        i = i + 1;
+    };
+    return 0;
+}
+fn types_compatible_context(pool: Vec<i32>, prog: i64, expected: str, actual: str) -> i64 {
+    if types_compatible(expected, actual) == 1 { return 1; };
+    let trait_name: str = box_dyn_trait_name(expected);
+    if str_len(trait_name) > 0 && str_starts_with(strip_spaces(actual), "Box<") == 1 {
+        let actual_arg: str = type_first_arg(actual);
+        if str_len(actual_arg) > 0 && str_len(dyn_trait_name(actual_arg)) == 0 {
+            return type_implements_trait(pool, prog, actual_arg, trait_name);
+        };
+    };
+    return 0;
+}
 fn target_root_name(target: str) -> str {
     let mut i: i64 = 0;
     while i < str_len(target) {
@@ -10698,17 +10740,17 @@ fn type_stmt_value(pool: Vec<i32>, nid: i64) -> i64 {
     if kind == 25 || kind == 22 { return node_field(pool, nid, 1); };
     return 0 - 1;
 }
-fn type_last_stmt(pool: Vec<i32>, lid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> str {
+fn type_last_stmt(pool: Vec<i32>, prog: i64, lid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> str {
     if lid < 0 || lid >= vec_len(pool) { return ""; };
     let cnt: i64 = list_len(pool, lid);
     if cnt == 0 { return ""; };
     let last_stmt: i64 = list_get(pool, lid, cnt - 1);
     let val: i64 = type_stmt_value(pool, last_stmt);
-    if val >= 0 { return type_expr(pool, val, env, sigs, structs, fn_name, diags, source, tprof); };
-    if node_kind(pool, last_stmt) == 23 || node_kind(pool, last_stmt) == 52 { return type_expr(pool, last_stmt, env, sigs, structs, fn_name, diags, source, tprof); };
+    if val >= 0 { return type_expr(pool, prog, val, env, sigs, structs, fn_name, diags, source, tprof); };
+    if node_kind(pool, last_stmt) == 23 || node_kind(pool, last_stmt) == 52 { return type_expr(pool, prog, last_stmt, env, sigs, structs, fn_name, diags, source, tprof); };
     return "";
 }
-fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> str {
+fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> str {
     if nid < 0 || nid >= vec_len(pool) { return ""; };
     let kind: i64 = node_kind(pool, nid);
     if kind == 1 { return "i32"; };
@@ -10737,7 +10779,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 };
             };
         };
-        let qfull: str = type_expr(pool, qinner, env, sigs, structs, fn_name, diags, source, tprof);
+        let qfull: str = type_expr(pool, prog, qinner, env, sigs, structs, fn_name, diags, source, tprof);
         let qbase2: str = type_base_name(qfull);
         if str_eq(qbase2, "Result") == 1 || str_eq(qbase2, "Option") == 1 {
             let qpayload: str = type_first_arg(qfull);
@@ -10753,7 +10795,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         // binding (e.g. `let x: i64 = small as u8;`) still type-checks
         // — strict cast typing flips on with the stdlib audit.
         let target_type: str = node_field(pool, nid, 2);
-        let source_t: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        let source_t: str = type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let sw: i64 = type_width(source_t);
         let tw: i64 = type_width(target_type);
         let ss: i64 = type_signedness(source_t);
@@ -10847,8 +10889,8 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
     };
     if kind == 4 {
         let op: i64 = node_field(pool, nid, 1);
-        let lt: str = type_expr(pool, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, tprof);
-        let rt: str = type_expr(pool, node_field(pool, nid, 3), env, sigs, structs, fn_name, diags, source, tprof);
+        let lt: str = type_expr(pool, prog, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, tprof);
+        let rt: str = type_expr(pool, prog, node_field(pool, nid, 3), env, sigs, structs, fn_name, diags, source, tprof);
         if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24) && (str_eq(lt, "bool") == 1 || str_eq(rt, "bool") == 1) {
             type_diag(diags, source, fn_name, fn_name, "TYP-002", "boolean values cannot be used in arithmetic");
         };
@@ -11060,7 +11102,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         return lt;
     };
     if kind == 5 || kind == 6 {
-        let inner_ty: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        let inner_ty: str = type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         // v0.4.76: TYP-002 — unary `!` on non-bool. Pre-fix `let r:
         // bool = !x;` for `x: i64` typed-checked as ok (kind 6 just
         // returned inner type "i64", and types_compatible("bool",
@@ -11079,17 +11121,17 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         return inner_ty;
     };
     if kind == 90 {
-        let inner: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        let inner: str = type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         if str_len(inner) == 0 { return ""; };
         return str_concat("&", inner);
     };
     if kind == 91 {
-        let inner: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        let inner: str = type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         if str_len(inner) == 0 { return ""; };
         return str_concat("&mut ", inner);
     };
     if kind == 92 {
-        let mut inner: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        let mut inner: str = type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         if node_kind(pool, node_field(pool, nid, 1)) == 3 {
             let box_start: i64 = tprof_start(tprof);
             let guessed_box: str = source_box_binding_type(source, fn_name, node_field(pool, node_field(pool, nid, 1), 1));
@@ -11114,7 +11156,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         let args: i64 = node_field(pool, nid, 2);
         let argc: i64 = list_len(pool, args);
         if str_eq(callee, "sanitize") == 1 && argc > 0 {
-            let arg_t: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+            let arg_t: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
             tprof_mark(tprof, 9, 10, call_start);
             if is_tainted_type(arg_t) == 1 { return taint_inner_type(arg_t); };
             return arg_t;
@@ -11283,7 +11325,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 || str_eq(callee, "vec_pop") == 1 { 1 } else { 0 };
             if vec_read_call == 1 {
                 let recv_nid: i64 = list_get(pool, args, 0);
-                let mut recv_t: str = type_expr(pool, recv_nid, env, sigs, structs, fn_name, diags, source, tprof);
+                let mut recv_t: str = type_expr(pool, prog, recv_nid, env, sigs, structs, fn_name, diags, source, tprof);
                 if str_len(recv_t) == 0 && node_kind(pool, recv_nid) == 3 {
                     recv_t = infer_var_type_from_source(source, node_field(pool, recv_nid, 1));
                 };
@@ -11310,7 +11352,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if type_dynamic_helper(callee) == 1 {
             let mut dh_ai: i64 = 0;
             while dh_ai < argc {
-                type_expr(pool, list_get(pool, args, dh_ai), env, sigs, structs, fn_name, diags, source, tprof);
+                type_expr(pool, prog, list_get(pool, args, dh_ai), env, sigs, structs, fn_name, diags, source, tprof);
                 dh_ai = dh_ai + 1;
             };
             tprof_mark(tprof, 9, 10, call_start);
@@ -11325,10 +11367,10 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             if argc != expected_argc { type_diag(diags, source, fn_name, callee, "TYP-005", str_concat("wrong number of arguments for '", str_concat(callee, "'"))); };
             let mut ai: i64 = 0;
             while ai < argc && ai < expected_argc {
-                let actual_t: str = type_expr(pool, list_get(pool, args, ai), env, sigs, structs, fn_name, diags, source, tprof);
+                let actual_t: str = type_expr(pool, prog, list_get(pool, args, ai), env, sigs, structs, fn_name, diags, source, tprof);
                 let expected_t: str = node_field(pool, list_get(pool, plist, ai), 2);
                 let compat_start: i64 = tprof_start(tprof);
-                let compat_ok: i64 = types_compatible(expected_t, actual_t);
+                let compat_ok: i64 = types_compatible_context(pool, prog, expected_t, actual_t);
                 tprof_mark(tprof, 7, 8, compat_start);
                 if compat_ok == 0 {
                     type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument type mismatch in call to '", str_concat(callee, "'")));
@@ -11398,7 +11440,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 || str_eq(callee, "print_raw") == 1
                 || str_eq(callee, "panic") == 1 { 1 } else { 0 };
             if needs_str_arg0 == 1 {
-                let arg0_t: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+                let arg0_t: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
                 if str_len(arg0_t) > 0 && str_eq(arg0_t, "str") == 0 && str_eq(arg0_t, "_") == 0 {
                     type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 0 of '", str_concat(callee, "' must be str (runtime helper)")));
                 };
@@ -11456,7 +11498,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                     || str_eq(callee, "str_split") == 1
                     || str_eq(callee, "str_replace") == 1 { 1 } else { 0 };
                 if needs_str_arg1 == 1 {
-                    let arg1_t: str = type_expr(pool, list_get(pool, args, 1), env, sigs, structs, fn_name, diags, source, tprof);
+                    let arg1_t: str = type_expr(pool, prog, list_get(pool, args, 1), env, sigs, structs, fn_name, diags, source, tprof);
                     if str_len(arg1_t) > 0 && str_eq(arg1_t, "str") == 0 && str_eq(arg1_t, "_") == 0 {
                         type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 1 of '", str_concat(callee, "' must be str (runtime helper)")));
                     };
@@ -11517,7 +11559,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
     };
     if kind == 8 {
         let recv_nid: i64 = node_field(pool, nid, 1);
-        let mut recv_t: str = type_expr(pool, recv_nid, env, sigs, structs, fn_name, diags, source, tprof);
+        let mut recv_t: str = type_expr(pool, prog, recv_nid, env, sigs, structs, fn_name, diags, source, tprof);
         if str_len(recv_t) == 0 && node_kind(pool, recv_nid) == 3 {
             recv_t = infer_var_type_from_source(source, node_field(pool, recv_nid, 1));
         };
@@ -11568,14 +11610,14 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         return "";
     };
     if kind == 9 {
-        let recv_t: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        let recv_t: str = type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let si: i64 = struct_find_type(pool, structs, recv_t);
         if si >= 0 { return struct_field_type(pool, vec_get(structs, si), node_field(pool, nid, 2)); };
         return "";
     };
     if kind == 10 {
         let recv_nid: i64 = node_field(pool, nid, 1);
-        let mut recv_t: str = type_expr(pool, recv_nid, env, sigs, structs, fn_name, diags, source, tprof);
+        let mut recv_t: str = type_expr(pool, prog, recv_nid, env, sigs, structs, fn_name, diags, source, tprof);
         if str_len(recv_t) == 0 && node_kind(pool, recv_nid) == 3 {
             recv_t = infer_var_type_from_source(source, node_field(pool, recv_nid, 1));
         };
@@ -11597,7 +11639,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         let args: i64 = node_field(pool, nid, 3);
         if str_eq(tname, "Box") == 1 {
             if list_len(pool, args) > 0 {
-                let inner: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+                let inner: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
                 if str_len(inner) > 0 { return str_concat("Box<", str_concat(inner, ">")); };
             };
             return "Box<i64>";
@@ -11614,7 +11656,7 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if str_eq(tname, "Option") == 1 {
             let variant: str = node_field(pool, nid, 2);
             if str_eq(variant, "Some") == 1 && list_len(pool, args) > 0 {
-                let inner: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+                let inner: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
                 if str_len(inner) > 0 { return str_concat("Option<", str_concat(inner, ">")); };
             };
             return "Option";
@@ -11622,11 +11664,11 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         if str_eq(tname, "Result") == 1 {
             let variant: str = node_field(pool, nid, 2);
             if str_eq(variant, "Ok") == 1 && list_len(pool, args) > 0 {
-                let inner: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+                let inner: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
                 if str_len(inner) > 0 { return str_concat("Result<", str_concat(inner, ",_>")); };
             };
             if str_eq(variant, "Err") == 1 && list_len(pool, args) > 0 {
-                let inner_err: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+                let inner_err: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
                 if str_len(inner_err) > 0 { return str_concat("Result<_,", str_concat(inner_err, ">")); };
             };
             return "Result";
@@ -11634,19 +11676,19 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         return "";
     };
     if kind == 34 { return node_field(pool, nid, 1); };
-    if kind == 52 { return type_last_stmt(pool, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, tprof); };
+    if kind == 52 { return type_last_stmt(pool, prog, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, tprof); };
     if kind == 23 {
-        let tt: str = type_last_stmt(pool, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, tprof);
+        let tt: str = type_last_stmt(pool, prog, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, tprof);
         let enode: i64 = node_field(pool, nid, 3);
         if enode >= 0 {
-            let et: str = type_last_stmt(pool, enode, env, sigs, structs, fn_name, diags, source, tprof);
+            let et: str = type_last_stmt(pool, prog, enode, env, sigs, structs, fn_name, diags, source, tprof);
             if str_eq(strip_spaces(tt), strip_spaces(et)) == 1 { return tt; };
         };
         return tt;
     };
     return "";
 }
-fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, rtype: str, tprof: Vec<i32>) -> i64 {
+fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, rtype: str, tprof: Vec<i32>) -> i64 {
     if nid < 0 || nid >= vec_len(pool) { return 0; };
     let kind: i64 = node_kind(pool, nid);
     let mut warns: i64 = 0;
@@ -11708,13 +11750,13 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         // (No diagnostic emitted for any narrow-float vector type.)
         let mut init_t: str = "";
         if init >= 0 {
-            init_t = type_expr(pool, init, env, sigs, structs, fn_name, diags, source, tprof);
+            init_t = type_expr(pool, prog, init, env, sigs, structs, fn_name, diags, source, tprof);
             if str_len(tstr) > 0 {
                 if type_is_unit(tstr) == 1 && (node_kind(pool, init) == 1 || node_kind(pool, init) == 71) && line_has_unit_literal(source, fn_name, vname) == 0 {
                     type_diag(diags, source, fn_name, vname, "TYP-007", "bare numeric literal cannot initialize a unit value");
                 } else {
                     let compat_start: i64 = tprof_start(tprof);
-                    let compat_ok: i64 = types_compatible(tstr, init_t);
+                    let compat_ok: i64 = types_compatible_context(pool, prog, tstr, init_t);
                     tprof_mark(tprof, 7, 8, compat_start);
                     if compat_ok == 0 {
                     type_diag(diags, source, fn_name, vname, "TYP-008", str_concat("type mismatch for binding '", str_concat(vname, "'")));
@@ -11831,13 +11873,13 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
     if kind == 21 {
         let lhs: i64 = node_field(pool, nid, 1);
         let rhs: i64 = node_field(pool, nid, 2);
-        let rhs_t: str = type_expr(pool, rhs, env, sigs, structs, fn_name, diags, source, tprof);
+        let rhs_t: str = type_expr(pool, prog, rhs, env, sigs, structs, fn_name, diags, source, tprof);
         if node_kind(pool, lhs) == 3 {
             let env_start: i64 = tprof_start(tprof);
             let lhs_t: str = tenv_get(env, node_field(pool, lhs, 1));
             tprof_mark(tprof, 3, 4, env_start);
             let compat_start: i64 = tprof_start(tprof);
-            let compat_ok: i64 = types_compatible(lhs_t, rhs_t);
+            let compat_ok: i64 = types_compatible_context(pool, prog, lhs_t, rhs_t);
             tprof_mark(tprof, 7, 8, compat_start);
             if compat_ok == 0 { type_diag(diags, source, fn_name, node_field(pool, lhs, 1), "TYP-009", "assignment type mismatch"); };
         };
@@ -11856,7 +11898,7 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
                 if str_starts_with(vt, "Vec<") == 1 {
                     let elem_t: str = strip_container_one_level(vt);
                     if str_len(elem_t) > 0 && str_len(rhs_t) > 0 {
-                        let compat_idx: i64 = types_compatible(elem_t, rhs_t);
+                        let compat_idx: i64 = types_compatible_context(pool, prog, elem_t, rhs_t);
                         if compat_idx == 0 {
                             let pa: str = str_concat("indexed assignment type mismatch on `", str_concat(vname, str_concat("`: element type `", str_concat(elem_t, str_concat("` vs RHS type `", str_concat(rhs_t, "`."))))));
                             let pb: str = " Pre-v0.4.64 the i64-everywhere ABI silently coerced any RHS to fit. List the conversion explicitly or use a typed Vec.";
@@ -11883,7 +11925,7 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
                     let s_nid2: i64 = vec_get(structs, s_idx2);
                     let f_t: str = struct_field_type(pool, s_nid2, fname);
                     if str_len(f_t) > 0 && str_len(rhs_t) > 0 {
-                        let compat_fld: i64 = types_compatible(f_t, rhs_t);
+                        let compat_fld: i64 = types_compatible_context(pool, prog, f_t, rhs_t);
                         if compat_fld == 0 {
                             let pa2: str = str_concat("field assignment type mismatch on `", str_concat(recv_name, str_concat(".", str_concat(fname, str_concat("`: field type `", str_concat(f_t, str_concat("` vs RHS type `", str_concat(rhs_t, "`."))))))));
                             let pb2: str = " Pre-v0.4.65 the i64-everywhere ABI silently coerced any RHS to fit.";
@@ -11898,9 +11940,9 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
     if kind == 22 {
         let val: i64 = node_field(pool, nid, 1);
         if val >= 0 {
-            let val_t: str = type_expr(pool, val, env, sigs, structs, fn_name, diags, source, tprof);
+            let val_t: str = type_expr(pool, prog, val, env, sigs, structs, fn_name, diags, source, tprof);
             let compat_start: i64 = tprof_start(tprof);
-            let compat_ok: i64 = types_compatible(rtype, val_t);
+            let compat_ok: i64 = types_compatible_context(pool, prog, rtype, val_t);
             tprof_mark(tprof, 7, 8, compat_start);
             if str_len(rtype) > 0 && str_eq(rtype, "void") == 0 && compat_ok == 0 {
                 type_diag(diags, source, fn_name, fn_name, "TYP-010", "return type mismatch");
@@ -11920,24 +11962,24 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         return warns;
     };
     if kind == 23 {
-        type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let then_env: Vec<i32> = own_snapshot(env);
-        warns = warns + type_check_stmts(pool, node_field(pool, nid, 2), then_env, sigs, structs, fn_name, diags, source, rtype, tprof);
+        warns = warns + type_check_stmts(pool, prog, node_field(pool, nid, 2), then_env, sigs, structs, fn_name, diags, source, rtype, tprof);
         vec_free(then_env);
         let enode: i64 = node_field(pool, nid, 3);
         if enode >= 0 {
             let else_env: Vec<i32> = own_snapshot(env);
-            warns = warns + type_check_stmts(pool, enode, else_env, sigs, structs, fn_name, diags, source, rtype, tprof);
+            warns = warns + type_check_stmts(pool, prog, enode, else_env, sigs, structs, fn_name, diags, source, rtype, tprof);
             vec_free(else_env);
         };
         return warns;
     };
-    if kind == 24 { type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof); return type_check_stmts(pool, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, rtype, tprof); };
-    if kind == 25 { type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof); return warns; };
-    if kind == 28 { return type_check_stmts(pool, node_field(pool, nid, 4), env, sigs, structs, fn_name, diags, source, rtype, tprof); };
-    if kind == 49 { type_expr(pool, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, tprof); return type_check_stmts(pool, node_field(pool, nid, 3), env, sigs, structs, fn_name, diags, source, rtype, tprof); };
+    if kind == 24 { type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof); return type_check_stmts(pool, prog, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, rtype, tprof); };
+    if kind == 25 { type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof); return warns; };
+    if kind == 28 { return type_check_stmts(pool, prog, node_field(pool, nid, 4), env, sigs, structs, fn_name, diags, source, rtype, tprof); };
+    if kind == 49 { type_expr(pool, prog, node_field(pool, nid, 2), env, sigs, structs, fn_name, diags, source, tprof); return type_check_stmts(pool, prog, node_field(pool, nid, 3), env, sigs, structs, fn_name, diags, source, rtype, tprof); };
     if kind == 38 {
-        let scrut_t: str = type_expr(pool, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
+        let scrut_t: str = type_expr(pool, prog, node_field(pool, nid, 1), env, sigs, structs, fn_name, diags, source, tprof);
         let arms: i64 = node_field(pool, nid, 2);
         let ac: i64 = list_len(pool, arms);
         let mut ai: i64 = 0;
@@ -11951,7 +11993,7 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
                 let bind_t: str = match_payload_type_from_scrutinee(scrut_t, ename, vname, 0);
                 if str_len(bind_t) > 0 { tenv_set(arm_env, binding, bind_t); };
             };
-            warns = warns + type_check_stmts(pool, node_field(pool, arm_nid, 4), arm_env, sigs, structs, fn_name, diags, source, rtype, tprof);
+            warns = warns + type_check_stmts(pool, prog, node_field(pool, arm_nid, 4), arm_env, sigs, structs, fn_name, diags, source, rtype, tprof);
             vec_free(arm_env);
             ai = ai + 1;
         };
@@ -11959,14 +12001,14 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
     };
     return warns;
 }
-fn type_check_stmts(pool: Vec<i32>, lid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, rtype: str, tprof: Vec<i32>) -> i64 {
+fn type_check_stmts(pool: Vec<i32>, prog: i64, lid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, rtype: str, tprof: Vec<i32>) -> i64 {
     if lid < 0 || lid >= vec_len(pool) { return 0; };
     let cnt: i64 = list_len(pool, lid);
     let mut i: i64 = 0;
     let mut warns: i64 = 0;
     while i < cnt {
         let stmt_start: i64 = tprof_start(tprof);
-        warns = warns + type_check_stmt(pool, list_get(pool, lid, i), env, sigs, structs, fn_name, diags, source, rtype, tprof);
+        warns = warns + type_check_stmt(pool, prog, list_get(pool, lid, i), env, sigs, structs, fn_name, diags, source, rtype, tprof);
         tprof_mark(tprof, 1, 2, stmt_start);
         i = i + 1;
     };
@@ -11999,7 +12041,7 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                 tenv_set(env, node_field(pool, pnid, 1), node_field(pool, pnid, 2));
                 pi = pi + 1;
             };
-            warns = warns + type_check_stmts(pool, body, env, sigs, structs, fn_name, diags, source, rtype, tprof);
+            warns = warns + type_check_stmts(pool, prog, body, env, sigs, structs, fn_name, diags, source, rtype, tprof);
             // v0.4.108: tail-expression return-type check. Pre-fix
             // `fn add(a: i32, b: i32) -> str { a + b }` type-checked
             // clean (TYP-010 only fired for explicit `return val;` —
@@ -12017,8 +12059,8 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                     let last_stmt: i64 = list_get(pool, body, body_cnt - 1);
                     if node_kind(pool, last_stmt) == 25 {
                         let tail_expr: i64 = node_field(pool, last_stmt, 1);
-                        let tail_t: str = type_expr(pool, tail_expr, env, sigs, structs, fn_name, diags, source, tprof);
-                        if str_len(tail_t) > 0 && types_compatible(rtype, tail_t) == 0 {
+                        let tail_t: str = type_expr(pool, prog, tail_expr, env, sigs, structs, fn_name, diags, source, tprof);
+                        if str_len(tail_t) > 0 && types_compatible_context(pool, prog, rtype, tail_t) == 0 {
                             let pa108: str = str_concat("tail-expression type `", str_concat(tail_t, str_concat("` does not match declared return type `", str_concat(rtype, str_concat("` for fn `", str_concat(fn_name, "`."))))));
                             let pb108: str = " Pre-v0.4.108 the tail-expr slipped past TYP-010 (which only checked explicit `return val;`) and codegen reinterpreted the value's bits → silent SIGSEGV at the caller. Either change the fn signature to match the tail expression's type or change the body to produce the declared type.";
                             type_diag(diags, source, fn_name, fn_name, "TYP-010", str_concat(pa108, pb108));

@@ -2224,16 +2224,15 @@ t369_mut_ref_param_diagnostic() {
 }
 
 t368_dyn_keyword_parse() {
-    # T3.68 (v0.3.92): regression test for `dyn Trait` parser
-    # acceptance. Pre-v0.3.92, parse_type didn't recognize the
-    # `dyn` keyword and any use cascaded into parse errors.
+    # T3.68 (v0.3.92/v0.4.117): parser acceptance plus
+    # Box<dyn Trait> binding/call-argument coercion from Box<Concrete>.
     "$BIN" build "tests/fixtures/t368_dyn_keyword_parse.nr" -o "_t368_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ -x "target/_t368_check" ] || [ -x "target/_t368_check.exe" ] || return 1
     local exe
     if [ -x "target/_t368_check" ]; then exe="target/_t368_check"; else exe="target/_t368_check.exe"; fi
     "$exe" >$NUC_VERIFY_STEP_LOG 2>&1
     local code=$?
-    [ "$code" -eq 42 ] || return 1
+    [ "$code" -eq 47 ] || return 1
     return 0
 }
 
@@ -3485,7 +3484,7 @@ step "T3.64 vec.iter().X() chain (Rust idiom — identity pass-through)" t364_ve
 step "T3.65 trait method with generic param 'fn count<T>(self)'" t365_trait_generic_method
 step "T3.66 mixed-shorthand struct init 'Point { x: 5, y }'" t366_struct_init_shorthand
 step "T3.67 ? operator chain (Ok/Err labels were swapped pre-v0.3.91)" t367_question_op_chain
-step "T3.68 dyn keyword parser acceptance (Box<dyn Trait>, fn -> dyn ...)" t368_dyn_keyword_parse
+step "T3.68 Box<dyn Trait> binding/call accepts Box<Concrete> with impl" t368_dyn_keyword_parse
 step "T3.69 &mut T param diagnostic (HIGH-BLAST silent miscompute pre-v0.3.93)" t369_mut_ref_param_diagnostic
 step "T3.70 panic!/assert!/dbg! macro forms (textual ! strip)" t370_panic_assert_macros
 step "T3.71 extended macro set (assert_eq!/assert_ne!/todo!/unimplemented!/unreachable!)" t371_extended_macro_set
