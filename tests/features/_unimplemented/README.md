@@ -49,9 +49,7 @@ back to `tests/features/`:
 - vec_fold.nr / vec_iter.nr / vec_iter_combinators.nr
   / vec_map_filter.nr
 
-Still in `_unimplemented/`:
-- string_basic.nr (builds but SIGSEGV at runtime — needs
-  full `String` heap-string type with `push`/`len`)
+Still in `_unimplemented/`: none.
 
 ## v0.4.101 — `iter_combinators.nr` restored
 After adding `__nucleor_vec_chain_i64`, `iter_combinators.nr`
@@ -78,3 +76,8 @@ runs in i64, the saturating clamp at block exit pins the
 result to i32 range. Both fixtures' expected outputs verified
 end-to-end including the nested `saturating { wrapping { ... } }`
 case. Audit doc-#1 §3a closed.
+
+## Next release — `string_basic.nr` restored
+`String::new()` now returns a heap String handle, and `String`
+methods dispatch to the `string_*` runtime helpers instead of the
+Vec fallback. Fixture moved back to `tests/features/`.
