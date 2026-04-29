@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.106] — 2026-04-29
+
+**Undefined fn-call link error lifted to clean TYP-005 diagnostic
+(closes deferral doc-#1 §_undef-fn-call, ML_SUITE queue
+deferred row #1).**
+
+`let x: i64 = nonexistent_function(42);` had two diagnostic stages
+that didn't reach a clean halt:
+
+1. **v0.4.60 (Apr 28)** — Added a TYP-005 *warning* at type-check
+   time with the false-positive filters
+   (closure-gen `__`-prefix, uppercase Type-prefix, registered
+   variable holding fn pointer). Tier was warning, not error, so
+   privatization-related cross-module undefined symbols still got
+   the chance to be lifted into MOD-003 by `priv_lift_link_errors`
+   after clang failed.
+
+2. **Pre-v0.4.106** — Adopters STILL saw the cryptic clang IR
+   diagnostic:
+   ```
+   target/foo.ll:850:23: error: use of undefined value '@nonexistent_function'
+     %r.2 = call i64 @nonexistent_function(i64 %r.1)
+                     ^
+   1 error generated.
+   ```
+   The TYP-005 warning was technically there, but the clang IR
+   noise drowned it.
+
+This release adds `lift_undefined_fn_link_errors` — a companion to
+`priv_lift_link_errors` that runs after MOD-003 has claimed every
+privatization-related symbol. It scans the same clang output for
+any remaining `use of undefined value '@<name>'` matches and
+emits a single clean line:
+
+```
+error[TYP-005]: undefined function `nonexistent_function()`. Check
+spelling, or import the rod that defines it. (raised at clang link;
+type-checker emitted a TYP-005 warning earlier in this build.)
+COMPILE FAILED (clang exit 1)
+1 TYP-005 undefined-fn violation(s) — see error[TYP-005] above
+```
+
+The same false-positive filters from the v0.4.60 type-check warn
+path apply here too (`__`-prefix, uppercase Type-prefix), so
+compiler-generated callees stay clean. The raw clang_log dump is
+suppressed only when `lifted + lifted_undef > 0` — power users
+debugging anything ELSE about the link still see the full clang
+output.
+
+Negative gate `tests/err/err_undefined_fn_link.nr` validates the
+new diagnostic. Fast verifier 14.82s clean; sequential verify
+539/539 PASS; bootstrap fixed-point holds; drift gate clean.
+
 ## [0.4.105] — 2026-04-29
 
 **`saturating { ... }` block lands; overflow_saturating.nr +

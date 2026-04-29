@@ -15569,13 +15569,23 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
         // detail (for power users).
         let priv_reg: Vec<i32> = priv_build_global_registry(imported);
         let lifted: i64 = priv_lift_link_errors(clang_log, priv_reg);
-        if str_len(clang_log) > 0 { print(clang_log); };
+        // v0.4.106: also lift true-undefined-fn errors (closes deferral
+        // doc-#1 §_undef-fn-call). MOD-003 claims privatization
+        // mismatches; this companion claims the rest. Together they
+        // cover every `use of undefined value '@<name>'` clang
+        // emits into a clean TYP-005/MOD-003 line.
+        let lifted_undef: i64 = lift_undefined_fn_link_errors(clang_log, priv_reg);
+        if (lifted + lifted_undef) == 0 && str_len(clang_log) > 0 { print(clang_log); };
         let ll_check: str = file_read_string(ll_path);
         if str_len(ll_check) > 0 {
             print(str_concat("  COMPILE FAILED (clang exit ", str_concat(str_from_int(rc), ")")));
             if lifted > 0 {
                 print(str_concat("  ", str_concat(str_from_int(lifted), " MOD-003 violation(s) — see error[MOD-003] above")));
-            } else {
+            };
+            if lifted_undef > 0 {
+                print(str_concat("  ", str_concat(str_from_int(lifted_undef), " TYP-005 undefined-fn violation(s) — see error[TYP-005] above")));
+            };
+            if (lifted + lifted_undef) == 0 {
                 print("  note: LLVM IR was emitted; GPU/CUDA experiments may require manual link with CUDA libs");
             };
         } else {
@@ -19686,6 +19696,71 @@ fn priv_lift_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
                 print(str_concat("error[MOD-003]: cannot call private fn '", str_concat(name, "' from outside its declaring module")));
                 print(str_concat("  --> declared in: ", origin));
                 print("  hint: add `pub` to the fn declaration to expose it cross-module");
+                count = count + 1;
+            };
+            p = name_end + 1;
+        } else {
+            p = p + 1;
+        };
+    };
+    return count;
+}
+
+fn lift_undefined_fn_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
+    // v0.4.106: companion to priv_lift_link_errors. After MOD-003 has
+    // claimed every privatization-related undefined symbol, this fn
+    // scans the clang output for any REMAINING `use of undefined
+    // value '@<name>'` matches and emits a clean TYP-005 error
+    // for each true-undefined fn (typo, missing import, etc.).
+    //
+    // Pre-fix v0.4.60 emitted TYP-005 at WARNING tier at type-check
+    // time, then let clang fail with its cryptic
+    //   target/foo.ll:850:23: error: use of undefined value '@bar'
+    // line, leaving the user reading clang IR diagnostics. Now the
+    // user gets a single readable line:
+    //   error[TYP-005]: undefined function `bar()`. Check spelling
+    //   or import the rod that defines it.
+    //
+    // Skips compiler-generated names (`__closure_*`, `__vec_*`,
+    // privatization-mangled `__priv_*`, etc.) and uppercase-leading
+    // names (Type-prefixed variants — those go through their own
+    // unresolved-type diagnostic path). Returns count emitted so
+    // the caller can decide whether to suppress the raw clang dump.
+    let needle: str = "use of undefined value '@";
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(clang_output);
+    let mut p: i64 = 0;
+    let mut count: i64 = 0;
+    let mut seen: Vec<i32> = Vec::new();
+    while p + nlen <= slen {
+        let mut matched: i64 = 1;
+        let mut k: i64 = 0;
+        while k < nlen && matched == 1 {
+            if str_char_at(clang_output, p + k) != str_char_at(needle, k) { matched = 0; };
+            k = k + 1;
+        };
+        if matched == 1 {
+            let name_start: i64 = p + nlen;
+            let mut name_end: i64 = name_start;
+            while name_end < slen && str_char_at(clang_output, name_end) != 39 { name_end = name_end + 1; };
+            let name: str = str_substring(clang_output, name_start, name_end);
+            // Skip if MOD-003 already claimed it.
+            let claimed_by_mod003: i64 = if str_len(priv_lookup_origin(reg, name)) > 0 { 1 } else { 0 };
+            // Skip compiler-generated names (same filters as the
+            // type-check warn path in type_expr kind 7).
+            let clen: i64 = str_len(name);
+            let mut suppress: i64 = 0;
+            if claimed_by_mod003 == 1 { suppress = 1; };
+            if suppress == 0 && clen >= 2 && str_char_at(name, 0) == 95 && str_char_at(name, 1) == 95 {
+                suppress = 1;
+            };
+            if suppress == 0 && clen >= 1 {
+                let c0: i64 = str_char_at(name, 0);
+                if c0 >= 65 && c0 <= 90 { suppress = 1; };
+            };
+            if suppress == 0 && priv_string_vec_contains(seen, name) == 0 {
+                seen.push(name);
+                print(str_concat("error[TYP-005]: undefined function `", str_concat(name, "()`. Check spelling, or import the rod that defines it. (raised at clang link; type-checker emitted a TYP-005 warning earlier in this build.)")));
                 count = count + 1;
             };
             p = name_end + 1;
