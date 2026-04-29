@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.88] — 2026-04-29
+
+**str method dispatch fix — `s.len/contains/replace/split/
+starts_with/ends_with` now route to `str_*` runtime helpers
+(was silent vec_* miscompute / clang link failure).**
+
+Pre-fix `s.len()` for `s: str` lowered to `vec_len(s)` which
+reads the str pointer as if it were a Vec header — silent
+miscompute, returned garbage like `1684828783` instead of byte
+length. Same hazard for `s.contains/replace/split/starts_with/
+ends_with` which failed at clang link with `undefined value
+'@vec_contains'` etc.
+
+The runtime helpers (`str_len`, `str_contains`, `str_replace`,
+`str_split`, `str_starts_with`, `str_ends_with`) all exist —
+this was the missing surface dispatch from a `str`-typed
+receiver to the right prefix. Mirrors the v0.3.100 HashMap/
+HashSet receiver-type-aware pattern.
+
+### What now works
+
+- `s.len()` → `str_len(s)` ✓ (was garbage)
+- `s.contains("x")` → `str_contains(s, "x")` ✓
+- `s.replace(a, b)` → `str_replace(s, a, b)` ✓
+- `s.split(sep)` → `str_split(s, sep)` ✓
+- `s.starts_with(p)` → `str_starts_with(s, p)` ✓
+- `s.ends_with(p)` → `str_ends_with(s, p)` ✓
+
+### Verify gate
+
+- T3.135 — `tests/fixtures/repro_v88_str_method_dispatch.nr`
+  asserts `s.len()` returns 12 for `"hello, world"`.
+
+### Memory + timing
+
+- Self-host build: unchanged.
+- Verify gate: 510 PASS / 0 FAIL.
+- Bootstrap fixed-point: holds (3-pass B==C==D, sha 1a19e5cd…).
+
 ## [0.4.87] — 2026-04-29
 
 **Vec method dispatch-name drift fix — `v.insert(idx, val)` and
