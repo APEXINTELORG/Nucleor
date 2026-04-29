@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.141] — 2026-04-29
+
+**NUM-022 ext: int vs float in arithmetic binop produced
+meaningless i64 garbage. `5 + 5.0` returned
+4617315517961601024. Now halts cleanly.**
+
+```nucleor
+let r = 5 + 5.0;   // pre-fix: r == 4617315517961601024 (garbage)
+```
+
+v0.4.137 added NUM-022 for cmp ops (30-37) where one side is
+int and the other float — explicitly deferring arith ops
+because the garbage i64 result is large and obvious enough
+that adopters notice. In practice that turned out to still
+cost time: the value is "obviously wrong" only after running,
+and adopters writing canonical Rust math (`area = side * 1.5`,
+`avg = total / 2.0`) got a silent-pass build with garbage at
+runtime. This release extends the existing NUM-022 check to
+arith ops 20-24 (+, -, *, /, %). Same predicate, same int/
+float side detection, narrower diagnostic suffix
+("arithmetic binop" vs "comparison binop").
+
+The v0.4.137 fixture continues to pass — message says
+"comparison binop" for cmp ops 30-37, "arithmetic binop" for
+arith ops 20-24. New fixture covers the arith side.
+Mirrored to `nucleor_tools_suite.nr`.
+
+Negative fixture: `tests/err/err_arith_int_vs_float.nr`.
+Bootstrap fixed-point holds first-pass. Fast-verify 195 PASS / 2
+baseline-FAIL.
+
 ## [0.4.140] — 2026-04-29
 
 **MATCH-011 (URGENT — runtime SIGSEGV close): heterogeneous

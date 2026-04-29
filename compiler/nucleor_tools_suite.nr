@@ -7021,16 +7021,18 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
             type_diag(diags, source, fn_name, fn_name, "TYP-003", "unit operands for addition/subtraction must match");
         };
         // v0.4.137 mirror: NUM-022 — int vs float in cmp binop.
+        // v0.4.141: extended to arith ops 20-24.
         // Inline predicate (tools_suite has no type_is_int/float helper).
         let lt_is_int_v137_t: i64 = if str_eq(lt, "i64") == 1 || str_eq(lt, "i32") == 1 || str_eq(lt, "i16") == 1 || str_eq(lt, "i8") == 1 || str_eq(lt, "u64") == 1 || str_eq(lt, "u32") == 1 || str_eq(lt, "u16") == 1 || str_eq(lt, "u8") == 1 { 1 } else { 0 };
         let rt_is_int_v137_t: i64 = if str_eq(rt, "i64") == 1 || str_eq(rt, "i32") == 1 || str_eq(rt, "i16") == 1 || str_eq(rt, "i8") == 1 || str_eq(rt, "u64") == 1 || str_eq(rt, "u32") == 1 || str_eq(rt, "u16") == 1 || str_eq(rt, "u8") == 1 { 1 } else { 0 };
         let lt_is_flt_v137_t: i64 = if str_eq(lt, "f64") == 1 || str_eq(lt, "f32") == 1 || str_eq(lt, "f16") == 1 || str_eq(lt, "bf16") == 1 { 1 } else { 0 };
         let rt_is_flt_v137_t: i64 = if str_eq(rt, "f64") == 1 || str_eq(rt, "f32") == 1 || str_eq(rt, "f16") == 1 || str_eq(rt, "bf16") == 1 { 1 } else { 0 };
-        if (op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35 || op == 36 || op == 37)
+        if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24
+            || op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35 || op == 36 || op == 37)
             && ((lt_is_int_v137_t == 1 && rt_is_flt_v137_t == 1) || (lt_is_flt_v137_t == 1 && rt_is_int_v137_t == 1)) {
             let int_side_v137_t: str = if lt_is_int_v137_t == 1 { lt } else { rt };
             let flt_side_v137_t: str = if lt_is_flt_v137_t == 1 { lt } else { rt };
-            let v22msg_t: str = str_concat("integer (`", str_concat(int_side_v137_t, str_concat("`) and float (`", str_concat(flt_side_v137_t, "`) operands in comparison binop. Pre-v0.4.137 each side's bit pattern was compared as raw i64. Use an explicit `x as f64` or `y as i64` to make the intent explicit."))));
+            let v22msg_t: str = str_concat("integer (`", str_concat(int_side_v137_t, str_concat("`) and float (`", str_concat(flt_side_v137_t, "`) operands in arith/cmp binop. Pre-v0.4.137/.141 the raw i64 bit patterns were used. Use an explicit `x as f64` or `y as i64`."))));
             type_diag(diags, source, fn_name, fn_name, "NUM-022", v22msg_t);
         };
         if is_tainted_type(lt) == 1 { return lt; };

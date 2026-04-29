@@ -11264,20 +11264,27 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // (`0x4014000000000000`) as i64s — returned FALSE. Same hazard
         // for !=, <, <=, >, >= when one side is int and the other float;
         // `5 < 5.0` returned TRUE because i64=5 reinterpreted as f64
-        // is a tiny denormal (~2.5e-323) which is < 5.0. Catches the
-        // bool-returning cmp ops 30-37 only — arith int/float crosses
-        // (`5 + 5.0`) are wrong too but already produce a non-numeric
-        // garbage result that adopters would notice; the cmp case
-        // produces a plausible-looking bool that hides the bug.
+        // is a tiny denormal (~2.5e-323) which is < 5.0.
+        // v0.4.141: extended to arith ops 20-24 (+, -, *, /, %).
+        // Pre-fix `5 + 5.0` produced a meaningless i64 (4617315517961601024
+        // = i64=5 + f64-bit-pattern-of-5.0 numerically added). The result
+        // is large and obviously wrong, but adopters writing canonical
+        // Rust math get a silent-pass build with garbage runtime values.
+        // Catches arith (20-24) and cmp (30-37) — bit-shift / mod skipped
+        // because mixed int/float there is nonsensical and the parser
+        // typically rejects narrow-float forms upstream.
         let lt_is_int_v137: i64 = type_is_int(lt);
         let rt_is_int_v137: i64 = type_is_int(rt);
         let lt_is_flt_v137: i64 = type_is_float(lt);
         let rt_is_flt_v137: i64 = type_is_float(rt);
-        if (op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35 || op == 36 || op == 37)
+        if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24
+            || op == 30 || op == 31 || op == 32 || op == 33 || op == 34 || op == 35 || op == 36 || op == 37)
             && ((lt_is_int_v137 == 1 && rt_is_flt_v137 == 1) || (lt_is_flt_v137 == 1 && rt_is_int_v137 == 1)) {
             let int_side_v137: str = if lt_is_int_v137 == 1 { lt } else { rt };
             let flt_side_v137: str = if lt_is_flt_v137 == 1 { lt } else { rt };
-            let v22msg: str = str_concat("integer (`", str_concat(int_side_v137, str_concat("`) and float (`", str_concat(flt_side_v137, "`) operands in comparison binop. Pre-v0.4.137 each side's bit pattern was compared as raw i64 — `5 == 5.0` returned FALSE because i64=5 (0x5) ≠ f64 5.0 bit pattern (0x4014000000000000); `5 < 5.0` returned TRUE because i64=5 reinterpreted as f64 is a tiny denormal. Use an explicit conversion (`x as f64` or `y as i64`) to make the intent explicit at the call site."))));
+            let is_arith_v141: i64 = if op == 20 || op == 21 || op == 22 || op == 23 || op == 24 { 1 } else { 0 };
+            let kind_label_v141: str = if is_arith_v141 == 1 { "arithmetic" } else { "comparison" };
+            let v22msg: str = str_concat("integer (`", str_concat(int_side_v137, str_concat("`) and float (`", str_concat(flt_side_v137, str_concat("`) operands in ", str_concat(kind_label_v141, " binop. Pre-v0.4.137/.141 each side's bit pattern was used as raw i64 — `5 == 5.0` returned FALSE; `5 + 5.0` produced meaningless i64 garbage; `5 < 5.0` returned TRUE (i64=5 reinterpreted as f64 is a tiny denormal). Use an explicit conversion (`x as f64` or `y as i64`) to make the intent explicit at the call site.")))))));
             type_diag(diags, source, fn_name, fn_name, "NUM-022", v22msg);
         };
         if (op == 20 || op == 21 || op == 22 || op == 23 || op == 24) && (str_eq(lt, "bool") == 1 || str_eq(rt, "bool") == 1) {
