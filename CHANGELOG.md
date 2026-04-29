@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.127] — 2026-04-29
+
+**TYP-005 lift now detects synthetic `vec_<method>` names from
+the method-dispatch catch-all and shows the source-side method
+name + supported Vec method list.**
+
+```nucleor
+let mut v: Vec<i64> = Vec::new();
+v.push(1);
+let r: i64 = v.lenn();   // typo for .len()
+```
+
+Pre-fix surfaced as `error[TYP-005]: undefined function `vec_lenn()``
+— confusing because the user's source had nothing about
+`vec_lenn`. Post-fix:
+
+```
+error[TYP-005]: receiver type `Vec<T>` has no method `.lenn()`.
+                (Internal symbol: `vec_lenn`. The kind-8
+                method-dispatch catch-all lowered the call to a
+                synthetic helper that doesn't exist.)
+                Supported Vec method families: push, pop, len,
+                get, set, first, last, is_empty, insert, remove,
+                iter, map, filter, fold, each, sum, min, max,
+                contains, index_of, reverse, sort, clone, clear,
+                collect, count, take, skip, any, all, chain,
+                position, product, step_by, nth, reduce.
+```
+
+`lift_undefined_fn_link_errors` (v0.4.106) gains a `vec_*` prefix
+detection: when the missing symbol starts with `vec_` (4 chars
+followed by user-method name), strip the prefix and present the
+source-side `.method()` form to the user instead of the internal
+synthetic. Same UX-fix family as v0.4.107 (primitive-receiver
+TYP-007) and v0.4.123 (struct-field TYP-015).
+
+Non-`vec_*` undefined-fn errors keep the existing v0.4.106
+diagnostic unchanged (regression-tested against
+`tests/err/err_undefined_fn_link.nr`).
+
+Negative fixture: `tests/err/err_vec_method_typo.nr`. Bootstrap
+fixed-point sha `84a59cba…`. Fast-verify 181 PASS / 2 baseline-FAIL.
+
 ## [0.4.126] — 2026-04-29
 
 **TYP-016: `if cond { val }` with no else branch assigned to a
