@@ -5,6 +5,34 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.148] — 2026-04-29
+
+**TYP-022 ext: struct name called like a fn (`P(42)`) silently
+emitted `call @P` and failed late at clang link. Now halts at
+type-check with the right hint.**
+
+```nucleor
+struct P { x: i64 }
+let p = P(42);   // pre-fix: clang link error '@P' undefined
+```
+
+v0.4.138 caught the kind-3 case (`let e: E = E;`); the kind-7
+case (`P(42)`) sailed past every check. The kind-7 type-check's
+v0.4.60 undefined-fn warning suppresses uppercase-leading
+callees (most are legitimate Type-prefixed mangled calls
+handled via kind-12), so `P(42)` got no compile-time
+diagnostic. Codegen lowered to `call i64 @P(...)` and clang
+errored at link.
+
+This release adds a sibling check at the kind-7 site: when
+`sentry < 0` AND `struct_find_type(pool, structs, callee) >=
+0`, halt with TYP-022 directing the adopter to struct-init
+syntax. Mirrored to `nucleor_tools_suite.nr`.
+
+Negative fixture: `tests/err/err_struct_as_fn.nr`. Bootstrap
+fixed-point holds first-pass. Fast-verify 202 PASS / 2
+baseline-FAIL.
+
 ## [0.4.147] — 2026-04-29
 
 **TYP-011 ext: `struct == struct` / `!= ` / `<` etc. silently

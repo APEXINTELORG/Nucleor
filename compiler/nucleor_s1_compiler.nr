@@ -11980,6 +11980,22 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 walk_ai_v144 = walk_ai_v144 + 1;
             };
         };
+        // v0.4.148: TYP-022 ext — bare struct name called like a fn.
+        // Pre-fix `let p = P(42);` for `struct P { ... }` lowered to
+        // `call i64 @P(...)` and failed late at clang link with
+        // `error: use of undefined value '@P'`. The v0.4.106 lift
+        // suppresses uppercase-leading callees from TYP-005 (most
+        // are kind-12 type-prefixed mangled calls handled
+        // separately), so adopters got the raw clang error pointing
+        // at compiler-emitted IR instead of their source. Sister to
+        // v0.4.138 (struct-as-value at kind-3): when the callee
+        // matches a defined struct name, surface TYP-022 directing
+        // to struct-init syntax.
+        if sentry < 0 && struct_find_type(pool, structs, callee) >= 0 {
+            let v148a: str = str_concat("`", str_concat(callee, str_concat("(", str_concat("...)` is not how struct values are constructed in Nucleor — `", str_concat(callee, "` is a struct type, not a fn."))))));
+            let v148b: str = str_concat(" Pre-v0.4.148 the call lowered to `call i64 @", str_concat(callee, str_concat("(...)` and failed late at clang link with `error: use of undefined value '@", str_concat(callee, "'`. Use struct-init syntax `<Name> { field1: val1, ... }` to construct a value, or call an inherent constructor `<Name>::new(...)` if one is defined."))));
+            type_diag(diags, source, fn_name, callee, "TYP-022", str_concat(v148a, v148b));
+        };
         // v0.4.146: closure call-site argc check. Closures aren't
         // in sigs (their binding lives in tenv with no plist), so
         // sig_find returned -1 and the kind-7 path silently lowered
