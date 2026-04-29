@@ -4108,6 +4108,17 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "string_contains") { return "__nucleor_string_contains"; };
     if str_eq(name, "string_clone") { return "__nucleor_string_clone"; };
     if str_eq(name, "string_free") { return "__nucleor_string_free"; };
+    // v0.4.124: extended String surface
+    if str_eq(name, "string_is_empty") { return "__nucleor_string_is_empty"; };
+    if str_eq(name, "string_to_uppercase") { return "__nucleor_string_to_uppercase"; };
+    if str_eq(name, "string_to_lowercase") { return "__nucleor_string_to_lowercase"; };
+    if str_eq(name, "string_trim") { return "__nucleor_string_trim"; };
+    if str_eq(name, "string_trim_start") { return "__nucleor_string_trim_start"; };
+    if str_eq(name, "string_trim_end") { return "__nucleor_string_trim_end"; };
+    if str_eq(name, "string_find") { return "__nucleor_string_find"; };
+    if str_eq(name, "string_substring") { return "__nucleor_string_substring"; };
+    if str_eq(name, "string_char_at") { return "__nucleor_string_char_at"; };
+    if str_eq(name, "string_as_str") { return "__nucleor_string_as_str"; };
     // RFC-0017 partial: HashMap<str, i64>
     if str_eq(name, "hashmap_new") { return "__nucleor_hashmap_new"; };
     if str_eq(name, "hashmap_with_capacity") { return "__nucleor_hashmap_with_capacity"; };
@@ -4561,6 +4572,8 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "string_starts_with") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "string_ends_with") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "string_contains") { if idx == 1 { return 1; }; return 0; };
+    // v0.4.124: extended String surface — find takes a needle ptr at idx 1.
+    if str_eq(name, "string_find") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "hashmap_insert") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "hashmap_get") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "hashmap_contains") { if idx == 1 { return 1; }; return 0; };
@@ -5699,6 +5712,17 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_string_contains(i64, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_string_clone(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_string_free(i64)\n");
+    // v0.4.124: extended String surface
+    sb_append(sb, "declare i64 @__nucleor_string_is_empty(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_string_to_uppercase(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_string_to_lowercase(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_string_trim(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_string_trim_start(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_string_trim_end(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_string_find(i64, ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_string_substring(i64, i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_string_char_at(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_string_as_str(i64)\n");
     // HashMap extras — new/insert/get/contains already declared in the
     // header block above; extras live here.
     sb_append(sb, "declare i64 @__nucleor_hashmap_with_capacity(i64)\n");
@@ -14240,7 +14264,13 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         // v0.4.90: Result<T,E> method dispatch — same
                         // root cause as Option above.
                         fn_name = str_concat("result_", mname);
-                    } else if str_eq(stype_base, "String") == 1 && (str_eq(mname, "push") == 1 || str_eq(mname, "push_str") == 1 || str_eq(mname, "len") == 1 || str_eq(mname, "capacity") == 1 || str_eq(mname, "get_byte") == 1 || str_eq(mname, "clear") == 1 || str_eq(mname, "as_ptr") == 1 || str_eq(mname, "print") == 1 || str_eq(mname, "eq") == 1 || str_eq(mname, "eq_str") == 1 || str_eq(mname, "starts_with") == 1 || str_eq(mname, "ends_with") == 1 || str_eq(mname, "contains") == 1 || str_eq(mname, "clone") == 1 || str_eq(mname, "free") == 1) {
+                    } else if str_eq(stype_base, "String") == 1 && (str_eq(mname, "push") == 1 || str_eq(mname, "push_str") == 1 || str_eq(mname, "len") == 1 || str_eq(mname, "capacity") == 1 || str_eq(mname, "get_byte") == 1 || str_eq(mname, "clear") == 1 || str_eq(mname, "as_ptr") == 1 || str_eq(mname, "print") == 1 || str_eq(mname, "eq") == 1 || str_eq(mname, "eq_str") == 1 || str_eq(mname, "starts_with") == 1 || str_eq(mname, "ends_with") == 1 || str_eq(mname, "contains") == 1 || str_eq(mname, "clone") == 1 || str_eq(mname, "free") == 1
+                        || str_eq(mname, "is_empty") == 1 || str_eq(mname, "to_uppercase") == 1 || str_eq(mname, "to_lowercase") == 1 || str_eq(mname, "trim") == 1 || str_eq(mname, "trim_start") == 1 || str_eq(mname, "trim_end") == 1 || str_eq(mname, "find") == 1 || str_eq(mname, "substring") == 1 || str_eq(mname, "char_at") == 1 || str_eq(mname, "as_str") == 1) {
+                        // v0.4.124: extended String method surface — adds
+                        // is_empty / to_uppercase / to_lowercase / trim /
+                        // trim_start / trim_end / find / substring /
+                        // char_at / as_str. Runtime helpers landed in
+                        // nucleor_llvm_rt.c v0.4.124 batch.
                         let mut sm: str = mname;
                         if str_eq(mname, "push") == 1 { sm = "push_byte"; };
                         fn_name = str_concat("string_", sm);

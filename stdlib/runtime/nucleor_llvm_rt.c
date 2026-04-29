@@ -4489,6 +4489,118 @@ long long __nucleor_string_free(long long h) {
     return 0;
 }
 
+/* v0.4.124: extend String surface with common Rust String methods.
+ * All return new String handles where they produce derived strings,
+ * matching Rust's borrow-clean immutable-reference convention.
+ * to_uppercase / to_lowercase are ASCII-only (Nucleor's i64 ABI
+ * doesn't yet route through Unicode case-fold tables).
+ */
+long long __nucleor_string_is_empty(long long h) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return 1;
+    return s->len == 0 ? 1 : 0;
+}
+long long __nucleor_string_to_uppercase(long long h) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return __nucleor_string_new();
+    long long out_h = __nucleor_string_with_capacity(s->len);
+    NString *out = (NString *)(intptr_t)out_h;
+    for (long long i = 0; i < s->len; i++) {
+        unsigned char c = (unsigned char)s->data[i];
+        if (c >= 'a' && c <= 'z') c = (unsigned char)(c - 32);
+        out->data[i] = (char)c;
+    }
+    out->len = s->len;
+    out->data[s->len] = 0;
+    return out_h;
+}
+long long __nucleor_string_to_lowercase(long long h) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return __nucleor_string_new();
+    long long out_h = __nucleor_string_with_capacity(s->len);
+    NString *out = (NString *)(intptr_t)out_h;
+    for (long long i = 0; i < s->len; i++) {
+        unsigned char c = (unsigned char)s->data[i];
+        if (c >= 'A' && c <= 'Z') c = (unsigned char)(c + 32);
+        out->data[i] = (char)c;
+    }
+    out->len = s->len;
+    out->data[s->len] = 0;
+    return out_h;
+}
+long long __nucleor_string_trim(long long h) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return __nucleor_string_new();
+    long long lo = 0, hi = s->len;
+    while (lo < hi && (unsigned char)s->data[lo] <= ' ') lo++;
+    while (hi > lo && (unsigned char)s->data[hi - 1] <= ' ') hi--;
+    long long n = hi - lo;
+    long long out_h = __nucleor_string_with_capacity(n);
+    NString *out = (NString *)(intptr_t)out_h;
+    if (n > 0) memcpy(out->data, s->data + lo, (size_t)n);
+    out->len = n;
+    out->data[n] = 0;
+    return out_h;
+}
+long long __nucleor_string_trim_start(long long h) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return __nucleor_string_new();
+    long long lo = 0;
+    while (lo < s->len && (unsigned char)s->data[lo] <= ' ') lo++;
+    long long n = s->len - lo;
+    long long out_h = __nucleor_string_with_capacity(n);
+    NString *out = (NString *)(intptr_t)out_h;
+    if (n > 0) memcpy(out->data, s->data + lo, (size_t)n);
+    out->len = n;
+    out->data[n] = 0;
+    return out_h;
+}
+long long __nucleor_string_trim_end(long long h) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return __nucleor_string_new();
+    long long hi = s->len;
+    while (hi > 0 && (unsigned char)s->data[hi - 1] <= ' ') hi--;
+    long long out_h = __nucleor_string_with_capacity(hi);
+    NString *out = (NString *)(intptr_t)out_h;
+    if (hi > 0) memcpy(out->data, s->data, (size_t)hi);
+    out->len = hi;
+    out->data[hi] = 0;
+    return out_h;
+}
+long long __nucleor_string_find(long long h, const char *needle) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s || !needle) return -1;
+    const char *hit = strstr(s->data, needle);
+    if (!hit) return -1;
+    return (long long)(hit - s->data);
+}
+long long __nucleor_string_substring(long long h, long long lo, long long hi) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return __nucleor_string_new();
+    if (lo < 0) lo = 0;
+    if (hi > s->len) hi = s->len;
+    if (hi < lo) hi = lo;
+    long long n = hi - lo;
+    long long out_h = __nucleor_string_with_capacity(n);
+    NString *out = (NString *)(intptr_t)out_h;
+    if (n > 0) memcpy(out->data, s->data + lo, (size_t)n);
+    out->len = n;
+    out->data[n] = 0;
+    return out_h;
+}
+long long __nucleor_string_char_at(long long h, long long i) {
+    NString *s = (NString *)(intptr_t)h;
+    if (!s) return 0;
+    if (i < 0 || i >= s->len) return 0;
+    return (long long)(unsigned char)s->data[i];
+}
+long long __nucleor_string_as_str(long long h) {
+    /* Reuses existing as_ptr — the i64-everywhere ABI's `str` is a
+     * raw `*const char` cell-equivalent. Distinct method name keeps
+     * source-side semantics close to Rust's `String::as_str`. */
+    return __nucleor_string_as_ptr(h);
+}
+
 // === RFC-0017 partial: HashMap<str, i64> ===
 // Open-addressed hash table with linear probing. Keys are owned
 // C-strings; values are i64 cells. Generic <K, V, A: Allocator>
