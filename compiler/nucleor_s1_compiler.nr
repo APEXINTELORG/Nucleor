@@ -1158,15 +1158,14 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 1 && str_eq(pkv(tokens, pos), "wrapping") == 1 && pk(tokens, pos + 1) == 52 {
         return parse_passthrough_block_expr(tokens, pos + 1, pool);
     };
-    // v0.4.105: `saturating { ... }` block. Routes the block's final
-    // expression value through `__nucleor_sat_i32` which clamps to
-    // [INT32_MIN, INT32_MAX]. Inner arithmetic happens in i64 (so
-    // `2147483647 + 100` = `2147483747` does NOT overflow at the
-    // i64 level), then the saturating clamp at block exit pins the
-    // result into i32 range. v0.4.102 halted with NR021 here; runtime
-    // helper `__nucleor_sat_i32` landed in this release alongside the
-    // dispatch wire-up. Same lookahead gate as `unsafe`/`wrapping`
-    // above so user fns named `saturating` keep working.
+    // v0.4.153: `saturating { ... }` block. Arithmetic inside the
+    // block lowers per operation to saturating_add/sub/mul helpers
+    // instead of clamping only the final block result (the v0.4.105
+    // approach where inner arithmetic still overflowed at the i64
+    // level and only the block's final value got pinned to i32 range
+    // was insufficient — multi-step expressions wrapped). Same
+    // lookahead gate as `unsafe`/`wrapping` above so user fns named
+    // `saturating` keep working.
     if tt == 1 && str_eq(pkv(tokens, pos), "saturating") == 1 && pk(tokens, pos + 1) == 52 {
         return parse_wrapped_block_expr(tokens, pos + 1, pool, 2);
     };
@@ -13949,6 +13948,22 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 if iop == 23 { sh = "panic_shl"; };
                 if iop == 24 { sh = "panic_shr"; };
             };
+            // v0.4.153: per-op saturating dispatch. When inside a
+            // `saturating { ... }` block (kind-52 with mode==2 sets
+            // sym["__arith_mode"]=2 in the body's sym before lowering),
+            // route +/-/* to the saturating runtime helpers. Pre-fix
+            // (v0.4.105 .. v0.4.152) the block clamped only its final
+            // value to i32; multi-step inner arithmetic still wrapped
+            // at the i64 level, so `saturating { (max + 1) - 5 }` gave
+            // a wrapped value pinned to i32 instead of `max - 5`.
+            if iop == 2 || iop == 3 || iop == 4 {
+                let arith_mode_sat: i64 = sym_get(sym, "__arith_mode");
+                if arith_mode_sat == 2 {
+                    if iop == 2 { sh = "saturating_add"; };
+                    if iop == 3 { sh = "saturating_sub"; };
+                    if iop == 4 { sh = "saturating_mul"; };
+                };
+            };
             // v0.4.95: div/mod ALWAYS use the panic helper, regardless of
             // NUCLEOR_INT_STRICT_ARITH. Pre-fix `let z = 0; let q = 10/z;`
             // (variable divisor zero — v0.4.74's literal-only NUM-009
@@ -15202,18 +15217,29 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
     if kind == 52 {
         let mode: i64 = node_field(pool, nid, 1);
         let body: i64 = node_field(pool, nid, 2);
-        let mut bp: Vec<i32> = lower_if_expr_branch(pool, body, blk, regs, lbls, sym_clone(sym), fir, strtab, lh, lx, structs, closures, trait_impls);
+        // v0.4.153: for `saturating { ... }` (mode==2), set
+        // __arith_mode=2 in the body's sym so the kind-4 binop
+        // dispatch routes +/-/* through saturating_add/sub/mul.
+        // The body's exit value is returned directly (no final
+        // sat_i32 clamp — the per-op saturation handled it).
+        // `wrapping { ... }` (mode==1) keeps the final wrap_i32
+        // shape because Nucleor's wrapping semantics target i32
+        // representation, not per-op i64 wrap (which is what raw
+        // i64 arith does anyway).
+        let body_sym_sat: Vec<i32> = sym_clone(sym);
+        if mode == 2 { sym_set(body_sym_sat, "__arith_mode", 2); };
+        let mut bp: Vec<i32> = lower_if_expr_branch(pool, body, blk, regs, lbls, body_sym_sat, fir, strtab, lh, lx, structs, closures, trait_impls);
         let mut br: i64 = lx_reg(bp);
         let mut cur: Vec<i32> = lx_blk(bp);
         if br < 0 {
             br = ctr_next(regs);
             ir_block_add(cur, ir_const_int(br, 0));
         };
+        if mode == 2 { return lx_new(br, cur); };
         let mut wrap_args: Vec<i32> = Vec::new();
         wrap_args.push(br);
         let r: i64 = ctr_next(regs);
-        if mode == 2 { ir_block_add(cur, ir_call_ex(r, "sat_i32", wrap_args)); }
-        else { ir_block_add(cur, ir_call_ex(r, "wrap_i32", wrap_args)); };
+        ir_block_add(cur, ir_call_ex(r, "wrap_i32", wrap_args));
         return lx_new(r, cur);
     };
     if kind == 23 {

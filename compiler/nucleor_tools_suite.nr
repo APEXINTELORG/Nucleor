@@ -456,6 +456,13 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // no longer maps unsafe to 77. The block form `unsafe { ... }` is
     // unused in any source the tools-suite parses.
     // v0.3.150: dead tt == 78/79 branches removed (wrapping/saturating).
+    // v0.4.153: re-add `saturating { ... }` parse for tools_suite so
+    // `nuc check`/`nuc test` over a file using saturating blocks
+    // recognize the syntax (per-op lowering only fires inside this
+    // block — without the parse, the block opens an ambiguous expr).
+    if tt == 1 && str_eq(pkv(tokens, pos), "saturating") == 1 && pk(tokens, pos + 1) == 52 {
+        return parse_wrapped_block_expr(tokens, pos + 1, pool, 2);
+    };
     if tt == 1 {
         let name: i64 = pkv(tokens, pos);
         if str_eq(name, "Some") == 1 || str_eq(name, "None") == 1 || str_eq(name, "Ok") == 1 || str_eq(name, "Err") == 1 {
@@ -8232,7 +8239,27 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let iop: i64 = tok_to_ir(node_field(pool, nid, 1));
         let r: i64 = ctr_next(regs);
         if is_cmp_or_logic(iop) == 1 { ir_block_add(cur, ir_cmpop(iop, r, lr, rr)); }
-        else { ir_block_add(cur, ir_binop(iop, r, lr, rr)); };
+        else {
+            // v0.4.153 mirror: per-op saturating dispatch when inside
+            // a `saturating { ... }` block (sym["__arith_mode"] == 2
+            // set by the kind-52 branch).
+            let mut sh_sat: str = "";
+            if iop == 2 || iop == 3 || iop == 4 {
+                let arith_mode_sat: i64 = sym_get(sym, "__arith_mode");
+                if arith_mode_sat == 2 {
+                    if iop == 2 { sh_sat = "saturating_add"; };
+                    if iop == 3 { sh_sat = "saturating_sub"; };
+                    if iop == 4 { sh_sat = "saturating_mul"; };
+                };
+            };
+            if str_len(sh_sat) > 0 {
+                let mut sa_sat: Vec<i32> = Vec::new();
+                sa_sat.push(lr); sa_sat.push(rr);
+                ir_block_add(cur, ir_call_ex(r, sh_sat, sa_sat));
+            } else {
+                ir_block_add(cur, ir_binop(iop, r, lr, rr));
+            };
+        };
         return lx_new(r, cur);
     };
     if kind == 5 {
@@ -8482,18 +8509,21 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
     if kind == 52 {
         let mode: i64 = node_field(pool, nid, 1);
         let body: i64 = node_field(pool, nid, 2);
-        let mut bp: Vec<i32> = lower_if_expr_branch(pool, body, blk, regs, lbls, sym_clone(sym), fir, strtab, lh, lx, structs, closures, trait_impls);
+        // v0.4.153 mirror: per-op saturating dispatch via __arith_mode.
+        let body_sym_sat_t: Vec<i32> = sym_clone(sym);
+        if mode == 2 { sym_set(body_sym_sat_t, "__arith_mode", 2); };
+        let mut bp: Vec<i32> = lower_if_expr_branch(pool, body, blk, regs, lbls, body_sym_sat_t, fir, strtab, lh, lx, structs, closures, trait_impls);
         let mut br: i64 = lx_reg(bp);
         let mut cur: Vec<i32> = lx_blk(bp);
         if br < 0 {
             br = ctr_next(regs);
             ir_block_add(cur, ir_const_int(br, 0));
         };
+        if mode == 2 { return lx_new(br, cur); };
         let mut wrap_args: Vec<i32> = Vec::new();
         wrap_args.push(br);
         let r: i64 = ctr_next(regs);
-        if mode == 2 { ir_block_add(cur, ir_call_ex(r, "sat_i32", wrap_args)); }
-        else { ir_block_add(cur, ir_call_ex(r, "wrap_i32", wrap_args)); };
+        ir_block_add(cur, ir_call_ex(r, "wrap_i32", wrap_args));
         return lx_new(r, cur);
     };
     if kind == 23 {
