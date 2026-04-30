@@ -66,6 +66,19 @@ fn main() -> i32 {
     // 99999 mod 65536 = 34463; as signed i16: 34463 - 65536 = -31073
     if narrow16 != -31073 { print("FAIL i64->i16 narrow"); return 1; };
 
+    // v0.4.210: i32/u32 typed memory ops added — completes the
+    // i8/i16/i32/u8/u16/u32 narrow set. IR shape now emits
+    // `alloca i32` + `load i32` + `sext i32 to i64` for these.
+    let p32: i32 = 1000000;
+    let q32: i32 = 2000000;
+    let r32: i32 = p32 + q32;
+    if r32 != 3000000 { print("FAIL i32 add"); return 1; };
+
+    let pu32: u32 = 4000000000;
+    let qu32: u32 = 200000000;
+    let ru32: u32 = pu32 + qu32;
+    if ru32 != 4200000000 { print("FAIL u32 add"); return 1; };
+
     print("OK rfc0015_phase3a_widths");
     0
 }

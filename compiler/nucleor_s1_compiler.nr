@@ -16862,6 +16862,9 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // positive=signed, negative=unsigned, 0=untyped (i64).
         // Trunc/store don't care about sign — only abs width matters
         // for memory-shape — so we extract abs(w) for the IR ops.
+        // v0.4.210: expanded to i32/u32 — completes the
+        // i8/i16/i32/u8/u16/u32 narrow set for typed memory ops.
+        // i64/u64 stays at the i64 ABI (untyped, w=0).
         let sblen20: i64 = str_len(sbase);
         let mut w20: i64 = 0;
         if sblen20 == 2 {
@@ -16869,7 +16872,9 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             else if str_eq(sbase, "u8") == 1 { w20 = 0 - 8; };
         } else if sblen20 == 3 {
             if str_eq(sbase, "i16") == 1 { w20 = 16; }
-            else if str_eq(sbase, "u16") == 1 { w20 = 0 - 16; };
+            else if str_eq(sbase, "u16") == 1 { w20 = 0 - 16; }
+            else if str_eq(sbase, "i32") == 1 { w20 = 32; }
+            else if str_eq(sbase, "u32") == 1 { w20 = 0 - 32; };
         };
         let aw20: i64 = if w20 >= 0 { w20 } else { 0 - w20 };
         let ar: i64 = ctr_next(regs); ir_fn_add_entry_alloca_t(fir, ar, aw20);
