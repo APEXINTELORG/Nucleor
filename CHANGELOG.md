@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.161] — 2026-04-29
+
+**NUM-008 ext: shift amount via let-bound const now caught at
+compile time. `let n: i64 = 100; let r = x << n;` halts.
+Closes residual #7.**
+
+```nucleor
+let n: i64 = 100;
+let r: i64 = 1 << n;   // pre-fix: poison i64 at runtime
+                        // now: error[NUM-008]: shift amount 100 is out of range
+```
+
+Integration of `spike/v04-shift-var-rhs-v3` (commit 56f469b)
+from the parallel-agent workstream.
+
+The existing v0.2.319-era NUM-008 check at the kind-4 binop
+type-check (op == 115 / 116 for `<<` / `>>`) only fired when
+the RHS was an int literal (kind 1) or the unary-minus of an
+int literal (kind 5 wrapping kind 1). Adopters who bound the
+shift amount to a `let n: i64 = 100;` then wrote `x << n`
+escaped the check entirely; codegen emitted `shl i64 x, 100`
+which is LLVM-undefined for amounts >= 64 → silently produced
+poison i64 at runtime.
+
+Spike adds a tenv-tracked-const layer:
+- `tenv_set_const_i64(env, name, val)` / `tenv_clear_const`
+  for tracking literal values bound to let-immutable bindings
+- `tenv_get_const_i64` to read at the shift-bounds check
+- `const_i64_expr(pool, nid, env)` walks an expression tree
+  detecting int literals (kind 1), unary-minus wrapping
+  (kind 5), and let-bound consts (kind 3 var-ref via
+  `tenv_get_const_i64`)
+- Shift-bounds check at the kind-4 binop branch now uses
+  `const_i64_expr` instead of the inline literal-only walk
+
+Bindings with a non-literal RHS, or a literal RHS to a
+mutable binding, are not tracked (the constness inference is
+conservative — only catches the obvious cases). Future
+extensions can broaden the lattice; for now this closes the
+"`let n = 100; x << n`" path which is the common adopter
+mistake.
+
+T1.7 fixed-point holds first-pass. Verifier 212 PASS / 2
+baseline-FAIL / **20.59s wall** (down from 32s — the cumulative
+session-cycle drop from v0.4.160 + v0.4.161 is 44s → 20.6s).
+
+Negative fixture: `tests/err/err_shift_var_rhs_const.nr`.
+Repro: `tests/fixtures/repro_v146_shift_var_rhs_runtime_panic.nr`.
+Closes residual #7 from `PARALLEL_AGENT_HANDOFF_v0.4_RESIDUALS.md`.
+
 ## [0.4.160] — 2026-04-29
 
 **`tools/verify.sh` now folds the parallel fixture phase
