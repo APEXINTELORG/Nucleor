@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.169] — 2026-04-30
+
+**RFC-0023 regression-guard fixtures: pattern guards, @-bindings,
+slice patterns, struct destructure + same-name enum or-patterns
+locked into the verify suite. Verify count: 213 → 217 PASS.**
+
+The v0.4 audit earlier this session confirmed that all four
+"deferred" RFC-0023 features actually work end-to-end (the RFC
+status doc was stale). This ship locks them into the verify suite
+so any future regression triggers a clean fail:
+
+- `tests/features/rfc0023_pattern_guards.nr` — multi-guard
+  fall-through, guards-with-bindings (`n if n > 5 => n * 10`).
+- `tests/features/rfc0023_at_bindings.nr` — `n @ 1..=10 => n`,
+  combined with range patterns.
+- `tests/features/rfc0023_slice_patterns.nr` — `[a, .., b]`,
+  `[single]`, `[]` matched directly on `Vec<i32>`.
+- `tests/features/rfc0023_struct_destructure.nr` —
+  `Point { x, y } => x + y`, `Sign::Pos(n) | Sign::Neg(n) => n`
+  same-name enum or-pattern.
+
+Each fixture exits 0 with an `OK ...` marker (the verify-suite
+contract for `tests/features/`).
+
+Closes the "new gates for v0.4 features" piece of v0.4.0
+success criteria for the RFC-0023 surface.
+
+Verify: 217 PASS / 2 FAIL (was 213/2; +4 from this ship).
+Perf:   cold 3.06s (max 7.20s) | hot 0.90s (max 0.97s) | peak 131MB.
+
 ## [0.4.168] — 2026-04-30
 
 **Migration story v0.2 → v0.4 — closes a v0.4 success-criteria
