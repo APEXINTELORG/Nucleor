@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0016 |
 | **Title** | `Result<T, E>`, `Option<T>`, exhaustive `match`, `?` early-return |
-| **Status** | Implemented (partial) v0.1.50–v0.1.61 — see `docs/milestones/v0.2.0.md` for v0.2 DoD; generic enums deferred to v0.4 |
+| **Status** | Implemented (audited v0.4.186). Ships across multiple chains: Result/Option/match basics v0.1.50–v0.1.61; generic enums (`Result<T,E>`, `Option<T>` user-typed) audited shipping in v0.4.182; `?` operator with same-error-type early return works; `?` with mismatched error types correctly halts via TRAIT-001 ("missing From<X> for Y conversion required by ?"); user-implementable `impl From<LowErr> for HighErr` propagates through `?` auto-conversion correctly (Phase 4 shipped). **Still deferred to v0.5+:** MATCH-004 (`?` in fn not returning Result/Option) and MATCH-005 (mismatched error with no From) live emit sites — both currently caught by TRAIT-001 / TYP-011, just under different codes. MATCH-006 (`unwrap()` in `#[no_panic]` fn) currently caught as generic RT-002 panic-detector. |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2.0 |
