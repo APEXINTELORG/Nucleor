@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.226] — 2026-04-30
+
+**Doc-only ship — v0.4 residuals nested into v0.5 milestone with
+explicit v0.4 rationale + v0.5 implementation path for each item.**
+
+**Residuals nested into `docs/milestones/v0.5.0.md`** (new "v0.4
+residuals" section):
+
+1. **RFC-0015 phase 3c — typed fn params with call-site type-info
+   propagation.** v0.4 deferral rationale: v0.4.221 attempt broke
+   the compiler's self-build via the lone i32-param fn
+   (`str_from_int`) abusing i64-ABI. v0.5 path: detect cross-width
+   args at call site, emit explicit `as` cast at boundary so
+   callee can safely trunc-on-entry.
+2. **RFC-0015 phase 3e — strict-mode default flip.** v0.4 deferral
+   rationale: v0.3.220 8.5× perf regression with helper-call
+   dispatch. v0.5 path: `llvm.sadd.with.overflow.iN` intrinsics —
+   no helper call, branch-on-overflow-flag.
+3. **RFC-0015 phase 3b cmp/shift/bitwise narrow IR.** Low-priority
+   symmetry; functionally correct in i64 today. v0.5 path: extend
+   `detect_narrow_chain` to recognize cmp/shift/bitwise ops.
+4. **RFC-0020 phase 3 — span-metadata-through-AST migration.**
+   ~14 find_in_source sites need linemap migration. v0.5 path: add
+   `span: i64` slot to every AST node; linemap binary-search
+   replaces O(N) name-scan.
+
+**v0.4 milestone doc updated** to cross-reference each residual to
+the v0.5 implementation path.
+
+**Verify:** 604 PASS / 9 FAIL (unchanged from v0.4.225).
+
+**Perf:** unchanged (doc-only).
+
+This ship marks the v0.4 → v0.5 transition. v0.4 is feature-
+complete for closeout; the next ship enters v0.5 substantive work.
+
+---
+
 ## [0.4.225] — 2026-04-30
 
 **🎯 Crash-class close — `?` operator on `Option<T>` now works
