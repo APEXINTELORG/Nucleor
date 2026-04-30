@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.210] — 2026-04-30
+
+**RFC-0015 phase 3a-step-3 expanded — i32/u32 now use typed memory
+ops too.** Completes the narrow numeric set: i8, i16, i32, u8, u16,
+u32 all emit `alloca iN` + `load iN` + `sext/zext iN to i64` /
+`trunc i64 to iN` + `store iN`. i64/u64 stays at the i64 ABI.
+
+**Why this matters:** i32 is the most common narrow type in adopter
+code. Pre-fix, `let x: i32 = ...;` lowered to `alloca i64` (uniform
+i64 ABI hid the narrowing in the runtime helper). Post-fix, the IR
+shape matches the source-declared type, so:
+- LLVM optimizer sees `alloca i32` and lays out memory accordingly.
+- `nuc emit` output is readable: each binding's IR type matches its
+  source type.
+- Phase 3b (width-aware binops) now has a complete substrate — every
+  narrow var-ref load already produces a typed value with sext/zext
+  back to i64 for the i64-arith ABI.
+
+**Implementation:** added `i32`/`u32` cases to lower_stmt kind 20's
+inline narrow-width detection (the same str_eq ladder used for
+i8/i16). Sign-encoded same as before: +32 for `i32`, -32 for `u32`.
+All other plumbing (alloca-reg → width map in fir slot 4, sext/zext
+dispatch in lower_expr kind 3, trunc + typed store in kind 21)
+already supports any width via abs(w).
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+Phase 3a regression-guard fixture extended with i32/u32 cases —
+green end-to-end.
+
+**Perf:** cold 3.12s / 3.37s ceiling • hot 0.92s / 0.97s ceiling
+(+0.04s vs v0.4.209's 0.88s — i32 is more common than i16/u16/i8/u8
+in the compiler's own self-build, so more vars now flow through
+the typed path; still well under ceiling) • peak 131MB / 144MB.
+
+**Cross-ref:**
+- v0.4.196/.197: typed IR ops + sext/trunc helpers.
+- v0.4.198: regression-guard fixture (locks in correctness).
+- v0.4.199: failed wiring attempt (perf regression, reverted).
+- v0.4.209: keystone — typed wiring at zero hot-path cost.
+- **v0.4.210 (this ship): i32/u32 expansion completing the narrow set.**
+
+---
+
 ## [0.4.209] — 2026-04-30
 
 **🎯 KEYSTONE — RFC-0015 phase 3a-step-3 SHIPS.** The typed-IR
