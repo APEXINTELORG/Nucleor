@@ -6,6 +6,7 @@ diagnostic_actual: 'warning[TYP-005]: undefined function `inner()` at type-check
 diagnostic_expected: clean compile — `let inner = |y| ...` followed by `inner(args)` is a callable closure binding, not a missing fn
 discovered_against: v0.4.162 (commit 213fee9)
 commit: 213fee9e84101dad4a06807f994413d7d4f1cb86
+status: CLOSED in v0.4.214 — root cause was the v0.4.146/.156 closure rtype-determination at let-stmt type-check (line 13160) calling type_last_stmt on the closure body with the OUTER fn's env. The walk reached `inner(100)` with no `inner` in env → false-fired TYP-005. Fix: snapshot env, register the closure's params, pre-walk body let-stmts to populate scoped env with closure-local bindings, then run type_last_stmt under the scoped env. Free after.
 ---
 
 ## Repro (broken — TYP-005 fires)

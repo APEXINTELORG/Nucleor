@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.214] — 2026-04-30
+
+**Wrong-error close — TYP-005 false-fire on closure-binding called
+from inside another closure body now fixed.** Pre-fix:
+
+```nucleor
+fn main() -> i32 {
+    let outer = |x: i32| { let inner = |y: i32| x + y; inner(100) };
+    print_int(outer(7));   // prints 107 ✓
+    0
+}
+```
+
+emitted spurious `warning[TYP-005]: undefined function 'inner()' at
+type-check time` even though the program ran correctly. Adopters
+saw "undefined function" and chased a non-existent fn, missing the
+real signal (the program output was correct).
+
+**Root cause:** the v0.4.146/.156 closure-rtype determination at
+let-stmt type-check (line 13160) called `type_last_stmt` on the
+closure body with the OUTER fn's env. The walk reached
+`inner(100)` with no `inner` in env → false-fired TYP-005.
+
+**Initial mis-diagnosis:** added a `kind == 42` handler in `type_expr`
+that walked closure bodies in a snapshotted env. Verified it ran
+twice (outer + inner closure) and that `inner` ended up in the
+snapshot env after the walk — but the false-fire still happened.
+Tracing showed the offending kind-7 type_expr call had `envlen=6`
+(main's env, NOT the snapshot), revealing the actual culprit was
+the v156_rtype path firing AFTER my kind-42 handler returned.
+
+**Fix:** at the v156_rtype path (kind 20 let-stmt with kind 42
+init), snapshot env, register closure params, pre-walk body
+let-stmts to populate scoped env with closure-local bindings,
+THEN run type_last_stmt under the scoped env. The kind-42
+type_expr handler was reverted as redundant for this fix.
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+
+**Perf:** cold 3.25s / 3.37s ceiling • hot 0.92s / 0.97s ceiling
+(unchanged from v0.4.213) • peak 131MB / 144MB. The fix is purely
+inside an already-running closure-init path, so no hot-path cost.
+
+Closes `findings/inbox/2026-04-30-typ-005-fires-on-closure-binding-in-closure.md`
+→ `findings/promoted/`.
+
+---
+
 ## [0.4.213] — 2026-04-30
 
 **🎯 Phase 3b COMPLETE for arithmetic — nested narrow expression
