@@ -1,7 +1,16 @@
+//! Module-level doc test fixture for v0.4.165 + v0.4.166 RFC-0029
+//! follow-on. This `//!` block is recognized by `nuc doc` as the
+//! crate intro and rendered between the title and function index.
+//!
+//! Multi-paragraph support: blank lines between `//!` lines preserve
+//! as paragraph breaks in both markdown and HTML output.
+
 // v0.4.165 RFC-0029: per-parameter rendering. `nuc doc` now emits a
 // **Parameters:** bulleted list and a **Returns:** line for every fn
 // (markdown + HTML). Closes the param-rendering deferral from the
 // v0.2 RFC-0029 skeleton ship.
+//
+// v0.4.166: also emits the `//!` module-doc block above as the intro.
 //
 // This is a fixture for `tests/fixtures/` (not auto-run by verify).
 // To exercise: `nuc doc tests/fixtures/nuc_doc_param_rendering.nr --out /tmp/out.md`
