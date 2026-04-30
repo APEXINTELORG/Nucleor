@@ -58,3 +58,38 @@ If you can repro and isolate, file the formal finding in
 RFC-0015 phase 3 push (multi-ship), not to a quick-close —
 flag accordingly in your `## Stuck` section if you can't
 resolve in one prep cycle.
+
+---
+
+## 2026-04-30 (during v0.4.189 RFC-0005 units audit)
+
+`unit_convert(2.5, unit_m(), unit_mm())` returns a value that
+prints as `42` after `as i32` cast. Expected: 2500 (2.5 m =
+2500 mm).
+
+**Repro:**
+
+```nr
+import "stdlib/rods/units.nr"
+fn main() -> i32 {
+    let m: f64 = 2.5;
+    let mm: f64 = unit_convert(m, unit_m(), unit_mm());
+    print_int(mm as i32);     // expected: 2500
+    0
+}
+```
+
+**Suspected:**
+- `nuc_unit_convert` returns `i64` representing the bit
+  pattern of the f64 result. The `let mm: f64 = ...` step
+  may not be doing the bit-cast back to f64 properly.
+- Or the `f64 as i32` cast is broken on Nucleor's i64 ABI for
+  f64-typed bindings.
+- Or `unit_convert` itself has a runtime bug.
+
+**Discovered against:** v0.4.188.
+
+**Severity:** silent-miscompute.
+
+If you can isolate, file the formal finding in
+`findings/inbox/<slug>.md`.

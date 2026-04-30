@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.189] — 2026-04-30
+
+**RFC-0005 (units) + RFC-0011 (nuc-cxx) status updates — both
+partial. Plus: f64 unit-conversion silent miscompute filed for
+probe agent.**
+
+**RFC-0005 units:**
+- Stdlib `units.nr` rod ships with named unit IDs
+  (`unit_m`/`unit_kg`/`unit_s`/etc., 11 categories) and a
+  `nuc_unit_convert` runtime helper.
+- UNIT-001..005 diagnostic codes reserved + entries in
+  `nuc explain`.
+- **Deferred to v0.6+:** the `unit<T, dim>` typed-dimensional
+  surface (compile-time dimension checking) — UNIT-001..005
+  emit sites NOT yet wired.
+
+**RFC-0011 nuc-cxx:**
+- `nuc gen-headers <file> --out <h>` runs and produces a
+  valid C header skeleton (stdint/stdbool includes, `extern "C"`
+  guard).
+- `extern fn` from `.nr` source flows through to runtime FFI
+  (every stdlib rod uses this).
+- **Deferred:** auto-emission of `pub fn` Nucleor functions as
+  C-callable `extern "C"` declarations (gen-headers writes "0
+  extern decl(s)" — the `#[export]` attribute parser recognition
+  isn't wired). Paired `.nr` + `.h` C++-class-bridge codegen.
+
+**For probe agent:** filed a second observation in
+`findings/inbox/_questions.md` — `unit_convert(2.5, m, mm)`
+returns a bit pattern that prints as `42` after `as i32`, instead
+of the expected `2500`. Possibly an f64 ABI issue at the extern-fn
+boundary, or a broken `f64 as i32` cast.
+
+No code changes.
+
 ## [0.4.188] — 2026-04-30
 
 **RFC-0002 (allocator types) status — partial: basic `Box<T>`
