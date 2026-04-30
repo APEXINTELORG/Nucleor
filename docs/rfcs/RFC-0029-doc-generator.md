@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0029 |
 | **Title** | Documentation generator — `nuc doc`, `///` doc comments, doc tests |
-| **Status** | Implemented (skeleton) v0.1.65 — see `docs/milestones/v0.2.0.md`; v0.2 ships skeleton; param rendering, navigation, doc tests deferred to v0.4 |
+| **Status** | Implemented — skeleton v0.1.65, Markdown + HTML modes v0.2.352, per-parameter + per-return rendering v0.4.165, `//!` module-level docs v0.4.166, Struct + Enum index v0.4.167. **Still deferred to v0.5+:** doc tests (extract `nucleor` code blocks from `///` comments and run them; new `nuc doc --test` subcommand), cross-references (link param/return type names to in-file struct/enum anchors), per-struct + per-enum DETAIL sections (parsed field/variant tables under each anchor — multi-line declaration parsing). |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2 skeleton (v0.1.65 — `nuc doc` CLI shipped) → v0.4.0 (param rendering, navigation, doc tests) |
