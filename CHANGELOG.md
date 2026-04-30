@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.184] — 2026-04-30
+
+**RFC-0026 status updated — basic traits + impls work; `dyn Trait`
+genuinely deferred.**
+
+```nucleor
+trait Greet { fn say() -> i32; }
+struct Cat {}
+impl Greet for Cat { fn say() -> i32 { return 42; } }
+
+fn main() -> i32 {
+    print_int(Cat::say());    // ✓ works — prints 42
+    0
+}
+```
+
+That much works end-to-end. What does NOT work:
+
+```nucleor
+fn pick(b: i32) -> Box<dyn Greet> {     // ✗ fails type-check
+    if b == 1 { return Box::new(Cat {}); };
+    return Box::new(Dog {});
+}
+```
+
+`Box<dyn Trait>` machinery + vtable lowering is the genuinely
+deferred piece. The status doc was at "Draft" — updated to
+"Partial (audited v0.4.184)" with the explicit deferral list:
+`dyn Trait`, `Box<dyn Trait>`, `&dyn Trait`, vtable construction,
+dynamic dispatch through trait-object pointers.
+
+This is the actual not-yet-shipped surface for v0.5+ work, in
+contrast to v0.4.171 / .182 / .183 where the doc was just stale.
+
+No code changes.
+
 ## [0.4.183] — 2026-04-30
 
 **RFC-0025 status updated — closures with capture work end-to-end
