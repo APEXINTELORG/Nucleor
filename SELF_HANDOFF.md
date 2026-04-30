@@ -75,8 +75,20 @@ v0.4.134). Pick this up by reading top-to-bottom; do NOT skim.
 - `C:\Users\JoeWe\Desktop\Nucleor_OSS\tools\examples.list` — list
   of stdlib example builds verify.sh runs.
 - `C:\Users\JoeWe\Desktop\Nucleor_OSS\tools\check_perf_regression.ps1`
-  — perf-regression detector (used after the v0.3.205 strlen-in-
-  substring 13× perf killer).
+  — drift gate. **Run before every ship.** Compares cold + hot
+  self-build wall + peak RSS to `tools/perf_baseline.json`. Exit 1
+  = regression. Ceilings are baseline +10% (cold ≤ 7.20s, hot
+  ≤ 0.86s, peak RSS ≤ 552 MB). NEVER `-Update` to absorb a
+  regression — only after a justified perf change. NEVER chain
+  +10% bumps (compounding bloat is worse than a single big regression
+  because nobody notices until we're 50% slower).
+- `C:\Users\JoeWe\Desktop\Nucleor_OSS\tools\run_capped.ps1`
+  — e-stop wrapper (1024 MB RSS hard kill). Probe agent uses it for
+  every rebuild + probe run. You can use it too if you're running
+  something that might blow up. Independent of the drift gate.
+- `C:\Users\JoeWe\Desktop\Nucleor_OSS\tools\perf_baseline.json`
+  — locked baseline + ceilings. Touch only with explicit user
+  approval and a justified perf change.
 
 **Specs / RFCs (for "why does this work this way" questions):**
 - `C:\Users\JoeWe\Desktop\Nucleor_OSS\docs\spec\` — spec docs.
@@ -346,30 +358,74 @@ beyond a single-tag fix):
 - `PARALLEL_AGENT_BLOCKERS.md` — historical, useful for the
   Windows file-lock + rebase workaround at the bottom.
 
-## Probe mandate — RETIRED 2026-04-29
+## Probe mandate — DELEGATED 2026-04-30
 
-The probe-driven hunt produced ~24 silent-miscompute closes
-across v0.4.135–v0.4.158, but each ship adds verify-suite step
-time (every fixture runs forever afterward). The accumulated
-test-time cost has crossed the point where the marginal close
-isn't worth the marginal verify minute. **Stop probe-driven
-work.** Pivot to the v0.5 punchlist (`docs/milestones/v0.5.0.md`).
+Probes are no longer main-line work. They run continuously on the
+**probe agent** (separate session, branch `probe/exploration`,
+mandate at `PARALLEL_AGENT_PROBE_MANDATE.md`). The probe agent
+never edits compiler source and never ships fixes — it drops
+findings into `findings/inbox/` and you (main) promote them.
 
-The historical mental model for probes is below for reference,
-but DO NOT RUN PROBE ROUNDS unless explicitly directed. The user
-wants progress on v0.5 themes — DbC, atomics, max_depth,
-nuc fmt + LSP MVP, capsule signing, nuc port, content-addressed
-cache, RFC-0033 / RFC-0034 design specs.
+### Loop-check protocol (MAIN AGENT — do this every ship)
+
+Between every ship, BEFORE starting the next punchlist task:
+
+1. `ls findings/inbox/` — list any new findings.
+2. **Read `findings/_heartbeat.md`** — confirm probe agent is
+   alive. Stale heartbeat (> ~24h or commit not in current main's
+   history) means the probe stream is broken — flag it; don't assume
+   empty inbox = "all clean."
+3. For each finding, in priority order
+   (`silent-miscompute > crash > wrong-error > missing-error`,
+   plus any `compiler-meltdown` jumps to top regardless):
+   a. Reproduce against current main using the file's repro block.
+      (If the finding's `commit:` field isn't in main's history,
+      the agent probed a stale binary — likely won't repro; reject.)
+   b. Convert the repro into a permanent fixture in
+      `tests/err/` (negative) or `tests/features/` (positive) or
+      `tests/fixtures/` (regression-only). Tight 5–15-line `.nr`.
+   c. Fix the root cause in `compiler/nucleor_s1_compiler.nr` and
+      mirror in `compiler/nucleor_tools_suite.nr` if dispatch is
+      shared.
+   d. Ship as own micro-version (T1.7 first-pass, drift clean,
+      verify_parallel still 213+ PASS / 2 baseline-FAIL).
+   e. **Move** the file from `findings/inbox/` to
+      `findings/promoted/`, appending the Promoted footer
+      described in `findings/README.md`.
+4. If the finding is a dup or non-bug, still move it to
+   `promoted/` with `Promoted: rejected — <reason>` so the inbox
+   stays empty between sweeps.
+5. **After your push, re-check `findings/inbox/` once more.** If a
+   fresh finding tagged against the version you just shipped lands,
+   it's a regression of your own fix — treat as P0.
+6. **If you're stuck** in a long debug, write a one-liner to the
+   "Where we are right now" section of this file noting the area
+   under repair. Probe agent reads it each rebase and steers clear.
+7. Resume punchlist work.
+
+The probe agent does NOT move files — your move is what
+graduates the finding. An empty `inbox/` means you're caught up.
+
+### Why this split is the right shape
+
+- Probes-on-main bloated the verify suite (~30s of step-time
+  accumulated across 24 ships at ~1.2s each); probes-off-main
+  let the regression-guard value land via promoted fixtures
+  without paying the exploratory churn cost.
+- Probes caught spike B's accidental revert in this very
+  session — that signal is what we keep. The exploratory
+  thrash is what we move off-main.
+- Three-way agent isolation already proven by
+  `PARALLEL_AGENT_RESCUE.md` branch namespacing
+  (`spike/<topic>-v3` for fresh, `-v2` for thrash,
+  `probe/exploration` for the probe agent).
 
 ### Historical (reference only)
 
-The pattern that consistently produced finds was: pick a Rust
-idiom, write a 5-line `.nr` snippet, run `nucleor build`. If it
-silently compiled + ran wrong (or SIGSEGV'd), that was a
-silent-miscompute candidate. If it halted with a TYP-/NR-/MATCH-
-code, already covered. The interesting probes were combinations
-of features (method on struct field, tail-expr inside match arm
-inside closure) where dispatch has more fall-through points.
+Probes shipped v0.4.135–v0.4.162 by main agent are the prior
+art the probe agent should NOT re-cover. The "Already covered"
+table in `PARALLEL_AGENT_PROBE_MANDATE.md` enumerates the dead
+lanes. The probe agent picks fresh corners.
 
 ## Tag numbering
 

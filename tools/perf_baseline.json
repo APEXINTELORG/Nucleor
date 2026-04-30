@@ -1,13 +1,14 @@
 {
-  "_comment": "Self-build perf + memory baseline. Update via tools/check_perf_regression.ps1 -Update after intentional changes. Cold = full rebuild from scratch. Hot = immediate re-run with caches warm. Peak memory measured via Process WorkingSet64.",
+  "_comment": "Self-build perf + memory baseline. Ceilings = baseline + 10% so creep cannot compound across ships. Update via tools/check_perf_regression.ps1 -Update after a justified intentional change; never bump to absorb a regression. Cold = full rebuild from scratch. Hot = immediate re-run with caches warm. Peak memory measured via Process WorkingSet64. The runtime e-stop (1024 MB hard kill) lives in tools/run_capped.ps1 and is independent of this file.",
   "version_locked_at": "manual",
-  "locked_at_date": "2026-04-26",
+  "locked_at_date": "2026-04-30",
   "cold_self_build_seconds": 6.54,
-  "cold_max_allowed_seconds": 10.0,
+  "cold_max_allowed_seconds": 7.20,
   "hot_self_build_seconds": 0.78,
-  "hot_max_allowed_seconds": 2.5,
+  "hot_max_allowed_seconds": 0.86,
   "cold_peak_memory_mb": 502,
-  "cold_max_allowed_memory_mb": 700,
+  "cold_max_allowed_memory_mb": 552,
+  "_anti_compound_rule": "Each ship must come in at or below the ceilings above. If you observe drift >5% but <10%, investigate before shipping — do not chain small creeps. Never -Update the baseline to absorb a regression; only update when you've intentionally pushed perf in a measured way (e.g., the v0.3.220 13x revert).",
   "_history": [
     {
       "version": "pre-v0.3.205",
@@ -39,6 +40,12 @@
       "cold_seconds": 6.35,
       "memory_mb": 350,
       "note": "+ memory monitoring; tensor/str_repeat overflow PANICs"
+    },
+    {
+      "version": "2026-04-30 ceiling tightening",
+      "cold_seconds": 6.54,
+      "memory_mb": 502,
+      "note": "Ceilings tightened from cold=10.0/hot=2.5/mem=700 → cold=7.20/hot=0.86/mem=552 (baseline +10%) to prevent compounding drift. Baseline values unchanged."
     }
   ]
 }
