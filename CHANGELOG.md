@@ -5,6 +5,64 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.159] — 2026-04-29
+
+**Self-host perf: peak RSS 519 MB → 420 MB, wall 6.3s → 3.15s,
+str_len calls 791M → 9.8M (~80× reduction). Verify wall 44s →
+37s. Integration of `spike/v04-memory-peak-v2` (commits c49e9f4
+"reduce compiler native-link peak RSS" + 015ff20 "balance
+self-host memory and compile time") from the parallel-agent
+workstream.**
+
+Two-commit chain combining native-link RSS reduction with hot-
+path string-churn elimination:
+
+**c49e9f4 (memory-lane / native-link isolation):**
+- Front-end state released before lower/link
+- Compile-graph storage dropped before native link
+- Native link isolated for large compiler/tools sources via
+  no-link child compile + parent `link_native_module` reuse
+- Windows verify memory gate switched to actual process-tree
+  peak RSS via new `tools/measure_peak_build.ps1`
+- Self-host budget: 550 MB; tools-suite: 500 MB
+
+**015ff20 (balance — string/source churn elimination):**
+- `sym_get` warm-hash threshold tuned 256 → 64 entries (linear
+  is faster below threshold; warm-cache touch was wasted work)
+- Direct ownership-Vec slot helpers: `own_diags(o)` reads
+  `vec_get(o, 1)` instead of `own_get_type(o, "__diags")`. The
+  ownership constructor at `check_fn` line 10467-10472 sets
+  `__diags` / `__source` / `__shared_keys` / `__mut_keys` /
+  `__scope_keys` / `cur_scope` in fixed slot order, so the
+  direct-read fast path is correct as long as that constructor
+  isn't reordered. (Future-fragile — see review note below.)
+- `str_starts_with` rewritten: walk bytes directly, stop on NUL
+  in either operand. The prior `str_substring(s, 0, prefix_len)
+  + str_eq` pattern was responsible for the 791M-call str_len
+  storm.
+- `own_box_hint` only consulted when normal ownership type
+  lookup returns empty.
+- Ownership snapshots restored without dropping the whole Vec
+  backing store (re-allocation cost eliminated).
+
+Verified empirically post-integration:
+- T1.7 fixed-point: first-pass match.
+- Self-host wall: 3.15s (was ~6.3s).
+- Verifier wall: 37.18s / 391 steps / 211 PASS / 2 baseline-FAIL.
+- Drift gate clean.
+
+**Review note** (for future maintainers): the `own_*` helper fast
+paths bet on the constructor's slot order. If anyone adds /
+reorders entries in `check_fn`'s `own` initialization, the
+`vec_get(o, N)` calls silently misread. The fallback
+`own_get_type(o, "name")` only fires when `vec_len(o) <= N`,
+which is rare. Consider adding a comment near the constructor
+binding the slot order, or a debug-mode assert. Not blocking
+this ship but worth tracking.
+
+`tools/measure_peak_build.ps1` is new — a Windows-side process-
+tree RSS monitor used by the verify gate.
+
 ## [0.4.158] — 2026-04-29
 
 **TYP-008 cascade ext: kind-8 type_expr now returns the

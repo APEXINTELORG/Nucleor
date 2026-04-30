@@ -84,7 +84,7 @@ fn str_is_digits(s: str) -> i64 {
 // LEXER (from T29, unchanged)
 // =====================================================
 fn tok_new(tt: i64, v: i64, p: i64) -> Vec<i32> {
-    let mut t: Vec<i32> = Vec::new(); t.push(tt); t.push(v); t.push(p); return t;
+    let mut t: Vec<i32> = Vec::with_capacity(3); t.push(tt); t.push(v); t.push(p); return t;
 }
 fn tok_type(t: Vec<i32>) -> i64 { return vec_get(t, 0); }
 fn tok_val(t: Vec<i32>) -> i64 { return vec_get(t, 1); }
@@ -655,20 +655,42 @@ fn tok_val_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_val(tok_at(tokens,
 fn node_add(pool: Vec<i32>, nd: Vec<i32>) -> i64 { let nid: i64 = vec_len(pool); pool.push(nd); return nid; }
 fn node_kind(pool: Vec<i32>, nid: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, nid); return vec_get(nd, 0); }
 fn node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, nid); return vec_get(nd, idx); }
-fn mk2(pool: Vec<i32>, k: i64, a: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); return node_add(pool, n); }
-fn mk3(pool: Vec<i32>, k: i64, a: i64, b: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); n.push(b); return node_add(pool, n); }
-fn mk4(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); n.push(b); n.push(c); return node_add(pool, n); }
-fn mk5(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64, d: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); n.push(b); n.push(c); n.push(d); return node_add(pool, n); }
-fn mk6(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64, d: i64, e: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); n.push(b); n.push(c); n.push(d); n.push(e); return node_add(pool, n); }
+fn mk2(pool: Vec<i32>, k: i64, a: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(2); n.push(k); n.push(a); return node_add(pool, n); }
+fn mk3(pool: Vec<i32>, k: i64, a: i64, b: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(3); n.push(k); n.push(a); n.push(b); return node_add(pool, n); }
+fn mk4(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(4); n.push(k); n.push(a); n.push(b); n.push(c); return node_add(pool, n); }
+fn mk5(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64, d: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(5); n.push(k); n.push(a); n.push(b); n.push(c); n.push(d); return node_add(pool, n); }
+fn mk6(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64, d: i64, e: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(6); n.push(k); n.push(a); n.push(b); n.push(c); n.push(d); n.push(e); return node_add(pool, n); }
 fn mk_list(pool: Vec<i32>, items: Vec<i32>) -> i64 {
-    let mut n: Vec<i32> = Vec::new(); n.push(40);
+    let mut n: Vec<i32> = Vec::with_capacity(vec_len(items) + 1); n.push(40);
     let mut i: i64 = 0; while i < vec_len(items) { n.push(vec_get(items, i)); i = i + 1; };
     return node_add(pool, n);
 }
 fn list_len(pool: Vec<i32>, lid: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, lid); return vec_len(nd) - 1; }
 fn list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, lid); return vec_get(nd, idx + 1); }
 
-fn pr(p: i64, v: i64) -> Vec<i32> { let mut r: Vec<i32> = Vec::new(); r.push(p); r.push(v); return r; }
+fn free_token_vec(tokens: Vec<i32>) -> i64 {
+    let mut i: i64 = 0;
+    while i < vec_len(tokens) {
+        let tok: Vec<i32> = vec_get(tokens, i);
+        vec_free(tok);
+        i = i + 1;
+    };
+    vec_free(tokens);
+    return 0;
+}
+
+fn free_node_pool(pool: Vec<i32>) -> i64 {
+    let mut i: i64 = 0;
+    while i < vec_len(pool) {
+        let nd: Vec<i32> = vec_get(pool, i);
+        vec_free(nd);
+        i = i + 1;
+    };
+    vec_free(pool);
+    return 0;
+}
+
+fn pr(p: i64, v: i64) -> Vec<i32> { let mut r: Vec<i32> = Vec::with_capacity(2); r.push(p); r.push(v); return r; }
 fn pr_pos(r: Vec<i32>) -> i64 { return vec_get(r, 0); }
 fn pr_val(r: Vec<i32>) -> i64 { return vec_get(r, 1); }
 
@@ -2910,7 +2932,7 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
 // IR DATA STRUCTURES (from T29, extended)
 // =====================================================
 fn ir_inst(op: i64, d: i64, tid: i64, o1: i64, o2: i64, ex: i64) -> Vec<i32> {
-    let mut ii: Vec<i32> = Vec::new(); ii.push(op); ii.push(d); ii.push(tid); ii.push(o1); ii.push(o2); ii.push(ex); return ii;
+    let mut ii: Vec<i32> = Vec::with_capacity(6); ii.push(op); ii.push(d); ii.push(tid); ii.push(o1); ii.push(o2); ii.push(ex); return ii;
 }
 fn ir_op(ii: Vec<i32>) -> i64 { return vec_get(ii, 0); }
 fn ir_dest(ii: Vec<i32>) -> i64 { return vec_get(ii, 1); }
@@ -2930,7 +2952,7 @@ fn ir_br_cond(cond: i64, t: i64, f: i64) -> Vec<i32> { return ir_inst(22, 0, 0, 
 fn ir_param_ref(d: i64, pidx: i64) -> Vec<i32> { return ir_inst(26, d, 0, pidx, 0, 0); }
 fn ir_const_str(d: i64, str_idx: i64) -> Vec<i32> { return ir_inst(27, d, 0, str_idx, 0, 0); }
 fn ir_call_ex(d: i64, fn_name: str, args: Vec<i32>) -> Vec<i32> {
-    let mut ii: Vec<i32> = Vec::new();
+    let mut ii: Vec<i32> = Vec::with_capacity(6);
     ii.push(19); ii.push(d); ii.push(0); ii.push(fn_name); ii.push(vec_len(args)); ii.push(args);
     return ii;
 }
@@ -2944,24 +2966,24 @@ fn ir_call_ex(d: i64, fn_name: str, args: Vec<i32>) -> Vec<i32> {
 // with NO diagnostic for the very-common pattern of writing a
 // math helper named the same as a builtin.
 fn ir_user_call(d: i64, fn_name: str, args: Vec<i32>) -> Vec<i32> {
-    let mut ii: Vec<i32> = Vec::new();
+    let mut ii: Vec<i32> = Vec::with_capacity(6);
     ii.push(31); ii.push(d); ii.push(0); ii.push(fn_name); ii.push(vec_len(args)); ii.push(args);
     return ii;
 }
 
 fn ir_fn_ptr(d: i64, fn_name: str) -> Vec<i32> {
-    let mut ii: Vec<i32> = Vec::new();
+    let mut ii: Vec<i32> = Vec::with_capacity(6);
     ii.push(29); ii.push(d); ii.push(0); ii.push(fn_name); ii.push(0); ii.push(0);
     return ii;
 }
 fn ir_indirect_call(d: i64, closure_reg: i64, args: Vec<i32>) -> Vec<i32> {
-    let mut ii: Vec<i32> = Vec::new();
+    let mut ii: Vec<i32> = Vec::with_capacity(6);
     ii.push(30); ii.push(d); ii.push(0); ii.push(closure_reg); ii.push(vec_len(args)); ii.push(args);
     return ii;
 }
 
 fn ir_block_new(lbl: i64) -> Vec<i32> {
-    let mut b: Vec<i32> = Vec::new(); b.push(lbl);
+    let mut b: Vec<i32> = Vec::with_capacity(2); b.push(lbl);
     let mut insts: Vec<i32> = Vec::new(); b.push(insts); return b;
 }
 fn ir_block_label(b: Vec<i32>) -> i64 { return vec_get(b, 0); }
@@ -2970,7 +2992,7 @@ fn ir_block_inst_count(b: Vec<i32>) -> i64 { let insts: Vec<i32> = vec_get(b, 1)
 fn ir_block_get_inst(b: Vec<i32>, idx: i64) -> Vec<i32> { let insts: Vec<i32> = vec_get(b, 1); return vec_get(insts, idx); }
 
 fn ir_fn_new(name: str, pc: i64) -> Vec<i32> {
-    let mut f: Vec<i32> = Vec::new(); f.push(name); f.push(pc);
+    let mut f: Vec<i32> = Vec::with_capacity(4); f.push(name); f.push(pc);
     let mut entry_allocas: Vec<i32> = Vec::new(); f.push(entry_allocas);
     let mut blocks: Vec<i32> = Vec::new(); f.push(blocks); return f;
 }
@@ -2982,6 +3004,53 @@ fn ir_fn_get_block(f: Vec<i32>, idx: i64) -> Vec<i32> { let b: Vec<i32> = vec_ge
 fn ir_fn_add_entry_alloca(f: Vec<i32>, reg: i64) -> i64 {
     let mut ea: Vec<i32> = vec_get(f, 2);
     ea.push(ir_alloca(reg));
+    return 0;
+}
+
+fn free_ir_inst(ii: Vec<i32>) -> i64 {
+    let op: i64 = ir_op(ii);
+    if op == 19 || op == 30 || op == 31 {
+        let args: Vec<i32> = vec_get(ii, 5);
+        vec_free(args);
+    };
+    vec_free(ii);
+    return 0;
+}
+
+fn free_ir_fn(f: Vec<i32>) -> i64 {
+    let entry_allocas: Vec<i32> = vec_get(f, 2);
+    let mut ai: i64 = 0;
+    while ai < vec_len(entry_allocas) {
+        free_ir_inst(vec_get(entry_allocas, ai));
+        ai = ai + 1;
+    };
+    vec_free(entry_allocas);
+    let blocks: Vec<i32> = vec_get(f, 3);
+    let mut bi: i64 = 0;
+    while bi < vec_len(blocks) {
+        let blk: Vec<i32> = vec_get(blocks, bi);
+        let insts: Vec<i32> = vec_get(blk, 1);
+        let mut ii: i64 = 0;
+        while ii < vec_len(insts) {
+            free_ir_inst(vec_get(insts, ii));
+            ii = ii + 1;
+        };
+        vec_free(insts);
+        vec_free(blk);
+        bi = bi + 1;
+    };
+    vec_free(blocks);
+    vec_free(f);
+    return 0;
+}
+
+fn free_ir_fns(fns: Vec<i32>) -> i64 {
+    let mut fi: i64 = 0;
+    while fi < vec_len(fns) {
+        free_ir_fn(vec_get(fns, fi));
+        fi = fi + 1;
+    };
+    vec_free(fns);
     return 0;
 }
 
@@ -6384,7 +6453,10 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
             str_concat(" of ", str_concat(str_from_int(vec_len(fns)),
                 " fns elided as unreachable")))));
     };
-    return sb_to_str(sb);
+    let out: str = sb_to_str(sb);
+    vec_free(dce_set);
+    vec_free(seen_fns);
+    return out;
 }
 
 // =====================================================
@@ -6440,9 +6512,9 @@ fn sym_get(s: Vec<i32>, name: str) -> i64 {
     if n >= 2 && str_eq(vec_get(s, n - 2), name) == 1 { return vec_get(s, n - 1); };
     if n < 4 { return 0 - 1; };
     // Size-gated warm hash path. Below threshold, linear is faster
-    // (cache-friendly + no warm-cache touch). Threshold 256 entries
-    // = 128 pairs.
-    if n < 256 {
+    // (cache-friendly + no warm-cache touch). Threshold 64 entries
+    // = 32 pairs.
+    if n < 64 {
         let mut j: i64 = n - 4;
         while j >= 0 { if str_eq(vec_get(s, j), name) == 1 { return vec_get(s, j + 1); }; j = j - 2; };
         return 0 - 1;
@@ -9492,10 +9564,38 @@ fn own_get_s(o: Vec<i32>, key: str) -> str {
     if v < 0 { return ""; };
     return v;
 }
+fn own_diags(o: Vec<i32>) -> Vec<i32> {
+    if vec_len(o) > 1 { return vec_get(o, 1); };
+    return own_get_type(o, "__diags");
+}
+fn own_source(o: Vec<i32>) -> str {
+    if vec_len(o) > 3 { return vec_get(o, 3); };
+    return own_get_type(o, "__source");
+}
+fn own_shared_keys_vec(o: Vec<i32>) -> Vec<i32> {
+    if vec_len(o) > 5 { return vec_get(o, 5); };
+    return own_get_type(o, "__shared_keys");
+}
+fn own_mut_keys_vec(o: Vec<i32>) -> Vec<i32> {
+    if vec_len(o) > 7 { return vec_get(o, 7); };
+    return own_get_type(o, "__mut_keys");
+}
+fn own_scope_keys_vec(o: Vec<i32>) -> Vec<i32> {
+    if vec_len(o) > 9 { return vec_get(o, 9); };
+    return own_get_type(o, "__scope_keys");
+}
+fn own_cur_scope(o: Vec<i32>) -> i64 {
+    if vec_len(o) > 11 { return vec_get(o, 11); };
+    return own_get_i(o, "cur_scope");
+}
+fn own_set_cur_scope(o: Vec<i32>, depth: i64) -> i64 {
+    if vec_len(o) > 11 { vec_set(o, 11, depth); return 0; };
+    return own_set_i(o, "cur_scope", depth);
+}
 fn own_set_mutable(o: Vec<i32>, name: str, is_mut: i64) -> i64 { return own_set_i(o, str_concat("mutable_", name), is_mut); }
 fn own_get_mutable(o: Vec<i32>, name: str) -> i64 { return own_get_i(o, str_concat("mutable_", name)); }
 fn own_track_key(o: Vec<i32>, list_key: str, name: str) -> i64 {
-    let keys: Vec<i32> = own_get_type(o, list_key);
+    let keys: Vec<i32> = if str_eq(list_key, "__shared_keys") == 1 { own_shared_keys_vec(o) } else { if str_eq(list_key, "__mut_keys") == 1 { own_mut_keys_vec(o) } else { if str_eq(list_key, "__scope_keys") == 1 { own_scope_keys_vec(o) } else { own_get_type(o, list_key) } } };
     let mut i: i64 = 0;
     while i < vec_len(keys) {
         if str_eq(vec_get(keys, i), name) == 1 { return 0; };
@@ -9531,18 +9631,15 @@ fn own_set_mut_borrow(o: Vec<i32>, key: str, on: i64) -> i64 {
     return own_set_i(o, str_concat("mut_", key), on);
 }
 fn str_starts_with(s: str, prefix: str) -> i64 {
-    // Non-allocating prefix check — walks the bytes directly instead
-    // of building a substring and calling str_eq. Critical for the
-    // type-check hot path (type_base_name, types_compatible) which
-    // calls this millions of times per self-host compile; the prior
-    // substring-and-equate version was responsible for ~9.5 GB of
-    // transient string allocations during a single self-host build.
-    let slen: i64 = str_len(s);
+    // Non-allocating prefix check. Avoid str_len(s): this helper is
+    // hot in type-name probes, and str_char_at(s, strlen(s)) returns
+    // NUL, so a short source string fails safely while walking prefix.
     let plen: i64 = str_len(prefix);
-    if slen < plen { return 0; };
     let mut i: i64 = 0;
     while i < plen {
-        if str_char_at(s, i) != str_char_at(prefix, i) { return 0; };
+        let sc: i64 = str_char_at(s, i);
+        if sc == 0 { return 0; };
+        if sc != str_char_at(prefix, i) { return 0; };
         i = i + 1;
     };
     return 1;
@@ -9623,7 +9720,7 @@ fn expr_root_name(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
     return "";
 }
 fn own_has_shared_overlap(o: Vec<i32>, key: str) -> i64 {
-    let keys: Vec<i32> = own_get_type(o, "__shared_keys");
+    let keys: Vec<i32> = own_shared_keys_vec(o);
     let mut i: i64 = 0;
     while i < vec_len(keys) {
         let target: str = vec_get(keys, i);
@@ -9633,7 +9730,7 @@ fn own_has_shared_overlap(o: Vec<i32>, key: str) -> i64 {
     return 0;
 }
 fn own_has_mut_overlap(o: Vec<i32>, key: str) -> i64 {
-    let keys: Vec<i32> = own_get_type(o, "__mut_keys");
+    let keys: Vec<i32> = own_mut_keys_vec(o);
     let mut i: i64 = 0;
     while i < vec_len(keys) {
         let target: str = vec_get(keys, i);
@@ -9652,7 +9749,7 @@ fn own_release_ref(o: Vec<i32>, name: str) -> i64 {
     return 0;
 }
 fn own_release_scope(o: Vec<i32>, depth: i64) -> i64 {
-    let keys: Vec<i32> = own_get_type(o, "__scope_keys");
+    let keys: Vec<i32> = own_scope_keys_vec(o);
     let mut i: i64 = 0;
     while i < vec_len(keys) {
         let name: str = vec_get(keys, i);
@@ -9663,23 +9760,22 @@ fn own_release_scope(o: Vec<i32>, depth: i64) -> i64 {
 }
 
 fn own_snapshot(o: Vec<i32>) -> Vec<i32> {
-    let mut snap: Vec<i32> = Vec::new();
+    let mut snap: Vec<i32> = Vec::with_capacity(vec_len(o));
     let mut i: i64 = 0;
     while i < vec_len(o) { snap.push(vec_get(o, i)); i = i + 1; };
     return snap;
 }
 fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
-    // Reset o to snap state: truncate and repopulate. The snapshot
-    // is consumed (frees its backing Vec) so callers do not need a
-    // separate vec_free — the snap handle is invalid after this
-    // call. Without this free, every if/match arm in type-check
-    // leaks a full env-sized Vec; for a self-host compile that
-    // accumulated to 19 GB peak (see project notes 2026-04-23).
-    while vec_len(o) > 0 { o.pop(); };
+    // Reset o to snap state without dropping the whole backing store.
+    // Branch isolation calls this in hot ownership paths; pop-all then
+    // push-all preserved semantics but churned the Vec on every branch.
+    let target_len: i64 = vec_len(snap);
+    while vec_len(o) > target_len { o.pop(); };
     let mut i: i64 = 0;
-    while i < vec_len(snap) {
-        o.push(vec_get(snap, i)); o.push(vec_get(snap, i + 1));
-        i = i + 2;
+    while i < target_len {
+        if i < vec_len(o) { vec_set(o, i, vec_get(snap, i)); }
+        else { o.push(vec_get(snap, i)); };
+        i = i + 1;
     };
     // v0.4.3: if this sym is the currently-warm one, the aux hashmap
     // holds stale entries from inside-the-branch own_put_i calls.
@@ -9691,11 +9787,6 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
         hashmap_clear(h);
         __nucleor_sym_aux_set_built_at(o, 0);
     };
-    // Keep snap alive — caller in check_expr (kind == 23 if-else) may
-    // still hold pointers into snap's storage via downstream check
-    // function references. The check pass needs a deeper audit before
-    // we can free here. The type pass (type_check_stmts) is safe to
-    // free because its env consumers don't outlive the snapshot.
     return 0;
 }
 fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
@@ -9713,10 +9804,6 @@ fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
         };
         i = i + 2;
     };
-    // Keep a/b alive — own_merge_moved is called from check_expr (line
-    // 5786 area) where the caller may still reference them. The
-    // type-pass own_snapshot/free pattern is safe; the check pass needs
-    // a deeper audit before we can free here.
     return 0;
 }
 
@@ -9765,22 +9852,22 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     if nid >= vec_len(pool) { return 0; };
     let kind: i64 = node_kind(pool, nid);
     let mut warns: i64 = 0;
-    let source_text: str = own_get_type(own, "__source");
-    let diag_vec: Vec<i32> = own_get_type(own, "__diags");
     if kind == 1 || kind == 2 || kind == 71 || kind == 72 { return 0; }; // literals
     if kind == 3 {
         // IDENT — check for use-after-move
         let vname: str = node_field(pool, nid, 1);
         let state: i64 = own_get(own, vname);
         if state == 2 {
-            let ln: i64 = find_in_source(source_text, fn_name, vname);
-            let col: i64 = find_column_in_source(source_text, fn_name, vname);
-            let d_idx: i64 = diag_add_ex(diag_vec, "warning", "ownership", "OWN-001", str_concat("use of moved variable '", str_concat(vname, "'")), fn_name, ln, col, "");
+            let source_text_move: str = own_source(own);
+            let diag_vec_move: Vec<i32> = own_diags(own);
+            let ln: i64 = find_in_source(source_text_move, fn_name, vname);
+            let col: i64 = find_column_in_source(source_text_move, fn_name, vname);
+            let d_idx: i64 = diag_add_ex(diag_vec_move, "warning", "ownership", "OWN-001", str_concat("use of moved variable '", str_concat(vname, "'")), fn_name, ln, col, "");
             // Add child note: where was it moved?
             let moved_by: str = own_get_type(own, str_concat("__moved_by_", vname));
             if str_len(moved_by) > 0 {
-                let d: Vec<i32> = diag_get(diag_vec, d_idx - 1);
-                let move_line: i64 = find_in_source(source_text, fn_name, moved_by);
+                let d: Vec<i32> = diag_get(diag_vec_move, d_idx - 1);
+                let move_line: i64 = find_in_source(source_text_move, fn_name, moved_by);
                 vec_set(d, 10, str_concat("'", str_concat(vname, str_concat("' was moved here by call to '", str_concat(moved_by, "'")))));
                 vec_set(d, 11, move_line);
             };
@@ -9920,6 +10007,8 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     };
     if kind == 34 {
         // STRUCT_INIT — check field init exprs
+        let source_text: str = own_source(own);
+        let diag_vec: Vec<i32> = own_diags(own);
         let inits: i64 = node_field(pool, nid, 2);
         let ic: i64 = list_len(pool, inits);
         let mut ii: i64 = 0;
@@ -10031,15 +10120,17 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         return warns;
     };
     if kind == 52 {
-        let cur_scope: i64 = own_get_i(own, "cur_scope");
-        own_set_i(own, "cur_scope", cur_scope + 1);
+        let cur_scope: i64 = own_cur_scope(own);
+        own_set_cur_scope(own, cur_scope + 1);
         warns = warns + check_stmts(pool, node_field(pool, nid, 2), own, structs, enums, fn_name);
         own_release_scope(own, cur_scope + 1);
-        own_set_i(own, "cur_scope", cur_scope);
+        own_set_cur_scope(own, cur_scope);
         return warns;
     };
     if kind == 42 { return 0; }; // closure — skip for now
     if kind == 38 {
+        let source_text: str = own_source(own);
+        let diag_vec: Vec<i32> = own_diags(own);
         // v0.4.59 (deferred from v0.4.56): MATCH-001 in match-as-expression.
         // Pre-fix `let n: i64 = match c { Color::Red => 1 };` over a non-Red
         // value silently returned 0 because check_expr lacked a kind-38
@@ -10128,8 +10219,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     if nid < 0 || nid >= vec_len(pool) { return 0; };
     let kind: i64 = node_kind(pool, nid);
     let mut warns: i64 = 0;
-    let scope_depth: i64 = own_get_i(own, "cur_scope");
-    let source_text: str = own_get_type(own, "__source");
+    let scope_depth: i64 = own_cur_scope(own);
     if kind == 20 {
         let vname: str = node_field(pool, nid, 1);
         let is_mut: i64 = node_field(pool, nid, 2);
@@ -10174,9 +10264,11 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             } else if node_kind(pool, init) == 3 {
                 let src: str = node_field(pool, init, 1);
                 let mut st: str = own_get_type(own, src);
-                let hinted_box: str = own_box_hint(own, fn_name, vname);
-                if str_len(hinted_box) > 0 && str_eq(type_base_name(st), "Box") == 0 { st = hinted_box; };
                 if str_len(st) == 0 { st = tstr; };
+                if str_len(st) == 0 {
+                    let hinted_box: str = own_box_hint(own, fn_name, vname);
+                    if str_len(hinted_box) > 0 { st = hinted_box; };
+                };
                 if own_binding_move_type(st, pool, structs, enums) == 1 {
                     if own_has_shared_overlap(own, src) == 1 || own_has_mut_overlap(own, src) == 1 {
                         warns = warns + own_diag(own, fn_name, "OWN-003", str_concat("cannot move '", str_concat(src, "': value is borrowed")), src);
@@ -10226,9 +10318,11 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             } else if node_kind(pool, rhs) == 3 {
                 let src: str = node_field(pool, rhs, 1);
                 let mut st: str = own_get_type(own, src);
-                let hinted_box: str = own_box_hint(own, fn_name, lname);
-                if str_len(hinted_box) > 0 && str_eq(type_base_name(st), "Box") == 0 { st = hinted_box; };
                 if str_len(st) == 0 { st = own_get_type(own, lname); };
+                if str_len(st) == 0 {
+                    let hinted_box: str = own_box_hint(own, fn_name, lname);
+                    if str_len(hinted_box) > 0 { st = hinted_box; };
+                };
                 if type_is_ref(st) == 1 {
                     own_copy_ref_binding(own, src, lname, scope_depth);
                     if type_is_mut_ref(st) == 1 {
@@ -10291,29 +10385,32 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     if kind == 23 {
         warns = warns + check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name);
         let snap: Vec<i32> = own_snapshot(own);
-        own_set_i(own, "cur_scope", scope_depth + 1);
+        own_set_cur_scope(own, scope_depth + 1);
         warns = warns + check_stmts(pool, node_field(pool, nid, 2), own, structs, enums, fn_name);
         own_release_scope(own, scope_depth + 1);
-        own_set_i(own, "cur_scope", scope_depth);
+        own_set_cur_scope(own, scope_depth);
         let then_state: Vec<i32> = own_snapshot(own);
         own_restore(own, snap);
+        vec_free(snap);
         let enode: i64 = node_field(pool, nid, 3);
         if enode >= 0 {
-            own_set_i(own, "cur_scope", scope_depth + 1);
+            own_set_cur_scope(own, scope_depth + 1);
             warns = warns + check_stmts(pool, enode, own, structs, enums, fn_name);
             own_release_scope(own, scope_depth + 1);
-            own_set_i(own, "cur_scope", scope_depth);
+            own_set_cur_scope(own, scope_depth);
         };
         let else_state: Vec<i32> = own_snapshot(own);
         own_merge_moved(own, then_state, else_state);
+        vec_free(then_state);
+        vec_free(else_state);
         return warns;
     };
     if kind == 24 {
         warns = warns + check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name);
-        own_set_i(own, "cur_scope", scope_depth + 1);
+        own_set_cur_scope(own, scope_depth + 1);
         warns = warns + check_stmts(pool, node_field(pool, nid, 2), own, structs, enums, fn_name);
         own_release_scope(own, scope_depth + 1);
-        own_set_i(own, "cur_scope", scope_depth);
+        own_set_cur_scope(own, scope_depth);
         return warns;
     };
     if kind == 25 {
@@ -10326,10 +10423,10 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         own_set_mutable(own, loop_var, 1);
         own_set_scope(own, loop_var, scope_depth + 1);
         own_set_param(own, loop_var, 0);
-        own_set_i(own, "cur_scope", scope_depth + 1);
+        own_set_cur_scope(own, scope_depth + 1);
         warns = warns + check_stmts(pool, node_field(pool, nid, 4), own, structs, enums, fn_name);
         own_release_scope(own, scope_depth + 1);
-        own_set_i(own, "cur_scope", scope_depth);
+        own_set_cur_scope(own, scope_depth);
         return warns;
     };
     if kind == 49 {
@@ -10340,13 +10437,15 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         own_set_scope(own, loop_var, scope_depth + 1);
         own_set_param(own, loop_var, 0);
         warns = warns + check_expr(pool, node_field(pool, nid, 2), own, structs, enums, fn_name);
-        own_set_i(own, "cur_scope", scope_depth + 1);
+        own_set_cur_scope(own, scope_depth + 1);
         warns = warns + check_stmts(pool, node_field(pool, nid, 3), own, structs, enums, fn_name);
         own_release_scope(own, scope_depth + 1);
-        own_set_i(own, "cur_scope", scope_depth);
+        own_set_cur_scope(own, scope_depth);
         return warns;
     };
     if kind == 38 {
+        let source_text: str = own_source(own);
+        let diag_vec: Vec<i32> = own_diags(own);
         warns = warns + check_expr(pool, node_field(pool, nid, 1), own, structs, enums, fn_name);
         let arms: i64 = node_field(pool, nid, 2);
         let ac: i64 = list_len(pool, arms);
@@ -10369,7 +10468,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 // span migration — use line + col instead of line-only.
                 let src: str = source_text;
                 let lc: Vec<i32> = find_linecol_in_source(src, fn_name, "match");
-                diag_add_ex(own_get_type(own, "__diags"), "warning", "type", "MATCH-007", str_concat("range pattern bounds in wrong order at arm ", str_concat(str_from_int(ai + 1), " — pattern can never match")), fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                diag_add_ex(diag_vec, "warning", "type", "MATCH-007", str_concat("range pattern bounds in wrong order at arm ", str_concat(str_from_int(ai + 1), " — pattern can never match")), fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                 warns = warns + 1;
             };
             let binding: str = node_field(pool, arm_nid, 3);
@@ -10384,19 +10483,20 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 own_set_scope(own, binding, scope_depth + 1);
                 own_set_param(own, binding, 0);
             };
-            own_set_i(own, "cur_scope", scope_depth + 1);
+            own_set_cur_scope(own, scope_depth + 1);
             warns = warns + check_stmts(pool, node_field(pool, arm_nid, 4), own, structs, enums, fn_name);
             own_release_scope(own, scope_depth + 1);
-            own_set_i(own, "cur_scope", scope_depth);
+            own_set_cur_scope(own, scope_depth);
             ai = ai + 1;
         };
+        vec_free(snap);
         // RFC-0016 phase 5 — MATCH-002: any arm following a wildcard is
         // unreachable (the wildcard already captures every value).
         if wildcard_idx >= 0 && wildcard_idx < ac - 1 {
             // v0.4.43 span migration: line+col via diag_add_ex.
             let src: str = source_text;
             let lc: Vec<i32> = find_linecol_in_source(src, fn_name, "match");
-            diag_add_ex(own_get_type(own, "__diags"), "warning", "type", "MATCH-002", str_concat("unreachable match arm after wildcard at arm ", str_concat(str_from_int(wildcard_idx + 1), str_concat(" of ", str_from_int(ac)))), fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+            diag_add_ex(diag_vec, "warning", "type", "MATCH-002", str_concat("unreachable match arm after wildcard at arm ", str_concat(str_from_int(wildcard_idx + 1), str_concat(" of ", str_from_int(ac)))), fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
             warns = warns + 1;
         };
         if has_wildcard == 0 && ac > 0 {
@@ -10410,7 +10510,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 let lc_int: Vec<i32> = find_linecol_in_source(source_text, fn_name, "match");
                 let kind_label_s: str = if str_eq(first_ename, "__int") == 1 { "integer" } else { "string" };
                 let msg_int_s: str = str_concat("non-exhaustive ", str_concat(kind_label_s, str_concat(" match: ", str_concat(str_from_int(ac), " arms with no `_` wildcard. The set of values is unbounded so unmatched cases silently no-op'd pre-v0.4.109 — add a `_ => { … }` arm to cover them explicitly."))));
-                diag_add_ex(own_get_type(own, "__diags"), "error", "type", "MATCH-001", msg_int_s, fn_name, vec_get(lc_int, 0), vec_get(lc_int, 1), "");
+                diag_add_ex(diag_vec, "error", "type", "MATCH-001", msg_int_s, fn_name, vec_get(lc_int, 0), vec_get(lc_int, 1), "");
                 warns = warns + 1;
             };
             if str_eq(first_ename, "__int") == 0 && str_eq(first_ename, "__str") == 0 && str_eq(first_ename, "__wild") == 0 {
@@ -10437,8 +10537,8 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                         // both diags to "error" severity so MATCH-001
                         // halts the build like every other TYP-* error.
                         let canon_msg: str = str_concat(msg, ". Workaround: add a `_ => default_value,` arm or list every variant explicitly.");
-                        diag_add_ex(own_get_type(own, "__diags"), "error", "type", "TYP-001", canon_msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
-                        diag_add_ex(own_get_type(own, "__diags"), "error", "type", "MATCH-001", canon_msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                        diag_add_ex(diag_vec, "error", "type", "TYP-001", canon_msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                        diag_add_ex(diag_vec, "error", "type", "MATCH-001", canon_msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
                         warns = warns + 2;
                     };
                 };
@@ -10789,8 +10889,8 @@ fn source_box_binding_type(source: str, fn_name: str, name: str) -> str {
     return "";
 }
 fn own_diag_ex(own: Vec<i32>, fn_name: str, code: str, message: str, symbol: str, checker: str) -> i64 {
-    let src: str = own_get_type(own, "__source");
-    let diags: Vec<i32> = own_get_type(own, "__diags");
+    let src: str = own_source(own);
+    let diags: Vec<i32> = own_diags(own);
     let loc: Vec<i32> = find_linecol_in_source(src, fn_name, symbol);
     diag_add_ex(diags, "error", checker, code, message, fn_name, vec_get(loc, 0), vec_get(loc, 1), "");
     return 1;
@@ -10803,7 +10903,7 @@ fn own_box_hint(own: Vec<i32>, fn_name: str, name: str) -> str {
     let cached: str = own_get_s(own, cache_key);
     if str_eq(cached, "_none_") == 1 { return ""; };
     if str_len(cached) > 0 { return cached; };
-    let source_text: str = own_get_type(own, "__source");
+    let source_text: str = own_source(own);
     let guessed: str = source_box_binding_type(source_text, fn_name, name);
     if str_len(guessed) > 0 {
         own_set_s(own, cache_key, guessed);
@@ -17004,8 +17104,9 @@ fn llvm_clang_path() -> str {
     //
     // Resolution order:
     //   1. NUCLEOR_CLANG env override (highest priority — explicit user wish)
-    //   2. Windows: C:\Program Files\LLVM\bin\clang.exe (default LLVM installer)
-    //   3. Windows: C:\msys64\mingw64\bin\clang.exe (MSYS2)
+    //   2. Windows: C:\Progra~1\LLVM\bin\clang.exe (short path avoids cmd quote overhead)
+    //   3. Windows: C:\Program Files\LLVM\bin\clang.exe (default LLVM installer)
+    //   4. Windows: C:\msys64\mingw64\bin\clang.exe (MSYS2)
     //   4. macOS: /opt/homebrew/opt/llvm/bin/clang (homebrew)
     //   5. macOS: /usr/local/opt/llvm/bin/clang (older homebrew)
     //   6. Linux: /usr/bin/clang, /usr/local/bin/clang
@@ -17016,6 +17117,8 @@ fn llvm_clang_path() -> str {
         // Windows: probe canonical LLVM install paths. file_read_string
         // returns the binary contents (PE files start with `MZ` so
         // strlen > 0); empty string ⇒ file doesn't exist.
+        let p0: str = "C:\\Progra~1\\LLVM\\bin\\clang.exe";
+        if str_len(file_read_string(p0)) > 0 { return p0; };
         let p1: str = "C:\\Program Files\\LLVM\\bin\\clang.exe";
         if str_len(file_read_string(p1)) > 0 { return p1; };
         let p2: str = "C:\\msys64\\mingw64\\bin\\clang.exe";
@@ -17278,6 +17381,16 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     if str_len(clang_log) > 0 { print(clang_log); };
     print(str_concat("  compiled: ", exe_path));
     return 0;
+}
+
+fn link_existing_native_module(ll_path_raw: str, out_name: str, imported: Vec<i32>, time_passes: i64) -> i64 {
+    let ll_path: str = sanitize(ll_path_raw);
+    let ll_bytes: str = file_read_string(ll_path);
+    if str_len(ll_bytes) == 0 {
+        print(str_concat("ERROR: native link cannot read emitted IR ", ll_path));
+        return 1;
+    };
+    return link_native_module(ll_bytes, out_name, imported, "", 1, time_passes);
 }
 
 // =====================================================
@@ -17858,6 +17971,8 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     print_phase_time(time_passes, "parse", now_ms() - parse_start);
     let prog: i64 = pr_val(r);
     let cnt: i64 = list_len(pool, prog);
+    free_token_vec(tokens);
+    vec_free(r);
 
     let mut strtab: Vec<i32> = Vec::new();
     let mut fns: Vec<i32> = Vec::new();
@@ -18032,6 +18147,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     type_check_program(pool, prog, structs, diags, source, type_prof);
     print_phase_time(time_passes, "type", now_ms() - type_start);
     tprof_dump(type_prof);
+    vec_free(type_prof);
     if strict_mode == 1 {
         print_phase_time(time_passes, "source", 0);
         print_phase_time(time_passes, "collect_pure", 0);
@@ -18092,6 +18208,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
             if diag_count_errors(diags) > 0 { return 1; };
         };
     };
+    vec_free(diags);
     let mut closures: Vec<i32> = Vec::new();
     let lower_start: i64 = now_ms();
     fi = 0;
@@ -18122,13 +18239,65 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     let emit_start: i64 = now_ms();
     let ll: str = emit_module_ext(fns, strtab, pool, externs, source);
     print_phase_time(time_passes, "emit", now_ms() - emit_start);
+    // Drop compile graph top-level Vec storage before clang so native
+    // link memory does not stack on top of the full compiler state.
+    vec_free(bundle);
+    free_node_pool(pool);
+    vec_free(strtab);
+    free_ir_fns(fns);
+    vec_free(externs);
+    vec_free(structs);
+    vec_free(enums);
+    vec_free(globals);
+    vec_free(fn_decls);
+    vec_free(trait_impls);
+    vec_free(impl_fns);
+    vec_free(closures);
     let rc: i64 = link_native_module(ll, safe_out_name, imported, cache_ll_path, link_native, time_passes);
     print_phase_time(time_passes, "total", now_ms() - total_start);
     return rc;
 }
 
 fn compile_file(src_path: str, out_name: str) -> i64 {
-    return compile_file_mode(src_path, out_name, 0, 1, 0, 1);
+    return compile_file_mode_native_isolated(src_path, out_name, 0, 1, 0, 1);
+}
+
+fn should_isolate_native_link(src_path: str) -> i64 {
+    if str_contains(src_path, "compiler/nucleor_s1_compiler.nr") == 1 { return 1; };
+    if str_contains(src_path, "compiler\\nucleor_s1_compiler.nr") == 1 { return 1; };
+    if str_contains(src_path, "compiler/nucleor_tools_suite.nr") == 1 { return 1; };
+    if str_contains(src_path, "compiler\\nucleor_tools_suite.nr") == 1 { return 1; };
+    return 0;
+}
+
+fn compile_file_mode_native_isolated(src_path: str, out_name: str, strict_mode: i64, use_cache: i64, time_passes: i64, link_native: i64) -> i64 {
+    if link_native == 0 { return compile_file_mode(src_path, out_name, strict_mode, use_cache, time_passes, 0); };
+    if strict_mode != 0 { return compile_file_mode(src_path, out_name, strict_mode, use_cache, time_passes, link_native); };
+    if args_count() == 0 { return compile_file_mode(src_path, out_name, strict_mode, use_cache, time_passes, link_native); };
+    if should_isolate_native_link(src_path) == 0 { return compile_file_mode(src_path, out_name, strict_mode, use_cache, time_passes, link_native); };
+    let total_start: i64 = now_ms();
+    let safe_out_name: str = normalize_output_name(out_name);
+    if str_len(safe_out_name) == 0 {
+        print(str_concat("ERROR: invalid output name: ", out_name));
+        return 1;
+    };
+    let mut child_cmd: str = str_concat(args_get(0), str_concat(" build ", sanitize(src_path)));
+    child_cmd = str_concat(child_cmd, str_concat(" -o ", safe_out_name));
+    child_cmd = str_concat(child_cmd, " --no-link");
+    if use_cache == 0 { child_cmd = str_concat(child_cmd, " --no-cache"); };
+    if time_passes == 1 { child_cmd = str_concat(child_cmd, " --time-passes"); };
+    let child_rc: i64 = system(child_cmd);
+    if child_rc != 0 { return child_rc; };
+    let ll_path: str = sanitize(str_concat("target/", str_concat(safe_out_name, ".ll")));
+    if str_len(file_read_string(ll_path)) == 0 {
+        print(str_concat("ERROR: native link cannot read emitted IR ", ll_path));
+        return 1;
+    };
+    let imported: Vec<i32> = Vec::new();
+    let rc: i64 = link_existing_native_module(ll_path, safe_out_name, imported, time_passes);
+    vec_free(imported);
+    print_phase_time(time_passes, "total_native", now_ms() - total_start);
+    return rc;
 }
 
 fn strip_ext(path: str) -> str {
@@ -22823,13 +22992,13 @@ fn main() -> i64 {
         return run_perf_command(src_path, argc, arg_start);
     };
     if str_eq(cmd, "build") {
-        return compile_file_mode(src_path, out_name, 0, use_cache, time_passes, link_native);
+        return compile_file_mode_native_isolated(src_path, out_name, 0, use_cache, time_passes, link_native);
     } else if str_eq(cmd, "build-fast") {
-        return compile_file_mode(src_path, out_name, 0, use_cache, time_passes, link_native);
+        return compile_file_mode_native_isolated(src_path, out_name, 0, use_cache, time_passes, link_native);
     } else if str_eq(cmd, "build-strict") {
         return run_external_tool(argc);
     } else if str_eq(cmd, "run") {
-        let rc: i64 = compile_file_mode(src_path, out_name, 0, use_cache, time_passes, 1);
+        let rc: i64 = compile_file_mode_native_isolated(src_path, out_name, 0, use_cache, time_passes, 1);
         if rc != 0 { return rc; };
         let exe: str = str_concat("target\\", str_concat(out_name, ".exe"));
         let mut run_rc: i64 = system(exe);
