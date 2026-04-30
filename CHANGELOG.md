@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.160] — 2026-04-29
+
+**`tools/verify.sh` now folds the parallel fixture phase
+internally via `xargs -P` worker pool. New `-j` / `--jobs` flag
+(also `NUC_VERIFY_JOBS` env). All 385 expected fixture result
+files produced; no missing-result-file gap. Closes residual #6.**
+
+Integration of `spike/v04-verify-parallel-foldin-v2` (commit
+6b12ea6) from the parallel-agent workstream.
+
+The previous parallel verifier at `tools/verify_parallel.sh`
+ran the fixture phase in a wait-queue worker pool that had a
+known issue: under contention, the queue silently dropped
+result files (the `wait -n` path missed completed jobs whose
+result file wrote slightly after the dispatch loop saw them
+done). The fold-in replaces the wait-queue dispatch with an
+`xargs -P` pool driving a worker function that emits one
+result file per fixture. The dynamic test/negative region
+keeps verify.sh's counters and CSV rows intact while
+eliminating the structural drop pattern.
+
+Validation captured by parallel agent before handoff:
+- `bash -n tools/verify.sh` parses clean
+- direct worker smoke: `tests/lang/arith.nr`
+- xargs-P smoke: `lang/arith`, `attrs/const_fn`, `err_args`
+- interrupted full run: reached folded phase, all 385 result
+  files produced, no missing-result-file gap
+
+Validation re-run on this main:
+- bash syntax OK
+- drift gate clean
+- parallel verifier: 211 PASS / 2 baseline-FAIL / **32.06s
+  wall** (down from 37.18s post-v0.4.159; total session-cycle
+  drop is 44s → 32s, ~27%)
+
+s1-only file change: `tools/verify.sh` (+217 lines, -15 lines).
+No compiler changes — pure tool-script work. Closes residual
+#6 from `PARALLEL_AGENT_HANDOFF_v0.4_RESIDUALS.md`.
+
 ## [0.4.159] — 2026-04-29
 
 **Self-host perf: peak RSS 519 MB → 420 MB, wall 6.3s → 3.15s,
