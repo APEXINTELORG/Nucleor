@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.200] — 2026-04-30
+
+**🎉 v0.4.200 milestone — phase 3 plan doc updated with the v0.4.199
+postmortem + revised step-3 design (Option D: AST-node width
+attachment).**
+
+`docs/RFC-0015_PHASE_3_PLAN_2026-04-30.md` extended with:
+
+- **Live progress log** — v0.4.196 substrate, v0.4.197 sext+trunc
+  + observation withdrawal, v0.4.198 fixture, v0.4.199 wiring
+  attempt + revert + root-cause of perf hit (per-var-ref str_concat
+  hash dominated).
+- **3 redesign options** ranked by perf cost:
+  - **(D) AST-node width annotation** — recommended. Type-check
+    writes width to slot 6 of kind-3 var-ref nodes; codegen reads
+    via single `node_field` call. Zero hash, zero str_concat.
+    Expected hot perf delta: +0–2%.
+  - **(E) Encode width in `__type_<vname>`** — changes existing
+    sym semantics globally; medium-risk refactor.
+  - **(F) Parallel reg_widths Vec** — refactor surface is ~30+ fn
+    signatures; high effort.
+- **Step-3 retry execution plan** for Option (D) — 5 substeps,
+  each gated on T1.7 + drift + verify + perf.
+
+After step-3 ships, phase 3a is complete and phase 3b (binops
+at narrower widths) becomes the next focus.
+
+No code changes this ship.
+
 ## [0.4.199] — 2026-04-30
 
 **RFC-0015 phase 3a-step-3 wiring attempt — REVERTED for perf
