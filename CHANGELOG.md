@@ -5,6 +5,34 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.168] — 2026-04-30
+
+**Migration story v0.2 → v0.4 — closes a v0.4 success-criteria
+checkbox.**
+
+`docs/migrations/v0.2-to-v0.4.md` — companion to
+`docs/migrations/v0.1-to-v0.2.md`. Covers:
+- TL;DR for upgraders ("v0.4 source mostly compiles unchanged from v0.2")
+- High-impact features (rich pattern matching, saturating/wrapping
+  blocks, nuc doc polish, closures + concurrency, generic trait bounds)
+- **Adopter-impact errors table** — newly-rejected v0.2 patterns
+  (TYP-014/016/021–025, NUM-022/023, MATCH-011/012, OWN-001) with
+  remediation hint per code
+- TYP-014 narrowing in v0.4.164 — note for adopters who hit the
+  v0.4.122–.163 false-positive on closure / fn-ptr-in-i64 code
+- Performance + memory targets (3s cold / 0.9s hot / 131 MB peak,
+  with 6.54s/0.88s/502MB locked baseline)
+- Diagnostics taxonomy table (TYP/NUM/MATCH/OWN/NR/RT families)
+- Stdlib + tooling additions cumulative since v0.2.0
+- Operating model note (probe + fix dual-agent split, two-tier
+  resource policy)
+- Reference release counts
+
+The v0.4.0.md milestone tracker checkbox for "Migration story for
+v0.2→v0.4 in CHANGELOG" is now flipped to DONE.
+
+No compiler changes; no version bump beyond the doc.
+
 ## [0.4.167] — 2026-04-30
 
 **RFC-0029 — `nuc doc` adds Struct index + Enum index.**
