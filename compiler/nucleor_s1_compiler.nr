@@ -13025,6 +13025,14 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             type_diag(diags, source, fn_name, fn_name, "TYP-011", "`for <var> in <String>` is not supported — String is a heap-allocated buffer; the kind-49 for-loop expects a container iterable. Convert via `str_chars(s.as_str())` and iterate that Vec<i64>, or walk byte-by-byte with `let mut i: i64 = 0; while i < s.len() { let c = s.get_byte(i); ...; i = i + 1; }`.");
         } else if type_is_int(v152_iter_t) == 1 || type_is_float(v152_iter_t) == 1 || str_eq(v152_iter_t, "bool") == 1 {
             type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`for <var> in <", str_concat(v152_iter_t, ">` is not supported — scalar / bool values are not iterable. Use a range (`for i in 0..n`), a Vec, or another container.")));
+        } else if str_starts_with(v152_iter_t, "Vec<") == 0 && struct_find_type(pool, structs, v152_iter_t) >= 0 {
+            // v0.4.179: TYP-011 ext — struct value as `for` iterand silently bit-walked
+            // the struct's storage via vec_len/vec_get (type-punned heterogeneous fields,
+            // leaked Vec/String/`&T` pointers as integers). Vec<...> short-circuit
+            // skips the structs linear scan on the dominant valid case.
+            // Detected + first-implemented by probe agent (orphan commit d8b1006);
+            // integrated to main 2026-04-30.
+            type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`for <var> in <", str_concat(v152_iter_t, ">` is not supported — struct values are not iterable; the kind-49 codegen would bit-walk the struct's storage. Iterate a Vec field explicitly (`for x in s.items`), or build a `Vec<T>` of the values you want to walk.")));
         };
         return type_check_stmts(pool, prog, node_field(pool, nid, 3), env, sigs, structs, fn_name, diags, source, rtype, tprof);
     };
