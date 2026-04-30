@@ -13098,15 +13098,47 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
         // TYP-021 didn't fire. Sister to v0.4.139 (Vec void mutator
         // route to "void" → cascades to TYP-021/020/022).
         if init >= 0 && node_kind(pool, init) == 42 {
-            let v146_pc: i64 = list_len(pool, node_field(pool, init, 1));
+            let v146_params: i64 = node_field(pool, init, 1);
+            let v146_pc: i64 = list_len(pool, v146_params);
             tenv_set(env, str_concat("__closure_argc_", vname), str_from_int(v146_pc));
             // Type the closure body's last stmt to learn the rtype.
             // For void-returning bodies (last stmt is a kind-25
             // tail-expr-stmt wrapping a print_int / similar void
             // helper), this returns "void". For value-returning
             // bodies it returns the value's type.
+            //
+            // v0.4.214: type_last_stmt on the closure body must run
+            // in a SCOPED env that includes the closure's parameters
+            // AND any closure-local let-bindings. Pre-fix `let outer
+            // = |x| { let inner = |y| ...; inner(args) };` saw
+            // type_last_stmt walk the body with the OUTER env (no
+            // closure-locals), which fed type_expr kind 7 a callee
+            // `inner` it couldn't find — false-firing TYP-005.
+            // Closes findings/inbox/2026-04-30-typ-005-fires-on-closure-binding-in-closure.md.
             let v156_body: i64 = node_field(pool, init, 2);
-            let v156_rtype: str = type_last_stmt(pool, prog, v156_body, env, sigs, structs, fn_name, diags, source, tprof);
+            let v214_scoped_env: Vec<i32> = own_snapshot(env);
+            let mut v214_pi2: i64 = 0;
+            while v214_pi2 < v146_pc {
+                let v214_pname2: str = list_get(pool, v146_params, v214_pi2);
+                tenv_set(v214_scoped_env, v214_pname2, "i64");
+                v214_pi2 = v214_pi2 + 1;
+            };
+            // Pre-walk body let-stmts to populate scoped env with
+            // closure-local bindings before type_last_stmt's tail-expr
+            // type-resolution touches them.
+            let v214_bcnt: i64 = list_len(pool, v156_body);
+            let mut v214_li: i64 = 0;
+            while v214_li < v214_bcnt {
+                let v214_lnid: i64 = list_get(pool, v156_body, v214_li);
+                if node_kind(pool, v214_lnid) == 20 {
+                    let v214_lname: str = node_field(pool, v214_lnid, 1);
+                    let v214_ltstr: str = node_field(pool, v214_lnid, 3);
+                    tenv_set(v214_scoped_env, v214_lname, if str_len(v214_ltstr) > 0 { v214_ltstr } else { "i64" });
+                };
+                v214_li = v214_li + 1;
+            };
+            let v156_rtype: str = type_last_stmt(pool, prog, v156_body, v214_scoped_env, sigs, structs, fn_name, diags, source, tprof);
+            vec_free(v214_scoped_env);
             if str_len(v156_rtype) > 0 {
                 tenv_set(env, str_concat("__closure_rtype_", vname), v156_rtype);
             };
