@@ -105,3 +105,66 @@ fn main() -> i32 {
 
 If you can isolate, file the formal finding in
 `findings/inbox/<slug>.md`.
+
+---
+
+## 2026-04-30 (during v0.4.201 examples/25_patterns_tour.nr write)
+
+**SILENT MISCOMPUTE FOUND** while writing an adopter pattern-tour
+example: struct-destructure with a guard always takes the first
+arm's body, regardless of whether the guard evaluates true.
+
+**Repro (minimal):**
+
+```nr
+struct Point { x: i32, y: i32 }
+
+fn check(p: Point) -> i32 {
+    match p {
+        Point { x, y } if x == 0 => 100,
+        Point { x, y } => x + y,
+    }
+}
+
+fn main() -> i32 {
+    print_int(check(Point { x: 3, y: 4 }));   // expected 7  → ACTUAL: 100
+    print_int(check(Point { x: 0, y: 99 }));  // expected 100 → 100 (correct by accident)
+    0
+}
+```
+
+`x: 3, y: 4` should fall through the first arm (guard `x == 0`
+is false) and match the second arm, returning `x + y = 7`. Instead
+it executes the first arm's body and returns 100.
+
+**Suspected:** the codegen for a struct-destructure pattern arm
+emits the body BEFORE the guard check, OR doesn't emit the
+guard-failure branch correctly. Plain integer pattern guards work
+fine (verified: `match x { n if n > 100 => 1, n => n }` falls
+through correctly when the guard fails).
+
+**Discovered against:** v0.4.200.
+
+**Severity:** silent-miscompute. Adopter writing the v0.5+
+field-equality workaround pattern (`Point { x, y } if x == 0 && y == 0`)
+gets WRONG results for non-origin Points.
+
+**Cross-ref:** RFC-0023 audit (v0.4.171) — pattern guards on
+SIMPLE patterns work; the bug surfaces only with struct
+destructure as the pattern shape.
+
+**Workaround for adopters today:** explicit field comparison
+without struct destructure binding the same names:
+
+```nr
+fn check(p: Point) -> i32 {
+    let x: i32 = p.x;
+    let y: i32 = p.y;
+    if x == 0 { return 100; };
+    x + y
+}
+```
+
+Probe agent: please isolate the codegen path (likely match-arm
+lowering at kind-49 or kind-39 with guard branching on struct
+patterns) and file the formal finding.
