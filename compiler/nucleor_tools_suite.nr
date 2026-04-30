@@ -12305,8 +12305,28 @@ fn doc_render_html(src_path: str, src: str, out_path: str) -> i64 {
         if lp + 3 <= llen && str_eq(str_substring(line, lp, lp + 3), "///") == 1 {
             let mut bp: i64 = lp + 3;
             if bp < llen && str_char_at(line, bp) == 32 { bp = bp + 1; };
-            sb_append(last_doc_sb, doc_html_escape(str_substring(line, bp, llen)));
-            sb_append(last_doc_sb, "<br>\n");
+            let inner_html: str = str_substring(line, bp, llen);
+            // v0.4.176: HTML mode — recognize `#`-headings inside /// blocks
+            // and emit them as <h3>/<h4>/<h5> elements (demoted by 2 levels
+            // since the parent fn heading is <h2>). Pre-fix `# Examples`
+            // rendered as a literal "# Examples" string with <br>.
+            let il: i64 = str_len(inner_html);
+            let mut hcount_h: i64 = 0;
+            while hcount_h < il && str_char_at(inner_html, hcount_h) == 35 { hcount_h = hcount_h + 1; };
+            if hcount_h > 0 && hcount_h <= 4 && hcount_h < il && str_char_at(inner_html, hcount_h) == 32 {
+                let h_level: i64 = hcount_h + 2;
+                let h_text: str = str_substring(inner_html, hcount_h + 1, il);
+                sb_append(last_doc_sb, "<h");
+                sb_append(last_doc_sb, str_from_int(h_level));
+                sb_append(last_doc_sb, ">");
+                sb_append(last_doc_sb, doc_html_escape(h_text));
+                sb_append(last_doc_sb, "</h");
+                sb_append(last_doc_sb, str_from_int(h_level));
+                sb_append(last_doc_sb, ">\n");
+            } else {
+                sb_append(last_doc_sb, doc_html_escape(inner_html));
+                sb_append(last_doc_sb, "<br>\n");
+            };
             last_doc_lines = last_doc_lines + 1;
         } else {
             let fn_name: str = extract_fn_name_from_line(line);
