@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.188] — 2026-04-30
+
+**RFC-0002 (allocator types) status — partial: basic `Box<T>`
+ships, parameterized allocators genuinely deferred.**
+
+```nucleor
+let b: Box<i32> = Box::new(42);    // ✓ works (Box<T, Global> sugar)
+print_int(*b);                      // prints 42
+```
+
+```nucleor
+let arena: Arena = Arena::new(1 << 16);    // ✗ "unsupported
+                                            //    associated-fn call"
+let b: Box<i32, Arena> = arena.alloc(42);  // never reached
+```
+
+The unsugared `Box<T, Global>` form is what `Box::new(...)` lowers
+to. The parameterized form `Box<T, Arena>` / `Box<T, Pool>` /
+`Box<T, TLSF>` and the corresponding `Arena` / `Pool` / `TLSF`
+types are deferred to v0.5+.
+
+Status flipped Draft → Partial (audited v0.4.188) with explicit
+deferral list for the non-Global allocators.
+
+No code changes.
+
 ## [0.4.187] — 2026-04-30
 
 **RFC-0001 (real-time function attributes) status updated —

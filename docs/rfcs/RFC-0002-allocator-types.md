@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0002 |
 | **Title** | Allocator Types — `Box<T, A: Allocator>`, `Vec<T, A: Allocator>`, plus Arena / Pool / TLSF |
-| **Status** | Draft |
+| **Status** | Partial (audited v0.4.188). Basic `Box<T>` (sugar for `Box<T, Global>`) + `Box::new(value)` ship + lower correctly + free on drop. **Deferred to v0.5+:** parameterized allocator types `Box<T, Arena>` / `Box<T, Pool>` / `Box<T, TLSF>`, the `Arena` / `Pool` / `TLSF` types themselves (their `::new(...)` associated fns aren't recognized — currently fails with "unsupported associated-fn call"), and the parameterized `#[no_alloc(global)]` / `#[no_alloc(global, pool)]` form. The non-parameterized `#[no_alloc]` ships per RFC-0001. |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.3.0 ("Robotics Foundation") |
