@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0007 |
 | **Title** | `#[atomic]` attribute, `Atomic<T>` types, and lock-free primitives |
-| **Status** | Draft |
+| **Status** | Partial (audited v0.4.191). `stdlib/rods/atomic.nr` ships an `AtomicI64` surface with sequentially-consistent ordering, backed by Win32 `Interlocked*` (MSVC) and C11 stdatomic (POSIX). API: `atomic_new(initial) → handle`, `atomic_load_v(h)`, `atomic_store_v(h, v)`, `atomic_add(h, v)`, `atomic_sub`, `atomic_and_v`, `atomic_or_v`, `atomic_xor_v`, `atomic_cas` (compare-and-swap), `atomic_drop(h)`. The 64-bit lock-free counter / CAS spinlock / atomic flag use cases are all covered. **Deferred to v0.5.0+ targeted ship:** the `#[atomic]` attribute (compile-time enforcement of "this fn only uses atomic ops"), `Atomic<T>` generic surface for non-i64 widths, Relaxed/Acquire/Release ordering variants, and the SPSC/MPMC lock-free queues built on top. |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.5.0 ("Production Robotics") |

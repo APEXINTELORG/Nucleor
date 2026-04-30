@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.191] — 2026-04-30
+
+**RFC-0007 (atomics) status — partial. `AtomicI64` surface ships
+in stdlib; `#[atomic]` attribute + ordering variants deferred.**
+
+```nucleor
+import "stdlib/rods/atomic.nr"
+fn main() -> i32 {
+    let h: i64 = atomic_new(0);
+    atomic_store_v(h, 42);
+    print_int(atomic_load_v(h) as i32);    // ✓ prints 42
+    atomic_drop(h);
+    0
+}
+```
+
+`stdlib/rods/atomic.nr` ships sequentially-consistent
+`AtomicI64`-style ops backed by Win32 `Interlocked*` (MSVC)
+and C11 stdatomic (POSIX). API: new/drop, load/store, add,
+sub, and/or/xor, CAS.
+
+Status flipped Draft → Partial (audited v0.4.191).
+
+**Deferred to v0.5.0:** `#[atomic]` attribute (compile-time
+enforcement that a fn only uses atomic ops), `Atomic<T>` generic
+for non-i64 widths, Relaxed/Acquire/Release ordering variants,
+SPSC/MPMC lock-free queues.
+
+No code changes.
+
 ## [0.4.190] — 2026-04-30
 
 **RFC-0014 (`#[max_depth = N]`) status updated — attribute parses,
