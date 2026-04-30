@@ -7152,6 +7152,12 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
                 let v146msg_t: str = str_concat("wrong number of arguments to closure `", str_concat(callee, str_concat("`: expected ", str_concat(str_from_int(v146_expected_t), str_concat(", got ", str_from_int(argc))))));
                 type_diag(diags, source, fn_name, callee, "TYP-005", v146msg_t);
             };
+            // v0.4.156 mirror: return closure body rtype.
+            let v156_rtype_t: str = tenv_get(env, str_concat("__closure_rtype_", callee));
+            if str_len(v156_rtype_t) > 0 {
+                tprof_mark(tprof, 9, 10, call_start);
+                return v156_rtype_t;
+            };
         };
         tprof_mark(tprof, 9, 10, call_start);
         return builtin_rtype(callee);
@@ -7259,9 +7265,15 @@ fn type_check_stmt(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, stru
         }
         else { tenv_set(env, vname, init_t); };
         // v0.4.146 mirror: register closure argc on the binding.
+        // v0.4.156 mirror: also register the closure's body rtype.
         if init >= 0 && node_kind(pool, init) == 42 {
             let v146_pc_t: i64 = list_len(pool, node_field(pool, init, 1));
             tenv_set(env, str_concat("__closure_argc_", vname), str_from_int(v146_pc_t));
+            let v156_body_t: i64 = node_field(pool, init, 2);
+            let v156_rtype_t2: str = type_last_stmt(pool, v156_body_t, env, sigs, structs, fn_name, diags, source, tprof);
+            if str_len(v156_rtype_t2) > 0 {
+                tenv_set(env, str_concat("__closure_rtype_", vname), v156_rtype_t2);
+            };
         };
         return warns;
     };

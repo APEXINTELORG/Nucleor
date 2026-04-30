@@ -12056,6 +12056,16 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 let v146b: str = ". Pre-v0.4.146 the indirect call lowered with the supplied arg count and the closure body read undefined registers for the missing params (or ignored extra args), producing garbage at runtime. Match the closure's declared parameter list at every call site.";
                 type_diag(diags, source, fn_name, callee, "TYP-005", str_concat(v146a, v146b));
             };
+            // v0.4.156: return the closure's body rtype (registered
+            // at let-stmt time) so callers see "void" / "i64" / etc.
+            // instead of the blanket "" from builtin_rtype. Cascades
+            // into v0.4.136 TYP-021 (`let r = void_closure(args)`),
+            // v0.4.132 TYP-020 (binop with void closure result), etc.
+            let v156_rtype: str = tenv_get(env, str_concat("__closure_rtype_", callee));
+            if str_len(v156_rtype) > 0 {
+                tprof_mark(tprof, 9, 10, call_start);
+                return v156_rtype;
+            };
         };
         if sentry < 0 && type_dynamic_helper(callee) == 0 && str_len(get_rt_name(callee)) == 0 && str_len(builtin_rtype(callee)) == 0 {
             let clen: i64 = str_len(callee);
@@ -12580,9 +12590,27 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
         // wasn't in sigs and had no type_expr branch for kind 42)
         // and the indirect call lowered with arg_regs of length 1
         // for a 2-param closure → garbage at runtime.
+        // v0.4.156: also register the closure's return type so the
+        // call site can return it from kind-7 type_expr instead of
+        // the blanket "" that builtin_rtype returns for non-runtime
+        // names. Pre-fix `let r = f(args);` for a void-returning
+        // closure (e.g. `|n: i64| { print_int(n); }`) silently bound
+        // r=0 because init_t was "" (not "void"), so v0.4.136
+        // TYP-021 didn't fire. Sister to v0.4.139 (Vec void mutator
+        // route to "void" → cascades to TYP-021/020/022).
         if init >= 0 && node_kind(pool, init) == 42 {
             let v146_pc: i64 = list_len(pool, node_field(pool, init, 1));
             tenv_set(env, str_concat("__closure_argc_", vname), str_from_int(v146_pc));
+            // Type the closure body's last stmt to learn the rtype.
+            // For void-returning bodies (last stmt is a kind-25
+            // tail-expr-stmt wrapping a print_int / similar void
+            // helper), this returns "void". For value-returning
+            // bodies it returns the value's type.
+            let v156_body: i64 = node_field(pool, init, 2);
+            let v156_rtype: str = type_last_stmt(pool, prog, v156_body, env, sigs, structs, fn_name, diags, source, tprof);
+            if str_len(v156_rtype) > 0 {
+                tenv_set(env, str_concat("__closure_rtype_", vname), v156_rtype);
+            };
         };
         return warns;
     };
