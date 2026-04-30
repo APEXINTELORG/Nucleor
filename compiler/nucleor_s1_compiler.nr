@@ -931,6 +931,24 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
         cp = cp + 2;
     };
     let att: i64 = pk(tokens, cp);
+    // v0.4.206: reject float-literal patterns at parse time.
+    // Pre-fix `match <f64> { 1.5 => ..., _ => ... }` (or any
+    // float-lit pattern) crashed the compiler with ACCESS_VIOLATION
+    // (Windows -1073741819 / SIGSEGV) — the parser fell through to
+    // the wildcard branch (line 1034) which assigned `binding`
+    // to `pkv(...)` of the float-lit token (an i64 bit pattern,
+    // not a str ptr); a downstream str op then dereferenced the
+    // i64 as a heap address. Float equality patterns are fragile
+    // (NaN ≠ NaN; round-off drift) so this is the right intentional
+    // rejection — Rust forbids float patterns since 1.0.
+    // Catches at parse time so the rejection fires regardless of
+    // scrutinee type (`match 1.5 { 1.5 => ... }` and `match x { 1.5
+    // => ... }` both halt cleanly).
+    // Tokens: 70 = f-suffix-typed lit, 124 = f64 raw-bits lit,
+    // 125 = f32 lit. All three trigger the same hazard.
+    if att == 70 || att == 124 || att == 125 {
+        panic("error[MATCH-013]: float-literal pattern in `match` arm is not supported. Float equality is fragile (NaN ≠ NaN; round-off drift means literal-equality matches surprise-fail), so pattern-matching on `f32`/`f64` values has no defined semantics here. Pre-v0.4.206 the compiler crashed with ACCESS_VIOLATION (no diagnostic) attempting to lower the float-lit pattern. Use an `if`-chain (`if (x - 1.5).abs() < 0.001 { ... }`) for tolerance-based comparison, or convert via `(x * 100.0) as i32` to match on integer scaled values.");
+    };
     let mut ename: str = "";
     let mut vname: str = "";
     let mut binding: str = "";
@@ -7892,6 +7910,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "MATCH-010") == 1 { return 1; };
     if str_eq(code, "MATCH-011") == 1 { return 1; };
     if str_eq(code, "MATCH-012") == 1 { return 1; };
+    if str_eq(code, "MATCH-013") == 1 { return 1; };
     // RFC-0017 collections
     if str_eq(code, "COLL-001") == 1 { return 1; };
     if str_eq(code, "COLL-002") == 1 { return 1; };
@@ -12644,6 +12663,23 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         let arms: i64 = node_field(pool, nid, 2);
         let ac: i64 = list_len(pool, arms);
         let mut out_t: str = "";
+        // v0.4.206: MATCH-013 — reject float scrutinees BEFORE the arm
+        // walk reaches lower_expr's pattern-codegen path. Pre-fix the
+        // compiler ACCESS_VIOLATIONed (Windows -1073741819 / SIGSEGV)
+        // on `match <f64> { 1.5 => ..., _ => ... }` because the int-
+        // pattern lowering path emitted icmp eq against an f64-typed
+        // scrutinee and followed a NULL ptr through the codegen
+        // dispatch. Float equality patterns are fragile (NaN ≠ NaN;
+        // round-off drift) so this is the right intentional rejection
+        // anyway — Rust forbids float patterns since 1.0. Halts at
+        // type-check before any codegen runs.
+        // Closes findings/inbox/2026-04-30-compiler-segfault-on-float-match-scrutinee.md.
+        if type_is_float(scrut_t) == 1 {
+            let m13a: str = str_concat("float scrutinee in `match` is not supported (got `", str_concat(scrut_t, "`)."));
+            let m13b: str = " Float equality is fragile (NaN ≠ NaN; round-off drift means literal-equality matches surprise-fail), so pattern-matching on `f32`/`f64` values has no defined semantics here. Pre-v0.4.206 the compiler crashed with ACCESS_VIOLATION (no diagnostic) trying to lower the int-pattern path against a float scrutinee. Use an `if`-chain (`if (x - 1.5).abs() < 0.001 { ... }`) for tolerance-based comparison, or convert via `(x * 100.0) as i32` to match on integer scaled values.";
+            type_diag(diags, source, fn_name, "match", "MATCH-013", str_concat(m13a, m13b));
+            return "i64";
+        };
         let mut ai: i64 = 0;
         while ai < ac {
             let arm_nid: i64 = list_get(pool, arms, ai);

@@ -5,6 +5,81 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.206] — 2026-04-30
+
+**COMPILER-MELTDOWN CLOSE — `match <f64> { 1.5 => ... }` no longer
+ACCESS_VIOLATIONs the compiler.** Highest severity tier per project
+mandate; previously the compiler exited with no diagnostic and no
+.ll file emitted, leaving adopters with an opaque non-zero exit.
+
+**Repro:**
+
+```nucleor
+fn main() -> i32 {
+    let x: f64 = 1.5;
+    let r: i32 = match x {
+        1.5 => 100,             // pre-fix: compiler SIGSEGV / ACCESS_VIOLATION
+        _ => 0,                 // post-fix: clean MATCH-013 halt
+    };
+    print_int(r);
+    0
+}
+```
+
+**Root cause:** `parse_match_one_pattern` at line 933 had branches
+for int-lit (token 2), str-lit (token 3), wildcard, struct, tuple,
+slice, and enum-variant patterns — but no branch for float-lit
+tokens (70 / 124 / 125). The fall-through assigned `binding =
+pkv(...)` of the float-lit token (an i64 bit-pattern, not a str
+ptr); a downstream str op then dereferenced that integer as a heap
+address. Compiler-side SIGSEGV with no diagnostic.
+
+**Fix (two sites):**
+
+1. **Parse-time** rejection at `parse_match_one_pattern:933` — if
+   the pattern starts with token 70/124/125 (any float-lit form),
+   panic with MATCH-013. Catches the parse-shape that crashed.
+2. **Type-check** rejection at kind 38 (line 12642) — if the
+   scrutinee resolves to `f32`/`f64`, emit MATCH-013 error. Catches
+   the wildcard-only match on a float scrutinee, where parse
+   succeeds but the codegen path is still risky.
+
+Either guard alone would close the meltdown; both are kept because
+they catch different failure modes (parse-shape vs scrutinee-type)
+and produce distinct, accurate diagnostic messages.
+
+**Why intentional rejection (not eventual support):** Float
+equality is fragile — `NaN ≠ NaN` per IEEE-754, and arithmetic
+round-off drift makes literal-equality patterns surprise-fail.
+Rust forbids float patterns since 1.0 for the same reason.
+Adopters get a clear MATCH-013 with two suggested workarounds:
+tolerance-based `if`-chain (`if (x - 1.5).abs() < 0.001 { ... }`),
+or scaled-int conversion (`match (x * 100.0) as i32 { 150 =>
+... }`).
+
+**MATCH-013 wired** through:
+- `compiler/nucleor_s1_compiler.nr:7912` — `is_known_diag_code`
+- `compiler/nucleor_tools_suite.nr:10367` — short title
+- `compiler/nucleor_tools_suite.nr:10573` — long description
+- `compiler/nucleor_tools_suite.nr:10763` — workaround line
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 expected pre-tag; 8 pre-existing
+baseline failures unrelated).
+
+**Perf:** cold 3.10s / 3.37s ceiling • hot 0.89s / 0.97s ceiling •
+peak 131MB / 144MB ceiling. All clean.
+
+Closes `findings/inbox/2026-04-30-compiler-segfault-on-float-match-scrutinee.md`
+→ `findings/promoted/`. Regression-guard fixture at
+`tests/fixtures/repro_v206_match_float_scrutinee_halts.nr`.
+
+**Cross-ref family (compiler/runtime SIGSEGV closes):**
+- v0.4.140 (MATCH-011: heterogeneous match arms — runtime SIGSEGV)
+- v0.4.143 (NUM-023: float / bool SIGSEGV)
+- **v0.4.206 (this ship): float-match compiler SIGSEGV** — sibling
+
+---
+
 ## [0.4.205] — 2026-04-30
 
 **MEMORY-BLOW-UP CLOSE — `for x in v { v.push(...) }` no longer grows
