@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.205] — 2026-04-30
+
+**MEMORY-BLOW-UP CLOSE — `for x in v { v.push(...) }` no longer grows
+unboundedly.** Aligns directly with the project's e-stop policy: this
+class of bug exists exactly because Run-Capped exists, and an adopter
+without Run-Capped would see OS pause / OOM-kill on unrelated processes.
+
+**Repro:**
+
+```nucleor
+fn main() -> i32 {
+    let mut v: Vec<i32> = Vec::new();
+    v.push(1); v.push(2); v.push(3);
+    for x in v {
+        v.push(x + 100);     // pre-fix: extends iter range each loop
+    };                          //          memory grows unboundedly
+    print_int(v.len() as i32);  // pre-fix: never reached (OOM kill)
+                                  // post-fix: 6 (3 originals + 3 pushed)
+    0
+}
+```
+
+**Root cause:** for-loop lowering at line 16970-16971 called
+`vec_len(v)` in the **header block** — re-computed on every iteration.
+Body pushes grew len, the exit check `idx < len` never tripped, memory
+grew without bound until Run-Capped killed the process at the configured
+ceiling.
+
+**Fix:** snapshot `vec_len` ONCE before the loop, store in a fresh
+alloca slot, reuse on every iteration. Pushes inside the body extend
+the Vec but are not visited. Matches Rust's
+`for x in v.iter().take(initial_len)` shape.
+
+**Why snapshot vs compile-time OWN-NNN:** the canonical borrow-check
+fix would reject this code at compile time (OWN-NNN: "cannot mutably
+borrow `v` while iterating it"), but requires walking the loop body
+during ownership analysis to detect any `<bind>.push/pop/insert/remove`
+or `<bind>[i] = ...` mutation — a much larger surface that touches
+multiple existing OWN diagnostics. The snapshot fix removes the
+memory-blow-up immediately; full borrow-check is tracked for a later
+ship if needed.
+
+**Four cases locked in** by
+`tests/features/for_loop_push_during_iter_bounded.nr`:
+1. push during iter — terminates, original_len + K elements
+2. empty Vec — zero iterations
+3. read-only body — exact element count
+4. multi-push body — bounded by snapshot regardless of K
+
+**Verify:** 601 PASS / 9 FAIL (T1.7 expected pre-tag; 8 pre-existing
+baseline failures unrelated to this ship).
+
+**Perf:** cold 3.19s / 3.37s ceiling • hot 0.91s / 0.97s ceiling •
+peak 131MB / 144MB ceiling. All clean.
+
+**Cross-ref:**
+- v0.4.152 (TYP-011 ext: for over str/String/scalar/bool) — same
+  lowering site, adjacent fix.
+- v0.4.163 (TYP-011 reject for-on-struct) — same lowering site.
+- v0.4.154 (OWN-001: String use-after-move) — adjacent borrow-conflict
+  family; the canonical OWN-NNN equivalent for this finding lives in
+  the same family but is deferred per snapshot-vs-OWN tradeoff above.
+
+Closes `findings/inbox/2026-04-30-push-during-for-iter-unbounded.md`
+→ `findings/promoted/`.
+
+---
+
 ## [0.4.204] — 2026-04-30
 
 **Silent-miscompute close — `|y| { y + 7 }` (braced-body closure)

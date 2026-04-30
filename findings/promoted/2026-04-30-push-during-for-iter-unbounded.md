@@ -6,6 +6,7 @@ diagnostic_actual: none (compile clean, runtime grows memory unboundedly)
 diagnostic_expected: OWN-NNN — "cannot mutably borrow `v` while iterating it" at compile time
 discovered_against: v0.4.162 (commit 213fee9)
 commit: 213fee9e84101dad4a06807f994413d7d4f1cb86
+status: CLOSED in v0.4.205 via runtime snapshot. The for-loop lowering now computes vec_len ONCE before the loop and reuses it across iterations. Pushes inside the body extend the Vec but are not visited. Memory blow-up eliminated. Regression-guard at tests/features/for_loop_push_during_iter_bounded.nr locks in 4 cases (push-during-iter, empty, readonly, multi-push). Note: this is the snapshot fix, not the canonical compile-time OWN-NNN borrow-check fix; the latter is deferred and tracked separately if needed.
 ---
 
 ## Repro
