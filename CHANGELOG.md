@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.174] — 2026-04-30
+
+**RFC-0029 — `nuc doc` cross-links param + return types to in-file
+struct / enum anchors. Adds an anchored Types section.**
+
+When a function signature references a `struct` or `enum` declared
+in the same source file, the type name in the Parameters and Returns
+lines now renders as a Markdown link to a `#type-<Name>` anchor:
+
+```nucleor
+struct Point { x: i32, y: i32 }
+fn distance(a: Point, b: Point) -> f64 { ... }
+```
+
+Markdown:
+
+```markdown
+## `distance`
+
+Computes distance between two Points.
+
+**Parameters:**
+- a: [Point](#type-Point)
+- b: [Point](#type-Point)
+
+**Returns:** f64
+```
+
+A new `## Types` section emits anchor stubs (`<a id="type-Point"></a>`)
+for every struct and enum found in the file. Per-struct/enum DETAIL
+sections (field/variant tables) are still deferred to a future ship;
+the anchors give cross-refs a real target today.
+
+The Struct/Enum index entries also become links into the Types
+section.
+
+The new helper `link_known_types_md` tokenizes its input by
+identifier-runs (`[A-Za-z_][A-Za-z0-9_]*`) and rewrites any token
+matching a known type name as `[<Name>](#type-<Name>)`, leaving
+generics (`Vec<Point>`), tuples (`(Point, i32)`), and path types
+(`std::Point`) structurally intact.
+
+Note: per-parameter lines no longer wrap the `name: type` text in
+backticks. Markdown code spans render link syntax as literal text,
+which would defeat the cross-link. The Signature block keeps the
+fenced code block (no links there — that's for the literal source).
+
+Verify: 217 PASS / 1 FAIL (unchanged).
+Perf:   cold 3.07s (max 7.20s) | hot 0.89s (max 0.97s) | peak 131MB.
+
 ## [0.4.173] — 2026-04-30
 
 **`nuc doc --test-list <file>` enumerates `nucleor` code blocks

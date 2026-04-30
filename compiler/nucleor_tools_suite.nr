@@ -11688,6 +11688,54 @@ fn find_substr(haystack: str, needle: str) -> i64 {
 // signature line. Returns (params, return_type) where each piece is a
 // trimmed string fragment for direct rendering. Empty strings on parse
 // failure (caller falls back to the raw signature line).
+// v0.4.174: scan a type-or-signature string and replace any identifier
+// token that matches a known type name with a markdown anchor link.
+// Used to cross-link param/return types in fn signatures to the
+// struct/enum anchor sections defined in the same file. Tokens are
+// `[A-Za-z_][A-Za-z0-9_]*` runs; everything else is passed through
+// unchanged so generics (`Vec<Point>`), tuples (`(Point, i32)`), and
+// path types (`std::Point`) all preserve their structural punctuation.
+fn link_known_types_md(sig: str, type_names: Vec<i32>) -> str {
+    let nlen: i64 = vec_len(type_names);
+    if nlen == 0 { return sig; };
+    let slen: i64 = str_len(sig);
+    let mut sb: i64 = sb_new();
+    let mut i: i64 = 0;
+    while i < slen {
+        let c: i64 = str_char_at(sig, i);
+        let is_id_start: i64 = if (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 95 { 1 } else { 0 };
+        if is_id_start == 1 {
+            let mut j: i64 = i + 1;
+            while j < slen {
+                let c2: i64 = str_char_at(sig, j);
+                if (c2 >= 65 && c2 <= 90) || (c2 >= 97 && c2 <= 122) || (c2 >= 48 && c2 <= 57) || c2 == 95 { j = j + 1; }
+                else { break; };
+            };
+            let tok: str = str_substring(sig, i, j);
+            let mut matched: i64 = 0;
+            let mut ti: i64 = 0;
+            while ti < nlen {
+                if str_eq(tok, vec_get(type_names, ti)) == 1 { matched = 1; break; };
+                ti = ti + 1;
+            };
+            if matched == 1 {
+                sb_append(sb, "[");
+                sb_append(sb, tok);
+                sb_append(sb, "](#type-");
+                sb_append(sb, tok);
+                sb_append(sb, ")");
+            } else {
+                sb_append(sb, tok);
+            };
+            i = j;
+        } else {
+            sb_append(sb, str_substring(sig, i, i + 1));
+            i = i + 1;
+        };
+    };
+    return sb_to_str(sb);
+}
+
 // v0.4.166: extract module-level doc comments (`//!` lines at the top
 // of a source file). Walks from line 0, collecting `//!` content into
 // a single newline-joined string, and stops at the first non-doc-comment,
@@ -11969,12 +12017,19 @@ fn run_doc_command_mode(src_path: str, out_path: str, html_mode: i64) -> i64 {
         };
         p = eol + 1;
     };
+    // v0.4.174: combined type set (struct + enum) for cross-link resolution.
+    let mut type_names: Vec<i32> = Vec::new();
+    let mut sn_i: i64 = 0;
+    while sn_i < vec_len(struct_names) { type_names.push(vec_get(struct_names, sn_i)); sn_i = sn_i + 1; };
+    let mut en_i: i64 = 0;
+    while en_i < vec_len(enum_names) { type_names.push(vec_get(enum_names, en_i)); en_i = en_i + 1; };
     if vec_len(struct_names) > 0 {
         sb_append(sb, "## Struct index\n\n");
         let mut si: i64 = 0;
         while si < vec_len(struct_names) {
             let sn: str = vec_get(struct_names, si);
-            sb_append(sb, "- `"); sb_append(sb, sn); sb_append(sb, "`\n");
+            // v0.4.174: link to the Type anchor section below.
+            sb_append(sb, "- [`"); sb_append(sb, sn); sb_append(sb, "`](#type-"); sb_append(sb, sn); sb_append(sb, ")\n");
             si = si + 1;
         };
         sb_append(sb, "\n");
@@ -11984,7 +12039,7 @@ fn run_doc_command_mode(src_path: str, out_path: str, html_mode: i64) -> i64 {
         let mut ei: i64 = 0;
         while ei < vec_len(enum_names) {
             let en: str = vec_get(enum_names, ei);
-            sb_append(sb, "- `"); sb_append(sb, en); sb_append(sb, "`\n");
+            sb_append(sb, "- [`"); sb_append(sb, en); sb_append(sb, "`](#type-"); sb_append(sb, en); sb_append(sb, ")\n");
             ei = ei + 1;
         };
         sb_append(sb, "\n");
@@ -11992,6 +12047,26 @@ fn run_doc_command_mode(src_path: str, out_path: str, html_mode: i64) -> i64 {
     sb_append(sb, "## Function index\n\n");
     sb_append(sb, sb_to_str(fn_index_sb));
     sb_append(sb, "\n");
+    // v0.4.174: anchored Types section. Per-struct/enum DETAIL sections
+    // (field/variant tables) deferred to a future ship; this provides
+    // the link target so cross-refs from fn signatures resolve.
+    if vec_len(type_names) > 0 {
+        sb_append(sb, "## Types\n\n");
+        let mut ts_i: i64 = 0;
+        while ts_i < vec_len(struct_names) {
+            let tn: str = vec_get(struct_names, ts_i);
+            sb_append(sb, "<a id=\"type-"); sb_append(sb, tn); sb_append(sb, "\"></a>\n");
+            sb_append(sb, "**`"); sb_append(sb, tn); sb_append(sb, "`** — struct\n\n");
+            ts_i = ts_i + 1;
+        };
+        let mut te_i: i64 = 0;
+        while te_i < vec_len(enum_names) {
+            let tn: str = vec_get(enum_names, te_i);
+            sb_append(sb, "<a id=\"type-"); sb_append(sb, tn); sb_append(sb, "\"></a>\n");
+            sb_append(sb, "**`"); sb_append(sb, tn); sb_append(sb, "`** — enum\n\n");
+            te_i = te_i + 1;
+        };
+    };
     // Second pass: doc-comment + signature for each fn.
     p = 0;
     let mut last_doc_sb: i64 = sb_new();
@@ -12034,23 +12109,32 @@ fn run_doc_command_mode(src_path: str, out_path: str, html_mode: i64) -> i64 {
                 sb_append(sb, "\n```\n\n");
                 // v0.4.165: per-parameter rendering. Closes RFC-0029
                 // "param rendering" deferral. Skip when zero-arg.
+                // v0.4.174: each param + return type runs through
+                // `link_known_types_md` to cross-link in-file struct
+                // and enum names to their `#type-<Name>` anchors.
+                // No backticks around the line — Markdown code spans
+                // render link syntax as literal text, defeating the
+                // cross-link. Bold + plain `name: type` keeps it readable.
                 let split_params: Vec<i32> = doc_split_params(params);
                 let pcount: i64 = vec_len(split_params);
                 if pcount > 0 {
                     sb_append(sb, "**Parameters:**\n");
                     let mut pi: i64 = 0;
                     while pi < pcount {
-                        sb_append(sb, "- `");
-                        sb_append(sb, vec_get(split_params, pi));
-                        sb_append(sb, "`\n");
+                        let raw_param: str = vec_get(split_params, pi);
+                        let linked_param: str = link_known_types_md(raw_param, type_names);
+                        sb_append(sb, "- ");
+                        sb_append(sb, linked_param);
+                        sb_append(sb, "\n");
                         pi = pi + 1;
                     };
                     sb_append(sb, "\n");
                 };
                 if str_len(ret_t) > 0 {
-                    sb_append(sb, "**Returns:** `");
-                    sb_append(sb, ret_t);
-                    sb_append(sb, "`\n\n");
+                    let linked_ret: str = link_known_types_md(ret_t, type_names);
+                    sb_append(sb, "**Returns:** ");
+                    sb_append(sb, linked_ret);
+                    sb_append(sb, "\n\n");
                 };
                 last_doc_sb = sb_new();
                 last_doc_lines = 0;
