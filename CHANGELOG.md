@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.218] — 2026-04-30
+
+**Wrong-error close — `match x { }` (empty match body) no longer
+panics at parse time.** The pre-fix interaction was subtle:
+
+```nucleor
+fn main() -> i32 {
+    let x: i32 = 5;
+    match x {
+    };
+    0
+}
+```
+
+emitted `PANIC: error[NR020]: parse error at byte 58: expected
+backtick { backtick, got backtick ; backtick` because the parser
+took `x { }` as an empty struct-init for type `x`, swallowed the
+closing `}`, and then expected another `{` (the match body's
+opening brace) at the `;`.
+
+**Root cause:** the parse_primary disambiguation guard for empty
+struct-init at line 1293 (`IDENT { }`) had no uppercase-name check
+— v0.3.114 added the uppercase guard for the SHORTHAND forms
+(`IDENT { x, }` and `IDENT { x }`) but missed the empty case. Rust
+convention reserves CamelCase for types, so a lowercase name
+followed by `{ }` should never be a struct-init.
+
+**Fix:** require uppercase first-char on the empty struct-init
+form — same guard family as v0.3.114. After the fix, `match x { }`
+parses correctly with zero arms.
+
+**Empty-match runtime semantics:** an empty match has no arms, so
+the dispatch falls through. For `void`/discard contexts (statement
+form, like the repro) it's a no-op. For value contexts the
+existing MATCH-001 exhaustiveness check fires. Per the finding's
+"Recommendation" section, this closes the third NR020 false-fire
+in the family; v0.4.208's token-name table had already made the
+diagnostic readable; this ship makes it not fire at all for the
+canonical Rust idiom.
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+
+**Perf:** cold 3.28s / 3.37s ceiling • hot 0.89s / 0.97s ceiling •
+peak 132MB / 144MB. (Initial measurements showed transient
+regressions due to system noise; settled values within ceiling.)
+
+Closes `findings/inbox/2026-04-30-empty-match-body-panic.md` →
+`findings/promoted/`. All three NR020-family findings (struct-decl,
+match-on-unit, empty-match-body) now closed.
+
+---
+
 ## [0.4.217] — 2026-04-30
 
 **Wrong-error close — method-style call on `&T` receiver no longer

@@ -6,6 +6,7 @@ diagnostic_actual: PANIC: error[NR020] (raw "expected token 52 got 43")
 diagnostic_expected: clean MATCH-NNN — "match body cannot be empty; add at least one arm or `_ => ...`"
 discovered_against: v0.4.162 (commit 213fee9)
 commit: 213fee9e84101dad4a06807f994413d7d4f1cb86
+status: CLOSED in v0.4.218 — root cause was that the parse_primary disambiguation guard for empty struct-init `IDENT { }` (line 1293) didn't require an uppercase name. So `match x { }` parsed `x { }` as an empty struct-init, the closing `}` disappeared into the struct-init parser, and the next token (`;`) collided with parse_match_stmt's expect_tok(52) for the match body's `{`. Fix: require uppercase first-char on the empty struct-init form (consistent with v0.3.114's CamelCase-types-only rule for shorthand struct-init). `match x { }` now parses correctly with zero arms; the empty match runs to no-op exit (or surfaces a MATCH-001 if the value is consumed in a non-void context).
 ---
 
 ## Repro
