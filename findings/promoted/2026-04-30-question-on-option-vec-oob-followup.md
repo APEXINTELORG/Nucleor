@@ -6,7 +6,7 @@ diagnostic_actual: n/a (this followup confirms Result path is clean)
 diagnostic_expected: n/a
 discovered_against: v0.4.162 (commit 213fee9)
 commit: 213fee9e84101dad4a06807f994413d7d4f1cb86
-status: PROMOTED with parent. Result side confirmed correct; Option side DEFERRED to v0.5 (see parent finding for root-cause analysis and workaround). This followup is the narrowing evidence that the bug is Option-specific, not a general `?` lowering issue.
+status: CLOSED in v0.4.225 with parent finding. Result side stays correct; Option side now also works thanks to v0.4.225's tag-convention dispatch in lower_expr kind 122.
 ---
 
 Followup to `2026-04-30-question-on-option-vec-oob.md`. Same probe shape
