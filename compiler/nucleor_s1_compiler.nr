@@ -1290,7 +1290,20 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             // so the case check is a clean boundary.
             let name_first: i64 = if str_len(name) > 0 { str_char_at(name, 0) } else { 0 };
             let is_upper: i64 = if name_first >= 65 && name_first <= 90 { 1 } else { 0 };
-            if pk(tokens, cp2 + 1) == 53
+            // v0.4.218: empty struct-init `IDENT { }` now also requires
+            // uppercase name. Pre-fix `match x { }` (empty match body)
+            // parsed as `x { }` empty struct-init, the closing `}`
+            // disappeared into the struct-init's parser, and the next
+            // token (`;`) collided with parse_match_stmt's expect_tok(52)
+            // for the match body's `{`. Adopters got a confusing
+            // `expected backtick { backtick, got backtick ; backtick`
+            // panic (after v0.4.208's token-name table; raw IDs pre-v0.4.208).
+            // Same uppercase guard family as v0.3.114 for shorthand.
+            // Closes findings/inbox/2026-04-30-empty-match-body-panic.md
+            // — the empty match body now parses correctly with zero arms,
+            // surfacing later as MATCH-001 if rtype-checked or running to
+            // exit cleanly with no arm matched (intentional).
+            if (is_upper == 1 && pk(tokens, cp2 + 1) == 53)
                || (pk(tokens, cp2 + 1) == 1 && pk(tokens, cp2 + 2) == 42)
                || (is_upper == 1 && pk(tokens, cp2 + 1) == 1 && pk(tokens, cp2 + 2) == 44)
                || (is_upper == 1 && pk(tokens, cp2 + 1) == 1 && pk(tokens, cp2 + 2) == 53) {
