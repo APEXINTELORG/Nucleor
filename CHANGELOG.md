@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.223] — 2026-04-30
+
+**Inbox closeout — both Option-`?` findings promoted with root-
+cause analysis and v0.5 deferral note.** No code change this ship.
+
+**Findings promoted:**
+- `findings/inbox/2026-04-30-question-on-option-vec-oob.md` →
+  `findings/promoted/`. Root cause: the `?` lowering at `lower_expr`
+  kind 122 uses a fixed `tag == 0 → err` check, which is the
+  Result tag convention. For Option<T> the tags are inverted
+  (Some=0 = "ok", None=1 = "err"). On Some(x) the lowering
+  early-returns the whole Option Vec instead of extracting x; on
+  None it reads vec_get(_, 1) which OOB's the length-1 None Vec.
+- `findings/inbox/2026-04-30-question-on-option-vec-oob-followup.md`
+  → `findings/promoted/`. Confirms Result side is correct;
+  narrowing evidence the bug is Option-specific.
+
+**Why DEFERRED to v0.5:** the minimal compile-time fix (detect
+Option vs Result via `expr_full_type_from_sym(qinner)` and use
+`tag==1` for Option) was attempted in this session but broke the
+self-build for reasons that need more investigation. Root cause
+isolated; safe fix needs either:
+- Standardize Option tag convention to match Result (Some=1,
+  None=0) and update C runtime helpers consistently (cross-cutting
+  change touching 6 runtime helpers + match-arm code paths).
+- More careful compiler-side detection that avoids self-build
+  IR-shape divergence.
+
+Both paths are v0.5 work.
+
+**Adopter workaround today:** use match instead of `?` on
+Option<T>:
+
+```nucleor
+// Instead of:  let v: i32 = some_option()?;
+// Use:
+let v: i32 = match some_option() {
+    Some(x) => x,
+    None => return None,
+};
+```
+
+Result side `?` works correctly today (verified by
+`tests/fixtures/t367_question_op_chain.nr`).
+
+**Inbox final state for v0.4 closeout:** **0 findings remaining.**
+All real bugs closed in this session (v0.4.202 → v0.4.222) or
+promoted with documented v0.5 paths (this ship).
+
+**Verify:** 603 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+**Perf:** cold 3.30s / 3.37s ceiling • hot 0.92s / 0.97s ceiling •
+peak 132MB / 144MB. All clean.
+
+---
+
 ## [0.4.222] — 2026-04-30
 
 **🎯 RFC-0015 phase 3 v0.4 closeout — comprehensive width-correctness

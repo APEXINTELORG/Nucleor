@@ -6,6 +6,7 @@ diagnostic_actual: "PANIC: vec_get OOB: index 1, len 1" at runtime, then program
 diagnostic_expected: clean unwrap — `Some(5)?` yields `5`; the inner expression continues with the unwrapped value
 discovered_against: v0.4.162 (commit 213fee9)
 commit: 213fee9e84101dad4a06807f994413d7d4f1cb86
+status: DEFERRED to v0.5 — ROOT CAUSE IDENTIFIED in v0.4.223 attempt. The `?` lowering at `lower_expr` kind 122 uses a fixed `tag == 0 → err` check, which is the Result tag convention. For Option<T> the tags are inverted: Some=0 (the "ok" case), None=1 (the "err" case). So on Some(x), the lowering early-returns the whole Option Vec instead of extracting x; on None, it reads vec_get(_, 1) which OOB's the length-1 None Vec at runtime. The minimal compile-time fix (detect Option vs Result via expr_full_type_from_sym(qinner) and use tag==1 for Option) was attempted but broke the self-build for reasons that need more investigation. The proper fix requires either standardizing Option tag convention to match Result (Some=1, None=0) and updating C runtime helpers consistently, OR a more careful compiler-side detection that avoids self-build IR-shape divergence. WORKAROUND for adopters today: use match instead of `?` on Option<T> — `let v = match opt { Some(x) => x, None => return None };` works correctly. Cross-ref: tests/lang/closure_basic.nr exercises the working Option match pattern.
 ---
 
 ## Repro
