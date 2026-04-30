@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.190] — 2026-04-30
+
+**RFC-0014 (`#[max_depth = N]`) status updated — attribute parses,
+opts out of RT-008.**
+
+```nucleor
+#[deadline = 1ms]
+fn recurse(n: i32) -> i32 {       // ⚠️ warning RT-008: recursive
+    if n <= 0 { return 0; };       //    #[deadline] fn — add #[max_depth]
+    return 1 + recurse(n - 1);
+}
+
+#[deadline = 1ms, max_depth = 16]
+fn recurse_ok(n: i32) -> i32 {    // ✓ no warning — bound declared
+    if n <= 0 { return 0; };
+    return 1 + recurse_ok(n - 1);
+}
+```
+
+Status flipped Draft → Implemented (audited v0.4.190). Both
+`#[max_depth = N]` and `#[max_depth(N)]` syntaxes parse;
+`collect_max_depth_fns` at compiler/nucleor_s1_compiler.nr:8783
+threads the opt-out through.
+
+**Deferred to v0.5.0 ship:** runtime depth-counting + RT-009
+panic when the declared bound is exceeded. Today the attribute
+is a pure static opt-out marker — it tells the compiler "you've
+declared a bound" but doesn't enforce it at runtime.
+
+No code changes.
+
 ## [0.4.189] — 2026-04-30
 
 **RFC-0005 (units) + RFC-0011 (nuc-cxx) status updates — both

@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0014 |
 | **Title** | `#[max_depth = N]` — bounded recursion attribute |
-| **Status** | Draft |
+| **Status** | Implemented (audited v0.4.190). Both `#[max_depth = N]` and `#[max_depth(N)]` syntaxes parse; the attribute opts out of the RT-008 "direct recursion in #[deadline] fn" check (lands in `collect_max_depth_fns` at compiler/nucleor_s1_compiler.nr:8783). Without `#[max_depth]`, a recursive `#[deadline]`-tagged fn warns RT-008 with the remediation hint pointing at this attribute. **Note:** the current shape is purely a static opt-out marker; runtime depth-counting + panic on overflow is implementation-deferred (the static guarantee is "you've declared a bound; runtime stack-blow may still occur if your bound is wrong"). Targeted v0.5.0 ship is the runtime depth check + RT-009 panic on bound overrun. |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.5.0 ("Production Robotics") |
