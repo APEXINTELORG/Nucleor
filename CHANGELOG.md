@@ -5,6 +5,21 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.178] — 2026-04-30
+
+**Doc-only: bring verify-baseline references in
+`PARALLEL_AGENT_PROBE_MANDATE.md` and `SELF_HANDOFF.md` up to date
+(217 PASS / 1 baseline-FAIL).**
+
+The mandate's per-fix workflow step 8 was telling the probe agent
+to expect "210+ PASS / 6 baseline-FAIL" because that was the snapshot
+when the v0.4.164 ceiling-tightening shipped. After v0.4.164 closed
+4 silent regressions and v0.4.170 closed the verify_parallel skip
+bug, current state is 217/1. SELF_HANDOFF was even more stale at
+"206/2." Both updated.
+
+No code changes.
+
 ## [0.4.177] — 2026-04-30
 
 **`nuc explain MATCH-011` + `nuc explain MATCH-012` — close

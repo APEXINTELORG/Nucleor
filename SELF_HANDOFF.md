@@ -148,7 +148,7 @@ but DO NOT EDIT):**
 - **Bootstrap fixed-point:** holds at v0.4.152 (first-pass on every
   ship). Drift gate green.
 - **Verify:** parallel verifier (`tools/verify_parallel.sh -j 12`)
-  reports 206 PASS / 2 baseline-FAIL / ~45s wall.
+  reports 217 PASS / 1 baseline-FAIL / ~10s wall (as of v0.4.170+).
 - **Baseline FAILs (NEVER count as regressions):**
   `lang/mod_decl_aux` (multi-file module that needs verify.sh's
   special setup) and `runtime/stdin_read` (needs a stdin pipe).

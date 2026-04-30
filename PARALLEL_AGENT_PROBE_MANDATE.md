@@ -414,13 +414,15 @@ Copy-Item -Force target/nucleor_tools.exe bin/nucleor_tools.exe
 bash tools/check_compiler_drift.sh
 if ($LASTEXITCODE -ne 0) { throw "drift gate FAILED" }
 
-# 8. Verify gate (parallel) — must show 210+ PASS / 6 baseline-FAIL or
-#    better. The 6 baselines as of v0.4.163 are: lang/mod_decl_aux,
-#    runtime/stdin_read (the documented two), and lang/closures,
+# 8. Verify gate (parallel) — must show 217+ PASS / 1 baseline-FAIL or
+#    better. The 1 remaining baseline as of v0.4.170+ is
+#    runtime/stdin_read (genuinely needs interactive TTY; documented).
+#    The other 4 v0.4.158→.162 silent regressions (lang/closures,
 #    runtime/concurrency, features/overflow_comprehensive,
-#    features/overflow_wrapping (regressed between v0.4.158 and
-#    v0.4.162; queued for investigation — DO NOT SHIP IF YOUR EDIT
-#    INTRODUCES MORE FAILS, but these 6 stay as-is until investigated).
+#    features/overflow_wrapping) were closed by v0.4.164's TYP-014
+#    + TYP-016 fixes. lang/mod_decl_aux was closed by v0.4.170's
+#    verify_parallel.sh skip-regex sync.
+#    DO NOT SHIP IF YOUR EDIT INTRODUCES MORE FAILS.
 bash tools/verify_parallel.sh -j 12
 
 # 9. Perf drift gate — must exit 0 (no creep above ceilings)
