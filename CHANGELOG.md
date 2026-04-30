@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.227] — 2026-04-30
+
+**v0.5 residual sequencing doc.** Doc-only. Breaks each v0.4
+residual into focused sub-ships with risk/effort/value scoring.
+Picks the first ship for each residual.
+
+**New file:** `docs/milestones/v0.5_RESIDUAL_SEQUENCING_2026-04-30.md`.
+
+**Sub-ship breakdowns:**
+
+- **Residual 1 (RFC-0015 phase 3c, typed fn params + call-site
+  type info):** 4 sub-ships. **First ship: 3c.1** — cross-width
+  call-site audit (warnings only, no codegen change). Low risk,
+  high learning value before behavior changes.
+- **Residual 2 (RFC-0015 phase 3e, strict-mode default flip):** 4
+  sub-ships. **First ship: 3e.1** — LLVM overflow-intrinsic
+  substrate, opt-in only. Measure perf delta before flip.
+- **Residual 3 (RFC-0015 phase 3b cmp/shift/bitwise):** 4 sub-ships.
+  **Recommendation: skip for v0.5 unless adopter benchmark signal.**
+  i64 path is functionally correct; pure IR-shape symmetry. Defer
+  to v0.6.
+- **Residual 4 (RFC-0020 phase 3, span-metadata-through-AST):** 4
+  sub-ships. **First ship: 3span.1** — parallel spans Vec +
+  threading. Substrate for all diag-quality work.
+
+**Suggested v0.5 ship order (first 8 ships):**
+
+1. 3c.1 (cross-width audit, warnings)
+2. 3span.1 (span Vec substrate)
+3. 3span.2 (high-impact diag sites migrated)
+4. 3e.1 (LLVM overflow intrinsic, opt-in)
+5. 3c.2 (`as` cast injection at call boundaries)
+6. 3c.3 (re-enable typed param alloca)
+7. 3span.3 (finish diag migration)
+8. 3e.3 (flip strict-mode default + verify perf)
+
+After ship 8, all four v0.4 residuals are landed. v0.5 substantive
+work (RFC-0006 DbC, RFC-0007 atomics) begins from ship 9+.
+
+**Out of scope for v0.5 residual closeout:**
+
+- Phase 3b cmp/shift/bitwise (no adopter signal — defer to v0.6).
+- Signature ABI change to typed-iN (separate v0.6+ ship).
+
+**Verify:** 604 PASS / 9 FAIL (unchanged — doc-only).
+**Perf:** unchanged (doc-only).
+
+This is the v0.5 kickoff doc. The first **substantive code ship** for
+v0.5 lands next cycle (3c.1 surface-audit pass).
+
+---
+
 ## [0.4.226] — 2026-04-30
 
 **Doc-only ship — v0.4 residuals nested into v0.5 milestone with
