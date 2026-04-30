@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.212] — 2026-04-30
+
+**RFC-0015 phase 3b extended — narrow-arith now covers `var + literal`
+and `literal + var` patterns too.** Pre-fix `let x: i16 = a + 50` (a:
+i16) emitted `add i64` + `__nucleor_as_i16`. Post-fix emits `add i16`
+directly with the literal trunc'd into the narrow width.
+
+**Coverage now:** narrow-arith fast path fires for any kind-3 var-ref
++ kind-1 int_lit (or vice versa) where the var has a sign-encoded
+narrow width (i8/i16/i32/u8/u16/u32). Still falls through to the i64
+path for: expr+expr, narrow + wide, narrow + narrow of different
+widths, comparisons, shifts, bitwise.
+
+**Operand-order preservation:** for non-commutative ops (sub, sdiv,
+srem), the source order is preserved. `7 - a` and `a - 7` lower to
+different `sub iN` instruction shapes. Regression fixture exercises
+both directions.
+
+**Implementation:** lower_expr kind 4 narrow path now branches on
+operand kinds:
+- (kind-3, kind-3) — both var-refs same-narrow → existing v0.4.211 path
+- (kind-3, kind-1) — var + lit → trunc literal, narrow binop
+- (kind-1, kind-3) — lit + var → trunc literal, preserve order, narrow binop
+
+Literal value is materialized via `ir_const_int` at i64 width then
+`ir_trunc` to the target narrow width — the trunc op preserves the
+low N bits, which is correct for both signed and unsigned operations
+under modular arithmetic (LLVM `add iN` doesn't differ by signedness).
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+Phase 3a fixture extended with 3 var+lit cases (i16 var+lit, i16
+lit-var, u8 var+lit) — all green. Operand order verified by the
+asymmetric `7 - v16` test (must produce -93, not 93).
+
+**Perf:** cold 3.22s / 3.37s ceiling • hot 0.95s / 0.97s ceiling
+(+0.05s vs v0.4.211's 0.90s) — additional ops per binop in the var+lit
+path add up across the compiler's self-build. Under ceiling but tight.
+Peak 131MB / 144MB.
+
+**Phase 3 status after this ship:**
+- 3a: COMPLETE.
+- 3b: PARTIAL — var+var and var+literal arith now narrow.
+  Still open: expr+expr, comparisons, shifts, bitwise.
+- 3c/3d/3e: untouched.
+
+---
+
 ## [0.4.211] — 2026-04-30
 
 **RFC-0015 phase 3b LANDS — narrow `add iN` instead of `add i64` +

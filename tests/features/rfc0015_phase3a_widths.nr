@@ -99,6 +99,19 @@ fn main() -> i32 {
     let r32n: i32 = p32n - q32n;
     if r32n != -1000000 { print("FAIL i32 narrow-binop sub"); return 1; };
 
+    // v0.4.212 phase 3b extended: var+literal narrow path.
+    let v16: i16 = 100;
+    let r16_vl: i16 = v16 + 50;
+    if r16_vl != 150 { print("FAIL i16 var+lit"); return 1; };
+
+    // Non-commutative — operand order must be preserved.
+    let r16_lv: i16 = 7 - v16;
+    if r16_lv != -93 { print("FAIL i16 lit-var"); return 1; };
+
+    let v8: u8 = 100;
+    let r8_vl: u8 = v8 + 30;
+    if r8_vl != 130 { print("FAIL u8 var+lit"); return 1; };
+
     print("OK rfc0015_phase3a_widths");
     0
 }
