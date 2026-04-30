@@ -6,6 +6,7 @@ diagnostic_actual: 'error[TYP-016]: `if` expression assigned to binding `r` of t
 diagnostic_expected: clean compile (block-as-RHS is canonical Rust idiom)
 discovered_against: v0.4.162 (commit 213fee9)
 commit: 213fee9e84101dad4a06807f994413d7d4f1cb86
+status: ALREADY CLOSED (verified at v0.4.205) — the v0.4.164 TYP-016-misfire-on-synthesized-passthrough-block fix at compiler/nucleor_s1_compiler.nr:12722-12740 narrowed the check to actual `if`-expression nodes only. The probe `let r: i32 = { 42 };` now compiles cleanly and prints 42. Filing this for archival completeness; no additional ship needed.
 ---
 
 ## Repro
