@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.157] — 2026-04-29
+
+**TYP-011 ext: `?` on a kind-3 (var-ref) receiver of non-Result/
+Option type silently SIGSEGV'd. v0.4.54 fixed the kind-7 (call)
+case; the var-ref case escaped. Now halts.**
+
+```nucleor
+let x: i64 = 5;
+let y = x?;     // pre-fix: SIGSEGV at runtime
+```
+
+v0.4.54 added a TYP-011 check at the kind-99 (`?` operator)
+type_expr branch: when the receiver is a kind-7 call and the
+fn's `sig_rtype` is not `Result`/`Option`/`Vec`, halt. The
+var-ref case (kind-3) was never wired — adopters who stored
+a Result/Option in a binding and then `?`'d it had a happy
+path (the existing `qfull` type-check at line 11119
+type_expr's the inner and produces the right base for kind-3
+too, BUT the warning lift didn't fire because the explicit
+check only ran for kind-7). For the WRONG type (i64 / str /
+struct etc.) bound to a var, `qfull` still typed-check'd as
+that type and the lower path emitted `vec_get(val_r, 0)` —
+SIGSEGV.
+
+This release adds a sibling check: when `qinner` is kind-3,
+look up the var's type via `tenv_get` and apply the same
+Result/Option/Vec gate. Same TYP-011 family. s1-only
+(tools_suite has no `?` handling in `type_expr`).
+
+Negative fixture: `tests/err/err_question_on_var_ref.nr`.
+Bootstrap fixed-point holds first-pass. Fast-verify 209 PASS /
+2 baseline-FAIL.
+
 ## [0.4.156] — 2026-04-29
 
 **TYP-021 ext: closure call returning void silently bound the

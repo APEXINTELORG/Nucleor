@@ -11116,6 +11116,27 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 };
             };
         };
+        // v0.4.157: extend the v0.4.54 check to kind-3 (var-ref)
+        // receivers. Pre-fix `let x: i64 = 5; let y = x?;` matched
+        // only the kind-7 call branch above, so x's `?` lower
+        // emitted the same `vec_get(val_r, 0)` tag-extract as the
+        // pre-v0.4.54 era and SIGSEGVed at runtime when the i64
+        // value was dereferenced as a pointer. Same TYP-011 family
+        // as the kind-7 case; lookup goes through tenv (binding
+        // type) instead of sigs (fn rtype).
+        if node_kind(pool, qinner) == 3 {
+            let qvname: str = node_field(pool, qinner, 1);
+            let qvtype: str = tenv_get(env, qvname);
+            if str_len(qvtype) > 0 {
+                let qvbase: str = type_base_name(qvtype);
+                let qvok: i64 = if str_eq(qvbase, "Result") == 1
+                    || str_eq(qvbase, "Option") == 1
+                    || str_eq(qvbase, "Vec") == 1 { 1 } else { 0 };
+                if qvok == 0 {
+                    type_diag(diags, source, fn_name, qvname, "TYP-011", str_concat("`?` operator on binding `", str_concat(qvname, str_concat("` of type `", str_concat(qvtype, "` — `?` requires `Result<T,E>` or `Option<T>`. Pre-v0.4.157 (kind-7 case caught in v0.4.54; kind-3 var-ref escaped) this silently lowered `vec_get(val_r, 0)` against the i64 cell and SIGSEGVed at runtime when the value was dereferenced as a pointer. Either change the binding's type to Result / Option, or check the value explicitly with `if ... { return ...; }`."))))));
+                };
+            };
+        };
         let qfull: str = type_expr(pool, prog, qinner, env, sigs, structs, fn_name, diags, source, tprof);
         let qbase2: str = type_base_name(qfull);
         if str_eq(qbase2, "Result") == 1 || str_eq(qbase2, "Option") == 1 {
