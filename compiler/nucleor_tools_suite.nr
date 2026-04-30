@@ -10364,6 +10364,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "MATCH-010") { return "@-binding name collides with outer scope"; };
     if str_eq(code, "MATCH-011") { return "Match arms produce values of incompatible types"; };
     if str_eq(code, "MATCH-012") { return "Struct pattern field after `:` must be an identifier (literal field-equality patterns deferred)"; };
+    if str_eq(code, "MATCH-013") { return "Float scrutinee or float-literal pattern in `match` is not supported"; };
     // RFC-0004 assume!
     if str_eq(code, "ASSUME-001") { return "predicate not in analyzer's vocabulary"; };
     if str_eq(code, "ASSUME-002") { return "assume_unchecked! used without justification"; };
@@ -10570,6 +10571,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "MATCH-010") { return "An @-binding (e.g. `n @ 1..=5`) introduces a fresh name; using a name already in scope is rejected to prevent silent shadowing."; };
     if str_eq(code, "MATCH-011") { return "Every arm of a match expression must yield the same concrete type (or unit `()` in statement context). Pre-v0.4.140 heterogeneous arms silently produced whichever value the runtime hit first, with the wrong type stored in the result slot — a runtime SIGSEGV class."; };
     if str_eq(code, "MATCH-012") { return "Struct patterns currently support only the binding form `Point { x, y }` and the rename form `Point { x: rename, y: rename }`. Field-equality literal patterns like `Point { x: 0, y: 0 }` are deferred to v0.5+. Express the same intent today with a guard: `Point { x, y } if x == 0 && y == 0 => ...`. Pre-v0.4.163 the parser fed the literal's raw value as a string-id binding, producing garbage that crashed codegen with an ACCESS VIOLATION."; };
+    if str_eq(code, "MATCH-013") { return "Float scrutinees (`match x { ... }` for x: f32/f64) and float-literal patterns (`1.5 => ...`) are not supported. Float equality is fragile: NaN ≠ NaN, and arithmetic round-off makes literal-equality unreliable. Pre-v0.4.206 the compiler crashed with ACCESS_VIOLATION (no diagnostic) on float-lit patterns or float-typed scrutinees. Use an `if`-chain with tolerance (`if (x - 1.5).abs() < 0.001 { ... }`) or convert via `(x * 100.0) as i32` to match on integer scaled values."; };
     if str_eq(code, "ASSUME-001") { return "The assume! predicate uses an expression form the analyzer doesn't track for static reasoning. Runtime check still happens; static benefit is none."; };
     if str_eq(code, "ASSUME-002") { return "assume_unchecked! disables even the debug-mode runtime check. The warning surfaces a missing comment justifying the unsafety."; };
     if str_eq(code, "ASSUME-003") { return "The assume! predicate is true for all inputs (e.g., assume!(x == x) or assume!(true)). The runtime check is dead code; remove the assertion."; };
@@ -10758,6 +10760,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "MATCH-010") { return "RFC-0023 §3.3 — pick a fresh identifier for the binding, or `let outer = outer;` to make shadowing explicit before the match."; };
     if str_eq(code, "MATCH-011") { return "RFC-0023 §3.5 — restructure each arm to yield the same type. Use a common ancestor (often `i64`) or split the match into kind-specific branches that don't merge."; };
     if str_eq(code, "MATCH-012") { return "RFC-0023 §3.6 — replace `Point { x: 0, y: 0 }` with `Point { x, y } if x == 0 && y == 0 => ...`. Field-equality literal patterns ship in v0.5+ once nested-pattern lowering is wired."; };
+    if str_eq(code, "MATCH-013") { return "Float pattern matching is intentionally unsupported (NaN ≠ NaN; round-off drift). Use an `if`-chain with tolerance, OR convert the float to a scaled integer (`(x * 100.0) as i32`) and match on the integer. Pre-v0.4.206 the compiler crashed with ACCESS_VIOLATION on this construct; now halts with a clear MATCH-013."; };
     if str_eq(code, "ASSUME-001") { return "RFC-0004 §3.2 lists the predicate vocabulary the analyzer understands: x < N, x != 0, arr.len() == N, opt.is_some(), result.is_ok(), equality substitution. Other predicates are accepted as runtime checks but contribute nothing to static analysis."; };
     if str_eq(code, "ASSUME-002") { return "RFC-0004 §3.6 — assume_unchecked! is a footgun for extreme RT loops. Document why the runtime check is too costly to justify."; };
     if str_eq(code, "ASSUME-003") { return "RFC-0004 §3.9 — the compiler simplified the predicate to TRUE; the assume! adds no information for the analyzer and the runtime check is dead code. Delete the assume!."; };

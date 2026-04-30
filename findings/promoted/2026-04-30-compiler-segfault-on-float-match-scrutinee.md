@@ -6,6 +6,7 @@ diagnostic_actual: compiler exits with ACCESS_VIOLATION (Windows exit code -1073
 diagnostic_expected: clean compile and runtime print, OR a clean MATCH-NNN diagnostic if float scrutinees are intentionally unsupported
 discovered_against: v0.4.162 (commit 213fee9)
 commit: 213fee9e84101dad4a06807f994413d7d4f1cb86
+status: CLOSED in v0.4.206 — two-site fix. (1) parse_match_one_pattern at line 933 rejects float-lit pattern tokens (70, 124, 125) at parse time with MATCH-013 panic. (2) type-check at kind 38 (line 12642) rejects float-typed scrutinees so wildcard-only matches on a float also halt clean. Compiler-meltdown class fully eliminated. Regression-guard fixture at tests/fixtures/repro_v206_match_float_scrutinee_halts.nr.
 ---
 
 ## Repro
