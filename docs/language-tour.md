@@ -2,6 +2,11 @@
 
 A pragmatic walk through Nucleor by example. Read top to bottom; copy the snippets into a `.nr` file and `nuc build` them.
 
+> **Looking for a comprehensive list of what's shipped vs deferred?**
+> See [`v0.4_FEATURE_AUDIT_2026-04-30.md`](v0.4_FEATURE_AUDIT_2026-04-30.md) —
+> RFC-by-RFC reference of every feature surface and its current state.
+> For migration from v0.2, see [`migrations/v0.2-to-v0.4.md`](migrations/v0.2-to-v0.4.md).
+
 ## Hello
 
 ```nr
