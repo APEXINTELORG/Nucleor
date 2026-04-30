@@ -131,6 +131,21 @@ fn main() -> i32 {
     let nw: i16 = wrapping { bn * two16 + one16 };
     if nw != -5535 { print("FAIL nested i16 wrap"); return 1; };
 
+    // v0.4.221 phase 3c: typed param alloca. Fn params with narrow
+    // declared type now flow into typed allocas at fn entry, so the
+    // body's arith uses narrow IR ops.
+    let r_pc16: i16 = phase3c_add_i16(100, 200);
+    if r_pc16 != 300 { print("FAIL phase3c i16 param/return"); return 1; };
+    let r_pc8: u8 = phase3c_neg_u8(5);
+    if r_pc8 != 250 { print("FAIL phase3c u8 param/return"); return 1; };
+    // Negative-i16 round-trip through fn boundary.
+    let neg16: i16 = 0 - 30;
+    let r_pcneg: i16 = phase3c_add_i16(neg16, 10);
+    if r_pcneg != -20 { print("FAIL phase3c i16 negative round-trip"); return 1; };
+
     print("OK rfc0015_phase3a_widths");
     0
 }
+
+fn phase3c_add_i16(a: i16, b: i16) -> i16 { a + b }
+fn phase3c_neg_u8(x: u8) -> u8 { 255 - x }
