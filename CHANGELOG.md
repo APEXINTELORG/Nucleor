@@ -5,6 +5,101 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.209] — 2026-04-30
+
+**🎯 KEYSTONE — RFC-0015 phase 3a-step-3 SHIPS.** The typed-IR
+wiring that v0.4.199 reverted for perf is now live, with hot
+self-build at 0.88s — **byte-identical to baseline**. Two of the
+remaining v0.4 success-criteria boxes (DEFERRED-rows + strict-mode
+default) are unblocked.
+
+**Pre-fix IR for `let x: i16 = a + b;`:**
+
+```llvm
+%r.2 = alloca i64        ; uniform i64 ABI
+%r.3 = add i64 ...
+%r.4 = call i64 @__nucleor_as_i16(i64 %r.3)
+store i64 %r.4, ptr %r.2 ; type mismatch hidden by i64-everywhere
+```
+
+**Post-fix IR:**
+
+```llvm
+%r.2 = alloca i16
+%r.3 = add i64 ...
+%r.4 = call i64 @__nucleor_as_i16(i64 %r.3)
+%r.5 = trunc i64 %r.4 to i16
+store i16 %r.5, ptr %r.2
+%r.6 = load i16, ptr %r.2
+%r.7 = sext i16 %r.6 to i64   ; or zext for u-types
+```
+
+**Why v0.4.199 failed and this ship works:**
+
+The v0.4.199 attempt used `sym_get(sym, str_concat("__width_",
+vname))` per var-ref load → 1.4× hot slowdown (0.88s → 1.21s).
+Per-call str_concat allocation dominated.
+
+Three competing redesigns were sketched in `docs/RFC-0015_PHASE_3_PLAN_2026-04-30.md`:
+- (D) AST-node attachment — failed: type_expr doesn't visit every
+  kind-3 var-ref (kind-7 call args bypass it).
+- (E) Co-locate width with `__type_<vname>` — same str_concat hit.
+- (F) Parallel reg_widths Vec — large refactor.
+
+**Picked: F-light** — store widths-by-reg in `fir`'s slot 4 (a new
+per-fn Vec keyed by alloca register id). Two `vec_get` calls per
+read. No str_concat. No sym_get hash. No threading refactor (`fir`
+is already a parameter to every lower fn).
+
+**Encoding:** sign-packed widths. Positive = signed (sext on load),
+negative = unsigned (zext on load), 0 = untyped (i64 fast path,
+byte-identical to pre-fix). u8/u16 use `-8` / `-16` to dispatch
+zext correctly — IEEE u16 65000 sext'd = -536, zext'd = 65000.
+
+**Sites wired (4):**
+1. `lower_stmt` kind 20 (let): typed alloca + trunc + typed store.
+   Width stored on alloca-reg via `ir_fn_set_width`.
+2. `lower_stmt` kind 21 (assign): typed store via reg-width lookup.
+3. `lower_expr` kind 3 (var-ref): typed load + sext/zext via
+   reg-width lookup.
+4. `opt_dce_block`: tracks op-32/33/34 (sext/trunc/zext) operands
+   so DCE doesn't strip the source load.
+
+**New helpers:**
+- `ir_fn_set_width(f, reg, w)` — register a sign-encoded width.
+- `ir_fn_get_width(f, reg)` — O(1) read; returns 0 if untracked.
+- `ir_zext(d, src, w)` — companion to ir_sext for unsigned types.
+- emit_inst op 34 — emits `zext iW %S to i64`.
+
+**Width set:** i8, i16, u8, u16. (i32/u32 → next ship; i64 ABI
+already correct for those at the binop level.)
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 expected pre-tag; 8 pre-existing
+baseline failures unrelated). Phase 3a-step-3 fixture
+`tests/features/rfc0015_phase3a_widths.nr` (v0.4.198) green —
+all 9 width assertions pass.
+
+**Perf:** cold 3.29s / 3.37s ceiling • **hot 0.88s = baseline
+UNCHANGED** • peak 131MB / 144MB ceiling. The compile-tight
+mandate held: this is a substantive IR-shape ship at zero hot-path
+cost.
+
+**Unblocks:**
+- v0.4 success criterion: "Every `DEFERRED to v0.4` row from
+  v0.2.0.md flipped to DONE" — RFC-0015 phase 3 row now flippable
+  after phase 3b/3c/3d/3e land.
+- v0.4 success criterion: "Strict-mode numerics is the default" —
+  awaits phase 3b (binop width-correctness) which is now buildable
+  on this substrate.
+
+**Next ships in the phase 3 sequence:**
+- 3b: width-aware binops (i32 + i32 → i32, not implicit i64).
+- 3c: function call ABI sext/zext at runtime helpers.
+- 3d: stdlib audit + verify migration.
+- 3e: flip strict-mode to default.
+
+---
+
 ## [0.4.208] — 2026-04-30
 
 **Wrong-error CLEANUP — NR020 parse-error messages now use human-

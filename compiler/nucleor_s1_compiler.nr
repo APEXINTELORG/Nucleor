@@ -1351,7 +1351,13 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             };
         };
         if pk(tokens, cp2) == 50 { let mut ar: Vec<i32> = parse_args(tokens, cp2 + 1, pool); return pr(pr_pos(ar), mk3(pool, 7, name, pr_val(ar))); };
-        return pr(cp2, mk2(pool, 3, name));
+        // v0.4.209 RFC-0015 phase 3a-step-3 (Option D): kind-3 var-ref
+        // promoted from mk2 to mk3. Slot 2 is the width-tag for narrow-
+        // typed bindings (i8/i16/u8/u16). Default 0 = untyped (i64 ABI
+        // back-compat). Type-check fills it in for narrow types; codegen
+        // reads it via a single node_field call (no str_concat, no
+        // sym_get hash hit — the perf failure mode of v0.4.199's retry).
+        return pr(cp2, mk3(pool, 3, name, 0));
     };
     // Closure: |params| expr  or  |params| { stmts }  or  || expr  or  || { stmts }
     if tt == 65 || tt == 37 {
@@ -2444,7 +2450,7 @@ fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // Without this, the parser called expect_tok(42) (`:`) and
         // failed when the user wrote shorthand.
         if pk(tokens, cp + 1) == 44 || pk(tokens, cp + 1) == 53 {
-            let var_node: i64 = mk2(pool, 3, fn2);
+            let var_node: i64 = mk3(pool, 3, fn2, 0);  // v0.4.209: width slot
             cp = cp + 1;
             inits.push(mk3(pool, 35, fn2, var_node));
         } else {
@@ -3046,6 +3052,12 @@ fn ir_store_t(v: i64, ptr: i64, w: i64) -> Vec<i32> { return ir_inst(18, 0, w, v
 // slot 2 carries the SOURCE width (sext) or TARGET width (trunc).
 // emit_inst dispatch reads the width tag and emits the right LLVM op.
 fn ir_sext(d: i64, src: i64, src_w: i64) -> Vec<i32> { return ir_inst(32, d, src_w, src, 0, 0); }
+// v0.4.209 RFC-0015 phase 3a-step-3: zext companion to ir_sext for
+// unsigned narrow types (u8/u16). Same shape as ir_sext but emits
+// `zext iX %S to i64` (zero-extension, top bits cleared) instead of
+// `sext` (sign-extension). Required because u16 max (65535) sext'd
+// to i64 becomes -1; zext'd it stays 65535. Op 34.
+fn ir_zext(d: i64, src: i64, src_w: i64) -> Vec<i32> { return ir_inst(34, d, src_w, src, 0, 0); }
 fn ir_trunc(d: i64, src: i64, dst_w: i64) -> Vec<i32> { return ir_inst(33, d, dst_w, src, 0, 0); }
 
 fn ir_const_int(d: i64, v: i64) -> Vec<i32> { return ir_inst(0, d, 0, v, 0, 0); }
@@ -3100,9 +3112,29 @@ fn ir_block_inst_count(b: Vec<i32>) -> i64 { let insts: Vec<i32> = vec_get(b, 1)
 fn ir_block_get_inst(b: Vec<i32>, idx: i64) -> Vec<i32> { let insts: Vec<i32> = vec_get(b, 1); return vec_get(insts, idx); }
 
 fn ir_fn_new(name: str, pc: i64) -> Vec<i32> {
-    let mut f: Vec<i32> = Vec::with_capacity(4); f.push(name); f.push(pc);
+    let mut f: Vec<i32> = Vec::with_capacity(5); f.push(name); f.push(pc);
     let mut entry_allocas: Vec<i32> = Vec::new(); f.push(entry_allocas);
-    let mut blocks: Vec<i32> = Vec::new(); f.push(blocks); return f;
+    let mut blocks: Vec<i32> = Vec::new(); f.push(blocks);
+    // v0.4.209 RFC-0015 phase 3a-step-3 (Option F-light): per-fn
+    // widths-by-reg table. Slot 4 stores a Vec<i32> indexed by
+    // alloca-reg id; values are sign-encoded narrow widths
+    // (positive=signed, negative=unsigned, 0=untyped/i64). Grows
+    // on demand at set time. Read at every var-ref load + store
+    // for typed-IR dispatch. Two vec_gets per read on the hot path
+    // — no str_concat, no sym_get hash.
+    let mut widths_by_reg: Vec<i32> = Vec::new(); f.push(widths_by_reg);
+    return f;
+}
+fn ir_fn_set_width(f: Vec<i32>, reg: i64, w: i64) -> i64 {
+    let mut widths: Vec<i32> = vec_get(f, 4);
+    while vec_len(widths) <= reg { widths.push(0); };
+    vec_set(widths, reg, w);
+    return 0;
+}
+fn ir_fn_get_width(f: Vec<i32>, reg: i64) -> i64 {
+    let widths: Vec<i32> = vec_get(f, 4);
+    if reg >= vec_len(widths) { return 0; };
+    return vec_get(widths, reg);
 }
 fn ir_fn_name(f: Vec<i32>) -> str { return vec_get(f, 0); }
 fn ir_fn_param_count(f: Vec<i32>) -> i64 { return vec_get(f, 1); }
@@ -3420,6 +3452,10 @@ fn opt_dce_block(blk: Vec<i32>) -> i64 {
         else if op == 23 || op == 24 { used.push(ir_op1(inst)); used.push(ir_op2(inst)); }
         else if op == 17 { used.push(ir_op1(inst)); }
         else if op == 18 { used.push(ir_op1(inst)); used.push(ir_op2(inst)); }
+        // v0.4.209: sext/zext/trunc ops use ir_op1 as source register.
+        // Pre-fix DCE missed this and removed the source load when its
+        // only consumer was a sext/zext, breaking typed-IR var-ref reads.
+        else if op == 32 || op == 33 || op == 34 { used.push(ir_op1(inst)); }
         else if op == 20 { used.push(ir_op1(inst)); }
         else if op == 22 { used.push(ir_op1(inst)); }
         else if op == 28 { used.push(ir_op1(inst)); used.push(ir_op2(inst)); used.push(ir_extra(inst)); }
@@ -3443,7 +3479,7 @@ fn opt_dce_block(blk: Vec<i32>) -> i64 {
         let d: i64 = ir_dest(inst);
         let mut keep: i64 = 1;
         // Only consider removing pure value-producing ops
-        if op == 0 || (op >= 2 && op <= 15) || op == 17 || op == 23 || op == 24 || op == 26 || op == 27 || op == 28 || op == 29 {
+        if op == 0 || (op >= 2 && op <= 15) || op == 17 || op == 23 || op == 24 || op == 26 || op == 27 || op == 28 || op == 29 || op == 32 || op == 33 || op == 34 {
             if d > 0 {
                 // Check if d is in used set
                 let mut found: i64 = 0;
@@ -5245,6 +5281,16 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
         sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
         sb_append(sb, " = trunc i64 %r."); sb_append(sb, str_from_int(ir_op1(inst)));
         sb_append(sb, " to "); sb_append(sb, tcw); sb_append(sb, "\n");
+    }
+    else if op == 34 {
+        // v0.4.209 RFC-0015 phase 3a-step-3: zext narrower → i64
+        // for unsigned types. Same encoding as op 32 (sext) but
+        // emits `zext` for u8/u16 to keep the i64 ABI bit-correct.
+        let zxw: str = width_to_llvm_type(ir_tid(inst));
+        sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
+        sb_append(sb, " = zext "); sb_append(sb, zxw);
+        sb_append(sb, " %r."); sb_append(sb, str_from_int(ir_op1(inst)));
+        sb_append(sb, " to i64\n");
     }
     else if op == 19 {
         let fn_name: str = ir_op1(inst); let argc: i64 = ir_op2(inst); let args: Vec<i32> = ir_extra(inst);
@@ -11571,6 +11617,11 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         let env_start: i64 = tprof_start(tprof);
         let out: str = tenv_get(env, name);
         tprof_mark(tprof, 3, 4, env_start);
+        // v0.4.209 RFC-0015 phase 3a-step-3: width tagging moved from
+        // type_expr (which doesn't reliably visit every var-ref —
+        // kind-7 call args bypass it) to lower_stmt kind 20 (let),
+        // keyed by alloca reg in fir's slot 4. AST node slot 2 is
+        // unused now but kept for backward shape compatibility.
         // v0.4.138: TYP-022 — struct name used as a value. Pre-fix
         // `let e: E = E;` for `struct E { ... }` lowered the RHS as
         // a kind-3 var-ref to "E", emitting `ptrtoint ptr @E to i64`
@@ -14219,9 +14270,27 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             ir_block_add(blk, ir_fn_ptr(r, iname));
             return lx_new(r, blk);
         };
-        let r: i64 = ctr_next(regs);
-        ir_block_add(blk, ir_load(r, ar));
-        return lx_new(r, blk);
+        // v0.4.209 RFC-0015 phase 3a-step-3: typed-load dispatch.
+        // Width keyed by alloca-reg in fir's widths-by-reg table
+        // (set at let-stmt time). Two vec_gets per read; no string
+        // allocation, no sym_get hash. Sign-encoded: positive=signed
+        // (sext), negative=unsigned (zext), 0=untyped (i64 fast path).
+        let w_v209: i64 = ir_fn_get_width(fir, ar);
+        if w_v209 == 0 {
+            let r: i64 = ctr_next(regs);
+            ir_block_add(blk, ir_load(r, ar));
+            return lx_new(r, blk);
+        };
+        let aw_v209: i64 = if w_v209 > 0 { w_v209 } else { 0 - w_v209 };
+        let nr_v209: i64 = ctr_next(regs);
+        ir_block_add(blk, ir_load_t(nr_v209, ar, aw_v209));
+        let r_v209: i64 = ctr_next(regs);
+        if w_v209 > 0 {
+            ir_block_add(blk, ir_sext(r_v209, nr_v209, aw_v209));
+        } else {
+            ir_block_add(blk, ir_zext(r_v209, nr_v209, aw_v209));
+        };
+        return lx_new(r_v209, blk);
     };
     if kind == 4 {
         // v0.3.128: enum-equality dispatch. Pre-v0.3.128, `t == Tag::A`
@@ -16775,7 +16844,6 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // AFTER lowering the RHS expression so the RHS sees the OLD
         // shadowed binding (Rust shadowing semantics — the new binding
         // takes effect on the next statement, not within its own RHS).
-        let ar: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, ar);
         let vname: str = node_field(pool, nid, 1);
         let init: i64 = node_field(pool, nid, 4);
         let mut tstr: str = node_field(pool, nid, 3);
@@ -16789,6 +16857,27 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             };
         };
         let sbase: str = type_base_name(tstr);
+        // v0.4.209 RFC-0015 phase 3a-step-3 (Option D): inline narrow-
+        // width detection. Sign-encoded same as type_expr kind-3:
+        // positive=signed, negative=unsigned, 0=untyped (i64).
+        // Trunc/store don't care about sign — only abs width matters
+        // for memory-shape — so we extract abs(w) for the IR ops.
+        let sblen20: i64 = str_len(sbase);
+        let mut w20: i64 = 0;
+        if sblen20 == 2 {
+            if str_eq(sbase, "i8") == 1 { w20 = 8; }
+            else if str_eq(sbase, "u8") == 1 { w20 = 0 - 8; };
+        } else if sblen20 == 3 {
+            if str_eq(sbase, "i16") == 1 { w20 = 16; }
+            else if str_eq(sbase, "u16") == 1 { w20 = 0 - 16; };
+        };
+        let aw20: i64 = if w20 >= 0 { w20 } else { 0 - w20 };
+        let ar: i64 = ctr_next(regs); ir_fn_add_entry_alloca_t(fir, ar, aw20);
+        // v0.4.209: register sign-encoded width on the alloca-reg.
+        // Read by lower_expr kind-3 (var-ref load) and lower_stmt
+        // kind-21 (assign-store). Only sets when w20 != 0 to keep
+        // the widths-by-reg table sparse.
+        if w20 != 0 { ir_fn_set_width(fir, ar, w20); };
         if init >= 0 {
             // Lower RHS BEFORE rebinding sym so any reference to `vname`
             // inside the RHS resolves to the OUTER (shadowed) slot.
@@ -16797,7 +16886,13 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             cur = lx_blk(vp);
             let vr: i64 = lx_reg(vp);
             let nvr: i64 = narrow_via_as(cur, regs, vr, sbase, src_kind);
-            ir_block_add(cur, ir_store(nvr, ar));
+            if aw20 == 0 {
+                ir_block_add(cur, ir_store(nvr, ar));
+            } else {
+                let tr20: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_trunc(tr20, nvr, aw20));
+                ir_block_add(cur, ir_store_t(tr20, ar, aw20));
+            };
         };
         // Bind sym entries AFTER the RHS is lowered.
         sym_set(sym, vname, ar);
@@ -16903,7 +16998,18 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let mut vp: Vec<i32> = lower_expr(pool, node_field(pool, nid, 2), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let vr: i64 = lx_reg(vp);
         cur = lx_blk(vp);
-        ir_block_add(cur, ir_store(vr, ar));
+        // v0.4.209 RFC-0015 phase 3a-step-3: typed store via
+        // alloca-reg width lookup. Sign-encoded width; abs(w) for
+        // memory-shape (trunc/store_t).
+        let w21: i64 = ir_fn_get_width(fir, ar);
+        if w21 == 0 {
+            ir_block_add(cur, ir_store(vr, ar));
+        } else {
+            let aw21: i64 = if w21 > 0 { w21 } else { 0 - w21 };
+            let tr21: i64 = ctr_next(regs);
+            ir_block_add(cur, ir_trunc(tr21, vr, aw21));
+            ir_block_add(cur, ir_store_t(tr21, ar, aw21));
+        };
         let clo_id: i64 = sym_get(sym, "__closure_id");
         if clo_id >= 0 {
             let cap_id: i64 = sym_get(sym, str_concat("__capid_", lhs_name));
