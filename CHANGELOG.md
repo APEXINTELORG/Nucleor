@@ -5,6 +5,27 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.172] — 2026-04-30
+
+**v0.4.0 milestone tracker — success-criteria audit + 1 box flipped.**
+
+`docs/milestones/v0.4.0.md` updated:
+
+- **"Verify gate still green on Windows + new gates for v0.4 features"
+  → DONE.** 217 PASS / 1 FAIL on `verify_parallel.sh -j 12` (the 1
+  FAIL is `runtime/stdin_read`, genuinely needs an interactive TTY,
+  documented). 4 new RFC-0023 gates added v0.4.169; helper-skip bug
+  closed v0.4.170.
+- **"All RFC-0023..0029 implemented" — annotated with current state**
+  per RFC. RFC-0023 + RFC-0028 (Phase 5) + RFC-0029 (skeleton +
+  v0.4.165–167 polish) shipped; RFC-0024 + RFC-0025 + RFC-0026 +
+  RFC-0027 still open.
+- **"Every DEFERRED-from-v0.2 row flipped to DONE" — annotated
+  with what's still open** (RFC-0015 strict-mode, RFC-0016 phases
+  4 + 5, RFC-0018 phase 2, RFC-0020 phase 3).
+
+No code changes.
+
 ## [0.4.171] — 2026-04-30
 
 **RFC-0023 + RFC-0029 status lines updated to match shipped reality.**
