@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.181] — 2026-04-30
+
+**Operating-model revision: probe agent moves to a propose-via-PR
+flow. Main agent owns integration + version + tag.**
+
+The earlier mandate (v0.4.179 era) had the probe agent shipping
+directly to `origin/main` and tagging `v0.4.NNN` himself. That
+caused a tag collision earlier today — both of us shipped a
+"v0.4.163" with different content; his branch got reset to main
+HEAD, leaving his work as orphan commits + uncommitted worktree
+state. Main agent had to manually merge from his filesystem.
+
+New orchestration:
+
+- **Probe agent:** preps each fix on `probe/exploration` (compiler
+  + fixture + all gates green), pushes only to
+  `origin/probe/exploration`. Never pushes to main, never tags.
+  Stages findings in `findings/staged/<slug>.md` with a
+  `<pending — main agent fills v0.4.NNN at integration>` footer.
+  Drafts CHANGELOG entries into `CHANGELOG_PROBE_QUEUE.md`. Sets a
+  `ready_for_integration:` list in `findings/_heartbeat.md`.
+
+- **Main agent:** pulls his branch periodically, integrates queued
+  prep into main, picks the v0.4.NNN version, splices CHANGELOG
+  entries from queue into canonical, moves staged findings to
+  promoted with the version filled in, regenerates RELEASES, runs
+  integration gates, tags, pushes `main` + tag.
+
+Files updated:
+- `PARALLEL_AGENT_PROBE_MANDATE.md` — full per-finding workflow
+  rewritten for the new flow + explicit "what you do NOT do" list
+  (no main push, no tag, no CHANGELOG.md edits, no `-Update`).
+- `findings/README.md` — three-state layout: `inbox/` →
+  `staged/` → `promoted/` with ownership transitions.
+- `findings/staged/` — new transitional dir.
+- `CHANGELOG_PROBE_QUEUE.md` — new staging file for probe-agent
+  CHANGELOG drafts.
+- `SELF_HANDOFF.md` — main-agent integration cadence + per-cycle
+  workflow (cherry-pick / squash, splice CHANGELOG, move staged,
+  regen, tag, push).
+
+No compiler changes; no version-bump impact on bin/nucleor.exe.
+
+Verify: 218 PASS / 1 FAIL (unchanged).
+Perf:   cold 3.09s (max 3.37s) | hot 0.89s (max 0.97s) | peak 131MB (max 144MB).
+
 ## [0.4.180] — 2026-04-30
 
 **`nuc help` doc-command help text + `compiler_version_label`

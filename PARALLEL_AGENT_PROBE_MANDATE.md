@@ -1,28 +1,31 @@
-# Parallel Agent — Probe + Fix Mandate (persistent, indefinite)
+# Parallel Agent — Probe + Prep Mandate (persistent, indefinite)
 
-> **ROLE EXPANSION 2026-04-30** — you used to be a finder-only agent.
-> The main agent has now delegated the entire fix-and-ship cycle to
-> you. You are the sole owner of `findings/inbox/` end-to-end:
-> probe → write finding → reproduce → write fixture → fix compiler
-> → mirror in tools_suite → run all gates → ship `v0.4.NNN` → move
-> the finding to `findings/promoted/`. You ship directly to `main`.
+> **ORCHESTRATION REVISED 2026-04-30 (v0.4.181)** — earlier today's
+> mandate had you pushing directly to `origin/main` and tagging
+> `v0.4.NNN`. That caused a tag collision (we both used v0.4.163)
+> and your branch ended up reset to main HEAD with your work as
+> orphan commits. Replaced with a PR-style flow: **you propose, I
+> integrate.** You push only to `origin/probe/exploration`, never
+> to main, never tag. The main agent merges your work into main
+> and assigns the version.
 
-You are the **probe + fix agent**. Two jobs:
+You are the **probe + prep agent**. Two jobs:
 
 1. **Find** silent miscomputes, crashes, compiler meltdowns, wrong
-   errors, and missing diagnostics. (Same as before — see "How to
-   probe".)
-2. **Fix them yourself.** Write the fixture, edit the compiler,
-   mirror in tools_suite, regenerate the bootstrap seed, run all
-   gates, bump the version, push directly to `origin/main` and tag
-   `v0.4.NNN`. (New — see "Fix discipline".)
+   errors, and missing diagnostics.
+2. **Prepare the fix** end-to-end on `probe/exploration`: write
+   the fixture, edit the compiler, mirror in tools_suite, refresh
+   the bootstrap seed, run all gates locally, draft CHANGELOG +
+   promotion content. Then push to `origin/probe/exploration` and
+   flag the heartbeat as `ready-for-integration`. **The main agent
+   does the actual main commit, version assignment, tag, and main
+   push.**
 
-The main agent now stays 100% on the v0.4/v0.5 punchlist and never
-touches `findings/inbox/`. There is no integration handoff — your
-fix branch IS the ship.
+The main agent stays primarily on the v0.4/v0.5 punchlist but
+takes ~30s per integration cycle to pull your branch and ship.
 
-This contract supersedes any prior probe-only instructions in this
-file, `SELF_HANDOFF.md`, or `PARALLEL_AGENT_HANDOFF_v0.4_RESIDUALS.md`.
+This contract supersedes any prior probe-related instructions in
+this file, `SELF_HANDOFF.md`, or `PARALLEL_AGENT_HANDOFF_v0.4_RESIDUALS.md`.
 
 ## Absolute paths (no ambiguity)
 
@@ -359,139 +362,155 @@ edit it. If you learn more, drop `<slug>-followup.md` next to it or
 append to `_questions.md`. Edit only your own promoted/ files (when
 appending the Promoted footer at ship-time).
 
-## Fix discipline (you own this end-to-end)
+## Prep discipline (you propose; main agent integrates)
 
-You and the main agent both ship to `origin/main` directly. Your
-worktree has its own `bin/nucleor.exe`, `target/`, and
-`bootstrap/nucleor_s1_seed.ll` — independent of main's. The only
-shared state is `.git` (brief lock contention on commit/push) and
-`origin/main` (where ships land). Same playbook the main agent uses
-for punchlist ships:
+Your worktree has its own `bin/nucleor.exe`, `target/`, and
+`bootstrap/nucleor_s1_seed.ll` — independent of main's. Shared
+state is `.git` (brief lock contention on commit/push) and
+`origin/probe/exploration` (where YOU push). You never push to
+`origin/main`. You never tag.
 
-### Per-fix workflow
+### Per-finding workflow
 
 ```powershell
 cd C:\Users\JoeWe\Desktop\Nucleor_OSS_probe
 . .\tools\run_capped.ps1
 
-# 1. Rebase BEFORE editing — pick up any main-agent ship that landed
+# 1. Rebase BEFORE editing — pick up everything main has shipped.
 git fetch --all
 git checkout probe/exploration
 git rebase origin/main
+# If rebase hits conflicts in compiler/*.nr — STOP and tell the user.
+# Don't auto-resolve; main agent's intervening ship may have made
+# your finding obsolete.
 
-# 2. Reproduce the finding against current main's bin (sanity check
-#    the bug still exists; if not, the main agent or you already fixed
-#    it — move the file to promoted/ with `Promoted: already fixed`).
+# 2. Reproduce the finding against current main's bin.
+#    If it doesn't repro, the bug was already fixed — drop the inbox
+#    file with a `## Already-fixed` note and move on.
 $r = Run-Capped './bin/nucleor.exe' @('build', 'probes/<finding-repro>.nr', '-o', '/tmp/repro')
-# expect failure or wrong output matching the finding
 
 # 3. Write the fixture. Pick the right tree:
-#    - tests/err/<name>.nr           — must REJECT, EXPECT comment line required
+#    - tests/err/<name>.nr           — must REJECT, EXPECT comment required
 #    - tests/features/<name>.nr      — must compile + run + exit cleanly
-#    - tests/fixtures/<name>.nr      — regression-only, NOT auto-run by verify
+#    - tests/fixtures/<name>.nr      — regression-only, NOT auto-run
 
 # 4. Edit compiler/nucleor_s1_compiler.nr to fix the root cause.
 #    Mirror in compiler/nucleor_tools_suite.nr if dispatch is shared
-#    (the drift gate will tell you if you missed it).
+#    (drift gate enforces). Edit only the regions your finding requires;
+#    don't sweep unrelated cleanup into the same prep cycle.
 
-# 5. Rebuild + bootstrap (T1.7 fixed-point — the seed must reproduce
-#    byte-identically from the new bin).
+# 5. Rebuild + bootstrap (T1.7 fixed-point check).
 $r = Run-Capped './bin/nucleor.exe' @('build', 'compiler/nucleor_s1_compiler.nr', '-o', 'nucleor')
 Copy-Item -Force target/nucleor.exe bin/nucleor.exe
 Copy-Item -Force target/nucleor.ll bootstrap/nucleor_s1_seed.ll
-
-# Re-run with the new bin to confirm fixed-point:
 $r2 = Run-Capped './bin/nucleor.exe' @('build', 'compiler/nucleor_s1_compiler.nr', '-o', '_seed_check')
 $h1 = (Get-FileHash bootstrap/nucleor_s1_seed.ll -Algorithm SHA256).Hash
 $h2 = (Get-FileHash target/_seed_check.ll       -Algorithm SHA256).Hash
 if ($h1 -ne $h2) { throw "T1.7 fixed-point FAILED — investigate" }
 
-# 6. Mirror the tools_suite if you added a runtime helper:
+# 6. Mirror tools_suite if you added a runtime helper:
 $r = Run-Capped './bin/nucleor.exe' @('build', 'compiler/nucleor_tools_suite.nr', '-o', 'nucleor_tools')
 Copy-Item -Force target/nucleor_tools.exe bin/nucleor_tools.exe
 
-# 7. Drift gate — must exit 0
+# 7. Drift gate — must exit 0.
 bash tools/check_compiler_drift.sh
 if ($LASTEXITCODE -ne 0) { throw "drift gate FAILED" }
 
-# 8. Verify gate (parallel) — must show 217+ PASS / 1 baseline-FAIL or
-#    better. The 1 remaining baseline as of v0.4.170+ is
-#    runtime/stdin_read (genuinely needs interactive TTY; documented).
-#    The other 4 v0.4.158→.162 silent regressions (lang/closures,
-#    runtime/concurrency, features/overflow_comprehensive,
-#    features/overflow_wrapping) were closed by v0.4.164's TYP-014
-#    + TYP-016 fixes. lang/mod_decl_aux was closed by v0.4.170's
-#    verify_parallel.sh skip-regex sync.
+# 8. Verify gate — must show 218+ PASS / 1 baseline-FAIL or better.
+#    The 1 remaining baseline is runtime/stdin_read (needs TTY).
 #    DO NOT SHIP IF YOUR EDIT INTRODUCES MORE FAILS.
 bash tools/verify_parallel.sh -j 12
 
-# 9. Perf drift gate — must exit 0 (no creep above ceilings)
-.\tools\check_perf_regression.ps1 -Quiet
-if ($LASTEXITCODE -ne 0) { throw "perf regression — fix before ship" }
+# 9. Perf drift gate — run 3× to characterize variance, surface noise
+#    in heartbeat. DO NOT -Update tools/perf_baseline.json. That's
+#    main agent's call. Current ceilings (locked v0.4.179): cold ≤ 3.37s,
+#    hot ≤ 0.97s, peak ≤ 144 MB.
+1..3 | ForEach-Object { .\tools\check_perf_regression.ps1 -Quiet; "exit:$LASTEXITCODE" }
 
-# 10. Helper / rod manifest regen if applicable
-python tools/gen_helper_manifest.py   # only if you added a __nucleor_* helper
+# 10. Manifest regen if applicable.
+python tools/gen_helper_manifest.py   # only if you added __nucleor_* helper
 python tools/gen_rod_manifest.py      # only if you added a stdlib .nr rod
 
-# 11. CHANGELOG entry — read top, increment, prepend
-$nextVer = "0.4.NNN"   # one greater than current top entry
-# Edit CHANGELOG.md — prepend `## [$nextVer] — yyyy-mm-dd` followed by
-#   one descriptive paragraph naming the bug class closed and the
-#   diagnostic code (TYP-/NUM-/MATCH-/NR/RT- if any).
-
-# 12. Releases index regen
-python tools/gen_releases_index.py
-
-# 13. Move the finding file
-Move-Item findings/inbox/<slug>.md findings/promoted/<slug>.md
-# Append to that file:
+# 11. Stage the finding for promotion.
+Move-Item findings/inbox/<slug>.md findings/staged/<slug>.md
+# Append a footer:
 # ---
-# ## Promoted
+# ## Staged for promotion
 # - Fixture: `tests/<dir>/<file>.nr`
-# - Fix shipped: v0.4.NNN (commit <sha>)
-# - Promoted: yyyy-mm-dd by probe agent
+# - Fix shipped: <pending — main agent fills v0.4.NNN at integration>
+# - Staged: yyyy-mm-dd by probe agent
 
-# 14. Commit + tag + push (rebase one more time in case main moved
-#     while you were running gates)
+# 12. Draft the CHANGELOG entry in CHANGELOG_PROBE_QUEUE.md (NOT
+#     CHANGELOG.md). Use this format:
+#
+#     ## [unreleased — probe agent proposal — <slug>] — yyyy-mm-dd
+#
+#     <one-line headline matching the bug class closed>
+#
+#     <description, repro, before/after, operating notes>
+#
+#     Verify: <PASS>/<FAIL>.
+#     Perf: cold <s> | hot <s> | peak <MB> (3× variance noted in heartbeat).
+#
+#     Main agent rewrites the header to ## [0.4.NNN] — date at integration.
+#     Multiple proposals can stack in this file in order; main agent
+#     splices them into CHANGELOG.md per integration.
+
+# 13. Update findings/_heartbeat.md with the ready-for-integration flag:
+@"
+last_rebase: $((Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'))
+commit: $(git rev-parse HEAD)
+version_main_at_rebase: <whatever main was at>
+rebuild_wall_sec: $($r.WallSec)
+rebuild_peak_mb: $($r.PeakMB)
+verify_pass_fail: 218/1
+perf_3x_pass_count: 3 (or note variance)
+ready_for_integration:
+  - <slug-1>     # closes finding(s); changelog draft in CHANGELOG_PROBE_QUEUE.md
+  - <slug-2>
+inbox_state: N findings remaining
+"@ | Set-Content findings/_heartbeat.md
+
+# 14. Commit on probe/exploration. NO version, NO tag.
 git add -A
-git commit -m "v0.4.NNN: <one-line summary>"
-git fetch --all
-git rebase origin/main   # if conflict, resolve before push
-git tag v0.4.NNN
-git push origin probe/exploration:main
-git push origin v0.4.NNN
+git commit -m "probe-prep: <one-line summary> — gates green"
+git push origin probe/exploration
 ```
 
-If anything in steps 5–9 fails, do NOT push. Fix it. The same gates
-that catch the main agent's bad ships catch yours.
+### What you do NOT do (stricter than prior mandate)
 
-### Branch-name nuance
+- Never `git push origin probe/exploration:main` (main is main agent's).
+- Never `git tag v0.4.NNN` (versions are main agent's call).
+- Never edit `CHANGELOG.md` directly. Use `CHANGELOG_PROBE_QUEUE.md`.
+- Never `tools/check_perf_regression.ps1 -Update` (baseline is main's).
+- Never `gen_releases_index.py` write — let main regen at integration.
+- Never auto-resolve `compiler/*.nr` rebase conflicts. STOP, surface.
+- Never edit compiler regions outside what your current finding needs.
 
-You stay on `probe/exploration` for the work, but **push directly
-to main** with `git push origin probe/exploration:main`. This makes
-`probe/exploration` track `main` after each ship. Your scratch
-probes / heartbeat live as commits on the same branch.
+### Main agent's integration cycle (your awareness, not your work)
 
-If a fix is multi-step and you want isolation, create a topic branch
-off main: `git checkout -b fix/<slug>-v1 origin/main`, do the work,
-ship, then return to `probe/exploration` and rebase. Don't let topic
-branches age — same anti-thrash rule from `PARALLEL_AGENT_RESCUE.md`.
+When main pulls your branch, they:
+1. `git fetch && git pull origin probe/exploration`
+2. Rebase / merge your prep commits into main. May squash.
+3. Pick the version (v0.4.NNN), splice your `CHANGELOG_PROBE_QUEUE.md`
+   entry into `CHANGELOG.md` with proper header + date.
+4. Move your `findings/staged/<slug>.md` → `findings/promoted/<slug>.md`,
+   fill in the `Fix shipped: v0.4.NNN (commit <sha>)` footer line.
+5. Re-run integration gates (drift, T1.7, verify, perf).
+6. May `-Update` `tools/perf_baseline.json` if a justified perf change.
+7. Regenerate `RELEASES.md`.
+8. Tag `v0.4.NNN` on the integration commit. Push `main` + tag.
 
-### When you and main agent collide on push
-
-Both of us push to `origin/main`. If your `git push` fails because
-main moved while you were working:
+### Post-integration cycle (your side)
 
 ```powershell
-git fetch --all
-git rebase origin/main      # rebase your fix onto the new main
-# re-run gates if rebase changed compiler files
-git push origin probe/exploration:main
+git fetch origin
+git rebase origin/main
 ```
 
-If rebase produces conflicts in `compiler/*.nr` because the main
-agent edited the same region: stop and tell the user. Don't
-auto-resolve compiler conflicts.
+The main agent's integration commit supersedes your wip commits;
+your branch fast-forwards / cleans automatically. Update heartbeat
+with the new main version. Continue probing.
 
 ## Cadence
 
