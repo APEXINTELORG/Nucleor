@@ -11805,6 +11805,98 @@ fn doc_extract_signature(line: str) -> Vec<i32> {
     return out;
 }
 
+// v0.4.173: doc-test extraction. Walks `///` comment blocks looking
+// for ```nucleor code fences and emits a listing of each block with
+// the function it documents. Pending blocks (collected before the
+// next fn declaration) are flushed with that fn's name; module-level
+// `//!` blocks are tagged "(module)". Execution (compile + run each
+// block) ships in a future release; this is the discoverability half.
+fn run_doc_test_list_command(src_path: str) -> i64 {
+    if str_len(src_path) == 0 {
+        print("ERROR: nuc doc --test-list requires a source file");
+        print("Usage: nuc doc <file> --test-list");
+        return 1;
+    };
+    let src: str = file_read_string(src_path);
+    if str_len(src) == 0 {
+        print(str_concat("ERROR: cannot read ", src_path));
+        return 1;
+    };
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    let mut block_count: i64 = 0;
+    let mut in_block: i64 = 0;
+    let mut block_buf: i64 = sb_new();
+    let mut block_lang: str = "";
+    // Pending blocks for the next fn declaration: parallel Vecs of
+    // langs + bodies. Module-level (//!) blocks print immediately.
+    let mut pending_langs: Vec<i32> = Vec::new();
+    let mut pending_bodies: Vec<i32> = Vec::new();
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(src, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(src, p, eol);
+        let llen: i64 = str_len(line);
+        let mut lp: i64 = 0;
+        while lp < llen && (str_char_at(line, lp) == 32 || str_char_at(line, lp) == 9) { lp = lp + 1; };
+        let is_doc_line: i64 = if lp + 3 <= llen && str_eq(str_substring(line, lp, lp + 3), "///") == 1 { 1 } else { 0 };
+        let is_modd_line: i64 = if lp + 3 <= llen && str_eq(str_substring(line, lp, lp + 3), "//!") == 1 { 1 } else { 0 };
+        if is_doc_line == 1 || is_modd_line == 1 {
+            let mut bp: i64 = lp + 3;
+            if bp < llen && str_char_at(line, bp) == 32 { bp = bp + 1; };
+            let inner: str = str_substring(line, bp, llen);
+            let ilen: i64 = str_len(inner);
+            if ilen >= 3 && str_eq(str_substring(inner, 0, 3), "```") == 1 {
+                if in_block == 0 {
+                    in_block = 1;
+                    block_lang = str_substring(inner, 3, ilen);
+                    block_buf = sb_new();
+                } else {
+                    in_block = 0;
+                    let body: str = sb_to_str(block_buf);
+                    if is_modd_line == 1 {
+                        block_count = block_count + 1;
+                        print(str_concat("=== block #", str_concat(str_from_int(block_count), str_concat(" — (module) — lang \"", str_concat(block_lang, "\"")))));
+                        print(body);
+                    } else {
+                        pending_langs.push(block_lang);
+                        pending_bodies.push(body);
+                    };
+                    block_buf = sb_new();
+                    block_lang = "";
+                };
+            } else if in_block == 1 {
+                sb_append(block_buf, inner);
+                sb_append(block_buf, "\n");
+            };
+        } else {
+            if in_block == 1 {
+                in_block = 0;
+                block_buf = sb_new();
+                block_lang = "";
+            };
+            let fn_name: str = extract_fn_name_from_line(line);
+            if str_len(fn_name) > 0 {
+                let pn: i64 = vec_len(pending_langs);
+                let mut pi: i64 = 0;
+                while pi < pn {
+                    let lang_e: str = vec_get(pending_langs, pi);
+                    let body_e: str = vec_get(pending_bodies, pi);
+                    block_count = block_count + 1;
+                    print(str_concat("=== block #", str_concat(str_from_int(block_count), str_concat(" — fn ", str_concat(fn_name, str_concat(" — lang \"", str_concat(lang_e, "\"")))))));
+                    print(body_e);
+                    pi = pi + 1;
+                };
+                pending_langs = Vec::new();
+                pending_bodies = Vec::new();
+            };
+        };
+        p = eol + 1;
+    };
+    print(str_concat("nuc doc --test-list: ", str_concat(str_from_int(block_count), str_concat(" code block(s) found in ", src_path))));
+    return 0;
+}
+
 fn run_doc_command(src_path: str, out_path: str) -> i64 {
     return run_doc_command_mode(src_path, out_path, 0);
 }
@@ -17832,13 +17924,17 @@ fn main() -> i64 {
         return run_fix_command(tgt, sub);
     };
     if str_eq(cmd, "doc") {
-        // Parse: nuc doc <file> [--out <path>] [--html]
+        // Parse: nuc doc <file> [--out <path>] [--html] [--test-list]
         // T2.7 (v0.2.352): --html selects the HTML renderer instead
         // of Markdown. If --out is given without --html, we also
         // auto-detect by file extension (.html / .htm => HTML mode).
+        // v0.4.173: --test-list enumerates every ```nucleor code
+        // block found in /// comments (extraction half of doc tests;
+        // execution will ship in a future release).
         let mut tgt: str = "";
         let mut out_path: str = "";
         let mut html_mode: i64 = 0;
+        let mut test_list_mode: i64 = 0;
         let mut di: i64 = 2;
         while di < argc {
             let a: str = args_get(di);
@@ -17847,9 +17943,12 @@ fn main() -> i64 {
                 di = di + 1;
             } else if str_eq(a, "--html") == 1 {
                 html_mode = 1;
+            } else if str_eq(a, "--test-list") == 1 {
+                test_list_mode = 1;
             } else if cli_is_flag(a) == 0 && str_len(tgt) == 0 { tgt = a; };
             di = di + 1;
         };
+        if test_list_mode == 1 { return run_doc_test_list_command(tgt); };
         if html_mode == 0 && str_len(out_path) > 0 {
             let opl: i64 = str_len(out_path);
             if opl >= 5 && str_eq(str_substring(out_path, opl - 5, opl), ".html") == 1 { html_mode = 1; };

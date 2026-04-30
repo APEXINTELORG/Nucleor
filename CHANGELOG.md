@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.173] — 2026-04-30
+
+**`nuc doc --test-list <file>` enumerates `nucleor` code blocks
+from `///` comments — extraction half of doc tests (RFC-0029).**
+
+```sh
+nuc doc src/lib.nr --test-list
+```
+
+Output: each ` ```<lang>` fenced block found inside `///` (per-fn) or
+`//!` (module-level) doc comments, tagged with the parent fn's name
+(or `(module)`), the language tag, and the body.
+
+```
+=== block #1 — (module) — lang ""
+print("module example");
+
+=== block #2 — fn add — lang "nucleor"
+let r = add(3, 4);
+assert_eq(r, 7);
+
+=== block #3 — fn mul — lang "nucleor"
+let r = mul(3, 4);
+assert_eq(r, 12);
+
+=== block #4 — fn mul — lang "python"
+# not really code we'd run
+
+nuc doc --test-list: 4 code block(s) found in src/lib.nr
+```
+
+This is the **discoverability half** of doc tests. Adopters can
+now audit which doc-comment blocks would be considered for
+execution. The full `nuc doc --test` (compile + run each
+`nucleor`-tagged block, with assertion infrastructure) ships in
+v0.5+; this lays the groundwork.
+
+Algorithm: walks lines, detects `///` (per-fn) and `//!` (module)
+comment markers; on opening ` ``` ` fence, captures the language
+tag and accumulates body lines; on closing fence, either prints
+immediately (module) or queues into pending Vecs (per-fn). The next
+fn declaration flushes pending blocks as belonging to that fn.
+
+Verify: 217 PASS / 1 FAIL (unchanged).
+Perf:   cold 3.09s (max 7.20s) | hot 0.87s (max 0.97s) | peak 131MB.
+
 ## [0.4.172] — 2026-04-30
 
 **v0.4.0 milestone tracker — success-criteria audit + 1 box flipped.**
