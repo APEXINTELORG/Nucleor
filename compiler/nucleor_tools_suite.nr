@@ -11300,6 +11300,35 @@ fn extract_fn_name_from_line(line: str) -> str {
     return str_substring(line, start, stop);
 }
 
+// v0.4.167: extract a struct or enum name from a declaration line.
+// Recognizes leading "struct " / "enum " (with optional "pub " prefix)
+// followed by an identifier. Returns the name, or "" if no match.
+// `kind_kw` selects which to look for: "struct" or "enum".
+fn extract_type_decl_name_from_line(line: str, kind_kw: str) -> str {
+    let llen: i64 = str_len(line);
+    let mut p: i64 = 0;
+    while p < llen && (str_char_at(line, p) == 32 || str_char_at(line, p) == 9) { p = p + 1; };
+    // Skip optional `pub `.
+    if p + 4 <= llen && str_eq(str_substring(line, p, p + 4), "pub ") == 1 {
+        p = p + 4;
+        while p < llen && (str_char_at(line, p) == 32 || str_char_at(line, p) == 9) { p = p + 1; };
+    };
+    let kw_len: i64 = str_len(kind_kw);
+    if p + kw_len + 1 > llen { return ""; };
+    if str_eq(str_substring(line, p, p + kw_len), kind_kw) == 0 { return ""; };
+    let after_kw: i64 = p + kw_len;
+    if str_char_at(line, after_kw) != 32 && str_char_at(line, after_kw) != 9 { return ""; };
+    let mut np: i64 = after_kw + 1;
+    while np < llen && (str_char_at(line, np) == 32 || str_char_at(line, np) == 9) { np = np + 1; };
+    let nstart: i64 = np;
+    while np < llen {
+        let c: i64 = str_char_at(line, np);
+        if is_alnum(c) == 1 || c == 95 { np = np + 1; } else { break; };
+    };
+    if np <= nstart { return ""; };
+    return str_substring(line, nstart, np);
+}
+
 fn extract_public_fn_name_from_line(line: str) -> str {
     let compact: str = strip_spaces(line);
     let clen: i64 = str_len(compact);
@@ -11824,25 +11853,52 @@ fn run_doc_command_mode(src_path: str, out_path: str, html_mode: i64) -> i64 {
         sb_append(sb, mod_doc_md);
         sb_append(sb, "\n");
     };
-    sb_append(sb, "## Function index\n\n");
-    // First pass: build the index.
+    // v0.4.167: build fn + struct + enum indexes in a single pass.
     let slen: i64 = str_len(src);
     let mut p: i64 = 0;
     let mut fn_count: i64 = 0;
-    let mut fn_names: Vec<i32> = Vec::new();
+    let mut struct_names: Vec<i32> = Vec::new();
+    let mut enum_names: Vec<i32> = Vec::new();
+    let mut fn_index_sb: i64 = sb_new();
     while p < slen {
         let mut eol: i64 = p;
         while eol < slen && str_char_at(src, eol) != 10 { eol = eol + 1; };
         let line: str = str_substring(src, p, eol);
         let fn_name: str = extract_fn_name_from_line(line);
         if str_len(fn_name) > 0 {
-            fn_names.push(fn_name);
-            sb_append(sb, "- [`"); sb_append(sb, fn_name); sb_append(sb, "`](#");
-            sb_append(sb, fn_name); sb_append(sb, ")\n");
+            sb_append(fn_index_sb, "- [`"); sb_append(fn_index_sb, fn_name); sb_append(fn_index_sb, "`](#");
+            sb_append(fn_index_sb, fn_name); sb_append(fn_index_sb, ")\n");
             fn_count = fn_count + 1;
+        } else {
+            let s_name: str = extract_type_decl_name_from_line(line, "struct");
+            if str_len(s_name) > 0 { struct_names.push(s_name); };
+            let e_name: str = extract_type_decl_name_from_line(line, "enum");
+            if str_len(e_name) > 0 { enum_names.push(e_name); };
         };
         p = eol + 1;
     };
+    if vec_len(struct_names) > 0 {
+        sb_append(sb, "## Struct index\n\n");
+        let mut si: i64 = 0;
+        while si < vec_len(struct_names) {
+            let sn: str = vec_get(struct_names, si);
+            sb_append(sb, "- `"); sb_append(sb, sn); sb_append(sb, "`\n");
+            si = si + 1;
+        };
+        sb_append(sb, "\n");
+    };
+    if vec_len(enum_names) > 0 {
+        sb_append(sb, "## Enum index\n\n");
+        let mut ei: i64 = 0;
+        while ei < vec_len(enum_names) {
+            let en: str = vec_get(enum_names, ei);
+            sb_append(sb, "- `"); sb_append(sb, en); sb_append(sb, "`\n");
+            ei = ei + 1;
+        };
+        sb_append(sb, "\n");
+    };
+    sb_append(sb, "## Function index\n\n");
+    sb_append(sb, sb_to_str(fn_index_sb));
     sb_append(sb, "\n");
     // Second pass: doc-comment + signature for each fn.
     p = 0;
@@ -11976,25 +12032,57 @@ fn doc_render_html(src_path: str, src: str, out_path: str) -> i64 {
         };
         sb_append(sb, "</p></div>\n");
     };
-    sb_append(sb, "<h2>Function index</h2>\n<ul class=\"fnindex\">\n");
+    // v0.4.167: build fn + struct + enum indexes in one pass.
     let slen: i64 = str_len(src);
     let mut p: i64 = 0;
     let mut fn_count: i64 = 0;
+    let mut struct_names_h: Vec<i32> = Vec::new();
+    let mut enum_names_h: Vec<i32> = Vec::new();
+    let mut fn_idx_sb: i64 = sb_new();
     while p < slen {
         let mut eol: i64 = p;
         while eol < slen && str_char_at(src, eol) != 10 { eol = eol + 1; };
         let line: str = str_substring(src, p, eol);
         let fn_name: str = extract_fn_name_from_line(line);
         if str_len(fn_name) > 0 {
-            sb_append(sb, "  <li><a href=\"#");
-            sb_append(sb, doc_html_escape(fn_name));
-            sb_append(sb, "\"><code>");
-            sb_append(sb, doc_html_escape(fn_name));
-            sb_append(sb, "</code></a></li>\n");
+            sb_append(fn_idx_sb, "  <li><a href=\"#");
+            sb_append(fn_idx_sb, doc_html_escape(fn_name));
+            sb_append(fn_idx_sb, "\"><code>");
+            sb_append(fn_idx_sb, doc_html_escape(fn_name));
+            sb_append(fn_idx_sb, "</code></a></li>\n");
             fn_count = fn_count + 1;
+        } else {
+            let s_name: str = extract_type_decl_name_from_line(line, "struct");
+            if str_len(s_name) > 0 { struct_names_h.push(s_name); };
+            let e_name: str = extract_type_decl_name_from_line(line, "enum");
+            if str_len(e_name) > 0 { enum_names_h.push(e_name); };
         };
         p = eol + 1;
     };
+    if vec_len(struct_names_h) > 0 {
+        sb_append(sb, "<h2>Struct index</h2>\n<ul class=\"fnindex\">\n");
+        let mut si_h: i64 = 0;
+        while si_h < vec_len(struct_names_h) {
+            sb_append(sb, "  <li><code>");
+            sb_append(sb, doc_html_escape(vec_get(struct_names_h, si_h)));
+            sb_append(sb, "</code></li>\n");
+            si_h = si_h + 1;
+        };
+        sb_append(sb, "</ul>\n");
+    };
+    if vec_len(enum_names_h) > 0 {
+        sb_append(sb, "<h2>Enum index</h2>\n<ul class=\"fnindex\">\n");
+        let mut ei_h: i64 = 0;
+        while ei_h < vec_len(enum_names_h) {
+            sb_append(sb, "  <li><code>");
+            sb_append(sb, doc_html_escape(vec_get(enum_names_h, ei_h)));
+            sb_append(sb, "</code></li>\n");
+            ei_h = ei_h + 1;
+        };
+        sb_append(sb, "</ul>\n");
+    };
+    sb_append(sb, "<h2>Function index</h2>\n<ul class=\"fnindex\">\n");
+    sb_append(sb, sb_to_str(fn_idx_sb));
     sb_append(sb, "</ul>\n");
     p = 0;
     let mut last_doc_sb: i64 = sb_new();
