@@ -16165,11 +16165,48 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // reference and lower_stmts mutates it in place — the
         // closures list holds the same pointer either way.
         closures.push(clo_fir);
-        let mut clo_fb: Vec<i32> = lower_stmts(pool, body_list, clo_b0, clo_regs, clo_lbls, clo_sym, clo_fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
-        if block_has_term(clo_fb) == 0 {
-            let czr: i64 = ctr_next(clo_regs);
-            ir_block_add(clo_fb, ir_const_int(czr, 0));
-            ir_block_add(clo_fb, ir_ret(czr));
+        // v0.4.204: braced-body tail-expression handling. Pre-fix
+        // `|y| { y + 7 }` lowered the kind-25 expr-stmt as a discard
+        // (lower_stmts → kind 25 → evaluate, drop result) and then
+        // synthesized `ret 0` for the missing terminator — silent
+        // miscompute returning 0. The bare-expression form
+        // `|y| y + 7` already worked because parse_primary wraps the
+        // single body expr as kind 22 (return-with-value) directly.
+        // Fix: mirror lower_fn's tail-expr handling — if the last
+        // body item is a stmt that carries a tail expression value
+        // (kind 25 = expr-stmt, 23 = if-expr, 38 = match-expr), lower
+        // all stmts up to the last via lower_stmt, then lower the
+        // last stmt's payload via lower_expr and emit `ret rv`.
+        let bcnt_clo: i64 = list_len(pool, body_list);
+        let mut last_kind_clo: i64 = 0 - 1;
+        if bcnt_clo > 0 { last_kind_clo = node_kind(pool, list_get(pool, body_list, bcnt_clo - 1)); };
+        let mut clo_fb: Vec<i32> = clo_b0;
+        if bcnt_clo > 0 && (last_kind_clo == 25 || last_kind_clo == 23 || last_kind_clo == 38) {
+            let mut bi_clo: i64 = 0;
+            while bi_clo + 1 < bcnt_clo {
+                clo_fb = lower_stmt(pool, list_get(pool, body_list, bi_clo), clo_fb, clo_regs, clo_lbls, clo_sym, clo_fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
+                bi_clo = bi_clo + 1;
+            };
+            let last_stmt_clo: i64 = list_get(pool, body_list, bcnt_clo - 1);
+            let mut expr_nid_clo: i64 = last_stmt_clo;
+            if last_kind_clo == 25 { expr_nid_clo = node_field(pool, last_stmt_clo, 1); };
+            let mut ep_clo: Vec<i32> = lower_expr(pool, expr_nid_clo, clo_fb, clo_regs, clo_lbls, clo_sym, clo_fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
+            clo_fb = lx_blk(ep_clo);
+            let mut rv_clo: i64 = lx_reg(ep_clo);
+            if block_has_term(clo_fb) == 0 {
+                if rv_clo < 0 {
+                    rv_clo = ctr_next(clo_regs);
+                    ir_block_add(clo_fb, ir_const_int(rv_clo, 0));
+                };
+                ir_block_add(clo_fb, ir_ret(rv_clo));
+            };
+        } else {
+            clo_fb = lower_stmts(pool, body_list, clo_b0, clo_regs, clo_lbls, clo_sym, clo_fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
+            if block_has_term(clo_fb) == 0 {
+                let czr: i64 = ctr_next(clo_regs);
+                ir_block_add(clo_fb, ir_const_int(czr, 0));
+                ir_block_add(clo_fb, ir_ret(czr));
+            };
         };
         let mut capi2: i64 = 0;
         let mut cur: Vec<i32> = blk;

@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.204] — 2026-04-30
+
+**Silent-miscompute close — `|y| { y + 7 }` (braced-body closure)
+now returns 17 instead of 0.** Fourth such close this session, a
+beginner-grade footgun reported in `findings/inbox/2026-04-30-
+closure-braced-body-returns-zero.md` (now under `findings/promoted/`).
+
+**Repro:**
+
+```nucleor
+fn main() -> i32 {
+    let f1 = |y: i32| y + 7;
+    let f2 = |y: i32| { y + 7 };
+    print_int(f1(10));   // 17 ✓
+    print_int(f2(10));   // pre-fix: 0 (silent miscompute)
+                          // post-fix: 17 ✓
+    0
+}
+```
+
+**Root cause:** `parse_primary` correctly wraps the bare-expression
+form `|y| EXPR` as kind-22 (return-with-value) at line 1344. The
+braced form `|y| { STMTS }` calls `parse_stmts` which always emits
+kind-25 (expr-stmt-discard) for the last item regardless of whether
+a `;` followed. The closure handler at line 16168 then walked
+`body_list` via `lower_stmts` (which discards kind-25 results) and
+fell through to "no terminator → synthesized `ret 0`". Adopters
+saw `0` with no diagnostic.
+
+**Fix:** Mirror `lower_fn`'s tail-expression detection (line
+17252-17280) inside the closure handler. When the last body item
+is kind 25/23/38, lower preceding stmts via `lower_stmt`, then
+lower the final item's payload via `lower_expr` and emit
+`ret rv`. The pre-existing fall-through path (no tail expr →
+`ret 0`) remains for side-effect-only bodies like
+`|y| { print_int(y); }`.
+
+**Six closure-body shapes locked in** by
+`tests/features/closure_braced_body_tail_expr.nr`:
+1. expression body — `|y| y + 7`
+2. braced single tail — `|y| { y + 7 }` (the bug)
+3. multi-stmt with tail — `|y| { let z = 3; let w = 4; y + z + w }`
+4. side-effect only — `|y| { print_int(y); }` (returns 0)
+5. if-as-tail — `|y| { if y > 0 { 1 } else { -1 } }`
+6. mixed stmt+tail — `|y| { let a = y * 2; let b = a + 1; b }`
+
+**Verify:** 600 PASS / 9 FAIL (T1.7 expected pre-tag; 8 others are
+pre-existing baseline failures unrelated to this ship — verified by
+running fixtures against HEAD compiler before edit).
+
+**Perf:** cold 3.25s / 3.37s ceiling • hot 0.94s / 0.97s ceiling •
+peak 131MB / 144MB ceiling. All clean.
+
+**Cross-ref family (silent-zero hazard, all closed):**
+- v0.4.126 (TYP-016: `if` without `else` zero-init)
+- v0.4.155 (TYP-008 ext: `let mut x: T;` no init)
+- v0.4.156 (TYP-021 ext: closure call returning void silently bound)
+- v0.4.202 (struct-destructure-guard fall-through)
+- v0.4.203 (tuple/slice/enum-variant guard fall-through)
+- **v0.4.204 (this ship): closure-braced-body silent-zero** — sibling
+
+---
+
 ## [0.4.203] — 2026-04-30
 
 **TWO MORE silent-miscompute closes — `__tuple`/`__slice` and enum-

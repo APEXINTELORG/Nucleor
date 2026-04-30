@@ -6,6 +6,7 @@ diagnostic_actual: none (compile clean, runtime returns 0)
 diagnostic_expected: parity between `|y| expr` and `|y| { expr }` — both should evaluate to the body's tail expression
 discovered_against: v0.4.162 (commit 213fee9)
 commit: 213fee9e84101dad4a06807f994413d7d4f1cb86
+status: CLOSED in v0.4.204 — closure handler at line 16168 now mirrors lower_fn's tail-expr detection; regression-guard fixture at tests/features/closure_braced_body_tail_expr.nr locks in 6 closure-body shapes
 ---
 
 ## Repro
