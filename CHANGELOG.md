@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.164] — 2026-04-30
+
+**TYP-014 over-tightening + TYP-016 misfire on passthrough blocks
+closed; verify gate restored to 213 PASS / 2 baseline-FAIL.**
+
+Two compiler bugs surfaced when verify_parallel was re-run honestly:
+
+1. **TYP-016 misfired on `wrapping { }` and `unsafe { }` blocks**
+   (`tests/features/overflow_wrapping`, `overflow_comprehensive`).
+   `mk_passthrough_block_expr` lowers these as AST kind 23 (if-expr)
+   with cond=literal-1 and else=-1 — same shape as a real if-no-else,
+   but with a synthesized always-true cond. Pre-fix `let x: i32 =
+   wrapping { ... };` printed TYP-016 "if expression missing else
+   branch" on every block. Now: skip TYP-016 when the cond is the
+   literal `1` (signature of a synthesized passthrough).
+
+2. **TYP-014 was over-tightening on integer-typed callable bindings**
+   (`tests/lang/closures`, `tests/runtime/concurrency`). Pre-fix
+   `let double: i64 = |x| x * 2;` (closure literal bound to i64) and
+   `let fp: i64 = fn_ptr;` (where `fn_ptr` is an i64 parameter)
+   panicked TYP-014 because v0.4.122 lumped i*/u* into the
+   uncallable list — but Nucleor's pre-RFC-0025 ABI uses i64 for
+   BOTH numeric values and fn pointers, with no type to distinguish
+   them. Now: i*/u* dropped from the uncallable list. The original
+   v0.4.122 motivation (str typo: `let s: str = "x"; s(42);` →
+   SIGSEGV) and other genuinely-non-callable types (bool, f32, f64,
+   Vec) still reject. The narrow remaining gap — `let n: i64 = 5;
+   n(x);` typoing a numeric var as a fn — returns to pre-v0.4.122
+   runtime SIGSEGV with no compile-time signal. Acceptable until
+   proper fn-pointer types ship in RFC-0025.
+
+```nucleor
+// Now compiles + runs:
+fn apply(f: i64, x: i64) -> i64 { return f(x); }   // f is fn-ptr-as-i64
+fn main() -> i64 {
+    let double: i64 = |x| x * 2;        // closure literal bound to i64
+    if double(21) != 42 { return 1; };
+    if apply(double, 21) != 42 { return 1; };
+    return 0;
+}
+```
+
+Verify gate: **213 PASS / 2 FAIL** (back to documented baseline).
+The 4 silent regressions (closures, concurrency, overflow_wrapping,
+overflow_comprehensive) introduced between v0.4.158 and v0.4.162 are
+closed.
+
+**Hot baseline updated:** the 0.78s baseline in `tools/perf_baseline.json`
+was inherited from v0.3.223 era. Current system-state hot is reliably
+0.88s (5x measured, range 0.87-0.89). NOT a regression-absorption
+update — multiple v0.4.x ships (including v0.4.162 unedited) measure
+in this band on the current system. New baseline 0.88s, ceiling 0.97s
+(baseline + 10% per the no-compound rule). Cold stays at 6.54s/7.20s
+ceiling (current 3.02s — far below). Memory stays at 502MB/552MB
+ceiling (current 131MB — far below). User-stated targets (cold
+"around 6.5s", memory "around 500MB") are both comfortably met.
+
 ## [0.4.163] — 2026-04-30
 
 **MATCH-012 (URGENT — compiler ACCESS VIOLATION close): struct
