@@ -5,6 +5,97 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.213] — 2026-04-30
+
+**🎯 Phase 3b COMPLETE for arithmetic — nested narrow expression
+chains now emit width-correct iN ops end-to-end.** The substantive
+remaining gap (`(a + b) + c` for narrow `a, b, c`) closes here. The
+v0.4 milestone language ("`add i64` emitted regardless of declared
+narrower type") is no longer true for ANY arith pattern over
+narrow types.
+
+**Pre-fix flow for `let x: i16 = (a + b) + c;`:**
+
+```llvm
+; inner (a + b) — v0.4.211 narrow path
+%la = load i16; %la64 = sext i16 to i64
+%lb = load i16; %lb64 = sext i16 to i64
+%inner16 = add i16 %la, %lb
+%inner64 = sext i16 %inner16 to i64
+
+; outer (... + c) — falls through to i64 path
+%lc = load i16; %lc64 = sext i16 to i64
+%sum64 = add i64 %inner64, %lc64
+%narrow = call i64 @__nucleor_as_i16(i64 %sum64)  ; helper call
+%trunc = trunc i64 %narrow to i16
+store i16 %trunc, ptr %x
+```
+
+**Post-fix flow:**
+
+```llvm
+%la = load i16
+%lb = load i16
+%inner16 = add i16 %la, %lb       ; no sext — stays at i16
+%lc = load i16
+%sum16 = add i16 %inner16, %lc    ; native chain at i16
+%sum64 = sext i16 %sum16 to i64    ; ONE sext at chain exit
+%trunc = trunc i64 %sum64 to i16
+store i16 %trunc, ptr %x
+```
+
+The chain operates entirely at i16 width. ONE sext (not per-op).
+narrow_via_as helper call dropped. Native LLVM iN modular
+arithmetic preserves wrap correctness throughout.
+
+**Implementation:** two new helpers replace the v0.4.211/.212 ad-hoc
+detection:
+
+- `detect_narrow_chain(pool, nid, sym, fir) -> i64` — tree-recursive.
+  Returns sign-encoded width if `nid`'s value resolves at one
+  consistent narrow width, else 0. Fast-exits on non-narrow nodes
+  (k != 1/3/4) so non-narrow expressions pay O(1) per check.
+- `lower_expr_narrow(pool, nid, blk, regs, sym, fir, tw)` — emits
+  narrow ops for a detected narrow chain. Returns the iN result reg
+  (no sext). Caller (kind-4 outer) wraps with one final sext/zext
+  to keep the i64 ABI for non-narrow downstream consumers.
+
+`lower_expr` kind 4 entry now calls detect_narrow_chain on the whole
+binop subtree once. If non-zero width, dispatches to lower_expr_narrow
++ single sext. Else falls through to existing kind-4 logic. Subsumes
+v0.4.211/.212's special-case detection (var+var, var+literal,
+literal+var) AND adds the nested case (binop of binops, mixed-op
+chains like `a * 2 - b`).
+
+**Operand-order preservation:** lower_expr_narrow lowers operands in
+source order, so non-commutative ops (sub, sdiv, srem) stay
+correct. Verified by the v0.4.212 `7 - v16` test (must produce -93).
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+Phase 3a fixture extended with 3 nested-chain cases:
+`(a + b) + c`, `a * 2 - b`, and `wrapping { big * two + one }`
+for wrap correctness — all green.
+
+**Perf:** cold 3.31s / 3.37s ceiling • **hot 0.92s / 0.97s ceiling
+(BACK to v0.4.210 baseline, recovering the 0.05s v0.4.212 cost)** —
+the unified path is more efficient than the v0.4.211/.212 cascaded
+checks because it does one tree walk instead of 3-4 per-binop
+operand-kind branches. Peak 131MB / 144MB.
+
+**Phase 3 status after this ship:**
+- 3a: COMPLETE.
+- 3b: ARITH-COMPLETE — every narrow-arith chain (var/lit/nested)
+  emits typed iN ops. Still open in 3b: comparisons, shifts,
+  bitwise. Functionally correct in i64 ABI today; narrow
+  variants are nice-to-have.
+- 3c/3d/3e: untouched.
+
+The v0.5 distance shrinks substantially with this ship — the v0.4
+milestone's "STILL OPEN" assertion that narrow types use i64 IR
+is now demonstrably false for the entire arith family.
+
+---
+
 ## [0.4.212] — 2026-04-30
 
 **RFC-0015 phase 3b extended — narrow-arith now covers `var + literal`

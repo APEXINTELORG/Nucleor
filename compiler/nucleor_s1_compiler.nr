@@ -14078,6 +14078,79 @@ fn enum_etag_for_node(pool: Vec<i32>, nid: i64, sym: Vec<i32>) -> i64 {
     return sym_get(sym, key);
 }
 
+// v0.4.213 RFC-0015 phase 3b extension — detect narrow expression
+// chains (var-ref + literal + nested binop) at any depth so kind-4
+// can dispatch to a width-correct narrow-emit path. Returns the
+// sign-encoded narrow width if `nid`'s value resolves at one
+// consistent narrow width, else 0. Tree-recursive but fast-exits
+// on non-narrow nodes (kind != 1/3/4) — most expressions in
+// real code are non-narrow and bail in O(1).
+fn detect_narrow_chain(pool: Vec<i32>, nid: i64, sym: Vec<i32>, fir: Vec<i32>) -> i64 {
+    if nid < 0 { return 0; };
+    let k: i64 = node_kind(pool, nid);
+    if k == 3 {
+        let name: str = node_field(pool, nid, 1);
+        let ar: i64 = sym_get(sym, name);
+        if ar < 0 { return 0; };
+        return ir_fn_get_width(fir, ar);
+    };
+    if k == 4 {
+        let iop: i64 = tok_to_ir(node_field(pool, nid, 1));
+        if iop < 2 || iop > 6 { return 0; };
+        let lhs_n: i64 = node_field(pool, nid, 2);
+        let rhs_n: i64 = node_field(pool, nid, 3);
+        let lk: i64 = node_kind(pool, lhs_n);
+        let rk: i64 = node_kind(pool, rhs_n);
+        let lw: i64 = detect_narrow_chain(pool, lhs_n, sym, fir);
+        let rw: i64 = detect_narrow_chain(pool, rhs_n, sym, fir);
+        if lw != 0 && lw == rw { return lw; };
+        if lw != 0 && rk == 1 { return lw; };
+        if rw != 0 && lk == 1 { return rw; };
+        return 0;
+    };
+    return 0;
+}
+
+// v0.4.213: emit a narrow expression chain at width `tw` (sign-
+// encoded). Returns the iN result reg without sext-to-i64 wrapping;
+// the caller (kind-4 outer dispatch) handles the final sext/zext.
+// Pre-condition: detect_narrow_chain(pool, nid, sym, fir) returned
+// the same `tw`. Caller is the only entry point — this fn does no
+// re-validation.
+fn lower_expr_narrow(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, tw: i64) -> Vec<i32> {
+    let aw: i64 = if tw > 0 { tw } else { 0 - tw };
+    let k: i64 = node_kind(pool, nid);
+    if k == 1 {
+        let lit: i64 = node_field(pool, nid, 1);
+        let cr64: i64 = ctr_next(regs);
+        ir_block_add(blk, ir_const_int(cr64, lit));
+        let cr: i64 = ctr_next(regs);
+        ir_block_add(blk, ir_trunc(cr, cr64, aw));
+        return lx_new(cr, blk);
+    };
+    if k == 3 {
+        let name: str = node_field(pool, nid, 1);
+        let ar: i64 = sym_get(sym, name);
+        let lr: i64 = ctr_next(regs);
+        ir_block_add(blk, ir_load_t(lr, ar, aw));
+        return lx_new(lr, blk);
+    };
+    if k == 4 {
+        let iop: i64 = tok_to_ir(node_field(pool, nid, 1));
+        let mut lp: Vec<i32> = lower_expr_narrow(pool, node_field(pool, nid, 2), blk, regs, sym, fir, tw);
+        let lr: i64 = lx_reg(lp);
+        let mut blk2: Vec<i32> = lx_blk(lp);
+        let mut rp: Vec<i32> = lower_expr_narrow(pool, node_field(pool, nid, 3), blk2, regs, sym, fir, tw);
+        let rr: i64 = lx_reg(rp);
+        let mut blk3: Vec<i32> = lx_blk(rp);
+        let nr: i64 = ctr_next(regs);
+        ir_block_add(blk3, ir_binop_t(iop, nr, lr, rr, aw));
+        return lx_new(nr, blk3);
+    };
+    // Unreachable if detect_narrow_chain is correct. Fail-safe: return -1.
+    return lx_new(0 - 1, blk);
+}
+
 fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
     let kind: i64 = node_kind(pool, nid);
     // RFC-0015 phase 2: `as` cast. Lower inner, then call __nucleor_as_<T>
@@ -14309,101 +14382,38 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return lx_new(r_v209, blk);
     };
     if kind == 4 {
-        // v0.4.211 RFC-0015 phase 3b: narrow-binop fast path for the
-        // simplest pattern — `var <op> var` where both vars are kind-3
-        // var-refs to alloca-regs of the same narrow width and the op
-        // is arithmetic (+/-/*/// /%). Emits typed `<op> iN` directly
-        // and sext/zext-extends to i64 for the i64-everywhere ABI.
-        // Skips the narrow_via_as runtime helper that the i64-arith
-        // path needs for wrap correctness — narrow LLVM IR ops wrap
-        // natively at the right width.
+        // v0.4.213 RFC-0015 phase 3b: unified narrow-arith dispatch
+        // via tree-recursive width detection. Subsumes v0.4.211 (var+
+        // var same-narrow), v0.4.212 (var+literal), AND nested
+        // expression chains like `(a + b) * c` where every operand
+        // resolves to the same narrow width.
         //
-        // Pre-fix flow for `let x: i16 = a + b;` (a, b: i16):
-        //   load i16 -> sext i64; load i16 -> sext i64;
-        //   add i64; call __nucleor_as_i16(i64); trunc i16; store i16.
-        // Post-fix flow:
-        //   load i16; load i16; add i16;
-        //   sext i16 to i64; trunc i16; store i16.
-        // Drops the runtime helper call.
-        let v211_bop: i64 = node_field(pool, nid, 1);
-        let v211_iop: i64 = tok_to_ir(v211_bop);
-        if v211_iop >= 2 && v211_iop <= 6 {
-            let v211_lhs_n: i64 = node_field(pool, nid, 2);
-            let v211_rhs_n: i64 = node_field(pool, nid, 3);
-            let v211_lk: i64 = node_kind(pool, v211_lhs_n);
-            let v211_rk: i64 = node_kind(pool, v211_rhs_n);
-            // v0.4.212 phase 3b extended: also handle var+literal and
-            // literal+var. Detect a single narrow-typed var-ref operand;
-            // the other operand can be kind-1 int_lit which we trunc into
-            // the narrow width via const_int + trunc. Same correctness
-            // story — native LLVM iN wrap.
-            let mut v211_var_n: i64 = 0 - 1;
-            let mut v211_lit_n: i64 = 0 - 1;
-            let mut v211_lit_on_rhs: i64 = 0;
-            let mut v211_both_var: i64 = 0;
-            if v211_lk == 3 && v211_rk == 3 { v211_both_var = 1; }
-            else if v211_lk == 3 && v211_rk == 1 { v211_var_n = v211_lhs_n; v211_lit_n = v211_rhs_n; v211_lit_on_rhs = 1; }
-            else if v211_lk == 1 && v211_rk == 3 { v211_var_n = v211_rhs_n; v211_lit_n = v211_lhs_n; v211_lit_on_rhs = 0; };
-            if v211_both_var == 1 {
-                let v211_lname: str = node_field(pool, v211_lhs_n, 1);
-                let v211_rname: str = node_field(pool, v211_rhs_n, 1);
-                let v211_lar: i64 = sym_get(sym, v211_lname);
-                let v211_rar: i64 = sym_get(sym, v211_rname);
-                if v211_lar >= 0 && v211_rar >= 0 {
-                    let v211_lw: i64 = ir_fn_get_width(fir, v211_lar);
-                    let v211_rw: i64 = ir_fn_get_width(fir, v211_rar);
-                    if v211_lw != 0 && v211_lw == v211_rw {
-                        let v211_aw: i64 = if v211_lw > 0 { v211_lw } else { 0 - v211_lw };
-                        let v211_lr: i64 = ctr_next(regs);
-                        ir_block_add(blk, ir_load_t(v211_lr, v211_lar, v211_aw));
-                        let v211_rr: i64 = ctr_next(regs);
-                        ir_block_add(blk, ir_load_t(v211_rr, v211_rar, v211_aw));
-                        let v211_nr: i64 = ctr_next(regs);
-                        ir_block_add(blk, ir_binop_t(v211_iop, v211_nr, v211_lr, v211_rr, v211_aw));
-                        let v211_wr: i64 = ctr_next(regs);
-                        if v211_lw > 0 {
-                            ir_block_add(blk, ir_sext(v211_wr, v211_nr, v211_aw));
-                        } else {
-                            ir_block_add(blk, ir_zext(v211_wr, v211_nr, v211_aw));
-                        };
-                        return lx_new(v211_wr, blk);
-                    };
-                };
-            } else if v211_var_n >= 0 {
-                let v211_vname: str = node_field(pool, v211_var_n, 1);
-                let v211_var_ar: i64 = sym_get(sym, v211_vname);
-                if v211_var_ar >= 0 {
-                    let v211_vw: i64 = ir_fn_get_width(fir, v211_var_ar);
-                    if v211_vw != 0 {
-                        let v211_aw2: i64 = if v211_vw > 0 { v211_vw } else { 0 - v211_vw };
-                        // Emit: load_t var → vr; const_int lit → cr64;
-                        // trunc cr64 to iN → cr; binop_t iN → nr;
-                        // sext/zext nr to i64 → wr.
-                        let v211_vr: i64 = ctr_next(regs);
-                        ir_block_add(blk, ir_load_t(v211_vr, v211_var_ar, v211_aw2));
-                        let v211_lit_val: i64 = node_field(pool, v211_lit_n, 1);
-                        let v211_cr64: i64 = ctr_next(regs);
-                        ir_block_add(blk, ir_const_int(v211_cr64, v211_lit_val));
-                        let v211_cr: i64 = ctr_next(regs);
-                        ir_block_add(blk, ir_trunc(v211_cr, v211_cr64, v211_aw2));
-                        let v211_nr2: i64 = ctr_next(regs);
-                        // Operand order matters for non-commutative ops
-                        // (sub, sdiv, srem). Preserve source order.
-                        if v211_lit_on_rhs == 1 {
-                            ir_block_add(blk, ir_binop_t(v211_iop, v211_nr2, v211_vr, v211_cr, v211_aw2));
-                        } else {
-                            ir_block_add(blk, ir_binop_t(v211_iop, v211_nr2, v211_cr, v211_vr, v211_aw2));
-                        };
-                        let v211_wr2: i64 = ctr_next(regs);
-                        if v211_vw > 0 {
-                            ir_block_add(blk, ir_sext(v211_wr2, v211_nr2, v211_aw2));
-                        } else {
-                            ir_block_add(blk, ir_zext(v211_wr2, v211_nr2, v211_aw2));
-                        };
-                        return lx_new(v211_wr2, blk);
-                    };
-                };
+        // Pre-fix flow for nested narrow `(a + b) * c` (i16):
+        //   inner: load i16 → sext i64; load i16 → sext i64;
+        //          add i16 → sext i64;  (v0.4.211 narrow path)
+        //   outer: <i64 add of inner sext + load+sext c>
+        //          + call __nucleor_as_i16(i64);  (i64 fallback)
+        //   trunc i16; store i16.
+        // Post-fix flow (full narrow chain):
+        //   load i16 a; load i16 b; add i16; (no sext)
+        //   load i16 c; mul i16; (no sext, no helper)
+        //   sext i16 to i64;
+        //   trunc i16; store i16.
+        // Drops both the inner sext/trunc roundtrip AND the outer
+        // narrow_via_as helper call for chained narrow arith.
+        let v213_w: i64 = detect_narrow_chain(pool, nid, sym, fir);
+        if v213_w != 0 {
+            let v213_aw: i64 = if v213_w > 0 { v213_w } else { 0 - v213_w };
+            let mut v213_p: Vec<i32> = lower_expr_narrow(pool, nid, blk, regs, sym, fir, v213_w);
+            let v213_nr: i64 = lx_reg(v213_p);
+            let mut v213_blk: Vec<i32> = lx_blk(v213_p);
+            let v213_wr: i64 = ctr_next(regs);
+            if v213_w > 0 {
+                ir_block_add(v213_blk, ir_sext(v213_wr, v213_nr, v213_aw));
+            } else {
+                ir_block_add(v213_blk, ir_zext(v213_wr, v213_nr, v213_aw));
             };
+            return lx_new(v213_wr, v213_blk);
         };
         // v0.3.128: enum-equality dispatch. Pre-v0.3.128, `t == Tag::A`
         // (where t is an enum value) compared the underlying Vec
