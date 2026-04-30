@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.208] — 2026-04-30
+
+**Wrong-error CLEANUP — NR020 parse-error messages now use human-
+readable token names instead of raw IDs.** Two findings close with
+this single fix.
+
+**Pre-fix:**
+
+```
+error[NR020]: parse error at token position 8: expected token 52
+got 50 — pre-fix this printed a warning and continued, producing
+a likely-broken binary.
+```
+
+**Post-fix:**
+
+```
+error[NR020]: parse error at byte 8: expected `{`, got `(`. Pre-
+v0.4.78 this printed a warning and continued, producing a
+likely-broken binary; v0.4.208 added token names to make the
+diagnostic actionable.
+```
+
+**Fix:** new `tok_name(tt: i64) -> str` helper before `expect_tok`
+maps the high-impact punctuation + literal tokens to backtick-
+wrapped source-level names: `(`, `)`, `{`, `}`, `[`, `]`, `,`, `;`,
+`:`, `=`, `->`, `=>`, identifier, integer literal, string literal,
+float literal, and EOF. `expect_tok` rewrites the panic message to
+use the helper. Less-common tokens fall back to `"token N"` (no
+regression vs pre-fix; actually a small improvement because the
+rest of the message is clearer).
+
+**Trimmed table:** the v0.4.208-initial draft included ~50 entries
+(every operator + every keyword) but added 0.27s to cold compile —
+pushed the ceiling from 3.10s to 3.37s. Trimmed to 17 entries (the
+high-impact set) for a 0.04s cost. Cold lands at 3.14s, well under
+the 3.37s ceiling. Aligns with the project's "keep the ship tight"
+mandate over expanding diagnostic coverage at compile-cost.
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+
+**Perf:** cold 3.14s / 3.37s ceiling • hot 0.92s / 0.97s ceiling •
+peak 131MB / 144MB ceiling. All clean.
+
+Closes:
+- `findings/inbox/2026-04-30-tuple-struct-decl-panic.md`
+- `findings/inbox/2026-04-30-match-on-unit-panic.md`
+
+Both promoted to `findings/promoted/`. The empty-match-body finding
+is a separate construct (parser doesn't reach expect_tok) and stays
+in the inbox.
+
+---
+
 ## [0.4.207] — 2026-04-30
 
 **Silent-miscompute close — `fn add(a: i32, a: i32)` is now rejected

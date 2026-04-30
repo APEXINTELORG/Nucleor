@@ -6,6 +6,7 @@ diagnostic_actual: PANIC: error[NR020] (raw "expected token 51 got 52")
 diagnostic_expected: clean PARSE-NNN with span pointing at the `(` after `match`, OR a TYP-NNN saying scrutinee type `()` (unit) is not supported
 discovered_against: v0.4.162
 commit: a99fc717079b8f7774c8ddf7aa03a4cc5e132eae
+status: CLOSED in v0.4.208 — same fix as tuple-struct-decl-panic. NR020 now reports `expected backtick ) backtick, got backtick { backtick` instead of `expected token 51 got 52`. Unit-as-scrutinee is still rejected (intentional) but the diagnostic is actionable.
 ---
 
 ## Repro

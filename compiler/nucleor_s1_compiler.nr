@@ -696,6 +696,32 @@ fn pr_val(r: Vec<i32>) -> i64 { return vec_get(r, 1); }
 
 fn pk(tokens: Vec<i32>, pos: i64) -> i64 { return tok_type_at(tokens, pos); }
 fn pkv(tokens: Vec<i32>, pos: i64) -> i64 { return tok_val_at(tokens, pos); }
+// v0.4.208: human-readable names for the most common NR020 tokens.
+// Closes two findings (tuple-struct-decl-panic + match-on-unit-panic)
+// which both surfaced as "expected token N got M" with raw IDs.
+// Trimmed to the high-impact punct/keyword set to avoid bloating
+// the compiler binary; less-common tokens fall back to "token N".
+fn tok_name(tt: i64) -> str {
+    if tt == 0 { return "<EOF>"; };
+    if tt == 1 { return "identifier"; };
+    if tt == 2 { return "integer literal"; };
+    if tt == 3 { return "string literal"; };
+    if tt == 40 { return "`=`"; };
+    if tt == 41 { return "`->`"; };
+    if tt == 42 { return "`:`"; };
+    if tt == 43 { return "`;`"; };
+    if tt == 44 { return "`,`"; };
+    if tt == 50 { return "`(`"; };
+    if tt == 51 { return "`)`"; };
+    if tt == 52 { return "`{`"; };
+    if tt == 53 { return "`}`"; };
+    if tt == 54 { return "`[`"; };
+    if tt == 55 { return "`]`"; };
+    if tt == 64 { return "`=>`"; };
+    if tt == 70 { return "float literal"; };
+    return str_concat("token ", str_from_int(tt));
+}
+
 fn expect_tok(tokens: Vec<i32>, pos: i64, tt: i64) -> i64 {
     if pk(tokens, pos) != tt {
         // v0.4.78 NR020 — was a `print()` warning that returned `pos + 1`
@@ -705,9 +731,13 @@ fn expect_tok(tokens: Vec<i32>, pos: i64, tt: i64) -> i64 {
         // probe (`x @ 1..=10`) which printed a parse error AND ran to
         // exit=0 with no output. Promoted to a hard panic — adopters
         // who hit this previously shipped broken binaries.
+        // v0.4.208: emit token-name table output instead of raw IDs.
+        // Pre-fix message: "expected token 52 got 50" — opaque.
+        // Post-fix: "expected `{` got `(`" — actionable.
         let tok: Vec<i32> = tok_at(tokens, pos);
         let byte_pos: i64 = vec_get(tok, 2);
-        panic(str_concat("error[NR020]: parse error at token position ", str_concat(str_from_int(byte_pos), str_concat(": expected token ", str_concat(str_from_int(tt), str_concat(" got ", str_concat(str_from_int(pk(tokens, pos)), " — pre-fix this printed a warning and continued, producing a likely-broken binary."))))));
+        let got_tt: i64 = pk(tokens, pos);
+        panic(str_concat("error[NR020]: parse error at byte ", str_concat(str_from_int(byte_pos), str_concat(": expected ", str_concat(tok_name(tt), str_concat(", got ", str_concat(tok_name(got_tt), ". Pre-v0.4.78 this printed a warning and continued, producing a likely-broken binary; v0.4.208 added token names to make the diagnostic actionable.")))))));
     };
     return pos + 1;
 }
