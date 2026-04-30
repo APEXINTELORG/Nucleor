@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.207] — 2026-04-30
+
+**Silent-miscompute close — `fn add(a: i32, a: i32)` is now rejected
+at parse time with NAM-001 instead of silently shadowing the first
+parameter.** Beginner-grade footgun: pre-fix `add(3, 5)` returned 10
+(5+5) instead of the naive 8 because the body's `a + a` resolved to
+the second `a` only — first argument unreachable, no diagnostic.
+
+**Repro:**
+
+```nucleor
+fn add(a: i32, a: i32) -> i32 {
+    a + a
+}
+fn main() -> i32 {
+    print_int(add(3, 5));   // pre-fix: 10 (silently wrong)
+                              // post-fix: NAM-001 halt
+    0
+}
+```
+
+**Fix:** `parse_fn_decl` walks each newly-parsed parameter against
+the already-pushed list and panics with NAM-001 on collision. Linear
+scan in the parser; param lists are small in practice (cost is
+negligible — verify gate timing unchanged).
+
+**Why parse-time vs type-check:** the silent-shadow happens at the
+sym-table population step (later params overwrite earlier slots),
+which is much later than the parse. Catching at parse keeps the
+diagnostic close to the source location and prevents downstream
+phases from running on a known-broken signature. Mirrors the
+v0.4.78 NR020 / v0.4.99 §_p tightening doctrine: halt at the
+earliest unambiguous detection point.
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 expected pre-tag; 8 pre-existing
+baseline failures unrelated).
+
+**Perf:** cold 3.20s / 3.37s ceiling • hot 0.90s / 0.97s ceiling •
+peak 131MB / 144MB ceiling. All clean.
+
+Closes `findings/inbox/2026-04-30-dup-fn-param-name-silent-shadow.md`
+→ `findings/promoted/`. Regression-guard fixture at
+`tests/fixtures/repro_v207_dup_fn_param_halts.nr`.
+
+**Cross-ref:** `tests/err/err_dup_struct_field.nr`-style fixtures
+already cover struct-field duplicate detection. This finding is the
+fn-param sibling of that family.
+
+---
+
 ## [0.4.206] — 2026-04-30
 
 **COMPILER-MELTDOWN CLOSE — `match <f64> { 1.5 => ... }` no longer
