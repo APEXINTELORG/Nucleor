@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.195] — 2026-04-30
+
+**`docs/RFC-0015_PHASE_3_PLAN_2026-04-30.md` — keystone roadmap
+for the 2 remaining v0.4 success-criteria boxes.**
+
+User asked "how and when is the best time to start RFC-0015 phase
+3 (IR width-tagged numeric ops)?" since both remaining v0.4
+boxes pivot on it.
+
+Plan doc enumerates:
+- **Surface:** only 8 lines in `compiler/nucleor_s1_compiler.nr`
+  literally emit `add/sub/mul/alloca/store/load i64`. All
+  concentrated in `emit_inst` ~5050–5130. Smaller than feared.
+- **Migration strategy:** option (C) — derive width from dest
+  register's declared type at emit time via new `reg_llvm_type`
+  helper. No IR shape change, just emit-site lookup.
+- **Phased ship plan:** 3a (allocas + load/store, +5–10% hot
+  perf), 3b (binops, +10–20% hot — likely needs ceiling rebase),
+  3c (call ABI sext/zext, closes the i16/u8 print_int silent
+  miscompute), 3d (stdlib audit + fixture). Optional 3e (strict-
+  mode flip, very high adopter risk).
+- **Per-phase risk + verify-gate impact + perf delta + LOC.**
+- **When to start:** fresh session, no probe-agent integration
+  in flight, perf baseline stable, 4+ hours focused time. NOT
+  late in a 33-ship session like today.
+- **Recommended first execution ship:** Phase 3a comprehensive,
+  5 sub-steps each gated on T1.7 fixed-point.
+- **Rollback plan** per phase.
+
+This is a doc-only ship today. Phase 3a starts next session.
+
+No code changes.
+
 ## [0.4.194] — 2026-04-30
 
 **`docs/v0.4_FEATURE_AUDIT_2026-04-30.md` — consolidated audit
