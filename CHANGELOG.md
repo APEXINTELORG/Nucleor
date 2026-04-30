@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.156] — 2026-04-29
+
+**TYP-021 ext: closure call returning void silently bound the
+let target to 0. `let r = void_closure(args)` now halts.**
+
+```nucleor
+let f = |n: i64| { print_int(n); };
+let r = f(42);   // pre-fix: prints 42, then r == 0 silently
+                  //          (`let _ = f(42);` is the right form)
+```
+
+The kind-7 (call) type-check returns `builtin_rtype(callee)` for
+non-sig-found, non-dynamic-helper callees — and `builtin_rtype("f")`
+returns `""` for any user-defined name (closure or otherwise).
+Empty type is not `"void"`, so v0.4.136's TYP-021 check
+(`init_t == "void" || type_is_unit(init_t)`) didn't fire on
+`let r = f(42)`. The closure's body type was never propagated.
+
+Sister to v0.4.146 (which registered `__closure_argc_<vname>`
+in tenv at let-stmt for argc-checking call sites) and v0.4.139
+(which routed Vec void-mutators to return `"void"` so existing
+void checks cascaded). This release adds a parallel
+`__closure_rtype_<vname>` registration:
+
+- **At let-stmt kind-20**, when `init` is kind-42 (closure), run
+  `type_last_stmt` over the closure body and store the result
+  in tenv under `__closure_rtype_<vname>`. For void-bodied
+  closures (last stmt is a kind-25 tail-expr-stmt wrapping
+  `print_int` / similar) this is `"void"`; for value-bodied
+  closures it's the value's type.
+- **At kind-7 type_expr**, in the v0.4.146 closure-argc-check
+  branch, after the argc verification, look up the rtype and
+  return it instead of `builtin_rtype("")`. That cascades
+  through v0.4.136 TYP-021 (`let r = void_closure(...)`),
+  v0.4.132 TYP-020 (`5 + void_closure(...)`),  v0.4.137
+  NUM-022 (cmp with closure result), and v0.4.149 TYP-006
+  (`print(void_closure(...))`) without per-callsite
+  duplication.
+
+Mirrored to `nucleor_tools_suite.nr` (let-stmt registration +
+call-site lookup).
+
+Negative fixture: `tests/err/err_let_void_closure.nr`. Bootstrap
+fixed-point holds first-pass. Fast-verify 208 PASS / 2
+baseline-FAIL.
+
 ## [0.4.155] — 2026-04-29
 
 **TYP-008 ext: `let mut x: T;` (mutable, no initializer) now
