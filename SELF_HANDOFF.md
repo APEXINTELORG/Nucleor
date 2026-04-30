@@ -346,52 +346,69 @@ beyond a single-tag fix):
 - `PARALLEL_AGENT_BLOCKERS.md` — historical, useful for the
   Windows file-lock + rebase workaround at the bottom.
 
-## Mental model for picking the next probe
+## Probe mandate — RETIRED 2026-04-29
 
-The v0.4 silent-miscompute audit has hit ~14 closes this session.
-Each close was found by writing a 5-line `.nr` snippet that
-exercises ONE corner case. The pattern that consistently produces
-finds:
+The probe-driven hunt produced ~24 silent-miscompute closes
+across v0.4.135–v0.4.158, but each ship adds verify-suite step
+time (every fixture runs forever afterward). The accumulated
+test-time cost has crossed the point where the marginal close
+isn't worth the marginal verify minute. **Stop probe-driven
+work.** Pivot to the v0.5 punchlist (`docs/milestones/v0.5.0.md`).
 
-1. Pick a Rust idiom (e.g. `let x = if cond { y };`)
-2. Write the smallest possible snippet
-3. Run `nucleor build`. Expected outcomes:
-   - Clean halt with a `TYP-*` / `NR*` / `MATCH-*` code → already
-     covered, move on
-   - Clean clang link error → check if the lift surfaces it; if
-     not, that's a candidate (v0.4.106-style)
-   - Compiles silently then runs → run it. If output is wrong,
-     that's a silent miscompute candidate. If it segfaults,
-     that's an urgent silent miscompute candidate.
+The historical mental model for probes is below for reference,
+but DO NOT RUN PROBE ROUNDS unless explicitly directed. The user
+wants progress on v0.5 themes — DbC, atomics, max_depth,
+nuc fmt + LSP MVP, capsule signing, nuc port, content-addressed
+cache, RFC-0033 / RFC-0034 design specs.
 
-Don't probe things that have obvious diagnostics already
-(e.g. don't write `let x: i64 = "string";` — that's TYP-008
-caught since v0.2). The interesting probes are *combinations*
-of features (e.g. method call on struct field, tail-expr inside
-match arm inside closure) where the dispatch chain has more
-fall-through points.
+### Historical (reference only)
+
+The pattern that consistently produced finds was: pick a Rust
+idiom, write a 5-line `.nr` snippet, run `nucleor build`. If it
+silently compiled + ran wrong (or SIGSEGV'd), that was a
+silent-miscompute candidate. If it halted with a TYP-/NR-/MATCH-
+code, already covered. The interesting probes were combinations
+of features (method on struct field, tail-expr inside match arm
+inside closure) where dispatch has more fall-through points.
 
 ## Tag numbering
 
-Main is at v0.4.152. Next ship is v0.4.153 (or higher if parallel
+Main is at v0.4.158. Next ship is v0.4.159 (or higher if parallel
 agent pushes a tag during your fetch). Every tag is created by
 `git tag vX.Y.Z` AFTER checking `git tag -l | sort -V | tail` —
-if the agent shipped v0.4.155 between fetches, move to v0.4.156.
+if the agent shipped v0.4.160 between fetches, move to v0.4.161.
 The drift gate catches CHANGELOG↔tag mismatches.
+
+**Pivot to v0.5 punchlist.** Read `docs/milestones/v0.5.0.md`
+first. Each unchecked `[ ]` is a v0.5 work item. v0.5.0 ships
+when every checkbox is closed. The major themes are:
+
+- DbC (RFC-0006): `#[require], #[ensure], #[invariant]` (5 phases)
+- Atomics (RFC-0007): `#[atomic]` + SPSC/MPMC queues (5 phases)
+- `#[max_depth = N]` (RFC-0014): bounded recursion (4 phases)
+- Package manager (RFC-0019): registry + PubGrub + git deps + publish/yank
+- Cross-platform (RFC-0022): sysroots + cross-compile + pre-built top-5
+- `nuc fmt` + LSP server + editor extension
+- Capsule signing (RFC-0031): native SHA-256 / Ed25519 + NCAP envelope
+- `nuc port` Python migration MVP
+- RFC-0033 (effects-as-types) + RFC-0034 (compile-time `[]` params): design only
+- Content-addressed compilation cache: `target/.nuc_cache/<hash>.ll`
 
 ## You-have-context defaults
 
 - User wants progress, not narration. End-of-turn summary should
   be 1-2 sentences. No "let me explain what I did" preambles.
-- User cares about silent miscomputes more than cryptic-error UX
-  — both are valid closes but prioritize miscomputes when both
-  are available in one tick.
-- Use the PARALLEL_AGENT_HANDOFF doc as the authoritative
-  contract for what's NOT mine. Don't accidentally start working
-  on a residual the agent has.
-- Don't ship-batch (one bug per tag). Don't run full sequential
-  verify per ship (parallel + drift + T1.7 only). Don't write
-  multi-paragraph commit messages.
+- **The probe-driven hunt is RETIRED.** Probes built up too much
+  verify-suite step time. Don't go back to probing unless
+  explicitly told. Work the v0.5 punchlist.
+- Use the PARALLEL_AGENT_HANDOFF + PARALLEL_AGENT_RESCUE docs as
+  the authoritative contract for what's NOT mine. The fresh
+  parallel agent owns residual #7 (var-RHS shift bounds), the
+  thrashing v2 agent owns residual #6 (verify_parallel.sh
+  fold-in). Don't touch either.
+- Don't ship-batch (one tag per coherent unit of work). Don't
+  run full sequential verify per ship (parallel + drift + T1.7
+  only). Don't write multi-paragraph commit messages.
 
 ## FAQ from incoming agent (answered 2026-04-29)
 
