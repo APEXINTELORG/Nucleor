@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.158] — 2026-04-29
+
+**TYP-008 cascade ext: kind-8 type_expr now returns the
+receiver Vec type for clone/sort/reverse/map/filter/collect/
+take/skip/chain/step_by. Pre-fix `let r: i64 =
+v.clone().push(N);` silently bound r=0 because the outer push
+saw recv_t="" (clone's catch-all return) and the v0.4.139
+void-mutator route required Vec recv_t to fire.**
+
+```nucleor
+let mut v: Vec<i64> = Vec::new();
+v.push(10);
+let r: i64 = v.clone().push(20);
+// pre-fix: r == 0 (silent), now: TYP-008 type mismatch
+```
+
+Same shape as v0.4.139 (Vec void-mutator route to "void") and
+v0.4.156 (closure body rtype propagation): the kind-8 type_expr
+needed the right return type for known iter methods so the
+existing void / mismatch checks could cascade. The catch-all
+`return ""` at the end of the kind-8 branch silently swallowed
+all the methods in `iter_method_for_vec` that produce a fresh
+Vec — clone/sort/reverse/map/filter/collect/take/skip/chain/
+step_by all route to `vec_<m>_i64` runtime helpers returning
+`NVec*` (per v0.4.139's runtime audit), but the type-check
+emitted the empty string.
+
+This release adds an explicit branch: when `recv_t` is `Vec` /
+`Vec<T>` AND `mname` is one of those 10 methods, return
+`recv_t`. The downstream cascade then works as expected:
+`v.clone()` returns Vec, the outer `.push(20)` (per v0.4.139)
+returns "void", `let r: i64 = void` fails types_compatible,
+TYP-008 fires.
+
+s1-only — tools_suite's kind-8 type_expr is simpler (separate
+dispatch table); no analogous broken catch-all there.
+
+Negative fixture: `tests/err/err_chained_void_after_clone.nr`.
+Bootstrap fixed-point holds first-pass. Fast-verify 210 PASS /
+2 baseline-FAIL.
+
 ## [0.4.157] — 2026-04-29
 
 **TYP-011 ext: `?` on a kind-3 (var-ref) receiver of non-Result/
