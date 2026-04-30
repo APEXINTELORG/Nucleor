@@ -14489,27 +14489,35 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return lx_new(r, blk);
     };
     if kind == 122 {
-        // RFC-0016 phase 1: `?` postfix operator. Inner expression returns a
-        // Result-like Vec<i32> with [0]=tag (Ok=1, Err=0) and [1]=payload —
-        // matching the stdlib `result.nr` convention (and v0.3.91-revised
-        // __etag_Result_Ok=1 / __etag_Result_Err=0 at line 5298-5301).
+        // RFC-0016 phase 1: `?` postfix operator.
         //
-        // Lowering: compute `cmp = (tag == 0)` (true on Err); if true,
-        // branch to err_lbl (early-return the Result); else branch to
-        // ok_lbl (extract payload at index 1).
+        // v0.4.225: tag-convention dispatch for Option vs Result.
+        //   Result: Ok=1, Err=0  → tag==0 means err → early return.
+        //   Option: Some=0, None=1 → tag==1 means err → early return.
+        // Pre-fix used the Result convention unconditionally, so on
+        // Option<T>: Some(x) (tag=0) was treated as err and early-
+        // returned the whole Option Vec instead of extracting x; AND
+        // None (tag=1) hit the ok-path's vec_get(_, 1) which OOB'd
+        // the length-1 None Vec at runtime.
+        // Closes findings/promoted/2026-04-30-question-on-option-vec-oob.md
+        // (v0.4.223 deferral note revisited; phase 3c revert in v0.4.224
+        // cleared the bootstrap obstacle that blocked the v0.4.223 attempt).
         let inner_lx: Vec<i32> = lower_expr(pool, node_field(pool, nid, 1), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let mut cur: Vec<i32> = lx_blk(inner_lx);
         let val_r: i64 = lx_reg(inner_lx);
+        let qinner_nid: i64 = node_field(pool, nid, 1);
+        let qfull: str = expr_full_type_from_sym(pool, qinner_nid, sym, structs);
+        let v225_is_option: i64 = if str_eq(type_base_name(qfull), "Option") == 1 { 1 } else { 0 };
+        let v225_err_tag: i64 = if v225_is_option == 1 { 1 } else { 0 };
         let zero_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(zero_r, 0));
         let mut tag_args: Vec<i32> = Vec::new(); tag_args.push(val_r); tag_args.push(zero_r);
         let tag_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(tag_r, "vec_get", tag_args));
-        let cmp_r: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(7, cmp_r, tag_r, zero_r));
+        let v225_err_tag_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(v225_err_tag_r, v225_err_tag));
+        let cmp_r: i64 = ctr_next(regs); ir_block_add(cur, ir_cmpop(7, cmp_r, tag_r, v225_err_tag_r));
         let err_lbl: i64 = ctr_next(lbls); let ok_lbl: i64 = ctr_next(lbls);
-        // cmp_r == 1 (tag==0, Err) → err_lbl (return); cmp_r == 0 (tag!=0, Ok) → ok_lbl (extract).
+        // cmp_r == 1 (tag matches err sentinel) → err_lbl (return); else ok_lbl (extract payload at index 1).
         ir_block_add(cur, ir_br_cond(cmp_r, err_lbl, ok_lbl));
         let mut err_blk: Vec<i32> = ir_block_new(err_lbl); ir_fn_add_block(fir, err_blk);
-        let qinner_nid: i64 = node_field(pool, nid, 1);
-        let qfull: str = expr_full_type_from_sym(pool, qinner_nid, sym, structs);
         let cur_ret_id: i64 = sym_get(sym, "__current_fn_full_return");
         let mut cur_ret: str = "";
         if cur_ret_id >= 0 { cur_ret = cur_ret_id; };

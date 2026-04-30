@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.225] — 2026-04-30
+
+**🎯 Crash-class close — `?` operator on `Option<T>` now works
+correctly.** Root cause was identified in v0.4.223's failed attempt
+but the bootstrap obstacle (phase 3c trunc-on-i32-param) blocked
+shipping. With phase 3c reverted in v0.4.224, the fix lands clean.
+
+**Pre-fix behavior:**
+
+```nucleor
+fn safe_div(a: i32, b: i32) -> Option<i32> {
+    if b == 0 { None } else { Some(a / b) }
+}
+fn double_safe(a: i32, b: i32) -> Option<i32> {
+    let v: i32 = safe_div(a, b)?;   // ← Some(5) early-returned whole Option;
+    Some(v * 2)                       //   None reached vec_get(_,1) → OOB panic
+}
+```
+
+**Root cause:** the kind-122 `?` lowering used a fixed `tag == 0
+→ err` check, which is the **Result** tag convention (Ok=1,
+Err=0 → tag==0 means err). For **Option** the tags are inverted:
+Some=0 (the "ok" case), None=1 (the "err" case). So on Option:
+- `Some(x)?` (tag=0) → matched err sentinel → early-returned the
+  whole Some(x) Vec (NOT extracting x) → caller sees Some(Vec)
+  instead of x.
+- `None?` (tag=1) → did NOT match err sentinel → fell through to
+  the "extract payload" path → `vec_get(none_vec, 1)` → OOB on
+  the length-1 None Vec → runtime PANIC.
+
+**Fix:** detect Option vs Result at the kind-122 site via
+`expr_full_type_from_sym(qinner)` (run AFTER `inner_lx`, reusing
+the existing post-lower lookup point — the v0.4.223 attempt
+moved this BEFORE `inner_lx` and broke for reasons not isolated;
+v0.4.225 sticks to the existing call site). Dispatch the err-tag
+sentinel: `0` for Result, `1` for Option. The cmp+br pair then
+emits the correct branch direction for both types.
+
+**Regression-guard fixture** at
+`tests/features/option_question_op.nr` exercises 5 cases:
+1. Single-? on Some(value) → unwraps correctly.
+2. Single-? on None → propagates (caller sees None).
+3. Chained-? with all Some → all unwrap correctly.
+4. Chained-? with first None → propagates.
+5. Chained-? with second None → propagates.
+
+**Verify:** 604 PASS / 9 FAIL — added 1 PASS (the new fixture).
+
+**Perf:** cold 3.50s / 3.64s ceiling • hot 0.96s / 1.13s ceiling •
+peak 132MB / 145MB. All under ceiling.
+
+**Closes:**
+- `findings/promoted/2026-04-30-question-on-option-vec-oob.md`
+  (status: DEFERRED → CLOSED).
+- `findings/promoted/2026-04-30-question-on-option-vec-oob-followup.md`
+  (parent's followup; same status update).
+
+**Adopters can now use** `let v = some_option()?;` directly,
+matching the canonical Rust idiom. The pre-fix workaround
+(`match opt { Some(x) => x, None => return None }`) is no longer
+required.
+
+---
+
 ## [0.4.224] — 2026-04-30
 
 **Phase 3c REVERTED + perf baseline updated for v0.4 closeout.**
