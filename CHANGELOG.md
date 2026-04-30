@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.165] — 2026-04-30
+
+**RFC-0029 — `nuc doc` per-parameter + per-return rendering. Closes
+the param-rendering deferral from the v0.2 doc-generator skeleton ship.**
+
+`nuc doc <file>` now emits a `**Parameters:**` bulleted list and a
+`**Returns:**` line for every function in both Markdown and HTML
+output, in addition to the previous signature block.
+
+```nucleor
+/// Adds two integers, returning the sum.
+fn add(a: i64, b: i64) -> i64 { return a + b; }
+```
+
+```markdown
+## `add`
+
+Adds two integers, returning the sum.
+
+**Signature:**
+```nucleor
+fn add(a: i64, b: i64) -> i64
+```
+
+**Parameters:**
+- `a: i64`
+- `b: i64`
+
+**Returns:** `i64`
+```
+
+The new `doc_split_params` helper in `nucleor_tools_suite.nr`
+correctly handles nested `<>` (e.g. `Vec<i32>`) and `()` (e.g.
+fn-typed params), so generic and higher-order signatures don't
+get mis-split. Zero-arg fns omit the Parameters block. The
+return-type extractor now also trims trailing whitespace so
+`**Returns:** `i64`` no longer renders with a stray trailing space.
+
+Fixture: `tests/fixtures/nuc_doc_param_rendering.nr` exercises the
+markdown path with normal, zero-arg, fn-pointer, and Vec-generic
+signatures.
+
 ## [0.4.164] — 2026-04-30
 
 **TYP-014 over-tightening + TYP-016 misfire on passthrough blocks

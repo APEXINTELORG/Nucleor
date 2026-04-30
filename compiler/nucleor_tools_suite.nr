@@ -11659,6 +11659,44 @@ fn find_substr(haystack: str, needle: str) -> i64 {
 // signature line. Returns (params, return_type) where each piece is a
 // trimmed string fragment for direct rendering. Empty strings on parse
 // failure (caller falls back to the raw signature line).
+// v0.4.165: split a params string (the text between `(` and `)` of a
+// fn signature) into a Vec of trimmed individual parameter strings.
+// Respects nested `<>` and `()` so generic params like `Vec<i32>` and
+// fn-typed params like `fn(i64) -> i64` survive the split. Empty
+// params (zero-arg fn) returns an empty Vec.
+fn doc_split_params(params: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let plen: i64 = str_len(params);
+    if plen == 0 { return out; };
+    let mut start: i64 = 0;
+    let mut depth: i64 = 0;
+    let mut i: i64 = 0;
+    while i < plen {
+        let c: i64 = str_char_at(params, i);
+        if c == 60 || c == 40 { depth = depth + 1; }
+        else if c == 62 || c == 41 { depth = depth - 1; }
+        else if c == 44 && depth == 0 {
+            let raw: str = str_substring(params, start, i);
+            let mut s: i64 = 0;
+            let rl: i64 = str_len(raw);
+            while s < rl && (str_char_at(raw, s) == 32 || str_char_at(raw, s) == 9) { s = s + 1; };
+            let mut e: i64 = rl;
+            while e > s && (str_char_at(raw, e - 1) == 32 || str_char_at(raw, e - 1) == 9) { e = e - 1; };
+            if e > s { out.push(str_substring(raw, s, e)); };
+            start = i + 1;
+        };
+        i = i + 1;
+    };
+    let raw_last: str = str_substring(params, start, plen);
+    let mut s2: i64 = 0;
+    let rl2: i64 = str_len(raw_last);
+    while s2 < rl2 && (str_char_at(raw_last, s2) == 32 || str_char_at(raw_last, s2) == 9) { s2 = s2 + 1; };
+    let mut e2: i64 = rl2;
+    while e2 > s2 && (str_char_at(raw_last, e2 - 1) == 32 || str_char_at(raw_last, e2 - 1) == 9) { e2 = e2 - 1; };
+    if e2 > s2 { out.push(str_substring(raw_last, s2, e2)); };
+    return out;
+}
+
 fn doc_extract_signature(line: str) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     out.push("");
@@ -11689,6 +11727,9 @@ fn doc_extract_signature(line: str) -> Vec<i32> {
         while tp < llen && (str_char_at(line, tp) == 32 || str_char_at(line, tp) == 9) { tp = tp + 1; };
         let mut re: i64 = tp;
         while re < llen && str_char_at(line, re) != 123 && str_char_at(line, re) != 59 { re = re + 1; };
+        // v0.4.165: trim trailing whitespace from the return type so
+        // `**Returns:** `i64`` doesn't render as `i64 ` with a stray space.
+        while re > tp && (str_char_at(line, re - 1) == 32 || str_char_at(line, re - 1) == 9) { re = re - 1; };
         vec_set(out, 1, str_substring(line, tp, re));
     };
     return out;
@@ -11796,6 +11837,26 @@ fn run_doc_command_mode(src_path: str, out_path: str, html_mode: i64) -> i64 {
                     sb_append(sb, ret_t);
                 };
                 sb_append(sb, "\n```\n\n");
+                // v0.4.165: per-parameter rendering. Closes RFC-0029
+                // "param rendering" deferral. Skip when zero-arg.
+                let split_params: Vec<i32> = doc_split_params(params);
+                let pcount: i64 = vec_len(split_params);
+                if pcount > 0 {
+                    sb_append(sb, "**Parameters:**\n");
+                    let mut pi: i64 = 0;
+                    while pi < pcount {
+                        sb_append(sb, "- `");
+                        sb_append(sb, vec_get(split_params, pi));
+                        sb_append(sb, "`\n");
+                        pi = pi + 1;
+                    };
+                    sb_append(sb, "\n");
+                };
+                if str_len(ret_t) > 0 {
+                    sb_append(sb, "**Returns:** `");
+                    sb_append(sb, ret_t);
+                    sb_append(sb, "`\n\n");
+                };
                 last_doc_sb = sb_new();
                 last_doc_lines = 0;
             } else if lp == llen {
@@ -11907,6 +11968,25 @@ fn doc_render_html(src_path: str, src: str, out_path: str) -> i64 {
                     sb_append(sb, doc_html_escape(ret_t));
                 };
                 sb_append(sb, "\n</code></pre>\n");
+                // v0.4.165: per-parameter rendering for HTML mode.
+                let split_params_h: Vec<i32> = doc_split_params(params);
+                let pcount_h: i64 = vec_len(split_params_h);
+                if pcount_h > 0 {
+                    sb_append(sb, "<p><strong>Parameters:</strong></p>\n<ul>\n");
+                    let mut pih: i64 = 0;
+                    while pih < pcount_h {
+                        sb_append(sb, "  <li><code>");
+                        sb_append(sb, doc_html_escape(vec_get(split_params_h, pih)));
+                        sb_append(sb, "</code></li>\n");
+                        pih = pih + 1;
+                    };
+                    sb_append(sb, "</ul>\n");
+                };
+                if str_len(ret_t) > 0 {
+                    sb_append(sb, "<p><strong>Returns:</strong> <code>");
+                    sb_append(sb, doc_html_escape(ret_t));
+                    sb_append(sb, "</code></p>\n");
+                };
                 last_doc_sb = sb_new();
                 last_doc_lines = 0;
             } else if lp == llen {
