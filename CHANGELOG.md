@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.194] — 2026-04-30
+
+**`docs/v0.4_FEATURE_AUDIT_2026-04-30.md` — consolidated audit
+reference for v0.4 shipped surface.**
+
+After this session's 11-RFC status sweep + the migration story
++ language tour additions, adopters need a single doc that says
+"what actually ships in v0.4 today." Created.
+
+Document structure:
+- **Implemented (audited shipping):** RFC-0001 (RT attrs),
+  RFC-0002 partial (Box<T>), RFC-0014 (#[max_depth]), RFC-0016
+  (Result/Option/match/`?`), RFC-0017 (collections), RFC-0023
+  (rich patterns — all 5 features), RFC-0024 (generics
+  substrate), RFC-0025 (closures with capture), RFC-0028
+  (format strings phase 5), RFC-0029 (nuc doc with cross-refs).
+  Plus the v0.4.181 probe-agent operating-model.
+- **Partial:** RFC-0005 (units rod, no typed surface),
+  RFC-0006 (DbC syntax parses, no enforcement), RFC-0007
+  (AtomicI64, no #[atomic] attribute), RFC-0011 (gen-headers
+  skeleton, no auto-export), RFC-0018 (modules + opt-in
+  privatization), RFC-0019 (manifest+lock+install, no registry),
+  RFC-0020 (LineMap+JSON+158 explains, ~14 span sites pending),
+  RFC-0026 (basic traits, no dyn).
+- **Genuinely Draft (no shipping surface):** RFC-0003, 0004,
+  0008, 0009, 0010, 0012, 0013, 0015 phase 3, 0027.
+- v0.4 success criteria tally + verify/perf snapshot
+- "How to use this audit" — for adopters / contributors / migrators
+
+`.md` per file linkable to from README, language-tour, migration
+story.
+
+No code changes.
+
 ## [0.4.193] — 2026-04-30
 
 **RFC-0006 (Design by Contract) status — parser-passthrough today;
