@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.179] — 2026-04-30
+
+**TYP-011 ext: `for <var> in <struct>` rejected. Closes 3 silent-
+miscompute findings (struct iteration was bit-walking storage).**
+
+Detected + first-implemented by the probe agent on his
+`probe/exploration` branch (commits including orphan `d8b1006`).
+Integrated to main this ship.
+
+```nucleor
+struct Point { x: f64, y: i64 }
+
+fn main() -> i32 {
+    let p: Point = Point { x: 3.14, y: 7 };
+    for v in p {                    // pre-fix: silent bit-walk via vec_len/vec_get
+        print_int(v);                //          (f64 → i64 type-pun, leaks Vec/String
+                                     //          ptrs as integers when fields are
+                                     //          heap-typed)
+    };                              // now: error[TYP-011] with hint to iterate a Vec
+                                    //      field or build Vec<T> of the values.
+    0
+}
+```
+
+The kind-49 for-loop expects a container iterable (`Vec<T>` or
+`a..b`). For struct values, the codegen blindly calls `vec_len` /
+`vec_get` on the struct's storage region — which produces silent
+type-punned values across heterogeneous fields and leaks heap
+pointers when fields are `Vec<T>`/`String`/`&T`. Same hazard family
+as v0.4.152 (`for c in <str/String/scalar/bool>`).
+
+Detection: at type-check, `for <var> in <e>` where `e`'s type is
+neither `Vec<...>` nor a primitive nor `str/String` — but IS a
+known struct in the program's struct table — halts with TYP-011 +
+remediation hint. The `Vec<...>` short-circuit avoids a structs
+linear scan on the dominant valid case.
+
+Fixture: `tests/err/err_for_in_struct.nr`.
+
+Promoted findings (all in `findings/promoted/`):
+- `2026-04-30-for-on-struct-value-iterates-fields.md` (parent)
+- `2026-04-30-for-on-struct-value-iterates-fields-followup.md`
+- `2026-04-30-for-on-struct-value-iterates-fields-followup-2-vec-ptr-leak.md`
+
+**`tools/perf_baseline.json` rebaselined** to current measured
+values (cold 6.54s → 3.06s, hot 0.78s → 0.88s, peak 502 MB → 131 MB).
+Old locked values were from the v0.3.223 era when the compiler
+was slower and bigger; the slack hid real regressions. New
+ceilings (baseline +10%): cold ≤ **3.37s**, hot ≤ **0.97s**, peak
+≤ **144 MB**. Every future ship defends against these — no slack.
+
+**Operating-model note:** the probe agent's TYP-011 ship + 3
+findings + perf rebase had not pushed to `origin/main` (his
+branch was on `probe/exploration` only, then got reset to main
+HEAD, leaving his shipping work as orphan commits). The main
+agent now does the merge — pulled the diff from his worktree
+filesystem, applied to main, ran all gates, shipped here.
+
+Verify: 218 PASS / 1 FAIL (+1 from fixture).
+Perf:   cold 3.15s (max 3.37s) | hot 0.88s (max 0.97s) | peak 131MB (max 144MB).
+
 ## [0.4.178] — 2026-04-30
 
 **Doc-only: bring verify-baseline references in
