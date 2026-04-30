@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.167] — 2026-04-30
+
+**RFC-0029 — `nuc doc` adds Struct index + Enum index.**
+
+`nuc doc <file>` now scans for `struct <Name>` and `enum <Name>`
+declarations (with optional leading `pub`) and renders dedicated
+**Struct index** and **Enum index** sections alongside the
+existing **Function index**. Both Markdown and HTML modes.
+
+```nucleor
+struct Point { x: i32, y: i32 }
+pub struct Vec2 { x: f64, y: f64 }
+enum Color { Red, Green, Blue }
+fn distance(a: Point, b: Point) -> f64 { ... }
+```
+
+Markdown:
+```markdown
+## Struct index
+- `Point`
+- `Vec2`
+
+## Enum index
+- `Color`
+
+## Function index
+- [`distance`](#distance)
+```
+
+A new helper `extract_type_decl_name_from_line` recognizes the
+declaration form, skipping optional `pub`. Multi-line struct/enum
+definitions detect on their first line (where the declaration name
+appears). Empty index sections (zero structs / zero enums) are
+omitted.
+
+Verify: 213 PASS / 2 FAIL.
+
 ## [0.4.166] — 2026-04-30
 
 **RFC-0029 — `nuc doc` recognizes module-level doc comments (`//!`).**
