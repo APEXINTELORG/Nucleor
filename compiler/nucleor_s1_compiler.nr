@@ -2300,6 +2300,23 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 panic("&mut <scalar> parameter not implemented; see ERROR diagnostic above for workarounds");
             };
         };
+        // v0.4.207: NAM-001 — duplicate parameter name in fn signature.
+        // Pre-fix `fn add(a: i32, a: i32)` silently shadowed the first
+        // `a`. Inside the body `a + a` referenced the second `a` only,
+        // so `add(3, 5)` returned 10 (5+5) instead of the naive 8 —
+        // silent miscompute via lost first arg, no diagnostic. Catch
+        // at parse time: every preceding param must have a different
+        // name. Linear scan; param lists are small in practice.
+        // Closes findings/inbox/2026-04-30-dup-fn-param-name-silent-shadow.md.
+        let mut dup_check_i: i64 = 0;
+        while dup_check_i < vec_len(params) {
+            let prior_pid: i64 = vec_get(params, dup_check_i);
+            let prior_name: str = node_field(pool, prior_pid, 1);
+            if str_eq(prior_name, pn) == 1 {
+                panic(str_concat("error[NAM-001]: identifier `", str_concat(pn, str_concat("` is bound more than once in this parameter list. Pre-v0.4.207 the second binding silently shadowed the first, so the first argument was unreachable inside the body — `fn add(a, a) { a + a }` called as `add(3, 5)` returned 10 (5+5) instead of 8. Rename one of the parameters."))));
+            };
+            dup_check_i = dup_check_i + 1;
+        };
         params.push(mk3(pool, 41, pn, ptype));
     };
     cp = cp + 1;

@@ -6,6 +6,7 @@ diagnostic_actual: none
 diagnostic_expected: hard error — duplicate parameter name `a` in fn signature
 discovered_against: v0.4.162 (commit 213fee9)
 commit: 213fee9e84101dad4a06807f994413d7d4f1cb86
+status: CLOSED in v0.4.207 — parse_fn_decl walks each new param against the already-parsed list and panics with NAM-001 on collision. Linear scan in the parser; param lists are small in practice. Regression-guard fixture at tests/fixtures/repro_v207_dup_fn_param_halts.nr.
 ---
 
 ## Repro
