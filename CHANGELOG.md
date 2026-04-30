@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.193] — 2026-04-30
+
+**RFC-0006 (Design by Contract) status — parser-passthrough today;
+runtime enforcement is the v0.5.0 ship.**
+
+```nucleor
+#[require(x > 0)]
+fn safe(x: i32) -> i32 { return x + 1; }    // ✓ parses cleanly,
+                                              //   no enforcement
+```
+
+Adopters can write `#[require(...)]`, `#[ensure(...)]`,
+`#[invariant(...)]` today — the parser accepts unrecognized
+attributes silently. The compiler does not yet emit runtime check
+codegen, REQ-001 / ENS-001 / INV-001 diagnostics, or invariant-
+recompute boilerplate. That's the v0.5.0 ship target.
+
+The benefit of the current state: source files using DbC syntax
+round-trip through the compiler without modification. Future
+v0.5.0 ship adds enforcement without breaking backward compat
+on the syntax.
+
+Status flipped Draft → Parser-passthrough (audited v0.4.193).
+
+No code changes.
+
 ## [0.4.192] — 2026-04-30
 
 **`docs/language-tour.md` — added 5 new sections covering v0.4-era
