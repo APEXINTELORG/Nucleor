@@ -12207,6 +12207,30 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         if str_eq(mname, "matmul") == 1 { return recv_t; };
         if str_eq(mname, "set") == 1 { return "void"; };
         if str_eq(mname, "iter") == 1 { return recv_t; };
+        // v0.4.158: Vec-returning iter methods. Pre-fix kind-8
+        // type_expr fell to `return ""` for clone/sort/reverse/
+        // map/filter/collect/take/skip/chain/step_by — they all
+        // route to `vec_<m>_i64` runtime helpers that return
+        // NVec*, but the type-check returned the empty string.
+        // Net effect: chained `v.clone().push(N)` had recv_t=""
+        // for the outer push, so the v0.4.139 void-mutator route
+        // (`recv_t starts with Vec<` or equals `Vec`) failed to
+        // fire and `let r: i64 = v.clone().push(N);` silently
+        // bound r=0. Returning recv_t (the Vec type) propagates
+        // through to v0.4.139 → TYP-021 cascade.
+        if (str_starts_with(recv_t, "Vec<") == 1 || str_eq(recv_t, "Vec") == 1)
+            && (str_eq(mname, "clone") == 1
+                || str_eq(mname, "sort") == 1
+                || str_eq(mname, "reverse") == 1
+                || str_eq(mname, "map") == 1
+                || str_eq(mname, "filter") == 1
+                || str_eq(mname, "collect") == 1
+                || str_eq(mname, "take") == 1
+                || str_eq(mname, "skip") == 1
+                || str_eq(mname, "chain") == 1
+                || str_eq(mname, "step_by") == 1) {
+            return recv_t;
+        };
         return "";
     };
     if kind == 9 {
