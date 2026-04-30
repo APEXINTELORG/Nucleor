@@ -1408,6 +1408,30 @@ t422_shift_out_of_range() {
     return 0
 }
 
+t447_shift_var_rhs_bounds() {
+    # v0.4.146 NUM-008/runtime panic - let-bound const RHS halts at
+    # compile time; non-const variable RHS routes through panic helper.
+    "$BIN" build "tests/err/err_shift_var_rhs_const.nr" -o "_t447_const_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "1" ] || return 1
+    grep -q "error\\[NUM-008\\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "shift amount" $NUC_VERIFY_STEP_LOG || return 1
+
+    "$BIN" build "tests/fixtures/repro_v146_shift_var_rhs_runtime_panic.nr" -o "_t447_runtime_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    rc=$?
+    [ "$rc" = "0" ] || return 1
+    local exe="target/_t447_runtime_check"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local out
+    out=$("$exe" 2>&1)
+    local rt_rc=$?
+    [ "$rt_rc" != "0" ] || return 1
+    echo "$out" | grep -q "i64 shl out-of-range" || return 1
+    echo "$out" | grep -q "shift amount must be 0..63" || return 1
+    return 0
+}
+
 t423_float_in_int_context() {
     # v0.4.76 NUM-018 — `let x: i64 = 3.14;` halts at compile time
     # (was silent IEEE-754-bits-as-i64 miscompute pre-fix).
@@ -3820,6 +3844,7 @@ step "T3.144 v0.4.98 — Vec debug element-type dispatch: Vec<str> + Vec<Option<
 step "T3.145 v0.4.99 §_p — parse_primary fall-through panics for non-recovery tokens (audit doc-#1)" t445_parse_primary_narrow_panic
 step "T3.146 v0.4.115 RFC-0016 §3.7 — ? applies From<SrcErr> for DstErr conversion; explicit Into<T> parses" t460_question_from_conversion
 step "T3.147 v0.4.119 rich match patterns — enum or, @, struct, slice, tuple, MATCH-008/009/010" t446_rich_pattern_forms
+step "T3.148 v0.4.146 NUM-008 — variable shift RHS halts when const, panics cleanly at runtime otherwise" t447_shift_var_rhs_bounds
 step "T3.saturating block add/sub/mul lower per operation" t_saturating_block_per_op
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker

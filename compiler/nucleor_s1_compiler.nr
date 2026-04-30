@@ -11039,6 +11039,39 @@ fn tenv_get(env: Vec<i32>, name: str) -> str {
     if v < 0 { return ""; };
     return v;
 }
+fn tenv_const_key(name: str) -> str {
+    return str_concat("__const:", name);
+}
+fn tenv_set_const_i64(env: Vec<i32>, name: str, val: i64) -> i64 {
+    return tenv_set(env, tenv_const_key(name), str_from_int(val));
+}
+fn tenv_clear_const(env: Vec<i32>, name: str) -> i64 {
+    return tenv_set(env, tenv_const_key(name), "");
+}
+fn tenv_get_const_i64(env: Vec<i32>, name: str) -> str {
+    return tenv_get(env, tenv_const_key(name));
+}
+fn const_i64_result(have: i64, val: i64) -> Vec<i32> {
+    let mut r: Vec<i32> = Vec::new();
+    r.push(have);
+    r.push(val);
+    return r;
+}
+fn const_i64_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>) -> Vec<i32> {
+    if nid < 0 || nid >= vec_len(pool) { return const_i64_result(0, 0); };
+    let k: i64 = node_kind(pool, nid);
+    if k == 1 { return const_i64_result(1, node_field(pool, nid, 1)); };
+    if k == 5 {
+        let inner: Vec<i32> = const_i64_expr(pool, node_field(pool, nid, 1), env);
+        if vec_get(inner, 0) == 1 { return const_i64_result(1, 0 - vec_get(inner, 1)); };
+        return const_i64_result(0, 0);
+    };
+    if k == 3 {
+        let cv: str = tenv_get_const_i64(env, node_field(pool, nid, 1));
+        if str_len(cv) > 0 { return const_i64_result(1, str_to_int(cv)); };
+    };
+    return const_i64_result(0, 0);
+}
 fn tenv_set_pattern_item(env: Vec<i32>, item: str, tstr: str) -> i64 {
     let name: str = pattern_binding_item_name(item);
     if str_len(name) == 0 { return 0; };
@@ -11643,24 +11676,13 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // overflow_left_shift (debug) or wrapping behavior (release) —
         // either way explicit. Nucleor's i64-everywhere ABI fixes the
         // operand width at 64. NUM-008 was reserved (RFC-0015 / v0.2.319
-        // expansion) but never wired. Catches literal-int RHS only.
+        // expansion) but never wired. v0.4.146 extends this from bare
+        // literals to simple let-bound constants tracked in tenv.
         if op == 115 || op == 116 {
             let rhs_check_sh: i64 = node_field(pool, nid, 3);
-            let mut sh_amt: i64 = 0;
-            let mut sh_have: i64 = 0;
-            if node_kind(pool, rhs_check_sh) == 1 {
-                sh_amt = node_field(pool, rhs_check_sh, 1);
-                sh_have = 1;
-            };
-            // Walk through unary-minus (kind 5) wrapping int literal —
-            // `1 << -1` parses as shl(1, neg(1)), not shl(1, lit(-1)).
-            if node_kind(pool, rhs_check_sh) == 5 {
-                let inner: i64 = node_field(pool, rhs_check_sh, 1);
-                if node_kind(pool, inner) == 1 {
-                    sh_amt = 0 - node_field(pool, inner, 1);
-                    sh_have = 1;
-                };
-            };
+            let sh_const: Vec<i32> = const_i64_expr(pool, rhs_check_sh, env);
+            let sh_have: i64 = vec_get(sh_const, 0);
+            let sh_amt: i64 = vec_get(sh_const, 1);
             if sh_have == 1 && (sh_amt < 0 || sh_amt >= 64) {
                 let sh_op: str = if op == 115 { "<<" } else { ">>" };
                 let nm8_msg: str = str_concat("shift amount ", str_concat(str_from_int(sh_amt), str_concat(" is out of range for i64 (`", str_concat(sh_op, "` requires 0..=63). LLVM `shl`/`ashr` is undefined behavior outside this range — pre-fix the result was poison (silent miscompute). Mask the shift amount (`amt & 63`) or use a wider type."))));
@@ -12728,6 +12750,13 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             else { tenv_set(env, vname, tstr); };
         }
         else { tenv_set(env, vname, init_t); };
+        if init >= 0 {
+            let init_const_v146: Vec<i32> = const_i64_expr(pool, init, env);
+            if vec_get(init_const_v146, 0) == 1 { tenv_set_const_i64(env, vname, vec_get(init_const_v146, 1)); }
+            else { tenv_clear_const(env, vname); };
+        } else {
+            tenv_clear_const(env, vname);
+        };
         // v0.4.146: register closure argc on the binding so the
         // call-site type-check can verify `f(args)` has the right
         // arity. Pre-fix `let f = |x: i64, y: i64| x + y; f(5);`
@@ -12771,6 +12800,10 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             let compat_ok: i64 = types_compatible_context(pool, prog, lhs_t, rhs_t);
             tprof_mark(tprof, 7, 8, compat_start);
             if compat_ok == 0 { type_diag(diags, source, fn_name, node_field(pool, lhs, 1), "TYP-009", "assignment type mismatch"); };
+            let lhs_name_v146: str = node_field(pool, lhs, 1);
+            let rhs_const_v146: Vec<i32> = const_i64_expr(pool, rhs, env);
+            if vec_get(rhs_const_v146, 0) == 1 { tenv_set_const_i64(env, lhs_name_v146, vec_get(rhs_const_v146, 1)); }
+            else { tenv_clear_const(env, lhs_name_v146); };
         };
         // v0.4.64: NUC-FEEDBACK silent-miscompute close for indexed
         // assignment. Pre-fix `v[0] = "string"` on `let v: Vec<i64>`
@@ -14151,6 +14184,23 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // tight numeric loops, not div).
             if iop == 5 { sh = "panic_div"; };
             if iop == 6 { sh = "panic_rem"; };
+            // v0.4.146: variable-RHS shifts default to checked runtime
+            // helpers. Literal in-range shifts keep raw LLVM for tight
+            // bit loops; non-literal RHS can be <0 or >=64 at runtime,
+            // which is LLVM poison for shl/ashr. Explicit opt-out is
+            // available for low-level kernels that mask externally.
+            let shift_lenient_v146: str = env_get_or("NUCLEOR_SHIFT_LENIENT", "0");
+            if str_eq(shift_lenient_v146, "1") == 0 && (iop == 23 || iop == 24) {
+                let rhs_shift_v146: i64 = node_field(pool, nid, 3);
+                let shift_const_v146: Vec<i32> = const_i64_expr(pool, rhs_shift_v146, sym);
+                let shift_have_v146: i64 = vec_get(shift_const_v146, 0);
+                let shift_amt_v146: i64 = vec_get(shift_const_v146, 1);
+                let shift_safe_lit_v146: i64 = if shift_have_v146 == 1 && shift_amt_v146 >= 0 && shift_amt_v146 < 64 { 1 } else { 0 };
+                if shift_safe_lit_v146 == 0 {
+                    if iop == 23 { sh = "panic_shl"; };
+                    if iop == 24 { sh = "panic_shr"; };
+                };
+            };
             if str_len(sh) > 0 {
                 let mut sa: Vec<i32> = Vec::new();
                 sa.push(lr); sa.push(rr);
