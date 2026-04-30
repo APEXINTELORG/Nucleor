@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.163] — 2026-04-30
+
+**MATCH-012 (URGENT — compiler ACCESS VIOLATION close): struct
+pattern with literal field test (`Point { x: 0, y: 0 } => ...`)
+crashed the compiler with 0xC0000005 ACCESS VIOLATION mid-codegen.
+Now: parser emits MATCH-012 with a remediation hint pointing at
+guards.**
+
+```nucleor
+struct Point { x: i32, y: i32 }
+
+fn main() -> i32 {
+    let p: Point = Point { x: 3, y: 4 };
+    match p {
+        Point { x: 0, y: 0 } => 1,  // pre-fix: ACCESS VIOLATION (0xC0000005)
+                                     //          mid-codegen, no diagnostic
+                                     // now: error[MATCH-012] with hint to use
+                                     //      `Point { x, y } if x == 0 && y == 0`
+        Point { x, y } => x + y,
+    };
+    0
+}
+```
+
+**Root cause:** `parse_match_struct_binding_block` saw `field: <token>`
+and unconditionally read the next token's value as a string-interned
+binding name. For an int-literal token, the "value" is the raw
+integer (e.g. `0`), which the parser then bound as a str. Downstream
+codegen dereferenced what it thought was a string ID `0` (NULL),
+producing the segfault. RFC-0023 status doc was stale — guards,
+@-bindings, slice patterns, and same-name enum or-patterns ALL
+already work; only literal field-equality (`{ field: <int> }`) was
+the gap, and that gap manifested as a crash rather than a clean
+deferral diagnostic.
+
+**Field-equality literal patterns** (`Point { x: 0, y: 0 }`) remain
+deferred — the remediation hint in MATCH-012 explains how to express
+the same intent with a guard.
+
+**Verify gate honesty note:** `tools/verify_parallel.sh -j 12`
+currently reports `210 PASS / 6 FAIL`. Two of the FAILs are documented
+baselines (`lang/mod_decl_aux`, `runtime/stdin_read`); the other four
+(`lang/closures`, `runtime/concurrency`, `features/overflow_comprehensive`,
+`features/overflow_wrapping`) regressed somewhere between v0.4.158
+and v0.4.162 and were not noticed when SELF_HANDOFF.md captured the
+"213 PASS / 2 baseline-FAIL" claim. They are pre-existing here — not
+caused by this ship — and are queued for investigation. SELF_HANDOFF
++ mandate baseline numbers updated to match reality.
+
 ## [0.4.162] — 2026-04-29
 
 **TYP-025: generic trait bounds enforced at call sites.

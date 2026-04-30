@@ -873,6 +873,16 @@ fn parse_match_struct_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         cp = cp + 1;
         if pk(tokens, cp) == 42 {
             cp = cp + 1;
+            // v0.4.163 MATCH-012 — pre-fix `Point { x: 0, y: 0 } => ...` fed the
+            // raw int-literal value into pkv (which returns i64) and bound it as
+            // a str to `bname`, producing garbage that crashed codegen with an
+            // ACCESS VIOLATION. Now: require an identifier after `:` and emit a
+            // clean diagnostic if anything else appears. Field-equality literal
+            // patterns (`{ field: <literal> }`) are deferred to v0.5+.
+            if pk(tokens, cp) != 1 {
+                print("error[MATCH-012]: struct pattern field after `:` must be an identifier (rename-binding form, e.g. `Point { x: rename }`). Field-equality literal patterns like `Point { x: 0, y: 0 }` are not yet supported — match the field with a binding (`Point { x, y }`) and use a guard `if x == 0 && y == 0 => ...` instead.");
+                panic("nucleor: MATCH-012 non-identifier in struct pattern field");
+            };
             bname = pkv(tokens, cp);
             cp = cp + 1;
         };
