@@ -358,49 +358,95 @@ beyond a single-tag fix):
 - `PARALLEL_AGENT_BLOCKERS.md` — historical, useful for the
   Windows file-lock + rebase workaround at the bottom.
 
-## Probe + Fix mandate — FULLY DELEGATED 2026-04-30
+## Probe + Prep orchestration — REVISED 2026-04-30 (v0.4.181)
 
-The probe agent has absorbed the fixer role. He owns
-`findings/inbox/` end-to-end: probes → finds → writes fixture →
-fixes compiler → mirrors tools_suite → runs all gates → ships
-`v0.4.NNN` directly to `origin/main` → moves his own finding file
-to `findings/promoted/`. Mandate at `PARALLEL_AGENT_PROBE_MANDATE.md`.
+The probe agent **proposes**; you **integrate**. He preps each
+fix on `probe/exploration` (compiler edit + fixture + all gates
+green) and pushes only to `origin/probe/exploration`. He never
+pushes to `main`, never tags, never edits `CHANGELOG.md` directly.
+You pull his branch, merge into main, assign the version, splice
+his `CHANGELOG_PROBE_QUEUE.md` entry into `CHANGELOG.md`, move his
+`findings/staged/<slug>.md` to `findings/promoted/<slug>.md` with
+the `Fix shipped: v0.4.NNN` footer, run integration gates, tag,
+push.
 
-**You (main) never look at `findings/inbox/` again.** The previous
-loop-check protocol is retired. Stay 100% on the v0.4 / v0.5
-punchlist.
+The earlier "he ships directly to main + tags himself" model is
+retired — it caused a v0.4.163 tag collision and orphan-commit
+problems. Mandate at `PARALLEL_AGENT_PROBE_MANDATE.md`.
 
-### Co-existence with probe agent on `origin/main`
+### Your integration cadence
 
-You both push to `origin/main`. Each of you has an independent
-worktree (`Nucleor_OSS/` for you, `Nucleor_OSS_probe/` for him),
-each with its own `bin/nucleor.exe`, `target/`, `bootstrap/seed.ll`.
-The only shared state is `.git` and `origin/main`.
+Pull + integrate when his `findings/_heartbeat.md` shows a
+`ready_for_integration:` list with one or more slugs. Otherwise
+keep working on punchlist on main directly.
 
-Per-ship discipline (you and him both):
-1. `git fetch --all && git rebase origin/main` BEFORE you start work
-2. Make changes, run all gates (drift, T1.7, verify_parallel, perf)
-3. `git fetch --all && git rebase origin/main` again before push (in
-   case the other agent landed something while you ran gates)
-4. `git push origin main && git push origin v0.4.NNN`
+### Per-integration workflow (what you do)
 
-If rebase hits conflicts in `compiler/*.nr` — stop and check what
-the other agent shipped, resolve carefully. Most of the time your
-regions don't overlap (he fixes diagnostics + dispatch; you build
-features) and rebase is clean.
+```sh
+# 1. Pull his branch
+git fetch origin
+git log main..origin/probe/exploration --oneline   # see what he's queued
+
+# 2. Either rebase his commits onto main, or cherry-pick. Squash
+#    multiple wip commits into one ship commit per finding.
+git checkout main
+git cherry-pick <commit-sha>   # or merge --no-ff with squash
+
+# 3. Pick the next version. v0.4.NNN where NNN = top of CHANGELOG + 1.
+
+# 4. Splice CHANGELOG_PROBE_QUEUE.md entry into CHANGELOG.md.
+#    Rewrite the unreleased header to ## [0.4.NNN] — yyyy-mm-dd.
+#    Delete the spliced entry from CHANGELOG_PROBE_QUEUE.md.
+
+# 5. Move findings/staged/<slug>.md → findings/promoted/<slug>.md.
+#    Fill in Fix shipped: v0.4.NNN (commit <sha-after-your-tag>).
+
+# 6. Run your own gates against the integrated state:
+bash tools/check_compiler_drift.sh
+bash tools/verify_parallel.sh -j 12
+.\tools\check_perf_regression.ps1
+
+# 7. Regen RELEASES.md
+python tools/gen_releases_index.py
+
+# 8. (Maybe) -Update perf_baseline if a justified perf change is in
+#    this integration. NEVER bump baseline to absorb regression.
+
+# 9. Commit + tag + push
+git add -A
+git commit -m "v0.4.NNN: <summary> (integrated from probe-agent prep)"
+git tag v0.4.NNN
+git push origin main && git push origin v0.4.NNN
+```
+
+### Your own punchlist work on main (parallel to integrations)
+
+You still ship features yourself directly on main as v0.4.NNN.
+The probe-agent integration cycle is interleaved — you bump the
+next version when integrating his queued items, and you bump the
+NEXT next version when shipping your own punchlist work. Linear
+sequence, no holes.
+
+### What you do NOT do
+
+- Don't edit `findings/inbox/` (his).
+- Don't edit `findings/staged/` (transitional, only YOU MOVE files
+  out of it during integration; you don't add to it).
+- Don't push fixes for findings you spotted yourself unless they're
+  also v0.4/v0.5 punchlist items — file via `findings/_questions.md`
+  for him to pick up, OR ship as your own punchlist if the timing's
+  right (e.g., the probe agent went silent and a bug is blocking).
+
+### Reading `findings/promoted/` (optional)
+
+`promoted/` is a historical record of every closed silent miscompute.
+Useful context for retro / paper / postmortem material.
 
 ### Stuck-signal etiquette
 
 If you're stuck in a long debug, write a one-liner to "Where we are
 right now" naming the area under repair. He reads it each rebase
-and steers clear of that region in his fixes so you don't collide
-on push.
-
-### Reading `findings/promoted/` (optional)
-
-`promoted/` is a historical record. You can browse it for context
-on what bug classes have been closed recently — but you have no
-action obligation on it. It's read-only for you.
+and steers clear of that region in his prep work.
 
 ### Why this split is the right shape
 
