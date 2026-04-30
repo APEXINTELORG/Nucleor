@@ -7926,6 +7926,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "TYP-011") == 1 { return 1; };
     if str_eq(code, "TYP-012") == 1 { return 1; };
     if str_eq(code, "TYP-013") == 1 { return 1; };
+    if str_eq(code, "TYP-026") == 1 { return 1; };
     if str_eq(code, "FMT-002") == 1 { return 1; };
     if str_eq(code, "TRAIT-001") == 1 { return 1; };
     // RFC-0004 assume!
@@ -13526,6 +13527,97 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                             type_diag(diags, source, fn_name, fn_name, "TYP-010", str_concat(pa108, pb108));
                         };
                     };
+                    // v0.4.219 RFC-0023 sister TYP-026: missing tail
+                    // expression in non-void fn body. Pre-fix:
+                    //   fn nothing() -> i32 { let _z = 5; }
+                    // silently returned 0 (alloca-zero). Last stmt
+                    // kind 20 (let) or 21 (assign) explicitly discards
+                    // its value; if no preceding stmt is an explicit
+                    // `return` AND the let/assign RHS isn't an
+                    // always-returning match/if, the fn body cannot
+                    // produce the declared type. Catch at type-check.
+                    //
+                    // Conservative: ONLY halts on kinds 20/21 last.
+                    // Other ambiguous cases (kind 24/49 loops with
+                    // internal return, kind 25 with semi consumed)
+                    // pass — too risky for false positives.
+                    //
+                    // The "always-returning RHS" check below allows
+                    // legitimate patterns like
+                    //   let v: T = match r { Ok(x) => return x,
+                    //                        Err(_) => return -1 };
+                    // (e.g. tests/fixtures/t367_question_op_chain.nr)
+                    // where the let never completes binding because
+                    // the match always returns first.
+                    //
+                    // Closes findings/inbox/2026-04-30-fn-no-tail-expr-returns-zero.md
+                    // (Repros 1 and 2; Repro 3 — kind-25 with eaten
+                    // semicolon — requires AST-level `;` tracking,
+                    // out of scope for this ship).
+                    let v219_lk: i64 = node_kind(pool, last_stmt);
+                    if v219_lk == 20 || v219_lk == 21 {
+                        let mut v219_ok: i64 = 0;
+                        // Check 1: explicit return at body top level.
+                        let mut v219_ri: i64 = 0;
+                        while v219_ri < body_cnt - 1 {
+                            let v219_s: i64 = list_get(pool, body, v219_ri);
+                            if node_kind(pool, v219_s) == 22 { v219_ok = 1; v219_ri = body_cnt; }
+                            else { v219_ri = v219_ri + 1; };
+                        };
+                        // Check 2: last let/assign RHS is always-return.
+                        if v219_ok == 0 {
+                            let v219_rhs: i64 = if v219_lk == 20 { node_field(pool, last_stmt, 4) } else { node_field(pool, last_stmt, 2) };
+                            if v219_rhs >= 0 {
+                                let v219_rk: i64 = node_kind(pool, v219_rhs);
+                                if v219_rk == 38 {
+                                    let v219_arms: i64 = node_field(pool, v219_rhs, 2);
+                                    let v219_ac: i64 = list_len(pool, v219_arms);
+                                    if v219_ac > 0 {
+                                        let mut v219_all: i64 = 1;
+                                        let mut v219_ai: i64 = 0;
+                                        while v219_ai < v219_ac {
+                                            let v219_arm: i64 = list_get(pool, v219_arms, v219_ai);
+                                            let v219_ab: i64 = node_field(pool, v219_arm, 4);
+                                            let v219_abc: i64 = list_len(pool, v219_ab);
+                                            if v219_abc == 0 { v219_all = 0; v219_ai = v219_ac; }
+                                            else {
+                                                let v219_la: i64 = list_get(pool, v219_ab, v219_abc - 1);
+                                                if node_kind(pool, v219_la) != 22 { v219_all = 0; v219_ai = v219_ac; }
+                                                else { v219_ai = v219_ai + 1; };
+                                            };
+                                        };
+                                        if v219_all == 1 { v219_ok = 1; };
+                                    };
+                                };
+                                // if-expr (kind 23) with both arms ending in return.
+                                if v219_rk == 23 {
+                                    let v219_t_body: i64 = node_field(pool, v219_rhs, 2);
+                                    let v219_e_body: i64 = node_field(pool, v219_rhs, 3);
+                                    if v219_t_body >= 0 && v219_e_body >= 0 {
+                                        let v219_tbc: i64 = list_len(pool, v219_t_body);
+                                        let v219_ebc: i64 = list_len(pool, v219_e_body);
+                                        if v219_tbc > 0 && v219_ebc > 0 {
+                                            let v219_lt: i64 = list_get(pool, v219_t_body, v219_tbc - 1);
+                                            let v219_le: i64 = list_get(pool, v219_e_body, v219_ebc - 1);
+                                            if node_kind(pool, v219_lt) == 22 && node_kind(pool, v219_le) == 22 {
+                                                v219_ok = 1;
+                                            };
+                                        };
+                                    };
+                                };
+                            };
+                        };
+                        if v219_ok == 0 {
+                            let pa219: str = str_concat("fn `", str_concat(fn_name, str_concat("` declared to return `", str_concat(rtype, "` but body's last statement is a `let` or assignment that discards its value, and no explicit `return` is present at body top-level."))));
+                            let pb219: str = " Pre-v0.4.219 the lowerer fell through to a synthesized `ret 0`, so the caller silently received 0 (alloca-zero) regardless of declared return type. Add a tail expression of the declared type at the end (`x + y` not `let _z = x + y;`), or an explicit `return val;`. void-typed fns are unaffected.";
+                            type_diag(diags, source, fn_name, fn_name, "TYP-026", str_concat(pa219, pb219));
+                        };
+                    };
+                } else {
+                    // v0.4.219: empty body, non-void rtype.
+                    let pa219e: str = str_concat("fn `", str_concat(fn_name, str_concat("` declared to return `", str_concat(rtype, "` but has an empty body."))));
+                    let pb219e: str = " A non-void fn must produce a value. Add a tail expression or `return val;`. Pre-v0.4.219 this silently returned 0.";
+                    type_diag(diags, source, fn_name, fn_name, "TYP-026", str_concat(pa219e, pb219e));
                 };
             };
         };

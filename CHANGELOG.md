@@ -5,6 +5,76 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.219] — 2026-04-30
+
+**Silent-miscompute close (partial) — `fn f() -> T { let _z = 5; }`
+no longer silently returns 0; halts cleanly with TYP-026.**
+
+**Repros that now halt:**
+
+```nucleor
+fn nothing_returned() -> i32 {     // pre-fix: returns 0 silently
+    let _z: i32 = 5;
+}                                   // post-fix: TYP-026 halt
+
+fn double(x: i32) -> i32 {          // pre-fix: returns 0 silently
+    x * 2;                           // (kind 25 expr-stmt, value
+    let _z: i32 = 99;                //  discarded; alloca leaks 0)
+}                                   // post-fix: TYP-026 halt
+```
+
+**Implementation:** new TYP-026 emit at type_check_program after
+the body's stmts walk, parallel to the existing v0.4.108 TYP-010
+tail-expression-type-mismatch check. Fires when:
+- non-void rtype
+- body has at least one stmt
+- last stmt is kind 20 (let) or kind 21 (assign)
+- AND no kind-22 (return) at body top-level
+- AND last let/assign RHS isn't an always-returning match/if
+
+**Allow-listed legitimate patterns:**
+
+```nucleor
+fn main() -> i64 {
+    let r = pipeline(60);
+    let v: i64 = match r {           // RHS is match where every
+        Ok(x) => return x,            // arm body ends with return
+        Err(_) => return -1,
+    };
+}
+```
+
+The let never completes binding because the match always returns
+first. v0.4.219 detects this: walks each match arm's body, requires
+last stmt of every arm to be kind-22 (return). Same shape for
+if-expr (kind 23) — both arms must end in return.
+
+This pattern is exercised by tests/fixtures/t367_question_op_chain.nr
+which my earlier attempt at this fix regressed (and reverted before
+shipping). The fresh implementation handles it correctly.
+
+**Conservative scope:**
+- Only kinds 20/21 last trigger TYP-026.
+- Loop kinds (24 while, 49 for) skipped — would need internal-return
+  detection to avoid false positives on `loop { return X; }`.
+- Repro 3 from the finding (`fn f() -> i32 { x * 2; }` — kind 25
+  with `;` consumed; falls through to fn-body lower's last-kind-25
+  tail-expr handler returning x*2) requires AST-level `;` tracking,
+  out of scope for this ship.
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+The t367_question_op_chain regression check (rc=100) green —
+allow-listed match-with-all-arms-returning works correctly.
+
+**Perf:** cold 3.33s / 3.37s ceiling • hot 0.92s / 0.97s ceiling •
+peak 132MB / 144MB.
+
+Closes (partial) `findings/inbox/2026-04-30-fn-no-tail-expr-returns-zero.md`
+→ `findings/promoted/`. Repro 3 deferred to a future ship that
+adds `;`-tracking to the AST.
+
+---
+
 ## [0.4.218] — 2026-04-30
 
 **Wrong-error close — `match x { }` (empty match body) no longer
