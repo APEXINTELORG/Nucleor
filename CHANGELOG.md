@@ -5,6 +5,83 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.221] — 2026-04-30
+
+**🎯 RFC-0015 phase 3c LANDS — fn params with narrow declared types
+now use typed allocas, body arith composes phase 3b narrow path.**
+
+**Pre-fix IR for `fn add_i16(a: i16, b: i16) -> i16 { a + b }`:**
+
+```llvm
+define i64 @add_i16(i64 %p.0, i64 %p.1) {
+  %r.0 = alloca i64        ; uniform i64 storage
+  %r.1 = add i64 %p.0, 0
+  store i64 %r.1, ptr %r.0
+  ; ... add i64 ... call __nucleor_as_i16 ...
+  ret i64 ...
+}
+```
+
+**Post-fix IR:**
+
+```llvm
+define i64 @add_i16(i64 %p.0, i64 %p.1) {
+  %r.0 = alloca i16        ; typed param storage
+  %r.2 = trunc i64 %p.0 to i16
+  store i16 %r.2, ptr %r.0
+  %r.5 = trunc i64 %p.1 to i16
+  store i16 %r.5, ptr %r.3
+  %r.6 = load i16, ptr %r.0
+  %r.7 = load i16, ptr %r.3
+  %r.8 = add i16 %r.6, %r.7    ; phase 3b narrow add
+  ; ... sext to i64 for return
+  ret i64 ...
+}
+```
+
+The fn signature ABI stays i64 (no breaking change at the call
+boundary). At fn entry, narrow params are trunc'd from the i64 ABI
+into typed `alloca iN`. The body's `a + b` then resolves through
+phase 3b's `detect_narrow_chain` to native `add iN`, dropping the
+narrow_via_as helper call for self-contained narrow body arith.
+
+**Coverage:** i8, i16, i32, u8, u16, u32 — same set as phase 3a's
+let-stmt typed memory.
+
+**Implementation:** at `lower_fn`'s param walk (line 17834+),
+compute sign-encoded narrow width from the param's `sbase`,
+emit `ir_alloca_t` with the width, then trunc-then-typed-store
+the i64 param value. Register width on the alloca-reg via
+`ir_fn_set_width` so phase 3b's `detect_narrow_chain` picks it
+up at body lowering. Same str_eq cascade for narrow detection
+as v0.4.210's let-stmt.
+
+**Why fn signature stays i64:** changing the ABI to `define iN
+@foo(iN)` is a much larger surface — every call site, every
+external linker symbol, every cross-rod call would need
+coordinated migration. The trunc-at-entry / sext-at-return
+pattern keeps the i64 ABI as the boundary while making the
+INTERIOR of the fn width-correct.
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+Phase 3a fixture extended with 3 phase-3c cases (positive i16,
+u8, negative i16 round-trip).
+
+**Perf:** cold 3.33s / 3.37s ceiling • **hot 0.91s / 0.97s
+ceiling — IMPROVED from v0.4.220's 0.97s.** The compiler's own
+self-build hits more narrow ops natively (saves narrow_via_as
+helper calls in fns with narrow params). Peak 132MB / 144MB.
+
+**Phase 3 status after this ship:**
+- 3a: COMPLETE.
+- 3b: ARITH-COMPLETE.
+- 3c: COMPLETE for params + return-value boundaries (fn
+  signature ABI intentionally stays i64).
+- 3d: untouched (stdlib audit + verify migration fixture).
+- 3e: untouched (strict-mode flip — final v0.4 box).
+
+---
+
 ## [0.4.220] — 2026-04-30
 
 **Silent-miscompute close — scientific notation literals (`1.0e30`,

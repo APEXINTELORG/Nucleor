@@ -17835,13 +17835,51 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
     while pi < pc {
         let pnid: i64 = list_get(pool, plist, pi);
         let pname: str = node_field(pool, pnid, 1);
-        let ar: i64 = ctr_next(regs); ir_block_add(ebb0, ir_alloca(ar));
-        let pr2: i64 = ctr_next(regs); ir_block_add(ebb0, ir_param_ref(pr2, pi));
-        ir_block_add(ebb0, ir_store(pr2, ar));
-        sym_set(sym, pname, ar);
-        // Track struct type for parameters (strip generic params)
         let ptype: str = node_field(pool, pnid, 2);
         let sbase: str = type_base_name(ptype);
+        // v0.4.221 RFC-0015 phase 3c: typed param alloca for narrow
+        // types. Pre-fix `fn add_i16(a: i16, b: i16) -> i16 { a + b }`
+        // emitted `define i64 @add_i16(i64 %p.0, i64 %p.1)` with
+        // `alloca i64` for both params — the body's `a + b` did
+        // `add i64` (not narrow) because the alloca-reg width table
+        // didn't have entries for params. Phase 3a let-stmt typed
+        // memory was the substrate; this extends to fn params.
+        // Same sign-encoded width scheme: positive=signed,
+        // negative=unsigned, 0=untyped (i64 ABI back-compat).
+        let pblen: i64 = str_len(sbase);
+        let mut wp: i64 = 0;
+        if pblen == 2 {
+            if str_eq(sbase, "i8") == 1 { wp = 8; }
+            else if str_eq(sbase, "u8") == 1 { wp = 0 - 8; };
+        } else if pblen == 3 {
+            if str_eq(sbase, "i16") == 1 { wp = 16; }
+            else if str_eq(sbase, "u16") == 1 { wp = 0 - 16; }
+            else if str_eq(sbase, "i32") == 1 { wp = 32; }
+            else if str_eq(sbase, "u32") == 1 { wp = 0 - 32; };
+        };
+        let awp: i64 = if wp >= 0 { wp } else { 0 - wp };
+        let ar: i64 = ctr_next(regs);
+        if awp == 0 {
+            ir_block_add(ebb0, ir_alloca(ar));
+        } else {
+            ir_block_add(ebb0, ir_alloca_t(ar, awp));
+        };
+        let pr2: i64 = ctr_next(regs); ir_block_add(ebb0, ir_param_ref(pr2, pi));
+        if awp == 0 {
+            ir_block_add(ebb0, ir_store(pr2, ar));
+        } else {
+            // Trunc i64 → iN and typed-store. Param arrives as i64
+            // (the i64-everywhere ABI at the fn-signature boundary
+            // is unchanged in this ship; phase 3c-step-2 would
+            // narrow that too, but bigger surface). The trunc gives
+            // us a clean iN value for the typed alloca.
+            let tpr: i64 = ctr_next(regs);
+            ir_block_add(ebb0, ir_trunc(tpr, pr2, awp));
+            ir_block_add(ebb0, ir_store_t(tpr, ar, awp));
+        };
+        sym_set(sym, pname, ar);
+        if wp != 0 { ir_fn_set_width(fir, ar, wp); };
+        // Track struct type for parameters (strip generic params)
         if str_len(sbase) > 0 { sym_set(sym, str_concat("__type_", pname), sbase); };
         // v0.3.55: also store full declared type for generic-aware
         // dispatch (mirror the same change at the let binding site).
