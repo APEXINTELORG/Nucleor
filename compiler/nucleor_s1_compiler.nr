@@ -2946,9 +2946,31 @@ fn ir_inst(op: i64, d: i64, tid: i64, o1: i64, o2: i64, ex: i64) -> Vec<i32> {
 }
 fn ir_op(ii: Vec<i32>) -> i64 { return vec_get(ii, 0); }
 fn ir_dest(ii: Vec<i32>) -> i64 { return vec_get(ii, 1); }
+// v0.4.196 RFC-0015 phase 3a: slot 2 is a width tag for IR ops that
+// reference a typed memory slot (alloca/load/store). 0 = "i64" default
+// (current behavior); 8/16/32 select narrower LLVM types. Other ops
+// leave the slot 0; emit dispatch only consults it for ops 16/17/18.
+fn ir_tid(ii: Vec<i32>) -> i64 { return vec_get(ii, 2); }
 fn ir_op1(ii: Vec<i32>) -> i64 { return vec_get(ii, 3); }
 fn ir_op2(ii: Vec<i32>) -> i64 { return vec_get(ii, 4); }
 fn ir_extra(ii: Vec<i32>) -> i64 { return vec_get(ii, 5); }
+
+// v0.4.196 RFC-0015 phase 3a: width → LLVM integer type. Default 0
+// means "no explicit width" → i64 (matches all pre-phase-3 emits).
+fn width_to_llvm_type(w: i64) -> str {
+    if w == 8  { return "i8"; };
+    if w == 16 { return "i16"; };
+    if w == 32 { return "i32"; };
+    if w == 1  { return "i1"; };
+    return "i64";
+}
+
+// v0.4.196 RFC-0015 phase 3a: typed allocas/loads/stores. Existing
+// untyped builders (ir_alloca, ir_load, ir_store) call these with
+// width=0 to preserve byte-identical IR output for current call sites.
+fn ir_alloca_t(d: i64, w: i64) -> Vec<i32> { return ir_inst(16, d, w, 0, 0, 0); }
+fn ir_load_t(d: i64, ptr: i64, w: i64) -> Vec<i32> { return ir_inst(17, d, w, ptr, 0, 0); }
+fn ir_store_t(v: i64, ptr: i64, w: i64) -> Vec<i32> { return ir_inst(18, 0, w, v, ptr, 0); }
 
 fn ir_const_int(d: i64, v: i64) -> Vec<i32> { return ir_inst(0, d, 0, v, 0, 0); }
 fn ir_binop(iop: i64, d: i64, a: i64, b: i64) -> Vec<i32> { return ir_inst(iop, d, 0, a, b, 0); }
@@ -5083,9 +5105,42 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
     else if op == 15 { emit_arith(sb, "xor", d, ir_op1(inst), ir_op2(inst)); }
     else if op == 23 { emit_arith(sb, "shl", d, ir_op1(inst), ir_op2(inst)); }
     else if op == 24 { emit_arith(sb, "ashr", d, ir_op1(inst), ir_op2(inst)); }
-    else if op == 16 { sb_append(sb, "  %r."); sb_append(sb, str_from_int(d)); sb_append(sb, " = alloca i64\n"); }
-    else if op == 17 { sb_append(sb, "  %r."); sb_append(sb, str_from_int(d)); sb_append(sb, " = load i64, ptr %r."); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, "\n"); }
-    else if op == 18 { sb_append(sb, "  store i64 %r."); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, ", ptr %r."); sb_append(sb, str_from_int(ir_op2(inst))); sb_append(sb, "\n"); }
+    else if op == 16 {
+        // v0.4.196 RFC-0015 phase 3a: alloca uses tid for width.
+        // tid=0 fast path keeps the pre-phase-3 byte-identical emit
+        // (and avoids the width_to_llvm_type call + concat overhead
+        // on the hot path; today every alloca uses tid=0).
+        let atid: i64 = ir_tid(inst);
+        if atid == 0 {
+            sb_append(sb, "  %r."); sb_append(sb, str_from_int(d)); sb_append(sb, " = alloca i64\n");
+        } else {
+            sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
+            sb_append(sb, " = alloca "); sb_append(sb, width_to_llvm_type(atid)); sb_append(sb, "\n");
+        };
+    }
+    else if op == 17 {
+        // v0.4.196 RFC-0015 phase 3a: load uses tid for width.
+        // tid=0 fast path; tid != 0 path is for phase 3b/3c future use.
+        let ltid: i64 = ir_tid(inst);
+        if ltid == 0 {
+            sb_append(sb, "  %r."); sb_append(sb, str_from_int(d)); sb_append(sb, " = load i64, ptr %r."); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, "\n");
+        } else {
+            sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
+            sb_append(sb, " = load "); sb_append(sb, width_to_llvm_type(ltid));
+            sb_append(sb, ", ptr %r."); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, "\n");
+        };
+    }
+    else if op == 18 {
+        // v0.4.196 RFC-0015 phase 3a: store uses tid for width.
+        let stid: i64 = ir_tid(inst);
+        if stid == 0 {
+            sb_append(sb, "  store i64 %r."); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, ", ptr %r."); sb_append(sb, str_from_int(ir_op2(inst))); sb_append(sb, "\n");
+        } else {
+            sb_append(sb, "  store "); sb_append(sb, width_to_llvm_type(stid));
+            sb_append(sb, " %r."); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, ", ptr %r.");
+            sb_append(sb, str_from_int(ir_op2(inst))); sb_append(sb, "\n");
+        };
+    }
     else if op == 19 {
         let fn_name: str = ir_op1(inst); let argc: i64 = ir_op2(inst); let args: Vec<i32> = ir_extra(inst);
         let ext_idx: i64 = find_extern_idx(pool, externs, fn_name);

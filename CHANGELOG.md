@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.196] — 2026-04-30
+
+**RFC-0015 phase 3a foundation — typed IR ops + emit-time width
+dispatch. Back-compat at byte-identical IR for current call sites.**
+
+First execution ship of the RFC-0015 phase 3 plan (v0.4.195).
+Adds the type-tag substrate without changing any current emit:
+
+```nucleor
+// New IR builders that pass an explicit width tag (slot 2 of inst).
+// Width 0 → "i64" (default; matches all pre-phase-3 emit). Width 8/
+// 16/32 select narrower LLVM types via width_to_llvm_type.
+fn ir_alloca_t(d: i64, w: i64) -> Vec<i32> { ... }
+fn ir_load_t(d: i64, ptr: i64, w: i64) -> Vec<i32> { ... }
+fn ir_store_t(v: i64, ptr: i64, w: i64) -> Vec<i32> { ... }
+
+// Existing untyped builders ir_alloca/ir_load/ir_store unchanged —
+// they pass tid=0 → fast-path in emit_inst keeps byte-identical
+// "alloca i64" / "load i64" / "store i64" output.
+```
+
+`emit_inst` ops 16/17/18 each gain a `tid==0` fast path that
+emits the original 1-line IR (zero per-call overhead vs pre-
+phase-3) plus a `tid != 0` slow path that emits the narrower
+type via the new `width_to_llvm_type(w) -> str` helper.
+
+**Why this is a substrate ship, not a behavior change:**
+no caller in the current source passes `tid != 0`. Every
+existing alloca/load/store goes through the fast path. The
+new typed builders are dead code today — phase 3b/3c will
+wire callers to use them where adopters declared narrower
+integer types.
+
+**Verify:** 218 PASS / 1 FAIL (only `runtime/stdin_read`
+documented baseline). T1.7 fixed-point holds.
+**Perf:** cold 3.12s (max 3.37s) | hot 0.88s (max 0.97s) |
+peak 131MB (max 144MB). Hot stayed at baseline because the
+tid=0 fast path is the only path used today.
+
+**Phase 3a remaining work** (next ship):
+- Wire `lower_let_stmt` for narrower-typed bindings to call
+  `ir_alloca_t(d, declared_width)` instead of `ir_alloca(d)`.
+- Add sext-on-load for narrower bindings widened back to i64
+  for arith.
+- Add trunc-on-store for i64 values stored into narrower slots.
+- Phase-3a fixture: `tests/features/rfc0015_phase3a_widths.nr`
+  exercising i8/i16/i32/u8/u16/u32 alloca round-trips.
+
+After 3a fixture lands, phase 3b (binops at narrower widths)
+becomes possible.
+
 ## [0.4.195] — 2026-04-30
 
 **`docs/RFC-0015_PHASE_3_PLAN_2026-04-30.md` — keystone roadmap
