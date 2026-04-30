@@ -12734,9 +12734,27 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                 // user to add the missing else.
                 if init_kind_n20 == 23 && node_field(pool, init, 3) < 0
                     && str_eq(tstr, "void") == 0 && type_is_unit(tstr) == 0 {
-                    let t16a: str = str_concat("`if` expression assigned to binding `", str_concat(vname, str_concat("` of type `", str_concat(tstr, "` is missing an `else` branch."))));
-                    let t16b: str = " Pre-v0.4.126 the false-condition path silently fell through to the alloca's zero-init slot — `let x: i64 = if false { 5 };` produced `x == 0` with no signal. Add an `else { ... }` arm that produces the same type, or restructure to a stmt-form `if` that doesn't assign.";
-                    type_diag(diags, source, fn_name, vname, "TYP-016", str_concat(t16a, t16b));
+                    // v0.4.164: don't misfire on synthesized passthrough
+                    // blocks. `wrapping { ... }` and `unsafe { ... }` are
+                    // lowered (line 1057) as `if 1 { ...body... }` with
+                    // else=-1 — same shape as a real if-no-else, but the
+                    // cond is the literal 1, so the body always runs.
+                    // Pre-fix `let x: i32 = wrapping { ... };` printed
+                    // TYP-016 "if expression missing else branch" on
+                    // every wrapping/unsafe block, breaking
+                    // tests/features/overflow_{wrapping,comprehensive}
+                    // and any user code using these block forms.
+                    let t16_cond_nid: i64 = node_field(pool, init, 1);
+                    let mut t16_is_passthrough: i64 = 0;
+                    if node_kind(pool, t16_cond_nid) == 1
+                        && node_field(pool, t16_cond_nid, 1) == 1 {
+                        t16_is_passthrough = 1;
+                    };
+                    if t16_is_passthrough == 0 {
+                        let t16a: str = str_concat("`if` expression assigned to binding `", str_concat(vname, str_concat("` of type `", str_concat(tstr, "` is missing an `else` branch."))));
+                        let t16b: str = " Pre-v0.4.126 the false-condition path silently fell through to the alloca's zero-init slot — `let x: i64 = if false { 5 };` produced `x == 0` with no signal. Add an `else { ... }` arm that produces the same type, or restructure to a stmt-form `if` that doesn't assign.";
+                        type_diag(diags, source, fn_name, vname, "TYP-016", str_concat(t16a, t16b));
+                    };
                 };
                 // v0.4.77: NUM-019 — negative literal in unsigned binding.
                 // Pre-fix `let x: u32 = -5;` two's-complement-wrapped to
@@ -14947,15 +14965,20 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             if type_v122 >= 0 {
                 let type_str_v122: str = type_v122;
                 let tbase_v122: str = type_base_name(type_str_v122);
+                // v0.4.164: removed i*/u* from the uncallable list. Pre-v0.4.164
+                // lumping integer types into TYP-014 broke
+                //   `let double: i64 = |x| x * 2;` (tests/lang/closures.nr) and
+                //   `let fp: i64 = fn_ptr;` (stdlib/rods/concurrency.nr)
+                // because Nucleor's pre-RFC-0025 ABI uses i64 for BOTH numeric
+                // values and fn pointers — the type system can't distinguish.
+                // The original v0.4.122 motivation was the STR typo case
+                // (`let s: str = "x"; s(42);` → SIGSEGV); that and other
+                // genuinely-non-callable types stay rejected. The narrow
+                // remaining gap — `let n: i64 = 5; n(x);` typoing a numeric
+                // var as a fn — returns to pre-v0.4.122 runtime SIGSEGV with
+                // no compile-time signal. Acceptable trade-off until proper
+                // fn-pointer types ship in RFC-0025.
                 let is_uncallable: i64 = if str_eq(tbase_v122, "str") == 1
-                    || str_eq(tbase_v122, "i8") == 1
-                    || str_eq(tbase_v122, "i16") == 1
-                    || str_eq(tbase_v122, "i32") == 1
-                    || str_eq(tbase_v122, "i64") == 1
-                    || str_eq(tbase_v122, "u8") == 1
-                    || str_eq(tbase_v122, "u16") == 1
-                    || str_eq(tbase_v122, "u32") == 1
-                    || str_eq(tbase_v122, "u64") == 1
                     || str_eq(tbase_v122, "f32") == 1
                     || str_eq(tbase_v122, "f64") == 1
                     || str_eq(tbase_v122, "bool") == 1
