@@ -112,6 +112,25 @@ fn main() -> i32 {
     let r8_vl: u8 = v8 + 30;
     if r8_vl != 130 { print("FAIL u8 var+lit"); return 1; };
 
+    // v0.4.213 phase 3b nested-chain: tree-recursive narrow detection.
+    // Whole expression resolves to one width — emits chained iN ops
+    // with a SINGLE sext at the chain exit (not per-binop).
+    let na: i16 = 100;
+    let nb: i16 = 50;
+    let nc: i16 = 25;
+    let r_nest: i16 = (na + nb) + nc;
+    if r_nest != 175 { print("FAIL nested i16 chain"); return 1; };
+
+    let r_nest2: i16 = na * 2 - nb;
+    if r_nest2 != 150 { print("FAIL nested i16 mixed-op"); return 1; };
+
+    // Wrap correctness in nested narrow chain.
+    let bn: i16 = 30000;
+    let two16: i16 = 2;
+    let one16: i16 = 1;
+    let nw: i16 = wrapping { bn * two16 + one16 };
+    if nw != -5535 { print("FAIL nested i16 wrap"); return 1; };
+
     print("OK rfc0015_phase3a_widths");
     0
 }
