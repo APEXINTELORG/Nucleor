@@ -7795,6 +7795,8 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "MATCH-008") == 1 { return 1; };
     if str_eq(code, "MATCH-009") == 1 { return 1; };
     if str_eq(code, "MATCH-010") == 1 { return 1; };
+    if str_eq(code, "MATCH-011") == 1 { return 1; };
+    if str_eq(code, "MATCH-012") == 1 { return 1; };
     // RFC-0017 collections
     if str_eq(code, "COLL-001") == 1 { return 1; };
     if str_eq(code, "COLL-002") == 1 { return 1; };
