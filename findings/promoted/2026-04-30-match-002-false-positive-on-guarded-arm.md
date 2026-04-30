@@ -6,6 +6,7 @@ diagnostic_actual: 'warning[MATCH-002]: unreachable match arm after wildcard at 
 diagnostic_expected: clean compile (no actual unreachable arm)
 discovered_against: v0.4.162 (commit 213fee9)
 commit: 213fee9e84101dad4a06807f994413d7d4f1cb86
+status: CLOSED in v0.4.215 — wildcard_idx setter at the MATCH-002 dispatch site (line 10695) now requires the `__wild` arm to have NO guard (`node_field(arm, 5) <= 0`). Var-binder + guard arms (`x if cond => ...`) used the same `__wild` ename as bare wildcard `_ => ...` since parse-time, but only the latter is exhaustive. Pre-fix the guard was ignored for reachability analysis, so following arms false-flagged unreachable.
 ---
 
 ## Repro

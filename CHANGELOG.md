@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.215] — 2026-04-30
+
+**Wrong-error close — MATCH-002 ("unreachable arm after wildcard")
+no longer false-fires on guarded var-binder arms.** Pre-fix:
+
+```nucleor
+match n {
+    x if x < 0 => -1,    // arm 0: var-binder with guard
+    0 => 0,               // arm 1: literal
+    x if x < 100 => 1,    // arm 2: var-binder with guard
+    _ => 2,               // arm 3: real wildcard
+}
+```
+
+emitted `warning[MATCH-002]: unreachable match arm after wildcard
+at arm 1 of 4`, even though arm 1 (`0 => 0`) is reachable when arm
+0's guard fails. Adopters seeing "unreachable" may delete the
+literal arm and accidentally drop coverage.
+
+**Root cause:** the parser uses `__wild` ename for both bare
+wildcard (`_ => ...`) AND var-binder (`x => ...`). The MATCH-002
+reachability check at line 10695 set `wildcard_idx` on the first
+`__wild` arm without distinguishing — but a var-binder + guard
+isn't exhaustive (only matches when guard is true).
+
+**Fix:** require `arm.guard <= 0` (no guard, encoded as -1) before
+flagging an arm as the catch-all. Var-binder arms with guards now
+fall through correctly to the reachability analysis for following
+arms.
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+
+**Perf:** cold 3.32s / 3.37s ceiling • hot 0.93s / 0.97s ceiling •
+peak 132MB / 144MB.
+
+Closes `findings/inbox/2026-04-30-match-002-false-positive-on-guarded-arm.md`
+→ `findings/promoted/`.
+
+---
+
 ## [0.4.214] — 2026-04-30
 
 **Wrong-error close — TYP-005 false-fire on closure-binding called
