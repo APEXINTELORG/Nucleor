@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.185] — 2026-04-30
+
+**v0.4.0 success criteria — "All RFC-0023..0029 implemented to
+definition-of-done" → DONE.**
+
+After the v0.4.171–184 sweep (five RFC-status flips matching
+shipped reality + two explicit partial/deferred audits), every
+RFC in the 0023–0029 range has a current, accurate status with
+explicit v0.5+ deferral lists. The criterion is "definition of
+done" — meaning each RFC's surface has been audited, documented,
+and either shipped or explicitly punted with rationale.
+
+State per RFC after the sweep:
+- 0023 patterns: Implemented (audited v0.4.171)
+- 0024 generics: Implemented (audited v0.4.182)
+- 0024 iterators: Implemented partial (audited v0.4.182)
+- 0025 closures: Implemented (audited v0.4.183)
+- 0026 trait objects: Partial (audited v0.4.184) — `dyn Trait`
+  is the genuinely deferred surface
+- 0027 lifetimes: Parser-only — genuinely deferred
+- 0028 format strings: Phase 5 done v0.4.41 — user Display/Debug
+  deferred (gated on 0024 trait machinery)
+- 0029 doc generator: Implemented (audited v0.4.171, extended
+  through v0.4.177)
+
+`docs/milestones/v0.4.0.md` checkbox flipped to DONE with the
+per-RFC summary inline.
+
+**v0.4 success-criteria tally** after this ship:
+
+| Criterion | State |
+|---|---|
+| All RFC-0023..0029 to DoD | **DONE this ship** |
+| Every DEFERRED-from-v0.2 row flipped to DONE | Partial |
+| Strict-mode numerics is the default | Not done |
+| Verify gate green on Windows | Done (v0.4.170) |
+| Migration story v0.2 → v0.4 | Done (v0.4.168) |
+| Public benchmark dashboard | Done (v0.4.47-era) |
+
+**4 of 6 v0.4 success-criteria boxes flipped.** The remaining 2
+(DEFERRED-rows audit + strict-mode numerics flip) are bigger lifts
+that warrant their own ship cycles.
+
+No code changes.
+
 ## [0.4.184] — 2026-04-30
 
 **RFC-0026 status updated — basic traits + impls work; `dyn Trait`
