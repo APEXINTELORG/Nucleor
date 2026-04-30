@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.217] — 2026-04-30
+
+**Wrong-error close — method-style call on `&T` receiver no longer
+reports `Vec<T>` as the receiver type.** Pre-fix:
+
+```nucleor
+struct S { x: i32 }
+fn S_get(self: &S) -> i32 { self.x }
+fn main() -> i32 {
+    let r: &S = &(S { x: 7 });
+    print_int(r.S_get());  // pre-fix: vec_S_get error
+    0
+}
+```
+
+emitted `error[TYP-005]: receiver type 'Vec<T>' has no method
+.S_get(). (Internal symbol: vec_S_get...)` — confusing because the
+receiver is `&S`, not `Vec<T>`.
+
+**Root cause:** the kind-8 method-dispatch catch-all checks the
+receiver's BASE type via `expr_struct_type` (which goes through
+`__type_<recv>`, storing only the post-`type_base_name` value).
+For `r: &S`, that returns "S" — the borrow marker is dropped.
+The dispatch then tries `S__S_get` (free-fn-style mangled name),
+finds nothing, and falls through to `vec_S_get` synthesis. The
+post-link diagnostic re-cast the missing symbol as a Vec receiver
+error.
+
+**Fix:** before falling through to the catch-all, query
+`__fulltype_<recv>` — the parallel sym entry that preserves the
+borrow marker (`__fulltype_r` = `&S`, while `__type_r` = `S`).
+If full type starts with `&` or `&mut `, halt cleanly with a
+TYP-007 diagnostic naming the actual receiver type and listing
+two workarounds (call the free fn directly, or dereference first).
+
+Auto-deref method dispatch through borrowed references is tracked
+for a later RFC — variant (b) of the finding's expected outcomes.
+Variant (a) — actual auto-deref dispatch — would require more
+infrastructure than this ship.
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+
+**Perf:** cold 3.15s / 3.37s ceiling • hot 0.95s / 0.97s ceiling •
+peak 132MB / 144MB.
+
+Closes `findings/inbox/2026-04-30-method-on-borrowed-ref-wrong-receiver.md`
+→ `findings/promoted/`.
+
+---
+
 ## [0.4.216] — 2026-04-30
 
 **Wrong-error close — NUM-003 ("`as` cast loses precision") no

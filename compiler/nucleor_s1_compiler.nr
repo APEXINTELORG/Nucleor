@@ -15721,6 +15721,44 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 print(str_concat(pa, str_concat(pb, pc)));
                                 panic(str_concat("nucleor: no method `.", str_concat(mname, str_concat("()` for primitive receiver `", str_concat(stype_base_v107, "`")))));
                             };
+                            // v0.4.217: borrowed-reference receiver guard.
+                            // Pre-fix `r.foo()` for `r: &S` fell through every
+                            // typed-receiver branch (str / Option / Result /
+                            // String / HashMap / etc.) and through the
+                            // user-impl `<TypeName>__<method>` lookup, which
+                            // mangled to "S__foo" — not registered for
+                            // free-fn `fn foo(self: &S)` patterns. The
+                            // catch-all then synthesized `vec_foo(r)` and
+                            // the v0.4.106/.127 lift surfaced it as
+                            // `error[TYP-005]: receiver type 'Vec<T>' has no
+                            // method '.foo()'` — confusing because the
+                            // receiver is `&S`, not `Vec<T>`.
+                            // Detect via `__fulltype_<recv>` sym entry which
+                            // preserves the borrow marker (`__type_<recv>`
+                            // stores only the base name post-type_base_name).
+                            // Only kind-3 (var-ref) receivers are checkable
+                            // this way; other receiver kinds fall through to
+                            // the existing diagnostics.
+                            // Closes findings/inbox/2026-04-30-method-on-borrowed-ref-wrong-receiver.md.
+                            let v217_recv_node: i64 = node_field(pool, nid, 1);
+                            if node_kind(pool, v217_recv_node) == 3 {
+                                let v217_recv_name: str = node_field(pool, v217_recv_node, 1);
+                                let v217_full_id: i64 = sym_get(sym, str_concat("__fulltype_", v217_recv_name));
+                                if v217_full_id >= 0 {
+                                    let v217_full: str = v217_full_id;
+                                    let v217_flen: i64 = str_len(v217_full);
+                                    let mut v217_is_ref: i64 = 0;
+                                    if v217_flen >= 1 && str_char_at(v217_full, 0) == 38 { v217_is_ref = 1; };
+                                    if v217_flen >= 5 && str_starts_with(v217_full, "&mut ") == 1 { v217_is_ref = 1; };
+                                    if v217_is_ref == 1 {
+                                        let v217a: str = str_concat("error[TYP-007]: receiver type `", str_concat(v217_full, str_concat("` — method dispatch on borrowed references (`.", str_concat(mname, "()` on `&T` / `&mut T`) is not supported in Nucleor today."))));
+                                        let v217b: str = " Pre-v0.4.217 the kind-8 catch-all synthesized `vec_<method>(<receiver>)` and the post-link diagnostic re-cast it as `receiver type 'Vec<T>' has no method ...` — confusing because the receiver is a borrowed reference, not a Vec.";
+                                        let v217c: str = str_concat(" Workaround: call the free fn directly with the reference — `", str_concat(mname, str_concat("(<receiver>)`, OR dereference the binding first (`let s_owned: ", str_concat(stype_base_v107, " = *<receiver>;`) and call methods on the owned value. Auto-deref method dispatch through borrowed references is tracked for a later RFC."))));
+                                        print(str_concat(v217a, str_concat(v217b, v217c)));
+                                        panic(str_concat("nucleor: method dispatch on borrowed reference `", str_concat(v217_full, "` not supported (see TYP-007 above)")));
+                                    };
+                                };
+                            };
                             // v0.4.123: struct-field-as-method-call guard.
                             // Pre-fix `p.x(42)` where `x` is a STRUCT FIELD
                             // (not a method) lowered to `vec_x(p, 42)`,
