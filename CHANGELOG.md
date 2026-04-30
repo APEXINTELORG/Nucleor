@@ -5,6 +5,26 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.176] — 2026-04-30
+
+**RFC-0029 — `nuc doc` HTML mode now recognizes `#`-headings inside
+`///` doc blocks. Pairs with v0.4.175's Markdown-side demotion.**
+
+A `/// # Examples` line in HTML output previously rendered as the
+literal string "# Examples" with `<br>`. Now it emits a real
+`<h3>Examples</h3>` element (demoted by 2 levels under the parent
+fn's `<h2>`). `## Subsection` becomes `<h4>`, `### Sub-subsection`
+becomes `<h5>`, up to `####` → `<h6>`. Anything beyond falls back
+to plain text.
+
+Mirrors v0.4.175 markdown semantics on the HTML side. Adopters
+generating HTML docs (`nuc doc <file> --html`) get correct
+structural nesting for browser rendering, screen readers, and
+TOC-extraction tools.
+
+Verify: 217 PASS / 1 FAIL (unchanged).
+Perf:   cold 3.09s (max 7.20s) | hot 0.88s (max 0.97s) | peak 131MB.
+
 ## [0.4.175] — 2026-04-30
 
 **RFC-0029 — `nuc doc` demotes `#`-headings inside `///` doc blocks
