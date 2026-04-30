@@ -5,6 +5,86 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.211] — 2026-04-30
+
+**RFC-0015 phase 3b LANDS — narrow `add iN` instead of `add i64` +
+narrow_via_as helper.** The v0.4 success-criterion language ("`add
+i64` emitted regardless of declared narrower type") is no longer
+true for the simplest pattern: var-narrow + var-narrow same-width.
+
+**Pre-fix flow for `let x: i16 = a + b;` (a, b: i16):**
+
+```llvm
+%la = load i16, ptr %a        ; v0.4.209 typed load
+%la64 = sext i16 %la to i64
+%lb = load i16, ptr %b
+%lb64 = sext i16 %lb to i64
+%sum64 = add i64 %la64, %lb64
+%narrow = call i64 @__nucleor_as_i16(i64 %sum64)  ; runtime call
+%trunc = trunc i64 %narrow to i16
+store i16 %trunc, ptr %x
+```
+
+**Post-fix flow:**
+
+```llvm
+%la = load i16, ptr %a
+%lb = load i16, ptr %b
+%sum16 = add i16 %la, %lb     ; native LLVM i16 arith — wraps right
+%sum64 = sext i16 %sum16 to i64
+%trunc = trunc i64 %sum64 to i16
+store i16 %trunc, ptr %x
+```
+
+Drops the `__nucleor_as_i16` runtime call. Native LLVM `add iN`
+wraps mod 2^N at the right width, no helper needed.
+
+**Conservative scope:** narrow path only fires when:
+- Op is arithmetic (+, -, *, /, %, ops 2-6 by iop value).
+- Both operands are kind-3 var-refs.
+- Both alloca-regs have non-zero same-sign-encoded width
+  (i8/i16/i32/u8/u16/u32 of matching type).
+
+Mixed-shape binops (var + literal, expr + expr, narrow + wide,
+narrow_a + narrow_b of different widths) all fall through to the
+existing i64-arith + narrow_via_as path — strict-mode / saturating
+/ wrapping / short-circuit / float / enum-equality / chained-call
+all unchanged.
+
+**Implementation:**
+- `ir_binop_t(iop, d, a, b, w)` — typed binop helper. Same op codes
+  as `ir_binop` (2..6) but slot 2 carries operand width.
+- `emit_arith_w(sb, on, d, a, b, w)` — emits `<op> iN` instead of
+  `<op> i64`. emit_inst dispatches: tid==0 → `emit_arith` (i64 fast
+  path, byte-identical to pre-fix); tid>0 → `emit_arith_w`.
+- `lower_expr` kind 4 narrow path: peeks operand kinds before
+  recursive descent. If both kind-3 var-refs to same-narrow alloca,
+  emits direct `load_t + load_t + binop_t + sext/zext` and returns
+  the wide register. Otherwise falls through to the existing kind 4
+  body — no behavior change.
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+Phase 3a fixture extended with 3 narrow-binop wrap-correctness
+cases (i16/u8/i32) — all green.
+
+**Perf:** cold 3.29s / 3.37s ceiling • **hot 0.90s / 0.97s ceiling
+(IMPROVED from v0.4.210's 0.92s)** — narrow binop drops the runtime
+helper call for the most common pattern. Peak 131MB / 144MB.
+
+**Phase 3 status after this ship:**
+- Phase 3a (typed memory ops): COMPLETE for i8/i16/i32/u8/u16/u32.
+- Phase 3b (width-aware binops): PARTIAL — var+var same-width arith
+  now narrow. Still open: var+literal, expr+expr, comparisons.
+- Phase 3c/3d/3e: untouched.
+
+The v0.4 milestone language ("STILL OPEN. IR remains uniformly i64
+even for i16/u8 bindings; live probe confirms `add i64` emitted
+regardless of declared narrower type") is now demonstrably false
+for the var+var arith case. Updated milestone to PARTIAL pending
+full phase 3b.
+
+---
+
 ## [0.4.210] — 2026-04-30
 
 **RFC-0015 phase 3a-step-3 expanded — i32/u32 now use typed memory

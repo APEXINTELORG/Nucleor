@@ -3062,6 +3062,12 @@ fn ir_trunc(d: i64, src: i64, dst_w: i64) -> Vec<i32> { return ir_inst(33, d, ds
 
 fn ir_const_int(d: i64, v: i64) -> Vec<i32> { return ir_inst(0, d, 0, v, 0, 0); }
 fn ir_binop(iop: i64, d: i64, a: i64, b: i64) -> Vec<i32> { return ir_inst(iop, d, 0, a, b, 0); }
+// v0.4.211 RFC-0015 phase 3b: typed binop. Same op codes as ir_binop
+// (2..6 for arith, 7..12 for cmp, 13..15 + 23..24 for bitwise/shift)
+// but slot 2 carries the operand width (8/16/32). emit_inst dispatch
+// reads tid: 0 stays at i64 (byte-identical fast path); >0 emits
+// `<op> iN`. Caller is lower_expr kind 4 narrow path.
+fn ir_binop_t(iop: i64, d: i64, a: i64, b: i64, w: i64) -> Vec<i32> { return ir_inst(iop, d, w, a, b, 0); }
 fn ir_cmpop(iop: i64, d: i64, a: i64, b: i64) -> Vec<i32> { return ir_inst(iop, d, 0, a, b, 0); }
 fn ir_alloca(d: i64) -> Vec<i32> { return ir_inst(16, d, 0, 0, 0, 0); }
 fn ir_load(d: i64, ptr: i64) -> Vec<i32> { return ir_inst(17, d, 0, ptr, 0, 0); }
@@ -5133,6 +5139,16 @@ fn emit_arith(sb: i64, on: str, d: i64, a: i64, b: i64) -> i64 {
     sb_append(sb, ", %r."); sb_append(sb, str_from_int(b));
     sb_append(sb, "\n"); return 0;
 }
+// v0.4.211 RFC-0015 phase 3b: typed arith — `<op> iN %a, %b` instead
+// of `<op> i64`. Called from emit_inst dispatch when ir_tid is non-zero.
+fn emit_arith_w(sb: i64, on: str, d: i64, a: i64, b: i64, w: i64) -> i64 {
+    sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
+    sb_append(sb, " = "); sb_append(sb, on);
+    sb_append(sb, " "); sb_append(sb, width_to_llvm_type(w));
+    sb_append(sb, " %r."); sb_append(sb, str_from_int(a));
+    sb_append(sb, ", %r."); sb_append(sb, str_from_int(b));
+    sb_append(sb, "\n"); return 0;
+}
 fn find_extern_idx(pool: Vec<i32>, externs: Vec<i32>, name: str) -> i64 {
     let mut i: i64 = 0;
     while i < vec_len(externs) {
@@ -5211,11 +5227,11 @@ fn emit_extern_call(sb: i64, pool: Vec<i32>, externs: Vec<i32>, ext_idx: i64, d:
 fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 {
     let op: i64 = ir_op(inst); let d: i64 = ir_dest(inst);
     if op == 0 { sb_append(sb, "  %r."); sb_append(sb, str_from_int(d)); sb_append(sb, " = add i64 "); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, ", 0\n"); }
-    else if op == 2 { emit_arith(sb, "add", d, ir_op1(inst), ir_op2(inst)); }
-    else if op == 3 { emit_arith(sb, "sub", d, ir_op1(inst), ir_op2(inst)); }
-    else if op == 4 { emit_arith(sb, "mul", d, ir_op1(inst), ir_op2(inst)); }
-    else if op == 5 { emit_arith(sb, "sdiv", d, ir_op1(inst), ir_op2(inst)); }
-    else if op == 6 { emit_arith(sb, "srem", d, ir_op1(inst), ir_op2(inst)); }
+    else if op == 2 { let bw: i64 = ir_tid(inst); if bw == 0 { emit_arith(sb, "add", d, ir_op1(inst), ir_op2(inst)); } else { emit_arith_w(sb, "add", d, ir_op1(inst), ir_op2(inst), bw); }; }
+    else if op == 3 { let bw: i64 = ir_tid(inst); if bw == 0 { emit_arith(sb, "sub", d, ir_op1(inst), ir_op2(inst)); } else { emit_arith_w(sb, "sub", d, ir_op1(inst), ir_op2(inst), bw); }; }
+    else if op == 4 { let bw: i64 = ir_tid(inst); if bw == 0 { emit_arith(sb, "mul", d, ir_op1(inst), ir_op2(inst)); } else { emit_arith_w(sb, "mul", d, ir_op1(inst), ir_op2(inst), bw); }; }
+    else if op == 5 { let bw: i64 = ir_tid(inst); if bw == 0 { emit_arith(sb, "sdiv", d, ir_op1(inst), ir_op2(inst)); } else { emit_arith_w(sb, "sdiv", d, ir_op1(inst), ir_op2(inst), bw); }; }
+    else if op == 6 { let bw: i64 = ir_tid(inst); if bw == 0 { emit_arith(sb, "srem", d, ir_op1(inst), ir_op2(inst)); } else { emit_arith_w(sb, "srem", d, ir_op1(inst), ir_op2(inst), bw); }; }
     else if op == 7 { emit_cmp(sb, "eq", d, ir_op1(inst), ir_op2(inst)); }
     else if op == 8 { emit_cmp(sb, "ne", d, ir_op1(inst), ir_op2(inst)); }
     else if op == 9 { emit_cmp(sb, "slt", d, ir_op1(inst), ir_op2(inst)); }
@@ -14293,6 +14309,54 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return lx_new(r_v209, blk);
     };
     if kind == 4 {
+        // v0.4.211 RFC-0015 phase 3b: narrow-binop fast path for the
+        // simplest pattern — `var <op> var` where both vars are kind-3
+        // var-refs to alloca-regs of the same narrow width and the op
+        // is arithmetic (+/-/*/// /%). Emits typed `<op> iN` directly
+        // and sext/zext-extends to i64 for the i64-everywhere ABI.
+        // Skips the narrow_via_as runtime helper that the i64-arith
+        // path needs for wrap correctness — narrow LLVM IR ops wrap
+        // natively at the right width.
+        //
+        // Pre-fix flow for `let x: i16 = a + b;` (a, b: i16):
+        //   load i16 -> sext i64; load i16 -> sext i64;
+        //   add i64; call __nucleor_as_i16(i64); trunc i16; store i16.
+        // Post-fix flow:
+        //   load i16; load i16; add i16;
+        //   sext i16 to i64; trunc i16; store i16.
+        // Drops the runtime helper call.
+        let v211_bop: i64 = node_field(pool, nid, 1);
+        let v211_iop: i64 = tok_to_ir(v211_bop);
+        if v211_iop >= 2 && v211_iop <= 6 {
+            let v211_lhs_n: i64 = node_field(pool, nid, 2);
+            let v211_rhs_n: i64 = node_field(pool, nid, 3);
+            if node_kind(pool, v211_lhs_n) == 3 && node_kind(pool, v211_rhs_n) == 3 {
+                let v211_lname: str = node_field(pool, v211_lhs_n, 1);
+                let v211_rname: str = node_field(pool, v211_rhs_n, 1);
+                let v211_lar: i64 = sym_get(sym, v211_lname);
+                let v211_rar: i64 = sym_get(sym, v211_rname);
+                if v211_lar >= 0 && v211_rar >= 0 {
+                    let v211_lw: i64 = ir_fn_get_width(fir, v211_lar);
+                    let v211_rw: i64 = ir_fn_get_width(fir, v211_rar);
+                    if v211_lw != 0 && v211_lw == v211_rw {
+                        let v211_aw: i64 = if v211_lw > 0 { v211_lw } else { 0 - v211_lw };
+                        let v211_lr: i64 = ctr_next(regs);
+                        ir_block_add(blk, ir_load_t(v211_lr, v211_lar, v211_aw));
+                        let v211_rr: i64 = ctr_next(regs);
+                        ir_block_add(blk, ir_load_t(v211_rr, v211_rar, v211_aw));
+                        let v211_nr: i64 = ctr_next(regs);
+                        ir_block_add(blk, ir_binop_t(v211_iop, v211_nr, v211_lr, v211_rr, v211_aw));
+                        let v211_wr: i64 = ctr_next(regs);
+                        if v211_lw > 0 {
+                            ir_block_add(blk, ir_sext(v211_wr, v211_nr, v211_aw));
+                        } else {
+                            ir_block_add(blk, ir_zext(v211_wr, v211_nr, v211_aw));
+                        };
+                        return lx_new(v211_wr, blk);
+                    };
+                };
+            };
+        };
         // v0.3.128: enum-equality dispatch. Pre-v0.3.128, `t == Tag::A`
         // (where t is an enum value) compared the underlying Vec
         // pointers — each Tag::A constructor allocates a fresh Vec, so

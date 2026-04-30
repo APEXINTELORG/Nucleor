@@ -79,6 +79,26 @@ fn main() -> i32 {
     let ru32: u32 = pu32 + qu32;
     if ru32 != 4200000000 { print("FAIL u32 add"); return 1; };
 
+    // v0.4.211 phase 3b: narrow binop fast path. var+var same-narrow
+    // emits `<op> iN` directly instead of i64-arith + narrow_via_as.
+    // Result must remain bit-correct via native LLVM iN wrap.
+    let s16a: i16 = 30000;
+    let s16b: i16 = 5000;
+    let s16c: i16 = wrapping { s16a + s16b };
+    // 30000 + 5000 = 35000; as signed i16: 35000 - 65536 = -30536
+    if s16c != -30536 { print("FAIL i16 narrow-binop wrap"); return 1; };
+
+    let mu8a: u8 = 200;
+    let mu8b: u8 = 100;
+    let mu8c: u8 = wrapping { mu8a + mu8b };
+    // 200 + 100 = 300; mod 256 = 44
+    if mu8c != 44 { print("FAIL u8 narrow-binop wrap"); return 1; };
+
+    let p32n: i32 = 1000000;
+    let q32n: i32 = 2000000;
+    let r32n: i32 = p32n - q32n;
+    if r32n != -1000000 { print("FAIL i32 narrow-binop sub"); return 1; };
+
     print("OK rfc0015_phase3a_widths");
     0
 }
