@@ -6,6 +6,7 @@ diagnostic_actual: none
 diagnostic_expected: hard error — fn body lacks a tail expression matching declared return type
 discovered_against: v0.4.162 (commit 213fee9)
 commit: 213fee9e84101dad4a06807f994413d7d4f1cb86
+status: PARTIAL CLOSE in v0.4.219 — Repros 1 + 2 (last stmt is kind 20 let-stmt or kind 21 assign, no top-level return, RHS not always-returning) now halt with TYP-026. Repro 3 (kind 25 expr-stmt with `;` consumed by parse_stmt) still silently returns the value of the discarded expression — this case requires AST-level `;` tracking which is out of scope for this ship. Allow-listed: legitimate early-return-via-let patterns like `let v: T = match { Ok(x) => return x, Err(_) => return -1 };` (test t367_question_op_chain.nr) where the let RHS is an always-returning match. Also handles if-with-both-arms-returning. Conservative scope: only kinds 20/21 last; loops/while/for paths skipped to avoid false positives.
 ---
 
 ## Repro 1: no return-shaped statement at all
