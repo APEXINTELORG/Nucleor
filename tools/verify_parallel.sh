@@ -48,15 +48,19 @@ TMP="$(mktemp -d -t nucverP.XXXXXX)"
 trap 'rm -rf "$TMP"' EXIT
 
 TEST_DIRS=(lang attrs runtime rods features)
-TEST_SKIP_REGEX='^$'  # placeholder; verify.sh has its own skip — we mirror
-                      # by enumerating the same way: maxdepth 1, *.nr.
+# v0.4.170: mirror verify.sh's TEST_SKIP_REGEX so *_aux.nr helper
+# files (used by mod_decl.nr etc. as imported helpers, no main()
+# of their own) don't run as standalone tests and fail. Pre-fix
+# the placeholder `^$` matched nothing and mod_decl_aux.nr was
+# counted as a baseline-FAIL in verify_parallel for releases.
+TEST_SKIP_REGEX='_aux\.nr$'
 
 # Enumerate every step and its kind.
 STEPS_FILE="$TMP/steps.list"
 : > "$STEPS_FILE"
 for d in "${TEST_DIRS[@]}"; do
     [ -d "tests/$d" ] || continue
-    for f in $(find "tests/$d" -maxdepth 1 -name '*.nr' 2>/dev/null | sort); do
+    for f in $(find "tests/$d" -maxdepth 1 -name '*.nr' 2>/dev/null | grep -vE "$TEST_SKIP_REGEX" | sort); do
         tname=$(basename "$f" .nr)
         echo "test:$d:$tname" >> "$STEPS_FILE"
     done
