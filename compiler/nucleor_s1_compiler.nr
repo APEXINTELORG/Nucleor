@@ -21901,7 +21901,9 @@ fn compiler_version_label() -> str {
     // CHANGELOG / git tag stream (the s1 source had been shipping
     // v0.3.x fixes for weeks). Now mirrors the latest tag at ship
     // time. Update when cutting each new release.
-    return "0.4.21";
+    // v0.4.180: caught up from stale 0.4.21 (~158 ships behind).
+    // (v0.4.179 was the probe-agent TYP-011 ext merge.)
+    return "0.4.180";
 }
 
 fn compiler_backend_label() -> str {
@@ -22851,8 +22853,10 @@ fn print_help() -> i64 {
     print("    --fn <name>          Specify the target function");
     print("  graph [file]           Source-level call/effect graph");
     print("    --json               Output machine-readable graph data");
-    print("  doc [file]             Render /// doc comments as Markdown (RFC-0029)");
+    print("  doc [file]             Render /// + //! doc comments as Markdown or HTML (RFC-0029)");
     print("    --out <file>         Write to file instead of stdout");
+    print("    --html               Emit standalone HTML (auto-detected from .html / .htm --out)");
+    print("    --test-list          Enumerate ```nucleor code blocks for doc-test discoverability");
     print("  profile run <binary>   Timed binary execution profile");
     print("    --iterations <n>     Repeat the profile run N times");
     print("  lock [manifest]        Write Nucleor.lock for local/workspace manifests");

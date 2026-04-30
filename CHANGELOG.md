@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.180] — 2026-04-30
+
+**`nuc help` doc-command help text + `compiler_version_label`
+catch-up.**
+
+`nuc help` for the `doc` command was minimal — just "Render ///
+doc comments as Markdown" plus `--out`. After v0.4.165–176 added
+`--html`, `--test-list`, `//!` module docs, struct/enum index,
+cross-refs, and heading recognition, the help text was stale.
+Updated to reflect current capabilities.
+
+`compiler_version_label` was stuck at `0.4.21` in `s1` and
+`0.2.0-v2` in `tools_suite` — ~158 ships behind reality. Both
+synced to `0.4.180`.
+
+```
+$ nuc help | head -1
+Nucleor Compiler 0.4.180
+
+$ nuc help | grep -A3 "doc \[file\]"
+  doc [file]             Render /// + //! doc comments as Markdown or HTML (RFC-0029)
+    --out <file>         Write to file instead of stdout
+    --html               Emit standalone HTML (auto-detected from .html / .htm --out)
+    --test-list          Enumerate ```nucleor code blocks for doc-test discoverability
+```
+
+Verify: 218 PASS / 1 FAIL (unchanged).
+Perf:   cold 3.09s (max 3.37s) | hot 0.89s (max 0.97s) | peak 131MB (max 144MB).
+
 ## [0.4.179] — 2026-04-30
 
 **TYP-011 ext: `for <var> in <struct>` rejected. Closes 3 silent-
