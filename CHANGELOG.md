@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.183] — 2026-04-30
+
+**RFC-0025 status updated — closures with capture work end-to-end
+(audit ship). Same pattern as v0.4.171 (RFC-0023) and v0.4.182
+(RFC-0024).**
+
+```nucleor
+fn apply<T>(f: i64, x: T) -> T { return f(x); }
+
+fn main() -> i32 {
+    // Bare closure literal, called directly
+    let double: i64 = |x| x * 2;
+    if double(21) != 42 { return 1; };
+
+    // Closure capturing outer variable by value
+    let mul: i32 = 10;
+    let scale: i64 = |x: i32| x * mul;
+    if scale(5) != 50 { return 1; };
+
+    // Through a generic higher-order function
+    if apply(double, 21) != 42 { return 1; };
+
+    0
+}
+```
+
+All three patterns type-check, lower, and run correctly. The RFC
+status was stuck at "Draft" but the work shipped incrementally
+across the v0.4.x line. v0.4.164 closed the TYP-014 over-tightening
+that briefly broke this surface.
+
+**Still deferred to v0.5+:** formal `Fn`/`FnMut`/`FnOnce` trait
+types (closures are all currently i64-typed callable; no
+distinction between by-value and by-reference capture), the
+`move ||` keyword for explicit-by-value capture, and closures
+returning closures (currying via return type).
+
+`docs/rfcs/RFC-0025-closures.md` Status flipped from "Draft" to
+"Implemented (audited v0.4.183)".
+
+No code changes.
+
 ## [0.4.182] — 2026-04-30
 
 **RFC-0024 status doc updated to match shipped reality. Generic
