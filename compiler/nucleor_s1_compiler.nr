@@ -16961,14 +16961,30 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         ir_block_add(cur, ir_store(sv, iter_slot));
         let zero: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(zero, 0));
         ir_block_add(cur, ir_store(zero, idx_slot));
+        // v0.4.205: snapshot vec_len ONCE before the loop, reuse on every
+        // iteration. Pre-fix the header re-read vec_len(v) on each
+        // iteration. When the loop body pushed to `v`, len grew, the
+        // exit check `idx < len` never became false, and memory grew
+        // unboundedly (Run-Capped killed at 1 GB). The classic
+        // iter-invalidation hazard, but in Nucleor's iter-by-index form
+        // it manifests as silent unbounded grow rather than a borrow
+        // error. Snapshot semantics: the loop iterates EXACTLY the
+        // original-length elements; pushes inside the body extend the
+        // Vec but are not visited. This matches Rust's
+        // `for x in v.iter().take(initial_len)` shape and removes the
+        // memory-blowup without needing full ownership-borrow analysis
+        // (which is the canonical fix but a much larger surface).
+        // Closes findings/inbox/2026-04-30-push-during-for-iter-unbounded.md.
+        let len_slot: i64 = ctr_next(regs); ir_fn_add_entry_alloca(fir, len_slot);
+        let mut len_init_args: Vec<i32> = Vec::new(); len_init_args.push(sv);
+        let len_init_v: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(len_init_v, "vec_len", len_init_args));
+        ir_block_add(cur, ir_store(len_init_v, len_slot));
         let hl: i64 = ctr_next(lbls); let bl: i64 = ctr_next(lbls);
         let il: i64 = ctr_next(lbls); let xl: i64 = ctr_next(lbls);
         ir_block_add(cur, ir_br(hl));
         let mut hb: Vec<i32> = ir_block_new(hl); ir_fn_add_block(fir, hb);
         let idx_v: i64 = ctr_next(regs); ir_block_add(hb, ir_load(idx_v, idx_slot));
-        let iter_v: i64 = ctr_next(regs); ir_block_add(hb, ir_load(iter_v, iter_slot));
-        let mut len_args: Vec<i32> = Vec::new(); len_args.push(iter_v);
-        let len_v: i64 = ctr_next(regs); ir_block_add(hb, ir_call_ex(len_v, "vec_len", len_args));
+        let len_v: i64 = ctr_next(regs); ir_block_add(hb, ir_load(len_v, len_slot));
         let cv: i64 = ctr_next(regs); ir_block_add(hb, ir_cmpop(9, cv, idx_v, len_v));
         ir_block_add(hb, ir_br_cond(cv, bl, xl));
         let mut bb: Vec<i32> = ir_block_new(bl); ir_fn_add_block(fir, bb);
