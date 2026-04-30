@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.177] — 2026-04-30
+
+**`nuc explain MATCH-011` + `nuc explain MATCH-012` — close
+explain-registry gap for codes shipped this session.**
+
+The `is_explained_code` drift gate enforces every code that fires
+in the compiler must also have an entry in the `nuc explain`
+registry. MATCH-011 (heterogeneous match arms, shipped v0.4.140)
+and MATCH-012 (struct-pattern field-equality, shipped v0.4.163)
+were emitting in compiler diagnostics but missing from the explain
+registry — adopters running `nuc explain MATCH-012` got a "code
+not found" instead of the field-by-field guidance.
+
+Now both codes have:
+- A short title in the title-table
+- A multi-line description explaining the bug class + pre-fix
+  silent-miscompute history
+- A remediation hint pointing at the workaround idiom
+
+```sh
+$ nuc explain MATCH-012
+MATCH-012: Struct pattern field after `:` must be an identifier
+            (literal field-equality patterns deferred)
+
+Struct patterns currently support only the binding form `Point { x, y }`
+and the rename form `Point { x: rename, y: rename }`. Field-equality
+literal patterns like `Point { x: 0, y: 0 }` are deferred to v0.5+.
+Express the same intent today with a guard:
+`Point { x, y } if x == 0 && y == 0 => ...`. Pre-v0.4.163 the parser
+fed the literal's raw value as a string-id binding, producing garbage
+that crashed codegen with an ACCESS VIOLATION.
+
+RFC-0023 §3.6 — replace `Point { x: 0, y: 0 }` with
+`Point { x, y } if x == 0 && y == 0 => ...`. Field-equality
+literal patterns ship in v0.5+ once nested-pattern lowering is wired.
+
+reference: docs/spec/Nucleor_Error_Codes.md#MATCH-012
+```
+
+s1 compiler's `is_explained_code` registry also updated so the
+drift gate accepts the new codes.
+
+Verify: 217 PASS / 1 FAIL (unchanged).
+Perf:   cold 3.17s (max 7.20s) | hot 0.88s (max 0.97s) | peak 131MB.
+
 ## [0.4.176] — 2026-04-30
 
 **RFC-0029 — `nuc doc` HTML mode now recognizes `#`-headings inside
