@@ -358,53 +358,49 @@ beyond a single-tag fix):
 - `PARALLEL_AGENT_BLOCKERS.md` — historical, useful for the
   Windows file-lock + rebase workaround at the bottom.
 
-## Probe mandate — DELEGATED 2026-04-30
+## Probe + Fix mandate — FULLY DELEGATED 2026-04-30
 
-Probes are no longer main-line work. They run continuously on the
-**probe agent** (separate session, branch `probe/exploration`,
-mandate at `PARALLEL_AGENT_PROBE_MANDATE.md`). The probe agent
-never edits compiler source and never ships fixes — it drops
-findings into `findings/inbox/` and you (main) promote them.
+The probe agent has absorbed the fixer role. He owns
+`findings/inbox/` end-to-end: probes → finds → writes fixture →
+fixes compiler → mirrors tools_suite → runs all gates → ships
+`v0.4.NNN` directly to `origin/main` → moves his own finding file
+to `findings/promoted/`. Mandate at `PARALLEL_AGENT_PROBE_MANDATE.md`.
 
-### Loop-check protocol (MAIN AGENT — do this every ship)
+**You (main) never look at `findings/inbox/` again.** The previous
+loop-check protocol is retired. Stay 100% on the v0.4 / v0.5
+punchlist.
 
-Between every ship, BEFORE starting the next punchlist task:
+### Co-existence with probe agent on `origin/main`
 
-1. `ls findings/inbox/` — list any new findings.
-2. **Read `findings/_heartbeat.md`** — confirm probe agent is
-   alive. Stale heartbeat (> ~24h or commit not in current main's
-   history) means the probe stream is broken — flag it; don't assume
-   empty inbox = "all clean."
-3. For each finding, in priority order
-   (`silent-miscompute > crash > wrong-error > missing-error`,
-   plus any `compiler-meltdown` jumps to top regardless):
-   a. Reproduce against current main using the file's repro block.
-      (If the finding's `commit:` field isn't in main's history,
-      the agent probed a stale binary — likely won't repro; reject.)
-   b. Convert the repro into a permanent fixture in
-      `tests/err/` (negative) or `tests/features/` (positive) or
-      `tests/fixtures/` (regression-only). Tight 5–15-line `.nr`.
-   c. Fix the root cause in `compiler/nucleor_s1_compiler.nr` and
-      mirror in `compiler/nucleor_tools_suite.nr` if dispatch is
-      shared.
-   d. Ship as own micro-version (T1.7 first-pass, drift clean,
-      verify_parallel still 213+ PASS / 2 baseline-FAIL).
-   e. **Move** the file from `findings/inbox/` to
-      `findings/promoted/`, appending the Promoted footer
-      described in `findings/README.md`.
-4. If the finding is a dup or non-bug, still move it to
-   `promoted/` with `Promoted: rejected — <reason>` so the inbox
-   stays empty between sweeps.
-5. **After your push, re-check `findings/inbox/` once more.** If a
-   fresh finding tagged against the version you just shipped lands,
-   it's a regression of your own fix — treat as P0.
-6. **If you're stuck** in a long debug, write a one-liner to the
-   "Where we are right now" section of this file noting the area
-   under repair. Probe agent reads it each rebase and steers clear.
-7. Resume punchlist work.
+You both push to `origin/main`. Each of you has an independent
+worktree (`Nucleor_OSS/` for you, `Nucleor_OSS_probe/` for him),
+each with its own `bin/nucleor.exe`, `target/`, `bootstrap/seed.ll`.
+The only shared state is `.git` and `origin/main`.
 
-The probe agent does NOT move files — your move is what
-graduates the finding. An empty `inbox/` means you're caught up.
+Per-ship discipline (you and him both):
+1. `git fetch --all && git rebase origin/main` BEFORE you start work
+2. Make changes, run all gates (drift, T1.7, verify_parallel, perf)
+3. `git fetch --all && git rebase origin/main` again before push (in
+   case the other agent landed something while you ran gates)
+4. `git push origin main && git push origin v0.4.NNN`
+
+If rebase hits conflicts in `compiler/*.nr` — stop and check what
+the other agent shipped, resolve carefully. Most of the time your
+regions don't overlap (he fixes diagnostics + dispatch; you build
+features) and rebase is clean.
+
+### Stuck-signal etiquette
+
+If you're stuck in a long debug, write a one-liner to "Where we are
+right now" naming the area under repair. He reads it each rebase
+and steers clear of that region in his fixes so you don't collide
+on push.
+
+### Reading `findings/promoted/` (optional)
+
+`promoted/` is a historical record. You can browse it for context
+on what bug classes have been closed recently — but you have no
+action obligation on it. It's read-only for you.
 
 ### Why this split is the right shape
 

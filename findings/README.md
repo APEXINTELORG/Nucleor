@@ -1,66 +1,64 @@
-# Findings — probe-agent inbox
+# Findings — probe agent's inbox + history
 
-This directory is the handoff surface between the **probe agent**
-(see `PARALLEL_AGENT_PROBE_MANDATE.md`) and the **main agent**
-(running v0.4 closeout / v0.5 punchlist).
+This directory is owned end-to-end by the **probe + fix agent**
+(see `PARALLEL_AGENT_PROBE_MANDATE.md`). The main agent never reads
+`inbox/`; it stays on the v0.4 / v0.5 punchlist.
 
 ## Layout
 
 ```
 findings/
-  inbox/         <-- probe agent drops new findings here
-  promoted/      <-- main agent moves findings here after fixturing + fixing
+  inbox/         <-- probe agent drops new findings here while working
+  promoted/      <-- probe agent moves findings here after shipping the fix
   README.md      <-- this file
+  _heartbeat.md  <-- probe agent overwrites each rebase (alive/version/sha)
+  _template.md   <-- copy this when filing a new finding
 ```
 
 ## Contract (one-page)
 
-### Probe agent
+### Probe agent (sole owner)
 - Drops one file per finding in `inbox/` named
-  `YYYY-MM-DD-<slug>.md` with the frontmatter format described in
-  `PARALLEL_AGENT_PROBE_MANDATE.md`.
-- Never moves or deletes files. Never edits files in `promoted/`.
-- May leave open questions for the main agent in
-  `inbox/_questions.md` — append-only.
+  `YYYY-MM-DD-<slug>.md` with the frontmatter format in
+  `_template.md` (incl. `discovered_against:` and `commit:`).
+- Reproduces, writes a fixture, fixes the compiler, runs all gates,
+  ships `v0.4.NNN`, then **moves** the file from `inbox/` to
+  `promoted/`, appending the footer:
+
+  ```markdown
+  ---
+  ## Promoted
+
+  - Fixture: `tests/err/<file>.nr`
+  - Fix shipped: v0.4.NNN (commit <sha>)
+  - Promoted: YYYY-MM-DD by probe agent
+  ```
+
+- If a finding turns out to be already-fixed / non-bug / dup, moves
+  it to `promoted/` with `Promoted: rejected — <reason>` instead.
+  Rejection still moves the file — the inbox stays clean.
+- If a finding is too deep to fix in a single ship, **leaves it in
+  `inbox/`** with a `## Stuck` section naming what blocked. Keeps
+  probing.
 
 ### Main agent
-- Reads `inbox/` between every ship.
-- For each finding, in priority order
-  (`silent-miscompute > crash > wrong-error > missing-error`):
-  1. Reproduces locally against current main.
-  2. Writes a permanent fixture in `tests/err/` /
-     `tests/features/` / `tests/fixtures/`.
-  3. Fixes the root cause in `compiler/*.nr` (mirroring tools_suite
-     when the dispatch is shared).
-  4. Ships as its own micro-version.
-  5. **Moves** the finding file from `inbox/` to `promoted/`,
-     appending a footer:
-
-     ```markdown
-     ---
-     ## Promoted
-
-     - Fixture: `tests/err/<file>.nr`
-     - Fix shipped: v0.4.NNN (commit <sha>)
-     - Promoted: YYYY-MM-DD by main agent
-     ```
-
-- If a finding turns out to be a duplicate or non-bug, moves it to
-  `promoted/` with a `Promoted: rejected — <reason>` footer instead.
-  Rejection is not silent; the file still moves so the inbox stays
-  empty between sweeps.
+- Reads `promoted/` only as a historical record of closed bug
+  classes (optional context).
+- Does NOT read `inbox/`, does NOT move files, does NOT promote.
+- May read `_heartbeat.md` to confirm probe agent is alive.
 
 ### Severity priority
 
+Probe agent fixes findings in this order. Within a tier, prefer the
+cheapest fix (smallest patch) first — small ships beat big ones.
+
 | Severity | Why it leads |
 |---|---|
-| compiler-meltdown | compiler OOMs / hangs / produces no output — main agent shipped a regression that's actively unusable; jumps to TOP regardless |
-| silent-miscompute | program runs, output is wrong, no user signal — worst possible failure mode |
+| compiler-meltdown | compiler itself OOMs / hangs / produces no output. Probe agent stops probing the offending main commit and fixes immediately. |
+| silent-miscompute | program runs, output is wrong, no user signal — worst failure mode |
 | crash | program runs, then SIGSEGV/abort with no diagnostic; or runtime hangs past timeout |
 | wrong-error | diagnostic fires but with wrong code/message — misleads users |
 | missing-error | should reject at compile-time but doesn't; runtime may still do the right thing accidentally |
-
-Within a severity tier, age in the inbox breaks ties.
 
 ## Why this directory exists in source control
 
