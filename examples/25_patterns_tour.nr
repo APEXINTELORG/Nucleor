@@ -72,17 +72,15 @@ fn sign_value(s: Sign) -> i32 {
     }
 }
 
-// NOTE: struct-destructure with guard has a known v0.4.x silent
-// miscompute (filed in findings/inbox/_questions.md, 2026-04-30).
-// `Point { x, y } if cond => ...` always takes the first arm's
-// body. Use explicit field access + plain `if` until the fix
-// lands. The "guard-as-equality" workaround for the deferred
-// field-equality literal pattern (`Point { x: 0, y: 0 }`) is:
+/// Combined: struct destructure + guard for the deferred
+/// field-equality case. This is the v0.5+ idiom.
+/// (Pre-v0.4.202 had a silent-miscompute where the guard was
+/// ignored; closed by the lower_expr __struct guard wiring.)
 fn point_origin_or_distance(p: Point) -> i32 {
-    let x: i32 = p.x;
-    let y: i32 = p.y;
-    if x == 0 && y == 0 { return 0; };
-    x + y
+    match p {
+        Point { x, y } if x == 0 && y == 0 => 0,
+        Point { x, y } => x + y,
+    }
 }
 
 fn main() -> i32 {

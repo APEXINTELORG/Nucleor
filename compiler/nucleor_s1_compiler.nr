@@ -15839,17 +15839,40 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     ir_block_add(ab, ir_br(ml));
                 };
             } else if str_eq(ename, "__struct") {
+                // v0.4.202: struct destructure with pattern guard fall-through.
+                // Pre-fix the __struct arm in lower_expr (match-as-value) had
+                // no guard handling — `Point { x, y } if cond => A` always
+                // executed `A` regardless of guard evaluation, producing a
+                // silent miscompute. Mirror the __wild guard pattern: bind
+                // fields, then conditionally branch on the guard's truth.
                 ir_block_add(cur, ir_br(al));
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
                 ab = match_bind_struct_fields(binding, ab, regs, arm_sym, mslot, fir, structs, pool, vname, scrut_t);
-                let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
-                ab = lx_blk(bp);
-                let mut rv: i64 = lx_reg(bp);
-                if block_has_term(ab) == 0 {
-                    if rv < 0 { rv = ctr_next(regs); ir_block_add(ab, ir_const_int(rv, 0)); };
-                    ir_block_add(ab, ir_store(rv, tmp));
-                    ir_block_add(ab, ir_br(ml));
+                if guard_nid > 0 {
+                    let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    let gr: i64 = lx_reg(gp);
+                    ab = lx_blk(gp);
+                    let gl: i64 = ctr_next(lbls);
+                    ir_block_add(ab, ir_br_cond(gr, gl, nl));
+                    let mut gb: Vec<i32> = ir_block_new(gl); ir_fn_add_block(fir, gb);
+                    let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, gb, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    gb = lx_blk(bp);
+                    let mut rv: i64 = lx_reg(bp);
+                    if block_has_term(gb) == 0 {
+                        if rv < 0 { rv = ctr_next(regs); ir_block_add(gb, ir_const_int(rv, 0)); };
+                        ir_block_add(gb, ir_store(rv, tmp));
+                        ir_block_add(gb, ir_br(ml));
+                    };
+                } else {
+                    let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    ab = lx_blk(bp);
+                    let mut rv: i64 = lx_reg(bp);
+                    if block_has_term(ab) == 0 {
+                        if rv < 0 { rv = ctr_next(regs); ir_block_add(ab, ir_const_int(rv, 0)); };
+                        ir_block_add(ab, ir_store(rv, tmp));
+                        ir_block_add(ab, ir_br(ml));
+                    };
                 };
             } else if str_eq(ename, "__tuple") == 1 || str_eq(ename, "__slice") == 1 {
                 let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));

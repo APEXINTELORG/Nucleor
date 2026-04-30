@@ -108,7 +108,15 @@ If you can isolate, file the formal finding in
 
 ---
 
-## 2026-04-30 (during v0.4.201 examples/25_patterns_tour.nr write)
+## 2026-04-30 (during v0.4.201 examples/25_patterns_tour.nr write) — CLOSED
+
+> **CLOSED in v0.4.202.** Same-ship fix: lower_expr's __struct
+> arm at line 15841 had no guard handling (other arm types like
+> __wild/__int/__str/__range all did). Mirrored the __wild guard
+> pattern: bind fields, then conditionally branch on the guard
+> with fall-through to next arm on guard-fail. Verified via
+> `target/_scratch/sgf2.nr`: `Point { x: 3, y: 4 }` now correctly
+> falls through to the second arm and returns 7.
 
 **SILENT MISCOMPUTE FOUND** while writing an adopter pattern-tour
 example: struct-destructure with a guard always takes the first
