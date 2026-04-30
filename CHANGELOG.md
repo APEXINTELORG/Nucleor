@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.203] — 2026-04-30
+
+**TWO MORE silent-miscompute closes — `__tuple`/`__slice` and enum-
+variant-with-payload pattern arms also had missing guard fall-through.
+Plus regression fixture `tests/features/rfc0023_struct_pat_guard_fallthrough.nr`
+locks in all 3 fixes.**
+
+While writing the regression-guard fixture for v0.4.202's struct
+fix, the new `check_enum_with_guard` test caught **another** missing
+guard handler — the catch-all enum-variant-with-payload arm at
+`lower_expr:15901` had the same bug as `__struct`. By inspection,
+the `__tuple`/`__slice` arm at line 15854 was also missing it.
+
+Three sites fixed in `lower_expr` match-as-value:
+- `__struct` (v0.4.202 already)
+- `__tuple` / `__slice` — new in this ship
+- enum-variant-with-payload (catch-all `else`) — new in this ship
+
+```nucleor
+enum Sign { Pos(i32), Neg(i32) }
+
+fn check(s: Sign) -> i32 {
+    match s {
+        Sign::Pos(n) if n > 100 => 999,    // pre-fix: ALWAYS taken
+        Sign::Pos(n) => n,                  //          regardless of n
+        Sign::Neg(n) => 0 - n,
+    }
+}
+
+fn main() -> i32 {
+    print_int(check(Sign::Pos(50)));        // pre-fix: 999 (WRONG)
+                                              // post-fix: 50 (correct)
+    print_int(check(Sign::Pos(200)));       // 999 (correct, guard hits)
+    0
+}
+```
+
+**Each fix mirrors the `__wild` pattern:** bind, then conditionally
+branch on the guard's truth — `gl` (true) → arm body, `nl` (false)
+→ next-arm label.
+
+**Regression fixture** `tests/features/rfc0023_struct_pat_guard_fallthrough.nr`
+covers all three pattern shapes with multiple cases each (origin
+hit, off-origin fallthrough, half-zero fallthrough, two-guard
+chain, enum-variant guard hit + fallthrough + next-variant). 9
+self-checking assertions + OK marker.
+
+**Verify:** 219 → **220 PASS** / 1 FAIL. T1.7 PASS.
+**Perf:** cold 3.22s (max 3.37s) | hot 0.89s (max 0.97s) | peak
+131MB (max 144MB).
+
+**Bug class context:** the v0.4.171 RFC-0023 audit verified that
+guards work on simple int patterns and struct destructure works
+without guards. The guard + complex-pattern combination was the
+silent surface — three patterns with the same missing handler.
+v0.4.202 + v0.4.203 close the entire class.
+
 ## [0.4.202] — 2026-04-30
 
 **SILENT-MISCOMPUTE CLOSE: struct-destructure-with-guard now

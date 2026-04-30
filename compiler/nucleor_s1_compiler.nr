@@ -15875,6 +15875,8 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     };
                 };
             } else if str_eq(ename, "__tuple") == 1 || str_eq(ename, "__slice") == 1 {
+                // v0.4.203: tuple/slice pattern with guard fall-through.
+                // Same bug class as v0.4.202 __struct fix.
                 let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
                 let mut len_args: Vec<i32> = Vec::new(); len_args.push(mv);
                 let len_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(len_r, "vec_len", len_args));
@@ -15890,15 +15892,34 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let mut ab: Vec<i32> = ir_block_new(al); ir_fn_add_block(fir, ab);
                 let mut arm_sym: Vec<i32> = sym_clone(sym);
                 ab = match_bind_vec_pattern(binding, ab, regs, arm_sym, mslot, fir, scrut_t, len_r);
-                let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
-                ab = lx_blk(bp);
-                let mut rv: i64 = lx_reg(bp);
-                if block_has_term(ab) == 0 {
-                    if rv < 0 { rv = ctr_next(regs); ir_block_add(ab, ir_const_int(rv, 0)); };
-                    ir_block_add(ab, ir_store(rv, tmp));
-                    ir_block_add(ab, ir_br(ml));
+                if guard_nid > 0 {
+                    let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    let gr: i64 = lx_reg(gp);
+                    ab = lx_blk(gp);
+                    let gl: i64 = ctr_next(lbls);
+                    ir_block_add(ab, ir_br_cond(gr, gl, nl));
+                    let mut gb: Vec<i32> = ir_block_new(gl); ir_fn_add_block(fir, gb);
+                    let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, gb, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    gb = lx_blk(bp);
+                    let mut rv: i64 = lx_reg(bp);
+                    if block_has_term(gb) == 0 {
+                        if rv < 0 { rv = ctr_next(regs); ir_block_add(gb, ir_const_int(rv, 0)); };
+                        ir_block_add(gb, ir_store(rv, tmp));
+                        ir_block_add(gb, ir_br(ml));
+                    };
+                } else {
+                    let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    ab = lx_blk(bp);
+                    let mut rv: i64 = lx_reg(bp);
+                    if block_has_term(ab) == 0 {
+                        if rv < 0 { rv = ctr_next(regs); ir_block_add(ab, ir_const_int(rv, 0)); };
+                        ir_block_add(ab, ir_store(rv, tmp));
+                        ir_block_add(ab, ir_br(ml));
+                    };
                 };
             } else {
+                // v0.4.203: enum-variant-with-payload pattern with guard
+                // fall-through. Same bug class as v0.4.202 __struct fix.
                 if tag_r < 0 {
                     let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
                     let zero_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(zero_r, 0));
@@ -15916,13 +15937,30 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let at_name: str = pattern_at_prefix_name(binding);
                 if str_len(at_name) > 0 { ab = match_bind_whole(at_name, ab, regs, arm_sym, mslot, fir, scrut_t); };
                 ab = match_bind_payloads_per_idx(payload_binding, ab, regs, arm_sym, mslot, fir, ename, vname, scrut_t);
-                let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
-                ab = lx_blk(bp);
-                let mut rv: i64 = lx_reg(bp);
-                if block_has_term(ab) == 0 {
-                    if rv < 0 { rv = ctr_next(regs); ir_block_add(ab, ir_const_int(rv, 0)); };
-                    ir_block_add(ab, ir_store(rv, tmp));
-                    ir_block_add(ab, ir_br(ml));
+                if guard_nid > 0 {
+                    let mut gp: Vec<i32> = lower_expr(pool, guard_nid, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    let gr: i64 = lx_reg(gp);
+                    ab = lx_blk(gp);
+                    let gl: i64 = ctr_next(lbls);
+                    ir_block_add(ab, ir_br_cond(gr, gl, nl));
+                    let mut gb: Vec<i32> = ir_block_new(gl); ir_fn_add_block(fir, gb);
+                    let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, gb, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    gb = lx_blk(bp);
+                    let mut rv: i64 = lx_reg(bp);
+                    if block_has_term(gb) == 0 {
+                        if rv < 0 { rv = ctr_next(regs); ir_block_add(gb, ir_const_int(rv, 0)); };
+                        ir_block_add(gb, ir_store(rv, tmp));
+                        ir_block_add(gb, ir_br(ml));
+                    };
+                } else {
+                    let mut bp: Vec<i32> = lower_if_expr_branch(pool, body_list, ab, regs, lbls, arm_sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    ab = lx_blk(bp);
+                    let mut rv: i64 = lx_reg(bp);
+                    if block_has_term(ab) == 0 {
+                        if rv < 0 { rv = ctr_next(regs); ir_block_add(ab, ir_const_int(rv, 0)); };
+                        ir_block_add(ab, ir_store(rv, tmp));
+                        ir_block_add(ab, ir_br(ml));
+                    };
                 };
             };
             let mut nb: Vec<i32> = ir_block_new(nl); ir_fn_add_block(fir, nb);
