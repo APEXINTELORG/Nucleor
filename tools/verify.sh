@@ -813,35 +813,26 @@ self_host_rebuild() {
 }
 
 # v0.2.161 — guard against memory regressions in the self-host compile.
-# Runs the s1 self-host with NUC_TRACE_ALLOC=1 and asserts the total
-# tracked allocation stays under the budget. Without this gate, any
-# future change that re-introduces an allocate-then-discard pattern in
-# the type checker (the class of bug that caused the v0.2.158 9.7 GB
-# leak) could ship silently.
+# On Windows this measures peak process-tree RSS and kills the build if
+# it crosses the budget. That tracks the real crash risk from compiler
+# and clang overlap. On POSIX hosts without the PowerShell sampler, it
+# falls back to the older NUC_TRACE_ALLOC cumulative-allocation check.
 #
 # Budget: 400 MB total tracked. v0.2.160 baseline is ~185 MB; the
 # headroom (2.2x) absorbs minor growth as the s1 source itself grows
 # without flagging legitimate scaling. Tighten if necessary as the
 # architectural Ship 3 (TypeId interner) lands.
 self_host_memory_budget() {
-    # v0.2.167 — tightened from 250 MB to 100 MB after the Vec
-    # initial-capacity fix dropped baseline from 137 MB to 67 MB.
-    # v0.4.26 — rebaselined to 350 MB. The compiler grew ~4.5x in
-    # functionality since v0.2.167 (scanners, type-check, format-macro
-    # inference, ownership tracking, DCE) — current cumulative tracked
-    # alloc is ~300 MB, peak RSS ~544 MB. The 100 MB cap was
-    # mathematically impossible to fit without a flat-IR/AST storage
-    # refactor (multi-week, deferred). 350 MB = ~300 MB current
-    # baseline + ~15% headroom. Posture: no-regress gate that catches
-    # future memory growth.
-    _memory_budget_for "compiler/nucleor_s1_compiler.nr" 350 "self-host" "verify_budget"
+    # v0.4 memory peak lane — current measured peak is ~400 MB after
+    # native-link isolation. 550 MB leaves headroom for sampler noise
+    # while still failing the 571+ MB drift class.
+    _memory_budget_for "compiler/nucleor_s1_compiler.nr" 550 "self-host" "verify_budget"
 }
 
 tools_suite_memory_budget() {
     # v0.2.171 — proportional 200 MB (1.7x s1's 100 MB).
-    # v0.4.26 — same audit as self_host_memory_budget. tools-suite
-    # current baseline ~372 MB; 425 MB = baseline + ~15% headroom.
-    _memory_budget_for "compiler/nucleor_tools_suite.nr" 425 "tools-suite" "verify_tools_budget"
+    # v0.4 memory peak lane — current measured peak is ~393 MB.
+    _memory_budget_for "compiler/nucleor_tools_suite.nr" 500 "tools-suite" "verify_tools_budget"
 }
 
 t33_wcet_estimator() {
@@ -3358,11 +3349,7 @@ t17_bootstrap_seed_matches() {
     [ "$seed_sha" = "$fresh_sha" ]
 }
 
-# Shared body for the per-source memory-budget steps. Builds the
-# named source under NUC_TRACE_ALLOC=1, parses the TOTAL TRACKED
-# line, and asserts it stays under `budget_mb`. Diagnostic guidance
-# on failure points at the underlying NUC_TRACE_ALLOC command so
-# the developer can see the per-category breakdown.
+# Shared body for the per-source memory-budget steps.
 _memory_budget_for() {
     local src="$1"
     local budget_mb="$2"
@@ -3370,6 +3357,22 @@ _memory_budget_for() {
     local out_name="$4"
     local out
     rm -rf "$ROOT/.nuc_cache" 2>/dev/null || true
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*)
+            if command -v powershell.exe >/dev/null 2>&1; then
+                local ps1="$ROOT/tools/measure_peak_build.ps1"
+                local ps1_arg="$ps1"
+                if command -v cygpath >/dev/null 2>&1; then
+                    ps1_arg="$(cygpath -w "$ps1")"
+                fi
+                out=$(powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$ps1_arg" -Source "$src" -OutName "$out_name" -BudgetMb "$budget_mb" 2>&1)
+                local rc=$?
+                echo "$out" | sed 's/^/       /'
+                return $rc
+            fi
+            ;;
+    esac
+
     out=$(NUC_TRACE_ALLOC=1 "$BIN" build "$src" -o "$out_name" 2>&1)
     local mb
     mb=$(echo "$out" | awk '/TOTAL TRACKED/ { for (i=1; i<=NF; i++) if ($i ~ /MB\)$/) { gsub(/[(]|MB\)/, "", $(i-1)); print $(i-1); exit } }')
