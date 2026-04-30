@@ -6,6 +6,7 @@ diagnostic_actual: two identical NUM-003 warnings (same span) for one cast
 diagnostic_expected: one NUM-003 warning per cast site
 discovered_against: v0.4.162 (commit 213fee9)
 commit: 213fee9e84101dad4a06807f994413d7d4f1cb86
+status: CLOSED in v0.4.216 — NUM-003 emit at type_expr kind 99 now scans existing diags for an already-emitted NUM-003 with same fn_name + line + col before emitting. Linear-scan dedupe is fine because narrowing casts are rare (one per source-cast-site at most). Same span no longer produces duplicate warnings when the cast appears in fn-call arg position (where type_expr runs twice — arg-typing + coercion check).
 ---
 
 ## Repro
