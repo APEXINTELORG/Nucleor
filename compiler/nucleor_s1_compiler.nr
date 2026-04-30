@@ -3050,6 +3050,16 @@ fn ir_fn_add_entry_alloca(f: Vec<i32>, reg: i64) -> i64 {
     return 0;
 }
 
+// v0.4.199 RFC-0015 phase 3a-step-3: typed entry-alloca for narrower-
+// width bindings. Caller is lower_stmt kind-20 (let) when the binding's
+// declared type is i8/i16/u8/u16/etc. width=0 falls back to untyped
+// (i64) for back-compat.
+fn ir_fn_add_entry_alloca_t(f: Vec<i32>, reg: i64, w: i64) -> i64 {
+    let mut ea: Vec<i32> = vec_get(f, 2);
+    if w == 0 { ea.push(ir_alloca(reg)); } else { ea.push(ir_alloca_t(reg, w)); };
+    return 0;
+}
+
 fn free_ir_inst(ii: Vec<i32>) -> i64 {
     let op: i64 = ir_op(ii);
     if op == 19 || op == 30 || op == 31 {

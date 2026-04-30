@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.199] — 2026-04-30
+
+**RFC-0015 phase 3a-step-3 wiring attempt — REVERTED for perf
+budget violation. Postmortem + revised design captured here.**
+
+Attempted a minimal i16-only wiring at 4 coordination points:
+- `lower_stmt` kind-20 (let): typed alloca + trunc + typed store
+- `lower_expr` kind-3 (var-ref): typed load + sext to i64
+- `lower_stmt` kind-21 (assign): trunc + typed store
+- `sym_set("__width_<vname>", 16)` to thread the lookup
+
+T1.7 fixed-point passed. Verify gate stayed at 219/1 (the new
+fixture + all existing tests stayed green — values still
+correct).
+
+**But:** hot self-build went **0.88s → 1.21s** (1.4× slower,
+0.24s over the 0.97s ceiling). Per the "keep tight" mandate:
+reverted same-ship.
+
+**Root cause of the perf hit:** every var-ref lowering now does
+a `sym_get(sym, str_concat("__width_", iname))` lookup. The
+compiler self-host source has tens of thousands of var-refs;
+per-ref str_concat + hash lookup dominates emit time.
+
+**Revised design for next attempt:**
+
+The `__width_<vname>` separate-key lookup is the cost driver.
+Instead, **co-locate the width with the existing `__type_<vname>`
+sym entry**. The existing entry already gets queried at most
+type-related sites; piggybacking width onto it adds zero new
+sym lookups. Encoding: extend `__type_<name>`'s value to
+`<typename>:<width>` (e.g., `i16:16`); width-aware sites parse
+the suffix; width-blind sites strip it via `type_base_name`.
+
+Alternative even cheaper: pre-compute width at parse time and
+attach to the AST node (slot 6 of the kind-3 var-ref node);
+emit_inst reads it from the node, no sym lookup.
+
+**What stays in main from this ship:**
+- New helper `ir_fn_add_entry_alloca_t(f, reg, w)` (line 3047)
+  — required by future wiring, unused today (zero perf cost
+  when w=0 falls back to `ir_alloca`).
+
+**What does NOT stay in main:**
+- `lower_stmt` kind-20 wiring (reverted)
+- `lower_expr` kind-3 wiring (reverted)
+- `lower_stmt` kind-21 wiring (reverted)
+- `__width_<vname>` sym writes (reverted)
+
+The substrate is unchanged from v0.4.197 (typed IR ops, sext/
+trunc emits). Fixture from v0.4.198 still in main. Phase 3a
+foundation + step-2 + regression-guard fixture all hold.
+
+**Verify:** 219 PASS / 1 FAIL. T1.7 PASS.
+**Perf:** cold 3.14s (max 3.37s) | hot 0.90s (max 0.97s) | peak
+131MB (max 144MB) — back at baseline.
+
+**Phase 3a-step-3 retry plan (next session):**
+1. Encode width in the existing `__type_<vname>` sym slot
+   (zero new sym lookups).
+2. Extend `type_base_name` to strip the width suffix.
+3. Wire let-stmt + var-ref + assign in single ship.
+4. Drift gate per step. Revert if hot exceeds 0.97s.
+
 ## [0.4.198] — 2026-04-30
 
 **RFC-0015 phase 3a regression-guard fixture
