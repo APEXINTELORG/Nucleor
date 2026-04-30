@@ -6,6 +6,7 @@ diagnostic_actual: "error[TYP-005]: receiver type `Vec<T>` has no method `.S_get
 diagnostic_expected: either (a) successful dispatch — `r.S_get()` resolves to `S_get(r)` since `r: &S` and `S_get` takes `self: &S`, OR (b) a clean diagnostic naming the actual receiver type (`&S`) and explaining method dispatch on borrowed references is not yet supported
 discovered_against: v0.4.162
 commit: a99fc717079b8f7774c8ddf7aa03a4cc5e132eae
+status: CLOSED in v0.4.217 (variant b — clean diagnostic naming the actual receiver type). Borrowed-reference receiver guard added at the kind-8 dispatch catch-all (compiler/nucleor_s1_compiler.nr around line 15724). Detects via the `__fulltype_<recv>` sym entry which preserves the borrow marker (the `__type_<recv>` entry stores only the base name post-type_base_name). Halts cleanly with TYP-007 naming `&S` (or `&mut S`) and lists the workaround — call the free fn directly with the reference, OR dereference the binding first. Auto-deref method dispatch through borrowed references is tracked for a later RFC. Variant (a) — actual auto-deref dispatch — is the substantive long-term fix but requires more infrastructure than this ship.
 ---
 
 ## Repro
