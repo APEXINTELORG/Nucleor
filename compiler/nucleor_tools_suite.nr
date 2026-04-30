@@ -13875,7 +13875,8 @@ fn package_exports_rust_file_name() -> str { return "Nucleor.exports.rs"; }
 fn package_signature_file_name() -> str { return "Nucleor.publish.signature.json"; }
 
 fn compiler_version_label() -> str {
-    return "0.2.0-v2";
+    // v0.4.180: caught up from stale "0.2.0-v2" (sync with s1).
+    return "0.4.180";
 }
 
 fn compiler_backend_label() -> str {
