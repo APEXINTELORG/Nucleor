@@ -2972,6 +2972,17 @@ fn ir_alloca_t(d: i64, w: i64) -> Vec<i32> { return ir_inst(16, d, w, 0, 0, 0); 
 fn ir_load_t(d: i64, ptr: i64, w: i64) -> Vec<i32> { return ir_inst(17, d, w, ptr, 0, 0); }
 fn ir_store_t(v: i64, ptr: i64, w: i64) -> Vec<i32> { return ir_inst(18, 0, w, v, ptr, 0); }
 
+// v0.4.197 RFC-0015 phase 3a-step-2: sext + trunc IR ops for crossing
+// the narrower-slot ↔ i64-arith boundary. Used by future call sites
+// that wire typed allocas: load narrower value with `ir_load_t(reg,
+// slot, w)`, then `ir_sext(wide, reg, w)` to widen for arith. Symmetric
+// trunc on the store side: `ir_trunc(narrow, val, w)` then
+// `ir_store_t(narrow, slot, w)`. Encoding: op 32 = sext, op 33 = trunc;
+// slot 2 carries the SOURCE width (sext) or TARGET width (trunc).
+// emit_inst dispatch reads the width tag and emits the right LLVM op.
+fn ir_sext(d: i64, src: i64, src_w: i64) -> Vec<i32> { return ir_inst(32, d, src_w, src, 0, 0); }
+fn ir_trunc(d: i64, src: i64, dst_w: i64) -> Vec<i32> { return ir_inst(33, d, dst_w, src, 0, 0); }
+
 fn ir_const_int(d: i64, v: i64) -> Vec<i32> { return ir_inst(0, d, 0, v, 0, 0); }
 fn ir_binop(iop: i64, d: i64, a: i64, b: i64) -> Vec<i32> { return ir_inst(iop, d, 0, a, b, 0); }
 fn ir_cmpop(iop: i64, d: i64, a: i64, b: i64) -> Vec<i32> { return ir_inst(iop, d, 0, a, b, 0); }
@@ -5140,6 +5151,25 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
             sb_append(sb, " %r."); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, ", ptr %r.");
             sb_append(sb, str_from_int(ir_op2(inst))); sb_append(sb, "\n");
         };
+    }
+    else if op == 32 {
+        // v0.4.197 RFC-0015 phase 3a-step-2: sext narrower → i64.
+        // tid carries SOURCE width (8/16/32). Emits:
+        //   %r.D = sext iX %r.S to i64
+        let sxw: str = width_to_llvm_type(ir_tid(inst));
+        sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
+        sb_append(sb, " = sext "); sb_append(sb, sxw);
+        sb_append(sb, " %r."); sb_append(sb, str_from_int(ir_op1(inst)));
+        sb_append(sb, " to i64\n");
+    }
+    else if op == 33 {
+        // v0.4.197 RFC-0015 phase 3a-step-2: trunc i64 → narrower.
+        // tid carries TARGET width (8/16/32). Emits:
+        //   %r.D = trunc i64 %r.S to iX
+        let tcw: str = width_to_llvm_type(ir_tid(inst));
+        sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
+        sb_append(sb, " = trunc i64 %r."); sb_append(sb, str_from_int(ir_op1(inst)));
+        sb_append(sb, " to "); sb_append(sb, tcw); sb_append(sb, "\n");
     }
     else if op == 19 {
         let fn_name: str = ir_op1(inst); let argc: i64 = ir_op2(inst); let args: Vec<i32> = ir_extra(inst);
