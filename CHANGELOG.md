@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.216] — 2026-04-30
+
+**Wrong-error close — NUM-003 ("`as` cast loses precision") no
+longer emits twice for the same cast in fn-call argument position.**
+Pre-fix `print_int(x as i32)` for `x: i64` produced:
+
+```
+warning[NUM-003]: `as` cast loses precision: i64 -> i32
+  --> fn main@line 3:5
+warning[NUM-003]: `as` cast loses precision: i64 -> i32   ← dup
+  --> fn main@line 3:5
+```
+
+**Root cause:** `type_expr` kind 99 (`as` cast) runs twice for casts
+in call-argument position — once at arg-typing, once at coercion
+check. Both reach the NUM-003 emit path.
+
+**Fix:** before emitting, walk the existing diag list for any prior
+NUM-003 entry at the same fn_name + line + col. Skip the emit if
+found. Linear-scan dedupe is acceptable because narrowing casts are
+rare (one per source-cast-site at most), and the dedupe loop fast-
+exits when no prior NUM-003 exists.
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+
+**Perf:** cold 3.24s / 3.37s ceiling • hot 0.92s / 0.97s ceiling •
+peak 131MB / 144MB.
+
+Closes `findings/inbox/2026-04-30-num-003-duplicate-warning-in-fnarg.md`
+→ `findings/promoted/`.
+
+---
+
 ## [0.4.215] — 2026-04-30
 
 **Wrong-error close — MATCH-002 ("unreachable arm after wildcard")

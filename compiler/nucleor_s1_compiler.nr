@@ -11548,7 +11548,36 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         let ts: i64 = type_signedness(target_type);
         if sw > 0 && tw > 0 && ss == ts && tw < sw {
             let nloc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
-            diag_add_ex(diags, "warning", "type", "NUM-003", str_concat("`as` cast loses precision: ", str_concat(source_t, str_concat(" (", str_concat(str_from_int(sw), str_concat("-bit) -> ", str_concat(target_type, str_concat(" (", str_concat(str_from_int(tw), "-bit)")))))))), fn_name, vec_get(nloc, 0), vec_get(nloc, 1), "");
+            // v0.4.216: dedupe NUM-003 by fn_name + line + col. type_expr
+            // kind 99 runs multiple times for the same cast site when
+            // the cast appears in fn-call argument position (once at
+            // arg-typing, once at coercion check). Pre-fix `print_int(x
+            // as i32)` for `x: i64` emitted 2 identical NUM-003 lines
+            // with the same span. Adopters got noisy duplicate warnings
+            // hiding other diagnostics. Linear scan over diags is OK
+            // here because NUM-003 emit sites are rare (one per
+            // narrowing cast in source).
+            // Closes findings/inbox/2026-04-30-num-003-duplicate-warning-in-fnarg.md.
+            let v216_line: i64 = vec_get(nloc, 0);
+            let v216_col: i64 = vec_get(nloc, 1);
+            let mut v216_dup: i64 = 0;
+            let v216_dc: i64 = diag_count(diags);
+            let mut v216_di: i64 = 0;
+            while v216_di < v216_dc {
+                let v216_d: Vec<i32> = diag_get(diags, v216_di);
+                if str_eq(vec_get(v216_d, 2), "NUM-003") == 1
+                    && str_eq(vec_get(v216_d, 4), fn_name) == 1
+                    && vec_get(v216_d, 5) == v216_line
+                    && vec_get(v216_d, 6) == v216_col {
+                    v216_dup = 1;
+                    v216_di = v216_dc;
+                } else {
+                    v216_di = v216_di + 1;
+                };
+            };
+            if v216_dup == 0 {
+                diag_add_ex(diags, "warning", "type", "NUM-003", str_concat("`as` cast loses precision: ", str_concat(source_t, str_concat(" (", str_concat(str_from_int(sw), str_concat("-bit) -> ", str_concat(target_type, str_concat(" (", str_concat(str_from_int(tw), "-bit)")))))))), fn_name, v216_line, v216_col, "");
+            };
         };
         // v0.4.72 NOT enforcing `str as <numeric>` — Nucleor's
         // i64-everywhere ABI makes str pointers castable to i64 by
