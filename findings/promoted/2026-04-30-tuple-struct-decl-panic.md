@@ -6,6 +6,7 @@ diagnostic_actual: PANIC: error[NR020] (raw "expected token 52 got 50")
 diagnostic_expected: PARSE-NNN: tuple struct syntax not supported (use brace fields), OR a clean PARSE error pointing at `(` after struct name
 discovered_against: v0.4.162
 commit: a99fc717079b8f7774c8ddf7aa03a4cc5e132eae
+status: CLOSED in v0.4.208 — added tok_name() helper before expect_tok and rewrote the NR020 panic message to use human-readable token names. Now reports `expected backtick { backtick, got backtick ( backtick` instead of `expected token 52 got 50`. Tuple-struct decls are still rejected (intentional v0.5+ deferral) but the diagnostic is now actionable.
 ---
 
 ## Repro
