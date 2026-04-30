@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0006 |
 | **Title** | Design by Contract — `#[require(pre)]`, `#[ensure(post)]`, `#[invariant(inv)]` |
-| **Status** | Draft |
+| **Status** | Parser-passthrough (audited v0.4.193). `#[require(<expr>)]`, `#[ensure(<expr>)]`, `#[invariant(<expr>)]` annotations PARSE without error today — the compiler accepts unrecognized attributes silently and continues. Adopters can mark fns with the syntax + the source survives round-trip; the semantic enforcement (runtime check insertion + REQ-001 / ENS-001 / INV-001 diagnostics) is the v0.5.0 ship target. **Deferred to v0.5.0:** runtime check codegen at fn entry/exit, contract violation diagnostics, `#[invariant]` recompute on struct-method exit, contract inheritance for trait impls, the `#[no_check]` build-mode pragma. |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.5.0 ("Production Robotics") |
