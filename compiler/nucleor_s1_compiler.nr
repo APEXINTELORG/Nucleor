@@ -11004,15 +11004,16 @@ fn type_diag(diags: Vec<i32>, source: str, fn_name: str, symbol: str, code: str,
     return diag_add_ex(diags, "error", "type", code, message, fn_name, vec_get(loc, 0), vec_get(loc, 1), "");
 }
 fn sig_new() -> Vec<i32> { return smap_new(); }
-fn sig_entry_new(plist: i64, rtype: str, is_extern: i64) -> Vec<i32> {
+fn sig_entry_new(plist: i64, rtype: str, is_extern: i64, gparams: i64) -> Vec<i32> {
     let mut entry: Vec<i32> = Vec::new();
     entry.push(plist);
     entry.push(rtype);
     entry.push(is_extern);
+    entry.push(gparams);
     return entry;
 }
-fn sig_add(sigs: Vec<i32>, name: str, plist: i64, rtype: str, is_extern: i64) -> i64 {
-    return smap_set(sigs, name, sig_entry_new(plist, rtype, is_extern));
+fn sig_add(sigs: Vec<i32>, name: str, plist: i64, rtype: str, is_extern: i64, gparams: i64) -> i64 {
+    return smap_set(sigs, name, sig_entry_new(plist, rtype, is_extern, gparams));
 }
 fn sig_find(sigs: Vec<i32>, name: str) -> i64 {
     return smap_get(sigs, name);
@@ -11031,6 +11032,11 @@ fn sig_is_extern(sigs: Vec<i32>, name: str) -> i64 {
     let entry: i64 = sig_find(sigs, name);
     if entry < 0 { return 0; };
     return vec_get(entry, 2);
+}
+fn sig_gparams_from_entry(entry: i64) -> i64 {
+    if entry < 0 { return 0 - 1; };
+    if vec_len(entry) < 4 { return 0 - 1; };
+    return vec_get(entry, 3);
 }
 fn tenv_new() -> Vec<i32> { return Vec::new(); }
 fn tenv_set(env: Vec<i32>, name: str, tstr: str) -> i64 { env.push(name); env.push(tstr); return 0; }
@@ -11984,8 +11990,10 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         tprof_mark(tprof, 5, 6, sig_start);
         if sentry >= 0 {
             let plist: i64 = vec_get(sentry, 0);
+            let gparams_v421: i64 = sig_gparams_from_entry(sentry);
             let expected_argc: i64 = list_len(pool, plist);
             if argc != expected_argc { type_diag(diags, source, fn_name, callee, "TYP-005", str_concat("wrong number of arguments for '", str_concat(callee, "'"))); };
+            let mut bound_seen_v421: Vec<i32> = Vec::new();
             let mut ai: i64 = 0;
             while ai < argc && ai < expected_argc {
                 let actual_t: str = type_expr(pool, prog, list_get(pool, args, ai), env, sigs, structs, fn_name, diags, source, tprof);
@@ -11995,6 +12003,36 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 tprof_mark(tprof, 7, 8, compat_start);
                 if compat_ok == 0 {
                     type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument type mismatch in call to '", str_concat(callee, "'")));
+                };
+                if gparams_v421 >= 0 && str_len(actual_t) > 0 && str_eq(actual_t, expected_t) == 0 {
+                    let gc_v421: i64 = list_len(pool, gparams_v421);
+                    let mut gp_v421: i64 = 0;
+                    let mut current_param_v421: str = "";
+                    while gp_v421 < gc_v421 {
+                        let ge_v421: str = list_get(pool, gparams_v421, gp_v421);
+                        if str_len(ge_v421) > 1 && str_char_at(ge_v421, 0) == 63 {
+                            if str_len(current_param_v421) > 0 && str_eq(current_param_v421, expected_t) == 1 {
+                                let bound_v421: str = str_substring(ge_v421, 1, str_len(ge_v421));
+                                if str_len(bound_v421) > 0 && type_implements_trait(pool, prog, actual_t, bound_v421) == 0 {
+                                    let key_v421: str = str_concat(current_param_v421, str_concat("|", str_concat(bound_v421, str_concat("|", actual_t))));
+                                    if priv_string_vec_contains(bound_seen_v421, key_v421) == 0 {
+                                        bound_seen_v421.push(key_v421);
+                                        let msg21a: str = str_concat("type '", str_concat(actual_t, str_concat("' does not implement trait '", str_concat(bound_v421, "'"))));
+                                        let msg21b: str = str_concat(" (required by bound on fn '", str_concat(callee, str_concat("<", str_concat(current_param_v421, str_concat(": ", str_concat(bound_v421, ">')"))))));
+                                        let msg21c: str = str_concat(". Add an 'impl ", str_concat(bound_v421, str_concat(" for ", str_concat(actual_t, "' block, or pass a type with that impl."))));
+                                        type_diag(diags, source, fn_name, callee, "TYP-025", str_concat(msg21a, str_concat(msg21b, msg21c)));
+                                    };
+                                };
+                            };
+                        } else {
+                            if str_len(ge_v421) > 0 && str_char_at(ge_v421, 0) != 39 {
+                                current_param_v421 = ge_v421;
+                            } else {
+                                current_param_v421 = "";
+                            };
+                        };
+                        gp_v421 = gp_v421 + 1;
+                    };
                 };
                 ai = ai + 1;
             };
@@ -12246,7 +12284,19 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             };
         };
         tprof_mark(tprof, 9, 10, call_start);
-        return builtin_rtype(callee);
+        let builtin_ret_v421: str = builtin_rtype(callee);
+        if str_len(builtin_ret_v421) > 0 && argc > 0 {
+            let mut bai_v421: i64 = 0;
+            while bai_v421 < argc {
+                let ba_v421: i64 = list_get(pool, args, bai_v421);
+                let bk_v421: i64 = node_kind(pool, ba_v421);
+                if bk_v421 != 1 && bk_v421 != 2 && bk_v421 != 3 && bk_v421 != 71 && bk_v421 != 72 && bk_v421 != 73 {
+                    type_expr(pool, prog, ba_v421, env, sigs, structs, fn_name, diags, source, tprof);
+                };
+                bai_v421 = bai_v421 + 1;
+            };
+        };
+        return builtin_ret_v421;
     };
     if kind == 8 {
         let recv_nid: i64 = node_field(pool, nid, 1);
@@ -13016,8 +13066,8 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
     let mut i: i64 = 0;
     while i < cnt {
         let nid: i64 = list_get(pool, prog, i);
-        if node_kind(pool, nid) == 30 { sig_add(sigs, node_field(pool, nid, 1), node_field(pool, nid, 2), node_field(pool, nid, 3), 0); };
-        if node_kind(pool, nid) == 32 { sig_add(sigs, node_field(pool, nid, 1), node_field(pool, nid, 2), node_field(pool, nid, 3), 1); };
+        if node_kind(pool, nid) == 30 { sig_add(sigs, node_field(pool, nid, 1), node_field(pool, nid, 2), node_field(pool, nid, 3), 0, node_field(pool, nid, 5)); };
+        if node_kind(pool, nid) == 32 { sig_add(sigs, node_field(pool, nid, 1), node_field(pool, nid, 2), node_field(pool, nid, 3), 1, mk_list(pool, Vec::new())); };
         i = i + 1;
     };
     // v0.4.130: trait-bound NAME verification (audit doc-#1 §8 closer).

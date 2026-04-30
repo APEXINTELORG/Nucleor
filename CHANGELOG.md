@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.162] — 2026-04-29
+
+**TYP-025: generic trait bounds enforced at call sites.
+`add_values<T: Addable>(a: i64, b: i64)` halts when no
+`impl Addable for i64` exists. Closes residual #1.**
+
+```nucleor
+trait Addable { fn zero() -> i32; }
+impl Addable for i32 { fn zero() -> i32 { 0 } }
+
+fn add_values<T: Addable>(a: T, b: T) -> T { a + b }
+
+fn main() {
+    let a: i64 = 10;
+    let b: i64 = 20;
+    add_values(a, b);  // pre-fix: silently runs (i64 has no `Addable` impl)
+                        // now: error[TYP-025]: type 'i64' does not implement trait 'Addable'
+}
+```
+
+Integration of `spike/v04-trait-bound-callsite-v3` (commit
+5af15c7) from the parallel-agent workstream.
+
+The `sig_entry` 3-tuple `(plist, rtype, is_extern)` now extends
+to a 4-tuple by appending `gparams` — the parsed generic
+parameter list with bounds (e.g., `["T", "?Addable"]` for
+`<T: Addable>`). New helper `sig_gparams_from_entry` reads the
+4th slot, falling back to `-1` when older entries lack it.
+
+At each kind-7 (call) site, when the matching sig has gparams,
+the type-check walks the gparams list looking for `?<Bound>`
+entries paired with the immediately preceding type-param name.
+For each such pair, it computes the concrete actual type at the
+call site, then runs `type_implements_trait(pool, prog, actual,
+bound)` — which scans the `impl <Bound> for <T>` registry. If
+the impl is missing, fires TYP-025 with a hint pointing at the
+required impl.
+
+A per-call-site `bound_seen_v421` Vec dedupes diagnostics so
+multi-arg fns with the same `T` only emit once.
+
+**Diag remap**: spike originally emitted `TYP-021`, which
+v0.4.136 already owns for "void RHS in let binding". The
+collision was caught at integration; remapped the trait-bound
+diagnostic to `TYP-025` (next available — TYP-022 struct-as-
+value, TYP-023 chained-on-void, TYP-024 if-expr-incompatible
+were taken in v0.4.138/.139/.145). The TYP-021 cascade
+(`let r = void_closure(...)`) re-verified via existing fixture.
+
+s1-only — tools_suite has no kind-7 generic dispatch.
+
+T1.7 fixed-point holds first-pass. Verifier 213 PASS / 2
+baseline-FAIL / 33.66s wall.
+
+Negative fixture: `tests/err/err_trait_bound_unmet.nr`. Closes
+residual #1 from `PARALLEL_AGENT_HANDOFF_v0.4_RESIDUALS.md`.
+
 ## [0.4.161] — 2026-04-29
 
 **NUM-008 ext: shift amount via let-bound const now caught at
