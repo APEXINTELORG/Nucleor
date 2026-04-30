@@ -10692,9 +10692,23 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             let arm_nid: i64 = list_get(pool, arms, ai);
             own_restore(own, snap);
             let ename: str = node_field(pool, arm_nid, 1);
+            // v0.4.215: a `__wild` arm (`_ => ...` or var-binder
+            // `x => ...`) is only an exhaustive catch-all when it
+            // carries NO guard. With a guard (`x if cond => ...`)
+            // the arm only matches when the guard evaluates true,
+            // so following arms remain reachable for the
+            // guard-fail case. Pre-fix MATCH-002 false-fired on
+            // common idioms like `match n { x if x < 0 => -1, 0
+            // => 0, x if x < 100 => 1, _ => 2 }` because arm 0's
+            // `x if x < 0` was treated as exhaustive (wildcard
+            // ename) and arms 1-3 flagged unreachable.
+            // Closes findings/inbox/2026-04-30-match-002-false-positive-on-guarded-arm.md.
             if str_eq(ename, "__wild") {
-                has_wildcard = 1;
-                if wildcard_idx < 0 { wildcard_idx = ai; };
+                let v215_guard: i64 = node_field(pool, arm_nid, 5);
+                if v215_guard <= 0 {
+                    has_wildcard = 1;
+                    if wildcard_idx < 0 { wildcard_idx = ai; };
+                };
             };
             // RFC-0023 §3.1 + MATCH-007: range pattern with bounds in
             // wrong order (LO > HI) — would never match.
