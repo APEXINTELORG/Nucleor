@@ -47,11 +47,39 @@ if [ "${NUCLEOR_MEM_CAP_KB}" != "0" ]; then
 fi
 
 NO_COLOR_FLAG=""
-for arg in "$@"; do
-    case "$arg" in
-        --no-color) NO_COLOR_FLAG="1" ;;
+VERIFY_PARALLEL_JOBS="${NUC_VERIFY_JOBS:-4}"
+VERIFY_PARALLEL_LIST="${NUC_VERIFY_PARALLEL_LIST:-0}"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --no-color)
+            NO_COLOR_FLAG="1"
+            shift
+            ;;
+        -j|--jobs)
+            if [ $# -lt 2 ]; then echo "ERROR: $1 requires a worker count"; exit 1; fi
+            VERIFY_PARALLEL_JOBS="$2"
+            shift 2
+            ;;
+        --sequential-fixtures)
+            VERIFY_PARALLEL_JOBS=0
+            shift
+            ;;
+        --list-parallel-fixtures)
+            VERIFY_PARALLEL_LIST=1
+            shift
+            ;;
+        *)
+            echo "unknown arg: $1"
+            exit 1
+            ;;
     esac
 done
+case "$VERIFY_PARALLEL_JOBS" in
+    ''|*[!0-9]*)
+        echo "ERROR: NUC_VERIFY_JOBS/-j must be a non-negative integer"
+        exit 1
+        ;;
+esac
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NUC_VERIFY_TMPDIR_OWNED=0
@@ -805,6 +833,172 @@ build_negative() {
     # error/warning the assertion grep is looking for.
     out=$("$BIN" build "tests/err/$ename.nr" -o "$ename" --no-cache 2>&1)
     echo "$out" | grep -qiE 'error\b|error\[|warning\b|warning\[' && return 0 || return 1
+}
+
+_write_parallel_fixture_worker() {
+    local worker="$NUC_VERIFY_TMPDIR/parallel_fixture_worker.sh"
+    cat > "$worker" <<'EOS'
+#!/usr/bin/env bash
+set -u
+ROOT="$1"
+BIN="$2"
+TMP="$3"
+RUST_BRIDGE_LIB="$4"
+idx="$5"
+kind="$6"
+dir="$7"
+tname="$8"
+
+cd "$ROOT" 2>/dev/null || exit 0
+result="$TMP/parallel.$idx.result"
+steplog="$TMP/parallel.$idx.log"
+label="negative $tname"
+if [ "$kind" = "test" ]; then label="test $dir/$tname"; fi
+
+now_ms() {
+    if [ -n "${EPOCHREALTIME:-}" ]; then
+        echo "${EPOCHREALTIME//./}" | cut -c1-13
+    else
+        local ms
+        ms="$(date +%s%3N 2>/dev/null)"
+        if [ -n "$ms" ] && [ "${ms: -4}" != "%3N0" ]; then echo "$ms"; else echo "$(($(date +%s) * 1000))"; fi
+    fi
+}
+
+finish() {
+    local status="$1" dt="$2" reason="${3:-}"
+    printf '%s|%s|%s|%s\n' "$status" "$label" "$dt" "$reason" > "$result"
+    exit 0
+}
+
+t0="$(now_ms)"
+if [ "$kind" = "test" ]; then
+    if [ "$tname" = "rust_interop" ] && [ -z "$RUST_BRIDGE_LIB" ]; then
+        t1="$(now_ms)"
+        dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
+        finish SKIP "$dt" "rust bridge unavailable"
+    fi
+    out_name="_pv_${dir}_${tname}"
+    "$BIN" build "tests/$dir/$tname.nr" -o "$out_name" > "$steplog" 2>&1
+    exe="target/$out_name"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    if [ ! -x "$exe" ]; then
+        t1="$(now_ms)"
+        dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
+        finish FAIL "$dt" "build_failed"
+    fi
+    out="$("$exe" 2>&1)"
+    rc=$?
+    t1="$(now_ms)"
+    dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
+    if [ "$dir" = "features" ]; then
+        if [ "$rc" -eq 139 ] || [ "$rc" -eq 138 ] || [ "$rc" -eq -1073741819 ] || [ "$rc" -eq -1073740940 ]; then
+            finish FAIL "$dt" "crash_exit_$rc"
+        fi
+        finish PASS "$dt" ""
+    fi
+    echo "$out" | grep -qE '^OK ' && finish PASS "$dt" "" || finish FAIL "$dt" "missing_OK_marker"
+fi
+
+out_name="_pv_err_${tname}"
+out="$("$BIN" build "tests/err/$tname.nr" -o "$out_name" --no-cache 2>&1)"
+t1="$(now_ms)"
+dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
+echo "$out" | grep -qiE 'error\b|error\[|warning\b|warning\[' \
+    && finish PASS "$dt" "" \
+    || finish FAIL "$dt" "no_error_or_warning_emitted"
+EOS
+    chmod +x "$worker" 2>/dev/null || true
+    echo "$worker"
+}
+
+run_parallel_fixture_steps() {
+    local workers="$1"
+    local steps_file="$NUC_VERIFY_TMPDIR/parallel_steps.list"
+    local idx=0 d f tname ename
+    : > "$steps_file"
+    for d in "${TEST_DIRS[@]}"; do
+        if [ -d "tests/$d" ]; then
+            for f in $(find "tests/$d" -maxdepth 1 -name '*.nr' 2>/dev/null | grep -vE "$TEST_SKIP_REGEX" | sort); do
+                tname=$(basename "$f" .nr)
+                idx=$((idx + 1))
+                printf '%d test %s %s\n' "$idx" "$d" "$tname" >> "$steps_file"
+            done
+        fi
+    done
+    if [ -d "tests/err" ]; then
+        for f in $(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | sort); do
+            ename=$(basename "$f" .nr)
+            idx=$((idx + 1))
+            printf '%d negative _ %s\n' "$idx" "$ename" >> "$steps_file"
+        done
+    fi
+
+    if [ "$idx" -eq 0 ]; then
+        return 0
+    fi
+    if ! command -v xargs >/dev/null 2>&1; then
+        echo "       xargs missing; falling back to sequential fixture loops"
+        return 2
+    fi
+
+    local worker base_index start end wall pass fail skip tsum
+    worker="$(_write_parallel_fixture_worker)"
+    base_index="$STEP_INDEX"
+    start=$(_now_ms)
+    echo "$(dim '---') parallel fixtures: $idx steps, $workers workers"
+    xargs -n 4 -P "$workers" "$worker" "$ROOT" "$BIN" "$NUC_VERIFY_TMPDIR" "$RUST_BRIDGE_LIB" < "$steps_file"
+    end=$(_now_ms)
+    wall=$(awk -v s="$start" -v e="$end" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')
+
+    pass=0
+    fail=0
+    skip=0
+    tsum=0
+    local i result status label dt reason prefix csv_name
+    for i in $(seq 1 "$idx"); do
+        result="$NUC_VERIFY_TMPDIR/parallel.$i.result"
+        if [ ! -f "$result" ]; then
+            status=FAIL
+            label="parallel fixture #$i"
+            dt="0.000"
+            reason="result_missing"
+        else
+            IFS="|" read -r status label dt reason < "$result"
+        fi
+        tsum=$(awk -v a="$tsum" -v b="$dt" 'BEGIN{printf "%.3f", a+b}')
+        prefix="$(printf '[%3d/%d]' "$((base_index + i))" "$STEP_TOTAL")"
+        case "$status" in
+            PASS)
+                pass=$((pass + 1))
+                [ "$VERIFY_PARALLEL_LIST" = "1" ] && echo "$prefix $(green 'OK  ')  $label  ($(printf '%6.2fs' "$dt"))"
+                ;;
+            SKIP)
+                skip=$((skip + 1))
+                [ "$VERIFY_PARALLEL_LIST" = "1" ] && echo "$prefix $(yellow 'SKIP')  $label  ($(printf '%6.2fs' "$dt"))"
+                ;;
+            *)
+                fail=$((fail + 1))
+                echo "$prefix $(red 'FAIL')  $label  ($(printf '%6.2fs' "$dt"))"
+                [ -n "$reason" ] && echo "       $reason"
+                FAILURES+=("$label")
+                ;;
+        esac
+        if [ "$NUC_VERIFY_CSV_ENABLED" = "1" ]; then
+            csv_name="\"${label//\"/\"\"}\""
+            printf '%s,%d,%s,%s,%s\n' "$NUC_VERIFY_CSV_RUN_ISO" "$((base_index + i))" "$dt" "$status" "$csv_name" >> "$NUC_VERIFY_CSV" 2>/dev/null || true
+        fi
+    done
+
+    STEP_INDEX=$((base_index + idx))
+    TOTAL_PASS=$((TOTAL_PASS + pass))
+    TOTAL_FAIL=$((TOTAL_FAIL + fail))
+    TOTAL_SKIP=$((TOTAL_SKIP + skip))
+    printf "       parallel fixtures: PASS %d" "$pass"
+    [ "$skip" -gt 0 ] && printf ", SKIP %d" "$skip"
+    printf ", FAIL %d, wall %.2fs, sum %.2fs, speedup %.2fx\n" \
+        "$fail" "$wall" "$tsum" "$(awk -v a="$tsum" -v b="$wall" 'BEGIN{ if (b > 0) printf "%.2f", a/b; else printf "0.00" }')"
+    return 0
 }
 
 self_host_rebuild() {
@@ -3447,20 +3641,28 @@ for ex in "${EXAMPLES[@]}"; do
     step "example $ex" build_example "$ex"
 done
 
-for d in "${TEST_DIRS[@]}"; do
-    if [ -d "tests/$d" ]; then
-        for f in $(find "tests/$d" -maxdepth 1 -name '*.nr' 2>/dev/null | grep -vE "$TEST_SKIP_REGEX" | sort); do
-            tname=$(basename "$f" .nr)
-            step "test $d/$tname" build_test "$d" "$tname"
+if [ "$VERIFY_PARALLEL_JOBS" -gt 0 ]; then
+    run_parallel_fixture_steps "$VERIFY_PARALLEL_JOBS"
+    parallel_rc=$?
+else
+    parallel_rc=2
+fi
+if [ "$parallel_rc" = "2" ]; then
+    for d in "${TEST_DIRS[@]}"; do
+        if [ -d "tests/$d" ]; then
+            for f in $(find "tests/$d" -maxdepth 1 -name '*.nr' 2>/dev/null | grep -vE "$TEST_SKIP_REGEX" | sort); do
+                tname=$(basename "$f" .nr)
+                step "test $d/$tname" build_test "$d" "$tname"
+            done
+        fi
+    done
+
+    if [ -d "tests/err" ]; then
+        for f in $(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | sort); do
+            ename=$(basename "$f" .nr)
+            step "negative $ename" build_negative "$ename"
         done
     fi
-done
-
-if [ -d "tests/err" ]; then
-    for f in $(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | sort); do
-        ename=$(basename "$f" .nr)
-        step "negative $ename" build_negative "$ename"
-    done
 fi
 
 step "self-host rebuild closes" self_host_rebuild
