@@ -194,6 +194,152 @@ Enums are tagged unions. Variant constructors are `EnumName::Variant` (or `EnumN
 Function parameters that hold enum values must declare the enum type explicitly:
 the type checker treats each enum as its own type, not interchangeable with `i64`.
 
+## Pattern matching (RFC-0023)
+
+The basic `match` above handles enum variants. Nucleor's pattern
+language extends to ranges, guards, captures, slice patterns, and
+struct destructuring:
+
+```nr
+// Range patterns + or-patterns + wildcards.
+let class: str = match c {
+    '0'..='9'         => "digit",
+    'a'..='z' | 'A'..='Z' => "letter",
+    _                 => "other",
+};
+
+// Guards — additional condition after the pattern.
+let bucket: i32 = match x {
+    n if n < 0    => 1,
+    n if n == 0   => 2,
+    n if n < 100  => 3,
+    _             => 4,
+};
+
+// @-bindings — capture the matched value while still pattern-checking.
+let v: i32 = match score {
+    n @ 1..=10  => n,
+    n @ 11..=99 => n * 2,
+    _           => 0,
+};
+
+// Slice patterns on Vec.
+let v: Vec<i32> = build_vec();
+let head_tail: i32 = match v {
+    [a, .., b] => a + b,    // ≥2 elements
+    [single]   => single,
+    []         => 0,
+    _          => -1,
+};
+
+// Struct destructuring + same-name enum or-patterns.
+struct Point { x: i32, y: i32 }
+enum Sign { Pos(i32), Neg(i32) }
+
+let r: i32 = match p {
+    Point { x, y } => x + y,
+};
+
+let n: i32 = match s {
+    Sign::Pos(n) | Sign::Neg(n) => n,    // both arms bind n
+};
+```
+
+Field-equality literal patterns like `Point { x: 0 }` are deferred
+to v0.5+ — express the same intent with a guard:
+`Point { x, y } if x == 0 && y == 0 => ...`. Trying the unsupported
+form halts cleanly with `MATCH-012`.
+
+## Generics (RFC-0024)
+
+Functions, structs, and enums all accept type parameters:
+
+```nr
+fn id<T>(x: T) -> T { return x; }
+
+struct Pair<A, B> { first: A, second: B }
+
+enum Maybe<T> { Some(T), None }
+
+fn unwrap_or<T>(o: Maybe<T>, dflt: T) -> T {
+    match o {
+        Maybe::Some(v) => v,
+        Maybe::None    => dflt,
+    }
+}
+```
+
+The compiler monomorphizes per call site. **Deferred to v0.5+:**
+trait-bound combinations (`T: Foo + Bar`), associated types,
+user-implementable `Iterator` trait. Bound check (`T: Trait`)
+already fires `TYP-025` at call sites where the concrete type
+doesn't `impl Trait`.
+
+## Result, Option, and `?` (RFC-0016)
+
+```nr
+enum LowErr { Boom }
+enum HighErr { Boomy }
+
+impl From<LowErr> for HighErr {
+    fn from(e: LowErr) -> HighErr { return HighErr::Boomy; }
+}
+
+fn lower() -> Result<i32, LowErr> { return Err(LowErr::Boom); }
+
+fn higher() -> Result<i32, HighErr> {
+    let x: i32 = lower()?;     // auto-converts LowErr → HighErr via From
+    return Ok(x);
+}
+```
+
+`?` propagates the error and applies `From::from` automatically when
+the source and target error types differ. Without an `impl From`, the
+compiler halts cleanly with `TRAIT-001`.
+
+## Real-time function attributes (RFC-0001)
+
+```nr
+#[no_panic]
+fn safe(x: i32) -> i32 { return x + 1; }
+
+#[no_alloc]
+fn rt_path(slot: i32) -> i32 { /* compiler rejects Vec::new etc. */ ... }
+
+#[deadline = 1ms]
+fn fast() -> i32 { return 42; }
+
+#[no_alloc, no_panic, deadline = 500us]
+fn isr(/* hot ISR path */) { ... }
+```
+
+Attributes compose. Violations produce diagnostics: `RT-001` for
+allocation in `#[no_alloc]`, `RT-002` for panicking calls in
+`#[no_panic]`, `RT-008` for direct recursion in `#[deadline]`
+without a `#[max_depth = N]` opt-out (RFC-0014).
+
+## Atomics (RFC-0007 partial)
+
+```nr
+import "stdlib/rods/atomic.nr"
+
+fn main() -> i32 {
+    let h: i64 = atomic_new(0);
+    atomic_store_v(h, 42);
+    let v: i64 = atomic_load_v(h);
+    print_int(v as i32);          // 42
+    atomic_drop(h);
+    0
+}
+```
+
+Sequentially-consistent `AtomicI64` ops — load, store, fetch-add,
+fetch-sub, fetch-and / or / xor, CAS — backed by Win32
+`Interlocked*` and C11 stdatomic. **Deferred to v0.5.0+:** the
+`#[atomic]` attribute, `Atomic<T>` for non-i64 widths,
+Relaxed/Acquire/Release ordering variants, and SPSC/MPMC lock-free
+queues built on top.
+
 ## Imports
 
 ```nr

@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.192] — 2026-04-30
+
+**`docs/language-tour.md` — added 5 new sections covering v0.4-era
+features confirmed shipping during this session's status audits.**
+
+The existing tour walked Hello / Variables / Arithmetic / Control
+flow / Strings / Vectors / Functions / Closures / Structs / Enums
+/ Imports / C interop / Performance attributes. Adopters reading
+top-to-bottom never encountered:
+
+- Pattern matching: range patterns, or-patterns, guards,
+  `@`-bindings, slice patterns on Vec, struct destructuring,
+  same-name enum or-patterns. Plus a note on the `MATCH-012`
+  field-equality deferral with the guard workaround.
+- Generics: `fn id<T>(x: T) -> T`, `struct Pair<A, B>`,
+  `enum Maybe<T> { Some(T), None }`, generic-over-generic-enum
+  fns. Plus the `TYP-025` trait-bound check.
+- Result / Option / `?` with `impl From<LowErr> for HighErr`
+  auto-conversion. Plus the `TRAIT-001` no-impl halt.
+- Real-time function attributes: `#[no_panic]`, `#[no_alloc]`,
+  `#[deadline]`, composition, the `RT-001/002/008` diagnostic
+  family, plus the `#[max_depth]` opt-out.
+- Atomics: `AtomicI64` surface from `stdlib/rods/atomic.nr` —
+  load, store, fetch-add/sub/and/or/xor, CAS, drop.
+
+Each new section includes copy-paste-runnable code and a
+"deferred to v0.5+" callout where applicable. Net +175 lines to
+the tour.
+
+No code changes.
+
 ## [0.4.191] — 2026-04-30
 
 **RFC-0007 (atomics) status — partial. `AtomicI64` surface ships
