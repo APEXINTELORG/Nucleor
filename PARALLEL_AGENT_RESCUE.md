@@ -40,20 +40,21 @@ prevent this.**
    change different regions than probe ships:
 
    **Available residuals from `PARALLEL_AGENT_HANDOFF_v0.4_RESIDUALS.md`**:
-   - **#6 verify_parallel.sh fold-in** — pure tool-script work in
-     `tools/verify_parallel.sh` and `tools/verify.sh`. ZERO compiler
-     overlap. **Best first pick.** Previous attempt is parked at
-     `spike/v04-verify-parallel-foldin-v2` — review for ideas but
-     start fresh on `-v3`.
    - **#7 var-RHS shift bounds** — emit a runtime check when the shift
      amount in `x << n` / `x >> n` is a non-literal var (the
      v0.3.214 panic helper covers literals only). Touches kind-4 binop
-     dispatch — overlaps with main's probe area. Coordinate before
-     starting.
+     dispatch. **Best first pick** — the other parallel agent (still
+     thrashing on `-v2` worktrees) is on residual #6, so #7 gives you
+     a fully disjoint lane. The main agent will steer probes AWAY from
+     binop-area while you're working it.
+   - **#6 verify_parallel.sh fold-in** — pure tool-script work in
+     `tools/verify_parallel.sh` and `tools/verify.sh`. DO NOT TAKE THIS
+     ONE — the thrashing v2 agent owns it. If you grab it you'll
+     duplicate work and create branch-name collisions.
    - **#1 trait-bound call-site impl-existence** — verify at type-check
      that `T: Trait` bounds have actual `impl Trait for T` blocks.
      Touches kind-7 (call) and kind-12 (Type::method). Heavy compiler
-     overlap. Last to attempt.
+     overlap with main agent's probe surface. Last to attempt.
 
 3. **Rebase frequently** while you work:
    ```sh
@@ -137,6 +138,7 @@ When your spike is ready:
   comments — the main agent assigns vN at integration.
 - Don't attempt residual #1 (trait-bound) without coordinating — it
   overlaps the main agent's probe area heavily.
+- Don't take residual #6 — the thrashing v2 agent owns it.
 
 ## Read this before starting
 
@@ -149,10 +151,25 @@ When your spike is ready:
 
 ## Suggested first move
 
-Pick residual #6 (verify_parallel.sh fold-in). Pure tool work, zero
-compiler overlap, smallest collision risk with whatever the main agent
-is probing. The previous attempt at `spike/v04-verify-parallel-foldin-v2`
-got close but never landed — re-derive on a fresh `-v3` branch from
-current main. The user noted the missing-result-file issue appears
-fixed; remaining gating problem was unrelated stale-base failures
-that are no longer present at v0.4.155.
+Pick residual **#7** (var-RHS shift bounds). Concrete plan:
+
+1. Grep `compiler/nucleor_s1_compiler.nr` for the kind-4 binop branch
+   that already emits the shift-overflow panic for literal RHS (added
+   v0.3.214). Note the helper name (`nuc_panic_shift_oob` or similar
+   — check `runtime/`).
+2. Extend the kind-4 emit path: when the RHS is non-literal (any
+   `kind != literal`), wrap the shift in a runtime guard:
+   `if (rhs < 0 || rhs >= bitwidth(lhs)) nuc_panic_shift_oob();`
+   Bitwidth is 32 for i32/u32, 64 for i64/u64.
+3. Add fixtures under `compiler_fixtures/runtime/`:
+   - `shift_var_rhs_ok.nr` — RHS is a var with valid value, exits 0.
+   - `shift_var_rhs_oob.nr` — RHS is a var equal to bitwidth, panics.
+   - `shift_var_rhs_neg.nr` — RHS is a negative var, panics.
+   Each with `.expected` files in the standard fixture format.
+4. Run the per-spike gate above. Push as
+   `spike/v04-shift-var-rhs-bounds-v3`.
+
+Lane discipline: residual #6 is owned by a separate (thrashing) agent
+on `-v2` branches. Stay out of `tools/verify_parallel.sh` and
+`tools/verify.sh` entirely — even read-only inspection is fine, just
+don't edit them.
