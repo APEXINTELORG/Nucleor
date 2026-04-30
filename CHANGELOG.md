@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.171] — 2026-04-30
+
+**RFC-0023 + RFC-0029 status lines updated to match shipped reality.**
+
+The v0.4 audit earlier this session confirmed:
+
+- **RFC-0023 pattern matching:** all four "deferred" features —
+  pattern guards, `@`-bindings, slice patterns, struct destructure +
+  same-name enum or-patterns — actually work end-to-end. Locked into
+  the verify suite by v0.4.169 fixtures. Only field-equality literal
+  patterns (`Point { x: 0, y: 0 }`) remain deferred to v0.5+ (now
+  halts cleanly with MATCH-012 instead of crashing).
+- **RFC-0029 doc generator:** v0.4.165 (per-param + per-return
+  rendering), v0.4.166 (`//!` module-level docs), v0.4.167 (Struct +
+  Enum index) all closed adopter-facing param/navigation gaps from
+  the v0.2 skeleton. Still deferred to v0.5+: doc tests, cross-refs,
+  per-struct/enum DETAIL sections.
+
+Updates to `docs/rfcs/RFC-0023-pattern-matching.md` and
+`docs/rfcs/RFC-0029-doc-generator.md` Status fields. No code changes.
+
+Verify: 217 PASS / 1 FAIL (unchanged).
+
 ## [0.4.170] — 2026-04-30
 
 **`verify_parallel.sh` now skips `*_aux.nr` helper files. Verify
