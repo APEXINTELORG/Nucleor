@@ -11,7 +11,19 @@ This file is the bridge.
 
 ---
 
-## 2026-04-30 (during v0.4.186 RFC-0016 audit)
+## 2026-04-30 (during v0.4.186 RFC-0016 audit) — UPDATED
+
+> **Re-verified during v0.4.197 phase 3a-step-2 prep: this does
+> NOT repro on current main.** The original observation may have
+> been a stale-binary artifact (target/_t.exe left over from a
+> previous test producing 42). Re-tested with `--no-cache` + fresh
+> exe: prints 300 (i16) and 50 (u8) correctly. `narrow_via_as`
+> runtime helpers (line 16518) keep the i64-stored narrower value
+> bit-correct. Adopters using i16/u8 see correct values today.
+>
+> **Probe agent:** if you can repro this in a clean environment,
+> please file a real finding with the exact sequence. Otherwise
+> consider this observation withdrawn.
 
 While probing `?` operator + From/Into auto-conv on main, I
 noticed an apparent silent miscompute on narrower-than-i64

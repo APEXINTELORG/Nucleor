@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.197] — 2026-04-30
+
+**RFC-0015 phase 3a-step-2 — sext/trunc IR ops (substrate, unused).
+Plus: i16/u8 silent-miscompute observation withdrawn (didn't repro).**
+
+Adds two new IR ops + emit dispatch as the boundary-conversion
+substrate for future width-aware load/store wiring:
+
+```nucleor
+// New IR builders for crossing narrower-slot ↔ i64-arith boundary.
+fn ir_sext(d: i64, src: i64, src_w: i64) -> Vec<i32>;   // op 32
+fn ir_trunc(d: i64, src: i64, dst_w: i64) -> Vec<i32>;  // op 33
+```
+
+emit_inst dispatch:
+- op 32 → `%r.D = sext iX %r.S to i64`
+- op 33 → `%r.D = trunc i64 %r.S to iX`
+
+Both new ops are unused today; future ships wire them into the
+load/store sites for narrower-typed bindings.
+
+**Why phase 3a-step-2 wasn't bigger this ship:**
+
+The "wire let-binding alloca + load + store to typed variants" pass
+turned out to need sym-table threading for slot→width tracking
+(slot register IDs don't carry width info; you have to look up
+`__type_<vname>` at every load/store site). That's a substantial
+refactor across 8+ load/store call sites. Better as its own
+focused ship in a fresh session.
+
+This ship adds the **last remaining substrate piece** (sext/trunc
+ops) so the next ship can be pure wiring — no new IR shape.
+
+**i16/u8 silent miscompute observation in `findings/inbox/_questions.md`
+WITHDRAWN.** Re-verified during this ship: `print_int(c)` for `c: i16 =
+100 + 200` correctly prints 300 on current main. The earlier "42"
+output was likely a stale binary artifact from a previous test in
+target/_t.exe. `narrow_via_as` runtime helpers (line 16518) keep
+i64-stored narrower values bit-correct on storage, and runtime
+helpers like `print_int` accept i64 (the stored bit pattern is
+already correct after narrow_via_as runs). RFC-0015 phase 3a
+benefit is reduced to **IR cleanliness**, not behavior — adopters
+already get correct narrower-int values today.
+
+**Verify:** 218 PASS / 1 FAIL. T1.7 PASS.
+**Perf:** cold 3.08s (max 3.37s) | hot 0.85s (max 0.97s) — actually
+*improved* from v0.4.196 (0.88s) due to LLVM's optimizer eliminating
+the new dead code paths. Peak 132MB (max 144MB).
+
+**Phase 3a remaining (next ship, fresh session):**
+- Wire `lower_let_stmt` for narrower bindings (i8/i16/u8/u16 first,
+  i32/u32 second) to use `ir_alloca_t(d, w)` + `ir_store_t(narrowed,
+  slot, w)` with `ir_trunc` of the i64 narrowed value.
+- Wire kind-3 (var-ref) load lowering to use `ir_load_t(reg, slot,
+  w)` + `ir_sext(wide, reg, w)` so arith continues to work at i64.
+- Add slot→width lookup helper (probably via sym `__width_<vname>`
+  set at lower_let_stmt time, queried at each load/store site).
+- Fixture: `tests/features/rfc0015_phase3a_widths.nr`.
+
 ## [0.4.196] — 2026-04-30
 
 **RFC-0015 phase 3a foundation — typed IR ops + emit-time width
