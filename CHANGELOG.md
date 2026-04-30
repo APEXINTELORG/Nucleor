@@ -5,6 +5,27 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.170] — 2026-04-30
+
+**`verify_parallel.sh` now skips `*_aux.nr` helper files. Verify
+gate: 217 PASS / 1 FAIL (was 217 / 2; closes the mod_decl_aux
+"baseline" — which was never a real fail, just a missed skip).**
+
+`tools/verify_parallel.sh` had `TEST_SKIP_REGEX='^$'` (placeholder
+that matches nothing), so helper files like `mod_decl_aux.nr`
+(imported by `mod_decl.nr` via `mod mod_decl_aux;`, no `main()` of
+its own) were enumerated as standalone tests and failed every
+`verify_parallel.sh` run. `verify.sh` has had `'_aux\.nr$'` since
+v0.2.x; `verify_parallel.sh` was just out of sync.
+
+Now mirrors `verify.sh`'s skip regex. The only remaining
+`verify_parallel.sh` baseline-FAIL is `runtime/stdin_read` (which
+genuinely needs interactive stdin and exits 1 on the gate where
+no TTY is attached — documented as expected).
+
+Verify: 217 PASS / 1 FAIL (was 217 / 2).
+Perf:   cold 3.09s (max 7.20s) | hot 0.87s (max 0.97s) | peak 131MB.
+
 ## [0.4.169] — 2026-04-30
 
 **RFC-0023 regression-guard fixtures: pattern guards, @-bindings,
