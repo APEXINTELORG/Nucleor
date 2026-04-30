@@ -14330,7 +14330,21 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         if v211_iop >= 2 && v211_iop <= 6 {
             let v211_lhs_n: i64 = node_field(pool, nid, 2);
             let v211_rhs_n: i64 = node_field(pool, nid, 3);
-            if node_kind(pool, v211_lhs_n) == 3 && node_kind(pool, v211_rhs_n) == 3 {
+            let v211_lk: i64 = node_kind(pool, v211_lhs_n);
+            let v211_rk: i64 = node_kind(pool, v211_rhs_n);
+            // v0.4.212 phase 3b extended: also handle var+literal and
+            // literal+var. Detect a single narrow-typed var-ref operand;
+            // the other operand can be kind-1 int_lit which we trunc into
+            // the narrow width via const_int + trunc. Same correctness
+            // story — native LLVM iN wrap.
+            let mut v211_var_n: i64 = 0 - 1;
+            let mut v211_lit_n: i64 = 0 - 1;
+            let mut v211_lit_on_rhs: i64 = 0;
+            let mut v211_both_var: i64 = 0;
+            if v211_lk == 3 && v211_rk == 3 { v211_both_var = 1; }
+            else if v211_lk == 3 && v211_rk == 1 { v211_var_n = v211_lhs_n; v211_lit_n = v211_rhs_n; v211_lit_on_rhs = 1; }
+            else if v211_lk == 1 && v211_rk == 3 { v211_var_n = v211_rhs_n; v211_lit_n = v211_lhs_n; v211_lit_on_rhs = 0; };
+            if v211_both_var == 1 {
                 let v211_lname: str = node_field(pool, v211_lhs_n, 1);
                 let v211_rname: str = node_field(pool, v211_rhs_n, 1);
                 let v211_lar: i64 = sym_get(sym, v211_lname);
@@ -14353,6 +14367,40 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             ir_block_add(blk, ir_zext(v211_wr, v211_nr, v211_aw));
                         };
                         return lx_new(v211_wr, blk);
+                    };
+                };
+            } else if v211_var_n >= 0 {
+                let v211_vname: str = node_field(pool, v211_var_n, 1);
+                let v211_var_ar: i64 = sym_get(sym, v211_vname);
+                if v211_var_ar >= 0 {
+                    let v211_vw: i64 = ir_fn_get_width(fir, v211_var_ar);
+                    if v211_vw != 0 {
+                        let v211_aw2: i64 = if v211_vw > 0 { v211_vw } else { 0 - v211_vw };
+                        // Emit: load_t var → vr; const_int lit → cr64;
+                        // trunc cr64 to iN → cr; binop_t iN → nr;
+                        // sext/zext nr to i64 → wr.
+                        let v211_vr: i64 = ctr_next(regs);
+                        ir_block_add(blk, ir_load_t(v211_vr, v211_var_ar, v211_aw2));
+                        let v211_lit_val: i64 = node_field(pool, v211_lit_n, 1);
+                        let v211_cr64: i64 = ctr_next(regs);
+                        ir_block_add(blk, ir_const_int(v211_cr64, v211_lit_val));
+                        let v211_cr: i64 = ctr_next(regs);
+                        ir_block_add(blk, ir_trunc(v211_cr, v211_cr64, v211_aw2));
+                        let v211_nr2: i64 = ctr_next(regs);
+                        // Operand order matters for non-commutative ops
+                        // (sub, sdiv, srem). Preserve source order.
+                        if v211_lit_on_rhs == 1 {
+                            ir_block_add(blk, ir_binop_t(v211_iop, v211_nr2, v211_vr, v211_cr, v211_aw2));
+                        } else {
+                            ir_block_add(blk, ir_binop_t(v211_iop, v211_nr2, v211_cr, v211_vr, v211_aw2));
+                        };
+                        let v211_wr2: i64 = ctr_next(regs);
+                        if v211_vw > 0 {
+                            ir_block_add(blk, ir_sext(v211_wr2, v211_nr2, v211_aw2));
+                        } else {
+                            ir_block_add(blk, ir_zext(v211_wr2, v211_nr2, v211_aw2));
+                        };
+                        return lx_new(v211_wr2, blk);
                     };
                 };
             };
