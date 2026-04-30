@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0001 |
 | **Title** | Real-Time Function Attributes (`#[no_alloc]`, `#[no_panic]`, `#[no_dyn]`, `#[deadline]`) |
-| **Status** | Draft |
+| **Status** | Implemented (audited v0.4.187). All four attributes parse + enforce: `#[no_panic]` halts with RT-002 when a panicking call (`panic`, `assert_eq`, `assert_ne`, `unwrap`, `expect`) appears in the body; `#[no_alloc]` halts with RT-001 when an allocating helper (`Vec::new`, etc.) appears; `#[deadline = <duration>]` parses (1ms / 500us / 100ns), accepted, advisory at this writing — runtime enforcement deferred to v0.5+ when `nuc-wcet` ships; `#[no_dyn]` parses + enforces (rejects `dyn Trait` calls). Attributes compose as in `#[no_alloc, no_panic, deadline = 1ms]`. |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.3.0 ("Robotics Foundation") |

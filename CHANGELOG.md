@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.187] — 2026-04-30
+
+**RFC-0001 (real-time function attributes) status updated —
+all four attributes shipped with diagnostic enforcement.**
+
+```nucleor
+#[no_alloc]
+fn bad_alloc() -> i32 {
+    let v: Vec<i32> = Vec::new();    // ✗ halts: RT-001
+    return 0;
+}
+
+#[no_panic]
+fn bad_panic() -> i32 {
+    panic("oh no");                   // ✗ halts: RT-002
+    return 0;
+}
+
+#[deadline = 1ms]
+fn fast() -> i32 { return 42; }       // ✓ parses + accepts
+```
+
+All four attributes from the RFC (`#[no_alloc]`, `#[no_panic]`,
+`#[no_dyn]`, `#[deadline = <duration>]`) parse correctly, compose
+in `#[no_alloc, no_panic, deadline = 1ms]` form, and (except
+`deadline` runtime enforcement which awaits `nuc-wcet` v0.5+)
+fire the documented diagnostics on violations.
+
+Status flipped from "Draft" to "Implemented (audited v0.4.187)"
+with explicit note about deadline runtime-enforcement deferral.
+
+No code changes.
+
 ## [0.4.186] — 2026-04-30
 
 **RFC-0016 phase 4 (`From`/`Into` auto-conv in `?`) audited as
