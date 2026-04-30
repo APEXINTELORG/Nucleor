@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.202] — 2026-04-30
+
+**SILENT-MISCOMPUTE CLOSE: struct-destructure-with-guard now
+correctly falls through. Found + fixed same-day.**
+
+```nucleor
+struct Point { x: i32, y: i32 }
+
+fn check(p: Point) -> i32 {
+    match p {
+        Point { x, y } if x == 0 => 100,
+        Point { x, y } => x + y,
+    }
+}
+
+fn main() -> i32 {
+    print_int(check(Point { x: 3, y: 4 }));   // pre-fix: 100 (WRONG)
+                                               // post-fix: 7 (correct)
+    print_int(check(Point { x: 0, y: 99 }));  // 100 (correct, guard hits)
+    0
+}
+```
+
+**Root cause:** `lower_expr`'s `__struct` arm at
+`compiler/nucleor_s1_compiler.nr:15841` had no guard handling.
+Other patterns in the same dispatch (`__wild`, `__int`, `__str`,
+`__range`, `__tuple`/`__slice`) all had a `if guard_nid > 0`
+branch that emitted `ir_br_cond(gr, gl, nl)` to fall through to
+the next arm on guard-fail. The `__struct` branch jumped
+unconditionally to the arm body via `ir_br(al)`, ignoring the
+guard entirely.
+
+**Fix:** mirrored the `__wild` guard pattern — bind struct fields
+in the arm block, then conditionally branch on the guard:
+- Guard true → arm body
+- Guard false → next arm label
+
+The companion `__struct` arm in `lower_stmt` (match-as-stmt) at
+line 17014 already had correct guard handling; only the `match
+<expr>` value-position path was broken.
+
+**Audit cross-check:** v0.4.171 RFC-0023 audit verified that
+struct destructure works WITHOUT a guard. The bug was specifically
+when a guard was added to a struct-destructure arm. Plain int
+guards (`match x { n if n > 5 => ... }`) always worked.
+
+**Adopter impact:** any code using
+`Point { x, y } if cond => ...` got wrong results. The v0.5+
+field-equality literal pattern workaround idiom from the v0.4.163
+MATCH-012 ship was specifically broken — adopters following the
+documented workaround would silently miscompute. Now correct.
+
+`examples/25_patterns_tour.nr` updated to use the proper
+struct-destructure-with-guard form for the `point_origin_or_distance`
+demo, since the workaround is no longer needed.
+
+`findings/inbox/_questions.md` observation for this bug marked
+CLOSED (same-ship fix).
+
+**Verify:** 219 PASS / 1 FAIL. T1.7 PASS.
+**Perf:** cold 3.05s (max 3.37s) | hot 0.89s (max 0.97s) | peak
+131MB (max 144MB).
+
 ## [0.4.201] — 2026-04-30
 
 **`examples/25_patterns_tour.nr` — single runnable program
