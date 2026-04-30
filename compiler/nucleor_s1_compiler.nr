@@ -381,11 +381,43 @@ fn lex(src: str) -> Vec<i32> {
                 // scaled-int path — frac_div is an exact power of ten,
                 // so the runtime divide rounds once to the closest f64
                 // (same precision an IEEE parser would give).
+                // v0.4.220: scientific notation (e/E exponent). Pre-fix
+                // `1.0e30` lexed as `1.0` then identifier-`e` then int-30,
+                // silently truncating the value to 1.0 and surfacing as a
+                // bizarre downstream type error or as `big as i32 = 1`
+                // (the user's reported f64-out-of-range repro). Adopters
+                // writing canonical Rust literals (`1.0e10`, `2.5e-3`, etc.)
+                // got silent miscomputes.
+                // Detect e/E after fractional digits, consume optional sign
+                // + digits, append to literal text, and force the raw-bits
+                // path so str_to_f64 (strtod) parses with full precision.
+                let mut exp_str: str = "";
+                if p < slen {
+                    let exp_ch: i64 = str_char_at(src, p);
+                    if exp_ch == 101 || exp_ch == 69 {
+                        let exp_st: i64 = p;
+                        let mut exp_p: i64 = p + 1;
+                        if exp_p < slen {
+                            let sign_ch: i64 = str_char_at(src, exp_p);
+                            if sign_ch == 43 || sign_ch == 45 { exp_p = exp_p + 1; };
+                        };
+                        let mut has_exp_digits: i64 = 0;
+                        while exp_p < slen && is_digit(str_char_at(src, exp_p)) == 1 {
+                            has_exp_digits = 1;
+                            exp_p = exp_p + 1;
+                        };
+                        if has_exp_digits == 1 {
+                            exp_str = str_substring(src, exp_st, exp_p);
+                            p = exp_p;
+                        };
+                    };
+                };
                 let raw_frac_len: i64 = str_len(raw_frac_str);
                 let mut use_raw_bits: i64 = 0;
                 if raw_frac_len > 6 { use_raw_bits = 1; };
+                if str_len(exp_str) > 0 { use_raw_bits = 1; };
                 if use_raw_bits == 1 {
-                    let lit_text: str = str_concat(str_from_int(int_part), str_concat(".", raw_frac_str));
+                    let lit_text: str = str_concat(str_from_int(int_part), str_concat(".", str_concat(raw_frac_str, exp_str)));
                     let bits: i64 = str_to_f64(lit_text);
                     tokens.push(tok_new(124, bits, st));
                 } else {

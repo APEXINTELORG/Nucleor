@@ -6,6 +6,7 @@ diagnostic_actual: none (compile clean, runtime prints garbage)
 diagnostic_expected: NUM-003 warning at compile time AND/OR saturating-cast / panic at runtime when value doesn't fit
 discovered_against: v0.4.162
 commit: a99fc717079b8f7774c8ddf7aa03a4cc5e132eae
+status: CLOSED in v0.4.220 — TWO-bug investigation. The runtime saturating helper `__nucleor_f64_to_i32` (in stdlib/runtime/nucleor_llvm_rt.c, since pre-RFC) was already correct: NaN→0, +∞/+huge→i32::MAX, -∞/-huge→i32::MIN. The reported `1` for `1.0e30` and `-1` for `-1.0e30` were caused by a SEPARATE lexer bug: scientific notation `1.0e30` wasn't recognized — the lexer parsed `1.0` then stopped, treating `e30` as a separate identifier+int. So `big = 1.0`, not `1e30`, and `big as i32 = 1`. v0.4.220 adds e/E exponent support to the float lexer (after fractional digits): consume e/E + optional +/- + digits, append to literal text, force the raw-bits path so str_to_f64 (strtod) parses with full precision. Verified: `1.0e30 as i32` now correctly produces 2147483647 (saturating). NaN→0 and -1.0e30→-2147483648 also correct.
 ---
 
 ## Repro

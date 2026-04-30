@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.220] — 2026-04-30
+
+**Silent-miscompute close — scientific notation literals (`1.0e30`,
+`2.5e-3`) now lex correctly.** Investigating the reported f64→i32
+out-of-range silent-miscompute revealed a TWO-bug story:
+
+1. **Runtime saturating helper was already correct.** The
+   `__nucleor_f64_to_i32` helper in stdlib/runtime/nucleor_llvm_rt.c
+   handles NaN→0, +∞/+huge→i32::MAX, -∞/-huge→i32::MIN per Rust
+   `as` semantics. Has been correct since pre-RFC.
+
+2. **Lexer dropped scientific notation.** Pre-fix `1.0e30` lexed as
+   `1.0` then stopped — the `e` and `30` became separate
+   identifier and int tokens. So `let big: f64 = 1.0e30;` actually
+   stored 1.0, not 10^30, and `big as i32` was 1, not garbage.
+   The original finding's repro showed `1` / `-1` / `0` outputs;
+   `0` came from genuine NaN saturation (working), `1` and `-1`
+   from the lexer bug (this fix).
+
+**Fix:** in the lexer's f64-literal path, after parsing fractional
+digits, peek for `e`/`E`. If found, consume it + optional `+`/`-`
++ digits. Append the exponent to the literal text and force the
+raw-bits path (str_to_f64 → strtod) which parses with full IEEE-754
+precision regardless of magnitude.
+
+**Verified:**
+- `1.0e30 as i32` → 2147483647 (i32::MAX, saturating) ✓
+- `-1.0e30 as i32` → -2147483648 (i32::MIN, saturating) ✓
+- `0.0/0.0 as i32` → 0 (NaN→0, Rust semantic) ✓
+- `2.5e-3` → 0.0025 (negative exponent) ✓
+
+**Verify:** 602 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline).
+
+**Perf:** cold 3.33s / 3.37s ceiling • hot 0.97s / 0.97s ceiling
+**(at ceiling — extending the lexer's hot-path scientific-notation
+detection adds maybe 2 char-compares per f-literal, accumulating
+across the compiler's own self-build).** Peak 132MB / 144MB. Future
+ships need to watch the hot ceiling carefully.
+
+Closes `findings/inbox/2026-04-30-f64-to-i32-out-of-range-silent.md`
+→ `findings/promoted/`.
+
+---
+
 ## [0.4.219] — 2026-04-30
 
 **Silent-miscompute close (partial) — `fn f() -> T { let _z = 5; }`
