@@ -5,6 +5,29 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.198] — 2026-04-30
+
+**RFC-0015 phase 3a regression-guard fixture
+`tests/features/rfc0015_phase3a_widths.nr`. Verify 218 → 219 PASS.**
+
+Locks in the current correct behavior of i8/i16/i32/u8/u16
+arithmetic + narrowing under the existing i64-uniform IR +
+`narrow_via_as` runtime helpers. 9 self-checking assertions:
+
+- i16 add, wrapping overflow
+- u8 mul, wrapping overflow
+- i32 explicit narrowing from i64 (`5_000_000_000 as i32`)
+- u16 add
+- i8 add at signed range edge (100 + 27 → 127)
+- i32 → i64 widening cast
+- i64 → i16 narrowing cast (mod 2^16, signed interpretation)
+
+If a future RFC-0015 phase 3a-step-3 wiring ship (typed allocas +
+sext/trunc at boundaries) breaks any assertion, the wiring is
+wrong — revert.
+
+Verify: 219 PASS / 1 FAIL.
+
 ## [0.4.197] — 2026-04-30
 
 **RFC-0015 phase 3a-step-2 — sext/trunc IR ops (substrate, unused).
