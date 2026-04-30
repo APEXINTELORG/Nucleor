@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.186] — 2026-04-30
+
+**RFC-0016 phase 4 (`From`/`Into` auto-conv in `?`) audited as
+DONE. v0.4 DEFERRED-from-v0.2 row state updated.**
+
+The v0.4.0.md milestone tracker had RFC-0016 phase 4 as "blocked
+on RFC-0024" because the original RFC said From/Into needed
+generic-enum substrate. RFC-0024 generics audited shipping in
+v0.4.182, so phase 4 was unblocked — and it turns out the work
+ALSO already shipped, the doc was just stale.
+
+Live audit:
+
+```nucleor
+enum LowErr { Boom }
+enum HighErr { Boomy }
+
+impl From<LowErr> for HighErr {
+    fn from(e: LowErr) -> HighErr { return HighErr::Boomy; }
+}
+
+fn lower() -> Result<i32, LowErr> { return Err(LowErr::Boom); }
+
+fn higher() -> Result<i32, HighErr> {
+    let x: i32 = lower()?;     // ✓ auto-converts via user's From impl
+    return Ok(x);
+}
+
+fn main() -> i32 {
+    let r: Result<i32, HighErr> = higher();
+    match r {
+        Ok(_) => print_int(0),
+        Err(_) => print_int(1),    // matches; prints 1
+    };
+    0
+}
+```
+
+Without the `impl From<LowErr> for HighErr`, the same code halts
+cleanly with TRAIT-001 ("missing From<LowErr> for HighErr
+conversion required by `?`"). Both paths work as expected.
+
+Updates:
+- `docs/rfcs/RFC-0016-result-option-match.md` — Status reflects
+  shipped surface across multiple chains. Phase 4 noted DONE.
+- `docs/milestones/v0.4.0.md` — DEFERRED-rows annotation rewritten
+  per-row with audit findings:
+  - RFC-0015 phases 3+5+7 (strict-mode numerics): still open
+  - RFC-0016 phase 4 (From/Into in `?`): **DONE**
+  - RFC-0016 phase 5 (MATCH-003..006): effectively DONE
+    (different code names, same bug class caught: 003→011,
+    004/005→TRAIT-001 / TYP-011, 006→RT-002)
+  - RFC-0018 phase 2 (visibility): Partial (opt-in privatization)
+  - RFC-0020 phase 3 (span migration): still open
+
+**Note for probe agent:** while testing this I observed
+`let a: i16 = 100; let b: i16 = 200; print_int(a + b);` printed
+"42" instead of "300" — possibly a width-tagged-arith silent
+miscompute (RFC-0015 phase 3 territory) and/or a print_int
+ABI mismatch on narrower types. Worth probing as a separate
+finding — leaving for him.
+
+No code changes.
+
 ## [0.4.185] — 2026-04-30
 
 **v0.4.0 success criteria — "All RFC-0023..0029 implemented to
