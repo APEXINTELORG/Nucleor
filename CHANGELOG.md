@@ -5,6 +5,80 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.201] — 2026-04-30
+
+**`examples/25_patterns_tour.nr` — single runnable program
+exercising every RFC-0023 pattern feature. Plus: silent-miscompute
+discovered in struct-destructure-with-guard, filed for probe agent.**
+
+The example walks adopters through every shipped pattern form in
+one ~140-line program: range patterns, or-patterns, pattern guards,
+`@`-bindings, slice patterns on Vec, struct destructuring, same-name
+enum or-patterns. Each section is self-checking and prints `OK <feature>`
+on success.
+
+```nr
+fn classify_char(c: i64) -> str {
+    match c {
+        48..=57           => "digit",
+        97..=122 | 65..=90 => "letter",
+        32                => "space",
+        _                 => "other",
+    }
+}
+
+fn squared_in_range(x: i32) -> i32 {
+    match x {
+        n @ 1..=10 => n * n,
+        n @ 11..=99 => n,
+        _          => -1,
+    }
+}
+
+fn slice_summary(v: Vec<i32>) -> i32 {
+    match v {
+        [a, .., b] => a + b,
+        [single]   => single,
+        []         => 0,
+        _          => -1,
+    }
+}
+```
+
+Build + run:
+```sh
+nuc build examples/25_patterns_tour.nr
+target/25_patterns_tour.exe
+```
+
+Output: 7 OK lines + `ALL OK 25_patterns_tour`, exit 0.
+
+**Silent-miscompute found while writing this example:**
+
+`match p { Point { x, y } if cond => A, Point { x, y } => B }`
+**always takes the first arm's body** regardless of whether the
+guard `cond` evaluates true. Plain integer pattern guards work
+correctly (verified separately); the bug is specific to struct-
+destructure as the pattern shape.
+
+Filed in `findings/inbox/_questions.md` for probe agent. Adopter
+workaround is explicit field access:
+
+```nr
+fn check(p: Point) -> i32 {
+    let x: i32 = p.x;
+    let y: i32 = p.y;
+    if x == 0 && y == 0 { return 100; };
+    x + y
+}
+```
+
+The example now uses this workaround for its `point_origin_or_distance`
+section, so it ships clean.
+
+**Verify:** 219 PASS / 1 FAIL (the new example is in `examples/`,
+not `tests/`, so doesn't count toward verify_parallel).
+
 ## [0.4.200] — 2026-04-30
 
 **🎉 v0.4.200 milestone — phase 3 plan doc updated with the v0.4.199
