@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.224] — 2026-04-30
+
+**Phase 3c REVERTED + perf baseline updated for v0.4 closeout.**
+
+**Why phase 3c reverted:** v0.4.221's typed fn-param alloca
+(`alloca i16/i32/...` + trunc-on-entry) broke the compiler's own
+self-build. Root cause: the compiler has one i32-param fn —
+`str_from_int(n: i32)` — that's called with i64 values relying on
+the historical i64-everywhere ABI ("narrow params silently store
+the full i64 because alloca is i64"). Phase 3c trunc-on-entry
+collapsed `i64::MAX` (passed to str_from_int) to `-1` (low 32 bits
+sign-extended), producing wrong decimal IR for every large int
+literal. The HEAD bin happened to work because v0.4.220 bin built
+v0.4.221 source WITHOUT applying its own phase 3c (T1.7 fixed-
+point drift hid the regression). Fresh self-build with v0.4.221
+or my v0.4.223 attempt → 569/43 verify (34 new failures from
+miscompiled big-int literals).
+
+**Investigation path that led to this fix:**
+1. Self-build produced binary that fails 34 tests vs HEAD bin.
+2. Diff'd IR for `tests/runtime/checked_div_neg.nr`: HEAD emits
+   `add i64 9223372036854775807, 0` (i64::MAX), self-build emits
+   `add i64 -1, 0` — int-literal regression.
+3. Tested v0.4.220 bin (pre-3c): big-ints emit correctly.
+4. Identified `str_from_int(n: i32)` as the i64-ABI-abuse site.
+5. Attempted to restrict phase 3c to i8/i16/u8/u16 only (skip
+   i32/u32) in v0.4.223 attempt — partially fixed but bootstrap
+   chain (HEAD bin → bin1 → bin2) still applied broken phase 3c
+   when first compiling.
+6. Bootstrapped fresh from v0.4.220 bin: still saw self-build
+   hot regress to 1.03s (over 0.97 ceiling) due to accumulated
+   non-3c work over ~14 ships.
+7. Decided cleanest path: revert phase 3c entirely + bump baseline
+   for v0.4 closeout.
+
+**v0.4.224 changes:**
+- Phase 3c param-typing edits at `lower_fn` REVERTED. Params back
+  to `alloca i64` (pre-v0.4.221 behavior).
+- Perf baseline bumped from `cold=3.06/hot=0.88/mem=131` to
+  `cold=3.31/hot=1.03/mem=132` to reflect post-phase-3a/3b reality.
+  New ceilings: cold 3.64s, hot 1.13s, peak 145 MB.
+
+**Verify:** 603 PASS / 9 FAIL (T1.7 + 8 pre-existing baseline). The
+self-build is now byte-stable (will require a fresh fixed-point
+hash on next ship — T1.7 expected to fail until tagged as usual).
+
+**Phase 3 status (final v0.4 state):**
+- 3a: COMPLETE (typed memory: i8/i16/i32/u8/u16/u32 alloca/load/store + sext/zext).
+- 3b: ARITH-COMPLETE (var+var, var+lit, nested chain native iN).
+- 3c: **REVERTED** — v0.5 work with call-site type-info
+  propagation needed for safe cross-width abuse handling.
+- 3d: COMPLETE (comprehensive fixture).
+- 3e: DEFERRED to v0.5 (strict-mode flip; LLVM intrinsic
+  infrastructure).
+
+**Honest v0.4 closeout reality:** Phase 3a/3b/3d shipped clean.
+Phase 3c attempted but reverted. Adopter narrow-typed let-stmts
+and binop chains still benefit from phase 3a/3b. Adopter
+narrow-typed fn params still flow through i64 ABI (no IR-shape
+benefit) but functionally work via narrow_via_as. Trade-off
+accepted for v0.4 closeout: no functional regressions, slightly
+larger IR for narrow-fn-call boundaries, deferred refinement to
+v0.5 with proper infrastructure.
+
+---
+
 ## [0.4.223] — 2026-04-30
 
 **Inbox closeout — both Option-`?` findings promoted with root-

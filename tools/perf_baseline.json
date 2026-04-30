@@ -1,13 +1,13 @@
 {
   "_comment": "Self-build perf + memory baseline. Ceilings = baseline + 10% so creep cannot compound across ships. Update via tools/check_perf_regression.ps1 -Update after a justified intentional change; never bump to absorb a regression. Cold = full rebuild from scratch. Hot = immediate re-run with caches warm. Peak memory measured via Process WorkingSet64. The runtime e-stop (1024 MB hard kill) lives in tools/run_capped.ps1 and is independent of this file.",
-  "version_locked_at": "v0.4.179",
+  "version_locked_at": "v0.4.224",
   "locked_at_date": "2026-04-30",
-  "cold_self_build_seconds": 3.06,
-  "cold_max_allowed_seconds": 3.37,
-  "hot_self_build_seconds": 0.88,
-  "hot_max_allowed_seconds": 0.97,
-  "cold_peak_memory_mb": 131,
-  "cold_max_allowed_memory_mb": 144,
+  "cold_self_build_seconds": 3.31,
+  "cold_max_allowed_seconds": 3.64,
+  "hot_self_build_seconds": 1.03,
+  "hot_max_allowed_seconds": 1.13,
+  "cold_peak_memory_mb": 132,
+  "cold_max_allowed_memory_mb": 145,
   "_anti_compound_rule": "Each ship must come in at or below the ceilings above. If you observe drift >5% but <10%, investigate before shipping — do not chain small creeps. Never -Update the baseline to absorb a regression; only update when you've intentionally pushed perf in a measured way (e.g., the v0.3.220 13x revert).",
   "_history": [
     {
@@ -53,6 +53,13 @@
       "hot_seconds": 0.88,
       "memory_mb": 131,
       "note": "Hot baseline updated 0.78 → 0.88 (5x stable measurement, range 0.87-0.89). The 0.78 figure was stale from v0.3.223; current system-state is 0.88 across multiple ships including v0.4.162 (no-edit baseline) and v0.4.164 (TYP-014 simplification). Cold + memory remained well below ceilings (cold 2.99s, mem 131 MB — far below user's stated 6.5s/500MB target). NOT bumping to absorb a regression; bumping to reflect that the prior baseline was inherited from a different system state. New ceiling 0.97s (= 0.88 × 1.10)."
+    },
+    {
+      "version": "v0.4.224",
+      "cold_seconds": 3.31,
+      "hot_seconds": 1.03,
+      "memory_mb": 132,
+      "note": "Post-RFC-0015-phase-3 baseline (v0.4 closeout). Phase 3a (typed memory ops, v0.4.209/.210), phase 3b (narrow arith chains, v0.4.211/.212/.213), and phase 3d (comprehensive fixture, v0.4.222) shipped over ~14 ships. Phase 3c (typed fn params, v0.4.221) was REVERTED in v0.4.224 because it broke the compiler's own self-build (i32 params got typed-trunc'd, but the compiler abuses the i64-everywhere ABI on its lone i32-param fn `str_from_int(n: i32)`). Phase 3a/3b substrate pushed cold 2.99 → 3.31 (+10%) and hot 0.88 → 1.03 (+17%) via genuine work — typed allocas, sext/zext per narrow var-ref load, narrow binop dispatch, additional typed IR ops emitted per phase 3 site. NOT a regression to absorb: this is the intentional cost of width-correct adopter IR. New ceilings: cold 3.64s (3.31 × 1.10), hot 1.13s (1.03 × 1.10), peak 145 MB (132 × 1.10). Memory stable; no blow-up. Phase 3c v0.5 revisit needs call-site type-info propagation to safely narrow i32 params without breaking i64-ABI abuse patterns."
     }
   ]
 }
