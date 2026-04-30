@@ -1,13 +1,26 @@
 # RFC-0024 Generic Enums — Implementation Scoping
 
-**Date:** 2026-04-28
-**Status:** Scoping (pre-implementation)
-**Targets:** v0.4.44 → v0.4.50ish
+**Date:** 2026-04-28 (status updated 2026-04-30 v0.4.182)
+**Status:** Implemented (audited v0.4.182) — generic functions
+(`fn id<T>(x: T) -> T`), generic structs (`struct Pair<A, B>`),
+generic enums (`enum MyOpt<T> { Some(T), None }`), and
+generic-functions-over-generic-enums all type-check + lower +
+run end-to-end. The RFC status was stale; the work shipped
+incrementally across the v0.4.x line. **Still deferred:**
+trait bounds beyond `T: Trait` shape (e.g. `T: Foo + Bar`),
+associated types (`Iterator::Item`), and full Iterator-trait
+adapter chain (Vec<i64> fn-ptr adapters work; user-impl
+`Iterator for MyType` deferred to v0.5+).
+**Targets:** v0.4.44 → v0.4.50ish (scoping doc; actual ships
+landed across v0.4.40s–v0.4.180s)
 
 This doc maps the path from today's hardcoded `Result`/`Option` stubs
-to fully generic enum type propagation. It's the design step before
-code, since Phase 1 (parser acceptance of `<T, E>`) already shipped
-in v0.2.x but Phases 2-4 are multi-day work that needs planning.
+to fully generic enum type propagation. **As of v0.4.182 audit, that
+work is complete:** `enum MyOpt<T> { Some(T), None }` parses,
+type-checks, lowers, and round-trips correctly through generic-fn
+boundaries. Original Phase 2-4 plan below is kept for historical
+reference; the implementation evolved organically across many
+small ships rather than as a planned multi-phase push.
 
 ## Why this is the keystone
 

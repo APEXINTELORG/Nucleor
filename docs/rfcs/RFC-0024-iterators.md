@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0024 |
 | **Title** | `Iterator` trait, `for x in iter`, `.map().filter().collect()` |
-| **Status** | Implemented (partial) v0.2.9 — `Vec<i64>` `.map/.filter/.fold/.each/.sum/.min/.max` via fn-ptrs; full trait + adapter chain with closures deferred to v0.4 |
+| **Status** | Implemented (partial) — `Vec<i64>` `.map/.filter/.fold/.each/.sum/.min/.max` via fn-ptrs (v0.2.9); closure-as-arg shipped in v0.4.x; RFC-0024 generic-enum substrate audited shipping in v0.4.182 (generic functions + structs + enums all type-check + lower + run end-to-end). **Still deferred to v0.5+:** user-impl `Iterator for MyType` trait, associated types (`Iterator::Item`), and trait-bound combinations (`T: Foo + Bar`). |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.2 partial (v0.2.9 — `Vec<i64>` fn-ptr adapters) → v0.4.0 (full trait + closures) |

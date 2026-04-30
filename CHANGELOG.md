@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.182] — 2026-04-30
+
+**RFC-0024 status doc updated to match shipped reality. Generic
+functions, structs, and enums all work end-to-end.**
+
+The RFC-0024 status was stuck at "Scoping (pre-implementation)"
+for the generic-enum doc and "Implemented (partial) v0.2.9" for
+the iterators doc — but live testing shows:
+
+```nucleor
+fn id<T>(x: T) -> T { return x; }                        // ✓ works
+struct Pair<A, B> { first: A, second: B }                // ✓ works
+enum MyOpt<T> { Some(T), None }                          // ✓ works
+fn unwrap_or<T>(o: MyOpt<T>, dflt: T) -> T {              // ✓ works
+    match o {
+        MyOpt::Some(v) => v,
+        MyOpt::None => dflt,
+    }
+}
+fn main() -> i32 {
+    let a: MyOpt<i32> = MyOpt::Some(42);
+    print_int(unwrap_or(a, 0));    // prints 42
+    print_int(unwrap_or(MyOpt::None, 99));    // prints 99
+    0
+}
+```
+
+All four cases type-check, lower to LLVM IR, compile, and run
+correctly. The work shipped incrementally across many small
+v0.4.x releases rather than as a planned multi-phase push, and
+the RFC status doc never got updated.
+
+**Still deferred to v0.5+:** trait bounds beyond simple `T: Trait`
+shape (e.g. `T: Foo + Bar`), associated types
+(`Iterator::Item`), user-implementable `Iterator for MyType`,
+and the full adapter chain that builds on the trait infrastructure.
+
+Updates:
+- `docs/rfcs/RFC-0024-generics-scoping-2026-04-28.md` — Status
+  flipped from "Scoping (pre-implementation)" to "Implemented
+  (audited v0.4.182)" with deferral list.
+- `docs/rfcs/RFC-0024-iterators.md` — Status updated to note
+  generic-enum substrate landed; deferral list updated.
+
+No code changes.
+
 ## [0.4.181] — 2026-04-30
 
 **Operating-model revision: probe agent moves to a propose-via-PR
