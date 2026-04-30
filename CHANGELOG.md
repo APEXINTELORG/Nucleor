@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.175] — 2026-04-30
+
+**RFC-0029 — `nuc doc` demotes `#`-headings inside `///` doc blocks
+by two levels in Markdown output.**
+
+Pre-fix: a `/// # Examples` line rendered as a literal H1, sibling
+to the document title — semantically wrong since the section is a
+sub-block of the function's H2 heading. Now: `# Examples` becomes
+`### Examples` (H3), `## Subsection` becomes `#### Subsection` (H4),
+etc. Adopters writing Rustdoc-style sections (`# Examples`,
+`# Panics`, `# Errors`, `# Returns`, `# Safety`) get the expected
+nesting in the generated docs.
+
+```nucleor
+/// Adds two integers.
+///
+/// # Examples
+///
+/// ```nucleor
+/// let r = add(3, 4);
+/// ```
+```
+
+Renders:
+
+```markdown
+## `add`
+
+Adds two integers.
+
+### Examples
+
+\`\`\`nucleor
+let r = add(3, 4);
+\`\`\`
+```
+
+New helper `doc_demote_headings` walks lines and prepends two `#`s
+to any line starting with `#+ <text>`. Other lines pass through.
+HTML mode is unchanged (it doesn't process Markdown headings; future
+ship can add `<h3>...<h6>` recognition).
+
+Verify: 217 PASS / 1 FAIL (unchanged).
+Perf:   cold 3.07s (max 7.20s) | hot 0.89s (max 0.97s) | peak 131MB.
+
 ## [0.4.174] — 2026-04-30
 
 **RFC-0029 — `nuc doc` cross-links param + return types to in-file

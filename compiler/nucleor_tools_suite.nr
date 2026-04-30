@@ -11688,6 +11688,37 @@ fn find_substr(haystack: str, needle: str) -> i64 {
 // signature line. Returns (params, return_type) where each piece is a
 // trimmed string fragment for direct rendering. Empty strings on parse
 // failure (caller falls back to the raw signature line).
+// v0.4.175: demote leading `#`-headings in /// doc content by two
+// levels so a `/// # Examples` line renders as `### Examples` under
+// the parent fn's `## fn_name` heading. Pre-fix the `#` was emitted
+// raw, producing an H1 sibling to the document title — semantically
+// wrong (the section is a sub-block of the fn doc, not a top-level
+// section of the document). Walks line by line; each line starting
+// with one or more `#` followed by a space gets two additional `#`s
+// prepended. Other lines pass through unchanged.
+fn doc_demote_headings(text: str) -> str {
+    let tlen: i64 = str_len(text);
+    if tlen == 0 { return text; };
+    let mut sb: i64 = sb_new();
+    let mut p: i64 = 0;
+    while p < tlen {
+        let mut eol: i64 = p;
+        while eol < tlen && str_char_at(text, eol) != 10 { eol = eol + 1; };
+        let llen: i64 = eol - p;
+        let mut hcount: i64 = 0;
+        while hcount < llen && str_char_at(text, p + hcount) == 35 { hcount = hcount + 1; };
+        if hcount > 0 && p + hcount < tlen && str_char_at(text, p + hcount) == 32 {
+            sb_append(sb, "##");
+            sb_append(sb, str_substring(text, p, eol));
+        } else {
+            sb_append(sb, str_substring(text, p, eol));
+        };
+        if eol < tlen { sb_append(sb, "\n"); };
+        p = eol + 1;
+    };
+    return sb_to_str(sb);
+}
+
 // v0.4.174: scan a type-or-signature string and replace any identifier
 // token that matches a known type name with a markdown anchor link.
 // Used to cross-link param/return types in fn signatures to the
@@ -12091,7 +12122,8 @@ fn run_doc_command_mode(src_path: str, out_path: str, html_mode: i64) -> i64 {
                 sb_append(sb, fn_name);
                 sb_append(sb, "`\n\n");
                 if last_doc_lines > 0 {
-                    sb_append(sb, sb_to_str(last_doc_sb));
+                    // v0.4.175: demote `#`-headings inside doc text.
+                    sb_append(sb, doc_demote_headings(sb_to_str(last_doc_sb)));
                     sb_append(sb, "\n");
                 };
                 let sig_parts: Vec<i32> = doc_extract_signature(line);
