@@ -18062,6 +18062,17 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let ens_cr: i64 = ctr_next(regs);
                 ir_block_add(cur, ir_call_ex(ens_cr, "contract_ensure", ens_args));
             };
+            // v0.4.249 RFC-0006 — invariant exit-emit at mid-body return.
+            let invx_stmt_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
+            if invx_stmt_nid >= 0 {
+                let mut invx_lp: Vec<i32> = lower_expr(pool, invx_stmt_nid, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                let invx_pr: i64 = lx_reg(invx_lp);
+                cur = lx_blk(invx_lp);
+                let mut invx_args: Vec<i32> = Vec::new();
+                invx_args.push(invx_pr);
+                let invx_cr: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_call_ex(invx_cr, "contract_invariant", invx_args));
+            };
             ir_block_add(cur, ir_ret(vr));
         } else {
             let zr: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(zr, 0));
@@ -18077,6 +18088,17 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ens_args2.push(ens_pr2);
                 let ens_cr2: i64 = ctr_next(regs);
                 ir_block_add(cur, ir_call_ex(ens_cr2, "contract_ensure", ens_args2));
+            };
+            // v0.4.249 RFC-0006 — invariant exit-emit at bare return;.
+            let invx_bare_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
+            if invx_bare_nid >= 0 {
+                let mut invx_lp_b: Vec<i32> = lower_expr(pool, invx_bare_nid, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                let invx_pr_b: i64 = lx_reg(invx_lp_b);
+                cur = lx_blk(invx_lp_b);
+                let mut invx_args_b: Vec<i32> = Vec::new();
+                invx_args_b.push(invx_pr_b);
+                let invx_cr_b: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_call_ex(invx_cr_b, "contract_invariant", invx_args_b));
             };
             ir_block_add(cur, ir_ret(zr));
         };
@@ -18675,6 +18697,19 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
                     inv_args.push(inv_rr);
                     let inv_cr: i64 = ctr_next(regs);
                     ir_block_add(ebb0, ir_call_ex(inv_cr, "contract_invariant", inv_args));
+                    // v0.4.249 RFC-0006 — stash the invariant nid in
+                    // sym so the tail-return + explicit-return sites
+                    // can emit the EXIT-time invariant check. Per
+                    // spec section 3.4, invariants fire on exit from
+                    // every method modifying self (and exit from
+                    // constructors). Pragmatic v0.4.249 scope: emit
+                    // on exit of every `self` method, regardless of
+                    // mutation. Cost: a redundant predicate
+                    // evaluation on read-only methods. Benefit: zero
+                    // false negatives — if any path through the
+                    // method ever leaves self in a violating state,
+                    // the gate fires.
+                    sym_set(sym, "__current_method_invariant_nid", inv_nid);
                 };
             };
         };
@@ -18730,6 +18765,17 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
                 let ens_cr: i64 = ctr_next(regs);
                 ir_block_add(fb, ir_call_ex(ens_cr, "contract_ensure", ens_args));
             };
+            // v0.4.249 RFC-0006 — invariant exit-emit at tail return.
+            let invx_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
+            if invx_nid >= 0 {
+                let mut invx_lp: Vec<i32> = lower_expr(pool, invx_nid, fb, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
+                let invx_pr: i64 = lx_reg(invx_lp);
+                fb = lx_blk(invx_lp);
+                let mut invx_args: Vec<i32> = Vec::new();
+                invx_args.push(invx_pr);
+                let invx_cr: i64 = ctr_next(regs);
+                ir_block_add(fb, ir_call_ex(invx_cr, "contract_invariant", invx_args));
+            };
             ir_block_add(fb, ir_ret(rv));
         };
         return fir;
@@ -18761,6 +18807,18 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
             ens2_args.push(ens2_pr);
             let ens2_cr: i64 = ctr_next(regs);
             ir_block_add(fb, ir_call_ex(ens2_cr, "contract_ensure", ens2_args));
+        };
+        // v0.4.249 RFC-0006 — invariant exit-emit at implicit-zero
+        // return (no explicit body tail expression).
+        let invx2_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
+        if invx2_nid >= 0 {
+            let mut invx2_lp: Vec<i32> = lower_expr(pool, invx2_nid, fb, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
+            let invx2_pr: i64 = lx_reg(invx2_lp);
+            fb = lx_blk(invx2_lp);
+            let mut invx2_args: Vec<i32> = Vec::new();
+            invx2_args.push(invx2_pr);
+            let invx2_cr: i64 = ctr_next(regs);
+            ir_block_add(fb, ir_call_ex(invx2_cr, "contract_invariant", invx2_args));
         };
         ir_block_add(fb, ir_ret(zr));
     };
