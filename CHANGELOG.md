@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] — 2026-05-01
+
+**🔧 Drift fix: v0.5.1 retroactive CHANGELOG entry + helper
+manifest regeneration.** Doc-only ship. The v0.5.1 commit
+(UPGRADE_v0.5.0 population) was tagged + pushed without a
+CHANGELOG entry; drift gate caught it on this ship's regen pass.
+This ship adds the v0.5.1 entry retroactively + regenerates
+`docs/rfcs/helper_manifest.toml` (which was stale post-v0.5.0
+because Track L's bin emits some helpers that needed catch-up).
+
+Same pattern as v0.4.285 → v0.4.286 retroactive fix: tag stays
+unchanged, only the CHANGELOG block is added out-of-order.
+
+Validation: doc + manifest only; v0.5.0 fixed-point at SHA
+`4372053900a713937651918dc392dd35a184f0a0ef430b6f24f9bfd920eaf84e`
+remains valid. Drift gate clean after this fix.
+
+## [0.5.1] — 2026-05-01
+
+**📚 `docs/UPGRADE_v0.5.0.md` fully populated** (retroactive
+CHANGELOG entry, added in v0.5.2). Doc-only ship. v0.5.0 cut
+on 2026-05-01; this populates the placeholders that were
+shipped as v0.4.285 outline.
+
+What lands:
+- Status header updated to "v0.5.0 cut on 2026-05-01"
+- §RFC-0007 Track G: 5 atomic types, 5 MemOrder values, 8
+  AtomicI64 ops, LLVM lowering details, 5 ATOMIC-NNN diag table
+- §RFC-0007 Track H: SPSC + MPSC rod usage, bench numbers
+  (~1.8M ops/sec uncontended SPSC), capacity-zero / push-false /
+  no-misuse-diag caveats, deferred generic-T propagation note
+- §RFC-0007 AtomicBool: load/store/CAS surface, atomic_swap_bool
+  deferred note
+- §RFC-0014 Track I: max_depth canonical pattern, 5 DEPTH-NNN
+  diag table, conservative-surface limitations + adopter rewrite
+  guidance
+- §Track L cache: cache key composition, --cache-stats CLI,
+  clean --cache, perf measurement infrastructure, opt-in/out
+  defaults
+- §Migration patterns: concrete before/after examples for each
+  CONTRACT-006/008/009/010/011, atomics handle→typed, Vec→queue,
+  manual-recursion-bound→#[max_depth], cache adoption
+
+**Note (added v0.5.2):** the v0.5.1 CHANGELOG entry was
+omitted at original ship time and added retroactively when
+v0.5.2's drift gate caught the missing entry. Tag and ship
+contents are unchanged; only this CHANGELOG block was added
+out-of-order.
+
 ## [0.5.0] — 2026-05-01
 
 **🎯 v0.5.0 — Production Robotics + RFC-0006 DbC + RFC-0007 atomics +
