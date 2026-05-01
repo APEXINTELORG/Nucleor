@@ -1375,6 +1375,46 @@ t324_ffi_no_alloc_marker() {
     if grep -qE "warning\[RT-005\]: FFI call 'host_safe'" $NUC_VERIFY_STEP_LOG; then return 1; fi
 }
 
+t333_effects_with_positive() {
+    # RFC-0033 first-pass: parse function/extern/fn-pointer type
+    # `with [...]` clauses without changing legacy lowering.
+    "$BIN" build "tests/features/effects_with_positive.nr" -o "_t333_effects_positive" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local exe="target/_t333_effects_positive"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1 || return 1
+}
+
+t333_effects_with_no_alloc() {
+    "$BIN" build "tests/err/err_effects_with_no_alloc_vec.nr" -o "_t333_effects_no_alloc" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "error\[RT-001\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "busy" $NUC_VERIFY_STEP_LOG || return 1
+}
+
+t333_effects_with_no_panic() {
+    "$BIN" build "tests/err/err_effects_with_no_panic.nr" -o "_t333_effects_no_panic" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "error\[RT-002\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "bad_op" $NUC_VERIFY_STEP_LOG || return 1
+}
+
+t333_effects_with_no_dyn() {
+    "$BIN" build "tests/err/err_effects_with_no_dyn.nr" -o "_t333_effects_no_dyn" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "error\[RT-003\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "poll" $NUC_VERIFY_STEP_LOG || return 1
+}
+
+t333_effects_with_alloc_call() {
+    "$BIN" build "tests/err/err_effects_with_alloc_call.nr" -o "_t333_effects_alloc_call" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "error\[EFF-003\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "may_alloc" $NUC_VERIFY_STEP_LOG || return 1
+}
+
+t333_effects_with_ffi() {
+    "$BIN" build "tests/fixtures/t333_effects_with_ffi.nr" -o "_t333_effects_ffi" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    grep -qE "warning\[RT-005\]: FFI call 'host_unsafe'" $NUC_VERIFY_STEP_LOG || return 1
+    if grep -qE "warning\[RT-005\]: FFI call 'host_safe'" $NUC_VERIFY_STEP_LOG; then return 1; fi
+}
+
 t326_ffi_intersection() {
     # T3.16 (v0.3.26): #[deadline] intersection rule for the
     # v0.3.24 #[ffi_no_*] markers. A #[deadline] caller treats
@@ -4817,6 +4857,12 @@ step "v0.4.281 RFC-0007 AtomicBool ordered ops (load/store/CAS)" t_rfc0007_atomi
 step "v0.5 Track L content-addressed cache v2 correctness" cache_v2_correctness
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
+step "T3.33 RFC-0033 with-effects syntax parses" t333_effects_with_positive
+step "T3.33 RFC-0033 with [no_alloc] maps to RT-001" t333_effects_with_no_alloc
+step "T3.33 RFC-0033 with [no_panic] maps to RT-002" t333_effects_with_no_panic
+step "T3.33 RFC-0033 with [no_dyn] maps to RT-003" t333_effects_with_no_dyn
+step "T3.33 RFC-0033 Alloc call rejected from no_alloc" t333_effects_with_alloc_call
+step "T3.33 RFC-0033 extern with [no_alloc] feeds RT-005" t333_effects_with_ffi
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
 step "T3.10 RT-008 fires on direct recursion in deadline fn" t310_rt008_recursion
 step "RFC-0014 max_depth static analysis + runtime wrapper" rfc0014_max_depth_full_ship
