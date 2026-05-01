@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.17] — 2026-05-01
+
+**🔧 CSV agent-namespacing — 3 concurrent agents, no race.**
+Tools-only ship.
+
+### Background
+
+User flagged: with 3 agents (main / parallel-1 / probe) all
+running verify concurrently, the shared
+`tools/verify_timings.csv` is racing. Plus we're wastefully
+running env-on every ship when most ships don't touch
+strict-intrin / overflow / narrow-arith logic.
+
+### What lands
+
+- `tools/verify.sh` (line ~138): default CSV path now picks up
+  `NUC_VERIFY_AGENT=<name>` env var. With it set, the CSV is
+  `tools/verify_timings.<name>.csv` instead of the shared
+  `tools/verify_timings.csv`. `NUC_VERIFY_CSV=<path>` still
+  overrides either default.
+
+### Convention
+
+| Agent | Env var | CSV file |
+|---|---|---|
+| Main | `NUC_VERIFY_AGENT=main` | `tools/verify_timings.main.csv` |
+| Parallel-1 | `NUC_VERIFY_AGENT=parallel1` | `tools/verify_timings.parallel1.csv` |
+| Probe | `NUC_VERIFY_AGENT=probe` | `tools/verify_timings.probe.csv` |
+
+Legacy `tools/verify_timings.csv` (no agent suffix) stays for
+backward compat — if writes land there, an agent forgot to set
+the env var.
+
+### env-on / env-off convention (no code change, communication)
+
+env-on (`NUCLEOR_INT_STRICT_INTRIN=1`) was being run every ship
+unnecessarily. New rule: env-off is the default; env-on only
+runs when the ship touches strict-intrin code, IR declares,
+atomic dispatch, memory-budget changes, or major release cuts.
+Doc-only / fixture-only ships skip env-on. See
+`Desktop\Nucleor_PROBE_AGENT_TEST_TIME_HANDOFF_2026-05-01.md`
+for the full table.
+
+### Handoff doc
+
+`Desktop\Nucleor_PROBE_AGENT_TEST_TIME_HANDOFF_2026-05-01.md`
+captures the full test-time system for probe-agent: existing
+infrastructure (verify.sh, verify_parallel.sh,
+measure_peak_build.ps1, memory_drift_profile.sh,
+check_perf_regression.ps1), the v0.5.17 CSV split, env-on/off
+rules, parallelism dial (`NUC_VERIFY_JOBS=N`), test-time tips,
+and a quick reference card.
+
+Validation: tools-only; existing verify runs unchanged when
+`NUC_VERIFY_AGENT` is unset (writes to legacy path). Drift
+gate clean.
+
 ## [0.5.16] — 2026-05-01
 
 **🔬 Memory drift profile (Lane B1 from v0.5.14 deferred work).**
