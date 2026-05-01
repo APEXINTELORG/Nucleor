@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] — 2026-05-01
+
+**📚 ML expansion crosswalk: v0.7.0 + v0.8.0 milestone trackers
+enriched.** Doc-only ship. Closes the integration-crosswalk
+follow-up for the ML Suite expansion brief (steps 7 + 8).
+
+`docs/milestones/v0.7.0.md`:
+- §"ML expansion — Lane H substrate (2026-05-01)" — five-phase
+  table: Arrow C Data Interface bridge, schema manifest,
+  zero-copy buffer accounting, pushdown flag set, backend
+  dispatch accounting hook
+- §"ML expansion — flagship apps" — regulated-artifact +
+  ROS 2 / Isaac apps mapped to dependency chain
+- §"Conformance reports" — `nuc bench --report=conformance`
+  evidence bundle shape (backends, borrows, WCET, contracts,
+  schema digests)
+- 3 new success-criteria checkboxes
+
+`docs/milestones/v0.8.0.md`:
+- §"ML expansion ABI scope (2026-05-01)" under ABI freeze —
+  4-row symbol-coverage table (model serving, backend dispatch,
+  table interop, capsule verification) with `nuc abi diff`
+  acceptance binding
+- §"ML expansion perf gates (2026-05-01)" under Performance —
+  model-serving + tabular workloads, backend accounting in
+  profiler output, v0.7 conformance-report survival check
+- 2 new success-criteria checkboxes
+
+Source: `Desktop\Nucleor_Build_Spine\03_TRIAGE\ML_EXPANSION_SET_INTEGRATION_2026-05-01.md` §1 Lane H + §2 v0.7/v0.8 add-or-strengthen lists.
+
+Validation: doc-only; no compiler / runtime / fixture changes.
+Drift gate clean.
+
 ## [0.5.2] — 2026-05-01
 
 **🔧 Drift fix: v0.5.1 retroactive CHANGELOG entry + helper
