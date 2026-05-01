@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 227
-# Total fn definitions: 2126
-# Total LOC: 9425
+# Total fn definitions: 2127
+# Total LOC: 9428
 
 [[rod]]
 name           = "activation2"
@@ -1950,9 +1950,9 @@ imports        = []
 name           = "units"
 path           = "stdlib/rods/units.nr"
 description    = "SI Unit Conversion"
-function_count = 44
+function_count = 45
 cfile_count    = 1
-loc            = 48
+loc            = 51
 imports        = ["units"]
 
 [[rod]]
