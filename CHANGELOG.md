@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.247] — 2026-05-01
+
+**RFC-0006 ensure — mid-body explicit `return X;` support.**
+Completes ensure to full coverage. Pre-fix (v0.4.246), only the
+implicit-tail-return path emitted the ensure check. Explicit
+mid-body `return X;` statements bypassed it silently — the
+postcondition was unenforced for any fn that uses early-return
+control flow.
+
+### The fix
+
+1. `lower_fn` stashes the fn's ensure expr nid in
+   `sym["__current_fn_ensure_nid"]` before body lowering.
+2. `lower_stmt` kind-22 (explicit return) handler reads the
+   stashed nid via `sym_get`. If ≥ 0, emits the same ensure-
+   check sequence as the tail-return path (alloca for `result`,
+   store rv, lower predicate, call `__nucleor_contract_ensure`)
+   before the `ir_ret` instruction.
+
+### End-to-end demo
+
+```nucleor
+#[ensure(result >= 0)]
+fn signum_nonneg(x: i64) -> i64 {
+    if x > 0 { return 1; };       // mid-body return now checked
+    if x < 0 { return 0 - 1; };   // VIOLATES — was silent pre-fix
+    0
+}
+
+fn main() -> i64 {
+    print_int(signum_nonneg(0 - 5));   // CONTRACT-002 panic
+    0
+}
+```
+
+Output:
+```text
+CONTRACT-002: ensure postcondition violated
+exit 1
+```
+
+### Validation
+
+- Self-build clean (LL 7 972 581 bytes).
+- **Two-stage fixed-point env-DEFAULT-ON** at SHA
+  `e06c0808ca32adc38ef3136daccdae7c808527b0d8408f7ecd26a648aa1180d0`.
+  Bootstrap seed refreshed; T1.7 locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean.
+- Targeted mid-body return smokes:
+  - `signum_nonneg(0 - 5)` returns 0 → ensure passes, exit 0.
+  - `signum_nonneg(0 - 5)` returning -1 (violating variant) →
+    CONTRACT-002 panic, exit 1.
+- New fixture `tests/features/rfc0006_ensure_midbody.nr`
+  (signum_nonneg + classify, 6 cases mixing positive and
+  negative inputs, all passing) builds + runs OK.
+- New verify-gate step `t_rfc0006_ensure_midbody_runtime`
+  exercises both passing path + violation path.
+
+### What's next (v0.4.248+)
+
+- `#[invariant(EXPR)]` for struct impl blocks (CONTRACT-003 —
+  entry+exit on every public method).
+- `old(expr)` snapshot at fn entry for ensure expressions
+  (CONTRACT-006 if old is referenced without snapshot).
+- Multiple require/ensure attributes per fn.
+- Build-mode awareness: `#[release]` strip-out, `safe-release`
+  partial elision, `cert` profile static-proof requirement
+  (CONTRACT-007).
+- Liskov inheritance checks (CONTRACT-004, CONTRACT-005).
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: ensure pre-pass stashes
+  nid in sym; lower_stmt kind-22 reads + emits check.
+- `tests/features/rfc0006_ensure_midbody.nr`: new fixture.
+- `tools/verify.sh`: `t_rfc0006_ensure_midbody_runtime` step.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
 ## [0.4.246] — 2026-05-01
 
 **🎯 RFC-0006 DbC — `#[ensure(EXPR)]` LIVE END-TO-END.** Second

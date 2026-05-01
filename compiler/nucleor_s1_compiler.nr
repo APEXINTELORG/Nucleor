@@ -17922,13 +17922,46 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
     };
     if kind == 22 {
         let vn: i64 = node_field(pool, nid, 1);
+        // v0.4.247 RFC-0006 — `#[ensure(EXPR)]` at explicit
+        // mid-body `return X;` sites. lower_fn stashed the fn's
+        // ensure expr nid in sym["__current_fn_ensure_nid"] before
+        // body lowering. Read it here and emit the check before
+        // the ret. Mirror of the tail-return path in lower_fn.
+        let ens_stmt_nid: i64 = sym_get(sym, "__current_fn_ensure_nid");
         if vn >= 0 {
             let mut vp: Vec<i32> = lower_expr(pool, vn, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
             let vr: i64 = lx_reg(vp);
             cur = lx_blk(vp);
+            if ens_stmt_nid >= 0 {
+                let ens_ar: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_alloca(ens_ar));
+                ir_block_add(cur, ir_store(vr, ens_ar));
+                sym_set(sym, "result", ens_ar);
+                let mut ens_lp: Vec<i32> = lower_expr(pool, ens_stmt_nid, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                let ens_pr: i64 = lx_reg(ens_lp);
+                cur = lx_blk(ens_lp);
+                let mut ens_args: Vec<i32> = Vec::new();
+                ens_args.push(ens_pr);
+                let ens_cr: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_call_ex(ens_cr, "contract_ensure", ens_args));
+            };
             ir_block_add(cur, ir_ret(vr));
         } else {
-            let zr: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(zr, 0)); ir_block_add(cur, ir_ret(zr));
+            let zr: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(zr, 0));
+            if ens_stmt_nid >= 0 {
+                let ens_ar2: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_alloca(ens_ar2));
+                ir_block_add(cur, ir_store(zr, ens_ar2));
+                sym_set(sym, "result", ens_ar2);
+                let mut ens_lp2: Vec<i32> = lower_expr(pool, ens_stmt_nid, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                let ens_pr2: i64 = lx_reg(ens_lp2);
+                cur = lx_blk(ens_lp2);
+                let mut ens_args2: Vec<i32> = Vec::new();
+                ens_args2.push(ens_pr2);
+                let ens_cr2: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_call_ex(ens_cr2, "contract_ensure", ens_args2));
+            };
+            ir_block_add(cur, ir_ret(zr));
         };
         return cur;
     };
@@ -18424,6 +18457,22 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
         if str_len(gtype) > 0 { sym_set(sym, str_concat("__fulltype_", gname), gtype); };
         gi = gi + 1;
     };
+    // v0.4.247 RFC-0006 — stash this fn's ensure expr nid in sym
+    // so lower_stmt's kind-22 explicit `return X;` handler can
+    // emit the ensure check at mid-body return sites. Absent
+    // (sym_get returns -1) means no ensure attribute on this fn.
+    let mut ens_pre_idx: i64 = 0;
+    let mut ens_pre_nid: i64 = 0 - 1;
+    let ens_pre_count: i64 = vec_len(ensure_exprs);
+    while ens_pre_idx + 1 < ens_pre_count {
+        if str_eq(vec_get(ensure_exprs, ens_pre_idx), name) == 1 {
+            ens_pre_nid = vec_get(ensure_exprs, ens_pre_idx + 1);
+            ens_pre_idx = ens_pre_count;
+        } else {
+            ens_pre_idx = ens_pre_idx + 2;
+        };
+    };
+    if ens_pre_nid >= 0 { sym_set(sym, "__current_fn_ensure_nid", ens_pre_nid); };
     // v0.4.245 RFC-0006 Design by Contract — `#[require(EXPR)]`
     // runtime check at fn entry. The substrate scanner ran in the
     // main pipeline (collect_fn_requires + lex+parse pre-pass);
