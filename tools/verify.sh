@@ -1808,6 +1808,20 @@ t_rfc0006_old_expr_runtime() {
     return 0
 }
 
+t_match_012_single_line() {
+    # v0.4.276 MATCH-012 — probe-agent finding 2026-04-30: dual
+    # print+panic emitted the diag text TWICE. Folded into a single
+    # panic. Verify MATCH-012 appears in the output, build exits 1,
+    # and the count of MATCH-012 mentions on stderr is exactly one
+    # (no duplicate from the now-removed print).
+    "$BIN" build "tests/err/err_match_012_struct_pattern_literal.nr" -o "_t_m12" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "1" ] || return 1
+    local count
+    count=$(grep -c "MATCH-012" $NUC_VERIFY_STEP_LOG)
+    [ "$count" = "1" ] || return 1
+    return 0
+}
+
 t_rfc0006_dbc_mode_invalid_reject() {
     # v0.4.275 RFC-0006 — NUCLEOR_DBC_MODE validation. Probe-agent
     # finding 2026-05-01: unrecognized values silently fell into
@@ -4324,6 +4338,7 @@ step "v0.4.258 RFC-0006 — #[no_check] per-fn opt-out marker" t_rfc0006_no_chec
 step "v0.4.271 RFC-0006 — old() over heap-aliased types reject (CONTRACT-006)" t_rfc0006_old_vec_aliasing_reject
 step "v0.4.272 RFC-0006 — result in void-fn #[ensure] reject (CONTRACT-008)" t_rfc0006_result_in_void_fn_reject
 step "v0.4.275 RFC-0006 — invalid NUCLEOR_DBC_MODE reject (CONTRACT-009)" t_rfc0006_dbc_mode_invalid_reject
+step "v0.4.276 MATCH-012 single-line panic (no print+panic stutter)" t_match_012_single_line
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

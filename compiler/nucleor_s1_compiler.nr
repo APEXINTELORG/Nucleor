@@ -970,8 +970,17 @@ fn parse_match_struct_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             // clean diagnostic if anything else appears. Field-equality literal
             // patterns (`{ field: <literal> }`) are deferred to v0.5+.
             if pk(tokens, cp) != 1 {
-                print("error[MATCH-012]: struct pattern field after `:` must be an identifier (rename-binding form, e.g. `Point { x: rename }`). Field-equality literal patterns like `Point { x: 0, y: 0 }` are not yet supported — match the field with a binding (`Point { x, y }`) and use a guard `if x == 0 && y == 0 => ...` instead.");
-                panic("nucleor: MATCH-012 non-identifier in struct pattern field");
+                // v0.4.276 — fold the dual print+panic into a single
+                // panic() carrying the full diag text. Matches the
+                // MATCH-013 pattern (line ~1040). Probe finding
+                // 2026-04-30: pre-fix adopters saw "error[MATCH-012]:
+                // ..." followed by a duplicate "PANIC: nucleor:
+                // MATCH-012..." line. Single panic eliminates the
+                // stutter; the leading "PANIC: " prefix from the
+                // runtime helper remains (removing that requires
+                // adding a `diag_halt` runtime helper that exits
+                // without the prefix — deferred follow-up).
+                panic("error[MATCH-012]: struct pattern field after `:` must be an identifier (rename-binding form, e.g. `Point { x: rename }`). Field-equality literal patterns like `Point { x: 0, y: 0 }` are not yet supported — match the field with a binding (`Point { x, y }`) and use a guard `if x == 0 && y == 0 => ...` instead.");
             };
             bname = pkv(tokens, cp);
             cp = cp + 1;
