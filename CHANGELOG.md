@@ -5,6 +5,81 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.264] — 2026-05-01
+
+**🛠️ stdlib/rods/trajectory — `*_f64` ergonomic wrappers
+(motion profiles).** Sixth rod in the v0.4.260→263 arc.
+Adopters writing motion-planning code now get f64-typed
+constructors and evaluators for the three named motion
+profiles: quintic polynomial, trapezoidal velocity, and
+S-curve (bounded-jerk).
+
+### What lands
+
+15 new wrappers at `stdlib/rods/trajectory.nr:97+`:
+
+**Quintic (5 wrappers):**
+- `quintic_new_f64(T, q0, v0, a0, qT, vT, aT) -> i64`
+- `quintic_duration_f64(h) -> f64`
+- `quintic_pos_at_f64(h, t) -> f64`
+- `quintic_vel_at_f64(h, t) -> f64`
+- `quintic_acc_at_f64(h, t) -> f64`
+
+**Trapezoidal (5 wrappers):**
+- `trapezoid_new_f64(q0, qT, vmax, amax) -> i64`
+- `trapezoid_duration_f64(h) -> f64`
+- `trapezoid_peak_v_f64(h) -> f64`
+- `trapezoid_pos_at_f64(h, t) -> f64`
+- `trapezoid_vel_at_f64(h, t) -> f64`
+
+**S-curve (5 wrappers):**
+- `scurve_new_f64(q0, qT, vmax, amax, jmax) -> i64`
+- `scurve_duration_f64(h) -> f64`
+- `scurve_peak_v_f64(h) -> f64`
+- `scurve_peak_a_f64(h) -> f64`
+- `scurve_pos_at_f64(h, t) -> f64`
+
+Bits-ABI fns above remain — purely additive ship.
+
+### Coverage scoping
+
+DMP, TOPP, Catmull-Rom, and Bezier (advanced motion-planning
+primitives also in trajectory.nr) keep their bits-ABI for
+this ship — adopters using them already navigate the pointer-
+laden APIs. Each can ship `_f64` wrappers as a follow-up
+when adopter pull surfaces.
+
+### Fixture
+
+`tests/features/trajectory_f64.nr` exercises:
+- Quintic rest-to-rest q 0→1 over T=2s: boundary positions
+  q(0)=0, q(T)=1; boundary velocities and accelerations all
+  zero.
+- Trapezoidal q 0→1 with vmax=2, amax=4: positive duration,
+  positive peak v, pos(0)=0, vel(0)=0.
+- S-curve q 0→1 with vmax=2, amax=4, jmax=20: positive
+  duration / peak v / peak a, pos(0)=0.
+
+All 18 boundary checks pass.
+
+### Validation
+
+- Self-build clean, two-stage fixed-point at SHA
+  `eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e`
+  (= v0.4.258-263; compiler doesn't import trajectory.nr —
+  fifth ship in a row at this SHA).
+- Drift gate clean — `rod_manifest.toml` regenerated to 2168
+  stdlib fns (+15 from v0.4.263's 2153).
+- Fixture exit 0, "OK trajectory_f64".
+
+### Pattern progress
+
+6 of 9 bits-ABI rods now wrapped (units, kinematics, linalg,
+csv_table, kdt, trajectory motion profiles). Remaining:
+rrt, fk_chain, diff_sim. Plus deferred-by-design pqueue
+(intentional bits-ABI for packed keys) and the trajectory
+advanced primitives (DMP/TOPP/Catmull/Bezier).
+
 ## [0.4.263] — 2026-05-01
 
 **🛠️ stdlib/rods/csv_table + kdt — `*_f64` ergonomic wrappers
