@@ -8605,7 +8605,11 @@ fn collect_fn_requires(source: str) -> Vec<i32> {
                         entries.push(fname);
                         entries.push(etext);
                     };
-                    p = r;
+                    // v0.4.250 — advance p past the closing `]` of
+                    // this attribute (not past the fn name) so a
+                    // subsequent #[require(...)] before the same
+                    // fn still gets captured by the outer loop.
+                    p = expr_end + 2;
                     break;
                 };
                 r = r + 1;
@@ -8700,7 +8704,9 @@ fn collect_fn_ensures(source: str) -> Vec<i32> {
                         entries.push(fname);
                         entries.push(etext);
                     };
-                    p = r;
+                    // v0.4.250 — same multiple-attr support as
+                    // collect_fn_requires.
+                    p = expr_end + 2;
                     break;
                 };
                 r = r + 1;
@@ -18623,26 +18629,29 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
     // updated by the require expression's own block-control if
     // the predicate is non-trivial — e.g. a chain of && that
     // short-circuits into multiple basic blocks).
+    // v0.4.250 RFC-0006 — multiple #[require(...)] attributes per
+    // fn. Walk ALL matching entries (the pre-pass pushes one entry
+    // per attribute, so a fn with two `#[require(a > 0)]
+    // #[require(b > 0)]` headers yields two entries with the same
+    // fn_name). Each match emits its own contract_require call —
+    // the predicates are conjuncted by short-circuit: a violation of
+    // any one panics. Pre-fix only the first match emitted; later
+    // requires were silently ignored.
     let mut req_idx: i64 = 0;
-    let mut req_nid: i64 = 0 - 1;
     let req_count: i64 = vec_len(require_exprs);
     while req_idx + 1 < req_count {
         let cand: str = vec_get(require_exprs, req_idx);
         if str_eq(cand, name) == 1 {
-            req_nid = vec_get(require_exprs, req_idx + 1);
-            req_idx = req_count;
-        } else {
-            req_idx = req_idx + 2;
+            let req_nid: i64 = vec_get(require_exprs, req_idx + 1);
+            let mut req_lp: Vec<i32> = lower_expr(pool, req_nid, ebb0, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
+            let req_rr: i64 = lx_reg(req_lp);
+            ebb0 = lx_blk(req_lp);
+            let mut req_args: Vec<i32> = Vec::new();
+            req_args.push(req_rr);
+            let req_cr: i64 = ctr_next(regs);
+            ir_block_add(ebb0, ir_call_ex(req_cr, "contract_require", req_args));
         };
-    };
-    if req_nid >= 0 {
-        let mut req_lp: Vec<i32> = lower_expr(pool, req_nid, ebb0, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
-        let req_rr: i64 = lx_reg(req_lp);
-        ebb0 = lx_blk(req_lp);
-        let mut req_args: Vec<i32> = Vec::new();
-        req_args.push(req_rr);
-        let req_cr: i64 = ctr_next(regs);
-        ir_block_add(ebb0, ir_call_ex(req_cr, "contract_require", req_args));
+        req_idx = req_idx + 2;
     };
     // v0.4.248 RFC-0006 — `#[invariant(EXPR)]` runtime check at
     // method entry. Method names get mangled to `Type__method` at
@@ -18736,34 +18745,40 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
                 ir_block_add(fb, ir_const_int(rv, 0));
             };
             // v0.4.246 RFC-0006 — `#[ensure(EXPR)]` runtime check at
-            // tail return. Look up the fn's ensure expr nid; if
-            // present, bind `result` in sym to a fresh alloca holding
-            // rv, lower the predicate, and call the runtime helper.
-            // The predicate references `result` which the kind-3
-            // var-ref lowering reads via ir_load from the alloca.
-            let mut ens_idx: i64 = 0;
-            let mut ens_nid: i64 = 0 - 1;
+            // tail return.
+            // v0.4.250 — multiple #[ensure(...)] attributes per fn.
+            // Count matching entries; if any present, bind `result`
+            // ONCE to a fresh alloca holding rv; then loop over all
+            // matches lowering each predicate and emitting one
+            // contract_ensure call per attribute.
+            let mut ens_first_idx: i64 = 0 - 1;
+            let mut ens_walk: i64 = 0;
             let ens_count: i64 = vec_len(ensure_exprs);
-            while ens_idx + 1 < ens_count {
-                if str_eq(vec_get(ensure_exprs, ens_idx), name) == 1 {
-                    ens_nid = vec_get(ensure_exprs, ens_idx + 1);
-                    ens_idx = ens_count;
-                } else {
-                    ens_idx = ens_idx + 2;
+            while ens_walk + 1 < ens_count {
+                if str_eq(vec_get(ensure_exprs, ens_walk), name) == 1 {
+                    if ens_first_idx < 0 { ens_first_idx = ens_walk; };
                 };
+                ens_walk = ens_walk + 2;
             };
-            if ens_nid >= 0 {
+            if ens_first_idx >= 0 {
                 let ens_ar: i64 = ctr_next(regs);
                 ir_block_add(fb, ir_alloca(ens_ar));
                 ir_block_add(fb, ir_store(rv, ens_ar));
                 sym_set(sym, "result", ens_ar);
-                let mut ens_lp: Vec<i32> = lower_expr(pool, ens_nid, fb, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
-                let ens_pr: i64 = lx_reg(ens_lp);
-                fb = lx_blk(ens_lp);
-                let mut ens_args: Vec<i32> = Vec::new();
-                ens_args.push(ens_pr);
-                let ens_cr: i64 = ctr_next(regs);
-                ir_block_add(fb, ir_call_ex(ens_cr, "contract_ensure", ens_args));
+                let mut ens_emit_idx: i64 = 0;
+                while ens_emit_idx + 1 < ens_count {
+                    if str_eq(vec_get(ensure_exprs, ens_emit_idx), name) == 1 {
+                        let ens_nid: i64 = vec_get(ensure_exprs, ens_emit_idx + 1);
+                        let mut ens_lp: Vec<i32> = lower_expr(pool, ens_nid, fb, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
+                        let ens_pr: i64 = lx_reg(ens_lp);
+                        fb = lx_blk(ens_lp);
+                        let mut ens_args: Vec<i32> = Vec::new();
+                        ens_args.push(ens_pr);
+                        let ens_cr: i64 = ctr_next(regs);
+                        ir_block_add(fb, ir_call_ex(ens_cr, "contract_ensure", ens_args));
+                    };
+                    ens_emit_idx = ens_emit_idx + 2;
+                };
             };
             // v0.4.249 RFC-0006 — invariant exit-emit at tail return.
             let invx_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
@@ -18783,30 +18798,36 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
     fb = lower_stmts(pool, blist, ebb0, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
     if block_has_term(fb) == 0 {
         let zr: i64 = ctr_next(regs); ir_block_add(fb, ir_const_int(zr, 0));
-        // v0.4.246 RFC-0006 — ensure check at implicit-zero return.
-        let mut ens2_idx: i64 = 0;
-        let mut ens2_nid: i64 = 0 - 1;
+        // v0.4.246/250 RFC-0006 — multiple ensure checks at
+        // implicit-zero return.
+        let mut ens2_first: i64 = 0 - 1;
+        let mut ens2_walk: i64 = 0;
         let ens2_count: i64 = vec_len(ensure_exprs);
-        while ens2_idx + 1 < ens2_count {
-            if str_eq(vec_get(ensure_exprs, ens2_idx), name) == 1 {
-                ens2_nid = vec_get(ensure_exprs, ens2_idx + 1);
-                ens2_idx = ens2_count;
-            } else {
-                ens2_idx = ens2_idx + 2;
+        while ens2_walk + 1 < ens2_count {
+            if str_eq(vec_get(ensure_exprs, ens2_walk), name) == 1 {
+                if ens2_first < 0 { ens2_first = ens2_walk; };
             };
+            ens2_walk = ens2_walk + 2;
         };
-        if ens2_nid >= 0 {
+        if ens2_first >= 0 {
             let ens2_ar: i64 = ctr_next(regs);
             ir_block_add(fb, ir_alloca(ens2_ar));
             ir_block_add(fb, ir_store(zr, ens2_ar));
             sym_set(sym, "result", ens2_ar);
-            let mut ens2_lp: Vec<i32> = lower_expr(pool, ens2_nid, fb, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
-            let ens2_pr: i64 = lx_reg(ens2_lp);
-            fb = lx_blk(ens2_lp);
-            let mut ens2_args: Vec<i32> = Vec::new();
-            ens2_args.push(ens2_pr);
-            let ens2_cr: i64 = ctr_next(regs);
-            ir_block_add(fb, ir_call_ex(ens2_cr, "contract_ensure", ens2_args));
+            let mut ens2_emit: i64 = 0;
+            while ens2_emit + 1 < ens2_count {
+                if str_eq(vec_get(ensure_exprs, ens2_emit), name) == 1 {
+                    let ens2_nid: i64 = vec_get(ensure_exprs, ens2_emit + 1);
+                    let mut ens2_lp: Vec<i32> = lower_expr(pool, ens2_nid, fb, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
+                    let ens2_pr: i64 = lx_reg(ens2_lp);
+                    fb = lx_blk(ens2_lp);
+                    let mut ens2_args: Vec<i32> = Vec::new();
+                    ens2_args.push(ens2_pr);
+                    let ens2_cr: i64 = ctr_next(regs);
+                    ir_block_add(fb, ir_call_ex(ens2_cr, "contract_ensure", ens2_args));
+                };
+                ens2_emit = ens2_emit + 2;
+            };
         };
         // v0.4.249 RFC-0006 — invariant exit-emit at implicit-zero
         // return (no explicit body tail expression).
