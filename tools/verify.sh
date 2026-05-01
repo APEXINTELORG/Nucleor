@@ -1713,6 +1713,35 @@ strict_intrin_fixture_overflows() {
     return 0
 }
 
+t_rfc0006_ensure_runtime() {
+    # v0.4.246 RFC-0006 — `#[ensure(EXPR)]` runtime check.
+    # Builds the basic fixture (all returns satisfy their postconditions)
+    # and asserts exit 0 + OK marker. Then builds a synthetic violation
+    # fixture inline and asserts exit 1 + CONTRACT-002 message.
+    "$BIN" build "tests/features/rfc0006_ensure_basic.nr" -o "_t_rfc6_ens" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe="target/_t_rfc6_ens"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local out
+    out=$("$exe" 2>&1)
+    [ "$?" = "0" ] || return 1
+    echo "$out" | grep -q "OK rfc0006_ensure_basic" || return 1
+    local tmp_neg="$NUC_VERIFY_TMPDIR/rfc6_ens_violate.nr"
+    printf '%s\n' "#[ensure(result > 100)]" "fn small(x: i64) -> i64 { x + 1 }" "fn main() -> i64 { let a: i64 = small(5); print_int(a); 0 }" > "$tmp_neg"
+    "$BIN" build "$tmp_neg" -o "_t_rfc6_ens_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local nexe="target/_t_rfc6_ens_violate"
+    [ -x "$nexe.exe" ] && nexe="$nexe.exe"
+    [ -x "$nexe" ] || return 1
+    local nout
+    nout=$("$nexe" 2>&1)
+    local nrc=$?
+    [ "$nrc" = "1" ] || return 1
+    echo "$nout" | grep -q "CONTRACT-002: ensure postcondition violated" || return 1
+    return 0
+}
+
 t_rfc0006_require_runtime() {
     # v0.4.245 RFC-0006 Design by Contract — runtime require check.
     # Builds the basic fixture (every call satisfies its precondition)
@@ -3980,6 +4009,7 @@ step "T3.saturating block add/sub/mul lower per operation" t_saturating_block_pe
 step "T3.strict intrinsic signed narrow overflow i8/i16/i32 + env precedence" t_strict_intrin_narrow_widths
 step "v0.4.239 regression — wrapping {} block must not trap under strict default" t_wrap_block_no_trap
 step "v0.4.245 RFC-0006 — #[require(EXPR)] runtime check fires (CONTRACT-001)" t_rfc0006_require_runtime
+step "v0.4.246 RFC-0006 — #[ensure(EXPR)] runtime check fires (CONTRACT-002)" t_rfc0006_ensure_runtime
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
