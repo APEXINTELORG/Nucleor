@@ -1,3 +1,4 @@
+// EXPECT: build fails with CONTRACT-010 mentioning fn name `f`.
 // RFC-0006 — `old(...)` in `#[require]` must reject at compile time.
 //
 // v0.4.277 closes wrong-error finding filed by probe agent

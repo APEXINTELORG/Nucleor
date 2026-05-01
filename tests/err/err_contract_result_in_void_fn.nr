@@ -1,3 +1,4 @@
+// EXPECT: build fails with CONTRACT-008.
 // RFC-0006 — `result` in `#[ensure]` on a void fn must reject at compile time.
 //
 // v0.4.272 closes silent-miscompute filed by probe agent

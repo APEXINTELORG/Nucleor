@@ -1,3 +1,4 @@
+// EXPECT: build with NUCLEOR_DBC_MODE=off fails with CONTRACT-009.
 // RFC-0006 — NUCLEOR_DBC_MODE validation.
 //
 // v0.4.275: probe-agent finding 2026-05-01 — unrecognized

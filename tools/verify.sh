@@ -239,6 +239,7 @@ TEST_DIRS=(lang attrs runtime rods features)
 # test (e.g. via `mod foo;`) and are not standalone-runnable. Skipping
 # them keeps the gate from treating them as duplicate-main failures.
 TEST_SKIP_REGEX='_aux\.nr$'
+ERR_SKIP_REGEX='err_str_char_at_strict_oob\.nr$'
 TEST_COUNT=0
 for d in "${TEST_DIRS[@]}"; do
     if [ -d "tests/$d" ]; then
@@ -246,7 +247,7 @@ for d in "${TEST_DIRS[@]}"; do
         TEST_COUNT=$((TEST_COUNT + c))
     fi
 done
-ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | wc -l | tr -d ' ')
+ERR_COUNT=$(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | grep -vE "$ERR_SKIP_REGEX" | wc -l | tr -d ' ')
 
 # Step count: derive dynamically from the `step "..."` line count
 # in this file, then add the dynamic dirs (examples + tests + err).
@@ -553,9 +554,11 @@ cli_explain_full_smoke() {
         "UNIT-001" "UNIT-002" "UNIT-003" "UNIT-004" "UNIT-005"
         # RFC-0006 contracts
         "CONTRACT-001" "CONTRACT-002" "CONTRACT-003" "CONTRACT-004"
-        "CONTRACT-005" "CONTRACT-006" "CONTRACT-007"
+        "CONTRACT-005" "CONTRACT-006" "CONTRACT-007" "CONTRACT-008"
+        "CONTRACT-009" "CONTRACT-010"
         # RFC-0007 atomic
         "ATOMIC-001" "ATOMIC-002" "ATOMIC-003" "ATOMIC-004" "ATOMIC-005"
+        "ATOMIC-006"
         # RFC-0008 ISR
         "ISR-001" "ISR-002" "ISR-003" "ISR-004" "ISR-005" "ISR-006"
         # RFC-0009 WCET
@@ -938,7 +941,7 @@ run_parallel_fixture_steps() {
         fi
     done
     if [ -d "tests/err" ]; then
-        for f in $(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | sort); do
+        for f in $(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | grep -vE "$ERR_SKIP_REGEX" | sort); do
             ename=$(basename "$f" .nr)
             idx=$((idx + 1))
             printf '%d negative _ %s\n' "$idx" "$ename" >> "$steps_file"
@@ -1028,16 +1031,14 @@ self_host_rebuild() {
 # without flagging legitimate scaling. Tighten if necessary as the
 # architectural Ship 3 (TypeId interner) lands.
 self_host_memory_budget() {
-    # v0.4 memory peak lane — current measured peak is ~400 MB after
-    # native-link isolation. 550 MB leaves headroom for sampler noise
-    # while still failing the 571+ MB drift class.
-    _memory_budget_for "compiler/nucleor_s1_compiler.nr" 550 "self-host" "verify_budget"
+    # Track L: enforce the handoff's 1GB process-tree compile cap. The
+    # sampler includes the compiler, native isolated child, and clang.
+    _memory_budget_for "compiler/nucleor_s1_compiler.nr" 1024 "self-host" "verify_budget"
 }
 
 tools_suite_memory_budget() {
-    # v0.2.171 — proportional 200 MB (1.7x s1's 100 MB).
-    # v0.4 memory peak lane — current measured peak is ~393 MB.
-    _memory_budget_for "compiler/nucleor_tools_suite.nr" 500 "tools-suite" "verify_tools_budget"
+    # Track L: same 1GB process-tree cap for the tools-suite compiler.
+    _memory_budget_for "compiler/nucleor_tools_suite.nr" 1024 "tools-suite" "verify_tools_budget"
 }
 
 t33_wcet_estimator() {
@@ -4187,6 +4188,55 @@ num024_audit_zero() {
     return 0
 }
 
+cache_v2_correctness() {
+    rm -rf "$ROOT/target/.nuc_cache_v2" "$ROOT/.nuc_cache" 2>/dev/null || true
+
+    local out1 out2 out3 out4 out5 tmp_src
+    out1=$("$BIN" build "tests/features/cache_v2_round_trip.nr" -o "_cache_v2_round_trip" --no-link --cache-stats 2>&1) || {
+        echo "$out1" | sed 's/^/       /'
+        return 1
+    }
+    echo "$out1" | grep -q "cache: miss -> stored" || { echo "$out1" | sed 's/^/       /'; return 1; }
+    echo "$out1" | grep -q "cache stats: hits=0 misses=1" || { echo "$out1" | sed 's/^/       /'; return 1; }
+
+    out2=$("$BIN" build "tests/features/cache_v2_round_trip.nr" -o "_cache_v2_round_trip" --no-link --cache-stats 2>&1) || {
+        echo "$out2" | sed 's/^/       /'
+        return 1
+    }
+    echo "$out2" | grep -q "cache: hit" || { echo "$out2" | sed 's/^/       /'; return 1; }
+    echo "$out2" | grep -q "cache stats: hits=1 misses=0" || { echo "$out2" | sed 's/^/       /'; return 1; }
+    [ -d "$ROOT/target/.nuc_cache_v2" ] || { echo "       FAIL: target/.nuc_cache_v2 was not created"; return 1; }
+
+    "$BIN" clean --cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    [ ! -d "$ROOT/target/.nuc_cache_v2" ] || { echo "       FAIL: nuc clean --cache did not remove target/.nuc_cache_v2"; return 1; }
+
+    mkdir -p "$ROOT/target"
+    tmp_src="target/_cache_v2_invalidation.nr"
+    cp "$ROOT/tests/features/cache_v2_invalidation.nr" "$ROOT/$tmp_src"
+    rm -rf "$ROOT/target/.nuc_cache_v2" "$ROOT/.nuc_cache" 2>/dev/null || true
+
+    out3=$("$BIN" build "$tmp_src" -o "_cache_v2_invalidation" --no-link --cache-stats 2>&1) || {
+        echo "$out3" | sed 's/^/       /'
+        return 1
+    }
+    echo "$out3" | grep -q "cache: miss -> stored" || { echo "$out3" | sed 's/^/       /'; return 1; }
+
+    touch "$ROOT/$tmp_src"
+    out4=$("$BIN" build "$tmp_src" -o "_cache_v2_invalidation" --no-link --cache-stats 2>&1) || {
+        echo "$out4" | sed 's/^/       /'
+        return 1
+    }
+    echo "$out4" | grep -q "cache: hit" || { echo "$out4" | sed 's/^/       /'; return 1; }
+
+    printf '\n// cache v2 content mutation\n' >> "$ROOT/$tmp_src"
+    out5=$("$BIN" build "$tmp_src" -o "_cache_v2_invalidation" --no-link --cache-stats 2>&1) || {
+        echo "$out5" | sed 's/^/       /'
+        return 1
+    }
+    echo "$out5" | grep -q "cache: miss -> stored" || { echo "$out5" | sed 's/^/       /'; return 1; }
+    return 0
+}
+
 mojibake_clean() {
     # v0.2.91 — flag cp1252-as-utf8 mojibake byte sequences across
     # the source/doc surface. Catches the drift class that bit
@@ -4277,7 +4327,7 @@ if [ "$parallel_rc" = "2" ]; then
     done
 
     if [ -d "tests/err" ]; then
-        for f in $(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | sort); do
+        for f in $(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | grep -vE "$ERR_SKIP_REGEX" | sort); do
             ename=$(basename "$f" .nr)
             step "negative $ename" build_negative "$ename"
         done
@@ -4285,8 +4335,8 @@ if [ "$parallel_rc" = "2" ]; then
 fi
 
 step "self-host rebuild closes" self_host_rebuild
-step "self-host memory budget (<= 550 MB)" self_host_memory_budget
-step "tools-suite memory budget (<= 500 MB)" tools_suite_memory_budget
+step "self-host memory budget (<= 1024 MB)" self_host_memory_budget
+step "tools-suite memory budget (<= 1024 MB)" tools_suite_memory_budget
 step "T1.5a mod block-form inline" t15a_mod_block_form
 step "T1.5b pub introspection (summary surfaces visibility)" t15b_pub_introspection
 step "T1.5c privatization (cross-module call surfaces succeed)" t15c_privatization
@@ -4462,6 +4512,7 @@ step "v0.4.279 str_char_at_strict in-bounds works" t_str_char_at_strict_basic
 step "v0.4.279 str_char_at_strict OOB panics" t_str_char_at_strict_oob
 step "v0.4.280 ATOMIC-006 closure+atomic compiler-meltdown halt" t_atomic_006_in_closure
 step "v0.4.281 RFC-0007 AtomicBool ordered ops (load/store/CAS)" t_rfc0007_atomic_bool
+step "v0.5 Track L content-addressed cache v2 correctness" cache_v2_correctness
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
