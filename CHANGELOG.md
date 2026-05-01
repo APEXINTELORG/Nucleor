@@ -5,6 +5,77 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.241] — 2026-04-30
+
+**v0.5 ship 7 substantive completion — call/cast/vec-read diag
+spans.** Closes 4 of the 5 remaining `find_linecol_in_source`
+sites flagged in Track A's diag-site survey. Combined with
+v0.4.237's struct-init migration, ship 7 is now at 8 of 9 sites
+migrated (89%).
+
+### New parser-level spans
+
+- `parse_primary` captures the identifier byte offset
+  (`ident_span`) at the kind-1 token branch. Two of the three
+  kind-7 call expression construction sites now attach this
+  span via `node_set_span`. Adopter calls (regular fn calls and
+  the `Vec::<T>::new()`-style trailing-args form) get precise
+  carets.
+- `parse_unary` captures the `as` token byte offset (`as_span`)
+  on the kind-99 cast nid. Every narrowing cast diagnostic now
+  carets at the cast site.
+
+### Diag site migrations
+
+Migrated to `diag_add_at_or_scan` (uses span when available,
+falls back to `find_linecol_in_source` when not):
+
+- **NUM-024** cross-width call audit (opt-in via
+  `NUCLEOR_AUDIT_NUM024=1`) — now carets at the call identifier.
+- **TYP-005** undefined-fn diag — caret at the call identifier
+  rather than the function declaration.
+- **NUM-003** narrowing-`as`-cast warning — caret at the `as`
+  token; preserves the v0.4.216 dedupe logic by extracting span-
+  derived line/col into the existing nloc check.
+- **NUM-006** narrow-float vec read with implicit `as` — caret
+  at the cast site.
+
+### Caret-correctness proof
+
+```text
+let x: i64 = does_not_exist(1, 2);
+                ^^^^^^^^^^^^^   ← TYP-005 caret here (was: line 1, col 5)
+
+let y: i32 = x as i32;
+                  ^^   ← NUM-003 caret here (was: line 1, col 5)
+```
+
+### Validation
+
+- Self-build clean (LL 7 867 812 bytes).
+- **Two-stage fixed-point env-DEFAULT-ON at SHA**
+  `3b659163d0a771904fe0304e93656a94dd3f52b884b7754c72b7ab822b9495ed`.
+  Bootstrap seed refreshed; T1.7 locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean.
+- Caret smokes for TYP-005 + NUM-003 land at exactly the
+  expected token positions.
+- v0.4.239 wrapping smoke + v0.4.240 unsigned-overflow path:
+  both still green.
+
+### Punchlist status
+
+| # | Phase | Status |
+|---|---|---|
+| 7 | 3span.3 finish migration | 🟢 **8 of 9 sites migrated** — only the type_diag/own_diag underlying helpers remain (those need a `_at` sibling pattern with nid threading; deferred to v0.4.242+ as the wider-migration ship) |
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: parser-level span capture
+  for call expressions (kind 7) and `as` casts (kind 99); 4
+  diag site migrations to `diag_add_at_or_scan`.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
 ## [0.4.240] — 2026-04-30
 
 **🔧 LIVE BUG FIX — unsigned-overflow intrinsic dispatch.**

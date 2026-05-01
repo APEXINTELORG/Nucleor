@@ -1330,6 +1330,9 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // zero usage anywhere in the codebase. User fns named `wrapping` or
     // `saturating` now lex/parse as normal identifiers.
     if tt == 1 {
+        // v0.5 ship 7 — capture identifier byte offset for spanning
+        // call expressions (kind 7) and the var-ref fallback.
+        let ident_span: i64 = tok_pos_at(tokens, pos);
         let name: i64 = pkv(tokens, pos);
         if str_eq(name, "Some") == 1 || str_eq(name, "None") == 1 || str_eq(name, "Ok") == 1 || str_eq(name, "Err") == 1 {
             let mut tname: str = "Option";
@@ -1400,7 +1403,9 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             let after_args: i64 = skip_angle_group(tokens, cp2 + 1);
             if pk(tokens, after_args) == 50 {
                 let mut ar: Vec<i32> = parse_args(tokens, after_args + 1, pool);
-                return pr(pr_pos(ar), mk3(pool, 7, name, pr_val(ar)));
+                let cn1: i64 = mk3(pool, 7, name, pr_val(ar));
+                node_set_span(pool, cn1, ident_span);
+                return pr(pr_pos(ar), cn1);
             };
         };
         if pk(tokens, cp2) == 46 {
@@ -1439,7 +1444,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 return pr(cp2 + 2, mk4(pool, 12, name, qname, mk_list(pool, empty)));
             };
         };
-        if pk(tokens, cp2) == 50 { let mut ar: Vec<i32> = parse_args(tokens, cp2 + 1, pool); return pr(pr_pos(ar), mk3(pool, 7, name, pr_val(ar))); };
+        if pk(tokens, cp2) == 50 { let mut ar: Vec<i32> = parse_args(tokens, cp2 + 1, pool); let cn2: i64 = mk3(pool, 7, name, pr_val(ar)); node_set_span(pool, cn2, ident_span); return pr(pr_pos(ar), cn2); };
         // v0.4.209 RFC-0015 phase 3a-step-3 (Option D): kind-3 var-ref
         // promoted from mk2 to mk3. Slot 2 is the width-tag for narrow-
         // typed bindings (i8/i16/u8/u16). Default 0 = untyped (i64 ABI
@@ -1625,11 +1630,17 @@ fn parse_unary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if str_eq(pkv(tokens, cp), "as") == 1 { as_match = 1; };
     };
     while as_match == 1 {
+        // v0.5 ship 7 — capture the `as` token's byte offset as the
+        // cast nid's span so NUM-003 (narrowing) and NUM-006 (narrow-
+        // float vec read) carets land at the cast site instead of
+        // the function name fallback.
+        let as_span: i64 = tok_pos_at(tokens, cp);
         cp = cp + 1;
         let mut tr: Vec<i32> = parse_type(tokens, cp);
         cp = pr_pos(tr);
         // AST node kind 99 = "as cast"; field 1 = expr, field 2 = type name
         node = mk3(pool, 99, node, pr_val(tr));
+        node_set_span(pool, node, as_span);
         as_match = 0;
         if pk(tokens, cp) == 1 {
             if str_eq(pkv(tokens, cp), "as") == 1 { as_match = 1; };
@@ -11750,7 +11761,21 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         let ss: i64 = type_signedness(source_t);
         let ts: i64 = type_signedness(target_type);
         if sw > 0 && tw > 0 && ss == ts && tw < sw {
-            let nloc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+            // v0.5 ship 7: span-aware caret. Use the cast nid's span
+            // (set in parse_unary at the `as` token) when available;
+            // fall back to the legacy fn-name scan otherwise. This
+            // makes NUM-003 caret at the cast site instead of the
+            // function declaration.
+            let nloc: Vec<i32> = if node_get_span(pool, nid) >= 0 {
+                let lm99: Vec<i32> = linemap_build(source);
+                let sp99: i64 = node_get_span(pool, nid);
+                let mut lc99: Vec<i32> = Vec::new();
+                lc99.push(linemap_line(lm99, sp99));
+                lc99.push(linemap_col(lm99, sp99));
+                lc99
+            } else {
+                find_linecol_in_source(source, fn_name, fn_name)
+            };
             // v0.4.216: dedupe NUM-003 by fn_name + line + col. type_expr
             // kind 99 runs multiple times for the same cast site when
             // the cast appears in fn-call argument position (once at
@@ -11864,10 +11889,12 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                     if str_len(guard_call_name) > 0 {
                         surface = str_concat(guard_call_name, str_concat("(", str_concat(vname, ", ...)")));
                     };
-                    let nloc2: Vec<i32> = find_linecol_in_source(source, fn_name, vname);
                     let part1: str = str_concat("`", str_concat(surface, str_concat(" as ", str_concat(target_type, "` numeric-casts the i64 cell holding the "))));
                     let part2: str = str_concat(velt, str_concat(" bit pattern; use ", str_concat(hint, str_concat("(", str_concat(surface, ") for bit-reinterpret")))));
-                    diag_add_ex(diags, "error", "type", "NUM-006", str_concat(part1, part2), fn_name, vec_get(nloc2, 0), vec_get(nloc2, 1), "");
+                    // v0.5 ship 7: span-aware caret. The kind-99 cast nid
+                    // carries the `as` token's byte offset (set in
+                    // parse_unary), so this lands at the cast site.
+                    diag_add_at_or_scan(diags, source, pool, nid, vname, "error", "type", "NUM-006", str_concat(part1, part2), fn_name, "");
                 };
             };
         };
@@ -12510,9 +12537,8 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                     let v228_as: i64 = type_signedness(v228_a_base);
                     let v228_both_int: i64 = if (v228_es == 1 || v228_es == 2) && (v228_as == 1 || v228_as == 2) { 1 } else { 0 };
                     if v228_both_int == 1 && v228_ew > 0 && v228_aw > 0 && v228_ew < v228_aw {
-                        let nloc228: Vec<i32> = find_linecol_in_source(source, fn_name, callee);
                         let v228msg: str = str_concat("call to `", str_concat(callee, str_concat("` passes ", str_concat(v228_a_base, str_concat(" (", str_concat(str_from_int(v228_aw), str_concat("-bit) into ", str_concat(v228_e_base, str_concat(" (", str_concat(str_from_int(v228_ew), str_concat("-bit) param `", str_concat(node_field(pool, list_get(pool, plist, ai), 1), "`. Implicit cross-width narrowing via Nucleor's i64-everywhere ABI; widen the declared param type or insert an explicit `as ", str_concat(v228_e_base, "` at the call site.")))))))))))));
-                        diag_add_ex(diags, "warning", "type", "NUM-024", v228msg, fn_name, vec_get(nloc228, 0), vec_get(nloc228, 1), "");
+                        diag_add_at_or_scan(diags, source, pool, nid, callee, "warning", "type", "NUM-024", v228msg, fn_name, "");
                     };
                 };
                 if gparams_v421 >= 0 && str_len(actual_t) > 0 && str_eq(actual_t, expected_t) == 0 {
@@ -12790,8 +12816,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 // produce the canonical diagnostic. For truly-undefined
                 // fns (no privatization match), clang link error halts
                 // the build naturally.
-                let nloc_undef: Vec<i32> = find_linecol_in_source(source, fn_name, callee);
-                diag_add_ex(diags, "warning", "type", "TYP-005", str_concat("undefined function `", str_concat(callee, "()` at type-check time (will fail at clang link if not a privatized cross-module fn). Check spelling, or import the rod that defines it.")), fn_name, vec_get(nloc_undef, 0), vec_get(nloc_undef, 1), "");
+                diag_add_at_or_scan(diags, source, pool, nid, callee, "warning", "type", "TYP-005", str_concat("undefined function `", str_concat(callee, "()` at type-check time (will fail at clang link if not a privatized cross-module fn). Check spelling, or import the rod that defines it.")), fn_name, "");
             };
         };
         tprof_mark(tprof, 9, 10, call_start);
