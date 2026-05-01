@@ -5,6 +5,81 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.249] — 2026-05-01
+
+**RFC-0006 invariant — exit-emit on every `self` method.**
+Completes invariant to entry+exit coverage. Pre-fix (v0.4.248),
+the predicate fired only on method entry; an internal call that
+left `self` in a violating state but didn't itself panic could
+escape the gate at exit. v0.4.249 ratchets that — every method
+taking `self` re-checks the invariant before each ret.
+
+### Implementation
+
+`lower_fn` already did the entry-emit + name-mangling lookup in
+v0.4.248. Now it ALSO stashes the invariant nid in
+`sym["__current_method_invariant_nid"]` after the entry check.
+The three return-emit sites then read the stashed nid:
+
+- Tail-return path (last expression of fn body).
+- Implicit-zero return path (no body tail expression).
+- Mid-body explicit `return X;` (kind-22 in lower_stmt).
+- Bare `return;` with no value.
+
+Each site, if the invariant nid is set, lowers the predicate and
+emits `call i64 @__nucleor_contract_invariant(i64 %predicate)`
+before the `ir_ret` instruction.
+
+### v0.4.249 design choice — every `self` method, not just mutators
+
+Per RFC-0006 §3.4, invariants should fire on exit from "every
+method modifying self." Detecting "modifies self" requires a
+static analysis pass over the method body — hard to do cleanly
+at lowering. v0.4.249 takes the pragmatic path: emit on exit of
+every method whose first param is `self`, regardless of mutation.
+
+- Cost: a redundant predicate evaluation on read-only methods
+  (e.g., `fn get(self: Counter) -> i64 { self.value }`). Cheap
+  in absolute terms — single field load + comparison.
+- Benefit: zero false negatives. If any path through the method
+  ever leaves `self` in a violating state, the gate fires.
+
+A future ship can add the static-mutation analysis to skip
+redundant exit checks on certifiably-read-only methods. Until
+then, the safety-first overcheck is the right posture.
+
+### Validation
+
+- Self-build clean (LL 8 049 952 bytes).
+- **Two-stage fixed-point env-DEFAULT-ON** at SHA
+  `ca960460bb20961e7b5a64110abb5bc7d17de5890d87aa3f02af16c8674c9f1e`.
+  Bootstrap seed refreshed; T1.7 locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean.
+- Targeted invariant exit-check smoke: a method that reaches a
+  violating Counter via internal call gets caught at the inner
+  call's entry-check (CONTRACT-003 panic, exit 1).
+- v0.4.248 invariant entry-check still works (basic fixture
+  unchanged).
+
+### What's next (v0.4.250+)
+
+- `old(expr)` snapshot at fn entry for ensure expressions
+  (CONTRACT-006 if old is referenced without snapshot).
+- Multiple require/ensure attributes per fn.
+- Constructor-emit (fns returning `Self`) — currently only
+  methods taking `self` get the invariant; `new() -> Self`
+  bypasses.
+- `#[release]` strip-out + `cert` profile (CONTRACT-007).
+- Liskov inheritance checks (CONTRACT-004, CONTRACT-005).
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: invariant exit-emit at
+  4 return sites (tail, implicit-zero, mid-body explicit,
+  bare-return). Stashed nid in sym for cross-fn-boundary access.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
 ## [0.4.248] — 2026-05-01
 
 **🎯 RFC-0006 DbC — `#[invariant(EXPR)]` LIVE END-TO-END
