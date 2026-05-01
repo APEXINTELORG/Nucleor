@@ -106,3 +106,40 @@ fn linalg_svd_V(h: i64) -> i64 { return nuc_mat_svd_V(h); }
 // Ridge regression
 fn linalg_ridge_solve(X: i64, y: i64, lambda: i64) -> i64 { return nuc_ridge_solve(X, y, lambda); }
 fn linalg_ridge_predict(model: i64, X: i64) -> i64 { return nuc_ridge_predict(model, X); }
+
+// === Ergonomic f64 wrappers (v0.4.262) ===
+//
+// Same pattern as v0.4.260 (units) and v0.4.261 (kinematics) —
+// hide the i64-bits-ABI behind f64-typed surface for the eight
+// linalg fns whose i64 carries an f64 bit pattern. Adopters
+// write `linalg_set_f64(M, 0, 0, 3.14)` instead of
+// `linalg_set(M, 0, 0, f64_to_bits(3.14))`. The bits-ABI fns
+// above remain — purely additive.
+//
+// Handle-typed ops (add, mul, transpose, lu, qr, eig, svd) are
+// already ergonomic and need no wrappers.
+
+fn linalg_get_f64(h: i64, r: i64, c: i64) -> f64 {
+    return f64_from_bits(nuc_mat_get(h, r, c));
+}
+fn linalg_set_f64(h: i64, r: i64, c: i64, v: f64) {
+    nuc_mat_set(h, r, c, f64_to_bits(v));
+}
+fn linalg_scale_f64(a: i64, s: f64) -> i64 {
+    return nuc_mat_scale(a, f64_to_bits(s));
+}
+fn linalg_norm_f64(h: i64, kind: i64) -> f64 {
+    return f64_from_bits(nuc_mat_norm(h, kind));
+}
+fn linalg_trace_f64(h: i64) -> f64 {
+    return f64_from_bits(nuc_mat_trace(h));
+}
+fn linalg_det_f64(h: i64) -> f64 {
+    return f64_from_bits(nuc_mat_det(h));
+}
+fn linalg_rank_f64(h: i64, tol: f64) -> i64 {
+    return nuc_mat_rank(h, f64_to_bits(tol));
+}
+fn linalg_ridge_solve_f64(X: i64, y: i64, lambda: f64) -> i64 {
+    return nuc_ridge_solve(X, y, f64_to_bits(lambda));
+}
