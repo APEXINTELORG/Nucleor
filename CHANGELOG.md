@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.284] — 2026-05-01
+
+**📝 RFC-0033 + RFC-0034 design drafts merged into
+`docs/rfcs/`.** Doc-only ship. Per
+`docs/milestones/v0.5.0.md` lines 340 + 364, both RFCs are
+pinned design-only for v0.5; full implementations target
+v0.9 (RFC-0033 effects-in-function-types) and v1.0
+(RFC-0034 compile-time `[]` parameters).
+
+The drafts were authored by GPT-5.5 in the
+`nucleor_gpt_handoff_all_outputs_draft_batch.zip` bundle and
+have lived in
+`Desktop/Nucleor_Build_Spine/05_RFC_DRAFTS/` since 2026-05-01.
+This ship lifts them into the canonical `Nucleor_OSS/docs/rfcs/`
+location alongside RFC-0030 (async), RFC-0031 (algebraic laws),
+and RFC-0032 (effects substrate). Adopters reading the public
+distro can now see the long-arc plan.
+
+**Files:**
+- `docs/rfcs/RFC-0033-effects-in-function-types.md` (823 lines)
+  — `with [...]` effect set in fn type signatures. Promotes
+  the existing `#[no_alloc]` / `#[no_panic]` / `#[deadline]`
+  out-of-band attributes into the function type.
+- `docs/rfcs/RFC-0034-compile-time-parameters.md` (694 lines)
+  — Mojo-style `[]` (compile-time) vs `()` (runtime) parameter
+  split. Unifies generics, const generics, autotuning, GPU
+  tile-size selection.
+
+No code changes; existing v0.4.283 fixed-point at SHA
+`7b094aab8f8db55c4233967e78b91030d4bcadca2e656c1eb17d40d0a5e09892`
+remains valid. Drift gate clean.
+
 ## [0.4.283] — 2026-05-01
 
 **🛡️ RFC-0006 — undefined identifier in contract predicate
