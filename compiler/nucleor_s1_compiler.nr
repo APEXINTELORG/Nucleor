@@ -18146,7 +18146,31 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let mut vp: Vec<i32> = lower_expr(pool, vn, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
             let vr: i64 = lx_reg(vp);
             cur = lx_blk(vp);
-            if ens_stmt_nid >= 0 {
+            // v0.4.254 — multi-ensure walk via per-index sym entries.
+            let ens_stmt_count: i64 = sym_get(sym, "__current_fn_ensure_count");
+            if ens_stmt_count > 0 {
+                let ens_ar: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_alloca(ens_ar));
+                ir_block_add(cur, ir_store(vr, ens_ar));
+                sym_set(sym, "result", ens_ar);
+                let mut ens_emit_i: i64 = 0;
+                while ens_emit_i < ens_stmt_count {
+                    let nid_key: str = str_concat("__current_fn_ensure_nid_", str_from_int(ens_emit_i));
+                    let nid_i: i64 = sym_get(sym, nid_key);
+                    if nid_i >= 0 {
+                        let mut ens_lp: Vec<i32> = lower_expr(pool, nid_i, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                        let ens_pr: i64 = lx_reg(ens_lp);
+                        cur = lx_blk(ens_lp);
+                        let mut ens_args: Vec<i32> = Vec::new();
+                        ens_args.push(ens_pr);
+                        let ens_cr: i64 = ctr_next(regs);
+                        ir_block_add(cur, ir_call_ex(ens_cr, "contract_ensure", ens_args));
+                    };
+                    ens_emit_i = ens_emit_i + 1;
+                };
+            } else if ens_stmt_nid >= 0 {
+                // Fallback path (legacy single-nid lookup); should be
+                // dead now since v0.4.254 always sets the count.
                 let ens_ar: i64 = ctr_next(regs);
                 ir_block_add(cur, ir_alloca(ens_ar));
                 ir_block_add(cur, ir_store(vr, ens_ar));
@@ -18188,7 +18212,29 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             ir_block_add(cur, ir_ret(vr));
         } else {
             let zr: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(zr, 0));
-            if ens_stmt_nid >= 0 {
+            // v0.4.254 — multi-ensure walk for bare-return path.
+            let ens_bare_count: i64 = sym_get(sym, "__current_fn_ensure_count");
+            if ens_bare_count > 0 {
+                let ens_ar2: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_alloca(ens_ar2));
+                ir_block_add(cur, ir_store(zr, ens_ar2));
+                sym_set(sym, "result", ens_ar2);
+                let mut ens_b_i: i64 = 0;
+                while ens_b_i < ens_bare_count {
+                    let nid_key_b: str = str_concat("__current_fn_ensure_nid_", str_from_int(ens_b_i));
+                    let nid_b: i64 = sym_get(sym, nid_key_b);
+                    if nid_b >= 0 {
+                        let mut ens_lp_b: Vec<i32> = lower_expr(pool, nid_b, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                        let ens_pr_b: i64 = lx_reg(ens_lp_b);
+                        cur = lx_blk(ens_lp_b);
+                        let mut ens_args_b: Vec<i32> = Vec::new();
+                        ens_args_b.push(ens_pr_b);
+                        let ens_cr_b: i64 = ctr_next(regs);
+                        ir_block_add(cur, ir_call_ex(ens_cr_b, "contract_ensure", ens_args_b));
+                    };
+                    ens_b_i = ens_b_i + 1;
+                };
+            } else if ens_stmt_nid >= 0 {
                 let ens_ar2: i64 = ctr_next(regs);
                 ir_block_add(cur, ir_alloca(ens_ar2));
                 ir_block_add(cur, ir_store(zr, ens_ar2));
@@ -18745,22 +18791,31 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
         };
         osi = osi + 3;
     };
-    // v0.4.247 RFC-0006 — stash this fn's ensure expr nid in sym
+    // v0.4.247 RFC-0006 — stash this fn's ensure expr nids in sym
     // so lower_stmt's kind-22 explicit `return X;` handler can
-    // emit the ensure check at mid-body return sites. Absent
-    // (sym_get returns -1) means no ensure attribute on this fn.
-    let mut ens_pre_idx: i64 = 0;
-    let mut ens_pre_nid: i64 = 0 - 1;
+    // emit the ensure check at mid-body return sites.
+    // v0.4.254 RFC-0006 — multi-ensure support at mid-body returns.
+    // Pre-fix only the FIRST ensure attribute fired at mid-body
+    // return (sym holds a single i64 nid). Now: walk all matches,
+    // sym_set "__current_fn_ensure_count" = N, then "__current_fn_
+    // ensure_nid_0" .. "__current_fn_ensure_nid_<N-1>". lower_stmt
+    // reads the count and loops emitting contract_ensure per nid.
+    let mut ens_pre_walk: i64 = 0;
+    let mut ens_pre_n: i64 = 0;
     let ens_pre_count: i64 = vec_len(ensure_exprs);
-    while ens_pre_idx + 1 < ens_pre_count {
-        if str_eq(vec_get(ensure_exprs, ens_pre_idx), name) == 1 {
-            ens_pre_nid = vec_get(ensure_exprs, ens_pre_idx + 1);
-            ens_pre_idx = ens_pre_count;
-        } else {
-            ens_pre_idx = ens_pre_idx + 2;
+    while ens_pre_walk + 1 < ens_pre_count {
+        if str_eq(vec_get(ensure_exprs, ens_pre_walk), name) == 1 {
+            let ens_nid_p: i64 = vec_get(ensure_exprs, ens_pre_walk + 1);
+            sym_set(sym, str_concat("__current_fn_ensure_nid_", str_from_int(ens_pre_n)), ens_nid_p);
+            ens_pre_n = ens_pre_n + 1;
         };
+        ens_pre_walk = ens_pre_walk + 2;
     };
-    if ens_pre_nid >= 0 { sym_set(sym, "__current_fn_ensure_nid", ens_pre_nid); };
+    if ens_pre_n > 0 {
+        sym_set(sym, "__current_fn_ensure_count", ens_pre_n);
+        // Back-compat: legacy single-nid lookup still works.
+        sym_set(sym, "__current_fn_ensure_nid", sym_get(sym, "__current_fn_ensure_nid_0"));
+    };
     // v0.4.245 RFC-0006 Design by Contract — `#[require(EXPR)]`
     // runtime check at fn entry. The substrate scanner ran in the
     // main pipeline (collect_fn_requires + lex+parse pre-pass);
