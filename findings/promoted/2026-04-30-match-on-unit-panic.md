@@ -46,3 +46,10 @@ The specific call site for this match parse is somewhere in the `match` expressi
 ## Cross-ref
 
 - See `findings/inbox/2026-04-30-tuple-struct-decl-panic.md` — same NR020 class, different repro (struct decl vs match scrutinee).
+
+
+## Promoted
+
+- Status frontmatter: see top of file. Closure version: **v0.4.208**.
+- Verify gate: existing per-feature loop picks up the fixture above.
+- Promoted: 2026-04-30 by main agent (footer backfilled 2026-05-01 per probe-agent Q3 footer-shape uniformity request).

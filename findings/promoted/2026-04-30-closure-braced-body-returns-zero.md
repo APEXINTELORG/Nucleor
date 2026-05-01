@@ -81,3 +81,11 @@ unbounded-mem finding for the next ship after v0.4.163.
   Same hazard family; this finding is the body-form sibling.
 - `tests/features/closure_basic.nr` uses the working expression-bodied
   form and passes verify.
+
+
+## Promoted
+
+- Status frontmatter: see top of file. Closure version: **v0.4.204**.
+- Regression-guard fixture: `tests/features/closure_braced_body_tail_expr.nr`.
+- Verify gate: existing per-feature loop picks up the fixture above.
+- Promoted: 2026-04-30 by main agent (footer backfilled 2026-05-01 per probe-agent Q3 footer-shape uniformity request).

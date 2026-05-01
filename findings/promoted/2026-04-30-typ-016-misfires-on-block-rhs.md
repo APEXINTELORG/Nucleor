@@ -73,3 +73,10 @@ on the verify count.
   `tests/features/overflow_comprehensive.nr`,
   `tests/features/overflow_wrapping.nr` (likely cause of the 6-FAIL
   baseline noted in the heartbeat).
+
+
+## Promoted
+
+- Status frontmatter: see top of file. Closure version: **v0.4.205**.
+- Verify gate: existing per-feature loop picks up the fixture above.
+- Promoted: 2026-04-30 by main agent (footer backfilled 2026-05-01 per probe-agent Q3 footer-shape uniformity request).

@@ -58,3 +58,10 @@ path just reads the wrong index for that layout.
 
 crash (same tier as parent). Narrowing this to Option-only does not
 lower severity — it just makes the fix smaller.
+
+
+## Promoted
+
+- Status frontmatter: see top of file. Closure version: **v0.4.225**.
+- Verify gate: existing per-feature loop picks up the fixture above.
+- Promoted: 2026-04-30 by main agent (footer backfilled 2026-05-01 per probe-agent Q3 footer-shape uniformity request).

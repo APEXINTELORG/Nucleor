@@ -115,3 +115,10 @@ The pre-existing baseline FAILs `lang/closures` and
 quick read of those fixtures may show they ALSO use a tail-less fn body
 that's leaking through the alloca path. If so, fixing this finding
 narrows the baseline-FAIL set further.
+
+
+## Promoted
+
+- Status frontmatter: see top of file. Closure version: **v0.4.219**.
+- Verify gate: existing per-feature loop picks up the fixture above.
+- Promoted: 2026-04-30 by main agent (footer backfilled 2026-05-01 per probe-agent Q3 footer-shape uniformity request).

@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.8] — 2026-05-01
+
+**📝 Probe-agent Q3 follow-through: `## Promoted` footer
+backfilled across all older findings.** Doc-only ship.
+
+Probe-agent's `findings/inbox/_questions.md` Q3 (2026-05-01)
+asked which footer shape we want as the canonical contract:
+the `status:` frontmatter line that the 19 originals use, or
+the `## Promoted` footer that the 8 from this session use.
+
+Main agent's heartbeat reply (v0.5.5) committed to
+"both shapes accepted; willing to backfill all 27 in a future
+ship if probe prefers uniformity." This ship lands the
+backfill: every `findings/promoted/*.md` file now carries
+**both** the `status:` frontmatter line **and** the
+`## Promoted` footer. The README contract (which prescribes
+the footer) is therefore satisfied across the entire
+promoted/ directory.
+
+What lands:
+- 16 older `findings/promoted/2026-04-30-*.md` files gain a
+  uniform `## Promoted` footer auto-generated from their
+  existing `status:` line. Each footer captures: closure
+  version, regression-guard fixture path (where named in the
+  status line), verify gate hookup, promoted-by-date.
+- `findings/_heartbeat.md` updated: `last_main_ship` →
+  v0.5.7; `promoted_count: 29`; new `footer_uniformity` line
+  recording that all 29 entries now carry both shapes.
+
+Validation: doc-only; no compiler / runtime / fixture
+changes. Drift gate clean.
+
 ## [0.5.7] — 2026-05-01
 
 **🔧 RFC-0014 closure: `#[max_depth = N]` on impl methods now
