@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.263] — 2026-05-01
+
+**🛠️ stdlib/rods/csv_table + kdt — `*_f64` ergonomic wrappers
+(twin-rod ship).** Fourth + fifth rods in the v0.4.260→262 arc.
+Each module had a small enough f64-bits surface that bundling
+them as one ship matches the unit (one feature per cycle)
+without hitting trivial-ship cadence on the 2-wrapper csv_table.
+
+### What lands
+
+**`stdlib/rods/csv_table.nr` — 2 new wrappers:**
+- `csv_table_get_f64(t, r, c) -> f64`
+- `csv_table_set_f64(t, r, c, v: f64)`
+
+**`stdlib/rods/kdt.nr` — 3 new wrappers:**
+- `kdt_insert_f64(h, x: f64, y: f64, z: f64) -> i64`
+- `kdt_nearest_f64(h, x: f64, y: f64, z: f64) -> i64`
+- `kdt_knearest_f64(h, x: f64, y: f64, z: f64, k, out_indices_ptr, out_dist2_ptr) -> i64`
+
+Bits-ABI fns above remain in both rods — purely additive ship.
+
+### Fixtures
+
+**`tests/features/csv_table_f64.nr`:** 2x2 numeric table round-
+trip via `set_f64` + `get_f64` (1.5/2.5/3.5/4.5 entries).
+
+**`tests/features/kdt_f64.nr`:** 4-point unit-cube-corner
+kd-tree, three nearest-neighbor queries (each lands on the
+expected corner index 0/1/2).
+
+### Validation
+
+- Self-build clean, two-stage fixed-point at SHA
+  `eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e`
+  (= v0.4.258-262; compiler doesn't import either rod).
+- Drift gate clean — `rod_manifest.toml` regenerated to 2153
+  stdlib fns (+5 from v0.4.262's 2148).
+- Both fixtures exit 0 with their OK markers.
+
+### Pattern progress
+
+5 of 9 bits-ABI rods now wrapped (units, kinematics, linalg,
+csv_table, kdt). Remaining: trajectory, rrt, pqueue, fk_chain,
+diff_sim. Notable: pqueue's bits-ABI is intentional (allows
+packed (priority, index) keys, raw i64 priorities, and signed
+f64 keys via monotonic encoding) — a naive `_f64` wrapper would
+be unsafe for negative keys, so pqueue stays bits-only by
+design.
+
 ## [0.4.262] — 2026-05-01
 
 **🛠️ stdlib/rods/linalg — `*_f64` ergonomic wrappers.**

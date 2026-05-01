@@ -96,3 +96,24 @@ fn kdt_knearest(h: i64, x_b: i64, y_b: i64, z_b: i64,
 }
 
 fn kdt_free(h: i64) { nuc_kdt_free(h); }
+
+// === Ergonomic f64 wrappers (v0.4.263) ===
+//
+// Same pattern as units/kinematics/linalg/csv_table — hide
+// the bits-ABI behind f64-typed insert/query surface. Adopter
+// writes `kdt_insert_f64(h, 1.0, 2.0, 3.0)` instead of
+// `kdt_insert(h, f64_to_bits(1.0), f64_to_bits(2.0), f64_to_bits(3.0))`.
+// The bits-ABI fns above remain — purely additive.
+
+fn kdt_insert_f64(h: i64, x: f64, y: f64, z: f64) -> i64 {
+    return nuc_kdt_insert(h, f64_to_bits(x), f64_to_bits(y), f64_to_bits(z));
+}
+fn kdt_nearest_f64(h: i64, x: f64, y: f64, z: f64) -> i64 {
+    return nuc_kdt_nearest(h, f64_to_bits(x), f64_to_bits(y), f64_to_bits(z));
+}
+fn kdt_knearest_f64(h: i64, x: f64, y: f64, z: f64,
+    k: i64, out_indices_ptr: i64, out_dist2_ptr: i64) -> i64
+{
+    return nuc_kdt_knearest(h, f64_to_bits(x), f64_to_bits(y), f64_to_bits(z),
+        k, out_indices_ptr, out_dist2_ptr);
+}

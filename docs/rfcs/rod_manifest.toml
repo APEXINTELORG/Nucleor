@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 227
-# Total fn definitions: 2148
-# Total LOC: 9473
+# Total fn definitions: 2153
+# Total LOC: 9491
 
 [[rod]]
 name           = "activation2"
@@ -447,9 +447,9 @@ imports        = ["csv", "strings"]
 name           = "csv_table"
 path           = "stdlib/rods/csv_table.nr"
 description    = "Whole-CSV-file table API (load, set, write, free)"
-function_count = 10
+function_count = 12
 cfile_count    = 1
-loc            = 29
+loc            = 35
 imports        = []
 
 [[rod]]
@@ -942,9 +942,9 @@ imports        = ["jsonl"]
 name           = "kdt"
 path           = "stdlib/rods/kdt.nr"
 description    = "3D KD-tree for fast nearest-neighbor queries."
-function_count = 7
+function_count = 10
 cfile_count    = 1
-loc            = 25
+loc            = 37
 imports        = ["kdt"]
 
 [[rod]]
