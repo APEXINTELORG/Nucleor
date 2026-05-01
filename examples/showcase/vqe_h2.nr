@@ -47,7 +47,7 @@ fn expect_Z(theta0: i64, theta1: i64, theta2: i64, q: i64, shots: i64) -> i64 {
     return f64_div(f64_from_int(acc), f64_from_int(shots));
 }
 
-// <Z_a Z_b> â€” parity of two measurements.
+// <Z_a Z_b> -- parity of two measurements.
 fn expect_ZZ(theta0: i64, theta1: i64, theta2: i64, a: i64, b: i64, shots: i64) -> i64 {
     let mut acc: i64 = 0;
     let mut s: i64 = 0;
@@ -61,7 +61,7 @@ fn expect_ZZ(theta0: i64, theta1: i64, theta2: i64, a: i64, b: i64, shots: i64) 
     return f64_div(f64_from_int(acc), f64_from_int(shots));
 }
 
-// <X_a X_b> â€” apply H on each qubit, then measure as ZZ.
+// <X_a X_b> -- apply H on each qubit, then measure as ZZ.
 fn expect_XX(theta0: i64, theta1: i64, theta2: i64, a: i64, b: i64, shots: i64) -> i64 {
     let mut acc: i64 = 0;
     let mut s: i64 = 0;
