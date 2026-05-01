@@ -4067,6 +4067,24 @@ rfc0007_atomic_ir_smoke() {
     "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
 }
 
+rfc0007_queue_smoke() {
+    rm -rf "$ROOT/.nuc_cache" "$ROOT/target/.nuc_cache" 2>/dev/null || true
+    local fixture exe out
+    for fixture in rfc0007_queue_spsc rfc0007_queue_mpsc rfc0007_queue_capacity rfc0007_queue_bench; do
+        "$BIN" build "tests/features/$fixture.nr" -o "_$fixture" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+        exe="target/_$fixture"
+        [ -x "$exe.exe" ] && exe="$exe.exe"
+        [ -x "$exe" ] || return 1
+        out=$("$exe" 2>&1)
+        printf '%s\n' "$out" >$NUC_VERIFY_RUN_LOG
+        printf '%s\n' "$out" | grep -q "OK $fixture" || return 1
+        if [ "$fixture" = "rfc0007_queue_bench" ]; then
+            printf '%s\n' "$out" | grep -q "mpsc_4prod:" || return 1
+            printf '%s\n' "$out" | grep -q "mutex_queue_4prod:" || return 1
+        fi
+    done
+}
+
 # --- Run gate -----------------------------------------------------------
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
@@ -4075,6 +4093,7 @@ step "NUM-024 cross-width audit (compiler+tools-suite must report 0)" num024_aud
 step "no UTF-8 mojibake in source/docs" mojibake_clean
 step "tests/err/*.nr have EXPECT headers" err_tests_have_expect_smoke
 step "RFC-0007 atomics lower to LLVM atomic IR" rfc0007_atomic_ir_smoke
+step "RFC-0007 queues run SPSC/MPSC/capacity/benchmark fixtures" rfc0007_queue_smoke
 step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
 step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" cli_utility_smoke
 step "CLI: --json variants emit machine-readable JSON" cli_json_smoke

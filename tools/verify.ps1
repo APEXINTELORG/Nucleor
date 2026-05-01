@@ -1,20 +1,20 @@
-# verify.ps1 — Windows smoke gate for the Nucleor OSS distribution.
-# Mirrors tools/verify.sh — same step counter, same exit code, same gates.
+# verify.ps1 -- Windows smoke gate for the Nucleor OSS distribution.
+# Mirrors tools/verify.sh -- same step counter, same exit code, same gates.
 #
 # Usage: powershell.exe -ExecutionPolicy Bypass -File tools\verify.ps1
 #
 # Step shape (203 steps total as of v0.2.111):
 #   1.  Binary present + loads
-#   2.  ABI parity (s1 ↔ tools-suite, via WSL bash if available)
+#   2.  ABI parity (s1 <-> tools-suite, via WSL bash if available)
 #   3.  Tools-suite rebuild (since v0.2.79)
 #   4.  Mojibake clean (since v0.2.91, via bash if available)
-#   5.  Help-coverage (since v0.2.84) — every dispatched cmd in `nuc help`
+#   5.  Help-coverage (since v0.2.84) -- every dispatched cmd in `nuc help`
 #   6.  Utility smoke (zen / mco / registry / stage-dump / fix; v0.2.85)
 #   7.  JSON-flag smoke (11 commands; v0.2.86)
 #   8.  Version aliases (--version / -v / -V / version; v0.2.87)
 #   9.  Showcase build (lorenz / vqe_h2 / market_maker / wing_simulator; v0.2.90)
 #   10. CLI: explain NUM-001 (single quick-fail canary; v0.2.64/v0.2.65)
-#   11. CLI: explain — full 130-code spec catalog (v0.2.79+v0.2.80)
+#   11. CLI: explain -- full 130-code spec catalog (v0.2.79+v0.2.80)
 #   12. CLI: bootstrap status + Contract: file resolves (v0.2.70+v0.2.82)
 #   13. CLI: check + abi inspect (v0.2.70)
 #   14. CLI: summary/audit/query/impact (inspectors; v0.2.71)
@@ -48,7 +48,7 @@ if ($env:NUCLEOR_MEM_CAP_MB -ne "0") {
     try {
         $proc = [System.Diagnostics.Process]::GetCurrentProcess()
         # MaxWorkingSet is a soft cap (Windows can grow past on memory
-        # pressure) — sufficient hint to fail fast on multi-GB compiles.
+        # pressure) -- sufficient hint to fail fast on multi-GB compiles.
         $cap_bytes = [int64]$env:NUCLEOR_MEM_CAP_MB * 1MB
         $proc.MaxWorkingSet = [System.IntPtr]::new($cap_bytes)
     } catch {
@@ -72,8 +72,8 @@ try {
 
 # Force UTF-8 console encoding so multibyte characters (em-dash, box-drawing
 # glyphs, etc.) round-trip cleanly through Out-String. This is required even
-# in -NoColor mode — several Step bodies regex-match text that contains
-# em-dashes ("OK — no diagnostics", "ERROR — ..."), and without UTF-8 the
+# in -NoColor mode -- several Step bodies regex-match text that contains
+# em-dashes ("OK -- no diagnostics", "ERROR -- ..."), and without UTF-8 the
 # bytes get reinterpreted as the Windows OEM codepage and the regex misses.
 try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new() } catch { }
 try { [Console]::InputEncoding  = [System.Text.UTF8Encoding]::new() } catch { }
@@ -162,7 +162,7 @@ function Invoke-BinaryNoInput([string]$exePath) {
 # --- Compute total step count for the [N/T] counter ---------------------
 $rustBridgeLib = Join-Path $root "stdlib\rods\rust_bridge\target\release\nucleor_rust_bridge.lib"
 # Read example list from the single source of truth (shared with
-# verify.sh). v0.2.60 — eliminates the drift class that bit v0.2.59.
+# verify.sh). v0.2.60 -- eliminates the drift class that bit v0.2.59.
 $examplesFile = Join-Path $root "tools\examples.list"
 $examples = @()
 if (Test-Path $examplesFile) {
@@ -191,10 +191,10 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (utility smoke) + 1 (json smoke) + 1 (version aliases) +
 # 1 (showcase build) + 1 (CLI explain smoke) + 1 (explain-full) +
 # 1 (bootstrap) + 1 (check+abi) + 1 (inspectors) + 1 (diagnostics)
-# + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
+# + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + 1 (queue smoke) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 118 # +9 Option/Result/format chain, +5 hazard sweeps (v0.4.18)
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 119 # +9 Option/Result/format chain, +5 hazard sweeps (v0.4.18), +1 Track H queue smoke
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -204,7 +204,7 @@ Step "binary present" {
 }
 
 Step "compiler ABI tables synced" {
-    # Mirrors tools/check_compiler_drift.sh — verify the s1-compiler ↔
+    # Mirrors tools/check_compiler_drift.sh -- verify the s1-compiler <->
     # tools-suite get_rt_name / is_ptr_ret / is_ptr_arg / IR `declare`
     # tables stay aligned.  Drift produces unprefixed @<name> calls in
     # `nuc test` / `nuc build-strict` / `nuc check`.
@@ -240,7 +240,7 @@ Step "tools-suite rebuild" {
 }
 
 Step "NUM-024 cross-width audit (compiler+tools-suite must report 0)" {
-    # v0.4.232 — regression gate for v0.4.230's str_from_int signature
+    # v0.4.232 -- regression gate for v0.4.230's str_from_int signature
     # fix. Mirrors verify.sh num024_audit_zero. The NUM-024 audit
     # surface across both self-build sources must stay at 0/0.
     Remove-Item (Join-Path $root ".nuc_cache") -Recurse -Force -ErrorAction SilentlyContinue
@@ -262,7 +262,7 @@ Step "NUM-024 cross-width audit (compiler+tools-suite must report 0)" {
 
 Step "examples/showcase: lorenz/vqe_h2/market_maker/wing_simulator build" {
     # Mirrors verify.sh showcase_build_smoke (added v0.2.90).
-    # Build-only — the four showcase programs produce streaming
+    # Build-only -- the four showcase programs produce streaming
     # ANSI dashboards that don't terminate on their own, so we
     # don't run them. Build catches stdlib regressions that would
     # break the showcase compile path.
@@ -380,6 +380,25 @@ Step "RFC-0007 atomics lower to LLVM atomic IR" {
     return $run.ExitCode -eq 0
 }
 
+Step "RFC-0007 queues run SPSC/MPSC/capacity/benchmark fixtures" {
+    Remove-Item (Join-Path $root ".nuc_cache") -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $root "target\.nuc_cache") -Recurse -Force -ErrorAction SilentlyContinue
+    foreach ($fixture in @("rfc0007_queue_spsc", "rfc0007_queue_mpsc", "rfc0007_queue_capacity", "rfc0007_queue_bench")) {
+        $out = & $bin build "tests/features/$fixture.nr" -o "_$fixture" --no-cache 2>&1 | Out-String
+        $exe = Join-Path $root "target\_$fixture.exe"
+        if (-not (Test-Path $exe)) {
+            Write-Host (Dim ("       " + ($out.Trim() -split "`n" | Select-Object -Last 1)))
+            return $false
+        }
+        $run = Invoke-BinaryNoInput $exe
+        if ($run.ExitCode -ne 0 -or $run.Output -notmatch "OK $([regex]::Escape($fixture))") { return $false }
+        if ($fixture -eq "rfc0007_queue_bench") {
+            if ($run.Output -notmatch "mpsc_4prod:" -or $run.Output -notmatch "mutex_queue_4prod:") { return $false }
+        }
+    }
+    return $true
+}
+
 Step "CLI: nuc help advertises every dispatched command" {
     # Mirrors verify.sh cli_help_coverage_smoke (added v0.2.84).
     # Catches the drift class that bit `doc` and `fix` (both shipped
@@ -414,12 +433,12 @@ Step "CLI: nuc explain NUM-001 wired" {
     return $true
 }
 
-Step "CLI: nuc explain — full spec code set wired" {
+Step "CLI: nuc explain -- full spec code set wired" {
     # Mirrors verify.sh cli_explain_full_smoke (added v0.2.79,
     # extended v0.2.80). Audits the full forward-looking spec
     # catalog against the explain registry.
     $codes = @(
-        # NR — compiler pipeline (RFC-0020 baseline)
+        # NR -- compiler pipeline (RFC-0020 baseline)
         "NR001", "NR005", "NR010", "NR020", "NR030", "NR031", "NR032", "NR033",
         "NR034", "NR040", "NR050", "NR051", "NR070", "NR090",
         # RFC-0001 RT
@@ -428,22 +447,22 @@ Step "CLI: nuc explain — full spec code set wired" {
         "ALLOC-001", "ALLOC-002", "ALLOC-003",
         # RFC-0003 typed frames
         "FRAME-001", "FRAME-002", "FRAME-003",
-        # OWN series — borrow checker (expansion of NR031, since v0.2.119;
-        # OWN-013 added v0.2.131 — spawn-capture for non-Send DeviceBuffer)
+        # OWN series -- borrow checker (expansion of NR031, since v0.2.119;
+        # OWN-013 added v0.2.131 -- spawn-capture for non-Send DeviceBuffer)
         "OWN-001", "OWN-002", "OWN-003", "OWN-004", "OWN-005", "OWN-006",
         "OWN-007", "OWN-008", "OWN-009", "OWN-010", "OWN-011", "OWN-012",
         "OWN-013",
-        # GOV series — governance policies (since v0.2.131)
+        # GOV series -- governance policies (since v0.2.131)
         "GOV-001", "GOV-002",
-        # TNT series — taint analysis (expansion of NR033, since v0.2.120)
+        # TNT series -- taint analysis (expansion of NR033, since v0.2.120)
         "TNT-001",
-        # TYP series — type checker (expansion of NR030, since v0.2.119)
+        # TYP series -- type checker (expansion of NR030, since v0.2.119)
         "TYP-001", "TYP-002", "TYP-003", "TYP-004", "TYP-005",
         "TYP-006", "TYP-007", "TYP-008", "TYP-009", "TYP-010", "TYP-011", "TYP-012", "TYP-013",
         "TYP-026",
-        # FMT series — format macro expansion
+        # FMT series -- format macro expansion
         "FMT-002",
-        # TRAIT series — trait dispatch and conversions
+        # TRAIT series -- trait dispatch and conversions
         "TRAIT-001",
         # RFC-0004 assume!
         "ASSUME-001", "ASSUME-002", "ASSUME-003", "ASSUME-004", "ASSUME-005",
@@ -474,8 +493,8 @@ Step "CLI: nuc explain — full spec code set wired" {
         "NUM-006", "NUM-007", "NUM-008", "NUM-009", "NUM-010",
         "NUM-011", "NUM-012", "NUM-013", "NUM-014", "NUM-015",
         "NUM-016", "NUM-017", "NUM-018", "NUM-019", "NUM-020",
-        # NUM-022/023 (v0.4.137/v0.4.140) — int-vs-float arith mismatch
-        # and `f64 as str` cast rejection. NUM-024 (v0.4.228) — opt-in
+        # NUM-022/023 (v0.4.137/v0.4.140) -- int-vs-float arith mismatch
+        # and `f64 as str` cast rejection. NUM-024 (v0.4.228) -- opt-in
         # cross-width call-site audit (NUCLEOR_AUDIT_NUM024=1) for
         # RFC-0015 phase 3c.1 surfacing of i64-into-iN-param sites.
         "NUM-022", "NUM-023", "NUM-024",
@@ -535,7 +554,7 @@ Step "CLI: nuc bootstrap status reports correctly" {
     if ($out -notmatch "Nucleor Bootstrap Status") { return $false }
     if ($out -notmatch "Stage: 1 \(self-hosted\)") { return $false }
     if ($out -notmatch "Self-hosted: yes") { return $false }
-    # v0.2.82 — verify the Contract: line resolves to an existing
+    # v0.2.82 -- verify the Contract: line resolves to an existing
     # doc file at the repo root.
     $contractMatch = [regex]::Match($out, "(?m)^\s*Contract:\s*(.+?)\s*$")
     if (-not $contractMatch.Success) { return $false }
@@ -737,7 +756,7 @@ foreach ($ex in $examples) {
             return $false
         }
         # Non-empty stdout shape check (added v0.2.62, mirrors verify.sh
-        # v0.2.61) — catches silent regressions where the binary builds
+        # v0.2.61) -- catches silent regressions where the binary builds
         # + exits 0 but prints nothing.
         if ([string]::IsNullOrWhiteSpace($runOut)) {
             Write-Host (Dim "       example produced empty output")
@@ -781,7 +800,7 @@ foreach ($e in $errFiles) {
     $ename = $e.BaseName
     Step "negative $ename" {
         $src = "tests/err/$($e.Name)"
-        # --no-cache: see v0.3.26 — diagnostic-dependent tests must
+        # --no-cache: see v0.3.26 -- diagnostic-dependent tests must
         # skip the source cache, or a stale .nuc_cache silently
         # swallows the error/warning the assertion is grepping for.
         $out = & $bin build $src -o $ename --no-cache 2>&1
@@ -796,7 +815,7 @@ Step "self-host rebuild closes" {
 }
 
 # T1.1 (v0.2.309+): bootstrap-stability check. The compiler change must
-# be FIXPOINT — compiling the source twice in succession must produce
+# be FIXPOINT -- compiling the source twice in succession must produce
 # the same binary. Prevents the class of bug where a compiler change
 # silently poisons the next compile (Phase 1's narrow_via_as truncating
 # stdlib's `let val: i32 = n` for str_from_int was caught this way).
@@ -886,7 +905,7 @@ Step "T3.5 RT-007 fires when #[deadline] lacks no_alloc/no_panic" {
     # v0.3.3 (T3.5): cross-check that complements RT-004. When a
     # #[deadline] fn has neither #[no_alloc] nor #[no_panic],
     # allocations / panics in the body can blow the budget non-
-    # deterministically. Warning, not error — `#[allow(RT-007)]`
+    # deterministically. Warning, not error -- `#[allow(RT-007)]`
     # suppresses for unusual cases.
     $out = & $bin build "tests/fixtures/t35_rt007.nr" -o "_t35_rt007_check" --no-cache 2>&1 | Out-String
     if ($out -notmatch "warning\[RT-007\]:") { return $false }
@@ -908,7 +927,7 @@ Step "T3.11 bare arena_* builtins link + run end-to-end" {
 }
 
 Step "T3.10 RT-008 fires on direct recursion in deadline fn" {
-    # v0.3.9 (T3.10): RFC-0001 RT-008 — direct self-recursion in
+    # v0.3.9 (T3.10): RFC-0001 RT-008 -- direct self-recursion in
     # a #[deadline] fn warns. Bounded recursion opts out via
     # #[max_depth = N]. Two paired fixtures: unbounded fires,
     # bounded stays clean.
@@ -924,7 +943,7 @@ Step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" {
     # v0.3.24 (T3.15): per-symbol opt-out for the v0.3.8 RT-005
     # check. Annotated extern stays clean from a #[no_alloc]
     # caller; un-annotated still fires.
-    # --no-cache: see T3.16 comment — diagnostic-dependent
+    # --no-cache: see T3.16 comment -- diagnostic-dependent
     # tests must skip the source cache or they silently pass
     # on stale cache entries.
     $out = & $bin build "tests/fixtures/t324_ffi_no_alloc.nr" -o "_t324_check" --no-cache 2>&1 | Out-String
@@ -953,7 +972,7 @@ Step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" {
 }
 
 Step "T3.9 RT-005 fires on FFI call from RT fn body" {
-    # v0.3.8 (T3.9): RFC-0001 RT-005 — extern fn call from inside
+    # v0.3.8 (T3.9): RFC-0001 RT-005 -- extern fn call from inside
     # an RT-marked fn body warns. v1 is text-scan: every literal
     # `<extern_name>(` substring in the stripped body fires.
     $out = & $bin build "tests/fixtures/t39_rt005_ffi.nr" -o "_t39_rt005_check" --no-cache 2>&1 | Out-String
@@ -1014,7 +1033,7 @@ Step "T3.25 examples-list drift (examples/*.nr vs examples.list)" {
         | Where-Object { $_ -notmatch '^\s*#' -and $_ -notmatch '^\s*$' } `
         | ForEach-Object { $_.Trim() } `
         | Sort-Object -Unique
-    # Conditional allowlist — mirror in verify.sh's t325_examples_list_drift.
+    # Conditional allowlist -- mirror in verify.sh's t325_examples_list_drift.
     $allowed = @($listSet) + @("07_rust_interop") | Sort-Object -Unique
     $extras = $dirSet | Where-Object { $allowed -notcontains $_ }
     if ($extras) {
@@ -1248,7 +1267,7 @@ Step "T3.66 mixed-shorthand struct init 'Point { x: 5, y }'" {
     return $true
 }
 
-Step "RFC-NRT-004 §A: recursive enum payload USE (was @inner global)" {
+Step "RFC-NRT-004 sec.A: recursive enum payload USE (was @inner global)" {
     # v0.3.231 fixed (parser drift sync); pinned by t468 in v0.3.235
     # so it can't silently regress.
     & $bin build "tests/fixtures/t468_recursive_enum_match.nr" -o "_t468_check" --no-cache 2>&1 | Out-Null
@@ -1261,8 +1280,8 @@ Step "RFC-NRT-004 §A: recursive enum payload USE (was @inner global)" {
     return $true
 }
 
-Step "RFC-NRT-004 §B: multi-payload variant bind USE (was @a/@b global)" {
-    # v0.3.235: pin §B working behavior (closed as side effect of §A
+Step "RFC-NRT-004 sec.B: multi-payload variant bind USE (was @a/@b global)" {
+    # v0.3.235: pin sec.B working behavior (closed as side effect of sec.A
     # parser-drift fix). Repro: enum E { Pair(i64,i64), Other }
     # match e { E::Pair(a, b) => ...use a/b... }
     & $bin build "tests/fixtures/t469_multi_payload_bind.nr" -o "_t469_check" --no-cache 2>&1 | Out-Null
@@ -1275,8 +1294,8 @@ Step "RFC-NRT-004 §B: multi-payload variant bind USE (was @a/@b global)" {
     return $true
 }
 
-Step "RFC-NRT-004 §C: multi-multi-payload dispatch (was silent miscompute)" {
-    # v0.3.235: pin §C working behavior (CRITICAL silent miscompute --
+Step "RFC-NRT-004 sec.C: multi-multi-payload dispatch (was silent miscompute)" {
+    # v0.3.235: pin sec.C working behavior (CRITICAL silent miscompute --
     # pre-fix, constructing E::BinOp dispatched to E::Call arm body).
     # Most important fixture in this set: build succeeded and runtime
     # was wrong, so a regression here would be invisible w/o pinning.
@@ -1307,9 +1326,9 @@ Step "RFC-NRT-004 stress: 6-variant recursive enum dispatch + bind USE" {
     return $true
 }
 
-Step "RFC-NRT-004 §F: harness path (nuc test) -- multi-payload + recursive enum" {
-    # v0.4.1 (§F): tools_suite parse_match_stmt sync from s1.
-    # Pre-fix: §A/§B/§C closed via `nuc build` but BROKEN via `nuc test`
+Step "RFC-NRT-004 sec.F: harness path (nuc test) -- multi-payload + recursive enum" {
+    # v0.4.1 (sec.F): tools_suite parse_match_stmt sync from s1.
+    # Pre-fix: sec.A/sec.B/sec.C closed via `nuc build` but BROKEN via `nuc test`
     # because the harness routes through nucleor_tools.exe which had drifted
     # parser. Post-fix: all three pass via the harness path. The drift gate
     # is also extended to enforce parser-fn token-shape parity.
@@ -1321,8 +1340,8 @@ Step "RFC-NRT-004 §F: harness path (nuc test) -- multi-payload + recursive enum
     return $true
 }
 
-Step "RFC-NRT-004 §D: pub on struct fields no longer crashes" {
-    # v0.4.1 (§D): parse_struct_decl in s1 + tools_suite now skips
+Step "RFC-NRT-004 sec.D: pub on struct fields no longer crashes" {
+    # v0.4.1 (sec.D): parse_struct_decl in s1 + tools_suite now skips
     # optional `pub` token before each field name. Pre-fix: cascading
     # parse errors + segfault on some hosts.
     & $bin build "tests/fixtures/t473_rfc_nrt_004_D_pub_field.nr" -o "_t473_check" --no-cache 2>&1 | Out-Null
@@ -1475,7 +1494,7 @@ Step "println of struct field on Some(g) payload binding -- format dispatch" {
     return $true
 }
 
-Step "Option<MyStruct> with field-access scrutinee — match s.field { Some(g) }" {
+Step "Option<MyStruct> with field-access scrutinee -- match s.field { Some(g) }" {
     # v0.4.12: extends v0.4.11 to handle field-access scrutinees.
     # The exact Translate PipelineSuccess.gap_report shape now works:
     # `pub gap_report: Option<GapReport>` + `match s.gap_report {
@@ -1491,7 +1510,7 @@ Step "Option<MyStruct> with field-access scrutinee — match s.field { Some(g) }
     return $true
 }
 
-Step "Option<MyStruct> with bare-ident scrutinee — field access on Some payload" {
+Step "Option<MyStruct> with bare-ident scrutinee -- field access on Some payload" {
     # v0.4.11 Phase B: full generic Option<T> propagation via the
     # compile-src side table (Phase A landed v0.4.10). bare-ident
     # scrutinee `let gr: Option<GapReport> = ...; match gr { Some(g) =>
@@ -1538,8 +1557,8 @@ Step "Option<str> Some payload binding flows through let-assign + str_eq" {
     return $true
 }
 
-Step "RFC-NRT-004 §G: struct-typed enum payload field access (nuc test arm)" {
-    # v0.4.2 (§G): tools_suite enum_populate_sym sync of __epayload<i>_*
+Step "RFC-NRT-004 sec.G: struct-typed enum payload field access (nuc test arm)" {
+    # v0.4.2 (sec.G): tools_suite enum_populate_sym sync of __epayload<i>_*
     # storage + match_bind_payloads_typed sync from s1. Pre-fix the
     # harness path (`nuc test`) emitted %r.-1 invalid SSA register on
     # `e.message` where e was bound from `Outcome::Err(e)` and
@@ -1550,8 +1569,8 @@ Step "RFC-NRT-004 §G: struct-typed enum payload field access (nuc test arm)" {
     return $true
 }
 
-Step "RFC-NRT-004 §H: same-name pub fn collision diagnostic (negative regression)" {
-    # v0.4.1 (§H): emit clean diagnostic instead of cryptic clang
+Step "RFC-NRT-004 sec.H: same-name pub fn collision diagnostic (negative regression)" {
+    # v0.4.1 (sec.H): emit clean diagnostic instead of cryptic clang
     # 'invalid redefinition' when two modules declare same-name pub fn.
     # NEGATIVE regression: this fixture must FAIL with the diagnostic.
     $out = & $bin build "tests/fixtures/t474_rfc_nrt_004_H_collision_diag.nr" -o "_t474_check" --no-cache 2>&1 | Out-String
@@ -1573,7 +1592,7 @@ Step "T3.65 trait method with generic param 'fn count<T>(self)'" {
     return $true
 }
 
-Step "T3.64 vec.iter().X() chain (Rust idiom — identity pass-through)" {
+Step "T3.64 vec.iter().X() chain (Rust idiom -- identity pass-through)" {
     # v0.3.88 (T3.64): regression test for vec.iter().X() chain.
     & $bin build "tests/fixtures/t364_vec_iter_chain.nr" -o "_t364_check" --no-cache 2>&1 | Out-Null
     $exe = $null
@@ -1655,16 +1674,16 @@ Step "T3.58 trait default-method support (impls inherit defaults; Self substitut
     return $true
 }
 
-Step "T3.57 tuple-destructure let safety net (pre-v0.3.81 segfault → clean diagnostic)" {
-    # v0.3.81 (T3.57): negative regression — must NOT segfault.
+Step "T3.57 tuple-destructure let safety net (pre-v0.3.81 segfault -> clean diagnostic)" {
+    # v0.3.81 (T3.57): negative regression -- must NOT segfault.
     $out = & $bin build "tests/fixtures/t357_tuple_let_diagnostic.nr" -o "_t357_check" --no-cache 2>&1 | Out-String
     if ($LASTEXITCODE -eq -1073741819) { return $false }
     if ($out -notmatch "tuple destructuring in ``let`` is not yet supported") { return $false }
     return $true
 }
 
-Step "T3.55 nested struct field assign safety net (pre-v0.3.80 segfault → clean diagnostic)" {
-    # v0.3.80 (T3.55): negative regression — must NOT segfault.
+Step "T3.55 nested struct field assign safety net (pre-v0.3.80 segfault -> clean diagnostic)" {
+    # v0.3.80 (T3.55): negative regression -- must NOT segfault.
     $out = & $bin build "tests/fixtures/t355_nested_field_assign_diagnostic.nr" -o "_t355_check" --no-cache 2>&1 | Out-String
     if ($LASTEXITCODE -eq -1073741819) { return $false }   # ACCESS_VIOLATION
     if ($out -notmatch "nested struct field assignment is not yet supported") { return $false }
@@ -1672,7 +1691,7 @@ Step "T3.55 nested struct field assign safety net (pre-v0.3.80 segfault → clea
     return $true
 }
 
-Step "T3.54 match-arm stmt bodies (return/break/continue) — T1.2 partial close" {
+Step "T3.54 match-arm stmt bodies (return/break/continue) -- T1.2 partial close" {
     # v0.3.79 (T3.54): regression test for stmt-style match-arm bodies.
     & $bin build "tests/fixtures/t354_match_arm_return.nr" -o "_t354_check" --no-cache 2>&1 | Out-Null
     $exe = $null
@@ -2083,7 +2102,7 @@ Step "T3.28 inline f64 ops on struct-field operands (v0.3.53 fix)" {
 Step "T3.27 #[export] workaround produces correct dot product" {
     # v0.3.52 (T3.27): regression test for the v0.3.51 codegen
     # workaround. examples/22_rt_export.nr's nuc_print_dot uses
-    # lifted-let bindings to compute (1,2,3)·(4,5,6) = 32. The
+    # lifted-let bindings to compute (1,2,3)-(4,5,6) = 32. The
     # example sweep already builds + runs ex22 but only checks
     # for non-empty stdout; if the workaround broke,
     # nuc_print_dot would print 0 and the sweep would silently
@@ -2179,7 +2198,7 @@ Step "T3.17 #[allow_fn(RT-004)] suppresses static WCET warning per-fn" {
 }
 
 Step "T3.12 #[allow_fn] suppresses one RT diag for one fn" {
-    # v0.3.20 (T3.12): per-fn #[allow_fn(CODE)] — narrower
+    # v0.3.20 (T3.12): per-fn #[allow_fn(CODE)] -- narrower
     # cousin of file-wide #[allow]. The fixture has two
     # #[deadline]-marked fns that would each fire RT-007;
     # only the second has #[allow_fn(RT-007)], so RT-007
@@ -2193,7 +2212,7 @@ Step "T3.12 #[allow_fn] suppresses one RT diag for one fn" {
 }
 
 Step "T3.8 RT-006 fires on RT attr + async fn" {
-    # v0.3.7 (T3.8): RFC-0001 RT-006 — async fn cannot carry an
+    # v0.3.7 (T3.8): RFC-0001 RT-006 -- async fn cannot carry an
     # RT attribute (#[no_alloc] / #[no_panic] / #[no_dyn] /
     # #[deadline]) because async scheduling is non-deterministic.
     # Two negative fixtures cover both attribute spellings; this
@@ -2206,7 +2225,7 @@ Step "T3.8 RT-006 fires on RT attr + async fn" {
 }
 
 Step "T3.7 RT body checks strip strings and line comments" {
-    # v0.3.6 (T3.7): polish — RT-001/002/003 v1 checkers strip
+    # v0.3.6 (T3.7): polish -- RT-001/002/003 v1 checkers strip
     # `"..."` string literals and `// ...` line comments before
     # scanning. A forbidden token mentioned only in a quoted or
     # commented region no longer false-triggers. Three #[no_alloc/
@@ -2220,7 +2239,7 @@ Step "T3.7 RT body checks strip strings and line comments" {
 }
 
 Step "T3.6 #[no_dyn] passes when body has no dynamic dispatch" {
-    # v0.3.5 (T3.6): RFC-0001 RT-003 — dynamic dispatch ban.
+    # v0.3.5 (T3.6): RFC-0001 RT-003 -- dynamic dispatch ban.
     # Same shape as T3.2 #[no_panic]. Two #[no_dyn] fns + 2
     # #[test] cases that PASS verify the marker mechanism works
     # without false-positive on the attribute literal itself.
@@ -2232,7 +2251,7 @@ Step "T3.6 #[no_dyn] passes when body has no dynamic dispatch" {
 }
 
 Step "T3.4 #[export] surfaces in nuc gen-headers" {
-    # v0.3.4 (T3.4): #[export] attribute prefix → C forward
+    # v0.3.4 (T3.4): #[export] attribute prefix -> C forward
     # declaration in `nuc gen-headers` output. Lets external
     # C/C++ host code call into Nucleor-compiled fns through
     # the unmangled LLVM symbol. Three exported fns + one
@@ -2312,7 +2331,7 @@ Step "T2.8 async (threads-only): async fn / async_spawn / .await" {
 Step "T2.7 nuc doc --html emits styled standalone HTML" {
     # v0.2.352 (T2.7): nuc doc gains an --html flag (+ auto-detect
     # via .html / .htm extension on --out). Single-file HTML with
-    # inline CSS — no external resources. Same two-pass walk as the
+    # inline CSS -- no external resources. Same two-pass walk as the
     # Markdown renderer: function index + per-fn /// doc + signature.
     $hdr = Join-Path $env:TEMP "_t27_doc.html"
     if (Test-Path $hdr) { Remove-Item -Force $hdr }
@@ -2336,7 +2355,7 @@ Step "T2.5 lifetime parameters parse cleanly (advisory metadata)" {
     # v0.2.351 (T2.5): lifetime tokens 'a, 'static etc. lex as kind 98
     # and parse as: (a) generic params alongside type params, (b) skip
     # tokens after & in reference types, (c) skip tokens in generic
-    # instantiations. No semantic enforcement — annotations are
+    # instantiations. No semantic enforcement -- annotations are
     # advisory until T2.5b. 4 #[test] cases cover baseline + single +
     # two lifetimes + mixed lifetime/type params.
     $out = & $bin test "tests/smoke/t25_lifetime_params.nr" 2>&1 | Out-String
@@ -2349,7 +2368,7 @@ Step "T2.5 lifetime parameters parse cleanly (advisory metadata)" {
 }
 
 Step "T2.4 trait objects (Box<dyn Trait> 2-cell handle helpers)" {
-    # v0.2.350 (T2.4): trait object runtime helpers — dyn_box_make,
+    # v0.2.350 (T2.4): trait object runtime helpers -- dyn_box_make,
     # dyn_box_type, dyn_box_data, dyn_box_free. Manual dispatch
     # pattern (auto-dispatch sugar arrives in T2.4b). 5 #[test]
     # cases covering single-impl dispatch, polymorphic collection,
@@ -2432,7 +2451,7 @@ Step "T1.6 gen-headers emits #[repr(C)] struct typedefs" {
     # source for #[repr(C)] structs, emits matching `typedef struct
     # { ... } Name;` in the C header, and accepts struct names in
     # extern fn signatures. Non-repr(C) structs (PrivateInternal in
-    # the fixture) must be excluded — the immediately-preceding-line
+    # the fixture) must be excluded -- the immediately-preceding-line
     # attribute lookback rules out the false-positive that the
     # earlier 200-char lookback in struct_repr suffered from.
     $hdr = Join-Path $env:TEMP "_t16_struct_ffi.h"
@@ -2452,7 +2471,7 @@ Step "T1.6 gen-headers emits #[repr(C)] struct typedefs" {
 
 Step "T1.4 nuc registry export-static (GH-Pages schema)" {
     # v0.2.344 (T1.4): convert a local registry tree into the
-    # GitHub-Pages-publishable static-site shape per RFC-0019 §6.
+    # GitHub-Pages-publishable static-site shape per RFC-0019 sec.6.
     # Uses the checked-in fixture at tests/fixtures/t14_registry/
     # (2 packages: foo with 2 versions, bar with 1 version).
     # Asserts the top-level index.json + per-package index.json +
@@ -2493,15 +2512,15 @@ Step "T1.5d MOD-003 surfaces with origin + pub hint" {
     if ($out -notmatch "error\[MOD-003\]: cannot call private fn 'lib_helper'") { return $false }
     if ($out -notmatch "declared in: .*lib_optin\.nr") { return $false }
     if ($out -notmatch "hint: add ``pub`` to the fn declaration") { return $false }
-    if ($out -notmatch "MOD-003 violation\(s\) — see error\[MOD-003\] above") { return $false }
+    if ($out -notmatch "MOD-003 violation\(s\) -- see error\[MOD-003\] above") { return $false }
     return $true
 }
 
 Step "T1.5c privatization (cross-module call surfaces succeed)" {
     # v0.2.342 (T1.5c): resolver-layer name privatization with opt-in
     # semantics. Smoke fixture imports two libs:
-    #   - tests/smoke/t15c_pkg/lib_optin.nr  (pub fn → opt-in active)
-    #   - tests/smoke/t15c_pkg/lib_legacy.nr (no pub fn → opt-out)
+    #   - tests/smoke/t15c_pkg/lib_optin.nr  (pub fn -> opt-in active)
+    #   - tests/smoke/t15c_pkg/lib_legacy.nr (no pub fn -> opt-out)
     # Asserts that pub fn from opt-in lib AND non-pub fn from
     # opt-out lib BOTH stay callable cross-module. The negative
     # case (cross-module non-pub call from opt-in lib) is covered by
@@ -2520,7 +2539,7 @@ Step "T1.5b pub introspection (summary surfaces visibility)" {
     # markers and prefixes `pub fn` (etc.) accordingly, so users can
     # see the visibility surface of any module. Smoke fixture has 4
     # top-level fns (2 pub, 2 non-pub) plus 3 #[test] cases that all
-    # PASS — verifies the marker mechanism doesn't break intra-module
+    # PASS -- verifies the marker mechanism doesn't break intra-module
     # calls. Cross-module enforcement arrives in T1.5c.
     $sumOut = & $bin summary "tests/smoke/t15b_pub_introspection.nr" 2>&1 | Out-String
     if ($sumOut -notmatch "pub fn pub_alpha\(\)") { return $false }
@@ -2577,7 +2596,7 @@ Step "T3.138 v0.4.91 RFC-0028 struct Display/Debug format dispatch + FMT-002" {
     return $true
 }
 
-Step "T3.146 v0.4.115 RFC-0016 §3.7 ? applies From<SrcErr> for DstErr conversion; explicit Into<T> parses" {
+Step "T3.146 v0.4.115 RFC-0016 sec.3.7 ? applies From<SrcErr> for DstErr conversion; explicit Into<T> parses" {
     $build1 = & $bin build "tests/fixtures/repro_question_from_conversion.nr" -o "_t460_question_from" --no-cache 2>&1
     if ($LASTEXITCODE -ne 0) { return $false }
     $exe1 = "target\_t460_question_from.exe"
