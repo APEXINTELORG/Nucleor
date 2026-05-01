@@ -5,6 +5,91 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.269] — 2026-05-01
+
+**🛠️ stdlib/rods/trajectory advanced primitives — `*_f64`
+ergonomic wrappers.** Closes the trajectory rod's bits-ABI
+surface (DMP / TOPP / Catmull-Rom / Bezier) that was
+intentionally deferred from v0.4.264's motion-profile ship.
+With this, the entire trajectory rod has f64-typed surface
+parity for every fn whose i64 carries an f64 bit pattern.
+
+### What lands
+
+12 new wrappers at `stdlib/rods/trajectory.nr:262+`:
+
+**DMP (4 wrappers):**
+- `dmp_new_f64(n_basis, alpha_z: f64, alpha_s: f64) -> i64`
+- `dmp_learn_f64(h, traj_ptr, n_samples, tau: f64) -> i64`
+- `dmp_reset_f64(h, y0: f64, g: f64, tau: f64) -> i64`
+- `dmp_step_f64(h, dt: f64) -> f64`
+
+**TOPP (5 wrappers):**
+- `topp_set_vmax_f64(h, j, vmax: f64)`
+- `topp_set_amax_f64(h, j, amax: f64)`
+- `topp_total_time_f64(h) -> f64`
+- `topp_time_at_waypoint_f64(h, i) -> f64`
+- `topp_path_velocity_f64(h, i) -> f64`
+
+**Catmull-Rom (1 wrapper):**
+- `catmull_eval_f64(h, s: f64, q_out_ptr) -> i64`
+
+**Bezier (2 wrappers):**
+- `bezier_eval_f64(pts_ptr, n_dim, t: f64, q_out_ptr) -> i64`
+- `bezier_tangent_f64(pts_ptr, n_dim, t: f64, dq_out_ptr) -> i64`
+
+Pointer args (traj_ptr, q_ptr, q_out_ptr, dq_out_ptr, pts_ptr)
+stay as i64 — they're memory addresses to caller-allocated
+double[] buffers, not f64 scalars. Bits-ABI fns above remain —
+purely additive ship.
+
+### Fixture
+
+`tests/features/trajectory_advanced_f64.nr` — build-only smoke
+exercising the no-pointer-arg subset:
+- DMP: `dmp_new_f64(5, 8.0, 4.0)` then `dmp_reset_f64(0.0, 1.0,
+  1.0)` then `dmp_step_f64(0.01)`.
+- TOPP: 2-DOF solver with per-joint vmax/amax bounds set via
+  the f64 wrappers; `total_time` pre-solve sentinel < 0
+  (the runtime returns -1.0 bit-cast).
+
+Catmull-Rom + Bezier need pointer-laden setup not easily fixed
+in-line, so they're covered by the f64-bit-pattern round-trip
+(self-build verifies the wrappers produce well-formed IR).
+
+### Validation
+
+- Self-build clean, two-stage fixed-point at SHA
+  `eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e`
+  (= v0.4.258-268; 9th ship in a row at this SHA — compiler
+  doesn't import trajectory.nr).
+- Drift gate clean — `rod_manifest.toml` regenerated to 2201
+  stdlib fns (+12 from v0.4.268's 2189).
+- Fixture exit 0, "OK trajectory_advanced_f64".
+
+### F64-arc final state (post v0.4.269)
+
+**v0.4.260 → v0.4.269 = 9 ships, 9 rods, 77 wrappers, 9
+adopter fixtures, all at the same compiler-IR fixed point.**
+
+| Rod | Surface | Wrappers | Ship |
+|---|---|---|---|
+| units | full | 1 | v0.4.260 |
+| kinematics | Vec3 + Quat (Pose ops handle-only) | 13 | v0.4.261 |
+| linalg | scalar entries (decompositions handle-only) | 8 | v0.4.262 |
+| csv_table | full | 2 | v0.4.263 |
+| kdt | full | 3 | v0.4.263 |
+| trajectory motion profiles | quintic/trapezoid/scurve | 15 | v0.4.264 |
+| rrt | full | 8 | v0.4.265 |
+| fk_chain | DH/joint/link readers | 11 | v0.4.266 |
+| diff_sim | gate angle + gradient surface | 3 | v0.4.267 |
+| trajectory advanced | DMP/TOPP/Catmull/Bezier | 12 | v0.4.269 |
+
+Only `pqueue` keeps its bits-ABI by design — the i64 there
+carries packed (priority, index) keys / raw priorities / monotonic-
+encoded f64 keys, not unwrapped f64 scalars. Naive `_f64`
+wrappers would be unsafe for negative keys.
+
 ## [0.4.268] — 2026-05-01
 
 **📋 findings/ inbox audit + heartbeat refresh.** Doc-only ship.

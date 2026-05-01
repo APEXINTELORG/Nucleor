@@ -327,3 +327,56 @@ fn bezier_tangent(pts_ptr: i64, n_dim: i64,
 {
     return nuc_bezier_tangent(pts_ptr, n_dim, t_b, dq_out_ptr);
 }
+
+// === Ergonomic f64 wrappers — advanced primitives (v0.4.269) ===
+//
+// Closes the trajectory rod's bits-ABI surface. Same pattern as
+// the motion-profile wrappers shipped in v0.4.264 (quintic /
+// trapezoid / s-curve). Pointer args (traj_ptr, q_ptr,
+// q_out_ptr, dq_out_ptr, pts_ptr) stay as i64 — they're memory
+// addresses to caller-allocated double[] buffers, not f64
+// scalars. Bits-ABI fns above remain — purely additive.
+
+// --- DMP (Dynamic Movement Primitives) ---
+fn dmp_new_f64(n_basis: i64, alpha_z: f64, alpha_s: f64) -> i64 {
+    return nuc_dmp_new(n_basis, f64_to_bits(alpha_z), f64_to_bits(alpha_s));
+}
+fn dmp_learn_f64(h: i64, traj_ptr: i64, n_samples: i64, tau: f64) -> i64 {
+    return nuc_dmp_learn(h, traj_ptr, n_samples, f64_to_bits(tau));
+}
+fn dmp_reset_f64(h: i64, y0: f64, g: f64, tau: f64) -> i64 {
+    return nuc_dmp_reset(h, f64_to_bits(y0), f64_to_bits(g), f64_to_bits(tau));
+}
+fn dmp_step_f64(h: i64, dt: f64) -> f64 {
+    return f64_from_bits(nuc_dmp_step(h, f64_to_bits(dt)));
+}
+
+// --- TOPP (time-optimal path parameterization) ---
+fn topp_set_vmax_f64(h: i64, j: i64, vmax: f64) {
+    nuc_topp_set_vmax(h, j, f64_to_bits(vmax));
+}
+fn topp_set_amax_f64(h: i64, j: i64, amax: f64) {
+    nuc_topp_set_amax(h, j, f64_to_bits(amax));
+}
+fn topp_total_time_f64(h: i64) -> f64 {
+    return f64_from_bits(nuc_topp_total_time(h));
+}
+fn topp_time_at_waypoint_f64(h: i64, i: i64) -> f64 {
+    return f64_from_bits(nuc_topp_time_at_waypoint(h, i));
+}
+fn topp_path_velocity_f64(h: i64, i: i64) -> f64 {
+    return f64_from_bits(nuc_topp_path_velocity(h, i));
+}
+
+// --- Catmull-Rom spline ---
+fn catmull_eval_f64(h: i64, s: f64, q_out_ptr: i64) -> i64 {
+    return nuc_catmull_eval(h, f64_to_bits(s), q_out_ptr);
+}
+
+// --- Cubic Bezier ---
+fn bezier_eval_f64(pts_ptr: i64, n_dim: i64, t: f64, q_out_ptr: i64) -> i64 {
+    return nuc_bezier_eval(pts_ptr, n_dim, f64_to_bits(t), q_out_ptr);
+}
+fn bezier_tangent_f64(pts_ptr: i64, n_dim: i64, t: f64, dq_out_ptr: i64) -> i64 {
+    return nuc_bezier_tangent(pts_ptr, n_dim, f64_to_bits(t), dq_out_ptr);
+}
