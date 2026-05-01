@@ -5,6 +5,64 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.276] — 2026-05-01
+
+**🧹 MATCH-012 panic-stutter fix.** Closes cosmetic / wrong-
+error-display finding filed by probe agent 2026-04-30:
+adopters writing `match p { Point { x: 0, y: 0 } => ... }`
+saw the MATCH-012 diagnostic text printed TWICE — first as
+a clean `error[MATCH-012]: ...` line via `print()`, then
+duplicated in a `PANIC: nucleor: MATCH-012 ...` line from
+the immediately-following `panic()`.
+
+### Fix
+
+At `compiler/nucleor_s1_compiler.nr:972`, folded the dual
+`print + panic` into a single `panic()` call carrying the
+full diag text. Matches the MATCH-013 pattern (line ~1040).
+Eliminates the duplicate-text stutter; the user now sees
+the full error message on a single line.
+
+### Caveat
+
+The leading `PANIC: ` prefix from `__nucleor_panic` runtime
+helper still appears. Removing it requires adding a
+`diag_halt` runtime helper that exits 1 without the prefix
+— deferred to a follow-up ship. The probe-finding's expected
+output ("just the clean `error[MATCH-012]` text + clean exit
+1") needs that helper; current ship is a real improvement
+(no stutter) without runtime changes.
+
+### Fixture + verify gate
+
+- `tests/err/err_match_012_struct_pattern_literal.nr` — exact
+  probe repro.
+- New verify gate step `t_match_012_single_line` asserts
+  MATCH-012 appears EXACTLY ONCE in build output (was 2x
+  pre-fix).
+
+### Validation
+
+- Self-build clean. Two-stage fixed-point at NEW SHA
+  `f7383cf23025f4a3f9c7d7d88b0fbc71ece843efafa37fa113956544c9912d39`
+  (compiler IR moved from v0.4.275's `d01f3215…`).
+- Bootstrap seed refreshed.
+- Drift gate clean.
+- Manual smoke: build output now shows single line containing
+  `error[MATCH-012]: struct pattern field after `:` must be
+  an identifier...` (full diag text intact, no duplicate).
+
+### Probe-agent integration
+
+Promoted finding `2026-04-30-match-012-panics-after-print.md`
+from `origin/probe/exploration` to `findings/promoted/`.
+Fourth probe integration since the dual-agent split mandate.
+
+**Probe inbox queue remaining: 2 DbC ident-resolution + 1
+carryover** (str-char-at-oob silent-read — memory-safety
+class, deserves a full strict-default + _unchecked split
+ship matching the v0.3.205 / Ship 41 str_substring pattern).
+
 ## [0.4.275] — 2026-05-01
 
 **🛡️ RFC-0006 — `NUCLEOR_DBC_MODE` value validation
