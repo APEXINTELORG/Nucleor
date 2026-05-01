@@ -5,6 +5,117 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.238] — 2026-04-30
+
+**v0.5 ship 8 of 8 — phase 3e.3 strict-mode default FLIPPED.**
+Closes the v0.5 residual punchlist. `NUCLEOR_INT_STRICT_INTRIN`
+now defaults to `"1"` at all four read sites — strict
+arithmetic via LLVM signed-overflow intrinsics is the default
+behavior for signed `+/-/*` on i64/i32/i16/i8 (and unsigned
+counterparts where applicable). Adopters opt OUT explicitly
+with `NUCLEOR_INT_STRICT_INTRIN=0`, which falls back to the
+LLVM `add/sub/mul nsw` (silent wrap on overflow, the
+historical default).
+
+### Why now
+
+Probe-agent perf gate on an idle machine (10 samples, p50)
+cleared every previously-noisy ceiling:
+
+| Metric | Result | Ceiling | Verdict |
+|---|---:|---:|---|
+| Cold p50 | 3.35s | 3.64s | within (and at baseline 3.31s) |
+| Hot p50 | 0.93s | 1.13s | **faster than baseline 1.03s** |
+| Peak | 132 MB | 145 MB | exactly at baseline |
+
+Track F's earlier 1.18s/1.51s data was machine-load
+contamination (env-off control was also over ceiling at
+1.41s/1.84s). Idle-machine 9/10 pass + p50 < baseline
+hot is the canonical signal.
+
+### What changed
+
+```diff
+- env_get_or("NUCLEOR_INT_STRICT_INTRIN", "")
++ env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1")
+```
+
+Four call sites:
+- `compiler/nucleor_s1_compiler.nr` line 5943 (`emit_externs`
+  intrinsic decls + panic msg global)
+- `compiler/nucleor_s1_compiler.nr` line 14534 (lower_expr_narrow
+  phase-3b narrow-chain dispatch)
+- `compiler/nucleor_s1_compiler.nr` line 15085 (lower_expr k=4
+  i64 binop fall-through)
+- `compiler/nucleor_tools_suite.nr` line 4312 (mirror of
+  emit_externs intrinsic decls)
+
+Track E's `arith_mode_explicit <= 0` precedence guards remain
+unchanged at both lowering sites — explicit `wrapping { ... }`
+and `saturating { ... }` blocks still preempt strict-intrinsic
+emit, so user-marked wrapping/saturating arithmetic continues
+to work as before.
+
+### Adopter behavior change
+
+Real overflows in `+/-/*` on signed integer types now PANIC at
+runtime with `PANIC: integer overflow` (exit 1) where they
+previously wrapped silently. This is the documented intent of
+strict mode and matches Rust's debug-build behavior.
+
+Escape hatches unchanged:
+- `wrapping { let s = a + b; }` for explicit wrap (no trap).
+- `saturating { let s = a + b; }` for clamp-on-overflow (no trap).
+- `NUCLEOR_INT_STRICT_INTRIN=0` env var for the legacy nsw
+  (silent wrap) behavior at compile time.
+
+### Validation
+
+- **Self-build clean** (LL 7 864 272 bytes — +718 KB vs v0.4.237
+  for the intrinsic emit pattern across the compiler's own
+  arithmetic).
+- **Two-stage fixed-point ENV-DEFAULT-ON at SHA**
+  `50f6b9d58de4166af6821b2090fec01b9e3356f095d6f372095405d00f97515a`.
+  Bootstrap seed refreshed. T1.7 locked.
+- **Full verify gate: 616 PASS / 0 FAIL** — all-green at
+  ship boundary.
+- **NUM-024 self-host audit:** 0/0 across compiler + tools-suite.
+- **Compiler ABI drift gate:** clean.
+- **Default-on smoke** (`+/-/*` on i64): 21 intrinsic-related
+  IR refs emitted by default.
+- **Default-on overflow trap:** `9223372036854775000 + 9223372036854775000`
+  → `PANIC: integer overflow`, exit 1.
+- **Opt-out smoke:** `NUCLEOR_INT_STRICT_INTRIN=0` + same
+  source → 0 intrinsic refs in IR (legacy nsw path).
+- **Track E precedence smoke:** `wrapping {}` and
+  `saturating {}` blocks still emit their respective helpers
+  with the new default-on env var.
+
+### v0.5 RESIDUAL PUNCHLIST: 8 OF 8 SHIPS LANDED
+
+| # | Phase | Status |
+|---|---|---|
+| 1 | 3c.1 cross-width audit | ✅ shipped (v0.4.233) |
+| 2 | 3span.1 substrate | ✅ shipped (v0.4.233) |
+| 3 | 3span.2 high-impact diag migration | ✅ shipped (v0.4.233) |
+| 4 | 3e.1 LLVM overflow intrinsic | ✅ shipped (v0.4.234 + v0.4.235) |
+| 5 | 3c.2 cast injection | ✅ eliminated (v0.4.233) |
+| 6 | 3c.3 typed param alloca | ✅ shipped (v0.4.233) |
+| 7 | 3span.3 finish migration | 🟢 partial (v0.4.237) — 4 of 9 sites; remainder incremental, adopter-UX driven |
+| 8 | 3e.3 strict-mode default flip | ✅ **shipped (v0.4.238)** |
+
+Ship 7's remaining 5 sites (call diags ×2, NUM-003 cast,
+NUM-006 narrow-float vec, OWN-* helper) are explicit
+incremental work — not release blockers. The v0.5 substantive
+arc (RFC-0006 DbC, RFC-0007 atomics, etc.) is fully unblocked.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: 3 sed-applied default flips.
+- `compiler/nucleor_tools_suite.nr`: 1 sed-applied default flip.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed (now contains
+  intrinsic-emit canonical IR).
+
 ## [0.4.237] — 2026-04-30
 
 **v0.5 ship 7 progress — struct-init diag site span migration.**

@@ -4309,7 +4309,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_os_family()\n");
     sb_append(sb, "declare i64 @__nucleor_os_pointer_width()\n");
     sb_append(sb, "declare i64 @__nucleor_panic(ptr)\n");
-    let strict_intrin_t: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "");
+    let strict_intrin_t: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
     if str_eq(strict_intrin_t, "1") == 1 {
         sb_append(sb, "@.nuc_overflow_intrin_msg = private unnamed_addr constant [17 x i8] c\"integer overflow\\00\"\n");
         sb_append(sb, "declare { i8, i1 } @llvm.sadd.with.overflow.i8(i8, i8)\n");
