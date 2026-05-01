@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.255] — 2026-05-01
+
+**Adopter UPGRADE doc for the RFC-0006 DbC arc.** Comprehensive
+walkthrough covering the v0.4.244 → v0.4.254 ten-ship window:
+all three attributes (`#[require]`, `#[ensure]`, `#[invariant]`),
+the `result` and `old(EXPR)` bindings, multi-attribute support,
+build-mode strip-out, and migration patterns from
+pre-RFC-0006 idioms.
+
+### Contents
+
+- Quick-start example with all three attributes.
+- Per-attribute reference (require, ensure, invariant) with
+  panic-message exit codes.
+- `NUCLEOR_DBC_MODE` build-mode table.
+- Migration patterns from `if !cond { panic }` /
+  `assert!(...)` to canonical contract syntax.
+- "What's not in v0.4.254" — Liskov + cert static-proof
+  flagged as deferred to a future static-analysis pass.
+- Fixture pointer list (7 working examples adopters can copy
+  from).
+- Per-ship CHANGELOG window.
+
+### File touched
+
+- `docs/UPGRADE_v0.4.254.md`: new (no compiler changes).
+
+This is a doc-only ship; no source changes, no fixed-point
+recompute. Existing v0.4.254 fixed-point at SHA
+`b51c95f3898ea7512a67d5d0a7b75ac1d8ebe622eb725652a3e23c140f8886c4`
+remains valid.
+
 ## [0.4.254] — 2026-05-01
 
 **RFC-0006 DbC — mid-body return multi-ensure support.** Closes
