@@ -56,6 +56,30 @@ env-on (`NUCLEOR_INT_STRICT_INTRIN=1`) adds **~117 MB on main** (587 → 704 MB)
 
 3. **Investigate the env-on +117 MB delta**. Likely candidates: per-binop overflow trap labels, IR-symbol expansion under strict-intrin. Cap target post-investigation: <= 50 MB env-on overhead.
 
+## Profile data (v0.5.16, 2026-05-01)
+
+`tools/memory_drift_profile.sh` runs the **current `bin/nucleor.exe` against historical s1 sources** (each tag's `compiler/nucleor_s1_compiler.nr`). Same compiler, varying input size — isolates source-size effect from compiler-internal-state effect.
+
+| Tag | s1 size (KB) | s1 lines | Peak RSS (MB) | Wall (s) |
+|---|---|---|---|---|
+| v0.4.260 | 1,378 | 25,781 | 830 | 4.10 |
+| v0.4.282 | 1,412 | 26,497 | 858 | 4.32 |
+| v0.5.0 | 1,440 | 27,070 | 825 | 4.62 |
+| v0.5.7 | 1,445 | 27,156 | 895 | 4.33 |
+| v0.5.13 | 1,460 | 27,413 | 902 | 5.05 |
+| v0.5.14 | 1,460 | 27,413 | 903 | 4.49 |
+| v0.5.15 | 1,460 | 27,413 | 898 | 4.80 |
+
+**Two reads:**
+
+1. **Source-driven growth is healthy.** v0.4.260 → v0.5.15: source grew 5.9%, peak grew 8.2%. Compiler allocation is mostly proportional to input size with only ~2.3% extra-per-byte cost from new compiler logic. The `is_atomic_ordered_builtin`, `gparam_extract_binding`, and `md_find_enclosing_impl_type` substrate added since v0.5.0 hasn't bloated allocation patterns.
+
+2. **Absolute peaks are 200-300 MB higher than the normal-verify-gate reports.** Same bin, same `--no-cache`, same source — but `tools/memory_drift_profile.sh` (back-to-back single-source measurements) consistently shows 825-903 MB while normal `tools/verify.sh` runs report 587-703 MB self-host peak. The delta is OS-state-dependent (Windows working-set timing varies with the broader build sequence). **Implication: our 770 MB cap might be tighter than intended on cold environments — we'll want to measure on a cold `cmd.exe` to confirm.**
+
+What the profile DOESN'T tell us: the era-current era-current relationship (a v0.4.260-era bin compiling v0.4.260-era source). To get that we'd need to build the historical bin chain, which is multi-hour bootstrap work. Deferred to a future investigation if the unwind effort warrants it.
+
+The profile script is committed at `tools/memory_drift_profile.sh` and the CSV at `tools/memory_drift_profile.csv` for future re-runs.
+
 ## Verify-gate enforcement
 
 The drift is now CI-enforced: any new ship pushing past 750 MB self-host or 540 MB tools-suite fails `verify.sh`. Adopters can bump the cap inline only by also writing a same-ship investigation note explaining what added the memory and why it can't be tightened. The user's quote: "the agent is supposed to monitor in real time the process and if it exceeds 1gb he's supposed to stop it so it doesn't crash the system" — that mechanism stays; the threshold is now far below the system-crash-risk level so drift is caught before it becomes a real e-stop event.
