@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.20] — 2026-05-01
+
+**🔧 String-literal escape: `\0` and `\r` now emit actual byte
+values.** Closes probe-agent finding
+`2026-05-01-str-escape-null-byte-silently-literal`.
+
+### What lands
+
+Pre-v0.5.20, the lexer's string-escape table had two
+placeholder entries that emitted the literal source character
+instead of the intended byte:
+- `\0` → emitted `'0'` (ASCII 48), not NUL (0)
+- `\r` → emitted `'r'` (ASCII 114), not CR (13)
+
+Comments at the lexer site (`compiler/nucleor_s1_compiler.nr`
+line ~540-541) noted these as "placeholders; v0.5 will route
+through actual byte". v0.5.0..v0.5.19 shipped without
+addressing it.
+
+v0.5.20 is the routing — both escapes now use `sb_append_char`
+with the correct byte values.
+
+```nucleor
+let s: str = "ab\0cd";
+print(s);                   // prints "ab" (NUL truncates)
+print_int(str_len(s) as i32);  // prints 2 (NUL terminates)
+```
+
+Pre-fix `print(s)` printed `ab0cd` and `str_len(s)` returned 5.
+
+### Behavior change
+
+Adopter strings containing embedded `\0` will NUL-truncate at
+print + str_len. This matches C and Rust convention. Existing
+fixtures using `\0` as a "placeholder for `0`" (none observed
+in this repo's tests) would now misbehave; none should exist
+since the docs always treated `\0` as NUL semantically.
+
+### Validation
+
+- Probe's repro now outputs the expected NUL-truncated form.
+- Round-1 == round-2 IR fixed-point holds at sha256
+  `b0d2c3a15bac9178e89d0930f8bd78dba3724ac572cdaf0ea29414fe782f898b`.
+- Bootstrap seed refreshed.
+
+### Promotes
+
+`findings/promoted/2026-05-01-str-escape-null-byte-silently-literal.md`
+with full ## Promoted footer.
+
 ## [0.5.19] — 2026-05-01
 
 **🔧 ASYNC-001 + per-agent CSV gitignore.** Closes probe-agent
