@@ -6,6 +6,7 @@ diagnostic_actual: none
 diagnostic_expected: TYP-011 — non-iterable receiver
 discovered_against: v0.4.162
 commit: a99fc717079b8f7774c8ddf7aa03a4cc5e132eae
+status: CLOSED in v0.4.163 — same TYP-011 ship as the parent + first follow-up. The Vec-field heap-pointer leak (worst-shape of this trio) was the highest-stakes case the fix had to cover. Status backfilled v0.4.268.
 ---
 
 Second followup to `2026-04-30-for-on-struct-value-iterates-fields.md` and

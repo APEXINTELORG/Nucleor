@@ -6,6 +6,7 @@ diagnostic_actual: none (compile clean, runtime walks fields)
 diagnostic_expected: TYP-011 (or sibling) — "value of type `Point` is not iterable"
 discovered_against: v0.4.162
 commit: a99fc717079b8f7774c8ddf7aa03a4cc5e132eae
+status: CLOSED in v0.4.163 — TYP-011 rejects `for v in <struct value>` at type-check time. Parent finding of two follow-ups (iterator-binding shadow + vec-ptr leak). Status backfilled v0.4.268 — original promote landed without the status line.
 ---
 
 ## Repro
