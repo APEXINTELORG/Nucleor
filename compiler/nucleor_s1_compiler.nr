@@ -9010,6 +9010,108 @@ fn name_in_no_check(no_check: Vec<i32>, fn_name: str) -> i64 {
     return 0;
 }
 
+// v0.4.271 RFC-0006 — heap-aliased type detection for `old()` reject.
+// The i64-everywhere ABI represents Vec/String/HashMap/HashSet/
+// BTreeMap/BTreeSet/VecDeque/Box as a single i64 pointer to heap
+// storage. Snapshotting the i64 captures the POINTER, not the
+// buffer contents — so `old(v)` for `v: Vec<T>` aliases the post-
+// mutation pointer and gives wrong ensure semantics. Reject at
+// compile time with CONTRACT-006.
+fn is_heap_aliased_type(ty: str) -> i64 {
+    if str_starts_with(ty, "Vec<") == 1 { return 1; };
+    if str_eq(ty, "String") == 1 { return 1; };
+    if str_starts_with(ty, "String<") == 1 { return 1; };
+    if str_starts_with(ty, "HashMap<") == 1 { return 1; };
+    if str_starts_with(ty, "HashSet<") == 1 { return 1; };
+    if str_starts_with(ty, "BTreeMap<") == 1 { return 1; };
+    if str_starts_with(ty, "BTreeSet<") == 1 { return 1; };
+    if str_starts_with(ty, "VecDeque<") == 1 { return 1; };
+    if str_starts_with(ty, "Box<") == 1 { return 1; };
+    return 0;
+}
+
+// v0.4.271 RFC-0006 — text-level lookup of a fn's named param type.
+// Finds `fn FNAME(...)`, scans the param list with paren/angle-
+// bracket depth tracking so `Vec<HashMap<i64, str>>` parses correctly,
+// and returns the type-text of the param matching PNAME. Returns ""
+// on miss. Used by the old() heap-aliased reject; matching pattern
+// shape with the no_check / require / ensure scanners (text-level
+// pre-pass before the AST is built).
+fn fn_param_type(source: str, fn_name: str, param_name: str) -> str {
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let pat_pos: i64 = str_index_of(source, needle);
+    if pat_pos < 0 { return ""; };
+    let params_start: i64 = pat_pos + str_len(needle);
+    let n: i64 = str_len(source);
+    let mut depth: i64 = 1;
+    let mut p: i64 = params_start;
+    let mut params_end: i64 = 0 - 1;
+    while p < n {
+        let ch: str = str_substring(source, p, p + 1);
+        if str_eq(ch, "(") == 1 { depth = depth + 1; };
+        if str_eq(ch, ")") == 1 {
+            depth = depth - 1;
+            if depth == 0 { params_end = p; p = n; };
+        };
+        p = p + 1;
+    };
+    if params_end < 0 { return ""; };
+    // Walk params: split on comma at depth 0 (angle-bracket / paren depth).
+    let mut q: i64 = params_start;
+    let mut start: i64 = params_start;
+    let mut adepth: i64 = 0;
+    let mut pdepth: i64 = 0;
+    while q <= params_end {
+        let at_end: i64 = if q >= params_end { 1 } else { 0 };
+        let cch: str = if at_end == 1 { "," } else { str_substring(source, q, q + 1) };
+        if str_eq(cch, "<") == 1 { adepth = adepth + 1; };
+        if str_eq(cch, ">") == 1 { adepth = adepth - 1; };
+        if str_eq(cch, "(") == 1 { pdepth = pdepth + 1; };
+        if str_eq(cch, ")") == 1 { pdepth = pdepth - 1; };
+        let comma_at_depth_zero: i64 = if str_eq(cch, ",") == 1 { if adepth == 0 { if pdepth == 0 { 1 } else { 0 } } else { 0 } } else { 0 };
+        if comma_at_depth_zero == 1 || at_end == 1 {
+            let param_text: str = str_substring(source, start, q);
+            let colon_pos: i64 = str_index_of(param_text, ":");
+            if colon_pos > 0 {
+                let lhs: str = str_trim(str_substring(param_text, 0, colon_pos));
+                let rhs: str = str_trim(str_substring(param_text, colon_pos + 1, str_len(param_text)));
+                let lhs2: str = if str_starts_with(lhs, "mut ") == 1 { str_trim(str_substring(lhs, 4, str_len(lhs))) } else { lhs };
+                if str_eq(lhs2, param_name) == 1 { return rhs; };
+            };
+            start = q + 1;
+        };
+        q = q + 1;
+    };
+    return "";
+}
+
+// v0.4.271 RFC-0006 — quick check whether `text` is a bare identifier
+// (only `[A-Za-z_][A-Za-z0-9_]*`, no whitespace / punctuation /
+// operators). Conservative: complex `old()` expressions like
+// `old(self.field)` or `old(get_vec())` skip the heap-aliased
+// reject (false negative is preferred over false positive — the
+// runtime panic still surfaces in those edge cases).
+fn is_bare_ident(text: str) -> i64 {
+    let t: str = str_trim(text);
+    let n: i64 = str_len(t);
+    if n == 0 { return 0; };
+    let mut i: i64 = 0;
+    while i < n {
+        let c: str = str_substring(t, i, i + 1);
+        let is_alpha: i64 = if str_index_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_", c) >= 0 { 1 } else { 0 };
+        let is_digit: i64 = if str_index_of("0123456789", c) >= 0 { 1 } else { 0 };
+        if i == 0 {
+            if is_alpha == 0 { return 0; };
+        } else {
+            if is_alpha == 0 {
+                if is_digit == 0 { return 0; };
+            };
+        };
+        i = i + 1;
+    };
+    return 1;
+}
+
 // v0.4.257 RFC-0006 Liskov substrate — count #[require] and
 // #[ensure] attributes per trait method declaration. Returns flat
 // Vec of (trait_name, method_name, req_count, ens_count) tuples
@@ -20814,6 +20916,29 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         while roi < nold {
             let synth: str = vec_get(rewrite, 2 + roi * 2);
             let inner_text: str = vec_get(rewrite, 2 + roi * 2 + 1);
+            // v0.4.271 — heap-aliased reject. If the inner is a bare
+            // ident matching a fn param of heap-aliased type
+            // (Vec/String/HashMap/HashSet/BTreeMap/BTreeSet/VecDeque/Box),
+            // emit CONTRACT-006 because the i64-ABI snapshots the
+            // pointer, not the buffer — old(v) would alias the
+            // post-mutation pointer.
+            if is_bare_ident(inner_text) == 1 {
+                let pty: str = fn_param_type(source, ens_name, str_trim(inner_text));
+                if str_len(pty) > 0 {
+                    if is_heap_aliased_type(pty) == 1 {
+                        let trimmed: str = str_trim(inner_text);
+                        // Print directly to mirror the existing
+                        // diag-text format, then halt. Bypasses the
+                        // diags-vec accumulator because the main
+                        // drain has already run and re-running the
+                        // filter/promote pass corrupts string state
+                        // under the i64-ABI's pointer reuse.
+                        print(str_concat("error[CONTRACT-006]: `old(", str_concat(trimmed, str_concat(")` over param `", str_concat(trimmed, str_concat("` of type `", str_concat(pty, "` captures the i64-ABI heap pointer, not a deep snapshot. The pointer is the same one the body mutates — so `old(...)` aliases the post-mutation value and ensure semantics are wrong. Hoist a manual snapshot before the body (e.g. `let len_initial: i64 = vec_len(v);`) and reference that scalar in the ensure predicate, or mark the fn with `#[no_check]` to opt out.")))))));
+                        print(str_concat("  --> fn ", str_concat(ens_name, "@<old() arg>")));
+                        return 1;
+                    };
+                };
+            };
             let in_tokens: Vec<i32> = lex(inner_text);
             let in_parsed: Vec<i32> = parse_expr(in_tokens, 0, pool);
             let in_nid: i64 = pr_val(in_parsed);
