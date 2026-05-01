@@ -1711,6 +1711,26 @@ long long __nucleor_str_char_at(const char *s, long long i) {
     return (unsigned char)s[(int)i];
 }
 
+// v0.4.279: opt-in strict variant that DOES validate i < strlen(s).
+// Probe-agent finding 2026-04-30: default str_char_at silently
+// reads past the source's NUL terminator for i >= strlen(s),
+// returning whatever heap memory follows — memory-safety hazard.
+// Default kept lenient (per v0.3.220 retrospective: strlen on
+// every call is a 75x perf killer in lexer hot paths). This
+// strict variant pays O(strlen) and panics on OOB, mirroring
+// `str_substring_strict` from v0.3.220. Adopters opt in by
+// calling `str_char_at_strict` instead of `str_char_at`.
+long long __nucleor_str_char_at_strict(const char *s, long long i) {
+    if (!s) return 0;
+    long long slen = (long long)strlen(s);
+    if (i < 0 || i >= slen) {
+        fprintf(stderr, "PANIC: str_char_at_strict OOB: index %lld len %lld\n", i, slen);
+        fflush(stderr);
+        exit(1);
+    }
+    return (unsigned char)s[(int)i];
+}
+
 // v0.3.205: NUC-FEEDBACK runtime safety -- str_substring bounds.
 // Pre-fix had no length check on start/end vs strlen(s), so OOB
 // values read garbage past the null terminator (memory safety

@@ -5,6 +5,110 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.279] — 2026-05-01
+
+**🛡️ `str_char_at_strict` opt-in bounds-check.** Closes
+memory-safety finding filed by probe agent 2026-04-30:
+default `str_char_at(s, i)` for `i >= strlen(s)` silently
+read past the source's NUL terminator — undefined behavior,
+returns whatever heap memory follows. v0.4.279 ships an
+opt-in `str_char_at_strict` variant that pays the strlen
+check and panics on OOB. Default `str_char_at` keeps its
+v0.3.220 cheap-default semantics (negative-only check; the
+v0.3.220 retrospective documented that strlen-per-call is
+a 75x perf killer in lexer hot paths).
+
+### What lands
+
+**Runtime helper** at `stdlib/runtime/nucleor_llvm_rt.c`:
+```c
+long long __nucleor_str_char_at_strict(const char *s, long long i) {
+    if (!s) return 0;
+    long long slen = (long long)strlen(s);
+    if (i < 0 || i >= slen) {
+        fprintf(stderr, "PANIC: str_char_at_strict OOB: index %lld len %lld\n", i, slen);
+        fflush(stderr); exit(1);
+    }
+    return (unsigned char)s[(int)i];
+}
+```
+
+**Builtin wiring** in compiler/tools-suite:
+- `str_char_at_strict` name → `__nucleor_str_char_at_strict`
+  helper map (both compiler/nucleor_s1_compiler.nr and
+  compiler/nucleor_tools_suite.nr).
+- `is_ptr_arg` lookup mirrored (s arg is a ptr, i is i64).
+- IR `declare` block updated in both compilers (drift-checked).
+- `is_runtime_helper` allowlist mirrored.
+- `helper_manifest.toml` auto-regenerated.
+
+### Why opt-in instead of strict-by-default
+
+The probe finding's recommendation (a) — "strict-by-default
+panic matching v0.3.205+Ship 41's str_substring close" — was
+actually based on stale state. v0.3.220 reverted str_substring
+to lenient-by-default after measuring that strlen-on-every-call
+was a 75x compile-time perf regression in lexer paths. The
+mature pattern (post-v0.3.220) is:
+
+| Helper | Default | Opt-in strict |
+|---|---|---|
+| `str_substring` | cheap (negative-only) | `str_substring_strict` (v0.3.220) |
+| `str_char_at` | cheap (negative-only) | **`str_char_at_strict` (this ship)** |
+
+Adopters who want bounds-check safety call the `_strict`
+variant explicitly. Adopters in lexer / parser hot paths
+keep the default.
+
+### Pattern usage
+
+**Adopter-side migration:**
+```nucleor
+// Before — silent OOB on bad input data:
+let c: i64 = str_char_at(user_input, idx);
+
+// After — explicit bounds check:
+let c: i64 = str_char_at_strict(user_input, idx);
+```
+
+`str_char_at_strict` is a drop-in replacement when the index
+provenance isn't bounded by the call-site logic.
+
+### Fixture + verify gate
+
+- `tests/features/str_char_at_strict_basic.nr` — positive: in-
+  bounds reads return same byte values as default `str_char_at`
+  (h, e, o = 104, 101, 111 for "hello").
+- `tests/err/err_str_char_at_strict_oob.nr` — negative:
+  `str_char_at_strict("hi", 100)` panics with `str_char_at_strict
+  OOB: index 100 len 2`.
+- New verify gate steps `t_str_char_at_strict_basic` +
+  `t_str_char_at_strict_oob`.
+
+### Validation
+
+- Self-build clean. THREE-stage bootstrap converged at SHA
+  `f4ed4c2a55cf94145ba13cf328d1cd1ecd3c7bbf8ee506824790ce8508957a77`
+  (compiler IR moved from v0.4.277/278's `841c583d…`).
+  Adding a new helper requires three stages because the
+  round-1 build uses the OLD bin's frozen IR-declare set,
+  which doesn't include the new helper. Stages 2 and 3 use
+  bins that emit the new declare; round-2 = round-3 confirms
+  fixed-point at the new SHA.
+- Bootstrap seed refreshed.
+- Tools-suite build clean (mirror IR-declare added).
+- Drift gate clean — `helper_manifest.toml` regenerated.
+
+### Probe-agent integration
+
+Promoted finding `2026-04-30-str-char-at-oob-silent-read.md`
+to `findings/promoted/`. Sixth probe integration since the
+dual-agent split mandate.
+
+**Probe inbox queue remaining: 1 DbC ident-resolution
+finding** (`undefined-ident-in-contract-expr` — wants the
+full token-walk scan, biggest remaining ship).
+
 ## [0.4.278] — 2026-05-01
 
 **📋 Sync ship — sequencing doc + heartbeat refresh.** Doc-only.
