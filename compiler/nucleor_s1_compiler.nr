@@ -3978,6 +3978,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "str_len") { return "__nucleor_str_len"; };
     if str_eq(name, "str_eq") { return "__nucleor_str_eq"; };
     if str_eq(name, "str_char_at") { return "__nucleor_str_char_at"; };
+    if str_eq(name, "str_char_at_strict") { return "__nucleor_str_char_at_strict"; };
     if str_eq(name, "str_substring") { return "__nucleor_str_substring"; };
     if str_eq(name, "str_concat") { return "__nucleor_str_concat"; };
     if str_eq(name, "str_intern") { return "__nucleor_str_intern"; };
@@ -5139,6 +5140,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "str_len") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_eq") { return 1; };
     if str_eq(name, "str_char_at") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_char_at_strict") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_substring") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_concat") { return 1; };
     if str_eq(name, "str_intern") { if idx == 0 { return 1; }; return 0; };
@@ -5747,6 +5749,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_str_len(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_eq(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_char_at(ptr, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_char_at_strict(ptr, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_str_substring(ptr, i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_str_concat(ptr, ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_str_intern(ptr)\n");
@@ -14042,6 +14045,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 || str_eq(callee, "str_concat") == 1
                 || str_eq(callee, "str_substring") == 1
                 || str_eq(callee, "str_char_at") == 1
+                || str_eq(callee, "str_char_at_strict") == 1
                 || str_eq(callee, "str_contains") == 1
                 || str_eq(callee, "str_starts_with") == 1
                 || str_eq(callee, "str_ends_with") == 1

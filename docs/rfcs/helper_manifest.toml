@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 858
+# Total helpers: 859
 # Of which REVIEW REQUIRED: 69
 
 # ============================================================
@@ -7644,6 +7644,20 @@ symbol           = "__nucleor_str_char_at"
 dispatch         = "RuntimeCall"
 abi              = "(ptr, i64) -> i64"
 effects          = []
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "str_char_at_strict"
+class            = "StringFormat"
+symbol           = "__nucleor_str_char_at_strict"
+dispatch         = "RuntimeCall"
+abi              = "(ptr, i64) -> i64"
+effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "none"
