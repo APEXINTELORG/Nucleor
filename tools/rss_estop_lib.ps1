@@ -152,15 +152,23 @@ function Invoke-NucRssEstop {
         if ([string]::IsNullOrWhiteSpace($StderrPath)) { $StderrPath = Join-Path $tmpDir "stderr.txt" }
     }
 
-    $startArgs = if ($UseArgumentString) { $ArgumentString } else { $ArgumentList }
+    $startParams = @{
+        FilePath = $FilePath
+        WorkingDirectory = $WorkingDirectory
+        WindowStyle = "Hidden"
+        PassThru = $true
+        RedirectStandardOutput = $StdoutPath
+        RedirectStandardError = $StderrPath
+    }
+    if ($UseArgumentString) {
+        if (-not [string]::IsNullOrEmpty($ArgumentString)) {
+            $startParams.ArgumentList = $ArgumentString
+        }
+    } elseif ($ArgumentList.Count -gt 0) {
+        $startParams.ArgumentList = $ArgumentList
+    }
 
-    $proc = Start-Process -FilePath $FilePath `
-        -ArgumentList $startArgs `
-        -WorkingDirectory $WorkingDirectory `
-        -WindowStyle Hidden `
-        -PassThru `
-        -RedirectStandardOutput $StdoutPath `
-        -RedirectStandardError $StderrPath
+    $proc = Start-Process @startParams
 
     $peakBytes = 0L
     $peakDetail = ""
