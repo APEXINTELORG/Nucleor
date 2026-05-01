@@ -15330,9 +15330,19 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     let umax_v: i64 = i64_pow(2, w) - 1;
                     if lit_v < 0 || lit_v > umax_v { out_of_range = 1; };
                 };
-                if s == 2 && w == 64 && lit_v < 0 {
-                    out_of_range = 1;
-                };
+                // v0.5.23: removed the s==2 && w==64 negative check.
+                // Closes probe finding 2026-05-01-hex-literal-u64-max-misreports-as-negative.
+                // Pre-fix `let h: u64 = 0xFFFFFFFFFFFFFFFF;` rejected
+                // because the hex literal parsed as i64 = -1 (sign-bit
+                // wrap) and the check fired. But the BIT PATTERN is the
+                // valid u64::MAX. AST kind-1 literals only carry the i64
+                // value (no radix flag), so we can't distinguish
+                // "intentional hex bit pattern" from "decimal negative
+                // typo". Decimal-negative-to-u64 (e.g. `let h: u64 = -100;`)
+                // doesn't reach this check anyway — it parses as kind-5
+                // unary-neg on kind-1 literal 100, not kind-1 itself —
+                // so removing the check is safe. NUM-021 still catches
+                // decimal-overflow-to-u64::MAX at lex time.
                 if out_of_range == 1 {
                     // v0.4.70: promote NUM-002 from warning to error
                     // (audit section 1). Pre-fix `let x: u8 = 256;`
