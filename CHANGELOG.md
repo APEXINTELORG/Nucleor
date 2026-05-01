@@ -5,6 +5,105 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.277] — 2026-05-01
+
+**🛡️ RFC-0006 — `old(...)` in `#[require]` reject (CONTRACT-010).**
+Closes wrong-error finding filed by probe agent 2026-05-01.
+Pre-fix, `#[require(old(x) > 0)]` surfaced a misleading clang-
+link "undefined function `old()`" error — wrong identifier
+kind (`old` is the magic snapshot keyword, not a fn) and wrong
+phase (link instead of parse). CONTRACT-010 names the semantic
+mismatch: preconditions run BEFORE the body, so there's no
+prior state to snapshot.
+
+### Repro (pre-v0.4.277)
+
+```nucleor
+#[require(old(x) > 0)]
+fn f(x: i64) -> i64 { x }
+```
+
+```
+error[TYP-005]: undefined function `old()`. Check spelling, or
+import the rod that defines it. (raised at clang link...)
+COMPILE FAILED
+```
+
+### Post-v0.4.277
+
+```
+error[CONTRACT-010]: `old(...)` is not valid in
+`#[require(...)]` on `fn f`. Preconditions run BEFORE the
+function body, so there is no prior state to snapshot.
+`old(...)` is only meaningful in `#[ensure(...)]`
+(postconditions reference fn-entry state). Move the check
+into `#[ensure]`, or compare directly against the parameter
+without `old()`.
+  --> fn f@<#[require] attribute>
+```
+
+### What lands
+
+**New helper** at `compiler/nucleor_s1_compiler.nr`:
+- `contract_text_uses_old(text: str) -> i64` — word-boundary
+  scan for `old(` (preceded by start-of-text or non-ident char,
+  followed by `(`). Catches `old(x)` and `old(self.field)` but
+  not `older` / `bold(...)` / `_old`.
+
+**Reject site** in the require pre-pass at line ~21376:
+```nucleor
+if contract_text_uses_old(req_text) == 1 {
+    print("error[CONTRACT-010]: ...");
+    return 1;
+};
+```
+
+### Diag code
+
+CONTRACT-010 reserved in `is_known_diag_code` and
+`docs/spec/Nucleor_Error_Codes.md`. Filed under "RFC-0006 §3.2
+Preconditions". The probe finding suggested reusing
+CONTRACT-005 or CONTRACT-006 — both already taken (Liskov
+ensure / heap-aliased old reject respectively), so reserved
+the next free slot.
+
+### Coverage scoping
+
+**Caught:** any `old(...)` text appearance in `#[require]`,
+including nested expressions like `#[require(f(old(x)) > 0)]`.
+
+**Not affected:** `old()` in `#[ensure]` continues to work via
+the v0.4.251 snapshot machinery. Positive smoke confirmed:
+`#[ensure(result == old(x) + 1)] fn inc(x: i64) -> i64`
+compiles and runs cleanly.
+
+### Fixture + verify gate
+
+- `tests/err/err_contract_old_in_require.nr` — exact probe
+  repro.
+- New verify gate step `t_rfc0006_old_in_require_reject` —
+  asserts exit 1 + CONTRACT-010 + the named fn.
+
+### Validation
+
+- Self-build clean. Two-stage fixed-point at NEW SHA
+  `841c583dd4fcd8c044560a052eaec6dc8497f07a4f4b74a18613d7c64e638262`
+  (compiler IR moved from v0.4.276's `f7383cf2…`).
+- Bootstrap seed refreshed.
+- Drift gate clean.
+- Positive smoke: `old()` in `#[ensure]` still works.
+
+### Probe-agent integration
+
+Promoted finding `2026-05-01-dbc-old-in-require.md` to
+`findings/promoted/`. Fifth probe integration since the
+dual-agent split mandate.
+
+**Probe inbox queue remaining: 1 DbC ident-resolution finding
++ 1 carryover** (undefined-ident-in-contract-expr — wants
+the broader ident-resolution scan; str-char-at-oob — memory-
+safety, full strict-default ship).
+
 ## [0.4.276] — 2026-05-01
 
 **🧹 MATCH-012 panic-stutter fix.** Closes cosmetic / wrong-
