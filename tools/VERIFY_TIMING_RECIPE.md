@@ -25,6 +25,82 @@ run_iso,index,seconds,status,name
 Override the path with `NUC_VERIFY_CSV=path` if you want per-machine or
 per-branch files.
 
+## v0.5.17 — per-agent CSV namespacing
+
+With three agents (main + parallel-1 + probe) potentially running verify
+concurrently, set `NUC_VERIFY_AGENT=<name>` before invocation. The default
+CSV path becomes `tools/verify_timings.<name>.csv` so writes don't race.
+
+| Agent | Env | CSV |
+|---|---|---|
+| main | `NUC_VERIFY_AGENT=main` | `tools/verify_timings.main.csv` |
+| parallel-1 | `NUC_VERIFY_AGENT=parallel1` | `tools/verify_timings.parallel1.csv` |
+| probe | `NUC_VERIFY_AGENT=probe` | `tools/verify_timings.probe.csv` |
+
+`NUC_VERIFY_CSV=<path>` overrides either default.
+
+## v0.5.26 — bisect-narrow protocol modes
+
+Test count keeps growing (~696 steps as of v0.5.25, +2-5/hour during
+active probe sessions). Re-running the full gate after every probe-finding
+closure burns wall time; the per-step CSV makes targeted re-runs cheap.
+
+**Tier 1 — default routine ship (concurrent + env-off):**
+
+```bash
+NUC_VERIFY_AGENT=main bash tools/verify.sh
+# wall ~150-180s; PASS:696 expected; ship if PASS, otherwise pivot to Tier 2
+```
+
+**Tier 2 — re-run only failing steps (`--rerun-failed`):**
+
+```bash
+NUC_VERIFY_AGENT=main bash tools/verify.sh --rerun-failed
+# Reads tools/verify_timings.main.csv; skips any step whose LAST status
+# was PASS. Runs FAIL/SKIP/missing. Wall ~5-30s when most things passed.
+```
+
+Pass an explicit CSV path if you want to bisect against a different agent's run:
+
+```bash
+bash tools/verify.sh --rerun-failed tools/verify_timings.probe.csv
+```
+
+**Tier 4 — single-step verbose (`--only "<step>"`):**
+
+```bash
+NUC_VERIFY_AGENT=main bash tools/verify.sh --only "T1.7 bootstrap seed matches current compiler"
+# Runs ONLY that step. All others SKIP. Wall ~5-15s.
+# Step-name match is exact. Look up the canonical name from the CSV's `name` column.
+```
+
+Both modes filter the parallel-fixture loop too — fixture step names take
+the form `test <dir>/<tname>` (e.g. `test features/rfc0014_max_depth_assoc_fn`)
+or `negative <ename>` (e.g. `negative err_fmt_003_extra_args`).
+
+**Tier 3 — quadrant bisect (planned, not yet shipped):** future ship will
+add `--quadrant N/M` to split the parallelizable subset. For now,
+`--rerun-failed` + `--only` covers most narrow-down workflows.
+
+### Worked example
+
+```bash
+# 1. Routine ship: full gate
+NUC_VERIFY_AGENT=main bash tools/verify.sh
+# fails on step "T3.42 some new fixture"
+
+# 2. Identify the failure from CSV
+awk -F, '$4 == "FAIL"' tools/verify_timings.main.csv | tail -5
+
+# 3. Re-run just the failure with verbose
+NUC_VERIFY_AGENT=main bash tools/verify.sh --only "T3.42 some new fixture"
+# investigate, fix code, re-run --only loop
+
+# 4. Once fixed, re-run failed steps (catches collateral damage)
+NUC_VERIFY_AGENT=main bash tools/verify.sh --rerun-failed
+# if PASS, full gate one more time before ship
+```
+
 ## How to check it after every run
 
 ```bash
