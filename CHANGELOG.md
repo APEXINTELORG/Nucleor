@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.16] — 2026-05-01
+
+**🔬 Memory drift profile (Lane B1 from v0.5.14 deferred work).**
+Doc + tools-only ship.
+
+### What lands
+
+- `tools/memory_drift_profile.sh` — runs the current
+  `bin/nucleor.exe` against historical s1 sources (each tag's
+  `compiler/nucleor_s1_compiler.nr`). Same bin, varying input
+  size, isolates source-size effect from compiler-internal-state
+  effect.
+- `tools/memory_drift_profile.csv` — initial run captured for
+  v0.4.260, v0.4.282, v0.5.0, v0.5.7, v0.5.13, v0.5.14, v0.5.15.
+- `docs/milestones/MEMORY_DRIFT_2026-05-01.md` updated with
+  the profile data table + analysis.
+
+### Findings
+
+Two reads:
+
+1. **Source-driven growth is healthy.** v0.4.260 → v0.5.15:
+   source grew 5.9%, peak RSS grew 8.2%. The substrate added
+   since v0.5.0 (`is_atomic_ordered_builtin`,
+   `gparam_extract_binding`, `md_find_enclosing_impl_type`)
+   hasn't bloated allocation patterns. ~2.3% extra-per-byte
+   cost only.
+
+2. **Absolute peaks under back-to-back measurement (825-903 MB)
+   are 200-300 MB higher than under normal verify-gate
+   measurement (587-703 MB).** Same bin, same `--no-cache`,
+   same source. The delta is OS-state-dependent. **Implication:
+   the 770 MB self-host cap from v0.5.14 may be tighter than
+   intended on cold environments.** Worth re-measuring on a
+   fresh `cmd.exe` to confirm.
+
+### Action deferred
+
+- Era-current vs era-current measurement (build historical bin
+  chain) — multi-hour bootstrap work, only worth it if the
+  unwind effort warrants it.
+- Cold-environment cap re-calibration.
+
 ## [0.5.15] — 2026-05-01
 
 **📝 `findings/_heartbeat.md` refreshed for v0.5.7 → v0.5.14
