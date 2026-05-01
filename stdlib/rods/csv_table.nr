@@ -41,3 +41,17 @@ fn csv_table_set_float(t: i64, r: i64, c: i64, val_bits: i64) {
 }
 fn csv_table_write(t: i64, path: str) { nuc_csv_write(t, path); }
 fn csv_table_free(t: i64) { nuc_csv_free(t); }
+
+// === Ergonomic f64 wrappers (v0.4.263) ===
+//
+// Same pattern as units/kinematics/linalg — adopters write
+// `csv_table_set_f64(t, r, c, 3.14)` instead of
+// `csv_table_set_float(t, r, c, f64_to_bits(3.14))`. The
+// bits-ABI fns above remain — purely additive.
+
+fn csv_table_get_f64(t: i64, r: i64, c: i64) -> f64 {
+    return f64_from_bits(nuc_csv_get_float(t, r, c));
+}
+fn csv_table_set_f64(t: i64, r: i64, c: i64, v: f64) {
+    nuc_csv_set_float(t, r, c, f64_to_bits(v));
+}
