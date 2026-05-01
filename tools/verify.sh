@@ -135,8 +135,19 @@ FAILURES=()
 # Defaults to tools/verify_timings.csv. Each row: index,seconds,status,name.
 # Header is written once at first step; subsequent runs append a separator
 # row "---,---,RUN,<ISO timestamp>" so multiple runs share one file.
+#
+# v0.5.17 — agent-namespaced default. With 3 agents (main / parallel-1 /
+# probe) potentially running verify concurrently, a shared CSV path
+# races. Setting NUC_VERIFY_AGENT=<name> changes the default to
+# `tools/verify_timings.<name>.csv` so each agent has its own log.
+# Set explicitly via NUC_VERIFY_CSV to override either default.
+# tools/check_perf_regression.ps1 reads all per-agent CSVs.
 if [ -z "${NUC_VERIFY_CSV:-}" ]; then
-    NUC_VERIFY_CSV="$(cd "$(dirname "$0")/.." && pwd)/tools/verify_timings.csv"
+    if [ -n "${NUC_VERIFY_AGENT:-}" ]; then
+        NUC_VERIFY_CSV="$(cd "$(dirname "$0")/.." && pwd)/tools/verify_timings.${NUC_VERIFY_AGENT}.csv"
+    else
+        NUC_VERIFY_CSV="$(cd "$(dirname "$0")/.." && pwd)/tools/verify_timings.csv"
+    fi
 fi
 NUC_VERIFY_CSV_ENABLED=1
 if [ ! -f "$NUC_VERIFY_CSV" ]; then
