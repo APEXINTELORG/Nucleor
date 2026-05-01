@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.24] — 2026-05-01
+
+**🔧 Lexer: `1e20` (no fractional dot) now lexes as f64.**
+Closes probe-agent finding `2026-05-01-float-to-int-cast-out-of-range-silent-ub`.
+
+### What lands
+
+Probe's repro `let big: f64 = 1e20;` silently bound `big = 1.0`
+because the lexer parsed `1e20` as int `1` + ident `e20`. v0.4.220
+added e/E exponent support AFTER fractional digits (`1.0e20`),
+but skipped the no-dot form.
+
+`compiler/nucleor_s1_compiler.nr` line ~352: new digits-only-exp
+detection path. When the lexer sees `<digits>e<+/-?><digits>`
+(no `.`), it promotes to the f64 raw-bits path via `str_to_f64`.
+Gated on a digit appearing after the optional sign so
+`e_helper` and other identifiers stay as idents.
+
+### What probe got wrong (and we corrected)
+
+Probe claimed the saturating-cast helpers had UB. They don't.
+`__nucleor_f64_to_i64` / `_i32` / `_u32` / `_u64` saturate
+correctly per v0.3.211. The compiler dispatches to them at
+s1 line ~16703. **The bug was upstream** — `big` wasn't 1e20,
+it was 1.0, because the lexer rejected the literal.
+
+### Validation
+
+```nucleor
+let big: f64 = 1e20;
+print_f64(big);                  // 100000000000000000000.000000 (was 1.0)
+let i: i64 = big as i64;
+print_int(i as i32);             // -1 (i32 trunc of i64::MAX)
+let g: f64 = 2.5e-2;
+print_f64(g);                    // 0.025000
+```
+
+Identifier regression check: `let energy: i64 = 100;` and
+`let e2_helper: i64 = 200;` still lex as ident — no false-match
+on the e-exp detector.
+
+Round-1 == round-2 IR fixed-point at sha256
+`c95e4bd7fd34675737288bb8d3a302fb859ce00863dccad74e1172fa3afd459c`.
+
+### Promotes
+
+`findings/promoted/2026-05-01-float-to-int-cast-out-of-range-silent-ub.md`
+with full ## Promoted footer including the diagnosis correction.
+
 ## [0.5.23] — 2026-05-01
 
 **🔧 Hex literal u64::MAX no longer wrongly-NUM-002.** Closes
