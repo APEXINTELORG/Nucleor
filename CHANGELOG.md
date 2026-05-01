@@ -5,6 +5,23 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.6] — 2026-05-01
+
+**🔧 Drift fix: rod_manifest.toml regen.** Doc-only ship.
+v0.5.5 shipped without re-running `gen_rod_manifest.py` post-commit
+because the drift-gate failure was masked by a piped `tail`'s exit
+code in the local pre-commit script. The actual diff is line-ending
+normalization (CRLF → LF) on Windows; content unchanged. Same
+"shipped before drift fully clean" pattern as v0.5.1 → v0.5.2.
+
+Lesson: the local commit script chained
+`bash tools/check_compiler_drift.sh 2>&1 | tail -6 && git add -A`
+which masked the script's non-zero exit behind `tail`'s zero exit.
+Future ships should drop the `| tail` or use
+`{ ... ; }` grouping so the gate's exit code propagates.
+
+Validation: drift gate clean (`OK` on all 5 manifests / index files).
+
 ## [0.5.5] — 2026-05-01
 
 **📝 `findings/_heartbeat.md` refreshed for v0.4.282 → v0.5.4
