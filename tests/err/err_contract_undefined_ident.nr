@@ -1,3 +1,4 @@
+// EXPECT: build fails with CONTRACT-011 mentioning fn name `f` and the bare ident `undefined_var`.
 // RFC-0006 — undefined identifier in `#[require]` predicate must
 // reject at compile time (CONTRACT-011).
 //

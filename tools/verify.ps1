@@ -472,7 +472,7 @@ Step "CLI: nuc explain -- full spec code set wired" {
         # RFC-0006 contracts
         "CONTRACT-001", "CONTRACT-002", "CONTRACT-003", "CONTRACT-004",
         "CONTRACT-005", "CONTRACT-006", "CONTRACT-007", "CONTRACT-008",
-        "CONTRACT-009", "CONTRACT-010",
+        "CONTRACT-009", "CONTRACT-010", "CONTRACT-011",
         # RFC-0007 atomic
         "ATOMIC-001", "ATOMIC-002", "ATOMIC-003", "ATOMIC-004", "ATOMIC-005",
         "ATOMIC-006",

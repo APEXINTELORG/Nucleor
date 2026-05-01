@@ -10640,6 +10640,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "CONTRACT-008") { return "result referenced in void-fn ensure"; };
     if str_eq(code, "CONTRACT-009") { return "Invalid NUCLEOR_DBC_MODE value"; };
     if str_eq(code, "CONTRACT-010") { return "old(expr) used in require precondition"; };
+    if str_eq(code, "CONTRACT-011") { return "Undefined identifier in contract predicate"; };
     // RFC-0007 atomic
     if str_eq(code, "ATOMIC-001") { return "Blocking call inside #[atomic] function"; };
     if str_eq(code, "ATOMIC-002") { return "Allocating call inside #[atomic] function"; };
@@ -10853,6 +10854,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "CONTRACT-008") { return "A #[ensure(...)] predicate references result, but the annotated function returns no value."; };
     if str_eq(code, "CONTRACT-009") { return "NUCLEOR_DBC_MODE must be one of debug, safe-release, release, or cert."; };
     if str_eq(code, "CONTRACT-010") { return "old(...) snapshots function-entry state and is only meaningful in postconditions, not preconditions."; };
+    if str_eq(code, "CONTRACT-011") { return "A contract predicate references an identifier that is not a fn parameter, DbC keyword (true/false/null/Some/None/Ok/Err/result/old/self), CamelCase type or variant name, or fn call site."; };
     if str_eq(code, "ATOMIC-001") { return "#[atomic] functions cannot block. Mutex::lock, Channel::recv, sleep, or syscalls are forbidden. Use lock-free structures (SpscQueue, MpmcQueue) or Atomic<T>."; };
     if str_eq(code, "ATOMIC-002") { return "#[atomic] implies #[no_alloc]. See RT-001 explanation."; };
     if str_eq(code, "ATOMIC-003") { return "Cell/RefCell carry runtime borrow checks that can panic; #[atomic] forbids panicking control flow. Use Atomic<T> primitives instead."; };
@@ -11051,6 +11053,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "CONTRACT-008") { return "Remove `result` from the ensure predicate, or give the function a concrete return type if the contract is meant to constrain the returned value."; };
     if str_eq(code, "CONTRACT-009") { return "Unset NUCLEOR_DBC_MODE for debug behavior, or set it explicitly to debug, safe-release, release, or cert."; };
     if str_eq(code, "CONTRACT-010") { return "Move the old(...) check into #[ensure(...)] or compare directly against the incoming parameter in #[require(...)]."; };
+    if str_eq(code, "CONTRACT-011") { return "Check spelling of the identifier; rewrite the predicate to compare against a fn parameter; or qualify with a path / fn-call / field-access if it's actually a module-level reference."; };
     if str_eq(code, "ATOMIC-001") { return "RFC-0007 §3.3 — #[atomic] is the inter-thread RT contract. Use Atomic<T> ops, SpscQueue/MpmcQueue.try_push/try_pop, and avoid all blocking primitives."; };
     if str_eq(code, "ATOMIC-002") { return "RFC-0007 §3.3 — see RT-001."; };
     if str_eq(code, "ATOMIC-003") { return "RFC-0007 — Cell/RefCell rely on runtime borrow tracking that may panic; #[atomic] forbids panicking flow because it would break atomicity guarantees. Replace with Atomic<T> or AtomicCell<T>."; };
