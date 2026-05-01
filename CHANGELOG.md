@@ -5,6 +5,105 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.258] — 2026-05-01
+
+**🎯 RFC-0006 `#[no_check]` per-fn opt-out LIVE.** Adopters can
+now mark a single fn `#[no_check]` to bypass its `#[require(...)]`
+and `#[ensure(...)]` runtime checks without flipping the whole
+build to `NUCLEOR_DBC_MODE=release`. Predicates remain in
+source as documentation; the compiler still parses them
+(catches syntax errors) but emits no LLVM call to the contract
+runtime helpers. Useful when an adopter has profiled a hot
+path and wants per-fn opt-out for one fn rather than the whole
+build.
+
+### What lands
+
+**New scanner** `collect_no_check_fns(source)` at
+`compiler/nucleor_s1_compiler.nr:8939`:
+- Walks source, finds `#[no_check]` markers, captures the
+  following `fn NAME` token, returns a flat `Vec<i32>` of fn
+  names.
+- Marker-only attribute — no expression argument (unlike
+  `#[require]` / `#[ensure]` / `#[invariant]`).
+
+**Helper** `name_in_no_check(no_check, fn_name)` at
+`nucleor_s1_compiler.nr:9003` — linear scan of the no-check vec.
+
+**Filter at the require pre-pass** (line 20785):
+```nucleor
+if name_in_no_check(dbc_no_check, req_name) == 1 {
+    rti = rti + 2; continue;
+};
+```
+Same filter at the ensure pre-pass (line 20807). Lower_fn
+receives the trimmed `(req_exprs, ens_exprs)` pair and emits
+zero contract calls for the marked fn.
+
+### What's NOT covered
+
+`#[invariant(EXPR)]` is attached to an `impl` block, not a fn,
+so per-fn `#[no_check]` does not currently silence
+invariant entry/exit checks on individual methods. Adopters who
+need to opt one method out of an invariant check should split
+it into a separate `impl Type { ... }` block without the
+`#[invariant]` attribute — same compiler-friendly idiom that
+exists today. A per-method `#[no_check]` for invariants would
+need scanner work to bind methods to their containing
+impl's invariant, which is deferred.
+
+### End-to-end demo
+
+```nucleor
+#[no_check]
+#[require(x > 0)]
+fn hot_path(x: i64) -> i64 {
+    x * 2
+}
+
+fn main() -> i64 {
+    let v: i64 = hot_path(0 - 5);   // -5 — would normally
+                                     // panic CONTRACT-001
+    print_int(v);                    // prints -10, exits 0
+    0
+}
+```
+Without `#[no_check]`: `CONTRACT-001: require precondition
+violated`, exit 1. With `#[no_check]`: clean exit 0.
+
+### Validation
+
+- Self-build clean. Round-2 == round-3 IR byte-identical at
+  SHA `eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e`.
+- Bootstrap seed refreshed (`bootstrap/nucleor_s1_seed.ll`).
+- NUM-024 audit: 0 cross-width call sites, 0 cross-width
+  arithmetic.
+- Drift gate clean — RELEASES.md regenerated, all version
+  references match.
+- Smoke test: `tests/features/rfc0006_no_check.nr` —
+  `hot_path_skipped(-5) == -10`, `hot_path_skipped_ensure(7)
+  == 7`, `checked_path(3) == 6`. OK marker prints, exit 0.
+- Gate step `t_rfc0006_no_check_runtime` added to verify.sh —
+  positive (no_check bypasses) + negative (drop the marker,
+  CONTRACT-001 fires) sides both check.
+
+### RFC-0006 status after v0.4.258
+
+- ✅ CONTRACT-001 require (v0.4.245)
+- ✅ CONTRACT-002 ensure tail + mid-body (v0.4.246, 0.4.247, 0.4.254)
+- ✅ CONTRACT-003 invariant entry + exit + ctor (v0.4.248, 0.4.249, 0.4.253)
+- ✅ CONTRACT-004 Liskov require (v0.4.257)
+- ✅ CONTRACT-005 Liskov ensure (v0.4.257)
+- ✅ NUCLEOR_DBC_MODE strip-out (v0.4.252)
+- ✅ multiple require / ensure per fn (v0.4.250)
+- ✅ old(EXPR) snapshot in ensure (v0.4.251)
+- ✅ `#[no_check]` per-fn opt-out (v0.4.258)
+- ⏳ CONTRACT-007 cert static-proof (deferred — research-grade)
+
+Six of seven CONTRACT codes live + per-fn opt-out. The
+remaining gap (cert profile static proof) is the research-grade
+ship that requires SAT/SMT-style predicate analysis.
+
 ## [0.4.257] — 2026-05-01
 
 **🎯 RFC-0006 Liskov compile-time check LIVE — CONTRACT-004 +
