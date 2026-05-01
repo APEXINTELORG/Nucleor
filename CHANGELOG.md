@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.15] — 2026-05-01
+
+**📝 `findings/_heartbeat.md` refreshed for v0.5.7 → v0.5.14
+arc.** Doc-only ship.
+
+Updates:
+- `last_main_ship` v0.5.7 → v0.5.14
+- `main_commit` dff0aee → 126980f
+- `promoted_count` 29 → 33 (+1 max-depth-self-assoc-fn,
+  +1 i32-min-div-neg-one, +1 format-extra-args, +1 str-to-int-silent-zero,
+  +1 generic-T-propagation)
+- New `memory_budget_state` line capturing v0.5.14's 770/580 MB tight cap
+- Full session ship arc logged (v0.4.282 → v0.5.14, 23 ships across 4 phases)
+- Per-ship IR fixed-point SHAs recorded for v0.5.7..v0.5.13
+- Closed-deferred list expanded (atomic_swap_bool, max_depth-impl-method,
+  max_depth-assoc-fn, generic-T-propagation — all CLOSED this session)
+- Still-deferred list expanded with 12 items including a candid note
+  on the v0.5.15 vec_pop attempt that was reverted (hidden interaction
+  between builtin_rtype "void" return and the let-stmt TYP-008 path
+  that didn't fire — needs deeper investigation)
+
+This is the heartbeat probe-agent reads on next rebase.
+
+Validation: doc-only; v0.5.14 fixed-point unchanged. Drift gate
+clean.
+
 ## [0.5.14] — 2026-05-01
 
 **🔧 Memory-budget tighten — drift caught at v0.5.13.** Closes
