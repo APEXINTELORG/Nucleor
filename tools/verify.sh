@@ -1808,6 +1808,41 @@ t_rfc0006_old_expr_runtime() {
     return 0
 }
 
+t_rfc0006_no_check_runtime() {
+    # v0.4.258 RFC-0006 — #[no_check] per-fn opt-out.
+    # Builds the basic fixture: a fn that has #[no_check] and a
+    # #[require(x > 0)] is called with -5 — would normally trip
+    # CONTRACT-001 but the marker bypasses the check; another fn
+    # has #[no_check] + #[ensure(result >= 100)] returning 7 —
+    # would trip CONTRACT-002 but is bypassed. Asserts exit 0.
+    # Then synthesizes a violation: same code WITHOUT #[no_check]
+    # and asserts CONTRACT-001 fires (proving the marker is what
+    # suppressed the check).
+    "$BIN" build "tests/features/rfc0006_no_check.nr" -o "_t_rfc6_nochk" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe="target/_t_rfc6_nochk"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local out
+    out=$("$exe" 2>&1)
+    [ "$?" = "0" ] || return 1
+    echo "$out" | grep -q "OK rfc0006_no_check" || return 1
+    # Negative side: drop the #[no_check] on the require, prove
+    # the contract DOES fire — confirms the marker was load-bearing.
+    local tmp_neg="$NUC_VERIFY_TMPDIR/rfc6_nochk_violate.nr"
+    printf '%s\n' "#[require(x > 0)]" "fn hot(x: i64) -> i64 { x * 2 }" "fn main() -> i64 { let a: i64 = hot(0 - 5); print_int(a); 0 }" > "$tmp_neg"
+    "$BIN" build "$tmp_neg" -o "_t_rfc6_nochk_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local nexe="target/_t_rfc6_nochk_violate"
+    [ -x "$nexe.exe" ] && nexe="$nexe.exe"
+    [ -x "$nexe" ] || return 1
+    local nout
+    nout=$("$nexe" 2>&1)
+    [ "$?" = "1" ] || return 1
+    echo "$nout" | grep -q "CONTRACT-001: require precondition violated" || return 1
+    return 0
+}
+
 t_rfc0006_multi_attrs_runtime() {
     # v0.4.250 RFC-0006 — multiple #[require] / #[ensure] per fn.
     # Builds the basic fixture (3 fns with multi-attrs, all
@@ -4197,6 +4232,7 @@ step "v0.4.250 RFC-0006 — multiple #[require] / #[ensure] attributes per fn" t
 step "v0.4.251 RFC-0006 — old(expr) snapshot in #[ensure]" t_rfc0006_old_expr_runtime
 step "v0.4.252 RFC-0006 — NUCLEOR_DBC_MODE strip-out (debug/safe-release/release)" t_rfc0006_dbc_mode_runtime
 step "v0.4.253 RFC-0006 — #[invariant] constructor exit-emit" t_rfc0006_invariant_ctor_runtime
+step "v0.4.258 RFC-0006 — #[no_check] per-fn opt-out marker" t_rfc0006_no_check_runtime
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

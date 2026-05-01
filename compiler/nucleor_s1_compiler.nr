@@ -8936,6 +8936,80 @@ fn lookup_type_invariant_expr(invariants: Vec<i32>, type_name: str) -> str {
     return "";
 }
 
+// v0.4.258 RFC-0006 — `#[no_check]` per-fn opt-out scanner.
+// Returns flat Vec of fn names that carry the `#[no_check]`
+// attribute; the require/ensure pre-passes skip these so the
+// contract emit-sites produce no runtime checks. Useful for
+// hot-path fns where the contract is documentation-only.
+//
+// `#[no_check]` does NOT take an expression — marker attr only.
+// Pattern: `#[no_check]` followed by whitespace and `fn NAME`.
+fn collect_no_check_fns(source: str) -> Vec<i32> {
+    let mut entries: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[no_check]";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut r: i64 = p + plen;
+            while r + 3 <= slen {
+                let c0: i64 = str_char_at(source, r);
+                let c1: i64 = str_char_at(source, r + 1);
+                let c2: i64 = str_char_at(source, r + 2);
+                if c0 == 102 && c1 == 110 && c2 == 32 {
+                    r = r + 3;
+                    let name_start: i64 = r;
+                    while r < slen && (is_alnum(str_char_at(source, r)) == 1 || str_char_at(source, r) == 95) {
+                        r = r + 1;
+                    };
+                    if r > name_start {
+                        let fname: str = str_substring(source, name_start, r);
+                        entries.push(fname);
+                    };
+                    p = r;
+                    break;
+                };
+                r = r + 1;
+            };
+            if r + 3 > slen { p = slen; };
+        } else {
+            p = p + 1;
+        };
+    };
+    return entries;
+}
+
+fn name_in_no_check(no_check: Vec<i32>, fn_name: str) -> i64 {
+    let n: i64 = vec_len(no_check);
+    let mut i: i64 = 0;
+    while i < n {
+        if str_eq(vec_get(no_check, i), fn_name) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
 // v0.4.257 RFC-0006 Liskov substrate — count #[require] and
 // #[ensure] attributes per trait method declaration. Returns flat
 // Vec of (trait_name, method_name, req_count, ens_count) tuples
@@ -20697,12 +20771,18 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     let dbc_mode: str = env_get_or("NUCLEOR_DBC_MODE", "debug");
     let dbc_emit_require: i64 = if str_eq(dbc_mode, "release") == 1 || str_eq(dbc_mode, "cert") == 1 { 0 } else { 1 };
     let dbc_emit_ensure_inv: i64 = if str_eq(dbc_mode, "debug") == 1 || str_len(dbc_mode) == 0 { 1 } else { 0 };
+    // v0.4.258 RFC-0006 — `#[no_check]` per-fn opt-out. Scanner
+    // populates a list of fn names whose contracts should be
+    // skipped (e.g. hot-path fns). Pre-passes filter their entries
+    // out of require_exprs / ensure_exprs.
+    let dbc_no_check: Vec<i32> = if dbc_emit_require == 1 || dbc_emit_ensure_inv == 1 { collect_no_check_fns(source) } else { Vec::new() };
     let req_text_pairs: Vec<i32> = if dbc_emit_require == 1 { collect_fn_requires(source) } else { Vec::new() };
     let mut require_exprs: Vec<i32> = Vec::new();
     let mut rti: i64 = 0;
     let req_text_count: i64 = vec_len(req_text_pairs);
     while rti + 1 < req_text_count {
         let req_name: str = vec_get(req_text_pairs, rti);
+        if name_in_no_check(dbc_no_check, req_name) == 1 { rti = rti + 2; continue; };
         let req_text: str = vec_get(req_text_pairs, rti + 1);
         let req_tokens: Vec<i32> = lex(req_text);
         let req_parsed: Vec<i32> = parse_expr(req_tokens, 0, pool);
@@ -20724,6 +20804,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     let ens_text_count: i64 = vec_len(ens_text_pairs);
     while eti + 1 < ens_text_count {
         let ens_name: str = vec_get(ens_text_pairs, eti);
+        if name_in_no_check(dbc_no_check, ens_name) == 1 { eti = eti + 2; continue; };
         let ens_text: str = vec_get(ens_text_pairs, eti + 1);
         // v0.4.251 — text-level rewrite of `old(EXPR)` to synth names.
         let rewrite: Vec<i32> = rewrite_old_in_ensure(ens_text, ens_name);
