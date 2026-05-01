@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.244] — 2026-04-30
+
+**RFC-0006 Design by Contract — substrate ship.** Lays the
+source-text scanner foundation for `#[require(EXPR)]` runtime
+enforcement. Mirrors the proven `collect_no_alloc_fns` pattern.
+
+### What lands
+
+- **`collect_fn_requires(source: str) -> Vec<i32>`** — scans the
+  source for the literal pattern `#[require(`, walks paren-
+  balanced expression text (with string-literal awareness),
+  captures the next `fn NAME` identifier, and returns a flat
+  Vec of alternating `(fn_name, expr_text)` entries.
+- **`lookup_fn_require_expr(requires: Vec<i32>, fn_name: str) -> str`** —
+  linear-scan lookup; returns the require expression text for
+  a given fn name, or "" if no require attribute is attached.
+- String-literal and `//` comment skipping mirror
+  `collect_no_alloc_fns` so the s1 compiler doesn't false-
+  positive on the literal `"#[require("` pattern inside its
+  own scanner code.
+
+### Why scanner-based instead of lexer-modified
+
+The Nucleor lexer at line 254 currently discards any `#[...]`
+attribute as whitespace. RFC-0006 cannot rely on tokens to
+recover require/ensure/invariant — by the time tokens reach
+the parser, the attribute is gone. Two options:
+
+1. Modify the lexer to preserve specific attributes as new
+   token kinds. Risky — affects every build, lexer regressions
+   are silent killers.
+2. Source-text scan AFTER lex, mirroring `collect_no_alloc_fns`
+   (already in production for `#[no_alloc]`, `#[no_panic]`,
+   `#[no_dyn]`, `#[deadline=N]`, `#[ffi_no_alloc]`,
+   `#[ffi_no_panic]`).
+
+v0.4.244 picks option 2. The scanner is established Nucleor
+pattern; lower-risk, easier to validate, simpler to extend
+to `#[ensure]` and `#[invariant]` in follow-on ships.
+
+### Validation
+
+- Self-build clean (LL 7 869 247 bytes, +129 bytes for the new
+  helpers).
+- **Two-stage fixed-point env-DEFAULT-ON at SHA**
+  `42f0528a6916bfdd1f65d49ee9fcf9f2e6ae6ffabd0270d741e618887ea8a62e`.
+  Bootstrap seed refreshed; T1.7 locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean.
+- Helpers DCE-elide as unreachable (no consumers yet — the
+  lowering ship in v0.4.245+ wires them).
+
+### What ships next (v0.4.245)
+
+The substrate is in place; the next ship wires the consumer:
+
+1. Pre-process before main lowering: walk
+   `collect_fn_requires(source)` results, lex+parse each
+   `expr_text` into the AST pool, store `(fn_name, expr_nid)`
+   pairs.
+2. Thread the require_exprs vec to `lower_fn`.
+3. At fn entry (after param allocas), if the fn has a
+   require: lower the expr to IR, emit `if !result { call
+   __nucleor_panic("CONTRACT-001 require violated"); }`.
+4. New fixture `tests/features/rfc0006_require_basic.nr`
+   exercising passing + failing require.
+5. Verify gate step locking the runtime panic behavior.
+
+CONTRACT-001..007 diag codes are already wired in
+`is_known_diag_code`, both verify scripts, the spec doc, and
+the explain registry (titles + causes + hints all populated).
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: 2 new helpers (`collect_fn_requires`,
+  `lookup_fn_require_expr`) — ~100 lines combined, inserted
+  between `collect_no_alloc_fns` and `check_no_alloc_violations`.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
 ## [0.4.243] — 2026-04-30
 
 **v0.5 ship 7 closeout — OWN-001 use-after-move caret precision.**

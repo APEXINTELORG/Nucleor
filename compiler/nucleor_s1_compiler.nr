@@ -8515,6 +8515,117 @@ fn collect_no_alloc_fns(source: str) -> Vec<i32> {
     return fns;
 }
 
+// v0.4.244 RFC-0006 substrate — `#[require(EXPR)]` source-text
+// scanner. Mirrors `collect_no_alloc_fns` shape: scans the source
+// for the literal pattern, walks paren-balanced expression text,
+// captures the next `fn NAME` identifier, and stores a flat
+// (fn_name, expr_text) pair in the result Vec. Lex-time the `#[
+// require(...)]` is discarded as an unknown attribute, so the
+// parser never sees it; this side-channel scanner recovers the
+// information.
+//
+// Returns a flat Vec of alternating (fn_name, expr_text) entries:
+//   [name0, expr0, name1, expr1, ...]
+//
+// String-literal and `//` comment skipping mirror the no_alloc
+// pattern so the s1 compiler doesn't false-positive on the literal
+// pattern strings inside its own scanner code.
+fn collect_fn_requires(source: str) -> Vec<i32> {
+    let mut entries: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[require(";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            // p points at `#`. p + plen points at the first byte of the
+            // expression (just past the `(`). Walk paren-balanced text
+            // to find the closing `)` of the require expression.
+            let expr_start: i64 = p + plen;
+            let mut q: i64 = expr_start;
+            let mut paren_depth: i64 = 1;
+            while q < slen && paren_depth > 0 {
+                let cc: i64 = str_char_at(source, q);
+                if cc == 34 {
+                    q = q + 1;
+                    while q < slen && str_char_at(source, q) != 34 {
+                        if str_char_at(source, q) == 92 && q + 1 < slen { q = q + 2; }
+                        else { q = q + 1; };
+                    };
+                    if q < slen { q = q + 1; };
+                    continue;
+                };
+                if cc == 40 { paren_depth = paren_depth + 1; }
+                else if cc == 41 { paren_depth = paren_depth - 1; if paren_depth == 0 { break; }; };
+                q = q + 1;
+            };
+            let expr_end: i64 = q;
+            // Skip past the `)]` and any whitespace, then look for `fn `.
+            let mut r: i64 = expr_end + 1;
+            if r < slen && str_char_at(source, r) == 93 { r = r + 1; };
+            while r + 3 <= slen {
+                let c0: i64 = str_char_at(source, r);
+                let c1: i64 = str_char_at(source, r + 1);
+                let c2: i64 = str_char_at(source, r + 2);
+                if c0 == 102 && c1 == 110 && c2 == 32 {
+                    r = r + 3;
+                    let name_start: i64 = r;
+                    while r < slen && (is_alnum(str_char_at(source, r)) == 1 || str_char_at(source, r) == 95) {
+                        r = r + 1;
+                    };
+                    if r > name_start && expr_end > expr_start {
+                        let fname: str = str_substring(source, name_start, r);
+                        let etext: str = str_substring(source, expr_start, expr_end);
+                        entries.push(fname);
+                        entries.push(etext);
+                    };
+                    p = r;
+                    break;
+                };
+                r = r + 1;
+            };
+            if r + 3 > slen { p = slen; };
+        } else {
+            p = p + 1;
+        };
+    };
+    return entries;
+}
+
+// Look up the `#[require(...)]` expression text for a given fn
+// name. Returns "" if no require attribute was attached. Linear
+// scan; the require list is small in practice.
+fn lookup_fn_require_expr(requires: Vec<i32>, fn_name: str) -> str {
+    let n: i64 = vec_len(requires);
+    let mut i: i64 = 0;
+    while i + 1 < n {
+        let nm: str = vec_get(requires, i);
+        if str_eq(nm, fn_name) == 1 { return vec_get(requires, i + 1); };
+        i = i + 2;
+    };
+    return "";
+}
+
 // For a given fn_name marked #[no_alloc], scan its body text for
 // literal `<alloc_call>(` patterns and emit RT-001 diags into
 // `diags` for each match.
