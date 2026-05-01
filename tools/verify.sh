@@ -1713,6 +1713,34 @@ strict_intrin_fixture_overflows() {
     return 0
 }
 
+t_wrap_block_no_trap() {
+    # v0.4.242 — regression gate for v0.4.239's wrap-block fix.
+    # Pre-v0.4.239, parse_primary routed `wrapping { ... }` through
+    # parse_passthrough_block_expr (no mode flag), so the kind-52
+    # mode-1 handler that sets sym["__arith_mode"]=1 never fired.
+    # With v0.4.238's NUCLEOR_INT_STRICT_INTRIN=1 default, every
+    # `wrapping { a + b }` block emitted the trap path and panicked
+    # at runtime on real overflow — the exact opposite of intent.
+    # v0.4.239 routed wrapping through parse_wrapped_block_expr(...,1).
+    # This gate locks the fix: build overflow_wrapping fixture, run,
+    # assert exit 0 + correct wrapped value (i32::MIN as decimal).
+    "$BIN" build "tests/features/overflow_wrapping.nr" -o "_t_wrap_block" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe="target/_t_wrap_block"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local rout
+    rout=$("$exe" 2>&1)
+    local rc=$?
+    [ "$rc" = "0" ] || return 1
+    # i32::MIN = -2147483648 (the wrapped value of i32::MAX + 1)
+    echo "$rout" | grep -qE "(^|[^0-9])-2147483648($|[^0-9])" || return 1
+    # Defense in depth: any "PANIC: integer overflow" in output is a
+    # regression of the v0.4.239 fix.
+    if echo "$rout" | grep -q "PANIC: integer overflow"; then return 1; fi
+    return 0
+}
+
 t_strict_intrin_narrow_widths() {
     # Track E: strict-intrinsic mode wins over legacy strict helper mode
     # for +/-/*, and emits the concrete LLVM signed-overflow intrinsic
@@ -3918,6 +3946,7 @@ step "T3.147 v0.4.119 rich match patterns — enum or, @, struct, slice, tuple, 
 step "T3.148 v0.4.146 NUM-008 — variable shift RHS halts when const, panics cleanly at runtime otherwise" t447_shift_var_rhs_bounds
 step "T3.saturating block add/sub/mul lower per operation" t_saturating_block_per_op
 step "T3.strict intrinsic signed narrow overflow i8/i16/i32 + env precedence" t_strict_intrin_narrow_widths
+step "v0.4.239 regression — wrapping {} block must not trap under strict default" t_wrap_block_no_trap
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.242] — 2026-04-30
+
+**Robustness ratchet — v0.4.239 wrap-block regression-lock + UPGRADE
+note bump.** No compiler source changes. Two ship items:
+
+### 1. New verify-gate step `t_wrap_block_no_trap`
+
+Locks v0.4.239's `wrapping { ... }` parser fix as a permanent
+regression floor. Pre-fix, the gate accepted `tests/features/
+overflow_wrapping.nr` rc=1 because the gate's tests/features rule
+only fails on SEGV-class exit codes (139/138/Windows
+equivalents). The new step:
+
+1. Builds `overflow_wrapping.nr` with `--no-cache`.
+2. Asserts build rc == 0.
+3. Runs the binary, asserts run rc == 0.
+4. Asserts output contains `-2147483648` (i32::MIN, the wrapped
+   value).
+5. Asserts output does NOT contain `PANIC: integer overflow`
+   (defense in depth — any future regression of the parser fix
+   hits this gate).
+
+If a future ship reverts or breaks the parser routing of
+`wrapping { ... }` through `parse_wrapped_block_expr(..., 1)`,
+this gate fails the verify run.
+
+### 2. UPGRADE doc bump v0.4.239 → v0.4.241
+
+`docs/UPGRADE_v0.4.241.md` extends the prior UPGRADE note to
+cover the full v0.4.238 → v0.4.241 window:
+
+- v0.4.238 strict-default flip (behavior change).
+- v0.4.239 wrap-block fix (correctness).
+- v0.4.240 unsigned-overflow fix (correctness).
+- v0.4.241 diagnostic caret quality (UX).
+
+Adopters reading the upgrade note now see all four changes in
+one place. The `v0.4.239` doc remains for back-compat.
+
+### Validation
+
+- Source unchanged; no new compiler self-build needed.
+- Existing two-stage fixed-point at SHA
+  `3b659163d0a771904fe0304e93656a94dd3f52b884b7754c72b7ab822b9495ed`
+  remains valid.
+- New gate step smoke-tested standalone: build rc=0, run rc=0,
+  output `-2147483648`, no panic.
+- Compiler ABI drift gate: clean.
+
+### Files touched
+
+- `tools/verify.sh`: `t_wrap_block_no_trap` step + registration.
+- `docs/UPGRADE_v0.4.241.md`: new (extends v0.4.239 doc).
+- `RELEASES.md`: regenerated.
+
 ## [0.4.241] — 2026-04-30
 
 **v0.5 ship 7 substantive completion — call/cast/vec-read diag
