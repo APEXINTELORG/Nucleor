@@ -5,6 +5,118 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.245] — 2026-04-30
+
+**🎯 RFC-0006 Design by Contract — `#[require(EXPR)]` LIVE
+END-TO-END.** First working DbC feature in Nucleor. Adopters can
+now annotate fns with `#[require(EXPR)]` preconditions that are
+checked at runtime; failed requires print
+`CONTRACT-001: require precondition violated` and exit 1.
+
+### What lands
+
+**Runtime side** (`stdlib/runtime/nucleor_llvm_rt.c`):
+- `__nucleor_contract_require(cond) -> long long` — checks the
+  i64 cond; if 0, prints CONTRACT-001 and exits 1; else returns 0.
+- `__nucleor_contract_ensure(cond) -> long long` — same shape,
+  CONTRACT-002 message. Wired but no compiler-side emit yet
+  (ensure is the v0.4.246 ship).
+
+**Compiler side** (`compiler/nucleor_s1_compiler.nr`):
+- Pre-pass at the main pipeline calls `collect_fn_requires(source)`
+  (the v0.4.244 substrate scanner), then for each (fn_name,
+  expr_text) pair: `lex(expr_text)` → tokens, `parse_expr(tokens,
+  0, pool)` → expr nid in the AST pool. Stores a flat
+  (fn_name, expr_nid) Vec.
+- `lower_fn` signature extended with `require_exprs: Vec<i32>`.
+  Both call sites updated. Inside `lower_fn`, after the param
+  + globals init, looks up the fn name in `require_exprs`; if
+  present, lowers the expression into ebb0 and emits
+  `call i64 @__nucleor_contract_require(i64 %result)`.
+- New runtime helper short-name mappings in
+  `runtime_helper_name`: `contract_require`,
+  `contract_ensure`. Mirrored in tools-suite.
+- New `declare i64 @__nucleor_contract_require(i64)` /
+  `__nucleor_contract_ensure(i64)` lines in `emit_externs`
+  (compiler + tools-suite).
+
+**Fixture + verify gate:**
+- `tests/features/rfc0006_require_basic.nr` — passing path
+  exercising `#[require(x > 0)]` and `#[require(n >= 0)]` with
+  legitimate inputs.
+- New verify-gate step `t_rfc0006_require_runtime` at
+  `tools/verify.sh`. Builds the basic fixture, asserts exit 0
+  + OK marker. Then generates a synthetic violation fixture
+  inline (`pos(0 - 5)` for a `#[require(x > 0)]` fn), builds
+  it, asserts exit 1 + `CONTRACT-001` panic message in output.
+
+### End-to-end demo
+
+```nucleor
+#[require(x > 0)]
+fn double(x: i64) -> i64 {
+    x * 2
+}
+
+fn main() -> i64 {
+    let a: i64 = double(5);    // OK: x > 0 → returns 10
+    let b: i64 = double(0 - 5); // FAIL: x = -5 < 0
+    print_int(a + b);
+    0
+}
+```
+
+Output:
+```text
+CONTRACT-001: require precondition violated
+exit 1
+```
+
+### Validation
+
+- Self-build clean. **First-stage upgrade artifact:** round-1
+  IR (built by old binary, no contract decls) differs from
+  round-2 (new binary, declares present) by exactly 89 bytes
+  — the two new `declare` lines. Round-2 == round-3
+  fixed-point at SHA
+  `3b9f482806e8e02f163dec119a548dfbeef4e3d0aff68ae4bb3290372e7d0dc4`.
+  Bootstrap seed refreshed to round-3.
+- T1.7 fixed-point locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean (intrinsic decls + helper
+  manifest both regenerated).
+- **Targeted require runtime smoke:**
+  - `double(5)` with `#[require(x > 0)]` → output `10`, exit 0.
+  - `double(0 - 5)` with `#[require(x > 0)]` →
+    `CONTRACT-001: require precondition violated`, exit 1.
+- Fixture `rfc0006_require_basic.nr` builds + runs OK.
+- New verify-gate step `t_rfc0006_require_runtime` smoke-tested
+  standalone (passing path + violation path both as expected).
+
+### What's next (v0.4.246+)
+
+- `#[ensure(EXPR)]` end-to-end (similar shape, exit-time emit,
+  with `result` binding accessible to the predicate).
+- `#[invariant(EXPR)]` for struct impl blocks (entry+exit
+  on every method).
+- `old(expr)` snapshot at fn entry for ensure expressions.
+- Build-mode awareness: `#[release]` strip-out, `safe-release`
+  partial elision.
+- Trait inheritance / Liskov checks (CONTRACT-004, CONTRACT-005).
+
+### Files touched
+
+- `stdlib/runtime/nucleor_llvm_rt.c`: 2 new runtime helpers.
+- `compiler/nucleor_s1_compiler.nr`: helper-name mapping +
+  emit_externs declares + lower_fn signature extension +
+  pre-pass + require check emit at fn entry. ~50 lines added.
+- `compiler/nucleor_tools_suite.nr`: mirror of helper-name +
+  emit_externs declares.
+- `tests/features/rfc0006_require_basic.nr`: new fixture.
+- `tools/verify.sh`: `t_rfc0006_require_runtime` step + reg.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+- `docs/rfcs/helper_manifest.toml`: regenerated.
+
 ## [0.4.244] — 2026-04-30
 
 **RFC-0006 Design by Contract — substrate ship.** Lays the

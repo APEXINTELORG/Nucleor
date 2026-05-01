@@ -4154,6 +4154,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "max") { return "__nucleor_max"; };
     if str_eq(name, "clamp") { return "__nucleor_clamp"; };
     if str_eq(name, "assert") { return "__nucleor_assert"; };
+    if str_eq(name, "contract_require") { return "__nucleor_contract_require"; };
+    if str_eq(name, "contract_ensure") { return "__nucleor_contract_ensure"; };
     if str_eq(name, "profile_start") { return "__nucleor_profile_start"; };
     if str_eq(name, "profile_end") { return "__nucleor_profile_end"; };
     if str_eq(name, "ambient_random") { return "__nucleor_ambient_random"; };
@@ -5911,6 +5913,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_max(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_clamp(i64, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_assert(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_contract_require(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_contract_ensure(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_profile_start(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_profile_end(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_ambient_random()\n");
@@ -18225,7 +18229,7 @@ fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Ve
     return b;
 }
 
-fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>) -> Vec<i32> {
+fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, require_exprs: Vec<i32>) -> Vec<i32> {
     let name: str = node_field(pool, fn_nid, 1);
     let plist: i64 = node_field(pool, fn_nid, 2);
     let blist: i64 = node_field(pool, fn_nid, 4);
@@ -18327,6 +18331,38 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
         // v0.3.55: full declared type (mirror let / param sites).
         if str_len(gtype) > 0 { sym_set(sym, str_concat("__fulltype_", gname), gtype); };
         gi = gi + 1;
+    };
+    // v0.4.245 RFC-0006 Design by Contract — `#[require(EXPR)]`
+    // runtime check at fn entry. The substrate scanner ran in the
+    // main pipeline (collect_fn_requires + lex+parse pre-pass);
+    // require_exprs is a flat (fn_name, expr_nid) Vec. If this fn
+    // has a require, lower the expr into ebb0, then call the
+    // runtime helper __nucleor_contract_require(result) — the
+    // helper prints CONTRACT-001 + exits on a 0 result. The fn's
+    // body lowering follows on a fresh ebb0 (ebb0 may have been
+    // updated by the require expression's own block-control if
+    // the predicate is non-trivial — e.g. a chain of && that
+    // short-circuits into multiple basic blocks).
+    let mut req_idx: i64 = 0;
+    let mut req_nid: i64 = 0 - 1;
+    let req_count: i64 = vec_len(require_exprs);
+    while req_idx + 1 < req_count {
+        let cand: str = vec_get(require_exprs, req_idx);
+        if str_eq(cand, name) == 1 {
+            req_nid = vec_get(require_exprs, req_idx + 1);
+            req_idx = req_count;
+        } else {
+            req_idx = req_idx + 2;
+        };
+    };
+    if req_nid >= 0 {
+        let mut req_lp: Vec<i32> = lower_expr(pool, req_nid, ebb0, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
+        let req_rr: i64 = lx_reg(req_lp);
+        ebb0 = lx_blk(req_lp);
+        let mut req_args: Vec<i32> = Vec::new();
+        req_args.push(req_rr);
+        let req_cr: i64 = ctr_next(regs);
+        ir_block_add(ebb0, ir_call_ex(req_cr, "contract_require", req_args));
     };
     let bcnt: i64 = list_len(pool, blist);
     let mut fb: Vec<i32> = ebb0;
@@ -19588,16 +19624,37 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     };
     vec_free(diags);
     let mut closures: Vec<i32> = Vec::new();
+    // v0.4.245 RFC-0006 — pre-process #[require(EXPR)] attributes.
+    // Source-text scanner produces (fn_name, expr_text) pairs. For
+    // each, lex+parse the expression text into the existing pool;
+    // store (fn_name, expr_nid) for lower_fn to look up. The lex
+    // and parse_expr functions are reentrant — they take a fresh
+    // token stream and return an AST nid in the supplied pool.
+    let req_text_pairs: Vec<i32> = collect_fn_requires(source);
+    let mut require_exprs: Vec<i32> = Vec::new();
+    let mut rti: i64 = 0;
+    let req_text_count: i64 = vec_len(req_text_pairs);
+    while rti + 1 < req_text_count {
+        let req_name: str = vec_get(req_text_pairs, rti);
+        let req_text: str = vec_get(req_text_pairs, rti + 1);
+        let req_tokens: Vec<i32> = lex(req_text);
+        let req_parsed: Vec<i32> = parse_expr(req_tokens, 0, pool);
+        let req_expr_nid: i64 = pr_val(req_parsed);
+        require_exprs.push(req_name);
+        require_exprs.push(req_expr_nid);
+        free_token_vec(req_tokens);
+        rti = rti + 2;
+    };
     let lower_start: i64 = now_ms();
     fi = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls)); };
+        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs)); };
         fi = fi + 1;
     };
     let mut ii: i64 = 0;
     while ii < vec_len(impl_fns) {
-        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls));
+        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs));
         ii = ii + 1;
     };
     let mut ci3: i64 = 0;

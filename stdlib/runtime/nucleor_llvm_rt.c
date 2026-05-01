@@ -3431,6 +3431,32 @@ long long __nucleor_assert(long long cond) {
     return 0;
 }
 
+// v0.4.245 RFC-0006 Design by Contract — runtime require check.
+// Emitted at fn entry by the compiler when a fn carries
+// `#[require(EXPR)]`. EXPR is lowered to a boolean (i64; 0 =
+// false, non-0 = true). On false, prints CONTRACT-001 and exits.
+long long __nucleor_contract_require(long long cond) {
+    if (cond == 0) {
+        fprintf(stderr, "CONTRACT-001: require precondition violated\n");
+        fflush(stderr);
+        exit(1);
+    }
+    return 0;
+}
+
+// v0.4.245 RFC-0006 Design by Contract — runtime ensure check.
+// Emitted at fn exit by the compiler when a fn carries
+// `#[ensure(EXPR)]`. Same shape as require; CONTRACT-002 message.
+long long __nucleor_contract_ensure(long long cond) {
+    if (cond == 0) {
+        fprintf(stderr, "CONTRACT-002: ensure postcondition violated\n");
+        fflush(stderr);
+        exit(1);
+    }
+    return 0;
+}
+
+
 long long __nucleor_assert_eq(long long a, long long b) {
     if (a != b) {
         fprintf(stderr, "ASSERTION FAILED: %lld != %lld\n", a, b);

@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 855
-# Of which REVIEW REQUIRED: 66
+# Total helpers: 857
+# Of which REVIEW REQUIRED: 68
 
 # ============================================================
 # REVIEW REQUIRED
@@ -35,6 +35,8 @@
 #   __nucleor_sym_aux_set_built_at           (Unclassified)
 #   async_await                              (Unclassified)
 #   async_spawn                              (Unclassified)
+#   contract_ensure                          (Unclassified)
+#   contract_require                         (Unclassified)
 #   deadline_check                           (Unclassified)
 #   dyn_box_data                             (Unclassified)
 #   dyn_box_free                             (Unclassified)
@@ -9766,6 +9768,34 @@ class            = "Unclassified"
 symbol           = "__nucleor_async_spawn"
 dispatch         = "RuntimeCall"
 abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "contract_ensure"
+class            = "Unclassified"
+symbol           = "__nucleor_contract_ensure"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "contract_require"
+class            = "Unclassified"
+symbol           = "__nucleor_contract_require"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
 effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"
