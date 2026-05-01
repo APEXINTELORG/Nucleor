@@ -183,6 +183,7 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 | CONTRACT-005 | Trait impl strengthens postcondition (Liskov) | [RFC-0006 §3.5](../rfcs/RFC-0006-design-by-contract.md) |
 | CONTRACT-006 | old(expr) references mutable state without snapshot | [RFC-0006 §3.3](../rfcs/RFC-0006-design-by-contract.md) |
 | CONTRACT-007 | In cert profile, contract not statically provable | [RFC-0006](../rfcs/RFC-0006-design-by-contract.md) |
+| CONTRACT-008 | `result` referenced in `#[ensure]` on a void fn | [RFC-0006 §3.3](../rfcs/RFC-0006-design-by-contract.md) |
 
 ## ATOMIC series — RFC-0007 atomic + lock-free
 
