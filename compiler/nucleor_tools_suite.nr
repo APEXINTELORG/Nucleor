@@ -10585,7 +10585,7 @@ fn explain_error_title(code: str) -> str {
     // TNT series — taint analysis (expansion of NR033)
     if str_eq(code, "TNT-001") { return "Tainted data passed to sensitive sink"; };
     // TYP series — type checker (expansion of NR030)
-    if str_eq(code, "TYP-001") { return "Non-exhaustive match (legacy; use MATCH-001)"; };
+    if str_eq(code, "TYP-001") { return "Non-exhaustive match (LEGACY — unified under MATCH-001 in v0.5.18; no longer emitted)"; };
     if str_eq(code, "TYP-002") { return "Boolean values cannot be used in arithmetic"; };
     if str_eq(code, "TYP-003") { return "Unit operands for addition/subtraction must match"; };
     if str_eq(code, "TYP-004") { return "Cannot dereference a non-reference value"; };
@@ -10808,7 +10808,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "GOV-001") { return "The source declares `@policy(require_authored)` at the module level but at least one function lacks an `@authored(\"name\")` annotation. Add `@authored(\"...\")` to every fn, or remove the policy."; };
     if str_eq(code, "GOV-002") { return "The source declares `@policy(no_unsafe)` at the module level but contains an `unsafe { ... }` block. Either remove the unsafe block (preferred) or remove the no_unsafe policy."; };
     if str_eq(code, "TNT-001") { return "Tainted data flowing into a function annotated as a sensitive sink. Wrap the value in `sanitize(value)` to strip the taint marker before the call."; };
-    if str_eq(code, "TYP-001") { return "Legacy non-exhaustive-match warning. Prefer the canonical MATCH-001 (RFC-0016) which carries a witness. TYP-001 still fires for backwards compatibility — both are emitted."; };
+    if str_eq(code, "TYP-001") { return "Legacy non-exhaustive-match warning. Unified under the canonical MATCH-001 (RFC-0016) in v0.5.18 — TYP-001 is no longer emitted by the main compiler (was always paired with MATCH-001 with identical text; the dual-emit was a noisy adopter UX hazard). The explain entry stays so existing adopter docs / scripts that reference TYP-001 still resolve."; };
     if str_eq(code, "TYP-002") { return "Booleans are not numeric in Nucleor; `true + false` etc. are rejected. Use `if cond { 1 } else { 0 }` if you need to convert."; };
     if str_eq(code, "TYP-003") { return "RFC-0005 — adding two unit values requires identical dimensions (both must be `unit<T,m>` or both `unit<T,s>`, etc.). Convert one to the other or use multiplication."; };
     if str_eq(code, "TYP-004") { return "The `*` (deref) operator only applies to `&T` / `&mut T` / `Box<T>`. Applying it to a value type (`i64`, struct field by value, etc.) is rejected."; };
@@ -11008,7 +11008,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "GOV-001") { return "The `@policy(require_authored)` module-level attribute requires every fn in the source to carry an `@authored(\"name\")` annotation (the governance audit trail). The audit pass found at least one un-annotated fn. Add `@authored(\"...\")` above each fn, or remove the policy if it doesn't apply to this module."; };
     if str_eq(code, "GOV-002") { return "The `@policy(no_unsafe)` module-level attribute forbids `unsafe { ... }` blocks anywhere in the source. The audit pass found at least one. Either remove the unsafe block (preferred — usually means switching to a safe API) or remove the no_unsafe policy if the module legitimately needs unsafe operations."; };
     if str_eq(code, "TNT-001") { return "Strict-mode taint pass detected tainted data flowing into a function annotated as a sensitive sink. The suggestion is to wrap the value in `sanitize(value)` (which strips the taint marker) before the call. Fires from the tools-suite strict checker, not the s1 main type-check pass."; };
-    if str_eq(code, "TYP-001") { return "**Legacy** non-exhaustive-match warning, retained for backwards compatibility through the v0.2.x line. The canonical code is MATCH-001 (RFC-0016) which carries a witness uncovered value. Both warnings fire from `check_match_stmt`; address either to silence both."; };
+    if str_eq(code, "TYP-001") { return "**Legacy** non-exhaustive-match warning. Unified under the canonical MATCH-001 (RFC-0016) in v0.5.18. The main compiler no longer emits TYP-001; only MATCH-001 fires (with identical text). The explain entry stays so existing docs that reference TYP-001 still resolve to a meaningful description."; };
     if str_eq(code, "TYP-002") { return "Booleans aren't numeric — `true + false`, `bool * bool`, etc. are rejected. The arithmetic operator type-check (in check_expr's binop branch) fires TYP-002 when either operand resolves to bool."; };
     if str_eq(code, "TYP-003") { return "RFC-0005 — adding `unit<T,m>` and `unit<T,s>` is dimensionally invalid (length-plus-time has no physical meaning). Convert one to the other via the appropriate physical relationship, or use multiplication (`unit<T,m> * unit<T,1/s>` produces `unit<T,m/s>`)."; };
     if str_eq(code, "TYP-004") { return "The `*` (deref) operator is defined only on `&T`, `&mut T`, and `Box<T>`. Applying it to a value type, struct field by value, or i64/f64 is a category error — those are already values, not references to values."; };
