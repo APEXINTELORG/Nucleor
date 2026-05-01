@@ -8256,6 +8256,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "CONTRACT-006") == 1 { return 1; };
     if str_eq(code, "CONTRACT-007") == 1 { return 1; };
     if str_eq(code, "CONTRACT-008") == 1 { return 1; };
+    if str_eq(code, "CONTRACT-009") == 1 { return 1; };
     // RFC-0007 atomic
     if str_eq(code, "ATOMIC-001") == 1 { return 1; };
     if str_eq(code, "ATOMIC-002") == 1 { return 1; };
@@ -21328,6 +21329,23 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // Empty Vecs flow through to lower_fn; the existing walk-all
     // lookups find no matches; no contract IR emits.
     let dbc_mode: str = env_get_or("NUCLEOR_DBC_MODE", "debug");
+    // v0.4.275 — validate the env value. Probe-agent finding
+    // 2026-05-01: any unrecognized value (e.g. `off`, `disabled`,
+    // `0`, `none`) silently fell into the "neither release nor
+    // cert nor debug" bucket → emit_require=1 + emit_ensure_inv=0
+    // (effectively `safe-release`), with no signal to the adopter
+    // who likely meant `release` or `debug` and got an inconsistent
+    // partial-strip. Halt cleanly with the recognized set.
+    let dbc_mode_ok: i64 = if str_len(dbc_mode) == 0 { 1 }
+        else if str_eq(dbc_mode, "debug") == 1 { 1 }
+        else if str_eq(dbc_mode, "safe-release") == 1 { 1 }
+        else if str_eq(dbc_mode, "release") == 1 { 1 }
+        else if str_eq(dbc_mode, "cert") == 1 { 1 }
+        else { 0 };
+    if dbc_mode_ok == 0 {
+        print(str_concat("error[CONTRACT-009]: NUCLEOR_DBC_MODE=`", str_concat(dbc_mode, "` is not a recognized DbC build mode. Recognized values: `debug` (default; full runtime checks), `safe-release` (require only — input validation), `release` (no checks; max perf), `cert` (no checks; reserved for future static-proof). Unset to default to `debug`.")));
+        return 1;
+    };
     let dbc_emit_require: i64 = if str_eq(dbc_mode, "release") == 1 || str_eq(dbc_mode, "cert") == 1 { 0 } else { 1 };
     let dbc_emit_ensure_inv: i64 = if str_eq(dbc_mode, "debug") == 1 || str_len(dbc_mode) == 0 { 1 } else { 0 };
     // v0.4.258 RFC-0006 — `#[no_check]` per-fn opt-out. Scanner
