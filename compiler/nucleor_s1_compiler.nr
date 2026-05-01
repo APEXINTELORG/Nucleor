@@ -2508,6 +2508,12 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 
 fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points at name, next is {
+    // v0.5 (v0.4.237) — capture struct-name token byte offset for
+    // span-aware diagnostics (TYP-008/012/013/017 struct-init field
+    // diags). Each field-init nid (kind 35) also gets the field-
+    // name token's offset so per-field diags caret to the offending
+    // field, not the function name.
+    let struct_name_span: i64 = tok_pos_at(tokens, pos);
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = pos + 1;
     cp = skip_angle_group(tokens, cp);
@@ -2518,6 +2524,7 @@ fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             cp = expect_tok(tokens, cp, 44);
             if pk(tokens, cp) == 53 { break; };
         };
+        let field_span: i64 = tok_pos_at(tokens, cp);
         let fn2: i64 = pkv(tokens, cp);
         // v0.3.90: shorthand struct init `Point { x, y }`. If the
         // next token after the field name is `,` (44) or `}` (53),
@@ -2528,15 +2535,21 @@ fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if pk(tokens, cp + 1) == 44 || pk(tokens, cp + 1) == 53 {
             let var_node: i64 = mk3(pool, 3, fn2, 0);  // v0.4.209: width slot
             cp = cp + 1;
-            inits.push(mk3(pool, 35, fn2, var_node));
+            let init_nid: i64 = mk3(pool, 35, fn2, var_node);
+            node_set_span(pool, init_nid, field_span);
+            inits.push(init_nid);
         } else {
             cp = expect_tok(tokens, cp + 1, 42);
             let mut er: Vec<i32> = parse_expr(tokens, cp, pool); cp = pr_pos(er);
-            inits.push(mk3(pool, 35, fn2, pr_val(er)));
+            let init_nid: i64 = mk3(pool, 35, fn2, pr_val(er));
+            node_set_span(pool, init_nid, field_span);
+            inits.push(init_nid);
         };
     };
     cp = cp + 1;
-    return pr(cp, mk3(pool, 34, name, mk_list(pool, inits)));
+    let struct_nid: i64 = mk3(pool, 34, name, mk_list(pool, inits));
+    node_set_span(pool, struct_nid, struct_name_span);
+    return pr(cp, struct_nid);
 }
 
 fn parse_enum_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
@@ -10419,11 +10432,10 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             let s_flist: i64 = node_field(pool, s_nid, 2);
             let expected_fc: i64 = list_len(pool, s_flist);
             if ic < expected_fc {
-                let lc_si: Vec<i32> = find_linecol_in_source(source_text, fn_name, struct_name);
                 let part_a: str = str_concat("missing field(s) in `", str_concat(struct_name, "` initialization: only "));
                 let part_b: str = str_concat(str_from_int(ic), str_concat(" of ", str_concat(str_from_int(expected_fc), " fields supplied.")));
                 let part_c: str = " Pre-v0.4.62 missing fields silently defaulted to 0 / empty. List every field explicitly or use a constructor fn.";
-                diag_add_ex(diag_vec, "error", "type", "TYP-012", str_concat(part_a, str_concat(part_b, part_c)), fn_name, vec_get(lc_si, 0), vec_get(lc_si, 1), "");
+                diag_add_at_or_scan(diag_vec, source_text, pool, nid, struct_name, "error", "type", "TYP-012", str_concat(part_a, str_concat(part_b, part_c)), fn_name, "");
                 warns = warns + 1;
             };
             // v0.4.63: NUC-FEEDBACK silent-extra-field close. Pre-fix
@@ -10448,10 +10460,9 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     let prior_init: i64 = list_get(pool, inits, dup_chk);
                     let prior_name: str = node_field(pool, prior_init, 1);
                     if str_eq(prior_name, fname) == 1 {
-                        let lc_dup: Vec<i32> = find_linecol_in_source(source_text, fn_name, fname);
                         let dp1: str = str_concat("duplicate field `", str_concat(fname, "` in `"));
                         let dp2: str = str_concat(struct_name, "` initialization. Pre-v0.4.128 the FIRST occurrence won silently with no signal — adopter intent (was the second value the override?) was opaque. Remove one of the duplicate field assignments.");
-                        diag_add_ex(diag_vec, "error", "type", "TYP-017", str_concat(dp1, dp2), fn_name, vec_get(lc_dup, 0), vec_get(lc_dup, 1), "");
+                        diag_add_at_or_scan(diag_vec, source_text, pool, init_check, fname, "error", "type", "TYP-017", str_concat(dp1, dp2), fn_name, "");
                         warns = warns + 1;
                         dup_chk = fii;
                     };
@@ -10459,10 +10470,9 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                 };
                 let f_idx: i64 = struct_field_idx(pool, s_nid, fname);
                 if f_idx < 0 {
-                    let lc_uf: Vec<i32> = find_linecol_in_source(source_text, fn_name, fname);
                     let p1: str = str_concat("unknown field `", str_concat(fname, "` in `"));
                     let p2: str = str_concat(struct_name, "` initialization. Pre-v0.4.63 the extra field was silently dropped (Rust E0560 errors).");
-                    diag_add_ex(diag_vec, "error", "type", "TYP-013", str_concat(p1, p2), fn_name, vec_get(lc_uf, 0), vec_get(lc_uf, 1), "");
+                    diag_add_at_or_scan(diag_vec, source_text, pool, init_check, fname, "error", "type", "TYP-013", str_concat(p1, p2), fn_name, "");
                     warns = warns + 1;
                 } else {
                     // v0.4.84: TYP-008 ext — narrow struct-field type
@@ -10491,9 +10501,8 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     if val_kind == 2 && (str_eq(f_type, "i64") == 1 || str_eq(f_type, "i32") == 1 || str_eq(f_type, "i16") == 1 || str_eq(f_type, "i8") == 1 || str_eq(f_type, "u64") == 1 || str_eq(f_type, "u32") == 1 || str_eq(f_type, "u16") == 1 || str_eq(f_type, "u8") == 1 || str_eq(f_type, "bool") == 1 || str_eq(f_type, "f64") == 1 || str_eq(f_type, "f32") == 1) { mismatch = 1; got_kind = "str literal"; };
                     if val_kind == 71 && (str_eq(f_type, "i64") == 1 || str_eq(f_type, "i32") == 1 || str_eq(f_type, "i16") == 1 || str_eq(f_type, "i8") == 1 || str_eq(f_type, "u64") == 1 || str_eq(f_type, "u32") == 1 || str_eq(f_type, "u16") == 1 || str_eq(f_type, "u8") == 1 || str_eq(f_type, "bool") == 1 || str_eq(f_type, "str") == 1) { mismatch = 1; got_kind = "float literal"; };
                     if mismatch == 1 {
-                        let lc_tm: Vec<i32> = find_linecol_in_source(source_text, fn_name, fname);
                         let tm_msg: str = str_concat("struct-field type mismatch: `", str_concat(struct_name, str_concat(".", str_concat(fname, str_concat("` declared `", str_concat(f_type, str_concat("`, got ", str_concat(got_kind, ". Pre-v0.4.84 this silently bit-cast the value into the field's slot, producing garbage at read sites."))))))));
-                        diag_add_ex(diag_vec, "error", "type", "TYP-008", tm_msg, fn_name, vec_get(lc_tm, 0), vec_get(lc_tm, 1), "");
+                        diag_add_at_or_scan(diag_vec, source_text, pool, init_check, fname, "error", "type", "TYP-008", tm_msg, fn_name, "");
                         warns = warns + 1;
                     };
                 };
