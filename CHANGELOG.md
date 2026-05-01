@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.261] — 2026-05-01
+
+**🛠️ stdlib/rods/kinematics — `*_f64` ergonomic wrappers.**
+Continues the v0.4.260 pattern (units rod) into the
+3D-math-primitives rod. Adopters writing robotics code now
+get f64-typed surface for Vec3 + Quaternion construction and
+component access, hiding the i64-bits-ABI plumbing.
+
+### What lands
+
+13 new wrappers at `stdlib/rods/kinematics.nr:91+`:
+- `vec3_f64(x: f64, y: f64, z: f64) -> i64`
+- `vec3_x_f64(v) -> f64`, `vec3_y_f64(v) -> f64`, `vec3_z_f64(v) -> f64`
+- `vec3_dot_f64(a, b) -> f64`, `vec3_norm_f64(v) -> f64`
+- `vec3_scale_f64(v: i64, s: f64) -> i64`
+- `quat_f64(w: f64, x: f64, y: f64, z: f64) -> i64`
+- `quat_from_axis_angle_f64(axis: i64, angle: f64) -> i64`
+- `quat_w_f64`, `quat_x_f64`, `quat_y_f64`, `quat_z_f64` (component readers)
+
+Adopter-side example:
+```nucleor
+let v: i64 = vec3_f64(3.0, 4.0, 0.0);
+let n: f64 = vec3_norm_f64(v);   // 5.0
+let q: i64 = quat_from_axis_angle_f64(zhat, 0.0);   // identity
+```
+
+The bits-ABI fns above (`vec3`, `vec3_x`, ..., `quat`,
+`quat_from_axis_angle`, ...) remain — purely additive ship.
+Cross-vec ops that already take/return only handles
+(`vec3_dot`, `vec3_cross`, `vec3_add`, `quat_mul`, etc.) are
+unchanged: their handle in / handle out shape is already
+ergonomic.
+
+### Fixture
+
+`tests/features/kinematics_f64.nr` — exercises Vec3
+construction, component round-trip, norm of (3,4,0), dot
+product, scale by 2.0, quaternion identity construction,
+quaternion component readback, and identity-via-axis-angle
+(rotation 0 around z). All sanity checks pass.
+
+### Validation
+
+- Self-build clean, two-stage fixed-point at SHA
+  `eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e`
+  (= v0.4.258/259/260; compiler doesn't import kinematics.nr,
+  the stdlib edit is orthogonal to compiler IR).
+- NUM-024 audit clean.
+- Drift gate clean — `rod_manifest.toml` regenerated to 2140
+  stdlib fns total (+13 from v0.4.260).
+- Fixture exit 0, "OK kinematics_f64".
+
+### Pattern
+
+This is the second rod with `*_f64` ergonomic wrappers
+(after v0.4.260's units). The remaining bits-ABI rods
+(linalg, kdt, csv_table, rrt, pqueue, fk_chain, diff_sim,
+trajectory) follow the same pattern — additive `*_f64`
+surface, no breaking change to existing bits-ABI fns. Each
+of those rods can ship as its own incremental cycle when
+adopter pull surfaces.
+
 ## [0.4.260] — 2026-05-01
 
 **🛠️ stdlib/rods/units — `unit_convert_f64` ergonomic wrapper.**
