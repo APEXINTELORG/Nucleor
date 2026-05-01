@@ -2906,6 +2906,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "time_monotonic_us") { return "__nucleor_time_monotonic_us"; };
     // v0.3.0 (T3.1): synced from s1.
     if str_eq(name, "deadline_check") { return "__nucleor_deadline_check"; };
+    if str_eq(name, "max_depth_enter") { return "__nucleor_max_depth_enter"; };
+    if str_eq(name, "max_depth_exit") { return "__nucleor_max_depth_exit"; };
     if str_eq(name, "time_wall_ms") { return "__nucleor_time_wall_ms"; };
     if str_eq(name, "time_wall_ns") { return "__nucleor_time_wall_ns"; };
     if str_eq(name, "time_wall_seconds") { return "__nucleor_time_wall_seconds"; };
@@ -4518,6 +4520,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_time_monotonic_ns()\n");
     sb_append(sb, "declare i64 @__nucleor_time_monotonic_us()\n");
     sb_append(sb, "declare i64 @__nucleor_deadline_check(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_max_depth_enter(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_max_depth_exit(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_time_wall_ms()\n");
     sb_append(sb, "declare i64 @__nucleor_time_wall_ns()\n");
     sb_append(sb, "declare i64 @__nucleor_time_wall_seconds()\n");
@@ -7005,6 +7009,7 @@ fn builtin_rtype(name: str) -> str {
     if str_eq(name, "device_alloc") == 1 { return "DeviceBuffer"; };
     if str_eq(name, "device_transfer") == 1 { return "DeviceBuffer"; };
     if str_eq(name, "tensor_view") == 1 { return "i64"; };
+    if str_eq(name, "max_depth_enter") == 1 || str_eq(name, "max_depth_exit") == 1 { return "i64"; };
     if str_eq(name, "channel") == 1 { return "i64"; };
     if str_eq(name, "rwlock_new") == 1 || str_eq(name, "rwlock_read") == 1 || str_eq(name, "rwlock_write") == 1 || str_eq(name, "rwlock_unlock") == 1 { return "i64"; };
     if str_eq(name, "cancel_token_new") == 1 || str_eq(name, "cancel_token_cancel") == 1 { return "i64"; };
@@ -10572,11 +10577,11 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "URDF-005") { return "URDF parse error"; };
     if str_eq(code, "URDF-006") { return "Joint limit violated"; };
     // RFC-0014 max_depth
-    if str_eq(code, "DEPTH-001") { return "Recursive call without #[max_depth]"; };
-    if str_eq(code, "DEPTH-002") { return "Cannot prove #[max_depth = N]"; };
-    if str_eq(code, "DEPTH-003") { return "Runtime depth-check fires"; };
-    if str_eq(code, "DEPTH-004") { return "Total stack budget exceeded"; };
-    if str_eq(code, "DEPTH-005") { return "Mutually-recursive functions with incompatible bounds"; };
+    if str_eq(code, "DEPTH-001") { return "Max-depth analysis cannot bound recursive path"; };
+    if str_eq(code, "DEPTH-002") { return "Bounded recursion exceeds #[max_depth = N]"; };
+    if str_eq(code, "DEPTH-003") { return "Mutually-recursive max_depth cycle violates bounds"; };
+    if str_eq(code, "DEPTH-004") { return "Invalid #[max_depth] attribute placement or value"; };
+    if str_eq(code, "DEPTH-005") { return "Total stack budget exceeded"; };
     // RFC-0031 laws
     if str_eq(code, "LAW-001") { return "Property test fails (auto-generated from @law)"; };
     if str_eq(code, "LAW-002") { return "SMT disproves law"; };
@@ -10773,11 +10778,11 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "URDF-004") { return "#[urdf_load(\"...\")] points to a missing file. Check working directory and import paths."; };
     if str_eq(code, "URDF-005") { return "URDF XML failed to parse. Common issues: missing <robot> root, malformed <joint> attributes, mismatched origin tags."; };
     if str_eq(code, "URDF-006") { return "Joint angle/displacement passed to lookup() exceeds the URDF-declared joint limit. Clamp upstream or relax the limit in the URDF."; };
-    if str_eq(code, "DEPTH-001") { return "Recursion without a depth bound cannot be safely analyzed. Annotate with #[max_depth = N] (RFC-0014)."; };
-    if str_eq(code, "DEPTH-002") { return "The structural analysis cannot prove the recursion bound. Use an explicit depth-counter parameter and entry guard."; };
-    if str_eq(code, "DEPTH-003") { return "Runtime depth-check counter exceeded the declared bound. Either the bound was too tight or the input triggered an unexpected recursion path."; };
-    if str_eq(code, "DEPTH-004") { return "Sum of (max_depth_i × frame_size_i) along a recursion chain exceeds the project's stack budget."; };
-    if str_eq(code, "DEPTH-005") { return "fn a calls fn b which calls fn a; each declares its own #[max_depth] but the bounds don't compose. Refactor the cycle into a single function with an explicit counter."; };
+    if str_eq(code, "DEPTH-001") { return "The RFC-0014 analyzer found recursion but could not prove a finite bound. Use an explicit depth-counter parameter, entry guard, and depth + 1 recursive call."; };
+    if str_eq(code, "DEPTH-002") { return "The analyzer proved a finite recursion depth, but that depth is larger than the declared #[max_depth = N]."; };
+    if str_eq(code, "DEPTH-003") { return "A mutually-recursive cycle has incompatible or unproven #[max_depth] bounds. Runtime overrun checks also report this code when a counter exceeds N."; };
+    if str_eq(code, "DEPTH-004") { return "`#[max_depth]` must use a positive integer literal and apply directly to a fn declaration."; };
+    if str_eq(code, "DEPTH-005") { return "Sum of (max_depth_i * estimated_frame_size_i) along a recursion chain exceeds the project's stack budget."; };
     if str_eq(code, "LAW-001") { return "RFC-0031 generates a property test from each @law. The test ran ~1000 random inputs and found a counterexample. Adjust the law's eps, mark @law(approximate), or remove the false claim."; };
     if str_eq(code, "LAW-002") { return "In --profile=cert, RFC-0031 routes laws through Z3/CVC5 for proof. The SMT solver disproved the law and produced a counterexample."; };
     if str_eq(code, "LAW-003") { return "An @law citation pointed at a law the optimizer can't pattern-match. Either rewrite the law in a canonical form or remove the citation."; };
@@ -10967,11 +10972,11 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "URDF-004") { return "RFC-0013 §3.1 — #[urdf_load(\"path/to/robot.urdf\")] resolves relative to the source file's directory. Check the path and ensure the URDF is in source control or a known asset dir."; };
     if str_eq(code, "URDF-005") { return "RFC-0013 §3.1 — URDF parser uses minixml; common parse errors include missing <robot> root, malformed <joint type=\"...\"> attributes, mismatched origin tags, and unsupported plugin tags. Validate the URDF with `urdf-validator` first."; };
     if str_eq(code, "URDF-006") { return "RFC-0013 §3.4 — joint limits are declared in the URDF as <limit lower upper effort velocity/>. lookup() with an out-of-range angle/displacement is rejected. Clamp upstream or relax the URDF limit if mechanically valid."; };
-    if str_eq(code, "DEPTH-001") { return "RFC-0014 §3.4 — unbounded recursion blocks WCET analysis (RFC-0009) and stack-budget reasoning. Annotate the function with #[max_depth = N]."; };
-    if str_eq(code, "DEPTH-002") { return "RFC-0014 §3.3 — the analyzer requires an explicit depth-counter parameter and an entry guard (`if depth >= N { return ...; };`). The pattern lets the structural analysis confirm the bound."; };
-    if str_eq(code, "DEPTH-003") { return "RFC-0014 §3.2 — debug builds insert a runtime depth-check that aborts when the counter exceeds the declared #[max_depth = N]. Either the bound was set too low for the input, or the recursion path was deeper than expected. Inspect the call stack at the abort to choose."; };
-    if str_eq(code, "DEPTH-004") { return "RFC-0014 §3.5 — total stack usage is the sum of (max_depth_i × frame_size_i) along a recursion chain. Reduce frame sizes (move locals to static), reduce depth, or reorganize the chain."; };
-    if str_eq(code, "DEPTH-005") { return "RFC-0014 §3.4 — when fn a / fn b are mutually recursive, each #[max_depth] applies to that function alone, but the alternation can produce a deeper combined chain. Either mark one of them as the trampoline (reset to 0 entry) or refactor into a single recursive function with one explicit depth counter."; };
+    if str_eq(code, "DEPTH-001") { return "RFC-0014 structural proof requires a visible depth counter and a guard. Calls through unknown paths, missing guards, or non-monotonic recursive arguments are rejected conservatively."; };
+    if str_eq(code, "DEPTH-002") { return "RFC-0014 compared the proven guard depth with the declared N and found the code needs more stack frames than the annotation allows. Raise N or reduce the recursion depth."; };
+    if str_eq(code, "DEPTH-003") { return "RFC-0014 SCC analysis found a cycle whose member bounds do not compose. Give every function in the cycle compatible guards/bounds or refactor through a single trampoline."; };
+    if str_eq(code, "DEPTH-004") { return "RFC-0014 only accepts fn-level #[max_depth = N] / #[max_depth(N)] with a positive integer literal. Other placements and symbolic values are rejected."; };
+    if str_eq(code, "DEPTH-005") { return "RFC-0014 stack-budget check multiplies declared depth by estimated frame size. Reduce locals/frame size, reduce N, or convert recursion to iteration."; };
     if str_eq(code, "LAW-001") { return "RFC-0031 §3.2 — @law generates a property test that runs ~1000 random inputs of the relevant type. The test failed with a concrete counterexample. Common causes: float associativity is not exact (use eps tolerance), commutativity violated by side effects (mark fn pure), or the law is simply wrong."; };
     if str_eq(code, "LAW-002") { return "RFC-0031 §3.4 — in --profile=cert, laws are SMT-proved by Z3 or CVC5. The solver returned UNSAT, meaning the law does not hold."; };
     if str_eq(code, "LAW-003") { return "RFC-0031 — @law(use=other_law) cited a law the optimizer pattern-matcher cannot recognize. Either rewrite the original law in canonical form (LHS = RHS with simple structure) or remove the citation."; };

@@ -939,6 +939,41 @@ Step "T3.10 RT-008 fires on direct recursion in deadline fn" {
     return $true
 }
 
+Step "RFC-0014 max_depth static analysis + runtime wrapper" {
+    $out = & $bin build "tests/features/rfc0014_max_depth_bounded.nr" -o "_rfc0014_max_depth" --no-cache 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { return $false }
+    $ll = "target/_rfc0014_max_depth.ll"
+    if (-not (Test-Path $ll)) { return $false }
+    if ((Get-Content -Raw $ll) -notmatch "__nucleor_max_depth_enter") { return $false }
+    $exe = "target/_rfc0014_max_depth.exe"
+    if (-not (Test-Path $exe)) { $exe = "target/_rfc0014_max_depth" }
+    $run = & $exe 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { return $false }
+    if ($run -notmatch "OK rfc0014_max_depth_bounded") { return $false }
+
+    $overrunBuild = & $bin build "tests/fixtures/rfc0014_max_depth_runtime_overrun.nr" -o "_rfc0014_depth_overrun" --no-cache 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { return $false }
+    $overrunExe = "target/_rfc0014_depth_overrun.exe"
+    if (-not (Test-Path $overrunExe)) { $overrunExe = "target/_rfc0014_depth_overrun" }
+    $overrunRun = & $overrunExe 2>&1 | Out-String
+    if ($overrunRun -notmatch "DEPTH-003") { return $false }
+
+    $pairs = @(
+        @("err_depth_001_unbounded", "DEPTH-001"),
+        @("err_depth_002_overflow", "DEPTH-002"),
+        @("err_depth_003_cycle", "DEPTH-003"),
+        @("err_depth_004_invalid_context", "DEPTH-004"),
+        @("err_depth_005_stack_budget", "DEPTH-005")
+    )
+    foreach ($pair in $pairs) {
+        $ename = $pair[0]
+        $code = $pair[1]
+        $neg = & $bin build "tests/err/$ename.nr" -o "_$ename" --no-cache 2>&1 | Out-String
+        if ($neg -notmatch $code) { return $false }
+    }
+    return $true
+}
+
 Step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" {
     # v0.3.24 (T3.15): per-symbol opt-out for the v0.3.8 RT-005
     # check. Annotated extern stays clean from a #[no_alloc]

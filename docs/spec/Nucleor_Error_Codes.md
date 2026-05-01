@@ -261,11 +261,11 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 
 | Code | Title | RFC section |
 |---|---|---|
-| DEPTH-001 | Recursive call detected without #[max_depth] | [RFC-0014 §3.4](../rfcs/RFC-0014-max-depth.md) |
-| DEPTH-002 | Static analysis cannot prove #[max_depth = N] | [RFC-0014 §3.3](../rfcs/RFC-0014-max-depth.md) |
-| DEPTH-003 | Runtime depth-check fires | [RFC-0014 §3.2](../rfcs/RFC-0014-max-depth.md) |
-| DEPTH-004 | Total stack budget exceeded | [RFC-0014 §3.5](../rfcs/RFC-0014-max-depth.md) |
-| DEPTH-005 | Mutually-recursive functions with incompatible bounds | [RFC-0014 §3.4](../rfcs/RFC-0014-max-depth.md) |
+| DEPTH-001 | Max-depth analysis cannot bound recursive path | [RFC-0014 §3.3](../rfcs/RFC-0014-max-depth.md) |
+| DEPTH-002 | Bounded recursion exceeds #[max_depth = N] | [RFC-0014 §3.3](../rfcs/RFC-0014-max-depth.md) |
+| DEPTH-003 | Mutually-recursive max_depth cycle violates bounds | [RFC-0014 §3.4](../rfcs/RFC-0014-max-depth.md) |
+| DEPTH-004 | Invalid #[max_depth] attribute placement or value | [RFC-0014 §3.1](../rfcs/RFC-0014-max-depth.md) |
+| DEPTH-005 | Total stack budget exceeded | [RFC-0014 §3.5](../rfcs/RFC-0014-max-depth.md) |
 
 ## NUM series — RFC-0015 numeric types
 
