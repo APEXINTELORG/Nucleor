@@ -5,6 +5,26 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.259] — 2026-05-01
+
+**v0.5 sequencing doc — RFC-0006 closeout v0.4.256→258.**
+Doc-only ship. Updates
+`docs/milestones/v0.5_RESIDUAL_SEQUENCING_2026-04-30.md` to
+reflect:
+- v0.4.257 Liskov compile-time check (CONTRACT-004 +
+  CONTRACT-005) shipped — was previously marked deferred
+  pending static-analysis substrate. The count-based design
+  choice is documented inline.
+- v0.4.258 `#[no_check]` per-fn opt-out for require + ensure
+  shipped, with the impl-block invariant caveat documented.
+- RFC-0006 status table moves from "5 of 7 CONTRACT codes
+  live" to "6 of 7 + per-fn opt-out". CONTRACT-007 cert
+  static-proof is the only remaining gap; deferred as
+  research-grade.
+
+No compiler changes; existing v0.4.258 fixed-point remains
+valid.
+
 ## [0.4.258] — 2026-05-01
 
 **🎯 RFC-0006 `#[no_check]` per-fn opt-out LIVE.** Adopters can
