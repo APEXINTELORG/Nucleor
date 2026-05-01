@@ -1808,6 +1808,22 @@ t_rfc0006_old_expr_runtime() {
     return 0
 }
 
+t_rfc0007_atomic_bool() {
+    # v0.4.281 AtomicBool ordered ops (load/store/CAS) shipped via
+    # delegation to AtomicI64 handle. Probe-agent finding 2026-05-01:
+    # AtomicBool shipped in v0.4.273 with constructor+drop only.
+    "$BIN" build "tests/features/rfc0007_atomic_bool.nr" -o "_t_ab" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe="target/_t_ab"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local out
+    out=$("$exe" 2>&1)
+    [ "$?" = "0" ] || return 1
+    echo "$out" | grep -q "OK rfc0007_atomic_bool" || return 1
+    return 0
+}
+
 t_atomic_006_in_closure() {
     # v0.4.280 — closure body that calls atomic_* helpers crashed
     # the compiler (probe-agent finding 2026-05-01). ATOMIC-006
@@ -4399,6 +4415,7 @@ step "v0.4.277 RFC-0006 — old() in #[require] reject (CONTRACT-010)" t_rfc0006
 step "v0.4.279 str_char_at_strict in-bounds works" t_str_char_at_strict_basic
 step "v0.4.279 str_char_at_strict OOB panics" t_str_char_at_strict_oob
 step "v0.4.280 ATOMIC-006 closure+atomic compiler-meltdown halt" t_atomic_006_in_closure
+step "v0.4.281 RFC-0007 AtomicBool ordered ops (load/store/CAS)" t_rfc0007_atomic_bool
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
