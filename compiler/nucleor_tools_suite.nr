@@ -13789,6 +13789,8 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     if vec_len(parts) == 0 {
         if mode == 0 { return "print(\"\")"; };
         if mode == 1 { return "\"\""; };
+        if mode == 3 { return "eprint(\"\")"; };
+        if mode == 4 { return "eprint_raw(\"\")"; };
         return "print_raw(\"\")";
     };
     let fmt_lit: str = vec_get(parts, 0);
@@ -13847,6 +13849,8 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     let chain: str = fmt_build_concat_chain(segments, parities);
     if mode == 0 { return str_concat("print(", str_concat(chain, ")")); };
     if mode == 1 { return chain; };
+    if mode == 3 { return str_concat("eprint(", str_concat(chain, ")")); };
+    if mode == 4 { return str_concat("eprint_raw(", str_concat(chain, ")")); };
     return str_concat("print_raw(", str_concat(chain, ")"));
 }
 
@@ -13928,6 +13932,8 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 if str_eq(name, "println") == 1 { mode = 0; };
                 if str_eq(name, "format") == 1 { mode = 1; };
                 if str_eq(name, "print") == 1 { mode = 2; };
+                if str_eq(name, "eprintln") == 1 { mode = 3; };
+                if str_eq(name, "eprint") == 1 { mode = 4; };
                 if mode >= 0 {
                     p = p + 2;
                     let args_start: i64 = p;
