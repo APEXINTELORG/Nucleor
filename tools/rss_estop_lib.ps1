@@ -101,10 +101,19 @@ function Stop-NucWatchedProcesses([int[]]$Ids, [IntPtr]$JobHandle, [bool]$JobAss
 }
 
 function Format-NucRssDetail($Processes) {
-    return (($Processes |
+    $rows = @()
+    foreach ($p in $Processes) {
+        try {
+            $rows += [pscustomobject]@{
+                Name = $p.ProcessName
+                WorkingSet64 = [int64]$p.WorkingSet64
+            }
+        } catch { }
+    }
+    return (($rows |
         Sort-Object WorkingSet64 -Descending |
         Select-Object -First 8 |
-        ForEach-Object { "{0}:{1}MB" -f $_.ProcessName, ([Math]::Round($_.WorkingSet64 / 1MB, 1)) }) -join ", ")
+        ForEach-Object { "{0}:{1}MB" -f $_.Name, ([Math]::Round($_.WorkingSet64 / 1MB, 1)) }) -join ", ")
 }
 
 function Invoke-NucRssEstop {
