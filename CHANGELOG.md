@@ -5,6 +5,105 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.252] — 2026-05-01
+
+**🎯 RFC-0006 DbC — `NUCLEOR_DBC_MODE` build-mode strip-out
+LIVE.** Adopters can now strip contract checks from release
+builds by setting `NUCLEOR_DBC_MODE=release` at compile time.
+Closes the cost-of-DbC story per RFC-0006 §1 (Build modes).
+
+### Modes
+
+| Env var value | require | ensure | invariant | Use case |
+|---|---|---|---|---|
+| `debug` (default) / unset | ✅ | ✅ | ✅ | Development; full safety |
+| `safe-release` | ✅ | ❌ | ❌ | Production; only critical preconds |
+| `release` | ❌ | ❌ | ❌ | Production; full perf, contracts as docs |
+| `cert` | ❌ | ❌ | ❌ | Currently same as release; static-proof analysis is a future ship |
+
+### Implementation
+
+One env_get_or read at the main pipeline computes two flags:
+```nucleor
+let dbc_emit_require: i64 =
+    if str_eq(dbc_mode, "release") == 1 || str_eq(dbc_mode, "cert") == 1 { 0 } else { 1 };
+let dbc_emit_ensure_inv: i64 =
+    if str_eq(dbc_mode, "debug") == 1 || str_len(dbc_mode) == 0 { 1 } else { 0 };
+```
+
+The pre-pass populations of `require_exprs`, `ensure_exprs`,
+and `invariant_exprs` are then conditionally skipped — they
+become empty Vecs, and the existing walk-all lookups in
+`lower_fn` find no matches and emit no contract IR. Zero
+overhead in release mode — no LLVM intrinsic calls, no panic
+strings, no `__nucleor_contract_*` declares are forced into
+the externs (DCE elides unreferenced declares).
+
+### End-to-end demo
+
+Same source compiled three times:
+
+```nucleor
+struct Box { v: i64 }
+#[invariant(self.v >= 0)]
+impl Box { fn get(self: Box) -> i64 { self.v } }
+
+#[require(x > 0)]
+fn pos(x: i64) -> i64 { x }
+
+fn main() -> i64 {
+    let b: Box = Box { v: 0 - 5 };
+    let bv: i64 = b.get();
+    let p: i64 = pos(0 - 3);
+    print_int(bv + p);
+    0
+}
+```
+
+| Mode | Output | Exit |
+|---|---|---|
+| debug (default) | `CONTRACT-003: invariant violated` | 1 |
+| safe-release | `CONTRACT-001: require precondition violated` | 1 |
+| release | `-8` (literal computed value) | 0 |
+
+### Validation
+
+- Self-build clean (LL 8 101 511 bytes — same size as v0.4.251
+  since the compiler has no contracts on its own fns; the
+  build-mode flag only affects user-program emission).
+- **Two-stage fixed-point env-DEFAULT-ON** at SHA
+  `7c4bf517d38228c417af404c88301ab96b25485ebfc3ec7cb9b698b2aeffc29a`.
+  Bootstrap seed refreshed; T1.7 locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean.
+- Targeted three-mode runtime smokes:
+  - debug: invariant fires (CONTRACT-003).
+  - safe-release: require fires (CONTRACT-001) after invariant
+    elided.
+  - release: all elided; binary completes with the violating
+    arithmetic, exit 0.
+- New verify-gate step `t_rfc0006_dbc_mode_runtime` exercises
+  all three modes against the same source.
+
+### What's next (v0.4.253+)
+
+- Mid-body return multi-ensure (extend lower_stmt with ensure
+  list threading).
+- Constructor-emit (fns returning `Self`).
+- `cert` profile static-proof analysis (currently behaves like
+  release; would emit CONTRACT-007 when a contract isn't
+  statically provable).
+- Liskov inheritance checks (CONTRACT-004, CONTRACT-005).
+- `#[no_check]` per-fn opt-out (covered cases the spec
+  enumerates but doesn't require for v1).
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: NUCLEOR_DBC_MODE env read
+  + flag computation + conditional pre-pass population.
+- `tools/verify.sh`: `t_rfc0006_dbc_mode_runtime` step.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
 ## [0.4.251] — 2026-05-01
 
 **🎯 RFC-0006 DbC — `old(expr)` snapshot in #[ensure]

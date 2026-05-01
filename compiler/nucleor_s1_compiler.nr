@@ -20196,7 +20196,21 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // store (fn_name, expr_nid) for lower_fn to look up. The lex
     // and parse_expr functions are reentrant — they take a fresh
     // token stream and return an AST nid in the supplied pool.
-    let req_text_pairs: Vec<i32> = collect_fn_requires(source);
+    // v0.4.252 RFC-0006 — build-mode strip-out via NUCLEOR_DBC_MODE.
+    // Per spec section 1 — "Build modes":
+    //   debug (default) | unset → all contracts active
+    //   safe-release → require active; ensure / invariant elided
+    //   release → all contracts elided
+    //   cert → all elided (statically proven elsewhere — that
+    //          analysis pass is a future ship; until then cert
+    //          behaves like release for runtime emit)
+    // Implementation: skip the relevant pre-pass populations.
+    // Empty Vecs flow through to lower_fn; the existing walk-all
+    // lookups find no matches; no contract IR emits.
+    let dbc_mode: str = env_get_or("NUCLEOR_DBC_MODE", "debug");
+    let dbc_emit_require: i64 = if str_eq(dbc_mode, "release") == 1 || str_eq(dbc_mode, "cert") == 1 { 0 } else { 1 };
+    let dbc_emit_ensure_inv: i64 = if str_eq(dbc_mode, "debug") == 1 || str_len(dbc_mode) == 0 { 1 } else { 0 };
+    let req_text_pairs: Vec<i32> = if dbc_emit_require == 1 { collect_fn_requires(source) } else { Vec::new() };
     let mut require_exprs: Vec<i32> = Vec::new();
     let mut rti: i64 = 0;
     let req_text_count: i64 = vec_len(req_text_pairs);
@@ -20216,7 +20230,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // ensure expression to synthesized binding names, lex+parse
     // each inner separately, and store (fn_name, synth_name,
     // inner_nid) triples in old_snapshots for fn-entry pre-eval.
-    let ens_text_pairs: Vec<i32> = collect_fn_ensures(source);
+    let ens_text_pairs: Vec<i32> = if dbc_emit_ensure_inv == 1 { collect_fn_ensures(source) } else { Vec::new() };
     let mut ensure_exprs: Vec<i32> = Vec::new();
     let mut old_snapshots: Vec<i32> = Vec::new();
     let mut eti: i64 = 0;
@@ -20253,7 +20267,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // on inherent + trait impl blocks. Stored by TYPE name; lower_fn
     // splits the mangled method name (`Type__method`) on `__` and
     // looks up the type's invariant.
-    let inv_text_pairs: Vec<i32> = collect_impl_invariants(source);
+    let inv_text_pairs: Vec<i32> = if dbc_emit_ensure_inv == 1 { collect_impl_invariants(source) } else { Vec::new() };
     let mut invariant_exprs: Vec<i32> = Vec::new();
     let mut iti: i64 = 0;
     let inv_text_count: i64 = vec_len(inv_text_pairs);
