@@ -94,6 +94,81 @@ fn scurve_peak_a(h: i64) -> i64 { return nuc_scurve_peak_a(h); }
 fn scurve_pos_at(h: i64, t_bits: i64) -> i64 { return nuc_scurve_pos_at(h, t_bits); }
 fn scurve_free(h: i64) { nuc_scurve_free(h); }
 
+// === Ergonomic f64 wrappers — motion profiles (v0.4.264) ===
+//
+// Same pattern as units/kinematics/linalg/csv_table/kdt — hide
+// the i64-bits-ABI behind f64-typed surface. Adopter writes
+// `quintic_new_f64(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0)` instead
+// of the seven `f64_to_bits(...)` wraps. Bits-ABI fns above
+// remain — purely additive.
+//
+// Coverage this ship: quintic + trapezoid + s-curve. Advanced
+// primitives (DMP, TOPP, Catmull-Rom, Bezier) keep their bits-
+// ABI for now — adopters using them already navigate the
+// pointer-laden APIs.
+
+// --- Quintic ---
+fn quintic_new_f64(
+    T: f64,
+    q0: f64, v0: f64, a0: f64,
+    qT: f64, vT: f64, aT: f64) -> i64
+{
+    return nuc_quintic_new(
+        f64_to_bits(T),
+        f64_to_bits(q0), f64_to_bits(v0), f64_to_bits(a0),
+        f64_to_bits(qT), f64_to_bits(vT), f64_to_bits(aT));
+}
+fn quintic_duration_f64(h: i64) -> f64 {
+    return f64_from_bits(nuc_quintic_duration(h));
+}
+fn quintic_pos_at_f64(h: i64, t: f64) -> f64 {
+    return f64_from_bits(nuc_quintic_pos_at(h, f64_to_bits(t)));
+}
+fn quintic_vel_at_f64(h: i64, t: f64) -> f64 {
+    return f64_from_bits(nuc_quintic_vel_at(h, f64_to_bits(t)));
+}
+fn quintic_acc_at_f64(h: i64, t: f64) -> f64 {
+    return f64_from_bits(nuc_quintic_acc_at(h, f64_to_bits(t)));
+}
+
+// --- Trapezoidal ---
+fn trapezoid_new_f64(q0: f64, qT: f64, vmax: f64, amax: f64) -> i64 {
+    return nuc_trapezoid_new(
+        f64_to_bits(q0), f64_to_bits(qT),
+        f64_to_bits(vmax), f64_to_bits(amax));
+}
+fn trapezoid_duration_f64(h: i64) -> f64 {
+    return f64_from_bits(nuc_trapezoid_duration(h));
+}
+fn trapezoid_peak_v_f64(h: i64) -> f64 {
+    return f64_from_bits(nuc_trapezoid_peak_v(h));
+}
+fn trapezoid_pos_at_f64(h: i64, t: f64) -> f64 {
+    return f64_from_bits(nuc_trapezoid_pos_at(h, f64_to_bits(t)));
+}
+fn trapezoid_vel_at_f64(h: i64, t: f64) -> f64 {
+    return f64_from_bits(nuc_trapezoid_vel_at(h, f64_to_bits(t)));
+}
+
+// --- S-curve ---
+fn scurve_new_f64(q0: f64, qT: f64, vmax: f64, amax: f64, jmax: f64) -> i64 {
+    return nuc_scurve_new(
+        f64_to_bits(q0), f64_to_bits(qT),
+        f64_to_bits(vmax), f64_to_bits(amax), f64_to_bits(jmax));
+}
+fn scurve_duration_f64(h: i64) -> f64 {
+    return f64_from_bits(nuc_scurve_duration(h));
+}
+fn scurve_peak_v_f64(h: i64) -> f64 {
+    return f64_from_bits(nuc_scurve_peak_v(h));
+}
+fn scurve_peak_a_f64(h: i64) -> f64 {
+    return f64_from_bits(nuc_scurve_peak_a(h));
+}
+fn scurve_pos_at_f64(h: i64, t: f64) -> f64 {
+    return f64_from_bits(nuc_scurve_pos_at(h, f64_to_bits(t)));
+}
+
 // === Dynamic Movement Primitives (DMP) (v0.2.192) ===
 //
 // Discrete DMP per Ijspeert et al. 2013. A DMP is a damped
