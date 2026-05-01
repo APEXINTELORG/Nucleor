@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.26] — 2026-05-01
+
+**🔧 Bisect-narrow protocol modes — `--rerun-failed` + `--only`.**
+Tools-only ship. Closes user's "we have all the data, just need
+smarter sequencing" observation + delivers Tier-2 and Tier-4 of
+the protocol from the parallel-1 brief's APPEND-PROTO.
+
+### What lands
+
+`tools/verify.sh` gains two new flags:
+
+- **`--rerun-failed [CSV]`** — read the CSV (defaults to
+  `tools/verify_timings.<agent>.csv`); SKIP any step whose
+  last status was PASS, run FAIL/SKIP/missing. Wall time
+  ~5-30s when most steps were passing — vs ~180s for the
+  full gate.
+- **`--only "<step name>"`** — run only the step whose name
+  matches exactly. All others SKIP. Wall ~5-15s. Useful for
+  Tier-4 single-step verbose investigation.
+
+Both filters apply to **both** the top-level structural-gate
+loop AND the parallel-fixture inner dispatcher (which prebuilds
+`steps_file` then xargs-pipes to workers — the v0.5.26 filter
+runs before xargs).
+
+`--help` flag added with full usage block including the
+bisect-narrow protocol overview.
+
+### Documentation
+
+`tools/VERIFY_TIMING_RECIPE.md` updated with:
+- v0.5.17 per-agent CSV namespacing section
+- v0.5.26 bisect-narrow protocol section with all four tiers
+  (Tier 1: default; Tier 2: --rerun-failed; Tier 4: --only;
+  Tier 3 quadrant bisect noted as planned)
+- Worked example walkthrough
+
+### Validation
+
+```bash
+NUC_VERIFY_AGENT=main bash tools/verify.sh --only "binary present"
+# PASS: 1 (the named step)
+# SKIP: 237 (everything else SKIPped via the filter)
+# Total wall ~5s vs ~180s for full gate
+```
+
+Both filters operate cleanly on the parallel-fixture loop —
+when the filter narrows to 0 fixture entries, the dispatcher
+emits "0 steps (filtered out by --only / --rerun-failed)" and
+returns.
+
+### What's next (v0.5.27 candidate)
+
+Tier 3 — `--quadrant N/M` to split the parallelizable subset
+into M partitions, run only partition N. Useful for
+intermittent-failure bisect. Not yet shipped.
+
 ## [0.5.25] — 2026-05-01
 
 **🔧 async_await crash-class fix — handle validation registry.**

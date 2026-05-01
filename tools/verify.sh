@@ -49,6 +49,16 @@ fi
 NO_COLOR_FLAG=""
 VERIFY_PARALLEL_JOBS="${NUC_VERIFY_JOBS:-4}"
 VERIFY_PARALLEL_LIST="${NUC_VERIFY_PARALLEL_LIST:-0}"
+# v0.5.26: bisect-narrow protocol modes (Tier-2 + Tier-4 from
+# parallel-1's APPEND-PROTO).
+#   --rerun-failed [csv]  : skip steps whose last CSV status was PASS;
+#                           run FAIL/SKIP/missing. CSV defaults to the
+#                           current agent's verify_timings.<name>.csv.
+#   --only "<step name>"  : run only the step whose name matches
+#                           exactly (other steps emit SKIP).
+RERUN_FAILED=0
+RERUN_FAILED_CSV=""
+ONLY_STEP=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --no-color)
@@ -67,6 +77,56 @@ while [ $# -gt 0 ]; do
         --list-parallel-fixtures)
             VERIFY_PARALLEL_LIST=1
             shift
+            ;;
+        --rerun-failed)
+            RERUN_FAILED=1
+            if [ $# -ge 2 ] && [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
+                RERUN_FAILED_CSV="$2"
+                shift 2
+            else
+                shift
+            fi
+            ;;
+        --only)
+            if [ $# -lt 2 ]; then echo "ERROR: --only requires a step name"; exit 1; fi
+            ONLY_STEP="$2"
+            shift 2
+            ;;
+        --help|-h)
+            cat <<'EOH'
+verify.sh — Nucleor smoke gate
+
+Usage: bash tools/verify.sh [OPTIONS]
+
+  --no-color                         Disable ANSI color in output.
+  -j, --jobs N                       Parallel-fixture worker count (default 4).
+                                     0 = sequential.
+  --sequential-fixtures              Force sequential fixture runs (=  -j 0).
+  --list-parallel-fixtures           Print parallel fixture step list, exit.
+  --rerun-failed [CSV]               v0.5.26: skip steps that PASSED in last
+                                     CSV run; run only FAIL/SKIP/missing.
+                                     Default CSV: tools/verify_timings.<agent>.csv
+                                     (NUC_VERIFY_AGENT) or .csv if unset.
+  --only "<step name>"               v0.5.26: run only the step whose name
+                                     matches exactly. Other steps emit SKIP.
+  --help                             This text.
+
+Environment:
+  NUC_VERIFY_AGENT=<name>            Per-agent CSV namespacing
+                                     (writes tools/verify_timings.<name>.csv).
+  NUC_VERIFY_JOBS=N                  Same as -j N.
+  NUC_VERIFY_CSV=<path>              Override CSV path entirely.
+  NUC_VERIFY_TMPDIR=<path>           Override per-step log dir.
+  NUCLEOR_INT_STRICT_INTRIN=1        Run env-on (strict-intrin overflow checks).
+
+Bisect-narrow protocol (v0.5.26):
+  Tier 1 (default):     bash tools/verify.sh
+  Tier 2 (after fail):  bash tools/verify.sh --rerun-failed
+  Tier 4 (single step): bash tools/verify.sh --only "<step name>"
+  See docs/milestones/MEMORY_DRIFT_2026-05-01.md and the
+  parallel-1 brief's APPEND-PROTO section for the full protocol.
+EOH
+            exit 0
             ;;
         *)
             echo "unknown arg: $1"
@@ -176,6 +236,29 @@ step() {
     local prefix
     prefix="$(printf '[%3d/%d]' "$STEP_INDEX" "$STEP_TOTAL")"
     local rc start end secs status csv_name
+    # v0.5.26: bisect-narrow modes. --only skips non-matching steps; emit
+    # SKIP without running. --rerun-failed skips steps whose LAST CSV
+    # status was PASS; new (missing-from-CSV) and FAIL/SKIP rerun.
+    if [ -n "$ONLY_STEP" ] && [ "$name" != "$ONLY_STEP" ]; then
+        echo "$prefix $(yellow 'SKIP')  $name  (--only filter)"
+        TOTAL_SKIP=$((TOTAL_SKIP + 1))
+        return
+    fi
+    if [ "$RERUN_FAILED" = "1" ]; then
+        local _rrf_csv="${RERUN_FAILED_CSV:-$NUC_VERIFY_CSV}"
+        if [ -n "$_rrf_csv" ] && [ -f "$_rrf_csv" ]; then
+            # CSV format: run_iso,index,seconds,status,name (name is quoted).
+            # Find LAST row matching this step name; check status field.
+            local _quoted_name="\"${name//\"/\"\"}\""
+            local _last_status
+            _last_status=$(grep -F ",$_quoted_name" "$_rrf_csv" 2>/dev/null | tail -1 | awk -F, '{print $4}')
+            if [ "$_last_status" = "PASS" ]; then
+                echo "$prefix $(yellow 'SKIP')  $name  (--rerun-failed: last PASS)"
+                TOTAL_SKIP=$((TOTAL_SKIP + 1))
+                return
+            fi
+        fi
+    fi
     start=$(_now_ms)
     "$@"
     rc=$?
@@ -962,6 +1045,46 @@ run_parallel_fixture_steps() {
 
     if [ "$idx" -eq 0 ]; then
         return 0
+    fi
+    # v0.5.26: apply bisect-narrow filters to the parallelizable subset.
+    # --only filters by exact label match (worker label form is
+    # "test <dir>/<tname>" or "negative <ename>"). --rerun-failed
+    # filters by last CSV status != PASS. Both rebuild steps_file in
+    # place so the xargs/result-tally code below operates only on the
+    # filtered subset. We renumber the kept entries to keep the [N/T]
+    # display line numbers contiguous.
+    if [ -n "$ONLY_STEP" ] || [ "$RERUN_FAILED" = "1" ]; then
+        local _filt="$NUC_VERIFY_TMPDIR/parallel_steps.filtered.list"
+        local _rrf_csv="${RERUN_FAILED_CSV:-$NUC_VERIFY_CSV}"
+        : > "$_filt"
+        local _new_idx=0
+        local _line _kind _ldir _lname _label _last_status _quoted
+        while IFS= read -r _line; do
+            # _line shape: "<old-idx> <kind> <dir> <tname>"
+            read -r _ _kind _ldir _lname <<<"$_line"
+            if [ "$_kind" = "test" ]; then
+                _label="test $_ldir/$_lname"
+            else
+                _label="negative $_lname"
+            fi
+            local _keep=1
+            if [ -n "$ONLY_STEP" ] && [ "$_label" != "$ONLY_STEP" ]; then _keep=0; fi
+            if [ "$_keep" = "1" ] && [ "$RERUN_FAILED" = "1" ] && [ -n "$_rrf_csv" ] && [ -f "$_rrf_csv" ]; then
+                _quoted="\"${_label//\"/\"\"}\""
+                _last_status=$(grep -F ",$_quoted" "$_rrf_csv" 2>/dev/null | tail -1 | awk -F, '{print $4}')
+                if [ "$_last_status" = "PASS" ]; then _keep=0; fi
+            fi
+            if [ "$_keep" = "1" ]; then
+                _new_idx=$((_new_idx + 1))
+                printf '%d %s %s %s\n' "$_new_idx" "$_kind" "$_ldir" "$_lname" >> "$_filt"
+            fi
+        done < "$steps_file"
+        mv "$_filt" "$steps_file"
+        idx="$_new_idx"
+        if [ "$idx" -eq 0 ]; then
+            echo "       parallel fixtures: 0 steps (filtered out by --only / --rerun-failed)"
+            return 0
+        fi
     fi
     if ! command -v xargs >/dev/null 2>&1; then
         echo "       xargs missing; falling back to sequential fixture loops"
