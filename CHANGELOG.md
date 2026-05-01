@@ -5,6 +5,97 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.254] — 2026-05-01
+
+**RFC-0006 DbC — mid-body return multi-ensure support.** Closes
+the last incomplete corner of `#[ensure(EXPR)]` coverage. Pre-
+fix, mid-body explicit `return X;` and bare `return;`
+statements only fired the FIRST ensure attribute (sym held a
+single i64 nid). Tail-return + implicit-zero return paths
+already supported multiples since v0.4.250. v0.4.254 brings
+mid-body to the same coverage.
+
+### Implementation
+
+**lower_fn entry:**
+Walks `ensure_exprs` for all matches with current fn name. For
+each match, sym_set's a per-index entry:
+```
+__current_fn_ensure_count = N
+__current_fn_ensure_nid_0 = nid0
+__current_fn_ensure_nid_1 = nid1
+...
+```
+Plus back-compat: `__current_fn_ensure_nid` aliases the first
+nid for any code that still reads the legacy single-key.
+
+**lower_stmt kind-22 (both `return X;` and bare `return;`):**
+Reads count, walks indices 0..N-1 reading per-key nids, lowers
+each predicate and emits one `__nucleor_contract_ensure` call
+per attribute. Single `result` alloca + sym_set fires once;
+all predicates share the return value binding.
+
+### End-to-end demo
+
+```nucleor
+#[ensure(result >= 0)]
+#[ensure(result < 100)]
+fn classify(x: i64) -> i64 {
+    if x > 200 { return 50; };       // tail+implicit OK pre-v0.4.254
+    if x > 100 { return 200; };       // mid-body, VIOLATES second ensure
+    x
+}
+
+fn main() -> i64 {
+    classify(150);  // mid-body return path, second ensure fires
+    0
+}
+```
+
+Output:
+```text
+CONTRACT-002: ensure postcondition violated
+exit 1
+```
+
+Pre-v0.4.254 this would have returned 200 silently — only the
+first ensure (`result >= 0`, satisfied) fired at the mid-body
+return; the second ensure (`result < 100`, violated) was lost.
+
+### Validation
+
+- Self-build clean (LL 8 135 605 bytes).
+- **Two-stage fixed-point env-DEFAULT-ON** at SHA
+  `b51c95f3898ea7512a67d5d0a7b75ac1d8ebe622eb725652a3e23c140f8886c4`.
+  Bootstrap seed refreshed; T1.7 locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean.
+- Targeted multi-ensure mid-body smoke: violation of second
+  ensure on mid-body return now correctly fires CONTRACT-002.
+
+### RFC-0006 substantively complete (5 of 7 CONTRACT codes live)
+
+| Feature | Status |
+|---|---|
+| `#[require(EXPR)]` single + multiple | ✅ |
+| `#[ensure(EXPR)]` tail/implicit/mid-body single + multiple | ✅ |
+| `#[invariant(EXPR)]` self-method entry+exit + ctor exit | ✅ |
+| `old(expr)` snapshot in ensure | ✅ |
+| Build-mode strip-out (debug/safe-release/release/cert) | ✅ |
+| `cert` static-proof analysis (CONTRACT-007) | ⏳ |
+| Liskov inheritance checks (CONTRACT-004/005) | ⏳ |
+
+The remaining two codes need static-analysis substrate —
+non-trivial multi-cycle ships. Adopters can now use 5 of 7
+contract features end-to-end with full per-spec semantics.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: lower_fn entry stashes
+  per-index ensure nids; lower_stmt kind-22 walks all indices
+  at both `return X;` and bare `return;` paths.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
 ## [0.4.253] — 2026-05-01
 
 **🎯 RFC-0006 DbC — `#[invariant(EXPR)]` constructor exit-emit
