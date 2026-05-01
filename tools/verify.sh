@@ -1713,6 +1713,41 @@ strict_intrin_fixture_overflows() {
     return 0
 }
 
+t_rfc0006_dbc_mode_runtime() {
+    # v0.4.252 RFC-0006 — NUCLEOR_DBC_MODE build-mode strip-out.
+    # Builds the same source 3 times under debug / safe-release /
+    # release modes and asserts the appropriate contracts fire
+    # (or don't).
+    local src="$NUC_VERIFY_TMPDIR/rfc6_dbc_mode.nr"
+    printf '%s\n' "struct Box { v: i64 }" "#[invariant(self.v >= 0)]" "impl Box { fn get(self: Box) -> i64 { self.v } }" "#[require(x > 0)]" "fn pos(x: i64) -> i64 { x }" "fn main() -> i64 { let b: Box = Box { v: 0 - 5 }; let bv: i64 = b.get(); let p: i64 = pos(0 - 3); print_int(bv + p); 0 }" > "$src"
+    # Debug mode (default): invariant fires first.
+    Remove_Item="" "$BIN" build "$src" -o "_t_rfc6_dbc_debug" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local debug_exe="target/_t_rfc6_dbc_debug"
+    [ -x "$debug_exe.exe" ] && debug_exe="$debug_exe.exe"
+    local debug_out
+    debug_out=$("$debug_exe" 2>&1)
+    echo "$debug_out" | grep -q "CONTRACT-003: invariant violated" || return 1
+    # Safe-release: invariant elided, require fires.
+    NUCLEOR_DBC_MODE=safe-release "$BIN" build "$src" -o "_t_rfc6_dbc_sr" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local sr_exe="target/_t_rfc6_dbc_sr"
+    [ -x "$sr_exe.exe" ] && sr_exe="$sr_exe.exe"
+    local sr_out
+    sr_out=$("$sr_exe" 2>&1)
+    echo "$sr_out" | grep -q "CONTRACT-001: require precondition violated" || return 1
+    # Release: all elided, exits 0 with garbage value.
+    NUCLEOR_DBC_MODE=release "$BIN" build "$src" -o "_t_rfc6_dbc_rel" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local rel_exe="target/_t_rfc6_dbc_rel"
+    [ -x "$rel_exe.exe" ] && rel_exe="$rel_exe.exe"
+    local rel_out
+    rel_out=$("$rel_exe" 2>&1)
+    [ "$?" = "0" ] || return 1
+    if echo "$rel_out" | grep -qE "CONTRACT-(001|002|003)"; then return 1; fi
+    return 0
+}
+
 t_rfc0006_old_expr_runtime() {
     # v0.4.251 RFC-0006 — `old(expr)` snapshot in #[ensure].
     # Builds the basic fixture (3 fns mixing inc/double/clamp
@@ -4130,6 +4165,7 @@ step "v0.4.247 RFC-0006 — #[ensure(EXPR)] mid-body return support" t_rfc0006_e
 step "v0.4.248 RFC-0006 — #[invariant(EXPR)] impl-block runtime check (CONTRACT-003)" t_rfc0006_invariant_runtime
 step "v0.4.250 RFC-0006 — multiple #[require] / #[ensure] attributes per fn" t_rfc0006_multi_attrs_runtime
 step "v0.4.251 RFC-0006 — old(expr) snapshot in #[ensure]" t_rfc0006_old_expr_runtime
+step "v0.4.252 RFC-0006 — NUCLEOR_DBC_MODE strip-out (debug/safe-release/release)" t_rfc0006_dbc_mode_runtime
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
