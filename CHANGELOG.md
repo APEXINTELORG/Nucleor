@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.270] — 2026-05-01
+
+**📚 Doc audit — strict-mode default note refresh.** Doc-only
+ship. Two adopter-facing references in `docs/` had stale notes
+saying strict-mode mixed-width-arithmetic warnings (NUM-001)
+were "staged behind `nuc fix --numeric` until the v0.4 stdlib
+audit closes" — out of date since v0.4.238 flipped strict-mode
+to the default for `+`, `-`, `*` overflow.
+
+### What lands
+
+**`docs/language-reference.md` §1.4 (numeric types):**
+- Removed stale "staged behind `nuc fix --numeric`" sentence.
+- Added correct description of v0.4.238 strict-mode default,
+  the `wrapping {}` / `saturating {}` / `checked {}` escape
+  hatches, the `NUCLEOR_INT_STRICT_INTRIN=0` global opt-out,
+  and pointers to the v0.4.239 + v0.4.241 upgrade docs.
+
+**`docs/language-tour.md` §numerics:**
+- Same correction.
+
+### Why
+
+Adopter audit per the round-2 consultant handoff (track 3
+for the main agent). The strict-mode flip is the only behavior
+change since v0.4.0 that requires adopter code review; the
+language-reference + language-tour both describe what adopters
+see at compile time and run time. Leaving the stale "staged
+behind a CLI flag" note in place would mislead anyone reading
+the docs to learn the language rather than tracking shipped
+changes.
+
+### Validation
+
+- Doc-only changes; no compiler edits.
+- Existing v0.4.269 fixed-point at SHA
+  `eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e`
+  remains valid.
+- Drift gate clean.
+
 ## [0.4.269] — 2026-05-01
 
 **🛠️ stdlib/rods/trajectory advanced primitives — `*_f64`

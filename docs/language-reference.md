@@ -42,9 +42,15 @@ Identifiers are case-sensitive. There is no length limit.
 (Width / signedness suffixes parse and type-check per
 RFC-0015 §3.6 — `i8` / `i16` / `i32` / `i64` / `u8` / `u16` /
 `u32` / `u64` / `usize` / `isize` / `f8e4m3` / `f8e5m2` / `f16` /
-`bf16` / `f32` / `f64`. The strict-mode mixed-width-arithmetic
-warning NUM-001 is staged behind `nuc fix --numeric` until the
-v0.4 stdlib audit completes.)
+`bf16` / `f32` / `f64`. **Strict-mode integer arithmetic is the
+default since v0.4.238** — `+`, `-`, `*` on signed and unsigned
+integers panic on overflow rather than wrapping silently. Use
+`wrapping { ... }` / `saturating { ... }` / `checked { ... }`
+blocks or set `NUCLEOR_INT_STRICT_INTRIN=0` at compile time
+to opt out. See [UPGRADE_v0.4.239.md](UPGRADE_v0.4.239.md)
+and [UPGRADE_v0.4.241.md](UPGRADE_v0.4.241.md) for migration
+details. The mixed-width-arithmetic warning NUM-001 is now
+emitted directly during type-check.)
 
 String escape sequences: `\n`, `\r`, `\t`, `\\`, `\"`.
 
