@@ -5,6 +5,120 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.233] — 2026-04-30
+
+**v0.5 atomic integration: 5-of-8 punchlist ships landed in one
+verified ship.** Combines consultant Track D's 3span.2 spike
+(commit `0f8fbcd`) with my v0.4.228 / v0.4.230 / v0.4.231 /
+v0.4.232 deltas — five ships closed across the v0.5 sequencing
+plan with two-stage fixed-point and full verify gate green.
+
+### Track D (consultant spike, 3span.2 — high-impact diag site migration)
+
+- New `tok_pos` / `tok_pos_at` token byte-offset accessors.
+- AST span storage via sentinel-tail-in-node convention
+  (`node_set_span` / `node_get_span` use a `-873521` sentinel
+  appended to the node Vec). Selected over a parallel-Vec
+  approach because it's gate-validated and survives node-pool
+  resizing without external state.
+- `parse_let` captures `name_span = tok_pos_at(tokens, cp)` and
+  attaches it to the let nid.
+- `parse_match_stmt(tokens, pos, pool, match_span)` accepts the
+  match-token span at both call sites (`parse_primary`,
+  `parse_stmt`).
+- New diag siblings: `diag_add_at_or_scan`, `type_diag_at`,
+  `match_diag_at` — read the AST span if set, else fall back to
+  `find_linecol_in_source`.
+- 17+ diag sites migrated: MATCH-001/002/007, TYP-001/008/010/
+  016/021, NUM-002/005/018/019/020, MATCH-011, MATCH-013.
+- `types_compatible` extension: HashMap/HashSet/BTreeMap/BTreeSet/
+  VecDeque accept i64/i32/ptr (and reverse) so adopter code
+  `let m: i64 = HashMap::new();` keeps compiling.
+- TYP-008 ext check (Vec<T>.push/set/insert literal mismatch)
+  reordered before the void-mutator early-return — a refactor
+  had shadowed the check, regressing T3.132/T3.133 silently.
+- Baseline-green carries: 4 EXPECT headers in tests/err, 25_
+  patterns_tour added to examples.list + README, T3.126/T3.145
+  parse-error fixtures refreshed onto still-invalid syntax,
+  TYP-026 + MATCH-011..013 wired through is_known_diag_code,
+  spec doc, both verify scripts, and the explain registry,
+  MINGW `verify.sh` `bin/nucleor.exe` selection fix.
+
+### My deltas (layered on top of Track D)
+
+**v0.5 ship 1 — phase 3c.1 cross-width call-site audit
+(opt-in via `NUCLEOR_AUDIT_NUM024=1`).** New NUM-024 warning
+emitted at `type_expr` kind 7 call sites when an argument's
+declared type is wider than the param's. Default silent;
+NUCLEOR_AUDIT_NUM024=1 surfaces the audit map. Wired through
+is_known_diag_code, both verify scripts, spec doc, and the
+explain registry. Also wires NUM-022/NUM-023 (gaps from
+v0.4.137/v0.4.140 that were never registered).
+
+**v0.5 ship 5 (eliminated by 1-line fix) — `str_from_int(n: i32 → i64)`
+in compiler + tools-suite.** The audit revealed all 3 025 NUM-024
+hits across compiler + tools-suite self-build came from a single
+function whose body was already `return str_from_i64(n);`.
+Widening the param matches runtime ABI reality, drops the audit
+surface to 0/0 across both sources, and emits zero IR change at
+that call site (the i64 ABI passes through as before).
+
+**v0.5 ship 6 — phase 3c.3 typed param alloca RESTORED.**
+v0.4.221's typed-alloca + trunc-on-entry edit at `lower_fn`'s
+param walk (~line 17935). v0.4.224 reverted it because of the
+str_from_int abuse; with that fixed, trunc-on-entry is a no-op
+for in-range values across the whole self-build. Numeric-heavy
+code regains phase 3b narrow-arith dispatch on fn params.
+Coverage: i8, i16, i32, u8, u16, u32. Fn-signature ABI stays
+i64 (no breaking change at call boundaries).
+
+**v0.5 ship 8 (audit gate) — NUM-024 regression gate in verify.**
+New `num024_audit_zero` step in `tools/verify.sh` and
+`tools/verify.ps1` that builds compiler + tools-suite under
+`NUCLEOR_AUDIT_NUM024=1` and asserts grep-count == 0/0. Ratchets
+v0.4.230's win as a permanent floor — any future declared-iN
+param called with a wider source-level type fails the gate.
+
+### Validation
+
+- **Self-build:** clean. `.ll` size 7 097 191 bytes (functions:
+  568, optimized: 1 449 instructions, DCE: 17/568 elided).
+- **Two-stage fixed-point:** ROUND-1 IR == ROUND-2 IR at SHA
+  `ac17012415546917307062e29c7a61f392588ccb09c503d8737af3c8cc8673e9`.
+  T1.7 fixed-point relocked; bootstrap seed refreshed.
+- **NUM-024 audit:** 0/0 across compiler + tools-suite.
+- **Phase 3 fixture:** `tests/features/rfc0015_phase3_widths_full.nr`
+  builds + runs OK.
+- **Caret proof (Track D's deliverable):** old binary points at
+  outer match line 3:5; new binary points at inner match
+  line 6:13 for nested-match MATCH-001 diagnostic.
+
+### Punchlist status — 5 of 8 ships landed
+
+| # | Phase | Status |
+|---|---|---|
+| 1 | 3c.1 cross-width audit | ✅ shipped |
+| 2 | 3span.1 substrate | ✅ shipped (Track D's sentinel-tail design) |
+| 3 | 3span.2 high-impact diag migration | ✅ shipped (Track D) |
+| 4 | 3e.1 LLVM overflow intrinsics | ⏳ Track B spike landed in `Nucleor_OSS_track_b`, ready to integrate |
+| 5 | 3c.2 cast injection | ✅ eliminated by str_from_int fix |
+| 6 | 3c.3 typed param alloca | ✅ shipped |
+| 7 | 3span.3 finish migration | 🔒 incremental on top of #3 |
+| 8 | 3e.3 strict-mode default flip | 🔒 blocked on #4 + perf measurement (Track F) |
+
+### Files touched (this ship, post-cherry-pick)
+
+- `compiler/nucleor_s1_compiler.nr`: NUM-024 emit at type_expr
+  kind 7, NUM-022/023/024 registered in is_known_diag_code,
+  str_from_int param widened i32 → i64, lower_fn param walk
+  expanded for typed alloca + trunc + typed-store.
+- `compiler/nucleor_tools_suite.nr`: NUM-022/023/024 + str_from_int
+  widening.
+- `tools/verify.sh`, `tools/verify.ps1`: NUM-022/023/024 in codes
+  block, `num024_audit_zero` step + registration.
+- `docs/spec/Nucleor_Error_Codes.md`: NUM-022/023/024 entries.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
 ## [0.4.227] — 2026-04-30
 
 **v0.5 residual sequencing doc.** Doc-only. Breaks each v0.4

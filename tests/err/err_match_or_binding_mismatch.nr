@@ -1,3 +1,4 @@
+// EXPECT: error[MATCH-008] or-pattern alternatives must bind the same names
 enum E { A(i64), B(i64) }
 
 fn main() -> i64 {

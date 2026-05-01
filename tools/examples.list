@@ -46,3 +46,6 @@
 22_rt_export
 23_rt_sensor_fusion
 24_rt_kalman_step
+
+# Tier 5 — v0.4.x language-feature showcase
+25_patterns_tour
