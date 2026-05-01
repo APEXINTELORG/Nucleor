@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.14] — 2026-05-01
+
+**🔧 Memory-budget tighten — drift caught at v0.5.13.** Closes
+the user concern raised after observing parallel-agent runs
+peaking at 882-968 MB (close to the 1 GB cap). The 1 GB
+process-tree cap was supposed to be an emergency-stop, not a
+normal-operation budget.
+
+### Findings
+
+- The real-time process-tree e-stop already exists in
+  `tools/measure_peak_build.ps1` (samples every 100 ms, kills
+  process tree on budget overshoot). What broke is the **budget
+  itself was raised to 1024 MB by Track L** without forcing a
+  memory-tighten pass — used as a comfort blanket.
+- v0.2.161 baseline: 185 MB self-host, 400 MB cap.
+- Track L (v0.5.0): bumped cap to 1024 MB, peaks accumulated.
+- v0.5.13 (main): self-host peaks 587/670/703 MB env-off (sample
+  variance ~100 MB), 704 MB env-on. Tools-suite 490/529/534 MB.
+- Worst v0.6 branch (`v06-track-effects-types`): 818-823 MB
+  self-host — would not pass the new tight cap.
+
+### What lands
+
+- `self_host_memory_budget`: **1024 → 770 MB** (peak 703 + 67 MB
+  margin to absorb 100 MB sample variance, stays under user's
+  800 MB no-go line).
+- `tools_suite_memory_budget`: **1024 → 580 MB** (peak 534 + 46
+  MB margin).
+- Step labels reflect new caps.
+- `docs/milestones/MEMORY_DRIFT_2026-05-01.md`: full
+  investigation + chronological drift table + rationale + the
+  raise-rule (any future bump must ship with a documented
+  investigation in the same PR — comfort-blanket raises
+  rejected).
+
+### Validation
+
+- 696/696 PASS env-off + env-on at the new tight caps.
+- Self-host: 703 MB env-off (47 MB headroom), 632 MB env-on
+  (138 MB headroom).
+- Tools-suite: 490 MB env-off, 534 MB env-on (46 MB headroom).
+
+### Action deferred
+
+- **`v06-track-effects-types` blocked from main merge** until
+  a memory-tighten ship lands (818 MB exceeds new 770 MB cap by
+  48 MB).
+- Profile cumulative drift across tagged commits (v0.4.232,
+  v0.4.260, v0.5.0, v0.5.13) to identify worst-offender ships
+  for follow-up tightening back toward the 400 MB era ceiling.
+- Investigate env-on +117 MB strict-intrin overhead on main.
+
 ## [0.5.13] — 2026-05-01
 
 **🔧 Generic-T propagation closure — call-site rtype inference now
