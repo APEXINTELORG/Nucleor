@@ -5,6 +5,139 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.280] — 2026-05-01
+
+**🚨 ATOMIC-006 — closure+atomic compiler-meltdown halt
+(temporary).** Probe-agent finding 2026-05-01 (compiler-meltdown
+class — top severity tier): closures whose body calls
+`atomic_*` helpers crashed the compiler with
+`PANIC: vec_get OOB: index 2851263924464, len 919` (different
+huge-pointer-as-index value every run, classic poison-pointer
+signature). Closes the meltdown by halting cleanly at parse-
+time with a clear diagnostic instead of letting the panic
+surface.
+
+### Repro (pre-v0.4.280)
+
+```nucleor
+import "stdlib/rods/atomic.nr"
+
+fn main() -> i32 {
+    let a: AtomicI64 = atomic_i64(0);
+    let inc = || atomic_fetch_add(&a, 1, MemOrder::SeqCst);
+    let _: i64 = inc();
+    0
+}
+```
+
+```
+PANIC: vec_get OOB: index 2851263924464, len 919
+  (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+```
+
+### Post-v0.4.280
+
+```
+error[ATOMIC-006]: atomic helpers (atomic_load /
+atomic_store / atomic_fetch_* / atomic_compare_exchange)
+inside closure bodies are not currently supported. The
+closure-lowering path does not yet inherit the parent fn's
+enum-variant scope, so `MemOrder::SeqCst` (and similar)
+dispatch fails — pre-v0.4.280 this produced a misleading
+`vec_get OOB` compiler PANIC. Workaround: call the atomic
+helper directly from a regular fn body instead of wrapping
+it in a closure. This is a temporary limitation; full
+closure+atomic support lands when the closure sym-table
+inheritance ship goes in.
+```
+
+### Root cause (real fix deferred)
+
+Closures synthesize a separate `__closure_N` fn that's lowered
+with a fresh `sym` table. The fresh table does NOT carry the
+parent fn's `__etag_<TypeName>_<Variant>` entries — populated at
+enum-collection time at module scope and inherited by
+top-level fns. Inside the closure, `MemOrder::SeqCst` parses as
+kind-12 associated-fn call, looks up `__etag_MemOrder_SeqCst`,
+finds nothing, falls through to the user-defined-fn branch
+(no `MemOrder__SeqCst` mangled fn), then to the
+"unsupported associated-fn call" panic — which somewhere
+poisons the pool / list state and the next `vec_get` reads
+that poison value as an index → OOB panic.
+
+Real fix is closure sym-table inheritance — multi-cycle.
+v0.4.280 is the temporary safe halt: detect the dangerous
+shape at parse-time, halt with a clean diag.
+
+### What lands
+
+**New helper** `enforce_no_atomic_in_closure(source: str) -> i64`
+at `compiler/nucleor_s1_compiler.nr`. Conservative text-level
+scan: find `||` (zero-arg closure literal), look ahead up to
+200 chars (without crossing `;`) for `atomic_`. Returns 1 if
+matched.
+
+**Halt site** in `compile_file_mode` right after
+`enforce_atomic_contracts`:
+```nucleor
+if enforce_no_atomic_in_closure(source) == 1 {
+    print("error[ATOMIC-006]: ...");
+    return 1;
+};
+```
+
+**Diag code** ATOMIC-006 reserved in `is_known_diag_code` and
+`docs/spec/Nucleor_Error_Codes.md` under RFC-0007 §3.4.
+
+### Coverage scoping
+
+**Caught:** `||` zero-arg closure → `atomic_*(...)` call
+within ~200 chars (no `;` separator). This is the exact
+probe-finding repro shape and the most common adopter
+pattern (Dijkstra-style atomic counter increment closures).
+
+**NOT caught (deliberate false-negative):**
+- `|x|` / `|a, b|` non-zero-arg closures with atomic calls
+  — same root cause but probe finding only repro'd `||`;
+  the pattern detection scope can extend in a follow-up if
+  adopter pull surfaces.
+- Nested closure patterns (`|| { || atomic_...(); }`).
+- Closures stored in struct fields then called.
+
+For these uncaught patterns, the original `vec_get OOB`
+PANIC will still surface. The real fix (closure sym-table
+inheritance) closes ALL of them at once when it ships.
+
+### Fixture + verify gate
+
+- `tests/err/err_atomic_006_in_closure.nr` — exact probe repro.
+- New verify gate step `t_atomic_006_in_closure` — asserts
+  exit 1 + ATOMIC-006 in output + absence of `vec_get OOB`
+  (i.e., we haven't regressed back to the meltdown).
+
+### Validation
+
+- Self-build clean. Two-stage fixed-point at NEW SHA
+  `d9d9c274e2e28ad4a35d54571abb29466cd4661ad1114447ae435dc91f989a87`
+  (compiler IR moved from v0.4.279's `f4ed4c2a…`).
+- Bootstrap seed refreshed. Tools-suite build clean.
+- Drift gate clean.
+- Manual smoke confirmed:
+  - `||` + atomic_fetch_add + MemOrder::SeqCst → ATOMIC-006 halt
+  - direct atomic_fetch_add (no closure) still builds + runs
+
+### Probe-agent integration
+
+Promoted finding `2026-05-01-compiler-crash-atomic-in-closure.md`
+from `origin/probe/exploration` (commit e27ee0a) to local
+`findings/promoted/`. Seventh probe integration since the
+dual-agent split mandate.
+
+**Probe inbox queue remaining: 1 DbC ident-resolution finding +
+1 RFC-0007 finding** (`atomic-bool-stdlib-incomplete` —
+substantial scope; `dbc-undefined-ident-in-contract-expr` —
+wants full token-walk scan).
+
 ## [0.4.279] — 2026-05-01
 
 **🛡️ `str_char_at_strict` opt-in bounds-check.** Closes
