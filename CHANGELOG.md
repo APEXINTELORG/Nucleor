@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.25] — 2026-05-01
+
+**🔧 async_await crash-class fix — handle validation registry.**
+Closes 2 probe-agent CRASH findings:
+- `2026-05-01-async-await-twice-heap-corruption`
+- `2026-05-01-async-await-invalid-handle-segfault`
+
+### What lands
+
+Pre-fix `__nucleor_async_await(h)` blindly dereferenced any
+non-zero i64 as `NAsyncTask*`. Two adopter-mistake shapes hit
+memory-safety crashes:
+1. **Double-await**: free()'d memory dereferenced →
+   STATUS_HEAP_CORRUPTION (rc 0xC0000374).
+2. **Bogus handle**: arbitrary i64 dereferenced → STATUS_ACCESS_VIOLATION
+   (rc 0xC0000005).
+
+Fix: handle-validation registry in `stdlib/runtime/nucleor_llvm_rt.c`
+(both Win32 and POSIX paths):
+- 256-slot fixed-capacity array protected by critical
+  section / pthread mutex
+- `__nucleor_async_spawn` registers the handle on success,
+  unregisters + frees on registration-fails-error path
+- `__nucleor_async_await` checks the registry **before**
+  dereferencing; if missing, panics cleanly without touching
+  the handle's memory
+
+### New panic messages
+
+```
+PANIC: async_await: handle <N> is not a valid spawn handle
+(already awaited, or not from async_spawn). Each handle may
+be awaited exactly once.
+
+PANIC: async_await: handle is 0 (likely an uninitialized i64
+or a failed async_spawn). Pass a handle returned from
+async_spawn().
+
+PANIC: async_spawn: handle registry full (max 256 concurrent
+tasks). Free completed tasks via async_await before spawning
+more.
+```
+
+### Validation
+
+- Probe's double-await repro: now panics rc=1 (was rc=-1073740940
+  Windows heap corruption).
+- Probe's bogus-handle repro: now panics rc=1 (was rc=-1073741819
+  Windows access violation).
+- Normal `spawn→await→result` flow: unchanged (`worker(21) → 42`).
+- Round-1 == round-2 IR fixed-point unchanged at sha256
+  `c95e4bd7fd34675737288bb8d3a302fb859ce00863dccad74e1172fa3afd459c`
+  (s1 source unchanged; runtime-only fix).
+
+### Practical limit
+
+256 concurrent async tasks is well above any v0.5-era practical
+fan-out. If adopters hit the cap, the panic message is clean
+and the fix is to grow the array (future ship) or use a hash
+table for unbounded capacity.
+
+### Promotes
+
+`findings/promoted/2026-05-01-async-await-twice-heap-corruption.md`
++ `findings/promoted/2026-05-01-async-await-invalid-handle-segfault.md`
+both with full ## Promoted footer.
+
 ## [0.5.24] — 2026-05-01
 
 **🔧 Lexer: `1e20` (no fractional dot) now lexes as f64.**
