@@ -2218,6 +2218,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "str_to_i64") { return "__nucleor_str_to_i64"; };
     if str_eq(name, "str_to_f64") { return "__nucleor_str_to_f64"; };
     if str_eq(name, "str_to_int") { return "__nucleor_str_to_int"; };
+    if str_eq(name, "str_to_int_strict") { return "__nucleor_str_to_int_strict"; };
     if str_eq(name, "str_to_bool") { return "__nucleor_str_to_bool"; };
     if str_eq(name, "int_to_str") { return "__nucleor_int_to_str"; };
     if str_eq(name, "str_from_int") { return "__nucleor_int_to_str"; };
@@ -3220,6 +3221,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "str_to_i64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_to_f64") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_to_int") { if idx == 0 { return 1; }; return 0; };
+    if str_eq(name, "str_to_int_strict") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_to_bool") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "str_to_i64_radix") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "parse_hex") { if idx == 0 { return 1; }; return 0; };
@@ -3802,6 +3804,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_str_to_i64(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_to_f64(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_to_int(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_str_to_int_strict(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_str_to_bool(ptr)\n");
     sb_append(sb, "declare ptr @__nucleor_int_to_str(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_f64_to_str(i64)\n");

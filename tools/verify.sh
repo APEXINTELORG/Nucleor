@@ -3885,6 +3885,23 @@ v0510_i32_min_div_overflow() {
     grep -qE 'PANIC: i32 div overflow: i32::MIN / -1' $NUC_VERIFY_RUN_LOG || return 1
 }
 
+# v0.5.12: probe-agent finding 2026-05-01-str-to-int-silent-zero-on-invalid.
+# Lenient `str_to_int` returns 0 on parse failure (silent); strict
+# variant panics with a clean Nucleor message. Asserts non-zero rc
+# and stderr contains the strict-prefix.
+v0512_str_to_int_strict_panic() {
+    rm -f target/v0512_strict_check.exe target/v0512_strict_check
+    "$BIN" build tests/fixtures/v0512_str_to_int_strict_panics.nr -o "v0512_strict_check" >$NUC_VERIFY_STEP_LOG 2>&1
+    local exe=""
+    if [ -x target/v0512_strict_check.exe ]; then exe=target/v0512_strict_check.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0512_strict_check ]; then exe=target/v0512_strict_check; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rc=$?
+    [ "$rc" -ne 0 ] || return 1
+    grep -qE 'PANIC: str_to_int_strict:' $NUC_VERIFY_RUN_LOG || return 1
+}
+
 t28_async_threads() {
     # v0.2.353 (T2.8): async runtime — threads-only commitment.
     "$BIN" test "tests/smoke/t28_async_threads.nr" >$NUC_VERIFY_STEP_LOG 2>&1
@@ -4542,6 +4559,7 @@ step "T3.11 bare arena_* builtins link + run end-to-end" t311_arena_builtin_smok
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
 step "v0.5.10 i32::MIN / -1 panics cleanly (not Windows STATUS_INTEGER_OVERFLOW)" v0510_i32_min_div_overflow
+step "v0.5.12 str_to_int_strict panics on invalid input" v0512_str_to_int_strict_panic
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------

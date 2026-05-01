@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.12] — 2026-05-01
+
+**🔧 `str_to_int_strict` opt-in strict variant.** Closes
+probe-agent finding
+`2026-05-01-str-to-int-silent-zero-on-invalid`. Runtime + compiler.
+
+### What lands
+
+Pre-v0.5.12, `str_to_int(s)` silently returned 0 on every parse
+failure shape (NULL, empty, "not a number", "123abc" silent
+prefix-parse, overflow under non-strict env). Adopters could
+not distinguish parse-failed-to-zero from parse-succeeded-to-zero
+— a silent-miscompute hazard from the canonical Rust port
+pattern.
+
+v0.5.12 ships `str_to_int_strict(s)` mirroring v0.4.279's
+`str_char_at_strict` opt-in template:
+- **Lenient default unchanged** — perf-conscious paths
+  (lexer/parser hot loops) keep silent-0 on invalid input.
+- **Strict variant panics on:** NULL input, empty string, no
+  parseable integer, trailing non-whitespace garbage, i64
+  range overflow. Trailing whitespace tolerated (mirrors
+  `strtoll`'s leading-whitespace behavior).
+
+Adopters port from Rust's `i64::from_str(s).unwrap()` by
+switching the helper name.
+
+### Why option A
+
+The finding listed three options — A (strict variant), B
+(Result return on `str_to_int` itself), C (compile-time
+literal validation). A delivers what adopters actually need
+without breaking every existing caller (Option B) and without
+missing dynamic-input cases (Option C only catches literal
+inputs).
+
+### Validation
+
+- Positive fixture `tests/features/str_to_int_strict.nr` —
+  exercises 123, 0, -42, "  17  " (whitespace tolerance);
+  exit 0.
+- Runtime-panic fixture `tests/fixtures/v0512_str_to_int_strict_panics.nr`
+  — `str_to_int_strict("not a number")` panics with rc=1.
+- New verify gate step `v0512_str_to_int_strict_panic` asserts
+  the panic shape.
+- 695/695 PASS env-off + env-on (was 693; one new positive
+  fixture + one new dedicated step).
+- Round-1 == round-2 IR fixed-point holds at sha256
+  `10f3ce210be0b317643915feb921ef611c00c94856ae5aca964ffc62ff344437`.
+  Bootstrap seed refreshed. Drift gate clean.
+
+### Promotes
+
+`findings/promoted/2026-05-01-str-to-int-silent-zero-on-invalid.md`
+with full ## Promoted footer.
+
 ## [0.5.11] — 2026-05-01
 
 **🔧 FMT-003 — `format!()` extra-args silent-drop closure.**
