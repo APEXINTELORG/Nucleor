@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.22] — 2026-05-01
+
+**🔧 `eprintln!` + `eprint!` macros recognized.** Closes
+probe-agent finding `2026-05-01-eprintln-eprint-macro-falls-through-to-unary-not`.
+
+### What lands
+
+Pre-fix `eprintln!("...")` parsed as `eprintln` (ident) + `!`
+(unary-NOT) + `("...")` (parens) → TYP-002 "unary !" requires
+bool operand". `println!` and `print!` were recognized but
+their stderr siblings weren't.
+
+- Format-macro expander gains 2 new modes:
+  - mode 3 = `eprintln!(...)` → `eprint(<chain>)` (with newline)
+  - mode 4 = `eprint!(...)` → `eprint_raw(<chain>)` (no newline)
+- `compiler/nucleor_s1_compiler.nr` `fmt_build_expansion` +
+  `expand_format_macros_with_src` recognition table updated.
+- `compiler/nucleor_tools_suite.nr` mirror.
+
+Runtime helpers `__nucleor_eprint_str` (with `\n`) and
+`__nucleor_eprint_raw` (no `\n`) already shipped in earlier
+versions; only the macro-expander gap was missing.
+
+### Validation
+
+```nucleor
+eprintln!("hello stderr");           // routes to stderr with \n
+eprint!("no newline");               // routes to stderr no \n
+eprintln!("{}+{}={}", 1, 2, 3);      // format args work
+println!("stdout works too");        // stdout path unchanged
+```
+
+All build + run correctly. Round-1 == round-2 IR fixed-point
+holds at sha256 `27f625d1508e1d9080d0093049864bf93546c61567cd6b7f94809daae0a1de01`.
+
+### Promotes
+
+`findings/promoted/2026-05-01-eprintln-eprint-macro-falls-through-to-unary-not.md`
+with full ## Promoted footer.
+
 ## [0.5.21] — 2026-05-01
 
 **🔬 Memory drift per-ship attribution.** Closes probe-agent

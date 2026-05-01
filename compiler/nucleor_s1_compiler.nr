@@ -25337,13 +25337,17 @@ fn fmt_build_concat_chain(segments: Vec<i32>, parities: Vec<i32>) -> str {
 }
 
 fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
-    // mode: 0 = println! → print(...)
-    //       1 = format!  → bare str expression
-    //       2 = print!   → print_raw(...)
+    // mode: 0 = println!  → print(...)
+    //       1 = format!   → bare str expression
+    //       2 = print!    → print_raw(...)
+    //       3 = eprintln! → eprint(...)        v0.5.22
+    //       4 = eprint!   → eprint_raw(...)    v0.5.22
     let parts: Vec<i32> = fmt_split_args(args_text);
     if vec_len(parts) == 0 {
         if mode == 0 { return "print(\"\")"; };
         if mode == 1 { return "\"\""; };
+        if mode == 3 { return "eprint(\"\")"; };
+        if mode == 4 { return "eprint_raw(\"\")"; };
         return "print_raw(\"\")";
     };
     let fmt_lit: str = vec_get(parts, 0);
@@ -25411,6 +25415,8 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     let chain: str = fmt_build_concat_chain(segments, parities);
     if mode == 0 { return str_concat("print(", str_concat(chain, ")")); };
     if mode == 1 { return chain; };
+    if mode == 3 { return str_concat("eprint(", str_concat(chain, ")")); };
+    if mode == 4 { return str_concat("eprint_raw(", str_concat(chain, ")")); };
     return str_concat("print_raw(", str_concat(chain, ")"));
 }
 
@@ -25606,6 +25612,14 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 if str_eq(name, "println") == 1 { mode = 0; };
                 if str_eq(name, "format") == 1 { mode = 1; };
                 if str_eq(name, "print") == 1 { mode = 2; };
+                // v0.5.22: eprintln!/eprint! macro forms (probe finding
+                // 2026-05-01-eprintln-eprint-macro-falls-through-to-unary-not).
+                // Pre-fix these fell through to unary-NOT parsing (`eprintln`
+                // ident + `!` + `("...")` — `!` on str failed TYP-002).
+                // Now route to eprint(...) / eprint_raw(...) — stderr-bound
+                // siblings of println / print.
+                if str_eq(name, "eprintln") == 1 { mode = 3; };
+                if str_eq(name, "eprint") == 1 { mode = 4; };
                 if mode >= 0 {
                     p = p + 2;
                     let args_start: i64 = p;
