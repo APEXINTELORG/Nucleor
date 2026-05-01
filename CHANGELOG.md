@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.278] — 2026-05-01
+
+**📋 Sync ship — sequencing doc + heartbeat refresh.** Doc-only.
+Updates `docs/milestones/v0.5_RESIDUAL_SEQUENCING_2026-04-30.md`
+to reflect the v0.4.273-277 substantive arc (Track G + H +
+4 new CONTRACT codes + MATCH-012 stutter fix), and refreshes
+`findings/_heartbeat.md` with current main state for the next
+probe-agent rebase.
+
+### What lands
+
+**Sequencing doc** new section "Status as of v0.4.277
+(2026-05-01) — substantive arc IN FLIGHT" with:
+- Track G (RFC-0007 ordered atomics) — shipped v0.4.273
+- Track H (lock-free queues) — shipped v0.4.274
+- CONTRACT-006/008/009/010 — all shipped via probe-prep
+  integration (v0.4.271/272/275/277)
+- Track I (max_depth) and Track L (perf+cache) — unowned
+- 5 probe-agent findings integrated this session
+- Compiler IR fixed-point progression table across all
+  ships v0.4.258→v0.4.277
+
+**Heartbeat** refreshed to:
+- last_main_ship: v0.4.277 (was: pre-v0.4.163)
+- promoted_count: 24 (was 19; +5 this session)
+- Probe inbox status from main agent's view + the 2
+  remaining unintegrated findings flagged for probe-agent
+  awareness on next rebase
+- Cumulative session-ship breakdown (18 ships across 5
+  arcs)
+
+### Validation
+
+No code changes; existing v0.4.277 fixed-point at SHA
+`841c583dd4fcd8c044560a052eaec6dc8497f07a4f4b74a18613d7c64e638262`
+remains valid.
+
 ## [0.4.277] — 2026-05-01
 
 **🛡️ RFC-0006 — `old(...)` in `#[require]` reject (CONTRACT-010).**
