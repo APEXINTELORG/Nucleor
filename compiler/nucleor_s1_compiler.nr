@@ -1451,7 +1451,14 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // back-compat). Type-check fills it in for narrow types; codegen
         // reads it via a single node_field call (no str_concat, no
         // sym_get hash hit — the perf failure mode of v0.4.199's retry).
-        return pr(cp2, mk3(pool, 3, name, 0));
+        // v0.5 ship 7 final: span the var-ref nid at the identifier
+        // byte offset so OWN-001 (use-after-move) and other identifier-
+        // anchored diagnostics caret precisely at the use site instead
+        // of scanning the source text by name (which hits the FIRST
+        // occurrence, not the actual use site).
+        let var_nid: i64 = mk3(pool, 3, name, 0);
+        node_set_span(pool, var_nid, ident_span);
+        return pr(cp2, var_nid);
     };
     // Closure: |params| expr  or  |params| { stmts }  or  || expr  or  || { stmts }
     if tt == 65 || tt == 37 {
@@ -10296,8 +10303,25 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         if state == 2 {
             let source_text_move: str = own_source(own);
             let diag_vec_move: Vec<i32> = own_diags(own);
-            let ln: i64 = find_in_source(source_text_move, fn_name, vname);
-            let col: i64 = find_column_in_source(source_text_move, fn_name, vname);
+            // v0.5 ship 7 final: span-aware caret. Pre-fix, the OWN-001
+            // line/col came from `find_in_source` / `find_column_in_source`
+            // which scan the function body for the FIRST textual
+            // occurrence of `vname` — wrong-caret bug for any variable
+            // used multiple times in the same fn (the fix points at the
+            // first use, not the actual use-after-move site). With var-
+            // ref nids now spanned in parse_primary, we read the use
+            // site directly.
+            let move_sp: i64 = node_get_span(pool, nid);
+            let mut ln: i64 = 0;
+            let mut col: i64 = 0;
+            if move_sp >= 0 {
+                let lm_om: Vec<i32> = linemap_build(source_text_move);
+                ln = linemap_line(lm_om, move_sp);
+                col = linemap_col(lm_om, move_sp);
+            } else {
+                ln = find_in_source(source_text_move, fn_name, vname);
+                col = find_column_in_source(source_text_move, fn_name, vname);
+            };
             let d_idx: i64 = diag_add_ex(diag_vec_move, "warning", "ownership", "OWN-001", str_concat("use of moved variable '", str_concat(vname, "'")), fn_name, ln, col, "");
             // Add child note: where was it moved?
             let moved_by: str = own_get_type(own, str_concat("__moved_by_", vname));
