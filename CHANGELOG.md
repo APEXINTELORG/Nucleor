@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.237] — 2026-04-30
+
+**v0.5 ship 7 progress — struct-init diag site span migration.**
+Continues the 3span.3 incremental work using Track A's ranked
+target list. Migrates the 4 highest-leverage struct-init
+diagnostics off `find_linecol_in_source` onto AST node spans,
+landing precise carets at the offending field/struct token.
+
+### Migrations
+
+- `parse_struct_init` now captures:
+  - `struct_name_span` from the struct-name token, attached to
+    the kind-34 struct-init nid.
+  - `field_span` per init from the field-name token, attached
+    to each kind-35 field-init nid (both the shorthand
+    `Pt { x }` form and the explicit `Pt { x: e }` form).
+- 4 diag sites switched from `find_linecol_in_source` to
+  `diag_add_at_or_scan` with the matching nid:
+  - **TYP-012** (missing fields) — uses struct-init nid; caret
+    lands at struct name.
+  - **TYP-013** (unknown field) — uses field-init nid; caret
+    lands at the offending field name.
+  - **TYP-017** (duplicate field) — uses field-init nid for the
+    SECOND occurrence (Track A's specific UX recommendation:
+    pre-fix this caretted at the first textual occurrence,
+    obscuring which one the user wanted to keep).
+  - **TYP-008** (struct-field literal type mismatch) — uses
+    field-init nid; caret lands at the field name.
+
+### Caret-correctness proof
+
+| Code | Pattern | Pre-fix caret | Post-fix caret |
+|---|---|---|---|
+| TYP-013 | `Pt { x: 1, y: 2, z: 3 }` | `fn main@line 3:5` | `line 4:30` (at `z`) |
+| TYP-017 | `Pt { x: 1, y: 2, x: 3 }` | first `x` (line 4:18) | `line 4:30` (at second `x`) |
+| TYP-008 | `Pt { x: "wrong", y: 2 }` | `fn main@line 3:5` | `line 4:18` (at `x`) |
+
+### Validation
+
+- Self-build clean (functions: 574, optimized: 1 450, DCE
+  17/574, LL 7 145 934 bytes — slight shrink from v0.4.235
+  because dropping `find_linecol_in_source` calls at 4 sites
+  removed dead-code paths via DCE).
+- **Two-stage fixed-point env-OFF** at SHA
+  `1e474bd23ee44d56947e98087b5d1947484b024602039d533fc440872dd28c48`.
+- Bootstrap seed refreshed; T1.7 locked.
+- Compiler ABI drift gate: clean.
+
+### Punchlist
+
+7 of 8 punchlist ships now have at least partial completion;
+ship 7 is no longer a pure `incremental` placeholder. Five
+remaining sites still use `find_linecol_in_source` directly
+(call diags, NUM-003 cast, NUM-006 narrow-float vec, OWN-*
+helper, undefined-fn) and can be migrated as adopter UX
+surfaces them.
+
+| # | Phase | Status |
+|---|---|---|
+| 1 | 3c.1 cross-width audit | ✅ shipped |
+| 2 | 3span.1 substrate | ✅ shipped |
+| 3 | 3span.2 high-impact diag migration | ✅ shipped (Track D) |
+| 4 | 3e.1 LLVM overflow intrinsic | ✅ shipped + hardened |
+| 5 | 3c.2 cast injection | ✅ eliminated |
+| 6 | 3c.3 typed param alloca | ✅ shipped |
+| 7 | 3span.3 finish migration | 🟡 partial — struct-init diags migrated; 5 sites remaining for later UX-driven cycles |
+| 8 | 3e.3 strict-mode default flip | 🔒 deferred — Track F idle re-run gate |
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: `parse_struct_init` span
+  capture; 4 diag sites migrated to `diag_add_at_or_scan`.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+- New: `docs/milestones/spikes/track_f_perf_3e3_decision_2026-04-30.md`
+  (consultant Track F report copied into main).
+
 ## [0.4.235] — 2026-04-30
 
 **v0.5 Track E — narrow-intrinsic correctness validation +
