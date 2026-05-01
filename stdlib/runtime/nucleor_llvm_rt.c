@@ -3158,30 +3158,107 @@ void __nucleor_thread_join(long long handle) {
 // async fn / .await desugar to async_spawn / async_await. Each task
 // is a real OS thread with a captured i64 result slot. Per the
 // locked v0.2 design vote (RFC-0027 phase 1).
+// v0.5.25: closes probe-agent findings
+//   2026-05-01-async-await-twice-heap-corruption (CRASH-class)
+//   2026-05-01-async-await-invalid-handle-segfault (CRASH-class)
+// Pre-fix `__nucleor_async_await(h)` blindly dereferenced any non-zero
+// i64 as NAsyncTask*. Two adopter mistakes hit memory-safety crashes:
+//   1. await(spawn(...)) twice → free()'d memory dereferenced →
+//      STATUS_HEAP_CORRUPTION (rc 0xC0000374).
+//   2. await(<bogus i64>) → dereferences non-malloc'd memory →
+//      STATUS_ACCESS_VIOLATION (rc 0xC0000005).
+//
+// Fix: maintain a registry of valid NAsyncTask* handles, protected by
+// a critical section. spawn registers the handle. await checks the
+// handle is in the registry BEFORE dereferencing — if not, panic with
+// a clean Nucleor message naming the bogus value. After successful
+// await, the handle is unregistered + freed; a second await sees an
+// unregistered handle and panics rather than dereferencing freed
+// memory.
+//
+// Registry is a small fixed-capacity array (256 slots) protected by a
+// critical section. 256 concurrent tasks is well above the practical
+// fan-out for v0.5; if adopters need more, this can grow to a hash
+// table. PANIC at registration if full.
 typedef struct NAsyncTask {
     HANDLE thread_handle;
     long long (*fn)(long long);
     long long arg;
     long long result;
 } NAsyncTask;
+
+#define NUC_ASYNC_REGISTRY_SIZE 256
+static NAsyncTask *g_async_registry[NUC_ASYNC_REGISTRY_SIZE] = { 0 };
+static CRITICAL_SECTION g_async_registry_cs;
+static int g_async_registry_init = 0;
+
+static void __nuc_async_registry_init(void) {
+    if (!g_async_registry_init) {
+        InitializeCriticalSection(&g_async_registry_cs);
+        g_async_registry_init = 1;
+    }
+}
+static int __nuc_async_registry_add(NAsyncTask *t) {
+    EnterCriticalSection(&g_async_registry_cs);
+    for (int i = 0; i < NUC_ASYNC_REGISTRY_SIZE; i++) {
+        if (g_async_registry[i] == 0) {
+            g_async_registry[i] = t;
+            LeaveCriticalSection(&g_async_registry_cs);
+            return 1;
+        }
+    }
+    LeaveCriticalSection(&g_async_registry_cs);
+    return 0;
+}
+// Returns 1 if found and removed (caller now owns t), 0 otherwise.
+static int __nuc_async_registry_remove(NAsyncTask *t) {
+    EnterCriticalSection(&g_async_registry_cs);
+    for (int i = 0; i < NUC_ASYNC_REGISTRY_SIZE; i++) {
+        if (g_async_registry[i] == t) {
+            g_async_registry[i] = 0;
+            LeaveCriticalSection(&g_async_registry_cs);
+            return 1;
+        }
+    }
+    LeaveCriticalSection(&g_async_registry_cs);
+    return 0;
+}
 static DWORD WINAPI nucleor_async_proc(LPVOID param) {
     NAsyncTask *t = (NAsyncTask*)param;
     t->result = t->fn(t->arg);
     return 0;
 }
 long long __nucleor_async_spawn(long long fn_ptr, long long arg) {
+    __nuc_async_registry_init();
     NAsyncTask *t = (NAsyncTask*)malloc(sizeof(NAsyncTask));
     if (!t) return 0;
     t->fn = (long long(*)(long long))(void*)fn_ptr;
     t->arg = arg;
     t->result = 0;
+    if (!__nuc_async_registry_add(t)) {
+        free(t);
+        fprintf(stderr, "PANIC: async_spawn: handle registry full (max %d concurrent tasks). Free completed tasks via async_await before spawning more.\n", NUC_ASYNC_REGISTRY_SIZE);
+        fflush(stderr); exit(1);
+    }
     t->thread_handle = CreateThread(NULL, 0, nucleor_async_proc, t, 0, NULL);
-    if (!t->thread_handle) { free(t); return 0; }
+    if (!t->thread_handle) {
+        __nuc_async_registry_remove(t);
+        free(t);
+        return 0;
+    }
     return (long long)(intptr_t)t;
 }
 long long __nucleor_async_await(long long task_handle) {
-    if (!task_handle) return 0;
+    if (!task_handle) {
+        fprintf(stderr, "PANIC: async_await: handle is 0 (likely an uninitialized i64 or a failed async_spawn). Pass a handle returned from async_spawn().\n");
+        fflush(stderr); exit(1);
+    }
+    __nuc_async_registry_init();
     NAsyncTask *t = (NAsyncTask*)(intptr_t)task_handle;
+    if (!__nuc_async_registry_remove(t)) {
+        fprintf(stderr, "PANIC: async_await: handle %lld is not a valid spawn handle (already awaited, or not from async_spawn). Each handle may be awaited exactly once.\n", task_handle);
+        fflush(stderr); exit(1);
+    }
     WaitForSingleObject(t->thread_handle, INFINITE);
     long long r = t->result;
     CloseHandle(t->thread_handle);
@@ -3360,6 +3437,9 @@ void __nucleor_thread_join(long long handle) {
     free((void*)handle);
 }
 // === T2.8 (v0.2.353): async runtime — POSIX side ===
+// v0.5.25 mirrors the Win32 path's handle-validation registry (closes
+// the same probe findings: async_await-twice heap corruption +
+// async_await-invalid-handle segfault).
 typedef struct NAsyncTask {
     pthread_t thread;
     long long (*fn)(long long);
@@ -3367,6 +3447,35 @@ typedef struct NAsyncTask {
     long long result;
     int started;
 } NAsyncTask;
+
+#define NUC_ASYNC_REGISTRY_SIZE 256
+static NAsyncTask *g_async_registry[NUC_ASYNC_REGISTRY_SIZE] = { 0 };
+static pthread_mutex_t g_async_registry_mu = PTHREAD_MUTEX_INITIALIZER;
+
+static int __nuc_async_registry_add(NAsyncTask *t) {
+    pthread_mutex_lock(&g_async_registry_mu);
+    for (int i = 0; i < NUC_ASYNC_REGISTRY_SIZE; i++) {
+        if (g_async_registry[i] == 0) {
+            g_async_registry[i] = t;
+            pthread_mutex_unlock(&g_async_registry_mu);
+            return 1;
+        }
+    }
+    pthread_mutex_unlock(&g_async_registry_mu);
+    return 0;
+}
+static int __nuc_async_registry_remove(NAsyncTask *t) {
+    pthread_mutex_lock(&g_async_registry_mu);
+    for (int i = 0; i < NUC_ASYNC_REGISTRY_SIZE; i++) {
+        if (g_async_registry[i] == t) {
+            g_async_registry[i] = 0;
+            pthread_mutex_unlock(&g_async_registry_mu);
+            return 1;
+        }
+    }
+    pthread_mutex_unlock(&g_async_registry_mu);
+    return 0;
+}
 static void* nucleor_async_proc(void *param) {
     NAsyncTask *t = (NAsyncTask*)param;
     t->result = t->fn(t->arg);
@@ -3379,13 +3488,29 @@ long long __nucleor_async_spawn(long long fn_ptr, long long arg) {
     t->arg = arg;
     t->result = 0;
     t->started = 0;
-    if (pthread_create(&t->thread, NULL, nucleor_async_proc, t) != 0) { free(t); return 0; }
+    if (!__nuc_async_registry_add(t)) {
+        free(t);
+        fprintf(stderr, "PANIC: async_spawn: handle registry full (max %d concurrent tasks). Free completed tasks via async_await before spawning more.\n", NUC_ASYNC_REGISTRY_SIZE);
+        fflush(stderr); exit(1);
+    }
+    if (pthread_create(&t->thread, NULL, nucleor_async_proc, t) != 0) {
+        __nuc_async_registry_remove(t);
+        free(t);
+        return 0;
+    }
     t->started = 1;
     return (long long)(intptr_t)t;
 }
 long long __nucleor_async_await(long long task_handle) {
-    if (!task_handle) return 0;
+    if (!task_handle) {
+        fprintf(stderr, "PANIC: async_await: handle is 0 (likely an uninitialized i64 or a failed async_spawn). Pass a handle returned from async_spawn().\n");
+        fflush(stderr); exit(1);
+    }
     NAsyncTask *t = (NAsyncTask*)(intptr_t)task_handle;
+    if (!__nuc_async_registry_remove(t)) {
+        fprintf(stderr, "PANIC: async_await: handle %lld is not a valid spawn handle (already awaited, or not from async_spawn). Each handle may be awaited exactly once.\n", task_handle);
+        fflush(stderr); exit(1);
+    }
     if (t->started) pthread_join(t->thread, NULL);
     long long r = t->result;
     free(t);
