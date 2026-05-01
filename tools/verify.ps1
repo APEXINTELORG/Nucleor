@@ -444,6 +444,7 @@ Step "CLI: nuc explain -- full spec code set wired" {
         "NR034", "NR040", "NR050", "NR051", "NR070", "NR090",
         # RFC-0001 RT
         "RT-001", "RT-002", "RT-003", "RT-004", "RT-005", "RT-006", "RT-007", "RT-008",
+        "ASYNC-001",
         # RFC-0002 allocators
         "ALLOC-001", "ALLOC-002", "ALLOC-003",
         # RFC-0003 typed frames

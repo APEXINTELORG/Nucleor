@@ -10553,6 +10553,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "RT-004") { return "Static WCET exceeds declared #[deadline]"; };
     if str_eq(code, "RT-005") { return "FFI call in RT function without #[ffi_no_*] annotation"; };
     if str_eq(code, "RT-006") { return "RT attribute on async fn"; };
+    if str_eq(code, "ASYNC-001") { return "`async` keyword on fn is silently stripped (v0.5 has no Future/.await; use async_spawn + async_await for threading)"; };
     if str_eq(code, "RT-007") { return "Deadline annotation without no_alloc or no_panic"; };
     if str_eq(code, "RT-008") { return "Recursive call in #[deadline] function without #[max_depth]"; };
     // RFC-0020 DIAG series — minted v0.3.36 (DIAG-001 only).
@@ -10783,6 +10784,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "RT-004") { return "Static WCET analysis estimates the function exceeds its declared #[deadline]."; };
     if str_eq(code, "RT-005") { return "An RT-tagged function called an extern fn lacking #[ffi_no_alloc] or #[ffi_no_panic]."; };
     if str_eq(code, "RT-006") { return "RT attributes (#[no_alloc], #[deadline] etc.) cannot be applied to async fn — async semantics break the deadline guarantee."; };
+    if str_eq(code, "ASYNC-001") { return "Pre-v0.5.19 `async fn foo() { ... }` was silently stripped to `fn foo()` and ran sync immediately. Adopters writing the canonical Rust async pattern got immediate execution with no signal. Nucleor v0.5 has no Future / .await polling; threading is via `async_spawn(fn_ptr, arg)` + `async_await(handle)` (RFC-0027 phase 1). Either drop the `async` keyword for sync fns, or call `async_spawn` to actually thread."; };
     if str_eq(code, "RT-007") { return "A #[deadline] annotation alone is incomplete — it is hard to reason about deadline without #[no_alloc] or #[no_panic]."; };
     if str_eq(code, "RT-008") { return "A #[deadline] function uses recursion. Bound it with #[max_depth = N] (RFC-0014)."; };
     if str_eq(code, "DIAG-001") { return "An #[allow(_fn)(CODE)] or #[deny(_fn)(CODE)] attribute references a CODE that is not in the canonical enumerated diagnostic code set. The suppression or promotion has no effect at compile time -- the diagnostic the author meant to control still fires unsuppressed. Catches both unknown-prefix codes (e.g. WAT-001) and within-series typos (e.g. RT-099 vs RT-009)."; };
@@ -10983,6 +10985,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "RT-004") { return "RFC-0009 static WCET analysis estimates the function's worst-case time exceeds the deadline. Inspect the dominant cost in the report; reduce loop bounds, simplify hot paths, or relax the deadline if appropriate."; };
     if str_eq(code, "RT-005") { return "Calls into C/C++ via extern fn are opaque to the analysis. Mark trusted extern declarations with #[ffi_no_alloc] and/or #[ffi_no_panic] (v0.3.24, RFC-0001 §3.5) -- two separate attributes, not one comma-list. #[deadline] callers need BOTH markers (intersection rule). To skip per-symbol annotation: #[allow(RT-005)] (file-wide)."; };
     if str_eq(code, "RT-006") { return "async fn introduces poll-based scheduling and arbitrary suspend points. RT attributes promise bounded time and no allocation; the two are fundamentally incompatible. Refactor the function as sync, or use rod/tokio (RFC-0030) outside the RT path."; };
+    if str_eq(code, "ASYNC-001") { return "Workaround: drop the `async` keyword if you want sync execution (the keyword was a no-op pre-v0.5.19, now triggers this warning). For real threading, use `async_spawn(fn_ptr, arg)` to spawn the fn on an OS thread → returns an opaque task handle. Then `async_await(handle)` joins the thread and returns the captured i64 result. See stdlib/rods/async.nr and the RFC-0027 phase 1 commitment to threads-only (no green-thread scheduler, no future polling)."; };
     if str_eq(code, "RT-007") { return "Add #[no_alloc] or #[no_panic] (or both) to the fn -- that makes the deadline reasoning sound. To intentionally suppress: #[allow(RT-007)] (file-wide) or #[allow_fn(RT-007)] (per-fn, v0.3.20). The warning surfaces a likely-incomplete annotation."; };
     if str_eq(code, "RT-008") { return "Deadline analysis cannot bound an unbounded recursion. Annotate the function with #[max_depth = N] per RFC-0014 to give the analyzer a depth bound."; };
     if str_eq(code, "DIAG-001") { return "v0.3.38 enumerated check: the s1 compiler validates the full CODE substring against the canonical diagnostic code set (mirrored in cli_explain_full_smoke). When minting a new code, add to BOTH the s1 compiler's is_known_diag_code fn AND the cli_explain_full_smoke codes array. To suppress DIAG-001 itself during a noisy refactor: #[allow(DIAG-001)]."; };
