@@ -51922,3 +51922,23 @@ Initial open-source release of Nucleor under the Apache License 2.0.
 - Source: https://github.com/APEXINTELORG/Nucleor
 - Issues: https://github.com/APEXINTELORG/Nucleor/issues
 - Author: Joseph Wescott
+
+## v0.5.27 — 2026-05-01
+
+- **CRITICAL silent-miscompute fix:** `(a < b) as i32` for `a, b: f64`
+  was returning 0 instead of 1. Closes probe finding
+  `2026-05-01-f64-cmp-as-i32-cast-silently-zero`.
+- Root cause: `binop_float_type` (s1 ~line 19396, kind == 4 / binop)
+  recursed into operand types only; for `a < b` where both operands
+  are f64, both branches returned "f64", so the function returned
+  "f64" — even though a comparison's result is bool/i64, not float.
+  This drove kind-99 (as cast) to dispatch `f64_to_i32` on the i64
+  cmp-result bit pattern → produced 0.
+- Fix: in the kind == 4 path, first check the operator iop via
+  `tok_to_ir(node_field(pool, nid, 1))`. If `is_cmp_or_logic(iop) == 1`
+  (iops 7-14: `==` `!=` `<` `>` `<=` `>=` `&&` `||`), return ""
+  immediately so kind-99 falls through to int→int as_i32/as_i64.
+- 3-line edit. Round-1 == round-2 IR fixed-point preserved.
+- Probe repro now outputs `1 1 1 1 1 1` (was `0 0 1 1 0 1`).
+- Adopter idioms unblocked: NaN-free counting via `(*x == *x) as i32`,
+  threshold flags via `(energy > t) as i32`, comparison bitmasks.

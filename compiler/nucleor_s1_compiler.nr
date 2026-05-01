@@ -19394,6 +19394,22 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
     // integer add even though both halves were correctly compiled
     // as f64 muls.
     if kind == 4 {
+        // v0.5.27: closes probe-agent finding
+        // 2026-05-01-f64-cmp-as-i32-cast-silently-zero (CRITICAL).
+        // Comparison operators (`<` `>` `<=` `>=` `==` `!=`) and
+        // logical (`&&` `||`) produce a BOOL result, not a float —
+        // even when the OPERANDS are f64. Pre-fix `(a < b) as i32`
+        // for `a, b: f64` had binop_float_type returning "f64", which
+        // then drove kind-99 (as cast) to dispatch f64_to_i32 on the
+        // i64 cmp-result bit pattern (always 0 or 1) → produced 0
+        // because the small-magnitude check rounded the bit pattern
+        // to 0 / nonsense. Now: if the binop is a cmp/logic op, return
+        // "" so the kind-99 path falls through to the int→int
+        // as_i32/as_i64 helper which correctly produces 0/1.
+        let cmp_iop_v527: i64 = tok_to_ir(node_field(pool, nid, 1));
+        if is_cmp_or_logic(cmp_iop_v527) == 1 {
+            return "";
+        };
         let lt: str = binop_float_type(pool, node_field(pool, nid, 2), sym, structs);
         let rt: str = binop_float_type(pool, node_field(pool, nid, 3), sym, structs);
         if str_eq(lt, "f32") == 1 { return "f32"; };
