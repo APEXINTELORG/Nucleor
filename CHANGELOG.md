@@ -5,6 +5,133 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.283] — 2026-05-01
+
+**🛡️ RFC-0006 — undefined identifier in contract predicate
+reject (CONTRACT-011).** Closes the **last open probe-agent
+finding** (`2026-05-01-dbc-undefined-ident-in-contract-expr`).
+Pre-fix, `#[require(undefined_var > 0)]` surfaced a misleading
+clang-link `"undefined function `undefined_var()`"` error —
+wrong identifier kind (it was used as a value, not a fn) and
+wrong phase (link instead of parse). CONTRACT-011 halts at
+compile time naming the actual unbound ident.
+
+### Repro (pre-v0.4.283)
+
+```nucleor
+#[require(undefined_var > 0)]
+fn f(x: i64) -> i64 { x }
+```
+
+```
+error[TYP-005]: undefined function `undefined_var()`. Check
+spelling, or import the rod that defines it. (raised at clang
+link...)
+COMPILE FAILED
+```
+
+### Post-v0.4.283
+
+```
+error[CONTRACT-011]: `#[require(...)]` on `fn f` references
+undefined identifier `undefined_var`. Pre-conditions can only
+reference fn parameters, module-level constants, type or enum
+variant names, and the DbC keywords (`true`, `false`, `null`,
+`Some`, `None`, `Ok`, `Err`). Check spelling, or rewrite the
+predicate to compare against a fn parameter.
+  --> fn f@<#[require] attribute>
+```
+
+### What lands
+
+**New helper** `find_unbound_ident_in_contract(source, fn_name,
+predicate)` at `compiler/nucleor_s1_compiler.nr:9308`.
+Token-walk over the predicate text:
+- Extract bare idents (`[A-Za-z_][A-Za-z0-9_]*`)
+- Skip if followed by `(` (fn call), `::` (path), `[` (index),
+  `{` (struct-init)
+- Skip if preceded by `.` (field/method access), `::` (path tail)
+- Skip if in DbC keyword allowlist (`result`, `old`, `self`,
+  `true`, `false`, `null`, `Some`, `None`, `Ok`, `Err`)
+- Skip if first char is uppercase (assume Type / Variant /
+  Module name)
+- Skip if it resolves as a fn parameter via `fn_param_type()`
+- First ident that survives → return as unbound
+
+**Reject site** in the require pre-pass at line ~21566 (after
+the v0.4.277 CONTRACT-010 `old()` reject):
+```nucleor
+let req_unbound: str = find_unbound_ident_in_contract(source,
+    req_name, req_text);
+if str_len(req_unbound) > 0 {
+    print("error[CONTRACT-011]: ...");
+    return 1;
+};
+```
+
+### Coverage scoping
+
+**Caught:** bare-ident-as-value case where the ident isn't a fn
+param, DbC keyword, or CamelCase type/variant name. Examples:
+`undefined_var > 0`, `count + tip`, `my_typo == 5`.
+
+**Not caught (false-negative-preferring):**
+- Idents inside fn-call expressions (their resolution flows
+  through the existing call-site type-check)
+- Idents in path syntax (`Module::CONST`, `Type::variant`)
+- Idents after `.` (field / method access — handled by AST
+  type-check)
+- Idents inside struct-init (`Type { field: value }`)
+- CamelCase idents (treated as Type / Variant / Module name —
+  prefer false negative on a typo'd type to false positive on
+  every valid type reference)
+
+The conservative bias is intentional — it's better to miss a
+specific class of typo than to reject valid identifiers that
+resolve via paths, fn calls, struct-init, or method dispatch.
+
+### Diag code
+
+CONTRACT-011 reserved in `is_known_diag_code` and
+`docs/spec/Nucleor_Error_Codes.md`. Filed under
+RFC-0006 §3.2 Preconditions. Closes the entire CONTRACT-006
+through CONTRACT-011 closeout series shipped this session.
+
+### Fixture + verify gate
+
+- `tests/err/err_contract_undefined_ident.nr` — exact probe repro.
+- New verify gate step `t_rfc0006_undefined_ident_reject` —
+  asserts exit 1 + CONTRACT-011 in output + named bad ident
+  `undefined_var`.
+
+### Validation
+
+- Self-build clean. Two-stage fixed-point at NEW SHA
+  `7b094aab8f8db55c4233967e78b91030d4bcadca2e656c1eb17d40d0a5e09892`
+  (compiler IR moved from v0.4.281's `d9d9c274…`).
+- Bootstrap seed refreshed.
+- Drift gate clean.
+- Positive smoke: `#[require(x > 0)] fn pos(x: i64) -> i64
+  { x * 2 }` builds and `pos(5) == 10`.
+
+### Probe-agent integration — full inbox queue closed
+
+Promoted finding `2026-05-01-dbc-undefined-ident-in-contract-expr.md`
+to `findings/promoted/`. **Ninth probe integration this session**.
+
+**Probe inbox queue at v0.4.283: 0 active findings remaining.**
+All eight 2026-05-01 sweep findings + the carryover str-char-
+at-oob finding now closed. The dual-agent split mandate has run
+its first complete cycle: probe agent files findings, main agent
+ships fixes, all closed within one working day.
+
+### Working-tree state
+
+This ship clears the dirty working tree from the v0.4.282 →
+v0.4.283 window. Track I (consultant-pushed at
+`origin/v05-track-i-max-depth` `b1647b5`) and Track L (in-flight
+by same consultant) integrate next as the v0.5.0 atomic ship.
+
 ## [0.4.282] — 2026-05-01
 
 **📋 Sync ship — sequencing doc + heartbeat refresh

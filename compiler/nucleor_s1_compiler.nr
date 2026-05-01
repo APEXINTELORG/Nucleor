@@ -8270,6 +8270,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "CONTRACT-008") == 1 { return 1; };
     if str_eq(code, "CONTRACT-009") == 1 { return 1; };
     if str_eq(code, "CONTRACT-010") == 1 { return 1; };
+    if str_eq(code, "CONTRACT-011") == 1 { return 1; };
     // RFC-0007 atomic
     if str_eq(code, "ATOMIC-001") == 1 { return 1; };
     if str_eq(code, "ATOMIC-002") == 1 { return 1; };
@@ -9287,6 +9288,100 @@ fn contract_text_uses_old(text: str) -> i64 {
         i = i + 1;
     };
     return 0;
+}
+
+// v0.4.283 RFC-0006 — scan a contract-predicate text for any
+// identifier that doesn't resolve to a fn parameter, a DbC
+// keyword (result / old / self / true / false / None / Some /
+// Ok / Err / null), a CamelCase type or enum variant (first
+// char uppercase), an ALL_CAPS const (all chars uppercase /
+// digits / underscores), or a fn-call site (followed by `(`).
+// Returns the unbound ident name on first match, or "" if all
+// idents resolve. Conservative: we'd rather miss a real
+// undefined-ident (false negative — adopter sees the existing
+// clang-link error) than reject a valid identifier.
+//
+// Probe-agent finding 2026-05-01: pre-fix,
+// `#[require(undefined_var > 0)]` surfaced a misleading clang-
+// link "undefined function `undefined_var()`" error. CONTRACT-011
+// halts at parse time with the actual unbound ident named.
+fn find_unbound_ident_in_contract(source: str, fn_name: str, predicate: str) -> str {
+    let n: i64 = str_len(predicate);
+    let mut i: i64 = 0;
+    while i < n {
+        let c: str = str_substring(predicate, i, i + 1);
+        // Find start of an identifier: [A-Za-z_]
+        let is_ident_start: i64 = if str_index_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_", c) >= 0 { 1 } else { 0 };
+        if is_ident_start == 0 { i = i + 1; continue; };
+        // Walk to end of ident.
+        let start: i64 = i;
+        let mut end: i64 = i;
+        let mut keep_going: i64 = 1;
+        while end < n && keep_going == 1 {
+            let ch: str = str_substring(predicate, end, end + 1);
+            let alpha: i64 = if str_index_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_", ch) >= 0 { 1 } else { 0 };
+            let digit: i64 = if str_index_of("0123456789", ch) >= 0 { 1 } else { 0 };
+            if alpha == 0 {
+                if digit == 0 { keep_going = 0; }
+                else { end = end + 1; };
+            } else {
+                end = end + 1;
+            };
+        };
+        i = end;
+        let ident: str = str_substring(predicate, start, end);
+        // Skip if followed by `(` (fn call site) — also accepts whitespace.
+        let mut k: i64 = end;
+        while k < n {
+            let kc: str = str_substring(predicate, k, k + 1);
+            if str_eq(kc, " ") == 1 || str_eq(kc, "\t") == 1 || str_eq(kc, "\n") == 1 { k = k + 1; continue; };
+            break;
+        };
+        let next_char: str = if k >= n { "" } else { str_substring(predicate, k, k + 1) };
+        let next_two: str = if k + 1 >= n { next_char } else { str_substring(predicate, k, k + 2) };
+        // Skip if preceded by `.` (field/method access) — scan back through whitespace.
+        let mut j: i64 = start;
+        while j > 0 {
+            let jc: str = str_substring(predicate, j - 1, j);
+            if str_eq(jc, " ") == 1 || str_eq(jc, "\t") == 1 || str_eq(jc, "\n") == 1 { j = j - 1; continue; };
+            break;
+        };
+        let prev_char: str = if j == 0 { "" } else { str_substring(predicate, j - 1, j) };
+        let prev_two: str = if j < 2 { prev_char } else { str_substring(predicate, j - 2, j) };
+        // === Skip rules (any one matches → not unbound) ===
+        // Followed by `(` — fn call site.
+        if str_eq(next_char, "(") == 1 { continue; };
+        // Followed by `::` — path syntax.
+        if str_eq(next_two, "::") == 1 { continue; };
+        // Followed by `[` — index expr (caller chose this form).
+        if str_eq(next_char, "[") == 1 { continue; };
+        // Followed by `{` — struct-init expr.
+        if str_eq(next_char, "{") == 1 { continue; };
+        // Preceded by `.` — field/method access.
+        if str_eq(prev_char, ".") == 1 { continue; };
+        // Preceded by `::` — path tail (already-resolved variant).
+        if str_eq(prev_two, "::") == 1 { continue; };
+        // DbC keyword allowlist.
+        if str_eq(ident, "result") == 1 { continue; };
+        if str_eq(ident, "old") == 1 { continue; };
+        if str_eq(ident, "self") == 1 { continue; };
+        if str_eq(ident, "true") == 1 { continue; };
+        if str_eq(ident, "false") == 1 { continue; };
+        if str_eq(ident, "None") == 1 { continue; };
+        if str_eq(ident, "Some") == 1 { continue; };
+        if str_eq(ident, "Ok") == 1 { continue; };
+        if str_eq(ident, "Err") == 1 { continue; };
+        if str_eq(ident, "null") == 1 { continue; };
+        // CamelCase first char (Type / Variant / Module name).
+        let first_char: str = str_substring(ident, 0, 1);
+        if str_index_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ", first_char) >= 0 { continue; };
+        // Fn parameter.
+        let pty: str = fn_param_type(source, fn_name, ident);
+        if str_len(pty) > 0 { continue; };
+        // Looks unbound — return it.
+        return ident;
+    };
+    return "";
 }
 
 // v0.4.272 RFC-0006 — scan an ensure-predicate text for a bare
@@ -21460,6 +21555,17 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         // mismatch.
         if contract_text_uses_old(req_text) == 1 {
             print(str_concat("error[CONTRACT-010]: `old(...)` is not valid in `#[require(...)]` on `fn ", str_concat(req_name, "`. Preconditions run BEFORE the function body, so there is no prior state to snapshot. `old(...)` is only meaningful in `#[ensure(...)]` (postconditions reference fn-entry state). Move the check into `#[ensure]`, or compare directly against the parameter without `old()`.")));
+            print(str_concat("  --> fn ", str_concat(req_name, "@<#[require] attribute>")));
+            return 1;
+        };
+        // v0.4.283 — undefined-ident check. Probe-agent finding
+        // 2026-05-01: pre-fix, `#[require(undefined_var > 0)]`
+        // surfaced a misleading clang-link "undefined function
+        // `undefined_var()`" error. CONTRACT-011 halts at compile
+        // time naming the actual unbound ident.
+        let req_unbound: str = find_unbound_ident_in_contract(source, req_name, req_text);
+        if str_len(req_unbound) > 0 {
+            print(str_concat("error[CONTRACT-011]: `#[require(...)]` on `fn ", str_concat(req_name, str_concat("` references undefined identifier `", str_concat(req_unbound, "`. Pre-conditions can only reference fn parameters, module-level constants, type or enum variant names, and the DbC keywords (`true`, `false`, `null`, `Some`, `None`, `Ok`, `Err`). Check spelling, or rewrite the predicate to compare against a fn parameter.")))));
             print(str_concat("  --> fn ", str_concat(req_name, "@<#[require] attribute>")));
             return 1;
         };
