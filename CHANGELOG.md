@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.11] — 2026-05-01
+
+**🔧 FMT-003 — `format!()` extra-args silent-drop closure.**
+Closes probe-agent finding
+`2026-05-01-format-extra-args-silently-dropped`. Pure
+compile-time check, no runtime changes.
+
+### What lands
+
+Pre-v0.5.11 `format!("just {}", 1, 2, 3)` silently dropped
+args 2 and 3 (including any side effects in those argument
+expressions). The opposite asymmetry (more placeholders than
+args) was caught loudly by v0.4.70 — v0.5.11 mirrors that
+direction so both halt cleanly with FMT-003.
+
+- `compiler/nucleor_s1_compiler.nr` `fmt_build_expansion`:
+  after the placeholder-walk loop, halt with FMT-003 naming
+  placeholder count, arg count, dropped count, and the format
+  body if `arg_idx < n_args`.
+- `compiler/nucleor_tools_suite.nr` `fmt_build_expansion`:
+  mirrored (drift gate enforces).
+- `is_compile_time_error` (s1): adds `FMT-003`.
+- Tools-suite explain registry: 3 entries (title at line
+  10600, cause at ~10823, hint at ~11023) for `nuc explain
+  FMT-003`.
+- `tools/verify.{sh,ps1}`: adds `FMT-003` to the
+  `cli_explain_full_smoke` codes lists.
+
+### New fixture
+
+`tests/err/err_fmt_003_extra_args.nr` exercises
+`format!("just {}", 1, 2, 3)`; build halts with FMT-003.
+
+### Validation
+
+- 693/693 PASS env-off + env-on (was 692; one new err
+  fixture).
+- Round-1 == round-2 IR fixed-point holds at sha256
+  `0f7ca127642c12c4fd45ddac0384bbf8cbd92eb87fab1ec636d351eb14eec878`
+  (no new runtime declares; pure compile-time check addition).
+  Bootstrap seed refreshed.
+- Drift gate clean (helper_manifest regenerated).
+
+### Promotes
+
+`findings/promoted/2026-05-01-format-extra-args-silently-dropped.md`
+with full ## Promoted footer.
+
 ## [0.5.10] — 2026-05-01
 
 **🔧 Numeric edge-case closure: `iN::MIN / -1` now panics

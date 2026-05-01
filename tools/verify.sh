@@ -545,7 +545,7 @@ cli_explain_full_smoke() {
         "TYP-006" "TYP-007" "TYP-008" "TYP-009" "TYP-010" "TYP-011" "TYP-012" "TYP-013"
         "TYP-026"
         # FMT series — format macro expansion
-        "FMT-002"
+        "FMT-002" "FMT-003"
         # TRAIT series — trait dispatch and conversions
         "TRAIT-001"
         # RFC-0004 assume!

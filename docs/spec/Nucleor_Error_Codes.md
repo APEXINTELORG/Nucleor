@@ -112,6 +112,7 @@ v0.2.119**; same drift class as the OWN series above.
 | Code | Title | Source | Notes |
 |---|---|---|---|
 | FMT-002 | Type does not implement Display for bare `{}` formatting | format macro expansion, v0.4.91 | error |
+| FMT-003 | Format string has more arguments than `{}` placeholders (extras would be silently dropped) | format macro expansion, v0.5.11 | error |
 
 ### TRAIT series — trait dispatch and conversions
 
