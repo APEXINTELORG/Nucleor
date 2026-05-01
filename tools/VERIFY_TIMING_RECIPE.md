@@ -25,6 +25,29 @@ run_iso,index,seconds,status,name
 Override the path with `NUC_VERIFY_CSV=path` if you want per-machine or
 per-branch files.
 
+## Windows RSS e-stop discipline
+
+On Windows, `NUCLEOR_MEM_CAP_KB` / Git Bash `ulimit` is not the crash guard.
+For long compiler or verify runs, use the PowerShell process-tree watchdog:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\tools\run_verify_rss_estop.ps1 `
+  -Jobs 1 -BudgetMb 1000 -WarningMb 800 -SampleMs 100 `
+  -RunName verify_local_iter
+```
+
+- `BudgetMb 1000` is an emergency stop. If the launched process tree crosses
+  it at any sample, the watchdog kills the tree immediately and exits `99`.
+- `WarningMb 800` is already a serious regression signal; do not normalize it.
+- Keep iteration runs at `-Jobs 1` or `NUC_VERIFY_JOBS=1` unless the work is
+  specifically about parallel verify behavior. Parallel fixture workers stack
+  compiler resident sets and can hide which edit caused the peak.
+- The wrapper sets `NUCLEOR_MEM_CAP_KB=0` internally so Git Bash virtual-memory
+  behavior does not conflict with the real resident-memory watchdog.
+- The watchdog writes stdout/stderr logs under `target/` plus the normal
+  `NUC_VERIFY_CSV` timing rows, so the killed step remains diagnosable.
+
 ## v0.5.17 — per-agent CSV namespacing
 
 With three agents (main + parallel-1 + probe) potentially running verify

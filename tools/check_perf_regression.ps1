@@ -14,11 +14,14 @@
 param(
     [switch]$Update,
     [switch]$Quiet,
-    [int]$BudgetMb = 1024,
-    [int]$TimeoutSec = 180
+    [int]$BudgetMb = 1000,
+    [int]$TimeoutSec = 180,
+    [int]$WarningMb = 800,
+    [int]$SampleMs = 100
 )
 
 $ErrorActionPreference = 'Stop'
+. "$PSScriptRoot\rss_estop_lib.ps1"
 $root = Split-Path -Parent $PSScriptRoot
 $baseline_path = Join-Path $root "tools/perf_baseline.json"
 $bin = Join-Path $root "bin/nucleor.exe"
@@ -26,27 +29,9 @@ $src = Join-Path $root "compiler/nucleor_s1_compiler.nr"
 
 if (-not (Test-Path $baseline_path)) { Write-Host "ERROR: baseline missing: $baseline_path" -ForegroundColor Red; exit 1 }
 if (-not (Test-Path $bin)) { Write-Host "ERROR: bin/nucleor.exe missing" -ForegroundColor Red; exit 1 }
+if ($WarningMb -ge $BudgetMb) { $WarningMb = [Math]::Max(1, $BudgetMb - 1) }
 
 $baseline = Get-Content $baseline_path -Raw | ConvertFrom-Json
-
-function Get-ProcessTreeIds([int]$RootPid) {
-    $ids = New-Object System.Collections.Generic.List[int]
-    $queue = New-Object System.Collections.Generic.Queue[int]
-    $queue.Enqueue($RootPid)
-    while ($queue.Count -gt 0) {
-        $id = $queue.Dequeue()
-        if (-not $ids.Contains($id)) { $ids.Add($id) }
-        Get-CimInstance Win32_Process -Filter "ParentProcessId = $id" -ErrorAction SilentlyContinue |
-            ForEach-Object { $queue.Enqueue([int]$_.ProcessId) }
-    }
-    return $ids
-}
-
-function Stop-ProcessTree([int[]]$Ids) {
-    foreach ($id in $Ids) {
-        try { Stop-Process -Id $id -Force -ErrorAction Stop } catch { }
-    }
-}
 
 function Invoke-CappedBuild([string[]]$ArgsList, [string]$Label) {
     $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("nuc_perf_{0}_{1}" -f $PID, [Guid]::NewGuid().ToString("N"))
@@ -54,59 +39,32 @@ function Invoke-CappedBuild([string[]]$ArgsList, [string]$Label) {
     $stdoutPath = Join-Path $tmp "stdout.txt"
     $stderrPath = Join-Path $tmp "stderr.txt"
     try {
-        $sw = [Diagnostics.Stopwatch]::StartNew()
-        $proc = Start-Process -FilePath $bin `
+        $summary = Invoke-NucRssEstop `
+            -FilePath $bin `
             -ArgumentList $ArgsList `
             -WorkingDirectory $root `
-            -WindowStyle Hidden `
-            -PassThru `
-            -RedirectStandardOutput $stdoutPath `
-            -RedirectStandardError $stderrPath
+            -BudgetMb $BudgetMb `
+            -WarningMb $WarningMb `
+            -TimeoutSec $TimeoutSec `
+            -SampleMs $SampleMs `
+            -StdoutPath $stdoutPath `
+            -StderrPath $stderrPath
 
-        $peakMb = 0.0
-        $killed = $false
-        $reason = ""
-        while (-not $proc.HasExited) {
-            $ids = Get-ProcessTreeIds $proc.Id
-            $sum = 0L
-            foreach ($id in $ids) {
-                try { $sum += (Get-Process -Id $id -ErrorAction Stop).WorkingSet64 } catch { }
-            }
-            $curMb = $sum / 1MB
-            if ($curMb -gt $peakMb) { $peakMb = $curMb }
-            if ($curMb -gt $BudgetMb) {
-                $killed = $true
-                $reason = "peak exceeded ${BudgetMb} MB budget"
-                Stop-ProcessTree $ids
-                break
-            }
-            if ($sw.Elapsed.TotalSeconds -gt $TimeoutSec) {
-                $killed = $true
-                $reason = "timeout exceeded ${TimeoutSec}s"
-                Stop-ProcessTree $ids
-                break
-            }
-            Start-Sleep -Milliseconds 50
-            try { $proc.Refresh() } catch { }
+        $peakRounded = [int][Math]::Ceiling([double]$summary.peak_mb)
+        if ($summary.killed) {
+            throw "$Label failed: peak ${peakRounded} MB / ${BudgetMb} MB e-stop ($($summary.reason)); $($summary.peak_detail)"
         }
-        if (-not $killed) {
-            $proc.WaitForExit()
-            $proc.Refresh()
-        }
-        $sw.Stop()
-        $peakRounded = [int][Math]::Ceiling($peakMb)
-        if ($killed) {
-            throw "$Label failed: peak ${peakRounded} MB / ${BudgetMb} MB budget ($reason)"
-        }
-        if ([int]$proc.ExitCode -ne 0) {
+        if ([int]$summary.exit_code -ne 0) {
             $tail = ""
             if (Test-Path $stdoutPath) { $tail += (Get-Content -LiteralPath $stdoutPath -Tail 8 | Out-String) }
             if (Test-Path $stderrPath) { $tail += (Get-Content -LiteralPath $stderrPath -Tail 8 | Out-String) }
-            throw "$Label exited $($proc.ExitCode), peak ${peakRounded} MB / ${BudgetMb} MB budget`n$tail"
+            throw "$Label exited $($summary.exit_code), peak ${peakRounded} MB / ${BudgetMb} MB e-stop`n$tail"
         }
         return [pscustomobject]@{
-            WallSec = $sw.Elapsed.TotalSeconds
+            WallSec = [double]$summary.wall_seconds
             PeakMb = $peakRounded
+            CrossedWarning = [bool]$summary.crossed_warning
+            WarningDetail = [string]$summary.warning_detail
         }
     } finally {
         Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
@@ -126,6 +84,7 @@ try {
     $hot = $hotResult.WallSec
     $hot_mem_mb = $hotResult.PeakMb
     if ($hot_mem_mb -gt $cold_mem_mb) { $cold_mem_mb = $hot_mem_mb }
+    $crossed_warning = ($coldResult.CrossedWarning -or $hotResult.CrossedWarning)
 } finally {
     Pop-Location
 }
@@ -159,6 +118,9 @@ if ($cold_ok -and $hot_ok -and $mem_ok) {
     if (-not $Quiet) {
         Write-Host ("OK perf: cold={0}s (max {1}s) | hot={2}s (max {3}s) | peak_mem={4}MB (max {5}MB)" -f
             $cold_round, $cold_max, $hot_round, $hot_max, $cold_mem_mb, $mem_max) -ForegroundColor Green
+        if ($crossed_warning) {
+            Write-Host ("WARN: perf check crossed {0} MB warning before staying under e-stop" -f $WarningMb) -ForegroundColor Yellow
+        }
     }
     exit 0
 }
