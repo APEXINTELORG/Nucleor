@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0014 |
 | **Title** | `#[max_depth = N]` — bounded recursion attribute |
-| **Status** | Implemented (audited v0.4.190). Both `#[max_depth = N]` and `#[max_depth(N)]` syntaxes parse; the attribute opts out of the RT-008 "direct recursion in #[deadline] fn" check (lands in `collect_max_depth_fns` at compiler/nucleor_s1_compiler.nr:8783). Without `#[max_depth]`, a recursive `#[deadline]`-tagged fn warns RT-008 with the remediation hint pointing at this attribute. **Note:** the current shape is purely a static opt-out marker; runtime depth-counting + panic on overflow is implementation-deferred (the static guarantee is "you've declared a bound; runtime stack-blow may still occur if your bound is wrong"). Targeted v0.5.0 ship is the runtime depth check + RT-009 panic on bound overrun. |
+| **Status** | Implemented for v0.5 Track I. Both `#[max_depth = N]` and `#[max_depth(N)]` syntaxes parse on fn declarations; the compiler performs conservative structural depth analysis, preserves the RT-008 `#[deadline]` opt-out behavior, emits DEPTH-001..005 diagnostics, and rewrites accepted fns through a runtime depth counter that aborts with `error[DEPTH-003]` when the declared bound is exceeded. |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.5.0 ("Production Robotics") |
@@ -148,11 +148,11 @@ functions in `--profile=cert`. Without it, WCET-005 fires.
 
 | Code | Meaning |
 |---|---|
-| DEPTH-001 | Recursive call detected without `#[max_depth]` (warning in debug, error in cert) |
-| DEPTH-002 | Static analysis cannot prove `#[max_depth = N]` bound |
-| DEPTH-003 | Runtime depth-check fires (debug-mode trap) |
-| DEPTH-004 | Total stack budget exceeded by `#[max_depth]`-annotated chain |
-| DEPTH-005 | Mutually-recursive functions in SCC have incompatible bounds |
+| DEPTH-001 | Max-depth analysis cannot bound a recursive path |
+| DEPTH-002 | Static analysis proves a bounded depth that exceeds `#[max_depth = N]` |
+| DEPTH-003 | Mutually-recursive SCC has incompatible/unproven bounds; runtime depth-check overrun also reports this code |
+| DEPTH-004 | Invalid `#[max_depth]` placement or non-positive/non-literal bound |
+| DEPTH-005 | Total stack budget exceeded by `#[max_depth]`-annotated chain |
 
 ---
 
@@ -189,10 +189,11 @@ functions in `--profile=cert`. Without it, WCET-005 fires.
 
 ## 7. Definition of done
 
-- [ ] `#[max_depth = N]` parses and is enforced
-- [ ] Mutual-recursion SCC analysis correct
-- [ ] Stack-budget calculation works in `--profile=embedded`
-- [ ] Heptane integration (RFC-0009) consumes the bound
+- [x] `#[max_depth = N]` parses and is enforced
+- [x] Mutual-recursion SCC analysis correct for visible fn-to-fn cycles
+- [x] Stack-budget calculation works for annotated chains using conservative frame estimates
+- [x] Existing `#[deadline]` RT-008 analysis consumes the bound
+- [ ] Heptane profile consumes the bound directly
 - [ ] CHANGELOG documents bounded-recursion model
 
 ## 8. Future extensions

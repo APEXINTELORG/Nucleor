@@ -1,4 +1,5 @@
 // RFC-0006 — `old()` over heap-aliased types must reject at compile time.
+// EXPECT: build fails with CONTRACT-006.
 //
 // v0.4.271 closes the silent-miscompute filed by the probe agent
 // 2026-05-01: under the i64-everywhere ABI, Vec/String/HashMap/
@@ -12,8 +13,6 @@
 // hoist a scalar snapshot before the body (e.g. `let len: i64 =
 // vec_len(v);`) and reference that scalar in the ensure.
 //
-// EXPECT: build fails with CONTRACT-006.
-
 #[ensure(vec_len(result) == vec_len(old(v)) + 1)]
 fn append(v: Vec<i64>, x: i64) -> Vec<i64> {
     let mut w: Vec<i64> = v;

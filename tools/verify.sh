@@ -1106,6 +1106,37 @@ t310_rt008_recursion() {
     return 0
 }
 
+rfc0014_max_depth_full_ship() {
+    "$BIN" build "tests/features/rfc0014_max_depth_bounded.nr" -o "_rfc0014_max_depth" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    grep -q "__nucleor_max_depth_enter" "target/_rfc0014_max_depth.ll" || return 1
+    local exe="target/_rfc0014_max_depth"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    local out
+    out=$("$exe" 2>&1) || return 1
+    echo "$out" | grep -q "OK rfc0014_max_depth_bounded" || return 1
+
+    "$BIN" build "tests/fixtures/rfc0014_max_depth_runtime_overrun.nr" -o "_rfc0014_depth_overrun" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local overrun_exe="target/_rfc0014_depth_overrun"
+    [ -x "$overrun_exe.exe" ] && overrun_exe="$overrun_exe.exe"
+    local overrun_out
+    overrun_out=$("$overrun_exe" 2>&1)
+    echo "$overrun_out" | grep -q "DEPTH-003" || return 1
+
+    local f code
+    for pair in \
+        "err_depth_001_unbounded DEPTH-001" \
+        "err_depth_002_overflow DEPTH-002" \
+        "err_depth_003_cycle DEPTH-003" \
+        "err_depth_004_invalid_context DEPTH-004" \
+        "err_depth_005_stack_budget DEPTH-005"; do
+        f="${pair% *}"
+        code="${pair#* }"
+        "$BIN" build "tests/err/$f.nr" -o "_$f" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+        grep -q "$code" $NUC_VERIFY_STEP_LOG || return 1
+    done
+    return 0
+}
+
 t324_ffi_no_alloc_marker() {
     # T3.15 (v0.3.24): #[ffi_no_alloc] / #[ffi_no_panic]
     # markers on extern declarations narrow the RT-005 scope.
@@ -4435,6 +4466,7 @@ step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
 step "T3.10 RT-008 fires on direct recursion in deadline fn" t310_rt008_recursion
+step "RFC-0014 max_depth static analysis + runtime wrapper" rfc0014_max_depth_full_ship
 step "T3.11 bare arena_* builtins link + run end-to-end" t311_arena_builtin_smoke
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun

@@ -4644,6 +4644,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "time_monotonic_ms") { return "__nucleor_time_monotonic_ms"; };
     // v0.3.0 (T3.1): runtime #[deadline] check helper.
     if str_eq(name, "deadline_check") { return "__nucleor_deadline_check"; };
+    if str_eq(name, "max_depth_enter") { return "__nucleor_max_depth_enter"; };
+    if str_eq(name, "max_depth_exit") { return "__nucleor_max_depth_exit"; };
     if str_eq(name, "time_wall_ns") { return "__nucleor_time_wall_ns"; };
     if str_eq(name, "time_wall_us") { return "__nucleor_time_wall_us"; };
     if str_eq(name, "time_wall_ms") { return "__nucleor_time_wall_ms"; };
@@ -6407,6 +6409,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_time_monotonic_us()\n");
     sb_append(sb, "declare i64 @__nucleor_time_monotonic_ms()\n");
     sb_append(sb, "declare i64 @__nucleor_deadline_check(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_max_depth_enter(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_max_depth_exit(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_time_wall_ns()\n");
     sb_append(sb, "declare i64 @__nucleor_time_wall_us()\n");
     sb_append(sb, "declare i64 @__nucleor_time_wall_ms()\n");
@@ -10754,74 +10758,269 @@ fn dl_get_wrapper_name(source: str, inner_name: str) -> str {
     return str_substring(source, nm_start, q);
 }
 
-fn collect_max_depth_fns(source: str) -> Vec<i32> {
-    // Returns the list of fn names tagged with `#[max_depth ...]`
-    // (either `#[max_depth = N]` or `#[max_depth(N)]`). Matches the
-    // existing collect_no_alloc_fns pattern: skip `//` comments and
-    // string literals so the literal in this very compiler doesn't
-    // self-match.
-    let mut fns: Vec<i32> = Vec::new();
-    let slen: i64 = str_len(source);
-    let pat: str = "#[max_depth";
-    let plen: i64 = str_len(pat);
-    let mut p: i64 = 0;
-    while p + plen <= slen {
-        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
-            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
-            p = p + 1;
-            continue;
-        };
-        if str_char_at(source, p) == 34 {
-            p = p + 1;
-            while p < slen && str_char_at(source, p) != 34 {
-                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
-                else { p = p + 1; };
-            };
-            p = p + 1;
-            continue;
-        };
-        let mut m: i64 = 1;
-        let mut k: i64 = 0;
-        while k < plen {
-            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
-            k = k + 1;
-        };
-        if m == 1 {
-            // Skip past `]` so we land at the next line.
-            let mut q: i64 = p + plen;
-            while q < slen && str_char_at(source, q) != 93 { q = q + 1; };
-            if q < slen { q = q + 1; };
-            // Walk to next `fn NAME(`.
-            while q + 3 <= slen {
-                let c0: i64 = str_char_at(source, q);
-                let c1: i64 = str_char_at(source, q + 1);
-                let c2: i64 = str_char_at(source, q + 2);
-                if c0 == 102 && c1 == 110 && c2 == 32 {
-                    q = q + 3;
-                    let nm_start: i64 = q;
-                    while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
-                    if q > nm_start {
-                        let nm: str = str_substring(source, nm_start, q);
-                        fns.push(nm);
-                    };
-                    p = q;
-                    break;
-                };
-                q = q + 1;
-            };
-            if q + 3 > slen { p = slen; };
-        } else {
-            p = p + 1;
-        };
+fn md_extract_int_value(line: str) -> i64 {
+    let compact: str = strip_spaces(line);
+    let needle: str = "#[max_depth";
+    let pos: i64 = source_find(compact, needle);
+    if pos < 0 { return 0 - 1; };
+    let clen: i64 = str_len(compact);
+    let mut p: i64 = pos + str_len(needle);
+    if p >= clen { return 0 - 1; };
+    if str_char_at(compact, p) == 61 {
+        p = p + 1;
+        let ns: i64 = p;
+        while p < clen && is_digit(str_char_at(compact, p)) == 1 { p = p + 1; };
+        if p == ns { return 0 - 1; };
+        let v: i64 = str_to_int(str_substring(compact, ns, p));
+        if v <= 0 { return 0 - 1; };
+        return v;
     };
-    return fns;
+    if str_char_at(compact, p) == 40 {
+        p = p + 1;
+        let ns2: i64 = p;
+        while p < clen && is_digit(str_char_at(compact, p)) == 1 { p = p + 1; };
+        if p == ns2 { return 0 - 1; };
+        let v2: i64 = str_to_int(str_substring(compact, ns2, p));
+        if v2 <= 0 { return 0 - 1; };
+        return v2;
+    };
+    return 0 - 1;
+}
+
+fn md_first_param_name(params_text: str) -> str {
+    let plen: i64 = str_len(params_text);
+    let mut p: i64 = 0;
+    while p < plen && (str_char_at(params_text, p) == 32 || str_char_at(params_text, p) == 9 || str_char_at(params_text, p) == 10 || str_char_at(params_text, p) == 13) { p = p + 1; };
+    let ns: i64 = p;
+    while p < plen && (is_alnum(str_char_at(params_text, p)) == 1 || str_char_at(params_text, p) == 95) { p = p + 1; };
+    if p == ns { return ""; };
+    return str_substring(params_text, ns, p);
+}
+
+fn md_parse_digits_at(s: str, p0: i64) -> i64 {
+    let slen: i64 = str_len(s);
+    let mut p: i64 = p0;
+    let ns: i64 = p;
+    while p < slen && is_digit(str_char_at(s, p)) == 1 { p = p + 1; };
+    if p == ns { return 0 - 1; };
+    return str_to_int(str_substring(s, ns, p));
+}
+
+fn md_guard_limit(body: str, param_name: str) -> i64 {
+    let compact: str = strip_spaces(body);
+    let ge_pat: str = str_concat(param_name, ">=");
+    let ge_pos: i64 = source_find(compact, ge_pat);
+    if ge_pos >= 0 {
+        let v: i64 = md_parse_digits_at(compact, ge_pos + str_len(ge_pat));
+        if v >= 0 { return v; };
+    };
+    let gt_pat: str = str_concat(param_name, ">");
+    let gt_pos: i64 = source_find(compact, gt_pat);
+    if gt_pos >= 0 {
+        let v2: i64 = md_parse_digits_at(compact, gt_pos + str_len(gt_pat));
+        if v2 >= 0 { return v2 + 1; };
+    };
+    return 0 - 1;
+}
+
+fn md_body_contains_call(body_raw: str, callee: str) -> i64 {
+    if str_len(callee) == 0 { return 0; };
+    let body: str = strip_strings_and_line_comments(body_raw);
+    let pat: str = str_concat(callee, "(");
+    return str_contains(body, pat);
+}
+
+fn md_proven_limit(body_raw: str, params_text: str, callee: str) -> i64 {
+    let param: str = md_first_param_name(params_text);
+    if str_len(param) == 0 { return 0 - 1; };
+    let body: str = strip_strings_and_line_comments(body_raw);
+    let compact: str = strip_spaces(body);
+    let guard: i64 = md_guard_limit(compact, param);
+    let inc_a: str = str_concat(param, "+1");
+    let inc_b: str = str_concat("1+", param);
+    let call_pat: str = str_concat(callee, "(");
+    if guard >= 0
+       && str_contains(compact, call_pat) == 1
+       && (str_contains(compact, inc_a) == 1 || str_contains(compact, inc_b) == 1) {
+        return guard;
+    };
+    let dec_a: str = str_concat(param, "-1");
+    let le_zero: str = str_concat(param, "<=0");
+    let lt_one: str = str_concat(param, "<1");
+    if str_contains(compact, call_pat) == 1
+       && str_contains(compact, dec_a) == 1
+       && (str_contains(compact, le_zero) == 1 || str_contains(compact, lt_one) == 1) {
+        return 1;
+    };
+    return 0 - 1;
+}
+
+fn md_estimate_frame_bytes(body_raw: str) -> i64 {
+    let body: str = strip_strings_and_line_comments(body_raw);
+    let blen: i64 = str_len(body);
+    let mut p: i64 = 0;
+    let mut stmts: i64 = 0;
+    while p < blen {
+        if str_char_at(body, p) == 59 { stmts = stmts + 1; };
+        p = p + 1;
+    };
+    if stmts < 1 { stmts = 1; };
+    return stmts * 64;
+}
+
+fn source_has_max_depth_attr_line(source: str) -> i64 {
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut q: i64 = p;
+        while q < slen && (str_char_at(source, q) == 32 || str_char_at(source, q) == 9) { q = q + 1; };
+        if str_eq_at(source, q, "#[max_depth") == 1 { return 1; };
+        while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+        p = p + 1;
+    };
+    return 0;
+}
+
+fn collect_max_depth_entries(diags: Vec<i32>, source: str) -> Vec<i32> {
+    // Alternating records:
+    // [fn_name, public_call_name, bound, body_raw, params_text, ...].
+    // `fn_name` is the function carrying the attribute after the
+    // deadline rewrite; `public_call_name` is the recursive callee that
+    // appears in the user's body.
+    let mut entries: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(source, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(source, p, eol);
+        let compact_line: str = strip_spaces(line);
+        if str_starts_with(compact_line, "#[max_depth") == 1 {
+            let bound: i64 = md_extract_int_value(line);
+            let mut probe: i64 = eol + 1;
+            let mut found_fn: i64 = 0 - 1;
+            let mut gave_up: i64 = 0;
+            while probe < slen && found_fn < 0 && gave_up == 0 {
+                let mut peol: i64 = probe;
+                while peol < slen && str_char_at(source, peol) != 10 { peol = peol + 1; };
+                let pline: str = str_substring(source, probe, peol);
+                let mut lp: i64 = 0;
+                let llen: i64 = str_len(pline);
+                while lp < llen && (str_char_at(pline, lp) == 32 || str_char_at(pline, lp) == 9) { lp = lp + 1; };
+                let ptrim: str = strip_spaces(pline);
+                if str_len(ptrim) == 0 {
+                    probe = peol + 1;
+                } else if str_starts_with(ptrim, "///") == 1 {
+                    probe = peol + 1;
+                } else if str_eq_at(pline, lp, "fn ") == 1 {
+                    found_fn = probe + lp;
+                } else if str_eq_at(pline, lp, "pub fn ") == 1 {
+                    found_fn = probe + lp + 4;
+                } else if lp < llen && str_char_at(pline, lp) == 35 {
+                    probe = peol + 1;
+                } else {
+                    gave_up = 1;
+                };
+            };
+            if bound <= 0 || found_fn < 0 {
+                let msg4: str = "`#[max_depth = N]` must use a positive integer literal and apply directly to a fn declaration";
+                let mut lc4: Vec<i32> = find_linecol_in_source(source, "max_depth", "max_depth");
+                diag_add_ex(diags, "error", "rt", "DEPTH-004", msg4, "max_depth", vec_get(lc4, 0), vec_get(lc4, 1), "");
+            } else {
+                let info: Vec<i32> = dl_parse_fn_signature(source, found_fn, slen);
+                if vec_len(info) == 0 {
+                    let msg4b: str = "`#[max_depth = N]` could not parse the following fn declaration";
+                    let mut lc4b: Vec<i32> = find_linecol_in_source(source, "max_depth", "max_depth");
+                    diag_add_ex(diags, "error", "rt", "DEPTH-004", msg4b, "max_depth", vec_get(lc4b, 0), vec_get(lc4b, 1), "");
+                } else {
+                    let fn_name: str = vec_get(info, 0);
+                    let params_text: str = vec_get(info, 1);
+                    let body_open: i64 = vec_get(info, 4);
+                    let body_end: i64 = vec_get(info, 5);
+                    let mut public_name: str = fn_name;
+                    if str_starts_with(fn_name, "__nuc_dl_inner_") == 1 {
+                        let wname: str = dl_get_wrapper_name(source, fn_name);
+                        if str_len(wname) > 0 { public_name = wname; };
+                    };
+                    let body_raw: str = str_substring(source, body_open + 1, body_end - 1);
+                    entries.push(fn_name);
+                    entries.push(public_name);
+                    entries.push(bound);
+                    entries.push(body_raw);
+                    entries.push(params_text);
+                };
+            };
+        };
+        p = eol + 1;
+    };
+    return entries;
+}
+
+fn enforce_max_depth_static(diags: Vec<i32>, source: str) -> Vec<i32> {
+    if source_has_max_depth_attr_line(source) == 0 { return diags; };
+    let entries: Vec<i32> = collect_max_depth_entries(diags, source);
+    let n: i64 = vec_len(entries);
+    let stack_budget: i64 = 8192;
+    let mut i: i64 = 0;
+    while i + 4 < n {
+        let fn_name: str = vec_get(entries, i);
+        let public_name: str = vec_get(entries, i + 1);
+        let bound: i64 = vec_get(entries, i + 2);
+        let body_raw: str = vec_get(entries, i + 3);
+        let params_text: str = vec_get(entries, i + 4);
+        if md_body_contains_call(body_raw, public_name) == 1 {
+            let proven: i64 = md_proven_limit(body_raw, params_text, public_name);
+            if proven < 0 {
+                let msg1: str = str_concat("analysis cannot bound recursive path in `", str_concat(public_name, "`; use an explicit depth parameter, an entry guard, and recursive calls with depth + 1"));
+                let mut lc1: Vec<i32> = find_linecol_in_source(source, public_name, public_name);
+                diag_add_ex(diags, "error", "rt", "DEPTH-001", msg1, public_name, vec_get(lc1, 0), vec_get(lc1, 1), "");
+            } else if proven > bound {
+                let msg2: str = str_concat("static recursion depth ", str_concat(str_from_int(proven), str_concat(" exceeds #[max_depth = ", str_concat(str_from_int(bound), "]"))));
+                let mut lc2: Vec<i32> = find_linecol_in_source(source, public_name, public_name);
+                diag_add_ex(diags, "error", "rt", "DEPTH-002", msg2, public_name, vec_get(lc2, 0), vec_get(lc2, 1), "");
+            };
+        };
+        let frame_bytes: i64 = md_estimate_frame_bytes(body_raw);
+        if frame_bytes * bound > stack_budget {
+            let msg5: str = str_concat("estimated stack use ", str_concat(str_from_int(frame_bytes * bound), str_concat(" bytes exceeds #[max_depth] stack budget ", str_from_int(stack_budget))));
+            let mut lc5: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+            diag_add_ex(diags, "error", "rt", "DEPTH-005", msg5, fn_name, vec_get(lc5, 0), vec_get(lc5, 1), "");
+        };
+        i = i + 5;
+    };
+    i = 0;
+    while i + 4 < n {
+        let a_name: str = vec_get(entries, i + 1);
+        let a_bound: i64 = vec_get(entries, i + 2);
+        let a_body: str = vec_get(entries, i + 3);
+        let a_params: str = vec_get(entries, i + 4);
+        let mut j: i64 = i + 5;
+        while j + 4 < n {
+            let b_name: str = vec_get(entries, j + 1);
+            let b_bound: i64 = vec_get(entries, j + 2);
+            let b_body: str = vec_get(entries, j + 3);
+            let b_params: str = vec_get(entries, j + 4);
+            if md_body_contains_call(a_body, b_name) == 1 && md_body_contains_call(b_body, a_name) == 1 {
+                let a_proven: i64 = md_proven_limit(a_body, a_params, b_name);
+                let b_proven: i64 = md_proven_limit(b_body, b_params, a_name);
+                if a_bound != b_bound || a_proven < 0 || b_proven < 0 || a_proven > a_bound || b_proven > b_bound {
+                    let msg3: str = str_concat("mutually recursive cycle `", str_concat(a_name, str_concat(" <-> ", str_concat(b_name, "` has incompatible or unproven #[max_depth] bounds"))));
+                    let mut lc3: Vec<i32> = find_linecol_in_source(source, a_name, a_name);
+                    diag_add_ex(diags, "error", "rt", "DEPTH-003", msg3, a_name, vec_get(lc3, 0), vec_get(lc3, 1), "");
+                };
+            };
+            j = j + 5;
+        };
+        i = i + 5;
+    };
+    return diags;
 }
 
 fn enforce_rt008_recursion(diags: Vec<i32>, source: str) -> Vec<i32> {
     let dl_entries: Vec<i32> = wcet_collect_deadline_fns(source);
     let n: i64 = vec_len(dl_entries);
     if n == 0 { return diags; };
-    let max_depth_fns: Vec<i32> = collect_max_depth_fns(source);
+    let max_depth_entries: Vec<i32> = collect_max_depth_entries(diags, source);
     let mut k: i64 = 0;
     while k + 1 < n {
         let inner_name: str = vec_get(dl_entries, k);
@@ -10831,10 +11030,10 @@ fn enforce_rt008_recursion(diags: Vec<i32>, source: str) -> Vec<i32> {
             // attribute after T3.1 preserves it) opted out?
             let mut bounded: i64 = 0;
             let mut j: i64 = 0;
-            let mn: i64 = vec_len(max_depth_fns);
-            while j < mn && bounded == 0 {
-                if str_eq(vec_get(max_depth_fns, j), inner_name) == 1 { bounded = 1; };
-                j = j + 1;
+            let mn: i64 = vec_len(max_depth_entries);
+            while j + 4 < mn && bounded == 0 {
+                if str_eq(vec_get(max_depth_entries, j), inner_name) == 1 { bounded = 1; };
+                j = j + 5;
             };
             if bounded == 0 {
                 // Scan the inner body (stripped) for `<wrapper>(`.
@@ -12840,6 +13039,7 @@ fn builtin_rtype(name: str) -> str {
     if str_eq(name, "device_alloc") == 1 { return "DeviceBuffer"; };
     if str_eq(name, "device_transfer") == 1 { return "DeviceBuffer"; };
     if str_eq(name, "tensor_view") == 1 { return "i64"; };
+    if str_eq(name, "max_depth_enter") == 1 || str_eq(name, "max_depth_exit") == 1 { return "i64"; };
     if str_eq(name, "channel") == 1 { return "i64"; };
     if str_eq(name, "rwlock_new") == 1 || str_eq(name, "rwlock_read") == 1 || str_eq(name, "rwlock_write") == 1 || str_eq(name, "rwlock_unlock") == 1 { return "i64"; };
     if str_eq(name, "cancel_token_new") == 1 || str_eq(name, "cancel_token_cancel") == 1 { return "i64"; };
@@ -20815,6 +21015,9 @@ fn module_graph_manifest_path(src_path: str) -> str {
 fn module_graph_source_path(src_path: str) -> str {
     return sanitize(str_concat(".nuc_cache/modgraph_", str_concat(module_graph_cache_id(src_path), ".resolved")));
 }
+fn module_graph_max_depth_source_path(src_path: str) -> str {
+    return sanitize(str_concat(".nuc_cache/modgraph_", str_concat(module_graph_cache_id(src_path), ".max_depth")));
+}
 
 // RFC-0018 phase 1: rewrite Rust-style use paths into the equivalent
 // quoted-path import. Recognized prefixes:
@@ -21040,15 +21243,19 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let manifest_path: str = module_graph_manifest_path(src_path);
     let source_path: str = module_graph_source_path(src_path);
+    let max_depth_path: str = module_graph_max_depth_source_path(src_path);
     if use_cache == 1 {
         let manifest: str = file_read_string(manifest_path);
         let cached_source: str = file_read_string(source_path);
+        let cached_max_depth_source: str = file_read_string(max_depth_path);
         if str_len(manifest) > 0 && str_len(cached_source) > 0 {
             let valid: Vec<i32> = module_records_validate(manifest);
-            if vec_get(valid, 0) == 1 {
+            let stale_md_cache: i64 = if source_has_max_depth_attr_line(cached_source) == 1 && str_len(cached_max_depth_source) == 0 { 1 } else { 0 };
+            if vec_get(valid, 0) == 1 && stale_md_cache == 0 {
                 out.push(cached_source);
                 out.push(vec_get(valid, 1));
                 out.push(1);
+                if str_len(cached_max_depth_source) > 0 { out.push(cached_max_depth_source); };
                 return out;
             };
         };
@@ -21077,19 +21284,25 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
     let after_deadline: str = expand_deadline(after_async);
+    let has_md: i64 = source_has_max_depth_attr_line(after_deadline);
+    let mut after_max_depth: str = after_deadline;
+    if has_md == 1 { after_max_depth = expand_max_depth(after_deadline); };
     // T2.3 (v0.2.349): expand closure literals `|args| body` in
     // argument position. Synthesizes top-level fns at the head of
     // the source; replaces the closure expression with the synth fn
     // name so downstream parsing sees a normal identifier reference.
-    let source: str = expand_closures(after_deadline);
+    let source: str = expand_closures(after_max_depth);
     if use_cache == 1 {
         system("mkdir .nuc_cache 2>NUL");
         file_write_string(manifest_path, module_records_serialize(module_records));
         file_write_string(source_path, source);
+        if has_md == 1 { file_write_string(max_depth_path, after_deadline); }
+        else { file_write_string(max_depth_path, ""); };
     };
     out.push(source);
     out.push(imported);
     out.push(0);
+    if has_md == 1 { out.push(after_deadline); };
     return out;
 }
 
@@ -21166,6 +21379,8 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     let bundle: Vec<i32> = load_resolved_source_bundle(src_path, use_cache);
     let source: str = vec_get(bundle, 0);
     let imported: Vec<i32> = vec_get(bundle, 1);
+    let mut max_depth_source: str = source;
+    if vec_len(bundle) > 3 { max_depth_source = vec_get(bundle, 3); };
     if str_len(source) == 0 {
         print(str_concat("ERROR: cannot read ", src_path));
         return 1;
@@ -21463,14 +21678,18 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // #[deadline] fn warns. Bounded recursion opts out via
     // `#[max_depth = N]`; indirect (mutual) recursion is left
     // for the v2 AST-based check.
-    diags = enforce_rt008_recursion(diags, source);
+    diags = enforce_rt008_recursion(diags, max_depth_source);
+    // RFC-0014: full max_depth static validation. Runs against the
+    // pre-max-depth-rewrite source so attributes and user call names
+    // are still visible even when runtime wrappers have been emitted.
+    diags = enforce_max_depth_static(diags, max_depth_source);
     // T3.3 (v0.3.2): static WCET estimator for #[deadline = N] fns.
     // Emits warning[RT-004] when the v1 estimate exceeds the budget.
-    diags = enforce_static_wcet(diags, source);
+    diags = enforce_static_wcet(diags, max_depth_source);
     // T3.5 (v0.3.3): RT-007 — warn when #[deadline] is paired with
     // neither #[no_alloc] nor #[no_panic]. Either guard makes the
     // deadline reachable in the first place.
-    diags = enforce_deadline_safety(diags, source);
+    diags = enforce_deadline_safety(diags, max_depth_source);
     // T3.20 (v0.3.36): emit DIAG-001 for #[allow(_fn)] / #[deny(_fn)]
     // codes whose prefix isn't in the canonical set. Runs BEFORE the
     // suppression pass so users can `#[allow(DIAG-001)]` to silence
@@ -22085,6 +22304,126 @@ fn expand_deadline(src: str) -> str {
             };
         };
         // Default: emit the line as-is.
+        sb_append(sb, str_substring(src, p, eol));
+        if eol < slen { sb_append(sb, "\n"); };
+        p = eol + 1;
+    };
+    return sb_to_str(sb);
+}
+
+fn expand_max_depth(src: str) -> str {
+    // Runtime half of RFC-0014. Valid `#[max_depth = N]` fns are
+    // rewritten into an inner body plus a wrapper that increments and
+    // decrements a per-function depth counter. Static validation runs
+    // on the pre-rewrite source so invalid attrs stay visible there.
+    if source_has_max_depth_attr_line(src) == 0 { return src; };
+    let slen: i64 = str_len(src);
+    let mut sb: i64 = sb_new();
+    let mut p: i64 = 0;
+    let mut idx: i64 = 0;
+    while p < slen {
+        let mut eol: i64 = p;
+        while eol < slen && str_char_at(src, eol) != 10 { eol = eol + 1; };
+        let line: str = str_substring(src, p, eol);
+        let compact_line: str = strip_spaces(line);
+        if str_starts_with(compact_line, "#[max_depth") == 1 {
+            let md_value: i64 = md_extract_int_value(line);
+            if md_value > 0 {
+                let mut probe: i64 = eol + 1;
+                let mut found_fn: i64 = 0 - 1;
+                let mut gave_up: i64 = 0;
+                while probe < slen && found_fn < 0 && gave_up == 0 {
+                    let mut peol: i64 = probe;
+                    while peol < slen && str_char_at(src, peol) != 10 { peol = peol + 1; };
+                    let pline: str = str_substring(src, probe, peol);
+                    let mut lp: i64 = 0;
+                    let llen: i64 = str_len(pline);
+                    while lp < llen && (str_char_at(pline, lp) == 32 || str_char_at(pline, lp) == 9) { lp = lp + 1; };
+                    let ptrim: str = strip_spaces(pline);
+                    if str_len(ptrim) == 0 {
+                        probe = peol + 1;
+                    } else if str_starts_with(ptrim, "///") == 1 {
+                        probe = peol + 1;
+                    } else if str_eq_at(pline, lp, "fn ") == 1 {
+                        found_fn = probe + lp;
+                    } else if str_eq_at(pline, lp, "pub fn ") == 1 {
+                        found_fn = probe + lp + 4;
+                    } else if lp < llen && str_char_at(pline, lp) == 35 {
+                        probe = peol + 1;
+                    } else {
+                        gave_up = 1;
+                    };
+                };
+                if found_fn >= 0 {
+                    let info: Vec<i32> = dl_parse_fn_signature(src, found_fn, slen);
+                    if vec_len(info) > 0 {
+                        let fn_name: str = vec_get(info, 0);
+                        let params_text: str = vec_get(info, 1);
+                        let ret_type: str = vec_get(info, 2);
+                        let arg_names: str = vec_get(info, 3);
+                        let body_open: i64 = vec_get(info, 4);
+                        let body_end: i64 = vec_get(info, 5);
+                        let inner_name: str = str_concat("__nuc_md_inner_", str_concat(content_hash(fn_name), str_concat("_", str_from_int(idx))));
+                        let counter_id: i64 = idx + 1;
+                        idx = idx + 1;
+                        sb_append(sb, str_substring(src, eol + 1, found_fn));
+                        sb_append(sb, "fn ");
+                        sb_append(sb, inner_name);
+                        sb_append(sb, "(");
+                        sb_append(sb, params_text);
+                        sb_append(sb, ") ");
+                        if str_len(ret_type) > 0 {
+                            sb_append(sb, "-> ");
+                            sb_append(sb, ret_type);
+                            sb_append(sb, " ");
+                        };
+                        sb_append(sb, str_substring(src, body_open, body_end));
+                        sb_append(sb, "\n\n");
+                        sb_append(sb, "fn ");
+                        sb_append(sb, fn_name);
+                        sb_append(sb, "(");
+                        sb_append(sb, params_text);
+                        sb_append(sb, ") ");
+                        if str_len(ret_type) > 0 {
+                            sb_append(sb, "-> ");
+                            sb_append(sb, ret_type);
+                            sb_append(sb, " ");
+                        };
+                        sb_append(sb, "{\n");
+                        sb_append(sb, "    max_depth_enter(");
+                        sb_append(sb, str_from_int(counter_id));
+                        sb_append(sb, ", ");
+                        sb_append(sb, str_from_int(md_value));
+                        sb_append(sb, ");\n");
+                        if str_len(ret_type) > 0 && str_eq(ret_type, "void") == 0 {
+                            sb_append(sb, "    let __nuc_md_r: ");
+                            sb_append(sb, ret_type);
+                            sb_append(sb, " = ");
+                            sb_append(sb, inner_name);
+                            sb_append(sb, "(");
+                            sb_append(sb, arg_names);
+                            sb_append(sb, ");\n");
+                            sb_append(sb, "    max_depth_exit(");
+                            sb_append(sb, str_from_int(counter_id));
+                            sb_append(sb, ");\n");
+                            sb_append(sb, "    return __nuc_md_r;\n");
+                        } else {
+                            sb_append(sb, "    ");
+                            sb_append(sb, inner_name);
+                            sb_append(sb, "(");
+                            sb_append(sb, arg_names);
+                            sb_append(sb, ");\n");
+                            sb_append(sb, "    max_depth_exit(");
+                            sb_append(sb, str_from_int(counter_id));
+                            sb_append(sb, ");\n");
+                        };
+                        sb_append(sb, "}\n");
+                        p = body_end;
+                        continue;
+                    };
+                };
+            };
+        };
         sb_append(sb, str_substring(src, p, eol));
         if eol < slen { sb_append(sb, "\n"); };
         p = eol + 1;

@@ -5190,6 +5190,37 @@ long long __nucleor_deadline_check(long long start_us, long long limit_us) {
     return 0;
 }
 
+#if defined(_MSC_VER)
+#define NUCLEOR_TLS __declspec(thread)
+#else
+#define NUCLEOR_TLS _Thread_local
+#endif
+
+static NUCLEOR_TLS long long __nucleor_max_depth_counts[1024];
+
+long long __nucleor_max_depth_enter(long long id, long long limit) {
+    if (id < 0) id = -id;
+    id = id % 1024;
+    __nucleor_max_depth_counts[id]++;
+    if (__nucleor_max_depth_counts[id] > limit) {
+        fprintf(stderr,
+                "error[DEPTH-003]: #[max_depth] runtime overrun: depth %lld > limit %lld\n",
+                __nucleor_max_depth_counts[id], limit);
+        fflush(stderr);
+        exit(1);
+    }
+    return __nucleor_max_depth_counts[id];
+}
+
+long long __nucleor_max_depth_exit(long long id) {
+    if (id < 0) id = -id;
+    id = id % 1024;
+    if (__nucleor_max_depth_counts[id] > 0) {
+        __nucleor_max_depth_counts[id]--;
+    }
+    return __nucleor_max_depth_counts[id];
+}
+
 long long __nucleor_time_wall_ns(void) {
 #ifdef _WIN32
     FILETIME ft;
