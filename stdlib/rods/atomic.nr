@@ -116,6 +116,16 @@ fn atomic_fetch_xor(a: &AtomicI64, value: i64, order: MemOrder) -> i64 {
     return atomic_i64_fetch_xor_seqcst(a.handle, value);
 }
 
+// v0.5.4 — ordered swap. Returns the prior value. Lowers to
+// `atomicrmw xchg` with the requested ordering.
+fn atomic_swap(a: &AtomicI64, value: i64, order: MemOrder) -> i64 {
+    if order == MemOrder::Relaxed { return atomic_i64_swap_relaxed(a.handle, value); };
+    if order == MemOrder::Acquire { return atomic_i64_swap_acquire(a.handle, value); };
+    if order == MemOrder::Release { return atomic_i64_swap_release(a.handle, value); };
+    if order == MemOrder::AcqRel { return atomic_i64_swap_acqrel(a.handle, value); };
+    return atomic_i64_swap_seqcst(a.handle, value);
+}
+
 fn atomic_compare_exchange_result(prev: i64, expected: i64) -> Result<i64, i64> {
     if prev == expected { return Ok(prev); };
     return Err(prev);
@@ -206,12 +216,20 @@ fn atomic_store_bool(a: &AtomicBool, value: bool, order: MemOrder) -> i64 {
     return atomic_i64_store_seqcst(a.handle, v);
 }
 
-// Note: atomic_swap_bool deferred — atomic_i64_swap_<ordering>
-// runtime helpers don't exist yet (only the unordered
-// atomic_i64_swap), so a faithful ordered swap_bool can't be
-// composed without runtime additions. Adopters needing swap
-// can use AtomicI64 directly with 0/1 convention until the
-// ordered swap helpers ship.
+// v0.5.4 — atomic_swap_bool now ships. The compiler intrinsically
+// lowers `atomic_i64_swap_<order>` to `atomicrmw xchg ptr, i64 v
+// <order>` with no runtime extern hop, so the AtomicBool wrapper
+// just delegates through the AtomicI64 ordered swap helper with
+// bool ↔ i64 conversion at the boundary (false=0, true=non-zero).
+fn atomic_swap_bool(a: &AtomicBool, value: bool, order: MemOrder) -> bool {
+    let v: i64 = if value { 1 } else { 0 };
+    let prev: i64 = if order == MemOrder::Relaxed { atomic_i64_swap_relaxed(a.handle, v) }
+        else if order == MemOrder::Acquire { atomic_i64_swap_acquire(a.handle, v) }
+        else if order == MemOrder::Release { atomic_i64_swap_release(a.handle, v) }
+        else if order == MemOrder::AcqRel { atomic_i64_swap_acqrel(a.handle, v) }
+        else { atomic_i64_swap_seqcst(a.handle, v) };
+    return prev != 0;
+}
 
 fn atomic_compare_exchange_bool(a: &AtomicBool, expected: bool, desired: bool,
     success_order: MemOrder, failure_order: MemOrder) -> Result<bool, bool>

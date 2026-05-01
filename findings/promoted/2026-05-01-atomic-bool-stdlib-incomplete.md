@@ -81,5 +81,12 @@ Filed alongside this finding.
 - Fixture: `tests/features/rfc0007_atomic_bool.nr` — load/store/CAS round-trips with bool↔i64 conversion.
 - Verify gate step: `t_rfc0007_atomic_bool`.
 - Fix shipped: v0.4.281 — option A (ship the missing helpers). Three new fns at `stdlib/rods/atomic.nr:185+`: `atomic_load_bool`, `atomic_store_bool`, `atomic_compare_exchange_bool`. Each delegates to the AtomicI64 ordered helpers via the underlying handle, with bool↔i64 conversion (false=0, true=non-zero) at each boundary. CAS returns `Result<bool, bool>` matching the AtomicI64 shape.
-- Deferred: `atomic_swap_bool` — would need new ordered swap helpers (`atomic_i64_swap_relaxed/acquire/release/acqrel/seqcst`); currently only the unordered `atomic_i64_swap` exists. Adopters needing ordered swap on bool should use AtomicI64 with 0/1 convention until the ordered swap runtime helpers ship.
+- Deferred → CLOSED in v0.5.4: `atomic_swap_bool` and the typed
+  `atomic_swap(&AtomicI64, value, order)` now ship. The ordered
+  helpers were wired as compiler intrinsics rather than runtime
+  externs — `is_atomic_ordered_builtin` recognizes
+  `atomic_i64_swap_<relaxed|acquire|release|acqrel|seqcst>`,
+  `atomic_rmw_op_llvm` returns `"xchg"` for them, and
+  `emit_atomic_ordered_call`'s atomicrmw branch already handled
+  the lowering. New fixture: `tests/features/rfc0007_atomic_swap_bool.nr`.
 - Promoted: 2026-05-01 by main agent (from probe-agent prep on origin/probe/exploration commit e27ee0a)
