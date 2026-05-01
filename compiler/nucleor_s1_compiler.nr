@@ -7488,6 +7488,76 @@ fn type_first_arg(t: str) -> str {
     return str_substring(t, s, e);
 }
 
+// v0.5.13: gparam-binding extraction + substitution for generic-fn
+// return-type inference. Closes probe-agent finding
+// 2026-05-01-generic-T-propagation-spsc-option-str.
+//
+// Pre-fix: the kind-7 call type-check at line 14413 returned
+// `vec_get(sentry, 1)` directly — the literal rtype string with
+// gparam placeholders (e.g. "Option<T>") unsubstituted. The
+// inferred-let binding then typed `r` as the wrapped placeholder
+// rather than the concrete type, which propagated to match-arm
+// bindings → TYP-006 on `print(s)` because `s: T` was treated as
+// `i64` (the i64-everywhere-ABI default for unknown types).
+//
+// `gparam_extract_binding` aligns one (expected, actual) param
+// pair and returns the binding (e.g. expected=`Option<T>`,
+// actual=`Option<str>` → returns `str`). Returns "" if no clean
+// match. Conservative: only handles the common shapes
+// `T` direct, `Wrap<T>`, `&Wrap<T>`, `&mut Wrap<T>`. Nested generic
+// args (e.g. `Vec<Option<T>>`) recurse via type_first_arg.
+//
+// `gparam_extract_binding` is the workhorse; the call-site loop
+// builds an alternating [name, binding, ...] map.
+fn gparam_extract_binding(expected: str, actual: str, gparam_name: str) -> str {
+    if str_len(gparam_name) == 0 { return ""; };
+    if str_eq(expected, gparam_name) == 1 { return actual; };
+    let exp_base: str = type_base_name(expected);
+    let act_base: str = type_base_name(actual);
+    if str_eq(exp_base, act_base) == 0 { return ""; };
+    let exp_arg: str = type_first_arg(expected);
+    let act_arg: str = type_first_arg(actual);
+    if str_len(exp_arg) == 0 { return ""; };
+    return gparam_extract_binding(exp_arg, act_arg, gparam_name);
+}
+
+// Replace whole-word occurrences of `name` in `rtype` with
+// `binding`. "Whole-word" means the matched span is bounded by
+// non-identifier characters (or string start/end). This is what
+// distinguishes `T` from `T_` or `MyT`. Idiomatic Nucleor type
+// strings have gparams like `T`, `E`, `K`, `V` — single uppercase
+// letters — so a 1-char gparam in `Option<T>` aligns cleanly.
+fn substitute_gparam_in_rtype(rtype: str, name: str, binding: str) -> str {
+    let nlen: i64 = str_len(name);
+    if nlen == 0 || str_len(binding) == 0 { return rtype; };
+    let rlen: i64 = str_len(rtype);
+    let mut sb: i64 = sb_new();
+    let mut p: i64 = 0;
+    while p < rlen {
+        if p + nlen <= rlen && str_eq_at(rtype, p, name) == 1 {
+            let before_ok: i64 = if p == 0 { 1 } else {
+                let cb: i64 = str_char_at(rtype, p - 1);
+                if is_alnum(cb) == 1 || cb == 95 { 0 } else { 1 }
+            };
+            let after_ok: i64 = if p + nlen >= rlen { 1 } else {
+                let ca: i64 = str_char_at(rtype, p + nlen);
+                if is_alnum(ca) == 1 || ca == 95 { 0 } else { 1 }
+            };
+            if before_ok == 1 && after_ok == 1 {
+                sb_append(sb, binding);
+                p = p + nlen;
+            } else {
+                sb_append(sb, str_substring(rtype, p, p + 1));
+                p = p + 1;
+            };
+        } else {
+            sb_append(sb, str_substring(rtype, p, p + 1));
+            p = p + 1;
+        };
+    };
+    return sb_to_str(sb);
+}
+
 fn match_payload_type_from_scrutinee(scrut_t: str, ename: str, vname: str, bind_idx: i64) -> str {
     if bind_idx != 0 { return ""; };
     let sbase: str = type_base_name(scrut_t);
@@ -14343,6 +14413,11 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let expected_argc: i64 = list_len(pool, plist);
             if argc != expected_argc { type_diag(diags, source, fn_name, callee, "TYP-005", str_concat("wrong number of arguments for '", str_concat(callee, "'"))); };
             let mut bound_seen_v421: Vec<i32> = Vec::new();
+            // v0.5.13: collect gparam bindings as we walk args. Map is
+            // alternating [name, concrete-type, name, concrete-type, ...].
+            // After the loop, used to substitute gparams in rtype before
+            // returning. Closes generic-T propagation finding.
+            let mut gparam_bindings_v513: Vec<i32> = Vec::new();
             let mut ai: i64 = 0;
             while ai < argc && ai < expected_argc {
                 let actual_t: str = type_expr(pool, prog, list_get(pool, args, ai), env, sigs, structs, fn_name, diags, source, tprof);
@@ -14400,6 +14475,26 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                         } else {
                             if str_len(ge_v421) > 0 && str_char_at(ge_v421, 0) != 39 {
                                 current_param_v421 = ge_v421;
+                                // v0.5.13: alongside the trait-bound check
+                                // already running here, attempt to extract
+                                // a concrete binding for this gparam from
+                                // the (expected, actual) arg pair. First
+                                // binding wins (no rebinding if a later
+                                // arg disagrees — keeps the path simple).
+                                let mut already_bound_v513: i64 = 0;
+                                let mut bb: i64 = 0;
+                                let nb: i64 = vec_len(gparam_bindings_v513);
+                                while bb + 1 < nb && already_bound_v513 == 0 {
+                                    if str_eq(vec_get(gparam_bindings_v513, bb), ge_v421) == 1 { already_bound_v513 = 1; };
+                                    bb = bb + 2;
+                                };
+                                if already_bound_v513 == 0 {
+                                    let bind_v513: str = gparam_extract_binding(expected_t, actual_t, ge_v421);
+                                    if str_len(bind_v513) > 0 {
+                                        gparam_bindings_v513.push(ge_v421);
+                                        gparam_bindings_v513.push(bind_v513);
+                                    };
+                                };
                             } else {
                                 current_param_v421 = "";
                             };
@@ -14410,7 +14505,21 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 ai = ai + 1;
             };
             tprof_mark(tprof, 9, 10, call_start);
-            return vec_get(sentry, 1);
+            // v0.5.13: substitute collected gparam bindings into rtype.
+            // Falls through to the literal rtype if no bindings (e.g.
+            // non-generic fn or gparams not inferable from args).
+            let mut rtype_v513: str = vec_get(sentry, 1);
+            let nb_final: i64 = vec_len(gparam_bindings_v513);
+            if nb_final >= 2 {
+                let mut bi: i64 = 0;
+                while bi + 1 < nb_final {
+                    let g_v513: str = vec_get(gparam_bindings_v513, bi);
+                    let conc_v513: str = vec_get(gparam_bindings_v513, bi + 1);
+                    rtype_v513 = substitute_gparam_in_rtype(rtype_v513, g_v513, conc_v513);
+                    bi = bi + 2;
+                };
+            };
+            return rtype_v513;
         };
         // v0.3.154/155: validate arg types for known runtime helpers
         // that expect specific positional types. Pre-v0.3.154, runtime
