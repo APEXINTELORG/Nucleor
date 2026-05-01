@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.281] — 2026-05-01
+
+**🔧 RFC-0007 AtomicBool ordered ops shipped.** Closes wrong-
+error finding filed by probe agent 2026-05-01: AtomicBool
+shipped in v0.4.273 (Track G) with only the constructor +
+drop helpers. Adopters constructing `AtomicBool` got a
+clang-link "undefined function `atomic_load_bool`" /
+"atomic_store_bool" error.
+
+### What lands
+
+3 new fns at `stdlib/rods/atomic.nr:185+`:
+- `atomic_load_bool(a: &AtomicBool, order: MemOrder) -> bool`
+- `atomic_store_bool(a: &AtomicBool, value: bool, order: MemOrder) -> i64`
+- `atomic_compare_exchange_bool(a, expected, desired, success_order, failure_order) -> Result<bool, bool>`
+
+Each delegates to the AtomicI64 ordered helpers via the
+underlying handle, with bool ↔ i64 conversion at each
+boundary (false=0, true=non-zero). CAS returns `Result<bool,
+bool>` matching the AtomicI64 shape — `Ok(prev_value)` on
+success, `Err(actual_value)` on mismatch.
+
+### Deferred
+
+`atomic_swap_bool` — would need new ordered swap helpers
+(`atomic_i64_swap_relaxed` / `_acquire` / `_release` /
+`_acqrel` / `_seqcst`); currently only the unordered
+`atomic_i64_swap` exists. Ordered swap on AtomicBool ships
+when those runtime helpers land. Adopters needing ordered
+swap on bool right now should use `AtomicI64` with 0/1
+convention.
+
+### Fixture + verify gate
+
+- `tests/features/rfc0007_atomic_bool.nr` — load false,
+  store true, load true, store false, CAS false→true Ok,
+  CAS false→false Err with prev=true.
+- New verify gate step `t_rfc0007_atomic_bool`.
+
+### Validation
+
+- Self-build clean. Two-stage fixed-point at compiler-IR
+  SHA `d9d9c274e2e28ad4a35d54571abb29466cd4661ad1114447ae435dc91f989a87`
+  (= v0.4.280; stdlib edits don't move the compiler IR).
+- Bootstrap seed refreshed.
+- Drift gate clean — `rod_manifest.toml` regenerated to
+  2238 stdlib fns / 9955 LOC (+3 fns from v0.4.280's 2235).
+- Fixture exit 0, "OK rfc0007_atomic_bool".
+
+### Probe-agent integration
+
+Promoted finding `2026-05-01-atomic-bool-stdlib-incomplete.md`
+to `findings/promoted/`. **Eighth probe integration** since
+the dual-agent split mandate.
+
+**Probe inbox queue remaining: 1 finding** —
+`dbc-undefined-ident-in-contract-expr` (wants full token-walk
+ident-resolution scan, biggest remaining ship).
+
 ## [0.4.280] — 2026-05-01
 
 **🚨 ATOMIC-006 — closure+atomic compiler-meltdown halt

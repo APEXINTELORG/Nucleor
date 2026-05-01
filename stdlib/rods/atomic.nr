@@ -182,3 +182,46 @@ fn atomic_bool(initial: bool) -> AtomicBool {
 fn atomic_bool_drop(a: AtomicBool) -> i64 {
     return atomic_i64_free(a.handle);
 }
+
+// === AtomicBool ordered ops (v0.4.281) ===
+//
+// Probe-agent finding 2026-05-01: AtomicBool ships with only
+// the constructor + drop helpers — adopters constructing
+// AtomicBool can't load/store/CAS without dropping to the
+// raw handle. Wrappers here delegate to AtomicI64's ordered
+// ops via the underlying i64 handle, with bool ↔ i64
+// conversion at each boundary (false=0, true=non-zero).
+
+fn atomic_load_bool(a: &AtomicBool, order: MemOrder) -> bool {
+    let v: i64 = if order == MemOrder::Relaxed { atomic_i64_load_relaxed(a.handle) }
+        else if order == MemOrder::Acquire { atomic_i64_load_acquire(a.handle) }
+        else { atomic_i64_load_seqcst(a.handle) };
+    return v != 0;
+}
+
+fn atomic_store_bool(a: &AtomicBool, value: bool, order: MemOrder) -> i64 {
+    let v: i64 = if value { 1 } else { 0 };
+    if order == MemOrder::Relaxed { return atomic_i64_store_relaxed(a.handle, v); };
+    if order == MemOrder::Release { return atomic_i64_store_release(a.handle, v); };
+    return atomic_i64_store_seqcst(a.handle, v);
+}
+
+// Note: atomic_swap_bool deferred — atomic_i64_swap_<ordering>
+// runtime helpers don't exist yet (only the unordered
+// atomic_i64_swap), so a faithful ordered swap_bool can't be
+// composed without runtime additions. Adopters needing swap
+// can use AtomicI64 directly with 0/1 convention until the
+// ordered swap helpers ship.
+
+fn atomic_compare_exchange_bool(a: &AtomicBool, expected: bool, desired: bool,
+    success_order: MemOrder, failure_order: MemOrder) -> Result<bool, bool>
+{
+    let exp_i: i64 = if expected { 1 } else { 0 };
+    let des_i: i64 = if desired { 1 } else { 0 };
+    let i64_self: AtomicI64 = AtomicI64 { handle: a.handle };
+    let r: Result<i64, i64> = atomic_compare_exchange(&i64_self, exp_i, des_i, success_order, failure_order);
+    match r {
+        Ok(v) => return Ok(v != 0),
+        Err(v) => return Err(v != 0),
+    }
+}
