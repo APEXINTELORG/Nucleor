@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 227
-# Total fn definitions: 2220
-# Total LOC: 9799
+# Total rods: 229
+# Total fn definitions: 2235
+# Total LOC: 9931
 
 [[rod]]
 name           = "activation2"
@@ -1137,6 +1137,15 @@ loc            = 13
 imports        = []
 
 [[rod]]
+name           = "mpsc_queue"
+path           = "stdlib/rods/mpsc_queue.nr"
+description    = "lock-free multi-producer/single-consumer queue"
+function_count = 9
+cfile_count    = 0
+loc            = 82
+imports        = ["atomic", "mpsc_queue"]
+
+[[rod]]
 name           = "multi_core"
 path           = "stdlib/rods/multi_core.nr"
 description    = "N-Core Quantum Noise Ensemble"
@@ -1711,6 +1720,15 @@ function_count = 5
 cfile_count    = 1
 loc            = 15
 imports        = []
+
+[[rod]]
+name           = "spsc_queue"
+path           = "stdlib/rods/spsc_queue.nr"
+description    = "lock-free single-producer/single-consumer queue"
+function_count = 6
+cfile_count    = 0
+loc            = 50
+imports        = ["atomic", "spsc_queue"]
 
 [[rod]]
 name           = "ssm"

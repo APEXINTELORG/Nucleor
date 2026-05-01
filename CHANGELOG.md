@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.274] — 2026-05-01
+
+**🎯 Track H integration — RFC-0007 lock-free queues LIVE.**
+Picks up consultant Kuhn's `v05-track-h-queues` spike branch
+(commit `10845b1`) onto current main. Builds on v0.4.273's
+Track G atomics substrate. Adds SPSC (single-producer single-
+consumer) and MPSC (multi-producer single-consumer) lock-free
+queue rods backed by AtomicI64 head/tail counters.
+
+### What lands
+
+**`stdlib/rods/spsc_queue.nr`** (+69 lines):
+- `spsc_new<T>(capacity: i64) -> SpscQueue<T>` — power-of-2
+  capacity ring buffer.
+- `spsc_push(&mut SpscQueue<T>, val: T) -> bool` — Lamport-style
+  atomic head/tail bump; false on full.
+- `spsc_pop(&mut SpscQueue<T>) -> Option<T>` — None on empty.
+- `spsc_len(&SpscQueue<T>) -> i64`, `spsc_capacity(&SpscQueue<T>) -> i64`.
+
+**`stdlib/rods/mpsc_queue.nr`** (+104 lines):
+- `mpsc_new<T>(capacity: i64) -> MpscQueue<T>`.
+- `mpsc_push(&mut MpscQueue<T>, val: T) -> bool` — Vyukov-style
+  CAS on a tail counter with sequence numbers per slot for
+  multi-producer correctness.
+- `mpsc_pop(&mut MpscQueue<T>) -> Option<T>` — single-consumer
+  side stays bound-only.
+- Same `_len` / `_capacity` accessors.
+
+**Fixtures (4)**:
+- `tests/features/rfc0007_queue_spsc.nr` — round-trip push N,
+  pop N, verify order.
+- `tests/features/rfc0007_queue_mpsc.nr` — multi-producer push
+  + single-consumer pop, verify count + no duplicates.
+- `tests/features/rfc0007_queue_capacity.nr` — capacity
+  exhaustion (push beyond capacity returns false; pop until
+  empty returns None).
+- `tests/features/rfc0007_queue_bench.nr` — uncontended SPSC
+  ops/sec measurement.
+
+**Spike artifact** at
+`docs/milestones/spikes/track_h_queues_2026-04-30.md` recording
+design choices (Lamport SPSC, sequence-number-Vyukov MPSC),
+benchmark methodology, and contention analysis.
+
+### Integration mechanics
+
+`git cherry-pick 10845b1` against v0.4.273 main. Only one
+conflict — `docs/rfcs/rod_manifest.toml` (auto-regenerated).
+All other files (4 fixtures, 2 new rods, spike doc, verify
+script edits) merged cleanly. Track H is stdlib-only — no
+compiler edits — so the compiler-IR fixed-point stays at
+v0.4.273's `6d05bb5c59ebea36d89a886864994b3cb0ad9b1333a63c580d76b2fb9c5e7e92`.
+
+### Validation
+
+- Self-build: identical SHA to v0.4.273 (no compiler delta).
+  Two-stage fixed-point preserved.
+- Drift gate clean — `rod_manifest.toml` regenerated to 2235
+  stdlib fns / 9931 LOC (+34 fns from v0.4.273's 2201).
+- All 4 queue fixtures: exit 0 with their OK markers.
+- `rfc0007_queue_bench.nr`: SPSC 40000 uncontended ops in
+  ~22ms ≈ 1.8M ops/sec.
+
+### v0.5 substantive arc (cumulative)
+
+- ✅ Track G — RFC-0007 ordered atomics (v0.4.273)
+- ✅ Track H — RFC-0007 lock-free SPSC + MPSC queues (this ship)
+- ⏳ Track I — RFC-0014 `#[max_depth = N]` (unowned)
+- ⏳ Track L — perf baseline + content-addressed cache (unowned)
+
+Two of four substantive v0.5 tracks now landed. Tracks I and L
+remain unclaimed by consultants — main-agent could pick up
+either if the user redirects.
+
+Co-authored by Kuhn (consultant) on v05-track-h-queues spike.
+
 ## [0.4.273] — 2026-05-01
 
 **🎯 Track G integration — RFC-0007 atomics LIVE.** Picks up
