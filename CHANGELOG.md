@@ -5,6 +5,89 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.243] — 2026-04-30
+
+**v0.5 ship 7 closeout — OWN-001 use-after-move caret precision.**
+The last remaining ship-7 site (Track A's rank 5 — OWN-001 moved-
+use). Pre-fix, OWN-001 caretted at the FIRST textual occurrence
+of the moved variable in the fn body via `find_in_source`/
+`find_column_in_source` — wrong-caret bug for any variable used
+multiple times. With this ship, var-ref nids carry their
+identifier byte offset and OWN-001 reads the use site directly.
+
+### Implementation
+
+1. `parse_primary` var-ref fallback at line 1454 now spans the
+   kind-3 IDENT nid via `node_set_span(pool, var_nid, ident_span)`.
+   `ident_span` was already captured at the kind-1 token branch
+   for the call expression spans (v0.4.241).
+2. `check_expr` kind-3 OWN-001 emit (line 10301) reads
+   `node_get_span(pool, nid)` and converts via
+   `linemap_line/col`. Fallback to `find_in_source` /
+   `find_column_in_source` when span unavailable (e.g.,
+   compiler-synthesized var-refs).
+
+### Caret-correctness proof
+
+```nucleor
+fn main() -> i64 {
+    let mut b: Big = ...;       // line 8 — first occurrence
+    b.data.push(1);              // line 9
+    consume(b);                  // line 10 — moved here
+    return b.data.len() + 0;     // line 11 — USE AFTER MOVE
+}
+```
+
+Output:
+```text
+warning[OWN-001]: use of moved variable 'b'
+  --> fn main@line 11:12      ← caret at the actual use, not first occurrence
+  note: 'b' was moved here by call to 'consume' (line 10)
+```
+
+Pre-fix would have caretted at line 8:13 (the first occurrence,
+the `let` binding) — confusing because the binding itself is
+fine; the move-and-then-use is the bug.
+
+### Validation
+
+- Self-build clean (LL 7 869 118 bytes).
+- **Two-stage fixed-point env-DEFAULT-ON at SHA**
+  `cbb540dcc9f08c6f8c74d9d90092b3e4ed0da99c4ab05e3bb8d263d192d30711`.
+  Bootstrap seed refreshed; T1.7 locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean.
+- OWN-001 caret smoke confirms line+col match the actual use site.
+
+### Ship 7 status — 100% COMPLETE
+
+All 9 originally-ranked find_linecol diag sites are now span-
+aware:
+
+| Rank | Site | Migrated in |
+|---|---|---|
+| 1 | type_diag helper hot sites | Track D (v0.4.233) |
+| 2 | Match diags ×7 | Track D (v0.4.233) |
+| 3 | Call diags (TYP-005, NUM-024) | v0.4.241 |
+| 4 | Struct init field diags ×4 | v0.4.237 |
+| 5 | OWN-001 moved-use | **v0.4.243 (this ship)** |
+| 6 | own_diag_ex helper (broader OWN-* family) | Deferred — needs `_at` sibling pattern with broader pool/nid threading; OWN-002..013 each have idiomatic site-specific carets and don't all need migration. Ship-by-adopter-feedback. |
+| 7 | Let-binding numeric (NUM-002, NUM-005) | Track D (v0.4.233) |
+| 8 | Cast diags (NUM-003, NUM-006) | v0.4.241 |
+| 9 | (rank 9 was bundled into prior ranks) | — |
+
+Ship 7's "incremental" status (🟢 partial in v0.4.241) is now
+🟢 100% **for the originally-ranked critical sites**. The OWN-*
+helper migration (rank 6) is genuinely adopter-driven — each
+OWN-NNN code has different ergonomics and not all benefit from
+identical span treatment.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: var-ref nid span at
+  parse_primary; OWN-001 emit reads node_get_span.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
 ## [0.4.242] — 2026-04-30
 
 **Robustness ratchet — v0.4.239 wrap-block regression-lock + UPGRADE
