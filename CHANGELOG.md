@@ -5,6 +5,124 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.251] — 2026-05-01
+
+**🎯 RFC-0006 DbC — `old(expr)` snapshot in #[ensure]
+postconditions LIVE.** Adopters can now reference the value of
+any expression at fn ENTRY from inside an ensure predicate via
+`old(EXPR)`. This is the canonical way to express
+"postcondition relates entry state to exit state."
+
+### Implementation — text-level rewriter + entry-side pre-eval
+
+**Pre-pass (`rewrite_old_in_ensure`):**
+Walks each ensure attribute's expression text. Finds every
+`old(...)` invocation (paren-balanced, string-literal aware,
+identifier-boundary aware so `old_value` doesn't match).
+For each, replaces with a synthesized binding name like
+`__old_<fn_name>_<idx>` and captures the inner expression text
+separately. Returns `[rewritten_text, n, synth0, inner0, ...]`.
+
+**Pre-process at the main pipeline:**
+For each ensure (fn_name, expr_text) pair:
+1. Run the rewriter.
+2. Lex+parse the rewritten ensure text → ensure_expr_nid.
+3. Lex+parse each inner expression → inner_nid.
+4. Push (fn_name, synth_name, inner_nid) triples to
+   `old_snapshots`.
+
+**lower_fn entry-eval:**
+After the param walk, walk `old_snapshots` for matches with the
+current fn name. For each:
+1. `let snap_ar = ctr_next(regs); ir_alloca(snap_ar);`
+2. Lower the inner expression in ebb0 (when input args are still
+   in their entry state).
+3. `ir_store(snap_rr, snap_ar);`
+4. `sym_set(sym, synth_name, snap_ar);`
+
+When the predicate evaluates at fn exit, its `__old_*` var-refs
+resolve via the kind-3 var-ref + ir_load lowering, reading from
+the snapshot alloca that was filled at entry.
+
+### End-to-end demo
+
+```nucleor
+#[ensure(result == old(x) + 1)]
+fn inc(x: i64) -> i64 {
+    x + 1
+}
+
+fn main() -> i64 {
+    inc(5);    // OK: result=6, old(x)=5, 5+1==6 → predicate TRUE
+    0
+}
+```
+
+Failing case:
+```nucleor
+#[ensure(result == old(x) + 1)]
+fn bad_inc(x: i64) -> i64 {
+    x + 2    // returns x+2 instead of x+1
+}
+
+fn main() -> i64 {
+    bad_inc(5);  // result=7, old(x)=5, 5+1!=7 → CONTRACT-002 panic
+    0
+}
+```
+
+Output:
+```text
+CONTRACT-002: ensure postcondition violated
+exit 1
+```
+
+### Validation
+
+- Self-build clean (LL 8 096 380 bytes).
+- **Two-stage fixed-point env-DEFAULT-ON** at SHA
+  `dc4a1b6f7dda53d1f6486d1071cbc1d9dde25fc7b41859b23a4a527aaa5726c1`.
+  Bootstrap seed refreshed; T1.7 locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean.
+- Targeted runtime smokes: passing + violation paths both work.
+- New fixture `tests/features/rfc0006_old_expr.nr` (3 fns
+  mixing inc/double/clamp with old-references; 5 cases) builds
+  + runs OK.
+- New verify-gate step `t_rfc0006_old_expr_runtime` exercises
+  passing + violation paths.
+
+### Identifier-boundary correctness
+
+The rewriter checks the byte BEFORE `old(` to ensure it's not an
+alphanumeric or underscore. So `old_value`, `Counter::old`, and
+`my_old_buffer` correctly do NOT trigger the rewrite — they're
+treated as ordinary identifiers. Only the bare `old(EXPR)` form
+gets snapshotted.
+
+### Limits / what's next (v0.4.252+)
+
+- `old(EXPR)` inside `#[require(...)]` is technically illegal
+  (require runs at fn entry — `old` is meaningless there). Today
+  the rewriter still rewrites it, producing a synthesized
+  binding that's evaluated at entry alongside the require. Net
+  effect is correct (entry-time value), but a CONTRACT-006
+  warning would be cleaner — coming in a future ship.
+- Mid-body return multi-ensure (still v0.4.250-deferred).
+- Constructor-emit (fns returning `Self`).
+- `#[release]` strip-out + `cert` profile (CONTRACT-007).
+- Liskov inheritance checks (CONTRACT-004, CONTRACT-005).
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: `rewrite_old_in_ensure`
+  text rewriter, ensure pre-pass extension to track old
+  inners, `lower_fn` signature with `old_snapshots`, fn-entry
+  pre-eval of inner expressions.
+- `tests/features/rfc0006_old_expr.nr`: new fixture.
+- `tools/verify.sh`: `t_rfc0006_old_expr_runtime` step.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
 ## [0.4.250] — 2026-05-01
 
 **RFC-0006 DbC — multiple `#[require]` / `#[ensure]` attributes

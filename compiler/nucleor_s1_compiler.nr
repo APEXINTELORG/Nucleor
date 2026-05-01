@@ -8719,6 +8719,97 @@ fn collect_fn_ensures(source: str) -> Vec<i32> {
     return entries;
 }
 
+// v0.4.251 RFC-0006 — `old(expr)` snapshot text rewriter.
+// Walks the ensure expression's TEXT, finds every `old(...)`
+// pattern (paren-balanced, string-literal aware), and rewrites
+// each to a synthesized binding name `__old_<fn_name>_<idx>`.
+// The inner expression text per `old(...)` is captured separately.
+// Returns a flat Vec encoding [rewritten_text, n, synth0, inner0,
+// synth1, inner1, ...] where n is the number of olds.
+//
+// At lower-time, the pre-pass lex+parses each inner into the AST
+// pool, and lower_fn pre-evaluates each inner at fn entry storing
+// to an alloca. The rewritten ensure expression's `__old_*`
+// var-refs then resolve to loads from those allocas.
+fn rewrite_old_in_ensure(ens_text: str, fn_name: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(ens_text);
+    let mut sb: i64 = sb_new();
+    let mut inners: Vec<i32> = Vec::new();
+    let mut idx_counter: i64 = 0;
+    let mut p: i64 = 0;
+    while p < slen {
+        // Skip string literals — never rewrite inside.
+        if str_char_at(ens_text, p) == 34 {
+            sb_append(sb, str_substring(ens_text, p, p + 1));
+            p = p + 1;
+            while p < slen && str_char_at(ens_text, p) != 34 {
+                if str_char_at(ens_text, p) == 92 && p + 1 < slen {
+                    sb_append(sb, str_substring(ens_text, p, p + 2));
+                    p = p + 2;
+                } else {
+                    sb_append(sb, str_substring(ens_text, p, p + 1));
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, str_substring(ens_text, p, p + 1)); p = p + 1; };
+            continue;
+        };
+        // Detect `old(` only when preceded by non-identifier
+        // (so e.g. `old_value` is NOT matched). Check prev char.
+        let mut is_id_boundary: i64 = 1;
+        if p > 0 {
+            let prev: i64 = str_char_at(ens_text, p - 1);
+            if is_alnum(prev) == 1 || prev == 95 { is_id_boundary = 0; };
+        };
+        if is_id_boundary == 1 && p + 4 <= slen
+            && str_char_at(ens_text, p) == 111
+            && str_char_at(ens_text, p + 1) == 108
+            && str_char_at(ens_text, p + 2) == 100
+            && str_char_at(ens_text, p + 3) == 40 {
+            // Found `old(`. Walk paren-balanced inner.
+            let inner_start: i64 = p + 4;
+            let mut q: i64 = inner_start;
+            let mut paren_depth: i64 = 1;
+            while q < slen && paren_depth > 0 {
+                let cc: i64 = str_char_at(ens_text, q);
+                if cc == 34 {
+                    q = q + 1;
+                    while q < slen && str_char_at(ens_text, q) != 34 {
+                        if str_char_at(ens_text, q) == 92 && q + 1 < slen { q = q + 2; }
+                        else { q = q + 1; };
+                    };
+                    if q < slen { q = q + 1; };
+                    continue;
+                };
+                if cc == 40 { paren_depth = paren_depth + 1; }
+                else if cc == 41 { paren_depth = paren_depth - 1; if paren_depth == 0 { break; }; };
+                q = q + 1;
+            };
+            let inner_end: i64 = q;
+            let inner_text: str = str_substring(ens_text, inner_start, inner_end);
+            let synth: str = str_concat("__old_", str_concat(fn_name, str_concat("_", str_from_int(idx_counter))));
+            sb_append(sb, synth);
+            inners.push(synth);
+            inners.push(inner_text);
+            idx_counter = idx_counter + 1;
+            p = inner_end + 1;
+        } else {
+            sb_append(sb, str_substring(ens_text, p, p + 1));
+            p = p + 1;
+        };
+    };
+    out.push(sb_to_str(sb));
+    out.push(str_from_int(idx_counter));
+    let mut ki: i64 = 0;
+    while ki + 1 < vec_len(inners) {
+        out.push(vec_get(inners, ki));
+        out.push(vec_get(inners, ki + 1));
+        ki = ki + 2;
+    };
+    return out;
+}
+
 fn lookup_fn_ensure_expr(ensures: Vec<i32>, fn_name: str) -> str {
     let n: i64 = vec_len(ensures);
     let mut i: i64 = 0;
@@ -18499,7 +18590,7 @@ fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Ve
     return b;
 }
 
-fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>) -> Vec<i32> {
+fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>, old_snapshots: Vec<i32>) -> Vec<i32> {
     let name: str = node_field(pool, fn_nid, 1);
     let plist: i64 = node_field(pool, fn_nid, 2);
     let blist: i64 = node_field(pool, fn_nid, 4);
@@ -18601,6 +18692,31 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
         // v0.3.55: full declared type (mirror let / param sites).
         if str_len(gtype) > 0 { sym_set(sym, str_concat("__fulltype_", gname), gtype); };
         gi = gi + 1;
+    };
+    // v0.4.251 RFC-0006 — pre-evaluate `old(EXPR)` snapshots at
+    // fn entry. The pre-pass collected (fn_name, synth_name,
+    // inner_nid) triples in old_snapshots; for each match with
+    // the current fn name, allocate a slot, lower the inner
+    // expression now (when input args are still in their entry
+    // state), store the result, and bind synth_name → alloca in
+    // sym. The rewritten ensure predicate's `__old_*` var-refs
+    // resolve via this binding to a load from the snapshot slot
+    // when the predicate is evaluated at fn exit.
+    let mut osi: i64 = 0;
+    let os_count: i64 = vec_len(old_snapshots);
+    while osi + 2 < os_count {
+        if str_eq(vec_get(old_snapshots, osi), name) == 1 {
+            let synth_name: str = vec_get(old_snapshots, osi + 1);
+            let inner_nid: i64 = vec_get(old_snapshots, osi + 2);
+            let snap_ar: i64 = ctr_next(regs);
+            ir_block_add(ebb0, ir_alloca(snap_ar));
+            let mut snap_lp: Vec<i32> = lower_expr(pool, inner_nid, ebb0, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
+            let snap_rr: i64 = lx_reg(snap_lp);
+            ebb0 = lx_blk(snap_lp);
+            ir_block_add(ebb0, ir_store(snap_rr, snap_ar));
+            sym_set(sym, synth_name, snap_ar);
+        };
+        osi = osi + 3;
     };
     // v0.4.247 RFC-0006 — stash this fn's ensure expr nid in sym
     // so lower_stmt's kind-22 explicit `return X;` handler can
@@ -20096,16 +20212,36 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         rti = rti + 2;
     };
     // v0.4.246 RFC-0006 — pre-process #[ensure(EXPR)] attributes.
-    // Same shape as require pre-process; ensure_exprs flat (fn_name,
-    // expr_nid) Vec consumed by lower_fn at the tail-return sites.
+    // v0.4.251 — also rewrite `old(EXPR)` patterns inside the
+    // ensure expression to synthesized binding names, lex+parse
+    // each inner separately, and store (fn_name, synth_name,
+    // inner_nid) triples in old_snapshots for fn-entry pre-eval.
     let ens_text_pairs: Vec<i32> = collect_fn_ensures(source);
     let mut ensure_exprs: Vec<i32> = Vec::new();
+    let mut old_snapshots: Vec<i32> = Vec::new();
     let mut eti: i64 = 0;
     let ens_text_count: i64 = vec_len(ens_text_pairs);
     while eti + 1 < ens_text_count {
         let ens_name: str = vec_get(ens_text_pairs, eti);
         let ens_text: str = vec_get(ens_text_pairs, eti + 1);
-        let ens_tokens: Vec<i32> = lex(ens_text);
+        // v0.4.251 — text-level rewrite of `old(EXPR)` to synth names.
+        let rewrite: Vec<i32> = rewrite_old_in_ensure(ens_text, ens_name);
+        let rewritten: str = vec_get(rewrite, 0);
+        let nold: i64 = str_to_int(vec_get(rewrite, 1));
+        let mut roi: i64 = 0;
+        while roi < nold {
+            let synth: str = vec_get(rewrite, 2 + roi * 2);
+            let inner_text: str = vec_get(rewrite, 2 + roi * 2 + 1);
+            let in_tokens: Vec<i32> = lex(inner_text);
+            let in_parsed: Vec<i32> = parse_expr(in_tokens, 0, pool);
+            let in_nid: i64 = pr_val(in_parsed);
+            old_snapshots.push(ens_name);
+            old_snapshots.push(synth);
+            old_snapshots.push(in_nid);
+            free_token_vec(in_tokens);
+            roi = roi + 1;
+        };
+        let ens_tokens: Vec<i32> = lex(rewritten);
         let ens_parsed: Vec<i32> = parse_expr(ens_tokens, 0, pool);
         let ens_expr_nid: i64 = pr_val(ens_parsed);
         ensure_exprs.push(ens_name);
@@ -20136,12 +20272,12 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     fi = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs, invariant_exprs)); };
+        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs, invariant_exprs, old_snapshots)); };
         fi = fi + 1;
     };
     let mut ii: i64 = 0;
     while ii < vec_len(impl_fns) {
-        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs, invariant_exprs));
+        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs, invariant_exprs, old_snapshots));
         ii = ii + 1;
     };
     let mut ci3: i64 = 0;

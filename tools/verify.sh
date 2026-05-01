@@ -1713,6 +1713,36 @@ strict_intrin_fixture_overflows() {
     return 0
 }
 
+t_rfc0006_old_expr_runtime() {
+    # v0.4.251 RFC-0006 — `old(expr)` snapshot in #[ensure].
+    # Builds the basic fixture (3 fns mixing inc/double/clamp
+    # with old-references) and asserts exit 0 + OK marker. Then
+    # synthesizes a violation (bad_inc returns x+2 not x+1, but
+    # ensure says `result == old(x) + 1`) inline and asserts
+    # CONTRACT-002 panic.
+    "$BIN" build "tests/features/rfc0006_old_expr.nr" -o "_t_rfc6_old" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe="target/_t_rfc6_old"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local out
+    out=$("$exe" 2>&1)
+    [ "$?" = "0" ] || return 1
+    echo "$out" | grep -q "OK rfc0006_old_expr" || return 1
+    local tmp_neg="$NUC_VERIFY_TMPDIR/rfc6_old_violate.nr"
+    printf '%s\n' "#[ensure(result == old(x) + 1)]" "fn bad_inc(x: i64) -> i64 { x + 2 }" "fn main() -> i64 { let a: i64 = bad_inc(5); print_int(a); 0 }" > "$tmp_neg"
+    "$BIN" build "$tmp_neg" -o "_t_rfc6_old_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local nexe="target/_t_rfc6_old_violate"
+    [ -x "$nexe.exe" ] && nexe="$nexe.exe"
+    [ -x "$nexe" ] || return 1
+    local nout
+    nout=$("$nexe" 2>&1)
+    [ "$?" = "1" ] || return 1
+    echo "$nout" | grep -q "CONTRACT-002: ensure postcondition violated" || return 1
+    return 0
+}
+
 t_rfc0006_multi_attrs_runtime() {
     # v0.4.250 RFC-0006 — multiple #[require] / #[ensure] per fn.
     # Builds the basic fixture (3 fns with multi-attrs, all
@@ -4099,6 +4129,7 @@ step "v0.4.246 RFC-0006 — #[ensure(EXPR)] runtime check fires (CONTRACT-002)" 
 step "v0.4.247 RFC-0006 — #[ensure(EXPR)] mid-body return support" t_rfc0006_ensure_midbody_runtime
 step "v0.4.248 RFC-0006 — #[invariant(EXPR)] impl-block runtime check (CONTRACT-003)" t_rfc0006_invariant_runtime
 step "v0.4.250 RFC-0006 — multiple #[require] / #[ensure] attributes per fn" t_rfc0006_multi_attrs_runtime
+step "v0.4.251 RFC-0006 — old(expr) snapshot in #[ensure]" t_rfc0006_old_expr_runtime
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection
