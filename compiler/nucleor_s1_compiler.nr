@@ -3183,6 +3183,10 @@ fn is_atomic_ordered_builtin(name: str) -> i64 {
         if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_acquire") == 1 || str_ends_with(name, "_release") == 1 || str_ends_with(name, "_acqrel") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
         return 0;
     };
+    if str_starts_with(name, "atomic_i64_swap_") == 1 {
+        if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_acquire") == 1 || str_ends_with(name, "_release") == 1 || str_ends_with(name, "_acqrel") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
+        return 0;
+    };
     if str_starts_with(name, "atomic_i64_compare_exchange_") == 1 {
         if str_ends_with(name, "_relaxed_relaxed") == 1 { return 1; };
         if str_ends_with(name, "_acquire_relaxed") == 1 || str_ends_with(name, "_acquire_acquire") == 1 { return 1; };
@@ -3219,6 +3223,10 @@ fn atomic_cmpxchg_failure_order_llvm(name: str) -> str {
 }
 
 fn atomic_rmw_op_llvm(name: str) -> str {
+    // Order matters: check `swap` before the fetch_* family. The new
+    // ordered helper `atomic_i64_swap_<order>` lowers to `atomicrmw
+    // xchg`. Default fall-through is `add` for fetch_add (no infix).
+    if str_contains(name, "_swap_") == 1 { return "xchg"; };
     if str_contains(name, "fetch_sub") == 1 { return "sub"; };
     if str_contains(name, "fetch_and") == 1 { return "and"; };
     if str_contains(name, "fetch_or") == 1 { return "or"; };

@@ -127,10 +127,25 @@ let cas: Result<bool, bool> = atomic_compare_exchange_bool(
     &flag, false, true, MemOrder::SeqCst, MemOrder::Relaxed);
 ```
 
-**Deferred:** `atomic_swap_bool` — needs ordered `atomic_i64_swap_*`
-runtime helpers (only unordered `atomic_i64_swap` exists today).
-Adopters needing ordered swap on bool should use `AtomicI64` with
-0/1 convention until those runtime helpers ship.
+**Closed in v0.5.4:** `atomic_swap_bool` and the typed
+`atomic_swap(&AtomicI64, value, order)` now ship. The compiler
+intrinsically lowers `atomic_i64_swap_<order>` to
+`atomicrmw xchg ptr, i64 v <order>` — no runtime extern hop is
+involved, so the AtomicBool wrapper composes through the typed
+AtomicI64 helper with the standard false=0/true=1 convention.
+
+```nucleor
+let flag: AtomicBool = atomic_bool(false);
+let prev: bool = atomic_swap_bool(&flag, true, MemOrder::SeqCst);
+// prev == false; flag now true
+
+let counter: AtomicI64 = atomic_i64(0);
+let old: i64 = atomic_swap(&counter, 7, MemOrder::AcqRel);
+// old == 0; counter now 7
+```
+
+All five orderings (Relaxed / Acquire / Release / AcqRel / SeqCst)
+are supported on both surfaces.
 
 ### RFC-0014 Track I — `#[max_depth = N]` static analysis
 

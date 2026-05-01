@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 229
-# Total fn definitions: 2238
-# Total LOC: 9955
+# Total fn definitions: 2240
+# Total LOC: 9971
 
 [[rod]]
 name           = "activation2"
@@ -78,9 +78,9 @@ imports        = []
 name           = "atomic"
 path           = "stdlib/rods/atomic.nr"
 description    = "RFC-0007 atomics"
-function_count = 36
+function_count = 38
 cfile_count    = 0
-loc            = 164
+loc            = 180
 imports        = ["atomic"]
 
 [[rod]]

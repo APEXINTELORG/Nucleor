@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.4] — 2026-05-01
+
+**🔧 RFC-0007 closure: `atomic_swap_bool` + typed `atomic_swap`
+ship.** Closes the deferred note from v0.4.281. Real
+compiler/runtime work — first non-doc ship of the v0.5.x line.
+
+### What lands
+
+- **5 new compiler-intrinsic ordered helpers** —
+  `atomic_i64_swap_<relaxed|acquire|release|acqrel|seqcst>`. Each
+  lowers intrinsically to `atomicrmw xchg ptr, i64 v <order>` (no
+  runtime extern hop). `is_atomic_ordered_builtin` extended to
+  recognize the `atomic_i64_swap_` prefix; `atomic_rmw_op_llvm`
+  returns `"xchg"` when the name contains `_swap_` (checked
+  before the fetch_* family to avoid silent fall-through to the
+  default `add` op).
+- **Typed surface** — `atomic_swap(a: &AtomicI64, value: i64,
+  order: MemOrder) -> i64` returns the prior value, supports all
+  five orderings.
+- **AtomicBool wrapper** — `atomic_swap_bool(a: &AtomicBool,
+  value: bool, order: MemOrder) -> bool`. Composes through the
+  AtomicI64 ordered swap with the standard false=0/true=1
+  conversion at the boundary.
+- **Fixture** — `tests/features/rfc0007_atomic_swap_bool.nr`
+  exercises bool round-trips for SeqCst / Release / Relaxed /
+  AcqRel and i64 round-trips for all five orderings.
+
+### Why it's safe
+
+The intrinsic lowering doesn't touch the runtime ABI — no new
+`__nucleor_*` symbols, no IR-declare additions. That means
+**round-1 == round-2 fixed-point** holds without the new-helper
+bootstrap dance: the s1 source change rebuilds clean on the
+first pass.
+
+Validated: round-1 IR (8717165 bytes) byte-equal to round-2 IR.
+Drift gate clean.
+
+### Closes
+
+- `findings/promoted/2026-05-01-atomic-bool-stdlib-incomplete.md`
+  — the v0.4.281 ship's "Deferred: atomic_swap_bool" note now
+  marked CLOSED with cross-reference to this version.
+- `docs/UPGRADE_v0.5.0.md` — replaces the "Deferred" callout in
+  §AtomicBool with a "Closed in v0.5.4" block including code
+  examples.
+
+### Why this lane
+
+This was the smallest real-compiler-work item on the v0.5.x
+follow-up list — closes a documented v0.5.0 known limitation,
+no conflict with Parallel-1's RFC lanes (Parallel-1 isn't in
+atomics), low blast radius (intrinsic lowering only).
+
 ## [0.5.3] — 2026-05-01
 
 **📚 ML expansion crosswalk: v0.7.0 + v0.8.0 milestone trackers
