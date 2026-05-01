@@ -165,8 +165,12 @@ fn deep_walk(depth: i64, tree: &Tree) -> i64 {
 ```
 
 The static analyzer proves convergence for the canonical pattern
-(first param is depth counter; entry guard `depth >= N` or
-`depth > N-1`; recursive call uses `depth + 1`).
+(visible counter parameter; entry guard `counter >= N` or
+`counter > N-1`; recursive call uses a positive counter increment).
+The v0.6 analyzer extension also accepts non-first counters,
+countdown counters, constant strides such as `depth + 2`, simple
+helper-guard predicates, parameter-site `#[no_recurse]` callback
+whitelists, and compatible SCCs in the call graph.
 
 Five DEPTH-NNN diagnostics:
 
@@ -182,15 +186,16 @@ Runtime support: `max_depth_enter(id, limit)` on entry, `max_depth_exit(id)`
 on each return path. TLS-backed counters; aborts with `error[DEPTH-003]`
 on dynamic overrun.
 
-**Conservative surface — adopter rewrites needed for these patterns:**
+**Still-conservative surface:**
 
-- non-depth-counter recursion (no parameter named `depth` advancing toward bound)
-- unknown callback or function-pointer recursion (analyzer can't follow indirect calls)
-- recursive calls without monotonic `depth + 1` (analyzer requires this exact form)
-- guard logic hidden behind helper fns (analyzer needs the entry guard inline)
-- mutually-recursive cycles whose bounds don't compose safely
+- callback or function-pointer calls without `#[no_recurse]` on the callback parameter
+- recursive calls whose counter update is not a visible positive literal stride or countdown
+- helper predicates that do not reduce to `counter >= limit` / `counter > limit`
+- SCCs whose member bounds differ or whose cycle edges are not all proven
 
-Adopters hitting these get DEPTH-001 by design. Migration: rewrite to the canonical shape, or temporarily annotate with `#[deadline]` (RT-008 path) until the analyzer extends.
+Adopters hitting these get DEPTH-001 or DEPTH-003 by design. Migration:
+rewrite to one of the accepted structural forms or refactor through an
+iterative trampoline.
 
 ### Track L — Perf baseline + content-addressed compilation cache
 

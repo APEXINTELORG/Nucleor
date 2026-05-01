@@ -10923,7 +10923,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "URDF-004") { return "#[urdf_load(\"...\")] points to a missing file. Check working directory and import paths."; };
     if str_eq(code, "URDF-005") { return "URDF XML failed to parse. Common issues: missing <robot> root, malformed <joint> attributes, mismatched origin tags."; };
     if str_eq(code, "URDF-006") { return "Joint angle/displacement passed to lookup() exceeds the URDF-declared joint limit. Clamp upstream or relax the limit in the URDF."; };
-    if str_eq(code, "DEPTH-001") { return "The RFC-0014 analyzer found recursion but could not prove a finite bound. Use an explicit depth-counter parameter, entry guard, and depth + 1 recursive call."; };
+    if str_eq(code, "DEPTH-001") { return "The RFC-0014 analyzer found recursion but could not prove a finite bound. Use a visible counter parameter, entry guard, and a positive counter increment; mark callback parameters #[no_recurse] only when they cannot recurse into the max_depth region."; };
     if str_eq(code, "DEPTH-002") { return "The analyzer proved a finite recursion depth, but that depth is larger than the declared #[max_depth = N]."; };
     if str_eq(code, "DEPTH-003") { return "A mutually-recursive cycle has incompatible or unproven #[max_depth] bounds. Runtime overrun checks also report this code when a counter exceeds N."; };
     if str_eq(code, "DEPTH-004") { return "`#[max_depth]` must use a positive integer literal and apply directly to a fn declaration."; };
@@ -11124,7 +11124,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "URDF-004") { return "RFC-0013 §3.1 — #[urdf_load(\"path/to/robot.urdf\")] resolves relative to the source file's directory. Check the path and ensure the URDF is in source control or a known asset dir."; };
     if str_eq(code, "URDF-005") { return "RFC-0013 §3.1 — URDF parser uses minixml; common parse errors include missing <robot> root, malformed <joint type=\"...\"> attributes, mismatched origin tags, and unsupported plugin tags. Validate the URDF with `urdf-validator` first."; };
     if str_eq(code, "URDF-006") { return "RFC-0013 §3.4 — joint limits are declared in the URDF as <limit lower upper effort velocity/>. lookup() with an out-of-range angle/displacement is rejected. Clamp upstream or relax the URDF limit if mechanically valid."; };
-    if str_eq(code, "DEPTH-001") { return "RFC-0014 structural proof requires a visible depth counter and a guard. Calls through unknown paths, missing guards, or non-monotonic recursive arguments are rejected conservatively."; };
+    if str_eq(code, "DEPTH-001") { return "RFC-0014 structural proof requires a visible counter and a guard. Unmarked callback paths, missing guards, or non-positive/non-literal recursive updates are rejected conservatively."; };
     if str_eq(code, "DEPTH-002") { return "RFC-0014 compared the proven guard depth with the declared N and found the code needs more stack frames than the annotation allows. Raise N or reduce the recursion depth."; };
     if str_eq(code, "DEPTH-003") { return "RFC-0014 SCC analysis found a cycle whose member bounds do not compose. Give every function in the cycle compatible guards/bounds or refactor through a single trampoline."; };
     if str_eq(code, "DEPTH-004") { return "RFC-0014 only accepts fn-level #[max_depth = N] / #[max_depth(N)] with a positive integer literal. Other placements and symbolic values are rejected."; };

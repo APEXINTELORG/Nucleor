@@ -1340,6 +1340,21 @@ rfc0014_max_depth_full_ship() {
     out=$("$exe" 2>&1) || return 1
     echo "$out" | grep -q "OK rfc0014_max_depth_bounded" || return 1
 
+    local pf pexe pout ok
+    for pf in \
+        "rfc0014_max_depth_param_flow" \
+        "rfc0014_max_depth_stride" \
+        "rfc0014_max_depth_helper_guard" \
+        "rfc0014_max_depth_no_recurse_callback" \
+        "rfc0014_max_depth_scc"; do
+        "$BIN" build "tests/features/$pf.nr" -o "_$pf" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+        pexe="target/_$pf"
+        [ -x "$pexe.exe" ] && pexe="$pexe.exe"
+        pout=$("$pexe" 2>&1) || return 1
+        ok="OK $pf"
+        echo "$pout" | grep -q "$ok" || return 1
+    done
+
     "$BIN" build "tests/fixtures/rfc0014_max_depth_runtime_overrun.nr" -o "_rfc0014_depth_overrun" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
     local overrun_exe="target/_rfc0014_depth_overrun"
     [ -x "$overrun_exe.exe" ] && overrun_exe="$overrun_exe.exe"
@@ -1353,7 +1368,12 @@ rfc0014_max_depth_full_ship() {
         "err_depth_002_overflow DEPTH-002" \
         "err_depth_003_cycle DEPTH-003" \
         "err_depth_004_invalid_context DEPTH-004" \
-        "err_depth_005_stack_budget DEPTH-005"; do
+        "err_depth_005_stack_budget DEPTH-005" \
+        "err_depth_001_callback_unknown DEPTH-001" \
+        "err_depth_001_non_monotonic DEPTH-001" \
+        "err_depth_001_helper_unproven DEPTH-001" \
+        "err_depth_002_stride_bound DEPTH-002" \
+        "err_depth_003_scc_unproven DEPTH-003"; do
         f="${pair% *}"
         code="${pair#* }"
         "$BIN" build "tests/err/$f.nr" -o "_$f" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1

@@ -11088,6 +11088,65 @@ fn md_first_param_name(params_text: str) -> str {
     return "";
 }
 
+fn md_first_ident_in_param_segment(seg: str) -> str {
+    let slen: i64 = str_len(seg);
+    let mut p: i64 = 0;
+    while p < slen {
+        while p < slen && (str_char_at(seg, p) == 32 || str_char_at(seg, p) == 9 || str_char_at(seg, p) == 10 || str_char_at(seg, p) == 13) { p = p + 1; };
+        if p + 1 < slen && str_char_at(seg, p) == 35 && str_char_at(seg, p + 1) == 91 {
+            p = p + 2;
+            let mut depth: i64 = 1;
+            while p < slen && depth > 0 {
+                let c: i64 = str_char_at(seg, p);
+                if c == 91 { depth = depth + 1; }
+                else if c == 93 { depth = depth - 1; };
+                p = p + 1;
+            };
+        } else {
+            break;
+        };
+    };
+    while p < slen && (str_char_at(seg, p) == 32 || str_char_at(seg, p) == 9 || str_char_at(seg, p) == 10 || str_char_at(seg, p) == 13) { p = p + 1; };
+    if p < slen && str_char_at(seg, p) == 38 {
+        p = p + 1;
+        while p < slen && (str_char_at(seg, p) == 32 || str_char_at(seg, p) == 9) { p = p + 1; };
+    };
+    if p + 3 <= slen && str_eq_at(seg, p, "mut") == 1
+       && (p + 3 == slen || str_char_at(seg, p + 3) == 32 || str_char_at(seg, p + 3) == 9) {
+        p = p + 3;
+        while p < slen && (str_char_at(seg, p) == 32 || str_char_at(seg, p) == 9) { p = p + 1; };
+    };
+    let ns: i64 = p;
+    while p < slen && (is_alnum(str_char_at(seg, p)) == 1 || str_char_at(seg, p) == 95) { p = p + 1; };
+    if p == ns { return ""; };
+    return str_substring(seg, ns, p);
+}
+
+fn md_param_names(params_text: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let plen: i64 = str_len(params_text);
+    let mut p: i64 = 0;
+    while p < plen {
+        while p < plen && (str_char_at(params_text, p) == 32 || str_char_at(params_text, p) == 9 || str_char_at(params_text, p) == 10 || str_char_at(params_text, p) == 13 || str_char_at(params_text, p) == 44) { p = p + 1; };
+        if p >= plen { break; };
+        let seg_start: i64 = p;
+        let mut q: i64 = p;
+        let mut depth: i64 = 0;
+        while q < plen {
+            let c: i64 = str_char_at(params_text, q);
+            if c == 40 || c == 60 || c == 91 || c == 123 { depth = depth + 1; }
+            else if c == 41 || c == 62 || c == 93 || c == 125 { if depth > 0 { depth = depth - 1; }; }
+            else if c == 44 && depth == 0 { break; };
+            q = q + 1;
+        };
+        let seg: str = str_substring(params_text, seg_start, q);
+        let name: str = md_first_ident_in_param_segment(seg);
+        if str_len(name) > 0 && str_eq(name, "self") == 0 { out.push(name); };
+        p = q + 1;
+    };
+    return out;
+}
+
 fn md_parse_digits_at(s: str, p0: i64) -> i64 {
     let slen: i64 = str_len(s);
     let mut p: i64 = p0;
@@ -11114,6 +11173,90 @@ fn md_guard_limit(body: str, param_name: str) -> i64 {
     return 0 - 1;
 }
 
+fn md_has_positive_increment(compact: str, param_name: str) -> i64 {
+    let slen: i64 = str_len(compact);
+    let right_pat: str = str_concat(param_name, "+");
+    let rlen: i64 = str_len(right_pat);
+    let mut p: i64 = 0;
+    while p + rlen <= slen {
+        if str_eq_at(compact, p, right_pat) == 1 {
+            let v: i64 = md_parse_digits_at(compact, p + rlen);
+            if v > 0 { return 1; };
+        };
+        p = p + 1;
+    };
+    let left_pat: str = str_concat("+", param_name);
+    let llen: i64 = str_len(left_pat);
+    p = 0;
+    while p + llen <= slen {
+        if str_eq_at(compact, p, left_pat) == 1 && p > 0 {
+            let mut ds: i64 = p - 1;
+            while ds >= 0 && is_digit(str_char_at(compact, ds)) == 1 { ds = ds - 1; };
+            let start: i64 = ds + 1;
+            if start < p {
+                let v2: i64 = str_to_int(str_substring(compact, start, p));
+                if v2 > 0 { return 1; };
+            };
+        };
+        p = p + 1;
+    };
+    return 0;
+}
+
+fn md_find_fn_pos(source: str, fn_name: str) -> i64 {
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    return source_find(source, needle);
+}
+
+fn md_helper_proves_guard(source: str, helper_name: str) -> i64 {
+    let fn_pos: i64 = md_find_fn_pos(source, helper_name);
+    if fn_pos < 0 { return 0; };
+    let info: Vec<i32> = dl_parse_fn_signature(source, fn_pos, str_len(source));
+    if vec_len(info) == 0 { return 0; };
+    let params_text: str = vec_get(info, 1);
+    let body_open: i64 = vec_get(info, 4);
+    let body_end: i64 = vec_get(info, 5);
+    let names: Vec<i32> = md_param_names(params_text);
+    if vec_len(names) == 0 { return 0; };
+    let first: str = vec_get(names, 0);
+    let body_raw: str = str_substring(source, body_open + 1, body_end - 1);
+    let compact: str = strip_spaces(strip_strings_and_line_comments(body_raw));
+    if md_guard_limit(compact, first) >= 0 { return 1; };
+    if vec_len(names) >= 2 {
+        let second: str = vec_get(names, 1);
+        let ge_pat: str = str_concat(first, str_concat(">=", second));
+        let gt_pat: str = str_concat(first, str_concat(">", second));
+        if str_contains(compact, ge_pat) == 1 || str_contains(compact, gt_pat) == 1 { return 1; };
+    };
+    return 0;
+}
+
+fn md_guard_limit_with_helpers(source: str, body_compact: str, param_name: str) -> i64 {
+    let direct: i64 = md_guard_limit(body_compact, param_name);
+    if direct >= 0 { return direct; };
+    let arg_pat: str = str_concat("(", str_concat(param_name, ","));
+    let alen: i64 = str_len(arg_pat);
+    let blen: i64 = str_len(body_compact);
+    let mut p: i64 = 0;
+    while p + alen <= blen {
+        if str_eq_at(body_compact, p, arg_pat) == 1 {
+            let v: i64 = md_parse_digits_at(body_compact, p + alen);
+            if v >= 0 {
+                let mut ns: i64 = p - 1;
+                while ns >= 0 && (is_alnum(str_char_at(body_compact, ns)) == 1 || str_char_at(body_compact, ns) == 95) { ns = ns - 1; };
+                let mut helper_name: str = str_substring(body_compact, ns + 1, p);
+                if str_starts_with(helper_name, "if") == 1 && str_len(helper_name) > 2 {
+                    let trimmed_helper: str = str_substring(helper_name, 2, str_len(helper_name));
+                    if md_helper_proves_guard(source, trimmed_helper) == 1 { helper_name = trimmed_helper; };
+                };
+                if str_len(helper_name) > 0 && md_helper_proves_guard(source, helper_name) == 1 { return v; };
+            };
+        };
+        p = p + 1;
+    };
+    return 0 - 1;
+}
+
 fn md_body_contains_call(body_raw: str, callee: str) -> i64 {
     if str_len(callee) == 0 { return 0; };
     let body: str = strip_strings_and_line_comments(body_raw);
@@ -11121,29 +11264,120 @@ fn md_body_contains_call(body_raw: str, callee: str) -> i64 {
     return str_contains(body, pat);
 }
 
-fn md_proven_limit(body_raw: str, params_text: str, callee: str) -> i64 {
-    let param: str = md_first_param_name(params_text);
-    if str_len(param) == 0 { return 0 - 1; };
+fn md_unproven_callback_param(body_raw: str, params_text: str) -> str {
     let body: str = strip_strings_and_line_comments(body_raw);
     let compact: str = strip_spaces(body);
-    let guard: i64 = md_guard_limit(compact, param);
-    let inc_a: str = str_concat(param, "+1");
-    let inc_b: str = str_concat("1+", param);
-    let call_pat: str = str_concat(callee, "(");
-    if guard >= 0
-       && str_contains(compact, call_pat) == 1
-       && (str_contains(compact, inc_a) == 1 || str_contains(compact, inc_b) == 1) {
-        return guard;
+    let plen: i64 = str_len(params_text);
+    let mut p: i64 = 0;
+    while p < plen {
+        while p < plen && (str_char_at(params_text, p) == 32 || str_char_at(params_text, p) == 9 || str_char_at(params_text, p) == 10 || str_char_at(params_text, p) == 13 || str_char_at(params_text, p) == 44) { p = p + 1; };
+        if p >= plen { break; };
+        let seg_start: i64 = p;
+        let mut q: i64 = p;
+        let mut depth: i64 = 0;
+        while q < plen {
+            let c: i64 = str_char_at(params_text, q);
+            if c == 40 || c == 60 || c == 91 || c == 123 { depth = depth + 1; }
+            else if c == 41 || c == 62 || c == 93 || c == 125 { if depth > 0 { depth = depth - 1; }; }
+            else if c == 44 && depth == 0 { break; };
+            q = q + 1;
+        };
+        let seg: str = str_substring(params_text, seg_start, q);
+        let seg_compact: str = strip_spaces(seg);
+        if str_contains(seg_compact, "fn(") == 1 {
+            let name: str = md_first_ident_in_param_segment(seg);
+            let call_pat: str = str_concat(name, "(");
+            if str_len(name) > 0 && str_contains(compact, call_pat) == 1 && str_contains(seg_compact, "#[no_recurse]") == 0 {
+                return name;
+            };
+        };
+        p = q + 1;
     };
-    let dec_a: str = str_concat(param, "-1");
-    let le_zero: str = str_concat(param, "<=0");
-    let lt_one: str = str_concat(param, "<1");
-    if str_contains(compact, call_pat) == 1
-       && str_contains(compact, dec_a) == 1
-       && (str_contains(compact, le_zero) == 1 || str_contains(compact, lt_one) == 1) {
-        return 1;
+    return "";
+}
+
+fn md_proven_limit(source: str, body_raw: str, params_text: str, callee: str) -> i64 {
+    let body: str = strip_strings_and_line_comments(body_raw);
+    let compact: str = strip_spaces(body);
+    let call_pat: str = str_concat(callee, "(");
+    if str_contains(compact, call_pat) == 0 { return 0 - 1; };
+    let params: Vec<i32> = md_param_names(params_text);
+    let mut i: i64 = 0;
+    while i < vec_len(params) {
+        let param: str = vec_get(params, i);
+        let guard: i64 = md_guard_limit_with_helpers(source, compact, param);
+        if guard >= 0 && md_has_positive_increment(compact, param) == 1 {
+            return guard;
+        };
+        let dec_a: str = str_concat(param, "-1");
+        let le_zero: str = str_concat(param, "<=0");
+        let lt_one: str = str_concat(param, "<1");
+        if str_contains(compact, dec_a) == 1
+           && (str_contains(compact, le_zero) == 1 || str_contains(compact, lt_one) == 1) {
+            return 1;
+        };
+        i = i + 1;
     };
     return 0 - 1;
+}
+
+fn md_entry_count(entries: Vec<i32>) -> i64 {
+    return vec_len(entries) / 5;
+}
+
+fn md_entry_name(entries: Vec<i32>, idx: i64) -> str {
+    return vec_get(entries, idx * 5 + 1);
+}
+
+fn md_entry_bound(entries: Vec<i32>, idx: i64) -> i64 {
+    return vec_get(entries, idx * 5 + 2);
+}
+
+fn md_entry_body(entries: Vec<i32>, idx: i64) -> str {
+    return vec_get(entries, idx * 5 + 3);
+}
+
+fn md_entry_params(entries: Vec<i32>, idx: i64) -> str {
+    return vec_get(entries, idx * 5 + 4);
+}
+
+fn md_edge_raw(entries: Vec<i32>, from_idx: i64, to_idx: i64) -> i64 {
+    return md_body_contains_call(md_entry_body(entries, from_idx), md_entry_name(entries, to_idx));
+}
+
+fn md_edge_proven(source: str, entries: Vec<i32>, from_idx: i64, to_idx: i64) -> i64 {
+    if md_entry_bound(entries, from_idx) != md_entry_bound(entries, to_idx) { return 0; };
+    let proven: i64 = md_proven_limit(source, md_entry_body(entries, from_idx), md_entry_params(entries, from_idx), md_entry_name(entries, to_idx));
+    if proven < 0 || proven > md_entry_bound(entries, from_idx) { return 0; };
+    return 1;
+}
+
+fn md_path_exists(entries: Vec<i32>, from_idx: i64, target_idx: i64, proven_only: i64, source: str) -> i64 {
+    let count: i64 = md_entry_count(entries);
+    let mut seen: Vec<i32> = Vec::new();
+    let mut queue: Vec<i32> = Vec::new();
+    let mut si: i64 = 0;
+    while si < count { seen.push(0); si = si + 1; };
+    queue.push(from_idx);
+    vec_set(seen, from_idx, 1);
+    let mut qi: i64 = 0;
+    while qi < vec_len(queue) {
+        let cur: i64 = vec_get(queue, qi);
+        let mut ni: i64 = 0;
+        while ni < count {
+            let has_edge: i64 = if proven_only == 1 { md_edge_proven(source, entries, cur, ni) } else { md_edge_raw(entries, cur, ni) };
+            if has_edge == 1 {
+                if ni == target_idx { return 1; };
+                if vec_get(seen, ni) == 0 {
+                    vec_set(seen, ni, 1);
+                    queue.push(ni);
+                };
+            };
+            ni = ni + 1;
+        };
+        qi = qi + 1;
+    };
+    return 0;
 }
 
 fn md_estimate_frame_bytes(body_raw: str) -> i64 {
@@ -11259,10 +11493,16 @@ fn enforce_max_depth_static(diags: Vec<i32>, source: str) -> Vec<i32> {
         let bound: i64 = vec_get(entries, i + 2);
         let body_raw: str = vec_get(entries, i + 3);
         let params_text: str = vec_get(entries, i + 4);
+        let callback_name: str = md_unproven_callback_param(body_raw, params_text);
+        if str_len(callback_name) > 0 {
+            let msg_cb: str = str_concat("analysis cannot bound callback or function-pointer path `", str_concat(callback_name, "`; mark the callback parameter #[no_recurse] only when it cannot recurse into this max_depth region"));
+            let mut lc_cb: Vec<i32> = find_linecol_in_source(source, public_name, callback_name);
+            diag_add_ex(diags, "error", "rt", "DEPTH-001", msg_cb, callback_name, vec_get(lc_cb, 0), vec_get(lc_cb, 1), "");
+        };
         if md_body_contains_call(body_raw, public_name) == 1 {
-            let proven: i64 = md_proven_limit(body_raw, params_text, public_name);
+            let proven: i64 = md_proven_limit(source, body_raw, params_text, public_name);
             if proven < 0 {
-                let msg1: str = str_concat("analysis cannot bound recursive path in `", str_concat(public_name, "`; use an explicit depth parameter, an entry guard, and recursive calls with depth + 1"));
+                let msg1: str = str_concat("analysis cannot bound recursive path in `", str_concat(public_name, "`; use a visible counter parameter, an entry guard, and recursive calls with a positive counter increment"));
                 let mut lc1: Vec<i32> = find_linecol_in_source(source, public_name, public_name);
                 diag_add_ex(diags, "error", "rt", "DEPTH-001", msg1, public_name, vec_get(lc1, 0), vec_get(lc1, 1), "");
             } else if proven > bound {
@@ -11292,8 +11532,8 @@ fn enforce_max_depth_static(diags: Vec<i32>, source: str) -> Vec<i32> {
             let b_body: str = vec_get(entries, j + 3);
             let b_params: str = vec_get(entries, j + 4);
             if md_body_contains_call(a_body, b_name) == 1 && md_body_contains_call(b_body, a_name) == 1 {
-                let a_proven: i64 = md_proven_limit(a_body, a_params, b_name);
-                let b_proven: i64 = md_proven_limit(b_body, b_params, a_name);
+                let a_proven: i64 = md_proven_limit(source, a_body, a_params, b_name);
+                let b_proven: i64 = md_proven_limit(source, b_body, b_params, a_name);
                 if a_bound != b_bound || a_proven < 0 || b_proven < 0 || a_proven > a_bound || b_proven > b_bound {
                     let msg3: str = str_concat("mutually recursive cycle `", str_concat(a_name, str_concat(" <-> ", str_concat(b_name, "` has incompatible or unproven #[max_depth] bounds"))));
                     let mut lc3: Vec<i32> = find_linecol_in_source(source, a_name, a_name);
@@ -11303,6 +11543,26 @@ fn enforce_max_depth_static(diags: Vec<i32>, source: str) -> Vec<i32> {
             j = j + 5;
         };
         i = i + 5;
+    };
+    let count: i64 = md_entry_count(entries);
+    let mut from_idx: i64 = 0;
+    while from_idx < count {
+        let mut to_idx: i64 = 0;
+        while to_idx < count {
+            if from_idx != to_idx && md_edge_raw(entries, from_idx, to_idx) == 1 {
+                if md_path_exists(entries, to_idx, from_idx, 0, source) == 1
+                   && (md_edge_proven(source, entries, from_idx, to_idx) == 0
+                       || md_path_exists(entries, to_idx, from_idx, 1, source) == 0) {
+                    let cyc_a: str = md_entry_name(entries, from_idx);
+                    let cyc_b: str = md_entry_name(entries, to_idx);
+                    let msg_scc: str = str_concat("recursive SCC containing `", str_concat(cyc_a, str_concat(" -> ", str_concat(cyc_b, "` has incompatible or unproven #[max_depth] bounds"))));
+                    let mut lc_scc: Vec<i32> = find_linecol_in_source(source, cyc_a, cyc_a);
+                    diag_add_ex(diags, "error", "rt", "DEPTH-003", msg_scc, cyc_a, vec_get(lc_scc, 0), vec_get(lc_scc, 1), "");
+                };
+            };
+            to_idx = to_idx + 1;
+        };
+        from_idx = from_idx + 1;
     };
     return diags;
 }
@@ -22880,6 +23140,17 @@ fn dl_parse_fn_signature(src: str, fn_pos: i64, slen: i64) -> Vec<i32> {
         while sp < plen && (str_char_at(params_text, sp) == 32 || str_char_at(params_text, sp) == 9 || str_char_at(params_text, sp) == 44 || str_char_at(params_text, sp) == 10) { sp = sp + 1; };
         if sp >= plen { sp = plen + 1; }
         else {
+            while sp + 1 < plen && str_char_at(params_text, sp) == 35 && str_char_at(params_text, sp + 1) == 91 {
+                sp = sp + 2;
+                let mut attr_depth: i64 = 1;
+                while sp < plen && attr_depth > 0 {
+                    let ac: i64 = str_char_at(params_text, sp);
+                    if ac == 91 { attr_depth = attr_depth + 1; }
+                    else if ac == 93 { attr_depth = attr_depth - 1; };
+                    sp = sp + 1;
+                };
+                while sp < plen && (str_char_at(params_text, sp) == 32 || str_char_at(params_text, sp) == 9 || str_char_at(params_text, sp) == 10) { sp = sp + 1; };
+            };
             let an_start: i64 = sp;
             while sp < plen && (is_alnum(str_char_at(params_text, sp)) == 1 || str_char_at(params_text, sp) == 95) { sp = sp + 1; };
             if sp == an_start { sp = sp + 1; }
