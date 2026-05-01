@@ -348,6 +348,47 @@ fn lex(src: str) -> Vec<i32> {
                     p = p + 1;
                 };
             };
+            // v0.5.24: digits-only e/E exponent (no fractional dot).
+            // Closes part of probe finding 2026-05-01-float-to-int-cast-out-of-range-silent-ub
+            // — probe's repro `let big: f64 = 1e20;` actually demonstrated
+            // a LEXER bug, not the saturating-cast UB it claimed (the
+            // saturating cast already works correctly per v0.3.208 et al.).
+            // Pre-fix `1e20` lexed as int 1 + ident `e20`; the let-binding
+            // type-coerced to f64 = 1.0. Now `<digits>e<digits>` lexes as a
+            // float literal directly (Rust accepts both `1e20` and `1.0e20`).
+            // The detection is gated on the CHARACTER AFTER digits being
+            // 'e'/'E' followed by an optional sign + at least one digit;
+            // identifier-shaped suffixes like `e_helper` still lex as
+            // ident.
+            let mut digits_only_exp: i64 = 0;
+            if handled_radix == 0 && p < slen && (str_char_at(src, p) == 101 || str_char_at(src, p) == 69) {
+                let mut probe_p: i64 = p + 1;
+                if probe_p < slen {
+                    let sign_ch_p: i64 = str_char_at(src, probe_p);
+                    if sign_ch_p == 43 || sign_ch_p == 45 { probe_p = probe_p + 1; };
+                };
+                if probe_p < slen && is_digit(str_char_at(src, probe_p)) == 1 {
+                    digits_only_exp = 1;
+                };
+            };
+            if digits_only_exp == 1 {
+                // Promote to f64 raw-bits path. Construct the literal text
+                // as `<digits>e<+/->? <digits>` and let str_to_f64 (strtod)
+                // parse it.
+                let lit_st: i64 = st;
+                let exp_st_p: i64 = p;
+                let mut exp_p: i64 = p + 1;
+                if exp_p < slen {
+                    let sign_ch_e: i64 = str_char_at(src, exp_p);
+                    if sign_ch_e == 43 || sign_ch_e == 45 { exp_p = exp_p + 1; };
+                };
+                while exp_p < slen && is_digit(str_char_at(src, exp_p)) == 1 { exp_p = exp_p + 1; };
+                let lit_text: str = str_substring(src, lit_st, exp_p);
+                let bits: i64 = str_to_f64(lit_text);
+                tokens.push(tok_new(124, bits, lit_st));
+                p = exp_p;
+                continue;
+            };
             // Check for f64 literal: digits DOT digits
             if p < slen && str_char_at(src, p) == 46 && p + 1 < slen && is_digit(str_char_at(src, p + 1)) == 1 {
                 // f64 literal — parse integer.fraction, encode as bitcast i64
