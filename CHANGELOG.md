@@ -5,6 +5,31 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.282] — 2026-05-01
+
+**📋 Sync ship — sequencing doc + heartbeat refresh
+(v0.4.279-281).** Doc-only.
+
+Updates `docs/milestones/v0.5_RESIDUAL_SEQUENCING_2026-04-30.md`
+with v0.4.279 (`str_char_at_strict`), v0.4.280 (ATOMIC-006
+closure halt), v0.4.281 (AtomicBool ordered ops). Notes 8th
+probe integration. Adds cumulative session-ship breakdown
+table.
+
+Refreshes `findings/_heartbeat.md`:
+- last_main_ship: v0.4.281
+- promoted_count: 27 (was 19; +8 this session)
+- One finding still active on probe inbox
+  (`dbc-undefined-ident-in-contract-expr`)
+- Notes the closure sym-table inheritance follow-up needed
+  for the v0.4.280 temporary halt
+- Notes `atomic_swap_bool` deferred until ordered i64-swap
+  runtime helpers ship
+
+Existing v0.4.281 fixed-point at SHA
+`d9d9c274e2e28ad4a35d54571abb29466cd4661ad1114447ae435dc91f989a87`
+remains valid.
+
 ## [0.4.281] — 2026-05-01
 
 **🔧 RFC-0007 AtomicBool ordered ops shipped.** Closes wrong-
