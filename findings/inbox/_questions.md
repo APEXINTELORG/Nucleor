@@ -73,7 +73,21 @@ resolve in one prep cycle.
 
 ---
 
-## 2026-04-30 (during v0.4.189 RFC-0005 units audit)
+## 2026-04-30 (during v0.4.189 RFC-0005 units audit) — CLOSED
+
+> **CLOSED in v0.4.260.** The original observation was a
+> bits-ABI footgun: `unit_convert(val: i64, ...) -> i64` takes
+> and returns the IEEE-754 bit pattern of an f64 (matches the
+> i64-everywhere FFI ABI), so `let mm: f64 = unit_convert(2.5, ...)`
+> never made sense — pre-v0.4.113 it silently stored the wrong
+> bits as a denormal. **Today** the same code triggers NUM-020
+> at type-check (binding `f64` cannot be initialized from an
+> `i64` expression), so the silent miscompute is no longer
+> silent. **v0.4.260** adds `unit_convert_f64(val: f64, ...) -> f64`
+> as an ergonomic wrapper that hides the bits-ABI plumbing
+> entirely. New fixture `tests/features/units_convert_f64.nr`
+> locks the canonical idiom across length/mass/time/frequency
+> conversions. Probe-agent observation withdrawn.
 
 `unit_convert(2.5, unit_m(), unit_mm())` returns a value that
 prints as `42` after `as i32` cast. Expected: 2500 (2.5 m =

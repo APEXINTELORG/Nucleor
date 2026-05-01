@@ -66,6 +66,23 @@ fn unit_A()   -> i64 { return 92; }
 fn unit_mA()  -> i64 { return 93; }
 
 // Convert val (f64 bits) from `from_id` to `to_id`.
+//
+// LOW-LEVEL: the val and return are i64 holding the IEEE-754
+// bit pattern of the underlying f64 — this matches the i64-
+// everywhere ABI of the runtime FFI. Most adopters should
+// prefer `unit_convert_f64` below, which wraps this in
+// f64_to_bits / f64_from_bits so the f64 value flows naturally.
 fn unit_convert(val: i64, from_id: i64, to_id: i64) -> i64 {
     return nuc_unit_convert(val, from_id, to_id);
+}
+
+// Convert val (an f64) from `from_id` to `to_id`. Ergonomic
+// wrapper around the bits-ABI `unit_convert` — adopters never
+// need to touch f64_to_bits / f64_from_bits.
+//
+// Example:
+//   let mm: f64 = unit_convert_f64(2.5, unit_m(), unit_mm());
+//   // mm == 2500.0
+fn unit_convert_f64(val: f64, from_id: i64, to_id: i64) -> f64 {
+    return f64_from_bits(nuc_unit_convert(f64_to_bits(val), from_id, to_id));
 }

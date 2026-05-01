@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.260] — 2026-05-01
+
+**🛠️ stdlib/rods/units — `unit_convert_f64` ergonomic wrapper.**
+Closes a bits-ABI footgun in `stdlib/rods/units.nr`:
+`unit_convert(val: i64, ...) -> i64` takes and returns the
+IEEE-754 bit pattern of the underlying f64 (matches the
+i64-everywhere FFI ABI), but adopters writing the natural
+`let mm: f64 = unit_convert(2.5, unit_m(), unit_mm())` got
+NUM-020 (binding-type mismatch) — and pre-v0.4.113 they got
+a silent denormal miscompute.
+
+### What lands
+
+**New ergonomic wrapper at `stdlib/rods/units.nr:81`:**
+```nucleor
+fn unit_convert_f64(val: f64, from_id: i64, to_id: i64) -> f64 {
+    return f64_from_bits(nuc_unit_convert(f64_to_bits(val), from_id, to_id));
+}
+```
+
+Adopters write:
+```nucleor
+let mm: f64 = unit_convert_f64(2.5, unit_m(), unit_mm());
+// mm == 2500.0
+```
+
+The bits-ABI `unit_convert` stays — the runtime FFI shape is
+unchanged. The wrapper is purely additive.
+
+**Doc comment on `unit_convert`** flags the bits-ABI as
+LOW-LEVEL and points adopters at the wrapper.
+
+**New fixture `tests/features/units_convert_f64.nr`** locks
+the canonical idiom across length (m→mm, m→km), mass (g→kg),
+time (s→min), and frequency (GHz→MHz) conversions.
+
+### Closed
+
+- `findings/inbox/_questions.md` 2026-04-30 unit_convert entry
+  marked CLOSED — the original silent miscompute is now (a)
+  caught by NUM-020 at type-check, and (b) made unnecessary
+  by the new wrapper.
+
+### Validation
+
+- Self-build clean. Two-stage fixed-point at SHA
+  `eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e`
+  (identical to v0.4.258/259 — compiler doesn't import
+  units.nr, the stdlib edit is orthogonal to compiler IR).
+- NUM-024 audit clean.
+- Drift gate clean — `rod_manifest.toml` regenerated to
+  include the new fn (2127 stdlib fns total, +1 from v0.4.259).
+- Fixture exit 0, prints "OK units_convert_f64", all five
+  conversion sanity checks pass.
+
 ## [0.4.259] — 2026-05-01
 
 **v0.5 sequencing doc — RFC-0006 closeout v0.4.256→258.**
