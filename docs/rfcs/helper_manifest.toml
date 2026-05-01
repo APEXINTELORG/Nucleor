@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 859
-# Of which REVIEW REQUIRED: 69
+# Total helpers: 861
+# Of which REVIEW REQUIRED: 71
 
 # ============================================================
 # REVIEW REQUIRED
@@ -51,6 +51,8 @@
 #   infer_var_type_cached                    (Unclassified)
 #   int_to_hex_upper                         (Unclassified)
 #   int_to_str_force_sign                    (Unclassified)
+#   max_depth_enter                          (Unclassified)
+#   max_depth_exit                           (Unclassified)
 #   option_and_then                          (Unclassified)
 #   option_expect                            (Unclassified)
 #   option_is_none                           (Unclassified)
@@ -10007,6 +10009,34 @@ class            = "Unclassified"
 symbol           = "__nucleor_int_to_str_force_sign"
 dispatch         = "RuntimeCall"
 abi              = "(i64) -> ptr"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "max_depth_enter"
+class            = "Unclassified"
+symbol           = "__nucleor_max_depth_enter"
+dispatch         = "RuntimeCall"
+abi              = "(i64, i64) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "max_depth_exit"
+class            = "Unclassified"
+symbol           = "__nucleor_max_depth_exit"
+dispatch         = "RuntimeCall"
+abi              = "(i64) -> i64"
 effects          = "TODO"  # TODO
 taint            = "TODO"  # verify before use
 units            = "passthrough"

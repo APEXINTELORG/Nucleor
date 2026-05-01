@@ -5,6 +5,186 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-05-01
+
+**🎯 v0.5.0 — Production Robotics + RFC-0006 DbC + RFC-0007 atomics +
+RFC-0014 max_depth + content-addressed cache.** First major-version
+cut since v0.4.0. Atomic integration of Track I (RFC-0014 max_depth
+static analysis) + Track L (perf baseline + content-addressed
+compilation cache) on top of the v0.4.232 → v0.4.287 ship arc.
+
+### Track I — RFC-0014 `#[max_depth = N]` static analysis
+
+Cherry-picked from `origin/v05-track-i-max-depth` `b1647b5`.
+
+- `#[max_depth = N]` and `#[max_depth(N)]` parse on fn declarations
+- Conservative static analysis pass over the max-depth source view
+- Direct-recursion proven-shape inference: first param is depth
+  counter; entry guard `depth >= N` or `depth > N-1`; recursive
+  call advances counter with `depth + 1`
+- 5 DEPTH-NNN diagnostics:
+  - DEPTH-001: Max-depth analysis cannot bound recursive path
+  - DEPTH-002: Bounded recursion exceeds `#[max_depth = N]`
+  - DEPTH-003: Mutually-recursive max_depth cycle violates bounds
+  - DEPTH-004: Invalid `#[max_depth]` attribute placement / value
+  - DEPTH-005: Total stack budget exceeded
+- Runtime support: `max_depth_enter(id, limit)` + `max_depth_exit(id)`,
+  TLS-backed counters, abort with `error[DEPTH-003]` on dynamic overrun
+- Preserves existing `#[deadline]` / RT-008 opt-out behavior
+- Spike artifact: `docs/milestones/spikes/track_i_max_depth_2026-04-30.md`
+- Fixtures: 5 negatives + 1 positive + 1 runtime overrun
+
+**Conservative surface (intentional false-negatives — see spine
+§1.8):** non-depth-counter recursion, fn-pointer recursion,
+non-monotonic depth args, helper-fn-hidden guards, mutual-
+recursion cycles with non-composing bounds.
+
+### Track L — Perf baseline lock + content-addressed compilation cache
+
+Cherry-picked from `origin/v05-track-l-perf-cache` `c31615e`.
+
+- Content-addressed cache v2 at `target/.nuc_cache_v2/<prefix>/<sha>.ll`
+- Cache key: SHA-256 of `(source content || compiler-version ||
+  canonical build flags || strict arithmetic mode || DbC mode)`
+- New CLI: `--cache-stats`, `clean --cache`
+- Cache correctness fixtures:
+  - `tests/features/cache_v2_round_trip.nr`
+  - `tests/features/cache_v2_invalidation.nr`
+- New perf script: `tools/measure_track_l_perf.ps1`
+- `tools/check_perf_regression.ps1` switched to scoped process-tree
+  memory measurement (was global compiler process cleanup)
+- `tools/perf_baseline.json` locked from Track L measurement set
+- Track L spike's environment-cache proof (against the rebuilt
+  local compiler):
+  ```
+  MISS1 OK   (first build stores)
+  HIT OK     (second build hits)
+  CLEAN OK   (clean --cache works)
+  INVAL MISS OK   (mtime-only touch invalidates? no — sees same content)
+  TOUCH HIT OK    (stable across mtime touch)
+  CONTENT MISS OK (content mutation invalidates correctly)
+  ```
+- Spike artifact: `docs/milestones/spikes/track_l_perf_cache_2026-04-30.md`
+- Track L's spike also caught explain-registry drift: added
+  CONTRACT-008/009/010/ATOMIC-006 explain entries that were
+  missing.
+
+### Integration mechanics (per `V0.5.0_CUT_RUNBOOK.md`)
+
+1. Cherry-pick `b1647b5` (Track I) onto current main — auto-
+   merge resolved cleanly for source files; only binary
+   conflicts (`bin/nucleor.exe`, `bootstrap/nucleor_s1_seed.ll`,
+   `helper_manifest.toml`) which were resolved to current-side
+   then regenerated.
+2. Cherry-pick `c31615e` (Track L) on top — same pattern; only
+   binary conflicts.
+3. **Three-stage seed convergence:** new runtime helpers
+   (`max_depth_enter`, `max_depth_exit`, cache key
+   computation) require round-1 (old bin's frozen IR-declare
+   set) → round-2 (new bin emits new declares) → round-3
+   confirms fixed-point. Stage-2 == stage-3 at SHA
+   `4372053900a713937651918dc392dd35a184f0a0ef430b6f24f9bfd920eaf84e`.
+4. Tools-suite mirror rebuilt; drift gate clean.
+5. Two main-agent fixes during integration:
+   - Added `// EXPECT:` header to `tests/err/err_contract_undefined_ident.nr`
+     (the gate Track L added enforcing EXPECT headers caught
+     this — the v0.4.283 fixture predated Track L's gate
+     addition).
+   - Added CONTRACT-011 entry to `is_known_diag_code` registry
+     in `tools/verify.sh` + `tools/verify.ps1` (Track L caught
+     explain-registry drift but the codes-list drift was on
+     CONTRACT-011 specifically — Track L's base predated v0.4.283
+     CONTRACT-011 ship).
+   - Added CONTRACT-011 explain-registry entries (title + cause +
+     hint) to `compiler/nucleor_tools_suite.nr`.
+
+### Validation
+
+- **Self-build:** clean. Three-stage fixed-point at NEW SHA
+  `4372053900a713937651918dc392dd35a184f0a0ef430b6f24f9bfd920eaf84e`
+  (compiler IR moved from v0.4.287's `7b094aab…`).
+- **Bootstrap seed refreshed.**
+- **Tools-suite build:** clean.
+- **NUM-024 audit:** clean (compiler=0 tools-suite=0).
+- **Drift gate:** clean across helper_manifest, rod_manifest,
+  RELEASES, CHANGELOG-vs-tags.
+- **Verify gate env-off:** 687 PASS / 0 FAIL / 1 SKIP.
+- **Verify gate env-on:** 687 PASS / 0 FAIL / 1 SKIP.
+- **Track I + L feature fixtures spot-check:** all DEPTH-001..005
+  fire on negatives; positive `rfc0014_max_depth_bounded.nr`
+  builds and runs; Track L cache fixtures build clean.
+
+### Cumulative v0.4.232 → v0.5.0 surface changes
+
+This release closes the v0.5 substantive arc. The full ship list
+across v0.4.232 → v0.5.0 (plus this cut):
+
+- **v0.5 punchlist 1-8** (residual closeout): RFC-0015 phase 3c.1
+  cross-width audit, 3span.1/2/3 substrate + diag migration,
+  3e.1 LLVM overflow intrinsic substrate, 3c.3 typed param
+  alloca, 3e.3 strict-mode default flip
+- **v0.5 punchlist 9** (RFC-0006 Design by Contract): CONTRACT-001
+  through CONTRACT-011, `#[no_check]` per-fn opt-out, Liskov
+  compile-time check, `old(EXPR)` snapshot, NUCLEOR_DBC_MODE
+  strip-out
+- **v0.5 punchlist 10** (Track G — RFC-0007 ordered atomics):
+  AtomicI64/U64/I32/U32/Bool, MemOrder enum, native LLVM atomic
+  lowering, ATOMIC-001 through ATOMIC-006
+- **v0.5 punchlist 11** (Track H — RFC-0007 lock-free queues):
+  SPSC (Lamport) + MPSC (Vyukov) lock-free queue rods
+- **v0.5 punchlist 12** (Track I — RFC-0014 max_depth, this ship):
+  static analysis + runtime depth guard
+- **v0.5 punchlist 13** (Track L — perf baseline + content-
+  addressed cache, this ship): cache v2 + perf baseline lock
+- **f64-arc**: 9 ergonomic-wrapper rods (units, kinematics,
+  linalg, csv_table, kdt, trajectory motion + advanced, rrt,
+  fk_chain, diff_sim) — 77 wrappers, 9 fixtures
+- **Memory safety**: `str_char_at_strict` opt-in bounds-check
+- **Other**: `MATCH-012` panic-stutter fix, `AtomicBool` ordered
+  ops, RFC-0033/0034 design drafts, `docs/UPGRADE_v0.5.0.md`
+  outline, ML expansion Lanes A/B/C/D/K + E/F/G/I/J substrate
+  enrichment in v0.5.0.md / v0.6.0.md milestone trackers
+
+### Adopter migration
+
+See `docs/UPGRADE_v0.5.0.md` (currently outline; populated as
+adopter audit completes). High-level migration touchpoints:
+
+1. **DbC adopters**: audit `#[require]` / `#[ensure]` predicates
+   against new compile-time checks CONTRACT-006..011. Most are
+   adopter-friendly — they catch typos that previously surfaced
+   as cryptic clang-link errors.
+2. **Atomics adopters**: `AtomicI64` / `U64` / `I32` / `U32` /
+   `Bool` + `MemOrder` enum are first-class types now.
+3. **Concurrency adopters**: `SpscQueue<T>` / `MpscQueue<T>`
+   lock-free queue rods.
+4. **Recursion-bounded adopters**: `#[max_depth = N]` static check.
+5. **Build-perf adopters**: content-addressed cache under
+   `target/.nuc_cache_v2/`. New CLI `--cache-stats` + `clean --cache`.
+6. **Strict-mode adopters**: arithmetic strict-mode is the default
+   since v0.4.238; opt-out via `NUCLEOR_INT_STRICT_INTRIN=0`.
+7. **Stdlib adopters**: 9 rods now have `*_f64` ergonomic surface
+   (purely additive; bits-ABI fns remain).
+
+### Diag-code summary at v0.5.0
+
+22 new diag codes shipped since v0.4.0:
+- CONTRACT-001..011 (RFC-0006 DbC family)
+- ATOMIC-001..006 (RFC-0007 atomics family)
+- DEPTH-001..005 (RFC-0014 max_depth family)
+
+Plus probe-finding closures: MATCH-012 (panic-stutter fix),
+str_char_at_strict (memory-safety opt-in), AtomicBool ordered
+ops (RFC-0007 surface gap), generic-T propagation finding
+(deferred to post-v0.5.0).
+
+### Co-authorship
+
+- Track G + Track H consultant Kuhn
+- Track I + Track L consultant (separate parallel-agent track)
+- Probe agent on `origin/probe/exploration` (9 findings closed)
+- Main agent integration
+
 ## [0.4.287] — 2026-05-01
 
 **📝 v0.6.0 milestone tracker — ML expansion Lanes E/F/G/I/J
