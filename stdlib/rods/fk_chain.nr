@@ -127,3 +127,65 @@ fn fk_chain_add_joint(
         off_x, off_y, off_z, off_qw, off_qx, off_qy, off_qz,
         axis_x, axis_y, axis_z);
 }
+
+// === Ergonomic f64 wrappers (v0.4.266) ===
+//
+// Same pattern as units/kinematics/linalg/csv_table/kdt/
+// trajectory/rrt — hide the i64-bits-ABI behind f64-typed
+// surface for the eleven fk_chain fns whose i64 carries an
+// f64 bit pattern (DH params, base offsets, joint axes, link
+// pos/quat readers, joint-axis getter). Adopters writing
+// kinematic-chain code skip the per-call `f64_to_bits` /
+// `f64_from_bits` plumbing. The bits-ABI fns above remain —
+// purely additive.
+
+// --- DH joint constructor (4 bits-in) ---
+fn fk_chain_add_dh_joint_f64(ch: i64,
+    alpha: f64, a: f64, d: f64, theta: f64) -> i64
+{
+    return nuc_fk_chain_add_dh_joint(ch,
+        f64_to_bits(alpha), f64_to_bits(a),
+        f64_to_bits(d), f64_to_bits(theta));
+}
+
+// --- Generic joint constructor (10 bits-in) ---
+fn fk_chain_add_joint_f64(
+    ch: i64, joint_type: i64,
+    off_x: f64, off_y: f64, off_z: f64,
+    off_qw: f64, off_qx: f64, off_qy: f64, off_qz: f64,
+    axis_x: f64, axis_y: f64, axis_z: f64) -> i64
+{
+    return nuc_fk_chain_add_joint(ch, joint_type,
+        f64_to_bits(off_x), f64_to_bits(off_y), f64_to_bits(off_z),
+        f64_to_bits(off_qw), f64_to_bits(off_qx),
+        f64_to_bits(off_qy), f64_to_bits(off_qz),
+        f64_to_bits(axis_x), f64_to_bits(axis_y), f64_to_bits(axis_z));
+}
+
+// --- Link pos / quat readers (7 bits-out) ---
+fn fk_chain_link_pos_x_f64(ch: i64, i: i64) -> f64 {
+    return f64_from_bits(nuc_fk_chain_link_pos_x(ch, i));
+}
+fn fk_chain_link_pos_y_f64(ch: i64, i: i64) -> f64 {
+    return f64_from_bits(nuc_fk_chain_link_pos_y(ch, i));
+}
+fn fk_chain_link_pos_z_f64(ch: i64, i: i64) -> f64 {
+    return f64_from_bits(nuc_fk_chain_link_pos_z(ch, i));
+}
+fn fk_chain_link_quat_w_f64(ch: i64, i: i64) -> f64 {
+    return f64_from_bits(nuc_fk_chain_link_quat_w(ch, i));
+}
+fn fk_chain_link_quat_x_f64(ch: i64, i: i64) -> f64 {
+    return f64_from_bits(nuc_fk_chain_link_quat_x(ch, i));
+}
+fn fk_chain_link_quat_y_f64(ch: i64, i: i64) -> f64 {
+    return f64_from_bits(nuc_fk_chain_link_quat_y(ch, i));
+}
+fn fk_chain_link_quat_z_f64(ch: i64, i: i64) -> f64 {
+    return f64_from_bits(nuc_fk_chain_link_quat_z(ch, i));
+}
+
+// --- Joint axis component reader (1 bits-out) ---
+fn fk_chain_joint_axis_f64(ch: i64, i: i64, dim: i64) -> f64 {
+    return f64_from_bits(nuc_fk_chain_joint_axis(ch, i, dim));
+}
