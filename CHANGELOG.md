@@ -5,6 +5,37 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.5] — 2026-05-01
+
+**📝 `findings/_heartbeat.md` refreshed for v0.4.282 → v0.5.4
+arc.** Doc-only ship. Closes the open question from
+`findings/inbox/_questions.md` Q1+Q2 (probe-agent asked main to
+update the heartbeat reflecting current ship state).
+
+What lands:
+- `last_main_ship` updated from v0.4.281 → v0.5.4
+- `main_commit` updated from e8f180e → 26159e4
+- Notes the v0.4.282 → v0.5.4 ship arc (6 ships: doc/sequencing,
+  v0.5.0 atomic Track I + L cut, UPGRADE doc population, drift
+  retroactive fix, milestone enrichment, atomic_swap_bool)
+- Records the `atomic_swap_bool` deferred → CLOSED transition
+  in v0.5.4
+- Records the new IR fixed-point SHA after v0.5.4 bootstrap
+  seed refresh (8b77f1f1...)
+- Lists the remaining deferred items (generic-T propagation,
+  closure sym-table inheritance, CONTRACT-007 cert-static-proof,
+  full CONTRACT-011 token-walk) so probe-agent can pick them up
+  on next rebase if useful
+- Notes Parallel-1/Parallel-2 lane state for context
+
+Probe-agent question Q3 (status: vs ## Promoted footer): main
+agent's position is "both shapes accepted; backfill all 27 in a
+future ship if probe prefers uniformity."
+
+Validation: doc-only; v0.5.4 fixed-point at SHA
+`8b77f1f1e9ef3ef7d3389387e5d4e023aea8dd2a410eea58705d2bcfc885b1ee`
+remains valid. Drift gate clean.
+
 ## [0.5.4] — 2026-05-01
 
 **🔧 RFC-0007 closure: `atomic_swap_bool` + typed `atomic_swap`

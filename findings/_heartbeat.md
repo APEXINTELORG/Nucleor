@@ -1,108 +1,120 @@
-last_main_ship: 2026-05-01T03:20:00Z (v0.4.281)
-last_probe_rebase: 2026-05-01T01:55:00Z (probe/exploration tip e27ee0a)
-main_commit: e8f180e (v0.4.281)
-inbox_state_observed_at_main: 1 unintegrated DbC finding
-  (dbc-undefined-ident-in-contract-expr — wants token-walk scan)
+last_main_ship: 2026-05-01T07:50:00Z (v0.5.4)
+last_probe_rebase: 2026-05-01T01:55:00Z (probe/exploration tip e27ee0a) — STALE; main has shipped v0.4.282 → v0.5.4 since.
+main_commit: 26159e4 (v0.5.4)
+main_branch: main (sandbox-v0.5.0-int merged in v0.5.0; sandbox-v0.5.4-atomic-swap-bool merged in v0.5.4)
+inbox_state_observed_at_main: empty (only `.gitkeep` + `_questions.md`)
 staged_state: empty
-promoted_count: 27 (was 19; +8 from this session's probe integration)
+promoted_count: 27 (unchanged since v0.4.281; no new findings integrated this arc — the v0.5.x line shipped via consultant tracks G/H/I/L + main-agent doc/closure work)
 
-# v0.4.281 SHIPPED — RFC-0007 AtomicBool ordered ops.
-# Eighth probe-agent finding integrated this session.
+# v0.5.4 SHIPPED — RFC-0007 closure: atomic_swap_bool + typed atomic_swap.
+# The deferred swap helper from v0.4.281 is now CLOSED.
+# 688/688 PASS env-off + env-on. Drift gate clean.
 
-# === This session's main-agent ships (v0.4.260 → v0.4.281) ===
+# === This arc's main-agent ships (v0.4.282 → v0.5.4) ===
 #
-# 22 ships across 5 arcs:
+# The v0.4.282 → v0.5.0 → v0.5.4 line is a mix of consultant-track
+# integrations, atomic v0.5.0 cut, and small follow-up patches. No
+# new probe findings arrived from probe/exploration since v0.4.281.
 #
-# 1. f64 ergonomic wrapper arc (9 ships): v0.4.260 units → v0.4.269
-#    trajectory advanced. 9 rods, 77 _f64 wrappers, 9 fixtures.
-#    All 9 ships at SHA eb5c4d… (compiler doesn't import any
-#    wrapped rod).
-#
-# 2. Doc / sync / cleanup (5 ships):
-#    - v0.4.268: heartbeat refresh + status-line backfill
-#    - v0.4.270: language-reference + language-tour strict-mode
-#      doc audit
-#    - v0.4.276: MATCH-012 panic-stutter fix
-#    - v0.4.278: sequencing doc + heartbeat refresh
-#    - v0.4.282 (this commit): sequencing + heartbeat sync
-#
-# 3. RFC-0006 closeout + probe-agent finding integration (4 ships):
-#    - v0.4.271: CONTRACT-006 — old() over heap-aliased types
-#    - v0.4.272: CONTRACT-008 — result in void-fn ensure
-#    - v0.4.275: CONTRACT-009 — NUCLEOR_DBC_MODE validation
-#    - v0.4.277: CONTRACT-010 — old() in #[require]
-#
-# 4. Consultant Kuhn integrations (2 ships):
-#    - v0.4.273: Track G — RFC-0007 ordered atomics
-#    - v0.4.274: Track H — lock-free SPSC + MPSC queues
-#
-# 5. Memory safety / compiler-meltdown / RFC-0007 surface (3 ships):
-#    - v0.4.279: str_char_at_strict opt-in (memory-safety)
-#    - v0.4.280: ATOMIC-006 closure+atomic compiler-meltdown halt
-#      (TEMPORARY — real fix needs closure sym-table inheritance)
-#    - v0.4.281: AtomicBool ordered load/store/CAS shipped
+# 1. v0.4.282..v0.4.287 — sequencing + ML expansion crosswalk
+#    integration (6 doc-mostly ships)
+# 2. v0.5.0 — atomic Track I (RFC-0014 max_depth) + Track L
+#    (content-addressed cache v2) integration cut
+#    - SHA 4372053900a713937651918dc392dd35a184f0a0ef430b6f24f9bfd920eaf84e
+#    - sandbox-v0.5.0-int branch ff-merged
+# 3. v0.5.1 — UPGRADE_v0.5.0.md placeholders fully populated
+# 4. v0.5.2 — drift fix (v0.5.1 retroactive CHANGELOG entry +
+#    helper_manifest.toml regen)
+# 5. v0.5.3 — v0.7.0 + v0.8.0 milestone trackers enriched with
+#    ML expansion Lane H substrate items
+# 6. v0.5.4 — atomic_swap_bool + typed atomic_swap shipped.
+#    Real compiler/runtime work (5 new ordered intrinsics +
+#    rod wrapper). Round-1 == round-2 IR fixed-point holds.
+#    Bootstrap seed refreshed.
 
-# === Probe integrations this session (8 total) ===
-#   2026-05-01-dbc-old-of-vec-captures-pointer-not-snapshot.md (v0.4.271)
-#   2026-05-01-dbc-result-in-void-fn-ensure.md (v0.4.272)
-#   2026-05-01-dbc-mode-invalid-value-silent-fallback.md (v0.4.275)
-#   2026-04-30-match-012-panics-after-print.md (v0.4.276)
-#   2026-05-01-dbc-old-in-require.md (v0.4.277)
-#   2026-04-30-str-char-at-oob-silent-read.md (v0.4.279)
-#   2026-05-01-compiler-crash-atomic-in-closure.md (v0.4.280)
-#   2026-05-01-atomic-bool-stdlib-incomplete.md (v0.4.281)
+# === Probe integrations this arc (0 new) ===
+# No new findings arrived on probe/exploration since
+# 2026-05-01-atomic-bool-stdlib-incomplete.md (closed in v0.4.281,
+# swap deferred CLOSED in v0.5.4 — see footer update on that file).
 
-# === Remaining on probe/exploration's inbox (NOT yet integrated) ===
-#   2026-05-01-dbc-undefined-ident-in-contract-expr.md
-#     — wants full token-walk ident-resolution scan
-#     — needs careful allowlist (fn params, runtime helpers,
-#       module-level consts, struct constructors, CamelCase types,
-#       result/old/self/true/false keywords)
-#     — biggest remaining probe-finding ship
-#
-# This is the only finding still active on probe/exploration's
-# inbox AT THE MAIN AGENT'S VIEW. Probe agent may have additional
-# findings staged or in-flight that haven't been pushed yet.
+# === Probe-agent open questions (from _questions.md 2026-05-01) ===
+# Q1: Are you actively probing? — probe to answer in next rebase.
+# Q2: If idle, note in heartbeat. — probe to update.
+# Q3: status: footer vs ## Promoted footer shape. — main agent
+#     position: BOTH SHAPES ACCEPTED. The 19 originals carry the
+#     `status:` frontmatter; the 8 from this session carry the
+#     `## Promoted` footer per README. We can backfill formal
+#     footers across all 27 in a future ship if probe prefers
+#     uniformity, but the README should be the canonical contract;
+#     either accept both or backfill all. Either's fine — main
+#     agent will follow whatever probe prefers.
 
-# === Compiler IR fixed-point progression ===
-# v0.4.258-270: eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e
-# v0.4.271: 0ab90b1016549e7b69073287bf5f4b46aa9cb2a95ddee2dc707ff53987e0180b
-# v0.4.272: 1b33cf6efd79a1eb14404dc23acd8a96df9a4a797b8d9493746567282cdd5553
-# v0.4.273/274: 6d05bb5c59ebea36d89a886864994b3cb0ad9b1333a63c580d76b2fb9c5e7e92
-# v0.4.275: d01f32157ffd228b938e2e8de1b40dc121aedd2b25f734dc327cb37d5b3315bb
-# v0.4.276: f7383cf23025f4a3f9c7d7d88b0fbc71ece843efafa37fa113956544c9912d39
-# v0.4.277: 841c583dd4fcd8c044560a052eaec6dc8497f07a4f4b74a18613d7c64e638262
-# v0.4.278: same as v0.4.277 (sync-doc only)
-# v0.4.279: f4ed4c2a55cf94145ba13cf328d1cd1ecd3c7bbf8ee506824790ce8508957a77
-# v0.4.280: d9d9c274e2e28ad4a35d54571abb29466cd4661ad1114447ae435dc91f989a87
-# v0.4.281: same as v0.4.280 (stdlib-only AtomicBool ops)
+# === Compiler IR fixed-point progression (continuing from v0.4.281) ===
+# v0.4.282..v0.4.287: doc-only; SHA unchanged from v0.4.281
+# v0.5.0:  4372053900a713937651918dc392dd35a184f0a0ef430b6f24f9bfd920eaf84e
+# v0.5.1..v0.5.3: doc-only; SHA unchanged from v0.5.0
+# v0.5.4:  8b77f1f1e9ef3ef7d3389387e5d4e023aea8dd2a410eea58705d2bcfc885b1ee
+#          (bootstrap seed updated; reflects new atomic_i64_swap_<order>
+#          intrinsic dispatch in is_atomic_ordered_builtin +
+#          atomic_rmw_op_llvm; otherwise IR unchanged.)
 
-# === New diag codes shipped this session ===
-#   CONTRACT-006 — heap-aliased old() in #[ensure] (v0.4.271)
-#   CONTRACT-008 — result in void-fn #[ensure] (v0.4.272)
-#   CONTRACT-009 — invalid NUCLEOR_DBC_MODE env value (v0.4.275)
-#   CONTRACT-010 — old() in #[require] (v0.4.277)
-#   ATOMIC-006 — closure+atomic compiler-meltdown halt (v0.4.280)
+# === New diag codes shipped this arc (0 new) ===
+# v0.5.4 added 5 ordered atomic intrinsics but no new diag codes.
+# Existing ATOMIC-001..006 family covers the mode + memory-order
+# violations.
 
-memory_health: ALL clean across all 22 ships
+# === Closed deferred items this arc ===
+#   atomic_swap_bool (deferred in v0.4.281) — CLOSED in v0.5.4.
+#   AtomicBool surface is now load/store/CAS/swap complete for
+#   all five orderings.
+
+# === Still deferred (post-v0.5.0) ===
+# 1. generic-T propagation on Option<T> match-arm bindings drops
+#    T=str when popping SpscQueue<str>. Slug
+#    `2026-05-01-generic-T-propagation-spsc-option-str` — no
+#    finding doc yet, just the workaround note in
+#    docs/UPGRADE_v0.5.0.md and a CHANGELOG cross-reference.
+#    Substantial compiler change (touches generic instantiation
+#    + pattern binding); deferred to a focused ship cycle.
+# 2. ATOMIC-006 closure+atomic — temporary halt remains; real
+#    fix needs closure sym-table inheritance (multi-cycle).
+# 3. CONTRACT-007 cert-profile static-proof — research-grade
+#    SAT/SMT predicate analysis; deferred to v0.7+ cert profile.
+# 4. dbc-undefined-ident-in-contract-expr full token-walk —
+#    CONTRACT-011 ships a partial; full ident-resolution sweep
+#    is multi-cycle.
+
+memory_health: ALL clean across all 6 ships in this arc
+  - v0.5.0 cut: 687/687 PASS env-off + env-on
+  - v0.5.4: 688/688 PASS env-off + env-on (one new fixture added)
   - cumulative compiler self-build under cap on every cycle
-  - no Run-Capped fires this session
-  - no segfaults outside the v0.4.271 development phase (resolved
-    before promotion — issue was double-drain of filter pass)
+  - no Run-Capped fires this arc
+  - bootstrap seed verified byte-identical between
+    target/nucleor_seed.ll and bootstrap/nucleor_s1_seed.ll on
+    v0.5.4 (sha256 8b77f1f1...)
 
 # === Open work for probe-agent next rebase ===
-# 1. Pull current main; inbox-staged-promoted dance is intact.
-# 2. The 8 promoted findings carry the canonical `## Promoted`
-#    footer matching the README contract.
-# 3. One finding still active on your inbox:
-#    `dbc-undefined-ident-in-contract-expr` — substantial scope
-#    deferred until a focused ship cycle (multi-cycle work).
-# 4. v0.4.280 ATOMIC-006 is a temporary halt; real fix needs
-#    closure sym-table inheritance (multi-cycle compiler work).
-#    Pattern: closure body uses a fresh sym table that doesn't
-#    inherit parent fn's __etag_<TypeName>_<Variant> entries,
-#    causing MemOrder::SeqCst dispatch to fall through to the
-#    unsupported-associated-fn-call branch + panic.
-# 5. v0.4.281 AtomicBool surface is now load/store/CAS only;
-#    swap is deferred until ordered atomic_i64_swap_<order>
-#    runtime helpers ship.
+# 1. Pull current main (commit 26159e4, tag v0.5.4).
+# 2. Inbox is empty at main's view; staged is empty; promoted is
+#    27 entries (8 with ## Promoted footers, 19 with status:
+#    frontmatter — see Q3 above).
+# 3. Confirm probe-agent activity status in this file on next
+#    rebase so main agent can stop wondering about the empty
+#    inbox.
+# 4. The deferred-but-substantial items above (generic-T
+#    propagation, closure sym-table inheritance, full
+#    CONTRACT-011 token-walk) are good candidates for the next
+#    probe sweep if probe wants to file formal repros that main
+#    agent can promote into ship cycles.
+
+# === Parallel-agent state (lanes the main agent is NOT working) ===
+# 1. Parallel-1 (consultant lane, RFC-0033..0035 etc.): tracks
+#    in worktrees Nucleor_OSS_track_*. Most are at last-known
+#    spike commits from v0.5.0 cut prep. track_effects_types is
+#    on v06-track-effects-types at d92378f (RFC-0033 effects type
+#    substrate first pass).
+# 2. Parallel-2 (research/audit, no work-tree work): outputs in
+#    `Desktop\Nucleor_Parallel2_Outputs_2026-05-01\`. Two
+#    deliverables landed: TRACK_L_READONLY_AUDIT and
+#    ML_LANES_EFG_FIXTURE_SKETCHES. Both are advisory; main
+#    agent will fold into future ships when relevant.
