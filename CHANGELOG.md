@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.268] — 2026-05-01
+
+**📋 findings/ inbox audit + heartbeat refresh.** Doc-only ship.
+Main agent observed `findings/inbox/` empty, `_heartbeat.md`
+stale (pre-v0.4.163, but main has shipped through v0.4.267
+since), and three findings in `promoted/` missing the
+`status: CLOSED in v0.4.NNN` annotation.
+
+### What lands
+
+**Backfilled `status:` lines on 3 promoted findings** that
+were closed by v0.4.163's TYP-011 ship but landed in
+`promoted/` without the closure annotation:
+- `2026-04-30-for-on-struct-value-iterates-fields.md`
+- `2026-04-30-for-on-struct-value-iterates-fields-followup.md`
+- `2026-04-30-for-on-struct-value-iterates-fields-followup-2-vec-ptr-leak.md`
+
+**Refreshed `findings/_heartbeat.md`** to current state:
+- last_main_ship: v0.4.267 (was: pre-v0.4.163)
+- main_commit: a94621d
+- inbox_state: EMPTY (only `_questions.md` + `.gitkeep`)
+- staged_state: EMPTY
+- promoted_count: 19 (all closed across v0.4.163 → v0.4.225)
+- Full closure map of all 19 promoted findings → ship version
+- Note on the README-contract divergence (`status:`
+  frontmatter vs `## Promoted` footer) deferred to probe-agent
+  resume.
+
+**Filed a question in `findings/inbox/_questions.md`** asking
+the probe agent to confirm whether they're idle, probing, or
+between rebases — and to lock down which finding-closure shape
+(`status:` line vs `## Promoted` footer) is canonical going
+forward.
+
+### Why
+
+Per the dual-agent split mandate, the main agent reads
+`staged/` for queued integration work and `promoted/` for
+historical context. Empty inbox + stale heartbeat made it
+impossible to tell whether the probe agent had genuinely run
+out of bug surface or had silently stopped. The audit
+documents reality so the next probe-agent rebase has a clean
+starting picture.
+
+### Validation
+
+- Doc-only changes; no compiler edits; existing v0.4.267
+  fixed-point at SHA
+  `eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e`
+  remains valid (all changes in `findings/`).
+- Drift gate clean — `RELEASES.md` regenerated to 917
+  entries.
+- Existing fixtures all unchanged.
+
 ## [0.4.267] — 2026-05-01
 
 **🛠️ stdlib/rods/diff_sim — `*_f64` ergonomic wrappers

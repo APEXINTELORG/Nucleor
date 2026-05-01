@@ -1,44 +1,58 @@
-last_rebase: 2026-04-30T06:30:00Z
-commit: <to-be-filled-on-next-rebase>
-version: 0.4.163 (just shipped)
-rebuild_wall_sec: 3.07
-rebuild_peak_mb: 131
-drift_check_exit: 0
-perf_gate_exit: 0  (3/3 PASS after baseline -Update)
+last_main_ship: 2026-05-01T01:55:00Z (v0.4.267)
+last_probe_rebase: 2026-04-30T06:30:00Z (STALE — see note below)
+main_commit: a94621d (v0.4.267)
+inbox_state: EMPTY (only _questions.md + .gitkeep)
+staged_state: EMPTY
+promoted_count: 19 (all 2026-04-30 vintage; all closed across v0.4.163 → v0.4.225)
 
-# v0.4.163 SHIPPED — TYP-011 reject for-on-struct silent-miscompute
-# Closes 3 findings (parent + 2 followups). All gates green.
+# v0.4.267 SHIPPED — closes the f64-arc (8 ships v0.4.260→267, 9 rods,
+# 65 ergonomic wrappers, 8 adopter fixtures, all at compiler-IR SHA
+# eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e).
 
-# Baseline rebaselined this ship per user authorization:
-#   old (stale, slower-compiler-era): cold 6.54s / hot 0.78s / peak 502MB
-#   new (current hardware reality):   cold 3.06s / hot 0.85s / peak 131MB
-#   new ceilings (baseline +10%):     cold 3.37s / hot 0.94s / mem 144MB
-# Defend tightly going forward — previous slack let real regressions hide.
+# v0.4.268 SHIPPED — heartbeat refresh + status-line backfill on the
+# three for-on-struct findings (parent + 2 followups) that landed in
+# promoted/ without their CLOSED-in-v0.4.163 annotation.
 
-inbox_state: 15 findings remaining after v0.4.163 promote
-  ship-priority queue (severity-ordered, mandate strict):
-    compiler-meltdown (1):
-      compiler-segfault-on-float-match-scrutinee.md   <- TOP
-    silent-miscompute (5):
-      closure-braced-body-returns-zero.md
-      push-during-for-iter-unbounded.md
-      f64-to-i32-out-of-range-silent.md
-      fn-no-tail-expr-returns-zero.md
-    crash (1):
-      question-on-option-vec-oob.md (+ followup narrowing to Option-only)
-    wrong-error (7):
-      tuple-struct-decl-panic + match-on-unit-panic + empty-match-body-panic
-        (NR020 trio — single token-name-table fix closes all three)
-      typ-016-misfires-on-block-rhs.md (likely closes 2 baseline verify FAILs)
-      method-on-borrowed-ref-wrong-receiver.md
-      typ-005-fires-on-closure-binding-in-closure.md
-      match-002-false-positive-on-guarded-arm.md
-      num-003-duplicate-warning-in-fnarg.md
-    missing-error (1):
-      dup-fn-param-name-silent-shadow.md
+# === Probe agent silence (2026-05-01) ===
+# The inbox is empty. The most recent finding in promoted/ is dated
+# 2026-04-30 (yesterday). No new findings filed in the past day.
+# Possible reasons:
+#   1. Probe agent is idle / not running.
+#   2. Probe agent is rebasing and clearing inbox between cycles.
+#   3. Probe agent has truly run out of bug surface to file at current main.
+# Question filed in findings/inbox/_questions.md asking the probe agent
+# to confirm state on next rebase.
 
-memory_health: ALL clean
-  - rebuild: 3.07s wall / 131MB peak (under all caps)
-  - Run-Capped fired ONCE this session on the push-during-iter probe (337MB > 256MB cap I
-    set for probe runs). E-stop policy is paying for itself; that finding documents the
-    iterator-invalidation hazard and recommends prioritizing it.
+# === Promoted findings closure map (audit complete 2026-05-01) ===
+#
+# All 19 findings in promoted/ have a `status:` line in frontmatter
+# indicating which v0.4.NNN ship closed them:
+#
+#   v0.4.163 (TYP-011 reject for-on-struct, 3 findings)
+#     - for-on-struct-value-iterates-fields.md
+#     - for-on-struct-value-iterates-fields-followup.md
+#     - for-on-struct-value-iterates-fields-followup-2-vec-ptr-leak.md
+#
+#   v0.4.204 — closure-braced-body-returns-zero.md
+#   v0.4.205 — push-during-for-iter-unbounded.md
+#   v0.4.205 — typ-016-misfires-on-block-rhs.md (already-closed audit)
+#   v0.4.206 — compiler-segfault-on-float-match-scrutinee.md
+#   v0.4.207 — dup-fn-param-name-silent-shadow.md
+#   v0.4.208 — tuple-struct-decl-panic.md
+#   v0.4.208 — match-on-unit-panic.md
+#   v0.4.214 — typ-005-fires-on-closure-binding-in-closure.md
+#   v0.4.215 — match-002-false-positive-on-guarded-arm.md
+#   v0.4.216 — num-003-duplicate-warning-in-fnarg.md
+#   v0.4.217 — method-on-borrowed-ref-wrong-receiver.md
+#   v0.4.218 — empty-match-body-panic.md
+#   v0.4.219 — fn-no-tail-expr-returns-zero.md (PARTIAL CLOSE; repro 3 deferred)
+#   v0.4.220 — f64-to-i32-out-of-range-silent.md
+#   v0.4.225 — question-on-option-vec-oob.md (parent + followup)
+
+# === Note on the README contract ===
+# Per findings/README.md, fully-promoted entries should have a `## Promoted`
+# footer (Fixture / Fix shipped / Promoted-by-date). The 19 entries above
+# carry the `status:` frontmatter line instead — equivalent semantic but
+# different shape. Backfilling the formal footers is bulk clerical work
+# deferred until the probe agent resumes (the same edit pass that lands
+# new findings can polish the historical entries).

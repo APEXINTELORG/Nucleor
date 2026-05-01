@@ -6,6 +6,7 @@ diagnostic_actual: none (compile clean)
 diagnostic_expected: TYP-011 — "value of type `Mixed` is not iterable"
 discovered_against: v0.4.162
 commit: a99fc717079b8f7774c8ddf7aa03a4cc5e132eae
+status: CLOSED in v0.4.163 — same TYP-011 ship as the parent finding closes this heterogeneous-struct shape. Status backfilled v0.4.268.
 ---
 
 This is a followup to `2026-04-30-for-on-struct-value-iterates-fields.md`. The
