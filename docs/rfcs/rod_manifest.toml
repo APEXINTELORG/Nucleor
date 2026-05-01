@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 227
-# Total fn definitions: 2140
-# Total LOC: 9449
+# Total fn definitions: 2148
+# Total LOC: 9473
 
 [[rod]]
 name           = "activation2"
@@ -996,9 +996,9 @@ imports        = ["lcp"]
 name           = "linalg"
 path           = "stdlib/rods/linalg.nr"
 description    = "Dense Linear Algebra"
-function_count = 35
+function_count = 43
 cfile_count    = 2
-loc            = 72
+loc            = 96
 imports        = ["linalg"]
 
 [[rod]]

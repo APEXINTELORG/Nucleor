@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.262] — 2026-05-01
+
+**🛠️ stdlib/rods/linalg — `*_f64` ergonomic wrappers.**
+Third rod in the v0.4.260 (units) → v0.4.261 (kinematics)
+arc. Adopters writing dense linear-algebra code get f64-typed
+get/set/scale/norm/trace/det/rank/ridge_solve. Bits-ABI fns
+remain — purely additive ship.
+
+### What lands
+
+8 new wrappers at `stdlib/rods/linalg.nr:111+`:
+- `linalg_get_f64(h, r, c) -> f64` (was: returns f64-bits as i64)
+- `linalg_set_f64(h, r, c, v: f64)` (was: v is f64-bits as i64)
+- `linalg_scale_f64(a, s: f64) -> i64` (handle-out, scalar in)
+- `linalg_norm_f64(h, kind) -> f64`
+- `linalg_trace_f64(h) -> f64`
+- `linalg_det_f64(h) -> f64`
+- `linalg_rank_f64(h, tol: f64) -> i64`
+- `linalg_ridge_solve_f64(X, y, lambda: f64) -> i64`
+
+Handle-typed ops (add, sub, mul, transpose, inv, solve, lu/qr/
+cholesky/eig/svd decompositions) already take/return only
+handles and need no wrappers — they were ergonomic from day 1.
+
+### Fixture
+
+`tests/features/linalg_f64.nr`:
+- `linalg_eye(2)` × `scale_f64(3.0)` → diagonal=3, trace=6, det=9, rank=2
+- `linalg_new(2, 2)` + 4× `set_f64` to build [[1,2],[3,4]] → det=-2
+- All 11 sanity checks pass.
+
+### Validation
+
+- Self-build clean, two-stage fixed-point at SHA
+  `eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e`
+  (= v0.4.258-261; compiler doesn't import linalg.nr).
+- Drift gate clean — `rod_manifest.toml` regenerated to 2148
+  stdlib fns total (+8 from v0.4.261's 2140).
+- Fixture exit 0, "OK linalg_f64".
+
+### Pattern progress
+
+3 of 9 bits-ABI rods now have `*_f64` ergonomic wrappers:
+units (v0.4.260), kinematics (v0.4.261), linalg (v0.4.262).
+Remaining: trajectory, kdt, csv_table, rrt, pqueue, fk_chain,
+diff_sim. Each ships incrementally as adopter pull surfaces.
+
 ## [0.4.261] — 2026-05-01
 
 **🛠️ stdlib/rods/kinematics — `*_f64` ergonomic wrappers.**
