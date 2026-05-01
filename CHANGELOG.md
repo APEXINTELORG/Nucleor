@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.266] — 2026-05-01
+
+**🛠️ stdlib/rods/fk_chain — `*_f64` ergonomic wrappers.**
+Eighth rod in the v0.4.260→265 arc. Adopters writing forward-
+kinematics code now get f64-typed DH joint constructors, base-
+offset / joint-axis params, and link-pose readers. Pointer
+args (vars_ptr, workspace bufs) stay as i64.
+
+### What lands
+
+11 new wrappers at `stdlib/rods/fk_chain.nr:131+`:
+- `fk_chain_add_dh_joint_f64(ch, alpha, a, d, theta) -> i64` (DH params)
+- `fk_chain_add_joint_f64(ch, joint_type, off_xyz, off_quat, axis_xyz)` (10 f64 params)
+- 7 link readers: `link_pos_x_f64`, `link_pos_y_f64`,
+  `link_pos_z_f64`, `link_quat_w_f64`, `link_quat_x_f64`,
+  `link_quat_y_f64`, `link_quat_z_f64`
+- 1 axis reader: `joint_axis_f64(ch, i, dim) -> f64`
+
+Bits-ABI fns above remain — purely additive ship.
+
+### Fixture
+
+`tests/features/fk_chain_f64.nr`: 2-link planar arm built via
+the f64 wrappers — DH joint at origin (a=1.0) + generic
+revolute joint about z offset (1, 0, 0). Asserts joint count
+== 2, joint axis dim 2 (z) == 1.0, joint axis dim 0 (x) ==
+0.0. All checks pass.
+
+### Validation
+
+- Self-build clean, two-stage fixed-point at SHA
+  `eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e`
+  (= v0.4.258-265; 7th ship in a row at this SHA — compiler
+  doesn't import fk_chain.nr).
+- Drift gate clean — `rod_manifest.toml` regenerated to 2186
+  stdlib fns (+10 from v0.4.265's 2176).
+- Fixture exit 0, "OK fk_chain_f64".
+
+### Pattern progress
+
+8 of 9 bits-ABI rods now wrapped (units, kinematics, linalg,
+csv_table, kdt, trajectory motion profiles, rrt, fk_chain).
+Only `diff_sim` remains. Plus deferred-by-design `pqueue` and
+the `trajectory` advanced primitives (DMP, TOPP, Catmull-Rom,
+Bezier).
+
 ## [0.4.265] — 2026-05-01
 
 **🛠️ stdlib/rods/rrt — `*_f64` ergonomic wrappers.** Seventh
