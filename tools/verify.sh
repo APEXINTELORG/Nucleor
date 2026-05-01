@@ -1026,19 +1026,34 @@ self_host_rebuild() {
 # and clang overlap. On POSIX hosts without the PowerShell sampler, it
 # falls back to the older NUC_TRACE_ALLOC cumulative-allocation check.
 #
-# Budget: 400 MB total tracked. v0.2.160 baseline is ~185 MB; the
-# headroom (2.2x) absorbs minor growth as the s1 source itself grows
-# without flagging legitimate scaling. Tighten if necessary as the
-# architectural Ship 3 (TypeId interner) lands.
+# Budget history:
+# - v0.2.161: 400 MB cap, 185 MB baseline (2.2x headroom).
+# - Track L (v0.5.0): bumped to 1024 MB. Per-call e-stop, but the
+#   ceiling was used as a comfort blanket — drift accumulated to 587 MB
+#   on main, 818 MB on v06-track-effects-types.
+# - v0.5.14 (2026-05-01): ratchet back down. Current main self-host
+#   peak is 587 MB env-off / 704 MB env-on. Tools-suite is 490 MB
+#   env-off / 470 MB env-on. Set tight ceilings (640 / 540) so any
+#   new ship that adds memory gets caught immediately. Bumping the
+#   ceiling MUST come with a documented investigation in the same
+#   ship; raising it as a comfort blanket is what got us here.
+#   See `docs/milestones/MEMORY_DRIFT_2026-05-01.md`.
 self_host_memory_budget() {
-    # Track L: enforce the handoff's 1GB process-tree compile cap. The
-    # sampler includes the compiler, native isolated child, and clang.
-    _memory_budget_for "compiler/nucleor_s1_compiler.nr" 1024 "self-host" "verify_budget"
+    # v0.5.14: tight 770 MB cap. Observed peaks across 3 samples:
+    # 587 / 670 / 703 MB env-off, 704 MB env-on. Sample variance
+    # is ~100 MB driven by clang's working-set timing dependence
+    # on OS scheduler state; budget at peak + 67 MB to absorb it.
+    # User directive: stay below 800 MB. To raise this number,
+    # ship a memory investigation in the same PR.
+    _memory_budget_for "compiler/nucleor_s1_compiler.nr" 770 "self-host" "verify_budget"
 }
 
 tools_suite_memory_budget() {
-    # Track L: same 1GB process-tree cap for the tools-suite compiler.
-    _memory_budget_for "compiler/nucleor_tools_suite.nr" 1024 "tools-suite" "verify_tools_budget"
+    # v0.5.14: tight 580 MB cap. Initial 540 MB cap from a single
+    # measurement was too tight — second sample landed at 529 MB
+    # (only 11 MB headroom). 580 MB is current measured peak (529)
+    # + 50 MB headroom. Same raise-rule as self-host.
+    _memory_budget_for "compiler/nucleor_tools_suite.nr" 580 "tools-suite" "verify_tools_budget"
 }
 
 t33_wcet_estimator() {
@@ -4372,8 +4387,8 @@ if [ "$parallel_rc" = "2" ]; then
 fi
 
 step "self-host rebuild closes" self_host_rebuild
-step "self-host memory budget (<= 1024 MB)" self_host_memory_budget
-step "tools-suite memory budget (<= 1024 MB)" tools_suite_memory_budget
+step "self-host memory budget (<= 770 MB; tight cap, see docs/milestones/MEMORY_DRIFT_2026-05-01.md)" self_host_memory_budget
+step "tools-suite memory budget (<= 580 MB; tight cap, see docs/milestones/MEMORY_DRIFT_2026-05-01.md)" tools_suite_memory_budget
 step "T1.5a mod block-form inline" t15a_mod_block_form
 step "T1.5b pub introspection (summary surfaces visibility)" t15b_pub_introspection
 step "T1.5c privatization (cross-module call surfaces succeed)" t15c_privatization
