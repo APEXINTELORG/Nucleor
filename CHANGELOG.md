@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.23] — 2026-05-01
+
+**🔧 Hex literal u64::MAX no longer wrongly-NUM-002.** Closes
+probe-agent finding `2026-05-01-hex-literal-u64-max-misreports-as-negative`.
+
+### What lands
+
+Pre-fix `let h: u64 = 0xFFFFFFFFFFFFFFFF;` rejected with
+`error[NUM-002]: numeric literal -1 out of range for declared
+type u64`. The hex literal parsed as i64 -1 (sign-bit wrap of
+the all-ones 64-bit pattern); the NUM-002 check then rejected
+"-1 < 0" against u64's range. But `0xFFFFFFFFFFFFFFFF` IS the
+valid u64::MAX bit pattern.
+
+`compiler/nucleor_s1_compiler.nr` line ~15333: dropped the
+`s == 2 && w == 64 && lit_v < 0` reject branch. The other
+NUM-002 cases (s == 1 narrow signed, s == 2 narrow unsigned)
+are unchanged.
+
+### Why it's safe
+
+Decimal-negative-to-u64 (`let h: u64 = -100;`) doesn't reach
+this check — the `-` parses as kind-5 unary-neg on kind-1
+literal `100`, so the let init is kind-5 not kind-1. The
+NUM-002 kind-1 gate at line 15319 doesn't fire. Removing
+line 15333 only relaxes the hex/oct/bin bit-pattern case.
+
+NUM-021 still catches decimal overflow > u64::MAX at lex time
+(line 482-498).
+
+### Validation
+
+```nucleor
+let h: u64 = 0xFFFFFFFFFFFFFFFF;     // u64::MAX (was rejected)
+print_int(h as i32);                 // prints -1 (truncation)
+```
+
+Builds + runs. Round-1 == round-2 IR fixed-point at sha256
+`863a7b6b6c4206541cd1dcb3488afd4fbd75d32e0e69e0120885df4c0c706aca`.
+
+### Promotes
+
+`findings/promoted/2026-05-01-hex-literal-u64-max-misreports-as-negative.md`
+with full ## Promoted footer.
+
 ## [0.5.22] — 2026-05-01
 
 **🔧 `eprintln!` + `eprint!` macros recognized.** Closes
