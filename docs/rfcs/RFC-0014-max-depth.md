@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0014 |
 | **Title** | `#[max_depth = N]` — bounded recursion attribute |
-| **Status** | Implemented for v0.5 Track I. Both `#[max_depth = N]` and `#[max_depth(N)]` syntaxes parse on fn declarations; the compiler performs conservative structural depth analysis, preserves the RT-008 `#[deadline]` opt-out behavior, emits DEPTH-001..005 diagnostics, and rewrites accepted fns through a runtime depth counter that aborts with `error[DEPTH-003]` when the declared bound is exceeded. |
+| **Status** | Implemented for v0.5 Track I, extended in the v0.6 max-depth analyzer pass. Both `#[max_depth = N]` and `#[max_depth(N)]` syntaxes parse on fn declarations; the compiler performs conservative structural depth analysis, preserves the RT-008 `#[deadline]` opt-out behavior, emits DEPTH-001..005 diagnostics, and rewrites accepted fns through a runtime depth counter that aborts with `error[DEPTH-003]` when the declared bound is exceeded. |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.5.0 ("Production Robotics") |
@@ -108,6 +108,21 @@ The compiler can verify that any recursive call passes
 the entry guard short-circuits at `N`. This is decidable in many
 practical cases.
 
+The v0.6 extension pass recognizes these additional conservative
+forms:
+
+- the counter may be any integer-like parameter, not just the first
+  parameter or a parameter named `depth`
+- recursive calls may pass `counter + k` for any positive integer
+  literal `k`
+- countdown counters using `counter - 1` with `counter <= 0` /
+  `counter < 1` guards are accepted
+- simple helper predicates such as `done(counter, 16)` are inlined
+  when the helper body proves `counter >= limit`
+- function-pointer callback parameters must be marked
+  `#[no_recurse]` at the parameter site before calls through them
+  are accepted inside a `#[max_depth]` region
+
 ### 3.4 Mutual recursion
 
 ```nucleor
@@ -119,7 +134,8 @@ fn b(d: u32) { if d > 0 { a(d - 1); } }
 ```
 
 Compiler analyzes the strongly-connected components in the call
-graph. All functions in an SCC must have compatible bounds.
+graph. All functions in an SCC must have compatible bounds and each
+cycle edge must visibly advance a proven counter.
 
 ### 3.5 Stack frame budget
 
