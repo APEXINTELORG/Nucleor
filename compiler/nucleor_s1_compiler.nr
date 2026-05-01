@@ -537,8 +537,8 @@ fn lex(src: str) -> Vec<i32> {
                     let nc: i64 = str_char_at(src, p + 1);
                     if nc == 110 { sb_append(sb, "\n"); } else if nc == 116 { sb_append(sb, "\t"); }
                     else if nc == 34 { sb_append(sb, "\""); } else if nc == 92 { sb_append(sb, "\\"); }
-                    else if nc == 114 { sb_append(sb, str_substring(src, p + 1, p + 2)); } // \r — emit as 'r' for now (placeholder; v0.5 will route through carriage-return byte)
-                    else if nc == 48  { sb_append(sb, str_substring(src, p + 1, p + 2)); } // \0 — emit as '0' (placeholder)
+                    else if nc == 114 { sb_append_char(sb, 13); }                          // v0.5.20: \r → CR byte (ASCII 13)
+                    else if nc == 48  { sb_append_char(sb, 0); }                           // v0.5.20: \0 → NUL byte (ASCII 0). Closes probe finding 2026-05-01-str-escape-null-byte-silently-literal.
                     else if nc == 39  { sb_append(sb, "'"); }                              // \' — single quote
                     else {
                         // v0.4.121: unknown escape sequence. Pre-fix the
