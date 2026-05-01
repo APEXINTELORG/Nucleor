@@ -8276,6 +8276,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "ATOMIC-003") == 1 { return 1; };
     if str_eq(code, "ATOMIC-004") == 1 { return 1; };
     if str_eq(code, "ATOMIC-005") == 1 { return 1; };
+    if str_eq(code, "ATOMIC-006") == 1 { return 1; };
     // RFC-0008 ISR
     if str_eq(code, "ISR-001") == 1 { return 1; };
     if str_eq(code, "ISR-002") == 1 { return 1; };
@@ -10148,6 +10149,45 @@ fn atomic_scan_call_invalid_order(diags: Vec<i32>, code_text: str, callee_pat: s
         };
     };
     return emitted;
+}
+
+// v0.4.280 — closure-body atomic call detection (ATOMIC-006).
+// Probe-agent finding 2026-05-01: closures whose body calls
+// `atomic_*` helpers crash the compiler with `vec_get OOB`
+// because the closure-lowering path doesn't inherit the
+// parent fn's enum-variant etag entries — `MemOrder::SeqCst`
+// dispatches to the unsupported-associated-fn-call branch
+// which panics with bad state. Real fix is sym-table inheritance
+// in closure lowering — multi-cycle. This temporary halt catches
+// the dangerous pattern at parse-time and emits a clean diag
+// instead of letting the meltdown surface. Adopters get a
+// useful "closures + atomics not yet supported" message.
+fn enforce_no_atomic_in_closure(source: str) -> i64 {
+    let code: str = strip_strings_and_line_comments(source);
+    let n: i64 = str_len(code);
+    // Conservative scan: find `||` (zero-arg closure literal),
+    // then look ahead up to 200 chars for an `atomic_` substring
+    // before hitting `}` or `;` (closure body terminator).
+    let mut p: i64 = 0;
+    while p + 1 < n {
+        let two: str = str_substring(code, p, p + 2);
+        if str_eq(two, "||") == 1 {
+            // Found zero-arg closure literal. Look ahead.
+            let look_end: i64 = if p + 200 < n { p + 200 } else { n };
+            let mut q: i64 = p + 2;
+            while q + 7 <= look_end {
+                let win: str = str_substring(code, q, q + 7);
+                if str_eq(win, "atomic_") == 1 {
+                    return 1;
+                };
+                let ch1: str = str_substring(code, q, q + 1);
+                if str_eq(ch1, ";") == 1 { q = look_end; };
+                q = q + 1;
+            };
+        };
+        p = p + 1;
+    };
+    return 0;
 }
 
 fn enforce_atomic_ordering(diags: Vec<i32>, source: str) -> Vec<i32> {
@@ -21306,6 +21346,13 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // no Cell-or-RefCell interior mutability, plus compile-time checks
     // for invalid literal memory-order combinations.
     diags = enforce_atomic_contracts(diags, source);
+    // v0.4.280 — closures whose body calls atomic_* helpers crash
+    // the compiler with `vec_get OOB` (probe-finding 2026-05-01).
+    // Catch at parse time + halt with ATOMIC-006 instead of melting.
+    if enforce_no_atomic_in_closure(source) == 1 {
+        print("error[ATOMIC-006]: atomic helpers (atomic_load / atomic_store / atomic_fetch_* / atomic_compare_exchange) inside closure bodies are not currently supported. The closure-lowering path does not yet inherit the parent fn's enum-variant scope, so `MemOrder::SeqCst` (and similar) dispatch fails — pre-v0.4.280 this produced a misleading `vec_get OOB` compiler PANIC. Workaround: call the atomic helper directly from a regular fn body instead of wrapping it in a closure. This is a temporary limitation; full closure+atomic support lands when the closure sym-table inheritance ship goes in.");
+        return 1;
+    };
     // T3.8 (v0.3.7): RT-006 — RT attribute on async fn. Reads the
     // column-0 markers expand_async_strip_keyword emits, which is
     // the only way to detect this after the async keyword itself

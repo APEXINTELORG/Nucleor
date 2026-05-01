@@ -196,6 +196,7 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 | ATOMIC-003 | Use of Cell/RefCell in #[atomic] | [RFC-0007](../rfcs/RFC-0007-atomic.md) |
 | ATOMIC-004 | Mismatched orderings in compare_exchange | [RFC-0007 §3.2](../rfcs/RFC-0007-atomic.md) |
 | ATOMIC-005 | Invalid memory ordering for atomic load/store | [RFC-0007 §3.2](../rfcs/RFC-0007-atomic.md) |
+| ATOMIC-006 | Atomic helper called inside closure body (closure-lowering enum-scope gap) | [RFC-0007 §3.4](../rfcs/RFC-0007-atomic.md) |
 
 ## ISR series — RFC-0008 interrupt service routines
 
