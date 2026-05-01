@@ -5,6 +5,77 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.10] — 2026-05-01
+
+**🔧 Numeric edge-case closure: `iN::MIN / -1` now panics
+cleanly at narrow widths.** Closes probe-agent finding
+`2026-05-01-i32-min-div-neg-one-windows-exception`. Real
+runtime + compiler work.
+
+### What lands
+
+**Runtime** (`stdlib/runtime/nucleor_llvm_rt.c`):
+- 6 new helpers: `__nucleor_panic_div_i32`,
+  `__nucleor_panic_rem_i32`, `__nucleor_panic_div_i16`,
+  `__nucleor_panic_rem_i16`, `__nucleor_panic_div_i8`,
+  `__nucleor_panic_rem_i8`. Each takes i64 args (sign-extended
+  per the call-site ABI), truncates to native iN, checks
+  zero-divisor + iN_MIN/-1 overflow, panics with a clean
+  Nucleor message, returns i64 (caller truncates back to iN).
+
+**Compiler** (`compiler/nucleor_s1_compiler.nr` +
+`compiler/nucleor_tools_suite.nr` mirror):
+- 6 new IR `declare` lines in the runtime header.
+- 6 new name-resolver mappings for `panic_{div,rem}_i{32,16,8}`.
+- New early-exit branch in `lower_expr_narrow`'s arith-op
+  block: when `iop == 5 || iop == 6` (div/rem) AND `tw > 0`
+  (signed narrow), call the width-specific panic helper rather
+  than the saturating helper or raw `sdiv iN`. Unsigned narrow
+  paths (tw < 0) keep raw `udiv` since there's no MIN/-1 trap
+  for unsigned widths.
+
+### Why it matters
+
+Pre-fix, `let a: i32 = i32::MIN; let b: i32 = -1; a / b` lowered
+to raw `sdiv i32`. On Windows the x86 IDIV instruction trapped
+with STATUS_INTEGER_OVERFLOW (rc=-1073741675), surfacing as an
+opaque process exit with no Nucleor-side message. On POSIX the
+same path hit SIGFPE → exit 136. Adopters writing canonical
+i32 arithmetic that touched the INT_MIN/-1 corner saw a
+platform-level error code with no hint where to look.
+
+The i64 path already had this protection (v0.4.95 ship). This
+brings i32/i16/i8 to parity.
+
+### Validation
+
+- New positive fixture
+  `tests/features/narrow_div_panic_overflow.nr` —
+  exercises i32/i16/i8 div+rem on benign values; exit 0,
+  correct truncating-int results (no false panic).
+- New runtime-panic fixture
+  `tests/fixtures/v0510_i32_min_div_neg_one.nr` — `i32::MIN / -1`
+  exits non-zero with the expected stderr message.
+- New verify gate step
+  `v0510_i32_min_div_overflow` asserts:
+  1. exe runs
+  2. `rc != 0` (specifically NOT rc=-1073741675 Windows
+     exception code)
+  3. stderr contains "PANIC: i32 div overflow: i32::MIN / -1"
+- 692/692 PASS env-off + env-on (was 690; one new positive
+  fixture + one new dedicated step).
+- Bootstrap seed refreshed at sha256
+  `3f79d0e0c7b74f27ebcb52a88b706f78787a418cb9fede73977b6d2efd0dc3c4`
+  (was `fa4ab1ebc4...`). Round-2 == round-3 fixed-point holds;
+  round-1 vs round-2 diverged by exactly the 6 new IR `declare`
+  lines, as expected for any new-runtime-helper ship.
+- Drift gate clean (helper_manifest regenerated).
+
+### Promotes
+
+`findings/promoted/2026-05-01-i32-min-div-neg-one-windows-exception.md`
+with full ## Promoted footer.
+
 ## [0.5.9] — 2026-05-01
 
 **🔧 RFC-0014 closure (continued): `#[max_depth = N]` on assoc-fn

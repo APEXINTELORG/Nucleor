@@ -3775,6 +3775,85 @@ long long __nucleor_panic_neg_i64(long long v) {
     return -v;
 }
 
+// v0.5.10: narrow-width div/rem panic helpers. Track E (v0.4.234-235)
+// added overflow checks for i8/i16/i32 add/sub/mul, but division was
+// missed — narrow signed div fell through to raw `sdiv iN` which on
+// Windows surfaces `iN::MIN / -1` as STATUS_INTEGER_OVERFLOW
+// (rc=-1073741675), an opaque process exit. Probe-agent finding
+// 2026-05-01-i32-min-div-neg-one-windows-exception. These helpers
+// take i64 args (sign-extended from iN per Nucleor's call-site ABI),
+// truncate to native iN, do the zero + iN_MIN/-1 check, divide,
+// return as i64 (caller truncates back to iN).
+long long __nucleor_panic_div_i32(long long a64, long long b64) {
+    int a = (int)a64;
+    int b = (int)b64;
+    if (b == 0) {
+        fprintf(stderr, "PANIC: i32 division by zero: %d / 0\n", a);
+        fflush(stderr); exit(1);
+    }
+    if (a == INT_MIN && b == -1) {
+        fprintf(stderr, "PANIC: i32 div overflow: i32::MIN / -1\n");
+        fflush(stderr); exit(1);
+    }
+    return (long long)(a / b);
+}
+long long __nucleor_panic_rem_i32(long long a64, long long b64) {
+    int a = (int)a64;
+    int b = (int)b64;
+    if (b == 0) {
+        fprintf(stderr, "PANIC: i32 mod by zero: %d %% 0\n", a);
+        fflush(stderr); exit(1);
+    }
+    if (a == INT_MIN && b == -1) return 0;
+    return (long long)(a % b);
+}
+long long __nucleor_panic_div_i16(long long a64, long long b64) {
+    short a = (short)a64;
+    short b = (short)b64;
+    if (b == 0) {
+        fprintf(stderr, "PANIC: i16 division by zero: %d / 0\n", (int)a);
+        fflush(stderr); exit(1);
+    }
+    if (a == SHRT_MIN && b == -1) {
+        fprintf(stderr, "PANIC: i16 div overflow: i16::MIN / -1\n");
+        fflush(stderr); exit(1);
+    }
+    return (long long)(short)(a / b);
+}
+long long __nucleor_panic_rem_i16(long long a64, long long b64) {
+    short a = (short)a64;
+    short b = (short)b64;
+    if (b == 0) {
+        fprintf(stderr, "PANIC: i16 mod by zero: %d %% 0\n", (int)a);
+        fflush(stderr); exit(1);
+    }
+    if (a == SHRT_MIN && b == -1) return 0;
+    return (long long)(short)(a % b);
+}
+long long __nucleor_panic_div_i8(long long a64, long long b64) {
+    signed char a = (signed char)a64;
+    signed char b = (signed char)b64;
+    if (b == 0) {
+        fprintf(stderr, "PANIC: i8 division by zero: %d / 0\n", (int)a);
+        fflush(stderr); exit(1);
+    }
+    if (a == SCHAR_MIN && b == -1) {
+        fprintf(stderr, "PANIC: i8 div overflow: i8::MIN / -1\n");
+        fflush(stderr); exit(1);
+    }
+    return (long long)(signed char)(a / b);
+}
+long long __nucleor_panic_rem_i8(long long a64, long long b64) {
+    signed char a = (signed char)a64;
+    signed char b = (signed char)b64;
+    if (b == 0) {
+        fprintf(stderr, "PANIC: i8 mod by zero: %d %% 0\n", (int)a);
+        fflush(stderr); exit(1);
+    }
+    if (a == SCHAR_MIN && b == -1) return 0;
+    return (long long)(signed char)(a % b);
+}
+
 // v0.3.214: shift-overflow panics. Pre-fix `<<` and `>>` for shift
 // amount >= 64 or < 0 produced LLVM poison (observable but not
 // silent miscompute). Strict-arith default now panics with
