@@ -56,6 +56,30 @@ env-on (`NUCLEOR_INT_STRICT_INTRIN=1`) adds **~117 MB on main** (587 → 704 MB)
 
 3. **Investigate the env-on +117 MB delta**. Likely candidates: per-binop overflow trap labels, IR-symbol expansion under strict-intrin. Cap target post-investigation: <= 50 MB env-on overhead.
 
+## Per-ship attribution (v0.5.21, 2026-05-01)
+
+Extended `tools/memory_drift_profile.sh` to run against pre/post boundaries of each major arc. Probe-agent finding `2026-05-01-memory-drift-per-ship-attribution` validated. Ranked by single-ship delta:
+
+| Tag | s1 size MB | Peak MB | Δ vs prev | Arc |
+|---|---|---|---|---|
+| v0.4.243 | 1.34 | 712 | — | pre-RFC-0006 baseline |
+| v0.4.260 | 1.41 | 763 | **+51** | RFC-0006 DbC arc |
+| v0.4.272 | 1.42 | 769 | +6 | post-DbC, pre-RFC-0007 |
+| v0.4.282 | 1.45 | 792 | +23 | RFC-0007 atomics arc |
+| v0.4.286 | 1.45 | 861 | **+69** | Track I (RFC-0014) cherry-pick |
+| v0.5.0 | 1.47 | 918 | **+57** | Track L cache v2 cut |
+| v0.5.7+ | 1.48-1.49 | 827-897 | varies | doc/probe-finding closures |
+
+Top three contributors to the v0.4 → v0.5 drift (in order):
+
+1. **Track I (RFC-0014 max_depth) cherry-pick: +69 MB** — biggest single jump. The wrapper-rewrite pass at `compiler/nucleor_s1_compiler.nr:22480-22600` emits 2 fns per `#[max_depth]` annotation + helper invocations.
+2. **Track L cache v2: +57 MB** — content-addressed cache in-memory state.
+3. **RFC-0006 DbC arc: +51 MB** — contract-evaluation + snapshot machinery (CONTRACT-001..011).
+
+Combined Tracks I + L = +126 MB out of ~205 MB total drift. Tightening these two is the highest-leverage path back toward the v0.2.161 era.
+
+Variance note: back-to-back peak readings show ~50-90 MB swings (Windows working-set timing varies with OS scheduler / page-cache state). Use ≥3-sample averages for sub-30-MB delta judgments.
+
 ## Profile data (v0.5.16, 2026-05-01)
 
 `tools/memory_drift_profile.sh` runs the **current `bin/nucleor.exe` against historical s1 sources** (each tag's `compiler/nucleor_s1_compiler.nr`). Same compiler, varying input size — isolates source-size effect from compiler-internal-state effect.

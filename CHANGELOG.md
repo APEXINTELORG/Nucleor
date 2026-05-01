@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.21] — 2026-05-01
+
+**🔬 Memory drift per-ship attribution.** Closes probe-agent
+finding `2026-05-01-memory-drift-per-ship-attribution`.
+
+### What lands
+
+- `tools/memory_drift_profile.sh` default anchor set extended
+  with pre/post-arc boundaries: v0.4.243 (pre-RFC-0006),
+  v0.4.272 (post-DbC), v0.4.286 (Track I cherry-pick),
+  v0.5.20 (str-escape fix). Existing anchors preserved.
+- Re-ran the profile with new anchors; CSV refreshed at
+  `tools/memory_drift_profile.csv`.
+- `docs/milestones/MEMORY_DRIFT_2026-05-01.md` updated with
+  per-ship attribution table.
+
+### Findings (probe's hypothesis validated)
+
+Top three contributors to the v0.4 → v0.5 memory drift:
+
+1. **Track I (RFC-0014 max_depth) cherry-pick: +69 MB** —
+   biggest single jump. Was the unknown contributor; now
+   pinned. Wrapper-rewrite pass emits 2 fns per
+   `#[max_depth]` site + helper invocations.
+2. **Track L cache v2: +57 MB** — content-addressed cache
+   in-memory state.
+3. **RFC-0006 DbC arc: +51 MB** — contract-evaluation +
+   snapshot machinery.
+
+Combined Tracks I + L = +126 MB out of ~205 MB total drift.
+Tightening these two is the highest-leverage path back toward
+the v0.2.161 era's 185 MB baseline.
+
+### Variance note
+
+Back-to-back peak readings show ~50-90 MB swings (Windows
+working-set timing varies with OS scheduler / page-cache).
+Use ≥3-sample averages for sub-30-MB delta judgments. Single
+readings are still useful for ≥40-50 MB hypothesis testing.
+
+### Promotes
+
+`findings/promoted/2026-05-01-memory-drift-per-ship-attribution.md`
+with full ## Promoted footer including the per-ship table.
+
 ## [0.5.20] — 2026-05-01
 
 **🔧 String-literal escape: `\0` and `\r` now emit actual byte

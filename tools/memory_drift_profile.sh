@@ -17,7 +17,17 @@ cd "$ROOT"
 if [ $# -gt 0 ]; then
     TAGS="$@"
 else
-    TAGS="v0.4.260 v0.4.282 v0.5.0 v0.5.7 v0.5.13 v0.5.14 v0.5.15"
+    # v0.5.21 (probe-finding 2026-05-01-memory-drift-per-ship-attribution):
+    # extended default anchor set to capture pre/post boundaries of each
+    # major arc per probe's hypothesis table:
+    # - v0.4.243: pre-RFC-0006 DbC arc baseline
+    # - v0.4.260: post-DbC mid-arc (existing)
+    # - v0.4.272: post-DbC, pre-RFC-0007 atomics
+    # - v0.4.282: pre-v0.5.0 cut (existing)
+    # - v0.4.286: post-Track-I cherry-pick (just before v0.5.0)
+    # - v0.5.0:   atomic Track I + Track L cut (existing)
+    # - v0.5.7+:  major main-agent ships
+    TAGS="v0.4.243 v0.4.260 v0.4.272 v0.4.282 v0.4.286 v0.5.0 v0.5.7 v0.5.13 v0.5.14 v0.5.15 v0.5.20"
 fi
 
 OUT="$ROOT/tools/memory_drift_profile.csv"
