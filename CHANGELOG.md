@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.265] — 2026-05-01
+
+**🛠️ stdlib/rods/rrt — `*_f64` ergonomic wrappers.** Seventh
+rod in the v0.4.260→264 arc. Adopters writing motion-planning
+code now get f64-typed bound setters, planner step/radius
+parameters, and path-coordinate readback. Pointer args
+(goal_ptr, region_*_ptr, fn-ptr collision check) stay as i64 —
+they're memory addresses, not f64 values.
+
+### What lands
+
+8 new wrappers at `stdlib/rods/rrt.nr:113+`:
+- `rrt_set_bounds_f64(h, dim, lo: f64, hi: f64)`
+- `rrt_plan_f64(h, goal_ptr, max_iters, step: f64, fp) -> i64`
+- `rrt_connect_plan_f64(h, goal_ptr, max_iters, step: f64, fp) -> i64`
+- `rrt_star_plan_f64(h, goal_ptr, max_iters, step: f64, radius: f64, fp) -> i64`
+- `rrt_star_plan_informed_f64(h, start_ptr, goal_ptr, max_iters, step: f64, radius: f64, fp) -> i64`
+- `rrt_plan_region_f64(h, region_lo_ptr, region_hi_ptr, max_iters, step: f64, fp) -> i64`
+- `rrt_shortcut_path_f64(h, iters, step: f64, fp) -> i64`
+- `rrt_path_at_f64(h, path_idx, dim) -> f64`
+
+Bits-ABI fns above remain — purely additive ship.
+
+### Fixture
+
+`tests/features/rrt_f64.nr` is a build-only smoke (full RRT
+planning needs a callback fn pointer + double[] vars not
+easily set up in a single fixture, matching the existing
+`tests/rods/rrt_smoke.nr` shape). Exercises:
+- `rrt_new(2, 42)` then `rrt_set_bounds_f64` for both joints
+  with `[-1.0, 1.0]` and `[-3.14, 3.14]` ranges.
+- `rrt_node_count == 0` on empty tree.
+
+Confirms the f64-typed bound setter compiles + links + runs
+through the wrapper call site without panic.
+
+### Validation
+
+- Self-build clean, two-stage fixed-point at SHA
+  `eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e`
+  (= v0.4.258-264; 6th ship in a row at this SHA — compiler
+  doesn't import rrt.nr).
+- Drift gate clean — `rod_manifest.toml` regenerated to 2176
+  stdlib fns (+8 from v0.4.264's 2168).
+- Fixture exit 0, "OK rrt_f64".
+
+### Pattern progress
+
+7 of 9 bits-ABI rods now wrapped (units, kinematics, linalg,
+csv_table, kdt, trajectory motion profiles, rrt). Remaining:
+fk_chain, diff_sim. Plus deferred-by-design pqueue and the
+trajectory advanced primitives (DMP, TOPP, Catmull-Rom,
+Bezier).
+
 ## [0.4.264] — 2026-05-01
 
 **🛠️ stdlib/rods/trajectory — `*_f64` ergonomic wrappers

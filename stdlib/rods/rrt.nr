@@ -109,3 +109,57 @@ fn rrt_shortcut_path(h: i64, iters: i64, step_bits: i64, is_collision_free_fp: i
 }
 
 fn rrt_free(h: i64) { nuc_rrt_free(h); }
+
+// === Ergonomic f64 wrappers (v0.4.265) ===
+//
+// Same pattern as units/kinematics/linalg/csv_table/kdt/
+// trajectory — hide the i64-bits-ABI behind f64-typed surface
+// for the eight RRT fns whose i64 carries an f64 bit pattern
+// (joint-bound endpoints, step / radius, path coordinates).
+// Pointer args (goal_ptr, region_*_ptr, fn-ptr collision check)
+// stay as i64 — they're memory addresses, not f64. The bits-
+// ABI fns above remain — purely additive.
+
+fn rrt_set_bounds_f64(h: i64, dim: i64, lo: f64, hi: f64) {
+    nuc_rrt_set_bounds(h, dim, f64_to_bits(lo), f64_to_bits(hi));
+}
+fn rrt_plan_f64(h: i64, goal_ptr: i64, max_iters: i64, step: f64,
+    is_collision_free_fp: i64) -> i64
+{
+    return nuc_rrt_plan(h, goal_ptr, max_iters, f64_to_bits(step),
+        is_collision_free_fp);
+}
+fn rrt_connect_plan_f64(h: i64, goal_ptr: i64, max_iters: i64, step: f64,
+    is_collision_free_fp: i64) -> i64
+{
+    return nuc_rrt_connect_plan(h, goal_ptr, max_iters, f64_to_bits(step),
+        is_collision_free_fp);
+}
+fn rrt_star_plan_f64(h: i64, goal_ptr: i64, max_iters: i64, step: f64,
+    radius: f64, is_collision_free_fp: i64) -> i64
+{
+    return nuc_rrt_star_plan(h, goal_ptr, max_iters, f64_to_bits(step),
+        f64_to_bits(radius), is_collision_free_fp);
+}
+fn rrt_star_plan_informed_f64(h: i64, start_ptr: i64, goal_ptr: i64,
+    max_iters: i64, step: f64, radius: f64,
+    is_collision_free_fp: i64) -> i64
+{
+    return nuc_rrt_star_plan_informed(h, start_ptr, goal_ptr, max_iters,
+        f64_to_bits(step), f64_to_bits(radius), is_collision_free_fp);
+}
+fn rrt_plan_region_f64(h: i64, region_lo_ptr: i64, region_hi_ptr: i64,
+    max_iters: i64, step: f64, is_collision_free_fp: i64) -> i64
+{
+    return nuc_rrt_plan_region(h, region_lo_ptr, region_hi_ptr, max_iters,
+        f64_to_bits(step), is_collision_free_fp);
+}
+fn rrt_shortcut_path_f64(h: i64, iters: i64, step: f64,
+    is_collision_free_fp: i64) -> i64
+{
+    return nuc_rrt_shortcut_path(h, iters, f64_to_bits(step),
+        is_collision_free_fp);
+}
+fn rrt_path_at_f64(h: i64, path_idx: i64, dim: i64) -> f64 {
+    return f64_from_bits(nuc_rrt_path_at(h, path_idx, dim));
+}
