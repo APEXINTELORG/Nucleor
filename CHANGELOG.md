@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.18] — 2026-05-01
+
+**🔧 MATCH-001 dedup — non-exhaustive match no longer dual-emits
+TYP-001 + MATCH-001.** Closes probe-agent finding
+`2026-05-01-match-001-typ-001-dual-emit`.
+
+### What lands
+
+Pre-fix, a non-exhaustive enum match emitted BOTH `error[TYP-001]`
+and `error[MATCH-001]` with identical text, identical line/col,
+differing only in the diag code. Adopter saw the same diagnostic
+twice — fix it once, both clear, adopter wonders why the duplicate
+emission. RFC-0016 phase 5 introduced MATCH-001 as the canonical
+code in v0.4.43; the dual emit was retained "for backwards
+compatibility" but became noise once tooling moved over.
+
+- `compiler/nucleor_s1_compiler.nr` — drop TYP-001 emit at both
+  sites in the exhaustiveness check:
+  - line ~12517 (expression-context match)
+  - line ~12880 (statement-context match)
+  Only MATCH-001 fires now; warns counter `+= 2` → `+= 1` at
+  both sites.
+- `compiler/nucleor_tools_suite.nr` — explain registry entries
+  for TYP-001 updated to "LEGACY — unified under MATCH-001 in
+  v0.5.18; no longer emitted". The entries STAY so adopters with
+  legacy docs / scripts can still `nuc explain TYP-001` and get
+  a meaningful description.
+- TYP-001 stays in `tools/verify.{sh,ps1}` codes lists — the
+  `cli_explain_full_smoke` step exercises the registry entry,
+  not the emission.
+
+### Validation
+
+- Probe's repro now emits 1 `error[MATCH-001]` instead of
+  `1 TYP-001 + 1 MATCH-001` with identical text.
+- Round-1 == round-2 IR fixed-point holds at sha256
+  `e4445fb07380cf59dc6c5ee665d67357e667280d0123c845a7e12e47cab736f8`.
+  Bootstrap seed refreshed.
+- Drift gate clean.
+
+### Sister hazards still open
+
+- `2026-04-30-num-003-duplicate-warning-in-fnarg` (DEFERRED in
+  finding — needs cast-level diag location).
+- ATOMIC-003 on Cell-in-#[atomic] (cosmetic, not yet filed).
+
+### Promotes
+
+`findings/promoted/2026-05-01-match-001-typ-001-dual-emit.md`
+with full ## Promoted footer.
+
 ## [0.5.17] — 2026-05-01
 
 **🔧 CSV agent-namespacing — 3 concurrent agents, no race.**

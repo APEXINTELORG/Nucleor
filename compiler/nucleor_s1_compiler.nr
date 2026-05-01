@@ -12514,9 +12514,16 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     if ac_e < vcnt_e {
                         let msg_e: str = str_concat("non-exhaustive match (in expression context): ", str_concat(str_from_int(ac_e), str_concat(" arms for enum with ", str_from_int(vcnt_e))));
                         let canon_e: str = str_concat(msg_e, ". Workaround: add a `_ => default_value,` arm or list every variant explicitly.");
-                        match_diag_at(diag_vec, source_text, pool, nid, "error", "TYP-001", canon_e, fn_name);
+                        // v0.5.18: MATCH-001 only. Pre-fix emitted both TYP-001
+                        // (legacy umbrella) and MATCH-001 (RFC-0016 canonical)
+                        // with identical text — adopter saw the same diagnostic
+                        // twice. Probe-agent finding 2026-05-01-match-001-typ-001-dual-emit.
+                        // MATCH-001 is the subsystem-specific code; it stays.
+                        // TYP-001 is retained in the explain registry so
+                        // adopters can `nuc explain TYP-001` to see it's been
+                        // unified under MATCH-001.
                         match_diag_at(diag_vec, source_text, pool, nid, "error", "MATCH-001", canon_e, fn_name);
-                        warns = warns + 2;
+                        warns = warns + 1;
                     };
                 };
             };
@@ -12877,9 +12884,10 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                         // both diags to "error" severity so MATCH-001
                         // halts the build like every other TYP-* error.
                         let canon_msg: str = str_concat(msg, ". Workaround: add a `_ => default_value,` arm or list every variant explicitly.");
-                        match_diag_at(diag_vec, source_text, pool, nid, "error", "TYP-001", canon_msg, fn_name);
+                        // v0.5.18: MATCH-001 only — see expression-context
+                        // sister site at line ~12517 for rationale.
                         match_diag_at(diag_vec, source_text, pool, nid, "error", "MATCH-001", canon_msg, fn_name);
-                        warns = warns + 2;
+                        warns = warns + 1;
                     };
                 };
             };
