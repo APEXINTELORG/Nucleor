@@ -3161,6 +3161,111 @@ fn width_to_llvm_type(w: i64) -> str {
     return "i64";
 }
 
+fn is_atomic_ordered_builtin(name: str) -> i64 {
+    if str_starts_with(name, "atomic_i64_load_") == 1 {
+        if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_acquire") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_store_") == 1 {
+        if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_release") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_fetch_add_") == 1 || str_starts_with(name, "atomic_i64_fetch_sub_") == 1 || str_starts_with(name, "atomic_i64_fetch_and_") == 1 || str_starts_with(name, "atomic_i64_fetch_or_") == 1 || str_starts_with(name, "atomic_i64_fetch_xor_") == 1 {
+        if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_acquire") == 1 || str_ends_with(name, "_release") == 1 || str_ends_with(name, "_acqrel") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_compare_exchange_") == 1 {
+        if str_ends_with(name, "_relaxed_relaxed") == 1 { return 1; };
+        if str_ends_with(name, "_acquire_relaxed") == 1 || str_ends_with(name, "_acquire_acquire") == 1 { return 1; };
+        if str_ends_with(name, "_release_relaxed") == 1 { return 1; };
+        if str_ends_with(name, "_acqrel_relaxed") == 1 || str_ends_with(name, "_acqrel_acquire") == 1 { return 1; };
+        if str_ends_with(name, "_seqcst_relaxed") == 1 || str_ends_with(name, "_seqcst_acquire") == 1 || str_ends_with(name, "_seqcst_seqcst") == 1 { return 1; };
+        return 0;
+    };
+    return 0;
+}
+
+fn atomic_tail_order_llvm(name: str) -> str {
+    if str_contains(name, "_seqcst") == 1 { return "seq_cst"; };
+    if str_contains(name, "_acqrel") == 1 { return "acq_rel"; };
+    if str_contains(name, "_release") == 1 { return "release"; };
+    if str_contains(name, "_acquire") == 1 { return "acquire"; };
+    return "monotonic";
+}
+
+fn atomic_cmpxchg_success_order_llvm(name: str) -> str {
+    if str_contains(name, "compare_exchange_seqcst_") == 1 { return "seq_cst"; };
+    if str_contains(name, "compare_exchange_acqrel_") == 1 { return "acq_rel"; };
+    if str_contains(name, "compare_exchange_release_") == 1 { return "release"; };
+    if str_contains(name, "compare_exchange_acquire_") == 1 { return "acquire"; };
+    return "monotonic";
+}
+
+fn atomic_cmpxchg_failure_order_llvm(name: str) -> str {
+    if str_contains(name, "_seqcst_seqcst") == 1 { return "seq_cst"; };
+    if str_contains(name, "_acquire_acquire") == 1 { return "acquire"; };
+    if str_contains(name, "_acqrel_acquire") == 1 { return "acquire"; };
+    if str_contains(name, "_seqcst_acquire") == 1 { return "acquire"; };
+    return "monotonic";
+}
+
+fn atomic_rmw_op_llvm(name: str) -> str {
+    if str_contains(name, "fetch_sub") == 1 { return "sub"; };
+    if str_contains(name, "fetch_and") == 1 { return "and"; };
+    if str_contains(name, "fetch_or") == 1 { return "or"; };
+    if str_contains(name, "fetch_xor") == 1 { return "xor"; };
+    return "add";
+}
+
+fn emit_atomic_ordered_call(sb: i64, name: str, d: i64, argc: i64, args: Vec<i32>) -> i64 {
+    let ds: str = str_from_int(d);
+    if argc <= 0 {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+        return 0;
+    };
+    sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".atomic.ptr = inttoptr i64 %r.");
+    sb_append(sb, str_from_int(vec_get(args, 0))); sb_append(sb, " to ptr\n");
+    if str_starts_with(name, "atomic_i64_load_") == 1 {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = load atomic i64, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".atomic.ptr "); sb_append(sb, atomic_tail_order_llvm(name));
+        sb_append(sb, ", align 8\n");
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_store_") == 1 {
+        if argc > 1 {
+            sb_append(sb, "  store atomic i64 %r."); sb_append(sb, str_from_int(vec_get(args, 1)));
+            sb_append(sb, ", ptr %r."); sb_append(sb, ds); sb_append(sb, ".atomic.ptr ");
+            sb_append(sb, atomic_tail_order_llvm(name)); sb_append(sb, ", align 8\n");
+        };
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_compare_exchange_") == 1 {
+        if argc >= 3 {
+            sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".atomic.pair = cmpxchg ptr %r.");
+            sb_append(sb, ds); sb_append(sb, ".atomic.ptr, i64 %r.");
+            sb_append(sb, str_from_int(vec_get(args, 1))); sb_append(sb, ", i64 %r.");
+            sb_append(sb, str_from_int(vec_get(args, 2))); sb_append(sb, " ");
+            sb_append(sb, atomic_cmpxchg_success_order_llvm(name)); sb_append(sb, " ");
+            sb_append(sb, atomic_cmpxchg_failure_order_llvm(name)); sb_append(sb, "\n");
+            sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = extractvalue { i64, i1 } %r.");
+            sb_append(sb, ds); sb_append(sb, ".atomic.pair, 0\n");
+        } else {
+            sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+        };
+        return 0;
+    };
+    if argc > 1 {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = atomicrmw ");
+        sb_append(sb, atomic_rmw_op_llvm(name)); sb_append(sb, " ptr %r."); sb_append(sb, ds);
+        sb_append(sb, ".atomic.ptr, i64 %r."); sb_append(sb, str_from_int(vec_get(args, 1)));
+        sb_append(sb, " "); sb_append(sb, atomic_tail_order_llvm(name)); sb_append(sb, "\n");
+    } else {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+    };
+    return 0;
+}
+
 // v0.4.196 RFC-0015 phase 3a: typed allocas/loads/stores. Existing
 // untyped builders (ir_alloca, ir_load, ir_store) call these with
 // width=0 to preserve byte-identical IR output for current call sites.
@@ -5501,21 +5606,25 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
     else if op == 37 { emit_overflow_arith(sb, "mul", d, ir_op1(inst), ir_op2(inst), ir_tid(inst), ir_extra(inst)); }
     else if op == 19 {
         let fn_name: str = ir_op1(inst); let argc: i64 = ir_op2(inst); let args: Vec<i32> = ir_extra(inst);
-        let ext_idx: i64 = find_extern_idx(pool, externs, fn_name);
-        if ext_idx >= 0 {
-            emit_extern_call(sb, pool, externs, ext_idx, d, argc, args);
+        if is_atomic_ordered_builtin(fn_name) == 1 {
+            emit_atomic_ordered_call(sb, fn_name, d, argc, args);
         } else {
-            let rn: str = get_rt_name(fn_name);
-            if str_eq(rn, "") {
-                // Regular (non-builtin, non-extern) call — all i64
-                sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
-                sb_append(sb, " = call i64 @"); sb_append(sb, fn_name); sb_append(sb, "(");
-                let mut ai: i64 = 0;
-                while ai < argc { if ai > 0 { sb_append(sb, ", "); }; sb_append(sb, "i64 %r."); sb_append(sb, str_from_int(vec_get(args, ai))); ai = ai + 1; };
-                sb_append(sb, ")\n");
+            let ext_idx: i64 = find_extern_idx(pool, externs, fn_name);
+            if ext_idx >= 0 {
+                emit_extern_call(sb, pool, externs, ext_idx, d, argc, args);
             } else {
-                // Builtin call with ABI conversion
-                emit_builtin_call(sb, fn_name, rn, d, argc, args);
+                let rn: str = get_rt_name(fn_name);
+                if str_eq(rn, "") {
+                    // Regular (non-builtin, non-extern) call — all i64
+                    sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
+                    sb_append(sb, " = call i64 @"); sb_append(sb, fn_name); sb_append(sb, "(");
+                    let mut ai: i64 = 0;
+                    while ai < argc { if ai > 0 { sb_append(sb, ", "); }; sb_append(sb, "i64 %r."); sb_append(sb, str_from_int(vec_get(args, ai))); ai = ai + 1; };
+                    sb_append(sb, ")\n");
+                } else {
+                    // Builtin call with ABI conversion
+                    emit_builtin_call(sb, fn_name, rn, d, argc, args);
+                };
             };
         };
     }
@@ -8152,6 +8261,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "ATOMIC-002") == 1 { return 1; };
     if str_eq(code, "ATOMIC-003") == 1 { return 1; };
     if str_eq(code, "ATOMIC-004") == 1 { return 1; };
+    if str_eq(code, "ATOMIC-005") == 1 { return 1; };
     // RFC-0008 ISR
     if str_eq(code, "ISR-001") == 1 { return 1; };
     if str_eq(code, "ISR-002") == 1 { return 1; };
@@ -9773,6 +9883,265 @@ fn enforce_no_panic(diags: Vec<i32>, source: str) -> Vec<i32> {
         i = i + 1;
     };
     return diags;
+}
+
+fn collect_atomic_fns(source: str) -> Vec<i32> {
+    let mut fns: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[atomic]";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut q: i64 = p + plen;
+            while q + 3 <= slen {
+                let c0: i64 = str_char_at(source, q);
+                let c1: i64 = str_char_at(source, q + 1);
+                let c2: i64 = str_char_at(source, q + 2);
+                if c0 == 102 && c1 == 110 && c2 == 32 {
+                    q = q + 3;
+                    let name_start: i64 = q;
+                    while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) {
+                        q = q + 1;
+                    };
+                    if q > name_start { fns.push(str_substring(source, name_start, q)); };
+                    p = q;
+                    break;
+                };
+                q = q + 1;
+            };
+            if q + 3 > slen { p = slen; };
+        } else {
+            p = p + 1;
+        };
+    };
+    return fns;
+}
+
+fn source_fn_body_for_scan(source: str, fn_name: str) -> str {
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < nlen {
+            if str_char_at(source, p + k) != str_char_at(needle, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut q: i64 = p + nlen;
+            while q < slen && str_char_at(source, q) != 123 { q = q + 1; };
+            if q < slen {
+                let body_start: i64 = q + 1;
+                let mut depth: i64 = 1;
+                q = q + 1;
+                while q < slen && depth > 0 {
+                    let c: i64 = str_char_at(source, q);
+                    if c == 123 { depth = depth + 1; };
+                    if c == 125 { depth = depth - 1; };
+                    q = q + 1;
+                };
+                return str_substring(source, body_start, q - 1);
+            };
+            return "";
+        };
+        p = p + 1;
+    };
+    return "";
+}
+
+fn atomic_blocking_check_list() -> Vec<i32> {
+    let mut v: Vec<i32> = Vec::new();
+    v.push("mutex_lock"); v.push(".lock"); v.push("rwlock_read"); v.push("rwlock_write");
+    v.push(".read"); v.push(".write"); v.push("channel_recv"); v.push(".recv");
+    v.push("sleep_ms"); v.push("sleep_us"); v.push("system"); v.push("process_spawn");
+    v.push("socket_accept"); v.push("file_read_string");
+    return v;
+}
+
+fn atomic_cell_check_list() -> Vec<i32> {
+    let mut v: Vec<i32> = Vec::new();
+    v.push("Cell<"); v.push("RefCell<"); v.push("Cell::"); v.push("RefCell::");
+    v.push("cell_new"); v.push("refcell_new");
+    return v;
+}
+
+fn check_atomic_contract_violations(diags: Vec<i32>, source: str, fn_name: str) {
+    let body_raw: str = source_fn_body_for_scan(source, fn_name);
+    if str_len(body_raw) == 0 { return; };
+    let body: str = strip_strings_and_line_comments(body_raw);
+    let blocking: Vec<i32> = atomic_blocking_check_list();
+    let mut i: i64 = 0;
+    while i < vec_len(blocking) {
+        let n: str = vec_get(blocking, i);
+        let pat: str = str_concat(n, "(");
+        if str_contains(body, pat) == 1 {
+            let msg: str = str_concat("`", str_concat(n, str_concat("` may block but `", str_concat(fn_name, "` is marked #[atomic]"))));
+            diag_add_ex(diags, "error", "atomic", "ATOMIC-001", msg, fn_name, 0, 0, "");
+        };
+        i = i + 1;
+    };
+    let allocs: Vec<i32> = no_alloc_check_list();
+    i = 0;
+    while i < vec_len(allocs) {
+        let n2: str = vec_get(allocs, i);
+        let pat2: str = str_concat(n2, "(");
+        if str_contains(body, pat2) == 1 {
+            let msg2: str = str_concat("`", str_concat(n2, str_concat("` allocates but `", str_concat(fn_name, "` is marked #[atomic]"))));
+            diag_add_ex(diags, "error", "atomic", "ATOMIC-002", msg2, fn_name, 0, 0, "");
+        };
+        i = i + 1;
+    };
+    let cells: Vec<i32> = atomic_cell_check_list();
+    i = 0;
+    while i < vec_len(cells) {
+        let n3: str = vec_get(cells, i);
+        if str_contains(body, n3) == 1 {
+            let msg3: str = str_concat("`", str_concat(n3, "` is interior mutability with runtime borrow state and is forbidden inside #[atomic]"));
+            diag_add_ex(diags, "error", "atomic", "ATOMIC-003", msg3, fn_name, 0, 0, "");
+        };
+        i = i + 1;
+    };
+}
+
+fn atomic_find_pattern_from(text: str, pat: str, start: i64) -> i64 {
+    let tlen: i64 = str_len(text);
+    let plen: i64 = str_len(pat);
+    if plen == 0 || tlen < plen { return 0 - 1; };
+    let mut p: i64 = start;
+    while p + plen <= tlen {
+        if str_eq_at(text, p, pat) == 1 { return p; };
+        p = p + 1;
+    };
+    return 0 - 1;
+}
+
+fn atomic_find_call_end(text: str, open_pos: i64) -> i64 {
+    let tlen: i64 = str_len(text);
+    let mut p: i64 = open_pos;
+    let mut depth: i64 = 0;
+    while p < tlen {
+        let c: i64 = str_char_at(text, p);
+        if c == 40 { depth = depth + 1; }
+        else if c == 41 {
+            depth = depth - 1;
+            if depth == 0 { return p; };
+        };
+        p = p + 1;
+    };
+    return 0 - 1;
+}
+
+fn atomic_order_code_at(call: str, p: i64) -> i64 {
+    if str_eq_at(call, p, "MemOrder::Relaxed") == 1 { return 0; };
+    if str_eq_at(call, p, "MemOrder::Acquire") == 1 { return 1; };
+    if str_eq_at(call, p, "MemOrder::Release") == 1 { return 2; };
+    if str_eq_at(call, p, "MemOrder::AcqRel") == 1 { return 3; };
+    if str_eq_at(call, p, "MemOrder::SeqCst") == 1 { return 4; };
+    return 0 - 1;
+}
+
+fn atomic_nth_order_code(call: str, nth: i64) -> i64 {
+    let mut p: i64 = 0;
+    let mut seen: i64 = 0;
+    while p >= 0 {
+        p = atomic_find_pattern_from(call, "MemOrder::", p);
+        if p < 0 { return 0 - 1; };
+        seen = seen + 1;
+        if seen == nth { return atomic_order_code_at(call, p); };
+        p = p + 10;
+    };
+    return 0 - 1;
+}
+
+fn atomic_cmpxchg_orders_valid(success: i64, failure: i64) -> i64 {
+    if failure == 2 || failure == 3 { return 0; };
+    if success == 0 { if failure == 0 { return 1; }; return 0; };
+    if success == 1 { if failure == 0 || failure == 1 { return 1; }; return 0; };
+    if success == 2 { if failure == 0 { return 1; }; return 0; };
+    if success == 3 { if failure == 0 || failure == 1 { return 1; }; return 0; };
+    if success == 4 { if failure == 0 || failure == 1 || failure == 4 { return 1; }; return 0; };
+    return 0;
+}
+
+fn atomic_scan_call_invalid_order(diags: Vec<i32>, code_text: str, callee_pat: str, bad_a: str, bad_b: str, code: str, message: str) -> i64 {
+    let plen: i64 = str_len(callee_pat);
+    let mut p: i64 = 0;
+    let mut emitted: i64 = 0;
+    while p >= 0 {
+        p = atomic_find_pattern_from(code_text, callee_pat, p);
+        if p < 0 { return emitted; };
+        let endp: i64 = atomic_find_call_end(code_text, p + plen - 1);
+        if endp > p {
+            let call: str = str_substring(code_text, p, endp + 1);
+            if str_contains(call, bad_a) == 1 || (str_len(bad_b) > 0 && str_contains(call, bad_b) == 1) {
+                diag_add_ex(diags, "error", "atomic", code, message, "main", 0, 0, "");
+                emitted = emitted + 1;
+            };
+            p = endp + 1;
+        } else {
+            p = p + plen;
+        };
+    };
+    return emitted;
+}
+
+fn enforce_atomic_ordering(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let code: str = strip_strings_and_line_comments(source);
+    atomic_scan_call_invalid_order(diags, code, "atomic_load(", "MemOrder::Release", "MemOrder::AcqRel", "ATOMIC-005", "atomic_load only accepts Relaxed, Acquire, or SeqCst memory ordering");
+    atomic_scan_call_invalid_order(diags, code, "atomic_store(", "MemOrder::Acquire", "MemOrder::AcqRel", "ATOMIC-005", "atomic_store only accepts Relaxed, Release, or SeqCst memory ordering");
+    let callee_pat: str = "atomic_compare_exchange(";
+    let plen: i64 = str_len(callee_pat);
+    let mut p: i64 = 0;
+    while p >= 0 {
+        p = atomic_find_pattern_from(code, callee_pat, p);
+        if p < 0 { return diags; };
+        let endp: i64 = atomic_find_call_end(code, p + plen - 1);
+        if endp > p {
+            let call: str = str_substring(code, p, endp + 1);
+            let success: i64 = atomic_nth_order_code(call, 1);
+            let failure: i64 = atomic_nth_order_code(call, 2);
+            if success >= 0 && failure >= 0 && atomic_cmpxchg_orders_valid(success, failure) == 0 {
+                diag_add_ex(diags, "error", "atomic", "ATOMIC-004", "compare_exchange failure ordering must not be Release/AcqRel and must not be stronger than success ordering", "main", 0, 0, "");
+            };
+            p = endp + 1;
+        } else {
+            p = p + plen;
+        };
+    };
+    return diags;
+}
+
+fn enforce_atomic_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let atomic_fns: Vec<i32> = collect_atomic_fns(source);
+    let mut i: i64 = 0;
+    while i < vec_len(atomic_fns) {
+        check_atomic_contract_violations(diags, source, vec_get(atomic_fns, i));
+        i = i + 1;
+    };
+    return enforce_atomic_ordering(diags, source);
 }
 
 // === T3.6 (v0.3.5): #[no_dyn] enforcement (RT-003) ===
@@ -12297,6 +12666,7 @@ fn builtin_rtype(name: str) -> str {
     if str_eq(name, "channel") == 1 { return "i64"; };
     if str_eq(name, "rwlock_new") == 1 || str_eq(name, "rwlock_read") == 1 || str_eq(name, "rwlock_write") == 1 || str_eq(name, "rwlock_unlock") == 1 { return "i64"; };
     if str_eq(name, "cancel_token_new") == 1 || str_eq(name, "cancel_token_cancel") == 1 { return "i64"; };
+    if is_atomic_ordered_builtin(name) == 1 { return "i64"; };
     if str_eq(name, "print") == 1 || str_eq(name, "print_int") == 1 || str_eq(name, "print_f64") == 1 || str_eq(name, "print_bool") == 1 || str_eq(name, "putchar") == 1 { return "void"; };
     if str_eq(name, "rng_seed") == 1 || str_eq(name, "device_free") == 1 || str_eq(name, "arena_destroy") == 1 || str_eq(name, "arena_reset") == 1 { return "void"; };
     return "";
@@ -20889,6 +21259,10 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     diags = enforce_no_panic(diags, source);
     // T3.6 (v0.3.5): same pattern for #[no_dyn] (RT-003).
     diags = enforce_no_dyn(diags, source);
+    // RFC-0007 Track G: #[atomic] implies no blocking / no allocation /
+    // no Cell-or-RefCell interior mutability, plus compile-time checks
+    // for invalid literal memory-order combinations.
+    diags = enforce_atomic_contracts(diags, source);
     // T3.8 (v0.3.7): RT-006 — RT attribute on async fn. Reads the
     // column-0 markers expand_async_strip_keyword emits, which is
     // the only way to detect this after the async keyword itself

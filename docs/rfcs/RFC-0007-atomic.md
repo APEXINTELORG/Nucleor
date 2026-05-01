@@ -4,7 +4,7 @@
 |---|---|
 | **Number** | 0007 |
 | **Title** | `#[atomic]` attribute, `Atomic<T>` types, and lock-free primitives |
-| **Status** | Partial (audited v0.4.191). `stdlib/rods/atomic.nr` ships an `AtomicI64` surface with sequentially-consistent ordering, backed by Win32 `Interlocked*` (MSVC) and C11 stdatomic (POSIX). API: `atomic_new(initial) → handle`, `atomic_load_v(h)`, `atomic_store_v(h, v)`, `atomic_add(h, v)`, `atomic_sub`, `atomic_and_v`, `atomic_or_v`, `atomic_xor_v`, `atomic_cas` (compare-and-swap), `atomic_drop(h)`. The 64-bit lock-free counter / CAS spinlock / atomic flag use cases are all covered. **Deferred to v0.5.0+ targeted ship:** the `#[atomic]` attribute (compile-time enforcement of "this fn only uses atomic ops"), `Atomic<T>` generic surface for non-i64 widths, Relaxed/Acquire/Release ordering variants, and the SPSC/MPMC lock-free queues built on top. |
+| **Status** | Track G full ship (v0.5 Round 2). `stdlib/rods/atomic.nr` preserves the legacy handle API and adds concrete `AtomicI64`/`AtomicU64`/`AtomicI32`/`AtomicU32`/`AtomicBool` shapes plus `MemOrder::{Relaxed, Acquire, Release, AcqRel, SeqCst}`. The compiler lowers ordered `AtomicI64` operations to LLVM `load atomic`, `store atomic`, `cmpxchg`, and `atomicrmw`, and enforces `#[atomic]` diagnostics ATOMIC-001..005. |
 | **Author** | Joseph Wescott + Claude |
 | **Created** | 2026-04-22 |
 | **Target release** | v0.5.0 ("Production Robotics") |
@@ -155,7 +155,8 @@ copies the value into pre-allocated storage. Both safe under
 | ATOMIC-001 | Blocking call inside `#[atomic]` function |
 | ATOMIC-002 | Allocating call inside `#[atomic]` function (also RT-001 fires) |
 | ATOMIC-003 | Use of `Cell<T>`/`RefCell<T>` in `#[atomic]` (interior mutability incompatible with atomic semantics) |
-| ATOMIC-004 | Mismatched orderings in `compare_exchange` (Acquire/Release combination invalid) |
+| ATOMIC-004 | Mismatched orderings in `compare_exchange` (failure ordering stronger than success, or Release/AcqRel failure) |
+| ATOMIC-005 | Invalid memory ordering for `atomic_load`/`atomic_store` (Release/AcqRel load, Acquire/AcqRel store) |
 
 ---
 
@@ -168,7 +169,7 @@ copies the value into pre-allocated storage. Both safe under
 | Codegen | Map `Atomic<T>` ops to LLVM atomic intrinsics | ~200 |
 | Runtime | `runtime/spsc_queue_rt.c`, `runtime/mpmc_queue_rt.c` | ~350 |
 | Stdlib | `stdlib/rods/atomic.nr`, `spsc.nr`, `mpmc.nr` | ~400 |
-| Diagnostics | ATOMIC-001…004 | ~150 |
+| Diagnostics | ATOMIC-001...005 | ~150 |
 | **Total** | | **~1450** |
 
 ---
@@ -195,9 +196,9 @@ copies the value into pre-allocated storage. Both safe under
 
 ## 7. Definition of done
 
-- [ ] `Atomic<T>` for all primitive int/uint/bool, plus `*mut T`
-- [ ] `Ordering` enum with all 5 variants
-- [ ] `#[atomic]` attribute parses, enforces
+- [x] Concrete `AtomicI64`/`AtomicU64`/`AtomicI32`/`AtomicU32`/`AtomicBool` shapes
+- [x] `MemOrder` enum with all 5 variants
+- [x] `#[atomic]` attribute parses, enforces ATOMIC-001..005
 - [ ] `SpscQueue` and `MpmcQueue` ship and pass stress tests
 - [ ] CHANGELOG documents lock-free primitives
 

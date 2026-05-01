@@ -1493,6 +1493,111 @@ fn ir_indirect_call(d: i64, closure_reg: i64, args: Vec<i32>) -> Vec<i32> {
     return ii;
 }
 
+fn is_atomic_ordered_builtin(name: str) -> i64 {
+    if str_starts_with(name, "atomic_i64_load_") == 1 {
+        if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_acquire") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_store_") == 1 {
+        if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_release") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_fetch_add_") == 1 || str_starts_with(name, "atomic_i64_fetch_sub_") == 1 || str_starts_with(name, "atomic_i64_fetch_and_") == 1 || str_starts_with(name, "atomic_i64_fetch_or_") == 1 || str_starts_with(name, "atomic_i64_fetch_xor_") == 1 {
+        if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_acquire") == 1 || str_ends_with(name, "_release") == 1 || str_ends_with(name, "_acqrel") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_compare_exchange_") == 1 {
+        if str_ends_with(name, "_relaxed_relaxed") == 1 { return 1; };
+        if str_ends_with(name, "_acquire_relaxed") == 1 || str_ends_with(name, "_acquire_acquire") == 1 { return 1; };
+        if str_ends_with(name, "_release_relaxed") == 1 { return 1; };
+        if str_ends_with(name, "_acqrel_relaxed") == 1 || str_ends_with(name, "_acqrel_acquire") == 1 { return 1; };
+        if str_ends_with(name, "_seqcst_relaxed") == 1 || str_ends_with(name, "_seqcst_acquire") == 1 || str_ends_with(name, "_seqcst_seqcst") == 1 { return 1; };
+        return 0;
+    };
+    return 0;
+}
+
+fn atomic_tail_order_llvm(name: str) -> str {
+    if str_contains(name, "_seqcst") == 1 { return "seq_cst"; };
+    if str_contains(name, "_acqrel") == 1 { return "acq_rel"; };
+    if str_contains(name, "_release") == 1 { return "release"; };
+    if str_contains(name, "_acquire") == 1 { return "acquire"; };
+    return "monotonic";
+}
+
+fn atomic_cmpxchg_success_order_llvm(name: str) -> str {
+    if str_contains(name, "compare_exchange_seqcst_") == 1 { return "seq_cst"; };
+    if str_contains(name, "compare_exchange_acqrel_") == 1 { return "acq_rel"; };
+    if str_contains(name, "compare_exchange_release_") == 1 { return "release"; };
+    if str_contains(name, "compare_exchange_acquire_") == 1 { return "acquire"; };
+    return "monotonic";
+}
+
+fn atomic_cmpxchg_failure_order_llvm(name: str) -> str {
+    if str_contains(name, "_seqcst_seqcst") == 1 { return "seq_cst"; };
+    if str_contains(name, "_acquire_acquire") == 1 { return "acquire"; };
+    if str_contains(name, "_acqrel_acquire") == 1 { return "acquire"; };
+    if str_contains(name, "_seqcst_acquire") == 1 { return "acquire"; };
+    return "monotonic";
+}
+
+fn atomic_rmw_op_llvm(name: str) -> str {
+    if str_contains(name, "fetch_sub") == 1 { return "sub"; };
+    if str_contains(name, "fetch_and") == 1 { return "and"; };
+    if str_contains(name, "fetch_or") == 1 { return "or"; };
+    if str_contains(name, "fetch_xor") == 1 { return "xor"; };
+    return "add";
+}
+
+fn emit_atomic_ordered_call(sb: i64, name: str, d: i64, argc: i64, args: Vec<i32>) -> i64 {
+    let ds: str = str_from_int(d);
+    if argc <= 0 {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+        return 0;
+    };
+    sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".atomic.ptr = inttoptr i64 %r.");
+    sb_append(sb, str_from_int(vec_get(args, 0))); sb_append(sb, " to ptr\n");
+    if str_starts_with(name, "atomic_i64_load_") == 1 {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = load atomic i64, ptr %r.");
+        sb_append(sb, ds); sb_append(sb, ".atomic.ptr "); sb_append(sb, atomic_tail_order_llvm(name));
+        sb_append(sb, ", align 8\n");
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_store_") == 1 {
+        if argc > 1 {
+            sb_append(sb, "  store atomic i64 %r."); sb_append(sb, str_from_int(vec_get(args, 1)));
+            sb_append(sb, ", ptr %r."); sb_append(sb, ds); sb_append(sb, ".atomic.ptr ");
+            sb_append(sb, atomic_tail_order_llvm(name)); sb_append(sb, ", align 8\n");
+        };
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+        return 0;
+    };
+    if str_starts_with(name, "atomic_i64_compare_exchange_") == 1 {
+        if argc >= 3 {
+            sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, ".atomic.pair = cmpxchg ptr %r.");
+            sb_append(sb, ds); sb_append(sb, ".atomic.ptr, i64 %r.");
+            sb_append(sb, str_from_int(vec_get(args, 1))); sb_append(sb, ", i64 %r.");
+            sb_append(sb, str_from_int(vec_get(args, 2))); sb_append(sb, " ");
+            sb_append(sb, atomic_cmpxchg_success_order_llvm(name)); sb_append(sb, " ");
+            sb_append(sb, atomic_cmpxchg_failure_order_llvm(name)); sb_append(sb, "\n");
+            sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = extractvalue { i64, i1 } %r.");
+            sb_append(sb, ds); sb_append(sb, ".atomic.pair, 0\n");
+        } else {
+            sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+        };
+        return 0;
+    };
+    if argc > 1 {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = atomicrmw ");
+        sb_append(sb, atomic_rmw_op_llvm(name)); sb_append(sb, " ptr %r."); sb_append(sb, ds);
+        sb_append(sb, ".atomic.ptr, i64 %r."); sb_append(sb, str_from_int(vec_get(args, 1)));
+        sb_append(sb, " "); sb_append(sb, atomic_tail_order_llvm(name)); sb_append(sb, "\n");
+    } else {
+        sb_append(sb, "  %r."); sb_append(sb, ds); sb_append(sb, " = add i64 0, 0\n");
+    };
+    return 0;
+}
+
 fn ir_block_new(lbl: i64) -> Vec<i32> {
     let mut b: Vec<i32> = Vec::new(); b.push(lbl);
     let mut insts: Vec<i32> = Vec::new(); b.push(insts); return b;
@@ -3485,21 +3590,25 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
     else if op == 18 { sb_append(sb, "  store i64 %r."); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, ", ptr %r."); sb_append(sb, str_from_int(ir_op2(inst))); sb_append(sb, "\n"); }
     else if op == 19 {
         let fn_name: str = ir_op1(inst); let argc: i64 = ir_op2(inst); let args: Vec<i32> = ir_extra(inst);
-        let ext_idx: i64 = find_extern_idx(pool, externs, fn_name);
-        if ext_idx >= 0 {
-            emit_extern_call(sb, pool, externs, ext_idx, d, argc, args);
+        if is_atomic_ordered_builtin(fn_name) == 1 {
+            emit_atomic_ordered_call(sb, fn_name, d, argc, args);
         } else {
-            let rn: str = get_rt_name(fn_name);
-            if str_eq(rn, "") {
-                // Regular (non-builtin, non-extern) call — all i64
-                sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
-                sb_append(sb, " = call i64 @"); sb_append(sb, fn_name); sb_append(sb, "(");
-                let mut ai: i64 = 0;
-                while ai < argc { if ai > 0 { sb_append(sb, ", "); }; sb_append(sb, "i64 %r."); sb_append(sb, str_from_int(vec_get(args, ai))); ai = ai + 1; };
-                sb_append(sb, ")\n");
+            let ext_idx: i64 = find_extern_idx(pool, externs, fn_name);
+            if ext_idx >= 0 {
+                emit_extern_call(sb, pool, externs, ext_idx, d, argc, args);
             } else {
-                // Builtin call with ABI conversion
-                emit_builtin_call(sb, fn_name, rn, d, argc, args);
+                let rn: str = get_rt_name(fn_name);
+                if str_eq(rn, "") {
+                    // Regular (non-builtin, non-extern) call — all i64
+                    sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
+                    sb_append(sb, " = call i64 @"); sb_append(sb, fn_name); sb_append(sb, "(");
+                    let mut ai: i64 = 0;
+                    while ai < argc { if ai > 0 { sb_append(sb, ", "); }; sb_append(sb, "i64 %r."); sb_append(sb, str_from_int(vec_get(args, ai))); ai = ai + 1; };
+                    sb_append(sb, ")\n");
+                } else {
+                    // Builtin call with ABI conversion
+                    emit_builtin_call(sb, fn_name, rn, d, argc, args);
+                };
             };
         };
     }
@@ -6896,6 +7005,7 @@ fn builtin_rtype(name: str) -> str {
     if str_eq(name, "channel") == 1 { return "i64"; };
     if str_eq(name, "rwlock_new") == 1 || str_eq(name, "rwlock_read") == 1 || str_eq(name, "rwlock_write") == 1 || str_eq(name, "rwlock_unlock") == 1 { return "i64"; };
     if str_eq(name, "cancel_token_new") == 1 || str_eq(name, "cancel_token_cancel") == 1 { return "i64"; };
+    if is_atomic_ordered_builtin(name) == 1 { return "i64"; };
     if str_eq(name, "print") == 1 || str_eq(name, "print_int") == 1 || str_eq(name, "print_f64") == 1 || str_eq(name, "print_bool") == 1 || str_eq(name, "putchar") == 1 { return "void"; };
     if str_eq(name, "rng_seed") == 1 || str_eq(name, "device_free") == 1 || str_eq(name, "arena_destroy") == 1 || str_eq(name, "arena_reset") == 1 { return "void"; };
     return "";
@@ -10418,6 +10528,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "ATOMIC-002") { return "Allocating call inside #[atomic] function"; };
     if str_eq(code, "ATOMIC-003") { return "Use of Cell/RefCell in #[atomic]"; };
     if str_eq(code, "ATOMIC-004") { return "Mismatched orderings in compare_exchange"; };
+    if str_eq(code, "ATOMIC-005") { return "Invalid memory ordering for atomic load/store"; };
     // RFC-0008 ISR
     if str_eq(code, "ISR-001") { return "#[isr] function not pub"; };
     if str_eq(code, "ISR-002") { return "ISR stack frame exceeds budget"; };
@@ -10625,6 +10736,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "ATOMIC-002") { return "#[atomic] implies #[no_alloc]. See RT-001 explanation."; };
     if str_eq(code, "ATOMIC-003") { return "Cell/RefCell carry runtime borrow checks that can panic; #[atomic] forbids panicking control flow. Use Atomic<T> primitives instead."; };
     if str_eq(code, "ATOMIC-004") { return "compare_exchange takes (success, failure) orderings; failure must not be stronger than success and not Release/AcqRel. The compiler enforces the ordering lattice."; };
+    if str_eq(code, "ATOMIC-005") { return "atomic_load accepts Relaxed, Acquire, or SeqCst. atomic_store accepts Relaxed, Release, or SeqCst. Acquire stores and Release loads are invalid memory-model combinations."; };
     if str_eq(code, "ISR-001") { return "Vector-table wiring requires the ISR fn to be pub so the linker can find it."; };
     if str_eq(code, "ISR-002") { return "ISRs share a small stack. Move large local arrays to static or move computation outside the ISR."; };
     if str_eq(code, "ISR-003") { return "Functions called from an ISR must be #[isr_safe] (no blocking, no alloc). The compiler walks the call graph from the ISR root."; };
@@ -10818,6 +10930,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "ATOMIC-002") { return "RFC-0007 §3.3 — see RT-001."; };
     if str_eq(code, "ATOMIC-003") { return "RFC-0007 — Cell/RefCell rely on runtime borrow tracking that may panic; #[atomic] forbids panicking flow because it would break atomicity guarantees. Replace with Atomic<T> or AtomicCell<T>."; };
     if str_eq(code, "ATOMIC-004") { return "RFC-0007 §3.2 — compare_exchange takes (success_ordering, failure_ordering); failure cannot be stronger than success and cannot be Release/AcqRel (since failure does not perform a write). Compiler enforces the ordering lattice as defined by the C++/Rust memory model."; };
+    if str_eq(code, "ATOMIC-005") { return "RFC-0007 §3.2 maps MemOrder to LLVM atomic ordering keywords. LLVM rejects release/acq_rel loads and acquire/acq_rel stores; use Acquire/SeqCst for loads and Release/SeqCst for stores."; };
     if str_eq(code, "ISR-001") { return "RFC-0008 §3.3 — vector table is generated from #[isr]-annotated functions. Linker needs the symbol public."; };
     if str_eq(code, "ISR-002") { return "RFC-0008 §3.6 — each ISR has a stack budget (default 256 B). Move large arrays to static, file-scope, or to a dynamically-allocated heap region used outside the ISR."; };
     if str_eq(code, "ISR-003") { return "RFC-0008 §3.2 — the call graph rooted at an #[isr] function is closed under #[isr_safe]. The compiler walks it and reports any callee not marked safe. Mark callees #[isr_safe] (and verify they meet the constraints) or move the work outside the ISR."; };

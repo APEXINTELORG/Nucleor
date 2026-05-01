@@ -103,7 +103,7 @@ case "$(uname -s)" in
         if [ -x "$ROOT/bin/nucleor.exe" ]; then BIN="$ROOT/bin/nucleor.exe"; else BIN="$ROOT/bin/nucleor"; fi
         ;;
     *)
-        BIN="$ROOT/bin/nucleor"
+        if [ -x "$ROOT/bin/nucleor" ]; then BIN="$ROOT/bin/nucleor"; elif [ -x "$ROOT/bin/nucleor.exe" ]; then BIN="$ROOT/bin/nucleor.exe"; else BIN="$ROOT/bin/nucleor"; fi
         ;;
 esac
 
@@ -555,7 +555,7 @@ cli_explain_full_smoke() {
         "CONTRACT-001" "CONTRACT-002" "CONTRACT-003" "CONTRACT-004"
         "CONTRACT-005" "CONTRACT-006" "CONTRACT-007"
         # RFC-0007 atomic
-        "ATOMIC-001" "ATOMIC-002" "ATOMIC-003" "ATOMIC-004"
+        "ATOMIC-001" "ATOMIC-002" "ATOMIC-003" "ATOMIC-004" "ATOMIC-005"
         # RFC-0008 ISR
         "ISR-001" "ISR-002" "ISR-003" "ISR-004" "ISR-005" "ISR-006"
         # RFC-0009 WCET
@@ -3940,7 +3940,10 @@ t17_bootstrap_seed_matches() {
     # Refresh workflow: see bootstrap/README.md.
     local seed="bootstrap/nucleor_s1_seed.ll"
     [ -f "$seed" ] || return 1
-    "$BIN" build "compiler/nucleor_s1_compiler.nr" -o "_seed_check" >$NUC_VERIFY_STEP_LOG 2>&1
+    # The bootstrap seed is canonicalized to the default strict-intrin
+    # IR. Env-off verification still exercises the legacy path elsewhere,
+    # but this fixed-point artifact must be compared in its canonical mode.
+    env -u NUCLEOR_INT_STRICT_ARITH NUCLEOR_INT_STRICT_INTRIN=1 "$BIN" build "compiler/nucleor_s1_compiler.nr" -o "_seed_check" >$NUC_VERIFY_STEP_LOG 2>&1
     local fresh="target/_seed_check.ll"
     [ -f "$fresh" ] || return 1
     local seed_sha
@@ -4045,6 +4048,25 @@ mojibake_clean() {
     bash "$ROOT/tools/check_mojibake.sh" >$NUC_VERIFY_STEP_LOG 2>&1
 }
 
+rfc0007_atomic_ir_smoke() {
+    rm -rf "$ROOT/.nuc_cache" "$ROOT/target/.nuc_cache" 2>/dev/null || true
+    "$BIN" build "tests/features/rfc0007_atomic_basic.nr" -o "_rfc0007_atomic_basic" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local ll="target/_rfc0007_atomic_basic.ll"
+    local exe="target/_rfc0007_atomic_basic"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$ll" ] || return 1
+    [ -x "$exe" ] || return 1
+    grep -q "load atomic i64" "$ll" || return 1
+    grep -q "store atomic i64" "$ll" || return 1
+    grep -q "cmpxchg ptr" "$ll" || return 1
+    grep -q "atomicrmw add ptr" "$ll" || return 1
+    grep -q "atomicrmw sub ptr" "$ll" || return 1
+    grep -q "atomicrmw and ptr" "$ll" || return 1
+    grep -q "atomicrmw or ptr" "$ll" || return 1
+    grep -q "atomicrmw xor ptr" "$ll" || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+}
+
 # --- Run gate -----------------------------------------------------------
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
@@ -4052,6 +4074,7 @@ step "tools-suite rebuild" tools_rebuild
 step "NUM-024 cross-width audit (compiler+tools-suite must report 0)" num024_audit_zero
 step "no UTF-8 mojibake in source/docs" mojibake_clean
 step "tests/err/*.nr have EXPECT headers" err_tests_have_expect_smoke
+step "RFC-0007 atomics lower to LLVM atomic IR" rfc0007_atomic_ir_smoke
 step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
 step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" cli_utility_smoke
 step "CLI: --json variants emit machine-readable JSON" cli_json_smoke

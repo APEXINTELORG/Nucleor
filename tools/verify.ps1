@@ -194,7 +194,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 117 # +9 Option/Result/format chain, +5 hazard sweeps (v0.4.18)
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 118 # +9 Option/Result/format chain, +5 hazard sweeps (v0.4.18)
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -362,6 +362,24 @@ Step "tests/err/*.nr have EXPECT headers" {
     return $true
 }
 
+Step "RFC-0007 atomics lower to LLVM atomic IR" {
+    Remove-Item (Join-Path $root ".nuc_cache") -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $root "target\.nuc_cache") -Recurse -Force -ErrorAction SilentlyContinue
+    $out = & $bin build "tests/features/rfc0007_atomic_basic.nr" -o "_rfc0007_atomic_basic" --no-cache 2>&1 | Out-String
+    $ll = Join-Path $root "target\_rfc0007_atomic_basic.ll"
+    $exe = Join-Path $root "target\_rfc0007_atomic_basic.exe"
+    if (-not (Test-Path $ll) -or -not (Test-Path $exe)) {
+        Write-Host (Dim ("       " + ($out.Trim() -split "`n" | Select-Object -Last 1)))
+        return $false
+    }
+    $ir = Get-Content $ll -Raw
+    foreach ($needle in @("load atomic i64", "store atomic i64", "cmpxchg ptr", "atomicrmw add ptr", "atomicrmw sub ptr", "atomicrmw and ptr", "atomicrmw or ptr", "atomicrmw xor ptr")) {
+        if ($ir -notmatch [regex]::Escape($needle)) { return $false }
+    }
+    $run = Invoke-BinaryNoInput $exe
+    return $run.ExitCode -eq 0
+}
+
 Step "CLI: nuc help advertises every dispatched command" {
     # Mirrors verify.sh cli_help_coverage_smoke (added v0.2.84).
     # Catches the drift class that bit `doc` and `fix` (both shipped
@@ -435,7 +453,7 @@ Step "CLI: nuc explain — full spec code set wired" {
         "CONTRACT-001", "CONTRACT-002", "CONTRACT-003", "CONTRACT-004",
         "CONTRACT-005", "CONTRACT-006", "CONTRACT-007",
         # RFC-0007 atomic
-        "ATOMIC-001", "ATOMIC-002", "ATOMIC-003", "ATOMIC-004",
+        "ATOMIC-001", "ATOMIC-002", "ATOMIC-003", "ATOMIC-004", "ATOMIC-005",
         # RFC-0008 ISR
         "ISR-001", "ISR-002", "ISR-003", "ISR-004", "ISR-005", "ISR-006",
         # RFC-0009 WCET
@@ -2594,7 +2612,16 @@ Step "T1.7 bootstrap seed matches current compiler" {
     # workflow: see bootstrap/README.md.
     $seed = "bootstrap\nucleor_s1_seed.ll"
     if (-not (Test-Path $seed)) { return $false }
+    # The bootstrap seed is canonicalized to the default strict-intrin
+    # IR. Env-off verification still exercises the legacy path elsewhere,
+    # but this fixed-point artifact must be compared in its canonical mode.
+    $oldStrictIntrin = $env:NUCLEOR_INT_STRICT_INTRIN
+    $oldStrictArith = $env:NUCLEOR_INT_STRICT_ARITH
+    $env:NUCLEOR_INT_STRICT_INTRIN = "1"
+    Remove-Item Env:\NUCLEOR_INT_STRICT_ARITH -ErrorAction SilentlyContinue
     & $bin build "compiler/nucleor_s1_compiler.nr" -o "_seed_check" 2>&1 | Out-Null
+    if ($null -eq $oldStrictIntrin) { Remove-Item Env:\NUCLEOR_INT_STRICT_INTRIN -ErrorAction SilentlyContinue } else { $env:NUCLEOR_INT_STRICT_INTRIN = $oldStrictIntrin }
+    if ($null -eq $oldStrictArith) { Remove-Item Env:\NUCLEOR_INT_STRICT_ARITH -ErrorAction SilentlyContinue } else { $env:NUCLEOR_INT_STRICT_ARITH = $oldStrictArith }
     $fresh = "target\_seed_check.ll"
     if (-not (Test-Path $fresh)) { return $false }
     $hSeed  = (Get-FileHash $seed  -Algorithm SHA256).Hash
