@@ -137,6 +137,12 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 | RT-007 | Deadline annotation without no_alloc or no_panic | [RFC-0001](../rfcs/RFC-0001-rt-attributes.md) |
 | RT-008 | Recursive call in #[deadline] function | [RFC-0014](../rfcs/RFC-0014-max-depth.md) |
 
+## ASYNC series — async fn handling
+
+| Code | Title | Source | Notes |
+|---|---|---|---|
+| ASYNC-001 | `async` keyword on fn is silently stripped (use `async_spawn` + `async_await` for threading) | resolver async-strip pass, v0.5.19 | warning |
+
 ## ALLOC series — RFC-0002 allocator types
 
 | Code | Title | RFC section |

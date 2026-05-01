@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.19] — 2026-05-01
+
+**🔧 ASYNC-001 + per-agent CSV gitignore.** Closes probe-agent
+finding `2026-05-01-async-keyword-silently-stripped`. Runtime
+behavior unchanged (warning, not error).
+
+### What lands
+
+Pre-fix `async fn fetch() { 42 }` was silently stripped to
+`fn fetch() { 42 }` and ran sync immediately. Adopter writing
+the canonical Rust async pattern got no signal. Nucleor v0.5
+has no Future / .await polling — threading is via
+`async_spawn(fn_ptr, arg)` + `async_await(handle)` (RFC-0027
+phase 1). Now the compiler warns when an `async` keyword is
+silently stripped.
+
+- `compiler/nucleor_s1_compiler.nr`:
+  - `expand_async_strip_keyword` now emits a `//__NUC6X:<fn>`
+    column-0 marker for plain `async fn` (no RT attr). The
+    RT-006 path for `#[no_alloc] async fn` etc. is unchanged.
+  - New scanner `enforce_async001_warning` (line ~11264) reads
+    those markers and emits `ASYNC-001` warning. Mirrors
+    RT-006's marker pattern exactly.
+- `compiler/nucleor_tools_suite.nr` — 3 explain registry
+  entries for ASYNC-001 (title at line 10556, cause at ~10786,
+  hint at ~10987).
+- `tools/verify.{sh,ps1}` — ASYNC-001 added to
+  `cli_explain_full_smoke` codes lists.
+- `docs/spec/Nucleor_Error_Codes.md` — new "ASYNC series"
+  section with ASYNC-001 row (warning tier).
+
+### Bonus: per-agent CSV gitignore
+
+`.gitignore` updated with `tools/verify_timings.*.csv` (in
+addition to the existing `tools/verify_timings.csv`). v0.5.18
+accidentally committed `tools/verify_timings.main.csv` because
+the per-agent pattern wasn't ignored. Now it is. The
+accidentally-tracked file is untracked in this commit.
+
+### Validation
+
+- Repro: `async fn fetch() -> i64 { 42 } fn main() -> i32 {
+  let r: i64 = fetch(); print_int(r as i32); 0 }` builds with
+  ASYNC-001 warning + runs printing `42` (sync execution
+  confirmed; no behavior change).
+- Round-1 == round-2 IR fixed-point holds at sha256
+  `6d409f9973223c6857545ade52b76f686b2bd65d5db9f88239be996fc6e9c3fa`.
+  Bootstrap seed refreshed. (Initial sha
+  `82142bf0...` was pre-`is_known_diag_code` registration; the
+  T3.23 drift gate caught the missing ASYNC-001 registry entry,
+  fixed in the same ship before commit.)
+- env-off only per v0.5.17 convention (no strict-intrin / IR /
+  atomic / memory touched). Will run before commit.
+
+### Promotes
+
+`findings/promoted/2026-05-01-async-keyword-silently-stripped.md`
+with full ## Promoted footer.
+
 ## [0.5.18] — 2026-05-01
 
 **🔧 MATCH-001 dedup — non-exhaustive match no longer dual-emits

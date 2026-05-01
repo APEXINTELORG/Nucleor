@@ -52,6 +52,10 @@ _test_*.exe
 # recipe in tools/VERIFY_TIMING_RECIPE.md is the contract, the CSV
 # is rolling local-machine output that bloats history if committed.
 tools/verify_timings.csv
+# v0.5.19: per-agent CSV namespacing (NUC_VERIFY_AGENT=<name>) means
+# each agent writes its own tools/verify_timings.<name>.csv. Same
+# rolling-output rationale — don't track per-agent timing logs.
+tools/verify_timings.*.csv
 
 # Bootstrap iteration scratch (3-iter fixed-point check artifacts)
 out_v*.txt

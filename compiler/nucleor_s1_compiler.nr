@@ -8302,6 +8302,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "RT-004") == 1 { return 1; };
     if str_eq(code, "RT-005") == 1 { return 1; };
     if str_eq(code, "RT-006") == 1 { return 1; };
+    if str_eq(code, "ASYNC-001") == 1 { return 1; };
     if str_eq(code, "RT-007") == 1 { return 1; };
     if str_eq(code, "RT-008") == 1 { return 1; };
     // RFC-0002 allocators
@@ -11254,6 +11255,42 @@ fn enforce_rt006_async(diags: Vec<i32>, source: str) -> Vec<i32> {
             let fn_name: str = str_substring(source, nm_start, q);
             let msg: str = str_concat("RT attribute (e.g. #[no_alloc] / #[no_panic] / #[no_dyn] / #[deadline]) on async fn '", str_concat(fn_name, "' -- async is non-deterministic by design and cannot satisfy real-time guarantees"));
             diag_add_ex(diags, "error", "rt", "RT-006", msg, fn_name, 0, 0, "");
+            p = q;
+        } else {
+            p = p + 1;
+        };
+    };
+    return diags;
+}
+
+// v0.5.19: probe-agent finding 2026-05-01-async-keyword-silently-stripped.
+// Sister scanner to enforce_rt006_async — picks up the
+// `//__NUC6X:<fn_name>` markers that expand_async_strip_keyword emits
+// for plain `async fn` (no RT attribute). Pre-fix the keyword was
+// silently dropped — adopters writing the canonical Rust async pattern
+// got immediate sync execution with no signal. The fn still runs (no
+// halt), but the warning points adopters at the actual threading
+// primitives (`async_spawn(fn_ptr, arg)` + `async_await(handle)`,
+// RFC-0027 phase 1).
+fn enforce_async001_warning(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let needle: str = "\n//__NUC6X:";
+    let nlen: i64 = str_len(needle);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < nlen {
+            if str_char_at(source, p + k) != str_char_at(needle, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let nm_start: i64 = p + nlen;
+            let mut q: i64 = nm_start;
+            while q < slen && str_char_at(source, q) != 10 && str_char_at(source, q) != 13 { q = q + 1; };
+            let fn_name: str = str_substring(source, nm_start, q);
+            let msg: str = str_concat("`async` keyword on fn `", str_concat(fn_name, "` is silently stripped — Nucleor v0.5 has no Future / no .await polling. Adopters writing the canonical Rust pattern get immediate sync execution. Use `async_spawn(fn_ptr, arg)` to run on a real OS thread (returns a handle) + `async_await(handle)` to join (RFC-0027 phase 1, see stdlib/rods/async.nr). Or drop the `async` keyword if sync execution was intended."));
+            diag_add_ex(diags, "warning", "async", "ASYNC-001", msg, fn_name, 0, 0, "");
             p = q;
         } else {
             p = p + 1;
@@ -21984,6 +22021,8 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // the only way to detect this after the async keyword itself
     // has been stripped from the resolved source.
     diags = enforce_rt006_async(diags, source);
+    // v0.5.19: ASYNC-001 warning for plain `async fn` without RT attr.
+    diags = enforce_async001_warning(diags, source);
     // T3.9 (v0.3.8): RT-005 — extern fn calls from RT-marked
     // bodies break the RT contract because nothing is known about
     // the extern's allocation, panic, or timing behaviour. v1
@@ -22981,13 +23020,14 @@ fn expand_async_strip_keyword(src: str) -> str {
                                 stop = 1;
                             };
                         };
+                        // Read the fn name for the marker / diag.
+                        let mut np: i64 = after_fn;
+                        while np < slen && (str_char_at(src, np) == 32 || str_char_at(src, np) == 9) { np = np + 1; };
+                        let nn_start: i64 = np;
+                        while np < slen && (is_alnum(str_char_at(src, np)) == 1 || str_char_at(src, np) == 95) { np = np + 1; };
+                        let async_fn_name: str = if np > nn_start { str_substring(src, nn_start, np) } else { "<unknown>" };
                         if prev_attr_found == 1 {
-                            // Read the fn name so the diag references it.
-                            let mut np: i64 = after_fn;
-                            while np < slen && (str_char_at(src, np) == 32 || str_char_at(src, np) == 9) { np = np + 1; };
-                            let nn_start: i64 = np;
-                            while np < slen && (is_alnum(str_char_at(src, np)) == 1 || str_char_at(src, np) == 95) { np = np + 1; };
-                            let async_fn_name: str = if np > nn_start { str_substring(src, nn_start, np) } else { "<unknown>" };
+                            // RT-006 path: RT attribute + async → hard error.
                             // Prefix with `\n` so the marker always starts
                             // at column 0 — the diag scanner matches on the
                             // exact byte sequence "\n//__NUC6T:" which never
@@ -22995,6 +23035,23 @@ fn expand_async_strip_keyword(src: str) -> str {
                             // (the literal mentions in this file are either
                             // inside string literals or mid-line in prose).
                             sb_append(sb, "\n//__NUC6T:");
+                            sb_append(sb, async_fn_name);
+                            sb_append(sb, "\n");
+                        } else {
+                            // v0.5.19 closes probe finding
+                            // 2026-05-01-async-keyword-silently-stripped.
+                            // Plain `async fn foo()` (no RT attribute) was
+                            // silently stripped pre-fix — adopter wrote the
+                            // canonical Rust async pattern, the keyword
+                            // dropped, the fn ran sync, no signal. Now we
+                            // emit an ASYNC-001 warning marker that the
+                            // scanner picks up post-strip. Marker shape
+                            // mirrors RT-006's `//__NUC6T:` for symmetry.
+                            // Note: the runtime DOES support threading via
+                            // async_spawn / async_await (RFC-0027 phase 1) —
+                            // the warning points adopters at that, rather
+                            // than halting cleanly.
+                            sb_append(sb, "\n//__NUC6X:");
                             sb_append(sb, async_fn_name);
                             sb_append(sb, "\n");
                         };
