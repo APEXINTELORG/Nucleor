@@ -108,3 +108,11 @@ read. The 1024 MB e-stop wouldn't catch this class of meltdown. A
 SIGSEGV-handler in the compiler that emits a "compiler internal error"
 diagnostic before exiting would catch it cleanly, but that's a larger
 piece of work than the targeted fix above.
+
+
+## Promoted
+
+- Status frontmatter: see top of file. Closure version: **v0.4.206**.
+- Regression-guard fixture: `tests/fixtures/repro_v206_match_float_scrutinee_halts.nr`.
+- Verify gate: existing per-feature loop picks up the fixture above.
+- Promoted: 2026-04-30 by main agent (footer backfilled 2026-05-01 per probe-agent Q3 footer-shape uniformity request).

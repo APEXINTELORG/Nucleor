@@ -67,3 +67,10 @@ Inside `parse_struct_decl`. When the post-name token is `(` (50) rather than `<`
 - emit a clean PARSE-NNN with a span before reaching `expect_tok`, naming this as a deferral if so.
 
 Cross-check: `docs/milestones/v0.4.0.md` and `docs/rfcs/RFC-0023-pattern-matching.md` reference *tuple-style enum variants* as a deferred feature, but I could not find an explicit tuple-struct-decl deferral statement, so the status of this syntax is ambiguous.
+
+
+## Promoted
+
+- Status frontmatter: see top of file. Closure version: **v0.4.208**.
+- Verify gate: existing per-feature loop picks up the fixture above.
+- Promoted: 2026-04-30 by main agent (footer backfilled 2026-05-01 per probe-agent Q3 footer-shape uniformity request).

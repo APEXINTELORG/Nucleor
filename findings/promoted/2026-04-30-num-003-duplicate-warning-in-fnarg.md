@@ -69,3 +69,10 @@ NUM-003 emit site in the `as`-cast lowering / type-check. Add a per-site
 same cast can't emit twice across multiple type-check passes. Same shape
 of fix used by other "warn once per node" diagnostics in the codebase
 (grep `warned_set` / `diag_dedup`).
+
+
+## Promoted
+
+- Status frontmatter: see top of file. Closure version: **v0.4.216**.
+- Verify gate: existing per-feature loop picks up the fixture above.
+- Promoted: 2026-04-30 by main agent (footer backfilled 2026-05-01 per probe-agent Q3 footer-shape uniformity request).

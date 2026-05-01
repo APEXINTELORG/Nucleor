@@ -1,10 +1,11 @@
-last_main_ship: 2026-05-01T07:50:00Z (v0.5.4)
+last_main_ship: 2026-05-01T09:30:00Z (v0.5.7)
 last_probe_rebase: 2026-05-01T01:55:00Z (probe/exploration tip e27ee0a) — STALE; main has shipped v0.4.282 → v0.5.4 since.
-main_commit: 26159e4 (v0.5.4)
+main_commit: dff0aee (v0.5.7) — superseded again by v0.5.8 (footer backfill)
 main_branch: main (sandbox-v0.5.0-int merged in v0.5.0; sandbox-v0.5.4-atomic-swap-bool merged in v0.5.4)
 inbox_state_observed_at_main: empty (only `.gitkeep` + `_questions.md`)
 staged_state: empty
-promoted_count: 27 (unchanged since v0.4.281; no new findings integrated this arc — the v0.5.x line shipped via consultant tracks G/H/I/L + main-agent doc/closure work)
+promoted_count: 29 (was 27 at v0.4.281; +1 in v0.5.7 (max-depth-impl-method) +1 to be backfilled in v0.5.8 with formal `## Promoted` footer)
+footer_uniformity: ALL 29 entries now carry both the `status:` frontmatter line AND the `## Promoted` footer (footer backfilled in v0.5.8 per probe-agent Q3 request)
 
 # v0.5.4 SHIPPED — RFC-0007 closure: atomic_swap_bool + typed atomic_swap.
 # The deferred swap helper from v0.4.281 is now CLOSED.

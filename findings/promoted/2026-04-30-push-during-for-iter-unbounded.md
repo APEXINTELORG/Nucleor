@@ -97,3 +97,11 @@ which adopters may have already relied on for non-mutating loops.
 - v0.4.152 (TYP-011 ext: for over str/String/scalar/bool) — same `for`
   lowering site.
 - In-flight v0.4.163 (TYP-011 reject for-on-struct) — adjacent fix.
+
+
+## Promoted
+
+- Status frontmatter: see top of file. Closure version: **v0.4.205**.
+- Regression-guard fixture: `tests/features/for_loop_push_during_iter_bounded.nr`.
+- Verify gate: existing per-feature loop picks up the fixture above.
+- Promoted: 2026-04-30 by main agent (footer backfilled 2026-05-01 per probe-agent Q3 footer-shape uniformity request).

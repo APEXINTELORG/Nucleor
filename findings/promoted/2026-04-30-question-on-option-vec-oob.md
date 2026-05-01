@@ -97,3 +97,11 @@ that codegen path is correct; the `?` path likely diverges from it.
 - v0.4.143 (NUM-023): runtime SIGSEGV close — same severity tier.
 - `tests/features/closure_basic.nr` shows the working Option match
   pattern.
+
+
+## Promoted
+
+- Status frontmatter: see top of file. Closure version: **v0.4.225**.
+- Regression-guard fixture: `tests/features/option_question_op.nr`.
+- Verify gate: existing per-feature loop picks up the fixture above.
+- Promoted: 2026-04-30 by main agent (footer backfilled 2026-05-01 per probe-agent Q3 footer-shape uniformity request).

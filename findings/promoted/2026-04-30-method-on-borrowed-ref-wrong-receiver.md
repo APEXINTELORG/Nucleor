@@ -70,3 +70,10 @@ The diagnostic mentions a "kind-8 method-dispatch catch-all". `grep` in `compile
 2. Either auto-deref to T's method set, or raise a typed error saying "method dispatch on `&T` not yet supported" with the actual `&T` printed.
 
 I did not chase the exact line — the Vec catch-all is likely a single early-exit branch easy to find by grepping `vec_` in the dispatch lowering.
+
+
+## Promoted
+
+- Status frontmatter: see top of file. Closure version: **v0.4.217**.
+- Verify gate: existing per-feature loop picks up the fixture above.
+- Promoted: 2026-04-30 by main agent (footer backfilled 2026-05-01 per probe-agent Q3 footer-shape uniformity request).

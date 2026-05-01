@@ -69,3 +69,11 @@ duplicate field detection in struct decls (which already exists per
   work as expected; this finding is the duplicate-name case.
 - The closure_basic.nr fixture's parameter forms also use single-named
   params; this hazard is fn-decl-only.
+
+
+## Promoted
+
+- Status frontmatter: see top of file. Closure version: **v0.4.207**.
+- Regression-guard fixture: `tests/fixtures/repro_v207_dup_fn_param_halts.nr`.
+- Verify gate: existing per-feature loop picks up the fixture above.
+- Promoted: 2026-04-30 by main agent (footer backfilled 2026-05-01 per probe-agent Q3 footer-shape uniformity request).
