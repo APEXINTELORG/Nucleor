@@ -1,3 +1,4 @@
+// EXPECT: build fails with CONTRACT-006.
 // RFC-0006 — `old()` over heap-aliased types must reject at compile time.
 // EXPECT: build fails with CONTRACT-006.
 //

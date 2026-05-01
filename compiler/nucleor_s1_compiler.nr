@@ -20464,27 +20464,126 @@ fn print_phase_time(enabled: i64, label: str, elapsed_ms: i64) {
     };
 }
 
+fn cache_v2_json_escape(s: str) -> str {
+    let mut sb: i64 = sb_new();
+    let slen: i64 = str_len(s);
+    let mut i: i64 = 0;
+    while i < slen {
+        let c: i64 = str_char_at(s, i);
+        if c == 34 {
+            sb_append(sb, "\\\"");
+        } else if c == 92 {
+            sb_append(sb, "\\\\");
+        } else if c == 10 {
+            sb_append(sb, "\\n");
+        } else if c == 13 {
+            sb_append(sb, "\\r");
+        } else if c == 9 {
+            sb_append(sb, "\\t");
+        } else {
+            sb_append(sb, str_substring(s, i, i + 1));
+        };
+        i = i + 1;
+    };
+    return sb_to_str(sb);
+}
+
+fn cache_v2_strict_intrin_flag() -> str {
+    let raw: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
+    if str_eq(raw, "0") == 1 { return "0"; };
+    return "1";
+}
+
+fn cache_v2_dbc_flag() -> str {
+    let raw: str = env_get_or("NUCLEOR_DBC_MODE", "debug");
+    if str_len(raw) == 0 { return "debug"; };
+    return raw;
+}
+
+fn cache_v2_canonical_flags(strict_mode: i64) -> str {
+    let mut sb: i64 = sb_new();
+    sb_append(sb, "dbc-mode=");
+    sb_append(sb, cache_v2_dbc_flag());
+    sb_append(sb, ";strict-intrin=");
+    sb_append(sb, cache_v2_strict_intrin_flag());
+    sb_append(sb, ";strict-mode=");
+    sb_append(sb, build_mode_name(strict_mode));
+    return sb_to_str(sb);
+}
+
+fn cache_v2_prefix(key: str) -> str {
+    if str_len(key) > 12 { return str_substring(key, 0, 12); };
+    return key;
+}
+
+fn cache_v2_dir(key: str) -> str {
+    return sanitize(str_concat("target/.nuc_cache_v2/", cache_v2_prefix(key)));
+}
+
+fn cache_v2_ll_path(key: str) -> str {
+    return sanitize(str_concat(cache_v2_dir(key), str_concat("/", str_concat(key, ".ll"))));
+}
+
+fn cache_v2_meta_dir(key: str) -> str {
+    return sanitize(str_concat(cache_v2_dir(key), str_concat("/", key)));
+}
+
+fn cache_v2_meta_path(key: str) -> str {
+    return sanitize(str_concat(cache_v2_meta_dir(key), "/meta.json"));
+}
+
+fn cache_v2_size_mb(ll: str) -> i64 {
+    let n: i64 = str_len(ll);
+    if n <= 0 { return 0; };
+    return (n + 1048575) / 1048576;
+}
+
+fn cache_v2_stats_enabled() -> i64 {
+    if str_eq(env_get_or("NUCLEOR_CACHE_STATS", "0"), "1") == 1 { return 1; };
+    return 0;
+}
+
+fn cache_v2_print_stats(hits: i64, misses: i64) {
+    if cache_v2_stats_enabled() == 1 {
+        print(str_concat("cache stats: hits=", str_concat(str_from_int(hits), str_concat(" misses=", str_from_int(misses)))));
+    };
+}
+
+fn cache_v2_meta_json(input_filename: str, flags: str, compiler_version: str, key: str, ll: str) -> str {
+    let mut sb: i64 = sb_new();
+    sb_append(sb, "{\n");
+    sb_append(sb, "  \"schema\": \"nuc-cache-v2\",\n");
+    sb_append(sb, "  \"input_filename\": \""); sb_append(sb, cache_v2_json_escape(input_filename)); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"flags\": \""); sb_append(sb, cache_v2_json_escape(flags)); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"compiler_version\": \""); sb_append(sb, cache_v2_json_escape(compiler_version)); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"sha256\": \""); sb_append(sb, key); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"timestamp\": \""); sb_append(sb, cache_v2_json_escape(time_iso_now())); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"ll_bytes\": "); sb_append(sb, str_from_int(str_len(ll))); sb_append(sb, "\n");
+    sb_append(sb, "}\n");
+    return sb_to_str(sb);
+}
+
+fn cache_v2_store(key: str, input_filename: str, flags: str, ll: str) -> i64 {
+    let dir: str = cache_v2_dir(key);
+    let meta_dir: str = cache_v2_meta_dir(key);
+    fs_create_dir_all(dir);
+    fs_create_dir_all(meta_dir);
+    file_write_string(cache_v2_ll_path(key), ll);
+    let meta: str = cache_v2_meta_json(input_filename, flags, compiler_identity(), key, ll);
+    file_write_string(cache_v2_meta_path(key), meta);
+    file_write_string(sanitize(str_concat(dir, "/meta.json")), meta);
+    return 0;
+}
+
 fn build_cache_key(source: str, strict_mode: i64) -> str {
     let mut sb: i64 = sb_new();
-    // v0.3.135: NUC-FEEDBACK-007 — include compiler_version_label
-    // in the cache key so a binary upgrade invalidates the cache.
-    // Pre-v0.3.135 the key was {scheme | exe_path | mode | source}.
-    // The agent flipped a literal back-and-forth across versions
-    // (`0.00000001` → `0.000001` → `0.00000001`); after the
-    // v0.3.133 lexer fix, the SAME source text from before the fix
-    // keyed identically and hit the OLD IR (which still produced
-    // the NaN cascade). Adding the version label means each tagged
-    // release has its own cache namespace; stale IR from older
-    // tags is never reused.
-    sb_append(sb, "native-cache-v5|");
-    sb_append(sb, compiler_version_label());
+    sb_append(sb, "native-cache-v2|");
+    sb_append(sb, compiler_identity());
     sb_append(sb, "|");
-    if args_count() > 0 { sb_append(sb, args_get(0)); };
-    sb_append(sb, "|");
-    sb_append(sb, build_mode_name(strict_mode));
+    sb_append(sb, cache_v2_canonical_flags(strict_mode));
     sb_append(sb, "|");
     sb_append(sb, source);
-    return content_hash(sb_to_str(sb));
+    return sha256_hex(sb_to_str(sb));
 }
 
 fn collect_native_directives(imported: Vec<i32>) -> Vec<i32> {
@@ -20611,11 +20710,6 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     let null_redir: str = host_null_redirect();
     system(str_concat("mkdir target", null_redir));
     file_write_string(ll_path, ll);
-    if str_len(cache_ll_path) > 0 {
-        system(str_concat("mkdir .nuc_cache", null_redir));
-        let clean_cache_path: str = sanitize(cache_ll_path);
-        file_write_string(clean_cache_path, ll);
-    };
     print(str_concat("  emitted: ", str_concat(ll_path, str_concat(" (", str_concat(str_from_int(str_len(ll)), " bytes)")))));
     if link_native == 0 {
         print(str_concat("  native link: skipped (use ", str_concat(exe_path, " only after a linked build)")));
@@ -21398,17 +21492,23 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     let preflight_start: i64 = now_ms();
     if preflight_source_check(source) != 0 { return 1; };
     print_phase_time(time_passes, "preflight", now_ms() - preflight_start);
+    let mut cache_key: str = "";
+    let mut cache_flags: str = "";
     let mut cache_ll_path: str = "";
     if use_cache == 1 {
-        let cache_key: str = build_cache_key(source, strict_mode);
-        cache_ll_path = sanitize(str_concat(".nuc_cache/", str_concat(cache_key, ".ll")));
+        cache_flags = cache_v2_canonical_flags(strict_mode);
+        cache_key = build_cache_key(source, strict_mode);
+        cache_ll_path = cache_v2_ll_path(cache_key);
         let cached_ll: str = file_read_string(cache_ll_path);
         if str_len(cached_ll) > 0 {
-            print(str_concat("  incremental: source cache hit (", str_concat(build_mode_name(strict_mode), ")")));
+            print(str_concat("cache: hit (sha=", str_concat(cache_v2_prefix(cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_size_mb(cached_ll)), " MB)")))));
             let rc_cached: i64 = link_native_module(cached_ll, safe_out_name, imported, "", link_native, time_passes);
+            cache_v2_print_stats(1, 0);
             print_phase_time(time_passes, "total", now_ms() - total_start);
             return rc_cached;
         };
+    } else {
+        print("cache: disabled (sha=none, size 0 MB)");
     };
     let lex_start: i64 = now_ms();
     let mut tokens: Vec<i32> = lex(source);
@@ -21934,7 +22034,18 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     vec_free(trait_impls);
     vec_free(impl_fns);
     vec_free(closures);
-    let rc: i64 = link_native_module(ll, safe_out_name, imported, cache_ll_path, link_native, time_passes);
+    let rc: i64 = link_native_module(ll, safe_out_name, imported, "", link_native, time_passes);
+    if use_cache == 1 {
+        if rc == 0 {
+            cache_v2_store(cache_key, src_path, cache_flags, ll);
+            print(str_concat("cache: miss -> stored (sha=", str_concat(cache_v2_prefix(cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_size_mb(ll)), " MB)")))));
+        } else {
+            print(str_concat("cache: miss -> not stored (sha=", str_concat(cache_v2_prefix(cache_key), ", size 0 MB)")));
+        };
+        cache_v2_print_stats(0, 1);
+    } else {
+        cache_v2_print_stats(0, 0);
+    };
     print_phase_time(time_passes, "total", now_ms() - total_start);
     return rc;
 }
@@ -21966,6 +22077,7 @@ fn compile_file_mode_native_isolated(src_path: str, out_name: str, strict_mode: 
     child_cmd = str_concat(child_cmd, str_concat(" -o ", safe_out_name));
     child_cmd = str_concat(child_cmd, " --no-link");
     if use_cache == 0 { child_cmd = str_concat(child_cmd, " --no-cache"); };
+    if cache_v2_stats_enabled() == 1 { child_cmd = str_concat(child_cmd, " --cache-stats"); };
     if time_passes == 1 { child_cmd = str_concat(child_cmd, " --time-passes"); };
     let child_rc: i64 = system(child_cmd);
     if child_rc != 0 { return child_rc; };
@@ -26452,7 +26564,20 @@ fn run_mco_command() -> i64 {
     return 0;
 }
 
-fn run_clean_command() -> i64 {
+fn run_clean_command(argc: i64) -> i64 {
+    let mut cache_only: i64 = 0;
+    let mut i: i64 = 2;
+    while i < argc {
+        if str_eq(args_get(i), "--cache") == 1 { cache_only = 1; };
+        i = i + 1;
+    };
+    if cache_only == 1 {
+        print("clean: removing compilation cache (target/.nuc_cache_v2/, .nuc_cache/)");
+        system("rmdir /S /Q target\\.nuc_cache_v2 2>nul");
+        system("rmdir /S /Q .nuc_cache 2>nul");
+        print("clean: done");
+        return 0;
+    };
     print("clean: removing build artifacts (target/, .nuc_cache/)");
     system("rmdir /S /Q target 2>nul");
     system("rmdir /S /Q .nuc_cache 2>nul");
@@ -26482,7 +26607,8 @@ fn print_help() -> i64 {
     print("    --emit llvm          Keep the LLVM IR artifact");
     print("    --no-link            Stop after writing target/<name>.ll");
     print("    --time-passes        Print per-phase compile timings");
-    print("    --no-cache           Disable the resolved-source LLVM cache");
+    print("    --no-cache           Disable resolved-source and content-addressed LLVM caches");
+    print("    --cache-stats        Print cache hit/miss counters for this build");
     print("");
     print("Developer commands:");
     print("  test [file]            Build and run @test / test_* functions");
@@ -26546,6 +26672,7 @@ fn print_help() -> i64 {
     print("");
     print("Project utilities:");
     print("  clean                  Remove target/ and .nuc_cache/ from the project");
+    print("  clean --cache          Remove target/.nuc_cache_v2/ and .nuc_cache/ only");
     print("  scram                  Alias for `clean` (emergency shutdown of build state)");
     print("  fix [--imports|--numeric] [file]  Migration linters (RFC-0015 / RFC-0018)");
     print("  zen                    The design principles of Nucleor");
@@ -26636,7 +26763,7 @@ fn main() -> i64 {
         return run_mco_command();
     };
     if str_eq(cmd, "clean") || str_eq(cmd, "scram") {
-        return run_clean_command();
+        return run_clean_command(argc);
     };
     if str_eq(cmd, "init") {
         // nuc init [name] — scaffold a new project
@@ -26705,6 +26832,7 @@ fn main() -> i64 {
         let flag: str = args_get(argi_build);
         if str_eq(flag, "--time-passes") { time_passes = 1; }
         else if str_eq(flag, "--no-cache") { use_cache = 0; }
+        else if str_eq(flag, "--cache-stats") { env_set("NUCLEOR_CACHE_STATS", "1"); }
         else if str_eq(flag, "--provenance") {
             // v0.4.5 RFC-NRT-001: --provenance <path> populates the
             // .nucleor_provenance section of the output binary with

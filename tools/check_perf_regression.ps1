@@ -13,7 +13,9 @@
 
 param(
     [switch]$Update,
-    [switch]$Quiet
+    [switch]$Quiet,
+    [int]$BudgetMb = 1024,
+    [int]$TimeoutSec = 180
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,35 +29,103 @@ if (-not (Test-Path $bin)) { Write-Host "ERROR: bin/nucleor.exe missing" -Foregr
 
 $baseline = Get-Content $baseline_path -Raw | ConvertFrom-Json
 
-# Kill any stale processes that would skew measurements
-Get-Process nucleor*,clang* -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 1
+function Get-ProcessTreeIds([int]$RootPid) {
+    $ids = New-Object System.Collections.Generic.List[int]
+    $queue = New-Object System.Collections.Generic.Queue[int]
+    $queue.Enqueue($RootPid)
+    while ($queue.Count -gt 0) {
+        $id = $queue.Dequeue()
+        if (-not $ids.Contains($id)) { $ids.Add($id) }
+        Get-CimInstance Win32_Process -Filter "ParentProcessId = $id" -ErrorAction SilentlyContinue |
+            ForEach-Object { $queue.Enqueue([int]$_.ProcessId) }
+    }
+    return $ids
+}
+
+function Stop-ProcessTree([int[]]$Ids) {
+    foreach ($id in $Ids) {
+        try { Stop-Process -Id $id -Force -ErrorAction Stop } catch { }
+    }
+}
+
+function Invoke-CappedBuild([string[]]$ArgsList, [string]$Label) {
+    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("nuc_perf_{0}_{1}" -f $PID, [Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+    $stdoutPath = Join-Path $tmp "stdout.txt"
+    $stderrPath = Join-Path $tmp "stderr.txt"
+    try {
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        $proc = Start-Process -FilePath $bin `
+            -ArgumentList $ArgsList `
+            -WorkingDirectory $root `
+            -WindowStyle Hidden `
+            -PassThru `
+            -RedirectStandardOutput $stdoutPath `
+            -RedirectStandardError $stderrPath
+
+        $peakMb = 0.0
+        $killed = $false
+        $reason = ""
+        while (-not $proc.HasExited) {
+            $ids = Get-ProcessTreeIds $proc.Id
+            $sum = 0L
+            foreach ($id in $ids) {
+                try { $sum += (Get-Process -Id $id -ErrorAction Stop).WorkingSet64 } catch { }
+            }
+            $curMb = $sum / 1MB
+            if ($curMb -gt $peakMb) { $peakMb = $curMb }
+            if ($curMb -gt $BudgetMb) {
+                $killed = $true
+                $reason = "peak exceeded ${BudgetMb} MB budget"
+                Stop-ProcessTree $ids
+                break
+            }
+            if ($sw.Elapsed.TotalSeconds -gt $TimeoutSec) {
+                $killed = $true
+                $reason = "timeout exceeded ${TimeoutSec}s"
+                Stop-ProcessTree $ids
+                break
+            }
+            Start-Sleep -Milliseconds 50
+            try { $proc.Refresh() } catch { }
+        }
+        if (-not $killed) {
+            $proc.WaitForExit()
+            $proc.Refresh()
+        }
+        $sw.Stop()
+        $peakRounded = [int][Math]::Ceiling($peakMb)
+        if ($killed) {
+            throw "$Label failed: peak ${peakRounded} MB / ${BudgetMb} MB budget ($reason)"
+        }
+        if ([int]$proc.ExitCode -ne 0) {
+            $tail = ""
+            if (Test-Path $stdoutPath) { $tail += (Get-Content -LiteralPath $stdoutPath -Tail 8 | Out-String) }
+            if (Test-Path $stderrPath) { $tail += (Get-Content -LiteralPath $stderrPath -Tail 8 | Out-String) }
+            throw "$Label exited $($proc.ExitCode), peak ${peakRounded} MB / ${BudgetMb} MB budget`n$tail"
+        }
+        return [pscustomobject]@{
+            WallSec = $sw.Elapsed.TotalSeconds
+            PeakMb = $peakRounded
+        }
+    } finally {
+        Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+    }
+}
 
 Push-Location $root
 try {
     # Cold cache: clear .nuc_cache + target, then time + measure peak memory.
     Remove-Item -Recurse -Force .nuc_cache,target -ErrorAction SilentlyContinue
-    $sw = [Diagnostics.Stopwatch]::StartNew()
-    $proc = Start-Process -FilePath $bin -ArgumentList @("build", $src, "-o", "nuc_perf_check") -PassThru -WindowStyle Hidden -RedirectStandardOutput "perf_stdout.tmp" -RedirectStandardError "perf_stderr.tmp"
-    $peak_mb = 0
-    while (-not $proc.HasExited) {
-        try {
-            $proc.Refresh()
-            $cur_mb = [int]($proc.PeakWorkingSet64 / 1MB)
-            if ($cur_mb -gt $peak_mb) { $peak_mb = $cur_mb }
-        } catch {}
-        Start-Sleep -Milliseconds 50
-    }
-    $sw.Stop()
-    # Final read after exit
-    try { $proc.Refresh(); $final_peak = [int]($proc.PeakWorkingSet64 / 1MB); if ($final_peak -gt $peak_mb) { $peak_mb = $final_peak } } catch {}
-    $cold = $sw.Elapsed.TotalSeconds
-    $cold_mem_mb = $peak_mb
-
-    Remove-Item -Force perf_stdout.tmp,perf_stderr.tmp -ErrorAction SilentlyContinue
+    $coldResult = Invoke-CappedBuild @("build", $src, "-o", "nuc_perf_check") "cold self-build"
+    $cold = $coldResult.WallSec
+    $cold_mem_mb = $coldResult.PeakMb
 
     # Hot cache: immediate re-run, no cleanup
-    $hot = (Measure-Command { & $bin build $src -o nuc_perf_check 2>&1 | Out-Null }).TotalSeconds
+    $hotResult = Invoke-CappedBuild @("build", $src, "-o", "nuc_perf_check") "hot self-build"
+    $hot = $hotResult.WallSec
+    $hot_mem_mb = $hotResult.PeakMb
+    if ($hot_mem_mb -gt $cold_mem_mb) { $cold_mem_mb = $hot_mem_mb }
 } finally {
     Pop-Location
 }

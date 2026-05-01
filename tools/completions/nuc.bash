@@ -20,7 +20,7 @@ _nuc_complete() {
                     doc fix \
                     explain help clean scram zen mco --version --help"
 
-    local flags="-o --out --emit --no-link --time-passes --no-cache --tier \
+    local flags="-o --out --emit --no-link --time-passes --no-cache --cache-stats --cache --tier \
                  --json --sarif --check --review --review-filter \
                  --list --iterations --warmup \
                  --c-header --rust-extern --exports --fn \

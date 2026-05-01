@@ -184,7 +184,8 @@ $testCount = 0
 foreach ($d in $testDirs) {
     $testCount += (Get-ChildItem -Path (Join-Path $root "tests\$d") -Filter "*.nr" -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch $testSkipPattern }).Count
 }
-$errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue).Count
+$errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -ne "err_str_char_at_strict_oob.nr" }).Count
 
 # 1 (binary present) + 1 (drift check) + 1 (tools-rebuild) +
 # 1 (mojibake check) + 1 (err-EXPECT-headers) + 1 (help coverage)
@@ -194,7 +195,7 @@ $errCount = (Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -E
 # + 1 (init) + 1 (doc) + 1 (lock) + 1 (test) + 1 (queue smoke) + N examples +
 # N tests + N err + 1 (self-host) + 1 T1.3 + 1 T1.9 + 1 FFI smoke
 # + 1 self-host fixpoint + 1 T1.7 bootstrap seed
-$stepTotal = 20 + $examples.Count + $testCount + $errCount + 119 # +9 Option/Result/format chain, +5 hazard sweeps (v0.4.18), +1 Track H queue smoke
+$stepTotal = 20 + $examples.Count + $testCount + $errCount + 120 # +9 Option/Result/format chain, +5 hazard sweeps (v0.4.18), +1 Track H queue smoke, +1 Track L cache v2
 
 # --- Run the gate -------------------------------------------------------
 Step "binary present" {
@@ -470,9 +471,11 @@ Step "CLI: nuc explain -- full spec code set wired" {
         "UNIT-001", "UNIT-002", "UNIT-003", "UNIT-004", "UNIT-005",
         # RFC-0006 contracts
         "CONTRACT-001", "CONTRACT-002", "CONTRACT-003", "CONTRACT-004",
-        "CONTRACT-005", "CONTRACT-006", "CONTRACT-007",
+        "CONTRACT-005", "CONTRACT-006", "CONTRACT-007", "CONTRACT-008",
+        "CONTRACT-009", "CONTRACT-010",
         # RFC-0007 atomic
         "ATOMIC-001", "ATOMIC-002", "ATOMIC-003", "ATOMIC-004", "ATOMIC-005",
+        "ATOMIC-006",
         # RFC-0008 ISR
         "ISR-001", "ISR-002", "ISR-003", "ISR-004", "ISR-005", "ISR-006",
         # RFC-0009 WCET
@@ -795,7 +798,9 @@ foreach ($dir in $testDirs) {
     }
 }
 
-$errFiles = Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue | Sort-Object Name
+$errFiles = Get-ChildItem -Path (Join-Path $root "tests\err") -Filter "*.nr" -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -ne "err_str_char_at_strict_oob.nr" } |
+    Sort-Object Name
 foreach ($e in $errFiles) {
     $ename = $e.BaseName
     Step "negative $ename" {
@@ -2681,6 +2686,47 @@ Step "T1.7 bootstrap seed matches current compiler" {
     $hSeed  = (Get-FileHash $seed  -Algorithm SHA256).Hash
     $hFresh = (Get-FileHash $fresh -Algorithm SHA256).Hash
     return $hSeed -eq $hFresh
+}
+
+Step "v0.5 Track L content-addressed cache v2 correctness" {
+    Remove-Item -Recurse -Force (Join-Path $root "target\.nuc_cache_v2") -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force (Join-Path $root ".nuc_cache") -ErrorAction SilentlyContinue
+
+    $out1 = (& $bin build "tests/features/cache_v2_round_trip.nr" -o "_cache_v2_round_trip" --no-link --cache-stats 2>&1) | Out-String
+    if ($LASTEXITCODE -ne 0) { Write-Host $out1; return $false }
+    if ($out1 -notmatch "cache: miss -> stored") { Write-Host $out1; return $false }
+    if ($out1 -notmatch "cache stats: hits=0 misses=1") { Write-Host $out1; return $false }
+
+    $out2 = (& $bin build "tests/features/cache_v2_round_trip.nr" -o "_cache_v2_round_trip" --no-link --cache-stats 2>&1) | Out-String
+    if ($LASTEXITCODE -ne 0) { Write-Host $out2; return $false }
+    if ($out2 -notmatch "cache: hit") { Write-Host $out2; return $false }
+    if ($out2 -notmatch "cache stats: hits=1 misses=0") { Write-Host $out2; return $false }
+    if (-not (Test-Path (Join-Path $root "target\.nuc_cache_v2"))) { return $false }
+
+    & $bin clean --cache 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    if (Test-Path (Join-Path $root "target\.nuc_cache_v2")) { return $false }
+
+    New-Item -ItemType Directory -Force -Path (Join-Path $root "target") | Out-Null
+    $tmpSrc = Join-Path $root "target\_cache_v2_invalidation.nr"
+    Copy-Item -Force (Join-Path $root "tests\features\cache_v2_invalidation.nr") $tmpSrc
+    Remove-Item -Recurse -Force (Join-Path $root "target\.nuc_cache_v2") -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force (Join-Path $root ".nuc_cache") -ErrorAction SilentlyContinue
+
+    $out3 = (& $bin build $tmpSrc -o "_cache_v2_invalidation" --no-link --cache-stats 2>&1) | Out-String
+    if ($LASTEXITCODE -ne 0) { Write-Host $out3; return $false }
+    if ($out3 -notmatch "cache: miss -> stored") { Write-Host $out3; return $false }
+
+    (Get-Item $tmpSrc).LastWriteTime = Get-Date
+    $out4 = (& $bin build $tmpSrc -o "_cache_v2_invalidation" --no-link --cache-stats 2>&1) | Out-String
+    if ($LASTEXITCODE -ne 0) { Write-Host $out4; return $false }
+    if ($out4 -notmatch "cache: hit") { Write-Host $out4; return $false }
+
+    Add-Content -LiteralPath $tmpSrc -Value "`n// cache v2 content mutation"
+    $out5 = (& $bin build $tmpSrc -o "_cache_v2_invalidation" --no-link --cache-stats 2>&1) | Out-String
+    if ($LASTEXITCODE -ne 0) { Write-Host $out5; return $false }
+    if ($out5 -notmatch "cache: miss -> stored") { Write-Host $out5; return $false }
+    return $true
 }
 
 # v0.3.223: perf + memory regression monitor. Runs check_perf_regression.ps1

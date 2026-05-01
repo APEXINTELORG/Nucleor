@@ -1,3 +1,4 @@
+// EXPECT: build fails with ATOMIC-006.
 // RFC-0007 — atomic helpers inside closure bodies must reject
 // at compile time (ATOMIC-006).
 //

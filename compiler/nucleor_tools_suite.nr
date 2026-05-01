@@ -9783,15 +9783,126 @@ fn print_phase_time(enabled: i64, label: str, elapsed_ms: i64) {
     };
 }
 
+fn cache_v2_json_escape(s: str) -> str {
+    let mut sb: i64 = sb_new();
+    let slen: i64 = str_len(s);
+    let mut i: i64 = 0;
+    while i < slen {
+        let c: i64 = str_char_at(s, i);
+        if c == 34 {
+            sb_append(sb, "\\\"");
+        } else if c == 92 {
+            sb_append(sb, "\\\\");
+        } else if c == 10 {
+            sb_append(sb, "\\n");
+        } else if c == 13 {
+            sb_append(sb, "\\r");
+        } else if c == 9 {
+            sb_append(sb, "\\t");
+        } else {
+            sb_append(sb, str_substring(s, i, i + 1));
+        };
+        i = i + 1;
+    };
+    return sb_to_str(sb);
+}
+
+fn cache_v2_strict_intrin_flag() -> str {
+    let raw: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
+    if str_eq(raw, "0") == 1 { return "0"; };
+    return "1";
+}
+
+fn cache_v2_dbc_flag() -> str {
+    let raw: str = env_get_or("NUCLEOR_DBC_MODE", "debug");
+    if str_len(raw) == 0 { return "debug"; };
+    return raw;
+}
+
+fn cache_v2_canonical_flags(strict_mode: i64) -> str {
+    let mut sb: i64 = sb_new();
+    sb_append(sb, "dbc-mode=");
+    sb_append(sb, cache_v2_dbc_flag());
+    sb_append(sb, ";strict-intrin=");
+    sb_append(sb, cache_v2_strict_intrin_flag());
+    sb_append(sb, ";strict-mode=");
+    sb_append(sb, build_mode_name(strict_mode));
+    return sb_to_str(sb);
+}
+
+fn cache_v2_prefix(key: str) -> str {
+    if str_len(key) > 12 { return str_substring(key, 0, 12); };
+    return key;
+}
+
+fn cache_v2_dir(key: str) -> str {
+    return sanitize(str_concat("target/.nuc_cache_v2/", cache_v2_prefix(key)));
+}
+
+fn cache_v2_ll_path(key: str) -> str {
+    return sanitize(str_concat(cache_v2_dir(key), str_concat("/", str_concat(key, ".ll"))));
+}
+
+fn cache_v2_meta_dir(key: str) -> str {
+    return sanitize(str_concat(cache_v2_dir(key), str_concat("/", key)));
+}
+
+fn cache_v2_meta_path(key: str) -> str {
+    return sanitize(str_concat(cache_v2_meta_dir(key), "/meta.json"));
+}
+
+fn cache_v2_size_mb(ll: str) -> i64 {
+    let n: i64 = str_len(ll);
+    if n <= 0 { return 0; };
+    return (n + 1048575) / 1048576;
+}
+
+fn cache_v2_stats_enabled() -> i64 {
+    if str_eq(env_get_or("NUCLEOR_CACHE_STATS", "0"), "1") == 1 { return 1; };
+    return 0;
+}
+
+fn cache_v2_print_stats(hits: i64, misses: i64) {
+    if cache_v2_stats_enabled() == 1 {
+        print(str_concat("cache stats: hits=", str_concat(str_from_int(hits), str_concat(" misses=", str_from_int(misses)))));
+    };
+}
+
+fn cache_v2_meta_json(input_filename: str, flags: str, compiler_version: str, key: str, ll: str) -> str {
+    let mut sb: i64 = sb_new();
+    sb_append(sb, "{\n");
+    sb_append(sb, "  \"schema\": \"nuc-cache-v2\",\n");
+    sb_append(sb, "  \"input_filename\": \""); sb_append(sb, cache_v2_json_escape(input_filename)); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"flags\": \""); sb_append(sb, cache_v2_json_escape(flags)); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"compiler_version\": \""); sb_append(sb, cache_v2_json_escape(compiler_version)); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"sha256\": \""); sb_append(sb, key); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"timestamp\": \""); sb_append(sb, cache_v2_json_escape(time_iso_now())); sb_append(sb, "\",\n");
+    sb_append(sb, "  \"ll_bytes\": "); sb_append(sb, str_from_int(str_len(ll))); sb_append(sb, "\n");
+    sb_append(sb, "}\n");
+    return sb_to_str(sb);
+}
+
+fn cache_v2_store(key: str, input_filename: str, flags: str, ll: str) -> i64 {
+    let dir: str = cache_v2_dir(key);
+    let meta_dir: str = cache_v2_meta_dir(key);
+    fs_create_dir_all(dir);
+    fs_create_dir_all(meta_dir);
+    file_write_string(cache_v2_ll_path(key), ll);
+    let meta: str = cache_v2_meta_json(input_filename, flags, compiler_identity(), key, ll);
+    file_write_string(cache_v2_meta_path(key), meta);
+    file_write_string(sanitize(str_concat(dir, "/meta.json")), meta);
+    return 0;
+}
+
 fn build_cache_key(source: str, strict_mode: i64) -> str {
     let mut sb: i64 = sb_new();
-    sb_append(sb, "native-cache-v4|");
-    if args_count() > 0 { sb_append(sb, args_get(0)); };
+    sb_append(sb, "native-cache-v2|");
+    sb_append(sb, compiler_identity());
     sb_append(sb, "|");
-    sb_append(sb, build_mode_name(strict_mode));
+    sb_append(sb, cache_v2_canonical_flags(strict_mode));
     sb_append(sb, "|");
     sb_append(sb, source);
-    return content_hash(sb_to_str(sb));
+    return sha256_hex(sb_to_str(sb));
 }
 
 fn collect_native_directives(imported: Vec<i32>) -> Vec<i32> {
@@ -9876,11 +9987,6 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     let null_redir: str = host_null_redirect();
     system(str_concat("mkdir target", null_redir));
     file_write_string(ll_path, ll);
-    if str_len(cache_ll_path) > 0 {
-        system(str_concat("mkdir .nuc_cache", null_redir));
-        let clean_cache_path: str = sanitize(cache_ll_path);
-        file_write_string(clean_cache_path, ll);
-    };
     print(str_concat("  emitted: ", str_concat(ll_path, str_concat(" (", str_concat(str_from_int(str_len(ll)), " bytes)")))));
     if link_native == 0 {
         print(str_concat("  native link: skipped (use ", str_concat(exe_path, " only after a linked build)")));
@@ -10531,12 +10637,16 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "CONTRACT-005") { return "Trait impl strengthens postcondition (Liskov)"; };
     if str_eq(code, "CONTRACT-006") { return "old(expr) references mutable state without snapshot"; };
     if str_eq(code, "CONTRACT-007") { return "In cert profile, contract not statically provable"; };
+    if str_eq(code, "CONTRACT-008") { return "result referenced in void-fn ensure"; };
+    if str_eq(code, "CONTRACT-009") { return "Invalid NUCLEOR_DBC_MODE value"; };
+    if str_eq(code, "CONTRACT-010") { return "old(expr) used in require precondition"; };
     // RFC-0007 atomic
     if str_eq(code, "ATOMIC-001") { return "Blocking call inside #[atomic] function"; };
     if str_eq(code, "ATOMIC-002") { return "Allocating call inside #[atomic] function"; };
     if str_eq(code, "ATOMIC-003") { return "Use of Cell/RefCell in #[atomic]"; };
     if str_eq(code, "ATOMIC-004") { return "Mismatched orderings in compare_exchange"; };
     if str_eq(code, "ATOMIC-005") { return "Invalid memory ordering for atomic load/store"; };
+    if str_eq(code, "ATOMIC-006") { return "Atomic helper inside closure is temporarily unsupported"; };
     // RFC-0008 ISR
     if str_eq(code, "ISR-001") { return "#[isr] function not pub"; };
     if str_eq(code, "ISR-002") { return "ISR stack frame exceeds budget"; };
@@ -10740,11 +10850,15 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "CONTRACT-005") { return "Liskov substitution: a trait impl cannot strengthen the trait's postconditions either. The impl must guarantee at least what the trait promised."; };
     if str_eq(code, "CONTRACT-006") { return "old(expr) reads the value at function entry; if expr was mutated by the body, take an explicit snapshot at entry first."; };
     if str_eq(code, "CONTRACT-007") { return "In --profile=cert, every contract must be statically discharged. The SMT backend could not prove the predicate; tighten or annotate."; };
+    if str_eq(code, "CONTRACT-008") { return "A #[ensure(...)] predicate references result, but the annotated function returns no value."; };
+    if str_eq(code, "CONTRACT-009") { return "NUCLEOR_DBC_MODE must be one of debug, safe-release, release, or cert."; };
+    if str_eq(code, "CONTRACT-010") { return "old(...) snapshots function-entry state and is only meaningful in postconditions, not preconditions."; };
     if str_eq(code, "ATOMIC-001") { return "#[atomic] functions cannot block. Mutex::lock, Channel::recv, sleep, or syscalls are forbidden. Use lock-free structures (SpscQueue, MpmcQueue) or Atomic<T>."; };
     if str_eq(code, "ATOMIC-002") { return "#[atomic] implies #[no_alloc]. See RT-001 explanation."; };
     if str_eq(code, "ATOMIC-003") { return "Cell/RefCell carry runtime borrow checks that can panic; #[atomic] forbids panicking control flow. Use Atomic<T> primitives instead."; };
     if str_eq(code, "ATOMIC-004") { return "compare_exchange takes (success, failure) orderings; failure must not be stronger than success and not Release/AcqRel. The compiler enforces the ordering lattice."; };
     if str_eq(code, "ATOMIC-005") { return "atomic_load accepts Relaxed, Acquire, or SeqCst. atomic_store accepts Relaxed, Release, or SeqCst. Acquire stores and Release loads are invalid memory-model combinations."; };
+    if str_eq(code, "ATOMIC-006") { return "Closure lowering does not yet inherit the parent function's enum-variant scope for atomic memory-order constants."; };
     if str_eq(code, "ISR-001") { return "Vector-table wiring requires the ISR fn to be pub so the linker can find it."; };
     if str_eq(code, "ISR-002") { return "ISRs share a small stack. Move large local arrays to static or move computation outside the ISR."; };
     if str_eq(code, "ISR-003") { return "Functions called from an ISR must be #[isr_safe] (no blocking, no alloc). The compiler walks the call graph from the ISR root."; };
@@ -10934,11 +11048,15 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "CONTRACT-005") { return "RFC-0006 §3.5 — the dual of CONTRACT-004. An impl that promises strictly more than the trait breaks substitutability when callers swap the impl through a trait object. Match the trait's #[ensure] verbatim or weaken."; };
     if str_eq(code, "CONTRACT-006") { return "RFC-0006 §3.3 — old(expr) snapshots the value at function entry. If expr was mutated by the body, old(...) sees the post-mutation value because no entry snapshot was taken. Capture explicitly: `let _entry_x = x; ... old(x) = _entry_x;`."; };
     if str_eq(code, "CONTRACT-007") { return "RFC-0006 — in --profile=cert, every contract is SMT-discharged. The solver could not prove the predicate. Strengthen the require/ensure with an additional clause that closes the gap, or annotate `#[contract(approximate)]` to fall back to runtime check."; };
+    if str_eq(code, "CONTRACT-008") { return "Remove `result` from the ensure predicate, or give the function a concrete return type if the contract is meant to constrain the returned value."; };
+    if str_eq(code, "CONTRACT-009") { return "Unset NUCLEOR_DBC_MODE for debug behavior, or set it explicitly to debug, safe-release, release, or cert."; };
+    if str_eq(code, "CONTRACT-010") { return "Move the old(...) check into #[ensure(...)] or compare directly against the incoming parameter in #[require(...)]."; };
     if str_eq(code, "ATOMIC-001") { return "RFC-0007 §3.3 — #[atomic] is the inter-thread RT contract. Use Atomic<T> ops, SpscQueue/MpmcQueue.try_push/try_pop, and avoid all blocking primitives."; };
     if str_eq(code, "ATOMIC-002") { return "RFC-0007 §3.3 — see RT-001."; };
     if str_eq(code, "ATOMIC-003") { return "RFC-0007 — Cell/RefCell rely on runtime borrow tracking that may panic; #[atomic] forbids panicking flow because it would break atomicity guarantees. Replace with Atomic<T> or AtomicCell<T>."; };
     if str_eq(code, "ATOMIC-004") { return "RFC-0007 §3.2 — compare_exchange takes (success_ordering, failure_ordering); failure cannot be stronger than success and cannot be Release/AcqRel (since failure does not perform a write). Compiler enforces the ordering lattice as defined by the C++/Rust memory model."; };
     if str_eq(code, "ATOMIC-005") { return "RFC-0007 §3.2 maps MemOrder to LLVM atomic ordering keywords. LLVM rejects release/acq_rel loads and acquire/acq_rel stores; use Acquire/SeqCst for loads and Release/SeqCst for stores."; };
+    if str_eq(code, "ATOMIC-006") { return "Call the atomic helper directly from a regular function body instead of wrapping it in a closure until closure scope inheritance lands."; };
     if str_eq(code, "ISR-001") { return "RFC-0008 §3.3 — vector table is generated from #[isr]-annotated functions. Linker needs the symbol public."; };
     if str_eq(code, "ISR-002") { return "RFC-0008 §3.6 — each ISR has a stack budget (default 256 B). Move large arrays to static, file-scope, or to a dynamically-allocated heap region used outside the ISR."; };
     if str_eq(code, "ISR-003") { return "RFC-0008 §3.2 — the call graph rooted at an #[isr] function is closed under #[isr_safe]. The compiler walks it and reports any callee not marked safe. Mark callees #[isr_safe] (and verify they meet the constraints) or move the work outside the ISR."; };
@@ -11261,17 +11379,23 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     let preflight_start: i64 = now_ms();
     if preflight_source_check(source) != 0 { return 1; };
     print_phase_time(time_passes, "preflight", now_ms() - preflight_start);
+    let mut cache_key: str = "";
+    let mut cache_flags: str = "";
     let mut cache_ll_path: str = "";
     if use_cache == 1 {
-        let cache_key: str = build_cache_key(source, strict_mode);
-        cache_ll_path = sanitize(str_concat(".nuc_cache/", str_concat(cache_key, ".ll")));
+        cache_flags = cache_v2_canonical_flags(strict_mode);
+        cache_key = build_cache_key(source, strict_mode);
+        cache_ll_path = cache_v2_ll_path(cache_key);
         let cached_ll: str = file_read_string(cache_ll_path);
         if str_len(cached_ll) > 0 {
-            print(str_concat("  incremental: source cache hit (", str_concat(build_mode_name(strict_mode), ")")));
+            print(str_concat("cache: hit (sha=", str_concat(cache_v2_prefix(cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_size_mb(cached_ll)), " MB)")))));
             let rc_cached: i64 = link_native_module(cached_ll, safe_out_name, imported, "", link_native, time_passes);
+            cache_v2_print_stats(1, 0);
             print_phase_time(time_passes, "total", now_ms() - total_start);
             return rc_cached;
         };
+    } else {
+        print("cache: disabled (sha=none, size 0 MB)");
     };
     let lex_start: i64 = now_ms();
     let mut tokens: Vec<i32> = lex(source);
@@ -11422,7 +11546,18 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     let emit_start: i64 = now_ms();
     let ll: str = emit_module_ext(fns, strtab, pool, externs);
     print_phase_time(time_passes, "emit", now_ms() - emit_start);
-    let rc: i64 = link_native_module(ll, safe_out_name, imported, cache_ll_path, link_native, time_passes);
+    let rc: i64 = link_native_module(ll, safe_out_name, imported, "", link_native, time_passes);
+    if use_cache == 1 {
+        if rc == 0 {
+            cache_v2_store(cache_key, src_path, cache_flags, ll);
+            print(str_concat("cache: miss -> stored (sha=", str_concat(cache_v2_prefix(cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_size_mb(ll)), " MB)")))));
+        } else {
+            print(str_concat("cache: miss -> not stored (sha=", str_concat(cache_v2_prefix(cache_key), ", size 0 MB)")));
+        };
+        cache_v2_print_stats(0, 1);
+    } else {
+        cache_v2_print_stats(0, 0);
+    };
     print_phase_time(time_passes, "total", now_ms() - total_start);
     return rc;
 }
@@ -18072,7 +18207,7 @@ fn run_mco_command() -> i64 {
     return 0;
 }
 
-fn run_clean_command() -> i64 {
+fn run_clean_command(argc: i64) -> i64 {
     // Remove target/ and .nuc_cache/ from the current working directory.
     // Use `system` (rmdir on Windows / rm on POSIX). Refuse to run if the
     // current directory is the filesystem root.
@@ -18080,6 +18215,19 @@ fn run_clean_command() -> i64 {
     if str_len(cwd) <= 3 {
         print("clean: refusing to operate on filesystem root");
         return 1;
+    };
+    let mut cache_only: i64 = 0;
+    let mut i: i64 = 2;
+    while i < argc {
+        if str_eq(args_get(i), "--cache") == 1 { cache_only = 1; };
+        i = i + 1;
+    };
+    if cache_only == 1 {
+        print(str_concat("clean: removing compilation cache in ", cwd));
+        system("rmdir /S /Q target\\.nuc_cache_v2 2>nul");
+        system("rmdir /S /Q .nuc_cache 2>nul");
+        print("clean: done");
+        return 0;
     };
     print(str_concat("clean: removing build artifacts in ", cwd));
     // Windows: `rmdir /S /Q` does the recursive delete; ignore errors so we
@@ -18110,7 +18258,8 @@ fn print_help() -> i64 {
     print("    --emit llvm          Keep the LLVM IR artifact");
     print("    --no-link            Stop after writing target/<name>.ll");
     print("    --time-passes        Print per-phase compile timings");
-    print("    --no-cache           Disable the resolved-source LLVM cache");
+    print("    --no-cache           Disable resolved-source and content-addressed LLVM caches");
+    print("    --cache-stats        Print cache hit/miss counters for this build");
     print("");
     print("Developer commands:");
     print("  test [file]            Build and run @test / test_* functions");
@@ -18173,6 +18322,7 @@ fn print_help() -> i64 {
     print("");
     print("Project utilities:");
     print("  clean                  Remove target/ and .nuc_cache/ from the project");
+    print("  clean --cache          Remove target/.nuc_cache_v2/ and .nuc_cache/ only");
     print("  scram                  Alias for `clean` (emergency shutdown of build state)");
     print("  zen                    The design principles of Nucleor");
     print("  mco                    Mars Climate Orbiter — why we ship dimensional analysis");
@@ -18282,7 +18432,7 @@ fn main() -> i64 {
         return run_mco_command();
     };
     if str_eq(cmd, "clean") || str_eq(cmd, "scram") {
-        return run_clean_command();
+        return run_clean_command(argc);
     };
     if str_eq(cmd, "init") {
         // nuc init [name] — scaffold a new project.
@@ -18355,6 +18505,7 @@ fn main() -> i64 {
         let flag: str = args_get(argi_build);
         if str_eq(flag, "--time-passes") { time_passes = 1; }
         else if str_eq(flag, "--no-cache") { use_cache = 0; }
+        else if str_eq(flag, "--cache-stats") { env_set("NUCLEOR_CACHE_STATS", "1"); }
         else if str_eq(cmd, "test") && str_eq(flag, "--list") { test_list_only = 1; }
         else if str_eq(cmd, "test") && str_eq(flag, "--isolation=process") { test_isolation_process = 1; }
         else if str_eq(cmd, "test") && str_eq(flag, "--isolation=thread") { test_isolation_process = 0; }

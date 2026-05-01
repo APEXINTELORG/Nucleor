@@ -1,3 +1,4 @@
+// EXPECT: build fails with single line containing MATCH-012.
 // MATCH-012 — struct-pattern field after `:` must be an identifier
 // (rename-binding form). Field-equality literal patterns deferred
 // to v0.5+.
