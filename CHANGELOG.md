@@ -5,6 +5,102 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.239] — 2026-04-30
+
+**🔧 LIVE BUG FIX — `wrapping { ... }` blocks no longer trap
+under v0.4.238's strict-default-on.** Critical adopter-affecting
+bug discovered during the v0.4.238 adopter audit (hard item 3 of
+the v0.5 substantive arc). Pre-fix, `wrapping { a + b }` panicked
+at runtime on real overflow — the exact opposite of the user's
+intent and a complete regression for anyone using `wrapping {}`
+as the documented escape hatch.
+
+### Root cause
+
+The parser at `parse_primary` line 1298 routed `wrapping { ... }`
+through `parse_passthrough_block_expr` (no mode flag) instead of
+`parse_wrapped_block_expr(..., mode=1)`. As a result, the
+resulting AST was a plain block with no kind-52 wrapper, so the
+lower_expr kind-52 handler that sets `sym["__arith_mode"] = 1`
+never fired. Track E's precedence guards in lower_expr_narrow
+and lower_expr k=4 — `arith_mode_explicit <= 0` — therefore
+read `arith_mode = -1` (unset → default sentinel), the guard
+PASSED, and the strict-intrinsic trap path was emitted INSIDE
+the wrapping block. With v0.4.238's NUCLEOR_INT_STRICT_INTRIN
+default flipped to `"1"`, this turned every overflow inside a
+wrapping block into a runtime panic.
+
+Pre-v0.4.238 the bug was invisible because the strict-intrinsic
+path was opt-in only and the `add nsw` fallback doesn't trap.
+v0.4.238 made it visible.
+
+### The fix
+
+```diff
+- if tt == 1 && str_eq(pkv(tokens, pos), "wrapping") == 1 ... {
+-     return parse_passthrough_block_expr(tokens, pos + 1, pool);
+- };
++ if tt == 1 && str_eq(pkv(tokens, pos), "wrapping") == 1 ... {
++     return parse_wrapped_block_expr(tokens, pos + 1, pool, 1);
++ };
+```
+
+`saturating { ... }` already routed through the wrapped form
+with `mode=2`. This change makes `wrapping` symmetric.
+
+### Validation
+
+- Self-build clean (LL 7 864 306 bytes, +34 bytes for the changed
+  comment block, IR shape unchanged at the expected wrap sites).
+- **Two-stage fixed-point env-DEFAULT-ON at SHA**
+  `633bc5332bf4389623ea5b9168e2a50aaca45802362e85bb394391d2e94db9f5`.
+  Bootstrap seed refreshed; T1.7 locked.
+- **Targeted wrap smokes:**
+  - i64 wrap `9223372036854775000 + 9223372036854775000`
+    → `wrap_i32` clamp + native add → `-1616`, exit 0 (was: PANIC).
+  - i16 wrap `30000 + 30000` → `-5536`, exit 0 (was: PANIC).
+  - `overflow_wrapping.nr` fixture → `-2147483648` (i32::MIN), exit 0.
+- **NUM-024 audit:** still 0/0.
+- **Compiler ABI drift gate:** clean.
+- **Adopter audit (30 main adopter programs in `examples/` +
+  `examples/showcase/`):** zero panics under default strict mode.
+
+### Outstanding follow-up (separate v0.4.240+ work)
+
+The phase 3a/full numeric fixtures
+(`tests/features/rfc0015_phase3a_widths.nr`,
+`tests/features/rfc0015_phase3_widths_full.nr`) still trigger
+runtime overflow panics on a different path — Track B's
+`emit_overflow_arith` always emits **signed**
+`@llvm.sadd/ssub/smul.with.overflow.iN` intrinsics regardless
+of operand signedness. For genuinely unsigned operations this
+is technically correct (signed-overflow on negative-as-signed-
+representation values does happen), but the test fixtures use
+unsigned types where wrap semantics are well-defined and the
+intrinsic shouldn't fire. v0.4.240 will route unsigned types
+through `uadd/usub/umul.with.overflow.iN` for correct
+unsigned-overflow semantics. Both fixtures pass at the verify-
+gate level (rc != 139) but emit unintended panics on certain
+internal arithmetic.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: 3-line parser fix at
+  line 1298 + extended comment.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+- `RELEASES.md`: regenerated.
+
+### Adopter impact
+
+If you use `wrapping { ... }` blocks in your code:
+- **v0.4.238 (broken):** panicked on real overflow inside the
+  block.
+- **v0.4.239 (fixed):** wraps correctly per the documented
+  semantics.
+
+**Strongly recommend upgrading from v0.4.238 → v0.4.239
+immediately if you've shipped any code using `wrapping {}`.**
+
 ## [0.4.238] — 2026-04-30
 
 **v0.5 ship 8 of 8 — phase 3e.3 strict-mode default FLIPPED.**
