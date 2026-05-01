@@ -18162,6 +18162,21 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // v0.4.249 RFC-0006 — invariant exit-emit at mid-body return.
             let invx_stmt_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
             if invx_stmt_nid >= 0 {
+                let invx_stmt_is_ctor: i64 = sym_get(sym, "__current_method_is_ctor");
+                if invx_stmt_is_ctor == 1 {
+                    let self_ar_s: i64 = ctr_next(regs);
+                    ir_block_add(cur, ir_alloca(self_ar_s));
+                    ir_block_add(cur, ir_store(vr, self_ar_s));
+                    sym_set(sym, "self", self_ar_s);
+                    // Use the fn's full return type stored in sym at
+                    // lower_fn entry. sym_get returns i64; in Nucleor's
+                    // i64-ABI the str pointer fits in i64 directly.
+                    let cur_t_s: i64 = sym_get(sym, "__current_fn_full_return");
+                    if cur_t_s != 0 - 1 {
+                        sym_set(sym, str_concat("__type_", "self"), cur_t_s);
+                        sym_set(sym, str_concat("__fulltype_", "self"), cur_t_s);
+                    };
+                };
                 let mut invx_lp: Vec<i32> = lower_expr(pool, invx_stmt_nid, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                 let invx_pr: i64 = lx_reg(invx_lp);
                 cur = lx_blk(invx_lp);
@@ -18189,6 +18204,18 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // v0.4.249 RFC-0006 — invariant exit-emit at bare return;.
             let invx_bare_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
             if invx_bare_nid >= 0 {
+                let invx_bare_is_ctor: i64 = sym_get(sym, "__current_method_is_ctor");
+                if invx_bare_is_ctor == 1 {
+                    let self_ar_b: i64 = ctr_next(regs);
+                    ir_block_add(cur, ir_alloca(self_ar_b));
+                    ir_block_add(cur, ir_store(zr, self_ar_b));
+                    sym_set(sym, "self", self_ar_b);
+                    let cur_t_b: i64 = sym_get(sym, "__current_fn_full_return");
+                    if cur_t_b != 0 - 1 {
+                        sym_set(sym, str_concat("__type_", "self"), cur_t_b);
+                        sym_set(sym, str_concat("__fulltype_", "self"), cur_t_b);
+                    };
+                };
                 let mut invx_lp_b: Vec<i32> = lower_expr(pool, invx_bare_nid, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
                 let invx_pr_b: i64 = lx_reg(invx_lp_b);
                 cur = lx_blk(invx_lp_b);
@@ -18808,13 +18835,28 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
                     inv_idx = inv_idx + 2;
                 };
             };
-            if inv_nid >= 0 && pc > 0 {
-                // Only emit invariant on methods with self (first
-                // param). Self is the first param in impl methods;
-                // free fns mangled by trait impls also have self.
-                let first_p: i64 = list_get(pool, plist, 0);
-                let first_pname: str = node_field(pool, first_p, 1);
-                if str_eq(first_pname, "self") == 1 {
+            if inv_nid >= 0 {
+                // self-method path: first param is `self`. Entry-emit
+                // the invariant predicate immediately, then stash the
+                // nid for exit-emit at every return site.
+                let mut is_self_method: i64 = 0;
+                if pc > 0 {
+                    let first_p: i64 = list_get(pool, plist, 0);
+                    if str_eq(node_field(pool, first_p, 1), "self") == 1 { is_self_method = 1; };
+                };
+                // v0.4.253 RFC-0006 — constructor path: fn returns
+                // the parent type but takes no `self`. Per spec §3.4,
+                // invariants fire on exit from constructors (no
+                // entry-emit possible — self doesn't exist yet). At
+                // exit-emit time, the existing tail-return code
+                // checks `__current_method_is_ctor` and binds `self`
+                // to the rv before lowering the predicate.
+                let rtype: str = node_field(pool, fn_nid, 3);
+                let mut is_ctor: i64 = 0;
+                if is_self_method == 0 {
+                    if str_eq(rtype, inv_type) == 1 || str_eq(rtype, "Self") == 1 { is_ctor = 1; };
+                };
+                if is_self_method == 1 {
                     let mut inv_lp: Vec<i32> = lower_expr(pool, inv_nid, ebb0, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
                     let inv_rr: i64 = lx_reg(inv_lp);
                     ebb0 = lx_blk(inv_lp);
@@ -18822,19 +18864,10 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
                     inv_args.push(inv_rr);
                     let inv_cr: i64 = ctr_next(regs);
                     ir_block_add(ebb0, ir_call_ex(inv_cr, "contract_invariant", inv_args));
-                    // v0.4.249 RFC-0006 — stash the invariant nid in
-                    // sym so the tail-return + explicit-return sites
-                    // can emit the EXIT-time invariant check. Per
-                    // spec section 3.4, invariants fire on exit from
-                    // every method modifying self (and exit from
-                    // constructors). Pragmatic v0.4.249 scope: emit
-                    // on exit of every `self` method, regardless of
-                    // mutation. Cost: a redundant predicate
-                    // evaluation on read-only methods. Benefit: zero
-                    // false negatives — if any path through the
-                    // method ever leaves self in a violating state,
-                    // the gate fires.
                     sym_set(sym, "__current_method_invariant_nid", inv_nid);
+                } else if is_ctor == 1 {
+                    sym_set(sym, "__current_method_invariant_nid", inv_nid);
+                    sym_set(sym, "__current_method_is_ctor", 1);
                 };
             };
         };
@@ -18897,8 +18930,31 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
                 };
             };
             // v0.4.249 RFC-0006 — invariant exit-emit at tail return.
+            // v0.4.253 — if this fn is a constructor (returns the
+            // parent type, no self param), bind `self` to rv before
+            // lowering the predicate so `self.field` resolves.
             let invx_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
             if invx_nid >= 0 {
+                let invx_is_ctor: i64 = sym_get(sym, "__current_method_is_ctor");
+                if invx_is_ctor == 1 {
+                    let self_ar: i64 = ctr_next(regs);
+                    ir_block_add(fb, ir_alloca(self_ar));
+                    ir_block_add(fb, ir_store(rv, self_ar));
+                    sym_set(sym, "self", self_ar);
+                    // Re-derive the inv_type from `name` (Type__method
+                    // → Type) so field-access on self lowers correctly.
+                    let nl_t: i64 = str_len(name);
+                    let mut sp_t: i64 = 0;
+                    while sp_t + 1 < nl_t {
+                        if str_char_at(name, sp_t) == 95 && str_char_at(name, sp_t + 1) == 95 { break; };
+                        sp_t = sp_t + 1;
+                    };
+                    if sp_t > 0 && sp_t + 1 < nl_t {
+                        let it_ctor: str = str_substring(name, 0, sp_t);
+                        sym_set(sym, str_concat("__type_", "self"), it_ctor);
+                        sym_set(sym, str_concat("__fulltype_", "self"), it_ctor);
+                    };
+                };
                 let mut invx_lp: Vec<i32> = lower_expr(pool, invx_nid, fb, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
                 let invx_pr: i64 = lx_reg(invx_lp);
                 fb = lx_blk(invx_lp);
@@ -18949,6 +19005,24 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
         // return (no explicit body tail expression).
         let invx2_nid: i64 = sym_get(sym, "__current_method_invariant_nid");
         if invx2_nid >= 0 {
+            let invx2_is_ctor: i64 = sym_get(sym, "__current_method_is_ctor");
+            if invx2_is_ctor == 1 {
+                let self_ar2: i64 = ctr_next(regs);
+                ir_block_add(fb, ir_alloca(self_ar2));
+                ir_block_add(fb, ir_store(zr, self_ar2));
+                sym_set(sym, "self", self_ar2);
+                let nl2: i64 = str_len(name);
+                let mut sp2: i64 = 0;
+                while sp2 + 1 < nl2 {
+                    if str_char_at(name, sp2) == 95 && str_char_at(name, sp2 + 1) == 95 { break; };
+                    sp2 = sp2 + 1;
+                };
+                if sp2 > 0 && sp2 + 1 < nl2 {
+                    let it2: str = str_substring(name, 0, sp2);
+                    sym_set(sym, str_concat("__type_", "self"), it2);
+                    sym_set(sym, str_concat("__fulltype_", "self"), it2);
+                };
+            };
             let mut invx2_lp: Vec<i32> = lower_expr(pool, invx2_nid, fb, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
             let invx2_pr: i64 = lx_reg(invx2_lp);
             fb = lx_blk(invx2_lp);
