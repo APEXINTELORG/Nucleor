@@ -1808,6 +1808,19 @@ t_rfc0006_old_expr_runtime() {
     return 0
 }
 
+t_rfc0006_old_in_require_reject() {
+    # v0.4.277 — `old(...)` in `#[require]` must reject at compile
+    # time. Probe-agent finding 2026-05-01: pre-fix, the build
+    # surfaced a misleading clang-link "undefined function `old()`"
+    # error. CONTRACT-010 now halts at compile entry naming the
+    # semantic mismatch + the workaround.
+    "$BIN" build "tests/err/err_contract_old_in_require.nr" -o "_t_oir" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "1" ] || return 1
+    grep -q "CONTRACT-010" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "fn f" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t_match_012_single_line() {
     # v0.4.276 MATCH-012 — probe-agent finding 2026-04-30: dual
     # print+panic emitted the diag text TWICE. Folded into a single
@@ -4339,6 +4352,7 @@ step "v0.4.271 RFC-0006 — old() over heap-aliased types reject (CONTRACT-006)"
 step "v0.4.272 RFC-0006 — result in void-fn #[ensure] reject (CONTRACT-008)" t_rfc0006_result_in_void_fn_reject
 step "v0.4.275 RFC-0006 — invalid NUCLEOR_DBC_MODE reject (CONTRACT-009)" t_rfc0006_dbc_mode_invalid_reject
 step "v0.4.276 MATCH-012 single-line panic (no print+panic stutter)" t_match_012_single_line
+step "v0.4.277 RFC-0006 — old() in #[require] reject (CONTRACT-010)" t_rfc0006_old_in_require_reject
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

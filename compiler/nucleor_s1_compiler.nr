@@ -8266,6 +8266,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "CONTRACT-007") == 1 { return 1; };
     if str_eq(code, "CONTRACT-008") == 1 { return 1; };
     if str_eq(code, "CONTRACT-009") == 1 { return 1; };
+    if str_eq(code, "CONTRACT-010") == 1 { return 1; };
     // RFC-0007 atomic
     if str_eq(code, "ATOMIC-001") == 1 { return 1; };
     if str_eq(code, "ATOMIC-002") == 1 { return 1; };
@@ -9254,6 +9255,34 @@ fn fn_return_type(source: str, fn_name: str) -> str {
         q = q + 1;
     };
     return "";
+}
+
+// v0.4.277 RFC-0006 — scan a contract-predicate text for `old(`
+// pseudo-call. Same word-boundary technique as
+// `ensure_text_uses_result`: `old` must be preceded by start-of-
+// text or non-ident char (so `older` / `bold(...)` don't match)
+// and followed by `(`. Used to reject `#[require(old(...) ...)]`
+// at compile time.
+fn contract_text_uses_old(text: str) -> i64 {
+    let needle: str = "old";
+    let nlen: i64 = str_len(needle);
+    let tlen: i64 = str_len(text);
+    let mut i: i64 = 0;
+    while i + nlen + 1 <= tlen {
+        let win: str = str_substring(text, i, i + nlen);
+        if str_eq(win, needle) == 1 {
+            let prev_ok: i64 = if i == 0 { 1 } else {
+                let pc: str = str_substring(text, i - 1, i);
+                let p_alpha: i64 = if str_index_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_", pc) >= 0 { 1 } else { 0 };
+                let p_digit: i64 = if str_index_of("0123456789", pc) >= 0 { 1 } else { 0 };
+                if p_alpha == 0 { if p_digit == 0 { 1 } else { 0 } } else { 0 }
+            };
+            let next_paren: i64 = if str_eq(str_substring(text, i + nlen, i + nlen + 1), "(") == 1 { 1 } else { 0 };
+            if prev_ok == 1 { if next_paren == 1 { return 1; }; };
+        };
+        i = i + 1;
+    };
+    return 0;
 }
 
 // v0.4.272 RFC-0006 — scan an ensure-predicate text for a bare
@@ -21370,6 +21399,19 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         let req_name: str = vec_get(req_text_pairs, rti);
         if name_in_no_check(dbc_no_check, req_name) == 1 { rti = rti + 2; continue; };
         let req_text: str = vec_get(req_text_pairs, rti + 1);
+        // v0.4.277 — reject `old()` in #[require]. Probe-agent
+        // finding 2026-05-01: pre-fix, `#[require(old(x) > 0)]`
+        // emitted a misleading clang-link "undefined function
+        // `old()`" error. `old()` is meaningful only in #[ensure]
+        // (postconditions can reference fn-entry state); #[require]
+        // runs BEFORE the body so there's no prior state to
+        // snapshot. Halt with CONTRACT-010 naming the semantic
+        // mismatch.
+        if contract_text_uses_old(req_text) == 1 {
+            print(str_concat("error[CONTRACT-010]: `old(...)` is not valid in `#[require(...)]` on `fn ", str_concat(req_name, "`. Preconditions run BEFORE the function body, so there is no prior state to snapshot. `old(...)` is only meaningful in `#[ensure(...)]` (postconditions reference fn-entry state). Move the check into `#[ensure]`, or compare directly against the parameter without `old()`.")));
+            print(str_concat("  --> fn ", str_concat(req_name, "@<#[require] attribute>")));
+            return 1;
+        };
         let req_tokens: Vec<i32> = lex(req_text);
         let req_parsed: Vec<i32> = parse_expr(req_tokens, 0, pool);
         let req_expr_nid: i64 = pr_val(req_parsed);
