@@ -1296,7 +1296,23 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // ops inside this block back to wrapping intrinsics. Same lookahead
     // gate as `unsafe` above so user fns named `wrapping` keep working.
     if tt == 1 && str_eq(pkv(tokens, pos), "wrapping") == 1 && pk(tokens, pos + 1) == 52 {
-        return parse_passthrough_block_expr(tokens, pos + 1, pool);
+        // v0.4.239: route `wrapping { ... }` through the kind-52
+        // mode-1 wrapped-block-expr so the lower_expr handler sets
+        // sym["__arith_mode"]=1 in the body's sym before lowering
+        // the contained arithmetic. Pre-fix this called the
+        // passthrough parser which produces a kind-25 (or similar)
+        // block with no mode flag, so __arith_mode was never set
+        // and Track E's `arith_mode_explicit <= 0` precedence
+        // guard at both intrinsic emit sites couldn't fire. With
+        // v0.4.238's NUCLEOR_INT_STRICT_INTRIN=1 default, every
+        // `wrapping { a + b }` block emitted the strict-intrinsic
+        // trap path and panicked at runtime on real overflow —
+        // the exact opposite of the user's intent. The wrap_i32
+        // tail clamp (kind-52 mode==1 in lower_expr) was the only
+        // thing keeping the block's final value pinned to i32
+        // range; per-op behavior was broken pre-v0.4.238 too,
+        // just invisibly because nsw doesn't trap.
+        return parse_wrapped_block_expr(tokens, pos + 1, pool, 1);
     };
     // v0.4.153: `saturating { ... }` block. Arithmetic inside the
     // block lowers per operation to saturating_add/sub/mul helpers
