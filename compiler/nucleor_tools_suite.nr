@@ -10597,6 +10597,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "TYP-013") { return "Unknown field in struct initialization (would silently drop the extra field)"; };
     if str_eq(code, "TYP-026") { return "Non-void function reaches the end without returning a value"; };
     if str_eq(code, "FMT-002") { return "Type does not implement Display for bare `{}` formatting"; };
+    if str_eq(code, "FMT-003") { return "Format string has more arguments than `{}` placeholders (extras would be silently dropped)"; };
     if str_eq(code, "TRAIT-001") { return "Missing From conversion for `?` error propagation"; };
     // RFC-0015 numeric types
     if str_eq(code, "NUM-001") { return "Mixed-width arithmetic without cast"; };
@@ -10819,6 +10820,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra `z` field (Rust E0560 errors). Check the struct definition and remove the unknown field, or add it to the struct decl."; };
     if str_eq(code, "TYP-026") { return "A function declared to return a value has a path that can fall through without an explicit return or tail expression. Add the missing return value, or change the function to return void."; };
     if str_eq(code, "FMT-002") { return "Bare `{}` formatting for a user struct requires an `impl Display for Type` with `fn fmt(self) -> str`; use `{:?}` for derived structural debug output."; };
+    if str_eq(code, "FMT-003") { return "`format!(\"{}\", 1, 2, 3)` (more args than placeholders) silently dropped the extras pre-v0.5.11 — including any side effects in the dropped argument expressions. Either add `{}` placeholders for each extra arg or remove the unused args from the call. Mirrors the v0.4.70 placeholder>args check (the loud-direction asymmetry that left this case silent)."; };
     if str_eq(code, "TRAIT-001") { return "`?` on `Result<T, SrcErr>` inside a function returning `Result<U, DstErr>` requires `impl From<SrcErr> for DstErr` when the error payload types differ."; };
     if str_eq(code, "NUM-001") { return "Nucleor follows Rust's no-implicit-conversion rule. Cast explicitly with `as`: `(u8_val as i32) + i32_val`."; };
     if str_eq(code, "NUM-002") { return "The literal does not fit in the declared type — e.g. 256u8 overflows u8."; };
@@ -11018,6 +11020,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra field — the lower walked the init list in declared order, so any extra entries past the declared count were ignored. Rust errors here with E0560 — adopters writing canonical struct literals got a quiet wrong shape. Either remove the unknown field from the literal, or add it to the struct definition."; };
     if str_eq(code, "TYP-026") { return "Audit every control-flow path and make the returned value explicit. For side-effect-only functions, declare `-> void` or omit the return type."; };
     if str_eq(code, "FMT-002") { return "`println!(\"{}\", value)` previously fell through to `int_to_str(value)` for struct values, printing an ABI handle instead of user-facing text. The format expander now hard-errors unless the struct has a Display impl; `println!(\"{:?}\", value)` remains the structural debug path."; };
+    if str_eq(code, "FMT-003") { return "Pre-v0.5.11 `format!(\"just {}\", 1, 2, 3)` silently dropped args 2 and 3 — the format expander walked the placeholders and stopped at the first arg, leaving the rest unevaluated/unreferenced. Adopter typos (left an arg after removing a placeholder) and refactor mistakes (renamed a placeholder, kept the arg) hit silently. v0.5.11 mirrors the v0.4.70 placeholder>args check direction so both asymmetries halt cleanly. Side-effecting expressions in dropped args (e.g. `format!(\"{}\", 1, expensive_call())`) no longer evaluate-then-discard."; };
     if str_eq(code, "TRAIT-001") { return "The `?` operator propagates the Err payload early. When the callee error type and enclosing function error type differ, Nucleor now performs the Rust-style `From<SrcErr> for DstErr` conversion. If that impl is absent, continuing would either return the wrong payload layout or silently expose the source error type through the destination API, so the compiler stops with TRAIT-001."; };
     if str_eq(code, "NUM-001") { return "Nucleor models on Rust: numeric types are distinct, no implicit conversion. Cast explicitly with `as`. Reasoning: silent conversions are a recurring bug source (truncation, sign extension)."; };
     if str_eq(code, "NUM-002") { return "Numeric literal exceeds the declared type's range — e.g. 256u8, -1u32, 4_000_000_000i32. Use a wider type or change the literal."; };
@@ -13828,6 +13831,13 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     };
     segments.push(sb_to_str(current));
     parities.push(0);
+    // v0.5.11: FMT-003 — extra args silently dropped. Mirror of
+    // nucleor_s1_compiler.nr; drift gate enforces.
+    if arg_idx < n_args {
+        let dropped: i64 = n_args - arg_idx;
+        print(str_concat("ERROR: error[FMT-003]: format string has ", str_concat(str_from_int(arg_idx), str_concat(" `{}` placeholder(s) but ", str_concat(str_from_int(n_args), str_concat(" argument(s) supplied; ", str_concat(str_from_int(dropped), str_concat(" extra argument(s) would be silently dropped. Format body: `", str_concat(body, "`. Either add `{}` placeholders for the extras or remove them from the call.")))))))));
+        panic("nucleor: FMT-003 format args > placeholders (extras would be silently dropped)");
+    };
     let chain: str = fmt_build_concat_chain(segments, parities);
     if mode == 0 { return str_concat("print(", str_concat(chain, ")")); };
     if mode == 1 { return chain; };

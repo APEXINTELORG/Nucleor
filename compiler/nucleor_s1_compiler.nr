@@ -8274,6 +8274,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "TYP-013") == 1 { return 1; };
     if str_eq(code, "TYP-026") == 1 { return 1; };
     if str_eq(code, "FMT-002") == 1 { return 1; };
+    if str_eq(code, "FMT-003") == 1 { return 1; };
     if str_eq(code, "TRAIT-001") == 1 { return 1; };
     // RFC-0004 assume!
     if str_eq(code, "ASSUME-001") == 1 { return 1; };
@@ -25219,6 +25220,17 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     };
     segments.push(sb_to_str(current));
     parities.push(0);
+    // v0.5.11: probe-agent finding 2026-05-01-format-extra-args-silently-dropped.
+    // Mirror direction of the v0.4.70 placeholder>args check: if the
+    // adopter supplied MORE args than `{}` placeholders, the extras
+    // would be silently dropped (their evaluation may even have side
+    // effects). Halt cleanly with FMT-003 naming the dropped count
+    // and the format body.
+    if arg_idx < n_args {
+        let dropped: i64 = n_args - arg_idx;
+        print(str_concat("ERROR: error[FMT-003]: format string has ", str_concat(str_from_int(arg_idx), str_concat(" `{}` placeholder(s) but ", str_concat(str_from_int(n_args), str_concat(" argument(s) supplied; ", str_concat(str_from_int(dropped), str_concat(" extra argument(s) would be silently dropped. Format body: `", str_concat(body, "`. Either add `{}` placeholders for the extras or remove them from the call.")))))))));
+        panic("nucleor: FMT-003 format args > placeholders (extras would be silently dropped)");
+    };
     let chain: str = fmt_build_concat_chain(segments, parities);
     if mode == 0 { return str_concat("print(", str_concat(chain, ")")); };
     if mode == 1 { return chain; };
