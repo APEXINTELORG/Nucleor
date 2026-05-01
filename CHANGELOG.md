@@ -5,6 +5,110 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.286] — 2026-05-01
+
+**📝 v0.5.0 milestone tracker — ML expansion Lanes A/B/C/D/K
+substrate enrichment.** Doc-only ship. Adds the ML Suite
+expansion set's v0.5-relevant lanes (A through D and K) to
+`docs/milestones/v0.5.0.md` per the brief
+(`Desktop\Nucleor_ML_Expansion_Spine_Integration_Brief_2026-05-01.md`)
+exact-checklist step 5.
+
+### What lands
+
+New section in `v0.5.0.md` titled **"ML expansion set integration
+(added 2026-05-01)"** placed before Success criteria. Covers:
+
+- **Lane A** — evidence-bound performance claim discipline
+  (no marketing without measured numbers; backend dispatch
+  REQUIRED before public speed claims; inference / serve as
+  public product wedge before further training expansion)
+- **Lane B** — HF / ONNX / vLLM / Arrow / boosting frontend
+  boundaries (metadata contract evidence is NOT native execution
+  proof; no replacement claims without evidence; ML Suite code
+  stays in ML Suite repo)
+- **Lane C** — Implementation Plan substrate boundaries (type-
+  level shape phase BEFORE SOTA shape claims; package /
+  capsule / registry / bench / SBOM / lab / port / serve / ship /
+  health contracts get acceptance hooks)
+- **Lane D — CRITICAL** — numeric model claim discipline. Public
+  dtype support requires ALL of: storage + conversion + kernels
+  or backend dispatch + parity / evidence tests + documented
+  promotion behavior. Initial evidence-backed dtype set:
+  `bool`, `i8`, `i32`, `i64`, `f32`, `f64`, `bf16`, packed
+  `i4` / `nf4`. Block broad dtype marketing before this rule
+  applies.
+- **Lane K** — ecosystem blueprints (package registry /
+  lockfile / offline replay → RFC-0019 continuation; NCAP
+  signing → RFC-0031; conformance dashboard → public
+  benchmark surface; acceptance suite review-only until promoted)
+
+3 new Success criteria items added:
+
+- ML expansion Lane A: backend-dispatch table populated with
+  measured numbers
+- ML expansion Lane D: dtype evidence rule applied to all
+  v0.5 public dtype claims
+- ML expansion Lane K: package registry / lockfile + signed
+  NCAP envelope + conformance report round-trip fixtures
+
+### Crosswalk references
+
+The full per-lane substrate list, acceptance evidence rules,
+and frozen source artifacts (12 primary specs + 10 ecosystem
+blueprints) live in the Build Spine:
+
+- `Desktop\Nucleor_Build_Spine\03_TRIAGE\ML_EXPANSION_SET_INTEGRATION_2026-05-01.md`
+- `Desktop\Nucleor_Build_Spine\07_CODEX_DOCS\ML_EXPANSION_INPUTS_2026-05-01\`
+
+### Standing non-goals (preserved)
+
+- No ML Suite implementation code import into `Nucleor_OSS`
+- No HF / ONNX / vLLM / DuckDB / Polars / XGBoost / LightGBM /
+  CatBoost replacement claims without native execution evidence
+- No turning ML Suite library work into compiler work unless
+  a core compiler / runtime / CLI substrate is required
+- No `Nucleor_Translate` duplication (`nuc port` is the CLI
+  surface)
+
+### Validation
+
+- Doc-only changes; no compiler edits.
+- Existing v0.4.283 fixed-point at SHA
+  `7b094aab8f8db55c4233967e78b91030d4bcadca2e656c1eb17d40d0a5e09892`
+  remains valid.
+- Drift gate clean (also fixed retroactive v0.4.285
+  CHANGELOG omission noted by the gate).
+
+## [0.4.285] — 2026-05-01
+
+**📝 docs/UPGRADE_v0.5.0.md outline placeholder (retroactive
+CHANGELOG entry, 2026-05-01).** Doc-only ship. Outline
+placeholder for the v0.5.0 release notes; populates when
+Track L (perf baseline + content-addressed cache) lands and
+the v0.5.0 ship is cut.
+
+Records the SHAPE of the upcoming release: RFC-0006 DbC fully
+shipped (CONTRACT-001..011), Track G atomics + Track H queues,
+AtomicBool ordered ops, RFC-0014 max_depth (when Track I
+integrates), content-addressed cache (when Track L lands),
+9 f64 ergonomic wrapper rods, str_char_at_strict opt-in,
+ATOMIC-006 temporary halt, RFC-0033/0034 design drafts.
+
+Sections marked "(populated when ... lands)" hold the structure
+for fill-in. Tables of the 11 CONTRACT codes, 6 ATOMIC codes,
+5 DEPTH codes, and 9 f64-wrapped rods are already populated.
+
+No code changes. v0.4.283 fixed-point at SHA
+`7b094aab8f8db55c4233967e78b91030d4bcadca2e656c1eb17d40d0a5e09892`
+remains valid.
+
+**Note (added v0.4.286):** the v0.4.285 CHANGELOG entry was
+omitted at original ship time and added retroactively when
+v0.4.286's drift gate caught the missing entry. Tag and ship
+contents are unchanged; only this CHANGELOG block was added
+out-of-order.
+
 ## [0.4.284] — 2026-05-01
 
 **📝 RFC-0033 + RFC-0034 design drafts merged into
