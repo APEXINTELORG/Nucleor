@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.287] — 2026-05-01
+
+**📝 v0.6.0 milestone tracker — ML expansion Lanes E/F/G/I/J
+substrate enrichment.** Doc-only ship. Continues the chain
+started by v0.4.286 (which enriched v0.5.0.md with Lanes
+A/B/C/D/K). Adds the v0.6-relevant ML expansion lanes per
+the brief's exact-checklist step 6.
+
+### What lands
+
+New section in `docs/milestones/v0.6.0.md` titled **"ML
+expansion set integration (added 2026-05-01)"** placed before
+Success criteria. Covers:
+
+- **Lane E** — Hugging Face frontend (local model package
+  metadata; safetensors requirement; local-files-only;
+  zero-Python accounting; deterministic local smoke fixture)
+- **Lane F** — ONNX / GGUF interchange (GGUF / safetensors
+  loader FIRST then ONNX; manifest fields; loader accounting;
+  rejection-with-clear-diag for unsupported opsets)
+- **Lane G** — vLLM serving contract (`nuc serve` MVP;
+  scheduler + KV-cache + paged-attention; deterministic local
+  smoke before public claim; OpenAI-compat distinction)
+- **Lane I** — Boosting runtime (fitted-tree scoring + model
+  import as flagship-app input; ML Suite owns training, Nucleor
+  owns inference + import boundary)
+- **Lane J — CRITICAL** — Kernel backend runtime (backend
+  manifest fields populated on every `nuc bench`; Tier-A
+  targets: Nucleor scalar + OpenBLAS / oneDNN / cuBLAS / GGML;
+  v0.6 ships dispatch contract + accounting, full MLIR/IREE
+  deferred to RFC-0036 v1.0)
+- **Lane D continuation** — dtype evidence rule extends from
+  v0.5 to any new v0.6 dtype additions (bf16 ops, i4/nf4
+  quantization paths)
+
+6 new Success criteria items added (Lane E safetensors load;
+Lane F GGUF run + ONNX clear-diag; Lane G serving smoke;
+Lane I boosting demo; Lane J backend manifest + ≥2 Tier-A
+backends; Lane D continuation).
+
+### Crosswalk references
+
+Full per-lane substrate list + acceptance evidence rules in
+the Build Spine:
+
+- `Desktop\Nucleor_Build_Spine\03_TRIAGE\ML_EXPANSION_SET_INTEGRATION_2026-05-01.md`
+- `Desktop\Nucleor_Build_Spine\07_CODEX_DOCS\ML_EXPANSION_INPUTS_2026-05-01\`
+
+### Standing non-goals (preserved)
+
+Same as v0.4.286: no ML Suite code import; no HF/ONNX/vLLM/
+DuckDB/Polars/XGBoost/LightGBM/CatBoost replacement claims
+without evidence; no library work as compiler work; no
+Translate duplication.
+
+### Validation
+
+- Doc-only changes; no compiler edits.
+- Existing v0.4.283 fixed-point at SHA
+  `7b094aab8f8db55c4233967e78b91030d4bcadca2e656c1eb17d40d0a5e09892`
+  remains valid.
+- Drift gate clean.
+
 ## [0.4.286] — 2026-05-01
 
 **📝 v0.5.0 milestone tracker — ML expansion Lanes A/B/C/D/K
