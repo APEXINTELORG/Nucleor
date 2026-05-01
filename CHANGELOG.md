@@ -5,6 +5,90 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.275] — 2026-05-01
+
+**🛡️ RFC-0006 — `NUCLEOR_DBC_MODE` value validation
+(CONTRACT-009).** Closes silent-misconfig filed by probe agent
+2026-05-01: unrecognized DBC mode values (e.g. `off`,
+`disabled`, `0`, `none`) silently fell into a partial-strip
+bucket — `emit_require=1` (because not `release`/`cert`) +
+`emit_ensure_inv=0` (because not `debug`/empty). Adopter who
+typed `off` thinking they'd strip all checks got an
+inconsistent state with no signal that their value was wrong.
+
+### Repro (pre-v0.4.275)
+
+```bash
+NUCLEOR_DBC_MODE=off nucleor build src.nr -o app
+```
+
+Build succeeded. Require fired at runtime; ensure / invariant
+were silently stripped. Adopter mental model broken on both
+sides.
+
+### Post-v0.4.275
+
+```
+error[CONTRACT-009]: NUCLEOR_DBC_MODE=`off` is not a recognized
+DbC build mode. Recognized values: `debug` (default; full
+runtime checks), `safe-release` (require only — input
+validation), `release` (no checks; max perf), `cert` (no
+checks; reserved for future static-proof). Unset to default
+to `debug`.
+```
+
+### What lands
+
+At `compiler/nucleor_s1_compiler.nr:21330` (compile entry):
+
+```nucleor
+let dbc_mode_ok: i64 = if str_len(dbc_mode) == 0 { 1 }
+    else if str_eq(dbc_mode, "debug") == 1 { 1 }
+    else if str_eq(dbc_mode, "safe-release") == 1 { 1 }
+    else if str_eq(dbc_mode, "release") == 1 { 1 }
+    else if str_eq(dbc_mode, "cert") == 1 { 1 }
+    else { 0 };
+if dbc_mode_ok == 0 { print(...CONTRACT-009...); return 1; };
+```
+
+Recognized values match the existing v0.4.252 strip-out table:
+`""` / `debug` / `safe-release` / `release` / `cert`. No
+behavior change for valid values; only halts on garbage.
+
+### Diag code
+
+CONTRACT-009 reserved in `is_known_diag_code` (next free in
+the CONTRACT series after CONTRACT-008 from v0.4.272) and
+spec doc. Filed under "RFC-0006 §4.2 Build mode strip-out".
+
+### Fixture + verify gate
+
+- `tests/err/err_dbc_mode_invalid.nr` — minimal `#[require]` fn.
+  Verify gate step `t_rfc0006_dbc_mode_invalid_reject` builds
+  with `NUCLEOR_DBC_MODE=off` (must exit 1 + CONTRACT-009 +
+  the "off" value mentioned), then sanity-checks with
+  `NUCLEOR_DBC_MODE=release` (must build clean).
+
+### Validation
+
+- Self-build clean. Two-stage fixed-point at NEW SHA
+  `d01f32157ffd228b938e2e8de1b40dc121aedd2b25f734dc327cb37d5b3315bb`
+  (compiler IR moved from v0.4.273/274's `6d05bb5…`).
+- Bootstrap seed refreshed.
+- Drift gate clean.
+- Manual smoke confirmed: `off` → CONTRACT-009 + halt; `release`
+  → builds clean; unset → defaults to debug, builds clean.
+
+### Probe-agent integration
+
+Promoted finding `2026-05-01-dbc-mode-invalid-value-silent-fallback.md`
+from `origin/probe/exploration` to `findings/promoted/`.
+Third probe integration since the dual-agent split mandate.
+
+**Probe inbox queue remaining: 2 DbC + 2 carryover** (undefined-
+ident + old-in-require — both want full ident-resolution
+infrastructure; str-char-at-oob + match-012 carryover).
+
 ## [0.4.274] — 2026-05-01
 
 **🎯 Track H integration — RFC-0007 lock-free queues LIVE.**
