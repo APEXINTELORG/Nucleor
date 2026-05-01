@@ -1713,6 +1713,36 @@ strict_intrin_fixture_overflows() {
     return 0
 }
 
+t_rfc0006_invariant_ctor_runtime() {
+    # v0.4.253 RFC-0006 — invariant emit on constructor exit.
+    # A constructor is an impl-block fn whose first param is NOT
+    # self AND whose return type matches the parent type (or is
+    # Self). At exit, sym["self"] gets bound to the rv before
+    # the invariant predicate is lowered, so `self.field` resolves.
+    "$BIN" build "tests/features/rfc0006_invariant_ctor.nr" -o "_t_rfc6_ctor" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe="target/_t_rfc6_ctor"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local out
+    out=$("$exe" 2>&1)
+    [ "$?" = "0" ] || return 1
+    echo "$out" | grep -q "OK rfc0006_invariant_ctor" || return 1
+    # Negative side: constructor returns a violating instance.
+    local tmp_neg="$NUC_VERIFY_TMPDIR/rfc6_ctor_violate.nr"
+    printf '%s\n' "struct Counter { value: i64 }" "#[invariant(self.value >= 0)]" "impl Counter { fn bad() -> Counter { Counter { value: 0 - 5 } } }" "fn main() -> i64 { let c: Counter = Counter::bad(); print_int(c.value); 0 }" > "$tmp_neg"
+    "$BIN" build "$tmp_neg" -o "_t_rfc6_ctor_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local nexe="target/_t_rfc6_ctor_violate"
+    [ -x "$nexe.exe" ] && nexe="$nexe.exe"
+    [ -x "$nexe" ] || return 1
+    local nout
+    nout=$("$nexe" 2>&1)
+    [ "$?" = "1" ] || return 1
+    echo "$nout" | grep -q "CONTRACT-003: invariant violated" || return 1
+    return 0
+}
+
 t_rfc0006_dbc_mode_runtime() {
     # v0.4.252 RFC-0006 — NUCLEOR_DBC_MODE build-mode strip-out.
     # Builds the same source 3 times under debug / safe-release /
@@ -4166,6 +4196,7 @@ step "v0.4.248 RFC-0006 — #[invariant(EXPR)] impl-block runtime check (CONTRAC
 step "v0.4.250 RFC-0006 — multiple #[require] / #[ensure] attributes per fn" t_rfc0006_multi_attrs_runtime
 step "v0.4.251 RFC-0006 — old(expr) snapshot in #[ensure]" t_rfc0006_old_expr_runtime
 step "v0.4.252 RFC-0006 — NUCLEOR_DBC_MODE strip-out (debug/safe-release/release)" t_rfc0006_dbc_mode_runtime
+step "v0.4.253 RFC-0006 — #[invariant] constructor exit-emit" t_rfc0006_invariant_ctor_runtime
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

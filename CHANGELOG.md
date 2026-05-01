@@ -5,6 +5,111 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.253] — 2026-05-01
+
+**🎯 RFC-0006 DbC — `#[invariant(EXPR)]` constructor exit-emit
+LIVE.** Closes the per-RFC-§3.4 "Exit from every constructor"
+gap. Fns whose first param is NOT `self` AND whose return type
+matches the impl block's parent type (or is `Self`) now have
+the invariant predicate evaluated against the just-constructed
+return value before `ret`.
+
+### Why this matters
+
+Pre-v0.4.253: `Counter::new(0 - 5)` for an impl with
+`#[invariant(self.value >= 0)]` would happily return a Counter
+with value=-5 — the invariant fired only on subsequent
+self-method calls. A get/peek would then panic, but the bad
+value already escaped construction. v0.4.253 catches it at
+the constructor's ret site.
+
+### Implementation
+
+At `lower_fn` entry, after extracting the type prefix from the
+mangled fn name:
+
+1. Look up the type's invariant nid in `invariant_exprs`.
+2. If found: classify the fn — is_self_method (first param ==
+   "self") OR is_ctor (return type matches inv_type or "Self",
+   no self param).
+3. self-method path (unchanged from v0.4.248): emit entry-
+   check, stash invariant nid for exit-emit.
+4. ctor path (new): skip entry-emit (no self yet), stash
+   invariant nid AND set `__current_method_is_ctor = 1`.
+
+At each of the four return-emit sites (lower_fn tail-return,
+lower_fn implicit-zero return, lower_stmt mid-body return,
+lower_stmt bare-return), the existing exit-check now also reads
+`__current_method_is_ctor`. If set:
+
+1. Allocate a self_slot, store the rv, sym_set("self",
+   self_slot).
+2. Re-derive the type name (from `name` for lower_fn sites, from
+   `__current_fn_full_return` for lower_stmt sites — the latter
+   is set at lower_fn entry to the rtype string).
+3. Bind `__type_self` and `__fulltype_self` so kind-3 var-ref +
+   field-access lowering of `self.field` resolves correctly.
+4. Lower the predicate; emit `__nucleor_contract_invariant`.
+
+### End-to-end demo
+
+```nucleor
+struct Counter { value: i64 }
+
+#[invariant(self.value >= 0)]
+impl Counter {
+    fn new(initial: i64) -> Counter {
+        Counter { value: initial }
+    }
+}
+
+fn main() -> i64 {
+    let a: Counter = Counter::new(5);     // OK: value=5 >= 0
+    let b: Counter = Counter::new(0 - 5); // FAIL: ctor exit-emit
+    0
+}
+```
+
+Output:
+```text
+CONTRACT-003: invariant violated
+exit 1
+```
+
+### Validation
+
+- Self-build clean (LL 8 125 075 bytes).
+- **Two-stage fixed-point env-DEFAULT-ON** at SHA
+  `e16108186575c8be52ee5296bfea8d9e2588b91c98f078477d62ecb0cca18c88`.
+  Bootstrap seed refreshed; T1.7 locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean.
+- Targeted constructor smokes:
+  - `Counter::new(5)` + `c.get()` → output `5`, exit 0.
+  - `Counter::bad_new()` returning value=-5 → CONTRACT-003 panic.
+- New fixture `tests/features/rfc0006_invariant_ctor.nr` (new,
+  from_doubled, get; 3 constructor + accessor cases) builds +
+  runs OK.
+- New verify-gate step `t_rfc0006_invariant_ctor_runtime`
+  exercises passing + violation paths.
+
+### What's next (v0.4.254+)
+
+- Mid-body return multi-ensure (last incomplete corner of
+  ensure coverage).
+- `cert` profile static-proof analysis (CONTRACT-007).
+- Liskov inheritance checks (CONTRACT-004, CONTRACT-005).
+- `#[no_check]` per-fn opt-out.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: invariant entry block
+  extended with constructor classification; four exit-emit
+  sites bind `self` + type info on ctor flag.
+- `tests/features/rfc0006_invariant_ctor.nr`: new fixture.
+- `tools/verify.sh`: `t_rfc0006_invariant_ctor_runtime` step.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
 ## [0.4.252] — 2026-05-01
 
 **🎯 RFC-0006 DbC — `NUCLEOR_DBC_MODE` build-mode strip-out
