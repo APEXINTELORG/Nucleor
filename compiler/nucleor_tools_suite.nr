@@ -32,7 +32,9 @@ fn str_from_i64(n: i64) -> str {
     return s;
 }
 
-fn str_from_int(n: i32) -> str {
+// v0.5 (v0.4.233 integration) — mirror of compiler-side cleanup.
+// Param widened i32 → i64 to match runtime ABI.
+fn str_from_int(n: i64) -> str {
     return str_from_i64(n);
 }
 fn str_to_int(s: str) -> i64 {
@@ -10325,6 +10327,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "TYP-011") { return "`str + str` not supported (would silently segfault)"; };
     if str_eq(code, "TYP-012") { return "Missing field(s) in struct initialization (would silently default to 0/empty)"; };
     if str_eq(code, "TYP-013") { return "Unknown field in struct initialization (would silently drop the extra field)"; };
+    if str_eq(code, "TYP-026") { return "Non-void function reaches the end without returning a value"; };
     if str_eq(code, "FMT-002") { return "Type does not implement Display for bare `{}` formatting"; };
     if str_eq(code, "TRAIT-001") { return "Missing From conversion for `?` error propagation"; };
     // RFC-0015 numeric types
@@ -10351,6 +10354,9 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "NUM-018") { return "Float literal in integer context"; };
     if str_eq(code, "NUM-019") { return "Negative literal assigned to unsigned type"; };
     if str_eq(code, "NUM-020") { return "Mixed-width comparison without explicit cast"; };
+    if str_eq(code, "NUM-022") { return "Integer vs float in arithmetic/comparison binop"; };
+    if str_eq(code, "NUM-023") { return "Float / bool `as`-cast to `str` rejected"; };
+    if str_eq(code, "NUM-024") { return "Cross-width call-site narrowing audit (opt-in via NUCLEOR_AUDIT_NUM024=1)"; };
     // RFC-0016 match
     if str_eq(code, "MATCH-001") { return "Non-exhaustive match"; };
     if str_eq(code, "MATCH-002") { return "Unreachable match arm"; };
@@ -10537,6 +10543,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "TYP-011") { return "`str + str` (and longer chains like `\"a\" + \"b\" + \"c\"`) silently SIGSEGVed pre-v0.4.51 because the binop lowered to i64_add on the string pointers, producing a garbage pointer that crashed in print_str. Use `str_concat(a, b)` to concatenate strings."; };
     if str_eq(code, "TYP-012") { return "Pre-v0.4.62 `Point { x: 1, y: 2 }` for a struct with 3 fields silently defaulted the missing field to 0 / empty. Adopters writing the canonical Rust idiom (which errors with E0063) got a quiet wrong value. Either list every field explicitly or define a `Point::new(x, y)` constructor fn that supplies the rest."; };
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra `z` field (Rust E0560 errors). Check the struct definition and remove the unknown field, or add it to the struct decl."; };
+    if str_eq(code, "TYP-026") { return "A function declared to return a value has a path that can fall through without an explicit return or tail expression. Add the missing return value, or change the function to return void."; };
     if str_eq(code, "FMT-002") { return "Bare `{}` formatting for a user struct requires an `impl Display for Type` with `fn fmt(self) -> str`; use `{:?}` for derived structural debug output."; };
     if str_eq(code, "TRAIT-001") { return "`?` on `Result<T, SrcErr>` inside a function returning `Result<U, DstErr>` requires `impl From<SrcErr> for DstErr` when the error payload types differ."; };
     if str_eq(code, "NUM-001") { return "Nucleor follows Rust's no-implicit-conversion rule. Cast explicitly with `as`: `(u8_val as i32) + i32_val`."; };
@@ -10559,6 +10566,9 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "NUM-018") { return "A float literal (`3.14`) was used where an integer is expected. Either cast (`3.14 as i32`) or change the binding type to f32/f64."; };
     if str_eq(code, "NUM-019") { return "`let x: u8 = -1` doesn't fit in u8 (range 0..255). Use `255u8` (the wrap result) or change the type to i8 / i16."; };
     if str_eq(code, "NUM-020") { return "`let a: i32 = 5; let b: i64 = 6; if a < b { ... }` mixes widths. Cast one operand: `if (a as i64) < b { ... }`."; };
+    if str_eq(code, "NUM-022") { return "`5 < 5.0` mixes integer and float operands; pre-v0.4.137 this silently coerced and the comparison produced unexpected results. Cast one operand: `5.0 < 5.0` or `5 < (5.0 as i64)`."; };
+    if str_eq(code, "NUM-023") { return "`(3.14 as str)` and `(true as str)` are not defined as numeric `as`-casts. Use `str_from_float` / `str_from_bool` (or format) instead."; };
+    if str_eq(code, "NUM-024") { return "Opt-in audit warning. With `NUCLEOR_AUDIT_NUM024=1` set, the compiler reports every call site where a wider-typed argument flows into a narrower-typed param via Nucleor's i64-everywhere ABI. v0.4.230 closed the audit surface to 0/0 across self-build by widening str_from_int's signature; the audit remains as a regression gate."; };
     if str_eq(code, "MATCH-001") { return "The match does not cover all variants of the matched type. The compiler shows a witness uncovered value."; };
     if str_eq(code, "MATCH-002") { return "An arm is preceded by patterns that already match every case it would handle."; };
     if str_eq(code, "MATCH-003") { return "Match arm bodies must produce the same type (or () in statement context)."; };
@@ -10726,6 +10736,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "TYP-011") { return "Nucleor's i64-everywhere ABI lowers `+` to integer addition. For `str + str` that meant adding two string pointers as i64, producing a garbage pointer that SIGSEGVed when later passed to a string helper (e.g. `print_str`). Pre-v0.4.51 this was silent at compile time. v0.4.51 promotes the pattern to a hard error pointing at `str_concat(a, b)`. Reasoning: the canonical Rust idiom `&str + &str` doesn't compile in Rust either, so adopters expected a compile error and got runtime garbage instead."; };
     if str_eq(code, "TYP-012") { return "Struct constructor expressions like `Point { x: 1, y: 2 }` must list ALL declared fields. Pre-v0.4.62 the lower silently zero-initialized any missing field — equivalent to a quiet `field: 0` (or `field: \"\"` for str). Rust errors here with E0063, so adopters writing the canonical idiom got a wrong value with no compile-time signal. Workaround: list every field explicitly, OR write a `Point::new(x, y)` constructor fn that supplies the rest."; };
     if str_eq(code, "TYP-013") { return "Pre-v0.4.63 `Point { x: 1, y: 2, z: 3 }` for a 2-field Point silently dropped the extra field — the lower walked the init list in declared order, so any extra entries past the declared count were ignored. Rust errors here with E0560 — adopters writing canonical struct literals got a quiet wrong shape. Either remove the unknown field from the literal, or add it to the struct definition."; };
+    if str_eq(code, "TYP-026") { return "Audit every control-flow path and make the returned value explicit. For side-effect-only functions, declare `-> void` or omit the return type."; };
     if str_eq(code, "FMT-002") { return "`println!(\"{}\", value)` previously fell through to `int_to_str(value)` for struct values, printing an ABI handle instead of user-facing text. The format expander now hard-errors unless the struct has a Display impl; `println!(\"{:?}\", value)` remains the structural debug path."; };
     if str_eq(code, "TRAIT-001") { return "The `?` operator propagates the Err payload early. When the callee error type and enclosing function error type differ, Nucleor now performs the Rust-style `From<SrcErr> for DstErr` conversion. If that impl is absent, continuing would either return the wrong payload layout or silently expose the source error type through the destination API, so the compiler stops with TRAIT-001."; };
     if str_eq(code, "NUM-001") { return "Nucleor models on Rust: numeric types are distinct, no implicit conversion. Cast explicitly with `as`. Reasoning: silent conversions are a recurring bug source (truncation, sign extension)."; };
@@ -10748,6 +10759,9 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "NUM-018") { return "Integer context expects an integer; a float literal there is almost always a typo. If you intended a truncating conversion, write it explicitly with `as`."; };
     if str_eq(code, "NUM-019") { return "Unsigned types can't represent negative values. -1u32 as a literal is rejected; (-1 as u32) compiles and gives u32::MAX (the wrap result)."; };
     if str_eq(code, "NUM-020") { return "Mixed-width comparison forces a widening conversion. Make it explicit so the reader sees which operand is being widened and why."; };
+    if str_eq(code, "NUM-022") { return "Pre-v0.4.137 the compiler silently coerced int↔float at binop sites; user programs got wrong results because LLVM's fcmp on bit-cast operands compares bit patterns, not values. NUM-022 turns the silent miscompute into a compile-time error so the cast intent is explicit."; };
+    if str_eq(code, "NUM-023") { return "`as` is for numeric truncation/extension. `f64 as str` and `bool as str` were silent no-ops that returned an undefined pointer (URGENT — could SIGSEGV). NUM-023 rejects the cast and points at `str_from_float` / `str_from_bool`."; };
+    if str_eq(code, "NUM-024") { return "Audit-only. Nucleor's call ABI forwards every value as i64 regardless of the param's declared type. v0.4.221's attempt to trunc-on-entry broke the compiler's self-build because `str_from_int(n: i32)` was called with i64 magnitudes; v0.4.230 widened that signature and the audit surface dropped to 0/0. NUM-024 is now a permanent regression gate — any new declared-iN param called with a wider source-level type fires the warning."; };
     if str_eq(code, "MATCH-001") { return "The match must cover every variant of the discriminant type, or use a wildcard (_) arm. Compiler shows the missing case."; };
     if str_eq(code, "MATCH-002") { return "Patterns are tested in order. A later arm cannot match if an earlier arm covers all values it would handle."; };
     if str_eq(code, "MATCH-003") { return "All arms in a match expression must yield the same type. Cast or restructure to align."; };

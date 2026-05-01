@@ -105,6 +105,7 @@ v0.2.119**; same drift class as the OWN series above.
 | TYP-011 | `str + str` not supported (would silently segfault) | binop type-check, v0.4.51 | error |
 | TYP-012 | Missing field(s) in struct initialization (would silently default to 0/empty) | struct-init type-check, v0.4.62 | error |
 | TYP-013 | Unknown field in struct initialization (would silently drop the extra field) | struct-init type-check, v0.4.63 | error |
+| TYP-026 | Function with non-void return type reaches the end with no tail expression | type-check, v0.4.219 | error |
 
 ### FMT series — format macro expansion
 
@@ -284,6 +285,9 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 | NUM-018 | Float literal in integer context | RFC-0015 / v0.2.319 expansion |
 | NUM-019 | Negative literal assigned to unsigned type | RFC-0015 / v0.2.319 expansion |
 | NUM-020 | Mixed-width comparison without explicit cast | RFC-0015 / v0.2.319 expansion |
+| NUM-022 | Integer vs float in arithmetic/comparison binop | RFC-0015 / v0.4.137 |
+| NUM-023 | Float / bool `as`-cast to `str` rejected | RFC-0015 / v0.4.140 |
+| NUM-024 | Cross-width call-site narrowing audit (opt-in: `NUCLEOR_AUDIT_NUM024=1`) | RFC-0015 phase 3c.1 / v0.4.228 |
 
 ## MATCH series — RFC-0016 Result/Option/match
 
@@ -299,6 +303,9 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 | MATCH-008 | Or-pattern arms have different bindings | [RFC-0023 §3.2](../rfcs/RFC-0023-pattern-matching.md) |
 | MATCH-009 | Slice pattern overlaps | [RFC-0023 §3.4](../rfcs/RFC-0023-pattern-matching.md) |
 | MATCH-010 | @-binding name collides with outer scope | [RFC-0023 §3.3](../rfcs/RFC-0023-pattern-matching.md) |
+| MATCH-011 | Heterogeneous match literal or arm type mismatch | [RFC-0023 §3.5](../rfcs/RFC-0023-pattern-matching.md) |
+| MATCH-012 | Struct-pattern field after `:` is not an identifier | [RFC-0023 §3.6](../rfcs/RFC-0023-pattern-matching.md) |
+| MATCH-013 | Float scrutinee or float-literal pattern in `match` is unsupported | [RFC-0023 §3.7](../rfcs/RFC-0023-pattern-matching.md) |
 
 ## COLL series — RFC-0017 collections
 

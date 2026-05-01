@@ -47,7 +47,15 @@ fn str_from_i64(n: i64) -> str {
     return s;
 }
 
-fn str_from_int(n: i32) -> str {
+// v0.5 (v0.4.233 integration) — declared param widened i32 → i64.
+// Nucleor's i64-everywhere ABI passes the arg as i64; the body
+// forwards to `str_from_i64`. The pre-fix `i32` was a known-bug
+// workaround kept after v0.4.221's phase 3c trunc-on-entry attempt
+// broke self-build, and was the sole driver of the cross-width
+// audit surface (1734 hits in compiler self-build, 1291 in
+// tools-suite). One-line cleanup; required substrate for the
+// typed-param-alloca restore below.
+fn str_from_int(n: i64) -> str {
     return str_from_i64(n);
 }
 fn str_to_int(s: str) -> i64 {
@@ -88,6 +96,7 @@ fn tok_new(tt: i64, v: i64, p: i64) -> Vec<i32> {
 }
 fn tok_type(t: Vec<i32>) -> i64 { return vec_get(t, 0); }
 fn tok_val(t: Vec<i32>) -> i64 { return vec_get(t, 1); }
+fn tok_pos(t: Vec<i32>) -> i64 { return vec_get(t, 2); }
 fn is_ws(c: i64) -> i64 { if c == 32 || c == 9 || c == 10 || c == 13 { return 1; }; return 0; }
 fn is_digit(c: i64) -> i64 { if c >= 48 && c <= 57 { return 1; }; return 0; }
 fn is_alpha(c: i64) -> i64 {
@@ -687,6 +696,24 @@ fn tok_val_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_val(tok_at(tokens,
 fn node_add(pool: Vec<i32>, nd: Vec<i32>) -> i64 { let nid: i64 = vec_len(pool); pool.push(nd); return nid; }
 fn node_kind(pool: Vec<i32>, nid: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, nid); return vec_get(nd, 0); }
 fn node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, nid); return vec_get(nd, idx); }
+fn node_span_sentinel() -> i64 { return 0 - 873521; }
+fn node_set_span(pool: Vec<i32>, nid: i64, byte_off: i64) -> i64 {
+    if nid < 0 || nid >= vec_len(pool) { return nid; };
+    if byte_off < 0 { return nid; };
+    if node_kind(pool, nid) == 40 { return nid; };
+    let nd: Vec<i32> = vec_get(pool, nid);
+    nd.push(node_span_sentinel());
+    nd.push(byte_off);
+    return nid;
+}
+fn node_get_span(pool: Vec<i32>, nid: i64) -> i64 {
+    if nid < 0 || nid >= vec_len(pool) { return 0 - 1; };
+    if node_kind(pool, nid) == 40 { return 0 - 1; };
+    let nd: Vec<i32> = vec_get(pool, nid);
+    let n: i64 = vec_len(nd);
+    if n >= 3 && vec_get(nd, n - 2) == node_span_sentinel() { return vec_get(nd, n - 1); };
+    return 0 - 1;
+}
 fn mk2(pool: Vec<i32>, k: i64, a: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(2); n.push(k); n.push(a); return node_add(pool, n); }
 fn mk3(pool: Vec<i32>, k: i64, a: i64, b: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(3); n.push(k); n.push(a); n.push(b); return node_add(pool, n); }
 fn mk4(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(4); n.push(k); n.push(a); n.push(b); n.push(c); return node_add(pool, n); }
@@ -728,6 +755,7 @@ fn pr_val(r: Vec<i32>) -> i64 { return vec_get(r, 1); }
 
 fn pk(tokens: Vec<i32>, pos: i64) -> i64 { return tok_type_at(tokens, pos); }
 fn pkv(tokens: Vec<i32>, pos: i64) -> i64 { return tok_val_at(tokens, pos); }
+fn tok_pos_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_pos(tok_at(tokens, idx)); }
 // v0.4.208: human-readable names for the most common NR020 tokens.
 // Closes two findings (tuple-struct-decl-panic + match-on-unit-panic)
 // which both surfaced as "expected token N got M" with raw IDs.
@@ -1247,7 +1275,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     };
     // if-expression
     if tt == 13 { let mut r: Vec<i32> = parse_if(tokens, pos + 1, pool); return r; };
-    if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool); return r; };
+    if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool, tok_pos_at(tokens, pos)); return r; };
     // v0.3.140: removed dead `tt == 76` branch (restricts) — see
     // classify_kw notes. The `restricts [...] { ... }` form had zero
     // usage so this branch was unreachable for legitimate code; in
@@ -1910,6 +1938,7 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if pk(tokens, sk) == 43 { sk = sk + 1; };
         return pr(sk, mk5(pool, 20, "__tuple_destructure_unsupported__", 0, "", 0 - 1));
     };
+    let name_span: i64 = tok_pos_at(tokens, cp);
     let name: i64 = pkv(tokens, cp); cp = cp + 1;
     let mut tstr: str = "";
     if pk(tokens, cp) == 42 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); tstr = pr_val(tr); };
@@ -1944,7 +1973,9 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // consumes the full bitwise expression, so there's nothing
     // left for next_after_rhs to detect.
     if pk(tokens, cp) == 43 { cp = cp + 1; };
-    return pr(cp, mk5(pool, 20, name, is_mut, tstr, init_id));
+    let let_nid: i64 = mk5(pool, 20, name, is_mut, tstr, init_id);
+    node_set_span(pool, let_nid, name_span);
+    return pr(cp, let_nid);
 }
 
 fn parse_const_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
@@ -2252,7 +2283,7 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         return pr(cp, mk3(pool, 24, true_node, pr_val(br)));
     };
     if tt == 56 { let mut r: Vec<i32> = parse_for_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
-    if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
+    if tt == 63 { let mut r: Vec<i32> = parse_match_stmt(tokens, pos + 1, pool, tok_pos_at(tokens, pos)); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     // v0.3.140: removed dead `tt == 76` branch (restricts) — see
     // classify_kw notes. Same dead-code pattern as the v0.3.138
     // scope/spawn removal below.
@@ -2768,7 +2799,7 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 45, trait_name, type_name, mk_list(pool, methods)));
 }
 
-fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
+fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, match_span: i64) -> Vec<i32> {
     // pos is after 'match', at the expression
     let mut er: Vec<i32> = parse_expr(tokens, pos, pool);
     let mut cp: i64 = expect_tok(tokens, pr_pos(er), 52); // {
@@ -2892,7 +2923,9 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         };
     };
     cp = cp + 1;
-    return pr(cp, mk3(pool, 38, pr_val(er), mk_list(pool, arms)));
+    let match_nid: i64 = mk3(pool, 38, pr_val(er), mk_list(pool, arms));
+    node_set_span(pool, match_nid, match_span);
+    return pr(cp, match_nid);
 }
 
 fn has_main_decl(pool: Vec<i32>, items: Vec<i32>) -> i64 {
@@ -8052,6 +8085,9 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "NUM-018") == 1 { return 1; };
     if str_eq(code, "NUM-019") == 1 { return 1; };
     if str_eq(code, "NUM-020") == 1 { return 1; };
+    if str_eq(code, "NUM-022") == 1 { return 1; };
+    if str_eq(code, "NUM-023") == 1 { return 1; };
+    if str_eq(code, "NUM-024") == 1 { return 1; };
     // RFC-0016 Result/Option/match
     if str_eq(code, "MATCH-001") == 1 { return 1; };
     if str_eq(code, "MATCH-002") == 1 { return 1; };
@@ -10445,10 +10481,9 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             // entirely. Now: any int/str match-as-expr without an
             // `_` arm is MATCH-001.
             if (str_eq(first_ename_e, "__int") == 1 || str_eq(first_ename_e, "__str") == 1) && has_wild_e == 0 {
-                let lc_int_e: Vec<i32> = find_linecol_in_source(source_text, fn_name, "match");
                 let kind_label: str = if str_eq(first_ename_e, "__int") == 1 { "integer" } else { "string" };
                 let msg_int_e: str = str_concat("non-exhaustive ", str_concat(kind_label, str_concat(" match (in expression context): ", str_concat(str_from_int(ac_e), " arms with no `_` wildcard. The set of values is unbounded so the unmatched case silently fell through to 0 pre-v0.4.109 — add a `_ => default_value,` arm to cover it explicitly."))));
-                diag_add_ex(diag_vec, "error", "type", "MATCH-001", msg_int_e, fn_name, vec_get(lc_int_e, 0), vec_get(lc_int_e, 1), "");
+                match_diag_at(diag_vec, source_text, pool, nid, "error", "MATCH-001", msg_int_e, fn_name);
                 warns = warns + 1;
             };
             if str_eq(first_ename_e, "__int") == 0 && str_eq(first_ename_e, "__str") == 0 && str_eq(first_ename_e, "__wild") == 0 && str_eq(first_ename_e, "__range") == 0 && str_eq(first_ename_e, "__range_bad") == 0 {
@@ -10458,11 +10493,10 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     let vlist_e: i64 = node_field(pool, e_nid_e, 2);
                     let vcnt_e: i64 = list_len(pool, vlist_e);
                     if ac_e < vcnt_e {
-                        let lc_e: Vec<i32> = find_linecol_in_source(source_text, fn_name, "match");
                         let msg_e: str = str_concat("non-exhaustive match (in expression context): ", str_concat(str_from_int(ac_e), str_concat(" arms for enum with ", str_from_int(vcnt_e))));
                         let canon_e: str = str_concat(msg_e, ". Workaround: add a `_ => default_value,` arm or list every variant explicitly.");
-                        diag_add_ex(diag_vec, "error", "type", "TYP-001", canon_e, fn_name, vec_get(lc_e, 0), vec_get(lc_e, 1), "");
-                        diag_add_ex(diag_vec, "error", "type", "MATCH-001", canon_e, fn_name, vec_get(lc_e, 0), vec_get(lc_e, 1), "");
+                        match_diag_at(diag_vec, source_text, pool, nid, "error", "TYP-001", canon_e, fn_name);
+                        match_diag_at(diag_vec, source_text, pool, nid, "error", "MATCH-001", canon_e, fn_name);
                         warns = warns + 2;
                     };
                 };
@@ -10486,9 +10520,8 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             chk_v134 = chk_v134 + 1;
         };
         if bool_arm_v134 == 1 {
-            let lc_b_v134: Vec<i32> = find_linecol_in_source(source_text, fn_name, "match");
             let msg_b_v134: str = "bool literal arm in `match` (`true => ...` or `false => ...`) is parsed as a wildcard binding pre-v0.4.134, not as a value comparison — `match b { true => 1 }` matches ANY bool and silently returns 1 even for b=false. Use `if cond { ... } else { ... }` for two-way bool branching, or convert the bool to i64 (`match b as i64 { 1 => ..., 0 => ..., _ => ... }`).";
-            diag_add_ex(diag_vec, "error", "type", "MATCH-001", msg_b_v134, fn_name, vec_get(lc_b_v134, 0), vec_get(lc_b_v134, 1), "");
+            match_diag_at(diag_vec, source_text, pool, nid, "error", "MATCH-001", msg_b_v134, fn_name);
             warns = warns + 1;
         };
         return warns;
@@ -10761,9 +10794,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             if str_eq(ename, "__range_bad") {
                 // v0.4.43 (RFC-0020 Phase 3, v0.2 deferred row #8):
                 // span migration — use line + col instead of line-only.
-                let src: str = source_text;
-                let lc: Vec<i32> = find_linecol_in_source(src, fn_name, "match");
-                diag_add_ex(diag_vec, "warning", "type", "MATCH-007", str_concat("range pattern bounds in wrong order at arm ", str_concat(str_from_int(ai + 1), " — pattern can never match")), fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                match_diag_at(diag_vec, source_text, pool, nid, "warning", "MATCH-007", str_concat("range pattern bounds in wrong order at arm ", str_concat(str_from_int(ai + 1), " — pattern can never match")), fn_name);
                 warns = warns + 1;
             };
             let binding: str = node_field(pool, arm_nid, 3);
@@ -10789,9 +10820,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         // unreachable (the wildcard already captures every value).
         if wildcard_idx >= 0 && wildcard_idx < ac - 1 {
             // v0.4.43 span migration: line+col via diag_add_ex.
-            let src: str = source_text;
-            let lc: Vec<i32> = find_linecol_in_source(src, fn_name, "match");
-            diag_add_ex(diag_vec, "warning", "type", "MATCH-002", str_concat("unreachable match arm after wildcard at arm ", str_concat(str_from_int(wildcard_idx + 1), str_concat(" of ", str_from_int(ac)))), fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+            match_diag_at(diag_vec, source_text, pool, nid, "warning", "MATCH-002", str_concat("unreachable match arm after wildcard at arm ", str_concat(str_from_int(wildcard_idx + 1), str_concat(" of ", str_from_int(ac)))), fn_name);
             warns = warns + 1;
         };
         if has_wildcard == 0 && ac > 0 {
@@ -10802,10 +10831,9 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
             // silent-fall-through hazard (statement form quietly did
             // nothing for unmatched values pre-v0.4.109).
             if (str_eq(first_ename, "__int") == 1 || str_eq(first_ename, "__str") == 1) && has_wildcard == 0 {
-                let lc_int: Vec<i32> = find_linecol_in_source(source_text, fn_name, "match");
                 let kind_label_s: str = if str_eq(first_ename, "__int") == 1 { "integer" } else { "string" };
                 let msg_int_s: str = str_concat("non-exhaustive ", str_concat(kind_label_s, str_concat(" match: ", str_concat(str_from_int(ac), " arms with no `_` wildcard. The set of values is unbounded so unmatched cases silently no-op'd pre-v0.4.109 — add a `_ => { … }` arm to cover them explicitly."))));
-                diag_add_ex(diag_vec, "error", "type", "MATCH-001", msg_int_s, fn_name, vec_get(lc_int, 0), vec_get(lc_int, 1), "");
+                match_diag_at(diag_vec, source_text, pool, nid, "error", "MATCH-001", msg_int_s, fn_name);
                 warns = warns + 1;
             };
             if str_eq(first_ename, "__int") == 0 && str_eq(first_ename, "__str") == 0 && str_eq(first_ename, "__wild") == 0 {
@@ -10816,8 +10844,6 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                     let vcnt: i64 = list_len(pool, vlist);
                     if ac < vcnt {
                         // v0.4.43 span migration: line+col via diag_add_ex.
-                        let src: str = source_text;
-                        let lc: Vec<i32> = find_linecol_in_source(src, fn_name, "match");
                         // RFC-0016 phase 5 — MATCH-001 (canonical) alongside
                         // legacy TYP-001 for backwards compatibility.
                         let msg: str = str_concat("non-exhaustive match: ", str_concat(str_from_int(ac), str_concat(" arms for enum with ", str_concat(str_from_int(vcnt), " variants"))));
@@ -10832,8 +10858,8 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
                         // both diags to "error" severity so MATCH-001
                         // halts the build like every other TYP-* error.
                         let canon_msg: str = str_concat(msg, ". Workaround: add a `_ => default_value,` arm or list every variant explicitly.");
-                        diag_add_ex(diag_vec, "error", "type", "TYP-001", canon_msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
-                        diag_add_ex(diag_vec, "error", "type", "MATCH-001", canon_msg, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                        match_diag_at(diag_vec, source_text, pool, nid, "error", "TYP-001", canon_msg, fn_name);
+                        match_diag_at(diag_vec, source_text, pool, nid, "error", "MATCH-001", canon_msg, fn_name);
                         warns = warns + 2;
                     };
                 };
@@ -11011,6 +11037,18 @@ fn types_compatible(expected: str, actual: str) -> i64 {
     };
     if is_tainted_type(expected) == 0 && is_tainted_type(actual) == 1 { return 0; };
     if type_is_unit(expected) == 1 || type_is_unit(actual) == 1 { return 0; };
+    if (str_eq(ebase, "HashMap") == 1 || str_eq(ebase, "HashSet") == 1
+        || str_eq(ebase, "BTreeMap") == 1 || str_eq(ebase, "BTreeSet") == 1
+        || str_eq(ebase, "VecDeque") == 1)
+        && (str_eq(actual, "i64") == 1 || str_eq(actual, "i32") == 1 || str_eq(actual, "ptr") == 1) {
+        return 1;
+    };
+    if (str_eq(abase, "HashMap") == 1 || str_eq(abase, "HashSet") == 1
+        || str_eq(abase, "BTreeMap") == 1 || str_eq(abase, "BTreeSet") == 1
+        || str_eq(abase, "VecDeque") == 1)
+        && (str_eq(expected, "i64") == 1 || str_eq(expected, "i32") == 1 || str_eq(expected, "ptr") == 1) {
+        return 1;
+    };
     if str_eq(ebase, abase) == 1 { return 1; };
     return 0;
 }
@@ -11297,6 +11335,21 @@ fn tprof_dump(prof: Vec<i32>) -> i64 {
 fn type_diag(diags: Vec<i32>, source: str, fn_name: str, symbol: str, code: str, message: str) -> i64 {
     let loc: Vec<i32> = find_linecol_in_source(source, fn_name, symbol);
     return diag_add_ex(diags, "error", "type", code, message, fn_name, vec_get(loc, 0), vec_get(loc, 1), "");
+}
+fn diag_add_at_or_scan(diags: Vec<i32>, source: str, pool: Vec<i32>, nid: i64, fallback_symbol: str, severity: str, checker: str, code: str, message: str, fn_name: str, related_id: str) -> i64 {
+    let sp: i64 = node_get_span(pool, nid);
+    if sp >= 0 {
+        let lm: Vec<i32> = linemap_build(source);
+        return diag_add_ex(diags, severity, checker, code, message, fn_name, linemap_line(lm, sp), linemap_col(lm, sp), related_id);
+    };
+    let loc: Vec<i32> = find_linecol_in_source(source, fn_name, fallback_symbol);
+    return diag_add_ex(diags, severity, checker, code, message, fn_name, vec_get(loc, 0), vec_get(loc, 1), related_id);
+}
+fn type_diag_at(diags: Vec<i32>, source: str, pool: Vec<i32>, nid: i64, fn_name: str, fallback_symbol: str, code: str, message: str) -> i64 {
+    return diag_add_at_or_scan(diags, source, pool, nid, fallback_symbol, "error", "type", code, message, fn_name, "");
+}
+fn match_diag_at(diags: Vec<i32>, source: str, pool: Vec<i32>, nid: i64, severity: str, code: str, message: str, fn_name: str) -> i64 {
+    return diag_add_at_or_scan(diags, source, pool, nid, "match", severity, "type", code, message, fn_name, "");
 }
 fn sig_new() -> Vec<i32> { return smap_new(); }
 fn sig_entry_new(plist: i64, rtype: str, is_extern: i64, gparams: i64) -> Vec<i32> {
@@ -12333,6 +12386,31 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 if compat_ok == 0 {
                     type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument type mismatch in call to '", str_concat(callee, "'")));
                 };
+                // v0.5 (v0.4.228 integration) phase 3c.1 — cross-width
+                // call-site audit. Compatibility passes for i64-into-iN-
+                // param via Nucleor's i64-everywhere ABI, but the
+                // narrowing is implicit. NUM-024 is OPT-IN via
+                // NUCLEOR_AUDIT_NUM024=1 — every narrow-typed param
+                // call is technically cross-width under the i64 ABI
+                // (literals default to i64), so default-on would be
+                // too noisy. v0.4.230's str_from_int widening dropped
+                // the audit surface to 0/0; the verify gate ratchets
+                // that as a regression floor.
+                let v228_audit_on: str = env_get_or("NUCLEOR_AUDIT_NUM024", "0");
+                if str_eq(v228_audit_on, "1") == 1 && compat_ok == 1 && str_len(expected_t) > 0 && str_len(actual_t) > 0 {
+                    let v228_e_base: str = type_base_name(expected_t);
+                    let v228_a_base: str = type_base_name(actual_t);
+                    let v228_ew: i64 = type_width(v228_e_base);
+                    let v228_aw: i64 = type_width(v228_a_base);
+                    let v228_es: i64 = type_signedness(v228_e_base);
+                    let v228_as: i64 = type_signedness(v228_a_base);
+                    let v228_both_int: i64 = if (v228_es == 1 || v228_es == 2) && (v228_as == 1 || v228_as == 2) { 1 } else { 0 };
+                    if v228_both_int == 1 && v228_ew > 0 && v228_aw > 0 && v228_ew < v228_aw {
+                        let nloc228: Vec<i32> = find_linecol_in_source(source, fn_name, callee);
+                        let v228msg: str = str_concat("call to `", str_concat(callee, str_concat("` passes ", str_concat(v228_a_base, str_concat(" (", str_concat(str_from_int(v228_aw), str_concat("-bit) into ", str_concat(v228_e_base, str_concat(" (", str_concat(str_from_int(v228_ew), str_concat("-bit) param `", str_concat(node_field(pool, list_get(pool, plist, ai), 1), "`. Implicit cross-width narrowing via Nucleor's i64-everywhere ABI; widen the declared param type or insert an explicit `as ", str_concat(v228_e_base, "` at the call site.")))))))))))));
+                        diag_add_ex(diags, "warning", "type", "NUM-024", v228msg, fn_name, vec_get(nloc228, 0), vec_get(nloc228, 1), "");
+                    };
+                };
                 if gparams_v421 >= 0 && str_len(actual_t) > 0 && str_eq(actual_t, expected_t) == 0 {
                     let gc_v421: i64 = list_len(pool, gparams_v421);
                     let mut gp_v421: i64 = 0;
@@ -12648,23 +12726,9 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let v23c: str = " Pre-v0.4.139 the chain silently lowered with the void result coerced as a Vec/str header, producing 0 / wrong bool / garbage at runtime. Split into separate statements: call the mutator on its own line, then call the chained method on the receiver.";
             type_diag(diags, source, fn_name, fn_name, "TYP-023", str_concat(v23a, str_concat(v23b, v23c)));
         };
-        // v0.4.139: route void-mutator vec methods to return "void"
-        // so the existing TYP-021 (let-RHS void), TYP-020 (binop void),
-        // and NUM-022-style checks auto-extend without per-call
-        // duplication. The runtime helpers `__nucleor_vec_{push, pop,
-        // set, swap, extend, remove_at, insert_at, shuffle, free}` all
-        // have `void` return. Without this, kind-8 type_expr fell to
-        // the catch-all `return ""` which made `let x = v.push(N);`
-        // bind `x` to "" (empty) silently — TYP-021 didn't see "void"
-        // so it didn't fire.
-        if (str_starts_with(recv_t, "Vec<") == 1 || str_eq(recv_t, "Vec") == 1)
-            && (str_eq(mname, "push") == 1 || str_eq(mname, "pop") == 1
-                || str_eq(mname, "set") == 1 || str_eq(mname, "swap") == 1
-                || str_eq(mname, "extend") == 1 || str_eq(mname, "shuffle") == 1
-                || str_eq(mname, "free") == 1 || str_eq(mname, "remove") == 1
-                || str_eq(mname, "insert") == 1) {
-            return "void";
-        };
+        // Keep the literal type-mismatch check below before the
+        // void-mutator early return. Otherwise Vec<i64>.push("hello")
+        // exits as "void" before TYP-008 can fire.
         // v0.4.85: TYP-008 ext — Vec<T>.push(literal) narrow type
         // mismatch check. v0.4.86: extended to .insert(idx, val)
         // (val at arg position 1) and .set(idx, val) (same).
@@ -12694,6 +12758,19 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                     };
                 };
             };
+        };
+        // v0.4.139: route void-mutator vec methods to return "void"
+        // so the existing TYP-021 (let-RHS void), TYP-020 (binop void),
+        // and NUM-022-style checks auto-extend without per-call
+        // duplication. This must stay after the TYP-008 Vec element
+        // mismatch check above.
+        if (str_starts_with(recv_t, "Vec<") == 1 || str_eq(recv_t, "Vec") == 1)
+            && (str_eq(mname, "push") == 1 || str_eq(mname, "pop") == 1
+                || str_eq(mname, "set") == 1 || str_eq(mname, "swap") == 1
+                || str_eq(mname, "extend") == 1 || str_eq(mname, "shuffle") == 1
+                || str_eq(mname, "free") == 1 || str_eq(mname, "remove") == 1
+                || str_eq(mname, "insert") == 1) {
+            return "void";
         };
         if str_eq(mname, "sum") == 1 || str_eq(mname, "mean") == 1 || str_eq(mname, "max") == 1 || str_eq(mname, "min") == 1 {
             if str_eq(type_base_name(recv_t), "Tensor") == 1 { return "f64"; };
@@ -12880,7 +12957,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         if type_is_float(scrut_t) == 1 {
             let m13a: str = str_concat("float scrutinee in `match` is not supported (got `", str_concat(scrut_t, "`)."));
             let m13b: str = " Float equality is fragile (NaN ≠ NaN; round-off drift means literal-equality matches surprise-fail), so pattern-matching on `f32`/`f64` values has no defined semantics here. Pre-v0.4.206 the compiler crashed with ACCESS_VIOLATION (no diagnostic) trying to lower the int-pattern path against a float scrutinee. Use an `if`-chain (`if (x - 1.5).abs() < 0.001 { ... }`) for tolerance-based comparison, or convert via `(x * 100.0) as i32` to match on integer scaled values.";
-            type_diag(diags, source, fn_name, "match", "MATCH-013", str_concat(m13a, m13b));
+            type_diag_at(diags, source, pool, nid, fn_name, "match", "MATCH-013", str_concat(m13a, m13b));
             return "i64";
         };
         let mut ai: i64 = 0;
@@ -12902,12 +12979,12 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             if str_eq(ename, "__str") == 1 && type_is_int(scrut_t) == 1 {
                 let m11a: str = str_concat("string literal arm in `match` on integer scrutinee (`", str_concat(scrut_t, "`)."));
                 let m11b: str = " Pre-v0.4.140 this lowered to `str_eq(<scrut_i64>, \"<lit>\")` — when the scrutinee value didn't match an earlier int arm, str_eq dereferenced the i64 as a char ptr and SIGSEGV'd at runtime. Use integer literal arms (`1 => ..., 2 => ...`) for an int match, or convert the scrutinee to str (`int_to_str(n)`) to use string literal arms.";
-                type_diag(diags, source, fn_name, "match", "MATCH-011", str_concat(m11a, m11b));
+                type_diag_at(diags, source, pool, nid, fn_name, "match", "MATCH-011", str_concat(m11a, m11b));
             };
             if str_eq(ename, "__int") == 1 && str_eq(scrut_t, "str") == 1 {
                 let m11ia: str = "integer literal arm in `match` on string scrutinee (`str`).";
                 let m11ib: str = " Pre-v0.4.140 this lowered to integer compare against the str pointer's i64 value — meaningless and silently FALSE in nearly all cases. Use string literal arms (`\"a\" => ..., \"b\" => ...`) for a str match, or convert the scrutinee with `str_to_int(s)` to match on integer values.";
-                type_diag(diags, source, fn_name, "match", "MATCH-011", str_concat(m11ia, m11ib));
+                type_diag_at(diags, source, pool, nid, fn_name, "match", "MATCH-011", str_concat(m11ia, m11ib));
             };
             let at_name: str = if str_eq(ename, "__range_at") == 1 || str_eq(ename, "__range_bad_at") == 1 { pattern_binding_item_name(str_after_char_local(binding, 124)) } else { pattern_at_prefix_name(binding) };
             if str_len(at_name) > 0 {
@@ -12918,12 +12995,12 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             };
             if str_eq(ename, "__struct") == 1 {
                 if str_eq(type_base_name(scrut_t), type_base_name(vname)) == 0 {
-                    type_diag(diags, source, fn_name, "match", "TYP-010", str_concat("struct pattern type mismatch: expected ", str_concat(vname, str_concat(" but scrutinee is ", scrut_t))));
+                    type_diag_at(diags, source, pool, nid, fn_name, "match", "TYP-010", str_concat("struct pattern type mismatch: expected ", str_concat(vname, str_concat(" but scrutinee is ", scrut_t))));
                 };
                 tenv_set_struct_pattern(pool, structs, arm_env, vname, binding);
             } else if str_eq(ename, "__tuple") == 1 || str_eq(ename, "__slice") == 1 {
                 if str_len(scrut_t) > 0 && str_eq(type_base_name(scrut_t), "Vec") == 0 {
-                    type_diag(diags, source, fn_name, "match", "TYP-010", str_concat("tuple/slice pattern requires Vec<T> scrutinee, found ", scrut_t));
+                    type_diag_at(diags, source, pool, nid, fn_name, "match", "TYP-010", str_concat("tuple/slice pattern requires Vec<T> scrutinee, found ", scrut_t));
                 };
                 let elem_t: str = type_first_arg(scrut_t);
                 tenv_set_pattern_list(arm_env, binding, if str_len(elem_t) > 0 { elem_t } else { "i64" });
@@ -12963,7 +13040,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             // Skip the special `__tuple_destructure_unsupported__`
             // placeholder name (already panics at parse time).
             if str_eq(vname, "__tuple_destructure_unsupported__") == 0 {
-                type_diag(diags, source, fn_name, vname, "TYP-008", str_concat("binding `", str_concat(vname, "` declared without initializer (type-only). Nucleor has no flow-sensitive definite-assignment pass, so this would silently read as 0 from the alloca's zero-init slot on any path that reaches the read before an assignment. Assign at declaration, or introduce the binding where the value exists.")));
+                type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-008", str_concat("binding `", str_concat(vname, "` declared without initializer (type-only). Nucleor has no flow-sensitive definite-assignment pass, so this would silently read as 0 from the alloca's zero-init slot on any path that reaches the read before an assignment. Assign at declaration, or introduce the binding where the value exists.")));
             };
         };
         // v0.3.180: NUC-FEEDBACK-002 -- promoted parse-time
@@ -13011,17 +13088,17 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             if str_len(tstr) == 0 && (str_eq(init_t, "void") == 1 || type_is_unit(init_t) == 1)
                 && str_eq(vname, "_") == 0 {
                 let v21msg: str = str_concat("`void`-typed expression cannot initialize binding `", str_concat(vname, "`. Pre-v0.4.136 the void return was silently coerced to 0 — adopters who confused side-effect-only fns (`print_int`, `print`, etc.) with value-returning fns got a 0-valued binding with no signal. Use the value-returning sibling fn (e.g. `int_to_str` instead of `print_int`) or split the side-effect into its own statement above the let."));
-                type_diag(diags, source, fn_name, vname, "TYP-021", v21msg);
+                type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-021", v21msg);
             };
             if str_len(tstr) > 0 {
                 if type_is_unit(tstr) == 1 && (node_kind(pool, init) == 1 || node_kind(pool, init) == 71) && line_has_unit_literal(source, fn_name, vname) == 0 {
-                    type_diag(diags, source, fn_name, vname, "TYP-007", "bare numeric literal cannot initialize a unit value");
+                    type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-007", "bare numeric literal cannot initialize a unit value");
                 } else {
                     let compat_start: i64 = tprof_start(tprof);
                     let compat_ok: i64 = types_compatible_context(pool, prog, tstr, init_t);
                     tprof_mark(tprof, 7, 8, compat_start);
                     if compat_ok == 0 {
-                    type_diag(diags, source, fn_name, vname, "TYP-008", str_concat("type mismatch for binding '", str_concat(vname, "'")));
+                    type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-008", str_concat("type mismatch for binding '", str_concat(vname, "'")));
                     };
                 };
                 // v0.4.76: NUM-018 — float literal in integer context.
@@ -13036,7 +13113,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                 // v0.2.319 expansion) but never wired. Catches the
                 // literal float (kind 71) in integer-typed binding.
                 if node_kind(pool, init) == 71 && type_is_int(tstr) == 1 {
-                    type_diag(diags, source, fn_name, vname, "NUM-018", str_concat("float literal cannot initialize integer binding `", str_concat(vname, str_concat("` of type ", str_concat(tstr, " — pre-fix this silently bit-cast the IEEE 754 representation into the i64 slot. Use `as i64` to truncate explicitly, or change the type to `f64`.")))));
+                    type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-018", str_concat("float literal cannot initialize integer binding `", str_concat(vname, str_concat("` of type ", str_concat(tstr, " — pre-fix this silently bit-cast the IEEE 754 representation into the i64 slot. Use `as i64` to truncate explicitly, or change the type to `f64`.")))));
                 };
                 // v0.4.113: NUM-020 — int-typed expr (non-literal) in
                 // float binding. Pre-fix `let f: f64 = i;` where `i: i64`
@@ -13056,7 +13133,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     && init_kind_n20 != 1 && init_kind_n20 != 71 {
                     let n20msg_a: str = str_concat("integer-typed expression (`", str_concat(init_t, str_concat("`) cannot initialize float binding `", str_concat(vname, str_concat("` of type `", str_concat(tstr, "`."))))));
                     let n20msg_b: str = " Pre-v0.4.113 the i64 bit pattern was stored directly in the f64 slot — e.g. `let f: f64 = i;` for `i: i64 = 5` printed `0.000000` (5 as a denormal f64). Use an explicit conversion (`i as f64`) or `f64_from_bits(i)` if you really meant to reinterpret the bits.";
-                    type_diag(diags, source, fn_name, vname, "NUM-020", str_concat(n20msg_a, n20msg_b));
+                    type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-020", str_concat(n20msg_a, n20msg_b));
                 };
                 // v0.4.126: TYP-016 — `if cond { val }` with NO else branch
                 // assigned to a non-void/unit binding. Pre-fix
@@ -13089,7 +13166,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     if t16_is_passthrough == 0 {
                         let t16a: str = str_concat("`if` expression assigned to binding `", str_concat(vname, str_concat("` of type `", str_concat(tstr, "` is missing an `else` branch."))));
                         let t16b: str = " Pre-v0.4.126 the false-condition path silently fell through to the alloca's zero-init slot — `let x: i64 = if false { 5 };` produced `x == 0` with no signal. Add an `else { ... }` arm that produces the same type, or restructure to a stmt-form `if` that doesn't assign.";
-                        type_diag(diags, source, fn_name, vname, "TYP-016", str_concat(t16a, t16b));
+                        type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-016", str_concat(t16a, t16b));
                     };
                 };
                 // v0.4.77: NUM-019 — negative literal in unsigned binding.
@@ -13108,7 +13185,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                         let lit_n: i64 = node_field(pool, inner_neg, 1);
                         if lit_n > 0 {
                             let nm19_msg: str = str_concat("negative literal `-", str_concat(str_from_int(lit_n), str_concat("` cannot initialize unsigned binding `", str_concat(vname, str_concat("` of type ", str_concat(tstr, " — pre-fix this silently two's-complement-wrapped (e.g. `-5` became u32::MAX-4 = 4294967291). Use a non-negative literal, change the type to a signed equivalent, or wrap explicitly with `(-N) as <type>`."))))));
-                            type_diag(diags, source, fn_name, vname, "NUM-019", nm19_msg);
+                            type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-019", nm19_msg);
                         };
                     };
                 };
@@ -13137,13 +13214,12 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     out_of_range = 1;
                 };
                 if out_of_range == 1 {
-                    let nloc: Vec<i32> = find_linecol_in_source(source, fn_name, vname);
                     // v0.4.70: promote NUM-002 from warning to error
                     // (audit section 1). Pre-fix `let x: u8 = 256;`
                     // truncated to 0 silently with only a warning;
                     // adopters writing canonical Rust got E0080
                     // (unconditional_recursion). Now hard error.
-                    diag_add_ex(diags, "error", "type", "NUM-002", str_concat("numeric literal ", str_concat(str_from_int(lit_v), str_concat(" out of range for declared type ", str_concat(tstr, ". Use a wider type or change the literal.")))), fn_name, vec_get(nloc, 0), vec_get(nloc, 1), "");
+                    type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-002", str_concat("numeric literal ", str_concat(str_from_int(lit_v), str_concat(" out of range for declared type ", str_concat(tstr, ". Use a wider type or change the literal.")))));
                 };
             };
             // RFC-0015 phase 6: NUM-005 — usize/isize mixed with an
@@ -13154,8 +13230,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                 let lhs_is_size: i64 = if str_eq(type_base_name(tstr), "usize") == 1 || str_eq(type_base_name(tstr), "isize") == 1 { 1 } else { 0 };
                 let rhs_is_size: i64 = if str_eq(type_base_name(init_t), "usize") == 1 || str_eq(type_base_name(init_t), "isize") == 1 { 1 } else { 0 };
                 if lhs_is_size != rhs_is_size {
-                    let nloc2: Vec<i32> = find_linecol_in_source(source, fn_name, vname);
-                    diag_add_ex(diags, "warning", "type", "NUM-005", str_concat("usize/isize mixed with explicit-width type: ", str_concat(tstr, str_concat(" vs ", init_t))), fn_name, vec_get(nloc2, 0), vec_get(nloc2, 1), "");
+                    diag_add_at_or_scan(diags, source, pool, nid, vname, "warning", "type", "NUM-005", str_concat("usize/isize mixed with explicit-width type: ", str_concat(tstr, str_concat(" vs ", init_t))), fn_name, "");
                 };
             };
         };
@@ -13423,13 +13498,13 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             };
             if str_eq(ename, "__struct") == 1 {
                 if str_eq(type_base_name(scrut_t), type_base_name(vname)) == 0 {
-                    type_diag(diags, source, fn_name, "match", "TYP-010", str_concat("struct pattern type mismatch: expected ", str_concat(vname, str_concat(" but scrutinee is ", scrut_t))));
+                    type_diag_at(diags, source, pool, nid, fn_name, "match", "TYP-010", str_concat("struct pattern type mismatch: expected ", str_concat(vname, str_concat(" but scrutinee is ", scrut_t))));
                     warns = warns + 1;
                 };
                 tenv_set_struct_pattern(pool, structs, arm_env, vname, binding);
             } else if str_eq(ename, "__tuple") == 1 || str_eq(ename, "__slice") == 1 {
                 if str_len(scrut_t) > 0 && str_eq(type_base_name(scrut_t), "Vec") == 0 {
-                    type_diag(diags, source, fn_name, "match", "TYP-010", str_concat("tuple/slice pattern requires Vec<T> scrutinee, found ", scrut_t));
+                    type_diag_at(diags, source, pool, nid, fn_name, "match", "TYP-010", str_concat("tuple/slice pattern requires Vec<T> scrutinee, found ", scrut_t));
                     warns = warns + 1;
                 };
                 let elem_t: str = type_first_arg(scrut_t);
@@ -17857,13 +17932,47 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
         // closeout, params stay alloca-i64 (the pre-3c convention).
         // Adopter narrow-typed fn bodies still benefit from phase
         // 3a/3b (typed allocas for let-stmts + narrow arith chains).
-        let ar: i64 = ctr_next(regs); ir_block_add(ebb0, ir_alloca(ar));
-        let pr2: i64 = ctr_next(regs); ir_block_add(ebb0, ir_param_ref(pr2, pi));
-        ir_block_add(ebb0, ir_store(pr2, ar));
-        sym_set(sym, pname, ar);
-        // Track struct type for parameters (strip generic params)
+        // v0.5 (v0.4.233 integration) phase 3c.3 — typed param alloca
+        // RESTORED. v0.4.221 originally landed this and v0.4.224 reverted
+        // it because `str_from_int(n: i32)` was being called with i64
+        // magnitudes. With v0.4.230's i32→i64 widening above, the
+        // cross-width abuse is gone and trunc-on-entry is a no-op for
+        // in-range values. Numeric-heavy adopter code regains phase
+        // 3b's narrow-arith dispatch on fn params.
         let ptype: str = node_field(pool, pnid, 2);
         let sbase: str = type_base_name(ptype);
+        let pblen: i64 = str_len(sbase);
+        let mut wp: i64 = 0;
+        if pblen == 2 {
+            if str_eq(sbase, "i8") == 1 { wp = 8; }
+            else if str_eq(sbase, "u8") == 1 { wp = 0 - 8; };
+        } else if pblen == 3 {
+            if str_eq(sbase, "i16") == 1 { wp = 16; }
+            else if str_eq(sbase, "u16") == 1 { wp = 0 - 16; }
+            else if str_eq(sbase, "i32") == 1 { wp = 32; }
+            else if str_eq(sbase, "u32") == 1 { wp = 0 - 32; };
+        };
+        let awp: i64 = if wp >= 0 { wp } else { 0 - wp };
+        let ar: i64 = ctr_next(regs);
+        if awp == 0 {
+            ir_block_add(ebb0, ir_alloca(ar));
+        } else {
+            ir_block_add(ebb0, ir_alloca_t(ar, awp));
+        };
+        let pr2: i64 = ctr_next(regs); ir_block_add(ebb0, ir_param_ref(pr2, pi));
+        if awp == 0 {
+            ir_block_add(ebb0, ir_store(pr2, ar));
+        } else {
+            // Trunc i64 → iN and typed-store. Param arrives as i64 at
+            // the fn-signature boundary; the trunc gives a clean iN
+            // value for the typed alloca.
+            let tpr: i64 = ctr_next(regs);
+            ir_block_add(ebb0, ir_trunc(tpr, pr2, awp));
+            ir_block_add(ebb0, ir_store_t(tpr, ar, awp));
+        };
+        sym_set(sym, pname, ar);
+        if wp != 0 { ir_fn_set_width(fir, ar, wp); };
+        // Track struct type for parameters (strip generic params)
         if str_len(sbase) > 0 { sym_set(sym, str_concat("__type_", pname), sbase); };
         // v0.3.55: also store full declared type for generic-aware
         // dispatch (mirror the same change at the let binding site).

@@ -7,20 +7,13 @@
 // pgs_smoke's legitimate macro-expanded `)` at byte 6571 still
 // works (token 51 is in the recovery-marker set).
 //
-// This fixture uses `@` binding pattern which is not yet parsed
-// — pre-v0.4.78 it printed "Parse error" + continued; v0.4.78
-// expect_tok NR020 panicked at the inner expect_tok before
-// parse_primary fall-through. Both panics are valid silent-
-// miscompute closes.
+// The original fixture used `@` binding pattern, which is valid
+// after RFC-0023 pattern support. Keep the parse_primary narrow-
+// panic invariant pinned with `@` in expression position.
 //
 // EXPECT: build fails (msg contains "NR020").
 
 fn main() -> i64 {
-    let n: i64 = 5;
-    let s: str = match n {
-        x @ 1..=10 => "small",
-        _ => "big",
-    };
-    println!("{}", s);
-    return 0;
+    let n: i64 = @;
+    return n;
 }

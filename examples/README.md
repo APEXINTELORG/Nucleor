@@ -71,6 +71,12 @@ together on a single tight inner loop.
 | 23 | [23_rt_sensor_fusion.nr](23_rt_sensor_fusion.nr) | Production-style sensor-fusion step combining all v0.3.51-63 codegen-fix shapes | `Vec<f64>`, `[f64; N]`, struct fields, trait methods, fn-call results, as-casts — all inline in natural form |
 | 24 | [24_rt_kalman_step.nr](24_rt_kalman_step.nr) | Kalman-style state update — 3×3 matrix-vector multiply via nested indexing, trajectory cumulative dist via Vec\<V3\> indexing, trait method on struct, all composed | `Vec<Vec<f64>>` matrix, `Vec<V3>` trajectory, trait `norm_sq`, cast i64→f64 (synthesizes v0.3.65-69 nested-composition fixes) |
 
+### Tier 5 — v0.4.x feature showcase
+
+| # | File | Topic | RFC attrs / language features |
+|---|---|---|---|
+| 25 | [25_patterns_tour.nr](25_patterns_tour.nr) | Pattern matching tour | RFC-0023 pattern matching forms and diagnostics |
+
 ### Showcase
 
 `showcase/` contains larger programs that span multiple rods.

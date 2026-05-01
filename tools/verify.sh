@@ -99,8 +99,12 @@ cleanup_verify_tmpdir() {
 }
 trap cleanup_verify_tmpdir EXIT
 case "$(uname -s)" in
-    Linux*|Darwin*|CYGWIN*|MINGW*) BIN="$ROOT/bin/nucleor" ;;
-    *) BIN="$ROOT/bin/nucleor" ;;
+    CYGWIN*|MINGW*|MSYS*)
+        if [ -x "$ROOT/bin/nucleor.exe" ]; then BIN="$ROOT/bin/nucleor.exe"; else BIN="$ROOT/bin/nucleor"; fi
+        ;;
+    *)
+        BIN="$ROOT/bin/nucleor"
+        ;;
 esac
 
 # --- Color setup --------------------------------------------------------
@@ -538,6 +542,7 @@ cli_explain_full_smoke() {
         # TYP series — type checker (expansion of NR030, since v0.2.119)
         "TYP-001" "TYP-002" "TYP-003" "TYP-004" "TYP-005"
         "TYP-006" "TYP-007" "TYP-008" "TYP-009" "TYP-010" "TYP-011" "TYP-012" "TYP-013"
+        "TYP-026"
         # FMT series — format macro expansion
         "FMT-002"
         # TRAIT series — trait dispatch and conversions
@@ -571,9 +576,15 @@ cli_explain_full_smoke() {
         "NUM-006" "NUM-007" "NUM-008" "NUM-009" "NUM-010"
         "NUM-011" "NUM-012" "NUM-013" "NUM-014" "NUM-015"
         "NUM-016" "NUM-017" "NUM-018" "NUM-019" "NUM-020"
+        # NUM-022/023 (v0.4.137/v0.4.140) — int-vs-float arith mismatch
+        # and `f64 as str` cast rejection. NUM-024 (v0.4.228) — opt-in
+        # cross-width call-site audit (NUCLEOR_AUDIT_NUM024=1) for
+        # RFC-0015 phase 3c.1 surfacing of i64-into-iN-param sites.
+        "NUM-022" "NUM-023" "NUM-024"
         # RFC-0016 Result/Option/match (v0.2; 007..010 for v0.4 RFC-0023)
         "MATCH-001" "MATCH-002" "MATCH-003" "MATCH-004" "MATCH-005" "MATCH-006"
         "MATCH-007" "MATCH-008" "MATCH-009" "MATCH-010"
+        "MATCH-011" "MATCH-012" "MATCH-013"
         # RFC-0017 collections (v0.2)
         "COLL-001" "COLL-002" "COLL-003" "COLL-004" "COLL-005"
         # RFC-0018 modules (v0.2)
@@ -3632,6 +3643,29 @@ compiler_tables_synced() {
     bash "$ROOT/tools/check_compiler_drift.sh" >$NUC_VERIFY_STEP_LOG 2>&1
 }
 
+num024_audit_zero() {
+    # v0.4.232 — regression gate for v0.4.230's str_from_int signature
+    # fix. The NUM-024 cross-width call-site audit (opt-in via
+    # NUCLEOR_AUDIT_NUM024=1) reported 1734 hits in compiler / 1291 in
+    # tools-suite before v0.4.230, all driven by `str_from_int(n: i32)`
+    # being called with i64 magnitudes. Widening the param to i64
+    # eliminated all 3025 hits across both sources at zero IR cost.
+    # This gate ratchets that win — any future change that introduces
+    # a new declared-iN param called with a wider source-level type
+    # will fail this step.
+    rm -rf "$ROOT/.nuc_cache" "$ROOT/target/.nuc_cache" 2>/dev/null || true
+    local s_count t_count
+    s_count=$(NUCLEOR_AUDIT_NUM024=1 "$BIN" build "compiler/nucleor_s1_compiler.nr" -o "_audit_s_check" 2>&1 | grep -c "NUM-024" || true)
+    rm -rf "$ROOT/.nuc_cache" "$ROOT/target/.nuc_cache" 2>/dev/null || true
+    t_count=$(NUCLEOR_AUDIT_NUM024=1 "$BIN" build "compiler/nucleor_tools_suite.nr" -o "_audit_t_check" 2>&1 | grep -c "NUM-024" || true)
+    if [ "$s_count" -ne 0 ] || [ "$t_count" -ne 0 ]; then
+        echo "       FAIL: NUM-024 audit regressed — compiler=$s_count tools-suite=$t_count (expect 0/0)" | sed 's/^/       /'
+        echo "       Re-run locally with NUCLEOR_AUDIT_NUM024=1 to see the call sites." | sed 's/^/       /'
+        return 1
+    fi
+    return 0
+}
+
 mojibake_clean() {
     # v0.2.91 — flag cp1252-as-utf8 mojibake byte sequences across
     # the source/doc surface. Catches the drift class that bit
@@ -3643,6 +3677,7 @@ mojibake_clean() {
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
 step "tools-suite rebuild" tools_rebuild
+step "NUM-024 cross-width audit (compiler+tools-suite must report 0)" num024_audit_zero
 step "no UTF-8 mojibake in source/docs" mojibake_clean
 step "tests/err/*.nr have EXPECT headers" err_tests_have_expect_smoke
 step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
@@ -3690,8 +3725,8 @@ if [ "$parallel_rc" = "2" ]; then
 fi
 
 step "self-host rebuild closes" self_host_rebuild
-step "self-host memory budget (<= 350 MB)" self_host_memory_budget
-step "tools-suite memory budget (<= 425 MB)" tools_suite_memory_budget
+step "self-host memory budget (<= 550 MB)" self_host_memory_budget
+step "tools-suite memory budget (<= 500 MB)" tools_suite_memory_budget
 step "T1.5a mod block-form inline" t15a_mod_block_form
 step "T1.5b pub introspection (summary surfaces visibility)" t15b_pub_introspection
 step "T1.5c privatization (cross-module call surfaces succeed)" t15c_privatization

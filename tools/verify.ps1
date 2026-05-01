@@ -239,6 +239,27 @@ Step "tools-suite rebuild" {
     return $true
 }
 
+Step "NUM-024 cross-width audit (compiler+tools-suite must report 0)" {
+    # v0.4.232 — regression gate for v0.4.230's str_from_int signature
+    # fix. Mirrors verify.sh num024_audit_zero. The NUM-024 audit
+    # surface across both self-build sources must stay at 0/0.
+    Remove-Item (Join-Path $root ".nuc_cache") -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $root "target\.nuc_cache") -Recurse -Force -ErrorAction SilentlyContinue
+    $env:NUCLEOR_AUDIT_NUM024 = "1"
+    $sOut = & $bin build "compiler/nucleor_s1_compiler.nr" -o "_audit_s_check" 2>&1 | Out-String
+    Remove-Item (Join-Path $root ".nuc_cache") -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $root "target\.nuc_cache") -Recurse -Force -ErrorAction SilentlyContinue
+    $tOut = & $bin build "compiler/nucleor_tools_suite.nr" -o "_audit_t_check" 2>&1 | Out-String
+    Remove-Item Env:\NUCLEOR_AUDIT_NUM024 -ErrorAction SilentlyContinue
+    $sCount = ([regex]::Matches($sOut, "NUM-024")).Count
+    $tCount = ([regex]::Matches($tOut, "NUM-024")).Count
+    if ($sCount -ne 0 -or $tCount -ne 0) {
+        Write-Host "       FAIL: NUM-024 audit regressed - compiler=$sCount tools-suite=$tCount (expect 0/0)"
+        return $false
+    }
+    return $true
+}
+
 Step "examples/showcase: lorenz/vqe_h2/market_maker/wing_simulator build" {
     # Mirrors verify.sh showcase_build_smoke (added v0.2.90).
     # Build-only — the four showcase programs produce streaming
@@ -401,6 +422,7 @@ Step "CLI: nuc explain — full spec code set wired" {
         # TYP series — type checker (expansion of NR030, since v0.2.119)
         "TYP-001", "TYP-002", "TYP-003", "TYP-004", "TYP-005",
         "TYP-006", "TYP-007", "TYP-008", "TYP-009", "TYP-010", "TYP-011", "TYP-012", "TYP-013",
+        "TYP-026",
         # FMT series — format macro expansion
         "FMT-002",
         # TRAIT series — trait dispatch and conversions
@@ -434,9 +456,15 @@ Step "CLI: nuc explain — full spec code set wired" {
         "NUM-006", "NUM-007", "NUM-008", "NUM-009", "NUM-010",
         "NUM-011", "NUM-012", "NUM-013", "NUM-014", "NUM-015",
         "NUM-016", "NUM-017", "NUM-018", "NUM-019", "NUM-020",
+        # NUM-022/023 (v0.4.137/v0.4.140) — int-vs-float arith mismatch
+        # and `f64 as str` cast rejection. NUM-024 (v0.4.228) — opt-in
+        # cross-width call-site audit (NUCLEOR_AUDIT_NUM024=1) for
+        # RFC-0015 phase 3c.1 surfacing of i64-into-iN-param sites.
+        "NUM-022", "NUM-023", "NUM-024",
         # RFC-0016 Result/Option/match (v0.2; 007..010 for v0.4 RFC-0023)
         "MATCH-001", "MATCH-002", "MATCH-003", "MATCH-004", "MATCH-005", "MATCH-006",
         "MATCH-007", "MATCH-008", "MATCH-009", "MATCH-010",
+        "MATCH-011", "MATCH-012", "MATCH-013",
         # RFC-0017 collections (v0.2)
         "COLL-001", "COLL-002", "COLL-003", "COLL-004", "COLL-005",
         # RFC-0018 modules (v0.2)
