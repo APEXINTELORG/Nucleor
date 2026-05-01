@@ -5,6 +5,114 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.234] — 2026-04-30
+
+**v0.5 ship 4 of 8 — phase 3e.1 LLVM overflow-intrinsic substrate
+(opt-in via `NUCLEOR_INT_STRICT_INTRIN=1`).** Integrates consultant
+Track B's spike (commit `b2510eb`) onto v0.4.233 + the matching
+ABI-table mirror in `nucleor_tools_suite.nr` so the drift gate
+stays green.
+
+### Substrate
+
+- 3 new IR opcodes (35/36/37) for `add/sub/mul_with_overflow`
+  carrying width (i8/i16/i32/i64) and trap label in the inst
+  payload.
+- `ir_binop_overflow` dispatcher routes `+/-/*` to the right
+  intrinsic op when the env var is set.
+- `emit_overflow_arith` LLVM emitter:
+  ```llvm
+  %r.N.ov = call {iN, i1} @llvm.s{add,sub,mul}.with.overflow.iN(iN %a, iN %b)
+  %r.N    = extractvalue {iN, i1} %r.N.ov, 0
+  %r.N.of = extractvalue {iN, i1} %r.N.ov, 1
+  br i1 %r.N.of, label %L_trap, label %L_cont
+  L_trap:
+    %r.N.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
+    unreachable
+  L_cont:
+    ; ...
+  ```
+- DCE liveness: opcodes 35/36/37 treated as side-effecting (the
+  branch + panic path is observable).
+- `lower_expr_narrow` signature now takes `lbls: Vec<i32>` so it
+  can mint trap labels for the narrow-chain path; updated at the
+  one caller in `lower_expr`.
+- Two emit sites both gated on `NUCLEOR_INT_STRICT_INTRIN=1`:
+  narrow-chain dispatch (phase 3b interior arith) and i64 binop
+  fall-through.
+- `emit_externs` (compiler + tools-suite) emit the i8/i16/i32/i64
+  intrinsic declarations + the `@.nuc_overflow_intrin_msg` panic
+  string global ONLY when the env var is set. Env-off output has
+  zero intrinsic refs (clean default-off gate).
+
+### Validation
+
+- **Self-build clean** (functions: 573, optimized: 1 450, DCE
+  17/573). LL size 7 131 059 bytes — env-off baseline unchanged.
+- **Two-stage fixed-point env-OFF:** SHA
+  `bcfaa527b73376761b8b28ed1690e4aec8c968cb0c3b23be80dfff439decb315`.
+  Bootstrap seed refreshed; T1.7 locked.
+- **Targeted env-ON smoke** (i64 add/sub/mul of 100×200): 19
+  intrinsic-related lines in IR (3× `with.overflow` calls + 6×
+  `extractvalue` + 3× `br` + 3× `panic` + 1× msg global + 3× the
+  per-emit unreachable pattern, plus the trap label declares).
+- **Targeted env-ON runtime trap:** `9223372036854775000 +
+  9223372036854775000` overflows → `PANIC: integer overflow`,
+  exit 1.
+- **Compiler ABI drift gate:** clean (intrinsic decls mirrored
+  in tools-suite).
+
+### Track F perf data — ship 8 (3e.3 default flip) DEFERRED
+
+Track F (commit `6235bd5`, branch `origin/v05-spike-3e3-perf`)
+ran the perf matrix against the v0.5 hot ceiling of 1.13s:
+
+| Config | Hot run 1 | Hot run 2 | Verdict |
+|---|---:|---:|---|
+| env-off baseline | 1.41s | 1.84s | noisy (over ceiling — machine load) |
+| `NUCLEOR_INT_STRICT_INTRIN=1` | 1.18s | 1.51s | over ceiling, but cheaper than env-off |
+| `NUCLEOR_INT_STRICT_ARITH=1` (legacy helper) | 1.66s | 2.24s | worst path |
+
+Directional finding: intrinsic path is materially cheaper than
+the legacy helper, but neither is green for a default flip on
+this machine. Env-off baseline was also over ceiling (1.41s,
+1.84s vs 1.13s budget) — strong signal of machine noise rather
+than substrate regression.
+
+**Decision:** ship 8 (3e.3 default flip) STAYS PARKED until:
+(a) Track E validates narrow i8/i16/i32 intrinsic correctness
+end-to-end on a phase-3-narrow fixture suite, AND
+(b) the perf matrix re-runs on an idle machine after Track E.
+
+Until then, intrinsic strict-mode is an opt-in user feature
+behind the env var. Legacy `NUCLEOR_INT_STRICT_ARITH=1` remains
+the existing opt-in helper path (slower, kept for back-compat).
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: 8 hunks from Track B —
+  `ir_binop_overflow` ops + dispatcher, DCE liveness,
+  `emit_overflow_arith`, `emit_externs` env-gated decls,
+  `lower_expr_narrow` signature + intrinsic emit, `lower_expr`
+  k=4 binop intrinsic emit.
+- `compiler/nucleor_tools_suite.nr`: env-gated mirror of the
+  intrinsic decls + panic string global in `emit_externs`.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+- New: `docs/milestones/spikes/track_b_3e1_spike_2026-04-30.md`.
+
+### Punchlist status — 6 of 8 ships landed
+
+| # | Phase | Status |
+|---|---|---|
+| 1 | 3c.1 cross-width audit | ✅ shipped |
+| 2 | 3span.1 substrate | ✅ shipped |
+| 3 | 3span.2 high-impact diag migration | ✅ shipped |
+| 4 | 3e.1 LLVM overflow intrinsic substrate | ✅ shipped (opt-in) |
+| 5 | 3c.2 cast injection | ✅ eliminated |
+| 6 | 3c.3 typed param alloca | ✅ shipped |
+| 7 | 3span.3 finish migration | 🔒 incremental — adopter UX driven |
+| 8 | 3e.3 strict-mode default flip | 🔒 deferred — Track F perf data parks until Track E + idle re-run |
+
 ## [0.4.233] — 2026-04-30
 
 **v0.5 atomic integration: 5-of-8 punchlist ships landed in one

@@ -4309,6 +4309,22 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_os_family()\n");
     sb_append(sb, "declare i64 @__nucleor_os_pointer_width()\n");
     sb_append(sb, "declare i64 @__nucleor_panic(ptr)\n");
+    let strict_intrin_t: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "");
+    if str_eq(strict_intrin_t, "1") == 1 {
+        sb_append(sb, "@.nuc_overflow_intrin_msg = private unnamed_addr constant [17 x i8] c\"integer overflow\\00\"\n");
+        sb_append(sb, "declare { i8, i1 } @llvm.sadd.with.overflow.i8(i8, i8)\n");
+        sb_append(sb, "declare { i16, i1 } @llvm.sadd.with.overflow.i16(i16, i16)\n");
+        sb_append(sb, "declare { i32, i1 } @llvm.sadd.with.overflow.i32(i32, i32)\n");
+        sb_append(sb, "declare { i64, i1 } @llvm.sadd.with.overflow.i64(i64, i64)\n");
+        sb_append(sb, "declare { i8, i1 } @llvm.ssub.with.overflow.i8(i8, i8)\n");
+        sb_append(sb, "declare { i16, i1 } @llvm.ssub.with.overflow.i16(i16, i16)\n");
+        sb_append(sb, "declare { i32, i1 } @llvm.ssub.with.overflow.i32(i32, i32)\n");
+        sb_append(sb, "declare { i64, i1 } @llvm.ssub.with.overflow.i64(i64, i64)\n");
+        sb_append(sb, "declare { i8, i1 } @llvm.smul.with.overflow.i8(i8, i8)\n");
+        sb_append(sb, "declare { i16, i1 } @llvm.smul.with.overflow.i16(i16, i16)\n");
+        sb_append(sb, "declare { i32, i1 } @llvm.smul.with.overflow.i32(i32, i32)\n");
+        sb_append(sb, "declare { i64, i1 } @llvm.smul.with.overflow.i64(i64, i64)\n");
+    };
     sb_append(sb, "declare i64 @__nucleor_popcount(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_count_ones(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_count_zeros(i64)\n");
