@@ -44,9 +44,6 @@ if ([string]::IsNullOrWhiteSpace($RunName)) {
 $targetDir = Join-Path $root "target"
 New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
 
-if ([string]::IsNullOrWhiteSpace($CsvPath)) {
-    $CsvPath = "target/${RunName}.csv"
-}
 if ([string]::IsNullOrWhiteSpace($StdoutPath)) {
     $StdoutPath = Join-Path $targetDir "${RunName}.stdout.log"
 }
@@ -57,7 +54,18 @@ if ([string]::IsNullOrWhiteSpace($StderrPath)) {
 Remove-Item -LiteralPath $StdoutPath, $StderrPath -ErrorAction SilentlyContinue
 
 $tmpName = $RunName -replace "[^A-Za-z0-9_]", "_"
-$bashCmd = "NUCLEOR_MEM_CAP_KB=0 NUC_VERIFY_JOBS=$Jobs NUC_VERIFY_CSV='$CsvPath' NUC_VERIFY_TMPDIR=/tmp/$tmpName"
+$csvSummary = $CsvPath
+$bashCmd = "NUCLEOR_MEM_CAP_KB=0 NUC_VERIFY_JOBS=$Jobs NUC_VERIFY_TMPDIR=/tmp/$tmpName"
+if (-not [string]::IsNullOrWhiteSpace($CsvPath)) {
+    $bashCmd = "$bashCmd NUC_VERIFY_CSV='$CsvPath'"
+} else {
+    $agent = $env:NUC_VERIFY_AGENT
+    if ([string]::IsNullOrWhiteSpace($agent)) {
+        $csvSummary = "(verify default)"
+    } else {
+        $csvSummary = "tools/verify_timings.$agent.csv"
+    }
+}
 if ($StrictIntrin -ne "default") {
     $bashCmd = "$bashCmd NUCLEOR_INT_STRICT_INTRIN=$StrictIntrin"
 }
@@ -82,7 +90,7 @@ $summary = Invoke-NucRssEstop `
 $summary | Add-Member -NotePropertyName run_name -NotePropertyValue $RunName -Force
 $summary | Add-Member -NotePropertyName jobs -NotePropertyValue $Jobs -Force
 $summary | Add-Member -NotePropertyName strict_intrin -NotePropertyValue $StrictIntrin -Force
-$summary | Add-Member -NotePropertyName csv -NotePropertyValue $CsvPath -Force
+$summary | Add-Member -NotePropertyName csv -NotePropertyValue $csvSummary -Force
 
 $summary | ConvertTo-Json -Depth 3
 exit ([int]$summary.exit_code)
