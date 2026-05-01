@@ -1867,6 +1867,20 @@ t_str_char_at_strict_oob() {
     return 0
 }
 
+t_rfc0006_undefined_ident_reject() {
+    # v0.4.283 — undefined ident in #[require] / #[ensure]
+    # predicate must reject at compile time. Probe-agent finding
+    # 2026-05-01: pre-fix, #[require(undefined_var > 0)] surfaced
+    # a misleading clang-link "undefined function `undefined_var()`"
+    # error. CONTRACT-011 halts at parse time naming the actual
+    # unbound ident.
+    "$BIN" build "tests/err/err_contract_undefined_ident.nr" -o "_t_uid" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "1" ] || return 1
+    grep -q "CONTRACT-011" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "undefined_var" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t_rfc0006_old_in_require_reject() {
     # v0.4.277 — `old(...)` in `#[require]` must reject at compile
     # time. Probe-agent finding 2026-05-01: pre-fix, the build
@@ -4412,6 +4426,7 @@ step "v0.4.272 RFC-0006 — result in void-fn #[ensure] reject (CONTRACT-008)" t
 step "v0.4.275 RFC-0006 — invalid NUCLEOR_DBC_MODE reject (CONTRACT-009)" t_rfc0006_dbc_mode_invalid_reject
 step "v0.4.276 MATCH-012 single-line panic (no print+panic stutter)" t_match_012_single_line
 step "v0.4.277 RFC-0006 — old() in #[require] reject (CONTRACT-010)" t_rfc0006_old_in_require_reject
+step "v0.4.283 RFC-0006 — undefined ident in contract reject (CONTRACT-011)" t_rfc0006_undefined_ident_reject
 step "v0.4.279 str_char_at_strict in-bounds works" t_str_char_at_strict_basic
 step "v0.4.279 str_char_at_strict OOB panics" t_str_char_at_strict_oob
 step "v0.4.280 ATOMIC-006 closure+atomic compiler-meltdown halt" t_atomic_006_in_closure

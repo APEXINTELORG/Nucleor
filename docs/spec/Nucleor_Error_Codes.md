@@ -186,6 +186,7 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 | CONTRACT-008 | `result` referenced in `#[ensure]` on a void fn | [RFC-0006 §3.3](../rfcs/RFC-0006-design-by-contract.md) |
 | CONTRACT-009 | Unrecognized `NUCLEOR_DBC_MODE` env value | [RFC-0006 §4.2](../rfcs/RFC-0006-design-by-contract.md) |
 | CONTRACT-010 | `old(...)` used inside `#[require]` (preconditions have no prior state) | [RFC-0006 §3.2](../rfcs/RFC-0006-design-by-contract.md) |
+| CONTRACT-011 | Undefined identifier in `#[require]` / `#[ensure]` predicate | [RFC-0006 §3.2](../rfcs/RFC-0006-design-by-contract.md) |
 
 ## ATOMIC series — RFC-0007 atomic + lock-free
 
