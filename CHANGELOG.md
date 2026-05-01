@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.7] — 2026-05-01
+
+**🔧 RFC-0014 closure: `#[max_depth = N]` on impl methods now
+works.** Closes probe-agent finding
+`2026-05-01-max-depth-impl-method-self-recursion-not-bounded`.
+Real compiler work — second non-doc ship of the v0.5.x line.
+
+### What lands
+
+Two-layer fix in compiler/nucleor_s1_compiler.nr:
+
+**Layer 1 — `md_first_param_name` skips the receiver.**
+Previously returned the literal first ident, which for an impl
+method `fn count(self, depth: i64)` was `self` — never matched
+guard / increment patterns, so DEPTH-001 always fired falsely.
+Now skips a leading `self`, `&self`, or `&mut self` and returns
+the next ident. The static analyzer correctly identifies
+`depth` as the bound parameter.
+
+**Layer 2 — wrapper-rewrite emits method dispatch for impl
+methods.** `expand_max_depth` previously emitted the wrapper's
+call to the inner as `<inner>(<arg_names>)` — a free-fn call
+with `self` passed as the first positional arg. clang link
+then failed with `undefined value '@__nuc_md_inner_*'` because
+the inner had been registered as an impl method (Tree-mangled),
+not a free fn. Now: when `arg_names` starts with `self`, the
+wrapper emits `self.<inner>(<rest_args>)` — kind-8 method
+dispatch — so the call lowers to the same Tree-mangled symbol
+the inner declaration produced.
+
+### Validation
+
+- New fixture: `tests/features/rfc0014_max_depth_impl_method.nr`
+  exercises `#[max_depth = 5]` on `Tree::count` with
+  `self.count(depth + 1)` self-recursion. Exit 0, prints `3`.
+- 689/689 PASS env-off + env-on (was 688; one new fixture).
+- Round-1 == round-2 IR fixed-point holds at
+  `743475d091736941a5f43f7c7d38ce0a83da623f2872f959d36f7b7419429c08`
+  (was `8b77f1f1...`; bootstrap seed refreshed).
+- Drift gate clean.
+
+### Promotes
+
+`findings/promoted/2026-05-01-max-depth-impl-method-self-recursion-not-bounded.md`
+with the full ## Promoted footer (fixture path, fix layers,
+sister-gap callout for kind-12 `Self::method` associated-fn
+recursion which is left to a follow-up if probe files a focused
+fixture).
+
 ## [0.5.6] — 2026-05-01
 
 **🔧 Drift fix: rod_manifest.toml regen.** Doc-only ship.
