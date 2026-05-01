@@ -22471,6 +22471,65 @@ fn expand_deadline(src: str) -> str {
     return sb_to_str(sb);
 }
 
+// v0.5.9: backward-scan helper for `#[max_depth = N]` impl-context.
+// The wrapper-rewrite needs the enclosing impl-block's receiver type
+// (e.g. "Node" for `impl Node { ... }` or `impl Trait for Node { ... }`)
+// to emit `<Type>::<inner>(...)` for assoc-fn (no-self) recursion. We
+// scan backwards from the attribute position, balancing braces, to find
+// the most-recent unclosed `impl <Type> [for <Type2>]?\s*{`. Returns ""
+// when not in an impl block (free fn at module top level).
+fn md_find_enclosing_impl_type(src: str, attr_pos: i64) -> str {
+    let mut depth: i64 = 0;
+    let mut p: i64 = attr_pos - 1;
+    while p >= 0 {
+        let c: i64 = str_char_at(src, p);
+        if c == 125 { depth = depth + 1; };
+        if c == 123 {
+            if depth == 0 {
+                let mut q: i64 = p - 1;
+                while q >= 0 && (str_char_at(src, q) == 32 || str_char_at(src, q) == 9 || str_char_at(src, q) == 10 || str_char_at(src, q) == 13) { q = q - 1; };
+                let name_end: i64 = q + 1;
+                while q >= 0 && (is_alnum(str_char_at(src, q)) == 1 || str_char_at(src, q) == 95) { q = q - 1; };
+                let name_start: i64 = q + 1;
+                if name_end <= name_start { return ""; };
+                let cand_name: str = str_substring(src, name_start, name_end);
+                let mut r: i64 = q;
+                while r >= 0 && (str_char_at(src, r) == 32 || str_char_at(src, r) == 9 || str_char_at(src, r) == 10 || str_char_at(src, r) == 13) { r = r - 1; };
+                let prev_end: i64 = r + 1;
+                while r >= 0 && (is_alnum(str_char_at(src, r)) == 1 || str_char_at(src, r) == 95) { r = r - 1; };
+                let prev_start: i64 = r + 1;
+                let prev_word: str = if prev_end > prev_start { str_substring(src, prev_start, prev_end) } else { "" };
+                if str_eq(prev_word, "impl") == 1 {
+                    if prev_start == 0 || str_char_at(src, prev_start - 1) == 32 || str_char_at(src, prev_start - 1) == 9 || str_char_at(src, prev_start - 1) == 10 {
+                        return cand_name;
+                    };
+                    return "";
+                };
+                if str_eq(prev_word, "for") == 1 {
+                    let mut s: i64 = r;
+                    while s >= 0 && (str_char_at(src, s) == 32 || str_char_at(src, s) == 9 || str_char_at(src, s) == 10 || str_char_at(src, s) == 13) { s = s - 1; };
+                    while s >= 0 && (is_alnum(str_char_at(src, s)) == 1 || str_char_at(src, s) == 95) { s = s - 1; };
+                    while s >= 0 && (str_char_at(src, s) == 32 || str_char_at(src, s) == 9 || str_char_at(src, s) == 10 || str_char_at(src, s) == 13) { s = s - 1; };
+                    let il_end: i64 = s + 1;
+                    while s >= 0 && (is_alnum(str_char_at(src, s)) == 1 || str_char_at(src, s) == 95) { s = s - 1; };
+                    let il_start: i64 = s + 1;
+                    if il_end > il_start {
+                        let il_word: str = str_substring(src, il_start, il_end);
+                        if str_eq(il_word, "impl") == 1 {
+                            return cand_name;
+                        };
+                    };
+                    return "";
+                };
+                return "";
+            };
+            depth = depth - 1;
+        };
+        p = p - 1;
+    };
+    return "";
+}
+
 fn expand_max_depth(src: str) -> str {
     // Runtime half of RFC-0014. Valid `#[max_depth = N]` fns are
     // rewritten into an inner body plus a wrapper that increments and
@@ -22561,6 +22620,15 @@ fn expand_max_depth(src: str) -> str {
                         // — not free-fn dispatch `inner(self, rest)`. The
                         // inner declaration sits inside the same impl
                         // block, so it's resolved as an impl method.
+                        // v0.5.9: extends to the assoc-fn (no-self) form
+                        // — the inner is registered as `Type::<inner>`,
+                        // so the wrapper must emit `Type::<inner>(args)`.
+                        // Detection: backward-scan from the #[max_depth]
+                        // line position to find the enclosing
+                        // `impl <Type> { ... }` (or `impl Trait for Type
+                        // { ... }`). Empty enclosing-type means the fn is
+                        // free, and the original free-fn dispatch shape
+                        // is correct.
                         let mut is_impl_method: i64 = 0;
                         let mut rest_args: str = arg_names;
                         let an_len: i64 = str_len(arg_names);
@@ -22577,6 +22645,10 @@ fn expand_max_depth(src: str) -> str {
                                 };
                             };
                         };
+                        let mut enclosing_type: str = "";
+                        if is_impl_method == 0 {
+                            enclosing_type = md_find_enclosing_impl_type(src, p);
+                        };
                         if str_len(ret_type) > 0 && str_eq(ret_type, "void") == 0 {
                             sb_append(sb, "    let __nuc_md_r: ");
                             sb_append(sb, ret_type);
@@ -22586,6 +22658,13 @@ fn expand_max_depth(src: str) -> str {
                                 sb_append(sb, inner_name);
                                 sb_append(sb, "(");
                                 sb_append(sb, rest_args);
+                                sb_append(sb, ");\n");
+                            } else if str_len(enclosing_type) > 0 {
+                                sb_append(sb, enclosing_type);
+                                sb_append(sb, "::");
+                                sb_append(sb, inner_name);
+                                sb_append(sb, "(");
+                                sb_append(sb, arg_names);
                                 sb_append(sb, ");\n");
                             } else {
                                 sb_append(sb, inner_name);
@@ -22604,6 +22683,13 @@ fn expand_max_depth(src: str) -> str {
                                 sb_append(sb, inner_name);
                                 sb_append(sb, "(");
                                 sb_append(sb, rest_args);
+                                sb_append(sb, ");\n");
+                            } else if str_len(enclosing_type) > 0 {
+                                sb_append(sb, enclosing_type);
+                                sb_append(sb, "::");
+                                sb_append(sb, inner_name);
+                                sb_append(sb, "(");
+                                sb_append(sb, arg_names);
                                 sb_append(sb, ");\n");
                             } else {
                                 sb_append(sb, inner_name);

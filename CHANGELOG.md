@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.9] — 2026-05-01
+
+**🔧 RFC-0014 closure (continued): `#[max_depth = N]` on assoc-fn
+form now works.** Closes the sister-gap callout on v0.5.7's
+ship: probe-agent finding
+`2026-05-01-max-depth-self-assoc-fn-still-link-fails`.
+
+### Layer-2 extension
+
+v0.5.7 closed the `self.method(...)` form (kind-8 method
+dispatch) of impl-method recursion under `#[max_depth = N]`,
+but left the no-self assoc-fn form (`Type::method(...)`) still
+link-failing. The wrapper-rewrite's Layer-2 fix was gated on
+`arg_names` starting with `self` — for an assoc-fn with no
+self receiver, the gate didn't fire and the wrapper still
+emitted the broken free-fn call to the impl-mangled inner
+symbol.
+
+### What lands
+
+- New helper `md_find_enclosing_impl_type` (`compiler/nucleor_s1_compiler.nr`,
+  ~line 22474). Backward-scans from a `#[max_depth]` line position,
+  balancing braces, to find the most-recent unclosed
+  `impl <Type> { ... }` or `impl Trait for <Type> { ... }`.
+  Returns the receiver type name, or "" if not in an impl block.
+- `expand_max_depth` Layer-2 branch (~line 22580) now handles
+  three cases:
+  1. `arg_names` starts with `self` → `self.<inner>(<rest>)`
+     (kind-8 method dispatch — v0.5.7 path).
+  2. enclosing-type non-empty AND no self → `<Type>::<inner>(<args>)`
+     (kind-12 assoc-fn dispatch — **v0.5.9 path**).
+  3. else → `<inner>(<args>)` (free-fn dispatch — original path).
+
+### Note on Self::
+
+Probed: Nucleor's compiler does not yet support
+`Self::method(...)` ("unsupported associated-fn call"). The
+v0.5.9 wrapper deliberately emits the explicit
+`<Type>::<inner>` form rather than `Self::<inner>` to match
+the existing assoc-fn dispatch path.
+
+### Validation
+
+- New fixture: `tests/features/rfc0014_max_depth_assoc_fn.nr`
+  exercises `#[max_depth = 5]` on `Node::count(depth)` with
+  `Node::count(depth + 1)` self-recursion. Exit 0, prints `3`.
+- v0.5.7 self-method fixture
+  (`tests/features/rfc0014_max_depth_impl_method.nr`)
+  continues to PASS — no regression on the kind-8 path.
+- 690/690 PASS env-off + env-on (was 689; one new fixture).
+- Round-1 == round-2 IR fixed-point holds at sha256
+  `fa4ab1ebc489396f7571ec637d7127b9662c618d62465d696710b1ce9a609bed`
+  (was `743475d091...`; bootstrap seed refreshed).
+- Drift gate clean.
+
+### Promotes
+
+`findings/promoted/2026-05-01-max-depth-self-assoc-fn-still-link-fails.md`
+with the full ## Promoted footer (fixture path, fix layers,
+Self:: support note, sister-gap callout closed).
+
 ## [0.5.8] — 2026-05-01
 
 **📝 Probe-agent Q3 follow-through: `## Promoted` footer
