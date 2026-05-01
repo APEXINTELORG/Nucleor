@@ -10796,13 +10796,53 @@ fn md_extract_int_value(line: str) -> i64 {
 }
 
 fn md_first_param_name(params_text: str) -> str {
+    // v0.5.7 fix for impl-method false-DEPTH-001: when the recursion-bounding
+    // analyzer scans `fn count(self, depth: i64)`, the first identifier is
+    // `self` — a self-receiver, not a depth parameter. Treat the receiver
+    // (`self`, or a leading reference form `&self`) as a skip token and
+    // return the FIRST non-receiver identifier so the guard / increment
+    // patterns are checked against the real depth parameter.
     let plen: i64 = str_len(params_text);
     let mut p: i64 = 0;
-    while p < plen && (str_char_at(params_text, p) == 32 || str_char_at(params_text, p) == 9 || str_char_at(params_text, p) == 10 || str_char_at(params_text, p) == 13) { p = p + 1; };
-    let ns: i64 = p;
-    while p < plen && (is_alnum(str_char_at(params_text, p)) == 1 || str_char_at(params_text, p) == 95) { p = p + 1; };
-    if p == ns { return ""; };
-    return str_substring(params_text, ns, p);
+    let mut tries: i64 = 0;
+    // Loop through up to two leading idents; the first may be `self` (or
+    // `&self`), in which case we step over the comma and pull the next.
+    while tries < 2 {
+        // Skip whitespace.
+        while p < plen && (str_char_at(params_text, p) == 32 || str_char_at(params_text, p) == 9 || str_char_at(params_text, p) == 10 || str_char_at(params_text, p) == 13) { p = p + 1; };
+        // Skip a leading `&` (and optional whitespace + `mut`) so `&self` /
+        // `&mut self` resolve to ident `self`.
+        if p < plen && str_char_at(params_text, p) == 38 {
+            p = p + 1;
+            while p < plen && (str_char_at(params_text, p) == 32 || str_char_at(params_text, p) == 9) { p = p + 1; };
+            if p + 3 <= plen && str_eq_at(params_text, p, "mut") == 1
+               && (p + 3 == plen || str_char_at(params_text, p + 3) == 32 || str_char_at(params_text, p + 3) == 9) {
+                p = p + 3;
+                while p < plen && (str_char_at(params_text, p) == 32 || str_char_at(params_text, p) == 9) { p = p + 1; };
+            };
+        };
+        let ns: i64 = p;
+        while p < plen && (is_alnum(str_char_at(params_text, p)) == 1 || str_char_at(params_text, p) == 95) { p = p + 1; };
+        if p == ns { return ""; };
+        let ident: str = str_substring(params_text, ns, p);
+        if str_eq(ident, "self") == 0 {
+            return ident;
+        };
+        // Receiver: skip the rest of this param up to the next comma at
+        // top-level (depth-0). Type annotation `self: T` may include
+        // arbitrary characters; conservatively scan for the next `,` at
+        // bracket-depth zero.
+        let mut depth: i64 = 0;
+        while p < plen {
+            let c: i64 = str_char_at(params_text, p);
+            if depth == 0 && c == 44 { p = p + 1; break; };
+            if c == 60 || c == 40 || c == 91 || c == 123 { depth = depth + 1; };
+            if c == 62 || c == 41 || c == 93 || c == 125 { if depth > 0 { depth = depth - 1; }; };
+            p = p + 1;
+        };
+        tries = tries + 1;
+    };
+    return "";
 }
 
 fn md_parse_digits_at(s: str, p0: i64) -> i64 {
@@ -22515,24 +22555,62 @@ fn expand_max_depth(src: str) -> str {
                         sb_append(sb, ", ");
                         sb_append(sb, str_from_int(md_value));
                         sb_append(sb, ");\n");
+                        // v0.5.7: when the rewritten fn is an impl method
+                        // (first param is `self`), the wrapper must call
+                        // the inner via method dispatch — `self.inner(rest)`
+                        // — not free-fn dispatch `inner(self, rest)`. The
+                        // inner declaration sits inside the same impl
+                        // block, so it's resolved as an impl method.
+                        let mut is_impl_method: i64 = 0;
+                        let mut rest_args: str = arg_names;
+                        let an_len: i64 = str_len(arg_names);
+                        if an_len >= 4 {
+                            if str_eq_at(arg_names, 0, "self") == 1 {
+                                if an_len == 4 {
+                                    is_impl_method = 1;
+                                    rest_args = "";
+                                } else if str_char_at(arg_names, 4) == 44 {
+                                    is_impl_method = 1;
+                                    let mut rs: i64 = 5;
+                                    while rs < an_len && (str_char_at(arg_names, rs) == 32 || str_char_at(arg_names, rs) == 9) { rs = rs + 1; };
+                                    rest_args = str_substring(arg_names, rs, an_len);
+                                };
+                            };
+                        };
                         if str_len(ret_type) > 0 && str_eq(ret_type, "void") == 0 {
                             sb_append(sb, "    let __nuc_md_r: ");
                             sb_append(sb, ret_type);
                             sb_append(sb, " = ");
-                            sb_append(sb, inner_name);
-                            sb_append(sb, "(");
-                            sb_append(sb, arg_names);
-                            sb_append(sb, ");\n");
+                            if is_impl_method == 1 {
+                                sb_append(sb, "self.");
+                                sb_append(sb, inner_name);
+                                sb_append(sb, "(");
+                                sb_append(sb, rest_args);
+                                sb_append(sb, ");\n");
+                            } else {
+                                sb_append(sb, inner_name);
+                                sb_append(sb, "(");
+                                sb_append(sb, arg_names);
+                                sb_append(sb, ");\n");
+                            };
                             sb_append(sb, "    max_depth_exit(");
                             sb_append(sb, str_from_int(counter_id));
                             sb_append(sb, ");\n");
                             sb_append(sb, "    return __nuc_md_r;\n");
                         } else {
                             sb_append(sb, "    ");
-                            sb_append(sb, inner_name);
-                            sb_append(sb, "(");
-                            sb_append(sb, arg_names);
-                            sb_append(sb, ");\n");
+                            if is_impl_method == 1 {
+                                sb_append(sb, "self.");
+                                sb_append(sb, inner_name);
+                                sb_append(sb, "(");
+                                sb_append(sb, rest_args);
+                                sb_append(sb, ");\n");
+                            } else {
+                                sb_append(sb, inner_name);
+                                sb_append(sb, "(");
+                                sb_append(sb, arg_names);
+                                sb_append(sb, ");\n");
+                            };
                             sb_append(sb, "    max_depth_exit(");
                             sb_append(sb, str_from_int(counter_id));
                             sb_append(sb, ");\n");
