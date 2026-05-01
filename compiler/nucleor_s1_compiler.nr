@@ -8146,6 +8146,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "CONTRACT-005") == 1 { return 1; };
     if str_eq(code, "CONTRACT-006") == 1 { return 1; };
     if str_eq(code, "CONTRACT-007") == 1 { return 1; };
+    if str_eq(code, "CONTRACT-008") == 1 { return 1; };
     // RFC-0007 atomic
     if str_eq(code, "ATOMIC-001") == 1 { return 1; };
     if str_eq(code, "ATOMIC-002") == 1 { return 1; };
@@ -9083,6 +9084,88 @@ fn fn_param_type(source: str, fn_name: str, param_name: str) -> str {
         q = q + 1;
     };
     return "";
+}
+
+// v0.4.272 RFC-0006 — text-level lookup of a fn's return type.
+// Finds `fn FNAME(...)`, walks past the param list with paren
+// depth tracking, then returns the text between `->` and `{`
+// trimmed. Returns "" if the fn has no return arrow (i.e. void
+// return type). Used by the void-fn-result-ref reject.
+fn fn_return_type(source: str, fn_name: str) -> str {
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let pat_pos: i64 = str_index_of(source, needle);
+    if pat_pos < 0 { return ""; };
+    let params_start: i64 = pat_pos + str_len(needle);
+    let n: i64 = str_len(source);
+    let mut depth: i64 = 1;
+    let mut p: i64 = params_start;
+    let mut params_end: i64 = 0 - 1;
+    while p < n {
+        let ch: str = str_substring(source, p, p + 1);
+        if str_eq(ch, "(") == 1 { depth = depth + 1; };
+        if str_eq(ch, ")") == 1 {
+            depth = depth - 1;
+            if depth == 0 { params_end = p; p = n; };
+        };
+        p = p + 1;
+    };
+    if params_end < 0 { return ""; };
+    // Walk past `)` to find `->` or `{`.
+    let mut q: i64 = params_end + 1;
+    while q < n - 1 {
+        let c2: str = str_substring(source, q, q + 2);
+        let c1: str = str_substring(source, q, q + 1);
+        if str_eq(c2, "->") == 1 {
+            // Find the next `{` or `;` after the arrow.
+            let mut r: i64 = q + 2;
+            while r < n {
+                let cr: str = str_substring(source, r, r + 1);
+                if str_eq(cr, "{") == 1 { break; };
+                if str_eq(cr, ";") == 1 { break; };
+                r = r + 1;
+            };
+            if r > q + 2 {
+                return str_trim(str_substring(source, q + 2, r));
+            };
+            return "";
+        };
+        if str_eq(c1, "{") == 1 { return ""; };
+        if str_eq(c1, ";") == 1 { return ""; };
+        q = q + 1;
+    };
+    return "";
+}
+
+// v0.4.272 RFC-0006 — scan an ensure-predicate text for a bare
+// `result` identifier reference. Walks the text, tracking word
+// boundaries: a hit must be preceded by start-of-text or non-
+// ident char, and followed by end-of-text or non-ident char.
+// Used to reject `#[ensure(result ...)]` on void fns.
+fn ensure_text_uses_result(text: str) -> i64 {
+    let needle: str = "result";
+    let nlen: i64 = str_len(needle);
+    let tlen: i64 = str_len(text);
+    let mut i: i64 = 0;
+    while i + nlen <= tlen {
+        let win: str = str_substring(text, i, i + nlen);
+        if str_eq(win, needle) == 1 {
+            let prev_ok: i64 = if i == 0 { 1 } else {
+                let pc: str = str_substring(text, i - 1, i);
+                let p_alpha: i64 = if str_index_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_", pc) >= 0 { 1 } else { 0 };
+                let p_digit: i64 = if str_index_of("0123456789", pc) >= 0 { 1 } else { 0 };
+                if p_alpha == 0 { if p_digit == 0 { 1 } else { 0 } } else { 0 }
+            };
+            let next_ok: i64 = if i + nlen >= tlen { 1 } else {
+                let nc: str = str_substring(text, i + nlen, i + nlen + 1);
+                let n_alpha: i64 = if str_index_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_", nc) >= 0 { 1 } else { 0 };
+                let n_digit: i64 = if str_index_of("0123456789", nc) >= 0 { 1 } else { 0 };
+                if n_alpha == 0 { if n_digit == 0 { 1 } else { 0 } } else { 0 }
+            };
+            if prev_ok == 1 { if next_ok == 1 { return 1; }; };
+        };
+        i = i + 1;
+    };
+    return 0;
 }
 
 // v0.4.271 RFC-0006 — quick check whether `text` is a bare identifier
@@ -20908,6 +20991,20 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         let ens_name: str = vec_get(ens_text_pairs, eti);
         if name_in_no_check(dbc_no_check, ens_name) == 1 { eti = eti + 2; continue; };
         let ens_text: str = vec_get(ens_text_pairs, eti + 1);
+        // v0.4.272 — reject `result` reference in #[ensure] on void fn.
+        // The fn has no return value to bind to; the alloca slot
+        // holds whatever was zero-initialized (or stale prior call
+        // state). `result == 0` happens to pass; `result > 0` panics
+        // CONTRACT-002 — both wrong-error states. Halt cleanly with
+        // CONTRACT-008 naming the void fn and the fix.
+        let ens_rtype: str = fn_return_type(source, ens_name);
+        if str_len(ens_rtype) == 0 {
+            if ensure_text_uses_result(ens_text) == 1 {
+                print(str_concat("error[CONTRACT-008]: `#[ensure(...)]` on `fn ", str_concat(ens_name, str_concat("` references `result`, but `", str_concat(ens_name, "` has no return type. The fn does not produce a value to bind `result` against. Either remove the `result` reference from the ensure predicate, or add a return type to the fn (e.g. `-> i64`) if you intended the ensure to assert on the output.")))));
+                print(str_concat("  --> fn ", str_concat(ens_name, "@<#[ensure] attribute>")));
+                return 1;
+            };
+        };
         // v0.4.251 — text-level rewrite of `old(EXPR)` to synth names.
         let rewrite: Vec<i32> = rewrite_old_in_ensure(ens_text, ens_name);
         let rewritten: str = vec_get(rewrite, 0);

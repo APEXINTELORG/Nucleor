@@ -1808,6 +1808,20 @@ t_rfc0006_old_expr_runtime() {
     return 0
 }
 
+t_rfc0006_result_in_void_fn_reject() {
+    # v0.4.272 RFC-0006 — `#[ensure(... result ...)]` on a void fn
+    # must reject at compile time. Probe-agent finding 2026-05-01:
+    # void fn has no return value to bind `result` against; pre-fix
+    # the ensure ran against alloca-init garbage with confusing
+    # outcomes (result == 0 "passes" by luck; result > 0 panics
+    # CONTRACT-002 at runtime).
+    "$BIN" build "tests/err/err_contract_result_in_void_fn.nr" -o "_t_rfc6_void" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "1" ] || return 1
+    grep -q "CONTRACT-008" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "void_fn" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t_rfc0006_old_vec_aliasing_reject() {
     # v0.4.271 RFC-0006 — `old(<heap-typed-expr>)` must be rejected
     # at compile time. The probe agent (2026-05-01) found that under
@@ -4251,6 +4265,7 @@ step "v0.4.252 RFC-0006 — NUCLEOR_DBC_MODE strip-out (debug/safe-release/relea
 step "v0.4.253 RFC-0006 — #[invariant] constructor exit-emit" t_rfc0006_invariant_ctor_runtime
 step "v0.4.258 RFC-0006 — #[no_check] per-fn opt-out marker" t_rfc0006_no_check_runtime
 step "v0.4.271 RFC-0006 — old() over heap-aliased types reject (CONTRACT-006)" t_rfc0006_old_vec_aliasing_reject
+step "v0.4.272 RFC-0006 — result in void-fn #[ensure] reject (CONTRACT-008)" t_rfc0006_result_in_void_fn_reject
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

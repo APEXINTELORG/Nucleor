@@ -5,6 +5,102 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.272] — 2026-05-01
+
+**🛡️ RFC-0006 — `result` in void-fn `#[ensure]` reject
+(CONTRACT-008).** Closes silent-miscompute filed by probe agent
+2026-05-01: a void fn (no return type) has no value to bind
+`result` against, but the ensure predicate ran anyway against
+the alloca's zero-init slot. `#[ensure(result == 0)]` "happened
+to pass" by luck; `#[ensure(result > 0)]` panicked CONTRACT-002
+at runtime with no explanation of what `result` could possibly
+mean for a void fn.
+
+### Repro (pre-v0.4.272)
+
+```nucleor
+#[ensure(result == 0)]
+fn void_fn(x: i64) {
+    print_int(x as i32);
+}
+```
+
+Builds clean, runs clean. Adopter mental model: "this fn
+doesn't return a value — what's `result`?"
+
+### Post-v0.4.272
+
+```
+error[CONTRACT-008]: `#[ensure(...)]` on `fn void_fn`
+references `result`, but `void_fn` has no return type. The
+fn does not produce a value to bind `result` against. Either
+remove the `result` reference from the ensure predicate, or
+add a return type to the fn (e.g. `-> i64`) if you intended
+the ensure to assert on the output.
+  --> fn void_fn@<#[ensure] attribute>
+```
+
+### What lands
+
+**Two new helpers** at `compiler/nucleor_s1_compiler.nr`:
+- `fn_return_type(source, fn_name) -> str` — text-level
+  lookup of the type-text between `fn FNAME(...)`'s `->` and
+  the body's `{`. Returns `""` if the fn has no `->` (void).
+- `ensure_text_uses_result(text) -> i64` — word-boundary scan
+  for the bare identifier `result` (catches `result == 0`,
+  `result + 1`, but not `myresult` or `result_ok`).
+
+**Reject site** in the ensure pre-pass, BEFORE the
+`rewrite_old_in_ensure` runs. If the fn's return type is empty
+AND the ensure text uses `result`, print
+`error[CONTRACT-008]:` and return 1.
+
+### Diag code reservation
+
+The probe finding's suggested CONTRACT-007 was already
+reserved for the cert profile's static-proof failure. Reserved
+CONTRACT-008 instead — added to:
+- `is_known_diag_code` in `compiler/nucleor_s1_compiler.nr`
+- `docs/spec/Nucleor_Error_Codes.md` CONTRACT series
+
+### Coverage scoping
+
+**Caught:** `result` keyword in any ensure predicate position
+where the fn has no return type.
+
+**Skipped (intentional):** `result` in non-ensure attributes
+(only `#[ensure]` references the magic name); `result` as a
+non-keyword (e.g., a struct field accessed as `obj.result` —
+the bare-ident word-boundary check requires `result` to stand
+alone, so `obj.result` and `myresult` don't trigger).
+
+### Fixture + verify gate
+
+- `tests/err/err_contract_result_in_void_fn.nr` — exact probe
+  repro. Build must fail with CONTRACT-008.
+- New verify gate step `t_rfc0006_result_in_void_fn_reject`.
+
+### Validation
+
+- Self-build clean. Two-stage fixed-point at NEW SHA
+  `1b33cf6efd79a1eb14404dc23acd8a96df9a4a797b8d9493746567282cdd5553`
+  (compiler IR moved from v0.4.271's `0ab90b1…`).
+- Bootstrap seed refreshed.
+- Drift gate clean.
+- Positive smoke: `#[ensure(result == x + 1)] fn inc(x: i64) -> i64`
+  still compiles + runs cleanly.
+
+### Probe-agent integration
+
+Promoted probe finding `2026-05-01-dbc-result-in-void-fn-ensure.md`
+from `origin/probe/exploration` (commit e101dc0) to local
+`findings/promoted/` with `## Promoted` footer. Second
+main-agent integration of a probe-agent finding.
+
+**Probe inbox queue remaining: 3 actionable DbC findings + 2
+carryover** (undefined-ident, old-in-require, dbc-mode silent
+fallback, str-char-at-oob, match-012 panic-stutter).
+
 ## [0.4.271] — 2026-05-01
 
 **🛡️ RFC-0006 — `old(<heap-typed-expr>)` compile-time reject
