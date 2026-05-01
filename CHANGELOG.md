@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.13] — 2026-05-01
+
+**🔧 Generic-T propagation closure — call-site rtype inference now
+substitutes gparam bindings.** Closes probe-agent finding
+`2026-05-01-generic-T-propagation-spsc-option-str`. The first of
+the two big lanes flagged at the start of the day. Real
+type-checker work.
+
+### What lands
+
+Pre-v0.5.13, the kind-7 call type-check at `type_expr` returned
+the literal sig rtype string with gparam placeholders
+unsubstituted. For `fn spsc_pop<T>(q: &mut SpscQueue<T>) ->
+Option<T>`, an inferred-let binding
+`let r = spsc_pop(&mut q)` typed `r` as `Option<T>` (literal
+T placeholder). The match-arm `Some(s)` then typed `s` as the
+i64-everywhere-ABI default rather than the concrete payload
+type, breaking `print(s)` for a `SpscQueue<str>` queue with
+TYP-006.
+
+v0.5.13 walks gparam bindings out of the (expected, actual)
+arg type pairs, then substitutes each binding into the rtype
+before returning.
+
+- **`gparam_extract_binding`** (line ~7491) — aligns one
+  (expected, actual) param pair and returns the binding for a
+  named gparam. Handles `T` direct, `Wrap<T>`, `&Wrap<T>`,
+  `&mut Wrap<T>`, plus nested generic args via recursion.
+- **`substitute_gparam_in_rtype`** (line ~7522) — whole-word-aware
+  substitution of a gparam in a type string. Bounded by
+  non-identifier chars so `T` doesn't leak inside `MyT` or
+  `T_helper`.
+- **Call-site loop** (`type_expr` kind-7, line ~14415) —
+  alongside the existing trait-bound check, accumulates [name,
+  concrete-type] bindings into `gparam_bindings_v513`
+  (first-binding-wins).
+- **Return path** (line ~14443) — substitutes each binding into
+  the literal rtype before returning.
+
+### Validation
+
+- New positive fixture
+  `tests/features/rfc0024_generic_t_propagation.nr` — exercises
+  the inferred-let-binding chain on `SpscQueue<str>`, exit 0.
+- 696/696 PASS env-off + env-on (was 695; one new fixture).
+- Round-1 == round-2 == round-3 IR fixed-point at sha256
+  `6530fdca087d96201bc456c8597c03a9e053643ad70a4a6497837e5f5971515e`.
+  Bootstrap seed refreshed.
+- Drift gate clean.
+
+### Conservative scope
+
+Covers the common shapes (T direct, Wrap<T>, &Wrap<T>,
+&mut Wrap<T>; nested via recursion). Does NOT yet handle:
+- Multi-gparam fns where one gparam appears only in the rtype
+  and is inferred from non-arg context (no current Nucleor
+  stdlib case).
+- Bindings disagreeing across multiple args (first-binding
+  wins; later-arg disagreement falls through silently to the
+  earlier binding's substitution).
+
+Both tracked as future-ship improvements if probe-agent finds
+counter-examples.
+
+### Sister gap remains
+
+`2026-05-01-generic-T-trait-bound-method-dispatch.md` (kind-8
+method dispatch in generic-fn body uses Vec<T> fallback) is a
+different code path (lower-time, not type-check-time) and a
+separate ship cycle.
+
+### Promotes
+
+`findings/promoted/2026-05-01-generic-T-propagation-spsc-option-str.md`
+with full ## Promoted footer.
+
 ## [0.5.12] — 2026-05-01
 
 **🔧 `str_to_int_strict` opt-in strict variant.** Closes
