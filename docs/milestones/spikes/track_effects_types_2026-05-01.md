@@ -102,3 +102,68 @@ OK: RELEASES.md is up to date
 - No e-stop tripped.
 - Highest observed full-gate process-tree peak was `938 MB`, below the 1024 MB hard cap.
 - Self-host and tools-suite memory gates in `verify.sh` both stayed below their current 1024 MB budgets.
+
+## v0.5.24 Memory-Tighten Update
+
+Follow-up branch: `v06-track-effects-types-mem-tightened`
+
+Base after rebase: `origin/main` `71330cf` (`v0.5.24`)
+
+The urgent memory regression was in the effects header survey path. The
+tighten pass removes the full-source stripped-copy allocation in
+`collect_headers_with_effect`; the scanner now walks the original source while
+skipping line comments, strings, and char literals in place. This preserves the
+first-pass RFC-0033 behavior while avoiding the large temporary source copy
+during self-host compilation.
+
+Current post-tighten fixed point under the process-tree RSS e-stop:
+
+```text
+stage1: OK peak 683 MB / 1000 MB e-stop, wall 5.564s
+stage2: OK peak 658 MB / 1000 MB e-stop, wall 5.966s
+stage3: OK peak 657 MB / 1000 MB e-stop, wall 5.378s
+stage2_sha = stage3_sha = 3B09C5E7347E6D60F9E86A3B2C0B198F7ED7B30CC2A552FE71DA860AC696F2CF
+strict-intrin seed refresh: OK peak 566 MB / 1000 MB e-stop, wall 5.949s
+```
+
+Current tight memory gates:
+
+```text
+self-host:   OK peak 624 MB / 770 MB e-stop, wall 5.620s
+tools-suite: OK peak 456 MB / 580 MB e-stop, wall 5.052s
+```
+
+Current focused post-rebase validation:
+
+```text
+T3.33 RFC-0033 focused matrix: PASS env-off and env-on
+  effects positive build/run
+  with [no_alloc] -> RT-001
+  with [no_panic] -> RT-002
+  with [no_dyn] -> RT-003
+  Alloc call from [no_alloc] -> EFF-003
+  extern with [no_alloc] -> RT-005 warning for host_unsafe only
+
+v0.5.24 1e20 f64 smoke: PASS, build peak 195 MB, run peak 3 MB
+compiler drift gate: PASS, peak 49 MB
+  OK: tools-suite ABI tables match nucleor_s1_compiler.nr
+  OK: helper_manifest.toml is up to date
+  OK: rod_manifest.toml is up to date
+  OK: RELEASES.md is up to date
+
+NUM-024 audit:
+  compiler=0, peak 567 MB / 770 MB
+  tools-suite=0, peak 459 MB / 580 MB
+```
+
+Full env-off/env-on gates were clean before the v0.5.24 rebase on the same
+tightened source shape:
+
+```text
+env-off: PASS 705, SKIP 1, wall 969.883s, peak 813.8 MB process-tree
+env-on:  PASS 705, SKIP 1, wall 977.931s, peak 761 MB process-tree
+```
+
+Post-v0.5.24 rebase did not require source-conflict edits; the only rebase
+conflict was generated `bin/nucleor.exe` / `bootstrap/nucleor_s1_seed.ll`, both
+regenerated from the rebased compiler and fixed-point checked above.
