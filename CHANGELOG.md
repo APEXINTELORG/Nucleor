@@ -5,6 +5,110 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.248] — 2026-05-01
+
+**🎯 RFC-0006 DbC — `#[invariant(EXPR)]` LIVE END-TO-END
+(CONTRACT-003).** Third working DbC feature. Adopters can now
+attach struct invariants to inherent or trait `impl` blocks;
+the predicate is checked at the entry of every method whose
+first param is `self`.
+
+### What lands
+
+**Runtime side** (`stdlib/runtime/nucleor_llvm_rt.c`):
+- `__nucleor_contract_invariant(cond)` — checks i64 cond; on 0,
+  prints `CONTRACT-003: invariant violated` and exits 1.
+
+**Compiler side** (`compiler/nucleor_s1_compiler.nr`):
+- `collect_impl_invariants(source: str) -> Vec<i32>` — scanner
+  for `#[invariant(EXPR)] impl <Type> {` (inherent) and
+  `#[invariant(EXPR)] impl <Trait> for <Type> {` (trait impl).
+  Returns flat `(type_name, expr_text)` pairs.
+- `lookup_type_invariant_expr(invariants, type_name) -> str` —
+  same shape as the require/ensure lookups.
+- Pre-pass at the main pipeline: scan, lex, parse-into-pool,
+  store `(type_name, expr_nid)` pairs as `invariant_exprs`.
+- `lower_fn` signature extended with `invariant_exprs: Vec<i32>`
+  (now 12 positional args). Both call sites updated.
+- Inside `lower_fn`, after the param walk and require check:
+  - Extract type prefix from the mangled fn name (`Type__method`
+    split on `__`).
+  - Look up the type's invariant. If present AND the first param
+    is named `self`, lower the predicate into ebb0 and emit
+    `call i64 @__nucleor_contract_invariant(i64 %predicate)`.
+  - The predicate's `self.field` access resolves through the
+    existing kind-3 var-ref + field-access lowering — `self` is
+    already bound in sym from the param walk.
+
+**v0.4.248 minimum scope:** entry-only. Per RFC, invariants
+should also fire on EXIT from methods that mutate self plus
+constructors returning Self. Exit-emit + constructor-emit ship
+in v0.4.249+.
+
+### End-to-end demo
+
+```nucleor
+struct Counter { value: i64 }
+
+#[invariant(self.value >= 0)]
+impl Counter {
+    fn get(self: Counter) -> i64 { self.value }
+}
+
+fn main() -> i64 {
+    let a: Counter = Counter { value: 5 };
+    print_int(a.get());      // OK: invariant 5 >= 0 holds
+    let b: Counter = Counter { value: 0 - 5 };
+    print_int(b.get());      // FAIL: invariant -5 >= 0 doesn't
+    0
+}
+```
+
+Output:
+```text
+5
+CONTRACT-003: invariant violated
+exit 1
+```
+
+### Validation
+
+- Self-build clean (LL 8 039 097 bytes).
+- **Two-stage fixed-point env-DEFAULT-ON** at SHA
+  `4ba42c2f69e9f4dfbc7904df2e08c65e95986c15beb4fdd4e854e0153ad2dcbd`.
+  Bootstrap seed refreshed; T1.7 locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean (helper manifest regenerated).
+- Targeted invariant runtime smokes (passing + violation).
+- New fixture `tests/features/rfc0006_invariant_basic.nr`
+  (Counter with `value >= 0` invariant; 4 cases mixing
+  `.get()` and `.doubled()`) builds + runs OK.
+- New verify-gate step `t_rfc0006_invariant_runtime` exercises
+  passing path + violation path.
+
+### What's next (v0.4.249+)
+
+- Invariant exit-emit on methods that mutate self.
+- Invariant emit on constructors (fns returning `Self`).
+- `old(expr)` snapshot at fn entry for ensure expressions
+  (CONTRACT-006).
+- Multiple require/ensure attributes per fn.
+- `#[release]` strip-out + `cert` profile (CONTRACT-007).
+- Liskov inheritance checks (CONTRACT-004, CONTRACT-005).
+
+### Files touched
+
+- `stdlib/runtime/nucleor_llvm_rt.c`: `__nucleor_contract_invariant`.
+- `compiler/nucleor_s1_compiler.nr`: scanner + lookup +
+  pre-pass + lower_fn signature extension + invariant emit at
+  method entry. ~120 lines added.
+- `compiler/nucleor_tools_suite.nr`: mirror of helper-name +
+  emit_externs declares.
+- `tests/features/rfc0006_invariant_basic.nr`: new fixture.
+- `tools/verify.sh`: `t_rfc0006_invariant_runtime` step.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+- `docs/rfcs/helper_manifest.toml`: regenerated.
+
 ## [0.4.247] — 2026-05-01
 
 **RFC-0006 ensure — mid-body explicit `return X;` support.**

@@ -3456,6 +3456,19 @@ long long __nucleor_contract_ensure(long long cond) {
     return 0;
 }
 
+// v0.4.248 RFC-0006 Design by Contract — runtime invariant check.
+// Emitted at struct method entry by the compiler when the method's
+// impl block carries `#[invariant(EXPR)]`. Same shape as require/
+// ensure; CONTRACT-003 message.
+long long __nucleor_contract_invariant(long long cond) {
+    if (cond == 0) {
+        fprintf(stderr, "CONTRACT-003: invariant violated\n");
+        fflush(stderr);
+        exit(1);
+    }
+    return 0;
+}
+
 
 long long __nucleor_assert_eq(long long a, long long b) {
     if (a != b) {

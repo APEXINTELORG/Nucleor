@@ -1713,6 +1713,36 @@ strict_intrin_fixture_overflows() {
     return 0
 }
 
+t_rfc0006_invariant_runtime() {
+    # v0.4.248 RFC-0006 — `#[invariant(EXPR)]` runtime check at
+    # impl-method entry. Builds the basic fixture (Counter with
+    # value >= 0 invariant; calls .get() and .doubled() on
+    # well-formed instances) and asserts exit 0 + OK marker.
+    # Then synthesizes a violation (Counter { value: -5 }) inline
+    # and asserts CONTRACT-003 panic, exit 1.
+    "$BIN" build "tests/features/rfc0006_invariant_basic.nr" -o "_t_rfc6_inv" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe="target/_t_rfc6_inv"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local out
+    out=$("$exe" 2>&1)
+    [ "$?" = "0" ] || return 1
+    echo "$out" | grep -q "OK rfc0006_invariant_basic" || return 1
+    local tmp_neg="$NUC_VERIFY_TMPDIR/rfc6_inv_violate.nr"
+    printf '%s\n' "struct Counter { value: i64 }" "#[invariant(self.value >= 0)]" "impl Counter { fn get(self: Counter) -> i64 { self.value } }" "fn main() -> i64 { let c: Counter = Counter { value: 0 - 5 }; let v: i64 = c.get(); print_int(v); 0 }" > "$tmp_neg"
+    "$BIN" build "$tmp_neg" -o "_t_rfc6_inv_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local nexe="target/_t_rfc6_inv_violate"
+    [ -x "$nexe.exe" ] && nexe="$nexe.exe"
+    [ -x "$nexe" ] || return 1
+    local nout
+    nout=$("$nexe" 2>&1)
+    [ "$?" = "1" ] || return 1
+    echo "$nout" | grep -q "CONTRACT-003: invariant violated" || return 1
+    return 0
+}
+
 t_rfc0006_ensure_midbody_runtime() {
     # v0.4.247 — `#[ensure(EXPR)]` at explicit mid-body return X;
     # sites. Pre-fix, only implicit-tail returns got the check;
@@ -4039,6 +4069,7 @@ step "v0.4.239 regression — wrapping {} block must not trap under strict defau
 step "v0.4.245 RFC-0006 — #[require(EXPR)] runtime check fires (CONTRACT-001)" t_rfc0006_require_runtime
 step "v0.4.246 RFC-0006 — #[ensure(EXPR)] runtime check fires (CONTRACT-002)" t_rfc0006_ensure_runtime
 step "v0.4.247 RFC-0006 — #[ensure(EXPR)] mid-body return support" t_rfc0006_ensure_midbody_runtime
+step "v0.4.248 RFC-0006 — #[invariant(EXPR)] impl-block runtime check (CONTRACT-003)" t_rfc0006_invariant_runtime
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

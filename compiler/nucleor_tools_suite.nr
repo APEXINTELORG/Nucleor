@@ -2299,6 +2299,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "assert") { return "__nucleor_assert"; };
     if str_eq(name, "contract_require") { return "__nucleor_contract_require"; };
     if str_eq(name, "contract_ensure") { return "__nucleor_contract_ensure"; };
+    if str_eq(name, "contract_invariant") { return "__nucleor_contract_invariant"; };
     if str_eq(name, "profile_start") { return "__nucleor_profile_start"; };
     if str_eq(name, "profile_end") { return "__nucleor_profile_end"; };
     if str_eq(name, "ambient_random") { return "__nucleor_ambient_random"; };
@@ -3890,6 +3891,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_assert(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_contract_require(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_contract_ensure(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_contract_invariant(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_profile_start(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_profile_end(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_ambient_random()\n");
