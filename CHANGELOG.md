@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.267] — 2026-05-01
+
+**🛠️ stdlib/rods/diff_sim — `*_f64` ergonomic wrappers
+(closes the f64-arc).** Ninth and final natural-fit rod after
+units → kinematics → linalg → csv_table → kdt → trajectory →
+rrt → fk_chain. Adopters writing differentiable quantum-
+simulation code now get f64-typed gate angles + gradient
+loss + selective-backward threshold.
+
+### What lands
+
+3 new wrappers at `stdlib/rods/diff_sim.nr:78+`:
+- `diff_gate_f64(h, gate_type, q0, q1, angle: f64)` (gate angle)
+- `diff_backward_f64(h, grad_loss: f64)` (loss-gradient backprop)
+- `diff_backward_selective_f64(h, grad_loss: f64, threshold: f64)`
+  (selective backprop with importance threshold)
+
+Bits-ABI fns above remain — purely additive.
+
+### Scoping
+
+- `mode_bits` in `diff_sim_init` is intentionally i64 — it's a
+  packed bitfield (bit 0 = noisy, bit 1 = per-feature gradient,
+  bit 2 = state-vector caching), not an f64. No wrapper.
+- Pointer args (`vec`, `prior_vec`, `grad_input_vec`) and
+  handle-typed bits-i64 returns (state-vector / probabilities /
+  logits / gate-importance / export-prior) stay i64 — they're
+  pointers to caller-allocated `double[]` buffers or vec
+  handles, not f64 scalars.
+
+### Fixture
+
+`tests/features/diff_sim_f64.nr`: 2-qubit clean-mode simulator,
+applies two RZ gates via `diff_gate_f64` (angles 0.5 + 1.0 rad),
+runs `diff_backward_f64(1.0)`. Asserts `n_gates == 0` initially
+then `== 2` after the gate calls.
+
+### Validation
+
+- Self-build clean, two-stage fixed-point at SHA
+  `eb5c4d061f45cf04bedf1dfa42ef4627bf7669fd6fe013863d932a83bfcd2c7e`
+  (= v0.4.258-266; 8th ship in a row at this SHA — compiler
+  doesn't import diff_sim.nr).
+- Drift gate clean — `rod_manifest.toml` regenerated to 2189
+  stdlib fns (+3 from v0.4.266's 2186).
+- Fixture exit 0, "OK diff_sim_f64".
+
+### F64-arc CLOSE
+
+**v0.4.260 → v0.4.267 = 8 ships, 9 rods, 65 wrappers, 8
+adopter fixtures, all at the same compiler-IR fixed point.**
+
+| Rod | Ship | Wrappers | Fixture |
+|---|---|---|---|
+| units | v0.4.260 | 1 | units_convert_f64.nr |
+| kinematics | v0.4.261 | 13 | kinematics_f64.nr |
+| linalg | v0.4.262 | 8 | linalg_f64.nr |
+| csv_table | v0.4.263 | 2 | csv_table_f64.nr |
+| kdt | v0.4.263 | 3 | kdt_f64.nr |
+| trajectory (motion profiles) | v0.4.264 | 15 | trajectory_f64.nr |
+| rrt | v0.4.265 | 8 | rrt_f64.nr |
+| fk_chain | v0.4.266 | 11 | fk_chain_f64.nr |
+| diff_sim | v0.4.267 | 3 | diff_sim_f64.nr |
+
+**Deferred-by-design:**
+- `pqueue` — bits-ABI is intentional (allows packed (priority,
+  index) keys, raw i64 priorities, and signed-f64 keys via
+  monotonic encoding). A naive `_f64` wrapper would be unsafe
+  for negative keys.
+- `trajectory` advanced primitives (DMP, TOPP, Catmull-Rom,
+  Bezier) — pointer-laden APIs whose adopters already navigate
+  caller-allocated double[] buffers. Future ship if pull
+  surfaces.
+
+The `findings/inbox/_questions.md` 2026-04-30 unit_convert
+silent-miscompute observation is fully closed: NUM-020 catches
+the misuse at type-check, and the ergonomic wrapper makes
+the misuse pattern unnecessary across all 9 rods.
+
 ## [0.4.266] — 2026-05-01
 
 **🛠️ stdlib/rods/fk_chain — `*_f64` ergonomic wrappers.**
