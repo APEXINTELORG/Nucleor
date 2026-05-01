@@ -46,9 +46,14 @@ fn main() -> i64 {
 Numeric literals default to `i64`. The lexer accepts decimal
 (`42`), hex (`0xFF` → `255`), binary (`0b1010` → `10`), and
 underscored (`1_000_000`) forms. RFC-0015 width / signedness
-suffixes (`100u8`, `1.5f32`) parse and type-check; the strict-
-mode mixed-width-arithmetic warning (NUM-001) is staged behind
-`nuc fix --numeric` until the v0.4 stdlib audit closes.
+suffixes (`100u8`, `1.5f32`) parse and type-check. **Since
+v0.4.238 strict-mode integer arithmetic is the default** —
+`+`, `-`, `*` panic on overflow rather than wrapping silently.
+Use `wrapping { ... }` / `saturating { ... }` / `checked { ... }`
+blocks for intentional wrap behavior, or set
+`NUCLEOR_INT_STRICT_INTRIN=0` at compile time to opt out
+globally. NUM-001 mixed-width-arithmetic warnings are emitted
+directly during type-check.
 
 ## Control flow
 
