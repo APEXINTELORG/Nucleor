@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 227
-# Total fn definitions: 2186
-# Total LOC: 9633
+# Total fn definitions: 2189
+# Total LOC: 9642
 
 [[rod]]
 name           = "activation2"
@@ -501,9 +501,9 @@ imports        = ["diff_drive"]
 name           = "diff_sim"
 path           = "stdlib/rods/diff_sim.nr"
 description    = "Differentiable quantum simulation"
-function_count = 23
+function_count = 26
 cfile_count    = 1
-loc            = 59
+loc            = 68
 imports        = []
 
 [[rod]]

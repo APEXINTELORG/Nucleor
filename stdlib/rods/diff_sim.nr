@@ -75,3 +75,29 @@ fn diff_export_prior(h: i64) -> i64 { return nuc_diff_export_prior(h); }
 fn diff_get_sv(h: i64, core: i64) -> i64 { return nuc_diff_get_sv(h, core); }
 fn diff_get_probs(h: i64, core: i64) -> i64 { return nuc_diff_get_probs(h, core); }
 fn diff_free(h: i64) { nuc_diff_free(h); }
+
+// === Ergonomic f64 wrappers (v0.4.267) ===
+//
+// Closes the f64-arc started in v0.4.260. Three wrappers for
+// the diff_sim fns whose i64 carries an f64 bit pattern (gate
+// angle, gradient loss, selective-backward threshold).
+// Pointer args (vec, prior_vec, grad_input_vec) stay as i64 —
+// they're memory addresses to caller-allocated double[]
+// buffers. Other handle-typed bits-i64 returns (sv, probs,
+// logits, gate_importance, export_prior) are themselves
+// pointer-handles to vec values, not f64 scalars.
+//
+// `mode_bits` in `diff_sim_init` is intentionally i64-encoded —
+// it's a packed bitfield (bit 0 = noisy, bit 1 = per-feature
+// gradient, bit 2 = state-vector caching), not an f64. No
+// wrapper needed.
+
+fn diff_gate_f64(h: i64, gate_type: i64, q0: i64, q1: i64, angle: f64) {
+    nuc_diff_gate(h, gate_type, q0, q1, f64_to_bits(angle));
+}
+fn diff_backward_f64(h: i64, grad_loss: f64) {
+    nuc_diff_backward(h, f64_to_bits(grad_loss));
+}
+fn diff_backward_selective_f64(h: i64, grad_loss: f64, threshold: f64) {
+    nuc_diff_backward_selective(h, f64_to_bits(grad_loss), f64_to_bits(threshold));
+}
