@@ -4156,6 +4156,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "assert") { return "__nucleor_assert"; };
     if str_eq(name, "contract_require") { return "__nucleor_contract_require"; };
     if str_eq(name, "contract_ensure") { return "__nucleor_contract_ensure"; };
+    if str_eq(name, "contract_invariant") { return "__nucleor_contract_invariant"; };
     if str_eq(name, "profile_start") { return "__nucleor_profile_start"; };
     if str_eq(name, "profile_end") { return "__nucleor_profile_end"; };
     if str_eq(name, "ambient_random") { return "__nucleor_ambient_random"; };
@@ -5915,6 +5916,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_assert(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_contract_require(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_contract_ensure(i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_contract_invariant(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_profile_start(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_profile_end(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_ambient_random()\n");
@@ -8717,6 +8719,121 @@ fn lookup_fn_ensure_expr(ensures: Vec<i32>, fn_name: str) -> str {
     while i + 1 < n {
         let nm: str = vec_get(ensures, i);
         if str_eq(nm, fn_name) == 1 { return vec_get(ensures, i + 1); };
+        i = i + 2;
+    };
+    return "";
+}
+
+// v0.4.248 RFC-0006 substrate — `#[invariant(EXPR)]` source-text
+// scanner. Matches inherent impl blocks: `#[invariant(EXPR)] impl
+// <Type> { ... }`. Trait-impl form (`impl Trait for Type`) is
+// recognized by walking past the trait identifier and the `for`
+// keyword to find the receiver type. Returns flat (type_name,
+// expr_text) pairs.
+fn collect_impl_invariants(source: str) -> Vec<i32> {
+    let mut entries: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[invariant(";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let expr_start: i64 = p + plen;
+            let mut q: i64 = expr_start;
+            let mut paren_depth: i64 = 1;
+            while q < slen && paren_depth > 0 {
+                let cc: i64 = str_char_at(source, q);
+                if cc == 34 {
+                    q = q + 1;
+                    while q < slen && str_char_at(source, q) != 34 {
+                        if str_char_at(source, q) == 92 && q + 1 < slen { q = q + 2; }
+                        else { q = q + 1; };
+                    };
+                    if q < slen { q = q + 1; };
+                    continue;
+                };
+                if cc == 40 { paren_depth = paren_depth + 1; }
+                else if cc == 41 { paren_depth = paren_depth - 1; if paren_depth == 0 { break; }; };
+                q = q + 1;
+            };
+            let expr_end: i64 = q;
+            let mut r: i64 = expr_end + 1;
+            if r < slen && str_char_at(source, r) == 93 { r = r + 1; };
+            // Walk forward to find `impl ` keyword.
+            while r + 5 <= slen {
+                let c0: i64 = str_char_at(source, r);
+                let c1: i64 = str_char_at(source, r + 1);
+                let c2: i64 = str_char_at(source, r + 2);
+                let c3: i64 = str_char_at(source, r + 3);
+                let c4: i64 = str_char_at(source, r + 4);
+                if c0 == 105 && c1 == 109 && c2 == 112 && c3 == 108 && c4 == 32 {
+                    // `impl `. Read first identifier.
+                    r = r + 5;
+                    let id1_start: i64 = r;
+                    while r < slen && (is_alnum(str_char_at(source, r)) == 1 || str_char_at(source, r) == 95) {
+                        r = r + 1;
+                    };
+                    let id1: str = str_substring(source, id1_start, r);
+                    // Skip whitespace.
+                    while r < slen && (str_char_at(source, r) == 32 || str_char_at(source, r) == 9) { r = r + 1; };
+                    // Optional `for <Type>` for trait impl form.
+                    let mut tname: str = id1;
+                    if r + 4 <= slen
+                        && str_char_at(source, r) == 102
+                        && str_char_at(source, r + 1) == 111
+                        && str_char_at(source, r + 2) == 114
+                        && str_char_at(source, r + 3) == 32 {
+                        r = r + 4;
+                        let id2_start: i64 = r;
+                        while r < slen && (is_alnum(str_char_at(source, r)) == 1 || str_char_at(source, r) == 95) {
+                            r = r + 1;
+                        };
+                        tname = str_substring(source, id2_start, r);
+                    };
+                    if str_len(tname) > 0 && expr_end > expr_start {
+                        let etext: str = str_substring(source, expr_start, expr_end);
+                        entries.push(tname);
+                        entries.push(etext);
+                    };
+                    p = r;
+                    break;
+                };
+                r = r + 1;
+            };
+            if r + 5 > slen { p = slen; };
+        } else {
+            p = p + 1;
+        };
+    };
+    return entries;
+}
+
+fn lookup_type_invariant_expr(invariants: Vec<i32>, type_name: str) -> str {
+    let n: i64 = vec_len(invariants);
+    let mut i: i64 = 0;
+    while i + 1 < n {
+        let nm: str = vec_get(invariants, i);
+        if str_eq(nm, type_name) == 1 { return vec_get(invariants, i + 1); };
         i = i + 2;
     };
     return "";
@@ -18354,7 +18471,7 @@ fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Ve
     return b;
 }
 
-fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>) -> Vec<i32> {
+fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>) -> Vec<i32> {
     let name: str = node_field(pool, fn_nid, 1);
     let plist: i64 = node_field(pool, fn_nid, 2);
     let blist: i64 = node_field(pool, fn_nid, 4);
@@ -18504,6 +18621,63 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
         req_args.push(req_rr);
         let req_cr: i64 = ctr_next(regs);
         ir_block_add(ebb0, ir_call_ex(req_cr, "contract_require", req_args));
+    };
+    // v0.4.248 RFC-0006 — `#[invariant(EXPR)]` runtime check at
+    // method entry. Method names get mangled to `Type__method` at
+    // parse time (see line 19629 area). Extract the type prefix
+    // by splitting on `__`. If the type has an invariant, lower
+    // it in ebb0 (after params + require) and emit the helper
+    // call. Predicate references `self.field` which resolves via
+    // the existing kind-3 var-ref + kind-* field-access lowering;
+    // `self` is bound in sym from the param walk above.
+    let mut inv_split: i64 = 0;
+    let inv_name_len: i64 = str_len(name);
+    let mut found_split: i64 = 0;
+    while inv_split + 1 < inv_name_len {
+        if str_char_at(name, inv_split) == 95 && str_char_at(name, inv_split + 1) == 95 {
+            found_split = 1;
+            inv_split = inv_name_len;
+        } else {
+            inv_split = inv_split + 1;
+        };
+    };
+    if found_split == 1 {
+        // Re-walk to capture the actual split index now that we know it exists.
+        let mut sp: i64 = 0;
+        while sp + 1 < inv_name_len {
+            if str_char_at(name, sp) == 95 && str_char_at(name, sp + 1) == 95 { break; };
+            sp = sp + 1;
+        };
+        if sp > 0 && sp + 1 < inv_name_len {
+            let inv_type: str = str_substring(name, 0, sp);
+            let mut inv_idx: i64 = 0;
+            let mut inv_nid: i64 = 0 - 1;
+            let inv_count: i64 = vec_len(invariant_exprs);
+            while inv_idx + 1 < inv_count {
+                if str_eq(vec_get(invariant_exprs, inv_idx), inv_type) == 1 {
+                    inv_nid = vec_get(invariant_exprs, inv_idx + 1);
+                    inv_idx = inv_count;
+                } else {
+                    inv_idx = inv_idx + 2;
+                };
+            };
+            if inv_nid >= 0 && pc > 0 {
+                // Only emit invariant on methods with self (first
+                // param). Self is the first param in impl methods;
+                // free fns mangled by trait impls also have self.
+                let first_p: i64 = list_get(pool, plist, 0);
+                let first_pname: str = node_field(pool, first_p, 1);
+                if str_eq(first_pname, "self") == 1 {
+                    let mut inv_lp: Vec<i32> = lower_expr(pool, inv_nid, ebb0, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
+                    let inv_rr: i64 = lx_reg(inv_lp);
+                    ebb0 = lx_blk(inv_lp);
+                    let mut inv_args: Vec<i32> = Vec::new();
+                    inv_args.push(inv_rr);
+                    let inv_cr: i64 = ctr_next(regs);
+                    ir_block_add(ebb0, ir_call_ex(inv_cr, "contract_invariant", inv_args));
+                };
+            };
+        };
     };
     let bcnt: i64 = list_len(pool, blist);
     let mut fb: Vec<i32> = ebb0;
@@ -19860,16 +20034,35 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         free_token_vec(ens_tokens);
         eti = eti + 2;
     };
+    // v0.4.248 RFC-0006 — pre-process #[invariant(EXPR)] attributes
+    // on inherent + trait impl blocks. Stored by TYPE name; lower_fn
+    // splits the mangled method name (`Type__method`) on `__` and
+    // looks up the type's invariant.
+    let inv_text_pairs: Vec<i32> = collect_impl_invariants(source);
+    let mut invariant_exprs: Vec<i32> = Vec::new();
+    let mut iti: i64 = 0;
+    let inv_text_count: i64 = vec_len(inv_text_pairs);
+    while iti + 1 < inv_text_count {
+        let inv_name: str = vec_get(inv_text_pairs, iti);
+        let inv_text: str = vec_get(inv_text_pairs, iti + 1);
+        let inv_tokens: Vec<i32> = lex(inv_text);
+        let inv_parsed: Vec<i32> = parse_expr(inv_tokens, 0, pool);
+        let inv_expr_nid: i64 = pr_val(inv_parsed);
+        invariant_exprs.push(inv_name);
+        invariant_exprs.push(inv_expr_nid);
+        free_token_vec(inv_tokens);
+        iti = iti + 2;
+    };
     let lower_start: i64 = now_ms();
     fi = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs)); };
+        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs, invariant_exprs)); };
         fi = fi + 1;
     };
     let mut ii: i64 = 0;
     while ii < vec_len(impl_fns) {
-        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs));
+        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs, invariant_exprs));
         ii = ii + 1;
     };
     let mut ci3: i64 = 0;
