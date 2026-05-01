@@ -14464,6 +14464,29 @@ fn detect_narrow_chain(pool: Vec<i32>, nid: i64, sym: Vec<i32>, fir: Vec<i32>) -
     return 0;
 }
 
+fn arith_width_helper_name(iop: i64, tw: i64, mode: i64) -> str {
+    let aw: i64 = if tw > 0 { tw } else { 0 - tw };
+    let mut base: str = "";
+    if mode == 2 {
+        if iop == 2 { base = "saturating_add"; };
+        if iop == 3 { base = "saturating_sub"; };
+        if iop == 4 { base = "saturating_mul"; };
+    };
+    if str_len(base) == 0 { return ""; };
+    if tw > 0 {
+        if aw == 8 { return str_concat(base, "_i8"); };
+        if aw == 16 { return str_concat(base, "_i16"); };
+        if aw == 32 { return str_concat(base, "_i32"); };
+        if aw == 64 { return str_concat(base, "_i64"); };
+    } else {
+        if aw == 8 { return str_concat(base, "_u8"); };
+        if aw == 16 { return str_concat(base, "_u16"); };
+        if aw == 32 { return str_concat(base, "_u32"); };
+        if aw == 64 { return str_concat(base, "_u64"); };
+    };
+    return "";
+}
+
 // v0.4.213: emit a narrow expression chain at width `tw` (sign-
 // encoded). Returns the iN result reg without sext-to-i64 wrapping;
 // the caller (kind-4 outer dispatch) handles the final sext/zext.
@@ -14497,8 +14520,29 @@ fn lower_expr_narrow(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lb
         let rr: i64 = lx_reg(rp);
         let mut blk3: Vec<i32> = lx_blk(rp);
         let nr: i64 = ctr_next(regs);
+        let arith_mode: i64 = sym_get(sym, "__arith_mode");
+        let sat_helper: str = arith_width_helper_name(iop, tw, arith_mode);
         let strict_intrin: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "");
-        if str_eq(strict_intrin, "1") == 1 && (iop == 2 || iop == 3 || iop == 4) {
+        if str_len(sat_helper) > 0 {
+            let lr64: i64 = ctr_next(regs);
+            if tw > 0 {
+                ir_block_add(blk3, ir_sext(lr64, lr, aw));
+            } else {
+                ir_block_add(blk3, ir_zext(lr64, lr, aw));
+            };
+            let rr64: i64 = ctr_next(regs);
+            if tw > 0 {
+                ir_block_add(blk3, ir_sext(rr64, rr, aw));
+            } else {
+                ir_block_add(blk3, ir_zext(rr64, rr, aw));
+            };
+            let mut sa: Vec<i32> = Vec::new();
+            sa.push(lr64);
+            sa.push(rr64);
+            let hr: i64 = ctr_next(regs);
+            ir_block_add(blk3, ir_call_ex(hr, sat_helper, sa));
+            ir_block_add(blk3, ir_trunc(nr, hr, aw));
+        } else if str_eq(strict_intrin, "1") == 1 && arith_mode <= 0 && (iop == 2 || iop == 3 || iop == 4) {
             let trap_lbl: i64 = ctr_next(lbls);
             let cont_lbl: i64 = ctr_next(lbls);
             ir_block_add(blk3, ir_binop_overflow(iop, nr, lr, rr, aw, trap_lbl));
@@ -14982,6 +15026,10 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 if iop == 23 { sh = "panic_shl"; };
                 if iop == 24 { sh = "panic_shr"; };
             };
+            let arith_mode_explicit: i64 = sym_get(sym, "__arith_mode");
+            if arith_mode_explicit == 1 && (iop == 2 || iop == 3 || iop == 4) {
+                sh = "";
+            };
             // v0.4.153: per-op saturating dispatch. When inside a
             // `saturating { ... }` block (kind-52 with mode==2 sets
             // sym["__arith_mode"]=2 in the body's sym before lowering),
@@ -14991,8 +15039,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             // at the i64 level, so `saturating { (max + 1) - 5 }` gave
             // a wrapped value pinned to i32 instead of `max - 5`.
             if iop == 2 || iop == 3 || iop == 4 {
-                let arith_mode_sat: i64 = sym_get(sym, "__arith_mode");
-                if arith_mode_sat == 2 {
+                if arith_mode_explicit == 2 {
                     if iop == 2 { sh = "saturating_add"; };
                     if iop == 3 { sh = "saturating_sub"; };
                     if iop == 4 { sh = "saturating_mul"; };
@@ -15027,7 +15074,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 };
             };
             let strict_intrin: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "");
-            if str_eq(strict_intrin, "1") == 1 && (iop == 2 || iop == 3 || iop == 4) {
+            if str_eq(strict_intrin, "1") == 1 && arith_mode_explicit <= 0 && (iop == 2 || iop == 3 || iop == 4) {
                 let trap_lbl: i64 = ctr_next(lbls);
                 let cont_lbl: i64 = ctr_next(lbls);
                 ir_block_add(cur, ir_binop_overflow(iop, r, lr, rr, 0, trap_lbl));
@@ -16326,6 +16373,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // representation, not per-op i64 wrap (which is what raw
         // i64 arith does anyway).
         let body_sym_sat: Vec<i32> = sym_clone(sym);
+        if mode == 1 { sym_set(body_sym_sat, "__arith_mode", 1); };
         if mode == 2 { sym_set(body_sym_sat, "__arith_mode", 2); };
         let mut bp: Vec<i32> = lower_if_expr_branch(pool, body, blk, regs, lbls, body_sym_sat, fir, strtab, lh, lx, structs, closures, trait_impls);
         let mut br: i64 = lx_reg(bp);

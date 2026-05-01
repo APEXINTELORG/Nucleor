@@ -1696,6 +1696,42 @@ t_saturating_block_per_op() {
     return 0
 }
 
+strict_intrin_fixture_overflows() {
+    local src="$1"
+    local out="$2"
+    local needle="$3"
+    NUCLEOR_INT_STRICT_INTRIN=1 NUCLEOR_INT_STRICT_ARITH=1 "$BIN" build "$src" -o "$out" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "0" ] || return 1
+    grep -q "$needle" "target/${out}.ll" || return 1
+    local exe="target/${out}"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rt_rc=$?
+    [ "$rt_rc" != "0" ] || return 1
+    return 0
+}
+
+t_strict_intrin_narrow_widths() {
+    # Track E: strict-intrinsic mode wins over legacy strict helper mode
+    # for +/-/*, and emits the concrete LLVM signed-overflow intrinsic
+    # matching the narrowed arithmetic width.
+    strict_intrin_fixture_overflows "tests/fixtures/strict_intrin_i8_add_overflow.nr" "_strict_intrin_i8_add" "llvm.sadd.with.overflow.i8" || return 1
+    strict_intrin_fixture_overflows "tests/fixtures/strict_intrin_i16_sub_overflow.nr" "_strict_intrin_i16_sub" "llvm.ssub.with.overflow.i16" || return 1
+    strict_intrin_fixture_overflows "tests/fixtures/strict_intrin_i32_mul_overflow.nr" "_strict_intrin_i32_mul" "llvm.smul.with.overflow.i32" || return 1
+    NUCLEOR_INT_STRICT_INTRIN=1 NUCLEOR_INT_STRICT_ARITH=1 "$BIN" build "tests/fixtures/strict_intrin_explicit_modes_precedence.nr" -o "_strict_intrin_modes_precedence" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local rc=$?
+    [ "$rc" = "0" ] || return 1
+    grep -q "__nucleor_saturating_add_i64" "target/_strict_intrin_modes_precedence.ll" || return 1
+    local exe="target/_strict_intrin_modes_precedence"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    return 0
+}
+
 t440_str_index_halts() {
     # v0.4.94 TYP-011 — `s[i]` for s:str halts (was silent vec_get
     # on str pointer → OOB panic / garbage).
@@ -3881,6 +3917,7 @@ step "T3.146 v0.4.115 RFC-0016 §3.7 — ? applies From<SrcErr> for DstErr conve
 step "T3.147 v0.4.119 rich match patterns — enum or, @, struct, slice, tuple, MATCH-008/009/010" t446_rich_pattern_forms
 step "T3.148 v0.4.146 NUM-008 — variable shift RHS halts when const, panics cleanly at runtime otherwise" t447_shift_var_rhs_bounds
 step "T3.saturating block add/sub/mul lower per operation" t_saturating_block_per_op
+step "T3.strict intrinsic signed narrow overflow i8/i16/i32 + env precedence" t_strict_intrin_narrow_widths
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

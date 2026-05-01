@@ -5,6 +5,99 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.235] — 2026-04-30
+
+**v0.5 Track E — narrow-intrinsic correctness validation +
+explicit-mode precedence fix.** Integrates consultant Track E's
+spike (commit `883af37` on `origin/v05-spike-3e1-narrow-validation`)
+onto v0.4.234. Closes Track B's i8/i16/i32 validation gap and
+fixes a precedence hole between `wrapping`/`saturating` blocks
+and the strict env vars.
+
+### Precedence fix (correctness)
+
+Pre-fix, with `NUCLEOR_INT_STRICT_INTRIN=1` set, an explicit
+`wrapping { ... }` or `saturating { ... }` block in user code
+would still hit the strict-intrinsic trap path — the env var
+shadowed the source-level mode. Track E orders the dispatch so
+explicit modes always win:
+
+1. `wrapping { ... }` (`__arith_mode == 1`) emits wrapping
+   arithmetic; never traps under strict envs.
+2. `saturating { ... }` (`__arith_mode == 2`) emits saturating
+   helpers; never preempted by strict intrinsics.
+3. Outside explicit modes, `NUCLEOR_INT_STRICT_INTRIN=1` wins
+   over `NUCLEOR_INT_STRICT_ARITH=1` for signed +/-/*.
+4. `NUCLEOR_INT_STRICT_ARITH=1` remains the legacy helper path
+   when `NUCLEOR_INT_STRICT_INTRIN` is off.
+
+Implementation: at both intrinsic emit sites in `lower_expr_narrow`
+and `lower_expr` k=4, the strict-intrinsic guard now also checks
+`arith_mode_explicit <= 0`. Width-aware saturating helper
+selection routes through the new `arith_width_helper_name(...)`
+fn.
+
+### Coverage
+
+New fixtures under `tests/fixtures/`:
+- `strict_intrin_i8_add_overflow.nr` — i8 add overflow → emits
+  `@llvm.sadd.with.overflow.i8`, runtime exit 1.
+- `strict_intrin_i16_sub_overflow.nr` — i16 sub overflow → emits
+  `@llvm.ssub.with.overflow.i16`, runtime exit 1.
+- `strict_intrin_i32_mul_overflow.nr` — i32 mul overflow → emits
+  `@llvm.smul.with.overflow.i32`, runtime exit 1.
+- `strict_intrin_explicit_modes_precedence.nr` — both env vars
+  set, explicit `saturating { ... }` block → emits
+  `__nucleor_saturating_add_i64`, runtime rc 0 (no trap).
+
+New verify gate step (`t_strict_intrin_narrow_widths` in
+`tools/verify.sh`) exercises all four fixtures end-to-end.
+
+### Validation
+
+- **Self-build clean** (functions: 574, optimized: 1 450, DCE
+  17/574, LL 7 146 527 bytes).
+- **Two-stage fixed-point env-OFF** at SHA
+  `8bc5716ae4c2211a4987725f6e62287be0b5504936f81c6edf8a387e5f83e3b8`.
+- **Targeted env-ON narrow smokes:** i8 add (13 intrinsic IR
+  refs, exit 1), i16 sub (14, exit 1), i32 mul (13, exit 1).
+- **Targeted precedence smoke:** both env vars set, build rc 0,
+  runtime rc 0, IR contains 17 saturating-helper refs and zero
+  intrinsic calls.
+- **Compiler ABI drift gate:** clean.
+- **Full verify gate env-OFF:** 615 PASS / 1 FAIL (only
+  RELEASES.md drift, regenerated post-run → effective 616 PASS /
+  0 FAIL with the new Track E gate step counted).
+
+### Punchlist status — 6 of 8 ships landed (ship 4 hardened)
+
+| # | Phase | Status |
+|---|---|---|
+| 1 | 3c.1 cross-width audit | ✅ shipped (v0.4.233) |
+| 2 | 3span.1 substrate | ✅ shipped (v0.4.233) |
+| 3 | 3span.2 high-impact diag migration | ✅ shipped (v0.4.233) |
+| 4 | 3e.1 LLVM overflow intrinsic substrate | ✅ shipped + hardened (v0.4.234 + v0.4.235) |
+| 5 | 3c.2 cast injection | ✅ eliminated (v0.4.233) |
+| 6 | 3c.3 typed param alloca | ✅ shipped (v0.4.233) |
+| 7 | 3span.3 finish migration | 🔒 incremental — adopter UX driven |
+| 8 | 3e.3 strict-mode default flip | 🔒 deferred — Track F over 1.13s ceiling on this machine; needs idle-machine re-run |
+
+Intrinsic strict-mode (`NUCLEOR_INT_STRICT_INTRIN=1`) is now a
+correctness-validated opt-in feature with explicit-mode
+precedence respected. Default behaviour unchanged.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: `arith_width_helper_name`
+  helper, `arith_mode` precedence guards at both intrinsic emit
+  sites.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+- `tests/fixtures/strict_intrin_*.nr`: 4 new fixtures.
+- `tools/verify.sh`: `t_strict_intrin_narrow_widths` step +
+  helper.
+- `RELEASES.md`: regenerated.
+- New: `docs/milestones/spikes/track_e_3e1_narrow_validation_2026-04-30.md`.
+
 ## [0.4.234] — 2026-04-30
 
 **v0.5 ship 4 of 8 — phase 3e.1 LLVM overflow-intrinsic substrate
