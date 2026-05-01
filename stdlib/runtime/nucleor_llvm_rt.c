@@ -591,6 +591,53 @@ long long __nucleor_str_to_int(const char *s) {
     return v;
 }
 
+// v0.5.12: probe-agent finding 2026-05-01-str-to-int-silent-zero-on-invalid.
+// `str_to_int` returns 0 on three failure shapes (NULL, empty,
+// "not a number") AND on the legitimate input "0" — adopters can't
+// distinguish parse-failed-to-zero from parse-succeeded-to-zero.
+// Mirrors v0.4.279's `str_char_at_strict` opt-in pattern: lenient
+// default stays (perf path / lex-time), strict variant panics on
+// invalid input or trailing garbage. Adopters port from Rust's
+// `i64::from_str` by switching to this helper.
+//
+// Failure shapes that panic (vs the lenient default's silent 0):
+//   - NULL input
+//   - empty string ""
+//   - leading-only whitespace
+//   - no digits parsed at all (e.g. "not a number", "abc")
+//   - trailing garbage after the integer (e.g. "123abc" — silently
+//     parses 123 + drops "abc" in the lenient path)
+//   - overflow (i64 range exceeded; same panic as the lenient path
+//     under NUCLEOR_INT_STRICT_ARITH default)
+long long __nucleor_str_to_int_strict(const char *s) {
+    if (!s) {
+        fprintf(stderr, "PANIC: str_to_int_strict: NULL input\n");
+        fflush(stderr); exit(1);
+    }
+    if (s[0] == 0) {
+        fprintf(stderr, "PANIC: str_to_int_strict: empty input string\n");
+        fflush(stderr); exit(1);
+    }
+    char *end;
+    errno = 0;
+    long long v = strtoll(s, &end, 10);
+    if (end == s) {
+        fprintf(stderr, "PANIC: str_to_int_strict: input '%s' has no parseable integer\n", s);
+        fflush(stderr); exit(1);
+    }
+    if (errno == ERANGE) {
+        fprintf(stderr, "PANIC: str_to_int_strict: input '%s' exceeds i64 range\n", s);
+        fflush(stderr); exit(1);
+    }
+    // Skip trailing whitespace, then check for trailing garbage.
+    while (*end == ' ' || *end == '\t' || *end == '\n' || *end == '\r') end++;
+    if (*end != 0) {
+        fprintf(stderr, "PANIC: str_to_int_strict: input '%s' has trailing non-digit garbage starting at '%s'\n", s, end);
+        fflush(stderr); exit(1);
+    }
+    return v;
+}
+
 long long __nucleor_str_to_bool(const char *s) {
     if (!s) return 0;
     while (*s == ' ' || *s == '\t') s++;
