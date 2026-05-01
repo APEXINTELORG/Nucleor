@@ -8811,28 +8811,54 @@ fn rt_header_has_effect(header: str, effect_name: str) -> i64 {
 
 fn collect_headers_with_effect(source: str, effect_name: str, pat: str) -> Vec<i32> {
     let mut fns: Vec<i32> = Vec::new();
-    let code: str = strip_strings_and_line_comments(source);
-    let slen: i64 = str_len(code);
+    if str_contains(source, "with") == 0 { return fns; };
+    let slen: i64 = str_len(source);
     let plen: i64 = str_len(pat);
     let mut p: i64 = 0;
     while p + plen <= slen {
-        if str_eq_at(code, p, pat) == 1 {
-            let is_extern_fn: i64 = if str_eq(pat, "fn ") == 1 && p >= 7 && str_eq_at(code, p - 7, "extern ") == 1 { 1 } else { 0 };
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 39 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 39 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        if str_eq_at(source, p, pat) == 1 {
+            let is_extern_fn: i64 = if str_eq(pat, "fn ") == 1 && p >= 7 && str_eq_at(source, p - 7, "extern ") == 1 { 1 } else { 0 };
             if is_extern_fn == 1 {
                 p = p + plen;
             } else {
                 let mut q: i64 = p + plen;
                 let name_start: i64 = q;
-                while q < slen && (is_alnum(str_char_at(code, q)) == 1 || str_char_at(code, q) == 95) { q = q + 1; };
+                while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
                 if q > name_start {
                     let name: str = str_substring(source, name_start, q);
                     let mut h: i64 = q;
-                    while h < slen && str_char_at(code, h) != 123 && str_char_at(code, h) != 59 { h = h + 1; };
+                    while h < slen && str_char_at(source, h) != 123 && str_char_at(source, h) != 59 { h = h + 1; };
                     if h > p {
-                        let header: str = str_substring(code, p, h);
+                        let header: str = str_substring(source, p, h);
                         if rt_header_has_effect(header, effect_name) == 1 {
                             fns.push(name);
+                        } else {
+                            str_free(name);
                         };
+                        str_free(header);
                     };
                     p = h + 1;
                 } else {
