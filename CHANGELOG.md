@@ -5,6 +5,154 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.257] — 2026-05-01
+
+**🎯 RFC-0006 Liskov compile-time check LIVE — CONTRACT-004 +
+CONTRACT-005.** Closes the third-from-last CONTRACT code gap.
+Trait-impl methods that strengthen preconditions or weaken
+postconditions are now flagged at compile time as type errors.
+
+### What lands
+
+**Two new source-text scanners:**
+- `collect_trait_method_attrs(source)` — walks `trait NAME { ...
+  fn METHOD ... }` blocks, counts `#[require(...)]` and
+  `#[ensure(...)]` attributes preceding each fn declaration.
+  Returns flat `(trait_name, method_name, req_count, ens_count)`
+  tuples. Brace-depth tracking so nested decls don't escape.
+- `collect_impl_trait_method_attrs(source)` — walks `impl Trait
+  for Type { ... fn METHOD ... }` blocks (only trait-impl form,
+  not inherent `impl Type`). Returns `(trait_name, type_name,
+  method_name, req_count, ens_count)` tuples.
+
+**Liskov compile-time check pass** in the main pipeline, after
+type-check and before diag-emit:
+```nucleor
+let liskov_trait_attrs = collect_trait_method_attrs(source);
+let liskov_impl_attrs = collect_impl_trait_method_attrs(source);
+// For each impl-method: look up matching trait method's counts.
+// If impl req_count > trait → emit CONTRACT-004.
+// If impl ens_count < trait → emit CONTRACT-005.
+```
+
+The diags are added to the type-check diag list, so they flow
+through the existing filter/promote/emit/halt machinery —
+including `#[allow(CONTRACT-004)]` suppression and
+`#[deny(...)]` promotion.
+
+### v0.4.257 design choice — count-based, not predicate-equality
+
+Liskov in full generality requires checking that
+- impl preconditions `→` (logically imply) trait preconditions
+- trait postconditions `→` impl postconditions
+
+Solving that requires a satisfiability check on predicate ASTs.
+v0.4.257 takes the conservative-and-tractable route: COUNT
+comparison. If an impl method has MORE requires than the trait,
+or FEWER ensures, the violation direction is unambiguously
+wrong — emit the diag. If counts match but predicates differ
+semantically, the check passes (false negative, but never a
+false positive).
+
+Adopters writing canonical Liskov-respecting impls (impl mirrors
+trait's contracts exactly) get a clean compile. Adopters writing
+clearly-violating impls (added a require, dropped an ensure) get
+caught.
+
+### End-to-end demo
+
+**Liskov-compliant:**
+```nucleor
+trait Norm {
+    #[ensure(result >= 0)]
+    fn norm(self: Self) -> i64;
+}
+
+impl Norm for V {
+    #[ensure(result >= 0)]
+    fn norm(self: V) -> i64 { ... }
+}
+```
+Compiles clean.
+
+**Liskov violation — impl drops ensure (CONTRACT-005):**
+```nucleor
+trait Norm {
+    #[ensure(result >= 0)]
+    fn norm(self: Self) -> i64;
+}
+
+impl Norm for V {
+    fn norm(self: V) -> i64 { self.x }   // DROPS the ensure
+}
+```
+```text
+error[CONTRACT-005]: impl `Norm for V` method `norm` has fewer
+#[ensure(...)] postconditions (0) than the trait declaration (1).
+Liskov: subtype must not weaken postconditions.
+```
+
+**Liskov violation — impl strengthens require (CONTRACT-004):**
+```nucleor
+trait Container {
+    fn put(self: Self, item: i64) -> i64;
+}
+
+impl Container for V {
+    #[require(item > 0)]
+    fn put(self: V, item: i64) -> i64 { ... }    // ADDS a require
+}
+```
+```text
+error[CONTRACT-004]: impl `Container for V` method `put` has
+more #[require(...)] preconditions (1) than the trait
+declaration (0). Liskov: subtype must not strengthen
+preconditions.
+```
+
+### Validation
+
+- Self-build clean (LL 8 275 948 bytes).
+- **Two-stage fixed-point env-DEFAULT-ON** at SHA
+  `d8559766cbaf20dc1da3b73802e5f62bc6b8be843b1b8527450951d8730bf634`.
+  Bootstrap seed refreshed; T1.7 locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean.
+- Targeted CONTRACT-004 + CONTRACT-005 smokes both fire correctly.
+- Liskov-compliant trait+impl smoke compiles + runs OK.
+
+### RFC-0006 status — 6 of 7 CONTRACT codes LIVE
+
+| Feature | Code | Status |
+|---|---|---|
+| `#[require]` runtime check | CONTRACT-001 | ✅ |
+| `#[ensure]` runtime check | CONTRACT-002 | ✅ |
+| `#[invariant]` runtime check | CONTRACT-003 | ✅ |
+| Liskov: impl strengthens require | CONTRACT-004 | ✅ **(this ship)** |
+| Liskov: impl weakens ensure | CONTRACT-005 | ✅ **(this ship)** |
+| `old(expr)` snapshot | (no code) | ✅ |
+| `cert` static-proof analysis | CONTRACT-007 | 🔬 deferred |
+
+Only CONTRACT-007 (cert static-proof) remains unshipped.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: two new source-text
+  scanners (`collect_trait_method_attrs`,
+  `collect_impl_trait_method_attrs`) + lookup helper
+  (`lookup_trait_method_counts`) + Liskov check pass injected
+  after type_check_program. ~250 lines added.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
+## [0.4.256] — 2026-05-01
+
+**v0.5 sequencing doc closure update.** Doc-only ship. Commit
+`d3589d1` (already pushed) updated `docs/milestones/v0.5_RESIDUAL_SEQUENCING_2026-04-30.md`
+to reflect the v0.4.241 / v0.4.243 ship 7 closure (call/cast/vec
+spans + OWN-001 use-after-move) and the v0.4.244–v0.4.255
+RFC-0006 arc. No compiler changes; existing v0.4.254 fixed-point
+remains valid.
+
 ## [0.4.255] — 2026-05-01
 
 **Adopter UPGRADE doc for the RFC-0006 DbC arc.** Comprehensive

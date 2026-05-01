@@ -8936,6 +8936,323 @@ fn lookup_type_invariant_expr(invariants: Vec<i32>, type_name: str) -> str {
     return "";
 }
 
+// v0.4.257 RFC-0006 Liskov substrate — count #[require] and
+// #[ensure] attributes per trait method declaration. Returns flat
+// Vec of (trait_name, method_name, req_count, ens_count) tuples
+// where the count fields are stored as decimal strings (the flat
+// Vec<i32> representation forces all entries to be the same shape).
+//
+// Walking heuristic: scan source for `trait NAME {` blocks; track
+// brace depth so nested decls don't escape; within the trait,
+// scan for `fn METHOD(`; before each fn, scan back/forward for
+// preceding `#[require(...)]` / `#[ensure(...)]` attributes
+// (those that fall between the previous statement boundary and
+// the fn keyword).
+fn collect_trait_method_attrs(source: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let trait_pat: str = "trait ";
+    let tplen: i64 = str_len(trait_pat);
+    let mut p: i64 = 0;
+    while p + tplen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        // Match "trait " only at identifier boundary.
+        let mut at_boundary: i64 = 1;
+        if p > 0 {
+            let prev: i64 = str_char_at(source, p - 1);
+            if is_alnum(prev) == 1 || prev == 95 { at_boundary = 0; };
+        };
+        let mut tm: i64 = at_boundary;
+        if tm == 1 {
+            let mut k: i64 = 0;
+            while k < tplen {
+                if str_char_at(source, p + k) != str_char_at(trait_pat, k) { tm = 0; break; };
+                k = k + 1;
+            };
+        };
+        if tm == 1 {
+            let n_start: i64 = p + tplen;
+            let mut q: i64 = n_start;
+            while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) {
+                q = q + 1;
+            };
+            let trait_name: str = str_substring(source, n_start, q);
+            // Skip whitespace to find `{`.
+            while q < slen && str_char_at(source, q) != 123 && str_char_at(source, q) != 59 { q = q + 1; };
+            if q >= slen || str_char_at(source, q) == 59 {
+                p = q + 1;
+                continue;
+            };
+            // q points at `{`. Walk brace-balanced trait body.
+            q = q + 1;
+            let mut brace_depth: i64 = 1;
+            let mut last_attr_end: i64 = q;
+            while q < slen && brace_depth > 0 {
+                let cc: i64 = str_char_at(source, q);
+                if cc == 47 && q + 1 < slen && str_char_at(source, q + 1) == 47 {
+                    while q < slen && str_char_at(source, q) != 10 { q = q + 1; };
+                    continue;
+                };
+                if cc == 34 {
+                    q = q + 1;
+                    while q < slen && str_char_at(source, q) != 34 {
+                        if str_char_at(source, q) == 92 && q + 1 < slen { q = q + 2; }
+                        else { q = q + 1; };
+                    };
+                    if q < slen { q = q + 1; };
+                    continue;
+                };
+                if cc == 123 { brace_depth = brace_depth + 1; q = q + 1; continue; };
+                if cc == 125 { brace_depth = brace_depth - 1; q = q + 1; continue; };
+                // Within the trait body, look for `fn METHOD(`.
+                if brace_depth == 1 && cc == 102 && q + 3 < slen
+                    && str_char_at(source, q + 1) == 110 && str_char_at(source, q + 2) == 32 {
+                    let mut at_fn_boundary: i64 = 1;
+                    if q > 0 {
+                        let prev_fn: i64 = str_char_at(source, q - 1);
+                        if is_alnum(prev_fn) == 1 || prev_fn == 95 { at_fn_boundary = 0; };
+                    };
+                    if at_fn_boundary == 1 {
+                        let m_start: i64 = q + 3;
+                        let mut mq: i64 = m_start;
+                        while mq < slen && (is_alnum(str_char_at(source, mq)) == 1 || str_char_at(source, mq) == 95) {
+                            mq = mq + 1;
+                        };
+                        let method_name: str = str_substring(source, m_start, mq);
+                        // Count #[require( and #[ensure( in the
+                        // window [last_attr_end, q).
+                        let mut req_n: i64 = 0;
+                        let mut ens_n: i64 = 0;
+                        let mut wp: i64 = last_attr_end;
+                        let req_pat: str = "#[require(";
+                        let req_plen: i64 = str_len(req_pat);
+                        let ens_pat: str = "#[ensure(";
+                        let ens_plen: i64 = str_len(ens_pat);
+                        while wp < q {
+                            if wp + req_plen <= q {
+                                let mut mr: i64 = 1;
+                                let mut kk: i64 = 0;
+                                while kk < req_plen {
+                                    if str_char_at(source, wp + kk) != str_char_at(req_pat, kk) { mr = 0; break; };
+                                    kk = kk + 1;
+                                };
+                                if mr == 1 { req_n = req_n + 1; wp = wp + req_plen; continue; };
+                            };
+                            if wp + ens_plen <= q {
+                                let mut me: i64 = 1;
+                                let mut kk2: i64 = 0;
+                                while kk2 < ens_plen {
+                                    if str_char_at(source, wp + kk2) != str_char_at(ens_pat, kk2) { me = 0; break; };
+                                    kk2 = kk2 + 1;
+                                };
+                                if me == 1 { ens_n = ens_n + 1; wp = wp + ens_plen; continue; };
+                            };
+                            wp = wp + 1;
+                        };
+                        out.push(trait_name);
+                        out.push(method_name);
+                        out.push(str_from_int(req_n));
+                        out.push(str_from_int(ens_n));
+                        // Walk past the fn signature + body to set
+                        // last_attr_end = position after fn's `;` or `}`.
+                        // Simplest: continue from current q; the next
+                        // attribute search will start after the fn line.
+                        q = mq;
+                        last_attr_end = mq;
+                        continue;
+                    };
+                };
+                q = q + 1;
+            };
+            p = q;
+            continue;
+        };
+        p = p + 1;
+    };
+    return out;
+}
+
+// v0.4.257 RFC-0006 Liskov substrate — count #[require] and
+// #[ensure] attributes per impl-trait method definition. Returns
+// flat Vec of (trait_name, type_name, method_name, req_count,
+// ens_count) tuples. Only trait impls (the `impl Trait for Type`
+// form) are captured; inherent impls (`impl Type`) are skipped.
+fn collect_impl_trait_method_attrs(source: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let impl_pat: str = "impl ";
+    let iplen: i64 = str_len(impl_pat);
+    let mut p: i64 = 0;
+    while p + iplen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut at_boundary: i64 = 1;
+        if p > 0 {
+            let prev: i64 = str_char_at(source, p - 1);
+            if is_alnum(prev) == 1 || prev == 95 { at_boundary = 0; };
+        };
+        let mut im: i64 = at_boundary;
+        if im == 1 {
+            let mut k: i64 = 0;
+            while k < iplen {
+                if str_char_at(source, p + k) != str_char_at(impl_pat, k) { im = 0; break; };
+                k = k + 1;
+            };
+        };
+        if im == 1 {
+            let id1_start: i64 = p + iplen;
+            let mut q: i64 = id1_start;
+            while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) {
+                q = q + 1;
+            };
+            let id1: str = str_substring(source, id1_start, q);
+            // Skip whitespace.
+            while q < slen && (str_char_at(source, q) == 32 || str_char_at(source, q) == 9) { q = q + 1; };
+            // Look for `for ` to confirm trait-impl form.
+            if q + 4 > slen
+                || str_char_at(source, q) != 102
+                || str_char_at(source, q + 1) != 111
+                || str_char_at(source, q + 2) != 114
+                || str_char_at(source, q + 3) != 32 {
+                p = q;
+                continue;
+            };
+            q = q + 4;
+            let id2_start: i64 = q;
+            while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) {
+                q = q + 1;
+            };
+            let id2: str = str_substring(source, id2_start, q);
+            // Skip to `{`.
+            while q < slen && str_char_at(source, q) != 123 { q = q + 1; };
+            if q >= slen { p = q; continue; };
+            q = q + 1;
+            let mut brace_depth: i64 = 1;
+            let mut last_attr_end: i64 = q;
+            while q < slen && brace_depth > 0 {
+                let cc: i64 = str_char_at(source, q);
+                if cc == 47 && q + 1 < slen && str_char_at(source, q + 1) == 47 {
+                    while q < slen && str_char_at(source, q) != 10 { q = q + 1; };
+                    continue;
+                };
+                if cc == 34 {
+                    q = q + 1;
+                    while q < slen && str_char_at(source, q) != 34 {
+                        if str_char_at(source, q) == 92 && q + 1 < slen { q = q + 2; }
+                        else { q = q + 1; };
+                    };
+                    if q < slen { q = q + 1; };
+                    continue;
+                };
+                if cc == 123 { brace_depth = brace_depth + 1; q = q + 1; continue; };
+                if cc == 125 { brace_depth = brace_depth - 1; q = q + 1; continue; };
+                if brace_depth == 1 && cc == 102 && q + 3 < slen
+                    && str_char_at(source, q + 1) == 110 && str_char_at(source, q + 2) == 32 {
+                    let mut at_fn_b: i64 = 1;
+                    if q > 0 {
+                        let prev_fn: i64 = str_char_at(source, q - 1);
+                        if is_alnum(prev_fn) == 1 || prev_fn == 95 { at_fn_b = 0; };
+                    };
+                    if at_fn_b == 1 {
+                        let m_start: i64 = q + 3;
+                        let mut mq: i64 = m_start;
+                        while mq < slen && (is_alnum(str_char_at(source, mq)) == 1 || str_char_at(source, mq) == 95) {
+                            mq = mq + 1;
+                        };
+                        let method_name: str = str_substring(source, m_start, mq);
+                        let mut req_n: i64 = 0;
+                        let mut ens_n: i64 = 0;
+                        let mut wp: i64 = last_attr_end;
+                        let req_pat: str = "#[require(";
+                        let req_plen: i64 = str_len(req_pat);
+                        let ens_pat: str = "#[ensure(";
+                        let ens_plen: i64 = str_len(ens_pat);
+                        while wp < q {
+                            if wp + req_plen <= q {
+                                let mut mr: i64 = 1;
+                                let mut kk: i64 = 0;
+                                while kk < req_plen {
+                                    if str_char_at(source, wp + kk) != str_char_at(req_pat, kk) { mr = 0; break; };
+                                    kk = kk + 1;
+                                };
+                                if mr == 1 { req_n = req_n + 1; wp = wp + req_plen; continue; };
+                            };
+                            if wp + ens_plen <= q {
+                                let mut me: i64 = 1;
+                                let mut kk2: i64 = 0;
+                                while kk2 < ens_plen {
+                                    if str_char_at(source, wp + kk2) != str_char_at(ens_pat, kk2) { me = 0; break; };
+                                    kk2 = kk2 + 1;
+                                };
+                                if me == 1 { ens_n = ens_n + 1; wp = wp + ens_plen; continue; };
+                            };
+                            wp = wp + 1;
+                        };
+                        out.push(id1);
+                        out.push(id2);
+                        out.push(method_name);
+                        out.push(str_from_int(req_n));
+                        out.push(str_from_int(ens_n));
+                        q = mq;
+                        last_attr_end = mq;
+                        continue;
+                    };
+                };
+                q = q + 1;
+            };
+            p = q;
+            continue;
+        };
+        p = p + 1;
+    };
+    return out;
+}
+
+// Look up (req_count, ens_count) for a trait method. Returns
+// `(0 - 1, 0 - 1)` if not found.
+fn lookup_trait_method_counts(attrs: Vec<i32>, trait_name: str, method_name: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let n: i64 = vec_len(attrs);
+    let mut i: i64 = 0;
+    while i + 3 < n {
+        if str_eq(vec_get(attrs, i), trait_name) == 1
+            && str_eq(vec_get(attrs, i + 1), method_name) == 1 {
+            out.push(str_to_int(vec_get(attrs, i + 2)));
+            out.push(str_to_int(vec_get(attrs, i + 3)));
+            return out;
+        };
+        i = i + 4;
+    };
+    out.push(0 - 1);
+    out.push(0 - 1);
+    return out;
+}
+
 // For a given fn_name marked #[no_alloc], scan its body text for
 // literal `<alloc_call>(` patterns and emit RT-001 diags into
 // `diags` for each match.
@@ -20257,6 +20574,47 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     print_phase_time(time_passes, "type", now_ms() - type_start);
     tprof_dump(type_prof);
     vec_free(type_prof);
+    // v0.4.257 RFC-0006 Liskov compile-time check.
+    // For each `impl Trait for Type { fn METHOD ... }` method,
+    // compare its #[require] / #[ensure] count against the trait
+    // declaration's count for the same method name. Liskov:
+    // - impl precondition COUNT must NOT exceed trait's
+    //   (CONTRACT-004 — strengthened pre).
+    // - impl postcondition COUNT must NOT be below trait's
+    //   (CONTRACT-005 — weakened post).
+    // Count-based comparison is conservative — if the predicates
+    // are textually different but semantically equivalent, this
+    // check still passes. Strict semantic equality would require
+    // a separate analysis pass (deferred). Accuracy: catches the
+    // canonical violation classes (impl adds a require, impl
+    // drops an ensure) without expensive AST equality.
+    let liskov_trait_attrs: Vec<i32> = collect_trait_method_attrs(source);
+    let liskov_impl_attrs: Vec<i32> = collect_impl_trait_method_attrs(source);
+    let mut li: i64 = 0;
+    let li_n: i64 = vec_len(liskov_impl_attrs);
+    while li + 4 < li_n {
+        let l_trait: str = vec_get(liskov_impl_attrs, li);
+        let l_type: str = vec_get(liskov_impl_attrs, li + 1);
+        let l_method: str = vec_get(liskov_impl_attrs, li + 2);
+        let l_irq: i64 = str_to_int(vec_get(liskov_impl_attrs, li + 3));
+        let l_ien: i64 = str_to_int(vec_get(liskov_impl_attrs, li + 4));
+        let counts: Vec<i32> = lookup_trait_method_counts(liskov_trait_attrs, l_trait, l_method);
+        let trait_req: i64 = vec_get(counts, 0);
+        let trait_ens: i64 = vec_get(counts, 1);
+        if trait_req >= 0 {
+            if l_irq > trait_req {
+                let msg4: str = str_concat("impl `", str_concat(l_trait, str_concat(" for ", str_concat(l_type, str_concat("` method `", str_concat(l_method, str_concat("` has more #[require(...)] preconditions (", str_concat(str_from_int(l_irq), str_concat(") than the trait declaration (", str_concat(str_from_int(trait_req), "). Liskov: subtype must not strengthen preconditions.")))))))));
+                let mut lc4: Vec<i32> = find_linecol_in_source(source, l_method, l_method);
+                diag_add_ex(diags, "error", "type", "CONTRACT-004", msg4, l_method, vec_get(lc4, 0), vec_get(lc4, 1), "");
+            };
+            if l_ien < trait_ens {
+                let msg5: str = str_concat("impl `", str_concat(l_trait, str_concat(" for ", str_concat(l_type, str_concat("` method `", str_concat(l_method, str_concat("` has fewer #[ensure(...)] postconditions (", str_concat(str_from_int(l_ien), str_concat(") than the trait declaration (", str_concat(str_from_int(trait_ens), "). Liskov: subtype must not weaken postconditions.")))))))));
+                let mut lc5: Vec<i32> = find_linecol_in_source(source, l_method, l_method);
+                diag_add_ex(diags, "error", "type", "CONTRACT-005", msg5, l_method, vec_get(lc5, 0), vec_get(lc5, 1), "");
+            };
+        };
+        li = li + 5;
+    };
     if strict_mode == 1 {
         print_phase_time(time_passes, "source", 0);
         print_phase_time(time_passes, "collect_pure", 0);
