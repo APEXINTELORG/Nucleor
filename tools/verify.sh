@@ -1808,6 +1808,23 @@ t_rfc0006_old_expr_runtime() {
     return 0
 }
 
+t_rfc0006_old_vec_aliasing_reject() {
+    # v0.4.271 RFC-0006 — `old(<heap-typed-expr>)` must be rejected
+    # at compile time. The probe agent (2026-05-01) found that under
+    # the i64-everywhere ABI, Vec/String/HashMap/HashSet/BTreeMap/
+    # BTreeSet/VecDeque/Box are pointers, so `old(v)` snapshots the
+    # POINTER, not the buffer — silent-miscompute on adopter's
+    # canonical RFC-0006 ensure pattern. v0.4.271 emits CONTRACT-006
+    # at compile time with a halt; the build must fail with the
+    # expected diag text.
+    "$BIN" build "tests/err/err_contract_old_vec_aliasing.nr" -o "_t_rfc6_old_vec" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    local ec="$?"
+    [ "$ec" = "1" ] || return 1
+    grep -q "CONTRACT-006" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "Vec<i64>" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t_rfc0006_no_check_runtime() {
     # v0.4.258 RFC-0006 — #[no_check] per-fn opt-out.
     # Builds the basic fixture: a fn that has #[no_check] and a
@@ -4233,6 +4250,7 @@ step "v0.4.251 RFC-0006 — old(expr) snapshot in #[ensure]" t_rfc0006_old_expr_
 step "v0.4.252 RFC-0006 — NUCLEOR_DBC_MODE strip-out (debug/safe-release/release)" t_rfc0006_dbc_mode_runtime
 step "v0.4.253 RFC-0006 — #[invariant] constructor exit-emit" t_rfc0006_invariant_ctor_runtime
 step "v0.4.258 RFC-0006 — #[no_check] per-fn opt-out marker" t_rfc0006_no_check_runtime
+step "v0.4.271 RFC-0006 — old() over heap-aliased types reject (CONTRACT-006)" t_rfc0006_old_vec_aliasing_reject
 step "T3.9 RT-005 fires on FFI call from RT fn body" t39_rt005_ffi_call
 step "T3.15 #[ffi_no_alloc] marker silences RT-005 for that extern" t324_ffi_no_alloc_marker
 step "T3.16 #[deadline] needs BOTH ffi_no_* markers (intersection rule)" t326_ffi_intersection

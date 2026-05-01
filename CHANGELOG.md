@@ -5,6 +5,139 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.271] — 2026-05-01
+
+**🛡️ RFC-0006 — `old(<heap-typed-expr>)` compile-time reject
+(CONTRACT-006).** Closes silent-miscompute filed by the probe
+agent 2026-05-01: under the i64-everywhere ABI,
+Vec/String/HashMap/HashSet/BTreeMap/BTreeSet/VecDeque/Box are
+i64 pointers. `old(v)` for `v: Vec<T>` snapshots the POINTER
+VALUE — not the buffer contents — so it aliases the post-
+mutation pointer and ensure semantics are wrong.
+
+### Repro (pre-v0.4.271)
+
+```nucleor
+#[ensure(vec_len(result) == vec_len(old(v)) + 1)]
+fn append(v: Vec<i64>, x: i64) -> Vec<i64> {
+    let mut w: Vec<i64> = v;
+    vec_push(w, x);
+    w
+}
+```
+
+This fn semantically appends one element correctly. But the
+ensure fired `CONTRACT-002: ensure postcondition violated`
+because `old(v)` and the post-mutation `result` shared the
+same heap pointer — so `vec_len(old(v)) == vec_len(result) ==
+4`, and `4 == 4 + 1` is false.
+
+### Post-v0.4.271
+
+The compiler refuses the build with a clear diagnostic:
+
+```
+error[CONTRACT-006]: `old(v)` over param `v` of type `Vec<i64>`
+captures the i64-ABI heap pointer, not a deep snapshot. The
+pointer is the same one the body mutates — so `old(...)`
+aliases the post-mutation value and ensure semantics are
+wrong. Hoist a manual snapshot before the body (e.g.
+`let len_initial: i64 = vec_len(v);`) and reference that
+scalar in the ensure predicate, or mark the fn with
+`#[no_check]` to opt out.
+```
+
+Adopter fix: hoist a scalar snapshot.
+
+```nucleor
+fn append(v: Vec<i64>, x: i64) -> Vec<i64> {
+    let len_initial: i64 = vec_len(v);
+    let mut w: Vec<i64> = v;
+    vec_push(w, x);
+    if vec_len(w) != len_initial + 1 { panic("ensure violated"); };
+    w
+}
+```
+
+### What lands
+
+**New helpers** at `compiler/nucleor_s1_compiler.nr:9013+`:
+- `is_heap_aliased_type(ty: str) -> i64` — recognizes the eight
+  type prefixes (`Vec<`, `String`, `String<`, `HashMap<`,
+  `HashSet<`, `BTreeMap<`, `BTreeSet<`, `VecDeque<`, `Box<`).
+- `fn_param_type(source, fn_name, param_name) -> str` — text-
+  level lookup of a fn's named param's type with paren+angle-
+  bracket depth tracking so `Vec<HashMap<i64, str>>` parses
+  correctly. Strips a leading `mut ` from the param-name side.
+- `is_bare_ident(text: str) -> i64` — checks that text is an
+  `[A-Za-z_][A-Za-z0-9_]*` identifier with no whitespace,
+  punctuation, or operators.
+
+**Reject site** at line 20920+ — at the old() rewrite loop in
+the dbc preamble, after `rewrite_old_in_ensure` returns
+`(synth, inner_text)` pairs:
+- If `inner_text` is a bare ident matching a fn-param name AND
+  the param's declared type is heap-aliased, print
+  `error[CONTRACT-006]: ...` directly to stdout and return 1
+  (bypass the diags-vec accumulator because the main drain
+  has already run).
+
+### Coverage scoping
+
+**Caught:** bare-ident `old(<param>)` where param has heap-
+aliased declared type. This is the canonical adopter pattern
+filed by the probe agent.
+
+**Skipped (false negative, preferred over false positive):**
+- `old(self.field)` — field access expression
+- `old(get_vec())` — fn-call expression
+- `old(v.clone())` — method call expression
+
+The runtime `CONTRACT-002: ensure postcondition violated` will
+still surface for these adopter patterns (the silent miscompute
+class is the same root). Future ship can extend the reject if
+adopter pull surfaces.
+
+### Fixture + verify gate
+
+- New negative fixture `tests/err/err_contract_old_vec_aliasing.nr`
+  — exact repro from the probe finding. Build must fail with
+  CONTRACT-006.
+- New verify gate step `t_rfc0006_old_vec_aliasing_reject` —
+  asserts exit 1 + diag text contains `CONTRACT-006` and
+  `Vec<i64>`.
+
+### Validation
+
+- Self-build clean. Two-stage fixed-point at NEW SHA
+  `0ab90b1016549e7b69073287bf5f4b46aa9cb2a95ddee2dc707ff53987e0180b`
+  (compiler IR moved off `eb5c4d…` for the first time since
+  v0.4.258 — this ship adds real compiler logic).
+- Bootstrap seed refreshed (`bootstrap/nucleor_s1_seed.ll`).
+- NUM-024 audit clean.
+- Drift gate clean.
+- Positive smoke: `#[ensure(result == old(x) + 1)] fn inc(x: i64)`
+  still compiles + runs cleanly (scalar `old(...)` is fine —
+  i64 is value-by-value under the ABI).
+
+### Probe-agent integration
+
+Promoted probe finding `2026-05-01-dbc-old-of-vec-captures-
+pointer-not-snapshot.md` from `origin/probe/exploration`
+(commit ed85843+e101dc0) to local `findings/promoted/` with
+`## Promoted` footer recording the fixture, gate step, and
+ship version. First main-agent integration of a probe-agent
+finding since the dual-agent split mandate landed.
+
+### RFC-0006 status after v0.4.271
+
+7 of 7 CONTRACT codes either live or correctly handled:
+- ✅ CONTRACT-001 / 002 / 003 / 004 / 005 — runtime + Liskov
+- ✅ CONTRACT-006 — old() heap-aliased reject (this ship)
+- ⏳ CONTRACT-007 — cert profile static-proof (deferred,
+  research-grade)
+- ✅ Plus per-fn `#[no_check]` opt-out (v0.4.258).
+
 ## [0.4.270] — 2026-05-01
 
 **📚 Doc audit — strict-mode default note refresh.** Doc-only
