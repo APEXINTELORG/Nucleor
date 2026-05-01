@@ -1,13 +1,12 @@
-# Upgrading to v0.5.0 — DRAFT (outline)
+# Upgrading to v0.5.0
 
-> **Status:** Outline placeholder. Fills in when Track L (perf
-> baseline + content-addressed cache) lands and the v0.5.0 ship
-> is cut. Until then, this file documents the SHAPE of the
-> upcoming release notes so adopters know what's coming.
+> **Status:** v0.5.0 cut on 2026-05-01. Verify gate env-off + env-on
+> 687 PASS / 0 FAIL. Compiler-IR fixed-point at SHA
+> `4372053900a713937651918dc392dd35a184f0a0ef430b6f24f9bfd920eaf84e`.
 
-**TL;DR (when finalized):** v0.5.0 is the production-robotics +
-RFC-0006 DbC + RFC-0007 atomics + RFC-0014 max-depth + content-
-addressed-cache release. Upgrade adopter code by:
+**TL;DR:** v0.5.0 is the production-robotics + RFC-0006 DbC +
+RFC-0007 atomics + RFC-0014 max-depth + content-addressed-cache
+release. Upgrade adopter code by:
 1. (DbC adopters) Audit `#[require]` / `#[ensure]` predicates
    against new compile-time checks CONTRACT-006 through -011.
 2. (Atomics adopters) AtomicI64 / U64 / I32 / U32 / Bool +
@@ -46,34 +45,170 @@ deferred to v1.1+ alongside Verus-style SMT discharge.
 
 ### RFC-0007 Track G — Ordered atomics (v0.4.273)
 
-**(populated when v0.5.0 cuts; pulls from v0.4.273 CHANGELOG entry)**
+Five atomic types ship as first-class language values:
+`AtomicI64`, `AtomicU64`, `AtomicI32`, `AtomicU32`, `AtomicBool`.
+
+`MemOrder` enum carries memory ordering across operations:
+`Relaxed`, `Acquire`, `Release`, `AcqRel`, `SeqCst` — these
+map directly to LLVM atomic ordering keywords.
+
+Eight `AtomicI64` ops:
+
+```nucleor
+let counter: AtomicI64 = atomic_i64(0);
+let v: i64 = atomic_load(&counter, MemOrder::Acquire);
+atomic_store(&counter, 100, MemOrder::Release);
+let prev: i64 = atomic_fetch_add(&counter, 1, MemOrder::SeqCst);
+let prev_sub: i64 = atomic_fetch_sub(&counter, 1, MemOrder::SeqCst);
+let prev_and: i64 = atomic_fetch_and(&counter, 0xFF, MemOrder::SeqCst);
+let prev_or: i64 = atomic_fetch_or(&counter, 0x10, MemOrder::SeqCst);
+let prev_xor: i64 = atomic_fetch_xor(&counter, 0x0F, MemOrder::SeqCst);
+let cas: Result<i64, i64> = atomic_compare_exchange(&counter, 0, 1,
+    MemOrder::SeqCst, MemOrder::Relaxed);
+```
+
+LLVM lowering: `load atomic <ord> i64`, `store atomic <ord> i64`,
+`cmpxchg ptr <success-ord> <failure-ord>`, `atomicrmw <op> <ord>`.
+
+Five ATOMIC-NNN diagnostics fire on `#[atomic]` violations:
+
+| Code | Catches |
+|---|---|
+| ATOMIC-001 | Blocking call inside `#[atomic]` function |
+| ATOMIC-002 | Allocating call inside `#[atomic]` function |
+| ATOMIC-003 | `Cell` / `RefCell` use in `#[atomic]` function |
+| ATOMIC-004 | Invalid `compare_exchange` success/failure ordering pair |
+| ATOMIC-005 | Invalid memory ordering for atomic load/store |
 
 ### RFC-0007 Track H — Lock-free SPSC + MPSC queues (v0.4.274)
 
-**(populated when v0.5.0 cuts; pulls from v0.4.274 CHANGELOG entry)**
+Two new lock-free queue rods backed by Track G atomics:
+
+- **`stdlib/rods/spsc_queue.nr`** — single-producer single-consumer
+  ring buffer, Lamport-style atomic head/tail bump:
+  ```nucleor
+  let q: SpscQueue<i64> = spsc_new::<i64>(1024);
+  let pushed: bool = spsc_push(&mut q, 42);   // false on full
+  let popped: Option<i64> = spsc_pop(&mut q); // None on empty
+  ```
+- **`stdlib/rods/mpsc_queue.nr`** — multi-producer single-consumer
+  with Vyukov-style sequence-number CAS for multi-producer correctness:
+  ```nucleor
+  let q: MpscQueue<i64> = mpsc_new::<i64>(1024);
+  let pushed: bool = mpsc_push(&mut q, 42);
+  let popped: Option<i64> = mpsc_pop(&mut q);
+  ```
+
+Both rods use AtomicI64 head/tail counters from Track G. SPSC
+benchmark: ~1.8M ops/sec uncontended (40,000 ops in ~22ms).
+
+**Capacity-zero is silently normalized to 1** (no diag). Capacity
+exhaustion on `push` returns `false` (no panic). No misuse
+diagnostics on multi-producer-on-SPSC etc. — those are runtime
+contract violations not statically checked.
+
+**Known limitation (deferred to post-v0.5.0):** generic-T
+propagation on `Option<T>` match-arm bindings drops `T = str`
+when popping an `SpscQueue<str>`. Probe finding
+`2026-05-01-generic-T-propagation-spsc-option-str` deferred.
+Workaround for now: use `SpscQueue<i64>` and pass packed values.
 
 ### RFC-0007 — AtomicBool ordered ops (v0.4.281)
 
-**(populated when v0.5.0 cuts; pulls from v0.4.281 CHANGELOG entry)**
+`AtomicBool` shipped in v0.4.273 with constructor + drop only.
+v0.4.281 added the load / store / CAS surface delegating to
+the underlying `AtomicI64` handle:
+
+```nucleor
+let flag: AtomicBool = atomic_bool(false);
+atomic_store_bool(&flag, true, MemOrder::Release);
+let v: bool = atomic_load_bool(&flag, MemOrder::Acquire);
+let cas: Result<bool, bool> = atomic_compare_exchange_bool(
+    &flag, false, true, MemOrder::SeqCst, MemOrder::Relaxed);
+```
+
+**Deferred:** `atomic_swap_bool` — needs ordered `atomic_i64_swap_*`
+runtime helpers (only unordered `atomic_i64_swap` exists today).
+Adopters needing ordered swap on bool should use `AtomicI64` with
+0/1 convention until those runtime helpers ship.
 
 ### RFC-0014 Track I — `#[max_depth = N]` static analysis
 
-**(populated when Track I integrates; pulls from
-`docs/milestones/spikes/track_i_max_depth_2026-04-30.md` +
-v0.5.0 ship CHANGELOG entry)**
+`#[max_depth = N]` and `#[max_depth(N)]` annotations on fn
+declarations now bound recursion at compile time:
 
-DEPTH-001 through DEPTH-005 wired. Runtime helpers
-`max_depth_enter` / `max_depth_exit` (TLS-backed counters)
-abort on declared-limit overrun.
+```nucleor
+#[max_depth = 100]
+fn deep_walk(depth: i64, tree: &Tree) -> i64 {
+    if depth >= 100 { return 0; };
+    let mut sum: i64 = 0;
+    for child in tree.children() {
+        sum = sum + deep_walk(depth + 1, &child);
+    };
+    sum
+}
+```
+
+The static analyzer proves convergence for the canonical pattern
+(first param is depth counter; entry guard `depth >= N` or
+`depth > N-1`; recursive call uses `depth + 1`).
+
+Five DEPTH-NNN diagnostics:
+
+| Code | Catches |
+|---|---|
+| DEPTH-001 | Max-depth analysis cannot bound recursive path |
+| DEPTH-002 | Bounded recursion exceeds `#[max_depth = N]` |
+| DEPTH-003 | Mutually-recursive `max_depth` cycle violates bounds (also runtime overrun) |
+| DEPTH-004 | Invalid `#[max_depth]` attribute placement or value |
+| DEPTH-005 | Total stack budget exceeded |
+
+Runtime support: `max_depth_enter(id, limit)` on entry, `max_depth_exit(id)`
+on each return path. TLS-backed counters; aborts with `error[DEPTH-003]`
+on dynamic overrun.
+
+**Conservative surface — adopter rewrites needed for these patterns:**
+
+- non-depth-counter recursion (no parameter named `depth` advancing toward bound)
+- unknown callback or function-pointer recursion (analyzer can't follow indirect calls)
+- recursive calls without monotonic `depth + 1` (analyzer requires this exact form)
+- guard logic hidden behind helper fns (analyzer needs the entry guard inline)
+- mutually-recursive cycles whose bounds don't compose safely
+
+Adopters hitting these get DEPTH-001 by design. Migration: rewrite to the canonical shape, or temporarily annotate with `#[deadline]` (RT-008 path) until the analyzer extends.
 
 ### Track L — Perf baseline + content-addressed compilation cache
 
-**(populated when Track L lands; pulls from spike artifact +
-SPEC-content-addressed-cache-v0.5.md)**
+Content-addressed cache v2 at `target/.nuc_cache_v2/<prefix>/<sha>.ll`.
 
-Cache key: SHA-256 of `(source content || compiler-version ||
-build-flags-canonical)`. Storage at `target/.nuc_cache_v2/`.
-Hit / miss accounting in build output.
+**Cache key** is SHA-256 of:
+- source content
+- compiler version string
+- canonical build flags (sorted list)
+- strict arithmetic mode (`NUCLEOR_INT_STRICT_INTRIN`)
+- DbC mode (`NUCLEOR_DBC_MODE`)
+
+**New CLI**:
+- `nuc build --cache-stats` — prints hit/miss counters for the build
+- `nuc clean --cache` — manual cache eviction
+
+**Cache correctness** verified against:
+- first build stores
+- second build hits
+- `clean --cache` works
+- mtime-only touch: stable (no false invalidation)
+- content mutation: invalidates correctly
+
+**Perf measurement infrastructure**:
+- `tools/measure_track_l_perf.ps1` — new perf script
+- `tools/check_perf_regression.ps1` — switched to scoped process-tree
+  memory measurement (was global compiler-process cleanup, which
+  miscounted in concurrent test runs)
+- `tools/perf_baseline.json` — locked from Track L's measurement set
+
+**Adopter migration:** the cache is opt-in but on by default for
+new builds. Existing adopters using `--no-cache` continue working.
+Cache miss → falls back to full compilation; no regression.
 
 ### F64 ergonomic wrapper rods (v0.4.260 → v0.4.269)
 
@@ -129,25 +264,144 @@ Available in `docs/rfcs/`:
 
 Both are **design-only in v0.5** — no compiler surface yet.
 
-## Migration patterns (placeholder — populate at cut)
+## Migration patterns
 
 ### From DbC pre-v0.4.254 manual asserts to RFC-0006 attributes
 
-(Cross-reference `UPGRADE_v0.4.254.md` for examples. v0.5.0's
-new CONTRACT-006..011 codes catch additional adopter mistakes
-that v0.4.254 didn't.)
+(Cross-reference `UPGRADE_v0.4.254.md` for the core arc.) v0.5.0's
+CONTRACT-006..011 catch additional adopter mistakes that v0.4.254
+didn't:
+
+```nucleor
+// CONTRACT-006: heap-aliased old() reject
+// Before — silent miscompute (i64-ABI aliases pointer):
+#[ensure(vec_len(result) == vec_len(old(v)) + 1)]
+fn append(v: Vec<i64>, x: i64) -> Vec<i64> { ... }
+// After — hoist scalar snapshot:
+fn append(v: Vec<i64>, x: i64) -> Vec<i64> {
+    let len_initial: i64 = vec_len(v);
+    let mut w: Vec<i64> = v;
+    vec_push(w, x);
+    if vec_len(w) != len_initial + 1 { panic("postcondition violated"); };
+    w
+}
+
+// CONTRACT-008: result in void-fn ensure (caught at compile)
+// Before — silent (luck):
+#[ensure(result == 0)]
+fn void_fn(x: i64) { print_int(x as i32); }
+// After — drop the ensure or add return type:
+fn void_fn(x: i64) { print_int(x as i32); }
+
+// CONTRACT-009: invalid NUCLEOR_DBC_MODE (clean diag)
+// Before — silent partial-strip:
+NUCLEOR_DBC_MODE=off nuc build src.nr
+// After — explicit value:
+NUCLEOR_DBC_MODE=release nuc build src.nr   # or debug / safe-release / cert / unset
+
+// CONTRACT-010: old() in #[require] (caught at compile)
+// Before — misleading clang-link error:
+#[require(old(x) > 0)]
+fn f(x: i64) -> i64 { x }
+// After — move to #[ensure]:
+#[ensure(old(x) > 0 && result == x)]
+fn f(x: i64) -> i64 { x }
+
+// CONTRACT-011: undefined ident in contract
+// Before — clang-link error mentioning a fn that doesn't exist:
+#[require(undefined_var > 0)]
+fn f(x: i64) -> i64 { x }
+// After — typo fix to fn param name:
+#[require(x > 0)]
+fn f(x: i64) -> i64 { x }
+```
 
 ### From handle-typed atomic ops to typed AtomicI64
 
-**(populated at v0.5.0 cut)**
+```nucleor
+// Before — raw handle, manual ordering passed as i64:
+let h: i64 = nuc_atomic_i64_new(0);
+nuc_atomic_i64_store_seqcst(h, 42);
+let v: i64 = nuc_atomic_i64_load_seqcst(h);
+
+// After — typed AtomicI64 + MemOrder enum:
+let counter: AtomicI64 = atomic_i64(0);
+atomic_store(&counter, 42, MemOrder::SeqCst);
+let v: i64 = atomic_load(&counter, MemOrder::SeqCst);
+```
+
+The legacy handle API is still present for back-compat. New code
+should use the typed surface.
 
 ### From `Vec` polling concurrency to `SpscQueue<T>` / `MpscQueue<T>`
 
-**(populated at v0.5.0 cut)**
+```nucleor
+// Before — Vec + manual lock (or worse, racy unlocked):
+let mut work_queue: Vec<i64> = vec![];
+// producer side: vec_push(&mut work_queue, item);
+// consumer side: if vec_len(work_queue) > 0 { let item = vec_pop(&mut work_queue); ... }
+
+// After — lock-free SPSC ring buffer:
+import "stdlib/rods/spsc_queue.nr"
+
+let q: SpscQueue<i64> = spsc_new::<i64>(1024);
+// producer thread: spsc_push(&mut q, item);  // returns false on full
+// consumer thread: match spsc_pop(&mut q) { Some(x) => ..., None => /* empty */ }
+
+// For multi-producer single-consumer:
+import "stdlib/rods/mpsc_queue.nr"
+let q: MpscQueue<i64> = mpsc_new::<i64>(1024);
+```
 
 ### From manual recursion-bound asserts to `#[max_depth = N]`
 
-**(populated when Track I integrates)**
+```nucleor
+// Before — adopter-managed depth + runtime check:
+fn walk(depth: i64, tree: &Tree) -> i64 {
+    if depth >= 100 { panic("recursion too deep"); };
+    let mut sum: i64 = 0;
+    for child in tree.children() {
+        sum = sum + walk(depth + 1, &child);
+    };
+    sum
+}
+
+// After — declarative bound, static + runtime check:
+#[max_depth = 100]
+fn walk(depth: i64, tree: &Tree) -> i64 {
+    if depth >= 100 { return 0; };  // entry guard + base case
+    let mut sum: i64 = 0;
+    for child in tree.children() {
+        sum = sum + walk(depth + 1, &child);
+    };
+    sum
+}
+```
+
+The declarative form gets DEPTH-001..005 static checks, plus the
+runtime depth guard via `max_depth_enter`/`exit`. Adopter writing
+the canonical shape gets all of this for free.
+
+### Adopting the content-addressed cache
+
+```bash
+# Default: cache is on. First build stores; subsequent rebuilds hit.
+nuc build src.nr -o app
+
+# Inspect cache state:
+nuc build src.nr -o app --cache-stats
+# (prints hit/miss counters for this build)
+
+# Manual eviction:
+nuc clean --cache
+
+# Opt out for one build:
+nuc build src.nr -o app --no-cache
+```
+
+Cache invalidates correctly on source content changes, compiler
+upgrade, build-flag changes, strict-mode toggle, or DbC mode
+toggle. Mtime-only touches don't trigger invalidation.
 
 ## Build-mode environment variables (consolidated)
 
