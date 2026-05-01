@@ -88,3 +88,37 @@ fn pose_compose(a: i64, b: i64) -> i64 { return nuc_pose_compose(a, b); }
 fn pose_inverse(p: i64) -> i64 { return nuc_pose_inverse(p); }
 fn pose_apply(p: i64, v: i64) -> i64 { return nuc_pose_apply(p, v); }
 fn pose_free(p: i64) { nuc_pose_free(p); }
+
+// === Ergonomic f64 wrappers (v0.4.261) ===
+//
+// The `*_bits: i64` and `-> i64` (where the i64 is f64-bit-pattern)
+// shape across the rod above matches the i64-everywhere FFI ABI.
+// These wrappers hide the bits plumbing so adopters write
+// `vec3_f64(1.0, 2.0, 3.0)` instead of
+// `vec3(f64_to_bits(1.0), f64_to_bits(2.0), f64_to_bits(3.0))`.
+// The bits-ABI fns above remain — purely additive.
+
+// --- Vec3 ---
+fn vec3_f64(x: f64, y: f64, z: f64) -> i64 {
+    return nuc_vec3_new(f64_to_bits(x), f64_to_bits(y), f64_to_bits(z));
+}
+fn vec3_x_f64(v: i64) -> f64 { return f64_from_bits(nuc_vec3_get_x(v)); }
+fn vec3_y_f64(v: i64) -> f64 { return f64_from_bits(nuc_vec3_get_y(v)); }
+fn vec3_z_f64(v: i64) -> f64 { return f64_from_bits(nuc_vec3_get_z(v)); }
+fn vec3_dot_f64(a: i64, b: i64) -> f64 { return f64_from_bits(nuc_vec3_dot(a, b)); }
+fn vec3_norm_f64(v: i64) -> f64 { return f64_from_bits(nuc_vec3_norm(v)); }
+fn vec3_scale_f64(v: i64, s: f64) -> i64 {
+    return nuc_vec3_scale(v, f64_to_bits(s));
+}
+
+// --- Quaternion ---
+fn quat_f64(w: f64, x: f64, y: f64, z: f64) -> i64 {
+    return nuc_quat_new(f64_to_bits(w), f64_to_bits(x), f64_to_bits(y), f64_to_bits(z));
+}
+fn quat_from_axis_angle_f64(axis: i64, angle: f64) -> i64 {
+    return nuc_quat_from_axis_angle(axis, f64_to_bits(angle));
+}
+fn quat_w_f64(q: i64) -> f64 { return f64_from_bits(nuc_quat_get_w(q)); }
+fn quat_x_f64(q: i64) -> f64 { return f64_from_bits(nuc_quat_get_x(q)); }
+fn quat_y_f64(q: i64) -> f64 { return f64_from_bits(nuc_quat_get_y(q)); }
+fn quat_z_f64(q: i64) -> f64 { return f64_from_bits(nuc_quat_get_z(q)); }
