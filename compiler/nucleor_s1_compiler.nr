@@ -5940,7 +5940,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_assert_eq(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_assert_ne(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic(ptr)\n");
-    let strict_intrin: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "");
+    let strict_intrin: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
     if str_eq(strict_intrin, "1") == 1 {
         sb_append(sb, "@.nuc_overflow_intrin_msg = private unnamed_addr constant [17 x i8] c\"integer overflow\\00\"\n");
         sb_append(sb, "declare { i8, i1 } @llvm.sadd.with.overflow.i8(i8, i8)\n");
@@ -14531,7 +14531,7 @@ fn lower_expr_narrow(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lb
         let nr: i64 = ctr_next(regs);
         let arith_mode: i64 = sym_get(sym, "__arith_mode");
         let sat_helper: str = arith_width_helper_name(iop, tw, arith_mode);
-        let strict_intrin: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "");
+        let strict_intrin: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
         if str_len(sat_helper) > 0 {
             let lr64: i64 = ctr_next(regs);
             if tw > 0 {
@@ -15082,7 +15082,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     if iop == 24 { sh = "panic_shr"; };
                 };
             };
-            let strict_intrin: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "");
+            let strict_intrin: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
             if str_eq(strict_intrin, "1") == 1 && arith_mode_explicit <= 0 && (iop == 2 || iop == 3 || iop == 4) {
                 let trap_lbl: i64 = ctr_next(lbls);
                 let cont_lbl: i64 = ctr_next(lbls);
