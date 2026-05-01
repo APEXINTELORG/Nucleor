@@ -5,6 +5,80 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.240] — 2026-04-30
+
+**🔧 LIVE BUG FIX — unsigned-overflow intrinsic dispatch.**
+Track B's `emit_overflow_arith` always emitted **signed**
+`@llvm.sadd/ssub/smul.with.overflow.iN` regardless of operand
+signedness. Unsigned arithmetic that wrapped legitimately under
+unsigned semantics fired signed-overflow traps anyway. v0.4.240
+routes unsigned widths through the matching `uadd/usub/umul.
+with.overflow.iN` intrinsics.
+
+### Root cause
+
+`ir_binop_overflow` stored absolute width in `ir_tid` (8/16/32/64),
+losing the signedness encoding. `emit_overflow_arith` hardcoded
+`@llvm.s` prefix.
+
+### The fix
+
+1. `ir_binop_overflow` now stores **sign-encoded** width in `ir_tid`
+   (positive = signed, negative = unsigned, 0 = i64 ABI signed).
+2. `lower_expr_narrow` line 14557 passes `tw` (sign-encoded)
+   instead of `aw` (abs).
+3. `emit_overflow_arith` derives signedness:
+   ```
+   let aw   = if w >= 0 { w } else { 0 - w };
+   let bw   = if aw == 0 { 64 } else { aw };
+   let prefix = if w >= 0 { "s" } else { "u" };
+   ```
+   Emits `@llvm.<prefix>add/sub/mul.with.overflow.i<bw>`.
+
+The i64 fall-through path at lower_expr line 15089 still passes
+`0` for width (treated as signed-i64-ABI by emit_overflow_arith),
+preserving existing i64 behavior.
+
+### Validation
+
+- Self-build clean (LL 7 866 432 bytes).
+- **Two-stage fixed-point env-DEFAULT-ON at SHA**
+  `c0590b7952d8827fe5decdb1539872df86d1705db0ad72562994c45a150828bc`.
+  Bootstrap seed refreshed; T1.7 locked.
+- **Phase 3a fixture `tests/features/rfc0015_phase3a_widths.nr`:
+  OK** (was: PANIC under v0.4.239).
+- **Phase 3 full fixture `tests/features/rfc0015_phase3_widths_full.nr`:
+  OK** (was: PANIC under v0.4.239).
+- **v0.4.239 wrap regression:** wrap path still works correctly,
+  no intrinsic in body, exit 0, output `-1616` for the i64 wrap
+  test.
+- **NUM-024 audit:** 0/0.
+- **Compiler ABI drift gate:** clean.
+
+### Adopter impact
+
+If you upgraded to v0.4.238 or v0.4.239 and shipped code using
+unsigned arithmetic (`u8`, `u16`, `u32`, `u64`) outside
+`wrapping {}` blocks, AND the values may produce
+signed-interpretation overflow at the bit level even when
+unsigned-correct, you may have hit unintended panics. v0.4.240
+fixes this — unsigned arith now traps only on unsigned overflow.
+
+The vast majority of unsigned arith doesn't trip this case (e.g.,
+`u32 + u32` where neither operand has the high bit set). Code
+operating near the unsigned max may have been affected.
+
+**Recommend upgrading from v0.4.239 → v0.4.240** if you ship any
+code with `u8/u16/u32/u64` arithmetic on values near the type's
+unsigned max.
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: `emit_overflow_arith`
+  derives signedness from sign-encoded width;
+  `lower_expr_narrow` passes `tw` instead of `aw`.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
 ## [0.4.239] — 2026-04-30
 
 **🔧 LIVE BUG FIX — `wrapping { ... }` blocks no longer trap

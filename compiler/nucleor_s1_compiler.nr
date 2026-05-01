@@ -5272,7 +5272,20 @@ fn emit_arith_w(sb: i64, on: str, d: i64, a: i64, b: i64, w: i64) -> i64 {
     sb_append(sb, "\n"); return 0;
 }
 fn emit_overflow_arith(sb: i64, on: str, d: i64, a: i64, b: i64, w: i64, trap_lbl: i64) -> i64 {
-    let bw: i64 = if w == 0 { 64 } else { w };
+    // v0.4.240: w is sign-encoded — positive = signed, negative =
+    // unsigned, 0 = i64 ABI (treated as signed for trap purposes
+    // since i64 has no narrower-unsigned distinction at the LLVM
+    // intrinsic level). Derive absolute width for the type and
+    // signedness prefix for the intrinsic name. Pre-fix, all
+    // overflow intrinsics emitted as signed (`@llvm.sadd.with...`)
+    // regardless of operand type — unsigned arithmetic that wraps
+    // legitimately under unsigned semantics fired signed-overflow
+    // traps. v0.4.240 routes unsigned widths through the matching
+    // `uadd/usub/umul.with.overflow.iN` intrinsics.
+    let aw: i64 = if w >= 0 { w } else { 0 - w };
+    let bw: i64 = if aw == 0 { 64 } else { aw };
+    let signed_p: i64 = if w >= 0 { 1 } else { 0 };
+    let sign_prefix: str = if signed_p == 1 { "s" } else { "u" };
     let ty: str = width_to_llvm_type(bw);
     let ds: str = str_from_int(d);
     let a_s: str = str_from_int(a);
@@ -5281,7 +5294,7 @@ fn emit_overflow_arith(sb: i64, on: str, d: i64, a: i64, b: i64, w: i64, trap_lb
     let cont_s: str = str_from_int(trap_lbl + 1);
     sb_append(sb, "  %r."); sb_append(sb, ds);
     sb_append(sb, ".ov = call { "); sb_append(sb, ty);
-    sb_append(sb, ", i1 } @llvm.s"); sb_append(sb, on);
+    sb_append(sb, ", i1 } @llvm."); sb_append(sb, sign_prefix); sb_append(sb, on);
     sb_append(sb, ".with.overflow."); sb_append(sb, ty);
     sb_append(sb, "("); sb_append(sb, ty); sb_append(sb, " %r.");
     sb_append(sb, a_s); sb_append(sb, ", "); sb_append(sb, ty);
@@ -14568,9 +14581,14 @@ fn lower_expr_narrow(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lb
             ir_block_add(blk3, ir_call_ex(hr, sat_helper, sa));
             ir_block_add(blk3, ir_trunc(nr, hr, aw));
         } else if str_eq(strict_intrin, "1") == 1 && arith_mode <= 0 && (iop == 2 || iop == 3 || iop == 4) {
+            // v0.4.240: pass sign-encoded width `tw` (positive=signed,
+            // negative=unsigned) so emit_overflow_arith picks the
+            // matching s* or u* intrinsic. Pre-fix used `aw` (abs
+            // width) which lost signedness; unsigned narrow arith
+            // hit signed-overflow traps incorrectly.
             let trap_lbl: i64 = ctr_next(lbls);
             let cont_lbl: i64 = ctr_next(lbls);
-            ir_block_add(blk3, ir_binop_overflow(iop, nr, lr, rr, aw, trap_lbl));
+            ir_block_add(blk3, ir_binop_overflow(iop, nr, lr, rr, tw, trap_lbl));
         } else {
             ir_block_add(blk3, ir_binop_t(iop, nr, lr, rr, aw));
         };
