@@ -5,6 +5,109 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.250] — 2026-05-01
+
+**RFC-0006 DbC — multiple `#[require]` / `#[ensure]` attributes
+per fn.** Adopters can now stack preconditions and postconditions
+on a single fn; all are conjuncted and any violation panics.
+
+### Implementation
+
+**Scanner (`collect_fn_requires` + `collect_fn_ensures`):**
+After matching `#[require(EXPR)]` or `#[ensure(EXPR)]` and
+walking forward to find the next `fn NAME`, the post-match
+advance now sets `p = expr_end + 2` (past the closing `)]`)
+instead of `p = r` (past the fn name). The outer scanner loop
+re-enters between the `]` and the fn keyword, finds any
+subsequent attribute on the SAME fn, captures it as an
+additional `(fn_name, expr_text)` entry. Pre-fix only the first
+attribute was captured; later ones were silently ignored.
+
+**lower_fn require emit:**
+Walks ALL matching entries in `require_exprs` (was: stopped at
+first match). Each match emits its own
+`call __nucleor_contract_require(predicate)`. Predicates fire
+in attribute-source order; on first failure, the runtime panics
+and exits.
+
+**lower_fn ensure emit (tail return + implicit-zero return):**
+Same walk-all approach. The `result` alloca + sym_set fires
+ONCE (all predicates share the same return value); each
+predicate gets its own
+`call __nucleor_contract_ensure(predicate)`.
+
+### v0.4.250 minimum scope — mid-body returns still single-only
+
+`lower_stmt`'s kind-22 explicit `return X;` handler reads a
+single `__current_fn_ensure_nid` from sym. To support multiple
+ensures at mid-body returns, that handler would need
+ensure_exprs threaded as a parameter (or sym would need to
+encode a list, which is awkward with i64-only values). v0.4.251
+will extend this once we settle on the threading approach.
+
+For now: tail-return + implicit-zero return paths fire all
+ensures; mid-body explicit `return X;` paths fire only the
+first ensure. Most adopter code uses tail-returns where this
+distinction doesn't matter.
+
+### End-to-end demo
+
+```nucleor
+#[require(x > 0)]
+#[require(x < 100)]
+#[ensure(result >= 0)]
+#[ensure(result < 10000)]
+fn bounded_compute(x: i64) -> i64 {
+    x * x
+}
+
+fn main() -> i64 {
+    bounded_compute(50);    // OK: all four attrs hold
+    bounded_compute(500);   // FAIL: second require (x < 100)
+    0
+}
+```
+
+Output:
+```text
+CONTRACT-001: require precondition violated
+exit 1
+```
+
+### Validation
+
+- Self-build clean (LL 8 053 938 bytes).
+- **Two-stage fixed-point env-DEFAULT-ON** at SHA
+  `70502c4db233e9a2a192d81af63ffc02f83adbce6b81b975a18e13fb862a8734`.
+  Bootstrap seed refreshed; T1.7 locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean.
+- Targeted multi-require + multi-ensure runtime smokes (passing
+  + violation paths) work as expected.
+- New fixture `tests/features/rfc0006_multi_attrs.nr` (3 fns,
+  6 cases including factorial_bounded with 4 attrs) builds +
+  runs OK.
+- New verify-gate step `t_rfc0006_multi_attrs_runtime` exercises
+  passing path + multi-require violation.
+
+### What's next (v0.4.251+)
+
+- Mid-body return multiple-ensure support (extend lower_stmt).
+- `old(expr)` snapshot at fn entry for ensure expressions.
+- Constructor-emit (fns returning `Self`) — currently only
+  methods taking `self` get the invariant.
+- `#[release]` strip-out + `cert` profile (CONTRACT-007).
+- Liskov inheritance checks (CONTRACT-004, CONTRACT-005).
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: scanner advance change at
+  both collect_fn_requires + collect_fn_ensures; require emit +
+  two ensure emit sites refactored to walk-all-matches loops.
+- `tests/features/rfc0006_multi_attrs.nr`: new fixture.
+- `tools/verify.sh`: `t_rfc0006_multi_attrs_runtime` step.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
 ## [0.4.249] — 2026-05-01
 
 **RFC-0006 invariant — exit-emit on every `self` method.**
