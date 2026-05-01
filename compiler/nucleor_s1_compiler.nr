@@ -8630,6 +8630,98 @@ fn lookup_fn_require_expr(requires: Vec<i32>, fn_name: str) -> str {
     return "";
 }
 
+// v0.4.246 RFC-0006 substrate — `#[ensure(EXPR)]` source-text
+// scanner. Mirror of collect_fn_requires but for the ensure
+// attribute (postcondition checked at fn exit).
+fn collect_fn_ensures(source: str) -> Vec<i32> {
+    let mut entries: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[ensure(";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let expr_start: i64 = p + plen;
+            let mut q: i64 = expr_start;
+            let mut paren_depth: i64 = 1;
+            while q < slen && paren_depth > 0 {
+                let cc: i64 = str_char_at(source, q);
+                if cc == 34 {
+                    q = q + 1;
+                    while q < slen && str_char_at(source, q) != 34 {
+                        if str_char_at(source, q) == 92 && q + 1 < slen { q = q + 2; }
+                        else { q = q + 1; };
+                    };
+                    if q < slen { q = q + 1; };
+                    continue;
+                };
+                if cc == 40 { paren_depth = paren_depth + 1; }
+                else if cc == 41 { paren_depth = paren_depth - 1; if paren_depth == 0 { break; }; };
+                q = q + 1;
+            };
+            let expr_end: i64 = q;
+            let mut r: i64 = expr_end + 1;
+            if r < slen && str_char_at(source, r) == 93 { r = r + 1; };
+            while r + 3 <= slen {
+                let c0: i64 = str_char_at(source, r);
+                let c1: i64 = str_char_at(source, r + 1);
+                let c2: i64 = str_char_at(source, r + 2);
+                if c0 == 102 && c1 == 110 && c2 == 32 {
+                    r = r + 3;
+                    let name_start: i64 = r;
+                    while r < slen && (is_alnum(str_char_at(source, r)) == 1 || str_char_at(source, r) == 95) {
+                        r = r + 1;
+                    };
+                    if r > name_start && expr_end > expr_start {
+                        let fname: str = str_substring(source, name_start, r);
+                        let etext: str = str_substring(source, expr_start, expr_end);
+                        entries.push(fname);
+                        entries.push(etext);
+                    };
+                    p = r;
+                    break;
+                };
+                r = r + 1;
+            };
+            if r + 3 > slen { p = slen; };
+        } else {
+            p = p + 1;
+        };
+    };
+    return entries;
+}
+
+fn lookup_fn_ensure_expr(ensures: Vec<i32>, fn_name: str) -> str {
+    let n: i64 = vec_len(ensures);
+    let mut i: i64 = 0;
+    while i + 1 < n {
+        let nm: str = vec_get(ensures, i);
+        if str_eq(nm, fn_name) == 1 { return vec_get(ensures, i + 1); };
+        i = i + 2;
+    };
+    return "";
+}
+
 // For a given fn_name marked #[no_alloc], scan its body text for
 // literal `<alloc_call>(` patterns and emit RT-001 diags into
 // `diags` for each match.
@@ -18229,7 +18321,7 @@ fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Ve
     return b;
 }
 
-fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, require_exprs: Vec<i32>) -> Vec<i32> {
+fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>) -> Vec<i32> {
     let name: str = node_field(pool, fn_nid, 1);
     let plist: i64 = node_field(pool, fn_nid, 2);
     let blist: i64 = node_field(pool, fn_nid, 4);
@@ -18385,13 +18477,69 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
                 rv = ctr_next(regs);
                 ir_block_add(fb, ir_const_int(rv, 0));
             };
+            // v0.4.246 RFC-0006 — `#[ensure(EXPR)]` runtime check at
+            // tail return. Look up the fn's ensure expr nid; if
+            // present, bind `result` in sym to a fresh alloca holding
+            // rv, lower the predicate, and call the runtime helper.
+            // The predicate references `result` which the kind-3
+            // var-ref lowering reads via ir_load from the alloca.
+            let mut ens_idx: i64 = 0;
+            let mut ens_nid: i64 = 0 - 1;
+            let ens_count: i64 = vec_len(ensure_exprs);
+            while ens_idx + 1 < ens_count {
+                if str_eq(vec_get(ensure_exprs, ens_idx), name) == 1 {
+                    ens_nid = vec_get(ensure_exprs, ens_idx + 1);
+                    ens_idx = ens_count;
+                } else {
+                    ens_idx = ens_idx + 2;
+                };
+            };
+            if ens_nid >= 0 {
+                let ens_ar: i64 = ctr_next(regs);
+                ir_block_add(fb, ir_alloca(ens_ar));
+                ir_block_add(fb, ir_store(rv, ens_ar));
+                sym_set(sym, "result", ens_ar);
+                let mut ens_lp: Vec<i32> = lower_expr(pool, ens_nid, fb, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
+                let ens_pr: i64 = lx_reg(ens_lp);
+                fb = lx_blk(ens_lp);
+                let mut ens_args: Vec<i32> = Vec::new();
+                ens_args.push(ens_pr);
+                let ens_cr: i64 = ctr_next(regs);
+                ir_block_add(fb, ir_call_ex(ens_cr, "contract_ensure", ens_args));
+            };
             ir_block_add(fb, ir_ret(rv));
         };
         return fir;
     };
     fb = lower_stmts(pool, blist, ebb0, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
     if block_has_term(fb) == 0 {
-        let zr: i64 = ctr_next(regs); ir_block_add(fb, ir_const_int(zr, 0)); ir_block_add(fb, ir_ret(zr));
+        let zr: i64 = ctr_next(regs); ir_block_add(fb, ir_const_int(zr, 0));
+        // v0.4.246 RFC-0006 — ensure check at implicit-zero return.
+        let mut ens2_idx: i64 = 0;
+        let mut ens2_nid: i64 = 0 - 1;
+        let ens2_count: i64 = vec_len(ensure_exprs);
+        while ens2_idx + 1 < ens2_count {
+            if str_eq(vec_get(ensure_exprs, ens2_idx), name) == 1 {
+                ens2_nid = vec_get(ensure_exprs, ens2_idx + 1);
+                ens2_idx = ens2_count;
+            } else {
+                ens2_idx = ens2_idx + 2;
+            };
+        };
+        if ens2_nid >= 0 {
+            let ens2_ar: i64 = ctr_next(regs);
+            ir_block_add(fb, ir_alloca(ens2_ar));
+            ir_block_add(fb, ir_store(zr, ens2_ar));
+            sym_set(sym, "result", ens2_ar);
+            let mut ens2_lp: Vec<i32> = lower_expr(pool, ens2_nid, fb, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
+            let ens2_pr: i64 = lx_reg(ens2_lp);
+            fb = lx_blk(ens2_lp);
+            let mut ens2_args: Vec<i32> = Vec::new();
+            ens2_args.push(ens2_pr);
+            let ens2_cr: i64 = ctr_next(regs);
+            ir_block_add(fb, ir_call_ex(ens2_cr, "contract_ensure", ens2_args));
+        };
+        ir_block_add(fb, ir_ret(zr));
     };
     return fir;
 }
@@ -19645,16 +19793,34 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         free_token_vec(req_tokens);
         rti = rti + 2;
     };
+    // v0.4.246 RFC-0006 — pre-process #[ensure(EXPR)] attributes.
+    // Same shape as require pre-process; ensure_exprs flat (fn_name,
+    // expr_nid) Vec consumed by lower_fn at the tail-return sites.
+    let ens_text_pairs: Vec<i32> = collect_fn_ensures(source);
+    let mut ensure_exprs: Vec<i32> = Vec::new();
+    let mut eti: i64 = 0;
+    let ens_text_count: i64 = vec_len(ens_text_pairs);
+    while eti + 1 < ens_text_count {
+        let ens_name: str = vec_get(ens_text_pairs, eti);
+        let ens_text: str = vec_get(ens_text_pairs, eti + 1);
+        let ens_tokens: Vec<i32> = lex(ens_text);
+        let ens_parsed: Vec<i32> = parse_expr(ens_tokens, 0, pool);
+        let ens_expr_nid: i64 = pr_val(ens_parsed);
+        ensure_exprs.push(ens_name);
+        ensure_exprs.push(ens_expr_nid);
+        free_token_vec(ens_tokens);
+        eti = eti + 2;
+    };
     let lower_start: i64 = now_ms();
     fi = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs)); };
+        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs)); };
         fi = fi + 1;
     };
     let mut ii: i64 = 0;
     while ii < vec_len(impl_fns) {
-        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs));
+        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs));
         ii = ii + 1;
     };
     let mut ci3: i64 = 0;

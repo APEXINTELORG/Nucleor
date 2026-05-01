@@ -5,6 +5,121 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.246] — 2026-05-01
+
+**🎯 RFC-0006 DbC — `#[ensure(EXPR)]` LIVE END-TO-END.** Second
+working DbC feature in Nucleor; complements v0.4.245's require.
+Adopters can now annotate fns with `#[ensure(EXPR)]`
+postconditions checked at fn exit; failed ensures print
+`CONTRACT-002: ensure postcondition violated` and exit 1.
+
+The `result` identifier in the predicate refers to the return
+value — the lowering binds it to a fresh alloca holding the
+return value before lowering the predicate.
+
+### What lands
+
+**Compiler side** (`compiler/nucleor_s1_compiler.nr`):
+- `collect_fn_ensures(source: str) -> Vec<i32>` — mirrors
+  `collect_fn_requires` for the `#[ensure(` pattern.
+- `lookup_fn_ensure_expr(ensures, fn_name) -> str` — same shape
+  as the require lookup.
+- Pre-pass at the main pipeline: scan, lex, parse-into-pool,
+  store (fn_name, expr_nid) pairs.
+- `lower_fn` signature extended with `ensure_exprs: Vec<i32>`
+  (10th + 11th positional args now in place — both call sites
+  updated).
+- At the **two implicit-tail-return sites** in `lower_fn`:
+  - Look up the fn name in `ensure_exprs`.
+  - If present: alloca for `result`, store the return value,
+    `sym_set(sym, "result", alloca)`.
+  - Lower the predicate (`result >= 0`, `result > 100`, etc.).
+  - Emit `call i64 @__nucleor_contract_ensure(i64 %predicate)`.
+  - Then emit `ret %rv`.
+
+**v0.4.246 minimum scope:** Only the implicit tail-return path
+gets the ensure check (idiomatic Rust-style fn-as-expression).
+Mid-body explicit `return X;` statements emit ret without the
+ensure check. Mid-body return support ships as a follow-up
+once we wire the ensure-emit through `lower_stmt`'s kind-25
+return handler.
+
+### End-to-end demo
+
+```nucleor
+#[ensure(result >= 0)]
+fn abs(x: i64) -> i64 {
+    if x < 0 { 0 - x } else { x }
+}
+
+fn main() -> i64 {
+    print_int(abs(0 - 7));   // OK: result = 7 >= 0
+    print_int(abs(42));       // OK: result = 42 >= 0
+    0
+}
+```
+
+Output: `7\n42\n`, exit 0.
+
+Failing case:
+```nucleor
+#[ensure(result > 100)]
+fn small(x: i64) -> i64 { x + 1 }
+
+fn main() -> i64 { print_int(small(5)); 0 }
+```
+
+Output:
+```text
+CONTRACT-002: ensure postcondition violated
+exit 1
+```
+
+### Validation
+
+- Self-build clean (LL 7 963 346 bytes).
+- **Two-stage fixed-point env-DEFAULT-ON** at SHA
+  `1cbe8249ea8d02f7e4b163e22f8a4a7def9b30419498f56e728106d4b68413db`
+  (round-2 == round-3; round-1 differed by the v0.4.245
+  intrinsic decls plus the new ensure callsite — first-stage
+  upgrade artifact, expected).
+- Bootstrap seed refreshed.
+- T1.7 fixed-point locked.
+- NUM-024 audit: 0/0.
+- Compiler ABI drift gate: clean.
+- **Targeted ensure runtime smokes:**
+  - `abs(-7)` with `#[ensure(result >= 0)]` → output `7`, exit 0.
+  - `small(5)` with `#[ensure(result > 100)]` → CONTRACT-002 panic.
+- Fixture `tests/features/rfc0006_ensure_basic.nr` (4 cases)
+  builds + runs OK.
+- New verify-gate step `t_rfc0006_ensure_runtime` exercises both
+  passing path + violation path.
+
+### What's next (v0.4.247+)
+
+- Mid-body explicit `return X;` ensure-check support (currently
+  only tail returns get the check).
+- `#[invariant(EXPR)]` for struct impl blocks (CONTRACT-003 —
+  entry+exit on every public method).
+- `old(expr)` snapshot at fn entry for ensure expressions
+  (CONTRACT-006 if the snapshot is omitted but old is referenced).
+- Multiple require/ensure attributes per fn (currently only the
+  first match wins; spec allows multiple).
+- Build-mode awareness: `#[release]` strip-out, `safe-release`
+  partial elision, `cert` profile static-proof requirement
+  (CONTRACT-007).
+- Liskov inheritance checks (CONTRACT-004, CONTRACT-005).
+
+### Files touched
+
+- `compiler/nucleor_s1_compiler.nr`: `collect_fn_ensures` +
+  `lookup_fn_ensure_expr`, ensure pre-pass at the main pipeline,
+  `lower_fn` signature extension, ensure-emit at two tail-
+  return sites. ~110 lines added.
+- `tests/features/rfc0006_ensure_basic.nr`: new fixture (4 cases).
+- `tools/verify.sh`: `t_rfc0006_ensure_runtime` step + reg.
+- `bootstrap/nucleor_s1_seed.ll`: refreshed.
+
 ## [0.4.245] — 2026-04-30
 
 **🎯 RFC-0006 Design by Contract — `#[require(EXPR)]` LIVE
