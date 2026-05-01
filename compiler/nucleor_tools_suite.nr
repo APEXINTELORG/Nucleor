@@ -2623,6 +2623,12 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "panic_mul") { return "__nucleor_panic_mul_i64"; };
     if str_eq(name, "panic_div") { return "__nucleor_panic_div_i64"; };
     if str_eq(name, "panic_rem") { return "__nucleor_panic_rem_i64"; };
+    if str_eq(name, "panic_div_i32") { return "__nucleor_panic_div_i32"; };
+    if str_eq(name, "panic_rem_i32") { return "__nucleor_panic_rem_i32"; };
+    if str_eq(name, "panic_div_i16") { return "__nucleor_panic_div_i16"; };
+    if str_eq(name, "panic_rem_i16") { return "__nucleor_panic_rem_i16"; };
+    if str_eq(name, "panic_div_i8") { return "__nucleor_panic_div_i8"; };
+    if str_eq(name, "panic_rem_i8") { return "__nucleor_panic_rem_i8"; };
     if str_eq(name, "panic_neg") { return "__nucleor_panic_neg_i64"; };
     if str_eq(name, "panic_shl") { return "__nucleor_panic_shl_i64"; };
     if str_eq(name, "panic_shr") { return "__nucleor_panic_shr_i64"; };
@@ -4235,6 +4241,14 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_panic_div_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_rem_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_neg_i64(i64)\n");
+    // v0.5.10: narrow-width div/rem panic helpers (mirror of
+    // nucleor_s1_compiler.nr — drift gate enforces this).
+    sb_append(sb, "declare i64 @__nucleor_panic_div_i32(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_rem_i32(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_div_i16(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_rem_i16(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_div_i8(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_rem_i8(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_shl_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_shr_i64(i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_infer_var_type(ptr, ptr)\n");

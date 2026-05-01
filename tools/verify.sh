@@ -3865,6 +3865,26 @@ v030_deadline_overrun() {
     grep -qE 'error\[RT-004\]: #\[deadline\] overrun' $NUC_VERIFY_RUN_LOG || return 1
 }
 
+# v0.5.10: probe-agent finding 2026-05-01-i32-min-div-neg-one-windows-exception.
+# Pre-fix `i32::MIN / -1` surfaced as Windows STATUS_INTEGER_OVERFLOW
+# (rc=-1073741675) — opaque process exit, no Nucleor-side message.
+# Post-fix the narrow-arith path routes through `__nucleor_panic_div_i32`
+# which catches the corner with a clean PANIC. Asserts non-zero rc
+# (specifically NOT the Windows exception code) AND the expected stderr.
+v0510_i32_min_div_overflow() {
+    rm -f target/v0510_i32div_check.exe target/v0510_i32div_check
+    "$BIN" build tests/fixtures/v0510_i32_min_div_neg_one.nr -o "v0510_i32div_check" >$NUC_VERIFY_STEP_LOG 2>&1
+    local exe=""
+    if [ -x target/v0510_i32div_check.exe ]; then exe=target/v0510_i32div_check.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0510_i32div_check ]; then exe=target/v0510_i32div_check; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rc=$?
+    [ "$rc" -ne 0 ] || return 1
+    [ "$rc" -ne -1073741675 ] || return 1
+    grep -qE 'PANIC: i32 div overflow: i32::MIN / -1' $NUC_VERIFY_RUN_LOG || return 1
+}
+
 t28_async_threads() {
     # v0.2.353 (T2.8): async runtime — threads-only commitment.
     "$BIN" test "tests/smoke/t28_async_threads.nr" >$NUC_VERIFY_STEP_LOG 2>&1
@@ -4521,6 +4541,7 @@ step "RFC-0014 max_depth static analysis + runtime wrapper" rfc0014_max_depth_fu
 step "T3.11 bare arena_* builtins link + run end-to-end" t311_arena_builtin_smoke
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
+step "v0.5.10 i32::MIN / -1 panics cleanly (not Windows STATUS_INTEGER_OVERFLOW)" v0510_i32_min_div_overflow
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------

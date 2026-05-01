@@ -4406,6 +4406,12 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "panic_mul") { return "__nucleor_panic_mul_i64"; };
     if str_eq(name, "panic_div") { return "__nucleor_panic_div_i64"; };
     if str_eq(name, "panic_rem") { return "__nucleor_panic_rem_i64"; };
+    if str_eq(name, "panic_div_i32") { return "__nucleor_panic_div_i32"; };
+    if str_eq(name, "panic_rem_i32") { return "__nucleor_panic_rem_i32"; };
+    if str_eq(name, "panic_div_i16") { return "__nucleor_panic_div_i16"; };
+    if str_eq(name, "panic_rem_i16") { return "__nucleor_panic_rem_i16"; };
+    if str_eq(name, "panic_div_i8") { return "__nucleor_panic_div_i8"; };
+    if str_eq(name, "panic_rem_i8") { return "__nucleor_panic_rem_i8"; };
     if str_eq(name, "panic_neg") { return "__nucleor_panic_neg_i64"; };
     if str_eq(name, "panic_shl") { return "__nucleor_panic_shl_i64"; };
     if str_eq(name, "panic_shr") { return "__nucleor_panic_shr_i64"; };
@@ -6215,6 +6221,16 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_panic_div_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_rem_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_neg_i64(i64)\n");
+    // v0.5.10: narrow-width div/rem panic helpers (probe finding
+    // 2026-05-01-i32-min-div-neg-one-windows-exception). Args/return
+    // are i64-typed per the call-site ABI; the helpers truncate to
+    // native iN internally for the iN_MIN/-1 + zero checks.
+    sb_append(sb, "declare i64 @__nucleor_panic_div_i32(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_rem_i32(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_div_i16(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_rem_i16(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_div_i8(i64, i64)\n");
+    sb_append(sb, "declare i64 @__nucleor_panic_rem_i8(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_shl_i64(i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_panic_shr_i64(i64, i64)\n");
     sb_append(sb, "declare ptr @__nucleor_infer_var_type(ptr, ptr)\n");
@@ -16403,7 +16419,38 @@ fn lower_expr_narrow(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lb
         let arith_mode: i64 = sym_get(sym, "__arith_mode");
         let sat_helper: str = arith_width_helper_name(iop, tw, arith_mode);
         let strict_intrin: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
-        if str_len(sat_helper) > 0 {
+        // v0.5.10: narrow-width signed div/rem (iop 5/6 with tw>0) routes
+        // through `panic_div_iN` / `panic_rem_iN` runtime helpers so the
+        // iN_MIN/-1 corner panics with a clean Nucleor message rather than
+        // surfacing as Windows STATUS_INTEGER_OVERFLOW (rc=-1073741675) or
+        // SIGFPE on POSIX. Mirrors the existing i64 panic_div path; closes
+        // probe finding 2026-05-01-i32-min-div-neg-one-windows-exception.
+        // Unsigned divisions (tw < 0) keep the raw `udiv` path — there is
+        // no MIN/-1 trap for unsigned widths.
+        let mut narrow_div_helper: str = "";
+        if (iop == 5 || iop == 6) && tw > 0 {
+            if iop == 5 {
+                if tw == 32 { narrow_div_helper = "panic_div_i32"; };
+                if tw == 16 { narrow_div_helper = "panic_div_i16"; };
+                if tw == 8 { narrow_div_helper = "panic_div_i8"; };
+            } else {
+                if tw == 32 { narrow_div_helper = "panic_rem_i32"; };
+                if tw == 16 { narrow_div_helper = "panic_rem_i16"; };
+                if tw == 8 { narrow_div_helper = "panic_rem_i8"; };
+            };
+        };
+        if str_len(narrow_div_helper) > 0 {
+            let lr64: i64 = ctr_next(regs);
+            ir_block_add(blk3, ir_sext(lr64, lr, aw));
+            let rr64: i64 = ctr_next(regs);
+            ir_block_add(blk3, ir_sext(rr64, rr, aw));
+            let mut sa: Vec<i32> = Vec::new();
+            sa.push(lr64);
+            sa.push(rr64);
+            let hr: i64 = ctr_next(regs);
+            ir_block_add(blk3, ir_call_ex(hr, narrow_div_helper, sa));
+            ir_block_add(blk3, ir_trunc(nr, hr, aw));
+        } else if str_len(sat_helper) > 0 {
             let lr64: i64 = ctr_next(regs);
             if tw > 0 {
                 ir_block_add(blk3, ir_sext(lr64, lr, aw));
