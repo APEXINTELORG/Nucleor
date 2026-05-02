@@ -7070,6 +7070,7 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
             };
             if keep == 0 {
                 dce_skipped = dce_skipped + 1;
+                free_ir_fn(f);
                 fi = fi + 1;
                 continue;
             };
@@ -7093,7 +7094,9 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
             };
             seen_fns.push(fn_name);
         };
-        sb_append(sb, emit_fn(f, pool, externs)); sb_append(sb, "\n"); fi = fi + 1;
+        sb_append(sb, emit_fn(f, pool, externs)); sb_append(sb, "\n");
+        free_ir_fn(f);
+        fi = fi + 1;
     };
     if dce_active == 1 && dce_skipped > 0 {
         print(str_concat("  DCE: ", str_concat(str_from_int(dce_skipped),
@@ -22651,7 +22654,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     vec_free(bundle);
     free_node_pool(pool);
     vec_free(strtab);
-    free_ir_fns(fns);
+    vec_free(fns);
     vec_free(externs);
     vec_free(structs);
     vec_free(enums);

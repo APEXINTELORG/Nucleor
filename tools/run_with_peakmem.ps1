@@ -1,29 +1,28 @@
 # tools/run_with_peakmem.ps1 — wrap a verify.sh invocation, sample
-# subtree memory cheaply (Get-Process by name, filtered to current
-# session), track peak, kill the tree at 1 GB hard e-stop, and append
-# a run-summary row to the CSV.
+# launched process-tree memory, track peak, kill the tree at 1 GB hard
+# e-stop, and append a run-summary row to the CSV.
 #
-# Cheap sampler design (vs the old CIM/Win32_Process tree walk):
+# Sampler design:
 #   - poll once per second (default)
-#   - filter Get-Process by SessionId == current session
-#   - filter by image name set: nucleor, clang, bash, sh, python, conhost
-#   - sum WorkingSet64 across matched processes
-#   - no Get-CimInstance calls (those are 100s of ms each)
+#   - query the Windows process table for parent/child relationships
+#   - walk descendants from the launched bash process
+#   - add repo-rooted Git-Bash/MSYS worker processes started during this run
+#     because MSYS sometimes reports xargs/workers outside the Win32 parent tree
+#   - sum WorkingSet64 across the tracked verify workload
 #
-# 1 GB e-stop: hard ceiling. If subtree sum >= 1 GB at any sample,
-# the entire process tree (verify.sh + descendants) is killed via
+# 1 GB e-stop: hard ceiling. If tracked sum >= 1 GB at any sample,
+# the tracked verify workload is killed via
 # `taskkill /T /F /PID <id>`. The run-summary row records the kill.
 #
 # v0.5.30 robustness fixes:
 #   - $ErrorActionPreference is "Continue" now, NOT "Stop".
-#     Under "Stop", a transient error in the poll loop (e.g. accessing
-#     .StartTime on a process the current user can't introspect, or a
-#     short-lived clang.exe that exited between Get-Process and the
-#     property read) terminated the entire script mid-run with no
+#     Under "Stop", a transient error in the poll loop (e.g. a
+#     short-lived child process exiting between process-table sampling
+#     and WorkingSet64 reads) terminated the entire script mid-run with no
 #     summary row written. parallel-1 hit this on the env-off full
 #     run reaching [669/697] without a summary.
-#   - .StartTime access is now wrapped per-process. If the access
-#     throws, the process is silently skipped from this poll's sum.
+#   - Per-process memory reads are wrapped. If a child exits between
+#     tree discovery and memory sampling, it is skipped for this poll.
 #   - The main body is wrapped in try/finally so the summary-row
 #     append fires on EVERY exit path — normal exit, e-stop kill,
 #     unhandled exception. The CSV always gets the summary row,
@@ -36,7 +35,7 @@
 #   wall_seconds = total wall time of the verify invocation
 #   status = PASS if exit==0 and !killed, FAIL if exit!=0, KILLED if e-stop fired,
 #            CRASH if the wrapper itself caught an exception (rare, surfaced)
-#   peak_mb = max sum-of-subtree memory observed across all samples (MB)
+#   peak_mb = max tracked verify workload memory observed across all samples (MB)
 #   killed = "1" if e-stop fired, "0" otherwise
 #   last_index = highest STEP_INDEX seen in this run's per-step rows at exit time
 #
@@ -58,8 +57,8 @@ param(
     [int]$PollMs = 1000
 )
 
-# v0.5.30: NOT "Stop". Transient errors in the poll loop (Get-Process
-# access denials, short-lived process .StartTime reads) must NOT
+# v0.5.30: NOT "Stop". Transient errors in the poll loop (Get-CimInstance
+# failures, Get-Process access denials, short-lived child exits) must NOT
 # terminate the wrapper. We handle errors explicitly where they matter.
 $ErrorActionPreference = "Continue"
 
@@ -76,10 +75,6 @@ foreach ($c in $bashCandidates) {
 }
 if (-not $bash) { $bash = "bash.exe" }
 
-# Names to sum. Anything verify.sh might spawn during a Nucleor build/test.
-# Keep this tight to avoid false positives from unrelated user processes.
-$names = @("nucleor","nucleor_tools","clang","clang++","ld","ld.lld","lld-link","python","bash","sh","conhost","cmd")
-
 # Resolve CSV path (mirror verify.sh logic) so we can append the summary
 # row at the same path verify.sh writes per-step rows to.
 $csvOverride = $env:NUC_VERIFY_CSV
@@ -90,8 +85,107 @@ if ($csvOverride) {
     $csvPath = Join-Path $root "tools\verify_timings.$agent.csv"
 }
 
-$mySessionId = $null
-try { $mySessionId = (Get-Process -Id $PID).SessionId } catch { $mySessionId = 0 }
+function Convert-ToMsysPath([string]$Path) {
+    $full = [System.IO.Path]::GetFullPath($Path).TrimEnd('\')
+    if ($full -match '^([A-Za-z]):\\(.*)$') {
+        return "/" + $matches[1].ToLowerInvariant() + "/" + ($matches[2] -replace '\\', '/')
+    }
+    return ($full -replace '\\', '/')
+}
+
+function Convert-ProcCreationTime($CreationDate) {
+    if ($CreationDate -is [DateTime]) { return [DateTime]$CreationDate }
+    try { return [Management.ManagementDateTimeConverter]::ToDateTime([string]$CreationDate) } catch { }
+    try { return [DateTime]$CreationDate } catch { return [DateTime]::MinValue }
+}
+
+function Test-RepoRootedVerifyProcess($Proc, [DateTime]$StartedAt, [string]$RepoRoot, [string]$RepoRootMsys) {
+    $created = Convert-ProcCreationTime $Proc.CreationDate
+    if ($created -lt $StartedAt.AddSeconds(-2)) { return $false }
+
+    $name = [string]$Proc.Name
+    $cmd = [string]$Proc.CommandLine
+    $exe = [string]$Proc.ExecutablePath
+
+    if (-not [string]::IsNullOrWhiteSpace($exe) -and
+        $exe.StartsWith($RepoRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        return $true
+    }
+
+    if ([string]::IsNullOrWhiteSpace($cmd)) { return $false }
+    $mentionsRepo = ($cmd.IndexOf($RepoRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0) -or
+        ($cmd.IndexOf($RepoRootMsys, [StringComparison]::OrdinalIgnoreCase) -ge 0)
+    if (-not $mentionsRepo) { return $false }
+
+    $lower = $name.ToLowerInvariant()
+    if ($lower -in @(
+        "bash.exe", "sh.exe", "dash.exe", "xargs.exe",
+        "nucleor.exe", "clang.exe", "clang++.exe", "lld-link.exe",
+        "ld.exe", "gcc.exe", "g++.exe", "cc1.exe", "cc1plus.exe", "cmd.exe"
+    )) {
+        return $true
+    }
+
+    if ($lower -in @("powershell.exe", "pwsh.exe")) {
+        return ($cmd.IndexOf("measure_peak_build.ps1", [StringComparison]::OrdinalIgnoreCase) -ge 0)
+    }
+
+    # Fixture executables are emitted under target/_pv_* and then run by
+    # relative path from the repo root, so their executable path is the most
+    # reliable signal. Keep this fallback for command-line-only process rows.
+    return ($cmd.IndexOf("/target/_pv_", [StringComparison]::OrdinalIgnoreCase) -ge 0) -or
+        ($cmd.IndexOf("\target\_pv_", [StringComparison]::OrdinalIgnoreCase) -ge 0)
+}
+
+function Get-VerifyProcessIds([int]$RootPid, [DateTime]$StartedAt, [string]$RepoRoot, [string]$RepoRootMsys) {
+    $childrenByParent = @{}
+    $processes = $null
+    try {
+        $processes = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue
+        $processes | ForEach-Object {
+                $ppid = [int]$_.ParentProcessId
+                if (-not $childrenByParent.ContainsKey($ppid)) {
+                    $childrenByParent[$ppid] = New-Object System.Collections.Generic.List[int]
+                }
+                $childrenByParent[$ppid].Add([int]$_.ProcessId)
+            }
+    } catch {
+        return ,$RootPid
+    }
+
+    $ids = New-Object System.Collections.Generic.HashSet[int]
+    $queue = New-Object System.Collections.Generic.Queue[int]
+    $queue.Enqueue($RootPid)
+
+    foreach ($p in $processes) {
+        if (Test-RepoRootedVerifyProcess $p $StartedAt $RepoRoot $RepoRootMsys) {
+            $queue.Enqueue([int]$p.ProcessId)
+        }
+    }
+
+    while ($queue.Count -gt 0) {
+        $id = $queue.Dequeue()
+        if (-not $ids.Add($id)) { continue }
+        if ($childrenByParent.ContainsKey($id)) {
+            foreach ($childId in $childrenByParent[$id]) {
+                $queue.Enqueue([int]$childId)
+            }
+        }
+    }
+    $result = New-Object System.Collections.Generic.List[int]
+    foreach ($id in $ids) {
+        $result.Add([int]$id)
+    }
+    return $result.ToArray()
+}
+
+function Stop-TrackedVerifyProcesses([int[]]$Ids, [int]$RootPid) {
+    try { & taskkill /T /F /PID $RootPid 2>&1 | Out-Null } catch { }
+    foreach ($id in ($Ids | Sort-Object -Unique)) {
+        if ($id -eq $PID) { continue }
+        try { & taskkill /F /PID $id 2>&1 | Out-Null } catch { }
+    }
+}
 
 $psi = New-Object System.Diagnostics.ProcessStartInfo
 $psi.FileName = $bash
@@ -115,6 +209,8 @@ Write-Host "[peakmem] launching: bash tools/verify.sh $VerifyArgs"
 Write-Host "[peakmem] e-stop: $EstopMb MB; poll: ${PollMs}ms; csv: $csvPath"
 
 $start = Get-Date
+$rootFull = [System.IO.Path]::GetFullPath($root).TrimEnd('\')
+$rootMsys = Convert-ToMsysPath $rootFull
 $peakBytes = 0L
 $samples = 0
 $killed = $false
@@ -122,47 +218,32 @@ $estopBytes = [int64]$EstopMb * 1MB
 $proc = $null
 $exitCode = 2          # default = wrapper crash (overwritten on normal/killed exit)
 $crashMsg = $null
+$lastTrackedIds = @()
 
 # v0.5.30: try/finally guarantees the summary row write below runs on
 # every exit path. The previous version exited mid-poll on transient
-# Get-Process / .StartTime exceptions and never appended a summary.
+# Get-Process/CIM exceptions and never appended a summary.
 try {
     $proc = [System.Diagnostics.Process]::Start($psi)
-    # Scope sampling to processes that started AT OR AFTER our launch.
-    # Cheap heuristic that excludes pre-existing bash/clang/python processes
-    # (e.g. another agent's session, this Claude Code's own shell) from the
-    # subtree sum. Add a small clock skew tolerance.
-    $startCutoff = $start.AddSeconds(-2)
-
     while (-not $proc.HasExited) {
         Start-Sleep -Milliseconds $PollMs
         $sum = 0L
         $matchedCount = 0
-        foreach ($n in $names) {
-            $procs = $null
-            try { $procs = Get-Process -Name $n -ErrorAction SilentlyContinue } catch { $procs = $null }
-            if ($null -ne $procs) {
-                foreach ($p in $procs) {
-                    # v0.5.30: per-process try/catch. .StartTime throws
-                    # InvalidOperationException on protected/dying processes.
-                    # Skip them silently rather than tearing down the script.
-                    $sid = -1
-                    $st  = $null
-                    try { $sid = $p.SessionId } catch { continue }
-                    if ($sid -ne $mySessionId) { continue }
-                    try { $st = $p.StartTime } catch { continue }
-                    if ($null -eq $st) { continue }
-                    if ($st -lt $startCutoff) { continue }
-                    try { $sum += $p.WorkingSet64; $matchedCount++ } catch { }
-                }
-            }
+        $trackedIds = Get-VerifyProcessIds $proc.Id $start $rootFull $rootMsys
+        $lastTrackedIds = $trackedIds
+        foreach ($id in $trackedIds) {
+            try {
+                $p = Get-Process -Id $id -ErrorAction Stop
+                $sum += $p.WorkingSet64
+                $matchedCount++
+            } catch { }
         }
         if ($sum -gt $peakBytes) { $peakBytes = $sum }
         $samples++
         if ($sum -ge $estopBytes) {
             Write-Host ""
-            Write-Host "[peakmem] *** E-STOP TRIPPED *** subtree=$([math]::Round($sum/1MB)) MB >= ${EstopMb} MB across $matchedCount procs; killing tree"
-            try { & taskkill /T /F /PID $proc.Id 2>&1 | Out-Null } catch { }
+            Write-Host "[peakmem] *** E-STOP TRIPPED *** tracked=$([math]::Round($sum/1MB)) MB >= ${EstopMb} MB across $matchedCount procs; killing verify workload"
+            Stop-TrackedVerifyProcesses $trackedIds $proc.Id
             $killed = $true
             break
         }
@@ -177,7 +258,7 @@ catch {
     Write-Host ""
     Write-Host "[peakmem] !! WRAPPER CAUGHT EXCEPTION: $crashMsg"
     if ($null -ne $proc -and -not $proc.HasExited) {
-        try { & taskkill /T /F /PID $proc.Id 2>&1 | Out-Null } catch { }
+        Stop-TrackedVerifyProcesses $lastTrackedIds $proc.Id
     }
     $exitCode = 2
 }

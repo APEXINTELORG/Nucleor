@@ -60,10 +60,10 @@ ties to its peak-memory observation.
 ### Toolchain
 
 - **`tools/run_with_peakmem.ps1`** — wraps a `verify.sh` invocation,
-  polls subprocess-tree memory once per second (Get-Process, scoped to
-  this session and StartTime ≥ launch), tracks peak, **kills the entire
-  tree at 1 GB hard e-stop** (configurable via `-EstopMb`), appends a
-  run-summary row to the CSV.
+  polls memory once per second from the launched `bash` tree plus
+  repo-rooted Git-Bash/MSYS workers started during the same run, tracks
+  peak, **kills the verify workload at 1 GB hard e-stop** (configurable
+  via `-EstopMb`), appends a run-summary row to the CSV.
 - **`tools/check_mem_regression.sh`** — reads the CSV, computes rolling
   per-step time stats (mean ± stddev) and per-run peak-mem stats over
   the last K runs (default 20), flags any step whose last run drifted
