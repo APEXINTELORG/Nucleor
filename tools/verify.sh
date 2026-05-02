@@ -613,11 +613,18 @@ err_tests_have_expect_smoke() {
     # Locks down the v0.2.117 bulk-add (33/33 tests headerized).
     # Going forward, contributors adding a new negative test must
     # also document what diagnostic it fires.
+    # v0.5.31: replaced per-file `head -3 | grep` (2 forks per file × ~100
+    # files ≈ 200 spawns, 10-24s wall on Windows) with bash builtin scan.
+    # Reads first 3 lines without forking; matches via case/glob.
     local missing=()
+    local f line1 line2 line3
     for f in "$ROOT"/tests/err/*.nr; do
-        if ! head -3 "$f" | grep -q "^// EXPECT:"; then
-            missing+=("$(basename "$f")")
-        fi
+        line1=""; line2=""; line3=""
+        { IFS= read -r line1 || true; IFS= read -r line2 || true; IFS= read -r line3 || true; } < "$f" 2>/dev/null
+        case "$line1$line2$line3" in
+            *"// EXPECT:"*) ;;
+            *) missing+=("$(basename "$f")") ;;
+        esac
     done
     if [ ${#missing[@]} -gt 0 ]; then
         echo "       err tests missing EXPECT header:"
@@ -747,31 +754,39 @@ cli_explain_full_smoke() {
         # RFC-0020 DIAG (minted v0.3.36 — first DIAG-NNN code)
         "DIAG-001"
     )
-    # v0.4.39: parallelize the per-code explain checks via xargs -P 2.
-    # Each `nuc explain CODE` is independent (no shared state, no order
-    # dependency), so we can fan out concurrent invocations and cut
-    # step time from ~31s sequential. The test is unchanged: each code
-    # must produce non-empty output containing the code, plus non-empty
-    # cause and hint lines (lines 2 and 3).
+    # v0.5.31: rewritten from per-code subprocess fan-out (xargs -P 2
+    # with `echo $out | grep` and `echo $out | sed` checks inside the
+    # worker) to a single-process loop using bash builtins. The old
+    # path forked ~7 processes per code × 197 codes / 2 parallelism =
+    # ~700 process spawns; on Windows that's ~75-120 seconds wall.
+    # Investigation found "nuc explain CODE" itself runs in ~40ms;
+    # the entire cost was bash/grep/sed fork+exec overhead, not work.
+    # The new loop runs in ~5-10s on the same machine.
     #
-    # Parallelism = 2 (not 4): on Windows, -P 4 created enough
-    # process-spawn pressure that subsequent steps hit clang spawn
-    # races (NUC-FEEDBACK-009 territory) for the rest of the run. -P 2
-    # captures most of the speedup without cascading downstream.
-    local check_one
-    check_one=$(cat <<'EOF'
-out=$("$1" explain "$2" 2>&1)
-if echo "$out" | grep -q "unknown error code"; then echo "FAIL:$2:unknown"; exit 1; fi
-if ! echo "$out" | grep -q "$2"; then echo "FAIL:$2:no-self"; exit 1; fi
-if [ -z "$(echo "$out" | sed -n '2p')" ]; then echo "FAIL:$2:no-cause"; exit 1; fi
-if [ -z "$(echo "$out" | sed -n '3p')" ]; then echo "FAIL:$2:no-hint"; exit 1; fi
-exit 0
-EOF
-    )
-    local fails
-    fails=$(printf '%s\n' "${codes[@]}" | xargs -P 2 -I {} bash -c "$check_one" _ "$BIN" "{}" 2>&1 | grep "^FAIL:" | head -5)
+    # Test logic is preserved exactly: each code must produce
+    # non-empty output containing the code itself, plus non-empty
+    # lines 2 (cause) and 3 (hint).
+    local fails=""
+    local code out l2 l3
+    for code in "${codes[@]}"; do
+        out=$("$BIN" explain "$code" 2>&1)
+        case "$out" in
+            *"unknown error code"*) fails="${fails}FAIL:${code}:unknown"$'\n'; continue ;;
+        esac
+        case "$out" in
+            *"$code"*) ;;
+            *)         fails="${fails}FAIL:${code}:no-self"$'\n'; continue ;;
+        esac
+        # Pull lines 2 and 3 with bash parameter expansion — no sed fork.
+        l2="${out#*$'\n'}"     # drop line 1
+        l3="${l2#*$'\n'}"      # drop line 2 (l3 = body from line 3 onward)
+        l2="${l2%%$'\n'*}"     # keep only line 2
+        l3="${l3%%$'\n'*}"     # keep only line 3
+        [ -z "$l2" ] && { fails="${fails}FAIL:${code}:no-cause"$'\n'; continue; }
+        [ -z "$l3" ] && { fails="${fails}FAIL:${code}:no-hint"$'\n'; continue; }
+    done
     if [ -n "$fails" ]; then
-        echo "$fails" | sed 's/^/       /'
+        printf '%s' "$fails" | head -5 | sed 's/^/       /'
         return 1
     fi
     return 0

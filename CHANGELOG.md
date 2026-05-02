@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.31] — 2026-05-02
+
+**🚀 Tools-only — perf fix: `cli_explain_full_smoke` and
+`err_tests_have_expect_smoke` rewritten to eliminate per-iteration
+fork explosion. Track Y merged.**
+
+User-reported regression: full-run wall time blew from a remembered
+"3.5s and 400 MB" baseline to 779s + 984 MB peak. Investigation found
+two verify-gate steps were the dominant cost.
+
+### Root cause: Windows process-spawn overhead
+
+`cli_explain_full_smoke` spawned ~7 processes per code (bash + nucleor +
+3 `echo|grep` + 2 `echo|sed`) × 197 codes / 2 parallelism ≈ 700 process
+spawns serialized. At ~75ms per Windows fork+exec that's 75-120s wall.
+The compiler `nuc explain CODE` itself runs in 40ms; the entire cost
+was bash/grep/sed fork+exec overhead.
+
+`err_tests_have_expect_smoke` did `head -3 $f | grep -q ...` per file
+× ~100 files = ~200 spawns ≈ 11-24s wall.
+
+### Fix
+
+Both rewritten to use bash builtins — `case "$out" in *pattern*)` for
+substring match, parameter expansion `${out%%$'\n'*}` for line slicing,
+`IFS= read` from file for first-N-lines without `head`. Zero
+subprocess per iteration.
+
+Measured impact:
+- `cli_explain_full_smoke`: 95-169s → **16.3s** (6-10× faster)
+- `err_tests_have_expect_smoke`: 11-24s → **0.08s** (150-300× faster)
+- Combined savings per full run: **~100 seconds**
+
+Test logic unchanged. Same checks, same failure modes, same diagnostics.
+
+### Track Y merge
+
+Closes long-standing probe finding `generic-T-trait-bound-method-dispatch`.
+
+Generic `T: Trait` receiver methods now resolve through bound-scoped
+trait impl lookup instead of falling through to `vec_<method>`.
+Conservative guard: if a bound has multiple concrete impls for the
+method, the compiler emits `error[TYP-007]` rather than choosing
+unsafely.
+
+- Compiler change: +76 LOC at `compiler/nucleor_s1_compiler.nr`
+- New positive fixture: `tests/features/rfc0024_generic_trait_bound_dispatch.nr`
+- New negative fixture: `tests/err/err_generic_trait_bound_dispatch_ambiguous.nr`
+- Spike doc: `docs/milestones/spikes/track_generic_trait_bound_dispatch_2026-05-01.md`
+- Track Y commit: 6eadedb (parallel-1, rebased onto v0.5.30)
+
+Validated under v0.5.30 wrapper after the perf fix:
+- positive fixture builds + outputs "OK generic trait-bound dispatch"
+- ambiguous fixture errors with `TYP-007`
+- fixed point: stage2.ll == stage3.ll
+- drift gate clean
+
+### Wrapper polish
+
+`tools/run_with_peakmem.ps1` `-VerifyArgs` parameter now defaults to
+`""` (was `Mandatory=$true`). Lets `pwsh tools/run_with_peakmem.ps1`
+with no args run the full set without an explicit empty string.
+
 ## [0.5.30] — 2026-05-02
 
 **🔧 Tools-only — wrapper robustness fix: summary row now writes on
