@@ -328,7 +328,7 @@ allocation in `#[no_alloc]`, `RT-002` for panicking calls in
 `#[no_panic]`, `RT-008` for direct recursion in `#[deadline]`
 without a `#[max_depth = N]` opt-out (RFC-0014).
 
-## Atomics (RFC-0007 partial)
+## Atomics (RFC-0007)
 
 ```nr
 import "stdlib/rods/atomic.nr"
@@ -345,10 +345,91 @@ fn main() -> i32 {
 
 Sequentially-consistent `AtomicI64` ops — load, store, fetch-add,
 fetch-sub, fetch-and / or / xor, CAS — backed by Win32
-`Interlocked*` and C11 stdatomic. **Deferred to v0.5.0+:** the
-`#[atomic]` attribute, `Atomic<T>` for non-i64 widths,
-Relaxed/Acquire/Release ordering variants, and SPSC/MPMC lock-free
-queues built on top.
+`Interlocked*` and C11 stdatomic. **Shipped in v0.4.273 (Track G):**
+ordered ops with `MemOrder::{Relaxed, Acquire, Release, AcqRel, SeqCst}`
+plus `AtomicBool` + `AtomicI64::swap_*` ordered helpers. **Shipped in
+v0.4.274 (Track H):** lock-free `SpscQueue<T>` (single-producer single-
+consumer) and `MpscQueue<T>` (multi-producer single-consumer) built on
+the atomics surface. See `examples/06_perf_attrs.nr` and
+`stdlib/rods/queue_spsc.nr` / `queue_mpsc.nr`.
+
+## Bounded recursion (RFC-0014, v0.4 + v0.6)
+
+```nr
+#[max_depth = 100]
+fn deep_traversal(depth: i64, n: i64) -> i64 {
+    if depth >= 100 { return n; }
+    deep_traversal(depth + 1, n + 1)
+}
+```
+
+`#[max_depth = N]` declares a static recursion bound. The static
+prover accepts the recursion if it can show the body always exits
+within `N` self-calls; otherwise emits `error[DEPTH-001]`. Runtime
+verification fires `error[DEPTH-003]` if a per-fn TLS counter
+exceeds `N` (defence-in-depth — should never trip on a body the
+static prover accepted).
+
+**Proven shapes accepted (v0.6 extensions):** canonical (`if depth
+>= N { return base; }` / `recurse(depth + 1, ...)`), parameter-flow
+(counter is not the first arg or named `depth`), stride-bound
+(`depth + K` with constant `K > 0`), helper-guard (entry-guard
+factored into a helper fn), no-recurse-callback (calling a
+non-recursive callback inside the body). See
+`examples/26_max_depth_tour.nr` and `tests/features/rfc0014_max_depth_*.nr`.
+
+## Effects in function types (RFC-0033 substrate, v0.6)
+
+```nr
+fn pure_inc(x: i64) -> i64 with [no_alloc, no_panic] {
+    return x + 1;
+}
+
+fn apply_pure(
+    cb: fn(i64) -> i64 with [no_alloc, no_panic],
+    x: i64,
+) -> i64 with [no_alloc, no_panic] {
+    return cb(x);
+}
+
+extern fn host_known(x: i64) -> i64 with [no_alloc, no_panic];
+```
+
+The `with [...]` effect annotation moves the effect contract from
+fn-decl attributes into the function *type*. A callback whose type
+doesn't match the declared effect set is rejected at the call site
+rather than discovered after lowering. Diagnostics: `EFF-001..005`
+(see `CHANGELOG.md` `[0.6.0]` for the full set). Substrate ships in
+v0.6.0; gradual migration of stdlib declarations to the `with [...]`
+form will land across v0.6.x ships. See
+`examples/27_effects_with_tour.nr`.
+
+## Tail expression vs statement (TYP-026, v0.6.1)
+
+```nr
+// v0.6.1: error[TYP-026] — trailing `;` discards the value but the
+// fn declares a non-void return.
+fn nothing() -> i32 {
+    5;          // ← error[TYP-026]
+}
+
+// Migrate by dropping the `;` (real tail expression):
+fn nothing_ok() -> i32 {
+    5
+}
+
+// …or keep the `;` and use an explicit return:
+fn nothing_explicit() -> i32 {
+    return 5;
+}
+```
+
+Pre-v0.6.1 the parser silently ate the trailing `;` on a fn-body
+tail expression and the lowerer treated the value as the return,
+producing a silent miscompute that aligned with the value-producing
+intent only by accident. v0.6.1 tracks `had_semi` on the kind-25
+tail-expr AST node; TYP-026 fires on `kind-25 + had_semi==1` with
+the same shape as the kind-20 (let) and kind-21 (assign) checks.
 
 ## Imports
 
