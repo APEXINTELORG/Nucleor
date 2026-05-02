@@ -190,7 +190,11 @@ check_manifest() {
         cp "$snapshot" "$manifest_path"
         return 1
     }
-    if ! diff -q "$snapshot" "$manifest_path" >/dev/null 2>&1; then
+    local snapshot_norm="$TMP/$(basename "$manifest_path").snapshot.norm"
+    local generated_norm="$TMP/$(basename "$manifest_path").generated.norm"
+    tr -d '\r' < "$snapshot" > "$snapshot_norm"
+    tr -d '\r' < "$manifest_path" > "$generated_norm"
+    if ! diff -q "$snapshot_norm" "$generated_norm" >/dev/null 2>&1; then
         echo ""
         echo "FAIL: $manifest_path is stale."
         echo "Re-run the generator and commit the result:"
@@ -199,6 +203,7 @@ check_manifest() {
         cp "$snapshot" "$manifest_path"
         return 1
     fi
+    cp "$snapshot" "$manifest_path"
     echo "OK: $(basename "$manifest_path") is up to date"
     return 0
 }

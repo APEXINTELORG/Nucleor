@@ -199,6 +199,14 @@ self_host_peak_at_v0.6.9: 661 MB / 5.38s wall (stage1), 672 MB / 6.37s wall (sta
 isr_smoke_at_v0.6.9: rfc0008_isr_minimal builds + runs OK; err_isr_001 fires canonical ISR-001 diag
 parallel_1_lane_A_state: SHIPPED via dfa1d48 / v0.6.9 (this ship)
 parallel_1_lane_B_state: still in flight (vec inline-data audit not pushed yet)
+
+# === APPEND 2026-05-02 PM — parallel-1 RFC-0034 compile-time params parser ===
+last_parallel1_focus: spike/v06-compile-time-params-parser
+parallel1_base: origin/main v0.6.13 (98c13f4)
+parallel1_scope: RFC-0034 parser-only [] compile-time parameter substrate; no specialization/value semantics yet
+parallel1_validation: fixed-point PASS; focused RFC-0034 PASS; drift/tools/header slice PASS; diff-check pending final amend
+parallel1_peak: self-host max 687 MB / 770 MB tight cap; tools-suite 449 MB / 580 MB tight cap; verify wrapper max 676 MB / 1024 MB e-stop
+parallel1_note: tools/check_compiler_drift.sh now normalizes CRLF/LF for generated-manifest freshness checks and restores generated snapshots on success.
 verify_gate_v0.6.9: 733/733 PASS / 0 FAIL / 0 SKIP / 853s wall.
 
 # === APPEND 2026-05-02 PM (v0.6.11) — probe finding closure ===
