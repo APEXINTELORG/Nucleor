@@ -77,6 +77,13 @@ together on a single tight inner loop.
 |---|---|---|---|
 | 25 | [25_patterns_tour.nr](25_patterns_tour.nr) | Pattern matching tour | RFC-0023 pattern matching forms and diagnostics |
 
+### Tier 6 — v0.6.x feature showcase
+
+| # | File | Topic | RFC attrs / language features |
+|---|---|---|---|
+| 26 | [26_max_depth_tour.nr](26_max_depth_tour.nr) | `#[max_depth]` static recursion bound | RFC-0014 (canonical + parameter-flow shape) |
+| 27 | [27_effects_with_tour.nr](27_effects_with_tour.nr) | `with [...]` effects-in-function-types | RFC-0033 substrate (no_alloc / no_panic on fn types and fn-pointer params) |
+
 ### Showcase
 
 `showcase/` contains larger programs that span multiple rods.
