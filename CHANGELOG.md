@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] — 2026-05-02
+
+**v0.6.0 cut — RFC-0014 max_depth extensions + RFC-0033 effects-types
+substrate, both consultant tracks integrated.**
+
+Two parallel-1 spike branches rebased onto v0.5.35 and merged at
+`751a095` ("v0.6.0-pre: integrate effects-types onto max-depth-extensions"):
+
+- `v06-track-max-depth-extensions` (`3495cb0`) — RFC-0014 extensions:
+  helper-guard, no-recurse-callback, param-flow, SCC, stride positive
+  fixtures + 5 negative DEPTH-001/002/003 err fixtures. Compiler change
+  `+315 LOC`.
+- `v06-track-effects-types-mem-tightened` (`b9ea012`) — RFC-0033
+  effects-in-function-types substrate. New diagnostics EFF-003 et al.
+  Effects-aware tooling: `tools/rss_estop_lib.ps1`,
+  `tools/run_with_rss_estop.ps1`, `tools/run_verify_rss_estop.ps1`,
+  `tools/measure_peak_build.ps1` + `tools/check_perf_regression.ps1`
+  refresh. Compiler change `+156 LOC`.
+
+### Validation
+
+- Self-host fixed point: stage1/2/3 byte-identical (md5 `b399b750…`).
+- Self-host peak: 597 MB / 4.665s wall.
+- Tools-suite peak: 397 MB / 3.839s wall.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- **Full verify gate: 721/721 PASS / 0 FAIL / 0 SKIP / 710s wall.**
+- New surface exercised: step 715 (`RFC-0014 max_depth static analysis +
+  runtime wrapper`), T3.33 RFC-0033 effects checks (steps 711, 712).
+
+### Known issue (open)
+
+Flaky `error[OWN-008]` on stage1 self-host of `priv_mangle_private_fns` —
+heap-corruption path beyond the v0.5.32 `vec_insert_at` fix. Stage2/3
+always pass. Filed in `findings/inbox/_questions.md` for probe-agent
+isolation. Not blocking the v0.6.0 cut (gate is fully green).
+
 ## [0.5.33] — 2026-05-02
 
 **Drift fix — `RELEASES.md` regen for v0.5.32.**

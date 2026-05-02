@@ -223,3 +223,39 @@ and main has shipped through v0.4.267 since.
    one shape going forward.
 
 Replied via heartbeat is fine; no need to file as a finding.
+
+---
+
+## 2026-05-02 (during v0.6.0-pre integration ship 751a095) — OPEN
+
+Flaky `error[OWN-008]: cannot assign to immutable binding 'p'` at
+`fn priv_mangle_private_fns@line 26626:4` during stage1 self-host.
+Stage2 and stage3 (same source, same bin from stage1) always pass.
+Re-run on stage1 also passes. Symptom matches the v0.5.32
+`vec_insert_at` heap-corruption pattern (clobbered `mutable_p` bit
+in the ownership table) that was supposed to be closed by the
+`vec_insert_at` inline-buffer guard.
+
+The v0.5.32 fix only patched `__nucleor_vec_insert_at`. There is
+likely **another inline-data dangling site** that fires under
+specific heap-allocation timing. Candidates:
+
+- a runtime helper I missed in v0.5.32 that mutates `v->data`
+  without checking `v == v->inline_data`
+- a code path that takes a long-lived pointer into `v->data` and
+  holds it across a `vec_push` that triggers inline → heap migration
+- a `memmove` / `memcpy` overlap on the inline buffer
+
+Repro is timing-dependent; ran ~5 stage1 builds in this session,
+saw OWN-008 once. Stage2/3 always succeed because by then no Vec
+is at `cap == 2` inline-buffer state during the critical window.
+
+Probe agent: please isolate. Suggested approach — run stage1
+self-host under a malloc tracer that flags any `realloc` or
+free-after-malloc on a pointer that was returned as `v->inline_data`
+addr; the offending site is the bug. Filing as `_questions.md`
+(not yet a formal finding) because I haven't isolated a
+deterministic repro.
+
+Cross-ref: `stdlib/runtime/nucleor_llvm_rt.c` `__nucleor_vec_*`,
+`__nucleor_vec_insert_at` already fixed in v0.5.32 (`a60131b`).
