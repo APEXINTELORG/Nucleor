@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] — 2026-05-02
+
+**typ-026 closure — `expr;` at end of non-void fn body now diagnosed.**
+
+Closes the long-deferred Repro 3 from the v0.4.219 TYP-026 ship.
+Pre-fix the parser silently ate the trailing `;` on a fn-body
+tail expression (`fn nothing() -> i32 { 5; }`) and the lowerer
+treated the kind-25 node as value-producing, so the call returned
+5 even though the user signaled "discard" via the semi. Adopters
+got silent miscompute that aligned with the value-producing
+intent only by accident.
+
+Fix: track `had_semi` as field 2 of kind-25 nodes (parse_stmt
+line ~2444). The TYP-026 check at the body-tail validation now
+fires on `kind-25 + had_semi==1` the same way it already fires on
+kind-20 (let) / kind-21 (assign). Same diag, same always-returning
+RHS escape hatch (match-with-all-arms-return, if-with-both-branches-
+return).
+
+Three `mk2(pool, 25, …)` construction sites updated to
+`mk3(pool, 25, …, 0)` to keep field-2 readable on every kind-25
+node. All 9 consumers of kind-25 read field 1 only, so the schema
+change is transparent.
+
+### Validation
+
+- Self-host fixed point: stage1/2/3 byte-identical (md5 `98112a76…`).
+- Self-host peak: 568 / 589 MB / 5.40s + 4.67s wall.
+- Tools-suite: 419 MB / 3.82s wall — clean (rules out parse regression
+  on 30k+ LOC of real Nucleor).
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- **Full verify gate: 722 / 722 PASS / 0 FAIL / 0 SKIP / 700s wall.**
+  (One extra step over v0.6.0 from the new
+  `tests/err/err_typ_026_tail_expr_with_semi.nr` negative fixture.)
+- Spot check: `fn nothing() -> i32 { 5; }` now fires `error[TYP-026]`
+  with the canonical diag.
+
+Closes spine §8.4 item #3.
+
 ## [0.6.0] — 2026-05-02
 
 **v0.6.0 cut — RFC-0014 max_depth extensions + RFC-0033 effects-types
