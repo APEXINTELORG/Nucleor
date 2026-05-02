@@ -267,6 +267,14 @@ main_round_3_lanes:
   PIVOT: docs/UPGRADE_v0.6.0.md v0.5→v0.6 migration story — DONE v0.6.2
 
 # === APPEND 2026-05-02 PM — parallel-1 RFC-0008 ISR spike ===
-last_parallel1_focus: spike/v06-rfc0008-isr
-parallel1_base: origin/main v0.6.4 (c3e9a59)
-parallel1_scope: RFC-0008 first-pass #[isr] attribute substrate, fixtures, and focused verify hook
+last_parallel1_focus_lane_a: spike/v06-rfc0008-isr (SHIPPED v0.6.9)
+parallel1_lane_a_base: origin/main v0.6.4 (c3e9a59)
+parallel1_lane_a_scope: RFC-0008 first-pass #[isr] attribute substrate, fixtures, and focused verify hook
+
+# === APPEND 2026-05-02 PM — parallel-1 vec inline-data audit ===
+last_parallel1_focus_lane_b: spike/v06-vec-inline-data-audit (integrating now)
+parallel1_lane_b_base: origin/main v0.6.8 (f6231c9) after final rebase
+parallel1_lane_b_scope: NVec inline-data audit; vec_extend self-alias fix; mem_rt inline free guard
+parallel1_lane_b_validation: focused NVec runtime ownership smoke PASS after rebase; stage1 self-host 10/10 PASS
+parallel1_lane_b_peak: focused wrapper 180 MB after rebase; post-loop max 678 MB / 770 MB tight gate
+parallel1_lane_b_note: original OWN-008 did not reproduce in 10 pre-patch stage1 runs
