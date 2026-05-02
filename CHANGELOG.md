@@ -5,6 +5,17 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.33] — 2026-05-02
+
+**Drift fix — `RELEASES.md` regen for v0.5.32.**
+
+Pure docs regen via `tools/gen_releases_index.py` to capture the v0.5.32
+ship (`a60131b`) in the navigable release index. `tools/check_compiler_drift.sh`
+now reports clean across all five gates (ABI tables, helper manifest, rod
+manifest, RELEASES.md, CHANGELOG tag coverage).
+
+No code changes.
+
 ## [0.5.32] — 2026-05-02
 
 **Memory tighten — NVec small-buffer optimization + per-fn IR free during
