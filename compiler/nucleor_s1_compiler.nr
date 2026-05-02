@@ -907,6 +907,78 @@ fn skip_where_clause(tokens: Vec<i32>, pos: i64) -> i64 {
     return cp;
 }
 
+// v0.6.11 (probe finding 2026-05-01-generic-T-trait-bound-where-clause):
+// Track Y (v0.5.31) closes the inline `<T: Trait>` form by capturing
+// `?Trait` markers in the gparams list at parse time. The where-clause
+// form `where T: Trait` was being silently skipped via `skip_where_clause`,
+// so `lower_fn`'s gparam-bound walk never saw the bound and `lower_expr`
+// kind-8 method dispatch fell through to the `vec_<method>` synthesis
+// path (clang-link `error[TYP-005]: undefined fn vec_<method>`).
+//
+// This helper mirrors the inline-form bound capture: walk `where T: A + B,
+// U: C` and splice `?A` / `?B` into gparams immediately after T's entry,
+// `?C` after U's. Lifetime entries (prefixed `'`) are preserved. Bounds on
+// names that don't appear in gparams are silently dropped (no-op — caller
+// param list is the authoritative shape).
+fn parse_where_clause_into_gparams(tokens: Vec<i32>, pos: i64, gparams: Vec<i32>) -> i64 {
+    let mut cp: i64 = pos;
+    if pk(tokens, cp) != 1 { return cp; };
+    if str_eq(pkv(tokens, cp), "where") == 0 { return cp; };
+    cp = cp + 1; // past 'where'
+    while pk(tokens, cp) != 52 && pk(tokens, cp) != 43 && pk(tokens, cp) != 0 {
+        // Param name at the head of this clause (e.g. `T` in `T: Show`).
+        if pk(tokens, cp) != 1 {
+            cp = cp + 1;
+            continue;
+        };
+        let pname: str = pkv(tokens, cp);
+        cp = cp + 1;
+        if pk(tokens, cp) != 42 { // ':'
+            // Unexpected shape; don't consume more, fall back to skip-mode.
+            continue;
+        };
+        cp = cp + 1; // past ':'
+        // Bounds list: walk identifiers until comma / { / ;.
+        // Multi-bound (`T: A + B`) handled by the inner ident loop —
+        // every kw-class ident is treated as a bound name. Operator
+        // tokens (`+`, etc.) are skipped via the non-ident branch.
+        while pk(tokens, cp) != 44 && pk(tokens, cp) != 52 && pk(tokens, cp) != 43 && pk(tokens, cp) != 0 {
+            if pk(tokens, cp) == 1 {
+                let bname: str = pkv(tokens, cp);
+                if str_len(bname) > 0 {
+                    // Splice `?bname` into gparams right after pname's
+                    // existing position, after any `?Bound` entries
+                    // already attached to pname (so multi-bound order
+                    // is preserved).
+                    let n_g: i64 = vec_len(gparams);
+                    let mut gi: i64 = 0;
+                    while gi < n_g {
+                        let entry_g: str = vec_get(gparams, gi);
+                        if str_eq(entry_g, pname) == 1 {
+                            let mut splice_pos: i64 = gi + 1;
+                            while splice_pos < vec_len(gparams) {
+                                let cur_e: str = vec_get(gparams, splice_pos);
+                                if str_len(cur_e) > 0 && str_char_at(cur_e, 0) == 63 {
+                                    splice_pos = splice_pos + 1;
+                                } else {
+                                    gi = n_g; // outer break
+                                    break;
+                                };
+                            };
+                            vec_insert_at(gparams, splice_pos, str_concat("?", bname));
+                            gi = n_g; // outer break
+                        };
+                        gi = gi + 1;
+                    };
+                };
+            };
+            cp = cp + 1;
+        };
+        if pk(tokens, cp) == 44 { cp = cp + 1; }; // past comma to next clause
+    };
+    return cp;
+}
+
 fn parse_match_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     let mut cp: i64 = pos;
     let mut binding: str = "";
@@ -2456,11 +2528,15 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = pos + 1;
     // Optional generic params: fn name<T, U>(...)
-    let mut gparams: i64 = mk_list(pool, Vec::new());
+    // v0.6.11: track gparams as Vec<i32> through where-clause processing
+    // so where-clause bounds can splice ?Trait markers into the same list
+    // that lower_fn reads — closes the where-clause sister gap of v0.5.31
+    // Track Y. mk_list at the end of the fn just before the return.
+    let mut gparams_vec_v060: Vec<i32> = Vec::new();
     if pk(tokens, cp) == 32 {
         let mut gr: Vec<i32> = parse_generic_params(tokens, cp);
         cp = pr_pos(gr);
-        gparams = mk_list(pool, pr_val(gr));
+        gparams_vec_v060 = pr_val(gr);
     };
     cp = expect_tok(tokens, cp, 50); // (
     let mut params: Vec<i32> = Vec::new();
@@ -2530,10 +2606,16 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     cp = skip_effect_clause(tokens, cp);
     if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "requires") == 1 { cp = skip_bracket_list(tokens, cp + 1); };
     cp = skip_effect_clause(tokens, cp);
-    cp = skip_where_clause(tokens, cp);
+    // v0.6.11: parse_where_clause_into_gparams replaces the old
+    // skip_where_clause for parse_fn_decl. Extracts `T: Trait` bounds
+    // and splices them into gparams_vec_v060 so lower_fn captures them
+    // exactly like inline `<T: Trait>` bounds. Closes the where-clause
+    // sister gap of Track Y (v0.5.31).
+    cp = parse_where_clause_into_gparams(tokens, cp, gparams_vec_v060);
     cp = expect_tok(tokens, cp, 52);
     let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
     cp = expect_tok(tokens, pr_pos(br), 53);
+    let gparams: i64 = mk_list(pool, gparams_vec_v060);
     return pr(cp, mk6(pool, 30, name, mk_list(pool, params), rtype, pr_val(br), gparams));
 }
 
