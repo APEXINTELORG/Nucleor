@@ -226,4 +226,22 @@ tools_suite_peak: 397 MB / 3.839s wall
 inbox_state: empty (only _questions.md)
 flaky_observed: stage1 hit OWN-008 once on priv_mangle_private_fns; stage2/3
   always pass — heap-corruption path beyond v0.5.32 vec_insert_at fix.
-  See _questions.md.
+  See _questions.md. Handed off to parallel-1 lane B in
+  Desktop/Nucleor_PARALLEL_1_BRIEF_2026-05-01.md §APPEND-2026-05-02-EVENING.
+
+# === APPEND 2026-05-02 PM — v0.6.1 + v0.6.2 ===
+last_main_ship_2026-05-02_pm2: 220de5a (v0.6.2)
+ships_since_v0.6.0_pre: v0.6.0 (5088981) cut bookkeeping;
+  v0.6.1 (983daa4) typ-026 expr-stmt-with-semi closure;
+  v0.6.2 (220de5a) docs/UPGRADE_v0.6.0.md migration story.
+verify_gate_at_v0.6.1: 722/722 PASS / 0 FAIL / 0 SKIP / 700s wall
+self_host_md5_at_v0.6.1: 98112a7676bf1f748ddc3e473c339dedcb (stage1=stage2)
+self_host_peak: 568 / 589 MB / 5.40s + 4.67s wall (stage1+2)
+v0.6.0_milestone_open_criteria: 12 of 13 unchecked; v0.5→v0.6 migration story closed v0.6.2.
+parallel_1_round_3_lanes:
+  A (HARD): RFC-0008 #[isr] interrupt service routine attribute on spike/v06-rfc0008-isr
+  B (EASY-ish): runtime audit for second inline_data dangling site causing flaky stage1 OWN-008
+main_round_3_lanes:
+  HARD: RFC-0005 typed dimensional units — DEFERRED (1530 LOC arc, not single-ship)
+  EASY: spine §8.9 historical handoff doc reconciliation — DONE (added to BUILD_PATH spine)
+  PIVOT: docs/UPGRADE_v0.6.0.md v0.5→v0.6 migration story — DONE v0.6.2
