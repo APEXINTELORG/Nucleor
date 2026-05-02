@@ -5,6 +5,77 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.11] — 2026-05-02
+
+**Generic-T trait-bound dispatch — `where T: Trait` form closure
+(probe finding sister to v0.5.31 Track Y).**
+
+v0.5.31 Track Y closed the inline `<T: Trait>` form by capturing
+`?Trait` markers in the gparams list at parse time. The `where T:
+Trait` form still link-failed with `error[TYP-005]: undefined fn
+vec_<method>` because `parse_fn_decl` ran `skip_where_clause` —
+which silently discarded all bound info — *after* gparams was
+already sealed into the AST pool.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` — replaced `skip_where_clause` at
+the `parse_fn_decl` call site with a new helper
+`parse_where_clause_into_gparams`. The helper walks
+`where T: A + B, U: C` and splices `?A` / `?B` markers into the
+gparams Vec right after T's entry, `?C` after U's. Lifetime entries
+(prefixed `'`) are preserved. This produces the exact same gparams
+shape that inline `<T: A + B>` already emits, so `lower_fn`'s
+Track Y bound-capture pass and `lower_expr` kind-8 receiver
+dispatch see the bound regardless of which syntactic form the
+adopter wrote.
+
+`parse_fn_decl` was refactored to track `gparams_vec_v060: Vec<i32>`
+through the where-clause processing (deferring `mk_list` until just
+before the return) so the helper can mutate the Vec in place via
+`vec_insert_at`. The other call sites of `skip_where_clause`
+(parse_extern_fn, parse_struct_decl, parse_match_in_let) remain on
+the original skipper since their AST nodes don't surface generic
+bounds today.
+
+### Adopter-facing repro that now works
+
+```nucleor
+trait Show { fn show(self) -> i64; }
+struct A { v: i64 }
+impl Show for A { fn show(self) -> i64 { self.v + 100 } }
+
+fn ps<T>(x: T) -> i64 where T: Show { x.show() }
+
+fn main() -> i32 {
+    print_int(ps(A { v: 1 }) as i32);  // prints 101
+    0
+}
+```
+
+Pre-v0.6.11: `error[TYP-005]: undefined function 'vec_show'` at clang
+link. Post-v0.6.11: prints `101`, exits 0.
+
+### Validation
+
+- Stage1/2 self-host fixed point: byte-identical (md5 `e5653940…`).
+- Self-host peak: 599–650 MB / 4.91s + 5.36s wall.
+- Tools-suite compiles clean (no parse-side regression on ~30k LOC).
+- New positive fixture
+  `tests/features/rfc0024_generic_trait_bound_where_clause.nr`.
+- Track Y's existing inline-form positive + ambiguity-guard negative
+  fixtures stay green.
+
+### Known still-open (forward-roadmap)
+
+The reference-receiver shape `<T: Show>(x: &T)` (TYP-006 at call site)
+and the nested-generic shape `outer<T: Show>(x) { inner(x) }` (bound
+not propagated through generic-to-generic call) remain open per
+probe's `2026-05-01-generic-T-trait-bound-where-clause-and-ref-still-broken`
+finding. Both stem from different code paths (kind-8 receiver-type
+unwrapping; bound propagation through call chain) and are deferred
+to a follow-on ship.
+
 ## [0.6.9] — 2026-05-02
 
 **Track X round-3 lane A — RFC-0008 `#[isr]` interrupt service routine

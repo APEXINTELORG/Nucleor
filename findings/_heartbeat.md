@@ -199,7 +199,17 @@ self_host_peak_at_v0.6.9: 661 MB / 5.38s wall (stage1), 672 MB / 6.37s wall (sta
 isr_smoke_at_v0.6.9: rfc0008_isr_minimal builds + runs OK; err_isr_001 fires canonical ISR-001 diag
 parallel_1_lane_A_state: SHIPPED via dfa1d48 / v0.6.9 (this ship)
 parallel_1_lane_B_state: still in flight (vec inline-data audit not pushed yet)
-verify_gate_v0.6.9: in flight at append time; result will land in next refresh
+verify_gate_v0.6.9: 733/733 PASS / 0 FAIL / 0 SKIP / 853s wall.
+
+# === APPEND 2026-05-02 PM (v0.6.11) — probe finding closure ===
+last_main_ship_2026-05-02_pm4: v0.6.11 (pending gate)
+closes_probe_finding: 2026-05-01-generic-T-trait-bound-where-clause-and-ref-still-broken (where-clause shape only; reference-receiver and nested-generic shapes still open per finding's "known still-open" section)
+self_host_md5_at_v0.6.11: e5653940a02ec2befcd0f9eb5589a527 (stage1=stage2)
+self_host_peak_at_v0.6.11: 650 MB / 4.91s wall (stage1), 599 MB / 5.36s wall (stage2)
+tools_suite_clean_at_v0.6.11: yes — no parse-side regression on ~30k LOC
+parse_where_clause_into_gparams: NEW helper at compiler/nucleor_s1_compiler.nr; replaces skip_where_clause at parse_fn_decl only (other call sites unchanged)
+fixture_added: tests/features/rfc0024_generic_trait_bound_where_clause.nr
+parallel_1_lane_B_state: still in flight (vec inline-data audit not pushed yet)
 
 # ============================================================
 # === APPEND 2026-05-02 (correction) — 1 GB is E-STOP, NOT BASELINE
