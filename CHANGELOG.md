@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.14] — 2026-05-02
+
+**MATCH-014 — clean diagnostic for negative literal bounds in range
+patterns (probe finding `2026-05-01-match-range-pattern-negative-
+bound-parse-fail` closure, parallel-1 spike).**
+
+Pre-fix `match x { -10..=-1 => ... }` and `match x { 0..=-1 => ... }`
+hit a generic parser error because the range-pattern parser treated
+the leading `-` as a unary-minus operator followed by a literal,
+instead of recognising the negative literal as the bound.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` — match range pattern parser now
+emits `error[MATCH-014]: negative literal bounds in range patterns
+are not supported yet` with a clear workaround pointer (use a guard
+or shift the domain to non-negative bounds). Closes the silent-parse-
+failure window with a loud halt; full negative-literal range-pattern
+support is forward-roadmap.
+
+### New diagnostic
+
+| Code | Fires when |
+|---|---|
+| `MATCH-014` | A match arm uses a range pattern with a negative literal bound on either side (`-10..=-1`, `0..=-1`, etc.) |
+
+### Fixtures
+
+- `tests/err/err_match_range_negative_lower_bound.nr` — locks the
+  lower-bound shape diagnostic.
+- `tests/err/err_match_range_negative_upper_bound.nr` — locks the
+  upper-bound shape diagnostic.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `82532ac1…`.
+- Self-host peak: 595–643 MB / 6.36 + 6.88s wall.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Tools-suite compiles clean.
+- Per consultant: focused MATCH-014 verify PASS; spec/explain/drift
+  gates clean; main-agent full gate is in flight at write time.
+
+Spike doc: `docs/milestones/spikes/track_match_range_negative_bound_2026-05-02.md`.
+
 ## [0.6.13] — 2026-05-02
 
 **NVec inline-data audit (consultant lane B) — heap-corruption finding
