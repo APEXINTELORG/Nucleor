@@ -304,3 +304,10 @@ main_v0.6.16: SHIPPED (f9a8208) — findings drain (2 closures from v0.6.14/15)
 verify_gate_v0.6.15: 744/744 PASS / 0 FAIL / 0 SKIP
 parallel1_round_4_in_flight: spike/v06-compile-time-params-parser + spike/v06-const-overflow-diagnostic (NOT yet integrated; consultant mid-cycle per user direction)
 probe_state: rebased to v0.6.13 (1f77eac) — closure capture broken inside while/loop bodies (existing 2026-05-01 finding, re-verified open)
+
+# === APPEND 2026-05-02 PM — parallel-1 RFC-0035 Sendable substrate ===
+last_parallel1_focus_lane_e: spike/v06-sendable-substrate (rebased validation in flight)
+parallel1_lane_e_base: origin/main v0.6.17 (0b361f4)
+parallel1_lane_e_scope: RFC-0035 Sendable marker + field-only actor first-pass substrate
+parallel1_lane_e_validation: final v0.6.17 focused RFC-0035 gate PASS; fixed-point PASS; diag/spec/explain/drift PASS in rebased loop
+parallel1_lane_e_peak: focused wrapper 224 MB; self-host max 706 MB / 770 MB tight gate; tools-suite 495 MB / 580 MB tight gate

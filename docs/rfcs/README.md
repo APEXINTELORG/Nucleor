@@ -41,6 +41,7 @@ proceed without re-design.
 | [0008](RFC-0008-isr.md) | `#[isr]` — interrupt service routine attribute | Draft | v0.6.0 |
 | [0009](RFC-0009-heptane-wcet.md) | Static WCET via Heptane | Draft | v0.7.0 |
 | [0010](RFC-0010-dlpack.md) | DLPack — zero-copy tensor interchange | Draft | v0.7.0 |
+| [0035](RFC-0035-sendable-actors.md) | Sendable marker + actor isolation | Draft | v0.9.0 |
 | [0011](RFC-0011-nuc-cxx.md) | `nuc-cxx` — paired `.h` + `.nr` C++ FFI codegen | Draft | v0.4.0 |
 | [0012](RFC-0012-nuc-bindgen.md) | `nuc-bindgen` — libclang C/C++ binding generator | Draft | v0.4.0 |
 | [0013](RFC-0013-urdf-static-frames.md) | URDF-aware compile-time frame chain verification | Draft | v0.5.0 |
