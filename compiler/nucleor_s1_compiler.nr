@@ -2281,7 +2281,7 @@ fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             let match_node: i64 = mk3(pool, 38, pr_val(sr), mk_list(pool, arms));
             // Wrap match in a stmt list to be the loop body
             let mut loop_body: Vec<i32> = Vec::new();
-            loop_body.push(mk2(pool, 25, match_node));
+            loop_body.push(mk3(pool, 25, match_node, 0));
             // True condition: literal 1
             let true_node: i64 = mk2(pool, 1, 1);
             return pr(sp, mk3(pool, 24, true_node, mk_list(pool, loop_body)));
@@ -2439,8 +2439,9 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let rhs_node: i64 = mk4(pool, 4, bin_op, pr_val(er), pr_val(vr));
         return pr(cp, mk3(pool, 21, pr_val(er), rhs_node));
     };
-    if pk(tokens, cp) == 43 { cp = cp + 1; };
-    return pr(cp, mk2(pool, 25, pr_val(er)));
+    let mut had_semi_v060: i64 = 0;
+    if pk(tokens, cp) == 43 { cp = cp + 1; had_semi_v060 = 1; };
+    return pr(cp, mk3(pool, 25, pr_val(er), had_semi_v060));
 }
 
 fn parse_stmts(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
@@ -3030,7 +3031,7 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, match_span: i64)
                 cp = pr_pos(vr);
                 stmts.push(mk3(pool, 21, pr_val(er), pr_val(vr)));
             } else {
-                stmts.push(mk2(pool, 25, pr_val(er)));
+                stmts.push(mk3(pool, 25, pr_val(er), 0));
             };
             body_list = mk_list(pool, stmts);
         };
@@ -16356,7 +16357,14 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                     // semicolon — requires AST-level `;` tracking,
                     // out of scope for this ship).
                     let v219_lk: i64 = node_kind(pool, last_stmt);
-                    if v219_lk == 20 || v219_lk == 21 {
+                    // v0.6.1 typ-026 closure: kind-25 (tail-expr) with an
+                    // eaten trailing semi (`5;` at end of fn body) is now
+                    // tracked via field-2 had_semi. The previous deferral
+                    // ("Repro 3 — kind-25 with eaten semicolon — out of
+                    // scope") is closed: if had_semi==1, treat it like
+                    // kind-20/21 and require a real tail or explicit return.
+                    let v060_is_tail_semi: i64 = if v219_lk == 25 { node_field(pool, last_stmt, 2) } else { 0 };
+                    if v219_lk == 20 || v219_lk == 21 || v060_is_tail_semi == 1 {
                         let mut v219_ok: i64 = 0;
                         // Check 1: explicit return at body top level.
                         let mut v219_ri: i64 = 0;
@@ -16367,7 +16375,7 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                         };
                         // Check 2: last let/assign RHS is always-return.
                         if v219_ok == 0 {
-                            let v219_rhs: i64 = if v219_lk == 20 { node_field(pool, last_stmt, 4) } else { node_field(pool, last_stmt, 2) };
+                            let v219_rhs: i64 = if v219_lk == 20 { node_field(pool, last_stmt, 4) } else { if v219_lk == 21 { node_field(pool, last_stmt, 2) } else { node_field(pool, last_stmt, 1) } };
                             if v219_rhs >= 0 {
                                 let v219_rk: i64 = node_kind(pool, v219_rhs);
                                 if v219_rk == 38 {
