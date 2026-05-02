@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.12] — 2026-05-02
+
+**`(expr)(args)` direct-call form — clean halt instead of silent
+miscompute (probe finding closure).**
+
+Probe finding `2026-05-02-fn-ptr-struct-field-direct-call-returns-pointer`:
+pre-fix `(struct.field)(args)` for a fn-pointer field silently lowered
+as if `(args)` were a separate parenthesized expression — the call's
+args were dropped and the result was the function-pointer ADDRESS, not
+the call result. Adopters writing the canonical Rust dispatch-table-
+via-struct pattern got a giant address-like number where they expected
+the call result. The hazard extended to any `(expr)(args)` shape where
+expr was a field-access (kind-9), indexing (kind-10), or method-call
+(kind-8) — `(vec_get(&ops, i))(arg)`, `(arr[i])(arg)`, etc.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` — at the `tt == 50` branch of
+`parse_primary`, after consuming the inner expression and the `)`,
+check whether the next token is `(`. If so AND the inner expression
+is one of kind-9 / kind-10 / kind-8, emit a clean ERROR diagnostic
+with workaround pointer and panic — closing the silent-miscompute
+window.
+
+Real fix (extend parse_postfix to accept `(args)` on any callable
+expression + emit indirect-call IR via inttoptr + call) is a
+substantial multi-ship change deferred to a follow-on RFC; for now
+adopters get a loud halt rather than silent wrong output.
+
+### Adopter migration
+
+```nucleor
+// Pre-v0.6.12: silently returned the fn-pointer address.
+// v0.6.12: clean ERROR + workaround pointer.
+struct Op { f: fn(i64) -> i64 }
+fn dbl(x: i64) -> i64 { return x * 2; }
+let o: Op = Op { f: dbl };
+print_int((o.f)(21) as i32);  // ← halts with workaround text
+```
+
+Workaround that already worked pre-v0.6.12 and continues to work:
+
+```nucleor
+let f: fn(i64) -> i64 = o.f;
+print_int(f(21) as i32);  // 42 ✓
+```
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `f81ed521…`.
+- Self-host peak 608–685 MB / 5.52 + 6.66s wall.
+- Tools-suite compiles clean (no parse-side regression on ~30k LOC).
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- New negative fixture
+  `tests/err/err_fn_ptr_struct_field_direct_call.nr` locks the halt.
+
 ## [0.6.11] — 2026-05-02
 
 **Generic-T trait-bound dispatch — `where T: Trait` form closure

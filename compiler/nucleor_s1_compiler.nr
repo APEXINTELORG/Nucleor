@@ -1378,7 +1378,30 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let mut r: Vec<i32> = parse_expr(tokens, pos + 1, pool);
         let mut cp: i64 = pr_pos(r);
         if pk(tokens, cp) != 44 {
-            return pr(expect_tok(tokens, cp, 51), pr_val(r));
+            let after_rparen: i64 = expect_tok(tokens, cp, 51);
+            // v0.6.12 (probe finding 2026-05-02-fn-ptr-struct-field-direct-call-returns-pointer):
+            // `(expr)(args)` shape — parenthesised expression immediately
+            // followed by a `(args)` call. Pre-fix this silently lowered
+            // as if `(args)` were a separate parenthesised expression and
+            // produced the inner expression's *value* (eg. the fn-pointer
+            // address) instead of CALLING it. Adopters writing the
+            // canonical Rust dispatch-table-via-struct pattern got a
+            // giant address-like number where they expected the call
+            // result.
+            //
+            // Real fix (extend parse_postfix to accept `(args)` on any
+            // callable expression + emit indirect-call IR via inttoptr +
+            // call) is a substantial multi-ship change. Until that
+            // ships, halt cleanly with a workaround pointer so the
+            // silent-miscompute window closes.
+            if pk(tokens, after_rparen) == 50 {
+                let inner_kind: i64 = node_kind(pool, pr_val(r));
+                if inner_kind == 9 || inner_kind == 10 || inner_kind == 8 {
+                    print("ERROR: `(expr)(args)` direct-call form (e.g. `(struct.field)(arg)` for fn-pointer fields, `(vec_get(&ops, i))(arg)` for fn-pointer vectors) is not yet supported — the parser silently dropped the args and returned the function-pointer ADDRESS instead of calling it (probe finding 2026-05-02-fn-ptr-struct-field-direct-call-returns-pointer). Workaround: extract the fn-pointer to a local variable first, then call it: `let f = struct.field; f(arg)` or `let f = vec_get(&ops, i); f(arg)` — both work today and produce the expected call result.");
+                    panic("nucleor: `(expr)(args)` direct-call form not implemented; see ERROR diagnostic above for workarounds");
+                };
+            };
+            return pr(after_rparen, pr_val(r));
         };
         let mut items: Vec<i32> = Vec::new();
         items.push(pr_val(r));
