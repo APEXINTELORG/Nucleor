@@ -4629,6 +4629,25 @@ rfc0007_queue_smoke() {
     done
 }
 
+vec_inline_runtime_smoke() {
+    rm -rf "$ROOT/.nuc_cache" "$ROOT/target/.nuc_cache" 2>/dev/null || true
+    "$BIN" build "tests/features/vec_extend_self_inline.nr" -o "_vec_extend_self_inline" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local exe="target/_vec_extend_self_inline"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local out
+    out=$("$exe" 2>&1)
+    printf '%s\n' "$out" >$NUC_VERIFY_RUN_LOG
+    printf '%s\n' "$out" | grep -q "OK vec_extend_self_inline"
+    "$BIN" build "tests/rods/mem_inline_free.nr" -o "_mem_inline_free" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    exe="target/_mem_inline_free"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    out=$("$exe" 2>&1)
+    printf '%s\n' "$out" >>$NUC_VERIFY_RUN_LOG
+    printf '%s\n' "$out" | grep -q "OK mem_inline_free"
+}
+
 rfc0042_auto_drop_ir_smoke() {
     local ll="target/_rfc0042_auto_drop_vec.ll"
     "$BIN" build "tests/features/rfc0042_auto_drop_vec.nr" -o "_rfc0042_auto_drop_vec" --no-link --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
@@ -4651,6 +4670,7 @@ step "no UTF-8 mojibake in source/docs" mojibake_clean
 step "tests/err/*.nr have EXPECT headers" err_tests_have_expect_smoke
 step "RFC-0007 atomics lower to LLVM atomic IR" rfc0007_atomic_ir_smoke
 step "RFC-0007 queues run SPSC/MPSC/capacity/benchmark fixtures" rfc0007_queue_smoke
+step "NVec inline runtime ownership regressions" vec_inline_runtime_smoke
 step "RFC-0042 auto_drop emits owned-local cleanup once" rfc0042_auto_drop_ir_smoke
 step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
 step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" cli_utility_smoke

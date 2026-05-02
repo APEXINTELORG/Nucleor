@@ -245,3 +245,11 @@ main_round_3_lanes:
   HARD: RFC-0005 typed dimensional units — DEFERRED (1530 LOC arc, not single-ship)
   EASY: spine §8.9 historical handoff doc reconciliation — DONE (added to BUILD_PATH spine)
   PIVOT: docs/UPGRADE_v0.6.0.md v0.5→v0.6 migration story — DONE v0.6.2
+
+# === APPEND 2026-05-02 PM — parallel-1 vec inline-data audit ===
+last_parallel1_focus: spike/v06-vec-inline-data-audit
+parallel1_base: origin/main v0.6.8 (f6231c9) after final rebase
+parallel1_scope: NVec inline-data audit; vec_extend self-alias fix; mem_rt inline free guard
+parallel1_validation: focused NVec runtime ownership smoke PASS after rebase; stage1 self-host 10/10 PASS
+parallel1_peak: focused wrapper 180 MB after rebase; post-loop max 678 MB / 770 MB tight gate
+parallel1_note: original OWN-008 did not reproduce in 10 pre-patch stage1 runs
