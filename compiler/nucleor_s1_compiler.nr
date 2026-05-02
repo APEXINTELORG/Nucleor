@@ -870,6 +870,13 @@ fn skip_bracket_list(tokens: Vec<i32>, pos: i64) -> i64 {
     return cp;
 }
 
+fn skip_effect_clause(tokens: Vec<i32>, pos: i64) -> i64 {
+    if pk(tokens, pos) == 1 && str_eq(pkv(tokens, pos), "with") == 1 {
+        return skip_bracket_list(tokens, pos + 1);
+    };
+    return pos;
+}
+
 fn skip_angle_group(tokens: Vec<i32>, pos: i64) -> i64 {
     if pk(tokens, pos) != 32 { return pos; };
     let mut cp: i64 = pos + 1;
@@ -1885,6 +1892,7 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
                 let mut tr: Vec<i32> = parse_type(tokens, cp);
                 cp = pr_pos(tr);
             };
+            cp = skip_effect_clause(tokens, cp);
         };
         return pr(cp, "i64");
     };
@@ -2518,7 +2526,9 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     cp = cp + 1;
     let mut rtype: str = "void";
     if pk(tokens, cp) == 41 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); rtype = pr_val(tr); };
+    cp = skip_effect_clause(tokens, cp);
     if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "requires") == 1 { cp = skip_bracket_list(tokens, cp + 1); };
+    cp = skip_effect_clause(tokens, cp);
     cp = skip_where_clause(tokens, cp);
     cp = expect_tok(tokens, cp, 52);
     let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
@@ -2540,7 +2550,9 @@ fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     cp = cp + 1;
     let mut rtype: str = "void";
     if pk(tokens, cp) == 41 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); rtype = pr_val(tr); };
+    cp = skip_effect_clause(tokens, cp);
     if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "requires") == 1 { cp = skip_bracket_list(tokens, cp + 1); };
+    cp = skip_effect_clause(tokens, cp);
     cp = skip_where_clause(tokens, cp);
     if pk(tokens, cp) == 43 { cp = cp + 1; };
     return pr(cp, mk4(pool, 32, name, mk_list(pool, params), rtype));
@@ -2797,7 +2809,9 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         cp = cp + 1; // )
         let mut rtype: str = "void";
         if pk(tokens, cp) == 41 { let mut tr: Vec<i32> = parse_type(tokens, cp + 1); cp = pr_pos(tr); rtype = pr_val(tr); };
+        cp = skip_effect_clause(tokens, cp);
         if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "requires") == 1 { cp = skip_bracket_list(tokens, cp + 1); };
+        cp = skip_effect_clause(tokens, cp);
         cp = skip_where_clause(tokens, cp);
         if pk(tokens, cp) == 52 {
             // Default method with body
@@ -2896,7 +2910,9 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if str_eq(rtype, "Self") == 1 { rtype = type_name; };
         if str_eq(rtype, "&Self") == 1 { rtype = str_concat("&", type_name); };
         if str_eq(rtype, "&mut Self") == 1 { rtype = str_concat("&mut ", type_name); };
+        cp2 = skip_effect_clause(tokens, cp2);
         if pk(tokens, cp2) == 1 && str_eq(pkv(tokens, cp2), "requires") == 1 { cp2 = skip_bracket_list(tokens, cp2 + 1); };
+        cp2 = skip_effect_clause(tokens, cp2);
         cp2 = skip_where_clause(tokens, cp2);
         cp2 = expect_tok(tokens, cp2, 52); // {
         let mut br: Vec<i32> = parse_stmts(tokens, cp2, pool);
@@ -8760,6 +8776,110 @@ fn strip_strings_and_line_comments(s: str) -> str {
     return sb_to_str(sb);
 }
 
+fn rt_string_vec_append(v: Vec<i32>, extra: Vec<i32>) -> i64 {
+    let n: i64 = vec_len(extra);
+    let mut i: i64 = 0;
+    while i < n {
+        v.push(vec_get(extra, i));
+        i = i + 1;
+    };
+    return vec_len(v);
+}
+
+fn rt_header_has_effect(header: str, effect_name: str) -> i64 {
+    if str_contains(header, "with") == 0 { return 0; };
+    let hlen: i64 = str_len(header);
+    let elen: i64 = str_len(effect_name);
+    if elen == 0 || hlen < elen { return 0; };
+    let mut p: i64 = 0;
+    while p + elen <= hlen {
+        if str_eq_at(header, p, effect_name) == 1 {
+            let before_ok: i64 = if p == 0 { 1 } else {
+                let b: i64 = str_char_at(header, p - 1);
+                if is_alnum(b) == 0 && b != 95 { 1 } else { 0 }
+            };
+            let after_ok: i64 = if p + elen >= hlen { 1 } else {
+                let a: i64 = str_char_at(header, p + elen);
+                if is_alnum(a) == 0 && a != 95 { 1 } else { 0 }
+            };
+            if before_ok == 1 && after_ok == 1 { return 1; };
+        };
+        p = p + 1;
+    };
+    return 0;
+}
+
+fn collect_headers_with_effect(source: str, effect_name: str, pat: str) -> Vec<i32> {
+    let mut fns: Vec<i32> = Vec::new();
+    if str_contains(source, "with") == 0 { return fns; };
+    let slen: i64 = str_len(source);
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 39 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 39 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        if str_eq_at(source, p, pat) == 1 {
+            let is_extern_fn: i64 = if str_eq(pat, "fn ") == 1 && p >= 7 && str_eq_at(source, p - 7, "extern ") == 1 { 1 } else { 0 };
+            if is_extern_fn == 1 {
+                p = p + plen;
+            } else {
+                let mut q: i64 = p + plen;
+                let name_start: i64 = q;
+                while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
+                if q > name_start {
+                    let name: str = str_substring(source, name_start, q);
+                    let mut h: i64 = q;
+                    while h < slen && str_char_at(source, h) != 123 && str_char_at(source, h) != 59 { h = h + 1; };
+                    if h > p {
+                        let header: str = str_substring(source, p, h);
+                        if rt_header_has_effect(header, effect_name) == 1 {
+                            fns.push(name);
+                        } else {
+                            str_free(name);
+                        };
+                        str_free(header);
+                    };
+                    p = h + 1;
+                } else {
+                    p = p + 1;
+                };
+            };
+        } else {
+            p = p + 1;
+        };
+    };
+    return fns;
+}
+
+fn collect_fns_with_effect(source: str, effect_name: str) -> Vec<i32> {
+    return collect_headers_with_effect(source, effect_name, "fn ");
+}
+
+fn collect_externs_with_effect(source: str, effect_name: str) -> Vec<i32> {
+    return collect_headers_with_effect(source, effect_name, "extern fn ");
+}
+
 fn collect_no_alloc_fns(source: str) -> Vec<i32> {
     let mut fns: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -8826,6 +8946,7 @@ fn collect_no_alloc_fns(source: str) -> Vec<i32> {
             p = p + 1;
         };
     };
+    rt_string_vec_append(fns, collect_fns_with_effect(source, "no_alloc"));
     return fns;
 }
 
@@ -10122,10 +10243,12 @@ fn no_alloc_check_list() -> Vec<i32> {
 
 fn enforce_no_alloc(diags: Vec<i32>, source: str) -> Vec<i32> {
     let no_alloc_fns: Vec<i32> = collect_no_alloc_fns(source);
+    let alloc_effect_fns: Vec<i32> = collect_fns_with_effect(source, "Alloc");
     let mut i: i64 = 0;
     while i < vec_len(no_alloc_fns) {
         let fn_name: str = vec_get(no_alloc_fns, i);
         check_no_alloc_violations(diags, source, fn_name);
+        check_effect_call_violations(diags, source, fn_name, alloc_effect_fns, "Alloc", "no_alloc");
         i = i + 1;
     };
     return diags;
@@ -10202,6 +10325,7 @@ fn collect_no_panic_fns(source: str) -> Vec<i32> {
             p = p + 1;
         };
     };
+    rt_string_vec_append(fns, collect_fns_with_effect(source, "no_panic"));
     return fns;
 }
 
@@ -10269,10 +10393,12 @@ fn check_no_panic_violations(diags: Vec<i32>, source: str, fn_name: str) {
 
 fn enforce_no_panic(diags: Vec<i32>, source: str) -> Vec<i32> {
     let no_panic_fns: Vec<i32> = collect_no_panic_fns(source);
+    let panic_effect_fns: Vec<i32> = collect_fns_with_effect(source, "Panic");
     let mut i: i64 = 0;
     while i < vec_len(no_panic_fns) {
         let fn_name: str = vec_get(no_panic_fns, i);
         check_no_panic_violations(diags, source, fn_name);
+        check_effect_call_violations(diags, source, fn_name, panic_effect_fns, "Panic", "no_panic");
         i = i + 1;
     };
     return diags;
@@ -10363,6 +10489,29 @@ fn source_fn_body_for_scan(source: str, fn_name: str) -> str {
         p = p + 1;
     };
     return "";
+}
+
+fn check_effect_call_violations(diags: Vec<i32>, source: str, fn_name: str, effect_fns: Vec<i32>, effect_name: str, contract_name: str) -> i64 {
+    if vec_len(effect_fns) == 0 { return 0; };
+    let body_raw: str = source_fn_body_for_scan(source, fn_name);
+    if str_len(body_raw) == 0 { return 0; };
+    let body: str = strip_strings_and_line_comments(body_raw);
+    let mut emitted: i64 = 0;
+    let n: i64 = vec_len(effect_fns);
+    let mut i: i64 = 0;
+    while i < n {
+        let callee: str = vec_get(effect_fns, i);
+        if str_eq(callee, fn_name) == 0 {
+            let pat: str = str_concat(callee, "(");
+            if str_contains(body, pat) == 1 {
+                let msg: str = str_concat("call to `", str_concat(callee, str_concat("()` requires effect `", str_concat(effect_name, str_concat("` but `", str_concat(fn_name, str_concat("` is declared with [", str_concat(contract_name, "]"))))))));
+                diag_add_ex(diags, "error", "effect", "EFF-003", msg, fn_name, 0, 0, "");
+                emitted = emitted + 1;
+            };
+        };
+        i = i + 1;
+    };
+    return emitted;
 }
 
 fn atomic_blocking_check_list() -> Vec<i32> {
@@ -10640,6 +10789,7 @@ fn collect_no_dyn_fns(source: str) -> Vec<i32> {
             p = p + 1;
         };
     };
+    rt_string_vec_append(fns, collect_fns_with_effect(source, "no_dyn"));
     return fns;
 }
 
@@ -10908,8 +11058,10 @@ fn enforce_rt005_ffi(diags: Vec<i32>, source: str) -> Vec<i32> {
     // calls are clean iff the extern carries #[ffi_no_alloc];
     // #[no_panic] body iff #[ffi_no_panic]; #[deadline] needs
     // BOTH (deadline determinism subsumes both no-* contracts).
-    let ffi_no_alloc_safe: Vec<i32> = collect_externs_with_marker(source, "#[ffi_no_alloc]");
-    let ffi_no_panic_safe: Vec<i32> = collect_externs_with_marker(source, "#[ffi_no_panic]");
+    let mut ffi_no_alloc_safe: Vec<i32> = collect_externs_with_marker(source, "#[ffi_no_alloc]");
+    let mut ffi_no_panic_safe: Vec<i32> = collect_externs_with_marker(source, "#[ffi_no_panic]");
+    rt_string_vec_append(ffi_no_alloc_safe, collect_externs_with_effect(source, "no_alloc"));
+    rt_string_vec_append(ffi_no_panic_safe, collect_externs_with_effect(source, "no_panic"));
     let no_alloc_unsafe_externs: Vec<i32> = filter_externs_keep_unsafe(externs, ffi_no_alloc_safe);
     let no_panic_unsafe_externs: Vec<i32> = filter_externs_keep_unsafe(externs, ffi_no_panic_safe);
     // Deadline-safe = intersection; build it as: drop from `externs`
