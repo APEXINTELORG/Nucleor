@@ -298,6 +298,7 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 | NUM-018 | Float literal in integer context | RFC-0015 / v0.2.319 expansion |
 | NUM-019 | Negative literal assigned to unsigned type | RFC-0015 / v0.2.319 expansion |
 | NUM-020 | Mixed-width comparison without explicit cast | RFC-0015 / v0.2.319 expansion |
+| NUM-021 | Integer literal or module-level const expression overflows at compile time | RFC-0015 / v0.4.119 / v0.6 E3 |
 | NUM-022 | Integer vs float in arithmetic/comparison binop | RFC-0015 / v0.4.137 |
 | NUM-023 | Float / bool `as`-cast to `str` rejected | RFC-0015 / v0.4.140 |
 | NUM-024 | Cross-width call-site narrowing audit (opt-in: `NUCLEOR_AUDIT_NUM024=1`) | RFC-0015 phase 3c.1 / v0.4.228 |
