@@ -505,7 +505,7 @@ Step "CLI: nuc explain -- full spec code set wired" {
         # RFC-0016 Result/Option/match (v0.2; 007..010 for v0.4 RFC-0023)
         "MATCH-001", "MATCH-002", "MATCH-003", "MATCH-004", "MATCH-005", "MATCH-006",
         "MATCH-007", "MATCH-008", "MATCH-009", "MATCH-010",
-        "MATCH-011", "MATCH-012", "MATCH-013",
+        "MATCH-011", "MATCH-012", "MATCH-013", "MATCH-014",
         # RFC-0017 collections (v0.2)
         "COLL-001", "COLL-002", "COLL-003", "COLL-004", "COLL-005",
         # RFC-0018 modules (v0.2)
