@@ -270,3 +270,10 @@ main_round_3_lanes:
 last_parallel1_focus: spike/v06-rfc0008-isr
 parallel1_base: origin/main v0.6.4 (c3e9a59)
 parallel1_scope: RFC-0008 first-pass #[isr] attribute substrate, fixtures, and focused verify hook
+
+# === APPEND 2026-05-02 PM — parallel-1 const overflow diagnostic ===
+last_parallel1_focus: spike/v06-const-overflow-diagnostic
+parallel1_base: origin/main v0.6.12 (9306c09)
+parallel1_scope: E3 compile-time diagnostic for overflowing module-level const integer expressions
+parallel1_validation: fixed-point PASS; focused E3 PASS; diag/spec drift PASS; nuc explain full-code PASS; compiler drift PASS; diff check PASS
+parallel1_peak: self-host max 689 MB / 770 MB tight cap; tools-suite 413 MB / 580 MB tight cap; verify wrapper max 411 MB / 1024 MB e-stop

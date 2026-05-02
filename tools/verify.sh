@@ -727,7 +727,8 @@ cli_explain_full_smoke() {
         # T1.1 Phase 10 (v0.2.319): expanded NUM namespace.
         "NUM-006" "NUM-007" "NUM-008" "NUM-009" "NUM-010"
         "NUM-011" "NUM-012" "NUM-013" "NUM-014" "NUM-015"
-        "NUM-016" "NUM-017" "NUM-018" "NUM-019" "NUM-020"
+        "NUM-016" "NUM-017" "NUM-018" "NUM-019" "NUM-020" "NUM-021"
+        # NUM-021 (v0.4.119/v0.6 E3) — literal / const-expression overflow.
         # NUM-022/023 (v0.4.137/v0.4.140) — int-vs-float arith mismatch
         # and `f64 as str` cast rejection. NUM-024 (v0.4.228) — opt-in
         # cross-width call-site audit (NUCLEOR_AUDIT_NUM024=1) for
@@ -1647,6 +1648,18 @@ t414_num002_promoted() {
     [ "$rc" = "1" ] || return 1
     grep -q "error\[NUM-002\]" $NUC_VERIFY_STEP_LOG || return 1
     grep -q "out of range" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
+t_v06_const_overflow_diagnostics() {
+    "$BIN" build "tests/err/err_const_i64_add_overflow.nr" -o "_t_v06_const_overflow" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "1" ] || return 1
+    grep -q "error\[NUM-021\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "constant expression" $NUC_VERIFY_STEP_LOG || return 1
+    "$BIN" build "tests/err/err_const_i8_expr_out_of_range.nr" -o "_t_v06_const_range" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "1" ] || return 1
+    grep -q "error\[NUM-002\]" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "constant expression value" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -4853,6 +4866,7 @@ step "T3.111 v0.4.67 NUC-FEEDBACK — str ordering ops <, <=, >, >= ptr-compare 
 step "T3.112 v0.4.68 NUC-FEEDBACK — Vec ordering ops <, <=, >, >= ptr-compare (TYP-011)" t412_vec_ord_pointer_guard
 step "T3.113 v0.4.69 NUC-FEEDBACK — '=' vs '==' typo guard in while/if conditions" t413_eq_typo_guard
 step "T3.114 v0.4.70 audit S1 — NUM-002 literal-out-of-range promoted to error" t414_num002_promoted
+step "v0.6 E3 NUM-021 const integer expression overflow diagnostic" t_v06_const_overflow_diagnostics
 step "T3.115 v0.4.70 audit S10 — format placeholder/arg count mismatch halt at preprocess" t415_format_arg_count
 step "T3.116 v0.4.71 audit S1 — bool with bitwise/shift ops (TYP-002 extended)" t416_bool_bitwise_guard
 step "T3.117 v0.4.72 doc-#2 §5 — str_from_i64(i64) contract honesty (str_from_int kept as wrapper)" t417_str_from_i64_contract

@@ -10627,6 +10627,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "NUM-018") { return "Float literal in integer context"; };
     if str_eq(code, "NUM-019") { return "Negative literal assigned to unsigned type"; };
     if str_eq(code, "NUM-020") { return "Mixed-width comparison without explicit cast"; };
+    if str_eq(code, "NUM-021") { return "Integer literal or constant expression overflows at compile time"; };
     if str_eq(code, "NUM-022") { return "Integer vs float in arithmetic/comparison binop"; };
     if str_eq(code, "NUM-023") { return "Float / bool `as`-cast to `str` rejected"; };
     if str_eq(code, "NUM-024") { return "Cross-width call-site narrowing audit (opt-in via NUCLEOR_AUDIT_NUM024=1)"; };
@@ -10847,6 +10848,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "NUM-018") { return "A float literal (`3.14`) was used where an integer is expected. Either cast (`3.14 as i32`) or change the binding type to f32/f64."; };
     if str_eq(code, "NUM-019") { return "`let x: u8 = -1` doesn't fit in u8 (range 0..255). Use `255u8` (the wrap result) or change the type to i8 / i16."; };
     if str_eq(code, "NUM-020") { return "`let a: i32 = 5; let b: i64 = 6; if a < b { ... }` mixes widths. Cast one operand: `if (a as i64) < b { ... }`."; };
+    if str_eq(code, "NUM-021") { return "A decimal integer literal exceeds u64::MAX, or a module-level const integer expression overflows i64 during compile-time evaluation. Pre-fix these paths wrapped through compiler internals and either produced meaningless bits, runtime-startup panics, or confusing generated-IR failures."; };
     if str_eq(code, "NUM-022") { return "`5 < 5.0` mixes integer and float operands; pre-v0.4.137 this silently coerced and the comparison produced unexpected results. Cast one operand: `5.0 < 5.0` or `5 < (5.0 as i64)`."; };
     if str_eq(code, "NUM-023") { return "`(3.14 as str)` and `(true as str)` are not defined as numeric `as`-casts. Use `str_from_float` / `str_from_bool` (or format) instead."; };
     if str_eq(code, "NUM-024") { return "Opt-in audit warning. With `NUCLEOR_AUDIT_NUM024=1` set, the compiler reports every call site where a wider-typed argument flows into a narrower-typed param via Nucleor's i64-everywhere ABI. v0.4.230 closed the audit surface to 0/0 across self-build by widening str_from_int's signature; the audit remains as a regression gate."; };
@@ -11048,6 +11050,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "NUM-018") { return "Integer context expects an integer; a float literal there is almost always a typo. If you intended a truncating conversion, write it explicitly with `as`."; };
     if str_eq(code, "NUM-019") { return "Unsigned types can't represent negative values. -1u32 as a literal is rejected; (-1 as u32) compiles and gives u32::MAX (the wrap result)."; };
     if str_eq(code, "NUM-020") { return "Mixed-width comparison forces a widening conversion. Make it explicit so the reader sees which operand is being widened and why."; };
+    if str_eq(code, "NUM-021") { return "For oversized literals, reduce the literal or use a wide-int library. For const expressions, use an explicit wrapping_* / saturating_* helper, reduce the value, or move the calculation to runtime if wrapping is intentional."; };
     if str_eq(code, "NUM-022") { return "Pre-v0.4.137 the compiler silently coerced int↔float at binop sites; user programs got wrong results because LLVM's fcmp on bit-cast operands compares bit patterns, not values. NUM-022 turns the silent miscompute into a compile-time error so the cast intent is explicit."; };
     if str_eq(code, "NUM-023") { return "`as` is for numeric truncation/extension. `f64 as str` and `bool as str` were silent no-ops that returned an undefined pointer (URGENT — could SIGSEGV). NUM-023 rejects the cast and points at `str_from_float` / `str_from_bool`."; };
     if str_eq(code, "NUM-024") { return "Audit-only. Nucleor's call ABI forwards every value as i64 regardless of the param's declared type. v0.4.221's attempt to trunc-on-entry broke the compiler's self-build because `str_from_int(n: i32)` was called with i64 magnitudes; v0.4.230 widened that signature and the audit surface dropped to 0/0. NUM-024 is now a permanent regression gate — any new declared-iN param called with a wider source-level type fires the warning."; };
