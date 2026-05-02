@@ -91,16 +91,15 @@ Filed alongside this finding.
 
 ## Promoted
 
-- Fix shipped: v0.5.22 — `eprintln!(...)` and `eprint!(...)`
-  macro forms now recognized by the format-macro expander,
-  routed to `eprint(...)` (with newline) and `eprint_raw(...)`
-  (no newline) runtime helpers.
-- Compiler s1 + tools-suite mirror:
-  - `fmt_build_expansion` mode dispatch extended: 3 = eprintln,
-    4 = eprint. Empty-args branch handled.
-  - `expand_format_macros_with_src` macro recognition: maps
-    `eprintln` → mode 3, `eprint` → mode 4.
-- Validation: `eprintln!("hello stderr"); eprint!("no newline");
-  eprintln!("{}+{}={}", 1, 2, 3);` all build + run correctly,
-  routing to stderr.
-- Promoted: 2026-05-01 by main agent (probe commit 789cb62).
+- **STATUS: ALREADY CLOSED in v0.5.22 (stale finding).** Discovered against
+  v0.5.17, fix shipped earlier as part of /loop work.
+- Fix at `compiler/nucleor_s1_compiler.nr:25688-25689`: macro-form
+  recognition table now routes `eprintln!` → mode 3 and `eprint!` →
+  mode 4, mirroring the existing `println!`/`print!`/`format!` paths.
+- Repro on v0.5.27 head:
+  - `eprintln!("err-line")` → builds, runs, writes "err-line\n" to stderr
+  - `eprint!("ok ")` → builds, writes "ok " to stderr
+  - `eprintln!("formatted: {}", 42)` → builds, writes "formatted: 42\n"
+- Pre-fix path was the unary-NOT fallthrough (`eprintln` ident + `!` +
+  `(str)` → TYP-002). Now correctly handled before the unary-`!` parse.
+- Promoted: 2026-05-01 by main agent. No new code change needed.
