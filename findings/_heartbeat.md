@@ -291,3 +291,16 @@ last_parallel1_focus_lane_d: spike/v06-str-substring-strict-migration (integrati
 parallel1_lane_d_base: origin/main v0.6.10 (cc8311f) after final rebase
 parallel1_lane_d_scope: E1 doc/fixture discoverability lane for str_substring_strict
 parallel1_lane_d_validation: focused migration fixture PASS after rebase; peak 174 MB under 1 GB e-stop
+
+# === APPEND 2026-05-02 evening — round-3 ALL LANES SHIPPED ===
+session_total_ships_2026-05-02: 17 (v0.6.0 → v0.6.16)
+parallel1_lane_a: SHIPPED v0.6.9 (270ef86) — RFC-0008 #[isr]
+parallel1_lane_b: SHIPPED v0.6.13 (98c13f4) — NVec inline-data audit
+parallel1_lane_c: SHIPPED v0.6.14 (3853a48) — MATCH-014
+parallel1_lane_d: SHIPPED v0.6.15 (1224b2f) — str_substring_strict discoverability
+main_v0.6.11: SHIPPED (2749cb5) — generic `where T: Trait` closure
+main_v0.6.12: SHIPPED (9306c09) — `(expr)(args)` direct-call halt
+main_v0.6.16: SHIPPED (f9a8208) — findings drain (2 closures from v0.6.14/15)
+verify_gate_v0.6.15: 744/744 PASS / 0 FAIL / 0 SKIP
+parallel1_round_4_in_flight: spike/v06-compile-time-params-parser + spike/v06-const-overflow-diagnostic (NOT yet integrated; consultant mid-cycle per user direction)
+probe_state: rebased to v0.6.13 (1f77eac) — closure capture broken inside while/loop bodies (existing 2026-05-01 finding, re-verified open)
