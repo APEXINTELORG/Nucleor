@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.9] — 2026-05-02
+
+**Track X round-3 lane A — RFC-0008 `#[isr]` interrupt service routine
+attribute (consultant deliverable).**
+
+Single-commit spike `origin/spike/v06-rfc0008-isr` (`a2c682e`) merged
+into main at `dfa1d48`. Compiler change `+209 LOC` adds the parser,
+type-check, and diagnostic shape for `#[isr]`.
+
+### New diagnostics
+
+| Code | Fires when |
+|---|---|
+| `ISR-001` | `#[isr]` fn signature is not `fn() -> void` (no params, no return value) |
+| `ISR-002` | `#[isr]` and `#[deadline]` declared on the same fn (deadlines are wall-time; ISR latency is a different metric) |
+| `ISR-003` | `#[isr]` declared for a target whose codegen surface doesn't yet support the interrupt calling convention. Cortex-M4F + RV32IMAC are the v0.6.x targets the spike scopes; other targets emit ISR-003 until later ships extend codegen. |
+
+`#[isr]` also implicitly inherits `#[no_alloc]` + `#[no_panic]`
+semantics — alloc or panic inside an ISR is a hard fault on most MCUs.
+Negative fixtures cover both inherited diagnostics
+(`err_isr_inherits_no_alloc.nr`, `err_isr_inherits_no_panic.nr`).
+
+### Fixtures
+
+- 6 negative: `err_isr_001_returns_value.nr`, `err_isr_001_takes_param.nr`,
+  `err_isr_002_with_deadline.nr`, `err_isr_003_unsupported_target.nr`,
+  `err_isr_inherits_no_alloc.nr`, `err_isr_inherits_no_panic.nr`.
+- 2 positive: `rfc0008_isr_minimal.nr`, `rfc0008_isr_no_alloc_no_panic.nr`.
+
+### Validation
+
+- Stage1/2 self-host fixed point: byte-identical (md5 `ab936966…`).
+- Self-host peak: 661 / 672 MB, wall 5.38 / 6.37s — comfortably under
+  the 770 MB per-process budget.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate at v0.6.9: see "Validation" tail of this entry once
+  the gate completes (currently in flight at write time).
+
+Spike doc: `docs/milestones/spikes/track_rfc0008_isr_2026-05-02.md`.
+
 ## [0.6.1] — 2026-05-02
 
 **typ-026 closure — `expr;` at end of non-void fn body now diagnosed.**

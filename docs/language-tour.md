@@ -328,6 +328,34 @@ allocation in `#[no_alloc]`, `RT-002` for panicking calls in
 `#[no_panic]`, `RT-008` for direct recursion in `#[deadline]`
 without a `#[max_depth = N]` opt-out (RFC-0014).
 
+## Interrupt service routines (RFC-0008, v0.6.9)
+
+```nr
+#[isr]
+fn systick_handler() {
+    // tick a counter or schedule deferred work via SPSC queue
+}
+
+#[isr(prio = 1)]
+fn uart_rx_handler() {
+    let scratch: i64 = 0;
+    let next: i64 = scratch + 1;
+}
+```
+
+`#[isr]` declares a fn as an interrupt service routine. Signature
+must be `fn() -> void`; otherwise emits `error[ISR-001]`. The
+attribute implicitly inherits `#[no_alloc]` + `#[no_panic]`
+semantics — alloc or panic in an ISR is a hard fault on most MCUs.
+Combining `#[isr]` with `#[deadline]` is rejected via `error[ISR-002]`
+(deadlines are wall-time; ISR latency is a different metric).
+
+When cross-compiling to Cortex-M4F or RV32IMAC the compiler emits the
+target's interrupt calling convention. On other targets the attribute
+parses + type-checks but the IR marker is conservative; a future ship
+will gate unsupported targets with `error[ISR-003]`. See
+`examples/28_isr_tour.nr`.
+
 ## Atomics (RFC-0007)
 
 ```nr

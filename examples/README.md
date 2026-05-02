@@ -83,6 +83,7 @@ together on a single tight inner loop.
 |---|---|---|---|
 | 26 | [26_max_depth_tour.nr](26_max_depth_tour.nr) | `#[max_depth]` static recursion bound | RFC-0014 (canonical + parameter-flow shape) |
 | 27 | [27_effects_with_tour.nr](27_effects_with_tour.nr) | `with [...]` effects-in-function-types | RFC-0033 substrate (no_alloc / no_panic on fn types and fn-pointer params) |
+| 28 | [28_isr_tour.nr](28_isr_tour.nr) | `#[isr]` interrupt service routine attribute | RFC-0008 first pass (signature gate ISR-001 / deadline conflict ISR-002 / target gate ISR-003 / inherited #[no_alloc] + #[no_panic]) |
 
 ### Showcase
 

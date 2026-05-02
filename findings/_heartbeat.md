@@ -191,6 +191,16 @@ memory_budget_state: same per-process caps (770 / 580 MB) — v0.5.32 NVec SBO +
 #
 # Parallel-2: no new outputs since the v0.5.14 snapshot above.
 
+# === APPEND 2026-05-02 PM (later) — Track X round-3 lane A integrated ===
+last_main_ship_2026-05-02_pm3: dfa1d48 → v0.6.9 (pending gate)
+integrated_branch: origin/spike/v06-rfc0008-isr at a2c682e
+self_host_md5_at_v0.6.9: ab936966dcf419636dacd5109e185771 (stage1=stage2)
+self_host_peak_at_v0.6.9: 661 MB / 5.38s wall (stage1), 672 MB / 6.37s wall (stage2)
+isr_smoke_at_v0.6.9: rfc0008_isr_minimal builds + runs OK; err_isr_001 fires canonical ISR-001 diag
+parallel_1_lane_A_state: SHIPPED via dfa1d48 / v0.6.9 (this ship)
+parallel_1_lane_B_state: still in flight (vec inline-data audit not pushed yet)
+verify_gate_v0.6.9: in flight at append time; result will land in next refresh
+
 # ============================================================
 # === APPEND 2026-05-02 (correction) — 1 GB is E-STOP, NOT BASELINE
 # ============================================================
