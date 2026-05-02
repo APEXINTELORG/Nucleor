@@ -4369,6 +4369,33 @@ _memory_budget_for() {
     local out_name="$4"
     local out
     rm -rf "$ROOT/.nuc_cache" 2>/dev/null || true
+    # Windows agents may run this bash script from Git Bash, MSYS, or
+    # WSL. Prefer the PowerShell process-tree sampler whenever a
+    # PowerShell host is visible; the NUC_TRACE_ALLOC fallback does not
+    # enforce the real RSS e-stop and can fail to parse newer builds.
+    local psbin=""
+    if command -v powershell.exe >/dev/null 2>&1; then
+        psbin="powershell.exe"
+    elif command -v pwsh >/dev/null 2>&1; then
+        psbin="pwsh"
+    fi
+    if [ -n "$psbin" ]; then
+        local ps1="$ROOT/tools/measure_peak_build.ps1"
+        local ps1_arg="$ps1"
+        if command -v cygpath >/dev/null 2>&1; then
+            ps1_arg="$(cygpath -w "$ps1")"
+        elif command -v wslpath >/dev/null 2>&1; then
+            ps1_arg="$(wslpath -w "$ps1")"
+        fi
+        if [ "$psbin" = "powershell.exe" ]; then
+            out=$("$psbin" -NoProfile -ExecutionPolicy Bypass -File "$ps1_arg" -Source "$src" -OutName "$out_name" -BudgetMb "$budget_mb" 2>&1)
+        else
+            out=$("$psbin" -NoProfile -File "$ps1_arg" -Source "$src" -OutName "$out_name" -BudgetMb "$budget_mb" 2>&1)
+        fi
+        local rc=$?
+        echo "$out" | sed 's/^/       /'
+        return $rc
+    fi
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
             if command -v powershell.exe >/dev/null 2>&1; then
@@ -4542,6 +4569,19 @@ rfc0007_queue_smoke() {
     done
 }
 
+rfc0042_auto_drop_ir_smoke() {
+    local ll="target/_rfc0042_auto_drop_vec.ll"
+    "$BIN" build "tests/features/rfc0042_auto_drop_vec.nr" -o "_rfc0042_auto_drop_vec" --no-link --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    [ -f "$ll" ] || return 1
+    local calls
+    calls=$(grep -c "call void @__nucleor_vec_free" "$ll" || true)
+    if [ "$calls" != "4" ]; then
+        echo "       expected exactly 4 emitted vec_free calls for RFC-0042 fixture, got $calls" | sed 's/^/       /'
+        return 1
+    fi
+    return 0
+}
+
 # --- Run gate -----------------------------------------------------------
 step "binary present" check_binary
 step "compiler ABI tables synced" compiler_tables_synced
@@ -4551,6 +4591,7 @@ step "no UTF-8 mojibake in source/docs" mojibake_clean
 step "tests/err/*.nr have EXPECT headers" err_tests_have_expect_smoke
 step "RFC-0007 atomics lower to LLVM atomic IR" rfc0007_atomic_ir_smoke
 step "RFC-0007 queues run SPSC/MPSC/capacity/benchmark fixtures" rfc0007_queue_smoke
+step "RFC-0042 auto_drop emits owned-local cleanup once" rfc0042_auto_drop_ir_smoke
 step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
 step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" cli_utility_smoke
 step "CLI: --json variants emit machine-readable JSON" cli_json_smoke

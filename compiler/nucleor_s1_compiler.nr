@@ -9315,6 +9315,80 @@ fn name_in_no_check(no_check: Vec<i32>, fn_name: str) -> i64 {
     return 0;
 }
 
+// RFC-0042 first cut — opt-in auto-drop scanner.
+// Mirrors the #[no_check] marker scanner: source text is the least
+// invasive way to add function-level attributes without perturbing
+// the parser's AST layout. Pattern: `#[auto_drop]` followed by
+// whitespace/comments/other attrs and then `fn NAME`.
+fn collect_auto_drop_fns(source: str) -> Vec<i32> {
+    let mut entries: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[auto_drop]";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut r: i64 = p + plen;
+            while r + 3 <= slen {
+                if r + 1 < slen && str_char_at(source, r) == 47 && str_char_at(source, r + 1) == 47 {
+                    while r < slen && str_char_at(source, r) != 10 { r = r + 1; };
+                };
+                let c0: i64 = str_char_at(source, r);
+                let c1: i64 = str_char_at(source, r + 1);
+                let c2: i64 = str_char_at(source, r + 2);
+                if c0 == 102 && c1 == 110 && c2 == 32 {
+                    r = r + 3;
+                    let name_start: i64 = r;
+                    while r < slen && (is_alnum(str_char_at(source, r)) == 1 || str_char_at(source, r) == 95) {
+                        r = r + 1;
+                    };
+                    if r > name_start {
+                        let fname: str = str_substring(source, name_start, r);
+                        entries.push(fname);
+                    };
+                    p = r;
+                    break;
+                };
+                r = r + 1;
+            };
+            if r + 3 > slen { p = slen; };
+        } else {
+            p = p + 1;
+        };
+    };
+    return entries;
+}
+
+fn name_in_auto_drop(auto_drop: Vec<i32>, fn_name: str) -> i64 {
+    let n: i64 = vec_len(auto_drop);
+    let mut i: i64 = 0;
+    while i < n {
+        if str_eq(vec_get(auto_drop, i), fn_name) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
 // v0.4.271 RFC-0006 — heap-aliased type detection for `old()` reject.
 // The i64-everywhere ABI represents Vec/String/HashMap/HashSet/
 // BTreeMap/BTreeSet/VecDeque/Box as a single i64 pointer to heap
@@ -19623,6 +19697,124 @@ fn narrow_via_as(blk: Vec<i32>, regs: Vec<i32>, vr: i64, tstr: str, src_kind: i6
     return r;
 }
 
+fn auto_drop_helper_for_type(tstr: str) -> str {
+    if str_len(tstr) == 0 { return ""; };
+    let base: str = type_base_name(tstr);
+    if str_eq(base, "Vec") == 1 || str_starts_with(tstr, "Vec<") == 1 { return "vec_free"; };
+    if str_eq(base, "HashMap") == 1 || str_starts_with(tstr, "HashMap<") == 1 { return "hashmap_free"; };
+    return "";
+}
+
+fn auto_drop_is_enabled(sym: Vec<i32>) -> i64 {
+    let enabled: i64 = sym_get(sym, "__auto_drop_enabled");
+    if enabled == 1 { return 1; };
+    return 0;
+}
+
+fn auto_drop_state_key(idx: i64) -> str { return str_concat("__auto_drop_state_", str_from_int(idx)); }
+fn auto_drop_name_key(idx: i64) -> str { return str_concat("__auto_drop_name_", str_from_int(idx)); }
+fn auto_drop_helper_key(idx: i64) -> str { return str_concat("__auto_drop_helper_", str_from_int(idx)); }
+fn auto_drop_alloca_key(idx: i64) -> str { return str_concat("__auto_drop_alloca_", str_from_int(idx)); }
+fn auto_drop_index_key(name: str) -> str { return str_concat("__auto_drop_index_", name); }
+
+fn auto_drop_register(sym: Vec<i32>, vname: str, tstr: str, ar: i64) -> i64 {
+    if auto_drop_is_enabled(sym) == 0 { return 0; };
+    if str_len(vname) == 0 || str_eq(vname, "_") == 1 { return 0; };
+    if ar < 0 { return 0; };
+    let helper: str = auto_drop_helper_for_type(tstr);
+    if str_len(helper) == 0 { return 0; };
+    let old_count: i64 = sym_get(sym, "__auto_drop_count");
+    let idx: i64 = if old_count < 0 { 0 } else { old_count };
+    sym_set(sym, auto_drop_name_key(idx), vname);
+    sym_set(sym, auto_drop_helper_key(idx), helper);
+    sym_set(sym, auto_drop_alloca_key(idx), ar);
+    sym_set(sym, auto_drop_state_key(idx), 1);
+    sym_set(sym, auto_drop_index_key(vname), idx);
+    sym_set(sym, "__auto_drop_count", idx + 1);
+    return 0;
+}
+
+fn auto_drop_set_state(sym: Vec<i32>, vname: str, state: i64) -> i64 {
+    if auto_drop_is_enabled(sym) == 0 { return 0; };
+    if str_len(vname) == 0 { return 0; };
+    let idx: i64 = sym_get(sym, auto_drop_index_key(vname));
+    if idx < 0 { return 0; };
+    sym_set(sym, auto_drop_state_key(idx), state);
+    return 0;
+}
+
+fn auto_drop_mark_freed(sym: Vec<i32>, vname: str) -> i64 {
+    return auto_drop_set_state(sym, vname, 0);
+}
+
+fn auto_drop_mark_live(sym: Vec<i32>, vname: str) -> i64 {
+    return auto_drop_set_state(sym, vname, 1);
+}
+
+fn auto_drop_emit_index(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, idx: i64, skip_name: str) -> Vec<i32> {
+    if idx < 0 { return cur; };
+    let state: i64 = sym_get(sym, auto_drop_state_key(idx));
+    if state != 1 { return cur; };
+    let name_i: i64 = sym_get(sym, auto_drop_name_key(idx));
+    if name_i < 0 { return cur; };
+    let lname: str = name_i;
+    if str_len(skip_name) > 0 && str_eq(lname, skip_name) == 1 { return cur; };
+    let helper_i: i64 = sym_get(sym, auto_drop_helper_key(idx));
+    let ar: i64 = sym_get(sym, auto_drop_alloca_key(idx));
+    if helper_i < 0 || ar < 0 { return cur; };
+    let helper: str = helper_i;
+    let val_r: i64 = ctr_next(regs);
+    ir_block_add(cur, ir_load(val_r, ar));
+    let mut drop_args: Vec<i32> = Vec::new();
+    drop_args.push(val_r);
+    let drop_r: i64 = ctr_next(regs);
+    ir_block_add(cur, ir_call_ex(drop_r, helper, drop_args));
+    sym_set(sym, auto_drop_state_key(idx), 0);
+    return cur;
+}
+
+fn auto_drop_emit_named(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, vname: str) -> Vec<i32> {
+    if auto_drop_is_enabled(sym) == 0 { return cur; };
+    let idx: i64 = sym_get(sym, auto_drop_index_key(vname));
+    if idx < 0 { return cur; };
+    return auto_drop_emit_index(cur, regs, sym, idx, "");
+}
+
+fn auto_drop_emit_live(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, skip_name: str) -> Vec<i32> {
+    if auto_drop_is_enabled(sym) == 0 { return cur; };
+    let count: i64 = sym_get(sym, "__auto_drop_count");
+    if count <= 0 { return cur; };
+    let mut i: i64 = count - 1;
+    let mut out: Vec<i32> = cur;
+    while i >= 0 {
+        out = auto_drop_emit_index(out, regs, sym, i, skip_name);
+        i = i - 1;
+    };
+    return out;
+}
+
+fn auto_drop_explicit_free_name(pool: Vec<i32>, expr_nid: i64) -> str {
+    if expr_nid < 0 { return ""; };
+    if node_kind(pool, expr_nid) != 7 { return ""; };
+    let fn_name: str = node_field(pool, expr_nid, 1);
+    let is_free: i64 = if str_eq(fn_name, "vec_free") == 1 || str_eq(fn_name, "str_free") == 1 || str_eq(fn_name, "hashmap_free") == 1 { 1 } else { 0 };
+    if is_free == 0 { return ""; };
+    let args_list: i64 = node_field(pool, expr_nid, 2);
+    if list_len(pool, args_list) <= 0 { return ""; };
+    let first_arg: i64 = list_get(pool, args_list, 0);
+    if node_kind(pool, first_arg) != 3 { return ""; };
+    return node_field(pool, first_arg, 1);
+}
+
+fn auto_drop_return_skip_name(pool: Vec<i32>, expr_nid: i64, sym: Vec<i32>) -> str {
+    if expr_nid < 0 { return ""; };
+    if node_kind(pool, expr_nid) != 3 { return ""; };
+    let vname: str = node_field(pool, expr_nid, 1);
+    let idx: i64 = sym_get(sym, auto_drop_index_key(vname));
+    if idx < 0 { return ""; };
+    return vname;
+}
+
 fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
     let kind: i64 = node_kind(pool, nid);
     if kind == 20 {
@@ -19689,7 +19881,9 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_store_t(tr20, ar, aw20));
             };
         };
-        // Bind sym entries AFTER the RHS is lowered.
+        // Bind sym entries AFTER the RHS is lowered. Under #[auto_drop],
+        // shadowing a tracked owned local ends the old binding here.
+        cur = auto_drop_emit_named(cur, regs, sym, vname);
         sym_set(sym, vname, ar);
         if str_len(sbase) > 0 { sym_set(sym, str_concat("__type_", vname), sbase); };
         // v0.3.55: also store the FULL declared type (with generics
@@ -19697,6 +19891,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // element type for kind==10 (indexing) dispatch. type_base_name
         // strips the <T> for the existing __type_ entry.
         if str_len(tstr) > 0 { sym_set(sym, str_concat("__fulltype_", vname), tstr); };
+        if init >= 0 { auto_drop_register(sym, vname, tstr, ar); };
         if init >= 0 && node_kind(pool, init) == 42 {
             let cid_meta: i64 = sym_get(sym, "__last_closure_id");
             let caps_meta: i64 = sym_get(sym, "__last_closure_caps");
@@ -19793,6 +19988,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let mut vp: Vec<i32> = lower_expr(pool, node_field(pool, nid, 2), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let vr: i64 = lx_reg(vp);
         cur = lx_blk(vp);
+        cur = auto_drop_emit_named(cur, regs, sym, lhs_name);
         // v0.4.209 RFC-0015 phase 3a-step-3: typed store via
         // alloca-reg width lookup. Sign-encoded width; abs(w) for
         // memory-shape (trunc/store_t).
@@ -19805,6 +20001,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             ir_block_add(cur, ir_trunc(tr21, vr, aw21));
             ir_block_add(cur, ir_store_t(tr21, ar, aw21));
         };
+        auto_drop_mark_live(sym, lhs_name);
         let clo_id: i64 = sym_get(sym, "__closure_id");
         if clo_id >= 0 {
             let cap_id: i64 = sym_get(sym, str_concat("__capid_", lhs_name));
@@ -19905,6 +20102,8 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let invx_cr: i64 = ctr_next(regs);
                 ir_block_add(cur, ir_call_ex(invx_cr, "contract_invariant", invx_args));
             };
+            let skip_ret_name: str = auto_drop_return_skip_name(pool, vn, sym);
+            cur = auto_drop_emit_live(cur, regs, sym, skip_ret_name);
             ir_block_add(cur, ir_ret(vr));
         } else {
             let zr: i64 = ctr_next(regs); ir_block_add(cur, ir_const_int(zr, 0));
@@ -19966,6 +20165,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let invx_cr_b: i64 = ctr_next(regs);
                 ir_block_add(cur, ir_call_ex(invx_cr_b, "contract_invariant", invx_args_b));
             };
+            cur = auto_drop_emit_live(cur, regs, sym, "");
             ir_block_add(cur, ir_ret(zr));
         };
         return cur;
@@ -20116,8 +20316,12 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let mut xb: Vec<i32> = ir_block_new(xl); ir_fn_add_block(fir, xb); return xb;
     };
     if kind == 25 {
-        let mut ep: Vec<i32> = lower_expr(pool, node_field(pool, nid, 1), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
-        return lx_blk(ep);
+        let expr_nid: i64 = node_field(pool, nid, 1);
+        let mut ep: Vec<i32> = lower_expr(pool, expr_nid, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+        let out_blk: Vec<i32> = lx_blk(ep);
+        let freed_name: str = auto_drop_explicit_free_name(pool, expr_nid);
+        if str_len(freed_name) > 0 { auto_drop_mark_freed(sym, freed_name); };
+        return out_blk;
     };
     if kind == 38 {
         let scrut_nid: i64 = node_field(pool, nid, 1);
@@ -20359,7 +20563,7 @@ fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Ve
     return b;
 }
 
-fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>, old_snapshots: Vec<i32>) -> Vec<i32> {
+fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>, old_snapshots: Vec<i32>, auto_drop_fns: Vec<i32>) -> Vec<i32> {
     let name: str = node_field(pool, fn_nid, 1);
     let plist: i64 = node_field(pool, fn_nid, 2);
     let blist: i64 = node_field(pool, fn_nid, 4);
@@ -20367,6 +20571,9 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
     let mut regs: Vec<i32> = ctr_new();
     let mut lbls: Vec<i32> = ctr_new();
     let mut sym: Vec<i32> = sym_new();
+    if name_in_auto_drop(auto_drop_fns, name) == 1 {
+        sym_set(sym, "__auto_drop_enabled", 1);
+    };
     enum_populate_sym(pool, enums, sym);
     // v0.3.54: seed sym with `__fnret_NAME = rtype` entries so
     // binop_float_type's kind==7 (call) branch can resolve the
@@ -20671,6 +20878,8 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
         let mut ep: Vec<i32> = lower_expr(pool, expr_nid, fb, regs, lbls, sym, fir, strtab, 0 - 1, 0 - 1, structs, closures, trait_impls);
         fb = lx_blk(ep);
         let mut rv: i64 = lx_reg(ep);
+        let tail_freed_name: str = auto_drop_explicit_free_name(pool, expr_nid);
+        if str_len(tail_freed_name) > 0 { auto_drop_mark_freed(sym, tail_freed_name); };
         if block_has_term(fb) == 0 {
             if rv < 0 {
                 rv = ctr_next(regs);
@@ -20746,6 +20955,8 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
                 let invx_cr: i64 = ctr_next(regs);
                 ir_block_add(fb, ir_call_ex(invx_cr, "contract_invariant", invx_args));
             };
+            let skip_tail_name: str = auto_drop_return_skip_name(pool, expr_nid, sym);
+            fb = auto_drop_emit_live(fb, regs, sym, skip_tail_name);
             ir_block_add(fb, ir_ret(rv));
         };
         return fir;
@@ -20814,6 +21025,7 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
             let invx2_cr: i64 = ctr_next(regs);
             ir_block_add(fb, ir_call_ex(invx2_cr, "contract_invariant", invx2_args));
         };
+        fb = auto_drop_emit_live(fb, regs, sym, "");
         ir_block_add(fb, ir_ret(zr));
     };
     return fir;
@@ -22266,6 +22478,10 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // skipped (e.g. hot-path fns). Pre-passes filter their entries
     // out of require_exprs / ensure_exprs.
     let dbc_no_check: Vec<i32> = if dbc_emit_require == 1 || dbc_emit_ensure_inv == 1 { collect_no_check_fns(source) } else { Vec::new() };
+    // RFC-0042 first cut — opt-in owned-local auto-drop. Empty list
+    // keeps the default path bytecode-close and avoids scanning cost
+    // for sources that do not mention the marker attribute.
+    let auto_drop_fns: Vec<i32> = if str_index_of(source, "#[auto_drop]") >= 0 { collect_auto_drop_fns(source) } else { Vec::new() };
     let req_text_pairs: Vec<i32> = if dbc_emit_require == 1 { collect_fn_requires(source) } else { Vec::new() };
     let mut require_exprs: Vec<i32> = Vec::new();
     let mut rti: i64 = 0;
@@ -22405,12 +22621,12 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     fi = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs, invariant_exprs, old_snapshots)); };
+        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns)); };
         fi = fi + 1;
     };
     let mut ii: i64 = 0;
     while ii < vec_len(impl_fns) {
-        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs, invariant_exprs, old_snapshots));
+        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns));
         ii = ii + 1;
     };
     let mut ci3: i64 = 0;
