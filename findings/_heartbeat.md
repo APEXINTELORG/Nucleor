@@ -245,3 +245,8 @@ main_round_3_lanes:
   HARD: RFC-0005 typed dimensional units — DEFERRED (1530 LOC arc, not single-ship)
   EASY: spine §8.9 historical handoff doc reconciliation — DONE (added to BUILD_PATH spine)
   PIVOT: docs/UPGRADE_v0.6.0.md v0.5→v0.6 migration story — DONE v0.6.2
+
+# === APPEND 2026-05-02 PM — parallel-1 RFC-0008 ISR spike ===
+last_parallel1_focus: spike/v06-rfc0008-isr
+parallel1_base: origin/main v0.6.4 (c3e9a59)
+parallel1_scope: RFC-0008 first-pass #[isr] attribute substrate, fixtures, and focused verify hook

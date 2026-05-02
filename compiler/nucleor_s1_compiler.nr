@@ -6982,6 +6982,14 @@ fn dce_collect_reachable(fns: Vec<i32>, src: str) -> Vec<i32> {
         worklist.push(vec_get(exports, ei));
         ei = ei + 3;
     };
+    // RFC-0008: ISR roots are externally entered by the vector table,
+    // so DCE must retain them even when `main` does not call them.
+    let isr_roots: Vec<i32> = collect_isr_fns(src);
+    let mut isri: i64 = 0;
+    while isri < vec_len(isr_roots) {
+        worklist.push(vec_get(isr_roots, isri));
+        isri = isri + 1;
+    };
     // Pre-scan all fns for op 29 (fn_ptr) — addressed fns must be kept.
     let mut fi: i64 = 0;
     while fi < nf {
@@ -7073,6 +7081,8 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
     let dce_active: i64 = if vec_len(dce_set) > 0 { 1 } else { 0 };
     let mut dce_skipped: i64 = 0;
     let mut seen_fns: Vec<i32> = Vec::new();
+    let isr_entries: Vec<i32> = collect_isr_entries(src);
+    let isr_target: str = isr_target_for_compile();
     let mut fi: i64 = 0;
     while fi < vec_len(fns) {
         let f: Vec<i32> = vec_get(fns, fi);
@@ -7111,6 +7121,13 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
             };
             seen_fns.push(fn_name);
         };
+        if name_in_isr_entries(isr_entries, fn_name) == 1 {
+            sb_append(sb, "; nucleor.isr target=");
+            sb_append(sb, isr_target);
+            sb_append(sb, " fn @");
+            sb_append(sb, fn_name);
+            sb_append(sb, " interrupt_cc\n");
+        };
         sb_append(sb, emit_fn(f, pool, externs)); sb_append(sb, "\n");
         free_ir_fn(f);
         fi = fi + 1;
@@ -7123,6 +7140,7 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
     let out: str = sb_to_str(sb);
     vec_free(dce_set);
     vec_free(seen_fns);
+    vec_free(isr_entries);
     return out;
 }
 
@@ -9637,6 +9655,192 @@ fn fn_return_type(source: str, fn_name: str) -> str {
         q = q + 1;
     };
     return "";
+}
+
+// RFC-0008 first pass — `#[isr]` source-level attribute substrate.
+// Keep this scanner in the same family as the RT attribute scanners:
+// the lexer/parser intentionally discard unknown `#[...]` lines, so
+// function-level attributes are recovered from resolved source text.
+//
+// Returns flat pairs: [fn_name0, attr_text0, fn_name1, attr_text1, ...].
+fn collect_isr_entries(source: str) -> Vec<i32> {
+    let mut entries: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = "#[isr";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let after: i64 = if p + plen < slen { str_char_at(source, p + plen) } else { 0 };
+            let attr_boundary: i64 = if after == 93 || after == 40 || is_ws(after) == 1 { 1 } else { 0 };
+            if attr_boundary == 0 {
+                p = p + 1;
+                continue;
+            };
+            let mut attr_end: i64 = p + plen;
+            let mut depth: i64 = 1;
+            while attr_end < slen && depth > 0 {
+                let ac: i64 = str_char_at(source, attr_end);
+                if ac == 34 {
+                    attr_end = attr_end + 1;
+                    while attr_end < slen && str_char_at(source, attr_end) != 34 {
+                        if str_char_at(source, attr_end) == 92 && attr_end + 1 < slen { attr_end = attr_end + 2; }
+                        else { attr_end = attr_end + 1; };
+                    };
+                } else if ac == 91 { depth = depth + 1; }
+                else if ac == 93 { depth = depth - 1; };
+                attr_end = attr_end + 1;
+            };
+            let attr_text: str = str_substring(source, p, attr_end);
+            let mut r: i64 = attr_end;
+            while r + 3 <= slen {
+                if r + 1 < slen && str_char_at(source, r) == 47 && str_char_at(source, r + 1) == 47 {
+                    while r < slen && str_char_at(source, r) != 10 { r = r + 1; };
+                };
+                let c0: i64 = str_char_at(source, r);
+                let c1: i64 = str_char_at(source, r + 1);
+                let c2: i64 = str_char_at(source, r + 2);
+                if c0 == 102 && c1 == 110 && c2 == 32 {
+                    r = r + 3;
+                    let name_start: i64 = r;
+                    while r < slen && (is_alnum(str_char_at(source, r)) == 1 || str_char_at(source, r) == 95) { r = r + 1; };
+                    if r > name_start {
+                        entries.push(str_substring(source, name_start, r));
+                        entries.push(attr_text);
+                    };
+                    p = r;
+                    break;
+                };
+                r = r + 1;
+            };
+            if r + 3 > slen { p = slen; };
+        } else {
+            p = p + 1;
+        };
+    };
+    return entries;
+}
+
+fn collect_isr_fns(source: str) -> Vec<i32> {
+    let entries: Vec<i32> = collect_isr_entries(source);
+    let mut fns: Vec<i32> = Vec::new();
+    let n: i64 = vec_len(entries);
+    let mut i: i64 = 0;
+    while i + 1 < n {
+        fns.push(vec_get(entries, i));
+        i = i + 2;
+    };
+    return fns;
+}
+
+fn name_in_isr_entries(entries: Vec<i32>, fn_name: str) -> i64 {
+    let n: i64 = vec_len(entries);
+    let mut i: i64 = 0;
+    while i + 1 < n {
+        if str_eq(vec_get(entries, i), fn_name) == 1 { return 1; };
+        i = i + 2;
+    };
+    return 0;
+}
+
+fn isr_target_for_compile() -> str {
+    let t: str = getenv("NUCLEOR_ISR_TARGET");
+    if str_len(t) == 0 { return "cortex-m4f"; };
+    return t;
+}
+
+fn isr_target_supported(target: str) -> i64 {
+    if str_eq(target, "cortex-m4f") == 1 { return 1; };
+    if str_eq(target, "cortex_m4f") == 1 { return 1; };
+    if str_eq(target, "rv32imac") == 1 { return 1; };
+    if str_eq(target, "rv32-imac") == 1 { return 1; };
+    return 0;
+}
+
+fn isr_attr_requests_unsupported_target(attr_text: str) -> i64 {
+    if str_contains(attr_text, "target = \"host\"") == 1 { return 1; };
+    if str_contains(attr_text, "target=\"host\"") == 1 { return 1; };
+    if str_contains(attr_text, "target = \"native\"") == 1 { return 1; };
+    if str_contains(attr_text, "target=\"native\"") == 1 { return 1; };
+    if str_contains(attr_text, "target = \"x86_64\"") == 1 { return 1; };
+    if str_contains(attr_text, "target=\"x86_64\"") == 1 { return 1; };
+    if str_contains(attr_text, "target = \"unsupported\"") == 1 { return 1; };
+    if str_contains(attr_text, "target=\"unsupported\"") == 1 { return 1; };
+    return 0;
+}
+
+fn fn_param_decl_text(source: str, fn_name: str) -> str {
+    let needle: str = str_concat("fn ", str_concat(fn_name, "("));
+    let pat_pos: i64 = str_index_of(source, needle);
+    if pat_pos < 0 { return ""; };
+    let params_start: i64 = pat_pos + str_len(needle);
+    let n: i64 = str_len(source);
+    let mut depth: i64 = 1;
+    let mut p: i64 = params_start;
+    while p < n {
+        let ch: i64 = str_char_at(source, p);
+        if ch == 40 { depth = depth + 1; };
+        if ch == 41 {
+            depth = depth - 1;
+            if depth == 0 { return str_substring(source, params_start, p); };
+        };
+        p = p + 1;
+    };
+    return "";
+}
+
+fn enforce_isr_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let entries: Vec<i32> = collect_isr_entries(source);
+    let target: str = isr_target_for_compile();
+    let target_ok: i64 = isr_target_supported(target);
+    let n: i64 = vec_len(entries);
+    let mut i: i64 = 0;
+    while i + 1 < n {
+        let fn_name: str = vec_get(entries, i);
+        let attr_text: str = vec_get(entries, i + 1);
+        let params: str = str_trim(fn_param_decl_text(source, fn_name));
+        let ret_type: str = fn_return_type(source, fn_name);
+        let mut lc: Vec<i32> = find_linecol_in_source(source, fn_name, fn_name);
+        let mut bad_sig: i64 = 0;
+        if str_len(params) > 0 { bad_sig = 1; };
+        if str_len(ret_type) > 0 && str_eq(ret_type, "void") == 0 { bad_sig = 1; };
+        if bad_sig == 1 {
+            let msg1: str = str_concat("`#[isr]` function `", str_concat(fn_name, "` must have signature `fn() -> void` (no params, no return value)"));
+            diag_add_ex(diags, "error", "isr", "ISR-001", msg1, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+        };
+        if str_starts_with(fn_name, "__nuc_dl_inner_") == 1 {
+            let msg2: str = "`#[isr]` cannot be combined with `#[deadline]`; ISR latency is target interrupt timing, not wall-time deadline wrapping";
+            diag_add_ex(diags, "error", "isr", "ISR-002", msg2, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+        };
+        if target_ok == 0 || isr_attr_requests_unsupported_target(attr_text) == 1 {
+            let msg3: str = str_concat("target `", str_concat(target, "` does not support `#[isr]` yet (supported first-pass targets: cortex-m4f, rv32imac)"));
+            diag_add_ex(diags, "error", "isr", "ISR-003", msg3, fn_name, vec_get(lc, 0), vec_get(lc, 1), "");
+        };
+        check_no_alloc_violations(diags, source, fn_name);
+        check_no_panic_violations(diags, source, fn_name);
+        i = i + 2;
+    };
+    return diags;
 }
 
 // v0.4.277 RFC-0006 — scan a contract-predicate text for `old(`
@@ -22786,6 +22990,11 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         print_phase_time(time_passes, "effect", 0);
         print_phase_time(time_passes, "taint", 0);
     };
+    // RFC-0008 first pass: #[isr] roots must be zero-arg/void,
+    // inherit no_alloc/no_panic checks, and cannot be deadline-
+    // wrapped. Runs before generic RT checks so hard ISR errors
+    // participate in the same suppression/deny pipeline.
+    diags = enforce_isr_contracts(diags, source);
     // RFC-0001 phase 1 — enforce #[no_alloc] before suppression so
     // users can `#[allow(RT-001)]` if needed. enforce_no_alloc
     // appends to diags; if no #[no_alloc] attribute is present in

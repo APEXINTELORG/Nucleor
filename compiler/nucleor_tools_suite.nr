@@ -10676,9 +10676,9 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "ATOMIC-005") { return "Invalid memory ordering for atomic load/store"; };
     if str_eq(code, "ATOMIC-006") { return "Atomic helper inside closure is temporarily unsupported"; };
     // RFC-0008 ISR
-    if str_eq(code, "ISR-001") { return "#[isr] function not pub"; };
-    if str_eq(code, "ISR-002") { return "ISR stack frame exceeds budget"; };
-    if str_eq(code, "ISR-003") { return "Call to non-#[isr_safe] function from ISR"; };
+    if str_eq(code, "ISR-001") { return "#[isr] function must be fn() -> void"; };
+    if str_eq(code, "ISR-002") { return "#[isr] cannot be combined with #[deadline]"; };
+    if str_eq(code, "ISR-003") { return "Target does not support #[isr] yet"; };
     if str_eq(code, "ISR-004") { return "Vector name not recognized for target"; };
     if str_eq(code, "ISR-005") { return "Two ISRs assigned to the same vector"; };
     if str_eq(code, "ISR-006") { return "Priority out of range for target NVIC"; };
@@ -10890,9 +10890,9 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "ATOMIC-004") { return "compare_exchange takes (success, failure) orderings; failure must not be stronger than success and not Release/AcqRel. The compiler enforces the ordering lattice."; };
     if str_eq(code, "ATOMIC-005") { return "atomic_load accepts Relaxed, Acquire, or SeqCst. atomic_store accepts Relaxed, Release, or SeqCst. Acquire stores and Release loads are invalid memory-model combinations."; };
     if str_eq(code, "ATOMIC-006") { return "Closure lowering does not yet inherit the parent function's enum-variant scope for atomic memory-order constants."; };
-    if str_eq(code, "ISR-001") { return "Vector-table wiring requires the ISR fn to be pub so the linker can find it."; };
-    if str_eq(code, "ISR-002") { return "ISRs share a small stack. Move large local arrays to static or move computation outside the ISR."; };
-    if str_eq(code, "ISR-003") { return "Functions called from an ISR must be #[isr_safe] (no blocking, no alloc). The compiler walks the call graph from the ISR root."; };
+    if str_eq(code, "ISR-001") { return "An ISR is entered by hardware, so the first pass accepts only a zero-argument void function. Move data exchange through atomics or static state."; };
+    if str_eq(code, "ISR-002") { return "Deadline wrappers measure wall-time function calls. ISR latency is target interrupt timing, so #[deadline] composition is rejected."; };
+    if str_eq(code, "ISR-003") { return "The current ISR lowering substrate recognizes cortex-m4f and rv32imac. Other targets must wait for a target-specific interrupt ABI ship."; };
     if str_eq(code, "ISR-004") { return "The vector name in #[isr(vector = ...)] does not match this target's PAC. Check stdlib/embedded/<target>/vectors.nr for the valid set."; };
     if str_eq(code, "ISR-005") { return "Two #[isr] functions claim the same vector. The vector table can only bind one — combine them or distinguish the priorities."; };
     if str_eq(code, "ISR-006") { return "Cortex-M NVIC priorities range 0..2^N where N depends on the chip (typically 3–4). The supplied priority is out of range."; };
@@ -11091,9 +11091,9 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "ATOMIC-004") { return "RFC-0007 §3.2 — compare_exchange takes (success_ordering, failure_ordering); failure cannot be stronger than success and cannot be Release/AcqRel (since failure does not perform a write). Compiler enforces the ordering lattice as defined by the C++/Rust memory model."; };
     if str_eq(code, "ATOMIC-005") { return "RFC-0007 §3.2 maps MemOrder to LLVM atomic ordering keywords. LLVM rejects release/acq_rel loads and acquire/acq_rel stores; use Acquire/SeqCst for loads and Release/SeqCst for stores."; };
     if str_eq(code, "ATOMIC-006") { return "Call the atomic helper directly from a regular function body instead of wrapping it in a closure until closure scope inheritance lands."; };
-    if str_eq(code, "ISR-001") { return "RFC-0008 §3.3 — vector table is generated from #[isr]-annotated functions. Linker needs the symbol public."; };
-    if str_eq(code, "ISR-002") { return "RFC-0008 §3.6 — each ISR has a stack budget (default 256 B). Move large arrays to static, file-scope, or to a dynamically-allocated heap region used outside the ISR."; };
-    if str_eq(code, "ISR-003") { return "RFC-0008 §3.2 — the call graph rooted at an #[isr] function is closed under #[isr_safe]. The compiler walks it and reports any callee not marked safe. Mark callees #[isr_safe] (and verify they meet the constraints) or move the work outside the ISR."; };
+    if str_eq(code, "ISR-001") { return "RFC-0008 first pass — hardware-entered handlers must be `fn() -> void` with no params and no return value."; };
+    if str_eq(code, "ISR-002") { return "RFC-0008 first pass — `#[isr]` rejects `#[deadline]`; use ISR-specific latency/vector tooling instead of deadline wrappers."; };
+    if str_eq(code, "ISR-003") { return "RFC-0008 first pass — target-specific interrupt calling conventions are enabled only for cortex-m4f and rv32imac; other targets fail closed."; };
     if str_eq(code, "ISR-004") { return "RFC-0008 §3.1 — vector names are target-specific. The PAC for your MCU is in stdlib/embedded/<target>/vectors.nr."; };
     if str_eq(code, "ISR-005") { return "RFC-0008 §3.3 — the vector table maps each interrupt source to exactly one handler. Two #[isr]'s claiming the same vector is ambiguous; either combine them, or use a software dispatch shim."; };
     if str_eq(code, "ISR-006") { return "RFC-0008 §3.1 — Cortex-M NVIC priority bit-width varies (typically 3 or 4 bits = 8 or 16 priority levels). Check stdlib/embedded/<target>/nvic.nr for your chip's priority range."; };
