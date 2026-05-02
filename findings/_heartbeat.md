@@ -215,3 +215,15 @@ memory_budget_state: same per-process caps (770 / 580 MB) — v0.5.32 NVec SBO +
 #
 # Spine-side correction: see §8.8 of
 # Desktop/Nucleor_Build_Spine/BUILD_PATH_v0.4_to_v1.3.md.
+
+# === APPEND 2026-05-02 — v0.6.0-pre integration shipped ===
+last_main_ship_2026-05-02_pm: 751a095 (v0.6.0-pre)
+integrated: max-depth-extensions (3495cb0) + effects-types-mem-tightened (b9ea012)
+self_host_fixed_point_md5: b399b7502aafc7c566954c37eb511d5f
+verify_gate: 721/721 PASS / 0 FAIL / 0 SKIP / 710s wall
+self_host_peak: 597 MB / 4.665s wall
+tools_suite_peak: 397 MB / 3.839s wall
+inbox_state: empty (only _questions.md)
+flaky_observed: stage1 hit OWN-008 once on priv_mangle_private_fns; stage2/3
+  always pass — heap-corruption path beyond v0.5.32 vec_insert_at fix.
+  See _questions.md.
