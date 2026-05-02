@@ -10,14 +10,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-// NVec must match nucleor_llvm_rt.c exactly
-typedef struct { long long *data; int len; int cap; } NVec;
+// NVec must match nucleor_llvm_rt.c exactly.
+typedef struct {
+    long long *data;
+    int len;
+    int cap;
+    long long inline_data[2];
+} NVec;
 
 // Free a Vec and its data array. Handle becomes invalid after this call.
 void nuc_vec_free(long long handle) {
     NVec *v = (NVec *)(void *)(size_t)handle;
     if (!v) return;
-    if (v->data) free(v->data);
+    if (v->data && v->data != v->inline_data) free(v->data);
     free(v);
 }
 
@@ -33,5 +38,6 @@ void nuc_vec_clear(long long handle) {
 long long nuc_vec_mem_bytes(long long handle) {
     NVec *v = (NVec *)(void *)(size_t)handle;
     if (!v) return 0;
+    if (v->data == v->inline_data) return (long long)sizeof(NVec);
     return (long long)(sizeof(NVec) + v->cap * sizeof(long long));
 }

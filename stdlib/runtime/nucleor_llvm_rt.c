@@ -2318,8 +2318,10 @@ void __nucleor_vec_swap(NVec *v, long long i, long long j) {
 }
 void __nucleor_vec_extend(NVec *dst, NVec *src) {
     if (!dst || !src) return;
-    for (int i = 0; i < src->len; i++) {
-        __nucleor_vec_push(dst, src->data[i]);
+    int n = src->len;
+    for (int i = 0; i < n; i++) {
+        long long value = src->data[i];
+        __nucleor_vec_push(dst, value);
     }
 }
 void __nucleor_vec_remove_at(NVec *v, long long i) {
