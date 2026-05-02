@@ -190,3 +190,28 @@ memory_budget_state: same per-process caps (770 / 580 MB) — v0.5.32 NVec SBO +
 # the spike-ledger append.
 #
 # Parallel-2: no new outputs since the v0.5.14 snapshot above.
+
+# ============================================================
+# === APPEND 2026-05-02 (correction) — 1 GB is E-STOP, NOT BASELINE
+# ============================================================
+# The earlier `memory_budget_state_2026-05-02` line and the
+# spine §8.4 item #1 wording both treated 1 GB as a *baseline*
+# the system-level concurrent verify peak should be measured
+# against. THAT FRAMING IS WRONG and was corrected by the user
+# on 2026-05-02. The canonical framing — already correct in the
+# auto-memory files (project_nucleor_probe_v0529_protocol.md,
+# feedback_perf_regression_pattern.md, project_nucleor_oss_dual_
+# agent_split.md) — is:
+#
+#   - Self-host per-process budget = 770 MB (hard cap)
+#   - Tools-suite per-process budget = 580 MB (hard cap)
+#   - Real-time e-stop ceiling = 1 GB / 1024 MB (safety kill;
+#     never raised; comfort-blanket bumps rejected)
+#
+# There is no tracked system-level "concurrent baseline." The
+# wrapper measurement run that was in flight when the earlier
+# block was written has been stopped; no conclusion derived
+# from its partial CSV.
+#
+# Spine-side correction: see §8.8 of
+# Desktop/Nucleor_Build_Spine/BUILD_PATH_v0.4_to_v1.3.md.
