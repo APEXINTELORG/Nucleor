@@ -182,13 +182,19 @@ function Invoke-NucRssEstop {
 
     $jobHandle = [IntPtr]::Zero
     $jobAssigned = $false
-    try {
-        $jobHandle = [NucRssJobApi]::CreateJobObject([IntPtr]::Zero, $null)
-        if ($jobHandle -ne [IntPtr]::Zero) {
-            $jobAssigned = [NucRssJobApi]::AssignProcessToJobObject($jobHandle, $proc.Handle)
+    # Job objects give stronger descendant containment, but on this
+    # toolchain they can leave the self-host compiler waiting after the
+    # output artifact is emitted. Keep parent-tree RSS sampling as the
+    # default crash guard; opt into Job tracking only for focused probes.
+    if ($env:NUC_RSS_USE_JOB -eq "1") {
+        try {
+            $jobHandle = [NucRssJobApi]::CreateJobObject([IntPtr]::Zero, $null)
+            if ($jobHandle -ne [IntPtr]::Zero) {
+                $jobAssigned = [NucRssJobApi]::AssignProcessToJobObject($jobHandle, $proc.Handle)
+            }
+        } catch {
+            $jobAssigned = $false
         }
-    } catch {
-        $jobAssigned = $false
     }
 
     $sw = [Diagnostics.Stopwatch]::StartNew()

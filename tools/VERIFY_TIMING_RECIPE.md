@@ -45,6 +45,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   compiler resident sets and can hide which edit caused the peak.
 - The wrapper sets `NUCLEOR_MEM_CAP_KB=0` internally so Git Bash virtual-memory
   behavior does not conflict with the real resident-memory watchdog.
+- Job-object containment is opt-in with `NUC_RSS_USE_JOB=1`. The default uses
+  parent-process-tree RSS sampling because Job assignment can cause self-host
+  compiler shutdown hangs on this Windows toolchain.
 - The watchdog writes stdout/stderr logs under `target/` plus the normal
   `NUC_VERIFY_CSV` timing rows, so the killed step remains diagnosable.
 

@@ -167,3 +167,54 @@ env-on:  PASS 705, SKIP 1, wall 977.931s, peak 761 MB process-tree
 Post-v0.5.24 rebase did not require source-conflict edits; the only rebase
 conflict was generated `bin/nucleor.exe` / `bootstrap/nucleor_s1_seed.ll`, both
 regenerated from the rebased compiler and fixed-point checked above.
+
+## v0.5.32 Rebase Refresh
+
+Follow-up branch: `v06-track-effects-types-mem-tightened`
+
+Base after rebase: `origin/main` `a60131b` (`v0.5.32`)
+
+The branch was rebased onto current main after Track Y / Track Z integration.
+The source conflicts were in the compiler/runtime memory work and the verify
+timing recipe. The rebase kept main's newer per-function IR free and NVec
+inline-buffer implementation, then preserved the effects substrate plus the
+memory-watchdog tooling.
+
+Watchdog note: Job-object containment is now opt-in with `NUC_RSS_USE_JOB=1`.
+On this Windows toolchain, assigning the self-host compiler to a Job object can
+leave the compiler waiting after the output artifact has already been emitted.
+The default stays on parent-process-tree sampling so self-host builds finish
+normally, while focused probes can still opt into Job tracking if needed.
+
+Current post-rebase self-host fixed point under the RSS e-stop:
+
+```text
+stage1b: OK peak 581 MB / 1000 MB e-stop, wall 5.317s
+stage2:  OK peak 597 MB / 1000 MB e-stop, wall 4.643s
+stage3:  OK peak 598 MB / 1000 MB e-stop, wall 4.632s
+stage2_sha = stage3_sha = FFD301E4CE8B53588D61B4B8F2396947EFFB9CDA26B65C1A95C860ADA8602BC3
+final artifact check from bin\nucleor.exe: OK peak 668 MB / 1000 MB e-stop, wall 4.917s
+final artifact check seed hash = bootstrap\nucleor_s1_seed.ll hash = FFD301E4CE8B53588D61B4B8F2396947EFFB9CDA26B65C1A95C860ADA8602BC3
+```
+
+Focused current validation:
+
+```text
+env-off: tools/run_verify_rss_estop.ps1 --range 236-241
+  exit_code 0, wall 70.603s
+  T3.33 RFC-0033 with-effects syntax parses: OK
+  T3.33 RFC-0033 with [no_alloc] maps to RT-001: OK
+  T3.33 RFC-0033 with [no_panic] maps to RT-002: OK
+  T3.33 RFC-0033 with [no_dyn] maps to RT-003: OK
+  T3.33 RFC-0033 Alloc call rejected from no_alloc: OK
+  T3.33 RFC-0033 extern with [no_alloc] feeds RT-005: OK
+
+env-on: tools/run_verify_rss_estop.ps1 -StrictIntrin 1 --range 236-241
+  exit_code 0, wall 60.234s
+  same six RFC-0033 checks: OK
+```
+
+The range wrapper's `peak_mb` output is intentionally not used as the compiler
+RSS claim here because Git Bash can hide compiler descendants from the default
+parent-tree sampler after Job tracking is disabled. The self-host build
+measurements above are the current RSS evidence for this branch.
