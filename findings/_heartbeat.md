@@ -272,9 +272,16 @@ parallel1_lane_a_base: origin/main v0.6.4 (c3e9a59)
 parallel1_lane_a_scope: RFC-0008 first-pass #[isr] attribute substrate, fixtures, and focused verify hook
 
 # === APPEND 2026-05-02 PM — parallel-1 vec inline-data audit ===
-last_parallel1_focus_lane_b: spike/v06-vec-inline-data-audit (integrating now)
+last_parallel1_focus_lane_b: spike/v06-vec-inline-data-audit (SHIPPED v0.6.13)
 parallel1_lane_b_base: origin/main v0.6.8 (f6231c9) after final rebase
 parallel1_lane_b_scope: NVec inline-data audit; vec_extend self-alias fix; mem_rt inline free guard
 parallel1_lane_b_validation: focused NVec runtime ownership smoke PASS after rebase; stage1 self-host 10/10 PASS
 parallel1_lane_b_peak: focused wrapper 180 MB after rebase; post-loop max 678 MB / 770 MB tight gate
 parallel1_lane_b_note: original OWN-008 did not reproduce in 10 pre-patch stage1 runs
+
+# === APPEND 2026-05-02 PM — parallel-1 MATCH-014 diagnostic ===
+last_parallel1_focus_lane_c: spike/v06-match-range-negative-bound-diagnostic (integrating now)
+parallel1_lane_c_base: origin/main v0.6.10 (cc8311f)
+parallel1_lane_c_scope: E2 clean diagnostic for negative literal bounds in match range patterns
+parallel1_lane_c_validation: fixed-point PASS; MATCH-014 focused PASS; diag/spec/explain/drift PASS
+parallel1_lane_c_peak: self-host max 671 MB / 770 MB; tools-suite 424 MB / 580 MB; focused wrapper max 56 MB

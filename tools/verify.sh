@@ -736,7 +736,7 @@ cli_explain_full_smoke() {
         # RFC-0016 Result/Option/match (v0.2; 007..010 for v0.4 RFC-0023)
         "MATCH-001" "MATCH-002" "MATCH-003" "MATCH-004" "MATCH-005" "MATCH-006"
         "MATCH-007" "MATCH-008" "MATCH-009" "MATCH-010"
-        "MATCH-011" "MATCH-012" "MATCH-013"
+        "MATCH-011" "MATCH-012" "MATCH-013" "MATCH-014"
         # RFC-0017 collections (v0.2)
         "COLL-001" "COLL-002" "COLL-003" "COLL-004" "COLL-005"
         # RFC-0018 modules (v0.2)
@@ -2180,6 +2180,18 @@ t_str_char_at_strict_oob() {
     out=$("$exe" 2>&1)
     [ "$?" = "1" ] || return 1
     echo "$out" | grep -q "str_char_at_strict OOB" || return 1
+    return 0
+}
+
+t_match_014_negative_range_bounds() {
+    "$BIN" build "tests/err/err_match_range_negative_lower_bound.nr" -o "_t_m014a" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "1" ] || return 1
+    grep -q "MATCH-014" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "guard" $NUC_VERIFY_STEP_LOG || return 1
+    "$BIN" build "tests/err/err_match_range_negative_upper_bound.nr" -o "_t_m014b" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "1" ] || return 1
+    grep -q "MATCH-014" $NUC_VERIFY_STEP_LOG || return 1
+    grep -q "guard" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -4927,6 +4939,7 @@ step "v0.4.277 RFC-0006 — old() in #[require] reject (CONTRACT-010)" t_rfc0006
 step "v0.4.283 RFC-0006 — undefined ident in contract reject (CONTRACT-011)" t_rfc0006_undefined_ident_reject
 step "v0.4.279 str_char_at_strict in-bounds works" t_str_char_at_strict_basic
 step "v0.4.279 str_char_at_strict OOB panics" t_str_char_at_strict_oob
+step "v0.6 MATCH-014 negative range-pattern bounds diagnostic" t_match_014_negative_range_bounds
 step "v0.4.280 ATOMIC-006 closure+atomic compiler-meltdown halt" t_atomic_006_in_closure
 step "v0.4.281 RFC-0007 AtomicBool ordered ops (load/store/CAS)" t_rfc0007_atomic_bool
 step "v0.5 Track L content-addressed cache v2 correctness" cache_v2_correctness
