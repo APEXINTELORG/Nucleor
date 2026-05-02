@@ -2183,6 +2183,22 @@ t_str_char_at_strict_oob() {
     return 0
 }
 
+t_str_substring_strict_basic() {
+    # v0.6 migration fixture: in-bounds strict substring returns the
+    # same slice shape as the fast helper while documenting the safe
+    # opt-in path for untrusted bounds.
+    "$BIN" build "tests/features/str_substring_strict_basic.nr" -o "_t_sss" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe="target/_t_sss"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local out
+    out=$("$exe" 2>&1)
+    [ "$?" = "0" ] || return 1
+    echo "$out" | grep -q "OK str_substring_strict_basic" || return 1
+    return 0
+}
+
 t_rfc0006_undefined_ident_reject() {
     # v0.4.283 — undefined ident in #[require] / #[ensure]
     # predicate must reject at compile time. Probe-agent finding
@@ -4907,6 +4923,7 @@ step "v0.4.277 RFC-0006 — old() in #[require] reject (CONTRACT-010)" t_rfc0006
 step "v0.4.283 RFC-0006 — undefined ident in contract reject (CONTRACT-011)" t_rfc0006_undefined_ident_reject
 step "v0.4.279 str_char_at_strict in-bounds works" t_str_char_at_strict_basic
 step "v0.4.279 str_char_at_strict OOB panics" t_str_char_at_strict_oob
+step "v0.6 str_substring_strict migration fixture" t_str_substring_strict_basic
 step "v0.4.280 ATOMIC-006 closure+atomic compiler-meltdown halt" t_atomic_006_in_closure
 step "v0.4.281 RFC-0007 AtomicBool ordered ops (load/store/CAS)" t_rfc0007_atomic_bool
 step "v0.5 Track L content-addressed cache v2 correctness" cache_v2_correctness

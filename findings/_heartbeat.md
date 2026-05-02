@@ -260,3 +260,9 @@ main_round_3_lanes:
 last_parallel1_focus: spike/v06-rfc0008-isr
 parallel1_base: origin/main v0.6.4 (c3e9a59)
 parallel1_scope: RFC-0008 first-pass #[isr] attribute substrate, fixtures, and focused verify hook
+
+# === APPEND 2026-05-02 PM — parallel-1 str_substring_strict migration ===
+last_parallel1_focus: spike/v06-str-substring-strict-migration
+parallel1_base: origin/main v0.6.10 (cc8311f) after final rebase
+parallel1_scope: E1 doc/fixture discoverability lane for str_substring_strict
+parallel1_validation: focused migration fixture PASS after rebase; peak 174 MB under 1 GB e-stop
