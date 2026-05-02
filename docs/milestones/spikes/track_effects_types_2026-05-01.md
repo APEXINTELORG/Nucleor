@@ -218,3 +218,34 @@ The range wrapper's `peak_mb` output is intentionally not used as the compiler
 RSS claim here because Git Bash can hide compiler descendants from the default
 parent-tree sampler after Job tracking is disabled. The self-host build
 measurements above are the current RSS evidence for this branch.
+
+## v0.5.35 Rebase Refresh
+
+Base after rebase: `origin/main` `3213cab` (`v0.5.35`)
+
+The `v0.5.33`-`v0.5.35` mainline changes were docs/heartbeat/release-index
+updates on top of the `v0.5.32` compiler baseline, so the effects compiler
+artifacts stayed fixed-point identical after the rebase.
+
+Current artifact check:
+
+```text
+final artifact check from bin\nucleor.exe: OK peak 582 MB / 1000 MB e-stop, wall 4.785s
+final artifact check seed hash = bootstrap\nucleor_s1_seed.ll hash = FFD301E4CE8B53588D61B4B8F2396947EFFB9CDA26B65C1A95C860ADA8602BC3
+```
+
+Focused validation after rebase:
+
+```text
+env-off: tools/run_verify_rss_estop.ps1 --range 236-241
+  exit_code 0, wall 68.413s
+
+env-on: tools/run_verify_rss_estop.ps1 -StrictIntrin 1 --range 236-241
+  exit_code 0, wall 59.916s
+  T3.33 RFC-0033 with-effects syntax parses: OK
+  T3.33 RFC-0033 with [no_alloc] maps to RT-001: OK
+  T3.33 RFC-0033 with [no_panic] maps to RT-002: OK
+  T3.33 RFC-0033 with [no_dyn] maps to RT-003: OK
+  T3.33 RFC-0033 Alloc call rejected from no_alloc: OK
+  T3.33 RFC-0033 extern with [no_alloc] feeds RT-005: OK
+```
