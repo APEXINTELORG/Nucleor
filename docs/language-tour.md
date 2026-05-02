@@ -110,7 +110,11 @@ if str_eq(s, "Hello, world!") == 1 {
 };
 ```
 
-The core string ops are runtime builtins. The `stdlib/rods/strings.nr` rod adds higher-level helpers like `strings_to_upper`, `strings_split`, `strings_contains`, etc.
+The core string ops are runtime builtins. Use `str_substring_strict` when the
+caller cannot already prove substring bounds; see
+[`migrations/str_substring_strict.md`](migrations/str_substring_strict.md).
+The `stdlib/rods/strings.nr` rod adds higher-level helpers like
+`strings_to_upper`, `strings_split`, `strings_contains`, etc.
 
 ## Vectors
 
