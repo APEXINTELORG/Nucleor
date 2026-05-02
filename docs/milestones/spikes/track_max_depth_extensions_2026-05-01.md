@@ -86,3 +86,42 @@ The branch also pre-seeded Block rules for the older possible names:
 - `C:\Users\JoeWe\Desktop\Nucleor_OSS_track_max_depth_extensions\target\socket_test.exe`
 
 The rod test binds localhost/high ports and does not require external inbound network permission, so either Allow or Block avoids an unattended dialog without changing the expected result.
+
+## v0.5.35 Rebase Refresh
+
+Base after rebase: `origin/main` `3213cab` (`v0.5.35`)
+
+The branch was rebased from the old `v0.5.10` base onto current main after the
+Track Y / Track Z integrations and the later heartbeat/docs corrections.
+Generated `bin/nucleor.exe` and `bootstrap/nucleor_s1_seed.ll` were rebuilt
+from the rebased compiler.
+
+Post-rebase capped self-host promotion:
+
+```text
+stage1: OK peak 580 MB / 1000 MB budget, wall 4.806s
+stage2: OK peak 578 MB / 1000 MB budget, wall 5.183s
+stage3: OK peak 589 MB / 1000 MB budget, wall 4.731s
+stage2_sha = stage3_sha = FA97B33C3F7E2E993234C0EBBE2FBF14D2102C9E152C9659DCBB20ABED207295
+final artifact check from bin\nucleor.exe: OK peak 584 MB / 1000 MB budget, wall 4.921s
+final artifact check seed hash = bootstrap\nucleor_s1_seed.ll hash = FA97B33C3F7E2E993234C0EBBE2FBF14D2102C9E152C9659DCBB20ABED207295
+```
+
+Focused validation after rebase:
+
+```text
+env-off: tools/run_with_peakmem.ps1 --only "RFC-0014 max_depth static analysis + runtime wrapper"
+  PASS step 232/709, peak 243 MB, wall 50.750s, killed=False
+
+env-on: NUCLEOR_INT_STRICT_INTRIN=1 with the same --only filter
+  PASS step 232/709, peak 232 MB, wall 53.145s, killed=False
+```
+
+Drift after rebase:
+
+```text
+OK: tools-suite ABI tables match nucleor_s1_compiler.nr
+OK: helper_manifest.toml is up to date
+OK: rod_manifest.toml is up to date
+OK: RELEASES.md is up to date
+```
