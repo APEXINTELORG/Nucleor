@@ -259,3 +259,56 @@ deterministic repro.
 
 Cross-ref: `stdlib/runtime/nucleor_llvm_rt.c` `__nucleor_vec_*`,
 `__nucleor_vec_insert_at` already fixed in v0.5.32 (`a60131b`).
+
+---
+
+## 2026-05-02 PM (during v0.6.x bookkeeping) — bulk closure map for probe-branch inbox
+
+Probe-branch `origin/probe/exploration` carries 60+ inbox findings as
+of last rebase (`5d83515` "probe: 9 surfaces clean — no new findings").
+Roughly 30 of those are NOT yet in main's `findings/promoted/`. Many
+have already been closed on main during the v0.5.4 → v0.6.5 arc and
+will look orphan on next probe rebase.
+
+This is the close-version map. Probe agent: when you next rebase
+into main, you can drop the inbox entries that show CLOSED here
+(or carry a STALE marker forward); the slugs that show STILL-OPEN
+remain in scope.
+
+| Slug (probe inbox) | State on main as of v0.6.5 |
+|---|---|
+| `2026-04-30-vec-pop-void-coerce-to-zero.md` | check current; deferred / unconfirmed |
+| `2026-04-30-str-substring-default-no-end-bounds-check.md` | unconfirmed; substring bounds tightened in v0.4.x batch but slug-specific shape not verified |
+| `2026-05-01-async-keyword-silently-stripped.md` | ✅ CLOSED v0.5.19 (`a5a865d`) — already in `findings/promoted/` |
+| `2026-05-01-async-await-twice-heap-corruption.md` | ✅ CLOSED v0.5.25 (`2fe41ef`) — already in `findings/promoted/` |
+| `2026-05-01-async-await-invalid-handle-segfault.md` | ✅ CLOSED v0.5.25 (`2fe41ef`) — already in `findings/promoted/` |
+| `2026-05-01-eprintln-eprint-macro-falls-through-to-unary-not.md` | ✅ CLOSED v0.5.22 (`a74b160`) — already in `findings/promoted/` |
+| `2026-05-01-f64-cmp-as-i32-cast-silently-zero.md` | ✅ CLOSED v0.5.27 (`74d9b0b`) — already in `findings/promoted/` |
+| `2026-05-01-format-extra-args-silently-dropped.md` (or slug variant) | ✅ CLOSED v0.5.11 (`f838d4b`) — already in `findings/promoted/` |
+| `2026-05-01-str-to-int-bogus-input-silent-zero.md` (or `-f64`) | ✅ CLOSED v0.5.12 (`f12cd49`) — already in `findings/promoted/` |
+| `2026-05-01-i32-min-divide-neg-one-windows-exception.md` | ✅ CLOSED v0.5.10 (`701035f`) — already in `findings/promoted/` |
+| `2026-05-01-generic-T-trait-bound-method-dispatch.md` | ✅ CLOSED v0.5.31 (Track Y `aa8e44e`) — needs promotion footer file (TODO main agent next ship) |
+| `2026-05-01-num-008-shift-only-checks-i64-not-narrow-widths.md` | 🟡 STILL OPEN — current code path at `compiler/nucleor_s1_compiler.nr:14721` checks `sh_amt < 0 OR sh_amt >= 64` (i64 only). Narrow-width (i8/i16/i32) shift bounds NOT yet wired. Forward-roadmap. |
+| `2026-05-01-str-len-strlen-truncates-at-nul-byte.md` | 🟡 STILL OPEN — `str_len` is `strlen()` (`nucleor_llvm_rt.c:1498`); embedded NULs truncate. Blocks ML Lane E (safetensors loader). Needs `Vec<u8>` runtime primitive — handed to consultant lane B. |
+| `2026-05-01-drop-trait-never-auto-called.md` | partial — Track Z RFC-0042 opt-in auto-drop shipped v0.5.31. Full Drop-trait dispatch on every owned local is forward-roadmap. |
+| `2026-05-01-self-recursive-struct-infinite-size-accepted.md` | unconfirmed — needs probe re-validation against current main |
+| `2026-05-01-enum-discriminant-segfaults-compiler.md` | unconfirmed — needs probe re-validation |
+| (others not enumerated) | bulk re-validate on next probe rebase |
+
+**Action items for next probe rebase:**
+
+1. Drop the 7 ✅ CLOSED entries from probe inbox (or carry STALE
+   marker forward) — main agent has already promoted equivalents.
+2. Open the 2 🟡 STILL OPEN narrow-shift / strlen-NUL items as
+   formal forward-roadmap entries; they need substantive work
+   (runtime primitives) and aren't fixable as a one-shot probe
+   ship.
+3. Re-validate the "unconfirmed" entries against current v0.6.5
+   main; many may have been closed obliquely by the v0.5.x → v0.6.x
+   arc without the slug being explicitly noted.
+
+**Action item for main agent next ship:**
+
+Promote `2026-05-01-generic-T-trait-bound-method-dispatch.md` to
+`findings/promoted/` with the v0.5.31 Track Y closure footer; this
+is the only confirmed-closed entry without a promoted/ counterpart.
