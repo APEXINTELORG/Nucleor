@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.15] — 2026-05-02
+
+**`str_substring_strict` migration discoverability — docs + fixture
+(parallel-1 lane D; closes spine §8.4 deferred item #8).**
+
+`str_substring_strict` already existed (since v0.3.220) — the strict
+out-of-bounds-rejecting variant of `str_substring`. The probe finding
+`2026-04-30-str-substring-default-no-end-bounds-check` asked for a
+behavior FLIP (make strict the default); main agent's analysis was
+that's a breaking-change-class flip and the right v0.6 move is
+**discoverability**: surface the strict helper prominently so adopters
+choosing strict semantics aren't hunting for it.
+
+### Fix
+
+Pure docs + fixture ship — no compiler / runtime change, no binary
+rebuild needed.
+
+- `docs/migrations/str_substring_strict.md` — new migration guide
+  documenting when to use `str_substring` vs `str_substring_strict`,
+  with adopter copy-paste recipes.
+- `docs/language-tour.md` — Strings section now points at the
+  migration doc explicitly: "Use `str_substring_strict` when the
+  caller cannot already prove substring bounds."
+- `tests/features/str_substring_strict_basic.nr` — new positive
+  fixture asserting in-bounds strict substring works the same as
+  the fast helper.
+- `tools/verify.sh` — new step `t_str_substring_strict_basic` runs
+  the new fixture every gate.
+
+### Validation
+
+- No code change → no fixed-point or seed regen required.
+- Fixture builds + runs `OK str_substring_strict_basic` (exit 0).
+- Per consultant: focused migration fixture PASS post-rebase, peak
+  174 MB.
+- Main-agent full gate is in flight at write time.
+
+Spike doc: `docs/milestones/spikes/track_str_substring_strict_migration_2026-05-02.md`.
+
 ## [0.6.14] — 2026-05-02
 
 **MATCH-014 — clean diagnostic for negative literal bounds in range
