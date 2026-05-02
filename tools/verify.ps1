@@ -496,7 +496,8 @@ Step "CLI: nuc explain -- full spec code set wired" {
         # T1.1 Phase 10 (v0.2.319): expanded NUM namespace.
         "NUM-006", "NUM-007", "NUM-008", "NUM-009", "NUM-010",
         "NUM-011", "NUM-012", "NUM-013", "NUM-014", "NUM-015",
-        "NUM-016", "NUM-017", "NUM-018", "NUM-019", "NUM-020",
+        "NUM-016", "NUM-017", "NUM-018", "NUM-019", "NUM-020", "NUM-021",
+        # NUM-021 (v0.4.119/v0.6 E3) -- literal / const-expression overflow.
         # NUM-022/023 (v0.4.137/v0.4.140) -- int-vs-float arith mismatch
         # and `f64 as str` cast rejection. NUM-024 (v0.4.228) -- opt-in
         # cross-width call-site audit (NUCLEOR_AUDIT_NUM024=1) for

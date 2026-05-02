@@ -2167,13 +2167,16 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 
 fn parse_const_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let name: i64 = pkv(tokens, pos);
+    let name_span: i64 = tok_pos_at(tokens, pos);
     let mut cp: i64 = expect_tok(tokens, pos + 1, 42);
     let mut tr: Vec<i32> = parse_type(tokens, cp);
     cp = expect_tok(tokens, pr_pos(tr), 40);
     let mut er: Vec<i32> = parse_expr(tokens, cp, pool);
     cp = pr_pos(er);
     if pk(tokens, cp) == 43 { cp = cp + 1; };
-    return pr(cp, mk4(pool, 50, name, pr_val(tr), pr_val(er)));
+    let const_nid: i64 = mk4(pool, 50, name, pr_val(tr), pr_val(er));
+    node_set_span(pool, const_nid, name_span);
+    return pr(cp, const_nid);
 }
 
 fn parse_type_alias_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
@@ -8665,6 +8668,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "NUM-018") == 1 { return 1; };
     if str_eq(code, "NUM-019") == 1 { return 1; };
     if str_eq(code, "NUM-020") == 1 { return 1; };
+    if str_eq(code, "NUM-021") == 1 { return 1; };
     if str_eq(code, "NUM-022") == 1 { return 1; };
     if str_eq(code, "NUM-023") == 1 { return 1; };
     if str_eq(code, "NUM-024") == 1 { return 1; };
@@ -14349,7 +14353,83 @@ fn const_i64_result(have: i64, val: i64) -> Vec<i32> {
     let mut r: Vec<i32> = Vec::new();
     r.push(have);
     r.push(val);
+    r.push(0);
     return r;
+}
+fn const_i64_result_ex(have: i64, val: i64, overflow: i64) -> Vec<i32> {
+    let mut r: Vec<i32> = Vec::new();
+    r.push(have);
+    r.push(val);
+    r.push(overflow);
+    return r;
+}
+fn const_i64_overflow(r: Vec<i32>) -> i64 {
+    if vec_len(r) > 2 { return vec_get(r, 2); };
+    return 0;
+}
+fn const_i64_min() -> i64 {
+    let max_i64: i64 = 9223372036854775807;
+    return (0 - max_i64) - 1;
+}
+fn const_i64_add(a: i64, b: i64) -> Vec<i32> {
+    let max_i64: i64 = 9223372036854775807;
+    let min_i64: i64 = const_i64_min();
+    if b > 0 {
+        if a > max_i64 - b { return const_i64_result_ex(0, 0, 1); };
+    };
+    if b < 0 {
+        if a < min_i64 - b { return const_i64_result_ex(0, 0, 1); };
+    };
+    return const_i64_result(1, a + b);
+}
+fn const_i64_sub(a: i64, b: i64) -> Vec<i32> {
+    let max_i64: i64 = 9223372036854775807;
+    let min_i64: i64 = const_i64_min();
+    if b > 0 {
+        if a < min_i64 + b { return const_i64_result_ex(0, 0, 1); };
+    };
+    if b < 0 {
+        if a > max_i64 + b { return const_i64_result_ex(0, 0, 1); };
+    };
+    return const_i64_result(1, a - b);
+}
+fn const_i64_abs_non_min(v: i64) -> i64 {
+    if v < 0 { return 0 - v; };
+    return v;
+}
+fn const_i64_mul(a: i64, b: i64) -> Vec<i32> {
+    let max_i64: i64 = 9223372036854775807;
+    let min_i64: i64 = const_i64_min();
+    if a == 0 || b == 0 { return const_i64_result(1, 0); };
+    if a == min_i64 {
+        if b == 1 { return const_i64_result(1, min_i64); };
+        return const_i64_result_ex(0, 0, 1);
+    };
+    if b == min_i64 {
+        if a == 1 { return const_i64_result(1, min_i64); };
+        return const_i64_result_ex(0, 0, 1);
+    };
+    let aa: i64 = const_i64_abs_non_min(a);
+    let bb: i64 = const_i64_abs_non_min(b);
+    if aa > max_i64 / bb { return const_i64_result_ex(0, 0, 1); };
+    return const_i64_result(1, a * b);
+}
+fn const_i64_binop(op: i64, a: i64, b: i64) -> Vec<i32> {
+    let min_i64: i64 = const_i64_min();
+    if op == 20 { return const_i64_add(a, b); };
+    if op == 21 { return const_i64_sub(a, b); };
+    if op == 22 { return const_i64_mul(a, b); };
+    if op == 23 {
+        if b == 0 { return const_i64_result(0, 0); };
+        if a == min_i64 && b == 0 - 1 { return const_i64_result_ex(0, 0, 1); };
+        return const_i64_result(1, a / b);
+    };
+    if op == 24 {
+        if b == 0 { return const_i64_result(0, 0); };
+        if a == min_i64 && b == 0 - 1 { return const_i64_result_ex(0, 0, 1); };
+        return const_i64_result(1, a - (a / b) * b);
+    };
+    return const_i64_result(0, 0);
 }
 fn const_i64_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>) -> Vec<i32> {
     if nid < 0 || nid >= vec_len(pool) { return const_i64_result(0, 0); };
@@ -14357,7 +14437,19 @@ fn const_i64_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>) -> Vec<i32> {
     if k == 1 { return const_i64_result(1, node_field(pool, nid, 1)); };
     if k == 5 {
         let inner: Vec<i32> = const_i64_expr(pool, node_field(pool, nid, 1), env);
-        if vec_get(inner, 0) == 1 { return const_i64_result(1, 0 - vec_get(inner, 1)); };
+        if const_i64_overflow(inner) == 1 { return const_i64_result_ex(0, 0, 1); };
+        if vec_get(inner, 0) == 1 {
+            let inner_v: i64 = vec_get(inner, 1);
+            if inner_v == const_i64_min() { return const_i64_result_ex(0, 0, 1); };
+            return const_i64_result(1, 0 - inner_v);
+        };
+        return const_i64_result(0, 0);
+    };
+    if k == 4 {
+        let lhs: Vec<i32> = const_i64_expr(pool, node_field(pool, nid, 2), env);
+        let rhs: Vec<i32> = const_i64_expr(pool, node_field(pool, nid, 3), env);
+        if const_i64_overflow(lhs) == 1 || const_i64_overflow(rhs) == 1 { return const_i64_result_ex(0, 0, 1); };
+        if vec_get(lhs, 0) == 1 && vec_get(rhs, 0) == 1 { return const_i64_binop(node_field(pool, nid, 1), vec_get(lhs, 1), vec_get(rhs, 1)); };
         return const_i64_result(0, 0);
     };
     if k == 3 {
@@ -14365,6 +14457,21 @@ fn const_i64_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>) -> Vec<i32> {
         if str_len(cv) > 0 { return const_i64_result(1, str_to_int(cv)); };
     };
     return const_i64_result(0, 0);
+}
+fn const_i64_out_of_declared_int_range(tstr: str, val: i64) -> i64 {
+    if str_len(tstr) == 0 || type_is_int(tstr) == 0 { return 0; };
+    let w: i64 = type_width(tstr);
+    let s: i64 = type_signedness(tstr);
+    if s == 1 && w < 64 {
+        let max_v: i64 = i64_pow(2, w - 1) - 1;
+        let min_v: i64 = 0 - i64_pow(2, w - 1);
+        if val > max_v || val < min_v { return 1; };
+    };
+    if s == 2 && w < 64 {
+        let umax_v: i64 = i64_pow(2, w) - 1;
+        if val < 0 || val > umax_v { return 1; };
+    };
+    return 0;
 }
 fn tenv_set_pattern_item(env: Vec<i32>, item: str, tstr: str) -> i64 {
     let name: str = pattern_binding_item_name(item);
@@ -16543,6 +16650,39 @@ fn type_check_stmts(pool: Vec<i32>, prog: i64, lid: i64, env: Vec<i32>, sigs: Ve
     };
     return warns;
 }
+fn type_check_global_consts(pool: Vec<i32>, prog: i64, diags: Vec<i32>, source: str) -> i64 {
+    let mut env: Vec<i32> = tenv_new();
+    let cnt: i64 = list_len(pool, prog);
+    let mut i: i64 = 0;
+    let mut warns: i64 = 0;
+    while i < cnt {
+        let nid: i64 = list_get(pool, prog, i);
+        if node_kind(pool, nid) == 50 {
+            let cname: str = node_field(pool, nid, 1);
+            let ctype: str = node_field(pool, nid, 2);
+            let cinit: i64 = node_field(pool, nid, 3);
+            let cres: Vec<i32> = const_i64_expr(pool, cinit, env);
+            if const_i64_overflow(cres) == 1 {
+                let msg21a: str = str_concat("integer constant expression for const `", str_concat(cname, "` overflows i64 at compile time."));
+                let msg21b: str = " Pre-fix this wrapped during lowering and could panic at runtime startup or emit misleading IR.";
+                let msg21c: str = " Use explicit wrapping_* / saturating_* helpers, reduce the value, or move the calculation to runtime if wrapping is intentional.";
+                let msg21: str = str_concat(msg21a, str_concat(msg21b, msg21c));
+                type_diag_at(diags, source, pool, nid, cname, cname, "NUM-021", msg21);
+            } else if vec_get(cres, 0) == 1 {
+                let cval: i64 = vec_get(cres, 1);
+                if const_i64_out_of_declared_int_range(ctype, cval) == 1 {
+                    let msg2: str = str_concat("constant expression value ", str_concat(str_from_int(cval), str_concat(" out of range for declared type ", str_concat(ctype, ". Use a wider type or change the constant expression."))));
+                    type_diag_at(diags, source, pool, nid, cname, cname, "NUM-002", msg2);
+                };
+                tenv_set_const_i64(env, cname, cval);
+            } else {
+            };
+        };
+        i = i + 1;
+    };
+    vec_free(env);
+    return warns;
+}
 fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> i64 {
     let mut sigs: Vec<i32> = sig_new();
     let cnt: i64 = list_len(pool, prog);
@@ -16596,7 +16736,7 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
         };
         tb_i = tb_i + 1;
     };
-    let mut warns: i64 = 0;
+    let mut warns: i64 = type_check_global_consts(pool, prog, diags, source);
     i = 0;
     while i < cnt {
         let nid: i64 = list_get(pool, prog, i);
