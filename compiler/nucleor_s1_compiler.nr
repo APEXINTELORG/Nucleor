@@ -2557,6 +2557,18 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         cp = pr_pos(gr);
         gparams = mk_list(pool, pr_val(gr));
     };
+    // v0.5.28: canonical Rust unit-struct syntax `struct U;` (probe finding
+    // 2026-05-01-unit-struct-semicolon-form-parse-fail). Pre-fix expected
+    // `{` and panicked NR020 on `;` — translators porting Rust hit this
+    // constantly because `struct Marker;` is the canonical form. Now both
+    // `struct U;` and `struct U {}` lower to the same empty-fields decl
+    // (kind 33 with empty fields list). Construction still requires
+    // `U {}` value form; a follow-up will let `U` (bare ident) resolve
+    // to the zero-field constructor.
+    if pk(tokens, cp) == 43 {
+        let unit_nid: i64 = mk4(pool, 33, name, mk_list(pool, Vec::new()), gparams);
+        return pr(cp + 1, unit_nid);
+    };
     cp = expect_tok(tokens, cp, 52); // {
     let mut fields: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
