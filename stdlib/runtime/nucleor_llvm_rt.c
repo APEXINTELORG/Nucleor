@@ -2134,44 +2134,47 @@ long long __nucleor_system(const char *cmd) {
 }
 
 // === Vec operations (flat array with length tracking) ===
-typedef struct { long long *data; int len; int cap; } NVec;
+typedef struct {
+    long long *data;
+    int len;
+    int cap;
+    long long inline_data[2];
+} NVec;
 
 NVec *__nucleor_vec_new(void) {
-    // RFC-0030 phase 3 (v0.2.167) — initial capacity dropped from 16
-    // to 4 elements. The s1 self-host creates ~800 K Vecs per compile,
-    // a substantial fraction of which never exceed 4 elements (small
-    // arg lists, two-element coords, scope counters, etc.). The 16-
-    // element initial wasted ~75 MB across the compile when those
-    // Vecs sat at length 0-3 forever. For Vecs that grow beyond 4,
-    // total memory footprint is unchanged because realloc-doubling
-    // (4→8→16→32→…) lands at the same end-state by the time a Vec
-    // reaches a given size; we just pay 1-2 extra reallocs per such
-    // growing Vec, amortized.
+    // v0.5.32 memory tighten: initial capacity is 2 elements. The
+    // s1 self-host creates millions of Vecs per
+    // compile, and many of them are short-lived pairs or empty
+    // accumulators. Keeping the default below the common pair shape
+    // cuts the baseline allocation footprint while allowing push to
+    // grow normally for larger vectors.
     if (!g_alloc_tracer_init) { atexit(_alloc_summary); g_alloc_tracer_init = 1; }
     g_vec_new_count++;
     NVec *v = (NVec *)malloc(sizeof(NVec));
-    v->data = (long long *)malloc(4 * sizeof(long long));
+    v->data = v->inline_data;
     v->len = 0;
-    v->cap = 4;
-    g_vec_realloc_bytes += sizeof(NVec) + 4 * sizeof(long long);
+    v->cap = 2;
+    g_vec_realloc_bytes += sizeof(NVec);
     return v;
 }
 
 // v0.3.116: vec_with_capacity(n) — pre-allocate the data buffer
 // to hold n elements without realloc churn. Mirrors Rust's
 // `Vec::with_capacity(N)` for known-size accumulators. Returns
-// an empty Vec (len = 0) with capacity = max(n, 4) — keeps the
-// post-v0.2.167 minimum so the vec_push fast path doesn't have to
-// special-case zero-cap allocations.
+// an empty Vec (len = 0) with capacity = max(n, 2) — keeps the
+// minimum aligned with Vec::new while still giving the vec_push
+// fast path a non-zero buffer.
 NVec *__nucleor_vec_with_capacity(long long n) {
     if (!g_alloc_tracer_init) { atexit(_alloc_summary); g_alloc_tracer_init = 1; }
     g_vec_new_count++;
-    long long cap = n < 4 ? 4 : n;
+    long long cap = n < 2 ? 2 : n;
     NVec *v = (NVec *)malloc(sizeof(NVec));
-    v->data = (long long *)malloc((size_t)cap * sizeof(long long));
+    if (cap <= 2) { v->data = v->inline_data; }
+    else { v->data = (long long *)malloc((size_t)cap * sizeof(long long)); }
     v->len = 0;
     v->cap = cap;
-    g_vec_realloc_bytes += sizeof(NVec) + (long long)cap * (long long)sizeof(long long);
+    g_vec_realloc_bytes += sizeof(NVec);
+    if (cap > 2) { g_vec_realloc_bytes += (long long)cap * (long long)sizeof(long long); }
     return v;
 }
 
@@ -2182,7 +2185,7 @@ NVec *__nucleor_vec_with_capacity(long long n) {
 void __nucleor_vec_free(long long handle) {
     NVec *v = (NVec *)(void *)(size_t)handle;
     if (!v) return;
-    if (v->data) free(v->data);
+    if (v->data && v->data != v->inline_data) free(v->data);
     free(v);
 }
 
@@ -2202,7 +2205,13 @@ void __nucleor_vec_push(NVec *v, long long x) {
     if (v->len >= v->cap) {
         long long old_cap = v->cap;
         v->cap = _grow_cap(v->cap, sizeof(long long), "vec_push");
-        v->data = (long long *)realloc(v->data, v->cap * sizeof(long long));
+        if (v->data == v->inline_data) {
+            long long *grown = (long long *)malloc(v->cap * sizeof(long long));
+            memcpy(grown, v->inline_data, (size_t)v->len * sizeof(long long));
+            v->data = grown;
+        } else {
+            v->data = (long long *)realloc(v->data, v->cap * sizeof(long long));
+        }
         g_vec_realloc_bytes += (v->cap - old_cap) * sizeof(long long);
     }
     v->data[v->len++] = x;
@@ -2335,7 +2344,13 @@ void __nucleor_vec_insert_at(NVec *v, long long i, long long x) {
     if (idx > v->len) idx = v->len;
     if (v->len >= v->cap) {
         v->cap = _grow_cap(v->cap, sizeof(long long), "vec_insert");
-        v->data = (long long *)realloc(v->data, v->cap * sizeof(long long));
+        if (v->data == v->inline_data) {
+            long long *grown = (long long *)malloc(v->cap * sizeof(long long));
+            memcpy(grown, v->inline_data, (size_t)v->len * sizeof(long long));
+            v->data = grown;
+        } else {
+            v->data = (long long *)realloc(v->data, v->cap * sizeof(long long));
+        }
     }
     for (int k = v->len; k > idx; k--) {
         v->data[k] = v->data[k - 1];

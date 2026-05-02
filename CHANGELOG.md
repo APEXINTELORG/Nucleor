@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.32] — 2026-05-02
+
+**Memory tighten — NVec small-buffer optimization + per-fn IR free during
+emit + vec_insert_at inline-buffer fix.**
+
+### Runtime: `NVec` small-buffer optimization
+
+`NVec` now embeds a 2-element inline buffer (`inline_data[2]`) and starts
+at `cap = 2` pointing at it. Pushes past 2 migrate to a heap buffer; up
+to 2 elements stay inline, no separate `data` malloc.
+
+Motivation: the s1 self-host creates millions of `Vec`s per compile, a
+large fraction of which never grow past 2 elements (small arg lists,
+two-element coords, one-shot accumulators). Pre-change minimum `cap = 4`
+paid one heap allocation + one length-4 buffer for every such Vec. After
+this ship, those Vecs use 0 heap allocations beyond the `NVec` struct
+itself.
+
+### Runtime: `vec_insert_at` inline-buffer fix
+
+`__nucleor_vec_insert_at` was missed when `vec_push` learned the inline →
+heap migration path. Calling `realloc(v->data, ...)` on a Vec whose data
+still pointed at `inline_data` is undefined behavior — the resulting heap
+corruption clobbered ownership-tracking state in the s1 compiler binary
+during its own self-host pass and produced spurious
+`error[OWN-008]: cannot assign to immutable binding 'eol' / 'p'`
+on `let mut` bindings inside `collect_max_depth_entries` and
+`priv_mangle_private_fns`.
+
+`vec_insert_at` now mirrors `vec_push`: malloc + memcpy on the inline →
+heap transition, regular `realloc` once already heap.
+
+### Compiler: per-fn IR free in `emit_module_ext`
+
+`emit_module_ext` now calls `free_ir_fn(f)` immediately after emitting
+each fn (or skipping it under DCE) instead of waiting for the final
+`free_ir_fns(fns)`. The bulk free at the end of `compile_file_mode` is
+replaced with a plain `vec_free(fns)` since the per-fn frees already
+released the bodies. Reduces peak working set during the LLVM emit phase.
+
+### Validation
+
+- Stage1 self-host: 4.58s wall, 617 MB peak
+- Stage2 self-host: 4.87s wall, 578 MB peak
+- Stage3 self-host: 4.64s wall, 589 MB peak (matches stage2 byte-for-byte)
+- Bootstrap seed `bootstrap/nucleor_s1_seed.ll` regenerated from the new
+  binary; `t17 bootstrap seed matches current compiler` passes
+- `tests/features/rfc0042_auto_drop_vec.nr` smoke: PASS, 4 generated
+  `vec_free` calls (Track Z behavior preserved)
+
 ## [0.5.31] — 2026-05-02
 
 **🚀 Tools-only — perf fix: `cli_explain_full_smoke` and
