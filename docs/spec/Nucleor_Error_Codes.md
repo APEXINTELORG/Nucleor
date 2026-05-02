@@ -210,9 +210,9 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 
 | Code | Title | RFC section |
 |---|---|---|
-| ISR-001 | #[isr] function not pub | [RFC-0008 §3.3](../rfcs/RFC-0008-isr.md) |
-| ISR-002 | ISR stack frame exceeds budget | [RFC-0008 §3.6](../rfcs/RFC-0008-isr.md) |
-| ISR-003 | Call to non-#[isr_safe] function from ISR | [RFC-0008 §3.2](../rfcs/RFC-0008-isr.md) |
+| ISR-001 | #[isr] function must be `fn() -> void` | [RFC-0008 §3.2](../rfcs/RFC-0008-isr.md) |
+| ISR-002 | #[isr] cannot be combined with #[deadline] | [RFC-0008 §3.2](../rfcs/RFC-0008-isr.md) |
+| ISR-003 | Target does not support #[isr] yet | [RFC-0008 §3.5](../rfcs/RFC-0008-isr.md) |
 | ISR-004 | Vector name not recognized for target architecture | [RFC-0008 §3.1](../rfcs/RFC-0008-isr.md) |
 | ISR-005 | Two ISRs assigned to the same vector | [RFC-0008 §3.3](../rfcs/RFC-0008-isr.md) |
 | ISR-006 | Priority out of range for target NVIC | [RFC-0008 §3.1](../rfcs/RFC-0008-isr.md) |

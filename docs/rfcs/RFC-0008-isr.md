@@ -68,6 +68,26 @@ Nucleor models on Rust embedded — proven design.
 
 ## 3. Design
 
+### 3.0 v0.6 first-pass surface
+
+The v0.6 compiler spike freezes the smallest useful, host-safe ISR
+substrate before full embedded sysroots land:
+
+- `#[isr]` and `#[isr(...)]` are recovered by the existing
+  source-level attribute scanner.
+- ISR functions must have no params and no return value
+  (`fn() -> void` surface; no explicit return value in current
+  source syntax). Violations emit `ISR-001`.
+- `#[isr]` inherits `#[no_alloc]` and `#[no_panic]` diagnostics.
+- `#[isr]` rejects deadline-wrapper composition with `ISR-002`.
+- The compiler keeps ISR roots alive during DCE and emits a stable
+  LLVM IR marker comment: `; nucleor.isr target=<target> fn @name
+  interrupt_cc`. Full vector-table and target ABI lowering remain
+  the follow-on embedded sysroot work.
+- First-pass targets are `cortex-m4f` and `rv32imac`, selected with
+  `NUCLEOR_ISR_TARGET` when needed. Explicit unsupported target
+  requests fail closed with `ISR-003`.
+
 ### 3.1 Attribute syntax
 
 ```nucleor
@@ -86,18 +106,21 @@ Standard set per architecture, ships in `stdlib/embedded/<target>/vectors.nr`.
 
 ### 3.2 Implied attributes
 
-`#[isr]` automatically implies:
+`#[isr]` ultimately implies:
 - `#[no_alloc]` — no allocation
 - `#[no_panic]` — no panic (panic = MCU lockup)
 - `#[no_dyn]` — no dynamic dispatch
 - `#[atomic]` — no blocking
-- Implicit `#[deadline = MAX_ISR_NS]` — typically 10 µs target;
-  configurable per project
 
 Plus a new ISR-specific rule:
 - **No call to a non-`#[isr_safe]` function.** Most functions are
   `#[isr_safe]` if they satisfy the above. Stdlib audit manifest
   marks each function.
+
+The v0.6 first pass implements the no-allocation and no-panic
+inheritance now. It deliberately rejects `#[deadline]` composition:
+deadline wrappers measure wall-time function calls, while ISR latency
+belongs to target interrupt timing and vector tooling.
 
 ### 3.3 Vector table generation
 
@@ -180,9 +203,9 @@ fn read_ticks() -> u32 {
 
 | Code | Meaning |
 |---|---|
-| ISR-001 | Function with `#[isr]` is not `pub` — vector wiring needs visibility |
-| ISR-002 | ISR stack frame exceeds budget |
-| ISR-003 | Call to non-`#[isr_safe]` function from ISR |
+| ISR-001 | `#[isr]` function is not `fn() -> void` |
+| ISR-002 | `#[isr]` combined with `#[deadline]` |
+| ISR-003 | Target does not support `#[isr]` yet |
 | ISR-004 | Vector name not recognized for target architecture |
 | ISR-005 | Two ISRs assigned to the same vector |
 | ISR-006 | Priority out of range for target NVIC |

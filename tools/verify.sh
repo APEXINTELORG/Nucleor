@@ -4629,6 +4629,40 @@ rfc0007_queue_smoke() {
     done
 }
 
+rfc0008_isr_first_pass() {
+    rm -rf "$ROOT/.nuc_cache" "$ROOT/target/.nuc_cache" 2>/dev/null || true
+    "$BIN" build "tests/features/rfc0008_isr_minimal.nr" -o "_rfc0008_isr_minimal" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local ll="target/_rfc0008_isr_minimal.ll"
+    local exe="target/_rfc0008_isr_minimal"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -f "$ll" ] || return 1
+    grep -q "nucleor.isr target=cortex-m4f fn @systick_handler interrupt_cc" "$ll" || return 1
+    [ -x "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1 || return 1
+    grep -q "OK rfc0008_isr_minimal" $NUC_VERIFY_RUN_LOG || return 1
+
+    "$BIN" build "tests/features/rfc0008_isr_no_alloc_no_panic.nr" -o "_rfc0008_isr_safe" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local safe_exe="target/_rfc0008_isr_safe"
+    [ -x "$safe_exe.exe" ] && safe_exe="$safe_exe.exe"
+    "$safe_exe" >$NUC_VERIFY_RUN_LOG 2>&1 || return 1
+    grep -q "OK rfc0008_isr_no_alloc_no_panic" $NUC_VERIFY_RUN_LOG || return 1
+
+    local pair f code
+    for pair in \
+        "err_isr_001_returns_value ISR-001" \
+        "err_isr_001_takes_param ISR-001" \
+        "err_isr_002_with_deadline ISR-002" \
+        "err_isr_003_unsupported_target ISR-003" \
+        "err_isr_inherits_no_alloc RT-001" \
+        "err_isr_inherits_no_panic RT-002"; do
+        f="${pair% *}"
+        code="${pair#* }"
+        "$BIN" build "tests/err/$f.nr" -o "_$f" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+        grep -q "$code" $NUC_VERIFY_STEP_LOG || return 1
+    done
+    return 0
+}
+
 rfc0042_auto_drop_ir_smoke() {
     local ll="target/_rfc0042_auto_drop_vec.ll"
     "$BIN" build "tests/features/rfc0042_auto_drop_vec.nr" -o "_rfc0042_auto_drop_vec" --no-link --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
@@ -4651,6 +4685,7 @@ step "no UTF-8 mojibake in source/docs" mojibake_clean
 step "tests/err/*.nr have EXPECT headers" err_tests_have_expect_smoke
 step "RFC-0007 atomics lower to LLVM atomic IR" rfc0007_atomic_ir_smoke
 step "RFC-0007 queues run SPSC/MPSC/capacity/benchmark fixtures" rfc0007_queue_smoke
+step "RFC-0008 ISR attribute first-pass contract and IR marker" rfc0008_isr_first_pass
 step "RFC-0042 auto_drop emits owned-local cleanup once" rfc0042_auto_drop_ir_smoke
 step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke
 step "CLI: nuc zen/mco/registry/stage-dump/fix (utilities)" cli_utility_smoke
