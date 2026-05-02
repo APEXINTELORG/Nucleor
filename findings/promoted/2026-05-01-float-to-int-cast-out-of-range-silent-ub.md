@@ -86,26 +86,23 @@ Filed alongside this finding.
 
 ## Promoted
 
-- **Probe's diagnosis was partially incorrect** — the saturating
-  f64-to-iN cast helpers (`__nucleor_f64_to_i64`,
-  `__nucleor_f64_to_i32`, `__nucleor_f64_to_u32`,
-  `__nucleor_f64_to_u64`) ALREADY work correctly per v0.3.211
-  / v0.4.NNN narrow_via_as work. NaN→0, magnitude saturation
-  to MIN/MAX. The compiler dispatches to them (s1 line ~16703).
-- **The actual bug** in probe's repro: `let big: f64 = 1e20;`
-  silently bound `big = 1.0`. The lexer parsed `1e20` as int
-  literal `1` followed by ident `e20`. The fractional-dot
-  `1.0e20` form worked because v0.4.220 added e/E exponent
-  handling AFTER fractional digits.
-- Fix shipped: v0.5.24 — extended the lexer to accept
-  `<digits>e<+/-?><digits>` (no fractional dot) as f64 literal.
-  Identifier-shaped suffixes like `e_helper` still lex as ident
-  (the check requires a digit after the optional sign).
-- Saturating cast was always correct: `1e20 as i64` correctly
-  saturates to i64::MAX (= 9223372036854775807). Truncate to
-  i32 yields -1 (low 32 bits of all-ones). Probe's "returns 1"
-  was the literal value 1.0, not the saturated cast result.
-- Validation: `let big: f64 = 1e20; print_f64(big);` now prints
-  `100000000000000000000.000000`. `big as i64 as i32` prints
-  `-1`. Sister `2.5e-2` and `1e3` also work.
-- Promoted: 2026-05-01 by main agent (probe commit ebbcc16).
+- **STATUS: ALREADY CLOSED on main (stale finding).** Discovered against
+  v0.5.18; fix landed earlier (T1.1 Phase 4 / v0.3.211 narrow_via_as work).
+- The compiler emits `__nucleor_f64_to_i64`/`__nucleor_f64_to_i32` calls
+  (NOT raw `fptosi`). The runtime helpers in
+  `stdlib/runtime/nucleor_llvm_rt.c` already implement Rust-saturating
+  semantics (NaN → 0, overflow → ±MAX/MIN).
+- Repro on v0.5.27 head with `print_int(i64)`:
+  - `1e20 as i64` → `9223372036854775807` (i64::MAX) ✓
+  - `-1e20 as i64` → `-9223372036854775808` (i64::MIN) ✓
+  - `(0.0/0.0) as i64` → `0` ✓
+  - `3.7 as i64` → `3` ✓
+- The probe's original `print_int(i_big as i32)` test happened to look
+  like UB because i64::MAX truncated to i32 wraps to -1 (the
+  *correct* Rust truncation semantic for `i64 as i32`). The actual
+  i64-level cast was already saturating correctly.
+- IR confirmation: `target/_fc.ll` has 4 `call i64 @__nucleor_f64_to_i64`
+  for the four casts. Zero `fptosi` instructions emitted by user code.
+- All as-cast helpers verified: `f64_to_i32`, `f64_to_i64`, `f64_to_u32`,
+  `f64_to_u64`, `f32_to_u64` all guard NaN + bounds (rt.c lines 7196-7240).
+- Promoted: 2026-05-01 by main agent. No code change needed.
