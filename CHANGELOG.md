@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.13] — 2026-05-02
+
+**NVec inline-data audit (consultant lane B) — heap-corruption finding
+closure beyond v0.5.32.**
+
+Closes the audit branch of v0.5.32 `vec_insert_at` heap-corruption
+fix. Probe + main-agent observation: stage1 self-host occasionally
+fired spurious `error[OWN-008]` on `priv_mangle_private_fns` —
+symptom of heap-table state being clobbered by an inline-buffer UB
+path that v0.5.32 didn't catch.
+
+### Fix
+
+`stdlib/runtime/nucleor_llvm_rt.c` + `stdlib/runtime/mem_rt.c` —
+audit and fix every site that mutates `v->data` or assumes heap-
+allocated storage. Specific patches:
+
+- `vec_extend` self-alias: when `extend(dst, dst)` is called with
+  `dst == src` and dst's capacity is the inline `cap == 2` shape,
+  the previous code overlapped reads + writes in a way that
+  silently truncated the result. Lane B inserts a temp-copy guard.
+- `mem_rt.c` inline-free guard: ownership-table cleanup paths now
+  skip `free()` on a pointer that was returned as `&inline_data[0]`
+  — the v0.5.32 `vec_insert_at` fix was one site, lane B closes
+  the rest.
+
+Compiler unchanged. Bin/seed regenerated against the patched
+runtime; stage1/2 self-host fixed point byte-identical (md5
+`b90fb571…`).
+
+### New fixtures
+
+- `tests/features/vec_extend_self_inline.nr` — self-alias smoke.
+  Builds + runs `OK vec_extend_self_inline`.
+- `tests/rods/mem_inline_free.nr` — inline-free smoke. Builds +
+  runs `OK mem_inline_free`.
+- New verify-gate step `vec_inline_runtime_smoke` runs both.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `b90fb571…` (byte-identical
+  across stages).
+- Self-host peak: 586–610 MB / 6.71–7.49s wall.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Per consultant: stage1 self-host 10/10 PASS pre-patch on the
+  consultant box (the OWN-008 was rare); post-patch unchanged
+  (no regressions). Main-agent gate run is in flight at write
+  time; result will land in next refresh.
+
+### Spike doc
+
+`docs/milestones/spikes/track_vec_inline_data_audit_2026-05-02.md`.
+
 ## [0.6.12] — 2026-05-02
 
 **`(expr)(args)` direct-call form — clean halt instead of silent
