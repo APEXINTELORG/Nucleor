@@ -7332,6 +7332,28 @@ fn trait_impl_find(impls: Vec<i32>, type_name: str, method_name: str) -> str {
     return "";
 }
 
+fn trait_bound_impl_key(trait_name: str, type_name: str) -> str {
+    return str_concat(type_base_name(trait_name), str_concat(":", type_name));
+}
+
+fn trait_impl_find_unique_bound_method(impls: Vec<i32>, trait_name: str, method_name: str) -> str {
+    let prefix: str = str_concat(type_base_name(trait_name), ":");
+    let mut found: str = "";
+    let mut count: i64 = 0;
+    let mut i: i64 = 0;
+    while i < vec_len(impls) {
+        let impl_key: str = vec_get(impls, i);
+        if str_starts_with(impl_key, prefix) == 1 && str_eq(vec_get(impls, i + 1), method_name) == 1 {
+            found = vec_get(impls, i + 2);
+            count = count + 1;
+        };
+        i = i + 3;
+    };
+    if count == 1 { return found; };
+    if count > 1 { return "__ambiguous_trait_bound_method"; };
+    return "";
+}
+
 fn from_method_key(src_err: str) -> str {
     return str_concat("__from__", src_err);
 }
@@ -17990,6 +18012,24 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let mut fn_name: str = "";
         if str_len(stype) > 0 { fn_name = trait_impl_find(trait_impls, stype, mname); };
         if str_len(fn_name) == 0 {
+            let gbound_count_v529: i64 = sym_get(sym, str_concat("__gparam_bound_count_", stype));
+            if gbound_count_v529 > 0 {
+                let mut gb_i_v529: i64 = 0;
+                while gb_i_v529 < gbound_count_v529 && str_len(fn_name) == 0 {
+                    let gb_name_v529: str = sym_get(sym, str_concat(str_concat("__gparam_bound_", stype), str_concat("_", str_from_int(gb_i_v529))));
+                    let gb_impl_v529: str = trait_impl_find_unique_bound_method(trait_impls, gb_name_v529, mname);
+                    if str_eq(gb_impl_v529, "__ambiguous_trait_bound_method") == 1 {
+                        let msg_v529a: str = str_concat("error[TYP-007]: generic trait-bound method dispatch for `", str_concat(stype, str_concat(": ", str_concat(gb_name_v529, str_concat("` method `.", str_concat(mname, "()` is ambiguous."))))));
+                        let msg_v529b: str = " Nucleor currently emits one ABI-level generic fn body rather than per-call-site specializations, so a generic receiver method can only lower when the bound has exactly one concrete impl for that method. Split the generic call or use an explicit concrete helper until monomorphized trait dispatch ships.";
+                        print(str_concat(msg_v529a, msg_v529b));
+                        panic(str_concat("nucleor: ambiguous generic trait-bound method dispatch for ", str_concat(stype, str_concat(".", mname))));
+                    };
+                    if str_len(gb_impl_v529) > 0 { fn_name = gb_impl_v529; };
+                    gb_i_v529 = gb_i_v529 + 1;
+                };
+            };
+        };
+        if str_len(fn_name) == 0 {
             if str_eq(type_base_name(stype), "Tensor") == 1 {
                 fn_name = tensor_builtin_method_name(mname);
             };
@@ -20333,6 +20373,38 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
     // called fn's return type without signature plumbing through
     // 44 lower_expr call sites.
     populate_fn_returns_in_sym(pool, fn_decls, sym);
+    // v0.5.29: keep this fn's generic trait bounds available to
+    // lower_expr kind-8. Generic fns are still emitted as one ABI-level
+    // body, so this only enables conservative single-impl dispatch for
+    // `T: Trait` receiver methods; ambiguous multi-impl bounds halt
+    // instead of falling through to `vec_<method>`.
+    let fn_gparams_v529: i64 = node_field(pool, fn_nid, 5);
+    if fn_gparams_v529 >= 0 {
+        let mut gp_v529: i64 = 0;
+        let gp_count_v529: i64 = list_len(pool, fn_gparams_v529);
+        let mut current_gparam_v529: str = "";
+        while gp_v529 < gp_count_v529 {
+            let ge_v529: str = list_get(pool, fn_gparams_v529, gp_v529);
+            if str_len(ge_v529) > 1 && str_char_at(ge_v529, 0) == 63 {
+                if str_len(current_gparam_v529) > 0 {
+                    let bound_name_v529: str = str_substring(ge_v529, 1, str_len(ge_v529));
+                    let count_key_v529: str = str_concat("__gparam_bound_count_", current_gparam_v529);
+                    let mut bound_count_v529: i64 = sym_get(sym, count_key_v529);
+                    if bound_count_v529 < 0 { bound_count_v529 = 0; };
+                    sym_set(sym, str_concat(str_concat("__gparam_bound_", current_gparam_v529), str_concat("_", str_from_int(bound_count_v529))), bound_name_v529);
+                    sym_set(sym, count_key_v529, bound_count_v529 + 1);
+                };
+            } else {
+                if str_len(ge_v529) > 0 && str_char_at(ge_v529, 0) != 39 {
+                    current_gparam_v529 = ge_v529;
+                    sym_set(sym, str_concat("__gparam_bound_count_", current_gparam_v529), 0);
+                } else {
+                    current_gparam_v529 = "";
+                };
+            };
+            gp_v529 = gp_v529 + 1;
+        };
+    };
     sym_set(sym, "__current_fn_full_return", node_field(pool, fn_nid, 3));
     let mut fir: Vec<i32> = ir_fn_new(name, pc);
     let mut ebb0: Vec<i32> = ir_block_new(0);
@@ -21905,6 +21977,9 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
                 // trait-method results.
                 fn_decls.push(new_fn);
                 trait_impl_register(trait_impls, type_name, orig_name, mangled);
+                if str_len(trait_name) > 0 {
+                    trait_impl_register(trait_impls, trait_bound_impl_key(trait_name, type_name), orig_name, mangled);
+                };
                 if str_eq(type_base_name(trait_name), "From") == 1 && str_eq(orig_name, "from") == 1 {
                     let mut src_err: str = type_first_arg(trait_name);
                     if str_len(src_err) == 0 {
@@ -21994,6 +22069,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
                                     impl_fns.push(dm_fn);
                                     fn_decls.push(dm_fn);
                                     trait_impl_register(trait_impls, type_name2, tmname, dm_mangled);
+                                    trait_impl_register(trait_impls, trait_bound_impl_key(trait_name, type_name2), tmname, dm_mangled);
                                 };
                             };
                             tmi = tmi + 1;
