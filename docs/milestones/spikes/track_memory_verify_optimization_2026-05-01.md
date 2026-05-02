@@ -136,3 +136,32 @@ Note: the full env-off/env-on `verify.sh` matrix was intentionally not run in
 the inner loop. The intended final gate is one `run_verify_rss_estop.ps1` pass
 with `-Jobs 1`, then a deliberate final full gate only when the memory patch is
 ready to merge.
+
+## v0.5.32 Watchdog Follow-up
+
+During the effects-types rebase onto `origin/main` `a60131b`, Job-object
+tracking proved too aggressive for ordinary self-host compiler builds on this
+Windows toolchain. `measure_peak_build.ps1` emitted the target executable and
+LLVM IR, but the process then stayed alive until the timeout tripped.
+
+`tools/rss_estop_lib.ps1` now leaves Job tracking off by default and enables it
+only when `NUC_RSS_USE_JOB=1` is set. The default still samples and kills the
+launched parent process tree, which is the practical path for fast self-host
+iteration. Use Job tracking only for focused probes where stronger descendant
+containment is worth the shutdown-hang risk.
+
+Post-change self-host check:
+
+```text
+stage1b: OK peak 581 MB / 1000 MB e-stop, wall 5.317s
+stage2:  OK peak 597 MB / 1000 MB e-stop, wall 4.643s
+stage3:  OK peak 598 MB / 1000 MB e-stop, wall 4.632s
+stage2_sha = stage3_sha = FFD301E4CE8B53588D61B4B8F2396947EFFB9CDA26B65C1A95C860ADA8602BC3
+final artifact check from bin\nucleor.exe: OK peak 668 MB / 1000 MB e-stop, wall 4.917s
+```
+
+Known limitation: with Job tracking disabled, a Git Bash `verify.sh` run can
+under-report compiler RSS because some child processes are not visible through
+the sampled parent tree. Treat `run_verify_rss_estop.ps1` range-run peaks as
+launcher-wrapper telemetry unless the run is a direct compiler build or a
+focused `NUC_RSS_USE_JOB=1` probe.
