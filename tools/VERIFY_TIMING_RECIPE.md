@@ -39,6 +39,98 @@ CSV path becomes `tools/verify_timings.<name>.csv` so writes don't race.
 
 `NUC_VERIFY_CSV=<path>` overrides either default.
 
+## v0.5.29 — full bisect-narrow protocol (run-to-run delta + 1 GB e-stop)
+
+The protocol's primary signal is now **run-to-run delta** computed from
+the CSV — not arbitrary thresholds. The 1 GB e-stop is a separate
+hard ceiling that fires in real time during any sampled run.
+
+### CSV schema (extended)
+
+The CSV now contains two row types, distinguished by the `name` field:
+
+- **Per-step row** (existing): `run_iso, index, seconds, status, name`
+- **Run-summary row** (new): `run_iso, 0, wall_seconds, status, "__run_summary__", peak_mb, killed, last_index`
+
+Per-step rows are written by `verify.sh` as before. Summary rows are
+appended by `tools/run_with_peakmem.ps1` after the wrapped invocation
+finishes. Both share the same `run_iso` so a run's per-step time data
+ties to its peak-memory observation.
+
+### Toolchain
+
+- **`tools/run_with_peakmem.ps1`** — wraps a `verify.sh` invocation,
+  polls subprocess-tree memory once per second (Get-Process, scoped to
+  this session and StartTime ≥ launch), tracks peak, **kills the entire
+  tree at 1 GB hard e-stop** (configurable via `-EstopMb`), appends a
+  run-summary row to the CSV.
+- **`tools/check_mem_regression.sh`** — reads the CSV, computes rolling
+  per-step time stats (mean ± stddev) and per-run peak-mem stats over
+  the last K runs (default 20), flags any step whose last run drifted
+  past mean + N·stddev (default 2.5σ for time, 2.0σ for memory) AND
+  any run whose peak_mb is more than 100 MB above the prior median.
+  Excludes killed runs from the baseline (truncated → noise).
+- **`tools/bisect_mem.sh`** — orchestrator. See "Tier 3 (mem hunt)" below.
+- **`tools/verify.sh --range FROM-TO`** — primitive; runs only steps
+  whose global step index falls in `[FROM, TO]` inclusive. Hierarchical:
+  `[1-348] + [349-696] = full set`, `[1-174] ⊂ [1-348]`, etc.
+
+### Routine flow (Tier 1) — never run sequential as a routine ship
+
+```bash
+# One concurrent run, sampled, peak-mem and per-step time recorded.
+NUC_VERIFY_AGENT=main pwsh tools/run_with_peakmem.ps1 \
+    -VerifyArgs "" \
+    -EstopMb 1024 -PollMs 1000
+
+# Did this ship drift?
+NUC_VERIFY_AGENT=main bash tools/check_mem_regression.sh
+```
+
+If `check_mem_regression.sh` exits 0 → ship. If it exits non-zero, it
+prints which steps drifted in time or which run drifted in memory.
+
+### Tier 3 — memory excursion hunt (only when Tier 1 flags it)
+
+```bash
+NUC_VERIFY_AGENT=main bash tools/bisect_mem.sh --excursion-mb 600
+```
+
+Phase 1: full concurrent run, peak-mem sampled. If peak < threshold,
+exit clean — no sequential. **Most ships stop here.**
+
+Phase 2: split `[1, N]` into halves, run each concurrent. The half that
+blew the threshold (or got killed by the e-stop) is the offender → recurse.
+
+Phase 3: if neither half blew but the parent did → split into 4 quadrants,
+run each concurrent. The combination that blows is interaction-bound.
+
+Phase 4: when narrowed region size ≤ `--min-region` (default 16) →
+final attribution pass with `-j 2` (low concurrency, preserves some
+interaction) or `-j 0` if `--sequential-final`. Per-step memory is
+attributed in this final pass. **The full sequential gate over 700
+steps NEVER runs in this protocol.**
+
+### Why this design
+
+- **Concurrent + per-step CSV catches time excursions for free** —
+  no re-run, no halving. `check_mem_regression.sh` reads the CSV.
+- **Memory needs aggregate sampling** — per-step memory under
+  concurrency is unattributable. So memory regression detection works
+  per-run, and bisect narrows a *region*, not a step. The final small
+  attribution pass identifies the step.
+- **1 GB e-stop is system safety**, not regression detection. Different
+  signals, both armed.
+- **Run-to-run delta** beats absolute thresholds because a step that
+  always uses 800 MB is fine; a step that jumps from 80 MB to 600 MB is
+  the regression. Stats baseline catches that automatically.
+
+### Multi-agent CSV namespacing (unchanged from v0.5.17)
+
+Each agent writes to `tools/verify_timings.<agent>.csv`. `bisect_mem.sh`
+and `check_mem_regression.sh` honor `NUC_VERIFY_AGENT`. Probe and
+parallel-1 each have their own baseline.
+
 ## v0.5.26 — bisect-narrow protocol modes
 
 Test count keeps growing (~696 steps as of v0.5.25, +2-5/hour during

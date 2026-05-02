@@ -59,6 +59,14 @@ VERIFY_PARALLEL_LIST="${NUC_VERIFY_PARALLEL_LIST:-0}"
 RERUN_FAILED=0
 RERUN_FAILED_CSV=""
 ONLY_STEP=""
+# v0.5.29: Tier-3 bisect-narrow `--range FROM-TO` (ordered index slice).
+# Runs only steps whose 1-based index falls in [FROM, TO] inclusive.
+# Hierarchical: [1-348] + [349-696] = full 696, [1-174] = first half of
+# [1-348], etc. This is the primitive tools/bisect_mem.sh uses to recurse
+# into the offending half on a memory excursion without ever running the
+# full sequential set as a routine gate. 0/0 = disabled (full set).
+RANGE_FROM=0
+RANGE_TO=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --no-color)
@@ -92,6 +100,25 @@ while [ $# -gt 0 ]; do
             ONLY_STEP="$2"
             shift 2
             ;;
+        --range)
+            if [ $# -lt 2 ]; then echo "ERROR: --range requires FROM-TO (e.g. 1-348)"; exit 1; fi
+            case "$2" in
+                [1-9]*-[1-9]*)
+                    RANGE_FROM="${2%-*}"
+                    RANGE_TO="${2##*-}"
+                    case "$RANGE_FROM$RANGE_TO" in
+                        *[!0-9]*) echo "ERROR: --range FROM-TO must be integers (got '$2')"; exit 1 ;;
+                    esac
+                    if [ "$RANGE_FROM" -lt 1 ] || [ "$RANGE_TO" -lt "$RANGE_FROM" ]; then
+                        echo "ERROR: --range needs 1<=FROM<=TO (got $RANGE_FROM-$RANGE_TO)"; exit 1
+                    fi
+                    ;;
+                *)
+                    echo "ERROR: --range expects FROM-TO with 1<=FROM<=TO (got '$2')"; exit 1
+                    ;;
+            esac
+            shift 2
+            ;;
         --help|-h)
             cat <<'EOH'
 verify.sh — Nucleor smoke gate
@@ -109,6 +136,14 @@ Usage: bash tools/verify.sh [OPTIONS]
                                      (NUC_VERIFY_AGENT) or .csv if unset.
   --only "<step name>"               v0.5.26: run only the step whose name
                                      matches exactly. Other steps emit SKIP.
+  --range FROM-TO                    v0.5.29: run only the global-step-index
+                                     range [FROM, TO] inclusive. Hierarchical
+                                     halves: [1-348]+[349-696]=full set on a
+                                     696-step gate; [1-174]=first half of
+                                     [1-348]. Used by tools/bisect_mem.sh to
+                                     find a memory excursion in O(log N)
+                                     half-runs without ever running the full
+                                     sequential gate as a routine pass.
   --help                             This text.
 
 Environment:
@@ -119,12 +154,16 @@ Environment:
   NUC_VERIFY_TMPDIR=<path>           Override per-step log dir.
   NUCLEOR_INT_STRICT_INTRIN=1        Run env-on (strict-intrin overflow checks).
 
-Bisect-narrow protocol (v0.5.26):
-  Tier 1 (default):     bash tools/verify.sh
-  Tier 2 (after fail):  bash tools/verify.sh --rerun-failed
+Bisect-narrow protocol (v0.5.29):
+  Tier 1 (routine):     bash tools/verify.sh                         # concurrent + CSV
+  Tier 2 (after fail):  bash tools/verify.sh --rerun-failed          # rerun non-PASS
+  Tier 3 (mem hunt):    bash tools/bisect_mem.sh [--threshold MB]    # log-N half-runs
+  Tier 3 (manual):      bash tools/verify.sh --range 1-348           # ordered slice
   Tier 4 (single step): bash tools/verify.sh --only "<step name>"
-  See docs/milestones/MEMORY_DRIFT_2026-05-01.md and the
-  parallel-1 brief's APPEND-PROTO section for the full protocol.
+  See tools/VERIFY_TIMING_RECIPE.md for the full protocol.
+  Goal: never run the full sequential gate as a routine ship — let
+  Tier 1 catch time spikes via per-step CSV, let Tier 3 catch memory
+  spikes by recursive halving.
 EOH
             exit 0
             ;;
@@ -243,6 +282,14 @@ step() {
         echo "$prefix $(yellow 'SKIP')  $name  (--only filter)"
         TOTAL_SKIP=$((TOTAL_SKIP + 1))
         return
+    fi
+    # v0.5.29: --range FROM-TO ordered slice. Skip steps outside [FROM, TO].
+    if [ "$RANGE_TO" -gt 0 ]; then
+        if [ "$STEP_INDEX" -lt "$RANGE_FROM" ] || [ "$STEP_INDEX" -gt "$RANGE_TO" ]; then
+            echo "$prefix $(yellow 'SKIP')  $name  (--range $RANGE_FROM-$RANGE_TO filter)"
+            TOTAL_SKIP=$((TOTAL_SKIP + 1))
+            return
+        fi
     fi
     if [ "$RERUN_FAILED" = "1" ]; then
         local _rrf_csv="${RERUN_FAILED_CSV:-$NUC_VERIFY_CSV}"
@@ -1053,12 +1100,13 @@ run_parallel_fixture_steps() {
     # place so the xargs/result-tally code below operates only on the
     # filtered subset. We renumber the kept entries to keep the [N/T]
     # display line numbers contiguous.
-    if [ -n "$ONLY_STEP" ] || [ "$RERUN_FAILED" = "1" ]; then
+    if [ -n "$ONLY_STEP" ] || [ "$RERUN_FAILED" = "1" ] || [ "$RANGE_TO" -gt 0 ]; then
         local _filt="$NUC_VERIFY_TMPDIR/parallel_steps.filtered.list"
         local _rrf_csv="${RERUN_FAILED_CSV:-$NUC_VERIFY_CSV}"
+        local _base="$STEP_INDEX"
         : > "$_filt"
-        local _new_idx=0
-        local _line _kind _ldir _lname _label _last_status _quoted
+        local _new_idx=0 _src_idx=0
+        local _line _kind _ldir _lname _label _last_status _quoted _global_idx
         while IFS= read -r _line; do
             # _line shape: "<old-idx> <kind> <dir> <tname>"
             read -r _ _kind _ldir _lname <<<"$_line"
@@ -1067,12 +1115,23 @@ run_parallel_fixture_steps() {
             else
                 _label="negative $_lname"
             fi
+            _src_idx=$((_src_idx + 1))
+            _global_idx=$((_base + _src_idx))
             local _keep=1
             if [ -n "$ONLY_STEP" ] && [ "$_label" != "$ONLY_STEP" ]; then _keep=0; fi
             if [ "$_keep" = "1" ] && [ "$RERUN_FAILED" = "1" ] && [ -n "$_rrf_csv" ] && [ -f "$_rrf_csv" ]; then
                 _quoted="\"${_label//\"/\"\"}\""
                 _last_status=$(grep -F ",$_quoted" "$_rrf_csv" 2>/dev/null | tail -1 | awk -F, '{print $4}')
                 if [ "$_last_status" = "PASS" ]; then _keep=0; fi
+            fi
+            # v0.5.29: --range FROM-TO uses the GLOBAL step index (top-level
+            # run-count + this fixture's offset within the parallel block).
+            # That keeps [1..STEP_TOTAL] a single ordered axis the bisect
+            # orchestrator can halve hierarchically.
+            if [ "$_keep" = "1" ] && [ "$RANGE_TO" -gt 0 ]; then
+                if [ "$_global_idx" -lt "$RANGE_FROM" ] || [ "$_global_idx" -gt "$RANGE_TO" ]; then
+                    _keep=0
+                fi
             fi
             if [ "$_keep" = "1" ]; then
                 _new_idx=$((_new_idx + 1))
@@ -1082,7 +1141,7 @@ run_parallel_fixture_steps() {
         mv "$_filt" "$steps_file"
         idx="$_new_idx"
         if [ "$idx" -eq 0 ]; then
-            echo "       parallel fixtures: 0 steps (filtered out by --only / --rerun-failed)"
+            echo "       parallel fixtures: 0 steps (filtered out by --only / --rerun-failed / --range)"
             return 0
         fi
     fi
