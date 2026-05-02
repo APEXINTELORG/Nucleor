@@ -4,7 +4,7 @@ Five minutes from a fresh clone to a running Nucleor program.
 
 ## Prerequisites
 
-- **Windows 10/11, x86_64.** v0.2 targets `x86_64-pc-windows-msvc`. POSIX support (Linux/macOS) is planned for **v0.3.0** (see [`docs/milestones/v0.3.0.md`](milestones/v0.3.0.md)) — phases 1, 2, and 4 of RFC-0022 already shipped in v0.2 (POSIX `tools/verify.sh` gate, `nuc` shell wrapper, runtime `_WIN32` audit). The v0.3 release adds the native Linux/macOS bootstrap binaries.
+- **Windows 10/11, x86_64** is the primary supported host. The shipped bootstrap binary `bin/nucleor.exe` targets `x86_64-pc-windows-msvc`. POSIX support (Linux/macOS) shipped in v0.3 — the platform-portable C runtime is at `stdlib/runtime/nucleor_llvm_rt.c`; POSIX adopters bootstrap from `bootstrap/nucleor_s1_seed.ll` via `tools/bootstrap_linux.sh`. Embedded cross-compile targets (Cortex-M4F, RV32IMAC) are forward-roadmap (v0.6.x).
 - **LLVM 18.x** with `clang.exe`. The default install path is `C:\Program Files\LLVM\bin`.
   - Easiest install: `winget install LLVM.LLVM` or download from https://github.com/llvm/llvm-project/releases.
   - If LLVM lives elsewhere, set `LLVM_SYS_180_PREFIX` (pointing at the install root) or `NUCLEOR_CLANG_PATH` (full path to `clang.exe`) before invoking `nuc`.
@@ -71,7 +71,7 @@ nuc stage-dump all    examples\01_hello.nr
 
 ## Next steps
 
-- **Browse the examples.** All 18 numbered examples (`examples/01_hello.nr` through `examples/18_benchmark.nr`) plus the 4 build-only `examples/showcase/*.nr` programs (`lorenz`, `vqe_h2`, `market_maker`, `wing_simulator`) cover one feature each: hello, recursion, structs, rod imports, the quantum simulator, performance attributes (`@hot` / `@law` / `@const_fn`), Rust interop, linear algebra, ODE solvers, FFT, PID control, autodiff, the test framework, CSV summary, word count, histogram, line count, and benchmarking. The full numbered list lives in `tools/examples.list`.
+- **Browse the examples.** The repo ships ~27 numbered examples in `examples/01_hello.nr` through `examples/27_effects_with_tour.nr`, organised in 6 tiers by language-feature focus (language tour → numerics → stdlib showcase → robotics RT → v0.4 features → v0.6 features). Tier 6 covers the v0.6.x surfaces — RFC-0014 `#[max_depth]` proven recursion shapes (`26_max_depth_tour.nr`) and RFC-0033 `with [...]` effects-in-function-types substrate (`27_effects_with_tour.nr`). Five `examples/showcase/*.nr` programs — `lorenz`, `vqe_h2`, `market_maker`, `wing_simulator`, `robotic_arm` — combine multiple rods into end-to-end simulations. The full numbered list lives in `tools/examples.list`.
 - **Read the [language tour](language-tour.md)** for syntax and semantics by example.
 - **Read the [language reference](language-reference.md)** for the full grammar, type system, and attribute catalog.
 - **Run the tests** to confirm everything works on your machine: `nuc test tests/`.
