@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.30] — 2026-05-02
+
+**🔧 Tools-only — wrapper robustness fix: summary row now writes on
+every exit path; transient Get-Process errors no longer abort the
+sampler.**
+
+Reported by parallel-1: env-off full run reached `[669/697]` and the
+wrapper exited without writing a `__run_summary__` row. Diagnosis:
+`$ErrorActionPreference = "Stop"` combined with `.StartTime` access
+on protected/dying processes inside the poll loop. When `Get-Process`
+returned a process whose `.StartTime` was unreadable (access-denied
+on short-lived clang.exe instances or system processes), the resulting
+`InvalidOperationException` became terminating under "Stop" and the
+script exited mid-poll — before the summary-row append section ever
+ran. Long runs hit this routinely; short runs got lucky.
+
+### What lands
+
+- `$ErrorActionPreference` is `"Continue"` now, not `"Stop"`. Transient
+  errors in the sampler don't terminate the wrapper.
+- Per-process try/catch around `.SessionId`, `.StartTime`,
+  `.WorkingSet64` reads. Protected/dying processes are silently skipped
+  from the sample, not propagated as a fatal error.
+- Main body wrapped in `try { ... } finally { append summary row }`.
+  The summary row writes on EVERY exit path: normal, e-stop kill,
+  unhandled exception. The CSV always gets a summary row matching
+  the run's per-step rows.
+- New status code `"CRASH"` (was previously absorbed as missing row)
+  marks summary rows where the wrapper itself caught an exception.
+  The exit code is 2 in that case (vs 0 normal, 137 e-stop kill).
+- Tail read of CSV expanded from 1000 to 2000 rows (long-run safety
+  margin when finding the last run_iso).
+
+### Validation
+
+- 256-second concurrent run with 243 sampler polls and ~150 clang
+  spawn/die cycles survived without crash. Summary row written
+  with `last_index=200` correctly attributed.
+- `--range 100-200` peak observed 864 MB (under the 1 GB e-stop, no
+  kill). Pre-fix: this run would have crashed in the sampler before
+  finishing.
+
+Unblocks Track Y validation (parallel-1's full env-off run can now
+complete with a clean summary row, instead of being treated as a
+"noisy partial").
+
 ## [0.5.29] — 2026-05-02
 
 **🔧 Tools-only — full bisect-narrow protocol with run-to-run delta detection
