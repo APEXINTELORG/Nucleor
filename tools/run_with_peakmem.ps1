@@ -51,7 +51,9 @@
 # 2 if the wrapper itself crashed).
 
 param(
-    [Parameter(Mandatory = $true)][string]$VerifyArgs,
+    # Default empty string: "run the full set with default args".
+    # Pass "--range FROM-TO" or other verify.sh flags for narrower runs.
+    [string]$VerifyArgs = "",
     [int]$EstopMb = 1024,
     [int]$PollMs = 1000
 )
