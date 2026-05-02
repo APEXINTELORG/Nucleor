@@ -319,6 +319,7 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 | MATCH-011 | Heterogeneous match literal or arm type mismatch | [RFC-0023 §3.5](../rfcs/RFC-0023-pattern-matching.md) |
 | MATCH-012 | Struct-pattern field after `:` is not an identifier | [RFC-0023 §3.6](../rfcs/RFC-0023-pattern-matching.md) |
 | MATCH-013 | Float scrutinee or float-literal pattern in `match` is unsupported | [RFC-0023 §3.7](../rfcs/RFC-0023-pattern-matching.md) |
+| MATCH-014 | Negative literal range-pattern bounds are unsupported; use a guard | [RFC-0023 §3.1](../rfcs/RFC-0023-pattern-matching.md) |
 
 ## COLL series — RFC-0017 collections
 

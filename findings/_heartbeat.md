@@ -260,3 +260,10 @@ main_round_3_lanes:
 last_parallel1_focus: spike/v06-rfc0008-isr
 parallel1_base: origin/main v0.6.4 (c3e9a59)
 parallel1_scope: RFC-0008 first-pass #[isr] attribute substrate, fixtures, and focused verify hook
+
+# === APPEND 2026-05-02 PM — parallel-1 MATCH-014 diagnostic ===
+last_parallel1_focus: spike/v06-match-range-negative-bound-diagnostic
+parallel1_base: origin/main v0.6.10 (cc8311f)
+parallel1_scope: E2 clean diagnostic for negative literal bounds in match range patterns
+parallel1_validation: fixed-point PASS; MATCH-014 focused PASS; diag/spec/explain/drift PASS
+parallel1_peak: self-host max 671 MB / 770 MB; tools-suite 424 MB / 580 MB; focused wrapper max 56 MB

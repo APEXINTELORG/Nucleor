@@ -1099,7 +1099,9 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
     let mut ename: str = "";
     let mut vname: str = "";
     let mut binding: str = "";
-    if att == 2 {
+    if att == 21 && pk(tokens, cp + 1) == 2 && (pk(tokens, cp + 2) == 96 || pk(tokens, cp + 2) == 58) {
+        panic("error[MATCH-014]: negative literal bounds in range patterns are not supported yet. Pattern forms like `-10..=-1` still parse as a unary-minus token followed by a literal, so the range-pattern parser cannot lower them safely. Use a guard instead, e.g. `_ if value >= -10 && value <= -1 => ...`, or shift the domain to non-negative bounds before matching.");
+    } else if att == 2 {
         let lo_val: i64 = pkv(tokens, cp);
         cp = cp + 1;
         let next_tok: i64 = pk(tokens, cp);
@@ -1113,6 +1115,8 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
                 if lo_val <= hi_norm { ename = "__range"; } else { ename = "__range_bad"; };
                 vname = lo_val;
                 binding = str_from_int(hi_norm);
+            } else if pk(tokens, cp) == 21 && pk(tokens, cp + 1) == 2 {
+                panic("error[MATCH-014]: negative literal bounds in range patterns are not supported yet. Pattern forms like `0..=-1` still parse the upper bound as a unary-minus token followed by a literal, so the range-pattern parser cannot lower them safely. Use a guard instead, e.g. `_ if value >= 0 && value <= -1 => ...`, or shift the domain to non-negative bounds before matching.");
             } else {
                 ename = "__int";
                 vname = lo_val;
@@ -8577,6 +8581,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "MATCH-011") == 1 { return 1; };
     if str_eq(code, "MATCH-012") == 1 { return 1; };
     if str_eq(code, "MATCH-013") == 1 { return 1; };
+    if str_eq(code, "MATCH-014") == 1 { return 1; };
     // RFC-0017 collections
     if str_eq(code, "COLL-001") == 1 { return 1; };
     if str_eq(code, "COLL-002") == 1 { return 1; };
