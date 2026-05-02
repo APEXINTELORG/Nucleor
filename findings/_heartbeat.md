@@ -280,8 +280,14 @@ parallel1_lane_b_peak: focused wrapper 180 MB after rebase; post-loop max 678 MB
 parallel1_lane_b_note: original OWN-008 did not reproduce in 10 pre-patch stage1 runs
 
 # === APPEND 2026-05-02 PM — parallel-1 MATCH-014 diagnostic ===
-last_parallel1_focus_lane_c: spike/v06-match-range-negative-bound-diagnostic (integrating now)
+last_parallel1_focus_lane_c: spike/v06-match-range-negative-bound-diagnostic (SHIPPED v0.6.14)
 parallel1_lane_c_base: origin/main v0.6.10 (cc8311f)
 parallel1_lane_c_scope: E2 clean diagnostic for negative literal bounds in match range patterns
 parallel1_lane_c_validation: fixed-point PASS; MATCH-014 focused PASS; diag/spec/explain/drift PASS
 parallel1_lane_c_peak: self-host max 671 MB / 770 MB; tools-suite 424 MB / 580 MB; focused wrapper max 56 MB
+
+# === APPEND 2026-05-02 PM — parallel-1 str_substring_strict migration ===
+last_parallel1_focus_lane_d: spike/v06-str-substring-strict-migration (integrating now)
+parallel1_lane_d_base: origin/main v0.6.10 (cc8311f) after final rebase
+parallel1_lane_d_scope: E1 doc/fixture discoverability lane for str_substring_strict
+parallel1_lane_d_validation: focused migration fixture PASS after rebase; peak 174 MB under 1 GB e-stop
