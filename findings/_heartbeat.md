@@ -125,3 +125,68 @@ memory_health: ALL clean across the 8 v0.5.7→v0.5.14 ships
 #    deliverables landed: TRACK_L_READONLY_AUDIT and
 #    ML_LANES_EFG_FIXTURE_SKETCHES. Both are advisory; main
 #    agent will fold into future ships when relevant.
+
+# ============================================================
+# === APPEND 2026-05-02 — main agent v0.5.15 → v0.5.33 arc ===
+# ============================================================
+# Append-only block. Header above is preserved as the v0.5.14
+# snapshot. Future appends go at the bottom of this file with
+# their own `=== APPEND <date> ===` banner.
+
+last_main_ship_2026-05-02: 2026-05-02 (v0.5.33)
+main_commit_2026-05-02: 6678735 (v0.5.33 CHANGELOG backfill)
+main_branch: main (no sandbox)
+inbox_state_observed_at_main: empty (only `.gitkeep` + `_questions.md`)
+staged_state: empty
+promoted_count: 45 (was 33 at v0.5.14; +12 across the v0.5.15 → v0.5.33 arc — probe-agent-driven closures + STALE-marked withdrawals)
+footer_uniformity: ALL 45 entries carry both the `status:` frontmatter line AND the `## Promoted` footer
+memory_budget_state: same per-process caps (770 / 580 MB) — v0.5.32 NVec SBO + per-fn IR free dropped self-host peak from ~700 MB env-on / ~600 MB env-off baseline to ~580-620 MB observed across stage1/2/3. SYSTEM-LEVEL concurrent peak under `tools/run_with_peakmem.ps1` MEASUREMENT IN FLIGHT at write time of this append; result will land in the next refresh.
+
+# === v0.5.15 → v0.5.33 ship arc (19 ships) ===
+#
+# Full ledger: see Desktop/Nucleor_Build_Spine/BUILD_PATH_v0.4_to_v1.3.md §8.2.
+# One-liners by ship:
+#
+# v0.5.15 — findings/_heartbeat.md refreshed (v0.5.7 → v0.5.14)
+# v0.5.16 — memory drift profile: current bin vs historical s1 sources
+# v0.5.17 — CSV agent-namespacing (3 concurrent agents, no race)
+# v0.5.18 — MATCH-001 dedup (no longer dual-emits TYP-001+MATCH-001)
+# v0.5.19 — ASYNC-001 async-keyword silent-strip warn + per-agent CSV gitignore
+# v0.5.20 — string escape closure (\0 → NUL, \r → CR)
+# v0.5.21 — memory drift per-ship attribution (Track I biggest contributor)
+# v0.5.22 — eprintln!/eprint! macros recognized
+# v0.5.23 — hex literal u64::MAX no longer wrongly NUM-002
+# v0.5.24 — lexer: 1e20 (no fractional dot) lexes as f64
+# v0.5.25 — async_await crash fixes (handle validation registry)
+# v0.5.26 — bisect-narrow protocol modes (--rerun-failed + --only)
+# v0.5.27 — CRITICAL: f64-cmp-as-i32-cast silent-zero (probe finding)
+# v0.5.28 — accept canonical Rust unit-struct syntax `struct U;`
+# v0.5.29 — full bisect-narrow protocol (run-to-run delta + 1 GB e-stop)
+# v0.5.30 — wrapper robustness (summary row on every exit path)
+# v0.5.31 — Track Y merge (generic T:Trait dispatch) + perf fix (explain 95s→16s, EXPECT 23s→0.08s) + Track Z (RFC-0042 opt-in auto-drop)
+# v0.5.32 — NVec inline-buffer SBO + vec_insert_at fix + per-fn IR free during emit
+# v0.5.33 — RELEASES.md drift fix + CHANGELOG backfill
+
+# === Probe-agent state (open question at write time) ===
+#
+# Probe agent has not rebased into main since the v0.5.14 snapshot
+# above per inbox observability (still empty). Last known probe
+# branch tip per that snapshot was probe/exploration @ e6d47b0.
+# Probe-agent: please rebase + report your current focus on next
+# cycle so this file reflects probe state too.
+#
+# Standing position on Q3 (footer shape) is unchanged: BOTH SHAPES
+# ACCEPTED; backfill or README-update either way. Main agent has
+# carried both shapes through the v0.5.15 → v0.5.33 arc.
+
+# === Parallel-agent state at write time ===
+#
+# Parallel-1: working on Track X spike (branch + commit TBD by
+# parallel-1's report). Main agent staying off compiler/runtime/
+# binary changes during the spike to avoid merge collision. Update
+# this row when parallel-1 reports the branch.
+#
+# Track Y, Track Z: BOTH SHIPPED via v0.5.31. See spine §8.3 for
+# the spike-ledger append.
+#
+# Parallel-2: no new outputs since the v0.5.14 snapshot above.
