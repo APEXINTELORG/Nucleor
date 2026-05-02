@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.29] — 2026-05-02
+
+**🔧 Tools-only — full bisect-narrow protocol with run-to-run delta detection
+and 1 GB hard e-stop.**
+
+Closes the design conversation from 2026-05-01: the goal is to never
+run the full sequential gate as a routine ship while still catching
+both time and memory regressions. Tools-only ship; no compiler change.
+
+### What lands
+
+- **`tools/verify.sh --range FROM-TO`** — primitive ordered-index slice.
+  Runs only steps whose global index falls in `[FROM, TO]` inclusive.
+  Hierarchical: `[1-348] + [349-696] = full set`, `[1-174] ⊂ [1-348]`.
+  Filters apply to both top-level structural-gate steps and the
+  parallel-fixture inner dispatcher.
+- **`tools/run_with_peakmem.ps1`** — wraps a `verify.sh` invocation,
+  polls subprocess-tree memory once per second (Get-Process scoped to
+  the current session and StartTime ≥ launch — no slow CIM tree walk,
+  no false positives from pre-existing bash/clang processes), tracks
+  peak, **kills the entire tree at 1 GB hard e-stop** (configurable),
+  appends a run-summary row to the CSV.
+- **`tools/check_mem_regression.sh`** — reads the CSV, computes rolling
+  per-step time stats and per-run peak-mem stats over the last K runs
+  (default 20), flags drift past mean + Nσ (default 2.5σ time, 2.0σ
+  mem) AND flags any run whose peak_mb is more than 100 MB above the
+  prior median. Excludes killed runs from the baseline.
+- **`tools/bisect_mem.sh`** — orchestrator. Phase 1: full concurrent
+  run, peak sampled. If under threshold → exit clean, no sequential.
+  Phase 2: halve, run each concurrent, recurse into the offender.
+  Phase 3: quadrant split if neither half blew but parent did
+  (interaction-bound case). Phase 4: final attribution pass at `-j 2`
+  on the narrowed region (or `-j 0` if `--sequential-final`).
+
+### CSV schema (extended, backwards-compatible)
+
+Per-step rows unchanged: `run_iso, index, seconds, status, name`.
+
+New run-summary row, name `__run_summary__`, with extra columns:
+`run_iso, 0, wall_seconds, status, "__run_summary__", peak_mb, killed, last_index`.
+
+Same `run_iso` ties summary row to the per-step rows from the same run.
+
+### Why run-to-run delta vs absolute thresholds
+
+A step that always uses 800 MB is fine; a step that jumps from 80 MB
+to 600 MB is the regression. Stats baseline catches that automatically.
+The 1 GB e-stop is system safety (don't crash the box); the stats
+detector is regression detection. Both armed; independent.
+
+### Routine flow
+
+```bash
+# Tier 1 (routine ship): one concurrent run, sampled, peak + per-step
+# time recorded; check_mem_regression flags drift.
+NUC_VERIFY_AGENT=main pwsh tools/run_with_peakmem.ps1 -VerifyArgs ""
+NUC_VERIFY_AGENT=main bash tools/check_mem_regression.sh
+
+# Tier 3 (mem excursion hunt — only when Tier 1 flags it):
+NUC_VERIFY_AGENT=main bash tools/bisect_mem.sh --excursion-mb 600
+```
+
+The full sequential gate over 700 steps NEVER runs as a routine pass.
+That is the entire point.
+
+### Bug fixed during integration
+
+PowerShell PSI `EnvironmentVariables` and parent `$env:` setting both
+fail to propagate `NUC_VERIFY_AGENT` reliably into Git-Bash on Windows.
+The wrapper now explicitly copies the keys it needs onto the PSI dict
+after construction (belt-and-suspenders), and resolves the `run_iso`
+of the just-finished run by reading the most recent non-summary row of
+the CSV after verify.sh exits — no fragile env handshake required.
+
+### Doc
+
+- `tools/VERIFY_TIMING_RECIPE.md` — full v0.5.29 section with worked
+  examples and the multi-tier protocol.
+
 ## [0.5.28] — 2026-05-01
 
 **Canonical Rust unit-struct syntax `struct U;` now parses.**
