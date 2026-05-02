@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.28] — 2026-05-01
+
+**Canonical Rust unit-struct syntax `struct U;` now parses.**
+
+Closes probe finding
+`2026-05-01-unit-struct-semicolon-form-parse-fail`.
+
+- Pre-fix: `struct U;` panicked NR020 ("expected `{`, got `;`").
+  Adopter had to write the empty-braces form `struct U {}`.
+  Translators porting Rust hit this constantly because
+  `struct Marker;` is the canonical form.
+- Now: `parse_struct_decl` accepts `;` after the optional generic
+  params, lowering to the same kind-33 empty-fields decl as
+  `struct U {}`. Both forms produce identical AST.
+- Construction still requires `U {}` value form (e.g.
+  `let u: U = U {};`); a follow-up will let bare `U` resolve to
+  the zero-field constructor.
+- 5-line edit at `compiler/nucleor_s1_compiler.nr:2560`.
+- Round-1 == round-2 IR fixed-point preserved. Seed refreshed.
+
+## [0.5.27] — 2026-05-01
+
+**🐛 CRITICAL silent-miscompute fix: `(a < b) as i32` for f64
+operands silently returned 0.**
+
+Closes probe finding
+`2026-05-01-f64-cmp-as-i32-cast-silently-zero`.
+
+- Root cause: `binop_float_type` (s1 ~line 19396, kind == 4 / binop)
+  recursed into operand types only; for `a < b` where both operands
+  are f64, both branches returned "f64", so the function returned
+  "f64" — even though a comparison's result is bool/i64, not float.
+  This drove kind-99 (as cast) to dispatch `f64_to_i32` on the i64
+  cmp-result bit pattern → produced 0.
+- Fix: in the kind == 4 path, first check the operator iop via
+  `tok_to_ir(node_field(pool, nid, 1))`. If `is_cmp_or_logic(iop) == 1`
+  (iops 7-14: `==` `!=` `<` `>` `<=` `>=` `&&` `||`), return ""
+  immediately so kind-99 falls through to int→int as_i32/as_i64.
+- 3-line edit. Round-1 == round-2 IR fixed-point preserved.
+- Probe repro now outputs `1 1 1 1 1 1` (was `0 0 1 1 0 1`).
+- Adopter idioms unblocked: NaN-free counting via `(*x == *x) as i32`,
+  threshold flags via `(energy > t) as i32`, comparison bitmasks.
+
 ## [0.5.26] — 2026-05-01
 
 **🔧 Bisect-narrow protocol modes — `--rerun-failed` + `--only`.**
@@ -51923,22 +51966,3 @@ Initial open-source release of Nucleor under the Apache License 2.0.
 - Issues: https://github.com/APEXINTELORG/Nucleor/issues
 - Author: Joseph Wescott
 
-## v0.5.27 — 2026-05-01
-
-- **CRITICAL silent-miscompute fix:** `(a < b) as i32` for `a, b: f64`
-  was returning 0 instead of 1. Closes probe finding
-  `2026-05-01-f64-cmp-as-i32-cast-silently-zero`.
-- Root cause: `binop_float_type` (s1 ~line 19396, kind == 4 / binop)
-  recursed into operand types only; for `a < b` where both operands
-  are f64, both branches returned "f64", so the function returned
-  "f64" — even though a comparison's result is bool/i64, not float.
-  This drove kind-99 (as cast) to dispatch `f64_to_i32` on the i64
-  cmp-result bit pattern → produced 0.
-- Fix: in the kind == 4 path, first check the operator iop via
-  `tok_to_ir(node_field(pool, nid, 1))`. If `is_cmp_or_logic(iop) == 1`
-  (iops 7-14: `==` `!=` `<` `>` `<=` `>=` `&&` `||`), return ""
-  immediately so kind-99 falls through to int→int as_i32/as_i64.
-- 3-line edit. Round-1 == round-2 IR fixed-point preserved.
-- Probe repro now outputs `1 1 1 1 1 1` (was `0 0 1 1 0 1`).
-- Adopter idioms unblocked: NaN-free counting via `(*x == *x) as i32`,
-  threshold flags via `(energy > t) as i32`, comparison bitmasks.
