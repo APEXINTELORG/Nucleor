@@ -11281,6 +11281,8 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "ISR-004") { return "Vector name not recognized for target"; };
     if str_eq(code, "ISR-005") { return "Two ISRs assigned to the same vector"; };
     if str_eq(code, "ISR-006") { return "Priority out of range for target NVIC"; };
+    if str_eq(code, "ISR-007") { return "Malformed prio attribute (negative / string / missing value)"; };
+    if str_eq(code, "ISR-008") { return "#[isr] applied to a non-fn item"; };
     // RFC-0009 WCET
     if str_eq(code, "WCET-001") { return "#[deadline] function uses dynamic dispatch"; };
     if str_eq(code, "WCET-002") { return "Loop bound unknown"; };
@@ -11507,6 +11509,8 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "ISR-004") { return "The vector name in #[isr(vector = ...)] does not match this target's PAC. Check stdlib/embedded/<target>/vectors.nr for the valid set."; };
     if str_eq(code, "ISR-005") { return "Two #[isr] functions claim the same vector. The vector table can only bind one — combine them or distinguish the priorities."; };
     if str_eq(code, "ISR-006") { return "Cortex-M NVIC priorities range 0..2^N where N depends on the chip (typically 3–4). The supplied priority is out of range."; };
+    if str_eq(code, "ISR-007") { return "The `prio` named attribute inside #[isr(prio = N)] requires a non-negative integer literal. Pre-v0.6.32 negative-int / string-literal / bare-ident were silently accepted with undefined effect on the target controller."; };
+    if str_eq(code, "ISR-008") { return "#[isr] is meaningful only on fn items. Pre-v0.6.31 it was silently dropped on non-fn items (struct/enum/impl/trait/mod/use/const/static/type) AND leaked to the next fn, surfacing as a misleading ISR-001 diag pointing at the wrong fn."; };
     if str_eq(code, "WCET-001") { return "Heptane needs a static call graph; dyn Trait or fn-pointers without #[wcet_dispatch_table] make targets unknown. Make the dispatch concrete or annotate the table."; };
     if str_eq(code, "WCET-002") { return "Add #[loop_bound(N)] or assume!(arr.len() == N) so Heptane can bound the loop."; };
     if str_eq(code, "WCET-003") { return "Static WCET upper bound exceeds the declared deadline. See the WCET report for the dominant cost path."; };
@@ -11720,6 +11724,8 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "ISR-004") { return "RFC-0008 §3.1 — vector names are target-specific. The PAC for your MCU is in stdlib/embedded/<target>/vectors.nr."; };
     if str_eq(code, "ISR-005") { return "RFC-0008 §3.3 — the vector table maps each interrupt source to exactly one handler. Two #[isr]'s claiming the same vector is ambiguous; either combine them, or use a software dispatch shim."; };
     if str_eq(code, "ISR-006") { return "RFC-0008 §3.1 — Cortex-M NVIC priority bit-width varies (typically 3 or 4 bits = 8 or 16 priority levels). Check stdlib/embedded/<target>/nvic.nr for your chip's priority range."; };
+    if str_eq(code, "ISR-007") { return "v0.6.32 — `#[isr(prio = N)]` requires N to be a non-negative integer literal. Pre-fix the prio attribute parser silently accepted negative-int (`-1`), string-literal (`\"high\"`), and missing-value (bare `prio`) shapes; v0.6.32 catches them at the attribute site."; };
+    if str_eq(code, "ISR-008") { return "v0.6.31 — `#[isr]` may only be applied to fn items. Pre-fix the attribute was silently dropped on non-fn items AND leaked to the next fn in the file, producing a misleading ISR-001 diag pointing at the wrong fn (typically `main`). Originally shipped under ISR-004; renamed to ISR-008 in v0.6.32 because ISR-004 is reserved for the planned 'vector name not recognized' diag (RFC-0008 §3.1)."; };
     if str_eq(code, "WCET-001") { return "RFC-0009 §3.5 — Heptane needs a static call graph. dyn Trait or fn-pointer dispatch makes the callee unknown. Either rewrite as monomorphized static dispatch or annotate with #[wcet_dispatch_table(...)] listing the candidate targets."; };
     if str_eq(code, "WCET-002") { return "RFC-0009 §3.2 — Heptane needs trip counts to bound loops. Annotate the loop with #[loop_bound(N)] or assert the array length with assume!(arr.len() == N) before entering."; };
     if str_eq(code, "WCET-003") { return "RFC-0009 §3.3 — static WCET upper bound exceeds the declared deadline. The diagnostic shows the dominant cost path. Reduce loop bounds, simplify hot expressions, or relax the deadline."; };

@@ -209,6 +209,8 @@ fn read_ticks() -> u32 {
 | ISR-004 | Vector name not recognized for target architecture |
 | ISR-005 | Two ISRs assigned to the same vector |
 | ISR-006 | Priority out of range for target NVIC |
+| ISR-007 | Malformed `prio` attribute (negative / string / missing value) — v0.6.32 |
+| ISR-008 | `#[isr]` applied to a non-fn item — v0.6.31 (orig. ISR-004; renamed in v0.6.32 because ISR-004 is reserved for "Vector name not recognized") |
 
 ---
 
