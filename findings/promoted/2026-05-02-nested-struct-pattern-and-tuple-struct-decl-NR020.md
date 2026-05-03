@@ -6,7 +6,7 @@ diagnostic_actual: NR020 generic parse error on both shapes
 diagnostic_expected: accept (and recurse into nested patterns) or emit clean v0.6-boundary diag naming the unsupported shape
 discovered_against: main v0.6.13 (probe rebased)
 commit: probe (post-rebase) + main 98c13f4
-status: PROGRESSING. Sub-case 1 (nested struct pattern): clean halt v0.6.69. Sub-case 2 (tuple-struct decl): clean halt v0.6.53 → parse acceptance v0.6.73 (RFC V1.1 step 1; synthesizes `__0`/`__1` fields). Constructor `P(a, b)` routing + `.0`/`.1` access pending in V1.1 steps 2 & 3.
+status: SUB-CASE 2 FULLY CLOSED v0.6.74 (RFC V1.1 complete). Tuple-struct decl + constructor `P(a, b)` + positional access `p.0`/`p.1` all working. Sub-case 1 (nested struct pattern): clean halt v0.6.69 still — full lowering pending separate v1 ship.
 ---
 
 ## Closure (analysis-only — no compiler change)
