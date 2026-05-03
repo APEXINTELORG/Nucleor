@@ -1547,7 +1547,24 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
         cp = cp + 1;
         if pk(tokens, cp) == 50 {
             cp = cp + 1;
-            if pk(tokens, cp) != 51 { binding = pkv(tokens, cp); cp = cp + 1; };
+            if pk(tokens, cp) != 51 {
+                binding = pkv(tokens, cp);
+                cp = cp + 1;
+                // v0.6.90 (defensive halt — canonical Rust nested
+                // pattern `Some(Some(v))` / `Ok(Some(v))` / etc.):
+                // pre-fix the inner `(` after the binding name surfaced
+                // as the wrong-class `error[NR020]: expected ')', got
+                // '('` because the pattern parser treats the binding
+                // slot as a single ident and then expects `)`. Halt
+                // cleanly with a 2-step destructure workaround pointer.
+                // Forward-roadmap: recursive pattern parser (sister to
+                // nested struct patterns at line 1364).
+                if pk(tokens, cp) == 50 {
+                    print(str_concat("ERROR: nested patterns in `if let` / `match` arms (e.g. `", str_concat(vname, str_concat("(Some(v))`, `", str_concat(vname, "(Ok(...))`) are not yet supported in Nucleor. Pre-v0.6.90 the inner `(` surfaced as wrong-class `error[NR020]: expected ')', got '('` because the pattern parser reads the binding slot as a single ident. Workaround: destructure in two steps — `if let ")))));
+                    print(str_concat("       ", str_concat(vname, "(inner) = outer { if let Some(v) = inner { ... } }`. Tracked for forward-roadmap (recursive pattern parser, sister to nested struct patterns).")));
+                    panic(str_concat("nucleor: nested ctor pattern `", str_concat(vname, "(Some(...))` not yet supported (see ERROR diagnostic above)")));
+                };
+            };
             cp = expect_tok(tokens, cp, 51);
         } else if pk(tokens, cp) == 52 {
             let mut br: Vec<i32> = parse_match_binding_block(tokens, cp + 1);
@@ -2703,7 +2720,19 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             ip = ip + 1;
             if pk(tokens, ip) == 50 {
                 ip = ip + 1;
-                if pk(tokens, ip) != 51 { binding = pkv(tokens, ip); ip = ip + 1; };
+                if pk(tokens, ip) != 51 {
+                    binding = pkv(tokens, ip);
+                    ip = ip + 1;
+                    // v0.6.90 (defensive halt): nested pattern
+                    // `if/while let Some(Some(v)) = opt` pre-fix
+                    // surfaced as wrong-class `NR020: expected ')',
+                    // got '('` because the parser reads the binding
+                    // slot as a single ident.
+                    if pk(tokens, ip) == 50 {
+                        print(str_concat("ERROR: nested patterns in `if let` / `while let` (e.g. `if let ", str_concat(vname, str_concat("(Some(v)) = opt`) are not yet supported in Nucleor. Pre-v0.6.90 the inner `(` after the binding name surfaced as wrong-class `error[NR020]: expected ')', got '('` because the parser reads the binding slot as a single ident. Workaround: destructure in two steps — `if let ", str_concat(vname, "(inner) = outer { if let Some(v) = inner { ... } }`. Tracked for forward-roadmap (recursive pattern parser).")))));
+                        panic(str_concat("nucleor: nested ctor pattern `", str_concat(vname, "(Some(...))` not yet supported (see ERROR diagnostic above)")));
+                    };
+                };
                 ip = expect_tok(tokens, ip, 51);
             };
         } else if pat_tt == 1 && pk(tokens, ip + 1) == 46 {
@@ -2819,7 +2848,19 @@ fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             ip = ip + 1;
             if pk(tokens, ip) == 50 {
                 ip = ip + 1;
-                if pk(tokens, ip) != 51 { binding = pkv(tokens, ip); ip = ip + 1; };
+                if pk(tokens, ip) != 51 {
+                    binding = pkv(tokens, ip);
+                    ip = ip + 1;
+                    // v0.6.90 (defensive halt): nested pattern
+                    // `if/while let Some(Some(v)) = opt` pre-fix
+                    // surfaced as wrong-class `NR020: expected ')',
+                    // got '('` because the parser reads the binding
+                    // slot as a single ident.
+                    if pk(tokens, ip) == 50 {
+                        print(str_concat("ERROR: nested patterns in `if let` / `while let` (e.g. `if let ", str_concat(vname, str_concat("(Some(v)) = opt`) are not yet supported in Nucleor. Pre-v0.6.90 the inner `(` after the binding name surfaced as wrong-class `error[NR020]: expected ')', got '('` because the parser reads the binding slot as a single ident. Workaround: destructure in two steps — `if let ", str_concat(vname, "(inner) = outer { if let Some(v) = inner { ... } }`. Tracked for forward-roadmap (recursive pattern parser).")))));
+                        panic(str_concat("nucleor: nested ctor pattern `", str_concat(vname, "(Some(...))` not yet supported (see ERROR diagnostic above)")));
+                    };
+                };
                 ip = expect_tok(tokens, ip, 51);
             };
         } else if pat_tt == 1 && pk(tokens, ip + 1) == 46 {

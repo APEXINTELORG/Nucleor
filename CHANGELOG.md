@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.90] — 2026-05-03
+
+**Defensive halt — canonical Rust nested pattern in `if let` /
+`while let` / `match` (e.g. `if let Some(Some(v)) = opt`) now
+produces a clean halt with a 2-step-destructure workaround pointer.**
+
+Pre-fix: writing `if let Some(Some(v)) = opt` surfaced as
+`error[NR020]: expected ')', got '('` — wrong-class. The parser
+reads the binding slot as a single ident (in this case, "Some")
+and then expects `)` to close the outer ctor; the inner `(` of
+`Some(v)` triggers the parse error.
+
+Post-fix: parse_if (used by both `if let` and `while let`),
+parse_match_one_pattern (used by `match` arms), and parse_while
+(used by `while let`) all detect the nested-pattern shape after
+capturing the binding name and halt cleanly with a workaround
+pointer.
+
+```nucleor
+// Pre-fix:
+if let Some(Some(v)) = opt {    // ← NR020 wrong-class
+    print_int(v as i32);
+}
+
+// Post-fix workaround (2-step destructure):
+if let Some(inner) = opt {
+    if let Some(v) = inner {
+        print_int(v as i32);
+    }
+}
+```
+
+Forward-roadmap: full recursive pattern parser (sister to
+nested struct patterns at line ~1364 — same family of
+recursive-descent gaps in `parse_match_one_pattern` /
+`parse_match_struct_binding_block`).
+
+### Fixed-point + perf
+
+Cold 3.24s. Peak 330MB. Round-2 fixed-point md5
+`2bb5ac9f580bc8c61d86c906ff4621b0`.
+
+### Fixture
+
+`tests/fixtures/v0690_iflet_nested_pattern_clean_halt.nr` —
+negative fixture for `if let Some(Some(v)) = opt`.
+
 ## [0.6.89] — 2026-05-03
 
 **RFC V1.4 ext — derive(PartialEq) now works for GENERIC structs.
