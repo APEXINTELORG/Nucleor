@@ -15391,6 +15391,42 @@ fn types_compatible(expected: str, actual: str) -> i64 {
         if str_eq(expected, "u8") == 1 || str_eq(expected, "u16") == 1 || str_eq(expected, "u32") == 1 || str_eq(expected, "u64") == 1 { return 1; };
         if str_eq(expected, "usize") == 1 || str_eq(expected, "isize") == 1 { return 1; };
     };
+    // v0.6.75 RFC V1.2 (probe finding 2026-05-01-box-new-literal-doesnt-
+    // propagate-T): canonical Rust `let b: Box<i64> = Box::new(5);`
+    // pre-fix failed TYP-008 because `Box::new(5)` types as `Box<i32>`
+    // (i32 is the literal-default for unsuffixed int literals) and
+    // `types_compatible(Box<i64>, Box<i32>)` returned 0 (no Box<T>
+    // recursion or literal-widening path).
+    //
+    // Note: `type_base_name("Box<T>")` strips the Box wrapper and
+    // returns the inner type's base, so we must dispatch the Box<T>
+    // shape BEFORE the type_base_name call below — using
+    // str_starts_with directly. The literal-default widening rule
+    // accepts i32 actual into any wider/narrower int-typed expected
+    // (i32 is the canonical default for unsuffixed int literals).
+    // Cheap first-char gate: skip the str_starts_with calls unless both
+    // expected and actual begin with 'B' (ASCII 66). Box<T> compares are
+    // a vanishingly small fraction of types_compatible calls and the hot
+    // path must remain a few char compares.
+    let mut box_v075_match: i64 = 0;
+    if str_len(expected) > 4 && str_len(actual) > 4 {
+        if str_char_at(expected, 0) == 66 && str_char_at(actual, 0) == 66 {
+            if str_starts_with(expected, "Box<") == 1 && str_starts_with(actual, "Box<") == 1 {
+                box_v075_match = 1;
+            };
+        };
+    };
+    if box_v075_match == 1 {
+        let bearg_v075: str = type_first_arg(expected);
+        let baarg_v075: str = type_first_arg(actual);
+        if str_len(bearg_v075) > 0 && str_len(baarg_v075) > 0 {
+            if types_compatible(bearg_v075, baarg_v075) == 1 { return 1; };
+            if str_eq(baarg_v075, "i32") == 1 {
+                if str_eq(bearg_v075, "i64") == 1 || str_eq(bearg_v075, "i16") == 1 || str_eq(bearg_v075, "i8") == 1 { return 1; };
+                if str_eq(bearg_v075, "isize") == 1 { return 1; };
+            };
+        };
+    };
     let ebase: str = type_base_name(expected);
     let abase: str = type_base_name(actual);
     if str_eq(ebase, abase) == 1 {
@@ -15401,7 +15437,12 @@ fn types_compatible(expected: str, actual: str) -> i64 {
                 return 1;
             };
             if str_len(earg) > 0 && str_len(aarg) > 0 {
-                return types_compatible(earg, aarg);
+                if types_compatible(earg, aarg) == 1 { return 1; };
+                // v0.6.75: same literal-default widening for Vec/Option.
+                if str_eq(aarg, "i32") == 1 {
+                    if str_eq(earg, "i64") == 1 || str_eq(earg, "i16") == 1 || str_eq(earg, "i8") == 1 { return 1; };
+                    if str_eq(earg, "isize") == 1 { return 1; };
+                };
             };
         };
         if str_eq(ebase, "Result") == 1 {

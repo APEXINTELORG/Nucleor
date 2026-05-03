@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.75] — 2026-05-03
+
+**RFC V1.2 — generic-T inference for `Box::new(literal)`. Canonical
+Rust `let b: Box<i64> = Box::new(5);` now type-checks.**
+
+Pre-fix: `Box::new(5)` types as `Box<i32>` because the literal `5`
+defaults to i32, while the binding is declared `Box<i64>`.
+`types_compatible(Box<i64>, Box<i32>)` returned 0 — no Box<T>
+recursion path and no literal-default widening — and the binding
+fired `error[TYP-008]: type mismatch for binding 'b'`.
+
+Post-fix: `types_compatible` recurses into Box<T> on same-shape
+compares (matching the existing Vec<T> / Option<T> recursion
+pattern), and a literal-default widening rule accepts an i32 actual
+into any wider int-typed expected (i64 / isize / i16 / i8). The
+widening fires only when actual is exactly i32 — the canonical
+literal default — which preserves rejection of explicit
+type-mismatches like `let x: i64 = some_i32_var;`.
+
+```nucleor
+// Pre-fix:
+let b: Box<i64> = Box::new(5);    // ← TYP-008
+
+// Post-fix: accepted, ABI is Box<i64> end-to-end.
+let b: Box<i64>   = Box::new(5);   // 5 → i64 via Box recursion
+let c: Box<isize> = Box::new(7);   // 7 → isize
+let d: Box<i64>   = Box::new(42);  // 42 → i64
+print_int(*b as i32);   // 5
+print_int(*c as i32);   // 7
+print_int(*d as i32);   // 42
+```
+
+### Hot-path safety
+
+`types_compatible` is called millions of times during a self-host
+build, so the new Box<T> branch sits behind a cheap first-char gate
+(`str_char_at(expected, 0) == 'B'` AND same for actual) before any
+str_starts_with probe. With the gate, cold time stays at floor
+(~3.5–3.8s; baseline 3.16s); without it, an unscreened pair of
+str_starts_with calls regressed cold by +1.3s.
+
+### Fixture
+
+`tests/fixtures/v0675_box_new_literal_widens.nr` exercises three
+Box<i64>/Box<isize> bindings against literal initializers to lock
+in the widening contract.
+
 ## [0.6.74] — 2026-05-03
 
 **RFC V1.1 steps 2 + 3 — tuple-struct constructor `Pair(5, 10)`
