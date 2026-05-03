@@ -7,8 +7,8 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 870
-# Of which REVIEW REQUIRED: 71
+# Total helpers: 871
+# Of which REVIEW REQUIRED: 72
 
 # ============================================================
 # REVIEW REQUIRED
@@ -72,6 +72,7 @@
 #   result_or_else                           (Unclassified)
 #   result_to_debug_str_i64                  (Unclassified)
 #   result_unwrap                            (Unclassified)
+#   result_unwrap_err                        (Unclassified)
 #   result_unwrap_or                         (Unclassified)
 #   result_unwrap_or_else                    (Unclassified)
 #   sizeof_bf16                              (Unclassified)
@@ -10427,6 +10428,20 @@ notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
 name             = "result_unwrap"
 class            = "Unclassified"
 symbol           = "__nucleor_result_unwrap"
+dispatch         = "RuntimeCall"
+abi              = "(ptr) -> i64"
+effects          = "TODO"  # TODO
+taint            = "TODO"  # verify before use
+units            = "passthrough"
+proof_obligation = "TODO"  # verify before use
+stability        = "stable"
+since            = "0.1.0"
+notes            = "name pattern did not match any class rule (REVIEW REQUIRED)"
+
+[[helper]]
+name             = "result_unwrap_err"
+class            = "Unclassified"
+symbol           = "__nucleor_result_unwrap_err"
 dispatch         = "RuntimeCall"
 abi              = "(ptr) -> i64"
 effects          = "TODO"  # TODO

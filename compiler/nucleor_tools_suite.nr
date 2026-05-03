@@ -2257,6 +2257,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "option_is_none") { return "__nucleor_option_is_none"; };
     if str_eq(name, "option_expect") { return "__nucleor_option_expect"; };
     if str_eq(name, "result_unwrap") { return "__nucleor_result_unwrap"; };
+    if str_eq(name, "result_unwrap_err") { return "__nucleor_result_unwrap_err"; };
     if str_eq(name, "result_unwrap_or") { return "__nucleor_result_unwrap_or"; };
     if str_eq(name, "result_is_ok") { return "__nucleor_result_is_ok"; };
     if str_eq(name, "result_is_err") { return "__nucleor_result_is_err"; };
@@ -3843,6 +3844,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_option_is_none(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_option_expect(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_result_unwrap(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_unwrap_err(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_result_unwrap_or(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_result_is_ok(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_result_is_err(ptr)\n");

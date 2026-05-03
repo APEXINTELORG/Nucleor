@@ -4398,6 +4398,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "option_is_none") { return "__nucleor_option_is_none"; };
     if str_eq(name, "option_expect") { return "__nucleor_option_expect"; };
     if str_eq(name, "result_unwrap") { return "__nucleor_result_unwrap"; };
+    if str_eq(name, "result_unwrap_err") { return "__nucleor_result_unwrap_err"; };
     if str_eq(name, "result_unwrap_or") { return "__nucleor_result_unwrap_or"; };
     if str_eq(name, "result_is_ok") { return "__nucleor_result_is_ok"; };
     if str_eq(name, "result_is_err") { return "__nucleor_result_is_err"; };
@@ -6177,6 +6178,7 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_option_is_none(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_option_expect(ptr, ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_result_unwrap(ptr)\n");
+    sb_append(sb, "declare i64 @__nucleor_result_unwrap_err(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_result_unwrap_or(ptr, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_result_is_ok(ptr)\n");
     sb_append(sb, "declare i64 @__nucleor_result_is_err(ptr)\n");
@@ -20065,7 +20067,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         // fell through to the user-fn lookup. Runtime
                         // helpers added in nucleor_llvm_rt.c v0.4.90.
                         fn_name = str_concat("option_", mname);
-                    } else if str_eq(stype_base, "Result") == 1 && (str_eq(mname, "unwrap") == 1 || str_eq(mname, "unwrap_or") == 1 || str_eq(mname, "is_ok") == 1 || str_eq(mname, "is_err") == 1 || str_eq(mname, "ok") == 1 || str_eq(mname, "err") == 1 || str_eq(mname, "expect") == 1 || str_eq(mname, "map") == 1 || str_eq(mname, "and_then") == 1 || str_eq(mname, "unwrap_or_else") == 1 || str_eq(mname, "or_else") == 1) {
+                    } else if str_eq(stype_base, "Result") == 1 && (str_eq(mname, "unwrap") == 1 || str_eq(mname, "unwrap_or") == 1 || str_eq(mname, "unwrap_err") == 1 || str_eq(mname, "is_ok") == 1 || str_eq(mname, "is_err") == 1 || str_eq(mname, "ok") == 1 || str_eq(mname, "err") == 1 || str_eq(mname, "expect") == 1 || str_eq(mname, "map") == 1 || str_eq(mname, "and_then") == 1 || str_eq(mname, "unwrap_or_else") == 1 || str_eq(mname, "or_else") == 1) {
                         // v0.4.90: Result<T,E> method dispatch — same
                         // root cause as Option above.
                         fn_name = str_concat("result_", mname);

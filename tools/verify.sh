@@ -4232,6 +4232,32 @@ v030_deadline_overrun() {
 #   gap 2 — Result::Err(x).unwrap() panics with the canonical Rust
 #           message instead of silently leaking the err payload as
 #           if it were the ok payload (CRITICAL pre-fix bug).
+v0634_result_unwrap_err_basic() {
+    rm -f target/v0634_uerr_basic.exe target/v0634_uerr_basic
+    "$BIN" build tests/fixtures/result_unwrap_err_basic.nr -o "v0634_uerr_basic" >$NUC_VERIFY_STEP_LOG 2>&1
+    local exe=""
+    if [ -x target/v0634_uerr_basic.exe ]; then exe=target/v0634_uerr_basic.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0634_uerr_basic ]; then exe=target/v0634_uerr_basic; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rc=$?
+    [ "$rc" -eq 0 ] || return 1
+    grep -qE '^oops$' $NUC_VERIFY_RUN_LOG || return 1
+}
+
+v0634_result_unwrap_err_on_ok_panics() {
+    rm -f target/v0634_uerr_panic.exe target/v0634_uerr_panic
+    "$BIN" build tests/fixtures/result_unwrap_err_on_ok_panics.nr -o "v0634_uerr_panic" >$NUC_VERIFY_STEP_LOG 2>&1
+    local exe=""
+    if [ -x target/v0634_uerr_panic.exe ]; then exe=target/v0634_uerr_panic.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0634_uerr_panic ]; then exe=target/v0634_uerr_panic; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rc=$?
+    [ "$rc" -ne 0 ] || return 1
+    grep -qE "called .Result::unwrap_err\(\). on an .Ok. value" $NUC_VERIFY_RUN_LOG || return 1
+}
+
 v0633_option_unwrap_none_panics() {
     rm -f target/v0633_opt_check.exe target/v0633_opt_check
     "$BIN" build tests/fixtures/option_unwrap_none_panics.nr -o "v0633_opt_check" >$NUC_VERIFY_STEP_LOG 2>&1
@@ -5081,6 +5107,8 @@ step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pas
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
 step "v0.6.33 Option::None.unwrap() panics with canonical message (no Vec leak)" v0633_option_unwrap_none_panics
 step "v0.6.33 Result::Err(x).unwrap() panics with canonical message (no silent ok-leak)" v0633_result_unwrap_err_panics
+step "v0.6.34 Result::Err(x).unwrap_err() returns err payload (was TYP-005 link fail)" v0634_result_unwrap_err_basic
+step "v0.6.34 Result::Ok(x).unwrap_err() panics with canonical message" v0634_result_unwrap_err_on_ok_panics
 step "v0.5.10 i32::MIN / -1 panics cleanly (not Windows STATUS_INTEGER_OVERFLOW)" v0510_i32_min_div_overflow
 step "v0.5.12 str_to_int_strict panics on invalid input" v0512_str_to_int_strict_panic
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
