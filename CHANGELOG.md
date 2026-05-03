@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3] — 2026-05-03
+
+**Defensive halt — canonical Rust raw-pointer types `*const T`
+/ `*mut T` now produce a clean halt with borrow-ref / i64-FFI
+workaround pointer.**
+
+Pre-fix: `let p: *const i64 = &x;` and `fn read(p: *const i64)`
+surfaced as wrong-class `error[NR020]: parse_primary cannot
+start an expression at token kind 73` (the `const` keyword
+following `*`) because parse_type had no `*` branch — the outer
+parser saw `*` as the multiplication operator (token 22) at type
+position.
+
+Post-fix: parse_type detects token 22 (`*`) at type-start
+position and halts cleanly, pointing at:
+
+1. **`&T` / `&mut T`** — safe-borrow workaround for typical
+   adopter code (the canonical Nucleor pattern).
+2. **Bare `i64`** — for FFI / unsafe transit; the i64-everywhere
+   ABI passes the heap pointer value through directly.
+
+Forward-roadmap: raw-pointer type substrate is v1.x, sister to
+V1.5 (length-tagged str ABI). Until then, raw pointers transit
+as i64 without compile-time type distinction.
+
+```nucleor
+// Pre-fix:
+let p: *const i64 = &x;       // ← NR020 wrong-class
+
+// Post-fix workaround (safe borrow-ref):
+let p: &i64 = &x;
+
+// Post-fix workaround (FFI transit as i64):
+extern fn ffi_read(p: i64) -> i64;
+let p: i64 = ffi_read(addr);
+```
+
+### Fixed-point + perf
+
+Cold 4.40s (system load). Peak 314MB. Round-2 fixed-point md5
+`eaaf3fd74e8e74920c02504e037c299f`.
+
+### Fixture
+
+`tests/fixtures/v0703_raw_pointer_type_clean_halt.nr` —
+negative fixture for `*const i64` type position.
+
 ## [0.7.2] — 2026-05-03
 
 **Defensive halt — canonical Rust loop labels (`'outer: for ...
