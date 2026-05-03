@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.98] — 2026-05-03
+
+**RFC V1.7-ext — turbofish syntax `.method::<TypeArgs>(args)`
+(e.g. `.collect::<Vec<i64>>()`) now parses + lowers.**
+
+Pre-fix: `.collect::<Vec<i64>>()` surfaced as wrong-class
+`error[NR020]: parse_primary cannot start an expression at
+token kind 46` because parse_postfix had no `::<` branch
+between `.method` and `(args)`. Adopters porting Rust code with
+explicit type-arg disambiguation (collect, parse, etc.) hit this.
+
+Post-fix: parse_postfix detects `::<` after `.method` and uses
+the existing `skip_angle_group` helper to balance through the
+type-args, then parses the trailing `(args)` as a regular
+method call. The type-args are advisory under today's mangling
+— Nucleor monomorphises by parameter, not by call-site
+turbofish — so the AST still emits a kind-8 method call
+without retaining the type-args.
+
+```nucleor
+fn main() -> i32 {
+    let v: Vec<i64> = [1, 2, 3];
+    // Pre-v0.6.98:
+    let doubled: Vec<i64> = v.iter().map(|x| x * 2).collect::<Vec<i64>>();
+    //                                                       ↑ NR020 wrong-class
+
+    // Post-v0.6.98: parses + lowers; turbofish is advisory.
+    let doubled: Vec<i64> = v.iter().map(|x| x * 2).collect::<Vec<i64>>();
+    print_int(vec_len(&doubled) as i32);   // 3
+    return 0;
+}
+```
+
+### Sister to V1.7 UFCS (v0.6.81)
+
+Both forms accept Rust syntactic noise without retained per-trait
+disambiguation — full per-call-site monomorphisation is the v1.x
+trait-dispatch ship.
+
+### Trailing-call requirement
+
+If `::<...>` is not followed by `(args)`, the form halts cleanly
+with a workaround pointer (drop the turbofish; let inference
+resolve via the binding's declared type).
+
+### Fixed-point + perf
+
+Cold 3.96s. Peak 331MB. Round-2 fixed-point md5
+`514462d03e8facc88c564fe5277a2a33`.
+
+### Fixture
+
+`tests/fixtures/v0698_turbofish_method_call.nr` — exercises
+`.collect::<Vec<i64>>()`.
+
 ## [0.6.97] — 2026-05-03
 
 **Defensive halt — canonical Rust struct-update syntax
