@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.5] — 2026-05-03
+
+**Defensive halt — canonical Rust path-rooted fn calls
+`crate::foo(...)`, `super::foo(...)`, `self::foo(...)` now
+produce a clean halt with a "drop the path prefix" workaround
+pointer.**
+
+Pre-fix: writing `let v = crate::helper(5);` surfaced the
+generic v0.3.71 "unsupported associated-fn call" diag that
+mentioned Vec/String/Box/HashMap/etc. — not adopter-actionable
+for the path case (`crate` isn't a type with associated fns).
+
+Post-fix: kind-12 dispatch detects the `crate` / `super` / `self`
+roots and halts cleanly:
+
+| Path form | Workaround |
+|---|---|
+| `crate::foo(...)` | drop the prefix → `foo(...)` |
+| `super::foo(...)` | drop the prefix → `foo(...)` |
+| `self::foo(...)` | drop the prefix → `foo(...)` |
+
+Nucleor today has a flat fn namespace (no module-tree rooting),
+and the resolved fn name is callable directly. Sister to v0.6.96
+std/core/alloc namespace halt.
+
+Forward-roadmap: path-rooted name resolution requires module-tree
+infrastructure — depends on `mod foo;` / `mod foo { ... }` block-
+form module bodies being more than transparent inlining (per
+v0.6.50 finding). Tracked alongside V1.x module substrate.
+
+```nucleor
+// Pre-fix:
+let v: i64 = crate::helper(5);    // ← generic unsupported-assoc-fn diag
+
+// Post-fix workaround (drop the prefix):
+let v: i64 = helper(5);
+```
+
+### Fixed-point + perf
+
+Cold 4.15s (system load). Peak 331MB. Round-2 fixed-point md5
+`ebd401a08236e7c482d1a94adfae2482`.
+
+### Fixture
+
+`tests/fixtures/v0705_path_rooted_fn_call_clean_halt.nr` —
+negative fixture for `crate::helper(...)`.
+
 ## [0.7.4] — 2026-05-03
 
 **Defensive halt — canonical Rust `extern "C" fn name() { body }`

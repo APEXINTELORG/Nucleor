@@ -22551,6 +22551,18 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             ir_block_add(mcur, ir_call_ex(mr, mangled, maa));
             return lx_new(mr, mcur);
         };
+        // v0.7.5 (defensive halt): canonical Rust path-rooted fn
+        // calls `crate::foo(...)`, `super::foo(...)`, `self::foo(...)`
+        // pre-fix surfaced via the generic v0.3.71 "unsupported
+        // associated-fn call" diag, which mentioned only Vec/String/
+        // etc. — not adopter-actionable for the path case. Detect
+        // the `crate`/`super`/`self` roots and halt with a clean
+        // workaround pointer (drop the path prefix — Nucleor has a
+        // flat fn namespace today).
+        if str_eq(tname, "crate") == 1 || str_eq(tname, "super") == 1 || str_eq(tname, "self") == 1 {
+            print(str_concat("ERROR: path-rooted fn call `", str_concat(tname, str_concat("::", str_concat(mname, "(...)` is not yet supported in Nucleor. Pre-v0.7.5 surfaced via the generic 'unsupported associated-fn call' diag mentioning Vec/String/etc. — not adopter-actionable. Nucleor has a flat fn namespace today (no `crate::` / `super::` / `self::` rooting), and the resolved fn name `", str_concat(mname, str_concat("` is callable directly. Workaround: drop the `", str_concat(tname, str_concat("::` prefix — call ", str_concat(mname, "(...) directly. Tracked for forward-roadmap (path-rooted name resolution requires module-tree infrastructure, sister to v0.6.96 std/core/alloc namespace halt).")))))))))));
+            panic(str_concat("nucleor: path-rooted fn call `", str_concat(tname, str_concat("::", str_concat(mname, "` not yet supported (see ERROR diagnostic above)")))));
+        };
         // v0.3.71: surface a clear diagnostic instead of falling through
         // to the generic "unhandled expr kind 12" + broken `%r.-1` IR.
         // Production-readiness: any unsupported `Type::method(...)` shape
