@@ -54,6 +54,8 @@ TEST_DIRS=(lang attrs runtime rods features)
 # the placeholder `^$` matched nothing and mod_decl_aux.nr was
 # counted as a baseline-FAIL in verify_parallel for releases.
 TEST_SKIP_REGEX='_aux\.nr$'
+# Mirror verify.sh's intentionally skipped negative fixture list.
+ERR_SKIP_REGEX='err_str_char_at_strict_oob\.nr$'
 
 # Enumerate every step and its kind.
 STEPS_FILE="$TMP/steps.list"
@@ -66,7 +68,7 @@ for d in "${TEST_DIRS[@]}"; do
     done
 done
 if [ -d "tests/err" ]; then
-    for f in $(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | sort); do
+    for f in $(find "tests/err" -maxdepth 1 -name '*.nr' 2>/dev/null | grep -vE "$ERR_SKIP_REGEX" | sort); do
         ename=$(basename "$f" .nr)
         echo "negative::$ename" >> "$STEPS_FILE"
     done
@@ -99,7 +101,7 @@ run_step() {
             return
         fi
         local out exit
-        out=$("$exe" 2>&1); exit=$?
+        out=$("$exe" </dev/null 2>&1); exit=$?
         t1=$(date +%s.%N); dt=$(awk -v a="$t0" -v b="$t1" 'BEGIN{printf "%.2f", b-a}')
         if [ "$dir" = "features" ]; then
             if [ "$exit" -eq 139 ] || [ "$exit" -eq 138 ] || [ "$exit" -eq -1073741819 ] || [ "$exit" -eq -1073740940 ]; then

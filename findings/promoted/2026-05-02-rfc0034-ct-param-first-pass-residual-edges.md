@@ -6,7 +6,7 @@ diagnostic_actual: per-gap behavior in finding
 diagnostic_expected: per-gap clean diag or proper implementation
 discovered_against: main v0.6.19 (probe rebased)
 commit: probe (post-rebase) + main 998ad04
-status: DOC-ONLY — RFC-0034 first-pass-only is the documented v0.6 boundary. The full RFC-0034 implementation (call-site specialization, struct CT params, semantic environment) is the dedicated v1 cycle. Each gap below has a workaround today.
+status: PARTIAL CLOSE — Gap 2 (negative literal default for unsigned CT-param) CLOSED in v0.6.56 by helper agent (A3 punchlist). Gaps 1 (explicit CT-arg call SEGFAULT) and 3 (struct CT params NR020) remain open; full RFC-0034 implementation is the dedicated v1 cycle.
 ---
 
 ## Closure (analysis-only — no compiler change)
@@ -24,17 +24,23 @@ fn name; emit a clean diag "explicit CT-arg call form not
 supported in RFC-0034 first-pass; omit the `[N]` and let the
 default erase."
 
-### Gap 2 — negative usize default silently accepted
+### Gap 2 — negative usize default silently accepted (CLOSED v0.6.56)
 
-`fn f[N: usize = -1]` — the default-value skipper
-(`skip_compile_time_param_default`) consumes the `-1` token
-sequence without type-checking. The default value is erased,
-so the negative literal never affects runtime semantics —
-but the parse-time accept hides the typo.
+`fn f[N: usize = -1]` — pre-fix the default-value skipper
+consumed the `-1` token sequence without type-checking, hiding
+the typo at parse.
 
-Forward-roadmap: validate the default literal against the
-declared CT-param type (kind-1 negative int rejected for
-unsigned types).
+**Fix shipped v0.6.56 (helper agent A3):** new helpers
+`ct_param_type_is_unsigned(t)` and
+`ct_param_default_is_negative_literal(tokens, pos)` in both
+`nucleor_s1_compiler.nr` and `nucleor_tools_suite.nr` (mirrored
+per drift gate). When the CT-param type is unsigned and the
+default is unary-minus + int-literal, panics with
+`error[NR020]: negative default literal is invalid for unsigned
+RFC-0034 compile-time parameter type`.
+
+Regression-lock:
+`tests/err/err_rfc0034_compile_time_param_negative_usize_default.nr`.
 
 ### Gap 3 — struct CT params NR020
 
