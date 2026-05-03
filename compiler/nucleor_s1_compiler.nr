@@ -2318,7 +2318,21 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     };
     if pk(tokens, pos) == 54 {
         let mut tr: Vec<i32> = parse_type(tokens, pos + 1);
-        let mut cp: i64 = expect_tok(tokens, pr_pos(tr), 43);
+        let mut cp: i64 = pr_pos(tr);
+        // v0.6.78 RFC V1.11 (probe finding 2026-05-02-array-shape-gaps,
+        // gap 2): canonical Rust slice type `&[T]` as fn-param type
+        // pre-fix rejected with the wrong-class `error[NR020]: parse
+        // error at byte K: expected ';', got ']'` because the array-
+        // type parser only knew the `[T; N]` shape. Now accept the
+        // bare `[T]` shape (no length) and resolve to `Vec<T>` —
+        // Nucleor arrays are Vec internally, and `&[T]` thus resolves
+        // to `&Vec<T>` which the type system already accepts. Slice
+        // ABI (length-tagged base+len pair) is the v1 V1.5 ship; v0.6.78
+        // is a translation-fidelity surface bridge.
+        if pk(tokens, cp) == 55 {
+            return pr(cp + 1, str_concat("Vec<", str_concat(pr_val(tr), ">")));
+        };
+        cp = expect_tok(tokens, cp, 43);
         let len_s: str = if pk(tokens, cp) == 2 { str_from_int(pkv(tokens, cp)) } else { pkv(tokens, cp) };
         cp = expect_tok(tokens, cp + 1, 55);
         return pr(cp, str_concat("[", str_concat(pr_val(tr), str_concat("; ", str_concat(len_s, "]")))));
