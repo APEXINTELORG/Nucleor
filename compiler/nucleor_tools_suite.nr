@@ -11131,6 +11131,7 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "NR033") { return "Taint Safety Failure"; };
     if str_eq(code, "NR034") { return "Send/Sync Safety Failure"; };
     if str_eq(code, "NR035") { return "Explicit enum discriminants not yet supported"; };
+    if str_eq(code, "NR036") { return "Self-recursive struct without Box / & indirection (Rust E0072)"; };
     if str_eq(code, "NR040") { return "IR Lowering Failure"; };
     if str_eq(code, "NR050") { return "Backend Code Generation Failure"; };
     if str_eq(code, "NR051") { return "WASM Backend Unavailable"; };
@@ -11378,6 +11379,7 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "NR033") { return "Tainted data reached a location that requires trusted input."; };
     if str_eq(code, "NR034") { return "A spawned or shared context captured a type that is not safe to transfer or share."; };
     if str_eq(code, "NR035") { return "Explicit enum discriminants `enum X { A = N }` are not yet supported in v0.6 — the parser halts at the `=` token."; };
+    if str_eq(code, "NR036") { return "A struct that contains itself directly (`struct Node { next: Node }`) has infinite size — Rust E0072. Wrap the recursive field in `Box<Node>` (heap indirection), `Option<Box<Node>>` (linked-list / tree shape with terminator), or `&Node` (reference) so the field is a fixed size."; };
     if str_eq(code, "NR040") { return "The typed AST could not be lowered into compiler IR."; };
     if str_eq(code, "NR050") { return "IR generation succeeded, but a backend could not emit valid target code."; };
     if str_eq(code, "NR051") { return "WASM output was requested without the required backend support."; };
@@ -11594,6 +11596,7 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "NR033") { return "The taint system prevented untrusted data from flowing into a sink that expects sanitized or trusted values."; };
     if str_eq(code, "NR034") { return "The checker found a cross-thread or cross-scope capture that violates Nucleor's Send/Share rules. This usually means a resource, mutable reference, or other non-Send value crossed a spawn boundary."; };
     if str_eq(code, "NR035") { return "v0.6.35 — closes probe finding 2026-05-01-enum-discriminant-segfaults-compiler. Pre-fix `enum X { A = 5 }` (canonical Rust C-style enum syntax) crashed the compiler with SEGFAULT inside the type/ownership pass. v0.6.35 halts at parse-time with a clean diagnostic. Workaround: drop the `= N` and rely on order-based discriminants (`enum Code { OK, WARN, ERR }` lowers to 0, 1, 2). For FFI / wire-protocol values needing specific numbers, build a separate `const` table. Real explicit-discriminant lowering is forward-roadmap (needs the enum AST to carry per-variant i64 values + IR-emit propagation to match-arm dispatch)."; };
+    if str_eq(code, "NR036") { return "v0.6.36 — closes probe finding 2026-05-01-self-recursive-struct-infinite-size-accepted. Pre-fix `struct Node { val: i64, next: Node }` was accepted at parse + type-check and crashed at instantiation with STATUS_STACK_OVERFLOW (Windows exception 0xC00000FD) — the struct contains itself directly so the size is infinite. v0.6.36 catches it at parse-time. Wrap the recursive field in `Box<Node>` / `Option<Box<Node>>` / `&Node` so the field is a fixed size. Real recursive-struct lowering through Box is already supported; only the bare-recursion case needs the halt."; };
     if str_eq(code, "NR040") { return "Lowering hit an internal semantic boundary the IR pipeline could not represent. This is usually a compiler implementation gap rather than a front-end syntax issue."; };
     if str_eq(code, "NR050") { return "Cranelift or LLVM rejected the IR, hit an unsupported ABI path, or failed during object emission or linking preparation."; };
     if str_eq(code, "NR051") { return "The current CLI build does not include the backend support required for wasm code generation, or the wasm linker/toolchain is unavailable."; };
