@@ -6,23 +6,25 @@ diagnostic_actual: per-gap behavior in finding
 diagnostic_expected: per-gap clean diag or proper implementation
 discovered_against: main v0.6.19 (probe rebased)
 commit: probe (post-rebase) + main 998ad04
-status: PARTIAL CLOSE — Gap 2 (negative literal default for unsigned CT-param) CLOSED in v0.6.56 by helper agent (A3 punchlist). Gaps 1 (explicit CT-arg call SEGFAULT) and 3 (struct CT params NR020) remain open; full RFC-0034 implementation is the dedicated v1 cycle.
+status: PARTIAL CLOSE — Gap 1 (explicit CT-arg call SEGFAULT) CLOSED v0.6.63 by main agent. Gap 2 (negative literal default for unsigned CT-param) CLOSED in v0.6.56 by helper agent (A3 punchlist). Gap 3 (struct CT params NR020) remains open; full RFC-0034 implementation is the dedicated v1 cycle.
 ---
 
 ## Closure (analysis-only — no compiler change)
 
-### Gap 1 — explicit CT-arg call SEGFAULTs
+### Gap 1 — explicit CT-arg call SEGFAULTs (CLOSED v0.6.63)
 
-`ct_inc[42](x)` parses as `name[index_expr](call_args)` —
-which the compiler reads as "index `ct_inc` by 42, then call
-the result." The result of indexing a fn-name is invalid IR;
-runtime SEGFAULTs.
+`ct_inc[42](x)` pre-fix parsed as `name[index_expr](call_args)`,
+the call lowered to invoke the indexed value as a fn pointer →
+INVALID IR → SEGFAULT at runtime (rc=139).
 
-Forward-roadmap: detect at parse_postfix the
-`identifier[expr](args)` shape when `identifier` resolves to a
-fn name; emit a clean diag "explicit CT-arg call form not
-supported in RFC-0034 first-pass; omit the `[N]` and let the
-default erase."
+**Fix shipped v0.6.63 (main agent):** `parse_postfix` detects
+the bracket-then-paren shape when the indexer's base is a kind-3
+var-ref (typical fn-name shape) and halts with a clean diag
+pointing at the workaround (omit the `[N]` — RFC-0034 first-pass
+erases CT-args anyway).
+
+Regression-lock:
+`tests/err/err_rfc0034_explicit_ct_arg_call.nr`.
 
 ### Gap 2 — negative usize default silently accepted (CLOSED v0.6.56)
 
