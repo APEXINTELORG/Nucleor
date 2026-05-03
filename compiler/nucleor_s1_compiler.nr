@@ -2663,6 +2663,18 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         if pk(tokens, cp) == 98 {
             // Lifetime param — store as `'<name>` for traceability.
             params.push(str_concat("'", pkv(tokens, cp)));
+        } else if pk(tokens, cp) == 73 {
+            // v0.7.10 (defensive halt): canonical Rust const-generic
+            // params `<const N: usize>` (used in `struct Buf<const N:
+            // usize> { data: [i64; N] }`, `fn id<const X: i32>() ->
+            // i32 { X }`) pre-fix surfaced as wrong-class
+            // `NR020: expected ',', got identifier` because
+            // parse_generic_params treats `const` (token 73) as a
+            // bare param name and then trips on the `:` + type that
+            // follows. Halt cleanly with a workaround pointer
+            // (use a regular fn-arg / a struct-decl-time const).
+            print("ERROR: const-generic params `<const N: usize>` are not yet supported in Nucleor. Pre-v0.7.10 surfaced as wrong-class `NR020: expected ',', got identifier` because parse_generic_params treats `const` as a bare param name. Workaround: pass the value as a regular fn arg (`fn id(n: i32) -> i32 { n }`), or hard-code the value at the use site. For struct-level CT-params, see RFC-0034 first-pass (which uses `[N: usize]` syntax — different parser path, currently halted at v0.6.65). Tracked for forward-roadmap (full const-generic substrate is a v1.x ship needing const-eval + monomorphisation).");
+            panic("nucleor: const-generic param `<const N: ...>` not yet supported (see ERROR diagnostic above)");
         } else {
             params.push(pkv(tokens, cp));
         };
