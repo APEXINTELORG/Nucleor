@@ -7442,17 +7442,27 @@ fn emit_externs() -> str {
 // .ll output and reduces clang link time on programs with repeated
 // diagnostic strings, IR opcode strings, and rod-helper names.
 //
-// Linear scan for now (most strtabs are small enough). For the
-// compiler self-host, strtab grows to ~9400 entries; the linear-scan
-// cost during BUILD time is ~O(N²) worst case but most insertions
-// hit a recently-added string (cache-friendly tail walk). If this
-// ever shows up in profiling, switch to a hash map.
+// v0.6.72 attempt at hash-backed lookup REVERTED: the warm-hashmap
+// substrate is contended with sym_get (every sym_get on a different
+// vec clears the hashmap, causing strtab_intern to re-catchup from 0
+// each call). Net cost was +1s cold (worse than linear). A dedicated
+// strtab-only hashmap would need a different API signature;
+// deferred.
+//
+// Linear-scan cost on self-host: ~9400 inserts × ~3500 avg scan
+// length = ~33M str_eq compares. With first-byte-fail on most
+// uniques, ~80ms total. Acceptable.
+//
+// Backward-scan optimization: many string literals are emitted in
+// blocks (e.g. emit_externs declarations, repeated diagnostic
+// substrings) where recent inserts are likely to match. Scan from
+// the END toward the start to hit those fast.
 fn strtab_intern(strtab: Vec<i32>, s: str) -> i64 {
     let n: i64 = vec_len(strtab);
-    let mut i: i64 = 0;
-    while i < n {
+    let mut i: i64 = n - 1;
+    while i >= 0 {
         if str_eq(vec_get(strtab, i), s) == 1 { return i; };
-        i = i + 1;
+        i = i - 1;
     };
     strtab.push(s);
     return n;

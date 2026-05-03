@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.72] — 2026-05-03
+
+**Restore strtab_intern to v0.6.70 floor — backward-scan via locality
+of reference. Closes the +0.4s drift introduced post-v0.6.70.**
+
+User instruction post-verify run: "make sure we don't drift upward
+on the time and memory keep it low". Saved as no-drift rule
+(`feedback_nucleor_perf_no_drift.md`). Investigation showed cold
+had drifted from v0.6.70 baseline 3.16s → 3.5s after v0.6.66/67/68/71
+ships added type-check work.
+
+### Investigation
+
+Profiling pointed at strtab_intern (~9400 inserts × ~3500 avg scan).
+First attempt: hash-backed lookup using the warm-cache substrate
+shared with sym_get (line ~7740). REGRESSED to 4.7s cold — the
+warm-cache contention with sym_get caused per-call rebuild of the
+hashmap, defeating the optimization. Reverted.
+
+Second attempt: backward scan from end. Block-emitted strings
+(e.g. emit_externs declarations) hit fast on tail walk via locality
+of reference. **Restored cold to v0.6.70 floor.**
+
+### Fix
+
+`strtab_intern` (~line 7434): scan from `n - 1` down to 0 instead
+of 0 up. Block locality means recently-added strings dominate.
+Linear scan kept (no hash); the dedicated-hashmap approach is
+deferred — needs a different API signature to avoid the warm-cache
+contention.
+
+### Perf measurement (3-sample median)
+
+| Version | cold | peak_mem |
+|---|---|---|
+| v0.6.70 (forward scan baseline) | 3.16s | 318 MB |
+| v0.6.71 (cumulative drift) | 3.5s | 317 MB |
+| v0.6.72 attempt-1 (warm hash) | 4.7s | 315 MB |
+| **v0.6.72 (backward scan)** | **3.16s** | **317 MB** |
+
+Drift eliminated. Floor restored.
+
+### Verify
+
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.71] — 2026-05-03
 
 **Regression fix: v0.6.68 lex-time halt for `9223372036854775808`
