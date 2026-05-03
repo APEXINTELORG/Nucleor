@@ -20543,7 +20543,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             let v085_one_r: i64 = ctr_next(regs);
                             ir_block_add(v085_cur, ir_const_int(v085_one_r, 1));
                             let v085_inv_r: i64 = ctr_next(regs);
-                            ir_block_add(v085_cur, ir_binop_t(2, v085_inv_r, v085_one_r, v085_call_r, 64));
+                            ir_block_add(v085_cur, ir_binop_t(3, v085_inv_r, v085_one_r, v085_call_r, 64));
                             return lx_new(v085_inv_r, v085_cur);
                         };
                     };
