@@ -21557,6 +21557,46 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             // Rust convention without breaking the
                             // existing helper names. Discovered as a
                             // sister bug while shipping v0.4.86's
+                            // v0.6.82 (probe finding 2026-04-30-rust-syntax-
+                            // translation-fidelity-audit, conversion-idiom row):
+                            // canonical Rust conversion-idiom methods
+                            // (`.into()`, `.to_string()`, `.to_owned()`,
+                            // `.to_vec()`, `.iter_mut()`) pre-fix fell through
+                            // every receiver-typed dispatch and the catch-all
+                            // synthesized `vec_<idiom>(receiver)` — failing late
+                            // at clang link with the wrong-class diagnostic
+                            // `error[TYP-005]: receiver type 'Vec<T>' has no
+                            // method '.<idiom>()'`. Adopters writing canonical
+                            // Rust got pointed at "Vec method families" which
+                            // had nothing to do with the actual issue (these
+                            // idioms aren't Vec methods at all — they're trait-
+                            // method conversions that need From/Into / ToOwned
+                            // / etc. infrastructure not yet shipped).
+                            //
+                            // Halt now with a clean diagnostic naming the idiom
+                            // and pointing at the explicit-conversion workaround.
+                            // Forward-roadmap: full Into/From/ToOwned trait
+                            // infrastructure is a v1.x ship.
+                            let v082_idiom: i64 = if str_eq(mname, "into") == 1
+                                || str_eq(mname, "to_string") == 1
+                                || str_eq(mname, "to_owned") == 1
+                                || str_eq(mname, "to_vec") == 1
+                                || str_eq(mname, "iter_mut") == 1 { 1 } else { 0 };
+                            if v082_idiom == 1 {
+                                let v082_workaround: str = if str_eq(mname, "into") == 1 {
+                                    "no v0.6 conversion path; the From/Into trait family is not yet shipped — use an explicit named conversion fn (e.g. `i64_to_str(x)` for numeric→str)"
+                                } else if str_eq(mname, "to_string") == 1 {
+                                    "use `i64_to_str(x)` / `f64_to_str(x)` for numerics, or write a `<Type>_to_str(t)` helper for user types — the Display/ToString trait family is not yet shipped"
+                                } else if str_eq(mname, "to_owned") == 1 {
+                                    "Nucleor's i64-everywhere ABI passes most values by value already; `let owned: T = original;` is the explicit copy form. The ToOwned trait family is not yet shipped"
+                                } else if str_eq(mname, "to_vec") == 1 {
+                                    "build the Vec explicitly via `let mut v: Vec<T> = Vec::new(); for item in src { v.push(item); }` or use the `vec![...]` macro form for literals"
+                                } else {
+                                    "use a `while i < vec_len(&v) { let item: T = vec_get(&v, i); ...; i = i + 1; }` loop with index-based access — Nucleor doesn't auto-derive iterator interior mutability today"
+                                };
+                                print(str_concat("ERROR: `.", str_concat(mname, str_concat("()` is a canonical Rust conversion idiom that is not yet supported in Nucleor. Pre-v0.6.82 the kind-8 method-dispatch catch-all synthesized `vec_", str_concat(mname, str_concat("(receiver)` and the post-link diag re-cast as `receiver type 'Vec<T>' has no method '.", str_concat(mname, str_concat("()` — wrong-class for adopters porting Rust code. Workaround: ", str_concat(v082_workaround, ". Tracked for forward-roadmap (full From/Into/ToOwned/Display trait infrastructure is a v1.x ship).")))))))));
+                                panic(str_concat("nucleor: Rust conversion-idiom method `.", str_concat(mname, "()` not yet supported (see ERROR diagnostic above)")));
+                            };
                             // narrow-RHS check for `.insert/.set`.
                             let mut alias_mname: str = mname;
                             if str_eq(mname, "insert") == 1 { alias_mname = "insert_at"; };
