@@ -2190,6 +2190,22 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_primary(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
+    // v0.7.7 (defensive halt): C/Java-idiom `x++` / `x--` post-
+    // increment/decrement operators don't exist in Rust (or Nucleor).
+    // Pre-fix surfaced as wrong-class `NR020: parse_primary cannot
+    // start expression at token kind 20` (the second `+` after `x+`)
+    // because the `+` after the primary parses as a binop, then
+    // parse_primary fails on the second `+`. Detect the `++`/`--`
+    // shape after a primary and halt cleanly with `x = x + 1`
+    // workaround pointer.
+    if pk(tokens, cp) == 20 && pk(tokens, cp + 1) == 20 {
+        print("ERROR: post-increment `x++` is not supported in Nucleor (Rust doesn't have `++`/`--` operators). Pre-v0.7.7 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 20` (the second `+`). Workaround: write the explicit assignment `x = x + 1;` (or `x += 1;` if `+=` is supported in your context). Tracked for forward-roadmap (no plans to add `++`/`--` — Rust-style explicit assignment is the canonical form).");
+        panic("nucleor: `x++` post-increment not supported (see ERROR diagnostic above)");
+    };
+    if pk(tokens, cp) == 21 && pk(tokens, cp + 1) == 21 {
+        print("ERROR: post-decrement `x--` is not supported in Nucleor (Rust doesn't have `++`/`--` operators). Pre-v0.7.7 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 21` (the second `-`). Workaround: write the explicit assignment `x = x - 1;` (or `x -= 1;` if `-=` is supported in your context). Tracked for forward-roadmap (no plans to add `++`/`--` — Rust-style explicit assignment is the canonical form).");
+        panic("nucleor: `x--` post-decrement not supported (see ERROR diagnostic above)");
+    };
     while pk(tokens, cp) == 45 || pk(tokens, cp) == 54 || pk(tokens, cp) == 97 {
         if pk(tokens, cp) == 97 {
             // RFC-0016 phase 1: `?` postfix — desugars at lower-time into
