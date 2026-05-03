@@ -7416,6 +7416,28 @@ fn emit_externs() -> str {
     return sb_to_str(sb);
 }
 
+// v0.6.70 perf-slice extension (B4 punchlist — string constant pool
+// dedup): when adding a string literal to strtab, return the existing
+// index if the string was already added. Significantly shrinks the
+// .ll output and reduces clang link time on programs with repeated
+// diagnostic strings, IR opcode strings, and rod-helper names.
+//
+// Linear scan for now (most strtabs are small enough). For the
+// compiler self-host, strtab grows to ~9400 entries; the linear-scan
+// cost during BUILD time is ~O(N²) worst case but most insertions
+// hit a recently-added string (cache-friendly tail walk). If this
+// ever shows up in profiling, switch to a hash map.
+fn strtab_intern(strtab: Vec<i32>, s: str) -> i64 {
+    let n: i64 = vec_len(strtab);
+    let mut i: i64 = 0;
+    while i < n {
+        if str_eq(vec_get(strtab, i), s) == 1 { return i; };
+        i = i + 1;
+    };
+    strtab.push(s);
+    return n;
+}
+
 fn emit_str_constants(strtab: Vec<i32>) -> str {
     let mut sb: i64 = sb_new();
     let mut i: i64 = 0;
@@ -19733,8 +19755,8 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return lx_new(pay_r, ok_blk);
     };
     if kind == 2 {
-        let idx: i64 = vec_len(strtab);
-        strtab.push(node_field(pool, nid, 1));
+        // v0.6.70: intern via strtab_intern to dedup repeated literals.
+        let idx: i64 = strtab_intern(strtab, node_field(pool, nid, 1));
         let r: i64 = ctr_next(regs);
         ir_block_add(blk, ir_const_str(r, idx));
         return lx_new(r, blk);
@@ -21597,7 +21619,8 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 ir_block_add(cur, ir_br(nl));
             } else if str_eq(ename, "__str") {
                 let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
-                let sidx: i64 = vec_len(strtab); strtab.push(vname);
+                // v0.6.70: intern via strtab_intern to dedup.
+                let sidx: i64 = strtab_intern(strtab, vname);
                 let sv_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_str(sv_r, sidx));
                 let mut eq_args: Vec<i32> = Vec::new(); eq_args.push(mv); eq_args.push(sv_r);
                 let cmp_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(cmp_r, "str_eq", eq_args));
@@ -23193,7 +23216,8 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 };
             } else if str_eq(ename, "__str") {
                 let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
-                let sidx: i64 = vec_len(strtab); strtab.push(vname);
+                // v0.6.70: intern via strtab_intern to dedup.
+                let sidx: i64 = strtab_intern(strtab, vname);
                 let sv_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_str(sv_r, sidx));
                 let mut eq_args: Vec<i32> = Vec::new(); eq_args.push(mv); eq_args.push(sv_r);
                 let cmp_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(cmp_r, "str_eq", eq_args));

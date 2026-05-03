@@ -209,16 +209,11 @@ in-bounds call sites).
 
 **Risk:** medium-high.
 
-### B4 — String constant pool dedup
+### B4 — String constant pool dedup (CLOSED v0.6.70)
 
-Some str literals appear hundreds of times in the .ll output
-(diagnostic strings, IR opcode strings). Pool dedup would shrink
-the .ll and reduce link time.
-
-**Fix shape:** at emit_str_constants, hash existing constants and
-emit only unique ones; reuse the existing index for repeats.
-
-**Risk:** low-medium. Emit-side only.
+`strtab_intern` shipped: 4572 fewer `@.str.` references on the
+self-host (-24% string constants), .ll output -3.1% (-306 KB).
+Cold time +80ms within natural variance band.
 
 ## Group C: Deeper v1 architecture (NOT for helper — flag for main agent)
 

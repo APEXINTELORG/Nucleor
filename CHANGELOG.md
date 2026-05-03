@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.70] — 2026-05-03
+
+**String constant pool dedup — closes B4 of the parallel-agent
+punchlist. .ll output -3.1% / 4572 fewer `@.str.` references on
+the self-host.**
+
+Adopters porting Rust code with repeated diagnostic strings, IR
+opcode strings, and rod-helper names produced redundant LLVM
+constants in the .ll output. Each `print("...")` of the same
+string emitted a fresh `@.str.<idx>` entry. On the compiler self-
+host, the strtab grew to ~18866 entries, with significant
+duplication.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr`:
+
+1. **`strtab_intern(strtab, s) -> i64`** (~line 7419): linear scan
+   for an existing entry; pushes new only if not found. Returns
+   the (existing or newly-pushed) index.
+
+2. **3 strtab.push call sites** updated to use `strtab_intern`:
+   - `lower_expr` kind-2 (string literal expression)
+   - `parse_match_one_pattern` `__str` arm lowering (2 sites)
+
+### Measurement (compiler self-host)
+
+| Metric | v0.6.69 | v0.6.70 | Δ |
+|---|---|---|---|
+| `@.str.` reference count | 18866 | 14294 | **-4572 (-24%)** |
+| `target/_v0670.ll` size | ~9.82 MB | ~9.52 MB | **-306 KB (-3.1%)** |
+| cold compile time | 3.08s | 3.16s (median) | +80ms (within variance) |
+| peak memory | 319 MB | 318 MB | unchanged |
+
+The cold-time delta is within the natural variance band (±0.4s
+per the v0.6.45 lesson). Linear-scan strtab_intern is O(N²) worst-
+case; if profiling shows a hotspot, switch to a hash. Today's N
+of ~14k entries doesn't show up in perf.
+
+### Verify
+
+- Round-2 fixed-point preserved (after one self-rebuild cycle —
+  v0.6.70 bin built by un-deduped v0.6.69 bin still has its own
+  strtab undeduped; v0.6.70's output is deduped; v0.6.70 rebuilt
+  by v0.6.70 reaches the deduped fixed-point).
+- Bootstrap seed refreshed.
+- Drift gate clean.
+- v0.6.54 perf carry-through preserved.
+
 ## [0.6.69] — 2026-05-03
 
 **Nested struct pattern in match arms — clean parse halt. Closes
