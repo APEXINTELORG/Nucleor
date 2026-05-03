@@ -5,6 +5,76 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.64] — 2026-05-03
+
+**NUM-021 gap 1 — u64 const overflow now caught at compile time.**
+
+Closes gap 1 of probe finding `2026-05-02-num-021-coverage-gaps-
+u64-imin-shift-divzero`. Pre-fix `const B: u64 = u64::MAX + 1;`
+silently compiled — the i64 const-eval saw `-1 + 1 = 0` (no
+overflow at the i64 level since u64::MAX wraps to -1 in i64
+storage), so NUM-021 didn't fire and the const held the wrapped
+value silently.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` — three additions:
+
+1. **`u64_lt(a, b) -> i64`**: unsigned compare for i64 values
+   treated as u64 bit patterns. Same-sign: signed compare matches
+   unsigned. Mixed signs: the negative-as-i64 has the high bit set
+   so when read as u64 it's >= 2^63, strictly greater than any
+   non-negative i64 read as u64.
+
+2. **`const_u64_overflow(pool, nid, env) -> i64`**: u64-aware
+   overflow detection on a const-foldable binop. Walks kind-4
+   binop nodes; for add/sub/mul (ops 20/21/22), computes wrapping
+   result and checks for unsigned overflow using `u64_lt`. Mul
+   uses a conservative high-32-bit heuristic when both operands
+   have non-zero upper halves.
+
+3. **let-stmt + const-decl dispatch updated**: when declared type
+   is unsigned (u8/u16/u32/u64/usize), use ONLY the u64 overflow
+   check (NOT the i64 check, which would false-fire on
+   i64-overflows-but-u64-fits cases like `i64::MAX + 1` typed as
+   u64). For signed types, keep the existing i64 path.
+
+### Adopter migration
+
+```nucleor
+// Pre-fix:
+const B: u64 = 18446744073709551615 + 1;    // u64::MAX + 1
+// → silently compiled, B held 0 (wrapped value)
+
+// v0.6.64:
+// → error[NUM-021]: integer constant expression for const `B`
+//   overflows declared unsigned type `u64` at compile time.
+
+// Workaround:
+const B: u64 = wrapping_add_u64(18446744073709551615, 1);   // → 0 explicitly
+const B: u64 = saturating_add_u64(18446744073709551615, 1); // → u64::MAX
+const B: u64 = checked_add_u64(18446744073709551615, 1);    // returns Err
+```
+
+### Known limitation
+
+The intermediate case `const C: u64 = i64::MAX + 1;` (mathematically
+9223372036854775808, which fits u64) still PANICs at runtime via
+strict-intrin trap because the i64 binop is lowered with the
+strict-intrin path even when the declared type is u64. The
+compile-time const-eval correctly accepts the value; only the
+LOWER path traps. Forward-roadmap: route i64 binops to wrapping
+when the declared receiver type is unsigned (cross-cutting lower
+change).
+
+### Verify
+
+- New regression-lock: `tests/err/err_num021_u64_const_overflow.nr`
+  (auto-walker).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.63] — 2026-05-03
 
 **RFC-0034 gap 1 — explicit CT-arg call SEGFAULT → clean parse halt.**

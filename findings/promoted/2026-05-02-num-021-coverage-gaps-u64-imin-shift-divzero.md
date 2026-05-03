@@ -6,7 +6,7 @@ diagnostic_actual: see "Repro matrix" — four distinct shapes
 diagnostic_expected: NUM-021 fires at compile time on every const-overflowing-or-undefined integer expression regardless of width, op, and binding context. `i64::MIN` literal compiles cleanly.
 discovered_against: main v0.6.18 (probe rebased)
 commit: probe (post-rebase) + main d1eabeb
-status: GAP 2 CLOSED in v0.6.49 — canonical i64::MIN literal now compiles. Gaps 1, 3, 4 remain open for follow-on ships.
+status: PARTIAL CLOSE — Gap 2 CLOSED v0.6.49 (i64::MIN literal). Gap 4 CLOSED v0.6.50 (let-binding const overflow). Gap 3 CLOSED v0.6.53 (const div/mod-by-zero, shift-out-of-range). Gap 1 CLOSED v0.6.64 (u64 const overflow). All four sub-gaps now caught at compile time.
 ---
 
 ## Closure (gap 2 — main agent v0.6.49)
