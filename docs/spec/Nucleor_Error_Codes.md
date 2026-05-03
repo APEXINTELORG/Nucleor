@@ -236,6 +236,8 @@ Gate-tested via `tests/err/err_bool_arith`, `err_args`,
 | ISR-004 | Vector name not recognized for target architecture | [RFC-0008 §3.1](../rfcs/RFC-0008-isr.md) |
 | ISR-005 | Two ISRs assigned to the same vector | [RFC-0008 §3.3](../rfcs/RFC-0008-isr.md) |
 | ISR-006 | Priority out of range for target NVIC | [RFC-0008 §3.1](../rfcs/RFC-0008-isr.md) |
+| ISR-007 | Malformed `prio` attribute (negative / string / missing value) — v0.6.32 | [RFC-0008 §3.1](../rfcs/RFC-0008-isr.md) |
+| ISR-008 | `#[isr]` applied to a non-fn item — v0.6.31 (orig. ISR-004; renamed in v0.6.32 because ISR-004 is reserved for "Vector name not recognized") | [RFC-0008 §3.1](../rfcs/RFC-0008-isr.md) |
 
 ## WCET series — RFC-0009 Heptane WCET
 

@@ -8854,6 +8854,8 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "ISR-004") == 1 { return 1; };
     if str_eq(code, "ISR-005") == 1 { return 1; };
     if str_eq(code, "ISR-006") == 1 { return 1; };
+    if str_eq(code, "ISR-007") == 1 { return 1; };
+    if str_eq(code, "ISR-008") == 1 { return 1; };
     // RFC-0009 WCET
     if str_eq(code, "WCET-001") == 1 { return 1; };
     if str_eq(code, "WCET-002") == 1 { return 1; };
@@ -10175,7 +10177,7 @@ fn fn_param_decl_text(source: str, fn_name: str) -> str {
 //
 // This pass scans for every `#[isr` occurrence and walks forward
 // looking for the next item-keyword. If the first item-keyword found
-// is anything other than `fn`, emit ISR-004 at the attribute's own
+// is anything other than `fn`, emit ISR-008 at the attribute's own
 // source line so the adopter can find and delete the misplaced
 // attribute.
 fn enforce_isr_placement(diags: Vec<i32>, source: str) -> Vec<i32> {
@@ -10260,9 +10262,83 @@ fn enforce_isr_placement(diags: Vec<i32>, source: str) -> Vec<i32> {
         if str_len(next_item_kind_isr31) > 0 && str_eq(next_item_kind_isr31, "fn") == 0 {
             let line_isr31: i64 = byte_to_line(source, attr_start_isr31);
             let msg4: str = str_concat("`#[isr]` may only be applied to fn items; found `", str_concat(next_item_kind_isr31, "` after the attribute. Pre-v0.6.31 the attribute was silently dropped here AND leaked to the next fn in the file, surfacing as a misleading ISR-001 diag pointing at the wrong fn (typically `main`). Workaround: remove this `#[isr]` (it has no effect on a non-fn item) or move it to the actual handler fn."));
-            diag_add_ex(diags, "error", "isr", "ISR-004", msg4, "", line_isr31, 1, "");
+            diag_add_ex(diags, "error", "isr", "ISR-008", msg4, "", line_isr31, 1, "");
         };
         p = ae_isr31;
+    };
+    return diags;
+}
+
+// v0.6.32 (probe finding 2026-05-02-isr-attr-validation-gaps, gaps
+// b/c/d): the `prio` named attribute inside `#[isr(prio = X)]` was
+// silently accepted for X = negative-int (`-1`), string-literal
+// (`"high"`), or missing entirely (`#[isr(prio)]`). None of these
+// match the documented `prio = N` non-negative integer-literal shape.
+// Adopters writing `#[isr(prio = "1")]` (typo'd quotes) shipped to
+// embedded target with no priority set — hard-to-diagnose runtime
+// priority-inversion bugs followed.
+//
+// Scans attr_text for `prio`, validates the next non-ws token is
+// `=` followed by a non-negative integer literal. Emits ISR-007 at
+// the attribute's source line for any other shape.
+fn validate_isr_prio(diags: Vec<i32>, fn_name: str, attr_text: str, line: i64, col: i64) -> Vec<i32> {
+    let alen: i64 = str_len(attr_text);
+    if alen < 5 { return diags; };
+    // Scan attr_text for `prio` ident — must be preceded by `(` or
+    // `,` or whitespace and followed by `=` / `,` / `)` / whitespace.
+    let mut q: i64 = 0;
+    let mut prio_at: i64 = 0 - 1;
+    while q + 4 <= alen {
+        if str_eq_at(attr_text, q, "prio") == 1 {
+            let pre_ok_v062: i64 = if q == 0 { 0 } else {
+                let pc_v062: i64 = str_char_at(attr_text, q - 1);
+                if pc_v062 == 40 || pc_v062 == 44 || is_ws(pc_v062) == 1 { 1 } else { 0 }
+            };
+            let post_ok_v062: i64 = if q + 4 >= alen { 1 } else {
+                let nc_v062: i64 = str_char_at(attr_text, q + 4);
+                if nc_v062 == 61 || nc_v062 == 44 || nc_v062 == 41 || is_ws(nc_v062) == 1 { 1 } else { 0 }
+            };
+            if pre_ok_v062 == 1 && post_ok_v062 == 1 { prio_at = q; q = alen; }
+            else { q = q + 1; };
+        } else { q = q + 1; };
+    };
+    if prio_at < 0 { return diags; };
+    // Walk past `prio` and any whitespace.
+    let mut r: i64 = prio_at + 4;
+    while r < alen && is_ws(str_char_at(attr_text, r)) == 1 { r = r + 1; };
+    // Gap (d) — bare `prio` (no value).
+    if r >= alen || str_char_at(attr_text, r) == 44 || str_char_at(attr_text, r) == 41 {
+        diag_add_ex(diags, "error", "isr", "ISR-007", "`#[isr(prio)]` is missing a value: prio requires a non-negative integer literal (e.g. `#[isr(prio = 3)]`). Pre-v0.6.32 the bare ident was silently accepted and the priority defaulted with no diag.", fn_name, line, col, "");
+        return diags;
+    };
+    // Expect `=`.
+    if str_char_at(attr_text, r) != 61 {
+        diag_add_ex(diags, "error", "isr", "ISR-007", "`#[isr(prio ...)]` malformed: expected `prio = N` with non-negative integer literal N.", fn_name, line, col, "");
+        return diags;
+    };
+    r = r + 1;
+    while r < alen && is_ws(str_char_at(attr_text, r)) == 1 { r = r + 1; };
+    if r >= alen { return diags; };
+    let firstc_v062: i64 = str_char_at(attr_text, r);
+    // Gap (c) — string literal.
+    if firstc_v062 == 34 {
+        diag_add_ex(diags, "error", "isr", "ISR-007", "`#[isr(prio = \"...\")]` rejected: prio must be a non-negative integer literal, not a string. Pre-v0.6.32 the string was silently ignored.", fn_name, line, col, "");
+        return diags;
+    };
+    // Gap (b) — negative integer.
+    if firstc_v062 == 45 {
+        diag_add_ex(diags, "error", "isr", "ISR-007", "`#[isr(prio = -N)]` rejected: prio must be NON-NEGATIVE (NVIC priorities are unsigned 0..255; PLIC unsigned 1..7). Pre-v0.6.32 negative integers were silently accepted with undefined effect on the target.", fn_name, line, col, "");
+        return diags;
+    };
+    // Verify rest of the value up to `,)` or ws is all digits.
+    while r < alen {
+        let vc_v062: i64 = str_char_at(attr_text, r);
+        if vc_v062 == 44 || vc_v062 == 41 || is_ws(vc_v062) == 1 { r = alen; }
+        else if vc_v062 < 48 || vc_v062 > 57 {
+            diag_add_ex(diags, "error", "isr", "ISR-007", "`#[isr(prio = ...)]` rejected: prio must be a plain non-negative integer literal (e.g. `prio = 3`). Pre-v0.6.32 non-digit values were silently accepted.", fn_name, line, col, "");
+            return diags;
+        }
+        else { r = r + 1; };
     };
     return diags;
 }
@@ -10297,6 +10373,9 @@ fn enforce_isr_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
         };
         check_no_alloc_violations(diags, source, fn_name);
         check_no_panic_violations(diags, source, fn_name);
+        // v0.6.32 (probe finding 2026-05-02-isr-attr-validation-gaps,
+        // gaps b/c/d): validate `prio = N` named attribute shape.
+        diags = validate_isr_prio(diags, fn_name, attr_text, vec_get(lc, 0), vec_get(lc, 1));
         i = i + 2;
     };
     return diags;

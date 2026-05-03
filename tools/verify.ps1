@@ -481,7 +481,7 @@ Step "CLI: nuc explain -- full spec code set wired" {
         "ATOMIC-001", "ATOMIC-002", "ATOMIC-003", "ATOMIC-004", "ATOMIC-005",
         "ATOMIC-006",
         # RFC-0008 ISR
-        "ISR-001", "ISR-002", "ISR-003", "ISR-004", "ISR-005", "ISR-006",
+        "ISR-001", "ISR-002", "ISR-003", "ISR-004", "ISR-005", "ISR-006", "ISR-007", "ISR-008",
         # RFC-0009 WCET
         "WCET-001", "WCET-002", "WCET-003", "WCET-004", "WCET-005", "WCET-006",
         # RFC-0010 DLPack

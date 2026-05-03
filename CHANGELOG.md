@@ -5,10 +5,104 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.32] — 2026-05-03
+
+**ISR-007 — `#[isr(prio = N)]` validation (probe finding closure)
++ corrective rename of v0.6.31's placement check from ISR-004 to
+ISR-008 (slot reserved for "Vector name not recognized").**
+
+Closes gaps (b)/(c)/(d) of probe finding `2026-05-02-isr-attr-
+validation-gaps`. Together with v0.6.31's gap (a), the finding is
+now FULLY closed.
+
+### Pre-fix
+
+```nucleor
+#[isr(prio = -1)]      // silently accepted; undefined effect on target
+#[isr(prio = "high")]  // silently accepted; string ignored
+#[isr(prio)]           // silently accepted; bare ident, no value
+```
+
+NVIC priorities are unsigned 0..255; PLIC unsigned 1..7. Adopters
+writing typo'd `#[isr(prio = "1")]` shipped to embedded target
+with no priority set — hard-to-diagnose runtime priority-inversion
+bugs followed.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` adds `validate_isr_prio()`,
+called per ISR entry inside `enforce_isr_contracts`. Scans
+`attr_text` for `prio` ident (with proper boundary checks),
+verifies the next non-ws token is `=` followed by a non-negative
+integer literal, emits `error[ISR-007]` at the attribute's own
+source line for any other shape (negative-int, string-literal,
+missing-value, non-digit value).
+
+### Corrective rename — v0.6.31 ISR-004 → ISR-008
+
+Helper agent flagged that ISR-004 is reserved in tools-suite
+(`code_title()` / explanations / RFC-refs) for the planned
+"Vector name not recognized for target" diag (RFC-0008 §3.1).
+v0.6.31's placement check was inadvertently filed under that
+slot. v0.6.32:
+
+- Renames the placement-check diag from `ISR-004` to `ISR-008`
+  in compiler.
+- Renames the negative fixture from
+  `tests/err/err_isr_004_placement_on_struct.nr` to
+  `tests/err/err_isr_008_placement_on_struct.nr` and updates
+  its EXPECT header.
+- Adds tools-suite documentation entries for ISR-007 + ISR-008
+  (titles, explanations, RFC-refs).
+- Updates `docs/rfcs/RFC-0008-isr.md` and
+  `docs/spec/Nucleor_Error_Codes.md` to register both new codes.
+
+ISR-004 is now back in its reserved state for the future
+"Vector name not recognized" diag.
+
+### Adopter migration
+
+```nucleor
+// Pre-v0.6.32: silent accept on all three malformed shapes.
+// v0.6.32: ISR-007 fires at the attribute site for each:
+
+#[isr(prio = -1)]      // → error[ISR-007]: prio must be NON-NEGATIVE
+#[isr(prio = "high")]  // → error[ISR-007]: prio must be a non-negative integer literal, not a string
+#[isr(prio)]           // → error[ISR-007]: prio is missing a value (use `prio = N`)
+
+// Workaround: pass a non-negative integer literal:
+#[isr(prio = 3)]       // OK
+```
+
+For adopters of v0.6.31 who wrote `#[allow(ISR-004)]` to
+suppress the placement check (unlikely — diag-suppression for a
+freshly-shipped error is rare), the suppression now needs to be
+`#[allow(ISR-008)]`.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `ca6c0632…`.
+- Self-host wall: 4.83s cold + 4.02s stage2.
+- Tools-suite (674 fns) compiles clean — no false halts; new
+  ISR-007/008 entries in tools-suite docs registered.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
+### Fixtures
+
+- `tests/err/err_isr_007_prio_negative.nr`
+- `tests/err/err_isr_007_prio_string.nr`
+- `tests/err/err_isr_007_prio_bare.nr`
+- `tests/err/err_isr_008_placement_on_struct.nr` (renamed from
+  `err_isr_004_…` — same fixture content, EXPECT header updated)
+
 ## [0.6.31] — 2026-05-03
 
-**ISR-004 — `#[isr]` placement check at the attribute's own line
-(probe finding partial closure).**
+**`#[isr]` placement check at the attribute's own line (probe
+finding partial closure).** *(Originally shipped under code
+ISR-004; renamed to **ISR-008** in v0.6.32 because ISR-004 is
+reserved for the planned "Vector name not recognized for target"
+diag, RFC-0008 §3.1.)*
 
 Closes gap (a) of probe finding `2026-05-02-isr-attr-validation-
 gaps`. Pre-fix `#[isr]` placed on a non-fn item (struct, enum,
