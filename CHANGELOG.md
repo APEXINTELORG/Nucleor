@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.28] — 2026-05-02
+
+**`(expr)(args)` direct-call form — three more inner-expression
+shapes halt cleanly instead of silent miscompute (probe finding
+closure, sister to v0.6.12).**
+
+Closes probe finding `2026-05-02-paren-call-still-miscomputes-on-
+iife-call-result-cast`. v0.6.12 closed kind-9 (struct field), kind-
+10 (vec/index), and kind-8 (method call) inner expressions; this
+finding catalogued three more shapes that *also* silently
+returned the inner expression's *value* (closure address,
+fn-pointer, or cast result) instead of CALLING it:
+
+- **Case 1 (kind 42)** — IIFE closure: `(|x: i64| x*2)(21)`
+  → printed `140703...` instead of `42`.
+- **Case 2 (kind 7)** — call-result returning fn-ptr:
+  `(get_handler())(21)` → printed fn-ptr address.
+- **Case 3 (kind 99)** — `as` cast:
+  `(p as fn(i64)->i64)(21)` → printed cast result.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` parse_primary tt==50 paren
+branch — sister `if` adjacent to v0.6.12's kind-9/10/8 halt.
+Same workaround pointer pattern: extract the callable to a
+local first, then call it. Full indirect-call lowering for the
+canonical Rust direct form remains forward-roadmap (substantial
+multi-ship change touching parse_postfix + lower-pass).
+
+### Adopter migration
+
+```nucleor
+// All three workarounds work today:
+let f = |x: i64| x * 2;          let v = f(21);   // IIFE
+let f = get_handler();           let v = f(21);   // call result
+let f = p as fn(i64) -> i64;     let v = f(21);   // cast
+```
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `df19899d…`.
+- Self-host wall: 5.33s + 4.91s (back under 5.93s cold-warning;
+  the v0.6.27 dup-name walks didn't actually push us over, the
+  prior 8.13s was a cold cache miss; with cache primed we're back
+  to baseline).
+- Tools-suite (674 fns) compiles clean — no false halts.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
+### Fixtures
+
+- `tests/err/err_paren_call_iife_residual.nr`
+- `tests/err/err_paren_call_callresult_residual.nr`
+- `tests/err/err_paren_call_cast_residual.nr`
+
 ## [0.6.27] — 2026-05-02
 
 **Duplicate-decl halts at parse / collect time — TYP-039 dup field

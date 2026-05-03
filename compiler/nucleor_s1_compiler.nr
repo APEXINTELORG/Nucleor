@@ -1508,6 +1508,27 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                     print("ERROR: `(expr)(args)` direct-call form (e.g. `(struct.field)(arg)` for fn-pointer fields, `(vec_get(&ops, i))(arg)` for fn-pointer vectors) is not yet supported — the parser silently dropped the args and returned the function-pointer ADDRESS instead of calling it (probe finding 2026-05-02-fn-ptr-struct-field-direct-call-returns-pointer). Workaround: extract the fn-pointer to a local variable first, then call it: `let f = struct.field; f(arg)` or `let f = vec_get(&ops, i); f(arg)` — both work today and produce the expected call result.");
                     panic("nucleor: `(expr)(args)` direct-call form not implemented; see ERROR diagnostic above for workarounds");
                 };
+                // v0.6.28 (probe finding 2026-05-02-paren-call-still-
+                // miscomputes-on-iife-call-result-cast): extends the
+                // v0.6.12 halt to three more inner-expression shapes
+                // that *also* silently miscomputed (returned the inner
+                // expression's *value*, e.g. fn-pointer address, instead
+                // of CALLING it):
+                //   - kind 42 (closure literal — IIFE: `(|x| x*2)(21)`)
+                //   - kind 7 (call result — `(get_handler())(21)`)
+                //   - kind 99 (`as` cast — `(p as fn(i64)->i64)(21)`)
+                // Same workaround pattern (extract to a local first)
+                // works for all three. Full indirect-call lowering
+                // remains the multi-ship real fix.
+                if inner_kind == 42 || inner_kind == 7 || inner_kind == 99 {
+                    print("ERROR: `(expr)(args)` direct-call form not yet supported for IIFE / call-result / cast inner expressions (`(|x| x*2)(21)`, `(get_handler())(21)`, `(p as fn(i64)->i64)(21)`). Pre-v0.6.28 the parser silently dropped the `(args)` and returned the inner expression's *value* (closure address, fn-pointer, or cast result) instead of CALLING it — adopters got giant address-like numbers (140703...) where they expected the call result (probe finding 2026-05-02-paren-call-still-miscomputes-on-iife-call-result-cast).");
+                    print("  Workaround: extract the callable to a local variable first, then call it.");
+                    print("    IIFE:        let f = |x: i64| x * 2; let v = f(21);");
+                    print("    Call result: let f = get_handler();    let v = f(21);");
+                    print("    Cast:        let f = p as fn(i64)->i64; let v = f(21);");
+                    print("  All three work today and produce the expected call result. Full indirect-call lowering for the canonical Rust direct form is forward-roadmap.");
+                    panic("nucleor: `(expr)(args)` direct-call form (IIFE/call-result/cast inner) not implemented");
+                };
             };
             return pr(after_rparen, pr_val(r));
         };
