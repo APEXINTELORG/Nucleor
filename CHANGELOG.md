@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.19] — 2026-05-02
+
+**RFC-0034 compile-time `[]` parameter syntax — first-pass parser
+acceptance (consultant lane F; final round-3/4 spike integration).**
+
+Closes the parser-acceptance phase of RFC-0034 (compile-time
+parameters; spec at `Desktop/Nucleor_Build_Spine/05_RFC_DRAFTS/
+RFC-0034-compile-time-parameters.md`). The full RFC unifies generics +
+const generics + autotuning + GPU tile-size; v0.6.19 ships ONLY the
+parser surface + IR markers — adopters can write the canonical syntax
+without breaking the build, and follow-on ships add the lowering /
+type-check / monomorphisation passes.
+
+### Surface
+
+```nucleor
+fn matmul[N: i64, M: i64, K: i64](a: f64, b: f64) -> f64 with [no_alloc] {
+    // body — parser accepts the [] params; lowering treats them as
+    // generic-T-style passthrough until later phases ship the
+    // monomorphisation pass.
+}
+```
+
+The parser:
+- Recognises `[Name: Type]` and `[Name: Type, …]` clauses on fn decls.
+- Distinguishes `[N: i64]` (compile-time param) from `[v]` (slice/index
+  — context-disambiguated via the `:` token).
+- Emits `error[NR020]: expected ':' got identifier` when the `:` is
+  omitted (the canonical "compile-time param vs slice" disambiguation
+  point).
+
+### Fixtures
+
+- `tests/features/rfc0034_compile_time_params_parser.nr` — positive:
+  parses + builds + runs `OK rfc0034_compile_time_params_parser`.
+- `tests/err/err_rfc0034_compile_time_param_missing_colon.nr` —
+  negative: missing `:` between param name and type fires NR020.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `f50d9a20…`.
+- Self-host peak: 579–692 MB / 4.92 + 5.25s wall.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Per consultant: focused RFC-0034 parser tests PASS; drift /
+  spec / explain / nuc-explain-full PASS.
+
+### Forward-roadmap (deferred to future ships)
+
+- Lowering: compile-time params currently treated as generic-T
+  passthrough. Real monomorphisation per `[N]` value lands in v1.0
+  alongside the GPU + MLIR work (RFC-0034 + RFC-0036 + RFC-0037
+  triple).
+- Type-check: bound-typed `[N: i64 where N > 0]` and dependent shapes
+  (`Matrix<T, [R, C]>` per RFC-0038) deferred to v1.1.
+- Autotuning + tile-size selection: GPU dispatch (`@device(gpu)` per
+  RFC-0037) needs the lowered surface first.
+
+Spike doc:
+`docs/milestones/spikes/track_compile_time_params_parser_2026-05-02.md`.
+
 ## [0.6.18] — 2026-05-02
 
 **NUM-021 — compile-time integer overflow diagnostic for module-level
