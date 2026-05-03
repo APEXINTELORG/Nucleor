@@ -11,8 +11,16 @@
 // overhead is negligible (perf revert in v0.3.220 was for
 // + - * which dominate tight numeric loops).
 //
-// EXPECT: build succeeds, runtime panics with clean message
-// "PANIC: i64 division by zero: 10 / 0", exit code != 0.
+// EXPECT (pre-v0.6.53): build succeeds, runtime panics with clean
+// message "PANIC: i64 division by zero: 10 / 0", exit code != 0.
+//
+// v0.6.53 + v0.6.50 STRICTER: the const-tracker recognizes z=0 as
+// a propagated const, so the div-by-zero at the let-binding
+// `let q: i64 = 10 / z;` is now caught at COMPILE time with
+// NUM-021 (strictly better — catches earlier). The v0.4.95 runtime
+// path still fires for divisors that aren't const-trackable
+// (e.g. read from stdin). EXPECT (v0.6.53+): build FAILS with
+// NUM-021 diagnostic.
 
 fn main() -> i64 {
     let z: i64 = 0;
