@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.10] — 2026-05-03
+
+**Defensive halt — canonical Rust const-generic params
+`<const N: usize>` now produce a clean halt with a regular-fn-arg
+workaround pointer.**
+
+Pre-fix: writing `struct Buf<const N: usize> { ... }` or
+`fn id<const X: i32>() -> i32 { X }` surfaced as wrong-class
+`error[NR020]: parse error: expected ',', got identifier`
+because parse_generic_params treats `const` (token 73) as a
+bare param name and then trips on the `:` + type that follows.
+
+Post-fix: parse_generic_params detects token 73 (`const`) at
+the param-name position and halts cleanly:
+
+```nucleor
+// Pre-fix:
+struct Buf<const N: usize> { data: i64 }    // ← NR020 wrong-class
+fn id<const X: i32>() -> i32 { return X; }   // ← NR020 wrong-class
+
+// Post-fix workaround (regular fn arg):
+fn id(x: i32) -> i32 { return x; }
+// or hard-code the value at the use site:
+fn buf_8() -> Vec<i64> { return vec![0; 8]; }
+```
+
+For struct-level CT-params, see RFC-0034 first-pass
+(which uses `[N: usize]` syntax — different parser path,
+currently halted at v0.6.65).
+
+Forward-roadmap: full const-generic substrate is a v1.x ship —
+needs (a) const-eval at call-site / decl-site to materialize
+the value, (b) monomorphisation per concrete N, (c) propagation
+through array-type sizes (`[T; N]`).
+
+### Fixed-point + perf
+
+Cold 4.10s. Peak 332MB. Round-2 fixed-point md5
+`ca7ad733354da0f67835701dc110bdf0`.
+
+### Fixture
+
+`tests/fixtures/v0710_const_generic_param_clean_halt.nr` —
+negative fixture for `<const N: usize>`.
+
 ## [0.7.9] — 2026-05-03
 
 **Defensive halt — canonical Rust `async { ... }` block
