@@ -5810,6 +5810,14 @@ fn escape_llvm_str(s: str) -> str {
 // EMISSION (from T29, extended for builtins + strings)
 // =====================================================
 fn emit_cmp(sb: i64, cn: str, d: i64, a: i64, b: i64) -> i64 {
+    // 2026-05-03 perf-audit-round-2 experiment: tried adding an
+    // `sb_append_int` runtime helper that writes int digits directly
+    // into the SB buffer (eliminates the str_from_int malloc).
+    // Wall-time delta on this site was within the natural variance
+    // band (~0.4s spread on cold runs). Peak-mem dropped ~25 MB but
+    // the audit wasn't worth the runtime helper + ABI surface.
+    // Reverted; helper removed. See Desktop/Nucleor_PERF_AUDIT_2026-
+    // 05-03_round2.md for the full audit ledger.
     sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
     sb_append(sb, ".cmp = icmp "); sb_append(sb, cn);
     sb_append(sb, " i64 %r."); sb_append(sb, str_from_int(a));
