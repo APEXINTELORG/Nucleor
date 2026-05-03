@@ -17,9 +17,15 @@
 These are items where adopters porting Rust code hit them DAILY. Closing
 them widens translation fidelity meaningfully.
 
-#### V1.1 — Tuple-struct positional-field synthesis + `.0`/`.1` access
+#### V1.1 — Tuple-struct positional-field synthesis + `.0`/`.1` access  ✅ CLOSED v0.6.74
 
-**Status today:** v0.6.53 ships parse halt with named-field workaround
+**Closed v0.6.73 (step 1: parse acceptance) + v0.6.74 (steps 2+3:
+ctor + positional access).** Tuple-struct decl, constructor call,
+and `.0`/`.1` field access all working. Sister `match` nested
+struct pattern (sub-case 1 in NR020 finding) clean-halts; full
+recursion belongs in a separate parse-extension cycle.
+
+**Status today (historical):** v0.6.53 shipped parse halt with named-field workaround
 diagnostic. Adopters port-blocked on any Rust crate using `struct
 Pair(T1, T2);` shapes (very common — RGB colors, 2D points, fn-pointer
 wrappers, newtype patterns).
@@ -36,12 +42,17 @@ implemented as direct kind-9 branch.
 **Sister:** nested struct pattern `match l { Line { a: Point { x, y }, b: _ } => x }`
 — same v1.1 ship if recursive `parse_match_struct_binding_block` is added.
 
-#### V1.2 — Generic-T inference for literal init
+#### V1.2 — Generic-T inference for literal init  ✅ CLOSED v0.6.75
 
-**Status today:** v0.5.x partial closes inline-bound owned-T case.
-v0.6.x ships type alias resolver. Still open: `let b: Box<i64> =
-Box::new(5);` fails TYP-008 because `5` defaults to i32 and types_compatible
-recurses on Box<i32> vs Box<i64>.
+**Closed v0.6.75 (2026-05-03).** `types_compatible` extended with
+explicit Box<T> recursion shape (matching the existing Vec/Option
+pattern) plus a literal-default widening rule — i32 actual accepted
+into wider int-typed expected (i64 / isize / i16 / i8). Cheap
+first-char gate ('B' check) preserves the cold floor.
+
+**Status today (historical):** v0.5.x partial closed inline-bound owned-T case.
+v0.6.x shipped type alias resolver. v0.6.75 closed the Box<T> + literal
+case via types_compatible recursion + literal-default widening.
 
 **Scope:**
 - Extend `type_expr` with optional `expected_t: str` hint parameter.
