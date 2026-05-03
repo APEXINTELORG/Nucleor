@@ -8420,6 +8420,33 @@ fn diag_add(diags: Vec<i32>, severity: str, checker: str, code: str, message: st
     return diag_add_ex(diags, severity, checker, code, message, fn_name, line, 0, "");
 }
 fn diag_add_ex(diags: Vec<i32>, severity: str, checker: str, code: str, message: str, fn_name: str, line: i64, col: i64, related_id: str) -> i64 {
+    // v0.6.38 (probe finding 2026-05-01-typ-006-triple-emit-on-call-
+    // site, sister to MATCH-001/TYP-001 dual-emit closure in v0.5.18):
+    // dedup at the emit site. Some type-check passes run their per-
+    // call type-mismatch check more than once (call site visited
+    // through multiple paths — postfix, direct-call dispatch, generic-
+    // bound resolution). Each visit re-emitted the same diag; adopters
+    // saw a triple error wall for one call.
+    //
+    // Walk existing diags; if a row already has identical (code, message,
+    // fn_name, line, col), skip the emit. Severity and checker are
+    // included in the comparison via code (codes are unique per checker).
+    let dn_v064: i64 = vec_len(diags);
+    let mut di_v064: i64 = 0;
+    while di_v064 < dn_v064 {
+        let prior_d: Vec<i32> = vec_get(diags, di_v064);
+        let pcode: str = vec_get(prior_d, 2);
+        if str_eq(pcode, code) == 1 {
+            let pmsg: str = vec_get(prior_d, 3);
+            let pfn: str = vec_get(prior_d, 4);
+            let pline: i64 = vec_get(prior_d, 5);
+            let pcol: i64 = vec_get(prior_d, 6);
+            if pline == line && pcol == col && str_eq(pfn, fn_name) == 1 && str_eq(pmsg, message) == 1 {
+                return vec_len(diags);
+            };
+        };
+        di_v064 = di_v064 + 1;
+    };
     let mut d: Vec<i32> = Vec::new();
     d.push(severity); d.push(checker); d.push(code); d.push(message); d.push(fn_name); d.push(line);
     d.push(col); d.push(related_id);

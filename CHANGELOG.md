@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.38] — 2026-05-03
+
+**Diagnostic dedup at the emit site — TYP-006 triple-emit
+collapses to single error block (probe finding closure, sister
+to v0.5.18 MATCH-001/TYP-001 dual-emit fix).**
+
+Closes probe finding `2026-05-01-typ-006-triple-emit-on-call-
+site`. Pre-fix `dump(&w)` (any TYP-006-firing call site visited
+by multiple type-check passes) emitted three identical
+`error[TYP-006]: argument type mismatch in call to 'dump'`
+blocks at the same line:column. Adopters saw a triple error
+wall for one call.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` `diag_add_ex` (line ~8422) —
+walks existing `diags` before pushing a new row; if a prior row
+has identical `(code, message, fn_name, line, col)`, the new
+diag is dropped (returns the current count without adding).
+This is a structural cosmetic fix that benefits every diagnostic
+class — TYP-006, TYP-008, NUM-022, etc. all emit-deduplicate
+through the same path.
+
+### Why dedup at the emit site (not at the check)
+
+The triple-emit happens because some type-check passes visit
+the same call site through multiple paths (postfix, direct-call
+dispatch, generic-bound resolution). Each visit re-runs the
+TYP-006 check and re-emits. Refactoring the visit logic to fire
+once is risky (one of the visits is the canonical one, the
+others are pre-existing call-site hooks); dedup at the emit
+site is bounded, single-line behavior, and matches the v0.5.18
+MATCH-001/TYP-001 dual-emit closure pattern.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `d109348e…`.
+- Self-host wall: 5.04s + 3.99s.
+- Tools-suite (674 fns) compiles clean — no false halts.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Smoke (probe repro): pre-fix 3× TYP-006, v0.6.38 1× TYP-006.
+- Full verify gate: in flight at write time.
+
+### No fixture (cosmetic dedup ship)
+
+The dedup is a behavior change at the diag pipeline; the visible
+result is "fewer duplicate error blocks." There's no negative-
+fixture pattern that asserts "exactly 1 error block, not 3" in
+the existing verify infrastructure. The diag count would need a
+new step shape. Future ship can add a regression-lock against
+duplicate emits via a verify step that grep-counts `error[X-NNN]`
+for one fixture.
+
 ## [0.6.37] — 2026-05-03
 
 **NUM-008 — width-aware shift-amount bound (probe finding closure
