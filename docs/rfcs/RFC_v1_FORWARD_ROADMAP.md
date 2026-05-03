@@ -152,10 +152,18 @@ multiple traits provide the same method name (rare in practice).
 
 **Estimated cost:** ~200 lines. Small v1 ship.
 
-#### V1.9 — assert!/assert_eq!/assert_ne! format-args expansion
+#### V1.9 — assert!/assert_eq!/assert_ne! format-args expansion  ✅ CLOSED v0.6.76
 
-**Status today:** v0.6.39 closed panic! mode-5. Asserts still drop.
+**Closed v0.6.76 (2026-05-03).** Textual rewrite at expand_format_macros
+pass: cheap name gate (`assert`/`assert_eq`/`assert_ne`) plus comma-count
++ `"`-shape check identifies format-arg form, then rewrites to
+`if !(cond) { panic!(fmt, args); };` (or `==`/`!=` for the eq/ne
+variants). Reuses mode-5 fmt_build_expansion. Cold stays at 3.35–3.4s
+(baseline 3.16s) — comma walk cost limited to assert calls only.
+
+**Status today (historical):** v0.6.39 closed panic! mode-5. Asserts still dropped.
 v0.6.73-attempt regressed perf 1.7s due to per-call-site comma-walking.
+v0.6.76 fixed via name-cheap gate.
 
 **Scope:**
 - Cheap pre-check at the macro substitution path: detect format-arg form via single-`"` peek after `(`.

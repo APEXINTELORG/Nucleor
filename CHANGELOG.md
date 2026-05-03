@@ -5,6 +5,64 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.76] — 2026-05-03
+
+**RFC V1.9 — `assert!` / `assert_eq!` / `assert_ne!` format-args
+expansion. Canonical Rust `assert!(cond, "fmt {}", arg)` now
+expands and produces formatted panic message on failure.**
+
+Pre-fix: `assert!(x > 0, "got {}", x)` stripped the `!` and emitted
+`assert(x > 0, "got {}", x)` — a 3-arg call to the 1-arg
+`__nucleor_assert(i64)` helper. Format args dropped silently at the
+ABI boundary, `"{}"` stayed literal, and assert-on-truthy passed
+without ever reaching the format machinery. Same pattern broke
+`assert_eq!` / `assert_ne!` with trailing format args.
+
+Post-fix: textual rewrite at the `expand_format_macros` pass detects
+the format-arg shape (2+ top-level commas for `assert!`; 3+ for
+`assert_eq!` / `assert_ne!`) AND a `"`-prefixed format string at the
+split position, then rewrites to:
+
+```nucleor
+// assert!(c, "fmt {}", a)        →
+if !(c) { panic!("fmt {}", a); };
+
+// assert_eq!(a, b, "fmt {} {}", x, y)  →
+if !((a) == (b)) { panic!("fmt {} {}", x, y); };
+
+// assert_ne!(c, d, "fmt", x)     →
+if !((c) != (d)) { panic!("fmt", x); };
+```
+
+The `panic!(...)` portion routes through the existing mode-5
+`fmt_build_expansion` path — same code path panic! mode-5 uses, so
+the fmt machinery is shared.
+
+### Hot-path safety
+
+`v0.6.73-attempt` regressed cold +1.7s due to per-call comma
+walking. This ship cheap-gates on the ascii name match
+(`assert` / `assert_eq` / `assert_ne`) — only those calls pay the
+comma-walk cost. Self-host cold stays at 3.35–3.4s (baseline 3.16s,
+v0.6.74 control 3.99s under load). Fixed-point md5
+`cf6cf5b584e5366cd596d1a7bf0a3374`.
+
+### Truthy / failing path
+
+| Form | Truthy | Failing |
+|---|---|---|
+| `assert!(n > 0, "got {}", n)` | silent | `PANIC: got -3` |
+| `assert_eq!(a, b, "{} == {}", a, b)` | silent | `PANIC: 5 == 7` |
+| `assert_ne!(c, d, "{} != {}", c, d)` | silent | `PANIC: 5 != 5` |
+
+Bare `assert!(cond)` and 2-arg `assert!(cond, "msg")` shapes still
+fall through to the existing strip-and-continue path — unchanged.
+
+### Fixture
+
+`tests/fixtures/v0676_assert_format_args_expand.nr` exercises the
+truthy paths for all three forms.
+
 ## [0.6.75] — 2026-05-03
 
 **RFC V1.2 — generic-T inference for `Box::new(literal)`. Canonical

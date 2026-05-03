@@ -29143,6 +29143,102 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 // v0.6.56: `unreachable` removed from this strip-and-
                 // continue list — the mode-5 path below now expands it
                 // to `panic("internal error: entered unreachable code")`.
+                // v0.6.76 RFC V1.9 (probe finding 2026-05-01-rust-syntax-
+                // translation-fidelity-audit, assert-format-args row):
+                // canonical Rust `assert!(cond, "fmt {}", arg)` pre-fix
+                // stripped `!` and emitted `assert(cond, "fmt {}", arg)`
+                // — a 3-arg call to the 1-arg `__nucleor_assert(i64)`
+                // helper. Format args dropped, `{}` stayed literal, and
+                // assert(cond_truthy=1) silently passed even with broken
+                // format args. v0.6.73 attempt regressed cold +1.7s due
+                // to per-call comma walking; this ship limits the walk
+                // to assert/assert_eq/assert_ne calls only (cheap name
+                // gate), and only when 2+ (assert) / 3+ (assert_eq/ne)
+                // top-level commas are present (format-arg shape).
+                //
+                // Rewrite shape:
+                //   assert!(c, "fmt", args)   →  if !(c) { panic("fmt-built"); };
+                //   assert_eq!(a, b, "fmt", args) →  if !((a) == (b)) { panic("fmt-built"); };
+                //   assert_ne!(a, b, "fmt", args) →  if !((a) != (b)) { panic("fmt-built"); };
+                // The `panic("fmt-built")` part is built via mode-5
+                // fmt_build_expansion — same path panic! mode-5 uses.
+                let mut v076_assert_kind: i64 = 0; // 0=not, 1=assert, 2=assert_eq, 3=assert_ne
+                if str_eq(name, "assert") == 1 { v076_assert_kind = 1; };
+                if str_eq(name, "assert_eq") == 1 { v076_assert_kind = 2; };
+                if str_eq(name, "assert_ne") == 1 { v076_assert_kind = 3; };
+                if v076_assert_kind > 0 {
+                    let v076_probe_start: i64 = p + 2;
+                    let mut v076_probe_q: i64 = v076_probe_start;
+                    let mut v076_probe_depth: i64 = 1;
+                    let mut v076_probe_dq: i64 = 0;
+                    let mut v076_probe_sq: i64 = 0;
+                    let mut v076_comma1: i64 = 0 - 1;
+                    let mut v076_comma2: i64 = 0 - 1;
+                    let mut v076_comma3: i64 = 0 - 1;
+                    while v076_probe_q < slen && v076_probe_depth > 0 {
+                        let v076_pc: i64 = str_char_at(src, v076_probe_q);
+                        if v076_probe_dq == 1 {
+                            if v076_pc == 92 && v076_probe_q + 1 < slen { v076_probe_q = v076_probe_q + 1; }
+                            else if v076_pc == 34 { v076_probe_dq = 0; };
+                        } else if v076_probe_sq == 1 {
+                            if v076_pc == 92 && v076_probe_q + 1 < slen { v076_probe_q = v076_probe_q + 1; }
+                            else if v076_pc == 39 { v076_probe_sq = 0; };
+                        } else if v076_pc == 34 { v076_probe_dq = 1; }
+                        else if v076_pc == 39 { v076_probe_sq = 1; }
+                        else if v076_pc == 40 || v076_pc == 91 || v076_pc == 123 { v076_probe_depth = v076_probe_depth + 1; }
+                        else if v076_pc == 41 || v076_pc == 93 || v076_pc == 125 { v076_probe_depth = v076_probe_depth - 1; }
+                        else if v076_pc == 44 && v076_probe_depth == 1 {
+                            if v076_comma1 < 0 { v076_comma1 = v076_probe_q; }
+                            else if v076_comma2 < 0 { v076_comma2 = v076_probe_q; }
+                            else if v076_comma3 < 0 { v076_comma3 = v076_probe_q; };
+                        };
+                        v076_probe_q = v076_probe_q + 1;
+                    };
+                    let v076_close_paren: i64 = v076_probe_q - 1;
+                    let mut v076_have_fmt: i64 = 0;
+                    let mut v076_split_pos: i64 = 0 - 1;
+                    if v076_assert_kind == 1 && v076_comma2 >= 0 { v076_split_pos = v076_comma1; };
+                    if v076_assert_kind > 1 && v076_comma3 >= 0 { v076_split_pos = v076_comma2; };
+                    if v076_split_pos > 0 {
+                        let mut v076_sk: i64 = v076_split_pos + 1;
+                        let mut v076_first_after: i64 = 0;
+                        while v076_sk < v076_close_paren && v076_first_after == 0 {
+                            let v076_sc: i64 = str_char_at(src, v076_sk);
+                            if v076_sc == 32 || v076_sc == 9 || v076_sc == 10 || v076_sc == 13 { v076_sk = v076_sk + 1; }
+                            else { v076_first_after = v076_sc; };
+                        };
+                        if v076_first_after == 34 { v076_have_fmt = 1; };
+                    };
+                    if v076_have_fmt == 1 && v076_probe_depth == 0 {
+                        let v076_fmt_args: str = str_substring(src, v076_split_pos + 1, v076_close_paren);
+                        let v076_inner: str = expand_format_macros_with_src(v076_fmt_args, type_src);
+                        let v076_panic_call: str = fmt_build_expansion(v076_inner, 5, type_src);
+                        if v076_assert_kind == 1 {
+                            let v076_cond: str = str_substring(src, v076_probe_start, v076_comma1);
+                            sb_append(sb, "if !(");
+                            sb_append(sb, v076_cond);
+                            sb_append(sb, ") { ");
+                            sb_append(sb, v076_panic_call);
+                            sb_append(sb, "; }");
+                        } else {
+                            let v076_lhs: str = str_substring(src, v076_probe_start, v076_comma1);
+                            let v076_rhs: str = str_substring(src, v076_comma1 + 1, v076_comma2);
+                            let v076_op: str = if v076_assert_kind == 2 { "==" } else { "!=" };
+                            sb_append(sb, "if !((");
+                            sb_append(sb, v076_lhs);
+                            sb_append(sb, ") ");
+                            sb_append(sb, v076_op);
+                            sb_append(sb, " (");
+                            sb_append(sb, v076_rhs);
+                            sb_append(sb, ")) { ");
+                            sb_append(sb, v076_panic_call);
+                            sb_append(sb, "; }");
+                        };
+                        p = v076_probe_q;
+                        last_non_ws = 125;
+                        continue;
+                    };
+                };
                 if str_eq(name, "assert") == 1
                    || str_eq(name, "assert_eq") == 1 || str_eq(name, "assert_ne") == 1
                    || str_eq(name, "dbg") == 1 || str_eq(name, "todo") == 1
