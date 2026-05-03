@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.85] — 2026-05-03
+
+**RFC V1.4 — auto-dispatch `==` / `!=` to the derived-eq helper.
+V1.4 fully shipped (paired with v0.6.84 helper-fn generation).**
+
+Pre-fix (v0.6.84): `#[derive(PartialEq)]` generated the helper fn
+`<Type>__derived_eq(a, b) -> i64` but adopters had to call it
+manually (`if Foo__derived_eq(a, b) == 1 { ... }`). Writing
+canonical `if a == b { ... }` still fired the v0.4.147 TYP-011
+ptr-compare diag.
+
+Post-fix: lower_expr binop kind-4 with op==30/31 (`==` / `!=`)
+detects the derived-eq helper via `sym_get(__fnret_<Type>__derived_eq)`
+and routes the binop to a kind-7 call to that helper instead of
+the silent ptr-compare. For `!=`: emits `1 - <eq_result>` so the
+result stays canonical 0/1. type_expr's TYP-011 path suppresses
+when the helper exists; non-derived structs still fire the diag
+(unchanged behavior).
+
+```nucleor
+#[derive(PartialEq)]
+struct Point { x: i64, y: i64 }
+
+fn main() -> i32 {
+    let a: Point = Point { x: 5, y: 7 };
+    let b: Point = Point { x: 5, y: 7 };
+    let c: Point = Point { x: 5, y: 8 };
+    if a == b { print_int(11); };   // 11 — auto-dispatch
+    if a != c { print_int(33); };   // 33 — auto-dispatch via 1 - eq
+    return 0;
+}
+```
+
+### Mangling caveat preserved
+
+The lookup uses the type-mangled name `<Type>__derived_eq` —
+generic structs are not yet auto-derived (the v0.6.84 textual pass
+skips `<...>` generics), so generic `==`/`!=` still hit ptr-compare
++ TYP-011. Per-type-instantiation derive expansion is the
+monomorphisation v1.x ship.
+
+### Field-compare hazard (unchanged)
+
+The generated helper compares each field with `!=`. For nested
+struct fields, `!=` ptr-compares (silent miscompute) — same hazard
+the v0.4.147 TYP-011 diag warned about. The auto-dispatch routes
+`==` / `!=` correctly for primitive-typed fields and for nested
+structs **that also derive(PartialEq)** (the inner `!=` then routes
+to the inner type's auto-dispatch). Recursive correctness ships
+when both Point and Inner have `#[derive(PartialEq)]`.
+
+### Fixed-point + perf
+
+Cold 3.32s (baseline 3.16s). Peak 302MB. Round-2 fixed-point md5
+`99ecd4238a8b92a526055cdcaac9926b`.
+
+### Fixture
+
+`tests/fixtures/v0685_derive_partialeq_auto_dispatch.nr` —
+exercises `==` / `!=` on both named-struct and tuple-struct
+forms.
+
 ## [0.6.84] — 2026-05-03
 
 **RFC V1.4 (partial) — `#[derive(PartialEq)]` now auto-generates

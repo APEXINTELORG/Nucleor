@@ -17328,10 +17328,19 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         if (op == 30 || op == 31) && str_len(lt) > 0 && str_eq(strip_spaces(lt), strip_spaces(rt)) == 1 {
             let v147_lstruct: i64 = struct_find_type(pool, structs, lt);
             if v147_lstruct >= 0 {
-                let v147_op: str = if op == 30 { "==" } else { "!=" };
-                let v147a: str = str_concat("`", str_concat(lt, str_concat(" ", str_concat(v147_op, str_concat(" ", str_concat(lt, "` does pointer comparison."))))));
-                let v147b: str = " Pre-v0.4.147 the binop lowered to `icmp eq i64` on the two struct pointers — two equal-field structs at different heap addresses returned FALSE. Rust derives PartialEq with field-wise comparison; Nucleor doesn't auto-derive. Compare fields explicitly: `a.field1 == b.field1 && a.field2 == b.field2 && ...`, or write a helper fn that does the field walk.";
-                type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat(v147a, v147b));
+                // v0.6.85 RFC V1.4 (auto-dispatch): if the textual pre-pass
+                // (v0.6.84 expand_derive_partialeq) generated a derived-eq
+                // helper for this struct, suppress TYP-011 — the lower_expr
+                // kind-4 branch (sister edit) routes the binop to the
+                // helper instead of the silent ptr-compare.
+                let v085_helper_name: str = str_concat(strip_spaces(lt), "__derived_eq");
+                let v085_has_derived: str = sig_rtype(sigs, v085_helper_name);
+                if str_len(v085_has_derived) == 0 {
+                    let v147_op: str = if op == 30 { "==" } else { "!=" };
+                    let v147a: str = str_concat("`", str_concat(lt, str_concat(" ", str_concat(v147_op, str_concat(" ", str_concat(lt, "` does pointer comparison."))))));
+                    let v147b: str = " Pre-v0.4.147 the binop lowered to `icmp eq i64` on the two struct pointers — two equal-field structs at different heap addresses returned FALSE. Rust derives PartialEq with field-wise comparison; Nucleor doesn't auto-derive. Compare fields explicitly: `a.field1 == b.field1 && a.field2 == b.field2 && ...`, OR add `#[derive(PartialEq)]` (v0.6.84+) which auto-generates the field-walk helper AND v0.6.85 routes `==`/`!=` directly to it.";
+                    type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat(v147a, v147b));
+                };
             };
         };
         if (op == 32 || op == 33 || op == 34 || op == 35) && str_len(lt) > 0 && str_eq(strip_spaces(lt), strip_spaces(rt)) == 1 {
@@ -20492,6 +20501,53 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let eiop: i64 = if bop == 30 { 7 } else { 8 };
                 ir_block_add(ecur, ir_cmpop(eiop, er, lt_tag, rt_tag));
                 return lx_new(er, ecur);
+            };
+            // v0.6.85 RFC V1.4 (auto-dispatch): when both sides resolve
+            // to the same struct type AND the textual pre-pass
+            // `expand_derive_partialeq` (v0.6.84) generated the helper
+            // fn `<Type>__derived_eq(a, b) -> i64`, route the binop to
+            // that helper instead of the silent ptr-compare. The helper-
+            // existence probe is `sym_get(sym, "__fnret_<Type>__derived_eq")`
+            // — populated by populate_fn_returns_in_sym at lower_fn entry.
+            // For `!=`: emit `1 - <eq>` so the result is canonical 0/1.
+            //
+            // Closes V1.4 (paired with v0.6.84 helper-fn generation).
+            // The TYP-011 ptr-compare diag at line ~17027 still fires at
+            // type-check time for non-derived structs (pre-existing
+            // behavior); for derived structs it would be misleading, so
+            // type_expr's TYP-011 path also suppresses when the helper
+            // exists (sister edit below).
+            let v085_lhs_t: str = expr_struct_type(pool, lhs_n, sym, structs);
+            let v085_rhs_t: str = expr_struct_type(pool, rhs_n, sym, structs);
+            if str_len(v085_lhs_t) > 0 && str_eq(strip_spaces(v085_lhs_t), strip_spaces(v085_rhs_t)) == 1 {
+                let v085_struct_si: i64 = struct_find_type(pool, structs, v085_lhs_t);
+                if v085_struct_si >= 0 {
+                    let v085_helper: str = str_concat(v085_lhs_t, "__derived_eq");
+                    let v085_ret: i64 = sym_get(sym, str_concat("__fnret_", v085_helper));
+                    if v085_ret >= 0 {
+                        let mut v085_lp: Vec<i32> = lower_expr(pool, lhs_n, blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                        let v085_lr: i64 = lx_reg(v085_lp);
+                        let mut v085_cur: Vec<i32> = lx_blk(v085_lp);
+                        let mut v085_rp: Vec<i32> = lower_expr(pool, rhs_n, v085_cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                        let v085_rr: i64 = lx_reg(v085_rp);
+                        v085_cur = lx_blk(v085_rp);
+                        let mut v085_args: Vec<i32> = Vec::new();
+                        v085_args.push(v085_lr);
+                        v085_args.push(v085_rr);
+                        let v085_call_r: i64 = ctr_next(regs);
+                        ir_block_add(v085_cur, ir_call_ex(v085_call_r, v085_helper, v085_args));
+                        if bop == 30 {
+                            return lx_new(v085_call_r, v085_cur);
+                        } else {
+                            // != is `1 - eq`.
+                            let v085_one_r: i64 = ctr_next(regs);
+                            ir_block_add(v085_cur, ir_const_int(v085_one_r, 1));
+                            let v085_inv_r: i64 = ctr_next(regs);
+                            ir_block_add(v085_cur, ir_binop_t(2, v085_inv_r, v085_one_r, v085_call_r, 64));
+                            return lx_new(v085_inv_r, v085_cur);
+                        };
+                    };
+                };
             };
         };
         // v0.3.148: short-circuit lowering for `&&` (op 36) and `||` (op 37).
