@@ -2018,7 +2018,13 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         } else {
         if pk(tokens, cp) == 45 {
             let mut fname: str = "";
-            if pk(tokens, cp + 1) == 2 { fname = str_from_int(pkv(tokens, cp + 1)); }
+            // v0.6.74 RFC V1.1 step 3: tuple-struct positional access.
+            // `p.0` / `p.1` lex as `.` + int-literal token. Synthesize
+            // the synthetic field name `__<digit>` at parse time so
+            // the existing field-access type-check + lower paths
+            // resolve to the matching `__<digit>` field declared in
+            // parse_struct_decl's paren-form path.
+            if pk(tokens, cp + 1) == 2 { fname = str_concat("__", str_from_int(pkv(tokens, cp + 1))); }
             else { fname = pkv(tokens, cp + 1); };
             let p2: i64 = cp + 2;
             let mut tname: str = "";
@@ -8709,6 +8715,33 @@ fn struct_field_idx(pool: Vec<i32>, struct_nid: i64, fname: str) -> i64 {
         i = i + 1;
     };
     return 0 - 1;
+}
+
+// v0.6.74 RFC V1.1 step 2: tuple-struct shape detection. A struct is
+// tuple-style if all field names match `__<digit>+` pattern (synthesized
+// by parse_struct_decl when the decl uses paren-form). Used by
+// constructor routing (kind-7 → struct ctor when callee is tuple-style)
+// and field-access lowering (`p.0` → `p.__0`).
+fn struct_is_tuple_style(pool: Vec<i32>, struct_nid: i64) -> i64 {
+    let flist: i64 = node_field(pool, struct_nid, 2);
+    let fc: i64 = list_len(pool, flist);
+    if fc == 0 { return 0; };
+    let mut i: i64 = 0;
+    while i < fc {
+        let fname: str = node_field(pool, list_get(pool, flist, i), 1);
+        let fnlen: i64 = str_len(fname);
+        if fnlen < 3 { return 0; };
+        if str_char_at(fname, 0) != 95 { return 0; };
+        if str_char_at(fname, 1) != 95 { return 0; };
+        let mut di: i64 = 2;
+        while di < fnlen {
+            let dc: i64 = str_char_at(fname, di);
+            if dc < 48 || dc > 57 { return 0; };
+            di = di + 1;
+        };
+        i = i + 1;
+    };
+    return 1;
 }
 
 fn struct_field_type(pool: Vec<i32>, struct_nid: i64, fname: str) -> str {
@@ -17558,48 +17591,56 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // v0.4.138 (struct-as-value at kind-3): when the callee
         // matches a defined struct name, surface TYP-022 directing
         // to struct-init syntax.
-        if sentry < 0 && struct_find_type(pool, structs, callee) >= 0 {
-            // v0.6.73 RFC V1.1 step-1 transitional: tuple-struct decls
-            // (`struct P(T1, T2);`) now PARSE successfully (synthesizing
-            // `__0`, `__1`, ... fields) but constructor `P(a, b)` and
-            // field-access `p.0` / `p.1` are wired in subsequent ships.
-            // Detect tuple-style structs (all field names match
-            // `__<digit>+` shape) and emit a tuple-specific diag with
-            // the named-field-via-synthetic-name workaround. For
-            // non-tuple structs, fall through to the existing TYP-022
-            // diag pointing at the brace-init syntax.
-            let s_idx_v073: i64 = struct_find_type(pool, structs, callee);
-            let s_nid_v073: i64 = vec_get(structs, s_idx_v073);
-            let s_fields_v073: i64 = node_field(pool, s_nid_v073, 2);
-            let s_fc_v073: i64 = list_len(pool, s_fields_v073);
-            let mut tuple_style_v073: i64 = if s_fc_v073 > 0 { 1 } else { 0 };
-            let mut sf_i_v073: i64 = 0;
-            while sf_i_v073 < s_fc_v073 && tuple_style_v073 == 1 {
-                let sf_nid_v073: i64 = list_get(pool, s_fields_v073, sf_i_v073);
-                let sf_name_v073: str = node_field(pool, sf_nid_v073, 1);
-                let sfn_len_v073: i64 = str_len(sf_name_v073);
-                if sfn_len_v073 < 3 { tuple_style_v073 = 0; }
-                else if str_char_at(sf_name_v073, 0) != 95 { tuple_style_v073 = 0; }
-                else if str_char_at(sf_name_v073, 1) != 95 { tuple_style_v073 = 0; }
-                else {
-                    let mut digit_check_v073: i64 = 2;
-                    while digit_check_v073 < sfn_len_v073 {
-                        let dc_v073: i64 = str_char_at(sf_name_v073, digit_check_v073);
-                        if dc_v073 < 48 || dc_v073 > 57 { tuple_style_v073 = 0; digit_check_v073 = sfn_len_v073; }
-                        else { digit_check_v073 = digit_check_v073 + 1; };
+        // v0.6.74: fast-fail check — tuple/regular struct names start
+        // uppercase per Rust convention. Skip the structs-table scan
+        // for lowercase callees (the dominant case).
+        let mut callee_uppercase_v074: i64 = 0;
+        if str_len(callee) > 0 {
+            let cc0_v074: i64 = str_char_at(callee, 0);
+            if cc0_v074 >= 65 && cc0_v074 <= 90 { callee_uppercase_v074 = 1; };
+        };
+        if sentry < 0 && callee_uppercase_v074 == 1 && struct_find_type(pool, structs, callee) >= 0 {
+            // v0.6.74 RFC V1.1 step 2: tuple-struct constructor routing.
+            // When the callee resolves to a tuple-style struct (all
+            // fields named `__<digit>+`), accept the call as struct
+            // construction with positional args mapped to `__0`,
+            // `__1`, ... synthetic fields. Type-check each arg
+            // against the corresponding declared field type.
+            // Non-tuple structs still emit TYP-022 (must use brace-
+            // init syntax).
+            let s_idx_v074: i64 = struct_find_type(pool, structs, callee);
+            let s_nid_v074: i64 = vec_get(structs, s_idx_v074);
+            if struct_is_tuple_style(pool, s_nid_v074) == 1 {
+                // Verify argc == field count.
+                let s_flist_v074: i64 = node_field(pool, s_nid_v074, 2);
+                let s_fc_v074: i64 = list_len(pool, s_flist_v074);
+                if argc != s_fc_v074 {
+                    let argc_a: str = str_concat("tuple-struct `", str_concat(callee, str_concat("` has ", str_concat(str_from_int(s_fc_v074), str_concat(" positional fields, but ", str_concat(str_from_int(argc), " arguments were supplied at the construction site."))))));
+                    type_diag(diags, source, fn_name, callee, "TYP-022", argc_a);
+                } else {
+                    // Type-check each arg against its corresponding
+                    // synthetic field's declared type.
+                    let mut tup_ai_v074: i64 = 0;
+                    while tup_ai_v074 < argc {
+                        let arg_nid_v074: i64 = list_get(pool, args, tup_ai_v074);
+                        let arg_t_v074: str = type_expr(pool, prog, arg_nid_v074, env, sigs, structs, fn_name, diags, source, tprof);
+                        let s_fnid_v074: i64 = list_get(pool, s_flist_v074, tup_ai_v074);
+                        let exp_t_v074: str = node_field(pool, s_fnid_v074, 2);
+                        if str_len(arg_t_v074) > 0 && str_len(exp_t_v074) > 0 {
+                            if types_compatible_context(pool, prog, exp_t_v074, arg_t_v074) == 0 {
+                                let mismatch_a: str = str_concat("tuple-struct `", str_concat(callee, str_concat("` field `__", str_concat(str_from_int(tup_ai_v074), str_concat("` expects type `", str_concat(exp_t_v074, str_concat("` but argument has type `", str_concat(arg_t_v074, "`."))))))));
+                                type_diag(diags, source, fn_name, callee, "TYP-008", mismatch_a);
+                            };
+                        };
+                        tup_ai_v074 = tup_ai_v074 + 1;
                     };
                 };
-                sf_i_v073 = sf_i_v073 + 1;
+                if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
+                return callee;
             };
-            if tuple_style_v073 == 1 {
-                let tup_a_v073: str = str_concat("tuple-struct construction `", str_concat(callee, str_concat("(...)` is not yet wired in v0.6.73 — only the decl form `struct ", str_concat(callee, "(T1, T2);` parses. Constructor + `.0`/`.1` field-access lowering arrives in a subsequent ship.")))));
-                let tup_b_v073: str = str_concat(" Workaround: construct via named-field syntax using the synthetic field names `__0`, `__1`, ...: `", str_concat(callee, str_concat(" { __0: a, __1: b }`. Access fields via `p.__0`, `p.__1`, etc. Once full lowering ships you can drop the workaround.", "")));
-                type_diag(diags, source, fn_name, callee, "TYP-022", str_concat(tup_a_v073, tup_b_v073));
-            } else {
-                let v148a: str = str_concat("`", str_concat(callee, str_concat("(", str_concat("...)` is not how struct values are constructed in Nucleor — `", str_concat(callee, "` is a struct type, not a fn."))))));
-                let v148b: str = str_concat(" Pre-v0.4.148 the call lowered to `call i64 @", str_concat(callee, str_concat("(...)` and failed late at clang link with `error: use of undefined value '@", str_concat(callee, "'`. Use struct-init syntax `<Name> { field1: val1, ... }` to construct a value, or call an inherent constructor `<Name>::new(...)` if one is defined."))));
-                type_diag(diags, source, fn_name, callee, "TYP-022", str_concat(v148a, v148b));
-            };
+            let v148a: str = str_concat("`", str_concat(callee, str_concat("(", str_concat("...)` is not how struct values are constructed in Nucleor — `", str_concat(callee, "` is a struct type, not a fn."))))));
+            let v148b: str = str_concat(" Pre-v0.4.148 the call lowered to `call i64 @", str_concat(callee, str_concat("(...)` and failed late at clang link with `error: use of undefined value '@", str_concat(callee, "'`. Use struct-init syntax `<Name> { field1: val1, ... }` to construct a value, or call an inherent constructor `<Name>::new(...)` if one is defined."))));
+            type_diag(diags, source, fn_name, callee, "TYP-022", str_concat(v148a, v148b));
         };
         // v0.4.146: closure call-site argc check. Closures aren't
         // in sigs (their binding lives in tenv with no plist), so
@@ -20297,6 +20338,44 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
     };
     if kind == 7 {
         let fn_name: str = node_field(pool, nid, 1);
+        // v0.6.74 RFC V1.1 step 2: tuple-struct constructor lowering.
+        // When fn_name resolves to a tuple-style struct, emit struct
+        // construction IR instead of fn call. Fast-fail on shape: only
+        // uppercase-starting identifiers can be struct names per Rust
+        // convention. Skips the struct-table scan for the dominant
+        // case (lowercase fn names = regular fns).
+        let mut tup_si_v074: i64 = 0 - 1;
+        let fnlen_v074: i64 = str_len(fn_name);
+        if fnlen_v074 > 0 {
+            let fnc0_v074: i64 = str_char_at(fn_name, 0);
+            if fnc0_v074 >= 65 && fnc0_v074 <= 90 {
+                tup_si_v074 = struct_find_type(pool, structs, fn_name);
+            };
+        };
+        if tup_si_v074 >= 0 {
+            let tup_snid_v074: i64 = vec_get(structs, tup_si_v074);
+            if struct_is_tuple_style(pool, tup_snid_v074) == 1 {
+                let tup_args_v074: i64 = node_field(pool, nid, 2);
+                let tup_argc_v074: i64 = list_len(pool, tup_args_v074);
+                let tup_vr_v074: i64 = ctr_next(regs);
+                let mut tup_new_args_v074: Vec<i32> = Vec::new();
+                ir_block_add(blk, ir_call_ex(tup_vr_v074, "vec_new", tup_new_args_v074));
+                let mut tup_cur_v074: Vec<i32> = blk;
+                let mut tup_i_v074: i64 = 0;
+                while tup_i_v074 < tup_argc_v074 {
+                    let mut tup_vp_v074: Vec<i32> = lower_expr(pool, list_get(pool, tup_args_v074, tup_i_v074), tup_cur_v074, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                    let tup_val_r_v074: i64 = lx_reg(tup_vp_v074);
+                    tup_cur_v074 = lx_blk(tup_vp_v074);
+                    let mut tup_push_args_v074: Vec<i32> = Vec::new();
+                    tup_push_args_v074.push(tup_vr_v074);
+                    tup_push_args_v074.push(tup_val_r_v074);
+                    let tup_pr_v074: i64 = ctr_next(regs);
+                    ir_block_add(tup_cur_v074, ir_call_ex(tup_pr_v074, "vec_push", tup_push_args_v074));
+                    tup_i_v074 = tup_i_v074 + 1;
+                };
+                return lx_new(tup_vr_v074, tup_cur_v074);
+            };
+        };
         // T1.1 Phase 3b: sizeof_struct(StructName) — compile-time
         // constant. Looks up the struct and returns its byte size
         // computed per its repr attribute (default Nucleor / C / packed).

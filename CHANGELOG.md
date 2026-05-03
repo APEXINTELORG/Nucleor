@@ -5,6 +5,96 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.74] — 2026-05-03
+
+**RFC V1.1 steps 2 + 3 — tuple-struct constructor `Pair(5, 10)`
++ positional access `p.0`/`p.1`. V1.1 fully shipped.**
+
+Closes the v0.6.73 step-1 transitional halt. Adopters can now write
+canonical Rust tuple-struct code:
+
+```nucleor
+struct Pair(i64, i64);
+struct Triple(str, i64, i64);
+fn main() -> i32 {
+    let p: Pair = Pair(5, 10);              // step 2: ctor
+    print_int(p.0 as i32);                   // step 3: access
+    print_int(p.1 as i32);
+    let t: Triple = Triple("hello", 42, 99);
+    print(t.0); print_int(t.1 as i32); print_int(t.2 as i32);
+    return 0;
+}
+// → 5 / 10 / hello / 42 / 99
+```
+
+### Step 2 fix — constructor routing
+
+`compiler/nucleor_s1_compiler.nr`:
+
+1. **`struct_is_tuple_style(pool, struct_nid)`** (~line 8714): new
+   helper. Returns 1 when all field names match `__<digit>+`.
+
+2. **`type_expr` kind-7** (~line 17561): when callee resolves to a
+   tuple-style struct, accept the call as positional construction.
+   Type-check each arg against the corresponding `__<i>` field's
+   declared type. Emit specific TYP-022 / TYP-008 messages on
+   argc mismatch / type mismatch. Non-tuple structs still emit the
+   existing TYP-022 (must use brace-init).
+
+3. **`lower_expr` kind-7** (~line 20325): when callee is tuple-style,
+   emit `vec_new + vec_push` IR sequence — same backing storage as
+   kind-34 brace-form struct init at line ~21893.
+
+### Step 3 fix — positional access
+
+4. **`parse_postfix` `.<digit>`** (~line 2019): synthesize fname as
+   `__<digit>` when the field-access is a numeric literal. Existing
+   field-access type-check + lower paths then resolve to the matching
+   synthetic field.
+
+### Fast-fail short-circuits
+
+Both kind-7 paths gate the struct-table scan on uppercase-start of
+the callee name. Lowercase callees (the dominant case for regular
+fns) skip the scan entirely. Same shape pattern as
+`type_alias_resolve` (v0.6.67).
+
+### Perf measurement note
+
+3-sample measurement from earlier today held the v0.6.70 floor
+(cold 3.16s, peak_mem 318 MB). 5-sample re-measurement after this
+ship shows median cold 5.08s on the same machine — but a
+control measurement of the v0.6.73 source pre-stash also showed
+5+ second cold. The drift is system load (browser activity,
+cache thrashing from many rebuilds today), not the v0.6.74
+changes. All samples within the 5.93s cap.
+
+Will re-measure on a cold machine. If genuine drift, bisect via
+the fast-fail short-circuits (probably need to extend uppercase
+fast-fail to type-check kind-7 path too — currently only at the
+v0.6.74 added detection sites).
+
+### Verify
+
+- New regression-lock: `v0674_tuple_struct_full` (covers ctor + access).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+- v0.6.73 fixture (named-field workaround) still passes —
+  shorthand AND new positional syntax both work.
+
+### V1.1 status
+
+ALL 3 STEPS SHIPPED:
+- Step 1 (parse acceptance): v0.6.73
+- Step 2 (constructor routing): v0.6.74
+- Step 3 (positional access): v0.6.74
+
+First complete v1-class feature shipped. Closes the
+`2026-05-02-nested-struct-pattern-and-tuple-struct-decl-NR020`
+finding sub-case 2 fully. Sub-case 1 (nested struct pattern)
+still has the v0.6.69 halt — full lowering pending future v1 ship.
+
 ## [0.6.73] — 2026-05-03
 
 **RFC V1.1 step 1 — tuple-struct decl `struct P(T1, T2);` parses
