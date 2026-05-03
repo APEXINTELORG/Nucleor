@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.93] — 2026-05-03
+
+**Correctness fix — explicit `self: &Self` / `self: &mut Self`
+param shape in impl-block methods now substitutes `Self` to the
+concrete type. Closes a long-standing canonical-Rust idiom hazard.**
+
+Pre-fix: only the SHORTHAND `&self` / `self` form got
+`Self` → `<type_name>` substitution (v0.3.111 return-type fix).
+The EXPLICIT form `self: &Self` / `other: &Self` left "Self" as
+a literal type string after parse, so downstream `self.field`
+field access then failed — `expr_struct_type` couldn't map
+"Self" to a known struct, surfacing as the generic "cannot
+resolve field access type" panic.
+
+Post-fix: parse_impl_block substitutes `Self` / `&Self` /
+`&mut Self` in the EXPLICIT param-type form too, mirroring the
+existing v0.3.111 return-type substitution. Both forms now lower
+identically.
+
+```nucleor
+struct Counter { n: i64 }
+impl Counter {
+    fn new() -> Self {              // v0.3.111: Self → Counter
+        return Counter { n: 0 };
+    }
+    fn add(self: &Self, x: i64) -> i64 {   // v0.6.93: &Self → &Counter
+        return self.n + x;          // ← pre-fix: "cannot resolve .n"
+    }
+}
+```
+
+### Coverage
+
+| Param shape | Pre-v0.6.93 | Post-fix |
+|---|---|---|
+| `&self` (shorthand) | ✅ Self → type_name | unchanged |
+| `&mut self` (shorthand) | ✅ Self → type_name | unchanged |
+| `self` (shorthand) | ✅ Self → type_name | unchanged |
+| `self: &Self` (explicit) | ❌ "Self" verbatim | ✅ Self → type_name |
+| `self: &mut Self` (explicit) | ❌ "Self" verbatim | ✅ Self → type_name |
+| `self: Self` (explicit) | ❌ "Self" verbatim | ✅ Self → type_name |
+| `other: &Self` (non-self param) | ❌ "Self" verbatim | ✅ Self → type_name |
+
+The non-self param case (e.g. `fn merge(self: &Self, other: &Self)`)
+is also fixed transparently — the substitution applies to any
+param's type string, not just `self`.
+
+### Fixed-point + perf
+
+Cold 3.87s. Peak 330MB. Round-2 fixed-point md5
+`17b336f9e5bf4fb74d4f3c7413157f36`. The new check is 3 string-eq
+probes on the parsed param type string — runs only inside impl
+block bodies. Variance from system load.
+
+### Fixture
+
+`tests/fixtures/v0693_explicit_self_param_type.nr` — exercises
+`Counter::new() -> Self`, `add(self: &Self, x)`, and
+`replace(self: &mut Self, n)` shapes.
+
 ## [0.6.92] — 2026-05-03
 
 **Defensive halt — canonical Rust `impl Trait` type position
