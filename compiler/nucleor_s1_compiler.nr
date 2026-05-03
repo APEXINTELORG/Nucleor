@@ -17984,7 +17984,21 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                         if str_len(ge_v421) > 1 && str_char_at(ge_v421, 0) == 63 {
                             if str_len(current_param_v421) > 0 && str_eq(current_param_v421, expected_t) == 1 {
                                 let bound_v421: str = str_substring(ge_v421, 1, str_len(ge_v421));
-                                if str_len(bound_v421) > 0 && type_implements_trait(pool, prog, actual_t, bound_v421) == 0 {
+                                // v0.7.0: skip Rust marker traits at the
+                                // bound-impl check too — they're no-ops
+                                // under the i64-everywhere ABI (sister
+                                // edit at line ~19417 for the unknown-
+                                // trait check).
+                                let mut v700_marker: i64 = 0;
+                                if str_eq(bound_v421, "Sized") == 1 { v700_marker = 1; };
+                                if str_eq(bound_v421, "Send") == 1 { v700_marker = 1; };
+                                if str_eq(bound_v421, "Sync") == 1 { v700_marker = 1; };
+                                if str_eq(bound_v421, "Unpin") == 1 { v700_marker = 1; };
+                                if str_eq(bound_v421, "RefUnwindSafe") == 1 { v700_marker = 1; };
+                                if str_eq(bound_v421, "UnwindSafe") == 1 { v700_marker = 1; };
+                                if str_eq(bound_v421, "Copy") == 1 { v700_marker = 1; };
+                                if str_eq(bound_v421, "Clone") == 1 { v700_marker = 1; };
+                                if v700_marker == 0 && str_len(bound_v421) > 0 && type_implements_trait(pool, prog, actual_t, bound_v421) == 0 {
                                     let key_v421: str = str_concat(current_param_v421, str_concat("|", str_concat(bound_v421, str_concat("|", actual_t))));
                                     if priv_string_vec_contains(bound_seen_v421, key_v421) == 0 {
                                         bound_seen_v421.push(key_v421);
@@ -19416,20 +19430,42 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
                     let tb_entry: str = list_get(pool, tb_gparams, tb_p);
                     if str_len(tb_entry) > 1 && str_char_at(tb_entry, 0) == 63 {
                         let tb_trait: str = str_substring(tb_entry, 1, str_len(tb_entry));
-                        // Walk prog for matching kind==43 trait decl.
-                        let mut found_v130: i64 = 0;
-                        let mut walk_v130: i64 = 0;
-                        while walk_v130 < cnt && found_v130 == 0 {
-                            let walk_nid: i64 = list_get(pool, prog, walk_v130);
-                            if node_kind(pool, walk_nid) == 43
-                                && str_eq(node_field(pool, walk_nid, 1), tb_trait) == 1 {
-                                found_v130 = 1;
+                        // v0.7.0 (canonical-Rust acceptance): Rust marker
+                        // traits `Sized`, `Send`, `Sync`, `Unpin`,
+                        // `RefUnwindSafe`, `UnwindSafe` are no-ops under
+                        // Nucleor's i64-everywhere ABI (all values pass
+                        // as i64, which is Sized + Send + Sync at the
+                        // ABI level). Pre-fix bounds like `<T: ?Sized>`
+                        // and `<T: Send>` fired TYP-019 because the
+                        // marker traits aren't declared. Accept them
+                        // silently — adopters porting Rust generic-fn
+                        // code with these standard bounds get a clean
+                        // build instead of "unknown trait" diags.
+                        let mut tb_marker: i64 = 0;
+                        if str_eq(tb_trait, "Sized") == 1 { tb_marker = 1; };
+                        if str_eq(tb_trait, "Send") == 1 { tb_marker = 1; };
+                        if str_eq(tb_trait, "Sync") == 1 { tb_marker = 1; };
+                        if str_eq(tb_trait, "Unpin") == 1 { tb_marker = 1; };
+                        if str_eq(tb_trait, "RefUnwindSafe") == 1 { tb_marker = 1; };
+                        if str_eq(tb_trait, "UnwindSafe") == 1 { tb_marker = 1; };
+                        if str_eq(tb_trait, "Copy") == 1 { tb_marker = 1; };
+                        if str_eq(tb_trait, "Clone") == 1 { tb_marker = 1; };
+                        if tb_marker == 0 {
+                            // Walk prog for matching kind==43 trait decl.
+                            let mut found_v130: i64 = 0;
+                            let mut walk_v130: i64 = 0;
+                            while walk_v130 < cnt && found_v130 == 0 {
+                                let walk_nid: i64 = list_get(pool, prog, walk_v130);
+                                if node_kind(pool, walk_nid) == 43
+                                    && str_eq(node_field(pool, walk_nid, 1), tb_trait) == 1 {
+                                    found_v130 = 1;
+                                };
+                                walk_v130 = walk_v130 + 1;
                             };
-                            walk_v130 = walk_v130 + 1;
-                        };
-                        if found_v130 == 0 {
-                            let t19_msg: str = str_concat("trait bound `<T: ", str_concat(tb_trait, str_concat(">` on fn `", str_concat(tb_fname, str_concat("` references unknown trait `", str_concat(tb_trait, "`. Pre-v0.4.130 the bound was parse-skipped and the typo silently compiled. Define the trait, fix the spelling, or import the rod that declares it."))))));
-                            type_diag(diags, source, tb_fname, tb_fname, "TYP-019", t19_msg);
+                            if found_v130 == 0 {
+                                let t19_msg: str = str_concat("trait bound `<T: ", str_concat(tb_trait, str_concat(">` on fn `", str_concat(tb_fname, str_concat("` references unknown trait `", str_concat(tb_trait, "`. Pre-v0.4.130 the bound was parse-skipped and the typo silently compiled. Define the trait, fix the spelling, or import the rod that declares it."))))));
+                                type_diag(diags, source, tb_fname, tb_fname, "TYP-019", t19_msg);
+                            };
                         };
                     };
                     tb_p = tb_p + 1;

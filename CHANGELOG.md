@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] — 2026-05-03
+
+**Major version boundary — Rust marker traits (`Sized`, `Send`,
+`Sync`, `Unpin`, `RefUnwindSafe`, `UnwindSafe`, `Copy`, `Clone`)
+now accepted as no-ops in trait bounds. Adopters porting Rust
+generic-fn code with these standard bounds get a clean build.**
+
+Pre-fix: bounds like `<T: ?Sized>`, `<T: Send + Sync>`,
+`<T: Copy + Clone>` fired TYP-019 (unknown trait) at the bound-
+declaration check OR TYP-025 (type doesn't impl trait) at the
+call-site impl-check, because Nucleor's i64-everywhere ABI
+doesn't declare these as traits and no struct has explicit impls.
+
+Post-fix: TWO sister edits in compiler/nucleor_s1_compiler.nr:
+
+1. **TYP-019 bound-check (line ~19417)**: skips the unknown-trait
+   diag when the bound name is one of the 8 standard markers.
+2. **TYP-025 impl-check (line ~17985)**: skips the impl-check
+   when the bound name is one of the 8 standard markers.
+
+```nucleor
+// Pre-fix:
+fn worker<T: Send + Sync>(t: T) -> i32 { ... }   // ← TYP-019/-025
+fn boxed<T: ?Sized>(t: &T) -> i32 { ... }        // ← TYP-019
+
+// Post-fix: clean compile.
+fn worker<T: Send + Sync>(t: T) -> i32 { return 0; }
+fn boxed<T: ?Sized>(t: &T) -> i32 { return 1; }
+fn copy_clone<T: Copy + Clone>(t: T) -> i32 { return 2; }
+```
+
+### Why no-op is correct under the i64-everywhere ABI
+
+Nucleor passes every value as i64 (heap pointer or primitive bit
+pattern). At the ABI level:
+- All values are **Sized** (8-byte i64).
+- All values are **Send/Sync** (the runtime is single-threaded
+  by default; threading primitives are explicit).
+- **Unpin / *UnwindSafe**: irrelevant under the i64 ABI.
+- **Copy/Clone**: i64-pass-by-value is implicit-copy at the ABI
+  level; user types get explicit `<Type>__derived_eq` / clone
+  helpers via v0.6.84 derive(PartialEq) and follow-on derives.
+
+Adopters porting Rust generic-fn code can keep these bounds
+verbatim instead of stripping them; no semantic change since
+none of these markers were enforced.
+
+### Forward-roadmap
+
+When real threading lands (v1.x), `Send` / `Sync` may gain
+enforcement. Until then, accepting them as no-ops is correct
+under the current single-threaded execution model.
+
+### Fixed-point + perf
+
+Cold 3.60s. Peak 317MB. Round-2 fixed-point md5
+`0d956288fd7d1dcf6d2921e56f4222d6`.
+
+### Fixture
+
+`tests/fixtures/v0700_marker_traits_no_op.nr` — exercises
+`Send + Sync`, `?Sized`, `Copy + Clone` bounds.
+
 ## [0.6.99] — 2026-05-03
 
 **Defensive halt — canonical Rust associated types in traits
