@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.65] — 2026-05-03
+
+**RFC-0034 gap 3 — struct CT-params parse halt. All 3 RFC-0034
+gaps now closed.**
+
+Closes gap 3 (final remaining gap) of probe finding `2026-05-02-
+rfc0034-ct-param-first-pass-residual-edges`. Pre-fix
+`struct Buf[N: usize] { data: Vec<i64> }` (canonical RFC-0034
+struct-side CT-param) rejected with wrong-class
+`error[NR020]: parse error ... expected '{', got '['`. The
+fn-decl precedent at `skip_compile_time_params` ships, but
+parse_struct_decl was on the legacy skipper.
+
+### Fix
+
+`parse_struct_decl` (~line 2978): when the next token after the
+struct name is `[` (token 54), halt with a clean diag pointing
+at the workaround (drop the `[N]` from the struct decl —
+RFC-0034 first-pass erases CT-args at lower-time anyway).
+Forward-roadmap: struct-side CT-param substrate is the v1
+RFC-0034 ship.
+
+### RFC-0034 gap status (all closed)
+
+- Gap 1 (explicit CT-arg call SEGFAULT): v0.6.63
+- Gap 2 (negative usize default silent-accept): v0.6.56 (helper)
+- Gap 3 (struct CT-params NR020): v0.6.65 [this ship]
+
+### Verify
+
+- New regression-lock:
+  `tests/err/err_rfc0034_struct_ct_params.nr` (auto-walker).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.64] — 2026-05-03
 
 **NUM-021 gap 1 — u64 const overflow now caught at compile time.**

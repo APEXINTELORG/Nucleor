@@ -2974,6 +2974,21 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points after 'struct', at the name
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = pos + 1;
+    // v0.6.65 (probe finding 2026-05-02-rfc0034-ct-param-first-pass-
+    // residual-edges, gap 3): canonical RFC-0034 form `struct Buf[N:
+    // usize] { data: Vec<i64> }` (CT-param on a struct decl) pre-fix
+    // saw `[` (token 54) where the parser expected `{` or `<`,
+    // surfacing as wrong-class `error[NR020]: parse error at byte
+    // 10: expected '{', got '['`. The fn-decl precedent at line ~970
+    // (`skip_compile_time_params`) ships, but parse_struct_decl is on
+    // the legacy skipper. Halt at parse_struct_decl with a clean diag
+    // pointing at the workaround (drop the `[N]` from the struct decl
+    // — RFC-0034 first-pass erases CT-args at lower-time, so the
+    // param has no observable effect on the unspecialized struct).
+    if pk(tokens, cp) == 54 {
+        print("ERROR: RFC-0034 compile-time `[]` parameters on struct declarations (e.g. `struct Buf[N: usize] { data: Vec<i64> }`) are not yet supported in Nucleor's first-pass `[]` parser. Pre-v0.6.65 the parser rejected with `error[NR020]: parse error ... expected '{', got '['` — wrong-class. Workaround: drop the `[N]` from the struct decl (RFC-0034 first-pass erases CT-args at lower-time anyway, so the param has no observable effect on the unspecialized struct). Tracked for forward-roadmap (struct-side CT-param substrate is the v1 RFC-0034 ship).");
+        panic("nucleor: struct CT-params not yet supported (see ERROR diagnostic above)");
+    };
     // Optional generic params: struct Name<T, U> { ... }
     let mut gparams: i64 = mk_list(pool, Vec::new());
     if pk(tokens, cp) == 32 {
