@@ -777,9 +777,14 @@ fn tok_val_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_val(tok_at(tokens,
 // =====================================================
 // PARSER (from T29, unchanged)
 // =====================================================
+extern fn nuc_node_kind(pool: Vec<i32>, nid: i64) -> i64;
+extern fn nuc_node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64;
+extern fn nuc_list_len(pool: Vec<i32>, lid: i64) -> i64;
+extern fn nuc_list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64;
+
 fn node_add(pool: Vec<i32>, nd: Vec<i32>) -> i64 { let nid: i64 = vec_len(pool); pool.push(nd); return nid; }
-fn node_kind(pool: Vec<i32>, nid: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, nid); return vec_get(nd, 0); }
-fn node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, nid); return vec_get(nd, idx); }
+fn node_kind(pool: Vec<i32>, nid: i64) -> i64 { return nuc_node_kind(pool, nid); }
+fn node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64 { return nuc_node_field(pool, nid, idx); }
 fn node_span_sentinel() -> i64 { return 0 - 873521; }
 fn node_set_span(pool: Vec<i32>, nid: i64, byte_off: i64) -> i64 {
     if nid < 0 || nid >= vec_len(pool) { return nid; };
@@ -808,9 +813,8 @@ fn mk_list(pool: Vec<i32>, items: Vec<i32>) -> i64 {
     let mut i: i64 = 0; while i < vec_len(items) { n.push(vec_get(items, i)); i = i + 1; };
     return node_add(pool, n);
 }
-fn list_len(pool: Vec<i32>, lid: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, lid); return vec_len(nd) - 1; }
-fn list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, lid); return vec_get(nd, idx + 1); }
-
+fn list_len(pool: Vec<i32>, lid: i64) -> i64 { return nuc_list_len(pool, lid); }
+fn list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64 { return nuc_list_get(pool, lid, idx); }
 fn free_token_vec(tokens: Vec<i32>) -> i64 {
     let mut i: i64 = 0;
     while i < vec_len(tokens) {

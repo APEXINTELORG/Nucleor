@@ -2239,6 +2239,43 @@ static int _vec_oob_lenient(void) {
     return g_vec_oob_mode_cached == 2;
 }
 
+static inline long long __nucleor_vec_direct_checked(NVec *v, long long i, const char *what) {
+    if (!v) return 0;
+    if (i < 0 || i >= v->len) {
+        if (_vec_oob_lenient()) return 0;
+        fprintf(stderr, "PANIC: %s OOB: index %lld, len %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                what, i, (long long)v->len);
+        fflush(stderr);
+        exit(1);
+    }
+    return v->data[(int)i];
+}
+
+long long nuc_node_kind(long long pool_cell, long long nid) {
+    NVec *pool = (NVec *)(intptr_t)pool_cell;
+    NVec *nd = (NVec *)(intptr_t)__nucleor_vec_direct_checked(pool, nid, "node_kind pool");
+    return __nucleor_vec_direct_checked(nd, 0, "node_kind node");
+}
+
+long long nuc_node_field(long long pool_cell, long long nid, long long idx) {
+    NVec *pool = (NVec *)(intptr_t)pool_cell;
+    NVec *nd = (NVec *)(intptr_t)__nucleor_vec_direct_checked(pool, nid, "node_field pool");
+    return __nucleor_vec_direct_checked(nd, idx, "node_field node");
+}
+
+long long nuc_list_len(long long pool_cell, long long lid) {
+    NVec *pool = (NVec *)(intptr_t)pool_cell;
+    NVec *nd = (NVec *)(intptr_t)__nucleor_vec_direct_checked(pool, lid, "list_len pool");
+    if (!nd) return -1;
+    return (long long)nd->len - 1;
+}
+
+long long nuc_list_get(long long pool_cell, long long lid, long long idx) {
+    NVec *pool = (NVec *)(intptr_t)pool_cell;
+    NVec *nd = (NVec *)(intptr_t)__nucleor_vec_direct_checked(pool, lid, "list_get pool");
+    return __nucleor_vec_direct_checked(nd, idx + 1, "list_get list");
+}
+
 long long __nucleor_vec_get(NVec *v, long long i) {
     NUC_PROFILE_INC(g_p_vec_get);
     if (!v) return 0;
