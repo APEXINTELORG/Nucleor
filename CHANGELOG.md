@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] — 2026-05-03
+
+**Defensive halt extension — canonical Rust iterator adapter
+idioms (`.rev()`, `.enumerate()`, `.zip()`, `.windows()`,
+`.chunks()`, `.flat_map()`, `.flatten()`, `.peekable()`,
+`.fuse()`) now produce clean halts with per-idiom index-based-
+loop workaround pointers.**
+
+Pre-fix: `for x in v.iter().rev() { ... }` and similar iterator
+adapter chains fell through every receiver-typed kind-8 dispatch
+and the catch-all synthesized `vec_rev(receiver)` — failing late
+at clang link with the wrong-class `error[TYP-005]: receiver
+type 'Vec<T>' has no method '.rev()'`.
+
+Post-fix: extends the v0.6.82 `v082_idiom` set with 9 more
+iterator adapters and per-idiom workaround pointers:
+
+| Method | Workaround |
+|---|---|
+| `.rev()` | reverse-index loop: `let mut i = vec_len(&v) - 1; while i >= 0 { ...; i = i - 1; }` |
+| `.enumerate()` | manual counter: `let mut idx = 0; for x in &v { ...idx, x; idx = idx + 1; }` |
+| `.zip()` | parallel-index loop over both Vecs |
+| `.windows()` / `.chunks()` | sliding-window with explicit stride |
+| `.flat_map()` / `.flatten()` | nested for-loops + push to accumulator |
+| `.peekable()` / `.fuse()` | index-based loop with sentinel checks |
+
+Forward-roadmap: full iterator-trait infrastructure is a v1.x
+ship — needs (a) generic Iterator<Item> trait, (b) Iterator
+adapter struct family, (c) trait dispatch through nested generic
+returns. Sister to V1.5 (length-tagged str ABI) and V1.7 (UFCS
+per-trait disambiguation).
+
+```nucleor
+// Pre-fix:
+for x in v.iter().rev() { ... }                  // ← TYP-005 wrong-class
+
+// Post-fix workaround (reverse-index loop):
+let mut i: i64 = vec_len(&v) - 1;
+while i >= 0 {
+    let x: i64 = vec_get(&v, i);
+    print_int(x as i32);
+    i = i - 1;
+}
+```
+
+### Fixed-point + perf
+
+Cold 3.58s. Peak 322MB. Round-2 fixed-point md5
+`52ff5246383e7c1ec22f174e949c42c3`.
+
+### Fixture
+
+`tests/fixtures/v0701_iterator_idioms_clean_halt.nr` —
+negative fixture for `.iter().rev()`.
+
 ## [0.7.0] — 2026-05-03
 
 **Major version boundary — Rust marker traits (`Sized`, `Send`,

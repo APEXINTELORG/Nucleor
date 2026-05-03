@@ -22270,7 +22270,16 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 || str_eq(mname, "to_string") == 1
                                 || str_eq(mname, "to_owned") == 1
                                 || str_eq(mname, "to_vec") == 1
-                                || str_eq(mname, "iter_mut") == 1 { 1 } else { 0 };
+                                || str_eq(mname, "iter_mut") == 1
+                                || str_eq(mname, "rev") == 1
+                                || str_eq(mname, "enumerate") == 1
+                                || str_eq(mname, "zip") == 1
+                                || str_eq(mname, "windows") == 1
+                                || str_eq(mname, "chunks") == 1
+                                || str_eq(mname, "flat_map") == 1
+                                || str_eq(mname, "flatten") == 1
+                                || str_eq(mname, "peekable") == 1
+                                || str_eq(mname, "fuse") == 1 { 1 } else { 0 };
                             if v082_idiom == 1 {
                                 let v082_workaround: str = if str_eq(mname, "into") == 1 {
                                     "no v0.6 conversion path; the From/Into trait family is not yet shipped — use an explicit named conversion fn (e.g. `i64_to_str(x)` for numeric→str)"
@@ -22280,6 +22289,16 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                     "Nucleor's i64-everywhere ABI passes most values by value already; `let owned: T = original;` is the explicit copy form. The ToOwned trait family is not yet shipped"
                                 } else if str_eq(mname, "to_vec") == 1 {
                                     "build the Vec explicitly via `let mut v: Vec<T> = Vec::new(); for item in src { v.push(item); }` or use the `vec![...]` macro form for literals"
+                                } else if str_eq(mname, "rev") == 1 {
+                                    "iterate the Vec in reverse with an index-based loop — `let mut i: i64 = vec_len(&v) - 1; while i >= 0 { let item = vec_get(&v, i); ...; i = i - 1; }`. For in-place reversal use `.reverse()` (already supported)"
+                                } else if str_eq(mname, "enumerate") == 1 {
+                                    "iterate with a manual counter — `let mut idx: i64 = 0; for item in &v { ...idx, item...; idx = idx + 1; }`"
+                                } else if str_eq(mname, "zip") == 1 {
+                                    "iterate by index over both — `let n = vec_len(&a); let mut i: i64 = 0; while i < n { let av = vec_get(&a, i); let bv = vec_get(&b, i); ...; i = i + 1; }`"
+                                } else if str_eq(mname, "windows") == 1 || str_eq(mname, "chunks") == 1 {
+                                    "manual sliding-window — `let mut i: i64 = 0; while i + WIN <= vec_len(&v) { let chunk = (vec_get(&v, i), vec_get(&v, i+1), ...); ...; i = i + STRIDE; }`"
+                                } else if str_eq(mname, "flat_map") == 1 || str_eq(mname, "flatten") == 1 {
+                                    "fold + extend manually — `let mut out: Vec<T> = Vec::new(); for inner in &outer { for item in &inner { out.push(item); } }`"
                                 } else {
                                     "use a `while i < vec_len(&v) { let item: T = vec_get(&v, i); ...; i = i + 1; }` loop with index-based access — Nucleor doesn't auto-derive iterator interior mutability today"
                                 };
