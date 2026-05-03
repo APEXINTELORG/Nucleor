@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.57] — 2026-05-03
+
+**`break <value>` parse halt — closes the break-with-value row of
+the rust-syntax-translation-fidelity audit.**
+
+Pre-fix `let r = loop { break 42; };` silently dropped the value:
+`break` parsed bare (no value), then `42;` became a separate stmt
+that either tail-expr'd the loop body (wrong semantics) or was
+dropped. The downstream compile path then halted with the wrong-
+class `error[NR024]: 'break' outside any loop` even when the
+break IS inside a loop — the value-form confused the lookahead.
+
+### Fix
+
+`parse_stmts` (~line 2666): when `break` (token 18) is followed
+by anything other than `;`, `}`, EOF, or `)`, halt with a clean
+diag pointing at the workaround (mutable outer variable). Forward-
+roadmap: full break-with-value lowering is the v1 loop-as-
+expression ship.
+
+### Adopter migration
+
+```nucleor
+// Pre-fix (silent value drop):
+let r: i64 = loop { break 42; };
+// → wrong-class NR024 + value lost
+
+// v0.6.57 workaround:
+let mut r: i64 = 0;
+loop {
+    // ... compute or check ...
+    r = 42; break;
+};
+return r as i32;
+```
+
+### Verify
+
+- New regression-lock: `tests/err/err_break_with_value.nr` (auto-walker).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.56] — 2026-05-03
 
 **Two batched closures — `unreachable!()` macro + RFC-0034 gap 2.**

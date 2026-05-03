@@ -2663,7 +2663,27 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // for the rationale (silent-miscompute hazard for user fns named
     // `scope` or `spawn`).
     if tt == 16 { return parse_return_stmt(tokens, pos + 1, pool); };
-    if tt == 18 { let mut cp: i64 = pos + 1; if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, mk2(pool, 26, 0)); };
+    if tt == 18 {
+        let mut cp: i64 = pos + 1;
+        // v0.6.57 (probe finding 2026-05-01-rust-syntax-translation-
+        // fidelity-audit, break-with-value row): canonical Rust
+        // `let r = loop { break 42; };` form pre-fix silently dropped
+        // the value — `break` parsed bare (no value), then `42;`
+        // became a separate stmt that either tail-expr'd the loop
+        // body (wrong semantics) or was dropped. Currently halts with
+        // the wrong-class NR024 (`'break' outside any loop` — even
+        // when the break IS inside a loop because the value-form
+        // confused the lookahead). Halt at parse with a clean diag
+        // pointing at the workaround. Forward-roadmap: full break-
+        // with-value lowering is the v1 loop-as-expression ship.
+        let next_tok: i64 = pk(tokens, cp);
+        if next_tok != 43 && next_tok != 53 && next_tok != 0 && next_tok != 41 {
+            print("ERROR: `break` with a value (`break <expr>;` or `break <expr>` as last stmt of a loop body) is not yet supported in Nucleor. Pre-v0.6.57 the value was silently dropped — `break` parsed bare and the `<expr>` became a separate stmt, either tail-expr'ing the loop body (wrong semantics) or being dropped. Workaround: bind the result via a mutable outer variable (`let mut r: i64 = 0; loop { ... r = 42; break; }`); the loop-as-expression form will land in a future RFC.");
+            panic("nucleor: break-with-value not yet supported (see ERROR diagnostic above)");
+        };
+        if next_tok == 43 { cp = cp + 1; };
+        return pr(cp, mk2(pool, 26, 0));
+    };
     if tt == 19 { let mut cp: i64 = pos + 1; if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, mk2(pool, 27, 0)); };
     let mut er: Vec<i32> = parse_expr(tokens, pos, pool);
     let mut cp: i64 = pr_pos(er);
