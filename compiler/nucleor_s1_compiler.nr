@@ -2020,6 +2020,24 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         };
         if pk(tokens, cp2) == 46 {
             let qname: i64 = pkv(tokens, cp2 + 1);
+            // v0.6.96 (defensive halt): canonical Rust stdlib path
+            // `std::mem::swap(...)`, `std::cmp::min(...)`,
+            // `std::collections::HashMap::new()`, etc. (3+ `::`-
+            // separated path components) pre-fix saw the second `::`
+            // after the first qname and fell through the kind-12 path,
+            // returning a partial AST that desync'd with the remaining
+            // `::<rest>` tokens. The downstream parser then surfaced
+            // wrong-class `NR020: parse_primary cannot start an
+            // expression at token kind 46`. Halt cleanly with a
+            // workaround pointer for known Rust stdlib namespaces
+            // (`std`, `core`, `alloc`).
+            if pk(tokens, cp2 + 2) == 46 {
+                let v096_top: str = name;
+                if str_eq(v096_top, "std") == 1 || str_eq(v096_top, "core") == 1 || str_eq(v096_top, "alloc") == 1 {
+                    print(str_concat("ERROR: Rust stdlib namespace path `", str_concat(v096_top, str_concat("::", str_concat(qname, "::...(...)` is not yet supported in Nucleor. Pre-v0.6.96 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 46` after the parser desync'd on the second `::`. Workaround: most stdlib helpers have direct Nucleor equivalents — for `std::mem::swap(&mut a, &mut b)`, write the 3-line tmp swap (`let t = a; a = b; b = t;`); for `std::cmp::min/max`, use `if a < b { a } else { b }`; for collection ctors, use the unqualified Nucleor names (`Vec::new()`, `HashMap::new()`, `String::new()`). Tracked for forward-roadmap (Rust-stdlib namespace shim or partial-path-resolver).")))));
+                    panic(str_concat("nucleor: Rust stdlib path `", str_concat(v096_top, str_concat("::", str_concat(qname, "::..` not yet supported (see ERROR diagnostic above)")))));
+                };
+            };
             if pk(tokens, cp2 + 2) == 50 {
                 let mut ar: Vec<i32> = parse_args(tokens, cp2 + 3, pool);
                 return pr(pr_pos(ar), mk4(pool, 12, name, qname, pr_val(ar)));
