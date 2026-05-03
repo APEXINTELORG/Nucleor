@@ -5,6 +5,88 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.54] — 2026-05-03
+
+**Perf-slice integration from `Nucleor_OSS_v631_perf_slice` —
+huge cold + memory wins.**
+
+User flagged the v0.6.31 perf slice was never integrated into
+main (slice repo at v0.6.31, main shipped 23 versions past
+without picking up the perf changes). Cherry-picked the impactful
+optimizations into v0.6.54.
+
+### Cherry-picked optimizations
+
+1. **`ctr_next` slot-0 storage** (vs. growing vector).
+   `compiler/nucleor_s1_compiler.nr:7628`. Was: push value+1 onto
+   the vector each call (vector grew to ~tens of thousands of
+   entries during compile). Now: store/update slot 0 in place.
+   Eliminates the vec push per register/label allocation.
+
+2. **`tprof_new` early-return when disabled + `tprof_enabled`
+   constant return**. `compiler/nucleor_s1_compiler.nr:15355-15368`.
+   Disabled-path tprof_new returns empty vec immediately;
+   tprof_enabled returns 1 (or 0 if vec empty) without vec_get.
+   Hot-path bookkeeping eliminated when profiling is off (the
+   default).
+
+3. **Shared `fn_return_map`** (vs. per-fn `__fnret_*` /
+   `__fnfulltype_*` injection).
+   `compiler/nucleor_s1_compiler.nr:7635-7650, 21601-21625, 22890,
+   22906, 25143-25154`. Was: every lower_fn call ran
+   `populate_fn_returns_in_sym(pool, fn_decls, sym)` which set
+   ~2 entries per declared fn × N fns = O(N²) sym_set calls per
+   compile. Now: build the fn_return_map once per program, pass to
+   every lower_fn, sym_get falls back to the shared map for
+   `__fnret_*` / `__fnfulltype_*` keys when not present in the
+   per-fn sym. THIS is the big mem win.
+
+4. **`type_dynamic_helper` first-char dispatch** (vs. 41-entry
+   linear OR chain). `compiler/nucleor_s1_compiler.nr:15713-15810`.
+   Closes the substantive perf finding
+   `2026-04-30-needs-str-arg0-linear-or-chain-length` (was
+   doc-only in v0.6.50). Per kind-7 type-check, was ~41
+   `str_eq` byte-compares; now ~1 first-char read + ~1-12 bucketed
+   compares.
+
+5. **`type_arg_needs_walk` skip for simple args**.
+   `compiler/nucleor_s1_compiler.nr:15828`. Already present in
+   main; the kind-7 dynamic-helper branch now skips type_expr walk
+   for kind-1/2/3/71/72/73 args (literals + var refs).
+
+6. **`type_expr` kind-3 (var-ref) tprof skip when disabled**.
+   `compiler/nucleor_s1_compiler.nr:16050-16066`. Wraps the
+   tprof_start/tenv_get/tprof_mark trio in a `vec_len(tprof) > 0`
+   guard so the disabled path is just a single tenv_get.
+
+### Perf measurement
+
+3 cold-cache samples each:
+
+| Metric | v0.6.53 baseline | v0.6.54 perf-slice | Improvement |
+|---|---|---|---|
+| cold | 5.04s (median) | **3.08s** (median) | **-39%** |
+| hot | 0.25s | 0.25s | unchanged |
+| peak_mem | 618 MB | **316 MB** | **-49%** |
+
+Comfortably exceeds the slice's claimed 3.53s/293MB target on
+cold (faster); peak_mem within 8% of the target.
+
+### Verify
+
+- T3.141 v0.4.95 var-divisor-zero runtime-panic test updated:
+  the v0.6.50 + v0.6.53 const-tracker now catches `let z=0; let
+  q=10/z` at COMPILE time with NUM-021 (strictly better than the
+  v0.4.95 runtime panic — catches earlier). The v0.4.95 runtime
+  panic_div_i64 path still fires for non-const-trackable divisors
+  (input-driven). Test now asserts NUM-021 at compile, fixture
+  comment updated.
+- Closes the substantive perf finding `2026-04-30-needs-str-arg0-
+  linear-or-chain-length` (was doc-only in v0.6.50; now actually
+  shipped via first-char dispatch).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+
 ## [0.6.53] — 2026-05-03
 
 **Three batched closures: NUM-021 gap 3 + tuple-struct halt +

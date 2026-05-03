@@ -2003,17 +2003,18 @@ t443_recursive_debug() {
 t441_var_div_zero_runtime_panic() {
     # v0.4.95 — variable-divisor zero now panics with clean message
     # (was silent SIGFPE / exit 127).
-    "$BIN" build "tests/fixtures/repro_v95_var_div_by_zero_runtime_panic.nr" -o "_t441_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    local rc=$?
-    [ "$rc" = "0" ] || return 1
-    local exe="target/_t441_check"
-    [ -x "$exe.exe" ] && exe="$exe.exe"
-    [ -x "$exe" ] || return 1
+    # v0.6.53 NUM-021 gap 3 + v0.6.50 gap 4: when the divisor is a
+    # const-tracked let-binding (`let z: i64 = 0; let q: i64 = 10 / z;`),
+    # the const-fold path catches the div-by-zero at COMPILE time with
+    # NUM-021 (strictly better than the v0.4.95 runtime panic — catches
+    # earlier). The v0.4.95 runtime path still fires for non-trackable
+    # divisors (e.g. read from input). Test updated to verify the new
+    # compile-time catch.
     local out
-    out=$("$exe" 2>&1)
-    local rt_rc=$?
-    [ "$rt_rc" != "0" ] || return 1
-    echo "$out" | grep -q "i64 division by zero" || return 1
+    out=$("$BIN" build "tests/fixtures/repro_v95_var_div_by_zero_runtime_panic.nr" -o "_t441_check" --no-cache 2>&1)
+    local rc=$?
+    [ "$rc" != "0" ] || return 1
+    echo "$out" | grep -q "NUM-021" || return 1
     return 0
 }
 

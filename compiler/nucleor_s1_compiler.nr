@@ -7625,9 +7625,25 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
 // LOWERING (from T29, extended for STR_LIT, METHOD, QUAL_CALL)
 // =====================================================
 fn ctr_new() -> Vec<i32> { let mut c: Vec<i32> = Vec::new(); c.push(0); return c; }
-fn ctr_next(c: Vec<i32>) -> i64 { let v: i64 = vec_get(c, vec_len(c) - 1); c.push(v + 1); return v; }
+fn ctr_next(c: Vec<i32>) -> i64 { let v: i64 = vec_get(c, 0); vec_set(c, 0, v + 1); return v; }
 fn sym_new() -> Vec<i32> { return Vec::new(); }
 fn sym_set(s: Vec<i32>, name: str, reg: i64) -> i64 { s.push(name); s.push(reg); return 0; }
+
+// v0.6.54 perf-slice: shared fn-return-type lookup map. Built once
+// per program; sym_get falls back here for `__fnret_*` and
+// `__fnfulltype_*` keys instead of having every function-local sym
+// pre-populate them. Cuts per-fn sym_set workload (was ~2 entries
+// per declared fn × N fns = 2*N^2 sym_set calls; now ~1 sym_set
+// per fn-body).
+fn fn_return_map_get(m: Vec<i32>, key: str) -> i64 {
+    let n: i64 = vec_len(m);
+    let mut i: i64 = n - 2;
+    while i >= 0 {
+        if str_eq(vec_get(m, i), key) == 1 { return vec_get(m, i + 1); };
+        i = i - 2;
+    };
+    return 0 - 1;
+}
 
 // v0.4.3 Phase B redo — hash-backed sym_get on a single warm-cache
 // hashmap (one allocation total in the runtime; see nucleor_llvm_rt.c
@@ -7672,13 +7688,25 @@ fn sym_set(s: Vec<i32>, name: str, reg: i64) -> i64 { s.push(name); s.push(reg);
 fn sym_get(s: Vec<i32>, name: str) -> i64 {
     let n: i64 = vec_len(s);
     if n >= 2 && str_eq(vec_get(s, n - 2), name) == 1 { return vec_get(s, n - 1); };
-    if n < 4 { return 0 - 1; };
+    if n < 4 {
+        // v0.6.54 perf-slice: fall back to shared fn-return-map for
+        // __fnret_* / __fnfulltype_* keys.
+        if str_starts_with(name, "__fnret_") == 1 || str_starts_with(name, "__fnfulltype_") == 1 {
+            let ret_map0: i64 = sym_get(s, "__fn_return_map");
+            if ret_map0 >= 0 { return fn_return_map_get(ret_map0, name); };
+        };
+        return 0 - 1;
+    };
     // Size-gated warm hash path. Below threshold, linear is faster
     // (cache-friendly + no warm-cache touch). Threshold 64 entries
     // = 32 pairs.
     if n < 64 {
         let mut j: i64 = n - 4;
         while j >= 0 { if str_eq(vec_get(s, j), name) == 1 { return vec_get(s, j + 1); }; j = j - 2; };
+        if str_starts_with(name, "__fnret_") == 1 || str_starts_with(name, "__fnfulltype_") == 1 {
+            let ret_map1: i64 = sym_get(s, "__fn_return_map");
+            if ret_map1 >= 0 { return fn_return_map_get(ret_map1, name); };
+        };
         return 0 - 1;
     };
     // Large sym: warm hash path. The runtime _create returns the
@@ -7694,6 +7722,10 @@ fn sym_get(s: Vec<i32>, name: str) -> i64 {
     };
     __nucleor_sym_aux_set_built_at(s, n);
     if __nucleor_hashmap_contains(h, name) == 1 { return __nucleor_hashmap_get(h, name); };
+    if str_starts_with(name, "__fnret_") == 1 || str_starts_with(name, "__fnfulltype_") == 1 {
+        let ret_map: i64 = sym_get(s, "__fn_return_map");
+        if ret_map >= 0 { return fn_return_map_get(ret_map, name); };
+    };
     return 0 - 1;
 }
 fn sym_clone(s: Vec<i32>) -> Vec<i32> {
@@ -15354,8 +15386,9 @@ fn own_register_borrow_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, fn_name: st
 
 fn tprof_new(enabled: i64) -> Vec<i32> {
     let mut prof: Vec<i32> = Vec::new();
+    if enabled == 0 { return prof; };
     let mut i: i64 = 0;
-    prof.push(enabled);
+    prof.push(1);
     while i < 12 {
         prof.push(0);
         i = i + 1;
@@ -15364,7 +15397,7 @@ fn tprof_new(enabled: i64) -> Vec<i32> {
 }
 fn tprof_enabled(prof: Vec<i32>) -> i64 {
     if vec_len(prof) == 0 { return 0; };
-    return vec_get(prof, 0);
+    return 1;
 }
 fn tprof_start(prof: Vec<i32>) -> i64 {
     if tprof_enabled(prof) == 1 { return now_ms(); };
@@ -15710,58 +15743,95 @@ fn unit_dim(t: str) -> str {
     return strip_spaces(str_substring(t, i + 1, slen - 1));
 }
 fn type_dynamic_helper(name: str) -> i64 {
-    if str_eq(name, "tok_type") == 1 { return 1; };
-    if str_eq(name, "tok_val") == 1 { return 1; };
-    if str_eq(name, "node_field") == 1 { return 1; };
-    if str_eq(name, "list_get") == 1 { return 1; };
-    if str_eq(name, "vec_get") == 1 { return 1; };
-    if str_eq(name, "sym_get") == 1 { return 1; };
-    if str_eq(name, "sym_set") == 1 { return 1; };
-    if str_eq(name, "smap_get") == 1 { return 1; };
-    if str_eq(name, "smap_set") == 1 { return 1; };
-    if str_eq(name, "tenv_get") == 1 { return 1; };
-    if str_eq(name, "tenv_set") == 1 { return 1; };
-    if str_eq(name, "pr") == 1 { return 1; };
-    if str_eq(name, "pkv") == 1 { return 1; };
-    if str_eq(name, "pr_pos") == 1 { return 1; };
-    if str_eq(name, "pr_val") == 1 { return 1; };
-    if str_eq(name, "mk2") == 1 { return 1; };
-    if str_eq(name, "mk3") == 1 { return 1; };
-    if str_eq(name, "mk4") == 1 { return 1; };
-    if str_eq(name, "mk5") == 1 { return 1; };
-    if str_eq(name, "mk6") == 1 { return 1; };
-    if str_eq(name, "mk_list") == 1 { return 1; };
-    if str_eq(name, "diag_get") == 1 { return 1; };
-    if str_eq(name, "own_get_type") == 1 { return 1; };
-    if str_eq(name, "own_set_type") == 1 { return 1; };
-    if str_eq(name, "own_get_s") == 1 { return 1; };
-    if str_eq(name, "sig_plist") == 1 { return 1; };
-    if str_eq(name, "sig_add") == 1 { return 1; };
-    if str_eq(name, "sig_rtype") == 1 { return 1; };
-    if str_eq(name, "sig_is_extern") == 1 { return 1; };
-    if str_eq(name, "ir_op") == 1 { return 1; };
-    if str_eq(name, "ir_dest") == 1 { return 1; };
-    if str_eq(name, "ir_op1") == 1 { return 1; };
-    if str_eq(name, "ir_op2") == 1 { return 1; };
-    if str_eq(name, "ir_extra") == 1 { return 1; };
-    if str_eq(name, "ir_block_label") == 1 { return 1; };
-    if str_eq(name, "ir_block_get_inst") == 1 { return 1; };
-    if str_eq(name, "ir_fn_name") == 1 { return 1; };
-    if str_eq(name, "ir_fn_param_count") == 1 { return 1; };
-    if str_eq(name, "ir_fn_get_block") == 1 { return 1; };
-    if str_eq(name, "lx_reg") == 1 { return 1; };
-    if str_eq(name, "lx_blk") == 1 { return 1; };
-    if str_eq(name, "ir_const_int") == 1 { return 1; };
-    if str_starts_with(name, "json_") == 1 { return 1; };
-    if str_starts_with(name, "map_") == 1 { return 1; };
-    if str_starts_with(name, "vec_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_json_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_graph_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_bm25_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_hnsw_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_emb_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_sym_") == 1 { return 1; };
-    if str_starts_with(name, "nuc_stat_") == 1 { return 1; };
+    // v0.6.54 (perf-slice integration from Nucleor_OSS_v631_perf_slice):
+    // first-char dispatch — was 41-entry linear chain run per kind-7
+    // call-site type-check.
+    if str_len(name) == 0 { return 0; };
+    let c0: i64 = str_char_at(name, 0);
+    if c0 == 100 {
+        if str_eq(name, "diag_get") == 1 { return 1; };
+        return 0;
+    };
+    if c0 == 105 {
+        if str_eq(name, "ir_op") == 1 { return 1; };
+        if str_eq(name, "ir_dest") == 1 { return 1; };
+        if str_eq(name, "ir_op1") == 1 { return 1; };
+        if str_eq(name, "ir_op2") == 1 { return 1; };
+        if str_eq(name, "ir_extra") == 1 { return 1; };
+        if str_eq(name, "ir_block_label") == 1 { return 1; };
+        if str_eq(name, "ir_block_get_inst") == 1 { return 1; };
+        if str_eq(name, "ir_fn_name") == 1 { return 1; };
+        if str_eq(name, "ir_fn_param_count") == 1 { return 1; };
+        if str_eq(name, "ir_fn_get_block") == 1 { return 1; };
+        if str_eq(name, "ir_const_int") == 1 { return 1; };
+        return 0;
+    };
+    if c0 == 106 {
+        if str_starts_with(name, "json_") == 1 { return 1; };
+        return 0;
+    };
+    if c0 == 108 {
+        if str_eq(name, "list_get") == 1 { return 1; };
+        if str_eq(name, "lx_reg") == 1 { return 1; };
+        if str_eq(name, "lx_blk") == 1 { return 1; };
+        return 0;
+    };
+    if c0 == 109 {
+        if str_eq(name, "mk2") == 1 { return 1; };
+        if str_eq(name, "mk3") == 1 { return 1; };
+        if str_eq(name, "mk4") == 1 { return 1; };
+        if str_eq(name, "mk5") == 1 { return 1; };
+        if str_eq(name, "mk6") == 1 { return 1; };
+        if str_eq(name, "mk_list") == 1 { return 1; };
+        if str_starts_with(name, "map_") == 1 { return 1; };
+        return 0;
+    };
+    if c0 == 110 {
+        if str_eq(name, "node_field") == 1 { return 1; };
+        if str_starts_with(name, "nuc_json_") == 1 { return 1; };
+        if str_starts_with(name, "nuc_graph_") == 1 { return 1; };
+        if str_starts_with(name, "nuc_bm25_") == 1 { return 1; };
+        if str_starts_with(name, "nuc_hnsw_") == 1 { return 1; };
+        if str_starts_with(name, "nuc_emb_") == 1 { return 1; };
+        if str_starts_with(name, "nuc_sym_") == 1 { return 1; };
+        if str_starts_with(name, "nuc_stat_") == 1 { return 1; };
+        return 0;
+    };
+    if c0 == 111 {
+        if str_eq(name, "own_get_type") == 1 { return 1; };
+        if str_eq(name, "own_set_type") == 1 { return 1; };
+        if str_eq(name, "own_get_s") == 1 { return 1; };
+        return 0;
+    };
+    if c0 == 112 {
+        if str_eq(name, "pr") == 1 { return 1; };
+        if str_eq(name, "pkv") == 1 { return 1; };
+        if str_eq(name, "pr_pos") == 1 { return 1; };
+        if str_eq(name, "pr_val") == 1 { return 1; };
+        return 0;
+    };
+    if c0 == 115 {
+        if str_eq(name, "sym_get") == 1 { return 1; };
+        if str_eq(name, "sym_set") == 1 { return 1; };
+        if str_eq(name, "smap_get") == 1 { return 1; };
+        if str_eq(name, "smap_set") == 1 { return 1; };
+        if str_eq(name, "sig_plist") == 1 { return 1; };
+        if str_eq(name, "sig_add") == 1 { return 1; };
+        if str_eq(name, "sig_rtype") == 1 { return 1; };
+        if str_eq(name, "sig_is_extern") == 1 { return 1; };
+        return 0;
+    };
+    if c0 == 116 {
+        if str_eq(name, "tok_type") == 1 { return 1; };
+        if str_eq(name, "tok_val") == 1 { return 1; };
+        if str_eq(name, "tenv_get") == 1 { return 1; };
+        if str_eq(name, "tenv_set") == 1 { return 1; };
+        return 0;
+    };
+    if c0 == 118 {
+        if str_starts_with(name, "vec_") == 1 { return 1; };
+        return 0;
+    };
     return 0;
 }
 
@@ -16012,9 +16082,17 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
     if kind == 3 {
         let name: str = node_field(pool, nid, 1);
         if str_eq(name, "true") == 1 || str_eq(name, "false") == 1 { return "bool"; };
-        let env_start: i64 = tprof_start(tprof);
-        let out: str = tenv_get(env, name);
-        tprof_mark(tprof, 3, 4, env_start);
+        // v0.6.54 perf-slice: skip the tprof_start/mark fast-pair when
+        // profiling is disabled (vec_len(tprof) == 0). Saves a fn-call
+        // pair per kind-3 (var-ref) type-check on the hot path.
+        let mut out: str = "";
+        if vec_len(tprof) > 0 {
+            let env_start: i64 = tprof_start(tprof);
+            out = tenv_get(env, name);
+            tprof_mark(tprof, 3, 4, env_start);
+        } else {
+            out = tenv_get(env, name);
+        };
         // v0.4.209 RFC-0015 phase 3a-step-3: width tagging moved from
         // type_expr (which doesn't reliably visit every var-ref —
         // kind-7 call args bypass it) to lower_stmt kind 20 (let),
@@ -16425,13 +16503,17 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         return type_base_name(inner);
     };
     if kind == 7 {
-        let call_start: i64 = tprof_start(tprof);
+        // v0.6.54 perf-slice: hoist tprof gate to local var so the
+        // tprof_mark sites in this kind-7 branch can short-circuit
+        // without re-entering tprof_enabled / tprof_start.
+        let prof_on_v631: i64 = vec_len(tprof);
+        let call_start: i64 = if prof_on_v631 > 0 { now_ms() } else { 0 };
         let callee: str = node_field(pool, nid, 1);
         let args: i64 = node_field(pool, nid, 2);
         let argc: i64 = list_len(pool, args);
         if str_eq(callee, "sanitize") == 1 && argc > 0 {
             let arg_t: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
-            tprof_mark(tprof, 9, 10, call_start);
+            if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
             if is_tainted_type(arg_t) == 1 { return taint_inner_type(arg_t); };
             return arg_t;
         };
@@ -21517,6 +21599,32 @@ fn populate_fn_returns_in_sym(pool: Vec<i32>, fn_decls: Vec<i32>, sym: Vec<i32>)
     return 0;
 }
 
+// v0.6.54 perf-slice: shared fn-return-map builder. Built once per
+// program by emit_module_ext; passed to every lower_fn call so each
+// fn's sym can reference it via __fn_return_map slot instead of
+// pre-populating __fnret_/__fnfulltype_ entries per fn.
+fn fn_return_map_new(pool: Vec<i32>, fn_decls: Vec<i32>) -> Vec<i32> {
+    let mut m: Vec<i32> = Vec::new();
+    let n: i64 = vec_len(fn_decls);
+    let mut i: i64 = 0;
+    while i < n {
+        let fnid: i64 = vec_get(fn_decls, i);
+        let name: str = node_field(pool, fnid, 1);
+        let raw_rtype: str = node_field(pool, fnid, 3);
+        let rtype: str = type_base_name(raw_rtype);
+        if str_len(name) > 0 && str_len(rtype) > 0 {
+            m.push(str_concat("__fnret_", name));
+            m.push(rtype);
+        };
+        if str_len(name) > 0 && str_len(raw_rtype) > 0 {
+            m.push(str_concat("__fnfulltype_", name));
+            m.push(raw_rtype);
+        };
+        i = i + 1;
+    };
+    return m;
+}
+
 // v0.3.68 helper: strip ONE container layer from a type
 // annotation, returning the inner element type WITH generics
 // preserved. Used by the kind==10 dispatchers to resolve nested
@@ -22805,7 +22913,7 @@ fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Ve
     return b;
 }
 
-fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>, old_snapshots: Vec<i32>, auto_drop_fns: Vec<i32>) -> Vec<i32> {
+fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, fn_return_map: Vec<i32>, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>, old_snapshots: Vec<i32>, auto_drop_fns: Vec<i32>) -> Vec<i32> {
     let name: str = node_field(pool, fn_nid, 1);
     let plist: i64 = node_field(pool, fn_nid, 2);
     let blist: i64 = node_field(pool, fn_nid, 4);
@@ -22817,11 +22925,10 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
         sym_set(sym, "__auto_drop_enabled", 1);
     };
     enum_populate_sym(pool, enums, sym);
-    // v0.3.54: seed sym with `__fnret_NAME = rtype` entries so
-    // binop_float_type's kind==7 (call) branch can resolve the
-    // called fn's return type without signature plumbing through
-    // 44 lower_expr call sites.
-    populate_fn_returns_in_sym(pool, fn_decls, sym);
+    // v0.6.54 perf-slice: keep fn-return metadata in one shared map
+    // instead of injecting every __fnret_/__fnfulltype_ pair into every
+    // function-local sym. sym_get falls back to this map for those keys.
+    sym_set(sym, "__fn_return_map", fn_return_map);
     // v0.5.29: keep this fn's generic trait bounds available to
     // lower_expr kind-8. Generic fns are still emitted as one ABI-level
     // body, so this only enables conservative single-impl dispatch for
@@ -25033,16 +25140,19 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         free_token_vec(inv_tokens);
         iti = iti + 2;
     };
+    // v0.6.54 perf-slice: build the shared fn-return-map once and pass
+    // it to every lower_fn call instead of injecting per-fn entries.
+    let fn_return_map: Vec<i32> = fn_return_map_new(pool, fn_decls);
     let lower_start: i64 = now_ms();
     fi = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns)); };
+        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns)); };
         fi = fi + 1;
     };
     let mut ii: i64 = 0;
     while ii < vec_len(impl_fns) {
-        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns));
+        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns));
         ii = ii + 1;
     };
     let mut ci3: i64 = 0;

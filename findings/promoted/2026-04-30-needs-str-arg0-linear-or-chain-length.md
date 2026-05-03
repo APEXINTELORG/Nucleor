@@ -6,7 +6,7 @@ diagnostic_actual: chain runs ~41 `str_eq` per kind-7 call site (down from 70+ �
 diagnostic_expected: O(1) lookup or first-char dispatch table
 discovered_against: probe/exploration tip after ship 33 (commit e66935f)
 commit: e66935f
-status: ANALYZED v0.6.48 perf audit round-3 — chain currently 41 entries (not 70+ as observed at probe time; intervening ships consolidated). Cold-time impact within natural variance band; documented as forward-roadmap candidate, not shipped this cycle to avoid v0.6.45 sb_append_int revert pattern.
+status: CLOSED in v0.6.54 — first-char dispatch shipped as part of the v0.6.31 perf-slice integration. Chain replaced with 11 first-char buckets (one branch per leading char in {d, i, j, l, m, n, o, p, s, t, v}) reducing per-kind-7-type-check from ~41 byte-compares to ~1 first-char read + ~1-12 bucketed compares. The full perf-slice integration brought cold from 5.04s → 3.08s (-39%) and peak_mem from 618 → 316 MB (-49%).
 ---
 
 ## Closure (analysis-only — no compiler change)
