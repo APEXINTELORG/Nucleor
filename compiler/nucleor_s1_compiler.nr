@@ -3734,6 +3734,18 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         };
     };
     cp = skip_where_clause(tokens, cp);
+    // v0.7.13 (defensive halt): canonical Rust trait alias
+    // `trait Pretty = Show;` (or `trait Foo = Bar + Baz;`) pre-fix
+    // surfaced as wrong-class `NR020: parse error: expected '{',
+    // got '='` because parse_trait_decl expects `{` after the name
+    // (no `=` branch). Halt cleanly with a workaround pointer
+    // (use a regular trait with supertraits). Trait aliases are
+    // nightly-only in Rust today (RFC 1733), so low-volume but
+    // worth the halt.
+    if pk(tokens, cp) == 40 {
+        print(str_concat("ERROR: trait alias `trait ", str_concat(name, " = <bounds>;` is not yet supported in Nucleor. Pre-v0.7.13 surfaced as wrong-class `NR020: expected '{', got '='`. (Trait aliases are nightly-only in Rust today, RFC 1733.) Workaround: declare a regular trait that names the bounds in its supertrait list — `trait Pretty: Show + Clone {}`. Adopters who want `Pretty` to mean `Show + Clone` get the same surface via inheritance. Tracked for forward-roadmap.")));
+        panic(str_concat("nucleor: trait alias `trait ", str_concat(name, " = ...` not yet supported (see ERROR diagnostic above)")));
+    };
     cp = expect_tok(tokens, cp, 52); // {
     let mut methods: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {

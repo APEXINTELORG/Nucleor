@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.13] — 2026-05-03
+
+**Defensive halt — canonical Rust trait alias `trait Pretty =
+Show;` (RFC 1733, nightly-only in Rust) now produces a clean
+halt with a supertrait-list workaround pointer.**
+
+Pre-fix: writing `trait Pretty = Show;` surfaced as wrong-class
+`error[NR020]: parse error: expected '{', got '='` because
+parse_trait_decl had no `=` branch after the name+gparams.
+
+Post-fix: parse_trait_decl detects token 40 (`=`) at the
+post-name position and halts cleanly:
+
+```nucleor
+// Pre-fix (Rust nightly trait alias):
+trait Pretty = Show;                           // ← NR020 wrong-class
+
+// Post-fix workaround (regular trait + supertrait):
+trait Pretty: Show {}                          // empty body, inherits from Show
+trait MultiBound: Show + Clone + Default {}    // multi-supertrait alias-equivalent
+```
+
+Forward-roadmap: trait aliases as a first-class form are
+nightly-only in Rust today; if/when stabilized, Nucleor may
+add proper support. Until then, the supertrait workaround gives
+adopters the same surface.
+
+### Fixed-point + perf
+
+Cold 4.16s. Peak 319MB. Round-2 fixed-point md5
+`f699f40e06119c6f01907f4f6d3ee419`.
+
+### Fixture
+
+`tests/fixtures/v0713_trait_alias_clean_halt.nr` — negative
+fixture for `trait Pretty = Show;`.
+
 ## [0.7.12] — 2026-05-03
 
 **Defensive halt — Rust stdlib smart-pointer types (`Cell`,
