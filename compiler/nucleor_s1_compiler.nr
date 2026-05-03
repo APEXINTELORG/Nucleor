@@ -2324,6 +2324,26 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // on a garbage string offset. Detect the open-paren and emit a
     // clear diagnostic, then skip past the destructure-stmt to
     // recover so the rest of the program still parses.
+    // v0.6.61 (probe finding 2026-05-01-rust-syntax-translation-
+    // fidelity-audit, struct destructure-in-let row): canonical Rust
+    // `let Point { x, y } = p;` form pre-fix saw `Point` as the
+    // binding name + `{ x, y }` as some unparsed garbage + `= p;`
+    // as the init, surfacing as wrong-class `error[TYP-008]: binding
+    // 'Point' declared without initializer (type-only)`. Halt at
+    // parse-let with a clean diag pointing at the workaround (assign
+    // p first, then access fields directly via `p.x`, `p.y`).
+    // Detection: token kind 1 (identifier) starting with uppercase
+    // followed by `{` (token 52). The simple `let foo { ... }`
+    // (lowercase) shape is also caught here — no valid let-binding
+    // starts with an ident-then-brace anyway.
+    if pk(tokens, cp) == 1 && pk(tokens, cp + 1) == 52 {
+        let lname_v651: str = pkv(tokens, cp);
+        let lc0_v651: i64 = if str_len(lname_v651) > 0 { str_char_at(lname_v651, 0) } else { 0 };
+        if lc0_v651 >= 65 && lc0_v651 <= 90 {
+            print(str_concat("ERROR: struct destructure-in-let `let ", str_concat(lname_v651, " { ... } = expr;` is not yet supported in Nucleor. Pre-v0.6.61 the parser read the struct name as the binding name and the `{ field-list }` pattern as unparsed garbage, surfacing as wrong-class `error[TYP-008]: binding declared without initializer`. Workaround: bind the struct to a name, then access fields directly via field-access syntax — `let p: STRUCT = expr; let x: TYPE = p.x; let y: TYPE = p.y;`. Tracked for forward-roadmap (full struct-pattern-in-let lowering arrives with v1 pattern-binding work).")));
+            panic("nucleor: struct destructure-in-let not yet supported (see ERROR diagnostic above)");
+        };
+    };
     if pk(tokens, cp) == 50 {
         print("ERROR: tuple destructuring in `let` is not yet supported (e.g. `let (a, b) = (5, 7);`). Workaround: bind to a struct or to two separate `let` statements: `let a: i64 = 5; let b: i64 = 7;`. Tracked for a future ship — tuple-pattern lowering needed.");
         // v0.4.33: pre-fix this emitted a placeholder let-stmt with a
