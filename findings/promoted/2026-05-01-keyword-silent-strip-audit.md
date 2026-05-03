@@ -6,7 +6,7 @@ diagnostic_actual: per-keyword breakdown in finding
 diagnostic_expected: parse-time rejection naming each unsupported keyword + workaround
 discovered_against: main v0.5.17 (probe 0f8a164)
 commit: probe 0f8a164 + main 736d88a
-status: DOC-ONLY — multi-keyword audit; some sub-cases close together with v0.6.x existing diags, the rest are forward-roadmap. Adding parse-time halts for `unsafe fn`, lifetime `'static`, `where T: NoSuchTrait`, and `move` closure capture form is a parse-extension cycle (multiple `parse_*` fn paths to update + sister keyword-detection lex tweaks). Bundled with the broader rust-syntax-translation-fidelity-audit finding.
+status: CLOSED — all 4 sub-cases shipped or verified-already-closed. `unsafe fn` halt v0.6.53. `move` closure halt v0.6.62. `where T: NoSuchTrait` covered by v0.4.130 trait-bound NAME verification (re-tested v0.6.67). `'static` lifetime works cleanly via lifetime-aware parse_type path (re-tested v0.6.67).
 ---
 
 ## Closure (analysis-only — no compiler change)
@@ -25,19 +25,22 @@ Forward-roadmap: emit a `print + panic` halt at parse_program
 when `unsafe fn` is detected (kind-1 "unsafe" identifier
 followed by kind-10 fn token).
 
-### 2. `'static` lifetime — parse error
+### 2. `'static` lifetime — VERIFIED OK as of v0.6.67
 
-The lifetime token (`'static`, `'a`, etc.) is partially handled
-by parse_lifetime; corner cases fail with NR020. Today
-adopters drop lifetime annotations entirely (lifetimes are
-parse-only in v0.6, semantic-checked in v1).
+Re-tested 2026-05-03: `let s: &'static str = "hello"; print(s);`
+compiles and runs cleanly. The lifetime tokens (`'static`, `'a`,
+etc.) are skipped by the lifetime-aware path in parse_type
+(`& 'lifetime T` shape) so the canonical Rust form works.
 
-### 3. `where T: NoSuchTrait` — silently accepted
+### 3. `where T: NoSuchTrait` — VERIFIED CLOSED by v0.4.130 (re-tested v0.6.67)
 
-The where-clause parser at v0.6.46 accepts `where T:
-NoSuchTrait` because trait-bound resolution doesn't validate
-the trait name yet. Forward-roadmap: validate trait names in
-where clauses against the seen-traits set.
+The v0.4.130 trait-bound NAME verification (line ~18495)
+covers both `<T: Trait>` and `where T: Trait` forms because
+`parse_where_clause_into_gparams` splices `?Bound` markers into
+the same gparams list that the v0.4.130 walker iterates. Tested
+2026-05-03: `fn f<T>(x: T) -> i64 where T: NoSuchTrait { ... }`
+fires `error[TYP-019]: trait bound ... references unknown trait
+'NoSuchTrait'` cleanly.
 
 ### 4. `move` closure — CLOSED v0.6.62
 
