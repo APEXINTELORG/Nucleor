@@ -16140,9 +16140,23 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             let sh_const: Vec<i32> = const_i64_expr(pool, rhs_check_sh, env);
             let sh_have: i64 = vec_get(sh_const, 0);
             let sh_amt: i64 = vec_get(sh_const, 1);
-            if sh_have == 1 && (sh_amt < 0 || sh_amt >= 64) {
+            // v0.6.37 (probe finding 2026-05-01-num-008-shift-only-checks-
+            // i64-not-narrow-widths): pre-fix the bound was hard-coded at
+            // 64 (i64 width), so `let a: i32 = 1 << 32;` silently passed
+            // the check + lowered to LLVM `shl i32` with shift amount 32
+            // — UB / poison (returns 0 in practice). Adopters writing
+            // canonical Rust narrow-width shifts got silent miscompute.
+            // Now derive the bound from the LHS type's width.
+            let lt_strip_v063: str = strip_spaces(lt);
+            let mut sh_bound_v063: i64 = 64;
+            if str_eq(lt_strip_v063, "i8") == 1 || str_eq(lt_strip_v063, "u8") == 1 { sh_bound_v063 = 8; }
+            else if str_eq(lt_strip_v063, "i16") == 1 || str_eq(lt_strip_v063, "u16") == 1 { sh_bound_v063 = 16; }
+            else if str_eq(lt_strip_v063, "i32") == 1 || str_eq(lt_strip_v063, "u32") == 1 { sh_bound_v063 = 32; };
+            if sh_have == 1 && (sh_amt < 0 || sh_amt >= sh_bound_v063) {
                 let sh_op: str = if op == 115 { "<<" } else { ">>" };
-                let nm8_msg: str = str_concat("shift amount ", str_concat(str_from_int(sh_amt), str_concat(" is out of range for i64 (`", str_concat(sh_op, "` requires 0..=63). LLVM `shl`/`ashr` is undefined behavior outside this range — pre-fix the result was poison (silent miscompute). Mask the shift amount (`amt & 63`) or use a wider type."))));
+                let bound_disp_v063: str = if sh_bound_v063 > 0 { str_from_int(sh_bound_v063 - 1) } else { "0" };
+                let lt_disp_v063: str = if str_len(lt_strip_v063) > 0 { lt_strip_v063 } else { "i64" };
+                let nm8_msg: str = str_concat("shift amount ", str_concat(str_from_int(sh_amt), str_concat(" is out of range for ", str_concat(lt_disp_v063, str_concat(" (`", str_concat(sh_op, str_concat("` requires 0..=", str_concat(bound_disp_v063, "). LLVM `shl`/`ashr` is undefined behavior outside this range — pre-fix the result was poison (silent miscompute). Mask the shift amount or widen the LHS type.")))))))));
                 type_diag(diags, source, fn_name, fn_name, "NUM-008", nm8_msg);
             };
         };
