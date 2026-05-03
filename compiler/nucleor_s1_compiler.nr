@@ -2228,6 +2228,24 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             } else if pk(tokens, p2) == 50 {
                 let mut ar: Vec<i32> = parse_args(tokens, p2 + 1, pool);
                 cp = pr_pos(ar); node = mk4(pool, 8, node, fname, pr_val(ar));
+            } else if pk(tokens, p2) == 46 && pk(tokens, p2 + 1) == 32 {
+                // v0.6.98 RFC V1.7-ext: turbofish syntax
+                // `.method::<TypeArgs>(args)`. Pre-fix surfaced as
+                // wrong-class `error[NR020]: parse_primary cannot
+                // start expression at token kind 46` because the
+                // postfix parser had no `::<` branch. Now: skip the
+                // balanced `<...>` type-args (advisory under today's
+                // mangling — Nucleor monomorphises by parameter, not
+                // by call-site turbofish) and parse the trailing
+                // `(args)` as a regular method call.
+                let v098_after_args: i64 = skip_angle_group(tokens, p2 + 1);
+                if pk(tokens, v098_after_args) == 50 {
+                    let mut v098_ar: Vec<i32> = parse_args(tokens, v098_after_args + 1, pool);
+                    cp = pr_pos(v098_ar); node = mk4(pool, 8, node, fname, pr_val(v098_ar));
+                } else {
+                    print(str_concat("ERROR: turbofish form `.", str_concat(fname, "::<...>` without trailing call `(...)` is not yet supported in Nucleor. Pre-v0.6.98 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 46`. Workaround: ensure the turbofish is followed by call args (`.collect::<Vec<i64>>()`), or drop the turbofish and let inference resolve (`let v: Vec<i64> = it.collect();`).")));
+                    panic("nucleor: turbofish without call args not yet supported (see ERROR diagnostic above)");
+                };
             } else if ctor_like == 1 {
                 let mut empty: Vec<i32> = Vec::new();
                 cp = p2;
