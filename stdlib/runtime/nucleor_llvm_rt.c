@@ -8032,6 +8032,19 @@ long long __nucleor_result_ok(NVec *res) {
 long long __nucleor_result_err(NVec *res) {
     return __nucleor_vec_get(res, 1);
 }
+// v0.6.34 (probe finding 2026-05-02-result-option-unwrap-diag-and-
+// correctness-gaps, gap 3): pre-fix `Result::unwrap_err()` was not
+// implemented — calls failed at link with TYP-005. Mirror of
+// __nucleor_result_unwrap with inverted discriminant: panics on Ok,
+// returns the err payload on Err.
+long long __nucleor_result_unwrap_err(NVec *res) {
+    if (!res || res->len < 2 || __nucleor_vec_get(res, 0) != 0) {
+        fprintf(stderr, "PANIC: called `Result::unwrap_err()` on an `Ok` value\n");
+        fflush(stderr);
+        exit(1);
+    }
+    return __nucleor_vec_get(res, 1);
+}
 long long __nucleor_option_expect(NVec *opt, const char *msg) {
     if (__nucleor_vec_get(opt, 0) != 0) {
         fprintf(stderr, "PANIC: %s\n", msg ? msg : "expect on None");

@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.34] — 2026-05-03
+
+**`Result::unwrap_err()` implemented (probe finding fully closed
+— gap 3).**
+
+Closes gap 3 of probe finding `2026-05-02-result-option-unwrap-
+diag-and-correctness-gaps`. With v0.6.33 (gaps 1+2) and now
+v0.6.34 (gap 3), the finding is fully closed.
+
+### Pre-fix
+
+`r.unwrap_err()` (canonical Rust idiom for testing that a Result
+is `Err(x)` and extracting the error payload) failed at clang
+link with `TYP-005: undefined function 'result_unwrap_err()'`.
+Adopters had to hand-write `if r.is_err() { let e = r.err(); … }`
+or destructure via `match r { Err(e) => …, _ => … }`.
+
+### Fix
+
+- `stdlib/runtime/nucleor_llvm_rt.c` — `__nucleor_result_unwrap_err`
+  (mirror of `__nucleor_result_unwrap` with inverted discriminant).
+  Returns the err payload on `Err(x)`; panics on `Ok` with the
+  canonical Rust message: `PANIC: called `Result::unwrap_err()`
+  on an `Ok` value`.
+- `compiler/nucleor_s1_compiler.nr` + `compiler/nucleor_tools_suite.nr`:
+  - Add `unwrap_err` to the Result method dispatch list.
+  - Add `result_unwrap_err` → `__nucleor_result_unwrap_err` to
+    `get_rt_name`.
+  - Emit `declare i64 @__nucleor_result_unwrap_err(ptr)` in the
+    runtime-helper IR-decls block.
+- `docs/rfcs/helper_manifest.toml` — registers the new helper
+  (auto-regenerated via `tools/gen_helper_manifest.py`).
+
+### Adopter migration
+
+```nucleor
+let r: Result<i64, str> = Err("oops");
+let e: str = r.unwrap_err();   // → "oops"
+print(e);
+
+let r2: Result<i64, str> = Ok(7);
+let v: str = r2.unwrap_err();  // → PANIC: called `Result::unwrap_err()` on an `Ok` value
+```
+
+### Validation
+
+- 2 smoke fixtures verified: Err("oops").unwrap_err() returns
+  "oops" cleanly; Ok(7).unwrap_err() panics with canonical
+  message.
+- 2 new regression-lock fixtures + verify.sh steps:
+  - `tests/fixtures/result_unwrap_err_basic.nr`
+  - `tests/fixtures/result_unwrap_err_on_ok_panics.nr`
+  - `v0634_result_unwrap_err_basic` + `v0634_result_unwrap_err_on_ok_panics`
+- Stage1/2 self-host fixed point md5 `b2f19e6e…`.
+- Self-host wall: 4.10s + 4.23s (both via native-link cache;
+  source IR identical to v0.6.33 stage2 baseline since the
+  compiler change set was small).
+- Drift gate 5/5 OK after manifest regen.
+- Full verify gate: in flight at write time.
+
+### Probe finding fully closed
+
+Gap 1 (Option::None.unwrap() leaks Vec rep) — closed v0.6.33.
+Gap 2 (Result::Err.unwrap() silent miscompute) — closed v0.6.33.
+Gap 3 (Result::unwrap_err() not implemented) — closed v0.6.34.
+
 ## [0.6.33] — 2026-05-03
 
 **`Option::unwrap()` + `Result::unwrap()` discriminant checks

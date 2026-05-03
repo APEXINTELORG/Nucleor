@@ -6,7 +6,7 @@ diagnostic_actual: see "Repro" — three different shapes of broken behavior.
 diagnostic_expected: (1) `PANIC: called Option::unwrap() on a None value`; (2) `PANIC: called Result::unwrap() on an Err value`; (3) `unwrap_err` either implemented or rejected at parse-time with a clear "method not yet supported" message.
 discovered_against: main v0.6.17 (probe rebased)
 commit: probe (post-rebase) + main fa2dfc90
-status: PARTIALLY CLOSED — gaps 1 + 2 closed in v0.6.33 via discriminant checks in `__nucleor_option_unwrap` / `__nucleor_result_unwrap`. Gap 3 deferred (new method, separate ship).
+status: FULLY CLOSED — gaps 1 + 2 closed in v0.6.33 via discriminant checks in `__nucleor_option_unwrap` / `__nucleor_result_unwrap`. Gap 3 closed in v0.6.34 via new `__nucleor_result_unwrap_err` helper + compiler dispatch + IR declare + tools-suite ABI sync.
 ---
 
 ## Closure (main agent v0.6.33) — gaps 1 + 2
