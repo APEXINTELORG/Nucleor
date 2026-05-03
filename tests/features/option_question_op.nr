@@ -2,7 +2,9 @@
 //
 // Pre-fix Some(x)? early-returned the whole Option Vec instead of
 // extracting x, AND None? OOB'd the length-1 None Vec at runtime
-// with `vec_get OOB: index 1, len 1`. Root cause: the kind-122 ?
+// with `vec_get OOB: index 1, len 1` (pre-v0.6.29 wording; v0.6.29
+// Rust-canonical: `index out of bounds: the len is 1 but the index
+// is 1`). Root cause: the kind-122 ?
 // lowering used a fixed `tag == 0 → err` check (the Result tag
 // convention), but Option uses inverted tags: Some=0 (ok), None=1
 // (err). v0.4.225 detects Option vs Result via expr_full_type_from_sym

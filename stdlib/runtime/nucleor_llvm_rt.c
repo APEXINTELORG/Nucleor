@@ -2281,8 +2281,15 @@ long long __nucleor_vec_get(NVec *v, long long i) {
     if (!v) return 0;
     if (i < 0 || i >= v->len) {
         if (_vec_oob_lenient()) return 0;
-        fprintf(stderr, "PANIC: vec_get OOB: index %lld, len %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
-                i, (long long)v->len);
+        // v0.6.29 (probe finding 2026-05-02-array-shape-gaps-repeat-init-
+        // and-slice-param, gap 3): pre-fix wording was "vec_get OOB" which
+        // leaked the internal Vec representation in the diag — adopters
+        // writing canonical Rust array indexing `arr[99]` (where `arr: [i64; 3]`
+        // desugars to a Vec internally) saw a `vec_get OOB` panic that
+        // revealed the implementation. Rust-canonical wording works for
+        // both real Vec<T> and array indexing without leaking either way.
+        fprintf(stderr, "PANIC: index out of bounds: the len is %lld but the index is %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                (long long)v->len, i);
         fflush(stderr);
         exit(1);
     }
