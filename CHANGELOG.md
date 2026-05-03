@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.83] — 2026-05-03
+
+**Defensive halt — Option/Result methods not yet in the runtime
+surface (`unwrap_or_default`, `take`, `replace`, `flatten`,
+`as_ref`, `as_mut`, `iter`, `ok_or`, `ok_or_else`, `cloned`,
+`copied`, `map_err`, `expect_err`) now halt cleanly with per-
+method workaround pointers.**
+
+Pre-fix: adopters porting Rust code who wrote
+`opt.unwrap_or_default()` fell through every receiver-typed
+dispatch (the existing Option dispatch at line ~21341 only listed
+the implemented subset) and the kind-8 catch-all synthesized
+`vec_unwrap_or_default(receiver)` — failing late at clang link
+with the wrong-class `error[TYP-005]: receiver type 'Vec<T>' has
+no method '.unwrap_or_default()'`.
+
+Post-fix: new branches after the existing Option/Result dispatch
+detect the unsupported-but-canonical method names and halt with
+a per-method workaround:
+
+| Method | Workaround |
+|---|---|
+| `unwrap_or_default()` | `unwrap_or(<default>)` with explicit default (no Default trait yet) |
+| `take()` / `replace()` | mutate manually: `let v = opt.unwrap(); opt = None;` |
+| `flatten()` | `match opt { Some(inner) => inner, None => None }` |
+| `ok_or()` / `ok_or_else()` | `match opt { Some(v) => Ok(v), None => Err(<e>) }` |
+| `as_ref` / `as_mut` / `iter` / `cloned` / `copied` | destructure with `match` |
+| `map_err()` | `match res { Ok(v) => Ok(v), Err(e) => Err(<f>(e)) }` |
+| `expect_err()` | `match res { Err(e) => e, Ok(_) => panic!("...") }` |
+
+Forward-roadmap: extended Option/Result method surface alongside
+Default trait infrastructure is a v1.x ship.
+
+```nucleor
+// Pre-fix:
+let v: i64 = opt.unwrap_or_default();
+// → error[TYP-005]: receiver type 'Vec<T>' has no method '.unwrap_or_default()'
+
+// Post-fix:
+// → ERROR: `Option::unwrap_or_default()` is not yet implemented...
+//   Workaround: use `unwrap_or(<default>)` with an explicit default
+//   — Nucleor doesn't auto-derive Default per type yet.
+
+// Working post-fix:
+let v: i64 = opt.unwrap_or(0);   // explicit default
+```
+
+### Fixed-point + perf
+
+Cold 3.16s — exactly at baseline floor. Peak 315MB. Round-2
+fixed-point md5 `56d5016b7926b4ed858861eb060d093d`.
+
+### Fixture
+
+`tests/fixtures/v0683_option_method_surface_clean_halt.nr` —
+negative fixture for `unwrap_or_default()`.
+
 ## [0.6.82] — 2026-05-03
 
 **Defensive halt — canonical Rust conversion-idiom methods
