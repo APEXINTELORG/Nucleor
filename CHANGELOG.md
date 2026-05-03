@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.41] — 2026-05-03
+
+**`vec![X; N]` Rust repeat syntax now produces a length-N Vec
+instead of silently dropping N (probe finding closure — silent
+miscompute on canonical Rust idiom).**
+
+Closes probe finding `2026-05-01-vec-repeat-syntax-ignores-count`.
+Pre-fix `vec![7; 5]` produced a 1-element Vec. The `vec!` macro
+splitter only recognized `,` as a separator; the top-level `;`
+was treated as part of the value expression and the count was
+silently dropped. Adopters writing canonical `vec![0; capacity]`
+to pre-allocate a buffer got a length-1 vector — indexing past 0
+PANICked with the OOB diag.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` `vec!` macro expansion (line
+~28103) — added a top-level `;` scan BEFORE the comma-split
+path. If a top-level `;` is found, treat as `vec![value; count]`
+and emit a while-loop:
+
+```nucleor
+{ let mut __nuc_vec: Vec<i64> = Vec::new();
+  let mut __nuc_repeat_i: i64 = 0;
+  let __nuc_repeat_n: i64 = (count) as i64;
+  while __nuc_repeat_i < __nuc_repeat_n {
+      __nuc_vec.push(value);
+      __nuc_repeat_i = __nuc_repeat_i + 1;
+  };
+  __nuc_vec }
+```
+
+The original comma-split path is preserved for `vec![1, 2, 3]`
+and the empty-Vec path for `vec![]` is unchanged.
+
+### Adopter migration
+
+```nucleor
+// Pre-v0.6.41: silent length-1
+let v: Vec<i64> = vec![7; 5];   // length=1, vec_get(&v, 1) PANICs OOB
+
+// v0.6.41: canonical Rust semantics
+let v: Vec<i64> = vec![7; 5];   // length=5, every element 7
+```
+
+Comma-form unchanged: `vec![1, 2, 3]` still produces a 3-element
+Vec. Empty `vec![]` still produces an empty Vec.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `55b94ec6…`.
+- Self-host wall: 4.87s + 4.03s.
+- Tools-suite (674 fns) compiles clean — no false halts (any
+  `vec![1, 2, 3]` form continues to flow through the comma path).
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Smoke (probe repro): `vec![7; 5]` now prints length 5 and
+  `vec_get(&v, 4) == 7`.
+- Full verify gate: in flight at write time.
+
+### Fixture
+
+- `tests/features/vec_macro_repeat.nr` (positive — exercises
+  repeat form, comma form, and empty form).
+
 ## [0.6.40] — 2026-05-03
 
 **Diag improvement — fn-form `vec_<method>(…)` now suggests method
