@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.55] — 2026-05-03
+
+**`const fn` parse halt — closes the const-fn row of the rust-
+syntax-translation-fidelity audit.**
+
+Pre-fix `const fn double(x: i64) -> i64 { return x * 2; }` rejected
+with the wrong-class `error[NR020]: parse error at byte 9: expected
+':', got identifier` because parse_const_decl expected `name : type
+= value` after `const`. The `fn` keyword tripped the `:`-expector.
+Adopter saw a confusing parse error pointing at byte 9 instead of
+the actual unsupported feature.
+
+### Fix
+
+`parse_program` (~line 3502): when `const` (token 73) is followed
+by `fn` (token 10), halt at parse with a clean diag pointing at
+the workaround (drop `const`, since Nucleor v0.6 doesn't compile-
+time-evaluate fn bodies anyway, making `const fn` and `fn`
+equivalent in this version). Forward-roadmap: full const-eval
+substrate is a v1 ship.
+
+### Verify
+
+- New regression-lock: `tests/err/err_const_fn_decl.nr` (auto-walker).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+- v0.6.54 perf carry-through: cold ~3.08s, peak_mem ~316 MB.
+
 ## [0.6.54] — 2026-05-03
 
 **Perf-slice integration from `Nucleor_OSS_v631_perf_slice` —

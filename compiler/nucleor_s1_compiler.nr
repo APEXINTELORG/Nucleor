@@ -3500,6 +3500,21 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             pending_pub = 0;
         }
         else if pk(tokens, cp) == 73 {
+            // v0.6.55 (probe finding 2026-05-01-rust-syntax-translation-
+            // fidelity-audit, const-fn row): canonical Rust form
+            // `const fn double(x: i64) -> i64 { return x * 2; }` was
+            // pre-fix rejected with `error[NR020]: parse error at byte
+            // 9: expected ':', got identifier` because parse_const_decl
+            // (called below for the const-decl path) expects a name +
+            // `:` + type after `const`. The `fn` keyword (token 10)
+            // tripped the `:`-expector. Wrong-class diagnostic — adopter
+            // doesn't see "const fn not yet supported" but a confusing
+            // parse error pointing at byte 9. Halt at parse with a clean
+            // diag.
+            if pk(tokens, cp + 1) == 10 {
+                print("ERROR: `const fn` declarations are not yet supported in Nucleor. Pre-v0.6.55 the parser saw `fn` after `const` and rejected with the wrong-class diagnostic `error[NR020]: parse error at byte 9: expected ':', got identifier`. Workaround: drop the `const` qualifier — Nucleor v0.6 does not yet evaluate fn bodies at compile time, so a `const fn` is informationally equivalent to a regular `fn` in this version. Tracked for forward-roadmap (full const-eval substrate is the v1 const-fn ship).");
+                panic("nucleor: `const fn` decl not yet supported (see ERROR diagnostic above)");
+            };
             let mut r: Vec<i32> = parse_const_decl(tokens, cp + 1, pool);
             let nid: i64 = pr_val(r);
             if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, nid, 1))); pending_pub = 0; };
