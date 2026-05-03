@@ -2651,6 +2651,22 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             panic("nucleor: struct destructure-in-let not yet supported (see ERROR diagnostic above)");
         };
     };
+    // v0.6.95 (defensive halt): canonical Rust let-else shape
+    // `let Some(v) = opt else { return; };` (Rust 1.65+) and the
+    // sister ctor-pattern-in-let `let Some(v) = opt;` (no else)
+    // pre-fix surfaced as wrong-class `NR020: parse_primary cannot
+    // start an expression at token kind 14` (the `else` keyword)
+    // OR similar errors after the parser reads `Some` as the binding
+    // name and `(v)` as unparsed garbage. Halt cleanly with a
+    // workaround pointer (use `if let` / `match`).
+    if pk(tokens, cp) == 1 && pk(tokens, cp + 1) == 50 {
+        let v095_lname: str = pkv(tokens, cp);
+        if str_eq(v095_lname, "Some") == 1 || str_eq(v095_lname, "None") == 1 || str_eq(v095_lname, "Ok") == 1 || str_eq(v095_lname, "Err") == 1 {
+            print(str_concat("ERROR: ctor-pattern in `let` (e.g. `let ", str_concat(v095_lname, str_concat("(v) = opt;`, `let-else: let ", str_concat(v095_lname, "(v) = opt else { ... };`)) is not yet supported in Nucleor. Pre-v0.6.95 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 14` (the `else` keyword) or similar parser confusion after reading the ctor name as the binding name. Workaround: use `if let` for the optional-extract pattern — `if let ")))));
+            print(str_concat("       ", str_concat(v095_lname, "(v) = opt { ... } else { ... }`. For the let-else shape (early-return on None/Err), use `match`: `let v: T = match opt { ", str_concat(v095_lname, "(x) => x, _ => return ... };`. Tracked for forward-roadmap (full pattern-in-let lowering arrives with the v1 pattern-binding ship).")))));
+            panic(str_concat("nucleor: ctor-pattern-in-let `", str_concat(v095_lname, "(...)` not yet supported (see ERROR diagnostic above)")));
+        };
+    };
     if pk(tokens, cp) == 50 {
         print("ERROR: tuple destructuring in `let` is not yet supported (e.g. `let (a, b) = (5, 7);`). Workaround: bind to a struct or to two separate `let` statements: `let a: i64 = 5; let b: i64 = 7;`. Tracked for a future ship — tuple-pattern lowering needed.");
         // v0.4.33: pre-fix this emitted a placeholder let-stmt with a

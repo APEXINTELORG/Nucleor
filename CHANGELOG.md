@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.95] — 2026-05-03
+
+**Defensive halt — canonical Rust let-else
+(`let Some(v) = opt else { return; };`, Rust 1.65+) and ctor-
+pattern-in-let (`let Some(v) = opt;`) now produce clean halts
+with `if let` / `match` workaround pointers.**
+
+Pre-fix: writing `let Some(v) = opt else { return 1; };`
+surfaced as wrong-class `error[NR020]: parse_primary cannot
+start an expression at token kind 14` (the `else` keyword
+hits parse_primary after the parser reads "Some" as the
+binding name and "(v)" as unparsed garbage). Sister shape
+`let Some(v) = opt;` (no else, just ctor-pattern) had similar
+parser confusion.
+
+Post-fix: parse_let detects `Some(` / `None(` / `Ok(` / `Err(`
+shapes (ident followed by `(`) and halts cleanly, pointing at:
+
+1. **`if let`** for the optional-extract pattern —
+   `if let Some(v) = opt { ... } else { ... }`.
+2. **`match`** for the let-else early-return shape —
+   `let v: T = match opt { Some(x) => x, _ => return ... };`.
+
+Forward-roadmap: full pattern-in-let lowering ships with the
+v1 pattern-binding work (sister to nested struct patterns at
+line ~1364, nested if-let patterns at v0.6.90, struct
+destructure-in-let at v0.6.61).
+
+```nucleor
+// Pre-fix:
+let Some(v) = opt else { return 1; };   // ← NR020 wrong-class
+let Some(v) = opt;                       // ← parser confusion
+
+// Post-fix workaround (if let):
+if let Some(v) = opt {
+    print_int(v as i32);
+} else {
+    return 1;
+}
+
+// Post-fix workaround (match for let-else):
+let v: i64 = match opt {
+    Some(x) => x,
+    None => return 1,
+};
+```
+
+### Fixed-point + perf
+
+Cold 3.52s. Peak 316MB. Round-2 fixed-point md5
+`89854498dca2ea81edf57f0f5df92dab`.
+
+### Fixture
+
+`tests/fixtures/v0695_let_else_ctor_pattern_clean_halt.nr` —
+negative fixture for `let Some(v) = opt else { ... };`.
+
 ## [0.6.94] — 2026-05-03
 
 **Defensive halt — canonical Rust range expression at expression
