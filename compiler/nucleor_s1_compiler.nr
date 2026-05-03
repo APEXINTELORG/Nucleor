@@ -2451,6 +2451,18 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         };
         return pr(cp + 1, str_concat("(", str_concat(inner, ")")));
     };
+    // v0.6.92 (defensive halt): canonical Rust `impl Trait` return-
+    // position type (`fn make_iter() -> impl Iterator<Item = i64>`)
+    // pre-fix surfaced as wrong-class `error[NR020]: expected '{',
+    // got identifier` because parse_type had no `impl` branch — the
+    // outer fn-decl parser saw `impl Iterator<...>` after `->` and
+    // expected the body's `{`. Halt cleanly with a workaround pointer
+    // (use a concrete return type, or a `Box<dyn Trait>` once vtable
+    // dispatch lands in v1.x).
+    if pk(tokens, pos) == 67 {
+        print("ERROR: `impl Trait` (return-position or argument-position trait-bound sugar) is not yet supported in Nucleor. Pre-v0.6.92 surfaced as wrong-class `error[NR020]: expected '{', got identifier` because parse_type had no `impl` branch. Workaround: declare the concrete return type instead — for iterators, expose the Vec directly (`fn make_iter() -> Vec<i64>`); for closures, use a typed fn pointer (`fn cb() -> fn(i64) -> i64`); for trait-bound polymorphism, wait for vtable dispatch (v1.x trait-object substrate, sister to v0.6.91 `Box<dyn Trait>` halt). Tracked for forward-roadmap (impl Trait sugar lowers to either anonymous-existential return or generic call-site monomorphisation depending on position).");
+        panic("nucleor: `impl Trait` type position not yet supported (see ERROR diagnostic above)");
+    };
     // v0.3.92/v0.4.112: trait object syntax `dyn Trait`.
     // Preserve the `dyn` marker so Box<dyn Trait> can be distinguished
     // from Box<Trait> during type checking.

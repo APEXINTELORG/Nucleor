@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.92] — 2026-05-03
+
+**Defensive halt — canonical Rust `impl Trait` type position
+(`fn make_iter() -> impl Iterator<Item = i64>`) now produces a
+clean halt with workaround pointer.**
+
+Pre-fix: `impl Trait` in return position surfaced as wrong-class
+`error[NR020]: expected '{', got identifier` because parse_type
+had no `impl` branch — the outer fn-decl parser saw
+`impl Iterator<...>` after `->` and expected the body's `{`.
+Same hazard for argument-position `fn f(it: impl Iterator)`.
+
+Post-fix: parse_type detects token 67 (`impl` keyword) at type
+position and halts cleanly, pointing at the workaround:
+
+1. **Concrete return type** — `fn make_iter() -> Vec<i64>`
+   (works today; Vec is the iterator-source).
+2. **Typed fn pointer** — `fn cb() -> fn(i64) -> i64` (for
+   closure-returning patterns).
+3. **Wait for vtable dispatch** — sister to v0.6.91 Box<dyn>
+   halt; both await the v1.x trait-object substrate.
+
+```nucleor
+// Pre-fix:
+fn make_iter() -> impl Iterator<Item = i64> { ... }   // ← NR020 wrong-class
+
+// Post-fix workaround:
+fn make_iter() -> Vec<i64> { ... }
+```
+
+### Forward-roadmap
+
+`impl Trait` lowering paths in canonical Rust:
+
+- **Return position** → anonymous existential type (compile to
+  the actual concrete type the body returns; per-call-site
+  monomorphisation).
+- **Argument position** → trait-bounded generic param (`fn f<T:
+  Trait>(it: T)`).
+
+Both require trait-bound infrastructure that's not yet shipped
+(see V1.5/V1.6/V1.7 roadmap items). v0.6.92 is the surface-level
+halt; the substantive substrate ship is forward-roadmap.
+
+### Fixed-point + perf
+
+Cold variance 3.46–4.83s (median ~4.14, baseline 3.16s). Peak
+310–330MB (baseline 318). Round-2 fixed-point md5
+`26c647936e17a12fdf477cdce7f834da`. The new check is a single
+integer compare (token 67) at parse_type — system noise dominates.
+
+### Fixture
+
+`tests/fixtures/v0692_impl_trait_clean_halt.nr` — negative
+fixture exercising the canonical return-position shape.
+
 ## [0.6.91] — 2026-05-03
 
 **Defensive halt — canonical Rust `Box<dyn Trait>` polymorphism
