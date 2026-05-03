@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.7] — 2026-05-03
+
+**Defensive halt — C/Java-idiom `x++` / `x--` post-increment/
+decrement operators now produce clean halts with explicit-assignment
+workaround pointers.**
+
+Pre-fix: writing `x++;` surfaced as wrong-class `error[NR020]:
+parse_primary cannot start an expression at token kind 20` (the
+second `+`) because the first `+` after the primary parses as a
+binop, then parse_primary fails on the second `+`. Same hazard
+for `x--;`.
+
+Post-fix: parse_postfix detects double-`+` (token 20 + 20) and
+double-`-` (token 21 + 21) immediately after the primary and
+halts cleanly:
+
+```nucleor
+// Pre-fix:
+x++;    // ← NR020 wrong-class
+x--;    // ← NR020 wrong-class
+
+// Post-fix workaround (explicit assignment):
+x = x + 1;
+x = x - 1;
+// or compound-assign:
+x += 1;
+x -= 1;
+```
+
+Forward-roadmap: no plans to add `++`/`--` — Rust-style explicit
+assignment is the canonical form. The halt is permanent
+documentation, not a placeholder for a future ship.
+
+### Fixed-point + perf
+
+Cold 5.63s (system-load — within cap 5.93s). Peak 312MB.
+Round-2 fixed-point md5 `48930cbaf606d67ddb97f92491de2510`.
+
+### Fixture
+
+`tests/fixtures/v0707_post_inc_dec_clean_halt.nr` — negative
+fixture for `x++`.
+
 ## [0.7.6] — 2026-05-03
 
 **Defensive halt — canonical Rust `T::default()` (Default trait)
