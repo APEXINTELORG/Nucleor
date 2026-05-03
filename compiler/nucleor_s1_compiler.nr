@@ -3743,7 +3743,20 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 } else {
                     cp2 = expect_tok(tokens, cp2, 42); // :
                     let mut tr: Vec<i32> = parse_type(tokens, cp2); cp2 = pr_pos(tr);
-                    params.push(mk3(pool, 41, pn, pr_val(tr)));
+                    // v0.6.93 RFC V1.7-sister: substitute `Self` in
+                    // the EXPLICIT param type form (`self: &Self`,
+                    // `other: &Self`, etc.) with the impl's concrete
+                    // type_name. Pre-fix only the shorthand `&self` /
+                    // `self` form got Self → type_name; explicit
+                    // `self: &Self` left "Self" in the param type
+                    // string, so downstream `self.field` field access
+                    // failed to resolve (`expr_struct_type` couldn't
+                    // map "Self" to a known struct).
+                    let mut v093_pt: str = pr_val(tr);
+                    if str_eq(v093_pt, "Self") == 1 { v093_pt = type_name; };
+                    if str_eq(v093_pt, "&Self") == 1 { v093_pt = str_concat("&", type_name); };
+                    if str_eq(v093_pt, "&mut Self") == 1 { v093_pt = str_concat("&mut ", type_name); };
+                    params.push(mk3(pool, 41, pn, v093_pt));
                 };
             };
         };
