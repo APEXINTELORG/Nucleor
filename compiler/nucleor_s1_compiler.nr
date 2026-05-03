@@ -1585,8 +1585,72 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // workaround (call as a regular method or fully-qualified path).
     // Forward-roadmap: full UFCS dispatch is the v1 trait-dispatch ship.
     if tt == 32 {
-        print("ERROR: UFCS form `<Type as Trait>::method(args)` is not yet supported in Nucleor. Pre-v0.6.60 the `<` at expression start was rejected with `error[NR020]: parse_primary cannot start an expression at token kind 32` — wrong-class. Workaround: call the trait method directly via the receiver (`s.f(...)`) when only one trait implements the method, or use the path form `Foo::f(&s)` when the trait is unambiguous. Tracked for forward-roadmap (full UFCS dispatch arrives with v1 trait dispatch).");
-        panic("nucleor: UFCS expression form not yet supported (see ERROR diagnostic above)");
+        // v0.6.81 RFC V1.7 — UFCS dispatch `<Type as Trait>::method(args)`.
+        // Pre-fix the `<` at expression start panicked with the v0.6.60
+        // halt + workaround pointer. Now parse the canonical Rust UFCS
+        // form and emit a regular kind-7 call to the type-mangled name
+        // `<Type>__<method>` — Nucleor's trait-impl mangling already
+        // produces this name regardless of which trait the impl came
+        // through (the trait_impl_register path at ~line 25478). UFCS
+        // therefore acts as a verbose surface-level alias that adopters
+        // porting Rust code can paste in directly.
+        //
+        // Note: when two traits provide the same method on the same
+        // type, both impls register the SAME mangled name and Nucleor
+        // emits the duplicate-fn-name diag at struct-emit time
+        // (line ~7958, "ambiguous method") — the ambiguity is rejected
+        // there, so UFCS-as-disambiguator is moot under today's
+        // mangling. Per-trait mangling is the v1.x trait-dispatch
+        // ship; until then UFCS is purely a translation-fidelity
+        // surface. Fall through to the v0.6.60 halt for any shape we
+        // can't recognise so adopter code with an unsupported UFCS
+        // shape still gets a clean diag with workaround pointer.
+        let mut ufcs_cp_v081: i64 = pos + 1;
+        let mut ufcs_ok_v081: i64 = 0;
+        let mut ufcs_type_v081: str = "";
+        let mut ufcs_method_v081: str = "";
+        let mut ufcs_args_pos_v081: i64 = 0 - 1;
+        if pk(tokens, ufcs_cp_v081) == 1 {
+            ufcs_type_v081 = pkv(tokens, ufcs_cp_v081);
+            ufcs_cp_v081 = ufcs_cp_v081 + 1;
+            if pk(tokens, ufcs_cp_v081) == 1 && str_eq(pkv(tokens, ufcs_cp_v081), "as") == 1 {
+                ufcs_cp_v081 = ufcs_cp_v081 + 1;
+                if pk(tokens, ufcs_cp_v081) == 1 {
+                    ufcs_cp_v081 = ufcs_cp_v081 + 1; // skip trait name (advisory under today's mangling)
+                    if pk(tokens, ufcs_cp_v081) == 32 {
+                        let mut ufcs_depth_v081: i64 = 1;
+                        ufcs_cp_v081 = ufcs_cp_v081 + 1;
+                        while ufcs_cp_v081 < vec_len(tokens) && ufcs_depth_v081 > 0 {
+                            let ufcs_tt2_v081: i64 = pk(tokens, ufcs_cp_v081);
+                            if ufcs_tt2_v081 == 32 { ufcs_depth_v081 = ufcs_depth_v081 + 1; }
+                            else if ufcs_tt2_v081 == 33 { ufcs_depth_v081 = ufcs_depth_v081 - 1; };
+                            if ufcs_tt2_v081 == 0 { ufcs_depth_v081 = 0; };
+                            ufcs_cp_v081 = ufcs_cp_v081 + 1;
+                        };
+                    } else if pk(tokens, ufcs_cp_v081) == 33 {
+                        ufcs_cp_v081 = ufcs_cp_v081 + 1;
+                    };
+                    if pk(tokens, ufcs_cp_v081) == 46 {
+                        ufcs_cp_v081 = ufcs_cp_v081 + 1;
+                        if pk(tokens, ufcs_cp_v081) == 1 {
+                            ufcs_method_v081 = pkv(tokens, ufcs_cp_v081);
+                            ufcs_cp_v081 = ufcs_cp_v081 + 1;
+                            if pk(tokens, ufcs_cp_v081) == 50 {
+                                ufcs_args_pos_v081 = ufcs_cp_v081 + 1;
+                                ufcs_ok_v081 = 1;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        if ufcs_ok_v081 == 1 {
+            let mut ufcs_ar_v081: Vec<i32> = parse_args(tokens, ufcs_args_pos_v081, pool);
+            let ufcs_mangled_v081: str = str_concat(ufcs_type_v081, str_concat("__", ufcs_method_v081));
+            return pr(pr_pos(ufcs_ar_v081), mk3(pool, 7, ufcs_mangled_v081, pr_val(ufcs_ar_v081)));
+        };
+        print("ERROR: UFCS form `<Type as Trait>::method(args)` parsed but did not match the supported shape. Pre-v0.6.60 any `<` at expression start was rejected with `error[NR020]: parse_primary cannot start an expression at token kind 32` — wrong-class; v0.6.60 halted with this workaround pointer; v0.6.81 added support for the canonical `<Type as Trait>::method(args)` shape (with optional `<...>` trait generics). Workaround: call the trait method directly via the receiver (`s.f(...)`) when only one trait implements the method, or use the path form `Foo::f(&s)` when the trait is unambiguous. Tracked for forward-roadmap (full per-trait mangling is the v1 trait-dispatch ship).");
+        panic("nucleor: UFCS expression form did not match supported shape (see ERROR diagnostic above)");
     };
     // v0.6.62 (probe finding 2026-05-01-keyword-silent-strip-audit,
     // `move` closure row): canonical Rust `move ||` / `move |args|`

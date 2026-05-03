@@ -130,10 +130,18 @@ clean — defeats the safety promise transitively.
 
 ### Tier 3 — translation-fidelity polish
 
-#### V1.7 — UFCS dispatch `<S as Foo>::f(&s)`
+#### V1.7 — UFCS dispatch `<S as Foo>::f(&s)`  ✅ CLOSED v0.6.81
 
-**Status today:** v0.6.60 parse halt. Adopters need UFCS only when
-multiple traits provide the same method name (rare in practice).
+**Closed v0.6.81 (2026-05-03).** parse_primary `<` branch now parses
+`<TypeName as TraitName>::method(args)` (with optional `<...>` trait
+generics) and lowers to kind-7 call on the existing type-mangled name
+`<Type>__<method>`. UFCS-as-disambiguator under multi-trait collision
+remains pinned to per-trait mangling (v1.x trait-dispatch ship); for
+now v0.6.81 is a translation-fidelity surface for adopters porting
+Rust code.
+
+**Status today (historical):** v0.6.60 parse halt. v0.6.81 added the
+canonical shape acceptance.
 
 **Scope:**
 - parse_primary `<` branch: parse `<TypeExpr as TraitName>::method`.
