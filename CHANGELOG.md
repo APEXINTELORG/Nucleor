@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.62] — 2026-05-03
+
+**`move` closure parse halt — closes another sub-row of the
+keyword-silent-strip audit.**
+
+Pre-fix `let f = move || n + 1;` (canonical Rust move-capture
+closure) lexed `move` as an identifier and the parser produced a
+clang-link error `@move undefined` or wrong-class TYP-005
+'undefined function move'. Adopters porting Rust closure code with
+explicit move-capture saw a confusing late-link error.
+
+### Fix
+
+`parse_primary` (~line 1490): when the first token is kind-1
+identifier with value `move` AND the next token is `|` (token
+65) or `||` (token 37), halt with a clean diag pointing at the
+workaround (drop the `move` keyword — Nucleor v0.6 closures
+capture references to the enclosing scope, observably equivalent
+to Rust's `move` for the i64-everywhere ABI's pointer-equality
+semantics). Forward-roadmap: when v1 borrow-checker arrives,
+`move` will gain meaning.
+
+### Verify
+
+- New regression-lock: `tests/err/err_move_closure.nr` (auto-walker).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.61] — 2026-05-03
 
 **`let Point { x, y } = p;` parse halt — closes another rust-syntax-

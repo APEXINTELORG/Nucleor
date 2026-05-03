@@ -39,16 +39,21 @@ NoSuchTrait` because trait-bound resolution doesn't validate
 the trait name yet. Forward-roadmap: validate trait names in
 where clauses against the seen-traits set.
 
-### 4. `move` closure — clang-link failure `@move undefined`
+### 4. `move` closure — CLOSED v0.6.62
 
 ```nucleor
-let f = move || x + 1;    // clang-link error: undefined value '@move'
+let f = move || x + 1;    // pre-v0.6.62: clang-link error '@move undefined'
+                          // v0.6.62: clean parse halt with workaround
 ```
 
-The lexer treats `move` as an identifier and the parser sees it
-as a function-call-like form, which then becomes `@move` in IR.
-Forward-roadmap: lex-time keyword recognition + closure-side
-move-capture lowering.
+`parse_primary` now detects `move` (kind-1 ident) followed by `|`
+(token 65) or `||` (token 37) and halts with a clean diag pointing
+at the workaround (drop the `move` — v0.6 closures capture
+references to the enclosing scope which is observably the same as
+Rust's move for the i64-everywhere ABI). Forward-roadmap: when v1
+borrow-checker arrives, `move` will gain meaning.
+
+Regression-lock: `tests/err/err_move_closure.nr`.
 
 ### Existing close (v0.6.x partial)
 
