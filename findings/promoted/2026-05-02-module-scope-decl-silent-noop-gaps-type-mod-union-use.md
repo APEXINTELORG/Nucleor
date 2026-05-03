@@ -6,7 +6,7 @@ diagnostic_actual: see "Repro matrix" — each gap surfaces as a different downs
 diagnostic_expected: clean halt at decl OR proper implementation
 discovered_against: main v0.6.21 (probe rebased)
 commit: probe (post-rebase) + main 2922d604
-status: PARTIAL CLOSE in v0.6.50 — `union` halt shipped. The other three sub-gaps are intentional design today (see "Per-shape disposition" below).
+status: PARTIAL CLOSE — `union` halt shipped v0.6.50. `type` alias resolver shipped v0.6.67 (full feature acceptance). `mod` block-form is intentional inlining (transparent grouping per t15a smoke). `use` is intentional pass-through. Finding effectively closed: all 4 sub-gaps either fully shipped or intentional design.
 ---
 
 ## Closure (main agent v0.6.50)
@@ -47,16 +47,14 @@ would fail at the use site if `foo` isn't already in scope —
 that's a real but distinct gap (named-import resolution), tracked
 separately as a v1+ feature.
 
-**`type Name = i64;`** — DECLARED-NOT-RESOLVED.
+**`type Name = i64;`** — CLOSED v0.6.67.
 
-`parse_type_alias_decl` (line ~2344) creates a kind-51 node for
-the alias, but the type-resolver doesn't substitute the alias at
-use sites — TYP-006 fires when `Name` is used as a type. Adding
-a parse-time halt would block the alias path entirely; the right
-fix is to wire alias resolution into `nr_type_to_llvm` and
-`type_expr`. That's a larger ship, deferred for a dedicated cycle.
-No fixture in the codebase uses `type X = ...` today (verified
-via grep), so the user impact is bounded.
+`parse_type_alias_decl` (line ~2344) creates a kind-51 node. The
+v0.6.67 type-alias resolver wires alias substitution into
+`types_compatible_context` (the central type-compat check) and
+the TYP-006 str-helper paths. Iterative resolution handles
+chained aliases up to depth 4. Regression-lock at
+`tests/fixtures/v0667_type_alias_resolves.nr`.
 
 ## Adopter migration
 
