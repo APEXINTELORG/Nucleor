@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.31] — 2026-05-03
+
+**ISR-004 — `#[isr]` placement check at the attribute's own line
+(probe finding partial closure).**
+
+Closes gap (a) of probe finding `2026-05-02-isr-attr-validation-
+gaps`. Pre-fix `#[isr]` placed on a non-fn item (struct, enum,
+impl, trait, mod, use, const, static, type) was silently dropped
+on that item AND leaked to the next fn in the file, producing a
+misleading ISR-001 diag pointing at the wrong fn (typically
+`main`). Adopters removing or fixing the suspect fn just saw the
+diag shift to the next fn down — the actual misplaced attribute
+(the struct or whatever) was never named.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` adds `enforce_isr_placement()`,
+called at the top of `enforce_isr_contracts`. Scans source for
+every `#[isr` occurrence, walks past the attribute body, then
+walks forward looking for the next item-keyword (skipping
+comments, whitespace, `pub` / `pub(...)`, and other attributes).
+If the first item-keyword found is anything other than `fn`,
+emits `error[ISR-004]` at the attribute's own source line so
+the adopter can find and delete the misplaced attribute.
+
+### Adopter migration
+
+```nucleor
+// Pre-v0.6.31: silent on struct, ISR-001 on main (wrong fn):
+#[isr]
+struct S { x: i64 }
+fn main() -> i32 { 0 }
+
+// v0.6.31:
+//   error[ISR-004]: `#[isr]` may only be applied to fn items;
+//                   found `struct` after the attribute …
+//   error[ISR-001]: … main (still leaks but cause is clear)
+//
+// Workaround: remove `#[isr]` from the struct (it has no effect
+// on a non-fn item) or move it to the actual handler fn.
+```
+
+### Notes
+
+- ISR-001 still leaks to the next fn (collect_isr_entries unchanged
+  to keep the IR-emit path stable); the user gets BOTH diags but
+  ISR-004 names the real cause. A future ship can stop the leak
+  by skipping misplaced entries in collect_isr_entries.
+- Gaps (b)/(c)/(d) of the same finding (negative-prio, string-prio,
+  bare-ident-prio validation) deferred to a separate ship.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `83676e7b…`.
+- Self-host wall: 5.22s cold + 3.82s stage2 (under 5.93s
+  cold-warning baseline).
+- Tools-suite (674 fns) compiles clean — no false halts on the
+  tools-suite source (which uses `#[isr]` correctly only on fn).
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
+### Fixture
+
+- `tests/err/err_isr_004_placement_on_struct.nr`
+
 ## [0.6.30] — 2026-05-03
 
 **Vec/array OOB diag reworded — Rust-canonical phrasing, no
