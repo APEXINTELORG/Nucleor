@@ -319,6 +319,65 @@ fn skip_bracket_list(tokens: Vec<i32>, pos: i64) -> i64 {
     return cp;
 }
 
+fn skip_compile_time_param_default(tokens: Vec<i32>, pos: i64) -> i64 {
+    let mut cp: i64 = pos;
+    let mut paren_depth: i64 = 0;
+    let mut bracket_depth: i64 = 0;
+    let mut angle_depth: i64 = 0;
+    while pk(tokens, cp) != 0 {
+        let tt: i64 = pk(tokens, cp);
+        if paren_depth == 0 {
+            if bracket_depth == 0 {
+                if angle_depth == 0 {
+                    if tt == 44 || tt == 55 { return cp; };
+                };
+            };
+        };
+        if tt == 50 { paren_depth = paren_depth + 1; }
+        else if tt == 51 {
+            if paren_depth > 0 { paren_depth = paren_depth - 1; };
+        } else if tt == 54 {
+            bracket_depth = bracket_depth + 1;
+        } else if tt == 55 {
+            if bracket_depth == 0 { return cp; };
+            bracket_depth = bracket_depth - 1;
+        } else if tt == 32 {
+            angle_depth = angle_depth + 1;
+        } else if tt == 33 {
+            if angle_depth > 0 { angle_depth = angle_depth - 1; };
+        };
+        cp = cp + 1;
+    };
+    return cp;
+}
+
+fn skip_compile_time_params(tokens: Vec<i32>, pos: i64) -> i64 {
+    // RFC-0034 parser-only substrate; mirrors s1 and erases the ct-param
+    // list until semantic environments and specialization land.
+    if pk(tokens, pos) != 54 { return pos; };
+    let mut cp: i64 = pos + 1;
+    let mut seen: i64 = 0;
+    while pk(tokens, cp) != 55 && pk(tokens, cp) != 0 {
+        if seen > 0 {
+            cp = expect_tok(tokens, cp, 44);
+            if pk(tokens, cp) == 55 { break; };
+        };
+        if pk(tokens, cp) != 1 {
+            panic("error[NR020]: expected compile-time parameter name in RFC-0034 `[]` parameter list");
+        };
+        cp = cp + 1;
+        cp = expect_tok(tokens, cp, 42);
+        let mut tr: Vec<i32> = parse_type(tokens, cp);
+        cp = pr_pos(tr);
+        if pk(tokens, cp) == 40 {
+            cp = skip_compile_time_param_default(tokens, cp + 1);
+        };
+        seen = 1;
+    };
+    cp = expect_tok(tokens, cp, 55);
+    return cp;
+}
+
 fn skip_angle_group(tokens: Vec<i32>, pos: i64) -> i64 {
     if pk(tokens, pos) != 32 { return pos; };
     let mut cp: i64 = pos + 1;
@@ -922,6 +981,7 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         cp = pr_pos(gr);
         gparams = mk_list(pool, pr_val(gr));
     };
+    if pk(tokens, cp) == 54 { cp = skip_compile_time_params(tokens, cp); };
     cp = expect_tok(tokens, cp, 50); // (
     let mut params: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
@@ -944,7 +1004,9 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points after 'extern fn', at the name
     let name: i64 = pkv(tokens, pos);
-    let mut cp: i64 = expect_tok(tokens, pos + 1, 50);
+    let mut cp: i64 = pos + 1;
+    if pk(tokens, cp) == 54 { cp = skip_compile_time_params(tokens, cp); };
+    cp = expect_tok(tokens, cp, 50);
     let mut params: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
         if vec_len(params) > 0 { cp = expect_tok(tokens, cp, 44); };
@@ -1075,6 +1137,7 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
         cp = expect_tok(tokens, cp, 10); // fn
         let mname: i64 = pkv(tokens, cp); cp = cp + 1;
+        if pk(tokens, cp) == 54 { cp = skip_compile_time_params(tokens, cp); };
         cp = expect_tok(tokens, cp, 50); // (
         let mut params: Vec<i32> = Vec::new();
         while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
@@ -1139,6 +1202,7 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             let mut gr: Vec<i32> = parse_generic_params(tokens, cp2);
             cp2 = pr_pos(gr); mgparams = mk_list(pool, pr_val(gr));
         };
+        if pk(tokens, cp2) == 54 { cp2 = skip_compile_time_params(tokens, cp2); };
         cp2 = expect_tok(tokens, cp2, 50); // (
         let mut params: Vec<i32> = Vec::new();
         while pk(tokens, cp2) != 51 && pk(tokens, cp2) != 0 {

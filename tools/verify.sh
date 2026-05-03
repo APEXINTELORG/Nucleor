@@ -2165,6 +2165,25 @@ t_atomic_006_in_closure() {
     return 0
 }
 
+t_rfc0034_compile_time_params_parser() {
+    # RFC-0034 first-pass parser substrate: `fn f<T>[N: usize](...)`
+    # parses cleanly while the value-level compile-time params are erased
+    # until semantic environments and call-site specialization land.
+    "$BIN" build "tests/features/rfc0034_compile_time_params_parser.nr" -o "_t_rfc0034_ctparams" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "0" ] || return 1
+    local exe="target/_t_rfc0034_ctparams"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    local out
+    out=$("$exe" 2>&1)
+    [ "$?" = "0" ] || return 1
+    echo "$out" | grep -q "OK rfc0034_compile_time_params_parser" || return 1
+    "$BIN" build "tests/err/err_rfc0034_compile_time_param_missing_colon.nr" -o "_t_rfc0034_ctparams_bad" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "1" ] || return 1
+    grep -q "error\\[NR020\\]" $NUC_VERIFY_STEP_LOG || return 1
+    return 0
+}
+
 t_str_char_at_strict_basic() {
     # v0.4.279 str_char_at_strict — in-bounds reads return same
     # as default str_char_at. Adopter opt-in for bounds-checked
@@ -4949,6 +4968,7 @@ step "T3.145 v0.4.99 §_p — parse_primary fall-through panics for non-recovery
 step "T3.146 v0.4.115 RFC-0016 §3.7 — ? applies From<SrcErr> for DstErr conversion; explicit Into<T> parses" t460_question_from_conversion
 step "T3.147 v0.4.119 rich match patterns — enum or, @, struct, slice, tuple, MATCH-008/009/010" t446_rich_pattern_forms
 step "T3.148 v0.4.146 NUM-008 — variable shift RHS halts when const, panics cleanly at runtime otherwise" t447_shift_var_rhs_bounds
+step "RFC-0034 compile-time [] parameter parser first pass" t_rfc0034_compile_time_params_parser
 step "T3.saturating block add/sub/mul lower per operation" t_saturating_block_per_op
 step "T3.strict intrinsic signed narrow overflow i8/i16/i32 + env precedence" t_strict_intrin_narrow_widths
 step "v0.4.239 regression — wrapping {} block must not trap under strict default" t_wrap_block_no_trap
