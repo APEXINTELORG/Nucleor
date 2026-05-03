@@ -1,0 +1,35 @@
+{
+  "instructions_read": "v0.6.72-post",
+  "current_task": "B5_call_site_attribution_instrumentation",
+  "edits_in_main_tree": false,
+  "rebased_on_origin_main": "a9be3392",
+  "perf_baseline_pre_task": {
+    "cold": 3.16,
+    "peak_mem": 318
+  },
+  "validation": {
+    "caller_profile_self_host": {
+      "exit_code": 0,
+      "aggregate_total": 277566966,
+      "str_eq_total": 102999590,
+      "vec_get_total": 102604921,
+      "overflow_buckets": 0
+    },
+    "compiler_drift": "pass",
+    "bootstrap_seed_fixed_point": "pass",
+    "perf_3_sample": {
+      "status": "blocked_by_current_main",
+      "origin_main_cold_seconds": [5.02],
+      "origin_main_failure": "v0.6.78 baseline sample 2 failed cold self-build with transient OWN-008 at priv_mangle_private_fns",
+      "branch_certification": "not claimed while current origin/main baseline is failing/flaky"
+    },
+    "verify": {
+      "pre_rebase_full_run": "780 pass / 2 skip / 26 fail",
+      "pre_rebase_rerun_failed": "26 pass / 266 skip / 0 fail",
+      "post_rebase_bootstrap_only": "1 pass / 266 skip / 0 fail"
+    }
+  },
+  "status": "blocked-current-main-perf-own008",
+  "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_probe",
+  "branch": "probe/exploration"
+}
