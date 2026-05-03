@@ -22176,6 +22176,13 @@ fn host_null_redirect() -> str {
     return " 2>/dev/null";
 }
 
+fn host_remove_file_quiet(path: str) -> i64 {
+    if host_is_windows() == 1 {
+        return system(str_concat("del /F /Q ", str_concat(path, " 2>NUL")));
+    };
+    return system(str_concat("rm -f ", str_concat(path, " 2>/dev/null")));
+}
+
 fn host_stack_link_flag() -> str {
     // Windows: clang-cl-style flag passed through to MSVC link.exe / lld-link.
     // POSIX: GNU ld accepts -z stacksize=N (in bytes). Both expand the main
@@ -22227,6 +22234,7 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     // outer wrapper -- which then breaks the C:\Program Files\
     // clang path quoting elsewhere in the line. Keep it bare.
     let alloc_include_flag: str = str_concat(" -include ", alloc_hdr);
+    host_remove_file_quiet(exe_path);
     let clang_start: i64 = now_ms();
     let stack_flag: str = host_stack_link_flag();
     // T1.5d (v0.2.343): capture clang stderr to a log file so the
