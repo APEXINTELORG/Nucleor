@@ -27619,6 +27619,20 @@ fn expand_async_strip_keyword(src: str) -> str {
             };
             let name: str = str_substring(src, id_start, p);
             if str_eq(name, "async") == 1 {
+                // v0.7.9 (defensive halt): canonical Rust `async { ... }`
+                // block expression pre-fix surfaced as wrong-class
+                // `error[TYP-005]: undefined function async()` because
+                // expand_async_strip_keyword only handles `async fn`,
+                // and parse_primary then treats `async` as a fn call.
+                // Halt cleanly with a workaround pointer (drop the
+                // `async` — Nucleor's runtime is single-threaded, the
+                // block runs synchronously).
+                let mut blk_peek: i64 = p;
+                while blk_peek < slen && (str_char_at(src, blk_peek) == 32 || str_char_at(src, blk_peek) == 9 || str_char_at(src, blk_peek) == 10 || str_char_at(src, blk_peek) == 13) { blk_peek = blk_peek + 1; };
+                if blk_peek < slen && str_char_at(src, blk_peek) == 123 {
+                    print("ERROR: `async { ... }` block expression is not yet supported in Nucleor. Pre-v0.7.9 surfaced as wrong-class `error[TYP-005]: undefined function async()` because expand_async_strip_keyword only handles `async fn` (not `async {`), and parse_primary then treats `async` as a fn call. Workaround: drop the `async` keyword — Nucleor's runtime is single-threaded by default, so the block already runs synchronously. For threaded execution use `async_spawn(fn_ptr, arg)` (RFC-0027 phase 1, see stdlib/rods/async.nr) which returns a handle. Tracked for forward-roadmap (full Future-trait async-block lowering is sister to V1.x async/Future infrastructure).");
+                    panic("nucleor: `async { ... }` block expression not yet supported (see ERROR diagnostic above)");
+                };
                 // Look ahead past whitespace for `fn`.
                 let mut peek: i64 = p;
                 while peek < slen && (str_char_at(src, peek) == 32 || str_char_at(src, peek) == 9) { peek = peek + 1; };
