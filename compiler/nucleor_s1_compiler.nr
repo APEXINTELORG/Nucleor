@@ -2864,6 +2864,20 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let unit_nid: i64 = mk4(pool, 33, name, mk_list(pool, Vec::new()), gparams);
         return pr(cp + 1, unit_nid);
     };
+    // v0.6.53 (probe finding 2026-05-02-nested-struct-pattern-and-
+    // tuple-struct-decl-NR020 sub-case 2): tuple-struct declaration
+    // `struct P(i64, i64);` (positional-field shape) is a canonical
+    // Rust form. Pre-fix the next-token check below saw `(` (token
+    // 50) instead of `{` and panicked NR020 with "expected '{', got
+    // '('" — adopter sees the wrong-class error pointing at the
+    // open-paren without naming the unsupported feature. Now halt
+    // with a clean diag at the decl naming the workaround (named-
+    // field form). Tuple-struct support is a parse-extension forward-
+    // roadmap (positional field synthesis + `p.0` / `p.1` access path).
+    if pk(tokens, cp) == 50 {
+        print("ERROR: tuple-struct declarations `struct P(T1, T2);` are not yet supported in Nucleor. Pre-v0.6.53 the parser rejected with `error[NR020]: parse error ... expected '{', got '('` — wrong-class error not naming the unsupported feature. Workaround: use the named-field form `struct P { x: T1, y: T2 }` and access fields via `p.x`/`p.y`. Tracked for forward-roadmap (positional field synthesis + `.0`/`.1` access path).");
+        panic("nucleor: tuple-struct decl not yet supported (see ERROR diagnostic above)");
+    };
     cp = expect_tok(tokens, cp, 52); // {
     let mut fields: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
@@ -3538,6 +3552,19 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             if pending_pub == 1 { items.push(mk2(pool, 76, node_field(pool, fn_nid, 1))); pending_pub = 0; };
             items.push(fn_nid);
             cp = pr_pos(r);
+        }
+        else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "unsafe") == 1 && pk(tokens, cp + 1) == 10 {
+            // v0.6.53 (probe finding 2026-05-01-keyword-silent-strip-
+            // audit, sub-case 1): `unsafe fn dangerous() -> i64 { ... }`
+            // pre-fix had the `unsafe` keyword silently stripped at
+            // parse — the fn decl parsed normally without the marker.
+            // Visible-as-noop for adopters auditing translated Rust
+            // code. Halt at the decl with a clean diag naming the
+            // forward-roadmap status (Nucleor v0.6 has no checked
+            // operations to opt out of, so `unsafe fn` is informational
+            // only; the silent-strip removed the visual signal).
+            print("ERROR: `unsafe fn` is not yet supported in Nucleor. Pre-v0.6.53 the `unsafe` keyword was silently stripped, leaving the fn body indistinguishable from a regular fn — adopters auditing Rust translation lost the visual marker. Workaround: drop the `unsafe` qualifier (Nucleor v0.6 has no checked operations to opt out of, so the qualifier is informational-only). Tracked for forward-roadmap (when v1 ships any checked-arith opt-out semantics, `unsafe` will gain meaning).");
+            panic("nucleor: `unsafe fn` decl not yet supported (see ERROR diagnostic above)");
         }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "union") == 1 {
             // v0.6.50 (probe finding 2026-05-02-module-scope-decl-silent-
@@ -15504,14 +15531,38 @@ fn const_i64_binop(op: i64, a: i64, b: i64) -> Vec<i32> {
     if op == 21 { return const_i64_sub(a, b); };
     if op == 22 { return const_i64_mul(a, b); };
     if op == 23 {
-        if b == 0 { return const_i64_result(0, 0); };
+        // v0.6.53 (probe finding 2026-05-02-num-021-coverage-gaps-u64-
+        // imin-shift-divzero, gap 3): div-by-zero in const expression
+        // is undefined; flag as overflow so NUM-021 fires at compile
+        // time. Pre-fix returned no-value, falling through to runtime
+        // PANIC at startup ("PANIC: i64 div by zero" via the
+        // strict-intrin trap), surfacing far from the source.
+        if b == 0 { return const_i64_result_ex(0, 0, 1); };
         if a == min_i64 && b == 0 - 1 { return const_i64_result_ex(0, 0, 1); };
         return const_i64_result(1, a / b);
     };
     if op == 24 {
-        if b == 0 { return const_i64_result(0, 0); };
+        // v0.6.53 same finding: mod-by-zero in const expression is
+        // undefined; flag as overflow so NUM-021 fires at compile time.
+        if b == 0 { return const_i64_result_ex(0, 0, 1); };
         if a == min_i64 && b == 0 - 1 { return const_i64_result_ex(0, 0, 1); };
         return const_i64_result(1, a - (a / b) * b);
+    };
+    // v0.6.53 same finding: const-time shift-out-of-range. Op codes
+    // 115/116 are << / >> at AST level (per line ~16269 dispatch).
+    // i64 shift amount must be in [0, 63]; outside that range the
+    // result is undefined per the C/LLVM model. Fire NUM-021 at
+    // compile time when both operands are const and the shift amount
+    // is out of range. Pre-fix the binop fell through to the (0, 0)
+    // no-value path and then PANICked at runtime startup via the
+    // strict-intrin trap.
+    if op == 115 {
+        if b < 0 || b > 63 { return const_i64_result_ex(0, 0, 1); };
+        return const_i64_result(0, 0);
+    };
+    if op == 116 {
+        if b < 0 || b > 63 { return const_i64_result_ex(0, 0, 1); };
+        return const_i64_result(0, 0);
     };
     return const_i64_result(0, 0);
 }
