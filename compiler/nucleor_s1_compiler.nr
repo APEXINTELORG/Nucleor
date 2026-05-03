@@ -3539,6 +3539,17 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             items.push(fn_nid);
             cp = pr_pos(r);
         }
+        else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "union") == 1 {
+            // v0.6.50 (probe finding 2026-05-02-module-scope-decl-silent-
+            // noop-gaps-type-mod-union-use): pre-fix `union U { a: i64,
+            // b: f64 }` was silently swallowed at parse time then
+            // `U { a: 42 }` at use site emitted "unknown struct U" —
+            // confusing late error pointing at the use site, not the
+            // unsupported decl. Now halt at the decl with a clean
+            // diagnostic naming the v0.6 boundary.
+            print("ERROR: `union` items are not yet supported in Nucleor. Pre-v0.6.50 the declaration was silently dropped at parse time and use sites failed opaquely with `unknown struct <NAME>`. Workaround: model the union shape with an `enum` (Rust-canonical for tagged unions) or a `struct` whose fields cover the largest variant if you need the raw bit-pattern reuse. Tracked for forward-roadmap.");
+            panic("nucleor: `union` decl at module scope not yet supported (see ERROR diagnostic above)");
+        }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "static") == 1 {
             // v0.6.21 (probe finding 2026-05-01-static-decl-accepted-but-not-lowered):
             // `static NAME: T = VALUE;` at module scope was silently
@@ -17575,7 +17586,25 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
         else { tenv_set(env, vname, init_t); };
         if init >= 0 {
             let init_const_v146: Vec<i32> = const_i64_expr(pool, init, env);
-            if vec_get(init_const_v146, 0) == 1 { tenv_set_const_i64(env, vname, vec_get(init_const_v146, 1)); }
+            // v0.6.50 (probe finding 2026-05-02-num-021-coverage-gaps-
+            // u64-imin-shift-divzero, gap 4): also fire NUM-021 at
+            // compile time when a let-binding const expression
+            // overflows i64. Pre-fix `let x: i64 = i64::MAX + 1;`
+            // PANICked at runtime startup via the strict-intrin trap
+            // — surfaced opaquely far from the source. Now NUM-021
+            // fires at the let-stmt site with the same wording the
+            // const-decl path already uses (line ~17859). Only the
+            // overflow class triggers; non-overflowing const exprs
+            // continue to set the const tracker per the v0.4.146
+            // path. Skipped for kind-7 (fn call) inits where the
+            // const fold returned overflow because the call body
+            // chain is opaque from the binding site.
+            if const_i64_overflow(init_const_v146) == 1 && node_kind(pool, init) != 7 {
+                let m21msg: str = str_concat("integer constant expression for let-binding `", str_concat(vname, "` overflows i64 at compile time. Pre-fix this PANICked at runtime startup via the strict-intrin trap — far from the source line. Use explicit wrapping_* / saturating_* helpers, reduce the value, or move the calculation to runtime if wrapping is intentional."));
+                type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-021", m21msg);
+                tenv_clear_const(env, vname);
+            }
+            else if vec_get(init_const_v146, 0) == 1 { tenv_set_const_i64(env, vname, vec_get(init_const_v146, 1)); }
             else { tenv_clear_const(env, vname); };
         } else {
             tenv_clear_const(env, vname);
