@@ -10164,7 +10164,111 @@ fn fn_param_decl_text(source: str, fn_name: str) -> str {
     return "";
 }
 
+// v0.6.31 (probe finding 2026-05-02-isr-attr-validation-gaps, gap a):
+// `#[isr]` placed on a non-fn item (struct, enum, impl, trait, mod, use,
+// const, static, type) was silently dropped on that item AND leaked
+// to the next fn in the file, producing a misleading ISR-001 diag
+// pointing at that next fn (`main` in the typical repro). Adopters
+// removing or fixing the suspect fn would just see the diag shift to
+// the next fn down — the actual misplaced attribute (the struct) was
+// never named.
+//
+// This pass scans for every `#[isr` occurrence and walks forward
+// looking for the next item-keyword. If the first item-keyword found
+// is anything other than `fn`, emit ISR-004 at the attribute's own
+// source line so the adopter can find and delete the misplaced
+// attribute.
+fn enforce_isr_placement(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let slen: i64 = str_len(source);
+    let pat: str = "#[isr";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        // Skip line comments and string literals (mirror collect_isr_entries logic).
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        if str_eq_at(source, p, pat) == 0 { p = p + 1; continue; };
+        let after: i64 = if p + plen < slen { str_char_at(source, p + plen) } else { 0 };
+        let attr_boundary_isr31: i64 = if after == 93 || after == 40 || is_ws(after) == 1 { 1 } else { 0 };
+        if attr_boundary_isr31 == 0 { p = p + 1; continue; };
+        let attr_start_isr31: i64 = p;
+        // Walk past the attribute body to its closing `]`.
+        let mut ae_isr31: i64 = p + plen;
+        let mut depth_isr31: i64 = 1;
+        while ae_isr31 < slen && depth_isr31 > 0 {
+            let ac_isr31: i64 = str_char_at(source, ae_isr31);
+            if ac_isr31 == 34 {
+                ae_isr31 = ae_isr31 + 1;
+                while ae_isr31 < slen && str_char_at(source, ae_isr31) != 34 {
+                    if str_char_at(source, ae_isr31) == 92 && ae_isr31 + 1 < slen { ae_isr31 = ae_isr31 + 2; }
+                    else { ae_isr31 = ae_isr31 + 1; };
+                };
+            } else if ac_isr31 == 91 { depth_isr31 = depth_isr31 + 1; }
+            else if ac_isr31 == 93 { depth_isr31 = depth_isr31 - 1; };
+            ae_isr31 = ae_isr31 + 1;
+        };
+        // Now walk forward from ae_isr31 looking for the next item-keyword
+        // at a fresh whitespace boundary. Skip over comments, attrs, `pub`,
+        // and the modifier set Rust allows between attributes and items.
+        let mut r_isr31: i64 = ae_isr31;
+        let mut next_item_kind_isr31: str = "";
+        while r_isr31 < slen {
+            // Skip line comments.
+            if r_isr31 + 1 < slen && str_char_at(source, r_isr31) == 47 && str_char_at(source, r_isr31 + 1) == 47 {
+                while r_isr31 < slen && str_char_at(source, r_isr31) != 10 { r_isr31 = r_isr31 + 1; };
+                continue;
+            };
+            // Skip whitespace.
+            if r_isr31 < slen && is_ws(str_char_at(source, r_isr31)) == 1 { r_isr31 = r_isr31 + 1; continue; };
+            // Skip nested attributes (e.g. `#[isr]\n#[no_panic]\nfn …`).
+            if r_isr31 < slen && str_char_at(source, r_isr31) == 35 {
+                while r_isr31 < slen && str_char_at(source, r_isr31) != 93 { r_isr31 = r_isr31 + 1; };
+                if r_isr31 < slen { r_isr31 = r_isr31 + 1; };
+                continue;
+            };
+            // Identify the next item-keyword.
+            if str_eq_at(source, r_isr31, "pub ") == 1 { r_isr31 = r_isr31 + 4; continue; };
+            if str_eq_at(source, r_isr31, "pub(") == 1 {
+                while r_isr31 < slen && str_char_at(source, r_isr31) != 41 { r_isr31 = r_isr31 + 1; };
+                if r_isr31 < slen { r_isr31 = r_isr31 + 1; };
+                continue;
+            };
+            if str_eq_at(source, r_isr31, "fn ") == 1 { next_item_kind_isr31 = "fn"; r_isr31 = slen; }
+            else if str_eq_at(source, r_isr31, "struct ") == 1 { next_item_kind_isr31 = "struct"; r_isr31 = slen; }
+            else if str_eq_at(source, r_isr31, "enum ") == 1 { next_item_kind_isr31 = "enum"; r_isr31 = slen; }
+            else if str_eq_at(source, r_isr31, "impl ") == 1 { next_item_kind_isr31 = "impl"; r_isr31 = slen; }
+            else if str_eq_at(source, r_isr31, "trait ") == 1 { next_item_kind_isr31 = "trait"; r_isr31 = slen; }
+            else if str_eq_at(source, r_isr31, "mod ") == 1 { next_item_kind_isr31 = "mod"; r_isr31 = slen; }
+            else if str_eq_at(source, r_isr31, "use ") == 1 { next_item_kind_isr31 = "use"; r_isr31 = slen; }
+            else if str_eq_at(source, r_isr31, "const ") == 1 { next_item_kind_isr31 = "const"; r_isr31 = slen; }
+            else if str_eq_at(source, r_isr31, "static ") == 1 { next_item_kind_isr31 = "static"; r_isr31 = slen; }
+            else if str_eq_at(source, r_isr31, "type ") == 1 { next_item_kind_isr31 = "type"; r_isr31 = slen; }
+            else { r_isr31 = r_isr31 + 1; };
+        };
+        if str_len(next_item_kind_isr31) > 0 && str_eq(next_item_kind_isr31, "fn") == 0 {
+            let line_isr31: i64 = byte_to_line(source, attr_start_isr31);
+            let msg4: str = str_concat("`#[isr]` may only be applied to fn items; found `", str_concat(next_item_kind_isr31, "` after the attribute. Pre-v0.6.31 the attribute was silently dropped here AND leaked to the next fn in the file, surfacing as a misleading ISR-001 diag pointing at the wrong fn (typically `main`). Workaround: remove this `#[isr]` (it has no effect on a non-fn item) or move it to the actual handler fn."));
+            diag_add_ex(diags, "error", "isr", "ISR-004", msg4, "", line_isr31, 1, "");
+        };
+        p = ae_isr31;
+    };
+    return diags;
+}
+
 fn enforce_isr_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
+    diags = enforce_isr_placement(diags, source);
     let entries: Vec<i32> = collect_isr_entries(source);
     let target: str = isr_target_for_compile();
     let target_ok: i64 = isr_target_supported(target);
