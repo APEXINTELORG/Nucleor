@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.56] — 2026-05-03
 
-**`unreachable!()` macro expansion — closes another rust-syntax-
-translation-fidelity row.**
+**Two batched closures — `unreachable!()` macro + RFC-0034 gap 2.**
+
+### `unreachable!()` macro expansion (main agent)
 
 Pre-fix `unreachable!()` was added to the strip-and-continue list
 (line ~28480) — `!` was stripped, leaving `unreachable()` to fall
@@ -45,10 +46,34 @@ fn must_be_positive(x: i64) -> i64 {
 }
 ```
 
+### RFC-0034 gap 2 — negative usize default rejected (helper agent A3)
+
+Closes gap 2 of probe finding
+`2026-05-02-rfc0034-ct-param-first-pass-residual-edges`. Pre-fix
+`fn f[N: usize = -1](x: i64) -> i64 { ... }` silently accepted the
+negative default — the default-value skipper consumed the `-1`
+token sequence without type-checking. The default is erased so it
+doesn't affect runtime, but parse-time accept hides the typo.
+
+Helper agent shipped (mirrored in `nucleor_s1_compiler.nr` and
+`nucleor_tools_suite.nr` per drift gate):
+
+- New helper `ct_param_type_is_unsigned(t)` — recognizes u8/u16/
+  u32/u64/usize.
+- New helper `ct_param_default_is_negative_literal(tokens, pos)` —
+  detects unary-minus + int-literal at the default position.
+- `skip_compile_time_params` now panics when an unsigned CT-param
+  has a negative literal default.
+
+Regression-lock: `tests/err/err_rfc0034_compile_time_param_negative_usize_default.nr`.
+
 ### Verify
 
-- New regression-lock: `v0656_unreachable_macro_panics` (in
-  verify.sh — runs the fixture and asserts the canonical message).
+- New regression-locks:
+  - `v0656_unreachable_macro_panics` (verify.sh, runs the fixture
+    and asserts the canonical message).
+  - `err_rfc0034_compile_time_param_negative_usize_default.nr`
+    (auto-walker).
 - Round-2 fixed-point preserved.
 - Bootstrap seed refreshed.
 - Drift gate clean.
