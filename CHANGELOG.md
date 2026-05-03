@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.81] — 2026-05-03
+
+**RFC V1.7 — UFCS dispatch `<Type as Trait>::method(args)`. Canonical
+Rust universal function call syntax now parses + lowers.**
+
+Pre-fix: the `<` at expression start panicked at v0.6.60's halt
+with workaround pointer (`call as a regular method or fully-
+qualified path`). The full UFCS surface was tracked for the v1
+trait-dispatch ship.
+
+Post-fix: `parse_primary` extends its `<` (token 32) branch to parse
+the canonical `<TypeName as TraitName>::method(args)` shape (with
+optional `<...>` trait generics) and emits a regular kind-7 (call)
+to the type-mangled name `<Type>__<method>`. Nucleor's existing
+trait-impl mangling already produces this exact name regardless of
+which trait the impl came through, so UFCS lowers as a verbose
+surface alias.
+
+```nucleor
+trait Greet {
+    fn hello(self: &Self) -> str;
+}
+
+struct W { v: i64 }
+
+impl Greet for W {
+    fn hello(self: &W) -> str { return "hi from W"; }
+}
+
+fn main() -> i32 {
+    let w: W = W { v: 7 };
+    // Pre-v0.6.81: parse halt with workaround pointer.
+    // Post-v0.6.81:
+    print(<W as Greet>::hello(&w));     // "hi from W"
+    return 0;
+}
+```
+
+### Mangling caveat
+
+When two traits provide the same method name on the same type, both
+impls register the SAME mangled name `<Type>__<method>` and Nucleor
+emits the duplicate-fn-name diag at struct-emit time (line ~7958,
+"ambiguous method"). The ambiguity is rejected there, so
+UFCS-as-disambiguator is moot under today's mangling. Per-trait
+mangling is the v1.x trait-dispatch ship; until then v0.6.81 UFCS
+is purely a translation-fidelity surface for adopters porting Rust
+code.
+
+### Unsupported shapes
+
+If the parsed shape doesn't match `<TypeName as TraitName>::method`
+or skip-able generics, the parser falls through to the v0.6.60
+halt with a workaround pointer pointing at receiver-form / path-form.
+
+### Fixed-point + perf
+
+Cold 3.23s (baseline 3.16s). Peak 312MB. Round-2 fixed-point md5
+`5d240be63cb77d7b3a180b95e81061e5`.
+
+### Fixture
+
+`tests/fixtures/v0681_ufcs_dispatch.nr` — exercises the canonical
+shape on a single-trait impl.
+
 ## [0.6.80] — 2026-05-03
 
 **TYP-006 String hint — adopters passing a `String` to `print` /
