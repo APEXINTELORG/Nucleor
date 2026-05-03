@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.25] — 2026-05-02
+
+**`#[cfg(...)]` and `#[cfg_attr(...)]` attributes — clean parse-time
+halt instead of silent-drop + duplicate-fn PANIC (probe finding
+closure).**
+
+Closes probe finding `2026-05-01-cfg-attribute-silently-ignored`.
+Pre-fix `#[cfg(target_os="X")] fn foo() ...` paired with
+`#[cfg(not(target_os="X"))] fn foo() ...` silently dropped both
+attributes at lex time, left both fn definitions live, and produced
+the misleading "duplicate pub fn name across modules" PANIC. Single
+`#[cfg(test)]` items leaked into release builds. Cross-platform
+Rust translation produced unbuildable Nucleor with a wrong-error
+diagnostic.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` lex-time `#[...]` consumer —
+detect `#[cfg(` and `#[cfg_attr(` BEFORE the silent skip and emit
+a clean ERROR with workaround pointer, then panic.
+
+The check is intentionally narrow (matches only `#[cfg(` and
+`#[cfg_attr(` — uses a single `str_eq_at(src, p+2, "cfg")` plus a
+peek at the next character `(` or `_` to disambiguate). All other
+attributes (`#[no_alloc]`, `#[deadline]`, `#[isr]`, `#[max_depth]`,
+etc.) continue to flow through unchanged.
+
+### Adopter migration
+
+```nucleor
+// Pre-v0.6.25 (silent-drop + duplicate-fn PANIC):
+#[cfg(target_os="windows")]
+fn os_name() -> str { "windows" }
+
+#[cfg(not(target_os="windows"))]
+fn os_name() -> str { "other" }
+
+// v0.6.25 (clean halt — workarounds):
+// (a) For cross-platform code: manually delete the inactive branch
+//     before building.
+// (b) For test-only code: gate it behind a runtime flag or move it
+//     to a separate `_test.nr` file that isn't imported in release.
+// (c) Wait for the future cfg-evaluation ship that picks the
+//     matching branch at parse time.
+```
+
+### Fixture
+
+- `tests/err/err_cfg_attribute_not_supported.nr` — locks the halt.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `c6a57d3b…`.
+- Self-host peak: 664–680 MB / 4.94 + 5.00s wall.
+- Tools-suite compiles clean (no `#[cfg]` in tools-suite source).
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
+### Forward-roadmap (full cfg-evaluation)
+
+Real `#[cfg(...)]` evaluation requires:
+- A cfg-context (target_os, target_arch, feature flags, profile, ...).
+- Recursive cfg-expression evaluator (`not`, `any`, `all`).
+- Parse-time pruning so only the matching branch reaches type-check.
+
+Deferred to a post-v0.6 RFC. For now adopters use the workarounds
+above.
+
 ## [0.6.24] — 2026-05-02
 
 **RFC-0035 Sendable + actor substrate (consultant lane G) — integrated

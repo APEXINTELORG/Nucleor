@@ -256,6 +256,24 @@ fn lex(src: str) -> Vec<i32> {
             // Lex-time skip with quoted-string + bracket-depth awareness.
             // Forward-compatible with RFC-0001/0021 attribute family; semantics
             // ship in later RFC implementation phases.
+            //
+            // v0.6.25 (probe finding 2026-05-01-cfg-attribute-silently-ignored):
+            // detect `#[cfg(...)]` and `#[cfg_attr(...)]` BEFORE the silent
+            // skip and halt with a clear workaround pointer. Pre-fix, paired
+            // `#[cfg(target_os="X")] fn foo() ... #[cfg(not(...))] fn foo()`
+            // produced a misleading "duplicate pub fn name across modules"
+            // PANIC because both branches lowered. Single `#[cfg(test)]`
+            // items leaked into release builds. Cross-platform Rust
+            // translation produced unbuildable Nucleor with a wrong-error
+            // diagnostic. Loud halt closes the silent-drop window until full
+            // cfg-evaluation lands (post-v0.6 RFC).
+            if p + 6 < slen && str_eq_at(src, p + 2, "cfg") == 1 {
+                let after_cfg: i64 = str_char_at(src, p + 5);
+                if after_cfg == 40 || after_cfg == 95 {
+                    print("ERROR: `#[cfg(...)]` and `#[cfg_attr(...)]` attributes are not yet supported in Nucleor. Pre-v0.6.25 the attribute was silently dropped at lex time, leaving all branches of a `#[cfg(...)] fn foo() ... #[cfg(not(...))] fn foo()` pair LIVE — which produced a misleading 'duplicate pub fn name' PANIC, hiding the real cause. Single `#[cfg(test)]` items leaked into release builds. Workarounds: (a) for cross-platform code, manually delete the inactive branch before building; (b) for test-only code, gate it behind a runtime flag or move it to a separate `_test.nr` file that isn't imported in release; (c) wait for the future cfg-evaluation ship that will pick the matching branch at parse time.");
+                    panic("nucleor: `#[cfg(...)]` attribute not yet supported (see ERROR diagnostic above)");
+                };
+            };
             p = p + 2;
             let mut depth: i64 = 1;
             while p < slen && depth > 0 {
