@@ -5,6 +5,77 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.49] — 2026-05-03
+
+**Canonical `i64::MIN` literal `-9223372036854775808` accepted at
+compile time (was NUM-021 false-fire) — probe finding closure
+`2026-05-02-num-021-coverage-gaps-u64-imin-shift-divzero` gap 2.**
+
+Pre-fix `const B: i64 = -9223372036854775808;` (the canonical Rust
+representation of i64::MIN) emitted `error[NUM-021]` at compile
+time. The parser tokenizes the literal as unary-minus applied to
+`9223372036854775808`; the lexer wraps `2^63` to i64::MIN at
+storage, then the const evaluator's kind-5 unary-minus path saw
+`-i64::MIN` (a true overflow) without distinguishing the
+literal-wrap-from-source case from a compute-time overflow.
+
+Adopters porting Rust code that uses `i64::MIN` (clamping,
+saturating math, scientific libraries) had to use the workaround
+`(-9223372036854775807) - 1` — ugly and breaks copy-paste.
+
+### Fix
+
+Three coordinated changes — `compiler/nucleor_s1_compiler.nr`:
+
+1. **`const_i64_expr` kind-5 (~line 15500)**: when the inner is a
+   kind-1 literal AND its value is i64::MIN, return
+   `const_i64_min()` instead of flagging overflow. The original
+   source literal `9223372036854775808` is the only decimal that
+   wraps to i64::MIN, so unary-minus produces the genuinely
+   representable i64::MIN value. Variable references holding the
+   value still flag overflow (covers `let y = -x` semantics).
+2. **`lower_expr` kind-5 (~line 19453)**: same special-case at
+   the lowering layer — emit `ir_const_int(r, i64::MIN)` directly
+   instead of routing through `panic_neg`. Without this guard,
+   strict-intrin (default since v0.6.43) panics at runtime even
+   though the const evaluator already cleared the value at compile
+   time.
+3. **`str_to_int` final neg step (~line 76)**: switched
+   `0 - result` to `wrapping_sub(0, result)`. The const-tracker
+   round-trips i64::MIN through `tenv_set_const_i64` (stores via
+   `str_from_int`) → `tenv_get_const_i64` (reads via `str_to_int`).
+   Pre-fix the `0 - result` step in `str_to_int` panicked under
+   strict-intrin when parsing the canonical "-9223372036854775808"
+   string back. wrapping_sub preserves the i64::MIN bit pattern
+   (two's complement: `-i64::MIN == i64::MIN`) without tripping the
+   strict-intrin trap.
+
+### Adopter migration
+
+```nucleor
+const IMIN: i64 = -9223372036854775808;        // now compiles
+const IMIN_PLUS_ONE: i64 = -9223372036854775807;
+let x: i64 = -9223372036854775808;             // also compiles
+
+// Pre-v0.6.49 workaround (still works, no longer needed):
+// const IMIN: i64 = (-9223372036854775807) - 1;
+```
+
+`-x` where `x` holds i64::MIN at runtime still panics with
+`PANIC: i64 neg overflow: -(i64::MIN)` per v0.6.43 (correct
+behavior — this is a true compute-time overflow, not a
+literal-wrap-from-source case).
+
+### Verify
+
+- New regression-lock: `v0649_imin_literal_accepts` builds + runs
+  the canonical i64::MIN const decls and prints the values.
+- Round-2 fixed-point preserved (md5 stable).
+- Drift gate clean.
+- Sister gaps 1 (u64 const overflow), 3 (const div/mod/shift), 4
+  (let-binding const expr) of the same probe finding remain open
+  for follow-on ships.
+
 ## [0.6.48] — 2026-05-03
 
 **str runtime helpers accept `&s` (parity with bare `s`) — probe
