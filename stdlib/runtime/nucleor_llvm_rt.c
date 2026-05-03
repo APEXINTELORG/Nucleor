@@ -2389,9 +2389,29 @@ void __nucleor_vec_remove_at(NVec *v, long long i) {
 }
 void __nucleor_vec_insert_at(NVec *v, long long i, long long x) {
     if (!v) return;
+    // v0.6.44 (probe finding 2026-05-02-vec-insert-at-no-oob-check):
+    // pre-fix this silently clamped negative idx to 0 and idx > len
+    // to len, so `vec_insert_at(&v, 99, 42)` on a len=1 vec quietly
+    // appended at the end and `vec_insert_at(&v, -1, 42)` quietly
+    // prepended. Asymmetric with vec_get / vec_swap / vec_remove_at
+    // which all PANIC on OOB with the same diag shape and the
+    // NUCLEOR_VEC_OOB_LENIENT=1 escape hatch. Bring vec_insert_at
+    // into the same pattern. Valid range is 0..=len (insert-at-end
+    // is permitted; insert past end is OOB).
+    if (i < 0 || i > v->len) {
+        if (_vec_oob_lenient()) {
+            // Lenient mode: clamp like the legacy behavior so old
+            // adopters opting in via env var continue to work.
+            if (i < 0) i = 0;
+            if (i > v->len) i = v->len;
+        } else {
+            fprintf(stderr, "PANIC: index out of bounds: the len is %lld but the insert index is %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n",
+                    (long long)v->len, i);
+            fflush(stderr);
+            exit(1);
+        }
+    }
     int idx = (int)i;
-    if (idx < 0) idx = 0;
-    if (idx > v->len) idx = v->len;
     if (v->len >= v->cap) {
         v->cap = _grow_cap(v->cap, sizeof(long long), "vec_insert");
         if (v->data == v->inline_data) {

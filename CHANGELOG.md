@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.44] — 2026-05-03
+
+**`vec_insert_at` PANICs on OOB instead of silently clamping
+(probe finding closure — silent miscompute, asymmetric Vec OOB
+coverage).**
+
+Closes probe finding `2026-05-02-vec-insert-at-no-oob-check`.
+Pre-fix `vec_insert_at(&v, 99, 42)` on a len=1 vec silently
+clamped to `len` and appended, and `vec_insert_at(&v, -1, 42)`
+silently clamped to 0 and prepended. Asymmetric with
+`vec_get`/`vec_swap`/`vec_remove_at` which all PANIC on OOB.
+
+### Fix
+
+`stdlib/runtime/nucleor_llvm_rt.c` `__nucleor_vec_insert_at` —
+PANICs on `i < 0 || i > v->len` (insert-at-end is permitted via
+`i == v->len`). Diag matches v0.6.30 Rust-canonical OOB wording.
+`NUCLEOR_VEC_OOB_LENIENT=1` preserves the legacy clamp behavior.
+
+### Adopter migration
+
+```nucleor
+let mut v: Vec<i64> = Vec::new();
+vec_push(&mut v, 10);
+
+// Pre-v0.6.44: silent clamp to len, appends at end
+vec_insert_at(&mut v, 99, 42);
+
+// v0.6.44: PANIC at the call site
+// Workaround: explicit append
+vec_push(&mut v, 42);
+
+// Insert at len (= append) still works:
+vec_insert_at(&mut v, vec_len(&v), 42);   // OK
+```
+
+### Validation
+
+- Smoke: OOB insert PANICs cleanly; in-range insert (front /
+  middle / end) all work correctly.
+- Drift gate 5/5 OK.
+- No new compiler edit (runtime-only ship).
+
+### No fixture (runtime-helper change)
+
+Same shape as v0.6.30 OOB-diag rewording — the failure is a
+runtime PANIC. Smoke validation only.
+
 ## [0.6.43] — 2026-05-03
 
 **Unary `-` overflow check at runtime — `neg(i64::MIN)` now panics
