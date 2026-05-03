@@ -7298,6 +7298,43 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
             let mut sj: i64 = 0;
             while sj < vec_len(seen_fns) {
                 if str_eq(vec_get(seen_fns, sj), fn_name) == 1 {
+                    // v0.6.23 (probe finding 2026-05-02-method-ambiguity-
+                    // misleading-two-modules-diag): when fn_name has
+                    // shape `<Type>__<method>`, the collision is most
+                    // likely two trait impls of the same method name on
+                    // the same struct (Rust E0034 territory) — NOT a
+                    // cross-module duplicate. The pre-fix diag misled
+                    // adopters who hit Rust's canonical "ambiguous
+                    // method dispatch" pattern by suggesting a
+                    // workaround ("rename one of the definitions") that
+                    // doesn't apply (the names are forced by the trait
+                    // signatures). Detect the `Type__method` shape and
+                    // emit a UFCS-disambiguation diag instead.
+                    let mut dunder_pos_v060: i64 = 0 - 1;
+                    let fnlen_v060: i64 = str_len(fn_name);
+                    let mut sii_v060: i64 = 0;
+                    while sii_v060 < fnlen_v060 - 1 {
+                        if str_char_at(fn_name, sii_v060) == 95 && str_char_at(fn_name, sii_v060 + 1) == 95 {
+                            dunder_pos_v060 = sii_v060;
+                            sii_v060 = fnlen_v060;
+                        } else {
+                            sii_v060 = sii_v060 + 1;
+                        };
+                    };
+                    let looks_like_method_v060: i64 = if dunder_pos_v060 > 0 && dunder_pos_v060 < fnlen_v060 - 2 { 1 } else { 0 };
+                    let first_char_upper_v060: i64 = if fnlen_v060 > 0 {
+                        let fc_v060: i64 = str_char_at(fn_name, 0);
+                        if fc_v060 >= 65 && fc_v060 <= 90 { 1 } else { 0 }
+                    } else { 0 };
+                    if looks_like_method_v060 == 1 && first_char_upper_v060 == 1 {
+                        let type_name_v060: str = str_substring(fn_name, 0, dunder_pos_v060);
+                        let method_name_v060: str = str_substring(fn_name, dunder_pos_v060 + 2, fnlen_v060);
+                        print(str_concat("ERROR: ambiguous method `", str_concat(type_name_v060, str_concat("::", str_concat(method_name_v060, "()` — two trait impls on `")))));
+                        print(str_concat("  `", str_concat(type_name_v060, str_concat("` define a method named `", str_concat(method_name_v060, "()`. Nucleor mangles trait-impl method names as `<Type>__<method>` for the LLVM symbol, so two impls of the same method name on the same struct collide at link time."))))));
+                        print(str_concat("  Workaround until full UFCS lands: rename one trait's method (e.g. `", str_concat(method_name_v060, str_concat("_v1` / `", str_concat(method_name_v060, "_v2`), or split the impls across distinct concrete types so the mangled symbols differ."))))));
+                        print("  This is Rust's E0034 \"multiple applicable items in scope\" territory — the long-term fix is UFCS disambiguation `<Type as Trait>::method(&self)` but Nucleor's lowering doesn't yet support that surface (forward-roadmap).");
+                        panic(str_concat("ambiguous method dispatch: ", fn_name));
+                    };
                     print(str_concat("ERROR: duplicate top-level fn name '", str_concat(fn_name, "'")));
                     print("  Two modules in this compile unit both declare a `pub fn` with");
                     print("  this name. Nucleor emits one LLVM `define @<name>` per fn and");
