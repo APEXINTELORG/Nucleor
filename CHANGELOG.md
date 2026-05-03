@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.40] — 2026-05-03
+
+**Diag improvement — fn-form `vec_<method>(…)` now suggests method
+form `vec.<method>(…)` instead of misleading "no method" wording
+(probe finding closure).**
+
+Closes probe finding `2026-05-01-vec-contains-symbol-not-emitted`
+(corrected). Pre-fix the user wrote canonical Rust fn-form
+`vec_contains(&v, 2)` and got `error[TYP-005]: receiver type
+'Vec<T>' has no method '.contains()'` — which was misleading
+because `.contains()` DOES exist (and works) via the proper
+method-dispatch path. The user wrote fn-form, not method form,
+and got a wrong-error pointing at method form.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` undefined-fn diag (line ~28475)
+— if the failing symbol is `vec_<method>` AND `<method>` is in
+the supported Vec method families list, emit a fn-form-vs-method-
+form hint instead of the original "no method" diag:
+
+```
+error[TYP-005]: `vec_contains(...)` is not a top-level fn — use
+the method form `vec.contains(&value)` instead. The method-
+dispatch path resolves to the correct type-specific runtime
+helper (e.g. `__nucleor_vec_contains_i64` for `Vec<i64>`); the
+bare fn-form bypasses that dispatch.
+```
+
+Unsupported-method case still gets the original "no method"
+diag.
+
+### Adopter migration
+
+```nucleor
+let v: Vec<i64> = vec![1, 2, 3];
+
+// Pre-v0.6.40: misleading TYP-005 "no method `.contains()`"
+print_int(vec_contains(&v, 2) as i32);
+
+// v0.6.40: fn-form-vs-method-form hint
+// Workaround: use method form (works since v0.4.x):
+print_int(v.contains(&2) as i32);   // 1
+```
+
+### Why hint, not implement fn-form alias
+
+Vec is generic; `.contains()` dispatches to the type-specific
+runtime helper (`vec_contains_i64` for Vec<i64>, etc.) at
+compile time. Adding a non-typed `vec_contains` global fn would
+need the same dispatch logic — duplicating method-resolution at
+the fn-name level. Cleaner to point adopters at the method form
+which already has the correct dispatch.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `4490574d…`.
+- Self-host wall: 5.29s + 4.35s.
+- Tools-suite (674 fns) compiles clean.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Smoke (probe repro): old "no method" diag → new fn-form-vs-
+  method-form hint.
+- Full verify gate: in flight at write time.
+
 ## [0.6.39] — 2026-05-03
 
 **`panic!` macro routes format args through the same expansion
