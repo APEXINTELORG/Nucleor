@@ -11262,18 +11262,49 @@ fn expand_derive_partialeq(src: str) -> str {
             else { ws2_done = 1; };
         };
         if sp >= slen { continue; };
-        let next_c: i64 = str_char_at(src, sp);
-        // Skip generic structs (would need monomorphisation).
-        if next_c == 60 { continue; };
+        let mut next_c: i64 = str_char_at(src, sp);
+        // v0.6.89 extension: capture generic params if present.
+        // `<T, U>` after the struct name. Walk balanced angles, store
+        // the param list (raw substring) so the helper signature can
+        // re-emit it. Field types in the body stay verbatim — the
+        // helper's `!= a.<f> != b.<f>` lower-time auto-dispatch picks
+        // the right runtime helper per concrete instantiation.
+        let mut v089_gparams: str = "";
+        if next_c == 60 {
+            let v089_g_start: i64 = sp;
+            let mut v089_g_depth: i64 = 1;
+            sp = sp + 1;
+            while sp < slen && v089_g_depth > 0 {
+                let v089_gc: i64 = str_char_at(src, sp);
+                if v089_gc == 60 { v089_g_depth = v089_g_depth + 1; }
+                else if v089_gc == 62 { v089_g_depth = v089_g_depth - 1; };
+                sp = sp + 1;
+            };
+            v089_gparams = str_substring(src, v089_g_start, sp);
+            // Skip ws.
+            let mut v089_ws_done: i64 = 0;
+            while sp < slen && v089_ws_done == 0 {
+                let v089_wc: i64 = str_char_at(src, sp);
+                if v089_wc == 32 || v089_wc == 9 || v089_wc == 10 || v089_wc == 13 { sp = sp + 1; }
+                else { v089_ws_done = 1; };
+            };
+            if sp >= slen { continue; };
+            next_c = str_char_at(src, sp);
+        };
         // Named struct: `{ field: type, ... }`.
         if next_c == 123 {
             let mut fb: i64 = sb_new();
             sb_append(fb, "\nfn ");
             sb_append(fb, name);
-            sb_append(fb, "__derived_eq(a: ");
+            sb_append(fb, "__derived_eq");
+            // Re-emit generic params on the helper fn signature.
+            if str_len(v089_gparams) > 0 { sb_append(fb, v089_gparams); };
+            sb_append(fb, "(a: ");
             sb_append(fb, name);
+            if str_len(v089_gparams) > 0 { sb_append(fb, v089_gparams); };
             sb_append(fb, ", b: ");
             sb_append(fb, name);
+            if str_len(v089_gparams) > 0 { sb_append(fb, v089_gparams); };
             sb_append(fb, ") -> i64 {\n");
             sp = sp + 1;
             let mut field_count: i64 = 0;
@@ -11378,10 +11409,14 @@ fn expand_derive_partialeq(src: str) -> str {
                 let mut fb2: i64 = sb_new();
                 sb_append(fb2, "\nfn ");
                 sb_append(fb2, name);
-                sb_append(fb2, "__derived_eq(a: ");
+                sb_append(fb2, "__derived_eq");
+                if str_len(v089_gparams) > 0 { sb_append(fb2, v089_gparams); };
+                sb_append(fb2, "(a: ");
                 sb_append(fb2, name);
+                if str_len(v089_gparams) > 0 { sb_append(fb2, v089_gparams); };
                 sb_append(fb2, ", b: ");
                 sb_append(fb2, name);
+                if str_len(v089_gparams) > 0 { sb_append(fb2, v089_gparams); };
                 sb_append(fb2, ") -> i64 {\n");
                 let mut i: i64 = 0;
                 while i < count {
@@ -17329,7 +17364,9 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 // helper for this struct, suppress TYP-011 — the lower_expr
                 // kind-4 branch (sister edit) routes the binop to the
                 // helper instead of the silent ptr-compare.
-                let v085_helper_name: str = str_concat(strip_spaces(lt), "__derived_eq");
+                // v0.6.89: base-name for generic instantiations (Pair<i64>
+                // dispatches through Pair__derived_eq).
+                let v085_helper_name: str = str_concat(type_base_name(strip_spaces(lt)), "__derived_eq");
                 let v085_has_derived: str = sig_rtype(sigs, v085_helper_name);
                 if str_len(v085_has_derived) == 0 {
                     let v147_op: str = if op == 30 { "==" } else { "!=" };
@@ -20518,7 +20555,12 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             if str_len(v085_lhs_t) > 0 && str_eq(strip_spaces(v085_lhs_t), strip_spaces(v085_rhs_t)) == 1 {
                 let v085_struct_si: i64 = struct_find_type(pool, structs, v085_lhs_t);
                 if v085_struct_si >= 0 {
-                    let v085_helper: str = str_concat(v085_lhs_t, "__derived_eq");
+                    // v0.6.89: base-name the type for the helper lookup so
+                    // generic instantiations (Pair<i64>, Pair<str>, etc.)
+                    // all dispatch through the single Pair__derived_eq
+                    // generic helper.
+                    let v085_lhs_base: str = type_base_name(v085_lhs_t);
+                    let v085_helper: str = str_concat(v085_lhs_base, "__derived_eq");
                     let v085_ret: i64 = sym_get(sym, str_concat("__fnret_", v085_helper));
                     if v085_ret >= 0 {
                         let mut v085_lp: Vec<i32> = lower_expr(pool, lhs_n, blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
