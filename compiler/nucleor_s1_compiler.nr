@@ -17273,11 +17273,10 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // canonical Rust idiom got a silent wrong result. Rust's `==`
         // on `&str` does value comparison via `PartialEq`; Nucleor's
         // i64-everywhere ABI doesn't auto-route to `str_eq`.
-        if (op == 30 || op == 31) && str_eq(lt, "str") == 1 && str_eq(rt, "str") == 1 {
-            let opname: str = if op == 30 { "==" } else { "!=" };
-            let hint: str = if op == 30 { "str_eq(a, b) == 1" } else { "str_eq(a, b) == 0" };
-            type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`str ", str_concat(opname, str_concat(" str` does pointer comparison (silent miscompute — two equal-bytes literals at different addresses return FALSE). Use `", str_concat(hint, "` for value comparison.")))));
-        };
+        // v0.6.87: str ==/!= now auto-dispatches to str_eq at lower-time
+        // (paired lower_expr edit at the kind-4 dispatch). Suppress the
+        // TYP-011 ptr-compare diag — adopters can write canonical
+        // `if a == b { ... }` for str values directly.
         // v0.4.151: TYP-011 ext — `String == String` / `String != String`
         // silent ptr compare. Sister to v0.4.52 (str == str) and
         // v0.4.147 (struct ==). String is a heap-allocated buffer
@@ -17287,12 +17286,9 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // addresses even when their bytes matched. The runtime helper
         // `__nucleor_string_eq` exists; this is the missing
         // surface-level dispatch from `==` to it.
-        if (op == 30 || op == 31) && str_eq(type_base_name(lt), "String") == 1 && str_eq(type_base_name(rt), "String") == 1 {
-            let v151_op: str = if op == 30 { "==" } else { "!=" };
-            let v151_hint: str = if op == 30 { "a.eq(b) == 1" } else { "a.eq(b) == 0" };
-            let v151msg: str = str_concat("`String ", str_concat(v151_op, str_concat(" String` does pointer comparison (silent miscompute — two equal-bytes Strings at different heap addresses return FALSE). Use `", str_concat(v151_hint, "` (which dispatches to __nucleor_string_eq) for value comparison, or compare via `.eq_str(\"...\")` against a str literal.")))));
-            type_diag(diags, source, fn_name, fn_name, "TYP-011", v151msg);
-        };
+        // v0.6.87: String ==/!= now auto-dispatches to string_eq at
+        // lower-time (paired lower_expr edit). Suppress TYP-011 — adopters
+        // can write canonical `if s1 == s2 { ... }` directly.
         // v0.4.67: NUC-FEEDBACK silent-miscompute close for str
         // ordering ops `<`, `<=`, `>`, `>=`. Pre-fix `a < b` for two
         // str values did integer pointer compare — wholly disconnected
@@ -20547,6 +20543,49 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                             return lx_new(v085_inv_r, v085_cur);
                         };
                     };
+                };
+            };
+            // v0.6.87 (probe finding 2026-04-30 str/String == silent
+            // miscompute): canonical Rust `a == b` for two `str` or two
+            // `String` values pre-fix lowered to integer pointer
+            // compare — TYP-011 fires as a WARNING but the build
+            // succeeds with silently broken IR (two equal-bytes values
+            // at different addresses return FALSE). The runtime helpers
+            // `__nucleor_str_eq` and `__nucleor_string_eq` already
+            // exist; this is the missing surface-level dispatch from
+            // `==`/`!=` to them.
+            //
+            // Now: auto-route to the right runtime helper for both
+            // forms. For `==`: helper(a, b). For `!=`: 1 - helper(a, b).
+            // Sister to v0.6.85's struct ==/!= auto-dispatch via
+            // derive(PartialEq) — same architectural pattern.
+            let v087_lhs_t: str = expr_struct_type(pool, lhs_n, sym, structs);
+            let v087_rhs_t: str = expr_struct_type(pool, rhs_n, sym, structs);
+            let v087_lb: str = type_base_name(v087_lhs_t);
+            let v087_rb: str = type_base_name(v087_rhs_t);
+            let mut v087_helper: str = "";
+            if str_eq(v087_lb, "str") == 1 && str_eq(v087_rb, "str") == 1 { v087_helper = "str_eq"; };
+            if str_eq(v087_lb, "String") == 1 && str_eq(v087_rb, "String") == 1 { v087_helper = "string_eq"; };
+            if str_len(v087_helper) > 0 {
+                let mut v087_lp: Vec<i32> = lower_expr(pool, lhs_n, blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                let v087_lr: i64 = lx_reg(v087_lp);
+                let mut v087_cur: Vec<i32> = lx_blk(v087_lp);
+                let mut v087_rp: Vec<i32> = lower_expr(pool, rhs_n, v087_cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+                let v087_rr: i64 = lx_reg(v087_rp);
+                v087_cur = lx_blk(v087_rp);
+                let mut v087_args: Vec<i32> = Vec::new();
+                v087_args.push(v087_lr);
+                v087_args.push(v087_rr);
+                let v087_call_r: i64 = ctr_next(regs);
+                ir_block_add(v087_cur, ir_call_ex(v087_call_r, v087_helper, v087_args));
+                if bop == 30 {
+                    return lx_new(v087_call_r, v087_cur);
+                } else {
+                    let v087_one_r: i64 = ctr_next(regs);
+                    ir_block_add(v087_cur, ir_const_int(v087_one_r, 1));
+                    let v087_inv_r: i64 = ctr_next(regs);
+                    ir_block_add(v087_cur, ir_binop_t(3, v087_inv_r, v087_one_r, v087_call_r, 64));
+                    return lx_new(v087_inv_r, v087_cur);
                 };
             };
         };

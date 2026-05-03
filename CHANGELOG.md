@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.87] — 2026-05-03
+
+**`str == str` / `String == String` now auto-dispatch to the
+runtime helpers `str_eq` / `string_eq`. Closes the v0.4.52 +
+v0.4.151 silent-miscompute hazard that adopters had to manually
+work around with `str_eq(a, b) == 1`.**
+
+Pre-fix: the v0.4.52 / v0.4.151 TYP-011 diags warned that the
+binop did integer-pointer compare and pointed at the workaround
+(`str_eq(a, b) == 1`, `a.eq(b) == 1`). Build SUCCEEDED with
+silently broken IR — two equal-bytes values at different heap
+addresses returned FALSE, breaking adopters porting canonical
+Rust idioms.
+
+Post-fix: lower_expr binop kind-4 op==30/31 detects `str`/`String`
+operands via `expr_struct_type` + `type_base_name` and routes to
+the runtime helper. For `==`: helper(a, b). For `!=`: 1 - helper(a, b).
+Same architectural pattern as v0.6.85's struct-derived auto-dispatch.
+Type-check's TYP-011 diags for these cases are also suppressed
+(adopters can now write the canonical form directly).
+
+```nucleor
+fn main() -> i32 {
+    let a: str = "hello";
+    let b: str = "hello";   // different heap address
+    if a == b { print_int(11); };   // 11 — correct value compare
+    return 0;
+}
+```
+
+### Coverage
+
+| Type pair | Pre-fix | Post-fix |
+|---|---|---|
+| `str == str` | TYP-011 warn + ptr-compare → silent FALSE | dispatches to `str_eq` |
+| `str != str` | TYP-011 warn + ptr-compare → silent TRUE | `1 - str_eq` |
+| `String == String` | TYP-011 warn + ptr-compare | dispatches to `string_eq` |
+| `String != String` | TYP-011 warn + ptr-compare | `1 - string_eq` |
+
+`str` ordering ops (`<`, `<=`, `>`, `>=`) still TYP-011 — Nucleor's
+runtime has no exposed `str_cmp` helper; lex-ordering remains
+adopter-side (the v0.6.22 fix updated the diag wording). Same for
+`String` ordering.
+
+### Mixed-type pairs (unchanged)
+
+`str == String` / `String == str` still hits the regular type-
+mismatch path — the helper's signature is type-specific. Adopters
+need to coerce explicitly via `string_as_str(s)`.
+
+### Fixed-point + perf
+
+Cold 3.3s. Peak 329MB. Round-2 fixed-point md5
+`9c5c13a66f543f625927c0f023ae9714`.
+
+### Fixture
+
+`tests/fixtures/v0687_str_string_eq_auto_dispatch.nr` — exercises
+both literal-vs-literal and literal-vs-fn-result `str` comparisons.
+
 ## [0.6.86] — 2026-05-03
 
 **RFC V1.4 (correctness fix) — `!=` auto-dispatch was using `add`
