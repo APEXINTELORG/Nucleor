@@ -15304,6 +15304,28 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             if is_tainted_type(arg_t) == 1 { return taint_inner_type(arg_t); };
             return arg_t;
         };
+        // v0.6.20 (probe finding 2026-05-01-assert-eq-ne-macros-silent-
+        // miscompute-on-str): assert_eq!/assert_ne! macros lower to
+        // assert_eq(i64, i64) / assert_ne(i64, i64) regardless of arg
+        // type, doing pointer comparison on str values. Equal-content
+        // strings make `assert_eq!("hello", "hello")` always FAIL
+        // (false-fail) and `assert_ne!("abc", "abc")` always PASS
+        // (false-pass). The user-level `==`/`!=` on str is correctly
+        // caught by TYP-011 (v0.4.52); the assert macros bypass it.
+        // Emit the same TYP-011-style diagnostic + workaround pointer
+        // so adopters route through `assert_eq(str_eq(a, b), 1)`.
+        if (str_eq(callee, "assert_eq") == 1 || str_eq(callee, "assert_ne") == 1) && argc == 2 {
+            let lt_v060: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+            let rt_v060: str = type_expr(pool, prog, list_get(pool, args, 1), env, sigs, structs, fn_name, diags, source, tprof);
+            if str_eq(lt_v060, "str") == 1 && str_eq(rt_v060, "str") == 1 {
+                let macro_name_v060: str = if str_eq(callee, "assert_eq") == 1 { "assert_eq!" } else { "assert_ne!" };
+                let cmp_op_v060: str = if str_eq(callee, "assert_eq") == 1 { "==" } else { "!=" };
+                let hint_v060: str = if str_eq(callee, "assert_eq") == 1 { "assert_eq(str_eq(a, b), 1)" } else { "assert_eq(str_eq(a, b), 0)" };
+                let v060a: str = str_concat("`", str_concat(macro_name_v060, str_concat("(a, b)` on `str` arguments does pointer comparison (silent miscompute — equal-bytes strs at different addresses ", str_concat(cmp_op_v060, " return FALSE)."))));
+                let v060b: str = str_concat(" Pre-v0.6.20 `assert_eq!(\"hello\", \"hello\")` always failed and `assert_ne!(\"x\", \"x\")` always passed because the macro lowered to i64 comparison on the str pointers. Use `", str_concat(hint_v060, "` to value-compare via the str_eq runtime helper. Sister to TYP-011 v0.4.52 `str == str` close."));
+                type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat(v060a, v060b));
+            };
+        };
         // v0.3.170: literal-only WARNING for vec_*(int_literal, ...).
         // Passing an int LITERAL where a Vec handle is expected is
         // an unambiguous adopter mistake (e.g. `vec_get(42, 0)`) --
