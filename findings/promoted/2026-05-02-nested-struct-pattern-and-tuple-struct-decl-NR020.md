@@ -6,7 +6,7 @@ diagnostic_actual: NR020 generic parse error on both shapes
 diagnostic_expected: accept (and recurse into nested patterns) or emit clean v0.6-boundary diag naming the unsupported shape
 discovered_against: main v0.6.13 (probe rebased)
 commit: probe (post-rebase) + main 98c13f4
-status: DOC-ONLY — nested struct patterns and tuple-struct declarations are parse extensions for v1. Today adopters use single-level destructure + manual field access for nested shapes, and named-field structs for the tuple-struct shape.
+status: BOTH SUB-CASES CLOSED at parse-halt level. Sub-case 1 (nested struct pattern) shipped clean halt v0.6.69. Sub-case 2 (tuple-struct decl) shipped clean halt v0.6.53. Both still need full lowering (recursive pattern + positional-field synthesis) for actual feature support — that's v1 forward-roadmap.
 ---
 
 ## Closure (analysis-only — no compiler change)

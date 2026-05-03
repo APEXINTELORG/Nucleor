@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.69] — 2026-05-03
+
+**Nested struct pattern in match arms — clean parse halt. Closes
+sub-case 1 of the nested-struct-pattern-and-tuple-struct-decl
+finding.**
+
+Pre-fix `match l { Line { a: Point { x, y: _ }, b: _ } => x }`
+(canonical Rust nested-pattern-in-match) saw the inner `{` (token
+52) right after the `Inner` identifier and panicked NR020 with
+"expected ',', got '{'" — wrong-class diagnostic not naming the
+unsupported feature.
+
+### Fix
+
+`parse_match_struct_binding_block` (~line 1336): after consuming
+the rename-binding identifier (`Inner` in `Outer { inner: Inner {
+... } }`), peek the next token. If `{` (token 52), halt with a
+clean diag pointing at the workaround (single-level destructure +
+dotted field access in the arm body). Forward-roadmap: recursive
+descent into nested patterns.
+
+### Adopter migration
+
+```nucleor
+// Pre-fix (NR020 wrong-class):
+match l {
+    Line { a: Point { x, y: _ }, b: _ } => x,
+}
+
+// v0.6.69 workaround:
+match l {
+    Line { a, b: _ } => a.x,
+}
+```
+
+### Verify
+
+- New regression-lock: `tests/err/err_match_nested_struct_pattern.nr`
+  (auto-walker).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.68] — 2026-05-03
 
 **Match-arm literal overflow caught at lex time — closes the
