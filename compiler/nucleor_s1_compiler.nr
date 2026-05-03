@@ -15668,6 +15668,75 @@ fn const_i64_min() -> i64 {
     let max_i64: i64 = 9223372036854775807;
     return (0 - max_i64) - 1;
 }
+
+// v0.6.64 (probe finding 2026-05-02-num-021-coverage-gaps-u64-imin-
+// shift-divzero, gap 1): unsigned compare for i64 values treated as
+// u64 bit patterns. Same-sign: signed compare matches unsigned. Mixed
+// signs: the negative-as-i64 has the high bit set so when read as u64
+// it's >= 2^63 — strictly greater than any non-negative i64 read as u64.
+fn u64_lt(a: i64, b: i64) -> i64 {
+    let neg_a: i64 = if a < 0 { 1 } else { 0 };
+    let neg_b: i64 = if b < 0 { 1 } else { 0 };
+    if neg_a == neg_b {
+        if a < b { return 1; };
+        return 0;
+    };
+    if neg_a == 1 { return 0; };
+    return 1;
+}
+
+// v0.6.64 same finding: u64-aware overflow detection on a const-foldable
+// binop. Walks kind-4 (binop) nodes; if both operands are kind-1 literals
+// or kind-3 var-refs to const-tracked bindings, computes the wrapping
+// result and checks for unsigned overflow using u64_lt. Returns 1 on
+// overflow, 0 otherwise. Only handles add/sub/mul today (ops 20/21/22).
+// div/mod/shift fall through to existing const_i64_binop checks.
+fn const_u64_overflow(pool: Vec<i32>, nid: i64, env: Vec<i32>) -> i64 {
+    if nid < 0 || nid >= vec_len(pool) { return 0; };
+    let k: i64 = node_kind(pool, nid);
+    if k != 4 { return 0; };
+    let op: i64 = node_field(pool, nid, 1);
+    let lhs_nid: i64 = node_field(pool, nid, 2);
+    let rhs_nid: i64 = node_field(pool, nid, 3);
+    let lhs_r: Vec<i32> = const_i64_expr(pool, lhs_nid, env);
+    let rhs_r: Vec<i32> = const_i64_expr(pool, rhs_nid, env);
+    if vec_get(lhs_r, 0) == 0 || vec_get(rhs_r, 0) == 0 { return 0; };
+    let a: i64 = vec_get(lhs_r, 1);
+    let b: i64 = vec_get(rhs_r, 1);
+    if op == 20 {
+        // add: overflow iff (a + b) as u64 < a as u64
+        let s: i64 = wrapping_add(a, b);
+        if u64_lt(s, a) == 1 { return 1; };
+        return 0;
+    };
+    if op == 21 {
+        // sub: overflow iff a as u64 < b as u64 (i.e. result would go negative in u64)
+        if u64_lt(a, b) == 1 { return 1; };
+        return 0;
+    };
+    if op == 22 {
+        // mul: overflow iff a != 0 && (a*b) / a != b at u64 level. Use
+        // wrapping_mul + a guard; if either operand is 0, no overflow.
+        if a == 0 { return 0; };
+        if b == 0 { return 0; };
+        let p: i64 = wrapping_mul(a, b);
+        // u64-divide via... actually no u64_div helper at compile-time.
+        // Fall back to a conservative high-bit check: if both operands
+        // have high 32 bits non-zero (as u64), product likely overflows.
+        // Conservative approximation — may miss some cases but won't
+        // false-positive on small operands.
+        let a_high: i64 = a / 4294967296;
+        let b_high: i64 = b / 4294967296;
+        if a < 0 || b < 0 {
+            // Either operand >= 2^63 → almost certainly overflows when
+            // multiplied by anything > 1.
+            if (a < 0 && b > 1) || (b < 0 && a > 1) || (a < 0 && b < 0) { return 1; };
+        };
+        if a_high != 0 && b_high != 0 { return 1; };
+        return 0;
+    };
+    return 0;
+}
 fn const_i64_add(a: i64, b: i64) -> Vec<i32> {
     let max_i64: i64 = 9223372036854775807;
     let min_i64: i64 = const_i64_min();
@@ -17912,7 +17981,26 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             // path. Skipped for kind-7 (fn call) inits where the
             // const fold returned overflow because the call body
             // chain is opaque from the binding site.
-            if const_i64_overflow(init_const_v146) == 1 && node_kind(pool, init) != 7 {
+            // v0.6.64 (probe finding 2026-05-02-num-021-coverage-gaps-
+            // u64-imin-shift-divzero, gap 1): unsigned-aware overflow
+            // routing. If declared type is unsigned, ONLY check
+            // u64-overflow (i64 might "overflow" via wrap but still fit
+            // u64 — e.g. `let x: u64 = i64::MAX + 1;` has i64 result
+            // -9223372036854775808 which fits u64). For signed types
+            // (or no annotation), use the existing i64-overflow path.
+            let mut is_unsigned_v064: i64 = 0;
+            if str_len(tstr) > 0 && type_is_int(tstr) == 1 && type_signedness(tstr) == 2 {
+                is_unsigned_v064 = 1;
+            };
+            let mut u64_overflow_v064: i64 = 0;
+            if is_unsigned_v064 == 1 && node_kind(pool, init) != 7 {
+                u64_overflow_v064 = const_u64_overflow(pool, init, env);
+            };
+            if u64_overflow_v064 == 1 {
+                let m21u_msg: str = str_concat("integer constant expression for let-binding `", str_concat(vname, str_concat("` overflows declared unsigned type `", str_concat(tstr, "` at compile time. Pre-fix this silently wrapped through u64 arithmetic during lowering and the binding silently held the wrapped value. Use explicit `wrapping_add_u64` / `saturating_add_u64` / `checked_add_u64` if wrapping is intentional, reduce the operands, or widen the type."))));
+                type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-021", m21u_msg);
+                tenv_clear_const(env, vname);
+            } else if is_unsigned_v064 == 0 && const_i64_overflow(init_const_v146) == 1 && node_kind(pool, init) != 7 {
                 let m21msg: str = str_concat("integer constant expression for let-binding `", str_concat(vname, "` overflows i64 at compile time. Pre-fix this PANICked at runtime startup via the strict-intrin trap — far from the source line. Use explicit wrapping_* / saturating_* helpers, reduce the value, or move the calculation to runtime if wrapping is intentional."));
                 type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-021", m21msg);
                 tenv_clear_const(env, vname);
@@ -18227,7 +18315,26 @@ fn type_check_global_consts(pool: Vec<i32>, prog: i64, diags: Vec<i32>, source: 
             let ctype: str = node_field(pool, nid, 2);
             let cinit: i64 = node_field(pool, nid, 3);
             let cres: Vec<i32> = const_i64_expr(pool, cinit, env);
-            if const_i64_overflow(cres) == 1 {
+            // v0.6.64 (probe finding 2026-05-02-num-021-coverage-gaps-
+            // u64-imin-shift-divzero, gap 1): unsigned-aware overflow
+            // routing for const decls. Same pattern as let-stmt: if
+            // ctype is unsigned, ONLY check u64-overflow (i64 may
+            // "overflow" via wrap but still fit u64). For signed types
+            // use existing i64-overflow path.
+            let mut is_unsigned_const_v064: i64 = 0;
+            if str_len(ctype) > 0 && type_is_int(ctype) == 1 && type_signedness(ctype) == 2 {
+                is_unsigned_const_v064 = 1;
+            };
+            let mut u64_overflow_const_v064: i64 = 0;
+            if is_unsigned_const_v064 == 1 {
+                u64_overflow_const_v064 = const_u64_overflow(pool, cinit, env);
+            };
+            if u64_overflow_const_v064 == 1 {
+                let m21u_a: str = str_concat("integer constant expression for const `", str_concat(cname, str_concat("` overflows declared unsigned type `", str_concat(ctype, "` at compile time."))));
+                let m21u_b: str = " Pre-fix this silently wrapped through u64 arithmetic and the const held the wrapped value.";
+                let m21u_c: str = " Use explicit wrapping_add_u64 / saturating_add_u64 / checked_add_u64 if wrapping is intentional, reduce operands, or widen the type.";
+                type_diag_at(diags, source, pool, nid, cname, cname, "NUM-021", str_concat(m21u_a, str_concat(m21u_b, m21u_c)));
+            } else if is_unsigned_const_v064 == 0 && const_i64_overflow(cres) == 1 {
                 let msg21a: str = str_concat("integer constant expression for const `", str_concat(cname, "` overflows i64 at compile time."));
                 let msg21b: str = " Pre-fix this wrapped during lowering and could panic at runtime startup or emit misleading IR.";
                 let msg21c: str = " Use explicit wrapping_* / saturating_* helpers, reduce the value, or move the calculation to runtime if wrapping is intentional.";
