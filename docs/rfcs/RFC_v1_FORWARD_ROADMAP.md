@@ -189,7 +189,7 @@ closure-capture-broken-in-loop-bodies).
 
 - **HashMap<i64, V> key-type-aware** — separate hash/eq helpers per key-type-class. (~600 lines, runtime ABI extension.)
 - **`[VAL; N]` array literal repeat-init** — ✅ CLOSED v0.6.77 (parse_primary `[` branch peeks for `;` after first item, expands to N-item kind-47 array literal; literal-int count only, hard cap N ≤ 1024, runtime-evaluated counts go through `vec![V; N]`).
-- **`&[T]` slice param** — parse + lower (~250 lines).
+- **`&[T]` slice param** — ✅ CLOSED v0.6.78 (parse_type `[` branch peeks for `]` after inner type — bare `[T]` resolves to `Vec<T>` so `&[T]` becomes `&Vec<T>`. Length-tagged slice ABI remains pinned to V1.5).
 - **`fn-no-tail-expr` Repro 3** — needs AST-level `;` tracking (~100 lines, but invasive).
 - **`fn-ptr struct field direct call`** — parse `(struct.field)(args)` as indirect call (~150 lines).
 - **method ambiguity UFCS resolution** — sister to V1.7.

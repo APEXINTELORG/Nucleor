@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.78] — 2026-05-03
+
+**RFC V1.11 — `&[T]` slice type as fn-parameter. Canonical Rust
+`fn first(s: &[i64]) -> i64` now parses + lowers.**
+
+Pre-fix: `&[i64]` rejected with the wrong-class
+`error[NR020]: parse error at byte K: expected ';', got ']'`
+because `parse_type` only knew the `[T; N]` fixed-array shape and
+expected `;` after the inner type.
+
+Post-fix: bare `[T]` (no length) resolves to `Vec<T>` — so `&[T]`
+becomes `&Vec<T>`, which the type system already accepts. Nucleor
+arrays are Vec internally so the lowering is a transparent surface
+shape. Length-tagged slice ABI (base+len pair) remains pinned to
+the v1 V1.5 length-tagged str ABI ship.
+
+```nucleor
+// Pre-fix:
+fn first(s: &[i64]) -> i64 { return vec_get(s, 0); }   // ← NR020
+
+// Post-fix:
+fn first(s: &[i64]) -> i64 { return vec_get(s, 0); }
+fn last(s: &[i64])  -> i64 { let n = vec_len(s); return vec_get(s, n - 1); }
+let v: Vec<i64> = [10, 20, 30, 40];
+print_int(first(&v) as i32);    // 10
+print_int(last(&v) as i32);     // 40
+```
+
+### Fixed-point + perf
+
+Cold 3.29–3.35s (baseline 3.16s). Peak mem 300–301MB. Round-2
+fixed-point md5 `269f0f19f8b329e607322fe4c112ac2b`.
+
+### Fixture
+
+`tests/fixtures/v0678_slice_param_type.nr` exercises slice param
+on `first` + `last`.
+
 ## [0.6.77] — 2026-05-03
 
 **RFC V1.11 — `[VAL; N]` array-literal repeat-init. Canonical Rust
