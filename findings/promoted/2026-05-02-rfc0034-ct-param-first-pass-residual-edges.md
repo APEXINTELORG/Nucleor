@@ -6,7 +6,7 @@ diagnostic_actual: per-gap behavior in finding
 diagnostic_expected: per-gap clean diag or proper implementation
 discovered_against: main v0.6.19 (probe rebased)
 commit: probe (post-rebase) + main 998ad04
-status: PARTIAL CLOSE — Gap 1 (explicit CT-arg call SEGFAULT) CLOSED v0.6.63 by main agent. Gap 2 (negative literal default for unsigned CT-param) CLOSED in v0.6.56 by helper agent (A3 punchlist). Gap 3 (struct CT params NR020) remains open; full RFC-0034 implementation is the dedicated v1 cycle.
+status: CLOSED — All 3 sub-gaps shipped. Gap 1 (explicit CT-arg call SEGFAULT) v0.6.63 main. Gap 2 (negative usize default) v0.6.56 helper A3. Gap 3 (struct CT-params NR020) v0.6.65 main. First-pass `[]` parser is now feature-complete with clean halts at all unsupported corners; full RFC-0034 implementation (call-site specialization, semantic environment) is the v1 cycle.
 ---
 
 ## Closure (analysis-only — no compiler change)
