@@ -15150,11 +15150,22 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // str values did integer pointer compare — wholly disconnected
         // from lexicographic byte order. Adopters writing canonical
         // Rust (which does lex compare via PartialOrd) got a quiet
-        // wrong result. Workaround text points at the canonical
-        // `str_cmp(a, b)` helper (returns -1/0/1).
+        // wrong result.
+        //
+        // v0.6.22 (probe finding 2026-05-02-typ011-recommends-undefined-
+        // str_cmp): the original v0.4.67 workaround text recommended
+        // `str_cmp(a, b) <op> 0` — but `str_cmp` was never wired to a
+        // runtime helper, so adopters following the recommendation hit
+        // TYP-005 / clang link `error: undefined function 'str_cmp()'`.
+        // The diag now points at a manual element-wise loop using
+        // `str_char_at(s, i)` and `str_len(s)` — both ARE in the
+        // runtime. A future ship may add a real `str_cmp` helper, at
+        // which point this diag can be reverted to the simpler form.
         if (op == 32 || op == 33 || op == 34 || op == 35) && str_eq(lt, "str") == 1 && str_eq(rt, "str") == 1 {
             let ord_op: str = if op == 32 { "<" } else if op == 33 { "<=" } else if op == 34 { ">" } else { ">=" };
-            type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat("`str ", str_concat(ord_op, str_concat(" str` does pointer comparison (silent miscompute — disconnected from lexicographic byte order). Use `str_cmp(a, b) ", str_concat(ord_op, " 0` for canonical lex ordering.")))));
+            let ord_msga: str = str_concat("`str ", str_concat(ord_op, " str` does pointer comparison (silent miscompute — disconnected from lexicographic byte order)."));
+            let ord_msgb: str = " Nucleor's stdlib does NOT yet expose a `str_cmp` helper; for canonical lex ordering, write a manual element-wise loop using `str_char_at(a, i)` + `str_char_at(b, i)` over `min(str_len(a), str_len(b))`, then break on the first mismatch (or compare lengths if all bytes matched). For equality use `str_eq(a, b) == 1`. A real `str_cmp` may ship in a future runtime cycle.";
+            type_diag(diags, source, fn_name, fn_name, "TYP-011", str_concat(ord_msga, ord_msgb));
         };
         // v0.4.147: TYP-011 ext — struct == / != silently did
         // pointer comparison. Pre-fix `a == b` for two struct

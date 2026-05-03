@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.22] — 2026-05-02
+
+**TYP-011 `str < str` workaround text now points at a workaround that
+exists (probe finding closure).**
+
+Closes probe finding `2026-05-02-typ011-recommends-undefined-str_cmp`.
+The v0.4.67 TYP-011 diagnostic for `str < str` / `str <= str` /
+`str > str` / `str >= str` recommended `str_cmp(a, b) <op> 0` as the
+canonical workaround — but `str_cmp` was never wired to a runtime
+helper. Adopters following the recommendation hit `error[TYP-005]:
+undefined function 'str_cmp()'` at clang link.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` `type_expr` binop site — updated the
+TYP-011 workaround text to point at a manual element-wise loop using
+`str_char_at(s, i)` and `str_len(s)`, both of which are real runtime
+helpers. The diag also reminds adopters that `str_eq(a, b) == 1` is
+the correct equality form, and notes that a real `str_cmp` may ship
+in a future runtime cycle (at which point this diag can be reverted
+to the simpler form).
+
+### Pure docs ship — no semantic change
+
+The diagnostic still fires at the same site under the same conditions
+as v0.4.67. Only the workaround text in the diagnostic message is
+updated. No code logic change, no AST change, no IR change.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `9d7fc0e3…`.
+- Self-host peak: 585–593 MB / 5.14 + 5.26s wall.
+- Tools-suite compiles clean.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
 ## [0.6.21] — 2026-05-02
 
 **`static` items at module scope — clean parse-time halt instead of
