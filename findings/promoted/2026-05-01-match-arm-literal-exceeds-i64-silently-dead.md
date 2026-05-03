@@ -6,7 +6,7 @@ diagnostic_actual: pre-fix — build succeeds; arm with literal `922337203685477
 diagnostic_expected: NUM-021 at parse OR MATCH-NNN unreachable-arm warning
 discovered_against: main v0.5.17 (probe 050f51d)
 commit: probe 050f51d + main 736d88a
-status: DOC-ONLY — sister to NUM-021 family. The lexer-level NUM-021 catches > u64::MAX; the gap is in (i64::MAX, u64::MAX] decimal literals, which the lexer stores as i64::MIN bit pattern. Adding a match-arm-specific check requires either source-text recovery at parse_match_one_pattern (no source param today) or a token-level overflow flag that propagates to pattern-parse. Both are non-trivial; bundled with the broader NUM-021 coverage workstream.
+status: CLOSED in v0.6.68 — fix at lex time rather than match-arm parse. Decimal literals in (i64::MAX, u64::MAX] without an explicit unsigned suffix now halt with NUM-021. Side-steps the source-string plumbing problem; suffixed literals (`9223372036854775808u64`) bypass the halt for adopters who genuinely want u64 bit patterns.
 ---
 
 ## Closure (analysis-only — no compiler change)

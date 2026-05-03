@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.68] — 2026-05-03
+
+**Match-arm literal overflow caught at lex time — closes the
+match-arm-literal-exceeds-i64-silently-dead probe finding.**
+
+Pre-fix `match x { 9223372036854775808 => 1, _ => 0 }` silently
+accepted the literal `9223372036854775808` (= i64::MAX + 1) — the
+lexer wrapped to i64::MIN (since 19-digit decimals fall under the
+u64::MAX overflow check threshold of 20 digits). Against an i64
+scrutinee, the wrapped pattern never matched → silent dead arm.
+
+The lex-time fix catches this at the literal site rather than
+trying to thread scrutinee-context info into match-arm parsing
+(which would require source-string plumbing through every parse
+fn).
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` lex path (~line 614): when a
+decimal literal has 19 digits AND lexicographically exceeds
+"9223372036854775807" (i64::MAX), peek the next character. If
+it's NOT an unsigned suffix (`u8`/`u16`/`u32`/`u64`/`u128`/
+`usize`), halt with a clean diag. Suffixed literals
+(`9223372036854775808u64`) bypass the halt — the user is
+explicit about u-typed semantics.
+
+### Adopter migration
+
+```nucleor
+// Pre-fix (silent dead arm):
+match x {
+    9223372036854775808 => 1,    // never matches against i64
+    _ => 0,
+}
+
+// v0.6.68 workarounds:
+// (a) explicit u64 suffix:
+match x as u64 {
+    9223372036854775808u64 => 1,
+    _ => 0,
+}
+// (b) hex form:
+match x as u64 {
+    0x8000000000000000 => 1,
+    _ => 0,
+}
+// (c) for i64::MIN as a signed pattern, use the canonical form
+//     (already accepted by v0.6.49):
+match x {
+    -9223372036854775808 => 1,
+    _ => 0,
+}
+```
+
+### Verify
+
+- New regression-lock: `tests/err/err_match_arm_overflow_decimal.nr`
+  (auto-walker).
+- Smoke: `9223372036854775808u64` (with suffix) compiles cleanly.
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.67] — 2026-05-03
 
 **Type alias resolver — `type Name = T;` decls now resolve at use
