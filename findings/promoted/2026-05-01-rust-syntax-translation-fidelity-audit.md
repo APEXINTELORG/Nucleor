@@ -23,7 +23,7 @@ v0.6.51:
 | `let s: str = r"raw";` (raw string) | CLOSED v0.6.58 | clean lex halt with workaround pointer; full no-escape mode is forward-roadmap |
 | `let b = b"hello";` (byte string) | CLOSED v0.6.58 | clean lex halt with workaround pointer; byte-buffer literal sugar is forward-roadmap |
 | `let Point { x, y } = p;` (struct destructure-in-let) | OPEN | TYP-008 today; let-pattern destructure not yet wired |
-| `<S as Foo>::f(&s)` (UFCS) | OPEN | NR020 today; UFCS forward-roadmap |
+| `<S as Foo>::f(&s)` (UFCS) | CLOSED v0.6.60 | clean parse halt with workaround pointer; full UFCS dispatch is v1 trait-dispatch ship |
 | `let r = loop { break 42; };` (break-with-value) | CLOSED v0.6.57 | clean parse halt with workaround pointer; full lowering is v1 loop-as-expression |
 | `unreachable!()` macro | CLOSED v0.6.56 | expands to `panic("internal error: entered unreachable code")` matching Rust's std::macros::unreachable! shape |
 | `for (k, v) in &m` (tuple destruct in for) | CLOSED v0.6.59 | clean parse halt with workaround pointer (`kv.0`/`kv.1` body destructure) |

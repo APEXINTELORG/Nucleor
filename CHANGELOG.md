@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.60] — 2026-05-03
+
+**UFCS `<Type as Trait>::method(args)` parse halt — closes another
+audit row.**
+
+Pre-fix `<S as Foo>::f(&s)` (canonical Rust universal function call
+syntax — disambiguates trait dispatch when multiple traits provide
+the same method name) saw `<` (token 32) at expression start,
+falling through to the parse_primary tail with wrong-class
+`error[NR020]: parse_primary cannot start an expression at token
+kind 32`.
+
+### Fix
+
+`parse_primary` (~line 1490): when the first token is `<` (token
+32), halt with a clean diag pointing at the workaround (call as
+regular method `s.f(...)` or via path form `Foo::f(&s)`). Forward-
+roadmap: full UFCS dispatch is the v1 trait-dispatch ship.
+
+### Verify
+
+- New regression-lock: `tests/err/err_ufcs_expr.nr` (auto-walker).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.59] — 2026-05-03
 
 **`for (k, v) in &m` parse halt — closes another rust-syntax-
