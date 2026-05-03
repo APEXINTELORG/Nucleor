@@ -17584,6 +17584,33 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
             else { tenv_set(env, vname, tstr); };
         }
         else { tenv_set(env, vname, init_t); };
+        // v0.6.51 (probe finding 2026-05-02-hashmap-i64-key-crashes):
+        // CRITICAL — `HashMap<i64, V>`, `HashMap<bool, V>`, etc. (any
+        // non-str key type) crashed at runtime with STATUS_ACCESS_
+        // VIOLATION (rc=-1073741819) on the first hashmap_insert. The
+        // runtime helper `__nucleor_hashmap_insert` takes the key as
+        // `const char *` and dereferences it as a string pointer; an
+        // i64 key like `1` makes it deref address `0x1`. Same hazard
+        // applies to HashSet, BTreeMap, BTreeSet (all use the same
+        // str-key runtime path). Halt at let-binding type-check with
+        // a clean diagnostic naming the workaround. The compiler's
+        // own internal HashMaps use str keys (the i64-everywhere ABI
+        // stores str pointers cast to i64), so the workaround mirrors
+        // that pattern.
+        if str_len(tstr) > 0 {
+            let mut hm_keyed_collection_v651: i64 = 0;
+            if str_starts_with(tstr, "HashMap<") == 1 { hm_keyed_collection_v651 = 1; };
+            if str_starts_with(tstr, "HashSet<") == 1 { hm_keyed_collection_v651 = 1; };
+            if str_starts_with(tstr, "BTreeMap<") == 1 { hm_keyed_collection_v651 = 1; };
+            if str_starts_with(tstr, "BTreeSet<") == 1 { hm_keyed_collection_v651 = 1; };
+            if hm_keyed_collection_v651 == 1 {
+                let key_t_v651: str = type_first_arg(tstr);
+                if str_len(key_t_v651) > 0 && str_eq(key_t_v651, "str") == 0 && str_eq(key_t_v651, "_") == 0 {
+                    let hm_msg_v651: str = str_concat("non-str key type `", str_concat(key_t_v651, str_concat("` in keyed collection `", str_concat(tstr, str_concat("` (binding `", str_concat(vname, "`) is not yet supported in Nucleor. Pre-v0.6.51 this CRASHED at runtime with STATUS_ACCESS_VIOLATION on the first insert because the runtime helper dereferences the key as a string pointer. Workaround: convert the key to str via `str_from_int(k)` (for i64/i32/u32/u64/i16/u16/i8/u8), `if b { \"true\" } else { \"false\" }` (for bool), or `f64_to_str(k)` (for f64). Use a `Vec<(KeyT, ValT)>` if you need ordered insertion-time semantics with non-str keys. Tracked for forward-roadmap (key-type-aware hash/cmp helper family).")))))));
+                    type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-026", hm_msg_v651);
+                };
+            };
+        };
         if init >= 0 {
             let init_const_v146: Vec<i32> = const_i64_expr(pool, init, env);
             // v0.6.50 (probe finding 2026-05-02-num-021-coverage-gaps-
