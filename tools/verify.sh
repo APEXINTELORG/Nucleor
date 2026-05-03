@@ -4360,6 +4360,22 @@ v0667_type_alias_resolves() {
     grep -qE "^44$" $NUC_VERIFY_RUN_LOG || return 1
 }
 
+v0673_tuple_struct_decl_named_field_workaround() {
+    rm -f target/v0673_tup_check.exe target/v0673_tup_check
+    "$BIN" build tests/fixtures/v0673_tuple_struct_decl_named_field_workaround.nr -o "v0673_tup_check" >$NUC_VERIFY_STEP_LOG 2>&1
+    local exe=""
+    if [ -x target/v0673_tup_check.exe ]; then exe=target/v0673_tup_check.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0673_tup_check ]; then exe=target/v0673_tup_check; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rc=$?
+    [ "$rc" -eq 0 ] || return 1
+    grep -qE "^5$" $NUC_VERIFY_RUN_LOG || return 1
+    grep -qE "^10$" $NUC_VERIFY_RUN_LOG || return 1
+    grep -qE "^label$" $NUC_VERIFY_RUN_LOG || return 1
+    grep -qE "^42$" $NUC_VERIFY_RUN_LOG || return 1
+}
+
 v0633_option_unwrap_none_panics() {
     rm -f target/v0633_opt_check.exe target/v0633_opt_check
     "$BIN" build tests/fixtures/option_unwrap_none_panics.nr -o "v0633_opt_check" >$NUC_VERIFY_STEP_LOG 2>&1
@@ -5214,6 +5230,7 @@ step "v0.6.52 IEEE 754 negative-zero sign bit preserved through unary minus" v06
 step "v0.6.56 unreachable!() macro expands to canonical Rust panic message" v0656_unreachable_macro_panics
 step "v0.6.66 char-typed binding accepts char-literal init (was wrong-class TYP-008)" v0666_char_literal_typed
 step "v0.6.67 type alias resolves at use sites (was TYP-006/TYP-008)" v0667_type_alias_resolves
+step "v0.6.73 tuple-struct decl accepts paren-form, synthesizes __0/__1 fields" v0673_tuple_struct_decl_named_field_workaround
 step "v0.6.33 Option::None.unwrap() panics with canonical message (no Vec leak)" v0633_option_unwrap_none_panics
 step "v0.6.33 Result::Err(x).unwrap() panics with canonical message (no silent ok-leak)" v0633_result_unwrap_err_panics
 step "v0.6.34 Result::Err(x).unwrap_err() returns err payload (was TYP-005 link fail)" v0634_result_unwrap_err_basic
