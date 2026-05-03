@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8] — 2026-05-03
+
+**Defensive halt — canonical Rust complex-receiver `.await`
+(`fetch().await`, `arr[0].await`, `expr.method().await`) now
+produces a clean halt with a let-extract workaround pointer.**
+
+Pre-fix: `.await` on anything other than a simple ident
+surfaced as wrong-class `cannot resolve field access .await`
+because the `expand_async_await` textual pass at line ~26145
+only matches the `<ident>.await` form (per the comment at line
+~27566: "complex receivers are not supported"). The kind-9
+field access then fell through to the generic
+field-resolution panic.
+
+Post-fix: lower_expr's kind-9 dispatch detects
+`fname == "await"` and halts cleanly, pointing at the
+let-extract workaround:
+
+```nucleor
+// Pre-fix:
+let v: i64 = fetch().await;       // ← cannot resolve field .await
+
+// Post-fix workaround:
+let h: i64 = fetch();
+let v: i64 = h.await;             // simple ident form — handled by expand_async_await
+```
+
+Forward-roadmap: full async-await substrate is sister to V1.x
+async/Future infrastructure — needs proper Future trait,
+poll-state machine, complex-receiver expression rewrite.
+
+### Fixed-point + perf
+
+Cold 4.34s. Peak 314MB. Round-2 fixed-point md5
+`0ceb56e91b36e9c960f1b78c56caf75d`.
+
+### Fixture
+
+`tests/fixtures/v0708_complex_await_clean_halt.nr` — negative
+fixture for `fetch().await`.
+
 ## [0.7.7] — 2026-05-03
 
 **Defensive halt — C/Java-idiom `x++` / `x--` post-increment/
