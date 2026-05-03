@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.47] — 2026-05-03
+
+**`print_f64` switches to scientific notation at extremes (probe
+finding closure — diagnostic-quality / silent value loss).**
+
+Closes probe finding `2026-05-02-print_f64-formatting-issues`.
+Pre-fix `print_f64(f64::MAX)` printed a 309-digit integer
+expansion; `print_f64(5e-324)` (smallest subnormal) printed
+`0.000000` — silent value loss. The runtime helper used `%.6f`
+unconditionally, which fixed-decimal-formats every value
+regardless of magnitude.
+
+### Fix
+
+`stdlib/runtime/nucleor_llvm_rt.c` `__nucleor_print_f64` —
+checks `abs(d)` and routes:
+
+- `abs(d) == 0.0` → `0.000000\n` (legacy zero output preserved)
+- `abs(d) < 1e-6 || abs(d) >= 1e15` → `%.17g\n` (auto-scientific
+  with full precision)
+- otherwise → `%.6f\n` (legacy fixed-decimal for typical adopter
+  numbers — preserves byte-for-byte output of common values)
+
+`%.17g` is the canonical "round-trip" precision for f64 (every
+distinct double has a distinct %.17g representation).
+
+### Adopter migration
+
+```nucleor
+let mx: f64 = 1.7976931348623157e308;
+print_f64(mx);           // pre: 309-digit wall; v0.6.47: 1.7976931348623157e+308
+
+let tiny: f64 = 5e-324;
+print_f64(tiny);          // pre: 0.000000 (silent zero); v0.6.47: 4.9406564584124654e-324
+
+let normal: f64 = 3.14159;
+print_f64(normal);        // unchanged: 3.141590
+```
+
+Existing fixtures using `print_f64(<typical-magnitude>)` produce
+the same output (~1e-5 to ~1e14 range stays on `%.6f`). Only
+extreme values switch to scientific.
+
+### Validation
+
+- Smoke (probe repro): all 4 cases print correctly.
+- Drift gate 5/5 OK.
+- No compiler change (runtime-only ship).
+
+### Forward-roadmap
+
+The threshold (`1e-6 .. 1e15`) is heuristic, matching
+approximately what humans read comfortably. Could be tuned via
+env var (`NUCLEOR_PRINT_F64_PRECISION` etc.) in a future ship if
+adopters need control. Default behavior matches Rust's `{}`
+Display formatting for f64 closely.
+
 ## [0.6.46] — 2026-05-03
 
 **Where-clauses on struct decls + impl blocks + impl generic-param
