@@ -259,9 +259,14 @@ fn tok_val_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_val(tok_at(tokens,
 // =====================================================
 // PARSER (from T29, unchanged)
 // =====================================================
+extern fn nuc_node_kind(pool: Vec<i32>, nid: i64) -> i64;
+extern fn nuc_node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64;
+extern fn nuc_list_len(pool: Vec<i32>, lid: i64) -> i64;
+extern fn nuc_list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64;
+
 fn node_add(pool: Vec<i32>, nd: Vec<i32>) -> i64 { let nid: i64 = vec_len(pool); pool.push(nd); return nid; }
-fn node_kind(pool: Vec<i32>, nid: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, nid); return vec_get(nd, 0); }
-fn node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, nid); return vec_get(nd, idx); }
+fn node_kind(pool: Vec<i32>, nid: i64) -> i64 { return nuc_node_kind(pool, nid); }
+fn node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64 { return nuc_node_field(pool, nid, idx); }
 fn mk2(pool: Vec<i32>, k: i64, a: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); return node_add(pool, n); }
 fn mk3(pool: Vec<i32>, k: i64, a: i64, b: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); n.push(b); return node_add(pool, n); }
 fn mk4(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64) -> i64 { let mut n: Vec<i32> = Vec::new(); n.push(k); n.push(a); n.push(b); n.push(c); return node_add(pool, n); }
@@ -272,9 +277,8 @@ fn mk_list(pool: Vec<i32>, items: Vec<i32>) -> i64 {
     let mut i: i64 = 0; while i < vec_len(items) { n.push(vec_get(items, i)); i = i + 1; };
     return node_add(pool, n);
 }
-fn list_len(pool: Vec<i32>, lid: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, lid); return vec_len(nd) - 1; }
-fn list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, lid); return vec_get(nd, idx + 1); }
-
+fn list_len(pool: Vec<i32>, lid: i64) -> i64 { return nuc_list_len(pool, lid); }
+fn list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64 { return nuc_list_get(pool, lid, idx); }
 fn pr(p: i64, v: i64) -> Vec<i32> { let mut r: Vec<i32> = Vec::new(); r.push(p); r.push(v); return r; }
 fn pr_pos(r: Vec<i32>) -> i64 { return vec_get(r, 0); }
 fn pr_val(r: Vec<i32>) -> i64 { return vec_get(r, 1); }
@@ -2227,6 +2231,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "sb_new") { return "__nucleor_sb_new"; };
     if str_eq(name, "sb_append") { return "__nucleor_sb_append"; };
     if str_eq(name, "sb_append_char") { return "__nucleor_sb_append_char"; };
+    if str_eq(name, "sb_append_char_at") { return "__nucleor_sb_append_char_at"; };
+    if str_eq(name, "sb_append_range") { return "__nucleor_sb_append_range"; };
     if str_eq(name, "sb_new_with_cap") { return "__nucleor_sb_new_with_cap"; };
     if str_eq(name, "sb_to_str") { return "__nucleor_sb_to_str"; };
     if str_eq(name, "vec_new") { return "__nucleor_vec_new"; };
@@ -3069,6 +3075,8 @@ fn is_void_ret(name: str) -> i64 {
     if str_eq(name, "file_write_string") { return 1; };
     if str_eq(name, "sb_append") { return 1; };
     if str_eq(name, "sb_append_char") { return 1; };
+    if str_eq(name, "sb_append_char_at") { return 1; };
+    if str_eq(name, "sb_append_range") { return 1; };
     if str_eq(name, "sb_new_with_cap") { return 0; };
     if str_eq(name, "vec_push") { return 1; };
     if str_eq(name, "vec_pop") { return 1; };
@@ -3428,6 +3436,8 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "system") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "sb_append") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "sb_append_char") { return 0; };
+    if str_eq(name, "sb_append_char_at") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "sb_append_range") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "sb_new_with_cap") { return 0; };
     if str_eq(name, "vec_push") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_get") { if idx == 0 { return 1; }; return 0; };
@@ -3856,6 +3866,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_sb_new()\n");
     sb_append(sb, "declare void @__nucleor_sb_append(i64, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_append_char(i64, i64)\n");
+    sb_append(sb, "declare void @__nucleor_sb_append_char_at(i64, ptr, i64)\n");
+    sb_append(sb, "declare void @__nucleor_sb_append_range(i64, ptr, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sb_new_with_cap(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_sb_to_str(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_args_count()\n");

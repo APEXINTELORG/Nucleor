@@ -7,7 +7,7 @@
 #
 # Schema: see docs/rfcs/helper_manifest_schema.md
 # Contract: see docs/rfcs/HELPER-CONTRACT.md
-# Total helpers: 868
+# Total helpers: 870
 # Of which REVIEW REQUIRED: 71
 
 # ============================================================
@@ -7575,6 +7575,34 @@ class            = "StringFormat"
 symbol           = "__nucleor_sb_append_char"
 dispatch         = "RuntimeCall"
 abi              = "(i64, i64) -> void"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sb_append_char_at"
+class            = "StringFormat"
+symbol           = "__nucleor_sb_append_char_at"
+dispatch         = "RuntimeCall"
+abi              = "(i64, ptr, i64) -> void"
+effects          = ["alloc"]
+taint            = "passthrough"
+units            = "passthrough"
+proof_obligation = "none"
+stability        = "stable"
+since            = "0.1.0"
+notes            = ""
+
+[[helper]]
+name             = "sb_append_range"
+class            = "StringFormat"
+symbol           = "__nucleor_sb_append_range"
+dispatch         = "RuntimeCall"
+abi              = "(i64, ptr, i64, i64) -> void"
 effects          = ["alloc"]
 taint            = "passthrough"
 units            = "passthrough"
