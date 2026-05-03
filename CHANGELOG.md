@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.37] — 2026-05-03
+
+**NUM-008 — width-aware shift-amount bound (probe finding closure
+— silent miscompute on narrow widths).**
+
+Closes probe finding `2026-05-01-num-008-shift-only-checks-i64-
+not-narrow-widths`. Pre-fix NUM-008 only checked the i64 bound
+(0..=63), so `let a: i32 = 1 << 32;` silently lowered to LLVM
+`shl i32` with shift amount 32 — UB / poison (returns 0 in
+practice). Adopters writing canonical Rust narrow-width shifts
+got silent miscompute.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` NUM-008 emit site (line ~16128)
+— derive the bound from the LHS type's width:
+- `i8` / `u8`: 0..=7
+- `i16` / `u16`: 0..=15
+- `i32` / `u32`: 0..=31
+- `i64` / `u64` (default): 0..=63
+
+The diag now names the actual width and shows the correct upper
+bound. Workaround pointer mentions both masking (`amt & N`) and
+widening the LHS type as fix options.
+
+### Adopter migration
+
+```nucleor
+// Pre-v0.6.37: silent return 0 for any out-of-range shift on narrow widths
+let a: i32 = 1 << 32;   // pre-fix: 0 (poison); v0.6.37: NUM-008 halt
+
+// Workarounds:
+// 1. Mask the shift amount:
+let a: i32 = 1 << (32 & 31);   // = 1 (no-op shift)
+
+// 2. Widen the LHS type:
+let a: i64 = 1i64 << 32;        // 4294967296 — well-defined i64 shift
+```
+
+### Note on `let a: i64 = 1 << N`
+
+Nucleor's literal type inference defaults integer literals to i32
+(matching Rust). So `let a: i64 = 1 << 32;` lowers as an i32 shift
+(LHS `1` is i32) — exactly the case NUM-008 catches. This matches
+Rust's behavior: `let a: i64 = 1 << 32;` is also a compile-time
+error in Rust (overflowing_literals + overflow_left_shift). Use
+`1i64 << 32` or `(1 as i64) << 32` to get an i64 shift.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `90bf5a78…`.
+- Self-host wall: 4.71s + 4.35s.
+- Tools-suite (674 fns) compiles clean — no false halts.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
+### Fixture
+
+- `tests/err/err_num008_narrow_width_shift.nr`
+
 ## [0.6.36] — 2026-05-03
 
 **NR036 — self-recursive struct without Box / & indirection halts
