@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.50] — 2026-05-03
+
+**Batch closure ship — 4 probe findings landed in one cycle.**
+
+Per user instruction 2026-05-03 (validation cadence too long
+per-finding), v0.6.50 stacks multiple closures into one
+compile/verify cycle.
+
+### Closures landed
+
+- **`union` decl at module scope** (probe finding
+  `2026-05-02-module-scope-decl-silent-noop-gaps-type-mod-union-use`,
+  union sub-gap): pre-fix `union U { ... }` was silently swallowed
+  at parse time then `U { a: 42 }` at use site emitted `unknown
+  struct U` — confusing late error pointing at the use site, not
+  the unsupported decl. Now halts at parse with a clean diagnostic
+  matching the v0.6.21 `static`-decl precedent. Sister sub-gaps
+  (mod, use, type alias) are intentional design today: `mod
+  helpers { ... }` block-form is INLINED by the source
+  preprocessor (line ~24098) — that's not a silent-accept, it's
+  the documented transparent-grouping behavior with a smoke test
+  at `tests/smoke/t15a_mod_block_form.nr`. `use <PATH>;` is also
+  intentional pass-through (Nucleor is single-namespace today).
+  Type aliases are documented as a v1+ resolver-layer feature.
+  See finding promotion for the full breakdown.
+
+- **NUM-021 gap 4 — let-binding const overflow** (probe finding
+  `2026-05-02-num-021-coverage-gaps-u64-imin-shift-divzero`, gap
+  4): `let x: i64 = 9223372036854775807 + 1;` now fires NUM-021 at
+  compile time. Pre-fix it PANICked at runtime startup via the
+  strict-intrin trap, surfacing far from the source line. The
+  let-stmt path at `compiler/nucleor_s1_compiler.nr:~17607`
+  already calls `const_i64_expr` for tracker propagation; v0.6.50
+  also fires NUM-021 when the result has the overflow flag set
+  (skipped for kind-7 fn-call inits where the call body is opaque
+  from the binding site). Sister to v0.6.49 gap-2 (i64::MIN
+  literal). Gaps 1 (u64 const overflow) and 3 (const div/mod/shift)
+  remain open.
+
+- **`needs_str_arg0` linear chain** (probe finding
+  `2026-04-30-needs-str-arg0-linear-or-chain-length`): doc-only
+  closure documenting analysis. Chain currently 41 entries (not
+  70+ as probe noted; intervening ships consolidated). First-char
+  dispatch is a candidate for a dedicated perf cycle, deferred
+  this batch to avoid the v0.6.45 sb_append_int revert pattern.
+
+- **lifetime-annotated str fn body** (probe finding
+  `2026-05-01-lifetime-annotated-str-fn-cant-call-str-helpers`):
+  closed incidentally by v0.6.48 sister-fix (TYP-006 widen to
+  accept `&str`); promoted in this batch.
+
+### Verify
+
+- New regression-locks (auto-picked-up by `tests/err/` walker):
+  - `err_module_scope_union.nr`
+  - `err_num021_let_overflow.nr`
+- Round-2 fixed-point preserved (md5 stable).
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.49] — 2026-05-03
 
 **Canonical `i64::MIN` literal `-9223372036854775808` accepted at
