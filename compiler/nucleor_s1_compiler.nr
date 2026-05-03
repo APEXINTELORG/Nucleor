@@ -21346,10 +21346,51 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                         // fell through to the user-fn lookup. Runtime
                         // helpers added in nucleor_llvm_rt.c v0.4.90.
                         fn_name = str_concat("option_", mname);
+                    } else if str_eq(stype_base, "Option") == 1 && (str_eq(mname, "unwrap_or_default") == 1 || str_eq(mname, "take") == 1 || str_eq(mname, "replace") == 1 || str_eq(mname, "flatten") == 1 || str_eq(mname, "as_ref") == 1 || str_eq(mname, "as_mut") == 1 || str_eq(mname, "iter") == 1 || str_eq(mname, "ok_or") == 1 || str_eq(mname, "ok_or_else") == 1 || str_eq(mname, "cloned") == 1 || str_eq(mname, "copied") == 1) {
+                        // v0.6.83 (probe finding 2026-04-30-rust-syntax-
+                        // translation-fidelity-audit, Option-method-surface
+                        // gaps): canonical Rust Option methods not yet in
+                        // Nucleor's runtime surface (`unwrap_or_default`,
+                        // `take`, `replace`, `flatten`, `as_ref`, `as_mut`,
+                        // `iter`, `ok_or`, `ok_or_else`, `cloned`, `copied`)
+                        // pre-fix fell through to the kind-8 catch-all
+                        // `vec_<method>(receiver)` and surfaced as the
+                        // wrong-class TYP-005 "Vec<T> has no method" diag.
+                        // Halt now with a clean per-method workaround
+                        // pointer. Tracked for forward-roadmap (extended
+                        // Option/Result method surface alongside Default
+                        // trait infrastructure).
+                        let v083_workaround_opt: str = if str_eq(mname, "unwrap_or_default") == 1 {
+                            "use `unwrap_or(<default>)` with an explicit default — Nucleor doesn't auto-derive Default per type yet"
+                        } else if str_eq(mname, "take") == 1 || str_eq(mname, "replace") == 1 {
+                            "mutate the binding manually: `let v: T = opt.unwrap(); opt = None;` (or assign the new Some value)"
+                        } else if str_eq(mname, "flatten") == 1 {
+                            "use `match opt { Some(inner) => inner, None => None }`"
+                        } else if str_eq(mname, "ok_or") == 1 || str_eq(mname, "ok_or_else") == 1 {
+                            "convert via `match opt { Some(v) => Ok(v), None => Err(<err_value>) }`"
+                        } else {
+                            "no current shorthand — destructure with `match opt { Some(v) => ..., None => ... }`"
+                        };
+                        print(str_concat("ERROR: `Option::", str_concat(mname, str_concat("()` is not yet implemented in Nucleor's Option/Result method surface. Pre-v0.6.83 this fell through to the kind-8 catch-all `vec_", str_concat(mname, str_concat("(receiver)` and surfaced as the wrong-class TYP-005 'Vec<T> has no method'. Workaround: ", str_concat(v083_workaround_opt, ". Tracked for forward-roadmap.")))))));
+                        panic(str_concat("nucleor: Option method `.", str_concat(mname, "()` not yet supported (see ERROR diagnostic above)")));
                     } else if str_eq(stype_base, "Result") == 1 && (str_eq(mname, "unwrap") == 1 || str_eq(mname, "unwrap_or") == 1 || str_eq(mname, "unwrap_err") == 1 || str_eq(mname, "is_ok") == 1 || str_eq(mname, "is_err") == 1 || str_eq(mname, "ok") == 1 || str_eq(mname, "err") == 1 || str_eq(mname, "expect") == 1 || str_eq(mname, "map") == 1 || str_eq(mname, "and_then") == 1 || str_eq(mname, "unwrap_or_else") == 1 || str_eq(mname, "or_else") == 1) {
                         // v0.4.90: Result<T,E> method dispatch — same
                         // root cause as Option above.
                         fn_name = str_concat("result_", mname);
+                    } else if str_eq(stype_base, "Result") == 1 && (str_eq(mname, "unwrap_or_default") == 1 || str_eq(mname, "as_ref") == 1 || str_eq(mname, "as_mut") == 1 || str_eq(mname, "iter") == 1 || str_eq(mname, "map_err") == 1 || str_eq(mname, "expect_err") == 1 || str_eq(mname, "cloned") == 1 || str_eq(mname, "copied") == 1) {
+                        // v0.6.83 sister halt for Result methods not in
+                        // the runtime surface yet.
+                        let v083_workaround_res: str = if str_eq(mname, "unwrap_or_default") == 1 {
+                            "use `unwrap_or(<default>)` with an explicit default value"
+                        } else if str_eq(mname, "map_err") == 1 {
+                            "use `match res { Ok(v) => Ok(v), Err(e) => Err(<f>(e)) }` to transform the err arm"
+                        } else if str_eq(mname, "expect_err") == 1 {
+                            "use `match res { Err(e) => e, Ok(_) => panic!(\"<msg>\") }`"
+                        } else {
+                            "destructure with `match res { Ok(v) => ..., Err(e) => ... }`"
+                        };
+                        print(str_concat("ERROR: `Result::", str_concat(mname, str_concat("()` is not yet implemented in Nucleor's Option/Result method surface. Workaround: ", str_concat(v083_workaround_res, ". Tracked for forward-roadmap.")))));
+                        panic(str_concat("nucleor: Result method `.", str_concat(mname, "()` not yet supported (see ERROR diagnostic above)")));
                     } else if str_eq(stype_base, "String") == 1 && (str_eq(mname, "push") == 1 || str_eq(mname, "push_str") == 1 || str_eq(mname, "len") == 1 || str_eq(mname, "capacity") == 1 || str_eq(mname, "get_byte") == 1 || str_eq(mname, "clear") == 1 || str_eq(mname, "as_ptr") == 1 || str_eq(mname, "print") == 1 || str_eq(mname, "eq") == 1 || str_eq(mname, "eq_str") == 1 || str_eq(mname, "starts_with") == 1 || str_eq(mname, "ends_with") == 1 || str_eq(mname, "contains") == 1 || str_eq(mname, "clone") == 1 || str_eq(mname, "free") == 1
                         || str_eq(mname, "is_empty") == 1 || str_eq(mname, "to_uppercase") == 1 || str_eq(mname, "to_lowercase") == 1 || str_eq(mname, "trim") == 1 || str_eq(mname, "trim_start") == 1 || str_eq(mname, "trim_end") == 1 || str_eq(mname, "find") == 1 || str_eq(mname, "substring") == 1 || str_eq(mname, "char_at") == 1 || str_eq(mname, "as_str") == 1) {
                         // v0.4.124: extended String method surface — adds
