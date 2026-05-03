@@ -305,8 +305,30 @@ fn lex(src: str) -> Vec<i32> {
                 if derive_arg_end_v060 < slen {
                     let derive_body_v060: str = str_substring(src, derive_arg_start_v060, derive_arg_end_v060);
                     let trimmed_v060: str = str_trim(derive_body_v060);
-                    if str_eq(trimmed_v060, "Debug") == 0 {
-                        print(str_concat("warning[DERIVE-001]: `#[derive(", str_concat(trimmed_v060, ")]` is silently dropped except for `Debug`. Nucleor doesn't auto-derive PartialEq / Eq / Hash / Default / Clone / Copy / Ord / PartialOrd / etc. — anything other than `Debug` listed above is a no-op. Use sites that depend on a dropped derive (`a == b` for PartialEq, `Default::default()`, `a.clone()`, etc.) will fail at the use site with TYP-011 / TYP-005 / TYP-006. Workarounds: hand-write the equivalent (e.g. `fn point_eq(a: P, b: P) -> i64 { ... }` for PartialEq), or wait for the future RFC that adds derive expansion.")));
+                    // v0.6.84 RFC V1.4: PartialEq is now auto-generated
+                    // by `expand_derive_partialeq` as the helper fn
+                    // `<TypeName>__derived_eq(a, b) -> i64` (returns 1
+                    // when field-wise equal, 0 otherwise). Adopters call
+                    // it manually; auto-dispatch of `==`/`!=` to the
+                    // helper is deferred. Suppress the DERIVE-001 warning
+                    // when the only derive in the list is PartialEq, and
+                    // soften the wording when PartialEq is one of several.
+                    let mut v084_only_partial: i64 = 0;
+                    if str_eq(trimmed_v060, "PartialEq") == 1 { v084_only_partial = 1; };
+                    let mut v084_has_partial: i64 = 0;
+                    if str_contains(trimmed_v060, "PartialEq") == 1 { v084_has_partial = 1; };
+                    if v084_only_partial == 0 && str_eq(trimmed_v060, "Debug") == 0 {
+                        let v084_intro: str = if v084_has_partial == 1 {
+                            "warning[DERIVE-001]: only `Debug` and `PartialEq` are honored from `#[derive("
+                        } else {
+                            "warning[DERIVE-001]: `#[derive("
+                        };
+                        let v084_body: str = if v084_has_partial == 1 {
+                            ")]` — `PartialEq` generates the helper fn `<Type>__derived_eq(a, b) -> i64`; the rest are silently dropped. Auto-dispatch of `==` / `!=` to the derived-eq helper is deferred to a follow-on V1.4 ship; call the helper directly (`if Foo__derived_eq(a, b) == 1 { ... }`) or wait for the auto-dispatch ship."
+                        } else {
+                            ")]` is silently dropped except for `Debug` (and `PartialEq` since v0.6.84 — auto-generates `<Type>__derived_eq`). Nucleor doesn't auto-derive Eq / Hash / Default / Clone / Copy / Ord / PartialOrd / etc. — anything other than those listed above is a no-op. Use sites that depend on a dropped derive (`Default::default()`, `a.clone()`, etc.) will fail at the use site with TYP-011 / TYP-005 / TYP-006."
+                        };
+                        print(str_concat(v084_intro, str_concat(trimmed_v060, v084_body)));
                     };
                 };
             };
@@ -11098,6 +11120,289 @@ fn sendable_source_has_actor_decl(src: str) -> i64 {
         };
     };
     return 0;
+}
+
+// v0.6.84 RFC V1.4 (probe finding 2026-04-30-rust-syntax-translation-
+// fidelity-audit, derive(PartialEq) row): canonical Rust
+// `#[derive(PartialEq)] struct Point { x: i64, y: i64 }` pre-fix
+// emitted only the v0.6.26 `warning[DERIVE-001]` and the derive was
+// silently a no-op. Adopters writing `if a == b { ... }` later got
+// the v0.4.147 TYP-011 ptr-compare diag with workaround pointer
+// "write a helper fn that does the field walk" — but the helper
+// wasn't auto-generated.
+//
+// This pass walks the source, finds `#[derive(...PartialEq...)]`
+// attribute lines followed by a `struct NAME { ... }` or `struct
+// NAME(...);` decl, and APPENDS a generated helper fn at end of
+// source: `fn <NAME>__derived_eq(a: <NAME>, b: <NAME>) -> i64 {
+//     if a.<f1> != b.<f1> { return 0; };
+//     ...
+//     return 1;
+// }`. Adopters can call the generated fn directly; auto-dispatch
+// of `==`/`!=` to the helper is deferred to a follow-on V1.4 ship
+// (needs lower_expr binop kind-4 routing + side-table threading).
+//
+// Conservative scope: skip generic structs (`struct Pair<T>`),
+// skip where-clauses, skip empty unit structs. For named struct
+// fields, walk to the next top-level comma or `}` (depth-tracked
+// for `<>`/`()`/`[]` so generic field types parse correctly). For
+// tuple structs, count types and synthesize `__0`/`__1` names
+// matching the V1.1 (v0.6.74) tuple-struct positional-field
+// synthesis.
+//
+// `!=` on a struct field today does pointer-compare for nested
+// structs (silent miscompute); the per-field helper still works
+// for primitive-typed fields. Document the limitation in CHANGELOG.
+fn expand_derive_partialeq(src: str) -> str {
+    let slen: i64 = str_len(src);
+    // Cheap pre-check: bail if source has no `#[derive(` at all.
+    let mut has_derive: i64 = 0;
+    let mut prep: i64 = 0;
+    while prep + 9 <= slen {
+        if str_eq_at(src, prep, "#[derive(") == 1 { has_derive = 1; prep = slen; };
+        prep = prep + 1;
+    };
+    if has_derive == 0 { return src; };
+    let mut helpers: i64 = sb_new();
+    let mut p: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        // Skip line comments.
+        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+            continue;
+        };
+        // Skip string literals.
+        if c == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 34 {
+                if str_char_at(src, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            if p < slen { p = p + 1; };
+            continue;
+        };
+        if c == 39 {
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 39 {
+                if str_char_at(src, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            if p < slen { p = p + 1; };
+            continue;
+        };
+        if c != 35 || p + 9 > slen || str_eq_at(src, p, "#[derive(") == 0 {
+            p = p + 1;
+            continue;
+        };
+        // Found #[derive( at p. Walk to closing ].
+        let attr_start: i64 = p;
+        let mut q: i64 = p + 9;
+        let mut depth_a: i64 = 1;
+        while q < slen && depth_a > 0 {
+            let cc: i64 = str_char_at(src, q);
+            if cc == 91 { depth_a = depth_a + 1; }
+            else if cc == 93 { depth_a = depth_a - 1; };
+            q = q + 1;
+        };
+        let attr_text: str = str_substring(src, attr_start, q);
+        let has_partialeq: i64 = if str_contains(attr_text, "PartialEq") == 1 { 1 } else { 0 };
+        p = q;
+        if has_partialeq == 0 { continue; };
+        // Skip whitespace and any subsequent attributes / line comments.
+        let mut sp: i64 = p;
+        let mut keep_looking: i64 = 1;
+        while keep_looking == 1 && sp < slen {
+            let sc: i64 = str_char_at(src, sp);
+            if sc == 32 || sc == 9 || sc == 10 || sc == 13 { sp = sp + 1; }
+            else if sc == 47 && sp + 1 < slen && str_char_at(src, sp + 1) == 47 {
+                while sp < slen && str_char_at(src, sp) != 10 { sp = sp + 1; };
+            }
+            else if sc == 35 && sp + 1 < slen && str_char_at(src, sp + 1) == 91 {
+                let mut da: i64 = 1;
+                sp = sp + 2;
+                while sp < slen && da > 0 {
+                    let dc: i64 = str_char_at(src, sp);
+                    if dc == 91 { da = da + 1; }
+                    else if dc == 93 { da = da - 1; };
+                    sp = sp + 1;
+                };
+            }
+            else if sc == 116 || sc == 112 {
+                // Skip `pub ` modifier.
+                if sp + 4 <= slen && str_eq_at(src, sp, "pub ") == 1 { sp = sp + 4; }
+                else { keep_looking = 0; };
+            }
+            else { keep_looking = 0; };
+        };
+        if sp + 7 > slen || str_eq_at(src, sp, "struct ") == 0 { continue; };
+        sp = sp + 7;
+        // Skip ws.
+        let mut ws_done: i64 = 0;
+        while sp < slen && ws_done == 0 {
+            let wc: i64 = str_char_at(src, sp);
+            if wc == 32 || wc == 9 { sp = sp + 1; }
+            else { ws_done = 1; };
+        };
+        // Capture name.
+        let name_start: i64 = sp;
+        let mut name_done: i64 = 0;
+        while sp < slen && name_done == 0 {
+            let nc: i64 = str_char_at(src, sp);
+            if is_alnum(nc) == 1 || nc == 95 { sp = sp + 1; }
+            else { name_done = 1; };
+        };
+        let name: str = str_substring(src, name_start, sp);
+        if str_len(name) == 0 { continue; };
+        // Skip ws.
+        let mut ws2_done: i64 = 0;
+        while sp < slen && ws2_done == 0 {
+            let wc2: i64 = str_char_at(src, sp);
+            if wc2 == 32 || wc2 == 9 || wc2 == 10 || wc2 == 13 { sp = sp + 1; }
+            else { ws2_done = 1; };
+        };
+        if sp >= slen { continue; };
+        let next_c: i64 = str_char_at(src, sp);
+        // Skip generic structs (would need monomorphisation).
+        if next_c == 60 { continue; };
+        // Named struct: `{ field: type, ... }`.
+        if next_c == 123 {
+            let mut fb: i64 = sb_new();
+            sb_append(fb, "\nfn ");
+            sb_append(fb, name);
+            sb_append(fb, "__derived_eq(a: ");
+            sb_append(fb, name);
+            sb_append(fb, ", b: ");
+            sb_append(fb, name);
+            sb_append(fb, ") -> i64 {\n");
+            sp = sp + 1;
+            let mut field_count: i64 = 0;
+            let mut keep_fields: i64 = 1;
+            while keep_fields == 1 && sp < slen {
+                // Skip ws + commas + line comments.
+                let mut skipped: i64 = 1;
+                while skipped == 1 && sp < slen {
+                    skipped = 0;
+                    let fc1: i64 = str_char_at(src, sp);
+                    if fc1 == 32 || fc1 == 9 || fc1 == 10 || fc1 == 13 || fc1 == 44 { sp = sp + 1; skipped = 1; }
+                    else if fc1 == 47 && sp + 1 < slen && str_char_at(src, sp + 1) == 47 {
+                        while sp < slen && str_char_at(src, sp) != 10 { sp = sp + 1; };
+                        skipped = 1;
+                    };
+                };
+                if sp >= slen { keep_fields = 0; }
+                else if str_char_at(src, sp) == 125 { sp = sp + 1; keep_fields = 0; }
+                else {
+                    // Skip pub modifier.
+                    if sp + 4 <= slen && str_eq_at(src, sp, "pub ") == 1 { sp = sp + 4; };
+                    // Skip ws.
+                    let mut fws_done: i64 = 0;
+                    while sp < slen && fws_done == 0 {
+                        let fc2: i64 = str_char_at(src, sp);
+                        if fc2 == 32 || fc2 == 9 { sp = sp + 1; }
+                        else { fws_done = 1; };
+                    };
+                    // Capture field name.
+                    let f_start: i64 = sp;
+                    let mut fn_done: i64 = 0;
+                    while sp < slen && fn_done == 0 {
+                        let fnc: i64 = str_char_at(src, sp);
+                        if is_alnum(fnc) == 1 || fnc == 95 { sp = sp + 1; }
+                        else { fn_done = 1; };
+                    };
+                    let fname: str = str_substring(src, f_start, sp);
+                    // Skip ws.
+                    let mut fws3_done: i64 = 0;
+                    while sp < slen && fws3_done == 0 {
+                        let fc3: i64 = str_char_at(src, sp);
+                        if fc3 == 32 || fc3 == 9 { sp = sp + 1; }
+                        else { fws3_done = 1; };
+                    };
+                    // Expect `:`.
+                    if sp < slen && str_char_at(src, sp) == 58 {
+                        sp = sp + 1;
+                        // Walk type to next top-level `,` or `}`.
+                        let mut td: i64 = 0;
+                        let mut type_done: i64 = 0;
+                        while sp < slen && type_done == 0 {
+                            let tc: i64 = str_char_at(src, sp);
+                            if tc == 60 || tc == 40 || tc == 91 { td = td + 1; sp = sp + 1; }
+                            else if tc == 62 || tc == 41 || tc == 93 { td = td - 1; sp = sp + 1; }
+                            else if (tc == 44 || tc == 125) && td == 0 { type_done = 1; }
+                            else if tc == 34 {
+                                sp = sp + 1;
+                                while sp < slen && str_char_at(src, sp) != 34 {
+                                    if str_char_at(src, sp) == 92 && sp + 1 < slen { sp = sp + 2; }
+                                    else { sp = sp + 1; };
+                                };
+                                if sp < slen { sp = sp + 1; };
+                            }
+                            else { sp = sp + 1; };
+                        };
+                        if str_len(fname) > 0 {
+                            sb_append(fb, "    if a.");
+                            sb_append(fb, fname);
+                            sb_append(fb, " != b.");
+                            sb_append(fb, fname);
+                            sb_append(fb, " { return 0; };\n");
+                            field_count = field_count + 1;
+                        };
+                    } else {
+                        keep_fields = 0;
+                    };
+                };
+            };
+            sb_append(fb, "    return 1;\n}\n");
+            if field_count > 0 { sb_append(helpers, sb_to_str(fb)); };
+            p = sp;
+            continue;
+        };
+        // Tuple struct: `( type, type, ... );`.
+        if next_c == 40 {
+            sp = sp + 1;
+            let mut count: i64 = 0;
+            let mut td2: i64 = 1;
+            let mut had_content: i64 = 0;
+            while sp < slen && td2 > 0 {
+                let tc2: i64 = str_char_at(src, sp);
+                if tc2 == 40 || tc2 == 60 || tc2 == 91 || tc2 == 123 { td2 = td2 + 1; had_content = 1; }
+                else if tc2 == 41 || tc2 == 62 || tc2 == 93 || tc2 == 125 {
+                    td2 = td2 - 1;
+                    if td2 == 0 && had_content == 1 { count = count + 1; };
+                }
+                else if tc2 == 44 && td2 == 1 { count = count + 1; }
+                else if is_ws(tc2) == 0 { had_content = 1; };
+                sp = sp + 1;
+            };
+            if count > 0 {
+                let mut fb2: i64 = sb_new();
+                sb_append(fb2, "\nfn ");
+                sb_append(fb2, name);
+                sb_append(fb2, "__derived_eq(a: ");
+                sb_append(fb2, name);
+                sb_append(fb2, ", b: ");
+                sb_append(fb2, name);
+                sb_append(fb2, ") -> i64 {\n");
+                let mut i: i64 = 0;
+                while i < count {
+                    let fname2: str = str_concat("__", str_from_int(i));
+                    sb_append(fb2, "    if a.");
+                    sb_append(fb2, fname2);
+                    sb_append(fb2, " != b.");
+                    sb_append(fb2, fname2);
+                    sb_append(fb2, " { return 0; };\n");
+                    i = i + 1;
+                };
+                sb_append(fb2, "    return 1;\n}\n");
+                sb_append(helpers, sb_to_str(fb2));
+            };
+            p = sp;
+            continue;
+        };
+    };
+    let helpers_str: str = sb_to_str(helpers);
+    if str_len(helpers_str) == 0 { return src; };
+    return str_concat(src, str_concat("\n", helpers_str));
 }
 
 fn expand_actor_decl_keyword(src: str) -> str {
@@ -25394,7 +25699,14 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // argument position. Synthesizes top-level fns at the head of
     // the source; replaces the closure expression with the synth fn
     // name so downstream parsing sees a normal identifier reference.
-    let source: str = expand_actor_decl_keyword(expand_closures(after_max_depth));
+    // v0.6.84 RFC V1.4: generate `<Name>__derived_eq(a, b) -> i64`
+    // helpers for `#[derive(...PartialEq...)] struct Name { ... }`.
+    // Conservative scope: skips generic structs, where-clauses, and
+    // unit/empty structs. Auto-dispatch of `==`/`!=` to the generated
+    // helpers is deferred to a follow-on V1.4 ship (needs lower_expr
+    // binop kind-4 routing).
+    let after_derive_eq: str = expand_derive_partialeq(after_max_depth);
+    let source: str = expand_actor_decl_keyword(expand_closures(after_derive_eq));
     if use_cache == 1 {
         system("mkdir .nuc_cache 2>NUL");
         file_write_string(manifest_path, module_records_serialize(module_records));

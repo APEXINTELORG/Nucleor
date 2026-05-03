@@ -5,6 +5,83 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.84] — 2026-05-03
+
+**RFC V1.4 (partial) — `#[derive(PartialEq)]` now auto-generates
+the helper fn `<Type>__derived_eq(a, b) -> i64`. Adopters call it
+manually; auto-dispatch of `==` / `!=` to the helper is deferred
+to a follow-on V1.4 ship.**
+
+Pre-fix: the v0.6.26 lex pass detected `#[derive(...)]` and emitted
+`warning[DERIVE-001]: silently dropped except for Debug` —
+PartialEq was a no-op. Adopters writing `if a == b { ... }` later
+got the v0.4.147 TYP-011 ptr-compare diag with workaround pointer
+"write a helper fn that does the field walk", but had to write
+the helper themselves.
+
+Post-fix: new textual pre-pass `expand_derive_partialeq` walks the
+source, finds `#[derive(...PartialEq...)]` followed by `struct
+NAME { ... }` or `struct NAME(...);`, and appends a generated
+helper fn:
+
+```nucleor
+#[derive(PartialEq)]
+struct Point { x: i64, y: i64 }
+
+// Auto-generated at end of source by v0.6.84:
+fn Point__derived_eq(a: Point, b: Point) -> i64 {
+    if a.x != b.x { return 0; };
+    if a.y != b.y { return 0; };
+    return 1;
+}
+
+fn main() -> i32 {
+    let a: Point = Point { x: 5, y: 7 };
+    let b: Point = Point { x: 5, y: 7 };
+    print_int(Point__derived_eq(a, b) as i32);   // 1
+    return 0;
+}
+```
+
+Tuple-struct shape `struct Pair(i64, i64);` lowers via the V1.1
+positional-field synthesis (v0.6.74) — the helper compares
+`a.__0 != b.__0` etc.
+
+### Conservative scope
+
+- Skips generic structs `struct Pair<T>` (would need monomorphisation).
+- Skips where-clauses (don't yet plumb the bounds through).
+- Skips empty / unit structs (no fields → trivially equal — adopters can hand-write a 1-line stub if needed).
+- Multi-derive shape `#[derive(Debug, PartialEq, Clone)]` honors PartialEq for the helper-fn generation; Debug honored as before; the rest still no-op (with softened DERIVE-001 wording).
+
+### Field-compare hazard
+
+The generated helper compares each field with `!=`. For nested
+struct fields, `!=` ptr-compares (silent miscompute) — same hazard
+that the v0.4.147 TYP-011 diag warns about. The helper is correct
+for primitive-typed fields (i*, u*, f*, bool, char, str via
+str_eq) and for nested structs **that also derive PartialEq if you
+hand-route the call** (e.g. `if a.inner__derived_eq(b.inner) == 0
+{ return 0; };`). Recursive auto-dispatch through derive(PartialEq)
+on field types is the auto-dispatch v1.x ship.
+
+### Auto-dispatch deferred
+
+`if a == b` for derived structs still fires TYP-011 (same as before).
+Auto-routing to `<Type>__derived_eq` requires lower_expr binop
+kind-4 routing + side-table threading from the textual pass — that's
+a multi-stage ship pinned to a future V1.4-complete cycle.
+
+### Fixed-point + perf
+
+Cold 3.15s (UNDER baseline 3.16s). Peak 322MB. Round-2 fixed-point
+md5 `10f8e25f29a28f58c13cfe1b8b824819`.
+
+### Fixture
+
+`tests/fixtures/v0684_derive_partialeq_helper.nr` — exercises the
+manual helper call on both named-struct and tuple-struct forms.
+
 ## [0.6.83] — 2026-05-03
 
 **Defensive halt — Option/Result methods not yet in the runtime
