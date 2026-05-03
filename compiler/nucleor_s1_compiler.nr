@@ -1982,7 +1982,24 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 print("ERROR: slice syntax `expr[lo..hi]` is not yet supported (was a silent SIGSEGV pre-v0.4.55). Workarounds: for `str` use `str_substring(s, lo, hi)`; for `Vec<T>` use an explicit element-wise loop or build a new Vec via `vec_push` over the desired range.");
                 panic("nucleor: slice expression `expr[lo..hi]` not supported");
             };
-            cp = expect_tok(tokens, pr_pos(ir), 55); node = mk3(pool, 10, node, pr_val(ir));
+            // v0.6.63 (probe finding 2026-05-02-rfc0034-ct-param-first-
+            // pass-residual-edges, gap 1): canonical RFC-0034 explicit
+            // CT-arg call form `ct_inc[42](x)` pre-fix parsed as
+            // `name[index_expr]` (kind-10 indexer) followed by `(args)`
+            // call — the call lowered to invoke the indexed value as
+            // a fn pointer, which produced INVALID IR and SEGFAULTed
+            // at runtime (rc=139). Detect the bracket-then-paren shape
+            // when the indexer's BASE is a kind-3 var-ref (typical fn-
+            // name shape) and halt with a clean diag pointing at the
+            // workaround (omit the `[N]` from the call site — the
+            // default erases anyway in RFC-0034 first-pass).
+            let idx_end_v063: i64 = pr_pos(ir);
+            let base_kind_v063: i64 = node_kind(pool, node);
+            cp = expect_tok(tokens, idx_end_v063, 55); node = mk3(pool, 10, node, pr_val(ir));
+            if pk(tokens, cp) == 50 && base_kind_v063 == 3 {
+                print("ERROR: RFC-0034 explicit compile-time argument call form `name[ARGS](args)` is not yet supported in Nucleor's first-pass `[]` parser. Pre-v0.6.63 the form parsed as `name[index]` followed by `(args)` call — the call lowered to an invalid IR and SEGFAULTed at runtime (rc=139). Workaround: omit the `[N]` from the call site — RFC-0034 first-pass erases the CT-args at lower-time, so `f(args)` is observably equivalent to `f[N](args)` for the unspecialized version. Tracked for forward-roadmap (call-site CT-arg specialization is the v1 RFC-0034 ship).");
+                panic("nucleor: RFC-0034 explicit CT-arg call form not yet supported (see ERROR diagnostic above)");
+            };
         };
         };
     };

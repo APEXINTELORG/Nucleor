@@ -5,6 +5,36 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.63] — 2026-05-03
+
+**RFC-0034 gap 1 — explicit CT-arg call SEGFAULT → clean parse halt.**
+
+Closes gap 1 of probe finding `2026-05-02-rfc0034-ct-param-first-
+pass-residual-edges`. Pre-fix `ct_inc[42](x)` (canonical RFC-0034
+explicit compile-time argument call form) parsed as
+`name[index_expr]` (kind-10 indexer) followed by `(args)` call —
+the call lowered to invoke the indexed value as a fn pointer,
+producing INVALID IR and SEGFAULTing at runtime (rc=139). Worst
+hazard class — silent-build, runtime-crash.
+
+### Fix
+
+`parse_postfix` (~line 1985): after parsing the indexer
+`name[expr]`, if the next token is `(` (token 50) AND the
+indexer's base was a kind-3 var-ref (typical fn-name shape),
+halt with a clean diag pointing at the workaround (omit the
+`[N]` — RFC-0034 first-pass erases CT-args anyway). Forward-
+roadmap: call-site CT-arg specialization is the v1 RFC-0034
+ship.
+
+### Verify
+
+- New regression-lock:
+  `tests/err/err_rfc0034_explicit_ct_arg_call.nr` (auto-walker).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.62] — 2026-05-03
 
 **`move` closure parse halt — closes another sub-row of the
