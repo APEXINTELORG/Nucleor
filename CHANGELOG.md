@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.23] — 2026-05-02
+
+**Method-ambiguity diagnostic — clean "ambiguous method dispatch"
+text replaces misleading "duplicate pub fn name across modules"
+(probe finding closure).**
+
+Closes probe finding `2026-05-02-method-ambiguity-misleading-two-modules-diag`.
+When two traits define a method with the same name and both are
+impl'd for the same struct, the LLVM symbol mangling
+`<Type>__<method>` collides at link time. The pre-fix diag said
+"duplicate pub fn name across modules: <Type>__<method>" — adopters
+hitting Rust's canonical E0034 pattern saw a misleading "two modules"
+message even when the impls were in the same file, and the suggested
+workaround ("rename one of the definitions") didn't apply because the
+names are forced by the trait signatures.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` `emit_module_ext` duplicate-fn-name
+check — added a shape detection: when the colliding name has the
+form `<Type>__<method>` (Title-cased prefix + `__` separator), emit
+a clean "ambiguous method dispatch" ERROR mentioning Rust's E0034
+and noting UFCS as the forward-roadmap fix. Otherwise the original
+"two modules" diag continues to fire for the cross-module case.
+
+### New diagnostic shape
+
+```
+ERROR: ambiguous method `W::name()` — two trait impls on `W` define
+a method named `name()`. Nucleor mangles trait-impl method names as
+`<Type>__<method>` for the LLVM symbol, so two impls of the same
+method name on the same struct collide at link time.
+  Workaround until full UFCS lands: rename one trait's method
+  (e.g. `name_v1` / `name_v2`), or split the impls across distinct
+  concrete types so the mangled symbols differ.
+  This is Rust's E0034 "multiple applicable items in scope"
+  territory — the long-term fix is UFCS disambiguation
+  `<Type as Trait>::method(&self)` but Nucleor's lowering doesn't
+  yet support that surface (forward-roadmap).
+PANIC: ambiguous method dispatch: <Type>__<method>
+```
+
+### Fixture
+
+- `tests/err/err_method_ambiguity_two_traits.nr` — locks the new diag.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `53404c6f…`.
+- Self-host peak: 674–695 MB / 5.13 + 4.92s wall.
+- Tools-suite compiles clean.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
+### Forward-roadmap (full UFCS)
+
+Rust's `<W as T1>::name(&w)` UFCS disambiguation requires the
+compiler to (a) parse the `<Type as Trait>` qualifier, (b) resolve
+the trait-bound impl table per qualifier, (c) generate the
+type-mangled call with trait-disambiguating segments. Deferred to a
+post-v0.6 RFC; for now adopters work around with method renaming or
+separate concrete types.
+
 ## [0.6.22] — 2026-05-02
 
 **TYP-011 `str < str` workaround text now points at a workaround that
