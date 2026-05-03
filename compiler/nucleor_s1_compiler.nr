@@ -22563,6 +22563,35 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             print(str_concat("ERROR: path-rooted fn call `", str_concat(tname, str_concat("::", str_concat(mname, "(...)` is not yet supported in Nucleor. Pre-v0.7.5 surfaced via the generic 'unsupported associated-fn call' diag mentioning Vec/String/etc. — not adopter-actionable. Nucleor has a flat fn namespace today (no `crate::` / `super::` / `self::` rooting), and the resolved fn name `", str_concat(mname, str_concat("` is callable directly. Workaround: drop the `", str_concat(tname, str_concat("::` prefix — call ", str_concat(mname, "(...) directly. Tracked for forward-roadmap (path-rooted name resolution requires module-tree infrastructure, sister to v0.6.96 std/core/alloc namespace halt).")))))))))));
             panic(str_concat("nucleor: path-rooted fn call `", str_concat(tname, str_concat("::", str_concat(mname, "` not yet supported (see ERROR diagnostic above)")))));
         };
+        // v0.7.6 (defensive halt — Default trait): canonical Rust
+        // `i64::default()`, `String::default()`, `Default::default()`
+        // pre-fix surfaced via the generic v0.3.71 "unsupported
+        // associated-fn call" diag. Default trait isn't yet shipped
+        // in Nucleor — the canonical `T::default()` pattern needs
+        // per-type Default impls + a `Default::default()` ambient
+        // dispatch through type inference. Halt cleanly with a
+        // per-type literal-default workaround pointer.
+        if str_eq(mname, "default") == 1 {
+            let v076_hint: str = if str_eq(tname, "i8") == 1 || str_eq(tname, "i16") == 1 || str_eq(tname, "i32") == 1 || str_eq(tname, "i64") == 1 || str_eq(tname, "isize") == 1 || str_eq(tname, "u8") == 1 || str_eq(tname, "u16") == 1 || str_eq(tname, "u32") == 1 || str_eq(tname, "u64") == 1 || str_eq(tname, "usize") == 1 {
+                "0"
+            } else if str_eq(tname, "f32") == 1 || str_eq(tname, "f64") == 1 {
+                "0.0"
+            } else if str_eq(tname, "bool") == 1 {
+                "false"
+            } else if str_eq(tname, "str") == 1 {
+                "\"\""
+            } else if str_eq(tname, "String") == 1 {
+                "String::new()"
+            } else if str_eq(tname, "Vec") == 1 {
+                "Vec::new()"
+            } else if str_eq(tname, "HashMap") == 1 {
+                "HashMap::new()"
+            } else {
+                "<construct the type explicitly>"
+            };
+            print(str_concat("ERROR: `", str_concat(tname, str_concat("::default()` (Default trait) is not yet supported in Nucleor. Pre-v0.7.6 surfaced via the generic 'unsupported associated-fn call' diag. The Default trait family needs per-type Default impls + ambient dispatch through type inference; not yet shipped. Workaround: use the literal default value for this type — `", str_concat(v076_hint, "`. Tracked for forward-roadmap (Default trait substrate is sister to V1.4 derive(PartialEq) — both annotation-driven trait derives).")))));
+            panic(str_concat("nucleor: `", str_concat(tname, "::default()` not yet supported (see ERROR diagnostic above)")));
+        };
         // v0.3.71: surface a clear diagnostic instead of falling through
         // to the generic "unhandled expr kind 12" + broken `%r.-1` IR.
         // Production-readiness: any unsupported `Type::method(...)` shape

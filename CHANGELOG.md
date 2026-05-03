@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] — 2026-05-03
+
+**Defensive halt — canonical Rust `T::default()` (Default trait)
+now produces a clean halt with per-type literal-default
+workaround pointers.**
+
+Pre-fix: writing `let n: i64 = i64::default();` and similar
+Default-trait calls surfaced via the generic v0.3.71
+"unsupported associated-fn call" diag mentioning Vec/String/
+etc. — not adopter-actionable for the Default case (`i64`
+isn't a wrapper type with associated fns).
+
+Post-fix: kind-12 dispatch detects `mname == "default"` and
+halts cleanly with per-type literal hints:
+
+| Type | Default workaround |
+|---|---|
+| `i*` / `u*` / `isize` / `usize` | `0` |
+| `f32` / `f64` | `0.0` |
+| `bool` | `false` |
+| `str` | `""` |
+| `String` | `String::new()` |
+| `Vec` | `Vec::new()` |
+| `HashMap` | `HashMap::new()` |
+| user types | construct explicitly |
+
+Forward-roadmap: Default trait substrate is sister to V1.4
+derive(PartialEq) — both annotation-driven trait derives. The
+canonical `T::default()` pattern needs (a) per-type Default
+impls auto-generated from `#[derive(Default)]`, (b) the
+ambient `Default::default()` form dispatched through type
+inference at the binding's declared type.
+
+```nucleor
+// Pre-fix:
+let n: i64 = i64::default();        // ← generic unsupported-assoc-fn diag
+
+// Post-fix workaround:
+let n: i64 = 0;
+let s: str = "";
+let v: Vec<i64> = Vec::new();
+```
+
+### Fixed-point + perf
+
+Cold variance 4.39–5.50s (system-load — under cap 5.93s).
+Peak 324–331MB. Round-2 fixed-point md5
+`0ce3d917cc5429664ca27d3ab7290fcb`.
+
+### Fixture
+
+`tests/fixtures/v0706_default_trait_clean_halt.nr` — negative
+fixture for `i64::default()`.
+
 ## [0.7.5] — 2026-05-03
 
 **Defensive halt — canonical Rust path-rooted fn calls
