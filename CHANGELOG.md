@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.35] — 2026-05-03
+
+**NR035 — explicit enum discriminants halt cleanly at parse-time
+instead of segfaulting the compiler (probe finding closure —
+CRITICAL crash-class fix).**
+
+Closes probe finding `2026-05-01-enum-discriminant-segfaults-
+compiler`. Pre-fix the canonical Rust C-style enum syntax
+`enum Code { OK = 0, WARN = 1, ERR = 2 }` (and any non-zero or
+mixed-discriminant variant) crashed the compiler with SEGFAULT
+(exit 139) inside the type/ownership pass. NO diagnostic. The
+parser fell through the `= N` token and downstream passes
+dereferenced bad state.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` `parse_enum_decl` variant-loop
+— after consuming `vname`, checks if the next token is `=`
+(token kind 40). If yes, emits `error[NR035]` with the workaround
+pointer and panics cleanly. NR035 registered in `is_known_diag_
+code`, `tools-suite` (title + explanation + RFC-ref), `tools/
+verify.sh` + `tools/verify.ps1` codes-arrays, and `docs/spec/
+Nucleor_Error_Codes.md`.
+
+### Adopter migration
+
+```nucleor
+// Pre-v0.6.35: SEGFAULT, exit 139, no diagnostic
+enum Code { OK = 0, WARN = 1, ERR = 2 }
+
+// v0.6.35: clean NR035 halt with workaround pointer.
+//
+// Workaround: drop the `= N` and rely on order-based discriminants.
+//   enum Code { OK, WARN, ERR }   // discriminants 0, 1, 2 in order
+//
+// For FFI / wire-protocol values needing specific numbers, build
+// a separate const table (`const OK_CODE: i64 = 0;` etc.) until
+// real explicit-discriminant lowering lands.
+```
+
+### Forward-roadmap
+
+Real explicit-discriminant lowering needs:
+- Enum AST to carry per-variant i64 values (currently only the
+  variant name + payload types are stored).
+- IR-emit path to propagate the explicit values to match-arm
+  dispatch + `as i32`/`as i64` cast lowering.
+- Type-checker to enforce uniqueness across variants of the same
+  enum (Rust E0081).
+
+Substantial. Deferred to a post-v0.6 RFC.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `80212916…`.
+- Self-host wall: 5.35s + 3.93s.
+- Tools-suite (674 fns) compiles clean — no false halts on the
+  tools-suite source (which uses no explicit enum discriminants).
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
+### Fixture
+
+- `tests/err/err_nr035_enum_explicit_discriminant.nr`
+
 ## [0.6.34] — 2026-05-03
 
 **`Result::unwrap_err()` implemented (probe finding fully closed

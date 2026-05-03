@@ -24,6 +24,7 @@ Pre-existing codes from the compiler front-end. See the existing
 | NR032 | Effect or Policy Failure | effects |
 | NR033 | Taint Safety Failure | taint |
 | NR034 | Send/Sync Safety Failure | concurrency |
+| NR035 | Explicit enum discriminants not yet supported (parse-time halt — v0.6.35) | parse |
 | NR040 | IR Lowering Failure | lower |
 | NR050 | Backend Code Generation Failure | codegen |
 | NR051 | WASM Backend Unavailable | codegen |

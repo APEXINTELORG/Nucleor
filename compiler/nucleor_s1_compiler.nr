@@ -2941,6 +2941,21 @@ fn parse_enum_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if vec_len(variants) > 0 && pk(tokens, cp) == 44 { cp = cp + 1; };
         if pk(tokens, cp) == 53 || pk(tokens, cp) == 0 { break; };
         let vname: i64 = pkv(tokens, cp); cp = cp + 1;
+        // v0.6.35 (probe finding 2026-05-01-enum-discriminant-segfaults-
+        // compiler): pre-fix `enum X { A = 5 }` (canonical Rust explicit-
+        // discriminant syntax) crashed the compiler with SEGFAULT inside
+        // the type/ownership pass — the parser fell through `= 5` and
+        // downstream passes dereferenced bad state. Halt at parse-time
+        // with a clean error pointing at the workaround. Real explicit-
+        // discriminant lowering is a separate ship (needs the enum AST
+        // to carry per-variant i64 values + the IR-emit path to
+        // propagate them to match-arm dispatch).
+        if pk(tokens, cp) == 40 {
+            print(str_concat("error[NR035]: explicit enum discriminants `enum ", str_concat(name, str_concat(" { ", str_concat(vname, " = N }")))));
+            print("  not yet supported in v0.6 — pre-v0.6.35 this segfaulted the compiler with no diagnostic. Real explicit-discriminant lowering needs the enum AST to carry per-variant i64 values plus IR-emit propagation to match-arm dispatch (forward-roadmap).");
+            print("  Workaround: drop the `= N` and rely on order-based discriminants. `enum Code { OK, WARN, ERR }` lowers to discriminants 0, 1, 2 in order (matching the most common Rust C-style enum pattern). If you need specific values for FFI / wire-protocol compatibility, build a separate const table (`const OK_CODE: i64 = 0;` etc.) until explicit-discriminant support lands.");
+            panic(str_concat("nucleor: explicit enum discriminants not implemented; see ERROR diagnostic for workarounds: ", str_concat(name, str_concat("::", vname))));
+        };
         let mut ptypes: Vec<i32> = Vec::new();
         if pk(tokens, cp) == 50 {
             cp = cp + 1;
@@ -8747,6 +8762,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "NR032") == 1 { return 1; };
     if str_eq(code, "NR033") == 1 { return 1; };
     if str_eq(code, "NR034") == 1 { return 1; };
+    if str_eq(code, "NR035") == 1 { return 1; };
     if str_eq(code, "NR040") == 1 { return 1; };
     if str_eq(code, "NR050") == 1 { return 1; };
     if str_eq(code, "NR051") == 1 { return 1; };
