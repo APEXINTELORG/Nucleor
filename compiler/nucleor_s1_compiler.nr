@@ -1489,6 +1489,19 @@ fn parse_wrapped_block_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, mode: i6
 
 fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let tt: i64 = pk(tokens, pos);
+    // v0.6.60 (probe finding 2026-05-01-rust-syntax-translation-
+    // fidelity-audit, UFCS row): canonical Rust UFCS form
+    // `<S as Foo>::f(&s)` (universal function call syntax — disambiguates
+    // method dispatch when multiple traits implement the same fn name)
+    // pre-fix saw `<` (token 32) at expression start and fell through
+    // to the parse_primary tail with NR020 wrong-class. Halt at the
+    // expression-start position with a clean diag pointing at the
+    // workaround (call as a regular method or fully-qualified path).
+    // Forward-roadmap: full UFCS dispatch is the v1 trait-dispatch ship.
+    if tt == 32 {
+        print("ERROR: UFCS form `<Type as Trait>::method(args)` is not yet supported in Nucleor. Pre-v0.6.60 the `<` at expression start was rejected with `error[NR020]: parse_primary cannot start an expression at token kind 32` — wrong-class. Workaround: call the trait method directly via the receiver (`s.f(...)`) when only one trait implements the method, or use the path form `Foo::f(&s)` when the trait is unambiguous. Tracked for forward-roadmap (full UFCS dispatch arrives with v1 trait dispatch).");
+        panic("nucleor: UFCS expression form not yet supported (see ERROR diagnostic above)");
+    };
     if tt == 2 {
         let mut cp: i64 = pos + 1;
         if pk(tokens, cp) == 83 {
