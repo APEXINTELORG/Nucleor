@@ -19355,9 +19355,22 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         } else {
             // v0.3.220: same opt-in default as binop. NUCLEOR_INT_STRICT_ARITH=1
             // routes -x for i64 through panic_neg; default is native sub.
+            //
+            // v0.6.43 (probe finding 2026-05-01-unary-neg-runtime-overflow-
+            // not-checked): pre-fix `neg(-i64::MIN)` silently wrapped to
+            // i64::MIN — asymmetric with `+`/`*` which already panic by
+            // default via NUCLEOR_INT_STRICT_INTRIN=1 (line ~18724). Now
+            // unary-neg also consults NUCLEOR_INT_STRICT_INTRIN with the
+            // same default (`1`), so `-x` for i64 routes through
+            // panic_neg by default. Setting NUCLEOR_INT_STRICT_INTRIN=0
+            // restores the legacy native-sub path. NUCLEOR_INT_STRICT_ARITH
+            // (the older opt-in env var) is still honored on the `=1`
+            // path for backward-compat.
             let strict_env: str = env_get_or("NUCLEOR_INT_STRICT_ARITH", "");
+            let strict_intrin_env_v064: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
             let mut strict: i64 = 0;
             if str_eq(strict_env, "1") == 1 { strict = 1; };
+            if str_eq(strict_intrin_env_v064, "1") == 1 { strict = 1; };
             if strict == 1 {
                 let mut na: Vec<i32> = Vec::new();
                 na.push(opr);
