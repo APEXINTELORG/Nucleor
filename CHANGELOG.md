@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.56] — 2026-05-03
+
+**`unreachable!()` macro expansion — closes another rust-syntax-
+translation-fidelity row.**
+
+Pre-fix `unreachable!()` was added to the strip-and-continue list
+(line ~28480) — `!` was stripped, leaving `unreachable()` to fall
+through to TYP-005 wrong-class. Now expands to `panic("internal
+error: entered unreachable code")` matching Rust's
+std::macros::unreachable!() shape.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` source-level macro preprocessor:
+
+1. Removed `unreachable` from the strip-and-continue list at line
+   28480 (was added there as a "skip me" entry).
+2. Added `unreachable` to the macro-mode dispatch (line ~28658)
+   routing to mode 5 (panic) — same path as `panic!`.
+3. For empty `unreachable!()`, synthesize the canonical Rust-stdlib
+   message at args_text level before fmt_build_expansion. With args
+   (`unreachable!("got: {}", x)`), the args pass through panic-mode
+   format expansion as-is.
+
+### Adopter migration
+
+```nucleor
+// Pre-fix:
+fn must_be_positive(x: i64) -> i64 {
+    if x > 0 { return x; };
+    unreachable!()    // ← TYP-005 wrong-class
+}
+
+// v0.6.56:
+fn must_be_positive(x: i64) -> i64 {
+    if x > 0 { return x; };
+    unreachable!()    // ← compiles + runtime PANIC matches Rust
+}
+```
+
+### Verify
+
+- New regression-lock: `v0656_unreachable_macro_panics` (in
+  verify.sh — runs the fixture and asserts the canonical message).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.55] — 2026-05-03
 
 **`const fn` parse halt — closes the const-fn row of the rust-

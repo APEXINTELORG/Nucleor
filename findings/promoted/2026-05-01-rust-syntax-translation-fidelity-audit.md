@@ -25,7 +25,7 @@ v0.6.51:
 | `let Point { x, y } = p;` (struct destructure-in-let) | OPEN | TYP-008 today; let-pattern destructure not yet wired |
 | `<S as Foo>::f(&s)` (UFCS) | OPEN | NR020 today; UFCS forward-roadmap |
 | `let r = loop { break 42; };` (break-with-value) | OPEN | NR024 wrong-class today; break-with-value is forward-roadmap |
-| `unreachable!()` macro | PARTIAL | TYP-005 today; macro expansion forward-roadmap, workaround is `panic("unreachable")` |
+| `unreachable!()` macro | CLOSED v0.6.56 | expands to `panic("internal error: entered unreachable code")` matching Rust's std::macros::unreachable! shape |
 | `for (k, v) in &m` (tuple destruct in for) | OPEN | NR020 today |
 | `const fn double(x: i64) -> i64` | CLOSED v0.6.55 | clean parse halt with workaround pointer; full const-eval is v1 |
 

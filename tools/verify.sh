@@ -2192,6 +2192,9 @@ t_rfc0034_compile_time_params_parser() {
     "$BIN" build "tests/err/err_rfc0034_compile_time_param_missing_colon.nr" -o "_t_rfc0034_ctparams_bad" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "1" ] || return 1
     grep -q "error\\[NR020\\]" $NUC_VERIFY_STEP_LOG || return 1
+    "$BIN" build "tests/err/err_rfc0034_compile_time_param_negative_usize_default.nr" -o "_t_rfc0034_ctparams_negative_usize_default" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    [ "$?" = "1" ] || return 1
+    grep -q "error\\[NR020\\]" $NUC_VERIFY_STEP_LOG || return 1
     return 0
 }
 
@@ -4316,6 +4319,19 @@ v0652_neg_zero_ieee_sign() {
     grep -qE "^-3\.000000$" $NUC_VERIFY_RUN_LOG || return 1
 }
 
+v0656_unreachable_macro_panics() {
+    rm -f target/v0656_unreach_check.exe target/v0656_unreach_check
+    "$BIN" build tests/fixtures/v0656_unreachable_macro_panics.nr -o "v0656_unreach_check" >$NUC_VERIFY_STEP_LOG 2>&1
+    local exe=""
+    if [ -x target/v0656_unreach_check.exe ]; then exe=target/v0656_unreach_check.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0656_unreach_check ]; then exe=target/v0656_unreach_check; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rc=$?
+    [ "$rc" -ne 0 ] || return 1
+    grep -qE "internal error: entered unreachable code" $NUC_VERIFY_RUN_LOG || return 1
+}
+
 v0633_option_unwrap_none_panics() {
     rm -f target/v0633_opt_check.exe target/v0633_opt_check
     "$BIN" build tests/fixtures/option_unwrap_none_panics.nr -o "v0633_opt_check" >$NUC_VERIFY_STEP_LOG 2>&1
@@ -5167,6 +5183,7 @@ step "v0.6.43 unary-neg(i64::MIN) panics by default (sister to + and * overflow)
 step "v0.6.48 str runtime helpers accept &s (parity with bare s)" v0648_str_helper_amp_accepted
 step "v0.6.49 canonical i64::MIN literal -9223372036854775808 accepted (was NUM-021 false-fire)" v0649_imin_literal_accepts
 step "v0.6.52 IEEE 754 negative-zero sign bit preserved through unary minus" v0652_neg_zero_ieee_sign
+step "v0.6.56 unreachable!() macro expands to canonical Rust panic message" v0656_unreachable_macro_panics
 step "v0.6.33 Option::None.unwrap() panics with canonical message (no Vec leak)" v0633_option_unwrap_none_panics
 step "v0.6.33 Result::Err(x).unwrap() panics with canonical message (no silent ok-leak)" v0633_result_unwrap_err_panics
 step "v0.6.34 Result::Err(x).unwrap_err() returns err payload (was TYP-005 link fail)" v0634_result_unwrap_err_basic

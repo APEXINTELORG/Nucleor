@@ -967,6 +967,20 @@ fn skip_compile_time_param_default(tokens: Vec<i32>, pos: i64) -> i64 {
     return cp;
 }
 
+fn ct_param_type_is_unsigned(t: str) -> i64 {
+    if str_eq(t, "u8") == 1 { return 1; };
+    if str_eq(t, "u16") == 1 { return 1; };
+    if str_eq(t, "u32") == 1 { return 1; };
+    if str_eq(t, "u64") == 1 { return 1; };
+    if str_eq(t, "usize") == 1 { return 1; };
+    return 0;
+}
+
+fn ct_param_default_is_negative_literal(tokens: Vec<i32>, pos: i64) -> i64 {
+    if pk(tokens, pos) == 21 && pk(tokens, pos + 1) == 2 { return 1; };
+    return 0;
+}
+
 fn skip_compile_time_params(tokens: Vec<i32>, pos: i64) -> i64 {
     // RFC-0034 first-pass parser substrate. Accepts
     // `fn name<T>[N: usize, TILE: usize = 16](...)` and erases the
@@ -986,8 +1000,12 @@ fn skip_compile_time_params(tokens: Vec<i32>, pos: i64) -> i64 {
         cp = cp + 1;
         cp = expect_tok(tokens, cp, 42);
         let mut tr: Vec<i32> = parse_type(tokens, cp);
+        let ct_ty: str = pr_val(tr);
         cp = pr_pos(tr);
         if pk(tokens, cp) == 40 {
+            if ct_param_type_is_unsigned(ct_ty) == 1 && ct_param_default_is_negative_literal(tokens, cp + 1) == 1 {
+                panic(str_concat("error[NR020]: negative default literal is invalid for unsigned RFC-0034 compile-time parameter type `", str_concat(ct_ty, "`. Use a non-negative default or change the parameter type to a signed integer.")));
+            };
             cp = skip_compile_time_param_default(tokens, cp + 1);
         };
         seen = 1;
@@ -16732,7 +16750,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 };
                 let elem_t: str = strip_container_one_level(recv_t);
                 if str_len(elem_t) > 0 && vec_element_type_is_legacy_cell(elem_t) == 0 {
-                    tprof_mark(tprof, 9, 10, call_start);
+                    if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
                     return elem_t;
                 };
             };
@@ -16747,7 +16765,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 };
                 fast_ai = fast_ai + 1;
             };
-            tprof_mark(tprof, 9, 10, call_start);
+            if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
             return fast_rt;
         };
         // v0.4.117: walk every call arg through type_expr BEFORE the
@@ -16769,7 +16787,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 type_expr(pool, prog, list_get(pool, args, dh_ai), env, sigs, structs, fn_name, diags, source, tprof);
                 dh_ai = dh_ai + 1;
             };
-            tprof_mark(tprof, 9, 10, call_start);
+            if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
             return "";
         };
         let sig_start: i64 = tprof_start(tprof);
@@ -16872,7 +16890,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 };
                 ai = ai + 1;
             };
-            tprof_mark(tprof, 9, 10, call_start);
+            if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
             // v0.5.13: substitute collected gparam bindings into rtype.
             // Falls through to the literal rtype if no bindings (e.g.
             // non-generic fn or gparams not inferable from args).
@@ -17104,7 +17122,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             // v0.4.132 TYP-020 (binop with void closure result), etc.
             let v156_rtype: str = tenv_get(env, str_concat("__closure_rtype_", callee));
             if str_len(v156_rtype) > 0 {
-                tprof_mark(tprof, 9, 10, call_start);
+                if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
                 return v156_rtype;
             };
         };
@@ -17142,7 +17160,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 diag_add_at_or_scan(diags, source, pool, nid, callee, "warning", "type", "TYP-005", str_concat("undefined function `", str_concat(callee, "()` at type-check time (will fail at clang link if not a privatized cross-module fn). Check spelling, or import the rod that defines it.")), fn_name, "");
             };
         };
-        tprof_mark(tprof, 9, 10, call_start);
+        if prof_on_v631 > 0 { tprof_mark(tprof, 9, 10, call_start); };
         let builtin_ret_v421: str = builtin_rtype(callee);
         if str_len(builtin_ret_v421) > 0 && argc > 0 {
                 let mut bai_v421: i64 = 0;
@@ -28459,10 +28477,13 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
             if preceded_by_dot == 0 && p < slen && str_char_at(src, p) == 33 && p + 1 < slen && str_char_at(src, p + 1) == 40 {
                 // v0.6.39: `panic!` no longer falls through here — it's
                 // handled below as mode=5 with format-arg expansion.
+                // v0.6.56: `unreachable` removed from this strip-and-
+                // continue list — the mode-5 path below now expands it
+                // to `panic("internal error: entered unreachable code")`.
                 if str_eq(name, "assert") == 1
                    || str_eq(name, "assert_eq") == 1 || str_eq(name, "assert_ne") == 1
                    || str_eq(name, "dbg") == 1 || str_eq(name, "todo") == 1
-                   || str_eq(name, "unimplemented") == 1 || str_eq(name, "unreachable") == 1 {
+                   || str_eq(name, "unimplemented") == 1 {
                     sb_append(sb, name);
                     p = p + 1;
                     continue;
@@ -28626,6 +28647,18 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 // `panic!("got {}", x)` produces `PANIC: got 7` instead of
                 // pre-fix `PANIC: got {}`.
                 if str_eq(name, "panic") == 1 { mode = 5; };
+                // v0.6.56 (probe finding 2026-05-01-rust-syntax-translation-
+                // fidelity-audit, unreachable!() row): canonical Rust
+                // `unreachable!()` macro pre-fix fell through to the
+                // identifier-then-unary-NOT path and emitted `error[TYP-005]:
+                // undefined function 'unreachable()'` — wrong-class. Now
+                // expand to `panic("internal error: entered unreachable
+                // code")` matching Rust's std::macros::unreachable!()
+                // implementation. With args (`unreachable!("got: {}", x)`),
+                // route through the panic! mode 5 expansion so format
+                // args work; without args, synthesize the canonical
+                // Rust-stdlib message.
+                if str_eq(name, "unreachable") == 1 { mode = 5; };
                 if mode >= 0 {
                     p = p + 2;
                     let args_start: i64 = p;
@@ -28649,7 +28682,14 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                     };
                     if depth == 0 {
                         let args_end: i64 = q - 1;
-                        let args_text: str = str_substring(src, args_start, args_end);
+                        let mut args_text: str = str_substring(src, args_start, args_end);
+                        // v0.6.56: empty `unreachable!()` (no args) gets
+                        // the canonical Rust-stdlib message. With args
+                        // (`unreachable!("...")`) the args pass through
+                        // panic-mode expansion as-is.
+                        if str_eq(name, "unreachable") == 1 && str_len(args_text) == 0 {
+                            args_text = "\"internal error: entered unreachable code\"";
+                        };
                         // v0.4.16: pass type_src so nested fmt_conversion
                         // type-inference still sees outer-scope declarations.
                         let inner_expanded: str = expand_format_macros_with_src(args_text, type_src);

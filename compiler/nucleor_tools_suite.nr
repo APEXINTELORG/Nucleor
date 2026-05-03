@@ -355,6 +355,20 @@ fn skip_compile_time_param_default(tokens: Vec<i32>, pos: i64) -> i64 {
     return cp;
 }
 
+fn ct_param_type_is_unsigned(t: str) -> i64 {
+    if str_eq(t, "u8") == 1 { return 1; };
+    if str_eq(t, "u16") == 1 { return 1; };
+    if str_eq(t, "u32") == 1 { return 1; };
+    if str_eq(t, "u64") == 1 { return 1; };
+    if str_eq(t, "usize") == 1 { return 1; };
+    return 0;
+}
+
+fn ct_param_default_is_negative_literal(tokens: Vec<i32>, pos: i64) -> i64 {
+    if pk(tokens, pos) == 21 && pk(tokens, pos + 1) == 2 { return 1; };
+    return 0;
+}
+
 fn skip_compile_time_params(tokens: Vec<i32>, pos: i64) -> i64 {
     // RFC-0034 parser-only substrate; mirrors s1 and erases the ct-param
     // list until semantic environments and specialization land.
@@ -372,8 +386,12 @@ fn skip_compile_time_params(tokens: Vec<i32>, pos: i64) -> i64 {
         cp = cp + 1;
         cp = expect_tok(tokens, cp, 42);
         let mut tr: Vec<i32> = parse_type(tokens, cp);
+        let ct_ty: str = pr_val(tr);
         cp = pr_pos(tr);
         if pk(tokens, cp) == 40 {
+            if ct_param_type_is_unsigned(ct_ty) == 1 && ct_param_default_is_negative_literal(tokens, cp + 1) == 1 {
+                panic(str_concat("error[NR020]: negative default literal is invalid for unsigned RFC-0034 compile-time parameter type `", str_concat(ct_ty, "`. Use a non-negative default or change the parameter type to a signed integer.")));
+            };
             cp = skip_compile_time_param_default(tokens, cp + 1);
         };
         seen = 1;
