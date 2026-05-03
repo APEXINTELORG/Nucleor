@@ -988,8 +988,23 @@ long long __nucleor_read_byte(void) {
 
 // === f64 print ===
 void __nucleor_print_f64(long long x) {
+    // v0.6.47 (probe finding 2026-05-02-print_f64-formatting-issues):
+    // pre-fix `printf("%.6f\n", d)` produced unreadable output at extremes:
+    // `f64::MAX` became a ~309-digit integer; subnormals (5e-324 etc.)
+    // printed as `0.000000` (silent value loss). Now use %g for values
+    // outside [1e-6, 1e15] (auto-scientific) and %.6f for values inside
+    // (matches the legacy scaled-decimal output for typical adopter
+    // numbers). Match Rust's default Display / Debug formatting for f64.
     double d; memcpy(&d, &x, sizeof(double));
-    printf("%.6f\n", d);
+    double abs_d = d < 0 ? -d : d;
+    if (abs_d == 0.0) {
+        printf("0.000000\n");
+    } else if (abs_d < 1e-6 || abs_d >= 1e15) {
+        // Extremes — scientific notation with full precision.
+        printf("%.17g\n", d);
+    } else {
+        printf("%.6f\n", d);
+    }
     fflush(stdout);
 }
 
