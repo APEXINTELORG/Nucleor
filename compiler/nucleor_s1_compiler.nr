@@ -17567,7 +17567,20 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                     else { arg0_t_resolved_v067 = r_v067; alias_depth_v067 = alias_depth_v067 + 1; };
                 };
                 if str_len(arg0_t_resolved_v067) > 0 && str_eq(arg0_t_resolved_v067, "str") == 0 && str_eq(arg0_t_resolved_v067, "&str") == 0 && str_eq(arg0_t_resolved_v067, "_") == 0 {
-                    type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 0 of '", str_concat(callee, "' must be str (runtime helper)")));
+                    // v0.6.80 (probe finding 2026-04-30 String-passed-to-str-
+                    // helper): adopters porting Rust code commonly pass a
+                    // `String` value to `print` / `str_eq` / `str_concat` /
+                    // etc. and pre-fix saw the bare TYP-006 "must be str"
+                    // diag without learning that Nucleor's String is a
+                    // distinct heap-buffer struct (`{ data, len, cap }`)
+                    // from str (NUL-terminated borrowed view), and that the
+                    // safe coercion is `string_as_str(s)`. Append a hint
+                    // when the actual type is String / &String.
+                    let mut hint_v080: str = "";
+                    if str_eq(arg0_t_resolved_v067, "String") == 1 || str_eq(arg0_t_resolved_v067, "&String") == 1 {
+                        hint_v080 = ". Nucleor's String is a distinct heap-buffer struct from str — the safe coercion is `string_as_str(s)` (returns the underlying NUL-terminated buffer pointer). Adopters porting Rust code usually want str directly: `let s: str = \"...\";` rather than the heap String form.";
+                    };
+                    type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 0 of '", str_concat(callee, str_concat("' must be str (runtime helper)", hint_v080))));
                 };
             };
             // v0.3.159/160 ROLLED BACK in v0.3.161: Nucleor's
@@ -17634,7 +17647,12 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                         else { arg1_t_resolved_v067 = r1_v067; alias_depth1_v067 = alias_depth1_v067 + 1; };
                     };
                     if str_len(arg1_t_resolved_v067) > 0 && str_eq(arg1_t_resolved_v067, "str") == 0 && str_eq(arg1_t_resolved_v067, "&str") == 0 && str_eq(arg1_t_resolved_v067, "_") == 0 {
-                        type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 1 of '", str_concat(callee, "' must be str (runtime helper)")));
+                        // v0.6.80: same String-coercion hint as arg0.
+                        let mut hint_v080b: str = "";
+                        if str_eq(arg1_t_resolved_v067, "String") == 1 || str_eq(arg1_t_resolved_v067, "&String") == 1 {
+                            hint_v080b = ". Nucleor's String is a distinct heap-buffer struct from str — the safe coercion is `string_as_str(s)` (returns the underlying NUL-terminated buffer pointer).";
+                        };
+                        type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 1 of '", str_concat(callee, str_concat("' must be str (runtime helper)", hint_v080b))));
                     };
                 };
             };
