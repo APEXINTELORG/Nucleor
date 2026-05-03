@@ -5,6 +5,104 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.24] — 2026-05-02
+
+**RFC-0035 Sendable + actor substrate (consultant lane G) — integrated
+with main-agent perf fix.**
+
+Closes the integration arc for `spike/v06-sendable-substrate`
+(`3b2a042`). The spike's functional surface (Sendable marker + actor
+isolation + RACE-* diagnostics + spawn-boundary checking) is correct;
+the integration was held while main triaged + fixed a critical
+compile-time perf regression in the same code.
+
+### What the spike adds (functional surface)
+
+- **`Sendable` marker recognition** — `impl Sendable for X`
+  declarations and `#[not_sendable]` opt-out attribute.
+- **Recursive `sendable_type_ok` check** — `Vec<T>` / `Option<T>` /
+  `Box<T>` / `Arc<T>` / `Result<T, E>` are Sendable iff inner
+  type(s) are.
+- **Contextual `actor Name { … }` keyword** via parse-time
+  `expand_actor_decl_keyword(src)` text rewrite.
+- **`RACE-*` diagnostic family** — 4 negative fixtures
+  (`actor_field_escape`, `mut_ref_spawn`, `non_sendable_spawn`,
+  `not_sendable_spawn`) + 2 positive (`actor_decl_parser`,
+  `sendable_marker`).
+- **Spawn-boundary enforcement** — detects `async_spawn(...)`,
+  `thread_spawn(...)`, `conc_spawn(...)`; walks each call's
+  arguments through `sendable_type_ok`.
+- **Wiring** — `nuc explain RACE-*`, RFC-0035 doc, spike note,
+  verify hook, error-codes spec entries.
+
+### Critical perf regression caught + fixed (main-agent integration)
+
+Initial integration attempt showed **47× HOT compile-time
+regression** (1.22s → 57.38s) per
+`tools/check_perf_regression.ps1`. Root cause: 5 hot paths in the
+new sendable code matching the v0.3.205 strlen-in-substring class
+documented in
+`~/.claude/projects/.../memory/feedback_perf_regression_pattern.md`:
+
+1. **`sendable_actor_decl_name_at`** — called `str_len(src)` (= C
+   `strlen` on the full 1.5 MB compiler source) on EVERY call, and
+   was called once per character position from
+   `sendable_source_has_actor_decl` → O(slen²). **This was the
+   load-bearing 44 s of the 47×.** Fix: hoist the `str_eq_at`
+   fast-fail check before the strlen.
+2. **`sendable_type_forced_not`** — loop body did
+   `str_index_of(str_substring(source, p, slen), pat)` per
+   iteration, allocating a (slen − p) substring per step → O(slen²).
+   Fix: linear `str_eq_at` scan with no per-iteration allocation.
+3. **`sendable_actor_vars`** — same per-iteration substring
+   allocation pattern. Same fix shape.
+4. **`enforce_sendable_spawn_name`** — same. Same fix.
+5. **`sendable_collect_actor_names`** — same. Same fix.
+
+### Validation
+
+- Stage1/2 self-host fixed point byte-identical (md5 `f4261846…`).
+- Self-host peak: 612 / 635 MB / 5.17 + 4.78 s wall (vs pre-fix
+  47–63 s).
+- **`tools/check_perf_regression.ps1`: PASS** — cold 5.3 s (max
+  5.93), hot 1.56 s (max 1.74), peak 617 MB (max 747).
+- Tools-suite compiles clean.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
+### Adopter-facing surface
+
+```nucleor
+struct AppState { count: i64 }
+impl Sendable for AppState {}
+
+#[not_sendable]
+struct LocalCache { handle: i64 }
+
+actor Counter { value: i64 }
+
+fn main() -> i32 {
+    let s: AppState = AppState { count: 0 };
+    async_spawn(s);                          // OK — Sendable
+    let c: LocalCache = LocalCache { handle: 0 };
+    async_spawn(c);                          // error[RACE-008]
+    return 0;
+}
+```
+
+Spike doc: `docs/milestones/spikes/track_sendable_substrate_2026-05-02.md`.
+RFC: `docs/rfcs/RFC-0035-sendable-actors.md`.
+
+### Forward-roadmap
+
+This is the FIRST PASS substrate. Full RFC-0035 (per spine §2.5
+v0.9 milestone) needs:
+- Per-call-site monomorphisation with bound-typed Sendable.
+- Lifetime tracking on actor borrows.
+- UFCS disambiguation for ambiguous Send / Sync conflicts.
+
+Deferred to v0.9.
+
 ## [0.6.23] — 2026-05-02
 
 **Method-ambiguity diagnostic — clean "ambiguous method dispatch"

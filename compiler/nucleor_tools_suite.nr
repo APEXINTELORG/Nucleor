@@ -5048,6 +5048,506 @@ fn type_base_name(t: str) -> str {
     };
     return base;
 }
+
+fn sendable_actor_decl_name_at(src: str, pos: i64) -> str {
+    let slen: i64 = str_len(src);
+    if pos + 5 > slen { return ""; };
+    if str_eq_at(src, pos, "actor") == 0 { return ""; };
+    let prev_ok: i64 = if pos == 0 { 1 } else {
+        let pc: i64 = str_char_at(src, pos - 1);
+        if is_alnum(pc) == 0 { if pc != 95 { 1 } else { 0 } } else { 0 }
+    };
+    if prev_ok == 0 { return ""; };
+    let mut q: i64 = pos + 5;
+    if q >= slen || is_ws(str_char_at(src, q)) == 0 { return ""; };
+    while q < slen && is_ws(str_char_at(src, q)) == 1 { q = q + 1; };
+    let ns: i64 = q;
+    while q < slen && (is_alnum(str_char_at(src, q)) == 1 || str_char_at(src, q) == 95) { q = q + 1; };
+    if q <= ns { return ""; };
+    let name: str = str_substring(src, ns, q);
+    while q < slen && is_ws(str_char_at(src, q)) == 1 { q = q + 1; };
+    if q < slen && str_char_at(src, q) == 123 { return name; };
+    return "";
+}
+
+fn sendable_source_has_actor_decl(src: str) -> i64 {
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+        } else if c == 34 || c == 39 {
+            let quote: i64 = c;
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != quote {
+                if str_char_at(src, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            if p < slen { p = p + 1; };
+        } else {
+            if str_len(sendable_actor_decl_name_at(src, p)) > 0 { return 1; };
+            p = p + 1;
+        };
+    };
+    return 0;
+}
+
+fn expand_actor_decl_keyword(src: str) -> str {
+    if sendable_source_has_actor_decl(src) == 0 { return src; };
+    let mut sb: i64 = sb_new();
+    let mut actors: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            while p < slen && str_char_at(src, p) != 10 {
+                sb_append(sb, str_substring(src, p, p + 1));
+                p = p + 1;
+            };
+        } else if c == 34 {
+            sb_append(sb, "\"");
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 34 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    sb_append(sb, str_substring(src, p, p + 2));
+                    p = p + 2;
+                } else {
+                    sb_append(sb, str_substring(src, p, p + 1));
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, "\""); p = p + 1; };
+        } else if c == 39 {
+            sb_append(sb, "'");
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != 39 {
+                if str_char_at(src, p) == 92 && p + 1 < slen {
+                    sb_append(sb, str_substring(src, p, p + 2));
+                    p = p + 2;
+                } else {
+                    sb_append(sb, str_substring(src, p, p + 1));
+                    p = p + 1;
+                };
+            };
+            if p < slen { sb_append(sb, "'"); p = p + 1; };
+        } else {
+            let actor_name: str = sendable_actor_decl_name_at(src, p);
+            if str_len(actor_name) > 0 {
+                sb_append(sb, "struct");
+                actors.push(actor_name);
+                p = p + 5;
+            } else {
+                sb_append(sb, str_substring(src, p, p + 1));
+                p = p + 1;
+            };
+        };
+    };
+    if vec_len(actors) > 0 {
+        sb_append(sb, "\n");
+        let mut i: i64 = 0;
+        while i < vec_len(actors) {
+            sb_append(sb, "//__NUC35A:");
+            sb_append(sb, vec_get(actors, i));
+            sb_append(sb, "\n");
+            i = i + 1;
+        };
+    };
+    return sb_to_str(sb);
+}
+
+fn sendable_source_has_spawn_call(src: str) -> i64 {
+    let slen: i64 = str_len(src);
+    let mut p: i64 = 0;
+    while p < slen {
+        let c: i64 = str_char_at(src, p);
+        if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+        } else if c == 34 || c == 39 {
+            let quote: i64 = c;
+            p = p + 1;
+            while p < slen && str_char_at(src, p) != quote {
+                if str_char_at(src, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            if p < slen { p = p + 1; };
+        } else {
+            if str_eq_at(src, p, "async_spawn(") == 1 { return 1; };
+            if str_eq_at(src, p, "thread_spawn(") == 1 { return 1; };
+            if str_eq_at(src, p, "conc_spawn(") == 1 { return 1; };
+            p = p + 1;
+        };
+    };
+    return 0;
+}
+
+fn sendable_is_bare_ident(text: str) -> i64 {
+    let t: str = str_trim(text);
+    let n: i64 = str_len(t);
+    if n == 0 { return 0; };
+    let mut i: i64 = 0;
+    while i < n {
+        let c: i64 = str_char_at(t, i);
+        if i == 0 {
+            if is_alpha(c) == 0 { if c != 95 { return 0; }; };
+        } else {
+            if is_alnum(c) == 0 { if c != 95 { return 0; }; };
+        };
+        i = i + 1;
+    };
+    return 1;
+}
+
+fn sendable_first_type(t: str) -> str {
+    let n: i64 = str_len(t);
+    let mut p: i64 = 0;
+    while p < n && str_char_at(t, p) != 60 { p = p + 1; };
+    if p >= n { return ""; };
+    let start: i64 = p + 1;
+    p = start;
+    let mut depth: i64 = 1;
+    while p < n {
+        let c: i64 = str_char_at(t, p);
+        if c == 60 { depth = depth + 1; }
+        else if c == 62 {
+            depth = depth - 1;
+            if depth == 0 { return str_trim(str_substring(t, start, p)); };
+        }
+        else if c == 44 && depth == 1 { return str_trim(str_substring(t, start, p)); };
+        p = p + 1;
+    };
+    return "";
+}
+
+fn sendable_second_type(t: str) -> str {
+    let n: i64 = str_len(t);
+    let mut p: i64 = 0;
+    while p < n && str_char_at(t, p) != 60 { p = p + 1; };
+    if p >= n { return ""; };
+    p = p + 1;
+    let mut depth: i64 = 1;
+    let mut comma: i64 = 0 - 1;
+    while p < n && comma < 0 {
+        let c: i64 = str_char_at(t, p);
+        if c == 60 { depth = depth + 1; }
+        else if c == 62 { depth = depth - 1; }
+        else if c == 44 && depth == 1 { comma = p; };
+        p = p + 1;
+    };
+    if comma < 0 { return ""; };
+    let start: i64 = comma + 1;
+    let mut q: i64 = start;
+    depth = 1;
+    while q < n {
+        let c2: i64 = str_char_at(t, q);
+        if c2 == 60 { depth = depth + 1; }
+        else if c2 == 62 {
+            depth = depth - 1;
+            if depth == 0 { return str_trim(str_substring(t, start, q)); };
+        };
+        q = q + 1;
+    };
+    return "";
+}
+
+fn sendable_type_forced_not(source: str, typ: str) -> i64 {
+    let base: str = type_base_name(str_trim(typ));
+    let pat: str = "#[not_sendable]";
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    let slen: i64 = str_len(source);
+    while p + plen <= slen {
+        let rel: i64 = str_index_of(str_substring(source, p, slen), pat);
+        if rel < 0 { return 0; };
+        let hit: i64 = p + rel + plen;
+        let tail: str = str_substring(source, hit, slen);
+        let sp_rel: i64 = str_index_of(tail, "struct ");
+        if sp_rel < 0 { return 0; };
+        let mut q: i64 = hit + sp_rel + 7;
+        while q < slen && is_ws(str_char_at(source, q)) == 1 { q = q + 1; };
+        let ns: i64 = q;
+        while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
+        if q > ns && str_eq(str_substring(source, ns, q), base) == 1 { return 1; };
+        p = hit;
+    };
+    return 0;
+}
+
+fn sendable_type_has_impl(source: str, typ: str) -> i64 {
+    let base: str = type_base_name(str_trim(typ));
+    if str_len(base) == 0 { return 0; };
+    let pat: str = str_concat("impl Sendable for ", base);
+    if str_index_of(source, pat) >= 0 { return 1; };
+    return 0;
+}
+
+fn sendable_type_ok(source: str, typ: str) -> i64 {
+    let t: str = str_trim(typ);
+    if str_len(t) == 0 { return 1; };
+    if str_starts_with(t, "&mut ") == 1 { return 0; };
+    if str_starts_with(t, "&") == 1 {
+        return sendable_type_ok(source, str_trim(str_substring(t, 1, str_len(t))));
+    };
+    let base: str = type_base_name(t);
+    if sendable_type_forced_not(source, base) == 1 { return 0; };
+    if str_eq(base, "i8") == 1 { return 1; };
+    if str_eq(base, "i16") == 1 { return 1; };
+    if str_eq(base, "i32") == 1 { return 1; };
+    if str_eq(base, "i64") == 1 { return 1; };
+    if str_eq(base, "isize") == 1 { return 1; };
+    if str_eq(base, "u8") == 1 { return 1; };
+    if str_eq(base, "u16") == 1 { return 1; };
+    if str_eq(base, "u32") == 1 { return 1; };
+    if str_eq(base, "u64") == 1 { return 1; };
+    if str_eq(base, "usize") == 1 { return 1; };
+    if str_eq(base, "bool") == 1 { return 1; };
+    if str_eq(base, "char") == 1 { return 1; };
+    if str_eq(base, "f32") == 1 { return 1; };
+    if str_eq(base, "f64") == 1 { return 1; };
+    if str_eq(base, "str") == 1 { return 1; };
+    if str_eq(base, "String") == 1 { return 1; };
+    if sendable_type_has_impl(source, base) == 1 { return 1; };
+    if str_eq(base, "Vec") == 1 { return sendable_type_ok(source, sendable_first_type(t)); };
+    if str_eq(base, "Option") == 1 { return sendable_type_ok(source, sendable_first_type(t)); };
+    if str_eq(base, "Box") == 1 { return sendable_type_ok(source, sendable_first_type(t)); };
+    if str_eq(base, "Arc") == 1 { return sendable_type_ok(source, sendable_first_type(t)); };
+    if str_eq(base, "Result") == 1 {
+        if sendable_type_ok(source, sendable_first_type(t)) == 0 { return 0; };
+        return sendable_type_ok(source, sendable_second_type(t));
+    };
+    return 0;
+}
+
+fn sendable_binding_type(source: str, var_name: str) -> str {
+    let pat1: str = str_concat("let ", str_concat(var_name, ":"));
+    let pat2: str = str_concat("let mut ", str_concat(var_name, ":"));
+    let mut p: i64 = str_index_of(source, pat1);
+    let mut start: i64 = 0;
+    if p >= 0 { start = p + str_len(pat1); }
+    else {
+        p = str_index_of(source, pat2);
+        if p < 0 { return ""; };
+        start = p + str_len(pat2);
+    };
+    let slen: i64 = str_len(source);
+    let mut q: i64 = start;
+    while q < slen {
+        let c: i64 = str_char_at(source, q);
+        if c == 61 || c == 59 || c == 10 || c == 13 { return str_trim(str_substring(source, start, q)); };
+        q = q + 1;
+    };
+    return str_trim(str_substring(source, start, q));
+}
+
+fn sendable_find_matching_paren(text: str, open_pos: i64) -> i64 {
+    let n: i64 = str_len(text);
+    let mut depth: i64 = 1;
+    let mut p: i64 = open_pos + 1;
+    while p < n {
+        let c: i64 = str_char_at(text, p);
+        if c == 34 {
+            p = p + 1;
+            while p < n && str_char_at(text, p) != 34 {
+                if str_char_at(text, p) == 92 && p + 1 < n { p = p + 2; }
+                else { p = p + 1; };
+            };
+        } else if c == 40 { depth = depth + 1; }
+        else if c == 41 {
+            depth = depth - 1;
+            if depth == 0 { return p; };
+        };
+        p = p + 1;
+    };
+    return 0 - 1;
+}
+
+fn sendable_find_top_comma(text: str, start: i64, end: i64) -> i64 {
+    let mut depth: i64 = 0;
+    let mut p: i64 = start;
+    while p < end {
+        let c: i64 = str_char_at(text, p);
+        if c == 40 || c == 60 || c == 91 { depth = depth + 1; }
+        else if c == 41 || c == 62 || c == 93 { if depth > 0 { depth = depth - 1; }; }
+        else if c == 44 && depth == 0 { return p; };
+        p = p + 1;
+    };
+    return 0 - 1;
+}
+
+fn enforce_sendable_spawn_name(diags: Vec<i32>, source: str, call_name: str) -> i64 {
+    let pat: str = str_concat(call_name, "(");
+    let plen: i64 = str_len(pat);
+    let slen: i64 = str_len(source);
+    let mut added: i64 = 0;
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        let rel: i64 = str_index_of(str_substring(source, p, slen), pat);
+        if rel < 0 { return added; };
+        let hit: i64 = p + rel;
+        let open_pos: i64 = hit + plen - 1;
+        let close_pos: i64 = sendable_find_matching_paren(source, open_pos);
+        if close_pos < 0 { return added; };
+        let comma: i64 = sendable_find_top_comma(source, open_pos + 1, close_pos);
+        if comma > 0 {
+            let arg: str = str_trim(str_substring(source, comma + 1, close_pos));
+            let mut code: str = "";
+            let mut msg: str = "";
+            if str_starts_with(arg, "&mut ") == 1 {
+                code = "RACE-005";
+                msg = str_concat("`&mut` argument `", str_concat(arg, "` crosses a thread boundary"));
+            } else if str_starts_with(arg, "&") == 0 && sendable_is_bare_ident(arg) == 1 {
+                let ty: str = sendable_binding_type(source, arg);
+                if str_len(ty) > 0 {
+                    if sendable_type_forced_not(source, ty) == 1 {
+                        code = "RACE-008";
+                        msg = str_concat("`#[not_sendable]` type `", str_concat(type_base_name(ty), "` used where Sendable is required"));
+                    } else if sendable_type_ok(source, ty) == 0 {
+                        code = "RACE-001";
+                        msg = str_concat("non-Sendable value `", str_concat(arg, str_concat("` of type `", str_concat(ty, "` crosses a thread boundary"))));
+                    };
+                };
+            };
+            if str_len(code) > 0 {
+                let mut lc: Vec<i32> = find_linecol_in_source(source, arg, arg);
+                diag_add_ex(diags, "error", "race", code, msg, call_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                added = added + 1;
+            };
+        };
+        p = close_pos + 1;
+    };
+    return added;
+}
+
+fn sendable_collect_actor_names(source: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let pat: str = "//__NUC35A:";
+    let plen: i64 = str_len(pat);
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        let rel: i64 = str_index_of(str_substring(source, p, slen), pat);
+        if rel < 0 { return out; };
+        let mut q: i64 = p + rel + plen;
+        let ns: i64 = q;
+        while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
+        if q > ns { out.push(str_substring(source, ns, q)); };
+        p = q;
+    };
+    return out;
+}
+
+fn sendable_find_matching_brace(text: str, open_pos: i64) -> i64 {
+    let n: i64 = str_len(text);
+    let mut depth: i64 = 1;
+    let mut p: i64 = open_pos + 1;
+    while p < n {
+        let c: i64 = str_char_at(text, p);
+        if c == 123 { depth = depth + 1; }
+        else if c == 125 {
+            depth = depth - 1;
+            if depth == 0 { return p; };
+        };
+        p = p + 1;
+    };
+    return 0 - 1;
+}
+
+fn sendable_actor_fields(source: str, actor_name: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let pat: str = str_concat("struct ", str_concat(actor_name, " {"));
+    let p: i64 = str_index_of(source, pat);
+    if p < 0 { return out; };
+    let open_pos: i64 = p + str_len(pat) - 1;
+    let close_pos: i64 = sendable_find_matching_brace(source, open_pos);
+    if close_pos < 0 { return out; };
+    let mut q: i64 = open_pos + 1;
+    while q < close_pos {
+        while q < close_pos && (is_ws(str_char_at(source, q)) == 1 || str_char_at(source, q) == 44) { q = q + 1; };
+        let ns: i64 = q;
+        while q < close_pos && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
+        if q > ns {
+            let name: str = str_substring(source, ns, q);
+            while q < close_pos && is_ws(str_char_at(source, q)) == 1 { q = q + 1; };
+            if q < close_pos && str_char_at(source, q) == 58 { out.push(name); };
+        };
+        while q < close_pos && str_char_at(source, q) != 44 && str_char_at(source, q) != 10 && str_char_at(source, q) != 13 { q = q + 1; };
+        q = q + 1;
+    };
+    return out;
+}
+
+fn sendable_actor_vars(source: str, actor_name: str) -> Vec<i32> {
+    let mut out: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let mut p: i64 = 0;
+    while p + 4 <= slen {
+        let rel: i64 = str_index_of(str_substring(source, p, slen), "let ");
+        if rel < 0 { return out; };
+        let mut q: i64 = p + rel + 4;
+        if q + 4 <= slen && str_eq_at(source, q, "mut ") == 1 { q = q + 4; };
+        let ns: i64 = q;
+        while q < slen && (is_alnum(str_char_at(source, q)) == 1 || str_char_at(source, q) == 95) { q = q + 1; };
+        if q > ns {
+            let vname: str = str_substring(source, ns, q);
+            while q < slen && is_ws(str_char_at(source, q)) == 1 { q = q + 1; };
+            if q < slen && str_char_at(source, q) == 58 {
+                q = q + 1;
+                let ts: i64 = q;
+                while q < slen && str_char_at(source, q) != 61 && str_char_at(source, q) != 59 && str_char_at(source, q) != 10 { q = q + 1; };
+                let ty: str = type_base_name(str_trim(str_substring(source, ts, q)));
+                if str_eq(ty, actor_name) == 1 { out.push(vname); };
+            };
+        };
+        p = q + 1;
+    };
+    return out;
+}
+
+fn enforce_sendable_actor_fields(diags: Vec<i32>, source: str) -> i64 {
+    let actors: Vec<i32> = sendable_collect_actor_names(source);
+    let mut added: i64 = 0;
+    let mut ai: i64 = 0;
+    while ai < vec_len(actors) {
+        let actor_name: str = vec_get(actors, ai);
+        let fields: Vec<i32> = sendable_actor_fields(source, actor_name);
+        let vars: Vec<i32> = sendable_actor_vars(source, actor_name);
+        let mut vi: i64 = 0;
+        while vi < vec_len(vars) {
+            let vname: str = vec_get(vars, vi);
+            let mut fi: i64 = 0;
+            while fi < vec_len(fields) {
+                let field: str = vec_get(fields, fi);
+                let pat: str = str_concat(vname, str_concat(".", field));
+                if str_index_of(source, pat) >= 0 {
+                    let msg: str = str_concat("actor `", str_concat(actor_name, str_concat("` field `", str_concat(field, "` cannot be accessed directly outside actor isolation"))));
+                    let mut lc: Vec<i32> = find_linecol_in_source(source, pat, pat);
+                    diag_add_ex(diags, "error", "race", "RACE-003", msg, actor_name, vec_get(lc, 0), vec_get(lc, 1), "");
+                    added = added + 1;
+                    fi = vec_len(fields);
+                };
+                fi = fi + 1;
+            };
+            vi = vi + 1;
+        };
+        ai = ai + 1;
+    };
+    return added;
+}
+
+fn enforce_sendable_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
+    let has_spawn: i64 = sendable_source_has_spawn_call(source);
+    let has_actor: i64 = if str_index_of(source, "//__NUC35A:") >= 0 { 1 } else { 0 };
+    if has_spawn == 0 && has_actor == 0 { return diags; };
+    if has_spawn == 1 {
+        enforce_sendable_spawn_name(diags, source, "async_spawn");
+        enforce_sendable_spawn_name(diags, source, "thread_spawn");
+        enforce_sendable_spawn_name(diags, source, "conc_spawn");
+    };
+    if has_actor == 1 { enforce_sendable_actor_fields(diags, source); };
+    return diags;
+}
+
 fn type_is_mut_ref(t: str) -> i64 {
     let tlen: i64 = str_len(t);
     if tlen >= 5 && str_eq(str_substring(t, 0, 5), "&mut ") == 1 { return 1; };
@@ -8167,6 +8667,9 @@ fn source_rule_check(source: str, diags: Vec<i32>) -> i64 {
         };
         i = i + 8;
     };
+    let sendable_before: i64 = diag_count(diags);
+    enforce_sendable_contracts(diags, source);
+    warns = warns + (diag_count(diags) - sendable_before);
     let slen: i64 = str_len(source);
     let mut line_start: i64 = 0;
     while line_start <= slen {
@@ -10652,6 +11155,16 @@ fn explain_error_title(code: str) -> str {
     if str_eq(code, "OWN-011") { return "Cannot mutably borrow immutable value"; };
     if str_eq(code, "OWN-012") { return "Cannot destroy arena with live references"; };
     if str_eq(code, "OWN-013") { return "Spawn block captures non-Send DeviceBuffer value"; };
+    if str_eq(code, "RACE-001") { return "Non-Sendable value crosses a spawned boundary"; };
+    if str_eq(code, "RACE-002") { return "Actor method called without await"; };
+    if str_eq(code, "RACE-003") { return "Actor internal state escapes isolation"; };
+    if str_eq(code, "RACE-004") { return "Shared mutable state without Mutex or actor"; };
+    if str_eq(code, "RACE-005") { return "&mut value crosses a thread boundary"; };
+    if str_eq(code, "RACE-006") { return "Reentrant actor lock violation"; };
+    if str_eq(code, "RACE-007") { return "Deadline composition under actor await is invalid"; };
+    if str_eq(code, "RACE-008") { return "#[not_sendable] type used where Sendable is required"; };
+    if str_eq(code, "RACE-009") { return "Reserved Sendable/actor diagnostic"; };
+    if str_eq(code, "RACE-010") { return "Reserved Sendable/actor diagnostic"; };
     // GOV series — governance policies
     if str_eq(code, "GOV-001") { return "policy(require_authored) requires authored annotations"; };
     if str_eq(code, "GOV-002") { return "policy(no_unsafe) forbids unsafe blocks"; };
@@ -10881,6 +11394,16 @@ fn explain_error_summary(code: str) -> str {
     if str_eq(code, "OWN-011") { return "`&mut T` requires the source to be declared `let mut x`. Make the binding mutable, or restructure to take a shared `&T` instead."; };
     if str_eq(code, "OWN-012") { return "An arena cannot be destroyed while references into it are still live — would dangle every outstanding pointer. End all borrows from the arena before destroy."; };
     if str_eq(code, "OWN-013") { return "GPU `DeviceBuffer` handles are pinned to the thread that allocated them, so they are not `Send`. A `spawn { ... }` block runs on a fresh thread and cannot capture them. Move the launch into the owning thread, or pass a host-side handle that the worker can re-acquire its own DeviceBuffer from."; };
+    if str_eq(code, "RACE-001") { return "RFC-0035 requires values moved into spawned work to be Sendable. Primitive values, Sendable containers, and types with an explicit `impl Sendable for T` pass this first check."; };
+    if str_eq(code, "RACE-002") { return "Actor calls can suspend on the actor executor. Calling them without await would bypass the serialization contract."; };
+    if str_eq(code, "RACE-003") { return "Actor fields are isolated mutable state. Direct field access from outside the actor bypasses the actor executor and is rejected."; };
+    if str_eq(code, "RACE-004") { return "Shared mutable state needs an actor or synchronization primitive so two tasks cannot mutate it concurrently."; };
+    if str_eq(code, "RACE-005") { return "A mutable reference crossing a thread boundary can outlive the source stack frame or race the original owner. Move owned data or use synchronization."; };
+    if str_eq(code, "RACE-006") { return "The same actor lock cannot be re-entered while already held; doing so can deadlock or violate serialized state access."; };
+    if str_eq(code, "RACE-007") { return "Deadline checking and actor await composition require a scheduler-aware bound. The first pass rejects the combination."; };
+    if str_eq(code, "RACE-008") { return "`#[not_sendable]` is an explicit opt-out from structural Sendable inference. The compiler honors it even when fields look safe."; };
+    if str_eq(code, "RACE-009") { return "Reserved for a future RFC-0035 Sendable/actor diagnostic."; };
+    if str_eq(code, "RACE-010") { return "Reserved for a future RFC-0035 Sendable/actor diagnostic."; };
     if str_eq(code, "GOV-001") { return "The source declares `@policy(require_authored)` at the module level but at least one function lacks an `@authored(\"name\")` annotation. Add `@authored(\"...\")` to every fn, or remove the policy."; };
     if str_eq(code, "GOV-002") { return "The source declares `@policy(no_unsafe)` at the module level but contains an `unsafe { ... }` block. Either remove the unsafe block (preferred) or remove the no_unsafe policy."; };
     if str_eq(code, "TNT-001") { return "Tainted data flowing into a function annotated as a sensitive sink. Wrap the value in `sanitize(value)` to strip the taint marker before the call."; };
@@ -11084,6 +11607,16 @@ fn explain_error_explanation(code: str) -> str {
     if str_eq(code, "OWN-011") { return "`&mut T` requires the source to be declared `let mut`. Add `mut` to the binding, or use `&T` if you don't actually need to write through the reference."; };
     if str_eq(code, "OWN-012") { return "Arenas free all their backing storage on destroy. If any reference into the arena is still live, the destroy would dangle every outstanding pointer. End all borrows from the arena (typically by exiting the scope where they live) before destroy."; };
     if str_eq(code, "OWN-013") { return "Spawn-capture pass detected a `spawn { ... }` block capturing a `DeviceBuffer` value. GPU memory handles are pinned to the thread that allocated them via the CUDA / Vulkan context binding — the worker thread that spawn dispatches to has no context attached, so the capture would be undefined behavior at runtime. Either keep the launch on the owning thread (process the buffer there before spawning the consumer), or pass a host-side handle (CPU-side index / descriptor) that the worker re-acquires its own DeviceBuffer from with its own context."; };
+    if str_eq(code, "RACE-001") { return "Add an explicit `impl Sendable for T {}` when the type is safe to move across tasks, or keep the value on the originating thread."; };
+    if str_eq(code, "RACE-002") { return "Await actor method calls so the actor executor serializes access."; };
+    if str_eq(code, "RACE-003") { return "Expose actor state through an actor method instead of reading or assigning fields directly."; };
+    if str_eq(code, "RACE-004") { return "Wrap shared mutable payloads in an actor or an audited synchronization primitive."; };
+    if str_eq(code, "RACE-005") { return "Do not pass `&mut T` to spawn/thread APIs; move an owned Sendable value or pass a synchronized handle."; };
+    if str_eq(code, "RACE-006") { return "Refactor the actor method to avoid re-entering the same actor while its lock is held."; };
+    if str_eq(code, "RACE-007") { return "Move the actor await out of the deadline region or use scheduler-aware actor latency tooling when it lands."; };
+    if str_eq(code, "RACE-008") { return "Remove `#[not_sendable]` only if the type is genuinely thread-safe; otherwise keep it out of spawned work."; };
+    if str_eq(code, "RACE-009") { return "Reserved diagnostic; no user action."; };
+    if str_eq(code, "RACE-010") { return "Reserved diagnostic; no user action."; };
     if str_eq(code, "GOV-001") { return "The `@policy(require_authored)` module-level attribute requires every fn in the source to carry an `@authored(\"name\")` annotation (the governance audit trail). The audit pass found at least one un-annotated fn. Add `@authored(\"...\")` above each fn, or remove the policy if it doesn't apply to this module."; };
     if str_eq(code, "GOV-002") { return "The `@policy(no_unsafe)` module-level attribute forbids `unsafe { ... }` blocks anywhere in the source. The audit pass found at least one. Either remove the unsafe block (preferred — usually means switching to a safe API) or remove the no_unsafe policy if the module legitimately needs unsafe operations."; };
     if str_eq(code, "TNT-001") { return "Strict-mode taint pass detected tainted data flowing into a function annotated as a sensitive sink. The suggestion is to wrap the value in `sanitize(value)` (which strips the taint marker) before the call. Fires from the tools-suite strict checker, not the s1 main type-check pass."; };
@@ -11366,7 +11899,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         if str_len(manifest) > 0 && str_len(cached_source) > 0 {
             let valid: Vec<i32> = module_records_validate(manifest);
             if vec_get(valid, 0) == 1 {
-                out.push(cached_source);
+                out.push(expand_actor_decl_keyword(cached_source));
                 out.push(vec_get(valid, 1));
                 out.push(1);
                 return out;
@@ -11394,7 +11927,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // v0.3.0 (T3.1): #[deadline = N] runtime-check rewrite (synced).
     let after_deadline: str = expand_deadline(after_async);
     // T2.3 (v0.2.349): expand closure literals (synced from s1).
-    let source: str = expand_closures(after_deadline);
+    let source: str = expand_actor_decl_keyword(expand_closures(after_deadline));
     if use_cache == 1 {
         fs_create_dir_all(".nuc_cache");
         file_write_string(manifest_path, module_records_serialize(module_records));

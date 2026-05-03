@@ -65,6 +65,26 @@ non-`Send` `DeviceBuffer` (GPU memory handles are pinned to
 their launching thread); documented v0.2.131 after the audit
 sweep found it fired without spec + explain-registry entries.
 
+## RACE series — RFC-0035 Sendable + actor isolation
+
+| Code | Title | RFC section |
+|---|---|---|
+| RACE-001 | Non-Sendable value captured by spawned closure or spawn-style call | [RFC-0035 §3.5](../rfcs/RFC-0035-sendable-actors.md) |
+| RACE-002 | Actor method called without await | [RFC-0035 §3.3](../rfcs/RFC-0035-sendable-actors.md) |
+| RACE-003 | Actor internal state escapes isolation | [RFC-0035 §3.3](../rfcs/RFC-0035-sendable-actors.md) |
+| RACE-004 | Shared mutable state without Mutex or actor | [RFC-0035 §3.1](../rfcs/RFC-0035-sendable-actors.md) |
+| RACE-005 | `&mut T` crosses a thread boundary | [RFC-0035 §3.7](../rfcs/RFC-0035-sendable-actors.md) |
+| RACE-006 | Reentrant actor lock violation | [RFC-0035 §3.4](../rfcs/RFC-0035-sendable-actors.md) |
+| RACE-007 | Deadline composition under actor await is invalid | [RFC-0035 §3.6](../rfcs/RFC-0035-sendable-actors.md) |
+| RACE-008 | `#[not_sendable]` type used where Sendable is required | [RFC-0035 §3.2](../rfcs/RFC-0035-sendable-actors.md) |
+| RACE-009 | Reserved | [RFC-0035 §4](../rfcs/RFC-0035-sendable-actors.md) |
+| RACE-010 | Reserved | [RFC-0035 §4](../rfcs/RFC-0035-sendable-actors.md) |
+
+The v0.6 first-pass checker is source-level and intentionally
+conservative: explicit `impl Sendable for T {}` unlocks spawned
+value transfer, `#[not_sendable]` wins over structural shape, and
+field-only `actor` declarations reject direct external field access.
+
 ## TNT series — taint analysis (expansion of NR033)
 
 The taint analyzer fires concrete `TNT-NNN` codes; `NR033`
