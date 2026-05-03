@@ -20,8 +20,8 @@ v0.6.51:
 | `struct U;` (unit-struct semi) | OPEN | NR020 today; clean halt is forward-roadmap |
 | `struct Pair(i64, i64);` (tuple struct) | OPEN | NR020; bundled with nested-struct-pattern finding |
 | `let c: char = 'a';` (char lit) | PARTIAL | char literals lex; type system maps to i64 for the codepoint |
-| `let s: str = r"raw";` (raw string) | OPEN | TYP-005 today; lexer doesn't recognize r-prefix |
-| `let b = b"hello";` (byte string) | OPEN | TYP-005 today; lexer doesn't recognize b-prefix |
+| `let s: str = r"raw";` (raw string) | CLOSED v0.6.58 | clean lex halt with workaround pointer; full no-escape mode is forward-roadmap |
+| `let b = b"hello";` (byte string) | CLOSED v0.6.58 | clean lex halt with workaround pointer; byte-buffer literal sugar is forward-roadmap |
 | `let Point { x, y } = p;` (struct destructure-in-let) | OPEN | TYP-008 today; let-pattern destructure not yet wired |
 | `<S as Foo>::f(&s)` (UFCS) | OPEN | NR020 today; UFCS forward-roadmap |
 | `let r = loop { break 42; };` (break-with-value) | CLOSED v0.6.57 | clean parse halt with workaround pointer; full lowering is v1 loop-as-expression |
