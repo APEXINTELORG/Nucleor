@@ -27953,6 +27953,13 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     if mode == 1 { return chain; };
     if mode == 3 { return str_concat("eprint(", str_concat(chain, ")")); };
     if mode == 4 { return str_concat("eprint_raw(", str_concat(chain, ")")); };
+    // v0.6.39 (probe finding 2026-05-01-panic-assert-macros-drop-format-
+    // args): mode 5 = panic! — pre-fix the textual rewrite stripped `!`
+    // and the `panic("got {}", x)` call dropped the args at the runtime
+    // helper boundary (panic helper takes a single str). Now route
+    // through the same fmt-expansion path as println — the format chain
+    // becomes the single str arg to panic().
+    if mode == 5 { return str_concat("panic(", str_concat(chain, ")")); };
     return str_concat("print_raw(", str_concat(chain, ")"));
 }
 
@@ -28036,7 +28043,9 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
             // helpers (already registered as panic / assert at
             // line 2706 / 2635).
             if preceded_by_dot == 0 && p < slen && str_char_at(src, p) == 33 && p + 1 < slen && str_char_at(src, p + 1) == 40 {
-                if str_eq(name, "panic") == 1 || str_eq(name, "assert") == 1
+                // v0.6.39: `panic!` no longer falls through here — it's
+                // handled below as mode=5 with format-arg expansion.
+                if str_eq(name, "assert") == 1
                    || str_eq(name, "assert_eq") == 1 || str_eq(name, "assert_ne") == 1
                    || str_eq(name, "dbg") == 1 || str_eq(name, "todo") == 1
                    || str_eq(name, "unimplemented") == 1 || str_eq(name, "unreachable") == 1 {
@@ -28156,6 +28165,12 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 // siblings of println / print.
                 if str_eq(name, "eprintln") == 1 { mode = 3; };
                 if str_eq(name, "eprint") == 1 { mode = 4; };
+                // v0.6.39 (probe finding 2026-05-01-panic-assert-macros-
+                // drop-format-args): mode 5 = panic! — route format args
+                // through the same expansion path as println so
+                // `panic!("got {}", x)` produces `PANIC: got 7` instead of
+                // pre-fix `PANIC: got {}`.
+                if str_eq(name, "panic") == 1 { mode = 5; };
                 if mode >= 0 {
                     p = p + 2;
                     let args_start: i64 = p;

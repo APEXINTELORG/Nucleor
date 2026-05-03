@@ -5,6 +5,77 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.39] — 2026-05-03
+
+**`panic!` macro routes format args through the same expansion
+path as `println!` (probe finding partial closure — gap 1 of
+panic-family format-arg drop).**
+
+Closes the `panic!` portion of probe finding `2026-05-01-panic-
+assert-macros-drop-format-args`. Pre-fix `panic!("got {}", x)`
+was textually rewritten to `panic("got {}", x)` — a regular
+fn call to `__nucleor_panic(const char *msg)`. The runtime
+helper accepts only a single str arg, so format args after the
+first were dropped. Adopters got `PANIC: got {}` instead of
+`PANIC: got 7`. Production crash logs were uninformative.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` `expand_format_macros` macro-
+detector — adds mode 5 for `panic!`, routes through
+`fmt_build_expansion` (the same expansion path as
+`println!`/`print!`/`format!`/`eprintln!`/`eprint!`). Mode 5
+produces `panic(<formatted_chain>)` — the format args are
+expanded into a single str before reaching the runtime helper.
+
+`panic!` is removed from the legacy strip-`!` fallback list at
+line ~28038 — it's now handled exclusively by mode 5.
+
+### Adopter migration
+
+```nucleor
+fn validate(input: i64) -> i64 {
+    if input < 0 {
+        panic!("validate: expected non-negative, got {}", input);
+    }
+    input
+}
+
+// Pre-v0.6.39: PANIC: validate: expected non-negative, got {}
+// v0.6.39:     PANIC: validate: expected non-negative, got -3
+```
+
+All format-spec features supported by `println!` (`{:.2}`, `{:?}`,
+`{:#x}`, `{:>10}`, etc.) flow through unchanged.
+
+### Forward-roadmap (gaps 2+)
+
+Not closed in this ship:
+
+- `assert!(cond, fmt, args...)` custom-message format args
+- `assert_eq!(a, b, fmt, args...)` and `assert_ne!` custom-message
+  format args
+- `assert_eq!`/`assert_ne!` ptr-cmp on str (sister finding
+  `2026-05-01-assert-eq-ne-macros-silent-miscompute-on-str` and
+  v0.6.20's str-pointer-compare TYP-011 close — interaction
+  needs separate audit).
+
+The `assert*!` family takes a condition first and the format
+args after, which needs a different expansion shape than
+`panic!`. Deferred to a separate ship.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `8eecf9cc…`.
+- Self-host wall: 4.88s + 4.33s.
+- Tools-suite (674 fns) compiles clean — every `panic!(…)` in
+  the tools-suite source flows through the new mode-5 path
+  cleanly.
+- Smoke (probe repro): `panic!("got: {}", 42)` now outputs
+  `PANIC: got: 42`.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
 ## [0.6.38] — 2026-05-03
 
 **Diagnostic dedup at the emit site — TYP-006 triple-emit
