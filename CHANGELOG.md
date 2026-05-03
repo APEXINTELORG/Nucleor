@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.26] — 2026-05-02
+
+**`#[derive(...)]` — early `warning[DERIVE-001]` instead of silent
+drop (probe finding closure).**
+
+Closes probe finding `2026-05-01-derive-attribute-partial-honor`.
+Pre-fix `#[derive(Debug, Clone, PartialEq, Eq, Hash, Default,
+Ord, PartialOrd)]` silently dropped everything except `Debug`.
+Adopters writing canonical Rust expected per-derive expansion;
+the dropped derives surfaced as TYP-011 / TYP-005 / TYP-006 at
+USE sites (`a == b`, `a.clone()`, `Default::default()`, etc.) far
+from the derive site. The TYP-011 diag was correct but the
+distance-to-cause hurt translation-fidelity work.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` lex-time `#[...]` consumer —
+sister to v0.6.25's `#[cfg(...)]` halt. Detects `#[derive(`,
+extracts the body up to the closing `)`, and prints
+`warning[DERIVE-001]` naming the whole derive body whenever it
+contains anything other than `Debug` alone. Build continues
+(warning, not error) — TYP-011 still fires correctly at use sites
+for the dropped derives. Adopter just gets the early signal.
+
+### Adopter migration
+
+```nucleor
+#[derive(Debug, Clone, PartialEq)]   // ← warning[DERIVE-001] at lex
+struct P { x: i64, y: i64 }
+
+// Workarounds:
+// - Hand-write the equivalent: `fn p_eq(a: P, b: P) -> i64 { … }`.
+// - Wait for the future RFC that adds derive expansion.
+//
+// `#[derive(Debug)]` alone continues to work cleanly with no warning.
+```
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `1051eb7a…`.
+- Self-host peak: 655–714 MB / 5.25 + 5.91s wall.
+- Tools-suite compiles clean (no derive warnings — tools-suite
+  doesn't use multi-derive attributes).
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
+### No fixture (warning-only ship)
+
+DERIVE-001 fires as a `print()` warning, not a hard halt. There's
+no negative-fixture pattern that asserts a warning text without
+also asserting a build-failure exit code, so this ship doesn't
+add a fixture. The next probe sweep can verify the warning text
+appears for any `#[derive(non-Debug)]` source.
+
+### Forward-roadmap
+
+Real derive expansion (auto-implementing PartialEq, Clone, Hash,
+Default for user structs) is a substantial RFC. Deferred to a
+post-v0.6 cycle alongside RFC-0034 `[]` params (which together
+unlock most of the Rust derive surface).
+
 ## [0.6.25] — 2026-05-02
 
 **`#[cfg(...)]` and `#[cfg_attr(...)]` attributes — clean parse-time
