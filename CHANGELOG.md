@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.89] — 2026-05-03
+
+**RFC V1.4 ext — derive(PartialEq) now works for GENERIC structs.
+Canonical Rust `#[derive(PartialEq)] struct Pair<T> { x: T, y: T }`
+auto-generates a generic helper `fn Pair__derived_eq<T>(a: Pair<T>,
+b: Pair<T>) -> i64`.**
+
+Pre-fix (v0.6.84): the textual pre-pass `expand_derive_partialeq`
+SKIPPED generic structs — `if next_c == 60 { continue; };` bailed
+on the `<` after the struct name. Adopters writing canonical Rust
+`Pair<T>` derive got the DERIVE-001 warning with no helper, and
+`a == b` for `Pair<i64>` values fell through to TYP-011 ptr-compare.
+
+Post-fix: the textual pass captures the generic params (raw
+substring) and re-emits them on the helper fn signature
+(`fn <Name>__derived_eq<T, U, ...>(a: <Name><T, U, ...>, b: ...) ->
+i64`). Auto-dispatch's lookup at the binop site uses
+`type_base_name(lt)` so all instantiations (Pair<i64>, Pair<str>,
+Pair<bool>) dispatch through the single generic helper.
+
+```nucleor
+#[derive(PartialEq)]
+struct Pair<T> { x: T, y: T }
+
+fn main() -> i32 {
+    let a: Pair<i64> = Pair { x: 5, y: 7 };
+    let b: Pair<i64> = Pair { x: 5, y: 7 };
+    let c: Pair<i64> = Pair { x: 5, y: 8 };
+    if a == b { print_int(11); };       // 11 — auto-dispatch
+    if a != c { print_int(33); };       // 33 — auto-dispatch via 1 - eq
+    return 0;
+}
+```
+
+### Coverage extension
+
+| Form | v0.6.84-v0.6.86 | v0.6.89 |
+|---|---|---|
+| `struct Foo { ... }` | ✅ helper + auto-dispatch | unchanged |
+| `struct Foo(...);` (tuple) | ✅ helper + auto-dispatch | unchanged |
+| `struct Foo<T> { ... }` | ❌ skipped | ✅ generic helper + auto-dispatch |
+| `struct Foo<T>(...);` (generic tuple) | ❌ skipped | ✅ generic helper + auto-dispatch |
+
+### Suppressed TYP-011 path
+
+The type-check TYP-011 ptr-compare diag at line ~17328 also
+base-names the type for the helper lookup (`Pair<i64>` → `Pair`),
+so generic instantiations correctly suppress the diag too.
+
+### Where-clauses
+
+If the struct has a where-clause (`struct Pair<T> where T: Show
+{ ... }`), the textual pass currently hits the where-keyword
+before the `{`. v0.6.89 still skips that case (the
+where-recognition would need additional plumbing to skip the
+clause and find the `{`). Adopters can hand-write the helper
+in that case. Forward-roadmap.
+
+### Fixed-point + perf
+
+Cold 3.27s. Peak 330MB. Round-2 fixed-point md5
+`f6e43944932267387e51af18a12992a7`.
+
+### Fixture
+
+`tests/fixtures/v0689_derive_partialeq_generic.nr` — exercises
+generic Pair<T> with `T = i64` instantiation.
+
 ## [0.6.88] — 2026-05-03
 
 **`assert_eq!(a, b)` / `assert_ne!(a, b)` (no format args) now
