@@ -23,6 +23,33 @@ public static class NucRssJobApi {
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool CloseHandle(IntPtr hObject);
 
+    private const uint TH32CS_SNAPPROCESS = 0x00000002;
+    private static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct PROCESSENTRY32 {
+        public uint dwSize;
+        public uint cntUsage;
+        public uint th32ProcessID;
+        public IntPtr th32DefaultHeapID;
+        public uint th32ModuleID;
+        public uint cntThreads;
+        public uint th32ParentProcessID;
+        public int pcPriClassBase;
+        public uint dwFlags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+        public string szExeFile;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessID);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool Process32FirstW(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern bool Process32NextW(IntPtr hSnapshot, ref PROCESSENTRY32 lppe);
+
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool QueryInformationJobObject(
         IntPtr hJob,
@@ -55,11 +82,56 @@ public static class NucRssJobApi {
             Marshal.FreeHGlobal(buffer);
         }
     }
+
+    public static int[] QueryDescendantPids(int rootPid) {
+        IntPtr snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if (snapshot == IntPtr.Zero || snapshot == INVALID_HANDLE_VALUE) return new int[0];
+        try {
+            Dictionary<int, List<int>> childrenByParent = new Dictionary<int, List<int>>();
+            PROCESSENTRY32 entry = new PROCESSENTRY32();
+            entry.dwSize = (uint)Marshal.SizeOf(typeof(PROCESSENTRY32));
+            if (!Process32FirstW(snapshot, ref entry)) return new int[0];
+            do {
+                int pid = unchecked((int)entry.th32ProcessID);
+                int parent = unchecked((int)entry.th32ParentProcessID);
+                if (pid > 0 && parent > 0) {
+                    List<int> children;
+                    if (!childrenByParent.TryGetValue(parent, out children)) {
+                        children = new List<int>();
+                        childrenByParent[parent] = children;
+                    }
+                    children.Add(pid);
+                }
+                entry.dwSize = (uint)Marshal.SizeOf(typeof(PROCESSENTRY32));
+            } while (Process32NextW(snapshot, ref entry));
+
+            List<int> ids = new List<int>();
+            Queue<int> queue = new Queue<int>();
+            queue.Enqueue(rootPid);
+            while (queue.Count > 0) {
+                int id = queue.Dequeue();
+                if (ids.Contains(id)) continue;
+                ids.Add(id);
+                List<int> children;
+                if (childrenByParent.TryGetValue(id, out children)) {
+                    for (int i = 0; i < children.Count; i++) queue.Enqueue(children[i]);
+                }
+            }
+            return ids.ToArray();
+        } finally {
+            CloseHandle(snapshot);
+        }
+    }
 }
 "@
 }
 
 function Get-NucProcessTreeIds([int]$RootPid) {
+    try {
+        $fastIds = @([NucRssJobApi]::QueryDescendantPids($RootPid))
+        if ($fastIds.Count -gt 0) { return @($fastIds) }
+    } catch { }
+
     $ids = New-Object System.Collections.Generic.List[int]
     $queue = New-Object System.Collections.Generic.Queue[int]
     $queue.Enqueue($RootPid)

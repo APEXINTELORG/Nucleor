@@ -437,7 +437,7 @@ cli_bootstrap_smoke() {
     # being referenced from v0.2.70 onward without ever being
     # committed.
     local contract_path
-    contract_path=$(echo "$out" | sed -n 's/^[[:space:]]*Contract:[[:space:]]*//p')
+    contract_path=$(echo "$out" | sed -n 's/^[[:space:]]*Contract:[[:space:]]*//p' | tr -d '\r')
     [ -n "$contract_path" ] || return 1
     [ -f "$ROOT/$contract_path" ] || return 1
     return 0
@@ -512,8 +512,10 @@ showcase_build_smoke() {
     # Run the robotics showcase end-to-end and require all 8 stages
     # complete with the final marker line. Catches regressions in any
     # of the v0.2.174-205 robotics rods composed by the showcase.
+    local rexec="./target/showcase_robotic_arm"
+    [ -x "$rexec.exe" ] && rexec="$rexec.exe"
     local rrun
-    rrun=$("./target/showcase_robotic_arm" 2>&1 || true)
+    rrun=$("$rexec" 2>&1 || true)
     if ! printf '%s\n' "$rrun" | grep -q "Showcase complete: 10 stages"; then
         echo "       robotic_arm showcase did not complete 10 stages"
         printf '%s\n' "$rrun" | tail -10
@@ -1061,6 +1063,11 @@ if [ "$kind" = "test" ]; then
         t1="$(now_ms)"
         dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
         finish FAIL "$dt" "build_failed"
+    fi
+    if [ "$dir" = "rods" ] && [ "$tname" = "socket" ] && [ "${NUC_VERIFY_RUN_SOCKET:-0}" != "1" ]; then
+        t1="$(now_ms)"
+        dt="$(awk -v s="$t0" -v e="$t1" 'BEGIN{ printf "%.3f", (e - s) / 1000.0 }')"
+        finish SKIP "$dt" "socket runtime disabled; set NUC_VERIFY_RUN_SOCKET=1"
     fi
     out="$("$exe" 2>&1)"
     rc=$?

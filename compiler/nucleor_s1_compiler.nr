@@ -386,7 +386,7 @@ fn lex(src: str) -> Vec<i32> {
             if handled_radix == 0 {
                 while p < slen && (is_digit(str_char_at(src, p)) == 1 || str_char_at(src, p) == 95) {
                     if str_char_at(src, p) != 95 {
-                        sb_append(digit_sb, str_substring(src, p, p + 1));
+                        sb_append_char_at(digit_sb, src, p);
                     };
                     p = p + 1;
                 };
@@ -441,7 +441,7 @@ fn lex(src: str) -> Vec<i32> {
                 let mut frac_sb: i64 = sb_new();
                 while p < slen && (is_digit(str_char_at(src, p)) == 1 || str_char_at(src, p) == 95) {
                     if str_char_at(src, p) != 95 {
-                        sb_append(frac_sb, str_substring(src, p, p + 1));
+                        sb_append_char_at(frac_sb, src, p);
                     };
                     p = p + 1;
                 };
@@ -637,7 +637,7 @@ fn lex(src: str) -> Vec<i32> {
                         panic(str_concat("error[NR025]: unknown escape sequence `", str_concat(bad_esc, "` in string literal. Pre-v0.4.121 the backslash was silently dropped and the next char emitted as-is. Recognized escapes: `\\n`, `\\t`, `\\\"`, `\\\\`, `\\r`, `\\0`, `\\'`. To get a literal backslash + char, escape the backslash explicitly (e.g. `\\\\z`).")));
                     };
                     p = p + 2;
-                } else { sb_append(sb, str_substring(src, p, p + 1)); p = p + 1; };
+                } else { sb_append_char_at(sb, src, p); p = p + 1; };
             };
             if p < slen { p = p + 1; };
             tokens.push(tok_new(3, sb_to_str(sb), st));
@@ -777,9 +777,14 @@ fn tok_val_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_val(tok_at(tokens,
 // =====================================================
 // PARSER (from T29, unchanged)
 // =====================================================
+extern fn nuc_node_kind(pool: Vec<i32>, nid: i64) -> i64;
+extern fn nuc_node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64;
+extern fn nuc_list_len(pool: Vec<i32>, lid: i64) -> i64;
+extern fn nuc_list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64;
+
 fn node_add(pool: Vec<i32>, nd: Vec<i32>) -> i64 { let nid: i64 = vec_len(pool); pool.push(nd); return nid; }
-fn node_kind(pool: Vec<i32>, nid: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, nid); return vec_get(nd, 0); }
-fn node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, nid); return vec_get(nd, idx); }
+fn node_kind(pool: Vec<i32>, nid: i64) -> i64 { return nuc_node_kind(pool, nid); }
+fn node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64 { return nuc_node_field(pool, nid, idx); }
 fn node_span_sentinel() -> i64 { return 0 - 873521; }
 fn node_set_span(pool: Vec<i32>, nid: i64, byte_off: i64) -> i64 {
     if nid < 0 || nid >= vec_len(pool) { return nid; };
@@ -808,9 +813,8 @@ fn mk_list(pool: Vec<i32>, items: Vec<i32>) -> i64 {
     let mut i: i64 = 0; while i < vec_len(items) { n.push(vec_get(items, i)); i = i + 1; };
     return node_add(pool, n);
 }
-fn list_len(pool: Vec<i32>, lid: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, lid); return vec_len(nd) - 1; }
-fn list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64 { let nd: Vec<i32> = vec_get(pool, lid); return vec_get(nd, idx + 1); }
-
+fn list_len(pool: Vec<i32>, lid: i64) -> i64 { return nuc_list_len(pool, lid); }
+fn list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64 { return nuc_list_get(pool, lid, idx); }
 fn free_token_vec(tokens: Vec<i32>) -> i64 {
     let mut i: i64 = 0;
     while i < vec_len(tokens) {
@@ -4366,6 +4370,8 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "sb_new") { return "__nucleor_sb_new"; };
     if str_eq(name, "sb_append") { return "__nucleor_sb_append"; };
     if str_eq(name, "sb_append_char") { return "__nucleor_sb_append_char"; };
+    if str_eq(name, "sb_append_char_at") { return "__nucleor_sb_append_char_at"; };
+    if str_eq(name, "sb_append_range") { return "__nucleor_sb_append_range"; };
     if str_eq(name, "sb_new_with_cap") { return "__nucleor_sb_new_with_cap"; };
     if str_eq(name, "sb_to_str") { return "__nucleor_sb_to_str"; };
     if str_eq(name, "vec_new") { return "__nucleor_vec_new"; };
@@ -5276,6 +5282,8 @@ fn is_void_ret(name: str) -> i64 {
     if str_eq(name, "file_write_string") { return 1; };
     if str_eq(name, "sb_append") { return 1; };
     if str_eq(name, "sb_append_char") { return 1; };
+    if str_eq(name, "sb_append_char_at") { return 1; };
+    if str_eq(name, "sb_append_range") { return 1; };
     if str_eq(name, "sb_new_with_cap") { return 0; };
     if str_eq(name, "vec_push") { return 1; };
     if str_eq(name, "vec_pop") { return 1; };
@@ -5533,6 +5541,8 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "system") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "sb_append") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "sb_append_char") { return 0; };
+    if str_eq(name, "sb_append_char_at") { if idx == 1 { return 1; }; return 0; };
+    if str_eq(name, "sb_append_range") { if idx == 1 { return 1; }; return 0; };
     if str_eq(name, "sb_new_with_cap") { return 0; };
     if str_eq(name, "vec_push") { if idx == 0 { return 1; }; return 0; };
     if str_eq(name, "vec_get") { if idx == 0 { return 1; }; return 0; };
@@ -6190,6 +6200,8 @@ fn emit_externs() -> str {
     sb_append(sb, "declare i64 @__nucleor_sb_new()\n");
     sb_append(sb, "declare void @__nucleor_sb_append(i64, ptr)\n");
     sb_append(sb, "declare void @__nucleor_sb_append_char(i64, i64)\n");
+    sb_append(sb, "declare void @__nucleor_sb_append_char_at(i64, ptr, i64)\n");
+    sb_append(sb, "declare void @__nucleor_sb_append_range(i64, ptr, i64, i64)\n");
     sb_append(sb, "declare i64 @__nucleor_sb_new_with_cap(i64)\n");
     sb_append(sb, "declare ptr @__nucleor_sb_to_str(i64)\n");
     sb_append(sb, "declare i64 @__nucleor_args_count()\n");
@@ -7990,11 +8002,11 @@ fn substitute_gparam_in_rtype(rtype: str, name: str, binding: str) -> str {
                 sb_append(sb, binding);
                 p = p + nlen;
             } else {
-                sb_append(sb, str_substring(rtype, p, p + 1));
+                sb_append_char_at(sb, rtype, p);
                 p = p + 1;
             };
         } else {
-            sb_append(sb, str_substring(rtype, p, p + 1));
+            sb_append_char_at(sb, rtype, p);
             p = p + 1;
         };
     };
@@ -9131,7 +9143,7 @@ fn strip_strings_and_line_comments(s: str) -> str {
             };
             if p < slen { sb_append(sb, " "); p = p + 1; };
         } else {
-            sb_append(sb, str_substring(s, p, p + 1));
+            sb_append_char_at(sb, s, p);
             p = p + 1;
         };
     };
@@ -9532,18 +9544,18 @@ fn rewrite_old_in_ensure(ens_text: str, fn_name: str) -> Vec<i32> {
     while p < slen {
         // Skip string literals — never rewrite inside.
         if str_char_at(ens_text, p) == 34 {
-            sb_append(sb, str_substring(ens_text, p, p + 1));
+            sb_append_char_at(sb, ens_text, p);
             p = p + 1;
             while p < slen && str_char_at(ens_text, p) != 34 {
                 if str_char_at(ens_text, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(ens_text, p, p + 2));
+                    sb_append_char_at(sb, ens_text, p); sb_append_char_at(sb, ens_text, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(ens_text, p, p + 1));
+                    sb_append_char_at(sb, ens_text, p);
                     p = p + 1;
                 };
             };
-            if p < slen { sb_append(sb, str_substring(ens_text, p, p + 1)); p = p + 1; };
+            if p < slen { sb_append_char_at(sb, ens_text, p); p = p + 1; };
             continue;
         };
         // Detect `old(` only when preceded by non-identifier
@@ -9586,7 +9598,7 @@ fn rewrite_old_in_ensure(ens_text: str, fn_name: str) -> Vec<i32> {
             idx_counter = idx_counter + 1;
             p = inner_end + 1;
         } else {
-            sb_append(sb, str_substring(ens_text, p, p + 1));
+            sb_append_char_at(sb, ens_text, p);
             p = p + 1;
         };
     };
@@ -10251,7 +10263,7 @@ fn expand_actor_decl_keyword(src: str) -> str {
         let c: i64 = str_char_at(src, p);
         if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
             while p < slen && str_char_at(src, p) != 10 {
-                sb_append(sb, str_substring(src, p, p + 1));
+                sb_append_char_at(sb, src, p);
                 p = p + 1;
             };
         } else if c == 34 {
@@ -10259,10 +10271,10 @@ fn expand_actor_decl_keyword(src: str) -> str {
             p = p + 1;
             while p < slen && str_char_at(src, p) != 34 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
+                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
+                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
@@ -10272,10 +10284,10 @@ fn expand_actor_decl_keyword(src: str) -> str {
             p = p + 1;
             while p < slen && str_char_at(src, p) != 39 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
+                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
+                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
@@ -10287,7 +10299,7 @@ fn expand_actor_decl_keyword(src: str) -> str {
                 actors.push(actor_name);
                 p = p + 5;
             } else {
-                sb_append(sb, str_substring(src, p, p + 1));
+                sb_append_char_at(sb, src, p);
                 p = p + 1;
             };
         };
@@ -13264,7 +13276,7 @@ fn diag_json_escape(s: str) -> str {
         else if c == 10 { sb_append(sb, "\\n"); }
         else if c == 13 { sb_append(sb, "\\r"); }
         else if c == 9 { sb_append(sb, "\\t"); }
-        else { sb_append(sb, str_substring(s, i, i + 1)); };
+        else { sb_append_char_at(sb, s, i); };
         i = i + 1;
     };
     return sb_to_str(sb);
@@ -15276,7 +15288,7 @@ fn strip_spaces(s: str) -> str {
     let mut j: i64 = 0;
     while j < slen {
         let c2: i64 = str_char_at(s, j);
-        if c2 != 32 && c2 != 9 && c2 != 10 && c2 != 13 { sb_append(sb, str_substring(s, j, j + 1)); };
+        if c2 != 32 && c2 != 9 && c2 != 10 && c2 != 13 { sb_append_char_at(sb, s, j); };
         j = j + 1;
     };
     return sb_to_str(sb);
@@ -15348,6 +15360,25 @@ fn type_dynamic_helper(name: str) -> i64 {
     if str_starts_with(name, "nuc_stat_") == 1 { return 1; };
     return 0;
 }
+
+fn type_fast_runtime_rtype(name: str) -> str {
+    if str_eq(name, "sb_new") == 1 { return "i64"; };
+    if str_eq(name, "sb_new_with_cap") == 1 { return "i64"; };
+    if str_eq(name, "sb_to_str") == 1 { return "str"; };
+    if str_eq(name, "sb_append") == 1 { return "void"; };
+    if str_eq(name, "sb_append_char") == 1 { return "void"; };
+    if str_eq(name, "sb_append_char_at") == 1 { return "void"; };
+    if str_eq(name, "sb_append_range") == 1 { return "void"; };
+    if str_eq(name, "sb_free") == 1 { return "void"; };
+    return "";
+}
+
+fn type_arg_needs_walk(pool: Vec<i32>, nid: i64) -> i64 {
+    let k: i64 = node_kind(pool, nid);
+    if k == 1 || k == 2 || k == 3 || k == 71 || k == 72 || k == 73 { return 0; };
+    return 1;
+}
+
 fn type_stmt_value(pool: Vec<i32>, nid: i64) -> i64 {
     let kind: i64 = node_kind(pool, nid);
     if kind == 25 || kind == 22 { return node_field(pool, nid, 1); };
@@ -16183,6 +16214,19 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 };
             };
         };
+        let fast_rt: str = type_fast_runtime_rtype(callee);
+        if str_len(fast_rt) > 0 {
+            let mut fast_ai: i64 = 0;
+            while fast_ai < argc {
+                let fast_arg: i64 = list_get(pool, args, fast_ai);
+                if type_arg_needs_walk(pool, fast_arg) == 1 {
+                    type_expr(pool, prog, fast_arg, env, sigs, structs, fn_name, diags, source, tprof);
+                };
+                fast_ai = fast_ai + 1;
+            };
+            tprof_mark(tprof, 9, 10, call_start);
+            return fast_rt;
+        };
         // v0.4.117: walk every call arg through type_expr BEFORE the
         // dynamic-helper early-return so the diagnostics inside arg
         // expressions still fire for runtime-helper / extern-helper
@@ -16569,15 +16613,14 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         tprof_mark(tprof, 9, 10, call_start);
         let builtin_ret_v421: str = builtin_rtype(callee);
         if str_len(builtin_ret_v421) > 0 && argc > 0 {
-            let mut bai_v421: i64 = 0;
-            while bai_v421 < argc {
-                let ba_v421: i64 = list_get(pool, args, bai_v421);
-                let bk_v421: i64 = node_kind(pool, ba_v421);
-                if bk_v421 != 1 && bk_v421 != 2 && bk_v421 != 3 && bk_v421 != 71 && bk_v421 != 72 && bk_v421 != 73 {
-                    type_expr(pool, prog, ba_v421, env, sigs, structs, fn_name, diags, source, tprof);
+                let mut bai_v421: i64 = 0;
+                while bai_v421 < argc {
+                    let ba_v421: i64 = list_get(pool, args, bai_v421);
+                    if type_arg_needs_walk(pool, ba_v421) == 1 {
+                        type_expr(pool, prog, ba_v421, env, sigs, structs, fn_name, diags, source, tprof);
+                    };
+                    bai_v421 = bai_v421 + 1;
                 };
-                bai_v421 = bai_v421 + 1;
-            };
         };
         return builtin_ret_v421;
     };
@@ -22744,7 +22787,7 @@ fn cache_v2_json_escape(s: str) -> str {
         } else if c == 9 {
             sb_append(sb, "\\t");
         } else {
-            sb_append(sb, str_substring(s, i, i + 1));
+            sb_append_char_at(sb, s, i);
         };
         i = i + 1;
     };
@@ -22799,6 +22842,69 @@ fn cache_v2_size_mb(ll: str) -> i64 {
     let n: i64 = str_len(ll);
     if n <= 0 { return 0; };
     return (n + 1048575) / 1048576;
+}
+
+fn native_link_cache_dir(key: str) -> str {
+    return sanitize(str_concat("target/.nuc_native_cache/", cache_v2_prefix(key)));
+}
+
+fn native_link_cache_path(key: str) -> str {
+    return sanitize(str_concat(native_link_cache_dir(key), str_concat("/", str_concat(key, host_exe_suffix()))));
+}
+
+fn native_link_cache_allowed(link_flags: str, cfiles: str, libpath_flags: str) -> i64 {
+    if str_eq(env_get_or("NUCLEOR_NATIVE_EXE_CACHE", "1"), "0") == 1 { return 0; };
+    if str_len(link_flags) > 0 { return 0; };
+    if str_len(cfiles) > 0 { return 0; };
+    if str_len(libpath_flags) > 0 { return 0; };
+    return 1;
+}
+
+fn native_link_cache_key(ll: str, rt_arg: str, alloc_hdr: str, stack_flag: str, linker_flag: str) -> str {
+    let ll_hash: str = str_from_int(fnv1a_64_str(ll));
+    let rt_hash: str = str_from_int(fnv1a_64_str(file_read_string(rt_arg)));
+    let alloc_hash: str = str_from_int(fnv1a_64_str(file_read_string(alloc_hdr)));
+    let mut sb: i64 = sb_new();
+    sb_append(sb, "native-link-v1|");
+    sb_append(sb, compiler_identity());
+    sb_append(sb, "|ll=");
+    sb_append(sb, ll_hash);
+    sb_append(sb, "|rt=");
+    sb_append(sb, rt_hash);
+    sb_append(sb, "|alloc=");
+    sb_append(sb, alloc_hash);
+    sb_append(sb, "|stack=");
+    sb_append(sb, stack_flag);
+    sb_append(sb, "|linker=");
+    sb_append(sb, linker_flag);
+    return sha256_hex(sb_to_str(sb));
+}
+
+fn native_link_cache_key_from_compile_key(compile_key: str, rt_arg: str, alloc_hdr: str, stack_flag: str, linker_flag: str) -> str {
+    if str_len(compile_key) == 0 { return ""; };
+    let rt_hash: str = str_from_int(fnv1a_64_str(file_read_string(rt_arg)));
+    let alloc_hash: str = str_from_int(fnv1a_64_str(file_read_string(alloc_hdr)));
+    let mut sb: i64 = sb_new();
+    sb_append(sb, "native-link-v2|");
+    sb_append(sb, compiler_identity());
+    sb_append(sb, "|compile=");
+    sb_append(sb, compile_key);
+    sb_append(sb, "|rt=");
+    sb_append(sb, rt_hash);
+    sb_append(sb, "|alloc=");
+    sb_append(sb, alloc_hash);
+    sb_append(sb, "|stack=");
+    sb_append(sb, stack_flag);
+    sb_append(sb, "|linker=");
+    sb_append(sb, linker_flag);
+    return sha256_hex(sb_to_str(sb));
+}
+
+fn native_link_cache_store(key: str, exe_path: str) -> i64 {
+    if str_len(key) == 0 { return 0; };
+    if fs_exists(exe_path) == 0 { return 0; };
+    fs_create_dir_all(native_link_cache_dir(key));
+    return fs_copy_file(exe_path, native_link_cache_path(key));
 }
 
 fn cache_v2_stats_enabled() -> i64 {
@@ -22941,6 +23047,20 @@ fn host_target_path_sep() -> str {
     return "/";
 }
 
+fn host_shell_path(path: str) -> str {
+    if host_is_windows() != 1 { return path; };
+    let mut sb: i64 = sb_new();
+    let mut i: i64 = 0;
+    let n: i64 = str_len(path);
+    while i < n {
+        let c: i64 = str_char_at(path, i);
+        if c == 47 { sb_append_char(sb, 92); }
+        else { sb_append_char(sb, c); };
+        i = i + 1;
+    };
+    return sb_to_str(sb);
+}
+
 fn host_null_redirect() -> str {
     if host_is_windows() == 1 { return " 2>NUL"; };
     return " 2>/dev/null";
@@ -22974,7 +23094,15 @@ fn host_stack_link_flag() -> str {
     return " -Wl,-z,stacksize=16777216";
 }
 
-fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path: str, link_native: i64, time_passes: i64) -> i64 {
+fn host_fast_link_flag() -> str {
+    if host_is_windows() == 1 {
+        if fs_exists("C:\\Progra~1\\LLVM\\bin\\lld-link.exe") == 1 { return " -fuse-ld=lld"; };
+        if fs_exists("C:\\Program Files\\LLVM\\bin\\lld-link.exe") == 1 { return " -fuse-ld=lld"; };
+    };
+    return "";
+}
+
+fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, native_key_hint: str, link_native: i64, time_passes: i64) -> i64 {
     let ll_path: str = sanitize(str_concat("target/", str_concat(out_name, ".ll")));
     let exe_path: str = sanitize(str_concat(str_concat("target", host_target_path_sep()), str_concat(out_name, host_exe_suffix())));
     let null_redir: str = host_null_redirect();
@@ -22990,6 +23118,10 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     let cfiles: str = vec_get(native_d, 1);
     let libpath_flags: str = vec_get(native_d, 2);
     let rt_arg: str = resolve_toolchain_path("stdlib/runtime/nucleor_llvm_rt.c");
+    let ll_arg: str = host_shell_path(ll_path);
+    let rt_arg_shell: str = host_shell_path(rt_arg);
+    let cfiles_shell: str = host_shell_path(cfiles);
+    let libpath_flags_shell: str = host_shell_path(libpath_flags);
     // v0.3.234: force-include the shared OOM-aware allocator
     // header into every C TU clang sees so the whole-runtime malloc/
     // realloc/calloc surface routes through the panic-on-NULL
@@ -23003,10 +23135,10 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     // here flips the cmd.exe quote-parity rule that strips the
     // outer wrapper -- which then breaks the C:\Program Files\
     // clang path quoting elsewhere in the line. Keep it bare.
-    let alloc_include_flag: str = str_concat(" -include ", alloc_hdr);
+    let alloc_include_flag: str = str_concat(" -include ", host_shell_path(alloc_hdr));
     host_remove_file_quiet(exe_path);
-    let clang_start: i64 = now_ms();
     let stack_flag: str = host_stack_link_flag();
+    let linker_flag: str = host_fast_link_flag();
     // T1.5d (v0.2.343): capture clang stderr to a log file so the
     // post-link MOD-003 diagnostic step can scan it for undefined-
     // symbol references that match privatized fn names. Without
@@ -23024,13 +23156,31 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     // retry loop both keep working unchanged because they read the
     // same path this function wrote.
     let log_path: str = sanitize(str_concat(".nuc_cache/clang_link.", str_concat(out_name, ".log")));
+    let log_arg: str = host_shell_path(log_path);
+    let mut native_cache_key: str = "";
+    if native_link_cache_allowed(link_flags, cfiles, libpath_flags) == 1 {
+        native_cache_key = native_link_cache_key_from_compile_key(native_key_hint, rt_arg, alloc_hdr, stack_flag, linker_flag);
+        if str_len(native_cache_key) == 0 {
+            native_cache_key = native_link_cache_key(ll, rt_arg, alloc_hdr, stack_flag, linker_flag);
+        };
+        let cached_exe: str = native_link_cache_path(native_cache_key);
+        if fs_exists(cached_exe) == 1 {
+            let cache_copy_ok: i64 = fs_copy_file(cached_exe, exe_path);
+            if cache_copy_ok == 1 {
+                print(str_concat("  native link: cache hit (sha=", str_concat(cache_v2_prefix(native_cache_key), ")")));
+                print_phase_time(time_passes, "clang", 0);
+                return 0;
+            };
+        };
+    };
+    let clang_start: i64 = now_ms();
     // v0.3.119: NUC-FEEDBACK-003 — quote the clang path so spaces
     // (e.g. `C:\Program Files\LLVM\bin\clang.exe`) survive the shell
     // command split. Without quoting, cmd.exe sees `C:\Program` as
     // the executable and the rest as args, failing with
     // `'C:\Program' is not recognized`.
     let clang_quoted: str = str_concat("\"", str_concat(llvm_clang_path(), "\""));
-    let cmd: str = str_concat(clang_quoted, str_concat(" ", str_concat(ll_path, str_concat(" ", str_concat(rt_arg, str_concat(cfiles, str_concat(alloc_include_flag, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags, str_concat(link_flags, str_concat(" > ", str_concat(log_path, " 2>&1"))))))))))))))));
+    let cmd: str = str_concat(clang_quoted, str_concat(linker_flag, str_concat(" ", str_concat(ll_arg, str_concat(" ", str_concat(rt_arg_shell, str_concat(cfiles_shell, str_concat(alloc_include_flag, str_concat(" -o ", str_concat(exe_path, str_concat(" -Wno-override-module", str_concat(stack_flag, str_concat(" ", str_concat(libpath_flags_shell, str_concat(link_flags, str_concat(" > ", str_concat(log_arg, " 2>&1")))))))))))))))));
     let mut rc: i64 = system(cmd);
     // v0.3.190: NUC-FEEDBACK-009 retry loop. ML adopters reported
     // intermittent post-LLVM-emit/no-compiled-line failures during
@@ -23178,6 +23328,7 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     };
     if str_len(clang_log) > 0 { print(clang_log); };
     print(str_concat("  compiled: ", exe_path));
+    native_link_cache_store(native_cache_key, exe_path);
     return 0;
 }
 
@@ -23251,7 +23402,7 @@ fn posix_drive_to_windows(p: str) -> str {
     sb_append_char(sb, lower_drive);
     sb_append_char(sb, 58);  // ':'
     let mut i: i64 = 2;
-    while i < n { sb_append_char(sb, str_char_at(p, i)); i = i + 1; };
+    while i < n { sb_append_char_at(sb, p, i); i = i + 1; };
     return sb_to_str(sb);
 }
 
@@ -23428,7 +23579,7 @@ fn rewrite_use_path(line: str, lp: i64, prefix_len: i64, eol: i64) -> str {
             sb_append(sb, "/");
             i = i + 2;
         } else {
-            sb_append(sb, str_substring(raw_path, i, i + 1));
+            sb_append_char_at(sb, raw_path, i);
             i = i + 1;
         };
     };
@@ -23583,7 +23734,7 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
                     };
                 };
             } else {
-                sb_append(result, str_substring(src, p, eol));
+                sb_append_range(result, src, p, eol);
                 sb_append(result, "\n");
             };
         } else if line_len >= 2 && str_char_at(src, lp) == 35 && str_char_at(src, lp + 1) != 91 {
@@ -23592,7 +23743,7 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
             // (`filter_allow_suppressed`) can still see them.
             sb_append(result, "\n");
         } else {
-            sb_append(result, str_substring(src, p, eol));
+            sb_append_range(result, src, p, eol);
             sb_append(result, "\n");
         };
         p = eol + 1;
@@ -23773,7 +23924,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
         let cached_ll: str = file_read_string(cache_ll_path);
         if str_len(cached_ll) > 0 {
             print(str_concat("cache: hit (sha=", str_concat(cache_v2_prefix(cache_key), str_concat(", size ", str_concat(str_from_int(cache_v2_size_mb(cached_ll)), " MB)")))));
-            let rc_cached: i64 = link_native_module(cached_ll, safe_out_name, imported, "", link_native, time_passes);
+            let rc_cached: i64 = link_native_module(cached_ll, safe_out_name, imported, cache_key, link_native, time_passes);
             cache_v2_print_stats(1, 0);
             print_phase_time(time_passes, "total", now_ms() - total_start);
             return rc_cached;
@@ -24373,7 +24524,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     vec_free(trait_impls);
     vec_free(impl_fns);
     vec_free(closures);
-    let rc: i64 = link_native_module(ll, safe_out_name, imported, "", link_native, time_passes);
+    let rc: i64 = link_native_module(ll, safe_out_name, imported, cache_key, link_native, time_passes);
     if use_cache == 1 {
         if rc == 0 {
             cache_v2_store(cache_key, src_path, cache_flags, ll);
@@ -24401,6 +24552,26 @@ fn should_isolate_native_link(src_path: str) -> i64 {
     return 0;
 }
 
+fn child_shell_quote(arg: str) -> str {
+    return str_concat("\"", str_concat(arg, "\""));
+}
+
+fn self_compiler_exe_for_child() -> str {
+    let raw: str = args_get(0);
+    if str_len(extract_dir(raw)) > 0 { return host_shell_path(sanitize(raw)); };
+    if host_is_windows() == 1 {
+        let win_dot_bin: str = ".\\bin\\nucleor.exe";
+        if str_len(file_read_string(win_dot_bin)) > 0 { return win_dot_bin; };
+        let win_bin: str = "bin\\nucleor.exe";
+        if str_len(file_read_string(win_bin)) > 0 { return win_bin; };
+    };
+    let posix_bin: str = "bin/nucleor";
+    if str_len(file_read_string(posix_bin)) > 0 { return posix_bin; };
+    let posix_exe: str = "bin/nucleor.exe";
+    if str_len(file_read_string(posix_exe)) > 0 { return posix_exe; };
+    return raw;
+}
+
 fn compile_file_mode_native_isolated(src_path: str, out_name: str, strict_mode: i64, use_cache: i64, time_passes: i64, link_native: i64) -> i64 {
     if link_native == 0 { return compile_file_mode(src_path, out_name, strict_mode, use_cache, time_passes, 0); };
     if strict_mode != 0 { return compile_file_mode(src_path, out_name, strict_mode, use_cache, time_passes, link_native); };
@@ -24412,8 +24583,15 @@ fn compile_file_mode_native_isolated(src_path: str, out_name: str, strict_mode: 
         print(str_concat("ERROR: invalid output name: ", out_name));
         return 1;
     };
-    let mut child_cmd: str = str_concat(args_get(0), str_concat(" build ", sanitize(src_path)));
-    child_cmd = str_concat(child_cmd, str_concat(" -o ", safe_out_name));
+    let child_exe: str = self_compiler_exe_for_child();
+    let mut child_cmd: str = "";
+    if host_is_windows() == 1 {
+        child_cmd = str_concat(child_exe, str_concat(" build ", host_shell_path(sanitize(src_path))));
+        child_cmd = str_concat(child_cmd, str_concat(" -o ", safe_out_name));
+    } else {
+        child_cmd = str_concat(child_shell_quote(child_exe), str_concat(" build ", child_shell_quote(sanitize(src_path))));
+        child_cmd = str_concat(child_cmd, str_concat(" -o ", child_shell_quote(safe_out_name)));
+    };
     child_cmd = str_concat(child_cmd, " --no-link");
     if use_cache == 0 { child_cmd = str_concat(child_cmd, " --no-cache"); };
     if cache_v2_stats_enabled() == 1 { child_cmd = str_concat(child_cmd, " --cache-stats"); };
@@ -25044,7 +25222,7 @@ fn expand_async_strip_keyword(src: str) -> str {
         let c: i64 = str_char_at(src, p);
         if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
             while p < slen && str_char_at(src, p) != 10 {
-                sb_append(sb, str_substring(src, p, p + 1));
+                sb_append_char_at(sb, src, p);
                 p = p + 1;
             };
         } else if c == 34 {
@@ -25052,10 +25230,10 @@ fn expand_async_strip_keyword(src: str) -> str {
             p = p + 1;
             while p < slen && str_char_at(src, p) != 34 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
+                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
+                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
@@ -25162,7 +25340,7 @@ fn expand_async_strip_keyword(src: str) -> str {
                 sb_append(sb, name);
             };
         } else {
-            sb_append(sb, str_substring(src, p, p + 1));
+            sb_append_char_at(sb, src, p);
             p = p + 1;
         };
     };
@@ -25182,7 +25360,7 @@ fn expand_async_await(src: str) -> str {
         let c: i64 = str_char_at(src, p);
         if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
             while p < slen && str_char_at(src, p) != 10 {
-                sb_append(sb, str_substring(src, p, p + 1));
+                sb_append_char_at(sb, src, p);
                 p = p + 1;
             };
         } else if c == 34 {
@@ -25190,10 +25368,10 @@ fn expand_async_await(src: str) -> str {
             p = p + 1;
             while p < slen && str_char_at(src, p) != 34 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
+                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
+                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
@@ -25225,7 +25403,7 @@ fn expand_async_await(src: str) -> str {
                 sb_append(sb, name);
             };
         } else {
-            sb_append(sb, str_substring(src, p, p + 1));
+            sb_append_char_at(sb, src, p);
             p = p + 1;
         };
     };
@@ -25391,7 +25569,7 @@ fn expand_closures(src: str) -> str {
         let c: i64 = str_char_at(src, p);
         if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
             while p < slen && str_char_at(src, p) != 10 {
-                sb_append(sb, str_substring(src, p, p + 1));
+                sb_append_char_at(sb, src, p);
                 p = p + 1;
             };
             last_non_ws = 10;
@@ -25400,10 +25578,10 @@ fn expand_closures(src: str) -> str {
             p = p + 1;
             while p < slen && str_char_at(src, p) != 34 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
+                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
+                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
@@ -25414,10 +25592,10 @@ fn expand_closures(src: str) -> str {
             p = p + 1;
             while p < slen && str_char_at(src, p) != 39 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
+                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
+                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
@@ -25464,7 +25642,7 @@ fn expand_closures(src: str) -> str {
             sb_append(sb, name);
             last_non_ws = str_char_at(name, str_len(name) - 1);
         } else {
-            sb_append(sb, str_substring(src, p, p + 1));
+            sb_append_char_at(sb, src, p);
             if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
             p = p + 1;
         };
@@ -27466,7 +27644,7 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
             let mut spec_end: i64 = i + 1;
             while spec_end < blen && str_char_at(body, spec_end) != 125 { spec_end = spec_end + 1; };
             if spec_end >= blen {
-                sb_append(current, str_substring(body, i, i + 1));
+                sb_append_char_at(current, body, i);
                 i = i + 1;
             } else {
                 let spec: str = str_substring(body, i + 1, spec_end);
@@ -27490,7 +27668,7 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
                 i = spec_end + 1;
             };
         } else {
-            sb_append(current, str_substring(body, i, i + 1));
+            sb_append_char_at(current, body, i);
             i = i + 1;
         };
     };
@@ -27542,7 +27720,7 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
         let c: i64 = str_char_at(src, p);
         if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
             while p < slen && str_char_at(src, p) != 10 {
-                sb_append(sb, str_substring(src, p, p + 1));
+                sb_append_char_at(sb, src, p);
                 p = p + 1;
             };
             last_non_ws = 10;
@@ -27551,10 +27729,10 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
             p = p + 1;
             while p < slen && str_char_at(src, p) != 34 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
+                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
+                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
@@ -27565,10 +27743,10 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
             p = p + 1;
             while p < slen && str_char_at(src, p) != 39 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
+                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
+                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
@@ -27755,7 +27933,7 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 last_non_ws = str_char_at(name, str_len(name) - 1);
             };
         } else {
-            sb_append(sb, str_substring(src, p, p + 1));
+            sb_append_char_at(sb, src, p);
             if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
             p = p + 1;
         };
@@ -28089,7 +28267,7 @@ fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> s
         if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
             // // line comment — copy through to newline
             while p < slen && str_char_at(src, p) != 10 {
-                sb_append(sb, str_substring(src, p, p + 1));
+                sb_append_char_at(sb, src, p);
                 p = p + 1;
             };
             last_non_ws = 10;
@@ -28099,10 +28277,10 @@ fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> s
             p = p + 1;
             while p < slen && str_char_at(src, p) != 34 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
+                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
+                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
@@ -28114,10 +28292,10 @@ fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> s
             p = p + 1;
             while p < slen && str_char_at(src, p) != 39 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
+                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
+                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
@@ -28148,7 +28326,7 @@ fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> s
             };
             last_non_ws = str_char_at(name, str_len(name) - 1);
         } else {
-            sb_append(sb, str_substring(src, p, p + 1));
+            sb_append_char_at(sb, src, p);
             // Track last non-whitespace so we can detect `.X` field
             // accesses through intervening whitespace too.
             if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
@@ -28247,20 +28425,22 @@ fn run_external_tool(argc: i64) -> i64 {
     let raw_exe_dir: str = trim_trailing_sep(extract_dir(args_get(0)));
     let mut exe_dir: str = raw_exe_dir;
     if str_len(exe_dir) == 0 { exe_dir = "target"; };
-    let tool_path: str = sanitize(str_concat(exe_dir, "\\nucleor_tools.exe"));
-    let repo_tool_path: str = ".\\target\\nucleor_tools.exe";
-    let local_tool_path: str = "nucleor_tools.exe";
+    let tool_name: str = str_concat("nucleor_tools", host_exe_suffix());
+    let tool_path: str = host_shell_path(sanitize(str_concat(str_concat(exe_dir, host_target_path_sep()), tool_name)));
+    let repo_tool_path: str = host_shell_path(str_concat(str_concat(".\\target", host_target_path_sep()), tool_name));
+    let repo_bin_tool_path: str = host_shell_path(str_concat(str_concat(".\\bin", host_target_path_sep()), tool_name));
+    let local_tool_path: str = host_shell_path(tool_name);
     let mut tool_args: str = "";
     let mut i: i64 = 1;
     while i < argc {
         tool_args = str_concat(tool_args, str_concat(" ", core_shell_quote(args_get(i))));
         i = i + 1;
     };
-    let mut cmd: str = str_concat("if exist ", core_shell_quote(repo_tool_path));
-    cmd = str_concat(cmd, str_concat(" (", str_concat(core_shell_quote(repo_tool_path), str_concat(tool_args, ")"))));
-    cmd = str_concat(cmd, str_concat(" else if exist ", core_shell_quote(local_tool_path)));
-    cmd = str_concat(cmd, str_concat(" (", str_concat(core_shell_quote(local_tool_path), str_concat(tool_args, ")"))));
-    cmd = str_concat(cmd, str_concat(" else (", str_concat(core_shell_quote(tool_path), str_concat(tool_args, ")"))));
+    let mut selected: str = tool_path;
+    if str_len(file_read_string(repo_tool_path)) > 0 { selected = repo_tool_path; }
+    else if str_len(file_read_string(repo_bin_tool_path)) > 0 { selected = repo_bin_tool_path; }
+    else if str_len(file_read_string(local_tool_path)) > 0 { selected = local_tool_path; };
+    let cmd: str = if host_is_windows() == 1 { str_concat(selected, tool_args) } else { str_concat(core_shell_quote(selected), tool_args) };
     return system(cmd);
 }
 
