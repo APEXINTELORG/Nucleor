@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.91] — 2026-05-03
+
+**Defensive halt — canonical Rust `Box<dyn Trait>` polymorphism
+method dispatch (`let d: Box<dyn Animal> = ...; d.speak();`) now
+produces a clean halt with workaround pointer.**
+
+Pre-fix: trait-object method dispatch fell through every typed-
+receiver branch and the kind-8 catch-all synthesized
+`vec_<method>(receiver)` — failing late at clang link with the
+wrong-class `error[TYP-005]: receiver type 'Vec<T>' has no method
+'.<method>()'`. The Box wrapper strip in `type_base_name`
+(line ~8378) leaves `dyn Trait` as the visible base, but no
+dispatch branch handles that.
+
+Post-fix: detect `dyn ` prefix on the receiver's stype_base in the
+kind-8 catch-all and halt cleanly with a workaround pointing at:
+
+1. **Concrete type** — `let d: Dog = Dog {}; d.speak();` (works
+   today; no vtable needed).
+2. **Enum dispatch wrapper** — `enum Animal { Dog(Dog), Cat(Cat) }`
+   plus `match` for runtime polymorphism.
+
+Forward-roadmap: vtable-backed trait-object dispatch is a v1.x
+ship — needs (a) per-trait vtable layout, (b) Box<dyn Trait>
+storage as `(data_ptr, vtable_ptr)` pair, (c) method-dispatch IR
+that loads + calls through the vtable.
+
+```nucleor
+trait Animal { fn speak(self: &Self) -> str; }
+struct Dog;
+impl Animal for Dog { fn speak(self: &Dog) -> str { return "woof"; } }
+
+fn main() -> i32 {
+    // Pre-fix:
+    let d: Box<dyn Animal> = Box::new(Dog {});
+    print(d.speak());     // ← TYP-005 wrong-class
+
+    // Post-fix workaround (concrete type):
+    let d: Dog = Dog {};
+    print(d.speak());     // "woof"
+    return 0;
+}
+```
+
+### Fixed-point + perf
+
+Cold 3.34–3.94s (median ~3.39, baseline 3.16s). Peak 318–333MB
+(baseline 318). Round-2 fixed-point md5
+`9392233b0e7f267406d56ac86e659208`. The new check is a single
+`str_starts_with("dyn ")` probe gated on the kind-8 catch-all —
+unlikely to be load-bearing on perf; variance is system noise.
+
+### Fixture
+
+`tests/fixtures/v0691_box_dyn_trait_clean_halt.nr` — negative
+fixture exercising the canonical Box<dyn Trait> shape.
+
 ## [0.6.90] — 2026-05-03
 
 **Defensive halt — canonical Rust nested pattern in `if let` /
