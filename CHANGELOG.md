@@ -5,6 +5,39 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.71] — 2026-05-03
+
+**Regression fix: v0.6.68 lex-time halt for `9223372036854775808`
+broke v0.6.43 + v0.6.49 fixtures (canonical Rust `-9223372036854775808`
+i64::MIN form).**
+
+Verify gate caught: 2 step regressions
+- `v0.6.43 unary-neg(i64::MIN) panics by default`
+- `v0.6.49 canonical i64::MIN literal -9223372036854775808 accepted`
+
+Both fixtures use `let x: i64 = -9223372036854775808;` which lexes as
+unary-minus + literal `9223372036854775808`. The v0.6.68 halt fired
+on the bare literal at lex time, before the unary-minus context could
+be consulted.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` lex (~line 663): also accept the
+literal when the previous token is unary-minus (token kind 21). The
+canonical `-9223372036854775808` form continues to compile and fold
+to i64::MIN per v0.6.49. The match-arm halt still fires for bare
+positive literals.
+
+### Verify
+
+- v0.6.49 fixture: builds + prints `-9223372036854775808 /
+  -9223372036854775807` correctly.
+- v0.6.43 fixture: runtime panic `i64 neg overflow: -(i64::MIN)`.
+- v0.6.68 halt: still fires for `match x { 9223372036854775808 =>
+  ... }`.
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+
 ## [0.6.70] — 2026-05-03
 
 **String constant pool dedup — closes B4 of the parallel-agent
