@@ -5,6 +5,34 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.61] — 2026-05-03
+
+**`let Point { x, y } = p;` parse halt — closes another rust-syntax-
+translation-fidelity audit row.**
+
+Pre-fix `let Point { x, y } = p;` (canonical Rust struct destructure-
+in-let) read `Point` as the binding name + `{ x, y }` as unparsed
+garbage + `= p;` as the init, surfacing as wrong-class
+`error[TYP-008]: binding 'Point' declared without initializer
+(type-only)`. Adopters porting Rust code using struct destructure
+hit a confusing TYP-008 instead of the actual unsupported feature.
+
+### Fix
+
+`parse_let` (~line 2327): when the let position is a kind-1
+identifier starting with uppercase letter AND the next token is
+`{` (token 52), halt with a clean diag pointing at the workaround
+(bind p, then access `p.x`, `p.y`). Forward-roadmap: full struct-
+pattern-in-let lowering is the v1 pattern-binding ship.
+
+### Verify
+
+- New regression-lock: `tests/err/err_struct_destructure_let.nr`
+  (auto-walker).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.60] — 2026-05-03
 
 **UFCS `<Type as Trait>::method(args)` parse halt — closes another
