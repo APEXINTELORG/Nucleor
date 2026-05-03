@@ -10566,10 +10566,16 @@ fn resolve_toolchain_path(raw_path: str) -> str {
 }
 
 fn llvm_clang_path() -> str {
-    // Returns the clang executable name. The launcher (nuc.bat / nuc_router.ps1)
-    // is responsible for ensuring clang is reachable on PATH before invoking the
-    // compiler — see the launcher script for the resolution order
-    // (NUCLEOR_CLANG_PATH, LLVM_SYS_180_PREFIX, default install path).
+    let envc: str = env_get_or("NUCLEOR_CLANG", "");
+    if str_len(envc) > 0 { return envc; };
+    if host_is_windows() == 1 {
+        let p0: str = "C:\\Progra~1\\LLVM\\bin\\clang.exe";
+        if str_len(file_read_string(p0)) > 0 { return p0; };
+        let p1: str = "C:\\Program Files\\LLVM\\bin\\clang.exe";
+        if str_len(file_read_string(p1)) > 0 { return p1; };
+        let p2: str = "C:\\msys64\\mingw64\\bin\\clang.exe";
+        if str_len(file_read_string(p2)) > 0 { return p2; };
+    };
     return "clang";
 }
 

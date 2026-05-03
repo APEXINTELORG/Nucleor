@@ -13075,18 +13075,16 @@ fn enforce_no_atomic_in_closure(source: str) -> i64 {
     // before hitting `}` or `;` (closure body terminator).
     let mut p: i64 = 0;
     while p + 1 < n {
-        let two: str = str_substring(code, p, p + 2);
-        if str_eq(two, "||") == 1 {
+        if str_char_at(code, p) == 124 && str_char_at(code, p + 1) == 124 {
             // Found zero-arg closure literal. Look ahead.
             let look_end: i64 = if p + 200 < n { p + 200 } else { n };
             let mut q: i64 = p + 2;
             while q + 7 <= look_end {
-                let win: str = str_substring(code, q, q + 7);
-                if str_eq(win, "atomic_") == 1 {
+                if str_char_at(code, q) == 97 && str_eq_at(code, q, "atomic_") == 1 {
                     return 1;
                 };
-                let ch1: str = str_substring(code, q, q + 1);
-                if str_eq(ch1, ";") == 1 { q = look_end; };
+                let ch1: i64 = str_char_at(code, q);
+                if ch1 == 59 || ch1 == 125 { q = look_end; };
                 q = q + 1;
             };
         };
@@ -16029,6 +16027,11 @@ fn types_compatible(expected: str, actual: str) -> i64 {
         let bearg_v075: str = type_first_arg(expected);
         let baarg_v075: str = type_first_arg(actual);
         if str_len(bearg_v075) > 0 && str_len(baarg_v075) > 0 {
+            let be_dyn_v075: str = strip_spaces(bearg_v075);
+            let ba_dyn_v075: str = strip_spaces(baarg_v075);
+            if str_starts_with(be_dyn_v075, "dyn ") == 1 || str_starts_with(ba_dyn_v075, "dyn ") == 1 {
+                return 0;
+            };
             if types_compatible(bearg_v075, baarg_v075) == 1 { return 1; };
             if str_eq(baarg_v075, "i32") == 1 {
                 if str_eq(bearg_v075, "i64") == 1 || str_eq(bearg_v075, "i16") == 1 || str_eq(bearg_v075, "i8") == 1 { return 1; };
@@ -18720,6 +18723,28 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
     };
     return "";
 }
+fn box_new_concrete_arg_type(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> str {
+    if nid < 0 || nid >= vec_len(pool) { return ""; };
+    let kind: i64 = node_kind(pool, nid);
+    let mut args: i64 = 0 - 1;
+    if kind == 12 {
+        let tname: str = node_field(pool, nid, 1);
+        let mname: str = node_field(pool, nid, 2);
+        if str_eq(tname, "Box") == 1 && str_eq(mname, "new") == 1 {
+            args = node_field(pool, nid, 3);
+        };
+    };
+    if kind == 7 {
+        let callee: str = node_field(pool, nid, 1);
+        if str_eq(callee, "Box::new") == 1 || str_eq(callee, "Box__new") == 1 || str_eq(callee, "box_new") == 1 {
+            args = node_field(pool, nid, 2);
+        };
+    };
+    if args >= 0 && list_len(pool, args) > 0 {
+        return type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+    };
+    return "";
+}
 fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, rtype: str, tprof: Vec<i32>) -> i64 {
     if nid < 0 || nid >= vec_len(pool) { return 0; };
     let kind: i64 = node_kind(pool, nid);
@@ -18816,6 +18841,16 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                     tprof_mark(tprof, 7, 8, compat_start);
                     if compat_ok == 0 {
                     type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-008", str_concat("type mismatch for binding '", str_concat(vname, "'")));
+                    } else {
+                        let box_dyn_trait_v117: str = box_dyn_trait_name(tstr);
+                        if str_len(box_dyn_trait_v117) > 0 {
+                            let box_actual_v117: str = box_new_concrete_arg_type(pool, prog, init, env, sigs, structs, fn_name, diags, source, tprof);
+                            if str_len(box_actual_v117) > 0 && str_len(dyn_trait_name(box_actual_v117)) == 0 {
+                                if type_implements_trait(pool, prog, box_actual_v117, box_dyn_trait_v117) == 0 {
+                                    type_diag_at(diags, source, pool, nid, fn_name, vname, "TYP-008", str_concat("type mismatch for binding '", str_concat(vname, "'")));
+                                };
+                            };
+                        };
                     };
                 };
                 // v0.4.76: NUM-018 — float literal in integer context.
@@ -25215,8 +25250,15 @@ fn collect_native_directives(imported: Vec<i32>) -> Vec<i32> {
 fn resolve_toolchain_path(raw_path: str) -> str {
     let from_cwd: str = sanitize(raw_path);
     if str_len(file_read_string(from_cwd)) > 0 { return from_cwd; };
+    let env_root_raw: str = env_get_or("NUCLEOR_STDLIB", "");
+    let env_root: str = posix_drive_to_windows(env_root_raw);
+    if str_len(env_root) > 0 {
+        let from_env: str = sanitize(str_concat(env_root, str_concat("/", raw_path)));
+        if str_len(file_read_string(from_env)) > 0 { return from_env; };
+    };
     if args_count() > 0 {
-        let exe_dir: str = extract_dir(args_get(0));
+        let exe_path: str = posix_drive_to_windows(args_get(0));
+        let exe_dir: str = extract_dir(exe_path);
         let from_exe_dir: str = sanitize(str_concat(exe_dir, raw_path));
         if str_len(file_read_string(from_exe_dir)) > 0 { return from_exe_dir; };
         let repo_dir: str = parent_dir(exe_dir);
@@ -25627,6 +25669,23 @@ fn parent_dir(path: str) -> str {
 fn posix_drive_to_windows(p: str) -> str {
     let n: i64 = str_len(p);
     if n < 3 { return p; };
+    if n >= 7
+        && str_char_at(p, 0) == 47
+        && str_char_at(p, 1) == 109
+        && str_char_at(p, 2) == 110
+        && str_char_at(p, 3) == 116
+        && str_char_at(p, 4) == 47 {
+        let mnt_drive: i64 = str_char_at(p, 5);
+        let lower_mnt_drive: i64 = if mnt_drive >= 65 && mnt_drive <= 90 { mnt_drive + 32 } else { mnt_drive };
+        if lower_mnt_drive >= 97 && lower_mnt_drive <= 122 && str_char_at(p, 6) == 47 {
+            let mut msb: i64 = sb_new();
+            sb_append_char(msb, lower_mnt_drive);
+            sb_append_char(msb, 58);
+            let mut mi: i64 = 6;
+            while mi < n { sb_append_char_at(msb, p, mi); mi = mi + 1; };
+            return sb_to_str(msb);
+        };
+    };
     if str_char_at(p, 0) != 47 { return p; };  // not leading '/'
     let drive: i64 = str_char_at(p, 1);
     let lower_drive: i64 = if drive >= 65 && drive <= 90 { drive + 32 } else { drive };
@@ -25683,7 +25742,8 @@ fn resolve_import_path(base_dir: str, raw_path: str) -> str {
         if str_len(file_read_string(from_env)) > 0 { return from_env; };
     };
     if args_count() > 0 {
-        let exe_dir: str = extract_dir(args_get(0));
+        let exe_path: str = posix_drive_to_windows(args_get(0));
+        let exe_dir: str = extract_dir(exe_path);
         let from_exe_dir: str = sanitize(str_concat(exe_dir, raw_path));
         if str_len(file_read_string(from_exe_dir)) > 0 { return from_exe_dir; };
         let repo_dir: str = parent_dir(exe_dir);
@@ -30903,7 +30963,7 @@ fn core_shell_quote(path: str) -> str {
     return str_concat("\"", str_concat(path, "\""));
 }
 fn run_external_tool(argc: i64) -> i64 {
-    let raw_exe_dir: str = trim_trailing_sep(extract_dir(args_get(0)));
+    let raw_exe_dir: str = trim_trailing_sep(extract_dir(posix_drive_to_windows(args_get(0))));
     let mut exe_dir: str = raw_exe_dir;
     if str_len(exe_dir) == 0 { exe_dir = "target"; };
     let tool_name: str = str_concat("nucleor_tools", host_exe_suffix());
@@ -30921,7 +30981,13 @@ fn run_external_tool(argc: i64) -> i64 {
     if str_len(file_read_string(repo_tool_path)) > 0 { selected = repo_tool_path; }
     else if str_len(file_read_string(repo_bin_tool_path)) > 0 { selected = repo_bin_tool_path; }
     else if str_len(file_read_string(local_tool_path)) > 0 { selected = local_tool_path; };
-    let cmd: str = if host_is_windows() == 1 { str_concat(selected, tool_args) } else { str_concat(core_shell_quote(selected), tool_args) };
+    let selected_cmd: str = core_shell_quote(selected);
+    let cmd: str = if host_is_windows() == 1 {
+        let cwd_shell: str = host_shell_path(posix_drive_to_windows(getcwd()));
+        str_concat("pushd ", str_concat(core_shell_quote(cwd_shell), str_concat(" && ", str_concat(selected_cmd, tool_args))))
+    } else {
+        str_concat(selected_cmd, tool_args)
+    };
     return system(cmd);
 }
 

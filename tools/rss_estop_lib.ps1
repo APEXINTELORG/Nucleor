@@ -172,6 +172,30 @@ function Stop-NucWatchedProcesses([int[]]$Ids, [IntPtr]$JobHandle, [bool]$JobAss
     Stop-NucProcessTree $Ids
 }
 
+function Get-NucFreshWatchedProcesses([int[]]$Ids, [int]$RootPid, [datetime]$RootStartTime) {
+    # Windows parent-PID links are generation-blind. If the launched
+    # compiler reuses a PID once held by another process, ToolHelp can
+    # report old children of that prior process as descendants. Filter
+    # candidates by creation time so stale unrelated processes are not
+    # charged to, or killed with, this e-stop.
+    $lowerBound = $RootStartTime.AddSeconds(-2)
+    $rootUpperBound = $RootStartTime.AddSeconds(2)
+    $fresh = @()
+    foreach ($p in @(Get-Process -Id (@($Ids) | Select-Object -Unique) -ErrorAction SilentlyContinue)) {
+        try {
+            $started = $p.StartTime
+        } catch {
+            continue
+        }
+        if ($p.Id -eq $RootPid) {
+            if ($started -ge $lowerBound -and $started -le $rootUpperBound) { $fresh += $p }
+        } elseif ($started -ge $lowerBound) {
+            $fresh += $p
+        }
+    }
+    return @($fresh)
+}
+
 function Format-NucRssDetail($Processes) {
     $rows = @()
     foreach ($p in $Processes) {
@@ -241,6 +265,11 @@ function Invoke-NucRssEstop {
     }
 
     $proc = Start-Process @startParams
+    $rootStartTime = Get-Date
+    try {
+        $proc.Refresh()
+        $rootStartTime = $proc.StartTime
+    } catch { }
 
     $peakBytes = 0L
     $peakDetail = ""
@@ -280,7 +309,7 @@ function Invoke-NucRssEstop {
 
     while ($true) {
         $ids = Get-NucWatchedProcessIds $proc.Id $jobHandle $jobAssigned
-        $procs = @(Get-Process -Id $ids -ErrorAction SilentlyContinue)
+        $procs = @(Get-NucFreshWatchedProcesses $ids $proc.Id $rootStartTime)
         if ($procs.Count -eq 0) { break }
 
         $rss = ($procs | Measure-Object -Property WorkingSet64 -Sum).Sum
@@ -298,20 +327,26 @@ function Invoke-NucRssEstop {
         if ($rss -gt $limitBytes) {
             $killed = $true
             $reason = "process-tree RSS exceeded ${BudgetMb} MB e-stop"
-            Stop-NucWatchedProcesses $ids $jobHandle $jobAssigned
+            $killIds = @($procs | ForEach-Object { [int]$_.Id })
+            Stop-NucWatchedProcesses $killIds $jobHandle $jobAssigned
             Start-Sleep -Milliseconds 100
             $remaining = @(Get-NucWatchedProcessIds $proc.Id $jobHandle $jobAssigned)
-            Stop-NucWatchedProcesses $remaining $jobHandle $jobAssigned
+            $remainingProcs = @(Get-NucFreshWatchedProcesses $remaining $proc.Id $rootStartTime)
+            $remainingIds = @($remainingProcs | ForEach-Object { [int]$_.Id })
+            Stop-NucWatchedProcesses $remainingIds $jobHandle $jobAssigned
             break
         }
 
         if ($TimeoutSec -gt 0 -and $sw.Elapsed.TotalSeconds -gt $TimeoutSec) {
             $killed = $true
             $reason = "timeout exceeded ${TimeoutSec}s"
-            Stop-NucWatchedProcesses $ids $jobHandle $jobAssigned
+            $killIds = @($procs | ForEach-Object { [int]$_.Id })
+            Stop-NucWatchedProcesses $killIds $jobHandle $jobAssigned
             Start-Sleep -Milliseconds 100
             $remaining = @(Get-NucWatchedProcessIds $proc.Id $jobHandle $jobAssigned)
-            Stop-NucWatchedProcesses $remaining $jobHandle $jobAssigned
+            $remainingProcs = @(Get-NucFreshWatchedProcesses $remaining $proc.Id $rootStartTime)
+            $remainingIds = @($remainingProcs | ForEach-Object { [int]$_.Id })
+            Stop-NucWatchedProcesses $remainingIds $jobHandle $jobAssigned
             break
         }
 
