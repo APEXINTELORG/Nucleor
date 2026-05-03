@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.66] — 2026-05-03
+
+**`let c: char = 'a';` accepted — char-literal type matching closes
+the char-literal row of the rust-syntax-translation-fidelity audit.**
+
+Pre-fix `let c: char = 'a';` failed with wrong-class
+`error[TYP-008]: type mismatch for binding 'c'` because char
+literals lex as token kind 2 (regular int with the codepoint as
+value, type "i32") while the binding's declared type was "char" —
+`types_compatible` returned 0.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` `types_compatible` (~line 15187):
+extended to accept any integer type (i8/i16/i32/i64/u8/u16/u32/u64/
+usize/isize) as compatible with `char`, and vice versa. The
+Nucleor `char` type is documented as a 32-bit unsigned integer
+width (line ~7501); this accept-set matches the codepoint-arithmetic
+semantics adopters already use for `c as i64` casts and `match c {
+'a' => ... }` patterns.
+
+### Verify
+
+- New regression-lock: `v0666_char_literal_typed` exercises plain
+  char, `'\n'`, `'\0'`.
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.65] — 2026-05-03
 
 **RFC-0034 gap 3 — struct CT-params parse halt. All 3 RFC-0034

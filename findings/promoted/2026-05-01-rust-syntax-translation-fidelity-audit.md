@@ -19,7 +19,7 @@ v0.6.51:
 |---|---|---|
 | `struct U;` (unit-struct semi) | OPEN | NR020 today; clean halt is forward-roadmap |
 | `struct Pair(i64, i64);` (tuple struct) | OPEN | NR020; bundled with nested-struct-pattern finding |
-| `let c: char = 'a';` (char lit) | PARTIAL | char literals lex; type system maps to i64 for the codepoint |
+| `let c: char = 'a';` (char lit) | CLOSED v0.6.66 | types_compatible widened to accept char ↔ integer types (matches codepoint-arithmetic semantics) |
 | `let s: str = r"raw";` (raw string) | CLOSED v0.6.58 | clean lex halt with workaround pointer; full no-escape mode is forward-roadmap |
 | `let b = b"hello";` (byte string) | CLOSED v0.6.58 | clean lex halt with workaround pointer; byte-buffer literal sugar is forward-roadmap |
 | `let Point { x, y } = p;` (struct destructure-in-let) | CLOSED v0.6.61 | clean parse halt with workaround pointer (`p.x`/`p.y` direct field access); full lowering is v1 pattern-binding |

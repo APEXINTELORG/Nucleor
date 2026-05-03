@@ -15189,6 +15189,26 @@ fn types_compatible(expected: str, actual: str) -> i64 {
     if str_eq(expected, "_") == 1 { return 1; };
     if str_eq(actual, "_") == 1 { return 1; };
     if str_eq(expected, actual) == 1 { return 1; };
+    // v0.6.66 (probe finding 2026-05-01-rust-syntax-translation-
+    // fidelity-audit, char-literal row): canonical Rust `let c: char
+    // = 'a';` pre-fix failed TYP-008 because the char literal lexes
+    // as token kind 2 (int with codepoint as value, type "i32"),
+    // while the binding's declared type is "char" — types_compatible
+    // returned 0. The Nucleor `char` type is documented as a 32-bit
+    // unsigned integer width (line ~7501), so accept any integer
+    // type as compatible with `char` (and vice versa). This matches
+    // the codepoint-arithmetic semantics adopters use for char-as-i32
+    // in `match c { 'a' => ..., 'b' => ... }` and `c as i64` casts.
+    if str_eq(expected, "char") == 1 {
+        if str_eq(actual, "i8") == 1 || str_eq(actual, "i16") == 1 || str_eq(actual, "i32") == 1 || str_eq(actual, "i64") == 1 { return 1; };
+        if str_eq(actual, "u8") == 1 || str_eq(actual, "u16") == 1 || str_eq(actual, "u32") == 1 || str_eq(actual, "u64") == 1 { return 1; };
+        if str_eq(actual, "usize") == 1 || str_eq(actual, "isize") == 1 { return 1; };
+    };
+    if str_eq(actual, "char") == 1 {
+        if str_eq(expected, "i8") == 1 || str_eq(expected, "i16") == 1 || str_eq(expected, "i32") == 1 || str_eq(expected, "i64") == 1 { return 1; };
+        if str_eq(expected, "u8") == 1 || str_eq(expected, "u16") == 1 || str_eq(expected, "u32") == 1 || str_eq(expected, "u64") == 1 { return 1; };
+        if str_eq(expected, "usize") == 1 || str_eq(expected, "isize") == 1 { return 1; };
+    };
     let ebase: str = type_base_name(expected);
     let abase: str = type_base_name(actual);
     if str_eq(ebase, abase) == 1 {
