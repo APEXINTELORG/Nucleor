@@ -22604,6 +22604,37 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             print(str_concat("ERROR: path-rooted fn call `", str_concat(tname, str_concat("::", str_concat(mname, "(...)` is not yet supported in Nucleor. Pre-v0.7.5 surfaced via the generic 'unsupported associated-fn call' diag mentioning Vec/String/etc. — not adopter-actionable. Nucleor has a flat fn namespace today (no `crate::` / `super::` / `self::` rooting), and the resolved fn name `", str_concat(mname, str_concat("` is callable directly. Workaround: drop the `", str_concat(tname, str_concat("::` prefix — call ", str_concat(mname, "(...) directly. Tracked for forward-roadmap (path-rooted name resolution requires module-tree infrastructure, sister to v0.6.96 std/core/alloc namespace halt).")))))))))));
             panic(str_concat("nucleor: path-rooted fn call `", str_concat(tname, str_concat("::", str_concat(mname, "` not yet supported (see ERROR diagnostic above)")))));
         };
+        // v0.7.12 (defensive halt — Rust stdlib smart-pointer types):
+        // canonical Rust `Cell::new(v)`, `RefCell::new(v)`, `Rc::new(v)`,
+        // `Arc::new(v)`, `Mutex::new(v)`, `RwLock::new(v)`,
+        // `RefCell::borrow_mut()`, `Rc::clone(&r)` etc. pre-fix
+        // surfaced via the generic v0.3.71 "unsupported associated-fn
+        // call" diag mentioning Vec/String/etc. — not adopter-actionable.
+        // None of these wrappers are needed in Nucleor's i64-everywhere
+        // ABI (no borrow-checker enforcement, no shared-ownership
+        // requirement under single-threaded default). Halt cleanly with
+        // type-specific workaround pointers.
+        let mut v712_smart_kind: str = "";
+        if str_eq(tname, "Cell") == 1 { v712_smart_kind = "interior mutability"; };
+        if str_eq(tname, "RefCell") == 1 { v712_smart_kind = "interior mutability"; };
+        if str_eq(tname, "Rc") == 1 { v712_smart_kind = "shared ownership"; };
+        if str_eq(tname, "Arc") == 1 { v712_smart_kind = "shared ownership (atomic)"; };
+        if str_eq(tname, "Mutex") == 1 { v712_smart_kind = "thread-safe interior mutability"; };
+        if str_eq(tname, "RwLock") == 1 { v712_smart_kind = "thread-safe read-write lock"; };
+        if str_eq(tname, "Weak") == 1 { v712_smart_kind = "weak reference"; };
+        if str_len(v712_smart_kind) > 0 {
+            print("ERROR: Rust stdlib smart-pointer type is not yet supported in Nucleor.");
+            print(str_concat("       Type: `", str_concat(tname, str_concat("` (", str_concat(v712_smart_kind, ")")))));
+            print("       Pre-v0.7.12 surfaced via the generic 'unsupported associated-fn call' diag.");
+            print("       Nucleor's i64-everywhere ABI doesn't yet have a borrow-checker, so interior-");
+            print("       mutability / shared-ownership / lock wrappers are NOT NEEDED for the typical");
+            print("       adopter use case.");
+            print("       Workaround: use the bare type with `let mut` for mutability — `let mut x: i64 =");
+            print("       42; x = 100;` (no Cell needed). For shared ownership the i64 ABI already passes");
+            print("       by value (the heap pointer is copied) — no Rc/Arc needed. Real threading uses");
+            print("       `async_spawn` (RFC-0027, see stdlib/rods/async.nr).");
+            panic(str_concat("nucleor: smart-pointer type `", str_concat(tname, "` not yet supported (see ERROR diagnostic above)")));
+        };
         // v0.7.6 (defensive halt — Default trait): canonical Rust
         // `i64::default()`, `String::default()`, `Default::default()`
         // pre-fix surfaced via the generic v0.3.71 "unsupported
