@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.82] — 2026-05-03
+
+**Defensive halt — canonical Rust conversion-idiom methods
+(`.into()` / `.to_string()` / `.to_owned()` / `.to_vec()` /
+`.iter_mut()`) now produce clean halts with per-idiom workaround
+pointers instead of the wrong-class `vec_<idiom>` post-link diag.**
+
+Pre-fix: adopters porting Rust code who wrote `let s: String =
+"hello".into();` fell through every receiver-typed kind-8 dispatch
+and the catch-all synthesized `vec_into(receiver)` — failing late
+at clang link with `error[TYP-005]: receiver type 'Vec<T>' has no
+method '.into()'` and a list of "Supported Vec method families"
+that had nothing to do with the actual issue. The diag was
+wrong-class — these are trait-method conversions, not Vec methods.
+
+Post-fix: at the kind-8 method-dispatch catch-all (just before the
+`vec_<mname>` synthesis), detect the conversion-idiom name set and
+halt cleanly with a per-idiom workaround:
+
+| Idiom | Workaround |
+|---|---|
+| `.into()` | no v0.6 conversion path; use named conversion fn (`i64_to_str(x)` for numeric→str) |
+| `.to_string()` | use `i64_to_str(x)` / `f64_to_str(x)` for numerics, or write `<Type>_to_str(t)` for user types |
+| `.to_owned()` | i64-everywhere ABI passes most by value; `let owned: T = original;` is the explicit copy form |
+| `.to_vec()` | build via `for item in src { v.push(item); }` or `vec![...]` for literals |
+| `.iter_mut()` | use index-based `while i < vec_len(&v) { ... }` loop |
+
+Forward-roadmap: full From/Into/ToOwned/Display trait infrastructure
+is a v1.x ship (the trait-dispatch ship that also closes the
+multi-trait-mangling collision in the V1.7 UFCS comment).
+
+```nucleor
+// Pre-fix (silent confusing post-link error):
+let s: String = "hello".into();
+// → error[TYP-005]: receiver type 'Vec<T>' has no method '.into()'
+
+// Post-fix (clean halt):
+// → ERROR: `.into()` is a canonical Rust conversion idiom that is
+//   not yet supported in Nucleor. Workaround: ... (per-idiom hint)
+```
+
+### Fixed-point + perf
+
+Cold 3.22s (baseline 3.16s). Peak 311MB. Round-2 fixed-point md5
+`c88e37a046ef15162632884fe2f37a5c`.
+
+### Fixture
+
+`tests/fixtures/v0682_rust_idiom_methods_clean_halt.nr` —
+negative fixture for `.into()`.
+
 ## [0.6.81] — 2026-05-03
 
 **RFC V1.7 — UFCS dispatch `<Type as Trait>::method(args)`. Canonical
