@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.18] — 2026-05-02
+
+**NUM-021 — compile-time integer overflow diagnostic for module-level
+const expressions (parallel-1 lane E; closes probe finding
+`2026-05-01-const-overflow-not-caught-at-compile-time`).**
+
+Pre-fix module-level const integer expressions like
+`const B: i64 = i64::MAX + 1;` silently wrapped during constant folding
+and could either panic at runtime startup or emit misleading IR.
+
+### New diagnostic
+
+| Code | Fires when |
+|---|---|
+| `NUM-021` | A module-level `const` integer expression overflows the declared type at compile time. Workaround pointer: use explicit `wrapping_*` / `saturating_*` helpers, reduce the value, or move the calculation to runtime if wrapping is intentional. |
+
+NUM-002 (out-of-range constant value for the declared type) continues
+to handle the narrow-width literal-out-of-range case
+(e.g. `const X: i8 = 130;`); NUM-021 covers the case where the
+expression's overall value overflows during folding (e.g.
+`const X: i64 = i64::MAX + 1;`).
+
+### Fixtures
+
+- `tests/err/err_const_i64_add_overflow.nr` — NUM-021 lock.
+- `tests/err/err_const_i8_expr_out_of_range.nr` — sister NUM-002 lock
+  (existing diagnostic, fixture added in this ship for completeness).
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `44c0492d…`.
+- Self-host peak: 592–673 MB / 5.61 + 5.73s wall.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Per consultant: focused E3 PASS; diag/spec/explain drift PASS;
+  compiler drift PASS; verify wrapper max 411 MB / 1024 MB e-stop.
+
+Spike doc:
+`docs/milestones/spikes/track_const_overflow_diagnostic_2026-05-02.md`.
+
 ## [0.6.15] — 2026-05-02
 
 **`str_substring_strict` migration discoverability — docs + fixture
