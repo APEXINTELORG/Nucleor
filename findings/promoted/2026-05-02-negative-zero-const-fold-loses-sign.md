@@ -6,7 +6,7 @@ diagnostic_actual: pre-fix — `1.0 / (-0.0)` outputs `+inf` instead of `-inf`
 diagnostic_expected: `-inf` (IEEE 754 negative-zero divides to negative infinity)
 discovered_against: probe/exploration tip
 commit: probe + main
-status: DOC-ONLY for now — sister to `2026-05-02-negative-zero-const-and-unary-neg-both-lose-sign`. Fix attempt v0.6.48-attempt-1 hit a bootstrap-cycle hole (the `f64_neg` IR helper added duplicate `@__nucleor_f32_neg` declares due to OLD-bin compiled-in emit_externs vs new source). Fix deferred to a dedicated cycle that doesn't share the bootstrap-rebuild-with-new-IR-declare risk class.
+status: CLOSED in v0.6.52 — IEEE 754 sign-bit-flip via XOR (sidesteps the v0.6.48-attempt-1 bootstrap-cycle hole by avoiding new IR declares).
 ---
 
 ## Closure (analysis-only — fix attempted then reverted)

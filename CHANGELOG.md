@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.52] — 2026-05-03
+
+**IEEE 754 negative-zero sign bit preserved through unary minus —
+two probe-finding closures, sidesteps the v0.6.48-attempt-1
+bootstrap-cycle hole.**
+
+Closes probe findings:
+
+- `2026-05-02-negative-zero-const-fold-loses-sign`
+- `2026-05-02-negative-zero-const-and-unary-neg-both-lose-sign`
+
+Pre-fix `let z: f64 = -0.0; print_f64(1.0 / z)` printed `+inf`
+(IEEE 754 violation — should be `-inf`). The kind-5 (unary minus)
+lower path on f64/f32 emitted `f<T>_sub(0.0, opr)`; IEEE 754
+returns `+0.0` for `0 - (-0)`, losing the sign bit. Same gap on
+the runtime unary-neg path: `let x = 0.0; let nx = -x;` produced
+`+0.0` instead of `-0.0`.
+
+### Fix (XOR with sign bit — no new IR declares)
+
+`compiler/nucleor_s1_compiler.nr` kind-5 lower path (~line
+19438) now emits a bitwise XOR with the IEEE 754 sign bit:
+
+- f64: XOR with `0x8000000000000000` (= i64::MIN as the
+  signed-bit-pattern constant available via `const_i64_min()`).
+- f32: XOR with `0x80000000` (= 2147483648).
+
+The i64-everywhere ABI stores the f-bit-pattern as an i64
+register, so bitwise XOR on the i64 register is the canonical
+fp-sign-flip operation per IEEE 754. No new runtime declares,
+sidestepping the v0.6.48-attempt-1 bootstrap-cycle hole that
+the earlier `f<T>_neg` helper approach hit.
+
+### Adopter migration
+
+Pre-fix workaround (still works, no longer needed):
+
+```nucleor
+let nz_bits: i64 = 0x8000000000000000;
+let z: f64 = f64_from_bits(nz_bits);
+print_f64(1.0 / z);    // -inf
+```
+
+Post-fix canonical Rust form works directly:
+
+```nucleor
+let z: f64 = -0.0;
+print_f64(1.0 / z);    // -inf
+```
+
+### Verify
+
+- New regression-lock: `v0652_neg_zero_ieee_sign` exercises
+  `-0.0`, runtime unary-minus on f64, and runtime unary-minus
+  on f32.
+- Round-2 fixed-point preserved (md5 stable).
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.51] — 2026-05-03
 
 **HashMap<i64, V> CRITICAL crash → clean compile-time halt — probe

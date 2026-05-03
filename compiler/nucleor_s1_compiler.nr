@@ -19503,20 +19503,27 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let cur: Vec<i32> = lx_blk(op_p);
         let r: i64 = ctr_next(regs);
         if str_len(neg_ftype) > 0 {
-            // Float zero literal: scaled-int 0 → f<T>_from_scaled.
-            let scaled_zr: i64 = ctr_next(regs);
-            ir_block_add(cur, ir_const_int(scaled_zr, 0));
-            let zr: i64 = ctr_next(regs);
-            let mut from_args: Vec<i32> = Vec::new();
-            from_args.push(scaled_zr);
-            let from_helper: str = if str_eq(neg_ftype, "f32") == 1 { "f32_from_scaled" } else { "f64_from_scaled" };
-            ir_block_add(cur, ir_call_ex(zr, from_helper, from_args));
-            // Float sub: f<T>_sub(zr, opr).
-            let sub_helper: str = float_binop_helper(3, neg_ftype);
-            let mut sub_args: Vec<i32> = Vec::new();
-            sub_args.push(zr);
-            sub_args.push(opr);
-            ir_block_add(cur, ir_call_ex(r, sub_helper, sub_args));
+            // v0.6.52 (probe finding 2026-05-02-negative-zero-const-fold-
+            // loses-sign + sister 2026-05-02-negative-zero-const-and-
+            // unary-neg-both-lose-sign): pre-fix unary minus on f64/f32
+            // lowered as `f<T>_sub(0.0, opr)` — IEEE 754 returns `+0.0`
+            // for `0 - (-0)`, losing the sign bit. So `let z: f64 =
+            // -0.0; print_f64(1.0 / z)` printed `+inf` instead of the
+            // correct `-inf`.
+            //
+            // Fix uses XOR with the IEEE 754 sign bit (the canonical
+            // sign-bit-flip semantics of unary minus). For f64, sign
+            // bit is bit 63 → mask `0x8000000000000000` = i64::MIN.
+            // For f32, sign bit is bit 31 → mask `0x80000000`. The
+            // i64-everywhere ABI stores the f-bit-pattern as an i64,
+            // so bitwise XOR on the i64 register is the fp negation.
+            // No new runtime declares (sidesteps the v0.6.48-attempt-1
+            // bootstrap-cycle hole that the earlier f<T>_neg helper
+            // approach hit).
+            let sign_bit_v652: i64 = if str_eq(neg_ftype, "f32") == 1 { 2147483648 } else { const_i64_min() };
+            let mask_reg_v652: i64 = ctr_next(regs);
+            ir_block_add(cur, ir_const_int(mask_reg_v652, sign_bit_v652));
+            ir_block_add(cur, ir_binop(15, r, opr, mask_reg_v652));
         } else {
             // v0.6.49 (probe finding 2026-05-02-num-021-coverage-gaps-
             // u64-imin-shift-divzero, gap 2): canonical Rust literal
