@@ -3340,6 +3340,18 @@ fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "requires") == 1 { cp = skip_bracket_list(tokens, cp + 1); };
     cp = skip_effect_clause(tokens, cp);
     cp = skip_where_clause(tokens, cp);
+    // v0.7.4 (defensive halt): canonical Rust `extern "C" fn name() {
+    // body }` (FFI-exposed fn with body) pre-fix landed here at `{`
+    // and parse_extern_fn returned without consuming the body —
+    // parse_program then surfaced the body as a stray top-level
+    // construct, firing the wrong-class "statement-level keyword at
+    // module scope" diag. Halt cleanly with a workaround pointer
+    // (drop the `extern "C"` qualifier — Nucleor regular fns use
+    // the C ABI by default).
+    if pk(tokens, cp) == 52 {
+        print(str_concat("ERROR: `extern \"C\" fn ", str_concat(name, "(...) { body }` (Rust FFI-exposed fn with body) is not yet supported in Nucleor's extern-fn parser, which only knows declaration-form (`extern fn name(...);` no body). Pre-v0.7.4 the body landed at `{` after parse_extern_fn returned, and parse_program surfaced it as wrong-class `statement-level keyword at module scope`. Workaround: drop the `extern \"C\"` qualifier — Nucleor regular fns (`fn name(...) { body }`) already use the C ABI by default at the i64-everywhere runtime level, so the explicit qualifier is informational. For pure declarations of foreign symbols, use the bare `extern fn name(...);` declaration form.")));
+        panic(str_concat("nucleor: `extern \"C\" fn ", str_concat(name, "(...) { body }` form not yet supported (see ERROR diagnostic above)")));
+    };
     if pk(tokens, cp) == 43 { cp = cp + 1; };
     return pr(cp, mk4(pool, 32, name, mk_list(pool, params), rtype));
 }
