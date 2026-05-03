@@ -6,7 +6,7 @@ diagnostic_actual: pre-fix — both forms produce `+0.0` instead of `-0.0`
 diagnostic_expected: `-0.0` (sign bit preserved per IEEE 754 unary-minus semantics)
 discovered_against: probe/exploration tip (extends sister)
 commit: probe + main
-status: DOC-ONLY — sister finding bundled with `2026-05-02-negative-zero-const-fold-loses-sign`. Same root cause (kind-5 unary-minus lowers to f<T>_sub(0.0, opr) instead of sign-bit-flip), same fix shape (add f<T>_neg helper), same deferral reason (bootstrap-cycle hole hit on v0.6.48-attempt-1). Bundled close when the dedicated ship lands.
+status: CLOSED in v0.6.52 — bundled with `2026-05-02-negative-zero-const-fold-loses-sign` sister fix. IEEE 754 sign-bit-flip via XOR.
 ---
 
 ## Closure (analysis-only — sister to the const-fold finding)
