@@ -5,6 +5,79 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.46] — 2026-05-03
+
+**Where-clauses on struct decls + impl blocks + impl generic-param
+lists `impl<T>` parse cleanly (probe finding closure — Rust
+canonical shapes that previously NR020-panicked).**
+
+Closes probe finding `2026-05-02-where-clause-struct-and-impl-
+still-NR020`. v0.6.11 wired where-clauses for fn decls but
+explicitly noted `parse_struct_decl` and `parse_impl_block`
+remained on the legacy skipper. Pre-fix:
+- `struct Wrapper<T> where T: A { … }` → NR020 at `where`.
+- `impl<T> A for X { … }` → NR020 at `T` (impl-level `<T>` not
+  recognized).
+- `impl X where T: A { … }` → NR020 at `where`.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr`:
+
+1. **`parse_struct_decl`** (line ~2818): added `cp =
+   skip_where_clause(tokens, cp);` between gparams and the `{`
+   so where-clauses are accepted (bounds not yet wired into
+   struct AST — forward-roadmap).
+
+2. **`parse_impl_block`** (line ~3160): two changes:
+   - Added a `skip_balanced_angle` call at the head to consume
+     the impl-level `<T, U, ...>` generic-param list. The
+     existing `skip_angle_group` requires the trailing context
+     to be a type-position token (`(`, `{`, `::`) which fails
+     for `impl<T> A` where the trailing context is an ident
+     (the trait name).
+   - Added `cp = skip_where_clause(tokens, cp);` between the
+     impl-target type and the `{`.
+
+3. **New helper `skip_balanced_angle`**: balanced `<...>`
+   skipper without the trailing-context guard that
+   `skip_angle_group` enforces. Used at impl-decl start and
+   any other future site where the angle group is a generic-
+   param list (not a type's generic args).
+
+### Adopter migration
+
+```nucleor
+trait A { fn a(self: &Self) -> i64; }
+struct X { v: i64 }
+impl A for X { fn a(self: &X) -> i64 { self.v + 1 } }
+
+// All three previously NR020'd; now parse cleanly:
+struct Wrapper<T> where T: A { inner: T }
+impl<T> X { fn passthrough(self: &X) -> i64 { self.v + 2 } }
+impl<T> X where T: A { fn passthrough_b(self: &X) -> i64 { self.v + 3 } }
+```
+
+Bounds aren't wired into struct/impl AST yet — both `where T: A`
+and `impl<T>` are parsed-and-skipped. Bound enforcement arrives
+in a follow-up RFC. The unblocking value is canonical Rust source
+parses cleanly for translation work.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `d605e80f…`.
+- Self-host wall: 5.24s + 3.89s.
+- Tools-suite (674 fns) compiles clean.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Smoke (probe repros): all three previously-failing forms now
+  parse + run cleanly.
+- Full verify gate: in flight at write time.
+
+### Fixture
+
+- `tests/features/v0646_where_clause_struct_impl.nr` (positive —
+  exercises struct where, impl<T>, and impl<T> + where).
+
 ## [0.6.45] — 2026-05-03
 
 **NUM-019 — const-folded negative binop now caught for unsigned

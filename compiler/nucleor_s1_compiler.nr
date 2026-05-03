@@ -1004,6 +1004,24 @@ fn skip_angle_group(tokens: Vec<i32>, pos: i64) -> i64 {
     return pos;
 }
 
+// v0.6.46 helper: balanced <...> skipper for impl/struct/etc. generic-
+// param lists where the trailing context isn't a type-position token.
+// Returns the position past the closing `>`, or `pos` unchanged if no
+// balanced group at this position.
+fn skip_balanced_angle(tokens: Vec<i32>, pos: i64) -> i64 {
+    if pk(tokens, pos) != 32 { return pos; };
+    let mut cp: i64 = pos + 1;
+    let mut depth: i64 = 1;
+    while depth > 0 && pk(tokens, cp) != 0 {
+        let tt: i64 = pk(tokens, cp);
+        if tt == 32 { depth = depth + 1; }
+        else if tt == 33 { depth = depth - 1; };
+        cp = cp + 1;
+    };
+    if depth != 0 { return pos; };
+    return cp;
+}
+
 fn skip_where_clause(tokens: Vec<i32>, pos: i64) -> i64 {
     let mut cp: i64 = pos;
     if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "where") == 1 {
@@ -2822,6 +2840,15 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // (kind 33 with empty fields list). Construction still requires
     // `U {}` value form; a follow-up will let `U` (bare ident) resolve
     // to the zero-field constructor.
+    // v0.6.46 (probe finding 2026-05-02-where-clause-struct-and-impl-
+    // still-NR020): pre-fix `struct Wrapper<T> where T: A { … }` panicked
+    // with NR020 because `expect_tok(cp, 52)` saw `where` (an ident, not
+    // `{`) after the gparams. v0.6.11 wired where-clauses for fn decls
+    // but explicitly noted parse_struct_decl was left on the legacy
+    // skipper. Skip the where-clause here so canonical Rust struct
+    // declarations parse cleanly. Bounds aren't yet wired into the
+    // struct AST (forward-roadmap); skipping unblocks adopters.
+    cp = skip_where_clause(tokens, cp);
     if pk(tokens, cp) == 43 {
         let unit_nid: i64 = mk4(pool, 33, name, mk_list(pool, Vec::new()), gparams);
         return pr(cp + 1, unit_nid);
@@ -3150,10 +3177,18 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 
 fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // Supports both `impl Trait for Type { ... }` and `impl Type { ... }`
-    let mut first_name: str = pkv(tokens, pos);
+    // v0.6.46: also `impl<T> Trait for Type<T> { ... }` (Rust generic
+    // impl form). Pre-fix the `<T>` after `impl` was treated as the
+    // start of a type expression, mis-classifying T as the impl target.
+    // Skip the generic-param list at the head if present.
+    let mut cp: i64 = pos;
+    if pk(tokens, cp) == 32 {
+        cp = skip_balanced_angle(tokens, cp);
+    };
+    let mut first_name: str = pkv(tokens, cp);
     let mut trait_name: str = "";
     let mut type_name: str = first_name;
-    let mut cp: i64 = pos + 1;
+    cp = cp + 1;
     if pk(tokens, cp) == 32 {
         let mut first_tr: Vec<i32> = parse_type(tokens, pos);
         first_name = pr_val(first_tr);
@@ -3166,6 +3201,12 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         type_name = pr_val(target_tr);
         cp = pr_pos(target_tr);
     };
+    // v0.6.46 (probe finding 2026-05-02-where-clause-struct-and-impl-
+    // still-NR020): same gap as struct decls — `impl<T> Foo for T where
+    // T: Show { … }` panicked NR020 because `expect_tok(cp, 52)` saw
+    // `where` after the type. Skip the where-clause so canonical Rust
+    // impl blocks parse cleanly. Bounds not yet wired (forward-roadmap).
+    cp = skip_where_clause(tokens, cp);
     cp = expect_tok(tokens, cp, 52); // {
     let mut methods: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
