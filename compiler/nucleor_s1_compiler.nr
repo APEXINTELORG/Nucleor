@@ -1331,6 +1331,19 @@ fn parse_match_struct_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             };
             bname = pkv(tokens, cp);
             cp = cp + 1;
+            // v0.6.69 (probe finding 2026-05-02-nested-struct-pattern-
+            // and-tuple-struct-decl-NR020, sub-case 1): canonical Rust
+            // nested struct pattern `Outer { inner: Inner { ... }, ...
+            // } => ...` pre-fix saw `{` (token 52) right after the
+            // bname identifier (`Inner`) and panicked NR020 with
+            // "expected ',' or '}', got '{'". Halt at the inner-`{`
+            // detection with a clean diag pointing at the workaround
+            // (single-level destructure + dotted field access in the
+            // arm body).
+            if pk(tokens, cp) == 52 {
+                print(str_concat("ERROR: nested struct patterns in `match` arms (e.g. `Outer { inner: Inner { ... }, ... } => ...`) are not yet supported in Nucleor. Pre-v0.6.69 the inner `{` was rejected with the wrong-class `error[NR020]: expected ',', got '{'`. Workaround: bind the inner struct to a name and access its fields in the arm body — `match l { Outer { inner, ... } => { let x = inner.field_x; let y = inner.field_y; ... } }`. Tracked for forward-roadmap (recursive parse_match_struct_binding_block lowering)."));
+                panic("nucleor: nested struct pattern not yet supported (see ERROR diagnostic above)");
+            };
         };
         binding = pattern_append_binding(binding, str_concat(fname, str_concat(":", bname)));
     };
