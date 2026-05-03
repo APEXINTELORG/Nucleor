@@ -2552,6 +2552,19 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         print(str_concat("ERROR: raw pointer type `*", str_concat(v073_kind, str_concat(" T` is not yet supported in Nucleor. Pre-v0.7.3 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 73` (the `const` keyword following `*`) because parse_type had no `*` branch. Nucleor's i64-everywhere ABI doesn't yet have an unsafe pointer type — values are passed as i64 (which IS the heap pointer for Box/Vec/String/etc.) without explicit raw-pointer typing. Workaround: use `&T` / `&mut T` borrow-references for safe code; for FFI / unsafe transit, declare the param/binding as `i64` directly and the runtime ABI passes the pointer value through. Tracked for forward-roadmap (raw-pointer type substrate is v1.x, sister to V1.5 length-tagged str ABI).")));
         panic(str_concat("nucleor: raw pointer type `*", str_concat(v073_kind, " T` not yet supported (see ERROR diagnostic above)")));
     };
+    // v0.7.11 (defensive halt): canonical Rust never type `!`
+    // (used for diverging fns `fn forever() -> !`, `panic!()`-only
+    // bodies) pre-fix CRASHED the compiler with SIGSEGV (rc=139)
+    // because parse_type had no token-38 (`!`) branch and fell
+    // through to a name-walk that dereferenced a NULL str ptr.
+    // This is a HARD crash, not a wrong-class diag — adopters
+    // porting Rust code with diverging fns hit a compiler bug
+    // before the fix. Halt cleanly with a workaround pointer
+    // (use the unit type `()` or `i64` and `panic!()` in the body).
+    if pk(tokens, pos) == 38 {
+        print("ERROR: never type `!` (used for diverging fns `fn forever() -> !`, `panic!()`-only bodies, etc.) is not yet supported in Nucleor. Pre-v0.7.11 the compiler CRASHED with SIGSEGV (rc=139) because parse_type had no `!` branch and fell through to a NULL deref. Workaround: declare the return type as `()` (unit) or any concrete type the body never actually reaches — the body's `panic!()` / infinite loop terminates execution before the return-type contract matters. For loop-forever shape: `fn forever() -> () { loop { ... } }`. Tracked for forward-roadmap (full never-type substrate needs unification with all types and divergence tracking — sister to V1.6 alloc/panic propagation).");
+        panic("nucleor: never type `!` not yet supported (see ERROR diagnostic above)");
+    };
     // v0.3.92/v0.4.112: trait object syntax `dyn Trait`.
     // Preserve the `dyn` marker so Box<dyn Trait> can be distinguished
     // from Box<Trait> during type checking.

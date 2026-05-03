@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.11] — 2026-05-03
+
+**🛑 Compiler-crash fix — canonical Rust never type `!`
+(diverging-fn return) was a SIGSEGV (rc=139) pre-fix; now a
+clean halt with workaround pointer.**
+
+Pre-fix: writing `fn forever() -> ! { loop { ... } }` made
+the compiler CRASH with SIGSEGV / rc=139 because parse_type
+had no token-38 (`!`) branch and fell through to a name-walk
+that dereferenced a NULL str pointer. This is a HARD crash,
+not a wrong-class diag — adopters porting Rust diverging-fn
+code hit a compiler bug before the fix.
+
+Post-fix: parse_type detects token 38 (`!`) at type position
+and halts cleanly:
+
+```nucleor
+// Pre-fix (compiler SIGSEGV):
+fn forever() -> ! {
+    loop { print_int(0); }
+}
+
+// Post-fix workaround (use unit or any concrete type):
+fn forever() -> () {
+    loop { print_int(0); }
+}
+// or:
+fn forever() -> i64 {
+    loop { print_int(0); }
+    // body never returns; the i64 contract is a paper tiger.
+}
+```
+
+Forward-roadmap: full never-type substrate is sister to V1.6
+alloc/panic propagation — needs (a) `!` to unify with every
+type at type-check time, (b) divergence tracking through fn
+returns / break / panic, (c) `match`-arm exhaustiveness
+benefits when one arm is `!`-typed.
+
+### This is the SECOND compiler-crash fix this session
+
+After v0.7.11, the compiler no longer SIGSEGVs on this canonical
+Rust shape. Sister to v0.4.206 (float-pattern in match — also
+a SIGSEGV before fix; v0.4.206 hardened parse_match_one_pattern).
+
+### Fixed-point + perf
+
+Cold 4.44s. Peak 326MB. Round-2 fixed-point md5
+`681212e8f9e5def4bae00d5015d2f434`.
+
+### Fixture
+
+`tests/fixtures/v0711_never_type_clean_halt.nr` — negative
+fixture for `fn forever() -> ! { ... }`.
+
 ## [0.7.10] — 2026-05-03
 
 **Defensive halt — canonical Rust const-generic params
