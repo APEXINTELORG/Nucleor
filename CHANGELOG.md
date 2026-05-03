@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.20] — 2026-05-02
+
+**TYP-011 — `assert_eq!` / `assert_ne!` on str arguments does pointer
+comparison (CRITICAL probe-finding closure, main-agent compiler-only
+ship).**
+
+Closes probe finding `2026-05-01-assert-eq-ne-macros-silent-miscompute-
+on-str`. Pre-fix `assert_eq!("hello", "hello")` always FAILED at
+runtime because the macro lowered to `__nucleor_assert_eq(i64, i64)`
+which compared the str pointer addresses, not the string bytes.
+Sister: `assert_ne!("abc", "abc")` always PASSED for the same reason.
+**Every test in translated Rust code using these macros on strings
+was silently broken.**
+
+The user-level `==` / `!=` on str is correctly caught by TYP-011 at
+the binop site (since v0.4.52); the assert macros bypassed that
+safety check because they go through fn-call dispatch, not binop
+dispatch.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` `type_expr` kind-7 (call) — added
+a check at the top of the call-type-check that fires TYP-011 when
+callee is `assert_eq` / `assert_ne` AND both args are `str`-typed.
+Same shape + workaround pointer as the existing v0.4.52 binop close
+for `str == str`.
+
+### Adopter migration
+
+```nucleor
+// Pre-v0.6.20: silent false-fail / false-pass.
+assert_eq!("hello", "hello");
+assert_ne!("abc", "abc");
+
+// v0.6.20: TYP-011 at compile time. Migrate to:
+assert_eq(str_eq("hello", "hello"), 1);  // value-compare via str_eq
+assert_eq(str_eq("abc", "abc"), 0);      // assert_ne shape — expect inequal
+```
+
+### Fixture
+
+- `tests/err/err_assert_eq_str_pointer_compare.nr` — locks the diagnostic.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `290ea2aa…`.
+- Self-host peak: 588–610 MB / 5.12 + 5.24s wall.
+- Tools-suite compiles clean.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
 ## [0.6.19] — 2026-05-02
 
 **RFC-0034 compile-time `[]` parameter syntax — first-pass parser
