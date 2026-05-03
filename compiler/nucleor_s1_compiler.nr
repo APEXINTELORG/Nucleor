@@ -2853,6 +2853,26 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if pk(tokens, cp) == 12 { cp = cp + 1; };
         let fn2: i64 = pkv(tokens, cp); cp = expect_tok(tokens, cp + 1, 42);
         let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
+        // v0.6.36 (probe finding 2026-05-01-self-recursive-struct-infinite-
+        // size-accepted): pre-fix `struct Node { val: i64, next: Node }`
+        // (recursive type without Box/&) was accepted at parse + type-check
+        // and crashed at runtime with STATUS_STACK_OVERFLOW (Windows
+        // exception 0xC00000FD) on instantiation — the struct contains
+        // itself directly so the size is infinite. Rust statically
+        // rejects this with E0072 ("recursive type `Node` has infinite
+        // size"). Mirror that at parse-time. The field type is the bare
+        // struct name; reject. Fields wrapping the recursive type in
+        // Box / & / & mut / Vec / Option<Box<…>> all carry distinct
+        // type strings ("Box<Node>", "&Node", "Vec<Node>", "Option<Box<Node>>")
+        // so the equality check below only fires on the direct-recursion
+        // case.
+        let field_type_v063: str = pr_val(tr);
+        if str_eq(field_type_v063, name) == 1 {
+            print(str_concat("error[NR036]: recursive type `", str_concat(name, str_concat("` has infinite size — field `", str_concat(fn2, str_concat("` is itself a `", str_concat(name, "` (containing itself directly).")))))));
+            print("  Rust E0072: a struct that contains itself directly cannot be sized at compile time. Pre-v0.6.36 Nucleor accepted the declaration and crashed at instantiation with STATUS_STACK_OVERFLOW (Windows exception 0xC00000FD). v0.6.36 catches the recursion at parse-time.");
+            print(str_concat("  Workaround: wrap the recursive field in `Box<", str_concat(name, str_concat(">` (heap-indirection, single-element list shape), or `Option<Box<", str_concat(name, str_concat(">>` (linked-list / tree shape with terminator), or `&", str_concat(name, "` (advisory until borrow lowering of recursive structs lands).")))))));
+            panic(str_concat("nucleor: recursive struct ", str_concat(name, str_concat(" contains itself directly via field ", fn2))));
+        };
         // v0.6.27 (probe finding 2026-05-02-duplicate-struct-decl-silently-
         // accepted, repro 3): duplicate field name in a struct decl was
         // silently accepted at decl-time; TYP-017 only fired at the init
@@ -8763,6 +8783,7 @@ fn is_known_diag_code(code: str) -> i64 {
     if str_eq(code, "NR033") == 1 { return 1; };
     if str_eq(code, "NR034") == 1 { return 1; };
     if str_eq(code, "NR035") == 1 { return 1; };
+    if str_eq(code, "NR036") == 1 { return 1; };
     if str_eq(code, "NR040") == 1 { return 1; };
     if str_eq(code, "NR050") == 1 { return 1; };
     if str_eq(code, "NR051") == 1 { return 1; };

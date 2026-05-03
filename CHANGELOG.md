@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.36] — 2026-05-03
+
+**NR036 — self-recursive struct without Box / & indirection halts
+at parse-time instead of accept-then-runtime-stack-overflow
+(probe finding closure — accept-then-crash class fix).**
+
+Closes probe finding `2026-05-01-self-recursive-struct-infinite-
+size-accepted`. Pre-fix `struct Node { val: i64, next: Node }`
+(canonical Rust E0072 case) was accepted at parse + type-check,
+LLVM emit + clang link succeeded, and instantiation crashed at
+runtime with `STATUS_STACK_OVERFLOW` (Windows exception
+0xC00000FD, exit code -1073741571) — the struct contains itself
+directly so its size is infinite. NO Nucleor-side diagnostic
+either at compile time or at the moment of crash.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` `parse_struct_decl` field-loop
+— after parsing each field's type, compares the type string to
+the struct's own name. If they're equal, emits `error[NR036]`
+with the workaround pointer and panics cleanly.
+
+The check is direct-recursion only — fields wrapping the
+recursive type in `Box<Node>`, `&Node`, `&mut Node`, `Vec<Node>`,
+`Option<Box<Node>>`, etc., all carry distinct type strings and
+flow through unchanged.
+
+### Adopter migration
+
+```nucleor
+// Pre-v0.6.36: STATUS_STACK_OVERFLOW at runtime
+struct Node { val: i64, next: Node }
+
+// v0.6.36: NR036 halts at parse-time.
+//
+// Workarounds:
+struct Node { val: i64, next: Box<Node> }            // heap indirection
+struct Node { val: i64, next: Option<Box<Node>> }    // linked-list / tree shape
+struct Node { val: i64, next: Vec<Node> }            // n-ary children
+struct Node { val: i64, next: &Node }                // reference (advisory)
+```
+
+### Forward-roadmap
+
+NR036 is the simple parse-time catch. The full Rust E0072
+enforcement walks transitive struct fields (e.g. `struct A { b: B
+} struct B { a: A }` is also infinite-size), and Rust's algorithm
+runs in the type-check pass after the AST is fully built. Direct
+self-recursion catches the most common adopter case; transitive-
+recursion through 2+ structs is forward-roadmap.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `03ac5d4b…`.
+- Self-host wall: 5.25s + 3.89s.
+- Tools-suite (674 fns) compiles clean — no false halts on the
+  tools-suite source (which uses `Box<Tok>`-wrapped recursion in
+  several places, all flow through unchanged).
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
+### Fixture
+
+- `tests/err/err_nr036_self_recursive_struct.nr`
+
 ## [0.6.35] — 2026-05-03
 
 **NR035 — explicit enum discriminants halt cleanly at parse-time

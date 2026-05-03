@@ -441,7 +441,7 @@ Step "CLI: nuc explain -- full spec code set wired" {
     $codes = @(
         # NR -- compiler pipeline (RFC-0020 baseline)
         "NR001", "NR005", "NR010", "NR020", "NR030", "NR031", "NR032", "NR033",
-        "NR034", "NR035", "NR040", "NR050", "NR051", "NR070", "NR090",
+        "NR034", "NR035", "NR036", "NR040", "NR050", "NR051", "NR070", "NR090",
         # RFC-0001 RT
         "RT-001", "RT-002", "RT-003", "RT-004", "RT-005", "RT-006", "RT-007", "RT-008",
         "ASYNC-001",
