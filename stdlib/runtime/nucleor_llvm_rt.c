@@ -3107,6 +3107,46 @@ void __nucleor_sb_append_char(long long handle, long long c) {
     sb->data[sb->len] = '\0';
 }
 
+void __nucleor_sb_append_char_at(long long handle, const char *s, long long i) {
+    NStrBuilder *sb = (NStrBuilder *)(void *)handle;
+    if (!sb || !s) return;
+    if (i < 0) {
+        if (_vec_oob_lenient()) return;
+        fprintf(stderr, "PANIC: sb_append_char_at OOB: negative index %lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n", i);
+        fflush(stderr);
+        exit(1);
+    }
+    if (sb->len + 2 > sb->cap) {
+        long long old_cap = sb->cap;
+        sb->cap = _grow_cap(sb->cap, sizeof(char), "stringbuf push");
+        sb->data = (char *)realloc(sb->data, sb->cap);
+        g_sb_realloc_bytes += sb->cap - old_cap;
+    }
+    sb->data[sb->len++] = (char)((unsigned char)s[(int)i]);
+    sb->data[sb->len] = '\0';
+}
+
+void __nucleor_sb_append_range(long long handle, const char *s, long long start, long long end) {
+    NStrBuilder *sb = (NStrBuilder *)(void *)handle;
+    if (!sb || !s) return;
+    if (start < 0 || end < start) {
+        if (_vec_oob_lenient()) return;
+        fprintf(stderr, "PANIC: sb_append_range OOB: start=%lld end=%lld (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)\n", start, end);
+        fflush(stderr);
+        exit(1);
+    }
+    int n = (int)(end - start);
+    while (sb->len + n + 1 > sb->cap) {
+        long long old_cap = sb->cap;
+        sb->cap = _grow_cap(sb->cap, sizeof(char), "stringbuf range append");
+        sb->data = (char *)realloc(sb->data, sb->cap);
+        g_sb_realloc_bytes += sb->cap - old_cap;
+    }
+    memcpy(sb->data + sb->len, s + (int)start, n);
+    sb->len += n;
+    sb->data[sb->len] = '\0';
+}
+
 void __nucleor_sb_append(long long handle, const char *s) {
     if (!s) return;
     NStrBuilder *sb = (NStrBuilder *)(void *)handle;
