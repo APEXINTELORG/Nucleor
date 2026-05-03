@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.96] — 2026-05-03
+
+**Defensive halt — canonical Rust stdlib namespace path
+`std::mem::swap`, `std::cmp::min`, `std::collections::HashMap::new`
+etc. (3+ `::`-separated path with `std`/`core`/`alloc` root) now
+produces a clean halt with per-helper workaround pointers.**
+
+Pre-fix: writing `std::mem::swap(&mut a, &mut b);` fell through
+the kind-12 path-parsing branch — after consuming `std::mem`, the
+parser saw the second `::` and desync'd, surfacing as
+wrong-class `error[NR020]: parse_primary cannot start an
+expression at token kind 46`.
+
+Post-fix: parse_primary's path-parsing detects `<root>::<mid>::`
+shape with a known Rust-stdlib root (`std`, `core`, `alloc`) and
+halts cleanly, pointing at the canonical Nucleor equivalents:
+
+| Rust stdlib path | Nucleor equivalent |
+|---|---|
+| `std::mem::swap(&mut a, &mut b)` | `let t = a; a = b; b = t;` |
+| `std::cmp::min(a, b)` | `if a < b { a } else { b }` |
+| `std::cmp::max(a, b)` | `if a > b { a } else { b }` |
+| `std::collections::HashMap::new()` | `HashMap::new()` (unqualified) |
+| `std::collections::BTreeMap::new()` | `BTreeMap::new()` (unqualified) |
+
+Forward-roadmap: Rust-stdlib namespace shim or partial-path-
+resolver — adopters porting Rust code routinely use these forms,
+so a permissive path-elision pass would be a high-impact
+adopter-friendliness ship.
+
+### Fixed-point + perf
+
+Cold 3.92s. Peak 307MB. Round-2 fixed-point md5
+`9eba6aa106debe09fd2e9456cbb9bafa`.
+
+### Fixture
+
+`tests/fixtures/v0696_std_namespace_path_clean_halt.nr` —
+negative fixture for `std::mem::swap`.
+
 ## [0.6.95] — 2026-05-03
 
 **Defensive halt — canonical Rust let-else
