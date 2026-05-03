@@ -2601,6 +2601,20 @@ fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 
 fn parse_for_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos is after 'for', pointing at variable name
+    // v0.6.59 (probe finding 2026-05-01-rust-syntax-translation-
+    // fidelity-audit, tuple-destruct-in-for row): canonical Rust
+    // `for (k, v) in &map { ... }` and `for (i, x) in items.iter()
+    // .enumerate() { ... }` pre-fix saw `(` (token 50) where the
+    // parser expected an identifier, then `in` where it expected
+    // some other token, surfacing as `error[NR020]: parse error at
+    // byte N: expected token 57, got identifier` — wrong-class.
+    // Halt at parse with a clean diag pointing at the workaround
+    // (use a tuple binding via let after destructuring inside the
+    // body). Forward-roadmap: full tuple-pattern parse in for-head.
+    if pk(tokens, pos) == 50 {
+        print("ERROR: tuple-destructuring patterns in `for` loop heads (e.g. `for (k, v) in &map { ... }`) are not yet supported in Nucleor. Pre-v0.6.59 the parser rejected with `error[NR020]: parse error ... expected token 57, got identifier` — wrong-class. Workaround: bind a single name and destructure in the body — `for kv in &map { let k: KT = kv.0; let v: VT = kv.1; ... }`. Tracked for forward-roadmap (full tuple-pattern in for-head).");
+        panic("nucleor: tuple-destructuring in `for` head not yet supported (see ERROR diagnostic above)");
+    };
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = expect_tok(tokens, pos + 1, 57); // expect 'in'
     let mut sr: Vec<i32> = parse_expr(tokens, cp, pool);

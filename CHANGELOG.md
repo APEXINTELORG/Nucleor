@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.59] — 2026-05-03
+
+**`for (k, v) in &m` parse halt — closes another rust-syntax-
+translation-fidelity audit row.**
+
+Pre-fix `for (k, v) in &map { ... }` and `for (i, x) in
+items.iter().enumerate() { ... }` (canonical Rust tuple-destructure
+in for-head) saw `(` (token 50) where the parser expected an
+identifier, surfacing as `error[NR020]: parse error ... expected
+token 57, got identifier` — wrong-class.
+
+### Fix
+
+`parse_for_stmt` (~line 2602): when the pos token is `(` (token
+50), halt with a clean diag pointing at the workaround (bind a
+single name and destructure in the body via `kv.0`, `kv.1`).
+Forward-roadmap: full tuple-pattern parse in for-head.
+
+### Adopter migration
+
+```nucleor
+// Pre-fix:
+for (k, v) in &map {
+    print(k);
+}
+// → wrong-class NR020
+
+// v0.6.59 workaround:
+for kv in &map {
+    let k: str = kv.0;
+    let v: i64 = kv.1;
+    print(k);
+};
+```
+
+### Verify
+
+- New regression-lock: `tests/err/err_for_tuple_destructure.nr`
+  (auto-walker).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.58] — 2026-05-03
 
 **`r"..."` raw string + `b"..."` byte string parse halts — closes
