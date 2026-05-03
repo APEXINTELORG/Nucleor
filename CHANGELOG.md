@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.12] — 2026-05-03
+
+**Defensive halt — Rust stdlib smart-pointer types (`Cell`,
+`RefCell`, `Rc`, `Arc`, `Mutex`, `RwLock`, `Weak`) now produce
+clean halts with "use bare type" workaround pointers.**
+
+Pre-fix: writing `let c: Cell<i64> = Cell::new(42);` and similar
+smart-pointer ctor calls surfaced via the generic v0.3.71
+"unsupported associated-fn call" diag mentioning Vec/String/etc.
+— not adopter-actionable for the smart-pointer case.
+
+Post-fix: kind-12 dispatch detects `Cell`/`RefCell`/`Rc`/`Arc`/
+`Mutex`/`RwLock`/`Weak` as `tname` and halts cleanly with a
+multi-line diagnostic explaining:
+
+| Smart-pointer | Why-not-needed in Nucleor |
+|---|---|
+| `Cell` / `RefCell` (interior mutability) | use `let mut x` directly — no borrow-checker to opt out of |
+| `Rc` / `Arc` (shared ownership) | i64-ABI passes by value (heap pointer is copied), no ref-counting needed |
+| `Mutex` / `RwLock` (thread-safe) | runtime is single-threaded by default; use `async_spawn` (RFC-0027) for real threading |
+| `Weak` (weak refs) | no cycles to break under by-value semantics |
+
+Forward-roadmap: smart-pointer wrappers are sister to V1.3
+Drop/RAII and V1.5 length-tagged str ABI — would arrive when
+borrow-checker + ref-counting + cross-thread plumbing land.
+
+```nucleor
+// Pre-fix:
+let c: Cell<i64> = Cell::new(42);    // ← generic unsupported-assoc-fn
+
+// Post-fix workaround (bare mutable):
+let mut c: i64 = 42;
+// for "shared":
+let copy: i64 = c;     // i64 ABI copies the heap pointer
+```
+
+### Compiler-stability sister fix
+
+While developing this halt, an initial multi-line `str_concat`
+chain in the diag triggered another compiler SIGSEGV. Restructured
+to use 11 sequential `print()` calls instead. The deep
+`str_concat` nesting hazard is on the books for a separate
+investigation — it shouldn't crash, just produce slow output.
+
+### Fixed-point + perf
+
+Cold 4.04s. Peak 321MB. Round-2 fixed-point md5
+`400b7e1d8cd5011e0f4087047e938303`.
+
+### Fixture
+
+`tests/fixtures/v0712_smart_pointer_clean_halt.nr` — negative
+fixture for `Cell::new`.
+
 ## [0.7.11] — 2026-05-03
 
 **🛑 Compiler-crash fix — canonical Rust never type `!`
