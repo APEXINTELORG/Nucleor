@@ -1,10 +1,19 @@
-# Parallel Agent Punchlist (post-v0.6.54)
+# Parallel Agent Punchlist (post-v0.6.54, updated post-v0.6.61)
 
 > Drafted 2026-05-03 by main agent. Split of the forward-roadmap
 > items parked in finding promotions during the v0.6.48–v0.6.54
 > closure stream. Probe inbox is at **0 unmatched** as of v0.6.54.
 > The work below is what's left for the helper agent to grind on
 > while the main agent handles new probe findings + integration.
+>
+> **Update post-v0.6.61:** main agent shipped v0.6.55–v0.6.61
+> closing 8 of 11 rust-syntax-translation-fidelity audit rows
+> (const-fn, unreachable!, break-with-value, raw-string, byte-
+> string, for-tuple-destruct, UFCS, struct-destructure-in-let).
+> Helper shipped RFC-0034 gap 2 (negative usize default) bundled
+> in v0.6.56. Audit now has 1 remaining substantive row (char
+> literal — type-system gap, not halt-class) plus 2 rows already
+> addressed by sister findings.
 
 ## Operating constraints (ALL items below)
 
