@@ -3346,6 +3346,19 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             items.push(fn_nid);
             cp = pr_pos(r);
         }
+        else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "static") == 1 {
+            // v0.6.21 (probe finding 2026-05-01-static-decl-accepted-but-not-lowered):
+            // `static NAME: T = VALUE;` at module scope was silently
+            // dropped — the module-item parser skipped the unknown
+            // `static` token then advanced past `NAME: T = VALUE;`
+            // token-by-token. Use sites of `NAME` lowered as `@NAME`
+            // global references and clang link failed with the opaque
+            // `error: use of undefined value '@NAME'`. Surface a clean
+            // error at parse time pointing at the `const` workaround
+            // (literal init) or fn-wrap (computed init).
+            print("ERROR: `static` items are not yet supported in Nucleor. Pre-v0.6.21 the declaration silently dropped at parse time and any use site failed late at clang link with `error: use of undefined value '@<NAME>'`. Workarounds: for a literal value use `const NAME: T = VALUE;` (module-scope constant, evaluated at compile time); for a computed value wrap in a fn that returns it (`fn name() -> T { return VALUE; }`).");
+            panic("nucleor: `static` decl at module scope not yet supported (see ERROR diagnostic above)");
+        }
         else if pk(tokens, cp) == 11 {
             // v0.3.73: `let` is a statement-level binding — it cannot
             // appear at module scope. Pre-v0.3.73, the parser silently

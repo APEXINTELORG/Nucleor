@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.21] — 2026-05-02
+
+**`static` items at module scope — clean parse-time halt instead of
+silent-drop + accept-then-clang-link-fail (probe finding closure).**
+
+Closes probe finding `2026-05-01-static-decl-accepted-but-not-lowered`.
+Pre-fix `static NAME: T = VALUE;` at module scope was silently dropped
+at parse time — the parser didn't recognise `static` as a keyword and
+the module-item loop skipped it token-by-token. Use sites of `NAME`
+lowered as `@NAME` global references and clang link failed with the
+opaque `error: use of undefined value '@NAME'` — far downstream from
+the source, with no Nucleor-side hint.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` `parse_program` — added a check
+when the current token is identifier `static` (no dedicated lexer
+token, since `static` was previously silently consumed). Emits a
+clean ERROR pointing at the workarounds (`const NAME: T = VALUE;`
+for literal-init, fn-wrap for computed-init) and panics. Closes the
+silent-drop window.
+
+### Adopter migration
+
+```nucleor
+// Pre-v0.6.21 (silent drop + clang-link error far downstream):
+static GREET: str = "hello";
+
+// v0.6.21 (clean halt with workaround):
+const GREET: str = "hello";          // literal init — preferred
+fn greet() -> str { return "hello"; } // computed init — wrap in fn
+```
+
+### Fixture
+
+- `tests/err/err_static_decl_not_supported.nr` — locks the halt.
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `639378ed…`.
+- Self-host peak: 586–629 MB / 5.63 + 4.85s wall.
+- Tools-suite compiles clean.
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
+### Forward-roadmap
+
+Real `static` support (writable module-scope storage + initialization
+order) is forward-roadmap. Adopters needing immutable values should
+use `const`; adopters needing mutable shared state should use the
+atomics surface (`stdlib/rods/atomic.nr`) or thread-local storage.
+
 ## [0.6.20] — 2026-05-02
 
 **TYP-011 — `assert_eq!` / `assert_ne!` on str arguments does pointer
