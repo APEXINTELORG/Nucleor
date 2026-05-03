@@ -6,7 +6,7 @@ diagnostic_actual: pre-fix — format placeholders `{}`, `{:?}`, `{:.2}` etc. le
 diagnostic_expected: same expansion as `println!` — `panic!("got {}", x)` → `PANIC: got 7` for x=7.
 discovered_against: main v0.5.28 (probe rebased)
 commit: probe (post-rebase) + main 010dba8f
-status: PARTIALLY CLOSED — `panic!` closed in v0.6.39 via mode-5 in `fmt_build_expansion`. `assert!`/`assert_eq!`/`assert_ne!` custom-message format args deferred (different expansion shape — condition first, format args after).
+status: FULLY CLOSED — `panic!` closed in v0.6.39 via mode-5 in `fmt_build_expansion`. `assert!`/`assert_eq!`/`assert_ne!` CLOSED in v0.6.76 via textual rewrite at `expand_format_macros` (cheap name gate + comma-count + `"`-shape check; rewrite to `if !(cond) { panic!(fmt, args); };` reusing mode-5 fmt_build_expansion).
 ---
 
 ## Closure (main agent v0.6.39) — `panic!` only

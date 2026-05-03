@@ -6,7 +6,7 @@ diagnostic_actual: gap 1 → `error[NR020]: parse error at byte 47: expected ','
 diagnostic_expected: gap 1 → accept `[VAL; N]`; gap 2 → accept `&[T]` as fn param type; gap 3 → emit Rust-canonical OOB diag without leaking that arrays are Vec internally
 discovered_against: main v0.6.22 (probe rebased)
 commit: probe (post-rebase) + main d8d8548e
-status: PARTIALLY CLOSED — gap 3 closed in v0.6.29 via Rust-canonical OOB wording. Gaps 1 + 2 deferred (both substantive parse-pass changes — separate ships).
+status: FULLY CLOSED — gap 3 closed in v0.6.29 via Rust-canonical OOB wording. Gap 1 (`[VAL; N]` repeat-init) CLOSED in v0.6.77 (parse_primary `[` branch). Gap 2 (`&[T]` slice param) CLOSED in v0.6.78 (parse_type `[` branch — bare `[T]` resolves to `Vec<T>`).
 ---
 
 ## Closure (main agent v0.6.29) — gap 3 only
