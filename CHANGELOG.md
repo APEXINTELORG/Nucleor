@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.94] — 2026-05-03
+
+**Defensive halt — canonical Rust range expression at expression
+position (`let r = 0..10;`, `(0..10).step_by(2)`) now produces
+a clean halt with a while-loop workaround pointer.**
+
+Pre-fix: range expressions at expression position surfaced as
+wrong-class `error[NR020]: parse_primary cannot start an
+expression at token kind 58` (or 96 for `..=`). Nucleor today
+only recognises ranges in for-loop heads (`for i in 0..10` —
+parsed contextually in parse_for_stmt at line ~2974). Adopters
+porting Rust code with chained-iterator forms hit this.
+
+Post-fix: parse_primary detects token 58 (`..`) or 96 (`..=`)
+in the unhandled-tokens branch and halts cleanly, pointing at
+the while-loop workaround.
+
+```nucleor
+// Pre-fix:
+let r = 0..10;                       // ← NR020 wrong-class
+for i in (0..10).step_by(2) { ... }  // ← NR020 wrong-class
+
+// Post-fix workaround (while loop with explicit step):
+let mut i: i64 = 0;
+while i < 10 {
+    print_int(i as i32);
+    i = i + 2;     // step_by equivalent
+}
+```
+
+Forward-roadmap: full Range<T> as a first-class value type with
+iterator-trait integration. Sister to V1.5 (length-tagged str
+ABI) — both need extended runtime types beyond the i64-everywhere
+ABI's primitive set.
+
+### Fixed-point + perf
+
+Cold 4.02s (variance from system load — recent ships have
+fluctuated 3.16-4.83s on the same hardware). Peak 312MB. Round-2
+fixed-point md5 `f1c3d165564de98e8e25052be68370e9`.
+
+### Fixture
+
+`tests/fixtures/v0694_range_expr_clean_halt.nr` — negative
+fixture for `let r = 0..10;`.
+
 ## [0.6.93] — 2026-05-03
 
 **Correctness fix — explicit `self: &Self` / `self: &mut Self`

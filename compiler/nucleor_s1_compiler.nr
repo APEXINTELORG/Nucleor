@@ -2139,6 +2139,18 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         || fall_tt == 51  // `)`
         || fall_tt == 55  // `]`
         { 1 } else { 0 };
+    // v0.6.94 (defensive halt — range-as-expression): canonical Rust
+    // `let r = 0..10;` and `(0..10).step_by(2)` patterns rely on the
+    // range syntax `<lo>..<hi>` producing a `Range<T>` value at
+    // expression position. Nucleor today only recognises ranges in
+    // for-head context (`for i in 0..10`) — at expression position
+    // the `..` (token 58) hits parse_primary's generic NR020 panic.
+    // Convert to a clean halt with workaround pointer.
+    if fall_tt == 58 || fall_tt == 96 {
+        let v094_op: str = if fall_tt == 58 { ".." } else { "..=" };
+        print(str_concat("ERROR: range expression `<lo>", str_concat(v094_op, "<hi>` at expression position is not yet supported in Nucleor. Pre-v0.6.94 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 58` (or 96 for `..=`). Range syntax today is only recognised in for-loop heads (`for i in 0..10`); the canonical Rust expression-position form `let r = 0..10;` and chained iterator forms `(0..10).step_by(2).map(...)` are not yet wired. Workaround: rewrite as a `while` loop with explicit counter — `let mut i: i64 = 0; while i < 10 { ...; i = i + 1; }` (or `i = i + STEP` for step_by). Tracked for forward-roadmap (Range<T> as a first-class value type with iterator-trait integration).")));
+        panic("nucleor: range expression at expression position not yet supported (see ERROR diagnostic above)");
+    };
     if is_recovery_marker == 0 {
         let fall_tok: Vec<i32> = tok_at(tokens, pos);
         let fall_byte: i64 = vec_get(fall_tok, 2);
