@@ -15350,8 +15350,82 @@ fn type_implements_trait(pool: Vec<i32>, prog: i64, type_name: str, trait_name: 
     };
     return 0;
 }
+// v0.6.67 (probe finding 2026-05-02-module-scope-decl-silent-noop-gaps-
+// type-mod-union-use, type-alias sub-gap): look up a type-alias decl
+// (kind 51) by name in the program. Returns the resolved underlying
+// type string (kind-51 field 2) or "" if no alias matches.
+//
+// v0.6.67 perf gate: short-circuit on shape — aliases are bare
+// identifiers starting with an uppercase letter and containing no
+// generic / ref / array brackets. Skip the prog scan for common
+// builtin types (`i64`, `str`, `Vec<...>`, `&str`, etc.) which are
+// the dominant case in hot type-check paths. v0.6.54 baseline was
+// 3.08s; raw scan cost ~1.7s on the self-host (8500-decl walk per
+// call). Fast-fail brings the regression back under 100ms.
+fn type_alias_resolve(pool: Vec<i32>, prog: i64, name: str) -> str {
+    let nlen: i64 = str_len(name);
+    if nlen == 0 { return ""; };
+    let c0: i64 = str_char_at(name, 0);
+    // Aliases must start uppercase. Reject lowercase (`i64`, `str`,
+    // `f64`, `bool`, `usize`, etc.) and `&` / `[` / `<` shape prefixes
+    // immediately. Also reject if the name contains any non-alnum
+    // character (`<`, `>`, `,`, ` ` indicate a generic / parameterized
+    // type, never a bare alias).
+    if c0 < 65 || c0 > 90 { return ""; };
+    let mut idx: i64 = 0;
+    while idx < nlen {
+        let c: i64 = str_char_at(name, idx);
+        if c == 60 || c == 62 || c == 38 || c == 91 || c == 93 || c == 44 || c == 32 || c == 9 { return ""; };
+        idx = idx + 1;
+    };
+    // Reject common builtin uppercase-starting names that are NOT
+    // user-defined aliases (Vec, Option, Result, HashMap, etc.).
+    if str_eq(name, "Vec") == 1 { return ""; };
+    if str_eq(name, "Option") == 1 { return ""; };
+    if str_eq(name, "Result") == 1 { return ""; };
+    if str_eq(name, "HashMap") == 1 { return ""; };
+    if str_eq(name, "HashSet") == 1 { return ""; };
+    if str_eq(name, "BTreeMap") == 1 { return ""; };
+    if str_eq(name, "BTreeSet") == 1 { return ""; };
+    if str_eq(name, "VecDeque") == 1 { return ""; };
+    if str_eq(name, "Box") == 1 { return ""; };
+    if str_eq(name, "Self") == 1 { return ""; };
+    if str_eq(name, "String") == 1 { return ""; };
+    let cnt: i64 = list_len(pool, prog);
+    let mut i: i64 = 0;
+    while i < cnt {
+        let nid: i64 = list_get(pool, prog, i);
+        if node_kind(pool, nid) == 51 && str_eq(node_field(pool, nid, 1), name) == 1 {
+            return node_field(pool, nid, 2);
+        };
+        i = i + 1;
+    };
+    return "";
+}
+
 fn types_compatible_context(pool: Vec<i32>, prog: i64, expected: str, actual: str) -> i64 {
     if types_compatible(expected, actual) == 1 { return 1; };
+    // v0.6.67: type-alias resolution. If either side is a bare
+    // identifier matching a `type Name = T;` decl (kind 51), substitute
+    // the resolved underlying type and re-check. One level of indirection
+    // — chained aliases (`type A = B; type B = i64;`) are resolved
+    // iteratively up to a small depth cap to prevent runaway. Cycles
+    // (`type A = B; type B = A;`) bail out at the cap.
+    let mut e_resolved: str = expected;
+    let mut a_resolved: str = actual;
+    let mut depth_v067: i64 = 0;
+    while depth_v067 < 4 {
+        let e_alias: str = type_alias_resolve(pool, prog, e_resolved);
+        let a_alias: str = type_alias_resolve(pool, prog, a_resolved);
+        let mut progress: i64 = 0;
+        if str_len(e_alias) > 0 { e_resolved = e_alias; progress = 1; };
+        if str_len(a_alias) > 0 { a_resolved = a_alias; progress = 1; };
+        if progress == 0 { depth_v067 = 4; };
+        depth_v067 = depth_v067 + 1;
+    };
+    if (str_eq(e_resolved, expected) == 0) || (str_eq(a_resolved, actual) == 0) {
+        if types_compatible(e_resolved, a_resolved) == 1 { return 1; };
+    };
     let trait_name: str = box_dyn_trait_name(expected);
     if str_len(trait_name) > 0 && str_starts_with(strip_spaces(actual), "Box<") == 1 {
         let actual_arg: str = type_first_arg(actual);
@@ -17205,7 +17279,17 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 // porting Rust code (where `&str` is canonical) hit the
                 // diag on every helper call site. Now both forms accept;
                 // the lower side already produces identical IR.
-                if str_len(arg0_t) > 0 && str_eq(arg0_t, "str") == 0 && str_eq(arg0_t, "&str") == 0 && str_eq(arg0_t, "_") == 0 {
+                // v0.6.67: resolve type aliases before TYP-006 check.
+                // `type StrAlias = str; let s: StrAlias = "..."; print(s);`
+                // pre-fix saw arg0_t = "StrAlias" and fired TYP-006.
+                let mut arg0_t_resolved_v067: str = arg0_t;
+                let mut alias_depth_v067: i64 = 0;
+                while alias_depth_v067 < 4 {
+                    let r_v067: str = type_alias_resolve(pool, prog, arg0_t_resolved_v067);
+                    if str_len(r_v067) == 0 { alias_depth_v067 = 4; }
+                    else { arg0_t_resolved_v067 = r_v067; alias_depth_v067 = alias_depth_v067 + 1; };
+                };
+                if str_len(arg0_t_resolved_v067) > 0 && str_eq(arg0_t_resolved_v067, "str") == 0 && str_eq(arg0_t_resolved_v067, "&str") == 0 && str_eq(arg0_t_resolved_v067, "_") == 0 {
                     type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 0 of '", str_concat(callee, "' must be str (runtime helper)")));
                 };
             };
@@ -17263,8 +17347,16 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                     || str_eq(callee, "str_replace") == 1 { 1 } else { 0 };
                 if needs_str_arg1 == 1 {
                     let arg1_t: str = type_expr(pool, prog, list_get(pool, args, 1), env, sigs, structs, fn_name, diags, source, tprof);
-                    // v0.6.48 same as arg0: accept `&str` too.
-                    if str_len(arg1_t) > 0 && str_eq(arg1_t, "str") == 0 && str_eq(arg1_t, "&str") == 0 && str_eq(arg1_t, "_") == 0 {
+                    // v0.6.48 same as arg0: accept `&str` too. v0.6.67:
+                    // also resolve type aliases.
+                    let mut arg1_t_resolved_v067: str = arg1_t;
+                    let mut alias_depth1_v067: i64 = 0;
+                    while alias_depth1_v067 < 4 {
+                        let r1_v067: str = type_alias_resolve(pool, prog, arg1_t_resolved_v067);
+                        if str_len(r1_v067) == 0 { alias_depth1_v067 = 4; }
+                        else { arg1_t_resolved_v067 = r1_v067; alias_depth1_v067 = alias_depth1_v067 + 1; };
+                    };
+                    if str_len(arg1_t_resolved_v067) > 0 && str_eq(arg1_t_resolved_v067, "str") == 0 && str_eq(arg1_t_resolved_v067, "&str") == 0 && str_eq(arg1_t_resolved_v067, "_") == 0 {
                         type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 1 of '", str_concat(callee, "' must be str (runtime helper)")));
                     };
                 };

@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.67] — 2026-05-03
+
+**Type alias resolver — `type Name = T;` decls now resolve at use
+sites. Closes the type-alias sub-gap of the module-scope-decl
+silent-noop finding.**
+
+Pre-fix `type MyInt = i64; let n: MyInt = 42;` accepted the alias
+decl at parse but TYP-006 / TYP-008 fired on every use because
+type-checking didn't know about the alias. Adopters porting Rust
+code with type aliases hit a confusing wrong-class error pointing
+at the use site, not the alias decl.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr`:
+
+1. **`type_alias_resolve(pool, prog, name) -> str`** (~line 15353):
+   linear scan of program nodes for kind-51 (type alias) decls
+   matching `name`. Returns the resolved underlying type.
+
+2. **`types_compatible_context`** (~line 15372): when the direct
+   compatibility check fails, iteratively resolve both `expected`
+   and `actual` through alias chains (depth cap 4 to prevent
+   runaway on cycles), then re-check.
+
+3. **TYP-006 str-helper checks** (~lines 17249, 17318): also
+   resolve aliases on `arg0_t` / `arg1_t` so `let s: StrAlias =
+   "..."; print(s);` no longer false-fires.
+
+### Adopter migration
+
+```nucleor
+// Pre-fix:
+type MyInt = i64;
+let n: MyInt = 42;       // TYP-006 / TYP-008 wrong-class
+
+// v0.6.67:
+type MyInt = i64;
+type Counter = MyInt;    // chained aliases work too (depth cap 4)
+type StrAlias = str;
+fn process(c: Counter, label: StrAlias) -> MyInt { ... }
+let n: MyInt = 42;       // compiles cleanly
+```
+
+### Verify
+
+- New regression-lock: `v0667_type_alias_resolves` exercises
+  chained aliases (`MyInt → i64`, `Counter → MyInt → i64`), str
+  alias passing through fn signature + str-helper call.
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.66] — 2026-05-03
 
 **`let c: char = 'a';` accepted — char-literal type matching closes
