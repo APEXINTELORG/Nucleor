@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] — 2026-05-03
+
+**Defensive halt — canonical Rust loop labels (`'outer: for ...
+{ break 'outer; }`, `'lbl: loop { continue 'lbl; }`) now produce
+a clean halt with a boolean-flag workaround pointer.**
+
+Pre-fix: writing `'outer: for i in 0..5 { ... break 'outer; }`
+surfaced as wrong-class `error[NR020]: parse_primary cannot
+start an expression at token kind 98` — token 98 is the
+lifetime/label token and parse_primary had no `'label:` prefix
+branch.
+
+Post-fix: parse_primary's NR020-fallback path detects token 98
+and halts cleanly, pointing at the boolean-flag workaround for
+nested-loop early-exit:
+
+```nucleor
+// Pre-fix:
+'outer: for i in 0..5 {
+    for j in 0..5 {
+        if i + j > 3 { break 'outer; }   // ← NR020 wrong-class
+    }
+}
+
+// Post-fix workaround (boolean flag):
+let mut done: i64 = 0;
+for i in 0..5 {
+    if done == 1 { break; };
+    for j in 0..5 {
+        if i + j > 3 { done = 1; break; }
+    }
+}
+```
+
+Forward-roadmap: labeled-loop substrate needs label-aware
+break/continue lowering — each loop's parser captures the
+optional `'label:` prefix, lower_expr's break/continue branches
+look up the label-to-exit-IR-label mapping. ~150 LOC, sister to
+V1.8 break-with-value.
+
+### Fixed-point + perf
+
+Cold 3.43s. Peak 333MB. Round-2 fixed-point md5
+`034cfdcef6cafb0575fac54927f68c7f`.
+
+### Fixture
+
+`tests/fixtures/v0702_loop_label_clean_halt.nr` — negative
+fixture for `'outer: for ... break 'outer;`.
+
 ## [0.7.1] — 2026-05-03
 
 **Defensive halt extension — canonical Rust iterator adapter

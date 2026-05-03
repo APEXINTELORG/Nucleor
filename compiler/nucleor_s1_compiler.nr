@@ -2157,6 +2157,16 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         || fall_tt == 51  // `)`
         || fall_tt == 55  // `]`
         { 1 } else { 0 };
+    // v0.7.2 (defensive halt — labeled loop): canonical Rust loop
+    // labels `'outer: for ... { break 'outer; }` pre-fix surfaced
+    // as wrong-class `NR020: parse_primary cannot start expression
+    // at token kind 98` because token 98 is the lifetime/label
+    // token and parse_primary has no `'label:` prefix branch.
+    // Halt cleanly with a workaround pointer (boolean flag).
+    if fall_tt == 98 {
+        print("ERROR: loop labels (`'outer: for ... { break 'outer; }`, `'lbl: loop { continue 'lbl; }`) are not yet supported in Nucleor. Pre-v0.7.2 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 98` — token 98 is the lifetime/label token and parse_primary has no `'label:` prefix branch. Workaround: use a boolean flag to break out of nested loops — `let mut done: i64 = 0; for i in 0..5 { if done == 1 { break; }; for j in 0..5 { if i + j > 3 { done = 1; break; } } }`. Tracked for forward-roadmap (labeled-loop substrate needs label-aware break/continue lowering with per-loop exit-label tracking).");
+        panic("nucleor: loop labels not yet supported (see ERROR diagnostic above)");
+    };
     // v0.6.94 (defensive halt — range-as-expression): canonical Rust
     // `let r = 0..10;` and `(0..10).step_by(2)` patterns rely on the
     // range syntax `<lo>..<hi>` producing a `Range<T>` value at
