@@ -7973,6 +7973,18 @@ const char *__nucleor_f8e5m2_to_str(long long b) {
 // the compiler's method-name → str_concat("option_"/"result_", mname)
 // without needing inline IR for each method.
 long long __nucleor_option_unwrap(NVec *opt) {
+    // v0.6.33 (probe finding 2026-05-02-result-option-unwrap-diag-and-
+    // correctness-gaps, gap 1): pre-fix this read vec_get(opt, 1)
+    // unconditionally — for `None` (len-1 Vec) the read was OOB and
+    // panicked with `vec_get OOB: index 1, len 1` (v0.6.30 reworded
+    // to `index out of bounds: the len is 1 but the index is 1`),
+    // both leak the internal Vec representation. Now check the
+    // discriminant first and panic with the canonical Rust message.
+    if (!opt || opt->len < 2 || __nucleor_vec_get(opt, 0) != 0) {
+        fprintf(stderr, "PANIC: called `Option::unwrap()` on a `None` value\n");
+        fflush(stderr);
+        exit(1);
+    }
     return __nucleor_vec_get(opt, 1);
 }
 long long __nucleor_option_unwrap_or(NVec *opt, long long def) {
@@ -7986,6 +7998,22 @@ long long __nucleor_option_is_none(NVec *opt) {
     return __nucleor_vec_get(opt, 0) != 0 ? 1 : 0;
 }
 long long __nucleor_result_unwrap(NVec *res) {
+    // v0.6.33 (probe finding 2026-05-02-result-option-unwrap-diag-and-
+    // correctness-gaps, gap 2 — CRITICAL): pre-fix this read
+    // vec_get(res, 1) unconditionally — for `Err(x)` (Result tag 0)
+    // the err payload was returned silently as if it were the ok
+    // payload. NO discriminant check, NO panic, NO diagnostic.
+    // Adopters got garbage data and the program continued —
+    // catastrophic correctness bug. Now check the discriminant
+    // first and panic with the canonical Rust message.
+    //
+    // Result tag convention (per __nucleor_result_is_ok / is_err
+    // and the compiler's lowering at line 20060+): Ok=1, Err=0.
+    if (!res || res->len < 2 || __nucleor_vec_get(res, 0) != 1) {
+        fprintf(stderr, "PANIC: called `Result::unwrap()` on an `Err` value\n");
+        fflush(stderr);
+        exit(1);
+    }
     return __nucleor_vec_get(res, 1);
 }
 long long __nucleor_result_unwrap_or(NVec *res, long long def) {
