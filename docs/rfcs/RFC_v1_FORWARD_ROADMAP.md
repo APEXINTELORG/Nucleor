@@ -188,7 +188,7 @@ closure-capture-broken-in-loop-bodies).
 #### V1.11 — Other deferred items (smaller)
 
 - **HashMap<i64, V> key-type-aware** — separate hash/eq helpers per key-type-class. (~600 lines, runtime ABI extension.)
-- **`[VAL; N]` array literal repeat-init** — parse + lower (~200 lines).
+- **`[VAL; N]` array literal repeat-init** — ✅ CLOSED v0.6.77 (parse_primary `[` branch peeks for `;` after first item, expands to N-item kind-47 array literal; literal-int count only, hard cap N ≤ 1024, runtime-evaluated counts go through `vec![V; N]`).
 - **`&[T]` slice param** — parse + lower (~250 lines).
 - **`fn-no-tail-expr` Repro 3** — needs AST-level `;` tracking (~100 lines, but invasive).
 - **`fn-ptr struct field direct call`** — parse `(struct.field)(args)` as indirect call (~150 lines).

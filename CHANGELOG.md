@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.77] — 2026-05-03
+
+**RFC V1.11 — `[VAL; N]` array-literal repeat-init. Canonical Rust
+`let buf: Vec<i64> = [0; 4];` now parses + lowers.**
+
+Pre-fix: the bracket-list parser only handled comma-separated items
+(`[a, b, c]`); the `;` after the first item rejected with the
+wrong-class `error[NR020]: parse error at byte K: expected ',',
+got ';'`. The macro form `vec![V; N]` already worked (closed
+v0.6.41) — but the no-`vec!` form did not.
+
+Post-fix: after the first item, peek for `;`. If present, parse the
+count expression (must be a literal int — runtime-evaluated counts
+still go through `vec![V; N]`), bound-check at parse time
+(0..=1024), then synthesize an N-item kind-47 array literal that
+lowers via the existing `vec_new` + N×`vec_push` path.
+
+```nucleor
+// Pre-fix:
+let buf: Vec<i64> = [0; 4];     // ← NR020
+
+// Post-fix:
+let buf: Vec<i64>   = [0; 4];   // 4-elem Vec, all zero
+let zeros: Vec<i64> = [42; 3];  // 3-elem, all 42
+print_int(vec_len(&buf) as i32);   // 4
+print_int(vec_get(&zeros, 0) as i32); // 42
+```
+
+### Bound + count-eval policy
+
+Parse-time count evaluation — only literal ints accepted today; a
+non-literal count (`[V; some_var]`, `[V; SIZE_CONST]`) panics at
+parse with a clean diag pointing at the runtime workaround
+(`vec![V; SIZE_CONST]`). Future close ties to the v1 const-fn
+substrate so const-fn-evaluated counts can drive the same form.
+
+Hard cap N ≤ 1024 because the parse-time expansion duplicates the
+value AST node N times. For larger or runtime-evaluated N use
+`vec![V; N]` (runtime push-loop).
+
+### Fixed-point + perf
+
+Cold 3.24–3.69s (baseline 3.16s, drift bounds OK). Peak mem
+301–321MB (baseline ~318MB). Fixed-point md5
+`116da16879e86d6698d5cf68b9f6027f`.
+
+### Fixture
+
+`tests/fixtures/v0677_array_repeat_init.nr` exercises both the
+zero-fill and constant-fill forms.
+
 ## [0.6.76] — 2026-05-03
 
 **RFC V1.9 — `assert!` / `assert_eq!` / `assert_ne!` format-args
