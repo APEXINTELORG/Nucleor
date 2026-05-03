@@ -5,6 +5,79 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.51] — 2026-05-03
+
+**HashMap<i64, V> CRITICAL crash → clean compile-time halt — probe
+finding closure.**
+
+Closes probe finding `2026-05-02-hashmap-i64-key-crashes`. Pre-fix
+`HashMap<i64, i64>`, `HashMap<bool, V>`, `HashMap<f64, V>`, etc.
+(any non-str key type) crashed at runtime with STATUS_ACCESS_
+VIOLATION (rc=-1073741819) on the first `hashmap_insert` because
+the runtime helper takes the key as `const char *` and dereferences
+it as a string pointer. An i64 key like `1` made it deref address
+`0x1`. Same crash for HashSet, BTreeMap, BTreeSet (all use the
+same str-key runtime path).
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` let-stmt type-check (~line
+17582) detects `HashMap<KeyT, ...>`, `HashSet<KeyT>`,
+`BTreeMap<KeyT, ...>`, `BTreeSet<KeyT>` declarations and emits
+TYP-026 when `KeyT != str` (and != `_`). The diagnostic names
+the workaround:
+
+- `str_from_int(k)` for integer keys.
+- `if b { "true" } else { "false" }` for bool.
+- `f64_to_str(k)` for f64.
+- `Vec<(KeyT, ValT)>` for ordered insertion semantics with
+  non-str keys.
+
+The compiler's own internal HashMaps use str keys (the i64-
+everywhere ABI stores str pointers cast to i64), so the
+workaround mirrors the existing internal pattern.
+
+### Why halt instead of fix
+
+A proper fix needs key-type-aware hash/eq helper family — one
+helper per key-type-class. That's a runtime-ABI extension
+class change (same bootstrap-cycle hole risk as v0.6.48-attempt-1).
+Forward-roadmap. Until then, the halt prevents the crash class
+entirely.
+
+### Verify
+
+- New regression-lock: `tests/err/err_typ026_hashmap_i64_key.nr`
+  (auto-picked-up by tests/err walker).
+- TYP-026 already registered as a known diag code; v0.6.51 adds
+  one new emit site.
+- Round-2 fixed-point preserved.
+
+### Doc-only batch closures (10 findings)
+
+Per the user batch-mode instruction, v0.6.51 also promotes 10
+findings as doc-only with full forward-roadmap rationale:
+
+- `const-overflow-not-caught-at-compile-time` — already closed
+  by v0.6.18 + v0.6.50 (NUM-021 const-decl + let-binding).
+- `keyword-silent-strip-audit` — multi-keyword forward-roadmap
+  bundle.
+- `match-arm-literal-exceeds-i64-silently-dead` — sister to
+  NUM-021 family; needs token-overflow flag or source recovery.
+- `rust-syntax-translation-fidelity-audit` — multi-row audit;
+  per-row closes shipped opportunistically.
+- `str-len-strlen-truncates-at-nul-byte` — v1 ABI rewrite
+  (length-tagged str).
+- `assert-eq-ne-pointer-compare-extends-to-vec-struct-hashmap`
+  — v1 derive(PartialEq) workstream.
+- `isr-no-alloc-no-panic-not-transitive` — v1 RFC-0008 phase 2
+  (call-graph propagation).
+- `nested-struct-pattern-and-tuple-struct-decl-NR020` — v1
+  parse-extension cycle.
+- `rfc0034-ct-param-first-pass-residual-edges` — full RFC-0034
+  is v1 dedicated cycle.
+- `hashmap-i64-key-crashes` — closed by this ship.
+
 ## [0.6.50] — 2026-05-03
 
 **Batch closure ship — 4 probe findings landed in one cycle.**
