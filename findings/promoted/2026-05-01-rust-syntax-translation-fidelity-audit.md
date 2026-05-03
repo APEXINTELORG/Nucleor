@@ -27,7 +27,7 @@ v0.6.51:
 | `let r = loop { break 42; };` (break-with-value) | OPEN | NR024 wrong-class today; break-with-value is forward-roadmap |
 | `unreachable!()` macro | PARTIAL | TYP-005 today; macro expansion forward-roadmap, workaround is `panic("unreachable")` |
 | `for (k, v) in &m` (tuple destruct in for) | OPEN | NR020 today |
-| `const fn double(x: i64) -> i64` | OPEN | NR020 today; const-fn forward-roadmap |
+| `const fn double(x: i64) -> i64` | CLOSED v0.6.55 | clean parse halt with workaround pointer; full const-eval is v1 |
 
 ### Closed sister gaps (already in v0.6.x)
 
