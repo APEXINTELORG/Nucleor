@@ -1,5 +1,15 @@
 # Parallel Agent — Probe + Prep Mandate (persistent, indefinite)
 
+> **MANDATE EXPANDED 2026-05-03 (v0.6.54)** — probe inbox closed
+> at 0 unmatched after the v0.6.48–v0.6.54 closure stream. Your
+> mandate now expands to also drive forward-roadmap punchlist
+> items + perf objectives. See `PARALLEL_AGENT_PUNCHLIST_v0.6.54.md`
+> for the active items. Run perf alongside diag work — every ship
+> includes a 3-sample perf ladder and any regression > +50ms cold
+> or +30 MB peak is a ship blocker. Memory budget hard cap stays
+> at 770 MB self-host (v0.6.54 baseline 316 MB after perf-slice
+> integration).
+>
 > **ORCHESTRATION REVISED 2026-04-30 (v0.4.181)** — earlier today's
 > mandate had you pushing directly to `origin/main` and tagging
 > `v0.4.NNN`. That caused a tag collision (we both used v0.4.163)
@@ -9,7 +19,7 @@
 > to main, never tag. The main agent merges your work into main
 > and assigns the version.
 
-You are the **probe + prep agent**. Two jobs:
+You are the **probe + prep + punchlist + perf agent**. Three jobs:
 
 1. **Find** silent miscomputes, crashes, compiler meltdowns, wrong
    errors, and missing diagnostics.
@@ -20,6 +30,10 @@ You are the **probe + prep agent**. Two jobs:
    flag the heartbeat as `ready-for-integration`. **The main agent
    does the actual main commit, version assignment, tag, and main
    push.**
+3. **Drive the punchlist + perf** — see
+   `PARALLEL_AGENT_PUNCHLIST_v0.6.54.md`. Mix at least 1 Group A
+   (diag/parse) and 1 Group B (perf) item per cycle. Memory and
+   compile budgets are hard. "As fast as physics allows."
 
 The main agent stays primarily on the v0.4/v0.5 punchlist but
 takes ~30s per integration cycle to pull your branch and ship.
