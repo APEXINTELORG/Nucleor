@@ -84,15 +84,15 @@ benefit (no manual cleanup) is huge.
 
 ### Tier 2 — high adopter pain but narrower
 
-#### V1.4 — derive(PartialEq) / Hash for Vec / struct / HashMap  ⚠ PARTIAL v0.6.84
+#### V1.4 — derive(PartialEq) / Hash for Vec / struct / HashMap  ✅ CLOSED v0.6.85
 
-**Partial v0.6.84 (2026-05-03).** Textual pre-pass
-`expand_derive_partialeq` auto-generates `<Type>__derived_eq(a, b)
--> i64` helpers for `#[derive(...PartialEq...)] struct ...`
-declarations (named-field + tuple-struct forms). Adopters call the
-helper manually. Auto-dispatch of `==` / `!=` to the helper is
-deferred to a follow-on V1.4-complete ship — needs lower_expr
-binop kind-4 routing + side-table threading.
+**Closed v0.6.85 (2026-05-03; paired with v0.6.84).** Textual pre-pass
+`expand_derive_partialeq` auto-generates `<Type>__derived_eq(a, b) ->
+i64` helpers (v0.6.84). lower_expr binop kind-4 op==30/31 routes
+`==` / `!=` to the helper via `sym_get(__fnret_<Type>__derived_eq)`;
+type_expr suppresses the TYP-011 ptr-compare diag when the helper
+exists (v0.6.85). Generic structs and Hash/Default still pinned to
+the monomorphisation v1.x ship.
 
 **Status today (historical):** assert_eq! pointer-compare extends pre-v0.6.x family.
 str values get structural compare via __nucleor_str_eq; other heap-types
