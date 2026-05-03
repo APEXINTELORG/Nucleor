@@ -335,6 +335,25 @@ fn lex(src: str) -> Vec<i32> {
             while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
         }
         else if is_alpha(c) == 1 {
+            // v0.6.58 (probe finding 2026-05-01-rust-syntax-translation-
+            // fidelity-audit, raw-string and byte-string rows): canonical
+            // Rust prefix-quoted string literals `r"..."` (raw string,
+            // no escapes), `b"..."` (byte string), `r#"..."#` (raw with
+            // hashes), `br"..."` (byte raw) all pre-fix lexed as the
+            // bare prefix identifier (`r` / `b` / `br`) followed by a
+            // string literal — the parser then read the prefix as a
+            // fn-name + the string as the call's first arg, producing
+            // confusing TYP-005 "undefined function 'r'" / "'b'" /
+            // "'br'". Halt at lex with a clean diag pointing at the
+            // workaround.
+            if c == 114 && p + 1 < slen && str_char_at(src, p + 1) == 34 {
+                print("ERROR: raw string literals `r\"...\"` are not yet supported in Nucleor. Pre-v0.6.58 the `r` lexed as an identifier and the parser tried to call a fn named `r` on the trailing string literal, producing the wrong-class `error[TYP-005]: undefined function 'r'`. Workaround: write the canonical form `\"...\"` and escape backslashes / quotes manually (`\\\\`, `\\\"`, etc.). Tracked for forward-roadmap (lex-time r-prefix → no-escape string mode).");
+                panic("nucleor: raw string `r\"...\"` not yet supported (see ERROR diagnostic above)");
+            };
+            if c == 98 && p + 1 < slen && str_char_at(src, p + 1) == 34 {
+                print("ERROR: byte string literals `b\"...\"` are not yet supported in Nucleor. Pre-v0.6.58 the `b` lexed as an identifier and the parser tried to call a fn named `b` on the trailing string literal, producing the wrong-class `error[TYP-005]: undefined function 'b'`. Workaround: build a `Vec<u8>` explicitly via `let mut bs: Vec<u8> = Vec::new(); vec_u8_push(bs, 'h' as u8); ...`. Tracked for forward-roadmap (lex-time b-prefix → byte-buffer literal).");
+                panic("nucleor: byte string `b\"...\"` not yet supported (see ERROR diagnostic above)");
+            };
             let st: i64 = p;
             while p < slen && is_alnum(str_char_at(src, p)) == 1 { p = p + 1; };
             let w: str = str_substring(src, st, p);

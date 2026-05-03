@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.58] — 2026-05-03
+
+**`r"..."` raw string + `b"..."` byte string parse halts — closes
+two more rust-syntax-translation-fidelity audit rows.**
+
+Pre-fix the lexer treated the `r` and `b` prefixes as bare
+identifiers, then the parser saw the `"..."` string literal as
+an arg to a fn call `r(...)` / `b(...)`, producing the wrong-
+class `error[TYP-005]: undefined function 'r'` / `'b'`. Adopters
+porting Rust code that uses raw / byte strings (path literals,
+hashes, byte buffers) saw a confusing TYP-005 not naming the
+unsupported feature.
+
+### Fix
+
+`lex` (~line 337): when the identifier-start char is `r` (114)
+or `b` (98) AND the next char is `"` (34), halt with a clean
+diag pointing at the workaround:
+
+- For `r"..."`: use the canonical `"..."` form and escape
+  backslashes / quotes manually.
+- For `b"..."`: build a `Vec<u8>` explicitly via
+  `vec_u8_push(bs, 'h' as u8); ...`.
+
+Forward-roadmap: lex-time r-prefix → no-escape string mode;
+b-prefix → byte-buffer literal sugar.
+
+### Verify
+
+- New regression-locks (auto-walker):
+  - `tests/err/err_raw_string_literal.nr`
+  - `tests/err/err_byte_string_literal.nr`
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.57] — 2026-05-03
 
 **`break <value>` parse halt — closes the break-with-value row of
