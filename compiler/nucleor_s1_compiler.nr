@@ -64,6 +64,17 @@ fn str_to_int(s: str) -> i64 {
     // under strict-arithmetic mode without panicking. The accumulator
     // is intentionally allowed to wrap into the negative i64 range
     // (the resulting bit pattern is what u64 callers want anyway).
+    //
+    // v0.6.49: also use wrapping_sub for the final neg step. Pre-fix
+    // `str_to_int("-9223372036854775808")` (canonical i64::MIN as a
+    // negative-prefixed decimal string) panicked under strict-intrin
+    // because the digit accumulator wrapped to i64::MIN and `0 - MIN`
+    // overflowed. Surfaced by const-tracker round-trip on
+    // `let x: i64 = -9223372036854775808;` (sister probe finding
+    // gap-2; storing the canonical literal value triggered the
+    // round-trip). wrapping_sub(0, result) preserves the i64::MIN bit
+    // pattern (two's complement: -i64::MIN == i64::MIN) without
+    // tripping the strict-intrin trap.
     let slen: i64 = str_len(s);
     let mut result: i64 = 0;
     let mut i: i64 = 0;
@@ -73,7 +84,7 @@ fn str_to_int(s: str) -> i64 {
         result = wrapping_add(wrapping_mul(result, 10), str_char_at(s, i) - 48);
         i = i + 1;
     };
-    if neg == 1 { return 0 - result; };
+    if neg == 1 { return wrapping_sub(0, result); };
     return result;
 }
 fn str_is_digits(s: str) -> i64 {
@@ -15498,11 +15509,34 @@ fn const_i64_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>) -> Vec<i32> {
     let k: i64 = node_kind(pool, nid);
     if k == 1 { return const_i64_result(1, node_field(pool, nid, 1)); };
     if k == 5 {
-        let inner: Vec<i32> = const_i64_expr(pool, node_field(pool, nid, 1), env);
+        let inner_nid_v064: i64 = node_field(pool, nid, 1);
+        let inner: Vec<i32> = const_i64_expr(pool, inner_nid_v064, env);
         if const_i64_overflow(inner) == 1 { return const_i64_result_ex(0, 0, 1); };
         if vec_get(inner, 0) == 1 {
             let inner_v: i64 = vec_get(inner, 1);
-            if inner_v == const_i64_min() { return const_i64_result_ex(0, 0, 1); };
+            // v0.6.49 (probe finding 2026-05-02-num-021-coverage-gaps-
+            // u64-imin-shift-divzero, gap 2): canonical Rust literal
+            // `-9223372036854775808` (= i64::MIN) is parsed as unary-
+            // minus applied to `9223372036854775808`. The lexer wraps
+            // `9223372036854775808` (2^63) to i64::MIN at storage time,
+            // so the inner literal node already has value i64::MIN.
+            // Pre-fix `0 - i64::MIN` was flagged as overflow (which
+            // it WOULD be for a non-literal i64::MIN value), false-
+            // firing NUM-021 on the canonical `i64::MIN` constant. Now
+            // detect the literal-immediately-under-minus case: when the
+            // inner is a kind-1 literal token AND its value is i64::MIN,
+            // the original source must have been `2^63` (the only
+            // decimal literal that wraps to i64::MIN), so unary-minus
+            // produces -2^63 = i64::MIN — representable, NOT an
+            // overflow. `let x: i64 = -(some_var_holding_min)` still
+            // overflows because the inner is then a kind-3 reference,
+            // not a kind-1 literal.
+            if inner_v == const_i64_min() {
+                if node_kind(pool, inner_nid_v064) == 1 {
+                    return const_i64_result(1, const_i64_min());
+                };
+                return const_i64_result_ex(0, 0, 1);
+            };
             return const_i64_result(1, 0 - inner_v);
         };
         return const_i64_result(0, 0);
@@ -19428,6 +19462,26 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             sub_args.push(opr);
             ir_block_add(cur, ir_call_ex(r, sub_helper, sub_args));
         } else {
+            // v0.6.49 (probe finding 2026-05-02-num-021-coverage-gaps-
+            // u64-imin-shift-divzero, gap 2): canonical Rust literal
+            // `-9223372036854775808` (= i64::MIN) parses as unary-minus
+            // applied to the literal `9223372036854775808`. The lexer
+            // wraps `2^63` to i64::MIN at storage time, so the inner
+            // literal already holds i64::MIN. Without this guard, the
+            // strict-intrin default sends i64::MIN through panic_neg,
+            // which correctly panics on `-(i64::MIN)` — but for the
+            // CANONICAL i64::MIN literal in source, that's a false-
+            // panic; the user wrote the textual representation of
+            // i64::MIN and means i64::MIN, not "negate the value
+            // i64::MIN". Detect immediate-literal-equal-to-i64::MIN
+            // and short-circuit by emitting the constant directly.
+            // `-(some_var_holding_min)` still routes through panic_neg
+            // because the inner is a kind-3 reference, not a kind-1
+            // literal.
+            if node_kind(pool, inner_nid) == 1 && node_field(pool, inner_nid, 1) == const_i64_min() {
+                ir_block_add(cur, ir_const_int(r, const_i64_min()));
+                return lx_new(r, cur);
+            };
             // v0.3.220: same opt-in default as binop. NUCLEOR_INT_STRICT_ARITH=1
             // routes -x for i64 through panic_neg; default is native sub.
             //
