@@ -611,6 +611,59 @@ fn lex(src: str) -> Vec<i32> {
                     if overflow_v119 == 1 {
                         panic(str_concat("error[NUM-021]: integer literal `", str_concat(dig_str_v119, "` exceeds u64::MAX (18446744073709551615). Pre-v0.4.119 the value silently wrapped through the str_to_int accumulator and produced a meaningless bit pattern. Use a smaller literal, switch to a wide-int library, or write the value as a hex literal `0x...` if you intentionally want a specific bit pattern."))));
                     };
+                    // v0.6.68 (probe finding 2026-05-01-match-arm-literal-
+                    // exceeds-i64-silently-dead): also halt on decimal
+                    // literals in (i64::MAX, u64::MAX] that lack an
+                    // explicit unsigned suffix (`u8`/`u16`/`u32`/`u64`/
+                    // `usize`/`u128`). Pre-fix these wrapped silently to
+                    // i64::MIN-region bit patterns. The most common
+                    // failure mode was `match x { 9223372036854775808
+                    // => ... }` against an i64 scrutinee — the wrapped
+                    // pattern never matched, producing a silent dead
+                    // arm. Adopters who genuinely want the u64 bit
+                    // pattern can either:
+                    //   (a) add the `u64` suffix: `9223372036854775808u64`,
+                    //   (b) use the hex form: `0x8000000000000000`,
+                    //   (c) use the canonical signed form:
+                    //       `(-9223372036854775807) - 1` for i64::MIN,
+                    //       which is already supported by v0.6.49.
+                    if overflow_v119 == 0 && dig_len_v119 == 19 {
+                        let i64_max_v068: str = "9223372036854775807";
+                        let mut over_i64_v068: i64 = 0;
+                        let mut cmp_v068: i64 = 0;
+                        while cmp_v068 < 19 {
+                            let dc_v068: i64 = str_char_at(dig_str_v119, cmp_v068);
+                            let mc_v068: i64 = str_char_at(i64_max_v068, cmp_v068);
+                            if dc_v068 > mc_v068 { over_i64_v068 = 1; cmp_v068 = 19; }
+                            else if dc_v068 < mc_v068 { cmp_v068 = 19; }
+                            else { cmp_v068 = cmp_v068 + 1; };
+                        };
+                        if over_i64_v068 == 1 {
+                            // Peek for an unsigned suffix immediately
+                            // after the digit string. If present, the
+                            // user is explicit about u-typed semantics
+                            // — accept the bit pattern.
+                            let mut suf_v068_ok: i64 = 0;
+                            if p < slen {
+                                let nx_v068: i64 = str_char_at(src, p);
+                                if nx_v068 == 117 {
+                                    // 'u' — check u8/u16/u32/u64/u128/usize
+                                    let mut sk_v068: i64 = p + 1;
+                                    while sk_v068 < slen && is_alnum(str_char_at(src, sk_v068)) == 1 { sk_v068 = sk_v068 + 1; };
+                                    let suf_v068: str = str_substring(src, p, sk_v068);
+                                    if str_eq(suf_v068, "u8") == 1 { suf_v068_ok = 1; };
+                                    if str_eq(suf_v068, "u16") == 1 { suf_v068_ok = 1; };
+                                    if str_eq(suf_v068, "u32") == 1 { suf_v068_ok = 1; };
+                                    if str_eq(suf_v068, "u64") == 1 { suf_v068_ok = 1; };
+                                    if str_eq(suf_v068, "u128") == 1 { suf_v068_ok = 1; };
+                                    if str_eq(suf_v068, "usize") == 1 { suf_v068_ok = 1; };
+                                };
+                            };
+                            if suf_v068_ok == 0 {
+                                panic(str_concat("error[NUM-021]: decimal literal `", str_concat(dig_str_v119, "` exceeds i64::MAX (9223372036854775807) and lacks an explicit unsigned suffix. Pre-v0.6.68 the value silently wrapped to a negative i64 bit pattern, producing the most-common failure mode `match x { <this> => ... }` where the arm never matches against an i64 scrutinee (silent dead arm). Workarounds: (a) add a `u64` suffix (`9223372036854775808u64`); (b) use the hex form (`0x8000000000000000`); (c) for i64::MIN specifically, use the canonical signed form `(-9223372036854775807) - 1` (already accepted as a const since v0.6.49).")));
+                            };
+                        };
+                    };
                 };
                 let int_lit_value: i64 = if handled_radix == 1 { int_value } else { str_to_int(dig_str_v119) };
                 tokens.push(tok_new(2, int_lit_value, st));
