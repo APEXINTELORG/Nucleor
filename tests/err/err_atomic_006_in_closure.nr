@@ -4,7 +4,9 @@
 //
 // v0.4.280 closes compiler-meltdown filed by probe agent
 // 2026-05-01: closures whose body calls atomic_* helpers crashed
-// the compiler with `vec_get OOB: index <huge>, len 919`. The
+// the compiler with `vec_get OOB: index <huge>, len 919` (pre-v0.6.29
+// wording; v0.6.29 Rust-canonical: `index out of bounds: the len is 919
+// but the index is <huge>`). The
 // closure-lowering path doesn't yet inherit the parent fn's
 // enum-variant scope, so `MemOrder::SeqCst` dispatch falls into
 // the unsupported-associated-fn-call branch and panics with bad

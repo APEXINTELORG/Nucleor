@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.30] — 2026-05-03
+
+**Vec/array OOB diag reworded — Rust-canonical phrasing, no
+implementation leak (probe finding partial closure).**
+
+Closes gap 3 of probe finding `2026-05-02-array-shape-gaps-repeat-
+init-and-slice-param`.
+
+Pre-fix: `arr[99]` for `arr: [i64; 3]` panicked with
+`PANIC: vec_get OOB: index 99, len 3`. Arrays in Nucleor desugar
+to Vec internally, so the OOB diag exposed the implementation
+detail and read as if the user had used Vec — a translation-
+fidelity miss for adopters porting Rust array code.
+
+### Fix
+
+`stdlib/runtime/nucleor_llvm_rt.c:2247` — single-line wording
+change to Rust-canonical phrasing:
+
+```
+PANIC: index out of bounds: the len is 3 but the index is 99 (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+```
+
+The new wording works cleanly for both real `Vec<T>` and array
+indexing without leaking either way (Rust's runtime panic for
+`vec[i]` and `arr[i]` OOB uses the same phrasing). The opt-out
+env var is preserved.
+
+### Validation
+
+- Smoke: `tests/fixtures/probe_vec_oob.nr` re-built + run — new
+  diag fires, exit code unchanged.
+- Drift gate 5/5 OK (no compiler change; runtime-only ship).
+- Three fixture comments updated for fidelity:
+  - `tests/fixtures/t461_vec_oob_panic.nr`
+  - `tests/features/option_question_op.nr`
+  - `tests/err/err_atomic_006_in_closure.nr`
+- The verify-side `grep -qv "vec_get OOB"` assertion (line 2167)
+  remains valid — new wording doesn't contain the old token, so
+  the negative grep still succeeds for the same intent.
+- Full verify gate to be re-run on top of v0.6.29 perf-merge.
+
+### Forward-roadmap (gaps 1 + 2 of same finding)
+
+Not closed in this ship:
+- Gap 1: `let zeros: [i64; 5] = [0; 5];` (Rust repeat-init shape)
+  parse-rejects with NR020. Real fix is parse-pass — substantive.
+- Gap 2: `fn first(s: &[i64]) -> i64` (slice param type)
+  parse-rejects with NR020. Real fix is parse-pass + slice-type
+  semantic substrate — substantive.
+
+Both queued for separate ships.
+
 ## [0.6.29] — 2026-05-03
 
 **Compiler perf fast-path + verify infra polish (parallel-1

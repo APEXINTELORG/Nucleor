@@ -10,7 +10,12 @@
 // Fix (v0.3.200): Vec OOB now PANICs by default with the offending index
 // and the actual length in the message:
 //
-//   PANIC: vec_get OOB: index 10, len 3 (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+//   PANIC: index out of bounds: the len is 3 but the index is 10 (set NUCLEOR_VEC_OOB_LENIENT=1 to suppress)
+//
+// (v0.6.29 reworded the diag from `vec_get OOB: index N, len M` to the
+// Rust-canonical `index out of bounds: the len is M but the index is N`
+// so that array `arr[i]` panics — arrays desugar to Vec internally — no
+// longer leak the implementation.)
 //
 // Adopters porting old code that depended on silent-zero can opt back in
 // via the env var `NUCLEOR_VEC_OOB_LENIENT=1`.
