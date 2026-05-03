@@ -659,6 +659,26 @@ fn lex(src: str) -> Vec<i32> {
                                     if str_eq(suf_v068, "usize") == 1 { suf_v068_ok = 1; };
                                 };
                             };
+                            // v0.6.71: also accept when the previous
+                            // token is unary-minus (token kind 21).
+                            // `-9223372036854775808` is the canonical
+                            // Rust i64::MIN form; v0.6.49 already wires
+                            // const-fold + lower-time acceptance for
+                            // this case. The v0.6.68 lex-time halt
+                            // regressed v0.6.43 + v0.6.49 fixtures.
+                            // Restore by pre-checking the previous
+                            // token: if it's `-` (token 21), the user
+                            // is writing the canonical signed form,
+                            // accept the literal.
+                            if suf_v068_ok == 0 {
+                                let tcnt_v071: i64 = vec_len(tokens);
+                                if tcnt_v071 > 0 {
+                                    let prev_tok_v071: Vec<i32> = vec_get(tokens, tcnt_v071 - 1);
+                                    if tok_type(prev_tok_v071) == 21 {
+                                        suf_v068_ok = 1;
+                                    };
+                                };
+                            };
                             if suf_v068_ok == 0 {
                                 panic(str_concat("error[NUM-021]: decimal literal `", str_concat(dig_str_v119, "` exceeds i64::MAX (9223372036854775807) and lacks an explicit unsigned suffix. Pre-v0.6.68 the value silently wrapped to a negative i64 bit pattern, producing the most-common failure mode `match x { <this> => ... }` where the arm never matches against an i64 scrutinee (silent dead arm). Workarounds: (a) add a `u64` suffix (`9223372036854775808u64`); (b) use the hex form (`0x8000000000000000`); (c) for i64::MIN specifically, use the canonical signed form `(-9223372036854775807) - 1` (already accepted as a const since v0.6.49).")));
                             };
