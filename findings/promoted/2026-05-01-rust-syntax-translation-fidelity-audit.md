@@ -24,7 +24,7 @@ v0.6.51:
 | `let b = b"hello";` (byte string) | OPEN | TYP-005 today; lexer doesn't recognize b-prefix |
 | `let Point { x, y } = p;` (struct destructure-in-let) | OPEN | TYP-008 today; let-pattern destructure not yet wired |
 | `<S as Foo>::f(&s)` (UFCS) | OPEN | NR020 today; UFCS forward-roadmap |
-| `let r = loop { break 42; };` (break-with-value) | OPEN | NR024 wrong-class today; break-with-value is forward-roadmap |
+| `let r = loop { break 42; };` (break-with-value) | CLOSED v0.6.57 | clean parse halt with workaround pointer; full lowering is v1 loop-as-expression |
 | `unreachable!()` macro | CLOSED v0.6.56 | expands to `panic("internal error: entered unreachable code")` matching Rust's std::macros::unreachable! shape |
 | `for (k, v) in &m` (tuple destruct in for) | OPEN | NR020 today |
 | `const fn double(x: i64) -> i64` | CLOSED v0.6.55 | clean parse halt with workaround pointer; full const-eval is v1 |
