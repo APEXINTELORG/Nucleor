@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.97] — 2026-05-03
+
+**Defensive halt — canonical Rust struct-update syntax
+(`Point { x: 10, ..rest }`, functional record update) now produces
+a clean halt with a per-field workaround pointer.**
+
+Pre-fix: writing `Point { x: 10, ..a }` surfaced as wrong-class
+`error[NR020]: parse error: expected ':', got identifier` after
+the parser saw `..` (token 58) and tried to read it as a field
+name in the struct-init parser at line ~3481.
+
+Post-fix: parse_struct_init detects token 58 (`..`) at the
+field-name position and halts cleanly, pointing at the per-field
+workaround.
+
+```nucleor
+struct Point { x: i64, y: i64, z: i64 }
+
+fn main() -> i32 {
+    let a: Point = Point { x: 1, y: 2, z: 3 };
+    // Pre-fix:
+    let b: Point = Point { x: 10, ..a };       // ← NR020 wrong-class
+
+    // Post-fix workaround (write each field explicitly):
+    let b: Point = Point { x: 10, y: a.y, z: a.z };
+    return 0;
+}
+```
+
+Forward-roadmap: struct-update lowering needs per-field source-
+tracking (which fields the user supplied) plus field-list
+inheritance from the source struct's decl — sister to V1.4
+derive(PartialEq) helper-fn generation pattern.
+
+### Fixed-point + perf
+
+Cold 3.40s. Peak 330MB. Round-2 fixed-point md5
+`8212d7c05f3acffa50cfa96471e2afe9`.
+
+### Fixture
+
+`tests/fixtures/v0697_struct_update_syntax_clean_halt.nr` —
+negative fixture for `Point { x: 10, ..a }`.
+
 ## [0.6.96] — 2026-05-03
 
 **Defensive halt — canonical Rust stdlib namespace path
