@@ -22144,6 +22144,21 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // status 1 BEFORE clang is ever invoked. Adopters see the
         // diagnostic followed by a clean `panic` line, no `%r.-1`
         // confusion, no clang link spew.
+        //
+        // v0.6.79 (RFC V1.11 adopter wrong-class halt): canonical Rust
+        // anonymous-tuple binding `let p: (i64, i64) = (5, 7); p.0`
+        // pre-fix surfaced as the generic "cannot resolve field access"
+        // diag — wrong class. Anonymous tuples are not yet supported in
+        // Nucleor (V1.1 closed only NAMED tuple-struct decls). Detect
+        // the parenthesized-type shape and halt with a clean workaround
+        // pointer (named tuple-struct).
+        if str_len(stype) >= 2 && str_char_at(stype, 0) == 40 {
+            let stlen_v079: i64 = str_len(stype);
+            if str_char_at(stype, stlen_v079 - 1) == 41 {
+                print(str_concat("ERROR: anonymous tuple types `(T1, T2, ...)` are not yet supported in Nucleor. Pre-v0.6.79 the field-access `t.0` / `t.1` surfaced as the generic `cannot resolve field access` diag — wrong class. Workaround: declare a named tuple-struct (V1.1, shipped v0.6.74) and use it instead — `struct Pair(i64, i64); let p: Pair = Pair(5, 7); print_int(p.0 as i32);`. Tracked for forward-roadmap (anonymous-tuple substrate is a v1 ship — needs tuple-expression parsing + tuple-type generics in Nucleor's struct-emit pass).", ""));
+                panic("nucleor: anonymous tuple type field access not yet supported (use named tuple-struct — see ERROR diagnostic above)");
+            };
+        };
         print(str_concat("ERROR: cannot resolve field access type for .", fname));
         print("       Likely causes:");
         print("         (1) Receiver expression type couldn't be inferred (try");
