@@ -23069,6 +23069,19 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // diagnostic followed by a clean `panic` line, no `%r.-1`
         // confusion, no clang link spew.
         //
+        // v0.7.8 (defensive halt): canonical Rust complex-receiver
+        // `.await` (e.g. `fetch().await`, `arr[0].await`,
+        // `expr.method().await`) pre-fix surfaced as the generic
+        // "cannot resolve field access .await" diag because the
+        // expand_async_await textual pass only handles the simple
+        // `<ident>.await` form (line ~26145). Halt cleanly here at
+        // lower-time with a workaround pointer (extract the
+        // expression to a let-binding first, then `.await` the
+        // ident).
+        if str_eq(fname, "await") == 1 {
+            print("ERROR: complex-receiver `.await` (e.g. `fetch().await`, `arr[0].await`, `expr.method().await`) is not yet supported in Nucleor. Pre-v0.7.8 surfaced as wrong-class `cannot resolve field access .await` because the expand_async_await textual pass only matches the simple `<ident>.await` form. Workaround: extract the expression to a let-binding first, then `.await` the ident — `let h: i64 = fetch(); let v: i64 = h.await;`. Tracked for forward-roadmap (full async-await substrate is sister to V1.x async/Future infrastructure).");
+            panic("nucleor: complex-receiver `.await` not yet supported (see ERROR diagnostic above)");
+        };
         // v0.6.79 (RFC V1.11 adopter wrong-class halt): canonical Rust
         // anonymous-tuple binding `let p: (i64, i64) = (5, 7); p.0`
         // pre-fix surfaced as the generic "cannot resolve field access"
