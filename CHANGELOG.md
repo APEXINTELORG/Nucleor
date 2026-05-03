@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.29] — 2026-05-03
+
+**Compiler perf fast-path + verify infra polish (parallel-1
+consultant integration).**
+
+Integrates branch `perf/ast-accessor-runtime-fastpath`:
+- `aabcdcb2` perf: fast-path compiler ast accessors
+- `75c706aa` perf: sb_append_char_at hot-path + ToolHelp RSS
+  scanner + verify socket opt-in
+
+### Compiler / runtime
+
+- AST accessor inlining (compiler/nucleor_s1_compiler.nr) +
+  matching runtime helpers in `nucleor_llvm_rt.c`.
+- New runtime helpers `__nucleor_sb_append_char_at` and
+  `__nucleor_sb_append_range`. Three lex hot-paths replace
+  `sb_append(sb, str_substring(src, p, p+1))` (allocates a 1-char
+  str + frees) with `sb_append_char_at(sb, src, p)` (zero alloc).
+  Allocation trace went from ~17 MB on `str_substring` 1-char
+  copies to zero on those sites.
+- Tools-suite ABI tables + `helper_manifest.toml` synced.
+
+### Build / verify infrastructure
+
+- Native-exe link cache for hot rebuilds (visible as
+  `native link: cache hit (sha=…)` in stage2 builds when source
+  is unchanged). Main's prior cache was `.ll`-level only.
+- Explicit Windows `lld` selection (removes a probabilistic
+  linker-pick failure mode).
+- New `tools/rss_estop_lib.ps1` (~70 lines) — ToolHelp-based
+  process-tree RSS scanner with lower per-poll overhead than
+  the prior Get-CimInstance loop.
+- `tools/verify.sh` — socket-runtime fixture is now opt-in via
+  `NUC_VERIFY_RUN_SOCKET=1` (skipped by default — the socket
+  runtime isn't always wired and was emitting noise).
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `13e311c9…`.
+- Self-host wall: 4.83s cold + 4.30s stage2 — below 5.93s
+  cold-warning baseline (consultant's pre-merge gate measured
+  cold=5.02s; native-link cache gives the additional drop).
+- Drift gate 5/5 OK.
+- Full verify gate: **766 PASS / 1 SKIP** (the socket fixture by
+  design — opt-in only). T1.7 bootstrap-seed match holds end-
+  to-end (md5-matches-current-compiler check on step 767).
+
+### Author
+
+Consultant (parallel-1) authored both commits in worktree
+`Desktop\Nucleor_OSS_perf_next` (branch
+`perf/ast-accessor-runtime-fastpath`); main agent merged via
+`git fetch ../Nucleor_OSS_perf_next` + `--no-ff` merge into
+main. Branch was rebased onto v0.6.28 (`d8d8548e`) before merge.
+
 ## [0.6.28] — 2026-05-02
 
 **`(expr)(args)` direct-call form — three more inner-expression
