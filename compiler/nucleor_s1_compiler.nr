@@ -3113,12 +3113,43 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // with a clean diag at the decl naming the workaround (named-
     // field form). Tuple-struct support is a parse-extension forward-
     // roadmap (positional field synthesis + `p.0` / `p.1` access path).
+    // v0.6.73 RFC V1.1 (probe finding 2026-05-02-nested-struct-pattern-
+    // and-tuple-struct-decl-NR020 sub-case 2): tuple-struct positional-
+    // field synthesis. Pre-fix `struct P(T1, T2);` halted at parse with
+    // a workaround diagnostic. Now: parse the paren-form, synthesize
+    // field names `__0`, `__1`, ..., `__N` (matching Rust's positional
+    // accessor naming where `p.0` resolves to the 0-th field). Struct
+    // value retains kind-33 — downstream type-check + lowering use the
+    // synthetic field names; constructor `P(a, b)` and field access
+    // `p.0` / `p.1` are wired in subsequent commits.
+    //
+    // Tuple-struct shape detection: structs with all field names
+    // matching `__<digit>+` are tuple-style (used by constructor
+    // detection + `.<digit>` access lowering downstream).
+    let mut fields: Vec<i32> = Vec::new();
     if pk(tokens, cp) == 50 {
-        print("ERROR: tuple-struct declarations `struct P(T1, T2);` are not yet supported in Nucleor. Pre-v0.6.53 the parser rejected with `error[NR020]: parse error ... expected '{', got '('` — wrong-class error not naming the unsupported feature. Workaround: use the named-field form `struct P { x: T1, y: T2 }` and access fields via `p.x`/`p.y`. Tracked for forward-roadmap (positional field synthesis + `.0`/`.1` access path).");
-        panic("nucleor: tuple-struct decl not yet supported (see ERROR diagnostic above)");
+        cp = cp + 1; // past `(`
+        let mut tup_idx_v073: i64 = 0;
+        while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
+            if vec_len(fields) > 0 {
+                cp = expect_tok(tokens, cp, 44);
+                if pk(tokens, cp) == 51 { break; };
+            };
+            // Optional `pub` field-vis qualifier (matching Rust shape).
+            if pk(tokens, cp) == 72 { cp = cp + 1; };
+            let mut tup_tr_v073: Vec<i32> = parse_type(tokens, cp);
+            cp = pr_pos(tup_tr_v073);
+            let synth_name_v073: str = str_concat("__", str_from_int(tup_idx_v073));
+            fields.push(mk3(pool, 41, synth_name_v073, pr_val(tup_tr_v073)));
+            tup_idx_v073 = tup_idx_v073 + 1;
+        };
+        cp = expect_tok(tokens, cp, 51); // past `)`
+        // Tuple structs end with `;`. Optional — accept brace-form
+        // tail too in case adopters write `struct P(T1, T2) {}`.
+        if pk(tokens, cp) == 43 { cp = cp + 1; };
+        return pr(cp, mk4(pool, 33, name, mk_list(pool, fields), gparams));
     };
     cp = expect_tok(tokens, cp, 52); // {
-    let mut fields: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
         if vec_len(fields) > 0 {
             cp = expect_tok(tokens, cp, 44);
@@ -17528,9 +17559,47 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
         // matches a defined struct name, surface TYP-022 directing
         // to struct-init syntax.
         if sentry < 0 && struct_find_type(pool, structs, callee) >= 0 {
-            let v148a: str = str_concat("`", str_concat(callee, str_concat("(", str_concat("...)` is not how struct values are constructed in Nucleor — `", str_concat(callee, "` is a struct type, not a fn."))))));
-            let v148b: str = str_concat(" Pre-v0.4.148 the call lowered to `call i64 @", str_concat(callee, str_concat("(...)` and failed late at clang link with `error: use of undefined value '@", str_concat(callee, "'`. Use struct-init syntax `<Name> { field1: val1, ... }` to construct a value, or call an inherent constructor `<Name>::new(...)` if one is defined."))));
-            type_diag(diags, source, fn_name, callee, "TYP-022", str_concat(v148a, v148b));
+            // v0.6.73 RFC V1.1 step-1 transitional: tuple-struct decls
+            // (`struct P(T1, T2);`) now PARSE successfully (synthesizing
+            // `__0`, `__1`, ... fields) but constructor `P(a, b)` and
+            // field-access `p.0` / `p.1` are wired in subsequent ships.
+            // Detect tuple-style structs (all field names match
+            // `__<digit>+` shape) and emit a tuple-specific diag with
+            // the named-field-via-synthetic-name workaround. For
+            // non-tuple structs, fall through to the existing TYP-022
+            // diag pointing at the brace-init syntax.
+            let s_idx_v073: i64 = struct_find_type(pool, structs, callee);
+            let s_nid_v073: i64 = vec_get(structs, s_idx_v073);
+            let s_fields_v073: i64 = node_field(pool, s_nid_v073, 2);
+            let s_fc_v073: i64 = list_len(pool, s_fields_v073);
+            let mut tuple_style_v073: i64 = if s_fc_v073 > 0 { 1 } else { 0 };
+            let mut sf_i_v073: i64 = 0;
+            while sf_i_v073 < s_fc_v073 && tuple_style_v073 == 1 {
+                let sf_nid_v073: i64 = list_get(pool, s_fields_v073, sf_i_v073);
+                let sf_name_v073: str = node_field(pool, sf_nid_v073, 1);
+                let sfn_len_v073: i64 = str_len(sf_name_v073);
+                if sfn_len_v073 < 3 { tuple_style_v073 = 0; }
+                else if str_char_at(sf_name_v073, 0) != 95 { tuple_style_v073 = 0; }
+                else if str_char_at(sf_name_v073, 1) != 95 { tuple_style_v073 = 0; }
+                else {
+                    let mut digit_check_v073: i64 = 2;
+                    while digit_check_v073 < sfn_len_v073 {
+                        let dc_v073: i64 = str_char_at(sf_name_v073, digit_check_v073);
+                        if dc_v073 < 48 || dc_v073 > 57 { tuple_style_v073 = 0; digit_check_v073 = sfn_len_v073; }
+                        else { digit_check_v073 = digit_check_v073 + 1; };
+                    };
+                };
+                sf_i_v073 = sf_i_v073 + 1;
+            };
+            if tuple_style_v073 == 1 {
+                let tup_a_v073: str = str_concat("tuple-struct construction `", str_concat(callee, str_concat("(...)` is not yet wired in v0.6.73 — only the decl form `struct ", str_concat(callee, "(T1, T2);` parses. Constructor + `.0`/`.1` field-access lowering arrives in a subsequent ship.")))));
+                let tup_b_v073: str = str_concat(" Workaround: construct via named-field syntax using the synthetic field names `__0`, `__1`, ...: `", str_concat(callee, str_concat(" { __0: a, __1: b }`. Access fields via `p.__0`, `p.__1`, etc. Once full lowering ships you can drop the workaround.", "")));
+                type_diag(diags, source, fn_name, callee, "TYP-022", str_concat(tup_a_v073, tup_b_v073));
+            } else {
+                let v148a: str = str_concat("`", str_concat(callee, str_concat("(", str_concat("...)` is not how struct values are constructed in Nucleor — `", str_concat(callee, "` is a struct type, not a fn."))))));
+                let v148b: str = str_concat(" Pre-v0.4.148 the call lowered to `call i64 @", str_concat(callee, str_concat("(...)` and failed late at clang link with `error: use of undefined value '@", str_concat(callee, "'`. Use struct-init syntax `<Name> { field1: val1, ... }` to construct a value, or call an inherent constructor `<Name>::new(...)` if one is defined."))));
+                type_diag(diags, source, fn_name, callee, "TYP-022", str_concat(v148a, v148b));
+            };
         };
         // v0.4.146: closure call-site argc check. Closures aren't
         // in sigs (their binding lives in tenv with no plist), so

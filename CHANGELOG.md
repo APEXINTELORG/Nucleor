@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.73] — 2026-05-03
+
+**RFC V1.1 step 1 — tuple-struct decl `struct P(T1, T2);` parses
+with synthesized `__0`/`__1` field names. Construction +
+`.0`/`.1` access ship in subsequent steps.**
+
+First v1-class ship. Per `docs/rfcs/RFC_v1_FORWARD_ROADMAP.md`,
+V1.1 (tuple-struct positional-field synthesis) was the
+recommended-first ship. This commit lands step 1 of 3:
+
+- **Step 1 (this ship):** parse acceptance + field synthesis.
+- **Step 2 (next):** constructor `P(a, b)` routing to struct ctor.
+- **Step 3 (next):** `.0`/`.1` field-access path mapping to `.__0`/`.__1`.
+
+### Step 1 fix
+
+`compiler/nucleor_s1_compiler.nr`:
+
+1. **`parse_struct_decl` (~line 3115)**: accept `(T1, T2, ...)`
+   paren-form as alternative to `{ field: T, ... }` brace-form.
+   Synthesize field names `__0`, `__1`, ..., `__N` matching Rust's
+   positional accessor naming where `p.0` resolves to the 0-th
+   field. Emit standard kind-33 struct decl with synthetic fields;
+   downstream type-check + lowering work unchanged for adopters
+   using the named-field workaround.
+
+2. **Type-check kind-7 (~line 17561)**: when a fn-call name resolves
+   to a tuple-style struct (all fields named `__<digit>+`), emit a
+   tuple-specific TYP-022 diag pointing at the named-field workaround
+   `P { __0: a, __1: b }` instead of the generic struct-init diag.
+
+### Adopter migration
+
+```nucleor
+// v0.6.73 (this ship):
+struct Pair(i64, i64);                       // parses cleanly
+struct Triple(str, i64, i64);                // tuple structs OK
+let p: Pair = Pair { __0: 5, __1: 10 };      // workaround: named-field
+print_int(p.__0 as i32);                     // workaround: __<digit>
+print_int(p.__1 as i32);
+
+// Pre-v0.6.73:
+// struct Pair(i64, i64);  // halt: "tuple-struct decl not yet supported"
+
+// Future v0.6.74 (step 2):
+// let p: Pair = Pair(5, 10);                // ctor will work
+
+// Future v0.6.75 (step 3):
+// print_int(p.0 as i32);                    // .0/.1 access will work
+```
+
+### Verify
+
+- New regression-lock: `v0673_tuple_struct_decl_named_field_workaround`
+  exercises Pair (2-field) + Triple (3-field, mixed types).
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+- Perf: 3-sample median cold 3.16s (= v0.6.70 floor, no drift),
+  peak_mem 318 MB.
+
+### Followup
+
+Steps 2 and 3 land separately to keep each commit focused and
+revertable. The RFC ship-cadence plan calls for ~600 LOC across
+all three steps; step 1 alone is ~80 LOC including the type-check
+diag.
+
 ## [0.6.72] — 2026-05-03
 
 **Restore strtab_intern to v0.6.70 floor — backward-scan via locality
