@@ -274,6 +274,31 @@ fn lex(src: str) -> Vec<i32> {
                     panic("nucleor: `#[cfg(...)]` attribute not yet supported (see ERROR diagnostic above)");
                 };
             };
+            // v0.6.26 (probe finding 2026-05-01-derive-attribute-partial-honor):
+            // `#[derive(A, B, C)]` is silently dropped except for `Debug`
+            // which is honored. Adopters writing `#[derive(PartialEq)]`
+            // expect equality on field-wise values; Nucleor only honors
+            // Debug, so `a == b` later falls through to TYP-011 ptr-compare
+            // diag at the use site — a confusing distance from the derive
+            // site. Print a one-line warning at lex time naming the whole
+            // derive body so adopters know up front that anything other
+            // than Debug is being silently dropped. Build continues
+            // (warning, not error); TYP-011 still fires correctly at use
+            // sites for the dropped derives.
+            if p + 9 < slen && str_eq_at(src, p + 2, "derive(") == 1 {
+                let derive_arg_start_v060: i64 = p + 9;
+                let mut derive_arg_end_v060: i64 = derive_arg_start_v060;
+                while derive_arg_end_v060 < slen && str_char_at(src, derive_arg_end_v060) != 41 {
+                    derive_arg_end_v060 = derive_arg_end_v060 + 1;
+                };
+                if derive_arg_end_v060 < slen {
+                    let derive_body_v060: str = str_substring(src, derive_arg_start_v060, derive_arg_end_v060);
+                    let trimmed_v060: str = str_trim(derive_body_v060);
+                    if str_eq(trimmed_v060, "Debug") == 0 {
+                        print(str_concat("warning[DERIVE-001]: `#[derive(", str_concat(trimmed_v060, ")]` is silently dropped except for `Debug`. Nucleor doesn't auto-derive PartialEq / Eq / Hash / Default / Clone / Copy / Ord / PartialOrd / etc. — anything other than `Debug` listed above is a no-op. Use sites that depend on a dropped derive (`a == b` for PartialEq, `Default::default()`, `a.clone()`, etc.) will fail at the use site with TYP-011 / TYP-005 / TYP-006. Workarounds: hand-write the equivalent (e.g. `fn point_eq(a: P, b: P) -> i64 { ... }` for PartialEq), or wait for the future RFC that adds derive expansion.")));
+                    };
+                };
+            };
             p = p + 2;
             let mut depth: i64 = 1;
             while p < slen && depth > 0 {
