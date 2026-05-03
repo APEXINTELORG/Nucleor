@@ -16762,7 +16762,15 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                 || str_eq(callee, "panic") == 1 { 1 } else { 0 };
             if needs_str_arg0 == 1 {
                 let arg0_t: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
-                if str_len(arg0_t) > 0 && str_eq(arg0_t, "str") == 0 && str_eq(arg0_t, "_") == 0 {
+                // v0.6.48 (probe finding 2026-05-02-str-runtime-helpers-
+                // reject-amp-but-strict-accepts): accept `&str` too. Pre-
+                // fix `str_len(&s)` was rejected with TYP-006 even though
+                // `&s` lowers identically to `s` (kind-90 unary-ref is a
+                // pass-through in lower_expr at line ~19462), so adopters
+                // porting Rust code (where `&str` is canonical) hit the
+                // diag on every helper call site. Now both forms accept;
+                // the lower side already produces identical IR.
+                if str_len(arg0_t) > 0 && str_eq(arg0_t, "str") == 0 && str_eq(arg0_t, "&str") == 0 && str_eq(arg0_t, "_") == 0 {
                     type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 0 of '", str_concat(callee, "' must be str (runtime helper)")));
                 };
             };
@@ -16820,7 +16828,8 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
                     || str_eq(callee, "str_replace") == 1 { 1 } else { 0 };
                 if needs_str_arg1 == 1 {
                     let arg1_t: str = type_expr(pool, prog, list_get(pool, args, 1), env, sigs, structs, fn_name, diags, source, tprof);
-                    if str_len(arg1_t) > 0 && str_eq(arg1_t, "str") == 0 && str_eq(arg1_t, "_") == 0 {
+                    // v0.6.48 same as arg0: accept `&str` too.
+                    if str_len(arg1_t) > 0 && str_eq(arg1_t, "str") == 0 && str_eq(arg1_t, "&str") == 0 && str_eq(arg1_t, "_") == 0 {
                         type_diag(diags, source, fn_name, callee, "TYP-006", str_concat("argument 1 of '", str_concat(callee, "' must be str (runtime helper)")));
                     };
                 };

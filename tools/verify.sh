@@ -4271,6 +4271,21 @@ v0643_unary_neg_min_panics() {
     grep -qE "i64 neg overflow" $NUC_VERIFY_RUN_LOG || return 1
 }
 
+v0648_str_helper_amp_accepted() {
+    rm -f target/v0648_amp_check.exe target/v0648_amp_check
+    "$BIN" build tests/fixtures/v0648_str_helper_amp_accepted.nr -o "v0648_amp_check" >$NUC_VERIFY_STEP_LOG 2>&1
+    local exe=""
+    if [ -x target/v0648_amp_check.exe ]; then exe=target/v0648_amp_check.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0648_amp_check ]; then exe=target/v0648_amp_check; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rc=$?
+    [ "$rc" -eq 0 ] || return 1
+    grep -qE "^5$" $NUC_VERIFY_RUN_LOG || return 1
+    grep -qE "^hello world$" $NUC_VERIFY_RUN_LOG || return 1
+    grep -qE "^ell$" $NUC_VERIFY_RUN_LOG || return 1
+}
+
 v0633_option_unwrap_none_panics() {
     rm -f target/v0633_opt_check.exe target/v0633_opt_check
     "$BIN" build tests/fixtures/option_unwrap_none_panics.nr -o "v0633_opt_check" >$NUC_VERIFY_STEP_LOG 2>&1
@@ -5119,6 +5134,7 @@ step "T3.11 bare arena_* builtins link + run end-to-end" t311_arena_builtin_smok
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
 step "v0.6.43 unary-neg(i64::MIN) panics by default (sister to + and * overflow)" v0643_unary_neg_min_panics
+step "v0.6.48 str runtime helpers accept &s (parity with bare s)" v0648_str_helper_amp_accepted
 step "v0.6.33 Option::None.unwrap() panics with canonical message (no Vec leak)" v0633_option_unwrap_none_panics
 step "v0.6.33 Result::Err(x).unwrap() panics with canonical message (no silent ok-leak)" v0633_result_unwrap_err_panics
 step "v0.6.34 Result::Err(x).unwrap_err() returns err payload (was TYP-005 link fail)" v0634_result_unwrap_err_basic
