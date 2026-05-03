@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.53] — 2026-05-03
+
+**Three batched closures: NUM-021 gap 3 + tuple-struct halt +
+unsafe-fn halt.**
+
+### NUM-021 gap 3 — const div/mod-by-zero, shift-out-of-range
+
+Closes gap 3 of `2026-05-02-num-021-coverage-gaps-u64-imin-shift-
+divzero`. Pre-fix `const B: i64 = 1 / 0;` (and `5 % 0`, `1 << 64`)
+fell through to runtime PANIC at startup via the strict-intrin
+trap, surfacing far from the source. Now flag the overflow at
+const_i64_binop level — the existing NUM-021 path fires at the
+const-decl / let-binding site.
+
+`compiler/nucleor_s1_compiler.nr` `const_i64_binop` (~line 15501):
+
+- div (op 23) by 0 → returns overflow flag (was no-value)
+- mod (op 24) by 0 → returns overflow flag
+- shl (op 115) with shift > 63 or < 0 → overflow flag
+- shr (op 116) with shift > 63 or < 0 → overflow flag
+
+Sister gaps 1 (u64 const overflow) of the same finding remains
+open (different root — u64 arith doesn't go through i64 overflow
+detection).
+
+### Tuple-struct decl halt
+
+Closes sub-case 2 of `2026-05-02-nested-struct-pattern-and-tuple-
+struct-decl-NR020`. Pre-fix `struct P(i64, i64);` rejected with
+NR020 generic parse-error wrong-class. Now halts at parse with a
+clean diag naming the named-field workaround.
+
+`parse_struct_decl` (~line 2867): when the next token after the
+generic-params/where-clause is `(` instead of `{`, halt with the
+forward-roadmap diagnostic.
+
+### unsafe-fn halt
+
+Closes sub-case 1 of `2026-05-01-keyword-silent-strip-audit`. Pre-
+fix `unsafe fn dangerous() { ... }` had `unsafe` silently stripped
+— adopters auditing Rust translation lost the visual marker. Now
+halts at parse_program with a clean diag.
+
+`parse_program` (~line 3543): detects `unsafe` (kind-1 identifier)
+followed by `fn` (kind-10) and halts.
+
+### Verify
+
+- New regression-locks (auto-walker):
+  - `tests/err/err_num021_const_div_zero.nr`
+  - `tests/err/err_tuple_struct_decl.nr`
+  - `tests/err/err_unsafe_fn_decl.nr`
+- Round-2 fixed-point preserved.
+- Bootstrap seed refreshed.
+- Drift gate clean.
+
 ## [0.6.52] — 2026-05-03
 
 **IEEE 754 negative-zero sign bit preserved through unary minus —
