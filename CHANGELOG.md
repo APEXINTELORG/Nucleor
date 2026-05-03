@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.4] — 2026-05-03
+
+**Defensive halt — canonical Rust `extern "C" fn name() { body }`
+(FFI-exposed fn with body) now produces a clean halt with a
+"drop the `extern \"C\"`" workaround pointer.**
+
+Pre-fix: `extern "C" fn callback(x: i64) -> i64 { return x * 3; }`
+parsed through parse_extern_fn (which only handles declaration-
+form, no body), then parse_extern_fn returned with cp at `{`.
+parse_program then surfaced the body as wrong-class
+`error: statement-level keyword at module scope`.
+
+Post-fix: parse_extern_fn detects token 52 (`{`) at the post-
+signature position and halts cleanly, pointing at:
+
+1. **Drop the `extern "C"`** — Nucleor regular fns
+   (`fn name(...) { body }`) already use the C ABI by default
+   at the i64-everywhere runtime level. The qualifier is
+   informational.
+2. **Use bare `extern fn name(...);`** for pure declarations
+   of foreign symbols (no body).
+
+```nucleor
+// Pre-fix:
+extern "C" fn callback(x: i64) -> i64 {     // ← wrong-class diag
+    return x * 3;
+}
+
+// Post-fix workaround (drop extern "C"):
+fn callback(x: i64) -> i64 {
+    return x * 3;
+}
+```
+
+Forward-roadmap: full `extern "C" fn` with body lowering needs
+ABI-marker propagation through the IR + linker section discipline.
+Sister to V1.6 (no-alloc/panic propagation) — both annotation-
+based v1.x ships.
+
+### Fixed-point + perf
+
+Cold 3.40s. Peak 315MB. Round-2 fixed-point md5
+`5871c31fcd58382a90d7174a9927f6ed`.
+
+### Fixture
+
+`tests/fixtures/v0704_extern_c_with_body_clean_halt.nr` —
+negative fixture for `extern "C" fn callback() { ... }`.
+
 ## [0.7.3] — 2026-05-03
 
 **Defensive halt — canonical Rust raw-pointer types `*const T`
