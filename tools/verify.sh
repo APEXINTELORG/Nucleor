@@ -4225,6 +4225,41 @@ v030_deadline_overrun() {
 # Post-fix the narrow-arith path routes through `__nucleor_panic_div_i32`
 # which catches the corner with a clean PANIC. Asserts non-zero rc
 # (specifically NOT the Windows exception code) AND the expected stderr.
+# v0.6.33: probe finding 2026-05-02-result-option-unwrap-diag-and-
+# correctness-gaps. Two regression-locks:
+#   gap 1 — Option::None.unwrap() panics with the canonical Rust
+#           message instead of leaking the internal Vec OOB diag.
+#   gap 2 — Result::Err(x).unwrap() panics with the canonical Rust
+#           message instead of silently leaking the err payload as
+#           if it were the ok payload (CRITICAL pre-fix bug).
+v0633_option_unwrap_none_panics() {
+    rm -f target/v0633_opt_check.exe target/v0633_opt_check
+    "$BIN" build tests/fixtures/option_unwrap_none_panics.nr -o "v0633_opt_check" >$NUC_VERIFY_STEP_LOG 2>&1
+    local exe=""
+    if [ -x target/v0633_opt_check.exe ]; then exe=target/v0633_opt_check.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0633_opt_check ]; then exe=target/v0633_opt_check; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rc=$?
+    [ "$rc" -ne 0 ] || return 1
+    grep -qE "called .Option::unwrap\(\). on a .None. value" $NUC_VERIFY_RUN_LOG || return 1
+    grep -qv "vec_get OOB" $NUC_VERIFY_RUN_LOG || return 1
+    grep -qv "index out of bounds" $NUC_VERIFY_RUN_LOG || return 1
+}
+
+v0633_result_unwrap_err_panics() {
+    rm -f target/v0633_res_check.exe target/v0633_res_check
+    "$BIN" build tests/fixtures/result_unwrap_err_panics.nr -o "v0633_res_check" >$NUC_VERIFY_STEP_LOG 2>&1
+    local exe=""
+    if [ -x target/v0633_res_check.exe ]; then exe=target/v0633_res_check.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0633_res_check ]; then exe=target/v0633_res_check; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rc=$?
+    [ "$rc" -ne 0 ] || return 1
+    grep -qE "called .Result::unwrap\(\). on an .Err. value" $NUC_VERIFY_RUN_LOG || return 1
+}
+
 v0510_i32_min_div_overflow() {
     rm -f target/v0510_i32div_check.exe target/v0510_i32div_check
     "$BIN" build tests/fixtures/v0510_i32_min_div_neg_one.nr -o "v0510_i32div_check" >$NUC_VERIFY_STEP_LOG 2>&1
@@ -5044,6 +5079,8 @@ step "RFC-0014 max_depth static analysis + runtime wrapper" rfc0014_max_depth_fu
 step "T3.11 bare arena_* builtins link + run end-to-end" t311_arena_builtin_smoke
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
+step "v0.6.33 Option::None.unwrap() panics with canonical message (no Vec leak)" v0633_option_unwrap_none_panics
+step "v0.6.33 Result::Err(x).unwrap() panics with canonical message (no silent ok-leak)" v0633_result_unwrap_err_panics
 step "v0.5.10 i32::MIN / -1 panics cleanly (not Windows STATUS_INTEGER_OVERFLOW)" v0510_i32_min_div_overflow
 step "v0.5.12 str_to_int_strict panics on invalid input" v0512_str_to_int_strict_panic
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches

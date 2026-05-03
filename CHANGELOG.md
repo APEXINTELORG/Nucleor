@@ -5,6 +5,82 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.33] — 2026-05-03
+
+**`Option::unwrap()` + `Result::unwrap()` discriminant checks
+(probe finding partial closure — gaps 1 + 2, including a CRITICAL
+silent-miscompute fix).**
+
+Closes gaps 1 + 2 of probe finding `2026-05-02-result-option-
+unwrap-diag-and-correctness-gaps`. Gap 3 (`Result::unwrap_err()`
+not implemented) deferred.
+
+### Pre-fix
+
+`__nucleor_option_unwrap` and `__nucleor_result_unwrap` both did
+a bare `vec_get(opt_or_res, 1)` with NO discriminant check:
+
+- **Gap 1** — `Option::None.unwrap()` panicked with `vec_get OOB:
+  index 1, len 1` (later "index out of bounds: the len is 1 but
+  the index is 1" after v0.6.30) — both leaked the internal Vec
+  representation. Misleading diag.
+- **Gap 2 (CRITICAL)** — `Result::Err(x).unwrap()` SILENTLY
+  returned the err payload as if it were the ok payload. NO
+  panic, NO diagnostic. Adopters got garbage data and the
+  program continued. Catastrophic correctness bug.
+
+### Fix
+
+`stdlib/runtime/nucleor_llvm_rt.c`:
+
+- `__nucleor_option_unwrap` — checks `len < 2 || vec_get(opt, 0)
+  != 0` (Some=tag-0). If true, panics with
+  `PANIC: called `Option::unwrap()` on a `None` value` — the
+  canonical Rust runtime panic message.
+- `__nucleor_result_unwrap` — checks `len < 2 || vec_get(res, 0)
+  != 1` (Ok=tag-1, Err=tag-0). If true, panics with
+  `PANIC: called `Result::unwrap()` on an `Err` value`.
+
+Both pass-through fast-paths preserved when discriminant is
+correct.
+
+### Adopter migration
+
+```nucleor
+// Pre-fix Option::None.unwrap() — leaky diag:
+let o: Option<i64> = None;
+let v: i64 = o.unwrap();
+// → PANIC: index out of bounds: the len is 1 but the index is 1 (LEAKY)
+
+// v0.6.33:
+// → PANIC: called `Option::unwrap()` on a `None` value (CANONICAL)
+
+// Pre-fix Result::Err.unwrap() — silent miscompute:
+let r: Result<i64, str> = Err("oops");
+let v: i64 = r.unwrap();
+// → silently returned the err payload's pointer as i64 — GARBAGE.
+
+// v0.6.33:
+// → PANIC: called `Result::unwrap()` on an `Err` value (CRITICAL FIX)
+```
+
+### Validation
+
+- 4 smoke fixtures verified: Option::None panics, Result::Err
+  panics, Option::Some(42) returns 42, Result::Ok(7) returns 7.
+- 2 new regression-lock fixtures + verify.sh steps:
+  - `tests/fixtures/option_unwrap_none_panics.nr`
+  - `tests/fixtures/result_unwrap_err_panics.nr`
+- Drift gate 5/5 OK (runtime-only ship; no compiler change, no
+  seed regen).
+- Full verify gate: in flight at write time.
+
+### Forward-roadmap (gap 3)
+
+`Result::unwrap_err()` is not implemented (TYP-005 link fail
+when called). Deferred to a separate ship — it's a new method
+not just a runtime tweak.
+
 ## [0.6.32] — 2026-05-03
 
 **ISR-007 — `#[isr(prio = N)]` validation (probe finding closure)
