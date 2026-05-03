@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.45] — 2026-05-03
+
+**NUM-019 — const-folded negative binop now caught for unsigned
+bindings (probe finding closure — silent miscompute coverage gap).**
+
+Closes probe finding `2026-05-01-num-019-coverage-gap-binop-vs-
+literal`. Pre-fix `let a: u32 = 0 - 5;` evaded the kind-5
+unary-minus NUM-019 check and silently two's-complement-wrapped
+to `u32::MAX-4 = 4294967291` at runtime. The kind-4 binop form
+const-folds to `-5` at compile time but the literal-form check
+didn't see it.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` let-binding NUM-019 site (line
+~17415) — when the binding is unsigned, fold the init expression
+via `const_i64_expr` and emit NUM-019 if the result is negative.
+Skips kind-5 (already handled by the literal-form check) and
+kind-1 (covered by NUM-002 literal-out-of-range). Catches the
+binop / cast forms that const-fold to negative.
+
+### Adopter migration
+
+```nucleor
+// Pre-v0.6.45: silent two's-complement wrap
+let a: u32 = 0 - 5;        // a = 4294967291 (u32::MAX-4)
+let b: u32 = 1000 - 2000;  // b = 4294966296 (typo'd: meant 2000-1000)
+
+// v0.6.45: NUM-019 halts at compile time for both
+//
+// Workarounds:
+let a: u32 = (0 - 5) as u32;            // explicit cast (still wraps but is intentional)
+let a: i32 = 0 - 5;                     // signed binding holds -5
+let a: u32 = 5 - 0;                     // non-negative result
+```
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `e0657ae3…`.
+- Self-host wall: 5.23s + 4.04s (native-link cache hit).
+- Tools-suite (674 fns) compiles clean.
+- Bootstrap seed regenerated.
+- Smoke (probe repro): `let a: u32 = 0 - 5;` fires NUM-019.
+- Full verify gate: in flight at write time.
+
+### Fixture
+
+- `tests/err/err_num019_binop_negative_unsigned.nr`
+
 ## [0.6.44] — 2026-05-03
 
 **`vec_insert_at` PANICs on OOB instead of silently clamping
