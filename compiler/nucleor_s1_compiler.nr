@@ -3676,6 +3676,16 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             if pk(tokens, cp) == 43 { cp = cp + 1; };
             continue;
         };
+        // v0.6.99 (defensive halt): canonical Rust associated types in
+        // traits (`type Item;`, `type Item = i64;`) pre-fix surfaced
+        // as wrong-class `error[NR020]: parse error: expected token 10
+        // (fn), got token 74 (type)`. Halt cleanly with a workaround
+        // pointer (use a generic param `trait Container<Item>` or hand-
+        // wire the concrete type per impl).
+        if pk(tokens, cp) == 74 {
+            print("ERROR: associated types in traits (`type Item;` or `type Item = i64;`) are not yet supported in Nucleor. Pre-v0.6.99 surfaced as wrong-class `NR020: expected token 10 (fn), got token 74 (type)` because parse_trait_decl's body loop only knows fn decls. Workaround: declare a generic param on the trait — `trait Container<Item> { fn get(self: &Self) -> Item; }` — and the impls instantiate it concretely (`impl Container<i64> for IntBox { fn get(self: &IntBox) -> i64 { ... } }`). Tracked for forward-roadmap (associated-type substrate is a v1.x ship, sister to GAT support).");
+            panic("nucleor: associated types in traits not yet supported (see ERROR diagnostic above)");
+        };
         cp = expect_tok(tokens, cp, 10); // fn
         let mname: i64 = pkv(tokens, cp); cp = cp + 1;
         // v0.3.89: skip optional generic params on trait method

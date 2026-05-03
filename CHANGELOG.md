@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.99] — 2026-05-03
+
+**Defensive halt — canonical Rust associated types in traits
+(`type Item;`, `type Item = i64;`) now produce a clean halt with
+a generic-param workaround pointer.**
+
+Pre-fix: writing `trait Container { type Item; fn get(...) ->
+Self::Item; }` surfaced as wrong-class `error[NR020]: parse error:
+expected token 10 (fn), got token 74 (type)` because
+parse_trait_decl's body loop only knows fn decls.
+
+Post-fix: parse_trait_decl detects token 74 (`type` keyword) at
+trait-body position and halts cleanly, pointing at the
+generic-param workaround:
+
+```nucleor
+// Pre-fix:
+trait Container {
+    type Item;
+    fn get(self: &Self) -> Self::Item;     // ← NR020 wrong-class
+}
+
+// Post-fix workaround (generic param on trait):
+trait Container<Item> {
+    fn get(self: &Self) -> Item;
+}
+impl Container<i64> for IntBox {
+    fn get(self: &IntBox) -> i64 { return self.v; }
+}
+```
+
+Forward-roadmap: associated-type substrate is a v1.x ship,
+sister to GAT (Generic Associated Type) support.
+
+### Fixed-point + perf
+
+Cold 4.58s (system load variance). Peak 332MB. Round-2
+fixed-point md5 `94b8687f9ea0149936aea38fde02e653`. The new
+check is a single token compare gated on trait-body parsing —
+not load-bearing.
+
+### Fixture
+
+`tests/fixtures/v0699_associated_types_clean_halt.nr` —
+negative fixture for `type Item;` in trait.
+
 ## [0.6.98] — 2026-05-03
 
 **RFC V1.7-ext — turbofish syntax `.method::<TypeArgs>(args)`
