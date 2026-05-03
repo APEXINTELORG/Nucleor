@@ -4258,6 +4258,19 @@ v0634_result_unwrap_err_on_ok_panics() {
     grep -qE "called .Result::unwrap_err\(\). on an .Ok. value" $NUC_VERIFY_RUN_LOG || return 1
 }
 
+v0643_unary_neg_min_panics() {
+    rm -f target/v0643_neg_check.exe target/v0643_neg_check
+    "$BIN" build tests/fixtures/v0643_unary_neg_min_panics.nr -o "v0643_neg_check" >$NUC_VERIFY_STEP_LOG 2>&1
+    local exe=""
+    if [ -x target/v0643_neg_check.exe ]; then exe=target/v0643_neg_check.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0643_neg_check ]; then exe=target/v0643_neg_check; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rc=$?
+    [ "$rc" -ne 0 ] || return 1
+    grep -qE "i64 neg overflow" $NUC_VERIFY_RUN_LOG || return 1
+}
+
 v0633_option_unwrap_none_panics() {
     rm -f target/v0633_opt_check.exe target/v0633_opt_check
     "$BIN" build tests/fixtures/option_unwrap_none_panics.nr -o "v0633_opt_check" >$NUC_VERIFY_STEP_LOG 2>&1
@@ -5105,6 +5118,7 @@ step "RFC-0014 max_depth static analysis + runtime wrapper" rfc0014_max_depth_fu
 step "T3.11 bare arena_* builtins link + run end-to-end" t311_arena_builtin_smoke
 step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pass
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
+step "v0.6.43 unary-neg(i64::MIN) panics by default (sister to + and * overflow)" v0643_unary_neg_min_panics
 step "v0.6.33 Option::None.unwrap() panics with canonical message (no Vec leak)" v0633_option_unwrap_none_panics
 step "v0.6.33 Result::Err(x).unwrap() panics with canonical message (no silent ok-leak)" v0633_result_unwrap_err_panics
 step "v0.6.34 Result::Err(x).unwrap_err() returns err payload (was TYP-005 link fail)" v0634_result_unwrap_err_basic

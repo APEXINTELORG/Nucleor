@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.43] — 2026-05-03
+
+**Unary `-` overflow check at runtime — `neg(i64::MIN)` now panics
+by default, matching `+`/`*` (probe finding closure — silent
+miscompute, asymmetric overflow check).**
+
+Closes probe finding `2026-05-01-unary-neg-runtime-overflow-not-
+checked`. Pre-fix `let r = neg(-9223372036854775808);` silently
+wrapped to i64::MIN. Asymmetric with `+` and `*` (which already
+panic at default via `NUCLEOR_INT_STRICT_INTRIN=1`) and even with
+the compile-time const-folded form `let _ = -(-9223372036854775808);`
+(which panics at compile time). Hand-written `abs()` patterns
+(`if x < 0 { -x } else { x }`) silently produced wrong results
+on `i64::MIN`.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` kind-5 (unary minus) lowering
+(line ~19326) now consults `NUCLEOR_INT_STRICT_INTRIN` (default
+`"1"`, same as binop). When set, routes `-x` for i64 through the
+existing `panic_neg` runtime helper. The older `NUCLEOR_INT_
+STRICT_ARITH` env var is still honored on `=1` for backward-
+compat. Setting `NUCLEOR_INT_STRICT_INTRIN=0` restores the
+legacy native-sub path for adopters who need wrapping semantics.
+
+### Adopter migration
+
+```nucleor
+fn neg(x: i64) -> i64 { -x }
+fn main() -> i32 {
+    let r: i64 = neg(-9223372036854775808);
+    // Pre-v0.6.43: r = -9223372036854775808 (silent wrap)
+    // v0.6.43: PANIC: i64 neg overflow: -(i64::MIN)
+    print_int(r as i32);
+    0
+}
+```
+
+For adopters who genuinely want wrapping behavior:
+
+```bash
+NUCLEOR_INT_STRICT_INTRIN=0 nucleor build foo.nr   # wraps silently
+```
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `dd59b388…`.
+- Self-host wall: 5.21s + 3.86s.
+- Tools-suite (674 fns) compiles clean — no false halts; the
+  tools-suite has no `-(-i64::MIN)` patterns.
+- Bootstrap seed regenerated — strict env vars unchanged
+  (NUCLEOR_INT_STRICT_INTRIN=1 was already the seed-refresh env).
+- Smoke (probe repro): `neg(-9223372036854775808)` PANICs with
+  "i64 neg overflow: -(i64::MIN)".
+- Full verify gate: in flight at write time.
+
+### Fixture
+
+- `tests/fixtures/v0643_unary_neg_min_panics.nr` (regression-
+  lock — verify step `v0643_unary_neg_min_panics` builds + runs
+  and asserts the PANIC line).
+
 ## [0.6.42] — 2026-05-03
 
 **`let x = vec_pop(v)` now fires TYP-021 instead of silently
