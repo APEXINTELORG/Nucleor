@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.48] — 2026-05-03
+
+**str runtime helpers accept `&s` (parity with bare `s`) — probe
+finding closure / translation-fidelity.**
+
+Closes probe finding
+`2026-05-02-str-runtime-helpers-reject-amp-but-strict-accepts`.
+Pre-fix every str runtime helper (`str_len`, `str_concat`,
+`str_substring`, `print`, `println`, `panic`, etc.) rejected `&s`
+with `error[TYP-006]: argument N of '<helper>' must be str (runtime
+helper)` even though `&s` for a `str`-typed `s` lowers identically
+to `s` (kind-90 unary-ref is a pass-through in `lower_expr`).
+Adopters porting Rust code (where `&str` is the canonical form)
+hit TYP-006 on every helper call site and had to mechanically
+strip `&` everywhere; the asymmetry was visible because
+`str_substring_strict` happens to be off the diag's allow-list and
+silently accepted both forms.
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` arg-0 and arg-1 TYP-006 checks
+(lines ~16765 and ~16823) now also accept `&str` as a valid type
+in addition to `str` and `_`. The IR side already produced
+identical output for both forms, so no lower-side changes are
+required.
+
+### Adopter migration
+
+`str_len(&s)`, `str_concat(&a, &b)`, `print(&s)`, etc. now compile
+and run. Existing `str_len(s)` call sites are unchanged.
+
+### Verify
+
+- New regression-lock: `v0648_str_helper_amp_accepted` exercises
+  `str_len(&s)`, `str_concat(&a, &b)`, `str_substring(&s, ...)`,
+  `print(&s)`.
+- Round-2 fixed-point preserved (md5 stable).
+- Drift gate clean.
+
 ## [0.6.47] — 2026-05-03
 
 **`print_f64` switches to scientific notation at extremes (probe
