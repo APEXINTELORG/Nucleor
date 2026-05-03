@@ -174,6 +174,10 @@ static inline int _profile_check_env_once(void) {
 /* Old name kept for source compat with the inc sites; now a no-op
    wrapper around the env check. */
 static inline void _profile_init_once(void) { (void)_profile_check_env_once(); }
+#define NUC_PROFILE_INC(counter) do { \
+    if (g_profile_active < 0) { (void)_profile_check_env_once(); } \
+    if (g_profile_active > 0) { (counter)++; } \
+} while (0)
 
 static void _alloc_summary(void) {
     if (getenv("NUC_TRACE_ALLOC")) {
@@ -1496,7 +1500,7 @@ long long nuc_f64_min(long long a, long long b) {
 
 // === String operations ===
 long long __nucleor_str_len(const char *s) {
-    g_p_str_len++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_str_len);
     if (!s) return 0;
     return (long long)strlen(s);
 }
@@ -1721,7 +1725,7 @@ const char *__nucleor_infer_fn_return_type(const char *src, const char *fn_name)
 }
 
 long long __nucleor_str_eq(const char *a, const char *b) {
-    g_p_str_eq++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_str_eq);
     if (a == b) return 1;          /* pointer-equal: same string */
     if (!a || !b) return 0;        /* one null, one not */
     return strcmp(a, b) == 0 ? 1 : 0;
@@ -1747,7 +1751,7 @@ long long __nucleor_str_eq(const char *a, const char *b) {
 // Net: tightens the obvious bug class (negative index) cheaply,
 // documents the residual surface, doesn't tank the lexer.
 long long __nucleor_str_char_at(const char *s, long long i) {
-    g_p_str_char_at++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_str_char_at);
     if (!s) return 0;
     if (i < 0) {
         if (_vec_oob_lenient()) return 0;
@@ -1802,7 +1806,7 @@ long long __nucleor_str_char_at_strict(const char *s, long long i) {
 // strict mode use the new `str_substring_strict` helper which still
 // does the strlen check.
 const char *__nucleor_str_substring(const char *s, long long start, long long end) {
-    g_p_str_substring++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_str_substring);
     if (!s) return "";
     if (start < 0 || end < start) {
         if (_vec_oob_lenient()) return "";
@@ -1839,7 +1843,7 @@ const char *__nucleor_str_substring_strict(const char *s, long long start, long 
 }
 
 const char *__nucleor_str_concat(const char *a, const char *b) {
-    g_p_str_concat++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_str_concat);
     if (!a) a = "";
     if (!b) b = "";
     int la = (int)strlen(a), lb = (int)strlen(b);
@@ -2200,7 +2204,7 @@ void __nucleor_str_free(const char *s) {
 }
 
 void __nucleor_vec_push(NVec *v, long long x) {
-    g_p_vec_push++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_vec_push);
     if (!v) return;
     if (v->len >= v->cap) {
         long long old_cap = v->cap;
@@ -2236,7 +2240,7 @@ static int _vec_oob_lenient(void) {
 }
 
 long long __nucleor_vec_get(NVec *v, long long i) {
-    g_p_vec_get++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_vec_get);
     if (!v) return 0;
     if (i < 0 || i >= v->len) {
         if (_vec_oob_lenient()) return 0;
@@ -2249,19 +2253,19 @@ long long __nucleor_vec_get(NVec *v, long long i) {
 }
 
 long long __nucleor_vec_len(NVec *v) {
-    g_p_vec_len++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_vec_len);
     if (!v) return 0;
     return (long long)v->len;
 }
 
 void __nucleor_vec_pop(NVec *v) {
-    g_p_vec_pop++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_vec_pop);
     if (!v || v->len <= 0) return;
     v->len--;
 }
 
 void __nucleor_vec_set(NVec *v, long long i, long long x) {
-    g_p_vec_set++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_vec_set);
     if (!v) return;
     if (i < 0 || i >= v->len) {
         if (_vec_oob_lenient()) return;
@@ -3904,7 +3908,7 @@ long long __nucleor_checked_overflow_flag(void) {
 // surface.
 
 long long __nucleor_panic_add_i64(long long a, long long b) {
-    g_p_panic_add++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_panic_add);
     if (b > 0 && a > LLONG_MAX - b) {
         fprintf(stderr, "PANIC: i64 add overflow: %lld + %lld\n", a, b);
         fflush(stderr); exit(1);
@@ -3916,7 +3920,7 @@ long long __nucleor_panic_add_i64(long long a, long long b) {
     return a + b;
 }
 long long __nucleor_panic_sub_i64(long long a, long long b) {
-    g_p_panic_sub++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_panic_sub);
     if (b < 0 && a > LLONG_MAX + b) {
         fprintf(stderr, "PANIC: i64 sub overflow: %lld - %lld\n", a, b);
         fflush(stderr); exit(1);
@@ -3928,7 +3932,7 @@ long long __nucleor_panic_sub_i64(long long a, long long b) {
     return a - b;
 }
 long long __nucleor_panic_mul_i64(long long a, long long b) {
-    g_p_panic_mul++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_panic_mul);
     if (a == 0 || b == 0) return 0;
     long long r = a * b;
     if (a != r / b) {
@@ -5076,7 +5080,7 @@ long long __nucleor_hashmap_with_capacity(long long n) {
     return (long long)(intptr_t)m;
 }
 long long __nucleor_hashmap_insert(long long h, const char *key, long long val) {
-    g_p_hashmap_insert++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_hashmap_insert);
     NHashMap *m = (NHashMap *)(intptr_t)h;
     if (!m || !key) return 0;
     if ((m->len + 1) * 2 > m->cap) __nuc_hashmap_grow(m);
@@ -5111,7 +5115,7 @@ long long __nucleor_hashmap_insert(long long h, const char *key, long long val) 
 // Code that uses the contains-then-get pattern or the
 // hashmap_get_or(h, k, default) helper never reaches the panic.
 long long __nucleor_hashmap_get(long long h, const char *key) {
-    g_p_hashmap_get++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_hashmap_get);
     NHashMap *m = (NHashMap *)(intptr_t)h;
     if (!m || !key) return 0;
     unsigned long long hash = __nuc_str_hash(key);
@@ -5130,7 +5134,7 @@ long long __nucleor_hashmap_get(long long h, const char *key) {
     exit(1);
 }
 long long __nucleor_hashmap_contains(long long h, const char *key) {
-    g_p_hashmap_contains++; _profile_init_once();
+    NUC_PROFILE_INC(g_p_hashmap_contains);
     NHashMap *m = (NHashMap *)(intptr_t)h;
     if (!m || !key) return 0;
     unsigned long long hash = __nuc_str_hash(key);

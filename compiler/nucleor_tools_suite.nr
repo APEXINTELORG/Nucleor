@@ -9998,6 +9998,13 @@ fn host_null_redirect() -> str {
     return " 2>/dev/null";
 }
 
+fn host_remove_file_quiet(path: str) -> i64 {
+    if host_is_windows() == 1 {
+        return system(str_concat("del /F /Q ", str_concat(path, " 2>NUL")));
+    };
+    return system(str_concat("rm -f ", str_concat(path, " 2>/dev/null")));
+}
+
 fn host_stack_link_flag() -> str {
     // Windows: clang-cl-style flag passed through to MSVC link.exe / lld-link.
     // POSIX: GNU ld accepts -z stacksize=N (in bytes). Both expand the main
@@ -10022,6 +10029,7 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, cache_ll_path:
     let cfiles: str = vec_get(native_d, 1);
     let libpath_flags: str = vec_get(native_d, 2);
     let rt_arg: str = resolve_toolchain_path("stdlib/runtime/nucleor_llvm_rt.c");
+    host_remove_file_quiet(exe_path);
     let clang_start: i64 = now_ms();
     let stack_flag: str = host_stack_link_flag();
     // T1.5d (v0.2.343): capture clang stderr/stdout so we can lift
