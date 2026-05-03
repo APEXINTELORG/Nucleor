@@ -454,6 +454,9 @@ Step "CLI: nuc explain -- full spec code set wired" {
         "OWN-001", "OWN-002", "OWN-003", "OWN-004", "OWN-005", "OWN-006",
         "OWN-007", "OWN-008", "OWN-009", "OWN-010", "OWN-011", "OWN-012",
         "OWN-013",
+        # RFC-0035 Sendable + actor isolation
+        "RACE-001", "RACE-002", "RACE-003", "RACE-004", "RACE-005",
+        "RACE-006", "RACE-007", "RACE-008", "RACE-009", "RACE-010",
         # GOV series -- governance policies (since v0.2.131)
         "GOV-001", "GOV-002",
         # TNT series -- taint analysis (expansion of NR033, since v0.2.120)

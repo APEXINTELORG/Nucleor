@@ -685,6 +685,9 @@ cli_explain_full_smoke() {
         "OWN-001" "OWN-002" "OWN-003" "OWN-004" "OWN-005" "OWN-006"
         "OWN-007" "OWN-008" "OWN-009" "OWN-010" "OWN-011" "OWN-012"
         "OWN-013"
+        # RFC-0035 Sendable + actor isolation
+        "RACE-001" "RACE-002" "RACE-003" "RACE-004" "RACE-005"
+        "RACE-006" "RACE-007" "RACE-008" "RACE-009" "RACE-010"
         # GOV series — governance policies (since v0.2.131)
         "GOV-001" "GOV-002"
         # TNT series — taint analysis (expansion of NR033, since v0.2.120)
@@ -4723,6 +4726,31 @@ rfc0008_isr_first_pass() {
     return 0
 }
 
+rfc0035_sendable_actor_first_pass() {
+    rm -rf "$ROOT/.nuc_cache" "$ROOT/target/.nuc_cache" 2>/dev/null || true
+    "$BIN" build "tests/features/rfc0035_sendable_marker.nr" -o "_rfc0035_sendable_marker" --no-link --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+
+    "$BIN" build "tests/features/rfc0035_actor_decl_parser.nr" -o "_rfc0035_actor_decl_parser" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local exe="target/_rfc0035_actor_decl_parser"
+    [ -x "$exe.exe" ] && exe="$exe.exe"
+    [ -x "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1 || return 1
+    grep -q "OK rfc0035_actor_decl_parser" $NUC_VERIFY_RUN_LOG || return 1
+
+    local pair f code
+    for pair in \
+        "err_rfc0035_not_sendable_spawn RACE-008" \
+        "err_rfc0035_non_sendable_spawn RACE-001" \
+        "err_rfc0035_actor_field_escape RACE-003" \
+        "err_rfc0035_mut_ref_spawn RACE-005"; do
+        f="${pair% *}"
+        code="${pair#* }"
+        "$BIN" build "tests/err/$f.nr" -o "_$f" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+        grep -q "$code" $NUC_VERIFY_STEP_LOG || return 1
+    done
+    return 0
+}
+
 vec_inline_runtime_smoke() {
     rm -rf "$ROOT/.nuc_cache" "$ROOT/target/.nuc_cache" 2>/dev/null || true
     "$BIN" build "tests/features/vec_extend_self_inline.nr" -o "_vec_extend_self_inline" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
@@ -4765,6 +4793,7 @@ step "tests/err/*.nr have EXPECT headers" err_tests_have_expect_smoke
 step "RFC-0007 atomics lower to LLVM atomic IR" rfc0007_atomic_ir_smoke
 step "RFC-0007 queues run SPSC/MPSC/capacity/benchmark fixtures" rfc0007_queue_smoke
 step "RFC-0008 ISR attribute first-pass contract and IR marker" rfc0008_isr_first_pass
+step "RFC-0035 Sendable + actor first-pass substrate" rfc0035_sendable_actor_first_pass
 step "NVec inline runtime ownership regressions" vec_inline_runtime_smoke
 step "RFC-0042 auto_drop emits owned-local cleanup once" rfc0042_auto_drop_ir_smoke
 step "CLI: nuc help advertises every dispatched command" cli_help_coverage_smoke

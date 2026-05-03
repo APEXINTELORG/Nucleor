@@ -314,8 +314,15 @@ parallel1_round_4_in_flight: spike/v06-compile-time-params-parser + spike/v06-co
 probe_state: rebased to v0.6.13 (1f77eac) — closure capture broken inside while/loop bodies (existing 2026-05-01 finding, re-verified open)
 
 # === APPEND 2026-05-02 PM — parallel-1 const overflow diagnostic ===
-last_parallel1_focus_lane_e: spike/v06-const-overflow-diagnostic (integrating now)
+last_parallel1_focus_lane_e: spike/v06-const-overflow-diagnostic (SHIPPED v0.6.18)
 parallel1_lane_e_base: origin/main v0.6.12 (9306c09)
 parallel1_lane_e_scope: E3 compile-time diagnostic for overflowing module-level const integer expressions
-parallel1_lane_e_validation: fixed-point PASS; focused E3 PASS; diag/spec drift PASS; nuc explain full-code PASS; compiler drift PASS; diff check PASS
-parallel1_lane_e_peak: self-host max 689 MB / 770 MB tight cap; tools-suite 413 MB / 580 MB tight cap; verify wrapper max 411 MB / 1024 MB e-stop
+parallel1_lane_e_validation: fixed-point PASS; focused E3 PASS
+parallel1_lane_e_peak: self-host max 689 MB / 770 MB tight cap
+
+# === APPEND 2026-05-02 LATE — parallel-1 RFC-0035 Sendable substrate (perf-fixed by main) ===
+last_parallel1_focus_lane_g: spike/v06-sendable-substrate (main-agent perf-fix integration)
+parallel1_lane_g_base: origin/main v0.6.17 (0b361f4)
+parallel1_lane_g_scope: RFC-0035 Sendable marker + field-only actor first-pass substrate
+parallel1_lane_g_initial_perf: 47x HOT regression (1.22s → 57.38s) due to source-scanning helpers — see Desktop/Nucleor_PARALLEL_1_BRIEF_2026-05-01.md §APPEND-2026-05-02-LATE
+main_agent_perf_fix: precompute Sendable / not_sendable / actor-field tables once per compile; replace per-call full-source scans with O(1) lookups; fix sendable_type_forced_not's per-iteration str_substring allocation
