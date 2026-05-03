@@ -2521,6 +2521,21 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         print("ERROR: `impl Trait` (return-position or argument-position trait-bound sugar) is not yet supported in Nucleor. Pre-v0.6.92 surfaced as wrong-class `error[NR020]: expected '{', got identifier` because parse_type had no `impl` branch. Workaround: declare the concrete return type instead — for iterators, expose the Vec directly (`fn make_iter() -> Vec<i64>`); for closures, use a typed fn pointer (`fn cb() -> fn(i64) -> i64`); for trait-bound polymorphism, wait for vtable dispatch (v1.x trait-object substrate, sister to v0.6.91 `Box<dyn Trait>` halt). Tracked for forward-roadmap (impl Trait sugar lowers to either anonymous-existential return or generic call-site monomorphisation depending on position).");
         panic("nucleor: `impl Trait` type position not yet supported (see ERROR diagnostic above)");
     };
+    // v0.7.3 (defensive halt — raw pointer types `*const T` /
+    // `*mut T`): canonical Rust raw-pointer type position
+    // (`let p: *const i64 = ...;`, `fn read(p: *const i64)`)
+    // pre-fix surfaced as wrong-class `NR020: parse_primary cannot
+    // start expression at token kind 73` (the `const` keyword
+    // following `*`) because parse_type had no `*` branch — the
+    // outer parser saw `*` as the multiplication operator (token
+    // 22) at type position. Halt cleanly with a workaround pointer
+    // (use `&T` / `&mut T` borrow-references for safe code, or
+    // store as i64 for FFI / unsafe-style transit).
+    if pk(tokens, pos) == 22 {
+        let v073_kind: str = if pk(tokens, pos + 1) == 73 { "const" } else if pk(tokens, pos + 1) == 12 { "mut" } else { "<expected const|mut>" };
+        print(str_concat("ERROR: raw pointer type `*", str_concat(v073_kind, str_concat(" T` is not yet supported in Nucleor. Pre-v0.7.3 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 73` (the `const` keyword following `*`) because parse_type had no `*` branch. Nucleor's i64-everywhere ABI doesn't yet have an unsafe pointer type — values are passed as i64 (which IS the heap pointer for Box/Vec/String/etc.) without explicit raw-pointer typing. Workaround: use `&T` / `&mut T` borrow-references for safe code; for FFI / unsafe transit, declare the param/binding as `i64` directly and the runtime ABI passes the pointer value through. Tracked for forward-roadmap (raw-pointer type substrate is v1.x, sister to V1.5 length-tagged str ABI).")));
+        panic(str_concat("nucleor: raw pointer type `*", str_concat(v073_kind, " T` not yet supported (see ERROR diagnostic above)")));
+    };
     // v0.3.92/v0.4.112: trait object syntax `dyn Trait`.
     // Preserve the `dyn` marker so Box<dyn Trait> can be distinguished
     // from Box<Trait> during type checking.
