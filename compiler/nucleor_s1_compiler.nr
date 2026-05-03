@@ -2828,6 +2828,25 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if pk(tokens, cp) == 12 { cp = cp + 1; };
         let fn2: i64 = pkv(tokens, cp); cp = expect_tok(tokens, cp + 1, 42);
         let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
+        // v0.6.27 (probe finding 2026-05-02-duplicate-struct-decl-silently-
+        // accepted, repro 3): duplicate field name in a struct decl was
+        // silently accepted at decl-time; TYP-017 only fired at the init
+        // site `P { x: 1, x: 2 }`. Adopters writing typo'd decls
+        // (`struct Date { day: i64, day: i64 }`) got no signal until
+        // construction. Mirror Rust E0124 ("field is already declared")
+        // at decl-time.
+        let mut dup_chk_v062: i64 = 0;
+        while dup_chk_v062 < vec_len(fields) {
+            let prior_v062: i64 = vec_get(fields, dup_chk_v062);
+            let prior_name_v062: str = node_field(pool, prior_v062, 1);
+            if str_eq(prior_name_v062, fn2) == 1 {
+                print(str_concat("error[TYP-039]: field `", str_concat(fn2, str_concat("` is already declared in this struct (Rust E0124). Each field name must be unique within the decl."))));
+                print(str_concat("  Two `", str_concat(fn2, "` fields parsed; the first one wins for offset / type, the second is unreachable but consumes the comma-list slot. TYP-017 catches the same family at init-site (`P { x: 1, x: 2 }`); v0.6.27 catches it earlier at the struct-decl site so adopters writing typo'd decls (`struct Date { day: i64, day: i64, month: i64 }`) get the signal at the decl, not at the first construction.")));
+                print("  Workaround: rename or remove the duplicate field. If both names are wanted (different physical fields with the same logical role), pick one (`x` and `x_alt`).");
+                panic(str_concat("duplicate field in struct decl: ", fn2));
+            };
+            dup_chk_v062 = dup_chk_v062 + 1;
+        };
         fields.push(mk3(pool, 41, fn2, pr_val(tr)));
     };
     cp = cp + 1;
@@ -2922,6 +2941,25 @@ fn parse_enum_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 cp = pr_pos(tr);
             };
             cp = expect_tok(tokens, cp, 53);
+        };
+        // v0.6.27 (probe finding 2026-05-02-enum-duplicate-variant-names-
+        // silently-accepted): `enum E { A, A, A }` was silently accepted
+        // with all 3 variants kept distinct, and MATCH-001 confirmed
+        // "1 arms for enum with 3 variants" — Nucleor saw them as
+        // separate. Same for data variants `enum E { Foo(i64),
+        // Foo(str) }`. Mirror Rust E0428 ("the name `A` is defined
+        // multiple times") at decl-time.
+        let mut dup_v_v062: i64 = 0;
+        while dup_v_v062 < vec_len(variants) {
+            let prior_var_v062: i64 = vec_get(variants, dup_v_v062);
+            let prior_vname_v062: str = node_field(pool, prior_var_v062, 1);
+            if str_eq(prior_vname_v062, vname) == 1 {
+                print(str_concat("error[TYP-040]: duplicate enum variant `", str_concat(vname, str_concat("` in `enum ", str_concat(name, "` (Rust E0428)."))))));
+                print("  Pre-v0.6.27 Nucleor silently kept duplicate variants distinct, so `match` saw the enum as having more variants than the source written suggested (MATCH-001 fired with the wrong arm-count). Variant names must be unique within an enum.");
+                print(str_concat("  Workaround: rename or remove the duplicate `", str_concat(vname, "`. If both shapes are needed (e.g. `Foo(i64)` and `Foo(str)`), give them distinct names (`FooInt`, `FooStr`) — Nucleor doesn't yet support trait-style overloaded variants.")));
+                panic(str_concat("duplicate enum variant: ", str_concat(name, str_concat("::", vname))));
+            };
+            dup_v_v062 = dup_v_v062 + 1;
         };
         variants.push(mk3(pool, 37, vname, mk_list(pool, ptypes)));
     };
@@ -23748,11 +23786,60 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // Pass 1: collect structs, enums, and externs
     let collect_start: i64 = now_ms();
     let mut fi: i64 = 0;
+    // v0.6.27 (probe finding 2026-05-02-duplicate-struct-decl-silently-
+    // accepted, repros 1+2): `struct W { … } struct W { … }` (same or
+    // different fields) was silently accepted; first decl won for `W { … }`
+    // initialization with the second decl's fields unreachable. Sister
+    // case to enum-duplicate-variant + duplicate-pub-fn (existing).
+    // Mirror Rust E0428 ("the name `W` is defined multiple times") at
+    // collection time.
+    let mut seen_struct_names_v062: Vec<str> = Vec::new();
+    let mut seen_enum_names_v062: Vec<str> = Vec::new();
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
         if node_kind(pool, fn_nid) == 32 { externs.push(fn_nid); fn_decls.push(fn_nid); }
-        else if node_kind(pool, fn_nid) == 33 { structs.push(fn_nid); }
-        else if node_kind(pool, fn_nid) == 36 { enums.push(fn_nid); };
+        else if node_kind(pool, fn_nid) == 33 {
+            let sname_v062: str = node_field(pool, fn_nid, 1);
+            let mut dsi_v062: i64 = 0;
+            let mut dup_hit_v062: i64 = 0;
+            while dsi_v062 < vec_len(seen_struct_names_v062) {
+                if str_eq(vec_get(seen_struct_names_v062, dsi_v062), sname_v062) == 1 {
+                    dup_hit_v062 = 1;
+                    dsi_v062 = vec_len(seen_struct_names_v062);
+                } else {
+                    dsi_v062 = dsi_v062 + 1;
+                };
+            };
+            if dup_hit_v062 == 1 {
+                print(str_concat("error[TYP-041]: duplicate struct decl `", str_concat(sname_v062, "` (Rust E0428).")));
+                print(str_concat("  Two `struct ", str_concat(sname_v062, "` decls in this compile unit. Nucleor's collection pass keeps both, but only the FIRST one wins for field-offset / construction; the second's fields are unreachable. Adopters refactoring across files (rename `Foo` to `Bar`, miss one) or running translators that emit duplicate decls hit silent miscompiles.")));
+                print(str_concat("  Workaround: rename or remove the duplicate `struct ", str_concat(sname_v062, "`. If both shapes are needed (e.g. version-skew between modules), give them distinct names.")));
+                panic(str_concat("duplicate struct decl: ", sname_v062));
+            };
+            seen_struct_names_v062.push(sname_v062);
+            structs.push(fn_nid);
+        }
+        else if node_kind(pool, fn_nid) == 36 {
+            let ename_v062: str = node_field(pool, fn_nid, 1);
+            let mut dei_v062: i64 = 0;
+            let mut edup_hit_v062: i64 = 0;
+            while dei_v062 < vec_len(seen_enum_names_v062) {
+                if str_eq(vec_get(seen_enum_names_v062, dei_v062), ename_v062) == 1 {
+                    edup_hit_v062 = 1;
+                    dei_v062 = vec_len(seen_enum_names_v062);
+                } else {
+                    dei_v062 = dei_v062 + 1;
+                };
+            };
+            if edup_hit_v062 == 1 {
+                print(str_concat("error[TYP-041]: duplicate enum decl `", str_concat(ename_v062, "` (Rust E0428).")));
+                print(str_concat("  Two `enum ", str_concat(ename_v062, "` decls in this compile unit. Same hazard as duplicate-struct: only the FIRST wins for variant resolution; the second's variants are unreachable. Sister to v0.6.27 dup-variant-within-enum check.")));
+                print(str_concat("  Workaround: rename or remove the duplicate `enum ", str_concat(ename_v062, "`.")));
+                panic(str_concat("duplicate enum decl: ", ename_v062));
+            };
+            seen_enum_names_v062.push(ename_v062);
+            enums.push(fn_nid);
+        };
         if node_kind(pool, fn_nid) == 30 { fn_decls.push(fn_nid); };
         if node_kind(pool, fn_nid) == 50 { globals.push(fn_nid); };
         fi = fi + 1;

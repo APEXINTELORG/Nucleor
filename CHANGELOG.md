@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.27] — 2026-05-02
+
+**Duplicate-decl halts at parse / collect time — TYP-039 dup field
+in struct decl, TYP-040 dup enum variant, TYP-041 dup top-level
+struct or enum (probe finding closures, sister halts).**
+
+Closes probe findings:
+- `2026-05-02-duplicate-struct-decl-silently-accepted` (repros 1–3)
+- `2026-05-02-enum-duplicate-variant-names-silently-accepted`
+
+Pre-fix: `struct W { … } struct W { … }` was silently accepted
+with the second decl's fields unreachable, `struct P { x: i64,
+x: i64 }` was silently accepted at decl-time (TYP-017 only fired
+at the init site `P { x: 1, x: 2 }`), and `enum E { A, A, A }`
+was silently accepted with all 3 variants kept distinct (MATCH-001
+confirmed "1 arms for enum with 3 variants" — Nucleor saw them as
+separate). Sister to v0.6.23 duplicate-pub-fn / E0034 ambiguous-
+method work; mirrors Rust E0124 (dup field) and E0428 (dup name).
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` — three sister halts:
+
+1. **`parse_struct_decl`** — when adding each field, walk existing
+   fields and emit `error[TYP-039]` if a name already declared.
+2. **`parse_enum_decl`** — when adding each variant, walk existing
+   variants and emit `error[TYP-040]` if a name already declared.
+3. **Pass-1 collection (line ~23754)** — track seen-struct / seen-
+   enum names; on duplicate top-level struct or enum decl, emit
+   `error[TYP-041]`. Same shape as the existing duplicate-pub-fn
+   check at line ~7389.
+
+All three halt with workaround pointers + Rust-error-code cross-
+references (E0124 / E0428).
+
+### Adopter migration
+
+```nucleor
+// Pre-v0.6.27 (silent — first wins, second's surface unreachable):
+struct P { x: i64, x: i64, y: i64 }   // → TYP-039 at decl
+enum E { A, A, A }                    // → TYP-040 at decl
+struct W { v: i64 } struct W { name: str }   // → TYP-041 at collect
+enum E1 { A, B } enum E1 { C, D }     // → TYP-041 at collect
+
+// Workarounds (each diag includes these):
+// TYP-039: rename or remove the duplicate field (`x` and `x_alt`).
+// TYP-040: rename or remove the duplicate variant; for `Foo(i64)` +
+//          `Foo(str)` distinct shapes, use `FooInt` and `FooStr`.
+// TYP-041: rename or remove the duplicate decl. If both shapes are
+//          needed (e.g. version-skew between modules), give them
+//          distinct names.
+```
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `055e87c0…`.
+- Self-host wall: 8.13s cold + 6.47s stage2 (above 5.93s
+  cold-warning baseline; the additional dup-name walks on every
+  struct field / variant / top-level decl are the cause; per-decl
+  cost is amortised O(N), no O(N²) scan-source patterns).
+- Tools-suite compiles clean (no false halts triggered against
+  the 674-fn tools-suite source).
+- Bootstrap seed regenerated; drift gate 5/5 OK.
+- Full verify gate: in flight at write time.
+
+### Fixtures
+
+- `tests/err/err_typ_039_dup_field_in_struct_decl.nr`
+- `tests/err/err_typ_040_dup_enum_variant.nr`
+- `tests/err/err_typ_041_dup_struct_decl.nr`
+
+### Forward-roadmap
+
+Sister duplicate-decl audit candidates not in this ship:
+- Duplicate `trait` decls — same E0428 family.
+- Duplicate `impl Trait for T` blocks — Rust E0119.
+- Duplicate `const` / `static` (when statics ship beyond v0.6.21).
+Tracked under future probe sweeps.
+
 ## [0.6.26] — 2026-05-02
 
 **`#[derive(...)]` — early `warning[DERIVE-001]` instead of silent
