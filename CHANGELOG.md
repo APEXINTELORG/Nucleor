@@ -5,6 +5,77 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.88] — 2026-05-03
+
+**`assert_eq!(a, b)` / `assert_ne!(a, b)` (no format args) now
+route through the `==` / `!=` binop auto-dispatch, closing the
+silent-miscompute hazard for str / String / derived-PartialEq
+struct values.**
+
+Pre-fix: `assert_eq!(a, b)` with no format args fell through the
+v0.6.76 textual-rewrite path (which only handled the format-args
+shape) and the strip-and-continue lowered to
+`__nucleor_assert_eq(i64, i64)` — pointer comparison. For
+str / String / derived structs, equal-content values at different
+heap addresses false-failed. The v0.6.20 ship added a TYP-011 diag
+for str-arg case but adopters had to manually route through
+`assert_eq(str_eq(a, b), 1)`.
+
+Post-fix: the v0.6.76 textual rewriter now handles the no-format
+case for `assert_eq!`/`assert_ne!` — rewrite to
+`if !((a) <op> (b)) { panic!("assert_eq! failed"); };` so the
+v0.6.85 + v0.6.87 binop kind-4 auto-dispatch (str_eq /
+string_eq / `<Type>__derived_eq`) handles correctness transparently.
+
+```nucleor
+#[derive(PartialEq)]
+struct Point { x: i64, y: i64 }
+
+fn main() -> i32 {
+    let s1: str = "hello";
+    let s2: str = "hello";   // different heap address
+    assert_eq!(s1, s2);      // pre-v0.6.88: false-fails. Now: passes.
+
+    let a: Point = Point { x: 5, y: 7 };
+    let b: Point = Point { x: 5, y: 7 };
+    assert_eq!(a, b);        // pre-v0.6.88: false-fails. Now: passes.
+
+    let c: Point = Point { x: 5, y: 8 };
+    assert_ne!(a, c);        // passes.
+    return 0;
+}
+```
+
+### Coverage
+
+| `assert_eq!`/`assert_ne!` argument type | Pre-fix | Post-fix |
+|---|---|---|
+| str / String | TYP-011 + ptr-compare false-fail | structural value compare |
+| derived-PartialEq struct | silent ptr-compare false-fail | field-wise compare |
+| primitive (i*, u*, f*, bool, char) | ptr-compare = value-compare (no change) | value compare (regression-safe) |
+| Vec / HashMap / non-derived struct | ptr-compare (still hazard) | ptr-compare (still hazard) |
+
+Vec / HashMap / non-derived struct still hit the ptr-compare hazard
+because the binop kind-4 path doesn't auto-route those types yet —
+that's the V1.4 monomorphisation extension (sister to derive(Hash)).
+
+### Failure-message coverage
+
+The synthesized panic message is the canonical `assert_eq! failed`
+or `assert_ne! failed`. The existing v0.6.76 path with format args
+(`assert_eq!(a, b, "fmt", args)`) preserves the user's custom
+message — unchanged.
+
+### Fixed-point + perf
+
+Cold 3.27s. Peak 329MB. Round-2 fixed-point md5
+`2fc3f7954f93b814e81a101189abbf5c`.
+
+### Fixture
+
+`tests/fixtures/v0688_assert_eq_routes_through_eq.nr` —
+exercises str + derived-PartialEq struct cases.
+
 ## [0.6.87] — 2026-05-03
 
 **`str == str` / `String == String` now auto-dispatch to the

@@ -29877,6 +29877,39 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                         last_non_ws = 125;
                         continue;
                     };
+                    // v0.6.88 (probe finding 2026-05-02-assert-eq-ne-pointer-
+                    // compare-extends-to-vec-struct-hashmap): canonical Rust
+                    // `assert_eq!(a, b)` / `assert_ne!(a, b)` (no format
+                    // args) lower to `__nucleor_assert_eq(i64, i64)` which
+                    // does pointer comparison. For str / String / derived-
+                    // PartialEq struct values, this silently miscomputes —
+                    // equal-content values at different heap addresses
+                    // fail/pass incorrectly.
+                    //
+                    // Rewrite the no-fmt case to `if !((a) <op> (b)) {
+                    // panic!("assertion failed: ..."); };` so the
+                    // existing v0.6.85+v0.6.87 binop kind-4 auto-dispatch
+                    // (which routes ==/!= for str/String/derived structs
+                    // to the right runtime helper) handles correctness
+                    // transparently.
+                    if v076_assert_kind > 1 && v076_comma1 >= 0 && v076_comma2 < 0 && v076_probe_depth == 0 {
+                        let v088_lhs: str = str_substring(src, v076_probe_start, v076_comma1);
+                        let v088_rhs: str = str_substring(src, v076_comma1 + 1, v076_close_paren);
+                        let v088_op: str = if v076_assert_kind == 2 { "==" } else { "!=" };
+                        let v088_op_word: str = if v076_assert_kind == 2 { "assert_eq" } else { "assert_ne" };
+                        sb_append(sb, "if !((");
+                        sb_append(sb, v088_lhs);
+                        sb_append(sb, ") ");
+                        sb_append(sb, v088_op);
+                        sb_append(sb, " (");
+                        sb_append(sb, v088_rhs);
+                        sb_append(sb, ")) { panic(\"");
+                        sb_append(sb, v088_op_word);
+                        sb_append(sb, "! failed\"); }");
+                        p = v076_probe_q;
+                        last_non_ws = 125;
+                        continue;
+                    };
                 };
                 if str_eq(name, "assert") == 1
                    || str_eq(name, "assert_eq") == 1 || str_eq(name, "assert_ne") == 1
