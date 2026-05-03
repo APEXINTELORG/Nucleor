@@ -22011,6 +22011,25 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 print(str_concat(pa, str_concat(pb, pc)));
                                 panic(str_concat("nucleor: no method `.", str_concat(mname, str_concat("()` for primitive receiver `", str_concat(stype_base_v107, "`")))));
                             };
+                            // v0.6.91 (defensive halt — Box<dyn Trait>
+                            // receiver method dispatch): canonical Rust
+                            // `let d: Box<dyn Animal> = Box::new(Dog{});
+                            // d.speak();` pre-fix fell through every
+                            // typed-receiver branch and the kind-8
+                            // catch-all synthesized `vec_speak(d)` —
+                            // surfacing as wrong-class TYP-005 'Vec<T>
+                            // has no method'. Trait-object dispatch
+                            // requires a vtable; Nucleor's i64-everywhere
+                            // ABI doesn't yet have one. The Box wrapper
+                            // strip in `type_base_name` (line ~8378)
+                            // leaves `dyn Trait` as the visible base.
+                            // Halt cleanly with workaround pointer (use
+                            // concrete type — `let d: Dog = Dog {}; ...`
+                            // — and call the trait method directly).
+                            if str_len(stype_base_v107) > 4 && str_starts_with(stype_base_v107, "dyn ") == 1 {
+                                print(str_concat("ERROR: trait-object dispatch `<", str_concat(stype_base_v107, str_concat(">`.", str_concat(mname, "()` is not yet supported in Nucleor. Pre-v0.6.91 the kind-8 catch-all synthesized `vec_<method>(receiver)` and the post-link diag re-cast as `receiver type 'Vec<T>' has no method ...` — wrong-class for adopters porting Rust code with `Box<dyn Trait>` polymorphism. Trait-object dispatch requires a vtable; Nucleor's i64-everywhere ABI doesn't yet have one. Workaround: use a concrete struct type instead of `Box<dyn Trait>` — `let d: Dog = Dog {};` then call the trait method directly (`d.speak()`); or add an enum dispatch wrapper (`enum Animal { Dog(Dog), Cat(Cat) }` + match). Tracked for forward-roadmap (vtable-backed trait-object dispatch is a v1.x ship).")))));
+                                panic(str_concat("nucleor: trait-object method dispatch on `Box<", str_concat(stype_base_v107, "> not yet supported (see ERROR diagnostic above)")));
+                            };
                             // v0.4.217: borrowed-reference receiver guard.
                             // Pre-fix `r.foo()` for `r: &S` fell through every
                             // typed-receiver branch (str / Option / Result /
