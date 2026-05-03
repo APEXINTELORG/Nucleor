@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.42] — 2026-05-03
+
+**`let x = vec_pop(v)` now fires TYP-021 instead of silently
+binding 0 (probe finding closure — silent miscompute on void-
+returning helper).**
+
+Closes probe finding `2026-04-30-vec-pop-void-coerce-to-zero`.
+Pre-fix `let x = vec_pop(v)` silently bound `x` to 0. Adopters
+calling vec_pop expecting Rust-like value-returning semantics
+got a 0 they couldn't distinguish from a popped 0. The hazard
+was worse with pushed-then-popped sequences:
+
+```nucleor
+let mut v: Vec<i64> = Vec::new();
+vec_push(v, 0);                  // v = [0]
+let x: i64 = vec_pop(v);         // x = 0 (popped)
+let y: i64 = vec_pop(v);         // y = 0 (silent, vec is now empty)
+// adopter cannot distinguish empty-pop from value-of-0 pop
+```
+
+### Fix
+
+`compiler/nucleor_s1_compiler.nr` let-binding TYP-021 site (line
+~17277) — when the RHS is a direct kind-7 call AND the callee is
+`vec_pop`, override `init_t` to `"void"` so the existing
+TYP-021 check fires. type_expr for vec_pop returns the Vec's
+element type via the vec-read-call path (kept for
+backward-compat with annotated forms `let x: i64 = vec_pop(v);`),
+but the bare `let x = vec_pop(v)` form gets the void-rtype
+override.
+
+### Adopter migration
+
+```nucleor
+// Pre-v0.6.42: silent 0-bind, indistinguishable from popped 0
+let x = vec_pop(v);
+
+// v0.6.42: TYP-021 halts the build
+//
+// Workaround: vec_pop returns void in Nucleor — split into separate
+// "peek" + "pop" calls:
+let last: i64 = vec_last(&v);   // returns the last element
+vec_pop(v);                     // void, just removes
+print_int(last as i32);
+```
+
+### Validation
+
+- Stage1/2 self-host fixed point md5 `b125e03a…`.
+- Self-host wall: 4.76s + 3.96s.
+- Tools-suite (674 fns) compiles clean — every existing `vec_pop`
+  call in the tools-suite source is paired with explicit `vec_last`
+  reads BEFORE the pop, so nothing breaks.
+- Bootstrap seed regenerated.
+- Smoke (probe repro): `let x = vec_pop(v)` now fires TYP-021
+  cleanly.
+- Full verify gate: in flight at write time.
+
+### Fixture
+
+- `tests/err/err_typ_021_vec_pop_void_bind.nr`
+
 ## [0.6.41] — 2026-05-03
 
 **`vec![X; N]` Rust repeat syntax now produces a length-N Vec

@@ -15110,6 +15110,16 @@ fn builtin_rtype(name: str) -> str {
     if is_atomic_ordered_builtin(name) == 1 { return "i64"; };
     if str_eq(name, "print") == 1 || str_eq(name, "print_int") == 1 || str_eq(name, "print_f64") == 1 || str_eq(name, "print_bool") == 1 || str_eq(name, "putchar") == 1 { return "void"; };
     if str_eq(name, "rng_seed") == 1 || str_eq(name, "device_free") == 1 || str_eq(name, "arena_destroy") == 1 || str_eq(name, "arena_reset") == 1 { return "void"; };
+    // v0.6.42 (probe finding 2026-04-30-vec-pop-void-coerce-to-zero):
+    // vec_pop is a void-returning runtime helper (removes the last
+    // element, returns nothing). Pre-fix builtin_rtype returned ""
+    // for it, so `let x = vec_pop(v)` silently bound 0 (TYP-021
+    // didn't fire because the rtype was unknown, not void). Adopters
+    // got a 0 they couldn't distinguish from a popped 0. Naming
+    // vec_pop here makes TYP-021 fire at the let-binding site with
+    // the canonical "vec_pop returns void; use v.last() before pop()"
+    // workaround.
+    if str_eq(name, "vec_pop") == 1 { return "void"; };
     return "";
 }
 
@@ -16460,10 +16470,18 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
             };
         };
         if argc > 0 {
+            // v0.6.42 (probe finding 2026-04-30-vec-pop-void-coerce-to-zero):
+            // pre-fix vec_pop was in this read-call set, returning the element
+            // type — the type-checker pretended `let x = vec_pop(v)` was a
+            // value-returning call (Rust-like) but the runtime helper is
+            // void (just removes the last element). Adopters got a 0-valued
+            // binding silently. Removed from the set so the call falls
+            // through to builtin_rtype (which now reports "void" for
+            // vec_pop), cascading to TYP-021 at let-binding sites with no
+            // type annotation, or TYP-008 when the binding is annotated.
             let vec_read_call: i64 = if str_eq(callee, "vec_get") == 1
                 || str_eq(callee, "vec_first") == 1
-                || str_eq(callee, "vec_last") == 1
-                || str_eq(callee, "vec_pop") == 1 { 1 } else { 0 };
+                || str_eq(callee, "vec_last") == 1 { 1 } else { 0 };
             if vec_read_call == 1 {
                 let recv_nid: i64 = list_get(pool, args, 0);
                 let mut recv_t: str = type_expr(pool, prog, recv_nid, env, sigs, structs, fn_name, diags, source, tprof);
@@ -17259,6 +17277,21 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
         let mut init_t: str = "";
         if init >= 0 {
             init_t = type_expr(pool, prog, init, env, sigs, structs, fn_name, diags, source, tprof);
+            // v0.6.42 (probe finding 2026-04-30-vec-pop-void-coerce-to-zero):
+            // when the let RHS is a direct kind-7 call to `vec_pop`, override
+            // init_t to "void" so the TYP-021 check below fires. Pre-fix
+            // type_expr for vec_pop returned the Vec's element type (treated
+            // it as a value-returning Rust-like helper) but the runtime is
+            // void — adopters got a silent 0-valued binding indistinguishable
+            // from a popped 0. The override here makes the let-binding
+            // surface the void-rtype mismatch with TYP-021's existing diag
+            // wording.
+            if str_eq(init_t, "void") == 0 && node_kind(pool, init) == 7 {
+                let init_callee_v064: str = node_field(pool, init, 1);
+                if str_eq(init_callee_v064, "vec_pop") == 1 {
+                    init_t = "void";
+                };
+            };
             // v0.4.136: TYP-021 — void-typed RHS in `let` binding without
             // type annotation. Pre-fix `let x = print_int(5);` silently
             // bound `x` to the void return coerced to 0 — sister bug to
