@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.80] — 2026-05-03
+
+**TYP-006 String hint — adopters passing a `String` to `print` /
+`str_eq` / `str_concat` / etc. now see a hint pointing at the safe
+coercion `string_as_str(s)`.**
+
+Pre-fix: `let s: String = String::new(); print(s);` fired the bare
+`error[TYP-006]: argument 0 of 'print' must be str (runtime helper)`
+diag. Adopters porting Rust code didn't learn from the diag that:
+
+1. Nucleor's `String` is a distinct heap-buffer struct
+   (`{ data, len, cap }`) — NOT NUL-terminated like str.
+2. Passing a String pointer to a str-runtime helper would print
+   garbage (the struct's data-pointer bytes interpreted as ASCII).
+3. The safe coercion is `string_as_str(s)` (already exposed since
+   v0.4.x runtime — returns the underlying NUL-terminated buffer
+   pointer).
+
+Post-fix: when the actual arg type is `String` or `&String`, the
+TYP-006 diag appends the coercion hint inline. No type acceptance
+change — pass-through to the runtime would still produce garbage,
+which is why the hint points at the proper coercion rather than
+silently widening.
+
+```nucleor
+// Pre-fix:
+let s: String = String::new();
+print(s);
+// → error[TYP-006]: argument 0 of 'print' must be str (runtime helper)
+
+// Post-fix:
+// → error[TYP-006]: argument 0 of 'print' must be str (runtime helper).
+//   Nucleor's String is a distinct heap-buffer struct from str — the
+//   safe coercion is `string_as_str(s)` (returns the underlying NUL-
+//   terminated buffer pointer). Adopters porting Rust code usually
+//   want str directly: `let s: str = "...";` rather than the heap
+//   String form.
+
+// Working post-fix:
+let s: String = String::new();
+print(string_as_str(s));   // ← coerce explicitly
+```
+
+### Why no auto-coercion?
+
+Auto-inserting the `string_as_str` call at lower-time would make
+`print(s)` work but obscure the heap-vs-borrowed distinction.
+Adopters porting Rust code usually want `str` directly (the
+canonical `print("...")` shape) and only reach for `String` when
+they need ownership / mutation. Pointing at both alternatives in
+the diag preserves the type distinction.
+
+### Fixed-point + perf
+
+Cold 3.21s (baseline 3.16s). Peak 306MB. Round-2 fixed-point md5
+`978b6eba9742afd1789ef4aefdcbf34b`.
+
 ## [0.6.79] — 2026-05-03
 
 **RFC V1.11 (defensive halt) — anonymous-tuple field access
