@@ -880,6 +880,10 @@ declare i64 @__nucleor_tensor_sample_eps(i64, i64)
 declare i64 @__nucleor_tensor_sample_rank(i64, i64)
 declare i64 @__nucleor_tensor_sample_gumbel(i64, i64)
 
+declare i64 @nuc_node_kind(i64, i64)
+declare i64 @nuc_node_field(i64, i64, i64)
+declare i64 @nuc_list_len(i64, i64)
+declare i64 @nuc_list_get(i64, i64, i64)
 @.str.0 = private unnamed_addr constant [2 x i8] c"0\00"
 @.str.1 = private unnamed_addr constant [21 x i8] c"-9223372036854775808\00"
 @.str.2 = private unnamed_addr constant [1 x i8] c"\00"
@@ -18892,28 +18896,20 @@ bb.entry:
 
 define i64 @node_kind(i64 %p.0, i64 %p.1) {
 bb.entry:
-  %r.4 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
   %r.2 = alloca i64
   %r.3 = add i64 %p.1, 0
   store i64 %r.3, ptr %r.2
-  %r.5 = load i64, ptr %r.0
-  %r.6 = load i64, ptr %r.2
-  %r.7.a0 = inttoptr i64 %r.5 to ptr
-  %r.7 = call i64 @__nucleor_vec_get(ptr %r.7.a0, i64 %r.6)
-  store i64 %r.7, ptr %r.4
-  %r.8 = load i64, ptr %r.4
-  %r.9 = add i64 0, 0
-  %r.10.a0 = inttoptr i64 %r.8 to ptr
-  %r.10 = call i64 @__nucleor_vec_get(ptr %r.10.a0, i64 %r.9)
-  ret i64 %r.10
+  %r.4 = load i64, ptr %r.0
+  %r.5 = load i64, ptr %r.2
+  %r.6 = call i64 @nuc_node_kind(i64 %r.4, i64 %r.5)
+  ret i64 %r.6
 }
 
 define i64 @node_field(i64 %p.0, i64 %p.1, i64 %p.2) {
 bb.entry:
-  %r.6 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
@@ -18923,16 +18919,11 @@ bb.entry:
   %r.4 = alloca i64
   %r.5 = add i64 %p.2, 0
   store i64 %r.5, ptr %r.4
-  %r.7 = load i64, ptr %r.0
-  %r.8 = load i64, ptr %r.2
-  %r.9.a0 = inttoptr i64 %r.7 to ptr
-  %r.9 = call i64 @__nucleor_vec_get(ptr %r.9.a0, i64 %r.8)
-  store i64 %r.9, ptr %r.6
-  %r.10 = load i64, ptr %r.6
-  %r.11 = load i64, ptr %r.4
-  %r.12.a0 = inttoptr i64 %r.10 to ptr
-  %r.12 = call i64 @__nucleor_vec_get(ptr %r.12.a0, i64 %r.11)
-  ret i64 %r.12
+  %r.6 = load i64, ptr %r.0
+  %r.7 = load i64, ptr %r.2
+  %r.8 = load i64, ptr %r.4
+  %r.9 = call i64 @nuc_node_field(i64 %r.6, i64 %r.7, i64 %r.8)
+  ret i64 %r.9
 }
 
 define i64 @node_span_sentinel() {
@@ -19501,36 +19492,20 @@ L4:
 
 define i64 @list_len(i64 %p.0, i64 %p.1) {
 bb.entry:
-  %r.4 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
   %r.2 = alloca i64
   %r.3 = add i64 %p.1, 0
   store i64 %r.3, ptr %r.2
-  %r.5 = load i64, ptr %r.0
-  %r.6 = load i64, ptr %r.2
-  %r.7.a0 = inttoptr i64 %r.5 to ptr
-  %r.7 = call i64 @__nucleor_vec_get(ptr %r.7.a0, i64 %r.6)
-  store i64 %r.7, ptr %r.4
-  %r.8 = load i64, ptr %r.4
-  %r.9.a0 = inttoptr i64 %r.8 to ptr
-  %r.9 = call i64 @__nucleor_vec_len(ptr %r.9.a0)
-  %r.10 = add i64 1, 0
-  %r.11.ov = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %r.9, i64 %r.10)
-  %r.11 = extractvalue { i64, i1 } %r.11.ov, 0
-  %r.11.of = extractvalue { i64, i1 } %r.11.ov, 1
-  br i1 %r.11.of, label %L0, label %L1
-L0:
-  %r.11.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
-L1:
-  ret i64 %r.11
+  %r.4 = load i64, ptr %r.0
+  %r.5 = load i64, ptr %r.2
+  %r.6 = call i64 @nuc_list_len(i64 %r.4, i64 %r.5)
+  ret i64 %r.6
 }
 
 define i64 @list_get(i64 %p.0, i64 %p.1, i64 %p.2) {
 bb.entry:
-  %r.6 = alloca i64
   %r.0 = alloca i64
   %r.1 = add i64 %p.0, 0
   store i64 %r.1, ptr %r.0
@@ -19540,25 +19515,11 @@ bb.entry:
   %r.4 = alloca i64
   %r.5 = add i64 %p.2, 0
   store i64 %r.5, ptr %r.4
-  %r.7 = load i64, ptr %r.0
-  %r.8 = load i64, ptr %r.2
-  %r.9.a0 = inttoptr i64 %r.7 to ptr
-  %r.9 = call i64 @__nucleor_vec_get(ptr %r.9.a0, i64 %r.8)
-  store i64 %r.9, ptr %r.6
-  %r.10 = load i64, ptr %r.6
-  %r.11 = load i64, ptr %r.4
-  %r.12 = add i64 1, 0
-  %r.13.ov = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %r.11, i64 %r.12)
-  %r.13 = extractvalue { i64, i1 } %r.13.ov, 0
-  %r.13.of = extractvalue { i64, i1 } %r.13.ov, 1
-  br i1 %r.13.of, label %L0, label %L1
-L0:
-  %r.13.panic = call i64 @__nucleor_panic(ptr @.nuc_overflow_intrin_msg)
-  unreachable
-L1:
-  %r.14.a0 = inttoptr i64 %r.10 to ptr
-  %r.14 = call i64 @__nucleor_vec_get(ptr %r.14.a0, i64 %r.13)
-  ret i64 %r.14
+  %r.6 = load i64, ptr %r.0
+  %r.7 = load i64, ptr %r.2
+  %r.8 = load i64, ptr %r.4
+  %r.9 = call i64 @nuc_list_get(i64 %r.6, i64 %r.7, i64 %r.8)
+  ret i64 %r.9
 }
 
 define i64 @free_token_vec(i64 %p.0) {
