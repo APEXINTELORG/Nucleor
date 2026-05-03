@@ -3483,6 +3483,17 @@ fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             cp = expect_tok(tokens, cp, 44);
             if pk(tokens, cp) == 53 { break; };
         };
+        // v0.6.97 (defensive halt): canonical Rust struct-update
+        // syntax `Point { x: 10, ..rest }` (functional record update)
+        // pre-fix surfaced as wrong-class `error[NR020]: parse error
+        // at byte K: expected ':', got identifier` after the parser
+        // saw `..` (token 58) and tried to read it as a field name.
+        // Halt cleanly with a workaround pointer (write each field
+        // explicitly).
+        if pk(tokens, cp) == 58 {
+            print(str_concat("ERROR: struct-update syntax `", str_concat(name, " { <field>: <val>, ..<rest> }` (Rust functional record update) is not yet supported in Nucleor. Pre-v0.6.97 surfaced as wrong-class `error[NR020]: parse error: expected ':', got identifier` after the parser tried to read `..` as a field name. Workaround: write each field explicitly — `Point { x: 10, y: rest.y, z: rest.z }`. Tracked for forward-roadmap (struct-update lowering needs per-field source-tracking + field-list inheritance pass).")));
+            panic(str_concat("nucleor: struct-update `..rest` syntax not yet supported (see ERROR diagnostic above)"));
+        };
         let field_span: i64 = tok_pos_at(tokens, cp);
         let fn2: i64 = pkv(tokens, cp);
         // v0.3.90: shorthand struct init `Point { x, y }`. If the
