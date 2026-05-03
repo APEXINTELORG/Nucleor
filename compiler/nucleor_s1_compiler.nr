@@ -1736,6 +1736,46 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             let mut er: Vec<i32> = parse_expr(tokens, cp, pool);
             items.push(pr_val(er));
             cp = pr_pos(er);
+            // v0.6.77 RFC V1.11 (probe finding 2026-05-01-rust-syntax-
+            // translation-fidelity-audit, array-repeat row): canonical
+            // Rust `[VAL; N]` (e.g. `let buf: Vec<i64> = [0; 4];`)
+            // pre-fix rejected at parse time with `error[NR020]: parse
+            // error at byte K: expected ',', got ';'` — the `[V, V, ...]`
+            // parser had no `;` branch and the `vec![V; N]` macro
+            // (closed v0.6.41) requires the `vec!` prefix.
+            //
+            // Now after parsing the first item, peek for `;` — if
+            // present, parse N (must be a literal int) and expand to
+            // an N-item kind-47 array literal (same lowering as
+            // `[V, V, ..., V]` — vec_new + N pushes). Hard-cap N at
+            // 1024 to keep the parse-time expansion bounded; for
+            // larger / runtime-evaluated N the existing `vec![V; N]`
+            // form is the path.
+            if vec_len(items) == 1 && pk(tokens, cp) == 43 {
+                cp = cp + 1;
+                let mut nr_v077: Vec<i32> = parse_expr(tokens, cp, pool);
+                cp = pr_pos(nr_v077);
+                cp = expect_tok(tokens, cp, 55);
+                let n_node_v077: i64 = pr_val(nr_v077);
+                let nk_v077: i64 = node_kind(pool, n_node_v077);
+                if nk_v077 != 1 {
+                    print("ERROR: `[VAL; N]` repeat-init only accepts a literal integer count today (parser-time expansion). Use `vec![VAL; N]` for a runtime-evaluated count — that form lowers to a runtime push-loop. Tracked for forward-roadmap (full const-eval count is the v1 const-fn ship).");
+                    panic("nucleor: non-literal repeat-count in `[VAL; N]`");
+                };
+                let n_val_v077: i64 = node_field(pool, n_node_v077, 1);
+                if n_val_v077 < 0 || n_val_v077 > 1024 {
+                    print("ERROR: `[VAL; N]` count must be in 0..=1024 (parser-time expansion bound). Pre-v0.6.77 this rejected with the wrong-class NR020. For larger or runtime-evaluated N use the `vec![VAL; N]` form (runtime loop).");
+                    panic("nucleor: `[VAL; N]` count out of bounds");
+                };
+                let item_node_v077: i64 = vec_get(items, 0);
+                let mut rep_items_v077: Vec<i32> = Vec::new();
+                let mut ri_v077: i64 = 0;
+                while ri_v077 < n_val_v077 {
+                    rep_items_v077.push(item_node_v077);
+                    ri_v077 = ri_v077 + 1;
+                };
+                return pr(cp, mk2(pool, 47, mk_list(pool, rep_items_v077)));
+            };
         };
         cp = expect_tok(tokens, cp, 55);
         return pr(cp, mk2(pool, 47, mk_list(pool, items)));
