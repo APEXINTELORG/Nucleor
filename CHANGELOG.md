@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.9] — 2026-05-03
+
+**Defensive halt — canonical Rust `async { ... }` block
+expression now produces a clean halt with a "drop the `async`
+keyword" workaround pointer.**
+
+Pre-fix: writing `let f = async { ... };` surfaced as
+wrong-class `error[TYP-005]: undefined function async()`
+because `expand_async_strip_keyword` only handles `async fn`
+(not `async {`), and parse_primary then treats `async` as
+a fn call.
+
+Post-fix: `expand_async_strip_keyword` detects `async` followed
+(after whitespace) by `{` and halts cleanly:
+
+```nucleor
+// Pre-fix:
+let f = async { return 42; };       // ← TYP-005 wrong-class
+
+// Post-fix workaround (drop `async`):
+let f = { return 42; };
+// or use async_spawn for real thread:
+let h: i64 = async_spawn(my_fn, arg);
+let v: i64 = async_await(h);
+```
+
+Forward-roadmap: full Future-trait async-block lowering is
+sister to V1.x async/Future infrastructure. Until then,
+Nucleor's runtime is single-threaded by default and `async`
+is informational only.
+
+### Fixed-point + perf
+
+Cold 4.49s. Peak 331MB. Round-2 fixed-point md5
+`f5f86c4a2f4443ebdb123e5f0b076e69`.
+
+### Fixture
+
+`tests/fixtures/v0709_async_block_clean_halt.nr` — negative
+fixture for `let f = async { ... };`.
+
 ## [0.7.8] — 2026-05-03
 
 **Defensive halt — canonical Rust complex-receiver `.await`
