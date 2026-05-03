@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.79] — 2026-05-03
+
+**RFC V1.11 (defensive halt) — anonymous-tuple field access
+`let p: (i64, i64) = (5, 7); p.0` now produces a clean halt
+with a named-tuple-struct workaround pointer.**
+
+Pre-fix: anonymous tuple types `(T1, T2, ...)` are not yet
+supported (full anonymous-tuple substrate is a v1 ship — needs
+tuple-expression parsing + tuple-type generics in the struct-emit
+pass). The field-access `t.0` / `t.1` surfaced as the generic
+`cannot resolve field access type for .0` diag — wrong class for
+adopters porting canonical Rust code who expect either acceptance
+or a clear feature gap.
+
+Post-fix: at lower-time, when the receiver type starts with `(` and
+ends with `)` (parenthesized-type shape), halt with a clean diag
+naming the unsupported feature and pointing at the V1.1
+named-tuple-struct workaround that has been shipped since v0.6.74.
+
+```nucleor
+// Pre-fix:
+let pair: (i64, i64) = (5, 7);
+print_int(pair.0 as i32);    // ← "cannot resolve field access type for .0"
+
+// Post-fix workaround (named tuple-struct, V1.1 closed v0.6.74):
+struct Pair(i64, i64);
+let pair: Pair = Pair(5, 7);
+print_int(pair.0 as i32);    // 5
+```
+
+### Fixed-point + perf
+
+Cold 3.20–3.21s (baseline 3.16s). Peak mem 306–307MB. Round-2
+fixed-point md5 `0e06b43233ccef826e3da935495732d9`.
+
+### Fixture
+
+`tests/fixtures/v0679_anon_tuple_clean_halt.nr` — negative fixture
+(compile rejects with the new clean diag).
+
 ## [0.6.78] — 2026-05-03
 
 **RFC V1.11 — `&[T]` slice type as fn-parameter. Canonical Rust
