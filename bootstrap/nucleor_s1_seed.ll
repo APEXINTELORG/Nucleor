@@ -191312,7 +191312,7 @@ L215:
   %r.1207 = call i64 @ctr_next(i64 %r.1206)
   store i64 %r.1207, ptr %r.1205
   %r.1208 = load i64, ptr %r.1151
-  %r.1209 = add i64 2, 0
+  %r.1209 = add i64 3, 0
   %r.1210 = load i64, ptr %r.1205
   %r.1211 = load i64, ptr %r.1197
   %r.1212 = load i64, ptr %r.1182

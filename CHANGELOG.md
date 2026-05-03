@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.86] — 2026-05-03
+
+**RFC V1.4 (correctness fix) — `!=` auto-dispatch was using `add`
+opcode instead of `sub`. Recursive derive(PartialEq) now correct.**
+
+Pre-fix (v0.6.85): the `!=` lowering for auto-dispatched derived-eq
+used `ir_binop_t(2, ...)` — opcode 2 is `add`, NOT `sub`. So
+`1 - eq` actually computed `1 + eq` — for eq=1 (equal), the
+"inverse" was 2 (truthy → != evaluated to true incorrectly); for
+eq=0 (not equal), the "inverse" was 1 (truthy → != evaluated true
+correctly by accident). The bug surfaced when nested struct fields
+routed through their own derived-eq: outer's `a != b` where Inner
+has `#[derive(PartialEq)]` inverted incorrectly, breaking recursive
+struct equality.
+
+Post-fix: opcode 3 (sub). `1 - eq` correctly produces 0 for equal,
+1 for not-equal — matching the canonical 0/1 convention for binop
+result.
+
+```nucleor
+#[derive(PartialEq)]
+struct Inner { v: i64 }
+
+#[derive(PartialEq)]
+struct Outer { a: Inner, b: i64 }
+
+fn main() -> i32 {
+    let p: Outer = Outer { a: Inner { v: 5 }, b: 7 };
+    let q: Outer = Outer { a: Inner { v: 5 }, b: 7 };
+    if p == q { print_int(11); };       // pre-v0.6.86: 0 (wrong!) → fixed: 11
+    return 0;
+}
+```
+
+### Test surface gap
+
+The v0.6.85 fixture only exercised flat structs (Point, Pair) with
+primitive fields. Both `==` and `!=` worked because the inner
+binop didn't go through the recursive-helper path. The v0.6.86
+fixture tests Outer/Inner with nested derive(PartialEq).
+
+### Fixed-point + perf
+
+Cold 3.16–3.66s (median ~3.45). Peak 304–328MB. Round-2
+fixed-point md5 `65e1a734c2bbd9314a87393bcbc854c3`. Higher
+variance than recent ships — auto-dispatch's per-binop struct
+type probe is the likely contributor; within drift bounds (cold
+median < 3.16+0.20s, peak < 318+30MB).
+
+### Fixture
+
+`tests/fixtures/v0686_derive_partialeq_recursive.nr` — exercises
+recursive derive(PartialEq) with nested Inner inside Outer.
+
 ## [0.6.85] — 2026-05-03
 
 **RFC V1.4 — auto-dispatch `==` / `!=` to the derived-eq helper.
