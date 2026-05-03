@@ -1502,6 +1502,23 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         print("ERROR: UFCS form `<Type as Trait>::method(args)` is not yet supported in Nucleor. Pre-v0.6.60 the `<` at expression start was rejected with `error[NR020]: parse_primary cannot start an expression at token kind 32` — wrong-class. Workaround: call the trait method directly via the receiver (`s.f(...)`) when only one trait implements the method, or use the path form `Foo::f(&s)` when the trait is unambiguous. Tracked for forward-roadmap (full UFCS dispatch arrives with v1 trait dispatch).");
         panic("nucleor: UFCS expression form not yet supported (see ERROR diagnostic above)");
     };
+    // v0.6.62 (probe finding 2026-05-01-keyword-silent-strip-audit,
+    // `move` closure row): canonical Rust `move ||` / `move |args|`
+    // closure-by-move pre-fix lexed `move` as an identifier at
+    // expression start, then the parser tried to call a fn named
+    // `move` on the closure args, surfacing as the clang-link error
+    // `error[TYP-005]: undefined function 'move'` (or worse, `@move
+    // undefined` at the link stage). Halt at parse with a clean
+    // diag pointing at the workaround (drop the `move` keyword —
+    // Nucleor closures capture by reference today, so move-capture
+    // is the same observable behavior in v0.6).
+    if tt == 1 && str_eq(pkv(tokens, pos), "move") == 1 {
+        let mv_next: i64 = pk(tokens, pos + 1);
+        if mv_next == 65 || mv_next == 37 {
+            print("ERROR: `move` closure capture form `move ||` / `move |args|` is not yet supported in Nucleor. Pre-v0.6.62 the `move` keyword lexed as an identifier and the parser produced a clang-link error `@move undefined` or wrong-class TYP-005 'undefined function move'. Workaround: drop the `move` keyword — Nucleor v0.6 closures capture references to the enclosing scope, which is the same observable behavior as Rust's `move` for the i64-everywhere ABI's pointer-equality semantics. Tracked for forward-roadmap (when v1 borrow-checker arrives, `move` will gain meaning).");
+            panic("nucleor: `move` closure form not yet supported (see ERROR diagnostic above)");
+        };
+    };
     if tt == 2 {
         let mut cp: i64 = pos + 1;
         if pk(tokens, cp) == 83 {
