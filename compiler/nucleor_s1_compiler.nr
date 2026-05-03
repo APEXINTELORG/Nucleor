@@ -28103,6 +28103,46 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                         if all_ws == 1 {
                             sb_append(sb, "Vec::new()");
                         } else {
+                            // v0.6.41 (probe finding 2026-05-01-vec-repeat-
+                            // syntax-ignores-count): scan for top-level `;`
+                            // first — if present, this is the Rust repeat
+                            // syntax `vec![X; N]` — emit a while-loop that
+                            // pushes X N times. Pre-fix the `;` was treated
+                            // as part of the value expression and the count
+                            // was silently dropped (`vec![7; 5]` produced a
+                            // 1-element vec with value `7;5` parsed weirdly).
+                            let mut semi_pos_v064: i64 = 0 - 1;
+                            let mut sd_chk_v064: i64 = 0;
+                            let mut s_dq_chk_v064: i64 = 0;
+                            let mut s_sq_chk_v064: i64 = 0;
+                            let mut chk_idx_v064: i64 = 0;
+                            while chk_idx_v064 < il {
+                                let cc_v064: i64 = str_char_at(inner_expanded, chk_idx_v064);
+                                if s_dq_chk_v064 == 1 {
+                                    if cc_v064 == 92 && chk_idx_v064 + 1 < il { chk_idx_v064 = chk_idx_v064 + 1; }
+                                    else if cc_v064 == 34 { s_dq_chk_v064 = 0; };
+                                } else if s_sq_chk_v064 == 1 {
+                                    if cc_v064 == 92 && chk_idx_v064 + 1 < il { chk_idx_v064 = chk_idx_v064 + 1; }
+                                    else if cc_v064 == 39 { s_sq_chk_v064 = 0; };
+                                } else if cc_v064 == 34 { s_dq_chk_v064 = 1; }
+                                else if cc_v064 == 39 { s_sq_chk_v064 = 1; }
+                                else if cc_v064 == 40 || cc_v064 == 91 || cc_v064 == 123 { sd_chk_v064 = sd_chk_v064 + 1; }
+                                else if cc_v064 == 41 || cc_v064 == 93 || cc_v064 == 125 { sd_chk_v064 = sd_chk_v064 - 1; }
+                                else if cc_v064 == 59 && sd_chk_v064 == 0 {
+                                    semi_pos_v064 = chk_idx_v064;
+                                    chk_idx_v064 = il;
+                                };
+                                chk_idx_v064 = chk_idx_v064 + 1;
+                            };
+                            if semi_pos_v064 >= 0 {
+                                let val_text_v064: str = str_substring(inner_expanded, 0, semi_pos_v064);
+                                let cnt_text_v064: str = str_substring(inner_expanded, semi_pos_v064 + 1, il);
+                                sb_append(sb, "{ let mut __nuc_vec: Vec<i64> = Vec::new(); let mut __nuc_repeat_i: i64 = 0; let __nuc_repeat_n: i64 = (");
+                                sb_append(sb, cnt_text_v064);
+                                sb_append(sb, ") as i64; while __nuc_repeat_i < __nuc_repeat_n { __nuc_vec.push(");
+                                sb_append(sb, val_text_v064);
+                                sb_append(sb, "); __nuc_repeat_i = __nuc_repeat_i + 1; }; __nuc_vec }");
+                            } else {
                             sb_append(sb, "{ let mut __nuc_vec: Vec<i64> = Vec::new(); ");
                             let mut sd: i64 = 0;
                             let mut s_dq: i64 = 0;
@@ -28145,6 +28185,7 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                                 sb_append(sb, "); ");
                             };
                             sb_append(sb, "__nuc_vec }");
+                            };
                         };
                         p = q;
                         last_non_ws = 41;
