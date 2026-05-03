@@ -28477,9 +28477,38 @@ fn lift_undefined_fn_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
                     && str_char_at(name, 2) == 99
                     && str_char_at(name, 3) == 95 {
                     let user_method: str = str_substring(name, 4, clen);
-                    print(str_concat("error[TYP-005]: receiver type `Vec<T>` has no method `.", str_concat(user_method, "()`. (Internal symbol: `vec_")));
-                    print(str_concat("                ", str_concat(user_method, "`. The kind-8 method-dispatch catch-all lowered the call to a synthetic helper that doesn't exist.)")));
-                    print("                Supported Vec method families: push, pop, len, get, set, first, last, is_empty, insert (insert_at), remove (remove_at), iter, map, filter, fold, each, sum, min, max, contains, index_of, reverse, sort, clone, clear, collect, count, take, skip, any, all, chain, position, product, step_by, nth, reduce.");
+                    // v0.6.40 (probe finding 2026-05-01-vec-contains-symbol-
+                    // not-emitted, corrected): if the user wrote fn-form
+                    // `vec_<method>(&v, …)` AND `<method>` is one of the
+                    // supported Vec method families, the existing diag
+                    // misled — it said `no method .<method>()` even though
+                    // the method DOES exist via the proper dispatch path.
+                    // Detect the supported-method case and emit a fn-form-
+                    // vs-method-form diag instead. The unsupported-method
+                    // case still gets the original "no method" diag.
+                    let mut um_supported_v064: i64 = 0;
+                    if str_eq(user_method, "contains") == 1 || str_eq(user_method, "push") == 1
+                        || str_eq(user_method, "pop") == 1 || str_eq(user_method, "len") == 1
+                        || str_eq(user_method, "get") == 1 || str_eq(user_method, "set") == 1
+                        || str_eq(user_method, "first") == 1 || str_eq(user_method, "last") == 1
+                        || str_eq(user_method, "is_empty") == 1 || str_eq(user_method, "insert_at") == 1
+                        || str_eq(user_method, "remove_at") == 1 || str_eq(user_method, "iter") == 1
+                        || str_eq(user_method, "map") == 1 || str_eq(user_method, "filter") == 1
+                        || str_eq(user_method, "fold") == 1 || str_eq(user_method, "each") == 1
+                        || str_eq(user_method, "sum") == 1 || str_eq(user_method, "min") == 1
+                        || str_eq(user_method, "max") == 1 || str_eq(user_method, "index_of") == 1
+                        || str_eq(user_method, "reverse") == 1 || str_eq(user_method, "sort") == 1
+                        || str_eq(user_method, "clone") == 1 || str_eq(user_method, "clear") == 1 {
+                        um_supported_v064 = 1;
+                    };
+                    if um_supported_v064 == 1 {
+                        print(str_concat("error[TYP-005]: `vec_", str_concat(user_method, "(...)` is not a top-level fn — use the method form `vec.", str_concat(user_method, "(&value)` instead. The method-dispatch path resolves to the correct type-specific runtime helper (e.g. `__nucleor_vec_", str_concat(user_method, "_i64` for `Vec<i64>`); the bare fn-form bypasses that dispatch.")))));
+                        print(str_concat("                Pre-v0.6.40 the diag said `no method .", str_concat(user_method, "()`, which was misleading — the method exists, only the fn-form does not.")));
+                    } else {
+                        print(str_concat("error[TYP-005]: receiver type `Vec<T>` has no method `.", str_concat(user_method, "()`. (Internal symbol: `vec_")));
+                        print(str_concat("                ", str_concat(user_method, "`. The kind-8 method-dispatch catch-all lowered the call to a synthetic helper that doesn't exist.)")));
+                        print("                Supported Vec method families: push, pop, len, get, set, first, last, is_empty, insert (insert_at), remove (remove_at), iter, map, filter, fold, each, sum, min, max, contains, index_of, reverse, sort, clone, clear, collect, count, take, skip, any, all, chain, position, product, step_by, nth, reduce.");
+                    };
                 } else {
                     print(str_concat("error[TYP-005]: undefined function `", str_concat(name, "()`. Check spelling, or import the rod that defines it. (raised at clang link; type-checker emitted a TYP-005 warning earlier in this build.)")));
                 };
