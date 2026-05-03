@@ -17412,6 +17412,23 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
                         };
                     };
                 };
+                // v0.6.45 (probe finding 2026-05-01-num-019-coverage-gap-
+                // binop-vs-literal): pre-fix `let a: u32 = 0 - 5;` evaded
+                // NUM-019 because the literal-form check at kind 5 only
+                // matched `let a: u32 = -5;`. The binop form (kind 4)
+                // const-folds to -5 at compile time but the unsigned-
+                // negative check didn't see it. Now const-fold the init
+                // and check for a negative result against unsigned types
+                // — fires NUM-019 for any const-foldable negative binop.
+                if str_len(tstr) > 0 && type_is_int(tstr) == 1 && type_signedness(tstr) == 2 {
+                    let cf_v064: Vec<i32> = const_i64_expr(pool, init, env);
+                    let cf_have_v064: i64 = vec_get(cf_v064, 0);
+                    let cf_val_v064: i64 = vec_get(cf_v064, 1);
+                    if cf_have_v064 == 1 && cf_val_v064 < 0 && node_kind(pool, init) != 5 && node_kind(pool, init) != 1 {
+                        let nm19b_msg: str = str_concat("expression evaluates to negative value `", str_concat(str_from_int(cf_val_v064), str_concat("` at compile time, cannot initialize unsigned binding `", str_concat(vname, str_concat("` of type ", str_concat(tstr, ". Pre-v0.6.45 the binop / cast form (e.g. `0 - 5`, `1000 - 2000`) evaded the kind-5 unary-minus NUM-019 check and silently two's-complement-wrapped at runtime. Use a non-negative result, change the type to a signed equivalent, or wrap explicitly with `(expr) as <type>`."))))));
+                        type_diag_at(diags, source, pool, nid, fn_name, vname, "NUM-019", nm19b_msg);
+                    };
+                };
             };
             // RFC-0015 phase 6: NUM-002 — integer literal out of range for
             // declared type. Only fires for bare integer literal init
