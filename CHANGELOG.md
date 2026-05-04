@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.92] — 2026-05-04
+
+**Punchlist forward — RFC-0044 Phase A: per-BinOp overflow-mode
+helper surface (rod-only). Drift restoration V1.13.**
+
+The full RFC-0044 ship adds a per-BinOp `overflow_mode` IR field
+with inline-suffix source forms (`a *#wrap b`, `a +#sat b`,
+`a /#trap b`, `expr as#sat i16`) so adopters can mix wrapping +
+saturating + trapping arithmetic in one expression without
+nesting `wrapping{}` / `saturating{}` / `checked{}` blocks
+(~150 LOC compiler-side, deferred). Phase A (this rod) lands the
+canonical name surface that wraps the existing block-expr forms,
+plus full-i64-range trapping helpers in pure Nucleor source.
+
+Sister to RFC-0043 fixed-point Phase A (v0.7.91); both ship in
+the V1.13 drift-restoration lane.
+
+### Surface added in `stdlib/rods/overflow.nr`
+
+- Wrapping (uses `wrapping { ... }` block-expr): `add_wrap`,
+  `sub_wrap`, `mul_wrap`, `neg_wrap`.
+- Saturating (uses `saturating { ... }` block-expr): `add_sat`,
+  `sub_sat`, `mul_sat`.
+- Trapping (pure Nucleor, full i64 range, panics on overflow):
+  `add_trap` (sign-flip detection), `sub_trap` (i64::MIN guard
+  + add of negated b), `mul_trap` (cross-divide detection),
+  `neg_trap` (i64::MIN guard).
+- Mode tag constants: `overflow_mode_default` / `_wrap` / `_sat`
+  / `_trap` (IDs 0..3).
+- `overflow_mode_name(mode) -> str`.
+- Mode-dispatch helpers: `add_with_mode`, `sub_with_mode`,
+  `mul_with_mode` for table-driven kernels that select the mode
+  at runtime.
+
+### Phase A scope note
+
+Nucleor's `wrapping { ... }` / `saturating { ... }` block-expr
+forms today use the i32-clamped intrinsic path (v0.4.105 /
+v0.4.239 substrate). Adopter code that uses the rod's `*_wrap`
+/ `*_sat` helpers with values inside i32 range (or in pure
+Nucleor's trap-detection helpers at full i64 range) gets the
+correct semantics today; full-i64 wrap / sat at the block level
+needs Phase B's mode-dispatch wire-format rewire — which is the
+RFC-0044 main ship.
+
+### Smoke fixture
+
+`tests/fixtures/v0792_rfc0044_overflow_smoke.nr` exercises the
+API surface with non-overflow values (compile cleanliness +
+identity-ish round-trip) plus mode-dispatch through the table
++ mode-name lookup. rc=0.
+
+No new defensive halt this ship — V1.13 drift restoration is
+the priority; cron may concurrently ship halts on its own
+thread.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.7.91] — 2026-05-04
 
 **Punchlist forward — RFC-0043 Phase A: Q-format fixed-point
