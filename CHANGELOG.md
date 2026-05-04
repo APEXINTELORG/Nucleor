@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.81] — 2026-05-04
+
+**RFC NUM-G2 Phase 1 (sister) — `math_pow_int` unchecked-multiply
+fix.** Stdlib edit, no compiler change.
+
+### The bug
+
+Pre-fix under `NUCLEOR_INT_STRICT_INTRIN=0`, `math_pow_int(2, 63)`
+silently wrapped to i64::MIN. The hot loop's `result * base`
+was an unchecked LLVM `mul` that two's-complement-wrapped past
+i64::MAX with no signal.
+
+Strict mode default already panicked at the wrapping multiply.
+The fix protects non-strict mode and adds defense-in-depth in
+both modes.
+
+### The fix
+
+1. Special-case bases 0, 1, -1 (no overflow possible; for -1
+   the result alternates by exp parity).
+2. Reverse-divide guard on the multiply: `if new / base != old`
+   then panic. The check works in both modes (strict catches at
+   the multiply; non-strict catches at the divide-back), giving
+   loud failure regardless of strict-intrin setting.
+
+```nr
+let new_result: i64 = result * base;
+if new_result / base != result {
+    panic("math_pow_int overflow: result exceeds i64 range");
+};
+```
+
+### Verified end-to-end
+
+| Mode | Input | Result |
+|---|---|---|
+| Default (strict) | `math_pow_int(2, 63)` | `PANIC: integer overflow` (from checked mul) |
+| `NUCLEOR_INT_STRICT_INTRIN=0` | `math_pow_int(2, 63)` | `PANIC: math_pow_int overflow: result exceeds i64 range` (from reverse-divide guard) |
+
+### Fixtures
+
+| Fixture | rc | Asserts |
+|---|---|---|
+| `tests/features/numg2_math_pow_int_positive.nr` | 0 | 8 in-range cases (0/1/10/62 exp on base 2; 0/1/-1 base) |
+| `tests/err/err_numg2_math_pow_int_overflow.nr` | 1 | `math_pow_int(2, 63)` panics |
+
+Cold 2.72s. Within Job #1.
+
+### Closes
+
+- `findings/promoted/2026-05-04-num-g2-math-abs-imin-confirmed-non-strict-mode-cascade.md`
+  — math_pow_int portion. With v0.8.80's math_abs fix, the entire
+  finding is now closed at Phase 1. The cross-cutting risk (env-
+  controlled strict-intrin global; no per-fn override) remains
+  RFC Phase 4 work for v1.x.
+
+### Recap — NUM-G2 Phase 1 closure
+
+| Function | Pre-fix non-strict | Post-fix |
+|---|---|---|
+| `math_abs(i64::MIN)` | i64::MIN (silent miscompute) | panic (v0.8.80) |
+| `math_gcd(i64::MIN, _)` | -1 (silent miscompute) | panic via inherited math_abs (v0.8.80) |
+| `math_lcm(i64::MIN, _)` | wrong (silent miscompute) | panic via inherited math_abs (v0.8.80) |
+| `math_pow_int(2, 63)` | i64::MIN (silent wrap) | panic (v0.8.81) |
+
+Pure stdlib fix; no compiler edit.
+
 ## [0.8.80] — 2026-05-04
 
 **RFC NUM-G2 Phase 1 — `math_abs(i64::MIN)` silent miscompute

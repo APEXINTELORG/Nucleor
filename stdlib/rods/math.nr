@@ -40,12 +40,28 @@ fn math_clamp(val: i64, lo: i64, hi: i64) -> i64 {
 }
 
 fn math_pow_int(base: i64, exp: i64) -> i64 {
+    // RFC NUM-G2 Phase 1 (v0.8.81): overflow detection on the
+    // unchecked multiply. Pre-fix under NUCLEOR_INT_STRICT_INTRIN=0
+    // the `result * base` silently wrapped (e.g. 2^63 -> i64::MIN
+    // with no signal). Reverse-divide check `new / base != old`
+    // catches overflow in both strict and non-strict modes.
     if exp < 0 { return 0; };
     if exp == 0 { return 1; };
+    if base == 0 { return 0; };
+    if base == 1 { return 1; };
+    if base == -1 {
+        // exp odd -> -1, exp even -> 1
+        if (exp - 2 * (exp / 2)) == 0 { return 1; };
+        return -1;
+    };
     let mut result: i64 = 1;
     let mut i: i64 = 0;
     while i < exp {
-        result = result * base;
+        let new_result: i64 = result * base;
+        if new_result / base != result {
+            panic("math_pow_int overflow: result exceeds i64 range");
+        };
+        result = new_result;
         i = i + 1;
     };
     return result;
