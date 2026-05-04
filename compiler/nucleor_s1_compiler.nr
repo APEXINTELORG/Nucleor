@@ -4757,6 +4757,20 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             items.push(fn_nid);
             cp = pr_pos(r);
         }
+        else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "async") == 1 && pk(tokens, cp + 1) == 10 {
+            // v0.7.71 (defensive halt — Rust `async fn name() -> T { ... }`).
+            // Pre-fix the `async` ident was silently skipped at the
+            // module-item dispatch and the fn parsed normally as a
+            // sync fn. Adopters writing `let r = fetch();` got the
+            // value directly (rc=42 in our probe), expecting a
+            // `Future<Output = i64>` to `.await`. Silent acceptance
+            // is wrong-class — the Future protocol is missing entirely
+            // (no executor, no `.await`, no state-machine lowering).
+            // Halt cleanly at the decl. Sister to v0.6.53 `unsafe fn`
+            // halt (same shape, same dispatch lookahead).
+            print("ERROR: `async fn` is not yet supported in Nucleor. Pre-v0.7.71 the `async` keyword was silently stripped and the fn parsed as a regular synchronous fn — call sites got the inner value directly instead of a `Future<Output = T>` to `.await`. Workaround: drop the `async` qualifier and call the fn synchronously; for genuinely-concurrent work, use the existing thread/queue substrate (RFC-0007 SPSC/MPSC queues or Track G atomics) until the v1.x `async`/Future/executor substrate lands.");
+            panic("nucleor: `async fn` decl not yet supported (see ERROR diagnostic above)");
+        }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "unsafe") == 1 && pk(tokens, cp + 1) == 10 {
             // v0.6.53 (probe finding 2026-05-01-keyword-silent-strip-
             // audit, sub-case 1): `unsafe fn dangerous() -> i64 { ... }`
