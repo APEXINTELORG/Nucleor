@@ -271,3 +271,128 @@ Update before each push.
 All cited findings are in `findings/promoted/`. Read the full
 status + adopter-migration sections before starting work — they
 have the deferral rationale and workaround patterns.
+
+---
+
+# 2026-05-03 PUNCHLIST REFRESH (post-v0.7.13 + probe-perf-merge 4a7c56e6)
+
+**Status:** main is at commit `de8207ac` with probe's perf work merged. Cold ~3.77s on probe-validated baseline, well under the 4s ceiling. **Job #1 below the line: keep cold under 4s.** Everything else is downstream of that.
+
+**Why this refresh:** main agent shipped 39 ships v0.6.74 → v0.7.13 (mostly defensive halts), then closed a major investigation pass that added 17 RFC drafts + 2 specs + V2 frontier roadmap (commit `4a6b0454`). Build plan tripled in scope — see `docs/rfcs/RFC_v2_FRONTIER_ROADMAP.md` and `docs/rfcs/RFC_v1_FORWARD_ROADMAP.md` Tier 4-6 appends. Probe added perf-attribution helpers and broke the 4s barrier by killing substring allocations in async-keyword + private-fn-mangle preprocessors.
+
+## Standing rules (still in force)
+
+1. **Perf gate is BINDING:** if cold > 4.0s OR peak > 360MB, halt the work, bisect, fix or revert. Hard caps remain 5.93s / 770MB.
+2. **No compiler edits to `compiler/nucleor_s1_compiler.nr` without main-agent merge through `findings/inbox/` or coordinated branch.** Probe-branch ships compiler edits ONLY when paired with a runtime/build-script delta that justifies the touch.
+3. **Always set `NUC_VERIFY_AGENT=probe` before running verify.sh.** (Per memory rule.)
+4. **Heartbeat shape stays the same.** Add `cold` / `hot` / `peak_mem` to every heartbeat write.
+
+## Group P — PERF-DRIFT WATCH (job #1, runs every cycle)
+
+These are not finding-driven. They're guardrail checks the probe runs every cycle to keep cold under 4s.
+
+### P1 — Continuous perf gate
+Run `tools/check_perf_regression.ps1` 3 times per cycle. Median cold and median peak go into the heartbeat. **If median cold ≥ 3.95s, push a finding to `findings/inbox/perf_drift_<date>.md` IMMEDIATELY** with: which 5 most-recent commits could have caused it, which `compiler/nucleor_s1_compiler.nr` lines changed, and the str_concat / str_substring / sym_get hot-path counts (use the perf-attribution helpers probe shipped in `4a7c56e6`).
+
+### P2 — Hot-path allocation hunt
+Probe just killed substring allocations in 2 preprocessors. There are likely more. Use the runtime helper caller-attribution machinery (b91fca54 / a86cce9f) to enumerate every call site of `__nucleor_str_substring`, `__nucleor_str_concat`, `__nucleor_sym_get`. Rank by per-self-host-build call count. Top 5 callers of each are the next perf-fix candidates. Push findings as `findings/inbox/perf_hotpath_<helper>_<date>.md` with the call-site list and a fix sketch.
+
+### P3 — Cold-time variance investigation
+Variance has been wide this session (3.16-5.50s). Probe's measurement at 3.77s suggests system load was the dominant variance driver. Add a wall-clock + CPU-load snapshot to `tools/check_perf_regression.ps1` output so we can correlate variance with system state. Sister to P1.
+
+### P4 — Memory floor enforcement
+Peak has crept 318MB → 333MB across recent ships. Run `bisect_mem.sh` against the 5 most-recent ships to find which one moved the peak. Push as `findings/inbox/peak_drift_<date>.md`. **Do NOT auto-revert** — main needs to see the bisect result before deciding.
+
+## Group Q — DEFENSIVE-HALT SHIPS (easy wins, queue these between perf cycles)
+
+The 39-ship session closed the obvious wrong-class diagnostics. Probe should hunt for the less-obvious ones. LOW-RISK SHIPS adopters porting Rust code will hit.
+
+### Q1 — Match arm with `..=` exclusive range pattern
+`match x { 0..=10 => ... }` works (closed). But `match x { 0..10 => ... }` (exclusive) — verify status, halt cleanly if it crashes/wrong-class.
+
+### Q2 — Slice patterns `match arr { [a, .., b] => ... }`
+The `..` rest pattern in slice match — verify and halt cleanly if unsupported. Probably wrong-class today.
+
+### Q3 — `where T: Trait1 + Trait2 + Trait3` — multi-trait bounds
+Confirm the bound parser handles 3+ traits separated by `+`. If not, halt cleanly.
+
+### Q4 — Generic where-clauses with multiple params: `where T: A, U: B`
+Multi-line / multi-param where clauses — confirm or halt.
+
+### Q5 — `pub use crate::module::*;` re-export
+Currently `mod foo;` is silent passthrough. Confirm `pub use` and `use ... as ...` and `use ... ::*;` all halt cleanly or work.
+
+### Q6 — `for<'a> Fn(&'a T) -> R` higher-rank trait bounds (HRTBs)
+Probably parser-rejects wrong-class. Halt cleanly.
+
+### Q7 — `let r = &raw const x;` Rust 1.82 raw-ref syntax
+Halt cleanly with workaround pointer (use `&x` or i64 cast).
+
+### Q8 — `c"hello"` C-string literal (Rust 1.77)
+Halt cleanly with workaround (`"hello"` plus explicit NUL handling).
+
+### Q9 — Tuple destructure in let `let (a, b) = (5, 7);`
+Sister to V1.1. Already-flagged in V1.11 sub-items. Confirm halt is clean.
+
+### Q10 — `#[inline]`, `#[inline(always)]`, `#[cold]` attributes
+Currently silently dropped probably. Either honor them (low-effort) or halt cleanly with a note that Nucleor's inliner is decision-driven.
+
+## Group R — CHALLENGING WORK (probe's perf-attribution skill applies)
+
+Bigger than Group Q but still bounded. Uses the perf-attribution machinery probe just landed.
+
+### R1 — `expand_format_macros` allocation profile
+The textual format-macros pass walks every source file for `println!`/`format!`/`assert!`. Run perf-attribution against it during a self-host build. Where does it allocate? Are there opportunities to re-use string buffers across calls? Push findings.
+
+### R2 — `parse_postfix` hot-path audit
+parse_postfix is called per token after every primary. It has 17+ branches now (after recent ships). Profile per-branch hit-counts during self-host. Find any branch that's always-false on hot paths and gate it cheaper. Push findings.
+
+### R3 — `types_compatible` micro-benchmark
+This fn is called on EVERY type check. Recent edits added Box<T> recursion + str/String dispatch + derive(PartialEq) lookup. Each adds a str_eq or str_starts_with. Build a micro-bench for `types_compatible` (compare hot-path call distribution: i64==i64, str==str, struct==struct, generic==generic). Identify the hottest case and ensure it's a single early-return. Push findings.
+
+### R4 — Sym-table linear-scan profile
+`sym_get` walks the sym table linearly. With 5072 strings in the v0.7.13 self-host, this could be the largest single-fn cost. Profile depth distribution: how many entries do we walk before finding the hit? If P50 > 100, propose a hash-backed sym table (with the cheap-cache pattern from v0.6.72). Push findings; main agent decides whether to ship the hash table.
+
+### R5 — Bootstrap-seed regeneration timing
+`bootstrap/nucleor_s1_seed.ll` regen is triggered on every compiler-source change. Profile how long regeneration takes vs the rest of the build. Is there a faster path (cached partial IR, skip-if-seed-stable-byte-identical)? Push findings.
+
+## Group S — INVESTIGATION + FOLD-IN (highest leverage, longest-tail)
+
+These tap directly into the new V1/V2 roadmap and the ML-expansion brief.
+
+### S1 — Audit V2 roadmap RFCs for cheap-win candidates
+Read `docs/rfcs/RFC_v2_FRONTIER_ROADMAP.md` Tier A (RFC-0046 through RFC-0051). For each, identify which subset is "metadata + parser-only, no semantic enforcement" — those are the cheapest first-tranches and the right shape for parallel-agent shipping. Push findings to `findings/inbox/v2_easy_win_subset_<RFC>.md`.
+
+### S2 — ML expansion docs review + integration brief
+Read `Desktop/Nucleor_Build_Spine/03_TRIAGE/ML_EXPANSION_SET_INTEGRATION_2026-05-01.md` + `Desktop/Nucleor_Build_Spine/07_CODEX_DOCS/ML_EXPANSION_INPUTS_2026-05-01/` (3 docs). Identify which ML expansion items are:
+- Already shipped in OSS (closed).
+- Easy wins (mark as Q-class for next cycle).
+- Multi-stage (defer to V2 roadmap or main agent).
+Push to `findings/inbox/ml_expansion_triage_<date>.md`.
+
+### S3 — Nucleor_Translate spec-phase status check
+`Desktop/Nucleor_Translate/` is in spec phase per memory; READ-ONLY on `Nucleor_OSS/` during spec. Check status: are there any compiler-side hooks Nucleor_Translate needs that are NOT yet in OSS? Push as `findings/inbox/translate_compiler_hooks_<date>.md`.
+
+### S4 — Drift restoration RFC review
+Read `RFC-0043-fixed-point-IR-type.md`, `RFC-0044-per-binop-overflow-mode.md`, `RFC-0045-differentiable-attribute.md`. For each, sketch the smallest "decoy" implementation that exercises the parser change without committing the IR-type / OverflowMode-field / attribute-storage refactor. Push as `findings/inbox/drift_restore_decoy_<RFC>.md` so main can ship the smallest-possible version first.
+
+## Quick-reference: priority order this cycle
+
+1. **P1-P4 first** (perf is job #1, every cycle).
+2. **2-3 Q items** (defensive halts, low-risk).
+3. **1-2 R items** (perf-attribution work, leveraged on recent runtime additions).
+4. **1 S item** (investigation, longer-tail; rotate which one).
+
+Skip items where the prerequisite isn't met (e.g. don't audit RFC-0046 cheap-wins if P1 fired a perf-drift alarm — clear that first).
+
+## Heartbeat update
+
+Add `roadmap_phase: "v2_post_investigation"` to heartbeat. Add `current_punchlist_item` per item code (e.g. `"P2"`, `"Q3"`, `"R4"`).
+
+## Cross-references
+
+- `Desktop/Nucleor_Drift_Triage_2026-05-03.md` — drift triage memo
+- `docs/rfcs/RFC_v1_FORWARD_ROADMAP.md` — V1.1-V1.16 (Tier 4-6 added)
+- `docs/rfcs/RFC_v2_FRONTIER_ROADMAP.md` — V2.1-V2.13 (NEW)
+- `Desktop/Nucleor_Build_Spine/BUILD_PATH_v0.4_to_v1.3.md` — canonical spine
+- `feedback_ns_sage_broken.md` (memory) — NS_Sage = broken; do not cite
