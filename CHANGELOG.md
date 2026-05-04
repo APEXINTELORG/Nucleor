@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.20] — 2026-05-04
+
+**Defensive halt — Rust built-in macros that Nucleor doesn't yet
+support (`file!`, `line!`, `column!`, `module_path!`, `stringify!`,
+`concat!`, `env!`, `option_env!`, `include_str!`, `include_bytes!`)
+now produce clean halts with per-macro workaround pointers.**
+
+Pre-fix: writing `file!()` or `line!()` (zero-arg macros) surfaced
+as wrong-class `error[NR020]: parse error: expected ')', got ';'`
+because the macro expander didn't recognize the name and the
+parser then read the trailing `;` after the empty `()` as a
+function-call termination error. Writing `stringify!(x)` /
+`concat!("a","b")` / `env!("X")` etc. (arg-bearing macros) surfaced
+as wrong-class `error[TYP-005]: undefined function ...()` at
+clang link time after the `!` was silently stripped.
+
+Post-fix: the macro expander pass detects identifier-`!(`-form for
+the unsupported-built-in list and halts cleanly with workaround
+pointers tailored to each macro:
+
+```nucleor
+// Pre-fix:
+let f: str = file!();          // ← NR020 wrong-class
+let s: str = stringify!(x);    // ← TYP-005 undefined fn
+let n: i64 = line!();          // ← NR020 wrong-class
+
+// Post-fix workarounds:
+let f: str = "path/to/file.nr";   // hard-coded literal for file!()
+let s: str = "x";                 // hard-coded literal for stringify!()
+let n: i64 = 42;                  // hard-coded i64 for line!()
+
+// concat! → str_concat at runtime, or single literal:
+let s: str = str_concat("a", "b");
+let s: str = "ab";
+
+// env!/option_env! → pass at runtime (args_get / wrapper script).
+// include_str!/include_bytes! → file_read_string at runtime.
+```
+
+Forward-roadmap: full compile-time macro evaluation needs a
+const-eval pass and a source-position-tracking lexer (for `file!`
+and `line!` to return real values).
+
+### Fixture
+
+`tests/fixtures/v0720_unsupported_builtin_macros.nr` — negative
+fixture for `file!()` (fires clean halt with file!-specific
+workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `1dd3cb8c4c1c9ad1c41f69beace65485`.
+
 ## [0.7.19] — 2026-05-04
 
 **Defensive halt — `@` binding inside a variant pattern
