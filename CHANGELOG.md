@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.55] — 2026-05-04
+
+**Wave 2 — PKG-2 fix: restore native_lsp/native_fmt stubs.**
+The router (`nuc_router.ps1`) referenced
+`tools/native_lsp.ps1` and `tools/native_fmt.ps1` at lines 624
+and 607 respectively, but neither file existed. `nuc lsp` and
+`nuc fmt` invocations crashed with "Cannot find path".
+
+### Fix
+
+Created stub implementations that:
+
+1. Print a clear diagnostic explaining the tool isn't shipped
+   yet ("PKG-2 stub v0.8.55").
+2. Reference the gap RFC for context.
+3. Suggest the workaround (manual formatting, or `nuc build`/
+   `nuc check` for compile feedback while LSP is missing).
+4. Exit with code 2 (non-zero, distinct from compiler exit
+   codes 0/1) so CI gates flag the missing tool.
+
+### Phase status
+
+```
+PKG-2 (native_lsp.ps1 + native_fmt.ps1):
+  Phase 1   stub files installed             DONE v0.8.55 (this)
+  Phase 2b  formatter implementation         QUEUED
+  Phase 2b  LSP server implementation        QUEUED
+```
+
+### Wave 2 progress
+
+```
+PKG-1 Linux publish              FIXED   v0.8.51
+PKG-3 Semver constraint          Phase 1 v0.8.53
+RT-G1/3/5/6 Real-Time/Determ     Phase 1 v0.8.54
+PKG-2 native_lsp/fmt stubs       FIXED   v0.8.55 (this)
+PKG-4 registry remote            QUEUED
+PKG-5 cfg(feature) gating        QUEUED
+Algebraic Laws property tests    QUEUED
+```
+
+### Perf
+
+No compiler change. Cold/hot bands unchanged. Fixed-point md5
+unchanged.
+
 ## [0.8.54] — 2026-05-04
 
 **Wave 2 — Real-Time / Determinism Phase 1 audit-pass info.**
