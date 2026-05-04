@@ -30636,6 +30636,53 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     //       3 = eprintln! → eprint(...)        v0.5.22
     //       4 = eprint!   → eprint_raw(...)    v0.5.22
     let parts: Vec<i32> = fmt_split_args(args_text);
+    // v0.7.43 (defensive halt — Rust named format-arg `format!("{x}",
+    // x = 5)`). Pre-fix this surfaced as wrong-class `error[TYP-005]:
+    // undefined function 'x()'` because the expander used the literal
+    // expression `x = 5` as the value to format, parsed it as an
+    // assignment, and `x` was undefined. Detect any arg part matching
+    // `<ident>\s*=\s*<expr>` and halt cleanly. (Does NOT fire on `==`
+    // / `!=` / `<=` / `>=` because those have a non-`=` second char.)
+    let mut v743_idx: i64 = 1;
+    while v743_idx < vec_len(parts) {
+        let v743_arg: str = vec_get(parts, v743_idx);
+        let v743_alen: i64 = str_len(v743_arg);
+        let mut v743_ident_start: i64 = 0;
+        while v743_ident_start < v743_alen && (str_char_at(v743_arg, v743_ident_start) == 32 || str_char_at(v743_arg, v743_ident_start) == 9) {
+            v743_ident_start = v743_ident_start + 1;
+        };
+        let mut v743_ident_end: i64 = v743_ident_start;
+        let mut v743_has_ident: i64 = 0;
+        if v743_ident_end < v743_alen {
+            let v743_c0: i64 = str_char_at(v743_arg, v743_ident_end);
+            if (v743_c0 >= 65 && v743_c0 <= 90) || (v743_c0 >= 97 && v743_c0 <= 122) || v743_c0 == 95 {
+                v743_has_ident = 1;
+                v743_ident_end = v743_ident_end + 1;
+                let mut v743_walk: i64 = 1;
+                while v743_walk == 1 && v743_ident_end < v743_alen {
+                    let v743_cn: i64 = str_char_at(v743_arg, v743_ident_end);
+                    if (v743_cn >= 65 && v743_cn <= 90) || (v743_cn >= 97 && v743_cn <= 122) || (v743_cn >= 48 && v743_cn <= 57) || v743_cn == 95 {
+                        v743_ident_end = v743_ident_end + 1;
+                    } else {
+                        v743_walk = 0;
+                    };
+                };
+            };
+        };
+        if v743_has_ident == 1 {
+            let mut v743_eq_p: i64 = v743_ident_end;
+            while v743_eq_p < v743_alen && (str_char_at(v743_arg, v743_eq_p) == 32 || str_char_at(v743_arg, v743_eq_p) == 9) {
+                v743_eq_p = v743_eq_p + 1;
+            };
+            if v743_eq_p < v743_alen && str_char_at(v743_arg, v743_eq_p) == 61 && (v743_eq_p + 1 >= v743_alen || str_char_at(v743_arg, v743_eq_p + 1) != 61) {
+                let v743_name: str = str_substring(v743_arg, v743_ident_start, v743_ident_end);
+                print(str_concat("ERROR: Rust named format-arg `", str_concat(v743_name, " = <expr>` (e.g. `format!(\"{x}\", x = 5)`) is not yet supported in Nucleor's textual macro layer. Pre-v0.7.43 surfaced as wrong-class `error[TYP-005]: undefined function '<name>()'` because the expander used `x = 5` as the value to format and parsed `x` as an unbound identifier.")));
+                print(str_concat("       Workaround: use the explicit-positional form — `format!(\"{}\", ", str_concat(v743_name, ")` (drop the named binding; the value already has a name in the calling scope). Tracked for forward-roadmap (named-arg substrate is part of the same RFC 2795 work as inline + positional args).")));
+                panic(str_concat("nucleor: named format-arg `", str_concat(v743_name, " = ...` not yet supported (see ERROR diagnostic above)")));
+            };
+        };
+        v743_idx = v743_idx + 1;
+    };
     if vec_len(parts) == 0 {
         if mode == 0 { return "print(\"\")"; };
         if mode == 1 { return "\"\""; };
