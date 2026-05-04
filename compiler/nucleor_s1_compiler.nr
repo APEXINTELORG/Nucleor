@@ -11705,25 +11705,6 @@ fn name_in_auto_drop(auto_drop: Vec<i32>, fn_name: str) -> i64 {
         if str_eq(vec_get(auto_drop, i), fn_name) == 1 { return 1; };
         i = i + 1;
     };
-<<<<<<< HEAD
-    // v0.8.38 RFC-0062 G-1 Phase 2b-3 — env-gated default-flip
-    // experiment LANDED. When NUC_AUTO_DROP_DEFAULT=1 is set,
-    // treat auto-drop as enabled by default. The #[manual_drop]
-    // suppress (v0.8.32) still overrides at the lower_fn check.
-    //
-    // EMPIRICAL FINDING (v0.8.38 testing): the env-flip works
-    // for adopter code (Vec without explicit free now gets
-    // generated drop call inserted) BUT produces byte-identical
-    // seed self-host IR. Hypothesis: the 89 default-flip
-    // candidate fns in the seed have their Vec/HashMap let
-    // bindings emitted through a code path that doesn't run
-    // auto_drop_register. Phase 2b-3 needs deeper trace to
-    // identify this gap before the actual default-flip ship.
-    //
-    // For now, the env-gate is a CORRECTNESS-EXPERIMENT only —
-    // adopters can validate their own code; the seed-side
-    // surface is unchanged.
-=======
     // v0.8.66 ROLLBACK of v0.8.65 unconditional default-flip.
     // The unconditional flip caused segfaults on attn import
     // self-host — the rod has handoff patterns the audit didn't
@@ -11731,8 +11712,8 @@ fn name_in_auto_drop(auto_drop: Vec<i32>, fn_name: str) -> i64 {
     // experiment (NUC_AUTO_DROP_DEFAULT=1) remains available
     // for adopter validation. Phase 2b-3 unconditional flip is
     // unblocked from cache-key side (v0.8.64) but still needs
-    // broader handoff audit before it can land safely.
->>>>>>> cb587d2d (v0.8.66: robustness ship — revert v0.8.65 + drain probe inbox + ML-1 sister fixes)
+    // broader handoff audit AND a runtime double-free guard
+    // (added v0.8.67 in __nucleor_vec_free).
     let auto_default: str = env_get_or(str_concat("NUC_AUTO_DROP", "_DEFAULT"), "0");
     if str_eq(auto_default, "1") == 1 { return 1; };
     return 0;
