@@ -16412,7 +16412,11 @@ fn invoke_native_package_sign(package_root: str, key_id: str) -> Vec<i32> {
     out.push(0);
     out.push("");
     out.push("");
-    system("mkdir .nuc_cache 2>NUL");
+    // v0.8.51 PKG-1 fix: use the C-runtime cross-platform mkdir
+    // (POSIX `mkdir(2)` syscall) instead of `system("mkdir ...
+    // 2>NUL")` which only worked on Windows. fs_create_dir_all
+    // is idempotent — succeeds whether the dir exists or not.
+    fs_create_dir_all(".nuc_cache");
     let output_path: str = str_concat(".nuc_cache/package_sign_", str_concat(str_from_int(now_ms()), ".json"));
     let repo_root: str = native_release_repo_root();
     let script_path: str = native_release_script_path();
@@ -16420,11 +16424,18 @@ fn invoke_native_package_sign(package_root: str, key_id: str) -> Vec<i32> {
     if str_len(key_id) > 0 {
         ps_cmd = str_concat(ps_cmd, str_concat(" '", str_concat(key_id, "'")));
     };
-    let mut cmd: str = str_concat("powershell -ExecutionPolicy Bypass -Command ", shell_quote(str_concat(ps_cmd, " --json")));
+    // v0.8.51 PKG-1 fix: use `pwsh` (PowerShell 7+ cross-platform
+    // binary) instead of `powershell` (Windows-only legacy 5.1).
+    // Adopters on Linux/macOS install pwsh via the standard
+    // package channels per docs.microsoft.com/powershell/scripting.
+    let mut cmd: str = str_concat("pwsh -ExecutionPolicy Bypass -Command ", shell_quote(str_concat(ps_cmd, " --json")));
     cmd = str_concat(cmd, str_concat(" > ", str_concat(shell_quote(path_shell_native(output_path)), " 2>&1")));
     let rc: i64 = system(cmd);
     let raw: str = file_read_string(output_path);
-    system(str_concat("del /q ", str_concat(shell_quote(path_shell_native(output_path)), " >NUL 2>NUL")));
+    // v0.8.51 PKG-1 fix: leave the temp file in .nuc_cache (it's
+    // gitignored). The previous Windows `del /q` cleanup failed
+    // silently on Linux. Cleaner to skip the cleanup; .nuc_cache
+    // is the standard scratch dir.
     if rc != 0 {
         vec_set(out, 2, trim_ws(raw));
         if str_len(vec_get(out, 2)) == 0 { vec_set(out, 2, str_concat("native package signing failed: ", package_root)); };
@@ -16440,16 +16451,16 @@ fn invoke_native_package_verify(package_root: str) -> Vec<i32> {
     out.push(0);
     out.push("");
     out.push("");
-    system("mkdir .nuc_cache 2>NUL");
+    // v0.8.51 PKG-1 fix: cross-platform — fs_create_dir_all, pwsh, no del
+    fs_create_dir_all(".nuc_cache");
     let output_path: str = str_concat(".nuc_cache/package_verify_", str_concat(str_from_int(now_ms()), ".json"));
     let repo_root: str = native_release_repo_root();
     let script_path: str = native_release_script_path();
     let ps_cmd: str = str_concat("& '", str_concat(path_shell_native(script_path), str_concat("' -Root '", str_concat(path_shell_native(repo_root), str_concat("' package-verify '", str_concat(path_shell_native(package_root), "' --json"))))));
-    let mut cmd: str = str_concat("powershell -ExecutionPolicy Bypass -Command ", shell_quote(ps_cmd));
+    let mut cmd: str = str_concat("pwsh -ExecutionPolicy Bypass -Command ", shell_quote(ps_cmd));
     cmd = str_concat(cmd, str_concat(" > ", str_concat(shell_quote(path_shell_native(output_path)), " 2>&1")));
     let rc: i64 = system(cmd);
     let raw: str = file_read_string(output_path);
-    system(str_concat("del /q ", str_concat(shell_quote(path_shell_native(output_path)), " >NUL 2>NUL")));
     if rc != 0 {
         vec_set(out, 2, trim_ws(raw));
         if str_len(vec_get(out, 2)) == 0 { vec_set(out, 2, str_concat("native package verification failed: ", package_root)); };
