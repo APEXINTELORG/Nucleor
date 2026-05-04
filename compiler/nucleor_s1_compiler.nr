@@ -1591,6 +1591,18 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
                     print(str_concat("       ", str_concat(vname, "(inner) = outer { if let Some(v) = inner { ... } }`. Tracked for forward-roadmap (recursive pattern parser, sister to nested struct patterns).")));
                     panic(str_concat("nucleor: nested ctor pattern `", str_concat(vname, "(Some(...))` not yet supported (see ERROR diagnostic above)")));
                 };
+                // v0.7.19 (defensive halt — Rust `@` binding inside a
+                // variant pattern: `Some(n @ 1..=10)`, `Ok(s @ "a")`,
+                // etc.). Pre-fix this surfaced as wrong-class `error
+                // [NR020]: expected ')', got token 122` (token 122 = `@`).
+                // Workaround: hoist the `@` to the top-level pattern
+                // (`n @ Some(_)`) or split the guard
+                // (`Some(n) if (1..=10).contains(&n)`).
+                if pk(tokens, cp) == 122 {
+                    print(str_concat("ERROR: `@` binding inside a variant pattern (e.g. `", str_concat(vname, "(n @ 1..=10)`) is not yet supported in Nucleor. Pre-v0.7.19 this surfaced as wrong-class `error[NR020]: expected ')', got token 122`.")));
+                    print(str_concat("       Workaround: hoist the `@` to the outer pattern — `n @ ", str_concat(vname, "(_) => ...` (binds the whole variant) — or split the test into a guard: `", str_concat(vname, "(n) if (1..=10).contains(&n) => ...`. Tracked for forward-roadmap (recursive pattern parser).")));
+                    panic(str_concat("nucleor: `@` binding inside `", str_concat(vname, "(...)` not yet supported (see ERROR diagnostic above)")));
+                };
             };
             cp = expect_tok(tokens, cp, 51);
         } else if pk(tokens, cp) == 52 {

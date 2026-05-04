@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.19] — 2026-05-04
+
+**Defensive halt — `@` binding inside a variant pattern
+(`Some(n @ 1..=10)`, `Ok(s @ "a")`, `Err(e @ MyErr::X)`) now produces
+a clean halt with hoist-or-guard workaround pointers.**
+
+Pre-fix: writing `match opt { Some(n @ 1..=10) => ... }` surfaced as
+wrong-class `error[NR020]: parse error: expected ')', got token 122`
+because the variant-pattern parser captures the binding name as a
+single ident and then expects the closing `)`. Token 122 is `@`.
+
+Post-fix: after the binding-name capture in the variant-pattern
+parser, detect token-122 (`@`) and halt cleanly:
+
+```nucleor
+// Pre-fix (wrong-class):
+match opt {
+    Some(n @ 1..=10) => { ... }   // ← NR020 wrong-class
+    _ => { ... }
+}
+
+// Post-fix workaround A — hoist `@` to the outer pattern (binds
+// the whole variant, including None for Option):
+match opt {
+    n @ Some(_) => { /* n is the Some(x) variant */ ... }
+    _ => { ... }
+}
+
+// Post-fix workaround B — split the test into a guard:
+match opt {
+    Some(n) if (1..=10).contains(&n) => { ... }
+    _ => { ... }
+}
+```
+
+Forward-roadmap: full recursive pattern parser is the same prereq
+that closes nested-ctor patterns (v0.6.90, e.g. `Some(Some(v))`)
+and `@` bindings inside other shapes.
+
+### Fixture
+
+`tests/fixtures/v0719_at_bind_in_variant.nr` — negative fixture for
+`Some(n @ 1..=10)` (fires clean halt, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `a6dc7c5413babadb1d5aa26baaf140d2`.
+
 ## [0.7.18] — 2026-05-03
 
 **Governance rod Phase 2a — RFC-0060 scaffolding lands as an
