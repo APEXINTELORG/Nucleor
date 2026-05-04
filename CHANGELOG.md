@@ -5,6 +5,35 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.66] — 2026-05-04
+
+**Test consolidation — collapse 3 RFC 2795 format-arg fixtures
+(inline / positional / named) into 1 combined fixture. Fixture
+count drops 50 → 48.**
+
+The 3 RFC 2795 format-arg halts (v0.7.41 inline `{name}` /
+v0.7.42 positional `{0}` / v0.7.43 named `format!(..., x = v)`)
+all fire in `expand_format_macros` at the format-string scan,
+distinguished only by the spec-shape inside the braces.
+
+Replaced with `tests/fixtures/v0766_format_arg_halt_family.nr`
+that exercises the path via `format!("{n}")` (alpha-prefix, hits
+the v0.7.41 inline-arg branch first; build aborts there).
+
+Files removed:
+- `tests/fixtures/v0741_inline_format_arg_halt.nr`
+- `tests/fixtures/v0742_format_pos_arg_halt.nr`
+- `tests/fixtures/v0743_format_named_arg_halt.nr`
+
+Sister consolidation to v0.7.64 (idiom-method) and v0.7.65
+(local-decl). Three rounds of family consolidation: 58 → 53 → 50
+→ 48 fixtures.
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 — unchanged. Cold 3.22s / peak
+302MB.
+
 ## [0.7.65] — 2026-05-04
 
 **Test consolidation — collapse 4 local-decl fixtures (type-alias /
