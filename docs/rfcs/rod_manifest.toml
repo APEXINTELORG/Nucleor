@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2771
-# Total LOC: 11805
+# Total fn definitions: 2772
+# Total LOC: 11807
 
 [[rod]]
 name           = "activation2"
@@ -213,9 +213,9 @@ imports        = ["bloom"]
 name           = "bm25"
 path           = "stdlib/rods/bm25.nr"
 description    = "BM25 search index"
-function_count = 6
+function_count = 7
 cfile_count    = 1
-loc            = 13
+loc            = 15
 imports        = ["bm25"]
 
 [[rod]]
