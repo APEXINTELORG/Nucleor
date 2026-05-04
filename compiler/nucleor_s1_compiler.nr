@@ -1642,6 +1642,21 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
                 print(str_concat("       Workaround: use a guard — `match opt { ", str_concat(vname, str_concat("(n) if n == -", str_concat(str_from_int(neg_lit_v724), " => { ... } _ => { ... } }`. Tracked for forward-roadmap (negate-literal-inside-variant lowering needs the same signed-literal pattern AST node as MATCH-014/015).")))));
                 panic(str_concat("nucleor: bare negative-literal payload inside `", str_concat(vname, "(...)` not yet supported (see ERROR diagnostic above)")));
             };
+            // v0.7.51 (CRITICAL — bare integer-literal payload inside a
+            // variant pattern: `Some(1)`, `Ok(0)`, `Err(42)`). Pre-fix
+            // this SEGFAULTED the compiler at IR-emit time because the
+            // variant-pattern parser captured the int literal's i64
+            // value as the binding-name string, then downstream codegen
+            // tried to emit a variable named "1" — invalid LLVM ident
+            // → SIGSEGV (rc 139, no diagnostic). Sister to v0.7.22 /
+            // v0.7.24 (negative-literal halts) but for the segfault
+            // class. Halt cleanly with a guard workaround.
+            if pk(tokens, cp) == 2 {
+                let int_lit_v751: i64 = pkv(tokens, cp);
+                print(str_concat("ERROR: bare integer-literal payload inside a variant pattern (e.g. `", str_concat(vname, str_concat("(", str_concat(str_from_int(int_lit_v751), ")`) is not yet supported in Nucleor. Pre-v0.7.51 this SEGFAULTED the compiler at IR-emit because the variant-pattern parser captured the int literal value as the binding-name string and lowered to an invalid LLVM identifier (no diagnostic, just rc=139). Sister to v0.7.22/v0.7.24 (negative-literal halts).")))));
+                print(str_concat("       Workaround: use a guard — `match opt { ", str_concat(vname, str_concat("(n) if n == ", str_concat(str_from_int(int_lit_v751), " => { ... } _ => { ... } }`. Tracked for forward-roadmap (literal-payload pattern lowering needs the recursive pattern parser; sister to nested-pattern halt v0.6.90).")))));
+                panic(str_concat("nucleor: bare integer-literal payload inside `", str_concat(vname, "(...)` not yet supported (see ERROR diagnostic above)")));
+            };
             if pk(tokens, cp) != 51 {
                 binding = pkv(tokens, cp);
                 cp = cp + 1;

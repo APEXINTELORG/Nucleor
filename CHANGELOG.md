@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.51] — 2026-05-04
+
+**🛑 Compiler SEGFAULT fix — bare integer-literal payload inside
+a variant pattern (`Some(1)`, `Ok(0)`, `Err(42)`) now produces a
+clean halt instead of crashing the compiler.**
+
+Pre-fix: writing `match opt { Some(1) => print("a"), _ => ... }`
+SEGFAULTED the compiler at IR-emit time (rc=139, no diagnostic)
+because the variant-pattern parser captured the integer literal's
+i64 value as the binding-name string, then downstream codegen
+tried to emit a variable named "1" which is an invalid LLVM
+identifier. Critical bug — no diagnostic at all, just rc=139
+on stdout.
+
+Post-fix: `parse_match_one_pattern` checks for `pk(cp) == 2`
+(integer-literal token) inside variant-pattern context, after the
+existing `Some(-N)` (v0.7.24) and `Some(@)` / `Some(ref ...)`
+(v0.7.19/23) halts but before the binding-name capture, and halts
+cleanly with a guard workaround:
+
+```nucleor
+// Pre-fix (CRASH):
+match opt {
+    Some(1) => print("a"),       // ← compiler SEGFAULT, no diag
+    _ => print("b"),
+}
+
+// Post-fix workaround — guard:
+match opt {
+    Some(n) if n == 1 => print("a"),
+    _ => print("b"),
+}
+```
+
+Sister to the negative-literal halts (v0.7.22 outer-pattern,
+v0.7.24 inside-variant) — closes the literal-payload-pattern
+crash class. Forward-roadmap: literal-payload pattern lowering
+needs the recursive pattern parser (sister to nested-pattern halt
+v0.6.90).
+
+### Fixture
+
+`tests/fixtures/v0751_int_lit_in_variant_halt.nr` — negative
+fixture for `Some(1)` pattern (fires int-lit-in-variant halt with
+guard workaround, not SEGFAULT).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `1a4401082a67d222be874be24da89657`.
+
 ## [0.7.50] — 2026-05-04
 
 **Defensive halt — or-patterns in `if let` / `while let` (e.g.
