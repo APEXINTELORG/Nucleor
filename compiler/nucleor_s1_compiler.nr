@@ -27999,6 +27999,18 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.28: RFC-0062 G-8 Phase 2a — conditional-divergence
+    // audit-pass info. Counts `match ` keyword occurrences as a
+    // coarse proxy for control-flow-with-potential-cond-
+    // divergence. Phase 2b will add per-fn move-state join
+    // analysis at if/else and match arms. Phase 4 promotes to
+    // deny-by-default for arms with mixed move/borrow patterns.
+    let v0828_match_count: i64 = simple_attribute_audit_count(after_async,
+        str_concat("match ", ""));
+    if v0828_match_count > 0 {
+        print(str_concat("info[CFG-G8]: match expressions in build: ", str_from_int(v0828_match_count)));
+        print("  Per RFC-0062 G-8 Phase 2a: match arms (and if/else expressions) can have arms that diverge in move/borrow behavior — one arm consumes a value, another borrows it. The move tracker today is conservative on simple cases but doesn't fully reason about arm-level divergence. Phase 2b adds move-state join analysis at every control-flow join point; Phase 4 promotes mixed-arm patterns to deny-by-default with `#[allow(divergent_move)]` opt-out. Adopter discipline today: keep arm-level move/borrow behavior consistent (all arms borrow, or all arms consume).");
+    };
     // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
     let after_deadline: str = expand_deadline(after_async);

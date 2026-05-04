@@ -213,8 +213,8 @@ Heuristic warnings that ship in single ships. Goal: every gap has visible compil
 | v0.8.25 | G-5 FFI null-return audit-pass info | DONE |
 | v0.8.26 | G-9 direct-FFI audit-pass info | DONE |
 | v0.8.27 | G-3 Vec-of-ref + HashMap-mut audit-pass info | DONE |
-| v0.8.28 | All Wave A audit passes batched into single multi-needle scan (perf consolidation) — PROMOTED ahead of G-8 to claw back cold budget | next |
-| v0.8.29 | G-8 mixed-arm conditional audit-pass info | queued (after consolidation) |
+| v0.8.29 | G-8 cond-divergence Phase 2a info — **WAVE A COMPLETE** | DONE |
+| v0.8.29+ | Wave B begins — Phase 2b proper analysis (per-fn IR-level checkers) | next |
 
 ### Wave B — Phase 2b proper analysis (medium, lockable)
 
@@ -354,7 +354,7 @@ Each ship in Wave A/B/C/D must include:
 | G-5 FFI null | ✓ v0.8.18 | **✓ v0.8.25** | queued | queued | v1.0 |
 | G-6 Sendable | ✓ v0.8.20 | n/a | queued | queued | v1.0 |
 | G-7 unsafe audit | ✓ v0.8.17 | n/a (zero unsafe) | runtime tests | queued | v1.0 |
-| G-8 cond-divergence | ✓ v0.8.19 | queued | queued | queued | v1.0 |
+| G-8 cond-divergence | ✓ v0.8.19 | **✓ v0.8.29** | queued | queued | v1.0 |
 | G-9 FFI bounds | ✓ v0.8.18 | **✓ v0.8.26** | queued | queued | v1.0 |
 | G-10 cross-fn | ✓ via G-2 | queued | queued | queued | v1.0 |
 | G-11 MS-7 stress | ✓ v0.8.19 | n/a | queued | queued | v1.0 |
@@ -368,4 +368,5 @@ Phase 1 complete. Phase 2a one of five landed. Phases 2b/3/4 fully scoped, queue
 - **2026-05-04** v0.8.24: G-4 Phase 2a OWN-012 audit-pass info diagnostic landed. Plan document created.
 - **2026-05-04** v0.8.25: G-5 Phase 2a FFI-NULL audit-pass info diagnostic landed.
 - **2026-05-04** v0.8.26: G-9 Phase 2a FFI-DIRECT audit-pass info diagnostic landed. Three info diagnostics now firing on seed self-host (44 frees, 4 raw-ptr returns, 27 extern fns).
-- **2026-05-04** v0.8.27: G-3 Phase 2a ALIAS-G3 audit-pass info diagnostic landed. Four info diagnostics now firing (added 3 Vec-of-reference patterns). Cold creeping to ~3.94-4.29s — at Job #1 ceiling. Next ship promoted: v0.8.28 perf consolidation (multi-needle batched scan) ahead of G-8 to claw back budget.
+- **2026-05-04** v0.8.27: G-3 Phase 2a ALIAS-G3 audit-pass info diagnostic landed. Four info diagnostics now firing (added 3 Vec-of-reference patterns). Cold creeping to ~3.94-4.29s — at Job #1 ceiling. Next ship promoted: v0.8.29 perf consolidation (multi-needle batched scan) ahead of G-8 to claw back budget.
+- **2026-05-04** v0.8.29: **WAVE A COMPLETE.** G-8 Phase 2a CFG-G8 info diagnostic landed (match-expression count). Five info diagnostics + BR-7 warning all firing on seed self-host. The promoted "v0.8.29 consolidation" experiment was attempted (Vec<i64> multi-needle batched, then str_count-routed) and BOTH reverted: Vec<i64> overhead regressed cold ~0.4s; str_count routing regressed hot from 0.40 to 0.79s. Current per-needle Nucleor-source loops are fastest in practice. Cold mean 3.71s (under Job #1). Real perf wins for Wave B will require per-source-hash audit cache infrastructure, not naive consolidation.
