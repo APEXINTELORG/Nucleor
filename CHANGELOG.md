@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.117] — 2026-05-04
+
+**stdlib/rods/bioseq.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `bioseq.nr` (DNA/RNA/
+protein — GC content, alignment, Hamming distance, k-mer count,
+ORF finder) had no existing tests.
+
+### The fixture
+
+`tests/features/bioseq_smoke.nr` covers four invariant classes:
+
+| Test | Invariant |
+|---|---|
+| GC empty | `bio_gc("") == 0.0` |
+| GC known | all-A=0; all-G=1.0; AGCT=0.5; agct=0.5 (case-fold check) |
+| Hamming | identical=0; single mismatch=1; AAAA vs TTTT=4 |
+| k-mer count | `|seq|=10, k=3` → 8 (= 10-3+1); k=1 → 4; k>|seq| → 0; k==|seq| → 1 |
+
+All four pass. rc=0. Cold 0.61s.
+
+### Significance
+
+Catches silent regressions in:
+
+- Case-folding in GC counting (catches uppercase-only or
+  lowercase-only bugs)
+- Non-ACGT character handling (denominator counts ACGT only,
+  not Ns or ambiguity codes)
+- Hamming distance comparison logic
+- k-mer-count off-by-one (especially the `k == |seq|` corner
+  which is +1 not 0, and `k > |seq|` which is 0)
+
+These functions are foundational for any bioinformatics
+pipeline; a regression here silently corrupts every consumer.
+
+`bio_align_global` (Needleman-Wunsch) and `bio_find_orfs`
+queued — they need scoring matrix setup that's easier to add
+in a follow-up fixture.
+
+Other zero-coverage rods queued: autodiff / cli / collections /
+fluid / fs / ahrs / apf / audio / ba / bayesian / bicycle / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.116] — 2026-05-04
 
 **stdlib/rods/binary.nr first test coverage.** Pure fixture, no
