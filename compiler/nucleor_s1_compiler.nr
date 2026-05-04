@@ -4546,6 +4546,18 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut trait_name: str = "";
     let mut type_name: str = first_name;
     cp = cp + 1;
+    // v0.7.83: path-qualified trait or type name in impl block.
+    // `impl fmt::Display for Status` / `impl std::fmt::Display for Status` —
+    // pre-fix: parser read first segment (e.g. `fmt`) as first_name, then
+    // `::` (token 46) landed where expect_tok(52) expected `{`, producing
+    // wrong-class `error[NR020]: expected '{', got token 46`. Fix: walk
+    // through `::` segments and keep only the final one as first_name.
+    while pk(tokens, cp) == 46 {
+        cp = cp + 1;
+        first_name = pkv(tokens, cp);
+        type_name = first_name;
+        cp = cp + 1;
+    };
     if pk(tokens, cp) == 32 {
         // v0.7.44 (defensive halt — impl-target type with lifetime in
         // generic args: `impl<'a> R<'a> { ... }`). The parse_type call
