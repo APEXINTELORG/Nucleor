@@ -886,13 +886,19 @@ Step "self-host bootstrap fixpoint (stage-2)" {
     if (-not (Test-Path "target\verify_compiler.exe")) { return $false }
     $out = & "target\verify_compiler.exe" build "compiler/nucleor_s1_compiler.nr" -o "verify_compiler_2" 2>&1 | Out-String
     if (-not (Test-Path "target\verify_compiler_2.exe")) { return $false }
-    # Stage-2 must compile the same hand-rolled smoke that the stage-1
-    # binary compiles. Cheap proxy: same byte-size of the emitted IR for
-    # a trivial test. (Stronger: exact-match diff; deferred to v0.2.310+.)
-    $smoke = "tests\lang\arith.nr"
-    & $bin build $smoke -o "_boot_s1" 2>&1 | Out-Null
-    & "target\verify_compiler_2.exe" build $smoke -o "_boot_s2" 2>&1 | Out-Null
-    $s1 = "target\_boot_s1.ll"; $s2 = "target\_boot_s2.ll"
+    # v0.8.49 BOOT-3 fix: compare the FULL compiler self-IR
+    # (10K+ lines), not a 50-line smoke. The original smoke check
+    # passed even when the compiler had non-fixed-point bugs in
+    # paths arith.nr didn't exercise. Per RFC sister gap BOOT-3 in
+    # docs/rfcs/gap-analyses/Nucleor_Self_Hosting_Bootstrap_Gap_
+    # Analysis_and_RFC_2026-05-04.md.
+    #
+    # The stage-1 IR is target\verify_compiler.ll (already emitted
+    # in the prior verify_compiler step). The stage-2 IR comes from
+    # stage-1 compiling compiler.nr again. SHA-compare those.
+    & "target\verify_compiler_2.exe" build "compiler/nucleor_s1_compiler.nr" -o "verify_compiler_3" 2>&1 | Out-Null
+    $s1 = "target\verify_compiler_2.ll"
+    $s2 = "target\verify_compiler_3.ll"
     if (-not (Test-Path $s1) -or -not (Test-Path $s2)) { return $false }
     $h1 = (Get-FileHash $s1 -Algorithm SHA256).Hash
     $h2 = (Get-FileHash $s2 -Algorithm SHA256).Hash
