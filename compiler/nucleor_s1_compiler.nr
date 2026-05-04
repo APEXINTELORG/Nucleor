@@ -4706,6 +4706,17 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             print("ERROR: `unsafe fn` is not yet supported in Nucleor. Pre-v0.6.53 the `unsafe` keyword was silently stripped, leaving the fn body indistinguishable from a regular fn — adopters auditing Rust translation lost the visual marker. Workaround: drop the `unsafe` qualifier (Nucleor v0.6 has no checked operations to opt out of, so the qualifier is informational-only). Tracked for forward-roadmap (when v1 ships any checked-arith opt-out semantics, `unsafe` will gain meaning).");
             panic("nucleor: `unsafe fn` decl not yet supported (see ERROR diagnostic above)");
         }
+        else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "unsafe") == 1 && (pk(tokens, cp + 1) == 66 || pk(tokens, cp + 1) == 67) {
+            // v0.7.61: sister halt to v0.6.53 — `unsafe trait T { ... }`
+            // (token 66) and `unsafe impl T for S { ... }` (token 67)
+            // were ALSO silent-stripped pre-fix (the `unsafe` ident was
+            // just skipped in the dispatch). Same audit-loss as v0.6.53.
+            // Halt cleanly with the same drop-qualifier workaround.
+            let v761_kw: str = if pk(tokens, cp + 1) == 66 { "trait" } else { "impl" };
+            print(str_concat("ERROR: `unsafe ", str_concat(v761_kw, "` (e.g. `unsafe ", str_concat(v761_kw, " T { ... }`) is not yet supported in Nucleor. Pre-v0.7.61 the `unsafe` keyword was silently stripped at parse — the decl parsed normally without the marker. Visible-as-noop for adopters auditing translated Rust code. Sister to v0.6.53 `unsafe fn` halt.")))));
+            print("       Workaround: drop the `unsafe` qualifier — Nucleor v0.7 has no `unsafe`-gated operations to opt out of, so the qualifier is informational-only at the decl level (the v1 trait/impl-soundness substrate may give it meaning later). Tracked for forward-roadmap.");
+            panic(str_concat("nucleor: `unsafe ", str_concat(v761_kw, "` decl not yet supported (see ERROR diagnostic above)")));
+        }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "union") == 1 {
             // v0.6.50 (probe finding 2026-05-02-module-scope-decl-silent-
             // noop-gaps-type-mod-union-use): pre-fix `union U { a: i64,
