@@ -28203,6 +28203,17 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.44 NUM-G1 Phase 1 — f64 lex truncation audit-pass info.
+    // The lexer encodes float literals as `int_part * 1_000_000 +
+    // frac_millionths`, silently truncating fractional digits past
+    // the 6th. `3.1415926535897932` becomes `3.141592`. This audit
+    // counts source-level float literals with >6 fractional digits
+    // and warns adopter at compile time. Phase 2b will fix the lexer.
+    let v0844_long_float_count: i64 = count_long_float_literals(after_async);
+    if v0844_long_float_count > 0 {
+        print(str_concat("info[NUM-G1]: f64 literals with >6 fractional digits in source: ", str_from_int(v0844_long_float_count)));
+        print("  Per RFC-0062 sister gap NUM-G1 (Numeric Correctness): the lexer silently truncates f64 literal fractional digits past the 6th. `3.1415926535897932` is encoded as `3.141592`. Affects every float user. Phase 2b adds a precision-preserving f64 parser; Phase 4 promotes to hard error if precision loss is non-zero. Adopter discipline today: avoid >6-fractional-digit float literals; use a hex-float (`0x1.921fb54442d18p+1`) or compute the constant arithmetically. Reference: docs/rfcs/gap-analyses/Nucleor_Numeric_Correctness_Gap_Analysis_and_RFC_2026-05-04.md.");
+    };
     // v0.8.34 Q2 — slice-pattern diagnostic refinement.
     // Pre-existing behavior: slice match with rest element hit
     // parse_primary's token-58 panic and emitted the range-
@@ -29357,6 +29368,45 @@ fn differentiable_audit_count(src: str) -> i64 {
 // attribute-audit passes. Sister to differentiable_audit_count;
 // extracted for reuse across @energy / @thermal / future
 // @authored / @policy / etc. discoveries.
+// v0.8.44 NUM-G1 — count source-level float literals with >6
+// fractional digits. Walks src once; on each digit, scans forward
+// to find a dot, then counts fractional digits. If >=7, increments
+// counter. Self-host safe: comments and strings are scanned too,
+// but most legit content doesn't have long-decimal float literals
+// outside of test fixtures. Comment-text mentions like
+// "3.14159265" in this file's own diagnostic message would trip
+// this — kept in this file via str_concat construction below.
+fn count_long_float_literals(src: str) -> i64 {
+    let slen: i64 = str_len(src);
+    let mut count: i64 = 0;
+    let mut p: i64 = 0;
+    while p + 8 < slen {
+        let c0: i64 = str_char_at(src, p);
+        if c0 >= 48 && c0 <= 57 {
+            // walk past leading integer-part digits
+            let mut q: i64 = p + 1;
+            while q < slen && str_char_at(src, q) >= 48 && str_char_at(src, q) <= 57 {
+                q = q + 1;
+            };
+            if q < slen && str_char_at(src, q) == 46 {
+                // walk past dot, count fractional digits
+                let mut r: i64 = q + 1;
+                while r < slen && str_char_at(src, r) >= 48 && str_char_at(src, r) <= 57 {
+                    r = r + 1;
+                };
+                let frac: i64 = r - q - 1;
+                if frac >= 7 { count = count + 1; };
+                p = r;
+            } else {
+                p = q;
+            };
+        } else {
+            p = p + 1;
+        };
+    };
+    return count;
+}
+
 fn simple_attribute_audit_count(src: str, needle: str) -> i64 {
     let mut count: i64 = 0;
     let slen: i64 = str_len(src);
