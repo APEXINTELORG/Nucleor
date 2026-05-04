@@ -3937,6 +3937,37 @@ long long __nucleor_atomic_load(long long h) { return __sync_val_compare_and_swa
 long long __nucleor_cpu_count(void) { return (long long)sysconf(_SC_NPROCESSORS_ONLN); }
 #endif
 
+// === Cancel Token (RFC C-1, v0.8.80) — cooperative cancellation primitive ===
+// Implements the three symbols declared in the compiler's LLVM preamble:
+//   declare i64 @__nucleor_cancel_token_new(i64)
+//   declare void @__nucleor_cancel_token_cancel(i64)
+//   declare i64 @__nucleor_cancel_token_is_cancelled(i64)
+// Uses an atomic long long flag — safe for multi-threaded cancellation checks.
+typedef struct { volatile long long flag; } NCancelToken;
+long long __nucleor_cancel_token_new(long long reserved) {
+    (void)reserved;
+    NCancelToken *t = (NCancelToken*)calloc(1, sizeof(NCancelToken));
+    return (long long)t;
+}
+void __nucleor_cancel_token_cancel(long long handle) {
+    NCancelToken *t = (NCancelToken*)(void*)handle;
+    if (!t) return;
+#ifdef _WIN32
+    InterlockedExchange64((volatile LONG64*)&t->flag, 1LL);
+#else
+    __sync_lock_test_and_set(&t->flag, 1LL);
+#endif
+}
+long long __nucleor_cancel_token_is_cancelled(long long handle) {
+    NCancelToken *t = (NCancelToken*)(void*)handle;
+    if (!t) return 0;
+#ifdef _WIN32
+    return InterlockedCompareExchange64((volatile LONG64*)&t->flag, 0LL, 0LL) ? 1 : 0;
+#else
+    return __sync_val_compare_and_swap(&t->flag, 0LL, 0LL) ? 1 : 0;
+#endif
+}
+
 // === Args ===
 #ifdef _WIN32
 // MSVC CRT globals are populated before main() runs.

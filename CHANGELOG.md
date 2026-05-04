@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.83] — 2026-05-04
+
+**RFC C-1 Phase 1 — cancel_token C runtime implementation landed.**
+
+Closes the linker-bomb gap documented in
+`findings/promoted/2026-05-04-c-1-cancel-token-undefined-symbol-confirmed.md`.
+
+### What changed
+
+`stdlib/runtime/nucleor_llvm_rt.c` — new section after the Win32/POSIX
+concurrency block (after the concurrency `#endif`, before `// === Args ===`):
+
+```c
+typedef struct { volatile long long flag; } NCancelToken;
+long long __nucleor_cancel_token_new(long long reserved);    // calloc + return
+void     __nucleor_cancel_token_cancel(long long handle);    // atomic set flag=1
+long long __nucleor_cancel_token_is_cancelled(long long handle); // atomic read flag
+```
+
+Win32 path uses `InterlockedExchange64` / `InterlockedCompareExchange64`.
+POSIX path uses `__sync_lock_test_and_set` / `__sync_val_compare_and_swap`.
+Both paths are correct for multi-threaded cancellation checks.
+
+### Pre-fix surface
+
+All three names (`cancel_token_new`, `cancel_token_cancel`,
+`cancel_token_is_cancelled`) were in the compiler's name-registry
+(`get_rt_name`) and in the LLVM preamble (`declare` lines 8178–8180 of
+`nucleor_s1_compiler.nr`), but had zero C implementations. Any adopter
+program calling these symbols built successfully through IR emit but
+failed at link time with `undefined symbol: __nucleor_cancel_token_new`
+on both Win32 and POSIX. The diagnostic at `nucleor_s1_compiler.nr:28453`
+correctly identified the POSIX gap; the Win32 gap was equally present.
+
+### Post-fix
+
+`cancel_token_new(0)` returns a valid heap handle.
+`cancel_token_is_cancelled(tok)` returns 0 before cancel, 1 after.
+`cancel_token_cancel(tok)` sets the atomic flag atomically.
+
+### Fixture
+
+`tests/fixtures/v0883_c1_cancel_token_smoke.nr` — creates a token,
+checks pre-cancel state (0), cancels, checks post-cancel state (1),
+returns `post - pre`. Expected rc=1.
+
+### Notes — no compiler binary change
+
+This is a pure C runtime change. The compiler binary (`bin/nucleor.exe`)
+was not modified. No self-host fixed-point check required. No perf
+impact (compiler binary unchanged).
+
+The workaround diagnostic in `nucleor_s1_compiler.nr:28453` ("cancel_token
+is a linker bomb on Linux") is now stale; a future cycle will update it
+to reflect the fix once the compiler is rebuilt.
+
+Closes (status update):
+- `findings/promoted/2026-05-04-c-1-cancel-token-undefined-symbol-confirmed.md`:
+  Phase 1 implementation landed. C-2 (POSIX channel) and C-3 (ordered
+  atomics) remain open as sister gaps.
+
 ## [0.8.82] — 2026-05-04
 
 **RFC NUM-G8 Phase 1 — `__nucleor_overflow_flag` thread-local
