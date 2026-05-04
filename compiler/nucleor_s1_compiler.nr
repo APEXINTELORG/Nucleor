@@ -1194,6 +1194,12 @@ fn skip_where_clause(tokens: Vec<i32>, pos: i64) -> i64 {
     return cp;
 }
 
+fn halt_hrtb_not_supported_v718() -> i64 {
+    print("ERROR: higher-ranked trait bounds `for<'a> ...` are not yet supported in Nucleor. Pre-v0.7.18 the where-clause parser skipped the `for<'a>` wrapper and partially recorded inner identifiers like `Fn` and argument types as ordinary trait bounds, producing wrong-class `TYP-019` unknown-trait diagnostics. Workaround: replace the HRTB with a concrete fn-pointer type or a non-higher-ranked generic bound. Tracked for forward-roadmap (RFC-0027 lifetime quantifiers / HRTB substrate).");
+    panic("nucleor: higher-ranked trait bounds `for<'a>` not yet supported (see ERROR diagnostic above)");
+    return 0;
+}
+
 // v0.6.11 (probe finding 2026-05-01-generic-T-trait-bound-where-clause):
 // Track Y (v0.5.31) closes the inline `<T: Trait>` form by capturing
 // `?Trait` markers in the gparams list at parse time. The where-clause
@@ -1230,6 +1236,9 @@ fn parse_where_clause_into_gparams(tokens: Vec<i32>, pos: i64, gparams: Vec<i32>
         // every kw-class ident is treated as a bound name. Operator
         // tokens (`+`, etc.) are skipped via the non-ident branch.
         while pk(tokens, cp) != 44 && pk(tokens, cp) != 52 && pk(tokens, cp) != 43 && pk(tokens, cp) != 0 {
+            if pk(tokens, cp) == 56 {
+                halt_hrtb_not_supported_v718();
+            };
             if pk(tokens, cp) == 1 {
                 let bname: str = pkv(tokens, cp);
                 if str_len(bname) > 0 {
@@ -2509,6 +2518,9 @@ fn parse_pipe_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 fn parse_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> { return parse_pipe_expr(tokens, pos, pool); }
 
 fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
+    if pk(tokens, pos) == 56 {
+        halt_hrtb_not_supported_v718();
+    };
     if pk(tokens, pos) == 82 {
         let mut cp: i64 = pos + 1;
         let mut prefix: str = "&";
