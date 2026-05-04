@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.90] — 2026-05-04
+
+**Punchlist forward — RFC-0051 Phase A: foundation-model
+provenance-tracking surface (rod-only). Closes V2 frontier
+Tier-A easy-win lane.**
+
+The full RFC-0051 ship phantom-types
+`Model<Arch, weights_hash, dataset, license, safety_eval, quant>`
+with string-literal generic params + type-checker enforcement
+(~400 LOC compiler-side, deferred). Phase A lands the canonical
+`ModelProvenance` struct + verification helpers as runtime
+values today.
+
+This ship CLOSES the V2 frontier Tier-A easy-win lane:
+
+| RFC | Title | Phase A ship |
+|---|---|---|
+| RFC-0046 | Coordinate-frame markers | v0.7.83 ✓ |
+| RFC-0047 | 7-vector SI dim surface | v0.7.84 ✓ |
+| RFC-0048 | Hardware capability queries | v0.7.88 ✓ |
+| RFC-0049 | Memory-space type tags | v0.7.87 ✓ |
+| RFC-0050 | Energy/thermal budgets | v0.7.89 ✓ |
+| RFC-0051 | Model provenance | v0.7.90 ✓ (this ship) |
+
+Phase B (compiler-side enforcement) for each RFC remains the
+follow-up wave.
+
+### Surface added in `stdlib/rods/model_provenance.nr`
+
+- 9 architecture tags: `model_arch_{llm, vla, diffusion, detector,
+  segment, classify, speech, embedding, unknown}` returning
+  stable IDs 1..8 + 0.
+- 10 quantization tags: `model_quant_{fp32, fp16, bf16, int8,
+  fp8, fp4, int4, ternary, binary, unknown}` (IDs match bit-width
+  where meaningful).
+- `model_arch_name(id) -> str`, `model_quant_name(id) -> str`.
+- `ModelProvenance { arch, weights_hash, dataset_lineage, license,
+  safety_eval, quantization }` struct.
+- `model_provenance(...)` constructor + `_register(p) -> idx`,
+  `_count`, `_get(idx) -> p`, `_clear`.
+- Audit predicates: `_license_is(p, want)`,
+  `_license_commercial_ok(p)` (Apache-2.0 / MIT / BSD-2/3-Clause /
+  MPL-2.0 / 0BSD), `_arch_is(p, want)`, `_quant_is(p, want)`.
+- `model_provenance_to_json(p) -> str`.
+
+### Runtime: `stdlib/runtime/model_provenance_rt.c`
+
+Process-local registry (max 256 entries), same pattern as
+v0.7.79 governance-rod policy registry and v0.7.89 energy/thermal
+budget registry.
+
+### Smoke fixture
+
+`tests/fixtures/v0790_rfc0051_model_provenance_smoke.nr` — builds
+two ModelProvenance values (one Apache-2.0 LLM fp4, one
+proprietary VLA int8); registers; round-trips via getter; checks
+license_is, license_commercial_ok, arch_is, quant_is predicates;
+validates name lookups; emits JSON; clears registry; rc=0.
+
+No new defensive halt this ship — V2 Tier-A close-out is the
+priority. Cron concurrently shipped real-feature work (path-
+qualified trait names; `?` in closure body) per its own thread.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.7.89] — 2026-05-04
 
 **Punchlist forward — RFC-0050 Phase A: per-fn energy + thermal
