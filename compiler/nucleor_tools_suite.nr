@@ -16418,9 +16418,46 @@ fn registry_resolve_version_native(registry_dir: str, package_name: str, selecto
         print(str_concat("error[PKG-3]: wildcard form `", str_concat(selector, "` not yet supported. Use `X.*` or `X.Y.*` (wildcard at trailing position only) or pin exactly.")));
         return "";
     };
+    // v0.8.92 PKG-3 Phase 4 — single-token comparison resolution.
+    //   >=X.Y.Z   highest version with score >= base_score
+    //   >X.Y.Z    highest version with score > base_score
+    //   <=X.Y.Z   highest version with score <= base_score
+    //   <X.Y.Z    highest version with score < base_score
+    // Multi-token compound ranges (e.g. `>=1.0.0 <2.0.0`) need a
+    // small parser and are queued for a follow-up ship.
     if is_compare == 1 {
-        print(str_concat("error[PKG-3]: semver constraint syntax `", str_concat(selector, str_concat("` not yet supported (package `", str_concat(package_name, "`).")))));
-        print("  Per RFC sister gap PKG-3 (Module/Packaging): the v0.x semver resolver handles `latest`, empty selector, exact-match strings, caret `^X.Y.Z` (v0.8.89), tilde `~X.Y.Z` (v0.8.90), and trailing wildcards `X.*` / `X.Y.*` (v0.8.91). Comparison `>=`/`<=`/`>`/`<` is documented in RFC-0019 §3.2 but not yet implemented. Workaround: use caret / tilde / wildcard, or pin exactly. Phase 4 adds range resolution + lockfile-driven resolution. Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-3.");
+        // Detect operator length (>= vs > vs <= vs <).
+        let mut op_len: i64 = 1;
+        let sec_char: i64 = if str_len(selector) > 1 { str_char_at(selector, 1) } else { 0 };
+        if sec_char == 61 { op_len = 2; };  // '=' second char → >= or <=
+        let cmp_base: str = str_substring(selector, op_len, str_len(selector));
+        let cmp_base_score: i64 = semver_score(cmp_base);
+        let is_gt: i64 = if sel_first == 62 { 1 } else { 0 };  // >
+        let is_lt: i64 = if sel_first == 60 { 1 } else { 0 };  // <
+        let inclusive: i64 = if op_len == 2 { 1 } else { 0 };
+        let mut cmpi: i64 = 0;
+        while cmpi < vec_len(versions) {
+            let cmp_cand: str = vec_get(versions, cmpi);
+            let cmp_cand_score: i64 = semver_score(cmp_cand);
+            let mut hit: i64 = 0;
+            if is_gt == 1 {
+                if inclusive == 1 {
+                    if cmp_cand_score >= cmp_base_score { hit = 1; };
+                } else {
+                    if cmp_cand_score > cmp_base_score { hit = 1; };
+                };
+            };
+            if is_lt == 1 {
+                if inclusive == 1 {
+                    if cmp_cand_score <= cmp_base_score { hit = 1; };
+                } else {
+                    if cmp_cand_score < cmp_base_score { hit = 1; };
+                };
+            };
+            if hit == 1 { return cmp_cand; };
+            cmpi = cmpi + 1;
+        };
+        print(str_concat("error[PKG-3]: comparison constraint `", str_concat(selector, str_concat("` did not match any published version of `", str_concat(package_name, "`.")))));
         return "";
     };
     if is_caret == 1 {
