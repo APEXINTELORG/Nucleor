@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.89] — 2026-05-04
+
+**RFC PKG-3 Phase 2 — caret semver resolver lands.** Tools-suite
+edit only; no compiler-binary change.
+
+### Pre-fix
+
+`registry_resolve_version_native` in `compiler/nucleor_tools_suite.nr`
+handled only `latest`, empty selector, and exact-match strings.
+Caret (`^`), tilde (`~`), comparison (`>=`/`<=`/`>`/`<`), and
+wildcards (`*`) all dropped to a Phase 1 diagnostic and returned
+"" — meaning every adopter using semver constraints saw their
+build fail with "no installable versions matched" (with a clear
+diagnostic added in v0.8.52, but no resolution).
+
+### Post-fix
+
+Caret `^X.Y.Z` resolves per semver.org compatibility:
+
+| Base | Upper exclusive | Range |
+|---|---|---|
+| `X > 0` | `(X+1).0.0` | `[X.Y.Z, (X+1).0.0)` |
+| `X == 0, Y > 0` | `0.(Y+1).0` | `[0.Y.Z, 0.(Y+1).0)` |
+| `X == 0, Y == 0` | `0.0.(Z+1)` | `[0.0.Z, 0.0.(Z+1))` (effectively pinned) |
+
+Walks the registry's version list (already sorted descending by
+`registry_sort_versions_desc`) and returns the first match —
+which is the highest version satisfying the caret. Falls through
+to a "did not match any published version" diagnostic if no
+candidate fits.
+
+### Verified end-to-end against `tests/fixtures/t14_registry/`
+
+| Selector | Registry | Expected | Result |
+|---|---|---|---|
+| `foo@^0.1.0` | foo has 0.1.0, 0.2.0 | 0.1.0 (^0.x bumps minor) | resolves to 0.1.0 (downstream sha256 step fires) |
+| `bar@^1.0.0` | bar has 1.0.0 | 1.0.0 | resolves to 1.0.0 (downstream sha256 step fires) |
+| `foo@^0.5.0` | no matching | error: did not match | clean error path |
+| `foo@~0.1.0` | tilde unsupported | Phase 1 diag | tilde diagnostic fires |
+| `foo@0.1.0` | exact match | 0.1.0 | preserved (regression: exact-match path still works) |
+
+### Tilde / range / wildcard
+
+Still emit the Phase 1 diagnostic; updated text to mention caret
+is now supported and the user can use it as a workaround. Tilde
++ range resolution queued for a follow-up Phase 2 ship.
+
+### Bin status
+
+`target/nucleor_tools.exe` rebuilt clean from new
+`compiler/nucleor_tools_suite.nr`. `bin/nucleor.exe` (compiler)
+unchanged — this is a tools-suite-only edit. User-source spot-
+check on the compiler confirmed it still builds user fixtures
+cleanly post-edit (per the v0.8.79 self-host validation memory).
+
+`bin/nucleor_tools.exe` is not git-tracked; verify_fast's
+"tools-suite rebuild" step regenerates it on every run, picking
+up the new resolver automatically.
+
+### Closes
+
+- `docs/rfcs/v1_PUNCHLIST.md` PKG-3 Phase 2 (caret).
+- Phase 2 (tilde + range) queued.
+
+Pure tools-suite source edit; no compiler binary change.
+Cold compile of user source on the compiler 1.4s (unchanged).
+Tools rebuild 3.08s.
+
 ## [0.8.88] — 2026-05-04
 
 **RFC QM-7 Phase 1 sister — Clifford gate-identity coverage.**

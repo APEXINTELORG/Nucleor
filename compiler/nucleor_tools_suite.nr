@@ -16315,9 +16315,48 @@ fn registry_resolve_version_native(registry_dir: str, package_name: str, selecto
     let is_tilde: i64 = if sel_first == 126 { 1 } else { 0 };      // ~
     let is_compare: i64 = if sel_first == 60 || sel_first == 62 { 1 } else { 0 };  // < or >
     let has_wildcard: i64 = if str_index_of(selector, "*") >= 0 { 1 } else { 0 };
-    if is_caret == 1 || is_tilde == 1 || is_compare == 1 || has_wildcard == 1 {
+    // v0.8.89 PKG-3 Phase 2 — caret resolution.
+    // `^X.Y.Z` matches the highest version in the registry that
+    // satisfies `>=X.Y.Z, <next_compatible(X.Y.Z)` per semver.org:
+    //   X > 0  : upper exclusive = (X+1).0.0
+    //   X == 0, Y > 0 : upper exclusive = 0.(Y+1).0
+    //   X == 0, Y == 0 : upper exclusive = 0.0.(Z+1)  (effectively pinned)
+    if is_caret == 1 {
+        let base: str = str_substring(selector, 1, str_len(selector));
+        let base_score: i64 = semver_score(base);
+        let base_major: i64 = base_score / 1000000000;
+        let base_minor: i64 = (base_score - base_major * 1000000000) / 1000000;
+        let base_patch: i64 = base_score - base_major * 1000000000 - base_minor * 1000000;
+        let mut upper: i64 = 0;
+        if base_major > 0 {
+            upper = (base_major + 1) * 1000000000;
+        } else {
+            if base_minor > 0 {
+                upper = (base_minor + 1) * 1000000;
+            } else {
+                upper = base_patch + 1;
+            };
+        };
+        let mut ci: i64 = 0;
+        while ci < vec_len(versions) {
+            let cand: str = vec_get(versions, ci);
+            let cand_score: i64 = semver_score(cand);
+            if cand_score >= base_score {
+                if cand_score < upper { return cand; };
+            };
+            ci = ci + 1;
+        };
+        // No candidate in [base, upper). Fall through to the
+        // diagnostic so the user sees what's missing.
+    };
+    if is_tilde == 1 || is_compare == 1 || has_wildcard == 1 {
         print(str_concat("error[PKG-3]: semver constraint syntax `", str_concat(selector, str_concat("` not yet supported (package `", str_concat(package_name, "`).")))));
-        print("  Per RFC sister gap PKG-3 (Module/Packaging): the v0.x semver resolver handles `latest`, empty selector, and exact-match strings only. Constraint syntax (caret `^`, tilde `~`, comparison `>=`/`<=`/`>`/`<`, wildcards `*`) is documented in RFC-0019 §3.2 but not yet implemented in `registry_resolve_version_native`. Workaround: pin to an exact version string from the registry. Phase 2b adds full caret + range resolution; Phase 4 promotes to lockfile-driven resolution. Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-3.");
+        print("  Per RFC sister gap PKG-3 (Module/Packaging): the v0.x semver resolver handles `latest`, empty selector, exact-match strings, and caret `^X.Y.Z` (v0.8.89). Tilde `~`, comparison `>=`/`<=`/`>`/`<`, and wildcards `*` are documented in RFC-0019 §3.2 but not yet implemented. Workaround: pin to an exact version or use caret. Phase 2b adds tilde + range resolution; Phase 4 promotes to lockfile-driven resolution. Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-3.");
+        return "";
+    };
+    if is_caret == 1 {
+        // Caret with no matching version in registry.
+        print(str_concat("error[PKG-3]: caret constraint `", str_concat(selector, str_concat("` did not match any published version of `", str_concat(package_name, "`.")))));
         return "";
     };
     let mut i: i64 = 0;
