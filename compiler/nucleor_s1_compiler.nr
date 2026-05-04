@@ -310,6 +310,25 @@ fn lex(src: str) -> Vec<i32> {
                     panic("nucleor: cold attribute not yet supported (see ERROR diagnostic above)");
                 };
             };
+            // v0.7.79 (defensive halt — Rust `#[test]` attribute on
+            // a fn). Pre-fix the attribute was silently dropped at
+            // lex and the fn parsed as a regular fn. Adopters
+            // writing `#[test] fn test_foo() { assert!(...) }`
+            // expect the fn to be discovered + run by the test
+            // harness (the Rust `cargo test` workflow). Nucleor has
+            // no test runner — DCE elides un-called test fns and
+            // adopters silently lose their entire test suite.
+            // Halt cleanly at lex with a workaround pointer
+            // (call test fns explicitly from `main` or use the
+            // existing `verify.ps1` / fixtures path). Sister to
+            // v0.7.18 inline/cold attribute halts.
+            if p + 6 < slen && str_eq_at(src, p + 2, "test") == 1 {
+                let after_test_v779: i64 = str_char_at(src, p + 6);
+                if after_test_v779 == 93 {
+                    print("ERROR: `#[test]` attribute on fn is not yet supported in Nucleor. Pre-v0.7.79 the attribute was silently dropped at lex time and the fn parsed as a regular fn — DCE then elided un-called test fns and adopters silently lost their entire test suite without diagnostic. Workaround: drop the `#[test]` attribute and either call test fns explicitly from `main` (`fn main() -> i64 { test_foo(); test_bar(); return 0; }`), or move test fns into `tests/fixtures/*.nr` and run them via the `verify.ps1` harness. Tracked for forward-roadmap (`#[test]` discovery + standalone test runner is a v1.x ship; sister to the existing fixture-based test workflow).");
+                    panic("nucleor: `#[test]` attribute not yet supported (see ERROR diagnostic above)");
+                };
+            };
             // v0.6.26 (probe finding 2026-05-01-derive-attribute-partial-honor):
             // `#[derive(A, B, C)]` is silently dropped except for `Debug`
             // which is honored. Adopters writing `#[derive(PartialEq)]`
