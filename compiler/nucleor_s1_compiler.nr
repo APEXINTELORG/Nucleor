@@ -3533,7 +3533,18 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             print("       Workaround: bind a single name and destructure inside the body — `fn h(p: (i64, i64)) -> i64 { let a: i64 = p.0; let b: i64 = p.1; ... }` or `fn h(p: P) -> i64 { let x: i64 = p.x; let y: i64 = p.y; ... }`. Sister to v0.6.59 tuple-destructure-in-for-head halt. Tracked for forward-roadmap (full pattern-in-param lowering arrives with v1 pattern-binding work).");
             panic("nucleor: pattern-destructure in fn parameter not yet supported (see ERROR diagnostic above)");
         };
-        let pn: i64 = pkv(tokens, cp); cp = expect_tok(tokens, cp + 1, 42);
+        let pn: i64 = pkv(tokens, cp);
+        // v0.7.49 (defensive halt — typeless default-arg form
+        // `fn h(x: i64, y = 5)`). Sister to v0.7.38 (typed
+        // default-arg `n: i64 = 1`); this catches the no-type variant
+        // before the colon expector fires. Pre-fix this surfaced as
+        // wrong-class `error[NR020]: expected ':', got '='`.
+        if pk(tokens, cp + 1) == 40 {
+            print(str_concat("ERROR: typeless default-value parameter `", str_concat(pn, " = <expr>` in fn signature is not supported in Nucleor (Nucleor requires explicit param types AND does not support default args). Pre-v0.7.49 surfaced as wrong-class `error[NR020]: expected ':', got '='`. Sister to v0.7.38 (typed default-arg halt).")));
+            print(str_concat("       Workaround: declare two fn overloads — one with all params, one without. Or use Option<T> as the param type with the default in the body. See v0.7.38 CHANGELOG entry for example. Tracked for forward-roadmap (default-arg lowering needs call-site argument-list rewriting; sister to the deliberate Rust-language gap).")));
+            panic(str_concat("nucleor: typeless default-value parameter `", str_concat(pn, " = ...` not supported (see ERROR diagnostic above)")));
+        };
+        cp = expect_tok(tokens, cp + 1, 42);
         let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
         let ptype: str = pr_val(tr);
         // v0.3.93: detect &mut T parameter and emit a clear diagnostic.
