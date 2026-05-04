@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.106] — 2026-05-04
+
+**`dt_from_ymd_utc` companion lands — fixes the v0.8.96 mktime/
+gmtime asymmetry.** Runtime + rod-surface edit, no compiler edit.
+
+### The asymmetry (surfaced in v0.8.96)
+
+`dt_from_ymd` uses `mktime()` (interprets components as **local
+time**). `dt_to_ymd` uses `gmtime()` (produces **UTC** components).
+Round-tripping `(year, month, day, hour, min, sec) → ts → ymd`
+loses the hour by the host's tz offset — every adopter using
+the API for log timestamps or machine-to-machine got drift.
+
+v0.8.96 documented this and locked structural-only assertions.
+
+### The fix — second surface-then-fix cycle
+
+Additive: keep `dt_from_ymd` exactly as-is (local-time
+backwards compatibility) and ADD `dt_from_ymd_utc` that uses:
+- `_mkgmtime` on Windows (MSVC's UTC `mktime`)
+- `timegm` on POSIX
+
+`dt_to_ymd` continues to use `gmtime`. Round-trip via
+`dt_from_ymd_utc(...) → dt_to_ymd(...)` now preserves every
+component exactly.
+
+```c
+long long nuc_dt_from_ymd_utc(...) {
+    struct tm t = {0};
+    /* ...same component setup as dt_from_ymd... */
+    t.tm_isdst = 0;
+#ifdef _WIN32
+    time_t epoch = _mkgmtime(&t);
+#else
+    time_t epoch = timegm(&t);
+#endif
+    return (long long)epoch * 1000;
+}
+```
+
+Rod surface in `stdlib/rods/datetime.nr`:
+
+```nucleor
+fn dt_from_ymd_utc(y: i64, m: i64, d: i64, hh: i64, mm: i64, ss: i64) -> i64 { ... }
+```
+
+### Fixture upgraded
+
+v0.8.96's structural-only fixture upgraded to **6 invariants**
+including hour-precise UTC round-trip:
+
+| Test | Result |
+|---|---|
+| UTC round-trip (hour-precise) | `dt_from_ymd_utc(2026,5,4,12,34,56) → dt_to_ymd → [2026,5,4,12,34,56]` exactly |
+| local date round-trip (noon anchor) | preserves date components only — backwards-compat lock for `dt_from_ymd` |
+| add days | `dt_add_days(t, 7)` advances to 2026-05-11 |
+| hr/day consistency | `add_hours(t, 24) == add_days(t, 1)` |
+| diff inverse | `diff_days(add_days(t, 30), t) == 30` |
+| ISO parse smoke | non-zero handle |
+
+All six pass. rc=0. Cold 1.62s.
+
+### Surface-then-fix cycle complete
+
+- v0.8.96 surfaced + documented the asymmetry
+- v0.8.106 ships the fix without breaking existing callers
+  of `dt_from_ymd`
+
+### Bin status
+
+Runtime C edit required relinking. Per the v0.8.79 self-host
+validation memory:
+- `nucleor_new.exe` built clean (BUILD OK)
+- User-source spot-check on `t3_char_cast_audit_lock.nr` →
+  cache hit + rc=130 (existing fixture still works)
+- Then swapped.
+
+Pure runtime + rod-surface edit; no compiler change.
+
 ## [0.8.105] — 2026-05-04
 
 **csv_parse_line trailing-empty bug FIXED.** Stdlib edit + fixture

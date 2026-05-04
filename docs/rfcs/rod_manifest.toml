@@ -8,8 +8,8 @@
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
-# Total fn definitions: 2770
-# Total LOC: 11803
+# Total fn definitions: 2771
+# Total LOC: 11805
 
 [[rod]]
 name           = "activation2"
@@ -465,9 +465,9 @@ imports        = ["cubicspline"]
 name           = "datetime"
 path           = "stdlib/rods/datetime.nr"
 description    = "Date/time operations"
-function_count = 10
+function_count = 11
 cfile_count    = 1
-loc            = 21
+loc            = 23
 imports        = ["datetime"]
 
 [[rod]]
