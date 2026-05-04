@@ -73,21 +73,42 @@ fn csv_parse_field(line: str, pos: i64) -> Vec<i32> {
 
 // Parse a CSV line into a Vec of field strings
 fn csv_parse_line(line: str) -> Vec<i32> {
+    // v0.8.105: fixed trailing-empty bug surfaced by v0.8.104
+    // fixture. Pre-fix loop was `while pos <= slen` and pushed
+    // an empty for any line not ending with comma; every adopter
+    // call on `"a,b,c"` produced a 4-field result.
+    //
+    // Post-fix: explicit "did the previous token end with a
+    // comma" tracking. Before pushing a field, only loop when
+    // either we have unread input (pos < slen) OR the previous
+    // separator was a comma (so a final empty is structurally
+    // present, e.g. `"a,b,"` → `["a", "b", ""]`).
     let mut fields: Vec<i32> = Vec::new();
     let slen: i64 = str_len(line);
     if slen == 0 { return fields; };
 
     let mut pos: i64 = 0;
-    while pos <= slen {
+    let mut last_was_comma: i64 = 1;  // first iteration always runs
+    while pos < slen || last_was_comma == 1 {
         let parsed: Vec<i32> = csv_parse_field(line, pos);
         fields.push(parsed.get(0));
         let new_pos: i64 = parsed.get(1);
-        if new_pos == pos && pos >= slen { break; };
-        if new_pos == pos { pos = pos + 1; } else { pos = new_pos; };
-        // If we consumed up to the end and last char was comma, add empty field
-        if pos == slen && str_char_at(line, slen - 1) == 44 {
-            fields.push("");
-            break;
+        // Detect whether the field consumed a trailing comma.
+        // csv_parse_field advances past a comma when it terminates
+        // a field; if pos+field_len < new_pos and the char before
+        // new_pos is a comma, mark last_was_comma. Or simpler:
+        // if new_pos > pos and the byte at new_pos-1 is comma.
+        if new_pos > pos && new_pos <= slen && str_char_at(line, new_pos - 1) == 44 {
+            last_was_comma = 1;
+        } else {
+            last_was_comma = 0;
+        };
+        // Defensive: avoid infinite loop on unhandled chars.
+        if new_pos == pos {
+            pos = pos + 1;
+            last_was_comma = 0;
+        } else {
+            pos = new_pos;
         };
     };
     return fields;

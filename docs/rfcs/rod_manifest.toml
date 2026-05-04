@@ -9,7 +9,7 @@
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
 # Total fn definitions: 2770
-# Total LOC: 11797
+# Total LOC: 11803
 
 [[rod]]
 name           = "activation2"
@@ -440,7 +440,7 @@ path           = "stdlib/rods/csv.nr"
 description    = "CSV parsing and formatting"
 function_count = 4
 cfile_count    = 0
-loc            = 105
+loc            = 111
 imports        = ["csv", "strings"]
 
 [[rod]]
