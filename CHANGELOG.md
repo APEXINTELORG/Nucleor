@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.53] — 2026-05-04
+
+**Wave 2 — PKG-3 Phase 1: semver constraint diagnostic.**
+The semver resolver previously returned `""` silently when
+the selector wasn't an exact match, producing "no matching
+version" errors with no clue about the actual cause
+(constraint syntax not supported).
+
+### Fix
+
+`registry_resolve_version_native` now detects unsupported
+semver constraint syntax and emits:
+
+```
+error[PKG-3]: semver constraint syntax `^1.2` not yet supported (package `foo`).
+  Per RFC sister gap PKG-3 (Module/Packaging): the v0.x semver
+  resolver handles `latest`, empty selector, and exact-match
+  strings only. Constraint syntax (caret `^`, tilde `~`,
+  comparison `>=`/`<=`/`>`/`<`, wildcards `*`) is documented in
+  RFC-0019 §3.2 but not yet implemented. Workaround: pin to an
+  exact version string from the registry. Phase 2b adds full
+  caret + range resolution.
+```
+
+Detected patterns:
+- `^X.Y.Z` (caret prefix)
+- `~X.Y.Z` (tilde prefix)
+- `>=X.Y.Z` / `<=X.Y.Z` / `>X.Y.Z` / `<X.Y.Z` (comparison prefix)
+- Selectors containing `*` (wildcard)
+
+### Phase status
+
+```
+PKG-3 (semver constraint resolver):
+  Phase 1   diagnostic on unsupported syntax  DONE v0.8.52 (this)
+  Phase 2b  full caret/tilde/range resolver   QUEUED
+  Phase 3   default-on lockfile resolution    QUEUED
+  Phase 4   v1.0 cut
+```
+
+### Wave 2 progress
+
+```
+PKG-1 Linux publish              DONE FIXED  v0.8.51
+PKG-3 Semver constraint          DONE Phase 1 v0.8.52 (this)
+PKG-2 native_lsp/fmt missing     QUEUED
+PKG-4 registry remote add/list   QUEUED
+PKG-5 cfg(feature) gating        QUEUED
+Real-Time / Determinism          QUEUED
+Algebraic Laws property tests    QUEUED
+```
+
+### Perf
+
+Cold 3.97s, hot 0.41s. Within Job #1 4s soft ceiling.
+
+Fixed-point md5: `ede3a6e2b3066512a73aed49cbd16407` (unchanged
+— tools_suite.nr edits don't affect s1 self-IR).
+
 ## [0.8.51] — 2026-05-04
 
 **Wave 2 — PKG-1 fix: Linux/macOS `nuc publish --sign` now works.**

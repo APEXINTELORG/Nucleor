@@ -16283,6 +16283,21 @@ fn registry_resolve_version_native(registry_dir: str, package_name: str, selecto
     let versions: Vec<i32> = registry_package_versions_native(registry_dir, package_name);
     if vec_len(versions) == 0 { return ""; };
     if str_eq(selector, "latest") == 1 || str_len(selector) == 0 { return vec_get(versions, 0); };
+    // v0.8.52 PKG-3 Phase 1: detect unsupported semver syntax
+    // and emit a clear diagnostic. Pre-fix the resolver returned
+    // "" silently when the selector wasn't an exact match,
+    // producing "no matching version" with no clue about the
+    // actual cause (constraint syntax not supported).
+    let sel_first: i64 = if str_len(selector) > 0 { str_char_at(selector, 0) } else { 0 };
+    let is_caret: i64 = if sel_first == 94 { 1 } else { 0 };       // ^
+    let is_tilde: i64 = if sel_first == 126 { 1 } else { 0 };      // ~
+    let is_compare: i64 = if sel_first == 60 || sel_first == 62 { 1 } else { 0 };  // < or >
+    let has_wildcard: i64 = if str_index_of(selector, "*") >= 0 { 1 } else { 0 };
+    if is_caret == 1 || is_tilde == 1 || is_compare == 1 || has_wildcard == 1 {
+        print(str_concat("error[PKG-3]: semver constraint syntax `", str_concat(selector, str_concat("` not yet supported (package `", str_concat(package_name, "`).")))));
+        print("  Per RFC sister gap PKG-3 (Module/Packaging): the v0.x semver resolver handles `latest`, empty selector, and exact-match strings only. Constraint syntax (caret `^`, tilde `~`, comparison `>=`/`<=`/`>`/`<`, wildcards `*`) is documented in RFC-0019 §3.2 but not yet implemented in `registry_resolve_version_native`. Workaround: pin to an exact version string from the registry. Phase 2b adds full caret + range resolution; Phase 4 promotes to lockfile-driven resolution. Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-3.");
+        return "";
+    };
     let mut i: i64 = 0;
     while i < vec_len(versions) {
         let version: str = vec_get(versions, i);
