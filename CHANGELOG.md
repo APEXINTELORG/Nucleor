@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.93] — 2026-05-04
+
+**Punchlist forward — RFC-0045 Phase A: fn-level
+differentiability metadata registry (rod-only). Closes
+drift-restoration V1.12-V1.14 lane.**
+
+The full RFC-0045 ship parses `@differentiable` as a fn-decl
+attribute and emits a `__nucleor_diff_<fn>` symbol alias for
+the autodiff runtime to discover differentiable fns at link
+time (~50 LOC compiler-side, deferred). Phase A (this rod)
+provides a runtime registry surface adopters call from fn
+bodies to declare differentiability programmatically — same
+metadata-only V1.x advisory scope.
+
+This ship CLOSES the drift-restoration V1.12-V1.14 lane that
+opened with v0.7.91:
+  - V1.12 / RFC-0043 — fixed-point Q-format helpers (v0.7.91) ✓
+  - V1.13 / RFC-0044 — overflow-mode helpers (v0.7.92) ✓
+  - V1.14 / RFC-0045 — differentiable metadata (this ship) ✓
+
+Two locked spine lanes done this session:
+  - V2 frontier Tier-A easy-wins (RFC-0046–0051) — CLOSED at v0.7.90
+  - Drift restoration V1.12-V1.14 (RFC-0043–0045) — CLOSED here
+  - RFC-0061 Tier 1 V1.17a — CLOSED at v0.7.86
+  - RFC-0060 governance Phase 2b — landed at v0.7.79
+
+### Surface added in `stdlib/rods/differentiable.nr`
+
+- 4 mode tag fns: `diff_mode_reverse` (1), `_forward` (2),
+  `_mixed` (3), `_unknown` (0) + `diff_mode_name(id) -> str`.
+- `differentiable_register(fn_name) -> idx` (reverse-mode default,
+  matches today's autodiff rod substrate).
+- `differentiable_register_full(fn_name, mode_id)` for forward
+  / mixed.
+- `differentiable_count` / `_name(idx)` / `_mode(idx)`.
+- `differentiable_is(fn_name) -> i64` (predicate),
+  `differentiable_lookup(fn_name) -> i64` (idx or -1),
+  `differentiable_clear()`.
+- `differentiable_to_json(idx) -> str`,
+  `differentiable_all_to_json() -> str`.
+
+### Runtime: `stdlib/runtime/differentiable_rt.c`
+
+Process-local registry (max 256 entries), idempotent re-
+registration (same name → same idx with mode update).
+
+### Smoke fixture
+
+`tests/fixtures/v0793_rfc0045_differentiable_smoke.nr` —
+register 3 fns at 3 modes (reverse / reverse / mixed), validate
+count + name + mode round-trip, predicate `is`, lookup-by-name,
+idempotent re-register-with-mode-update, JSON serialization,
+clear-to-zero. rc=0.
+
+No new defensive halt this ship — V1.14 close-out is the
+priority. Cron may concurrently ship halts on its own thread.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.7.92] — 2026-05-04
 
 **Punchlist forward — RFC-0044 Phase A: per-BinOp overflow-mode
