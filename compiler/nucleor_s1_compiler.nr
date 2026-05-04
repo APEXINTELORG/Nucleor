@@ -27999,6 +27999,19 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.31: RFC-0062 G-1 Phase 2b-1 — `#[manual_drop]`
+    // reserved-attribute audit. Detects adopter use of the
+    // future opt-out attribute. Today the attribute is a NO-OP;
+    // Phase 2b-3 (default-flip) will make it the explicit
+    // opt-out from the default-on auto-drop pipeline. Adopters
+    // can pre-mark code now to avoid behavior surprise at the
+    // flip ship. Diagnostic is info-level (heads-up only).
+    let v0831_manual_drop_count: i64 = simple_attribute_audit_count(after_async,
+        str_concat("#[manual_", "drop]"));
+    if v0831_manual_drop_count > 0 {
+        print(str_concat("info[MANUAL-DROP-RESERVED]: `#[manual_drop]` markers in build: ", str_from_int(v0831_manual_drop_count)));
+        print("  Per RFC-0062 G-1 Phase 2b-1: `#[manual_drop]` is reserved for the future Phase 2b-3 default-flip ship. Today the attribute is a NO-OP — every fn still requires explicit `#[auto_drop]` to receive auto-drop semantics. After the default flip, `#[manual_drop]` becomes the opt-out for fns that need to skip auto-drop (e.g. fns that already do all-explicit `vec_free` / `hashmap_free` and want zero generated cleanup). Adopters can add the attribute today to lock semantics across the upcoming flip. Reference: RFC-0062-IMPLEMENTATION-PLAN §3 G-1.");
+    };
     // v0.8.28: RFC-0062 G-8 Phase 2a — conditional-divergence
     // audit-pass info. Counts `match ` keyword occurrences as a
     // coarse proxy for control-flow-with-potential-cond-
