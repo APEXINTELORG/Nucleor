@@ -3123,6 +3123,22 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             panic("nucleor: struct destructure-in-let not yet supported (see ERROR diagnostic above)");
         };
     };
+    // v0.7.81 (defensive halt — Rust array-destructure-in-let
+    // `let [a, b, c] = [1, 2, 3];`). Pre-fix the parser read `[`
+    // (token 54) as the binding name and the `,`-separated names
+    // followed by `] = [...]` got partially recognized as an
+    // assign-to-array-LHS expression. The LHS validator printed
+    // "assignment to this LHS form is not supported" but the
+    // build CONTINUED, emitted broken IR, and clang link failed
+    // wrong-class `error[TYP-005]: undefined function 'a()'`
+    // (the first array element became a phantom fn call). Halt
+    // cleanly at parse-let with a workaround pointer. Sister to
+    // v0.6.61 struct-destructure-in-let and v0.3.81 tuple-
+    // destructure-in-let halts (same pattern-in-let family).
+    if pk(tokens, cp) == 54 {
+        print("ERROR: array destructure-in-let `let [a, b, c] = [1, 2, 3];` is not yet supported in Nucleor. Pre-v0.7.81 the parser swallowed `[` as the binding name, the LHS validator printed a 'tuple destructuring assignment not supported' note but the build continued, emitted broken IR, and clang link failed wrong-class `error[TYP-005]: undefined function '<first-element>()'`. Workaround: bind the array to a name, then index each slot — `let arr: [i64; 3] = [1, 2, 3]; let a: i64 = arr[0]; let b: i64 = arr[1]; let c: i64 = arr[2];`. Sister to v0.6.61 struct-destructure-in-let and v0.3.81 tuple-destructure-in-let halts. Tracked for forward-roadmap (full array-pattern-in-let lowering arrives with v1 pattern-binding work).");
+        panic("nucleor: array destructure-in-let not yet supported (see ERROR diagnostic above)");
+    };
     // v0.6.95 (defensive halt): canonical Rust let-else shape
     // `let Some(v) = opt else { return; };` (Rust 1.65+) and the
     // sister ctor-pattern-in-let `let Some(v) = opt;` (no else)

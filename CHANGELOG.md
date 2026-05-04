@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.81] — 2026-05-04
+
+**Combined ship — RFC-0061 Tier 1 adjacency-matrix view +
+array-destructure-in-let halt.**
+
+### RFC-0061 Tier 1 — adjacency-matrix view
+
+Three new graph-rod fns close the V1.17a adjacency-matrix slot:
+
+- `graph_to_adjacency_matrix(g) -> Vec<i64>` — flat n×n matrix,
+  cell = f64-bits weight, "no edge" = `f64-bits(1e30)`.
+- `graph_from_adjacency_matrix(m, n_nodes) -> i64` — rebuilds a
+  Graph from a flat matrix; cells with weight ≥ 1e30 are
+  treated as missing.
+- `graph_adjacency_density(g) -> i64` (f64-bits) — returns
+  edges / (n × (n − 1)) in [0, 1] for n ≥ 2; 0 for n < 2.
+
+Smoke fixture:
+`tests/fixtures/v0781_rfc0061_adjacency_matrix_smoke.nr`
+(builds 4-node graph with 5 edges, extracts matrix, rebuilds
+Graph, asserts density-roundtrip equality + density in (0,1);
+rc=0).
+
+RFC-0061 Tier 1 status after this ship: gnn wrappers ✓ (v0.7.78),
+negative-cycle ✓ (v0.7.80), adjacency-matrix ✓ (this ship).
+Remaining: CLI verb docs (`nuc graph` / `nuc impact`).
+
+### Defensive halt — Rust array destructure-in-let
+
+Pre-fix `let [a, b, c] = [1, 2, 3];` produced clang-link
+wrong-class `error[TYP-005]: undefined function 'a()'` after a
+partial-halt sequence: the parser swallowed `[` as the binding
+name, the LHS validator printed a "tuple destructuring
+assignment not supported" note but the build continued,
+emitted broken IR, and the first array element became a
+phantom fn call. Halt cleanly at parse-let when the binding
+slot is `[`. Sister to v0.6.61 struct-destructure-in-let and
+v0.3.81 tuple-destructure-in-let halts (same pattern-in-let
+family).
+
+Halt fixture: `tests/fixtures/v0781_array_destructure_let_halt.nr`.
+
 ## [0.7.80] — 2026-05-04
 
 **Combined ship — RFC-0061 Tier 1 negative-cycle detection +

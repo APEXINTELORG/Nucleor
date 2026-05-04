@@ -224,6 +224,66 @@ long long nuc_graph_has_negative_cycle(long long gh, long long src) {
     return (long long)has;
 }
 
+// ================================================================
+//  v0.7.81 — RFC-0061 Tier 1: adjacency-matrix view.
+//
+//  to_adjacency_matrix: returns a flat Vec<i64> of size n*n with
+//    each cell = f64-bits weight (or _gr_i2f(1e30) / "no edge").
+//  from_adjacency_matrix: builds a Graph from a Vec<i64> matrix.
+//    Cells whose decoded weight equals or exceeds 1e30 are treated
+//    as "no edge".
+//  adjacency_density: returns f64-bits(edges / (n * (n - 1)))
+//    in [0,1] for n >= 2 (directed, no self-loops in denominator).
+//    Returns f64-bits(0) for n < 2.
+// ================================================================
+long long nuc_graph_to_adjacency_matrix(long long gh) {
+    Graph *g = (Graph *)(void *)gh;
+    int n = g->n_nodes;
+    GRVec *m = grvec_new(n * n);
+    long long no_edge_bits = _gr_f2i(1e30);
+    for (int i = 0; i < n * n; i++) m->data[i] = no_edge_bits;
+    for (int u = 0; u < n; u++) {
+        for (int i = 0; i < g->adj_len[u]; i++) {
+            int v = g->adj[u][i].to;
+            m->data[u * n + v] = _gr_f2i(g->adj[u][i].weight);
+        }
+    }
+    return (long long)m;
+}
+
+long long nuc_graph_from_adjacency_matrix(long long matrix_p, long long n_nodes) {
+    GRVec *m = (GRVec *)(void *)matrix_p;
+    int n = (int)n_nodes;
+    Graph *g = (Graph *)(void *)nuc_graph_new(n_nodes);
+    if (m == NULL || m->len < n * n) return (long long)g;
+    for (int u = 0; u < n; u++) {
+        for (int v = 0; v < n; v++) {
+            double w = _gr_i2f(m->data[u * n + v]);
+            if (w < 1e30) {
+                if (g->adj_len[u] >= g->adj_cap[u]) {
+                    g->adj_cap[u] *= 2;
+                    g->adj[u] = (Edge *)realloc(g->adj[u], g->adj_cap[u] * sizeof(Edge));
+                }
+                g->adj[u][g->adj_len[u]].to = v;
+                g->adj[u][g->adj_len[u]].weight = w;
+                g->adj_len[u]++;
+                g->n_edges++;
+            }
+        }
+    }
+    return (long long)g;
+}
+
+long long nuc_graph_adjacency_density(long long gh) {
+    Graph *g = (Graph *)(void *)gh;
+    int n = g->n_nodes;
+    if (n < 2) return _gr_f2i(0.0);
+    long long total_slots = (long long)n * (long long)(n - 1);
+    long long total_edges = 0;
+    for (int u = 0; u < n; u++) total_edges += g->adj_len[u];
+    return _gr_f2i((double)total_edges / (double)total_slots);
+}
+
 long long nuc_graph_negative_cycle_path(long long gh, long long src) {
     Graph *g = (Graph *)(void *)gh;
     int n = g->n_nodes, s = (int)src;
