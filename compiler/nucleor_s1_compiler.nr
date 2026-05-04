@@ -15250,6 +15250,13 @@ fn md_edge_proven(source: str, entries: Vec<i32>, from_idx: i64, to_idx: i64) ->
     return 1;
 }
 
+// v0.8.42 RFC-0062 G-1: heuristic flagged HANDOFF-SUSPECT due to
+// vec_set/vec_push patterns. Manual review confirmed `seen` and
+// `queue` are LOCAL BFS scratch — no handoff to caller-owned
+// container. Annotating with #[manual_drop] as a defensive
+// guardrail; auto-drop on return would be SAFE here, but we
+// preserve v0.x semantics until the unconditional flip ships.
+#[manual_drop]
 fn md_path_exists(entries: Vec<i32>, from_idx: i64, target_idx: i64, proven_only: i64, source: str) -> i64 {
     let count: i64 = md_entry_count(entries);
     let mut seen: Vec<i32> = Vec::new();
@@ -34716,6 +34723,9 @@ fn print_help() -> i64 {
     return 0;
 }
 
+// v0.8.42 RFC-0062 G-1: top-level entry point. Heap-backed locals
+// are short-lived dispatch scratch. Annotated as safety guardrail.
+#[manual_drop]
 fn main() -> i64 {
     let argc: i64 = args_count();
     if argc < 2 {

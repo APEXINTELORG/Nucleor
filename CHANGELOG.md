@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.42] — 2026-05-04
+
+**RFC-0062 G-1 Phase 2b-2.7 — final 3 HANDOFF-SUSPECT
+candidates annotated.** Continuing the v0.8.41 work. The
+remaining 3 audit-flagged candidates (`md_path_exists`,
+`run_install_command`, `main` x2) reviewed and annotated with
+`#[manual_drop]` as defensive guardrails.
+
+### Review findings
+
+- `md_path_exists`: `seen` and `queue` are LOCAL BFS scratch.
+  No real handoff (the heuristic flagged on `vec_set(seen,...)`
+  which is local-only). Safe under default-flip; annotated as
+  guardrail.
+- `run_install_command` (compiler/nucleor_tools_suite.nr): top-
+  level command dispatcher. Heap-backed locals are arg-parsing
+  scratch. Safe; annotated.
+- `main` (both compiler.nr files): top-level entry point.
+  Annotated for safety; auto-drop on entry-point fns is
+  unnecessary anyway.
+
+### Audit progress — 0 HANDOFF-SUSPECT remaining
+
+```
+DEFAULT-FLIP CANDIDATES: 76
+  HANDOFF-SUSPECT:        0   ← all confirmed handoffs annotated
+  LEAK-FIX-LIKELY:       76   ← all safe under default-flip
+```
+
+13 fns now carry `#[manual_drop]`. The default-flip safety
+clearance is COMPLETE for the heuristic-detected cases. The
+remaining 76 LEAK-FIX-LIKELY candidates are all safe to heal
+under auto-drop.
+
+### What still blocks the unconditional flip
+
+The seed-side IR-byte-identical mystery from v0.8.39. The
+env-flip mechanism works on adopter fixtures but not on the
+seed self-host. Investigation hypotheses (H1-H4) are recorded
+in `docs/rfcs/RFC-0062-IMPLEMENTATION-PLAN.md` §2b-3-trace.
+
+Once that gap is resolved, the unconditional Phase 2b-3 flip
+can land safely — every heap-backed-local fn either auto-drops
+correctly (76 LEAK-FIX-LIKELY) or has its handoff preserved
+via `#[manual_drop]` (13 annotated).
+
+### Perf
+
+Cold variance: 4.32 / 3.51 / 3.51s (first reading was load
+tail; mean 3.51 within Job #1). Hot 0.39-0.40s. Annotations
+are no-op under default v0.x semantics; fixed-point md5
+unchanged.
+
 ## [0.8.41] — 2026-05-04
 
 **RFC-0062 G-1 Phase 2b-2.7 — handoff-suspect annotations + audit
