@@ -21,6 +21,12 @@
 // to be type-honest can switch to str_from_i64 going forward.
 fn str_from_i64(n: i64) -> str {
     if n == 0 { return "0"; };
+    if n == 1 { return "1"; } else if n == 2 { return "2"; } else if n == 3 { return "3"; }
+    else if n == 4 { return "4"; } else if n == 5 { return "5"; } else if n == 6 { return "6"; }
+    else if n == 7 { return "7"; } else if n == 8 { return "8"; } else if n == 9 { return "9"; };
+    if n == (0 - 1) { return "-1"; } else if n == (0 - 2) { return "-2"; } else if n == (0 - 3) { return "-3"; }
+    else if n == (0 - 4) { return "-4"; } else if n == (0 - 5) { return "-5"; } else if n == (0 - 6) { return "-6"; }
+    else if n == (0 - 7) { return "-7"; } else if n == (0 - 8) { return "-8"; } else if n == (0 - 9) { return "-9"; };
     // v0.3.146: handle i64::MIN specially. `0 - MIN_I64` overflows
     // back to MIN_I64 (because -MIN_I64 = MAX_I64 + 1, doesn't fit
     // in signed i64). Pre-fix, the `while val > 0` loop never executed
@@ -32,19 +38,24 @@ fn str_from_i64(n: i64) -> str {
     let neg_max: i64 = 0 - 9223372036854775807;
     if n < neg_max { return "-9223372036854775808"; };
     let mut val: i64 = n;
-    if val < 0 { val = 0 - val; };
-    let mut s: str = "";
-    while val > 0 {
-        let d: i64 = val - (val / 10) * 10;
-        let mut ch: str = "0";
-        if d == 1 { ch = "1"; } else if d == 2 { ch = "2"; } else if d == 3 { ch = "3"; }
-        else if d == 4 { ch = "4"; } else if d == 5 { ch = "5"; } else if d == 6 { ch = "6"; }
-        else if d == 7 { ch = "7"; } else if d == 8 { ch = "8"; } else if d == 9 { ch = "9"; };
-        s = str_concat(ch, s);
-        val = val / 10;
+    let mut is_neg: i64 = 0;
+    if val < 0 { is_neg = 1; val = 0 - val; };
+    let mut div: i64 = 1;
+    let mut tmp: i64 = val;
+    while tmp >= 10 {
+        tmp = tmp / 10;
+        div = div * 10;
     };
-    if n < 0 { s = str_concat("-", s); };
-    return s;
+    let digits: str = "0123456789";
+    let mut sb: i64 = sb_new_with_cap(21);
+    if is_neg == 1 { sb_append(sb, "-"); };
+    while div > 0 {
+        let d: i64 = val / div;
+        sb_append_char_at(sb, digits, d);
+        val = val - d * div;
+        div = div / 10;
+    };
+    return sb_to_str(sb);
 }
 
 // v0.5 (v0.4.233 integration) — declared param widened i32 → i64.

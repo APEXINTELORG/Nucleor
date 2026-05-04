@@ -1,10 +1,10 @@
 {
   "instructions_read": "v0.6.72-post-v0.7.13-refresh",
-  "current_task": "q5_import_tail_clean_halts",
+  "current_task": "p2_str_from_i64_concat_hotpath",
   "roadmap_phase": "v2_post_investigation",
-  "current_punchlist_item": "Q5",
+  "current_punchlist_item": "P2",
   "edits_in_main_tree": false,
-  "rebased_on_origin_main": "41b83459",
+  "rebased_on_origin_main": "51585a75",
   "perf_baseline_pre_task": {
     "cold": 3.16,
     "peak_mem": 318
@@ -12,33 +12,29 @@
   "validation": {
     "perf_3_sample": {
       "status": "pass",
-      "cold_seconds": 3.32,
-      "hot_seconds": 0.39,
-      "peak_mem_mb": 300,
-      "samples": [
-        {
-          "cold_seconds": 3.28,
-          "hot_seconds": 0.41,
-          "peak_mem_mb": 300
-        },
-        {
-          "cold_seconds": 3.32,
-          "hot_seconds": 0.39,
-          "peak_mem_mb": 301
-        },
-        {
-          "cold_seconds": 3.42,
-          "hot_seconds": 0.39,
-          "peak_mem_mb": 300
-        }
-      ],
-      "note": "P1 alarm was filed and then recovered by direct existing-IR isolated-link mitigation; finding updated at findings/inbox/perf_drift_2026-05-03_p1.md"
+      "cold_seconds": 3.73,
+      "hot_seconds": 1.24,
+      "peak_mem_mb": 295,
+      "command": "powershell.exe -NoProfile -File tools\\check_perf_regression.ps1",
+      "note": "Post-P2 str_from_i64 hot-path slice; cold stayed in the 3-second regime and peak memory stayed under 300 MB."
     },
     "caller_profile_self_host": {
       "exit_code": 0,
-      "str_concat_total": 2495896,
-      "str_substring_total": 473031,
+      "str_concat_total": 1189191,
+      "str_substring_total": 474126,
       "sym_get": "not emitted by current runtime helper caller-attribution output"
+    },
+    "p2_str_from_i64_hotpath": {
+      "status": "pass",
+      "change": "str_from_i64 now returns single-digit literals directly and emits multi-digit values left-to-right with sb_append_char_at instead of prepending each digit with str_concat.",
+      "profile_before_str_concat_total": 2501747,
+      "profile_after_str_concat_total": 1189191,
+      "fixed_point": "stage2/stage3 compiler IR SHA256 matched: 6D8875C1D3B4CB864B5121E39AAE278F24F18E664F9B4D46A42D3E80E0CE0B40",
+      "targeted_checks": [
+        "tests/fixtures/t379_str_from_int_alias.nr returned expected rc=2",
+        "tests/fixtures/repro_v72_str_from_i64_contract.nr built and ran rc=0",
+        "tests/fixtures/v0649_imin_literal_accepts.nr printed both i64::MIN and i64::MIN+1 values"
+      ]
     },
     "host_snapshot_in_perf_gate": "added",
     "compiler_drift": "pass",
@@ -89,6 +85,6 @@
     }
   },
   "status": "ready-for-integration",
-  "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_probe",
-  "branch": "probe/exploration"
+  "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_perf_a64",
+  "branch": "perf/prefer-pwsh-rss-sampler"
 }
