@@ -28203,6 +28203,21 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.46 T-3 Phase 1 — char-cast audit-pass info. Counts
+    // `as char` cast occurrences in source. Today, casting an int
+    // to char silently accepts any value including out-of-range
+    // codepoints (>0x10FFFF) and surrogate range (0xD800-0xDFFF),
+    // producing invalid UTF-8 downstream. Phase 2b will add
+    // codepoint validation at the cast site. Phase 4 promotes to
+    // hard error for invalid codepoints.
+    let v0846_has_as_char: i64 = if str_index_of(after_async, str_concat(" as ", "char")) >= 0 { 1 } else { 0 };
+    if v0846_has_as_char == 1 {
+        let v0846_count: i64 = simple_attribute_audit_count(after_async, str_concat(" as ", "char"));
+        if v0846_count > 0 {
+            print(str_concat("info[T-3-CAST]: `as char` casts in source: ", str_from_int(v0846_count)));
+            print("  Per RFC sister gap T-3 (Type System): `<int> as char` accepts any value, including out-of-range codepoints (>0x10FFFF) and the surrogate range (0xD800-0xDFFF). char_to_str on these produces invalid UTF-8 with no compile-time signal. Phase 2b adds codepoint validation at the cast; Phase 4 promotes to hard error. Adopter discipline today: validate codepoint range before casting (`if u >= 0x110000 || (u >= 0xD800 && u < 0xE000) { panic(...); }`). Reference: docs/rfcs/gap-analyses/Nucleor_Type_System_Gap_Analysis_and_RFC_2026-05-04.md T-3.");
+        };
+    };
     // v0.8.44 NUM-G1 Phase 1 — f64 lex truncation audit-pass info.
     // The lexer encodes float literals as `int_part * 1_000_000 +
     // frac_millionths`, silently truncating fractional digits past

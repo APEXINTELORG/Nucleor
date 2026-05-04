@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.46] — 2026-05-04
+
+**Wave 1 — T-3 Phase 1 audit-pass info diagnostic.** Detects
+`as char` cast occurrences in source. Today, casting any int
+to char silently accepts values including out-of-range
+codepoints (>0x10FFFF) and surrogate range (0xD800-0xDFFF),
+producing invalid UTF-8 downstream with no compile-time signal.
+
+### What's enforced today (Phase 1)
+
+```
+info[T-3-CAST]: `as char` casts in source: N
+  Per RFC sister gap T-3 (Type System): `<int> as char` accepts
+  any value, including out-of-range codepoints (>0x10FFFF) and
+  the surrogate range (0xD800-0xDFFF). char_to_str on these
+  produces invalid UTF-8 with no compile-time signal. Phase 2b
+  adds codepoint validation at the cast; Phase 4 promotes to
+  hard error. Adopter discipline today: validate codepoint range
+  before casting.
+```
+
+Smoke fixture: `let bad: i64 = 0xFFFFFFFF; let c: char = bad as
+char;` — build emits `info[T-3-CAST]: ... 1`. Runtime rc=0
+(program runs but `c` holds an out-of-range value — exactly
+the bug T-3 documents).
+
+### Cold-time note (per user 2026-05-04 directive)
+
+User flagged: keep cold "as low as physics will allow".
+Wave 1 audits are accumulating ~0.05-0.10s each. Current
+mean ~3.7s vs pre-Wave-1 ~3.5s baseline. Next ship is a
+perf-consolidation pass to claw back the budget — proper
+gate-share across the 3+ Phase 1 audit-pass scans
+(NUM-G1 long-float scanner, T-3 char-cast count, future
+audits). Without consolidation, landing all 6 Wave 1
+critical findings would push cold to ~4.5s.
+
+### T-4 deferred
+
+T-4 (empty-type compatibility fallthrough) needs deeper
+compiler-internal work — the bug is in `types_compatible`
+returning 1 when expected/actual is empty. A textual
+audit-pass can't surface internal-fallthrough events. Phase 2b
+will add observability (compile-time counter) and the actual
+fix.
+
+### Phase status
+
+```
+T-3:
+  Phase 1   audit-pass info               DONE v0.8.46 (this)
+  Phase 2b  codepoint validation at cast  QUEUED
+  Phase 4   hard error on invalid cp      v1.0 cut
+
+T-4:
+  Phase 1   docs only (deferred)          QUEUED
+  Phase 2b  empty-type fallthrough fix    QUEUED
+  Phase 4   v1.0 cut
+```
+
+### Perf
+
+Cold band 3.59-4.11s, hot 0.43-0.91s. Within Job #1 4s soft
+ceiling on most runs. Hot variance from ambient load.
+
+Fixed-point md5: `14804442c2b0be14236063833fa0425c`.
+
 ## [0.8.45] — 2026-05-04
 
 **Wave 1 — ML-1 fix: `nuc_attn_flash` ABI mismatch resolved.**
