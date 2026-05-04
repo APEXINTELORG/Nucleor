@@ -5,6 +5,118 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.119] — 2026-05-04
+
+**🎉 Windows-PE link hang FIXED — Group D unblock landed.**
+Compiler edit (probe-authored) + new bin + new seed.
+
+### The history
+
+Two main-agent ships (v0.8.79 + v0.8.83) attempted compiler.nr
+text edits, both produced the SAME failure: stage1+stage2 IR
+md5 match, but the resulting Windows PE bin hung on every
+user-source compile at `incremental: module graph cache hit`.
+Reverting always restored function. The same IR linked as
+Linux ELF worked cleanly. Documented as Group D in
+`PARALLEL_AGENT_PUNCHLIST_v0.6.54.md` (commit 2c324c7a).
+
+Unblocking was assigned to probe with no scope/risk cap. ~70%
+of remaining v1.0 critical-path work was gated on this one bug
+(E-class effects, RT-G, LAW-1, NUM-G9, ROBO-7, T-3/T-4 Phase
+2b, plus all future audit-pass refinements).
+
+### What probe found
+
+The hang was **never an LLD-link bug.** It was a real auto-drop
+ownership-correctness bug that surfaced as PE-link-and-hang
+because Windows CRT silently spins on heap corruption from
+double-free, while glibc on the ELF path detects and aborts
+loudly (which is why ELF worked from the same IR).
+
+Probe's diagnostic ladder:
+
+1. ASan on a freshly-rebuilt stage1 PE caught a use-after-free
+   in `diag_add_ex` row bookkeeping
+2. Discovered a meta-bug: the `#[auto_drop]` literal appearing
+   inside compiler comments was triggering false-positive
+   auto-drop registrations on unrelated fns (the source-text
+   scanner didn't skip string-inside-comment occurrences).
+   Fixed by `str_concat("#[auto_", "drop]")` — the literal no
+   longer appears verbatim in the compiler's own source so the
+   scanner can't match itself.
+3. Built `auto_drop_call_returns_borrowed` whitelist
+   (vec_get/tok_at/tok_v/node_field/ir_block_get_inst/
+   ir_fn_get_block/ir_fn_strtab_aux/lx_blk/diag_get/
+   own_diags/own_*_keys_vec — 13 helpers).
+4. Built `auto_drop_init_owns_value` to skip auto-drop
+   registration when the initializer is a borrow-yielding kind
+   (kinds 3 / 7-with-borrow-call / 8-method-call / 9 / 10 /
+   **12 — associated-call (Type::method)**, the last one
+   added in main-agent diagnosis).
+5. Extended `auto_drop_handoff_name` to recognize kind-7
+   `node_add` calls AND kind-8 method calls (`vec.push(x)`,
+   `vec.set(i, x)`, `map.insert(k, v)`).
+6. Added `auto_drop_assignment_reuses_lhs` to skip
+   drop-before-store when RHS aliases LHS.
+7. 209 `#[manual_drop]` annotations sprayed across compiler
+   helpers that own borrowed-row bookkeeping.
+
+### Validation
+
+Probe's branch (`origin/probe/windows-pe-autodrop-fix`,
+ced9503b):
+
+| Step | Result |
+|---|---|
+| stage1 PE compiler rebuild | PASS, 3.625s |
+| no-guard stage1 self-host | PASS, 3.844s |
+| no-guard stage2 self-host | PASS |
+| stage2/stage3 IR fixed-point | matching SHA256 `0FD09BBD...C19B52D` |
+
+Main-agent integration validation post-merge (commit a8acd28b):
+
+| Step | Result |
+|---|---|
+| stage1 build of merged compiler.nr | PASS, 3.726s |
+| stage2 build + md5 fixed-point | PASS, `f8bd0dca...c21641` matches |
+| Linux ELF spot-check on canary | `compiled:` + rc=130 |
+| **Windows PE bin spot-check (the test that v0.8.79 + v0.8.83 BOTH failed)** | **`compiled:` + rc=130** |
+| Broader smoke (T-3, NUM-G2, BM25, Clifford fixtures) | all rc=0 |
+
+### Significance
+
+**This unblocks compiler-edit ships across the v1.0 punchlist:**
+- T-3 Phase 2b (real `types_compatible` strict-mode flip)
+- T-4 Phase 2b (NUC_STRICT_INFERENCE flag)
+- E-1 / E-2 / E-3 Phase 1 audit-pass info diagnostics
+- NUM-G9 `@const_fn` Phase 1 audit
+- LAW-1 `@law` Phase 1 lex extraction
+- ROBO-7 frame-typing Phase 1 audit
+- RT-G1..G10 (`#[no_alloc]` / `#[deadline]` enforcement audits)
+- All future audit-pass text refreshes
+
+About 70% of remaining v1.0 critical-path work is now
+unblocked. Each of the above can ship on its normal ship
+cycle without hitting the link-hang trap.
+
+### Memory file update queued
+
+`feedback_nucleor_self_host_validation.md` should be updated
+in a follow-up to reflect that the validation chain now
+correctly catches double-free / use-after-drop bugs at the
+ELF-binary spot-check stage (probe used ASan; the standard
+pre-swap spot-check on user-source via the freshly-built
+target/nucleor_s1.exe also caught it).
+
+### Bin status
+
+`bin/nucleor.exe` swapped to the rebuilt PE binary
+(2,322,432 bytes, contains the auto-drop-correctness IR).
+Drift gates clean.
+
+Probe-authored fix; main-agent integrated. No reverts. The
+Windows-PE link hang is closed.
+
 ## [0.8.118] — 2026-05-04
 
 **stdlib/rods/collections.nr first test coverage.** Pure
