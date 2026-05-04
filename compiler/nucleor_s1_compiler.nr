@@ -5038,17 +5038,15 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             print("ERROR: `extern crate <name>;` declarations are not yet supported in Nucleor. Pre-v0.7.73 these were silently dropped at module-item dispatch with no signal — adopter intent that the named crate be pulled in was lost, and later `<name>::path` use sites failed opaquely as undefined idents. Workaround: Nucleor's current substrate uses the `import \"path\"` form for cross-file inclusion (RFC-0018 phase 1); there is no Cargo-style external-crate dependency manager yet. Tracked for forward-roadmap (RFC-0018 phase 3 — package/registry resolution).");
             panic("nucleor: `extern crate ...` decl not yet supported (see ERROR diagnostic above)");
         }
-        else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "macro_rules") == 1 && pk(tokens, cp + 1) == 97 {
+        else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "macro_rules") == 1 && pk(tokens, cp + 1) == 38 {
             // v0.7.73 (defensive halt — `macro_rules! name { ... }`).
-            // Pre-fix the `macro_rules` ident + `!` (token 97) +
-            // `name` + `{ ... }` were silently swallowed by the
-            // parser at module scope. Adopter intent that the macro
-            // be defined was lost; use sites either failed at
-            // expand-time (TYP-005 'undefined function name!') or
-            // got the wrong-class 'expansion not honored' silent
-            // miscompute. Halt cleanly. Same silent-strip class as
-            // `extern crate`.
-            print("ERROR: `macro_rules!` declarative-macro definitions are not yet supported in Nucleor. Pre-v0.7.73 the entire `macro_rules! name { ... }` block was silently dropped at module-item dispatch — adopter intent that the macro be defined was lost, and call sites either failed late at expand-time as undefined idents or silently produced no expansion. Workaround: rewrite the macro body as a regular fn (Nucleor's metaprogramming substrate is fn-call + the small set of built-in macros — `print!`, `println!`, `format!`, `vec!`, `panic!`). Tracked for forward-roadmap (full declarative-macro substrate is a v1.x ship).");
+            // v0.8.28: corrected token check from 97 (`?`) to 38 (`!`).
+            // Pre-v0.8.28 the check used token kind 97 (which is `?`,
+            // not `!`), so the halt NEVER fired — the `macro_rules! name
+            // { ... }` block was silently swallowed at module scope as
+            // before v0.7.73. v0.8.28 fixes the token constant so the
+            // halt properly fires on `macro_rules` + `!` (token 38).
+            print("ERROR: `macro_rules!` declarative-macro definitions are not yet supported in Nucleor. Pre-v0.7.73 the entire `macro_rules! name { ... }` block was silently dropped at module-item dispatch — adopter intent that the macro be defined was lost, and call sites either failed late at expand-time as undefined idents or silently produced no expansion. Pre-v0.8.28 the v0.7.73 halt also silently dropped (wrong token constant 97 vs 38). Workaround: rewrite the macro body as a regular fn (Nucleor's metaprogramming substrate is fn-call + the small set of built-in macros — `print!`, `println!`, `format!`, `vec!`, `panic!`). Tracked for forward-roadmap (full declarative-macro substrate is a v1.x ship).");
             panic("nucleor: `macro_rules!` decl not yet supported (see ERROR diagnostic above)");
         }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "union") == 1 {
@@ -32862,6 +32860,22 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                     print(str_concat("ERROR: Rust built-in macro `", str_concat(name, "!(...)` is not yet supported in Nucleor. Pre-v0.7.20 surfaced as wrong-class NR020 / TYP-005. These macros need a compile-time evaluation pass that Nucleor doesn't have yet (forward-roadmap).")));
                     print("       Workarounds: file!/line!/column!/module_path!/stringify! → hard-coded literal; concat! → str_concat at runtime or single literal; env!/option_env! → args_get / wrapper script; include_str!/include_bytes! → file_read_string at runtime.");
                     panic(str_concat("nucleor: built-in macro `", str_concat(name, "!(...)` not yet supported (see ERROR diagnostic above)")));
+                };
+                // v0.8.28 (defensive halt — user-defined / unknown macro
+                // invocation `name!(args)` in expression position).
+                // Pre-v0.8.28 any unrecognized `name!(args)` fell through
+                // the macro expansion pass with the `!` preserved in the
+                // output. The token-level parser then saw `name` (identifier)
+                // followed by `!` (token 38, unary NOT) applied to `(args)`
+                // (i32 / str expression) — producing wrong-class
+                // `error[TYP-002]: unary \`!\` requires a \`bool\` operand
+                // (got i32)`. This was the observable failure for code like
+                // `square!(5)` when `macro_rules! square { ... }` had been
+                // declared (but silently dropped — see the companion fix in
+                // the module-level macro_rules halt above).
+                if mode == 0 - 1 {
+                    print(str_concat("ERROR: user-defined or unrecognized macro invocation `", str_concat(name, "!(...)` is not supported in Nucleor. Pre-v0.8.28 surfaced as wrong-class `error[TYP-002]: unary \\`!\\` requires a \\`bool\\` operand (got i32)` because the unrecognized macro name was left in the expanded output with the `!` preserved, and the expression parser then read `!` as unary NOT applied to the following argument. Workaround: rewrite the macro body as a regular fn — replace `name!(arg)` with `name(arg)` and declare `fn name(x: T) -> R { ... }` at module scope. For zero-arg macros like `name!()`, `fn name() -> R { ... }` works directly. Nucleor's metaprogramming substrate is fn-call + the built-in macros (`print!`, `println!`, `format!`, `vec!`, `panic!`, `assert!`, etc.). Tracked for forward-roadmap (declarative `macro_rules!` substrate is a v1.x ship).")));
+                    panic(str_concat("nucleor: unknown macro `", str_concat(name, "!(...)` not supported (see ERROR diagnostic above)")));
                 };
                 if mode >= 0 {
                     p = p + 2;

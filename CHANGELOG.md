@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.28] — 2026-05-04
+
+**Fix `macro_rules!` halt token bug + add halt for unknown `name!(...)` invocations.**
+Two companion wrong-class diagnostic fixes for the `macro_rules!` family.
+
+### Pre-fix surface
+
+**Part 1 — module-level `macro_rules!` silent drop (regression in v0.7.73):**
+The v0.7.73 ship added a defensive halt for `macro_rules! name { ... }` at
+module scope, but the halt condition checked token kind 97 (which is `?`, the
+question-mark operator) instead of token kind 38 (which is `!`). Because
+`macro_rules!` uses `!` (token 38) not `?`, the condition was NEVER true and
+the halt never fired. `macro_rules!` declarations continued to be silently
+dropped — same as pre-v0.7.73.
+
+**Part 2 — user-defined macro call in expression position (wrong-class TYP-002):**
+Any `name!(args)` invocation where `name` was not one of the built-in macros
+(`println!`, `format!`, `vec!`, `assert!`, `panic!`, etc.) passed through the
+textual macro expansion pass with the `!` preserved in the output. The
+expression parser then read `name` as an identifier expression and `!(args)` as
+a separate expression applying unary NOT (`!`) to the argument, producing
+wrong-class `error[TYP-002]: unary \`!\` requires a \`bool\` operand (got i32)`.
+
+### Fix
+
+**Part 1:** Changed token constant in the module-level `macro_rules!` halt from
+97 (`?`) to 38 (`!`). The halt now fires correctly at module scope.
+
+**Part 2:** Added a halt in the third `!(` block of the textual macro expansion
+pass (the block that handles `println!` / `format!` / `panic!` / etc.). After
+the existing Rust built-ins check (`file!/line!/column!/...`) which halts for
+specific recognized-but-unsupported macros, a new `mode == -1` check fires for
+ALL remaining unrecognized names and emits a clean diagnostic: the pre-fix
+wrong-class TYP-002 behavior is explained, and the workaround (rewrite as a
+regular fn call `name(arg)`) is provided.
+
+### Fixtures
+
+- `tests/fixtures/v0828_macro_rules_halt.nr` — EXPECT module-level halt on
+  `macro_rules! double { ($x:expr) => { $x * 2 } }`. Locks Part 1 fix.
+- `tests/fixtures/v0828_unknown_macro_expr.nr` — EXPECT expression-position
+  halt on `let _x: i64 = my_macro!(5);`. Locks Part 2 fix.
+
+Fixed-point md5: `71d2547247c8b3936f9c841571db90bc`.
+
 ## [0.8.27] — 2026-05-04
 
 **RFC-0062 G-3 Phase 2a — ALIAS-G3 audit-pass info diagnostic.**
