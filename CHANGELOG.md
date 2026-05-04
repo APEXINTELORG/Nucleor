@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.57] — 2026-05-04
+
+**Wave 2 — PKG-5 Phase 1: `@cfg(feature = ...)` audit-pass info.**
+Today `[features]` in nucleor.toml parses but no compiler path
+consumes it; `--features X` to `nuc build` doesn't gate any code.
+Adopter using `@cfg(feature = "hardware")` gets the body included
+regardless of active features set.
+
+### What's enforced today (Phase 1)
+
+```
+info[PKG-5]: `@cfg(feature = ...)` gates in source: N
+  Per RFC sister gap PKG-5 (Module/Packaging): conditional
+  compilation `@cfg(feature = "X")` is parsed but the gate is
+  NOT honored — the body is always included regardless of the
+  active features set. `--features hardware` to `nuc build`
+  does not gate any code. Phase 2b adds proper feature-gating
+  in the lowering pass; Phase 4 promotes adopter use to a hard
+  requirement.
+```
+
+### Wave 2 progress (6 of 7 closed)
+
+```
+PKG-1 Linux publish              FIXED   v0.8.51
+PKG-3 Semver constraint          Phase 1 v0.8.53
+RT-G1/3/5/6 Real-Time/Determ     Phase 1 v0.8.54
+PKG-2 native_lsp/fmt stubs       FIXED   v0.8.55
+PKG-4 registry remote diag       Phase 1 v0.8.56
+PKG-5 cfg(feature) info          Phase 1 v0.8.57 (this)
+Algebraic Laws property tests    QUEUED
+```
+
+### Perf
+
+Cold 3.70s, hot 0.43s. Within Job #1.
+
+Fixed-point md5: `3b3bc497a2a1a422cae0efbcd87b3762`.
+
 ## [0.8.56] — 2026-05-04
 
 **Wave 2 — PKG-4 Phase 1: registry remote command diagnostic.**
