@@ -1,33 +1,50 @@
 {
-  "instructions_read": "v0.6.72-post",
-  "current_task": "v0713_perf_regain_windows_verify",
+  "instructions_read": "v0.6.72-post-v0.7.13-refresh",
+  "current_task": "p1_p3_perf_drift_watch",
+  "roadmap_phase": "v2_post_investigation",
+  "current_punchlist_item": "P1/P3",
   "edits_in_main_tree": false,
-  "rebased_on_origin_main": "6bfb1309",
+  "rebased_on_origin_main": "ecf41c2f",
   "perf_baseline_pre_task": {
     "cold": 3.16,
     "peak_mem": 318
   },
   "validation": {
-    "caller_profile_self_host": {
-      "exit_code": 0,
-      "aggregate_total": 277566966,
-      "str_eq_total": 102999590,
-      "vec_get_total": 102604921,
-      "overflow_buckets": 0
-    },
-    "compiler_drift": "pass",
-    "bootstrap_seed_fixed_point": "pass",
     "perf_3_sample": {
       "status": "pass",
-      "cold_seconds": 3.77,
-      "hot_seconds": 0.41,
-      "peak_mem_mb": 296,
-      "note": "v0.7.13-synced probe after async/preprocessor and private-mangle scanner allocation reductions"
+      "cold_seconds": 3.32,
+      "hot_seconds": 0.39,
+      "peak_mem_mb": 300,
+      "samples": [
+        {
+          "cold_seconds": 3.28,
+          "hot_seconds": 0.41,
+          "peak_mem_mb": 300
+        },
+        {
+          "cold_seconds": 3.32,
+          "hot_seconds": 0.39,
+          "peak_mem_mb": 301
+        },
+        {
+          "cold_seconds": 3.42,
+          "hot_seconds": 0.39,
+          "peak_mem_mb": 300
+        }
+      ],
+      "note": "P1 alarm was filed and then recovered by direct existing-IR isolated-link mitigation; finding updated at findings/inbox/perf_drift_2026-05-03_p1.md"
     },
+    "caller_profile_self_host": {
+      "exit_code": 0,
+      "str_concat_total": 2495896,
+      "str_substring_total": 473031,
+      "sym_get": "not emitted by current runtime helper caller-attribution output"
+    },
+    "host_snapshot_in_perf_gate": "added",
+    "compiler_drift": "pass",
     "verify": {
       "full_run": "808 pass / 2 skip / 0 fail",
-      "compiler_drift": "pass",
-      "mojibake": "pass"
+      "self_host_budget": "peak 272 MB / 770 MB e-stop, wall 3.208s"
     }
   },
   "status": "ready-for-integration",

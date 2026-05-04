@@ -25817,14 +25817,80 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, native_key_hin
     return 0;
 }
 
-fn link_existing_native_module(ll_path_raw: str, out_name: str, imported: Vec<i32>, time_passes: i64) -> i64 {
+fn link_existing_native_module(ll_path_raw: str, out_name: str, imported: Vec<i32>, native_key_hint: str, time_passes: i64) -> i64 {
     let ll_path: str = sanitize(ll_path_raw);
-    let ll_bytes: str = file_read_string(ll_path);
-    if str_len(ll_bytes) == 0 {
+    if fs_exists(ll_path) == 0 {
         print(str_concat("ERROR: native link cannot read emitted IR ", ll_path));
         return 1;
     };
-    return link_native_module(ll_bytes, out_name, imported, "", 1, time_passes);
+    let exe_path: str = sanitize(str_concat(str_concat("target", host_target_path_sep()), str_concat(out_name, host_exe_suffix())));
+    let null_redir: str = host_null_redirect();
+    system(str_concat("mkdir target", null_redir));
+    let native_d: Vec<i32> = collect_native_directives(imported);
+    let link_flags: str = vec_get(native_d, 0);
+    let cfiles: str = vec_get(native_d, 1);
+    let libpath_flags: str = vec_get(native_d, 2);
+    let rt_arg: str = resolve_toolchain_path("stdlib/runtime/nucleor_llvm_rt.c");
+    let ll_arg: str = host_shell_path(ll_path);
+    let rt_arg_shell: str = host_shell_path(rt_arg);
+    let cfiles_shell: str = host_shell_path(cfiles);
+    let libpath_flags_shell: str = host_shell_path(libpath_flags);
+    let alloc_hdr: str = resolve_toolchain_path("stdlib/runtime/nuc_alloc.h");
+    let alloc_include_flag: str = str_concat(" -include ", host_shell_path(alloc_hdr));
+    host_remove_file_quiet(exe_path);
+    let stack_flag: str = host_stack_link_flag();
+    let linker_flag: str = host_fast_link_flag();
+    system(str_concat("mkdir .nuc_cache", null_redir));
+    let log_path: str = sanitize(str_concat(".nuc_cache/clang_link.", str_concat(out_name, ".log")));
+    let log_arg: str = host_shell_path(log_path);
+    let mut native_cache_key: str = "";
+    if native_link_cache_allowed(link_flags, cfiles, libpath_flags) == 1 && str_len(native_key_hint) > 0 {
+        native_cache_key = native_link_cache_key_from_compile_key(native_key_hint, rt_arg, alloc_hdr, stack_flag, linker_flag);
+        let cached_exe: str = native_link_cache_path(native_cache_key);
+        if fs_exists(cached_exe) == 1 {
+            let cache_copy_ok: i64 = fs_copy_file(cached_exe, exe_path);
+            if cache_copy_ok == 1 {
+                print(str_concat("  native link: cache hit (sha=", str_concat(cache_v2_prefix(native_cache_key), ")")));
+                print_phase_time(time_passes, "clang", 0);
+                return 0;
+            };
+        };
+    };
+    let clang_start: i64 = now_ms();
+    let clang_quoted: str = str_concat("\"", str_concat(llvm_clang_path(), "\""));
+    let mut cmd: str = clang_quoted;
+    cmd = str_concat(cmd, linker_flag);
+    cmd = str_concat(cmd, " ");
+    cmd = str_concat(cmd, ll_arg);
+    cmd = str_concat(cmd, " ");
+    cmd = str_concat(cmd, rt_arg_shell);
+    cmd = str_concat(cmd, cfiles_shell);
+    cmd = str_concat(cmd, alloc_include_flag);
+    cmd = str_concat(cmd, " -o ");
+    cmd = str_concat(cmd, exe_path);
+    cmd = str_concat(cmd, " -Wno-override-module");
+    cmd = str_concat(cmd, stack_flag);
+    cmd = str_concat(cmd, " ");
+    cmd = str_concat(cmd, libpath_flags_shell);
+    cmd = str_concat(cmd, link_flags);
+    cmd = str_concat(cmd, " > ");
+    cmd = str_concat(cmd, log_arg);
+    cmd = str_concat(cmd, " 2>&1");
+    let rc: i64 = system(cmd);
+    print_phase_time(time_passes, "clang", now_ms() - clang_start);
+    if rc != 0 {
+        let ll_bytes: str = file_read_string(ll_path);
+        if str_len(ll_bytes) == 0 {
+            print(str_concat("  COMPILE FAILED (clang exit ", str_concat(str_from_int(rc), ")")));
+            return 1;
+        };
+        return link_native_module(ll_bytes, out_name, imported, native_key_hint, 1, time_passes);
+    };
+    let clang_log: str = file_read_string(log_path);
+    if str_len(clang_log) > 0 { print(clang_log); };
+    print(str_concat("  compiled: ", exe_path));
+    native_link_cache_store(native_cache_key, exe_path);
+    return 0;
 }
 
 // =====================================================
@@ -27109,6 +27175,11 @@ fn compile_file_mode_native_isolated(src_path: str, out_name: str, strict_mode: 
     if use_cache == 0 { child_cmd = str_concat(child_cmd, " --no-cache"); };
     if cache_v2_stats_enabled() == 1 { child_cmd = str_concat(child_cmd, " --cache-stats"); };
     if time_passes == 1 { child_cmd = str_concat(child_cmd, " --time-passes"); };
+    let mut native_key_hint: str = "";
+    if use_cache == 1 {
+        let native_source_for_key: str = file_read_string(src_path);
+        if str_len(native_source_for_key) > 0 { native_key_hint = build_cache_key(native_source_for_key, strict_mode); };
+    };
     let child_rc: i64 = system(child_cmd);
     if child_rc != 0 { return child_rc; };
     let ll_path: str = sanitize(str_concat("target/", str_concat(safe_out_name, ".ll")));
@@ -27117,7 +27188,7 @@ fn compile_file_mode_native_isolated(src_path: str, out_name: str, strict_mode: 
         return 1;
     };
     let imported: Vec<i32> = Vec::new();
-    let rc: i64 = link_existing_native_module(ll_path, safe_out_name, imported, time_passes);
+    let rc: i64 = link_existing_native_module(ll_path, safe_out_name, imported, native_key_hint, time_passes);
     vec_free(imported);
     print_phase_time(time_passes, "total_native", now_ms() - total_start);
     return rc;
