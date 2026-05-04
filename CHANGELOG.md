@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.43] — 2026-05-04
+
+**Defensive halt — Rust named format-arg `format!("{x}", x = 5)`
+now produces a clean halt with explicit-positional workaround
+pointer.**
+
+Pre-fix: writing `let s = format!("{x}", x = 5);` surfaced as
+wrong-class `error[TYP-005]: undefined function 'x()'` because the
+expander used the literal expression `x = 5` as the value to format,
+parsed it as an assignment, and `x` was undefined. Sister to
+v0.7.41 inline-arg and v0.7.42 positional-arg halts — completes
+the RFC 2795 family.
+
+Post-fix: format-macro expander scans each arg part for a leading
+`<ident>\s*=\s*<expr>` pattern (named-arg syntax) and halts before
+the format string is processed. Avoids `==` collisions:
+
+```nucleor
+// Pre-fix wrong-class:
+let s: str = format!("{x}", x = 5);              // ← TYP-005
+
+// Post-fix workaround — explicit-positional:
+let s: str = format!("{}", x);                    // drop named binding
+```
+
+`assert_eq!(x, 5)` and other comparison-arg forms are unaffected
+because the halt only fires for `=` (not `==`).
+
+Forward-roadmap: named-arg substrate is part of the same RFC 2795
+work as inline + positional args.
+
+### Fixture
+
+`tests/fixtures/v0743_format_named_arg_halt.nr` — negative fixture
+for `format!("{x}", x = 5)` (fires named-arg halt with positional
+workaround, not TYP-005).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `c8f76d83b5263782daea578c9e627ace`.
+
 ## [0.7.42] — 2026-05-04
 
 **Defensive halt — Rust positional format-arg `{0}` / `{1}` /
