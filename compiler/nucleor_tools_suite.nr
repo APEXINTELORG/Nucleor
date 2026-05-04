@@ -18193,6 +18193,10 @@ fn run_registry_command(argc: i64) -> i64 {
     return 1;
 }
 
+// v0.8.42 RFC-0062 G-1: top-level command dispatcher. Heap-backed
+// locals are arg-parsing scratch. Annotated as safety guardrail
+// before the unconditional default-flip.
+#[manual_drop]
 fn run_install_command(argc: i64) -> i64 {
     // RFC-0019 phase 3 — `nuc install --git <url> [--rev <ref>]` stub.
     // CLI surface ships now so users hitting it know what to expect;
@@ -19054,6 +19058,9 @@ fn print_help() -> i64 {
     return 0;
 }
 
+// v0.8.42 RFC-0062 G-1: top-level entry point. Annotated as
+// safety guardrail before the unconditional default-flip.
+#[manual_drop]
 fn main() -> i64 {
     let argc: i64 = args_count();
     if argc < 2 {
