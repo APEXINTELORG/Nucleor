@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.101] — 2026-05-04
+
+**stdlib/rods/geom.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `geom.nr` (2D
+computational geometry — convex hull, point-in-polygon, line
+intersect, polygon area, distance, bbox, closest-pair) had no
+existing tests.
+
+### The fixture
+
+`tests/features/geom_smoke.nr` covers five textbook 2D-geometry
+invariants. Polygons are interleaved `[x0, y0, x1, y1, ...]` in
+a `Vec<i64>` of f64-bits.
+
+| Test | Expected |
+|---|---|
+| polygon area: unit square | 1.0 |
+| polygon area: 3-4-5 right triangle | 6.0 (= ½·4·3) |
+| point-in-polygon: center of unit square | 1 (inside) |
+| point-in-polygon: outside point (2, 0.5) | 0 (outside) |
+| distance origin → segment from (0,1) to (5,1) | 1.0 |
+
+All five pass. rc=0. Cold 1.49s.
+
+### Significance
+
+Catches silent regressions in:
+
+- The shoelace formula (polygon area is the load-bearing 2D
+  computation; many other primitives derive from it)
+- Ray-casting point-in-polygon — both inside and outside paths
+  must work for any predicate to be reliable
+- Point-to-segment distance closest-point computation (catches
+  parametric clamping bugs)
+
+The full surface (convex hull, line intersect, closest-pair,
+bbox) is queued for follow-up coverage extension.
+
+Other zero-coverage rods queued: autodiff / bm25 / bspline /
+cli / collections / compress / control / crypto / csv / fft /
+fluid / fmt / fs / image / ini / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.100] — 2026-05-04
 
 **stdlib/rods/interp.nr first test coverage.** Pure fixture, no
