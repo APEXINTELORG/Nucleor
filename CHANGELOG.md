@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.80] — 2026-05-04
+
+**Combined ship — RFC-0061 Tier 1 negative-cycle detection +
+wildcard-`_` if-let halt.**
+
+### RFC-0061 Tier 1 — `graph_has_negative_cycle` + `graph_negative_cycle_path`
+
+The next Tier-1 graph-remediation milestone (V1.17a). Bellman-Ford
+already runs in `graph_rt.c`; promote the n-th relaxation pass
+(which witnesses any negative cycle reachable from the source) to
+the user-facing surface. Two new fns:
+
+- `graph_has_negative_cycle(g, src) -> i64` — returns 1 if a
+  negative-weight cycle is reachable from `src`, else 0.
+- `graph_negative_cycle_path(g, src) -> Vec<i64>` — returns the
+  cycle node sequence (start = end). Empty vec when no cycle.
+
+Implementation (graph_rt.c): n-1 standard Bellman-Ford relax
+passes, then a final probe pass — if any edge can still relax,
+flag a witness, walk back n times via predecessor pointers to land
+inside the cycle, then trace + reverse for stable start-to-end
+ordering.
+
+Smoke fixture:
+`tests/fixtures/v0780_rfc0061_negative_cycle_smoke.nr` (3-node
+graph with a -6 cycle returns has=1 + non-empty path; 2-edge
+positive-only graph returns has=0; rc=0).
+
+### Defensive halt — Rust wildcard `_` in if-let / while-let
+
+Pre-fix `if let _ = x { ... }` surfaced as wrong-class
+`error[NR020]: parse_primary cannot start an expression at
+token kind 11` because the if-let pattern dispatcher had no `_`
+branch — it tried `Some`/`None`/`Ok`/`Err` and `Type::Variant`,
+neither matched, the parser fell through with no recognized
+pattern, and the outer parser then hit `let` at expression start.
+Halt cleanly when `_` appears at the if-let pattern slot followed
+by `=`.
+
+Workaround: `let _ = expr;` for the discard, `if true { ... }`
+for the unconditional body — the `if let _` shape is rare and
+equivalent to that pair. Sister to v0.7.50 or-pattern halt
+(same if-let pattern-shape family).
+
+Halt fixture: `tests/fixtures/v0780_iflet_wildcard_halt.nr`.
+
 ## [0.7.79] — 2026-05-04
 
 **Combined ship — RFC-0060 Phase 2b (governance PolicyDecl +

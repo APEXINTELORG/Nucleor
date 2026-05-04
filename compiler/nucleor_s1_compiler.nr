@@ -3266,6 +3266,23 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
                 if pk(tokens, ip) != 51 { binding = pkv(tokens, ip); ip = ip + 1; };
                 ip = expect_tok(tokens, ip, 51);
             };
+        } else if pat_tt == 1 && str_eq(pkv(tokens, ip), "_") == 1 && pk(tokens, ip + 1) == 40 {
+            // v0.7.80 (defensive halt — Rust wildcard pattern `_` in
+            // `if let _ = expr` / `while let _ = expr`). Pre-fix the
+            // `_` ident didn't match any of the recognized
+            // pattern shapes (Some/None/Ok/Err, Type::Variant), the
+            // if-let parser fell through with `ename` empty, and the
+            // outer parser then hit `let` (token 11) at expression
+            // start, surfacing as wrong-class
+            // `error[NR020]: parse_primary cannot start an expression
+            // at token kind 11`. Halt cleanly with a workaround
+            // pointer (`let _ = expr;` already works as a discard;
+            // the if-let `_` form is rare and equivalent to a plain
+            // boolean `if true { ... }`). Sister to v0.7.50
+            // or-pattern halt — same if-let pattern-shape family.
+            print("ERROR: wildcard pattern `_` in `if let` / `while let` (e.g. `if let _ = expr { ... }`) is not yet supported in Nucleor. Pre-v0.7.80 the if-let pattern dispatcher had no `_` branch and fell through with no recognized pattern, so the outer parser then hit `let` (token 11) at expression start and emitted wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 11`.");
+            print("       Workaround: this form is rare and equivalent to a plain `if true { ... }` (or `while true { ... }`); evaluate the expression on its own line via `let _ = expr;` (already supported as a discard) and then run the body unconditionally. Tracked for forward-roadmap (wildcard-pattern in if-let is a small parser extension).");
+            panic("nucleor: wildcard pattern `_` in if-let / while-let not yet supported (see ERROR diagnostic above)");
         };
         if str_len(ename) > 0 {
             // v0.7.50 (defensive halt — Rust or-pattern in `if let` /
