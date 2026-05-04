@@ -5,6 +5,33 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.77] — 2026-05-04
+
+**Defensive halts (consolidated) — `yield <expr>;` (Rust nightly
+coroutine syntax) and `(a, b) = (1, 2);` (Rust 1.59+ tuple-LHS
+destructuring assignment).**
+
+Both halts anchor at `parse_stmt` statement start:
+
+- **`yield <expr>;`** — pre-fix `yield` lexed as a plain ident and
+  parsed as a fn call to `yield(<expr>)`, surfacing wrong-class
+  `error[TYP-005]: undefined function 'yield()'` at clang link.
+  Workaround: model cooperative-step pattern with explicit state
+  (struct + `next()` method) or use the existing thread/queue
+  substrate (RFC-0007 SPSC/MPSC). Sister to v0.7.71 `async fn`
+  halt — same nightly/unstable surface.
+
+- **`(a, b) = (1, 2);`** — pre-fix `(a, b)` parsed as a
+  parenthesized tuple expression and the trailing `=` was
+  silently dropped, producing a **SILENT MISCOMPUTE** (probe
+  verified: rc=0 instead of expected 1020 — bindings kept their
+  previous values). Halt detects the `(ident, ident, ...) =`
+  shape via paren-depth + ident/comma scan. Workaround: assign
+  each binding on its own line.
+
+Consolidated fixture: `tests/fixtures/v0777_yield_tuple_lhs_halt.nr`
+(swap body to validate the tuple-LHS form).
+
 ## [0.7.76] — 2026-05-04
 
 **Defensive halt — Rust 1.79+ `const { ... }` inline-const block
