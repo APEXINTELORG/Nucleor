@@ -27795,6 +27795,11 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v087_enclave_count: i64 = simple_attribute_audit_count(after_async, str_concat("@encl", "ave("));
     if v087_enclave_count > 0 {
         print(str_concat("audit: @enclave fns in build: ", str_from_int(v087_enclave_count)));
+        // v0.8.10 Phase B step-2: list enclave engines.
+        let v0810_enclave_engines: str = attribute_audit_first_ident_arg(after_async, str_concat("@encl", "ave("));
+        if str_len(v0810_enclave_engines) > 0 {
+            print(str_concat("audit:   engines: ", v0810_enclave_engines));
+        };
     };
     let v087_attested_count: i64 = simple_attribute_audit_count(after_async, str_concat("@atte", "sted"));
     if v087_attested_count > 0 {
@@ -27814,6 +27819,16 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v087_policy_count: i64 = simple_attribute_audit_count(after_async, str_concat("@pol", "icy("));
     if v087_policy_count > 0 {
         print(str_concat("audit: @policy decls in build: ", str_from_int(v087_policy_count)));
+        // v0.8.10 Phase B step-2: list policy names alongside
+        // the count. @policy(no_unsafe) -> "no_unsafe".
+        // @policy("foo") -> "foo". The ident-arg helper handles
+        // the bare-ident case; the str-arg helper handles the
+        // quoted-string case. We emit BOTH lists when both
+        // shapes appear in the source.
+        let v0810_policy_idents: str = attribute_audit_first_ident_arg(after_async, str_concat("@pol", "icy("));
+        if str_len(v0810_policy_idents) > 0 {
+            print(str_concat("audit:   policies: ", v0810_policy_idents));
+        };
     };
     let v087_within_count: i64 = simple_attribute_audit_count(after_async, str_concat("@wit", "hin("));
     if v087_within_count > 0 {
@@ -28923,6 +28938,42 @@ fn simple_attribute_audit_count(src: str, needle: str) -> i64 {
         };
     };
     return count;
+}
+
+// v0.8.10 Phase B step-2: extract the first BARE-IDENTIFIER
+// argument from each `@<attr>(...)` invocation. Used by attrs
+// like `@enclave(tdx)` / `@enclave(sev_snp)` where the
+// argument is a bare ident (no quotes).
+fn attribute_audit_first_ident_arg(src: str, needle: str) -> str {
+    let slen: i64 = str_len(src);
+    let nlen: i64 = str_len(needle);
+    let mut out: str = "";
+    let mut emitted: i64 = 0;
+    if nlen <= 0 { return out; };
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        if str_eq_at(src, p, needle) == 1 {
+            // Walk forward past `(` then optional whitespace.
+            let mut q: i64 = p + nlen;
+            while q < slen && (str_char_at(src, q) == 32 || str_char_at(src, q) == 9) {
+                q = q + 1;
+            };
+            // Capture chars while is_alnum (ident class).
+            let r0: i64 = q;
+            while q < slen && is_alnum(str_char_at(src, q)) == 1 {
+                q = q + 1;
+            };
+            if q > r0 {
+                if emitted == 1 { out = str_concat(out, "; "); };
+                out = str_concat(out, str_substring(src, r0, q));
+                emitted = 1;
+            };
+            p = p + nlen;
+        } else {
+            p = p + 1;
+        };
+    };
+    return out;
 }
 
 // v0.8.9 Phase B step-2: extract the first quoted string-literal
