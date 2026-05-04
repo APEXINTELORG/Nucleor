@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.84] — 2026-05-04
+
+**Punchlist forward — RFC-0047 Phase A: 7-vector SI dimensional
+surface (rod-only, no compiler change).**
+
+The full RFC-0047 ship phantom-types numeric values with a
+`[i8; 7]` SI dimension vector enforced at type-check (~400 LOC
+compiler + ~200 LOC literal-suffix lex). Phase A (this rod
+surface) lets adopters build, compose, and check dimension
+vectors as runtime `Vec<i64>` values today, before the Phase B
+compiler enforcement lands. Sister to RFC-0046 Phase A
+(v0.7.83) — same "phantom-typed via stdlib first, compiler
+enforcement later" pattern.
+
+Encoding: 7-element `Vec<i64>` in `[kg, m, s, A, K, mol, cd]`
+order.
+
+Surface added in `stdlib/rods/units.nr` (extension, not
+replacement):
+
+- 7 base-dim builders: `dim_kg() / _m / _s / _A / _K / _mol / _cd`
+- 9 derived dims: `dim_dimensionless`, `_velocity`,
+  `_acceleration`, `_force`, `_energy`, `_power`, `_pressure`,
+  `_frequency`, `_voltage`.
+- Algebra:
+  - `dim_eq(a, b) -> i64` (1 if dims identical, else 0)
+  - `dim_mul(a, b)` (element-wise add)
+  - `dim_div(a, b)` (element-wise sub)
+  - `dim_pow(a, n)` (element-wise scalar mul)
+  - `dim_inv(a)` (element-wise negate)
+- Diagnostics:
+  - `dim_to_string(a) -> str` (`[1,1,-2,0,0,0,0]` for force)
+  - `dim_check_or_panic(have, want, label) -> i64`
+    (passes through if matched, panics with formatted diag if
+    not — adopters wrap their `(value, dim_vec)` pairs and
+    call this at op boundaries).
+
+Smoke fixture: `tests/fixtures/v0784_rfc0047_dim_vec_smoke.nr`
+(asserts kg / m / s / dimensionless construction; verifies
+`dim_div(m, s)` = velocity, `dim_mul(kg, dim_div(m, dim_pow(s, 2)))`
+= force, force × m = energy, energy / s = power; rejects
+force == energy; round-trips dimensionless via s × s⁻¹; rc=0).
+
+No new defensive halt this ship — probed `const_assert!`,
+`extern { fn ... }`, `todo!()`, non-exhaustive match. All either
+already halted or correctly handled.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.7.83] — 2026-05-04
 
 **Punchlist forward — RFC-0046 Phase A: coordinate-frame marker

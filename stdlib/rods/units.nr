@@ -86,3 +86,100 @@ fn unit_convert(val: i64, from_id: i64, to_id: i64) -> i64 {
 fn unit_convert_f64(val: f64, from_id: i64, to_id: i64) -> f64 {
     return f64_from_bits(nuc_unit_convert(f64_to_bits(val), from_id, to_id));
 }
+
+// =====================================================
+// v0.7.84 — RFC-0047 Phase A: 7-vector SI dimensional surface.
+//
+// The full RFC-0047 ship phantom-types numeric values with a
+// `[i8; 7]` SI dimension vector enforced at type-check
+// (kg, m, s, A, K, mol, cd) — ~400 LOC of compiler work +
+// ~200 LOC of literal-suffix lex.
+//
+// Phase A (this rod surface): adopters can build, compose, and
+// compare dimension vectors as runtime Vec<i64> values today.
+// Multiplication adds dim vectors element-wise; division
+// subtracts; equality requires identical vectors. Adopters wrap
+// their own numeric-with-dim values via a (value, dim_vec) pair
+// and call the helpers below to enforce dimensional consistency
+// before the Phase B compiler enforcement lands.
+//
+// Encoding: 7-element Vec<i64> in [kg, m, s, A, K, mol, cd] order.
+// =====================================================
+
+fn dim_kg()     -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(1); v.push(0); v.push(0); v.push(0); v.push(0); v.push(0); v.push(0); return v; }
+fn dim_m()      -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(0); v.push(1); v.push(0); v.push(0); v.push(0); v.push(0); v.push(0); return v; }
+fn dim_s()      -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(0); v.push(0); v.push(1); v.push(0); v.push(0); v.push(0); v.push(0); return v; }
+fn dim_A()      -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(0); v.push(0); v.push(0); v.push(1); v.push(0); v.push(0); v.push(0); return v; }
+fn dim_K()      -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(0); v.push(0); v.push(0); v.push(0); v.push(1); v.push(0); v.push(0); return v; }
+fn dim_mol()    -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(0); v.push(0); v.push(0); v.push(0); v.push(0); v.push(1); v.push(0); return v; }
+fn dim_cd()     -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(0); v.push(0); v.push(0); v.push(0); v.push(0); v.push(0); v.push(1); return v; }
+
+// Common derived dimensions (built from the 7 base vectors).
+fn dim_dimensionless() -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(0); v.push(0); v.push(0); v.push(0); v.push(0); v.push(0); v.push(0); return v; }
+fn dim_velocity()      -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(0); v.push(1); v.push(0 - 1); v.push(0); v.push(0); v.push(0); v.push(0); return v; }
+fn dim_acceleration()  -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(0); v.push(1); v.push(0 - 2); v.push(0); v.push(0); v.push(0); v.push(0); return v; }
+fn dim_force()         -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(1); v.push(1); v.push(0 - 2); v.push(0); v.push(0); v.push(0); v.push(0); return v; }
+fn dim_energy()        -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(1); v.push(2); v.push(0 - 2); v.push(0); v.push(0); v.push(0); v.push(0); return v; }
+fn dim_power()         -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(1); v.push(2); v.push(0 - 3); v.push(0); v.push(0); v.push(0); v.push(0); return v; }
+fn dim_pressure()      -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(1); v.push(0 - 1); v.push(0 - 2); v.push(0); v.push(0); v.push(0); v.push(0); return v; }
+fn dim_frequency()     -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(0); v.push(0); v.push(0 - 1); v.push(0); v.push(0); v.push(0); v.push(0); return v; }
+fn dim_voltage()       -> Vec<i64> { let mut v: Vec<i64> = Vec::new(); v.push(1); v.push(2); v.push(0 - 3); v.push(0 - 1); v.push(0); v.push(0); v.push(0); return v; }
+
+fn dim_eq(a: Vec<i64>, b: Vec<i64>) -> i64 {
+    if vec_len(a) != 7 { return 0; };
+    if vec_len(b) != 7 { return 0; };
+    let mut i: i64 = 0;
+    while i < 7 {
+        if vec_get(a, i) != vec_get(b, i) { return 0; };
+        i = i + 1;
+    };
+    return 1;
+}
+
+fn dim_mul(a: Vec<i64>, b: Vec<i64>) -> Vec<i64> {
+    let mut r: Vec<i64> = Vec::new();
+    let mut i: i64 = 0;
+    while i < 7 { r.push(vec_get(a, i) + vec_get(b, i)); i = i + 1; };
+    return r;
+}
+
+fn dim_div(a: Vec<i64>, b: Vec<i64>) -> Vec<i64> {
+    let mut r: Vec<i64> = Vec::new();
+    let mut i: i64 = 0;
+    while i < 7 { r.push(vec_get(a, i) - vec_get(b, i)); i = i + 1; };
+    return r;
+}
+
+fn dim_pow(a: Vec<i64>, n: i64) -> Vec<i64> {
+    let mut r: Vec<i64> = Vec::new();
+    let mut i: i64 = 0;
+    while i < 7 { r.push(vec_get(a, i) * n); i = i + 1; };
+    return r;
+}
+
+fn dim_inv(a: Vec<i64>) -> Vec<i64> {
+    let mut r: Vec<i64> = Vec::new();
+    let mut i: i64 = 0;
+    while i < 7 { r.push(0 - vec_get(a, i)); i = i + 1; };
+    return r;
+}
+
+fn dim_to_string(a: Vec<i64>) -> str {
+    if vec_len(a) != 7 { return "<bad-dim>"; };
+    let mut out: str = "[";
+    let mut i: i64 = 0;
+    while i < 7 {
+        if i > 0 { out = str_concat(out, ","); };
+        out = str_concat(out, str_from_int(vec_get(a, i)));
+        i = i + 1;
+    };
+    out = str_concat(out, "]");
+    return out;
+}
+
+fn dim_check_or_panic(have: Vec<i64>, want: Vec<i64>, label: str) -> i64 {
+    if dim_eq(have, want) == 1 { return 1; };
+    print(str_concat("ERROR: dim_check failed at ", str_concat(label, str_concat(": have=", str_concat(dim_to_string(have), str_concat(" want=", dim_to_string(want)))))));
+    panic(str_concat("nucleor: dim_check failed at ", label));
+    return 0;
+}
