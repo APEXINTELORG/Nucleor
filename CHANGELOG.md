@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.14] — 2026-05-04
+
+**Phase B step-3 — bracket-form device extraction for `@photonic`
+and `@neuromorphic`.**
+
+The bracket-form `@<attr>[device=<name>]` syntax (RFC-0052
+photonic placement, RFC-0053 neuromorphic placement) uses `[]`
+instead of `()`, so the existing v0.8.9 / v0.8.10 / v0.8.11
+helpers don't match. New helper
+`attribute_audit_bracket_device(src, needle) -> str` walks each
+`@<attr>[` occurrence, finds the matching `]`, scans the
+inside for `device=`, and captures the value with optional
+quote-stripping. Returns `; `-separated list.
+
+Build summary lines (when count > 0):
+
+```
+audit: @photonic fns in build: 2
+audit:   photonic devices: lightmatter_x1; psiquantum_classical
+audit: @neuromorphic fns in build: 2
+audit:   neuromorphic devices: loihi2; northpole
+```
+
+Adopters porting RFC-0052 / RFC-0053 hardware-targeted code now
+see the actual device family at build, not just the count.
+
+### Implementation
+
+`attribute_audit_bracket_device` walks each `@<attr>[`
+occurrence, finds the closing `]` (no nested-bracket support
+yet — Phase B step-4 if needed), scans for `device=`, then
+captures the value. Optional surrounding double-quotes are
+stripped. Captures join with `; `.
+
+### Smoke fixture
+
+`tests/fixtures/v0814_phaseB_bracket_device_smoke.nr` — 2
+`@photonic[device=...]` + 2 `@neuromorphic[device=...]` fns.
+Runtime returns 4. Audit emits the device lists alongside
+the existing v0.8.7 counts.
+
+### Status
+
+Phase B step-3 progress (post-v0.8.14):
+- multi-key range capture (`@thermal`) — v0.8.13 ✓
+- bracket-form parser (`@photonic`, `@neuromorphic`) — v0.8.14 ✓
+  (this ship)
+- RFC-0045 step-2 IR symbol-alias emit for autodiff dispatch
+  — deferred
+- Per-family semantic enforcement — V2.x per family
+
+Phase B step-2 + step-3 together now cover **8 of the 14
+attribute families** with value extraction (count + values):
+`@authored`, `@policy`, `@enclave`, `@energy`, `@thermal`
+(full range), `@within`, `@photonic[device]`,
+`@neuromorphic[device]`. Remaining 6 attribute families
+(`@differentiable`, `@attested`, `@hot`, `@const_fn`,
+`#[max_depth]`, `#[deadline]`) have count-only audit; the
+two `#[...]` ones already have `expand_*` rewriters that
+extract values for IR emit (separate from the audit channel).
+
+Fixed-point md5: `DE046E68243AC05D0DBC5A5483C6DBD9`.
+Cold 3.15s / peak 314MB (under 4s job #1).
+
 ## [0.8.13] — 2026-05-04
 
 **Phase B step-3 — multi-key range capture for `@thermal`.**

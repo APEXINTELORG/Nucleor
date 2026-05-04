@@ -27809,10 +27809,22 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v087_photonic_count: i64 = simple_attribute_audit_count(after_async, str_concat("@photo", "nic"));
     if v087_photonic_count > 0 {
         print(str_concat("audit: @photonic fns in build: ", str_from_int(v087_photonic_count)));
+        // v0.8.14 Phase B step-3: extract device name from
+        // bracket-form @photonic[device=...].
+        let v0814_photo_devs: str = attribute_audit_bracket_device(after_async, str_concat("@photo", "nic["));
+        if str_len(v0814_photo_devs) > 0 {
+            print(str_concat("audit:   photonic devices: ", v0814_photo_devs));
+        };
     };
     let v087_neuro_count: i64 = simple_attribute_audit_count(after_async, str_concat("@neuromor", "phic"));
     if v087_neuro_count > 0 {
         print(str_concat("audit: @neuromorphic fns in build: ", str_from_int(v087_neuro_count)));
+        // v0.8.14 Phase B step-3: extract device name from
+        // bracket-form @neuromorphic[device=...].
+        let v0814_neuro_devs: str = attribute_audit_bracket_device(after_async, str_concat("@neuromor", "phic["));
+        if str_len(v0814_neuro_devs) > 0 {
+            print(str_concat("audit:   neuromorphic devices: ", v0814_neuro_devs));
+        };
     };
     let v087_enclave_count: i64 = simple_attribute_audit_count(after_async, str_concat("@encl", "ave("));
     if v087_enclave_count > 0 {
@@ -28966,6 +28978,61 @@ fn simple_attribute_audit_count(src: str, needle: str) -> i64 {
         };
     };
     return count;
+}
+
+// v0.8.14 Phase B step-3: extract the device name from
+// `@<attr>[device=<name>]` bracket-form attributes (RFC-0052
+// `@photonic[device=lightmatter_x1]`, RFC-0053
+// `@neuromorphic[device=loihi2]`). Captures the substring
+// after `device=` up to `]`, with optional surrounding quotes
+// stripped. Returns `; `-separated list across all matches.
+fn attribute_audit_bracket_device(src: str, needle: str) -> str {
+    let slen: i64 = str_len(src);
+    let nlen: i64 = str_len(needle);
+    let mut out: str = "";
+    let mut emitted: i64 = 0;
+    if nlen <= 0 { return out; };
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        if str_eq_at(src, p, needle) == 1 {
+            let q: i64 = p + nlen;
+            let dev_needle: str = str_concat("dev", "ice=");
+            let dlen: i64 = str_len(dev_needle);
+            // Find the closing `]` for this bracket.
+            let mut close: i64 = q;
+            while close < slen && str_char_at(src, close) != 93 && str_char_at(src, close) != 10 {
+                close = close + 1;
+            };
+            // Scan q..close for `device=`.
+            let mut k: i64 = q;
+            let mut found: i64 = 0 - 1;
+            while k + dlen <= close && found < 0 {
+                if str_eq_at(src, k, dev_needle) == 1 { found = k + dlen; };
+                k = k + 1;
+            };
+            if found >= 0 {
+                let mut vs: i64 = found;
+                while vs < close && (str_char_at(src, vs) == 32 || str_char_at(src, vs) == 9) {
+                    vs = vs + 1;
+                };
+                let mut quoted: i64 = 0;
+                if vs < close && str_char_at(src, vs) == 34 { quoted = 1; vs = vs + 1; };
+                let mut ve: i64 = vs;
+                while ve < close && str_char_at(src, ve) != 44 && (quoted == 0 || str_char_at(src, ve) != 34) {
+                    ve = ve + 1;
+                };
+                if ve > vs {
+                    if emitted == 1 { out = str_concat(out, "; "); };
+                    out = str_concat(out, str_substring(src, vs, ve));
+                    emitted = 1;
+                };
+            };
+            p = close + 1;
+        } else {
+            p = p + 1;
+        };
+    };
+    return out;
 }
 
 // v0.8.13 Phase B step-3: capture ALL `key=value` pairs from
