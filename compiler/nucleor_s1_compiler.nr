@@ -27766,6 +27766,21 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     if v085_diff_count > 0 {
         print(str_concat("audit: @differentiable fns in build: ", str_from_int(v085_diff_count)));
     };
+    // v0.8.6 (RFC-0050 Phase B step-1) — `@energy(max=...)` and
+    // `@thermal(max_temp=...)` audit. Same shape as v0.8.5
+    // @differentiable: lex-time `@`-attribute skip already accepts
+    // these silently; this audit pass counts annotated fns and
+    // emits a one-line build summary. Phase A (v0.7.89) added the
+    // runtime budget registry; Phase B step-2 (deferred) parses
+    // the literal value + unit and stores as fn metadata.
+    let v086_energy_count: i64 = simple_attribute_audit_count(after_async, str_concat("@ene", "rgy("));
+    if v086_energy_count > 0 {
+        print(str_concat("audit: @energy budgets in build: ", str_from_int(v086_energy_count)));
+    };
+    let v086_thermal_count: i64 = simple_attribute_audit_count(after_async, str_concat("@therm", "al("));
+    if v086_thermal_count > 0 {
+        print(str_concat("audit: @thermal budgets in build: ", str_from_int(v086_thermal_count)));
+    };
     // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
     let after_deadline: str = expand_deadline(after_async);
@@ -28813,6 +28828,27 @@ fn dl_parse_fn_signature(src: str, fn_pos: i64, slen: i64) -> Vec<i32> {
 fn differentiable_audit_count(src: str) -> i64 {
     let mut count: i64 = 0;
     let needle: str = str_concat("@differen", "tiable");
+    let slen: i64 = str_len(src);
+    let nlen: i64 = str_len(needle);
+    if nlen <= 0 { return 0; };
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        if str_eq_at(src, p, needle) == 1 {
+            count = count + 1;
+            p = p + nlen;
+        } else {
+            p = p + 1;
+        };
+    };
+    return count;
+}
+
+// v0.8.6 RFC-0050 Phase B step-1: generic substring-counter for
+// attribute-audit passes. Sister to differentiable_audit_count;
+// extracted for reuse across @energy / @thermal / future
+// @authored / @policy / etc. discoveries.
+fn simple_attribute_audit_count(src: str, needle: str) -> i64 {
+    let mut count: i64 = 0;
     let slen: i64 = str_len(src);
     let nlen: i64 = str_len(needle);
     if nlen <= 0 { return 0; };
