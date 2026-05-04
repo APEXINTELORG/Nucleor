@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.116] — 2026-05-04
+
+**stdlib/rods/binary.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `binary.nr` (byte
+buffers, endian helpers, foundation for CDR / Protobuf / MCAP /
+MessagePack / CBOR / arbitrary network protocols) had no
+existing tests. Silent regressions in endian conversion would
+corrupt every wire-format pipeline.
+
+### The fixture
+
+`tests/features/binary_smoke.nr` covers five invariant classes:
+
+| Test | Invariant |
+|---|---|
+| empty buf | `bin_buf_new()` → `bin_buf_len == 0` |
+| u8 round-trip | write 65, 200 → read at offsets 0, 1 returns same; len == 2 |
+| u16 endian | LE byte order `0x1234` → `[0x34, 0x12]`; BE → `[0x12, 0x34]`; both LE and BE read paths round-trip |
+| u32 round-trip | `0xDEADBEEF` LE + `0xCAFEBABE` BE round-trip in same buffer |
+| u64 round-trip | `0x123456789ABCDEF0` round-trips through both LE and BE |
+
+All five pass. rc=0. Cold 0.59s.
+
+### Significance
+
+Catches silent regressions in:
+
+- Vec<u8> typed-storage backing (1 byte per element, not
+  i64 per element — the v0.1.22 honest-storage substrate)
+- LE vs BE byte ordering (any swap surfaces in the u16
+  endian test which inspects individual bytes at known
+  offsets)
+- Multi-write coexistence in the same buffer (u32 + u32 at
+  offsets 0, 4 with different endians)
+- 64-bit value preservation through endian conversion
+
+These primitives underpin ROS 2 DDS (CDR), Protobuf,
+Foxglove logging (MCAP), MessagePack, CBOR, and arbitrary
+network protocols. A regression here silently corrupts every
+adopter wire-format pipeline.
+
+Other zero-coverage rods queued: autodiff / cli / collections /
+fluid / fs / ahrs / apf / audio / ba / bayesian / bicycle /
+bioseq / bm25 (done) / bt / clifford (done) / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.115] — 2026-05-04
 
 **stdlib/rods/bitwise.nr first test coverage.** Pure fixture, no
