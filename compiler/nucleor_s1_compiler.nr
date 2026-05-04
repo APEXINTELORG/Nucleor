@@ -2325,6 +2325,14 @@ fn parse_unary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if pk(tokens, pos) == 82 {
         let mut cp: i64 = pos + 1;
         let mut is_mut: i64 = 0;
+        // v0.7.14: clean halt for `&raw const` / `&raw mut` (Rust 2021 raw-ref
+        // syntax). Not in V1 surface. Workaround: take a regular `&` / `&mut`.
+        if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "raw") == 1 {
+            print("ERROR: raw-ref syntax `&raw const` / `&raw mut` is not in the V1 language surface.");
+            print("       Workaround: use `&expr` (shared ref) or `&mut expr` (mutable ref).");
+            print("       See RFC_v1_FORWARD_ROADMAP.md if you need raw pointers (tracked separately).");
+            panic("v0.7.14: &raw ref unsupported");
+        };
         if pk(tokens, cp) == 12 { is_mut = 1; cp = cp + 1; };
         let mut r: Vec<i32> = parse_unary(tokens, cp, pool);
         if is_mut == 1 { return pr(pr_pos(r), mk2(pool, 91, pr_val(r))); };
@@ -2489,6 +2497,12 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         // T2.5 (v0.2.351): skip optional lifetime annotation `'a` after `&`.
         // Treated as advisory — does not appear in the parsed type string.
         if pk(tokens, cp) == 98 { cp = cp + 1; };
+        // v0.7.14: clean halt for `&raw const T` / `&raw mut T` in type position.
+        if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "raw") == 1 {
+            print("ERROR: raw-pointer types `&raw const T` / `&raw mut T` are not in the V1 surface.");
+            print("       Workaround: use `&T` or `&mut T`.");
+            panic("v0.7.14: &raw type unsupported");
+        };
         if pk(tokens, cp) == 12 { prefix = "&mut "; cp = cp + 1; };
         let mut tr: Vec<i32> = parse_type(tokens, cp);
         return pr(pr_pos(tr), str_concat(prefix, pr_val(tr)));
