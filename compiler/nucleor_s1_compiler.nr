@@ -3520,6 +3520,21 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         print(str_concat("       Workaround: use a regular `let ", str_concat(v756_static_name, ": T = ...;` binding for fn-local mutable state. Module-level `static` items are also forward-roadmap (see v0.6.21 halt) — for shared global state today, use a top-level `const` or a Vec/Cell-based wrapper. Sister to v0.7.55 local-const halt.")));
         panic("nucleor: local static in fn body not yet supported (see ERROR diagnostic above)");
     };
+    // v0.7.59 (defensive halt — Rust local fn declaration inside a fn
+    // body / match arm block: `fn outer() { fn inner() { ... } ... }`).
+    // Pre-fix this surfaced as wrong-class `error[NR020]: parse_primary
+    // cannot start an expression at token kind 10` because parse_stmt
+    // had no `fn` branch and parse_expr also has no `fn` branch.
+    // Rust supports nested fn declarations (no closure-capture; just
+    // a name-scoped fn), but Nucleor's parser dispatches `fn` only at
+    // module scope. Sister to v0.7.47/55/56 (local-type-alias / -const
+    // / -static halts).
+    if tt == 10 {
+        let v759_fn_name: str = if pk(tokens, pos + 1) == 1 { pkv(tokens, pos + 1) } else { "<inner>" };
+        print(str_concat("ERROR: local fn declaration `fn ", str_concat(v759_fn_name, "(...) -> RetType { ... }` inside a fn body or match-arm block is not yet supported in Nucleor. Pre-v0.7.59 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 10` because the fn-body statement parser had no `fn` branch.")));
+        print(str_concat("       Workaround: hoist the fn to module scope (just outside the enclosing fn) — module-level fns work cleanly and don't capture any outer-scope bindings, which matches Rust's local-fn semantics (Rust local fns also DON'T capture; they're just name-scoped). For closure-style capture-the-environment behavior, use Nucleor's `|args| body` closure literals instead. Sister to v0.7.47 local-type-alias / v0.7.55 local-const / v0.7.56 local-static halts.")));
+        panic(str_concat("nucleor: local fn declaration `fn ", str_concat(v759_fn_name, "` inside fn body / match-arm block not yet supported (see ERROR diagnostic above)")));
+    };
     let mut er: Vec<i32> = parse_expr(tokens, pos, pool);
     let mut cp: i64 = pr_pos(er);
     if pk(tokens, cp) == 40 {
