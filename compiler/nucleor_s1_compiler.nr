@@ -909,6 +909,19 @@ fn lex(src: str) -> Vec<i32> {
                 p = p + 4;
                 handled = 1;
             };
+            // v0.7.29 (defensive halt — Rust Unicode-escape char literal
+            // `'\u{1F600}'`, `'\u{0041}'`, etc.). Pre-fix the char-lit
+            // lexer matched only 1-char and 1-backslash-1-char forms;
+            // the multi-char `\u{NNNN}` escape fell through to the
+            // lifetime-token path (kind 98) and the v0.7.2 loop-label
+            // halt fired with a wrong-class diagnostic talking about
+            // labels, not Unicode escapes. Detect `'\u{` here and halt
+            // with a hex-cast workaround pointer.
+            if handled == 0 && p + 4 < slen && str_char_at(src, p + 1) == 92 && str_char_at(src, p + 2) == 117 && str_char_at(src, p + 3) == 123 {
+                print("ERROR: Unicode-escape char literal `'\\u{NNNN}'` (e.g. `'\\u{0041}'`, `'\\u{1F600}'`) is not yet supported in Nucleor. Pre-v0.7.29 the char-lit lexer fell through to the lifetime-token path and the v0.7.2 loop-label halt fired with a wrong-class diagnostic about labels.");
+                print("       Workaround: write the codepoint as an integer literal cast — `let c: i64 = 0x0041;` (for 'A') or `let c: i64 = 0x1F600;` (for an emoji codepoint). All Nucleor char-equivalent comparisons are integer-equivalent under the i64-everywhere ABI. Tracked for forward-roadmap (lex-time `\\u{...}` codepoint parsing → int-lit token).");
+                panic("nucleor: Unicode-escape char literal `'\\u{...}'` not yet supported (see ERROR diagnostic above)");
+            };
             if handled == 0 {
                 // T2.5 (v0.2.351) fallback: apostrophe → lifetime token.
                 p = p + 1;
