@@ -28224,6 +28224,26 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.61 ML-2/3/5/6/10 Phase 1 — Tensor/ML/Autodiff surface
+    // info. Detects adopter use of tensor_nd or transformer rods
+    // — surfaces have multiple HIGH-severity gaps: ML-2 missing
+    // 2D matmul, ML-3 missing transpose, ML-5 SSM no backward,
+    // ML-6 no FP8 gemv / grouped quantization, ML-10 transformer
+    // no causal mask / no encoder-decoder. Phase 2b adds the
+    // missing primitives.
+    let v0861_has_tensor: i64 = if str_index_of(after_async, str_concat("tensor_", "nd")) >= 0 { 1 } else { 0 };
+    let v0861_has_transformer: i64 = if str_index_of(after_async, str_concat("transformer", ".nr")) >= 0 { 1 } else { 0 };
+    let v0861_has_ssm: i64 = if str_index_of(after_async, str_concat("nuc_", "ssm_")) >= 0 { 1 } else { 0 };
+    if v0861_has_tensor == 1 || v0861_has_transformer == 1 || v0861_has_ssm == 1 {
+        let v0861_tensor: i64 = if v0861_has_tensor == 1 { simple_attribute_audit_count(after_async, str_concat("tensor_", "nd")) } else { 0 };
+        let v0861_transformer: i64 = if v0861_has_transformer == 1 { simple_attribute_audit_count(after_async, str_concat("transformer", ".nr")) } else { 0 };
+        let v0861_ssm: i64 = if v0861_has_ssm == 1 { simple_attribute_audit_count(after_async, str_concat("nuc_", "ssm_")) } else { 0 };
+        let v0861_total: i64 = v0861_tensor + v0861_transformer + v0861_ssm;
+        if v0861_total > 0 {
+            print(str_concat("info[ML-G2-3-5-6-10]: Tensor/ML/Autodiff rod surface in source: ", str_from_int(v0861_total)));
+            print("  Per RFC sister gaps ML-2, ML-3, ML-5, ML-6, ML-10 (Tensor/ML/Autodiff): tensor_nd is missing 2D matmul (ML-2) and transpose (ML-3) — workaround: use 3D matmul with batch=1 dim and pre-transpose data manually. SSM rods have no backward / gradient paths (ML-5) — autodiff via these is forward-only. Quantize lacks FP8 gemv and grouped quantization (ML-6); dequant for int8 / ternary missing (ML-7). Transformer has no causal mask, no encoder-decoder (ML-10) — only encoder-only attention is implemented. Phase 2b adds the missing primitives. Adopter discipline today: verify each tensor/ML primitive exists before relying on it; check the rod source. Reference: docs/rfcs/gap-analyses/Nucleor_Tensor_ML_Autodiff_Gap_Analysis_and_RFC_2026-05-04.md ML-2/3/5/6/10.");
+        };
+    };
     // v0.8.60 NUM-G2/8/9 Phase 1 — additional numeric-correctness
     // audit. Detects adopter use of math_abs (NUM-G2 i64::MIN
     // wrap), checked_* family (NUM-G8 thread-unsafe global flag),

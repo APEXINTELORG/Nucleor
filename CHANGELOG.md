@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.61] — 2026-05-04
+
+**Wave 3 — ML-2/3/5/6/10 Phase 1 audit-pass info.** Tensor/ML
+beyond ML-1. Detects adopter use of tensor/transformer/SSM rod
+surface and flags multiple HIGH-severity missing primitives.
+
+### What's enforced today (Phase 1)
+
+```
+info[ML-G2-3-5-6-10]: Tensor/ML/Autodiff rod surface: N
+  ML-2: tensor_nd missing 2D matmul (workaround: 3D with
+  batch=1 dim).
+  ML-3: tensor_nd missing transpose (workaround: pre-transpose
+  data manually).
+  ML-5: SSM rods have no backward/gradient paths — autodiff is
+  forward-only.
+  ML-6: Quantize lacks FP8 gemv + grouped quantization.
+  ML-10: Transformer has no causal mask + no encoder-decoder
+  (encoder-only).
+
+  Phase 2b adds the missing primitives.
+```
+
+### Wave 3 progress (4 closures)
+
+```
+QM-7 + ROBO-7 combined           Phase 1 v0.8.59
+NUM-G2/G8/G9 numeric             Phase 1 v0.8.60
+ML-2/3/5/6/10 tensor/ML          Phase 1 v0.8.61 (this)
+QM-8 entanglement-tracker        QUEUED
+QM-9 gate-DAG overflow           QUEUED
+ROBO-8 CHOMP precond             QUEUED
+```
+
+### Perf
+
+Cold band 3.64-4.55s with multi-agent contention; mean ~3.79s.
+Hot 0.40-0.80s. Within Job #1 hard ceiling.
+
+Fixed-point md5: `7bea8567ad2ad7f44f35041a28290504`.
+
 ## [0.8.60] — 2026-05-04
 
 **Wave 3 — NUM-G2/G8/G9 Phase 1 audit-pass info.** Numeric
