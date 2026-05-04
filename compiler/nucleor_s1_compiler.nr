@@ -8841,13 +8841,14 @@ fn sym_set(s: Vec<i32>, name: str, reg: i64) -> i64 { s.push(name); s.push(reg);
 // pre-populate them. Cuts per-fn sym_set workload (was ~2 entries
 // per declared fn × N fns = 2*N^2 sym_set calls; now ~1 sym_set
 // per fn-body).
-fn fn_return_map_get(m: Vec<i32>, key: str) -> i64 {
-    let n: i64 = vec_len(m);
-    let mut i: i64 = n - 2;
-    while i >= 0 {
-        if str_eq(vec_get(m, i), key) == 1 { return vec_get(m, i + 1); };
-        i = i - 2;
-    };
+//
+// v0.7.x P2: store the shared table in a dedicated runtime hashmap.
+// The original shared Vec removed the N^2 sym_set cost but still did a
+// backward linear scan for every fallback lookup; caller attribution
+// showed ~48M vec_get + ~48M str_eq calls here in one self-host build.
+fn fn_return_map_get(m: i64, key: str) -> i64 {
+    if m <= 0 { return 0 - 1; };
+    if __nucleor_hashmap_contains(m, key) == 1 { return __nucleor_hashmap_get(m, key); };
     return 0 - 1;
 }
 
@@ -24092,8 +24093,8 @@ fn populate_fn_returns_in_sym(pool: Vec<i32>, fn_decls: Vec<i32>, sym: Vec<i32>)
 // program by emit_module_ext; passed to every lower_fn call so each
 // fn's sym can reference it via __fn_return_map slot instead of
 // pre-populating __fnret_/__fnfulltype_ entries per fn.
-fn fn_return_map_new(pool: Vec<i32>, fn_decls: Vec<i32>) -> Vec<i32> {
-    let mut m: Vec<i32> = Vec::new();
+fn fn_return_map_new(pool: Vec<i32>, fn_decls: Vec<i32>) -> i64 {
+    let mut m: i64 = __nucleor_hashmap_new();
     let n: i64 = vec_len(fn_decls);
     let mut i: i64 = 0;
     while i < n {
@@ -24102,12 +24103,10 @@ fn fn_return_map_new(pool: Vec<i32>, fn_decls: Vec<i32>) -> Vec<i32> {
         let raw_rtype: str = node_field(pool, fnid, 3);
         let rtype: str = type_base_name(raw_rtype);
         if str_len(name) > 0 && str_len(rtype) > 0 {
-            m.push(str_concat("__fnret_", name));
-            m.push(rtype);
+            __nucleor_hashmap_insert(m, str_concat("__fnret_", name), rtype);
         };
         if str_len(name) > 0 && str_len(raw_rtype) > 0 {
-            m.push(str_concat("__fnfulltype_", name));
-            m.push(raw_rtype);
+            __nucleor_hashmap_insert(m, str_concat("__fnfulltype_", name), raw_rtype);
         };
         i = i + 1;
     };
@@ -25403,7 +25402,7 @@ fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Ve
     return b;
 }
 
-fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, fn_return_map: Vec<i32>, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>, old_snapshots: Vec<i32>, auto_drop_fns: Vec<i32>) -> Vec<i32> {
+fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, fn_return_map: i64, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>, old_snapshots: Vec<i32>, auto_drop_fns: Vec<i32>) -> Vec<i32> {
     let name: str = node_field(pool, fn_nid, 1);
     let plist: i64 = node_field(pool, fn_nid, 2);
     let blist: i64 = node_field(pool, fn_nid, 4);
@@ -27748,7 +27747,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     };
     // v0.6.54 perf-slice: build the shared fn-return-map once and pass
     // it to every lower_fn call instead of injecting per-fn entries.
-    let fn_return_map: Vec<i32> = fn_return_map_new(pool, fn_decls);
+    let fn_return_map: i64 = fn_return_map_new(pool, fn_decls);
     let lower_start: i64 = now_ms();
     fi = 0;
     while fi < cnt {
