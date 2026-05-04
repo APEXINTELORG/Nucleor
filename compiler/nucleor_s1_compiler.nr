@@ -285,6 +285,20 @@ fn lex(src: str) -> Vec<i32> {
                     panic("nucleor: `#[cfg(...)]` attribute not yet supported (see ERROR diagnostic above)");
                 };
             };
+            if p + 8 < slen && str_eq_at(src, p + 2, "inline") == 1 {
+                let after_inline_v718: i64 = str_char_at(src, p + 8);
+                if after_inline_v718 == 93 || after_inline_v718 == 40 {
+                    print("ERROR: `#[inline]` / `#[inline(always)]` attributes are not yet supported in Nucleor. Pre-v0.7.18 these attributes were silently dropped at lex time, so adopter intent about call overhead or code layout was lost without signal. Workaround: remove the attribute; Nucleor's current optimizer makes its own inline decisions. Tracked for forward-roadmap (attribute-driven inliner hints).");
+                    panic("nucleor: inline attribute not yet supported (see ERROR diagnostic above)");
+                };
+            };
+            if p + 6 < slen && str_eq_at(src, p + 2, "cold") == 1 {
+                let after_cold_v718: i64 = str_char_at(src, p + 6);
+                if after_cold_v718 == 93 || after_cold_v718 == 40 {
+                    print("ERROR: `#[cold]` attribute is not yet supported in Nucleor. Pre-v0.7.18 this attribute was silently dropped at lex time, so rare-path layout intent was lost without signal. Workaround: remove the attribute; Nucleor does not yet feed cold-path hints to LLVM. Tracked for forward-roadmap (function section/layout attributes).");
+                    panic("nucleor: cold attribute not yet supported (see ERROR diagnostic above)");
+                };
+            };
             // v0.6.26 (probe finding 2026-05-01-derive-attribute-partial-honor):
             // `#[derive(A, B, C)]` is silently dropped except for `Debug`
             // which is honored. Adopters writing `#[derive(PartialEq)]`
