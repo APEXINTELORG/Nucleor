@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.35] — 2026-05-04
+
+**Defensive halt — top-level `ref` / `ref mut` binding mode in
+a match arm pattern (`match x { ref n => ... }`) now produces a
+clean halt with a drop-the-keyword workaround pointer.**
+
+Pre-fix: writing `match x { ref n => *n }` surfaced as wrong-class
+`error[NR020]: parse error: expected '=>', got identifier` because
+the pattern parser swallowed `ref` as the wildcard binding name
+then saw the actual binding `n` where `=>` was expected. Sister to
+v0.7.23 (`ref` inside a variant pattern).
+
+Post-fix: `parse_match_one_pattern` checks if the first token is
+`ref` (or `ref mut`) followed by an identifier and halts cleanly
+before falling through to the wildcard branch:
+
+```nucleor
+// Pre-fix wrong-class:
+match x {
+    ref n => *n,                  // ← NR020 wrong-class
+    _ => 0,
+}
+
+// Post-fix workaround — drop `ref`:
+match x {
+    n => n,                        // same observable shape (i64-everywhere ABI)
+    _ => 0,
+}
+```
+
+Forward-roadmap: full `ref` / `ref mut` binding-mode pass arrives
+with the v1 borrow-checker.
+
+### Fixture
+
+`tests/fixtures/v0735_top_ref_pattern_halt.nr` — negative fixture
+for `match x { ref n => *n }` (fires clean halt with drop-`ref`
+workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `578ec56c570cd14ce082cb65414f5636`.
+
 ## [0.7.34] — 2026-05-04
 
 **Defensive halt — Rust iterator/Option/Result conversion idioms

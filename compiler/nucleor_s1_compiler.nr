@@ -1479,6 +1479,26 @@ fn parse_match_list_binding(tokens: Vec<i32>, pos: i64, end_tok: i64, allow_rest
 fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut cp: i64 = pos;
     let mut at_name: str = "";
+    // v0.7.35 (defensive halt — Rust top-level `ref` / `ref mut` binding
+    // mode in a match arm pattern: `match x { ref n => ... }`,
+    // `match x { ref mut n => ... }`). Pre-fix this surfaced as wrong-
+    // class `error[NR020]: expected '=>', got identifier` because the
+    // pattern parser swallowed `ref` as the wildcard binding name then
+    // saw the actual binding `n` where `=>` was expected. Sister to
+    // v0.7.23 (`ref` inside a variant pattern). Workaround: drop `ref` —
+    // Nucleor's i64-everywhere ABI already passes by value.
+    if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "ref") == 1 && pk(tokens, cp + 1) == 1 {
+        let mut ref_form_v735: str = "ref";
+        let mut name_idx_v735: i64 = cp + 1;
+        if str_eq(pkv(tokens, cp + 1), "mut") == 1 && pk(tokens, cp + 2) == 1 {
+            ref_form_v735 = "ref mut";
+            name_idx_v735 = cp + 2;
+        };
+        let real_v735: str = pkv(tokens, name_idx_v735);
+        print(str_concat("ERROR: top-level `", str_concat(ref_form_v735, str_concat("` binding mode in a `match` arm pattern (e.g. `match x { ", str_concat(ref_form_v735, str_concat(" ", str_concat(real_v735, " => ... }`)) is not yet supported in Nucleor. Pre-v0.7.35 surfaced as wrong-class `error[NR020]: expected '=>', got identifier`. Sister to v0.7.23 (`ref` inside variant pattern).")))))));
+        print(str_concat("       Workaround: drop the `", str_concat(ref_form_v735, str_concat("` keyword — Nucleor's i64-everywhere ABI passes everything by value already, so `match x { ", str_concat(real_v735, " => ... }` has the same observable shape. Tracked for forward-roadmap (full ref/ref-mut binding-mode pass arrives with v1 borrow-checker).")))));
+        panic(str_concat("nucleor: top-level `", str_concat(ref_form_v735, "` binding mode in match arm not yet supported (see ERROR diagnostic above)")));
+    };
     if pk(tokens, cp) == 1 && pk(tokens, cp + 1) == 122 {
         at_name = pkv(tokens, cp);
         cp = cp + 2;
