@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.114] — 2026-05-04
+
+**stdlib/rods/control.nr first test coverage (PID slice).** Pure
+fixture, no compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `control.nr` (PID
+controller, state-space model, Kalman filter) had no existing
+tests. Silent regressions in PID gain plumbing or integration
+would invalidate any control loop.
+
+### The fixture
+
+`tests/features/control_pid_smoke.nr` covers the PID slice (SS
++ Kalman queued — they need matrix Vec inputs):
+
+| Test | Invariant |
+|---|---|
+| zero error | setpoint == measurement → output 0 (no actuation when on target) |
+| pure-P | Kp=2, Ki=Kd=0; first step error=2 → output `Kp*error == 4` |
+| pure-I integral grows | Kp=Kd=0, Ki=1, persistent error of 2 over dt=0.1 → output strictly increases each step (0.2 → 0.4 → 0.6) |
+| reset clears state | post-reset first step matches the original first-step output |
+
+All four pass. rc=0. Cold 1.10s.
+
+### Significance
+
+Catches silent regressions in:
+
+- Gain plumbing (Kp/Ki/Kd values reach the right summation
+  branches; pure-P test catches Kp/Ki swap)
+- Integral term accumulation (integral_grows test catches
+  any "integral resets every call" regression)
+- Reset state-clearing (catches any partial-reset bug where
+  integral persists across `pid_reset`)
+- Zero-error short-circuit (catches sign-flip bugs near zero)
+
+State-space `ss_step` and Kalman `predict`/`update`/`state`
+queued for follow-up — those need matrix Vec inputs and are
+easier to add as a separate fixture.
+
+Other zero-coverage rods queued: autodiff / cli / collections /
+fluid / fs / ahrs / apf / astar / audio / ba / bayesian / bezier
+/ bicycle / bioseq / bitwise / bm25 (done) / bt / clifford
+(done) / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
+> **Aside — probe-agent assignment:** Group D (Windows-PE link
+> hang) added to `PARALLEL_AGENT_PUNCHLIST_v0.6.54.md` (commit
+> `2c324c7a`). Probe has no scope/risk cap; full latitude on
+> root cause + fix. Unblocks ~70% of remaining v1.0 critical-
+> path work.
+
+> **Note — `nucleor_tools.exe build` regression (under
+> investigation):** Probe flagged that the freshly-built
+> `target/nucleor_tools.exe` panics with
+> `node_field node OOB: index 3, len 0` when invoked with a
+> simple `build` subcommand. Confirmed locally on origin/main.
+> Not blocking shipped binaries (`bin/nucleor.exe build` works
+> normally; tools-suite is a separate CLI). Tracked separately;
+> not addressed in this ship.
+
 ## [0.8.112] — 2026-05-04
 
 **stdlib/rods/bits.nr first test coverage.** Pure fixture, no
