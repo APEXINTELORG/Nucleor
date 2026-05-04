@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.99] — 2026-05-04
+
+**stdlib/rods/finance.nr first test coverage.** Pure fixture,
+no compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `finance.nr`
+(Black-Scholes, full Greeks, NPV/IRR, VaR, portfolio
+optimization) had no existing tests. Silent regressions in
+option pricing or NPV would propagate into adopter quant code
+invisibly.
+
+### The fixture
+
+`tests/features/finance_smoke.nr` covers five textbook
+financial-math invariants:
+
+| Test | Invariant |
+|---|---|
+| BS pricing positive | call & put prices > 0 for ATM (S=K=100, T=1y, r=0.05, σ=0.2) |
+| put-call parity | `C - P ≈ S - K*exp(-r*T)` (expected ≈ 4.877; tolerance ±0.4) |
+| Greeks bounds | delta_call ∈ [0,1], gamma > 0, vega > 0 |
+| NPV at rate=0 | `NPV([100, -50, -30, -20], 0.0) == 0` (sums to zero with no discount) |
+| NPV discounts | `NPV([0,100,100,100], 0.05) < NPV(.., 0.0)` (future flows discounted) |
+
+All pass. rc=0. Cold 0.63s.
+
+### Significance
+
+Catches silent regressions in:
+
+- Black-Scholes formula (call and put separately)
+- The fundamental put-call parity identity (any breakage in
+  N(d1) / N(d2) cumulative-normal computation surfaces here)
+- Greeks computation (sign and bound errors)
+- NPV summation correctness (rate=0 path tests pure
+  accumulation; non-zero path tests the discount factor)
+
+The full surface (IRR, implied vol, VaR, portfolio_opt)
+remains queued — those need richer Vec inputs (returns
+series, covariance matrices) that are easier to add in a
+follow-up coverage extension.
+
+Other zero-coverage rods queued: autodiff / bm25 / bspline /
+cli / collections / compress / control / crypto / csv / fft /
+fluid / fmt / fs / geom / image / ini / interp / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.98] — 2026-05-04
 
 **stdlib/rods/interval.nr first test coverage.** Pure fixture,
