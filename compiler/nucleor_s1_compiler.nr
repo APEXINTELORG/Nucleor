@@ -3557,11 +3557,57 @@ fn parse_return_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 
 fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let tt: i64 = pk(tokens, pos);
+    // v0.7.77 (defensive halt — Rust 1.59+ destructuring assignment
+    // `(a, b) = (1, 2);` / `[a, b] = [1, 2];` to already-bound
+    // bindings). Pre-fix `(a, b) = (1, 2);` parsed `(a, b)` as a
+    // parenthesized tuple expression, then expected `;` or an op
+    // and got `=`. The current parser silently treated this as a
+    // tail expression with no-op semantics — `a` and `b` remained
+    // their previous values, producing a SILENT MISCOMPUTE (probe
+    // verified: rc=0 instead of expected 1020). Detect by scanning
+    // ahead for `)` then `=` immediately after a `(ident, ident, ...)`
+    // shape and halt with a workaround pointer (assign each binding
+    // separately).
+    if tt == 50 {
+        let mut v777_cp: i64 = pos + 1;
+        let mut v777_depth: i64 = 1;
+        let mut v777_only_idents_commas: i64 = 1;
+        let mut v777_comma_count: i64 = 0;
+        while v777_depth > 0 && v777_cp < vec_len(tokens) && pk(tokens, v777_cp) != 0 {
+            let v777_tt: i64 = pk(tokens, v777_cp);
+            if v777_tt == 50 { v777_depth = v777_depth + 1; v777_only_idents_commas = 0; }
+            else if v777_tt == 51 { v777_depth = v777_depth - 1; }
+            else if v777_tt == 1 { v777_cp = v777_cp; }
+            else if v777_tt == 44 { if v777_depth == 1 { v777_comma_count = v777_comma_count + 1; }; }
+            else { v777_only_idents_commas = 0; };
+            v777_cp = v777_cp + 1;
+        };
+        if v777_depth == 0 && v777_only_idents_commas == 1 && v777_comma_count >= 1 && pk(tokens, v777_cp) == 40 {
+            print("ERROR: destructuring assignment to a tuple-LHS (e.g. `(a, b) = (1, 2);` to already-bound `mut a` / `mut b`) is not yet supported in Nucleor. Pre-v0.7.77 the `(a, b)` was parsed as a parenthesized tuple expression and the trailing `=` was silently dropped, producing a SILENT MISCOMPUTE — `a` and `b` kept their previous values without diagnostic.");
+            print("       Workaround: assign each binding on its own line — `a = 1; b = 2;` — or use temporaries if the RHS values are computed and you need pre-swap semantics. Tracked for forward-roadmap (Rust 1.59 destructuring-assignment is a small parser extension, sister to the existing tuple-destructure-in-let halt).");
+            panic("nucleor: destructuring assignment to tuple-LHS not yet supported (see ERROR diagnostic above)");
+        };
+    };
     if tt == 11 { return parse_let(tokens, pos + 1, pool); };
     if tt == 52 { let mut r: Vec<i32> = parse_passthrough_block_expr(tokens, pos, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 13 { let mut r: Vec<i32> = parse_if(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 15 { let mut r: Vec<i32> = parse_while_stmt(tokens, pos + 1, pool); let mut cp: i64 = pr_pos(r); if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, pr_val(r)); };
     if tt == 1 {
+        // v0.7.77 (defensive halt — Rust unstable `yield <expr>;`,
+        // used in nightly generators / coroutines). Pre-fix `yield`
+        // lexed as a regular ident and was parsed as a fn call to
+        // `yield(<expr>)`, surfacing as wrong-class
+        // `error[TYP-005]: undefined function 'yield()'` at clang
+        // link. Halt cleanly when `yield` appears at statement
+        // start. Sister to v0.7.71 `async fn` halt — same nightly /
+        // unstable surface, same silent-strip-then-late-fail audit
+        // class. Token 1 (ident) lookahead, restricted by pkv name
+        // so user fns named `yield` keep working only via raw-ident
+        // (which is itself halted at v0.7.75).
+        if str_eq(pkv(tokens, pos), "yield") == 1 {
+            print("ERROR: `yield <expr>;` (Rust nightly generator / coroutine syntax) is not yet supported in Nucleor. Pre-v0.7.77 `yield` lexed as a plain identifier and `yield 1` parsed as a fn call to `yield(1)`, surfacing wrong-class `error[TYP-005]: undefined function 'yield()'` at clang link. Workaround: model the cooperative-step pattern with explicit state (e.g., a struct holding a `step: i64` field plus a `next()` method that switches on step), or use the existing thread/queue substrate (RFC-0007 SPSC/MPSC) for true producer/consumer flow. Tracked for forward-roadmap (generator/coroutine substrate is a v1.x ship, sister to the v0.7.71 `async fn` work).");
+            panic("nucleor: `yield` statement not yet supported (see ERROR diagnostic above)");
+        };
         // v0.3.141: `loop` is a contextual keyword. When the next token
         // is `{`, recognise the `loop { BODY }` stmt-form (which
         // desugars to `while true { BODY }`); otherwise let the
