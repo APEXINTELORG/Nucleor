@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.110] — 2026-05-04
+
+**stdlib/rods/fmt.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `fmt.nr` (string
+formatting — int/bool/hex/oct/bin, padding, template) had no
+existing tests. Silent regressions in any converter would
+corrupt every adopter log line, CLI output, debug print.
+
+### The fixture
+
+`tests/features/fmt_smoke.nr` covers eight invariant classes:
+
+| Test | Path |
+|---|---|
+| fmt_int basic | 0/42/-7/1000000 → "0"/"42"/"-7"/"1000000" |
+| fmt_int round-trip | `fmt_to_int(fmt_int(n)) == n` for 0, 42, -13, 123456 |
+| fmt_bool | 0 → "false"; 1, 42 → "true" (any non-zero) |
+| fmt_hex | 0 → "0x0"; 255 → "0xff"; 16 → "0x10" |
+| fmt_bin | 0 → "0b0"; 5 → "0b101"; 8 → "0b1000" |
+| fmt_oct | 0 → "0o0"; 8 → "0o10"; 64 → "0o100" |
+| fmt_pad_left | `pad_left("42", 5, "0")` → "00042"; pad-noop when at width |
+| fmt_pad_right | `pad_right("42", 5, "0")` → "42000"; pad-noop when at width |
+
+All 8 pass. rc=0. Cold 1.04s.
+
+### Significance
+
+Catches silent regressions in:
+
+- Sign handling (negative integer rendering)
+- Base conversion algorithms (hex/oct/bin)
+- Round-trip parser/formatter consistency for ints
+- Pad-direction (left vs right) and pad-noop when input
+  already meets width
+
+Other zero-coverage rods queued: autodiff / cli / collections /
+compress / control / crypto / fluid / fs / image / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.109] — 2026-05-04
 
 **stdlib/rods/bspline.nr first test coverage.** Pure fixture, no
