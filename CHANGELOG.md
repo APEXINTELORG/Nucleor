@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.91] — 2026-05-04
+
+**RFC PKG-3 Phase 3 — wildcard semver resolver lands.**
+Tools-suite edit only; no compiler-binary change.
+
+### Pre-fix
+
+`X.*` and `X.Y.*` fell through to the v0.8.52 Phase 1
+diagnostic. Same silent-build-fail class as caret pre-v0.8.89
+and tilde pre-v0.8.90.
+
+### Post-fix
+
+| Form | Resolution |
+|---|---|
+| `*` | equivalent to `latest` (returns highest version) |
+| `X.*` | `[X.0.0, (X+1).0.0)` (same as `^X.0.0` for X>0) |
+| `X.Y.*` | `[X.Y.0, X.(Y+1).0)` (same as `~X.Y.0`) |
+
+Walks the descending-sorted version list and returns the
+first satisfying match. Wildcards in non-trailing positions
+(e.g. `1.*.0`) emit a clear "not yet supported" diagnostic
+recommending trailing-wildcard or exact pin.
+
+### Verified end-to-end against `tests/fixtures/t14_registry/`
+
+| Selector | Registry | Expected | Result |
+|---|---|---|---|
+| `foo@*` | foo: 0.1.0, 0.2.0 | 0.2.0 (highest) | resolved |
+| `foo@0.*` | same | 0.2.0 (highest of 0.x) | resolved |
+| `foo@0.1.*` | same | 0.1.0 (highest of 0.1.x) | resolved |
+| `foo@0.5.*` | no matching | clean error | "wildcard constraint did not match" |
+| `foo@>=0.1.0` | comparison still unsupported | Phase 1 diag | text now lists wildcard as workaround |
+
+### Updated diagnostic text
+
+The remaining-unsupported diagnostic now lists caret + tilde +
+trailing wildcard as workarounds; only comparison `>=`/`<=`/
+`>`/`<` remain unsupported.
+
+### Recap — PKG-3 Phase 2/3 progress
+
+| Constraint | Status | Ship |
+|---|---|---|
+| latest / empty / exact | always supported | pre-v0.8.x |
+| diagnostic on unsupported | Phase 1 | v0.8.52 |
+| caret `^X.Y.Z` | Phase 2 | v0.8.89 |
+| tilde `~X.Y.Z` | Phase 2 | v0.8.90 |
+| wildcard `*` / `X.*` / `X.Y.*` | Phase 3 | v0.8.91 (this ship) |
+| comparison `>=/<=/>/<` | not yet | queued Phase 4 |
+| lockfile-driven | not yet | queued Phase 4 (v1.x) |
+
+Comparison ranges + multi-segment expressions (`>=1.0.0 <2.0.0`)
+are the last form on the punchlist; both queued for a Phase 4
+ship that will need a small parser to handle the multi-token
+expression. Today's most common semver constraints (caret,
+tilde, wildcard) all resolve.
+
+### Bin status
+
+Tools-suite source edit only. `target/nucleor_tools.exe`
+rebuilt clean (2.16s). Compiler spot-check (`bin/nucleor.exe`)
+on `tests/features/t3_char_cast_audit_lock.nr` rc=130 — no
+regression.
+
+Pure tools-suite source edit; no compiler binary change.
+
 ## [0.8.90] — 2026-05-04
 
 **RFC PKG-3 Phase 2 sister — tilde semver resolver lands.**

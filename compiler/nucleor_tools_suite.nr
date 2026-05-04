@@ -16370,9 +16370,57 @@ fn registry_resolve_version_native(registry_dir: str, package_name: str, selecto
         // No candidate in [base, upper). Fall through to the
         // tilde-no-match diagnostic below.
     };
-    if is_compare == 1 || has_wildcard == 1 {
+    // v0.8.91 PKG-3 Phase 3 — wildcard resolution.
+    // `*`        same as `latest`
+    // `X.*`      [X.0.0, (X+1).0.0)
+    // `X.Y.*`    [X.Y.0, X.(Y+1).0)
+    if has_wildcard == 1 {
+        if str_eq(selector, "*") == 1 { return vec_get(versions, 0); };
+        // Strip `.*` suffix and parse the prefix.
+        let star_idx: i64 = str_index_of(selector, ".*");
+        if star_idx > 0 {
+            let prefix: str = str_substring(selector, 0, star_idx);
+            // Count dots in prefix to know if it's `X` (major-only)
+            // or `X.Y` (major-minor).
+            let mut dot_count: i64 = 0;
+            let mut wi: i64 = 0;
+            while wi < str_len(prefix) {
+                if str_char_at(prefix, wi) == 46 { dot_count = dot_count + 1; };
+                wi = wi + 1;
+            };
+            // Build a base version string the parser can score.
+            let base_w: str = if dot_count == 0 {
+                str_concat(prefix, ".0.0")
+            } else {
+                str_concat(prefix, ".0")
+            };
+            let wbase_score: i64 = semver_score(base_w);
+            let wbase_major: i64 = wbase_score / 1000000000;
+            let wbase_minor: i64 = (wbase_score - wbase_major * 1000000000) / 1000000;
+            let wupper: i64 = if dot_count == 0 {
+                (wbase_major + 1) * 1000000000
+            } else {
+                wbase_major * 1000000000 + (wbase_minor + 1) * 1000000
+            };
+            let mut wci: i64 = 0;
+            while wci < vec_len(versions) {
+                let wcand: str = vec_get(versions, wci);
+                let wcand_score: i64 = semver_score(wcand);
+                if wcand_score >= wbase_score {
+                    if wcand_score < wupper { return wcand; };
+                };
+                wci = wci + 1;
+            };
+            print(str_concat("error[PKG-3]: wildcard constraint `", str_concat(selector, str_concat("` did not match any published version of `", str_concat(package_name, "`.")))));
+            return "";
+        };
+        // Wildcard in an unsupported position (e.g. `1.*.0`).
+        print(str_concat("error[PKG-3]: wildcard form `", str_concat(selector, "` not yet supported. Use `X.*` or `X.Y.*` (wildcard at trailing position only) or pin exactly.")));
+        return "";
+    };
+    if is_compare == 1 {
         print(str_concat("error[PKG-3]: semver constraint syntax `", str_concat(selector, str_concat("` not yet supported (package `", str_concat(package_name, "`).")))));
-        print("  Per RFC sister gap PKG-3 (Module/Packaging): the v0.x semver resolver handles `latest`, empty selector, exact-match strings, caret `^X.Y.Z` (v0.8.89), and tilde `~X.Y.Z` (v0.8.90). Comparison `>=`/`<=`/`>`/`<` and wildcards `*` are documented in RFC-0019 §3.2 but not yet implemented. Workaround: pin to an exact version, or use caret / tilde. Phase 3 adds range + wildcard resolution; Phase 4 promotes to lockfile-driven resolution. Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-3.");
+        print("  Per RFC sister gap PKG-3 (Module/Packaging): the v0.x semver resolver handles `latest`, empty selector, exact-match strings, caret `^X.Y.Z` (v0.8.89), tilde `~X.Y.Z` (v0.8.90), and trailing wildcards `X.*` / `X.Y.*` (v0.8.91). Comparison `>=`/`<=`/`>`/`<` is documented in RFC-0019 §3.2 but not yet implemented. Workaround: use caret / tilde / wildcard, or pin exactly. Phase 4 adds range resolution + lockfile-driven resolution. Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-3.");
         return "";
     };
     if is_caret == 1 {
