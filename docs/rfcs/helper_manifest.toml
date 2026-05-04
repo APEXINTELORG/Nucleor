@@ -1248,9 +1248,9 @@ effects          = ["sync"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "happens_before_release_acquire"
-stability        = "unstable"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
+notes            = ""
 
 [[helper]]
 name             = "cancel_token_is_cancelled"
@@ -1262,9 +1262,9 @@ effects          = ["sync"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "happens_before_release_acquire"
-stability        = "unstable"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
+notes            = ""
 
 [[helper]]
 name             = "cancel_token_new"
@@ -1276,9 +1276,9 @@ effects          = ["sync"]
 taint            = "passthrough"
 units            = "passthrough"
 proof_obligation = "happens_before_release_acquire"
-stability        = "unstable"
+stability        = "stable"
 since            = "0.1.0"
-notes            = "intentional v0.4 placeholder; declared in IR for forward compat, runtime body deferred"
+notes            = ""
 
 [[helper]]
 name             = "channel_len"
