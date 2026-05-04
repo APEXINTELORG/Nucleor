@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.40] — 2026-05-04
+
+**G-1 default-flip — adopter guide + smoke fixture.** Pure
+docs + fixture ship for the v0.8.39 env-gated flip experiment.
+Adopters now have a self-contained guide explaining how to
+opt-in to test their code against the future Phase 2b-3
+default-flip semantics.
+
+### Adopter guide
+
+`docs/g1-default-flip-adopter-guide.md` covers:
+
+1. What the flip is (auto-drop default-on)
+2. How to opt-in via `NUC_AUTO_DROP_DEFAULT=1` (bash + PowerShell)
+3. What to validate (clean compile, no segfault/double-free,
+   memory usage)
+4. Three remediation paths if something breaks (`#[manual_drop]`,
+   bare-name return, explicit free)
+5. Smoke fixture reference
+6. Known gap (seed self-host byte-identical IR — investigation
+   notes referenced)
+7. Timeline through Phase 4 promotion
+
+### Smoke fixture
+
+`tests/fixtures/v0840_g1_flip_adopter_smoke.nr` — minimal Vec
+construction without explicit free. rc=3 in both modes. The
+IR-level diff (1→2 vec_free refs with flip) was demonstrated
+in v0.8.39 with two distinct sources to bypass the content-
+hash cache; for adopter validation the runtime behavior
+correctness is the primary check.
+
+### Trace investigation notes
+
+`docs/rfcs/RFC-0062-IMPLEMENTATION-PLAN.md` §2b-3-trace records
+the four hypotheses for why seed IR is byte-identical under
+flip:
+
+- (H1) `name_in_auto_drop` not called from `lower_fn` for these fns
+- (H2) `__auto_drop_enabled` sym set but overwritten later
+- (H3) `auto_drop_register` early-exits because tstr doesn't
+  match `Vec<...>` / `HashMap<...>` after type-inference
+- (H4) `auto_drop_emit_live` not called at the right return path
+
+Each needs a targeted debug print at the relevant site. Deferred
+to a focused future ship.
+
+### Perf
+
+Cold 3.44s, hot 0.40s. No compiler change.
+
 ## [0.8.39] — 2026-05-04
 
 **RFC-0062 G-1 Phase 2b-3 — env-gated default-flip experiment.**

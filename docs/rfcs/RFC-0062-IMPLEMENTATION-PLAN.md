@@ -61,6 +61,33 @@ Today, half of the surface is shape-only:
 | 2b-3-exp | Env-gated default-flip experiment | v0.8.38. NUC_AUTO_DROP_DEFAULT=1 enables flip for adopter validation. | runtime opt-in |
 | 2b-3-trace | Identify why seed IR is byte-identical under flip | NEXT. The 89 candidate fns don't receive generated drop calls — code path gap. | 0 |
 | 2b-3 | Flip default unconditionally | (after trace) | +0.05s |
+
+### 2b-3-trace investigation notes (v0.8.40 partial)
+
+Confirmed via standalone smoke that `env_get_or("NUC_AUTO_DROP_DEFAULT", "MISSING")`
+correctly returns `"MISSING"` when unset and `"1"` when set. So the env-var
+plumbing is functional at the runtime level.
+
+Confirmed via FLIP-G1 audit-pass diagnostic that `env_get_or` is invoked during
+seed self-host compilation and returns `"1"` when the env var is set.
+
+But seed IR remains byte-identical (41 vec_free calls under both modes). The
+gap is somewhere between `name_in_auto_drop` returning 1 (which it should under
+flip) and `auto_drop_register` actually registering the binding for cleanup.
+
+Hypotheses to test:
+- (H1) `name_in_auto_drop` for the candidate fns is NOT being called from
+  `lower_fn` (maybe an earlier dispatch routes the fns elsewhere)
+- (H2) `name_in_auto_drop` returns 1 but `__auto_drop_enabled` sym isn't being
+  set (maybe overwritten by a later sym_init call)
+- (H3) `auto_drop_register` is called but `auto_drop_helper_for_type(tstr)`
+  returns `""` because tstr doesn't match `Vec<...>` / `HashMap<...>`
+  (maybe due to type-inference returning a non-canonical form)
+- (H4) `auto_drop_register` registers correctly but `auto_drop_emit_live` isn't
+  called at the right return path for these fns
+
+Each hypothesis requires a targeted debug print at the relevant site to
+confirm or rule out. Deferred to a focused future ship.
 | 2b-3 | Flip default-on with `#[manual_drop]` opt-out | Lower every fn body as if it had `#[auto_drop]`; respect explicit `#[manual_drop]` to suppress. | +0.05s (one extra AST walk per fn) |
 | 3 | Promote `#[manual_drop]` from required to opt-in for unsafe blocks only | Lint warning if `#[manual_drop]` on an unsafe-free fn body. | 0 |
 | 4 | Remove `#[manual_drop]` entirely; only `unsafe { }` blocks can skip drop | v1.0 cut. | 0 |
