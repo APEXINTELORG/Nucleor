@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.109] — 2026-05-04
+
+**stdlib/rods/bspline.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `bspline.nr`
+(B-splines + Kolmogorov-Arnold network forward pass) had no
+existing tests. Silent regressions in basis-function or
+evaluation would invalidate any KAN model or spline-based
+fitting code.
+
+### The fixture
+
+`tests/features/bspline_smoke.nr` covers three textbook
+B-spline invariants:
+
+| Test | Invariant |
+|---|---|
+| uniform knot count | `bspline_uniform_knots(n_basis=5, order=4, 0, 1)` → vector of length `n_basis + order = 9` |
+| **partition of unity** | sum of basis functions at any interior x equals 1.0 (within 1e-6) — the load-bearing PoU property |
+| constant-control evaluation | with all control points = 7.0, `bspline_eval(x)` returns 7.0 at any interior x (consequence of PoU) |
+
+All three pass. rc=0. Cold 0.60s.
+
+### Significance
+
+Catches silent regressions in:
+
+- Knot-vector construction (off-by-one in knot count breaks
+  every downstream call)
+- Cox-de Boor recursion (basis functions must sum to 1; any
+  sign or normalization error breaks PoU)
+- Evaluation: constant control with summing basis must yield
+  the constant (a triangulation check that catches eval-time
+  bugs even without specific reference values)
+
+The full surface (basis derivatives, KAN forward pass) is
+queued for follow-up coverage extension.
+
+Other zero-coverage rods queued: autodiff / cli / collections /
+compress / control / crypto / fluid / fmt / fs / image / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.108] — 2026-05-04
 
 **`bm25_doc_count` companion lands — disambiguates the v0.8.107
