@@ -22638,7 +22638,19 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 || str_eq(mname, "rsplit") == 1
                                 || str_eq(mname, "splitn") == 1
                                 || str_eq(mname, "char_indices") == 1
-                                || str_eq(mname, "parse") == 1 { 1 } else { 0 };
+                                || str_eq(mname, "parse") == 1
+                                || str_eq(mname, "dedup") == 1
+                                || str_eq(mname, "retain") == 1
+                                || str_eq(mname, "truncate") == 1
+                                || str_eq(mname, "resize") == 1
+                                || str_eq(mname, "split_at") == 1
+                                || str_eq(mname, "sort_by") == 1
+                                || str_eq(mname, "sort_by_key") == 1
+                                || str_eq(mname, "sort_unstable") == 1
+                                || str_eq(mname, "sort_unstable_by") == 1
+                                || str_eq(mname, "max_by_key") == 1
+                                || str_eq(mname, "min_by_key") == 1
+                                || str_eq(mname, "extend_from_slice") == 1 { 1 } else { 0 };
                             if v082_idiom == 1 {
                                 let v082_workaround: str = if str_eq(mname, "into") == 1 {
                                     "no v0.6 conversion path; the From/Into trait family is not yet shipped — use an explicit named conversion fn (e.g. `i64_to_str(x)` for numeric→str)"
@@ -22710,6 +22722,26 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                     "iterate by index manually — `let n: i64 = str_len(s) as i64; let mut i: i64 = 0; while i < n { let c: i64 = str_char_at(s, i); ...; i = i + 1; }` — the index is `i` and the char is `c` (matches Rust's `(usize, char)` tuple form)"
                                 } else if str_eq(mname, "parse") == 1 {
                                     "use the explicit-typed conversion fn — `str_to_int(s)` for integers, `str_to_float(s)` for floats. For Result-returning forms, check the input shape via `str_starts_with(s, \"-\")` / `str_contains(s, \".\")` first"
+                                } else if str_eq(mname, "dedup") == 1 {
+                                    "build a new Vec, tracking prev element — `let mut out: Vec<T> = Vec::new(); let mut prev_set: i64 = 0; let mut prev: T = ...; for x in &v { if prev_set == 0 || x != prev { out.push(x); prev = x; prev_set = 1; } }`"
+                                } else if str_eq(mname, "retain") == 1 {
+                                    "build a new Vec via filter loop — `let mut keep: Vec<T> = Vec::new(); for x in &v { if pred(x) { keep.push(x); } } v = keep;`. The functional `.filter(...).collect()` form (now also halted) has the same shape"
+                                } else if str_eq(mname, "truncate") == 1 {
+                                    "pop from the end until the desired length — `while vec_len(&v) > n { v.pop(); }`"
+                                } else if str_eq(mname, "resize") == 1 {
+                                    "push the default value until the desired length — `while vec_len(&v) < n { v.push(default_value); }` (combine with truncate workaround above to shrink)"
+                                } else if str_eq(mname, "split_at") == 1 {
+                                    "build the two halves explicitly via index loops — `let mut a: Vec<T> = Vec::new(); let mut b: Vec<T> = Vec::new(); let mut i: i64 = 0; while i < vec_len(&v) { if i < mid { a.push(vec_get(&v, i)); } else { b.push(vec_get(&v, i)); } i = i + 1; }`. Tuple-return forms (`let (a, b) = ...`) are also forward-roadmap"
+                                } else if str_eq(mname, "sort_by") == 1 || str_eq(mname, "sort_unstable_by") == 1 {
+                                    "Nucleor's `.sort()` uses the type's natural ordering. For custom comparators, the closure-receiving form is forward-roadmap — for now, sort then post-process if the natural order isn't what you need"
+                                } else if str_eq(mname, "sort_by_key") == 1 {
+                                    "build a parallel key-vec, sort indices, then re-emit — or use a struct with a key field and `.sort()` (Nucleor sorts struct values by their first field today)"
+                                } else if str_eq(mname, "sort_unstable") == 1 {
+                                    "use `.sort()` — Nucleor today doesn't distinguish stable vs unstable; the unstable suffix is a no-op signal in Rust meaning 'don't preserve ties' but Nucleor's sort makes no stability guarantee either way"
+                                } else if str_eq(mname, "max_by_key") == 1 || str_eq(mname, "min_by_key") == 1 {
+                                    "manual reduce — `let mut best_val: T = vec_get(&v, 0); let mut best_key: K = key_fn(best_val); for x in &v { let k = key_fn(x); if k > best_key { best_key = k; best_val = x; } }`. Closure-receiving iterator combinators are forward-roadmap"
+                                } else if str_eq(mname, "extend_from_slice") == 1 {
+                                    "loop and push — `for x in &other { v.push(x); }` (Nucleor's `.extend(...)` already supports the Vec form; the slice variant requires explicit element copy)"
                                 } else {
                                     "use a `while i < vec_len(&v) { let item: T = vec_get(&v, i); ...; i = i + 1; }` loop with index-based access — Nucleor doesn't auto-derive iterator interior mutability today"
                                 };
