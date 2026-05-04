@@ -5,6 +5,117 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.75] — 2026-05-04
+
+**RFC-0062 G-1 Phase 2b-3 FINAL — UNCONDITIONAL DEFAULT-FLIP
+LANDED.** Memory safety enforcement is now active by default.
+
+### What changed
+
+`name_in_auto_drop` returns 1 unconditionally. Every fn auto-
+drops local Vec/HashMap/String/Box/VecDeque bindings unless
+`#[manual_drop]` opts out OR the v0.8.74 handoff dataflow
+detection suppresses the drop on a handed-off binding.
+
+### The path (8 ships of validation chain)
+
+```
+v0.8.31    #[manual_drop] reserved attribute
+v0.8.32    #[manual_drop] suppress mechanism wired
+v0.8.35    Per-fn safety audit tool (89 candidates classified)
+v0.8.41/42 13 fns annotated #[manual_drop] in seed
+v0.8.64    CRITICAL cache-key fix (load-bearing for env-flip)
+v0.8.68/69 Sentinel double-free guard (opt-in defense in depth)
+v0.8.73    Pragmatic warning when flip on + handoff present
+v0.8.74    PROPER dataflow handoff detection at lower-stmt
+           (CLOSES v0.8.71 dangling-pointer gap)
+v0.8.75    THIS — unconditional default-flip
+```
+
+### v0.8.65 ATTEMPTED unconditional flip and segfaulted
+
+The v0.8.65 unconditional flip caused segfault on
+attention2.nr import because the static handoff heuristic
+missed rod-side patterns. v0.8.74 closes that gap by detecting
+handoffs at LOWERING TIME (not just textually) and suppressing
+auto-drop on the handed-off local immediately.
+
+### v0.8.75 retry — clean
+
+```
+attention2.nr import:    compiles + rc=0 ✓ (was segfault)
+collections.nr import:   compiles + rc=0 ✓
+strings.nr import:       compiles + rc=0 ✓
+fmt.nr import:           compiles + rc=0 ✓
+cli.nr import:           compiles + rc=0 ✓
+concurrency.nr import:   compiles + rc=0 ✓
+```
+
+5 rod imports verified clean. The handoff dataflow detection
+caught all the patterns that segfaulted under v0.8.65.
+
+### Adopter migration
+
+| Pattern | Pre-flip | Post-flip |
+|---|---|---|
+| `#[auto_drop]` fn | already auto-drops | unchanged |
+| Fn with explicit `vec_free(v)` + no further use | manual cleanup only | pipeline detects free, skips generated drop |
+| Fn with no free + heap-backed locals | LEAKS | now auto-drops (heals leak) |
+| `vec_push(<x>, <local_vec>)` handoff | manual | **handoff detected; auto-drop suppressed** ← v0.8.74 |
+| Intentional handoff via custom helper | requires `#[manual_drop]` | same — adopter must annotate |
+
+Most adopter code becomes safer automatically. Handoff cases
+that the dataflow doesn't catch (alias-through-let, cross-fn,
+closure capture) still need `#[manual_drop]` — Phase 2c will
+close those.
+
+### Conservatism
+
+The dataflow detection over-suppresses some local-only
+patterns (e.g., `vec_push(local_outer, inner_local)` where both
+are local but receiver-locality isn't tracked yet). Result:
+`inner_local` leaks instead of being dropped. **Leak, not
+dangling pointer — safe.** Phase 2c adds receiver-locality
+refinement to tighten.
+
+### Memory safety state — POST-FLIP
+
+```
+Phase 1 (Wave A audit-pass info)     ✓ COMPLETE 11 G-* gaps
+Phase 2a (Wave A heuristic)          ✓ COMPLETE 8 info diagnostics
+Phase 2b infrastructure              ✓ COMPLETE
+Phase 2b-3 unconditional flip        ✓ COMPLETE v0.8.75 (this) ✓
+Phase 2c refinement (alias, cross-fn, closure)  QUEUED
+Phase 3 (deny-by-default for misuse) QUEUED v0.9
+Phase 4 (hard error v1.0)            QUEUED v1.0 cut
+```
+
+**Memory safety is no longer "shape-only".** The borrow/ownership
+guarantees the language advertises are now ENFORCED at compile
+time for the most common gap class (heap-backed local leaks +
+handoff dangling). The remaining work (Phase 2c refinement,
+Phase 3 misuse-rejection, Phase 4 hard-errors) is well-scoped
+and queued for v0.9-v1.0.
+
+### Cost
+
+- Cold ~3.68s (vs ~3.5s flip-OFF baseline; +0.18s)
+- Memory peak 324MB (+5MB vs flip-OFF)
+- IR size +230KB (more vec_free calls inserted)
+- Hot 0.40s (baseline)
+
+Within Job #1 4s soft ceiling. Acceptable for memory-safety
+guarantee.
+
+### Validation
+
+- Self-host fixed-point clean (md5: `0716f4c7fb1cf3b61d8f870e7ca0c4f2`)
+- 5 stdlib rods import clean
+- Cold + hot within Job #1
+- v0.8.71 dangling-pointer fixture: rc=1 correct under flip ON
+
+Fixed-point md5: `0716f4c7fb1cf3b61d8f870e7ca0c4f2`.
+
 ## [0.8.74] — 2026-05-04
 
 **RFC-0062 G-3 Phase 2b — proper dataflow handoff detection

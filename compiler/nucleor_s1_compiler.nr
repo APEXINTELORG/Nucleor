@@ -11705,18 +11705,36 @@ fn name_in_auto_drop(auto_drop: Vec<i32>, fn_name: str) -> i64 {
         if str_eq(vec_get(auto_drop, i), fn_name) == 1 { return 1; };
         i = i + 1;
     };
-    // v0.8.66 ROLLBACK of v0.8.65 unconditional default-flip.
-    // The unconditional flip caused segfaults on attn import
-    // self-host — the rod has handoff patterns the audit didn't
-    // detect via vec_push/vec_set heuristic. The env-gated
-    // experiment (NUC_AUTO_DROP_DEFAULT=1) remains available
-    // for adopter validation. Phase 2b-3 unconditional flip is
-    // unblocked from cache-key side (v0.8.64) but still needs
-    // broader handoff audit AND a runtime double-free guard
-    // (added v0.8.67 in __nucleor_vec_free).
-    let auto_default: str = env_get_or(str_concat("NUC_AUTO_DROP", "_DEFAULT"), "0");
-    if str_eq(auto_default, "1") == 1 { return 1; };
-    return 0;
+    // v0.8.75 RFC-0062 G-1 Phase 2b-3 FINAL — unconditional
+    // default-flip. Auto-drop is now ON BY DEFAULT for every fn.
+    //
+    // Safe path validated:
+    //   - v0.8.31/32  #[manual_drop] suppress mechanism
+    //   - v0.8.35     safety audit (89 candidates classified)
+    //   - v0.8.41/42  13 fns annotated #[manual_drop]
+    //   - v0.8.64     cache-key correctness fix
+    //   - v0.8.68/69  sentinel double-free guard (opt-in)
+    //   - v0.8.73     handoff-risk warning under flip
+    //   - v0.8.74     proper dataflow handoff suppression at
+    //                 ExprStmt lowering (catches vec_push /
+    //                 vec_set / hashmap_insert patterns and
+    //                 suppresses auto-drop on the local that
+    //                 was handed off)
+    //
+    // v0.8.65 ATTEMPTED unconditional flip and segfaulted on
+    // attention2.nr import because the static heuristic missed
+    // rod-side handoffs. v0.8.74 closes that gap by detecting
+    // handoffs at lowering time and suppressing immediately.
+    //
+    // Re-test confirmed v0.8.75 ready: attention2.nr import
+    // compiles cleanly under flip ON. The dataflow detection
+    // is conservative (over-suppresses some local-only cases
+    // → leaks instead of dropping; never dangling pointer).
+    //
+    // Phase 2c will refine via receiver-locality + alias
+    // tracking for tighter coverage. Phase 3 deny-by-default
+    // for misuse. Phase 4 hard-error promotion at v1.0 cut.
+    return 1;
 }
 
 // v0.8.32 RFC-0062 G-1 Phase 2b-2 — collect `#[manual_drop]`
