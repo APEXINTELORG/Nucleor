@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.88] — 2026-05-04
+
+**RFC QM-7 Phase 1 sister — Clifford gate-identity coverage.**
+Pure fixture, no compiler / runtime / stdlib edit.
+
+Sister to v0.8.87's `qm7_clifford_bell_ghz_smoke.nr`. Adds gate-
+composition identities that catch single-gate regressions without
+depending on measurement randomness — every assertion path is
+deterministic in the stabilizer formalism.
+
+### Identities exercised
+
+| Identity | Path | Expected measurement |
+|---|---|---|
+| Z preserves \|0⟩ | `Z` on \|0⟩ | 0 |
+| X² = I | `X X` on \|0⟩ | 0 |
+| Z² = I | `Z Z` on \|0⟩ | 0 |
+| Y² = I | `Y Y` on \|0⟩ | 0 |
+| S⁴ = I | `S S S S` on \|0⟩ | 0 |
+| X flips bit | `X` on \|0⟩ then `X` again | 1 then 0 |
+| CNOT² = I | `X CNOT(0,1) CNOT(0,1)` from \|00⟩ | q0=1, q1=0 |
+| CNOT no-op when ctrl=0 | `CNOT(0,1)` from \|00⟩ | q0=0, q1=0 |
+
+All eight assertions pass. rc=0. Cold 0.61s.
+
+### Coverage matrix after v0.8.88
+
+Combined with v0.8.87, the Clifford rod now has 12 deterministic
+correctness assertions:
+
+| Layer | Tests |
+|---|---|
+| Init / lifecycle | cliff_init / cliff_free round-trip |
+| Single-qubit gates | X / Y / Z / S / S⁴ identities + reset |
+| Two-qubit gates | CNOT² identity, CNOT control-zero no-op |
+| Entanglement | Bell (2-qubit), GHZ (3-qubit) |
+
+The Clifford simulator obeys textbook stabilizer algebra under
+all 12. QM-7 Phase 1 (basic correctness) is now well-covered.
+
+Phase 2 (surface-code distance, weight enumerator validation)
+remains queued.
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.87] — 2026-05-04
 
 **RFC QM-7 Phase 1 — Clifford rod first test coverage.** Pure
