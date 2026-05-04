@@ -5,6 +5,75 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.34] — 2026-05-04
+
+**Q2 — slice-pattern diagnostic refinement.** Last outstanding
+Q-class item. The slice-pattern halt that previously fired the
+wrong-class range-expression diagnostic now emits a
+slice-pattern-specific message.
+
+### What's enforced today
+
+When source contains slice-pattern shapes (`[a, .., b]`,
+`[.., y]`, `[x, ..]` — detected via three substring needles
+gated behind str_index_of):
+
+```
+ERROR: slice patterns with rest binding (the dot-dot rest
+element inside slice match brackets `[a , .. , b]`) are not
+yet supported in Nucleor. Pre-v0.8.34 surfaced as wrong-class
+range-expression diagnostic because the parser hit token 58
+inside the slice pattern brackets and routed to the range halt.
+Workaround: rewrite as explicit indexing using vec_len + vec_get.
+PANIC: nucleor: slice patterns with rest binding not yet
+supported.
+```
+
+### Self-host textual matching gotcha
+
+First two attempts at Q2 detection landed false positives — the
+diagnostic message text and code comments contained the literal
+detected sequences (`, ..,` / `, ..]` / `[..,`), which made the
+seed self-host trip its own detector. Fixed by:
+
+1. Constructing needles via str_concat (existing pattern)
+2. Using extra-spaced form `[a , .. , b]` in the diagnostic
+   message text
+3. Avoiding the literal byte sequences in code comments too
+
+Lesson locked: **textual-heuristic audits must verify the
+compiler source itself doesn't contain the literal needle
+bytes anywhere — including in diagnostic message content and
+code comments.** Documenting this for future audit-pass ships.
+
+### Q-class status — COMPLETE
+
+| Q | Item | Status |
+|---|---|---|
+| Q1 | exclusive range in match | LOCKED v0.8.21 |
+| Q2 | slice pattern rest | **LOCKED v0.8.34** |
+| Q3 | multi-trait `T: A + B + C` | LOCKED v0.8.22 |
+| Q4 | multi-param where | LOCKED v0.8.22 |
+| Q5 | `pub use ::*;` | LOCKED v0.8.22 |
+| Q7 | `&raw const` | LOCKED v0.8.22 |
+| Q8 | `c"..."` | LOCKED v0.8.22 |
+| Q9 | `let (a,b) = (5,7)` | LOCKED v0.8.21 |
+| Q10 | `#[inline]` | LOCKED v0.8.22 |
+
+10 of 10 Q-class items now have lock-in fixtures.
+
+### Smoke fixture
+
+`tests/err/err_q2_slice_pattern_rest.nr` — EXPECT the new
+slice-pattern-specific diagnostic. Locks against silent
+regression to the wrong-class range-expression message.
+
+### Perf
+
+Cold 3.52s, hot 0.40s. Within Job #1.
+
+Fixed-point md5: `1ac17ad0fe669c5cbc26f30fee4dbf12`.
+
 ## [0.8.33] — 2026-05-04
 
 **RFC-0062 G-6 Phase 2a — SEND-G6 audit-pass info diagnostic.**
