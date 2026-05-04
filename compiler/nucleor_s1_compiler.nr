@@ -3093,6 +3093,16 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let mut ename: str = "";
         let mut vname: str = "";
         let mut binding: str = "";
+        // v0.7.60 (defensive halt — paren-wrapped pattern in `if let` /
+        // `while let`: `if let (Some(x)) = opt { ... }`). Pre-fix this
+        // surfaced as wrong-class `error[NR020]: parse_primary cannot
+        // start an expression at token kind 11`. Sister to v0.7.54
+        // paren-wrapped variant-payload halt.
+        if pk(tokens, ip) == 50 {
+            print("ERROR: paren-wrapped pattern in `if let` / `while let` (e.g. `if let (Some(x)) = opt { ... }`) is not yet supported in Nucleor. Pre-v0.7.60 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 11` because the pattern dispatcher had no `(` branch.");
+            print("       Workaround: drop the extra parens — `if let Some(x) = opt { ... }` is the canonical shape. Sister to v0.7.54 paren-wrapped variant-payload halt.");
+            panic("nucleor: paren-wrapped pattern in if-let/while-let not yet supported (see ERROR diagnostic above)");
+        };
         let pat_tt: i64 = pk(tokens, ip);
         if pat_tt == 1 && (str_eq(pkv(tokens, ip), "Some") == 1 || str_eq(pkv(tokens, ip), "None") == 1 || str_eq(pkv(tokens, ip), "Ok") == 1 || str_eq(pkv(tokens, ip), "Err") == 1) {
             vname = pkv(tokens, ip);
@@ -3245,6 +3255,16 @@ fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         let mut ename: str = "";
         let mut vname: str = "";
         let mut binding: str = "";
+        // v0.7.60 (defensive halt — paren-wrapped pattern in `if let` /
+        // `while let`: `if let (Some(x)) = opt { ... }`). Pre-fix this
+        // surfaced as wrong-class `error[NR020]: parse_primary cannot
+        // start an expression at token kind 11`. Sister to v0.7.54
+        // paren-wrapped variant-payload halt.
+        if pk(tokens, ip) == 50 {
+            print("ERROR: paren-wrapped pattern in `if let` / `while let` (e.g. `if let (Some(x)) = opt { ... }`) is not yet supported in Nucleor. Pre-v0.7.60 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 11` because the pattern dispatcher had no `(` branch.");
+            print("       Workaround: drop the extra parens — `if let Some(x) = opt { ... }` is the canonical shape. Sister to v0.7.54 paren-wrapped variant-payload halt.");
+            panic("nucleor: paren-wrapped pattern in if-let/while-let not yet supported (see ERROR diagnostic above)");
+        };
         let pat_tt: i64 = pk(tokens, ip);
         if pat_tt == 1 && (str_eq(pkv(tokens, ip), "Some") == 1 || str_eq(pkv(tokens, ip), "None") == 1 || str_eq(pkv(tokens, ip), "Ok") == 1 || str_eq(pkv(tokens, ip), "Err") == 1) {
             vname = pkv(tokens, ip);
