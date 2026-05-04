@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.111] — 2026-05-04
+
+**stdlib/rods/image.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `image.nr` (RGBA image
+— construction, pixel access, PPM/BMP I/O, greyscale, resize,
+convolution) had no existing tests. Silent regressions in pixel
+storage or color-channel order would corrupt every downstream
+image pipeline.
+
+### The fixture
+
+`tests/features/image_smoke.nr` covers five image invariants:
+
+| Test | Path |
+|---|---|
+| dimensions | `img_new(640, 480)` round-trips through `img_width` / `img_height` |
+| pixel round-trip | set R=10, G=20, B=30, A=40 → get returns each channel correctly (catches RGBA vs BGRA mix-ups) |
+| distinct pixels | red at (0,0) and green at (7,7) don't bleed into each other |
+| grayscale dims | `img_grayscale(im)` preserves width × height |
+| resize dims | `img_resize(im, 25, 50)` returns an image with exactly those dimensions |
+
+All five pass. rc=0. Cold 1.52s.
+
+### Significance
+
+Catches silent regressions in:
+
+- Pixel storage layout (any swap between channel positions
+  surfaces in the round-trip test)
+- Distinct-pixel non-bleeding (catches stride / row-pitch errors)
+- Resize dimension contract
+- Grayscale output dimensions match input
+
+The full surface (PPM/BMP I/O round-trip, convolution kernel
+correctness, tensor conversion) is queued — those need more
+elaborate fixtures (file I/O setup, kernel construction).
+
+Other zero-coverage rods queued: autodiff / cli / collections /
+control / fluid / fs / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.110] — 2026-05-04
 
 **stdlib/rods/fmt.nr first test coverage.** Pure fixture, no
