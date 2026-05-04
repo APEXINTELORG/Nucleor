@@ -5,6 +5,40 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.77] — 2026-05-04
+
+**G-3 broader regression coverage.** Two more permanent
+fixtures locking the post-flip behavior across handoff and
+local-only patterns.
+
+### Fixtures
+
+`tests/fixtures/v0877_g3_local_only_no_handoff.nr` — auto-drop
+fires correctly when no handoff is present. Vec local with 3
+pushes, no `vec_push(<param>, ...)`. rc=3.
+
+`tests/fixtures/v0877_g3_hashmap_handoff.nr` — sister of
+v0876 vec_push test, but using `hashmap_insert(map, key,
+local_vec)`. Same handoff pattern, detected by v0.8.74
+dataflow at value arg index 2 (rather than 1 for vec_push).
+rc=42.
+
+### Coverage matrix — locked
+
+| Pattern | Fixture | Expected |
+|---|---|---|
+| `vec_push(<param>, <local>)` handoff | `v0876` | rc=1 (no dangling) |
+| `hashmap_insert(<param>, k, <local>)` handoff | `v0877_hashmap_handoff` | rc=42 (no segfault) |
+| Local-only Vec, auto-drop fires | `v0877_local_only_no_handoff` | rc=3 (drop emits) |
+
+Together with the existing `tests/features/rfc0042_auto_drop_vec.nr`
+opt-in fixture, this provides regression coverage across the
+core G-3 + G-1 mechanisms.
+
+### Perf
+
+Cold 3.69s, hot 0.42s. Within Job #1.
+
 ## [0.8.76] — 2026-05-04
 
 **G-3 handoff suppression — regression fixture lock-in.**
