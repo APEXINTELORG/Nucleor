@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.87] — 2026-05-04
+
+**RFC QM-7 Phase 1 — Clifford rod first test coverage.** Pure
+fixture, no compiler / runtime / stdlib edit.
+
+### The gap
+
+Per `docs/rfcs/gap-analyses/Nucleor_Quantum_Subsystem_Gap_
+Analysis_and_RFC_2026-05-04.md` QM-7 (CRITICAL):
+
+> 41 KB runtime with stabilizer formalism, distance, error
+> detection. **No test exercises even basic Bell state (H +
+> CNOT under stabilizer).** Silent correctness bugs in
+> distance or row reduction undetectable.
+
+`grep -rln cliff_init tests/` returned ZERO matches before this
+ship. The stabilizer simulator was completely untested.
+
+### The fixture
+
+`tests/features/qm7_clifford_bell_ghz_smoke.nr` covers four
+textbook stabilizer correctness invariants:
+
+| Test | Operation | Invariant |
+|---|---|---|
+| Bell | `cliff_h(0); cliff_cnot(0,1)` | measurements of qubit 0 and qubit 1 are equal (entanglement) |
+| GHZ | `cliff_h(0); cliff_cnot(0,1); cliff_cnot(0,2)` | all three measurements agree |
+| X gate | `cliff_x(0)` on \|0⟩ | measurement returns 1 |
+| Reset | `cliff_x; cliff_x; cliff_reset` | both measurements return 0 |
+
+All four pass. rc=0. Cold 0.63s — well under Job #1.
+
+### What's still open
+
+Per the QM-7 RFC follow-on items:
+
+- Distance computation on a known surface code patch (d=3
+  rotated planar) — needs additional fixture.
+- Weight enumerator validation against a published code —
+  research-grade test, queued for Phase 2.
+- T/S/Rz angle support is OUTSIDE Clifford by design (only
+  H, S, CNOT, X, Y, Z are stabilizer-preserving); RFC notes
+  this is a feature limit, not a coverage gap.
+
+The fixture is the FIRST executed correctness test for the
+Clifford simulator. Future ships should extend it rather than
+replace it.
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.86] — 2026-05-04
 
 **RFC C-3 status — wrong-class finding closed via regression
