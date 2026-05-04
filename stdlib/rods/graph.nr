@@ -21,6 +21,9 @@ extern fn nuc_graph_connected_components(g: i64) -> i64;
 extern fn nuc_graph_mst_kruskal(g: i64) -> i64;
 extern fn nuc_graph_pagerank(g: i64, damping: i64, iters: i64) -> i64;
 extern fn nuc_graph_free(g: i64);
+// v0.7.80 — RFC-0061 Tier 1: negative-cycle detection
+extern fn nuc_graph_has_negative_cycle(g: i64, src: i64) -> i64;
+extern fn nuc_graph_negative_cycle_path(g: i64, src: i64) -> i64;
 
 fn graph_new(n_nodes: i64) -> i64 { return nuc_graph_new(n_nodes); }
 fn graph_add_edge(g: i64, u: i64, v: i64, w: i64) { nuc_graph_add_edge(g, u, v, w); }
@@ -34,3 +37,6 @@ fn graph_connected_components(g: i64) -> i64 { return nuc_graph_connected_compon
 fn graph_mst_kruskal(g: i64) -> i64 { return nuc_graph_mst_kruskal(g); }
 fn graph_pagerank(g: i64, damping: i64, iters: i64) -> i64 { return nuc_graph_pagerank(g, damping, iters); }
 fn graph_free(g: i64) { nuc_graph_free(g); }
+// v0.7.80 — RFC-0061 Tier 1 wrappers (negative-cycle detection)
+fn graph_has_negative_cycle(g: i64, src: i64) -> i64 { return nuc_graph_has_negative_cycle(g, src); }
+fn graph_negative_cycle_path(g: i64, src: i64) -> i64 { return nuc_graph_negative_cycle_path(g, src); }

@@ -183,6 +183,113 @@ long long nuc_graph_bellman_ford(long long gh, long long src) {
 }
 
 // ================================================================
+//  v0.7.80 — RFC-0061 Tier 1: negative-cycle detection.
+//
+//  After n-1 Bellman-Ford relaxations, any edge that can still
+//  relax indicates a negative-weight cycle reachable from the
+//  source. `nuc_graph_has_negative_cycle` returns 1/0; the path
+//  variant walks the cycle from a witness node back to itself
+//  via predecessor pointers and returns the node sequence.
+// ================================================================
+
+long long nuc_graph_has_negative_cycle(long long gh, long long src) {
+    Graph *g = (Graph *)(void *)gh;
+    int n = g->n_nodes, s = (int)src;
+    if (n <= 0 || s < 0 || s >= n) return 0;
+    double *dist = (double *)malloc(n * sizeof(double));
+    for (int i = 0; i < n; i++) dist[i] = 1e30;
+    dist[s] = 0;
+
+    for (int iter = 0; iter < n - 1; iter++) {
+        for (int u = 0; u < n; u++) {
+            if (dist[u] >= 1e30) continue;
+            for (int i = 0; i < g->adj_len[u]; i++) {
+                int v = g->adj[u][i].to;
+                double w = g->adj[u][i].weight;
+                if (dist[u] + w < dist[v]) dist[v] = dist[u] + w;
+            }
+        }
+    }
+    /* nth pass: any improvement => negative cycle reachable. */
+    int has = 0;
+    for (int u = 0; u < n && !has; u++) {
+        if (dist[u] >= 1e30) continue;
+        for (int i = 0; i < g->adj_len[u]; i++) {
+            int v = g->adj[u][i].to;
+            double w = g->adj[u][i].weight;
+            if (dist[u] + w < dist[v]) { has = 1; break; }
+        }
+    }
+    free(dist);
+    return (long long)has;
+}
+
+long long nuc_graph_negative_cycle_path(long long gh, long long src) {
+    Graph *g = (Graph *)(void *)gh;
+    int n = g->n_nodes, s = (int)src;
+    GRVec *empty = grvec_new(0);
+    if (n <= 0 || s < 0 || s >= n) return (long long)empty;
+
+    double *dist = (double *)malloc(n * sizeof(double));
+    int *pred = (int *)malloc(n * sizeof(int));
+    for (int i = 0; i < n; i++) { dist[i] = 1e30; pred[i] = -1; }
+    dist[s] = 0;
+
+    for (int iter = 0; iter < n - 1; iter++) {
+        for (int u = 0; u < n; u++) {
+            if (dist[u] >= 1e30) continue;
+            for (int i = 0; i < g->adj_len[u]; i++) {
+                int v = g->adj[u][i].to;
+                double w = g->adj[u][i].weight;
+                if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; pred[v] = u; }
+            }
+        }
+    }
+
+    /* Find a witness node that still relaxes. */
+    int witness = -1;
+    for (int u = 0; u < n && witness == -1; u++) {
+        if (dist[u] >= 1e30) continue;
+        for (int i = 0; i < g->adj_len[u]; i++) {
+            int v = g->adj[u][i].to;
+            double w = g->adj[u][i].weight;
+            if (dist[u] + w < dist[v]) { witness = v; break; }
+        }
+    }
+    if (witness == -1) {
+        free(dist); free(pred);
+        return (long long)empty;
+    }
+
+    /* Walk back n times to ensure we're inside the cycle. */
+    int cur = witness;
+    for (int i = 0; i < n; i++) {
+        if (pred[cur] == -1) break;
+        cur = pred[cur];
+    }
+    /* Trace the cycle by walking back from cur until we return to cur. */
+    GRVec *cycle = grvec_new(0);
+    grvec_push(cycle, cur);
+    int x = pred[cur];
+    int safety = 0;
+    while (x != cur && x != -1 && safety < n + 1) {
+        grvec_push(cycle, x);
+        x = pred[x];
+        safety++;
+    }
+    grvec_push(cycle, cur);
+    free(dist); free(pred);
+    /* cycle is currently witness-to-witness in reverse pred order;
+     * reverse in-place so adopters see start-to-end. */
+    for (int i = 0, j = cycle->len - 1; i < j; i++, j--) {
+        long long t = cycle->data[i];
+        cycle->data[i] = cycle->data[j];
+        cycle->data[j] = t;
+    }
+    return (long long)cycle;
+}
+
+// ================================================================
 //  Topological Sort (Kahn's algorithm)
 // ================================================================
 
