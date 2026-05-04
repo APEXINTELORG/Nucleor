@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.94] — 2026-05-04
+
+**Punchlist forward — RFC-0061 Tier 2 Phase A: graph-rendering
+format helpers (rod-only).**
+
+The full RFC-0061 Tier 2 ship adds a `nuc deps graph` CLI verb
+with `--format=text|json|dot|mermaid` rendering of the build
+dependency graph (~150-200 LOC compiler-tools-side, deferred).
+Phase A (this rod) lands the format-renderer surface adopters
+can use against any graph they've built via
+`stdlib/rods/graph.nr`. Tier 2's CLI verb becomes a thin
+wrapper around these helpers.
+
+Sister to v0.7.78 / v0.7.80 / v0.7.81 / v0.7.86 RFC-0061 Tier 1
+landings (V1.17a CLOSED at v0.7.86).
+
+### Surface added in `stdlib/rods/graph_render.nr`
+
+- 4 format tag fns: `graph_render_format_{text, json, dot,
+  mermaid}` (1..4) + `graph_render_format_name(id) -> str` +
+  `graph_render_format_id(name) -> i64` (round-trip).
+- Per-format renderers:
+  - `graph_render_text(g, names) -> str` — flat per-node
+    listing, one line per node `name: t1 t2 ...`.
+  - `graph_render_json(g, names) -> str` — canonical
+    `{"nodes":[...], "edges":[[from,to],...]}`.
+  - `graph_render_dot(g, names) -> str` — Graphviz `digraph G
+    { "n0" -> "n1"; ... }`.
+  - `graph_render_mermaid(g, names) -> str` — Mermaid `graph TD
+    n0 --> n1`.
+- Format dispatch: `graph_render_with_format(g, names,
+  format_id) -> str` (table-driven for CLI / scripted use).
+- Convenience: `graph_render_anon_names() -> Vec<str>` returns
+  an empty Vec so callers without a name table can pass a
+  uniform handle (renderers fall back to `n0` / `n1` / ...).
+- Internals: `graph_render_node_count(g)` /
+  `graph_render_neighbors(g, u)` bridge to the existing
+  `graph_to_adjacency_matrix(g)` API (added v0.7.81); the
+  no-edge sentinel (1e30 in f64-bits) is detected by
+  `f64_lt(weight, 1e6)` — well below the sentinel and well
+  above any practical edge weight.
+
+### Smoke fixture
+
+`tests/fixtures/v0794_rfc0061_graph_render_smoke.nr` builds a
+3-cycle directed graph with named nodes (`alpha`/`beta`/`gamma`),
+exercises all four formats + format dispatch + format-name
+round-trip + anonymous-names fallback. Each format checks that
+the expected substring tokens are present (`digraph` / `->` for
+DOT, `graph TD` / `-->` for Mermaid, `"nodes"` / `"edges"` for
+JSON, `<name>:` for text). rc=0.
+
+No new defensive halt this ship — Tier 2 forward progress is
+the priority. Cron may concurrently ship halts on its own
+thread.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.7.93] — 2026-05-04
 
 **Punchlist forward — RFC-0045 Phase A: fn-level
