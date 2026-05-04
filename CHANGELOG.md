@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.36] — 2026-05-04
+
+**Feature acceptance — `todo!()` and `unimplemented!()` macros now
+expand to canonical Rust-stdlib panic messages ("not yet
+implemented" / "not implemented") matching `std::macros::todo` /
+`std::macros::unimplemented`. Sister to v0.6.56 `unreachable!()`.**
+
+Pre-fix: writing `fn h() { todo!(); }` surfaced as wrong-class
+`error[TYP-005]: undefined function 'todo()'` because the strip-
+and-pass path at line ~30881 had `todo` and `unimplemented` in the
+"strip `!` and pass through" list, alongside `assert`/`assert_eq`/
+`assert_ne`/`dbg`. The `!` was stripped and `todo()` /
+`unimplemented()` became a fn call that failed late at link.
+
+Post-fix: `todo` and `unimplemented` now route through the panic-
+mode (mode 5) expansion path that `panic!` and `unreachable!` use.
+Empty-arg forms get the canonical Rust-stdlib messages:
+
+```nucleor
+fn h_todo() { todo!(); }                    // → panic("not yet implemented")
+fn h_unimpl() { unimplemented!(); }         // → panic("not implemented")
+fn h_todo_msg() { todo!("WIP for X"); }     // → panic("WIP for X") with format args
+```
+
+Same constraint as `panic!`/`unreachable!` in non-void fns: TYP-026
+fires because Nucleor's panic returns void (Rust's `!` never type
+isn't supported yet). Workaround: add a placeholder return — `fn h
+() -> i64 { todo!(); return 0; }`.
+
+### Fixture
+
+`tests/fixtures/v0736_todo_macro.nr` — positive fixture exercising
+both `todo!()` and `unimplemented!()` in void fn context (canonical
+shape; non-void requires a placeholder return).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `16fe107f1bffa377e64981a4c9fdfdda`.
+
 ## [0.7.35] — 2026-05-04
 
 **Defensive halt — top-level `ref` / `ref mut` binding mode in
