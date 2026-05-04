@@ -13,6 +13,32 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# Windows PowerShell can make the 100ms RSS polling loop look like a
+# compiler regression. Prefer PowerShell 7 when it is installed so direct
+# script invocations and verify.sh report the same wall-time regime.
+$scriptPath = if ($PSCommandPath) { $PSCommandPath } else { $MyInvocation.MyCommand.Path }
+$edition = [string]$PSVersionTable.PSEdition
+if ($edition -ne "Core" -and -not [string]::IsNullOrWhiteSpace($scriptPath)) {
+    $pwsh = Get-Command pwsh -ErrorAction SilentlyContinue
+    if ($null -ne $pwsh) {
+        $argv = @(
+            "-NoProfile", "-File", $scriptPath,
+            "-Source", $Source,
+            "-OutName", $OutName,
+            "-BudgetMb", [string]$BudgetMb,
+            "-TimeoutSec", [string]$TimeoutSec,
+            "-WarningMb", [string]$WarningMb,
+            "-SampleMs", [string]$SampleMs
+        )
+        if (-not [string]::IsNullOrWhiteSpace($Bin)) {
+            $argv += @("-Bin", $Bin)
+        }
+        & $pwsh.Source @argv
+        exit $LASTEXITCODE
+    }
+}
+
 . "$PSScriptRoot\rss_estop_lib.ps1"
 
 $root = Split-Path -Parent $PSScriptRoot
