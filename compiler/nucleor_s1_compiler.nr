@@ -390,6 +390,18 @@ fn lex(src: str) -> Vec<i32> {
                 print("ERROR: byte string literals `b\"...\"` are not yet supported in Nucleor. Pre-v0.6.58 the `b` lexed as an identifier and the parser tried to call a fn named `b` on the trailing string literal, producing the wrong-class `error[TYP-005]: undefined function 'b'`. Workaround: build a `Vec<u8>` explicitly via `let mut bs: Vec<u8> = Vec::new(); vec_u8_push(bs, 'h' as u8); ...`. Tracked for forward-roadmap (lex-time b-prefix → byte-buffer literal).");
                 panic("nucleor: byte string `b\"...\"` not yet supported (see ERROR diagnostic above)");
             };
+            // v0.7.28 (defensive halt — Rust byte literal `b'A'`, the u8
+            // value of an ASCII char). Pre-fix the `b` lexed as an
+            // identifier and the parser saw `b ('A')` — a fn call on a
+            // char literal — surfacing as wrong-class `error[TYP-005]:
+            // undefined function 'b()'`. Sister to v0.6.58 byte-string
+            // halt and probe's c-string halt. Workaround: use a regular
+            // char literal and cast — `'A' as i64` (or `as u8`).
+            if c == 98 && p + 1 < slen && str_char_at(src, p + 1) == 39 {
+                print("ERROR: byte literal `b'A'` (Rust u8 ASCII-value form) is not yet supported in Nucleor. Pre-v0.7.28 surfaced as wrong-class `error[TYP-005]: undefined function 'b()'` because the `b` lexed as an identifier and `('A')` looked like a fn call on a char literal. Sister to the existing `b\"...\"` (byte string) halt.");
+                print("       Workaround: use a regular char literal and cast — `'A' as i64` or `'A' as u8`. Tracked for forward-roadmap (lex-time b-prefix on char-quote → u8 literal token).");
+                panic("nucleor: byte literal `b'A'` not yet supported (see ERROR diagnostic above)");
+            };
             if c == 99 && p + 1 < slen && str_char_at(src, p + 1) == 34 {
                 print("ERROR: C string literals `c\"...\"` are not yet supported in Nucleor. Pre-v0.7.18 the `c` lexed as an identifier and the parser tried to call a fn named `c` on the trailing string literal, producing wrong-class `error[TYP-005]: undefined function 'c'`. Workaround: use a normal string literal and handle the trailing NUL explicitly at the FFI boundary, e.g. `\"hello\\0\"` when the callee expects a NUL-terminated buffer. Tracked for forward-roadmap (lex-time c-prefix -> static NUL-terminated byte storage).");
                 panic("nucleor: C string `c\"...\"` not yet supported (see ERROR diagnostic above)");
