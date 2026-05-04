@@ -30878,12 +30878,19 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 };
                 if str_eq(name, "assert") == 1
                    || str_eq(name, "assert_eq") == 1 || str_eq(name, "assert_ne") == 1
-                   || str_eq(name, "dbg") == 1 || str_eq(name, "todo") == 1
-                   || str_eq(name, "unimplemented") == 1 {
+                   || str_eq(name, "dbg") == 1 {
                     sb_append(sb, name);
                     p = p + 1;
                     continue;
                 };
+                // v0.7.36: `todo` and `unimplemented` removed from the
+                // strip-and-continue list — they now fall through to mode 5
+                // (panic-like) below, which synthesizes the canonical Rust-
+                // stdlib messages "not yet implemented" / "not implemented"
+                // when called with no args. Pre-fix the strip path produced
+                // a `todo()` / `unimplemented()` fn call that failed late
+                // with TYP-005 "undefined function" or TYP-026 "missing
+                // tail expr" depending on context — both wrong-class.
             };
             // v0.3.99: vec![…] macro. Pre-v0.3.99 the lexer split
             // `vec![a, b, c]` as `vec` (ident) + `!` (logical-NOT) +
@@ -31055,6 +31062,17 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 // args work; without args, synthesize the canonical
                 // Rust-stdlib message.
                 if str_eq(name, "unreachable") == 1 { mode = 5; };
+                // v0.7.36: `todo!()` and `unimplemented!()` route through
+                // the panic-mode expansion just like `unreachable!()`. The
+                // Rust stdlib defines them as panics with canonical messages
+                // ("not yet implemented" / "not implemented"). Pre-fix the
+                // `!` was stripped silently, the parser saw `todo()` /
+                // `unimplemented()` as a fn call, and the user got either
+                // wrong-class TYP-005 (undefined fn) or — when the call sat
+                // as the last stmt of a non-void fn — wrong-class TYP-026
+                // about the missing tail expression.
+                if str_eq(name, "todo") == 1 { mode = 5; };
+                if str_eq(name, "unimplemented") == 1 { mode = 5; };
                 // v0.7.20 (defensive halt — Rust built-in macros NOT supported
                 // in Nucleor's textual macro layer: file!/line!/column!/
                 // module_path!/stringify!/concat!/env!/option_env!/include_str!/
@@ -31097,6 +31115,15 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                         // panic-mode expansion as-is.
                         if str_eq(name, "unreachable") == 1 && str_len(args_text) == 0 {
                             args_text = "\"internal error: entered unreachable code\"";
+                        };
+                        // v0.7.36: canonical Rust-stdlib messages for
+                        // `todo!()` / `unimplemented!()` when called with
+                        // no args (matches std::macros::todo / unimplemented).
+                        if str_eq(name, "todo") == 1 && str_len(args_text) == 0 {
+                            args_text = "\"not yet implemented\"";
+                        };
+                        if str_eq(name, "unimplemented") == 1 && str_len(args_text) == 0 {
+                            args_text = "\"not implemented\"";
                         };
                         // v0.4.16: pass type_src so nested fmt_conversion
                         // type-inference still sees outer-scope declarations.
