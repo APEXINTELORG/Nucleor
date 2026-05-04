@@ -3924,10 +3924,70 @@ long long __nucleor_mutex_lock_value(long long handle) { __nucleor_mutex_lock(ha
 void __nucleor_mutex_unlock_value(long long handle) { __nucleor_mutex_unlock(handle); }
 extern void nuc_rng_seed(long long seed);
 long long __nucleor_rng_seed(long long seed, long long reserved) { (void)reserved; nuc_rng_seed(seed); return 0; }
-long long __nucleor_channel_new(long long cap) { return 0; } // TODO: POSIX channel
-void __nucleor_channel_send(long long h, long long v) { (void)h; (void)v; }
-long long __nucleor_channel_recv(long long h) { (void)h; return 0; }
-long long __nucleor_channel_len(long long h) { (void)h; return 0; }
+// v0.8.85 RFC C-2 Phase 1 — real POSIX bounded-FIFO channel.
+// Pre-fix: four no-op stubs returning 0. channel_new returned
+// NULL; channel_send dropped messages; channel_recv returned 0
+// immediately (worse than RFC's "blocks forever" claim — at
+// least a hang would alert). Adopters using channels for inter-
+// thread fan-out / fan-in shipped Linux binaries that silently
+// produced zeros where messages should be.
+//
+// Post-fix: pthread mutex + two condvars matching the Win32
+// CRITICAL_SECTION + Event semantics. Bounded FIFO; send blocks
+// when full; recv blocks when empty.
+typedef struct {
+    long long *buf; int cap; int head; int tail; int count;
+    pthread_mutex_t lock;
+    pthread_cond_t not_empty;
+    pthread_cond_t not_full;
+} NChannel_posix;
+long long __nucleor_channel_new(long long cap) {
+    NChannel_posix *ch = (NChannel_posix*)calloc(1, sizeof(NChannel_posix));
+    if (!ch) return 0;
+    ch->cap = (int)cap;
+    if (ch->cap < 1) ch->cap = 16;
+    ch->buf = (long long*)malloc(ch->cap * sizeof(long long));
+    if (!ch->buf) { free(ch); return 0; }
+    pthread_mutex_init(&ch->lock, NULL);
+    pthread_cond_init(&ch->not_empty, NULL);
+    pthread_cond_init(&ch->not_full, NULL);
+    return (long long)ch;
+}
+void __nucleor_channel_send(long long h, long long v) {
+    NChannel_posix *ch = (NChannel_posix*)(void*)h;
+    if (!ch) return;
+    pthread_mutex_lock(&ch->lock);
+    while (ch->count == ch->cap) {
+        pthread_cond_wait(&ch->not_full, &ch->lock);
+    }
+    ch->buf[ch->tail] = v;
+    ch->tail = (ch->tail + 1) % ch->cap;
+    ch->count++;
+    pthread_cond_signal(&ch->not_empty);
+    pthread_mutex_unlock(&ch->lock);
+}
+long long __nucleor_channel_recv(long long h) {
+    NChannel_posix *ch = (NChannel_posix*)(void*)h;
+    if (!ch) return 0;
+    pthread_mutex_lock(&ch->lock);
+    while (ch->count == 0) {
+        pthread_cond_wait(&ch->not_empty, &ch->lock);
+    }
+    long long v = ch->buf[ch->head];
+    ch->head = (ch->head + 1) % ch->cap;
+    ch->count--;
+    pthread_cond_signal(&ch->not_full);
+    pthread_mutex_unlock(&ch->lock);
+    return v;
+}
+long long __nucleor_channel_len(long long h) {
+    NChannel_posix *ch = (NChannel_posix*)(void*)h;
+    if (!ch) return 0;
+    pthread_mutex_lock(&ch->lock);
+    long long n = ch->count;
+    pthread_mutex_unlock(&ch->lock);
+    return n;
+}
 long long __nucleor_atomic_new(long long val) {
     long long *p = (long long*)malloc(sizeof(long long));
     *p = val; return (long long)p;

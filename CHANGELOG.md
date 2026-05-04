@@ -5,6 +5,99 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.85] — 2026-05-04
+
+**RFC C-2 Phase 1 — POSIX channel runtime implementation.**
+Runtime C change, no compiler edit.
+
+### The bug
+
+Per `findings/promoted/2026-05-04-c-2-posix-channel-stub-silent-on-linux-recv-returns-0-not-blocks.md`:
+
+`stdlib/runtime/nucleor_llvm_rt.c:3927-3930` was four no-op
+stubs:
+
+```c
+long long __nucleor_channel_new(long long cap) { return 0; } // TODO: POSIX channel
+void __nucleor_channel_send(long long h, long long v) { (void)h; (void)v; }
+long long __nucleor_channel_recv(long long h) { (void)h; return 0; }
+long long __nucleor_channel_len(long long h) { (void)h; return 0; }
+```
+
+POSIX adopters (Linux + macOS) using channels for inter-thread
+fan-out / fan-in shipped binaries that:
+1. `channel_new` returned 0 (NULL handle)
+2. `channel_send` silently dropped messages
+3. `channel_recv` returned 0 immediately — **worse than the
+   RFC's "blocks forever" claim**: at least a hang would
+   alert the developer. Returning 0 looks like real data flow.
+4. The program exits 0 with corrupted output.
+
+Win32 path was already correct. Adopters who developed on
+Windows and deployed to Linux saw "works in dev, broken in
+prod" — the worst class of cross-platform regression.
+
+### The fix
+
+Real pthread bounded-FIFO matching the existing Win32 semantics
+1:1 (CRITICAL_SECTION + Event → pthread mutex + two condvars):
+
+```c
+typedef struct {
+    long long *buf; int cap; int head; int tail; int count;
+    pthread_mutex_t lock;
+    pthread_cond_t not_empty;
+    pthread_cond_t not_full;
+} NChannel_posix;
+```
+
+- `__nucleor_channel_new(cap)`: allocates struct + buf, inits
+  mutex + condvars, returns handle (0 on alloc failure).
+- `__nucleor_channel_send(h, v)`: locks, waits on not_full
+  while count==cap, enqueues, signals not_empty, unlocks.
+- `__nucleor_channel_recv(h)`: locks, waits on not_empty while
+  count==0, dequeues, signals not_full, unlocks. Blocks on
+  empty (matches the RFC contract).
+- `__nucleor_channel_len(h)`: lock + read count + unlock.
+
+`pthread.h` was already included on the POSIX path (line 3810
+for the existing thread/mutex helpers). Distinct typedef name
+(`NChannel_posix`) avoids any preprocessor name collision with
+the Win32 `NChannel`.
+
+### Verified (Win32 path, host)
+
+`tests/fixtures/v0885_c2_channel_smoke.nr` round-trips
+[100, 200, 300] through a capacity-4 channel and asserts
+exact preservation. rc=0 on Win32 (post + pre-fix; Win32 was
+always working).
+
+POSIX validation requires a Linux CI runner (host is Windows).
+The C is a textbook bounded-FIFO; once Linux CI lands, the
+same fixture asserts the round-trip succeeds. Pre-fix the
+fixture would have hit the `BUG: messages lost` branch and
+returned rc=1.
+
+### Bin rebuilt
+
+Runtime C change required relinking `bin/nucleor.exe`. Per the
+v0.8.79 self-host validation memory:
+- nucleor_new.exe built clean (`BUILD OK`)
+- user-source spot-check on `tests/features/t3_char_cast_audit_lock.nr`
+  → emitted `info[T-3-CAST]` + `compiled:` + rc=130 OK
+- Then swapped.
+
+### Closes
+
+- `findings/promoted/2026-05-04-c-2-posix-channel-stub-silent-on-linux-recv-returns-0-not-blocks.md`
+- RFC C-2 Phase 1.
+
+Sister C-1 (cancel_token) was closed by the helper agent in
+v0.8.83. C-3 (ordered atomics no C backing) remains open.
+
+Pure runtime C change; no compiler edit. Cold compile of
+fixture 1.02s, well under Job #1.
+
 ## [0.8.84] — 2026-05-04
 
 **RFC PERF-11 Phase 1 — `bisect_mem.sh` excursion threshold raised
