@@ -52,6 +52,34 @@ long long nuc_dt_from_ymd(long long y, long long m, long long d,
     return (long long)epoch * 1000;
 }
 
+// v0.8.106: companion using _mkgmtime / timegm — interprets
+// the argument components as UTC. Round-trips correctly with
+// nuc_dt_to_ymd (which uses gmtime). Fixes the mktime/gmtime
+// asymmetry surfaced by the v0.8.96 datetime fixture.
+//
+// Adopters wanting UTC-anchored timestamps (servers, log lines,
+// machine-to-machine) should call this. Adopters wanting local-
+// time interpretation (human-facing UIs) keep using
+// nuc_dt_from_ymd. The two coexist; nuc_dt_from_ymd's behavior
+// is preserved for backwards compatibility.
+long long nuc_dt_from_ymd_utc(long long y, long long m, long long d,
+                               long long h, long long min, long long s) {
+    struct tm t = {0};
+    t.tm_year = (int)y - 1900;
+    t.tm_mon = (int)m - 1;
+    t.tm_mday = (int)d;
+    t.tm_hour = (int)h;
+    t.tm_min = (int)min;
+    t.tm_sec = (int)s;
+    t.tm_isdst = 0;
+#ifdef _WIN32
+    time_t epoch = _mkgmtime(&t);
+#else
+    time_t epoch = timegm(&t);
+#endif
+    return (long long)epoch * 1000;
+}
+
 // ================================================================
 //  Timestamp → components [y, m, d, h, min, s]
 // ================================================================
