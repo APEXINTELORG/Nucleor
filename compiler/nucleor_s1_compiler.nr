@@ -11663,6 +11663,80 @@ fn name_in_auto_drop(auto_drop: Vec<i32>, fn_name: str) -> i64 {
     return 0;
 }
 
+// v0.8.32 RFC-0062 G-1 Phase 2b-2 — collect `#[manual_drop]`
+// fn names. Sister of collect_auto_drop_fns. Phase 2b-2: when
+// a fn is in BOTH lists, manual_drop suppresses the auto-drop.
+// Phase 2b-3 (default-flip): every fn gets auto-drop unless
+// in this list.
+fn collect_manual_drop_fns(source: str) -> Vec<i32> {
+    let mut entries: Vec<i32> = Vec::new();
+    let slen: i64 = str_len(source);
+    let pat: str = str_concat("#[manual_", "drop]");
+    let plen: i64 = str_len(pat);
+    let mut p: i64 = 0;
+    while p + plen <= slen {
+        if p + 1 < slen && str_char_at(source, p) == 47 && str_char_at(source, p + 1) == 47 {
+            while p < slen && str_char_at(source, p) != 10 { p = p + 1; };
+            p = p + 1;
+            continue;
+        };
+        if str_char_at(source, p) == 34 {
+            p = p + 1;
+            while p < slen && str_char_at(source, p) != 34 {
+                if str_char_at(source, p) == 92 && p + 1 < slen { p = p + 2; }
+                else { p = p + 1; };
+            };
+            p = p + 1;
+            continue;
+        };
+        let mut m: i64 = 1;
+        let mut k: i64 = 0;
+        while k < plen {
+            if str_char_at(source, p + k) != str_char_at(pat, k) { m = 0; break; };
+            k = k + 1;
+        };
+        if m == 1 {
+            let mut r: i64 = p + plen;
+            while r + 3 <= slen {
+                if r + 1 < slen && str_char_at(source, r) == 47 && str_char_at(source, r + 1) == 47 {
+                    while r < slen && str_char_at(source, r) != 10 { r = r + 1; };
+                };
+                let c0: i64 = str_char_at(source, r);
+                let c1: i64 = str_char_at(source, r + 1);
+                let c2: i64 = str_char_at(source, r + 2);
+                if c0 == 102 && c1 == 110 && c2 == 32 {
+                    r = r + 3;
+                    let name_start: i64 = r;
+                    while r < slen && (is_alnum(str_char_at(source, r)) == 1 || str_char_at(source, r) == 95) {
+                        r = r + 1;
+                    };
+                    if r > name_start {
+                        let fname: str = str_substring(source, name_start, r);
+                        entries.push(fname);
+                    };
+                    p = r;
+                    break;
+                };
+                r = r + 1;
+            };
+            if r + 3 > slen { p = slen; };
+        } else {
+            p = p + 1;
+        };
+    };
+    return entries;
+}
+
+fn name_in_manual_drop(manual_drop: Vec<i32>, fn_name: str) -> i64 {
+    let n: i64 = vec_len(manual_drop);
+    let mut i: i64 = 0;
+    while i < n {
+        if str_eq(vec_get(manual_drop, i), fn_name) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
 // v0.4.271 RFC-0006 — heap-aliased type detection for `old()` reject.
 // The i64-everywhere ABI represents Vec/String/HashMap/HashSet/
 // BTreeMap/BTreeSet/VecDeque/Box as a single i64 pointer to heap
@@ -26082,7 +26156,7 @@ fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Ve
     return b;
 }
 
-fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, fn_return_map: i64, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>, old_snapshots: Vec<i32>, auto_drop_fns: Vec<i32>) -> Vec<i32> {
+fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, fn_return_map: i64, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>, old_snapshots: Vec<i32>, auto_drop_fns: Vec<i32>, manual_drop_fns: Vec<i32>) -> Vec<i32> {
     let name: str = node_field(pool, fn_nid, 1);
     let plist: i64 = node_field(pool, fn_nid, 2);
     let blist: i64 = node_field(pool, fn_nid, 4);
@@ -26090,7 +26164,13 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
     let mut regs: Vec<i32> = ctr_new();
     let mut lbls: Vec<i32> = ctr_new();
     let mut sym: Vec<i32> = sym_new();
-    if name_in_auto_drop(auto_drop_fns, name) == 1 {
+    if name_in_auto_drop(auto_drop_fns, name) == 1
+       && name_in_manual_drop(manual_drop_fns, name) == 0 {
+        // v0.8.32 G-1 Phase 2b-2: `#[manual_drop]` overrides
+        // `#[auto_drop]`. Useful when porting code that
+        // accidentally has both attributes — manual_drop wins,
+        // matching the future Phase 2b-3 default-flip semantics
+        // (every fn auto-drops unless `#[manual_drop]` opts out).
         sym_set(sym, "__auto_drop_enabled", 1);
     };
     enum_populate_sym(pool, enums, sym);
@@ -28584,6 +28664,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // keeps the default path bytecode-close and avoids scanning cost
     // for sources that do not mention the marker attribute.
     let auto_drop_fns: Vec<i32> = if str_index_of(source, "#[auto_drop]") >= 0 { collect_auto_drop_fns(source) } else { Vec::new() };
+    let manual_drop_fns: Vec<i32> = if str_index_of(source, str_concat("#[manual_", "drop]")) >= 0 { collect_manual_drop_fns(source) } else { Vec::new() };
     let req_text_pairs: Vec<i32> = if dbc_emit_require == 1 { collect_fn_requires(source) } else { Vec::new() };
     let mut require_exprs: Vec<i32> = Vec::new();
     let mut rti: i64 = 0;
@@ -28726,12 +28807,12 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     fi = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, strtab_aux, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns)); };
+        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, strtab_aux, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns, manual_drop_fns)); };
         fi = fi + 1;
     };
     let mut ii: i64 = 0;
     while ii < vec_len(impl_fns) {
-        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, strtab_aux, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns));
+        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, strtab_aux, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns, manual_drop_fns));
         ii = ii + 1;
     };
     let mut ci3: i64 = 0;
