@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.33] — 2026-05-04
+
+**Defensive halt — Rust Vec mutating + sort + extend methods
+(`.dedup`, `.retain`, `.truncate`, `.resize`, `.split_at`,
+`.sort_by`, `.sort_by_key`, `.sort_unstable`, `.sort_unstable_by`,
+`.max_by_key`, `.min_by_key`, `.extend_from_slice`) now route to
+the v0.6.82 idiom-list halt with manual-loop workarounds.**
+
+Pre-fix: writing `v.dedup()`, `v.retain(|x| ...)`, `v.truncate(n)`,
+`v.resize(n, default)`, etc. surfaced as wrong-class `error
+[TYP-005]: receiver type 'Vec<T>' has no method '.dedup()'` —
+same kind-8 catch-all bug pattern as v0.7.30/v0.7.31/v0.7.32.
+
+Post-fix: 12 Rust Vec-mutating methods added to the v0.6.82
+idiom-list halt with per-method manual-loop workarounds:
+
+```nucleor
+// Pre-fix wrong-class:
+v.dedup();
+v.retain(|x| *x > 1);
+v.truncate(n);
+v.resize(m, 0);
+let max = v.iter().max_by_key(|x| key_fn(x)).unwrap();
+
+// Post-fix workarounds:
+// dedup: build new Vec tracking prev
+let mut out: Vec<T> = Vec::new();
+let mut prev_set: i64 = 0;
+let mut prev: T = ...;
+for x in &v { if prev_set == 0 || x != prev { out.push(x); prev = x; prev_set = 1; } }
+
+// retain: filter loop
+let mut keep: Vec<T> = Vec::new();
+for x in &v { if pred(x) { keep.push(x); } } v = keep;
+
+// truncate: pop until target
+while vec_len(&v) > n { v.pop(); };
+
+// resize: push default until target
+while vec_len(&v) < n { v.push(default); };
+
+// max_by_key: manual reduce
+let mut best_val: T = vec_get(&v, 0);
+let mut best_key: K = key_fn(best_val);
+for x in &v { let k = key_fn(x); if k > best_key { best_key = k; best_val = x; } }
+```
+
+Forward-roadmap: closure-receiving iterator combinators (`.sort_by`,
+`.max_by_key`, `.retain`) need the v1.x closure-substrate ship
+(call-by-fn-ptr at runtime over Vec elements).
+
+### Fixture
+
+`tests/fixtures/v0733_vec_method_halt.nr` — negative fixture for
+`v.dedup()` (fires v0.6.82 idiom halt with prev-tracking workaround,
+not the Vec<T>-method-table TYP-005).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `e1281c5561d3c824f861ad4489da8668`.
+
 ## [0.7.32] — 2026-05-04
 
 **Defensive halt — Rust string-iterator and conversion methods
