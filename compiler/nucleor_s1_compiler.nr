@@ -1813,6 +1813,23 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 50 {
         let mut r: Vec<i32> = parse_expr(tokens, pos + 1, pool);
         let mut cp: i64 = pr_pos(r);
+        // v0.7.21 (defensive halt — parenthesized range expression
+        // `(start..end)` / `(start..=end)`). Pre-fix this surfaced as
+        // wrong-class `error[NR020]: parse error: expected ')', got
+        // token 58` (token 58 = `..`, token 96 = `..=`) because Nucleor's
+        // range parser is hardcoded inside `parse_for_stmt` only —
+        // ranges are NOT valid expressions in `parse_expr`. Halt cleanly
+        // with a workaround pointer (use the bare for-iter form, or
+        // build the iteration manually).
+        if pk(tokens, cp) == 58 || pk(tokens, cp) == 96 {
+            print("ERROR: parenthesized range expression `(start..end)` / `(start..=end)` (e.g. `(0..10).collect()`, `for i in (0..3) {}`, `let r = (0..N);`) is not yet supported in Nucleor. Pre-v0.7.21 surfaced as wrong-class `error[NR020]: expected ')', got token 58` because ranges are only parsed inside `for IDENT in EXPR..EXPR { ... }` heads, NOT as regular expressions.");
+            print("       Workaround for `for i in (0..N) { ... }`: drop the parens — `for i in 0..N { ... }` is supported.");
+            print("       Workaround for `(0..N).collect::<Vec<i64>>()`: build the Vec explicitly — `let mut v: Vec<i64> = Vec::new(); let mut i: i64 = 0; while i < N { v.push(i); i = i + 1; }`.");
+            print("       Workaround for `(0..N).step_by(K).collect()`: same pattern with `i = i + K`.");
+            print("       Workaround for `(0..N).rev()`: count down — `let mut i: i64 = N - 1; while i >= 0 { ... i = i - 1; }`.");
+            print("       Tracked for forward-roadmap (range-as-expression needs a Range<T> type plus iterator-protocol substrate; sister to V1.4 `.iter()` chains).");
+            panic("nucleor: parenthesized range expression not yet supported (see ERROR diagnostic above)");
+        };
         if pk(tokens, cp) != 44 {
             let after_rparen: i64 = expect_tok(tokens, cp, 51);
             // v0.6.12 (probe finding 2026-05-02-fn-ptr-struct-field-direct-call-returns-pointer):

@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.21] — 2026-05-04
+
+**Defensive halt — parenthesized range expression `(start..end)`,
+`(start..=end)` (e.g. `(0..10).collect()`, `for i in (0..3) {}`,
+`let r = (0..N);`) now produces a clean halt with
+form-specific workaround pointers.**
+
+Pre-fix: writing `for i in (0..3) {}` or `(0..N).collect()` surfaced
+as wrong-class `error[NR020]: parse error: expected ')', got token
+58` (token 58 = `..`, token 96 = `..=`) because Nucleor's range
+parser is hardcoded inside `parse_for_stmt` only — ranges are NOT
+valid expressions in `parse_expr`.
+
+Post-fix: `parse_primary`'s paren-expr branch checks if the token
+after the inner expression is `..` / `..=` and halts cleanly with
+four form-specific workarounds (drop-parens for for-iter; manual
+build for `.collect`; manual `step_by`; manual `.rev`).
+
+```nucleor
+// Pre-fix wrong-class:
+for i in (0..3) { ... }                    // ← NR020 wrong-class
+let v: Vec<i64> = (0..10).collect();       // ← NR020 wrong-class
+let r = (0..N).step_by(2);                 // ← NR020 wrong-class
+
+// Post-fix workarounds:
+for i in 0..3 { ... }                      // drop the parens
+let mut v: Vec<i64> = Vec::new();
+let mut i: i64 = 0;
+while i < 10 { v.push(i); i = i + 1; };    // manual collect
+
+let mut i: i64 = 0;
+while i < N { ... i = i + 2; };            // manual step_by
+
+let mut i: i64 = N - 1;
+while i >= 0 { ... i = i - 1; };           // manual .rev
+```
+
+Forward-roadmap: range-as-expression needs a `Range<T>` type plus
+iterator-protocol substrate (sister to V1.4 `.iter()` chains).
+
+### Fixture
+
+`tests/fixtures/v0721_paren_range_halt.nr` — negative fixture for
+`for i in (0..3) {}` (fires clean halt with workarounds, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `a8d94f01526a1f5440b494ae3f4e655b`.
+
 ## [0.7.20] — 2026-05-04
 
 **Defensive halt — Rust built-in macros that Nucleor doesn't yet
