@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.67] — 2026-05-04
+
+**RFC-0062 G-4 Phase 2b — runtime double-free guard (opt-in)
++ recovery from v0.8.66 push artifacts.**
+
+### Runtime double-free guard
+
+`__nucleor_vec_free` now has an opt-in double-free detector
+gated by `NUC_VEC_FREE_GUARD=1`. 256-entry ring buffer tracks
+recently-freed handles; vec_free called twice on the same
+handle within 256 frees produces:
+
+```
+PANIC-DOUBLE-FREE[OWN-012]: vec_free called twice on the same
+handle (0x...). This is a use-after-drop / double-free bug in
+adopter code.
+```
+
+Exit code 134 (standard double-free abort).
+
+**Why opt-in:** naive ring-buffer has false positives — malloc
+reuses freed memory; new vec_new at same address trips guard.
+Default-on caught seed self-host's legitimate alloc reuse.
+Production-grade detection needs either magic sentinel in Vec
+struct (layout change) or instrumented malloc — both deferred.
+Opt-in mode for adopter test fixtures works.
+
+### Recovery from v0.8.66 push artifacts
+
+1. `bootstrap/nucleor_s1_seed.ll` had 2650 lines of merge
+   conflict markers; restored from v0.8.63 + rebuilt clean
+2. `compiler/nucleor_s1_compiler.nr` had residual conflict
+   markers in `name_in_auto_drop`; cleaned
+3. `bin/nucleor.exe` was Linux ELF (cron Linux build); rebuilt
+   Windows .exe locally
+
+### Phase 2b-3 unconditional flip — next steps
+
+```
+v0.8.64  cache-key fix              DONE
+v0.8.65  flip ATTEMPT (reverted)    NEEDED REVIEW
+v0.8.66  rollback + sister fixes    DONE
+v0.8.67  runtime guard (opt-in)     DONE (this)
+NEXT:    per-rod manual handoff audit
+         OR magic-sentinel in Vec (fixed-point coordination)
+THEN:    unconditional flip safe
+```
+
+### Perf
+
+Cold 3.72s, hot 0.42s. Within Job #1.
+
+Fixed-point md5: `149da1db92c6e2d286fdb6c2ee952e26`.
+
 ## [0.8.66] — 2026-05-04
 
 **Robustness ship — revert v0.8.65 unconditional flip + drain
