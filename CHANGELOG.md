@@ -5,6 +5,33 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.30] — 2026-05-04
+
+**RFC-0062 Wave A reinforcement — signal lock-in fixtures.**
+Pure positive fixtures for the 3 most-impactful Phase 2a info
+diagnostics. Locks the audit-pass signal-fires behavior so a
+regression that silently breaks an audit gets caught.
+
+### Fixtures
+
+- `tests/fixtures/v0830_g4_own012_signal.nr` — exercises
+  `vec_free` + `hashmap_free`. Build emits `info[OWN-012]:
+  explicit free calls present in build: 2`. rc=15.
+- `tests/fixtures/v0830_g8_cfg_signal.nr` — exercises 2 `match`
+  expressions. Build emits `info[CFG-G8]: match expressions in
+  build: N` (N>=2). rc=6.
+- `tests/fixtures/v0830_g3_alias_signal.nr` — exercises
+  `Vec<&'a str>`. Build emits `info[ALIAS-G3]: Vec-of-reference
+  patterns in build: N` AND `warning[BR-7]: lifetime annotations
+  present in build: M`. rc=42.
+
+The G-3 fixture is the most useful — it tests that BOTH the
+G-2 BR-7 lifetime warning AND the G-3 ALIAS-G3 info fire
+together when a function uses both lifetime annotations and
+Vec-of-references.
+
+No compiler change; cold band unchanged.
+
 ## [0.8.29] — 2026-05-04
 
 **RFC-0062 G-8 Phase 2a — CFG-G8 audit-pass info diagnostic.
