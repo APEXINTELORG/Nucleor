@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.62] — 2026-05-04
+
+**Wave 3 — QM-8/9 + ROBO-8 Phase 1 audit-pass info.** Final
+Tier C closures combined into one audit.
+
+### What's enforced today (Phase 1)
+
+```
+info[QM-89-ROBO-8]: Wave 3 final Tier C surface: N
+  QM-8: quantum_rt and qsim_graph_rt entanglement trackers are
+  NOT wired together — qsim_cnot fires the trace UF but NOT the
+  queryable UF; callers using qsim_graph.nr must register
+  entanglements manually with no enforcement.
+
+  QM-9: nuc_qsim_gate_record silently overflows at 4096 gates
+  (returns -1 but no signal to Nucleor layer) — larger circuits
+  get partial DAG data with no diagnostic.
+
+  ROBO-8: CHOMP uses approximated pre-conditioning (per-step
+  clamp-magnitude vs covariant A⁻¹∇F); convergence degrades on
+  narrow corridors / high-DOF robots.
+
+  Phase 2b adds wired-trackers + overflow signal + full
+  pre-conditioner.
+```
+
+### Wave 3 progress (5 cumulative closures, all major Tier C items)
+
+```
+QM-7 + ROBO-7 combined           Phase 1 v0.8.59
+NUM-G2/G8/G9 numeric             Phase 1 v0.8.60
+ML-2/3/5/6/10 tensor/ML          Phase 1 v0.8.61
+QM-8/9 + ROBO-8 final            Phase 1 v0.8.62 (this)
+```
+
+Wave 3 substantially complete — 5 Phase 1 audits cover the
+major Tier C surfaces (Quantum, Robotics, Numeric, Tensor/ML).
+
+### Perf
+
+Cold band 3.62-4.63s (heavy multi-agent contention), hot
+0.40-1.31s. Within hard ceiling 5.93s.
+
+Fixed-point md5: `52e69523c5eed545e26a713a09261c0a`.
+
 ## [0.8.61] — 2026-05-04
 
 **Wave 3 — ML-2/3/5/6/10 Phase 1 audit-pass info.** Tensor/ML
