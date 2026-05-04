@@ -16349,14 +16349,38 @@ fn registry_resolve_version_native(registry_dir: str, package_name: str, selecto
         // No candidate in [base, upper). Fall through to the
         // diagnostic so the user sees what's missing.
     };
-    if is_tilde == 1 || is_compare == 1 || has_wildcard == 1 {
+    // v0.8.90 PKG-3 Phase 2 — tilde resolution.
+    // `~X.Y.Z` matches `[X.Y.Z, X.(Y+1).0)` — patch-level changes
+    // permitted, minor pinned. Always pins major + minor.
+    if is_tilde == 1 {
+        let tbase: str = str_substring(selector, 1, str_len(selector));
+        let tbase_score: i64 = semver_score(tbase);
+        let tbase_major: i64 = tbase_score / 1000000000;
+        let tbase_minor: i64 = (tbase_score - tbase_major * 1000000000) / 1000000;
+        let tupper: i64 = tbase_major * 1000000000 + (tbase_minor + 1) * 1000000;
+        let mut ti: i64 = 0;
+        while ti < vec_len(versions) {
+            let tcand: str = vec_get(versions, ti);
+            let tcand_score: i64 = semver_score(tcand);
+            if tcand_score >= tbase_score {
+                if tcand_score < tupper { return tcand; };
+            };
+            ti = ti + 1;
+        };
+        // No candidate in [base, upper). Fall through to the
+        // tilde-no-match diagnostic below.
+    };
+    if is_compare == 1 || has_wildcard == 1 {
         print(str_concat("error[PKG-3]: semver constraint syntax `", str_concat(selector, str_concat("` not yet supported (package `", str_concat(package_name, "`).")))));
-        print("  Per RFC sister gap PKG-3 (Module/Packaging): the v0.x semver resolver handles `latest`, empty selector, exact-match strings, and caret `^X.Y.Z` (v0.8.89). Tilde `~`, comparison `>=`/`<=`/`>`/`<`, and wildcards `*` are documented in RFC-0019 §3.2 but not yet implemented. Workaround: pin to an exact version or use caret. Phase 2b adds tilde + range resolution; Phase 4 promotes to lockfile-driven resolution. Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-3.");
+        print("  Per RFC sister gap PKG-3 (Module/Packaging): the v0.x semver resolver handles `latest`, empty selector, exact-match strings, caret `^X.Y.Z` (v0.8.89), and tilde `~X.Y.Z` (v0.8.90). Comparison `>=`/`<=`/`>`/`<` and wildcards `*` are documented in RFC-0019 §3.2 but not yet implemented. Workaround: pin to an exact version, or use caret / tilde. Phase 3 adds range + wildcard resolution; Phase 4 promotes to lockfile-driven resolution. Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-3.");
         return "";
     };
     if is_caret == 1 {
-        // Caret with no matching version in registry.
         print(str_concat("error[PKG-3]: caret constraint `", str_concat(selector, str_concat("` did not match any published version of `", str_concat(package_name, "`.")))));
+        return "";
+    };
+    if is_tilde == 1 {
+        print(str_concat("error[PKG-3]: tilde constraint `", str_concat(selector, str_concat("` did not match any published version of `", str_concat(package_name, "`.")))));
         return "";
     };
     let mut i: i64 = 0;
