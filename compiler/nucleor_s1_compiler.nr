@@ -4040,6 +4040,15 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, match_span: i64)
         let mut guard_nid: i64 = 0;
         if pk(tokens, cp) == 13 {
             cp = cp + 1;
+            // v0.7.17 (defensive halt): `if let PATTERN = EXPR` in match guard
+            // (Rust 1.77 let_chains / let-guard stabilization). Pre-v0.7.17
+            // `parse_expr` was called with `let` as the first token, producing
+            // wrong-class `error[NR020]: parse_primary cannot start expression
+            // at token kind 11`.
+            if pk(tokens, cp) == 11 {
+                print("ERROR: `if let` guard in match arm (e.g. `x if let Some(v) = opt => ...`) is not yet supported in Nucleor. Pre-v0.7.17 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 11` because `parse_expr` has no `let` branch. Workaround: hoist the `if let` above the `match` — bind the value first, then use it as a boolean guard: `if let Some(v) = opt { match x { n if v > 0 => ..., _ => ... } } else { ... }`. Alternatively, convert the guard to an explicit boolean test: `match x { n if is_some(opt) => ..., _ => ... }`. Tracked for forward-roadmap (let-chains in guards require pattern-binding in guard context, separate from arm-body scope).");
+                panic("nucleor: `if let` guard in match arm not supported (see ERROR diagnostic above)");
+            };
             let mut gr: Vec<i32> = parse_expr(tokens, cp, pool);
             cp = pr_pos(gr);
             guard_nid = pr_val(gr);
