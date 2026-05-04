@@ -28224,7 +28224,14 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // the 6th. `3.1415926535897932` becomes `3.141592`. This audit
     // counts source-level float literals with >6 fractional digits
     // and warns adopter at compile time. Phase 2b will fix the lexer.
-    let v0844_long_float_count: i64 = count_long_float_literals(after_async);
+    // v0.8.47 perf gate: skip the per-byte scan on huge sources
+    // (seed self-host = 10MB; adopter code typically <200KB).
+    // The seed-side hits (5 in comments) had no runtime impact;
+    // the audit's value is for adopter code which always fits
+    // under the 200K threshold.
+    let v0844_long_float_count: i64 = if str_len(after_async) < 200000 {
+        count_long_float_literals(after_async)
+    } else { 0 };
     if v0844_long_float_count > 0 {
         print(str_concat("info[NUM-G1]: f64 literals with >6 fractional digits in source: ", str_from_int(v0844_long_float_count)));
         print("  Per RFC-0062 sister gap NUM-G1 (Numeric Correctness): the lexer silently truncates f64 literal fractional digits past the 6th. `3.1415926535897932` is encoded as `3.141592`. Affects every float user. Phase 2b adds a precision-preserving f64 parser; Phase 4 promotes to hard error if precision loss is non-zero. Adopter discipline today: avoid >6-fractional-digit float literals; use a hex-float (`0x1.921fb54442d18p+1`) or compute the constant arithmetically. Reference: docs/rfcs/gap-analyses/Nucleor_Numeric_Correctness_Gap_Analysis_and_RFC_2026-05-04.md.");

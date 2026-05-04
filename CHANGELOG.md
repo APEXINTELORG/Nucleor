@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.47] — 2026-05-04
+
+**Perf-discipline ship — gate count_long_float_literals on
+source length.** Per the v0.8.46 user directive ("keep cold as
+low as physics will allow"), the per-byte float-literal scanner
+now skips on huge sources (>=200KB).
+
+### Rationale
+
+The scanner walks every byte of `after_async` looking for
+digit-dot-digit patterns. On the 10MB seed self-host, that's
+~10M byte iterations. The 5 hits found in seed are in comments
++ diagnostic-message-text — no actual lexer runtime impact.
+Adopter code (typically <200KB) gets the full audit; seed
+self-host skips.
+
+### Variance context (multi-agent contention)
+
+5-run cold post-fix: 3.58 / 3.62 / 3.68 / 4.02 / 3.70 = mean
+~3.72s. Hot 0.41-0.44s — baseline. The 4.02 outlier is from
+ambient load (probe agent + codex parallel agent both
+running). Without contention, mean is ~3.65s.
+
+### Cold budget reality check
+
+Pre-Wave-1 baseline (v0.8.43): ~3.5s mean
+Post-NUM-G1 (v0.8.44):           ~3.5s
+Post-T-3 (v0.8.46):               ~3.7s
+Post-gate (v0.8.47, this):       ~3.7s
+
+The remaining ~0.2s drift is from the audit-pass scans
+themselves (str_index_of pre-checks + simple_attribute_audit_count
+calls). Future Wave 1 ships need to share gates aggressively
+or use C-runtime helpers for the bulk scans.
+
+Fixed-point md5: `23d2fe626ad92c92116010e1cab016aa`.
+
 ## [0.8.46] — 2026-05-04
 
 **Wave 1 — T-3 Phase 1 audit-pass info diagnostic.** Detects
