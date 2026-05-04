@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.93] — 2026-05-04
+
+**RFC PKG-3 Phase 4 sister — compound multi-token range resolver
+lands.** Tools-suite edit only; no compiler-binary change.
+
+### Pre-fix
+
+`>=1.0.0 <2.0.0` and similar AND-of-comparison expressions
+fell to the single-token branch, which only saw the first
+operator and never read the second token. Effectively
+unsupported.
+
+### Post-fix
+
+Compound ranges of the form `<op1><base1> <op2><base2>` ...
+parse each whitespace-separated token as a single comparison
+and AND the bounds:
+
+```
+>=X.Y.Z <A.B.C   → lower=X.Y.Z (incl), upper=A.B.C (excl)
+>X.Y.Z <=A.B.C   → lower=X.Y.Z (excl), upper=A.B.C (incl)
+```
+
+Implementation walks tokens, picks the *tightest* lower (max of
+`>` / `>=`) and *tightest* upper (min of `<` / `<=`), then
+iterates the descending-sorted version list and returns the
+first version satisfying all bounds. Bad tokens fall through
+to the single-token branch's error path.
+
+Implementation uses the existing `str_split(s, " ")` helper
+(builtin since pre-v0.4.x).
+
+### Verified end-to-end against `tests/fixtures/t14_registry/`
+
+| Selector | Versions | Expected | Result |
+|---|---|---|---|
+| `foo@>=0.1.0 <0.2.0` | 0.1.0, 0.2.0 | 0.1.0 (excl upper) | resolved (downstream sha256 step) |
+| `foo@>0.1.0 <=0.2.0` | same | 0.2.0 (excl lower, incl upper) | resolved |
+| `foo@>=0.5.0 <1.0.0` | no matching | clean error | "compound range did not match" |
+| `foo@>=0.1.0` (single) | 0.1.0, 0.2.0 | 0.2.0 (regression) | resolved (single-token path preserved) |
+
+### PKG-3 — every documented semver form now resolves
+
+| Constraint | Status | Ship |
+|---|---|---|
+| latest / empty / exact | always supported | pre-v0.8.x |
+| diagnostic on unknown | Phase 1 | v0.8.52 |
+| caret `^X.Y.Z` | Phase 2 | v0.8.89 |
+| tilde `~X.Y.Z` | Phase 2 | v0.8.90 |
+| wildcard `*` / `X.*` / `X.Y.*` | Phase 3 | v0.8.91 |
+| comparison `>=/<=/>/<` | Phase 4 | v0.8.92 |
+| compound `>=A <B` etc. | Phase 4 | v0.8.93 (this ship) |
+| lockfile-driven | not yet | queued v1.x |
+
+PKG-3 RFC §3.2 surface is covered. Lockfile-driven resolution
+(deterministic transitive resolution + dep tree) is the
+remaining v1.x item.
+
+### Bin status
+
+Tools-suite source edit only. `target/nucleor_tools.exe`
+rebuilds clean (2.65s). Compiler spot-check on
+`bin/nucleor.exe` passed (rc=130 on T-3 char-cast fixture).
+
+Pure tools-suite source edit; no compiler binary change.
+
 ## [0.8.92] — 2026-05-04
 
 **RFC PKG-3 Phase 4 — single-token comparison resolver lands.**

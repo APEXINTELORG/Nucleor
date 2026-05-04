@@ -16418,13 +16418,80 @@ fn registry_resolve_version_native(registry_dir: str, package_name: str, selecto
         print(str_concat("error[PKG-3]: wildcard form `", str_concat(selector, "` not yet supported. Use `X.*` or `X.Y.*` (wildcard at trailing position only) or pin exactly.")));
         return "";
     };
+    // v0.8.93 PKG-3 Phase 4 sister — compound multi-token range.
+    //   >=X.Y.Z <=A.B.C    AND of two comparisons
+    //   >X.Y.Z <A.B.C      strict variants
+    // Splits on whitespace, parses each token as a single comparison,
+    // ANDs the bounds, walks versions desc, returns first match.
+    let has_space: i64 = if str_index_of(selector, " ") >= 0 { 1 } else { 0 };
+    if is_compare == 1 && has_space == 1 {
+        let tokens: Vec<i32> = str_split(selector, " ");
+        let mut lower: i64 = 0 - 1;          // -1 = no lower bound
+        let mut lower_incl: i64 = 0;
+        let mut upper: i64 = 0 - 1;          // -1 = no upper bound
+        let mut upper_incl: i64 = 0;
+        let mut bad_token: i64 = 0;
+        let mut tk: i64 = 0;
+        while tk < vec_len(tokens) {
+            let tok: str = vec_get(tokens, tk);
+            if str_len(tok) > 0 {
+                let tk_first: i64 = str_char_at(tok, 0);
+                let tk_second: i64 = if str_len(tok) > 1 { str_char_at(tok, 1) } else { 0 };
+                let tk_oplen: i64 = if tk_second == 61 { 2 } else { 1 };
+                let tk_base: str = str_substring(tok, tk_oplen, str_len(tok));
+                let tk_score: i64 = semver_score(tk_base);
+                if tk_first == 62 {
+                    if lower < 0 || tk_score > lower {
+                        lower = tk_score;
+                        lower_incl = if tk_oplen == 2 { 1 } else { 0 };
+                    };
+                } else {
+                    if tk_first == 60 {
+                        if upper < 0 || tk_score < upper {
+                            upper = tk_score;
+                            upper_incl = if tk_oplen == 2 { 1 } else { 0 };
+                        };
+                    } else {
+                        bad_token = 1;
+                    };
+                };
+            };
+            tk = tk + 1;
+        };
+        if bad_token == 0 {
+            let mut cri: i64 = 0;
+            while cri < vec_len(versions) {
+                let cr_cand: str = vec_get(versions, cri);
+                let cr_score: i64 = semver_score(cr_cand);
+                let mut ok: i64 = 1;
+                if lower >= 0 {
+                    if lower_incl == 1 {
+                        if cr_score < lower { ok = 0; };
+                    } else {
+                        if cr_score <= lower { ok = 0; };
+                    };
+                };
+                if upper >= 0 {
+                    if upper_incl == 1 {
+                        if cr_score > upper { ok = 0; };
+                    } else {
+                        if cr_score >= upper { ok = 0; };
+                    };
+                };
+                if ok == 1 { return cr_cand; };
+                cri = cri + 1;
+            };
+            print(str_concat("error[PKG-3]: compound range `", str_concat(selector, str_concat("` did not match any published version of `", str_concat(package_name, "`.")))));
+            return "";
+        };
+        // bad_token: fall through to single-token branch which will
+        // emit its own error for the malformed input.
+    };
     // v0.8.92 PKG-3 Phase 4 — single-token comparison resolution.
     //   >=X.Y.Z   highest version with score >= base_score
     //   >X.Y.Z    highest version with score > base_score
     //   <=X.Y.Z   highest version with score <= base_score
     //   <X.Y.Z    highest version with score < base_score
-    // Multi-token compound ranges (e.g. `>=1.0.0 <2.0.0`) need a
-    // small parser and are queued for a follow-up ship.
     if is_compare == 1 {
         // Detect operator length (>= vs > vs <= vs <).
         let mut op_len: i64 = 1;
