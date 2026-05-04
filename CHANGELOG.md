@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.86] — 2026-05-04
+
+**Punchlist forward — RFC-0061 Tier 1 final item: `nuc graph` and
+`nuc impact` CLI verb docs (V1.17a closeout).**
+
+The RFC-0061 Tier 1 spec called out four cheap-polish items
+(gnn wrappers, negative-cycle detection, adjacency-matrix view,
+CLI verb docs). The first three shipped in v0.7.78 / v0.7.80 /
+v0.7.81. This ship lands the fourth: extended doc blocks for
+`nuc graph` and `nuc impact` in `docs/language-reference.md §10.1`
+and `§10.2`. The verbs themselves already work
+(`compiler/nucleor_tools_suite.nr:18373` for `run_impact_command`);
+this fills in the human-readable surface adopters need to
+discover and use them.
+
+§10.1 (`nuc graph [file]`) — source-level forward call/effect
+graph. One per-fn block: `calls:` (forward edges), `effects:`
+(io / panic / alloc / ... transitively closed). Pairs with
+`--json` for piping into the graph-rod surface added in
+v0.7.78–v0.7.81 (`stdlib/rods/graph.nr`).
+
+§10.2 (`nuc impact <file> <fn>`) — reverse call graph.
+Transitively closes "every fn that depends on `<fn>`" via the
+caller relation, walks to fixpoint. Use case: changing a fn's
+signature or behavior and wanting to know the blast radius.
+Empty list = `<fn>` is unreachable from anything else, safe to
+delete.
+
+Both verbs accept `--json`. The triple `nuc deps` (lock graph)
++ `nuc graph` (source graph) + `nuc impact` (reverse) compose
+as three views of the same project structure.
+
+RFC-0061 Tier 1 (V1.17a) is now **CLOSED**. Tier 2 (`nuc deps
+graph` formatters), Tier 3 (trace/event graph), Tier 4 (graph-
+aware optimization passes — DECISION REQUIRED), and Tier 5
+(documentation consolidation) are next per spine §1.5
+2026-05-03 append.
+
+No new defensive halt this ship — probed `drop(v)` (TYP-005
+wrong-class candidate, deferred), `Vec<Box<dyn T>>`,
+`println!` format specs (`{:08x}` / `{:>10.3}`). `drop()` is
+the strongest halt candidate but needs a textual-pre-pass or
+a stdlib no-op shim — punted to next iteration. Cron
+concurrently shipped v0.7.85 with path-qualified trait name
+in `impl` block (see entry below).
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.7.85] — 2026-05-04
 
 **Real feature acceptance — path-qualified trait name in `impl` block
@@ -24,6 +73,52 @@ existing impl logic runs unchanged. The final segment stored in the
 kind-45 AST node is consistent with plain-name impls, so trait-dispatch,
 default-method synthesis, and `type_implements_trait` lookups work
 without modification.
+
+Workaround (pre-fix): drop the module prefix — `impl Display for Status`.
+
+Fixed-point md5: `ef60fde7af3009a4be873f1e5ea0d188`.
+Fixture: `tests/fixtures/v0779_path_trait_impl.nr` (exit 27).
+**Punchlist forward — RFC-0061 Tier 1 final item: `nuc graph` and
+`nuc impact` CLI verb docs (V1.17a closeout).**
+
+The RFC-0061 Tier 1 spec called out four cheap-polish items
+(gnn wrappers, negative-cycle detection, adjacency-matrix view,
+CLI verb docs). The first three shipped in v0.7.78 / v0.7.80 /
+v0.7.81. This ship lands the fourth: extended doc blocks for
+`nuc graph` and `nuc impact` in `docs/language-reference.md §10.1`
+and `§10.2`. The verbs themselves already work
+(`compiler/nucleor_tools_suite.nr:18373` for `run_impact_command`);
+this fills in the human-readable surface adopters need to
+discover and use them.
+
+§10.1 (`nuc graph [file]`) — source-level forward call/effect
+graph. One per-fn block: `calls:` (forward edges), `effects:`
+(io / panic / alloc / ... transitively closed). Pairs with
+`--json` for piping into the graph-rod surface added in
+v0.7.78–v0.7.81 (`stdlib/rods/graph.nr`).
+
+§10.2 (`nuc impact <file> <fn>`) — reverse call graph.
+Transitively closes "every fn that depends on `<fn>`" via the
+caller relation, walks to fixpoint. Use case: changing a fn's
+signature or behavior and wanting to know the blast radius.
+Empty list = `<fn>` is unreachable from anything else, safe to
+delete.
+
+Both verbs accept `--json`. The triple `nuc deps` (lock graph)
++ `nuc graph` (source graph) + `nuc impact` (reverse) compose
+as three views of the same project structure.
+
+RFC-0061 Tier 1 (V1.17a) is now **CLOSED**. Tier 2 (`nuc deps
+graph` formatters), Tier 3 (trace/event graph), Tier 4 (graph-
+aware optimization passes — DECISION REQUIRED), and Tier 5
+(documentation consolidation) are next per spine §1.5
+2026-05-03 append.
+
+No new defensive halt this ship — probed `drop(v)` (TYP-005
+wrong-class candidate, deferred), `Vec<Box<dyn T>>`,
+`println!` format specs (`{:08x}` / `{:>10.3}`). `drop()` is
+the strongest halt candidate but needs a textual-pre-pass or
+a stdlib no-op shim — punted to next iteration.
 
 Workaround (pre-fix): drop the module prefix — `impl Display for Status`.
 

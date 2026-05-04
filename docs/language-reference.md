@@ -258,11 +258,47 @@ Run `nuc check <file>.nr` for diagnostics-only mode (no codegen).
 | `nuc check [file]`    | Run all checkers, report diagnostics |
 | `nuc summary [file]`  | Compact module interface card |
 | `nuc abi [file]`      | Inspect the C/Rust interop ABI of imports/exports |
-| `nuc graph [file]`    | Source-level call/effect graph |
+| `nuc graph [file]`    | Source-level call/effect graph (see §10.1) |
+| `nuc impact <file> <fn>` | Reverse call graph — every fn that depends on `<fn>` (see §10.2) |
 | `nuc bootstrap status` | Report self-host bootstrap state |
 | `nuc stage-dump <stage>` | Dump compiler stage summaries (`tokens`, `ast`, `typed`, `ir`, `all`) |
 
 Most commands accept `--json` for machine-readable output, `-o <name>` for the output base name, and `--time-passes` for per-phase compile timings.
+
+### 10.1 `nuc graph [file]` — source-level call/effect graph
+
+Lists every function in the source file plus the calls each one makes (forward edges) and the side effects each one declares or reaches via transitive closure (`io`, `panic`, `alloc`, etc.). Output is a flat per-function block — easy to grep, easy to feed into a graph tool. Use this verb when you need to **read** the call structure or audit which fns reach a given effect.
+
+```
+$ nuc graph examples/server.nr
+fn main:
+  calls: configure, listen, run_loop
+  effects: io, panic, alloc
+fn configure:
+  calls: parse_args, env_lookup
+  effects: io
+fn listen:
+  calls: socket_bind, socket_listen
+  effects: io, panic
+...
+```
+
+Pass `--json` for machine-readable output (suitable for piping into the graph remediation tool surface added in v0.7.78–v0.7.81 — see `stdlib/rods/graph.nr` `graph_*` API).
+
+### 10.2 `nuc impact <file> <fn>` — reverse call graph
+
+Inverse of `nuc graph`. Given a target function `<fn>`, report **every fn in the module that depends on it transitively** — direct callers plus their callers, and so on, up to fn-graph fixpoint. Use this verb when you need to **change** a function's signature or behavior and want to know which downstream fns are affected.
+
+```
+$ nuc impact examples/server.nr socket_bind
+socket_bind is called (transitively) by:
+  listen          (direct)
+  main            (via listen)
+```
+
+If `<fn>` is unreachable from any other fn (only entry points or unused), the verb prints an empty list — useful as a "is this fn safe to delete?" check.
+
+Pass `--json` for machine-readable output. Pairs cleanly with the lock graph (`nuc deps`) and the source call graph (`nuc graph`) — three different views of the same project, intended to compose.
 
 ## 11. Project layout (`Nucleor.toml`)
 
