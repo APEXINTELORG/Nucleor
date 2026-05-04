@@ -5,6 +5,23 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.68] — 2026-05-04
+
+**Defensive halt — Rust C-string literal `c"..."` (closes wrong-class
+TYP-005 family). Promoted from probe finding 2026-05-03 (raw/byte/
+C-string family).**
+
+Pre-fix the `c` lexed as an ident and the parser then tried to call
+fn `c` on the trailing string literal, emitting the wrong-class
+`error[TYP-005]: undefined function 'c'`. Now halts at lex with the
+canonical wrong-class → clean-halt format and points users at the
+`"...\0"` workaround for FFI NUL-termination.
+
+Sibling of `r"..."` (v0.6.58) and `b"..."` (v0.6.58) halts; same
+shape, same lex location.
+
+Fixture: `tests/fixtures/v0768_c_string_literal_halt.nr`.
+
 ## [0.7.67] — 2026-05-04
 
 **Feature — `#[derive(Clone)]` on named and tuple structs now auto-generates
