@@ -28224,6 +28224,25 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.60 NUM-G2/8/9 Phase 1 — additional numeric-correctness
+    // audit. Detects adopter use of math_abs (NUM-G2 i64::MIN
+    // wrap), checked_* family (NUM-G8 thread-unsafe global flag),
+    // @const_fn (NUM-G9 silently ignored). Phase 2b: panic-on-
+    // saturate for math_abs, thread-local checked flag, real
+    // comptime evaluation for @const_fn.
+    let v0860_has_math_abs: i64 = if str_index_of(after_async, str_concat("math_", "abs(")) >= 0 { 1 } else { 0 };
+    let v0860_has_checked: i64 = if str_index_of(after_async, str_concat("checked_", "")) >= 0 { 1 } else { 0 };
+    let v0860_has_const_fn: i64 = if str_index_of(after_async, str_concat("@const_", "fn")) >= 0 { 1 } else { 0 };
+    if v0860_has_math_abs == 1 || v0860_has_checked == 1 || v0860_has_const_fn == 1 {
+        let v0860_math_abs: i64 = if v0860_has_math_abs == 1 { simple_attribute_audit_count(after_async, str_concat("math_", "abs(")) } else { 0 };
+        let v0860_checked: i64 = if v0860_has_checked == 1 { simple_attribute_audit_count(after_async, str_concat("checked_", "")) } else { 0 };
+        let v0860_const_fn: i64 = if v0860_has_const_fn == 1 { simple_attribute_audit_count(after_async, str_concat("@const_", "fn")) } else { 0 };
+        let v0860_total: i64 = v0860_math_abs + v0860_checked + v0860_const_fn;
+        if v0860_total > 0 {
+            print(str_concat("info[NUM-G289]: numeric-correctness annotations / calls in source: ", str_from_int(v0860_total)));
+            print("  Per RFC sister gaps NUM-G2, NUM-G8, NUM-G9 (Numeric Correctness): math_abs(i64::MIN) silently returns i64::MIN in non-strict mode (NUM-G2 — `0 - i64::MIN` overflows; math_pow_int and math_gcd inherit the bug). checked_* family uses a single global static int for the overflow flag, NOT thread-safe (NUM-G8 — concurrent calls race; flag overwritten between call and read). @const_fn attribute is silently ignored — no comptime evaluation, no error if body contains non-const operations (NUM-G9). Phase 2b: panic-on-saturate for math_abs, thread-local checked flag, real comptime evaluation for @const_fn. Phase 4 v1.0 hard-error promotion. Reference: docs/rfcs/gap-analyses/Nucleor_Numeric_Correctness_Gap_Analysis_and_RFC_2026-05-04.md NUM-G2, NUM-G8, NUM-G9.");
+        };
+    };
     // v0.8.59 QM-7 / ROBO-7 Phase 1 — Tier C correctness audit-
     // pass info. Detects adopter use of the Clifford-stabilizer
     // rod (zero test coverage today; QM-7) and frame-typed
