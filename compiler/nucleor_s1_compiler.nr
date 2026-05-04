@@ -27773,6 +27773,11 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v085_diff_count: i64 = differentiable_audit_count(after_async);
     if v085_diff_count > 0 {
         print(str_concat("audit: @differentiable fns in build: ", str_from_int(v085_diff_count)));
+        // v0.8.15 Phase B step-3: emit the actual fn names.
+        let v0815_diff_names: str = attribute_audit_fn_names(after_async, str_concat("@differen", "tiable"));
+        if str_len(v0815_diff_names) > 0 {
+            print(str_concat("audit:   differentiable fns: ", v0815_diff_names));
+        };
     };
     // v0.8.6 (RFC-0050 Phase B step-1) — `@energy(max=...)` and
     // `@thermal(max_temp=...)` audit. Same shape as v0.8.5
@@ -27838,6 +27843,11 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v087_attested_count: i64 = simple_attribute_audit_count(after_async, str_concat("@atte", "sted"));
     if v087_attested_count > 0 {
         print(str_concat("audit: @attested fns in build: ", str_from_int(v087_attested_count)));
+        // v0.8.15 Phase B step-3: emit the actual fn names.
+        let v0815_attested_names: str = attribute_audit_fn_names(after_async, str_concat("@atte", "sted"));
+        if str_len(v0815_attested_names) > 0 {
+            print(str_concat("audit:   attested fns: ", v0815_attested_names));
+        };
     };
     let v087_authored_count: i64 = simple_attribute_audit_count(after_async, str_concat("@auth", "ored("));
     if v087_authored_count > 0 {
@@ -27884,18 +27894,38 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v088_hot_count: i64 = simple_attribute_audit_count(after_async, str_concat("@h", "ot"));
     if v088_hot_count > 0 {
         print(str_concat("audit: @hot fns in build: ", str_from_int(v088_hot_count)));
+        // v0.8.15 Phase B step-3: emit the actual fn names.
+        let v0815_hot_names: str = attribute_audit_fn_names(after_async, str_concat("@h", "ot"));
+        if str_len(v0815_hot_names) > 0 {
+            print(str_concat("audit:   hot fns: ", v0815_hot_names));
+        };
     };
     let v088_const_fn_count: i64 = simple_attribute_audit_count(after_async, str_concat("@const_", "fn"));
     if v088_const_fn_count > 0 {
         print(str_concat("audit: @const_fn fns in build: ", str_from_int(v088_const_fn_count)));
+        // v0.8.15 Phase B step-3: emit the actual fn names.
+        let v0815_cf_names: str = attribute_audit_fn_names(after_async, str_concat("@const_", "fn"));
+        if str_len(v0815_cf_names) > 0 {
+            print(str_concat("audit:   const_fn fns: ", v0815_cf_names));
+        };
     };
     let v088_max_depth_count: i64 = simple_attribute_audit_count(after_async, str_concat("#[max_de", "pth"));
     if v088_max_depth_count > 0 {
         print(str_concat("audit: #[max_depth] fns in build: ", str_from_int(v088_max_depth_count)));
+        // v0.8.15 Phase B step-3: emit the actual fn names.
+        let v0815_md_names: str = attribute_audit_fn_names(after_async, str_concat("#[max_de", "pth"));
+        if str_len(v0815_md_names) > 0 {
+            print(str_concat("audit:   max_depth fns: ", v0815_md_names));
+        };
     };
     let v088_deadline_count: i64 = simple_attribute_audit_count(after_async, str_concat("#[deadl", "ine"));
     if v088_deadline_count > 0 {
         print(str_concat("audit: #[deadline] fns in build: ", str_from_int(v088_deadline_count)));
+        // v0.8.15 Phase B step-3: emit the actual fn names.
+        let v0815_dl_names: str = attribute_audit_fn_names(after_async, str_concat("#[deadl", "ine"));
+        if str_len(v0815_dl_names) > 0 {
+            print(str_concat("audit:   deadline fns: ", v0815_dl_names));
+        };
     };
     // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
@@ -28978,6 +29008,77 @@ fn simple_attribute_audit_count(src: str, needle: str) -> i64 {
         };
     };
     return count;
+}
+
+// v0.8.15 Phase B step-3: capture the fn names tagged with a
+// given attribute. Walks each `<needle>` occurrence, skips
+// past attribute args + whitespace + newlines + nested
+// attribute lines, then expects `fn NAME(...)` and captures
+// NAME. Returns `; `-separated list.
+//
+// Used for the audit-channel "list of tagged fns" surface across
+// the remaining 6 attribute families (@differentiable, @attested,
+// @hot, @const_fn, #[max_depth], #[deadline]) plus any future
+// addition with no key=val args to extract.
+fn attribute_audit_fn_names(src: str, needle: str) -> str {
+    let slen: i64 = str_len(src);
+    let nlen: i64 = str_len(needle);
+    let mut out: str = "";
+    let mut emitted: i64 = 0;
+    if nlen <= 0 { return out; };
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        if str_eq_at(src, p, needle) == 1 {
+            // Walk past attribute args (paren or bracket form),
+            // newlines, additional attribute lines, doc comments,
+            // and `pub` to land on `fn`.
+            let mut q: i64 = p + nlen;
+            // Skip optional `(...)` or `[...]` arglist.
+            if q < slen && (str_char_at(src, q) == 40 || str_char_at(src, q) == 91) {
+                let close_ch: i64 = if str_char_at(src, q) == 40 { 41 } else { 93 };
+                let mut depth: i64 = 1;
+                q = q + 1;
+                while q < slen && depth > 0 {
+                    let ch: i64 = str_char_at(src, q);
+                    if ch == 40 || ch == 91 { depth = depth + 1; };
+                    if ch == close_ch { depth = depth - 1; };
+                    q = q + 1;
+                };
+            };
+            // Skip whitespace + newlines + further attribute lines.
+            let mut tries: i64 = 0;
+            while tries < 16 && q < slen {
+                let ch: i64 = str_char_at(src, q);
+                if ch == 32 || ch == 9 || ch == 10 || ch == 13 { q = q + 1; }
+                else if ch == 64 || ch == 35 {
+                    // Another attribute — skip its line.
+                    while q < slen && str_char_at(src, q) != 10 { q = q + 1; };
+                }
+                else { tries = 16; };
+                tries = tries + 1;
+                if tries >= 1024 { tries = 16; };
+            };
+            // Optional `pub` modifier.
+            if q + 4 <= slen && str_eq_at(src, q, "pub ") == 1 { q = q + 4; };
+            while q < slen && (str_char_at(src, q) == 32 || str_char_at(src, q) == 9) { q = q + 1; };
+            // Expect `fn ` then capture ident.
+            if q + 3 <= slen && str_eq_at(src, q, "fn ") == 1 {
+                q = q + 3;
+                while q < slen && (str_char_at(src, q) == 32 || str_char_at(src, q) == 9) { q = q + 1; };
+                let r0: i64 = q;
+                while q < slen && is_alnum(str_char_at(src, q)) == 1 { q = q + 1; };
+                if q > r0 {
+                    if emitted == 1 { out = str_concat(out, "; "); };
+                    out = str_concat(out, str_substring(src, r0, q));
+                    emitted = 1;
+                };
+            };
+            p = p + nlen;
+        } else {
+            p = p + 1;
+        };
+    };
+    return out;
 }
 
 // v0.8.14 Phase B step-3: extract the device name from
