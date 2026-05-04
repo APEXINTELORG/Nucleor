@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.26] — 2026-05-04
+
+**Defensive halt — Rust FFI extern block form `extern "C" { fn
+cfn(x: i64) -> i64; ... }` now produces a clean halt with a
+single-line workaround pointer.**
+
+Pre-fix: writing `extern "C" { fn cfn(...); }` surfaced as
+wrong-class `error[NR020]: expected '{', got ';'` because the
+parser only knew the single-line form `extern "C" fn name(...);`
+(one decl, no surrounding block).
+
+Post-fix: parse_program detects `extern` + ABI string + `{`
+(token 52) and halts cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+extern "C" {
+    fn cfn(x: i64) -> i64;     // ← NR020 wrong-class
+}
+
+// Post-fix workaround — single-line form per decl:
+extern "C" fn cfn(x: i64) -> i64;
+```
+
+Forward-roadmap: block-form support is a small parser extension
+(loop through fn decls inside the braces) — sister to v0.3.112
+single-line acceptance.
+
+### Fixture
+
+`tests/fixtures/v0726_extern_block_halt.nr` — negative fixture for
+`extern "C" { fn cfn(...); }` (fires clean halt with workaround,
+not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `8e70e44b069461fb9153dff5811037d9`.
+
 ## [0.7.25] — 2026-05-04
 
 **Perf — tighten the v0.7.20 built-in-macro halt from 36 LOC down

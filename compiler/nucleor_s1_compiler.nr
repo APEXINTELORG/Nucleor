@@ -4284,6 +4284,18 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             let mut r: Vec<i32> = parse_extern_fn(tokens, cp + 2, pool); items.push(pr_val(r)); cp = pr_pos(r);
             pending_pub = 0;
         }
+        else if pk(tokens, cp) == 20 && pk(tokens, cp + 1) == 3 && pk(tokens, cp + 2) == 52 {
+            // v0.7.26 (defensive halt — Rust FFI extern block form
+            // `extern "C" { fn cfn(x: i64) -> i64; ... }`). Pre-fix
+            // surfaced as wrong-class `error[NR020]: expected '{', got
+            // ';'` because the parser only knows the single-line form
+            // `extern "C" fn name(...);` (one decl, no surrounding
+            // block). Halt cleanly with a workaround pointing to the
+            // bare-decl form.
+            print("ERROR: Rust FFI extern block form `extern \"C\" { fn cfn(x: i64) -> i64; ... }` is not yet supported in Nucleor. Pre-v0.7.26 surfaced as wrong-class `error[NR020]: expected '{', got ';'`.");
+            print("       Workaround: drop the surrounding block — declare each FFI fn with the supported single-line form `extern \"C\" fn cfn(x: i64) -> i64;` (one decl per line, no `{` / `}`). Tracked for forward-roadmap (block-form support is a small parser extension; sister to v0.3.112 single-line acceptance).");
+            panic("nucleor: extern block form `extern \"C\" { ... }` not yet supported (see ERROR diagnostic above)");
+        }
         else if pk(tokens, cp) == 20 && pk(tokens, cp + 1) == 3 && pk(tokens, cp + 2) == 10 {
             // v0.3.112: `extern "C" fn name(...)` (or any ABI string).
             // Pre-v0.3.112, the parser only recognized bare `extern fn`,
