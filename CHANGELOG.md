@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.107] — 2026-05-04
+
+**stdlib/rods/bm25.nr first test coverage + 4th pre-existing
+API quirk surfaced.** Pure fixture, no compiler / runtime /
+stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `bm25.nr` (BM25 search
+index) had no existing tests. Silent regressions in tokenization
+or scoring would surface as wrong-rank results — extremely
+hard to detect without a reference set.
+
+### Pre-existing API quirk caught
+
+Initial fixture used non-sequential doc_ids `(1, 2, 3)` and
+expected `n_docs == 3`. Actual: `n_docs == 4`.
+
+`nuc_bm25_add_doc` sets `n_docs = max(n_docs, doc_id + 1)`,
+treating it as an array bound rather than a count. Adopters
+who pass sparse / non-sequential doc_ids (e.g. database
+primary keys with gaps) get `n_docs == max_id + 1`, not
+"number of documents added".
+
+This is the FOURTH pre-existing oddity surfaced this session
+by the fixture-only-ship pattern (after Windows-PE link hang,
+mktime/gmtime asymmetry, csv trailing-empty). Lower severity
+than the others — it's documented in-fixture rather than a
+silent miscompute.
+
+### The fixture
+
+`tests/features/bm25_smoke.nr` covers 5 BM25 invariants:
+
+| Test | Expected |
+|---|---|
+| empty index | n_docs=0; search returns 0 |
+| add count | sequential doc_ids 0..N-1 → n_docs = N |
+| exact-term search | `search("delta")` returns doc_id of doc containing "delta" |
+| no-match search | `search("zzz_nonexistent")` returns 0 results |
+| relevant top | among 3 docs where only doc 1 has "rare", `search("rare")` returns doc_id 1 first |
+
+All five pass. rc=0. Cold 0.64s.
+
+### Significance
+
+Catches silent regressions in:
+
+- BM25 tokenization (must produce the right tokens for
+  exact-term search to match)
+- TF-IDF scoring: a doc with the rare term must outrank docs
+  without it (the relevance test)
+- Top-K result ordering (descending by score)
+- Empty-result discipline (no false positives)
+
+The n_docs-as-max-id-plus-1 quirk is now documented and
+locked. Adopter-side workaround: use sequential `0..N-1`
+doc_ids. Or: fix the runtime to track count rather than max
+in a future ship.
+
+Other zero-coverage rods queued: autodiff / bspline / cli /
+collections / compress / control / crypto / fluid / fmt / fs /
+image / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.106] — 2026-05-04
 
 **`dt_from_ymd_utc` companion lands — fixes the v0.8.96 mktime/
