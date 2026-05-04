@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.64] — 2026-05-04
+
+**Test consolidation — collapse 6 idiom-method fixtures into 1
+combined fixture. Fixture count drops 58 → 53; underlying halt
+path (v0.6.82 idiom-list) is unchanged.**
+
+The 77+ Rust idiom-method halts (v0.7.30 int, v0.7.31 char,
+v0.7.32 string, v0.7.33 vec, v0.7.34 iter-conversion, v0.7.40
+ownership-conversion) all converge on the SAME kind-8 method-
+dispatch catch-all path. Six separate fixtures testing the same
+code path with different method names was net low-signal — the
+diagnostic shape is identical, only the method name varies.
+
+Replaced with `tests/fixtures/v0764_idiom_method_halt_family.nr`
+that exercises the path via `5.abs()` (literal-receiver shape;
+bound-variable receivers `let i: i64 = 5; i.abs()` take a
+different type-checker path that emits TYP-007 instead, and that
+path has its own existing fixture coverage).
+
+Files removed:
+- `tests/fixtures/v0730_int_method_halt.nr`
+- `tests/fixtures/v0731_char_method_halt.nr`
+- `tests/fixtures/v0732_string_method_halt.nr`
+- `tests/fixtures/v0733_vec_method_halt.nr`
+- `tests/fixtures/v0734_iter_copied_halt.nr`
+- `tests/fixtures/v0740_into_iter_halt.nr`
+
+Other halt families remain split (variant-payload-pattern,
+local-decl, format-arg, path-resolver) — they hit DIFFERENT parser
+sites with subtly different shapes. Per-ship granularity is
+preserved where it gives independent regression signal; collapsed
+where multiple ships funnel through a single halt path.
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 — unchanged (compiler.nr not
+modified, only fixture removals + 1 add). Cold 3.18s / peak 301MB
+post-helper-perf-integration.
+
 ## [0.7.63] — 2026-05-04
 
 **Perf — integrate helper's P2 hot-path allocation hunt
