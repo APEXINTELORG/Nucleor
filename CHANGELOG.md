@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.79] — 2026-05-04
+
+**T-4 hole canary fixture (no compiler edit).**
+
+Adds `tests/features/t4_empty_type_audit_lock.nr` as a regression
+canary documenting the TODAY state of the RFC T-4 empty-type
+compatibility hole (`vec_get` returns "" empty-type sentinel that
+`types_compatible` accepts against any expected type → silent
+miscompute on mistyped flow).
+
+The fixture exercises the WELL-TYPED path (`i64 = vec_get on
+Vec<i64>`) which produces correct runtime behavior today. rc=10
+(`10 + 20 + 30 - 50`). Cold compile 1.43s.
+
+**Inversion protocol** (encoded in fixture comment):
+when Phase 2b NUC_STRICT_INFERENCE lands, the well-typed fixture
+continues to compile + run with rc=10. A sister fixture under
+`tests/err/` should then EXPECT `TYP-027` for the mistyped shape
+(`let b: bool = vec_get(xs_i64, 0)`) under NUC_STRICT_INFERENCE=1.
+Phase 4 makes strict the default; the well-typed fixture remains.
+
+### Notes — compiler-edit attempt + revert
+
+A Phase 1 audit-pass diagnostic for `vec_get(` (info[T-4-EMPTY])
+was implemented + self-host validated (stage1 / stage2 IR md5
+match) but caused user-source compiles to hang at the end of the
+ownership/type pass on the resulting Windows bin. Reverted from
+both `compiler/nucleor_s1_compiler.nr` and the in-tree
+`bootstrap/nucleor_s1_seed.ll`. Self-host fixed-point is not
+sufficient to validate compiler correctness — user-source spot
+check is also required.
+
+A future cycle will revisit the Phase 1 audit with a smaller
+audit-text payload to isolate the hang. For now, the fixture
++ promoted finding stand alone as the T-4 status anchor.
+
+Closes (status update):
+- `findings/promoted/2026-05-04-t-4-empty-type-compat-hole-confirmed-vec-get-and-closure-paths.md`:
+  fixture lock-in. Compiler-side Phase 1 deferred.
+
+Pure fixture, no compiler change.
+
 ## [0.8.78] — 2026-05-04
 
 **T-3 Phase 1 audit-pass lock-in.** Pure fixture, no compiler
