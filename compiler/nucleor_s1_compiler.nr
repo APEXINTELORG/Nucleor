@@ -28224,6 +28224,20 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.57 PKG-5 Phase 1 — `@cfg(feature = "...")` gating
+    // info. Today `[features]` sections in nucleor.toml parse +
+    // store but no compiler path consumes them; `--features X`
+    // to `nuc build` does not gate any code. Adopter using
+    // @cfg(feature = "...") gets the body included regardless.
+    // Phase 2b adds proper feature-gating in lower_fn.
+    let v0857_has_cfg_feature: i64 = if str_index_of(after_async, str_concat("@cfg(", "feature")) >= 0 { 1 } else { 0 };
+    if v0857_has_cfg_feature == 1 {
+        let v0857_count: i64 = simple_attribute_audit_count(after_async, str_concat("@cfg(", "feature"));
+        if v0857_count > 0 {
+            print(str_concat("info[PKG-5]: `@cfg(feature = ...)` gates in source: ", str_from_int(v0857_count)));
+            print("  Per RFC sister gap PKG-5 (Module/Packaging): conditional compilation `@cfg(feature = \"X\")` is parsed but the gate is NOT honored — the body is always included regardless of the active features set. `--features hardware` to `nuc build` does not gate any code. Phase 2b adds proper feature-gating in the lowering pass; Phase 4 promotes adopter use to a hard requirement (gates that don't match active features become a hard error). Adopter discipline today: do NOT rely on @cfg(feature) for compile-time selection — use module-level imports or runtime checks. Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-5.");
+        };
+    };
     // v0.8.54 RT Phase 1 — real-time/determinism partial-enforcement
     // info. Detects #[deadline], #[no_alloc], #[no_panic], #[isr]
     // annotations and warns adopters about known gaps in enforcement
