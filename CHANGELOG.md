@@ -5,6 +5,86 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.37] — 2026-05-04
+
+**G-1 default-flip safety audit upgrade — auto-classifier.**
+Extends the v0.8.35 survey tool with a per-candidate
+classification: HANDOFF-SUSPECT vs LEAK-FIX-LIKELY. Narrows
+the manual-review burden ahead of the actual default-flip.
+
+### Heuristic
+
+Candidates whose fn body matches any of these patterns are
+classified HANDOFF-SUSPECT (potentially intentional handoff,
+needs manual review):
+
+- `registry_insert` / `global_register` / `push_global`
+- `sym_set` / `hashmap_insert` / `btreemap_insert`
+- `register_actor` / `register_rod` / `register_extern`
+- `push_back_global`
+
+All other candidates classify as LEAK-FIX-LIKELY (auto-drop
+heals safely under default-flip).
+
+### Survey result with classification
+
+```
+Fns with heap-backed locals: 334
+  ...
+  DEFAULT-FLIP CANDIDATES: 89
+    HANDOFF-SUSPECT:       0
+    LEAK-FIX-LIKELY:       89
+```
+
+**Zero HANDOFF-SUSPECT.** All 89 default-flip candidates are
+classified as LEAK-FIX-LIKELY by the textual heuristic. This
+is encouraging signal for the default-flip — most candidates
+are utility helpers (mk2/mk3/mk4 constructors, opt_dce/cse
+passes, format builders) that build local Vec for temp storage
+and return derived values; auto-drop heals the leak.
+
+### What this DOES NOT prove
+
+The heuristic is intentionally conservative — it scans for the
+COMMON handoff patterns. It does NOT detect:
+
+- Indirect handoff through `&mut Vec<T>` parameters where the
+  candidate appends-without-cleanup
+- Handoff through C-runtime FFI that escapes to a long-lived
+  allocator
+- Cross-fn ownership transfer where the receiving fn retains
+  the pointer
+
+The actual default-flip ship still needs per-candidate
+dataflow review before it can land. The audit + classifier
+are necessary infrastructure but not sufficient by themselves.
+
+### Updated detail report
+
+`tools/g1_safety_audit_report.txt` now annotates each
+candidate with its classification:
+
+```
+- [LEAK-FIX-LIKELY] mk2
+- [LEAK-FIX-LIKELY] opt_dce_block
+- [HANDOFF-SUSPECT] register_actor   (hypothetical example)
+```
+
+### Phase 2b-3 sequence — updated
+
+```
+2b-1   reserve #[manual_drop] attr        DONE v0.8.31
+2b-2   wire suppress mechanism            DONE v0.8.32
+2b-2.5 safety audit tool + survey         DONE v0.8.35
+2b-2.6 auto-classifier + classification   DONE v0.8.37 (this)
+2b-2.7 per-candidate dataflow review      NEXT
+2b-3   flip default                       (after 2b-2.7)
+```
+
+### Perf
+
+No compiler change. Cold/hot unchanged from v0.8.36.
+
 ## [0.8.36] — 2026-05-04
 
 **RFC-0062 G-6 Phase 2a (closures) — SEND-G6-CLOSURE audit-pass info.**

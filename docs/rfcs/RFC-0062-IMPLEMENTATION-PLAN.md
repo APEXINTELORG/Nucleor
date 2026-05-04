@@ -56,7 +56,8 @@ Today, half of the surface is shape-only:
 | 2b-1 | Reserve `#[manual_drop]` attribute, info-only | v0.8.31. Parse + heads-up info diagnostic. | +0.02s |
 | 2b-2 | Wire `#[manual_drop]` as actual override of `#[auto_drop]` | v0.8.32. Fn with both attrs gets manual_drop semantics (suppress). | +0.02s |
 | 2b-2.5 | Per-fn safety audit tool | v0.8.35. Survey identifies 89 default-flip candidates. | runtime tool, not compile cost |
-| 2b-2.7 | Per-candidate spot-check + `#[manual_drop]` annotation | NEXT. Manual review of 89 candidates; add `#[manual_drop]` to intentional-handoff fns. | 0 (annotations only) |
+| 2b-2.6 | Auto-classifier on candidates | v0.8.37. HANDOFF-SUSPECT vs LEAK-FIX-LIKELY. **0 / 89** classified handoff-suspect. | runtime tool |
+| 2b-2.7 | Per-candidate dataflow review | NEXT. Confirms classifier; identifies any dataflow-handoff cases the textual heuristic missed. | 0 (annotations only) |
 | 2b-3 | Flip default-on with `#[manual_drop]` opt-out | Lower every fn body as if it had `#[auto_drop]`; respect explicit `#[manual_drop]` to suppress. | +0.05s (one extra AST walk per fn) |
 | 3 | Promote `#[manual_drop]` from required to opt-in for unsafe blocks only | Lint warning if `#[manual_drop]` on an unsafe-free fn body. | 0 |
 | 4 | Remove `#[manual_drop]` entirely; only `unsafe { }` blocks can skip drop | v1.0 cut. | 0 |

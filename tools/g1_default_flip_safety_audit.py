@@ -44,6 +44,18 @@ FREE_RE = re.compile(r"\b(vec_free|hashmap_free|string_free|box_free|vecdeque_fr
 AUTO_DROP_RE = re.compile(r"#\[auto_drop\]")
 MANUAL_DROP_RE = re.compile(r"#\[manual_drop\]")
 
+# v0.8.37: handoff-suspect signals — fn body patterns that suggest
+# the heap-backed local is being inserted into something that
+# OUTLIVES the fn (registry, global, parameter passed-by-mut-ref).
+# Candidates with ANY of these signals are tagged POSSIBLE-HANDOFF
+# for manual review before the default-flip; without them, the
+# candidate is HIGH-CONFIDENCE-LEAK-FIX (auto-drop heals safely).
+HANDOFF_RE = re.compile(
+    r"\b(registry_insert|global_register|push_global|sym_set"
+    r"|hashmap_insert|btreemap_insert|register_actor"
+    r"|register_rod|register_extern|push_back_global)\s*\("
+)
+
 # Match `fn NAME(` capturing NAME and start byte position.
 FN_DECL_RE = re.compile(r"\bfn\s+(\w+)\s*[<(]")
 
@@ -185,7 +197,16 @@ def audit_file(path: str, source: str):
         # would change at default-flip.
         summary["with_heap_no_free"] += 1
         summary["candidates"] += 1
-        candidates.append((fn_name,))
+        # v0.8.37: classify HANDOFF-suspect vs LEAK-FIX-likely
+        is_handoff_suspect = bool(HANDOFF_RE.search(body))
+        if is_handoff_suspect:
+            summary.setdefault("handoff_suspects", 0)
+            summary["handoff_suspects"] += 1
+            candidates.append((fn_name, "HANDOFF-SUSPECT"))
+        else:
+            summary.setdefault("leak_fix_likely", 0)
+            summary["leak_fix_likely"] += 1
+            candidates.append((fn_name, "LEAK-FIX-LIKELY"))
     return summary, candidates
 
 
@@ -210,6 +231,8 @@ def main():
         "already_manual": 0,
         "has_free": 0,
         "returns_owned": 0,
+        "handoff_suspects": 0,
+        "leak_fix_likely": 0,
     }
     report_lines = []
     report_lines.append("# G-1 Default-Flip Safety Audit Report")
@@ -240,12 +263,19 @@ def main():
         grand_total["already_manual"] += summary["with_heap_already_manual"]
         grand_total["has_free"] += summary["with_heap_has_free"]
         grand_total["returns_owned"] += summary["with_heap_returns_owned"]
+        grand_total["handoff_suspects"] += summary.get("handoff_suspects", 0)
+        grand_total["leak_fix_likely"] += summary.get("leak_fix_likely", 0)
         if candidates:
             report_lines.append(f"## {relpath}")
             report_lines.append(f"({len(candidates)} candidate fns)")
             report_lines.append("")
-            for (name,) in candidates:
-                report_lines.append(f"- {name}")
+            for entry in candidates:
+                if len(entry) == 2:
+                    name, classification = entry
+                    report_lines.append(f"- [{classification}] {name}")
+                else:
+                    name = entry[0]
+                    report_lines.append(f"- {name}")
             report_lines.append("")
     summary_block = [
         "",
@@ -259,6 +289,8 @@ def main():
         f"      has explicit free:       {grand_total['has_free']}",
         f"      returns owned heap:      {grand_total['returns_owned']}",
         f"      DEFAULT-FLIP CANDIDATES: {grand_total['candidates']}",
+        f"        HANDOFF-SUSPECT:       {grand_total['handoff_suspects']}",
+        f"        LEAK-FIX-LIKELY:       {grand_total['leak_fix_likely']}",
         "",
     ]
     out_path = os.path.join(ROOT, "tools", "g1_safety_audit_report.txt")

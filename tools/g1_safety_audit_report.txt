@@ -9,6 +9,8 @@
       has explicit free:       6
       returns owned heap:      239
       DEFAULT-FLIP CANDIDATES: 89
+        HANDOFF-SUSPECT:       0
+        LEAK-FIX-LIKELY:       89
 
 # G-1 Default-Flip Safety Audit Report
 
@@ -30,128 +32,128 @@ Action required per fn:
 ## compiler/nucleor_s1_compiler.nr
 (17 candidate fns)
 
-- opt_dce_block
-- opt_dead_store_block
-- opt_cse_block
-- diag_add_ex
-- expand_actor_decl_keyword
-- md_path_exists
-- check_fn
-- types_compatible
-- type_check_program
-- narrow_via_as
-- resolve_source
-- expand_closures
-- fmt_conversion_for_spec
-- fmt_build_expansion
-- expand_format_macros_with_src
-- priv_lift_link_errors
-- lift_undefined_fn_link_errors
+- [LEAK-FIX-LIKELY] opt_dce_block
+- [LEAK-FIX-LIKELY] opt_dead_store_block
+- [LEAK-FIX-LIKELY] opt_cse_block
+- [LEAK-FIX-LIKELY] diag_add_ex
+- [LEAK-FIX-LIKELY] expand_actor_decl_keyword
+- [LEAK-FIX-LIKELY] md_path_exists
+- [LEAK-FIX-LIKELY] check_fn
+- [LEAK-FIX-LIKELY] types_compatible
+- [LEAK-FIX-LIKELY] type_check_program
+- [LEAK-FIX-LIKELY] narrow_via_as
+- [LEAK-FIX-LIKELY] resolve_source
+- [LEAK-FIX-LIKELY] expand_closures
+- [LEAK-FIX-LIKELY] fmt_conversion_for_spec
+- [LEAK-FIX-LIKELY] fmt_build_expansion
+- [LEAK-FIX-LIKELY] expand_format_macros_with_src
+- [LEAK-FIX-LIKELY] priv_lift_link_errors
+- [LEAK-FIX-LIKELY] lift_undefined_fn_link_errors
 
 ## compiler/nucleor_tools_suite.nr
 (58 candidate fns)
 
-- mk2
-- mk3
-- mk4
-- mk5
-- mk6
-- mk_list
-- opt_dce_block
-- opt_dead_store_block
-- opt_cse_block
-- opt_merge_blocks
-- emit_module
-- expand_actor_decl_keyword
-- diag_add_ex
-- check_fn
-- taint_check_fn_ex
-- narrow_via_as
-- pipeline
-- resolve_source
-- compile_file_mode
-- build_test_harness_source
-- run_doc_test_list_command
-- run_doc_command_mode
-- doc_render_html
-- expand_closures
-- fmt_conversion_for_spec
-- fmt_build_expansion
-- priv_lift_link_errors
-- run_stage_dump_command
-- lock_build_graph_recursive
-- render_lockfile_native
-- semver_score
-- path_relative_between
-- publish_copy_graph_native
-- param_list_text
-- generic_list_text
-- struct_fields_text
-- enum_variant_text
-- append_generics_json
-- render_summary_command
-- run_summary_command
-- run_query_command
-- render_abi_text
-- render_export_text
-- validate_export_surface
-- run_abi_command
-- run_build_shared_command
-- run_evidence_command
-- run_lock_command
-- run_publish_command
-- run_registry_command
-- run_install_command
-- run_impact_command
-- render_graph_text
-- render_graph_json
-- run_profile_command
-- run_sage_command
-- run_perf_command
-- main
+- [LEAK-FIX-LIKELY] mk2
+- [LEAK-FIX-LIKELY] mk3
+- [LEAK-FIX-LIKELY] mk4
+- [LEAK-FIX-LIKELY] mk5
+- [LEAK-FIX-LIKELY] mk6
+- [LEAK-FIX-LIKELY] mk_list
+- [LEAK-FIX-LIKELY] opt_dce_block
+- [LEAK-FIX-LIKELY] opt_dead_store_block
+- [LEAK-FIX-LIKELY] opt_cse_block
+- [LEAK-FIX-LIKELY] opt_merge_blocks
+- [LEAK-FIX-LIKELY] emit_module
+- [LEAK-FIX-LIKELY] expand_actor_decl_keyword
+- [LEAK-FIX-LIKELY] diag_add_ex
+- [LEAK-FIX-LIKELY] check_fn
+- [LEAK-FIX-LIKELY] taint_check_fn_ex
+- [LEAK-FIX-LIKELY] narrow_via_as
+- [LEAK-FIX-LIKELY] pipeline
+- [LEAK-FIX-LIKELY] resolve_source
+- [LEAK-FIX-LIKELY] compile_file_mode
+- [LEAK-FIX-LIKELY] build_test_harness_source
+- [LEAK-FIX-LIKELY] run_doc_test_list_command
+- [LEAK-FIX-LIKELY] run_doc_command_mode
+- [LEAK-FIX-LIKELY] doc_render_html
+- [LEAK-FIX-LIKELY] expand_closures
+- [LEAK-FIX-LIKELY] fmt_conversion_for_spec
+- [LEAK-FIX-LIKELY] fmt_build_expansion
+- [LEAK-FIX-LIKELY] priv_lift_link_errors
+- [LEAK-FIX-LIKELY] run_stage_dump_command
+- [LEAK-FIX-LIKELY] lock_build_graph_recursive
+- [LEAK-FIX-LIKELY] render_lockfile_native
+- [LEAK-FIX-LIKELY] semver_score
+- [LEAK-FIX-LIKELY] path_relative_between
+- [LEAK-FIX-LIKELY] publish_copy_graph_native
+- [LEAK-FIX-LIKELY] param_list_text
+- [LEAK-FIX-LIKELY] generic_list_text
+- [LEAK-FIX-LIKELY] struct_fields_text
+- [LEAK-FIX-LIKELY] enum_variant_text
+- [LEAK-FIX-LIKELY] append_generics_json
+- [LEAK-FIX-LIKELY] render_summary_command
+- [LEAK-FIX-LIKELY] run_summary_command
+- [LEAK-FIX-LIKELY] run_query_command
+- [LEAK-FIX-LIKELY] render_abi_text
+- [LEAK-FIX-LIKELY] render_export_text
+- [LEAK-FIX-LIKELY] validate_export_surface
+- [LEAK-FIX-LIKELY] run_abi_command
+- [LEAK-FIX-LIKELY] run_build_shared_command
+- [LEAK-FIX-LIKELY] run_evidence_command
+- [LEAK-FIX-LIKELY] run_lock_command
+- [LEAK-FIX-LIKELY] run_publish_command
+- [LEAK-FIX-LIKELY] run_registry_command
+- [LEAK-FIX-LIKELY] run_install_command
+- [LEAK-FIX-LIKELY] run_impact_command
+- [LEAK-FIX-LIKELY] render_graph_text
+- [LEAK-FIX-LIKELY] render_graph_json
+- [LEAK-FIX-LIKELY] run_profile_command
+- [LEAK-FIX-LIKELY] run_sage_command
+- [LEAK-FIX-LIKELY] run_perf_command
+- [LEAK-FIX-LIKELY] main
 
 ## stdlib/rods\cli.nr
 (2 candidate fns)
 
-- cli_add_flag
-- cli_add_option
+- [LEAK-FIX-LIKELY] cli_add_flag
+- [LEAK-FIX-LIKELY] cli_add_option
 
 ## stdlib/rods\collections.nr
 (1 candidate fns)
 
-- map_grow
+- [LEAK-FIX-LIKELY] map_grow
 
 ## stdlib/rods\concurrency.nr
 (1 candidate fns)
 
-- conc_parallel
+- [LEAK-FIX-LIKELY] conc_parallel
 
 ## stdlib/rods\fmt.nr
 (4 candidate fns)
 
-- fmt_int
-- fmt_hex
-- fmt_oct
-- fmt_bin
+- [LEAK-FIX-LIKELY] fmt_int
+- [LEAK-FIX-LIKELY] fmt_hex
+- [LEAK-FIX-LIKELY] fmt_oct
+- [LEAK-FIX-LIKELY] fmt_bin
 
 ## stdlib/rods\logical_qubit.nr
 (2 candidate fns)
 
-- schedule_new
-- calibration_new
+- [LEAK-FIX-LIKELY] schedule_new
+- [LEAK-FIX-LIKELY] calibration_new
 
 ## stdlib/rods\mpsc_queue.nr
 (1 candidate fns)
 
-- mpsc_new
+- [LEAK-FIX-LIKELY] mpsc_new
 
 ## stdlib/rods\neuromorphic.nr
 (2 candidate fns)
 
-- spike_train_new
-- spike_train_clear
+- [LEAK-FIX-LIKELY] spike_train_new
+- [LEAK-FIX-LIKELY] spike_train_clear
 
 ## stdlib/rods\spsc_queue.nr
 (1 candidate fns)
 
-- spsc_new
+- [LEAK-FIX-LIKELY] spsc_new
