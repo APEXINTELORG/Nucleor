@@ -5,6 +5,43 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.82] — 2026-05-04
+
+**Defensive halt — `?` operator inside a closure body (wrong-class silent miscompute).**
+
+Pre-v0.7.82, writing `let y = some_result?;` inside a closure body silently
+miscompiled. The `?` lowering (lower_expr kind-122) emitted an `ir_ret` from
+the closure function on the Err/None path — which is correct Rust semantics
+(`?` in a closure should return from the closure, not the outer fn). However,
+Nucleor closures always return `i64` by ABI convention, not `Result<T,E>` or
+`Option<T>`. So on the Err/None path the closure returned the heap-pointer of
+the Err/None `Vec` to its caller as a raw `i64` — the outer fn received a
+garbage integer (heap address) where it expected the closure's actual `i64`
+payload. Wrong-class silent miscompute: no panic, no diagnostic, wrong answer.
+
+Detection: `lower_expr` kind-122 now checks whether `__closure_id` is present
+in the current `sym` table. That symbol is set by `sym_set(clo_sym,
+"__closure_id", clo_idx)` at closure-lowering entry (kind-42), so it is
+present inside any closure body and absent in regular fn scope.
+
+Workaround: pull the `?` into the outer fn with an explicit `match`:
+```
+let r = match inner_result() { Ok(v) => v, Err(e) => return Err(e) };
+```
+or with `if let`:
+```
+if let Err(e) = inner_result() { return Err(e); };
+```
+
+Forward roadmap: closure-body `?` needs closure-return-type inference and an
+error-propagation path to the enclosing fn's error continuation — sister to
+RFC-0016 phase 2.
+
+Halt fixture: `tests/fixtures/v0782_closure_question_mark_halt.nr`.
+
+Seed md5: `907222b4241880f185dd0da74e9dd1e5`. Cold build (Linux): 7.10 s.
+Peak memory: 679 MB (process-tree, matches v0.5-track-L baseline).
+
 ## [0.7.81] — 2026-05-04
 
 **Combined ship — RFC-0061 Tier 1 adjacency-matrix view +
