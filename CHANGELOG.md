@@ -5,6 +5,34 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.73] — 2026-05-04
+
+**Defensive halts (consolidated) — module-scope silent-strip family:
+`extern crate <name>;` and `macro_rules! name { ... }` now both halt
+cleanly at module-item dispatch.**
+
+Both pre-fix were silently dropped at parse:
+
+- `extern crate foo;` — `extern` ident matched no module-item branch,
+  dispatcher fell through, trailing `crate` + `<name>` + `;` were
+  skipped. Adopters translating Rust 2015-style or workspace-style
+  code got NO signal the dependency wasn't pulled in; later
+  `<name>::path` use sites failed opaquely as undefined idents.
+- `macro_rules! name { ... }` — entire definition silently swallowed.
+  Adopter intent that the macro be defined was lost; use sites either
+  failed late at expand-time as TYP-005 undefined idents OR silently
+  produced no expansion (silent miscompute).
+
+Both share the v0.7.71 `async fn` / v0.6.53 `unsafe fn` silent-strip
+audit class — module-scope ident the dispatcher doesn't know about,
+silent skip, downstream wrong-class. Halt cleanly with workaround
+pointers (use `import "path"` for cross-file inclusion until RFC-0018
+phase 3 package resolution; rewrite macro bodies as regular fns until
+the v1.x declarative-macro substrate).
+
+Consolidated fixture: `tests/fixtures/v0773_extern_crate_macro_rules_halt.nr`
+(swap body line to validate the `macro_rules!` form).
+
 ## [0.7.72] — 2026-05-04
 
 **Defensive halt — Rust 2024 if-let / while-let chain
