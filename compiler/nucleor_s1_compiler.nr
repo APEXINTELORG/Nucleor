@@ -27962,6 +27962,19 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[OWN-012]: explicit free calls present in build: ", str_from_int(v0824_total_free)));
         print("  Per RFC-0062 G-4 Phase 2a: explicit `vec_free` / `hashmap_free` are accepted but the compiler does NOT yet check that the freed binding is unused after the free call. Adopter discipline today: do not access a vec/map after passing it to its free helper. Phase 2b adds IR-level use-after-drop tracking; Phase 4 promotes to OWN-012 hard error. Recommended: prefer `#[auto_drop]` (RFC-0042) which inserts cleanup automatically and disables generated drop on bindings that have an explicit free call.");
     };
+    // v0.8.25: RFC-0062 G-5 Phase 2a — FFI null-return audit
+    // info. Detects `*const c_void` and `*mut c_void` return
+    // types in extern fn declarations. Phase 2a is heuristic;
+    // Phase 2b will add per-fn null-check inference. Phase 4
+    // promotes to lint warning when call site lacks
+    // `ptr_is_null` guard.
+    let v0825_extern_void_count: i64 = audit_count_three_needles_total(after_async,
+        str_concat("*const ", "c_void"), str_concat("*mut ", "c_void"),
+        str_concat("-> *const ", "u8"));
+    if v0825_extern_void_count > 0 {
+        print(str_concat("info[FFI-NULL]: raw-pointer return types in extern fn decls: ", str_from_int(v0825_extern_void_count)));
+        print("  Per RFC-0062 G-5 Phase 2a: extern fn returning `*const c_void` / `*mut c_void` / `*const u8` may return NULL on failure (RFC-0062 §3.3 G-5 contract). The compiler does NOT yet verify the wrapping rod fn null-checks before exposing to safe code. Adopter discipline today: every call site receiving a raw-pointer return must `if ptr_is_null(p) { panic(...); }` before deref. Phase 2b adds per-fn null-check inference; Phase 4 promotes to lint warning. Reference: docs/ffi-conventions.md §1.");
+    };
     // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
     let after_deadline: str = expand_deadline(after_async);

@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.25] — 2026-05-04
+
+**RFC-0062 G-5 Phase 2a — FFI-NULL audit-pass info diagnostic.**
+Wave A continues. Detects extern fn declarations with raw-pointer
+return types (`*const c_void`, `*mut c_void`, `*const u8`) and
+emits info-level signal at compile time.
+
+### What's enforced today (Phase 2a)
+
+When source contains extern fn returning raw pointer:
+```
+info[FFI-NULL]: raw-pointer return types in extern fn decls: N
+  Per RFC-0062 G-5 Phase 2a: extern fn returning `*const c_void`
+  / `*mut c_void` / `*const u8` may return NULL on failure
+  (RFC-0062 §3.3 G-5 contract). The compiler does NOT yet verify
+  the wrapping rod fn null-checks before exposing to safe code.
+  Adopter discipline today: every call site receiving a
+  raw-pointer return must `if ptr_is_null(p) { panic(...); }`
+  before deref. Phase 2b adds per-fn null-check inference;
+  Phase 4 promotes to lint warning.
+```
+
+### Seed self-host signal
+
+Both new info diagnostics fire on the seed compile:
+```
+info[OWN-012]: explicit free calls present in build: 44
+info[FFI-NULL]: raw-pointer return types in extern fn decls: 4
+```
+
+These are the cornerstone-RFC enforcement landings the launch
+gate requires. Phase 2a (heuristic) covers the obvious patterns;
+Phase 2b will add proper analysis.
+
+### Perf
+
+Re-used `audit_count_three_needles_total` helper from v0.8.23 —
+single-pass over source for all 3 needles. ~0.02s incremental
+cost. Cold 3.48s (within mean band).
+
+Fixed-point md5: `2c1aba27066757a235366d4ecf7709e4`.
+
 ## [0.8.24] — 2026-05-04
 
 **RFC-0062 G-4 Phase 2a — OWN-012 audit-pass info diagnostic.**
