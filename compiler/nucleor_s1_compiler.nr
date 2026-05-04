@@ -28224,6 +28224,25 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.59 QM-7 / ROBO-7 Phase 1 — Tier C correctness audit-
+    // pass info. Detects adopter use of the Clifford-stabilizer
+    // rod (zero test coverage today; QM-7) and frame-typed
+    // robotics rod (frame-type safety opt-in only, Phase B not
+    // shipped; ROBO-7 Mars-Climate-Orbiter failure mode live).
+    // Phase 2b adds property tests + frame-type check passes.
+    let v0859_has_clifford: i64 = if str_index_of(after_async, str_concat("clifford", ".nr")) >= 0 { 1 } else { 0 };
+    let v0859_has_kinematics: i64 = if str_index_of(after_async, str_concat("kinematics", ".nr")) >= 0 { 1 } else { 0 };
+    let v0859_has_frame: i64 = if str_index_of(after_async, str_concat("frame_", "tag")) >= 0 { 1 } else { 0 };
+    if v0859_has_clifford == 1 || v0859_has_kinematics == 1 || v0859_has_frame == 1 {
+        let v0859_clifford: i64 = if v0859_has_clifford == 1 { simple_attribute_audit_count(after_async, str_concat("clifford", ".nr")) } else { 0 };
+        let v0859_kinematics: i64 = if v0859_has_kinematics == 1 { simple_attribute_audit_count(after_async, str_concat("kinematics", ".nr")) } else { 0 };
+        let v0859_frame: i64 = if v0859_has_frame == 1 { simple_attribute_audit_count(after_async, str_concat("frame_", "tag")) } else { 0 };
+        let v0859_total: i64 = v0859_clifford + v0859_kinematics + v0859_frame;
+        if v0859_total > 0 {
+            print(str_concat("info[QM-7-ROBO-7]: Tier C unvalidated-rod surface in source: ", str_from_int(v0859_total)));
+            print("  Per RFC sister gaps QM-7, ROBO-7 (Tier C correctness): the Clifford-stabilizer rod (41 KB runtime) has ZERO test coverage — basic Bell state (H + CNOT under stabilizer) untested; silent correctness bugs in distance or row reduction undetectable. The kinematics rod still uses plain i64 handles — frame-type safety markers (RFC-0046) are opt-in only, and the Phase B compiler-side TYP-008 frame-mismatch check is NOT yet shipped — mixing camera-frame and base-frame poses is a silent runtime error today (Mars Climate Orbiter failure mode live). Phase 2b adds property tests for Clifford normal form invariants + frame-type check pass; Phase 4 promotes adopter use to v1.0 hard-error. Adopter discipline today: avoid the Clifford rod for production correctness-critical work; treat frame markers as documentation, not enforcement. Reference: docs/rfcs/gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md QM-7 + Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md ROBO-7.");
+        };
+    };
     // v0.8.58 LAW-1/2/3 Phase 1 — `@law(...)` gating info.
     // Today @law(...) is silently dropped at lex time: no AST
     // node, no IR annotation, no optimizer pass that consumes

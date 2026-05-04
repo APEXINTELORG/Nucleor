@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.59] — 2026-05-04
+
+**Wave 3 START — QM-7 / ROBO-7 Phase 1 audit-pass info.**
+First Wave 3 (Tier C correctness) closure. Detects adopter
+use of two unvalidated cornerstone-RFC rods.
+
+### What's enforced today (Phase 1)
+
+```
+info[QM-7-ROBO-7]: Tier C unvalidated-rod surface in source: N
+  QM-7 (Quantum): Clifford-stabilizer rod (41 KB runtime) has
+  ZERO test coverage. Basic Bell state (H + CNOT under
+  stabilizer) untested. Silent correctness bugs in distance or
+  row reduction undetectable.
+
+  ROBO-7 (Robotics): kinematics rod still uses plain i64 handles.
+  Frame-type safety markers (RFC-0046) are opt-in only. Phase B
+  compiler-side TYP-008 frame-mismatch check NOT yet shipped.
+  Mixing camera-frame and base-frame poses is a silent runtime
+  error today (Mars Climate Orbiter failure mode live).
+
+  Phase 2b: property tests for Clifford normal form invariants +
+  frame-type check pass.
+  Phase 4: hard-error promotion at v1.0 cut.
+```
+
+### Wave 3 progress (1 of N — Tier C)
+
+```
+QM-7 Quantum Clifford coverage   Phase 1 v0.8.59 (this)
+ROBO-7 Frame-typing safety       Phase 1 v0.8.59 (this — combined audit)
+Numeric beyond NUM-G1            QUEUED
+Tensor/ML beyond ML-1            QUEUED
+QM-8 entanglement trackers       QUEUED
+QM-9 gate-DAG overflow           QUEUED
+ROBO-8 CHOMP precond             QUEUED
+```
+
+### Perf
+
+Cold 3.63-4.03s (multi-agent), hot 0.42-0.44s. Within Job #1.
+
+Fixed-point md5: `f94ce250680213f54eef30ab665d7e4c`.
+
 ## [0.8.58] — 2026-05-04
 
 **Wave 2 COMPLETE — LAW-1/2/3 Phase 1 audit-pass info.**
