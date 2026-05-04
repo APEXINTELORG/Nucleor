@@ -3093,6 +3093,18 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             let mut else_body: i64 = 0;
             if pk(tokens, sp) == 14 {
                 sp = sp + 1;
+                // v0.7.46 (defensive halt — `if let` chained `else if let`
+                // / `else if`). Pre-fix `if let Some(x) = a { ... } else if
+                // let Some(y) = b { ... }` surfaced as wrong-class
+                // `error[NR020]: expected '{', got token 13` (token 13 =
+                // `if`) because the if-let parser only knows the bare
+                // `else { ... }` form. Halt cleanly with a nested-else
+                // workaround pointer.
+                if pk(tokens, sp) == 13 {
+                    print("ERROR: `else if` (or `else if let`) chained after an `if let` is not yet supported in Nucleor. Pre-v0.7.46 surfaced as wrong-class `error[NR020]: expected '{', got token 13` (token 13 = `if`) because the if-let parser only knows the bare `else { ... }` form.");
+                    print("       Workaround: nest the second `if`/`if let` inside the `else` block — `if let Some(x) = a { ... } else { if let Some(y) = b { ... } else { ... } }`. Each layer of nesting adds one `{ ... }` pair. Tracked for forward-roadmap (else-if-chain support is a small if-let parser extension; sister to the existing `if cond { ... } else if cond { ... }` shape that already works).");
+                    panic("nucleor: `else if` after `if let` not yet supported (see ERROR diagnostic above)");
+                };
                 sp = expect_tok(tokens, sp, 52);
                 let mut er: Vec<i32> = parse_stmts(tokens, sp, pool);
                 sp = expect_tok(tokens, pr_pos(er), 53);

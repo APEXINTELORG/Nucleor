@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.46] — 2026-05-04
+
+**Defensive halt — `else if` (or `else if let`) chained after an
+`if let` (`if let Some(x) = a { ... } else if let Some(y) = b
+{ ... }`) now produces a clean halt with a nested-else workaround
+pointer.**
+
+Pre-fix: writing `if let Some(x) = a { ... } else if let Some(y)
+= b { ... }` surfaced as wrong-class `error[NR020]: parse error:
+expected '{', got token 13` (token 13 = `if`) because the if-let
+parser only knows the bare `else { ... }` form. Adopters porting
+canonical Rust with chained Option-checks got pointed at a parse
+error instead of "else-if-chain not yet supported".
+
+Post-fix: the if-let `else` parser checks if the post-`else`
+token is `if` (token 13) and halts cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+if let Some(x) = a { print("a"); }
+else if let Some(y) = b { print("b"); }      // ← NR020 wrong-class
+
+// Post-fix workaround — nest the second if/if-let:
+if let Some(x) = a {
+    print("a");
+} else {
+    if let Some(y) = b {
+        print("b");
+    } else {
+        print("none");
+    }
+}
+```
+
+Note: ordinary `if cond { ... } else if cond { ... }` (without
+`if let`) already works — only the `if let` post-`else` chain
+isn't supported yet.
+
+Forward-roadmap: else-if-chain support is a small if-let parser
+extension that recursively parses the next `if`/`if let` instead
+of expecting `{`.
+
+### Fixture
+
+`tests/fixtures/v0746_if_let_else_if_halt.nr` — negative fixture
+for `if let Some(x) = a { } else if let Some(y) = b { }` (fires
+chain halt with nested-else workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `73e481d7b4c8a41b1b2e0743391bfe70`.
+
 ## [0.7.45] — 2026-05-04
 
 **Defensive halt — tuple-struct pattern in match arm
