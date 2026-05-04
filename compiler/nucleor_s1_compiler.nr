@@ -22710,7 +22710,18 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 || str_eq(mname, "ok_or_else") == 1
                                 || str_eq(mname, "transpose") == 1
                                 || str_eq(mname, "expect_err") == 1
-                                || str_eq(mname, "iter_lines") == 1 { 1 } else { 0 };
+                                || str_eq(mname, "iter_lines") == 1
+                                || str_eq(mname, "into_iter") == 1
+                                || str_eq(mname, "try_into") == 1
+                                || str_eq(mname, "try_from") == 1
+                                || str_eq(mname, "from") == 1
+                                || str_eq(mname, "borrow") == 1
+                                || str_eq(mname, "borrow_mut") == 1
+                                || str_eq(mname, "into_inner") == 1
+                                || str_eq(mname, "leak") == 1
+                                || str_eq(mname, "as_str") == 1
+                                || str_eq(mname, "as_slice") == 1
+                                || str_eq(mname, "as_ptr") == 1 { 1 } else { 0 };
                             if v082_idiom == 1 {
                                 let v082_workaround: str = if str_eq(mname, "into") == 1 {
                                     "no v0.6 conversion path; the From/Into trait family is not yet shipped — use an explicit named conversion fn (e.g. `i64_to_str(x)` for numeric→str)"
@@ -22818,6 +22829,24 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                     "manual match — `match r { Err(e) => e, Ok(_) => panic(\"expected err\") }`"
                                 } else if str_eq(mname, "iter_lines") == 1 {
                                     "use `.lines()` (now also halted) workaround — `let parts: Vec<str> = str_split(s, \"\\n\");`"
+                                } else if str_eq(mname, "into_iter") == 1 {
+                                    "drop the call — `for x in v` already iterates by-value under the i64-everywhere ABI; `for x in v.into_iter()` is just `for x in v`. The Rust convention exists because .iter() yields &T while .into_iter() yields T; here both yield T already"
+                                } else if str_eq(mname, "try_into") == 1 || str_eq(mname, "try_from") == 1 {
+                                    "use an explicit conversion — for narrowing casts (`i64 -> i32`) write `x as i32` (Nucleor's bare `as` cast checks NUM-003 narrowing under strict-arith mode); for Vec-to-array, build the array manually since slices and arrays are unified as Vec<T> in Nucleor today"
+                                } else if str_eq(mname, "from") == 1 {
+                                    "associated From::from is not yet supported — use the explicit conversion fn (`String::from(s)` is already supported; for user types write a `<Target>_from_<Src>(x: Src) -> Target` helper). The full From/Into trait family is forward-roadmap"
+                                } else if str_eq(mname, "borrow") == 1 || str_eq(mname, "borrow_mut") == 1 {
+                                    "drop the call — Nucleor's i64-everywhere ABI passes by value already; the Borrow/BorrowMut trait family exists in Rust to let containers accept `&str` where `String` is stored. Here just pass the value directly"
+                                } else if str_eq(mname, "into_inner") == 1 {
+                                    "for `Cell<T>`/`RefCell<T>`-style wrappers, those types aren't supported (forward-roadmap, sister to v0.7.12 smart-pointer halt). For `Result<T, E>::into_ok`, use `match` instead"
+                                } else if str_eq(mname, "leak") == 1 {
+                                    "Box::leak / Vec::leak (intentional memory leak to obtain `&'static T`) is not supported — Nucleor doesn't expose 'static lifetime semantics. Workaround: use a top-level `const` or `static` (the latter is also forward-roadmap; see v0.6.21 halt)"
+                                } else if str_eq(mname, "as_str") == 1 {
+                                    "drop the call — Nucleor's i64-everywhere ABI treats `String` and `str` as the same i64-pointer at the runtime level; `s.as_str()` is just `s`"
+                                } else if str_eq(mname, "as_slice") == 1 {
+                                    "drop the call — Nucleor doesn't distinguish Vec from slice today; `v.as_slice()` is just `v`"
+                                } else if str_eq(mname, "as_ptr") == 1 {
+                                    "the raw-pointer family is not yet exposed in Nucleor's surface — sister to v0.7.3 (raw-pointer types) and v0.7.14 (raw-ref expressions) halts. Use Vec/String element access (`vec_get`, `str_char_at`) instead of pointer arithmetic"
                                 } else {
                                     "use a `while i < vec_len(&v) { let item: T = vec_get(&v, i); ...; i = i + 1; }` loop with index-based access — Nucleor doesn't auto-derive iterator interior mutability today"
                                 };

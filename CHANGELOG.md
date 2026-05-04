@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.40] — 2026-05-04
+
+**Defensive halt — Rust ownership/conversion-trait methods
+(`.into_iter`, `.try_into`, `.try_from`, `.from`, `.borrow`,
+`.borrow_mut`, `.into_inner`, `.leak`, `.as_str`, `.as_slice`,
+`.as_ptr`) now route to the v0.6.82 idiom-list halt with drop-call
+or explicit-conversion workarounds.**
+
+Pre-fix: writing `for x in v.into_iter() {}` or `let arr = v.try_into().unwrap()` surfaced as wrong-class TYP-005 "Vec<T> has no method .into_iter()" — same kind-8 catch-all bug pattern as the previous five idiom ships (v0.7.30–v0.7.34).
+
+Post-fix: 11 Rust ownership/conversion methods added to the
+v0.6.82 idiom-list halt with per-method workarounds:
+
+```nucleor
+// Pre-fix wrong-class:
+for x in v.into_iter() { ... }
+let arr: [i64; 3] = v.try_into().unwrap();
+let s: &str = my_string.as_str();
+
+// Post-fix workarounds:
+for x in v { ... }                            // .into_iter — drop call
+let n: i32 = (x as i32);                      // .try_into — bare `as` cast
+let s = my_string;                            // .as_str — drop call (i64-everywhere)
+```
+
+Forward-roadmap: full From/Into/Borrow trait infrastructure +
+slice/array distinction + raw-pointer surface are v1.x ships.
+
+### Fixture
+
+`tests/fixtures/v0740_into_iter_halt.nr` — negative fixture for
+`v.into_iter()` (fires v0.6.82 idiom halt with drop-call
+workaround, not the Vec<T>-method-table TYP-005).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `d0e28b376f588efbf56f3f584776c281`.
+
 ## [0.7.39] — 2026-05-04
 
 **Defensive halt — pattern-destructure in fn parameter
