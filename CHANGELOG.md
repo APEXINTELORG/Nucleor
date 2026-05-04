@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.54] — 2026-05-04
+
+**Defensive halt — paren-wrapped payload inside a variant pattern
+(`Some((1))`, `Ok((x, y))`) now produces a clean halt with a
+drop-the-parens / anonymous-tuple workaround pointer.**
+
+Pre-fix: writing `match opt { Some((1)) => ... }` (paren-wrapped
+int payload) or `Some((x, y))` (anonymous-tuple payload pattern)
+surfaced as wrong-class `error[NR020]: parse error: expected ')',
+got integer literal` because the parser fell through to
+pkv-on-`(` (garbage binding), advanced past the inner `(`, then
+tried to expect `)` at the inner-payload position.
+
+Post-fix: the variant-pattern parser checks for `(` (token 50)
+immediately after consuming the variant's outer `(` and halts
+cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+match opt {
+    Some((1)) => print("a"),       // ← NR020 (extra parens)
+    Some((x, y)) => print("b"),    // ← NR020 (tuple payload)
+    _ => print("c"),
+}
+
+// Post-fix workaround A — drop the extra parens:
+match opt {
+    Some(x) => { /* ... */ }
+}
+
+// Post-fix workaround B — anonymous-tuple payload destructure:
+match opt {
+    Some(t) => {
+        let a: i64 = t.0;
+        let b: i64 = t.1;
+        // ...
+    }
+}
+```
+
+Forward-roadmap: anonymous-tuple-payload pattern destructure
+needs the recursive pattern parser (sister to
+nested-pattern halt v0.6.90).
+
+### Fixture
+
+`tests/fixtures/v0754_paren_wrapped_variant_payload_halt.nr` —
+negative fixture for `Some((1))` (fires paren-wrapped halt with
+drop-parens workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `add3ac845f022e8881e5b719647fd3ae`.
+Cold 3.92s median (3 samples) / peak 307MB.
+
 ## [0.7.53] — 2026-05-04
 
 **🛑 Compiler SEGFAULT fix — bare float-literal payload inside a
