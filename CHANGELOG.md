@@ -5,6 +5,76 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.19] — 2026-05-04
+
+**RFC-0062 Memory-Safety Phase 1 batch — G-8 + G-11 lock-in
+fixtures.** Pure-fixtures ship; no compiler change. Adds tests
+that lock the existing safe-by-default behavior so future
+refactors can't silently regress it.
+
+### G-11 P1 — MS-7 (uninitialized read) lock-in fixtures
+
+**Phase 1 finding:** the compiler **already** rejects
+declare-without-init at compile time via the existing
+`error[TYP-008]` diagnostic. The diagnostic explain text
+explicitly cites the safety rationale ("would silently read as
+0 from the alloca's zero-init slot"). G-11 Phase 1 was
+budgeted as "needs new test fixtures"; the actual closure is
+"existing diagnostic catches the simple case, lock it with
+fixtures so it doesn't regress."
+
+New negative fixtures:
+- `tests/err/err_g11_uninit_simple.nr` — declare-then-assign-then-read
+- `tests/err/err_g11_uninit_branch.nr` — declare-then-assign-in-every-branch
+
+Both EXPECT TYP-008. Phase 2 may relax the second case if
+flow-sensitive definite-assignment lands; until then the v0.x
+contract is "initialize at declaration."
+
+New positive fixture (legitimate-init pattern):
+- `tests/fixtures/v0819_g11_ms7_uninit_stress_b.nr` — explicit
+  init pre-loop, mutate inside loop. rc=10.
+
+### G-8 P1 — conditional-divergence test set
+
+Two positive fixtures exercising borrow tracking through if/else
+where every arm consumes the value identically (no path moves a
+value the other path keeps):
+
+- `tests/fixtures/v0819_g8_cond_divergence_a.nr` — both arms
+  borrow `&v`, post-if read of `v` is safe. rc=202.
+- `tests/fixtures/v0819_g8_cond_divergence_b.nr` — nested if as
+  expression value, post-if read of `s`. rc=23.
+
+These lock the v0.x behavior that borrows-only branches don't
+trip the move tracker. Phase 2 will add cases where one arm
+moves and the other borrows (currently rejected — Phase 4
+keeps that rejection).
+
+### Phase 1 closure progress
+
+Before: 4 of 11 Phase 1 items remain open.
+After: 2 of 11 (G-1 auto-drop CRITICAL, G-6 Sendable HIGH).
+
+| Gap | Severity | Phase 1 | Ship |
+|---|---|---|---|
+| G-1 auto-drop | CRITICAL | open | — |
+| G-2 lifetime enforce | CRITICAL | DONE | v0.8.17 |
+| G-3 heap alias | HIGH | DONE | v0.8.18 |
+| G-4 double-free | HIGH | DONE | v0.8.18 |
+| G-5 FFI null | HIGH | DONE | v0.8.18 |
+| G-6 Sendable | HIGH | open | — |
+| G-7 unsafe audit | HIGH | DONE | v0.8.17 |
+| G-8 cond divergence | MEDIUM | **DONE** | v0.8.19 |
+| G-9 FFI bounds | MEDIUM | DONE | v0.8.18 |
+| G-10 cross-fn | MEDIUM | via G-2 | v0.8.17 |
+| G-11 MS-7 stress | LOW | **DONE** | v0.8.19 |
+
+Next ships: G-1 (`#[auto_drop]` opt-in stabilization) and G-6
+(Sendable inventory).
+
+Cold 3.09s / peak 309MB.
+
 ## [0.8.18] — 2026-05-04
 
 **RFC-0062 Memory-Safety Phase 1 batch — docs closures (G-3,
