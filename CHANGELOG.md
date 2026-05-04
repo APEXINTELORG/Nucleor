@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.61] — 2026-05-04
+
+**Defensive halt — `unsafe trait T { ... }` and `unsafe impl T
+for S { ... }` now produce clean halts. Sister to v0.6.53 `unsafe
+fn` halt — closes the silent-strip class for trait/impl decls.**
+
+Pre-fix: writing `unsafe trait T { ... }` or `unsafe impl T for
+S { ... }` had the `unsafe` keyword silently stripped at parse —
+the decl parsed normally without the marker. Adopters auditing
+translated Rust code lost the visual signal, with no audit trail
+of which decls were unsafe. Sister to v0.6.53 (`unsafe fn`),
+which closed the same silent-strip for fn decls.
+
+Post-fix: `parse_program` checks for the `unsafe` ident followed
+by `trait` (token 66) or `impl` (token 67) at module scope and
+halts cleanly:
+
+```nucleor
+// Pre-fix silent-strip:
+unsafe trait T { fn m(self) -> i64; }     // ← `unsafe` silently stripped
+unsafe impl T for S { ... }                // ← same
+
+// Post-fix workaround — drop the `unsafe` qualifier:
+trait T { fn m(self) -> i64; }
+impl T for S { ... }
+```
+
+Forward-roadmap: when v1 ships any trait/impl-soundness substrate
+(e.g., for opt-out of trait-method dispatch checks), `unsafe`
+will gain meaning. Until then the qualifier is informational-only
+at the decl level, same as `unsafe fn`.
+
+### Fixture
+
+`tests/fixtures/v0761_unsafe_trait_impl_halt.nr` — negative fixture
+for `unsafe trait T { ... }` (fires unsafe-decl halt with drop-
+qualifier workaround). Same halt fires for `unsafe impl ...`.
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `258aecf774abcff033a4d2918b26254d`.
+Cold 3.88s / peak 307MB.
+
 ## [0.7.60] — 2026-05-04
 
 **Defensive halt — paren-wrapped pattern in `if let` / `while let`
