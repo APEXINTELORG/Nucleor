@@ -30769,6 +30769,42 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
                 // args work; without args, synthesize the canonical
                 // Rust-stdlib message.
                 if str_eq(name, "unreachable") == 1 { mode = 5; };
+                // v0.7.20 (defensive halt — common Rust built-in macros that
+                // are NOT supported in Nucleor's macro layer fall through to
+                // wrong-class diagnostics: zero-arg `file!()` / `line!()` /
+                // `column!()` / `module_path!()` produce NR020 `expected ')',
+                // got ';'`; `stringify!(x)` / `concat!(...)` / `env!("X")` /
+                // `option_env!("X")` / `include_str!("p")` produce TYP-005
+                // `undefined function`. Halt cleanly with workaround pointers.
+                if mode == 0 - 1 {
+                    let mut halt_macro: str = "";
+                    if str_eq(name, "file") == 1        { halt_macro = "file"; };
+                    if str_eq(name, "line") == 1        { halt_macro = "line"; };
+                    if str_eq(name, "column") == 1      { halt_macro = "column"; };
+                    if str_eq(name, "module_path") == 1 { halt_macro = "module_path"; };
+                    if str_eq(name, "stringify") == 1   { halt_macro = "stringify"; };
+                    if str_eq(name, "concat") == 1      { halt_macro = "concat"; };
+                    if str_eq(name, "env") == 1         { halt_macro = "env"; };
+                    if str_eq(name, "option_env") == 1  { halt_macro = "option_env"; };
+                    if str_eq(name, "include_str") == 1 { halt_macro = "include_str"; };
+                    if str_eq(name, "include_bytes") == 1 { halt_macro = "include_bytes"; };
+                    if str_len(halt_macro) > 0 {
+                        print(str_concat("ERROR: Rust built-in macro `", str_concat(halt_macro, "!(...)` is not yet supported in Nucleor. Pre-v0.7.20 surfaced as wrong-class NR020 (zero-arg macros) or TYP-005 (arg macros) at parse / link.")));
+                        print(str_concat("       Workaround for `", str_concat(halt_macro, "!`:")));
+                        if str_eq(halt_macro, "file") == 1 { print("       -- `file!()` returns the source file path. Use a hard-coded string literal: `let f: str = \"path/to/file.nr\";`."); };
+                        if str_eq(halt_macro, "line") == 1 { print("       -- `line!()` returns the source line number. Use a hard-coded i64: `let ln: i64 = 42;` or pass the line at the call site."); };
+                        if str_eq(halt_macro, "column") == 1 { print("       -- `column!()` returns the source column number. Use a hard-coded i64."); };
+                        if str_eq(halt_macro, "module_path") == 1 { print("       -- `module_path!()` returns the current module path. Use a hard-coded string."); };
+                        if str_eq(halt_macro, "stringify") == 1 { print("       -- `stringify!(x)` returns the textual form of `x`. Use a hard-coded string literal — `let s: str = \"x\";`."); };
+                        if str_eq(halt_macro, "concat") == 1 { print("       -- `concat!(\"a\", \"b\")` joins string literals at compile time. Use `str_concat(\"a\", \"b\")` (runtime) or a single concatenated literal `\"ab\"`."); };
+                        if str_eq(halt_macro, "env") == 1 { print("       -- `env!(\"X\")` reads a build-time env var. Pass the value at runtime via `args_get(idx)` or a wrapper script."); };
+                        if str_eq(halt_macro, "option_env") == 1 { print("       -- `option_env!(\"X\")` is the Option-returning variant of env!. Same workaround — pass at runtime."); };
+                        if str_eq(halt_macro, "include_str") == 1 { print("       -- `include_str!(\"path\")` embeds a file at compile time. Use `file_read_string(\"path\")` (runtime) instead."); };
+                        if str_eq(halt_macro, "include_bytes") == 1 { print("       -- `include_bytes!(\"path\")` embeds a file as bytes at compile time. Use a runtime read into Vec<u8>."); };
+                        print("       Tracked for forward-roadmap (compile-time macro evaluation needs a const-eval pass).");
+                        panic(str_concat("nucleor: built-in macro `", str_concat(halt_macro, "!(...)` not yet supported (see ERROR diagnostic above)")));
+                    };
+                };
                 if mode >= 0 {
                     p = p + 2;
                     let args_start: i64 = p;
