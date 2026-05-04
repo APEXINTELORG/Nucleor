@@ -3203,7 +3203,34 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             };
             // We have a pattern; parse `= EXPR { BODY } [else { BODY }]`
             ip = expect_tok(tokens, ip, 40); // `=`
+            let v772_expr_start: i64 = ip;
             let mut sr: Vec<i32> = parse_expr(tokens, ip, pool);
+            // v0.7.72 (defensive halt — Rust 2024 if-let chain:
+            // `if let Some(x) = opt && cond { ... }`). Pre-fix
+            // parse_expr greedily consumed `opt && cond` as a single
+            // boolean expression and the desugared match scrutinee
+            // referenced the pattern binding (`x`) in the chained
+            // condition BEFORE the match-arm bound it — emitting an
+            // undefined-name call that clang linked as wrong-class
+            // `error[TYP-005]: undefined function 'x()'`. Detect by
+            // scanning the consumed scrutinee tokens for `&&`
+            // (token 36) — Rust 2024 if-let chains require pattern
+            // + guard composition that Nucleor's desugar does not
+            // yet model. Sister to v0.7.50 or-pattern halt (same
+            // family of "Rust syntax tighter than Nucleor's if-let
+            // desugar").
+            let mut v772_scan: i64 = v772_expr_start;
+            let v772_end: i64 = pr_pos(sr);
+            let mut v772_has_chain: i64 = 0;
+            while v772_scan < v772_end {
+                if pk(tokens, v772_scan) == 36 { v772_has_chain = 1; v772_scan = v772_end; }
+                else { v772_scan = v772_scan + 1; };
+            };
+            if v772_has_chain == 1 {
+                print("ERROR: if-let / while-let chains (`if let PATTERN = EXPR && cond { ... }`) are not yet supported in Nucleor. Pre-v0.7.72 surfaced as wrong-class `error[TYP-005]: undefined function '<binding>()'` at clang link because parse_expr greedily consumed `EXPR && cond` as a single boolean scrutinee that referenced the pattern binding before the match-arm could bind it.");
+                print("       Workaround: split the chain — `if let Some(x) = opt { if cond { ... } }` — or pull the condition into the existing match-arm form with a guard. Tracked for forward-roadmap (Rust 2024 if-let chains require pattern + guard composition; sister to v0.7.50 or-pattern halt).");
+                panic("nucleor: if-let chain (`if let ... = ... && cond`) not yet supported (see ERROR diagnostic above)");
+            };
             let mut sp: i64 = expect_tok(tokens, pr_pos(sr), 52); // `{`
             let mut br: Vec<i32> = parse_stmts(tokens, sp, pool);
             sp = expect_tok(tokens, pr_pos(br), 53); // `}`

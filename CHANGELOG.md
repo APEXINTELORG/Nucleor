@@ -5,6 +5,27 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.72] — 2026-05-04
+
+**Defensive halt — Rust 2024 if-let / while-let chain
+(`if let PATTERN = EXPR && cond { ... }`) closes wrong-class
+TYP-005 from a pattern-binding shadow in the desugared scrutinee.**
+
+Pre-fix `if let Some(x) = opt && x > 10 { return x; }` surfaced
+at clang link as wrong-class `error[TYP-005]: undefined function
+'x()'`: parse_expr greedily consumed `opt && x > 10` as one
+boolean expression, and the desugared match scrutinee referenced
+the pattern-binding `x` before the match-arm could bind it,
+emitting an undefined-name call. Now halts at the if-let parser
+by scanning the consumed scrutinee tokens for `&&` (token 36).
+
+Rust 2024 if-let chains require pattern + guard composition that
+Nucleor's `if let / while let -> match` desugar does not model.
+Sister to v0.7.50 or-pattern halt (same family — "Rust syntax
+tighter than Nucleor's if-let desugar").
+
+Fixture: `tests/fixtures/v0772_if_let_chain_halt.nr`.
+
 ## [0.7.71] — 2026-05-04
 
 **Defensive halt — Rust `async fn` (closes wrong-class
