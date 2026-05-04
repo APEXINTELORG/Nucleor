@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.96] — 2026-05-04
+
+**stdlib/rods/datetime.nr first test coverage + pre-existing
+API quirk documented.** Pure fixture, no compiler / runtime /
+stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey from v0.8.94/.95.
+`datetime.nr` had no existing tests. Silent regressions in date
+arithmetic or ISO parse would propagate into adopter time-
+stamping code invisibly.
+
+### The fixture
+
+`tests/features/datetime_round_trip_smoke.nr` covers five
+invariants that survive the host's local-time vs UTC asymmetry
+(see "API quirk" below):
+
+| Test | Invariant |
+|---|---|
+| date round-trip | `dt_from_ymd(2026, 5, 4, 12, 0, 0) → dt_to_ymd → [year, month, day]` matches `[2026, 5, 4]` (noon anchor avoids tz-driven day rollover) |
+| add days | `dt_to_ymd(dt_add_days(2026-05-04, 7)) → [2026, 5, 11]` |
+| hours/days consistency | `dt_add_hours(t, 24) == dt_add_days(t, 1)` (structural) |
+| diff inverse | `dt_diff_days(dt_add_days(t, 30), t) == 30` (structural) |
+| ISO parse smoke | `dt_parse_iso("2026-05-04T12:00:00")` returns non-zero handle |
+
+All five pass. rc=0. Cold 0.75s.
+
+### API quirk caught (documented, not fixed)
+
+During fixture development, an initial broader test attempted
+hour-precision round-trip and day-of-week assertions and
+**failed** because:
+
+- `dt_from_ymd` (in `stdlib/runtime/datetime_rt.c`) uses
+  `mktime()` — interprets components as **local time**.
+- `dt_to_ymd` uses `gmtime()` — produces **UTC** components.
+
+The timestamp drifts by the host's tz offset, so the round-trip
+loses the hour. This is a pre-existing API asymmetry, not a
+v0.8.96 regression. Documented in the fixture header. Fix
+requires either:
+- New `dt_from_ymd_utc` companion using `timegm()` (or manual
+  POSIX equivalent), OR
+- Changing `dt_from_ymd` to interpret as UTC (breaking change).
+
+Either path is queued for a separate ship; the fixture's noon-
+anchor structural-only assertions hold across any tz.
+
+Other zero-coverage rods queued: autodiff / bigint / bm25 /
+bspline / cli / collections / compress / control / crypto /
+csv / fft / finance / fluid / fmt / fs / geom / image / ini /
+interp / interval / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.95] — 2026-05-04
 
 **stdlib/rods/bloom.nr first test coverage.** Pure fixture, no
