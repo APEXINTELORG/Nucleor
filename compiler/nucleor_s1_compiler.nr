@@ -19952,8 +19952,23 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
     };
     if kind == 12 {
         let tname: str = node_field(pool, nid, 1);
+        let mname_k12: str = node_field(pool, nid, 2);
         let args: i64 = node_field(pool, nid, 3);
         if str_eq(tname, "Box") == 1 {
+            // v0.8.63: Box::leak(b: Box<T>) -> &T — intentional-leak
+            // pass-through. Nucleor has no automatic drop today so
+            // Box::leak is semantically a no-op that unwraps the type.
+            if str_eq(mname_k12, "leak") == 1 {
+                if list_len(pool, args) > 0 {
+                    let box_t: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+                    let blen: i64 = str_len(box_t);
+                    if blen > 4 && str_eq(str_substring(box_t, 0, 4), "Box<") == 1 {
+                        return str_concat("&", str_substring(box_t, 4, blen - 1));
+                    };
+                    return str_concat("&", box_t);
+                };
+                return "&i64";
+            };
             if list_len(pool, args) > 0 {
                 let inner: str = type_expr(pool, prog, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
                 if str_len(inner) > 0 { return str_concat("Box<", str_concat(inner, ">")); };
@@ -24039,6 +24054,20 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let zr: i64 = ctr_next(regs);
             ir_block_add(blk, ir_const_int(zr, 0));
             return lx_new(zr, blk);
+        };
+        // v0.8.63: Box::leak(b) — intentional memory-leak pass-through.
+        // Nucleor has no automatic drop (V1.3 RAII unshipped), so
+        // Box::leak is semantically identical to Box::new in the ABI:
+        // just return the inner value. Callers from Rust-ported code
+        // use it to obtain a &'static mut T from a heap-allocated Box;
+        // in Nucleor's i64-everywhere ABI the Box IS the inner pointer.
+        if str_eq(tname, "Box") && str_eq(mname, "leak") {
+            if list_len(pool, args_list) > 0 {
+                return lower_expr(pool, list_get(pool, args_list, 0), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+            };
+            let zrl: i64 = ctr_next(regs);
+            ir_block_add(blk, ir_const_int(zrl, 0));
+            return lx_new(zrl, blk);
         };
         // v0.3.71: Rust-style associated-fn aliases for the lowercase
         // collection helpers. Maps `HashMap::new()` → `hashmap_new()`,

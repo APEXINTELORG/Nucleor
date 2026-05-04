@@ -7970,6 +7970,19 @@ fn type_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: V
         let tname: str = node_field(pool, nid, 1);
         let args: i64 = node_field(pool, nid, 3);
         if str_eq(tname, "Box") == 1 {
+            let mname_ts: str = node_field(pool, nid, 2);
+            // v0.8.63 mirror: Box::leak(b: Box<T>) -> &T
+            if str_eq(mname_ts, "leak") == 1 {
+                if list_len(pool, args) > 0 {
+                    let box_t_ts: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
+                    let blen_ts: i64 = str_len(box_t_ts);
+                    if blen_ts > 4 && str_eq(str_substring(box_t_ts, 0, 4), "Box<") == 1 {
+                        return str_concat("&", str_substring(box_t_ts, 4, blen_ts - 1));
+                    };
+                    return str_concat("&", box_t_ts);
+                };
+                return "&i64";
+            };
             if list_len(pool, args) > 0 {
                 let inner: str = type_expr(pool, list_get(pool, args, 0), env, sigs, structs, fn_name, diags, source, tprof);
                 if str_len(inner) > 0 { return str_concat("Box<", str_concat(inner, ">")); };
@@ -9266,6 +9279,15 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let zr: i64 = ctr_next(regs);
             ir_block_add(blk, ir_const_int(zr, 0));
             return lx_new(zr, blk);
+        };
+        // v0.8.63 mirror: Box::leak pass-through
+        if str_eq(tname, "Box") && str_eq(mname, "leak") {
+            if list_len(pool, args_list) > 0 {
+                return lower_expr(pool, list_get(pool, args_list, 0), blk, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+            };
+            let zrl_ts: i64 = ctr_next(regs);
+            ir_block_add(blk, ir_const_int(zrl_ts, 0));
+            return lx_new(zrl_ts, blk);
         };
         if str_eq(tname, "Tensor") {
             let mut t_args: Vec<i32> = Vec::new();
