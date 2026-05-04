@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8] — 2026-05-04
+
+**Phase B step-1 — core Nucleor attribute audit (`@hot`,
+`@const_fn`, `#[max_depth]`, `#[deadline]`).**
+
+Extends the discovery surface from the V2 frontier attributes
+(v0.8.5 / v0.8.6 / v0.8.7) to the existing core Nucleor
+attributes adopters use today. Build emits a one-line summary
+per family when the count is non-zero:
+
+```
+audit: @hot fns in build: N
+audit: @const_fn fns in build: N
+audit: #[max_depth] fns in build: N
+audit: #[deadline] fns in build: N
+```
+
+Combined with the V2-frontier audits, the build now emits
+discovery-class summaries for **14 distinct attribute
+families** when present in the source:
+
+| Group | Attributes |
+|---|---|
+| V2 frontier (Phase A v0.7.83-0.8.1) | `@differentiable`, `@energy`, `@thermal`, `@photonic`, `@neuromorphic`, `@within`, `@enclave`, `@attested` |
+| Governance (RFC-0060) | `@authored`, `@policy` |
+| Core Nucleor (this ship) | `@hot`, `@const_fn`, `#[max_depth]`, `#[deadline]` |
+
+`#[max_depth]` and `#[deadline]` already produce metadata via
+their `expand_*` rewriters; the audit count adds a plain-
+language build summary alongside.
+
+### Implementation
+
+Reuses `simple_attribute_audit_count` (from v0.8.6). All
+needles built via `str_concat` to avoid verbatim self-match
+(sister to v0.7.98 `compile_error!` self-host guard pattern).
+
+### Smoke fixture
+
+`tests/fixtures/v0808_phaseB_core_attr_audit_smoke.nr` — 4 fns
+across the 4 core families. Runtime returns 4. Audit summary
+lines will appear in build log once `bin/nucleor.exe` is
+rebuilt from the new seed.
+
+### Status
+
+Adopters using the existing `bin/nucleor.exe` (built from a
+pre-v0.8.5 seed) won't see audit messages until the next
+perf-integration ship rebuilds the binary. The seed itself
+contains the Phase B logic; T1.7 fixed-point validates.
+
+The Phase B step-1 discovery layer is now complete across
+the 14 attribute families. Phase B step-2 (parse + store
+metadata + per-family semantic enforcement) remains the
+next-wave work per family.
+
+Fixed-point md5: `8E0C130F2B7D55AA2CBC6459CE4681C1`.
+Cold 3.06s / peak 307MB (under 4s job #1).
+
 ## [0.8.7] — 2026-05-04
 
 **Phase B step-1 — extended attribute audit (7 attribute
