@@ -33,6 +33,44 @@ if ($WarningMb -ge $BudgetMb) { $WarningMb = [Math]::Max(1, $BudgetMb - 1) }
 
 $baseline = Get-Content $baseline_path -Raw | ConvertFrom-Json
 
+function Get-NucPerfHostSnapshot {
+    $stamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+    $cpu = "n/a"
+    $logical = "n/a"
+    try {
+        $processors = @(Get-CimInstance Win32_Processor -ErrorAction Stop)
+        if ($processors.Count -gt 0) {
+            $cpuVals = @($processors | ForEach-Object { [double]$_.LoadPercentage })
+            $cpu = [Math]::Round((($cpuVals | Measure-Object -Average).Average), 1)
+            $logical = (($processors | Measure-Object -Property NumberOfLogicalProcessors -Sum).Sum)
+        }
+    } catch { }
+
+    $top = "n/a"
+    try {
+        $top = ((Get-Process -ErrorAction Stop |
+            Where-Object { $null -ne $_.CPU } |
+            Sort-Object CPU -Descending |
+            Select-Object -First 5 |
+            ForEach-Object {
+                "{0}:{1}:cpu={2:n1}:rss={3:n0}MB" -f $_.ProcessName, $_.Id, $_.CPU, ($_.WorkingSet64 / 1MB)
+            }) -join ", ")
+        if ([string]::IsNullOrWhiteSpace($top)) { $top = "n/a" }
+    } catch { }
+
+    return [pscustomobject]@{
+        Stamp = $stamp
+        CpuPercent = $cpu
+        LogicalProcessors = $logical
+        TopCpu = $top
+    }
+}
+
+function Format-NucPerfHostSnapshot($Snapshot) {
+    return ("{0} | cpu={1}% logical={2} | top_cpu={3}" -f
+        $Snapshot.Stamp, $Snapshot.CpuPercent, $Snapshot.LogicalProcessors, $Snapshot.TopCpu)
+}
+
 function Invoke-CappedBuild([string[]]$ArgsList, [string]$Label) {
     $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("nuc_perf_{0}_{1}" -f $PID, [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $tmp -Force | Out-Null
@@ -96,6 +134,8 @@ function Get-MedianSeconds($Results) {
     return ([double]$vals[$mid - 1] + [double]$vals[$mid]) / 2.0
 }
 
+$hostStart = Get-NucPerfHostSnapshot
+
 Push-Location $root
 try {
     # Cold cache: clear .nuc_cache + target before each sample.
@@ -140,6 +180,8 @@ try {
     Pop-Location
 }
 
+$hostEnd = Get-NucPerfHostSnapshot
+
 $cold_max = [double]$baseline.cold_max_allowed_seconds
 $hot_max = [double]$baseline.hot_max_allowed_seconds
 $cold_baseline = [double]$baseline.cold_self_build_seconds
@@ -169,6 +211,8 @@ if ($cold_ok -and $hot_ok -and $mem_ok) {
     if (-not $Quiet) {
         Write-Host ("OK perf: cold={0}s (max {1}s) | hot={2}s (max {3}s) | peak_mem={4}MB (max {5}MB)" -f
             $cold_round, $cold_max, $hot_round, $hot_max, $cold_mem_mb, $mem_max) -ForegroundColor Green
+        Write-Host ("  host start: {0}" -f (Format-NucPerfHostSnapshot $hostStart))
+        Write-Host ("  host end:   {0}" -f (Format-NucPerfHostSnapshot $hostEnd))
         if ($crossed_warning) {
             Write-Host ("WARN: perf check crossed {0} MB warning before staying under e-stop" -f $WarningMb) -ForegroundColor Yellow
         }
@@ -178,6 +222,8 @@ if ($cold_ok -and $hot_ok -and $mem_ok) {
 
 Write-Host ""
 Write-Host "PERF REGRESSION DETECTED" -ForegroundColor Red -BackgroundColor Black
+Write-Host ("  host start: {0}" -f (Format-NucPerfHostSnapshot $hostStart))
+Write-Host ("  host end:   {0}" -f (Format-NucPerfHostSnapshot $hostEnd))
 Write-Host ""
 if (-not $cold_ok) {
     $cold_x = [math]::Round($cold / $cold_baseline, 1)
