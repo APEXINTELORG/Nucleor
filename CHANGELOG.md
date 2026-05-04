@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.102] — 2026-05-04
+
+**stdlib/rods/fft.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `fft.nr` (Cooley-Tukey
+radix-2 FFT, real FFT, convolution, power spectrum, correlation)
+had no existing tests. Silent regressions in spectral
+computations would invalidate any DSP / signal-processing
+pipeline that depends on the FFT.
+
+### The fixture
+
+`tests/features/fft_smoke.nr` covers three textbook FFT
+invariants. Data is interleaved `[re0, im0, re1, im1, ...]` in
+a `Vec<i64>` of f64-bits per the `FFVec` layout in `fft_rt.c`.
+
+| Test | Invariant |
+|---|---|
+| zero in → zero out | FFT of all-zeros input is all-zeros output |
+| FFT-IFFT round-trip | `ifft(fft([1,2,3,4])) ≈ [1,2,3,4]` (within 1e-6) |
+| DC concentration | constant signal `[5,5,5,5]` → DC bin 0 has magnitude ≈ N·mean = 20.0; other bins ≈ 0 |
+
+All three pass. rc=0. Cold 0.60s.
+
+### Significance
+
+Catches silent regressions in:
+
+- Cooley-Tukey radix-2 butterfly correctness (any twiddle-factor
+  sign or index error breaks both round-trip AND DC concentration)
+- The forward/inverse normalization factor (off-by-N would
+  break round-trip but not DC concentration)
+- Bit-reversal permutation in the FFT setup (off-by-one would
+  break DC bin even for constant input)
+- Complex-data layout handling (interleaved re/im pairs)
+
+The full surface (`fft_1d_real`, `fft_convolve`, `fft_power_spectrum`,
+`fft_correlate`) is queued for follow-up coverage extension.
+
+Other zero-coverage rods queued: autodiff / bm25 / bspline /
+cli / collections / compress / control / crypto / csv / fluid /
+fmt / fs / image / ini / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.101] — 2026-05-04
 
 **stdlib/rods/geom.nr first test coverage.** Pure fixture, no
