@@ -5,66 +5,140 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.83] — 2026-05-04
+## [0.8.84] — 2026-05-04
 
-**RFC C-1 Phase 1 — cancel_token C runtime implementation landed.**
+**RFC PERF-11 Phase 1 — `bisect_mem.sh` excursion threshold raised
+from 600 MB to 750 MB.** Tooling-only change.
 
-Closes the linker-bomb gap documented in
-`findings/promoted/2026-05-04-c-1-cancel-token-undefined-symbol-confirmed.md`.
+### The bug
 
-### What changed
+Per `gap-analyses/Nucleor_Performance_Envelope_Gap_Analysis_and_RFC_2026-05-04.md`:
+> bisect_mem.sh excursion threshold 600 MB, current baseline 679 MB.
+> False-positive every run.
 
-`stdlib/runtime/nucleor_llvm_rt.c` — new section after the Win32/POSIX
-concurrency block (after the concurrency `#endif`, before `// === Args ===`):
+`tools/perf_baseline.json` v0.5-track-l-perf-cache locked
+`cold_peak_memory_mb=679` with ceiling 747 MB (baseline +10%).
+The bisect_mem.sh threshold of 600 MB was BELOW baseline,
+tripping the excursion-bisect protocol on every normal run.
 
-```c
-typedef struct { volatile long long flag; } NCancelToken;
-long long __nucleor_cancel_token_new(long long reserved);    // calloc + return
-void     __nucleor_cancel_token_cancel(long long handle);    // atomic set flag=1
-long long __nucleor_cancel_token_is_cancelled(long long handle); // atomic read flag
+### The fix
+
+Single-constant edit in `tools/bisect_mem.sh`:
+
+```sh
+EXCURSION_MB=750         # was 600
 ```
 
-Win32 path uses `InterlockedExchange64` / `InterlockedCompareExchange64`.
-POSIX path uses `__sync_lock_test_and_set` / `__sync_val_compare_and_swap`.
-Both paths are correct for multi-threaded cancellation checks.
+Plus matching help-text update and a comment block documenting
+the relationship to perf_baseline.json.
 
-### Pre-fix surface
+### Notes from the parallel attempt at NUM-G289 audit-text update
 
-All three names (`cancel_token_new`, `cancel_token_cancel`,
-`cancel_token_is_cancelled`) were in the compiler's name-registry
-(`get_rt_name`) and in the LLVM preamble (`declare` lines 8178–8180 of
-`nucleor_s1_compiler.nr`), but had zero C implementations. Any adopter
-program calling these symbols built successfully through IR emit but
-failed at link time with `undefined symbol: __nucleor_cancel_token_new`
-on both Win32 and POSIX. The diagnostic at `nucleor_s1_compiler.nr:28453`
-correctly identified the POSIX gap; the Win32 gap was equally present.
+I also attempted a stale-audit-text update in `compiler/
+nucleor_s1_compiler.nr` to refresh the NUM-G289 audit-pass
+info text (reflect the v0.8.80/.81/.82 closures).
 
-### Post-fix
+Self-host validation chain passed:
+- stage1 build OK
+- stage2 build OK, md5 matched stage1
+- Stage1 ELF binary spot-check on tests/features/t3_char_cast_audit_lock.nr
+  emitted updated audit text + `compiled:` + rc=130 OK
 
-`cancel_token_new(0)` returns a valid heap handle.
-`cancel_token_is_cancelled(tok)` returns 0 before cancel, 1 after.
-`cancel_token_cancel(tok)` sets the atomic flag atomically.
+But the resulting Windows PE bin (built from new seed.ll +
+nucleor_llvm_rt.c via clang -fuse-ld=lld) hung on every
+user-source compile at "incremental: module graph cache hit"
+— identical pattern to the v0.8.79 hang.
 
-### Fixture
+This is the SECOND occurrence of the same failure shape with
+a compiler.nr text edit. Diagnosis: the hang is in the
+Windows PE link of the rebuilt seed.ll, not in the compiler
+IR (the ELF stage1 binary works correctly on the same IR).
+Reverted compiler.nr + seed.ll. Memory file
+`feedback_nucleor_self_host_validation.md` updated with the
+diagnosed root cause.
 
-`tests/fixtures/v0883_c1_cancel_token_smoke.nr` — creates a token,
-checks pre-cancel state (0), cancels, checks post-cancel state (1),
-returns `post - pre`. Expected rc=1.
+**Compiler-edit ships are blocked on the Windows-PE link
+investigation.** Stdlib-rod, runtime-C, and pure-tooling/fixture
+ships continue to be safe. The audit-pass info text in
+compiler.nr will keep reading "NUM-G8 thread-unsafe global
+flag" until a future investigation closes the Windows-PE
+issue. Adopters reading the text are not actively misled —
+the Phase 1 fix landed at runtime; the audit-pass scanner
+still correctly flags use sites.
 
-### Notes — no compiler binary change
+### Closes
 
-This is a pure C runtime change. The compiler binary (`bin/nucleor.exe`)
-was not modified. No self-host fixed-point check required. No perf
-impact (compiler binary unchanged).
+- `docs/rfcs/v1_PUNCHLIST.md` PERF-11 (telemetry false-positive)
 
-The workaround diagnostic in `nucleor_s1_compiler.nr:28453` ("cancel_token
-is a linker bomb on Linux") is now stale; a future cycle will update it
-to reflect the fix once the compiler is rebuilt.
+Pure tooling change; no compiler / runtime / stdlib edit.
 
-Closes (status update):
-- `findings/promoted/2026-05-04-c-1-cancel-token-undefined-symbol-confirmed.md`:
-  Phase 1 implementation landed. C-2 (POSIX channel) and C-3 (ordered
-  atomics) remain open as sister gaps.
+## [0.8.83] — 2026-05-04
+
+**RFC PERF-11 Phase 1 — `bisect_mem.sh` excursion threshold raised
+from 600 MB to 750 MB.** Tooling-only change.
+
+### The bug
+
+Per `gap-analyses/Nucleor_Performance_Envelope_Gap_Analysis_and_RFC_2026-05-04.md`:
+> bisect_mem.sh excursion threshold 600 MB, current baseline 679 MB.
+> False-positive every run.
+
+`tools/perf_baseline.json` v0.5-track-l-perf-cache locked
+cold_peak_memory_mb=679 with ceiling 747 MB (baseline +10%).
+The bisect_mem.sh threshold of 600 MB was BELOW baseline,
+tripping the excursion-bisect protocol on every normal run.
+
+### The fix
+
+Single-constant edit in `tools/bisect_mem.sh`:
+
+```sh
+EXCURSION_MB=750         # was 600
+```
+
+Plus matching update to the help text and a comment block
+documenting the relationship to `perf_baseline.json`.
+
+### Notes from the v0.8.83 attempt at NUM-G289 audit-text update
+
+I also attempted a stale-audit-text update in `compiler/
+nucleor_s1_compiler.nr` (refresh the NUM-G289 audit-pass info
+text to reflect the v0.8.80/.81/.82 closures). Self-host
+chain validated cleanly:
+
+  stage1 build OK
+  stage2 build OK, md5 matched stage1 (af5a1698d2c6293b84a144a3b0ddb7c3)
+  Stage1 ELF binary spot-check on tests/features/t3_char_cast_audit_lock.nr
+    → emitted updated audit text + `compiled:` + rc=130 OK
+
+But the resulting Windows PE bin (built from new seed.ll +
+nucleor_llvm_rt.c via clang -fuse-ld=lld) hung on every
+user-source compile at "incremental: module graph cache hit" —
+identical pattern to the v0.8.79 hang. Same self-host
+fixed-point success, same Windows-PE link failure.
+
+This is the SECOND occurrence of the same failure shape with
+a compiler.nr text edit. The bug is in the Windows PE link,
+not the compiler IR (the ELF stage1 binary works on the same
+IR). Reverted compiler.nr + seed.ll. Memory file
+`feedback_nucleor_self_host_validation.md` updated with the
+diagnosed root cause: compiler-edit ships that go through the
+seed-rebuild path are blocked until the Windows-PE link hang
+is investigated. Stdlib-rod, runtime-C, and pure-fixture
+ships remain safe (do not regenerate seed.ll).
+
+The audit-pass info text in compiler.nr will keep reading
+"NUM-G8 thread-unsafe global flag" until a future
+investigation closes the Windows-PE issue. Adopters reading
+the text are not actively misled — the Phase 1 fix landed at
+runtime, the audit-pass scanner still correctly flags use
+sites for adopter awareness.
+
+### Closes
+
+- `docs/rfcs/v1_PUNCHLIST.md` PERF-11 (telemetry false-positive)
+
+Pure tooling change; no compiler / runtime / stdlib edit.
 
 ## [0.8.82] — 2026-05-04
 

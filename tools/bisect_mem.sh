@@ -27,7 +27,7 @@
 #   bash tools/bisect_mem.sh                              # full flow
 #   bash tools/bisect_mem.sh --start 1-696                # skip Phase 1
 #   bash tools/bisect_mem.sh --estop-mb 1024              # kill ceiling
-#   bash tools/bisect_mem.sh --excursion-mb 600           # bisect trigger
+#   bash tools/bisect_mem.sh --excursion-mb 750           # bisect trigger
 #   bash tools/bisect_mem.sh --min-region 16              # final-pass size
 #   bash tools/bisect_mem.sh --sequential-final           # -j 0 on region
 #
@@ -37,7 +37,12 @@
 set -euo pipefail
 
 ESTOP_MB=1024            # hard ceiling (real-time kill)
-EXCURSION_MB=600         # bisect trigger (subset peak >= this → recurse)
+# v0.8.83 PERF-11 — bisect trigger raised from 600 MB to 750 MB.
+# Per tools/perf_baseline.json: cold_peak_memory_mb baseline is
+# 679 MB, cold_max_allowed_memory_mb (baseline +10%) is 747 MB.
+# Old 600 MB threshold tripped on every run (false-positive).
+# 750 MB matches the baseline ceiling with negligible rounding.
+EXCURSION_MB=750         # bisect trigger (subset peak >= this → recurse)
 MIN_REGION=16            # bottom-out size for final attribution pass
 MAX_DEPTH=10
 START_RANGE=""
