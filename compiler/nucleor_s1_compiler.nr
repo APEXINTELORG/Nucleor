@@ -1613,6 +1613,27 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
                     print(str_concat("       Workaround: hoist the `@` to the outer pattern — `n @ ", str_concat(vname, "(_) => ...` (binds the whole variant) — or split the test into a guard: `", str_concat(vname, "(n) if (1..=10).contains(&n) => ...`. Tracked for forward-roadmap (recursive pattern parser).")));
                     panic(str_concat("nucleor: `@` binding inside `", str_concat(vname, "(...)` not yet supported (see ERROR diagnostic above)")));
                 };
+                // v0.7.23 (defensive halt — Rust `ref` / `ref mut` binding
+                // mode inside a variant pattern: `Some(ref v)`, `Ok(ref mut
+                // s)`, etc.). The pre-Q binding-name capture above swallowed
+                // `ref` as if it were the binding identifier; the next
+                // token (the actual binding name) then landed where the
+                // parser expected `)`, surfacing as wrong-class `error
+                // [NR020]: expected ')', got identifier`. Workaround:
+                // Nucleor's i64-everywhere ABI passes everything by value
+                // already, so `ref` is a no-op semantically — just drop it.
+                if str_eq(binding, "ref") == 1 && pk(tokens, cp) == 1 {
+                    let mut ref_form: str = "ref";
+                    let mut next_cp_v723: i64 = cp;
+                    if str_eq(pkv(tokens, cp), "mut") == 1 && pk(tokens, cp + 1) == 1 {
+                        ref_form = "ref mut";
+                        next_cp_v723 = cp + 1;
+                    };
+                    let real_binding_v723: str = pkv(tokens, next_cp_v723);
+                    print(str_concat("ERROR: `", str_concat(ref_form, str_concat("` binding mode inside a variant pattern (e.g. `", str_concat(vname, str_concat("(", str_concat(ref_form, str_concat(" ", str_concat(real_binding_v723, ")`) is not yet supported in Nucleor. Pre-v0.7.23 this surfaced as wrong-class `error[NR020]: expected ')', got identifier` because the pattern parser swallowed `ref` as the binding name.")))))))))));
+                    print(str_concat("       Workaround: drop the `", str_concat(ref_form, str_concat("` keyword — Nucleor's i64-everywhere ABI passes everything by value already, so `", str_concat(vname, str_concat("(", str_concat(real_binding_v723, ") => ...` has the same observable behavior. Tracked for forward-roadmap (full ref/ref-mut binding-mode pass arrives with v1 borrow-checker).")))))));
+                    panic(str_concat("nucleor: `", str_concat(ref_form, str_concat("` binding mode inside `", str_concat(vname, "(...)` not yet supported (see ERROR diagnostic above)")))));
+                };
             };
             cp = expect_tok(tokens, cp, 51);
         } else if pk(tokens, cp) == 52 {

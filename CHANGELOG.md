@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.23] — 2026-05-04
+
+**Defensive halt — `ref` / `ref mut` binding mode inside a variant
+pattern (`Some(ref v)`, `Ok(ref mut s)`, etc.) now produces a clean
+halt with a drop-the-keyword workaround pointer.**
+
+Pre-fix: writing `match opt { Some(ref v) => ... }` surfaced as
+wrong-class `error[NR020]: expected ')', got identifier` because
+the variant-pattern parser swallowed `ref` as the binding name,
+then the actual binding `v` landed where the parser expected `)`.
+
+Post-fix: `parse_match_one_pattern` checks if the captured binding
+literal is `"ref"` followed by another identifier (or `"ref mut"`
+followed by another identifier) and halts cleanly. The workaround
+notes that Nucleor's i64-everywhere ABI passes everything by value
+already, so `ref` / `ref mut` are no-ops semantically — just drop
+the keyword.
+
+```nucleor
+// Pre-fix wrong-class:
+match opt {
+    Some(ref v) => { ... }            // ← NR020 wrong-class
+    None => { ... }
+}
+
+// Post-fix workaround — drop the `ref`:
+match opt {
+    Some(v) => { ... }                 // same observable behavior
+    None => { ... }
+}
+```
+
+Forward-roadmap: full `ref` / `ref mut` binding-mode pass arrives
+with the v1 borrow-checker (until then `ref` is purely a
+translation-fidelity surface — no semantic difference vs bare
+binding).
+
+### Fixture
+
+`tests/fixtures/v0723_ref_pattern_in_variant_halt.nr` — negative
+fixture for `Some(ref v)` (fires clean halt with drop-keyword
+workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `6921688c6d287d66a16f6e98fc2c5a3a`.
+
 ## [0.7.22] — 2026-05-04
 
 **Defensive halt — bare negative-literal pattern in match arm
