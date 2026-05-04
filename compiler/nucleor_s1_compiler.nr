@@ -27776,10 +27776,25 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v086_energy_count: i64 = simple_attribute_audit_count(after_async, str_concat("@ene", "rgy("));
     if v086_energy_count > 0 {
         print(str_concat("audit: @energy budgets in build: ", str_from_int(v086_energy_count)));
+        // v0.8.11 Phase B step-2: emit the actual budget values.
+        // @energy(max=2mJ) -> "2mJ".
+        let v0811_energy_vals: str = attribute_audit_value_arg(after_async, str_concat("@ene", "rgy("));
+        if str_len(v0811_energy_vals) > 0 {
+            print(str_concat("audit:   energy values: ", v0811_energy_vals));
+        };
     };
     let v086_thermal_count: i64 = simple_attribute_audit_count(after_async, str_concat("@therm", "al("));
     if v086_thermal_count > 0 {
         print(str_concat("audit: @thermal budgets in build: ", str_from_int(v086_thermal_count)));
+        // v0.8.11 Phase B step-2: emit the actual thermal values.
+        // @thermal(max_temp=85C) -> "85C". For range syntax
+        // @thermal(min_temp=-40C, max_temp=85C), only the FIRST
+        // key=val pair is captured by the helper; full range
+        // capture deferred until step-3 multi-key parser.
+        let v0811_thermal_vals: str = attribute_audit_value_arg(after_async, str_concat("@therm", "al("));
+        if str_len(v0811_thermal_vals) > 0 {
+            print(str_concat("audit:   thermal values: ", v0811_thermal_vals));
+        };
     };
     // v0.8.7 (RFC-0052/53/57/60 Phase B step-1) — extended
     // attribute audit. Same shape as v0.8.5 / v0.8.6: count
@@ -27833,6 +27848,12 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v087_within_count: i64 = simple_attribute_audit_count(after_async, str_concat("@wit", "hin("));
     if v087_within_count > 0 {
         print(str_concat("audit: @within timing constraints in build: ", str_from_int(v087_within_count)));
+        // v0.8.11 Phase B step-2: emit the actual timing values.
+        // @within(200ns) -> "200ns".
+        let v0811_within_vals: str = attribute_audit_value_arg(after_async, str_concat("@wit", "hin("));
+        if str_len(v0811_within_vals) > 0 {
+            print(str_concat("audit:   timing values: ", v0811_within_vals));
+        };
     };
     // v0.8.8 (Phase B step-1, core-attr audit) — extend the
     // discovery surface to existing core Nucleor attributes that
@@ -28938,6 +28959,64 @@ fn simple_attribute_audit_count(src: str, needle: str) -> i64 {
         };
     };
     return count;
+}
+
+// v0.8.11 Phase B step-2: extract numeric value+unit pairs from
+// `@<attr>(<key>=<value>)` invocations like `@energy(max=2mJ)`,
+// `@thermal(max_temp=85C)`, `@within(200ns)`. Captures the
+// substring between `=` and the closing `)` or `,`, trimmed of
+// surrounding whitespace. For `@within(200ns)` (no key=), it
+// captures everything between `(` and `)`.
+//
+// Returns `; `-separated list of captured value-strings.
+fn attribute_audit_value_arg(src: str, needle: str) -> str {
+    let slen: i64 = str_len(src);
+    let nlen: i64 = str_len(needle);
+    let mut out: str = "";
+    let mut emitted: i64 = 0;
+    if nlen <= 0 { return out; };
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        if str_eq_at(src, p, needle) == 1 {
+            // Find the start of the value: after `=` if present
+            // before the close, otherwise immediately after `(`.
+            let mut q: i64 = p + nlen;
+            // Walk to either `=` or `)` or end-of-line.
+            let mut value_start: i64 = q;
+            let mut saw_eq: i64 = 0;
+            let mut probe: i64 = q;
+            while probe < slen && str_char_at(src, probe) != 41 && str_char_at(src, probe) != 10 {
+                if str_char_at(src, probe) == 61 {
+                    saw_eq = 1;
+                    value_start = probe + 1;
+                };
+                probe = probe + 1;
+            };
+            if saw_eq == 0 { value_start = q; };
+            // Skip leading whitespace.
+            while value_start < slen && (str_char_at(src, value_start) == 32 || str_char_at(src, value_start) == 9) {
+                value_start = value_start + 1;
+            };
+            // Capture until `,` or `)` or end-of-line.
+            let mut value_end: i64 = value_start;
+            while value_end < slen && str_char_at(src, value_end) != 44 && str_char_at(src, value_end) != 41 && str_char_at(src, value_end) != 10 {
+                value_end = value_end + 1;
+            };
+            // Trim trailing whitespace.
+            while value_end > value_start && (str_char_at(src, value_end - 1) == 32 || str_char_at(src, value_end - 1) == 9) {
+                value_end = value_end - 1;
+            };
+            if value_end > value_start {
+                if emitted == 1 { out = str_concat(out, "; "); };
+                out = str_concat(out, str_substring(src, value_start, value_end));
+                emitted = 1;
+            };
+            p = p + nlen;
+        } else {
+            p = p + 1;
+        };
+    };
+    return out;
 }
 
 // v0.8.10 Phase B step-2: extract the first BARE-IDENTIFIER

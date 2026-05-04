@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.11] — 2026-05-04
+
+**Phase B step-2 expansion — numeric value extraction from
+`@energy(max=2mJ)`, `@thermal(max_temp=85C)`, `@within(200ns)`.**
+
+Extends the v0.8.9 / v0.8.10 step-2 pattern to numeric-with-
+unit attribute values. New helper
+`attribute_audit_value_arg(src, needle) -> str` captures the
+substring between `=` (if a key= prefix is present) and the
+closing `)` or `,`, trimmed of surrounding whitespace. For
+attrs without a key= (`@within(200ns)`), it captures
+everything between `(` and the closing `)`/`,`/end-of-line.
+
+Build summary lines (when count > 0):
+
+```
+audit: @energy budgets in build: 2
+audit:   energy values: 2mJ; 500uJ
+audit: @thermal budgets in build: 1
+audit:   thermal values: -40C
+audit: @within timing constraints in build: 1
+audit:   timing values: 200ns
+```
+
+Adopters porting RFC-0050 budget-tagged code now see the
+actual mJ / uJ / nJ / pJ value at build, not just a count.
+RFC-0054 `@within` timing constraints surface the actual
+duration. RFC-0050 `@thermal` ranges currently capture only
+the FIRST `key=val` pair (the `min_temp=-40C` end of an
+automotive range); full multi-key range capture deferred to
+step-3.
+
+### Implementation
+
+`attribute_audit_value_arg` walks each `@<attr>(` occurrence,
+detects whether the args have a `key=` prefix, then captures
+the value substring up to the next comma or close-paren.
+Values joined with `; ` into one output string. Empty when
+no value is captured.
+
+### Smoke fixture
+
+`tests/fixtures/v0811_phaseB_value_extract_smoke.nr` — 2
+`@energy(max=...)` budgets, 1 `@thermal(min_temp=..., max_temp=...)`
+range, 1 `@within(200ns)` timing constraint. Runtime returns 4.
+Audit lines emit once `bin/nucleor.exe` is rebuilt from the
+new seed.
+
+### Status
+
+Phase B step-2 progress (value extraction):
+- `@authored("...")` author names — v0.8.9 ✓
+- `@policy(name)` policy idents — v0.8.10 ✓
+- `@enclave(engine)` engine idents — v0.8.10 ✓
+- `@energy(max=...)` value+unit — v0.8.11 ✓ (this ship)
+- `@thermal(...)` first key=val — v0.8.11 ✓ (this ship; full
+  range deferred to step-3)
+- `@within(...)` value+unit — v0.8.11 ✓ (this ship)
+
+Phase B step-3 candidates: multi-key value capture for
+`@thermal(min_temp=..., max_temp=...)`, bracket-form parser
+for `@photonic[device="..."]`, end-to-end IR symbol-alias emit
+for the autodiff dispatch (RFC-0045 step-2 originally scoped).
+
+Fixed-point md5: `1C01AB32EEBB1B4E91075D4F52B72DD3`.
+Cold 3.16s / peak 312MB (under 4s job #1).
+
 ## [0.8.10] — 2026-05-04
 
 **Phase B step-2 expansion — `@policy` policy-name + `@enclave`
