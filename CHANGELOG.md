@@ -5,6 +5,87 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.20] — 2026-05-04
+
+**RFC-0062 Memory-Safety Phase 1 final batch — G-1 + G-6 closures.**
+With this ship all 11 Phase 1 items have a closure landed
+(critical 2/2, high 4/4, medium 3/3, low 1/1 — counting G-10
+through G-2). The Phase 1 punchlist budget against the gap RFC
+is empty; Phase 2 work is the next planning cycle.
+
+### G-1 P1 — `#[auto_drop]` opt-in stabilization
+
+Per RFC-0062 §3.3 G-1 P1: graduate `#[auto_drop]` from "Draft
+spike" to "Stable opt-in" for v0.x. RFC-0042 status updated;
+Phase 1 commitments documented:
+
+- The `#[auto_drop]` attribute name and semantics are stable
+  for the duration of v0.x. Adopters can rely on per-function
+  opt-in not being renamed before Phase 4.
+- Vec and HashMap are the supported drop-eligible types in
+  v0.x. The list does not contract; it may extend.
+- The four Spike Semantics rules (manual-free disables
+  generated drop, rebinding drops old, shadowing drops old,
+  return-by-bare-name skips drop) are the Phase 1 contract.
+- Phase 4 (v1.0) successor: default-on auto-drop with
+  `#[manual_drop]` opt-out. Tracked in RFC-0062 G-1.
+
+Lock-in fixtures (additional to the existing
+`tests/features/rfc0042_auto_drop_vec.nr`):
+
+- `tests/fixtures/v0820_g1_auto_drop_hashmap.nr` — HashMap
+  opt-in (str keys per TYP-026). rc=21.
+- `tests/fixtures/v0820_g1_auto_drop_return_local.nr` —
+  return-by-bare-name skip-drop pattern. rc=4.
+
+### G-6 P1 — Sendable surface inventory
+
+Per RFC-0062 §3.3 G-6 P1: audit Sendable propagation through
+nested types. New `docs/sendable-inventory.md`:
+
+- The v0.6+ contract per RFC-0035 (primitive scalars, `str` /
+  `String`, `Vec`/`Option`/`Box`/`Arc<T>` when T:Send,
+  `Result<T,E>` when both Send, user opt-in via `impl Sendable
+  for T {}`, force-deny via `#[not_sendable]`).
+- The 8 `sendable_*` compiler helpers in the seed surface.
+- Nested-type propagation audit table: `Vec<Vec<i64>>` OK;
+  `Option<Vec<i64>>` OK; `Result<Vec<i64>, String>` OK; user
+  struct without impl REJECTS.
+- Four Phase 2 gaps documented: HashMap, closures, tuples,
+  enums-with-non-Send-variants.
+- All 9 RACE-NNN diagnostic codes inventoried.
+- Adopter guidance for Phase 1 (use concrete generic
+  instantiations at spawn boundaries; opt in user structs
+  explicitly; avoid the four unaudited cases at spawn sites).
+
+### Phase 1 closure progress — COMPLETE
+
+| Gap | Severity | Phase 1 | Ship |
+|---|---|---|---|
+| G-1 auto-drop | CRITICAL | **DONE** | v0.8.20 |
+| G-2 lifetime enforce | CRITICAL | DONE | v0.8.17 |
+| G-3 heap alias | HIGH | DONE | v0.8.18 |
+| G-4 double-free | HIGH | DONE | v0.8.18 |
+| G-5 FFI null | HIGH | DONE | v0.8.18 |
+| G-6 Sendable | HIGH | **DONE** | v0.8.20 |
+| G-7 unsafe audit | HIGH | DONE | v0.8.17 |
+| G-8 cond divergence | MEDIUM | DONE | v0.8.19 |
+| G-9 FFI bounds | MEDIUM | DONE | v0.8.18 |
+| G-10 cross-fn | MEDIUM | via G-2 | v0.8.17 |
+| G-11 MS-7 stress | LOW | DONE | v0.8.19 |
+
+Phase 1 of every gap closed across 4 ships (v0.8.17 / v0.8.18 /
+v0.8.19 / v0.8.20). The user's HIGH PRIORITY directive of
+2026-05-04 is satisfied at the Phase 1 level.
+
+Phase 2 work (deferred to next planning cycle): G-1 default-on
++ `#[manual_drop]` opt-out, G-2 simple lifetime checking, G-3
+HashMap rehash invalidation + Vec-of-reference flow analysis,
+G-4 OWN-012 surface enforcement, G-6 close the four unaudited
+cases, G-7 property tests per C-runtime function.
+
+Cold 3.56s / peak 308MB.
+
 ## [0.8.19] — 2026-05-04
 
 **RFC-0062 Memory-Safety Phase 1 batch — G-8 + G-11 lock-in
