@@ -26,6 +26,16 @@
    wrapping (e.g., during runtime smoke tests).                  */
 #include "nuc_alloc.h"
 
+// v0.8.82 NUM-G8 Phase 1 — thread-local storage portability macro.
+// Defined here at the top so any later TU section can mark a static
+// as per-thread without redefining. Hoisted from line ~5861 where
+// it was originally introduced for #[max_depth] counters.
+#if defined(_MSC_VER)
+#define NUCLEOR_TLS __declspec(thread)
+#else
+#define NUCLEOR_TLS _Thread_local
+#endif
+
 // v0.3.215: NUC-FEEDBACK runtime safety -- OOM PANIC. Pre-fix any
 // of the 171 malloc/realloc call sites that returned NULL on memory
 // exhaustion would silently feed NULL into the next memcpy/store
@@ -4240,7 +4250,12 @@ long long __nucleor_saturating_mul_i64(long long a, long long b) {
 // Real implementation depends on Option<T> support; for now use 64-bit
 // flag values: returns the result, with a separate `last_overflow`
 // global checked via __nucleor_checked_overflow_flag().
-static int __nucleor_overflow_flag = 0;
+//
+// v0.8.82 NUM-G8 Phase 1: per-thread storage. Pre-fix this was a
+// shared static int that races between threads — concurrent
+// checked_* calls would overwrite the flag between call and read.
+// Now thread-local so each thread sees its own most-recent flag.
+static NUCLEOR_TLS int __nucleor_overflow_flag = 0;
 
 long long __nucleor_checked_add_i64(long long a, long long b) {
     __nucleor_overflow_flag = 0;
@@ -5858,11 +5873,8 @@ long long __nucleor_deadline_check(long long start_us, long long limit_us) {
     return 0;
 }
 
-#if defined(_MSC_VER)
-#define NUCLEOR_TLS __declspec(thread)
-#else
-#define NUCLEOR_TLS _Thread_local
-#endif
+// NUCLEOR_TLS macro is defined at the top of this file (v0.8.82
+// hoist for NUM-G8 thread-local overflow flag). See line ~30.
 
 static NUCLEOR_TLS long long __nucleor_max_depth_counts[1024];
 

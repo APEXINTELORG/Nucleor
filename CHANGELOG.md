@@ -5,6 +5,85 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.82] — 2026-05-04
+
+**RFC NUM-G8 Phase 1 — `__nucleor_overflow_flag` thread-local
+storage.** Runtime change, no compiler edit.
+
+### The bug
+
+Pre-fix, `__nucleor_overflow_flag` was a shared `static int` in
+`stdlib/runtime/nucleor_llvm_rt.c:4243`. The `checked_*` API
+clears the flag on entry and sets it on overflow; the caller
+checks via `__nucleor_checked_overflow_flag()`. Under any
+multi-threaded use, two threads could race:
+
+1. Thread A: `checked_add(...)` → flag = 1 (overflow)
+2. Thread B: `checked_add(0, 0)` → flag = 0 (clears it)
+3. Thread A: reads flag → sees 0 → silent miscompute (it WAS overflow)
+
+Per RFC NUM-G8: HIGH-severity launch blocker for any concurrent
+checked_* user.
+
+### The fix
+
+`static NUCLEOR_TLS int __nucleor_overflow_flag = 0;`
+
+`NUCLEOR_TLS` is the existing portability macro
+(`__declspec(thread)` on MSVC, `_Thread_local` elsewhere)
+already in use for `#[max_depth]` counters. Hoisted to top of
+file so it's visible at the overflow-flag definition site.
+
+The hoist also unifies what was a duplicate macro definition
+later in the file (where the max_depth counter lives).
+
+### Verified
+
+- Existing `tests/lang/numerics_matrix/p7_overflow/checked_add_u8.nr`
+  still passes (single-thread regression smoke).
+- New fixture `tests/features/numg8_checked_flag_per_call.nr`
+  asserts four sequence steps:
+  1. overflow → flag = 1
+  2. clean → flag = 0 (per-call clear)
+  3. overflow on sub → flag = 1
+  4. clean mul → flag = 0
+  rc=0 across all four. Cold 3.19s.
+
+Multi-thread isolation is validated by inspection of the C
+source change; Nucleor's threading surface is still maturing
+and a multi-thread fixture is queued for when `conc_spawn` /
+`conc_join` integrate with concurrent checked_* call sites.
+
+### Bin rebuilt
+
+Runtime C change required relinking `bin/nucleor.exe`. New bin
+verified per the v0.8.79 self-host validation memory:
+- stage1 not needed (no compiler.nr change)
+- user-source spot-check: `bin/nucleor_new.exe build
+  tests/features/numg2_math_abs_positive.nr` → compiled cleanly,
+  rc=0. Then swapped.
+
+### Stale audit text
+
+The compiler's `info[NUM-G289]` audit-pass diagnostic still
+includes the wording "checked_* family uses a single global
+static int for the overflow flag, NOT thread-safe (NUM-G8)".
+That text is now technically stale — the runtime IS thread-safe
+at Phase 1. The audit-text update is a separate compiler-edit
+ship (deferred to avoid bundling runtime + compiler changes
+in one ship cycle, per v0.8.79 lesson).
+
+### Closes
+
+- RFC NUM-G8 Phase 1 portion. Phase 2b (no remaining work for
+  this gap; the TLS hoist closes both Phase 1 and Phase 2b
+  simultaneously). Phase 4 (hard-error promotion if global
+  flag re-emerges) is automatic via the `static NUCLEOR_TLS`
+  declaration — any future PR removing TLS would need to also
+  remove the macro use.
+
+Pure runtime C change; no compiler edit.
+
 ## [0.8.81] — 2026-05-04
 
 **RFC NUM-G2 Phase 1 (sister) — `math_pow_int` unchecked-multiply
