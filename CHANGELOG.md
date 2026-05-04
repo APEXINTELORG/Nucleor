@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.86] — 2026-05-04
+
+**RFC C-3 status — wrong-class finding closed via regression
+canary.** No compiler / runtime / stdlib edit. Pure fixture.
+
+### What the finding claimed
+
+`findings/promoted/2026-05-04-rfc-drift-triage-t-1-t-7-already-shipped.md`
+sister thread reported the C-3 finding from
+`Nucleor_Concurrency_Gap_Analysis_and_RFC_2026-05-04.md`:
+
+> Ordered atomic variants have no C runtime backing. The C macros
+> only implement unordered variants (`__nucleor_atomic_i64_load`).
+> The ordered names (`__nucleor_atomic_i64_load_relaxed`) are not
+> defined in C. In the LLVM bitcode path the intrinsics are
+> emitted correctly; in the C-compilation fallback path the
+> linker will error out.
+
+### What's actually true
+
+The compiler recognizes the ordered helper names by string match
+in `compiler/nucleor_s1_compiler.nr` (search for
+`atomic_cmpxchg_success_order_llvm`, `atomicrmw`, `load atomic`,
+`store atomic`) and lowers them to LLVM atomic intrinsics
+directly — `atomicrmw add ptr ... <ordering>`, `load atomic i64,
+ptr ... <ordering>`, `store atomic i64 ..., ptr ... <ordering>`,
+and `cmpxchg`. The rod-helper symbol names are never resolved
+against C runtime; they are recognized by the LLVM emitter as
+intrinsic patterns.
+
+So the C-fallback the finding worried about doesn't fire on the
+default build path. The existing test
+`tests/features/rfc0007_atomic_orderings.nr` confirms cross-
+ordering correctness (rc=0).
+
+### The regression canary
+
+`tests/features/c3_ordered_atomics_direct_smoke.nr` exercises
+every ordered helper directly from the raw-handle surface:
+
+| Op | Orderings exercised |
+|---|---|
+| store | relaxed / release / seqcst |
+| load  | relaxed / acquire / seqcst |
+| fetch_add | relaxed / acquire / release / acqrel / seqcst |
+| swap  | relaxed / acquire / release / acqrel / seqcst |
+
+rc=0 (every round-trip correct, every ordering accepted). If a
+future refactor ever drops the intrinsic-emit path, the linker
+error described in the C-3 finding would surface here.
+
+Cold compile 0.60s.
+
+### Status reclassification
+
+C-3 reclassified from "linker bomb" (silent-miscompute on
+linkage) to "covered by intrinsic emit + locked by canary".
+RFC C-3 Phase 1 closed without any code change — the only
+gap was missing test coverage / verification, which this
+fixture provides.
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.85] — 2026-05-04
 
 **RFC C-2 Phase 1 — POSIX channel runtime implementation.**
