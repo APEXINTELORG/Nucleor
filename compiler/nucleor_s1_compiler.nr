@@ -28203,6 +28203,27 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.48 E-1/E-2/E-3 Phase 1 — effect/capability silent-discard
+    // audit-pass info. Counts `pure fn`, `requires(`, `restricts(`
+    // keyword occurrences. Today these all silently discard with NO
+    // diagnostic + NO enforcement (E-1: pure fn body not checked,
+    // E-2: requires brackets thrown away, E-3: restricts not even
+    // a keyword). Phase 2b adds per-fn enforcement.
+    // Shared gate: skip if none of the three keywords are textually
+    // present (most adopter code doesn't use these keywords).
+    let v0848_has_pure: i64 = if str_index_of(after_async, str_concat("pure ", "fn ")) >= 0 { 1 } else { 0 };
+    let v0848_has_requires: i64 = if str_index_of(after_async, str_concat("requires", "(")) >= 0 { 1 } else { 0 };
+    let v0848_has_restricts: i64 = if str_index_of(after_async, str_concat("restricts", "(")) >= 0 { 1 } else { 0 };
+    if v0848_has_pure == 1 || v0848_has_requires == 1 || v0848_has_restricts == 1 {
+        let v0848_pure_count: i64 = if v0848_has_pure == 1 { simple_attribute_audit_count(after_async, str_concat("pure ", "fn ")) } else { 0 };
+        let v0848_requires_count: i64 = if v0848_has_requires == 1 { simple_attribute_audit_count(after_async, str_concat("requires", "(")) } else { 0 };
+        let v0848_restricts_count: i64 = if v0848_has_restricts == 1 { simple_attribute_audit_count(after_async, str_concat("restricts", "(")) } else { 0 };
+        let v0848_total: i64 = v0848_pure_count + v0848_requires_count + v0848_restricts_count;
+        if v0848_total > 0 {
+            print(str_concat("info[EFF-G123]: effect/capability annotations in source: ", str_from_int(v0848_total)));
+            print("  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability): `pure fn`, `requires(...)`, and `restricts(...)` annotations parse but are SILENTLY DISCARDED at compile time. No EFF-001 or EFF-002 diagnostic fires; no purity check; no capability-set enforcement. A `pure fn` containing `print(\"x\")` compiles cleanly and runs the print. Phase 2b adds per-fn effect inference + enforcement; Phase 4 promotes silent violations to hard errors. Adopter discipline today: treat these annotations as documentation only — do NOT rely on them as compile-time guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md E-1, E-2, E-3.");
+        };
+    };
     // v0.8.46 T-3 Phase 1 — char-cast audit-pass info. Counts
     // `as char` cast occurrences in source. Today, casting an int
     // to char silently accepts any value including out-of-range

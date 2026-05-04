@@ -5,6 +5,73 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.48] — 2026-05-04
+
+**Wave 1 — E-1/E-2/E-3 Phase 1 audit-pass info diagnostic.**
+Detects `pure fn`, `requires(...)`, `restricts(...)` annotations
+in source. Today these all silently discard with NO diagnostic
++ NO enforcement.
+
+### What's enforced today (Phase 1)
+
+```
+info[EFF-G123]: effect/capability annotations in source: N
+  Per RFC sister gaps E-1, E-2, E-3 (Effect/Capability):
+  `pure fn`, `requires(...)`, and `restricts(...)` annotations
+  parse but are SILENTLY DISCARDED at compile time. No EFF-001
+  or EFF-002 diagnostic fires; no purity check; no capability-
+  set enforcement. A `pure fn` containing `print("x")` compiles
+  cleanly and runs the print. Phase 2b adds per-fn effect
+  inference + enforcement; Phase 4 promotes silent violations
+  to hard errors. Adopter discipline today: treat these
+  annotations as documentation only.
+```
+
+### Implementation discipline
+
+Per the user's 2026-05-04 directive ("keep cold as low as
+physics will allow"), this audit uses the validated v0.8.33
+pattern: **shared cheap pre-gate** (str_index_of for each of
+the 3 keywords) + **only count if any keyword is present**.
+On adopter code without effect annotations: zero cost. Self-
+host has none of these patterns either; zero seed-side cost.
+
+### Smoke fixture
+
+```nucleor
+pure fn compute() -> i64 {
+    print("hello");  // EFFECTFUL — should be flagged but isn't
+    return 42;
+}
+```
+
+Build emits `info[EFF-G123]: ... 1`. Runtime rc=42 — `pure fn`
+silently allows the print, exactly as E-1 documents.
+
+### Cold-time band
+
+Multi-agent contention (probe + codex parallel both running)
+is causing cold variance: 3.68 / 3.82 / 4.32. Without
+contention, expected mean ~3.7s. Hot 0.45-0.85 same source.
+Within Job #1 hard ceiling (5.93s).
+
+### Wave 1 progress
+
+```
+NUM-G1   f64 lex truncation         DONE Phase 1 (v0.8.44)
+ML-1     attn_flash ABI mismatch    DONE FIXED  (v0.8.45)
+T-3      char-cast risk             DONE Phase 1 (v0.8.46)
+T-4      empty-type fallthrough     DEFERRED
+E-1/2/3  effect silent-discard      DONE Phase 1 (v0.8.48 this)
+C-1, C-2 Linux concurrency          QUEUED
+BOOT-3,4 fixed-point integrity      QUEUED
+```
+
+4 of 6 critical findings have Phase 1 closures landed (T-4
+deferred, C-1/C-2 + BOOT-3/4 next).
+
+Fixed-point md5: `9538d766bd5b51fd879d3b133bd19c27`.
+
 ## [0.8.47] — 2026-05-04
 
 **Perf-discipline ship — gate count_long_float_literals on
