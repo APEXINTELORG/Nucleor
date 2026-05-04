@@ -212,6 +212,29 @@ closure-capture-broken-in-loop-bodies).
 - **Tuple destructure in let** — `let (a, b) = (5, 7);` (~150 lines, sister to V1.1).
 - **i32 binop narrowing in expression context** — extend narrow_via_as to non-let contexts (~300 lines, hot-path risk).
 
+### Tier 4 — Drift restoration (added 2026-05-03)
+
+These three items are documented drift from Nucleor V2 — features that existed in V2 but were lost in OSS. Each has a dedicated RFC. Sister memo: `Desktop/Nucleor_Drift_Triage_2026-05-03.md`.
+
+#### V1.12 — Restore `fixed<I, F>` IR type
+**RFC:** `RFC-0043-fixed-point-IR-type.md`. Pre-fix: parse-only sugar that collapses to `i64`. Post-fix: full IR type with width tracking. Cost: ~300 LOC compiler + 6 runtime helpers.
+
+#### V1.13 — Per-BinOp `OverflowMode` field
+**RFC:** `RFC-0044-per-binop-overflow-mode.md`. Pre-fix: block-form only (`wrapping{}`/`saturating{}`/`checked{}`). Post-fix: per-op `*#wrap` / `*#sat` / `*#trap` markers + Cast equivalents alongside the block form. Cost: ~150 LOC.
+
+#### V1.14 — Restore `@differentiable` annotation
+**RFC:** `RFC-0045-differentiable-attribute.md`. Pre-fix: dropped from OSS entirely. Post-fix: parser+attribute marker; semantic enforcement deferred. Cost: ~50 LOC.
+
+### Tier 5 — Pending governance respec (added 2026-05-03)
+
+#### V1.15 — Governance attributes (`@authored`/`@policy`/`@schema`) + `nuc certify` / `nuc evidence` CLI
+**SPEC:** `SPEC-governance-attributes.md` (placeholder). Pre-fix: parsed-and-discarded in OSS; original "stay separate to NS_Sage" rationale invalidated (NS_Sage broken — see `feedback_ns_sage_broken.md`). Cost: TBD pending governance workstream articulation.
+
+### Tier 6 — Tooling drift (added 2026-05-03)
+
+#### V1.16 — LSP server reinstatement
+**SPEC:** `SPEC-LSP-server.md`. V0 path: subprocess LSP daemon (~600 LOC + ~200 LOC compiler `--lsp-mode`). V1 path: library factor for live diagnostics (~3000 LOC compiler refactor).
+
 ## Cost summary
 
 | Tier | Items | Total LOC | Perf risk |
@@ -219,8 +242,19 @@ closure-capture-broken-in-loop-bodies).
 | Tier 1 (V1.1–V1.3) | 3 | ~3000 | High (borrow-checker) |
 | Tier 2 (V1.4–V1.6) | 3 | ~1800 | Medium |
 | Tier 3 (V1.7+) | 8+ | ~2200 | Mostly low per-item |
+| Tier 4 (V1.12–V1.14, drift restore) | 3 | ~500 | Low |
+| Tier 5 (V1.15, governance — TBD) | 1 | TBD | TBD |
+| Tier 6 (V1.16, LSP) | 1 | ~800 (v0) / ~3500 (v1) | Low (subprocess); medium (library) |
 
-Grand total: ~7000+ LOC of v1 work across 14+ items.
+Grand total: ~7000+ LOC of v1 work across 17+ items (pre-governance-TBD).
+
+## See also
+
+- **`RFC_v2_FRONTIER_ROADMAP.md`** — frontier features (V2.1 through V2.13). Easy wins (RFC-0046 through RFC-0051) should run BEFORE deep V1 work.
+- **`Desktop/Nucleor_Drift_Triage_2026-05-03.md`** — verified-drift triage memo (provides rationale + status for each drift item).
+- **`Desktop/Nucleor_Build_Spine/BUILD_PATH_v0.4_to_v1.3.md`** — canonical 1–13 punchlist (the spine).
+- **Nucleor_Translate** project at `Desktop/Nucleor_Translate/` — language translator (Python/Rust/etc → Nucleor); separate spine consumer.
+- **ML expansion docs** — `Desktop/Nucleor_Build_Spine/03_TRIAGE/ML_EXPANSION_SET_INTEGRATION_2026-05-01.md` + `Desktop/Nucleor_ML_Expansion_Spine_Integration_Brief_2026-05-01.md` + `Desktop/Nucleor_Build_Spine/07_CODEX_DOCS/ML_EXPANSION_INPUTS_2026-05-01/` — ML expansion items get folded into V2 frontier roadmap and Nucleor_Translate's spec phase.
 
 ## Recommended first ship
 
