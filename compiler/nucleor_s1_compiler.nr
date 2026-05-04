@@ -28224,6 +28224,20 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.58 LAW-1/2/3 Phase 1 — `@law(...)` gating info.
+    // Today @law(...) is silently dropped at lex time: no AST
+    // node, no IR annotation, no optimizer pass that consumes
+    // laws. Marketing claims an algebraic-rewrite differentiator
+    // that doesn't exist yet. Phase 2b adds the law extractor +
+    // optimizer pass + property-test synthesizer.
+    let v0858_has_law: i64 = if str_index_of(after_async, str_concat("@law(", "")) >= 0 { 1 } else { 0 };
+    if v0858_has_law == 1 {
+        let v0858_count: i64 = simple_attribute_audit_count(after_async, str_concat("@law(", ""));
+        if v0858_count > 0 {
+            print(str_concat("info[LAW-G123]: `@law(...)` algebraic-law annotations in source: ", str_from_int(v0858_count)));
+            print("  Per RFC sister gaps LAW-1, LAW-2, LAW-3 (Algebraic Laws): @law(...) annotations are SILENTLY DROPPED at lex time — the lexer's generic @attr(...) skip path consumes them with no warning. No AST node is built, no IR annotation propagates, no optimizer pass runs, no `nuc test --check-laws` exists. Adopter relying on @law(commutative) / @law(associative) / @law(identity = X) for compile-time rewrite gets ZERO optimization benefit and ZERO property-test synthesis. Phase 2b adds law extraction + opt_law_rewrite_block pass + Arbitrary trait + property tests. Phase 4 promotes adopter use to first-class. Adopter discipline today: treat @law as documentation only — do NOT rely on it for compile-time guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md.");
+        };
+    };
     // v0.8.57 PKG-5 Phase 1 — `@cfg(feature = "...")` gating
     // info. Today `[features]` sections in nucleor.toml parse +
     // store but no compiler path consumes them; `--features X`

@@ -5,6 +5,106 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.58] — 2026-05-04
+
+**Wave 2 COMPLETE — LAW-1/2/3 Phase 1 audit-pass info.**
+Last Wave 2 closure. Detects `@law(...)` annotations in source.
+
+### Pre-fix surface
+
+`@law(...)` is silently dropped at lex time: no AST node, no
+IR annotation, no optimizer pass that consumes laws, no
+`nuc test --check-laws`. The marketing claim ("user-declared
+algebraic laws drive an IR-level rewrite optimizer") is not
+backed by any implementation today.
+
+### Phase 1 fix
+
+```
+info[LAW-G123]: `@law(...)` algebraic-law annotations in source: N
+  Per RFC sister gaps LAW-1, LAW-2, LAW-3 (Algebraic Laws):
+  @law(...) annotations are SILENTLY DROPPED at lex time. No
+  AST node, no IR annotation, no optimizer pass, no `nuc test
+  --check-laws`. Adopter relying on @law(commutative) /
+  @law(associative) / @law(identity = X) for compile-time
+  rewrite gets ZERO optimization benefit and ZERO property-test
+  synthesis. Phase 2b adds law extraction + opt_law_rewrite_block
+  pass + Arbitrary trait + property tests.
+```
+
+### Wave 2 COMPLETE
+
+```
+PKG-1 Linux publish              FIXED   v0.8.51
+PKG-3 Semver constraint          Phase 1 v0.8.53
+RT-G1/3/5/6 Real-Time/Determ     Phase 1 v0.8.54
+PKG-2 native_lsp/fmt stubs       FIXED   v0.8.55
+PKG-4 registry remote diag       Phase 1 v0.8.56
+PKG-5 cfg(feature) info          Phase 1 v0.8.57
+LAW-1/2/3 Algebraic Laws         Phase 1 v0.8.58 (this)
+```
+
+7 of 7 Wave 2 items closed. Combined with Wave 1 (6 of 6
+critical findings), the Phase 1 visibility for ALL Tier A + B
+gaps is now in place. Adopters see compile-time signal for
+every cornerstone-RFC silent-miscompute / trust gap.
+
+### Phase 1 visibility — full Wave 1 + Wave 2 inventory
+
+```
+Memory Safety (RFC-0062):
+  warning[BR-7]:                lifetime annotations
+  info[OWN-012]:                explicit free calls
+  info[FFI-NULL]:               raw-pointer return types
+  info[FFI-DIRECT]:              extern fn declarations
+  info[ALIAS-G3]:                Vec-of-reference patterns
+  info[SEND-G6]:                HashMap/Cell/RefCell types
+  info[SEND-G6-CLOSURE]:         move closures
+  info[MANUAL-DROP-RESERVED]:    #[manual_drop] markers
+  info[CFG-G8]:                 match expressions
+  info[FLIP-G1]:                NUC_AUTO_DROP_DEFAULT=1 (env-gated)
+
+Wave 1 critical findings:
+  info[NUM-G1]:                 f64 lex truncation
+  info[T-3-CAST]:                as char casts
+  info[EFF-G123]:                effect/capability annotations
+  info[CONC-G12]:                concurrency-rod surface
+
+Wave 2 (Tier A + B):
+  info[RT-G135]:                 real-time/determinism annotations
+  info[PKG-5]:                   @cfg(feature = ...) gates
+  info[LAW-G123]:               @law(...) annotations
+  error[PKG-3]:                  semver constraint syntax
+  error[PKG-4]:                  registry remote command
+```
+
+13 info diagnostics + 1 warning + 2 hard errors. Adopter
+build is now self-narrating about every cornerstone-RFC gap.
+
+### Next: Wave 3 (Tier C correctness) + Phase 2b proper-analysis
+
+```
+Wave 3 — Tier C stdlib coherence:
+  Numeric beyond NUM-G1 (mostly fixed-point, intervals)
+  Tensor/ML beyond ML-1 (additional ABI parity audits)
+  Quantum (QM-7 Clifford rod 0% test coverage)
+  Robotics (ROBO-7 frame-typing safety Phase A)
+
+Phase 2b — proper analysis-level enforcement:
+  G-2 lifetime checking
+  G-4 IR-level use-after-drop
+  G-11 definite-assignment relaxation
+  T-4 empty-type fallthrough fix
+  RT-G1/3 transitive analysis + WCET pass
+  ... etc.
+```
+
+### Perf
+
+Cold 3.63s, hot 0.39s. Within Job #1.
+
+Fixed-point md5: `f6e40ffe7b9abf92ed5b234a9a33fd7c`.
+
 ## [0.8.57] — 2026-05-04
 
 **Wave 2 — PKG-5 Phase 1: `@cfg(feature = ...)` audit-pass info.**
