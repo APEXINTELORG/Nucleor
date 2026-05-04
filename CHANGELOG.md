@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.60] — 2026-05-04
+
+**Defensive halt — paren-wrapped pattern in `if let` / `while let`
+(`if let (Some(x)) = opt { ... }`) now produces a clean halt with
+a drop-the-parens workaround pointer. Sister to v0.7.54
+paren-wrapped variant-payload halt.**
+
+Pre-fix: writing `if let (Some(x)) = opt { ... }` or `while let
+(Some(x)) = o { ... }` surfaced as wrong-class `error[NR020]:
+parse_primary cannot start an expression at token kind 11`
+because the pattern dispatcher in if-let / while-let only knows
+ident-prefixed shapes (Some/None/Ok/Err/EnumName::Variant), and
+the leading `(` fell through to parse_expr, which then misparsed
+the trailing `let` as an expression continuation.
+
+Post-fix: both `parse_if`'s let branch and `parse_while_stmt`'s
+let branch (same code shape, applied via replace_all) check for
+`(` (token 50) at the pattern start and halt cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+if let (Some(x)) = opt { ... }            // ← NR020 token kind 11
+while let (Some(x)) = o { ... }           // ← NR020 token kind 11
+
+// Post-fix workaround — drop the extra parens:
+if let Some(x) = opt { ... }
+while let Some(x) = o { ... }
+```
+
+Forward-roadmap: paren-wrapped pattern dispatcher is a small
+parser extension (recursive entry into the pattern parser through
+the `(` branch). Sister to v0.7.54 paren-wrapped variant-payload
+halt.
+
+### Fixture
+
+`tests/fixtures/v0760_paren_pat_in_iflet_halt.nr` — negative
+fixture for `while let (Some(x)) = o { ... }` (fires paren-wrapped
+halt with drop-parens workaround, not NR020). Same halt fires for
+the `if let (Some(x)) = opt { ... }` form.
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `39db787161da99528bfdf86b60d1811e`.
+Cold 3.91s / peak 313MB.
+
 ## [0.7.59] — 2026-05-04
 
 **Defensive halt — local fn declaration `fn inner(...)` inside a
