@@ -27781,6 +27781,37 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     if v086_thermal_count > 0 {
         print(str_concat("audit: @thermal budgets in build: ", str_from_int(v086_thermal_count)));
     };
+    // v0.8.7 (RFC-0052/53/57/60 Phase B step-1) — extended
+    // attribute audit. Same shape as v0.8.5 / v0.8.6: count
+    // annotated fns, emit one-line summary per attribute kind.
+    let v087_photonic_count: i64 = simple_attribute_audit_count(after_async, str_concat("@photo", "nic"));
+    if v087_photonic_count > 0 {
+        print(str_concat("audit: @photonic fns in build: ", str_from_int(v087_photonic_count)));
+    };
+    let v087_neuro_count: i64 = simple_attribute_audit_count(after_async, str_concat("@neuromor", "phic"));
+    if v087_neuro_count > 0 {
+        print(str_concat("audit: @neuromorphic fns in build: ", str_from_int(v087_neuro_count)));
+    };
+    let v087_enclave_count: i64 = simple_attribute_audit_count(after_async, str_concat("@encl", "ave("));
+    if v087_enclave_count > 0 {
+        print(str_concat("audit: @enclave fns in build: ", str_from_int(v087_enclave_count)));
+    };
+    let v087_attested_count: i64 = simple_attribute_audit_count(after_async, str_concat("@atte", "sted"));
+    if v087_attested_count > 0 {
+        print(str_concat("audit: @attested fns in build: ", str_from_int(v087_attested_count)));
+    };
+    let v087_authored_count: i64 = simple_attribute_audit_count(after_async, str_concat("@auth", "ored("));
+    if v087_authored_count > 0 {
+        print(str_concat("audit: @authored fns in build: ", str_from_int(v087_authored_count)));
+    };
+    let v087_policy_count: i64 = simple_attribute_audit_count(after_async, str_concat("@pol", "icy("));
+    if v087_policy_count > 0 {
+        print(str_concat("audit: @policy decls in build: ", str_from_int(v087_policy_count)));
+    };
+    let v087_within_count: i64 = simple_attribute_audit_count(after_async, str_concat("@wit", "hin("));
+    if v087_within_count > 0 {
+        print(str_concat("audit: @within timing constraints in build: ", str_from_int(v087_within_count)));
+    };
     // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
     let after_deadline: str = expand_deadline(after_async);
