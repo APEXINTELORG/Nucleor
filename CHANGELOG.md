@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.27] — 2026-05-04
+
+**RFC-0062 G-3 Phase 2a — ALIAS-G3 audit-pass info diagnostic.**
+Wave A continues. Detects `Vec<&` patterns (Vec-of-references)
+— the primary heap-aliasing risk per RFC-0062 §3.3 G-3.
+
+### What's enforced today (Phase 2a)
+
+```
+info[ALIAS-G3]: Vec-of-reference patterns in build: N
+  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide
+  aliasing from the syntactic borrow tracker. Pushing two `&T`
+  borrows of the same `T` is invisible today. Adopter
+  mitigation: prefer indexing — store `Vec<i64>` indexes into
+  an owned vector rather than `Vec<&T>` borrows of separate
+  vectors. Phase 2b adds Vec-of-reference flow analysis;
+  Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]`
+  opt-out. Reference: docs/heap-aliasing-evidence.md.
+```
+
+### Phase 2a snapshot — four info diagnostics now firing
+
+```
+info[OWN-012]: explicit free calls present in build: 44
+info[FFI-NULL]: raw-pointer return types in extern fn decls: 4
+info[FFI-DIRECT]: `extern fn` declarations in build: 27
+info[ALIAS-G3]: Vec-of-reference patterns in build: 3
+```
+
+### Cold-time budget warning
+
+Cold sample after this ship: 3.94/4.29s — at the Job #1 4s soft
+ceiling. The five Phase 2a audit-pass scans have accumulated
+0.5s of pre-pass work since v0.8.23. **Next ship is v0.8.28 perf
+consolidation** — batching all 5 Phase 2a scans into one
+multi-needle pass per the impl plan §5.3, projected savings
+0.15-0.25s. G-8 cond-divergence Phase 2a moves to v0.8.29 after
+the consolidation lands.
+
+Fixed-point md5: `5922462a7a448ba18750da6ca21432d9`.
+
 ## [0.8.26] — 2026-05-04
 
 **RFC-0062 G-9 Phase 2a — FFI-DIRECT audit-pass info diagnostic.**

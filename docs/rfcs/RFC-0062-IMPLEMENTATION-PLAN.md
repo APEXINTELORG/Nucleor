@@ -212,9 +212,9 @@ Heuristic warnings that ship in single ships. Goal: every gap has visible compil
 | v0.8.24 | G-4 OWN-012 audit-pass info | DONE |
 | v0.8.25 | G-5 FFI null-return audit-pass info | DONE |
 | v0.8.26 | G-9 direct-FFI audit-pass info | DONE |
-| v0.8.27 | G-3 Vec-of-ref + HashMap-mut audit-pass info | next |
-| v0.8.28 | G-8 mixed-arm conditional audit-pass info | queued |
-| v0.8.29 | All Wave A audit passes batched into single multi-needle scan (perf consolidation) | queued |
+| v0.8.27 | G-3 Vec-of-ref + HashMap-mut audit-pass info | DONE |
+| v0.8.28 | All Wave A audit passes batched into single multi-needle scan (perf consolidation) — PROMOTED ahead of G-8 to claw back cold budget | next |
+| v0.8.29 | G-8 mixed-arm conditional audit-pass info | queued (after consolidation) |
 
 ### Wave B — Phase 2b proper analysis (medium, lockable)
 
@@ -349,7 +349,7 @@ Each ship in Wave A/B/C/D must include:
 |---|---|---|---|---|---|
 | G-1 auto-drop | ✓ v0.8.20 | n/a | queued | queued | v1.0 |
 | G-2 lifetime | ✓ v0.8.17 | warn | queued | queued | v1.0 |
-| G-3 heap alias | ✓ v0.8.18 | queued | queued | queued | v1.0 |
+| G-3 heap alias | ✓ v0.8.18 | **✓ v0.8.27** | queued | queued | v1.0 |
 | G-4 double-free | ✓ v0.8.18 | **✓ v0.8.24** | queued | queued | v1.0 |
 | G-5 FFI null | ✓ v0.8.18 | **✓ v0.8.25** | queued | queued | v1.0 |
 | G-6 Sendable | ✓ v0.8.20 | n/a | queued | queued | v1.0 |
@@ -368,3 +368,4 @@ Phase 1 complete. Phase 2a one of five landed. Phases 2b/3/4 fully scoped, queue
 - **2026-05-04** v0.8.24: G-4 Phase 2a OWN-012 audit-pass info diagnostic landed. Plan document created.
 - **2026-05-04** v0.8.25: G-5 Phase 2a FFI-NULL audit-pass info diagnostic landed.
 - **2026-05-04** v0.8.26: G-9 Phase 2a FFI-DIRECT audit-pass info diagnostic landed. Three info diagnostics now firing on seed self-host (44 frees, 4 raw-ptr returns, 27 extern fns).
+- **2026-05-04** v0.8.27: G-3 Phase 2a ALIAS-G3 audit-pass info diagnostic landed. Four info diagnostics now firing (added 3 Vec-of-reference patterns). Cold creeping to ~3.94-4.29s — at Job #1 ceiling. Next ship promoted: v0.8.28 perf consolidation (multi-needle batched scan) ahead of G-8 to claw back budget.
