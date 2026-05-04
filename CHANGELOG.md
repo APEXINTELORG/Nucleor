@@ -5,7 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.48] — 2026-05-04
+
+**Defensive halt — Rust C-FFI variadic param `extern "C" fn
+printf(fmt: str, ...);` now produces a clean halt with a
+fixed-arity wrapper-fn workaround pointer.**
+
+Pre-fix: writing `extern "C" fn printf(fmt: str, ...);` surfaced
+as wrong-class `error[NR020]: parse error: expected ':', got
+token 45` because the lexer emits `...` as token 58 (`..`) +
+token 45 (`.`) — neither is a valid param-binding-name token —
+and the param parser tried to read `..` as the binding name.
+
+Post-fix: `parse_extern_fn`'s param loop checks for `..` (token
+58) or `.` (token 45) at the binding position and halts cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+extern "C" fn printf(fmt: str, ...);          // ← NR020
+
+// Post-fix workaround — fixed-arity wrappers per call shape:
+extern "C" fn printf_1(fmt: str, a1: i64) -> i32;
+extern "C" fn printf_2(fmt: str, a1: i64, a2: i64) -> i32;
+// ...one per arg-count
+
+// Or for printf specifically — use Nucleor's native form:
+print(format!("...", args));                  // parity with common usage
+```
+
+Forward-roadmap: variadic-fn substrate needs ABI-level work
+(va_list passthrough or per-call shape erasure) — sister to
+v0.7.26 extern-block-form halt.
+
+### Fixture
+
+`tests/fixtures/v0747_extern_variadic_halt.nr` — negative fixture
+for `extern "C" fn printf(fmt: str, ...);` (fires C-FFI variadic
+halt with wrapper-fn workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `d563569afafbceddc9b10b3ef01bcc78`
+(post-merge with v0.7.47 local-type-alias halt).
+
 ## [0.7.47] — 2026-05-04
+
 
 **Defensive halt — local type alias `type Foo = Bar;` inside a fn
 body now produces a clean halt with a hoist-to-module-scope
