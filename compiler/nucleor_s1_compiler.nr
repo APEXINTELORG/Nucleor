@@ -21773,6 +21773,21 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         return lx_new(r, blk);
     };
     if kind == 122 {
+        // v0.7.82 (defensive halt): `?` inside a closure body.
+        // Pre-fix the `?` lowering emitted `ret` from the closure function
+        // on the Err/None path (correct Rust semantics — `?` in a closure
+        // returns from the closure, not the outer fn). BUT Nucleor closures
+        // return i64 by ABI convention, not Result<T,E>/Option<T>. So on
+        // the Err/None path, the closure returned the heap-pointer of the
+        // Err/None Vec as an i64 to its caller — wrong-class silent
+        // miscompute: the outer fn saw a garbage integer (heap address)
+        // where it expected the closure's i64 payload. Detected via
+        // `__closure_id` in sym (set at closure-lowering entry, absent in
+        // regular fn scope); halts cleanly with a workaround.
+        if sym_get(sym, "__closure_id") >= 0 {
+            print("ERROR: `?` operator inside a closure body is not yet supported in Nucleor. Pre-v0.7.82 the `?` lowered a `ret` from the closure on the Err/None path — correct Rust semantics (closure early-return) — but Nucleor closures return i64 by ABI convention, not Result/Option. The Err/None Vec pointer was returned to the outer caller as an i64, producing wrong-class silent miscompute (caller saw a heap address where it expected the closure payload). Workaround: pull the `?` into the outer fn with an explicit match — `let r = match inner_result() { Ok(v) => v, Err(e) => return Err(e) };` — or use `if let Err(e) = inner_result() { return Err(e); };`. Tracked for forward-roadmap (closure-body `?` needs closure-return-type inference and an error-propagation path to the enclosing fn's error continuation — sister to RFC-0016 phase 2).");
+            panic("nucleor: `?` inside closure body not yet supported (see ERROR diagnostic above)");
+        };
         // RFC-0016 phase 1: `?` postfix operator.
         //
         // v0.4.225: tag-convention dispatch for Option vs Result.
