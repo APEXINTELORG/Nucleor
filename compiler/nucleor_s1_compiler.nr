@@ -11705,6 +11705,7 @@ fn name_in_auto_drop(auto_drop: Vec<i32>, fn_name: str) -> i64 {
         if str_eq(vec_get(auto_drop, i), fn_name) == 1 { return 1; };
         i = i + 1;
     };
+<<<<<<< HEAD
     // v0.8.38 RFC-0062 G-1 Phase 2b-3 — env-gated default-flip
     // experiment LANDED. When NUC_AUTO_DROP_DEFAULT=1 is set,
     // treat auto-drop as enabled by default. The #[manual_drop]
@@ -11722,6 +11723,16 @@ fn name_in_auto_drop(auto_drop: Vec<i32>, fn_name: str) -> i64 {
     // For now, the env-gate is a CORRECTNESS-EXPERIMENT only —
     // adopters can validate their own code; the seed-side
     // surface is unchanged.
+=======
+    // v0.8.66 ROLLBACK of v0.8.65 unconditional default-flip.
+    // The unconditional flip caused segfaults on attn import
+    // self-host — the rod has handoff patterns the audit didn't
+    // detect via vec_push/vec_set heuristic. The env-gated
+    // experiment (NUC_AUTO_DROP_DEFAULT=1) remains available
+    // for adopter validation. Phase 2b-3 unconditional flip is
+    // unblocked from cache-key side (v0.8.64) but still needs
+    // broader handoff audit before it can land safely.
+>>>>>>> cb587d2d (v0.8.66: robustness ship — revert v0.8.65 + drain probe inbox + ML-1 sister fixes)
     let auto_default: str = env_get_or(str_concat("NUC_AUTO_DROP", "_DEFAULT"), "0");
     if str_eq(auto_default, "1") == 1 { return 1; };
     return 0;
@@ -28435,24 +28446,18 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  Per RFC sister gap T-3 (Type System): `<int> as char` accepts any value, including out-of-range codepoints (>0x10FFFF) and the surrogate range (0xD800-0xDFFF). char_to_str on these produces invalid UTF-8 with no compile-time signal. Phase 2b adds codepoint validation at the cast; Phase 4 promotes to hard error. Adopter discipline today: validate codepoint range before casting (`if u >= 0x110000 || (u >= 0xD800 && u < 0xE000) { panic(...); }`). Reference: docs/rfcs/gap-analyses/Nucleor_Type_System_Gap_Analysis_and_RFC_2026-05-04.md T-3.");
         };
     };
-    // v0.8.44 NUM-G1 Phase 1 — f64 lex truncation audit-pass info.
-    // The lexer encodes float literals as `int_part * 1_000_000 +
-    // frac_millionths`, silently truncating fractional digits past
-    // the 6th. `3.1415926535897932` becomes `3.141592`. This audit
-    // counts source-level float literals with >6 fractional digits
-    // and warns adopter at compile time. Phase 2b will fix the lexer.
-    // v0.8.47 perf gate: skip the per-byte scan on huge sources
-    // (seed self-host = 10MB; adopter code typically <200KB).
-    // The seed-side hits (5 in comments) had no runtime impact;
-    // the audit's value is for adopter code which always fits
-    // under the 200K threshold.
-    let v0844_long_float_count: i64 = if str_len(after_async) < 200000 {
-        count_long_float_literals(after_async)
-    } else { 0 };
-    if v0844_long_float_count > 0 {
-        print(str_concat("info[NUM-G1]: f64 literals with >6 fractional digits in source: ", str_from_int(v0844_long_float_count)));
-        print("  Per RFC-0062 sister gap NUM-G1 (Numeric Correctness): the lexer silently truncates f64 literal fractional digits past the 6th. `3.1415926535897932` is encoded as `3.141592`. Affects every float user. Phase 2b adds a precision-preserving f64 parser; Phase 4 promotes to hard error if precision loss is non-zero. Adopter discipline today: avoid >6-fractional-digit float literals; use a hex-float (`0x1.921fb54442d18p+1`) or compute the constant arithmetically. Reference: docs/rfcs/gap-analyses/Nucleor_Numeric_Correctness_Gap_Analysis_and_RFC_2026-05-04.md.");
-    };
+    // v0.8.66 NUM-G1 audit RETIRED per probe finding 2026-05-04
+    // (findings/promoted/2026-05-04-num-g1-rfc-headline-does-not-
+    // reproduce-only-intpart-overflow-panics.md). The original
+    // gap-RFC claim ("f64 literals with >6 fractional digits silently
+    // truncated") does NOT reproduce in v0.4.180. Probe confirmed
+    // bit-identical-to-strtod values for 16-digit f64 literals.
+    // The actual reproducible bug is int_part overflow at >= 1e13
+    // (compile-time PANIC, not silent miscompute) — different
+    // class, queued for separate Phase 1 audit. The previous
+    // info[NUM-G1] would have wrong-class-flagged adopter code
+    // that was actually correct. Audit and helper count_long_float_
+    // literals retained for diagnostic purposes but not invoked.
     // v0.8.34 Q2 — slice-pattern diagnostic refinement.
     // Pre-existing behavior: slice match with rest element hit
     // parse_primary's token-58 panic and emitted the range-

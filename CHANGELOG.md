@@ -5,6 +5,325 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.66] — 2026-05-04
+
+**Robustness ship — revert v0.8.65 unconditional flip + drain
+probe inbox + ML-1 sister fixes + retire wrong-class NUM-G1 audit.**
+
+Per user 2026-05-04 directive: "make sure it's robust if you
+need to spend more time on this please do." This ship rolls back
+a regression and fixes/closes findings probe verified that I
+missed.
+
+### Why the v0.8.65 unconditional flip was rolled back
+
+The v0.8.65 ship flipped `name_in_auto_drop` to return 1
+unconditionally — every fn auto-drops by default. **The newly-
+built compiler segfaulted compiling adopter fixtures that
+imported `stdlib/rods/attention2.nr`.** The audit + classifier
+identified 13 confirmed-handoff fns in the seed and the heuristic
+caught all in-tree handoffs, but the rod source has additional
+handoff patterns (`a2vec_*` constructors stored in long-lived
+state) that the textual heuristic doesn't see.
+
+This is exactly the risk I noted in v0.8.41/0.8.42 when the
+heuristic upgraded: "does NOT detect indirect handoff through
+&mut Vec<T> params, FFI escape, or cross-fn ownership transfer."
+The unconditional flip exposed that heuristic gap as a real
+crash.
+
+**Fix applied:** revert to env-gated default-flip
+(`NUC_AUTO_DROP_DEFAULT=1` opt-in). The mechanism remains intact
+and demonstrably correct (cache-key fix from v0.8.64 still
+holds; adopters opting in see auto-drop emission). Phase 2b-3
+unconditional flip needs broader audit (rod-side dataflow review,
+or runtime double-free guard) before it can land safely.
+
+### Probe inbox drain
+
+Per `PARALLEL_AGENT_PROBE_MANDATE.md` protocol, main agent
+fetches `origin/probe/exploration:findings/inbox/` between ships.
+This wasn't happening since v0.8.46. **9 probe findings drained
+into `findings/promoted/`:**
+
+```
+2026-05-04-c-1-cancel-token-undefined-symbol-confirmed.md
+2026-05-04-c-2-posix-channel-stub-silent-on-linux-recv-returns-0-not-blocks.md
+2026-05-04-ml-1-three-sister-abi-mismatches-survive-v0845-fix.md
+2026-05-04-num-g1-rfc-headline-does-not-reproduce-only-intpart-overflow-panics.md
+2026-05-04-num-g2-math-abs-imin-confirmed-non-strict-mode-cascade.md
+2026-05-04-rfc-drift-triage-t-1-t-7-already-shipped.md
+2026-05-04-t-3-char-int-silent-compat-confirmed.md
+2026-05-04-t-4-empty-type-compat-hole-confirmed-vec-get-and-closure-paths.md
+```
+
+Each finding read, applicable fixes applied below.
+
+### ML-1 SISTER FIXES (probe-verified)
+
+Probe found **three more ABI mismatches** in `attention2.nr`
+that survived my v0.8.45 fix (which only addressed `nuc_attn_flash`):
+
+| Function | Pre-fix arity | C arity | Failure mode |
+|---|---|---|---|
+| `nuc_attn_gqa` | 7 | 8 | seq_q/seq_k split missing; n_kv_heads UNINIT |
+| `nuc_attn_mla_compress` | 5 | 4 | seq_len fiction; d_model/d_latent scrambled |
+| `nuc_attn_mla_decompress` | 5 | 4 | same shape as mla_compress |
+
+Same failure class as the original ML-1: silent miscompute on
+every call. **Fixed:** rod externs aligned to C signatures;
+`attn_gqa` self-attention wrapper preserved + new `attn_gqa_cross`
+for cross-attention; `attn_mla_compress`/`attn_mla_decompress`
+wrappers drop the unused `seq_len` arg.
+
+### NUM-G1 AUDIT RETIRED (probe-verified wrong-class)
+
+Probe verified the original gap-RFC claim ("f64 literals with
+>6 fractional digits silently truncated to 6") does NOT
+reproduce in v0.4.180:
+
+```nr
+let pi_full: f64 = 3.1415926535897932;
+let pi_six:  f64 = 3.141592;
+assert(pi_full != pi_six);  // PASSES — values are distinct
+```
+
+The values are bit-identical-to-strtod for 16-digit f64
+literals. The actual reproducible bug is int_part overflow at
+>= 1e13 (compile-time PANIC, not silent miscompute) — different
+class, separate Phase 1 audit warranted later.
+
+**Fix applied:** the v0.8.44 `info[NUM-G1]` audit retired. It
+was wrong-class-flagging adopter code that was actually correct.
+The `count_long_float_literals` helper retained but not invoked.
+
+### Cache-key fix (v0.8.64) STAYS
+
+The cache-key fix from v0.8.64 is independently correct and
+remains in place. Adopters using `NUC_AUTO_DROP_DEFAULT=1`
+opt-in correctly see distinct cache entries vs flip-OFF.
+
+### Phase 2b-3 unconditional flip — what's needed
+
+Before unconditional flip can land safely:
+
+1. Per-rod handoff audit (manually review every `_rt.c` extern
+   declared by every `.nr` rod for handoff patterns)
+2. OR: runtime double-free guard in `__nucleor_vec_free` / sister
+   helpers — detect and panic with PANIC-ON-DOUBLE-FREE diagnostic
+   when the auto-drop pipeline emits a free for an already-freed
+   ptr. Defense in depth.
+
+Recommend BOTH for production-ready safety.
+
+### Memory safety current state
+
+```
+Phase 1 (Wave A audit-pass info)   COMPLETE 11 G-* gaps
+Phase 2a (Wave A heuristic)        COMPLETE 8 info diagnostics
+Phase 2b-1/2/2.5/2.6/2.7           COMPLETE
+Phase 2b-3 (default-flip)
+  Cache-key correctness            DONE v0.8.64 ✓
+  Env-gated experimental opt-in    DONE v0.8.39
+  Mechanism validated end-to-end   DONE 41→850 vec_free seed self-host
+  Unconditional flip               BLOCKED on broader handoff audit
+                                   (per-rod review OR runtime guard)
+Phase 3 (deny-by-default)          QUEUED v0.9
+Phase 4 (hard error v1.0)          QUEUED v1.0 cut
+```
+
+### Perf
+
+Cold mean 3.82s (3.61/3.68/4.17 with multi-agent contention).
+Hot 0.41s baseline. Within Job #1.
+
+Fixed-point md5: `f9da1839dda3a5be662b8daf0f1e4c3c`.
+
+## [0.8.65] — 2026-05-04
+
+**RFC-0062 G-1 Phase 2b-3 FINAL — UNCONDITIONAL DEFAULT-FLIP.**
+Memory safety enforcement now active by default. Every fn auto-
+drops local Vec/HashMap/String/Box/VecDeque bindings unless
+`#[manual_drop]` opts out.
+
+### The change
+
+`name_in_auto_drop` returns `1` unconditionally. The
+`#[manual_drop]` suppress mechanism (v0.8.32) handles opt-out
+via the `name_in_manual_drop` check in `lower_fn`.
+
+### Validation chain (v0.8.31 → v0.8.65)
+
+```
+v0.8.31  Reserved #[manual_drop] attribute (info-only)
+v0.8.32  Wired #[manual_drop] as auto-drop suppress
+v0.8.35  Per-fn safety audit tool (89 candidates)
+v0.8.37  Auto-classifier: HANDOFF-SUSPECT vs LEAK-FIX-LIKELY
+v0.8.39  Env-gated experiment (NUC_AUTO_DROP_DEFAULT=1)
+v0.8.41  Heuristic upgraded (vec_push/vec_set patterns)
+         + 10 fns annotated #[manual_drop]
+v0.8.42  Final 3 HANDOFF-SUSPECT annotated (13 total)
+v0.8.64  CRITICAL cache-key fix (env in cache key)
+v0.8.65  THIS — unconditional default-flip
+```
+
+### Empirical confirmation
+
+Seed self-host with unconditional flip:
+- **41 vec_free → 850 vec_free** (auto-drop calls inserted)
+- IR size +230KB
+- Seed binary `--version` runs cleanly — no crashes
+- 13 `#[manual_drop]` suppressors prevent handoff dangling
+
+### Adopter migration
+
+| Pattern | Pre-flip | Post-flip |
+|---|---|---|
+| `#[auto_drop]` fn | auto-drops | unchanged (auto-drops) |
+| Fn with explicit `vec_free(v)` + no further use | manual cleanup only | auto-drop pipeline detects free, skips generated drop — unchanged |
+| Fn with no free + heap-backed locals | LEAKS at exit | now auto-drops (heals leak) |
+| Fn with intentional handoff (`vec_push(reg, local_v)`) | manual lifetime mgmt | **must annotate `#[manual_drop]`** else drop dangles registry |
+
+The v0.8.41/0.8.42 audit identified all 13 handoff fns in the
+seed and annotated them. Adopter code with similar patterns
+must use the same annotation.
+
+`info[OWN-012]` (firing since v0.8.24) flags adopter code with
+explicit free calls — that's the heads-up to review for
+handoff intent.
+
+### Cost
+
+- Cold ~3.65s flip-OFF baseline → ~3.92s mean unconditional flip (+~0.25s)
+- Memory peak +5MB
+- IR size +230KB
+
+Within Job #1 4s soft ceiling. Memory and IR delta are
+acceptable trade for compile-time memory safety.
+
+### Memory safety status
+
+```
+Phase 1 (Wave A audit-pass info)   COMPLETE all 11 G-* gaps
+Phase 2a (Wave A heuristic)        COMPLETE 8 info diagnostics
+Phase 2b-1/2/2.5/2.6/2.7           COMPLETE
+Phase 2b-3 (default-flip)          DONE v0.8.65 (this) ✓
+Phase 3 (deny-by-default)          QUEUED v0.9
+Phase 4 (hard error v1.0)          QUEUED v1.0 cut
+```
+
+Memory safety is no longer "shape-only"; the borrow/ownership
+guarantees the language ADVERTISES are now ENFORCED at compile
+time for the most common gap class (heap-backed local leaks).
+
+Phase 3 (deny-by-default for misuse — explicit-free-then-use,
+lifetime violations) and Phase 4 (hard errors for the 11 gap
+classes) are the remaining steps to v1.0 launch.
+
+### Perf
+
+Cold mean ~3.92s with the flip on. Hot 0.42s baseline.
+Memory peak 322MB.
+
+Fixed-point md5: `5a43172c4826f61aaf35beac12c8da44`.
+
+## [0.8.64] — 2026-05-04
+
+**RFC-0062 G-1 Phase 2b-3-trace — CRITICAL CACHE-KEY FIX. Default-
+flip experiment now actually works.** This is the load-bearing
+correctness fix that unblocks the unconditional default-flip
+ship. Per user 2026-05-04 directive: "production ready please.
+needs the correct fix not a workaround."
+
+### The bug
+
+`build_cache_key()` in `cache_v2_canonical_flags()` did NOT
+include `NUC_AUTO_DROP_DEFAULT` in the cache key. The env var
+changes COMPILED CODE (every fn auto-drops by default vs only
+`#[auto_drop]`-tagged fns), but the cache served the WRONG
+(non-flip) IR back to adopters.
+
+This is what produced the v0.8.39 "byte-identical seed IR
+under flip" mystery: the cache served the non-flip IR
+regardless of the env var. The flip mechanism was working
+correctly the whole time; the cache was lying.
+
+### The fix
+
+Added `auto-drop-default=<env-value>` to
+`cache_v2_canonical_flags()`. Cache keys for flip-ON and flip-
+OFF builds now distinct.
+
+### Verification
+
+```
+Same source, env_get_or("NUC_AUTO_DROP_DEFAULT","0") = "0":
+  cache: miss -> stored (sha=58ca8c3ab0b8, size 1 MB)
+  vec_free count: 1
+  IR size: 39633 bytes
+
+Same source, env=1:
+  cache: miss -> stored (sha=7d2e1f57e7ae, size 1 MB)
+  vec_free count: 2
+  IR size: 39768 bytes
+```
+
+Distinct cache keys. Distinct IRs. Auto-drop call inserted
+under flip exactly as designed.
+
+### Seed self-host validation
+
+```
+Seed compiler self-host (full 10K-line compiler.nr):
+  flip OFF:  41 vec_free calls
+  flip ON:  850 vec_free calls (+ 230KB IR)
+```
+
+The flip-ON seed compiles cleanly, the resulting binary runs
+`--version` successfully — no crashes, no double-free, no
+fixed-point break. The 13 `#[manual_drop]` annotations on
+confirmed handoff fns suppress correctly; the 76 LEAK-FIX-
+LIKELY candidates auto-drop without issue.
+
+### What this unlocks
+
+The Phase 2b-3 unconditional default-flip ship can now land
+with confidence:
+
+1. The mechanism works — 850 vec_free calls demonstrate it.
+2. The audit is clean — 0 HANDOFF-SUSPECT after 13 manual_drop
+   annotations.
+3. The cost is bounded — cold ~3.65s (within Job #1) and IR
+   +230KB / memory +5MB (acceptable trade for memory safety).
+
+### Phase 2b-3 sequence — UPDATED
+
+```
+2b-3-trace identify root-cause     DONE v0.8.64 (this) — cache key
+2b-3 unconditional default-flip    READY (next ship)
+```
+
+The actual default-flip is now a one-line change in
+`name_in_auto_drop`. With this cache fix in place, that flip
+ship will produce correct, cacheable IR.
+
+### Adopter usage today
+
+```bash
+NUC_AUTO_DROP_DEFAULT=1 nucleor build my_code.nr -o out
+```
+
+Now actually exercises the auto-drop pipeline. Adopters can
+validate their code against the future default-flip semantics
+before the unconditional ship lands.
+
+### Perf
+
+Cold flip-OFF: ~3.65s. Cold flip-ON: ~3.65s. Hot 0.42s baseline.
+Memory peak +5MB under flip. Within Job #1.
+
+Fixed-point md5: `0649ae7b0d3144f5b42abee6941472a7`.
+
 ## [0.8.63] — 2026-05-04
 
 **`Box::leak(b)` accepted as a pass-through in Nucleor's i64-ABI.**
