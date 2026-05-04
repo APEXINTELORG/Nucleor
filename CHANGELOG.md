@@ -5,6 +5,67 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-05-04
+
+**Punchlist forward — RFC-0056 Phase A: deterministic-replay
+event-log surface (rod + runtime).**
+
+The full RFC-0056 ship adds language-level
+`replay { rng_seed, deterministic, kernel_version, log_path }
+{ ... }` block with PRNG hijack + GPU determinism flag +
+sensor/actuator log + model-hash assertion (~500 LOC compiler
++ ~700 LOC stdlib + per-backend deterministic-kernel flags).
+Phase A lands the canonical event-log surface adopters can use
+today: open a log, append events, close + replay-side assert.
+
+Sister to RFC-0052 / 53 / 54 / 55 Phase A — fifth V2 frontier
+Tier-B follow-on after the Tier-A close-out at v0.7.90.
+
+This is the **v0.8.0 cut**: nine V2-frontier RFCs landed Phase A
+this session (RFC-0046 through RFC-0056 inclusive — six Tier-A
++ four Tier-B + drift-restoration V1.12-V1.14 + RFC-0061 Tier 1
+V1.17a CLOSED). Minor-version increment marks the milestone.
+
+### Surface added in `stdlib/rods/replay.nr`
+
+- 3 mode tags: `replay_mode_{record, replay, audit}` (1..3) +
+  `replay_mode_name(id) -> str`.
+- 6 event-kind tags: `replay_event_{rng_draw, kernel_launch,
+  sensor_read, actuator_write, model_load, checkpoint}` (1..6)
+  + `replay_event_kind_name(id) -> str`.
+- Open / introspect: `replay_log_open(path, mode_id) -> handle`,
+  `replay_log_close(handle)`, `replay_log_event_count(handle)`.
+- 6 typed append helpers (one per event kind).
+- Read-back accessors: `replay_log_event_kind / _a / _b(h, idx)`.
+- Replay-side assertion:
+  `replay_log_assert_byte_identical(h, want_a, want_b)` —
+  consumes events in order, returns 1 on match / 0 on mismatch
+  or end-of-log.
+
+### Runtime: `stdlib/runtime/replay_rt.c`
+
+Process-local replay-event log table (max 16 logs × 8192
+events). Phase A keeps everything in memory; Phase B adds
+DSSE-signed file persistence + per-backend deterministic-
+kernel flags. Each event packs `(kind, a, b)` with per-kind
+interpretation (e.g. RngDraw = (seed, value), SensorRead =
+(sensor_id, value)).
+
+### Smoke fixture
+
+`tests/fixtures/v0800_rfc0056_replay_smoke.nr` — opens a log,
+appends one of each of the 6 event kinds, reads back via
+accessors, validates the kind/a/b decode, opens a second log,
+exercises the replay-side `assert_byte_identical` consumer
+(in-order matches, mismatch detection, end-of-log handling),
+plus an empty-log out-of-range read. rc=0.
+
+No new defensive halt this ship — v0.8.0 cut + RFC-0056 forward
+progress is the priority. Cron may concurrently ship halts.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.7.99] — 2026-05-04
 
 **Punchlist forward — RFC-0055 Phase A: distributed collectives
