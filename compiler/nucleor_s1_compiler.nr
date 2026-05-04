@@ -27803,6 +27803,13 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v087_authored_count: i64 = simple_attribute_audit_count(after_async, str_concat("@auth", "ored("));
     if v087_authored_count > 0 {
         print(str_concat("audit: @authored fns in build: ", str_from_int(v087_authored_count)));
+        // v0.8.9 Phase B step-2: emit the list of authors
+        // alongside the count. Adopters get the actual names
+        // surfaced at build, not just a number.
+        let v089_author_list: str = attribute_audit_first_str_arg(after_async, str_concat("@auth", "ored("));
+        if str_len(v089_author_list) > 0 {
+            print(str_concat("audit:   authors: ", v089_author_list));
+        };
     };
     let v087_policy_count: i64 = simple_attribute_audit_count(after_async, str_concat("@pol", "icy("));
     if v087_policy_count > 0 {
@@ -28916,6 +28923,50 @@ fn simple_attribute_audit_count(src: str, needle: str) -> i64 {
         };
     };
     return count;
+}
+
+// v0.8.9 Phase B step-2: extract the first quoted string-literal
+// argument from each `@<attr>(...)` invocation in the resolved
+// source. Returns a `; `-separated list of the extracted names
+// (or empty string when none). Used by the @authored audit to
+// emit the actual list of authors at build time, going past the
+// step-1 count-only summary. Generic shape — same scan reusable
+// for @policy, @photonic[device=...], etc. as those settle into
+// quoted-string-arg conventions.
+fn attribute_audit_first_str_arg(src: str, needle: str) -> str {
+    let slen: i64 = str_len(src);
+    let nlen: i64 = str_len(needle);
+    let mut out: str = "";
+    let mut emitted: i64 = 0;
+    if nlen <= 0 { return out; };
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        if str_eq_at(src, p, needle) == 1 {
+            // Walk forward past `(`, optional whitespace, optional
+            // `key=` or `device=` prefix, to the first `"`. Accept
+            // chars until the next `"` or end-of-line.
+            let mut q: i64 = p + nlen;
+            while q < slen && str_char_at(src, q) != 34 && str_char_at(src, q) != 10 && str_char_at(src, q) != 41 {
+                q = q + 1;
+            };
+            if q < slen && str_char_at(src, q) == 34 {
+                let r0: i64 = q + 1;
+                let mut r1: i64 = r0;
+                while r1 < slen && str_char_at(src, r1) != 34 && str_char_at(src, r1) != 10 {
+                    r1 = r1 + 1;
+                };
+                if r1 > r0 {
+                    if emitted == 1 { out = str_concat(out, "; "); };
+                    out = str_concat(out, str_substring(src, r0, r1));
+                    emitted = 1;
+                };
+            };
+            p = p + nlen;
+        } else {
+            p = p + 1;
+        };
+    };
+    return out;
 }
 
 fn expand_deadline(src: str) -> str {
