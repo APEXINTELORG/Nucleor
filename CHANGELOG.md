@@ -5,6 +5,33 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.70] — 2026-05-04
+
+**Perf — integrate helper agent's strtab-intern hash slice
+(`origin/perf/strtab-intern-hashmap` @ `6c884044`).**
+
+Promotes a dedicated hashmap alongside the strtab once the table
+exceeds 128 entries. The previous v0.6.72 attempt at hash-backed
+intern lookups was reverted because it shared the warm-cache
+substrate with `sym_get`, which made every `sym_get` on a
+different vec clear the hashmap and force `strtab_intern` to
+re-catch up from 0. This version threads a per-IR-fn `strtab_aux`
+slot (`(hashmap_handle, built_count)`) so the intern hashmap is
+maintained independently of the warm cache. Linear-scan path
+preserved for tiny adopter programs (n < 128).
+
+Caller profile improvements (helper-reported):
+- `vec_get`: -26M
+- `str_eq`: -26M
+- Total tracked helper calls: 223.6M -> 171.7M
+
+Cold (this machine, post-rebase): **3.07s** / peak 309MB.
+Sister to v0.7.63 P2 hot-path integration; same shape (hash a hot
+profile-leader rather than scan-list).
+
+Cherry-picked from helper's perf branch onto v0.7.69; seed
+regenerated; fixed-point md5 `5ECBF4D5128CD4C722313373A3036ABA`.
+
 ## [0.7.69] — 2026-05-04
 
 **Defensive halt — Rust opt-out trait bound `?Sized` / `?Trait`

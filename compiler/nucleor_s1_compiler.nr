@@ -5108,6 +5108,19 @@ fn ir_fn_get_width(f: Vec<i32>, reg: i64) -> i64 {
     if reg >= vec_len(widths) { return 0; };
     return vec_get(widths, reg);
 }
+fn ir_fn_set_strtab_aux(f: Vec<i32>, aux: Vec<i32>) -> i64 {
+    while vec_len(f) <= 5 { f.push(0); };
+    vec_set(f, 5, aux);
+    return 0;
+}
+fn ir_fn_strtab_aux(f: Vec<i32>) -> Vec<i32> {
+    if vec_len(f) > 5 { return vec_get(f, 5); };
+    let mut aux: Vec<i32> = Vec::new();
+    aux.push(0);
+    aux.push(0);
+    ir_fn_set_strtab_aux(f, aux);
+    return aux;
+}
 fn ir_fn_name(f: Vec<i32>) -> str { return vec_get(f, 0); }
 fn ir_fn_param_count(f: Vec<i32>) -> i64 { return vec_get(f, 1); }
 fn ir_fn_add_block(f: Vec<i32>, blk: Vec<i32>) -> i64 { let mut b: Vec<i32> = vec_get(f, 3); b.push(blk); return 0; }
@@ -8406,20 +8419,42 @@ fn emit_externs() -> str {
 // v0.6.72 attempt at hash-backed lookup REVERTED: the warm-hashmap
 // substrate is contended with sym_get (every sym_get on a different
 // vec clears the hashmap, causing strtab_intern to re-catchup from 0
-// each call). Net cost was +1s cold (worse than linear). A dedicated
-// strtab-only hashmap would need a different API signature;
-// deferred.
+// each call). Net cost was +1s cold (worse than linear).
 //
 // Linear-scan cost on self-host: ~9400 inserts × ~3500 avg scan
 // length = ~33M str_eq compares. With first-byte-fail on most
 // uniques, ~80ms total. Acceptable.
 //
+// v0.7.x P2: keep the tiny-table linear path, then switch to a
+// dedicated strtab-only hashmap threaded alongside the strtab. This
+// avoids the shared warm-cache contention that killed the v0.6.72
+// attempt while preserving low overhead for small adopter programs.
+//
 // Backward-scan optimization: many string literals are emitted in
 // blocks (e.g. emit_externs declarations, repeated diagnostic
 // substrings) where recent inserts are likely to match. Scan from
 // the END toward the start to hit those fast.
-fn strtab_intern(strtab: Vec<i32>, s: str) -> i64 {
+fn strtab_intern(strtab: Vec<i32>, fir: Vec<i32>, s: str) -> i64 {
     let n: i64 = vec_len(strtab);
+    if n >= 128 {
+        let strtab_aux: Vec<i32> = ir_fn_strtab_aux(fir);
+        let mut h: i64 = vec_get(strtab_aux, 0);
+        if h <= 0 {
+            h = __nucleor_hashmap_new();
+            vec_set(strtab_aux, 0, h);
+        };
+        let mut built: i64 = vec_get(strtab_aux, 1);
+        while built < n {
+            __nucleor_hashmap_insert(h, vec_get(strtab, built), built);
+            built = built + 1;
+        };
+        vec_set(strtab_aux, 1, built);
+        if __nucleor_hashmap_contains(h, s) == 1 { return __nucleor_hashmap_get(h, s); };
+        strtab.push(s);
+        __nucleor_hashmap_insert(h, s, n);
+        vec_set(strtab_aux, 1, n + 1);
+        return n;
+    };
     let mut i: i64 = n - 1;
     while i >= 0 {
         if str_eq(vec_get(strtab, i), s) == 1 { return i; };
@@ -21564,7 +21599,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
     };
     if kind == 2 {
         // v0.6.70: intern via strtab_intern to dedup repeated literals.
-        let idx: i64 = strtab_intern(strtab, node_field(pool, nid, 1));
+        let idx: i64 = strtab_intern(strtab, fir, node_field(pool, nid, 1));
         let r: i64 = ctr_next(regs);
         ir_block_add(blk, ir_const_str(r, idx));
         return lx_new(r, blk);
@@ -23943,7 +23978,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             } else if str_eq(ename, "__str") {
                 let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
                 // v0.6.70: intern via strtab_intern to dedup.
-                let sidx: i64 = strtab_intern(strtab, vname);
+                let sidx: i64 = strtab_intern(strtab, fir, vname);
                 let sv_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_str(sv_r, sidx));
                 let mut eq_args: Vec<i32> = Vec::new(); eq_args.push(mv); eq_args.push(sv_r);
                 let cmp_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(cmp_r, "str_eq", eq_args));
@@ -24247,6 +24282,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let mut clo_sym: Vec<i32> = sym_new();
         sym_set(clo_sym, "__closure_id", clo_idx);
         let mut clo_fir: Vec<i32> = ir_fn_new(clo_name, pc);
+        ir_fn_set_strtab_aux(clo_fir, ir_fn_strtab_aux(fir));
         let mut clo_b0: Vec<i32> = ir_block_new(0);
         ir_fn_add_block(clo_fir, clo_b0);
         let mut captures: Vec<i32> = Vec::new();
@@ -25566,7 +25602,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
             } else if str_eq(ename, "__str") {
                 let mv: i64 = ctr_next(regs); ir_block_add(cur, ir_load(mv, mslot));
                 // v0.6.70: intern via strtab_intern to dedup.
-                let sidx: i64 = strtab_intern(strtab, vname);
+                let sidx: i64 = strtab_intern(strtab, fir, vname);
                 let sv_r: i64 = ctr_next(regs); ir_block_add(cur, ir_const_str(sv_r, sidx));
                 let mut eq_args: Vec<i32> = Vec::new(); eq_args.push(mv); eq_args.push(sv_r);
                 let cmp_r: i64 = ctr_next(regs); ir_block_add(cur, ir_call_ex(cmp_r, "str_eq", eq_args));
@@ -25739,7 +25775,7 @@ fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Ve
     return b;
 }
 
-fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, fn_return_map: i64, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>, old_snapshots: Vec<i32>, auto_drop_fns: Vec<i32>) -> Vec<i32> {
+fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, fn_return_map: i64, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>, old_snapshots: Vec<i32>, auto_drop_fns: Vec<i32>) -> Vec<i32> {
     let name: str = node_field(pool, fn_nid, 1);
     let plist: i64 = node_field(pool, fn_nid, 2);
     let blist: i64 = node_field(pool, fn_nid, 4);
@@ -25789,6 +25825,7 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, structs: Vec<i32>, en
     };
     sym_set(sym, "__current_fn_full_return", node_field(pool, fn_nid, 3));
     let mut fir: Vec<i32> = ir_fn_new(name, pc);
+    ir_fn_set_strtab_aux(fir, strtab_aux);
     let mut ebb0: Vec<i32> = ir_block_new(0);
     ir_fn_add_block(fir, ebb0);
     let mut pi: i64 = 0;
@@ -27547,6 +27584,9 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     vec_free(r);
 
     let mut strtab: Vec<i32> = Vec::new();
+    let mut strtab_aux: Vec<i32> = Vec::new();
+    strtab_aux.push(0);
+    strtab_aux.push(0);
     let mut fns: Vec<i32> = Vec::new();
     let mut externs: Vec<i32> = Vec::new();
     let mut structs: Vec<i32> = Vec::new();
@@ -28090,12 +28130,12 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     fi = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns)); };
+        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, strtab_aux, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns)); };
         fi = fi + 1;
     };
     let mut ii: i64 = 0;
     while ii < vec_len(impl_fns) {
-        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns));
+        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, strtab_aux, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns));
         ii = ii + 1;
     };
     let mut ci3: i64 = 0;
