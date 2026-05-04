@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.100] — 2026-05-04
+
+**stdlib/rods/interp.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `interp.nr` (linear /
+cubic spline / Lagrange / Chebyshev / 2D bilinear / RBF) had no
+existing tests. Silent regressions in interpolation are
+correctness-critical for any numerical pipeline that resamples
+or fits data.
+
+### The fixture
+
+`tests/features/interp_smoke.nr` covers four textbook
+interpolation invariants:
+
+| Test | Invariant |
+|---|---|
+| linear passes knots | `interp_linear` reproduces y exactly at every input x in the knot set |
+| linear midpoint | `interp_linear([0, 2], [10, 30], 1.0) == 20.0` (midpoint of values) |
+| Lagrange reproduces polynomial | sampled `y = 2x + 3` at x∈{0,1,2}; `interp_lagrange` returns exact y at x=0.5 (=4.0) and x=1.5 (=6.0) |
+| cubic spline passes knots | `interp_cubic_spline` reproduces y exactly at every knot — the basic interpolation condition |
+
+All four pass. rc=0. Cold 1.06s.
+
+Two epsilon tiers used: 1e-9 for linear (no rounding accumulation)
+and 1e-6 for Lagrange + cubic spline (where the basis-function
+sums can drift by float-arithmetic rounding).
+
+### Significance
+
+Catches silent regressions in:
+
+- Linear interpolation slope and endpoint handling (the simplest
+  interpolation; should be exact at knots)
+- Lagrange polynomial reconstruction (any breakage in the
+  basis-function product computation surfaces here)
+- Cubic spline interpolation condition (the spline MUST pass
+  through every knot or it isn't an interpolant)
+
+The full surface (Chebyshev fit + eval, 2D bilinear, RBF) is
+queued for follow-up coverage extension. Bilinear in particular
+needs a 2D grid input.
+
+Other zero-coverage rods queued: autodiff / bm25 / bspline /
+cli / collections / compress / control / crypto / csv / fft /
+fluid / fmt / fs / geom / image / ini / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.99] — 2026-05-04
 
 **stdlib/rods/finance.nr first test coverage.** Pure fixture,
