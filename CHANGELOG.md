@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.59] — 2026-05-04
+
+**Defensive halt — local fn declaration `fn inner(...)` inside a
+fn body / match-arm block now produces a clean halt with hoist /
+closure workaround pointers. Sister to v0.7.47/55/56 (local-type-
+alias / -const / -static halts).**
+
+Pre-fix: writing `fn outer() { fn inner() { ... } ... }` (Rust
+allows nested fn declarations as name-scoped — they don't capture)
+surfaced as wrong-class `error[NR020]: parse_primary cannot start
+an expression at token kind 10` because parse_stmt's fall-through
+to parse_expr also has no `fn` branch.
+
+Post-fix: `parse_stmt` checks `tt == 10` (fn keyword) and halts
+cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+fn outer() -> i64 {
+    fn inner() -> i64 { return 42; }    // ← NR020 token kind 10
+    return inner();
+}
+
+// Post-fix workaround A — hoist to module scope:
+fn inner() -> i64 { return 42; }
+fn outer() -> i64 { return inner(); }
+
+// Post-fix workaround B — closure (if you need env capture):
+fn outer() -> i64 {
+    let inner = || 42;
+    return inner();
+}
+```
+
+Note: Rust's local fn declarations don't capture either — they're
+purely name-scoped, so workaround A has the same observable
+behavior. Closures (workaround B) are the right choice when you
+actually want to capture outer bindings.
+
+### Fixture
+
+`tests/fixtures/v0759_local_fn_halt.nr` — negative fixture for
+`fn outer() { fn inner() { ... } }` (fires local-fn halt with
+hoist / closure workarounds, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `2187d0c504d297da18a6c6aa749f78be`.
+Cold 3.83s / peak 309MB.
+
 ## [0.7.58] — 2026-05-04
 
 **Feature acceptance — `where`-clause on enum declaration now
