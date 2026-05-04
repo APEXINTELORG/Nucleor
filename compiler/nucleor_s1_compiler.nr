@@ -25517,6 +25517,43 @@ fn auto_drop_explicit_free_name(pool: Vec<i32>, expr_nid: i64) -> str {
     return node_field(pool, first_arg, 1);
 }
 
+// v0.8.74 RFC-0062 G-3 Phase 2b — proper dataflow handoff
+// detection. If an ExprStmt is a Call to vec_push / vec_set /
+// hashmap_insert and the VALUE argument is an identifier
+// referencing a registered auto-drop binding, return that
+// binding's name. Caller then calls auto_drop_set_state(sym,
+// name, 0) to suppress the auto-drop emit at fn return.
+//
+// vec_push(receiver, value)        — value is arg index 1
+// vec_set(receiver, idx, value)    — value is arg index 2
+// hashmap_insert(map, key, value)  — value is arg index 2
+//
+// Conservative: fires for ANY identifier-typed value arg whose
+// name is in the auto-drop set, regardless of receiver locality.
+// Over-suppresses (might leave a leak instead of correctly
+// dropping a never-handed-off Vec) but never produces a
+// dangling pointer. Phase 2c adds receiver-locality refinement.
+fn auto_drop_handoff_name(pool: Vec<i32>, expr_nid: i64, sym: Vec<i32>) -> str {
+    if expr_nid < 0 { return ""; };
+    if node_kind(pool, expr_nid) != 7 { return ""; };
+    let fn_name: str = node_field(pool, expr_nid, 1);
+    let value_idx: i64 = if str_eq(fn_name, "vec_push") == 1 { 1 }
+                         else if str_eq(fn_name, "vec_set") == 1 { 2 }
+                         else if str_eq(fn_name, "hashmap_insert") == 1 { 2 }
+                         else { -1 };
+    if value_idx < 0 { return ""; };
+    let args_list: i64 = node_field(pool, expr_nid, 2);
+    if list_len(pool, args_list) <= value_idx { return ""; };
+    let value_arg: i64 = list_get(pool, args_list, value_idx);
+    if node_kind(pool, value_arg) != 3 { return ""; };
+    let vname: str = node_field(pool, value_arg, 1);
+    // Only suppress if this name was actually registered for
+    // auto-drop in this fn.
+    let idx: i64 = sym_get(sym, auto_drop_index_key(vname));
+    if idx < 0 { return ""; };
+    return vname;
+}
+
 fn auto_drop_return_skip_name(pool: Vec<i32>, expr_nid: i64, sym: Vec<i32>) -> str {
     if expr_nid < 0 { return ""; };
     if node_kind(pool, expr_nid) != 3 { return ""; };
@@ -26079,6 +26116,13 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let out_blk: Vec<i32> = lx_blk(ep);
         let freed_name: str = auto_drop_explicit_free_name(pool, expr_nid);
         if str_len(freed_name) > 0 { auto_drop_mark_freed(sym, freed_name); };
+        // v0.8.74 G-3 Phase 2b: detect handoff. If the expr is a
+        // vec_push/vec_set/hashmap_insert with identifier value
+        // arg referencing a registered auto-drop binding, mark
+        // that binding as freed (suppresses the auto-drop emit
+        // at fn return). Per docs/g3-handoff-dataflow-design.md.
+        let handoff_name: str = auto_drop_handoff_name(pool, expr_nid, sym);
+        if str_len(handoff_name) > 0 { auto_drop_mark_freed(sym, handoff_name); };
         return out_blk;
     };
     if kind == 38 {
