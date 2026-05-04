@@ -4603,6 +4603,20 @@ v0512_str_to_int_strict_panic() {
     grep -qE 'PANIC: str_to_int_strict:' $NUC_VERIFY_RUN_LOG || return 1
 }
 
+v0714_where_clause_multi_param_bounds() {
+    # v0.7.14 / probe Q3+Q4 fold-in: lock the parser surface for
+    # `fn f<T,U>(...) where T: A + B + C, U: D` — multi-trait bound on
+    # one type-param + multi-param where clause in the same signature.
+    rm -f target/v0714_where.exe target/v0714_where
+    "$BIN" build tests/features/where_clause_multi_param_bounds.nr -o "v0714_where" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local exe=""
+    if [ -x target/v0714_where.exe ]; then exe=target/v0714_where.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0714_where ]; then exe=target/v0714_where; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1 || return 1
+    grep -q "OK where_clause_multi_param_bounds" $NUC_VERIFY_RUN_LOG || return 1
+}
+
 t28_async_threads() {
     # v0.2.353 (T2.8): async runtime — threads-only commitment.
     "$BIN" test "tests/smoke/t28_async_threads.nr" >$NUC_VERIFY_STEP_LOG 2>&1
@@ -5412,6 +5426,7 @@ step "v0.6.34 Result::Err(x).unwrap_err() returns err payload (was TYP-005 link 
 step "v0.6.34 Result::Ok(x).unwrap_err() panics with canonical message" v0634_result_unwrap_err_on_ok_panics
 step "v0.5.10 i32::MIN / -1 panics cleanly (not Windows STATUS_INTEGER_OVERFLOW)" v0510_i32_min_div_overflow
 step "v0.5.12 str_to_int_strict panics on invalid input" v0512_str_to_int_strict_panic
+step "v0.7.14 where-clause multi-trait + multi-param bound parses and runs" v0714_where_clause_multi_param_bounds
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------

@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.14] — 2026-05-03
+
+**Defensive halt — Rust 2021 raw-reference syntax `&raw const T` /
+`&raw mut T` now produces a clean halt with a `&` / `&mut`
+workaround pointer.**
+
+Pre-fix: writing `let p = &raw const x;` (or the equivalent in type
+position) surfaced as a wrong-class identifier-as-expression error
+because `raw` was parsed as a postfix-on-`&` identifier reference.
+
+Post-fix: parse_unary and parse_type both detect the `&` followed by
+identifier `raw` pattern and halt with a clear pointer to the
+`&expr` / `&mut expr` workaround.
+
+Tracked for forward-roadmap (raw pointers are a separate type system
+feature that will go through RFC review).
+
+Phase 1 prerequisite for governance rod (RFC-0060) closed: restored
+`tools/native_release.ps1` (1016 LOC) — full ssh-ed25519 sign/verify
+pipeline for `nuc release` and `nuc publish --sign`. `keygen` smoke
+test produces valid Ed25519 keys at `%USERPROFILE%/.nucleor/`.
+
 ## [0.7.13] — 2026-05-03
 
 **Defensive halt — canonical Rust trait alias `trait Pretty =
