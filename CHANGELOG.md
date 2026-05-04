@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.24] — 2026-05-04
+
+**Defensive halt — bare negative-literal payload inside a variant
+pattern (`Some(-5)`, `Ok(-1)`, `Err(-9)`) now produces a clean
+halt with a guard workaround pointer.**
+
+Pre-fix: writing `match opt { Some(-5) => ... }` surfaced as
+wrong-class `error[NR020]: parse error: expected ')', got integer
+literal` because the variant-pattern parser swallowed `-` (token
+21) as the binding name, then `5` landed where the parser expected
+`)`. Sister to v0.7.22 MATCH-015 (bare negative literal at outer
+pattern level).
+
+Post-fix: variant-pattern parser detects `-` followed by integer
+literal right after the opening `(` and halts cleanly with a guard
+workaround:
+
+```nucleor
+// Pre-fix wrong-class:
+match opt {
+    Some(-5) => { ... }       // ← NR020 wrong-class
+    _ => { ... }
+}
+
+// Post-fix workaround — guard form:
+match opt {
+    Some(n) if n == -5 => { ... }
+    _ => { ... }
+}
+```
+
+Forward-roadmap: negate-literal-inside-variant lowering needs the
+same signed-literal pattern AST node as MATCH-014 (negative-range-
+bound) and MATCH-015 (negative-lit at outer level).
+
+### Fixture
+
+`tests/fixtures/v0724_neg_lit_in_variant_halt.nr` — negative fixture
+for `Some(-5)` (fires clean halt with guard workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `1c938b3dfe0145c0196f3e3f579d9eeb`.
+
 ## [0.7.23] — 2026-05-04
 
 **Defensive halt — `ref` / `ref mut` binding mode inside a variant

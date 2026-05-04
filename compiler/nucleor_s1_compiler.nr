@@ -1584,6 +1584,19 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
         cp = cp + 1;
         if pk(tokens, cp) == 50 {
             cp = cp + 1;
+            // v0.7.24 (defensive halt — bare negative-literal payload inside
+            // a variant pattern: `Some(-5)`, `Ok(-1)`, `Err(-9)`). Pre-fix
+            // this surfaced as wrong-class `error[NR020]: expected ')', got
+            // integer literal` because the variant-pattern parser swallowed
+            // `-` (token 21) as the binding name, then `5` landed where the
+            // parser expected `)`. Sister to v0.7.22 MATCH-015 (bare negative
+            // literal at outer pattern level). Workaround: use a guard.
+            if pk(tokens, cp) == 21 && pk(tokens, cp + 1) == 2 {
+                let neg_lit_v724: i64 = pkv(tokens, cp + 1);
+                print(str_concat("ERROR: bare negative-literal payload inside a variant pattern (e.g. `", str_concat(vname, str_concat("(-", str_concat(str_from_int(neg_lit_v724), ")`) is not yet supported in Nucleor. Pre-v0.7.24 this surfaced as wrong-class `error[NR020]: expected ')', got integer literal` because the variant-pattern parser swallowed `-` as the binding name. Sister to v0.7.22 MATCH-015 (bare negative literal at outer pattern level).")))));
+                print(str_concat("       Workaround: use a guard — `match opt { ", str_concat(vname, str_concat("(n) if n == -", str_concat(str_from_int(neg_lit_v724), " => { ... } _ => { ... } }`. Tracked for forward-roadmap (negate-literal-inside-variant lowering needs the same signed-literal pattern AST node as MATCH-014/015).")))));
+                panic(str_concat("nucleor: bare negative-literal payload inside `", str_concat(vname, "(...)` not yet supported (see ERROR diagnostic above)")));
+            };
             if pk(tokens, cp) != 51 {
                 binding = pkv(tokens, cp);
                 cp = cp + 1;
