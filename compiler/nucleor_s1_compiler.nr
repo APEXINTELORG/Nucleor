@@ -4822,6 +4822,34 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
             print("       Workaround: drop the `unsafe` qualifier — Nucleor v0.7 has no `unsafe`-gated operations to opt out of, so the qualifier is informational-only at the decl level (the v1 trait/impl-soundness substrate may give it meaning later). Tracked for forward-roadmap.");
             panic(str_concat("nucleor: `unsafe ", str_concat(v761_kw, "` decl not yet supported (see ERROR diagnostic above)")));
         }
+        else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "extern") == 1 && pk(tokens, cp + 1) == 1 && str_eq(pkv(tokens, cp + 1), "crate") == 1 {
+            // v0.7.73 (defensive halt — `extern crate <name>;`).
+            // Pre-fix this was silently dropped at module-item
+            // dispatch — the `extern` ident matched no branch, the
+            // dispatcher fell through, and the trailing tokens
+            // (`crate`, `<name>`, `;`) were skipped. Adopters
+            // translating Rust 2015-style or workspace-style code
+            // got NO signal that the dependency wasn't actually
+            // pulled in; later `crate_name::path` use sites failed
+            // opaquely. Halt cleanly. Sister to v0.7.71 `async fn`
+            // and v0.6.53 `unsafe fn` halts (same module-item
+            // silent-strip class).
+            print("ERROR: `extern crate <name>;` declarations are not yet supported in Nucleor. Pre-v0.7.73 these were silently dropped at module-item dispatch with no signal — adopter intent that the named crate be pulled in was lost, and later `<name>::path` use sites failed opaquely as undefined idents. Workaround: Nucleor's current substrate uses the `import \"path\"` form for cross-file inclusion (RFC-0018 phase 1); there is no Cargo-style external-crate dependency manager yet. Tracked for forward-roadmap (RFC-0018 phase 3 — package/registry resolution).");
+            panic("nucleor: `extern crate ...` decl not yet supported (see ERROR diagnostic above)");
+        }
+        else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "macro_rules") == 1 && pk(tokens, cp + 1) == 97 {
+            // v0.7.73 (defensive halt — `macro_rules! name { ... }`).
+            // Pre-fix the `macro_rules` ident + `!` (token 97) +
+            // `name` + `{ ... }` were silently swallowed by the
+            // parser at module scope. Adopter intent that the macro
+            // be defined was lost; use sites either failed at
+            // expand-time (TYP-005 'undefined function name!') or
+            // got the wrong-class 'expansion not honored' silent
+            // miscompute. Halt cleanly. Same silent-strip class as
+            // `extern crate`.
+            print("ERROR: `macro_rules!` declarative-macro definitions are not yet supported in Nucleor. Pre-v0.7.73 the entire `macro_rules! name { ... }` block was silently dropped at module-item dispatch — adopter intent that the macro be defined was lost, and call sites either failed late at expand-time as undefined idents or silently produced no expansion. Workaround: rewrite the macro body as a regular fn (Nucleor's metaprogramming substrate is fn-call + the small set of built-in macros — `print!`, `println!`, `format!`, `vec!`, `panic!`). Tracked for forward-roadmap (full declarative-macro substrate is a v1.x ship).");
+            panic("nucleor: `macro_rules!` decl not yet supported (see ERROR diagnostic above)");
+        }
         else if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "union") == 1 {
             // v0.6.50 (probe finding 2026-05-02-module-scope-decl-silent-
             // noop-gaps-type-mod-union-use): pre-fix `union U { a: i64,
