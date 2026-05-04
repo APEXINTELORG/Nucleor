@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.63] — 2026-05-04
+
+**`Box::leak(b)` accepted as a pass-through in Nucleor's i64-ABI.**
+Pre-v0.8.63 any call to `Box::leak(b)` hit the generic "unsupported
+associated-fn call Box::leak" PANIC with no workaround pointer.
+Adopters porting Rust code that intentionally leaks a heap allocation
+to obtain a `&'static T` were blocked with no diagnostic.
+
+### Pre-fix surface
+
+```
+let b: Box<i64> = Box::new(42);
+let r: &i64 = Box::leak(b);   // ← PANIC: nucleor: unsupported
+                               //   associated-fn call Box::leak
+```
+
+### Fix
+
+Three-site change in `compiler/nucleor_s1_compiler.nr` + mirror in
+`compiler/nucleor_tools_suite.nr`:
+
+1. **`type_expr` (kind-12 branch):** Before the existing `Box::new`
+   type-propagation path, detect `mname == "leak"`. Strip the `Box<`
+   wrapper from the argument's type and prepend `&` — so
+   `Box::leak(b: Box<i64>)` types as `&i64`. Consistent with Rust
+   semantics (`Box::leak` → `&'static mut T`; lifetime dropped in
+   Nucleor's lifetime-erased ABI).
+
+2. **`lower_expr` (kind-12 branch):** After the `Box::new` handler,
+   add a `Box::leak` case that is semantically identical — return
+   `lower_expr(arg)`. In Nucleor's i64-everywhere ABI the Box IS the
+   inner pointer (no heap indirection added by `Box::new`), so leaking
+   is a no-op. Nucleor has no automatic drop today (V1.3 RAII
+   unshipped), so the "intentional no-free" semantics are already the
+   default.
+
+3. **Mirror in `nucleor_tools_suite.nr`:** Same two sites mirrored for
+   the tools-suite drift gate.
+
+### Scope
+
+Associated-fn call form `Box::leak(b)` only. The method form `b.leak()`
+(rare, non-idiomatic) remains on the existing conversion-idiom
+defensive halt at the kind-8 dispatch path — that path already emits a
+clean diagnostic pointing at the workaround.
+
+### Fixed-point md5
+
+`ba6e89494314ed3d24c9a7075c4b1aac`
+
+### Fixture
+
+`tests/fixtures/v0863_box_leak.nr` — verifies `Box::new` + `Box::leak`
+round-trip for `i64` and `str` values; exit 47 = 42 + 5 (`*r` + `str_len`).
+
+### Perf
+
+Cold ~1.84s (within Job #1 hard cap 5.93s). No hot-path change —
+the new branch is guarded by the `str_eq(tname,"Box")` fast path.
+
 ## [0.8.62] — 2026-05-04
 
 **Wave 3 — QM-8/9 + ROBO-8 Phase 1 audit-pass info.** Final
