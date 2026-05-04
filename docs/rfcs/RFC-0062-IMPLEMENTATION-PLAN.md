@@ -286,11 +286,18 @@ Every per-fn analysis pass uses a per-fn arena. Allocated at fn-enter, freed at 
 
 Expected savings: **memory peak preserved at ~315MB** vs naive growth to ~600MB.
 
-### 5.3 Multi-needle batched audit-pass scans
+### 5.3 Multi-needle batched audit-pass scans — REVISITED
 
-Wave A's 5 audit passes produce 8+ source-bundle scans. v0.8.29 ships a single multi-needle batched pass that does all 8 in one walk. Same pattern as the v0.8.23 BR-7 collapse.
+The original projection assumed batching 5 audit passes into one walk would save 0.15-0.25s. **Empirically false.** Two failed experiments:
 
-Expected savings: **0.15-0.25s** on the seed self-host.
+1. **Vec<i64> consolidated batched pass (v0.8.28 attempt):** Vec-allocation + vec_get/vec_set per match imposed more overhead than the 4 saved walk-loop bookkeeping cycles. Net regression ~0.4s cold.
+2. **3-needle cascade-if helper (`audit_count_three_needles_total`)** used at v0.8.33 first-attempt: cold 3.48 → 4.41s, hot 0.40 → 0.78s. Cascade-if branching pattern interferes with the tight inner-loop optimization.
+
+**What works:** the v0.8.23 BR-7 collapse (3 needles into 1 helper) is the only success — likely because the source there already has `<'a` / `<'b` / `&'static` co-located in adopter signatures. Generic 3-needle batching does NOT win.
+
+**Validated pattern:** each new Phase 2a audit uses 1-3 SEPARATE `simple_attribute_audit_count` calls, gated behind a cheap `str_index_of` pre-check. The gate skips full scans when none of the needles are textually present in the source. Adopter cost: zero unless the relevant pattern appears.
+
+This is the pattern locked at v0.8.33 (G-6 SEND-G6 audit). All future Phase 2a / 2b audits should follow it.
 
 ### 5.4 Incremental cache friendliness
 
