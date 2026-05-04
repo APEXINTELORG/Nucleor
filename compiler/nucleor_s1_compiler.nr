@@ -3631,6 +3631,18 @@ fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut params: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
         if vec_len(params) > 0 { cp = expect_tok(tokens, cp, 44); };
+        // v0.7.47 (defensive halt — Rust C-FFI variadic syntax: `extern
+        // "C" fn printf(fmt: str, ...);`). The lexer emits `...` as
+        // token 58 (`..`) followed by token 45 (`.`). Pre-fix this
+        // surfaced as wrong-class `error[NR020]: expected ':', got
+        // token 45` because the param parser tried to read `.` as the
+        // binding name. Halt cleanly with a wrapper-fn workaround
+        // pointer.
+        if pk(tokens, cp) == 58 || pk(tokens, cp) == 45 {
+            print(str_concat("ERROR: C-FFI variadic parameter `...` (e.g. `extern \"C\" fn ", str_concat(name, "(fmt: str, ...);`) is not yet supported in Nucleor. Pre-v0.7.47 surfaced as wrong-class `error[NR020]: expected ':', got token 45`.")));
+            print(str_concat("       Workaround: declare a fixed-arity wrapper fn for each call shape you need — `extern \"C\" fn ", str_concat(name, "_1(fmt: str, a1: i64) -> i32; extern \"C\" fn ", str_concat(name, "_2(fmt: str, a1: i64, a2: i64) -> i32;` (one per arg-count). For `printf` specifically, prefer `print(format!(\"...\", args))` which has parity with the common usage. Tracked for forward-roadmap (variadic-fn substrate needs ABI-level work — sister to v0.7.26 extern-block-form halt).")));
+            panic(str_concat("nucleor: C-FFI variadic `...` parameter in `extern \"C\" fn ", str_concat(name, "(...)` not yet supported (see ERROR diagnostic above)")));
+        };
         let pn: i64 = pkv(tokens, cp); cp = expect_tok(tokens, cp + 1, 42);
         let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
         params.push(mk3(pool, 41, pn, pr_val(tr)));
