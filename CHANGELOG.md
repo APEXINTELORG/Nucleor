@@ -5,6 +5,77 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.16] — 2026-05-04
+
+**Punchlist forward — V1.16 SPEC-LSP-server Phase A: LSP 3.17
+protocol-envelope + message-tag surface (rod-only).**
+
+The full V1.16 ship is a standalone `nucleor-lsp.exe` JSON-RPC
+daemon (path A — subprocess-first per the SPEC), plus
+compiler-side `--lsp-mode` + `--emit-symbol-table=json` flags
+(~1500-2500 LOC compiler + ~600 LOC daemon). Phase A (this rod)
+lands the canonical message-tag surface + minimal JSON-RPC
+envelope helpers so adopters and tools can compose LSP messages
+today, ahead of the daemon binary.
+
+Sister to the V2 frontier Phase A pattern (v0.7.83-v0.8.2) and
+the audit-channel work (v0.8.5-v0.8.15) — same "stdlib first,
+binary later" pattern.
+
+### Surface added in `stdlib/rods/lsp.nr`
+
+- 14 method-name tags + `lsp_msg_kind_name(id) -> str`:
+  textDocument/didOpen, didChange, didClose, didSave,
+  diagnostic, hover, definition, completion, formatting,
+  codeAction, plus initialize, initialized, shutdown, exit.
+- 4 DiagnosticSeverity values (Error / Warning / Information
+  / Hint) per LSP 3.17 §3.17.6 + name lookup.
+- 12 CompletionItemKind values (Text, Method, Function, Field,
+  Variable, Class, Interface, Module, Property, Keyword,
+  Struct, EnumMember) per LSP 3.17 §3.17.16.
+- JSON-RPC 2.0 envelope helpers:
+  - `lsp_jsonrpc_notification(method, params_json)` —
+    server-originated push (no `id`).
+  - `lsp_jsonrpc_request(id, method, params_json)` —
+    bidirectional call.
+  - `lsp_jsonrpc_response(id, result_json)`.
+  - `lsp_jsonrpc_error(id, code, message)`.
+- 8 JSON-RPC error code constants:
+  ParseError(-32700), InvalidRequest, MethodNotFound,
+  InvalidParams, InternalError, ServerNotInitialized,
+  RequestCancelled, ContentModified.
+- `lsp_wire_envelope(jsonrpc_body) -> str` — wraps with
+  `Content-Length: N\r\n\r\n` for stdout writes.
+- Position / Range / Diagnostic builders matching LSP §3.17.3
+  / §3.17.5 / §3.17.6.
+
+### Smoke fixture
+
+`tests/fixtures/v0816_lsp_phaseA_smoke.nr` — exercises all 14
+method tags, 4 severities, 12 completion kinds, 4 JSON-RPC
+envelope shapes (notification / request / response / error),
+wire envelope wrap, position / range / diagnostic builders,
+8 error code constants. rc=0.
+
+### Status
+
+Phase B (subprocess daemon binary) needs:
+- `nucleor.exe --lsp-mode` flag — suppresses normal stderr,
+  emits diagnostics as line-delimited JSON.
+- `nucleor.exe --emit-symbol-table=json` — for hover +
+  go-to-def.
+- `nucleor-lsp.exe` daemon — reads JSON-RPC from stdin,
+  spawns nucleor.exe per request, parses output, emits
+  diagnostics to stdout via the envelope helpers in this
+  rod.
+
+Both Phase B surfaces are deferred but design-locked by the
+Phase A rod — adopters can stand up minimal LSP servers
+today using the rod surface.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.8.15] — 2026-05-04
 
 **Phase B step-3 — fn-name extraction completes audit coverage
