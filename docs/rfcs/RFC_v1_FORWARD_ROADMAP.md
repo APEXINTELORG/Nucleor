@@ -225,15 +225,34 @@ These three items are documented drift from Nucleor V2 — features that existed
 #### V1.14 — Restore `@differentiable` annotation
 **RFC:** `RFC-0045-differentiable-attribute.md`. Pre-fix: dropped from OSS entirely. Post-fix: parser+attribute marker; semantic enforcement deferred. Cost: ~50 LOC.
 
-### Tier 5 — Pending governance respec (added 2026-05-03)
+### Tier 5 — Governance rod (added 2026-05-03 — DECISION MADE: Shape B / optional rod)
 
-#### V1.15 — Governance attributes (`@authored`/`@policy`/`@schema`) + `nuc certify` / `nuc evidence` CLI
-**SPEC:** `SPEC-governance-attributes.md` (placeholder). Pre-fix: parsed-and-discarded in OSS; original "stay separate to NS_Sage" rationale invalidated (NS_Sage broken — see `feedback_ns_sage_broken.md`). Cost: TBD pending governance workstream articulation.
+#### V1.15 — `governance.nr` rod (Shape B — optional, NOT compiler enforcement)
+**RFC:** `RFC-0060-governance-rod.md` (promoted from `SPEC-governance-attributes.md` placeholder).
+**Source spec:** `Desktop/Nucleor_Governance_Rod_Spec_2026-05-03.md`.
+**Decision:** governance ships as an OPTIONAL rod. s1 compiler stays as-is. Rod surfaces `AuthorRecord` / `PolicyDecl` / `EvidenceBundle` / `SchemaDecl` types, `nuc gov` CLI subcommands, and Ed25519 signing for evidence bundles.
+**Blocking prerequisite (Phase 1):** restore `tools/native_release.ps1` (currently missing — `nuc publish --sign` non-functional).
+**Total cost:** ~600-800 LOC `.nr` + ~400-500 LOC C runtime + ~100-150 LOC CLI dispatch.
 
 ### Tier 6 — Tooling drift (added 2026-05-03)
 
 #### V1.16 — LSP server reinstatement
 **SPEC:** `SPEC-LSP-server.md`. V0 path: subprocess LSP daemon (~600 LOC + ~200 LOC compiler `--lsp-mode`). V1 path: library factor for live diagnostics (~3000 LOC compiler refactor).
+
+### Tier 7 — Graph remediation (added 2026-05-03)
+
+#### V1.17 — Graph polish (Tier 1+2+5 from spec)
+**RFC:** `RFC-0061-graph-remediation.md` Tiers 1, 2, 5.
+**Source spec:** `Desktop/Nucleor_Graph_Remediation_Spec_2026-05-03.md`.
+- Tier 1 (V1.17a): missing wrapper fns + adjacency-matrix view + CLI verb docs + 3 smoke fixtures (~150 LOC stdlib + 50 LOC docs).
+- Tier 2 (V1.17b): `nuc deps graph` CLI with text/json/dot/mermaid renderers (~150-200 LOC).
+- Tier 5 (V1.17c): `docs/graph-capabilities.md` consolidation.
+
+#### V1.18 — Trace/event graph hardening (Tier 3 from spec)
+Expose quantum entanglement tracker + gate-influence DAG as queryable graphs. ~150-180 LOC across `quantum.nr` + `quantum_rt.c`.
+
+#### V1.19 — Graph-aware optimization passes (Tier 4 from spec — DECISION REQUIRED)
+**Preflight:** Sonnet confirm-pass against `Desktop/Nucleor_V2/` to confirm whether V2 had `attention()` → `flash_attention` rewrites + call-graph-driven inlining shipped or just staged. If shipped: Option B (selective restore — 2 highest-value rewrites). If staged: Option A (defer + document).
 
 ## Cost summary
 
