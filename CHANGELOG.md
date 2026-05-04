@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.49] — 2026-05-04
+
+**Defensive halt — typeless default-value fn parameter
+`fn h(x: i64, y = 5)` (no explicit `:type`) now produces a clean
+halt. Sister to v0.7.38 typed default-arg halt — completes the
+default-arg family.**
+
+Pre-fix: writing `fn h(x: i64, y = 5) -> i64 { ... }` surfaced as
+wrong-class `error[NR020]: parse error: expected ':', got '='`
+because the param parser's expect_tok for `:` (token 42) saw `=`
+(token 40) directly after the binding name. The v0.7.38 halt
+fired only AFTER successful type-parse, so the typeless variant
+escaped.
+
+Post-fix: `parse_fn_decl`'s param loop checks for `=` (token 40)
+right after reading the binding name, before the colon expector,
+and halts cleanly:
+
+```nucleor
+// Pre-fix wrong-class (typeless variant):
+fn h(x: i64, y = 5) -> i64 { ... }    // ← NR020 (no `:type` on y)
+
+// Pre-fix wrong-class (typed variant — caught by v0.7.38):
+fn h(x: i64, y: i64 = 5) -> i64 { ... }
+
+// Post-fix workaround (same for both):
+fn h_default(x: i64) -> i64 { return h(x, 5); }
+fn h(x: i64, y: i64) -> i64 { return x + y; }
+```
+
+Forward-roadmap: same as v0.7.38 — default-arg lowering needs
+call-site argument-list rewriting.
+
+### Fixture
+
+`tests/fixtures/v0749_typeless_default_arg_halt.nr` — negative
+fixture for `fn h(x: i64, y = 5)` (fires typeless-default halt
+with overload workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `5c9f3656817996c3158ad0ff8c7c0222`.
+
 ## [0.7.48] — 2026-05-04
 
 **Defensive halt — Rust C-FFI variadic param `extern "C" fn
