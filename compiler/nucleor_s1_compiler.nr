@@ -27948,6 +27948,20 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("warning[BR-7]: lifetime annotations present in build: ", str_from_int(v0817_br7_total)));
         print("  Per RFC-0062 G-2 Phase 1: lifetime annotations parse cleanly but are NOT yet enforced by the borrow checker. Runtime safety is not statically guaranteed for functions / structs / impls using `<'a>` syntax. Phase 2 will add simple single-input single-output lifetime checking; Phase 4 promotes this warning to a hard error. Track via tests/err/_unimplemented/README.md once the closure-phase log lands.");
     };
+    // v0.8.24: RFC-0062 G-4 Phase 2a — OWN-012 double-free /
+    // use-after-drop heuristic warning. Textual scan for
+    // `vec_free(` and `hashmap_free(`. Phase 2a is a heuristic
+    // pre-pass; Phase 2b will replace this with proper IR-level
+    // ownership tracking. Phase 4 promotes to error.
+    let v0824_vec_free_count: i64 = simple_attribute_audit_count(after_async,
+        str_concat("vec_", "free("));
+    let v0824_hashmap_free_count: i64 = simple_attribute_audit_count(after_async,
+        str_concat("hashmap_", "free("));
+    let v0824_total_free: i64 = v0824_vec_free_count + v0824_hashmap_free_count;
+    if v0824_total_free > 0 {
+        print(str_concat("info[OWN-012]: explicit free calls present in build: ", str_from_int(v0824_total_free)));
+        print("  Per RFC-0062 G-4 Phase 2a: explicit `vec_free` / `hashmap_free` are accepted but the compiler does NOT yet check that the freed binding is unused after the free call. Adopter discipline today: do not access a vec/map after passing it to its free helper. Phase 2b adds IR-level use-after-drop tracking; Phase 4 promotes to OWN-012 hard error. Recommended: prefer `#[auto_drop]` (RFC-0042) which inserts cleanup automatically and disables generated drop on bindings that have an explicit free call.");
+    };
     // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
     let after_deadline: str = expand_deadline(after_async);
