@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.90] — 2026-05-04
+
+**RFC PKG-3 Phase 2 sister — tilde semver resolver lands.**
+Tools-suite edit only; no compiler-binary change.
+
+### Pre-fix
+
+`~X.Y.Z` fell through to the v0.8.52 Phase 1 diagnostic. Same
+silent-build-fail class as caret pre-v0.8.89.
+
+### Post-fix
+
+Tilde `~X.Y.Z` resolves per semver.org: `[X.Y.Z, X.(Y+1).0)` —
+patch-level changes permitted, minor pinned.
+
+```
+upper_score = X * 1_000_000_000 + (Y + 1) * 1_000_000
+```
+
+Walks the registry's descending-sorted version list and returns
+the first satisfying match (highest in range).
+
+### Verified end-to-end against `tests/fixtures/t14_registry/`
+
+| Selector | Registry | Expected | Result |
+|---|---|---|---|
+| `foo@~0.1.0` | foo has 0.1.0, 0.2.0 | 0.1.0 (~ pins minor) | resolved (downstream sha256 step) |
+| `foo@~0.2.0` | foo has 0.1.0, 0.2.0 | 0.2.0 | resolved (downstream sha256 step) |
+| `foo@~0.5.0` | no matching | clean error | `tilde constraint did not match` |
+| `foo@>=0.1.0` | comparison still unsupported | Phase 1 diag | diagnostic mentions caret + tilde as workarounds |
+
+### Updated diagnostic text
+
+The remaining-unsupported diagnostic now lists both v0.8.89 caret
+and v0.8.90 tilde as workarounds; only `>=`/`<=`/`>`/`<` /
+wildcard remain on the unsupported list. Phase 3 will add range
++ wildcard.
+
+### Bin status
+
+Tools-suite source edit only. `target/nucleor_tools.exe`
+rebuilds clean (2.25s). User-source spot-check on
+`bin/nucleor.exe` (compiler) confirmed no regression — still
+builds user fixtures with rc=130 on the canonical T-3 char-cast
+fixture.
+
+### Recap — PKG-3 Phase 2 progress
+
+| Constraint | Status | Ship |
+|---|---|---|
+| latest / empty / exact | always supported | pre-v0.8.x |
+| diagnostic on unsupported | Phase 1 | v0.8.52 |
+| caret `^X.Y.Z` | Phase 2 | v0.8.89 |
+| tilde `~X.Y.Z` | Phase 2 | v0.8.90 (this ship) |
+| comparison `>=/<=/>/<` | not yet | queued Phase 3 |
+| wildcard `1.2.*` | not yet | queued Phase 3 |
+| lockfile-driven | not yet | queued Phase 4 (v1.x) |
+
+Pure tools-suite source edit; no compiler binary change.
+
 ## [0.8.89] — 2026-05-04
 
 **RFC PKG-3 Phase 2 — caret semver resolver lands.** Tools-suite
