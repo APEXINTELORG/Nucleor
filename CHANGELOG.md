@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.118] — 2026-05-04
+
+**stdlib/rods/collections.nr first test coverage.** Pure
+fixture, no compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `collections.nr`
+(string-keyed open-addressing HashMap + Vec utilities) had no
+existing tests. Silent regressions in hash / probing / grow
+would silently lose entries — load-bearing for any adopter
+using `map_set`/`map_get` for state.
+
+### The fixture
+
+`tests/features/collections_smoke.nr` covers six invariant
+classes:
+
+| Test | Invariant |
+|---|---|
+| empty map | `map_len == 0`, `map_has(any) == 0`, `map_get(missing) == 0` |
+| set + get | retrieve stored values; `map_has` returns 1 for present, 0 for missing; `map_len` reflects count |
+| update same key | three sets on `"x"` → `map_len` stays 1, `map_get` returns latest |
+| remove | `map_has` flips to 0 after `map_remove`; `map_len` decrements |
+| map_clear | `map_len` resets to 0; `map_has` returns 0 |
+| vec helpers | `vec_contains`, `vec_index_of` (-1 on miss), `vec_clone`, `vec_reverse` |
+
+All six pass. rc=0. Cold 1.49s.
+
+### Significance
+
+Catches silent regressions in:
+
+- `map_hash` collision handling (linear-probing semantics)
+- Update-vs-insert distinction (same-key set must update,
+  not append)
+- Remove correctness (linear probing tombstones / shifts)
+- `map_clear` resets internal occupied-bitmap correctly
+- Vec helpers' off-by-one (especially `vec_index_of` returning
+  -1 on miss vs 0 — a common confusion)
+
+The string-keyed HashMap is the load-bearing utility for any
+adopter dictionary code. A regression here silently loses
+entries with no panic, just wrong-result behavior.
+
+Other zero-coverage rods queued: autodiff / cli / fluid / fs /
+ahrs / apf / audio / ba / bayesian / bicycle / bt / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.117] — 2026-05-04
 
 **stdlib/rods/bioseq.nr first test coverage.** Pure fixture, no
