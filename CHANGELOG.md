@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.28] — 2026-05-04
+
+**Defensive halt — Rust byte literal `b'A'` (u8 ASCII-value form)
+now produces a clean halt with a char-cast workaround pointer.**
+
+Pre-fix: writing `let b: u8 = b'A';` surfaced as wrong-class
+`error[TYP-005]: undefined function 'b()'` because the lexer read
+`b` as an identifier and the parser saw `b('A')` — a fn call on a
+char literal. Sister to v0.6.58 byte-string halt (`b"..."`) and
+probe's v0.7.18 c-string halt (`c"..."`).
+
+Post-fix: lexer detects `b` immediately followed by `'` (char-quote
+token) and halts cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+let b: u8 = b'A';                  // ← TYP-005 wrong-class
+
+// Post-fix workaround — regular char literal + cast:
+let b: u8 = 'A' as u8;             // identical u8 value
+let b: i64 = 'A' as i64;           // i64 form
+```
+
+Forward-roadmap: lex-time b-prefix on char-quote → u8 literal token
+(tiny extension to existing prefix-quoted lex path).
+
+### Fixture
+
+`tests/fixtures/v0728_byte_literal_halt.nr` — negative fixture for
+`b'A'` (fires clean halt with cast workaround, not TYP-005).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `0bb48dc69fc89c6e0891ef081fd76552`.
+
 ## [0.7.27] — 2026-05-04
 
 **Defensive halt — Rust ref-pattern in `for`-loop binding position
