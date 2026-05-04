@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.17] — 2026-05-04
+
+**Defensive halt — `if let` guard in match arm (Rust 1.77 let-chains)
+now produces a clean halt with a hoist-above-match workaround pointer.**
+
+Pre-fix: writing `match x { n if let Some(v) = opt => ... }` produced
+wrong-class `error[NR020]: parse_primary cannot start an expression at
+token kind 11` because the guard parser called `parse_expr` with `let`
+(token 11) as the first token, and `parse_expr` has no `let` branch.
+
+Post-fix: the match-arm guard parser detects token-11 (`let`) immediately
+after consuming the `if` and halts cleanly:
+
+```nucleor
+// Pre-fix (Rust 1.77 let-chains guard):
+match n {
+    x if let Some(v) = opt => { use(v); }   // ← NR020 wrong-class
+    _ => { ... }
+}
+
+// Post-fix workaround — hoist the if let above match:
+if let Some(v) = opt {
+    match n {
+        x if v > 0 => { use(v); }
+        _ => { ... }
+    }
+} else { ... }
+
+// Or use a boolean test in the guard:
+match n {
+    x if is_some(opt) => { ... }
+    _ => { ... }
+}
+```
+
+Forward-roadmap: let-chains in match guards (Rust 1.77 stabilization)
+require pattern-binding inside the guard context with bindings visible
+in the arm body — a separate pattern-binding scope from the arm pattern
+itself. Pinned for the v1.x pattern-engine ship.
+
+### Fixed-point + perf
+
+Cold 5.68s (IR-emit only, Linux — no PowerShell available).
+Peak 274 MB RSS (IR-emit only). Round-2 fixed-point md5
+`a26e73f553d2bc6b3ac8e6ec9a140df0`.
+
+### Fixture
+
+`tests/fixtures/v0717_match_guard_if_let_halt.nr` — negative fixture
+for `match n { x if let Some(v) = opt => ... }` (fires clean halt,
+not NR020).
+
 ## [0.7.16] — 2026-05-03
 
 **Fix — `nuc test` / `nuc lock` / `nuc doc` failed with
