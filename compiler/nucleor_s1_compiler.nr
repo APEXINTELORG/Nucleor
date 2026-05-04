@@ -27987,6 +27987,20 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[FFI-DIRECT]: `extern fn` declarations in build: ", str_from_int(v0826_extern_count)));
         print("  Per RFC-0062 G-9 Phase 2a: direct `extern fn` calls bypass the safe-code bounds-check insertion that wraps Nucleor index/range operations. Adopter discipline today: treat every `extern fn` call site as an unsafe surface. Phase 2b will require `#[allow(direct_ffi)]` on the calling fn or `unsafe { }` block; Phase 4 promotes to hard error if missing. Reference: docs/ffi-conventions.md §2.");
     };
+    // v0.8.27: RFC-0062 G-3 Phase 2a — heap-aliasing audit-pass
+    // info. Detects `Vec<&` patterns (Vec-of-references), the
+    // primary heap-aliasing risk per RFC-0062 §3.3 G-3. The
+    // syntactic borrow tracker doesn't follow elements through
+    // a Vec; pushing two `&T` of the same `T` produces aliased
+    // reads that today are invisible. Phase 2b adds Vec-of-ref
+    // flow analysis; Phase 4 promotes to deny-by-default with
+    // `#[allow(vec_of_refs)]` opt-out.
+    let v0827_vof_count: i64 = simple_attribute_audit_count(after_async,
+        str_concat("Vec", "<&"));
+    if v0827_vof_count > 0 {
+        print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
+        print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
+    };
     // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
     let after_deadline: str = expand_deadline(after_async);
