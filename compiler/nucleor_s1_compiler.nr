@@ -1629,6 +1629,18 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
         cp = cp + 1;
         if pk(tokens, cp) == 50 {
             cp = cp + 1;
+            // v0.7.54 (defensive halt — paren-wrapped payload inside a
+            // variant pattern: `Some((1))`, `Ok((x, y))`). Pre-fix this
+            // surfaced as wrong-class `error[NR020]: expected ')', got
+            // integer literal` because the parser fell through to
+            // pkv-on-`(` (garbage binding), advanced past the inner `(`,
+            // then tried to expect `)` at the inner-payload position.
+            // Halt cleanly with a drop-the-extra-parens workaround.
+            if pk(tokens, cp) == 50 {
+                print(str_concat("ERROR: paren-wrapped payload inside a variant pattern (e.g. `", str_concat(vname, "((expr))`, `Ok((x, y))`) is not yet supported in Nucleor. Pre-v0.7.54 this surfaced as wrong-class `error[NR020]: expected ')', got integer literal` (or similar) because the parser captured the inner `(` as a binding-name fragment.")));
+                print(str_concat("       Workaround: drop the extra parens — `", str_concat(vname, "(x)` is the canonical shape. Anonymous-tuple payloads (e.g. `", str_concat(vname, "((x, y))` for `Some<(i64, i64)>`) need the recursive pattern parser; bind a single name and access fields by index in the body — `", str_concat(vname, "(t) => { let a = t.0; let b = t.1; ... }`. Tracked for forward-roadmap.")))));
+                panic(str_concat("nucleor: paren-wrapped payload inside `", str_concat(vname, "(...)` not yet supported (see ERROR diagnostic above)")));
+            };
             // v0.7.24 (defensive halt — bare negative-literal payload inside
             // a variant pattern: `Some(-5)`, `Ok(-1)`, `Err(-9)`). Pre-fix
             // this surfaced as wrong-class `error[NR020]: expected ')', got
