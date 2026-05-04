@@ -25,44 +25,34 @@ ship-status. Items advance through the same Phase 1 / 2a / 2b /
 | Phase 2a Wave A | DONE | v0.8.24–v0.8.36 (8 audit-pass info diagnostics) |
 | Phase 2b-1/2/2.5/2.6/2.7 | DONE | v0.8.31, .32, .35, .37, .41, .42 (manual_drop wired, audit, classifier, annotations) |
 | Phase 2b-3-experiment | DONE | v0.8.38/39 (env-gated NUC_AUTO_DROP_DEFAULT=1) |
-| Phase 2b-3-trace | OPEN | Why seed IR byte-identical under flip — H1-H4 hypotheses |
-| Phase 2b-3 final | BLOCKED on trace | Unconditional default-flip ship |
-| Phase 3 | QUEUED | Default-on with `#[manual_drop]` opt-out |
-| Phase 4 | v1.0 cut | Hard error, `#[manual_drop]` deprecated |
+| Phase 2b-3-trace | DONE | v0.8.64 — root-caused as cache-key bug; cache_v2_canonical_flags didn't include NUC_AUTO_DROP_DEFAULT |
+| Phase 2b-3 final | DONE | v0.8.75 — unconditional default-flip landed |
+| G-3 dataflow handoff suppression | DONE | v0.8.74 + v0.8.76/.77 regression coverage |
+| G-4 double-free guard | DONE | v0.8.68/.69 (sentinel-based) |
+| Phase 3 (deny-by-default) | QUEUED | v0.9 cut |
+| Phase 4 (hard-error) | QUEUED | v1.0 cut |
 
 ## CRITICAL silent-miscompute / launch-blocker (Tier-A-priority across all RFCs)
 
 These bubble up from across the 14 RFCs. They block OSS public
 launch. After memory safety completes, these are next-priority.
 
-### NUM-G1 — f64 lex truncation to 6 decimal digits
+### NUM-G1 — f64 lex truncation to 6 decimal digits — RETIRED
 
-- **Source:** `gap-analyses/Nucleor_Numeric_Correctness_Gap_Analysis_and_RFC_2026-05-04.md`
-- **Severity:** LAUNCH-BLOCKER (silent miscompute — affects every float user)
-- **Symptom:** `3.1415926535897932` becomes `3.141592` at lex time. No diagnostic.
-- **Phase 1:** Audit-pass info diagnostic counting f64 literals with >6 decimal digits.
-- **Phase 2b:** Lex-time precision-preserving f64 parser.
-- **Phase 4:** Hard error if precision loss is non-zero.
-- **Test:** `tests/lang/numeric_lex_precision.nr` — assert `3.1415926535897932 != 3.141592`.
+- **Status:** RETIRED (2026-05-04, v0.8.66) — probe verified bit-identical-to-strtod for 16-digit literals on v0.4.180. Original gap-RFC headline does not reproduce. Audit-pass diagnostic dropped to avoid wrong-class flagging adopter code.
+- **Note:** A different bug (int_part overflow at >=1e13 — compile-time PANIC) exists; queued separately if it ever needs Phase 1 audit.
 
-### ML-1 — `nuc_attn_flash` ABI mismatch
+### ML-1 — `nuc_attn_flash` ABI mismatch — DONE
 
-- **Source:** `gap-analyses/Nucleor_Tensor_ML_Autodiff_Gap_Analysis_and_RFC_2026-05-04.md`
-- **Severity:** LAUNCH-BLOCKER (silent miscompute on every flash-attention call)
-- **Symptom:** rod takes 6 args; C runtime takes 7. The 7th C arg is read from uninitialized stack.
-- **Phase 1:** Fix the rod signature OR fix the C signature. Add ABI parity test.
-- **Phase 2b:** Helper-manifest ABI parity gate at compile time.
-- **Test:** `tests/runtime/nuc_attn_flash_abi.nr` — call with known inputs, verify deterministic output.
+- **Status:** DONE — primary fix v0.8.45 (nuc_attn_flash 6→7 args). Sister fixes v0.8.66 for nuc_attn_gqa (7→8), nuc_attn_mla_compress/decompress (5→4).
+- **Test:** ABI parity verified by helper_manifest drift gate.
 
-### C-1, C-2 — Concurrency (Linux silently broken)
+### C-1, C-2, C-3 — Concurrency — DONE
 
-- **Source:** `gap-analyses/Nucleor_Concurrency_Gap_Analysis_and_RFC_2026-05-04.md`
-- **Severity:** LAUNCH-BLOCKER (Linux), needs spot-test
-- **Symptom:**
-  - C-1: cancel token is a linker bomb (extern fn declared, body absent on Linux).
-  - C-2: POSIX channel is a no-op stub.
-- **Phase 1:** CI gate that builds + smokes a concurrency test on Linux.
-- **Phase 2b:** Implement the missing impls.
+- **C-1 cancel_token (Win32 + POSIX impls):** DONE v0.8.83 (helper agent — InterlockedExchange64 / __sync_lock_test_and_set + smoke fixture).
+- **C-2 POSIX channel:** DONE v0.8.85 (pthread_mutex + 2x cond_var bounded-FIFO mirroring Win32 semantics; finding `findings/promoted/2026-05-04-c-2-posix-channel-stub-...` closed).
+- **C-3 ordered atomic C backing:** DONE v0.8.86 — reclassified as wrong-class. Compiler emits LLVM atomic intrinsics directly (atomicrmw / load atomic / store atomic / cmpxchg); C-fallback path doesn't fire. Regression canary `tests/features/c3_ordered_atomics_direct_smoke.nr` locks behavior.
+- **POSIX validation:** still pending Linux CI runner; fixtures stage ready.
 
 ### E-1, E-2, E-3 — Effect / Capability silent-discard
 
@@ -73,15 +63,11 @@ launch. After memory safety completes, these are next-priority.
 - **Phase 2b:** Per-fn enforcement passes.
 - **Phase 4:** Hard error.
 
-### T-3, T-4 — Type system silent fallthrough
+### T-3, T-4 — Type system silent fallthrough — Phase 1 DONE; Phase 2b queued
 
-- **Source:** `gap-analyses/Nucleor_Type_System_Gap_Analysis_and_RFC_2026-05-04.md`
-- **Severity:** SILENT-MISCOMPUTE
-- **Symptom:**
-  - T-3: `char` typed compatible with any int.
-  - T-4: empty type "" compatible with anything (silent fallthrough).
-- **Phase 1:** Add stricter type-equality check; fail-fast on `""` type.
-- **Phase 2b:** Replace `str_eq(t1, t2)` calls with structural type check.
+- **T-3 char-cast Phase 1:** DONE v0.8.46 audit-pass info, locked v0.8.78 fixture.
+- **T-4 empty-type compat Phase 1:** DONE v0.8.79 canary fixture (well-typed path locked; inversion protocol encoded for when Phase 2b strict mode lands).
+- **Phase 2b for both:** queued — needs compiler edit, currently blocked by the v0.8.79/v0.8.83 Windows-PE link hang (compiler.nr edits going through seed-rebuild produce binaries that hang on user-source compile).
 
 ### BOOT-3, BOOT-4 — Self-host fixed-point integrity
 
@@ -93,32 +79,31 @@ launch. After memory safety completes, these are next-priority.
 
 ### PKG-1, PKG-3 — Packaging
 
-- **Source:** `gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md`
-- **Severity:** LAUNCH-BLOCKER (Linux), TRUST GAP
-- **Symptom:**
-  - PKG-1: Linux `nuc publish --sign` silently broken.
-  - PKG-3: Semver constraints don't resolve (only exact strings work).
-- **Phase 1:** Fix Linux publish path. Implement semver resolver.
+- **PKG-1 (Linux `nuc publish --sign`):** OPEN — needs Linux runner.
+- **PKG-3 (semver resolver) — DONE for v1.0 syntax surface:**
+  - caret `^X.Y.Z` v0.8.89
+  - tilde `~X.Y.Z` v0.8.90
+  - wildcard `*` / `X.*` / `X.Y.*` v0.8.91
+  - comparison `>=` `<=` `>` `<` v0.8.92
+  - compound `>=A <B` v0.8.93
+  - lockfile-driven resolution remains v1.x.
 
-### QM-7 — Clifford rod zero test coverage
+### QM-7 — Clifford rod test coverage — Phase 1 DONE
 
-- **Source:** `gap-analyses/Nucleor_Quantum_Subsystem_Gap_Analysis_and_RFC_2026-05-04.md`
-- **Severity:** UNVALIDATED (41KB stabilizer formalism)
-- **Phase 1:** Property tests for stabilizer normal form invariants.
+- **Status:** DONE v0.8.87/.88 — 12 deterministic correctness assertions covering init/lifecycle, single-qubit gates (X/Y/Z/S/S^4), two-qubit (CNOT^2 identity, control-zero no-op), entanglement (Bell, GHZ).
+- **Phase 2 queued:** surface-code distance d=3 rotated planar, weight enumerator validation against published code.
 
 ### ROBO-7 — Frame-typing safety
 
 - **Source:** `gap-analyses/Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
 - **Severity:** SAFETY (Mars Climate Orbiter failure mode is live)
+- **Status:** OPEN — needs new types + compiler edit. Blocked by Windows-PE link hang for compiler-edit ships.
 - **Phase 1:** Add unit-of-measure tagging to frame types.
 - **Phase 2b:** Compile-time check that frame tags are consistent across operations.
 
-### PERF-11 — bisect_mem threshold below baseline
+### PERF-11 — bisect_mem threshold — DONE
 
-- **Source:** `gap-analyses/Nucleor_Performance_Envelope_Gap_Analysis_and_RFC_2026-05-04.md`
-- **Severity:** TELEMETRY (false-positive every run)
-- **Symptom:** `bisect_mem.sh` excursion threshold 600 MB, current baseline 679 MB.
-- **Phase 1:** Update threshold to baseline +10% (~750 MB).
+- **Status:** DONE v0.8.84 — `EXCURSION_MB` raised 600 → 750 MB to match baseline+10% (747 MB ceiling). False-positive on every run eliminated.
 
 ## Other Tier A items (not on critical-findings list but still launch-blockers)
 
@@ -190,3 +175,4 @@ proper analysis → Phase 4 hard error):
 ## Updates log
 
 - **2026-05-04** v0.8.43: Punchlist file created. 14 gap RFCs integrated into spine. RFC-0062 memory-safety remains in flight; other 13 queued behind it.
+- **2026-05-04** v0.8.113: Punchlist refreshed to reflect v0.8.45 → v0.8.112 progress. RFC-0062 Phase 2b-3 final landed v0.8.75 (unconditional default-flip). NUM-G1 retired (probe wrong-class). NUM-G2 fully closed (math_abs/gcd/lcm v0.8.80, math_pow_int v0.8.81). NUM-G8 closed (TLS overflow flag v0.8.82). C-1/C-2/C-3 closed (helper v0.8.83, me v0.8.85/.86). ML-1 closed (v0.8.45/.66 sisters). T-3/T-4 Phase 1 done (audit + canary). PKG-3 fully closed for v1.0 semver (v0.8.89-.93). PERF-11 closed (v0.8.84). QM-7 Phase 1 done (12 assertions v0.8.87/.88). 16 stdlib rods first-coverage (v0.8.94 - .112). 4 pre-existing bugs surfaced; 3 fixed (CSV trailing-empty v0.8.105, dt mktime/gmtime v0.8.106, bm25 doc_count v0.8.108). E-1/2/3, BOOT-3/4, NUM-G9, ROBO-7 remain OPEN — all blocked by Windows-PE link hang for any compiler-edit ship. PKG-1 needs Linux runner.
