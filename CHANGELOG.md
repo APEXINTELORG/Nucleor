@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.29] — 2026-05-04
+
+**Defensive halt — Rust Unicode-escape char literal `'\u{NNNN}'`
+(e.g. `'\u{0041}'`, `'\u{1F600}'`) now produces a clean halt with
+a hex-codepoint workaround pointer.**
+
+Pre-fix: writing `let c: char = '\u{0041}';` surfaced as wrong-class
+`loop labels not yet supported` (the v0.7.2 halt) because the
+char-lit lexer matched only 1-char and 1-backslash-1-char forms;
+the multi-char `\u{NNNN}` escape fell through to the lifetime-
+token path (kind 98), and v0.7.2 fires for any kind-98 token at
+expression position. Adopters saw a confusing "loop labels"
+message when their code had no loop labels.
+
+Post-fix: char-lit lexer detects the `'\u{` prefix and halts with
+a Unicode-escape-specific diagnostic:
+
+```nucleor
+// Pre-fix wrong-class:
+let c: char = '\u{0041}';     // ← "loop labels not supported" — wrong!
+
+// Post-fix workaround — hex-codepoint literal:
+let c: i64 = 0x0041;          // 'A' — integer-equivalent under i64-everywhere ABI
+let c: i64 = 0x1F600;         // emoji codepoint
+```
+
+Forward-roadmap: lex-time `\u{...}` codepoint parsing → int-lit
+token (small lexer extension).
+
+### Fixture
+
+`tests/fixtures/v0729_unicode_char_escape_halt.nr` — negative
+fixture for `'\u{0041}'` (fires Unicode-escape halt with
+hex-codepoint workaround, not the v0.7.2 loop-label diagnostic).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `6c0376afef5fe7acd9f7f5a290cf1b74`.
+
 ## [0.7.28] — 2026-05-04
 
 **Defensive halt — Rust byte literal `b'A'` (u8 ASCII-value form)
