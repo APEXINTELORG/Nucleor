@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.52] — 2026-05-04
+
+**Defensive halt — module-scope forward fn declaration `fn h() ->
+i64;` (no body, semicolon-terminated) now produces a clean halt
+with `extern fn` / `todo!()` workaround pointers.**
+
+Pre-fix: writing `fn helper() -> i64;` at module scope (a common
+C/C++ header port idiom) surfaced as wrong-class `error[NR020]:
+parse error: expected '{', got ';'`. Adopters porting C-style
+header declarations got pointed at a parse error instead of "use
+extern fn for FFI declarations or supply a body".
+
+Post-fix: `parse_fn_decl` checks for `;` (token 43) at the
+body-`{` expectation point and halts cleanly with two workaround
+options:
+
+```nucleor
+// Pre-fix wrong-class:
+fn helper() -> i64;            // ← NR020 wrong-class
+
+// Post-fix workaround A — FFI symbol:
+extern fn helper() -> i64;
+extern "C" fn helper() -> i64;     // explicit C-ABI
+
+// Post-fix workaround B — unimplemented stub:
+fn helper() -> i64 { todo!(); return 0; }     // (v0.7.36 todo! macro)
+```
+
+Note: trait method declarations (`trait T { fn m(self) -> i64; }`)
+and extern declarations (`extern fn ...;` / `extern "C" fn ...;`)
+already work — only module-scope free fns without a body are
+caught by this halt.
+
+### Fixture
+
+`tests/fixtures/v0752_fn_no_body_halt.nr` — negative fixture for
+`fn helper() -> i64;` at module scope (fires forward-decl halt
+with extern/todo workarounds, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `e3c0156623959fe2d9fb193058f57434`.
+
 ## [0.7.51] — 2026-05-04
 
 **🛑 Compiler SEGFAULT fix — bare integer-literal payload inside

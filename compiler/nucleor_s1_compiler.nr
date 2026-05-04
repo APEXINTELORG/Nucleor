@@ -3653,6 +3653,20 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // exactly like inline `<T: Trait>` bounds. Closes the where-clause
     // sister gap of Track Y (v0.5.31).
     cp = parse_where_clause_into_gparams(tokens, cp, gparams_vec_v060);
+    // v0.7.52 (defensive halt — Rust forward declaration `fn h() -> i64;`
+    // at module scope without a body). Pre-fix this surfaced as wrong-
+    // class `error[NR020]: expected '{', got ';'`. In Rust, a body-less
+    // fn signature is valid only inside `trait { ... }` (where Nucleor
+    // already supports it — `trait T { fn m(self) -> i64; }` works) or
+    // inside `extern "C" { ... }` (which is also forward-roadmap, see
+    // v0.7.26 halt). At module scope, the user almost always wants
+    // either a body or an `extern fn` declaration.
+    if pk(tokens, cp) == 43 {
+        print(str_concat("ERROR: forward declaration `fn ", str_concat(name, "() -> RetType;` (no body, semicolon-terminated) is not yet supported at module scope in Nucleor. Pre-v0.7.52 surfaced as wrong-class `error[NR020]: expected '{', got ';'`.")));
+        print(str_concat("       Workaround for FFI symbols: use `extern fn ", str_concat(name, "(...) -> RetType;` (the bare `extern fn` form, no `\"C\"` qualifier needed) or `extern \"C\" fn ", str_concat(name, "(...) -> RetType;` for explicit C-ABI marking.")));
+        print(str_concat("       Workaround for unimplemented stubs: write a body that calls `todo!()` or `unimplemented!()` (v0.7.36 macro shipped) — `fn ", str_concat(name, "() -> RetType { todo!() }`. (Note: `todo!` returns void; in non-void fns add `; return placeholder;`.)")));
+        panic(str_concat("nucleor: forward fn declaration `fn ", str_concat(name, "() -> RetType;` not supported at module scope (see ERROR diagnostic above)")));
+    };
     cp = expect_tok(tokens, cp, 52);
     let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
     cp = expect_tok(tokens, pr_pos(br), 53);
