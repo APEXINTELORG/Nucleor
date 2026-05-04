@@ -5,6 +5,93 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.17] — 2026-05-04
+
+**HIGH PRIORITY — RFC-0062 Memory-Safety / Borrow / Ownership
+Gap Closure, Phase 1 batch (G-2, G-7 + RFC promotion).**
+
+User landed `Desktop/Nucleor_Memory_Safety_Borrow_Ownership_Gap_
+Analysis_and_RFC_2026-05-04.md` flagged HIGH PRIORITY. The doc
+identifies 11 gaps across MS-1..MS-8 / BR-1..BR-7 / OWN-VAL-1..5.
+Two CRITICAL: G-1 auto-drop deferred, G-2 lifetime params not
+enforced. This ship lands the Phase 1 closures that need the
+seed compiler:
+
+### 1. RFC promoted to `docs/rfcs/RFC-0062-memory-safety-borrow-ownership-gap-closure.md`
+
+The full 582-line gap analysis + closure plan now lives under
+`docs/rfcs/` as the canonical reference. Phase 1 / 2 / 3 / 4
+roadmap intact; v1.0-gate criteria explicit.
+
+### 2. G-2 Phase 1 — BR-7 lifetime annotation warning
+
+Per RFC-0062 §3.3 G-2 P1: emit a build-time warning for every
+`<'a>` lifetime annotation present in user code, surfacing the
+gap that lifetime annotations parse cleanly but the borrow
+checker does not yet enforce them.
+
+Implementation: extends the v0.8.5-v0.8.15 audit pre-pass with
+detectors for `<'a`, `<'b`, and `&'static`. When any of the
+three count > 0, the build emits:
+
+```
+warning[BR-7]: lifetime annotations present in build: N
+  Per RFC-0062 G-2 Phase 1: lifetime annotations parse cleanly
+  but are NOT yet enforced by the borrow checker. Runtime safety
+  is not statically guaranteed for functions / structs / impls
+  using `<'a>` syntax. Phase 2 will add simple single-input
+  single-output lifetime checking; Phase 4 promotes this warning
+  to a hard error.
+```
+
+Per the RFC, "any user looking at Nucleor and seeing `<'a>`
+syntax will reasonably assume Rust-equivalent enforcement.
+Today, that assumption is wrong." — this warning closes that
+silent-trust gap until Phase 2 ships.
+
+Smoke fixture: `tests/fixtures/v0817_rfc0062_br7_warning_smoke.nr`
+— 3 fns / 1 struct with `<'a>` / `<'b>` / `&'static`. Runtime
+returns 18.
+
+### 3. G-7 Phase 1 — `unsafe { }` audit inventory
+
+Per RFC-0062 §3.3 G-7 P1: inventory every `unsafe { }` block in
+the OSS compiler + stdlib, document soundness arguments, store
+the result in `docs/unsafe-audit.md`.
+
+**Audit result: zero `unsafe { ... }` blocks, zero `unsafe fn` /
+`unsafe trait` / `unsafe impl` declarations in the OSS Nucleor
+tree.** The compiler is written entirely in safe Nucleor; the
+i64-everywhere ABI doesn't require an `unsafe` escape hatch
+inside `.nr` source. The unsafe surface lives entirely in the C
+runtime (audited separately under C-side review).
+
+Document: `docs/unsafe-audit.md` — full inventory + Phase 2
+follow-up plan.
+
+### Phase 1 status snapshot
+
+| Gap | Severity | Phase 1 closure |
+|---|---|---|
+| G-1 auto-drop | CRITICAL | not started — needs `#[auto_drop]` stable promotion |
+| G-2 lifetime enforce | CRITICAL | **DONE (this ship)** — BR-7 warning |
+| G-3 heap alias | HIGH | docs deferred (Phase 1 = note in evidence) |
+| G-4 double-free diag | HIGH | not started — needs OWN-012 reservation |
+| G-5 FFI null | HIGH | docs deferred |
+| G-6 Sendable | HIGH | not started — needs Sendable inventory |
+| G-7 unsafe audit | HIGH | **DONE (this ship)** — `docs/unsafe-audit.md` |
+| G-8 cond divergence | MEDIUM | not started — needs test set |
+| G-9 FFI bounds | MEDIUM | docs deferred |
+| G-10 cross-fn | MEDIUM | tracked through G-2 |
+| G-11 MS-7 stress | LOW | not started |
+
+Next-priority Phase 1 work: G-1 P1 (`#[auto_drop]` stabilization)
+and G-4 P1 (OWN-012 diagnostic reservation). Those are the next
+two ships in this lane.
+
+Fixed-point md5: `364A0F7E309B958D1E66EA96AA5EFC28`.
+Cold 3.22s / peak 313MB (under 4s job #1).
+
 ## [0.8.16] — 2026-05-04
 
 **Punchlist forward — V1.16 SPEC-LSP-server Phase A: LSP 3.17

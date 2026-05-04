@@ -27927,6 +27927,28 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("audit:   deadline fns: ", v0815_dl_names));
         };
     };
+    // v0.8.17 RFC-0062 G-2 Phase 1 — BR-7 lifetime parameter
+    // diagnostic-only mode. Per the gap RFC §3.3 G-2 P1: emit a
+    // build-time warning for every `<'a>` lifetime annotation
+    // present in user code, surfacing the gap that lifetime
+    // annotations parse but the borrow checker does not yet
+    // enforce them. Phase 4 promotes the warning to error.
+    //
+    // Detection: count occurrences of `<'` (lifetime-param-list
+    // open) preceded by `fn ` or by `struct ` or by `impl `.
+    // Per the gap RFC §2.2 BR-7: "the syntax `fn f<'a>(x: &'a str)
+    // -> &'a str` parses cleanly. The lexer accepts the lifetime
+    // tokens, the parser builds the AST, the function compiles.
+    // The borrow checker does NOT actually enforce the lifetime
+    // annotation."
+    let v0817_br7_count: i64 = simple_attribute_audit_count(after_async, str_concat("<'", "a"));
+    let v0817_br7_b_count: i64 = simple_attribute_audit_count(after_async, str_concat("<'", "b"));
+    let v0817_br7_static_count: i64 = simple_attribute_audit_count(after_async, str_concat("&'", "static"));
+    let v0817_br7_total: i64 = v0817_br7_count + v0817_br7_b_count + v0817_br7_static_count;
+    if v0817_br7_total > 0 {
+        print(str_concat("warning[BR-7]: lifetime annotations present in build: ", str_from_int(v0817_br7_total)));
+        print("  Per RFC-0062 G-2 Phase 1: lifetime annotations parse cleanly but are NOT yet enforced by the borrow checker. Runtime safety is not statically guaranteed for functions / structs / impls using `<'a>` syntax. Phase 2 will add simple single-input single-output lifetime checking; Phase 4 promotes this warning to a hard error. Track via tests/err/_unimplemented/README.md once the closure-phase log lands.");
+    };
     // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
     let after_deadline: str = expand_deadline(after_async);
