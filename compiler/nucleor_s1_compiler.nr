@@ -3536,6 +3536,18 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             dup_check_i = dup_check_i + 1;
         };
         params.push(mk3(pool, 41, pn, ptype));
+        // v0.7.38 (defensive halt — Rust default-arg-style fn parameter
+        // `fn f(n: i64 = 1)`). Rust does NOT support default fn args
+        // (Python/C++ feature), but C++/Python adopters often try this
+        // syntax. Pre-fix surfaced as wrong-class `error[NR020]: parse
+        // error: expected ',', got '='` because the next-iter expect_tok
+        // for the param-list comma got `=` instead. Halt cleanly with
+        // an overload/explicit-args workaround pointer.
+        if pk(tokens, cp) == 40 {
+            print(str_concat("ERROR: default-value parameter `", str_concat(pn, str_concat(": ", str_concat(ptype, " = <expr>` in fn signature is not supported in Nucleor (and is not supported in Rust either; this is a C++/Python idiom). Pre-v0.7.37 surfaced as wrong-class `error[NR020]: expected ',', got '='`.")))));
+            print(str_concat("       Workaround: declare two fn overloads — one with all params, one without — and have the shorter form call the longer with the default — `fn ", str_concat(name, str_concat("_default(self) -> RetType { return self.", str_concat(name, "(<default-value>); } fn ", str_concat(name, "(self, ", str_concat(pn, str_concat(": ", str_concat(ptype, ") -> RetType { ... }`. Or use Option<T> as the param type and check for None inside the body. Tracked for forward-roadmap (default-arg lowering needs call-site argument-list rewriting at the type-checker level).")))))))))));
+            panic(str_concat("nucleor: default-value parameter `", str_concat(pn, " = ...` not supported (see ERROR diagnostic above)")));
+        };
     };
     cp = cp + 1;
     let mut rtype: str = "void";

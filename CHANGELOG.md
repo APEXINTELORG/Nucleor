@@ -5,7 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.38] — 2026-05-04
+
+**Defensive halt — default-value fn parameter `fn f(n: i64 = 1)`
+(C++ / Python idiom — Rust does not support this either) now
+produces a clean halt with overload / Option<T> workaround
+pointers.**
+
+Pre-fix: writing `fn add(self, n: i64 = 1) -> i64 { ... }` surfaced
+as wrong-class `error[NR020]: parse error: expected ',', got '='`
+because the param-list parser's next-iter `expect_tok(cp, 44)` got
+`=` (token 40) instead of `,`. Adopters porting Python or C++ code
+got pointed at a parse error, not at "default args aren't a
+language feature".
+
+Post-fix: `parse_fn_decl`'s param loop checks for `=` (token 40)
+right after a successful param parse and halts cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+fn add(self, n: i64 = 1) -> i64 { ... }    // ← NR020 wrong-class
+
+// Post-fix workaround A — overload pair:
+fn add_default(self) -> i64 { return self.add(1); }
+fn add(self, n: i64) -> i64 { return self.v + n; }
+
+// Post-fix workaround B — Option param:
+fn add(self, n: Option<i64>) -> i64 {
+    let val: i64 = if let Some(x) = n { x } else { 1 };
+    return self.v + val;
+}
+```
+
+Forward-roadmap: default-arg lowering needs call-site argument-list
+rewriting at the type-checker level (each missing trailing arg gets
+filled with the declared default value at every call site). Sister
+to the deliberate Rust-language gap.
+
+### Fixture
+
+`tests/fixtures/v0737_default_arg_halt.nr` — negative fixture for
+`fn add(_, n: i64 = 1)` (fires clean halt with overload workaround,
+not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `94639a925c79be1dff36fb3f7f9f873d`
+(post-merge with v0.7.37 path-type halt).
+
 ## [0.7.37] — 2026-05-04
+
 
 **Defensive halt — Rust path type in type-annotation position
 (`std::collections::HashMap<K,V>`, `core::option::Option<T>`,
