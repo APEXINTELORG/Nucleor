@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.91] — 2026-05-04
+
+**Punchlist forward — RFC-0043 Phase A: Q-format fixed-point
+arithmetic helpers (rod-only). Drift restoration V1.12 lane
+opens.**
+
+The full RFC-0043 ship adds `IrTypeFixed { i_bits, f_bits,
+signed }` as a first-class IR type with width tracking through
+BinOp + 6 runtime helpers (~300 LOC compiler-side, deferred).
+Phase A (this rod) provides the canonical Q-format runtime
+helpers as i64-encoded fixed-point values adopters can use
+today.
+
+This ship opens the spine §1.5 2026-05-03 **drift-restoration
+lane** (V1.12–V1.14), sister to the V2 frontier Tier-A
+easy-win lane CLOSED at v0.7.90. Same "stdlib first, compiler
+enforcement later" pattern.
+
+Encoding: an i64 storing the integer scaled by 2^F. For Q15.16
+(`fixed<16, 16>`), value 1.5 is encoded as 1.5 × 2^16 = 98304.
+The Q-format selector packs `i_bits` and `f_bits` into one i64:
+`fixed_q(16, 16)` returns `16 * 256 + 16 = 4112`. Helpers
+recover both widths via `fixed_q_i_bits` / `fixed_q_f_bits`.
+
+### Surface added in `stdlib/rods/fixed_point.nr`
+
+- 5 Q-format selectors: `fixed_q16_16`, `fixed_q24_8`,
+  `fixed_q1_31`, `fixed_q1_15`, `fixed_q60_4` + generic
+  `fixed_q(i_bits, f_bits)`.
+- Conversion: `fixed_from_int(q, x)`, `fixed_to_int(q, v)`,
+  `fixed_from_parts(q, int_part, num_per_10k)`.
+- Arithmetic: `fixed_add` / `_sub` / `_neg` (bare i64 since
+  same-format), `fixed_mul` (a*b >> f), `fixed_div` (a<<f / b).
+- Comparison: `fixed_eq` / `_lt` / `_gt` / `_le` / `_ge`.
+- Cross-format: `fixed_requant(from_q, to_q, v)` (left-shift
+  if gaining f-bits, right-shift if losing).
+- Saturate: `fixed_saturate(q, v)` clamps to the format's
+  representable range; Phase B `saturating { ... }` block will
+  hook this automatically.
+
+### Smoke fixture
+
+`tests/fixtures/v0791_rfc0043_fixed_point_smoke.nr` —
+exercises Q15.16 round-trip (3.0 → 196608 → 3), 1.5 via
+`from_parts(1, 5000)`, add (3+1.5=4), sub (3−1.5=1), neg
+(−3), mul (3×1.5=4.5), div (3/1.5=2), Q15.16 ↔ Q24.8 requant,
+compare predicates, saturate-on-in-range value; rc=0.
+
+No new defensive halt this ship — probed `for_each` (already
+halted via idiom-method), zip (already halted), unsafe block
+(works), const-pattern (works), or-pattern in match (works),
+@-binding in match (works), supertrait (works),
+var-in-string-literal silent miscompute (skipped — false
+positive risk on legit `{`/`}`-containing strings like JSON /
+regex). Cron may concurrently ship halts on its own thread.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.7.90] — 2026-05-04
 
 **Punchlist forward — RFC-0051 Phase A: foundation-model
