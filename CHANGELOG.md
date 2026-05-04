@@ -5,6 +5,74 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.15] — 2026-05-04
+
+**Feature acceptance — `dyn Trait + Bound` type expressions
+(e.g., `&dyn Write + Send`, `Box<dyn Foo + Sync + 'static>`) now
+parse cleanly; additional bounds are accepted and silently stripped.**
+
+Pre-fix: writing `fn emit(w: &dyn Write + Send) -> i64` surfaced as
+wrong-class `error[NR020]: parse error: expected `,`, got token 20`
+because `parse_type`'s `dyn` branch called `parse_type` on the trait
+name and returned immediately, leaving the `+` token for the function
+parameter parser which expected `,` or `)` next.
+
+Post-fix: `parse_type`'s `dyn` branch now consumes any `+ BoundName`
+and `+ 'lifetime` suffixes (e.g. `+ Send`, `+ Sync`, `+ 'static`) via
+a tight while-loop after the trait type is parsed. The additional
+bounds are silently stripped — vtable dispatch and Send/Sync semantics
+are deferred to the v1.x trait-object substrate. The type is stored as
+`dyn Trait` and the existing v0.6.91 "vtable not yet supported" diag
+fires correctly when a method is called on the object.
+
+```nucleor
+// Pre-fix:
+fn emit(w: &dyn Write + Send) -> i64 { ... }   // ← NR020 wrong-class
+
+// Post-fix: parses cleanly; fires vtable halt only at method-call site:
+fn emit(w: &dyn Write + Send) -> i64 {
+    return w.write("hi");   // ← vtable-dispatch halt (correct)
+}
+
+// Workaround (if vtable halt is a blocker):
+fn emit_concrete(w: &Writer) -> i64 { return w.write("hi"); }
+```
+
+### Infrastructure — POSIX link flag fix
+
+Added `-lm -lpthread` to the POSIX branch of `host_stack_link_flag`
+so programs compiled on Linux correctly link the math and pthread
+libraries. Pre-fix: on Linux, programs using the runtime's math
+helpers (sqrt, exp, log, etc.) or threading helpers failed at link
+time with undefined-reference errors for symbols like `sqrt`,
+`lgamma`, etc.
+
+Also added `#define _GNU_SOURCE` to `stdlib/runtime/nuc_alloc.h`
+(force-included into every clang TU via `-include`) so that
+Linux-specific scheduler constants (`SCHED_IDLE`) and glibc
+extensions are visible to the runtime.
+
+The POSIX args ABI (`__nucleor_init_args` / `__nucleor_args_count` /
+`__nucleor_args_get`) was also fixed: on Linux, MSVC-style `extern int
+__argc` CRT globals are not present; the POSIX side now uses static
+storage populated by `__nucleor_init_args`.
+
+Forward-roadmap: `dyn Trait + Bound` type acceptance is NOT a
+backward-compatibility promise for multi-bound vtable dispatch — when
+v1.x trait-object substrate lands, Send/Sync bounds will gain
+semantic meaning and may require explicit impl annotations.
+
+### Fixed-point + perf
+
+Cold 5.68s (IR-emit only, Linux — no PowerShell available).
+Peak 274 MB RSS (IR-emit only). Round-2 fixed-point md5
+`b648c489fed89a86745f56b958aec846`.
+
+### Fixture
+
+`tests/fixtures/v0715_dyn_trait_plus_bound.nr` — negative
+fixture for `&dyn Write + Send` (fires vtable diag, not NR020).
+
 ## [0.7.14] — 2026-05-03
 
 **Defensive halt — Rust 2021 raw-reference syntax `&raw const T` /
