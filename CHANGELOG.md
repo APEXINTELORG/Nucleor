@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.22] — 2026-05-04
+
+**Defensive halt — bare negative-literal pattern in match arm
+(`match x { -5 => ... }`) now produces a clean halt with a guard
+workaround pointer (MATCH-015).**
+
+Pre-fix: writing `match x { -5 => ... }` surfaced as wrong-class
+`error[NR020]: parse error: expected '=>', got integer literal`
+because the pattern parser had no unary-minus (`-`, token 21)
+branch — the `-` was consumed as a no-op, `5` was read as the
+standalone int-lit pattern, and the `=>` landed where the parser
+expected an expression continuation.
+
+Post-fix: `parse_match_one_pattern` detects `att == 21 && next == 2`
+(unary-minus + int literal, but NOT followed by `..` / `..=` —
+that case is the existing MATCH-014 negative-range-bound halt) and
+halts cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+match x {
+    -5 => { ... }       // ← NR020 wrong-class
+    _ => { ... }
+}
+
+// Post-fix workaround — guard form (supports negative literals):
+match x {
+    n if n == -5 => { ... }
+    _ => { ... }
+}
+```
+
+Forward-roadmap: negate-literal pattern lowering needs a
+signed-literal pattern AST node (sister to MATCH-014
+negative-range-bound work).
+
+### Fixture
+
+`tests/fixtures/v0722_neg_lit_pattern_halt.nr` — negative fixture
+for `match x { -5 => ... }` (fires MATCH-015, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `d2e0f0c1a42f94a038210a938694ccd6`.
+
 ## [0.7.21] — 2026-05-04
 
 **Defensive halt — parenthesized range expression `(start..end)`,
