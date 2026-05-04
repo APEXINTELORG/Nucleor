@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.56] — 2026-05-04
+
+**Wave 2 — PKG-4 Phase 1: registry remote command diagnostic.**
+RFC-0019 §5.4 documents `nuc registry remote add / list /
+remove` but `run_registry_command` had no `remote` branch.
+Pre-fix users hitting this fell through to the generic Usage
+which doesn't include `remote`, leaving them confused about
+whether the command exists.
+
+### Fix
+
+Added a `remote` subcommand branch that emits a clear
+`error[PKG-4]` diagnostic explaining the command is documented
+but not yet implemented. Includes:
+
+- Reference to the gap RFC
+- Phase 2b plan (`remote add/list/remove` + `~/.nucleor/remotes.json`
+  + TLS fetch once the TLS rod lands per RFC-0019 §6.3)
+- Workaround today (`git clone` the remote registry's gh-pages
+  branch + point `--registry <local-path>`)
+
+Exit code 2 (distinct from compiler 0/1).
+
+### Wave 2 progress (5 of 7 closed)
+
+```
+PKG-1 Linux publish              FIXED   v0.8.51
+PKG-3 Semver constraint          Phase 1 v0.8.53
+RT-G1/3/5/6 Real-Time/Determ     Phase 1 v0.8.54
+PKG-2 native_lsp/fmt stubs       FIXED   v0.8.55
+PKG-4 registry remote diagnostic Phase 1 v0.8.56 (this)
+PKG-5 cfg(feature) gating        QUEUED
+Algebraic Laws property tests    QUEUED
+```
+
+### Perf
+
+Cold 3.61-4.12s (multi-agent contention), hot 0.40-0.80s.
+Within Job #1 mostly. Fixed-point md5 unchanged
+(`72f53459753dd2f754f4eec5bb6f634d`) — tools_suite.nr edits
+don't affect s1 self-IR.
+
 ## [0.8.55] — 2026-05-04
 
 **Wave 2 — PKG-2 fix: restore native_lsp/native_fmt stubs.**
