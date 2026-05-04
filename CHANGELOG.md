@@ -5,6 +5,31 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.85] — 2026-05-04
+
+**Real feature acceptance — path-qualified trait name in `impl` block
+(`impl fmt::Display for T`, `impl std::fmt::Display for T`).**
+
+Pre-fix: `impl fmt::Display for Status` surfaced as wrong-class
+`error[NR020]: expected '{', got token 46` because `parse_impl_block`
+read the first path segment (`fmt`) as the impl target, then `::` (token
+46) landed where `expect_tok(52)` expected `{`. Same wrong-class NR020
+for any depth: `impl std::fmt::Display for T`, `impl a::b::c::Trait for T`.
+
+Fix: after reading `first_name`, a `while pk(tokens, cp) == 46` loop
+consumes `::` path segments, keeping only the final component as the
+trait name. For `impl fmt::Display for Status`, the loop sets
+`first_name = "Display"` and `cp` advances to `for`; the rest of the
+existing impl logic runs unchanged. The final segment stored in the
+kind-45 AST node is consistent with plain-name impls, so trait-dispatch,
+default-method synthesis, and `type_implements_trait` lookups work
+without modification.
+
+Workaround (pre-fix): drop the module prefix — `impl Display for Status`.
+
+Fixed-point md5: `ef60fde7af3009a4be873f1e5ea0d188`.
+Fixture: `tests/fixtures/v0779_path_trait_impl.nr` (exit 27).
+
 ## [0.7.84] — 2026-05-04
 
 **Punchlist forward — RFC-0047 Phase A: 7-vector SI dimensional
