@@ -4150,6 +4150,18 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if pk(tokens, cp) == 42 {
         cp = cp + 1;
         cp = cp + 1; // first super-trait name
+        // v0.7.62 (defensive halt — qualified path supertrait:
+        // `trait Sub: super::Iterator { ... }`,
+        // `trait Sub: std::fmt::Display { ... }`). Pre-fix this
+        // surfaced as wrong-class `error[NR020]: expected '{', got
+        // token 46` because the supertrait parser reads only a bare
+        // ident, leaving `::Path` unconsumed. Halt cleanly with a
+        // drop-the-namespace workaround.
+        if pk(tokens, cp) == 46 {
+            print(str_concat("ERROR: qualified-path supertrait `trait ", str_concat(name, ": <namespace>::SuperTrait { ... }` (e.g. `trait Sub: super::Iterator { ... }`, `trait Sub: std::fmt::Display { ... }`) is not yet supported in Nucleor. Pre-v0.7.62 surfaced as wrong-class `error[NR020]: expected '{', got token 46` because the supertrait parser reads only a bare identifier.")));
+            print(str_concat("       Workaround: drop the namespace prefix and use the unqualified trait name — `trait ", str_concat(name, ": SuperTrait { ... }`. Nucleor's supertrait list accepts bare names; the prefix is informational-only at the trait-decl level today. Tracked for forward-roadmap (path-resolver for supertrait names, sister to v0.7.37 path-type halt).")));
+            panic(str_concat("nucleor: qualified-path supertrait in `trait ", str_concat(name, "` not yet supported (see ERROR diagnostic above)")));
+        };
         // Optional generic args on supertrait `Foo<T>` — skip the angle group.
         if pk(tokens, cp) == 32 { cp = skip_angle_group(tokens, cp); };
         while pk(tokens, cp) == 20 {
