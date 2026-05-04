@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.72] — 2026-05-04
+
+**G-3 dataflow handoff detection — design doc.**
+Pure docs ship. `docs/g3-handoff-dataflow-design.md` specifies
+the per-fn dataflow analysis that unblocks the unconditional
+default-flip safely.
+
+### What the pass does
+
+After `auto_drop_register` records all heap-backed locals,
+walk the fn body looking for handoff patterns:
+
+1. `vec_push(<param-rooted>, local)` — Vec push handoff
+2. `vec_set(<param-rooted>, idx, local)` — Vec set handoff
+3. `hashmap_insert(<param-rooted>, key, local)` — Map insert
+4. `<extern_fn>(local, ...)` — FFI escape (conservative)
+5. `return local` — already handled by existing code
+
+Mark each handed-off binding's `auto_drop_state` to 0,
+suppressing the drop emit at fn return.
+
+### Detection rule conservatism
+
+Phase 2b catches direct call-site / direct parameter cases
+(~80% of handoff patterns). Phase 2c (alias tracking through
+let bindings, cross-fn ownership analysis, closure capture
+flow) closes the rest before v1.0 cut.
+
+The rule errs toward HANDED-OFF (suppress drop) when uncertain
+— prefers leaks over dangling pointers.
+
+### Validation fixtures (queued)
+
+```
+v0873_handoff_vec_push.nr     — handoff detected; rc=1 (correct)
+v0873_no_handoff_local_only.nr — no handoff; auto_drop fires
+                                   correctly; no leak
+```
+
+Plus cross-validation against existing `tests/features/
+rfc0042_auto_drop_vec.nr` fixture.
+
+### Sequence to v1.0
+
+```
+v0.8.71  Honest readiness                      DONE
+v0.8.72  This design doc                       DONE (this)
+v0.8.73  Implement auto_drop_handoff_check     NEXT
+v0.8.74  Test fixtures + smoke validation
+v0.8.75  Run unconditional flip on attn rod
+v0.8.76+ Iterate any remaining gaps
+v0.9.0   Phase 2b-3 final unconditional flip
+v0.9.x   Adopter migration window (30 days)
+v1.0     Hard error promotion
+```
+
+### Perf
+
+No compiler change. Cold/hot bands unchanged.
+
 ## [0.8.71] — 2026-05-04
 
 **G-4 readiness doc — honest assessment after empirical testing.**
