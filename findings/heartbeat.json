@@ -1,8 +1,8 @@
 {
   "instructions_read": "v0.6.72-post-v0.7.13-refresh",
-  "current_task": "q6_hrtb_clean_halt",
+  "current_task": "q5_import_tail_clean_halts",
   "roadmap_phase": "v2_post_investigation",
-  "current_punchlist_item": "Q6",
+  "current_punchlist_item": "Q5",
   "edits_in_main_tree": false,
   "rebased_on_origin_main": "41b83459",
   "perf_baseline_pre_task": {
@@ -64,6 +64,22 @@
       "direct_negative_build": "pass_expected_exit_1",
       "diagnostic": "nucleor: higher-ranked trait bounds `for<'a>` not yet supported",
       "fixture": "tests/err/err_hrtb_bound.nr",
+      "compiler_drift": "pass",
+      "note": "No full verify or 3-sample perf ladder run in this slice to avoid overlapping active main verification."
+    },
+    "q5_import_tails": {
+      "direct_negative_build": "pass_expected_exit_1",
+      "diagnostics": [
+        "nucleor: `pub use` re-export not yet supported",
+        "nucleor: `use ... as ...` aliases not yet supported",
+        "nucleor: `use ...::*` glob import not yet supported"
+      ],
+      "fixtures": [
+        "tests/err/err_pub_use_reexport.nr",
+        "tests/err/err_use_as_alias.nr",
+        "tests/err/err_use_glob_import.nr"
+      ],
+      "positive_build": "tests/lang/use_paths.nr pass",
       "compiler_drift": "pass",
       "note": "No full verify or 3-sample perf ladder run in this slice to avoid overlapping active main verification."
     },
