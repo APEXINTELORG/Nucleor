@@ -415,6 +415,16 @@ fn lex(src: str) -> Vec<i32> {
                 print("ERROR: byte string literals `b\"...\"` are not yet supported in Nucleor. Pre-v0.6.58 the `b` lexed as an identifier and the parser tried to call a fn named `b` on the trailing string literal, producing the wrong-class `error[TYP-005]: undefined function 'b'`. Workaround: build a `Vec<u8>` explicitly via `let mut bs: Vec<u8> = Vec::new(); vec_u8_push(bs, 'h' as u8); ...`. Tracked for forward-roadmap (lex-time b-prefix → byte-buffer literal).");
                 panic("nucleor: byte string `b\"...\"` not yet supported (see ERROR diagnostic above)");
             };
+            // v0.7.68 (defensive halt — C string literal `c"..."`, the
+            // NUL-terminated FFI buffer form). Pre-fix the `c` lexed as
+            // an ident and the parser tried to call fn `c` on the
+            // trailing string literal, producing the wrong-class
+            // `error[TYP-005]: undefined function 'c'`. Promoted from
+            // probe finding 2026-05-03.
+            if c == 99 && p + 1 < slen && str_char_at(src, p + 1) == 34 {
+                print("ERROR: C string literals `c\"...\"` are not yet supported in Nucleor. Pre-v0.7.68 the `c` lexed as an identifier and the parser tried to call a fn named `c` on the trailing string literal, producing wrong-class `error[TYP-005]: undefined function 'c'`. Workaround: use a normal string literal and handle the trailing NUL explicitly at the FFI boundary, e.g. `\"hello\\0\"` when the callee expects a NUL-terminated buffer. Tracked for forward-roadmap (lex-time c-prefix -> static NUL-terminated byte storage).");
+                panic("nucleor: C string `c\"...\"` not yet supported (see ERROR diagnostic above)");
+            };
             // v0.7.28 (defensive halt — Rust byte literal `b'A'`, the u8
             // value of an ASCII char). Pre-fix the `b` lexed as an
             // identifier and the parser saw `b ('A')` — a fn call on a
