@@ -22627,7 +22627,18 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 || str_eq(mname, "to_ascii_lowercase") == 1
                                 || str_eq(mname, "to_lowercase") == 1
                                 || str_eq(mname, "to_uppercase") == 1
-                                || str_eq(mname, "to_digit") == 1 { 1 } else { 0 };
+                                || str_eq(mname, "to_digit") == 1
+                                || str_eq(mname, "chars") == 1
+                                || str_eq(mname, "lines") == 1
+                                || str_eq(mname, "bytes") == 1
+                                || str_eq(mname, "as_bytes") == 1
+                                || str_eq(mname, "repeat") == 1
+                                || str_eq(mname, "split_whitespace") == 1
+                                || str_eq(mname, "split_terminator") == 1
+                                || str_eq(mname, "rsplit") == 1
+                                || str_eq(mname, "splitn") == 1
+                                || str_eq(mname, "char_indices") == 1
+                                || str_eq(mname, "parse") == 1 { 1 } else { 0 };
                             if v082_idiom == 1 {
                                 let v082_workaround: str = if str_eq(mname, "into") == 1 {
                                     "no v0.6 conversion path; the From/Into trait family is not yet shipped — use an explicit named conversion fn (e.g. `i64_to_str(x)` for numeric→str)"
@@ -22683,6 +22694,22 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                     "the iterator-returning Unicode forms aren't supported. Use the ASCII forms `.to_ascii_lowercase()` / `.to_ascii_uppercase()` (now also halted with workarounds), or compare codepoint ranges manually"
                                 } else if str_eq(mname, "to_digit") == 1 {
                                     "subtract '0' codepoint — `let d: i64 = if c >= 48 && c <= 57 { c - 48 } else { -1 };` for radix-10. For other radixes add a-f / A-F branches"
+                                } else if str_eq(mname, "chars") == 1 {
+                                    "iterate the string by codepoint via index-based loop — `let n: i64 = str_len(s) as i64; let mut i: i64 = 0; while i < n { let c: i64 = str_char_at(s, i); ...; i = i + 1; }`. Today this iterates byte-by-byte (ASCII safe; multi-byte UTF-8 needs a separate decoder)"
+                                } else if str_eq(mname, "lines") == 1 {
+                                    "split on newline manually — `let parts: Vec<str> = str_split(s, \"\\n\"); for line in &parts { ... }`. The `.lines()` form returns an iterator that the v1.x iterator-protocol substrate will support"
+                                } else if str_eq(mname, "bytes") == 1 {
+                                    "iterate by index — `let n: i64 = str_len(s) as i64; let mut i: i64 = 0; while i < n { let b: i64 = str_char_at(s, i); ...; i = i + 1; }`. Each `b` is the raw byte value (0..255)"
+                                } else if str_eq(mname, "as_bytes") == 1 {
+                                    "build a `Vec<u8>` manually — `let mut bs: Vec<u8> = Vec::new(); let n: i64 = str_len(s) as i64; let mut i: i64 = 0; while i < n { vec_u8_push(bs, str_char_at(s, i) as u8); i = i + 1; }`"
+                                } else if str_eq(mname, "repeat") == 1 {
+                                    "concat in a loop — `let mut out: str = \"\"; let mut i: i64 = 0; while i < n { out = str_concat(out, s); i = i + 1; }`"
+                                } else if str_eq(mname, "split_whitespace") == 1 || str_eq(mname, "split_terminator") == 1 || str_eq(mname, "splitn") == 1 || str_eq(mname, "rsplit") == 1 {
+                                    "use `str_split(s, sep)` (single-char delimiter) and post-process. For whitespace, use `str_split(s, \" \")` and filter empty parts. For multi-delimiter or n-split forms, the iterator-protocol substrate is forward-roadmap"
+                                } else if str_eq(mname, "char_indices") == 1 {
+                                    "iterate by index manually — `let n: i64 = str_len(s) as i64; let mut i: i64 = 0; while i < n { let c: i64 = str_char_at(s, i); ...; i = i + 1; }` — the index is `i` and the char is `c` (matches Rust's `(usize, char)` tuple form)"
+                                } else if str_eq(mname, "parse") == 1 {
+                                    "use the explicit-typed conversion fn — `str_to_int(s)` for integers, `str_to_float(s)` for floats. For Result-returning forms, check the input shape via `str_starts_with(s, \"-\")` / `str_contains(s, \".\")` first"
                                 } else {
                                     "use a `while i < vec_len(&v) { let item: T = vec_get(&v, i); ...; i = i + 1; }` loop with index-based access — Nucleor doesn't auto-derive iterator interior mutability today"
                                 };

@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.32] — 2026-05-04
+
+**Defensive halt — Rust string-iterator and conversion methods
+(`.chars`, `.lines`, `.bytes`, `.as_bytes`, `.repeat`,
+`.split_whitespace`, `.split_terminator`, `.splitn`, `.rsplit`,
+`.char_indices`, `.parse`) now route to the v0.6.82 idiom-list
+halt with index-based-loop workarounds.**
+
+Pre-fix: writing `for c in s.chars() { ... }` or `let bs: Vec<u8> = 
+s.as_bytes().to_vec();` surfaced as wrong-class `error[TYP-005]:
+receiver type 'Vec<T>' has no method '.chars()'` — same kind-8
+catch-all bug pattern as v0.7.30 (integer methods) and v0.7.31
+(char methods).
+
+Post-fix: 11 Rust string methods added to the v0.6.82 idiom-list
+halt with per-method workarounds:
+
+```nucleor
+// Pre-fix wrong-class:
+for c in s.chars() { ... }
+let bs: Vec<u8> = s.as_bytes().to_vec();
+let n: i64 = "42".parse().unwrap();
+
+// Post-fix workarounds — index-based loop:
+let n: i64 = str_len(s) as i64;
+let mut i: i64 = 0;
+while i < n { let c: i64 = str_char_at(s, i); ...; i = i + 1; };
+
+// Vec<u8> via manual push:
+let mut bs: Vec<u8> = Vec::new();
+let mut i: i64 = 0;
+while i < n { vec_u8_push(bs, str_char_at(s, i) as u8); i = i + 1; };
+
+// Parse via explicit conversion:
+let n: i64 = str_to_int("42");
+```
+
+Forward-roadmap: full iterator-protocol substrate (`.chars` /
+`.lines` / `.bytes` returning real iterators) is a v1.x ship.
+
+### Fixture
+
+`tests/fixtures/v0732_string_method_halt.nr` — negative fixture
+for `s.chars()` (fires v0.6.82 idiom halt with index-loop
+workaround, not the Vec<T>-method-table TYP-005).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `8b8b3367d00837eabe3c23d44da8ea44`.
+
 ## [0.7.31] — 2026-05-04
 
 **Defensive halt — Rust char-classification methods (`.is_alphabetic`,
