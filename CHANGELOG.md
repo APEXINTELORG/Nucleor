@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.22] — 2026-05-04
+
+**Q-batch lock-in extension (Q3, Q4, Q5, Q7, Q8, Q10).** Pure
+fixtures, no compiler change. Locks the existing parse / halt
+behavior for six more Q-class items.
+
+### Q3 + Q4 — multi-trait + multi-param where (positive)
+
+`tests/fixtures/q3_q4_multibound_parse.nr` exercises:
+- `T: A + B + C` 3-trait bound
+- `where T: A, U: B` multi-param where
+- `where T: A + B + C` 3-trait where
+
+All three parse cleanly. The earlier probe report ("doesn't
+work") tripped TYP-007 method-dispatch-on-`&T` which is a
+separate downstream concern; Q3/Q4 themselves parse fine.
+
+### Q5 / Q7 / Q8 / Q10 — clean halts (negative)
+
+All four halt cleanly with diagnostic + workaround pointer.
+Locked with EXPECT fixtures:
+
+- `tests/err/err_q5_pubuse_glob.nr` — `pub use crate::x::*;`
+- `tests/err/err_q7_rawref_const.nr` — `&raw const x` (Rust 1.82)
+- `tests/err/err_q8_cstring_literal.nr` — `c"hello"` (Rust 1.77)
+- `tests/err/err_q10_inline_attr.nr` — `#[inline]`
+
+### Q-batch closure status
+
+| Q | Item | Phase 1 status | Ship |
+|---|---|---|---|
+| Q1 | `0..10` exclusive in match arm | LOCKED | v0.8.21 |
+| Q2 | `[a, .., b]` slice pattern | halt mis-targeted (range-expr msg) | TBD |
+| Q3 | `T: A + B + C` | LOCKED | v0.8.22 |
+| Q4 | `where T: A, U: B` | LOCKED | v0.8.22 |
+| Q5 | `pub use ::*;` | LOCKED | v0.8.22 |
+| Q6 | `for<'a> Fn(...)` HRTB | covered by v0.7.18 | — |
+| Q7 | `&raw const` | LOCKED | v0.8.22 |
+| Q8 | `c"..."` | LOCKED | v0.8.22 |
+| Q9 | `let (a, b) = (5, 7)` | LOCKED | v0.8.21 |
+| Q10 | `#[inline]` | LOCKED | v0.8.22 |
+
+Q2 remains the only outstanding Q-class item; needs compiler-edit
+ship to refine slice-pattern halt diagnostic from the current
+range-expression message to a slice-pattern-specific message.
+
+Cold 3.15s / peak 309MB.
+
 ## [0.8.21] — 2026-05-04
 
 **Q-batch defensive-halt lock-ins (Q1 + Q9 from
