@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.24] — 2026-05-04
+
+**RFC-0062 G-4 Phase 2a — OWN-012 audit-pass info diagnostic.**
+First Phase 2 enforcement landing for the cornerstone memory-
+safety RFC. Heuristic textual pre-pass; Phase 2b will add proper
+IR-level use-after-drop tracking; Phase 4 promotes to OWN-012
+hard error.
+
+### What's enforced today (Phase 2a)
+
+When adopter source contains explicit `vec_free(` or
+`hashmap_free(` calls, the compiler now emits:
+
+```
+info[OWN-012]: explicit free calls present in build: N
+  Per RFC-0062 G-4 Phase 2a: explicit `vec_free` /
+  `hashmap_free` are accepted but the compiler does NOT yet
+  check that the freed binding is unused after the free call.
+  Adopter discipline today: do not access a vec/map after
+  passing it to its free helper. Phase 2b adds IR-level
+  use-after-drop tracking; Phase 4 promotes to OWN-012 hard
+  error. Recommended: prefer `#[auto_drop]` (RFC-0042) which
+  inserts cleanup automatically and disables generated drop on
+  bindings that have an explicit free call.
+```
+
+This is `info[...]` rather than `warning[...]` because at Phase
+2a it's heuristic — false positives would happen if a free call
+is the last use of the binding (which is the safe case). The
+diagnostic is informational; Phase 2b's IR-level tracking
+distinguishes safe-last-use from use-after-free and will
+promote the diagnostic to a true warning before Phase 4 errors
+on it.
+
+### Phase 2 plan continuation
+
+Wave A continues with G-5 + G-9 audit-pass info diagnostics in
+the next ships, then crosses into Wave B (G-2 simple lifetime
+checking) which is the first proper analysis-level work.
+
+Fixed-point md5: `a22b700bcc021559753675611bceb9be`.
+Cold 3.39s (within tightened ~3.35s mean band).
+
 ## [0.8.23] — 2026-05-04
 
 **Cold-time perf fix — collapse BR-7 audit 3-scan block to
