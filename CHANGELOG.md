@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.32] — 2026-05-04
+
+**RFC-0062 G-1 Phase 2b-2 — `#[manual_drop]` suppress mechanism.**
+The reserved attribute from v0.8.31 now actually does something:
+when both `#[auto_drop]` and `#[manual_drop]` are on a fn,
+manual_drop wins (auto-drop is suppressed).
+
+This wires the plumbing for the Phase 2b-3 default-flip ship.
+After the flip, the only change required is in `name_in_auto_drop`
+— make it return 1 by default, and the existing manual_drop
+suppress already handles the opt-out side.
+
+### Behavior change
+
+- v0.x: fn gets auto-drop iff `#[auto_drop]` AND NOT `#[manual_drop]`
+- post-flip: fn gets auto-drop iff NOT `#[manual_drop]` (default-on)
+
+The post-flip semantics are tested today in advance via fixtures
+that have BOTH attributes. The suppress side is identical pre-
+and post-flip; only the default changes.
+
+### Implementation
+
+- New `collect_manual_drop_fns(source)` parser sister to
+  `collect_auto_drop_fns`. Same lex+parser shape — `#[manual_drop]`
+  followed by whitespace/comments/other-attrs and then `fn NAME`.
+- New `name_in_manual_drop(list, fn_name)` lookup.
+- `lower_fn` signature extended with `manual_drop_fns: Vec<i32>`
+  parameter. Both call sites (regular fns + impl fns) updated.
+- `__auto_drop_enabled` sym is now set only when
+  `name_in_auto_drop == 1 AND name_in_manual_drop == 0`.
+- New `manual_drop_fns` collection in the lower-pipeline,
+  gated on textual `#[manual_drop]` presence (skip-mode for
+  adopter code that doesn't use the attribute).
+
+### Smoke fixture
+
+`tests/fixtures/v0832_g1_phase2b2_suppress.nr` — fn with both
+`#[auto_drop]` and `#[manual_drop]` plus explicit `vec_free`.
+If auto-drop had won, the double-free would crash. Clean rc=7
+confirms the suppress wins.
+
+### Perf
+
+Cold 3.48s, hot 0.42s — no regression. The new audit pass for
+manual_drop is gated on textual presence (skip-mode for code
+that doesn't use the attribute). Adopter cost: zero unless
+`#[manual_drop]` is present.
+
+Fixed-point md5: `a8f2d16f02b5de1e527aea310fb18465`.
+
 ## [0.8.31] — 2026-05-04
 
 **RFC-0062 G-1 Phase 2b-1 — `#[manual_drop]` reserved attribute.**
