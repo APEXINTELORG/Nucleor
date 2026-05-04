@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.5] — 2026-05-04
+
+**First Phase B compiler-side ship — RFC-0045 Phase B step-1:
+`@differentiable` build-time audit count.**
+
+The lex-time `@`-attribute skip (compiler/nucleor_s1_compiler.nr
+line ~247) already accepts `@differentiable` silently — adopters
+have always been able to write the attribute without parse error.
+The v0.7.93 Phase A ship added the runtime registry surface
+(`stdlib/rods/differentiable.nr`'s `differentiable_register` /
+`_count` / `_lookup`).
+
+This is Phase B step-1: the compiler runs a textual pre-pass at
+the same point as `expand_format_macros` / `expand_async_syntax` /
+`expand_deadline`, counts the literal `@differentiable` byte
+sequences in the resolved source, and emits a one-line audit
+print to stdout when the count is non-zero:
+
+```
+audit: @differentiable fns in build: 3
+```
+
+This addresses the v0.7.93 Phase A "Discovery: no way to grep
+for all differentiable fns in a codebase" surface gap that the
+runtime registry alone couldn't close (the runtime registry
+only surfaces what's actually called; the build-time audit
+surfaces every annotated fn whether-or-not called).
+
+Phase B step-2 (deferred): emit `__nucleor_diff_<fn_name>`
+symbol aliases in IR for the autodiff runtime to discover
+differentiable fns at link time. ~30 LOC additional.
+
+### Implementation
+
+`differentiable_audit_count(src) -> i64` scans the resolved
+source for the `@differentiable` literal (byte-string built via
+`str_concat("@differen", "tiable")` so the literal pattern
+doesn't appear verbatim in compiler.nr — sister to the v0.7.98
+`compile_error!` self-host fix). Per-step body increments the
+counter and skips past the matched bytes.
+
+Counter is queried in `load_resolved_source_bundle` after
+`expand_async_syntax` returns. When non-zero, the build emits
+the one-line summary; no allocation when zero.
+
+### Smoke fixture
+
+`tests/fixtures/v0805_rfc0045_phaseB_audit_smoke.nr` — 3 fns
+tagged `@differentiable`. Runtime returns 4+14+2=20. The build
+log will include `audit: @differentiable fns in build: 3` once
+the binary is rebuilt from the new seed.
+
+### Status note
+
+Adopters using the existing `bin/nucleor.exe` (built from a
+pre-v0.8.5 seed) won't see the audit message until the next
+perf-integration ship rebuilds the binary. The seed itself
+contains the Phase B logic; T1.7 fixed-point validates.
+
+Fixed-point md5: `0168384D48B82645E12A5008788D01F8`.
+Cold 3.12s / peak 311MB (under 4s job #1).
+
 ## [0.8.4] — 2026-05-04
 
 **Punchlist forward — RFC-0061 Tier 5 V1.17c CLOSED: graph-

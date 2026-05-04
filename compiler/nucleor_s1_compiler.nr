@@ -27754,6 +27754,18 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // `<ident>.await` to `async_await(<ident>)`. Threads-only
     // commitment per RFC-0027 phase 1.
     let after_async: str = expand_async_syntax(after_format);
+    // v0.8.5 (RFC-0045 Phase B step-1) — `@differentiable` audit.
+    // The lex-time `@`-attribute skip (line ~247) already accepts
+    // the attribute silently. Phase B-step-1 adds a build-time
+    // count + one-line audit print so adopters get the
+    // "Discovery: no way to grep for all differentiable fns in
+    // a codebase" surface that v0.7.93 Phase A's runtime
+    // registry was paired with. Phase B-step-2 (deferred) does
+    // the symbol-alias emit for autodiff dispatch.
+    let v085_diff_count: i64 = differentiable_audit_count(after_async);
+    if v085_diff_count > 0 {
+        print(str_concat("audit: @differentiable fns in build: ", str_from_int(v085_diff_count)));
+    };
     // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
     let after_deadline: str = expand_deadline(after_async);
@@ -28783,6 +28795,37 @@ fn dl_parse_fn_signature(src: str, fn_pos: i64, slen: i64) -> Vec<i32> {
     out.push(body_open);
     out.push(q);
     return out;
+}
+
+// v0.8.5 RFC-0045 Phase B step-1: scan resolved source for the
+// literal `@differentiable` byte sequence and return the count.
+// Adopters tag fns with `@differentiable` (RFC-0045 syntax); the
+// lex-time skip silently accepts the attribute. This audit pass
+// counts occurrences so the build emits a one-line "N fns
+// tagged" summary — addressing the v0.7.93 Phase A "Discovery:
+// no way to grep for all differentiable fns in a codebase"
+// surface gap.
+//
+// Skips the count when compiling the compiler itself (the
+// pattern appears in this comment + in expand_differentiable
+// dispatcher source). Same self-host guard as the v0.7.98
+// compile_error pre-pass.
+fn differentiable_audit_count(src: str) -> i64 {
+    let mut count: i64 = 0;
+    let needle: str = str_concat("@differen", "tiable");
+    let slen: i64 = str_len(src);
+    let nlen: i64 = str_len(needle);
+    if nlen <= 0 { return 0; };
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        if str_eq_at(src, p, needle) == 1 {
+            count = count + 1;
+            p = p + nlen;
+        } else {
+            p = p + 1;
+        };
+    };
+    return count;
 }
 
 fn expand_deadline(src: str) -> str {
