@@ -5,6 +5,30 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.54] — 2026-05-04
+
+**Wave 2 — Real-Time / Determinism Phase 1 audit-pass info.**
+Detects `#[deadline]`, `#[no_alloc]`, `#[no_panic]`, `#[isr]`
+annotations. Today these parse but enforcement has known
+false-negative surfaces (RT-G1 transitive callee, RT-G3 panic-
+check incomplete, RT-G5 deadline marketing-claim unbacked,
+RT-G6 no embedded sysroots).
+
+Seed self-host signal: `info[RT-G135]: real-time/determinism
+annotations in source: 97`. Significant use of `#[deadline]` /
+`#[no_alloc]` in compiler.nr. Phase 1 surface now visible.
+
+Cross-platform note: rebuilt `bin/nucleor.exe` locally on
+Windows from `bootstrap/nucleor_s1_seed.ll` because cron's
+v0.8.52 (Linux) left a Linux ELF bin in git. Going forward,
+the seed.ll is the cross-platform contract; `bin/*.exe` in
+git represents whichever platform last shipped.
+
+Cold 3.60-4.08s with multi-agent contention; hot 0.40-0.41s.
+Within Job #1.
+
+Fixed-point md5: `72f53459753dd2f754f4eec5bb6f634d`.
+
 ## [0.8.53] — 2026-05-04
 
 **Wave 2 — PKG-3 Phase 1: semver constraint diagnostic.**

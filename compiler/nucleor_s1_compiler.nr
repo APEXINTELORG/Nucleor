@@ -28224,6 +28224,26 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.54 RT Phase 1 — real-time/determinism partial-enforcement
+    // info. Detects #[deadline], #[no_alloc], #[no_panic], #[isr]
+    // annotations and warns adopters about known gaps in enforcement
+    // (RT-G1 transitive callee, RT-G3 panic-check incomplete, RT-G5
+    // deadline marketing-claim unbacked, RT-G6 no embedded sysroots).
+    let v0854_has_deadline: i64 = if str_index_of(after_async, str_concat("#[dead", "line")) >= 0 { 1 } else { 0 };
+    let v0854_has_no_alloc: i64 = if str_index_of(after_async, str_concat("#[no_", "alloc]")) >= 0 { 1 } else { 0 };
+    let v0854_has_no_panic: i64 = if str_index_of(after_async, str_concat("#[no_", "panic]")) >= 0 { 1 } else { 0 };
+    let v0854_has_isr: i64 = if str_index_of(after_async, str_concat("#[i", "sr]")) >= 0 { 1 } else { 0 };
+    if v0854_has_deadline == 1 || v0854_has_no_alloc == 1 || v0854_has_no_panic == 1 || v0854_has_isr == 1 {
+        let v0854_deadline: i64 = if v0854_has_deadline == 1 { simple_attribute_audit_count(after_async, str_concat("#[dead", "line")) } else { 0 };
+        let v0854_no_alloc: i64 = if v0854_has_no_alloc == 1 { simple_attribute_audit_count(after_async, str_concat("#[no_", "alloc]")) } else { 0 };
+        let v0854_no_panic: i64 = if v0854_has_no_panic == 1 { simple_attribute_audit_count(after_async, str_concat("#[no_", "panic]")) } else { 0 };
+        let v0854_isr: i64 = if v0854_has_isr == 1 { simple_attribute_audit_count(after_async, str_concat("#[i", "sr]")) } else { 0 };
+        let v0854_total: i64 = v0854_deadline + v0854_no_alloc + v0854_no_panic + v0854_isr;
+        if v0854_total > 0 {
+            print(str_concat("info[RT-G135]: real-time/determinism annotations in source: ", str_from_int(v0854_total)));
+            print("  Per RFC sister gaps RT-G1, RT-G3, RT-G5, RT-G6 (Real-Time / Determinism): #[no_alloc] / #[no_panic] / #[isr] / #[deadline] annotations parse but enforcement has known false-negative surfaces. RT-G1: #[no_alloc] only scans annotated fn body for hardcoded patterns + tagged callees — transitive allocation through helper fns escapes detection. RT-G3: #[no_panic] only checks 7 explicit panic helpers; arithmetic overflow, array OOB, division-by-zero (all panic sources) are NOT checked. RT-G5: #[deadline=N] numeric budget has no cost table / WCET pass behind it. RT-G6: no embedded sysroot — #[isr] runs on x86_64 host. Phase 2b adds transitive analysis + WCET pass. Adopter discipline today: do NOT rely on these annotations as compile-time hard guarantees. Reference: docs/rfcs/gap-analyses/Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md.");
+        };
+    };
     // v0.8.50 C-1/C-2 Phase 1 — Linux concurrency surface info.
     // The concurrency.nr rod's cancel_token (C-1) and POSIX channel
     // (C-2) helpers are silently broken on Linux: cancel_token is a
