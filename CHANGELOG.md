@@ -5,6 +5,32 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.75] — 2026-05-04
+
+**Defensive halts (consolidated) — Rust syntax-fidelity audit:
+`fn f(mut x: T)` and raw-identifier prefix `r#name`.**
+
+- **`mut` qualifier on fn parameter** (`fn inc(mut x: i64) -> i64
+  { x = x + 1; ... }`) pre-fix surfaced as wrong-class
+  `error[NR020]: expected ':', got identifier` because the
+  `mut` ident landed in the binding slot and pushed `x` to
+  where the colon should be. Halt cleanly in `parse_fn_decl`
+  before reading the binding name.
+- **Raw identifier prefix `r#name`** (`let r#type: i64 = 42;`)
+  pre-fix lexed as `r` ident + `#` punct + trailing-name token,
+  so when the trailing name was a Nucleor keyword (e.g. `type`)
+  the downstream parser tripped wrong-class on the keyword's
+  normal use site (in this case v0.7.47's local-type-alias
+  halt). Halt at lex with a precise diag. Sister to v0.6.58
+  raw-string `r"..."` halt (same `r` prefix family).
+
+Workarounds: rebind in body for the `mut` case
+(`fn inc(x: i64) -> i64 { let mut x: i64 = x; ... }`); rename
+the binding to a non-keyword spelling for the `r#` case.
+
+Consolidated fixture: `tests/fixtures/v0775_mut_param_raw_ident_halt.nr`
+(swap body to validate the raw-ident form).
+
 ## [0.7.74] — 2026-05-04
 
 **Defensive halt — Rust experimental `try { ... }` block expression
