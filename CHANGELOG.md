@@ -5,6 +5,75 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.73] — 2026-05-04
+
+**RFC-0062 G-3 Phase 2b — `warning[G3-HANDOFF-RISK]` audit
+diagnostic.** Strong warning when default-flip is on AND
+source contains `vec_push` / `vec_set` patterns. Surfaces the
+dangling-pointer risk identified in v0.8.71 testing.
+
+### What's enforced today
+
+When `NUC_AUTO_DROP_DEFAULT=1` is set AND `after_async` source
+contains any `vec_push(` or `vec_set(` call:
+
+```
+warning[G3-HANDOFF-RISK]: vec_push / vec_set call sites in build: N
+  Per RFC-0062 G-3 Phase 2b: under default-flip
+  (NUC_AUTO_DROP_DEFAULT=1), local Vec values handed off via
+  `vec_push(<receiver>, local)` or `vec_set(<receiver>, idx, local)`
+  get auto-dropped at fn exit, leaving the receiver with a
+  DANGLING POINTER. This is a silent miscompute — the guard from
+  v0.8.68 catches double-free but NOT dangling pointers from
+  handoff.
+  
+  Adopter discipline TODAY: any fn whose body contains
+  `vec_push(<param-name>, <local-vec>)` should carry
+  `#[manual_drop]` to suppress auto-drop on the local.
+  
+  Phase 2b proper dataflow handoff detection will automate this;
+  until then, treat every vec_push call site as a manual review
+  point. Reference: docs/g3-handoff-dataflow-design.md.
+```
+
+### Pragmatic vs proper
+
+Phase 2b proper = per-fn dataflow analysis that auto-suppresses
+drop on handed-off locals (per `docs/g3-handoff-dataflow-design.md`).
+That's substantial multi-ship work.
+
+Phase 2b pragmatic (this ship) = strong adopter-facing warning
+when flip is on. Adopter sees the risk, manually annotates with
+`#[manual_drop]`. Ships immediately. Conservative + safe.
+
+The warning only fires under flip-ON, so default-mode adopters
+see no noise.
+
+### Cost
+
+The audit-pass adds two `simple_attribute_audit_count` calls
+gated behind cheap `str_index_of` pre-checks. Adopter cost zero
+when flip is OFF. Under flip-ON, ~0.05s extra on the seed.
+
+### Sequence to v1.0 — UPDATED
+
+```
+v0.8.71  Honest readiness                      DONE
+v0.8.72  Dataflow design doc                   DONE
+v0.8.73  Pragmatic warning under flip          DONE (this)
+v0.8.74  Proper dataflow handoff_check impl    NEXT
+v0.8.75+ Iterate on real rod tests
+v0.9.0   Final unconditional flip
+v0.9.x   30-day adopter migration window
+v1.0     Hard error promotion
+```
+
+### Perf
+
+Cold 3.65s, hot 0.79s (multi-agent contention). Within Job #1.
+
+Fixed-point md5: `d90003e8ff2fc1ec01d8c61ebb42f98c`.
+
 ## [0.8.72] — 2026-05-04
 
 **G-3 dataflow handoff detection — design doc.**

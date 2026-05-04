@@ -28500,6 +28500,22 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     if str_eq(v0838_flip_state, "1") == 1 {
         print("info[FLIP-G1]: NUC_AUTO_DROP_DEFAULT=1 — Phase 2b-3 default-flip ENABLED for this build.");
         print("  Per RFC-0062 G-1 Phase 2b-3 experiment: every fn auto-drops local Vec / HashMap / Box / String / VecDeque unless `#[manual_drop]` opt-out is present. Adopter discipline: this is an experimental flip mode for validating code against the future default. Remove the env var or set it to anything other than \"1\" to revert to v0.x opt-in semantics.");
+        // v0.8.73 G-3 Phase 2b — strong warning when flip is on
+        // and source contains handoff patterns. Catches the gap
+        // identified in v0.8.71 testing: vec_push(<param>, local)
+        // patterns that auto-drop would dangle. Per
+        // docs/g3-handoff-dataflow-design.md.
+        let v0873_vec_push_count: i64 = if str_index_of(after_async, str_concat("vec_", "push(")) >= 0 {
+            simple_attribute_audit_count(after_async, str_concat("vec_", "push("))
+        } else { 0 };
+        let v0873_vec_set_count: i64 = if str_index_of(after_async, str_concat("vec_", "set(")) >= 0 {
+            simple_attribute_audit_count(after_async, str_concat("vec_", "set("))
+        } else { 0 };
+        let v0873_handoff_total: i64 = v0873_vec_push_count + v0873_vec_set_count;
+        if v0873_handoff_total > 0 {
+            print(str_concat("warning[G3-HANDOFF-RISK]: vec_push / vec_set call sites in build: ", str_from_int(v0873_handoff_total)));
+            print("  Per RFC-0062 G-3 Phase 2b: under default-flip (NUC_AUTO_DROP_DEFAULT=1), local Vec values handed off via `vec_push(<receiver>, local)` or `vec_set(<receiver>, idx, local)` get auto-dropped at fn exit, leaving the receiver with a DANGLING POINTER. This is a silent miscompute — the guard from v0.8.68 catches double-free but NOT dangling pointers from handoff. Adopter discipline TODAY: any fn whose body contains `vec_push(<param-name>, <local-vec>)` should carry `#[manual_drop]` to suppress auto-drop on the local. Phase 2b proper dataflow handoff detection will automate this; until then, treat every vec_push call site as a manual review point. Reference: docs/g3-handoff-dataflow-design.md.");
+        };
     };
     // v0.8.31: RFC-0062 G-1 Phase 2b-1 — `#[manual_drop]`
     // reserved-attribute audit. Detects adopter use of the
