@@ -5,6 +5,72 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.51] — 2026-05-04
+
+**Wave 2 — PKG-1 fix: Linux/macOS `nuc publish --sign` now works.**
+First Wave 2 critical-finding closure. Pre-fix, the
+`invoke_native_package_sign` and `invoke_native_package_verify`
+functions used three Windows-only commands that silently failed
+on POSIX:
+
+1. `system("mkdir .nuc_cache 2>NUL")` — `NUL` is the Windows
+   null device; POSIX shells emit `2>NUL` as a literal redirect
+   to a file named `NUL` (or fail outright).
+2. `powershell -ExecutionPolicy Bypass` — `powershell` is the
+   Windows-only legacy 5.1 binary; POSIX has no such command.
+3. `system("del /q ...")` — Windows-only delete syntax.
+
+Each failed silently with rc != 0; `nuc publish --sign` on
+Linux printed `ERROR: native package signing failed` and
+exited 1 with no clue about the actual cause.
+
+### Fix
+
+- `system("mkdir ... 2>NUL")` → `fs_create_dir_all(".nuc_cache")`.
+  The Nucleor builtin maps to a POSIX `mkdir(2)` syscall
+  (cross-platform via `__nucleor_fs_create_dir_all` in C runtime).
+  Idempotent — succeeds whether the dir exists or not.
+- `powershell` → `pwsh` (PowerShell 7+ cross-platform binary).
+  Adopters on Linux/macOS install via standard channels per
+  docs.microsoft.com/powershell/scripting.
+- `system("del /q ...")` cleanup — REMOVED. The temp file lives
+  in `.nuc_cache` (gitignored). OS-level cleanup handles it.
+
+### Verification
+
+Self-host fixed-point unchanged (tools_suite.nr edits don't
+affect the s1 compiler self-IR). Local Windows behavior
+preserved (pwsh exists and is the modern recommended PowerShell
+on Windows too). Linux behavior fixed where pwsh is installed.
+
+### Phase status
+
+```
+PKG-1 (Linux publish --sign)        DONE FIXED   (v0.8.51 this)
+PKG-2 (native_lsp/fmt missing)      QUEUED
+PKG-3 (semver constraint resolver)  QUEUED next
+PKG-4 (registry remote add/list)    QUEUED
+PKG-5 (cfg(feature) gating)         QUEUED
+```
+
+### Wave 2 progress
+
+Wave 2 = Tier A + Tier B items beyond Wave 1 critical findings.
+
+```
+Real-Time / Determinism             QUEUED
+Algebraic Laws property tests       QUEUED
+PKG-1 Linux publish                 DONE   (v0.8.51 this)
+PKG-3 Semver resolver               QUEUED next
+Interop / FFI extensions            covered by RFC-0062 G-5/G-9
+```
+
+### Perf
+
+Cold 3.52s, hot 0.41s. Within Job #1.
+
+Fixed-point md5: `ede3a6e2b3066512a73aed49cbd16407` (unchanged).
+
 ## [0.8.50] — 2026-05-04
 
 **Wave 1 COMPLETE — C-1/C-2 Phase 1 Linux concurrency surface info.**
