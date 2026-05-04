@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.41] — 2026-05-04
+
+**Defensive halt — Rust 1.58+ inline format-arg `{name}` (where
+`<name>` resolves to a binding in the calling scope) now produces
+a clean halt with explicit-arg workaround pointer.**
+
+Pre-fix: writing `let s = format!("{n}");` (Rust 1.58 stabilized
+this form, RFC 2795) surfaced as wrong-class "format string has
+more `{}` placeholders than args supplied. Format body: `{n}`.
+Args supplied: 0." even though the args ARE inline in the format
+string. Adopters porting modern Rust got pointed at the count-
+mismatch rule instead of "inline args not yet supported".
+
+Post-fix: the format-macro expander detects when a `{...}` spec
+contains a bare identifier (no format-spec colons / commas /
+periods, just `[A-Za-z0-9_]+`) and halts with a tailored
+diagnostic before the count-mismatch check fires:
+
+```nucleor
+// Pre-fix wrong-class:
+let n: i64 = 42;
+let s: str = format!("{n}");                  // ← "more {} than args"
+
+// Post-fix workaround — explicit-arg form:
+let s: str = format!("{}", n);                // single arg
+let m: i64 = 7;
+let s: str = format!("n={}, m={}", n, m);     // multiple in declaration order
+```
+
+Forward-roadmap: lex-time inline-arg rewrite at `{name}` → `{}` +
+appended `name` arg per Rust RFC 2795 (small extension to the
+existing `expand_format_macros` walk).
+
+### Fixture
+
+`tests/fixtures/v0741_inline_format_arg_halt.nr` — negative fixture
+for `format!("{n}")` (fires Rust 1.58 inline-arg halt with
+explicit-arg workaround, not the count-mismatch).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `d20974696b5c9fb4fa1f3559c1de5c2f`.
+
 ## [0.7.40] — 2026-05-04
 
 **Defensive halt — Rust ownership/conversion-trait methods
