@@ -5,6 +5,80 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.10] — 2026-05-04
+
+**Phase B step-2 expansion — `@policy` policy-name + `@enclave`
+engine-name extraction.**
+
+Extends the v0.8.9 step-2 author-list extraction pattern to two
+more attribute families. The new helper
+`attribute_audit_first_ident_arg(src, needle) -> str` handles
+the bare-identifier argument shape that `@enclave(tdx)` and
+`@policy(no_unsafe)` use; v0.8.9's `attribute_audit_first_str_arg`
+handles the quoted-string shape.
+
+Build summary lines (when count > 0):
+
+```
+audit: @enclave fns in build: 2
+audit:   engines: tdx; sev_snp
+audit: @policy decls in build: 3
+audit:   policies: no_unsafe; require_authored; no_extern
+```
+
+Adopters porting RFC-0057 confidential-computing code now see
+the actual TEE engines targeted; RFC-0060 governance code sees
+the actual policy gates declared. One-line discovery delta per
+attribute family using the same helper across all of them.
+
+### Implementation
+
+`attribute_audit_first_ident_arg` walks each `@<attr>(`
+occurrence, skips whitespace + tab, and captures consecutive
+`is_alnum` chars (matching ident class). Captures joined with
+`; ` into one output string. Empty when no ident argument
+present.
+
+Pattern for extension to future attrs is now uniform:
+
+```nucleor
+let count: i64 = simple_attribute_audit_count(src, needle);
+if count > 0 {
+    print(str_concat("audit: @<attr> ... in build: ", str_from_int(count)));
+    let names: str = attribute_audit_first_(ident|str)_arg(src, needle);
+    if str_len(names) > 0 {
+        print(str_concat("audit:   <kind>: ", names));
+    };
+};
+```
+
+### Smoke fixture
+
+`tests/fixtures/v0810_phaseB_policy_enclave_list_smoke.nr` — 3
+fns tagged `@policy(...)` with three different policy names, 2
+fns tagged `@enclave(...)` with two engines. Runtime returns 5.
+Build log emits the engine + policy lists alongside the counts
+once `bin/nucleor.exe` is rebuilt from the new seed.
+
+### Status
+
+Adopters using the existing `bin/nucleor.exe` (built from a
+pre-v0.8.5 seed) won't see audit messages until the next
+perf-integration ship rebuilds the binary. The seed itself
+contains the Phase B logic; T1.7 fixed-point validates.
+
+Phase B step-2 status:
+- `@authored` author names — v0.8.9 ✓
+- `@policy` policy names — v0.8.10 ✓ (this ship)
+- `@enclave` engine names — v0.8.10 ✓ (this ship)
+- `@photonic[device=...]` — bracket-form, deferred (uses `[`
+  instead of `(`; needs separate helper)
+- Numeric value attrs (`@energy(max=2mJ)`, `@thermal(max_temp=70C)`,
+  `@within(200ns)`) — deferred (need value+unit parser)
+
+Fixed-point md5: `B553C139BBA8F2539AC7023062A2160C`.
+Cold 3.16s / peak 310MB (under 4s job #1).
+
 ## [0.8.9] — 2026-05-04
 
 **Phase B step-2 first ship — `@authored` author-list extraction.**
