@@ -5,6 +5,87 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.68] — 2026-05-04
+
+**RFC-0062 G-4 Phase 2b — sentinel-based runtime double-free
+guard. Production-grade, reliable, no false positives.**
+
+Replaces the v0.8.67 ring-buffer guard. The ring-buffer
+approach had false positives because malloc reuses freed
+memory; a new vec_new at a previously-freed address tripped
+the guard. The new sentinel approach is reliable.
+
+### Mechanism
+
+When `NUC_VEC_FREE_GUARD=1`:
+1. `vec_free` checks if `v->cap == 0xDEADBEEF` (sentinel) — if
+   so, PANIC-DOUBLE-FREE.
+2. Otherwise, free the data buffer (`v->data`), set sentinel
+   `v->cap = 0xDEADBEEF`, leave the NVec struct ALIVE.
+3. The struct (~32 bytes) leaks intentionally — the cost of
+   reliable detection. No malloc reuse interferes because the
+   struct's memory is never returned to the allocator.
+
+When `NUC_VEC_FREE_GUARD` unset (default OFF):
+- Identical pre-v0.8.67 semantics. Frees data + struct.
+
+### Smoke verification
+
+```bash
+NUC_VEC_FREE_GUARD=1 ./adopter_with_double_free
+PANIC-DOUBLE-FREE[OWN-012]: vec_free called twice on the same handle (0x1c7373b6610).
+  This is a use-after-drop / double-free bug in adopter code.
+  Per RFC-0062 G-4 Phase 2b runtime guard (sentinel-based).
+  ...
+exit code: 134
+```
+
+### Trade-offs
+
+- **Memory cost (guard ON):** ~32 bytes per ever-allocated Vec
+  leaks intentionally. For adopter test fixtures (typically
+  10-100 vec allocs), negligible. For seed self-host (~50K
+  allocs over compile lifetime), ~1.6MB leak — acceptable for
+  test/dev use.
+- **Perf cost (guard ON):** one extra branch per vec_free. < 1ns.
+- **Default OFF rationale:** zero-cost guarantee for production
+  adopter code; opt-in safety for test/dev. Phase 4 v1.0 may
+  flip default ON pending leak budget review.
+
+### What this unlocks
+
+The unconditional default-flip ship (currently blocked) can
+now be staged via:
+
+```
+1. Adopter tests with NUC_VEC_FREE_GUARD=1 + NUC_AUTO_DROP_DEFAULT=1
+   → reliable double-free detection if any handoff missed
+2. Per-rod manual handoff audit using guard-on test fixtures
+3. Once audit clean, ship unconditional flip
+```
+
+The guard is the safety net that makes default-flip rollout
+practical: silent corruption becomes a clean PANIC.
+
+### Phase 2b-3 status — UPDATED
+
+```
+v0.8.64  cache-key fix              DONE
+v0.8.65  flip ATTEMPT (reverted)    NEEDED REVIEW
+v0.8.66  rollback + sister fixes    DONE
+v0.8.67  ring-buffer guard          SUPERSEDED
+v0.8.68  sentinel guard (opt-in)    DONE (this — reliable)
+NEXT:    per-rod handoff audit using guard-on tests
+THEN:    unconditional flip safe
+```
+
+### Perf
+
+Cold 3.64s, hot 0.41s. Within Job #1.
+
+Fixed-point md5: `149da1db92c6e2d286fdb6c2ee952e26` (unchanged
+from v0.8.67 — only C runtime changed).
+
 ## [0.8.67] — 2026-05-04
 
 **RFC-0062 G-4 Phase 2b — runtime double-free guard (opt-in)

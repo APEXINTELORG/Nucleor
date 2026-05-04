@@ -2367,36 +2367,35 @@ NVec *__nucleor_vec_with_capacity(long long n) {
     return v;
 }
 
-// v0.8.67 RFC-0062 G-4 Phase 2b — runtime double-free guard.
-// Defense-in-depth for the eventual unconditional default-flip
-// (Phase 2b-3). The static handoff heuristic (audit + classifier)
-// missed the attention2 rod handoffs in v0.8.65, causing segfault.
-// This runtime guard catches the resulting double-free with a
-// clean PANIC-DOUBLE-FREE diagnostic instead of silent heap
-// corruption.
+// v0.8.68 RFC-0062 G-4 Phase 2b — runtime double-free guard
+// (sentinel-based, reliable). Production-grade defense in depth
+// for the eventual unconditional default-flip.
 //
-// Implementation: recently-freed-handles ring buffer. On every
-// vec_free, scan the buffer for the handle. If present, panic
-// (double free). Otherwise, free + record. Buffer is 256 entries
-// = 2KB; covers the common pattern of double-free-shortly-after-
-// first-free. Racy across threads (single buffer, no lock); v0.x
-// runtime is single-mutator-thread per RFC-0062 G-6 Phase 1, so
-// this is sound given the contract.
-#define NUC_VEC_FREE_RING_SIZE 256
-static long long g_vec_free_ring[NUC_VEC_FREE_RING_SIZE];
-static int g_vec_free_ring_head = 0;
-static int g_vec_free_ring_disabled = 0;  // env opt-out
+// Approach: when NUC_VEC_FREE_GUARD=1, vec_free DOES NOT free
+// the NVec struct itself. It frees the data buffer and stamps
+// the struct with a magic sentinel in v->cap. On subsequent
+// vec_free of the same handle, the sentinel check fires and we
+// PANIC. The struct (~32 bytes) leaks intentionally — that's
+// the cost of reliable detection. Adopters get true safety.
+//
+// Default OFF: zero overhead, identical pre-v0.8.67 semantics.
+// Opt-in via NUC_VEC_FREE_GUARD=1 for memory-safety testing.
+// Phase 4 v1.0 may flip the default ON when leak budget is
+// reviewed.
+//
+// Why not the v0.8.67 ring buffer: malloc reuses freed memory
+// → naive ring-buffer false-positives on legitimate alloc reuse
+// (caught at default-on in v0.8.67 testing). Sentinel-in-struct
+// is reliable IF the struct itself isn't freed.
+//
+// Why not magic sentinel + free(): malloc may immediately reuse
+// the freed page, overwriting the sentinel. Defeats the check.
+//
+// The leak-the-struct trade is the cleanest reliable approach.
+// v0.x mutator-single-threaded contract per RFC-0062 G-6 Phase 1
+// means no thread-safety concerns.
+#define NUC_VEC_FREED_SENTINEL_CAP ((int)0xDEADBEEF)
 
-// v0.8.67 design note: guard is OPT-IN via NUC_VEC_FREE_GUARD=1.
-// A naive "ring buffer of recently-freed handles" produces false
-// positives because malloc reuses freed memory — a new vec_new
-// at the same address would trip the guard. Production-grade
-// double-free detection requires either (a) magic sentinel in
-// Vec struct (changes layout — risky for fixed-point), or
-// (b) instrumented malloc with separate metadata. Both deferred.
-// The opt-in mode is useful for ADOPTER testing under
-// NUC_VEC_FREE_GUARD=1 against code patterns where malloc reuse
-// is unlikely (small test fixtures).
 static int _nuc_vec_free_guard_enabled(void) {
     static int g_checked = 0;
     static int g_enabled = 0;  // OFF by default
@@ -2408,50 +2407,51 @@ static int _nuc_vec_free_guard_enabled(void) {
     return g_enabled;
 }
 
-static int _nuc_vec_free_ring_contains(long long handle) {
-    for (int i = 0; i < NUC_VEC_FREE_RING_SIZE; i++) {
-        if (g_vec_free_ring[i] == handle) return 1;
-    }
-    return 0;
-}
-
-static void _nuc_vec_free_ring_record(long long handle) {
-    g_vec_free_ring[g_vec_free_ring_head] = handle;
-    g_vec_free_ring_head = (g_vec_free_ring_head + 1) % NUC_VEC_FREE_RING_SIZE;
-}
-
 // Free a Vec and its data. The handle is invalid after this call.
 // Always-linked counterpart of mem_rt.c's nuc_vec_free, so user code
 // (and the compiler itself) can reclaim a Vec without importing
 // stdlib/rods/mem.nr. Safe on null handles.
 //
-// v0.8.67: catches double-free via the ring buffer (within the
-// last 256 frees). Set NUC_VEC_FREE_GUARD=0 to disable.
+// v0.8.68: under NUC_VEC_FREE_GUARD=1, leaves the NVec struct
+// alive with sentinel cap=0xDEADBEEF for reliable double-free
+// detection. Default OFF.
 void __nucleor_vec_free(long long handle) {
     if (handle == 0) return;
-    if (_nuc_vec_free_guard_enabled() && _nuc_vec_free_ring_contains(handle)) {
-        fprintf(stderr,
-            "PANIC-DOUBLE-FREE[OWN-012]: vec_free called twice on the same handle (0x%llx).\n"
-            "  This is a use-after-drop / double-free bug in adopter code.\n"
-            "  Per RFC-0062 G-4 Phase 2b runtime guard.\n"
-            "  Workaround: trace the call sites that call vec_free on the same Vec.\n"
-            "  Common cause: a fn returning a Vec that the caller subsequently\n"
-            "  also tried to free, OR the compiler's auto-drop pipeline missed\n"
-            "  a manual-free call site.\n"
-            "  To suppress this guard (disabled by default in v1.0+), set\n"
-            "  env NUC_VEC_FREE_GUARD=0 — but the underlying double-free\n"
-            "  remains a memory-safety bug.\n",
-            (unsigned long long)handle);
-        fflush(stderr);
-        exit(134);  // standard double-free abort code
-    }
     NVec *v = (NVec *)(void *)(size_t)handle;
     if (!v) return;
+    if (_nuc_vec_free_guard_enabled()) {
+        // Check sentinel BEFORE accessing other fields — if this
+        // is a double-free, the previous vec_free set cap to the
+        // sentinel value. Safe to read since we never freed the
+        // struct under guard mode.
+        if (v->cap == NUC_VEC_FREED_SENTINEL_CAP) {
+            fprintf(stderr,
+                "PANIC-DOUBLE-FREE[OWN-012]: vec_free called twice on the same handle (0x%llx).\n"
+                "  This is a use-after-drop / double-free bug in adopter code.\n"
+                "  Per RFC-0062 G-4 Phase 2b runtime guard (sentinel-based).\n"
+                "  Common cause: a fn returning a Vec that the caller subsequently\n"
+                "  also tried to free, OR the compiler's auto-drop pipeline missed\n"
+                "  a manual-free call site.\n"
+                "  This guard is reliable (no false positives from malloc reuse).\n"
+                "  To disable, unset env NUC_VEC_FREE_GUARD or set it to 0 — but\n"
+                "  the underlying double-free remains a memory-safety bug.\n",
+                (unsigned long long)handle);
+            fflush(stderr);
+            exit(134);  // standard double-free abort code
+        }
+        // Free the data buffer; INTENTIONALLY do NOT free(v).
+        // Stamp the sentinel so a subsequent vec_free on the
+        // same handle panics. The NVec struct (~32 bytes) leaks
+        // — that's the cost of reliable detection.
+        if (v->data && v->data != v->inline_data) free(v->data);
+        v->data = NULL;
+        v->len = 0;
+        v->cap = NUC_VEC_FREED_SENTINEL_CAP;
+        return;
+    }
+    // Default path: pre-v0.8.67 semantics. Free everything.
     if (v->data && v->data != v->inline_data) free(v->data);
     free(v);
-    if (_nuc_vec_free_guard_enabled()) {
-        _nuc_vec_free_ring_record(handle);
-    }
 }
 
 // Free a heap-allocated string previously returned by str_concat,
