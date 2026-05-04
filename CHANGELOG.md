@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.62] — 2026-05-04
+
+**Defensive halt — qualified-path supertrait `trait Sub:
+super::Iterator { ... }` (or `trait Sub: std::fmt::Display`) now
+produces a clean halt with a drop-the-namespace workaround
+pointer.**
+
+Pre-fix: writing `trait Sub: super::Iterator { fn extra(self) ->
+i64; }` surfaced as wrong-class `error[NR020]: parse error:
+expected '{', got token 46` because the supertrait parser reads
+only a bare identifier and leaves `::Path` unconsumed. Sister to
+v0.7.37 (`std::collections::HashMap` in type position) and v0.6.96
+(call-position path) — completes the path-type halt family for
+supertrait position.
+
+Post-fix: `parse_trait_decl` checks for `::` (token 46) right
+after the first super-trait name and halts cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+trait Sub: super::Iterator { fn extra(self) -> i64; }
+//         ^^^^^^^^^^^^^^^^^ NR020 expected '{', got token 46
+trait Sub: std::fmt::Display { ... }
+
+// Post-fix workaround — drop the namespace prefix:
+trait Sub: Iterator { fn extra(self) -> i64; }
+trait Sub: Display { ... }
+```
+
+Nucleor's supertrait list accepts bare names today; the namespace
+prefix is informational-only at the trait-decl level. Forward-
+roadmap: path-resolver for supertrait names (sister to v0.7.37
+type-position path-resolver).
+
+### Fixture
+
+`tests/fixtures/v0762_qualified_supertrait_halt.nr` — negative
+fixture for `trait Sub: super::Iterator { ... }` (fires path-
+supertrait halt with drop-namespace workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `3ca87ef8362b372ffbdbe4451b2ef28e`.
+Cold 3.94s / peak 307MB.
+
 ## [0.7.61] — 2026-05-04
 
 **Defensive halt — `unsafe trait T { ... }` and `unsafe impl T
