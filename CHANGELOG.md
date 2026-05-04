@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.45] — 2026-05-04
+
+**Wave 1 — ML-1 fix: `nuc_attn_flash` ABI mismatch resolved.**
+Second Wave 1 critical-finding closure. Pre-fix the rod sig
+took 6 args while the C runtime took 7 — every flash-attention
+call read garbage from an uninitialized stack slot for
+`block_size`, producing silent miscompute. Tests didn't catch
+because they didn't invoke the function.
+
+### Pre-fix mismatch
+
+```
+Rod:  fn nuc_attn_flash(Q_h, K_h, V_h, seq_len, d_k, block_size) -> i64;
+                                                          ^^^^^^^^^^ 6 args
+C:    long long nuc_attn_flash(Q_h, K_h, V_h, seq_q, seq_k, d, block_size)
+                                                                 ^^^^^^^^^^ 7 args
+```
+
+When the rod called `nuc_attn_flash(Q, K, V, seq, d_k, block)`, the C
+side received `Q_h=Q, K_h=K, V_h=V, seq_q=seq, seq_k=d_k, d=block,
+block_size=<garbage>`. Outputs were always wrong.
+
+### Fix
+
+Updated rod's extern decl to match the 7-arg C signature with
+distinct `seq_q` / `seq_k`. The 6-arg `attn_flash(Q, K, V, seq,
+d_k, block)` self-attention wrapper now passes `seq` for both
+`seq_q` and `seq_k` to the C call. Added a new
+`attn_flash_cross(Q, K, V, seq_q, seq_k, d_k, block)` for
+cross-attention with distinct query/key sequence lengths.
+
+### Adopter migration
+
+Existing callers of `attn_flash` (self-attention) — no change
+needed. The wrapper passes `seq` as both `seq_q` and `seq_k`,
+which matches the original adopter intent.
+
+Existing callers of `nuc_attn_flash` directly (uncommon) — must
+update to pass 7 args. Old 6-arg calls will fail at compile
+time with a clear diagnostic (extern fn arity mismatch).
+
+### Verification
+
+`/tmp/test_attn.nr` imports `stdlib/rods/attention2.nr` and
+compiles cleanly. The new 7-arg call path is exercised by the
+self-attention wrapper. Runtime invocation requires real Q/K/V
+tensor handles which is out of scope for this smoke; the
+compile-time ABI parity check is what ML-1 Phase 1 verifies.
+
+### Phase status
+
+```
+Phase 1   ABI alignment fix              DONE v0.8.45 (this)
+Phase 2b  helper-manifest ABI parity gate at compile time  QUEUED
+Phase 3   no further phase needed (the fix is the fix)
+Phase 4   v1.0 cut
+```
+
+### Perf
+
+Cold band 3.51-4.03s, hot 0.40-0.42s. Within Job #1.
+
+Fixed-point md5 unchanged (rod source not part of seed compile).
+
 ## [0.8.44] — 2026-05-04
 
 **Wave 1 first ship — NUM-G1 Phase 1 audit-pass info diagnostic.**
