@@ -5579,9 +5579,33 @@ long long __nucleor_hashmap_clear(long long h) {
     m->len = 0;
     return 0;
 }
+// v0.8.69 RFC-0062 G-4 Phase 2b — sentinel guard for hashmap_free.
+// Sister of vec_free. When NUC_VEC_FREE_GUARD=1, panics on
+// double-free with diagnostic. Default OFF: same pre-v0.8.69
+// semantics. Sentinel: cap = 0xDEADBEEF when freed.
 long long __nucleor_hashmap_free(long long h) {
+    if (h == 0) return 0;
     NHashMap *m = (NHashMap *)(intptr_t)h;
     if (!m) return 0;
+    if (_nuc_vec_free_guard_enabled()) {
+        if (m->cap == NUC_VEC_FREED_SENTINEL_CAP) {
+            fprintf(stderr,
+                "PANIC-DOUBLE-FREE[OWN-012]: hashmap_free called twice on the same handle (0x%llx).\n"
+                "  Sister of vec_free guard. Per RFC-0062 G-4 Phase 2b sentinel-based runtime guard.\n",
+                (unsigned long long)h);
+            fflush(stderr);
+            exit(134);
+        }
+        long long i;
+        for (i = 0; i < m->cap; i++) {
+            if (m->slots[i].occupied) free(m->slots[i].key);
+        }
+        free(m->slots);
+        m->slots = NULL;
+        m->len = 0;
+        m->cap = NUC_VEC_FREED_SENTINEL_CAP;
+        return 0;
+    }
     long long i;
     for (i = 0; i < m->cap; i++) {
         if (m->slots[i].occupied) free(m->slots[i].key);

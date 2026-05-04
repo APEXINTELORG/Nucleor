@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.69] — 2026-05-04
+
+**RFC-0062 G-4 Phase 2b — sentinel guard extended to hashmap_free.**
+Sister of v0.8.68 vec_free guard. Now both heap-backed types
+have reliable double-free detection under `NUC_VEC_FREE_GUARD=1`.
+
+### What's enforced today
+
+```
+PANIC-DOUBLE-FREE[OWN-012]: hashmap_free called twice on the same handle (0x...).
+  Sister of vec_free guard. Per RFC-0062 G-4 Phase 2b sentinel-based runtime guard.
+```
+
+Exit 134, same as vec_free guard.
+
+### Mechanism (mirror of v0.8.68)
+
+When NUC_VEC_FREE_GUARD=1: `hashmap_free` checks `m->cap ==
+0xDEADBEEF` first → PANIC if so. Otherwise frees slot keys +
+slot array, sets sentinel, leaves NHashMap struct alive (~24
+bytes intentional leak).
+
+Default OFF: identical pre-v0.8.69 semantics.
+
+### Smoke verification
+
+```nucleor
+let mut m: HashMap<str, i64> = HashMap::new();
+m.insert("k", 1);
+hashmap_free(m);
+hashmap_free(m);  // PANIC-DOUBLE-FREE under guard
+```
+
+Confirmed: clean panic + exit 134 under `NUC_VEC_FREE_GUARD=1`.
+
+### Coverage
+
+```
+__nucleor_vec_free       sentinel guard  v0.8.68
+__nucleor_hashmap_free   sentinel guard  v0.8.69 (this)
+__nucleor_str_free       no guard yet (pure free; harder
+                         to instrument without struct
+                         allocation tracking)
+__nucleor_box_free       no guard yet (sister to above;
+                         queued for next ship)
+```
+
+The most-impactful types (Vec, HashMap) now have reliable
+double-free detection. String + Box are queued.
+
+### Perf
+
+Cold band 3.60-4.17s (multi-agent contention), hot 0.41-0.78s.
+Within Job #1.
+
+Fixed-point md5: unchanged (only C runtime extended).
+
 ## [0.8.68] — 2026-05-04
 
 **RFC-0062 G-4 Phase 2b — sentinel-based runtime double-free
