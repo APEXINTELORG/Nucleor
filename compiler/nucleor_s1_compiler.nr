@@ -27794,14 +27794,13 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v086_thermal_count: i64 = simple_attribute_audit_count(after_async, str_concat("@therm", "al("));
     if v086_thermal_count > 0 {
         print(str_concat("audit: @thermal budgets in build: ", str_from_int(v086_thermal_count)));
-        // v0.8.11 Phase B step-2: emit the actual thermal values.
-        // @thermal(max_temp=85C) -> "85C". For range syntax
-        // @thermal(min_temp=-40C, max_temp=85C), only the FIRST
-        // key=val pair is captured by the helper; full range
-        // capture deferred until step-3 multi-key parser.
-        let v0811_thermal_vals: str = attribute_audit_value_arg(after_async, str_concat("@therm", "al("));
-        if str_len(v0811_thermal_vals) > 0 {
-            print(str_concat("audit:   thermal values: ", v0811_thermal_vals));
+        // v0.8.13 Phase B step-3: emit the FULL multi-key range
+        // for @thermal. @thermal(min_temp=-40C, max_temp=85C)
+        // surfaces as "min_temp=-40C; max_temp=85C" instead of
+        // just the first key (the v0.8.11 limitation).
+        let v0813_thermal_vals: str = attribute_audit_all_kv_pairs(after_async, str_concat("@therm", "al("));
+        if str_len(v0813_thermal_vals) > 0 {
+            print(str_concat("audit:   thermal values: ", v0813_thermal_vals));
         };
     };
     // v0.8.7 (RFC-0052/53/57/60 Phase B step-1) — extended
@@ -28967,6 +28966,70 @@ fn simple_attribute_audit_count(src: str, needle: str) -> i64 {
         };
     };
     return count;
+}
+
+// v0.8.13 Phase B step-3: capture ALL `key=value` pairs from
+// each `@<attr>(...)` invocation (multi-key form). Returns a
+// `; `-separated list of `key=value` strings.
+//
+// `@thermal(min_temp=-40C, max_temp=85C)` -> "min_temp=-40C; max_temp=85C"
+// `@energy(max=2mJ)` -> "max=2mJ"
+//
+// Captures everything from the first non-whitespace char after
+// `(` up to the matching `)`, then walks through the captured
+// arg-list character-by-character, splitting on `,` (depth-0)
+// and emitting trimmed pieces.
+fn attribute_audit_all_kv_pairs(src: str, needle: str) -> str {
+    let slen: i64 = str_len(src);
+    let nlen: i64 = str_len(needle);
+    let mut out: str = "";
+    let mut emitted: i64 = 0;
+    if nlen <= 0 { return out; };
+    let mut p: i64 = 0;
+    while p + nlen <= slen {
+        if str_eq_at(src, p, needle) == 1 {
+            let q: i64 = p + nlen;
+            // Walk to the matching close-paren (depth aware).
+            let mut depth: i64 = 1;
+            let mut close: i64 = q;
+            while close < slen && depth > 0 {
+                let ch: i64 = str_char_at(src, close);
+                if ch == 40 { depth = depth + 1; };
+                if ch == 41 { depth = depth - 1; };
+                if depth > 0 { close = close + 1; };
+            };
+            // Walk q..close, splitting on top-level `,`.
+            let mut piece_start: i64 = q;
+            let mut i: i64 = q;
+            let mut inner_depth: i64 = 0;
+            while i <= close {
+                let at_close: i64 = if i == close { 1 } else { 0 };
+                let ch: i64 = if i < slen { str_char_at(src, i) } else { 0 };
+                let is_split: i64 = if at_close == 1 { 1 } else if ch == 44 && inner_depth == 0 { 1 } else { 0 };
+                if is_split == 1 {
+                    let mut s0: i64 = piece_start;
+                    let mut s1: i64 = i;
+                    while s0 < s1 && (str_char_at(src, s0) == 32 || str_char_at(src, s0) == 9) { s0 = s0 + 1; };
+                    while s1 > s0 && (str_char_at(src, s1 - 1) == 32 || str_char_at(src, s1 - 1) == 9) { s1 = s1 - 1; };
+                    if s1 > s0 {
+                        if emitted == 1 { out = str_concat(out, "; "); };
+                        out = str_concat(out, str_substring(src, s0, s1));
+                        emitted = 1;
+                    };
+                    piece_start = i + 1;
+                };
+                if i < close {
+                    if ch == 40 { inner_depth = inner_depth + 1; };
+                    if ch == 41 && inner_depth > 0 { inner_depth = inner_depth - 1; };
+                };
+                i = i + 1;
+            };
+            p = close + 1;
+        } else {
+            p = p + 1;
+        };
+    };
+    return out;
 }
 
 // v0.8.11 Phase B step-2: extract numeric value+unit pairs from

@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.13] — 2026-05-04
+
+**Phase B step-3 — multi-key range capture for `@thermal`.**
+
+Closes the v0.8.11 limitation where `@thermal(min_temp=-40C,
+max_temp=85C)` only emitted the first `key=val` pair. New
+helper `attribute_audit_all_kv_pairs(src, needle) -> str`
+captures every comma-separated `key=val` segment between the
+matching parens, depth-aware (nested parens don't split), with
+whitespace trimming on each segment. Captures join with `; `
+across all attribute invocations.
+
+Build summary lines (when count > 0):
+
+```
+audit: @thermal budgets in build: 2
+audit:   thermal values: min_temp=-40C; max_temp=85C; max_temp=70C
+```
+
+Adopters porting RFC-0050 automotive-grade temperature ranges
+now see the full lower + upper bound at build. The same helper
+plugs into any future multi-key attribute (e.g.,
+`@within(start=200ns, end=500ns)`).
+
+Smoke fixture: `tests/fixtures/v0813_phaseB_multikey_smoke.nr`.
+
+Cron concurrently shipped v0.8.12 with a str-method-dispatch
+fix for untyped let bindings (see entry below).
+
+Fixed-point md5: `C631C792ADD1D248FDD8A85660B45CE0` (pre-merge).
+Cold 3.13s / peak 306MB (under 4s job #1).
+
 ## [0.8.12] — 2026-05-04
 
 **Fix: str method dispatch for untyped let bindings (wrong-class TYP-005).**
