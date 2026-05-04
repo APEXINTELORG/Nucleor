@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.115] — 2026-05-04
+
+**stdlib/rods/bitwise.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `bitwise.nr` (FFI-based
+bit ops: and/or/xor/not, shifts, bit_test/set/clear,
+arithmetic-right-shift companion) had no existing tests. Same
+risk class as bits.nr — silent regression in any operator
+corrupts every consumer.
+
+### The fixture
+
+`tests/features/bitwise_smoke.nr` covers six invariant classes:
+
+| Test | Invariant |
+|---|---|
+| AND/OR/XOR identities | `a & a == a`, `a \| a == a`, `a ^ a == 0`, `0xFF & 0x0F == 0x0F`, `0xF0 \| 0x0F == 0xFF` |
+| NOT involutive | `bit_not(bit_not(a)) == a` for any value |
+| XOR self-inverse | `(a ^ b) ^ b == a` |
+| shift round-trip (unsigned, no sign bit) | `shift_right(shift_left(a, n), n) == a` |
+| bit_test/set/clear | bit_set(0, 5) → bit_test=1; bit_clear unsets |
+| arithmetic right shift | `shift_right_signed(-1, 5) == -1` (sign extends); `16 >> 2 == 4` |
+
+All six pass. rc=0. Cold 0.62s.
+
+### Significance
+
+Catches silent regressions in:
+
+- FFI argument-passing for the rod's runtime helpers
+- Sign handling of arithmetic vs unsigned right shift (any
+  swap surfaces in test 6)
+- bit_set/clear/test triplet consistency
+- Identity-and-inverse algebra (catches sign-flip / negation
+  errors common to ad-hoc bit-twiddling)
+
+This is the second bit-manipulation rod with first coverage
+(after `bits.nr` v0.8.112). Both surfaces are now locked
+against silent regression.
+
+Other zero-coverage rods queued: autodiff / cli / collections /
+fluid / fs / ahrs / apf / astar / audio / ba / bayesian / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.114] — 2026-05-04
 
 **stdlib/rods/control.nr first test coverage (PID slice).** Pure
