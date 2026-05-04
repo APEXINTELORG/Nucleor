@@ -5,6 +5,52 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.47] — 2026-05-04
+
+**Defensive halt — local type alias `type Foo = Bar;` inside a fn
+body now produces a clean halt with a hoist-to-module-scope
+workaround pointer.**
+
+Pre-fix: writing `type Pair = (i64, i64);` inside a fn body
+surfaced as wrong-class `error[NR020]: parse_primary cannot start
+an expression at token kind 74` because `parse_stmt` had no branch
+for the `type` keyword (token 74) and fell through to `parse_expr`,
+which also has no `type` branch, so the error bubbled up from
+`parse_primary`. Note: module-level type aliases work fine —
+`parse_program` already dispatches kind-74 to
+`parse_type_alias_decl`.
+
+Post-fix: `parse_stmt` now checks for `tt == 74` before the
+`parse_expr` fallthrough and halts with a tailored diagnostic:
+
+```nucleor
+// Pre-fix wrong-class:
+fn main() -> i64 {
+    type Pair = (i64, i64);   // ← NR020 parse_primary token kind 74
+    return 0;
+}
+
+// Post-fix workaround — hoist alias to module scope:
+type Pair = (i64, i64);
+fn main() -> i64 {
+    return 0;
+}
+```
+
+Module-level `type Alias = ...;` works cleanly. Forward-roadmap:
+local type aliases need scope-chain resolution, sister to the
+generic type-alias resolver.
+
+### Fixture
+
+`tests/fixtures/v0747_local_type_alias_halt.nr` — negative fixture
+for `type Pair = (i64, i64);` in fn body (fires local-type-alias
+halt with hoist workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `a436c430a742f47b7a28df7fc3edd525`.
+
 ## [0.7.46] — 2026-05-04
 
 **Defensive halt — `else if` (or `else if let`) chained after an

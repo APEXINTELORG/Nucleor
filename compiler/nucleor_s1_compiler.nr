@@ -3422,6 +3422,21 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         return pr(cp, mk2(pool, 26, 0));
     };
     if tt == 19 { let mut cp: i64 = pos + 1; if pk(tokens, cp) == 43 { cp = cp + 1; }; return pr(cp, mk2(pool, 27, 0)); };
+    // v0.7.47 (defensive halt — Rust local type alias `type Foo = Bar;`
+    // inside a fn body). Pre-fix this surfaced as wrong-class
+    // `error[NR020]: parse_primary cannot start an expression at token
+    // kind 74` because parse_stmt fell through to parse_expr which has
+    // no `type` branch. Nucleor supports module-level type aliases fine
+    // (parse_program dispatches kind-74 to parse_type_alias_decl) but
+    // the fn-body statement parser never saw the keyword.
+    // Workaround: hoist the type alias to module scope (just outside
+    // any fn body) — module-level `type Foo = Bar;` works cleanly.
+    if tt == 74 {
+        let v747_alias_name: str = if pk(tokens, pos + 1) == 1 { pkv(tokens, pos + 1) } else { "<Alias>" };
+        print(str_concat("ERROR: local type alias `type ", str_concat(v747_alias_name, " = ...;` inside a fn body is not yet supported in Nucleor. Pre-v0.7.47 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 74` because the fn-body statement parser had no `type` branch. Workaround: hoist the alias to module scope — place `type ")));
+        print(str_concat(v747_alias_name, str_concat(" = ...;` above all fn definitions at the top level of the file; module-level type aliases work cleanly. Tracked for forward-roadmap (local type aliases need scope-chain resolution, sister to the generic type-alias resolver).")));
+        panic("nucleor: local type alias in fn body not yet supported (see ERROR diagnostic above)");
+    };
     let mut er: Vec<i32> = parse_expr(tokens, pos, pool);
     let mut cp: i64 = pr_pos(er);
     if pk(tokens, cp) == 40 {
