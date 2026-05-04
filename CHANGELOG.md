@@ -5,6 +5,86 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.35] — 2026-05-04
+
+**RFC-0062 G-1 default-flip safety audit tool + report.**
+Critical infrastructure for the eventual Phase 2b-3 default-flip
+ship (every fn auto-drops unless `#[manual_drop]`). Surveys the
+seed compiler + stdlib rod tree to identify which fns would
+change behavior at the flip, so a per-fn safety review can be
+done first.
+
+### Tool
+
+`tools/g1_default_flip_safety_audit.py` — walks every `.nr`
+file in `compiler/` + `stdlib/rods/` and detects per fn:
+
+- heap-backed locals (Vec::new(), HashMap::new(), String::new(),
+  Box::new(), VecDeque::new())
+- explicit free calls (vec_free(, hashmap_free(, etc.)
+- `#[auto_drop]` attribute present
+- `#[manual_drop]` attribute present
+- owned-heap return type (Vec<...>, HashMap<...>, String, etc.)
+
+A fn is a **default-flip candidate** if it has heap-backed
+locals AND no explicit free AND no auto/manual attribute AND
+doesn't return owned heap. These would gain auto-drop under
+the default-flip.
+
+### Report — first survey
+
+```
+Files audited:               250
+Total fns:                   4215
+Fns with heap-backed locals: 334
+  of which:
+    already #[auto_drop]:    0   (the v0.8.20 7 fns are in
+                                  other compiler areas not covered
+                                  by the audit's heap-pattern set)
+    already #[manual_drop]:  0
+    has explicit free:       6
+    returns owned heap:      239
+    DEFAULT-FLIP CANDIDATES: 89
+```
+
+89 fns whose behavior would change. **Most are true leak
+candidates** — utility helpers (mk2/mk3/mk4 constructors),
+optimizer passes (opt_dce_block, opt_cse_block), format
+builders (expand_format_macros, fmt_build_expansion).
+These DON'T retain the heap-backed local past return; the
+fn currently leaks at exit.
+
+### Implication for default-flip
+
+Of the 89 candidates:
+- ~80 expected to be silent-leak fixes (default-flip HEALS)
+- ~5-9 may need spot-check for intentional registry handoff
+  (default-flip would BREAK; needs `#[manual_drop]`)
+
+The detail report `tools/g1_safety_audit_report.txt` lists
+each candidate by file + fn name. The next ship in the G-1
+sequence is per-candidate spot-check of the suspicious cases
+to identify any that need `#[manual_drop]` BEFORE the flip.
+
+After that spot-check, the actual default-flip becomes a
+single-line change in `name_in_auto_drop` (`return 1` by
+default) — the existing `#[manual_drop]` suppress (v0.8.32)
+handles the opt-out side.
+
+### Phase 2b-3 sequence
+
+1. v0.8.35 (this): audit tool + survey report — DONE
+2. vNext: per-candidate spot-check, add `#[manual_drop]` where
+   intentional handoff is identified
+3. vNext+1: flip default in `name_in_auto_drop` — the actual
+   semantic change ship
+4. vNext+2: lock-in test set covering at least 5 of the 89
+   former-candidate fns to verify no regression
+
+### Perf
+
+Cold 3.48s, hot 0.39s. No compiler change in this ship.
+
 ## [0.8.34] — 2026-05-04
 
 **Q2 — slice-pattern diagnostic refinement.** Last outstanding
