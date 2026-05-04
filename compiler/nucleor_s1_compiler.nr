@@ -28079,6 +28079,23 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.33: RFC-0062 G-6 Phase 2a — Sendable-edge surface
+    // info. Counts `HashMap<` and `RefCell<` / `Cell<` substrings.
+    // Phase 2b will close the four unaudited cases per
+    // docs/sendable-inventory.md §4. Gated behind cheap
+    // str_index_of pre-checks so adopter code with no
+    // HashMap/Cell pays zero cost for this audit.
+    let v0833_has_hm: i64 = if str_index_of(after_async, str_concat("HashMap", "<")) >= 0 { 1 } else { 0 };
+    let v0833_has_cell: i64 = if str_index_of(after_async, str_concat("Cell", "<")) >= 0 { 1 } else { 0 };
+    if v0833_has_hm == 1 || v0833_has_cell == 1 {
+        let v0833_send_count: i64 = simple_attribute_audit_count(after_async, str_concat("HashMap", "<"))
+                                  + simple_attribute_audit_count(after_async, str_concat("RefCell", "<"))
+                                  + simple_attribute_audit_count(after_async, str_concat("Cell", "<"));
+        if v0833_send_count > 0 {
+            print(str_concat("info[SEND-G6]: HashMap/Cell/RefCell types in build: ", str_from_int(v0833_send_count)));
+            print("  Per RFC-0062 G-6 Phase 2a: HashMap<K,V> Sendable propagation is unaudited in v0.x — Phase 2b adds the rule (Sendable iff K and V are Sendable AND hasher is Sendable). Cell<T> / RefCell<T> are explicit REJECTS for Sendable (interior mutability incompatible with cross-thread). Today the spawn-call check may silently accept these — adopter discipline: avoid spawning with HashMap or Cell/RefCell in the spawned closure capture set until Phase 2b lands. Reference: docs/sendable-inventory.md §4.");
+        };
+    };
     // v0.8.31: RFC-0062 G-1 Phase 2b-1 — `#[manual_drop]`
     // reserved-attribute audit. Detects adopter use of the
     // future opt-out attribute. Today the attribute is a NO-OP;

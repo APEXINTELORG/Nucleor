@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.33] — 2026-05-04
+
+**RFC-0062 G-6 Phase 2a — SEND-G6 audit-pass info diagnostic.**
+First Phase 2a landing for the unaudited Sendable surface gap.
+Counts `HashMap<` / `Cell<` / `RefCell<` substring occurrences,
+gated behind a cheap `str_index_of` pre-check so adopter code
+without these types pays zero audit cost.
+
+### What's enforced today (Phase 2a)
+
+```
+info[SEND-G6]: HashMap/Cell/RefCell types in build: N
+  Per RFC-0062 G-6 Phase 2a: HashMap<K,V> Sendable propagation
+  is unaudited in v0.x — Phase 2b adds the rule (Sendable iff
+  K and V are Sendable AND hasher is Sendable). Cell<T> /
+  RefCell<T> are explicit REJECTS for Sendable (interior
+  mutability incompatible with cross-thread). Today the
+  spawn-call check may silently accept these — adopter
+  discipline: avoid spawning with HashMap or Cell/RefCell in
+  the spawned closure capture set until Phase 2b lands.
+```
+
+### Perf gate experiment
+
+A first attempt used `audit_count_three_needles_total` (single-
+pass, 3-needle cascade-if). Cold went 3.48 → 4.41s (~0.9s
+regression), hot went 0.40 → 0.78s. Reverted.
+
+Second attempt: 3 separate `simple_attribute_audit_count` calls,
+gated behind `str_index_of` pre-check. Cold 3.47/3.55/3.44 =
+mean **3.49s** (same as baseline). Hot back to 0.40s. **The
+3-needle cascade-if helper has hidden overhead vs 3 separate
+tight loops.** Lesson: each new audit pass should use the
+gated-3-separate-calls pattern, NOT the cascade-if helper.
+Updated note in IMPLEMENTATION-PLAN.
+
+### Phase 2a snapshot — eight signals firing on seed self-host
+
+```
+warning[BR-7]:                lifetime annotations:           13
+info[OWN-012]:                explicit free calls:            44
+info[FFI-NULL]:               raw-pointer return types:        4
+info[FFI-DIRECT]:             extern fn declarations:         27
+info[ALIAS-G3]:               Vec-of-reference patterns:       3
+info[SEND-G6]:                HashMap/Cell/RefCell types:     35
+info[MANUAL-DROP-RESERVED]:   #[manual_drop] markers:          7
+info[CFG-G8]:                 match expressions:             186
+```
+
+Six gaps now have Phase 2a coverage (G-2/G-3/G-4/G-5/G-6/G-8/
+G-9, plus the future-flip-prep G-1). Wave A is full-spectrum.
+
+Fixed-point md5: `ccb816af6521098a15b954908eff4601`.
+
 ## [0.8.32] — 2026-05-04
 
 **RFC-0062 G-1 Phase 2b-2 — `#[manual_drop]` suppress mechanism.**
