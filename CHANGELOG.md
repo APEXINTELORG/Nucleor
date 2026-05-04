@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.78] — 2026-05-04
+
+**Combined ship — RFC-0061 Tier 1 partial (graph remediation
+V1.17a) + Rust block-comment halt.**
+
+### RFC-0061 Tier 1 — `gnn` rod canonical wrapper-fn surface
+
+The RFC-0061 Tier-1 spec called out missing `gnn_circuit_to_graph`
+as one of the cheap-polish wrappers needed before V1.17a closes.
+The `gnn` rod previously had only `extern fn nuc_gnn_*` decls
+without the canonical safe-name `gnn_*` wrappers, so adopters
+following the rod-naming convention got TYP-005 at `gnn_*` use
+sites. v0.7.78 adds `gnn_circuit_to_graph` plus the paired wrapper
+surface (`gnn_graph_new`, `gnn_graph_free`, `gnn_graph_n_nodes`,
+`gnn_gatv2_*`, `gnn_global_*`, `gnn_layer_norm`, `gnn_relu`).
+
+Smoke fixture: `tests/fixtures/v0778_rfc0061_gnn_wrappers_smoke.nr`
+(compiles every wrapper as a guarded reference; runs rc=0).
+
+Remaining Tier 1 items (deferred to a future ship): `astar_free`
+(already exists), `graph_has_negative_cycle` /
+`graph_negative_cycle_path` (need new C-runtime primitives),
+adjacency-matrix view, CLI verb docs, 3 more smoke fixtures.
+
+### Defensive halt — Rust block comments `/* ... */`
+
+Pre-fix the `/` lexed as token kind 23 and `*` as token kind 22;
+the parser then saw a stray `/` at expression start and emitted
+wrong-class `error[NR020]: parse_primary cannot start an
+expression at token kind 23`. Halt now fires at lex when `/`
+is immediately followed by `*`, with a line-comment workaround
+pointer (replace each `/* abc */` with `// abc`).
+
+Sister to v0.6.58 raw-string halt (same lex-time wrong-class
+family). High value because adopter Rust code uses block comments
+constantly.
+
+Halt fixture: `tests/fixtures/v0778_block_comment_halt.nr`.
+
 ## [0.7.77] — 2026-05-04
 
 **Defensive halts (consolidated) — `yield <expr>;` (Rust nightly

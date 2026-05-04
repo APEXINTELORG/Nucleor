@@ -896,6 +896,20 @@ fn lex(src: str) -> Vec<i32> {
         else if c == 42 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(112, 0, p)); p = p + 2; }
         else if c == 42 { tokens.push(tok_new(22, 0, p)); p = p + 1; }
         else if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(113, 0, p)); p = p + 2; }
+        else if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 42 {
+            // v0.7.78 (defensive halt — Rust block comments
+            // `/* ... */` and doc-block `/** ... */`). Pre-fix the
+            // `/` lexed as token 23 and `*` as token 22; the parser
+            // saw a stray `/` at expression start and emitted
+            // wrong-class `error[NR020]: parse_primary cannot start
+            // an expression at token kind 23`. Adopters porting
+            // Rust code with block comments hit this constantly.
+            // Halt at lex with a clear diag pointing at the line-
+            // comment workaround. Sister to v0.6.58 raw-string
+            // halt (same lex-time wrong-class family).
+            print("ERROR: block comments `/* ... */` (and doc-block `/** ... */`) are not yet supported in Nucleor. Pre-v0.7.78 the `/` lexed as token kind 23 and `*` as token kind 22; the parser then saw a stray `/` at expression start and emitted wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 23`. Workaround: convert each line of the block comment to a line comment — replace `/* abc */` with `// abc`, and a multi-line block with a sequence of `// ...` lines. Tracked for forward-roadmap (block-comment lex skip is a small lex extension, sister to the line-comment skip already in place).");
+            panic("nucleor: block comment `/* ... */` not yet supported (see ERROR diagnostic above)");
+        }
         else if c == 47 { tokens.push(tok_new(23, 0, p)); p = p + 1; }
         else if c == 37 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(114, 0, p)); p = p + 2; }
         else if c == 37 { tokens.push(tok_new(24, 0, p)); p = p + 1; }
