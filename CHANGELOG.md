@@ -5,6 +5,68 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.15] — 2026-05-04
+
+**Phase B step-3 — fn-name extraction completes audit coverage
+across all 14 attribute families.**
+
+The remaining 6 attribute families that v0.8.5 / v0.8.7 / v0.8.8
+had count-only audit (`@differentiable`, `@attested`, `@hot`,
+`@const_fn`, `#[max_depth]`, `#[deadline]`) now emit the actual
+fn names alongside the count. New helper
+`attribute_audit_fn_names(src, needle) -> str` walks each
+`<needle>` occurrence, skips past optional `(...)` / `[...]`
+arglists + intervening attributes / docs / `pub`, lands on
+`fn NAME`, and captures NAME. Returns `; `-separated list.
+
+Build summary lines (when count > 0):
+
+```
+audit: @differentiable fns in build: 1
+audit:   differentiable fns: loss
+audit: @attested fns in build: 1
+audit:   attested fns: handshake
+audit: @hot fns in build: 1
+audit:   hot fns: hot_path
+audit: @const_fn fns in build: 1
+audit:   const_fn fns: ct_eval
+audit: #[max_depth] fns in build: 1
+audit:   max_depth fns: bounded
+audit: #[deadline] fns in build: 1
+audit:   deadline fns: timed
+```
+
+### Status — Phase B step-3 audit coverage
+
+All 14 attribute families now have **count + value-or-name**
+extraction:
+
+| Group | Attributes | Coverage |
+|---|---|---|
+| Quoted-string args (v0.8.9) | `@authored` | name |
+| Bare-ident args (v0.8.10) | `@policy`, `@enclave` | ident |
+| Numeric value+unit (v0.8.11) | `@energy`, `@within` | value |
+| Multi-key range (v0.8.13) | `@thermal` | full key=val list |
+| Bracket-form device (v0.8.14) | `@photonic`, `@neuromorphic` | device |
+| Plain fn-tag (v0.8.15, this) | `@differentiable`, `@attested`, `@hot`, `@const_fn`, `#[max_depth]`, `#[deadline]` | fn name |
+
+The Phase B step-3 audit channel is now COMPLETE. Phase B
+step-4 / step-5 work (per-family semantic enforcement: TYP-008
+frame mismatch, dim-vector check, energy-budget call-graph
+estimator, etc.) is the next-wave per family.
+
+Reusing v0.7.98's str_concat needle pattern across all 14
+needles avoids the verbatim-attribute self-match issue that
+the v0.7.88 compile_error! pre-pass surfaced. Sister to v0.7.98.
+
+### Smoke fixture
+
+`tests/fixtures/v0815_phaseB_fn_names_smoke.nr` — 6 fns across
+6 families. Runtime returns 6.
+
+Fixed-point md5: `2703B4C43F6D4E120CA62151E0723092`.
+Cold 3.14s / peak 313MB (under 4s job #1).
+
 ## [0.8.14] — 2026-05-04
 
 **Phase B step-3 — bracket-form device extraction for `@photonic`
