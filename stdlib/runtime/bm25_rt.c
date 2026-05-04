@@ -41,11 +41,14 @@ typedef struct {
 typedef struct {
     PostingList *terms;
     int n_terms;
-    int *doc_lengths;   // number of tokens per document
-    int n_docs;
+    int *doc_lengths;   // number of tokens per document (sparse, indexed by doc_id)
+    int n_docs;          // max_doc_id + 1 (treated as array bound for scoring loops)
     int cap_docs;
     double avg_dl;       // average document length
     double k1, b;        // BM25 parameters
+    int doc_count;       // v0.8.108: actually-added doc count (distinct from
+                         //          n_docs which is max_doc_id + 1). Tracks
+                         //          unique non-empty add_doc calls.
 } BM25Index;
 
 static int bm25_find_term(BM25Index *idx, unsigned int hash) {
@@ -87,12 +90,22 @@ void nuc_bm25_add_doc(long long idx_h, long long doc_id, const char *text) {
     if (!text) return;
     int did = (int)doc_id;
 
-    // Ensure doc_lengths capacity
+    // v0.8.108: track distinct-doc count via doc_lengths[did].
+    // Zero means this slot has never been populated. After
+    // realloc the new tail must be zeroed for this signal to
+    // be reliable.
+    int old_cap = idx->cap_docs;
     while (did >= idx->cap_docs) {
-        idx->cap_docs *= 2;
-        idx->doc_lengths = (int *)realloc(idx->doc_lengths, idx->cap_docs * sizeof(int));
+        int new_cap = idx->cap_docs * 2;
+        idx->doc_lengths = (int *)realloc(idx->doc_lengths, new_cap * sizeof(int));
+        // Zero only the newly-allocated tail (preserve existing entries).
+        memset(idx->doc_lengths + idx->cap_docs, 0, (new_cap - idx->cap_docs) * sizeof(int));
+        idx->cap_docs = new_cap;
     }
+    (void)old_cap;
+    int was_new = (idx->doc_lengths[did] == 0) ? 1 : 0;
     if (did >= idx->n_docs) idx->n_docs = did + 1;
+    if (was_new) idx->doc_count++;
 
     // Tokenize and count
     char *buf = (char *)malloc(strlen(text) + 1);
@@ -242,6 +255,11 @@ long long nuc_bm25_search(long long idx_h, const char *query, long long top_k) {
 }
 
 long long nuc_bm25_n_docs(long long idx_h) { return ((BM25Index *)(void *)idx_h)->n_docs; }
+// v0.8.108: distinct-doc count (number of unique add_doc calls
+// with previously-unseen doc_ids). For sequential 0..N-1 doc_ids
+// this equals n_docs; for sparse / non-sequential ids this is
+// strictly less than n_docs (which tracks max_doc_id + 1).
+long long nuc_bm25_doc_count(long long idx_h) { return ((BM25Index *)(void *)idx_h)->doc_count; }
 long long nuc_bm25_n_terms(long long idx_h) { return ((BM25Index *)(void *)idx_h)->n_terms; }
 
 void nuc_bm25_free(long long idx_h) {

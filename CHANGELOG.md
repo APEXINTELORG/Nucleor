@@ -5,6 +5,75 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.108] — 2026-05-04
+
+**`bm25_doc_count` companion lands — disambiguates the v0.8.107
+n_docs-as-max-id quirk.** Runtime + rod-surface edit, no compiler
+change.
+
+### The quirk (surfaced in v0.8.107)
+
+`bm25_n_docs` returns `max_doc_id + 1`, used internally as the
+scoring-loop bound. Adopters reading the name as "number of
+documents added" got wrong answers for sparse / non-sequential
+doc_ids.
+
+### The fix — third surface-then-fix cycle
+
+Additive: keep `bm25_n_docs` exactly as-is (preserves all
+internal scoring math) and ADD `bm25_doc_count` that returns
+the actual count of unique `add_doc` calls.
+
+Implementation:
+- `BM25Index` struct gains `int doc_count` (calloc-zeroed, so
+  starts at 0).
+- `nuc_bm25_add_doc` checks `doc_lengths[did] == 0` (zeroed
+  from calloc + new `memset` after realloc) — if so, this is
+  a previously-unseen doc_id; increment `doc_count`. If
+  `doc_lengths[did]` is non-zero, the same doc is being
+  re-added (no count change).
+- `nuc_bm25_doc_count` returns `idx->doc_count`.
+
+Rod surface adds `bm25_doc_count(idx) -> i64` with comment
+clarifying the semantic distinction from `bm25_n_docs`.
+
+### Fixture upgraded
+
+v0.8.107's 5-test fixture upgraded to **6 tests** including
+the sparse-id case:
+
+| Test | Path |
+|---|---|
+| empty index | n_docs=0; search returns 0 |
+| add count (sequential 0..N-1) | n_docs=N AND doc_count=N |
+| **add count (sparse 0,5,10)** | **n_docs=11, doc_count=3** |
+| exact-term search | term doc appears in result |
+| no-match search | empty results |
+| relevant top | rare-term doc outranks commons |
+
+All six pass. rc=0. Cold 1.97s.
+
+### Surface-then-fix scoreboard (3 fixed this session)
+
+| Surfaced | Fixed | Item |
+|---|---|---|
+| v0.8.96 | v0.8.106 | dt_from_ymd / dt_to_ymd asymmetry |
+| v0.8.104 | v0.8.105 | csv_parse_line trailing-empty |
+| v0.8.107 | v0.8.108 | bm25 n_docs vs doc_count semantics |
+
+The fixture-only-then-fix pattern produced 3 real bug fixes
+this session, all in the same loop iteration cadence.
+
+### Bin status
+
+Runtime C edit required relinking. Per the v0.8.79 self-host
+validation memory:
+- nucleor_new.exe built clean
+- user-source spot-check on T-3 fixture → rc=130 unchanged
+- swapped.
+
+Pure runtime + rod-surface edit; no compiler change.
+
 ## [0.8.107] — 2026-05-04
 
 **stdlib/rods/bm25.nr first test coverage + 4th pre-existing
