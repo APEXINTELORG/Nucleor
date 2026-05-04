@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] — 2026-05-04
+
+**Punchlist forward — RFC-0061 Tier 5 V1.17c CLOSED: graph-
+capabilities documentation consolidation.**
+
+The Tier 5 spec calls for a single doc file consolidating the
+graph story across rods, CLI verbs, IR analysis, and trace
+events. This ship lands `docs/graph-capabilities.md` covering:
+
+- **§1 Stdlib rod surface** — `graph.nr`, `graph_render.nr`,
+  `qsim_graph.nr`, `gnn.nr`, `astar.nr`, `vgraph.nr` with the
+  full canonical fn-name surface and the RFC-0061 Tier 1/2/3
+  Phase A additions cross-referenced.
+- **§2 CLI verbs** — `nuc graph` / `nuc impact` / `nuc deps`,
+  the three composable views.
+- **§3 IR analysis layer** — call-graph + effect propagation +
+  lock-build graph available to downstream consumers.
+- **§4 Trace stream + entanglement events** — `rods_trace_entangle`
+  hook in `quantum.nr` and the v0.8.3 Phase A standalone
+  surface.
+- **§5 Cross-references** — RFC-0061 spec, companion RFC-0060
+  governance, smoke fixtures.
+- **§6 RFC-0061 status snapshot** — Tier-by-tier table with
+  current ship versions + Tier 4 preflight gating.
+
+This ship CLOSES Tier 5 (V1.17c). RFC-0061 status after this
+ship:
+- Tier 1 (V1.17a): **CLOSED** v0.7.86
+- Tier 2 (V1.17b): Phase A v0.7.94 (CLI verb deferred)
+- Tier 3 (V1.18): Phase A v0.8.3 (trace-hook wiring deferred)
+- Tier 4 (V1.19): **PRE-DECISION** (V2 confirm-pass needed)
+- Tier 5 (V1.17c): **CLOSED** (this ship)
+
+No new defensive halt this ship — RFC-0061 Tier 5 close-out is
+the priority.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr / stdlib change → seed unchanged, fixed-point
+unchanged.
+
 ## [0.8.3] — 2026-05-04
 
 **Punchlist forward — RFC-0061 Tier 3 Phase A: quantum
