@@ -5,6 +5,44 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.21] — 2026-05-04
+
+**Q-batch defensive-halt lock-ins (Q1 + Q9 from
+PARALLEL_AGENT_PUNCHLIST_v0.6.54).** Pure-fixtures ship; no
+compiler change. Locks the existing correct behavior so future
+refactors can't regress.
+
+### Q1 — exclusive-range pattern in match arms
+
+`match x { 0..10 => ... }` matches `[0, 10)` half-open as Rust
+does. Probed at the boundaries (0, 5, 9, 10, 11, -1) and all
+correct. The boundary value `10` correctly does NOT match
+`0..10`. Locked with `tests/features/q1_match_exclusive_range.nr`
+(rc=0, six boundary assertions).
+
+### Q9 — `let (a, b) = (5, 7)` tuple destructure
+
+The compiler halts cleanly with the diagnostic:
+```
+ERROR: tuple destructuring in `let` is not yet supported (e.g.
+`let (a, b) = (5, 7);`). Workaround: bind to a struct or to two
+separate `let` statements: ...
+```
+Locked with `tests/err/err_q9_let_tuple_destructure.nr` (EXPECT
+the diagnostic). Sister to V1.1; full tuple-pattern lowering
+deferred to a later ship.
+
+### Q2 deferred
+
+`match arr { [a, .., b] => ... }` slice-pattern halt currently
+fires the range-expression diagnostic ("range expression at
+expression position not yet supported"). The halt itself is
+clean (PANIC with workaround); the diagnostic is just slightly
+mis-targeted. Refining to a slice-pattern-specific message
+needs a compiler-edit ship and is deferred.
+
+Cold 3.53s / peak 303MB.
+
 ## [0.8.20] — 2026-05-04
 
 **RFC-0062 Memory-Safety Phase 1 final batch — G-1 + G-6 closures.**
