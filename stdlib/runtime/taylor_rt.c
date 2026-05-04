@@ -185,16 +185,16 @@ static void fft_2d(double *re, double *im, int N, int sign);  /* forward decl */
 /* ==================================================================
    De-aliased quadratic product (3/2 rule)
 
-   Given two N×N grids a and b (physical space), compute c = a*b
-   WITHOUT aliasing by zero-padding to M×M where M = 3N/2 (next pow2).
+   Given two NxN grids a and b (physical space), compute c = a*b
+   WITHOUT aliasing by zero-padding to MxM where M = 3N/2 (next pow2).
 
-   1. FFT a and b to get â, b̂ (N×N Fourier)
-   2. Zero-pad â, b̂ to M×M Fourier (insert zeros at high frequencies)
-   3. IFFT to M×M physical space
-   4. Multiply pointwise: ĉ_phys = â_phys * b̂_phys (at M resolution)
-   5. FFT back to M×M Fourier
-   6. Truncate to N×N Fourier
-   7. IFFT to N×N physical space → c (de-aliased product)
+   1. FFT a and b to get a_hat, b_hat (NxN Fourier)
+   2. Zero-pad a_hat, b_hat to MxM Fourier (insert zeros at high frequencies)
+   3. IFFT to MxM physical space
+   4. Multiply pointwise: c_hat_phys = a_hat_phys * b_hat_phys (at M resolution)
+   5. FFT back to MxM Fourier
+   6. Truncate to NxN Fourier
+   7. IFFT to NxN physical space -> c (de-aliased product)
 
    For the Taylor recurrence: u*∂ω/∂x uses this instead of direct pointwise.
    ================================================================== */
@@ -281,13 +281,13 @@ static void dealiased_multiply(double *a, double *b, double *c, int N) {
     double inv_n2 = 1.0 / (double)n2;
     double inv_m2 = 1.0 / (double)m2;
 
-    /* Step 1: FFT a → scaled coefficients â_k = FFT(a)/N² */
+    /* Step 1: FFT a -> scaled coefficients a_hat_k = FFT(a)/N^2 */
     memcpy(g_da_re1, a, n2 * sizeof(double));
     memset(g_da_im1, 0, n2 * sizeof(double));
     fft_2d(g_da_re1, g_da_im1, N, -1);
     for (int i = 0; i < n2; i++) { g_da_re1[i] *= inv_n2; g_da_im1[i] *= inv_n2; }
 
-    /* Step 2: Zero-pad â to M×M */
+    /* Step 2: Zero-pad a_hat to MxM */
     zeropad_fft(g_da_re1, g_da_im1, N, g_da_pre, g_da_pim, M);
 
     /* Step 3: IFFT on M-grid → physical values a(x_m) */

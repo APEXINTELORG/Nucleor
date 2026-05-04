@@ -1,0 +1,36 @@
+{
+  "instructions_read": "v0.6.72-post",
+  "current_task": "v0713_perf_regain_windows_verify",
+  "edits_in_main_tree": false,
+  "rebased_on_origin_main": "6bfb1309",
+  "perf_baseline_pre_task": {
+    "cold": 3.16,
+    "peak_mem": 318
+  },
+  "validation": {
+    "caller_profile_self_host": {
+      "exit_code": 0,
+      "aggregate_total": 277566966,
+      "str_eq_total": 102999590,
+      "vec_get_total": 102604921,
+      "overflow_buckets": 0
+    },
+    "compiler_drift": "pass",
+    "bootstrap_seed_fixed_point": "pass",
+    "perf_3_sample": {
+      "status": "pass",
+      "cold_seconds": 3.77,
+      "hot_seconds": 0.41,
+      "peak_mem_mb": 296,
+      "note": "v0.7.13-synced probe after async/preprocessor and private-mangle scanner allocation reductions"
+    },
+    "verify": {
+      "full_run": "808 pass / 2 skip / 0 fail",
+      "compiler_drift": "pass",
+      "mojibake": "pass"
+    }
+  },
+  "status": "ready-for-integration",
+  "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_probe",
+  "branch": "probe/exploration"
+}

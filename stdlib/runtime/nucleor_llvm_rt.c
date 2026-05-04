@@ -13,6 +13,7 @@
 #include <limits.h>
 #ifdef _WIN32
 #include <windows.h>
+#include <dbghelp.h>
 #endif
 
 /* v0.3.234: shared OOM-aware allocator wrappers. The header is
@@ -120,6 +121,157 @@ static long long g_p_panic_add = 0;
 static long long g_p_panic_mul = 0;
 static long long g_p_panic_sub = 0;
 
+typedef struct {
+    void *return_address;
+    long long count;
+} NucProfileCallerCount;
+
+#define NUC_PROFILE_CALLER_BUCKETS 4096
+#define NUC_PROFILE_CALLER_TOP_N 10
+
+typedef struct {
+    NucProfileCallerCount *buckets;
+    long long overflow_count;
+} NucProfileCallerTable;
+
+static NucProfileCallerTable g_pc_vec_get;
+static NucProfileCallerTable g_pc_vec_set;
+static NucProfileCallerTable g_pc_vec_push;
+static NucProfileCallerTable g_pc_vec_len;
+static NucProfileCallerTable g_pc_str_eq;
+static NucProfileCallerTable g_pc_str_len;
+static NucProfileCallerTable g_pc_str_concat;
+static NucProfileCallerTable g_pc_str_substring;
+
+static int g_profile_summary_registered = 0;
+
+static void _profile_summary(void);
+
+static inline void _profile_register_summary_once(void) {
+    if (!g_profile_summary_registered) {
+        g_profile_summary_registered = 1;
+        atexit(_profile_summary);
+    }
+}
+
+static inline void _profile_caller_add(NucProfileCallerTable *table, void *return_address) {
+    if (!return_address) return;
+    NucProfileCallerCount *buckets = table->buckets;
+    if (!buckets) {
+        buckets = (NucProfileCallerCount *)calloc(NUC_PROFILE_CALLER_BUCKETS, sizeof(NucProfileCallerCount));
+        if (!buckets) {
+            table->overflow_count++;
+            return;
+        }
+        table->buckets = buckets;
+    }
+    uintptr_t key = (uintptr_t)return_address;
+    unsigned int idx = (unsigned int)((key >> 4) ^ (key >> 12) ^ (key >> 20)) & (NUC_PROFILE_CALLER_BUCKETS - 1);
+    for (int probe = 0; probe < NUC_PROFILE_CALLER_BUCKETS; probe++) {
+        NucProfileCallerCount *slot = &buckets[(idx + (unsigned int)probe) & (NUC_PROFILE_CALLER_BUCKETS - 1)];
+        if (slot->return_address == return_address) {
+            slot->count++;
+            return;
+        }
+        if (!slot->return_address) {
+            slot->return_address = return_address;
+            slot->count = 1;
+            return;
+        }
+    }
+    table->overflow_count++;
+}
+
+static const char *_profile_symbol_name(void *addr, char *buf, size_t bufsz) {
+    if (!buf || bufsz == 0) return "";
+    buf[0] = 0;
+#ifdef _WIN32
+    typedef BOOL (WINAPI *SymInitializeFn)(HANDLE, PCSTR, BOOL);
+    typedef BOOL (WINAPI *SymFromAddrFn)(HANDLE, DWORD64, PDWORD64, PSYMBOL_INFO);
+    static int tried = 0;
+    static HANDLE process = NULL;
+    static SymFromAddrFn pSymFromAddr = NULL;
+    if (!tried) {
+        tried = 1;
+        HMODULE dbghelp = LoadLibraryA("dbghelp.dll");
+        if (dbghelp) {
+            SymInitializeFn pSymInitialize = (SymInitializeFn)GetProcAddress(dbghelp, "SymInitialize");
+            pSymFromAddr = (SymFromAddrFn)GetProcAddress(dbghelp, "SymFromAddr");
+            process = GetCurrentProcess();
+            if (!pSymInitialize || !pSymFromAddr || !pSymInitialize(process, NULL, TRUE)) {
+                pSymFromAddr = NULL;
+            }
+        }
+    }
+    if (pSymFromAddr) {
+        char sym_storage[sizeof(SYMBOL_INFO) + 256];
+        memset(sym_storage, 0, sizeof(sym_storage));
+        PSYMBOL_INFO sym = (PSYMBOL_INFO)sym_storage;
+        sym->SizeOfStruct = sizeof(SYMBOL_INFO);
+        sym->MaxNameLen = 255;
+        DWORD64 displacement = 0;
+        if (pSymFromAddr(process, (DWORD64)(uintptr_t)addr, &displacement, sym)) {
+            snprintf(buf, bufsz, "%s+0x%llx", sym->Name, (unsigned long long)displacement);
+            return buf;
+        }
+    }
+#endif
+    snprintf(buf, bufsz, "%p", addr);
+    return buf;
+}
+
+static void _profile_dump_callers_for(const char *helper_name, NucProfileCallerTable *table) {
+    NucProfileCallerCount *buckets = table->buckets;
+    long long total = table->overflow_count;
+    if (buckets) {
+        for (int i = 0; i < NUC_PROFILE_CALLER_BUCKETS; i++) total += buckets[i].count;
+    }
+    if (total <= 0) return;
+
+    fprintf(stderr, "  %s: %lld total\n", helper_name, total);
+    if (table->overflow_count > 0) {
+        fprintf(stderr, "    overflow %lld unbucketed calls\n", table->overflow_count);
+    }
+    if (!buckets) return;
+    void *printed[NUC_PROFILE_CALLER_TOP_N] = {0};
+    for (int rank = 0; rank < NUC_PROFILE_CALLER_TOP_N; rank++) {
+        int best = -1;
+        long long best_count = 0;
+        for (int i = 0; i < NUC_PROFILE_CALLER_BUCKETS; i++) {
+            if (!buckets[i].return_address || buckets[i].count <= best_count) continue;
+            int seen = 0;
+            for (int j = 0; j < rank; j++) {
+                if (printed[j] == buckets[i].return_address) { seen = 1; break; }
+            }
+            if (!seen) {
+                best = i;
+                best_count = buckets[i].count;
+            }
+        }
+        if (best < 0) break;
+        printed[rank] = buckets[best].return_address;
+        char sym[320];
+        double pct = (100.0 * (double)buckets[best].count) / (double)total;
+        fprintf(stderr, "    #%02d %-42s %12lld (%5.1f%%)\n",
+                rank + 1, _profile_symbol_name(buckets[best].return_address, sym, sizeof(sym)),
+                buckets[best].count, pct);
+    }
+}
+
+static void _profile_callers_summary(void) {
+    if (!getenv("NUCLEOR_PROFILE_CALLERS")) return;
+    fprintf(stderr, "\n[NUCLEOR_PROFILE_CALLERS] runtime helper call-site attribution:\n");
+    _profile_dump_callers_for("str_eq", &g_pc_str_eq);
+    _profile_dump_callers_for("vec_get", &g_pc_vec_get);
+    _profile_dump_callers_for("vec_len", &g_pc_vec_len);
+    _profile_dump_callers_for("vec_set", &g_pc_vec_set);
+    _profile_dump_callers_for("vec_push", &g_pc_vec_push);
+    _profile_dump_callers_for("str_len", &g_pc_str_len);
+    _profile_dump_callers_for("str_concat", &g_pc_str_concat);
+    _profile_dump_callers_for("str_substring", &g_pc_str_substring);
+    fflush(stderr);
+}
+
 static void _profile_summary(void) {
     if (getenv("NUCLEOR_PROFILE")) {
         long long total =
@@ -152,31 +304,46 @@ static void _profile_summary(void) {
         }
         fflush(stderr);
     }
+    _profile_callers_summary();
 }
 
-// v0.3.220: profile counters are now CONDITIONAL on NUCLEOR_PROFILE
-// env var. Pre-fix every helper unconditionally incremented its
-// counter (~1ns × 3.7B calls = ~3.7s overhead on cold compiler
-// self-build). Now g_profile_active is checked once at first helper
-// call, set to 0 or 1 based on env. After that the counter inc
-// becomes a branch-predicted not-taken (~0.3ns) when env unset.
-//
-// State machine: g_profile_active = -1 (uncached), 0 (off), 1 (on).
-static int g_profile_active = -1;
+// v0.3.220: profile counters are conditional on NUCLEOR_PROFILE.
+// v0.6.73-probe: caller attribution is conditional on
+// NUCLEOR_PROFILE_CALLERS. Both knobs share one cached mode check so the
+// env-unset hot path stays at one branch-predicted-not-taken test.
+#define NUC_PROFILE_MODE_COUNTS  1
+#define NUC_PROFILE_MODE_CALLERS 2
+
+static int g_profile_mode = -1;
 static inline int _profile_check_env_once(void) {
-    if (g_profile_active < 0) {
+    if (g_profile_mode < 0) {
+        int mode = 0;
         const char *e = getenv("NUCLEOR_PROFILE");
-        g_profile_active = (e && e[0]) ? 1 : 0;
-        if (g_profile_active) atexit(_profile_summary);
+        if (e && e[0]) mode |= NUC_PROFILE_MODE_COUNTS;
+        e = getenv("NUCLEOR_PROFILE_CALLERS");
+        if (e && e[0] && e[0] != '0') mode |= NUC_PROFILE_MODE_CALLERS;
+        g_profile_mode = mode;
+        if (g_profile_mode) _profile_register_summary_once();
     }
-    return g_profile_active;
+    return g_profile_mode;
 }
 /* Old name kept for source compat with the inc sites; now a no-op
    wrapper around the env check. */
 static inline void _profile_init_once(void) { (void)_profile_check_env_once(); }
 #define NUC_PROFILE_INC(counter) do { \
-    if (g_profile_active < 0) { (void)_profile_check_env_once(); } \
-    if (g_profile_active > 0) { (counter)++; } \
+    int _nuc_profile_mode = g_profile_mode; \
+    if (_nuc_profile_mode < 0) { _nuc_profile_mode = _profile_check_env_once(); } \
+    if (_nuc_profile_mode & NUC_PROFILE_MODE_COUNTS) { (counter)++; } \
+} while (0)
+#define NUC_PROFILE_HOT(counter, helper_id) do { \
+    int _nuc_profile_mode = g_profile_mode; \
+    if (_nuc_profile_mode < 0) { _nuc_profile_mode = _profile_check_env_once(); } \
+    if (_nuc_profile_mode) { \
+        if (_nuc_profile_mode & NUC_PROFILE_MODE_COUNTS) { (counter)++; } \
+        if (_nuc_profile_mode & NUC_PROFILE_MODE_CALLERS) { \
+            _profile_caller_add(&g_pc_##helper_id, __builtin_return_address(0)); \
+        } \
+    } \
 } while (0)
 
 static void _alloc_summary(void) {
@@ -1515,7 +1682,7 @@ long long nuc_f64_min(long long a, long long b) {
 
 // === String operations ===
 long long __nucleor_str_len(const char *s) {
-    NUC_PROFILE_INC(g_p_str_len);
+    NUC_PROFILE_HOT(g_p_str_len, str_len);
     if (!s) return 0;
     return (long long)strlen(s);
 }
@@ -1740,7 +1907,7 @@ const char *__nucleor_infer_fn_return_type(const char *src, const char *fn_name)
 }
 
 long long __nucleor_str_eq(const char *a, const char *b) {
-    NUC_PROFILE_INC(g_p_str_eq);
+    NUC_PROFILE_HOT(g_p_str_eq, str_eq);
     if (a == b) return 1;          /* pointer-equal: same string */
     if (!a || !b) return 0;        /* one null, one not */
     return strcmp(a, b) == 0 ? 1 : 0;
@@ -1821,7 +1988,7 @@ long long __nucleor_str_char_at_strict(const char *s, long long i) {
 // strict mode use the new `str_substring_strict` helper which still
 // does the strlen check.
 const char *__nucleor_str_substring(const char *s, long long start, long long end) {
-    NUC_PROFILE_INC(g_p_str_substring);
+    NUC_PROFILE_HOT(g_p_str_substring, str_substring);
     if (!s) return "";
     if (start < 0 || end < start) {
         if (_vec_oob_lenient()) return "";
@@ -1858,7 +2025,7 @@ const char *__nucleor_str_substring_strict(const char *s, long long start, long 
 }
 
 const char *__nucleor_str_concat(const char *a, const char *b) {
-    NUC_PROFILE_INC(g_p_str_concat);
+    NUC_PROFILE_HOT(g_p_str_concat, str_concat);
     if (!a) a = "";
     if (!b) b = "";
     int la = (int)strlen(a), lb = (int)strlen(b);
@@ -2219,7 +2386,7 @@ void __nucleor_str_free(const char *s) {
 }
 
 void __nucleor_vec_push(NVec *v, long long x) {
-    NUC_PROFILE_INC(g_p_vec_push);
+    NUC_PROFILE_HOT(g_p_vec_push, vec_push);
     if (!v) return;
     if (v->len >= v->cap) {
         long long old_cap = v->cap;
@@ -2292,7 +2459,7 @@ long long nuc_list_get(long long pool_cell, long long lid, long long idx) {
 }
 
 long long __nucleor_vec_get(NVec *v, long long i) {
-    NUC_PROFILE_INC(g_p_vec_get);
+    NUC_PROFILE_HOT(g_p_vec_get, vec_get);
     if (!v) return 0;
     if (i < 0 || i >= v->len) {
         if (_vec_oob_lenient()) return 0;
@@ -2312,7 +2479,7 @@ long long __nucleor_vec_get(NVec *v, long long i) {
 }
 
 long long __nucleor_vec_len(NVec *v) {
-    NUC_PROFILE_INC(g_p_vec_len);
+    NUC_PROFILE_HOT(g_p_vec_len, vec_len);
     if (!v) return 0;
     return (long long)v->len;
 }
@@ -2324,7 +2491,7 @@ void __nucleor_vec_pop(NVec *v) {
 }
 
 void __nucleor_vec_set(NVec *v, long long i, long long x) {
-    NUC_PROFILE_INC(g_p_vec_set);
+    NUC_PROFILE_HOT(g_p_vec_set, vec_set);
     if (!v) return;
     if (i < 0 || i >= v->len) {
         if (_vec_oob_lenient()) return;
