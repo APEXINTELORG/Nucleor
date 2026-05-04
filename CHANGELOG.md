@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.60] — 2026-05-04
+
+**Wave 3 — NUM-G2/G8/G9 Phase 1 audit-pass info.** Numeric
+correctness beyond NUM-G1. Detects adopter use of three known
+HIGH-severity numeric bugs.
+
+### What's enforced today (Phase 1)
+
+```
+info[NUM-G289]: numeric-correctness annotations / calls: N
+  NUM-G2: math_abs(i64::MIN) silently returns i64::MIN in non-
+  strict mode. `0 - i64::MIN` overflows; math_pow_int and
+  math_gcd inherit the bug.
+
+  NUM-G8: checked_* family uses a single global static int for
+  the overflow flag — NOT thread-safe. Concurrent calls race;
+  flag can be overwritten between call and read.
+
+  NUM-G9: @const_fn attribute is silently ignored — no comptime
+  evaluation, no error if body contains non-const operations.
+
+  Phase 2b: panic-on-saturate for math_abs, thread-local checked
+  flag, real comptime evaluation for @const_fn.
+  Phase 4: v1.0 hard-error promotion.
+```
+
+### Wave 3 progress (3 closures)
+
+```
+QM-7 + ROBO-7 combined           Phase 1 v0.8.59
+NUM-G2/G8/G9 numeric             Phase 1 v0.8.60 (this)
+Tensor/ML beyond ML-1            QUEUED
+QM-8 entanglement-tracker        QUEUED
+QM-9 gate-DAG overflow           QUEUED
+ROBO-8 CHOMP precond             QUEUED
+```
+
+### Perf
+
+Cold 3.68s, hot 0.41s. Within Job #1.
+
+Fixed-point md5: `436e6d0f869f83acda41c9e035eda8f4`.
+
 ## [0.8.59] — 2026-05-04
 
 **Wave 3 START — QM-7 / ROBO-7 Phase 1 audit-pass info.**
