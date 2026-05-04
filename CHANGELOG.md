@@ -5,6 +5,61 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.94] — 2026-05-04
+
+**stdlib/rods/base64.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+A zero-coverage rod survey
+(`for r in stdlib/rods/*.nr; do grep -lE "import.*\"$r\"" tests/`)
+turned up dozens of stdlib rods with no existing test fixtures.
+`base64.nr` (encoding-correctness-critical) was on the list —
+same class as the QM-7 Clifford gap (silent correctness bugs in
+encode/decode would be undetectable).
+
+### The fixture
+
+`tests/features/base64_round_trip_smoke.nr` covers two layers:
+
+1. **RFC 4648 §10 reference vectors** — exact byte-for-byte
+   match of the canonical example set:
+
+   | Input | Expected output |
+   |---|---|
+   | `""` | `""` |
+   | `"f"` | `"Zg=="` |
+   | `"fo"` | `"Zm8="` |
+   | `"foo"` | `"Zm9v"` |
+   | `"foob"` | `"Zm9vYg=="` |
+   | `"fooba"` | `"Zm9vYmE="` |
+   | `"foobar"` | `"Zm9vYmFy"` |
+
+2. **Round-trip** across all input lengths mod 3:
+   - `b64_decode(b64_encode(x)) == x` for `"foo"`, `"foob"`,
+     `"fooba"`, `"foobar"`, `"hello world"`, `"Nucleor"`.
+
+All 13 assertions pass. rc=0. Cold 1.03s.
+
+### Significance
+
+This is the first executed correctness test for the base64
+rod. Encode/decode now has spec-conformance + round-trip
+coverage that would catch any silent regression in:
+
+- Padding logic (1 vs 2 vs 0 `=` characters)
+- 6-bit group extraction from 24-bit packed bytes
+- Decoder special-cases for `=` and invalid characters
+
+Other zero-coverage rods (autodiff / bigint / bloom / bm25 /
+bspline / cli / collections / compress / control / crypto /
+csv / datetime / emag / env / fft / finance / fluid / fmt /
+fs / geom / image / ini / interp / interval / ...) remain
+candidates for follow-up coverage ships.
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.93] — 2026-05-04
 
 **RFC PKG-3 Phase 4 sister — compound multi-token range resolver
