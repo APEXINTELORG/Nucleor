@@ -27812,6 +27812,29 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     if v087_within_count > 0 {
         print(str_concat("audit: @within timing constraints in build: ", str_from_int(v087_within_count)));
     };
+    // v0.8.8 (Phase B step-1, core-attr audit) — extend the
+    // discovery surface to existing core Nucleor attributes that
+    // adopters use today: @hot (strict perf), @const_fn (compile-
+    // time eligible), @max_depth (RFC-0014 / Track I), @deadline
+    // (RT-004). The expansions for @max_depth + @deadline DO
+    // produce metadata; the audit count adds a plain-language
+    // build summary alongside.
+    let v088_hot_count: i64 = simple_attribute_audit_count(after_async, str_concat("@h", "ot"));
+    if v088_hot_count > 0 {
+        print(str_concat("audit: @hot fns in build: ", str_from_int(v088_hot_count)));
+    };
+    let v088_const_fn_count: i64 = simple_attribute_audit_count(after_async, str_concat("@const_", "fn"));
+    if v088_const_fn_count > 0 {
+        print(str_concat("audit: @const_fn fns in build: ", str_from_int(v088_const_fn_count)));
+    };
+    let v088_max_depth_count: i64 = simple_attribute_audit_count(after_async, str_concat("#[max_de", "pth"));
+    if v088_max_depth_count > 0 {
+        print(str_concat("audit: #[max_depth] fns in build: ", str_from_int(v088_max_depth_count)));
+    };
+    let v088_deadline_count: i64 = simple_attribute_audit_count(after_async, str_concat("#[deadl", "ine"));
+    if v088_deadline_count > 0 {
+        print(str_concat("audit: #[deadline] fns in build: ", str_from_int(v088_deadline_count)));
+    };
     // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
     let after_deadline: str = expand_deadline(after_async);
