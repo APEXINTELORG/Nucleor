@@ -24439,6 +24439,22 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         let init_list: i64 = node_field(pool, nid, 2);
         let si: i64 = struct_find_type(pool, structs, sname);
         if si < 0 {
+            // v0.7.95 (defensive halt — `Self { ... }` struct
+            // constructor inside `impl` blocks). Pre-fix the
+            // `Self` ident reached the kind-34 lowering as a
+            // literal struct-name lookup that failed with the
+            // generic "unknown struct Self" diag — adopters
+            // writing `impl Counter { fn make(x: i64) -> Self
+            // { return Self { n: x }; } }` got wrong-class
+            // error pointing at "Self" instead of the real
+            // missing feature (Self-as-type-alias inside impl
+            // blocks). Halt with a precise diag + workaround.
+            // Sister to v0.6.91 trait-object dispatch halt
+            // family.
+            if str_eq(sname, "Self") == 1 {
+                print("ERROR: `Self { ... }` struct constructor inside `impl` blocks is not yet supported in Nucleor. Pre-v0.7.95 surfaced as wrong-class `unknown struct Self` because the kind-34 struct-name lookup didn't resolve `Self` to the impl target. Workaround: write the struct name explicitly — `impl Counter { fn make(x: i64) -> Counter { return Counter { n: x }; } }`. Tracked for forward-roadmap (Self-as-type-alias inside impl blocks needs the resolver to thread the impl-target name through; sister to RFC-0046 / RFC-0047 phantom-typed work).");
+                panic("nucleor: `Self { ... }` constructor in impl block not yet supported (see ERROR diagnostic above)");
+            };
             print(str_concat("ERROR: unknown struct ", sname));
             // v0.4.36: pre-fix lowered to `lx_new(-1, blk)` which produced
             // `%r.-1` invalid IR — clang caught it but pointed at LLVM,
