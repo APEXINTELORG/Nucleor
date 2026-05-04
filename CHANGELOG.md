@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.103] — 2026-05-04
+
+**stdlib/rods/ini.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `ini.nr` (INI config
+parser — sections, comments, `key=value`) had no existing
+tests. Silent regressions in line-type classification or value
+trimming would propagate into adopter config-loading code
+invisibly.
+
+### The fixture
+
+`tests/features/ini_smoke.nr` covers six INI parser invariants:
+
+| Test | Coverage |
+|---|---|
+| `ini_is_comment` | `;` and `#` markers detected, with/without leading whitespace; `key=value` and `[section]` correctly NOT comments; empty line not comment |
+| `ini_is_section` | `[main]` and `  [main]  ` detected; `[no closing` rejected; non-section text rejected |
+| `parse empty` | empty string → type 0 |
+| `parse comment` | `; hello` → type 1 |
+| `parse section` | `[server]` and `[ server ]` both → type 2 with name `"server"` (whitespace trimmed) |
+| `parse key=value` | `port = 8080` and `name=alice` both → type 3 with key + value trimmed |
+
+All six pass. rc=0. Cold 0.56s.
+
+### Significance
+
+Catches silent regressions in:
+
+- Whitespace skipping in line-type classification (the
+  `is_comment` / `is_section` helpers must work with leading
+  whitespace, not just lstart-of-line)
+- Section name trimming inside `[...]` brackets (whitespace
+  inside the brackets must be removed)
+- Key/value trimming around the `=` separator
+- Type discrimination between comment vs section vs key=value
+  (a wrong-class line gets routed wrong by adopter code)
+
+Other zero-coverage rods queued: autodiff / bm25 / bspline /
+cli / collections / compress / control / crypto / csv / fluid /
+fmt / fs / image / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.102] — 2026-05-04
 
 **stdlib/rods/fft.nr first test coverage.** Pure fixture, no
