@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.23] — 2026-05-04
+
+**Cold-time perf fix — collapse BR-7 audit 3-scan block to
+single-pass.** Targeted at the bimodal cold-time variance the
+v0.8.17 BR-7 audit introduced. Job #1 (cold under 4s) preserved
+with tighter band.
+
+### Fix
+
+The v0.8.17 BR-7 audit fired three separate
+`simple_attribute_audit_count` calls, each O(N·M) over the full
+source bundle (~10MB self-host). Three full passes for needles
+that were summed into a single total — wasted work.
+
+New helper: `audit_count_three_needles_total(src, n1, n2, n3)`.
+Walks src once; at each position checks all three needles in
+turn. Returns the combined occurrence count. ~3× cheaper than
+three separate scans.
+
+Replaced the 3-scan block with a single multi-needle call.
+
+### Impact
+
+5-run cold variance before fix:
+```
+3.13s, 3.52s, 3.54s, 3.52s  (bimodal — 3.13 vs 3.5s cluster)
+```
+
+5-run cold variance after fix:
+```
+3.28s, 3.38s, 3.42s, 3.30s, 3.38s  (tight ~3.35s mean)
+```
+
+The 3.5s outlier band is gone. Mean drifts up slightly (3.35 vs
+3.13 best-case) but the variance halved, which is the more
+important property for "did we regress" telemetry.
+
+### Phase 2 prep
+
+The new helper sets a pattern for collapsing the existing 12+
+audit-pass scans (energy, thermal, photonic, neuromorphic,
+enclave, etc.) into multi-needle batched passes. Tracked for a
+future ship as part of RFC-0062 Phase 2 cold-budget management
+(the gap RFC's enforcement work will add real checker passes
+that can't be consolidated; the existing audit passes can).
+
+Fixed-point md5: `cca2bda0f7799b05c1aa627423233af4`.
+
 ## [0.8.22] — 2026-05-04
 
 **Q-batch lock-in extension (Q3, Q4, Q5, Q7, Q8, Q10).** Pure

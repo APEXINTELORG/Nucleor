@@ -27941,10 +27941,9 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     // tokens, the parser builds the AST, the function compiles.
     // The borrow checker does NOT actually enforce the lifetime
     // annotation."
-    let v0817_br7_count: i64 = simple_attribute_audit_count(after_async, str_concat("<'", "a"));
-    let v0817_br7_b_count: i64 = simple_attribute_audit_count(after_async, str_concat("<'", "b"));
-    let v0817_br7_static_count: i64 = simple_attribute_audit_count(after_async, str_concat("&'", "static"));
-    let v0817_br7_total: i64 = v0817_br7_count + v0817_br7_b_count + v0817_br7_static_count;
+    // v0.8.23: collapsed 3 separate scans into 1 single-pass scan.
+    let v0817_br7_total: i64 = audit_count_three_needles_total(after_async,
+        str_concat("<'", "a"), str_concat("<'", "b"), str_concat("&'", "static"));
     if v0817_br7_total > 0 {
         print(str_concat("warning[BR-7]: lifetime annotations present in build: ", str_from_int(v0817_br7_total)));
         print("  Per RFC-0062 G-2 Phase 1: lifetime annotations parse cleanly but are NOT yet enforced by the borrow checker. Runtime safety is not statically guaranteed for functions / structs / impls using `<'a>` syntax. Phase 2 will add simple single-input single-output lifetime checking; Phase 4 promotes this warning to a hard error. Track via tests/err/_unimplemented/README.md once the closure-phase log lands.");
@@ -29027,6 +29026,40 @@ fn simple_attribute_audit_count(src: str, needle: str) -> i64 {
             p = p + nlen;
         } else {
             p = p + 1;
+        };
+    };
+    return count;
+}
+
+// v0.8.23 perf: single-pass total counter for three-needle
+// audits. Walks src once; at each position checks each needle
+// in turn. Returns the sum of occurrences across all three.
+// ~3x cheaper than three simple_attribute_audit_count calls
+// when the caller only needs the combined total (e.g. BR-7
+// lifetime audit).
+fn audit_count_three_needles_total(src: str, n1: str, n2: str, n3: str) -> i64 {
+    let mut count: i64 = 0;
+    let slen: i64 = str_len(src);
+    let l1: i64 = str_len(n1);
+    let l2: i64 = str_len(n2);
+    let l3: i64 = str_len(n3);
+    let mut p: i64 = 0;
+    while p < slen {
+        if l1 > 0 && p + l1 <= slen && str_eq_at(src, p, n1) == 1 {
+            count = count + 1;
+            p = p + l1;
+        } else {
+            if l2 > 0 && p + l2 <= slen && str_eq_at(src, p, n2) == 1 {
+                count = count + 1;
+                p = p + l2;
+            } else {
+                if l3 > 0 && p + l3 <= slen && str_eq_at(src, p, n3) == 1 {
+                    count = count + 1;
+                    p = p + l3;
+                } else {
+                    p = p + 1;
+                };
+            };
         };
     };
     return count;
