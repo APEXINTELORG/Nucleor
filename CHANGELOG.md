@@ -5,6 +5,75 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.92] — 2026-05-04
+
+**RFC PKG-3 Phase 4 — single-token comparison resolver lands.**
+Tools-suite edit only; no compiler-binary change.
+
+### Pre-fix
+
+`>=X.Y.Z`, `>X.Y.Z`, `<=X.Y.Z`, `<X.Y.Z` fell through to the
+v0.8.52 Phase 1 diagnostic — the last unsupported constraint
+class in the punchlist that `^/~/*` had already gotten resolvers
+for.
+
+### Post-fix
+
+| Operator | Returns |
+|---|---|
+| `>=X.Y.Z` | highest version with score >= base |
+| `>X.Y.Z` | highest version with score > base |
+| `<=X.Y.Z` | highest version with score <= base |
+| `<X.Y.Z` | highest version with score < base |
+
+Walks the descending-sorted version list and returns the first
+satisfying match (which is the highest by ordering). Operator
+length is detected by checking the second character (`=` →
+2-char op, otherwise single-char).
+
+### Verified end-to-end against `tests/fixtures/t14_registry/`
+
+| Selector | Registry | Expected | Result |
+|---|---|---|---|
+| `foo@>=0.1.0` | foo: 0.1.0, 0.2.0 | 0.2.0 | resolved (downstream sha256 step) |
+| `foo@>0.1.0` | same | 0.2.0 (strictly greater) | resolved |
+| `foo@<=0.1.0` | same | 0.1.0 (highest <= base) | resolved |
+| `foo@<0.2.0` | same | 0.1.0 (strictly less) | resolved |
+| `foo@>5.0.0` | no matching | clean error | "comparison constraint did not match" |
+
+### Multi-token compound ranges (queued)
+
+`>=1.0.0 <2.0.0` and similar AND-of-comparisons are out of
+scope for this ship — they require a small parser to split on
+whitespace and combine the individual token results. Today's
+single-token coverage handles the most common adopter forms.
+
+### Recap — PKG-3 fully resolving for single-constraint forms
+
+| Constraint | Status | Ship |
+|---|---|---|
+| latest / empty / exact | always supported | pre-v0.8.x |
+| diagnostic on unsupported | Phase 1 | v0.8.52 |
+| caret `^X.Y.Z` | Phase 2 | v0.8.89 |
+| tilde `~X.Y.Z` | Phase 2 | v0.8.90 |
+| wildcard `*` / `X.*` / `X.Y.*` | Phase 3 | v0.8.91 |
+| comparison `>=/<=/>/<` | Phase 4 | v0.8.92 (this ship) |
+| compound multi-token | not yet | follow-up |
+| lockfile-driven | not yet | queued v1.x |
+
+PKG-3 now supports every single-token semver constraint form
+documented in RFC-0019 §3.2. The last gap is compound ranges
+(`>=1 <2`).
+
+### Bin status
+
+Tools-suite source edit only. `target/nucleor_tools.exe`
+rebuilds clean (3.51s — slightly higher this cycle, possibly
+multi-agent contention). Compiler spot-check on
+`bin/nucleor.exe` passed (rc=130 on T-3 char-cast fixture).
+
+Pure tools-suite source edit; no compiler binary change.
+
 ## [0.8.91] — 2026-05-04
 
 **RFC PKG-3 Phase 3 — wildcard semver resolver lands.**
