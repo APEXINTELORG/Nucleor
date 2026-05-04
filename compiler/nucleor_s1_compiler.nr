@@ -1700,6 +1700,21 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
             cp = pr_pos(br);
         };
     } else {
+        // v0.7.45 (defensive halt — tuple-struct pattern in match arm:
+        // `match p { P(a, b) => ... }`). Pre-fix this surfaced as wrong-
+        // class `error[NR020]: expected '=>', got '('` because the
+        // wildcard fallback at the end of pattern dispatch consumed `P`
+        // as a binding name and left `(` for the arrow expector. Detect
+        // identifier-followed-by-`(` here and halt cleanly with a
+        // field-access workaround pointer (V1.1 tuple-struct decl
+        // shipped v0.6.74; ctor + positional access works, only the
+        // pattern-position destructure is missing).
+        if att == 1 && pk(tokens, cp + 1) == 50 {
+            let v745_name: str = pkv(tokens, cp);
+            print(str_concat("ERROR: tuple-struct pattern `", str_concat(v745_name, "(a, b, ...)` in a `match` arm is not yet supported in Nucleor. Pre-v0.7.45 surfaced as wrong-class `error[NR020]: expected '=>', got '('` because the pattern parser consumed the struct name as a wildcard binding.")));
+            print(str_concat("       Workaround: bind a single name and access fields by index in the body — `match p { x => { let a = x.0; let b = x.1; ... } }`. Tuple-struct decl + ctor + positional access is V1.1 (v0.6.74); pattern-position destructure is forward-roadmap (sister to anonymous-tuple destructure, both need recursive pattern parser).")));
+            panic(str_concat("nucleor: tuple-struct pattern `", str_concat(v745_name, "(...)` in match arm not yet supported (see ERROR diagnostic above)")));
+        };
         ename = "__wild";
         binding = pkv(tokens, cp);
         cp = cp + 1;

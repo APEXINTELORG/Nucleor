@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.45] — 2026-05-04
+
+**Defensive halt — tuple-struct pattern in match arm
+(`match p { P(a, b) => ... }`) now produces a clean halt with a
+field-access workaround pointer.**
+
+Pre-fix: writing `match p { P(a, b) => ... }` (where `P` is a
+user-declared tuple-struct from V1.1, v0.6.74) surfaced as
+wrong-class `error[NR020]: parse error: expected '=>', got '('`
+because the pattern parser's wildcard-fallback branch consumed
+`P` as a binding name and left `(` for the arrow expector. Sister
+to the existing nested-pattern halt (v0.6.90) and `@` / `ref` /
+neg-lit-in-variant halts (v0.7.19/23/24).
+
+Post-fix: `parse_match_one_pattern` checks for identifier-followed-
+by-`(` before falling through to the wildcard branch and halts
+cleanly:
+
+```nucleor
+struct P(i64, i64);
+
+// Pre-fix wrong-class:
+match p {
+    P(a, b) => { ... }                // ← NR020 wrong-class
+}
+
+// Post-fix workaround — bind whole + index in body:
+match p {
+    x => {
+        let a: i64 = x.0;
+        let b: i64 = x.1;
+        // ...
+    }
+}
+```
+
+Tuple-struct decl + ctor + positional access is V1.1 (shipped
+v0.6.74); only the pattern-position destructure is missing.
+Forward-roadmap: sister to anonymous-tuple destructure — both
+need the recursive pattern parser.
+
+### Fixture
+
+`tests/fixtures/v0745_tuple_struct_pat_halt.nr` — negative fixture
+for `match p { P(a, b) => ... }` (fires tuple-struct-pat halt with
+field-access workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `5de6df59ddfacb30b762a93b8559fde3`.
+
 ## [0.7.44] — 2026-05-04
 
 **Defensive halt — impl-target type with lifetime in its generic
