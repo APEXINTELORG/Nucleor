@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.96] — 2026-05-04
+
+**Punchlist forward — RFC-0053 Phase A: neuromorphic /
+event-driven type surface (rod + LIF runtime).**
+
+The full RFC-0053 ship adds language-level types
+`Spike` / `SpikeTrain` / `Neuron<Model>` + `@neuromorphic`
+placement attribute + hardware dispatch (~600 LOC compiler +
+~800 LOC stdlib). Phase A (this rod) lands the canonical type
+surface + neuron-model tags + a leaky-integrate-and-fire (LIF)
+integrator that runs on host CPU. Hardware dispatch (Loihi 2,
+NorthPole, Akida, SpiNNaker) is the v2.x post-Phase-B ship.
+
+Sister to RFC-0052 photonic Phase A (v0.7.95). Both are V2
+frontier Tier-B follow-ons after the Tier-A close-out at
+v0.7.90.
+
+### Surface added in `stdlib/rods/neuromorphic.nr`
+
+- 5 neuron-model tag fns: `neuron_model_lif`,
+  `_izhikevich`, `_adex`, `_hodgkin_huxley`, `_unknown` (1..4
+  + 0) + `neuron_model_name(id) -> str`.
+- `Spike { timestamp_us, neuron_id }` + constructor +
+  accessors.
+- `SpikeTrain` (packed Vec<i64>) + `spike_train_new`, `_push`,
+  `_count`, `_get(idx) -> Spike`, `_clear` (returns fresh
+  empty SpikeTrain).
+- `MembranePotential { millivolts_q1616 }` (Q1.16 mV) +
+  `membrane_mv` / `membrane_to_q1616`.
+- `Synapse { pre, post, weight_q1616, delay_us }` constructor
+  + `stdp_update(s, pre_t, post_t, lr)` returning a new
+  Synapse with potentiated / depressed weight.
+- `Neuron { model, state }` + `neuron_lif()` (defaults
+  threshold 50mV, tau 20ms) / `neuron_lif_full(thresh, tau)` +
+  `neuron_model` / `neuron_potential` / `neuron_reset`.
+- `lif_step(n, current_pa, dt_us) -> i64` (0/1 fire flag).
+- Rate encode/decode helpers:
+  - `encode_spikes_uniform(rate_hz, duration_us, neuron_id)
+    -> SpikeTrain` (uniform-period spike train).
+  - `decode_rate_hz(train, neuron_id, window_us) -> i64`
+    (count-based rate decode).
+
+### Runtime: `stdlib/runtime/neuromorphic_rt.c`
+
+LIF integrator state table (max 1024 neurons), Q1.16
+millivolt-scaled potential, linear-decay approximation
+`v -= v * dt / tau` per step. Phase B promotes to the exact-
+exponential integrator + per-device hardware dispatch.
+
+### Smoke fixture
+
+`tests/fixtures/v0796_rfc0053_neuromorphic_smoke.nr` validates
+the entire surface: model tags + spike + train + neuron
+creation + LIF integrator (sub-threshold no-fire, super-
+threshold fire) + STDP weight update direction (potentiate vs.
+depress) + uniform encode/decode rate round-trip + membrane
+Q1.16 round-trip. rc=0.
+
+No new defensive halt this ship — RFC-0053 forward progress is
+the priority. Cron may concurrently ship halts.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.7.95] — 2026-05-04
 
 **Combined ship — RFC-0052 Phase A (photonic-compute type
