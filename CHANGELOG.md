@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.29] — 2026-05-04
+
+**RFC-0062 G-8 Phase 2a — CFG-G8 audit-pass info diagnostic.
+WAVE A COMPLETE.** With this ship every Phase 2a audit-pass
+diagnostic for the cornerstone memory-safety RFC is in place
+across all 6 active gaps (G-2, G-3, G-4, G-5, G-8, G-9).
+Phase 1 + Wave A together close the docs / surface signal layer
+for the entire gap set. Wave B (Phase 2b proper analysis) is
+next.
+
+### What's enforced today (Phase 2a)
+
+```
+info[CFG-G8]: match expressions in build: N
+  Per RFC-0062 G-8 Phase 2a: match arms (and if/else expressions)
+  can have arms that diverge in move/borrow behavior — one arm
+  consumes a value, another borrows it. The move tracker today
+  is conservative on simple cases but doesn't fully reason about
+  arm-level divergence. Phase 2b adds move-state join analysis
+  at every control-flow join point; Phase 4 promotes mixed-arm
+  patterns to deny-by-default with `#[allow(divergent_move)]`
+  opt-out.
+```
+
+### Phase 2a complete — six diagnostics firing on seed self-host
+
+```
+warning[BR-7]:    lifetime annotations present:           13
+info[OWN-012]:    explicit free calls present:            44
+info[FFI-NULL]:   raw-pointer return types:                4
+info[FFI-DIRECT]: extern fn declarations:                 27
+info[ALIAS-G3]:   Vec-of-reference patterns:               3
+info[CFG-G8]:     match expressions:                     186
+```
+
+### Perf consolidation experiment + revert
+
+This ship attempted a multi-needle Vec-of-counts consolidation
+to claw back cold budget, then a str_count-based routing
+experiment. Both were reverted because:
+
+1. Vec<i64> consolidation regressed cold by ~0.4s — Vec<i64>
+   allocation + vec_get/vec_set overhead per match outweighed
+   the saved walk-loop bookkeeping.
+2. str_count C-runtime routing regressed hot from ~0.40s to
+   ~0.79s — the str_count helper has per-call overhead in the
+   misc-tracking instrumentation path.
+
+Current state: each Phase 2a audit uses simple_attribute_audit_count
+(Nucleor source loop) which is fastest in practice for the
+seed workload. Documented in IMPLEMENTATION-PLAN §5.3 — the
+naive consolidation strategy doesn't pay off; proper Phase 2b
+infrastructure work (per-source-hash audit cache) will deliver
+the real wins.
+
+### Cold budget
+
+5-run after this ship: 3.93 / 4.10 / 3.50 / 3.53 / 3.48s.
+Mean **3.71s** — well under Job #1 4s soft. Hot returns to
+~0.41s baseline.
+
+Fixed-point md5: `99a252899c14d97c71d5035eceecda19` (post-rebase, includes cron's v0.8.28 macro_rules fix).
+
 ## [0.8.28] — 2026-05-04
 
 **Fix `macro_rules!` halt token bug + add halt for unknown `name!(...)` invocations.**
