@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.70] — 2026-05-04
+
+**G-4 double-free guard — smoke fixtures + readiness doc.**
+Locks v0.8.68/v0.8.69 guard behavior with regression tests +
+documents production-readiness state for the unconditional
+default-flip ship.
+
+### Smoke fixtures
+
+- `tests/fixtures/v0870_double_free_guard_vec.nr` — `vec_free`
+  called twice. Run under `NUC_VEC_FREE_GUARD=1` triggers
+  PANIC-DOUBLE-FREE[OWN-012] + exit 134.
+- `tests/fixtures/v0870_double_free_guard_hashmap.nr` — sister
+  for `hashmap_free`. Same panic + exit.
+
+Both verified firing in this ship. The fixtures stand as
+permanent regression tests — any future change that breaks
+the sentinel-detection mechanism gets caught at verify-gate.
+
+### Readiness doc
+
+`docs/g4-double-free-guard-readiness.md` — covers:
+
+- Mechanism summary (sentinel-in-struct, NVec.cap = 0xDEADBEEF)
+- Coverage matrix (Vec + HashMap done; String + Box + BTree
+  queued)
+- Why String/Box are harder (no wrapping struct → need header-
+  prefixed allocs OR side-table allocator OR instrumented malloc)
+- Production-readiness checklist (4 of 8 items done)
+- Recommended adopter workflow (guard ON for staging, OFF for
+  production)
+- Phase 2b-3 unblock criteria (two valid paths: complete
+  String/Box guards OR per-rod handoff audit clean)
+
+### Memory safety state — current
+
+```
+Phase 1 + 2a Wave A (visibility)        ✓ DONE
+Static infrastructure (#[manual_drop])   ✓ DONE
+Cache-key correctness (env-flip works)   ✓ DONE v0.8.64
+Vec + HashMap double-free guard          ✓ DONE v0.8.68/0.8.69
+Smoke fixtures locking guard             ✓ DONE v0.8.70 (this)
+String + Box + BTree double-free guard   QUEUED
+Per-rod handoff audit                    QUEUED
+Unconditional default-flip               BLOCKED on either of the 2 above
+Phase 3 / Phase 4                        v0.9 / v1.0
+```
+
+### Perf
+
+Cold 4.04s (multi-agent contention), hot 0.81s same. Within
+Job #1 hard ceiling.
+
 ## [0.8.69] — 2026-05-04
 
 **RFC-0062 G-4 Phase 2b — sentinel guard extended to hashmap_free.**
