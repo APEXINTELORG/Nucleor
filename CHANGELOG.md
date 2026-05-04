@@ -5,6 +5,65 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.95] — 2026-05-04
+
+**Combined ship — RFC-0052 Phase A (photonic-compute type
+surface) + Rust `Self { ... }` constructor halt.**
+
+### RFC-0052 Phase A — `photonic` rod
+
+Lands the canonical photonic-compute marker types + wavelength
+registry + CPU-fallback hooks in a new rod
+`stdlib/rods/photonic.nr` + runtime
+`stdlib/runtime/photonic_rt.c`. Adopters can tag tensor
+wrappers with wavelength + use a runtime-stub matmul today;
+hardware dispatch (Lightmatter / Lightelligence / SiPh) is the
+v2.x post-Phase-B ship per RFC-0052.
+
+Sister to RFC-0046 / 47 / 48 / 49 / 50 / 51 Phase A — first V2
+frontier Tier-B follow-on after the Tier-A close-out at v0.7.90.
+
+Surface added:
+- 5 marker structs: `OpticalTensor`, `ComplexAmplitude`,
+  `Phase` (Q1.16 fixed-point radians), `Wavelength` (nm),
+  `MZIMesh` (rows × cols + opaque hardware handle).
+- 8 canonical wavelength bands: `wavelength_telecom_o`
+  (1310nm), `_telecom_c` (1550), `_telecom_l` (1625),
+  `_visible_red` (700), `_visible_green` (550),
+  `_visible_blue` (450), `_uv` (380), `_ir_far` (10000).
+- `wavelength_band_name(w) -> str`,
+  `wavelength_compatible(a, b) -> i64` (Phase A pre-flight;
+  Phase B promotes to type-level wavelength-mismatch TYP-008).
+- `complex_amplitude(real_q1616, imag_q1616)`,
+  `phase_q1616(...)` / `phase_radians(int_part)` /
+  `phase_to_q1616(p)`, `mzi_mesh(rows, cols, handle)` /
+  `mzi_mesh_size(m)`, `optical_tensor(data, shape, w)` /
+  `optical_tensor_wavelength(t)`.
+- `optical_matmul_stub(a, b, w)` — CPU-fallback runtime stub,
+  one-shot warning + placeholder return. Phase B + hardware
+  backend swap the body without source change at adopter
+  sites.
+- 3 op-tag fns: `photonic_op_id_{matmul, fft, convolve}` (1..3)
+  + `photonic_op_name(id) -> str`.
+
+Smoke fixture: `tests/fixtures/v0795_rfc0052_photonic_smoke.nr`
+(rc=0 with the one-shot warning printed to stderr).
+
+### Defensive halt — Rust `Self { ... }` constructor in impl
+
+Pre-fix `impl Counter { fn make(x: i64) -> Counter { return Self
+{ n: x }; } }` surfaced as wrong-class `unknown struct Self`
+because the kind-34 struct-name lookup didn't resolve `Self`
+to the impl target. Halt now fires with a precise diag and
+workaround pointer (write the struct name explicitly).
+
+Sister to v0.6.91 trait-object dispatch halt family. Real
+Self-as-type-alias support requires the resolver to thread
+the impl-target name through to kind-34 — sister to
+RFC-0046 / RFC-0047 phantom-typed work.
+
+Halt fixture: `tests/fixtures/v0795_self_constructor_halt.nr`.
+
 ## [0.7.94] — 2026-05-04
 
 **Punchlist forward — RFC-0061 Tier 2 Phase A: graph-rendering
