@@ -908,8 +908,13 @@ fn lex(src: str) -> Vec<i32> {
         // `x += 5;` lexed as separate `+` and `=` tokens which the parser
         // dropped silently. Token kinds 110/111/112/113/114 are reserved
         // for the five compound-op forms in op-token order.
+        // v0.8.46: postfix `++` / `--` tokens (130 / 131). Must be checked
+        // BEFORE the single-char `+` / `-` fallbacks. `x++` desugars to
+        // `x = x + 1` in parse_stmt; same as `x += 1`. `x--` → `x = x - 1`.
+        else if c == 43 && p + 1 < slen && str_char_at(src, p + 1) == 43 { tokens.push(tok_new(130, 0, p)); p = p + 2; }
         else if c == 43 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(110, 0, p)); p = p + 2; }
         else if c == 43 { tokens.push(tok_new(20, 0, p)); p = p + 1; }
+        else if c == 45 && p + 1 < slen && str_char_at(src, p + 1) == 45 { tokens.push(tok_new(131, 0, p)); p = p + 2; }
         else if c == 45 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(111, 0, p)); p = p + 2; }
         else if c == 45 { tokens.push(tok_new(21, 0, p)); p = p + 1; }
         else if c == 42 && p + 1 < slen && str_char_at(src, p + 1) == 61 { tokens.push(tok_new(112, 0, p)); p = p + 2; }
@@ -1119,6 +1124,8 @@ fn tok_name(tt: i64) -> str {
     if tt == 55 { return "`]`"; };
     if tt == 64 { return "`=>`"; };
     if tt == 70 { return "float literal"; };
+    if tt == 130 { return "`++`"; };
+    if tt == 131 { return "`--`"; };
     return str_concat("token ", str_from_int(tt));
 }
 
@@ -3876,6 +3883,20 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         if assign_tok == 121 { bin_op = 116; };
         let rhs_node: i64 = mk4(pool, 4, bin_op, pr_val(er), pr_val(vr));
         return pr(cp, mk3(pool, 21, pr_val(er), rhs_node));
+    };
+    // v0.8.46: postfix `++` / `--` desugar. `x++;` → `x = x + 1;`
+    // `x--;` → `x = x - 1;`. Token 130 = `++`, token 131 = `--`.
+    // Equivalent to `x += 1` / `x -= 1` but using the C-style postfix
+    // form. The return-value of postfix-increment (old value) is NOT
+    // supported — only the statement form (discard result) is accepted,
+    // which is the 99% use case when porting C/C++ code to Nucleor.
+    if assign_tok == 130 || assign_tok == 131 {
+        cp = cp + 1;
+        if pk(tokens, cp) == 43 { cp = cp + 1; };
+        let inc_op_v846: i64 = if assign_tok == 130 { 20 } else { 21 };
+        let one_v846: i64 = mk2(pool, 1, 1);
+        let rhs_v846: i64 = mk4(pool, 4, inc_op_v846, pr_val(er), one_v846);
+        return pr(cp, mk3(pool, 21, pr_val(er), rhs_v846));
     };
     let mut had_semi_v060: i64 = 0;
     if pk(tokens, cp) == 43 { cp = cp + 1; had_semi_v060 = 1; };

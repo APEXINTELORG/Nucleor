@@ -71,6 +71,71 @@ Cold 3.52s, hot 0.41s. Within Job #1.
 
 Fixed-point md5: `ede3a6e2b3066512a73aed49cbd16407` (unchanged).
 
+## [0.8.52] — 2026-05-04
+
+**Postfix `++` / `--` increment/decrement as statement sugar.**
+C-translation adopters writing `i++;` or `n--;` inside loop
+bodies previously hit wrong-class parse failures: the `+` lexed
+as two consecutive `+` tokens (kind 20) and the statement parser
+saw an orphaned `+` after the expression — NR020 or silent
+misparse. Now `x++` desugars to `x = x + 1` and `x--` to
+`x = x - 1` at parse time, identical to `x += 1` / `x -= 1`.
+
+### Pre-fix surface
+
+```
+let mut n: i64 = 10;
+n--;    // ← wrong-class parse failure
+```
+
+Pre-v0.8.52 the `--` lexed as two token-21 (`-`) tokens.
+The statement parser consumed the expression `n`, then saw
+a bare `-` and either dropped it silently or emitted a
+confusing NR020 "parse error at byte N: expected `;`".
+
+### Fix
+
+Three-site change in `compiler/nucleor_s1_compiler.nr`:
+
+1. **Lexer** (lex): detect `++` (c==43, next==43) and `--`
+   (c==45, next==45) BEFORE the single-char `+`/`-` fallbacks;
+   emit token 130 (`++`) and 131 (`--`) consuming 2 chars.
+   Compound `+=`/`-=` detection (next==61) stays unchanged
+   and remains checked first.
+
+2. **tok_name**: added human-readable names (`++`, `--`) for
+   tokens 130/131 so any future NR020 at those tokens emits
+   an actionable message rather than raw token IDs.
+
+3. **parse_stmt** (after compound-assign block): when the
+   token after the expression is 130 or 131, consume it,
+   optionally consume a `;`, synthesize `mk2(pool,1,1)` for
+   the literal `1`, and return a kind-21 (assign) node whose
+   RHS is a kind-4 binop (`+` or `-`) on the LHS variable
+   and `1`. Identical IR to `x += 1` / `x -= 1`.
+
+### Scope
+
+Statement form only — `let y = x++;` (return-old-value form)
+is NOT supported; the result value is discarded. This covers
+the 99% use case when porting C/C++ loops to Nucleor. Prefix
+`++x` / `--x` (not valid Rust) falls through to the existing
+NR020 "parse_primary cannot start an expression at token kind
+130/131" diagnostic.
+
+### Fixed-point md5
+
+`c5395919db4e63e374f658bc1adedfa7`
+
+### Fixture
+
+`tests/fixtures/v0852_postfix_incr_decr.nr` — verifies `i++`,
+`i--`, and postfix operators inside a while-loop body. rc=0.
+
+### Perf
+
+Cold band ~3.7s (within Job #1 hard cap 5.93s).
+
 ## [0.8.50] — 2026-05-04
 
 **Wave 1 COMPLETE — C-1/C-2 Phase 1 Linux concurrency surface info.**
