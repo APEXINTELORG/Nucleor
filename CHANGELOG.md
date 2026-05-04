@@ -5,6 +5,86 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.105] — 2026-05-04
+
+**csv_parse_line trailing-empty bug FIXED.** Stdlib edit + fixture
+update.
+
+### The bug (surfaced and documented in v0.8.104)
+
+`csv_parse_line` emitted an extra trailing empty field for any
+line not ending with a comma:
+
+```
+csv_parse_line("alpha,beta,gamma")  →  ["alpha", "beta", "gamma", ""]
+```
+
+Real silent-miscompute for adopter row-width validation.
+
+### The fix
+
+Loop condition restructured around an explicit "did the
+previous field end on a comma" tracker:
+
+```nucleor
+let mut last_was_comma: i64 = 1;  // first iteration always runs
+while pos < slen || last_was_comma == 1 {
+    let parsed: Vec<i32> = csv_parse_field(line, pos);
+    fields.push(parsed.get(0));
+    let new_pos: i64 = parsed.get(1);
+    if new_pos > pos && new_pos <= slen && str_char_at(line, new_pos - 1) == 44 {
+        last_was_comma = 1;
+    } else {
+        last_was_comma = 0;
+    };
+    if new_pos == pos { pos = pos + 1; last_was_comma = 0; }
+    else { pos = new_pos; };
+}
+```
+
+Now:
+- `parse_line("alpha,beta,gamma")` → `["alpha", "beta", "gamma"]`
+  (3 fields)
+- `parse_line("a,b,")` → `["a", "b", ""]` (3 fields, the trailing
+  empty is structurally correct because of the trailing comma)
+- `parse_line("only")` → `["only"]` (1 field)
+- Quoted fields and escaped quotes preserved.
+
+### Fixture upgraded
+
+`tests/features/csv_smoke.nr` updated from "documents bug" to
+full post-fix coverage. **9 assertions** across:
+
+| Test | Path |
+|---|---|
+| simple | 3-comma input → 3 fields |
+| trailing comma | `"a,b,"` → 3 fields with last empty |
+| single token | `"only"` → 1 field |
+| quoted with comma | `"\"hello, world\",ok"` → `["hello, world", "ok"]` |
+| escaped quote | `"\"a\"\"b\""` → `["a\"b"]` |
+| escape plain | `csv_escape("plain")` → `"plain"` |
+| escape comma | `csv_escape("a,b")` → `"\"a,b\""` |
+| escape quote | `csv_escape("a\"b")` → `"\"a\"\"b\""` |
+| format-parse round-trip | 3 fields with comma + quote round-trip exactly |
+
+All 9 pass. rc=0. Cold 0.59s.
+
+### Pattern note
+
+This is the first FIX-the-bug ship after a sequence of
+"document the bug" lock-in fixtures. The flow worked:
+
+1. v0.8.104 fixture surfaced the bug + locked current behavior.
+2. v0.8.105 fixes the underlying logic + atomically updates the
+   fixture's expected values.
+
+The "expected output changes here" landmark in v0.8.104's
+fixture comment paid off — the v0.8.105 update is mechanical
+and reviewable, with no risk of accidentally accepting other
+regressions.
+
+Pure stdlib edit; no compiler / runtime change.
+
 ## [0.8.104] — 2026-05-04
 
 **stdlib/rods/csv.nr first test coverage + pre-existing parser
