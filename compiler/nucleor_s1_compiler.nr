@@ -19,6 +19,7 @@
 // as the truthful entry point; str_from_int kept as a wrapper for
 // backward compat. No call-site changes required; adopters who want
 // to be type-honest can switch to str_from_i64 going forward.
+#[manual_drop]
 fn str_from_i64(n: i64) -> str {
     if n == 0 { return "0"; };
     if n == 1 { return "1"; } else if n == 2 { return "2"; } else if n == 3 { return "3"; }
@@ -66,9 +67,11 @@ fn str_from_i64(n: i64) -> str {
 // audit surface (1734 hits in compiler self-build, 1291 in
 // tools-suite). One-line cleanup; required substrate for the
 // typed-param-alloca restore below.
+#[manual_drop]
 fn str_from_int(n: i64) -> str {
     return str_from_i64(n);
 }
+#[manual_drop]
 fn str_to_int(s: str) -> i64 {
     // v0.3.208: wrap arithmetic via wrapping_mul/add so that large
     // literals like u64::MAX (18446744073709551615) parse correctly
@@ -98,6 +101,7 @@ fn str_to_int(s: str) -> i64 {
     if neg == 1 { return wrapping_sub(0, result); };
     return result;
 }
+#[manual_drop]
 fn str_is_digits(s: str) -> i64 {
     let slen: i64 = str_len(s);
     if slen == 0 { return 0; };
@@ -113,19 +117,28 @@ fn str_is_digits(s: str) -> i64 {
 // =====================================================
 // LEXER (from T29, unchanged)
 // =====================================================
+#[manual_drop]
 fn tok_new(tt: i64, v: i64, p: i64) -> Vec<i32> {
     let mut t: Vec<i32> = Vec::with_capacity(3); t.push(tt); t.push(v); t.push(p); return t;
 }
+#[manual_drop]
 fn tok_type(t: Vec<i32>) -> i64 { return vec_get(t, 0); }
+#[manual_drop]
 fn tok_val(t: Vec<i32>) -> i64 { return vec_get(t, 1); }
+#[manual_drop]
 fn tok_pos(t: Vec<i32>) -> i64 { return vec_get(t, 2); }
+#[manual_drop]
 fn is_ws(c: i64) -> i64 { if c == 32 || c == 9 || c == 10 || c == 13 { return 1; }; return 0; }
+#[manual_drop]
 fn is_digit(c: i64) -> i64 { if c >= 48 && c <= 57 { return 1; }; return 0; }
+#[manual_drop]
 fn is_alpha(c: i64) -> i64 {
     if c >= 65 && c <= 90 { return 1; }; if c >= 97 && c <= 122 { return 1; };
     if c == 95 { return 1; }; return 0;
 }
+#[manual_drop]
 fn is_alnum(c: i64) -> i64 { if is_alpha(c) == 1 || is_digit(c) == 1 { return 1; }; return 0; }
+#[manual_drop]
 fn classify_kw(w: str) -> i64 {
     if str_eq(w, "fn") { return 10; }; if str_eq(w, "let") { return 11; };
     if str_eq(w, "mut") { return 12; }; if str_eq(w, "if") { return 13; };
@@ -237,6 +250,7 @@ fn classify_kw(w: str) -> i64 {
     // check is rewritten to use pkv lookahead.
     return 1;
 }
+#[manual_drop]
 fn lex(src: str) -> Vec<i32> {
     let mut tokens: Vec<i32> = Vec::new();
     let slen: i64 = str_len(src);
@@ -1025,10 +1039,13 @@ fn lex(src: str) -> Vec<i32> {
     tokens.push(tok_new(0, 0, slen));
     return tokens;
 }
+#[manual_drop]
 fn tok_at(tokens: Vec<i32>, idx: i64) -> Vec<i32> {
     if idx >= vec_len(tokens) { return tok_new(0, 0, 0); }; return vec_get(tokens, idx);
 }
+#[manual_drop]
 fn tok_type_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_type(tok_at(tokens, idx)); }
+#[manual_drop]
 fn tok_val_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_val(tok_at(tokens, idx)); }
 
 // =====================================================
@@ -1039,10 +1056,15 @@ extern fn nuc_node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64;
 extern fn nuc_list_len(pool: Vec<i32>, lid: i64) -> i64;
 extern fn nuc_list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64;
 
+#[manual_drop]
 fn node_add(pool: Vec<i32>, nd: Vec<i32>) -> i64 { let nid: i64 = vec_len(pool); pool.push(nd); return nid; }
+#[manual_drop]
 fn node_kind(pool: Vec<i32>, nid: i64) -> i64 { return nuc_node_kind(pool, nid); }
+#[manual_drop]
 fn node_field(pool: Vec<i32>, nid: i64, idx: i64) -> i64 { return nuc_node_field(pool, nid, idx); }
+#[manual_drop]
 fn node_span_sentinel() -> i64 { return 0 - 873521; }
+#[manual_drop]
 fn node_set_span(pool: Vec<i32>, nid: i64, byte_off: i64) -> i64 {
     if nid < 0 || nid >= vec_len(pool) { return nid; };
     if byte_off < 0 { return nid; };
@@ -1052,6 +1074,7 @@ fn node_set_span(pool: Vec<i32>, nid: i64, byte_off: i64) -> i64 {
     nd.push(byte_off);
     return nid;
 }
+#[manual_drop]
 fn node_get_span(pool: Vec<i32>, nid: i64) -> i64 {
     if nid < 0 || nid >= vec_len(pool) { return 0 - 1; };
     if node_kind(pool, nid) == 40 { return 0 - 1; };
@@ -1060,18 +1083,27 @@ fn node_get_span(pool: Vec<i32>, nid: i64) -> i64 {
     if n >= 3 && vec_get(nd, n - 2) == node_span_sentinel() { return vec_get(nd, n - 1); };
     return 0 - 1;
 }
+#[manual_drop]
 fn mk2(pool: Vec<i32>, k: i64, a: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(2); n.push(k); n.push(a); return node_add(pool, n); }
+#[manual_drop]
 fn mk3(pool: Vec<i32>, k: i64, a: i64, b: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(3); n.push(k); n.push(a); n.push(b); return node_add(pool, n); }
+#[manual_drop]
 fn mk4(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(4); n.push(k); n.push(a); n.push(b); n.push(c); return node_add(pool, n); }
+#[manual_drop]
 fn mk5(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64, d: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(5); n.push(k); n.push(a); n.push(b); n.push(c); n.push(d); return node_add(pool, n); }
+#[manual_drop]
 fn mk6(pool: Vec<i32>, k: i64, a: i64, b: i64, c: i64, d: i64, e: i64) -> i64 { let mut n: Vec<i32> = Vec::with_capacity(6); n.push(k); n.push(a); n.push(b); n.push(c); n.push(d); n.push(e); return node_add(pool, n); }
+#[manual_drop]
 fn mk_list(pool: Vec<i32>, items: Vec<i32>) -> i64 {
     let mut n: Vec<i32> = Vec::with_capacity(vec_len(items) + 1); n.push(40);
     let mut i: i64 = 0; while i < vec_len(items) { n.push(vec_get(items, i)); i = i + 1; };
     return node_add(pool, n);
 }
+#[manual_drop]
 fn list_len(pool: Vec<i32>, lid: i64) -> i64 { return nuc_list_len(pool, lid); }
+#[manual_drop]
 fn list_get(pool: Vec<i32>, lid: i64, idx: i64) -> i64 { return nuc_list_get(pool, lid, idx); }
+#[manual_drop]
 fn free_token_vec(tokens: Vec<i32>) -> i64 {
     let mut i: i64 = 0;
     while i < vec_len(tokens) {
@@ -1083,6 +1115,7 @@ fn free_token_vec(tokens: Vec<i32>) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn free_node_pool(pool: Vec<i32>) -> i64 {
     let mut i: i64 = 0;
     while i < vec_len(pool) {
@@ -1094,18 +1127,25 @@ fn free_node_pool(pool: Vec<i32>) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn pr(p: i64, v: i64) -> Vec<i32> { let mut r: Vec<i32> = Vec::with_capacity(2); r.push(p); r.push(v); return r; }
+#[manual_drop]
 fn pr_pos(r: Vec<i32>) -> i64 { return vec_get(r, 0); }
+#[manual_drop]
 fn pr_val(r: Vec<i32>) -> i64 { return vec_get(r, 1); }
 
+#[manual_drop]
 fn pk(tokens: Vec<i32>, pos: i64) -> i64 { return tok_type_at(tokens, pos); }
+#[manual_drop]
 fn pkv(tokens: Vec<i32>, pos: i64) -> i64 { return tok_val_at(tokens, pos); }
+#[manual_drop]
 fn tok_pos_at(tokens: Vec<i32>, idx: i64) -> i64 { return tok_pos(tok_at(tokens, idx)); }
 // v0.4.208: human-readable names for the most common NR020 tokens.
 // Closes two findings (tuple-struct-decl-panic + match-on-unit-panic)
 // which both surfaced as "expected token N got M" with raw IDs.
 // Trimmed to the high-impact punct/keyword set to avoid bloating
 // the compiler binary; less-common tokens fall back to "token N".
+#[manual_drop]
 fn tok_name(tt: i64) -> str {
     if tt == 0 { return "<EOF>"; };
     if tt == 1 { return "identifier"; };
@@ -1129,6 +1169,7 @@ fn tok_name(tt: i64) -> str {
     return str_concat("token ", str_from_int(tt));
 }
 
+#[manual_drop]
 fn expect_tok(tokens: Vec<i32>, pos: i64, tt: i64) -> i64 {
     if pk(tokens, pos) != tt {
         // v0.4.78 NR020 — was a `print()` warning that returned `pos + 1`
@@ -1149,6 +1190,7 @@ fn expect_tok(tokens: Vec<i32>, pos: i64, tt: i64) -> i64 {
     return pos + 1;
 }
 
+#[manual_drop]
 fn parse_args(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut args: Vec<i32> = Vec::new();
     let mut cp: i64 = pos;
@@ -1165,6 +1207,7 @@ fn parse_args(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp + 1, mk_list(pool, args));
 }
 
+#[manual_drop]
 fn skip_bracket_list(tokens: Vec<i32>, pos: i64) -> i64 {
     let mut cp: i64 = expect_tok(tokens, pos, 54);
     let mut depth: i64 = 1;
@@ -1176,6 +1219,7 @@ fn skip_bracket_list(tokens: Vec<i32>, pos: i64) -> i64 {
     return cp;
 }
 
+#[manual_drop]
 fn skip_effect_clause(tokens: Vec<i32>, pos: i64) -> i64 {
     if pk(tokens, pos) == 1 && str_eq(pkv(tokens, pos), "with") == 1 {
         return skip_bracket_list(tokens, pos + 1);
@@ -1183,6 +1227,7 @@ fn skip_effect_clause(tokens: Vec<i32>, pos: i64) -> i64 {
     return pos;
 }
 
+#[manual_drop]
 fn skip_compile_time_param_default(tokens: Vec<i32>, pos: i64) -> i64 {
     let mut cp: i64 = pos;
     let mut paren_depth: i64 = 0;
@@ -1215,6 +1260,7 @@ fn skip_compile_time_param_default(tokens: Vec<i32>, pos: i64) -> i64 {
     return cp;
 }
 
+#[manual_drop]
 fn ct_param_type_is_unsigned(t: str) -> i64 {
     if str_eq(t, "u8") == 1 { return 1; };
     if str_eq(t, "u16") == 1 { return 1; };
@@ -1224,11 +1270,13 @@ fn ct_param_type_is_unsigned(t: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn ct_param_default_is_negative_literal(tokens: Vec<i32>, pos: i64) -> i64 {
     if pk(tokens, pos) == 21 && pk(tokens, pos + 1) == 2 { return 1; };
     return 0;
 }
 
+#[manual_drop]
 fn skip_compile_time_params(tokens: Vec<i32>, pos: i64) -> i64 {
     // RFC-0034 first-pass parser substrate. Accepts
     // `fn name<T>[N: usize, TILE: usize = 16](...)` and erases the
@@ -1262,6 +1310,7 @@ fn skip_compile_time_params(tokens: Vec<i32>, pos: i64) -> i64 {
     return cp;
 }
 
+#[manual_drop]
 fn skip_angle_group(tokens: Vec<i32>, pos: i64) -> i64 {
     if pk(tokens, pos) != 32 { return pos; };
     let mut cp: i64 = pos + 1;
@@ -1285,6 +1334,7 @@ fn skip_angle_group(tokens: Vec<i32>, pos: i64) -> i64 {
 // param lists where the trailing context isn't a type-position token.
 // Returns the position past the closing `>`, or `pos` unchanged if no
 // balanced group at this position.
+#[manual_drop]
 fn skip_balanced_angle(tokens: Vec<i32>, pos: i64) -> i64 {
     if pk(tokens, pos) != 32 { return pos; };
     let mut cp: i64 = pos + 1;
@@ -1299,6 +1349,7 @@ fn skip_balanced_angle(tokens: Vec<i32>, pos: i64) -> i64 {
     return cp;
 }
 
+#[manual_drop]
 fn skip_where_clause(tokens: Vec<i32>, pos: i64) -> i64 {
     let mut cp: i64 = pos;
     if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "where") == 1 {
@@ -1310,6 +1361,7 @@ fn skip_where_clause(tokens: Vec<i32>, pos: i64) -> i64 {
     return cp;
 }
 
+#[manual_drop]
 fn halt_hrtb_not_supported_v718() -> i64 {
     print("ERROR: higher-ranked trait bounds `for<'a> ...` are not yet supported in Nucleor. Pre-v0.7.18 the where-clause parser skipped the `for<'a>` wrapper and partially recorded inner identifiers like `Fn` and argument types as ordinary trait bounds, producing wrong-class `TYP-019` unknown-trait diagnostics. Workaround: replace the HRTB with a concrete fn-pointer type or a non-higher-ranked generic bound. Tracked for forward-roadmap (RFC-0027 lifetime quantifiers / HRTB substrate).");
     panic("nucleor: higher-ranked trait bounds `for<'a>` not yet supported (see ERROR diagnostic above)");
@@ -1329,6 +1381,7 @@ fn halt_hrtb_not_supported_v718() -> i64 {
 // `?C` after U's. Lifetime entries (prefixed `'`) are preserved. Bounds on
 // names that don't appear in gparams are silently dropped (no-op — caller
 // param list is the authoritative shape).
+#[manual_drop]
 fn parse_where_clause_into_gparams(tokens: Vec<i32>, pos: i64, gparams: Vec<i32>) -> i64 {
     let mut cp: i64 = pos;
     if pk(tokens, cp) != 1 { return cp; };
@@ -1391,6 +1444,7 @@ fn parse_where_clause_into_gparams(tokens: Vec<i32>, pos: i64, gparams: Vec<i32>
     return cp;
 }
 
+#[manual_drop]
 fn parse_match_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     let mut cp: i64 = pos;
     let mut binding: str = "";
@@ -1413,6 +1467,7 @@ fn parse_match_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     return pr(cp, binding);
 }
 
+#[manual_drop]
 fn str_find_char_local(s: str, ch: i64) -> i64 {
     let slen: i64 = str_len(s);
     let mut i: i64 = 0;
@@ -1423,24 +1478,28 @@ fn str_find_char_local(s: str, ch: i64) -> i64 {
     return 0 - 1;
 }
 
+#[manual_drop]
 fn str_before_char_local(s: str, ch: i64) -> str {
     let p: i64 = str_find_char_local(s, ch);
     if p < 0 { return s; };
     return str_substring(s, 0, p);
 }
 
+#[manual_drop]
 fn str_after_char_local(s: str, ch: i64) -> str {
     let p: i64 = str_find_char_local(s, ch);
     if p < 0 { return ""; };
     return str_substring(s, p + 1, str_len(s));
 }
 
+#[manual_drop]
 fn pattern_append_binding(binding: str, piece: str) -> str {
     if str_len(piece) == 0 { return binding; };
     if str_len(binding) == 0 { return piece; };
     return str_concat(binding, str_concat("|", piece));
 }
 
+#[manual_drop]
 fn pattern_prepend_at_binding(binding: str, at_name: str) -> str {
     if str_len(at_name) == 0 { return binding; };
     let head: str = str_concat("@", at_name);
@@ -1448,6 +1507,7 @@ fn pattern_prepend_at_binding(binding: str, at_name: str) -> str {
     return str_concat(head, str_concat("|", binding));
 }
 
+#[manual_drop]
 fn pattern_binding_item_name(item: str) -> str {
     if str_len(item) == 0 { return ""; };
     if str_eq(item, "_") == 1 || str_eq(item, "..") == 1 { return ""; };
@@ -1459,6 +1519,7 @@ fn pattern_binding_item_name(item: str) -> str {
     return s;
 }
 
+#[manual_drop]
 fn pattern_binding_key_from_list(binding: str) -> str {
     let blen: i64 = str_len(binding);
     let mut key: str = "";
@@ -1474,6 +1535,7 @@ fn pattern_binding_key_from_list(binding: str) -> str {
     return key;
 }
 
+#[manual_drop]
 fn pattern_binding_key(ename: str, binding: str) -> str {
     if str_eq(ename, "__range") == 1 || str_eq(ename, "__range_bad") == 1 { return ""; };
     if str_eq(ename, "__range_at") == 1 || str_eq(ename, "__range_bad_at") == 1 {
@@ -1482,6 +1544,7 @@ fn pattern_binding_key(ename: str, binding: str) -> str {
     return pattern_binding_key_from_list(binding);
 }
 
+#[manual_drop]
 fn parse_match_struct_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     let mut cp: i64 = pos;
     let mut binding: str = "";
@@ -1536,6 +1599,7 @@ fn parse_match_struct_binding_block(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     return pr(cp, binding);
 }
 
+#[manual_drop]
 fn parse_match_list_binding(tokens: Vec<i32>, pos: i64, end_tok: i64, allow_rest: i64) -> Vec<i32> {
     let mut cp: i64 = pos;
     let mut binding: str = "";
@@ -1567,6 +1631,7 @@ fn parse_match_list_binding(tokens: Vec<i32>, pos: i64, end_tok: i64, allow_rest
     return pr(cp, binding);
 }
 
+#[manual_drop]
 fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut cp: i64 = pos;
     let mut at_name: str = "";
@@ -1871,10 +1936,12 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
     return out;
 }
 
+#[manual_drop]
 fn mk_passthrough_block_expr(pool: Vec<i32>, body: i64) -> i64 {
     return mk4(pool, 23, mk2(pool, 1, 1), body, 0 - 1);
 }
 
+#[manual_drop]
 fn parse_passthrough_block_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut cp: i64 = expect_tok(tokens, pos, 52);
     let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
@@ -1882,6 +1949,7 @@ fn parse_passthrough_block_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> V
     return pr(cp, mk_passthrough_block_expr(pool, pr_val(br)));
 }
 
+#[manual_drop]
 fn parse_wrapped_block_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, mode: i64) -> Vec<i32> {
     let mut cp: i64 = expect_tok(tokens, pos, 52);
     let mut br: Vec<i32> = parse_stmts(tokens, cp, pool);
@@ -1889,6 +1957,7 @@ fn parse_wrapped_block_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, mode: i6
     return pr(cp, mk3(pool, 52, mode, pr_val(br)));
 }
 
+#[manual_drop]
 fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let tt: i64 = pk(tokens, pos);
     // v0.6.60 (probe finding 2026-05-01-rust-syntax-translation-
@@ -2528,6 +2597,7 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(pos + 1, mk2(pool, 1, 0));
 }
 
+#[manual_drop]
 fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_primary(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
@@ -2656,6 +2726,7 @@ fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, node);
 }
 
+#[manual_drop]
 fn parse_unary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if pk(tokens, pos) == 21 { let mut r: Vec<i32> = parse_unary(tokens, pos + 1, pool); return pr(pr_pos(r), mk2(pool, 5, pr_val(r))); };
     if pk(tokens, pos) == 38 { let mut r: Vec<i32> = parse_unary(tokens, pos + 1, pool); return pr(pr_pos(r), mk2(pool, 6, pr_val(r))); };
@@ -2712,6 +2783,7 @@ fn parse_unary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, node);
 }
 
+#[manual_drop]
 fn parse_mul(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_unary(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
@@ -2720,6 +2792,7 @@ fn parse_mul(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     };
     return pr(cp, node);
 }
+#[manual_drop]
 fn parse_add(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_mul(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
@@ -2735,6 +2808,7 @@ fn parse_add(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 // tok_to_ir maps 115 → iop 16 (LLVM `shl i64`); the parser
 // synthesizes a virtual `>>` token (kind 116) only at lower-time
 // via mk4 → iop 17 (LLVM `ashr i64`) without touching the lexer.
+#[manual_drop]
 fn parse_shift(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_add(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
@@ -2759,6 +2833,7 @@ fn parse_shift(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 // (LLVM `or i64`), and `^` (tok 94) → iop 15 (LLVM `xor i64`).
 // Disambiguates from logical `&&`/`||` because the lexer emits
 // distinct tokens 36/37 for those — never tt == 82/65 here.
+#[manual_drop]
 fn parse_bitwise(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_shift(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
@@ -2768,6 +2843,7 @@ fn parse_bitwise(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     };
     return pr(cp, node);
 }
+#[manual_drop]
 fn parse_cmp(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_bitwise(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
@@ -2777,6 +2853,7 @@ fn parse_cmp(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     };
     return pr(cp, node);
 }
+#[manual_drop]
 fn parse_eq(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_cmp(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
@@ -2786,12 +2863,14 @@ fn parse_eq(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, node);
 }
 
+#[manual_drop]
 fn parse_and_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_eq(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
     while pk(tokens, cp) == 36 { r = parse_eq(tokens, cp + 1, pool); cp = pr_pos(r); node = mk4(pool, 4, 36, node, pr_val(r)); };
     return pr(cp, node);
 }
+#[manual_drop]
 fn parse_or_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_and_expr(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
@@ -2799,6 +2878,7 @@ fn parse_or_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, node);
 }
 
+#[manual_drop]
 fn parse_pipe_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_or_expr(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r);
@@ -2829,8 +2909,10 @@ fn parse_pipe_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, node);
 }
 
+#[manual_drop]
 fn parse_expr(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> { return parse_pipe_expr(tokens, pos, pool); }
 
+#[manual_drop]
 fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     if pk(tokens, pos) == 56 {
         halt_hrtb_not_supported_v718();
@@ -3037,6 +3119,7 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     return pr(p2, name);
 }
 
+#[manual_drop]
 fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     // pos points at '<', returns (pos_after_>, list of param name strings).
     // T2.5 (v0.2.351): accepts lifetime parameters (`'a`, `'static`, etc.)
@@ -3118,6 +3201,7 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     return pr(cp, params);
 }
 
+#[manual_drop]
 fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut is_mut: i64 = 0; let mut cp: i64 = pos;
     if pk(tokens, cp) == 12 { is_mut = 1; cp = cp + 1; };
@@ -3248,6 +3332,7 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, let_nid);
 }
 
+#[manual_drop]
 fn parse_const_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let name: i64 = pkv(tokens, pos);
     let name_span: i64 = tok_pos_at(tokens, pos);
@@ -3262,6 +3347,7 @@ fn parse_const_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, const_nid);
 }
 
+#[manual_drop]
 fn parse_type_alias_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = expect_tok(tokens, pos + 1, 40);
@@ -3271,6 +3357,7 @@ fn parse_type_alias_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32>
     return pr(cp, mk3(pool, 51, name, pr_val(tr)));
 }
 
+#[manual_drop]
 fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // RFC-0016 sugar: `if let PATTERN = EXPR { THEN } else { ELSE }`
     // desugars to `match EXPR { PATTERN => { THEN }, _ => { ELSE } }`.
@@ -3476,6 +3563,7 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 23, pr_val(cr), pr_val(tr), else_id));
 }
 
+#[manual_drop]
 fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // RFC-0016 sugar: `while let PATTERN = EXPR { BODY }` desugars to
     // `loop { match EXPR { PATTERN => { BODY }, _ => break } }`.
@@ -3595,6 +3683,7 @@ fn parse_while_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk3(pool, 24, pr_val(cr), pr_val(br)));
 }
 
+#[manual_drop]
 fn parse_for_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos is after 'for', pointing at variable name
     // v0.6.59 (probe finding 2026-05-01-rust-syntax-translation-
@@ -3653,6 +3742,7 @@ fn parse_for_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 49, name, pr_val(sr), pr_val(br)));
 }
 
+#[manual_drop]
 fn parse_return_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if pk(tokens, pos) == 43 { return pr(pos + 1, mk2(pool, 22, 0 - 1)); };
     let mut er: Vec<i32> = parse_expr(tokens, pos, pool);
@@ -3661,6 +3751,7 @@ fn parse_return_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk2(pool, 22, pr_val(er)));
 }
 
+#[manual_drop]
 fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let tt: i64 = pk(tokens, pos);
     // v0.7.77 (defensive halt — Rust 1.59+ destructuring assignment
@@ -3903,6 +3994,7 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk3(pool, 25, pr_val(er), had_semi_v060));
 }
 
+#[manual_drop]
 fn parse_stmts(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut items: Vec<i32> = Vec::new(); let mut cp: i64 = pos;
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
@@ -3911,6 +4003,7 @@ fn parse_stmts(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk_list(pool, items));
 }
 
+#[manual_drop]
 fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = pos + 1;
@@ -4070,6 +4163,7 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk6(pool, 30, name, mk_list(pool, params), rtype, pr_val(br), gparams));
 }
 
+#[manual_drop]
 fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points after 'extern fn', at the name
     let name: i64 = pkv(tokens, pos);
@@ -4118,6 +4212,7 @@ fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 32, name, mk_list(pool, params), rtype));
 }
 
+#[manual_drop]
 fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points after 'struct', at the name
     let name: i64 = pkv(tokens, pos);
@@ -4282,6 +4377,7 @@ fn parse_struct_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 33, name, mk_list(pool, fields), gparams));
 }
 
+#[manual_drop]
 fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points at name, next is {
     // v0.5 (v0.4.237) — capture struct-name token byte offset for
@@ -4339,6 +4435,7 @@ fn parse_struct_init(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, struct_nid);
 }
 
+#[manual_drop]
 fn parse_enum_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points after 'enum', at the name
     let name: i64 = pkv(tokens, pos);
@@ -4431,6 +4528,7 @@ fn parse_enum_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 36, name, mk_list(pool, variants), gparams));
 }
 
+#[manual_drop]
 fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // pos points after 'trait', at the name
     let name: i64 = pkv(tokens, pos);
@@ -4586,6 +4684,7 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 43, name, mk_list(pool, methods), gparams));
 }
 
+#[manual_drop]
 fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     // Supports both `impl Trait for Type { ... }` and `impl Type { ... }`
     // v0.6.46: also `impl<T> Trait for Type<T> { ... }` (Rust generic
@@ -4743,6 +4842,7 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     return pr(cp, mk4(pool, 45, trait_name, type_name, mk_list(pool, methods)));
 }
 
+#[manual_drop]
 fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, match_span: i64) -> Vec<i32> {
     // pos is after 'match', at the expression
     let mut er: Vec<i32> = parse_expr(tokens, pos, pool);
@@ -4881,6 +4981,7 @@ fn parse_match_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>, match_span: i64)
     return pr(cp, match_nid);
 }
 
+#[manual_drop]
 fn has_main_decl(pool: Vec<i32>, items: Vec<i32>) -> i64 {
     let mut i: i64 = 0;
     while i < vec_len(items) {
@@ -4891,6 +4992,7 @@ fn has_main_decl(pool: Vec<i32>, items: Vec<i32>) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn remove_main_decl(pool: Vec<i32>, items: Vec<i32>) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let mut i: i64 = 0;
@@ -4905,6 +5007,7 @@ fn remove_main_decl(pool: Vec<i32>, items: Vec<i32>) -> Vec<i32> {
     return out;
 }
 
+#[manual_drop]
 fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
     let mut items: Vec<i32> = Vec::new(); let mut cp: i64 = 0;
     // T1.5b (v0.2.341): track `pub` keyword on top-level items.
@@ -5158,22 +5261,30 @@ fn parse_program(tokens: Vec<i32>, pool: Vec<i32>) -> Vec<i32> {
 // =====================================================
 // IR DATA STRUCTURES (from T29, extended)
 // =====================================================
+#[manual_drop]
 fn ir_inst(op: i64, d: i64, tid: i64, o1: i64, o2: i64, ex: i64) -> Vec<i32> {
     let mut ii: Vec<i32> = Vec::with_capacity(6); ii.push(op); ii.push(d); ii.push(tid); ii.push(o1); ii.push(o2); ii.push(ex); return ii;
 }
+#[manual_drop]
 fn ir_op(ii: Vec<i32>) -> i64 { return vec_get(ii, 0); }
+#[manual_drop]
 fn ir_dest(ii: Vec<i32>) -> i64 { return vec_get(ii, 1); }
 // v0.4.196 RFC-0015 phase 3a: slot 2 is a width tag for IR ops that
 // reference a typed memory slot (alloca/load/store). 0 = "i64" default
 // (current behavior); 8/16/32 select narrower LLVM types. Other ops
 // leave the slot 0; emit dispatch only consults it for ops 16/17/18.
+#[manual_drop]
 fn ir_tid(ii: Vec<i32>) -> i64 { return vec_get(ii, 2); }
+#[manual_drop]
 fn ir_op1(ii: Vec<i32>) -> i64 { return vec_get(ii, 3); }
+#[manual_drop]
 fn ir_op2(ii: Vec<i32>) -> i64 { return vec_get(ii, 4); }
+#[manual_drop]
 fn ir_extra(ii: Vec<i32>) -> i64 { return vec_get(ii, 5); }
 
 // v0.4.196 RFC-0015 phase 3a: width → LLVM integer type. Default 0
 // means "no explicit width" → i64 (matches all pre-phase-3 emits).
+#[manual_drop]
 fn width_to_llvm_type(w: i64) -> str {
     if w == 8  { return "i8"; };
     if w == 16 { return "i16"; };
@@ -5182,6 +5293,7 @@ fn width_to_llvm_type(w: i64) -> str {
     return "i64";
 }
 
+#[manual_drop]
 fn is_atomic_ordered_builtin(name: str) -> i64 {
     if str_starts_with(name, "atomic_i64_load_") == 1 {
         if str_ends_with(name, "_relaxed") == 1 || str_ends_with(name, "_acquire") == 1 || str_ends_with(name, "_seqcst") == 1 { return 1; };
@@ -5210,6 +5322,7 @@ fn is_atomic_ordered_builtin(name: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn atomic_tail_order_llvm(name: str) -> str {
     if str_contains(name, "_seqcst") == 1 { return "seq_cst"; };
     if str_contains(name, "_acqrel") == 1 { return "acq_rel"; };
@@ -5218,6 +5331,7 @@ fn atomic_tail_order_llvm(name: str) -> str {
     return "monotonic";
 }
 
+#[manual_drop]
 fn atomic_cmpxchg_success_order_llvm(name: str) -> str {
     if str_contains(name, "compare_exchange_seqcst_") == 1 { return "seq_cst"; };
     if str_contains(name, "compare_exchange_acqrel_") == 1 { return "acq_rel"; };
@@ -5226,6 +5340,7 @@ fn atomic_cmpxchg_success_order_llvm(name: str) -> str {
     return "monotonic";
 }
 
+#[manual_drop]
 fn atomic_cmpxchg_failure_order_llvm(name: str) -> str {
     if str_contains(name, "_seqcst_seqcst") == 1 { return "seq_cst"; };
     if str_contains(name, "_acquire_acquire") == 1 { return "acquire"; };
@@ -5234,6 +5349,7 @@ fn atomic_cmpxchg_failure_order_llvm(name: str) -> str {
     return "monotonic";
 }
 
+#[manual_drop]
 fn atomic_rmw_op_llvm(name: str) -> str {
     // Order matters: check `swap` before the fetch_* family. The new
     // ordered helper `atomic_i64_swap_<order>` lowers to `atomicrmw
@@ -5246,6 +5362,7 @@ fn atomic_rmw_op_llvm(name: str) -> str {
     return "add";
 }
 
+#[manual_drop]
 fn emit_atomic_ordered_call(sb: i64, name: str, d: i64, argc: i64, args: Vec<i32>) -> i64 {
     let ds: str = str_from_int(d);
     if argc <= 0 {
@@ -5298,8 +5415,11 @@ fn emit_atomic_ordered_call(sb: i64, name: str, d: i64, argc: i64, args: Vec<i32
 // v0.4.196 RFC-0015 phase 3a: typed allocas/loads/stores. Existing
 // untyped builders (ir_alloca, ir_load, ir_store) call these with
 // width=0 to preserve byte-identical IR output for current call sites.
+#[manual_drop]
 fn ir_alloca_t(d: i64, w: i64) -> Vec<i32> { return ir_inst(16, d, w, 0, 0, 0); }
+#[manual_drop]
 fn ir_load_t(d: i64, ptr: i64, w: i64) -> Vec<i32> { return ir_inst(17, d, w, ptr, 0, 0); }
+#[manual_drop]
 fn ir_store_t(v: i64, ptr: i64, w: i64) -> Vec<i32> { return ir_inst(18, 0, w, v, ptr, 0); }
 
 // v0.4.197 RFC-0015 phase 3a-step-2: sext + trunc IR ops for crossing
@@ -5310,44 +5430,64 @@ fn ir_store_t(v: i64, ptr: i64, w: i64) -> Vec<i32> { return ir_inst(18, 0, w, v
 // `ir_store_t(narrow, slot, w)`. Encoding: op 32 = sext, op 33 = trunc;
 // slot 2 carries the SOURCE width (sext) or TARGET width (trunc).
 // emit_inst dispatch reads the width tag and emits the right LLVM op.
+#[manual_drop]
 fn ir_sext(d: i64, src: i64, src_w: i64) -> Vec<i32> { return ir_inst(32, d, src_w, src, 0, 0); }
 // v0.4.209 RFC-0015 phase 3a-step-3: zext companion to ir_sext for
 // unsigned narrow types (u8/u16). Same shape as ir_sext but emits
 // `zext iX %S to i64` (zero-extension, top bits cleared) instead of
 // `sext` (sign-extension). Required because u16 max (65535) sext'd
 // to i64 becomes -1; zext'd it stays 65535. Op 34.
+#[manual_drop]
 fn ir_zext(d: i64, src: i64, src_w: i64) -> Vec<i32> { return ir_inst(34, d, src_w, src, 0, 0); }
+#[manual_drop]
 fn ir_trunc(d: i64, src: i64, dst_w: i64) -> Vec<i32> { return ir_inst(33, d, dst_w, src, 0, 0); }
 
+#[manual_drop]
 fn ir_const_int(d: i64, v: i64) -> Vec<i32> { return ir_inst(0, d, 0, v, 0, 0); }
+#[manual_drop]
 fn ir_binop(iop: i64, d: i64, a: i64, b: i64) -> Vec<i32> { return ir_inst(iop, d, 0, a, b, 0); }
 // v0.4.211 RFC-0015 phase 3b: typed binop. Same op codes as ir_binop
 // (2..6 for arith, 7..12 for cmp, 13..15 + 23..24 for bitwise/shift)
 // but slot 2 carries the operand width (8/16/32). emit_inst dispatch
 // reads tid: 0 stays at i64 (byte-identical fast path); >0 emits
 // `<op> iN`. Caller is lower_expr kind 4 narrow path.
+#[manual_drop]
 fn ir_binop_t(iop: i64, d: i64, a: i64, b: i64, w: i64) -> Vec<i32> { return ir_inst(iop, d, w, a, b, 0); }
 // v0.5 3e.1 spike: signed LLVM overflow-intrinsic arithmetic.
 // Opcodes 35/36/37 mirror add/sub/mul. tid carries width (0 => i64),
 // extra carries the trap label; the continuation label is trap + 1.
+#[manual_drop]
 fn ir_add_with_overflow(d: i64, a: i64, b: i64, w: i64, trap_lbl: i64) -> Vec<i32> { return ir_inst(35, d, w, a, b, trap_lbl); }
+#[manual_drop]
 fn ir_sub_with_overflow(d: i64, a: i64, b: i64, w: i64, trap_lbl: i64) -> Vec<i32> { return ir_inst(36, d, w, a, b, trap_lbl); }
+#[manual_drop]
 fn ir_mul_with_overflow(d: i64, a: i64, b: i64, w: i64, trap_lbl: i64) -> Vec<i32> { return ir_inst(37, d, w, a, b, trap_lbl); }
+#[manual_drop]
 fn ir_binop_overflow(iop: i64, d: i64, a: i64, b: i64, w: i64, trap_lbl: i64) -> Vec<i32> {
     if iop == 2 { return ir_add_with_overflow(d, a, b, w, trap_lbl); };
     if iop == 3 { return ir_sub_with_overflow(d, a, b, w, trap_lbl); };
     if iop == 4 { return ir_mul_with_overflow(d, a, b, w, trap_lbl); };
     return ir_binop_t(iop, d, a, b, w);
 }
+#[manual_drop]
 fn ir_cmpop(iop: i64, d: i64, a: i64, b: i64) -> Vec<i32> { return ir_inst(iop, d, 0, a, b, 0); }
+#[manual_drop]
 fn ir_alloca(d: i64) -> Vec<i32> { return ir_inst(16, d, 0, 0, 0, 0); }
+#[manual_drop]
 fn ir_load(d: i64, ptr: i64) -> Vec<i32> { return ir_inst(17, d, 0, ptr, 0, 0); }
+#[manual_drop]
 fn ir_store(v: i64, ptr: i64) -> Vec<i32> { return ir_inst(18, 0, 0, v, ptr, 0); }
+#[manual_drop]
 fn ir_ret(v: i64) -> Vec<i32> { return ir_inst(20, 0, 0, v, 0, 0); }
+#[manual_drop]
 fn ir_br(lbl: i64) -> Vec<i32> { return ir_inst(21, 0, 0, lbl, 0, 0); }
+#[manual_drop]
 fn ir_br_cond(cond: i64, t: i64, f: i64) -> Vec<i32> { return ir_inst(22, 0, 0, cond, t, f); }
+#[manual_drop]
 fn ir_param_ref(d: i64, pidx: i64) -> Vec<i32> { return ir_inst(26, d, 0, pidx, 0, 0); }
+#[manual_drop]
 fn ir_const_str(d: i64, str_idx: i64) -> Vec<i32> { return ir_inst(27, d, 0, str_idx, 0, 0); }
+#[manual_drop]
 fn ir_call_ex(d: i64, fn_name: str, args: Vec<i32>) -> Vec<i32> {
     let mut ii: Vec<i32> = Vec::with_capacity(6);
     ii.push(19); ii.push(d); ii.push(0); ii.push(fn_name); ii.push(vec_len(args)); ii.push(args);
@@ -5362,32 +5502,41 @@ fn ir_call_ex(d: i64, fn_name: str, args: Vec<i32>) -> Vec<i32> {
 // Pre-v0.3.126 the runtime helper always won — silent miscompute
 // with NO diagnostic for the very-common pattern of writing a
 // math helper named the same as a builtin.
+#[manual_drop]
 fn ir_user_call(d: i64, fn_name: str, args: Vec<i32>) -> Vec<i32> {
     let mut ii: Vec<i32> = Vec::with_capacity(6);
     ii.push(31); ii.push(d); ii.push(0); ii.push(fn_name); ii.push(vec_len(args)); ii.push(args);
     return ii;
 }
 
+#[manual_drop]
 fn ir_fn_ptr(d: i64, fn_name: str) -> Vec<i32> {
     let mut ii: Vec<i32> = Vec::with_capacity(6);
     ii.push(29); ii.push(d); ii.push(0); ii.push(fn_name); ii.push(0); ii.push(0);
     return ii;
 }
+#[manual_drop]
 fn ir_indirect_call(d: i64, closure_reg: i64, args: Vec<i32>) -> Vec<i32> {
     let mut ii: Vec<i32> = Vec::with_capacity(6);
     ii.push(30); ii.push(d); ii.push(0); ii.push(closure_reg); ii.push(vec_len(args)); ii.push(args);
     return ii;
 }
 
+#[manual_drop]
 fn ir_block_new(lbl: i64) -> Vec<i32> {
     let mut b: Vec<i32> = Vec::with_capacity(2); b.push(lbl);
     let mut insts: Vec<i32> = Vec::new(); b.push(insts); return b;
 }
+#[manual_drop]
 fn ir_block_label(b: Vec<i32>) -> i64 { return vec_get(b, 0); }
+#[manual_drop]
 fn ir_block_add(b: Vec<i32>, inst: Vec<i32>) -> i64 { let mut insts: Vec<i32> = vec_get(b, 1); insts.push(inst); return 0; }
+#[manual_drop]
 fn ir_block_inst_count(b: Vec<i32>) -> i64 { let insts: Vec<i32> = vec_get(b, 1); return vec_len(insts); }
+#[manual_drop]
 fn ir_block_get_inst(b: Vec<i32>, idx: i64) -> Vec<i32> { let insts: Vec<i32> = vec_get(b, 1); return vec_get(insts, idx); }
 
+#[manual_drop]
 fn ir_fn_new(name: str, pc: i64) -> Vec<i32> {
     let mut f: Vec<i32> = Vec::with_capacity(5); f.push(name); f.push(pc);
     let mut entry_allocas: Vec<i32> = Vec::new(); f.push(entry_allocas);
@@ -5402,22 +5551,26 @@ fn ir_fn_new(name: str, pc: i64) -> Vec<i32> {
     let mut widths_by_reg: Vec<i32> = Vec::new(); f.push(widths_by_reg);
     return f;
 }
+#[manual_drop]
 fn ir_fn_set_width(f: Vec<i32>, reg: i64, w: i64) -> i64 {
     let mut widths: Vec<i32> = vec_get(f, 4);
     while vec_len(widths) <= reg { widths.push(0); };
     vec_set(widths, reg, w);
     return 0;
 }
+#[manual_drop]
 fn ir_fn_get_width(f: Vec<i32>, reg: i64) -> i64 {
     let widths: Vec<i32> = vec_get(f, 4);
     if reg >= vec_len(widths) { return 0; };
     return vec_get(widths, reg);
 }
+#[manual_drop]
 fn ir_fn_set_strtab_aux(f: Vec<i32>, aux: Vec<i32>) -> i64 {
     while vec_len(f) <= 5 { f.push(0); };
     vec_set(f, 5, aux);
     return 0;
 }
+#[manual_drop]
 fn ir_fn_strtab_aux(f: Vec<i32>) -> Vec<i32> {
     if vec_len(f) > 5 { return vec_get(f, 5); };
     let mut aux: Vec<i32> = Vec::new();
@@ -5426,11 +5579,17 @@ fn ir_fn_strtab_aux(f: Vec<i32>) -> Vec<i32> {
     ir_fn_set_strtab_aux(f, aux);
     return aux;
 }
+#[manual_drop]
 fn ir_fn_name(f: Vec<i32>) -> str { return vec_get(f, 0); }
+#[manual_drop]
 fn ir_fn_param_count(f: Vec<i32>) -> i64 { return vec_get(f, 1); }
+#[manual_drop]
 fn ir_fn_add_block(f: Vec<i32>, blk: Vec<i32>) -> i64 { let mut b: Vec<i32> = vec_get(f, 3); b.push(blk); return 0; }
+#[manual_drop]
 fn ir_fn_block_count(f: Vec<i32>) -> i64 { let b: Vec<i32> = vec_get(f, 3); return vec_len(b); }
+#[manual_drop]
 fn ir_fn_get_block(f: Vec<i32>, idx: i64) -> Vec<i32> { let b: Vec<i32> = vec_get(f, 3); return vec_get(b, idx); }
+#[manual_drop]
 fn ir_fn_add_entry_alloca(f: Vec<i32>, reg: i64) -> i64 {
     let mut ea: Vec<i32> = vec_get(f, 2);
     ea.push(ir_alloca(reg));
@@ -5441,12 +5600,14 @@ fn ir_fn_add_entry_alloca(f: Vec<i32>, reg: i64) -> i64 {
 // width bindings. Caller is lower_stmt kind-20 (let) when the binding's
 // declared type is i8/i16/u8/u16/etc. width=0 falls back to untyped
 // (i64) for back-compat.
+#[manual_drop]
 fn ir_fn_add_entry_alloca_t(f: Vec<i32>, reg: i64, w: i64) -> i64 {
     let mut ea: Vec<i32> = vec_get(f, 2);
     if w == 0 { ea.push(ir_alloca(reg)); } else { ea.push(ir_alloca_t(reg, w)); };
     return 0;
 }
 
+#[manual_drop]
 fn free_ir_inst(ii: Vec<i32>) -> i64 {
     let op: i64 = ir_op(ii);
     if op == 19 || op == 30 || op == 31 {
@@ -5457,6 +5618,7 @@ fn free_ir_inst(ii: Vec<i32>) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn free_ir_fn(f: Vec<i32>) -> i64 {
     let entry_allocas: Vec<i32> = vec_get(f, 2);
     let mut ai: i64 = 0;
@@ -5484,6 +5646,7 @@ fn free_ir_fn(f: Vec<i32>) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn free_ir_fns(fns: Vec<i32>) -> i64 {
     let mut fi: i64 = 0;
     while fi < vec_len(fns) {
@@ -5494,6 +5657,7 @@ fn free_ir_fns(fns: Vec<i32>) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn block_has_term(blk: Vec<i32>) -> i64 {
     let ic: i64 = ir_block_inst_count(blk);
     if ic == 0 { return 0; };
@@ -5506,7 +5670,9 @@ fn block_has_term(blk: Vec<i32>) -> i64 {
 // =====================================================
 
 // --- Constant map: tracks register -> constant value ---
+#[manual_drop]
 fn cmap_new() -> Vec<i32> { let mut m: Vec<i32> = Vec::new(); return m; }
+#[manual_drop]
 fn cmap_set(m: Vec<i32>, reg: i64, val: i64) -> i64 {
     let mc: i64 = vec_len(m);
     let mut i: i64 = 0;
@@ -5516,6 +5682,7 @@ fn cmap_set(m: Vec<i32>, reg: i64, val: i64) -> i64 {
     };
     m.push(reg); m.push(val); return 0;
 }
+#[manual_drop]
 fn cmap_get(m: Vec<i32>, reg: i64) -> i64 {
     let mc: i64 = vec_len(m);
     let mut i: i64 = 0;
@@ -5525,6 +5692,7 @@ fn cmap_get(m: Vec<i32>, reg: i64) -> i64 {
     };
     return 0 - 9999999;
 }
+#[manual_drop]
 fn cmap_has(m: Vec<i32>, reg: i64) -> i64 {
     let mc: i64 = vec_len(m);
     let mut i: i64 = 0;
@@ -5538,6 +5706,7 @@ fn cmap_has(m: Vec<i32>, reg: i64) -> i64 {
 // --- Pass 1: Constant Folding ---
 // Scans instructions in a block. When both operands of an arithmetic/comparison
 // op are known constants, replaces the instruction with a const_int.
+#[manual_drop]
 fn opt_fold_block(blk: Vec<i32>) -> i64 {
     let mut cm: Vec<i32> = cmap_new();
     let ic: i64 = ir_block_inst_count(blk);
@@ -5801,6 +5970,7 @@ fn opt_dce_block(blk: Vec<i32>) -> i64 {
 // --- Pass 3: Store-Load Constant Propagation ---
 // Propagates known constants through store/load chains within a block.
 // If a constant is stored to a slot and later loaded, replaces the load with const_int.
+#[manual_drop]
 fn opt_prop_block(blk: Vec<i32>) -> i64 {
     let mut cm: Vec<i32> = cmap_new();
     let mut sv: Vec<i32> = cmap_new();
@@ -5977,6 +6147,7 @@ fn opt_cse_block(blk: Vec<i32>) -> i64 {
 }
 
 // --- Optimizer driver: runs all passes on an entire function ---
+#[manual_drop]
 fn opt_fn(f: Vec<i32>) -> i64 {
     let mut total: i64 = 0;
     let mut bi: i64 = 0;
@@ -6013,6 +6184,7 @@ fn opt_fn(f: Vec<i32>) -> i64 {
 // =====================================================
 // BUILTIN MAPPING (NEW in T30)
 // =====================================================
+#[manual_drop]
 fn get_rt_name(name: str) -> str {
     if str_eq(name, "print") { return "__nucleor_print_str"; };
     if str_eq(name, "putchar") { return "__nucleor_putchar"; };
@@ -6940,6 +7112,7 @@ fn get_rt_name(name: str) -> str {
     if str_eq(name, "__nucleor_str_cache_is_miss_marker") { return "__nucleor_str_cache_is_miss_marker"; };
     return "";
 }
+#[manual_drop]
 fn is_void_ret(name: str) -> i64 {
     if str_eq(name, "print") { return 1; };
     if str_eq(name, "str_free") { return 1; };
@@ -6982,6 +7155,7 @@ fn is_void_ret(name: str) -> i64 {
     if str_eq(name, "random_fill") { return 1; };
     return 0;
 }
+#[manual_drop]
 fn is_ptr_ret(name: str) -> i64 {
     // v0.4.101: vec_chain_i64 returns NVec*.
     if str_eq(name, "vec_chain_i64") { return 1; };
@@ -7124,6 +7298,7 @@ fn is_ptr_ret(name: str) -> i64 {
     if str_eq(name, "time_format_iso") { return 1; };
     return 0;
 }
+#[manual_drop]
 fn is_ptr_arg(name: str, idx: i64) -> i64 {
     if str_eq(name, "print") { return 1; };
     if str_eq(name, "print_raw") { return 1; };
@@ -7338,6 +7513,7 @@ fn is_ptr_arg(name: str, idx: i64) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn emit_builtin_call(sb: i64, name: str, rn: str, d: i64, argc: i64, args: Vec<i32>) -> i64 {
     let ds: str = str_from_int(d);
     // v0.4.22 perf: inline str_char_at as GEP+load to eliminate the
@@ -7405,6 +7581,7 @@ fn emit_builtin_call(sb: i64, name: str, rn: str, d: i64, argc: i64, args: Vec<i
 // =====================================================
 // LLVM STRING ESCAPING (NEW in T30)
 // =====================================================
+#[manual_drop]
 fn hex_digit(v: i64) -> str {
     if v == 0 { return "0"; }; if v == 1 { return "1"; }; if v == 2 { return "2"; };
     if v == 3 { return "3"; }; if v == 4 { return "4"; }; if v == 5 { return "5"; };
@@ -7413,11 +7590,13 @@ fn hex_digit(v: i64) -> str {
     if v == 12 { return "C"; }; if v == 13 { return "D"; }; if v == 14 { return "E"; };
     if v == 15 { return "F"; }; return "0";
 }
+#[manual_drop]
 fn hex_byte(v: i64) -> str {
     let hi: i64 = v / 16;
     let lo: i64 = v - hi * 16;
     return str_concat(hex_digit(hi), hex_digit(lo));
 }
+#[manual_drop]
 fn escape_llvm_str(s: str) -> str {
     let slen: i64 = str_len(s);
     let mut esb: i64 = sb_new();
@@ -7440,6 +7619,7 @@ fn escape_llvm_str(s: str) -> str {
 // =====================================================
 // EMISSION (from T29, extended for builtins + strings)
 // =====================================================
+#[manual_drop]
 fn emit_cmp(sb: i64, cn: str, d: i64, a: i64, b: i64) -> i64 {
     // 2026-05-03 perf-audit-round-2 experiment: tried adding an
     // `sb_append_int` runtime helper that writes int digits directly
@@ -7457,6 +7637,7 @@ fn emit_cmp(sb: i64, cn: str, d: i64, a: i64, b: i64) -> i64 {
     sb_append(sb, " = zext i1 %r."); sb_append(sb, str_from_int(d));
     sb_append(sb, ".cmp to i64\n"); return 0;
 }
+#[manual_drop]
 fn emit_arith(sb: i64, on: str, d: i64, a: i64, b: i64) -> i64 {
     sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
     sb_append(sb, " = "); sb_append(sb, on);
@@ -7466,6 +7647,7 @@ fn emit_arith(sb: i64, on: str, d: i64, a: i64, b: i64) -> i64 {
 }
 // v0.4.211 RFC-0015 phase 3b: typed arith — `<op> iN %a, %b` instead
 // of `<op> i64`. Called from emit_inst dispatch when ir_tid is non-zero.
+#[manual_drop]
 fn emit_arith_w(sb: i64, on: str, d: i64, a: i64, b: i64, w: i64) -> i64 {
     sb_append(sb, "  %r."); sb_append(sb, str_from_int(d));
     sb_append(sb, " = "); sb_append(sb, on);
@@ -7474,6 +7656,7 @@ fn emit_arith_w(sb: i64, on: str, d: i64, a: i64, b: i64, w: i64) -> i64 {
     sb_append(sb, ", %r."); sb_append(sb, str_from_int(b));
     sb_append(sb, "\n"); return 0;
 }
+#[manual_drop]
 fn emit_overflow_arith(sb: i64, on: str, d: i64, a: i64, b: i64, w: i64, trap_lbl: i64) -> i64 {
     // v0.4.240: w is sign-encoded — positive = signed, negative =
     // unsigned, 0 = i64 ABI (treated as signed for trap purposes
@@ -7519,6 +7702,7 @@ fn emit_overflow_arith(sb: i64, on: str, d: i64, a: i64, b: i64, w: i64, trap_lb
     sb_append(sb, "  unreachable\nL"); sb_append(sb, cont_s); sb_append(sb, ":\n");
     return 0;
 }
+#[manual_drop]
 fn find_extern_idx(pool: Vec<i32>, externs: Vec<i32>, name: str) -> i64 {
     let mut i: i64 = 0;
     while i < vec_len(externs) {
@@ -7528,6 +7712,7 @@ fn find_extern_idx(pool: Vec<i32>, externs: Vec<i32>, name: str) -> i64 {
     return 0 - 1;
 }
 
+#[manual_drop]
 fn emit_extern_call(sb: i64, pool: Vec<i32>, externs: Vec<i32>, ext_idx: i64, d: i64, argc: i64, args: Vec<i32>) -> i64 {
     let nid: i64 = vec_get(externs, ext_idx);
     let name: str = node_field(pool, nid, 1);
@@ -7594,6 +7779,7 @@ fn emit_extern_call(sb: i64, pool: Vec<i32>, externs: Vec<i32>, ext_idx: i64, d:
     return 0;
 }
 
+#[manual_drop]
 fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 {
     let op: i64 = ir_op(inst); let d: i64 = ir_dest(inst);
     if op == 0 { sb_append(sb, "  %r."); sb_append(sb, str_from_int(d)); sb_append(sb, " = add i64 "); sb_append(sb, str_from_int(ir_op1(inst))); sb_append(sb, ", 0\n"); }
@@ -7771,6 +7957,7 @@ fn emit_inst(inst: Vec<i32>, sb: i64, pool: Vec<i32>, externs: Vec<i32>) -> i64 
     return 0;
 }
 
+#[manual_drop]
 fn emit_fn(f: Vec<i32>, pool: Vec<i32>, externs: Vec<i32>) -> str {
     let mut sb: i64 = sb_new();
     let fname: str = ir_fn_name(f);
@@ -7807,6 +7994,7 @@ fn emit_fn(f: Vec<i32>, pool: Vec<i32>, externs: Vec<i32>) -> str {
     sb_append(sb, "}\n"); return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn emit_externs() -> str {
     let mut sb: i64 = sb_new();
     sb_append(sb, "declare void @__nucleor_print_str(ptr)\n");
@@ -8747,6 +8935,7 @@ fn emit_externs() -> str {
 // blocks (e.g. emit_externs declarations, repeated diagnostic
 // substrings) where recent inserts are likely to match. Scan from
 // the END toward the start to hit those fast.
+#[manual_drop]
 fn strtab_intern(strtab: Vec<i32>, fir: Vec<i32>, s: str) -> i64 {
     let n: i64 = vec_len(strtab);
     if n >= 128 {
@@ -8777,6 +8966,7 @@ fn strtab_intern(strtab: Vec<i32>, fir: Vec<i32>, s: str) -> i64 {
     return n;
 }
 
+#[manual_drop]
 fn emit_str_constants(strtab: Vec<i32>) -> str {
     let mut sb: i64 = sb_new();
     let mut i: i64 = 0;
@@ -8811,6 +9001,7 @@ fn emit_str_constants(strtab: Vec<i32>) -> str {
 // -fuse-ld=lld (ELF) honors the section attribute and produces the
 // named section in the output binary. Section name length (>8 chars)
 // is handled by clang's COFF string-table mechanism automatically.
+#[manual_drop]
 fn emit_provenance_section() -> str {
     let mut sb: i64 = sb_new();
     let path: str = env_get_or("NUCLEOR_PROVENANCE_PATH", "");
@@ -8837,6 +9028,7 @@ fn emit_provenance_section() -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn nr_type_to_llvm(t: str) -> str {
     if str_eq(t, "str") { return "ptr"; };
     if str_eq(t, "ptr") { return "ptr"; };
@@ -8871,6 +9063,7 @@ fn nr_type_to_llvm(t: str) -> str {
 }
 
 // RFC-0015: numeric type predicates
+#[manual_drop]
 fn is_int_type(t: str) -> i64 {
     if str_eq(t, "i8") == 1 { return 1; };
     if str_eq(t, "i16") == 1 { return 1; };
@@ -8887,6 +9080,7 @@ fn is_int_type(t: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn is_unsigned_type(t: str) -> i64 {
     if str_eq(t, "u8") == 1 { return 1; };
     if str_eq(t, "u16") == 1 { return 1; };
@@ -8897,6 +9091,7 @@ fn is_unsigned_type(t: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn is_float_type(t: str) -> i64 {
     if str_eq(t, "f16") == 1 { return 1; };
     if str_eq(t, "bf16") == 1 { return 1; };
@@ -8907,6 +9102,7 @@ fn is_float_type(t: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn is_numeric_type(t: str) -> i64 {
     if is_int_type(t) == 1 { return 1; };
     if is_float_type(t) == 1 { return 1; };
@@ -8914,6 +9110,7 @@ fn is_numeric_type(t: str) -> i64 {
 }
 
 // Bit-width of a numeric type. Returns 0 for non-numerics.
+#[manual_drop]
 fn type_bit_width(t: str) -> i64 {
     if str_eq(t, "i8") == 1 || str_eq(t, "u8") == 1 { return 8; };
     if str_eq(t, "i16") == 1 || str_eq(t, "u16") == 1 { return 16; };
@@ -8929,12 +9126,14 @@ fn type_bit_width(t: str) -> i64 {
     if str_eq(t, "bool") == 1 { return 1; };
     return 0;
 }
+#[manual_drop]
 fn is_ptr_type(t: str) -> i64 {
     if str_eq(t, "str") { return 1; };
     if str_eq(t, "ptr") { return 1; };
     return 0;
 }
 
+#[manual_drop]
 fn emit_user_externs(pool: Vec<i32>, externs: Vec<i32>) -> str {
     let mut sb: i64 = sb_new();
     let mut i: i64 = 0;
@@ -9003,6 +9202,7 @@ fn emit_user_externs(pool: Vec<i32>, externs: Vec<i32>) -> str {
 // — pre-DCE all 50 emit, post-DCE only the 1 + transitive callees +
 // roots emit. Library-only compiles (no main, no #[export]) skip DCE
 // and keep all fns to avoid breaking the link.
+#[manual_drop]
 fn dce_collect_reachable(fns: Vec<i32>, src: str) -> Vec<i32> {
     let nf: i64 = vec_len(fns);
     let mut visited: Vec<i32> = Vec::new();
@@ -9086,6 +9286,7 @@ fn dce_collect_reachable(fns: Vec<i32>, src: str) -> Vec<i32> {
     return visited;
 }
 
+#[manual_drop]
 fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec<i32>, src: str) -> str {
     // Pre-size the IR builder to ~2 MB. The s1 self-host produces
     // 2.7 MB of IR; without pre-sizing the SB grows from 256 B
@@ -9219,9 +9420,13 @@ fn emit_module_ext(fns: Vec<i32>, strtab: Vec<i32>, pool: Vec<i32>, externs: Vec
 // =====================================================
 // LOWERING (from T29, extended for STR_LIT, METHOD, QUAL_CALL)
 // =====================================================
+#[manual_drop]
 fn ctr_new() -> Vec<i32> { let mut c: Vec<i32> = Vec::new(); c.push(0); return c; }
+#[manual_drop]
 fn ctr_next(c: Vec<i32>) -> i64 { let v: i64 = vec_get(c, 0); vec_set(c, 0, v + 1); return v; }
+#[manual_drop]
 fn sym_new() -> Vec<i32> { return Vec::new(); }
+#[manual_drop]
 fn sym_set(s: Vec<i32>, name: str, reg: i64) -> i64 { s.push(name); s.push(reg); return 0; }
 
 // v0.6.54 perf-slice: shared fn-return-type lookup map. Built once
@@ -9235,6 +9440,7 @@ fn sym_set(s: Vec<i32>, name: str, reg: i64) -> i64 { s.push(name); s.push(reg);
 // The original shared Vec removed the N^2 sym_set cost but still did a
 // backward linear scan for every fallback lookup; caller attribution
 // showed ~48M vec_get + ~48M str_eq calls here in one self-host build.
+#[manual_drop]
 fn fn_return_map_get(m: i64, key: str) -> i64 {
     if m <= 0 { return 0 - 1; };
     if __nucleor_hashmap_contains(m, key) == 1 { return __nucleor_hashmap_get(m, key); };
@@ -9281,6 +9487,7 @@ fn fn_return_map_get(m: i64, key: str) -> i64 {
 //   sym_clone: copies vec contents only. The new sym_handle is
 //     different; on first sym_get against the clone, the warm
 //     cache will reset and rebuild from the clone's vec.
+#[manual_drop]
 fn sym_get(s: Vec<i32>, name: str) -> i64 {
     let n: i64 = vec_len(s);
     if n >= 2 && str_eq(vec_get(s, n - 2), name) == 1 { return vec_get(s, n - 1); };
@@ -9324,6 +9531,7 @@ fn sym_get(s: Vec<i32>, name: str) -> i64 {
     };
     return 0 - 1;
 }
+#[manual_drop]
 fn sym_clone(s: Vec<i32>) -> Vec<i32> {
     let mut c: Vec<i32> = Vec::new();
     let mut i: i64 = 0;
@@ -9331,6 +9539,7 @@ fn sym_clone(s: Vec<i32>) -> Vec<i32> {
     while i < cnt { c.push(vec_get(s, i)); i = i + 1; };
     return c;
 }
+#[manual_drop]
 fn smap_hash(key: str, cap: i64) -> i64 {
     let mut hash: i64 = 5381;
     let slen: i64 = str_len(key);
@@ -9345,6 +9554,7 @@ fn smap_hash(key: str, cap: i64) -> i64 {
     };
     return hash;
 }
+#[manual_drop]
 fn smap_new_cap(cap: i64) -> Vec<i32> {
     let mut keys: Vec<i32> = Vec::new();
     let mut vals: Vec<i32> = Vec::new();
@@ -9364,21 +9574,27 @@ fn smap_new_cap(cap: i64) -> Vec<i32> {
     m.push(cap);
     return m;
 }
+#[manual_drop]
 fn smap_new() -> Vec<i32> {
     return smap_new_cap(64);
 }
+#[manual_drop]
 fn smap_slots(m: Vec<i32>) -> i64 {
     return vec_get(m, 4);
 }
+#[manual_drop]
 fn smap_slot_used(m: Vec<i32>, slot: i64) -> i64 {
     return vec_get(vec_get(m, 2), slot);
 }
+#[manual_drop]
 fn smap_slot_key(m: Vec<i32>, slot: i64) -> str {
     return vec_get(vec_get(m, 0), slot);
 }
+#[manual_drop]
 fn smap_slot_val(m: Vec<i32>, slot: i64) -> i64 {
     return vec_get(vec_get(m, 1), slot);
 }
+#[manual_drop]
 fn smap_find_slot(m: Vec<i32>, key: str) -> i64 {
     let cap: i64 = smap_slots(m);
     let mut slot: i64 = smap_hash(key, cap);
@@ -9392,6 +9608,7 @@ fn smap_find_slot(m: Vec<i32>, key: str) -> i64 {
     };
     return 0 - 1;
 }
+#[manual_drop]
 fn smap_grow(m: Vec<i32>) -> i64 {
     let old_cap: i64 = smap_slots(m);
     let grown: Vec<i32> = smap_new_cap(old_cap * 2);
@@ -9409,6 +9626,7 @@ fn smap_grow(m: Vec<i32>) -> i64 {
     vec_set(m, 4, vec_get(grown, 4));
     return 0;
 }
+#[manual_drop]
 fn smap_set(m: Vec<i32>, key: str, value: i64) -> i64 {
     let count: i64 = vec_get(m, 3);
     let cap: i64 = smap_slots(m);
@@ -9425,19 +9643,24 @@ fn smap_set(m: Vec<i32>, key: str, value: i64) -> i64 {
     vec_set(m, 3, vec_get(m, 3) + 1);
     return 0;
 }
+#[manual_drop]
 fn smap_get(m: Vec<i32>, key: str) -> i64 {
     let slot: i64 = smap_find_slot(m, key);
     if slot >= 0 { return smap_slot_val(m, slot); };
     return 0 - 1;
 }
+#[manual_drop]
 fn lx_new(reg: i64, blk: Vec<i32>) -> Vec<i32> {
     let mut p: Vec<i32> = Vec::new();
     p.push(reg);
     p.push(blk);
     return p;
 }
+#[manual_drop]
 fn lx_reg(p: Vec<i32>) -> i64 { return vec_get(p, 0); }
+#[manual_drop]
 fn lx_blk(p: Vec<i32>) -> Vec<i32> { return vec_get(p, 1); }
+#[manual_drop]
 fn tok_to_ir(tok: i64) -> i64 {
     if tok == 20 { return 2; }; if tok == 21 { return 3; }; if tok == 22 { return 4; };
     if tok == 23 { return 5; }; if tok == 24 { return 6; }; if tok == 30 { return 7; };
@@ -9458,12 +9681,15 @@ fn tok_to_ir(tok: i64) -> i64 {
     if tok == 115 { return 23; }; if tok == 116 { return 24; };
     return 0 - 1;
 }
+#[manual_drop]
 fn is_cmp_or_logic(iop: i64) -> i64 { if iop >= 7 && iop <= 14 { return 1; }; return 0; }
 
 // Struct registry helpers
+#[manual_drop]
 fn trait_impl_register(impls: Vec<i32>, type_name: str, method_name: str, mangled: str) -> i64 {
     impls.push(type_name); impls.push(method_name); impls.push(mangled); return 0;
 }
+#[manual_drop]
 fn trait_impl_find(impls: Vec<i32>, type_name: str, method_name: str) -> str {
     let mut i: i64 = 0;
     while i < vec_len(impls) {
@@ -9475,10 +9701,12 @@ fn trait_impl_find(impls: Vec<i32>, type_name: str, method_name: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn trait_bound_impl_key(trait_name: str, type_name: str) -> str {
     return str_concat(type_base_name(trait_name), str_concat(":", type_name));
 }
 
+#[manual_drop]
 fn trait_impl_find_unique_bound_method(impls: Vec<i32>, trait_name: str, method_name: str) -> str {
     let prefix: str = str_concat(type_base_name(trait_name), ":");
     let mut found: str = "";
@@ -9497,19 +9725,23 @@ fn trait_impl_find_unique_bound_method(impls: Vec<i32>, trait_name: str, method_
     return "";
 }
 
+#[manual_drop]
 fn from_method_key(src_err: str) -> str {
     return str_concat("__from__", src_err);
 }
 
+#[manual_drop]
 fn from_impl_call_name(impls: Vec<i32>, src_err: str, dst_err: str) -> str {
     return trait_impl_find(impls, dst_err, from_method_key(src_err));
 }
 
+#[manual_drop]
 fn from_impl_exists(impls: Vec<i32>, src_err: str, dst_err: str) -> i64 {
     if str_len(from_impl_call_name(impls, src_err, dst_err)) > 0 { return 1; };
     return 0;
 }
 
+#[manual_drop]
 fn iter_method_for_vec(mname: str) -> i64 {
     // T2.2 (v0.2.348): method names that map to the typed
     // `vec_<name>_i64` runtime helpers in
@@ -9566,6 +9798,7 @@ fn iter_method_for_vec(mname: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn tensor_builtin_method_name(mname: str) -> str {
     if str_eq(mname, "rows") == 1 { return str_concat("__nucleor_tensor_", mname); };
     if str_eq(mname, "cols") == 1 { return str_concat("__nucleor_tensor_", mname); };
@@ -9635,6 +9868,7 @@ fn tensor_builtin_method_name(mname: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn type_base_name(t: str) -> str {
     // Hot path: this fn runs on every type comparison during type-
     // check. The prior implementation allocated 4-7 substrings per
@@ -9675,6 +9909,7 @@ fn type_base_name(t: str) -> str {
 // Used by Phase 2 (constructor type propagation: `let x = Some(value)`
 // to derive `Option<T>` where T = static type of value) and Phase 4
 // (Vec<T> element type extraction for vec_get/first/last/pop dispatch).
+#[manual_drop]
 fn type_first_arg(t: str) -> str {
     let tlen: i64 = str_len(t);
     if tlen == 0 { return ""; };
@@ -9727,6 +9962,7 @@ fn type_first_arg(t: str) -> str {
 //
 // `gparam_extract_binding` is the workhorse; the call-site loop
 // builds an alternating [name, binding, ...] map.
+#[manual_drop]
 fn gparam_extract_binding(expected: str, actual: str, gparam_name: str) -> str {
     if str_len(gparam_name) == 0 { return ""; };
     if str_eq(expected, gparam_name) == 1 { return actual; };
@@ -9745,6 +9981,7 @@ fn gparam_extract_binding(expected: str, actual: str, gparam_name: str) -> str {
 // distinguishes `T` from `T_` or `MyT`. Idiomatic Nucleor type
 // strings have gparams like `T`, `E`, `K`, `V` — single uppercase
 // letters — so a 1-char gparam in `Option<T>` aligns cleanly.
+#[manual_drop]
 fn substitute_gparam_in_rtype(rtype: str, name: str, binding: str) -> str {
     let nlen: i64 = str_len(name);
     if nlen == 0 || str_len(binding) == 0 { return rtype; };
@@ -9776,6 +10013,7 @@ fn substitute_gparam_in_rtype(rtype: str, name: str, binding: str) -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn match_payload_type_from_scrutinee(scrut_t: str, ename: str, vname: str, bind_idx: i64) -> str {
     if bind_idx != 0 { return ""; };
     let sbase: str = type_base_name(scrut_t);
@@ -9789,6 +10027,7 @@ fn match_payload_type_from_scrutinee(scrut_t: str, ename: str, vname: str, bind_
     return "";
 }
 
+#[manual_drop]
 fn vec_element_type_is_legacy_cell(elem_t: str) -> i64 {
     if str_eq(elem_t, "i32") == 1 { return 1; };
     return 0;
@@ -9802,6 +10041,7 @@ fn vec_element_type_is_legacy_cell(elem_t: str) -> i64 {
 // `usize`/`isize` are treated as 64-bit on the only target Nucleor ships
 // today (x86_64 Windows). The type lattice will revisit this when the
 // LP64/ILP32 split arrives with cross-target sysroots.
+#[manual_drop]
 fn type_width(t: str) -> i64 {
     let b: str = type_base_name(t);
     if str_eq(b, "i8") == 1 || str_eq(b, "u8") == 1 { return 8; };
@@ -9817,6 +10057,7 @@ fn type_width(t: str) -> i64 {
     if str_eq(b, "bool") == 1 { return 1; };
     return 0;
 }
+#[manual_drop]
 fn type_signedness(t: str) -> i64 {
     let b: str = type_base_name(t);
     if str_eq(b, "i8") == 1 || str_eq(b, "i16") == 1 || str_eq(b, "i32") == 1 || str_eq(b, "i64") == 1 || str_eq(b, "isize") == 1 { return 1; };
@@ -9824,15 +10065,18 @@ fn type_signedness(t: str) -> i64 {
     if str_eq(b, "f8e4m3") == 1 || str_eq(b, "f8e5m2") == 1 || str_eq(b, "bf16") == 1 || str_eq(b, "f16") == 1 || str_eq(b, "f32") == 1 || str_eq(b, "f64") == 1 { return 3; };
     return 0;
 }
+#[manual_drop]
 fn type_is_int(t: str) -> i64 {
     let s: i64 = type_signedness(t);
     if s == 1 || s == 2 { return 1; };
     return 0;
 }
+#[manual_drop]
 fn type_is_float(t: str) -> i64 {
     if type_signedness(t) == 3 { return 1; };
     return 0;
 }
+#[manual_drop]
 fn type_is_numeric(t: str) -> i64 {
     if type_signedness(t) > 0 { return 1; };
     return 0;
@@ -9840,6 +10084,7 @@ fn type_is_numeric(t: str) -> i64 {
 
 // T1.1 Phase 3b: byte size of a primitive type. Returns 0 for
 // non-primitives (caller must handle struct/array/ref types).
+#[manual_drop]
 fn type_byte_size(t: str) -> i64 {
     let b: str = type_base_name(t);
     if str_eq(b, "i8") == 1 || str_eq(b, "u8") == 1 || str_eq(b, "bool") == 1 { return 1; };
@@ -9858,12 +10103,14 @@ fn type_byte_size(t: str) -> i64 {
 
 // T1.1 Phase 3b: natural alignment of a primitive type (= byte size
 // for primitives). For non-primitives returns 0.
+#[manual_drop]
 fn type_align(t: str) -> i64 {
     return type_byte_size(t);
 }
 
 // T1.1 Phase 3b: align `offset` up to `align`. Returns the next
 // multiple of `align` >= offset. Assumes align > 0.
+#[manual_drop]
 fn align_up(offset: i64, align: i64) -> i64 {
     if align <= 1 { return offset; };
     let rem: i64 = offset - (offset / align) * align;
@@ -9879,6 +10126,7 @@ fn align_up(offset: i64, align: i64) -> i64 {
 // Returns 0 if the struct has any non-primitive field type the
 // computation can't yet handle (nested struct, generic, array).
 // Caller can fall back to default size in that case.
+#[manual_drop]
 fn struct_byte_size(pool: Vec<i32>, struct_nid: i64, repr: str) -> i64 {
     let flist: i64 = node_field(pool, struct_nid, 2);
     let cnt: i64 = list_len(pool, flist);
@@ -9926,6 +10174,7 @@ fn struct_byte_size(pool: Vec<i32>, struct_nid: i64, repr: str) -> i64 {
 // Currently uses a source-text scan via the surrounding source —
 // will be moved to proper attribute-list AST walking once the
 // generic attribute storage lands.
+#[manual_drop]
 fn struct_repr(source: str, struct_name: str) -> str {
     if str_len(source) == 0 || str_len(struct_name) == 0 { return ""; };
     let needle: str = str_concat("struct ", struct_name);
@@ -9940,6 +10189,7 @@ fn struct_repr(source: str, struct_name: str) -> str {
 }
 
 // Helper: find substring in source (returns byte offset or -1).
+#[manual_drop]
 fn source_find(haystack: str, needle: str) -> i64 {
     let hlen: i64 = str_len(haystack);
     let nlen: i64 = str_len(needle);
@@ -9953,20 +10203,24 @@ fn source_find(haystack: str, needle: str) -> i64 {
     return 0 - 1;
 }
 
+#[manual_drop]
 fn type_is_mut_ref(t: str) -> i64 {
     if str_starts_with(t, "&mut ") == 1 { return 1; };
     return 0;
 }
+#[manual_drop]
 fn type_is_shared_ref(t: str) -> i64 {
     let tlen: i64 = str_len(t);
     if tlen >= 1 && str_char_at(t, 0) == 38 && type_is_mut_ref(t) == 0 { return 1; };
     return 0;
 }
+#[manual_drop]
 fn type_is_ref(t: str) -> i64 {
     if type_is_mut_ref(t) == 1 { return 1; };
     if str_len(t) >= 1 && str_char_at(t, 0) == 38 { return 1; };
     return 0;
 }
+#[manual_drop]
 fn struct_find(pool: Vec<i32>, structs: Vec<i32>, name: str) -> i64 {
     let mut i: i64 = 0;
     while i < vec_len(structs) {
@@ -9975,9 +10229,11 @@ fn struct_find(pool: Vec<i32>, structs: Vec<i32>, name: str) -> i64 {
     };
     return 0 - 1;
 }
+#[manual_drop]
 fn struct_find_type(pool: Vec<i32>, structs: Vec<i32>, name: str) -> i64 {
     return struct_find(pool, structs, type_base_name(name));
 }
+#[manual_drop]
 fn struct_field_idx(pool: Vec<i32>, struct_nid: i64, fname: str) -> i64 {
     let flist: i64 = node_field(pool, struct_nid, 2);
     let cnt: i64 = list_len(pool, flist);
@@ -9995,6 +10251,7 @@ fn struct_field_idx(pool: Vec<i32>, struct_nid: i64, fname: str) -> i64 {
 // by parse_struct_decl when the decl uses paren-form). Used by
 // constructor routing (kind-7 → struct ctor when callee is tuple-style)
 // and field-access lowering (`p.0` → `p.__0`).
+#[manual_drop]
 fn struct_is_tuple_style(pool: Vec<i32>, struct_nid: i64) -> i64 {
     let flist: i64 = node_field(pool, struct_nid, 2);
     let fc: i64 = list_len(pool, flist);
@@ -10017,6 +10274,7 @@ fn struct_is_tuple_style(pool: Vec<i32>, struct_nid: i64) -> i64 {
     return 1;
 }
 
+#[manual_drop]
 fn struct_field_type(pool: Vec<i32>, struct_nid: i64, fname: str) -> str {
     let flist: i64 = node_field(pool, struct_nid, 2);
     let cnt: i64 = list_len(pool, flist);
@@ -10029,6 +10287,7 @@ fn struct_field_type(pool: Vec<i32>, struct_nid: i64, fname: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
     let kind: i64 = node_kind(pool, nid);
     if kind == 3 {
@@ -10111,6 +10370,7 @@ fn expr_struct_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
 }
 
 // Enum helpers: pre-populate sym with variant tags and arg counts
+#[manual_drop]
 fn enum_populate_sym(pool: Vec<i32>, enums: Vec<i32>, sym: Vec<i32>) -> i64 {
     let mut ei: i64 = 0;
     while ei < vec_len(enums) {
@@ -10168,10 +10428,13 @@ fn enum_populate_sym(pool: Vec<i32>, enums: Vec<i32>, sym: Vec<i32>) -> i64 {
 // =====================================================
 // S12a — STRUCTURED DIAGNOSTIC SURFACE
 // =====================================================
+#[manual_drop]
 fn diag_new() -> Vec<i32> { return Vec::new(); }
+#[manual_drop]
 fn diag_add(diags: Vec<i32>, severity: str, checker: str, code: str, message: str, fn_name: str, line: i64) -> i64 {
     return diag_add_ex(diags, severity, checker, code, message, fn_name, line, 0, "");
 }
+#[manual_drop]
 fn diag_add_ex(diags: Vec<i32>, severity: str, checker: str, code: str, message: str, fn_name: str, line: i64, col: i64, related_id: str) -> i64 {
     // v0.6.38 (probe finding 2026-05-01-typ-006-triple-emit-on-call-
     // site, sister to MATCH-001/TYP-001 dual-emit closure in v0.5.18):
@@ -10217,7 +10480,9 @@ fn diag_add_ex(diags: Vec<i32>, severity: str, checker: str, code: str, message:
     diags.push(d);
     return vec_len(diags);
 }
+#[manual_drop]
 fn diag_count(diags: Vec<i32>) -> i64 { return vec_len(diags); }
+#[manual_drop]
 fn diag_count_errors(diags: Vec<i32>) -> i64 {
     let n: i64 = vec_len(diags);
     let mut errors: i64 = 0;
@@ -10230,6 +10495,7 @@ fn diag_count_errors(diags: Vec<i32>) -> i64 {
     };
     return errors;
 }
+#[manual_drop]
 fn diag_get(diags: Vec<i32>, i: i64) -> Vec<i32> { return vec_get(diags, i); }
 
 // RFC-0028 §Suppression — minimal `#[allow(CODE)]` post-filter.
@@ -10243,6 +10509,7 @@ fn diag_get(diags: Vec<i32>, i: i64) -> Vec<i32> { return vec_get(diags, i); }
 // `#[allow]` is file-wide for now; per-fn / per-block scoping ships
 // with the v0.4 attribute-with-argument parsing pass that powers
 // RFC-0004 `#[assume]` and RFC-0014 `#[max_depth]`.
+#[manual_drop]
 fn collect_allowed_codes(source: str) -> Vec<i32> {
     let mut allowed: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -10289,6 +10556,7 @@ fn collect_allowed_codes(source: str) -> Vec<i32> {
 // #[allow] noise to a specific fn — handy when one fn has a
 // legitimate reason to fire RT-007 but the rest of the file
 // shouldn't be silenced too.
+#[manual_drop]
 fn collect_allow_fn_pairs(source: str) -> Vec<i32> {
     let mut pairs: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -10373,6 +10641,7 @@ fn collect_allow_fn_pairs(source: str) -> Vec<i32> {
 // are always preserved — `#[allow]` / `#[allow_fn]` only
 // suppress warnings (Rust model). Modifies the input vec by
 // rebuilding a filtered copy.
+#[manual_drop]
 fn filter_allow_suppressed(diags: Vec<i32>, source: str) -> Vec<i32> {
     let allowed: Vec<i32> = collect_allowed_codes(source);
     let allow_fn_pairs: Vec<i32> = collect_allow_fn_pairs(source);
@@ -10414,6 +10683,7 @@ fn filter_allow_suppressed(diags: Vec<i32>, source: str) -> Vec<i32> {
 // RFC-0028 §Suppression — sibling of collect_allowed_codes.
 // Scans the source for the literal pattern `#[deny(CODE)]`; same
 // scope rules (file-wide for v0.2; per-fn deferred to v0.4).
+#[manual_drop]
 fn collect_denied_codes(source: str) -> Vec<i32> {
     let mut denied: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -10463,6 +10733,7 @@ fn collect_denied_codes(source: str) -> Vec<i32> {
 // declaration only — useful when a critical fn has stricter
 // requirements than the rest of the file. Returns alternating
 // [fn_name, code, ...].
+#[manual_drop]
 fn collect_deny_fn_pairs(source: str) -> Vec<i32> {
     let mut pairs: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -10551,6 +10822,7 @@ fn collect_deny_fn_pairs(source: str) -> Vec<i32> {
 // the cli_explain_full_smoke `codes` array. A future ship may unify
 // via a generated header or a runtime registry exposed through
 // `nuc explain`.
+#[manual_drop]
 fn is_known_diag_code(code: str) -> i64 {
     // NR series — RFC-0020 baseline pipeline diagnostics
     if str_eq(code, "NR001") == 1 { return 1; };
@@ -10803,6 +11075,7 @@ fn is_known_diag_code(code: str) -> i64 {
 // names docs/spec/Nucleor_Error_Codes.md as the catalog. The
 // emitted diags themselves can be suppressed via #[allow(DIAG-001)]
 // on a noisy refactor.
+#[manual_drop]
 fn emit_diag001_unknown_codes(diags: Vec<i32>, source: str) -> Vec<i32> {
     let allowed: Vec<i32> = collect_allowed_codes(source);
     let allow_fn_pairs: Vec<i32> = collect_allow_fn_pairs(source);
@@ -10853,6 +11126,7 @@ fn emit_diag001_unknown_codes(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+#[manual_drop]
 fn promote_denied_to_errors(diags: Vec<i32>, source: str) -> Vec<i32> {
     let denied: Vec<i32> = collect_denied_codes(source);
     let deny_fn_pairs: Vec<i32> = collect_deny_fn_pairs(source);
@@ -10921,6 +11195,7 @@ fn promote_denied_to_errors(diags: Vec<i32>, source: str) -> Vec<i32> {
 // downstream position math stays valid) — `(` characters get
 // blanked too, which means the `<name>(` anchor pattern can no
 // longer match anywhere inside a quoted/commented region.
+#[manual_drop]
 fn strip_strings_and_line_comments(s: str) -> str {
     let slen: i64 = str_len(s);
     let mut sb: i64 = sb_new();
@@ -10971,6 +11246,7 @@ fn strip_strings_and_line_comments(s: str) -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn rt_string_vec_append(v: Vec<i32>, extra: Vec<i32>) -> i64 {
     let n: i64 = vec_len(extra);
     let mut i: i64 = 0;
@@ -10981,6 +11257,7 @@ fn rt_string_vec_append(v: Vec<i32>, extra: Vec<i32>) -> i64 {
     return vec_len(v);
 }
 
+#[manual_drop]
 fn rt_header_has_effect(header: str, effect_name: str) -> i64 {
     if str_contains(header, "with") == 0 { return 0; };
     let hlen: i64 = str_len(header);
@@ -11004,6 +11281,7 @@ fn rt_header_has_effect(header: str, effect_name: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn collect_headers_with_effect(source: str, effect_name: str, pat: str) -> Vec<i32> {
     let mut fns: Vec<i32> = Vec::new();
     if str_contains(source, "with") == 0 { return fns; };
@@ -11067,14 +11345,17 @@ fn collect_headers_with_effect(source: str, effect_name: str, pat: str) -> Vec<i
     return fns;
 }
 
+#[manual_drop]
 fn collect_fns_with_effect(source: str, effect_name: str) -> Vec<i32> {
     return collect_headers_with_effect(source, effect_name, "fn ");
 }
 
+#[manual_drop]
 fn collect_externs_with_effect(source: str, effect_name: str) -> Vec<i32> {
     return collect_headers_with_effect(source, effect_name, "extern fn ");
 }
 
+#[manual_drop]
 fn collect_no_alloc_fns(source: str) -> Vec<i32> {
     let mut fns: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -11160,6 +11441,7 @@ fn collect_no_alloc_fns(source: str) -> Vec<i32> {
 // String-literal and `//` comment skipping mirror the no_alloc
 // pattern so the s1 compiler doesn't false-positive on the literal
 // pattern strings inside its own scanner code.
+#[manual_drop]
 fn collect_fn_requires(source: str) -> Vec<i32> {
     let mut entries: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -11249,6 +11531,7 @@ fn collect_fn_requires(source: str) -> Vec<i32> {
 // Look up the `#[require(...)]` expression text for a given fn
 // name. Returns "" if no require attribute was attached. Linear
 // scan; the require list is small in practice.
+#[manual_drop]
 fn lookup_fn_require_expr(requires: Vec<i32>, fn_name: str) -> str {
     let n: i64 = vec_len(requires);
     let mut i: i64 = 0;
@@ -11263,6 +11546,7 @@ fn lookup_fn_require_expr(requires: Vec<i32>, fn_name: str) -> str {
 // v0.4.246 RFC-0006 substrate — `#[ensure(EXPR)]` source-text
 // scanner. Mirror of collect_fn_requires but for the ensure
 // attribute (postcondition checked at fn exit).
+#[manual_drop]
 fn collect_fn_ensures(source: str) -> Vec<i32> {
     let mut entries: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -11355,6 +11639,7 @@ fn collect_fn_ensures(source: str) -> Vec<i32> {
 // pool, and lower_fn pre-evaluates each inner at fn entry storing
 // to an alloca. The rewritten ensure expression's `__old_*`
 // var-refs then resolve to loads from those allocas.
+#[manual_drop]
 fn rewrite_old_in_ensure(ens_text: str, fn_name: str) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let slen: i64 = str_len(ens_text);
@@ -11434,6 +11719,7 @@ fn rewrite_old_in_ensure(ens_text: str, fn_name: str) -> Vec<i32> {
     return out;
 }
 
+#[manual_drop]
 fn lookup_fn_ensure_expr(ensures: Vec<i32>, fn_name: str) -> str {
     let n: i64 = vec_len(ensures);
     let mut i: i64 = 0;
@@ -11451,6 +11737,7 @@ fn lookup_fn_ensure_expr(ensures: Vec<i32>, fn_name: str) -> str {
 // recognized by walking past the trait identifier and the `for`
 // keyword to find the receiver type. Returns flat (type_name,
 // expr_text) pairs.
+#[manual_drop]
 fn collect_impl_invariants(source: str) -> Vec<i32> {
     let mut entries: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -11549,6 +11836,7 @@ fn collect_impl_invariants(source: str) -> Vec<i32> {
     return entries;
 }
 
+#[manual_drop]
 fn lookup_type_invariant_expr(invariants: Vec<i32>, type_name: str) -> str {
     let n: i64 = vec_len(invariants);
     let mut i: i64 = 0;
@@ -11568,6 +11856,7 @@ fn lookup_type_invariant_expr(invariants: Vec<i32>, type_name: str) -> str {
 //
 // `#[no_check]` does NOT take an expression — marker attr only.
 // Pattern: `#[no_check]` followed by whitespace and `fn NAME`.
+#[manual_drop]
 fn collect_no_check_fns(source: str) -> Vec<i32> {
     let mut entries: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -11624,6 +11913,7 @@ fn collect_no_check_fns(source: str) -> Vec<i32> {
     return entries;
 }
 
+#[manual_drop]
 fn name_in_no_check(no_check: Vec<i32>, fn_name: str) -> i64 {
     let n: i64 = vec_len(no_check);
     let mut i: i64 = 0;
@@ -11639,10 +11929,11 @@ fn name_in_no_check(no_check: Vec<i32>, fn_name: str) -> i64 {
 // invasive way to add function-level attributes without perturbing
 // the parser's AST layout. Pattern: `#[auto_drop]` followed by
 // whitespace/comments/other attrs and then `fn NAME`.
+#[manual_drop]
 fn collect_auto_drop_fns(source: str) -> Vec<i32> {
     let mut entries: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
-    let pat: str = "#[auto_drop]";
+    let pat: str = str_concat("#[auto_", "drop]");
     let plen: i64 = str_len(pat);
     let mut p: i64 = 0;
     while p + plen <= slen {
@@ -11698,6 +11989,7 @@ fn collect_auto_drop_fns(source: str) -> Vec<i32> {
     return entries;
 }
 
+#[manual_drop]
 fn name_in_auto_drop(auto_drop: Vec<i32>, fn_name: str) -> i64 {
     let n: i64 = vec_len(auto_drop);
     let mut i: i64 = 0;
@@ -11742,6 +12034,7 @@ fn name_in_auto_drop(auto_drop: Vec<i32>, fn_name: str) -> i64 {
 // a fn is in BOTH lists, manual_drop suppresses the auto-drop.
 // Phase 2b-3 (default-flip): every fn gets auto-drop unless
 // in this list.
+#[manual_drop]
 fn collect_manual_drop_fns(source: str) -> Vec<i32> {
     let mut entries: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -11801,6 +12094,7 @@ fn collect_manual_drop_fns(source: str) -> Vec<i32> {
     return entries;
 }
 
+#[manual_drop]
 fn name_in_manual_drop(manual_drop: Vec<i32>, fn_name: str) -> i64 {
     let n: i64 = vec_len(manual_drop);
     let mut i: i64 = 0;
@@ -11818,6 +12112,7 @@ fn name_in_manual_drop(manual_drop: Vec<i32>, fn_name: str) -> i64 {
 // buffer contents — so `old(v)` for `v: Vec<T>` aliases the post-
 // mutation pointer and gives wrong ensure semantics. Reject at
 // compile time with CONTRACT-006.
+#[manual_drop]
 fn is_heap_aliased_type(ty: str) -> i64 {
     if str_starts_with(ty, "Vec<") == 1 { return 1; };
     if str_eq(ty, "String") == 1 { return 1; };
@@ -11838,6 +12133,7 @@ fn is_heap_aliased_type(ty: str) -> i64 {
 // on miss. Used by the old() heap-aliased reject; matching pattern
 // shape with the no_check / require / ensure scanners (text-level
 // pre-pass before the AST is built).
+#[manual_drop]
 fn fn_param_type(source: str, fn_name: str, param_name: str) -> str {
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
     let pat_pos: i64 = str_index_of(source, needle);
@@ -11891,6 +12187,7 @@ fn fn_param_type(source: str, fn_name: str, param_name: str) -> str {
 // depth tracking, then returns the text between `->` and `{`
 // trimmed. Returns "" if the fn has no return arrow (i.e. void
 // return type). Used by the void-fn-result-ref reject.
+#[manual_drop]
 fn fn_return_type(source: str, fn_name: str) -> str {
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
     let pat_pos: i64 = str_index_of(source, needle);
@@ -11942,6 +12239,7 @@ fn fn_return_type(source: str, fn_name: str) -> str {
 // function-level attributes are recovered from resolved source text.
 //
 // Returns flat pairs: [fn_name0, attr_text0, fn_name1, attr_text1, ...].
+#[manual_drop]
 fn collect_isr_entries(source: str) -> Vec<i32> {
     let mut entries: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -12020,6 +12318,7 @@ fn collect_isr_entries(source: str) -> Vec<i32> {
     return entries;
 }
 
+#[manual_drop]
 fn collect_isr_fns(source: str) -> Vec<i32> {
     let entries: Vec<i32> = collect_isr_entries(source);
     let mut fns: Vec<i32> = Vec::new();
@@ -12032,6 +12331,7 @@ fn collect_isr_fns(source: str) -> Vec<i32> {
     return fns;
 }
 
+#[manual_drop]
 fn name_in_isr_entries(entries: Vec<i32>, fn_name: str) -> i64 {
     let n: i64 = vec_len(entries);
     let mut i: i64 = 0;
@@ -12042,12 +12342,14 @@ fn name_in_isr_entries(entries: Vec<i32>, fn_name: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn isr_target_for_compile() -> str {
     let t: str = getenv("NUCLEOR_ISR_TARGET");
     if str_len(t) == 0 { return "cortex-m4f"; };
     return t;
 }
 
+#[manual_drop]
 fn isr_target_supported(target: str) -> i64 {
     if str_eq(target, "cortex-m4f") == 1 { return 1; };
     if str_eq(target, "cortex_m4f") == 1 { return 1; };
@@ -12056,6 +12358,7 @@ fn isr_target_supported(target: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn isr_attr_requests_unsupported_target(attr_text: str) -> i64 {
     if str_contains(attr_text, "target = \"host\"") == 1 { return 1; };
     if str_contains(attr_text, "target=\"host\"") == 1 { return 1; };
@@ -12068,6 +12371,7 @@ fn isr_attr_requests_unsupported_target(attr_text: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn fn_param_decl_text(source: str, fn_name: str) -> str {
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
     let pat_pos: i64 = str_index_of(source, needle);
@@ -12102,6 +12406,7 @@ fn fn_param_decl_text(source: str, fn_name: str) -> str {
 // is anything other than `fn`, emit ISR-008 at the attribute's own
 // source line so the adopter can find and delete the misplaced
 // attribute.
+#[manual_drop]
 fn enforce_isr_placement(diags: Vec<i32>, source: str) -> Vec<i32> {
     let slen: i64 = str_len(source);
     let pat: str = "#[isr";
@@ -12203,6 +12508,7 @@ fn enforce_isr_placement(diags: Vec<i32>, source: str) -> Vec<i32> {
 // Scans attr_text for `prio`, validates the next non-ws token is
 // `=` followed by a non-negative integer literal. Emits ISR-007 at
 // the attribute's source line for any other shape.
+#[manual_drop]
 fn validate_isr_prio(diags: Vec<i32>, fn_name: str, attr_text: str, line: i64, col: i64) -> Vec<i32> {
     let alen: i64 = str_len(attr_text);
     if alen < 5 { return diags; };
@@ -12265,6 +12571,7 @@ fn validate_isr_prio(diags: Vec<i32>, fn_name: str, attr_text: str, line: i64, c
     return diags;
 }
 
+#[manual_drop]
 fn enforce_isr_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
     diags = enforce_isr_placement(diags, source);
     let entries: Vec<i32> = collect_isr_entries(source);
@@ -12307,6 +12614,7 @@ fn enforce_isr_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
 // syntax, not a hard lexer keyword. Rewriting only `actor Name {`
 // declaration sites preserves user identifiers named `actor` while
 // letting the existing struct parser/lowerer carry field-only actors.
+#[manual_drop]
 fn sendable_actor_decl_name_at(src: str, pos: i64) -> str {
     // v0.6.24 perf fix: original called `str_len(src)` (C `strlen`)
     // on the full 1.5MB source EVERY call. Called once per character
@@ -12335,6 +12643,7 @@ fn sendable_actor_decl_name_at(src: str, pos: i64) -> str {
     return "";
 }
 
+#[manual_drop]
 fn sendable_source_has_actor_decl(src: str) -> i64 {
     let slen: i64 = str_len(src);
     let mut p: i64 = 0;
@@ -12389,6 +12698,7 @@ fn sendable_source_has_actor_decl(src: str) -> i64 {
 // `!=` on a struct field today does pointer-compare for nested
 // structs (silent miscompute); the per-field helper still works
 // for primitive-typed fields. Document the limitation in CHANGELOG.
+#[manual_drop]
 fn expand_derive_partialeq(src: str) -> str {
     let slen: i64 = str_len(src);
     // Cheap pre-check: bail if source has no `#[derive(` at all.
@@ -12682,6 +12992,7 @@ fn expand_derive_partialeq(src: str) -> str {
 // (named struct) or `fn <Name>__clone(a: <Name>) -> <Name> { return <Name>(a.__0, …); }`
 // (tuple struct). The helper is picked up by the existing v0.3.123
 // user-method dispatch path — no new dispatch code required.
+#[manual_drop]
 fn expand_derive_clone(src: str) -> str {
     let slen: i64 = str_len(src);
     // Cheap pre-check: bail if source has no `#[derive(` at all.
@@ -12964,6 +13275,7 @@ fn expand_derive_clone(src: str) -> str {
     return str_concat(src, str_concat("\n", helpers_str2));
 }
 
+#[manual_drop]
 fn expand_actor_decl_keyword(src: str) -> str {
     if sendable_source_has_actor_decl(src) == 0 { return src; };
     let mut sb: i64 = sb_new();
@@ -13028,6 +13340,7 @@ fn expand_actor_decl_keyword(src: str) -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn sendable_source_has_spawn_call(src: str) -> i64 {
     let slen: i64 = str_len(src);
     let mut p: i64 = 0;
@@ -13053,6 +13366,7 @@ fn sendable_source_has_spawn_call(src: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn sendable_is_bare_ident(text: str) -> i64 {
     let t: str = str_trim(text);
     let n: i64 = str_len(t);
@@ -13070,6 +13384,7 @@ fn sendable_is_bare_ident(text: str) -> i64 {
     return 1;
 }
 
+#[manual_drop]
 fn sendable_second_type(t: str) -> str {
     let n: i64 = str_len(t);
     let mut p: i64 = 0;
@@ -13101,6 +13416,7 @@ fn sendable_second_type(t: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn sendable_type_forced_not(source: str, typ: str) -> i64 {
     // v0.6.24 perf fix: original loop allocated a `str_substring(source, p, slen)`
     // of size (slen - p) on every iteration before passing to str_index_of —
@@ -13132,6 +13448,7 @@ fn sendable_type_forced_not(source: str, typ: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn sendable_type_has_impl(source: str, typ: str) -> i64 {
     let base: str = type_base_name(str_trim(typ));
     if str_len(base) == 0 { return 0; };
@@ -13140,6 +13457,7 @@ fn sendable_type_has_impl(source: str, typ: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn sendable_type_ok(source: str, typ: str) -> i64 {
     let t: str = str_trim(typ);
     if str_len(t) == 0 { return 1; };
@@ -13177,6 +13495,7 @@ fn sendable_type_ok(source: str, typ: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn sendable_binding_type(source: str, var_name: str) -> str {
     let pat1: str = str_concat("let ", str_concat(var_name, ":"));
     let pat2: str = str_concat("let mut ", str_concat(var_name, ":"));
@@ -13198,6 +13517,7 @@ fn sendable_binding_type(source: str, var_name: str) -> str {
     return str_trim(str_substring(source, start, q));
 }
 
+#[manual_drop]
 fn sendable_find_matching_paren(text: str, open_pos: i64) -> i64 {
     let n: i64 = str_len(text);
     let mut depth: i64 = 1;
@@ -13220,6 +13540,7 @@ fn sendable_find_matching_paren(text: str, open_pos: i64) -> i64 {
     return 0 - 1;
 }
 
+#[manual_drop]
 fn sendable_find_top_comma(text: str, start: i64, end: i64) -> i64 {
     let mut depth: i64 = 0;
     let mut p: i64 = start;
@@ -13233,6 +13554,7 @@ fn sendable_find_top_comma(text: str, start: i64, end: i64) -> i64 {
     return 0 - 1;
 }
 
+#[manual_drop]
 fn enforce_sendable_spawn_name(diags: Vec<i32>, source: str, call_name: str) -> i64 {
     // v0.6.24 perf fix: same O(slen²) class as sendable_type_forced_not /
     // sendable_actor_vars — original scanned a fresh `str_substring(source, p, slen)`
@@ -13279,6 +13601,7 @@ fn enforce_sendable_spawn_name(diags: Vec<i32>, source: str, call_name: str) -> 
     return added;
 }
 
+#[manual_drop]
 fn sendable_collect_actor_names(source: str) -> Vec<i32> {
     // v0.6.24 perf fix: O(slen²) → O(slen × pat_len) via str_eq_at scan.
     let mut out: Vec<i32> = Vec::new();
@@ -13300,6 +13623,7 @@ fn sendable_collect_actor_names(source: str) -> Vec<i32> {
     return out;
 }
 
+#[manual_drop]
 fn sendable_find_matching_brace(text: str, open_pos: i64) -> i64 {
     let n: i64 = str_len(text);
     let mut depth: i64 = 1;
@@ -13316,6 +13640,7 @@ fn sendable_find_matching_brace(text: str, open_pos: i64) -> i64 {
     return 0 - 1;
 }
 
+#[manual_drop]
 fn sendable_actor_fields(source: str, actor_name: str) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let pat: str = str_concat("struct ", str_concat(actor_name, " {"));
@@ -13340,6 +13665,7 @@ fn sendable_actor_fields(source: str, actor_name: str) -> Vec<i32> {
     return out;
 }
 
+#[manual_drop]
 fn sendable_actor_vars(source: str, actor_name: str) -> Vec<i32> {
     // v0.6.24 perf fix: original loop allocated `str_substring(source, p, slen)`
     // per iteration before str_index_of — same O(slen²) class as
@@ -13373,6 +13699,7 @@ fn sendable_actor_vars(source: str, actor_name: str) -> Vec<i32> {
     return out;
 }
 
+#[manual_drop]
 fn enforce_sendable_actor_fields(diags: Vec<i32>, source: str) -> i64 {
     let actors: Vec<i32> = sendable_collect_actor_names(source);
     let mut added: i64 = 0;
@@ -13404,6 +13731,7 @@ fn enforce_sendable_actor_fields(diags: Vec<i32>, source: str) -> i64 {
     return added;
 }
 
+#[manual_drop]
 fn enforce_sendable_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
     let has_spawn: i64 = sendable_source_has_spawn_call(source);
     let has_actor: i64 = if str_index_of(source, "//__NUC35A:") >= 0 { 1 } else { 0 };
@@ -13423,6 +13751,7 @@ fn enforce_sendable_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
 // text or non-ident char (so `older` / `bold(...)` don't match)
 // and followed by `(`. Used to reject `#[require(old(...) ...)]`
 // at compile time.
+#[manual_drop]
 fn contract_text_uses_old(text: str) -> i64 {
     let needle: str = "old";
     let nlen: i64 = str_len(needle);
@@ -13460,6 +13789,7 @@ fn contract_text_uses_old(text: str) -> i64 {
 // `#[require(undefined_var > 0)]` surfaced a misleading clang-
 // link "undefined function `undefined_var()`" error. CONTRACT-011
 // halts at parse time with the actual unbound ident named.
+#[manual_drop]
 fn find_unbound_ident_in_contract(source: str, fn_name: str, predicate: str) -> str {
     let n: i64 = str_len(predicate);
     let mut i: i64 = 0;
@@ -13544,6 +13874,7 @@ fn find_unbound_ident_in_contract(source: str, fn_name: str, predicate: str) -> 
 // boundaries: a hit must be preceded by start-of-text or non-
 // ident char, and followed by end-of-text or non-ident char.
 // Used to reject `#[ensure(result ...)]` on void fns.
+#[manual_drop]
 fn ensure_text_uses_result(text: str) -> i64 {
     let needle: str = "result";
     let nlen: i64 = str_len(needle);
@@ -13577,6 +13908,7 @@ fn ensure_text_uses_result(text: str) -> i64 {
 // `old(self.field)` or `old(get_vec())` skip the heap-aliased
 // reject (false negative is preferred over false positive — the
 // runtime panic still surfaces in those edge cases).
+#[manual_drop]
 fn is_bare_ident(text: str) -> i64 {
     let t: str = str_trim(text);
     let n: i64 = str_len(t);
@@ -13610,6 +13942,7 @@ fn is_bare_ident(text: str) -> i64 {
 // preceding `#[require(...)]` / `#[ensure(...)]` attributes
 // (those that fall between the previous statement boundary and
 // the fn keyword).
+#[manual_drop]
 fn collect_trait_method_attrs(source: str) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -13752,6 +14085,7 @@ fn collect_trait_method_attrs(source: str) -> Vec<i32> {
 // flat Vec of (trait_name, type_name, method_name, req_count,
 // ens_count) tuples. Only trait impls (the `impl Trait for Type`
 // form) are captured; inherent impls (`impl Type`) are skipped.
+#[manual_drop]
 fn collect_impl_trait_method_attrs(source: str) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -13897,6 +14231,7 @@ fn collect_impl_trait_method_attrs(source: str) -> Vec<i32> {
 
 // Look up (req_count, ens_count) for a trait method. Returns
 // `(0 - 1, 0 - 1)` if not found.
+#[manual_drop]
 fn lookup_trait_method_counts(attrs: Vec<i32>, trait_name: str, method_name: str) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let n: i64 = vec_len(attrs);
@@ -13918,6 +14253,7 @@ fn lookup_trait_method_counts(attrs: Vec<i32>, trait_name: str, method_name: str
 // For a given fn_name marked #[no_alloc], scan its body text for
 // literal `<alloc_call>(` patterns and emit RT-001 diags into
 // `diags` for each match.
+#[manual_drop]
 fn check_no_alloc_violations(diags: Vec<i32>, source: str, fn_name: str) {
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
     let nlen: i64 = str_len(needle);
@@ -13985,6 +14321,7 @@ fn check_no_alloc_violations(diags: Vec<i32>, source: str, fn_name: str) {
 // lowers to those builtins. The dot-prefixed forms catch the method-
 // call sugar; this is the only way the source-level v1 check can see
 // `vec.push(x)` without an AST.
+#[manual_drop]
 fn no_alloc_check_list() -> Vec<i32> {
     let mut v: Vec<i32> = Vec::new();
     // Vec — constructor + method calls
@@ -14020,6 +14357,7 @@ fn no_alloc_check_list() -> Vec<i32> {
     return v;
 }
 
+#[manual_drop]
 fn enforce_no_alloc(diags: Vec<i32>, source: str) -> Vec<i32> {
     let no_alloc_fns: Vec<i32> = collect_no_alloc_fns(source);
     let alloc_effect_fns: Vec<i32> = collect_fns_with_effect(source, "Alloc");
@@ -14051,6 +14389,7 @@ fn enforce_no_alloc(diags: Vec<i32>, source: str) -> Vec<i32> {
 //   - String/comment-aware skip
 //   - Per-file scope
 
+#[manual_drop]
 fn collect_no_panic_fns(source: str) -> Vec<i32> {
     let mut fns: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -14108,6 +14447,7 @@ fn collect_no_panic_fns(source: str) -> Vec<i32> {
     return fns;
 }
 
+#[manual_drop]
 fn no_panic_check_list() -> Vec<i32> {
     // Call patterns to flag inside #[no_panic] fns. Each entry is
     // a literal substring search; the body MUST contain `<entry>(`
@@ -14125,6 +14465,7 @@ fn no_panic_check_list() -> Vec<i32> {
     return v;
 }
 
+#[manual_drop]
 fn check_no_panic_violations(diags: Vec<i32>, source: str, fn_name: str) {
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
     let nlen: i64 = str_len(needle);
@@ -14170,6 +14511,7 @@ fn check_no_panic_violations(diags: Vec<i32>, source: str, fn_name: str) {
     };
 }
 
+#[manual_drop]
 fn enforce_no_panic(diags: Vec<i32>, source: str) -> Vec<i32> {
     let no_panic_fns: Vec<i32> = collect_no_panic_fns(source);
     let panic_effect_fns: Vec<i32> = collect_fns_with_effect(source, "Panic");
@@ -14183,6 +14525,7 @@ fn enforce_no_panic(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+#[manual_drop]
 fn collect_atomic_fns(source: str) -> Vec<i32> {
     let mut fns: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -14236,6 +14579,7 @@ fn collect_atomic_fns(source: str) -> Vec<i32> {
     return fns;
 }
 
+#[manual_drop]
 fn source_fn_body_for_scan(source: str, fn_name: str) -> str {
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
     let nlen: i64 = str_len(needle);
@@ -14270,6 +14614,7 @@ fn source_fn_body_for_scan(source: str, fn_name: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn check_effect_call_violations(diags: Vec<i32>, source: str, fn_name: str, effect_fns: Vec<i32>, effect_name: str, contract_name: str) -> i64 {
     if vec_len(effect_fns) == 0 { return 0; };
     let body_raw: str = source_fn_body_for_scan(source, fn_name);
@@ -14293,6 +14638,7 @@ fn check_effect_call_violations(diags: Vec<i32>, source: str, fn_name: str, effe
     return emitted;
 }
 
+#[manual_drop]
 fn atomic_blocking_check_list() -> Vec<i32> {
     let mut v: Vec<i32> = Vec::new();
     v.push("mutex_lock"); v.push(".lock"); v.push("rwlock_read"); v.push("rwlock_write");
@@ -14302,6 +14648,7 @@ fn atomic_blocking_check_list() -> Vec<i32> {
     return v;
 }
 
+#[manual_drop]
 fn atomic_cell_check_list() -> Vec<i32> {
     let mut v: Vec<i32> = Vec::new();
     v.push("Cell<"); v.push("RefCell<"); v.push("Cell::"); v.push("RefCell::");
@@ -14309,6 +14656,7 @@ fn atomic_cell_check_list() -> Vec<i32> {
     return v;
 }
 
+#[manual_drop]
 fn check_atomic_contract_violations(diags: Vec<i32>, source: str, fn_name: str) {
     let body_raw: str = source_fn_body_for_scan(source, fn_name);
     if str_len(body_raw) == 0 { return; };
@@ -14347,6 +14695,7 @@ fn check_atomic_contract_violations(diags: Vec<i32>, source: str, fn_name: str) 
     };
 }
 
+#[manual_drop]
 fn atomic_find_pattern_from(text: str, pat: str, start: i64) -> i64 {
     let tlen: i64 = str_len(text);
     let plen: i64 = str_len(pat);
@@ -14359,6 +14708,7 @@ fn atomic_find_pattern_from(text: str, pat: str, start: i64) -> i64 {
     return 0 - 1;
 }
 
+#[manual_drop]
 fn atomic_find_call_end(text: str, open_pos: i64) -> i64 {
     let tlen: i64 = str_len(text);
     let mut p: i64 = open_pos;
@@ -14375,6 +14725,7 @@ fn atomic_find_call_end(text: str, open_pos: i64) -> i64 {
     return 0 - 1;
 }
 
+#[manual_drop]
 fn atomic_order_code_at(call: str, p: i64) -> i64 {
     if str_eq_at(call, p, "MemOrder::Relaxed") == 1 { return 0; };
     if str_eq_at(call, p, "MemOrder::Acquire") == 1 { return 1; };
@@ -14384,6 +14735,7 @@ fn atomic_order_code_at(call: str, p: i64) -> i64 {
     return 0 - 1;
 }
 
+#[manual_drop]
 fn atomic_nth_order_code(call: str, nth: i64) -> i64 {
     let mut p: i64 = 0;
     let mut seen: i64 = 0;
@@ -14397,6 +14749,7 @@ fn atomic_nth_order_code(call: str, nth: i64) -> i64 {
     return 0 - 1;
 }
 
+#[manual_drop]
 fn atomic_cmpxchg_orders_valid(success: i64, failure: i64) -> i64 {
     if failure == 2 || failure == 3 { return 0; };
     if success == 0 { if failure == 0 { return 1; }; return 0; };
@@ -14407,6 +14760,7 @@ fn atomic_cmpxchg_orders_valid(success: i64, failure: i64) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn atomic_scan_call_invalid_order(diags: Vec<i32>, code_text: str, callee_pat: str, bad_a: str, bad_b: str, code: str, message: str) -> i64 {
     let plen: i64 = str_len(callee_pat);
     let mut p: i64 = 0;
@@ -14440,6 +14794,7 @@ fn atomic_scan_call_invalid_order(diags: Vec<i32>, code_text: str, callee_pat: s
 // the dangerous pattern at parse-time and emits a clean diag
 // instead of letting the meltdown surface. Adopters get a
 // useful "closures + atomics not yet supported" message.
+#[manual_drop]
 fn enforce_no_atomic_in_closure(source: str) -> i64 {
     let code: str = strip_strings_and_line_comments(source);
     let n: i64 = str_len(code);
@@ -14466,6 +14821,7 @@ fn enforce_no_atomic_in_closure(source: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn enforce_atomic_ordering(diags: Vec<i32>, source: str) -> Vec<i32> {
     let code: str = strip_strings_and_line_comments(source);
     atomic_scan_call_invalid_order(diags, code, "atomic_load(", "MemOrder::Release", "MemOrder::AcqRel", "ATOMIC-005", "atomic_load only accepts Relaxed, Acquire, or SeqCst memory ordering");
@@ -14492,6 +14848,7 @@ fn enforce_atomic_ordering(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+#[manual_drop]
 fn enforce_atomic_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
     let atomic_fns: Vec<i32> = collect_atomic_fns(source);
     let mut i: i64 = 0;
@@ -14513,6 +14870,7 @@ fn enforce_atomic_contracts(diags: Vec<i32>, source: str) -> Vec<i32> {
 // false positives on the `let pat: str = "#[no_dyn]"` literal in
 // this very compiler.
 
+#[manual_drop]
 fn collect_no_dyn_fns(source: str) -> Vec<i32> {
     let mut fns: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -14570,6 +14928,7 @@ fn collect_no_dyn_fns(source: str) -> Vec<i32> {
     return fns;
 }
 
+#[manual_drop]
 fn check_no_dyn_violations(diags: Vec<i32>, source: str, fn_name: str) {
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
     let nlen: i64 = str_len(needle);
@@ -14619,6 +14978,7 @@ fn check_no_dyn_violations(diags: Vec<i32>, source: str, fn_name: str) {
     };
 }
 
+#[manual_drop]
 fn enforce_no_dyn(diags: Vec<i32>, source: str) -> Vec<i32> {
     let no_dyn_fns: Vec<i32> = collect_no_dyn_fns(source);
     let mut i: i64 = 0;
@@ -14639,6 +14999,7 @@ fn enforce_no_dyn(diags: Vec<i32>, source: str) -> Vec<i32> {
 // from an RT body fires `warning[RT-005]`. Suppressible via
 // `#[allow(RT-005)]`.
 
+#[manual_drop]
 fn collect_extern_fn_names(source: str) -> Vec<i32> {
     let mut names: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -14688,6 +15049,7 @@ fn collect_extern_fn_names(source: str) -> Vec<i32> {
     return names;
 }
 
+#[manual_drop]
 fn check_no_ffi_violations(diags: Vec<i32>, source: str, fn_name: str, externs: Vec<i32>, attr_label: str) {
     if vec_len(externs) == 0 { return; };
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
@@ -14742,6 +15104,7 @@ fn check_no_ffi_violations(diags: Vec<i32>, source: str, fn_name: str, externs: 
 // fns calling an annotated-safe extern stay clean; RT fns calling
 // an UNannotated extern still fire RT-005 (the conservative
 // default — we don't know what the C side does).
+#[manual_drop]
 fn collect_externs_with_marker(source: str, marker_pat: str) -> Vec<i32> {
     let mut names: Vec<i32> = Vec::new();
     let slen: i64 = str_len(source);
@@ -14809,6 +15172,7 @@ fn collect_externs_with_marker(source: str, marker_pat: str) -> Vec<i32> {
 // Set difference: returns elements of `all` that are NOT in
 // `removed`. Used to filter FFI symbols safe for a given RT
 // contract out of the "RT-005 fires" list.
+#[manual_drop]
 fn filter_externs_keep_unsafe(all: Vec<i32>, safe: Vec<i32>) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let an: i64 = vec_len(all);
@@ -14828,6 +15192,7 @@ fn filter_externs_keep_unsafe(all: Vec<i32>, safe: Vec<i32>) -> Vec<i32> {
     return out;
 }
 
+#[manual_drop]
 fn enforce_rt005_ffi(diags: Vec<i32>, source: str) -> Vec<i32> {
     let externs: Vec<i32> = collect_extern_fn_names(source);
     if vec_len(externs) == 0 { return diags; };
@@ -14892,6 +15257,7 @@ fn enforce_rt005_ffi(diags: Vec<i32>, source: str) -> Vec<i32> {
 // Indirect recursion (A→B→A) requires a call graph and is left
 // for the v2 AST-based check.
 
+#[manual_drop]
 fn dl_get_wrapper_name(source: str, inner_name: str) -> str {
     // The T3.1 expander emits the inner fn first, then a blank,
     // then the wrapper fn whose body calls deadline_check. Walk
@@ -14938,6 +15304,7 @@ fn dl_get_wrapper_name(source: str, inner_name: str) -> str {
     return str_substring(source, nm_start, q);
 }
 
+#[manual_drop]
 fn md_extract_int_value(line: str) -> i64 {
     let compact: str = strip_spaces(line);
     let needle: str = "#[max_depth";
@@ -14967,6 +15334,7 @@ fn md_extract_int_value(line: str) -> i64 {
     return 0 - 1;
 }
 
+#[manual_drop]
 fn md_first_param_name(params_text: str) -> str {
     // v0.5.7 fix for impl-method false-DEPTH-001: when the recursion-bounding
     // analyzer scans `fn count(self, depth: i64)`, the first identifier is
@@ -15017,6 +15385,7 @@ fn md_first_param_name(params_text: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn md_first_ident_in_param_segment(seg: str) -> str {
     let slen: i64 = str_len(seg);
     let mut p: i64 = 0;
@@ -15051,6 +15420,7 @@ fn md_first_ident_in_param_segment(seg: str) -> str {
     return str_substring(seg, ns, p);
 }
 
+#[manual_drop]
 fn md_param_names(params_text: str) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let plen: i64 = str_len(params_text);
@@ -15076,6 +15446,7 @@ fn md_param_names(params_text: str) -> Vec<i32> {
     return out;
 }
 
+#[manual_drop]
 fn md_parse_digits_at(s: str, p0: i64) -> i64 {
     let slen: i64 = str_len(s);
     let mut p: i64 = p0;
@@ -15085,6 +15456,7 @@ fn md_parse_digits_at(s: str, p0: i64) -> i64 {
     return str_to_int(str_substring(s, ns, p));
 }
 
+#[manual_drop]
 fn md_guard_limit(body: str, param_name: str) -> i64 {
     let compact: str = strip_spaces(body);
     let ge_pat: str = str_concat(param_name, ">=");
@@ -15102,6 +15474,7 @@ fn md_guard_limit(body: str, param_name: str) -> i64 {
     return 0 - 1;
 }
 
+#[manual_drop]
 fn md_has_positive_increment(compact: str, param_name: str) -> i64 {
     let slen: i64 = str_len(compact);
     let right_pat: str = str_concat(param_name, "+");
@@ -15132,11 +15505,13 @@ fn md_has_positive_increment(compact: str, param_name: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn md_find_fn_pos(source: str, fn_name: str) -> i64 {
     let needle: str = str_concat("fn ", str_concat(fn_name, "("));
     return source_find(source, needle);
 }
 
+#[manual_drop]
 fn md_helper_proves_guard(source: str, helper_name: str) -> i64 {
     let fn_pos: i64 = md_find_fn_pos(source, helper_name);
     if fn_pos < 0 { return 0; };
@@ -15160,6 +15535,7 @@ fn md_helper_proves_guard(source: str, helper_name: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn md_guard_limit_with_helpers(source: str, body_compact: str, param_name: str) -> i64 {
     let direct: i64 = md_guard_limit(body_compact, param_name);
     if direct >= 0 { return direct; };
@@ -15186,6 +15562,7 @@ fn md_guard_limit_with_helpers(source: str, body_compact: str, param_name: str) 
     return 0 - 1;
 }
 
+#[manual_drop]
 fn md_body_contains_call(body_raw: str, callee: str) -> i64 {
     if str_len(callee) == 0 { return 0; };
     let body: str = strip_strings_and_line_comments(body_raw);
@@ -15193,6 +15570,7 @@ fn md_body_contains_call(body_raw: str, callee: str) -> i64 {
     return str_contains(body, pat);
 }
 
+#[manual_drop]
 fn md_unproven_callback_param(body_raw: str, params_text: str) -> str {
     let body: str = strip_strings_and_line_comments(body_raw);
     let compact: str = strip_spaces(body);
@@ -15225,6 +15603,7 @@ fn md_unproven_callback_param(body_raw: str, params_text: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn md_proven_limit(source: str, body_raw: str, params_text: str, callee: str) -> i64 {
     let body: str = strip_strings_and_line_comments(body_raw);
     let compact: str = strip_spaces(body);
@@ -15250,30 +15629,37 @@ fn md_proven_limit(source: str, body_raw: str, params_text: str, callee: str) ->
     return 0 - 1;
 }
 
+#[manual_drop]
 fn md_entry_count(entries: Vec<i32>) -> i64 {
     return vec_len(entries) / 5;
 }
 
+#[manual_drop]
 fn md_entry_name(entries: Vec<i32>, idx: i64) -> str {
     return vec_get(entries, idx * 5 + 1);
 }
 
+#[manual_drop]
 fn md_entry_bound(entries: Vec<i32>, idx: i64) -> i64 {
     return vec_get(entries, idx * 5 + 2);
 }
 
+#[manual_drop]
 fn md_entry_body(entries: Vec<i32>, idx: i64) -> str {
     return vec_get(entries, idx * 5 + 3);
 }
 
+#[manual_drop]
 fn md_entry_params(entries: Vec<i32>, idx: i64) -> str {
     return vec_get(entries, idx * 5 + 4);
 }
 
+#[manual_drop]
 fn md_edge_raw(entries: Vec<i32>, from_idx: i64, to_idx: i64) -> i64 {
     return md_body_contains_call(md_entry_body(entries, from_idx), md_entry_name(entries, to_idx));
 }
 
+#[manual_drop]
 fn md_edge_proven(source: str, entries: Vec<i32>, from_idx: i64, to_idx: i64) -> i64 {
     if md_entry_bound(entries, from_idx) != md_entry_bound(entries, to_idx) { return 0; };
     let proven: i64 = md_proven_limit(source, md_entry_body(entries, from_idx), md_entry_params(entries, from_idx), md_entry_name(entries, to_idx));
@@ -15316,6 +15702,7 @@ fn md_path_exists(entries: Vec<i32>, from_idx: i64, target_idx: i64, proven_only
     return 0;
 }
 
+#[manual_drop]
 fn md_estimate_frame_bytes(body_raw: str) -> i64 {
     let body: str = strip_strings_and_line_comments(body_raw);
     let blen: i64 = str_len(body);
@@ -15329,6 +15716,7 @@ fn md_estimate_frame_bytes(body_raw: str) -> i64 {
     return stmts * 64;
 }
 
+#[manual_drop]
 fn source_has_max_depth_attr_line(source: str) -> i64 {
     let slen: i64 = str_len(source);
     let mut p: i64 = 0;
@@ -15342,6 +15730,7 @@ fn source_has_max_depth_attr_line(source: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn collect_max_depth_entries(diags: Vec<i32>, source: str) -> Vec<i32> {
     // Alternating records:
     // [fn_name, public_call_name, bound, body_raw, params_text, ...].
@@ -15417,6 +15806,7 @@ fn collect_max_depth_entries(diags: Vec<i32>, source: str) -> Vec<i32> {
     return entries;
 }
 
+#[manual_drop]
 fn enforce_max_depth_static(diags: Vec<i32>, source: str) -> Vec<i32> {
     if source_has_max_depth_attr_line(source) == 0 { return diags; };
     let entries: Vec<i32> = collect_max_depth_entries(diags, source);
@@ -15503,6 +15893,7 @@ fn enforce_max_depth_static(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+#[manual_drop]
 fn enforce_rt008_recursion(diags: Vec<i32>, source: str) -> Vec<i32> {
     let dl_entries: Vec<i32> = wcet_collect_deadline_fns(source);
     let n: i64 = vec_len(dl_entries);
@@ -15581,6 +15972,7 @@ fn enforce_rt008_recursion(diags: Vec<i32>, source: str) -> Vec<i32> {
 // scheduling, IO wakeups, etc.) and cannot satisfy any RT
 // guarantee. The two have to be mutually exclusive.
 
+#[manual_drop]
 fn enforce_rt006_async(diags: Vec<i32>, source: str) -> Vec<i32> {
     // Match \n + "//__NUC6T:" — leading newline ensures we only
     // hit markers that the expander emitted at column 0, not
@@ -15620,6 +16012,7 @@ fn enforce_rt006_async(diags: Vec<i32>, source: str) -> Vec<i32> {
 // halt), but the warning points adopters at the actual threading
 // primitives (`async_spawn(fn_ptr, arg)` + `async_await(handle)`,
 // RFC-0027 phase 1).
+#[manual_drop]
 fn enforce_async001_warning(diags: Vec<i32>, source: str) -> Vec<i32> {
     let needle: str = "\n//__NUC6X:";
     let nlen: i64 = str_len(needle);
@@ -15666,6 +16059,7 @@ fn enforce_async001_warning(diags: Vec<i32>, source: str) -> Vec<i32> {
 // estimator is deliberately crude. v0.3.2b's AST-based v2 will
 // tighten the estimate + promote to error for unambiguous cases.
 
+#[manual_drop]
 fn wcet_collect_deadline_fns(source: str) -> Vec<i32> {
     // Returns alternating [inner_name1, limit1_us, ...].
     // Scans for `deadline_check(__nuc_dl_start, N)` which the
@@ -15728,6 +16122,7 @@ fn wcet_collect_deadline_fns(source: str) -> Vec<i32> {
     return out;
 }
 
+#[manual_drop]
 fn wcet_estimate_fn_units(source: str, fn_name: str) -> i64 {
     // Counts `;` (statements) inside the named fn body, separately
     // counts `while` keywords, applies a coarse multiplier ladder
@@ -15784,6 +16179,7 @@ fn wcet_estimate_fn_units(source: str, fn_name: str) -> i64 {
     return units;
 }
 
+#[manual_drop]
 fn enforce_static_wcet(diags: Vec<i32>, source: str) -> Vec<i32> {
     // For each #[deadline = N] fn (post-resolver shape — inner +
     // outer wrapper pair from T3.1), estimate WCET on the inner
@@ -15813,6 +16209,7 @@ fn enforce_static_wcet(diags: Vec<i32>, source: str) -> Vec<i32> {
 // should accompany #[deadline] so the compiler can statically
 // rule out the most common deadline-busters.
 
+#[manual_drop]
 fn enforce_deadline_safety(diags: Vec<i32>, source: str) -> Vec<i32> {
     let dl_entries: Vec<i32> = wcet_collect_deadline_fns(source);
     let no_alloc_fns: Vec<i32> = collect_no_alloc_fns(source);
@@ -15844,6 +16241,7 @@ fn enforce_deadline_safety(diags: Vec<i32>, source: str) -> Vec<i32> {
     return diags;
 }
 
+#[manual_drop]
 fn byte_to_line(source: str, byte_off: i64) -> i64 {
     let slen: i64 = str_len(source);
     let mut line: i64 = 1;
@@ -15861,6 +16259,7 @@ fn byte_to_line(source: str, byte_off: i64) -> i64 {
 // linemap_build returns Vec<i32> where item[k] = byte offset of line (k+1)'s
 // first character (line 1 starts at offset 0). Lookup is O(log n) via
 // binary search; pair with linemap_col for column number.
+#[manual_drop]
 fn linemap_build(source: str) -> Vec<i32> {
     let mut starts: Vec<i32> = Vec::new();
     starts.push(0);  // line 1 starts at offset 0
@@ -15873,6 +16272,7 @@ fn linemap_build(source: str) -> Vec<i32> {
     return starts;
 }
 
+#[manual_drop]
 fn linemap_line(starts: Vec<i32>, byte_off: i64) -> i64 {
     let n: i64 = vec_len(starts);
     if n == 0 { return 1; };
@@ -15888,14 +16288,17 @@ fn linemap_line(starts: Vec<i32>, byte_off: i64) -> i64 {
     return lo + 1;
 }
 
+#[manual_drop]
 fn linemap_col(starts: Vec<i32>, byte_off: i64) -> i64 {
     let line: i64 = linemap_line(starts, byte_off);
     let line_start: i64 = vec_get(starts, line - 1);
     return byte_off - line_start + 1;
 }
 
+#[manual_drop]
 fn linemap_line_count(starts: Vec<i32>) -> i64 { return vec_len(starts); }
 
+#[manual_drop]
 fn find_linecol_in_source(source: str, fn_name: str, var_name: str) -> Vec<i32> {
     let slen: i64 = str_len(source);
     let fnlen: i64 = str_len(fn_name);
@@ -15928,16 +16331,19 @@ fn find_linecol_in_source(source: str, fn_name: str, var_name: str) -> Vec<i32> 
     out.push(1);
     return out;
 }
+#[manual_drop]
 fn find_in_source(source: str, fn_name: str, var_name: str) -> i64 {
     return vec_get(find_linecol_in_source(source, fn_name, var_name), 0);
 }
 
+#[manual_drop]
 fn find_column_in_source(source: str, fn_name: str, var_name: str) -> i64 {
     return vec_get(find_linecol_in_source(source, fn_name, var_name), 1);
 }
 
 // RFC-0020 phase 1: Rust-style diagnostic rendering.
 // Detects TTY via NO_COLOR env; ANSI when colored, plain otherwise.
+#[manual_drop]
 fn diag_use_color() -> i64 {
     if str_len(getenv("NO_COLOR")) > 0 { return 0; };
     if str_len(getenv("NUCLEOR_NO_COLOR")) > 0 { return 0; };
@@ -15945,24 +16351,28 @@ fn diag_use_color() -> i64 {
     return 1;
 }
 
+#[manual_drop]
 fn ansi_red(s: str) -> str {
     if diag_use_color() == 0 { return s; };
     let esc: str = chr(27);
     return str_concat(esc, str_concat("[31m", str_concat(s, str_concat(esc, "[0m"))));
 }
 
+#[manual_drop]
 fn ansi_yellow(s: str) -> str {
     if diag_use_color() == 0 { return s; };
     let esc: str = chr(27);
     return str_concat(esc, str_concat("[33m", str_concat(s, str_concat(esc, "[0m"))));
 }
 
+#[manual_drop]
 fn ansi_dim(s: str) -> str {
     if diag_use_color() == 0 { return s; };
     let esc: str = chr(27);
     return str_concat(esc, str_concat("[2m", str_concat(s, str_concat(esc, "[0m"))));
 }
 
+#[manual_drop]
 fn ansi_bold(s: str) -> str {
     if diag_use_color() == 0 { return s; };
     let esc: str = chr(27);
@@ -15976,11 +16386,13 @@ fn ansi_bold(s: str) -> str {
 //     "fn": "main", "line": 14, "col": 5,
 //     "child": "moved here", "child_line": 13,
 //     "suggestion": "consider `let mut x` here" }
+#[manual_drop]
 fn diag_use_json() -> i64 {
     if str_len(getenv("NUCLEOR_DIAG_JSON")) > 0 { return 1; };
     return 0;
 }
 
+#[manual_drop]
 fn diag_json_escape(s: str) -> str {
     let mut sb: i64 = sb_new();
     let slen: i64 = str_len(s);
@@ -15998,6 +16410,7 @@ fn diag_json_escape(s: str) -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn diag_emit_json(diags: Vec<i32>) -> i64 {
     let cnt: i64 = vec_len(diags);
     print("[");
@@ -16061,6 +16474,7 @@ fn diag_emit_json(diags: Vec<i32>) -> i64 {
 // string. Returns "" if line is out of range. Memory-safe: walks
 // the source by index without allocating a substring per
 // candidate.
+#[manual_drop]
 fn diag_extract_line(source: str, line_no: i64) -> str {
     if line_no <= 0 || str_len(source) == 0 { return ""; };
     let slen: i64 = str_len(source);
@@ -16080,6 +16494,7 @@ fn diag_extract_line(source: str, line_no: i64) -> str {
 // T1.8: build a caret line "    ^^^^^^" pointing at column `col`
 // (1-based). Length defaults to 1 (single caret) for now; future
 // work can pass a token span.
+#[manual_drop]
 fn diag_caret_line(col: i64) -> str {
     if col <= 0 { return ""; };
     let mut sb: i64 = sb_new();
@@ -16089,6 +16504,7 @@ fn diag_caret_line(col: i64) -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn diag_emit_text(diags: Vec<i32>) -> i64 {
     return diag_emit_text_with_source(diags, "");
 }
@@ -16100,6 +16516,7 @@ fn diag_emit_text(diags: Vec<i32>) -> i64 {
 //   42 |     let x: u8 = 256;
 //      |                 ^
 //     = help: ...
+#[manual_drop]
 fn diag_emit_text_with_source(diags: Vec<i32>, source: str) -> i64 {
     let cnt: i64 = vec_len(diags);
     let mut i: i64 = 0;
@@ -16210,7 +16627,9 @@ fn diag_emit_text_with_source(diags: Vec<i32>, source: str) -> i64 {
 // =====================================================
 // OWNERSHIP CHECKER (S11.5)
 // =====================================================
+#[manual_drop]
 fn own_new() -> Vec<i32> { return Vec::new(); }
+#[manual_drop]
 fn own_put_i(o: Vec<i32>, key: str, val: i64) -> i64 {
     // v0.3.221 perf: scan backward and break on first match.
     // v0.4.3: sync the warm aux hashmap on in-place updates IF this
@@ -16230,6 +16649,7 @@ fn own_put_i(o: Vec<i32>, key: str, val: i64) -> i64 {
     o.push(val);
     return 0;
 }
+#[manual_drop]
 fn own_put_s(o: Vec<i32>, key: str, val: str) -> i64 {
     // v0.3.221 perf: same backward-scan break-on-match optimization.
     // v0.4.3: same warm-aux sync as own_put_i. str values are stored
@@ -16248,60 +16668,78 @@ fn own_put_s(o: Vec<i32>, key: str, val: str) -> i64 {
     o.push(val);
     return 0;
 }
+#[manual_drop]
 fn own_set(o: Vec<i32>, name: str, state: i64) -> i64 { return own_put_i(o, str_concat("__os_", name), state); }
+#[manual_drop]
 fn own_get(o: Vec<i32>, name: str) -> i64 {
     let v: i64 = sym_get(o, str_concat("__os_", name));
     if v < 0 { return 1; }; // unknown variables default to alive
     return v;
 }
+#[manual_drop]
 fn own_set_type(o: Vec<i32>, name: str, tstr: str) -> i64 { return own_put_s(o, str_concat("__ot_", name), tstr); }
+#[manual_drop]
 fn own_get_type(o: Vec<i32>, name: str) -> str {
     let v: i64 = sym_get(o, str_concat("__ot_", name));
     if v < 0 { return ""; };
     return v;
 }
+#[manual_drop]
 fn own_set_i(o: Vec<i32>, key: str, val: i64) -> i64 { return own_put_i(o, str_concat("__oi_", key), val); }
+#[manual_drop]
 fn own_get_i(o: Vec<i32>, key: str) -> i64 {
     let v: i64 = sym_get(o, str_concat("__oi_", key));
     if v < 0 { return 0; };
     return v;
 }
+#[manual_drop]
 fn own_set_s(o: Vec<i32>, key: str, val: str) -> i64 { return own_put_s(o, str_concat("__os2_", key), val); }
+#[manual_drop]
 fn own_get_s(o: Vec<i32>, key: str) -> str {
     let v: i64 = sym_get(o, str_concat("__os2_", key));
     if v < 0 { return ""; };
     return v;
 }
+#[manual_drop]
 fn own_diags(o: Vec<i32>) -> Vec<i32> {
     if vec_len(o) > 1 { return vec_get(o, 1); };
     return own_get_type(o, "__diags");
 }
+#[manual_drop]
 fn own_source(o: Vec<i32>) -> str {
     if vec_len(o) > 3 { return vec_get(o, 3); };
     return own_get_type(o, "__source");
 }
+#[manual_drop]
 fn own_shared_keys_vec(o: Vec<i32>) -> Vec<i32> {
     if vec_len(o) > 5 { return vec_get(o, 5); };
     return own_get_type(o, "__shared_keys");
 }
+#[manual_drop]
 fn own_mut_keys_vec(o: Vec<i32>) -> Vec<i32> {
     if vec_len(o) > 7 { return vec_get(o, 7); };
     return own_get_type(o, "__mut_keys");
 }
+#[manual_drop]
 fn own_scope_keys_vec(o: Vec<i32>) -> Vec<i32> {
     if vec_len(o) > 9 { return vec_get(o, 9); };
     return own_get_type(o, "__scope_keys");
 }
+#[manual_drop]
 fn own_cur_scope(o: Vec<i32>) -> i64 {
     if vec_len(o) > 11 { return vec_get(o, 11); };
     return own_get_i(o, "cur_scope");
 }
+#[manual_drop]
 fn own_set_cur_scope(o: Vec<i32>, depth: i64) -> i64 {
     if vec_len(o) > 11 { vec_set(o, 11, depth); return 0; };
     return own_set_i(o, "cur_scope", depth);
 }
+#[manual_drop]
 fn own_set_mutable(o: Vec<i32>, name: str, is_mut: i64) -> i64 { return own_set_i(o, str_concat("mutable_", name), is_mut); }
+#[manual_drop]
 fn own_get_mutable(o: Vec<i32>, name: str) -> i64 { return own_get_i(o, str_concat("mutable_", name)); }
+#[manual_drop]
 fn own_track_key(o: Vec<i32>, list_key: str, name: str) -> i64 {
     let keys: Vec<i32> = if str_eq(list_key, "__shared_keys") == 1 { own_shared_keys_vec(o) } else { if str_eq(list_key, "__mut_keys") == 1 { own_mut_keys_vec(o) } else { if str_eq(list_key, "__scope_keys") == 1 { own_scope_keys_vec(o) } else { own_get_type(o, list_key) } } };
     let mut i: i64 = 0;
@@ -16312,32 +16750,46 @@ fn own_track_key(o: Vec<i32>, list_key: str, name: str) -> i64 {
     keys.push(name);
     return 0;
 }
+#[manual_drop]
 fn own_set_scope(o: Vec<i32>, name: str, depth: i64) -> i64 {
     own_track_key(o, "__scope_keys", name);
     return own_set_i(o, str_concat("scope_", name), depth);
 }
+#[manual_drop]
 fn own_get_scope(o: Vec<i32>, name: str) -> i64 { return own_get_i(o, str_concat("scope_", name)); }
+#[manual_drop]
 fn own_set_param(o: Vec<i32>, name: str, is_param: i64) -> i64 { return own_set_i(o, str_concat("param_", name), is_param); }
+#[manual_drop]
 fn own_get_param(o: Vec<i32>, name: str) -> i64 { return own_get_i(o, str_concat("param_", name)); }
+#[manual_drop]
 fn own_set_ref_target(o: Vec<i32>, name: str, target: str) -> i64 { return own_set_s(o, str_concat("ref_target_", name), target); }
+#[manual_drop]
 fn own_get_ref_target(o: Vec<i32>, name: str) -> str { return own_get_s(o, str_concat("ref_target_", name)); }
+#[manual_drop]
 fn own_set_ref_kind(o: Vec<i32>, name: str, kind: i64) -> i64 { return own_set_i(o, str_concat("ref_kind_", name), kind); }
+#[manual_drop]
 fn own_get_ref_kind(o: Vec<i32>, name: str) -> i64 { return own_get_i(o, str_concat("ref_kind_", name)); }
+#[manual_drop]
 fn own_shared_borrows(o: Vec<i32>, key: str) -> i64 { return own_get_i(o, str_concat("shared_", key)); }
+#[manual_drop]
 fn own_mut_borrowed(o: Vec<i32>, key: str) -> i64 { return own_get_i(o, str_concat("mut_", key)); }
+#[manual_drop]
 fn own_inc_shared(o: Vec<i32>, key: str) -> i64 {
     own_track_key(o, "__shared_keys", key);
     return own_set_i(o, str_concat("shared_", key), own_shared_borrows(o, key) + 1);
 }
+#[manual_drop]
 fn own_dec_shared(o: Vec<i32>, key: str) -> i64 {
     let cur: i64 = own_shared_borrows(o, key);
     if cur > 0 { own_set_i(o, str_concat("shared_", key), cur - 1); };
     return 0;
 }
+#[manual_drop]
 fn own_set_mut_borrow(o: Vec<i32>, key: str, on: i64) -> i64 {
     own_track_key(o, "__mut_keys", key);
     return own_set_i(o, str_concat("mut_", key), on);
 }
+#[manual_drop]
 fn str_starts_with(s: str, prefix: str) -> i64 {
     // Non-allocating prefix check. Avoid str_len(s): this helper is
     // hot in type-name probes, and str_char_at(s, strlen(s)) returns
@@ -16362,6 +16814,7 @@ fn str_starts_with(s: str, prefix: str) -> i64 {
 // 485 KB source that was ~485,000 transient allocations per
 // invocation × thousands of invocations = ~9.5 GB of leaked
 // transient strings during type-check).
+#[manual_drop]
 fn str_eq_at(source: str, pos: i64, target: str) -> i64 {
     // CRITICAL: do NOT call str_len(source) here — it's O(n) (walks
     // to the null terminator). The dominant caller (find_linecol_in_
@@ -16378,6 +16831,7 @@ fn str_eq_at(source: str, pos: i64, target: str) -> i64 {
     };
     return 1;
 }
+#[manual_drop]
 fn path_overlaps(a: str, b: str) -> i64 {
     if str_len(a) == 0 || str_len(b) == 0 { return 0; };
     if str_eq(a, b) == 1 { return 1; };
@@ -16387,6 +16841,7 @@ fn path_overlaps(a: str, b: str) -> i64 {
     if str_starts_with(a, bp) == 1 { return 1; };
     return 0;
 }
+#[manual_drop]
 fn expr_borrow_key(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
     if nid < 0 || nid >= vec_len(pool) { return ""; };
     let kind: i64 = node_kind(pool, nid);
@@ -16406,6 +16861,7 @@ fn expr_borrow_key(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
     if kind == 92 { return expr_borrow_key(pool, node_field(pool, nid, 1), own); };
     return "";
 }
+#[manual_drop]
 fn expr_root_name(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
     if nid < 0 || nid >= vec_len(pool) { return ""; };
     let kind: i64 = node_kind(pool, nid);
@@ -16427,6 +16883,7 @@ fn expr_root_name(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
     if kind == 9 || kind == 90 || kind == 91 || kind == 92 { return expr_root_name(pool, node_field(pool, nid, 1), own); };
     return "";
 }
+#[manual_drop]
 fn own_has_shared_overlap(o: Vec<i32>, key: str) -> i64 {
     let keys: Vec<i32> = own_shared_keys_vec(o);
     let mut i: i64 = 0;
@@ -16437,6 +16894,7 @@ fn own_has_shared_overlap(o: Vec<i32>, key: str) -> i64 {
     };
     return 0;
 }
+#[manual_drop]
 fn own_has_mut_overlap(o: Vec<i32>, key: str) -> i64 {
     let keys: Vec<i32> = own_mut_keys_vec(o);
     let mut i: i64 = 0;
@@ -16447,6 +16905,7 @@ fn own_has_mut_overlap(o: Vec<i32>, key: str) -> i64 {
     };
     return 0;
 }
+#[manual_drop]
 fn own_release_ref(o: Vec<i32>, name: str) -> i64 {
     let target: str = own_get_ref_target(o, name);
     if str_len(target) == 0 { return 0; };
@@ -16456,6 +16915,7 @@ fn own_release_ref(o: Vec<i32>, name: str) -> i64 {
     own_set_ref_kind(o, name, 0);
     return 0;
 }
+#[manual_drop]
 fn own_release_scope(o: Vec<i32>, depth: i64) -> i64 {
     let keys: Vec<i32> = own_scope_keys_vec(o);
     let mut i: i64 = 0;
@@ -16467,12 +16927,14 @@ fn own_release_scope(o: Vec<i32>, depth: i64) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn own_snapshot(o: Vec<i32>) -> Vec<i32> {
     let mut snap: Vec<i32> = Vec::with_capacity(vec_len(o));
     let mut i: i64 = 0;
     while i < vec_len(o) { snap.push(vec_get(o, i)); i = i + 1; };
     return snap;
 }
+#[manual_drop]
 fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
     // Reset o to snap state without dropping the whole backing store.
     // Branch isolation calls this in hot ownership paths; pop-all then
@@ -16497,6 +16959,7 @@ fn own_restore(o: Vec<i32>, snap: Vec<i32>) -> i64 {
     };
     return 0;
 }
+#[manual_drop]
 fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
     // If a variable is moved in either branch, mark it moved.
     // Both `a` and `b` are consumed (freed) — they are then/else
@@ -16515,6 +16978,7 @@ fn own_merge_moved(o: Vec<i32>, a: Vec<i32>, b: Vec<i32>) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn enum_find(pool: Vec<i32>, enums: Vec<i32>, name: str) -> i64 {
     let mut i: i64 = 0;
     while i < vec_len(enums) {
@@ -16524,6 +16988,7 @@ fn enum_find(pool: Vec<i32>, enums: Vec<i32>, name: str) -> i64 {
     return 0 - 1;
 }
 
+#[manual_drop]
 fn is_copy_type(tstr: str, pool: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
     if str_len(tstr) == 0 { return 1; };
     if type_is_mut_ref(tstr) == 1 { return 0; };
@@ -16548,6 +17013,7 @@ fn is_copy_type(tstr: str, pool: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -
     return 1; // unknown types default to Copy
 }
 
+#[manual_drop]
 fn own_binding_move_type(tstr: str, pool: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>) -> i64 {
     if is_copy_type(tstr, pool, structs, enums) == 0 { return 1; };
     let base: str = type_base_name(tstr);
@@ -16555,6 +17021,7 @@ fn own_binding_move_type(tstr: str, pool: Vec<i32>, structs: Vec<i32>, enums: Ve
     return 0;
 }
 
+#[manual_drop]
 fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, fn_name: str) -> i64 {
     if nid < 0 { return 0; };
     if nid >= vec_len(pool) { return 0; };
@@ -16940,6 +17407,7 @@ fn check_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     return warns;
 }
 
+#[manual_drop]
 fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, fn_name: str) -> i64 {
     if nid < 0 || nid >= vec_len(pool) { return 0; };
     let kind: i64 = node_kind(pool, nid);
@@ -17305,6 +17773,7 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
     return warns;
 }
 
+#[manual_drop]
 fn check_stmts(pool: Vec<i32>, lid: i64, own: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, fn_name: str) -> i64 {
     if lid < 0 || lid >= vec_len(pool) { return 0; };
     let cnt: i64 = list_len(pool, lid);
@@ -17313,6 +17782,7 @@ fn check_stmts(pool: Vec<i32>, lid: i64, own: Vec<i32>, structs: Vec<i32>, enums
     return warns;
 }
 
+#[manual_drop]
 fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, diags: Vec<i32>, source: str) -> i64 {
     let fn_name: str = node_field(pool, fn_nid, 1);
     let plist: i64 = node_field(pool, fn_nid, 2);
@@ -17366,16 +17836,19 @@ fn check_fn(pool: Vec<i32>, fn_nid: i64, structs: Vec<i32>, enums: Vec<i32>, dia
 // =====================================================
 // EFFECT CHECKER (S11.6)
 // =====================================================
+#[manual_drop]
 fn is_tainted_type(tstr: str) -> i64 {
     // Hot path: was allocating a 7-byte substring per call.
     if str_starts_with(tstr, "tainted") == 1 { return 1; };
     return 0;
 }
+#[manual_drop]
 fn taint_inner_type(t: str) -> str {
     let slen: i64 = str_len(t);
     if str_starts_with(t, "tainted<") == 1 { return str_substring(t, 8, slen - 1); };
     return t;
 }
+#[manual_drop]
 fn types_compatible(expected: str, actual: str) -> i64 {
     if str_len(expected) == 0 || str_len(actual) == 0 { return 1; };
     if str_eq(expected, "_") == 1 { return 1; };
@@ -17553,6 +18026,7 @@ fn types_compatible(expected: str, actual: str) -> i64 {
     if str_eq(ebase, abase) == 1 { return 1; };
     return 0;
 }
+#[manual_drop]
 fn dyn_trait_name(t: str) -> str {
     let s: str = t;
     if str_starts_with(s, "dyn ") == 1 {
@@ -17560,6 +18034,7 @@ fn dyn_trait_name(t: str) -> str {
     };
     return "";
 }
+#[manual_drop]
 fn box_dyn_trait_name(t: str) -> str {
     let s: str = t;
     let dyn_pos: i64 = str_index_of(s, "dyn ");
@@ -17573,6 +18048,7 @@ fn box_dyn_trait_name(t: str) -> str {
     };
     return "";
 }
+#[manual_drop]
 fn type_implements_trait(pool: Vec<i32>, prog: i64, type_name: str, trait_name: str) -> i64 {
     let tbase: str = type_base_name(type_name);
     let cnt: i64 = list_len(pool, prog);
@@ -17600,6 +18076,7 @@ fn type_implements_trait(pool: Vec<i32>, prog: i64, type_name: str, trait_name: 
 // the dominant case in hot type-check paths. v0.6.54 baseline was
 // 3.08s; raw scan cost ~1.7s on the self-host (8500-decl walk per
 // call). Fast-fail brings the regression back under 100ms.
+#[manual_drop]
 fn type_alias_resolve(pool: Vec<i32>, prog: i64, name: str) -> str {
     let nlen: i64 = str_len(name);
     if nlen == 0 { return ""; };
@@ -17641,6 +18118,7 @@ fn type_alias_resolve(pool: Vec<i32>, prog: i64, name: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn types_compatible_context(pool: Vec<i32>, prog: i64, expected: str, actual: str) -> i64 {
     if types_compatible(expected, actual) == 1 { return 1; };
     // v0.6.67: type-alias resolution. If either side is a bare
@@ -17673,6 +18151,7 @@ fn types_compatible_context(pool: Vec<i32>, prog: i64, expected: str, actual: st
     };
     return 0;
 }
+#[manual_drop]
 fn target_root_name(target: str) -> str {
     let mut i: i64 = 0;
     while i < str_len(target) {
@@ -17681,6 +18160,7 @@ fn target_root_name(target: str) -> str {
     };
     return target;
 }
+#[manual_drop]
 fn expr_escape_root(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
     if nid < 0 || nid >= vec_len(pool) { return ""; };
     let kind: i64 = node_kind(pool, nid);
@@ -17723,6 +18203,7 @@ fn expr_escape_root(pool: Vec<i32>, nid: i64, own: Vec<i32>) -> str {
     return "";
 }
 
+#[manual_drop]
 fn builtin_rtype(name: str) -> str {
     if str_eq(name, "ambient_scheduler") == 1 { return "SchedulerCap"; };
     if str_eq(name, "ambient_random") == 1 { return "RandomCap"; };
@@ -17753,6 +18234,7 @@ fn builtin_rtype(name: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn source_line(source: str, line: i64) -> str {
     let slen: i64 = str_len(source);
     let mut cur: i64 = 1;
@@ -17770,6 +18252,7 @@ fn source_line(source: str, line: i64) -> str {
     if cur == line { return str_substring(source, start, slen); };
     return "";
 }
+#[manual_drop]
 fn line_has_unit_literal(source: str, fn_name: str, symbol: str) -> i64 {
     let line: i64 = find_in_source(source, fn_name, symbol);
     let txt: str = source_line(source, line);
@@ -17780,6 +18263,7 @@ fn line_has_unit_literal(source: str, fn_name: str, symbol: str) -> i64 {
     };
     return 0;
 }
+#[manual_drop]
 fn line_contains_text(source: str, fn_name: str, symbol: str, text: str) -> i64 {
     let line: i64 = find_in_source(source, fn_name, symbol);
     let txt: str = source_line(source, line);
@@ -17793,6 +18277,7 @@ fn line_contains_text(source: str, fn_name: str, symbol: str, text: str) -> i64 
     };
     return 0;
 }
+#[manual_drop]
 fn source_box_binding_type(source: str, fn_name: str, name: str) -> str {
     let target: str = str_concat("let ", str_concat(name, ": Box<"));
     let tlen: i64 = str_len(target);
@@ -17808,6 +18293,7 @@ fn source_box_binding_type(source: str, fn_name: str, name: str) -> str {
     };
     return "";
 }
+#[manual_drop]
 fn own_diag_ex(own: Vec<i32>, fn_name: str, code: str, message: str, symbol: str, checker: str) -> i64 {
     let src: str = own_source(own);
     let diags: Vec<i32> = own_diags(own);
@@ -17815,9 +18301,11 @@ fn own_diag_ex(own: Vec<i32>, fn_name: str, code: str, message: str, symbol: str
     diag_add_ex(diags, "error", checker, code, message, fn_name, vec_get(loc, 0), vec_get(loc, 1), "");
     return 1;
 }
+#[manual_drop]
 fn own_diag(own: Vec<i32>, fn_name: str, code: str, message: str, symbol: str) -> i64 {
     return own_diag_ex(own, fn_name, code, message, symbol, "ownership");
 }
+#[manual_drop]
 fn own_box_hint(own: Vec<i32>, fn_name: str, name: str) -> str {
     let cache_key: str = str_concat("__box_hint_", name);
     let cached: str = own_get_s(own, cache_key);
@@ -17836,6 +18324,7 @@ fn own_box_hint(own: Vec<i32>, fn_name: str, name: str) -> str {
     own_set_s(own, cache_key, "_none_");
     return "";
 }
+#[manual_drop]
 fn own_copy_ref_binding(own: Vec<i32>, src: str, dst: str, scope_depth: i64) -> i64 {
     let target: str = own_get_ref_target(own, src);
     if str_len(target) == 0 { return 0; };
@@ -17846,6 +18335,7 @@ fn own_copy_ref_binding(own: Vec<i32>, src: str, dst: str, scope_depth: i64) -> 
     own_set_scope(own, dst, scope_depth);
     return 0;
 }
+#[manual_drop]
 fn own_register_borrow_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, fn_name: str, ref_name: str, scope_depth: i64, persist: i64) -> i64 {
     if nid < 0 || nid >= vec_len(pool) { return 0; };
     let kind: i64 = node_kind(pool, nid);
@@ -17884,6 +18374,7 @@ fn own_register_borrow_expr(pool: Vec<i32>, nid: i64, own: Vec<i32>, fn_name: st
     return 0;
 }
 
+#[manual_drop]
 fn tprof_new(enabled: i64) -> Vec<i32> {
     let mut prof: Vec<i32> = Vec::new();
     if enabled == 0 { return prof; };
@@ -17895,14 +18386,17 @@ fn tprof_new(enabled: i64) -> Vec<i32> {
     };
     return prof;
 }
+#[manual_drop]
 fn tprof_enabled(prof: Vec<i32>) -> i64 {
     if vec_len(prof) == 0 { return 0; };
     return 1;
 }
+#[manual_drop]
 fn tprof_start(prof: Vec<i32>) -> i64 {
     if tprof_enabled(prof) == 1 { return now_ms(); };
     return 0;
 }
+#[manual_drop]
 fn tprof_mark(prof: Vec<i32>, count_idx: i64, time_idx: i64, start_ms: i64) -> i64 {
     if tprof_enabled(prof) == 1 {
         vec_set(prof, count_idx, vec_get(prof, count_idx) + 1);
@@ -17910,6 +18404,7 @@ fn tprof_mark(prof: Vec<i32>, count_idx: i64, time_idx: i64, start_ms: i64) -> i
     };
     return 0;
 }
+#[manual_drop]
 fn tprof_dump(prof: Vec<i32>) -> i64 {
     if tprof_enabled(prof) == 0 { return 0; };
     print(str_concat("  type profile stmt: ", str_concat(str_from_int(vec_get(prof, 1)), str_concat(" ops / ", str_concat(str_from_int(vec_get(prof, 2)), " ms")))));
@@ -17920,10 +18415,12 @@ fn tprof_dump(prof: Vec<i32>) -> i64 {
     print(str_concat("  type profile box_hint: ", str_concat(str_from_int(vec_get(prof, 11)), str_concat(" ops / ", str_concat(str_from_int(vec_get(prof, 12)), " ms")))));
     return 0;
 }
+#[manual_drop]
 fn type_diag(diags: Vec<i32>, source: str, fn_name: str, symbol: str, code: str, message: str) -> i64 {
     let loc: Vec<i32> = find_linecol_in_source(source, fn_name, symbol);
     return diag_add_ex(diags, "error", "type", code, message, fn_name, vec_get(loc, 0), vec_get(loc, 1), "");
 }
+#[manual_drop]
 fn diag_add_at_or_scan(diags: Vec<i32>, source: str, pool: Vec<i32>, nid: i64, fallback_symbol: str, severity: str, checker: str, code: str, message: str, fn_name: str, related_id: str) -> i64 {
     let sp: i64 = node_get_span(pool, nid);
     if sp >= 0 {
@@ -17933,13 +18430,17 @@ fn diag_add_at_or_scan(diags: Vec<i32>, source: str, pool: Vec<i32>, nid: i64, f
     let loc: Vec<i32> = find_linecol_in_source(source, fn_name, fallback_symbol);
     return diag_add_ex(diags, severity, checker, code, message, fn_name, vec_get(loc, 0), vec_get(loc, 1), related_id);
 }
+#[manual_drop]
 fn type_diag_at(diags: Vec<i32>, source: str, pool: Vec<i32>, nid: i64, fn_name: str, fallback_symbol: str, code: str, message: str) -> i64 {
     return diag_add_at_or_scan(diags, source, pool, nid, fallback_symbol, "error", "type", code, message, fn_name, "");
 }
+#[manual_drop]
 fn match_diag_at(diags: Vec<i32>, source: str, pool: Vec<i32>, nid: i64, severity: str, code: str, message: str, fn_name: str) -> i64 {
     return diag_add_at_or_scan(diags, source, pool, nid, "match", severity, "type", code, message, fn_name, "");
 }
+#[manual_drop]
 fn sig_new() -> Vec<i32> { return smap_new(); }
+#[manual_drop]
 fn sig_entry_new(plist: i64, rtype: str, is_extern: i64, gparams: i64) -> Vec<i32> {
     let mut entry: Vec<i32> = Vec::new();
     entry.push(plist);
@@ -17948,51 +18449,65 @@ fn sig_entry_new(plist: i64, rtype: str, is_extern: i64, gparams: i64) -> Vec<i3
     entry.push(gparams);
     return entry;
 }
+#[manual_drop]
 fn sig_add(sigs: Vec<i32>, name: str, plist: i64, rtype: str, is_extern: i64, gparams: i64) -> i64 {
     return smap_set(sigs, name, sig_entry_new(plist, rtype, is_extern, gparams));
 }
+#[manual_drop]
 fn sig_find(sigs: Vec<i32>, name: str) -> i64 {
     return smap_get(sigs, name);
 }
+#[manual_drop]
 fn sig_plist(sigs: Vec<i32>, name: str) -> i64 {
     let entry: i64 = sig_find(sigs, name);
     if entry < 0 { return 0 - 1; };
     return vec_get(entry, 0);
 }
+#[manual_drop]
 fn sig_rtype(sigs: Vec<i32>, name: str) -> str {
     let entry: i64 = sig_find(sigs, name);
     if entry < 0 { return ""; };
     return vec_get(entry, 1);
 }
+#[manual_drop]
 fn sig_is_extern(sigs: Vec<i32>, name: str) -> i64 {
     let entry: i64 = sig_find(sigs, name);
     if entry < 0 { return 0; };
     return vec_get(entry, 2);
 }
+#[manual_drop]
 fn sig_gparams_from_entry(entry: i64) -> i64 {
     if entry < 0 { return 0 - 1; };
     if vec_len(entry) < 4 { return 0 - 1; };
     return vec_get(entry, 3);
 }
+#[manual_drop]
 fn tenv_new() -> Vec<i32> { return Vec::new(); }
+#[manual_drop]
 fn tenv_set(env: Vec<i32>, name: str, tstr: str) -> i64 { env.push(name); env.push(tstr); return 0; }
+#[manual_drop]
 fn tenv_get(env: Vec<i32>, name: str) -> str {
     let v: i64 = sym_get(env, name);
     if v < 0 { return ""; };
     return v;
 }
+#[manual_drop]
 fn tenv_const_key(name: str) -> str {
     return str_concat("__const:", name);
 }
+#[manual_drop]
 fn tenv_set_const_i64(env: Vec<i32>, name: str, val: i64) -> i64 {
     return tenv_set(env, tenv_const_key(name), str_from_int(val));
 }
+#[manual_drop]
 fn tenv_clear_const(env: Vec<i32>, name: str) -> i64 {
     return tenv_set(env, tenv_const_key(name), "");
 }
+#[manual_drop]
 fn tenv_get_const_i64(env: Vec<i32>, name: str) -> str {
     return tenv_get(env, tenv_const_key(name));
 }
+#[manual_drop]
 fn const_i64_result(have: i64, val: i64) -> Vec<i32> {
     let mut r: Vec<i32> = Vec::new();
     r.push(have);
@@ -18000,6 +18515,7 @@ fn const_i64_result(have: i64, val: i64) -> Vec<i32> {
     r.push(0);
     return r;
 }
+#[manual_drop]
 fn const_i64_result_ex(have: i64, val: i64, overflow: i64) -> Vec<i32> {
     let mut r: Vec<i32> = Vec::new();
     r.push(have);
@@ -18007,10 +18523,12 @@ fn const_i64_result_ex(have: i64, val: i64, overflow: i64) -> Vec<i32> {
     r.push(overflow);
     return r;
 }
+#[manual_drop]
 fn const_i64_overflow(r: Vec<i32>) -> i64 {
     if vec_len(r) > 2 { return vec_get(r, 2); };
     return 0;
 }
+#[manual_drop]
 fn const_i64_min() -> i64 {
     let max_i64: i64 = 9223372036854775807;
     return (0 - max_i64) - 1;
@@ -18021,6 +18539,7 @@ fn const_i64_min() -> i64 {
 // u64 bit patterns. Same-sign: signed compare matches unsigned. Mixed
 // signs: the negative-as-i64 has the high bit set so when read as u64
 // it's >= 2^63 — strictly greater than any non-negative i64 read as u64.
+#[manual_drop]
 fn u64_lt(a: i64, b: i64) -> i64 {
     let neg_a: i64 = if a < 0 { 1 } else { 0 };
     let neg_b: i64 = if b < 0 { 1 } else { 0 };
@@ -18038,6 +18557,7 @@ fn u64_lt(a: i64, b: i64) -> i64 {
 // result and checks for unsigned overflow using u64_lt. Returns 1 on
 // overflow, 0 otherwise. Only handles add/sub/mul today (ops 20/21/22).
 // div/mod/shift fall through to existing const_i64_binop checks.
+#[manual_drop]
 fn const_u64_overflow(pool: Vec<i32>, nid: i64, env: Vec<i32>) -> i64 {
     if nid < 0 || nid >= vec_len(pool) { return 0; };
     let k: i64 = node_kind(pool, nid);
@@ -18084,6 +18604,7 @@ fn const_u64_overflow(pool: Vec<i32>, nid: i64, env: Vec<i32>) -> i64 {
     };
     return 0;
 }
+#[manual_drop]
 fn const_i64_add(a: i64, b: i64) -> Vec<i32> {
     let max_i64: i64 = 9223372036854775807;
     let min_i64: i64 = const_i64_min();
@@ -18095,6 +18616,7 @@ fn const_i64_add(a: i64, b: i64) -> Vec<i32> {
     };
     return const_i64_result(1, a + b);
 }
+#[manual_drop]
 fn const_i64_sub(a: i64, b: i64) -> Vec<i32> {
     let max_i64: i64 = 9223372036854775807;
     let min_i64: i64 = const_i64_min();
@@ -18106,10 +18628,12 @@ fn const_i64_sub(a: i64, b: i64) -> Vec<i32> {
     };
     return const_i64_result(1, a - b);
 }
+#[manual_drop]
 fn const_i64_abs_non_min(v: i64) -> i64 {
     if v < 0 { return 0 - v; };
     return v;
 }
+#[manual_drop]
 fn const_i64_mul(a: i64, b: i64) -> Vec<i32> {
     let max_i64: i64 = 9223372036854775807;
     let min_i64: i64 = const_i64_min();
@@ -18127,6 +18651,7 @@ fn const_i64_mul(a: i64, b: i64) -> Vec<i32> {
     if aa > max_i64 / bb { return const_i64_result_ex(0, 0, 1); };
     return const_i64_result(1, a * b);
 }
+#[manual_drop]
 fn const_i64_binop(op: i64, a: i64, b: i64) -> Vec<i32> {
     let min_i64: i64 = const_i64_min();
     if op == 20 { return const_i64_add(a, b); };
@@ -18168,6 +18693,7 @@ fn const_i64_binop(op: i64, a: i64, b: i64) -> Vec<i32> {
     };
     return const_i64_result(0, 0);
 }
+#[manual_drop]
 fn const_i64_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>) -> Vec<i32> {
     if nid < 0 || nid >= vec_len(pool) { return const_i64_result(0, 0); };
     let k: i64 = node_kind(pool, nid);
@@ -18218,6 +18744,7 @@ fn const_i64_expr(pool: Vec<i32>, nid: i64, env: Vec<i32>) -> Vec<i32> {
     };
     return const_i64_result(0, 0);
 }
+#[manual_drop]
 fn const_i64_out_of_declared_int_range(tstr: str, val: i64) -> i64 {
     if str_len(tstr) == 0 || type_is_int(tstr) == 0 { return 0; };
     let w: i64 = type_width(tstr);
@@ -18233,6 +18760,7 @@ fn const_i64_out_of_declared_int_range(tstr: str, val: i64) -> i64 {
     };
     return 0;
 }
+#[manual_drop]
 fn tenv_set_pattern_item(env: Vec<i32>, item: str, tstr: str) -> i64 {
     let name: str = pattern_binding_item_name(item);
     if str_len(name) == 0 { return 0; };
@@ -18240,6 +18768,7 @@ fn tenv_set_pattern_item(env: Vec<i32>, item: str, tstr: str) -> i64 {
     tenv_set(env, name, btype);
     return 0;
 }
+#[manual_drop]
 fn tenv_set_pattern_list(env: Vec<i32>, binding: str, tstr: str) -> i64 {
     let work: str = pattern_after_at_prefix(binding);
     let blen: i64 = str_len(work);
@@ -18252,6 +18781,7 @@ fn tenv_set_pattern_list(env: Vec<i32>, binding: str, tstr: str) -> i64 {
     };
     return 0;
 }
+#[manual_drop]
 fn tenv_set_struct_pattern(pool: Vec<i32>, structs: Vec<i32>, env: Vec<i32>, sname: str, binding: str) -> i64 {
     let si: i64 = struct_find_type(pool, structs, sname);
     if si < 0 { return 0; };
@@ -18273,6 +18803,7 @@ fn tenv_set_struct_pattern(pool: Vec<i32>, structs: Vec<i32>, env: Vec<i32>, sna
     };
     return 0;
 }
+#[manual_drop]
 fn strip_spaces(s: str) -> str {
     // Fast path: most type strings (the dominant caller) have no
     // whitespace. Scan once to detect; if clean, return the input
@@ -18299,10 +18830,12 @@ fn strip_spaces(s: str) -> str {
     };
     return sb_to_str(sb);
 }
+#[manual_drop]
 fn type_is_unit(t: str) -> i64 {
     if str_starts_with(t, "unit<") == 1 { return 1; };
     return 0;
 }
+#[manual_drop]
 fn unit_dim(t: str) -> str {
     if type_is_unit(t) == 0 { return ""; };
     let slen: i64 = str_len(t);
@@ -18311,6 +18844,7 @@ fn unit_dim(t: str) -> str {
     if i >= slen { return ""; };
     return strip_spaces(str_substring(t, i + 1, slen - 1));
 }
+#[manual_drop]
 fn type_dynamic_helper(name: str) -> i64 {
     // v0.6.54 (perf-slice integration from Nucleor_OSS_v631_perf_slice):
     // first-char dispatch — was 41-entry linear chain run per kind-7
@@ -18404,6 +18938,7 @@ fn type_dynamic_helper(name: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn type_fast_runtime_rtype(name: str) -> str {
     if str_eq(name, "sb_new") == 1 { return "i64"; };
     if str_eq(name, "sb_new_with_cap") == 1 { return "i64"; };
@@ -18416,17 +18951,20 @@ fn type_fast_runtime_rtype(name: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn type_arg_needs_walk(pool: Vec<i32>, nid: i64) -> i64 {
     let k: i64 = node_kind(pool, nid);
     if k == 1 || k == 2 || k == 3 || k == 71 || k == 72 || k == 73 { return 0; };
     return 1;
 }
 
+#[manual_drop]
 fn type_stmt_value(pool: Vec<i32>, nid: i64) -> i64 {
     let kind: i64 = node_kind(pool, nid);
     if kind == 25 || kind == 22 { return node_field(pool, nid, 1); };
     return 0 - 1;
 }
+#[manual_drop]
 fn type_last_stmt(pool: Vec<i32>, prog: i64, lid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> str {
     if lid < 0 || lid >= vec_len(pool) { return ""; };
     let cnt: i64 = list_len(pool, lid);
@@ -18437,6 +18975,7 @@ fn type_last_stmt(pool: Vec<i32>, prog: i64, lid: i64, env: Vec<i32>, sigs: Vec<
     if node_kind(pool, last_stmt) == 23 || node_kind(pool, last_stmt) == 52 { return type_expr(pool, prog, last_stmt, env, sigs, structs, fn_name, diags, source, tprof); };
     return "";
 }
+#[manual_drop]
 fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> str {
     if nid < 0 || nid >= vec_len(pool) { return ""; };
     let kind: i64 = node_kind(pool, nid);
@@ -20141,6 +20680,7 @@ fn type_expr(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>,
     };
     return "";
 }
+#[manual_drop]
 fn box_new_concrete_arg_type(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> str {
     if nid < 0 || nid >= vec_len(pool) { return ""; };
     let kind: i64 = node_kind(pool, nid);
@@ -20163,6 +20703,7 @@ fn box_new_concrete_arg_type(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>,
     };
     return "";
 }
+#[manual_drop]
 fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, rtype: str, tprof: Vec<i32>) -> i64 {
     if nid < 0 || nid >= vec_len(pool) { return 0; };
     let kind: i64 = node_kind(pool, nid);
@@ -20794,6 +21335,7 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
     };
     return warns;
 }
+#[manual_drop]
 fn type_check_stmts(pool: Vec<i32>, prog: i64, lid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, rtype: str, tprof: Vec<i32>) -> i64 {
     if lid < 0 || lid >= vec_len(pool) { return 0; };
     let cnt: i64 = list_len(pool, lid);
@@ -20807,6 +21349,7 @@ fn type_check_stmts(pool: Vec<i32>, prog: i64, lid: i64, env: Vec<i32>, sigs: Ve
     };
     return warns;
 }
+#[manual_drop]
 fn type_check_global_consts(pool: Vec<i32>, prog: i64, diags: Vec<i32>, source: str) -> i64 {
     let mut env: Vec<i32> = tenv_new();
     let cnt: i64 = list_len(pool, prog);
@@ -20859,6 +21402,7 @@ fn type_check_global_consts(pool: Vec<i32>, prog: i64, diags: Vec<i32>, source: 
     vec_free(env);
     return warns;
 }
+#[manual_drop]
 fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i32>, source: str, tprof: Vec<i32>) -> i64 {
     let mut sigs: Vec<i32> = sig_new();
     let cnt: i64 = list_len(pool, prog);
@@ -21082,6 +21626,7 @@ fn type_check_program(pool: Vec<i32>, prog: i64, structs: Vec<i32>, diags: Vec<i
     return warns;
 }
 
+#[manual_drop]
 fn text_contains(hay: str, needle: str) -> i64 {
     let hlen: i64 = str_len(hay);
     let nlen: i64 = str_len(needle);
@@ -21094,6 +21639,7 @@ fn text_contains(hay: str, needle: str) -> i64 {
     };
     return 0;
 }
+#[manual_drop]
 fn source_has_scope_escape_ref_binding(source: str) -> i64 {
     let slen: i64 = str_len(source);
     let mut p: i64 = 0;
@@ -21108,6 +21654,7 @@ fn source_has_scope_escape_ref_binding(source: str) -> i64 {
     };
     return 0;
 }
+#[manual_drop]
 fn preflight_source_check(source: str) -> i64 {
     if source_has_scope_escape_ref_binding(source) == 1 {
         let mut diags: Vec<i32> = diag_new();
@@ -21123,6 +21670,7 @@ fn preflight_source_check(source: str) -> i64 {
 // Sanitize is a no-op at runtime (identity function)
 // It is handled by the taint checker at compile time
 
+#[manual_drop]
 fn match_bind_payload_type_lookup(sym: Vec<i32>, ename: str, vname: str) -> str {
     // v0.3.185: prefer the stored __epayload0_<ename>_<vname> entry
     // for user-defined enum variants (populated by enum_populate_sym).
@@ -21141,6 +21689,7 @@ fn match_bind_payload_type_lookup(sym: Vec<i32>, ename: str, vname: str) -> str 
     return "i64";
 }
 
+#[manual_drop]
 fn match_bind_payload_type(ename: str, vname: str) -> str {
     // v0.3.184: variant-aware payload type for match_bind_payloads.
     // (DEPRECATED in v0.3.185 -- use match_bind_payload_type_lookup
@@ -21153,11 +21702,13 @@ fn match_bind_payload_type(ename: str, vname: str) -> str {
     return "i64";
 }
 
+#[manual_drop]
 fn pattern_binding_has_at_prefix(binding: str) -> i64 {
     if str_len(binding) > 0 && str_char_at(binding, 0) == 64 { return 1; };
     return 0;
 }
 
+#[manual_drop]
 fn pattern_at_prefix_name(binding: str) -> str {
     if pattern_binding_has_at_prefix(binding) == 0 { return ""; };
     let blen: i64 = str_len(binding);
@@ -21166,6 +21717,7 @@ fn pattern_at_prefix_name(binding: str) -> str {
     return str_substring(binding, 1, end);
 }
 
+#[manual_drop]
 fn pattern_after_at_prefix(binding: str) -> str {
     if pattern_binding_has_at_prefix(binding) == 0 { return binding; };
     let blen: i64 = str_len(binding);
@@ -21175,6 +21727,7 @@ fn pattern_after_at_prefix(binding: str) -> str {
     return str_substring(binding, end + 1, blen);
 }
 
+#[manual_drop]
 fn pattern_list_value_count(binding: str) -> i64 {
     let work: str = pattern_after_at_prefix(binding);
     let blen: i64 = str_len(work);
@@ -21191,6 +21744,7 @@ fn pattern_list_value_count(binding: str) -> i64 {
     return count;
 }
 
+#[manual_drop]
 fn pattern_list_has_rest(binding: str) -> i64 {
     let work: str = pattern_after_at_prefix(binding);
     let blen: i64 = str_len(work);
@@ -21204,6 +21758,7 @@ fn pattern_list_has_rest(binding: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn pattern_list_suffix_count(binding: str) -> i64 {
     let work: str = pattern_after_at_prefix(binding);
     let blen: i64 = str_len(work);
@@ -21221,6 +21776,7 @@ fn pattern_list_suffix_count(binding: str) -> i64 {
     return count;
 }
 
+#[manual_drop]
 fn match_bind_whole(name: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>, ptype: str) -> Vec<i32> {
     let mut cur: Vec<i32> = blk;
     if str_len(name) == 0 || str_eq(name, "_") == 1 || str_eq(name, "..") == 1 { return cur; };
@@ -21237,6 +21793,7 @@ fn match_bind_whole(name: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, msl
     return cur;
 }
 
+#[manual_drop]
 fn match_bind_struct_fields(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>, structs: Vec<i32>, pool: Vec<i32>, sname: str, scrut_t: str) -> Vec<i32> {
     let mut cur: Vec<i32> = blk;
     let at_name: str = pattern_at_prefix_name(binding);
@@ -21274,6 +21831,7 @@ fn match_bind_struct_fields(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Ve
     return cur;
 }
 
+#[manual_drop]
 fn match_bind_vec_pattern(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>, scrut_t: str, len_r: i64) -> Vec<i32> {
     let mut cur: Vec<i32> = blk;
     let at_name: str = pattern_at_prefix_name(binding);
@@ -21328,6 +21886,7 @@ fn match_bind_vec_pattern(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<
     return cur;
 }
 
+#[manual_drop]
 fn match_bind_payloads_typed(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>, payload_type: str) -> Vec<i32> {
     let mut cur: Vec<i32> = blk;
     let blen: i64 = str_len(binding);
@@ -21354,6 +21913,7 @@ fn match_bind_payloads_typed(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: V
     return cur;
 }
 
+#[manual_drop]
 fn match_bind_payloads_per_idx(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>, ename: str, vname: str, scrut_t: str) -> Vec<i32> {
     // v0.3.186: per-index payload type lookup. Each binding in the
     // pipe-separated list gets its own __type_<name> based on
@@ -21421,6 +21981,7 @@ fn match_bind_payloads_per_idx(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym:
     return cur;
 }
 
+#[manual_drop]
 fn match_bind_payloads(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, mslot: i64, fir: Vec<i32>) -> Vec<i32> {
     let mut cur: Vec<i32> = blk;
     let blen: i64 = str_len(binding);
@@ -21451,6 +22012,7 @@ fn match_bind_payloads(binding: str, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32
     return cur;
 }
 
+#[manual_drop]
 fn capture_has_name(caps: Vec<i32>, name: str) -> i64 {
     let mut i: i64 = 0;
     while i < vec_len(caps) {
@@ -21460,6 +22022,7 @@ fn capture_has_name(caps: Vec<i32>, name: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn capture_param_has(pool: Vec<i32>, params: i64, name: str) -> i64 {
     let pc: i64 = list_len(pool, params);
     let mut i: i64 = 0;
@@ -21470,6 +22033,7 @@ fn capture_param_has(pool: Vec<i32>, params: i64, name: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn capture_names_to_string(caps: Vec<i32>) -> str {
     let mut out: str = "";
     let mut i: i64 = 0;
@@ -21484,6 +22048,7 @@ fn capture_names_to_string(caps: Vec<i32>) -> str {
     return out;
 }
 
+#[manual_drop]
 fn closure_writeback_captures(cap_names: str, clo_id: i64, blk: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>) -> Vec<i32> {
     let mut cur: Vec<i32> = blk;
     let clen: i64 = str_len(cap_names);
@@ -21510,6 +22075,7 @@ fn closure_writeback_captures(cap_names: str, clo_id: i64, blk: Vec<i32>, regs: 
     return cur;
 }
 
+#[manual_drop]
 fn closure_collect_capture_expr(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params: i64, caps: Vec<i32>) -> i64 {
     if nid < 0 { return 0; };
     let kind: i64 = node_kind(pool, nid);
@@ -21636,6 +22202,7 @@ fn closure_collect_capture_expr(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params:
     return 0;
 }
 
+#[manual_drop]
 fn closure_collect_capture_stmt(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params: i64, caps: Vec<i32>) -> i64 {
     if nid < 0 { return 0; };
     let kind: i64 = node_kind(pool, nid);
@@ -21682,6 +22249,7 @@ fn closure_collect_capture_stmt(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params:
     return 0;
 }
 
+#[manual_drop]
 fn lower_if_expr_branch(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
     let cnt: i64 = list_len(pool, lid);
     let mut i: i64 = 0;
@@ -21711,6 +22279,7 @@ fn lower_if_expr_branch(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>,
 // matching a registered enum variant constructor (sym key
 // `__etag_<tname>_<mname>` populated at enum-collection time).
 // Returns -1 otherwise.
+#[manual_drop]
 fn enum_etag_for_node(pool: Vec<i32>, nid: i64, sym: Vec<i32>) -> i64 {
     if node_kind(pool, nid) != 12 { return 0 - 1; };
     let tname: str = node_field(pool, nid, 1);
@@ -21726,6 +22295,7 @@ fn enum_etag_for_node(pool: Vec<i32>, nid: i64, sym: Vec<i32>) -> i64 {
 // consistent narrow width, else 0. Tree-recursive but fast-exits
 // on non-narrow nodes (kind != 1/3/4) — most expressions in
 // real code are non-narrow and bail in O(1).
+#[manual_drop]
 fn detect_narrow_chain(pool: Vec<i32>, nid: i64, sym: Vec<i32>, fir: Vec<i32>) -> i64 {
     if nid < 0 { return 0; };
     let k: i64 = node_kind(pool, nid);
@@ -21752,6 +22322,7 @@ fn detect_narrow_chain(pool: Vec<i32>, nid: i64, sym: Vec<i32>, fir: Vec<i32>) -
     return 0;
 }
 
+#[manual_drop]
 fn arith_width_helper_name(iop: i64, tw: i64, mode: i64) -> str {
     let aw: i64 = if tw > 0 { tw } else { 0 - tw };
     let mut base: str = "";
@@ -21781,6 +22352,7 @@ fn arith_width_helper_name(iop: i64, tw: i64, mode: i64) -> str {
 // Pre-condition: detect_narrow_chain(pool, nid, sym, fir) returned
 // the same `tw`. Caller is the only entry point — this fn does no
 // re-validation.
+#[manual_drop]
 fn lower_expr_narrow(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, tw: i64) -> Vec<i32> {
     let aw: i64 = if tw > 0 { tw } else { 0 - tw };
     let k: i64 = node_kind(pool, nid);
@@ -21879,6 +22451,7 @@ fn lower_expr_narrow(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lb
     return lx_new(0 - 1, blk);
 }
 
+#[manual_drop]
 fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
     let kind: i64 = node_kind(pool, nid);
     // RFC-0015 phase 2: `as` cast. Lower inner, then call __nucleor_as_<T>
@@ -24957,6 +25530,7 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
 // kind 30 (regular) and kind 32 (extern). The walk uses node_kind
 // at every offset and bails early once we run off the end (handled
 // by node_kind returning -1 / 0 for invalid offsets in the arena).
+#[manual_drop]
 fn populate_fn_returns_in_sym(pool: Vec<i32>, fn_decls: Vec<i32>, sym: Vec<i32>) -> i64 {
     let n: i64 = vec_len(fn_decls);
     let mut i: i64 = 0;
@@ -24984,6 +25558,7 @@ fn populate_fn_returns_in_sym(pool: Vec<i32>, fn_decls: Vec<i32>, sym: Vec<i32>)
 // program by emit_module_ext; passed to every lower_fn call so each
 // fn's sym can reference it via __fn_return_map slot instead of
 // pre-populating __fnret_/__fnfulltype_ entries per fn.
+#[manual_drop]
 fn fn_return_map_new(pool: Vec<i32>, fn_decls: Vec<i32>) -> i64 {
     let mut m: i64 = __nucleor_hashmap_new();
     let n: i64 = vec_len(fn_decls);
@@ -25019,6 +25594,7 @@ fn fn_return_map_new(pool: Vec<i32>, fn_decls: Vec<i32>) -> i64 {
 // Used by the print() dispatch for hashmap_get etc. so
 // HashMap<str, str>.get returns the str element instead of dispatching
 // to print_i64 (NUC-FEEDBACK-006 follow-on).
+#[manual_drop]
 fn generic_second_type(t: str) -> str {
     let tlen: i64 = str_len(t);
     if tlen < 6 { return ""; };
@@ -25048,6 +25624,7 @@ fn generic_second_type(t: str) -> str {
     return str_substring(t, vs, tlen - 1);
 }
 
+#[manual_drop]
 fn strip_container_one_level(t: str) -> str {
     let tlen: i64 = str_len(t);
     if str_starts_with(t, "Vec<") == 1 && tlen > 5 && str_char_at(t, tlen - 1) == 62 {
@@ -25076,6 +25653,7 @@ fn strip_container_one_level(t: str) -> str {
 //
 // Returns "" if the operand kind isn't recognized or the type
 // isn't a container shape.
+#[manual_drop]
 fn indexed_element_full_type(pool: Vec<i32>, vexpr: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
     let vk: i64 = node_kind(pool, vexpr);
     let mut vtype: str = "";
@@ -25124,6 +25702,7 @@ fn indexed_element_full_type(pool: Vec<i32>, vexpr: i64, sym: Vec<i32>, structs:
     return strip_container_one_level(vtype);
 }
 
+#[manual_drop]
 fn expr_full_type_from_sym(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
     let kind: i64 = node_kind(pool, nid);
     if kind == 1 { return "i32"; };
@@ -25209,6 +25788,7 @@ fn expr_full_type_from_sym(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec
     return "";
 }
 
+#[manual_drop]
 fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) -> str {
     let kind: i64 = node_kind(pool, nid);
     if kind == 3 {
@@ -25364,6 +25944,7 @@ fn binop_float_type(pool: Vec<i32>, nid: i64, sym: Vec<i32>, structs: Vec<i32>) 
 //   5  / → f<T>_div       10  >  → f<T>_gt
 //                         11  <= → f<T>_le
 //                         12  >= → f<T>_ge
+#[manual_drop]
 fn float_binop_helper(iop: i64, ftype: str) -> str {
     if str_len(ftype) == 0 { return ""; };
     let mut suffix: str = "";
@@ -25398,6 +25979,7 @@ fn float_binop_helper(iop: i64, ftype: str) -> str {
 // safe to apply.
 //
 // Phase 3c stdlib audit complete: i32/u32 narrowing is safe.
+#[manual_drop]
 fn narrow_via_as(blk: Vec<i32>, regs: Vec<i32>, vr: i64, tstr: str, src_kind: i64) -> i64 {
     // Defensive: a negative source register means upstream lowering failed.
     // Return it unchanged so the bad register propagates to a visible
@@ -25426,6 +26008,7 @@ fn narrow_via_as(blk: Vec<i32>, regs: Vec<i32>, vr: i64, tstr: str, src_kind: i6
     return r;
 }
 
+#[manual_drop]
 fn auto_drop_helper_for_type(tstr: str) -> str {
     if str_len(tstr) == 0 { return ""; };
     let base: str = type_base_name(tstr);
@@ -25434,18 +26017,60 @@ fn auto_drop_helper_for_type(tstr: str) -> str {
     return "";
 }
 
+#[manual_drop]
+fn auto_drop_call_returns_borrowed(name: str) -> i64 {
+    if str_eq(name, "vec_get") == 1 { return 1; };
+    if str_eq(name, "tok_at") == 1 { return 1; };
+    if str_eq(name, "tok_v") == 1 { return 1; };
+    if str_eq(name, "node_field") == 1 { return 1; };
+    if str_eq(name, "ir_block_get_inst") == 1 { return 1; };
+    if str_eq(name, "ir_fn_get_block") == 1 { return 1; };
+    if str_eq(name, "ir_fn_strtab_aux") == 1 { return 1; };
+    if str_eq(name, "lx_blk") == 1 { return 1; };
+    if str_eq(name, "diag_get") == 1 { return 1; };
+    if str_eq(name, "own_diags") == 1 { return 1; };
+    if str_eq(name, "own_shared_keys_vec") == 1 { return 1; };
+    if str_eq(name, "own_mut_keys_vec") == 1 { return 1; };
+    if str_eq(name, "own_scope_keys_vec") == 1 { return 1; };
+    return 0;
+}
+
+#[manual_drop]
+fn auto_drop_init_owns_value(pool: Vec<i32>, init: i64) -> i64 {
+    if init < 0 { return 0; };
+    let k: i64 = node_kind(pool, init);
+    if k == 3 { return 0; };
+    if k == 7 {
+        let fn_name: str = node_field(pool, init, 1);
+        if auto_drop_call_returns_borrowed(fn_name) == 1 { return 0; };
+        return 1;
+    };
+    if k == 8 { return 0; };
+    if k == 9 { return 0; };
+    if k == 10 { return 0; };
+    if k == 12 { return 0; };
+    return 1;
+}
+
+#[manual_drop]
 fn auto_drop_is_enabled(sym: Vec<i32>) -> i64 {
     let enabled: i64 = sym_get(sym, "__auto_drop_enabled");
     if enabled == 1 { return 1; };
     return 0;
 }
 
+#[manual_drop]
 fn auto_drop_state_key(idx: i64) -> str { return str_concat("__auto_drop_state_", str_from_int(idx)); }
+#[manual_drop]
 fn auto_drop_name_key(idx: i64) -> str { return str_concat("__auto_drop_name_", str_from_int(idx)); }
+#[manual_drop]
 fn auto_drop_helper_key(idx: i64) -> str { return str_concat("__auto_drop_helper_", str_from_int(idx)); }
+#[manual_drop]
 fn auto_drop_alloca_key(idx: i64) -> str { return str_concat("__auto_drop_alloca_", str_from_int(idx)); }
+#[manual_drop]
 fn auto_drop_index_key(name: str) -> str { return str_concat("__auto_drop_index_", name); }
 
+#[manual_drop]
 fn auto_drop_register(sym: Vec<i32>, vname: str, tstr: str, ar: i64) -> i64 {
     if auto_drop_is_enabled(sym) == 0 { return 0; };
     if str_len(vname) == 0 || str_eq(vname, "_") == 1 { return 0; };
@@ -25463,6 +26088,7 @@ fn auto_drop_register(sym: Vec<i32>, vname: str, tstr: str, ar: i64) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn auto_drop_set_state(sym: Vec<i32>, vname: str, state: i64) -> i64 {
     if auto_drop_is_enabled(sym) == 0 { return 0; };
     if str_len(vname) == 0 { return 0; };
@@ -25472,14 +26098,17 @@ fn auto_drop_set_state(sym: Vec<i32>, vname: str, state: i64) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn auto_drop_mark_freed(sym: Vec<i32>, vname: str) -> i64 {
     return auto_drop_set_state(sym, vname, 0);
 }
 
+#[manual_drop]
 fn auto_drop_mark_live(sym: Vec<i32>, vname: str) -> i64 {
     return auto_drop_set_state(sym, vname, 1);
 }
 
+#[manual_drop]
 fn auto_drop_emit_index(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, idx: i64, skip_name: str) -> Vec<i32> {
     if idx < 0 { return cur; };
     let state: i64 = sym_get(sym, auto_drop_state_key(idx));
@@ -25502,6 +26131,7 @@ fn auto_drop_emit_index(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, idx: i64, 
     return cur;
 }
 
+#[manual_drop]
 fn auto_drop_emit_named(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, vname: str) -> Vec<i32> {
     if auto_drop_is_enabled(sym) == 0 { return cur; };
     let idx: i64 = sym_get(sym, auto_drop_index_key(vname));
@@ -25509,6 +26139,7 @@ fn auto_drop_emit_named(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, vname: str
     return auto_drop_emit_index(cur, regs, sym, idx, "");
 }
 
+#[manual_drop]
 fn auto_drop_emit_live(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, skip_name: str) -> Vec<i32> {
     if auto_drop_is_enabled(sym) == 0 { return cur; };
     let count: i64 = sym_get(sym, "__auto_drop_count");
@@ -25522,6 +26153,7 @@ fn auto_drop_emit_live(cur: Vec<i32>, regs: Vec<i32>, sym: Vec<i32>, skip_name: 
     return out;
 }
 
+#[manual_drop]
 fn auto_drop_explicit_free_name(pool: Vec<i32>, expr_nid: i64) -> str {
     if expr_nid < 0 { return ""; };
     if node_kind(pool, expr_nid) != 7 { return ""; };
@@ -25551,16 +26183,31 @@ fn auto_drop_explicit_free_name(pool: Vec<i32>, expr_nid: i64) -> str {
 // Over-suppresses (might leave a leak instead of correctly
 // dropping a never-handed-off Vec) but never produces a
 // dangling pointer. Phase 2c adds receiver-locality refinement.
+#[manual_drop]
 fn auto_drop_handoff_name(pool: Vec<i32>, expr_nid: i64, sym: Vec<i32>) -> str {
     if expr_nid < 0 { return ""; };
-    if node_kind(pool, expr_nid) != 7 { return ""; };
-    let fn_name: str = node_field(pool, expr_nid, 1);
-    let value_idx: i64 = if str_eq(fn_name, "vec_push") == 1 { 1 }
-                         else if str_eq(fn_name, "vec_set") == 1 { 2 }
-                         else if str_eq(fn_name, "hashmap_insert") == 1 { 2 }
-                         else { -1 };
+    let ek: i64 = node_kind(pool, expr_nid);
+    let mut args_list: i64 = -1;
+    let mut value_idx: i64 = -1;
+    if ek == 7 {
+        let fn_name: str = node_field(pool, expr_nid, 1);
+        value_idx = if str_eq(fn_name, "vec_push") == 1 { 1 }
+                    else if str_eq(fn_name, "vec_set") == 1 { 2 }
+                    else if str_eq(fn_name, "hashmap_insert") == 1 { 2 }
+                    else if str_eq(fn_name, "node_add") == 1 { 1 }
+                    else { -1 };
+        args_list = node_field(pool, expr_nid, 2);
+    } else if ek == 8 {
+        let method_name: str = node_field(pool, expr_nid, 2);
+        value_idx = if str_eq(method_name, "push") == 1 { 0 }
+                    else if str_eq(method_name, "set") == 1 { 1 }
+                    else if str_eq(method_name, "insert") == 1 { 1 }
+                    else { -1 };
+        args_list = node_field(pool, expr_nid, 3);
+    } else {
+        return "";
+    };
     if value_idx < 0 { return ""; };
-    let args_list: i64 = node_field(pool, expr_nid, 2);
     if list_len(pool, args_list) <= value_idx { return ""; };
     let value_arg: i64 = list_get(pool, args_list, value_idx);
     if node_kind(pool, value_arg) != 3 { return ""; };
@@ -25572,15 +26219,48 @@ fn auto_drop_handoff_name(pool: Vec<i32>, expr_nid: i64, sym: Vec<i32>) -> str {
     return vname;
 }
 
+#[manual_drop]
 fn auto_drop_return_skip_name(pool: Vec<i32>, expr_nid: i64, sym: Vec<i32>) -> str {
     if expr_nid < 0 { return ""; };
-    if node_kind(pool, expr_nid) != 3 { return ""; };
-    let vname: str = node_field(pool, expr_nid, 1);
-    let idx: i64 = sym_get(sym, auto_drop_index_key(vname));
-    if idx < 0 { return ""; };
-    return vname;
+    if node_kind(pool, expr_nid) == 3 {
+        let vname: str = node_field(pool, expr_nid, 1);
+        let idx: i64 = sym_get(sym, auto_drop_index_key(vname));
+        if idx < 0 { return ""; };
+        return vname;
+    };
+    return auto_drop_handoff_name(pool, expr_nid, sym);
 }
 
+#[manual_drop]
+fn auto_drop_assignment_reuses_lhs(pool: Vec<i32>, rhs_nid: i64, lhs_name: str) -> i64 {
+    if rhs_nid < 0 { return 0; };
+    let rk: i64 = node_kind(pool, rhs_nid);
+    if rk == 3 {
+        let rhs_name: str = node_field(pool, rhs_nid, 1);
+        if str_eq(rhs_name, lhs_name) == 1 { return 1; };
+        return 0;
+    };
+    if rk == 7 || rk == 12 {
+        let args_list: i64 = if rk == 12 { node_field(pool, rhs_nid, 3) } else { node_field(pool, rhs_nid, 2) };
+        if list_len(pool, args_list) <= 0 { return 0; };
+        let first_arg: i64 = list_get(pool, args_list, 0);
+        if node_kind(pool, first_arg) == 3 {
+            let first_name: str = node_field(pool, first_arg, 1);
+            if str_eq(first_name, lhs_name) == 1 { return 1; };
+        };
+        return 0;
+    };
+    if rk == 8 {
+        let recv: i64 = node_field(pool, rhs_nid, 1);
+        if node_kind(pool, recv) == 3 {
+            let recv_name: str = node_field(pool, recv, 1);
+            if str_eq(recv_name, lhs_name) == 1 { return 1; };
+        };
+    };
+    return 0;
+}
+
+#[manual_drop]
 fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
     let kind: i64 = node_kind(pool, nid);
     if kind == 20 {
@@ -25665,7 +26345,7 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // element type for kind==10 (indexing) dispatch. type_base_name
         // strips the <T> for the existing __type_ entry.
         if str_len(tstr) > 0 { sym_set(sym, str_concat("__fulltype_", vname), tstr); };
-        if init >= 0 { auto_drop_register(sym, vname, tstr, ar); };
+        if init >= 0 && auto_drop_init_owns_value(pool, init) == 1 { auto_drop_register(sym, vname, tstr, ar); };
         if init >= 0 && node_kind(pool, init) == 42 {
             let cid_meta: i64 = sym_get(sym, "__last_closure_id");
             let caps_meta: i64 = sym_get(sym, "__last_closure_caps");
@@ -25759,10 +26439,13 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
         };
         let lhs_name: str = node_field(pool, lhs, 1);
         let ar: i64 = sym_get(sym, lhs_name);
-        let mut vp: Vec<i32> = lower_expr(pool, node_field(pool, nid, 2), cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+        let rhs_nid: i64 = node_field(pool, nid, 2);
+        let mut vp: Vec<i32> = lower_expr(pool, rhs_nid, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
         let vr: i64 = lx_reg(vp);
         cur = lx_blk(vp);
-        cur = auto_drop_emit_named(cur, regs, sym, lhs_name);
+        if auto_drop_assignment_reuses_lhs(pool, rhs_nid, lhs_name) == 0 {
+            cur = auto_drop_emit_named(cur, regs, sym, lhs_name);
+        };
         // v0.4.209 RFC-0015 phase 3a-step-3: typed store via
         // alloca-reg width lookup. Sign-encoded width; abs(w) for
         // memory-shape (trunc/store_t).
@@ -26378,13 +27061,15 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
     panic(str_concat("nucleor: unknown stmt kind ", str_from_int(kind)));
     return cur;
 }
+#[manual_drop]
 fn lower_stmts(pool: Vec<i32>, lid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec<i32>, sym: Vec<i32>, fir: Vec<i32>, strtab: Vec<i32>, lh: i64, lx: i64, structs: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>) -> Vec<i32> {
     let cnt: i64 = list_len(pool, lid); let mut i: i64 = 0; let mut b: Vec<i32> = cur;
     while i < cnt { b = lower_stmt(pool, list_get(pool, lid, i), b, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls); i = i + 1; };
     return b;
 }
 
-fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, fn_return_map: i64, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>, old_snapshots: Vec<i32>, auto_drop_fns: Vec<i32>, manual_drop_fns: Vec<i32>) -> Vec<i32> {
+#[manual_drop]
+fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>, structs: Vec<i32>, enums: Vec<i32>, globals: Vec<i32>, closures: Vec<i32>, trait_impls: Vec<i32>, fn_decls: Vec<i32>, fn_return_map: i64, require_exprs: Vec<i32>, ensure_exprs: Vec<i32>, invariant_exprs: Vec<i32>, old_snapshots: Vec<i32>, auto_drop_fns: Vec<i32>, manual_drop_fns: Vec<i32>, suppress_auto_drop: i64) -> Vec<i32> {
     let name: str = node_field(pool, fn_nid, 1);
     let plist: i64 = node_field(pool, fn_nid, 2);
     let blist: i64 = node_field(pool, fn_nid, 4);
@@ -26392,7 +27077,8 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
     let mut regs: Vec<i32> = ctr_new();
     let mut lbls: Vec<i32> = ctr_new();
     let mut sym: Vec<i32> = sym_new();
-    if name_in_auto_drop(auto_drop_fns, name) == 1
+    if suppress_auto_drop == 0
+       && name_in_auto_drop(auto_drop_fns, name) == 1
        && name_in_manual_drop(manual_drop_fns, name) == 0 {
         // v0.8.32 G-1 Phase 2b-2: `#[manual_drop]` overrides
         // `#[auto_drop]`. Useful when porting code that
@@ -26896,17 +27582,20 @@ fn lower_fn(pool: Vec<i32>, fn_nid: i64, strtab: Vec<i32>, strtab_aux: Vec<i32>,
 // byte-identical unchanged code.
 // =====================================================
 
+#[manual_drop]
 fn build_mode_name(strict_mode: i64) -> str {
     if strict_mode == 1 { return "strict"; };
     return "fast";
 }
 
+#[manual_drop]
 fn print_phase_time(enabled: i64, label: str, elapsed_ms: i64) {
     if enabled == 1 {
         print(str_concat("  time ", str_concat(label, str_concat(": ", str_concat(str_from_int(elapsed_ms), " ms")))));
     };
 }
 
+#[manual_drop]
 fn cache_v2_json_escape(s: str) -> str {
     let mut sb: i64 = sb_new();
     let slen: i64 = str_len(s);
@@ -26931,18 +27620,21 @@ fn cache_v2_json_escape(s: str) -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn cache_v2_strict_intrin_flag() -> str {
     let raw: str = env_get_or("NUCLEOR_INT_STRICT_INTRIN", "1");
     if str_eq(raw, "0") == 1 { return "0"; };
     return "1";
 }
 
+#[manual_drop]
 fn cache_v2_dbc_flag() -> str {
     let raw: str = env_get_or("NUCLEOR_DBC_MODE", "debug");
     if str_len(raw) == 0 { return "debug"; };
     return raw;
 }
 
+#[manual_drop]
 fn cache_v2_canonical_flags(strict_mode: i64) -> str {
     let mut sb: i64 = sb_new();
     sb_append(sb, "dbc-mode=");
@@ -26954,41 +27646,50 @@ fn cache_v2_canonical_flags(strict_mode: i64) -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn cache_v2_prefix(key: str) -> str {
     if str_len(key) > 12 { return str_substring(key, 0, 12); };
     return key;
 }
 
+#[manual_drop]
 fn cache_v2_dir(key: str) -> str {
     return sanitize(str_concat("target/.nuc_cache_v2/", cache_v2_prefix(key)));
 }
 
+#[manual_drop]
 fn cache_v2_ll_path(key: str) -> str {
     return sanitize(str_concat(cache_v2_dir(key), str_concat("/", str_concat(key, ".ll"))));
 }
 
+#[manual_drop]
 fn cache_v2_meta_dir(key: str) -> str {
     return sanitize(str_concat(cache_v2_dir(key), str_concat("/", key)));
 }
 
+#[manual_drop]
 fn cache_v2_meta_path(key: str) -> str {
     return sanitize(str_concat(cache_v2_meta_dir(key), "/meta.json"));
 }
 
+#[manual_drop]
 fn cache_v2_size_mb(ll: str) -> i64 {
     let n: i64 = str_len(ll);
     if n <= 0 { return 0; };
     return (n + 1048575) / 1048576;
 }
 
+#[manual_drop]
 fn native_link_cache_dir(key: str) -> str {
     return sanitize(str_concat("target/.nuc_native_cache/", cache_v2_prefix(key)));
 }
 
+#[manual_drop]
 fn native_link_cache_path(key: str) -> str {
     return sanitize(str_concat(native_link_cache_dir(key), str_concat("/", str_concat(key, host_exe_suffix()))));
 }
 
+#[manual_drop]
 fn native_link_cache_allowed(link_flags: str, cfiles: str, libpath_flags: str) -> i64 {
     if str_eq(env_get_or("NUCLEOR_NATIVE_EXE_CACHE", "1"), "0") == 1 { return 0; };
     if str_len(link_flags) > 0 { return 0; };
@@ -26997,6 +27698,7 @@ fn native_link_cache_allowed(link_flags: str, cfiles: str, libpath_flags: str) -
     return 1;
 }
 
+#[manual_drop]
 fn native_link_cache_key(ll: str, rt_arg: str, alloc_hdr: str, stack_flag: str, linker_flag: str) -> str {
     let ll_hash: str = str_from_int(fnv1a_64_str(ll));
     let rt_hash: str = str_from_int(fnv1a_64_str(file_read_string(rt_arg)));
@@ -27017,6 +27719,7 @@ fn native_link_cache_key(ll: str, rt_arg: str, alloc_hdr: str, stack_flag: str, 
     return sha256_hex(sb_to_str(sb));
 }
 
+#[manual_drop]
 fn native_link_cache_key_from_compile_key(compile_key: str, rt_arg: str, alloc_hdr: str, stack_flag: str, linker_flag: str) -> str {
     if str_len(compile_key) == 0 { return ""; };
     let rt_hash: str = str_from_int(fnv1a_64_str(file_read_string(rt_arg)));
@@ -27037,6 +27740,7 @@ fn native_link_cache_key_from_compile_key(compile_key: str, rt_arg: str, alloc_h
     return sha256_hex(sb_to_str(sb));
 }
 
+#[manual_drop]
 fn native_link_cache_store(key: str, exe_path: str) -> i64 {
     if str_len(key) == 0 { return 0; };
     if fs_exists(exe_path) == 0 { return 0; };
@@ -27044,17 +27748,20 @@ fn native_link_cache_store(key: str, exe_path: str) -> i64 {
     return fs_copy_file(exe_path, native_link_cache_path(key));
 }
 
+#[manual_drop]
 fn cache_v2_stats_enabled() -> i64 {
     if str_eq(env_get_or("NUCLEOR_CACHE_STATS", "0"), "1") == 1 { return 1; };
     return 0;
 }
 
+#[manual_drop]
 fn cache_v2_print_stats(hits: i64, misses: i64) {
     if cache_v2_stats_enabled() == 1 {
         print(str_concat("cache stats: hits=", str_concat(str_from_int(hits), str_concat(" misses=", str_from_int(misses)))));
     };
 }
 
+#[manual_drop]
 fn cache_v2_meta_json(input_filename: str, flags: str, compiler_version: str, key: str, ll: str) -> str {
     let mut sb: i64 = sb_new();
     sb_append(sb, "{\n");
@@ -27069,6 +27776,7 @@ fn cache_v2_meta_json(input_filename: str, flags: str, compiler_version: str, ke
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn cache_v2_store(key: str, input_filename: str, flags: str, ll: str) -> i64 {
     let dir: str = cache_v2_dir(key);
     let meta_dir: str = cache_v2_meta_dir(key);
@@ -27081,6 +27789,7 @@ fn cache_v2_store(key: str, input_filename: str, flags: str, ll: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn build_cache_key(source: str, strict_mode: i64) -> str {
     let mut sb: i64 = sb_new();
     sb_append(sb, "native-cache-v2|");
@@ -27092,6 +27801,7 @@ fn build_cache_key(source: str, strict_mode: i64) -> str {
     return sha256_hex(sb_to_str(sb));
 }
 
+#[manual_drop]
 fn collect_native_directives(imported: Vec<i32>) -> Vec<i32> {
     let mut all_links: i64 = sb_new();
     let mut all_cfiles: i64 = sb_new();
@@ -27114,6 +27824,7 @@ fn collect_native_directives(imported: Vec<i32>) -> Vec<i32> {
     return out;
 }
 
+#[manual_drop]
 fn resolve_toolchain_path(raw_path: str) -> str {
     let from_cwd: str = sanitize(raw_path);
     if str_len(file_read_string(from_cwd)) > 0 { return from_cwd; };
@@ -27135,6 +27846,7 @@ fn resolve_toolchain_path(raw_path: str) -> str {
     return from_cwd;
 }
 
+#[manual_drop]
 fn llvm_clang_path() -> str {
     // v0.3.119: NUC-FEEDBACK-003 toolchain detection. The launcher
     // scripts SHOULD set up PATH before invoking the compiler, but
@@ -27172,6 +27884,7 @@ fn llvm_clang_path() -> str {
     return "clang";
 }
 
+#[manual_drop]
 fn host_is_windows() -> i64 {
     // Detects host OS via the path separator returned by the runtime.
     // Used by link_native_module to choose Windows-only flags (/STACK: linker
@@ -27181,16 +27894,19 @@ fn host_is_windows() -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn host_exe_suffix() -> str {
     if host_is_windows() == 1 { return ".exe"; };
     return "";
 }
 
+#[manual_drop]
 fn host_target_path_sep() -> str {
     if host_is_windows() == 1 { return "\\"; };
     return "/";
 }
 
+#[manual_drop]
 fn host_shell_path(path: str) -> str {
     if host_is_windows() != 1 { return path; };
     let mut sb: i64 = sb_new();
@@ -27205,11 +27921,13 @@ fn host_shell_path(path: str) -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn host_null_redirect() -> str {
     if host_is_windows() == 1 { return " 2>NUL"; };
     return " 2>/dev/null";
 }
 
+#[manual_drop]
 fn host_remove_file_quiet(path: str) -> i64 {
     if host_is_windows() == 1 {
         return system(str_concat("del /F /Q ", str_concat(path, " 2>NUL")));
@@ -27217,6 +27935,7 @@ fn host_remove_file_quiet(path: str) -> i64 {
     return system(str_concat("rm -f ", str_concat(path, " 2>/dev/null")));
 }
 
+#[manual_drop]
 fn host_stack_link_flag() -> str {
     // Windows: clang-cl-style flag passed through to MSVC link.exe / lld-link.
     // POSIX: GNU ld accepts -z stacksize=N (in bytes). Both expand the main
@@ -27238,6 +27957,7 @@ fn host_stack_link_flag() -> str {
     return " -Wl,-z,stacksize=16777216 -lm -lpthread";
 }
 
+#[manual_drop]
 fn host_fast_link_flag() -> str {
     if host_is_windows() == 1 {
         if fs_exists("C:\\Progra~1\\LLVM\\bin\\lld-link.exe") == 1 { return " -fuse-ld=lld"; };
@@ -27246,6 +27966,7 @@ fn host_fast_link_flag() -> str {
     return "";
 }
 
+#[manual_drop]
 fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, native_key_hint: str, link_native: i64, time_passes: i64) -> i64 {
     let ll_path: str = sanitize(str_concat("target/", str_concat(out_name, ".ll")));
     let exe_path: str = sanitize(str_concat(str_concat("target", host_target_path_sep()), str_concat(out_name, host_exe_suffix())));
@@ -27476,6 +28197,7 @@ fn link_native_module(ll: str, out_name: str, imported: Vec<i32>, native_key_hin
     return 0;
 }
 
+#[manual_drop]
 fn link_existing_native_module(ll_path_raw: str, out_name: str, imported: Vec<i32>, native_key_hint: str, time_passes: i64) -> i64 {
     let ll_path: str = sanitize(ll_path_raw);
     if fs_exists(ll_path) == 0 {
@@ -27555,6 +28277,7 @@ fn link_existing_native_module(ll_path_raw: str, out_name: str, imported: Vec<i3
 // =====================================================
 // MODULE SYSTEM (imports)
 // =====================================================
+#[manual_drop]
 fn extract_dir(path: str) -> str {
     let slen: i64 = str_len(path);
     let mut last_sep: i64 = 0 - 1;
@@ -27568,6 +28291,7 @@ fn extract_dir(path: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn path_is_absolute(path: str) -> i64 {
     let slen: i64 = str_len(path);
     if slen >= 1 {
@@ -27578,6 +28302,7 @@ fn path_is_absolute(path: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn trim_trailing_sep(path: str) -> str {
     let mut end: i64 = str_len(path);
     while end > 0 {
@@ -27588,6 +28313,7 @@ fn trim_trailing_sep(path: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn parent_dir(path: str) -> str {
     let trimmed: str = trim_trailing_sep(path);
     if str_len(trimmed) == 0 { return ""; };
@@ -27599,6 +28325,7 @@ fn parent_dir(path: str) -> str {
 // so Win32 file APIs accept it. No-op for paths that don't match
 // that exact shape -- POSIX hosts pass through unchanged, and any
 // path already in Windows form (e.g. "C:/...") is left alone.
+#[manual_drop]
 fn posix_drive_to_windows(p: str) -> str {
     let n: i64 = str_len(p);
     if n < 3 { return p; };
@@ -27633,6 +28360,7 @@ fn posix_drive_to_windows(p: str) -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn resolve_import_path(base_dir: str, raw_path: str) -> str {
     if path_is_absolute(raw_path) == 1 { return sanitize(raw_path); };
     let mut search_dir: str = base_dir;
@@ -27686,11 +28414,13 @@ fn resolve_import_path(base_dir: str, raw_path: str) -> str {
     return sanitize(str_concat(base_dir, raw_path));
 }
 
+#[manual_drop]
 fn module_record_add(records: Vec<i32>, path: str, raw: str) -> i64 {
     records.push(path);
     records.push(content_hash(raw));
     return 0;
 }
+#[manual_drop]
 fn module_records_serialize(records: Vec<i32>) -> str {
     let mut sb: i64 = sb_new();
     let mut i: i64 = 0;
@@ -27703,6 +28433,7 @@ fn module_records_serialize(records: Vec<i32>) -> str {
     };
     return sb_to_str(sb);
 }
+#[manual_drop]
 fn module_records_validate(manifest: str) -> Vec<i32> {
     let mut imported: Vec<i32> = Vec::new();
     if str_len(manifest) == 0 {
@@ -27745,6 +28476,7 @@ fn module_records_validate(manifest: str) -> Vec<i32> {
     ok.push(imported);
     return ok;
 }
+#[manual_drop]
 fn module_graph_cache_id(src_path: str) -> str {
     // v0.3.135: NUC-FEEDBACK-007 — include compiler_version_label
     // so a binary upgrade invalidates the resolved-source cache
@@ -27753,12 +28485,15 @@ fn module_graph_cache_id(src_path: str) -> str {
     // before the lexer/parser fix landed.
     return content_hash(str_concat("module-graph-v2|", str_concat(compiler_version_label(), str_concat("|", sanitize(src_path)))));
 }
+#[manual_drop]
 fn module_graph_manifest_path(src_path: str) -> str {
     return sanitize(str_concat(".nuc_cache/modgraph_", str_concat(module_graph_cache_id(src_path), ".manifest")));
 }
+#[manual_drop]
 fn module_graph_source_path(src_path: str) -> str {
     return sanitize(str_concat(".nuc_cache/modgraph_", str_concat(module_graph_cache_id(src_path), ".resolved")));
 }
+#[manual_drop]
 fn module_graph_max_depth_source_path(src_path: str) -> str {
     return sanitize(str_concat(".nuc_cache/modgraph_", str_concat(module_graph_cache_id(src_path), ".max_depth")));
 }
@@ -27771,6 +28506,7 @@ fn module_graph_max_depth_source_path(src_path: str) -> str {
 //   use super::path;    → import "../path.nr" (relative to base_dir)
 // Trailing `as ALIAS`, `;`, and `{ ... }` glob/list forms are ignored
 // for now (full resolver lands in phase 2 with name-mangling).
+#[manual_drop]
 fn rewrite_use_path(line: str, lp: i64, prefix_len: i64, eol: i64) -> str {
     let mut qp: i64 = lp + prefix_len;
     while qp < eol && str_char_at(line, qp) == 32 { qp = qp + 1; };
@@ -27829,6 +28565,7 @@ fn rewrite_use_path(line: str, lp: i64, prefix_len: i64, eol: i64) -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, module_records: Vec<i32>) -> str {
     let mut result: i64 = sb_new();
     let slen: i64 = str_len(src);
@@ -27997,10 +28734,12 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
     return sb_to_str(result);
 }
 
+#[manual_drop]
 fn resolve_source(src: str, base_dir: str, imported: Vec<i32>) -> str {
     let mut module_records: Vec<i32> = Vec::new();
     return resolve_source_with_records(src, base_dir, imported, module_records);
 }
+#[manual_drop]
 fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let manifest_path: str = module_graph_manifest_path(src_path);
@@ -28266,7 +29005,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     let v0824_total_free: i64 = v0824_vec_free_count + v0824_hashmap_free_count;
     if v0824_total_free > 0 {
         print(str_concat("info[OWN-012]: explicit free calls present in build: ", str_from_int(v0824_total_free)));
-        print("  Per RFC-0062 G-4 Phase 2a: explicit `vec_free` / `hashmap_free` are accepted but the compiler does NOT yet check that the freed binding is unused after the free call. Adopter discipline today: do not access a vec/map after passing it to its free helper. Phase 2b adds IR-level use-after-drop tracking; Phase 4 promotes to OWN-012 hard error. Recommended: prefer `#[auto_drop]` (RFC-0042) which inserts cleanup automatically and disables generated drop on bindings that have an explicit free call.");
+        print(str_concat("  Per RFC-0062 G-4 Phase 2a: explicit `vec_free` / `hashmap_free` are accepted but the compiler does NOT yet check that the freed binding is unused after the free call. Adopter discipline today: do not access a vec/map after passing it to its free helper. Phase 2b adds IR-level use-after-drop tracking; Phase 4 promotes to OWN-012 hard error. Recommended: prefer `#[auto_", "drop]` (RFC-0042) which inserts cleanup automatically and disables generated drop on bindings that have an explicit free call."));
     };
     // v0.8.25: RFC-0062 G-5 Phase 2a — FFI null-return audit
     // info. Detects `*const c_void` and `*mut c_void` return
@@ -28590,7 +29329,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         str_concat("#[manual_", "drop]"));
     if v0831_manual_drop_count > 0 {
         print(str_concat("info[MANUAL-DROP-RESERVED]: `#[manual_drop]` markers in build: ", str_from_int(v0831_manual_drop_count)));
-        print("  Per RFC-0062 G-1 Phase 2b-1: `#[manual_drop]` is reserved for the future Phase 2b-3 default-flip ship. Today the attribute is a NO-OP — every fn still requires explicit `#[auto_drop]` to receive auto-drop semantics. After the default flip, `#[manual_drop]` becomes the opt-out for fns that need to skip auto-drop (e.g. fns that already do all-explicit `vec_free` / `hashmap_free` and want zero generated cleanup). Adopters can add the attribute today to lock semantics across the upcoming flip. Reference: RFC-0062-IMPLEMENTATION-PLAN §3 G-1.");
+        print(str_concat("  Per RFC-0062 G-1 Phase 2b-1: `#[manual_drop]` is reserved for the future Phase 2b-3 default-flip ship. Today the attribute is a NO-OP — every fn still requires explicit `#[auto_", "drop]` to receive auto-drop semantics. After the default flip, `#[manual_drop]` becomes the opt-out for fns that need to skip auto-drop (e.g. fns that already do all-explicit `vec_free` / `hashmap_free` and want zero generated cleanup). Adopters can add the attribute today to lock semantics across the upcoming flip. Reference: RFC-0062-IMPLEMENTATION-PLAN §3 G-1."));
     };
     // v0.8.28: RFC-0062 G-8 Phase 2a — conditional-divergence
     // audit-pass info. Counts `match ` keyword occurrences as a
@@ -28637,6 +29376,7 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     return out;
 }
 
+#[manual_drop]
 fn extract_directives(raw_source: str, base_dir: str) -> Vec<i32> {
     // Returns vec: [0] = link flags string, [1] = cfile list string, [2] = libpath flags string
     let mut links: i64 = sb_new();
@@ -28699,6 +29439,7 @@ fn extract_directives(raw_source: str, base_dir: str) -> Vec<i32> {
 // =====================================================
 // COMPILER DRIVER
 // =====================================================
+#[manual_drop]
 fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: i64, time_passes: i64, link_native: i64) -> i64 {
     let safe_out_name: str = normalize_output_name(out_name);
     if str_len(safe_out_name) == 0 {
@@ -29163,7 +29904,7 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // RFC-0042 first cut — opt-in owned-local auto-drop. Empty list
     // keeps the default path bytecode-close and avoids scanning cost
     // for sources that do not mention the marker attribute.
-    let auto_drop_fns: Vec<i32> = if str_index_of(source, "#[auto_drop]") >= 0 { collect_auto_drop_fns(source) } else { Vec::new() };
+    let auto_drop_fns: Vec<i32> = if str_index_of(source, str_concat("#[auto_", "drop]")) >= 0 { collect_auto_drop_fns(source) } else { Vec::new() };
     let manual_drop_fns: Vec<i32> = if str_index_of(source, str_concat("#[manual_", "drop]")) >= 0 { collect_manual_drop_fns(source) } else { Vec::new() };
     let req_text_pairs: Vec<i32> = if dbc_emit_require == 1 { collect_fn_requires(source) } else { Vec::new() };
     let mut require_exprs: Vec<i32> = Vec::new();
@@ -29303,16 +30044,17 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     // v0.6.54 perf-slice: build the shared fn-return-map once and pass
     // it to every lower_fn call instead of injecting per-fn entries.
     let fn_return_map: i64 = fn_return_map_new(pool, fn_decls);
+    let suppress_self_host_auto_drop: i64 = if str_ends_with(src_path, "nucleor_s1_compiler.nr") == 1 { 1 } else { 0 };
     let lower_start: i64 = now_ms();
     fi = 0;
     while fi < cnt {
         let fn_nid: i64 = list_get(pool, prog, fi);
-        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, strtab_aux, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns, manual_drop_fns)); };
+        if node_kind(pool, fn_nid) == 30 { fns.push(lower_fn(pool, fn_nid, strtab, strtab_aux, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns, manual_drop_fns, suppress_self_host_auto_drop)); };
         fi = fi + 1;
     };
     let mut ii: i64 = 0;
     while ii < vec_len(impl_fns) {
-        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, strtab_aux, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns, manual_drop_fns));
+        fns.push(lower_fn(pool, vec_get(impl_fns, ii), strtab, strtab_aux, structs, enums, globals, closures, trait_impls, fn_decls, fn_return_map, require_exprs, ensure_exprs, invariant_exprs, old_snapshots, auto_drop_fns, manual_drop_fns, suppress_self_host_auto_drop));
         ii = ii + 1;
     };
     let mut ci3: i64 = 0;
@@ -29362,10 +30104,12 @@ fn compile_file_mode(src_path: str, out_name: str, strict_mode: i64, use_cache: 
     return rc;
 }
 
+#[manual_drop]
 fn compile_file(src_path: str, out_name: str) -> i64 {
     return compile_file_mode_native_isolated(src_path, out_name, 0, 1, 0, 1);
 }
 
+#[manual_drop]
 fn should_isolate_native_link(src_path: str) -> i64 {
     if str_contains(src_path, "compiler/nucleor_s1_compiler.nr") == 1 { return 1; };
     if str_contains(src_path, "compiler\\nucleor_s1_compiler.nr") == 1 { return 1; };
@@ -29374,10 +30118,12 @@ fn should_isolate_native_link(src_path: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn child_shell_quote(arg: str) -> str {
     return str_concat("\"", str_concat(arg, "\""));
 }
 
+#[manual_drop]
 fn self_compiler_exe_for_child() -> str {
     let raw: str = args_get(0);
     if str_len(extract_dir(raw)) > 0 { return host_shell_path(sanitize(raw)); };
@@ -29394,6 +30140,7 @@ fn self_compiler_exe_for_child() -> str {
     return raw;
 }
 
+#[manual_drop]
 fn compile_file_mode_native_isolated(src_path: str, out_name: str, strict_mode: i64, use_cache: i64, time_passes: i64, link_native: i64) -> i64 {
     if link_native == 0 { return compile_file_mode(src_path, out_name, strict_mode, use_cache, time_passes, 0); };
     if strict_mode != 0 { return compile_file_mode(src_path, out_name, strict_mode, use_cache, time_passes, link_native); };
@@ -29437,6 +30184,7 @@ fn compile_file_mode_native_isolated(src_path: str, out_name: str, strict_mode: 
     return rc;
 }
 
+#[manual_drop]
 fn strip_ext(path: str) -> str {
     let slen: i64 = str_len(path);
     let mut last_dot: i64 = 0 - 1;
@@ -29452,6 +30200,7 @@ fn strip_ext(path: str) -> str {
     return path;
 }
 
+#[manual_drop]
 fn basename(path: str) -> str {
     let slen: i64 = str_len(path);
     let mut last_sep: i64 = 0 - 1;
@@ -29464,10 +30213,12 @@ fn basename(path: str) -> str {
     if last_sep >= 0 { return str_substring(path, last_sep + 1, slen); };
     return path;
 }
+#[manual_drop]
 fn is_output_name_char(ch: i64) -> i64 {
     if is_alnum(ch) == 1 || ch == 95 || ch == 45 { return 1; };
     return 0;
 }
+#[manual_drop]
 fn normalize_output_name(raw: str) -> str {
     let base: str = strip_ext(basename(raw));
     let blen: i64 = str_len(base);
@@ -29500,6 +30251,7 @@ fn normalize_output_name(raw: str) -> str {
 // The runtime check runs UNCONDITIONALLY at fn exit. Static WCET
 // bounds (RT-004 at compile time) ship later in v0.3.1.
 
+#[manual_drop]
 fn dl_extract_int_value(line: str) -> i64 {
     // Reads `#[deadline = N]` from the line and returns N (>= 0).
     // Returns -1 if the line doesn't match the expected shape.
@@ -29518,6 +30270,7 @@ fn dl_extract_int_value(line: str) -> i64 {
     return str_to_int(str_substring(line, num_start, p));
 }
 
+#[manual_drop]
 fn dl_parse_fn_signature(src: str, fn_pos: i64, slen: i64) -> Vec<i32> {
     // Given `fn ` at fn_pos, extract:
     //   [0] = fn name (str)
@@ -29649,6 +30402,7 @@ fn dl_parse_fn_signature(src: str, fn_pos: i64, slen: i64) -> Vec<i32> {
 // pattern appears in this comment + in expand_differentiable
 // dispatcher source). Same self-host guard as the v0.7.98
 // compile_error pre-pass.
+#[manual_drop]
 fn differentiable_audit_count(src: str) -> i64 {
     let mut count: i64 = 0;
     let needle: str = str_concat("@differen", "tiable");
@@ -29679,6 +30433,7 @@ fn differentiable_audit_count(src: str) -> i64 {
 // outside of test fixtures. Comment-text mentions like
 // "3.14159265" in this file's own diagnostic message would trip
 // this — kept in this file via str_concat construction below.
+#[manual_drop]
 fn count_long_float_literals(src: str) -> i64 {
     let slen: i64 = str_len(src);
     let mut count: i64 = 0;
@@ -29710,6 +30465,7 @@ fn count_long_float_literals(src: str) -> i64 {
     return count;
 }
 
+#[manual_drop]
 fn simple_attribute_audit_count(src: str, needle: str) -> i64 {
     let mut count: i64 = 0;
     let slen: i64 = str_len(src);
@@ -29733,6 +30489,7 @@ fn simple_attribute_audit_count(src: str, needle: str) -> i64 {
 // ~3x cheaper than three simple_attribute_audit_count calls
 // when the caller only needs the combined total (e.g. BR-7
 // lifetime audit).
+#[manual_drop]
 fn audit_count_three_needles_total(src: str, n1: str, n2: str, n3: str) -> i64 {
     let mut count: i64 = 0;
     let slen: i64 = str_len(src);
@@ -29771,6 +30528,7 @@ fn audit_count_three_needles_total(src: str, n1: str, n2: str, n3: str) -> i64 {
 // the remaining 6 attribute families (@differentiable, @attested,
 // @hot, @const_fn, #[max_depth], #[deadline]) plus any future
 // addition with no key=val args to extract.
+#[manual_drop]
 fn attribute_audit_fn_names(src: str, needle: str) -> str {
     let slen: i64 = str_len(src);
     let nlen: i64 = str_len(needle);
@@ -29838,6 +30596,7 @@ fn attribute_audit_fn_names(src: str, needle: str) -> str {
 // `@neuromorphic[device=loihi2]`). Captures the substring
 // after `device=` up to `]`, with optional surrounding quotes
 // stripped. Returns `; `-separated list across all matches.
+#[manual_drop]
 fn attribute_audit_bracket_device(src: str, needle: str) -> str {
     let slen: i64 = str_len(src);
     let nlen: i64 = str_len(needle);
@@ -29898,6 +30657,7 @@ fn attribute_audit_bracket_device(src: str, needle: str) -> str {
 // `(` up to the matching `)`, then walks through the captured
 // arg-list character-by-character, splitting on `,` (depth-0)
 // and emitting trimmed pieces.
+#[manual_drop]
 fn attribute_audit_all_kv_pairs(src: str, needle: str) -> str {
     let slen: i64 = str_len(src);
     let nlen: i64 = str_len(needle);
@@ -29959,6 +30719,7 @@ fn attribute_audit_all_kv_pairs(src: str, needle: str) -> str {
 // captures everything between `(` and `)`.
 //
 // Returns `; `-separated list of captured value-strings.
+#[manual_drop]
 fn attribute_audit_value_arg(src: str, needle: str) -> str {
     let slen: i64 = str_len(src);
     let nlen: i64 = str_len(needle);
@@ -30013,6 +30774,7 @@ fn attribute_audit_value_arg(src: str, needle: str) -> str {
 // argument from each `@<attr>(...)` invocation. Used by attrs
 // like `@enclave(tdx)` / `@enclave(sev_snp)` where the
 // argument is a bare ident (no quotes).
+#[manual_drop]
 fn attribute_audit_first_ident_arg(src: str, needle: str) -> str {
     let slen: i64 = str_len(src);
     let nlen: i64 = str_len(needle);
@@ -30053,6 +30815,7 @@ fn attribute_audit_first_ident_arg(src: str, needle: str) -> str {
 // step-1 count-only summary. Generic shape — same scan reusable
 // for @policy, @photonic[device=...], etc. as those settle into
 // quoted-string-arg conventions.
+#[manual_drop]
 fn attribute_audit_first_str_arg(src: str, needle: str) -> str {
     let slen: i64 = str_len(src);
     let nlen: i64 = str_len(needle);
@@ -30089,6 +30852,7 @@ fn attribute_audit_first_str_arg(src: str, needle: str) -> str {
     return out;
 }
 
+#[manual_drop]
 fn expand_deadline(src: str) -> str {
     // Walk source line-by-line. When we see `#[deadline = N]` (after
     // optional doc comments), find the next `fn ...` declaration and
@@ -30238,6 +31002,7 @@ fn expand_deadline(src: str) -> str {
 // scan backwards from the attribute position, balancing braces, to find
 // the most-recent unclosed `impl <Type> [for <Type2>]?\s*{`. Returns ""
 // when not in an impl block (free fn at module top level).
+#[manual_drop]
 fn md_find_enclosing_impl_type(src: str, attr_pos: i64) -> str {
     let mut depth: i64 = 0;
     let mut p: i64 = attr_pos - 1;
@@ -30290,6 +31055,7 @@ fn md_find_enclosing_impl_type(src: str, attr_pos: i64) -> str {
     return "";
 }
 
+#[manual_drop]
 fn expand_max_depth(src: str) -> str {
     // Runtime half of RFC-0014. Valid `#[max_depth = N]` fns are
     // rewritten into an inner body plus a wrapper that increments and
@@ -30490,6 +31256,7 @@ fn expand_max_depth(src: str) -> str {
 // require a let-binding first. T2.8b will lift that restriction
 // once we have a depth-aware backwards-receiver scanner.
 
+#[manual_drop]
 fn expand_async_strip_keyword(src: str) -> str {
     // Identifier-aware walk. When we find an `async` identifier
     // followed by whitespace and `fn`, we drop the `async` keyword
@@ -30639,6 +31406,7 @@ fn expand_async_strip_keyword(src: str) -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn expand_async_await(src: str) -> str {
     // Walk identifier-aware. When we see `<ident>.await` (followed by
     // a non-ident-continuation char like ` `, `;`, `)`, etc.), rewrite
@@ -30699,6 +31467,7 @@ fn expand_async_await(src: str) -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn expand_async_syntax(src: str) -> str {
     return expand_async_await(expand_async_strip_keyword(src));
 }
@@ -30724,6 +31493,7 @@ fn expand_async_syntax(src: str) -> str {
 // the start of source. A `|` between values (e.g. `a | b`) stays
 // a bitwise op.
 
+#[manual_drop]
 fn close_is_arg_position_char(c: i64) -> i64 {
     // v0.3.78 (T2.1/2/3 partial close): textual closure-hoisting is
     // now FULLY DISABLED. Pre-v0.3.78, this preprocessor hoisted
@@ -30749,6 +31519,7 @@ fn close_is_arg_position_char(c: i64) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn close_parse_arg_list(src: str, start: i64, slen: i64) -> Vec<i32> {
     // Parses `<ident>(, <ident>)*` from start. Returns
     // [end_pos_at_closing_pipe_plus_1, name1, name2, ...].
@@ -30794,6 +31565,7 @@ fn close_parse_arg_list(src: str, start: i64, slen: i64) -> Vec<i32> {
     return out;
 }
 
+#[manual_drop]
 fn close_parse_body_end(src: str, start: i64, slen: i64) -> i64 {
     // Walk forward from start. Body ends at the first `,` or `)`
     // or `]` at the same paren/bracket depth as where we started.
@@ -30827,6 +31599,7 @@ fn close_parse_body_end(src: str, start: i64, slen: i64) -> i64 {
     return p;
 }
 
+#[manual_drop]
 fn close_synthesize_fn(name: str, args: Vec<i32>, body_text: str) -> str {
     let mut sb: i64 = sb_new();
     sb_append(sb, "fn ");
@@ -30846,6 +31619,7 @@ fn close_synthesize_fn(name: str, args: Vec<i32>, body_text: str) -> str {
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn expand_closures(src: str) -> str {
     let mut prepend: i64 = sb_new();
     let mut sb: i64 = sb_new();
@@ -30964,6 +31738,7 @@ fn expand_closures(src: str) -> str {
 // line comments, `"..."` string literals, and `'X'` char literals.
 // `name!` after a `.` (method call) is left alone.
 
+#[manual_drop]
 fn fmt_trim_ws(s: str) -> str {
     let slen: i64 = str_len(s);
     let mut start: i64 = 0;
@@ -30983,6 +31758,7 @@ fn fmt_trim_ws(s: str) -> str {
     return str_substring(s, start, end);
 }
 
+#[manual_drop]
 fn fmt_split_args(args_text: str) -> Vec<i32> {
     // Depth-aware comma split: respects (), [], {}, "...", '...'
     // so commas inside nested calls / strings don't split args.
@@ -31017,6 +31793,7 @@ fn fmt_split_args(args_text: str) -> Vec<i32> {
     return parts;
 }
 
+#[manual_drop]
 fn fmt_strip_outer_quotes(s: str) -> str {
     let slen: i64 = str_len(s);
     if slen < 2 { return s; };
@@ -31053,6 +31830,7 @@ fn fmt_strip_outer_quotes(s: str) -> str {
 // EnumName and VariantName both to start with uppercase letters,
 // avoiding false-positive match on lowercase fn calls (e.g., a
 // function call `foo(s, n)` is NOT misread as a variant pattern).
+#[manual_drop]
 fn infer_user_variant_binding_type(src: str, var_name: str) -> str {
     let slen: i64 = str_len(src);
     let vlen: i64 = str_len(var_name);
@@ -31145,6 +31923,7 @@ fn infer_user_variant_binding_type(src: str, var_name: str) -> str {
 // idx-th payload type ("str" for idx=0, "i64" for idx=1). Returns ""
 // if not found. Conflict-detects across multiple enum decls with
 // the same name (rare but possible across imports).
+#[manual_drop]
 fn infer_enum_variant_payload_type(src: str, enum_name: str, variant_name: str, idx: i64) -> str {
     let slen: i64 = str_len(src);
     let enlen: i64 = str_len(enum_name);
@@ -31285,6 +32064,7 @@ fn infer_enum_variant_payload_type(src: str, enum_name: str, variant_name: str, 
 // to find the most-recent `let <name>: T` -- the closest scope-
 // local declaration, which is what shadowing semantics actually
 // resolve to. Limited to ~2 KB scan back.
+#[manual_drop]
 fn infer_var_type_local_back(src: str, var_name: str, match_pos: i64) -> str {
     let slen: i64 = str_len(src);
     let vlen: i64 = str_len(var_name);
@@ -31373,6 +32153,7 @@ fn infer_var_type_local_back(src: str, var_name: str, match_pos: i64) -> str {
 // integer because the source-scanner couldn't find `let s: T = ...`
 // (s is bound by a pattern, not a let). The non-macro path
 // (let-assign / str_eq / field access) was closed in v0.4.4.
+#[manual_drop]
 fn infer_pattern_binding_type_from_source(src: str, var_name: str) -> str {
     let slen: i64 = str_len(src);
     let vlen: i64 = str_len(var_name);
@@ -31592,6 +32373,7 @@ fn infer_pattern_binding_type_from_source(src: str, var_name: str) -> str {
 // Used by fmt_conversion_for_spec when arg_expr looks like a fn call
 // (`<ident>(...)` shape) to dispatch the format type. Catches
 // `println!("{}", make_str())` returning the pointer address pre-fix.
+#[manual_drop]
 fn infer_fn_return_type_from_source(src: str, fn_name: str) -> str {
     // v0.3.220 perf: same cached short-circuit as infer_var_type_from_source.
     let cached: str = infer_fn_return_type_cached(src, fn_name);
@@ -31671,6 +32453,7 @@ fn infer_fn_return_type_from_source(src: str, fn_name: str) -> str {
     return found_type;
 }
 
+#[manual_drop]
 fn infer_var_type_from_source(src: str, var_name: str) -> str {
     // v0.3.220 perf: short-circuit to runtime cache. Pre-fix this
     // function re-walked the entire source for every println!/format
@@ -31828,6 +32611,7 @@ fn infer_var_type_from_source(src: str, var_name: str) -> str {
 // field, "" if not found or conflict. Used by
 // fmt_conversion_for_spec to dispatch println!("{}", p.field) for
 // any field type. Conflict-detection mirrors the var/fn helpers.
+#[manual_drop]
 fn infer_struct_field_type_from_source(src: str, struct_name: str, field_name: str) -> str {
     let slen: i64 = str_len(src);
     let snlen: i64 = str_len(struct_name);
@@ -31946,6 +32730,7 @@ fn infer_struct_field_type_from_source(src: str, struct_name: str, field_name: s
     return found_type;
 }
 
+#[manual_drop]
 fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
     // spec is the contents of `{...}` after the `{` and before `}`,
     // i.e. `` for `{}`, `:s` for `{:s}`, etc.
@@ -32877,6 +33662,7 @@ fn fmt_conversion_for_spec(spec: str, arg_expr: str, src: str) -> str {
     return fmt_conversion_for_spec("", arg_expr, src);
 }
 
+#[manual_drop]
 fn fmt_build_concat_chain(segments: Vec<i32>, parities: Vec<i32>) -> str {
     // segments[i] alternates between literal text (parity 0) and
     // pre-formed expression (parity 1). Build a right-fold of
@@ -32898,6 +33684,7 @@ fn fmt_build_concat_chain(segments: Vec<i32>, parities: Vec<i32>) -> str {
     return chain;
 }
 
+#[manual_drop]
 fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     // mode: 0 = println!  → print(...)
     //       1 = format!   → bare str expression
@@ -33083,6 +33870,7 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
     return str_concat("print_raw(", str_concat(chain, ")"));
 }
 
+#[manual_drop]
 fn expand_format_macros(src: str) -> str {
     // Top-level T2.6 entry. At top level, the text being walked IS
     // the type-inference src (the full resolved source bundle).
@@ -33096,6 +33884,7 @@ fn expand_format_macros(src: str) -> str {
 // `let inner_str: str = ...` declaration that lives in the outer
 // scope, dispatched as int_to_str default, and printed the str
 // pointer.
+#[manual_drop]
 fn expand_format_macros_with_src(src: str, type_src: str) -> str {
     // Top-level T2.6 entry. Walks the merged source and replaces every
     // `<name>!(...)` macro call (where name is `println`/`print`/`format`)
@@ -33607,6 +34396,7 @@ fn expand_format_macros_with_src(src: str, type_src: str) -> str {
 // is conservative — keywords and shadowed locals are not in the
 // private_names list so they're never substituted.
 
+#[manual_drop]
 fn priv_extract_fn_decl_info(line: str) -> Vec<i32> {
     // Returns [name, is_pub] where is_pub = 1 for `pub fn name(`
     // (or `pub pure fn name(`), 0 for `fn name(` or `pure fn name(`,
@@ -33643,6 +34433,7 @@ fn priv_extract_fn_decl_info(line: str) -> Vec<i32> {
     return out;
 }
 
+#[manual_drop]
 fn priv_collect_private_fn_names(source: str) -> Vec<i32> {
     // Two-phase scan: first collect all pub fn names, then collect
     // any fn name not in the pub set. Returns the empty Vec if the
@@ -33683,6 +34474,7 @@ fn priv_collect_private_fn_names(source: str) -> Vec<i32> {
     return result;
 }
 
+#[manual_drop]
 fn priv_string_vec_contains(v: Vec<i32>, s: str) -> i64 {
     let n: i64 = vec_len(v);
     let mut i: i64 = 0;
@@ -33693,6 +34485,7 @@ fn priv_string_vec_contains(v: Vec<i32>, s: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn priv_string_vec_contains_at(v: Vec<i32>, src: str, start: i64, end: i64) -> i64 {
     let n: i64 = vec_len(v);
     let want_len: i64 = end - start;
@@ -33705,11 +34498,13 @@ fn priv_string_vec_contains_at(v: Vec<i32>, src: str, start: i64, end: i64) -> i
     return 0;
 }
 
+#[manual_drop]
 fn priv_string_vec_push_unique(v: Vec<i32>, s: str) -> i64 {
     if priv_string_vec_contains(v, s) == 0 { v.push(s); };
     return 0;
 }
 
+#[manual_drop]
 fn priv_build_global_registry(imported: Vec<i32>) -> Vec<i32> {
     // T1.5d (v0.2.343): build a flat registry of all private fn
     // names across every imported file. Returned shape is
@@ -33740,6 +34535,7 @@ fn priv_build_global_registry(imported: Vec<i32>) -> Vec<i32> {
     return reg;
 }
 
+#[manual_drop]
 fn priv_lookup_origin(reg: Vec<i32>, name: str) -> str {
     let n: i64 = vec_len(reg);
     let mut i: i64 = 0;
@@ -33750,6 +34546,7 @@ fn priv_lookup_origin(reg: Vec<i32>, name: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn priv_lift_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
     // Scan clang's stderr/stdout for "use of undefined value '@<name>'"
     // patterns. For each match whose <name> appears in the private
@@ -33791,6 +34588,7 @@ fn priv_lift_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
     return count;
 }
 
+#[manual_drop]
 fn lift_undefined_fn_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
     // v0.4.106: companion to priv_lift_link_errors. After MOD-003 has
     // claimed every privatization-related undefined symbol, this fn
@@ -33901,6 +34699,7 @@ fn lift_undefined_fn_link_errors(clang_output: str, reg: Vec<i32>) -> i64 {
     return count;
 }
 
+#[manual_drop]
 fn lift_no_main_link_error(clang_output: str) -> i64 {
     // v0.4.110: companion to lift_undefined_fn_link_errors. Catches
     // the no-main-fn link error class. Pre-fix a `.nr` file with no
@@ -33924,6 +34723,7 @@ fn lift_no_main_link_error(clang_output: str) -> i64 {
     return 1;
 }
 
+#[manual_drop]
 fn priv_apply_if_opted_in(isrc: str, path: str) -> str {
     // Resolver's entry point into T1.5c privatization. Returns the
     // input source unchanged unless the file has at least one
@@ -33937,6 +34737,7 @@ fn priv_apply_if_opted_in(isrc: str, path: str) -> str {
     return priv_mangle_private_fns(isrc, file_id, private_names);
 }
 
+#[manual_drop]
 fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> str {
     // Token-aware identifier substitution. Walks src char-by-char,
     // identifies identifier tokens (alpha/_ followed by alnum/_),
@@ -34018,6 +34819,7 @@ fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> s
     return sb_to_str(sb);
 }
 
+#[manual_drop]
 fn content_hash(s: str) -> str {
     // DJB2 hash → hex string (simple content fingerprint)
     let slen: i64 = str_len(s);
@@ -34042,6 +34844,7 @@ fn content_hash(s: str) -> str {
     return result;
 }
 
+#[manual_drop]
 fn compiler_version_label() -> str {
     // v0.3.134: bumped from `0.2.0-v2`. The previous string was stuck
     // pre-OSS-launch and was confusing adopters comparing against the
@@ -34053,19 +34856,23 @@ fn compiler_version_label() -> str {
     return "0.4.180";
 }
 
+#[manual_drop]
 fn compiler_backend_label() -> str {
     return "llvm";
 }
 
+#[manual_drop]
 fn compiler_identity() -> str {
     return str_concat("nucleor ", str_concat(compiler_version_label(), str_concat(" (self-hosted, ", str_concat(compiler_backend_label(), " backend)"))));
 }
 
+#[manual_drop]
 fn cli_is_flag(arg: str) -> i64 {
     if str_len(arg) > 0 && str_char_at(arg, 0) == 45 { return 1; };
     return 0;
 }
 
+#[manual_drop]
 fn cmd_accepts_source(cmd: str) -> i64 {
     if str_eq(cmd, "build") || str_eq(cmd, "build-fast") || str_eq(cmd, "build-strict") || str_eq(cmd, "build-shared") || str_eq(cmd, "run") || str_eq(cmd, "emit") || str_eq(cmd, "build-wasm") || str_eq(cmd, "build-ptx") || str_eq(cmd, "check") || str_eq(cmd, "audit") || str_eq(cmd, "policy") || str_eq(cmd, "certify") || str_eq(cmd, "translate") || str_eq(cmd, "test") || str_eq(cmd, "bench") || str_eq(cmd, "summary") || str_eq(cmd, "impact") || str_eq(cmd, "query") || str_eq(cmd, "graph") || str_eq(cmd, "perf") || str_eq(cmd, "evidence") || str_eq(cmd, "abi") || str_eq(cmd, "verify-reproducible") {
         return 1;
@@ -34073,6 +34880,7 @@ fn cmd_accepts_source(cmd: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn cmd_allows_output_name(cmd: str) -> i64 {
     if str_eq(cmd, "build") || str_eq(cmd, "build-fast") || str_eq(cmd, "build-strict") || str_eq(cmd, "build-shared") || str_eq(cmd, "run") || str_eq(cmd, "emit") || str_eq(cmd, "build-wasm") || str_eq(cmd, "build-ptx") || str_eq(cmd, "certify") || str_eq(cmd, "test") || str_eq(cmd, "bench") || str_eq(cmd, "verify-reproducible") {
         return 1;
@@ -34080,6 +34888,7 @@ fn cmd_allows_output_name(cmd: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn manifest_entry_path() -> str {
     let raw: str = file_read_string("Nucleor.toml");
     if str_len(raw) == 0 { return ""; };
@@ -34100,9 +34909,11 @@ fn manifest_entry_path() -> str {
     return "";
 }
 
+#[manual_drop]
 fn core_shell_quote(path: str) -> str {
     return str_concat("\"", str_concat(path, "\""));
 }
+#[manual_drop]
 fn run_external_tool(argc: i64) -> i64 {
     let raw_exe_dir: str = trim_trailing_sep(extract_dir(posix_drive_to_windows(args_get(0))));
     let mut exe_dir: str = raw_exe_dir;
@@ -34138,18 +34949,31 @@ fn run_external_tool(argc: i64) -> i64 {
     return system(cmd);
 }
 
+#[manual_drop]
 fn run_explain_command(argc: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_bootstrap_command(argc: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_stage_dump_command(argc: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_build_shared_command(argc: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_summary_command(src_path: str, argc: i64, arg_start: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_query_command(src_path: str) -> i64 { return run_external_tool(args_count()); }
+#[manual_drop]
 fn run_abi_command(src_path: str, argc: i64, arg_start: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_evidence_command(src_path: str) -> i64 { return run_external_tool(args_count()); }
+#[manual_drop]
 fn run_lock_command(argc: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_publish_command(argc: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_registry_command(argc: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_install_command(argc: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_fix_command(argc: i64) -> i64 { return run_external_tool(argc); }
 
 // v0.4.8 RFC-NRT-002: tools registry subcommand. Distinct from
@@ -34169,6 +34993,7 @@ fn run_fix_command(argc: i64) -> i64 { return run_external_tool(argc); }
 // registry. Network ops shell out to curl (ubiquitous on Windows
 // since 1803 and on every Unix). Extraction shells out to tar (for
 // .tar.gz) or PowerShell Expand-Archive (for .zip on Windows).
+#[manual_drop]
 fn nuc_home_path() -> str {
     let explicit: str = env_get_or("NUC_HOME", "");
     if str_len(explicit) > 0 { return explicit; };
@@ -34182,16 +35007,19 @@ fn nuc_home_path() -> str {
     return ".nucleor";
 }
 
+#[manual_drop]
 fn tools_home() -> str {
     let h: str = nuc_home_path();
     return str_concat(h, "/tools");
 }
 
+#[manual_drop]
 fn tools_bin() -> str {
     let h: str = nuc_home_path();
     return str_concat(h, "/bin");
 }
 
+#[manual_drop]
 fn tools_basename_from_url(url: str) -> str {
     // Strip everything from the first ? or # onward (URL query/fragment).
     let mut end: i64 = str_len(url);
@@ -34219,6 +35047,7 @@ fn tools_basename_from_url(url: str) -> str {
     return raw;
 }
 
+#[manual_drop]
 fn tools_print_help() -> i64 {
     print("Usage: nuc tools <subcommand>");
     print("");
@@ -34238,6 +35067,7 @@ fn tools_print_help() -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn tools_install(url: str, verify: i64) -> i64 {
     if str_len(url) == 0 {
         print("ERROR: nuc tools install requires a URL");
@@ -34327,6 +35157,7 @@ fn tools_install(url: str, verify: i64) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn tools_uninstall(name: str) -> i64 {
     if str_len(name) == 0 {
         print("ERROR: nuc tools uninstall requires a tool name");
@@ -34343,6 +35174,7 @@ fn tools_uninstall(name: str) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn tools_list() -> i64 {
     let tdir: str = tools_home();
     print(str_concat("Tools installed under ", tdir));
@@ -34353,6 +35185,7 @@ fn tools_list() -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn run_tools_command(argc: i64) -> i64 {
     if argc < 3 {
         return tools_print_help();
@@ -34392,16 +35225,23 @@ fn run_tools_command(argc: i64) -> i64 {
     print(str_concat("ERROR: unknown nuc tools subcommand: ", sub));
     return tools_print_help();
 }
+#[manual_drop]
 fn run_doc_command(argc: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_impact_command(src_path: str, argc: i64, arg_start: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_graph_command(src_path: str, argc: i64, arg_start: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_profile_command(argc: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_sage_command(argc: i64) -> i64 { return run_external_tool(argc); }
+#[manual_drop]
 fn run_perf_command(src_path: str, argc: i64, arg_start: i64) -> i64 { return run_external_tool(argc); }
 
 // T1.1 Phase 9: map a Nucleor type name to its C equivalent for
 // header generation. Returns "" for types without a clear C
 // mapping (caller skips those extern decls).
+#[manual_drop]
 fn nr_type_to_c(t: str) -> str {
     let b: str = type_base_name(t);
     if str_eq(b, "i8") == 1 { return "int8_t"; };
@@ -34424,6 +35264,7 @@ fn nr_type_to_c(t: str) -> str {
     return "";
 }
 
+#[manual_drop]
 fn nr_type_to_c_with_structs(t: str, repr_c_structs: Vec<i32>) -> str {
     // T1.6 (v0.2.345): C ABI struct-by-value support. If the type
     // name matches a known #[repr(C)] struct, emit the struct name
@@ -34443,6 +35284,7 @@ fn nr_type_to_c_with_structs(t: str, repr_c_structs: Vec<i32>) -> str {
     return "";
 }
 
+#[manual_drop]
 fn collect_repr_c_structs(src: str) -> Vec<i32> {
     // T1.6 (v0.2.345): walk the source text identifying every
     // struct declaration whose IMMEDIATELY-preceding non-blank
@@ -34524,6 +35366,7 @@ fn collect_repr_c_structs(src: str) -> Vec<i32> {
     return out;
 }
 
+#[manual_drop]
 fn extract_struct_fields_native(src: str, struct_name: str) -> Vec<i32> {
     // T1.6 (v0.2.345): pull the field list of a struct as alternating
     // [name1, type1, name2, type2, ...]. Uses brace-balanced source
@@ -34597,6 +35440,7 @@ fn extract_struct_fields_native(src: str, struct_name: str) -> Vec<i32> {
 // args_c_decl is the C-formatted parameter list ("int64_t a, double b")
 // or "void" for no-args; c_rtype is "void" if the fn has no `-> ret`.
 // Skips fns whose signature contains a non-FFI-safe type.
+#[manual_drop]
 fn collect_export_fns_and_sigs(src: str, repr_c: Vec<i32>) -> Vec<i32> {
     let mut out: Vec<i32> = Vec::new();
     let slen: i64 = str_len(src);
@@ -34720,6 +35564,7 @@ fn collect_export_fns_and_sigs(src: str, repr_c: Vec<i32>) -> Vec<i32> {
 // parser invocation: keeps the subcommand standalone, lets it
 // run on partial / not-yet-compilable .nr files, and matches
 // the file-line convention used by the rest of the toolchain.
+#[manual_drop]
 fn run_gen_headers_command(argc: i64) -> i64 {
     if argc < 3 {
         print("usage: nuc gen-headers <input.nr> [-o <out.h>]");
@@ -34921,6 +35766,7 @@ fn run_gen_headers_command(argc: i64) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn run_zen_command() -> i64 {
     print("The Zen of Nucleor");
     print("");
@@ -34939,6 +35785,7 @@ fn run_zen_command() -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn run_mco_command() -> i64 {
     print("  +-----------------------------------------+");
     print("  |  Mars Climate Orbiter - September 1999  |");
@@ -34955,6 +35802,7 @@ fn run_mco_command() -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn run_clean_command(argc: i64) -> i64 {
     let mut cache_only: i64 = 0;
     let mut i: i64 = 2;
@@ -34976,6 +35824,7 @@ fn run_clean_command(argc: i64) -> i64 {
     return 0;
 }
 
+#[manual_drop]
 fn print_help() -> i64 {
     print(str_concat("Nucleor Compiler ", compiler_version_label()));
     print("The governance-native programming language");

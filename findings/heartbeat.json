@@ -1,146 +1,61 @@
 {
   "instructions_read": "v0.6.72-post-v0.7.13-refresh",
-  "current_task": "p2_strtab_intern_hashmap",
-  "roadmap_phase": "v2_post_investigation",
-  "current_punchlist_item": "P2",
+  "current_task": "windows_pe_autodrop_bootstrap_fix",
+  "roadmap_phase": "D1_windows_pe_unblocker",
+  "current_punchlist_item": "D1",
   "edits_in_main_tree": false,
-  "rebased_on_origin_main": "aa377d68",
-  "perf_baseline_pre_task": {
-    "cold": 3.16,
-    "peak_mem": 318
-  },
+  "rebased_on_origin_main": "b4cf2049",
+  "worktree": "C:\\Users\\JoeWe\\Nucleor_OSS_pe_fix",
+  "branch": "probe/windows-pe-autodrop-fix",
+  "status": "ready-for-review",
   "validation": {
-    "perf_3_sample": {
+    "stage1_build": {
       "status": "pass",
-      "cold_seconds": 3.15,
-      "hot_seconds": 0.41,
-      "peak_mem_mb": 294,
-      "command": "powershell.exe -NoProfile -File tools\\check_perf_regression.ps1",
-      "note": "Post-P2 combined str_from_i64 and fn_return_map hashmap slices; cold stayed in the 3-second regime and peak memory stayed under 300 MB."
+      "command": ".\\bin\\nucleor.exe build compiler\\nucleor_s1_compiler.nr -o nucleor_s1_pefix --no-cache --time-passes",
+      "time_total_native_ms": 3547,
+      "output": "target\\nucleor_s1_pefix.exe"
     },
-    "caller_profile_self_host": {
-      "exit_code": 0,
-      "vec_get_total": 74048425,
-      "str_eq_total": 71213732,
-      "str_concat_total": 1192961,
-      "str_substring_total": 474750,
-      "hashmap_get_total": 891560,
-      "hashmap_insert_total": 1643105,
-      "hashmap_contains_total": 1344855,
-      "total_tracked": 217310299,
-      "sym_get": "not emitted by current runtime helper caller-attribution output"
-    },
-    "p2_str_from_i64_hotpath": {
+    "stage1_focused_fixture_guarded": {
       "status": "pass",
-      "change": "str_from_i64 now returns single-digit literals directly and emits multi-digit values left-to-right with sb_append_char_at instead of prepending each digit with str_concat.",
-      "profile_before_str_concat_total": 2501747,
-      "profile_after_str_concat_total": 1189191,
-      "fixed_point": "stage2/stage3 compiler IR SHA256 matched after v0.7.22 rebase: 82C86F9057F9E47481C76083F2F8A4C1F4F0602053700D96948AA763827AEA35",
-      "targeted_checks": [
-        "tests/fixtures/t379_str_from_int_alias.nr returned expected rc=2",
-        "tests/fixtures/repro_v72_str_from_i64_contract.nr built and ran rc=0",
-        "tests/fixtures/v0649_imin_literal_accepts.nr printed both i64::MIN and i64::MIN+1 values"
-      ]
+      "command": "NUC_VEC_FREE_GUARD=1 .\\target\\nucleor_s1_pefix.exe build tests\\features\\t3_char_cast_audit_lock.nr -o _pe_pefix_fixture --no-cache --time-passes",
+      "time_total_ms": 32
     },
-    "p2_fn_return_map_hashmap": {
+    "stage1_self_host_guarded": {
       "status": "pass",
-      "change": "Shared fn-return metadata now uses a dedicated runtime hashmap handle instead of a backward-scanned Vec for __fnret_* and __fnfulltype_* fallback lookups.",
-      "profile_before": {
-        "vec_get_total": 121588298,
-        "str_eq_total": 118772035,
-        "total_tracked": 312215187
-      },
-      "profile_after": {
-        "vec_get_total": 74048425,
-        "str_eq_total": 71213732,
-        "total_tracked": 217310299
-      },
-      "bounded_compare": {
-        "currentbin_median_wall_seconds": 3.669,
-        "fnretmap_median_wall_seconds": 3.325,
-        "currentbin_peak_mb": 288,
-        "fnretmap_peak_mb": 289
-      },
-      "fixed_point": "stage2/stage3 compiler IR SHA256 matched after v0.7.22 rebase: 02616364C39784029F7AA93CD088EDDE9A12E57F101A808F0E3C4AB8B559C92D",
-      "targeted_checks": [
-        "tests/lang/closures.nr rc=0",
-        "tests/features/generic_fn.nr rc=0",
-        "tests/features/generic_struct.nr rc=0",
-        "tests/lang/hashmap_str_i64.nr rc=0",
-        "tests/features/closure_braced_body_tail_expr.nr rc=0"
-      ]
+      "command": "NUC_VEC_FREE_GUARD=1 .\\target\\nucleor_s1_pefix.exe build compiler\\nucleor_s1_compiler.nr -o nucleor_s2_pefix --no-cache --time-passes",
+      "time_total_native_ms": 6766,
+      "output": "target\\nucleor_s2_pefix.exe"
     },
-    "p2_strtab_intern_hashmap": {
+    "stage1_self_host_noguard": {
       "status": "pass",
-      "change": "String-constant interning keeps the tiny-table backward scan, then switches to a dedicated strtab hashmap carried on the IR-function aux slot. This avoids the v0.6.72 shared warm-cache contention and avoids adding a new runtime helper declaration.",
-      "profile_before": {
-        "vec_get_total": 76508815,
-        "str_eq_total": 73684190,
-        "total_tracked": 223555754
-      },
-      "profile_after": {
-        "vec_get_total": 50523081,
-        "str_eq_total": 47660351,
-        "total_tracked": 171664877
-      },
-      "post_rebase_perf_gate": {
-        "cold_seconds": 3.05,
-        "hot_seconds": 0.43,
-        "peak_mem_mb": 303,
-        "command": "powershell.exe -NoProfile -File tools\\check_perf_regression.ps1"
-      },
-      "fixed_point": "stage2/stage3 compiler IR SHA256 matched before v0.7.66 rebase: 63368E5F970E20A1C75BEFE9BCB7B42CF8A89BADF0E2816B01D37E5E83C4BDD0",
-      "seed_recheck": "bootstrap/nucleor_s1_seed.ll byte-identical to target/strtab_recheck_seed.ll after v0.7.66 rebase"
+      "command": ".\\target\\nucleor_s1_pefix.exe build compiler\\nucleor_s1_compiler.nr -o nucleor_s2_pefix_noguard --no-cache --time-passes",
+      "time_total_native_ms": 3734,
+      "output": "target\\nucleor_s2_pefix_noguard.exe"
     },
-    "host_snapshot_in_perf_gate": "added",
-    "compiler_drift": "pass",
-    "q8_c_string_literal": {
-      "direct_negative_build": "pass_expected_exit_1",
-      "diagnostic": "nucleor: C string `c\"...\"` not yet supported",
-      "fixture": "tests/err/err_c_string_literal.nr",
-      "note": "No full verify run in this slice to avoid overlapping active main verification."
+    "stage2_focused_fixture_guarded": {
+      "status": "pass",
+      "command": "NUC_VEC_FREE_GUARD=1 .\\target\\nucleor_s2_pefix.exe build tests\\features\\t3_char_cast_audit_lock.nr -o _pe_pefix_s2_fixture --no-cache --time-passes",
+      "time_total_ms": 47
     },
-    "q10_inline_cold_attributes": {
-      "direct_negative_build": "pass_expected_exit_1",
-      "diagnostics": [
-        "nucleor: inline attribute not yet supported",
-        "nucleor: cold attribute not yet supported"
+    "stage2_self_host_guarded": {
+      "status": "pass",
+      "command": "NUC_VEC_FREE_GUARD=1 .\\target\\nucleor_s2_pefix.exe build compiler\\nucleor_s1_compiler.nr -o nucleor_s3_pefix --no-cache --time-passes",
+      "time_total_native_ms": 3546,
+      "output": "target\\nucleor_s3_pefix.exe"
+    },
+    "fixed_point": {
+      "status": "pass",
+      "files": [
+        "target\\nucleor_s2_pefix.ll",
+        "target\\nucleor_s3_pefix.ll"
       ],
-      "fixtures": [
-        "tests/err/err_inline_attribute.nr",
-        "tests/err/err_cold_attribute.nr"
-      ],
-      "note": "No full verify run in this slice to avoid overlapping active main verification."
+      "sha256": "D83ADB0F979F849635F5D7D199BB825B13E5010A004F5E98607F3061BC1D525D"
     },
-    "q6_hrtb_bound": {
-      "direct_negative_build": "pass_expected_exit_1",
-      "diagnostic": "nucleor: higher-ranked trait bounds `for<'a>` not yet supported",
-      "fixture": "tests/err/err_hrtb_bound.nr",
-      "compiler_drift": "pass",
-      "note": "No full verify or 3-sample perf ladder run in this slice to avoid overlapping active main verification."
-    },
-    "q5_import_tails": {
-      "direct_negative_build": "pass_expected_exit_1",
-      "diagnostics": [
-        "nucleor: `pub use` re-export not yet supported",
-        "nucleor: `use ... as ...` aliases not yet supported",
-        "nucleor: `use ...::*` glob import not yet supported"
-      ],
-      "fixtures": [
-        "tests/err/err_pub_use_reexport.nr",
-        "tests/err/err_use_as_alias.nr",
-        "tests/err/err_use_glob_import.nr"
-      ],
-      "positive_build": "tests/lang/use_paths.nr pass",
-      "compiler_drift": "pass",
-      "note": "No full verify or 3-sample perf ladder run in this slice to avoid overlapping active main verification."
-    },
-    "verify": {
-      "full_run": "808 pass / 2 skip / 0 fail",
-      "self_host_budget": "peak 272 MB / 770 MB e-stop, wall 3.208s"
+    "diff_check": {
+      "status": "pass",
+      "command": "git diff --check -- compiler\\nucleor_s1_compiler.nr",
+      "note": "Only Git CRLF normalization warning observed."
     }
   },
-  "status": "ready-for-integration",
-  "worktree": "C:\\Users\\JoeWe\\Desktop\\Nucleor_OSS_perf_a64",
-  "branch": "perf/prefer-pwsh-rss-sampler"
+  "summary": "Windows PE failure was an autodrop ownership/bootstrap problem, not an LLD PE link bug. The patch makes autodrop ownership conservative for borrowed-returning calls and handoff/reuse patterns, suppresses default autodrop when lowering the self-host compiler source, and pins current bootstrap semantics with #[manual_drop] markers so the checked-in old compiler can build a safe stage1."
 }
