@@ -31280,7 +31280,13 @@ fn run_external_tool(argc: i64) -> i64 {
     let tool_path: str = host_shell_path(sanitize(str_concat(str_concat(exe_dir, host_target_path_sep()), tool_name)));
     let repo_tool_path: str = host_shell_path(str_concat(str_concat(".\\target", host_target_path_sep()), tool_name));
     let repo_bin_tool_path: str = host_shell_path(str_concat(str_concat(".\\bin", host_target_path_sep()), tool_name));
-    let local_tool_path: str = host_shell_path(tool_name);
+    // v0.7.16: prefix local fallback with `.\` (Windows) / `./` (POSIX)
+    // so cmd.exe / sh resolve unambiguously against the current dir even
+    // when the file isn't on PATH. Pre-fix on Windows, the bare quoted
+    // `"nucleor_tools.exe"` failed cmd.exe's command-search and the
+    // sandbox-local CLI smokes (nuc test/lock/doc) cmd.exe-error'd with
+    // `'"nucleor_tools.exe"' is not recognized`.
+    let local_tool_path: str = host_shell_path(str_concat(if host_is_windows() == 1 { ".\\" } else { "./" }, tool_name));
     let mut tool_args: str = "";
     let mut i: i64 = 1;
     while i < argc {

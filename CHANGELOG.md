@@ -5,6 +5,25 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.16] — 2026-05-03
+
+**Fix — `nuc test` / `nuc lock` / `nuc doc` failed with
+`'"nucleor_tools.exe"' is not recognized` when the helper binary
+was sandbox-local. Now resolved.**
+
+`run_external_tool` constructed the local-fallback tool path as
+the bare filename (`nucleor_tools.exe`). When wrapped in cmd.exe's
+double quotes via `core_shell_quote`, cmd's command-search logic
+failed to resolve it from the current directory and reported the
+error with the literal quoted name.
+
+Fix: prefix the local fallback with `.\` (Windows) / `./` (POSIX)
+matching the convention already used for `repo_tool_path` and
+`repo_bin_tool_path`. The explicit cwd-relative prefix makes
+cmd.exe / sh resolve the helper unambiguously.
+
+Verify: 812 pass / 1 skip / 0 fail (was 809 / 1 / 3).
+
 ## [0.7.15] — 2026-05-04
 
 **Feature acceptance — `dyn Trait + Bound` type expressions
