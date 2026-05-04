@@ -5,6 +5,90 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.44] — 2026-05-04
+
+**Wave 1 first ship — NUM-G1 Phase 1 audit-pass info diagnostic.**
+First Wave 1 (post-memory-safety-Wave-0) closure landing per
+`docs/rfcs/v1_PUNCHLIST.md`. Targets the most-widespread silent
+miscompute in the language: f64 literal lex truncation.
+
+### What's enforced today (Phase 1)
+
+```
+info[NUM-G1]: f64 literals with >6 fractional digits in source: N
+  Per RFC-0062 sister gap NUM-G1 (Numeric Correctness): the
+  lexer silently truncates f64 literal fractional digits past
+  the 6th. `3.1415926535897932` is encoded as `3.141592`.
+  Affects every float user. Phase 2b adds a precision-preserving
+  f64 parser; Phase 4 promotes to hard error if precision loss
+  is non-zero. Adopter discipline today: avoid >6-fractional-digit
+  float literals; use a hex-float (`0x1.921fb54442d18p+1`) or
+  compute the constant arithmetically.
+```
+
+### Implementation
+
+New `count_long_float_literals(src)` scanner walks source once,
+detects `<digits>.<digits>` patterns, counts fractional-digit
+length. Returns count of patterns with >=7 fractional digits.
+
+### Seed self-host
+
+```
+info[NUM-G1]: f64 literals with >6 fractional digits in source: 5
+```
+
+The 5 hits are mix of comment text and diagnostic-message-text
+references (`0.00000001`, `0.7978845608028654`). All in seed
+internals — no actual f64 lex truncation in compiler runtime
+behavior.
+
+### Smoke fixture
+
+`tests/fixtures/v0844_num_g1_smoke.nr` — adopter source with
+`3.1415926535897932`, `2.7182818284590452`, `1.6180339887498948`.
+Build emits `info[NUM-G1]: ... 3` flagging the silent miscompute
+risk. Runtime rc=0 (program runs but with truncated values —
+which is exactly the bug NUM-G1 documents).
+
+### Phase sequence for NUM-G1
+
+```
+Phase 1   audit-pass info diagnostic         DONE v0.8.44 (this)
+Phase 2a  no heuristic phase (Phase 1 covers)
+Phase 2b  precision-preserving f64 parser    QUEUED
+Phase 3   default-on warning                 QUEUED
+Phase 4   hard error                         v1.0 cut
+```
+
+### Perf
+
+Cold 3.48s, hot 0.40s. Within Job #1. The new scanner runs
+once per compile over `after_async`. For 10MB seed, ~10M byte
+iterations — fast in C-runtime str_char_at calls.
+
+Fixed-point md5: `b60bf40957955807dc7fa87cc7241eea`.
+
+## [0.8.43] — 2026-05-04
+
+**Spine integration — 14 gap-analysis RFCs + v1 punchlist.**
+Pure-docs ship. User landed 14 cornerstone gap-analysis RFCs at
+Desktop on 2026-05-04. Pulled all into
+`docs/rfcs/gap-analyses/` + indexed in README.md with Tier A/B/C
+ordering and CRITICAL findings bubble-up.
+
+Created `docs/rfcs/v1_PUNCHLIST.md` as the canonical sequenced
+launch punchlist:
+
+- Wave 0 (in flight): Memory Safety Phase 2b-3 closure
+- Wave 1 (after Wave 0): CRITICAL silent-miscompute findings
+- Wave 2: Other Tier A + Tier B
+- Wave 3: Tier C correctness
+- Wave 4: v1.0 cut
+
+Parallel agent assignment in
+`findings/_parallel_agent_assignment_v0843.md`.
+
 ## [0.8.42] — 2026-05-04
 
 **RFC-0062 G-1 Phase 2b-2.7 — final 3 HANDOFF-SUSPECT
