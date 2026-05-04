@@ -1,10 +1,10 @@
 {
   "instructions_read": "v0.6.72-post-v0.7.13-refresh",
-  "current_task": "p2_str_from_i64_concat_hotpath",
+  "current_task": "p2_fn_return_map_hashmap",
   "roadmap_phase": "v2_post_investigation",
   "current_punchlist_item": "P2",
   "edits_in_main_tree": false,
-  "rebased_on_origin_main": "51585a75",
+  "rebased_on_origin_main": "c7c6e8b4",
   "perf_baseline_pre_task": {
     "cold": 3.16,
     "peak_mem": 318
@@ -12,16 +12,22 @@
   "validation": {
     "perf_3_sample": {
       "status": "pass",
-      "cold_seconds": 3.73,
-      "hot_seconds": 1.24,
-      "peak_mem_mb": 295,
+      "cold_seconds": 3.15,
+      "hot_seconds": 0.41,
+      "peak_mem_mb": 294,
       "command": "powershell.exe -NoProfile -File tools\\check_perf_regression.ps1",
-      "note": "Post-P2 str_from_i64 hot-path slice; cold stayed in the 3-second regime and peak memory stayed under 300 MB."
+      "note": "Post-P2 combined str_from_i64 and fn_return_map hashmap slices; cold stayed in the 3-second regime and peak memory stayed under 300 MB."
     },
     "caller_profile_self_host": {
       "exit_code": 0,
-      "str_concat_total": 1189191,
-      "str_substring_total": 474126,
+      "vec_get_total": 74048425,
+      "str_eq_total": 71213732,
+      "str_concat_total": 1192961,
+      "str_substring_total": 474750,
+      "hashmap_get_total": 891560,
+      "hashmap_insert_total": 1643105,
+      "hashmap_contains_total": 1344855,
+      "total_tracked": 217310299,
       "sym_get": "not emitted by current runtime helper caller-attribution output"
     },
     "p2_str_from_i64_hotpath": {
@@ -29,11 +35,39 @@
       "change": "str_from_i64 now returns single-digit literals directly and emits multi-digit values left-to-right with sb_append_char_at instead of prepending each digit with str_concat.",
       "profile_before_str_concat_total": 2501747,
       "profile_after_str_concat_total": 1189191,
-      "fixed_point": "stage2/stage3 compiler IR SHA256 matched: 6D8875C1D3B4CB864B5121E39AAE278F24F18E664F9B4D46A42D3E80E0CE0B40",
+      "fixed_point": "stage2/stage3 compiler IR SHA256 matched after v0.7.22 rebase: 82C86F9057F9E47481C76083F2F8A4C1F4F0602053700D96948AA763827AEA35",
       "targeted_checks": [
         "tests/fixtures/t379_str_from_int_alias.nr returned expected rc=2",
         "tests/fixtures/repro_v72_str_from_i64_contract.nr built and ran rc=0",
         "tests/fixtures/v0649_imin_literal_accepts.nr printed both i64::MIN and i64::MIN+1 values"
+      ]
+    },
+    "p2_fn_return_map_hashmap": {
+      "status": "pass",
+      "change": "Shared fn-return metadata now uses a dedicated runtime hashmap handle instead of a backward-scanned Vec for __fnret_* and __fnfulltype_* fallback lookups.",
+      "profile_before": {
+        "vec_get_total": 121588298,
+        "str_eq_total": 118772035,
+        "total_tracked": 312215187
+      },
+      "profile_after": {
+        "vec_get_total": 74048425,
+        "str_eq_total": 71213732,
+        "total_tracked": 217310299
+      },
+      "bounded_compare": {
+        "currentbin_median_wall_seconds": 3.669,
+        "fnretmap_median_wall_seconds": 3.325,
+        "currentbin_peak_mb": 288,
+        "fnretmap_peak_mb": 289
+      },
+      "fixed_point": "stage2/stage3 compiler IR SHA256 matched after v0.7.22 rebase: 02616364C39784029F7AA93CD088EDDE9A12E57F101A808F0E3C4AB8B559C92D",
+      "targeted_checks": [
+        "tests/lang/closures.nr rc=0",
+        "tests/features/generic_fn.nr rc=0",
+        "tests/features/generic_struct.nr rc=0",
+        "tests/lang/hashmap_str_i64.nr rc=0",
+        "tests/features/closure_braced_body_tail_expr.nr rc=0"
       ]
     },
     "host_snapshot_in_perf_gate": "added",
