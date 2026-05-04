@@ -89,3 +89,84 @@ fn governance_authored_all_to_json() -> str {
     out = str_concat(out, "]");
     return out;
 }
+
+// =====================================================
+// v0.7.79 — RFC-0060 Phase 2b: PolicyDecl + check_policies
+//
+// The governance rod's policy surface. Adopters declare intent
+// (`governance_declare_policy("no_unsafe")`) and downstream tooling
+// (`nuc gov policy`, custom audit scripts) reads back the declared
+// policies via the count/get pair.
+//
+// `governance_check_policies(source)` does a rod-level pre-flight
+// substring check that mirrors a subset of the compiler-side
+// `source_rule_check` pass (GOV-001 / GOV-002 + no_extern). This is
+// for adopters who want to validate a source string in-process
+// before calling `nuc build`; the canonical enforcement still runs
+// in the compiler tool-suite at build time.
+// =====================================================
+
+extern fn nuc_gov_register_policy(name: str, severity: str) -> i64;
+extern fn nuc_gov_policy_count() -> i64;
+extern fn nuc_gov_policy_name(idx: i64) -> str;
+extern fn nuc_gov_policy_severity(idx: i64) -> str;
+extern fn nuc_gov_policy_clear() -> i64;
+extern fn nuc_gov_check_source(source: str) -> i64;
+
+struct PolicyDecl {
+    name: str,
+    severity: str,
+}
+
+fn governance_policy(name: str) -> PolicyDecl {
+    return PolicyDecl { name: name, severity: "deny" };
+}
+
+fn governance_policy_full(name: str, severity: str) -> PolicyDecl {
+    return PolicyDecl { name: name, severity: severity };
+}
+
+fn governance_declare_policy(p: PolicyDecl) -> i64 {
+    return nuc_gov_register_policy(p.name, p.severity);
+}
+
+fn governance_policy_count() -> i64 {
+    return nuc_gov_policy_count();
+}
+
+fn governance_policy_get(idx: i64) -> PolicyDecl {
+    return PolicyDecl {
+        name:     nuc_gov_policy_name(idx),
+        severity: nuc_gov_policy_severity(idx),
+    };
+}
+
+fn governance_policy_clear() -> i64 {
+    return nuc_gov_policy_clear();
+}
+
+fn governance_check_policies(source: str) -> i64 {
+    return nuc_gov_check_source(source);
+}
+
+fn governance_policy_to_json(p: PolicyDecl) -> str {
+    let mut out: str = "{\"name\":\"";
+    out = str_concat(out, _gov_json_escape(p.name));
+    out = str_concat(out, "\",\"severity\":\"");
+    out = str_concat(out, _gov_json_escape(p.severity));
+    out = str_concat(out, "\"}");
+    return out;
+}
+
+fn governance_policy_all_to_json() -> str {
+    let n: i64 = governance_policy_count();
+    let mut out: str = "[";
+    let mut i: i64 = 0;
+    while i < n {
+        if i > 0 { out = str_concat(out, ","); };
+        out = str_concat(out, governance_policy_to_json(governance_policy_get(i)));
+        i = i + 1;
+    };
+    out = str_concat(out, "]");
+    return out;
+}

@@ -5,6 +5,58 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.79] — 2026-05-04
+
+**Combined ship — RFC-0060 Phase 2b (governance PolicyDecl +
+check_policies) + Rust `#[test]` attribute halt.**
+
+### RFC-0060 Phase 2b — governance rod policy surface
+
+The next governance-rod milestone per spine §1.5: `PolicyDecl`
+type, `governance_declare_policy()`, `governance_check_policies()`
+wired to a rod-level substring check that mirrors the
+compiler-side `source_rule_check` pass. Adopters can now declare
+governance intent in user-space code (`no_unsafe`,
+`require_authored`, `no_extern`) and pre-flight a source string
+in-process before calling `nuc build`.
+
+Surface added:
+- `PolicyDecl { name, severity }`
+- `governance_policy(name)` / `governance_policy_full(name, sev)`
+- `governance_declare_policy(p)` / `governance_policy_count()` /
+  `governance_policy_get(idx)` / `governance_policy_clear()`
+- `governance_check_policies(source) -> i64` (violation count)
+- `governance_policy_to_json` / `governance_policy_all_to_json`
+
+Runtime: `stdlib/runtime/governance_rt.c` extended with
+`nuc_gov_register_policy` + `nuc_gov_policy_*` getters +
+`nuc_gov_check_source` substring scanner (no_unsafe,
+require_authored, no_extern).
+
+The compiler-side enforcement at `source_rule_check` (GOV-001 /
+GOV-002 in `compiler/nucleor_tools_suite.nr`) is unchanged — this
+ship adds the **rod-level metadata + pre-flight surface**, which
+is the explicit Phase 2b scope.
+
+Smoke fixture: `tests/fixtures/v0779_rfc0060_policy_phase2b_smoke.nr`
+(declares 3 policies, validates count/get/severity, runs
+`check_policies` against clean + dirty source strings, validates
+clear; rc=0).
+
+### Defensive halt — Rust `#[test]` attribute on fn
+
+Pre-fix `#[test] fn test_basic() { ... }` silently dropped the
+attribute at lex, the fn parsed as a regular fn, DCE elided
+un-called test fns, and adopters silently lost their entire test
+suite without any diagnostic. Now halts cleanly at lex with a
+workaround pointer (call tests from `main` or move them to
+`tests/fixtures/*.nr` and use the `verify.ps1` harness).
+
+Sister to v0.7.18 `#[inline]` / `#[cold]` attribute halts (same
+attribute-silent-drop family).
+
+Halt fixture: `tests/fixtures/v0779_test_attr_halt.nr`.
+
 ## [0.7.78] — 2026-05-04
 
 **Combined ship — RFC-0061 Tier 1 partial (graph remediation
