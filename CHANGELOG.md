@@ -5,6 +5,54 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.39] — 2026-05-04
+
+**Defensive halt — pattern-destructure in fn parameter
+(`fn h((a, b): (i64, i64))`, `fn h(P { x, y }: P)`) now produces a
+clean halt with a single-name + body-destructure workaround
+pointer.**
+
+Pre-fix: writing `fn h((a, b): (i64, i64)) -> i64 { ... }` surfaced
+as wrong-class `error[NR020]: parse error: expected ':', got
+identifier` because the param-list parser tried to read `(` (token
+50) or `{` (52) as the binding name. Sister to v0.6.59
+tuple-destructure-in-for-head halt.
+
+Post-fix: `parse_fn_decl`'s param loop checks for `(` (token 50)
+or `{` (token 52) at the binding position and halts cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+fn h((a, b): (i64, i64)) -> i64 { return a + b; }   // ← NR020
+
+// Post-fix workaround — bind single name + body destructure:
+fn h(p: (i64, i64)) -> i64 {
+    let a: i64 = p.0;
+    let b: i64 = p.1;
+    return a + b;
+}
+
+fn h_struct(p: P) -> i64 {
+    let x: i64 = p.x;
+    let y: i64 = p.y;
+    return x + y;
+}
+```
+
+Forward-roadmap: full pattern-in-param lowering arrives with v1
+pattern-binding work (sister to tuple-destructure-in-let / for-head
+gaps).
+
+### Fixture
+
+`tests/fixtures/v0739_pattern_in_param_halt.nr` — negative fixture
+for `fn h((a, b): (i64, i64))` (fires clean halt with body-
+destructure workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `73d3ed6c1b44489a71396b28079abbe0`.
+
 ## [0.7.38] — 2026-05-04
 
 **Defensive halt — default-value fn parameter `fn f(n: i64 = 1)`
