@@ -18215,6 +18215,21 @@ fn run_registry_command(argc: i64) -> i64 {
         print("  (remote fetch ships in T1.4b once the TLS rod lands per RFC-0019 §6.3)");
         return 0;
     };
+    // v0.8.56 PKG-4 Phase 1: detect `nuc registry remote ...`
+    // and emit a clear diagnostic instead of falling through to
+    // the generic Usage. RFC-0019 §5.4 documents `remote add /
+    // list / remove` but `run_registry_command` has no `remote`
+    // branch — pre-fix users hitting this saw the generic Usage
+    // line which doesn't include `remote`, leaving them confused
+    // about whether the command exists.
+    if str_eq(subcmd, "remote") == 1 {
+        print("error[PKG-4]: `nuc registry remote` is documented (RFC-0019 §5.4) but not yet implemented.");
+        print("  Per RFC sister gap PKG-4 (Module/Packaging): `nuc registry remote add / list / remove` — the consumer-side commands for pulling published packages from a remote registry — are documented but `run_registry_command` has no `remote` branch. Single blocker on community consumption of published packages (cf. PKG-1, fixed v0.8.51, which addressed the producer side `nuc publish --sign`).");
+        print("  Phase 2b plan: implement `remote add <name> <url>`, `remote list`, `remote remove <name>` — backed by `~/.nucleor/remotes.json` config + TLS fetch (per RFC-0019 §6.3 once the TLS rod lands).");
+        print("  Workaround today: `git clone` the remote registry's gh-pages branch into a local directory and point `--registry <local-path>`.");
+        print("  Reference: docs/rfcs/gap-analyses/Nucleor_Module_Packaging_Gap_Analysis_and_RFC_2026-05-04.md PKG-4.");
+        return 2;
+    };
     print("Usage: nuc registry [list|search <query>|versions <package>|verify <package|package@version>|export-static <out_dir>] [--registry <dir>]");
     return 1;
 }
