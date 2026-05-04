@@ -3228,6 +3228,20 @@ fn parse_for_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         print("ERROR: tuple-destructuring patterns in `for` loop heads (e.g. `for (k, v) in &map { ... }`) are not yet supported in Nucleor. Pre-v0.6.59 the parser rejected with `error[NR020]: parse error ... expected token 57, got identifier` — wrong-class. Workaround: bind a single name and destructure in the body — `for kv in &map { let k: KT = kv.0; let v: VT = kv.1; ... }`. Tracked for forward-roadmap (full tuple-pattern in for-head).");
         panic("nucleor: tuple-destructuring in `for` head not yet supported (see ERROR diagnostic above)");
     };
+    // v0.7.27 (defensive halt — Rust ref-pattern in for-loop binding
+    // position: `for &x in &v { ... }`, `for &mut x in &mut v { ... }`).
+    // Pre-fix this surfaced as wrong-class `error[NR020]: parse error:
+    // expected token 57 (`in`), got identifier` because parse_for_stmt
+    // tried to read `&` as the binding name. Workaround: drop the `&`
+    // — Nucleor's i64-everywhere ABI passes everything by value, so
+    // `for x in &v` already binds the same observable shape.
+    if pk(tokens, pos) == 82 {
+        let mut ref_form_v727: str = "&";
+        if pk(tokens, pos + 1) == 12 { ref_form_v727 = "&mut "; };
+        print(str_concat("ERROR: ref-pattern `", str_concat(ref_form_v727, str_concat("<binding>` in a `for` loop binding position (e.g. `for ", str_concat(ref_form_v727, "x in &v { ... }`) is not yet supported in Nucleor. Pre-v0.7.27 surfaced as wrong-class `error[NR020]: expected token 57 (in), got identifier` because parse_for_stmt tried to read `&` as the binding name.")))));
+        print(str_concat("       Workaround: drop the `", str_concat(ref_form_v727, "` — Nucleor's i64-everywhere ABI passes everything by value, so `for x in &v { ... }` already binds the same observable shape. Tracked for forward-roadmap (ref-pattern in for-head arrives with v1 borrow-checker).")));
+        panic(str_concat("nucleor: ref-pattern `", str_concat(ref_form_v727, "<binding>` in `for` head not yet supported (see ERROR diagnostic above)")));
+    };
     let name: i64 = pkv(tokens, pos);
     let mut cp: i64 = expect_tok(tokens, pos + 1, 57); // expect 'in'
     let mut sr: Vec<i32> = parse_expr(tokens, cp, pool);
