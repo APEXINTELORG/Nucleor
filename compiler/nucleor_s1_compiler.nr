@@ -2136,6 +2136,22 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 1 && str_eq(pkv(tokens, pos), "unsafe") == 1 && pk(tokens, pos + 1) == 52 {
         return parse_passthrough_block_expr(tokens, pos + 1, pool);
     };
+    // v0.7.74 (defensive halt — Rust experimental `try { ... }` block
+    // expression, used to wrap fallible computation and yield a
+    // `Result<T, E>` with `?` short-circuiting). Pre-fix `try` lexed
+    // as an identifier and the `{ ... }` that followed parsed as
+    // some other production, with the surface treating `try` as a
+    // fn name and downstream emit producing a clang-link wrong-class
+    // `error[TYP-005]: undefined function 'try()'`. Halt cleanly at
+    // parse_primary when we see `try` immediately followed by `{`.
+    // Sister to the `unsafe { ... }` / `wrapping { ... }` /
+    // `saturating { ... }` block-expr branches just below; same
+    // ident-then-`{` lookahead shape, but no semantic substrate yet
+    // for the Result-wrapping rewrite.
+    if tt == 1 && str_eq(pkv(tokens, pos), "try") == 1 && pk(tokens, pos + 1) == 52 {
+        print("ERROR: `try { ... }` block expressions (Rust experimental Result-wrapping form) are not yet supported in Nucleor. Pre-v0.7.74 the `try` ident lexed normally and the `{ ... }` parsed as a stray block, so the surface treated `try` as a fn call and clang link failed wrong-class with `error[TYP-005]: undefined function 'try()'`. Workaround: write the explicit Result construction manually — `let r: Result<T, E> = { let v = compute()?; Ok(v) };` — or match each fallible call directly. Tracked for forward-roadmap (try-block desugar lands when the v1 effects-as-types substrate ships, alongside the existing `?` operator).");
+        panic("nucleor: `try { ... }` block expr not yet supported (see ERROR diagnostic above)");
+    };
     // v0.4.102: `wrapping { ... }` block form. Default i32/i64 arithmetic
     // already two's-complement-wraps under the i64 ABI (probe verified:
     // 2147483647 + 1 i32 = -2147483648; 100000 * 100000 i32 = 1410065408),
