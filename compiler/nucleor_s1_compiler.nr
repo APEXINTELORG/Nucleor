@@ -22614,7 +22614,20 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 || str_eq(mname, "wrapping_mul") == 1
                                 || str_eq(mname, "saturating_add") == 1
                                 || str_eq(mname, "saturating_sub") == 1
-                                || str_eq(mname, "saturating_mul") == 1 { 1 } else { 0 };
+                                || str_eq(mname, "saturating_mul") == 1
+                                || str_eq(mname, "is_alphabetic") == 1
+                                || str_eq(mname, "is_numeric") == 1
+                                || str_eq(mname, "is_alphanumeric") == 1
+                                || str_eq(mname, "is_ascii") == 1
+                                || str_eq(mname, "is_whitespace") == 1
+                                || str_eq(mname, "is_lowercase") == 1
+                                || str_eq(mname, "is_uppercase") == 1
+                                || str_eq(mname, "is_digit") == 1
+                                || str_eq(mname, "to_ascii_uppercase") == 1
+                                || str_eq(mname, "to_ascii_lowercase") == 1
+                                || str_eq(mname, "to_lowercase") == 1
+                                || str_eq(mname, "to_uppercase") == 1
+                                || str_eq(mname, "to_digit") == 1 { 1 } else { 0 };
                             if v082_idiom == 1 {
                                 let v082_workaround: str = if str_eq(mname, "into") == 1 {
                                     "no v0.6 conversion path; the From/Into trait family is not yet shipped — use an explicit named conversion fn (e.g. `i64_to_str(x)` for numeric→str)"
@@ -22648,6 +22661,28 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                     "bare `+` / `-` / `*` already wrap by default (when `NUCLEOR_INT_STRICT_ARITH` is unset). Drop the `.wrapping_*()` call"
                                 } else if str_eq(mname, "saturating_add") == 1 || str_eq(mname, "saturating_sub") == 1 || str_eq(mname, "saturating_mul") == 1 {
                                     "implement manually — `let r: i64 = if a > i64::MAX - b { i64::MAX } else { a + b };`"
+                                } else if str_eq(mname, "is_alphabetic") == 1 {
+                                    "compare codepoint ranges — `let r: bool = (c >= 65 && c <= 90) || (c >= 97 && c <= 122);` (ASCII A-Z, a-z)"
+                                } else if str_eq(mname, "is_numeric") == 1 || str_eq(mname, "is_digit") == 1 {
+                                    "compare codepoint range — `let r: bool = c >= 48 && c <= 57;` (ASCII 0-9)"
+                                } else if str_eq(mname, "is_alphanumeric") == 1 {
+                                    "combine alphabetic + numeric checks — `let r: bool = (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122);`"
+                                } else if str_eq(mname, "is_ascii") == 1 {
+                                    "compare codepoint range — `let r: bool = c >= 0 && c <= 127;`"
+                                } else if str_eq(mname, "is_whitespace") == 1 {
+                                    "match common whitespace codepoints — `let r: bool = c == 32 || c == 9 || c == 10 || c == 13;` (space, tab, newline, CR)"
+                                } else if str_eq(mname, "is_lowercase") == 1 {
+                                    "compare ASCII codepoint range — `let r: bool = c >= 97 && c <= 122;` (a-z)"
+                                } else if str_eq(mname, "is_uppercase") == 1 {
+                                    "compare ASCII codepoint range — `let r: bool = c >= 65 && c <= 90;` (A-Z)"
+                                } else if str_eq(mname, "to_ascii_uppercase") == 1 {
+                                    "subtract 32 if lowercase — `let u: i64 = if c >= 97 && c <= 122 { c - 32 } else { c };`"
+                                } else if str_eq(mname, "to_ascii_lowercase") == 1 {
+                                    "add 32 if uppercase — `let l: i64 = if c >= 65 && c <= 90 { c + 32 } else { c };`"
+                                } else if str_eq(mname, "to_lowercase") == 1 || str_eq(mname, "to_uppercase") == 1 {
+                                    "the iterator-returning Unicode forms aren't supported. Use the ASCII forms `.to_ascii_lowercase()` / `.to_ascii_uppercase()` (now also halted with workarounds), or compare codepoint ranges manually"
+                                } else if str_eq(mname, "to_digit") == 1 {
+                                    "subtract '0' codepoint — `let d: i64 = if c >= 48 && c <= 57 { c - 48 } else { -1 };` for radix-10. For other radixes add a-f / A-F branches"
                                 } else {
                                     "use a `while i < vec_len(&v) { let item: T = vec_get(&v, i); ...; i = i + 1; }` loop with index-based access — Nucleor doesn't auto-derive iterator interior mutability today"
                                 };

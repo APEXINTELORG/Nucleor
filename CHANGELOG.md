@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.31] — 2026-05-04
+
+**Defensive halt — Rust char-classification methods (`.is_alphabetic`,
+`.is_numeric`, `.is_alphanumeric`, `.is_ascii`, `.is_whitespace`,
+`.is_lowercase`, `.is_uppercase`, `.is_digit`, `.to_ascii_uppercase`,
+`.to_ascii_lowercase`, `.to_lowercase`, `.to_uppercase`, `.to_digit`)
+now route to the v0.6.82 idiom-list halt with codepoint-range
+workarounds.**
+
+Pre-fix: writing `let b: bool = c.is_alphabetic();` surfaced as
+wrong-class `error[TYP-005]: receiver type 'Vec<T>' has no method
+'.is_alphabetic()'` — same kind-8 catch-all bug as v0.7.30
+integer-method idioms. Adopters porting Rust char code got pointed
+at the Vec method-table.
+
+Post-fix: 13 Rust char methods added to the v0.6.82 idiom-list
+halt with per-method codepoint-range workarounds:
+
+```nucleor
+// Pre-fix wrong-class:
+let b: bool = c.is_alphabetic();
+let l: char = c.to_ascii_lowercase();
+
+// Post-fix workarounds — codepoint ranges:
+let b: bool = (c >= 65 && c <= 90) || (c >= 97 && c <= 122);   // .is_alphabetic
+let l: i64 = if c >= 65 && c <= 90 { c + 32 } else { c };       // .to_ascii_lowercase
+let d: bool = c >= 48 && c <= 57;                               // .is_digit / .is_numeric
+let w: bool = c == 32 || c == 9 || c == 10 || c == 13;          // .is_whitespace
+```
+
+Forward-roadmap: a Nucleor `char` type with method-table dispatch
+is tracked for v1.x (until then chars are integer-equivalent and
+codepoint-range comparisons are the canonical form).
+
+### Fixture
+
+`tests/fixtures/v0731_char_method_halt.nr` — negative fixture for
+`c.is_alphabetic()` (fires v0.6.82 idiom halt with codepoint-range
+workaround, not the Vec<T>-method-table TYP-005).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `fe49b5fa3edff1c5bb0577652f08cdda`.
+
 ## [0.7.30] — 2026-05-04
 
 **Defensive halt — Rust integer-intrinsic methods (`.abs()`, `.pow()`,
