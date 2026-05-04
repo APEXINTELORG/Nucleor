@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.89] — 2026-05-04
+
+**Punchlist forward — RFC-0050 Phase A: per-fn energy + thermal
+budget metadata registry (rod-only).**
+
+The full RFC-0050 ship parses `@energy(max=2mJ)` and
+`@thermal(max_temp=70C)` attributes at lex time, stores them as
+fn metadata, and emits `__nucleor_meta_energy_<fn>` /
+`__nucleor_meta_thermal_<fn>` symbols for `nuc perf` to read
+(~150 LOC parser-side). Phase A (this rod) provides a runtime
+registry surface adopters can call from their fn bodies to
+declare budgets programmatically, ahead of the lex-time
+attribute syntax.
+
+Sister to RFC-0046 / RFC-0047 / RFC-0048 / RFC-0049 Phase A —
+fifth V2-frontier easy-win lane to land its stdlib-first
+surface this session.
+
+Surface added:
+- 6 energy unit IDs: `energy_unit_pJ` / `_nJ` / `_uJ` / `_mJ` /
+  `_J` / `_kJ` (1..6) + `energy_unit_name(id) -> str`.
+- 3 thermal unit IDs: `thermal_unit_K` / `_C` / `_F` (10..12)
+  + `thermal_unit_name(id) -> str`.
+- `energy_budget_declare(fn_name, unit_id, value) -> i64`,
+  `_count`, `_get_name`, `_get_unit`, `_get_value`, `_clear`.
+- `thermal_budget_declare(fn_name, unit_id, max_value) -> i64`,
+  `thermal_budget_declare_range(..., min_value)`, `_count`,
+  `_get_name`, `_get_unit`, `_get_max`, `_get_min`, `_clear`.
+
+Runtime: `stdlib/runtime/energy_budget_rt.c` provides a
+process-local registry (max 256 entries per kind) — same pattern
+as the v0.7.79 governance-rod policy registry. No analysis
+happens at the rod level; Phase B parser-level attribute support
++ call-graph energy estimator land separately per the RFC's V2.5
+advisory scope.
+
+Smoke fixture: `tests/fixtures/v0789_rfc0050_energy_budget_smoke.nr`
+(declares 3 energy budgets at 3 unit scales + 2 thermal budgets
+including one automotive-grade range; reads back via getter
+surface; validates unit-name lookup; clears registry; rc=0).
+
+No new defensive halt this ship — probed `concat!`,
+`stringify!`, `env!`, match on bool method, lambda with `-> i64`
+return type, inner fn, `Self` return-type. All either already
+halted or correctly handled.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.7.88] — 2026-05-04
 
 **Combined ship — RFC-0048 Phase A (hardware capability queries) +
