@@ -1,0 +1,255 @@
+// rods/logical_qubit — RFC-0054 Phase A: logical-qubit +
+// pulse-level surface (rod-only).
+//
+// Nucleor's gate-level `quantum` rod ships statevector + Clifford
+// + MPS; this rod adds the next-frontier surface RFC-0054 calls
+// for: a typed distinction between logical and physical qubits,
+// pulse-level schedules, and calibration-data types.
+//
+// The full RFC-0054 ship adds language-level
+// `LogicalQubit<Code, distance>` + `@within(<duration>)` timing
+// attribute + QIR/OpenQASM interop + decoder dispatch (~600 LOC
+// compiler + ~1200 LOC stdlib + per-backend calibration parsers).
+// Phase A (this rod) lands the canonical type surface + QEC code
+// tags + waveform shapes + pulse / schedule / calibration data
+// structures + a logical-qubit registry adopters can use today.
+//
+// Sister to RFC-0052 photonic + RFC-0053 neuromorphic Phase A.
+// Hardware dispatch (IBM Q Pulse, IonQ, Quantinuum) and full
+// surface-code decoders are the v2.x post-Phase-B ship.
+//
+// Workflow today:
+//
+//   import "stdlib/rods/logical_qubit.nr"
+//
+//   let lq: LogicalQubit = logical_qubit_new(qec_code_surface(), 7);
+//   let pulse: Pulse = pulse(20, 1, 0, waveform_gaussian());
+//   let sched: Schedule = schedule_new();
+//   schedule_push(sched, pulse, 0);
+//   let calib: CalibrationData = calibration_new("ibm_kyiv");
+//   calibration_set_t1(calib, 0, 95);
+
+#cfile "../runtime/logical_qubit_rt.c"
+
+extern fn nuc_lq_register(code_id: i64, distance: i64) -> i64;
+extern fn nuc_lq_count() -> i64;
+extern fn nuc_lq_code(handle: i64) -> i64;
+extern fn nuc_lq_distance(handle: i64) -> i64;
+extern fn nuc_lq_clear() -> i64;
+
+// =====================================================
+// QEC code tags (stable IDs).
+// =====================================================
+fn qec_code_surface() -> i64 { return 1; }
+fn qec_code_toric()   -> i64 { return 2; }
+fn qec_code_color()   -> i64 { return 3; }
+fn qec_code_steane()  -> i64 { return 4; }
+fn qec_code_shor()    -> i64 { return 5; }
+fn qec_code_unknown() -> i64 { return 0; }
+
+fn qec_code_name(id: i64) -> str {
+    if id == 1 { return "SurfaceCode"; };
+    if id == 2 { return "ToricCode"; };
+    if id == 3 { return "ColorCode"; };
+    if id == 4 { return "SteaneCode"; };
+    if id == 5 { return "ShorCode"; };
+    return "Unknown";
+}
+
+// Physical-qubits-per-logical for a distance-d code. These are
+// the canonical bounds; real backends differ on auxiliaries.
+fn qec_physical_qubits(code_id: i64, distance: i64) -> i64 {
+    if code_id == 1 { return distance * distance + (distance * distance - 1); };  // surface code: d^2 data + d^2-1 syndrome
+    if code_id == 2 { return 2 * distance * distance; };                          // toric code
+    if code_id == 3 { return distance * distance; };                              // color code (approx)
+    if code_id == 4 { return 7; };                                                // Steane is fixed [[7,1,3]]
+    if code_id == 5 { return 9; };                                                // Shor is fixed [[9,1,3]]
+    return 0;
+}
+
+// =====================================================
+// LogicalQubit + PhysicalQubit structs.
+// =====================================================
+struct LogicalQubit {
+    code: i64,
+    distance: i64,
+    handle: i64,
+}
+
+struct PhysicalQubit {
+    handle: i64,
+}
+
+fn logical_qubit_new(code_id: i64, distance: i64) -> LogicalQubit {
+    let h: i64 = nuc_lq_register(code_id, distance);
+    return LogicalQubit { code: code_id, distance: distance, handle: h };
+}
+
+fn logical_qubit_code(lq: LogicalQubit) -> i64 { return lq.code; }
+fn logical_qubit_distance(lq: LogicalQubit) -> i64 { return lq.distance; }
+fn logical_qubit_handle(lq: LogicalQubit) -> i64 { return lq.handle; }
+
+fn logical_qubit_count() -> i64 { return nuc_lq_count(); }
+fn logical_qubit_clear() -> i64 { return nuc_lq_clear(); }
+
+fn physical_qubit(handle: i64) -> PhysicalQubit {
+    return PhysicalQubit { handle: handle };
+}
+
+// =====================================================
+// Waveform shape tags (stable IDs).
+// =====================================================
+fn waveform_gaussian()   -> i64 { return 1; }
+fn waveform_square()     -> i64 { return 2; }
+fn waveform_drag()       -> i64 { return 3; }
+fn waveform_cosine_tip() -> i64 { return 4; }
+fn waveform_unknown()    -> i64 { return 0; }
+
+fn waveform_name(id: i64) -> str {
+    if id == 1 { return "Gaussian"; };
+    if id == 2 { return "Square"; };
+    if id == 3 { return "DRAG"; };
+    if id == 4 { return "CosineTip"; };
+    return "Unknown";
+}
+
+// =====================================================
+// Pulse + Schedule.
+// amplitude_q1616 / phase_q1616: Q1.16 fixed-point.
+// =====================================================
+struct Pulse {
+    duration_ns: i64,
+    amplitude_q1616: i64,
+    phase_q1616: i64,
+    waveform: i64,
+}
+
+fn pulse(duration_ns: i64, amp_q1616: i64, phase_q1616: i64, waveform_id: i64) -> Pulse {
+    return Pulse {
+        duration_ns: duration_ns,
+        amplitude_q1616: amp_q1616,
+        phase_q1616: phase_q1616,
+        waveform: waveform_id,
+    };
+}
+
+fn pulse_duration(p: Pulse) -> i64 { return p.duration_ns; }
+fn pulse_amplitude(p: Pulse) -> i64 { return p.amplitude_q1616; }
+fn pulse_waveform(p: Pulse) -> i64 { return p.waveform; }
+
+struct Schedule {
+    durations: Vec<i64>,
+    amplitudes: Vec<i64>,
+    phases: Vec<i64>,
+    waveforms: Vec<i64>,
+    qubits: Vec<i64>,
+    starts_ns: Vec<i64>,
+}
+
+fn schedule_new() -> Schedule {
+    let d: Vec<i64> = Vec::new();
+    let a: Vec<i64> = Vec::new();
+    let p: Vec<i64> = Vec::new();
+    let w: Vec<i64> = Vec::new();
+    let q: Vec<i64> = Vec::new();
+    let s: Vec<i64> = Vec::new();
+    return Schedule { durations: d, amplitudes: a, phases: p, waveforms: w, qubits: q, starts_ns: s };
+}
+
+fn schedule_push(sched: Schedule, p: Pulse, qubit_id: i64) -> i64 {
+    let next_start: i64 = if vec_len(sched.starts_ns) > 0 {
+        let last_idx: i64 = vec_len(sched.starts_ns) - 1;
+        vec_get(sched.starts_ns, last_idx) + vec_get(sched.durations, last_idx)
+    } else {
+        0
+    };
+    sched.durations.push(p.duration_ns);
+    sched.amplitudes.push(p.amplitude_q1616);
+    sched.phases.push(p.phase_q1616);
+    sched.waveforms.push(p.waveform);
+    sched.qubits.push(qubit_id);
+    sched.starts_ns.push(next_start);
+    return 0;
+}
+
+fn schedule_count(sched: Schedule) -> i64 { return vec_len(sched.durations); }
+
+fn schedule_total_duration(sched: Schedule) -> i64 {
+    let n: i64 = vec_len(sched.durations);
+    if n == 0 { return 0; };
+    let last_idx: i64 = n - 1;
+    return vec_get(sched.starts_ns, last_idx) + vec_get(sched.durations, last_idx);
+}
+
+fn schedule_pulse_at(sched: Schedule, idx: i64) -> Pulse {
+    return Pulse {
+        duration_ns: vec_get(sched.durations, idx),
+        amplitude_q1616: vec_get(sched.amplitudes, idx),
+        phase_q1616: vec_get(sched.phases, idx),
+        waveform: vec_get(sched.waveforms, idx),
+    };
+}
+
+fn schedule_qubit_at(sched: Schedule, idx: i64) -> i64 { return vec_get(sched.qubits, idx); }
+fn schedule_start_at(sched: Schedule, idx: i64) -> i64 { return vec_get(sched.starts_ns, idx); }
+
+// =====================================================
+// CalibrationData — backend gate fidelities + T1 / T2
+// coherence times. Q1.16 micrcoseconds for coherence
+// times to keep everything in i64.
+// =====================================================
+struct CalibrationData {
+    backend: str,
+    gate_names: Vec<str>,
+    gate_fidelities_q1616: Vec<i64>,
+    t1_us_q1616: Vec<i64>,
+    t2_us_q1616: Vec<i64>,
+}
+
+fn calibration_new(backend: str) -> CalibrationData {
+    let gn: Vec<str> = Vec::new();
+    let gf: Vec<i64> = Vec::new();
+    let t1: Vec<i64> = Vec::new();
+    let t2: Vec<i64> = Vec::new();
+    return CalibrationData {
+        backend: backend,
+        gate_names: gn,
+        gate_fidelities_q1616: gf,
+        t1_us_q1616: t1,
+        t2_us_q1616: t2,
+    };
+}
+
+fn calibration_backend(c: CalibrationData) -> str { return c.backend; }
+
+fn calibration_set_gate_fidelity(c: CalibrationData, gate: str, fidelity_q1616: i64) -> i64 {
+    c.gate_names.push(gate);
+    c.gate_fidelities_q1616.push(fidelity_q1616);
+    return 0;
+}
+
+fn calibration_gate_count(c: CalibrationData) -> i64 { return vec_len(c.gate_names); }
+
+fn calibration_set_t1(c: CalibrationData, qubit_id: i64, us_int: i64) -> i64 {
+    while vec_len(c.t1_us_q1616) <= qubit_id { c.t1_us_q1616.push(0); };
+    vec_set(c.t1_us_q1616, qubit_id, us_int * 65536);
+    return 0;
+}
+
+fn calibration_set_t2(c: CalibrationData, qubit_id: i64, us_int: i64) -> i64 {
+    while vec_len(c.t2_us_q1616) <= qubit_id { c.t2_us_q1616.push(0); };
+    vec_set(c.t2_us_q1616, qubit_id, us_int * 65536);
+    return 0;
+}
+
+fn calibration_t1_q1616(c: CalibrationData, qubit_id: i64) -> i64 {
+    if qubit_id < 0 { return 0; };
+    if vec_len(c.t1_us_q1616) <= qubit_id { return 0; };
+    return vec_get(c.t1_us_q1616, qubit_id);
+}
+
+fn calibration_t2_q1616(c: CalibrationData, qubit_id: i64) -> i64 {
+    if qubit_id < 0 { return 0; };
+    if vec_len(c.t2_us_q1616) <= qubit_id { return 0; };
+    return vec_get(c.t2_us_q1616, qubit_id);
+}

@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.97] — 2026-05-04
+
+**Punchlist forward — RFC-0054 Phase A: logical-qubit +
+pulse-level type surface (rod-only).**
+
+The full RFC-0054 ship adds language-level
+`LogicalQubit<Code, distance>` + `@within(<duration>)` timing
+attribute + QIR/OpenQASM interop + decoder dispatch (~600 LOC
+compiler + ~1200 LOC stdlib + per-backend calibration parsers).
+Phase A (this rod + runtime) lands the canonical type surface +
+QEC code tags + waveform shapes + pulse / schedule /
+calibration data structures.
+
+Sister to RFC-0052 photonic + RFC-0053 neuromorphic Phase A.
+Hardware dispatch (IBM Q Pulse, IonQ, Quantinuum) and full
+surface-code decoders are the v2.x post-Phase-B ship. Nucleor's
+existing `quantum` rod (statevector + Clifford + MPS) is
+unchanged — RFC-0054 extends adjacent to it.
+
+### Surface added in `stdlib/rods/logical_qubit.nr`
+
+- 6 QEC code tags: `qec_code_{surface, toric, color, steane,
+  shor, unknown}` (1..5 + 0) + `qec_code_name(id) -> str` +
+  `qec_physical_qubits(code_id, distance)` (canonical bounds:
+  surface = d² + d²−1; toric = 2d²; Steane = 7; Shor = 9).
+- 5 waveform shape tags: `waveform_{gaussian, square, drag,
+  cosine_tip, unknown}` (1..4 + 0) + `waveform_name`.
+- `LogicalQubit { code, distance, handle }` +
+  `logical_qubit_new` / `_code` / `_distance` / `_handle` /
+  `_count` / `_clear`.
+- `PhysicalQubit { handle }` constructor.
+- `Pulse { duration_ns, amplitude_q1616, phase_q1616, waveform }`
+  + accessors.
+- `Schedule` (SoA across `durations`, `amplitudes`, `phases`,
+  `waveforms`, `qubits`, `starts_ns`) + `schedule_new`,
+  `_push(p, qubit_id)` (auto-computes start time as sum of
+  prior durations), `_count`, `_total_duration`,
+  `_pulse_at(idx)`, `_qubit_at(idx)`, `_start_at(idx)`.
+- `CalibrationData { backend, gate_names, gate_fidelities_q1616,
+  t1_us_q1616, t2_us_q1616 }` + `calibration_new(backend)`,
+  `_backend`, `_set_gate_fidelity`, `_gate_count`, `_set_t1`,
+  `_set_t2`, `_t1_q1616`, `_t2_q1616`.
+
+### Runtime: `stdlib/runtime/logical_qubit_rt.c`
+
+Process-local registry (max 256 logical qubits), tracks
+code_id + distance per handle. Phase B promotes to per-code
+decoder dispatch + physical-qubit resource allocation.
+
+### Smoke fixture
+
+`tests/fixtures/v0797_rfc0054_logical_qubit_smoke.nr` —
+exercises QEC code tags + physical-qubit formula, two
+LogicalQubits (surface d=7 + Steane d=3), a 3-pulse Schedule
+with computed start times (0/20/55, total 70 ns), and a
+CalibrationData populated for `ibm_kyiv` with two gate
+fidelities + T1/T2 on qubits 0+1. rc=0.
+
+No new defensive halt this ship — RFC-0054 forward progress is
+the priority. Cron may concurrently ship halts.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.7.96] — 2026-05-04
 
 **Punchlist forward — RFC-0053 Phase A: neuromorphic /
