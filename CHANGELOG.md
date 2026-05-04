@@ -5,6 +5,87 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.104] — 2026-05-04
+
+**stdlib/rods/csv.nr first test coverage + pre-existing parser
+bug surfaced and documented.** Pure fixture, no stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `csv.nr` (CSV
+parser/formatter) had no existing tests.
+
+### Pre-existing bug surfaced (third such finding this session)
+
+Initial fixture exercising textbook parsing of `"alpha,beta,gamma"`
+expected 3 fields. Actual: **4 fields**, with an empty trailing
+entry.
+
+Root cause inspection of `csv_parse_line`:
+
+```nucleor
+while pos <= slen {
+    let parsed: Vec<i32> = csv_parse_field(line, pos);
+    fields.push(parsed.get(0));
+    let new_pos: i64 = parsed.get(1);
+    if new_pos == pos && pos >= slen { break; };
+    ...
+}
+```
+
+The loop is `while pos <= slen` (not `<`), and `csv_parse_field`
+returns `""` when `pos >= slen`. After consuming the last
+real field, the loop runs once more, pushes an empty, then
+breaks via the `new_pos == pos && pos >= slen` guard. **Every**
+non-comma-terminated line gets an extra trailing empty.
+
+This is a real silent-miscompute for adopter code that uses
+`vec_len(parsed)` to validate row width — every row appears
+malformed. Or worse, adopter code processes the empty 4th
+column as a real column.
+
+### Decision
+
+Ship the fixture LOCKING current (buggy) behavior, document
+the bug clearly in the fixture header, queue the actual fix
+for a separate cycle. This is the same pattern as v0.8.96's
+mktime/gmtime asymmetry — fixtures document pre-existing
+behavior so future refactors that "fix" it without intent get
+caught, AND the fix ship has a clear "expected output changes
+HERE" landmark.
+
+When the fix lands, the fixture's expected `vec_len == 4`
+becomes `vec_len == 3` atomically with the parse_line edit.
+
+### What's locked
+
+| Test | Behavior |
+|---|---|
+| parse simple (DOCUMENTS BUG) | `parse_line("alpha,beta,gamma")` → `["alpha", "beta", "gamma", ""]` (4 entries with trailing empty) |
+| escape plain | `csv_escape("plain") == "plain"` (no change) |
+| escape with comma | `csv_escape("a,b") == "\"a,b\""` |
+| escape with quote | `csv_escape("a\"b") == "\"a\"\"b\""` |
+
+All four pass. rc=0. Cold 0.58s.
+
+### Pre-existing bug session count (third this session)
+
+- **v0.8.79**: Windows-PE link hang on rebuilt `seed.ll`
+- **v0.8.96**: `mktime` (local time) vs `gmtime` (UTC) asymmetry
+  in `dt_from_ymd` / `dt_to_ymd`
+- **v0.8.104**: `csv_parse_line` trailing-empty bug
+
+In every case, the fixture-only ship surfaced the bug just by
+exercising textbook invariants. The pattern is working — and
+the explicit "lock current behavior + document" approach
+preserves the discovery without bundling it with a risky fix.
+
+Other zero-coverage rods queued: autodiff / bm25 / bspline /
+cli / collections / compress / control / crypto / fluid / fmt /
+fs / image / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.103] — 2026-05-04
 
 **stdlib/rods/ini.nr first test coverage.** Pure fixture, no
