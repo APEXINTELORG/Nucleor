@@ -26178,6 +26178,20 @@ fn rewrite_use_path(line: str, lp: i64, prefix_len: i64, eol: i64) -> str {
         if is_alnum(pc) == 1 || pc == 58 { path_end = path_end + 1; }
         else { break; };
     };
+    let mut tail_v718: i64 = path_end;
+    while tail_v718 < eol && str_char_at(line, tail_v718) == 32 { tail_v718 = tail_v718 + 1; };
+    if tail_v718 + 2 <= eol && str_eq_at(line, tail_v718, "as") == 1 {
+        print("ERROR: `use path as Alias` import aliases are not yet supported in Nucleor. Pre-v0.7.18 the import resolver silently ignored the alias tail after rewriting the path, so adopter code could believe `Alias` was bound when only the original flattened module symbols were imported. Workaround: import the module path directly and call the existing exported names, or use `import \"...\"` for the current flat namespace model. Tracked for RFC-0018 resolver phase 2.");
+        panic("nucleor: `use ... as ...` aliases not yet supported (see ERROR diagnostic above)");
+    };
+    if tail_v718 < eol && str_char_at(line, tail_v718) == 42 {
+        print("ERROR: glob imports `use path::*` are not yet supported in Nucleor. Pre-v0.7.18 the import resolver stopped before `*`, built the wrong rewritten path, and the build could continue without importing the requested names. Workaround: import the module path directly with `use std::foo` / `import \"...\"` and use the current flat exported names. Tracked for RFC-0018 resolver phase 2.");
+        panic("nucleor: `use ...::*` glob import not yet supported (see ERROR diagnostic above)");
+    };
+    if tail_v718 < eol && str_char_at(line, tail_v718) == 123 {
+        print("ERROR: selective import lists `use path::{a, b}` are not yet supported in Nucleor. Pre-v0.7.18 the import resolver silently ignored the list tail after rewriting the path, so selected bindings were not actually introduced. Workaround: import the module path directly with `use std::foo` / `import \"...\"` and use the current flat exported names. Tracked for RFC-0018 resolver phase 2.");
+        panic("nucleor: `use ...::{...}` selective import not yet supported (see ERROR diagnostic above)");
+    };
     let raw_path: str = str_substring(line, qp, path_end);
     let plen: i64 = str_len(raw_path);
     let mut prefix: str = "";
@@ -26221,6 +26235,10 @@ fn resolve_source_with_records(src: str, base_dir: str, imported: Vec<i32>, modu
         let line_len: i64 = eol - lp;
         let mut prefix_len: i64 = 0;
         let mut is_mod_decl: i64 = 0;
+        if line_len >= 8 && str_eq_at(src, lp, "pub use ") == 1 {
+            print("ERROR: `pub use ...` re-exports are not yet supported in Nucleor. Pre-v0.7.18 `pub use` at module scope was silently preserved and then ignored by the parser, so no re-export binding was created. Workaround: import the target module directly at each use site or expose a `pub fn` wrapper from the module. Tracked for RFC-0018 resolver phase 2.");
+            panic("nucleor: `pub use` re-export not yet supported (see ERROR diagnostic above)");
+        };
         if line_len >= 8 && str_eq_at(src, lp, "import ") == 1 { prefix_len = 7; };
         if prefix_len == 0 && line_len >= 5 && str_eq_at(src, lp, "use ") == 1 { prefix_len = 4; };
         // RFC-0018 phase 1: `mod foo;` desugars to `import "./foo.nr"`.
