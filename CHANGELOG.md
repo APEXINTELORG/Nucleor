@@ -5,6 +5,64 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.98] — 2026-05-04
+
+**stdlib/rods/interval.nr first test coverage.** Pure fixture,
+no compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `interval.nr` is
+particularly important — it provides rigorous numerical bounds
+that are the **foundation for computer-assisted proofs**
+(Tucker's Lorenz attractor proof being the textbook example).
+Silent regressions in interval arithmetic would invalidate any
+downstream proof that relies on guaranteed containment.
+
+### The fixture
+
+`tests/features/interval_arithmetic_smoke.nr` covers eight
+invariants. Floats are bit-cast through `f64_to_bits` /
+`f64_from_bits` because the i64-everywhere ABI passes f64s as
+bit-cast i64. A small epsilon (1e-9) tolerates rounded bounds.
+
+| Test | Invariant |
+|---|---|
+| endpoints | `iv_new(2.0, 7.0)` round-trips through `iv_lo` / `iv_hi` |
+| contains | `iv_contains([0.0, 1.0], 0.5) == 1` |
+| width | `iv_width([1.0, 5.0]) == 4.0` |
+| midpoint | `iv_mid([2.0, 8.0]) == 5.0` |
+| add | `[1,2] + [3,4] == [4,6]` |
+| sub | `[3,4] - [1,2] == [1,3]` |
+| mul (pos×pos) | `[1,2] * [3,4] == [3,8]` |
+| neg | `-[1,2] == [-2,-1]` |
+
+All eight pass. rc=0. Cold 1.98s.
+
+### Significance
+
+This is the first executed correctness test for `interval.nr`
++ `interval_rt.c`. Catches silent regressions in:
+
+- Endpoint round-tripping through the BigInt-backed handle
+- Width / midpoint computations
+- Outward rounding of arithmetic bounds (epsilon catches
+  rounding-direction bugs)
+- Sign handling in negation
+- Positive-only multiplication corner (mixed-sign mul has
+  many cases; queued for follow-up)
+
+The full rod surface includes sqrt / exp / log / sin / cos /
+pow_int / abs / max / min — those are queued for an extended
+fixture once basic arithmetic is locked.
+
+Other zero-coverage rods queued: autodiff / bm25 / bspline /
+cli / collections / compress / control / crypto / csv / fft /
+finance / fluid / fmt / fs / geom / image / ini / interp /
+...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.97] — 2026-05-04
 
 **stdlib/rods/bigint.nr first test coverage.** Pure fixture, no
