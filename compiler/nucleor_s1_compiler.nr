@@ -411,6 +411,22 @@ fn lex(src: str) -> Vec<i32> {
                 print("ERROR: raw string literals `r\"...\"` are not yet supported in Nucleor. Pre-v0.6.58 the `r` lexed as an identifier and the parser tried to call a fn named `r` on the trailing string literal, producing the wrong-class `error[TYP-005]: undefined function 'r'`. Workaround: write the canonical form `\"...\"` and escape backslashes / quotes manually (`\\\\`, `\\\"`, etc.). Tracked for forward-roadmap (lex-time r-prefix → no-escape string mode).");
                 panic("nucleor: raw string `r\"...\"` not yet supported (see ERROR diagnostic above)");
             };
+            // v0.7.75 (defensive halt — Rust raw identifier prefix
+            // `r#name`, used to write a binding whose spelling clashes
+            // with a Rust keyword like `type`, `match`, `fn`, etc.).
+            // Pre-fix the `r` lexed as an ident and `#` was emitted
+            // as a separate punct token, leaving `name` to be lexed
+            // as a fresh ident. The downstream parser then tripped
+            // on whichever production saw three tokens (e.g. `r # type`
+            // surfaced as v0.7.47's local-type-alias halt because
+            // `type` got read as keyword token 74). Halt at lex with
+            // a precise diag so adopters know the raw-identifier
+            // surface itself isn't supported. Sister to v0.6.58 raw
+            // string literal halt (same `r` prefix family).
+            if c == 114 && p + 1 < slen && str_char_at(src, p + 1) == 35 {
+                print("ERROR: raw identifier prefix `r#name` (used in Rust to bind a name that collides with a keyword, e.g. `let r#type: i64 = 42;`) is not yet supported in Nucleor. Pre-v0.7.75 the `r` lexed as an ident and `#` as a separate punct, so the trailing `name` was read as a fresh token — if the trailing name was a Nucleor keyword (e.g. `type`, `fn`, `match`) downstream parsers tripped wrong-class on the keyword's normal use site (e.g. v0.7.47 local-type-alias halt). Workaround: rename the binding to a non-keyword spelling — Nucleor's keyword set is small and renames are usually mechanical. Tracked for forward-roadmap (raw-identifier surface lands when the lexer gains a keyword-escape mode).");
+                panic("nucleor: raw identifier `r#name` not yet supported (see ERROR diagnostic above)");
+            };
             if c == 98 && p + 1 < slen && str_char_at(src, p + 1) == 34 {
                 print("ERROR: byte string literals `b\"...\"` are not yet supported in Nucleor. Pre-v0.6.58 the `b` lexed as an identifier and the parser tried to call a fn named `b` on the trailing string literal, producing the wrong-class `error[TYP-005]: undefined function 'b'`. Workaround: build a `Vec<u8>` explicitly via `let mut bs: Vec<u8> = Vec::new(); vec_u8_push(bs, 'h' as u8); ...`. Tracked for forward-roadmap (lex-time b-prefix → byte-buffer literal).");
                 panic("nucleor: byte string `b\"...\"` not yet supported (see ERROR diagnostic above)");
@@ -3745,6 +3761,20 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             print("ERROR: pattern-destructure in fn parameter (e.g. `fn h((a, b): (i64, i64))`, `fn h(P { x, y }: P)`) is not yet supported in Nucleor. Pre-v0.7.39 this surfaced as wrong-class `error[NR020]: expected ':', got identifier` because the param parser swallowed the opening `(` / `{` as the binding name.");
             print("       Workaround: bind a single name and destructure inside the body — `fn h(p: (i64, i64)) -> i64 { let a: i64 = p.0; let b: i64 = p.1; ... }` or `fn h(p: P) -> i64 { let x: i64 = p.x; let y: i64 = p.y; ... }`. Sister to v0.6.59 tuple-destructure-in-for-head halt. Tracked for forward-roadmap (full pattern-in-param lowering arrives with v1 pattern-binding work).");
             panic("nucleor: pattern-destructure in fn parameter not yet supported (see ERROR diagnostic above)");
+        };
+        // v0.7.75 (defensive halt — Rust `fn f(mut x: T)` mut-binding
+        // in fn parameter). Pre-fix the `mut` ident landed in the
+        // pn-binding slot and the `x` that followed pushed `:` to a
+        // position where `parse_type` expected one — surfacing as
+        // wrong-class `error[NR020]: expected ':', got identifier`.
+        // The shape is common in adopter Rust code (rebinding the
+        // parameter for in-place mutation in the body); Nucleor's
+        // existing `let mut x: T = arg;` body-form is the canonical
+        // workaround. Caught BEFORE the binding name is read so the
+        // diag is precise rather than the generic NR020.
+        if pk(tokens, cp) == 12 {
+            print("ERROR: `mut` qualifier on fn parameter (e.g. `fn inc(mut x: i64) -> i64 { x = x + 1; ... }`) is not yet supported in Nucleor. Pre-v0.7.75 the `mut` ident landed in the binding slot and `x` was pushed to where the colon should be, surfacing as wrong-class `error[NR020]: expected ':', got identifier`. Workaround: rebind in the body — `fn inc(x: i64) -> i64 { let mut x: i64 = x; x = x + 1; return x; }`. Tracked for forward-roadmap (param-mut shadowing is a small surface-level allowance once parameter-pattern-binding lowers cleanly).");
+            panic("nucleor: `mut` qualifier on fn parameter not yet supported (see ERROR diagnostic above)");
         };
         let pn: i64 = pkv(tokens, cp);
         // v0.7.49 (defensive halt — typeless default-arg form
