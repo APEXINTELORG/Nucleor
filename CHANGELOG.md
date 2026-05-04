@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.36] — 2026-05-04
+
+**RFC-0062 G-6 Phase 2a (closures) — SEND-G6-CLOSURE audit-pass info.**
+Closes the second of four unaudited Sendable cases per
+docs/sendable-inventory.md §4. Detects `move |...|` capture
+closures and surfaces the count.
+
+### What's enforced today (Phase 2a)
+
+```
+info[SEND-G6-CLOSURE]: `move |...|` capture closures in build: N
+  Per RFC-0062 G-6 Phase 2a (closures): Rust-style
+  explicit-capture closures (`move |args| body`) capture
+  variables from the enclosing scope. The closure is Sendable
+  iff every captured variable is Sendable; Phase 2b adds the
+  per-closure capture-set audit at the closure decl site.
+  Today spawn-call sites may silently accept closures with
+  non-Sendable captures.
+```
+
+### Phase 2a status — nine signals firing
+
+```
+warning[BR-7]:                       lifetime annotations:        13
+info[OWN-012]:                       explicit free calls:         44
+info[FFI-NULL]:                      raw-pointer return types:     4
+info[FFI-DIRECT]:                    extern fn declarations:      27
+info[ALIAS-G3]:                      Vec-of-reference patterns:    3
+info[SEND-G6]:                       HashMap/Cell/RefCell types:  35
+info[SEND-G6-CLOSURE]:               move closures:                9
+info[MANUAL-DROP-RESERVED]:          #[manual_drop] markers:       7
+info[CFG-G8]:                        match expressions:          186
+```
+
+Six of seven RFC-0062 cornerstone-RFC gaps now have full
+Phase 2a coverage at the audit-pass surface. The last
+unaudited Sendable case (tuples + mixed-variant enums) and the
+remaining Phase 2b proper-analysis work are next.
+
+### Perf
+
+Cold 3.49s, hot 0.39s. Within Job #1. Gated str_index_of
+pre-check ensures zero adopter cost when no `move |` pattern
+present.
+
+Fixed-point md5: `211acacf1de212b83c97a4a830d87ccf`.
+
 ## [0.8.35] — 2026-05-04
 
 **RFC-0062 G-1 default-flip safety audit tool + report.**

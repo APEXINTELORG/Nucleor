@@ -28116,6 +28116,20 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print("  Per RFC-0062 G-6 Phase 2a: HashMap<K,V> Sendable propagation is unaudited in v0.x — Phase 2b adds the rule (Sendable iff K and V are Sendable AND hasher is Sendable). Cell<T> / RefCell<T> are explicit REJECTS for Sendable (interior mutability incompatible with cross-thread). Today the spawn-call check may silently accept these — adopter discipline: avoid spawning with HashMap or Cell/RefCell in the spawned closure capture set until Phase 2b lands. Reference: docs/sendable-inventory.md §4.");
         };
     };
+    // v0.8.36: RFC-0062 G-6 Phase 2a (closures) — `move |...|`
+    // closure-capture surface info. Counts `move |` patterns
+    // (the Rust syntax for explicit-capture closures). Phase 2b
+    // will close the closure-capture-set Sendable check (closure
+    // is Sendable iff every captured variable is Sendable).
+    // Gated behind cheap str_index_of pre-check.
+    let v0836_has_move_closure: i64 = if str_index_of(after_async, str_concat("move ", "|")) >= 0 { 1 } else { 0 };
+    if v0836_has_move_closure == 1 {
+        let v0836_move_count: i64 = simple_attribute_audit_count(after_async, str_concat("move ", "|"));
+        if v0836_move_count > 0 {
+            print(str_concat("info[SEND-G6-CLOSURE]: `move |...|` capture closures in build: ", str_from_int(v0836_move_count)));
+            print("  Per RFC-0062 G-6 Phase 2a (closures): Rust-style explicit-capture closures (`move |args| body`) capture variables from the enclosing scope. The closure is Sendable iff every captured variable is Sendable; Phase 2b adds the per-closure capture-set audit at the closure decl site. Today spawn-call sites may silently accept closures with non-Sendable captures. Adopter discipline: at spawn boundaries, prefer concrete types in capture set (`Vec<i64>` over `Vec<T>`, no HashMap/Cell). Reference: docs/sendable-inventory.md §4 case 2.");
+        };
+    };
     // v0.8.31: RFC-0062 G-1 Phase 2b-1 — `#[manual_drop]`
     // reserved-attribute audit. Detects adopter use of the
     // future opt-out attribute. Today the attribute is a NO-OP;
