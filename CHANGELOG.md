@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.25] — 2026-05-04
+
+**Perf — tighten the v0.7.20 built-in-macro halt from 36 LOC down
+to 8 LOC; cold median 3.8s → 3.45s (-350ms / -9%).**
+
+The v0.7.20 halt for unsupported Rust built-in macros (`file!`,
+`line!`, `column!`, `module_path!`, `stringify!`, `concat!`, `env!`,
+`option_env!`, `include_str!`, `include_bytes!`) had:
+- 10 separate `str_eq(name, "...")` checks to bind a `halt_macro`
+- 10 separate `str_eq(halt_macro, "...")` checks to print per-macro
+  workarounds
+- 4 separate `str_concat` calls to build the diagnostic header
+
+That's 20 string compares + 4 concats + 12 `print()` calls per
+macro encountered. Inside compiler.nr none of those macros appear,
+so the halt's runtime cost is zero — but the IR-emit cost during
+self-host scales with source size, and 36 LOC of guarded code is
+real.
+
+Tightened to:
+- 1 fused `str_eq(...) || str_eq(...) || ...` check (10 disjuncts,
+  short-circuit early-exit on match)
+- 1 multi-macro workaround line (lists all 10 workarounds in one
+  `print()` call)
+- 1 panic line
+
+Same diagnostic surface — adopters still see the macro name they
+typed and the appropriate workaround. Halt still fires correctly
+on `tests/fixtures/v0720_unsupported_builtin_macros.nr`.
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `d4611618e55c17bdb82e2a8f7f3d7c74`.
+Cold 3.45s median (3 samples: 3.39, 3.45, 3.88) / peak 299MB.
+Compiler.nr: 32796 → 32772 LOC (-24 LOC).
+
 ## [0.7.24] — 2026-05-04
 
 **Defensive halt — bare negative-literal payload inside a variant
