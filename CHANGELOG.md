@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.50] — 2026-05-04
+
+**Defensive halt — or-patterns in `if let` / `while let` (e.g.
+`if let Some(1) | Some(2) = opt { ... }`) now produce a clean halt
+with a match-form workaround pointer.**
+
+Pre-fix: writing `if let Some(1) | Some(2) = opt { ... }` (Rust
+RFC 2535 / 2530, stable since 1.53) surfaced as wrong-class
+`error[NR020]: parse error: expected '=', got token 65` (token 65
+= `|`) because the if-let parser expects `=` immediately after
+the first pattern. Match-arm or-patterns (`match x { 1 | 2 => ...
+}`) already work — only the if-let / while-let form was missing.
+
+Post-fix: the if-let pattern parser checks for `|` (token 65) at
+the position where `=` is expected and halts cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+if let Some(1) | Some(2) = opt { ... }      // ← NR020 wrong-class
+
+// Post-fix workaround A — use match for true or-pattern semantics:
+match opt {
+    Some(1) | Some(2) => { /* hit */ }
+    _ => { /* miss */ }
+}
+
+// Post-fix workaround B — single-pattern if-let with body check:
+if let Some(x) = opt {
+    if x == 1 || x == 2 { /* hit */ }
+}
+```
+
+Forward-roadmap: or-pattern in if-let / while-let is a small
+parser extension (sister to the existing match-arm or-pattern
+work; the same recursive-pattern-with-`|` logic just needs to
+plug into the if-let entry point).
+
+### Fixture
+
+`tests/fixtures/v0750_if_let_or_pattern_halt.nr` — negative
+fixture for `if let Some(1) | Some(2) = opt { }` (fires or-pattern
+halt with match workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `9d0fe27c24740c997d8c40362bcd8734`.
+
 ## [0.7.49] — 2026-05-04
 
 **Defensive halt — typeless default-value fn parameter

@@ -3084,6 +3084,18 @@ fn parse_if(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
             };
         };
         if str_len(ename) > 0 {
+            // v0.7.50 (defensive halt — Rust or-pattern in `if let` /
+            // `while let`: `if let Some(1) | Some(2) = opt`). Pre-fix
+            // this surfaced as wrong-class `error[NR020]: expected '=',
+            // got token 65` (token 65 = `|`) because the if-let parser
+            // expects `=` immediately after the first pattern. Halt
+            // cleanly with a separate-arm workaround for if-let, or use
+            // a match for true or-pattern semantics.
+            if pk(tokens, ip) == 65 {
+                print("ERROR: or-patterns in `if let` / `while let` (e.g. `if let Some(1) | Some(2) = opt { ... }`) are not yet supported in Nucleor. Pre-v0.7.50 surfaced as wrong-class `error[NR020]: expected '=', got token 65` (token 65 = `|`). Match-arm or-patterns (`match x { 1 | 2 => ... }`) already work — only the if-let / while-let form is missing.");
+                print("       Workaround: use a `match` for true or-pattern semantics — `match opt { Some(1) | Some(2) => { /* hit */ }, _ => { /* miss */ } }`. Or check each variant separately — `if let Some(x) = opt { if x == 1 || x == 2 { ... } }`. Tracked for forward-roadmap (or-pattern in if-let / while-let is a small parser extension; sister to the existing match-arm or-pattern work).");
+                panic("nucleor: or-pattern in `if let` / `while let` not yet supported (see ERROR diagnostic above)");
+            };
             // We have a pattern; parse `= EXPR { BODY } [else { BODY }]`
             ip = expect_tok(tokens, ip, 40); // `=`
             let mut sr: Vec<i32> = parse_expr(tokens, ip, pool);
