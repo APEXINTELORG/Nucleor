@@ -5,6 +5,50 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.56] — 2026-05-04
+
+**Defensive halt — local `static N: T = ...;` inside a fn body
+now produces a clean halt with a `let`-binding workaround. Sister
+to v0.7.55 local-const and v0.6.21 module-scope static halts.**
+
+Pre-fix: writing `fn h() { static N: i64 = 5; return N; }`
+surfaced as wrong-class `error[NR020]: parse_primary cannot start
+an expression at token kind 42` (the `:` after the binding name)
+because the lexer treats `static` as a plain identifier (token 1,
+not its own keyword), so parse_expr consumed `static` and tried
+to keep parsing as an expression.
+
+Post-fix: `parse_stmt` checks for the ident-`static` + ident +
+`:` token sequence at stmt-start and halts cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+fn h() -> i64 {
+    static N: i64 = 5;        // ← NR020 token kind 42
+    return N;
+}
+
+// Post-fix workaround — use `let` for fn-local mutable state:
+fn h() -> i64 {
+    let N: i64 = 5;
+    return N;
+}
+```
+
+Module-level `static` items are also forward-roadmap (see v0.6.21
+halt). Sister to v0.7.55 local-const halt.
+
+### Fixture
+
+`tests/fixtures/v0756_local_static_halt.nr` — negative fixture for
+`fn h() { static N: i64 = 5; ... }` (fires local-static halt with
+let-binding workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `3298762f1c9e4c360a8bda147cc73049`.
+Cold 3.86s / peak 309MB.
+
 ## [0.7.55] — 2026-05-04
 
 **Defensive halt — local `const N: T = ...;` inside a fn body

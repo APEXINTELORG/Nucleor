@@ -3505,6 +3505,21 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         print(str_concat(v755_const_name, str_concat(": T = ...;` above all fn definitions at the top level of the file; module-level consts work cleanly. Or use a regular `let` binding (`let ", str_concat(v755_const_name, ": T = ...;`) for fn-local constant values — Nucleor's let is statically-scoped and the const-vs-let distinction is mostly about top-level visibility. Sister to v0.7.47 local-type-alias halt.")))));
         panic("nucleor: local const in fn body not yet supported (see ERROR diagnostic above)");
     };
+    // v0.7.56 (defensive halt — Rust local `static` inside a fn body).
+    // The lexer emits `static` as a plain identifier (token 1), so this
+    // catches the form `static NAME: TYPE = ...;` at stmt-start by
+    // checking ident "static" followed by another ident + `:`.
+    // Pre-fix this surfaced as wrong-class `error[NR020]: parse_primary
+    // cannot start an expression at token kind 42` (the `:` after the
+    // name) because parse_expr's identifier branch consumed `static`,
+    // then saw `NAME` and tried to keep parsing. Sister to v0.7.55
+    // local-const halt and v0.6.21 module-scope static halt.
+    if tt == 1 && str_eq(pkv(tokens, pos), "static") == 1 && pk(tokens, pos + 1) == 1 && pk(tokens, pos + 2) == 42 {
+        let v756_static_name: str = pkv(tokens, pos + 1);
+        print(str_concat("ERROR: local `static ", str_concat(v756_static_name, ": T = ...;` inside a fn body is not yet supported in Nucleor. Pre-v0.7.56 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 42` because the lexer treats `static` as a plain identifier and parse_expr tried to continue the expression after it.")));
+        print(str_concat("       Workaround: use a regular `let ", str_concat(v756_static_name, ": T = ...;` binding for fn-local mutable state. Module-level `static` items are also forward-roadmap (see v0.6.21 halt) — for shared global state today, use a top-level `const` or a Vec/Cell-based wrapper. Sister to v0.7.55 local-const halt.")));
+        panic("nucleor: local static in fn body not yet supported (see ERROR diagnostic above)");
+    };
     let mut er: Vec<i32> = parse_expr(tokens, pos, pool);
     let mut cp: i64 = pr_pos(er);
     if pk(tokens, cp) == 40 {
