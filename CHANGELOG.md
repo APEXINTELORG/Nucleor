@@ -5,6 +5,64 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.88] — 2026-05-04
+
+**Combined ship — RFC-0048 Phase A (hardware capability queries) +
+Rust `compile_error!(...)` halt.**
+
+### RFC-0048 Phase A — `target_caps` rod
+
+Lands the canonical hardware-capability query surface in a new
+rod `stdlib/rods/target_caps.nr`. Adopters can write
+`if target_caps_has_fp4() == 1 { ... }` today, ahead of the
+Phase B compiler-side const-fold + DCE (~300 LOC compiler-side,
+deferred). Phase A returns runtime constants (every device-class
+feature returns 0 because Nucleor v0.7 has no GPU / SIMD /
+accelerator dispatch substrate); Phase B replaces the runtime
+call with compile-time const-fold against the build manifest
+(`--target-feature=fp4,avx512,...`) — adopter code stays
+identical.
+
+Sister to RFC-0046 / RFC-0047 / RFC-0049 Phase A (v0.7.83 / 84 /
+87) — same "stdlib first, compiler enforcement later" pattern.
+
+Surface added:
+- 12 capability ID fns: `target_cap_id_{fp4, fp8, bf16, avx2,
+  avx512, neon, sve, tensor_cores, cuda, vulkan, rocm, metal}`.
+- 12 per-cap query fns: `target_caps_has_{fp4..metal}` (all
+  return 0 in Phase A).
+- 5 OS family queries: `target_caps_os_{windows, linux, macos,
+  bsd, unix}` (real values via the existing `os_info` rod).
+- 4 arch queries: `target_caps_arch_{x86_64, aarch64, riscv64}`
+  (return 0 — Phase A) + `target_caps_is_64bit` (real).
+- Generic dispatch: `target_caps_has_id(id) -> i64` and
+  `target_caps_id_name(id) -> str`.
+
+Smoke fixture: `tests/fixtures/v0788_rfc0048_target_caps_smoke.nr`
+(asserts capability IDs are stable, all device queries return 0,
+exactly one OS family is true, generic dispatch matches direct
+fns, name lookup returns canonical strings; rc=0).
+
+### Defensive halt — Rust `compile_error!(...)`
+
+Pre-fix `compile_error!("required feature missing")` was
+silently dropped: Nucleor's `!`-after-ident handling treated
+the macro-call shape `compile_error ! (...)` as a logical-not
+on the args, which then DCE'd as a discarded value. Adopters
+writing the macro to force a compile-time failure got a
+successful build instead. The macro is now honored as the
+canonical Rust build-failure trigger via a textual pre-pass
+that detects the literal `compile_error!(` byte sequence in
+the resolved source and panics at compile time.
+
+Pairs neatly with the RFC-0048 surface in this same ship: when
+adopters need conditional compile-time errors keyed on hardware
+capability, they can pair `compile_error!(...)` with the
+`target_caps_*` runtime queries (Phase A) or with the future
+Phase B compile-time const-fold.
+
+Halt fixture: `tests/fixtures/v0788_compile_error_halt.nr`.
+
 ## [0.7.87] — 2026-05-04
 
 **Combined ship — RFC-0049 Phase A (memory-space type tags) +
