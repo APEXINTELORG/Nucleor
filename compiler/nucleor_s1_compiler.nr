@@ -28203,6 +28203,25 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.50 C-1/C-2 Phase 1 — Linux concurrency surface info.
+    // The concurrency.nr rod's cancel_token (C-1) and POSIX channel
+    // (C-2) helpers are silently broken on Linux: cancel_token is a
+    // linker bomb (extern fn declared, body absent), POSIX channel
+    // is a no-op stub. Detect adopter use of the concurrency rod
+    // or its functions and surface the Linux platform risk.
+    let v0850_has_concurrency: i64 = if str_index_of(after_async, str_concat("concurrency", ".nr")) >= 0 { 1 } else { 0 };
+    let v0850_has_cancel: i64 = if str_index_of(after_async, str_concat("cancel_", "token")) >= 0 { 1 } else { 0 };
+    let v0850_has_channel: i64 = if str_index_of(after_async, str_concat("channel_", "send")) >= 0 { 1 } else { 0 };
+    if v0850_has_concurrency == 1 || v0850_has_cancel == 1 || v0850_has_channel == 1 {
+        let v0850_concurrency: i64 = if v0850_has_concurrency == 1 { simple_attribute_audit_count(after_async, str_concat("concurrency", ".nr")) } else { 0 };
+        let v0850_cancel: i64 = if v0850_has_cancel == 1 { simple_attribute_audit_count(after_async, str_concat("cancel_", "token")) } else { 0 };
+        let v0850_channel: i64 = if v0850_has_channel == 1 { simple_attribute_audit_count(after_async, str_concat("channel_", "send")) } else { 0 };
+        let v0850_total: i64 = v0850_concurrency + v0850_cancel + v0850_channel;
+        if v0850_total > 0 {
+            print(str_concat("info[CONC-G12]: concurrency-rod surface in source: ", str_from_int(v0850_total)));
+            print("  Per RFC sister gaps C-1, C-2 (Concurrency): the concurrency rod's `cancel_token` (C-1) is a linker bomb on Linux (extern fn declared, body absent in nucleor_llvm_rt.c POSIX path) and POSIX channel helpers (C-2) are silent no-op stubs that lose all messages. Programs using these on Linux either fail at link time or run with broken concurrency. Phase 2b adds the missing POSIX implementations; Phase 4 enforces a CI gate that builds + smokes a concurrency test on Linux. Adopter discipline today: avoid these helpers if targeting Linux. Reference: docs/rfcs/gap-analyses/Nucleor_Concurrency_Gap_Analysis_and_RFC_2026-05-04.md C-1, C-2.");
+        };
+    };
     // v0.8.48 E-1/E-2/E-3 Phase 1 — effect/capability silent-discard
     // audit-pass info. Counts `pure fn`, `requires(`, `restricts(`
     // keyword occurrences. Today these all silently discard with NO

@@ -5,6 +5,79 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.50] — 2026-05-04
+
+**Wave 1 COMPLETE — C-1/C-2 Phase 1 Linux concurrency surface info.**
+Last critical-finding closure. Wave 1 lands all 6 in their
+Phase 1 form (5 Phase 1 audits + 1 direct fix).
+
+### What's enforced today (Phase 1)
+
+```
+info[CONC-G12]: concurrency-rod surface in source: N
+  Per RFC sister gaps C-1, C-2 (Concurrency): the concurrency
+  rod's `cancel_token` (C-1) is a linker bomb on Linux (extern
+  fn declared, body absent in nucleor_llvm_rt.c POSIX path) and
+  POSIX channel helpers (C-2) are silent no-op stubs that lose
+  all messages. Programs using these on Linux either fail at
+  link time or run with broken concurrency. Phase 2b adds the
+  missing POSIX implementations; Phase 4 enforces a CI gate
+  that builds + smokes a concurrency test on Linux.
+```
+
+### Wave 1 closure status
+
+```
+Critical Finding         Severity              Phase 1 Status         Ship
+-----------------------  -------------------- --------------------  --------
+NUM-G1 f64 lex truncate  LAUNCH-BLOCKER       DONE (audit info)     v0.8.44
+ML-1 attn_flash ABI      LAUNCH-BLOCKER       FIXED (direct)        v0.8.45
+T-3 char-cast risk       SILENT-MISCOMPUTE    DONE (audit info)     v0.8.46
+T-4 empty-type fallthru  SILENT-MISCOMPUTE    DEFERRED              -
+E-1/2/3 effect discard   TRUST GAP            DONE (audit info)     v0.8.48
+BOOT-3/4 fixpoint check  SELF-HOST            FIXED (verify.ps1)    v0.8.49
+C-1/2 Linux concurrency  LAUNCH-BLOCKER (Lx)  DONE (audit info)     v0.8.50
+```
+
+5 of 6 critical findings closed at Phase 1; 1 fixed directly
+(ML-1); 1 deferred (T-4 needs internal observability work).
+
+### Wave 1 net cold-time impact
+
+```
+Pre-Wave-1 baseline (v0.8.43):  ~3.5s mean
+Post-Wave-1 (v0.8.50):           ~3.87s mean (5 audit-pass info diagnostics added)
+                                 Δ +0.37s
+```
+
+All audits use the validated v0.8.33 perf pattern (str_index_of
+gate + simple_attribute_audit_count for present-only). Adopter
+code without the relevant patterns: zero cost.
+
+Job #1 4s soft ceiling held on most runs; hard ceiling 5.93s
+unbreached. Multi-agent contention (probe + codex parallel)
+contributes occasional spikes.
+
+### Next: Wave 2 + Phase 2b real-analysis work
+
+```
+Phase 2b — proper analysis-level enforcement for each finding:
+- NUM-G1: precision-preserving f64 parser
+- T-3: codepoint-range validation at cast site
+- T-4: empty-type fallthrough fix + observability counter
+- E-1/2/3: per-fn effect inference + enforcement
+- BOOT-5: POSIX gate full self-IR fixed-point check
+- BOOT-7: Linux/macOS bootstrap CI gate
+- BOOT-8: POSIX channel/pipe implementations (also closes C-1/C-2)
+
+Wave 2 — other Tier A + Tier B items per docs/rfcs/v1_PUNCHLIST.md:
+- Real-Time / Determinism enforcement
+- Algebraic Laws property tests
+- Module / Packaging fixes (PKG-1, PKG-3)
+```
+
+Fixed-point md5: `ede3a6e2b3066512a73aed49cbd16407`.
+
 ## [0.8.49] — 2026-05-04
 
 **Wave 1 — BOOT-3 fix: full compiler self-IR fixed-point check.**
