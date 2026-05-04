@@ -30677,6 +30677,27 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
                     parities.push(1);
                     arg_idx = arg_idx + 1;
                 } else {
+                    // v0.7.41 (defensive halt — Rust 1.58+ inline format-arg
+                    // placeholders `{name}` where `name` is an identifier
+                    // bound in the caller's scope). Pre-fix this surfaced
+                    // as the v0.4.70 generic "more `{}` than args" error
+                    // even though the args ARE inline in the format string.
+                    // Detect the spec being a bare identifier (no format-
+                    // spec colons / dots / commas) and halt with a clear
+                    // explicit-arg workaround.
+                    let mut v741_inline_ident: i64 = if str_len(spec) > 0 { 1 } else { 0 };
+                    let mut v741_si: i64 = 0;
+                    while v741_si < str_len(spec) && v741_inline_ident == 1 {
+                        let v741_c: i64 = str_char_at(spec, v741_si);
+                        let v741_is_id_char: i64 = if (v741_c >= 65 && v741_c <= 90) || (v741_c >= 97 && v741_c <= 122) || (v741_c >= 48 && v741_c <= 57) || v741_c == 95 { 1 } else { 0 };
+                        if v741_is_id_char == 0 { v741_inline_ident = 0; };
+                        v741_si = v741_si + 1;
+                    };
+                    if v741_inline_ident == 1 {
+                        print(str_concat("ERROR: Rust 1.58+ inline format-arg `{", str_concat(spec, "}` (where `<name>` resolves to a binding in the calling scope) is not yet supported in Nucleor's textual macro layer. Pre-v0.7.41 surfaced as wrong-class \"format string has more `{}` placeholders than args supplied\".")));
+                        print(str_concat("       Workaround: use the explicit-arg form — `format!(\"{}\", ", str_concat(spec, ")` (or `println!`/`print!`/etc.). For multiple inline args, list each as a separate trailing arg in the same order they appear in the format string. Tracked for forward-roadmap (lex-time inline-arg rewrite at `{name}` → `{}` + appended `name` arg, per Rust RFC 2795).")));
+                        panic(str_concat("nucleor: inline format-arg `{", str_concat(spec, "}` not yet supported (see ERROR diagnostic above)")));
+                    };
                     // v0.4.70: NUC-FEEDBACK silent-MISSING close (audit
                     // section 10). Pre-fix `println!("{} and {}", 42)`
                     // emitted "42 and <MISSING>" at runtime — silent
