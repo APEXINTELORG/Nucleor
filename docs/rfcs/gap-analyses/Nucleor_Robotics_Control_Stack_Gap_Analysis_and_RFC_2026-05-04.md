@@ -1,0 +1,127 @@
+# Nucleor — Robotics and Control Stack Gap Analysis and RFC
+
+**Date:** 2026-05-04
+**Author:** Claude (Opus 4.7) for Joseph Wescott
+**Document type:** Combined gap analysis + RFC
+**Status:** Draft for main-agent integration
+**Disposition:** No file writes were made into `Nucleor_OSS`.
+
+---
+
+# Part I — Definition
+
+## 1.1. The robotics pillar
+
+25+ rods covering FK/IK/TOPP/GJK/RRT/PRM/A*/SE3/UKF/CHOMP/WBC/ZMP/AHRS/URDF. The breadth is genuinely strong; the depth has gaps that matter for real robot deployments.
+
+**Headline finding 1: frame-typing safety is Phase A only — markers exist but compiler does not enforce.** All handles are plain i64. Mixing camera-frame and base-frame poses is still a silent runtime error. **This is the Mars Climate Orbiter failure mode and it's still live.**
+
+**Headline finding 2: no end-to-end IK→plan→trajectory→endpoint test.** Every stage independent; `robotic_arm.nr` showcase runs each stage but doesn't verify the loop closes with numerical correctness.
+
+**Headline finding 3: none of the robotics rods carry `#[no_alloc]+#[deadline]` annotations.** A robot control loop needing hard-RT cannot use these rods without either pre-allocating handles or annotating the rod itself. **No documented protocol** for hard-RT use of the robotics stack.
+
+---
+
+# Part II — Gap Inventory
+
+## ROBO-1 — TOPP is kinematic-only, piecewise-linear paths only — **MEDIUM**
+Comment: "Pure kinematic (no torque/dynamics constraints)." TOPP-RA (convex per-step constraints) deferred to v0.6. Forward+backward pass on `b(s) = (ds/dt)²` ignores actuator torque curves. Time-optimal claim approximate for real robots.
+
+## ROBO-2 — DMP has no multi-DOF batch wrapper — **LOW**
+"Multi-DOF: instantiate one DMP per joint." No `dmp_multi_new`/`dmp_multi_step` for whole joint-vector. Forces repetitive per-joint calls; prevents learning cross-DOF coupling.
+
+## ROBO-3 — IK has no analytical IK path — **MEDIUM**
+`ik_dls.nr` purely numerical (finite-difference Jacobian). Standard 6-DOF manipulators (Puma/UR/Kuka) have closed-form solutions: 8 branches, 100× faster, singularity-exact. Not present.
+
+## ROBO-4 — IK nullspace solver uses position-only Jacobian — **HIGH**
+`nuc_ik_dls_solve_nullspace` uses 3-DOF position Jacobian. For n≥7 DOF arms needing orientation + posture simultaneously, you need 6×n Jacobian in nullspace path. 6-DOF path doesn't expose nullspace variant.
+
+## ROBO-5 — TF tree: integer IDs, no timestamps, no forest — **HIGH**
+Limitations: integer-only IDs (caller maintains name→id map), single tree only, no time-stamped buffer or interpolation. Real sensor-fusion produces transforms at different frequencies (camera 30 Hz, lidar 10 Hz); without time-indexed buffer, `tf_set_pose` races with async sources.
+
+## ROBO-6 — URDF parser flattens branching topologies — **HIGH**
+"Branching trees (humanoids) flattened to source-order." Parent/child relationships ignored. Humanoid, quadruped, parallel-chain robots cannot be correctly described. xacro macro expansion absent.
+
+## ROBO-7 — Frame-type safety is Phase A only — **CRITICAL**
+RFC-0046 Phase A ships zero-size marker structs and numeric IDs. **Phase B (compiler-side TYP-008 check) not yet shipped.** Mixing camera-frame and base-frame poses still silent runtime error. `kinematics.nr` still uses plain i64 handles — frame markers entirely opt-in and unchecked. **Mars Climate Orbiter failure mode live.**
+
+## ROBO-8 — CHOMP uses approximated pre-conditioning — **MEDIUM**
+"We approximate by clamping per-step move magnitude — much simpler, similar empirical behavior on typical paths." Full covariant A⁻¹∇F pre-conditioner absent. On narrow corridors or high-DOF robots, gradient poorly scaled; convergence degrades to vanilla GD.
+
+## ROBO-9 — CHOMP joint-space only — no Cartesian variant — **MEDIUM**
+Cartesian-space CHOMP (FK + Jacobian to optimize end-effector trajectory in task space) absent. Variant commonly used for manipulator reach-around tasks.
+
+## ROBO-10 — WBC velocity-level only, no strict-priority, no torque box — **HIGH**
+"Strict-priority hierarchy / box constraints / torque-level control land in v0.6." Velocity-level sufficient for kinematically-redundant arms but **not for torque-controlled legged robots.** Siciliano-Slotine null-space projection deferred.
+
+## ROBO-11 — `twin_core` is quantum noise twin, not robot digital twin — **LOW** (naming only)
+Rod named `twin_core.nr` is quantum simulator dual-core differentiable noise model. **No robotics digital twin rod:** no sim-to-real bridge, no physics-based state mirror. Naming misleading.
+
+## ROBO-12 — AHRS lacks magnetometer — yaw unobservable — **HIGH**
+"Yaw is unobservable from accel... add magnetometer correction for absolute heading." Mahony filter with magnetometer and Madgwick variant absent. Drones, ground vehicles needing absolute heading cannot fuse compass.
+
+## ROBO-13 — No CCD for OBB pairs or mesh-mesh — **MEDIUM**
+CCD coverage: sphere-sphere, capsule-capsule, sphere-AABB, capsule-AABB. Missing OBB-OBB and convex-mesh-vs-mesh. Fast-moving rigid bodies with oriented geometry cannot be swept exactly.
+
+## ROBO-14 — No end-to-end IK→plan→trajectory→endpoint test — **HIGH**
+`robotic_arm.nr` showcase uses `ik_dls_solve` but **does NOT feed result into RRT/PRM, smooth with CHOMP, time-parameterize with TOPP, verify endpoint matches IK target.** Each stage independent; no test asserting full IK→plan→execute→verify loop closes with numeric correctness. Smoke tests are link-and-return ("Build-only smoke; full IK convergence test needs proper Vec<f64> plumbing").
+
+## Cross-cutting risks
+- **Frame-typing safety (highest severity).** All handles plain i64. `kinematics_frame.nr` markers cannot be attached to `kinematics.nr` Pose handle today; RFC-0046 Phase B is the only mechanism that catches camera→world substitution. Until then, every `pose_compose`/`tf_lookup`/`se3_apply` call site is potential silent miscompute. **Mars Climate Orbiter failure mode.**
+- **Real-time composability.** Compiler has `#[no_alloc]`/`#[deadline]` infrastructure; **none of the robotics rods carry these annotations.** All rods heap-allocate. Robot control loop needing `#[no_alloc] #[deadline(500us)]` cannot use any of these rods without pre-allocating handles outside loop or annotating rod itself. **No documented protocol** for using these rods in hard-RT context.
+- **End-to-end validation.** `robotic_arm.nr` is closest to integration test but doesn't assert numeric correctness of any output. IK convergence test punted to "direct C tests" not visible in OSS tree.
+- **TOPP kinematic gap.** Marking trajectory "time-optimal" when torque limits not respected is specification claim the planner cannot fulfill on real hardware. Loaded links can saturate motor torque during deceleration.
+
+---
+
+# Part III — RFC
+
+## 3.1. Goals
+1. Ship RFC-0046 Phase B (compiler-side frame-type enforcement) — close the Mars Climate Orbiter failure mode.
+2. Add end-to-end integration tests proving the full pipeline works numerically.
+3. Annotate the robotics rods with `#[no_alloc]+#[deadline]` where feasible, document the protocol for hard-RT use.
+4. Close the URDF branching gap — single biggest gap for adoption beyond serial arms.
+
+## 3.2. Closure plan
+
+**Phase 1 (emergency):**
+- ROBO-7 P1: emit warning when `kinematics_frame` marker is declared but not enforced. "Frame-type check is Phase A — markers are advisory only. Phase B (compiler enforcement) tracked in RFC-0046."
+- ROBO-14 P1: add end-to-end test: 6-DOF arm, IK solves for target pose, RRT plans path in joint space, CHOMP smooths, TOPP time-parameterizes, FK forward through trajectory, assert final pose within tolerance of target. **This single test would catch huge swaths of regressions.**
+- ROBO-11: rename `twin_core.nr` to `quantum_twin.nr` to remove naming confusion. Or document the misnomer prominently.
+- Documentation pass: explicit `#[no_alloc]+#[deadline]` protocol for robotics rods. Even "you can't use these rods in hard-RT today" is honest.
+
+**Phase 2 (short-term):**
+- ROBO-7 P2: implement RFC-0046 Phase B. Compiler-side TYP-008 check that `transform(p, tf)` call-site frames match. **Closes Mars Climate Orbiter failure mode.**
+- ROBO-4: 6-DOF Jacobian in nullspace solver.
+- ROBO-5: TF tree with name-keyed lookup + time-stamped buffer + interpolation. Multi-tree (forest) support.
+- ROBO-6: URDF branching topology support. xacro expansion.
+- ROBO-10: WBC strict-priority stack + torque-box constraints.
+- ROBO-12: AHRS with magnetometer + Madgwick variant.
+
+**Phase 3 (medium-term):**
+- ROBO-1: TOPP-RA (convex per-step torque/dynamics constraints).
+- ROBO-2: DMP multi-DOF batch wrapper.
+- ROBO-3: analytical IK path for 6-DOF canonical manipulators (Puma/UR/Kuka).
+- ROBO-8: full covariant CHOMP pre-conditioning.
+- ROBO-9: Cartesian-space CHOMP variant.
+- ROBO-13: OBB-OBB and mesh-mesh CCD.
+- Annotate robotics rods with `#[no_alloc]` where possible. Document which functions are RT-safe.
+
+**Phase 4 (v1.0+):**
+- Real robot digital twin rod (sim-to-real bridge, physics-based state mirror).
+- ROS2/DDS interop.
+
+## 3.3. v1.0 release gate
+Phase 1 minimum (frame-type warning + end-to-end test). Phase 2 strongly preferred (Phase B frame enforcement is the headline safety closure). Phase 3 acceptable as v1.x. Phase 4 explicit v2.x.
+
+## 3.4. Open questions
+1. RFC-0046 Phase B implementation: how does the compiler know which functions take Pose arguments? Recommendation: annotate `Pose` argument types with frame markers in fn signature; compiler propagates.
+2. End-to-end test (ROBO-14): use `linalg.nr` for assertions or implement test-specific utilities? Recommendation: linalg.nr — keeps the test honest about real Nucleor APIs.
+3. URDF branching (ROBO-6): full ROS xacro support or subset? Recommendation: subset (parameters + macros, no Python evaluation).
+
+---
+
+# Part IV — Disposition
+**Document path:** `C:\Users\JoeWe\Desktop\Nucleor_Robotics_Control_Stack_Gap_Analysis_and_RFC_2026-05-04.md`
+
+*End of document.*
