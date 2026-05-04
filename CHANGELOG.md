@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.83] — 2026-05-04
+
+**Punchlist forward — RFC-0046 Phase A: coordinate-frame marker
+types (no compiler enforcement yet).**
+
+The RFC-0046 thesis is that mixing coordinate frames at runtime
+(camera vs base vs world vs lidar vs gripper) without
+compile-time enforcement is the Mars-Climate-Orbiter class of
+silent miscompute. The full RFC ship needs phantom-typed
+`Pose<F>` + type-checker enforcement of frame matching across
+`transform` boundaries (Phase B, ~200 LOC compiler-side).
+
+Phase A (this ship) lands the canonical zero-size **marker
+structs** + numeric ID surface in a new rod
+`stdlib/rods/kinematics_frame.nr`. Adopters can use them as
+Frame tags in their own struct definitions today; the markers
+are zero-cost (same memory layout as untagged data) but provide
+an audit trail in the source ("this Pose is in the camera
+frame") that survives code review. Phase B (next ship in the
+RFC-0046 lane) wires the compiler-side TYP-008 frame-mismatch
+check at `transform(p, tf)` call sites.
+
+Surface added (rod-only, no compiler change):
+
+- 9 marker structs: `Frame_World`, `Frame_Base`, `Frame_Camera`,
+  `Frame_Lidar`, `Frame_IMU`, `Frame_Gripper`, `Frame_Map`,
+  `Frame_Odom`, `Frame_Unknown`.
+- 9 numeric ID fns: `kinematics_frame_id_world()` returns 0,
+  `_base()` 1, `_camera()` 2, `_lidar()` 3, `_imu()` 4,
+  `_gripper()` 5, `_map()` 6, `_odom()` 7, `_unknown()` -1.
+- `kinematics_frame_name(id) -> str` and
+  `kinematics_frame_compatible(a, b) -> i64` (treats unknown as
+  wildcard, matches same-frame, distinguishes different frames).
+
+Smoke fixture: `tests/fixtures/v0783_rfc0046_frame_markers_smoke.nr`
+(constructs each marker, asserts ID values are stable, validates
+compatibility logic + name lookup; rc=0).
+
+Sister punchlist piece to RFC-0061 Tier 1 work landed in
+v0.7.78/80/81 — same "frontier easy wins" lane per spine §1.5.
+
+No new defensive halt this ship — probed several patterns
+(`unreachable!`, `dbg!`, `assert*!`, `static mut`,
+`#[non_exhaustive]`, `#![inner_attr]`, lifetime params in
+struct, `?` on Option, `Vec<_>` type elision) and all are either
+already halted or silently work correctly. Cron concurrently
+shipped v0.7.82 with `?`-in-closure-body silent-miscompute halt
+(see entry below).
+
 ## [0.7.82] — 2026-05-04
 
 **Defensive halt — `?` operator inside a closure body (wrong-class silent miscompute).**
@@ -41,6 +90,46 @@ Halt fixture: `tests/fixtures/v0782_closure_question_mark_halt.nr`.
 
 Seed md5: `907222b4241880f185dd0da74e9dd1e5`. Cold build (Linux): 7.10 s.
 Peak memory: 679 MB (process-tree, matches v0.5-track-L baseline).
+**Punchlist forward — RFC-0046 Phase A: coordinate-frame marker
+types (no compiler enforcement yet).**
+
+The RFC-0046 thesis is that mixing coordinate frames at runtime
+(camera vs base vs world vs lidar vs gripper) without
+compile-time enforcement is the Mars-Climate-Orbiter class of
+silent miscompute. The full RFC ship needs phantom-typed
+`Pose<F>` + type-checker enforcement of frame matching across
+`transform` boundaries (Phase B, ~200 LOC compiler-side).
+
+Phase A (this ship) lands the canonical zero-size **marker
+structs** + numeric ID surface in a new rod
+`stdlib/rods/kinematics_frame.nr`. Adopters can use them as
+Frame tags in their own struct definitions today; the markers
+are zero-cost (same memory layout as untagged data) but provide
+an audit trail in the source ("this Pose is in the camera
+frame") that survives code review. Phase B (next ship in the
+RFC-0046 lane) wires the compiler-side TYP-008 frame-mismatch
+check at `transform(p, tf)` call sites.
+
+Surface added (rod-only, no compiler change):
+
+- 9 marker structs: `Frame_World`, `Frame_Base`, `Frame_Camera`,
+  `Frame_Lidar`, `Frame_IMU`, `Frame_Gripper`, `Frame_Map`,
+  `Frame_Odom`, `Frame_Unknown`.
+- 9 numeric ID fns: `kinematics_frame_id_world()` returns 0,
+  `_base()` 1, `_camera()` 2, `_lidar()` 3, `_imu()` 4,
+  `_gripper()` 5, `_map()` 6, `_odom()` 7, `_unknown()` -1.
+- `kinematics_frame_name(id) -> str` and
+  `kinematics_frame_compatible(a, b) -> i64` (treats unknown as
+  wildcard, matches same-frame, distinguishes different frames).
+
+Smoke fixture: `tests/fixtures/v0782_rfc0046_frame_markers_smoke.nr`
+(constructs each marker, asserts ID values are stable, validates
+compatibility logic + name lookup; rc=0).
+
+Sister punchlist piece to RFC-0061 Tier 1 work landed in
+v0.7.78/80/81 — same "frontier easy wins" lane per spine §1.5.
+
+Halt fixture: `tests/fixtures/v0782_closure_question_mark_halt.nr`.
 
 ## [0.7.81] — 2026-05-04
 
