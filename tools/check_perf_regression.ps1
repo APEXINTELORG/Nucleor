@@ -60,31 +60,82 @@ function Invoke-CappedBuild([string[]]$ArgsList, [string]$Label) {
             if (Test-Path $stderrPath) { $tail += (Get-Content -LiteralPath $stderrPath -Tail 8 | Out-String) }
             throw "$Label exited $($summary.exit_code), peak ${peakRounded} MB / ${BudgetMb} MB e-stop`n$tail"
         }
+        $cacheLine = ""
+        $stdoutTail = ""
+        $stderrTail = ""
+        if (Test-Path $stdoutPath) {
+            $cacheLine = (Get-Content -LiteralPath $stdoutPath |
+                Select-String -Pattern '^cache:' |
+                Select-Object -Last 1 |
+                ForEach-Object { $_.Line })
+            if ($null -eq $cacheLine) { $cacheLine = "" }
+            $stdoutTail = (Get-Content -LiteralPath $stdoutPath -Tail 16 | Out-String)
+        }
+        if (Test-Path $stderrPath) {
+            $stderrTail = (Get-Content -LiteralPath $stderrPath -Tail 16 | Out-String)
+        }
         return [pscustomobject]@{
             WallSec = [double]$summary.wall_seconds
             PeakMb = $peakRounded
             CrossedWarning = [bool]$summary.crossed_warning
             WarningDetail = [string]$summary.warning_detail
+            CacheLine = [string]$cacheLine
+            StdoutTail = [string]$stdoutTail
+            StderrTail = [string]$stderrTail
         }
     } finally {
         Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
     }
 }
 
+function Get-MedianSeconds($Results) {
+    $vals = @($Results | ForEach-Object { [double]$_.WallSec } | Sort-Object)
+    if ($vals.Count -eq 0) { return 0.0 }
+    $mid = [int][Math]::Floor($vals.Count / 2)
+    if (($vals.Count % 2) -eq 1) { return [double]$vals[$mid] }
+    return ([double]$vals[$mid - 1] + [double]$vals[$mid]) / 2.0
+}
+
 Push-Location $root
 try {
-    # Cold cache: clear .nuc_cache + target, then time + measure peak memory.
-    Remove-Item -Recurse -Force .nuc_cache,target -ErrorAction SilentlyContinue
-    $coldResult = Invoke-CappedBuild @("build", $src, "-o", "nuc_perf_check") "cold self-build"
-    $cold = $coldResult.WallSec
-    $cold_mem_mb = $coldResult.PeakMb
+    # Cold cache: clear .nuc_cache + target before each sample.
+    # Report median wall time so one Windows scheduler / linker outlier
+    # does not fail an otherwise stable compiler. Peak memory remains
+    # the max across all samples.
+    $coldResults = @()
+    $cold_mem_mb = 0
+    for ($coldSample = 1; $coldSample -le 3; $coldSample++) {
+        Remove-Item -Recurse -Force .nuc_cache,target -ErrorAction SilentlyContinue
+        $coldResult = Invoke-CappedBuild @("build", $src, "-o", "nuc_perf_check") "cold self-build sample $coldSample"
+        if ($coldResult.CacheLine -notmatch '^cache: miss') {
+            throw "cold self-build sample $coldSample did not start from cold cache: $($coldResult.CacheLine)`nstdout tail:`n$($coldResult.StdoutTail)`nstderr tail:`n$($coldResult.StderrTail)"
+        }
+        $coldResults += $coldResult
+        if ($coldResult.PeakMb -gt $cold_mem_mb) { $cold_mem_mb = $coldResult.PeakMb }
+    }
+    $cold = Get-MedianSeconds $coldResults
 
-    # Hot cache: immediate re-run, no cleanup
-    $hotResult = Invoke-CappedBuild @("build", $src, "-o", "nuc_perf_check") "hot self-build"
-    $hot = $hotResult.WallSec
-    $hot_mem_mb = $hotResult.PeakMb
-    if ($hot_mem_mb -gt $cold_mem_mb) { $cold_mem_mb = $hot_mem_mb }
-    $crossed_warning = ($coldResult.CrossedWarning -or $hotResult.CrossedWarning)
+    # Hot cache: immediate re-runs, no cleanup. Use a 3-sample median
+    # so OS process-spawn / scheduler jitter cannot fail the gate, but
+    # still fail if any hot run exits nonzero or misses the cache.
+    $hotResults = @()
+    for ($hotSample = 1; $hotSample -le 3; $hotSample++) {
+        $hotResult = Invoke-CappedBuild @("build", $src, "-o", "nuc_perf_check") "hot self-build sample $hotSample"
+        if ($hotResult.CacheLine -notmatch '^cache: hit') {
+            throw "hot self-build sample $hotSample did not hit cache: $($hotResult.CacheLine)`nstdout tail:`n$($hotResult.StdoutTail)`nstderr tail:`n$($hotResult.StderrTail)"
+        }
+        $hotResults += $hotResult
+        if ($hotResult.PeakMb -gt $cold_mem_mb) { $cold_mem_mb = $hotResult.PeakMb }
+    }
+    $hot = Get-MedianSeconds $hotResults
+    $hot_mem_mb = ($hotResults | ForEach-Object { [int]$_.PeakMb } | Measure-Object -Maximum).Maximum
+    $crossed_warning = $false
+    foreach ($coldResult in $coldResults) {
+        if ($coldResult.CrossedWarning) { $crossed_warning = $true }
+    }
+    foreach ($hotResult in $hotResults) {
+        if ($hotResult.CrossedWarning) { $crossed_warning = $true }
+    }
 } finally {
     Pop-Location
 }

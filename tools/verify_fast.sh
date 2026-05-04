@@ -205,6 +205,53 @@ case "$(uname -s)" in
         if [ -x "$ROOT/bin/nucleor" ]; then BIN="$ROOT/bin/nucleor"; elif [ -x "$ROOT/bin/nucleor.exe" ]; then BIN="$ROOT/bin/nucleor.exe"; else BIN="$ROOT/bin/nucleor"; fi
         ;;
 esac
+case "$(uname -s)" in
+    Linux*)
+        case "$BIN" in
+            *.exe)
+                export NUCLEOR_STDLIB="${NUCLEOR_STDLIB:-$ROOT}"
+                if [ "$NUC_VERIFY_TMPDIR_OWNED" = "1" ]; then
+                    rm -rf "$NUC_VERIFY_TMPDIR" 2>/dev/null || true
+                    NUC_VERIFY_TMPDIR="$ROOT/target/.verify_tmp/nuc_verify_$$"
+                    mkdir -p "$NUC_VERIFY_TMPDIR" || exit 1
+                    NUC_VERIFY_STEP_LOG="$NUC_VERIFY_TMPDIR/step.log"
+                    NUC_VERIFY_EX_OUT_LOG="$NUC_VERIFY_TMPDIR/example.out"
+                    NUC_VERIFY_RUN_LOG="$NUC_VERIFY_TMPDIR/run.log"
+                fi
+                ;;
+        esac
+        ;;
+esac
+
+grep() {
+    if [ "$#" -ge 2 ]; then
+        local last_arg="${@: -1}"
+        if [ "$last_arg" = "$NUC_VERIFY_STEP_LOG" ] || [ "$last_arg" = "$NUC_VERIFY_RUN_LOG" ] || [ "$last_arg" = "$NUC_VERIFY_EX_OUT_LOG" ]; then
+            local normalized="$NUC_VERIFY_TMPDIR/.grep_normalized_$$"
+            tr -d '\r' < "$last_arg" > "$normalized" || return 2
+            command grep "${@:1:$(($# - 1))}" "$normalized"
+            local rc=$?
+            rm -f "$normalized"
+            return "$rc"
+        fi
+    fi
+    if [ "$#" -ge 1 ]; then
+        local maybe_file="${@: -1}"
+        if [ -e "$maybe_file" ]; then
+            command grep "$@"
+            return "$?"
+        fi
+    fi
+    if [ -p /dev/stdin ]; then
+        local normalized_stdin="$NUC_VERIFY_TMPDIR/.grep_stdin_normalized_$$"
+        tr -d '\r' > "$normalized_stdin" || return 2
+        command grep "$@" "$normalized_stdin"
+        local rc=$?
+        rm -f "$normalized_stdin"
+        return "$rc"
+    fi
+    command grep "$@"
+}
 
 # --- Color setup --------------------------------------------------------
 USE_COLOR=1
@@ -400,7 +447,10 @@ STEP_TOTAL=$((STEP_TOTAL_FIXED + ${#EXAMPLES[@]} + TEST_COUNT + ERR_COUNT))
 
 # --- Step bodies --------------------------------------------------------
 check_binary() {
-    [ -x "$BIN" ] || return 1
+    case "$BIN" in
+        *.exe) [ -f "$BIN" ] || return 1 ;;
+        *)     [ -x "$BIN" ] || return 1 ;;
+    esac
     "$BIN" help 2>&1 | grep -q "Nucleor Compiler" || return 1
     return 0
 }
@@ -832,12 +882,71 @@ cli_diagnostic_smoke() {
     return 0
 }
 
+prepare_local_runtime() {
+    local workdir="$1"
+    rm -rf "$workdir/stdlib"
+    mkdir -p "$workdir/stdlib" || return 1
+    cp -R "$ROOT/stdlib/runtime" "$workdir/stdlib/" || return 1
+    return 0
+}
+
+prepare_local_tools() {
+    local workdir="$1"
+    if [ -f "$ROOT/bin/nucleor_tools.exe" ]; then
+        cp "$ROOT/bin/nucleor_tools.exe" "$workdir/nucleor_tools.exe" || return 1
+    elif [ -f "$ROOT/bin/nucleor_tools" ]; then
+        cp "$ROOT/bin/nucleor_tools" "$workdir/nucleor_tools" || return 1
+    fi
+    return 0
+}
+
+verify_bin_path() {
+    local p="$1"
+    case "$p" in
+        "$ROOT"/*) printf '%s\n' "${p#"$ROOT"/}" ;;
+        *) printf '%s\n' "$p" ;;
+    esac
+}
+
+verify_tmp_file() {
+    printf '%s\n' "$NUC_VERIFY_TMPDIR/$1"
+}
+
+verify_tmp_dir() {
+    local d="$NUC_VERIFY_TMPDIR/$1"
+    rm -rf "$d"
+    mkdir -p "$d" || return 1
+    printf '%s\n' "$d"
+}
+
+nuc_build_with_env() {
+    local env_assign="$1"
+    local src="$2"
+    local out="$3"
+    shift 3
+    if command -v wslpath >/dev/null 2>&1; then
+        case "$(uname -s):$BIN" in
+            Linux*:*.exe)
+                local root_win src_arg cmd extra
+                root_win="$(wslpath -w "$ROOT")"
+                src_arg="$(verify_bin_path "$src")"
+                src_arg="${src_arg//\//\\}"
+                cmd="cd /d $root_win && set $env_assign&& bin\\nucleor.exe build $src_arg -o $out"
+                for extra in "$@"; do cmd="$cmd $extra"; done
+                cmd.exe /C "$cmd"
+                return "$?"
+                ;;
+        esac
+    fi
+    env "$env_assign" "$BIN" build "$(verify_bin_path "$src")" -o "$out" "$@"
+}
+
 # nuc init scaffolding smoke (added v0.2.66) — verifies the
 # new-user-first-command produces a working project. Catches
 # regressions in the init template (Nucleor.toml fields,
 # src/main.nr scaffold) that the example/test gate misses.
 cli_init_smoke() {
-    local sandbox="/tmp/_nuc_init_smoke_$$"
+    local sandbox="$NUC_VERIFY_TMPDIR/_nuc_init_smoke_$$"
     rm -rf "$sandbox"
     mkdir -p "$sandbox" || return 1
     (
@@ -850,6 +959,7 @@ cli_init_smoke() {
         grep -q 'entry = "src/main.nr"' smokeproj/Nucleor.toml || exit 1
         # Scaffold must compile + run
         cd smokeproj || exit 1
+        prepare_local_runtime "$PWD" || exit 1
         "$BIN" build src/main.nr -o smokeproj >/dev/null 2>&1 || exit 1
         local exe="target/smokeproj"
         [ -x "$exe.exe" ] && exe="$exe.exe"
@@ -869,7 +979,7 @@ cli_init_smoke() {
 # v0.2.69 fixed (target/ not created before harness write) is
 # directly catchable by this step.
 cli_test_smoke() {
-    local sandbox="/tmp/_nuc_test_smoke_$$"
+    local sandbox="$NUC_VERIFY_TMPDIR/_nuc_test_smoke_$$"
     rm -rf "$sandbox"
     mkdir -p "$sandbox" || return 1
     (
@@ -883,6 +993,8 @@ fn test_addition() {
 }
 fn main() -> i64 { return 0; }
 NREOF
+        prepare_local_runtime "$PWD" || exit 1
+        prepare_local_tools "$PWD" || exit 1
         local out
         out=$("$BIN" test t.nr 2>&1)
         echo "$out" | grep -q "discovered tests: 1" || exit 1
@@ -900,13 +1012,14 @@ NREOF
 # Nucleor.toml, walks the (trivial in this case) dependency graph,
 # and writes Nucleor.lock with the expected fields.
 cli_lock_smoke() {
-    local sandbox="/tmp/_nuc_lock_smoke_$$"
+    local sandbox="$NUC_VERIFY_TMPDIR/_nuc_lock_smoke_$$"
     rm -rf "$sandbox"
     mkdir -p "$sandbox" || return 1
     (
         cd "$sandbox" || exit 1
         "$BIN" init lockproj >/dev/null 2>&1 || exit 1
         cd lockproj || exit 1
+        prepare_local_tools "$PWD" || exit 1
         "$BIN" lock >/dev/null 2>&1 || exit 1
         [ -f Nucleor.lock ] || exit 1
         # Schema: must have the four canonical fields (version, root,
@@ -927,11 +1040,12 @@ cli_lock_smoke() {
 # /// doc comments, emits a Markdown doc with function index + per-fn
 # signature blocks, and the --out flag writes to file.
 cli_doc_smoke() {
-    local sandbox="/tmp/_nuc_doc_smoke_$$"
+    local sandbox="$NUC_VERIFY_TMPDIR/_nuc_doc_smoke_$$"
     rm -rf "$sandbox"
     mkdir -p "$sandbox" || return 1
     (
         cd "$sandbox" || exit 1
+        prepare_local_tools "$PWD" || exit 1
         cat > smoke.nr <<'NREOF'
 /// Adds two integers.
 fn smoke_add(a: i64, b: i64) -> i64 { return a + b; }
@@ -1295,8 +1409,11 @@ t34_export_decls() {
     # T3.4 (v0.3.4): #[export] attribute → C forward declaration
     # in `nuc gen-headers` output. Lets external C code call into
     # Nucleor-compiled fns through the unmangled LLVM symbol.
-    local hdr="/tmp/_t34_export.h"
-    "$BIN" gen-headers "tests/fixtures/t34_export.nr" -o "$hdr" >$NUC_VERIFY_STEP_LOG 2>&1
+    local hdr hdr_arg
+    hdr="$(verify_tmp_file "_t34_export.h")"
+    hdr_arg="$(verify_bin_path "$hdr")"
+    rm -f "$hdr"
+    "$BIN" gen-headers "tests/fixtures/t34_export.nr" -o "$hdr_arg" >$NUC_VERIFY_STEP_LOG 2>&1
     [ -f "$hdr" ] || return 1
     grep -q 'int64_t nuc_add(int64_t a, int64_t b);' "$hdr" || return 1
     grep -q 'double nuc_dot(Vec3 a, Vec3 b);' "$hdr" || return 1
@@ -1458,7 +1575,7 @@ t325_examples_list_drift() {
     # so the verify gate silently skips it.
     local dir_set list_set extras allowed
     dir_set=$(ls "$ROOT"/examples/*.nr 2>/dev/null | xargs -n1 basename | sed 's/\.nr$//' | sort -u)
-    list_set=$(grep -v '^#' "$ROOT/tools/examples.list" | grep -v '^$' | sort -u)
+    list_set=$(grep -v '^#' "$ROOT/tools/examples.list" | tr -d '\r' | grep -v '^$' | sort -u)
     # Conditional allowlist — examples that verify scripts add only
     # under specific env conditions and are intentionally not in
     # examples.list. Mirror in verify.ps1's T3.25 implementation.
@@ -1998,7 +2115,7 @@ t_rfc0006_invariant_ctor_runtime() {
     # Negative side: constructor returns a violating instance.
     local tmp_neg="$NUC_VERIFY_TMPDIR/rfc6_ctor_violate.nr"
     printf '%s\n' "struct Counter { value: i64 }" "#[invariant(self.value >= 0)]" "impl Counter { fn bad() -> Counter { Counter { value: 0 - 5 } } }" "fn main() -> i64 { let c: Counter = Counter::bad(); print_int(c.value); 0 }" > "$tmp_neg"
-    "$BIN" build "$tmp_neg" -o "_t_rfc6_ctor_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_ctor_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_ctor_violate"
     [ -x "$nexe.exe" ] && nexe="$nexe.exe"
@@ -2018,7 +2135,7 @@ t_rfc0006_dbc_mode_runtime() {
     local src="$NUC_VERIFY_TMPDIR/rfc6_dbc_mode.nr"
     printf '%s\n' "struct Box { v: i64 }" "#[invariant(self.v >= 0)]" "impl Box { fn get(self: Box) -> i64 { self.v } }" "#[require(x > 0)]" "fn pos(x: i64) -> i64 { x }" "fn main() -> i64 { let b: Box = Box { v: 0 - 5 }; let bv: i64 = b.get(); let p: i64 = pos(0 - 3); print_int(bv + p); 0 }" > "$src"
     # Debug mode (default): invariant fires first.
-    Remove_Item="" "$BIN" build "$src" -o "_t_rfc6_dbc_debug" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    Remove_Item="" "$BIN" build "$(verify_bin_path "$src")" -o "_t_rfc6_dbc_debug" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local debug_exe="target/_t_rfc6_dbc_debug"
     [ -x "$debug_exe.exe" ] && debug_exe="$debug_exe.exe"
@@ -2026,7 +2143,7 @@ t_rfc0006_dbc_mode_runtime() {
     debug_out=$("$debug_exe" 2>&1)
     echo "$debug_out" | grep -q "CONTRACT-003: invariant violated" || return 1
     # Safe-release: invariant elided, require fires.
-    NUCLEOR_DBC_MODE=safe-release "$BIN" build "$src" -o "_t_rfc6_dbc_sr" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    nuc_build_with_env "NUCLEOR_DBC_MODE=safe-release" "$src" "_t_rfc6_dbc_sr" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local sr_exe="target/_t_rfc6_dbc_sr"
     [ -x "$sr_exe.exe" ] && sr_exe="$sr_exe.exe"
@@ -2034,7 +2151,7 @@ t_rfc0006_dbc_mode_runtime() {
     sr_out=$("$sr_exe" 2>&1)
     echo "$sr_out" | grep -q "CONTRACT-001: require precondition violated" || return 1
     # Release: all elided, exits 0 with garbage value.
-    NUCLEOR_DBC_MODE=release "$BIN" build "$src" -o "_t_rfc6_dbc_rel" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    nuc_build_with_env "NUCLEOR_DBC_MODE=release" "$src" "_t_rfc6_dbc_rel" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local rel_exe="target/_t_rfc6_dbc_rel"
     [ -x "$rel_exe.exe" ] && rel_exe="$rel_exe.exe"
@@ -2063,7 +2180,7 @@ t_rfc0006_old_expr_runtime() {
     echo "$out" | grep -q "OK rfc0006_old_expr" || return 1
     local tmp_neg="$NUC_VERIFY_TMPDIR/rfc6_old_violate.nr"
     printf '%s\n' "#[ensure(result == old(x) + 1)]" "fn bad_inc(x: i64) -> i64 { x + 2 }" "fn main() -> i64 { let a: i64 = bad_inc(5); print_int(a); 0 }" > "$tmp_neg"
-    "$BIN" build "$tmp_neg" -o "_t_rfc6_old_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_old_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_old_violate"
     [ -x "$nexe.exe" ] && nexe="$nexe.exe"
@@ -2180,12 +2297,12 @@ t_rfc0006_dbc_mode_invalid_reject() {
     # finding 2026-05-01: unrecognized values silently fell into
     # a partial-strip bucket. CONTRACT-009 now halts at compile
     # entry naming the bad value and the recognized set.
-    NUCLEOR_DBC_MODE=off "$BIN" build "tests/err/err_dbc_mode_invalid.nr" -o "_t_rfc6_dbcmode" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    nuc_build_with_env "NUCLEOR_DBC_MODE=off" "tests/err/err_dbc_mode_invalid.nr" "_t_rfc6_dbcmode" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "1" ] || return 1
     grep -q "CONTRACT-009" $NUC_VERIFY_STEP_LOG || return 1
     grep -q "off" $NUC_VERIFY_STEP_LOG || return 1
     # Sanity: a recognized value still builds.
-    NUCLEOR_DBC_MODE=release "$BIN" build "tests/err/err_dbc_mode_invalid.nr" -o "_t_rfc6_dbcmode_ok" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    nuc_build_with_env "NUCLEOR_DBC_MODE=release" "tests/err/err_dbc_mode_invalid.nr" "_t_rfc6_dbcmode_ok" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     return 0
 }
@@ -2244,7 +2361,7 @@ t_rfc0006_no_check_runtime() {
     # the contract DOES fire — confirms the marker was load-bearing.
     local tmp_neg="$NUC_VERIFY_TMPDIR/rfc6_nochk_violate.nr"
     printf '%s\n' "#[require(x > 0)]" "fn hot(x: i64) -> i64 { x * 2 }" "fn main() -> i64 { let a: i64 = hot(0 - 5); print_int(a); 0 }" > "$tmp_neg"
-    "$BIN" build "$tmp_neg" -o "_t_rfc6_nochk_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_nochk_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_nochk_violate"
     [ -x "$nexe.exe" ] && nexe="$nexe.exe"
@@ -2272,7 +2389,7 @@ t_rfc0006_multi_attrs_runtime() {
     echo "$out" | grep -q "OK rfc0006_multi_attrs" || return 1
     local tmp_neg="$NUC_VERIFY_TMPDIR/rfc6_multi_violate.nr"
     printf '%s\n' "#[require(x > 0)]" "#[require(x < 100)]" "fn safe(x: i64) -> i64 { x * 2 }" "fn main() -> i64 { let a: i64 = safe(500); print_int(a); 0 }" > "$tmp_neg"
-    "$BIN" build "$tmp_neg" -o "_t_rfc6_multi_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_multi_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_multi_violate"
     [ -x "$nexe.exe" ] && nexe="$nexe.exe"
@@ -2302,7 +2419,7 @@ t_rfc0006_invariant_runtime() {
     echo "$out" | grep -q "OK rfc0006_invariant_basic" || return 1
     local tmp_neg="$NUC_VERIFY_TMPDIR/rfc6_inv_violate.nr"
     printf '%s\n' "struct Counter { value: i64 }" "#[invariant(self.value >= 0)]" "impl Counter { fn get(self: Counter) -> i64 { self.value } }" "fn main() -> i64 { let c: Counter = Counter { value: 0 - 5 }; let v: i64 = c.get(); print_int(v); 0 }" > "$tmp_neg"
-    "$BIN" build "$tmp_neg" -o "_t_rfc6_inv_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_inv_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_inv_violate"
     [ -x "$nexe.exe" ] && nexe="$nexe.exe"
@@ -2330,7 +2447,7 @@ t_rfc0006_ensure_midbody_runtime() {
     # Negative side: ensure violation via mid-body return.
     local tmp_neg="$NUC_VERIFY_TMPDIR/rfc6_emid_violate.nr"
     printf '%s\n' "#[ensure(result >= 0)]" "fn neg_ret(x: i64) -> i64 { if x < 0 { return 0 - 1; }; x }" "fn main() -> i64 { let a: i64 = neg_ret(0 - 5); print_int(a); 0 }" > "$tmp_neg"
-    "$BIN" build "$tmp_neg" -o "_t_rfc6_emid_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_emid_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_emid_violate"
     [ -x "$nexe.exe" ] && nexe="$nexe.exe"
@@ -2358,7 +2475,7 @@ t_rfc0006_ensure_runtime() {
     echo "$out" | grep -q "OK rfc0006_ensure_basic" || return 1
     local tmp_neg="$NUC_VERIFY_TMPDIR/rfc6_ens_violate.nr"
     printf '%s\n' "#[ensure(result > 100)]" "fn small(x: i64) -> i64 { x + 1 }" "fn main() -> i64 { let a: i64 = small(5); print_int(a); 0 }" > "$tmp_neg"
-    "$BIN" build "$tmp_neg" -o "_t_rfc6_ens_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_ens_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_ens_violate"
     [ -x "$nexe.exe" ] && nexe="$nexe.exe"
@@ -2390,7 +2507,7 @@ t_rfc0006_require_runtime() {
     # passing-only.
     local tmp_neg="$NUC_VERIFY_TMPDIR/rfc6_violate.nr"
     printf '%s\n' "#[require(x > 0)]" "fn pos(x: i64) -> i64 { x * 2 }" "fn main() -> i64 { let a: i64 = pos(0 - 5); print_int(a); 0 }" > "$tmp_neg"
-    "$BIN" build "$tmp_neg" -o "_t_rfc6_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
+    "$BIN" build "$(verify_bin_path "$tmp_neg")" -o "_t_rfc6_violate" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
     [ "$?" = "0" ] || return 1
     local nexe="target/_t_rfc6_violate"
     [ -x "$nexe.exe" ] && nexe="$nexe.exe"
@@ -2809,18 +2926,8 @@ t398_unwrap_on_non_option_guard() {
 }
 
 t397_str_eq_pointer_guard() {
-    # T3.97 (v0.4.52): NUC-FEEDBACK silent-miscompute guard for
-    # `str == str` and `str != str`. Pre-fix the binop did pointer
-    # comparison, silently returning FALSE for two equal-bytes string
-    # literals at different addresses. v0.4.52 emits TYP-011 with a
-    # str_eq() hint and halts the build.
-    "$BIN" build "tests/fixtures/repro_v52_str_eq_pointer_guard.nr" -o "_t397_check" --no-cache >$NUC_VERIFY_STEP_LOG 2>&1
-    local rc=$?
-    [ "$rc" = "1" ] || return 1
-    grep -q "error\[TYP-011\]" $NUC_VERIFY_STEP_LOG || return 1
-    grep -q "pointer comparison" $NUC_VERIFY_STEP_LOG || return 1
-    grep -q "str_eq" $NUC_VERIFY_STEP_LOG || return 1
-    return 0
+    # Superseded by v0.6.87: str/String equality is now content equality.
+    v0687_str_string_eq_auto_dispatch
 }
 
 t396_str_plus_str_guard() {
@@ -4137,6 +4244,50 @@ v0512_str_to_int_strict_panic() {
     grep -qE 'PANIC: str_to_int_strict:' $NUC_VERIFY_RUN_LOG || return 1
 }
 
+v0681_ufcs_dispatch() {
+    rm -f target/v0681_ufcs_check.exe target/v0681_ufcs_check
+    "$BIN" build tests/fixtures/v0681_ufcs_dispatch.nr -o "v0681_ufcs_check" >$NUC_VERIFY_STEP_LOG 2>&1
+    local exe=""
+    if [ -x target/v0681_ufcs_check.exe ]; then exe=target/v0681_ufcs_check.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0681_ufcs_check ]; then exe=target/v0681_ufcs_check; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rc=$?
+    [ "$rc" -eq 0 ] || return 1
+    grep -q "hi from W" $NUC_VERIFY_RUN_LOG || return 1
+}
+
+v0687_str_string_eq_auto_dispatch() {
+    rm -f target/v0687_eq_check.exe target/v0687_eq_check
+    "$BIN" build tests/fixtures/v0687_str_string_eq_auto_dispatch.nr -o "v0687_eq_check" >$NUC_VERIFY_STEP_LOG 2>&1
+    local exe=""
+    if [ -x target/v0687_eq_check.exe ]; then exe=target/v0687_eq_check.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0687_eq_check ]; then exe=target/v0687_eq_check; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rc=$?
+    [ "$rc" -eq 0 ] || return 1
+    grep -q "11" $NUC_VERIFY_RUN_LOG || return 1
+    grep -q "22" $NUC_VERIFY_RUN_LOG || return 1
+    grep -q "33" $NUC_VERIFY_RUN_LOG || return 1
+    grep -q "44" $NUC_VERIFY_RUN_LOG || return 1
+}
+
+v0688_assert_eq_routes_through_eq() {
+    rm -f target/v0688_assert_check.exe target/v0688_assert_check
+    "$BIN" build tests/fixtures/v0688_assert_eq_routes_through_eq.nr -o "v0688_assert_check" >$NUC_VERIFY_STEP_LOG 2>&1
+    local exe=""
+    if [ -x target/v0688_assert_check.exe ]; then exe=target/v0688_assert_check.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0688_assert_check ]; then exe=target/v0688_assert_check; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1
+    local rc=$?
+    [ "$rc" -eq 0 ] || return 1
+    grep -q "11" $NUC_VERIFY_RUN_LOG || return 1
+    grep -q "22" $NUC_VERIFY_RUN_LOG || return 1
+    grep -q "33" $NUC_VERIFY_RUN_LOG || return 1
+}
+
 t28_async_threads() {
     # v0.2.353 (T2.8): async runtime — threads-only commitment.
     "$BIN" test "tests/smoke/t28_async_threads.nr" >$NUC_VERIFY_STEP_LOG 2>&1
@@ -4156,9 +4307,11 @@ t27_doc_html() {
     # saying "with index + signatures" instead of "HTML"). Test failed
     # at the first grep. The .ps1 mirror uses an explicit _t27_doc.html
     # filename and worked correctly. v0.3.148 sync.
-    local hdr="/tmp/_t27_doc_$$.html"
+    local hdr hdr_arg
+    hdr="$(verify_tmp_file "_t27_doc_$$.html")"
+    hdr_arg="$(verify_bin_path "$hdr")"
     rm -f "$hdr"
-    "$BIN" doc tests/fixtures/t27_doc_input.nr --out "$hdr" >$NUC_VERIFY_STEP_LOG 2>&1
+    "$BIN" doc tests/fixtures/t27_doc_input.nr --out "$hdr_arg" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE 'wrote .*HTML' $NUC_VERIFY_STEP_LOG || return 1
     [ -f "$hdr" ] || return 1
     grep -q "<!doctype html>" "$hdr" || return 1
@@ -4250,10 +4403,11 @@ t16_gen_headers_structs() {
     # structs, emits typedef structs in the C header, and accepts
     # struct names in extern fn signatures. Non-repr(C) structs
     # (PrivateInternal in the fixture) must be excluded.
-    local hdr
-    hdr="$(mktemp 2>/dev/null || echo /tmp/_t16_struct_ffi.h)"
+    local hdr hdr_arg
+    hdr="$(verify_tmp_file "_t16_struct_ffi.h")"
+    hdr_arg="$(verify_bin_path "$hdr")"
     rm -f "$hdr"
-    "$BIN" gen-headers tests/fixtures/t16_struct_ffi.nr -o "$hdr" >$NUC_VERIFY_STEP_LOG 2>&1
+    "$BIN" gen-headers tests/fixtures/t16_struct_ffi.nr -o "$hdr_arg" >$NUC_VERIFY_STEP_LOG 2>&1
     grep -qE 'wrote 2 #\[repr\(C\)\] struct\(s\), 2 extern decl\(s\), 0 #\[export\] decl\(s\)' $NUC_VERIFY_STEP_LOG || return 1
     [ -f "$hdr" ] || return 1
     grep -q "typedef struct Point2D" "$hdr" || return 1
@@ -4271,10 +4425,10 @@ t14_export_static() {
     # GitHub-Pages-publishable static-site shape per RFC-0019 §6.
     # Uses the checked-in fixture at tests/fixtures/t14_registry/
     # (2 packages: foo with 2 versions, bar with 1 version).
-    local out_dir
-    out_dir="$(mktemp -d 2>/dev/null || echo /tmp/_t14_verify_out)"
-    rm -rf "$out_dir"
-    "$BIN" registry export-static "$out_dir" --registry tests/fixtures/t14_registry >$NUC_VERIFY_STEP_LOG 2>&1
+    local out_dir out_arg
+    out_dir="$(verify_tmp_dir "_t14_verify_out")" || return 1
+    out_arg="$(verify_bin_path "$out_dir")"
+    "$BIN" registry export-static "$out_arg" --registry tests/fixtures/t14_registry >$NUC_VERIFY_STEP_LOG 2>&1
     grep -q "packages exported: 2" $NUC_VERIFY_STEP_LOG || return 1
     grep -q "versions exported: 3" $NUC_VERIFY_STEP_LOG || return 1
     grep -qE "files copied:[[:space:]]*7" $NUC_VERIFY_STEP_LOG || return 1
@@ -4795,6 +4949,9 @@ step "v0.3.0 #[deadline=N] runtime check passes within budget" v030_deadline_pas
 step "v0.3.0 #[deadline=N] overrun aborts with RT-004" v030_deadline_overrun
 step "v0.5.10 i32::MIN / -1 panics cleanly (not Windows STATUS_INTEGER_OVERFLOW)" v0510_i32_min_div_overflow
 step "v0.5.12 str_to_int_strict panics on invalid input" v0512_str_to_int_strict_panic
+step "v0.6.81 UFCS dispatch parses and routes through trait impl" v0681_ufcs_dispatch
+step "v0.6.87 str/String == auto-dispatches to content equality" v0687_str_string_eq_auto_dispatch
+step "v0.6.88 assert_eq!/assert_ne! route through equality" v0688_assert_eq_routes_through_eq
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------

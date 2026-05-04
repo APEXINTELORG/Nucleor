@@ -1,6 +1,7 @@
 // Phase 2a: Move semantics — comprehensive passing tests
 
 struct Widget { id: i32 }
+struct Pair(i32, i32);
 
 fn take_widget(w: Widget) -> i32 { w.id }
 
@@ -42,9 +43,9 @@ fn main() -> i32 {
     let arr2: [i32; 3] = arr;  // arr moves to arr2
     print_int(arr2[0]);         // ok
 
-    // 6. Tuples move
-    let t: (i32, i32) = (1, 2);
-    let t2: (i32, i32) = t;    // t moves to t2
+    // 6. Tuple-structs move
+    let t: Pair = Pair(1, 2);
+    let t2: Pair = t;          // t moves to t2
     print_int(t2.0);            // ok
 
     0
