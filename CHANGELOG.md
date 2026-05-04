@@ -5,6 +5,79 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.49] — 2026-05-04
+
+**Wave 1 — BOOT-3 fix: full compiler self-IR fixed-point check.**
+The verify.ps1 stage-2 fixpoint step now compares the FULL
+10K+ line compiler self-IR, not a 50-line `arith.nr` smoke.
+
+### Pre-fix surface
+
+`tools/verify.ps1` step "self-host bootstrap fixpoint (stage-2)"
+compiled `tests/lang/arith.nr` (50 lines) through stage-1 and
+stage-2 binaries, SHA-compared the resulting .ll files. The
+gate passed as long as the smoke produced identical IR.
+
+**Compiler bugs introducing non-fixed-point in 10K-line self-
+compiler IR but not in arith.nr would pass the gate.** The
+load-bearing claim in the contract — "two-iteration `diff -q
+target/nucleor_v(N).ll target/nucleor_v(N+1).ll`" — was NOT
+what the verify step actually ran.
+
+### Fix
+
+Replaced `arith.nr` with `compiler/nucleor_s1_compiler.nr` as
+the round-trip source. The stage-2 binary
+(`verify_compiler_2.exe`) now compiles the full compiler.nr
+(producing `verify_compiler_3.ll`), and we SHA-compare against
+the stage-1 emission (`verify_compiler_2.ll`).
+
+Fixed-point holds iff the compiler-emitting-itself produces
+identical IR across the second self-application.
+
+### Cost
+
+The new check adds one extra full compiler self-host
+(~3.5s cold) to the verify gate. Acceptable for a CI gate
+that was previously running a 0.1s smoke. The verify step now
+takes the time it should have always taken to do the actual
+correctness check.
+
+### Linux/POSIX gap (BOOT-5)
+
+`tools/verify.sh` has a different check (freshness: seed.ll
+vs current emission) which validates the seed is up to date,
+not stage-1 vs stage-2 fixed-point. BOOT-5 (POSIX gate) needs
+its own ship to add the fixed-point step on Linux.
+
+### Phase status
+
+```
+BOOT-3 (full self-IR fixpoint)         DONE Phase 1 (v0.8.49 this)
+BOOT-4 (stage divergence detection)    Same fix covers it
+BOOT-5 (POSIX perf regression step)    QUEUED
+BOOT-7 (Linux/macOS bootstrap)         QUEUED
+BOOT-8 (POSIX channel/pipe stubs)      Cross-ref C-1, C-2
+```
+
+### Wave 1 status — 5 of 6 critical findings closed
+
+```
+NUM-G1   f64 lex truncation         DONE Phase 1 (v0.8.44)
+ML-1     attn_flash ABI mismatch    FIXED       (v0.8.45)
+T-3      char-cast risk             DONE Phase 1 (v0.8.46)
+T-4      empty-type fallthrough     DEFERRED
+E-1/2/3  effect silent-discard      DONE Phase 1 (v0.8.48)
+BOOT-3,4 fixed-point integrity      DONE Phase 1 (v0.8.49 this)
+C-1, C-2 Linux concurrency          QUEUED (last)
+```
+
+### Perf
+
+No compiler change in this ship; only verify.ps1 modified.
+Cold/hot bands unchanged. Fixed-point md5 unchanged
+(`9538d766bd5b51fd879d3b133bd19c27`).
+
 ## [0.8.48] — 2026-05-04
 
 **Wave 1 — E-1/E-2/E-3 Phase 1 audit-pass info diagnostic.**
