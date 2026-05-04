@@ -5,6 +5,41 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.78] — 2026-05-04
+
+**T-3 Phase 1 audit-pass lock-in.** Pure fixture, no compiler
+change. Locks the v0.8.46 `info[T-3-CAST]` audit-pass behavior
+so any future refactor that drops the diagnostic gets caught.
+
+### Fixture
+
+`tests/features/t3_char_cast_audit_lock.nr` — source contains
+multiple `as char` casts. Build emits `info[T-3-CAST]: as char
+casts in source: <N>` (textual scanner counts source +
+comments). Runtime returns rc=130 (`'A' as i64 + 'A' as i64`).
+
+The audit is naive `str_index_of` — it counts comment hits as
+well as code, so the lock is on **existence-of-info-line** not
+exact count. Phase 2b will validate codepoint range at the
+cast site (reject 0xD800-0xDFFF surrogates and >0x10FFFF) per
+RFC T-3 from `docs/rfcs/gap-analyses/Nucleor_Type_System_Gap_
+Analysis_and_RFC_2026-05-04.md`.
+
+### Closes (status update from probe finding)
+
+- `findings/promoted/2026-05-04-t-3-char-int-silent-compat-confirmed.md`:
+  Phase 1 audit-pass info confirmed firing post-v0.8.46.
+  Hazards 1/2/3 (i64↔char compat) need Phase 2b
+  `types_compatible` edit; hazard 4 (`as char` invalid Unicode)
+  needs Phase 2b cast-time codepoint validation. Both queued.
+
+### Q-class status — closure recap
+
+All Q1–Q10 defensive-halt items from
+`PARALLEL_AGENT_PUNCHLIST_v0.6.54` have lock-in fixtures
+(Q1/Q9 v0.8.21, Q3/Q4/Q5/Q7/Q8/Q10 v0.8.22, Q2 v0.8.34, Q6
+covered by v0.7.18). No outstanding Q-class items.
+
 ## [0.8.77] — 2026-05-04
 
 **G-3 broader regression coverage.** Two more permanent

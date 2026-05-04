@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 242
-# Total fn definitions: 2581
-# Total LOC: 11226
+# Total rods: 248
+# Total fn definitions: 2770
+# Total LOC: 11784
 
 [[rod]]
 name           = "activation2"
@@ -87,9 +87,9 @@ imports        = ["atomic"]
 name           = "attention2"
 path           = "stdlib/rods/attention2.nr"
 description    = "Modern attention variants"
-function_count = 6
+function_count = 8
 cfile_count    = 1
-loc            = 25
+loc            = 31
 imports        = []
 
 [[rod]]
@@ -323,7 +323,7 @@ path           = "stdlib/rods/cli.nr"
 description    = "Command-line argument parsing"
 function_count = 11
 cfile_count    = 0
-loc            = 162
+loc            = 164
 imports        = ["cli", "fmt", "strings"]
 
 [[rod]]
@@ -341,7 +341,7 @@ path           = "stdlib/rods/collections.nr"
 description    = "HashMap and collection utilities"
 function_count = 20
 cfile_count    = 0
-loc            = 218
+loc            = 219
 imports        = ["collections"]
 
 [[rod]]
@@ -534,6 +534,15 @@ loc            = 8
 imports        = ["digest"]
 
 [[rod]]
+name           = "distributed"
+path           = "stdlib/rods/distributed.nr"
+description    = "RFC-0055 Phase A: distributed collectives"
+function_count = 39
+cfile_count    = 1
+loc            = 105
+imports        = ["distributed"]
+
+[[rod]]
 name           = "dstar"
 path           = "stdlib/rods/dstar.nr"
 description    = "D* Lite incremental replanner on a 2-D 8-connected"
@@ -604,6 +613,15 @@ function_count = 8
 cfile_count    = 1
 loc            = 17
 imports        = []
+
+[[rod]]
+name           = "enclave"
+path           = "stdlib/rods/enclave.nr"
+description    = "RFC-0057 Phase A: enclave types + info-flow"
+function_count = 28
+cfile_count    = 1
+loc            = 100
+imports        = ["enclave"]
 
 [[rod]]
 name           = "energy_budget"
@@ -1092,6 +1110,15 @@ loc            = 25
 imports        = ["lqr"]
 
 [[rod]]
+name           = "lsp"
+path           = "stdlib/rods/lsp.nr"
+description    = "V1.16 SPEC-LSP-server Phase A: LSP 3.17 protocol"
+function_count = 49
+cfile_count    = 0
+loc            = 135
+imports        = ["lsp"]
+
+[[rod]]
 name           = "math"
 path           = "stdlib/rods/math.nr"
 description    = "Integer math utilities"
@@ -1461,6 +1488,15 @@ loc            = 17
 imports        = []
 
 [[rod]]
+name           = "pq_crypto"
+path           = "stdlib/rods/pq_crypto.nr"
+description    = "RFC-0058 Phase A: post-quantum crypto"
+function_count = 34
+cfile_count    = 1
+loc            = 95
+imports        = ["pq_crypto"]
+
+[[rod]]
 name           = "pqueue"
 path           = "stdlib/rods/pqueue.nr"
 description    = "Priority queue (binary min/max-heap with decrease-key)"
@@ -1513,6 +1549,15 @@ function_count = 5
 cfile_count    = 1
 loc            = 21
 imports        = ["python"]
+
+[[rod]]
+name           = "qsim_graph"
+path           = "stdlib/rods/qsim_graph.nr"
+description    = "RFC-0061 Tier 3 Phase A: quantum"
+function_count = 13
+cfile_count    = 1
+loc            = 42
+imports        = ["qsim_graph"]
 
 [[rod]]
 name           = "qtraj"
@@ -1621,6 +1666,15 @@ function_count = 5
 cfile_count    = 0
 loc            = 71
 imports        = ["regex"]
+
+[[rod]]
+name           = "replay"
+path           = "stdlib/rods/replay.nr"
+description    = "RFC-0056 Phase A: deterministic-replay event"
+function_count = 24
+cfile_count    = 1
+loc            = 72
+imports        = ["replay"]
 
 [[rod]]
 name           = "result"
