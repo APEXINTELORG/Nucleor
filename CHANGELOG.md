@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.55] — 2026-05-04
+
+**Defensive halt — local `const N: T = ...;` inside a fn body
+now produces a clean halt with hoist / let-binding workaround
+pointers. Sister to v0.7.47 local-type-alias halt.**
+
+Pre-fix: writing `fn h() { const N: i64 = 5; return N; }`
+surfaced as wrong-class `error[NR020]: parse_primary cannot
+start an expression at token kind 73` because the fn-body
+statement parser had no `const` branch (token 73). Module-level
+consts already work — only the fn-body local form fell through.
+
+Post-fix: `parse_stmt` now checks `tt == 73` (alongside the
+v0.7.47 `tt == 74` for type-alias) and halts cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+fn h() -> i64 {
+    const N: i64 = 5;        // ← NR020 token kind 73
+    return N;
+}
+
+// Post-fix workaround A — hoist to module scope:
+const N: i64 = 5;
+fn h() -> i64 { return N; }
+
+// Post-fix workaround B — use `let` for fn-local constants:
+fn h() -> i64 {
+    let N: i64 = 5;          // statically-scoped; const-vs-let
+                              // distinction is mostly top-level
+    return N;
+}
+```
+
+Forward-roadmap: local `const` lowering needs scope-chain
+resolution + compile-time-constness tracking (sister to v0.7.47
+local-type-alias and v0.6.21 static-items work).
+
+### Fixture
+
+`tests/fixtures/v0755_local_const_halt.nr` — negative fixture for
+`fn h() { const N: i64 = 5; ... }` (fires local-const halt with
+hoist / let-binding workarounds, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `085c311f5e5e90e8b494fae246008ef2`.
+Cold 3.9s / peak 307MB.
+
 ## [0.7.54] — 2026-05-04
 
 **Defensive halt — paren-wrapped payload inside a variant pattern

@@ -3492,6 +3492,19 @@ fn parse_stmt(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         print(str_concat(v747_alias_name, str_concat(" = ...;` above all fn definitions at the top level of the file; module-level type aliases work cleanly. Tracked for forward-roadmap (local type aliases need scope-chain resolution, sister to the generic type-alias resolver).")));
         panic("nucleor: local type alias in fn body not yet supported (see ERROR diagnostic above)");
     };
+    // v0.7.55 (defensive halt — Rust local `const`/`static` inside a fn
+    // body). Pre-fix `fn h() { const N: i64 = 5; ... }` surfaced as
+    // wrong-class `error[NR020]: parse_primary cannot start an
+    // expression at token kind 73` (or token 42 for static — different
+    // tokenization paths). Module-level const/static work — Nucleor's
+    // const ships, static is forward-roadmap (see v0.6.21 halt). Sister
+    // to v0.7.47 local-type-alias halt.
+    if tt == 73 {
+        let v755_const_name: str = if pk(tokens, pos + 1) == 1 { pkv(tokens, pos + 1) } else { "<NAME>" };
+        print(str_concat("ERROR: local `const ", str_concat(v755_const_name, ": T = ...;` inside a fn body is not yet supported in Nucleor. Pre-v0.7.55 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 73` because the fn-body statement parser had no `const` branch. Workaround: hoist the const to module scope — place `const ")));
+        print(str_concat(v755_const_name, str_concat(": T = ...;` above all fn definitions at the top level of the file; module-level consts work cleanly. Or use a regular `let` binding (`let ", str_concat(v755_const_name, ": T = ...;`) for fn-local constant values — Nucleor's let is statically-scoped and the const-vs-let distinction is mostly about top-level visibility. Sister to v0.7.47 local-type-alias halt.")))));
+        panic("nucleor: local const in fn body not yet supported (see ERROR diagnostic above)");
+    };
     let mut er: Vec<i32> = parse_expr(tokens, pos, pool);
     let mut cp: i64 = pr_pos(er);
     if pk(tokens, cp) == 40 {
