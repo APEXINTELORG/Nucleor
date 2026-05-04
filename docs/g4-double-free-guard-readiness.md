@@ -82,19 +82,104 @@ nucleor build my_code.nr   # zero-overhead
 ./my_code
 ```
 
-## Phase 2b-3 unblock criteria
+## Phase 2b-3 unblock criteria — UPDATED 2026-05-04
 
 The unconditional default-flip ship can land when:
 
 1. ✓ Cache-key fix (v0.8.64)
-2. ✓ Vec + HashMap reliable guards (v0.8.68/0.8.69)
-3. Either:
-    - String + Box + BTree guards (queued)
-    - OR per-rod handoff audit clean under
-      NUC_VEC_FREE_GUARD=1 + NUC_AUTO_DROP_DEFAULT=1
+2. ✓ Vec + HashMap reliable double-free guards (v0.8.68/0.8.69)
+3. **Static handoff detection** OR **dangling-pointer guard**
 
-The latter is faster path. The former is more complete. Both
-are valid paths to v1.0 launch.
+### Empirical finding (v0.8.70 testing)
+
+The double-free guard catches `vec_free(v); vec_free(v);` —
+two explicit frees on the same handle. **It does NOT catch
+silent dangling pointers** in handoff patterns:
+
+```nucleor
+fn build_into(reg: Vec<i32>) -> i64 {
+    let mut local: Vec<i32> = Vec::new();
+    local.push(1);
+    vec_push(reg, local);  // ← registry now owns local's bits
+    return 0;
+    // Under unconditional flip, auto_drop fires on `local`
+    // here, freeing it. Registry still holds the i64 pointer
+    // to the now-freed Vec. NO double-free occurs (only one
+    // free), so the guard doesn't fire.
+}
+```
+
+The result: registry contains a dangling pointer to a freed
+NVec. Subsequent access (vec_get, vec_len) reads invalid
+memory. Under guard ON the freed NVec has cap = sentinel
+(0xDEADBEEF), so `vec_len` returns the sentinel value cast
+to i64 — wrong but doesn't crash.
+
+**The guard is necessary but not sufficient for unconditional
+flip safety.** Need ADDITIONAL coverage:
+
+### Path A — static handoff detection
+
+Detect at compile time when a local Vec is `vec_push`ed (or
+`vec_set`ed) into a parameter. Flag the fn as
+HANDOFF-SUSPECT and require explicit `#[manual_drop]`.
+
+The audit heuristic from v0.8.41 catches the most common
+patterns. Extending to cover indirect cases (storing into a
+struct field that has parameter-lifetime, FFI escape, etc.)
+needs proper data-flow analysis.
+
+### Path B — runtime dangling-pointer guard
+
+When auto-drop runs at fn exit, scan the function's local
+scope for any `vec_push(<param>, <local>)` calls — if any
+exist, SKIP the auto-drop on `local` (since it's been
+handed off).
+
+This is conservative (might miss some leaks) but safe
+(never produces dangling pointers).
+
+### Recommended path
+
+**Path A is the right semantic answer.** Path B is a runtime
+hack that papers over the issue. The proper fix is a
+dataflow analysis in lower_fn that tracks "this local was
+vec_push'd into a non-local container" and conservatively
+disables auto-drop for that local.
+
+This is RFC-0062 G-3 Phase 2b territory (heap aliasing
+through Vec<&T>). The work is substantial — a real per-fn
+data-flow pass. Tracked as the load-bearing item to
+unblock the unconditional default-flip.
+
+## Memory safety state — honest summary
+
+```
+Static visibility (audits)               COMPLETE
+#[manual_drop] suppress mechanism        COMPLETE
+Per-fn safety audit (textual heuristic)  COMPLETE (catches obvious cases)
+Cache-key correctness                    COMPLETE
+Vec + HashMap double-free guard          COMPLETE (but only catches
+                                                    double-free, not
+                                                    dangling-after-handoff)
+String/Box/BTree double-free guard       QUEUED
+PROPER dataflow handoff analysis         BLOCKING — needs work
+Unconditional default-flip               BLOCKED on handoff dataflow
+Phase 3 / Phase 4                        v0.9 / v1.0
+```
+
+**The honest assessment:** memory safety has progressed from
+"shape-only" to "extensive visibility + opt-in runtime safety
+net + opt-in default-flip." The remaining work is the proper
+dataflow handoff analysis — substantial multi-ship work, but
+well-scoped.
+
+Until that lands, adopters use:
+- Default mode (zero overhead, leak risk on unfreed locals)
+- Or `NUC_AUTO_DROP_DEFAULT=1` opt-in (heals leaks but may
+  produce dangling-pointer bugs in handoff patterns)
+- `NUC_VEC_FREE_GUARD=1` opt-in (catches explicit double-free,
+  not dangling)
 
 ## Updates log
 
