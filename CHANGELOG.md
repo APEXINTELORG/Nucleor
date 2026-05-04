@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.87] — 2026-05-04
+
+**Combined ship — RFC-0049 Phase A (memory-space type tags) +
+Rust prelude `drop(value)` halt.**
+
+### RFC-0049 Phase A — `memspace` rod
+
+Lands canonical zero-size `MemSpace_*` marker structs + numeric
+ID surface in a new rod `stdlib/rods/memspace.nr`. Adopters can
+tag their tensor wrappers (HBM / DDR / CXL / Scratchpad /
+NPU_SRAM / GPU_Shared / Pinned / Unified / Default) today, ahead
+of the Phase B compiler-side phantom-typed `Tensor<T, Space>`
+enforcement (~200 LOC compiler-side, deferred).
+
+Sister to RFC-0046 Phase A (kinematics_frame markers) and
+RFC-0047 Phase A (7-vector dim surface) — same "phantom-typed
+via stdlib first, compiler enforcement later" pattern.
+
+Surface added:
+- 9 marker structs: `MemSpace_{Default, HBM, DDR, CXL,
+  Scratchpad, NPU_SRAM, GPU_Shared, Pinned, Unified}`.
+- 10 numeric ID fns: `memspace_id_{default..unified}()` returning
+  stable IDs 0..8 + `_unknown()` returning -1.
+- `memspace_name(id) -> str`, `memspace_compatible(a, b) -> i64`
+  (Default + Unknown act as wildcards; same-pool matches; cross-
+  pool rejects), `memspace_is_host_class(id)` / `_is_device_class(id)`
+  per RFC-0049 design.
+
+Smoke fixture: `tests/fixtures/v0787_rfc0049_memspace_smoke.nr`
+(constructs HBM/DDR/Default/Unified markers, asserts stable IDs,
+validates compatibility logic + host/device classification +
+name lookup; rc=0).
+
+### Defensive halt — Rust prelude `drop(value)`
+
+Pre-fix `drop(v)` parsed as a call to undefined fn `drop`,
+surfacing as `warning[TYP-005]: undefined function 'drop'` at
+type-check then hard-failing at clang link with the same
+TYP-005 — adopters expected Rust ownership-transfer/RAII-
+destructor semantics but got an undefined-symbol link error.
+Halt now fires at `parse_primary` when the ident `drop` is
+followed immediately by `(`.
+
+Workaround: simply remove the `drop(v)` call. Nucleor's
+i64-everywhere ABI manages heap via reference-tracking and
+frees the value automatically when the last reference goes out
+of scope. For explicit Vec clearing use `vec_clear(v)`; for
+String/file/socket cleanup, the rod's own `*_free` / `*_close`
+helper is the canonical form.
+
+Sister to v0.6.82 idiom-method halt family — same Rust-prelude
+not-yet-supported class. Real Rust-style ownership-transfer
+Drop semantics requires the v1.x linear-types / borrow-checker
+substrate.
+
+Halt fixture: `tests/fixtures/v0787_drop_halt.nr`.
+
 ## [0.7.86] — 2026-05-04
 
 **Punchlist forward — RFC-0061 Tier 1 final item: `nuc graph` and

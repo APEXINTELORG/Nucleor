@@ -2261,6 +2261,23 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         // call expressions (kind 7) and the var-ref fallback.
         let ident_span: i64 = tok_pos_at(tokens, pos);
         let name: i64 = pkv(tokens, pos);
+        // v0.7.87 (defensive halt — Rust prelude `drop(value)`).
+        // Pre-fix `drop(v)` parsed as a call to undefined fn `drop`,
+        // surfacing first as warning[TYP-005] and then clang-link
+        // hard-fail wrong-class `error[TYP-005]: undefined function
+        // 'drop'`. Adopters expect Rust's prelude `drop` (which
+        // forces ownership transfer / RAII destructor); Nucleor's
+        // i64-everywhere ABI manages heap via reference-tracking,
+        // so `drop(v)` is informational (Nucleor frees when the
+        // last reference goes out of scope). Halt cleanly with a
+        // workaround pointer (just remove the `drop(v)` call —
+        // the heap manages itself; for explicit Vec clear use
+        // `vec_clear(v)`). Sister to v0.6.82 idiom-method halt
+        // family (same Rust-prelude-not-yet-supported class).
+        if str_eq(name, "drop") == 1 && pk(tokens, pos + 1) == 50 {
+            print("ERROR: Rust prelude `drop(value)` is not yet supported in Nucleor. Pre-v0.7.87 the call surfaced as wrong-class `warning[TYP-005]: undefined function 'drop'` at type-check then hard-failed at clang link with the same TYP-005 — adopters expected the Rust ownership-transfer / RAII-destructor semantics but got an undefined-symbol link error instead. Workaround: simply remove the `drop(v)` call. Nucleor's i64-everywhere ABI manages heap via reference-tracking and frees the value automatically when the last reference goes out of scope. For explicit Vec clearing use `vec_clear(v)`; for explicit String/file/socket cleanup, the rod's own `*_free` / `*_close` helper is the canonical form. Tracked for forward-roadmap (real Rust-style ownership-transfer Drop semantics requires the v1.x linear-types / borrow-checker substrate).");
+            panic("nucleor: Rust prelude `drop(value)` not yet supported (see ERROR diagnostic above)");
+        };
         if str_eq(name, "Some") == 1 || str_eq(name, "None") == 1 || str_eq(name, "Ok") == 1 || str_eq(name, "Err") == 1 {
             let mut tname: str = "Option";
             if str_eq(name, "Ok") == 1 || str_eq(name, "Err") == 1 { tname = "Result"; };
