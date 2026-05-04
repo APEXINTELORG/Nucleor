@@ -4885,10 +4885,15 @@ _memory_budget_for() {
     # PowerShell host is visible; the NUC_TRACE_ALLOC fallback does not
     # enforce the real RSS e-stop and can fail to parse newer builds.
     local psbin=""
-    if command -v powershell.exe >/dev/null 2>&1; then
-        psbin="powershell.exe"
-    elif command -v pwsh >/dev/null 2>&1; then
+    # Prefer PowerShell 7 when available. Windows PowerShell's 100ms
+    # process-tree sampling loop can inflate wall time by multiple seconds
+    # on this gate even when the compiler itself stays in the 3s regime.
+    if command -v pwsh >/dev/null 2>&1; then
         psbin="pwsh"
+    elif command -v pwsh.exe >/dev/null 2>&1; then
+        psbin="pwsh.exe"
+    elif command -v powershell.exe >/dev/null 2>&1; then
+        psbin="powershell.exe"
     fi
     if [ -n "$psbin" ]; then
         local ps1="$ROOT/tools/measure_peak_build.ps1"

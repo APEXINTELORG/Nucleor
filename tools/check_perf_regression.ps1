@@ -21,6 +21,29 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Keep perf numbers comparable across launch paths. Legacy Windows
+# PowerShell adds enough overhead to the 100ms RSS sampler to look like a
+# compiler regression, so re-run under PowerShell 7 when it is available.
+$scriptPath = if ($PSCommandPath) { $PSCommandPath } else { $MyInvocation.MyCommand.Path }
+$edition = [string]$PSVersionTable.PSEdition
+if ($edition -ne "Core" -and -not [string]::IsNullOrWhiteSpace($scriptPath)) {
+    $pwsh = Get-Command pwsh -ErrorAction SilentlyContinue
+    if ($null -ne $pwsh) {
+        $argv = @("-NoProfile", "-File", $scriptPath)
+        if ($Update) { $argv += "-Update" }
+        if ($Quiet) { $argv += "-Quiet" }
+        $argv += @(
+            "-BudgetMb", [string]$BudgetMb,
+            "-TimeoutSec", [string]$TimeoutSec,
+            "-WarningMb", [string]$WarningMb,
+            "-SampleMs", [string]$SampleMs
+        )
+        & $pwsh.Source @argv
+        exit $LASTEXITCODE
+    }
+}
+
 . "$PSScriptRoot\rss_estop_lib.ps1"
 $root = Split-Path -Parent $PSScriptRoot
 $baseline_path = Join-Path $root "tools/perf_baseline.json"
