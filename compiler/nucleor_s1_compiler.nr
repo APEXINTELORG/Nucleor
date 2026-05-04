@@ -1657,6 +1657,22 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
                 print(str_concat("       Workaround: use a guard — `match opt { ", str_concat(vname, str_concat("(n) if n == ", str_concat(str_from_int(int_lit_v751), " => { ... } _ => { ... } }`. Tracked for forward-roadmap (literal-payload pattern lowering needs the recursive pattern parser; sister to nested-pattern halt v0.6.90).")))));
                 panic(str_concat("nucleor: bare integer-literal payload inside `", str_concat(vname, "(...)` not yet supported (see ERROR diagnostic above)")));
             };
+            // v0.7.53 (CRITICAL — bare float-literal payload inside a
+            // variant pattern: `Some(1.5)`, `Ok(2.0)`, etc.). Same
+            // SEGFAULT class as v0.7.51 (int) — different lexer tokens.
+            // Token 70 = f-suffix-typed lit, 124 = f64 raw-bits, 125 = f32.
+            // Pre-fix this also crashed the compiler at IR-emit (rc=139,
+            // no diagnostic). Sister to v0.7.51 (int-lit) and the
+            // pre-existing v0.4.206 outer-level float-literal halt
+            // (MATCH-013) which only fires at the outer match scrutinee
+            // pattern level. Add a tailored MATCH-013-style message
+            // pointing at float-equality fragility and offering a guard
+            // workaround.
+            if pk(tokens, cp) == 70 || pk(tokens, cp) == 124 || pk(tokens, cp) == 125 {
+                print(str_concat("error[MATCH-013]: float-literal payload inside a variant pattern (e.g. `", str_concat(vname, "(1.5)`) is not supported. Float equality is fragile (NaN ≠ NaN; round-off drift means literal-equality matches surprise-fail), so pattern-matching on `f32`/`f64` payloads has no defined semantics in Nucleor. Pre-v0.7.53 this SEGFAULTED the compiler at IR-emit (rc=139, no diagnostic). Sister to v0.4.206 outer-level float-pattern halt and v0.7.51 int-payload halt.")));
+                print(str_concat("       Workaround: use a guard with tolerance-based comparison — `match opt { ", str_concat(vname, "(x) if (x - 1.5).abs() < 0.001 => { ... } _ => { ... } }`. Or convert via integer scale (`match (x * 100.0) as i64 { 150 => ..., _ => ... }`).")));
+                panic(str_concat("nucleor: float-literal payload inside `", str_concat(vname, "(...)` is not supported (see ERROR diagnostic above)")));
+            };
             if pk(tokens, cp) != 51 {
                 binding = pkv(tokens, cp);
                 cp = cp + 1;

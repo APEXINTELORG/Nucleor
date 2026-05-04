@@ -5,6 +5,63 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.53] — 2026-05-04
+
+**🛑 Compiler SEGFAULT fix — bare float-literal payload inside a
+variant pattern (`Some(1.5)`, `Ok(2.0)`) now produces a clean halt
+instead of crashing the compiler. Sister to v0.7.51 int-payload
+crash fix.**
+
+Pre-fix: writing `match opt { Some(1.5) => print("a"), _ => ... }`
+SEGFAULTED the compiler at IR-emit (rc=139, no diagnostic) — same
+SEGFAULT class as v0.7.51 (int payload), different lexer tokens.
+Float-literal lexer emits tokens 70 (f-suffix-typed), 124 (f64
+raw-bits), 125 (f32). The variant-pattern parser captured the
+float-bit-pattern i64 value as the binding-name string and
+codegen tried to emit a variable named with the bit pattern,
+which is an invalid LLVM identifier.
+
+Post-fix: `parse_match_one_pattern` checks for the three
+float-literal tokens inside variant-pattern context and halts
+with a tailored MATCH-013-style diagnostic that names the float-
+equality fragility issue and offers tolerance-based guard
+workarounds:
+
+```nucleor
+// Pre-fix (CRASH):
+match opt {
+    Some(1.5) => print("a"),       // ← SEGFAULT, no diag
+    _ => print("b"),
+}
+
+// Post-fix workarounds:
+// Tolerance-based guard:
+match opt {
+    Some(x) if (x - 1.5).abs() < 0.001 => print("a"),
+    _ => print("b"),
+}
+
+// Integer-scale conversion:
+match (x * 100.0) as i64 {
+    150 => print("a"),
+    _ => print("b"),
+}
+```
+
+Sister to v0.4.206 outer-level float-pattern halt (MATCH-013) and
+v0.7.51 int-literal-payload halt. Together these close the
+literal-payload-pattern crash class entirely.
+
+### Fixture
+
+`tests/fixtures/v0753_float_lit_in_variant_halt.nr` — negative
+fixture for `Some(1.5)` pattern (fires float-payload halt with
+guard workaround, not SEGFAULT).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `5d7cf0f0815f48876c5fd487fa33a4cc`.
+
 ## [0.7.52] — 2026-05-04
 
 **Defensive halt — module-scope forward fn declaration `fn h() ->
