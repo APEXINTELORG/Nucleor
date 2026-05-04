@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3] — 2026-05-04
+
+**Punchlist forward — RFC-0061 Tier 3 Phase A: quantum
+entanglement union-find + gate-influence DAG (rod + runtime).**
+
+The full RFC-0061 Tier 3 ship wires the existing
+`rods_trace_entangle` hook (called from CNOT/CZ/CRK/CCX in
+`stdlib/rods/quantum.nr`) to a real-time union-find tracker +
+gate-influence DAG from the trace stream (~100-150 LOC C
+wrapper + ~30 LOC stdlib). Phase A (this rod + runtime) lands
+the canonical surface adopters can call independently of the
+quantum rod's tracing path: register entanglements, query
+components, log gate dependencies as a DAG.
+
+Sister to RFC-0061 Tier 1 (V1.17a CLOSED v0.7.86) and Tier 2
+Phase A (v0.7.94).
+
+### Surface added in `stdlib/rods/qsim_graph.nr`
+
+Entanglement tracker (union-find over qubits, max 1024):
+- `qsim_entangle_register(q1, q2) -> i64` — unions the two
+  components, returns 1 if a merge happened, 0 if they were
+  already united.
+- `qsim_entanglement_root(q) -> i64` — find the component
+  representative.
+- `qsim_entanglement_same(q1, q2) -> i64` — 1 if both qubits
+  are active and in the same component.
+- `qsim_entanglement_size(q) -> i64` — qubits in `q`'s
+  component; 0 if `q` is inactive (never registered).
+- `qsim_entanglement_count() -> i64` — number of distinct
+  active components.
+- `qsim_entanglement_clear()`.
+
+Gate-influence DAG (max 4096 gates):
+- `qsim_gate_record(name, q1, q2) -> i64` — records a gate
+  (q2 = -1 for 1-qubit) and links it to the most-recent gate
+  that previously touched each operand qubit.
+- `qsim_gate_dag_size() -> i64`, `qsim_gate_dag_depends_on(child,
+  parent) -> i64` (transitive BFS), `_parent_count(gate_id)`,
+  `_parent_at(gate_id, idx)`, `_clear`.
+
+Combined: `qsim_graph_clear()`.
+
+### Runtime: `stdlib/runtime/qsim_graph_rt.c`
+
+Path-compressed union-by-size union-find for entanglement
+(O(α(n)) amortized per op); per-qubit "last gate" table for
+DAG parent linking; iterative BFS over parent-pointer chains
+for transitive depends-on queries.
+
+### Smoke fixture
+
+`tests/fixtures/v0803_rfc0061_tier3_qsim_graph_smoke.nr` — two
+disjoint pairs grow into one component via 4 register calls;
+size + count + same predicates agree at every step; inactive-
+qubit query returns 0; clear-to-zero round-trip; DAG with 4
+gates verifies depends_on transitive (g3 -> g2 -> g0/g1) and
+parent-count + parent-at indexing. rc=0.
+
+No new defensive halt this ship — RFC-0061 Tier 3 forward
+progress is the priority. Cron may concurrently ship halts.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.8.2] — 2026-05-04
 
 **Punchlist forward — RFC-0058 Phase A: post-quantum crypto
