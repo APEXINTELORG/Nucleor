@@ -210,9 +210,9 @@ Heuristic warnings that ship in single ships. Goal: every gap has visible compil
 | Ship | Gap | Status |
 |---|---|---|
 | v0.8.24 | G-4 OWN-012 audit-pass info | DONE |
-| v0.8.25 | G-5 FFI null-return audit-pass info | next |
-| v0.8.26 | G-9 direct-FFI audit-pass info | queued |
-| v0.8.27 | G-3 Vec-of-ref + HashMap-mut audit-pass info | queued |
+| v0.8.25 | G-5 FFI null-return audit-pass info | DONE |
+| v0.8.26 | G-9 direct-FFI audit-pass info | DONE |
+| v0.8.27 | G-3 Vec-of-ref + HashMap-mut audit-pass info | next |
 | v0.8.28 | G-8 mixed-arm conditional audit-pass info | queued |
 | v0.8.29 | All Wave A audit passes batched into single multi-needle scan (perf consolidation) | queued |
 
@@ -351,11 +351,11 @@ Each ship in Wave A/B/C/D must include:
 | G-2 lifetime | ✓ v0.8.17 | warn | queued | queued | v1.0 |
 | G-3 heap alias | ✓ v0.8.18 | queued | queued | queued | v1.0 |
 | G-4 double-free | ✓ v0.8.18 | **✓ v0.8.24** | queued | queued | v1.0 |
-| G-5 FFI null | ✓ v0.8.18 | next ship | queued | queued | v1.0 |
+| G-5 FFI null | ✓ v0.8.18 | **✓ v0.8.25** | queued | queued | v1.0 |
 | G-6 Sendable | ✓ v0.8.20 | n/a | queued | queued | v1.0 |
 | G-7 unsafe audit | ✓ v0.8.17 | n/a (zero unsafe) | runtime tests | queued | v1.0 |
 | G-8 cond-divergence | ✓ v0.8.19 | queued | queued | queued | v1.0 |
-| G-9 FFI bounds | ✓ v0.8.18 | queued | queued | queued | v1.0 |
+| G-9 FFI bounds | ✓ v0.8.18 | **✓ v0.8.26** | queued | queued | v1.0 |
 | G-10 cross-fn | ✓ via G-2 | queued | queued | queued | v1.0 |
 | G-11 MS-7 stress | ✓ v0.8.19 | n/a | queued | queued | v1.0 |
 
@@ -366,3 +366,5 @@ Phase 1 complete. Phase 2a one of five landed. Phases 2b/3/4 fully scoped, queue
 ## 8. Updates log
 
 - **2026-05-04** v0.8.24: G-4 Phase 2a OWN-012 audit-pass info diagnostic landed. Plan document created.
+- **2026-05-04** v0.8.25: G-5 Phase 2a FFI-NULL audit-pass info diagnostic landed.
+- **2026-05-04** v0.8.26: G-9 Phase 2a FFI-DIRECT audit-pass info diagnostic landed. Three info diagnostics now firing on seed self-host (44 frees, 4 raw-ptr returns, 27 extern fns).
