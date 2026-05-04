@@ -24,12 +24,14 @@ Replaces `SPEC-governance-attributes.md` (placeholder). Pulls the V2 governance 
 
 ## Implementation phases
 
-1. **Phase 1 prerequisite (BLOCKING):** restore `tools/native_release.ps1` (currently missing — `nuc publish --sign` non-functional). Spec §3 has the contract.
-2. Phase 2: rod scaffolding (~600-800 LOC `.nr` + ~400-500 LOC `governance_rt.c`).
-3. Phase 3: wire-up to existing CLI verbs.
-4. Phase 4: `nuc gov` CLI subcommand registration.
-5. Phase 5: docs + RFC promotion.
-6. Phase 6: signing hardening (Ed25519 evidence bundles).
+1. **Phase 1 prerequisite — ✅ CLOSED 2026-05-03 (v0.7.14 + verified post-v0.7.16):** `tools/native_release.ps1` restored (1016 LOC, full ssh-ed25519 sign/verify pipeline). End-to-end validation: `nuc publish --sign` produces signed bundle (`Nucleor.publish.signature.json` with valid ssh-ed25519 signature, key_id `default-local`, mode `openssh-y-sign`), and `nuc release package-verify` accepts the roundtrip. Key store at `%USERPROFILE%/.nucleor/{release-signing-keys,trusted-release-keys}/`.
+2. **Phase 2a — ✅ CLOSED 2026-05-03 (v0.7.18):** AuthorRecord registry surface. Files: `stdlib/rods/governance.nr` (~95 LOC), `stdlib/runtime/governance_rt.c` (~80 LOC), `tests/rods/governance_smoke.nr`, verify gate `v0.7.18 governance rod Phase 2a — AuthorRecord registry round-trip (RFC-0060)`. Provides AuthorRecord struct + register/count/get/clear + JSON serialization.
+3. Phase 2b — `PolicyDecl` + `check_policies` wired to existing `source_rule_check` pass in `compiler/nucleor_tools_suite.nr` (extends GOV-001/GOV-002 substring checks with `NoExtern`, `NoSystem`, `PureOnly`, `NoIO`, `AuditedExternsOnly`).
+4. Phase 2c — `SchemaDecl` + `EvidenceBundle` + sign/verify wrappers (uses Phase 1 `tools/native_release.ps1`).
+6. Phase 3: wire-up to existing CLI verbs.
+7. Phase 4: `nuc gov` CLI subcommand registration.
+8. Phase 5: docs + RFC promotion.
+9. Phase 6: signing hardening (Ed25519 evidence bundles — Phase 1 already provides ssh-ed25519 sign/verify; Phase 6 extends to evidence bundle envelope).
 
 ## Out of scope (explicit)
 
