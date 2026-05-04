@@ -5,6 +5,25 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.76] — 2026-05-04
+
+**Defensive halt — Rust 1.79+ `const { ... }` inline-const block
+expression (closes wrong-class NR020 at parse_primary).**
+
+Pre-fix `let x: i64 = const { 5 + 7 };` surfaced as wrong-class
+`error[NR020]: parse_primary cannot start an expression at token
+kind 73` because parse_primary had no `const`-prefix branch at
+expression start. Now halts cleanly when `const` is immediately
+followed by `{` at expr position, with a workaround pointer
+(lift the value into a module-scope `const NAME: T = ...;`
+declaration — Nucleor's existing const-folder evaluates simple
+arithmetic at parse time, so the observable result is the same).
+
+Sister to v0.7.74 `try { ... }` halt — same expr-position
+block-not-supported family.
+
+Fixture: `tests/fixtures/v0776_const_block_expr_halt.nr`.
+
 ## [0.7.75] — 2026-05-04
 
 **Defensive halts (consolidated) — Rust syntax-fidelity audit:

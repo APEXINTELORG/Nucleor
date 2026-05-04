@@ -2152,6 +2152,20 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if tt == 1 && str_eq(pkv(tokens, pos), "unsafe") == 1 && pk(tokens, pos + 1) == 52 {
         return parse_passthrough_block_expr(tokens, pos + 1, pool);
     };
+    // v0.7.76 (defensive halt — Rust `const { ... }` inline-const
+    // block expression, used to force compile-time evaluation of
+    // the body even in non-const contexts). Pre-fix `const` lexed
+    // as keyword token 73 and parse_primary had no branch for it
+    // at expression start, surfacing as wrong-class
+    // `error[NR020]: parse_primary cannot start an expression at
+    // token kind 73`. Halt cleanly when `const` is immediately
+    // followed by `{`. Sister to v0.7.74 `try { ... }` halt
+    // (same expr-position-block-not-supported family).
+    if tt == 73 && pk(tokens, pos + 1) == 52 {
+        print("ERROR: `const { ... }` inline-const block expressions (Rust 1.79+ form, used to force compile-time evaluation in non-const contexts) are not yet supported in Nucleor. Pre-v0.7.76 surfaced as wrong-class `error[NR020]: parse_primary cannot start an expression at token kind 73` because parse_primary had no `const`-prefix branch.");
+        print("       Workaround: lift the value into a module-scope `const NAME: T = ...;` declaration and reference NAME at the use site — Nucleor's existing const-folder evaluates simple arithmetic at parse time, so the observable result is the same. Tracked for forward-roadmap (full inline-const-block lowering arrives with v1 const-fn substrate). Sister to v0.7.74 `try { ... }` halt — same expr-position block-not-supported family.");
+        panic("nucleor: `const { ... }` inline-const block not yet supported (see ERROR diagnostic above)");
+    };
     // v0.7.74 (defensive halt — Rust experimental `try { ... }` block
     // expression, used to wrap fallible computation and yield a
     // `Result<T, E>` with `?` short-circuiting). Pre-fix `try` lexed
