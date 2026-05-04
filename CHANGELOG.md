@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.76] — 2026-05-04
+
+**G-3 handoff suppression — regression fixture lock-in.**
+Pure fixture ship. Locks the v0.8.74 dataflow handoff
+detection + v0.8.75 unconditional flip behavior with a
+permanent regression test.
+
+### Fixture
+
+`tests/fixtures/v0876_g3_handoff_suppression.nr` — the v0.8.71
+test case verbatim:
+
+```nucleor
+fn build_into(reg: Vec<i32>) -> i64 {
+    let mut local: Vec<i32> = Vec::new();
+    local.push(99);
+    vec_push(reg, local);   // handoff
+    return 0;
+}
+fn main() -> i64 {
+    let mut registry: Vec<i32> = Vec::new();
+    build_into(registry);
+    return vec_len(&registry);
+}
+```
+
+Expected: rc=1 (registry has 1 element after handoff).
+
+If this EVER returns rc=0 again, the handoff suppression has
+regressed and the unconditional default-flip is unsafe.
+
+### Memory safety lock-in
+
+This fixture is the canary for the cornerstone-RFC memory
+safety guarantee. It locks the load-bearing claim:
+
+- v0.8.65 flip attempt (no handoff detection): rc=0 (BROKEN — dangling)
+- v0.8.74 handoff detection + flip OFF: rc=1
+- v0.8.75 unconditional flip (this is the active state): **rc=1 ✓**
+
+Permanent regression test in `tests/fixtures/`. Caught early
+if any future ship breaks the suppression.
+
+### Perf
+
+Cold 3.65s, hot 0.78s (multi-agent contention). Within Job #1.
+
 ## [0.8.75] — 2026-05-04
 
 **RFC-0062 G-1 Phase 2b-3 FINAL — UNCONDITIONAL DEFAULT-FLIP
