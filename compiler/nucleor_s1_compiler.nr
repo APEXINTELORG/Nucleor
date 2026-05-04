@@ -2157,6 +2157,16 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         || fall_tt == 51  // `)`
         || fall_tt == 55  // `]`
         { 1 } else { 0 };
+    // v0.7.2 (defensive halt — labeled loop): canonical Rust loop
+    // labels `'outer: for ... { break 'outer; }` pre-fix surfaced
+    // as wrong-class `NR020: parse_primary cannot start expression
+    // at token kind 98` because token 98 is the lifetime/label
+    // token and parse_primary has no `'label:` prefix branch.
+    // Halt cleanly with a workaround pointer (boolean flag).
+    if fall_tt == 98 {
+        print("ERROR: loop labels (`'outer: for ... { break 'outer; }`, `'lbl: loop { continue 'lbl; }`) are not yet supported in Nucleor. Pre-v0.7.2 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 98` — token 98 is the lifetime/label token and parse_primary has no `'label:` prefix branch. Workaround: use a boolean flag to break out of nested loops — `let mut done: i64 = 0; for i in 0..5 { if done == 1 { break; }; for j in 0..5 { if i + j > 3 { done = 1; break; } } }`. Tracked for forward-roadmap (labeled-loop substrate needs label-aware break/continue lowering with per-loop exit-label tracking).");
+        panic("nucleor: loop labels not yet supported (see ERROR diagnostic above)");
+    };
     // v0.6.94 (defensive halt — range-as-expression): canonical Rust
     // `let r = 0..10;` and `(0..10).step_by(2)` patterns rely on the
     // range syntax `<lo>..<hi>` producing a `Range<T>` value at
@@ -2180,6 +2190,22 @@ fn parse_primary(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
 fn parse_postfix(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut r: Vec<i32> = parse_primary(tokens, pos, pool);
     let mut cp: i64 = pr_pos(r); let mut node: i64 = pr_val(r);
+    // v0.7.7 (defensive halt): C/Java-idiom `x++` / `x--` post-
+    // increment/decrement operators don't exist in Rust (or Nucleor).
+    // Pre-fix surfaced as wrong-class `NR020: parse_primary cannot
+    // start expression at token kind 20` (the second `+` after `x+`)
+    // because the `+` after the primary parses as a binop, then
+    // parse_primary fails on the second `+`. Detect the `++`/`--`
+    // shape after a primary and halt cleanly with `x = x + 1`
+    // workaround pointer.
+    if pk(tokens, cp) == 20 && pk(tokens, cp + 1) == 20 {
+        print("ERROR: post-increment `x++` is not supported in Nucleor (Rust doesn't have `++`/`--` operators). Pre-v0.7.7 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 20` (the second `+`). Workaround: write the explicit assignment `x = x + 1;` (or `x += 1;` if `+=` is supported in your context). Tracked for forward-roadmap (no plans to add `++`/`--` — Rust-style explicit assignment is the canonical form).");
+        panic("nucleor: `x++` post-increment not supported (see ERROR diagnostic above)");
+    };
+    if pk(tokens, cp) == 21 && pk(tokens, cp + 1) == 21 {
+        print("ERROR: post-decrement `x--` is not supported in Nucleor (Rust doesn't have `++`/`--` operators). Pre-v0.7.7 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 21` (the second `-`). Workaround: write the explicit assignment `x = x - 1;` (or `x -= 1;` if `-=` is supported in your context). Tracked for forward-roadmap (no plans to add `++`/`--` — Rust-style explicit assignment is the canonical form).");
+        panic("nucleor: `x--` post-decrement not supported (see ERROR diagnostic above)");
+    };
     while pk(tokens, cp) == 45 || pk(tokens, cp) == 54 || pk(tokens, cp) == 97 {
         if pk(tokens, cp) == 97 {
             // RFC-0016 phase 1: `?` postfix — desugars at lower-time into
@@ -2511,6 +2537,34 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         print("ERROR: `impl Trait` (return-position or argument-position trait-bound sugar) is not yet supported in Nucleor. Pre-v0.6.92 surfaced as wrong-class `error[NR020]: expected '{', got identifier` because parse_type had no `impl` branch. Workaround: declare the concrete return type instead — for iterators, expose the Vec directly (`fn make_iter() -> Vec<i64>`); for closures, use a typed fn pointer (`fn cb() -> fn(i64) -> i64`); for trait-bound polymorphism, wait for vtable dispatch (v1.x trait-object substrate, sister to v0.6.91 `Box<dyn Trait>` halt). Tracked for forward-roadmap (impl Trait sugar lowers to either anonymous-existential return or generic call-site monomorphisation depending on position).");
         panic("nucleor: `impl Trait` type position not yet supported (see ERROR diagnostic above)");
     };
+    // v0.7.3 (defensive halt — raw pointer types `*const T` /
+    // `*mut T`): canonical Rust raw-pointer type position
+    // (`let p: *const i64 = ...;`, `fn read(p: *const i64)`)
+    // pre-fix surfaced as wrong-class `NR020: parse_primary cannot
+    // start expression at token kind 73` (the `const` keyword
+    // following `*`) because parse_type had no `*` branch — the
+    // outer parser saw `*` as the multiplication operator (token
+    // 22) at type position. Halt cleanly with a workaround pointer
+    // (use `&T` / `&mut T` borrow-references for safe code, or
+    // store as i64 for FFI / unsafe-style transit).
+    if pk(tokens, pos) == 22 {
+        let v073_kind: str = if pk(tokens, pos + 1) == 73 { "const" } else if pk(tokens, pos + 1) == 12 { "mut" } else { "<expected const|mut>" };
+        print(str_concat("ERROR: raw pointer type `*", str_concat(v073_kind, str_concat(" T` is not yet supported in Nucleor. Pre-v0.7.3 surfaced as wrong-class `NR020: parse_primary cannot start expression at token kind 73` (the `const` keyword following `*`) because parse_type had no `*` branch. Nucleor's i64-everywhere ABI doesn't yet have an unsafe pointer type — values are passed as i64 (which IS the heap pointer for Box/Vec/String/etc.) without explicit raw-pointer typing. Workaround: use `&T` / `&mut T` borrow-references for safe code; for FFI / unsafe transit, declare the param/binding as `i64` directly and the runtime ABI passes the pointer value through. Tracked for forward-roadmap (raw-pointer type substrate is v1.x, sister to V1.5 length-tagged str ABI).")));
+        panic(str_concat("nucleor: raw pointer type `*", str_concat(v073_kind, " T` not yet supported (see ERROR diagnostic above)")));
+    };
+    // v0.7.11 (defensive halt): canonical Rust never type `!`
+    // (used for diverging fns `fn forever() -> !`, `panic!()`-only
+    // bodies) pre-fix CRASHED the compiler with SIGSEGV (rc=139)
+    // because parse_type had no token-38 (`!`) branch and fell
+    // through to a name-walk that dereferenced a NULL str ptr.
+    // This is a HARD crash, not a wrong-class diag — adopters
+    // porting Rust code with diverging fns hit a compiler bug
+    // before the fix. Halt cleanly with a workaround pointer
+    // (use the unit type `()` or `i64` and `panic!()` in the body).
+    if pk(tokens, pos) == 38 {
+        print("ERROR: never type `!` (used for diverging fns `fn forever() -> !`, `panic!()`-only bodies, etc.) is not yet supported in Nucleor. Pre-v0.7.11 the compiler CRASHED with SIGSEGV (rc=139) because parse_type had no `!` branch and fell through to a NULL deref. Workaround: declare the return type as `()` (unit) or any concrete type the body never actually reaches — the body's `panic!()` / infinite loop terminates execution before the return-type contract matters. For loop-forever shape: `fn forever() -> () { loop { ... } }`. Tracked for forward-roadmap (full never-type substrate needs unification with all types and divergence tracking — sister to V1.6 alloc/panic propagation).");
+        panic("nucleor: never type `!` not yet supported (see ERROR diagnostic above)");
+    };
     // v0.3.92/v0.4.112: trait object syntax `dyn Trait`.
     // Preserve the `dyn` marker so Box<dyn Trait> can be distinguished
     // from Box<Trait> during type checking.
@@ -2622,6 +2676,18 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
         if pk(tokens, cp) == 98 {
             // Lifetime param — store as `'<name>` for traceability.
             params.push(str_concat("'", pkv(tokens, cp)));
+        } else if pk(tokens, cp) == 73 {
+            // v0.7.10 (defensive halt): canonical Rust const-generic
+            // params `<const N: usize>` (used in `struct Buf<const N:
+            // usize> { data: [i64; N] }`, `fn id<const X: i32>() ->
+            // i32 { X }`) pre-fix surfaced as wrong-class
+            // `NR020: expected ',', got identifier` because
+            // parse_generic_params treats `const` (token 73) as a
+            // bare param name and then trips on the `:` + type that
+            // follows. Halt cleanly with a workaround pointer
+            // (use a regular fn-arg / a struct-decl-time const).
+            print("ERROR: const-generic params `<const N: usize>` are not yet supported in Nucleor. Pre-v0.7.10 surfaced as wrong-class `NR020: expected ',', got identifier` because parse_generic_params treats `const` as a bare param name. Workaround: pass the value as a regular fn arg (`fn id(n: i32) -> i32 { n }`), or hard-code the value at the use site. For struct-level CT-params, see RFC-0034 first-pass (which uses `[N: usize]` syntax — different parser path, currently halted at v0.6.65). Tracked for forward-roadmap (full const-generic substrate is a v1.x ship needing const-eval + monomorphisation).");
+            panic("nucleor: const-generic param `<const N: ...>` not yet supported (see ERROR diagnostic above)");
         } else {
             params.push(pkv(tokens, cp));
         };
@@ -3315,6 +3381,18 @@ fn parse_extern_fn(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "requires") == 1 { cp = skip_bracket_list(tokens, cp + 1); };
     cp = skip_effect_clause(tokens, cp);
     cp = skip_where_clause(tokens, cp);
+    // v0.7.4 (defensive halt): canonical Rust `extern "C" fn name() {
+    // body }` (FFI-exposed fn with body) pre-fix landed here at `{`
+    // and parse_extern_fn returned without consuming the body —
+    // parse_program then surfaced the body as a stray top-level
+    // construct, firing the wrong-class "statement-level keyword at
+    // module scope" diag. Halt cleanly with a workaround pointer
+    // (drop the `extern "C"` qualifier — Nucleor regular fns use
+    // the C ABI by default).
+    if pk(tokens, cp) == 52 {
+        print(str_concat("ERROR: `extern \"C\" fn ", str_concat(name, "(...) { body }` (Rust FFI-exposed fn with body) is not yet supported in Nucleor's extern-fn parser, which only knows declaration-form (`extern fn name(...);` no body). Pre-v0.7.4 the body landed at `{` after parse_extern_fn returned, and parse_program surfaced it as wrong-class `statement-level keyword at module scope`. Workaround: drop the `extern \"C\"` qualifier — Nucleor regular fns (`fn name(...) { body }`) already use the C ABI by default at the i64-everywhere runtime level, so the explicit qualifier is informational. For pure declarations of foreign symbols, use the bare `extern fn name(...);` declaration form.")));
+        panic(str_concat("nucleor: `extern \"C\" fn ", str_concat(name, "(...) { body }` form not yet supported (see ERROR diagnostic above)")));
+    };
     if pk(tokens, cp) == 43 { cp = cp + 1; };
     return pr(cp, mk4(pool, 32, name, mk_list(pool, params), rtype));
 }
@@ -3656,6 +3734,18 @@ fn parse_trait_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         };
     };
     cp = skip_where_clause(tokens, cp);
+    // v0.7.13 (defensive halt): canonical Rust trait alias
+    // `trait Pretty = Show;` (or `trait Foo = Bar + Baz;`) pre-fix
+    // surfaced as wrong-class `NR020: parse error: expected '{',
+    // got '='` because parse_trait_decl expects `{` after the name
+    // (no `=` branch). Halt cleanly with a workaround pointer
+    // (use a regular trait with supertraits). Trait aliases are
+    // nightly-only in Rust today (RFC 1733), so low-volume but
+    // worth the halt.
+    if pk(tokens, cp) == 40 {
+        print(str_concat("ERROR: trait alias `trait ", str_concat(name, " = <bounds>;` is not yet supported in Nucleor. Pre-v0.7.13 surfaced as wrong-class `NR020: expected '{', got '='`. (Trait aliases are nightly-only in Rust today, RFC 1733.) Workaround: declare a regular trait that names the bounds in its supertrait list — `trait Pretty: Show + Clone {}`. Adopters who want `Pretty` to mean `Show + Clone` get the same surface via inheritance. Tracked for forward-roadmap.")));
+        panic(str_concat("nucleor: trait alias `trait ", str_concat(name, " = ...` not yet supported (see ERROR diagnostic above)")));
+    };
     cp = expect_tok(tokens, cp, 52); // {
     let mut methods: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
@@ -22305,7 +22395,16 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 || str_eq(mname, "to_string") == 1
                                 || str_eq(mname, "to_owned") == 1
                                 || str_eq(mname, "to_vec") == 1
-                                || str_eq(mname, "iter_mut") == 1 { 1 } else { 0 };
+                                || str_eq(mname, "iter_mut") == 1
+                                || str_eq(mname, "rev") == 1
+                                || str_eq(mname, "enumerate") == 1
+                                || str_eq(mname, "zip") == 1
+                                || str_eq(mname, "windows") == 1
+                                || str_eq(mname, "chunks") == 1
+                                || str_eq(mname, "flat_map") == 1
+                                || str_eq(mname, "flatten") == 1
+                                || str_eq(mname, "peekable") == 1
+                                || str_eq(mname, "fuse") == 1 { 1 } else { 0 };
                             if v082_idiom == 1 {
                                 let v082_workaround: str = if str_eq(mname, "into") == 1 {
                                     "no v0.6 conversion path; the From/Into trait family is not yet shipped — use an explicit named conversion fn (e.g. `i64_to_str(x)` for numeric→str)"
@@ -22315,6 +22414,16 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                     "Nucleor's i64-everywhere ABI passes most values by value already; `let owned: T = original;` is the explicit copy form. The ToOwned trait family is not yet shipped"
                                 } else if str_eq(mname, "to_vec") == 1 {
                                     "build the Vec explicitly via `let mut v: Vec<T> = Vec::new(); for item in src { v.push(item); }` or use the `vec![...]` macro form for literals"
+                                } else if str_eq(mname, "rev") == 1 {
+                                    "iterate the Vec in reverse with an index-based loop — `let mut i: i64 = vec_len(&v) - 1; while i >= 0 { let item = vec_get(&v, i); ...; i = i - 1; }`. For in-place reversal use `.reverse()` (already supported)"
+                                } else if str_eq(mname, "enumerate") == 1 {
+                                    "iterate with a manual counter — `let mut idx: i64 = 0; for item in &v { ...idx, item...; idx = idx + 1; }`"
+                                } else if str_eq(mname, "zip") == 1 {
+                                    "iterate by index over both — `let n = vec_len(&a); let mut i: i64 = 0; while i < n { let av = vec_get(&a, i); let bv = vec_get(&b, i); ...; i = i + 1; }`"
+                                } else if str_eq(mname, "windows") == 1 || str_eq(mname, "chunks") == 1 {
+                                    "manual sliding-window — `let mut i: i64 = 0; while i + WIN <= vec_len(&v) { let chunk = (vec_get(&v, i), vec_get(&v, i+1), ...); ...; i = i + STRIDE; }`"
+                                } else if str_eq(mname, "flat_map") == 1 || str_eq(mname, "flatten") == 1 {
+                                    "fold + extend manually — `let mut out: Vec<T> = Vec::new(); for inner in &outer { for item in &inner { out.push(item); } }`"
                                 } else {
                                     "use a `while i < vec_len(&v) { let item: T = vec_get(&v, i); ...; i = i + 1; }` loop with index-based access — Nucleor doesn't auto-derive iterator interior mutability today"
                                 };
@@ -22529,6 +22638,78 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
             let mr: i64 = ctr_next(regs);
             ir_block_add(mcur, ir_call_ex(mr, mangled, maa));
             return lx_new(mr, mcur);
+        };
+        // v0.7.5 (defensive halt): canonical Rust path-rooted fn
+        // calls `crate::foo(...)`, `super::foo(...)`, `self::foo(...)`
+        // pre-fix surfaced via the generic v0.3.71 "unsupported
+        // associated-fn call" diag, which mentioned only Vec/String/
+        // etc. — not adopter-actionable for the path case. Detect
+        // the `crate`/`super`/`self` roots and halt with a clean
+        // workaround pointer (drop the path prefix — Nucleor has a
+        // flat fn namespace today).
+        if str_eq(tname, "crate") == 1 || str_eq(tname, "super") == 1 || str_eq(tname, "self") == 1 {
+            print(str_concat("ERROR: path-rooted fn call `", str_concat(tname, str_concat("::", str_concat(mname, "(...)` is not yet supported in Nucleor. Pre-v0.7.5 surfaced via the generic 'unsupported associated-fn call' diag mentioning Vec/String/etc. — not adopter-actionable. Nucleor has a flat fn namespace today (no `crate::` / `super::` / `self::` rooting), and the resolved fn name `", str_concat(mname, str_concat("` is callable directly. Workaround: drop the `", str_concat(tname, str_concat("::` prefix — call ", str_concat(mname, "(...) directly. Tracked for forward-roadmap (path-rooted name resolution requires module-tree infrastructure, sister to v0.6.96 std/core/alloc namespace halt).")))))))))));
+            panic(str_concat("nucleor: path-rooted fn call `", str_concat(tname, str_concat("::", str_concat(mname, "` not yet supported (see ERROR diagnostic above)")))));
+        };
+        // v0.7.12 (defensive halt — Rust stdlib smart-pointer types):
+        // canonical Rust `Cell::new(v)`, `RefCell::new(v)`, `Rc::new(v)`,
+        // `Arc::new(v)`, `Mutex::new(v)`, `RwLock::new(v)`,
+        // `RefCell::borrow_mut()`, `Rc::clone(&r)` etc. pre-fix
+        // surfaced via the generic v0.3.71 "unsupported associated-fn
+        // call" diag mentioning Vec/String/etc. — not adopter-actionable.
+        // None of these wrappers are needed in Nucleor's i64-everywhere
+        // ABI (no borrow-checker enforcement, no shared-ownership
+        // requirement under single-threaded default). Halt cleanly with
+        // type-specific workaround pointers.
+        let mut v712_smart_kind: str = "";
+        if str_eq(tname, "Cell") == 1 { v712_smart_kind = "interior mutability"; };
+        if str_eq(tname, "RefCell") == 1 { v712_smart_kind = "interior mutability"; };
+        if str_eq(tname, "Rc") == 1 { v712_smart_kind = "shared ownership"; };
+        if str_eq(tname, "Arc") == 1 { v712_smart_kind = "shared ownership (atomic)"; };
+        if str_eq(tname, "Mutex") == 1 { v712_smart_kind = "thread-safe interior mutability"; };
+        if str_eq(tname, "RwLock") == 1 { v712_smart_kind = "thread-safe read-write lock"; };
+        if str_eq(tname, "Weak") == 1 { v712_smart_kind = "weak reference"; };
+        if str_len(v712_smart_kind) > 0 {
+            print("ERROR: Rust stdlib smart-pointer type is not yet supported in Nucleor.");
+            print(str_concat("       Type: `", str_concat(tname, str_concat("` (", str_concat(v712_smart_kind, ")")))));
+            print("       Pre-v0.7.12 surfaced via the generic 'unsupported associated-fn call' diag.");
+            print("       Nucleor's i64-everywhere ABI doesn't yet have a borrow-checker, so interior-");
+            print("       mutability / shared-ownership / lock wrappers are NOT NEEDED for the typical");
+            print("       adopter use case.");
+            print("       Workaround: use the bare type with `let mut` for mutability — `let mut x: i64 =");
+            print("       42; x = 100;` (no Cell needed). For shared ownership the i64 ABI already passes");
+            print("       by value (the heap pointer is copied) — no Rc/Arc needed. Real threading uses");
+            print("       `async_spawn` (RFC-0027, see stdlib/rods/async.nr).");
+            panic(str_concat("nucleor: smart-pointer type `", str_concat(tname, "` not yet supported (see ERROR diagnostic above)")));
+        };
+        // v0.7.6 (defensive halt — Default trait): canonical Rust
+        // `i64::default()`, `String::default()`, `Default::default()`
+        // pre-fix surfaced via the generic v0.3.71 "unsupported
+        // associated-fn call" diag. Default trait isn't yet shipped
+        // in Nucleor — the canonical `T::default()` pattern needs
+        // per-type Default impls + a `Default::default()` ambient
+        // dispatch through type inference. Halt cleanly with a
+        // per-type literal-default workaround pointer.
+        if str_eq(mname, "default") == 1 {
+            let v076_hint: str = if str_eq(tname, "i8") == 1 || str_eq(tname, "i16") == 1 || str_eq(tname, "i32") == 1 || str_eq(tname, "i64") == 1 || str_eq(tname, "isize") == 1 || str_eq(tname, "u8") == 1 || str_eq(tname, "u16") == 1 || str_eq(tname, "u32") == 1 || str_eq(tname, "u64") == 1 || str_eq(tname, "usize") == 1 {
+                "0"
+            } else if str_eq(tname, "f32") == 1 || str_eq(tname, "f64") == 1 {
+                "0.0"
+            } else if str_eq(tname, "bool") == 1 {
+                "false"
+            } else if str_eq(tname, "str") == 1 {
+                "\"\""
+            } else if str_eq(tname, "String") == 1 {
+                "String::new()"
+            } else if str_eq(tname, "Vec") == 1 {
+                "Vec::new()"
+            } else if str_eq(tname, "HashMap") == 1 {
+                "HashMap::new()"
+            } else {
+                "<construct the type explicitly>"
+            };
+            print(str_concat("ERROR: `", str_concat(tname, str_concat("::default()` (Default trait) is not yet supported in Nucleor. Pre-v0.7.6 surfaced via the generic 'unsupported associated-fn call' diag. The Default trait family needs per-type Default impls + ambient dispatch through type inference; not yet shipped. Workaround: use the literal default value for this type — `", str_concat(v076_hint, "`. Tracked for forward-roadmap (Default trait substrate is sister to V1.4 derive(PartialEq) — both annotation-driven trait derives).")))));
+            panic(str_concat("nucleor: `", str_concat(tname, "::default()` not yet supported (see ERROR diagnostic above)")));
         };
         // v0.3.71: surface a clear diagnostic instead of falling through
         // to the generic "unhandled expr kind 12" + broken `%r.-1` IR.
@@ -22991,6 +23172,19 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
         // diagnostic followed by a clean `panic` line, no `%r.-1`
         // confusion, no clang link spew.
         //
+        // v0.7.8 (defensive halt): canonical Rust complex-receiver
+        // `.await` (e.g. `fetch().await`, `arr[0].await`,
+        // `expr.method().await`) pre-fix surfaced as the generic
+        // "cannot resolve field access .await" diag because the
+        // expand_async_await textual pass only handles the simple
+        // `<ident>.await` form (line ~26145). Halt cleanly here at
+        // lower-time with a workaround pointer (extract the
+        // expression to a let-binding first, then `.await` the
+        // ident).
+        if str_eq(fname, "await") == 1 {
+            print("ERROR: complex-receiver `.await` (e.g. `fetch().await`, `arr[0].await`, `expr.method().await`) is not yet supported in Nucleor. Pre-v0.7.8 surfaced as wrong-class `cannot resolve field access .await` because the expand_async_await textual pass only matches the simple `<ident>.await` form. Workaround: extract the expression to a let-binding first, then `.await` the ident — `let h: i64 = fetch(); let v: i64 = h.await;`. Tracked for forward-roadmap (full async-await substrate is sister to V1.x async/Future infrastructure).");
+            panic("nucleor: complex-receiver `.await` not yet supported (see ERROR diagnostic above)");
+        };
         // v0.6.79 (RFC V1.11 adopter wrong-class halt): canonical Rust
         // anonymous-tuple binding `let p: (i64, i64) = (5, 7); p.0`
         // pre-fix surfaced as the generic "cannot resolve field access"
@@ -27526,23 +27720,21 @@ fn expand_async_strip_keyword(src: str) -> str {
     while p < slen {
         let c: i64 = str_char_at(src, p);
         if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
-            while p < slen && str_char_at(src, p) != 10 {
-                sb_append_char_at(sb, src, p);
-                p = p + 1;
-            };
+            let comment_start: i64 = p;
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+            sb_append_range(sb, src, comment_start, p);
         } else if c == 34 {
-            sb_append(sb, "\"");
+            let str_start: i64 = p;
             p = p + 1;
             while p < slen && str_char_at(src, p) != 34 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
-            if p < slen { sb_append(sb, "\""); p = p + 1; };
+            if p < slen { p = p + 1; };
+            sb_append_range(sb, src, str_start, p);
         } else if is_alpha(c) == 1 || c == 95 {
             let id_start: i64 = p;
             let mut id_done: i64 = 0;
@@ -27551,12 +27743,26 @@ fn expand_async_strip_keyword(src: str) -> str {
                 if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
                 else { id_done = 1; };
             };
-            let name: str = str_substring(src, id_start, p);
-            if str_eq(name, "async") == 1 {
+            let id_len: i64 = p - id_start;
+            if id_len == 5 && str_eq_at(src, id_start, "async") == 1 {
+                // v0.7.9 (defensive halt): canonical Rust `async { ... }`
+                // block expression pre-fix surfaced as wrong-class
+                // `error[TYP-005]: undefined function async()` because
+                // expand_async_strip_keyword only handles `async fn`,
+                // and parse_primary then treats `async` as a fn call.
+                // Halt cleanly with a workaround pointer (drop the
+                // `async` — Nucleor's runtime is single-threaded, the
+                // block runs synchronously).
+                let mut blk_peek: i64 = p;
+                while blk_peek < slen && (str_char_at(src, blk_peek) == 32 || str_char_at(src, blk_peek) == 9 || str_char_at(src, blk_peek) == 10 || str_char_at(src, blk_peek) == 13) { blk_peek = blk_peek + 1; };
+                if blk_peek < slen && str_char_at(src, blk_peek) == 123 {
+                    print("ERROR: `async { ... }` block expression is not yet supported in Nucleor. Pre-v0.7.9 surfaced as wrong-class `error[TYP-005]: undefined function async()` because expand_async_strip_keyword only handles `async fn` (not `async {`), and parse_primary then treats `async` as a fn call. Workaround: drop the `async` keyword — Nucleor's runtime is single-threaded by default, so the block already runs synchronously. For threaded execution use `async_spawn(fn_ptr, arg)` (RFC-0027 phase 1, see stdlib/rods/async.nr) which returns a handle. Tracked for forward-roadmap (full Future-trait async-block lowering is sister to V1.x async/Future infrastructure).");
+                    panic("nucleor: `async { ... }` block expression not yet supported (see ERROR diagnostic above)");
+                };
                 // Look ahead past whitespace for `fn`.
                 let mut peek: i64 = p;
                 while peek < slen && (str_char_at(src, peek) == 32 || str_char_at(src, peek) == 9) { peek = peek + 1; };
-                if peek + 2 <= slen && str_eq(str_substring(src, peek, peek + 2), "fn") == 1 {
+                if peek + 2 <= slen && str_eq_at(src, peek, "fn") == 1 {
                     let after_fn: i64 = peek + 2;
                     let next_after_fn: i64 = if after_fn < slen { str_char_at(src, after_fn) } else { 0 };
                     if next_after_fn == 32 || next_after_fn == 9 || next_after_fn == 10 {
@@ -27640,9 +27846,9 @@ fn expand_async_strip_keyword(src: str) -> str {
                     };
                 };
                 // Not `async fn` — keep `async` as a regular identifier.
-                sb_append(sb, name);
+                sb_append(sb, "async");
             } else {
-                sb_append(sb, name);
+                sb_append_range(sb, src, id_start, p);
             };
         } else {
             sb_append_char_at(sb, src, p);
@@ -27664,23 +27870,21 @@ fn expand_async_await(src: str) -> str {
     while p < slen {
         let c: i64 = str_char_at(src, p);
         if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
-            while p < slen && str_char_at(src, p) != 10 {
-                sb_append_char_at(sb, src, p);
-                p = p + 1;
-            };
+            let comment_start: i64 = p;
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+            sb_append_range(sb, src, comment_start, p);
         } else if c == 34 {
-            sb_append(sb, "\"");
+            let str_start: i64 = p;
             p = p + 1;
             while p < slen && str_char_at(src, p) != 34 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
-            if p < slen { sb_append(sb, "\""); p = p + 1; };
+            if p < slen { p = p + 1; };
+            sb_append_range(sb, src, str_start, p);
         } else if is_alpha(c) == 1 || c == 95 {
             let id_start: i64 = p;
             let mut id_done: i64 = 0;
@@ -27689,23 +27893,22 @@ fn expand_async_await(src: str) -> str {
                 if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
                 else { id_done = 1; };
             };
-            let name: str = str_substring(src, id_start, p);
             // Look ahead for `.await`.
-            if p + 6 <= slen && str_eq(str_substring(src, p, p + 6), ".await") == 1 {
+            if p + 6 <= slen && str_eq_at(src, p, ".await") == 1 {
                 // Confirm `await` isn't actually part of a longer ident.
                 let after: i64 = p + 6;
                 let after_ch: i64 = if after < slen { str_char_at(src, after) } else { 0 };
                 let is_ident_cont: i64 = if is_alnum(after_ch) == 1 || after_ch == 95 { 1 } else { 0 };
                 if is_ident_cont == 0 {
                     sb_append(sb, "async_await(");
-                    sb_append(sb, name);
+                    sb_append_range(sb, src, id_start, p);
                     sb_append(sb, ")");
                     p = p + 6;
                 } else {
-                    sb_append(sb, name);
+                    sb_append_range(sb, src, id_start, p);
                 };
             } else {
-                sb_append(sb, name);
+                sb_append_range(sb, src, id_start, p);
             };
         } else {
             sb_append_char_at(sb, src, p);
@@ -30560,6 +30763,18 @@ fn priv_string_vec_contains(v: Vec<i32>, s: str) -> i64 {
     return 0;
 }
 
+fn priv_string_vec_contains_at(v: Vec<i32>, src: str, start: i64, end: i64) -> i64 {
+    let n: i64 = vec_len(v);
+    let want_len: i64 = end - start;
+    let mut i: i64 = 0;
+    while i < n {
+        let cur: str = vec_get(v, i);
+        if str_len(cur) == want_len && str_eq_at(src, start, cur) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
 fn priv_string_vec_push_unique(v: Vec<i32>, s: str) -> i64 {
     if priv_string_vec_contains(v, s) == 0 { v.push(s); };
     return 0;
@@ -30807,40 +31022,37 @@ fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> s
         let c: i64 = str_char_at(src, p);
         if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
             // // line comment — copy through to newline
-            while p < slen && str_char_at(src, p) != 10 {
-                sb_append_char_at(sb, src, p);
-                p = p + 1;
-            };
+            let comment_start: i64 = p;
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+            sb_append_range(sb, src, comment_start, p);
             last_non_ws = 10;
         } else if c == 34 {
             // double-quoted string literal — copy with backslash escapes
-            sb_append(sb, "\"");
+            let str_start: i64 = p;
             p = p + 1;
             while p < slen && str_char_at(src, p) != 34 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
-            if p < slen { sb_append(sb, "\""); p = p + 1; };
+            if p < slen { p = p + 1; };
+            sb_append_range(sb, src, str_start, p);
             last_non_ws = 34;
         } else if c == 39 {
             // single-quoted char literal
-            sb_append(sb, "'");
+            let char_start: i64 = p;
             p = p + 1;
             while p < slen && str_char_at(src, p) != 39 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append_char_at(sb, src, p); sb_append_char_at(sb, src, p + 1);
                     p = p + 2;
                 } else {
-                    sb_append_char_at(sb, src, p);
                     p = p + 1;
                 };
             };
-            if p < slen { sb_append(sb, "'"); p = p + 1; };
+            if p < slen { p = p + 1; };
+            sb_append_range(sb, src, char_start, p);
             last_non_ws = 39;
         } else if is_alpha(c) == 1 || c == 95 {
             // Identifier start — gather to the end and decide whether
@@ -30855,17 +31067,16 @@ fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> s
                 if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
                 else { id_done = 1; };
             };
-            let name: str = str_substring(src, start, p);
             let preceded_by_dot: i64 = if last_non_ws == 46 { 1 } else { 0 };
-            if preceded_by_dot == 0 && priv_string_vec_contains(private_names, name) == 1 {
+            if preceded_by_dot == 0 && priv_string_vec_contains_at(private_names, src, start, p) == 1 {
                 sb_append(sb, "__priv_");
                 sb_append(sb, file_id);
                 sb_append(sb, "__");
-                sb_append(sb, name);
+                sb_append_range(sb, src, start, p);
             } else {
-                sb_append(sb, name);
+                sb_append_range(sb, src, start, p);
             };
-            last_non_ws = str_char_at(name, str_len(name) - 1);
+            last_non_ws = str_char_at(src, p - 1);
         } else {
             sb_append_char_at(sb, src, p);
             // Track last non-whitespace so we can detect `.X` field

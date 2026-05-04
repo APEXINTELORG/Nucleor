@@ -5,6 +5,625 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.13] — 2026-05-03
+
+**Defensive halt — canonical Rust trait alias `trait Pretty =
+Show;` (RFC 1733, nightly-only in Rust) now produces a clean
+halt with a supertrait-list workaround pointer.**
+
+Pre-fix: writing `trait Pretty = Show;` surfaced as wrong-class
+`error[NR020]: parse error: expected '{', got '='` because
+parse_trait_decl had no `=` branch after the name+gparams.
+
+Post-fix: parse_trait_decl detects token 40 (`=`) at the
+post-name position and halts cleanly:
+
+```nucleor
+// Pre-fix (Rust nightly trait alias):
+trait Pretty = Show;                           // ← NR020 wrong-class
+
+// Post-fix workaround (regular trait + supertrait):
+trait Pretty: Show {}                          // empty body, inherits from Show
+trait MultiBound: Show + Clone + Default {}    // multi-supertrait alias-equivalent
+```
+
+Forward-roadmap: trait aliases as a first-class form are
+nightly-only in Rust today; if/when stabilized, Nucleor may
+add proper support. Until then, the supertrait workaround gives
+adopters the same surface.
+
+### Fixed-point + perf
+
+Cold 4.16s. Peak 319MB. Round-2 fixed-point md5
+`f699f40e06119c6f01907f4f6d3ee419`.
+
+### Fixture
+
+`tests/fixtures/v0713_trait_alias_clean_halt.nr` — negative
+fixture for `trait Pretty = Show;`.
+
+## [0.7.12] — 2026-05-03
+
+**Defensive halt — Rust stdlib smart-pointer types (`Cell`,
+`RefCell`, `Rc`, `Arc`, `Mutex`, `RwLock`, `Weak`) now produce
+clean halts with "use bare type" workaround pointers.**
+
+Pre-fix: writing `let c: Cell<i64> = Cell::new(42);` and similar
+smart-pointer ctor calls surfaced via the generic v0.3.71
+"unsupported associated-fn call" diag mentioning Vec/String/etc.
+— not adopter-actionable for the smart-pointer case.
+
+Post-fix: kind-12 dispatch detects `Cell`/`RefCell`/`Rc`/`Arc`/
+`Mutex`/`RwLock`/`Weak` as `tname` and halts cleanly with a
+multi-line diagnostic explaining:
+
+| Smart-pointer | Why-not-needed in Nucleor |
+|---|---|
+| `Cell` / `RefCell` (interior mutability) | use `let mut x` directly — no borrow-checker to opt out of |
+| `Rc` / `Arc` (shared ownership) | i64-ABI passes by value (heap pointer is copied), no ref-counting needed |
+| `Mutex` / `RwLock` (thread-safe) | runtime is single-threaded by default; use `async_spawn` (RFC-0027) for real threading |
+| `Weak` (weak refs) | no cycles to break under by-value semantics |
+
+Forward-roadmap: smart-pointer wrappers are sister to V1.3
+Drop/RAII and V1.5 length-tagged str ABI — would arrive when
+borrow-checker + ref-counting + cross-thread plumbing land.
+
+```nucleor
+// Pre-fix:
+let c: Cell<i64> = Cell::new(42);    // ← generic unsupported-assoc-fn
+
+// Post-fix workaround (bare mutable):
+let mut c: i64 = 42;
+// for "shared":
+let copy: i64 = c;     // i64 ABI copies the heap pointer
+```
+
+### Compiler-stability sister fix
+
+While developing this halt, an initial multi-line `str_concat`
+chain in the diag triggered another compiler SIGSEGV. Restructured
+to use 11 sequential `print()` calls instead. The deep
+`str_concat` nesting hazard is on the books for a separate
+investigation — it shouldn't crash, just produce slow output.
+
+### Fixed-point + perf
+
+Cold 4.04s. Peak 321MB. Round-2 fixed-point md5
+`400b7e1d8cd5011e0f4087047e938303`.
+
+### Fixture
+
+`tests/fixtures/v0712_smart_pointer_clean_halt.nr` — negative
+fixture for `Cell::new`.
+
+## [0.7.11] — 2026-05-03
+
+**🛑 Compiler-crash fix — canonical Rust never type `!`
+(diverging-fn return) was a SIGSEGV (rc=139) pre-fix; now a
+clean halt with workaround pointer.**
+
+Pre-fix: writing `fn forever() -> ! { loop { ... } }` made
+the compiler CRASH with SIGSEGV / rc=139 because parse_type
+had no token-38 (`!`) branch and fell through to a name-walk
+that dereferenced a NULL str pointer. This is a HARD crash,
+not a wrong-class diag — adopters porting Rust diverging-fn
+code hit a compiler bug before the fix.
+
+Post-fix: parse_type detects token 38 (`!`) at type position
+and halts cleanly:
+
+```nucleor
+// Pre-fix (compiler SIGSEGV):
+fn forever() -> ! {
+    loop { print_int(0); }
+}
+
+// Post-fix workaround (use unit or any concrete type):
+fn forever() -> () {
+    loop { print_int(0); }
+}
+// or:
+fn forever() -> i64 {
+    loop { print_int(0); }
+    // body never returns; the i64 contract is a paper tiger.
+}
+```
+
+Forward-roadmap: full never-type substrate is sister to V1.6
+alloc/panic propagation — needs (a) `!` to unify with every
+type at type-check time, (b) divergence tracking through fn
+returns / break / panic, (c) `match`-arm exhaustiveness
+benefits when one arm is `!`-typed.
+
+### This is the SECOND compiler-crash fix this session
+
+After v0.7.11, the compiler no longer SIGSEGVs on this canonical
+Rust shape. Sister to v0.4.206 (float-pattern in match — also
+a SIGSEGV before fix; v0.4.206 hardened parse_match_one_pattern).
+
+### Fixed-point + perf
+
+Cold 4.44s. Peak 326MB. Round-2 fixed-point md5
+`681212e8f9e5def4bae00d5015d2f434`.
+
+### Fixture
+
+`tests/fixtures/v0711_never_type_clean_halt.nr` — negative
+fixture for `fn forever() -> ! { ... }`.
+
+## [0.7.10] — 2026-05-03
+
+**Defensive halt — canonical Rust const-generic params
+`<const N: usize>` now produce a clean halt with a regular-fn-arg
+workaround pointer.**
+
+Pre-fix: writing `struct Buf<const N: usize> { ... }` or
+`fn id<const X: i32>() -> i32 { X }` surfaced as wrong-class
+`error[NR020]: parse error: expected ',', got identifier`
+because parse_generic_params treats `const` (token 73) as a
+bare param name and then trips on the `:` + type that follows.
+
+Post-fix: parse_generic_params detects token 73 (`const`) at
+the param-name position and halts cleanly:
+
+```nucleor
+// Pre-fix:
+struct Buf<const N: usize> { data: i64 }    // ← NR020 wrong-class
+fn id<const X: i32>() -> i32 { return X; }   // ← NR020 wrong-class
+
+// Post-fix workaround (regular fn arg):
+fn id(x: i32) -> i32 { return x; }
+// or hard-code the value at the use site:
+fn buf_8() -> Vec<i64> { return vec![0; 8]; }
+```
+
+For struct-level CT-params, see RFC-0034 first-pass
+(which uses `[N: usize]` syntax — different parser path,
+currently halted at v0.6.65).
+
+Forward-roadmap: full const-generic substrate is a v1.x ship —
+needs (a) const-eval at call-site / decl-site to materialize
+the value, (b) monomorphisation per concrete N, (c) propagation
+through array-type sizes (`[T; N]`).
+
+### Fixed-point + perf
+
+Cold 4.10s. Peak 332MB. Round-2 fixed-point md5
+`ca7ad733354da0f67835701dc110bdf0`.
+
+### Fixture
+
+`tests/fixtures/v0710_const_generic_param_clean_halt.nr` —
+negative fixture for `<const N: usize>`.
+
+## [0.7.9] — 2026-05-03
+
+**Defensive halt — canonical Rust `async { ... }` block
+expression now produces a clean halt with a "drop the `async`
+keyword" workaround pointer.**
+
+Pre-fix: writing `let f = async { ... };` surfaced as
+wrong-class `error[TYP-005]: undefined function async()`
+because `expand_async_strip_keyword` only handles `async fn`
+(not `async {`), and parse_primary then treats `async` as
+a fn call.
+
+Post-fix: `expand_async_strip_keyword` detects `async` followed
+(after whitespace) by `{` and halts cleanly:
+
+```nucleor
+// Pre-fix:
+let f = async { return 42; };       // ← TYP-005 wrong-class
+
+// Post-fix workaround (drop `async`):
+let f = { return 42; };
+// or use async_spawn for real thread:
+let h: i64 = async_spawn(my_fn, arg);
+let v: i64 = async_await(h);
+```
+
+Forward-roadmap: full Future-trait async-block lowering is
+sister to V1.x async/Future infrastructure. Until then,
+Nucleor's runtime is single-threaded by default and `async`
+is informational only.
+
+### Fixed-point + perf
+
+Cold 4.49s. Peak 331MB. Round-2 fixed-point md5
+`f5f86c4a2f4443ebdb123e5f0b076e69`.
+
+### Fixture
+
+`tests/fixtures/v0709_async_block_clean_halt.nr` — negative
+fixture for `let f = async { ... };`.
+
+## [0.7.8] — 2026-05-03
+
+**Defensive halt — canonical Rust complex-receiver `.await`
+(`fetch().await`, `arr[0].await`, `expr.method().await`) now
+produces a clean halt with a let-extract workaround pointer.**
+
+Pre-fix: `.await` on anything other than a simple ident
+surfaced as wrong-class `cannot resolve field access .await`
+because the `expand_async_await` textual pass at line ~26145
+only matches the `<ident>.await` form (per the comment at line
+~27566: "complex receivers are not supported"). The kind-9
+field access then fell through to the generic
+field-resolution panic.
+
+Post-fix: lower_expr's kind-9 dispatch detects
+`fname == "await"` and halts cleanly, pointing at the
+let-extract workaround:
+
+```nucleor
+// Pre-fix:
+let v: i64 = fetch().await;       // ← cannot resolve field .await
+
+// Post-fix workaround:
+let h: i64 = fetch();
+let v: i64 = h.await;             // simple ident form — handled by expand_async_await
+```
+
+Forward-roadmap: full async-await substrate is sister to V1.x
+async/Future infrastructure — needs proper Future trait,
+poll-state machine, complex-receiver expression rewrite.
+
+### Fixed-point + perf
+
+Cold 4.34s. Peak 314MB. Round-2 fixed-point md5
+`0ceb56e91b36e9c960f1b78c56caf75d`.
+
+### Fixture
+
+`tests/fixtures/v0708_complex_await_clean_halt.nr` — negative
+fixture for `fetch().await`.
+
+## [0.7.7] — 2026-05-03
+
+**Defensive halt — C/Java-idiom `x++` / `x--` post-increment/
+decrement operators now produce clean halts with explicit-assignment
+workaround pointers.**
+
+Pre-fix: writing `x++;` surfaced as wrong-class `error[NR020]:
+parse_primary cannot start an expression at token kind 20` (the
+second `+`) because the first `+` after the primary parses as a
+binop, then parse_primary fails on the second `+`. Same hazard
+for `x--;`.
+
+Post-fix: parse_postfix detects double-`+` (token 20 + 20) and
+double-`-` (token 21 + 21) immediately after the primary and
+halts cleanly:
+
+```nucleor
+// Pre-fix:
+x++;    // ← NR020 wrong-class
+x--;    // ← NR020 wrong-class
+
+// Post-fix workaround (explicit assignment):
+x = x + 1;
+x = x - 1;
+// or compound-assign:
+x += 1;
+x -= 1;
+```
+
+Forward-roadmap: no plans to add `++`/`--` — Rust-style explicit
+assignment is the canonical form. The halt is permanent
+documentation, not a placeholder for a future ship.
+
+### Fixed-point + perf
+
+Cold 5.63s (system-load — within cap 5.93s). Peak 312MB.
+Round-2 fixed-point md5 `48930cbaf606d67ddb97f92491de2510`.
+
+### Fixture
+
+`tests/fixtures/v0707_post_inc_dec_clean_halt.nr` — negative
+fixture for `x++`.
+
+## [0.7.6] — 2026-05-03
+
+**Defensive halt — canonical Rust `T::default()` (Default trait)
+now produces a clean halt with per-type literal-default
+workaround pointers.**
+
+Pre-fix: writing `let n: i64 = i64::default();` and similar
+Default-trait calls surfaced via the generic v0.3.71
+"unsupported associated-fn call" diag mentioning Vec/String/
+etc. — not adopter-actionable for the Default case (`i64`
+isn't a wrapper type with associated fns).
+
+Post-fix: kind-12 dispatch detects `mname == "default"` and
+halts cleanly with per-type literal hints:
+
+| Type | Default workaround |
+|---|---|
+| `i*` / `u*` / `isize` / `usize` | `0` |
+| `f32` / `f64` | `0.0` |
+| `bool` | `false` |
+| `str` | `""` |
+| `String` | `String::new()` |
+| `Vec` | `Vec::new()` |
+| `HashMap` | `HashMap::new()` |
+| user types | construct explicitly |
+
+Forward-roadmap: Default trait substrate is sister to V1.4
+derive(PartialEq) — both annotation-driven trait derives. The
+canonical `T::default()` pattern needs (a) per-type Default
+impls auto-generated from `#[derive(Default)]`, (b) the
+ambient `Default::default()` form dispatched through type
+inference at the binding's declared type.
+
+```nucleor
+// Pre-fix:
+let n: i64 = i64::default();        // ← generic unsupported-assoc-fn diag
+
+// Post-fix workaround:
+let n: i64 = 0;
+let s: str = "";
+let v: Vec<i64> = Vec::new();
+```
+
+### Fixed-point + perf
+
+Cold variance 4.39–5.50s (system-load — under cap 5.93s).
+Peak 324–331MB. Round-2 fixed-point md5
+`0ce3d917cc5429664ca27d3ab7290fcb`.
+
+### Fixture
+
+`tests/fixtures/v0706_default_trait_clean_halt.nr` — negative
+fixture for `i64::default()`.
+
+## [0.7.5] — 2026-05-03
+
+**Defensive halt — canonical Rust path-rooted fn calls
+`crate::foo(...)`, `super::foo(...)`, `self::foo(...)` now
+produce a clean halt with a "drop the path prefix" workaround
+pointer.**
+
+Pre-fix: writing `let v = crate::helper(5);` surfaced the
+generic v0.3.71 "unsupported associated-fn call" diag that
+mentioned Vec/String/Box/HashMap/etc. — not adopter-actionable
+for the path case (`crate` isn't a type with associated fns).
+
+Post-fix: kind-12 dispatch detects the `crate` / `super` / `self`
+roots and halts cleanly:
+
+| Path form | Workaround |
+|---|---|
+| `crate::foo(...)` | drop the prefix → `foo(...)` |
+| `super::foo(...)` | drop the prefix → `foo(...)` |
+| `self::foo(...)` | drop the prefix → `foo(...)` |
+
+Nucleor today has a flat fn namespace (no module-tree rooting),
+and the resolved fn name is callable directly. Sister to v0.6.96
+std/core/alloc namespace halt.
+
+Forward-roadmap: path-rooted name resolution requires module-tree
+infrastructure — depends on `mod foo;` / `mod foo { ... }` block-
+form module bodies being more than transparent inlining (per
+v0.6.50 finding). Tracked alongside V1.x module substrate.
+
+```nucleor
+// Pre-fix:
+let v: i64 = crate::helper(5);    // ← generic unsupported-assoc-fn diag
+
+// Post-fix workaround (drop the prefix):
+let v: i64 = helper(5);
+```
+
+### Fixed-point + perf
+
+Cold 4.15s (system load). Peak 331MB. Round-2 fixed-point md5
+`ebd401a08236e7c482d1a94adfae2482`.
+
+### Fixture
+
+`tests/fixtures/v0705_path_rooted_fn_call_clean_halt.nr` —
+negative fixture for `crate::helper(...)`.
+
+## [0.7.4] — 2026-05-03
+
+**Defensive halt — canonical Rust `extern "C" fn name() { body }`
+(FFI-exposed fn with body) now produces a clean halt with a
+"drop the `extern \"C\"`" workaround pointer.**
+
+Pre-fix: `extern "C" fn callback(x: i64) -> i64 { return x * 3; }`
+parsed through parse_extern_fn (which only handles declaration-
+form, no body), then parse_extern_fn returned with cp at `{`.
+parse_program then surfaced the body as wrong-class
+`error: statement-level keyword at module scope`.
+
+Post-fix: parse_extern_fn detects token 52 (`{`) at the post-
+signature position and halts cleanly, pointing at:
+
+1. **Drop the `extern "C"`** — Nucleor regular fns
+   (`fn name(...) { body }`) already use the C ABI by default
+   at the i64-everywhere runtime level. The qualifier is
+   informational.
+2. **Use bare `extern fn name(...);`** for pure declarations
+   of foreign symbols (no body).
+
+```nucleor
+// Pre-fix:
+extern "C" fn callback(x: i64) -> i64 {     // ← wrong-class diag
+    return x * 3;
+}
+
+// Post-fix workaround (drop extern "C"):
+fn callback(x: i64) -> i64 {
+    return x * 3;
+}
+```
+
+Forward-roadmap: full `extern "C" fn` with body lowering needs
+ABI-marker propagation through the IR + linker section discipline.
+Sister to V1.6 (no-alloc/panic propagation) — both annotation-
+based v1.x ships.
+
+### Fixed-point + perf
+
+Cold 3.40s. Peak 315MB. Round-2 fixed-point md5
+`5871c31fcd58382a90d7174a9927f6ed`.
+
+### Fixture
+
+`tests/fixtures/v0704_extern_c_with_body_clean_halt.nr` —
+negative fixture for `extern "C" fn callback() { ... }`.
+
+## [0.7.3] — 2026-05-03
+
+**Defensive halt — canonical Rust raw-pointer types `*const T`
+/ `*mut T` now produce a clean halt with borrow-ref / i64-FFI
+workaround pointer.**
+
+Pre-fix: `let p: *const i64 = &x;` and `fn read(p: *const i64)`
+surfaced as wrong-class `error[NR020]: parse_primary cannot
+start an expression at token kind 73` (the `const` keyword
+following `*`) because parse_type had no `*` branch — the outer
+parser saw `*` as the multiplication operator (token 22) at type
+position.
+
+Post-fix: parse_type detects token 22 (`*`) at type-start
+position and halts cleanly, pointing at:
+
+1. **`&T` / `&mut T`** — safe-borrow workaround for typical
+   adopter code (the canonical Nucleor pattern).
+2. **Bare `i64`** — for FFI / unsafe transit; the i64-everywhere
+   ABI passes the heap pointer value through directly.
+
+Forward-roadmap: raw-pointer type substrate is v1.x, sister to
+V1.5 (length-tagged str ABI). Until then, raw pointers transit
+as i64 without compile-time type distinction.
+
+```nucleor
+// Pre-fix:
+let p: *const i64 = &x;       // ← NR020 wrong-class
+
+// Post-fix workaround (safe borrow-ref):
+let p: &i64 = &x;
+
+// Post-fix workaround (FFI transit as i64):
+extern fn ffi_read(p: i64) -> i64;
+let p: i64 = ffi_read(addr);
+```
+
+### Fixed-point + perf
+
+Cold 4.40s (system load). Peak 314MB. Round-2 fixed-point md5
+`eaaf3fd74e8e74920c02504e037c299f`.
+
+### Fixture
+
+`tests/fixtures/v0703_raw_pointer_type_clean_halt.nr` —
+negative fixture for `*const i64` type position.
+
+## [0.7.2] — 2026-05-03
+
+**Defensive halt — canonical Rust loop labels (`'outer: for ...
+{ break 'outer; }`, `'lbl: loop { continue 'lbl; }`) now produce
+a clean halt with a boolean-flag workaround pointer.**
+
+Pre-fix: writing `'outer: for i in 0..5 { ... break 'outer; }`
+surfaced as wrong-class `error[NR020]: parse_primary cannot
+start an expression at token kind 98` — token 98 is the
+lifetime/label token and parse_primary had no `'label:` prefix
+branch.
+
+Post-fix: parse_primary's NR020-fallback path detects token 98
+and halts cleanly, pointing at the boolean-flag workaround for
+nested-loop early-exit:
+
+```nucleor
+// Pre-fix:
+'outer: for i in 0..5 {
+    for j in 0..5 {
+        if i + j > 3 { break 'outer; }   // ← NR020 wrong-class
+    }
+}
+
+// Post-fix workaround (boolean flag):
+let mut done: i64 = 0;
+for i in 0..5 {
+    if done == 1 { break; };
+    for j in 0..5 {
+        if i + j > 3 { done = 1; break; }
+    }
+}
+```
+
+Forward-roadmap: labeled-loop substrate needs label-aware
+break/continue lowering — each loop's parser captures the
+optional `'label:` prefix, lower_expr's break/continue branches
+look up the label-to-exit-IR-label mapping. ~150 LOC, sister to
+V1.8 break-with-value.
+
+### Fixed-point + perf
+
+Cold 3.43s. Peak 333MB. Round-2 fixed-point md5
+`034cfdcef6cafb0575fac54927f68c7f`.
+
+### Fixture
+
+`tests/fixtures/v0702_loop_label_clean_halt.nr` — negative
+fixture for `'outer: for ... break 'outer;`.
+
+## [0.7.1] — 2026-05-03
+
+**Defensive halt extension — canonical Rust iterator adapter
+idioms (`.rev()`, `.enumerate()`, `.zip()`, `.windows()`,
+`.chunks()`, `.flat_map()`, `.flatten()`, `.peekable()`,
+`.fuse()`) now produce clean halts with per-idiom index-based-
+loop workaround pointers.**
+
+Pre-fix: `for x in v.iter().rev() { ... }` and similar iterator
+adapter chains fell through every receiver-typed kind-8 dispatch
+and the catch-all synthesized `vec_rev(receiver)` — failing late
+at clang link with the wrong-class `error[TYP-005]: receiver
+type 'Vec<T>' has no method '.rev()'`.
+
+Post-fix: extends the v0.6.82 `v082_idiom` set with 9 more
+iterator adapters and per-idiom workaround pointers:
+
+| Method | Workaround |
+|---|---|
+| `.rev()` | reverse-index loop: `let mut i = vec_len(&v) - 1; while i >= 0 { ...; i = i - 1; }` |
+| `.enumerate()` | manual counter: `let mut idx = 0; for x in &v { ...idx, x; idx = idx + 1; }` |
+| `.zip()` | parallel-index loop over both Vecs |
+| `.windows()` / `.chunks()` | sliding-window with explicit stride |
+| `.flat_map()` / `.flatten()` | nested for-loops + push to accumulator |
+| `.peekable()` / `.fuse()` | index-based loop with sentinel checks |
+
+Forward-roadmap: full iterator-trait infrastructure is a v1.x
+ship — needs (a) generic Iterator<Item> trait, (b) Iterator
+adapter struct family, (c) trait dispatch through nested generic
+returns. Sister to V1.5 (length-tagged str ABI) and V1.7 (UFCS
+per-trait disambiguation).
+
+```nucleor
+// Pre-fix:
+for x in v.iter().rev() { ... }                  // ← TYP-005 wrong-class
+
+// Post-fix workaround (reverse-index loop):
+let mut i: i64 = vec_len(&v) - 1;
+while i >= 0 {
+    let x: i64 = vec_get(&v, i);
+    print_int(x as i32);
+    i = i - 1;
+}
+```
+
+### Fixed-point + perf
+
+Cold 3.58s. Peak 322MB. Round-2 fixed-point md5
+`52ff5246383e7c1ec22f174e949c42c3`.
+
+### Fixture
+
+`tests/fixtures/v0701_iterator_idioms_clean_halt.nr` —
+negative fixture for `.iter().rev()`.
+
 ## [0.7.0] — 2026-05-03
 
 **Major version boundary — Rust marker traits (`Sized`, `Send`,

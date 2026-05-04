@@ -13864,23 +13864,21 @@ fn expand_async_strip_keyword(src: str) -> str {
     while p < slen {
         let c: i64 = str_char_at(src, p);
         if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
-            while p < slen && str_char_at(src, p) != 10 {
-                sb_append(sb, str_substring(src, p, p + 1));
-                p = p + 1;
-            };
+            let comment_start: i64 = p;
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+            sb_append_range(sb, src, comment_start, p);
         } else if c == 34 {
-            sb_append(sb, "\"");
+            let str_start: i64 = p;
             p = p + 1;
             while p < slen && str_char_at(src, p) != 34 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
                     p = p + 1;
                 };
             };
-            if p < slen { sb_append(sb, "\""); p = p + 1; };
+            if p < slen { p = p + 1; };
+            sb_append_range(sb, src, str_start, p);
         } else if is_alpha(c) == 1 || c == 95 {
             let id_start: i64 = p;
             let mut id_done: i64 = 0;
@@ -13889,11 +13887,11 @@ fn expand_async_strip_keyword(src: str) -> str {
                 if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
                 else { id_done = 1; };
             };
-            let name: str = str_substring(src, id_start, p);
-            if str_eq(name, "async") == 1 {
+            let id_len: i64 = p - id_start;
+            if id_len == 5 && str_eq_at(src, id_start, "async") == 1 {
                 let mut peek: i64 = p;
                 while peek < slen && (str_char_at(src, peek) == 32 || str_char_at(src, peek) == 9) { peek = peek + 1; };
-                if peek + 2 <= slen && str_eq(str_substring(src, peek, peek + 2), "fn") == 1 {
+                if peek + 2 <= slen && str_eq_at(src, peek, "fn") == 1 {
                     let after_fn: i64 = peek + 2;
                     let next_after_fn: i64 = if after_fn < slen { str_char_at(src, after_fn) } else { 0 };
                     if next_after_fn == 32 || next_after_fn == 9 || next_after_fn == 10 {
@@ -13901,12 +13899,12 @@ fn expand_async_strip_keyword(src: str) -> str {
                         continue;
                     };
                 };
-                sb_append(sb, name);
+                sb_append(sb, "async");
             } else {
-                sb_append(sb, name);
+                sb_append_range(sb, src, id_start, p);
             };
         } else {
-            sb_append(sb, str_substring(src, p, p + 1));
+            sb_append_char_at(sb, src, p);
             p = p + 1;
         };
     };
@@ -13920,23 +13918,21 @@ fn expand_async_await(src: str) -> str {
     while p < slen {
         let c: i64 = str_char_at(src, p);
         if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
-            while p < slen && str_char_at(src, p) != 10 {
-                sb_append(sb, str_substring(src, p, p + 1));
-                p = p + 1;
-            };
+            let comment_start: i64 = p;
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+            sb_append_range(sb, src, comment_start, p);
         } else if c == 34 {
-            sb_append(sb, "\"");
+            let str_start: i64 = p;
             p = p + 1;
             while p < slen && str_char_at(src, p) != 34 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
                     p = p + 1;
                 };
             };
-            if p < slen { sb_append(sb, "\""); p = p + 1; };
+            if p < slen { p = p + 1; };
+            sb_append_range(sb, src, str_start, p);
         } else if is_alpha(c) == 1 || c == 95 {
             let id_start: i64 = p;
             let mut id_done: i64 = 0;
@@ -13945,24 +13941,23 @@ fn expand_async_await(src: str) -> str {
                 if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
                 else { id_done = 1; };
             };
-            let name: str = str_substring(src, id_start, p);
-            if p + 6 <= slen && str_eq(str_substring(src, p, p + 6), ".await") == 1 {
+            if p + 6 <= slen && str_eq_at(src, p, ".await") == 1 {
                 let after: i64 = p + 6;
                 let after_ch: i64 = if after < slen { str_char_at(src, after) } else { 0 };
                 let is_ident_cont: i64 = if is_alnum(after_ch) == 1 || after_ch == 95 { 1 } else { 0 };
                 if is_ident_cont == 0 {
                     sb_append(sb, "async_await(");
-                    sb_append(sb, name);
+                    sb_append_range(sb, src, id_start, p);
                     sb_append(sb, ")");
                     p = p + 6;
                 } else {
-                    sb_append(sb, name);
+                    sb_append_range(sb, src, id_start, p);
                 };
             } else {
-                sb_append(sb, name);
+                sb_append_range(sb, src, id_start, p);
             };
         } else {
-            sb_append(sb, str_substring(src, p, p + 1));
+            sb_append_char_at(sb, src, p);
             p = p + 1;
         };
     };
@@ -14684,6 +14679,18 @@ fn priv_string_vec_contains(v: Vec<i32>, s: str) -> i64 {
     return 0;
 }
 
+fn priv_string_vec_contains_at(v: Vec<i32>, src: str, start: i64, end: i64) -> i64 {
+    let n: i64 = vec_len(v);
+    let want_len: i64 = end - start;
+    let mut i: i64 = 0;
+    while i < n {
+        let cur: str = vec_get(v, i);
+        if str_len(cur) == want_len && str_eq_at(src, start, cur) == 1 { return 1; };
+        i = i + 1;
+    };
+    return 0;
+}
+
 fn priv_string_vec_push_unique(v: Vec<i32>, s: str) -> i64 {
     if priv_string_vec_contains(v, s) == 0 { v.push(s); };
     return 0;
@@ -14804,38 +14811,35 @@ fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> s
     while p < slen {
         let c: i64 = str_char_at(src, p);
         if c == 47 && p + 1 < slen && str_char_at(src, p + 1) == 47 {
-            while p < slen && str_char_at(src, p) != 10 {
-                sb_append(sb, str_substring(src, p, p + 1));
-                p = p + 1;
-            };
+            let comment_start: i64 = p;
+            while p < slen && str_char_at(src, p) != 10 { p = p + 1; };
+            sb_append_range(sb, src, comment_start, p);
             last_non_ws = 10;
         } else if c == 34 {
-            sb_append(sb, "\"");
+            let str_start: i64 = p;
             p = p + 1;
             while p < slen && str_char_at(src, p) != 34 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
                     p = p + 1;
                 };
             };
-            if p < slen { sb_append(sb, "\""); p = p + 1; };
+            if p < slen { p = p + 1; };
+            sb_append_range(sb, src, str_start, p);
             last_non_ws = 34;
         } else if c == 39 {
-            sb_append(sb, "'");
+            let char_start: i64 = p;
             p = p + 1;
             while p < slen && str_char_at(src, p) != 39 {
                 if str_char_at(src, p) == 92 && p + 1 < slen {
-                    sb_append(sb, str_substring(src, p, p + 2));
                     p = p + 2;
                 } else {
-                    sb_append(sb, str_substring(src, p, p + 1));
                     p = p + 1;
                 };
             };
-            if p < slen { sb_append(sb, "'"); p = p + 1; };
+            if p < slen { p = p + 1; };
+            sb_append_range(sb, src, char_start, p);
             last_non_ws = 39;
         } else if is_alpha(c) == 1 || c == 95 {
             let start: i64 = p;
@@ -14845,19 +14849,18 @@ fn priv_mangle_private_fns(src: str, file_id: str, private_names: Vec<i32>) -> s
                 if is_alnum(ch) == 1 || ch == 95 { p = p + 1; }
                 else { id_done = 1; };
             };
-            let name: str = str_substring(src, start, p);
             let preceded_by_dot: i64 = if last_non_ws == 46 { 1 } else { 0 };
-            if preceded_by_dot == 0 && priv_string_vec_contains(private_names, name) == 1 {
+            if preceded_by_dot == 0 && priv_string_vec_contains_at(private_names, src, start, p) == 1 {
                 sb_append(sb, "__priv_");
                 sb_append(sb, file_id);
                 sb_append(sb, "__");
-                sb_append(sb, name);
+                sb_append_range(sb, src, start, p);
             } else {
-                sb_append(sb, name);
+                sb_append_range(sb, src, start, p);
             };
-            last_non_ws = str_char_at(name, str_len(name) - 1);
+            last_non_ws = str_char_at(src, p - 1);
         } else {
-            sb_append(sb, str_substring(src, p, p + 1));
+            sb_append_char_at(sb, src, p);
             if c != 32 && c != 9 && c != 10 && c != 13 { last_non_ws = c; };
             p = p + 1;
         };
