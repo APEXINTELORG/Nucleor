@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.58] — 2026-05-04
+
+**Feature acceptance — `where`-clause on enum declaration now
+builds cleanly. Promotes the v0.7.57 halt to acceptance, sister
+to v0.6.46 struct/fn where-clause acceptance.**
+
+Pre-v0.7.57 surfaced as wrong-class NR020; v0.7.57 added a clean
+halt with workaround pointer; v0.7.58 promotes the halt to
+acceptance — `parse_enum_decl` now calls `skip_where_clause` (same
+as struct/fn decls have done since v0.6.46). The bound is parsed
+and skipped (not enforced — same as struct/fn where-clause
+behavior today; bounds enforcement is the v1 trait-checker
+substrate).
+
+```nucleor
+// Now builds cleanly (was halt v0.7.57, was wrong-class pre-v0.7.57):
+enum E<T> where T: Copy { A(T), B }
+
+fn main() -> i64 {
+    let e: E<i64> = E::A(5);
+    match e { E::A(n) => print("a"), E::B => print("b") };
+    return 0;
+}
+```
+
+The v0.7.57 negative fixture (`tests/fixtures/v0757_enum_where_halt.nr`)
+is removed; replaced with positive fixture
+`tests/fixtures/v0758_enum_where_accept.nr` exercising the
+build+match path.
+
+### Fixture
+
+`tests/fixtures/v0758_enum_where_accept.nr` — positive fixture for
+`enum E<T> where T: Copy { ... }` with a match arm exercise.
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `0581d9455beea4bb959974385ba387b9`.
+Cold 3.82s / peak 302MB.
+
 ## [0.7.57] — 2026-05-04
 
 **Defensive halt — `where`-clause on enum declaration (`enum E<T>

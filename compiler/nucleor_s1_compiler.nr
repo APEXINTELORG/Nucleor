@@ -4010,17 +4010,15 @@ fn parse_enum_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         cp = pr_pos(gr);
         gparams = mk_list(pool, pr_val(gr));
     };
-    // v0.7.57 (defensive halt — Rust `where`-clause on enum decl:
-    // `enum E<T> where T: Copy { ... }`). Pre-fix this surfaced as
-    // wrong-class `error[NR020]: expected '{', got identifier`
-    // because parse_enum_decl had no `where` branch (struct decls
-    // and fn decls already accept `where`). Halt cleanly with a
-    // hoist-bound-to-generic workaround.
-    if pk(tokens, cp) == 1 && str_eq(pkv(tokens, cp), "where") == 1 {
-        print(str_concat("ERROR: `where`-clause on enum declaration `enum ", str_concat(name, "<T> where T: Bound { ... }` is not yet supported in Nucleor. Pre-v0.7.57 surfaced as wrong-class `error[NR020]: expected '{', got identifier`. Struct decls (`struct S<T> where T: Copy { ... }`) and fn decls (`fn h<T>() where T: Copy { ... }`) already accept where-clauses; only enum decls don't.")));
-        print(str_concat("       Workaround: hoist the bound into the inline generic-param list — `enum ", str_concat(name, "<T: Copy> { ... }` (multi-bound also works: `<T: Copy + Clone>`). Tracked for forward-roadmap (parse_enum_decl needs the same skip_where_clause call as parse_struct_decl, sister to v0.6.46 work).")));
-        panic(str_concat("nucleor: `where`-clause on enum decl `", str_concat(name, "` not yet supported (see ERROR diagnostic above)")));
-    };
+    // v0.7.58: accept `where`-clause on enum decl, sister to v0.6.46
+    // struct/fn where-clause acceptance. Pre-v0.7.57 this surfaced as
+    // wrong-class NR020; v0.7.57 halted cleanly; v0.7.58 promotes the
+    // halt to a feature acceptance — the bound is skipped (same as
+    // struct/fn where-clauses do today; bounds aren't enforced anyway
+    // until the v1 trait-checker substrate lands). Adopters porting
+    // canonical Rust no longer need to hoist bounds into the inline
+    // generic param list as a workaround.
+    cp = skip_where_clause(tokens, cp);
     cp = expect_tok(tokens, cp, 52); // {
     let mut variants: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 53 && pk(tokens, cp) != 0 {
