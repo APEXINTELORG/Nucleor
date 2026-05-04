@@ -2985,6 +2985,23 @@ fn parse_generic_params(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
             // pass can verify the trait exists / has at least one
             // impl. Multiple bounds (`<T: A + B>`) all get `?A`,
             // `?B` entries.
+            //
+            // v0.7.69 (defensive halt — Rust opt-out trait bound
+            // `?Sized`, used to relax the implicit Sized bound on
+            // generic params so they accept DSTs like `str`/`[T]`).
+            // Pre-fix the `?` token (97) was consumed silently by the
+            // bound walker and the trailing `Sized` was stored as a
+            // regular `?Sized` marker — visually identical to the
+            // already-prefixed v0.4.130 storage convention but
+            // semantically wrong: adopters expect Nucleor to relax
+            // its Sized requirement, not silently keep it. Nucleor
+            // has no DST substrate yet, so silent acceptance is a
+            // wrong-class hazard. Halt cleanly and tell users the
+            // bound is a no-op for now (everything is Sized).
+            if pk(tokens, cp) == 97 {
+                print("ERROR: opt-out trait bounds `?Sized` (and `?Trait` in general) are not yet supported in Nucleor. Pre-v0.7.69 the `?` token was silently dropped at the bound parser and the trailing `Sized` was stored as a regular bound marker, so adopter intent — \"this generic accepts DSTs / unsized types\" — was lost without signal. Workaround: drop the `?Sized` bound; Nucleor's monomorphic / i64-everywhere ABI assumes every generic param is sized today, so the bound is a no-op. Tracked for forward-roadmap (RFC-0027 lifetime/quantifier substrate plus DST lowering).");
+                panic("nucleor: opt-out trait bound `?Sized` not yet supported (see ERROR diagnostic above)");
+            };
             while pk(tokens, cp) != 33 && pk(tokens, cp) != 44 && pk(tokens, cp) != 0 {
                 if pk(tokens, cp) == 1 {
                     let bname: str = pkv(tokens, cp);
