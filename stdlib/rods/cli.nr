@@ -33,6 +33,14 @@ fn cli_new(name: str, desc: str) -> Vec<i32> {
 }
 
 // type: 0 = bool flag, 1 = string option
+//
+// v0.8.41 RFC-0062 G-1: `f` is a HANDOFF local — the Vec is
+// pushed INTO `flags` (a registry-like field of `c`) where its
+// pointer outlives this fn. Under the Phase 2b-3 default-flip,
+// auto-drop on `f` would dangle the registry entry. The
+// `#[manual_drop]` attribute opts this fn out of default-flip
+// auto-drop semantics, preserving the v0.x handoff behavior.
+#[manual_drop]
 fn cli_add_flag(c: Vec<i32>, name: str, short_name: str, desc: str) {
     let flags: i64 = c.get(2);
     let mut f: Vec<i32> = Vec::new();
@@ -44,6 +52,8 @@ fn cli_add_flag(c: Vec<i32>, name: str, short_name: str, desc: str) {
     vec_push(flags, f);
 }
 
+// v0.8.41 RFC-0062 G-1: same handoff pattern as cli_add_flag.
+#[manual_drop]
 fn cli_add_option(c: Vec<i32>, name: str, short_name: str, desc: str, default_val: str) {
     let flags: i64 = c.get(2);
     let mut f: Vec<i32> = Vec::new();
