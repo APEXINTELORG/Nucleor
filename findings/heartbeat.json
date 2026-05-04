@@ -1,10 +1,10 @@
 {
   "instructions_read": "v0.6.72-post-v0.7.13-refresh",
-  "current_task": "p2_fn_return_map_hashmap",
+  "current_task": "p2_strtab_intern_hashmap",
   "roadmap_phase": "v2_post_investigation",
   "current_punchlist_item": "P2",
   "edits_in_main_tree": false,
-  "rebased_on_origin_main": "c7c6e8b4",
+  "rebased_on_origin_main": "aa377d68",
   "perf_baseline_pre_task": {
     "cold": 3.16,
     "peak_mem": 318
@@ -69,6 +69,28 @@
         "tests/lang/hashmap_str_i64.nr rc=0",
         "tests/features/closure_braced_body_tail_expr.nr rc=0"
       ]
+    },
+    "p2_strtab_intern_hashmap": {
+      "status": "pass",
+      "change": "String-constant interning keeps the tiny-table backward scan, then switches to a dedicated strtab hashmap carried on the IR-function aux slot. This avoids the v0.6.72 shared warm-cache contention and avoids adding a new runtime helper declaration.",
+      "profile_before": {
+        "vec_get_total": 76508815,
+        "str_eq_total": 73684190,
+        "total_tracked": 223555754
+      },
+      "profile_after": {
+        "vec_get_total": 50523081,
+        "str_eq_total": 47660351,
+        "total_tracked": 171664877
+      },
+      "post_rebase_perf_gate": {
+        "cold_seconds": 3.05,
+        "hot_seconds": 0.43,
+        "peak_mem_mb": 303,
+        "command": "powershell.exe -NoProfile -File tools\\check_perf_regression.ps1"
+      },
+      "fixed_point": "stage2/stage3 compiler IR SHA256 matched before v0.7.66 rebase: 63368E5F970E20A1C75BEFE9BCB7B42CF8A89BADF0E2816B01D37E5E83C4BDD0",
+      "seed_recheck": "bootstrap/nucleor_s1_seed.ll byte-identical to target/strtab_recheck_seed.ll after v0.7.66 rebase"
     },
     "host_snapshot_in_perf_gate": "added",
     "compiler_drift": "pass",
