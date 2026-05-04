@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7] — 2026-05-04
+
+**Phase B step-1 — extended attribute audit (7 attribute
+families across RFC-0052 / 0053 / 0057 / 0060 / 0054).**
+
+Same shape as v0.8.5 / v0.8.6: per-attribute build-time count
++ one-line audit summary when the count is non-zero. Reuses
+the v0.8.6 `simple_attribute_audit_count` substring counter.
+
+Audited attributes (and the lanes they back):
+
+| Attribute | RFC | Phase A ship | Build summary |
+|---|---|---|---|
+| `@photonic` | RFC-0052 | v0.7.95 | `audit: @photonic fns in build: N` |
+| `@neuromorphic` | RFC-0053 | v0.7.96 | `audit: @neuromorphic fns in build: N` |
+| `@enclave(...)` | RFC-0057 | v0.8.1 | `audit: @enclave fns in build: N` |
+| `@attested` | RFC-0057 | v0.8.1 | `audit: @attested fns in build: N` |
+| `@authored(...)` | RFC-0060 | v0.7.18 | `audit: @authored fns in build: N` |
+| `@policy(...)` | RFC-0060 | v0.7.79 | `audit: @policy decls in build: N` |
+| `@within(...)` | RFC-0054 | v0.7.97 | `audit: @within timing constraints in build: N` |
+
+Combined with v0.8.5 (`@differentiable`) and v0.8.6 (`@energy`,
+`@thermal`), the build now emits a discovery-class audit for
+**10 distinct frontier-attribute families** when any are present
+in the source.
+
+### Implementation
+
+Reuses `simple_attribute_audit_count` (added v0.8.6). Each
+needle constructed via `str_concat` to avoid the literal
+attribute name appearing verbatim in compiler.nr (sister to
+v0.7.98 `compile_error!` self-host guard pattern).
+
+### Smoke fixture
+
+`tests/fixtures/v0807_phaseB_extended_audit_smoke.nr` — 7 fns
+across the 7 audited families. Runtime returns 7. Audit
+summary lines will appear in build log once `bin/nucleor.exe`
+is rebuilt from the new seed.
+
+### Status
+
+Adopters using the existing `bin/nucleor.exe` (built from a
+pre-v0.8.5 seed) won't see the audit messages until the next
+perf-integration ship rebuilds the binary. The seed itself
+contains the Phase B logic; T1.7 fixed-point validates.
+
+Phase B step-2 (parse + store metadata) remains deferred for
+each attribute. The discovery layer is complete; per-attribute
+semantic enforcement is the next ship per family.
+
+Fixed-point md5: `DA227C09C545C870434428829FF14C93`.
+Cold 3.14s / peak 309MB (under 4s job #1).
+
 ## [0.8.6] — 2026-05-04
 
 **Phase B step-1 — RFC-0050 `@energy` / `@thermal` build-time
