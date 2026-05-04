@@ -5,6 +5,59 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.30] — 2026-05-04
+
+**Defensive halt — Rust integer-intrinsic methods (`.abs()`, `.pow()`,
+`.signum()`, `.count_ones()`, `.count_zeros()`, `.leading_zeros()`,
+`.trailing_zeros()`, `.rotate_left()`, `.rotate_right()`,
+`.swap_bytes()`, `.checked_add/sub/mul`, `.wrapping_add/sub/mul`,
+`.saturating_add/sub/mul`) now route to the v0.6.82 idiom-list halt
+with per-method workarounds.**
+
+Pre-fix: writing `let x: i64 = 5.abs();` surfaced as wrong-class
+`error[TYP-005]: receiver type 'Vec<T>' has no method '.abs()'` —
+the kind-8 method-dispatch catch-all synthesized `vec_abs(receiver)`
+and the post-link diag re-cast the failure as a Vec method-table
+issue. Adopters porting Rust integer code got pointed at the Vec
+method families list, which had nothing to do with the actual issue.
+
+Post-fix: the v0.6.82 idiom-list halt now covers integer-intrinsic
+methods with explicit per-method workarounds:
+
+```nucleor
+// Pre-fix wrong-class (TYP-005 "Vec<T> has no method .abs()"):
+let x: i64 = 5.abs();
+let p: i64 = 2.pow(10);
+let s: i64 = (-3).signum();
+
+// Post-fix workarounds — use bare expressions:
+let x: i64 = if 5 < 0 { -5 } else { 5 };          // .abs()
+let mut p: i64 = 1;                                // .pow(n)
+let mut i: i64 = 0;
+while i < 10 { p = p * 2; i = i + 1; };
+let s: i64 = if -3 > 0 { 1 } else if -3 < 0 { -1 } else { 0 };  // .signum()
+
+// Wrapping ops — bare `+/-/*` already wrap (when NUCLEOR_INT_STRICT_ARITH unset):
+let w: i64 = a + b;                                // .wrapping_add(b)
+
+// Bitwise intrinsics — use operators directly:
+let r: i64 = (x << k) | (x >> (64 - k));           // .rotate_left(k) — manual
+```
+
+19 new method names added to the halt list with tailored
+workarounds. Forward-roadmap: a Nucleor i64 method-table
+(integer-intrinsic dispatch) is tracked for v1.x.
+
+### Fixture
+
+`tests/fixtures/v0730_int_method_halt.nr` — negative fixture for
+`5.abs()` (fires v0.6.82 idiom halt with abs-specific workaround,
+not the Vec<T>-method-table TYP-005).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `21a807b687ebdab22627d24a5e431c51`.
+
 ## [0.7.29] — 2026-05-04
 
 **Defensive halt — Rust Unicode-escape char literal `'\u{NNNN}'`

@@ -22595,7 +22595,26 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 || str_eq(mname, "flat_map") == 1
                                 || str_eq(mname, "flatten") == 1
                                 || str_eq(mname, "peekable") == 1
-                                || str_eq(mname, "fuse") == 1 { 1 } else { 0 };
+                                || str_eq(mname, "fuse") == 1
+                                || str_eq(mname, "abs") == 1
+                                || str_eq(mname, "pow") == 1
+                                || str_eq(mname, "signum") == 1
+                                || str_eq(mname, "count_ones") == 1
+                                || str_eq(mname, "count_zeros") == 1
+                                || str_eq(mname, "leading_zeros") == 1
+                                || str_eq(mname, "trailing_zeros") == 1
+                                || str_eq(mname, "rotate_left") == 1
+                                || str_eq(mname, "rotate_right") == 1
+                                || str_eq(mname, "swap_bytes") == 1
+                                || str_eq(mname, "checked_add") == 1
+                                || str_eq(mname, "checked_sub") == 1
+                                || str_eq(mname, "checked_mul") == 1
+                                || str_eq(mname, "wrapping_add") == 1
+                                || str_eq(mname, "wrapping_sub") == 1
+                                || str_eq(mname, "wrapping_mul") == 1
+                                || str_eq(mname, "saturating_add") == 1
+                                || str_eq(mname, "saturating_sub") == 1
+                                || str_eq(mname, "saturating_mul") == 1 { 1 } else { 0 };
                             if v082_idiom == 1 {
                                 let v082_workaround: str = if str_eq(mname, "into") == 1 {
                                     "no v0.6 conversion path; the From/Into trait family is not yet shipped — use an explicit named conversion fn (e.g. `i64_to_str(x)` for numeric→str)"
@@ -22615,6 +22634,20 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                     "manual sliding-window — `let mut i: i64 = 0; while i + WIN <= vec_len(&v) { let chunk = (vec_get(&v, i), vec_get(&v, i+1), ...); ...; i = i + STRIDE; }`"
                                 } else if str_eq(mname, "flat_map") == 1 || str_eq(mname, "flatten") == 1 {
                                     "fold + extend manually — `let mut out: Vec<T> = Vec::new(); for inner in &outer { for item in &inner { out.push(item); } }`"
+                                } else if str_eq(mname, "abs") == 1 {
+                                    "use a conditional — `let r: i64 = if x < 0 { -x } else { x };`"
+                                } else if str_eq(mname, "pow") == 1 {
+                                    "use a manual loop — `let mut r: i64 = 1; let mut i: i64 = 0; while i < n { r = r * base; i = i + 1; }`"
+                                } else if str_eq(mname, "signum") == 1 {
+                                    "use a conditional — `let s: i64 = if x > 0 { 1 } else if x < 0 { -1 } else { 0 };`"
+                                } else if str_eq(mname, "count_ones") == 1 || str_eq(mname, "count_zeros") == 1 || str_eq(mname, "leading_zeros") == 1 || str_eq(mname, "trailing_zeros") == 1 || str_eq(mname, "rotate_left") == 1 || str_eq(mname, "rotate_right") == 1 || str_eq(mname, "swap_bytes") == 1 {
+                                    "use the bitwise operators directly (`<<`, `>>`, `&`, `|`, `^`) — these integer-intrinsic methods need a Nucleor i64 method-table that's tracked for forward-roadmap"
+                                } else if str_eq(mname, "checked_add") == 1 || str_eq(mname, "checked_sub") == 1 || str_eq(mname, "checked_mul") == 1 {
+                                    "Nucleor's overflow semantics are configurable via `NUCLEOR_INT_STRICT_ARITH=1` (panic-on-overflow) — bare `+` / `-` / `*` already check for overflow under strict mode. Use that, or implement the Option<i64> wrap manually"
+                                } else if str_eq(mname, "wrapping_add") == 1 || str_eq(mname, "wrapping_sub") == 1 || str_eq(mname, "wrapping_mul") == 1 {
+                                    "bare `+` / `-` / `*` already wrap by default (when `NUCLEOR_INT_STRICT_ARITH` is unset). Drop the `.wrapping_*()` call"
+                                } else if str_eq(mname, "saturating_add") == 1 || str_eq(mname, "saturating_sub") == 1 || str_eq(mname, "saturating_mul") == 1 {
+                                    "implement manually — `let r: i64 = if a > i64::MAX - b { i64::MAX } else { a + b };`"
                                 } else {
                                     "use a `while i < vec_len(&v) { let item: T = vec_get(&v, i); ...; i = i + 1; }` loop with index-based access — Nucleor doesn't auto-derive iterator interior mutability today"
                                 };
