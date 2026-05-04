@@ -25348,7 +25348,15 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                 let ctor_t: str = expr_full_type_from_sym(pool, init, sym, structs);
                 if str_len(ctor_t) > 0 { tstr = ctor_t; }
                 else { tstr = node_field(pool, init, 1); };
-            };
+            }
+            // v0.8.12: string-literal RHS type inference. Pre-fix `let s = "lit"` (no
+            // annotation) left __type_s unregistered because `tstr` was "" and the
+            // sym_set at line ~25400 is gated on `str_len(sbase) > 0`. Method calls
+            // on `s` then fell through recv_is_vec==1 path, emitting vec_split /
+            // vec_contains / etc. — wrong-class TYP-005 at clang link. Fix: detect
+            // kind-2 (str literal) RHS and stamp tstr="str" so the type entry lands
+            // and the v0.4.88 str-method dispatch picks it up correctly.
+            else if ik == 2 { tstr = "str"; };
         };
         let sbase: str = type_base_name(tstr);
         // v0.4.209 RFC-0015 phase 3a-step-3 (Option D): inline narrow-

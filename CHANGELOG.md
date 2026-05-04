@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.12] — 2026-05-04
+
+**Fix: str method dispatch for untyped let bindings (wrong-class TYP-005).**
+
+Pre-fix: `let s = "hello world"; s.split(" ");` (no annotation) produced
+wrong-class `error[TYP-005]: undefined function 'vec_split'` at clang link.
+Root cause: let-lowering type-inference block in `lower_stmt` kind-20 had no
+kind-2 (str literal) branch, leaving `__type_s` unregistered. Method dispatch
+fell through `recv_is_vec==1` and emitted `vec_split` / `vec_contains` / etc.
+Explicitly-typed `let s: str = "..."` worked fine.
+
+Fix: `else if ik == 2 { tstr = "str"; }` added to lower_stmt kind-20
+type-inference block (line ~25351). String-literal RHS bindings now register
+`__type_s = "str"`, routing `.split()`, `.contains()`, `.starts_with()`,
+`.ends_with()`, `.len()` through the v0.4.88 str-method dispatch correctly.
+Sister to v0.4.92 (Option/Result var-ref recv_is_vec exclusion) and v0.4.135
+(str-literal node receiver stamp in dispatch).
+
+Fixture: `tests/fixtures/v0812_str_method_dispatch_inferred_type.nr` (returns 7).
+Fixed-point md5: `8DC8239E6DA087B53DF8FBBD5A3FC3EF`.
+Cold 0.7s / peak <10MB (Linux bootstrap session; well within hard caps).
+
 ## [0.8.11] — 2026-05-04
 
 **Phase B step-2 expansion — numeric value extraction from
