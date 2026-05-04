@@ -57,7 +57,10 @@ Today, half of the surface is shape-only:
 | 2b-2 | Wire `#[manual_drop]` as actual override of `#[auto_drop]` | v0.8.32. Fn with both attrs gets manual_drop semantics (suppress). | +0.02s |
 | 2b-2.5 | Per-fn safety audit tool | v0.8.35. Survey identifies 89 default-flip candidates. | runtime tool, not compile cost |
 | 2b-2.6 | Auto-classifier on candidates | v0.8.37. HANDOFF-SUSPECT vs LEAK-FIX-LIKELY. **0 / 89** classified handoff-suspect. | runtime tool |
-| 2b-2.7 | Per-candidate dataflow review | NEXT. Confirms classifier; identifies any dataflow-handoff cases the textual heuristic missed. | 0 (annotations only) |
+| 2b-2.7 | Per-candidate dataflow review | DEFERRED. Confirms classifier; identifies any dataflow-handoff cases the textual heuristic missed. | 0 (annotations only) |
+| 2b-3-exp | Env-gated default-flip experiment | v0.8.38. NUC_AUTO_DROP_DEFAULT=1 enables flip for adopter validation. | runtime opt-in |
+| 2b-3-trace | Identify why seed IR is byte-identical under flip | NEXT. The 89 candidate fns don't receive generated drop calls — code path gap. | 0 |
+| 2b-3 | Flip default unconditionally | (after trace) | +0.05s |
 | 2b-3 | Flip default-on with `#[manual_drop]` opt-out | Lower every fn body as if it had `#[auto_drop]`; respect explicit `#[manual_drop]` to suppress. | +0.05s (one extra AST walk per fn) |
 | 3 | Promote `#[manual_drop]` from required to opt-in for unsafe blocks only | Lint warning if `#[manual_drop]` on an unsafe-free fn body. | 0 |
 | 4 | Remove `#[manual_drop]` entirely; only `unsafe { }` blocks can skip drop | v1.0 cut. | 0 |

@@ -5,6 +5,81 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.39] — 2026-05-04
+
+**RFC-0062 G-1 Phase 2b-3 — env-gated default-flip experiment.**
+(Renamed from v0.8.38 after rebase — cron landed v0.8.38 tuple
+destructure implementation concurrently.)
+
+Lands the actual default-flip mechanism behind the
+`NUC_AUTO_DROP_DEFAULT=1` env var so adopters can opt in to
+test their code today. Default behavior unchanged.
+
+### What changed
+
+`name_in_auto_drop()` now reads `NUC_AUTO_DROP_DEFAULT` env
+var. When set to `"1"`, returns 1 universally — every fn
+treated as auto-drop-enabled by default. The
+`#[manual_drop]` suppress (v0.8.32) still overrides at the
+`lower_fn` check, so adopters can opt out per-fn.
+
+A new `info[FLIP-G1]` diagnostic fires when the flag is set,
+making the experimental mode visible in build output.
+
+### Adopter usage
+
+```bash
+NUC_AUTO_DROP_DEFAULT=1 nucleor build my_code.nr -o out
+```
+
+Verify your code compiles cleanly, runs without segfault /
+double-free, and memory usage matches expectations. If anything
+breaks, add `#[manual_drop]` to the affected fn.
+
+### Empirical finding — seed IR is byte-identical
+
+A clean test:
+- Adopter fixture without explicit free: 1 → 2 vec_free refs
+  with flip enabled (works as designed).
+- Seed self-host: 43 → 43 vec_free refs (byte-identical IR).
+
+The seed's 89 default-flip candidates do NOT receive the
+generated drop calls under the flip env var. Hypothesis: the
+candidate fns have their Vec/HashMap let bindings emitted
+through a code path that doesn't run `auto_drop_register`.
+
+This is a known gap. The actual default-flip ship (Phase 2b-3
+final) needs to identify and fix this gap before landing.
+
+### Phase 2b-3 sequence — updated
+
+```
+2b-1   reserve #[manual_drop] attr        DONE v0.8.31
+2b-2   wire suppress mechanism            DONE v0.8.32
+2b-2.5 safety audit tool + survey         DONE v0.8.35
+2b-2.6 auto-classifier                    DONE v0.8.37
+2b-2.7 dataflow review                    deferred
+2b-3-experiment env-gated flip            DONE v0.8.39 (this)
+2b-3-trace identify auto_drop_register
+       gap for the 89 candidates           NEXT
+2b-3   flip default unconditionally       (after trace)
+```
+
+### Q9 — note for the v0.8.21 lock-in fixture
+
+Cron landed v0.8.38 implementing `let (a, b) = expr;` tuple
+destructure. The Q9 err fixture from v0.8.21
+(`tests/err/err_q9_let_tuple_destructure.nr`) expects the
+clean-halt diagnostic that no longer fires. Removed in this
+ship (Q9 graduates from "clean halt" to "implemented" — net
+positive for adopter portability).
+
+### Perf
+
+Cold 3.57s, hot 0.40s. Within Job #1.
+
+Fixed-point md5: `d1a2cb9bd8e6834c20847a52a8ffe40e` (post-rebase).
+
 ## [0.8.38] — 2026-05-04
 
 **V1.11 — Tuple destructure in `let`: `let (a, b) = expr;`**

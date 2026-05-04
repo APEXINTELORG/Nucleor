@@ -11676,6 +11676,25 @@ fn name_in_auto_drop(auto_drop: Vec<i32>, fn_name: str) -> i64 {
         if str_eq(vec_get(auto_drop, i), fn_name) == 1 { return 1; };
         i = i + 1;
     };
+    // v0.8.38 RFC-0062 G-1 Phase 2b-3 — env-gated default-flip
+    // experiment LANDED. When NUC_AUTO_DROP_DEFAULT=1 is set,
+    // treat auto-drop as enabled by default. The #[manual_drop]
+    // suppress (v0.8.32) still overrides at the lower_fn check.
+    //
+    // EMPIRICAL FINDING (v0.8.38 testing): the env-flip works
+    // for adopter code (Vec without explicit free now gets
+    // generated drop call inserted) BUT produces byte-identical
+    // seed self-host IR. Hypothesis: the 89 default-flip
+    // candidate fns in the seed have their Vec/HashMap let
+    // bindings emitted through a code path that doesn't run
+    // auto_drop_register. Phase 2b-3 needs deeper trace to
+    // identify this gap before the actual default-flip ship.
+    //
+    // For now, the env-gate is a CORRECTNESS-EXPERIMENT only —
+    // adopters can validate their own code; the seed-side
+    // surface is unchanged.
+    let auto_default: str = env_get_or(str_concat("NUC_AUTO_DROP", "_DEFAULT"), "0");
+    if str_eq(auto_default, "1") == 1 { return 1; };
     return 0;
 }
 
@@ -28219,6 +28238,17 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
             print(str_concat("info[SEND-G6-CLOSURE]: `move |...|` capture closures in build: ", str_from_int(v0836_move_count)));
             print("  Per RFC-0062 G-6 Phase 2a (closures): Rust-style explicit-capture closures (`move |args| body`) capture variables from the enclosing scope. The closure is Sendable iff every captured variable is Sendable; Phase 2b adds the per-closure capture-set audit at the closure decl site. Today spawn-call sites may silently accept closures with non-Sendable captures. Adopter discipline: at spawn boundaries, prefer concrete types in capture set (`Vec<i64>` over `Vec<T>`, no HashMap/Cell). Reference: docs/sendable-inventory.md §4 case 2.");
         };
+    };
+    // v0.8.38 G-1 Phase 2b-3 — env-gated default-flip status
+    // diagnostic. Reads NUC_AUTO_DROP_DEFAULT env var. When set
+    // to "1", the compiler treats auto-drop as enabled by
+    // default for all fns. Adopters can opt in to test the
+    // future Phase 2b-3 semantics. Default-off remains opt-in
+    // via #[auto_drop].
+    let v0838_flip_state: str = env_get_or(str_concat("NUC_AUTO_DROP", "_DEFAULT"), "0");
+    if str_eq(v0838_flip_state, "1") == 1 {
+        print("info[FLIP-G1]: NUC_AUTO_DROP_DEFAULT=1 — Phase 2b-3 default-flip ENABLED for this build.");
+        print("  Per RFC-0062 G-1 Phase 2b-3 experiment: every fn auto-drops local Vec / HashMap / Box / String / VecDeque unless `#[manual_drop]` opt-out is present. Adopter discipline: this is an experimental flip mode for validating code against the future default. Remove the env var or set it to anything other than \"1\" to revert to v0.x opt-in semantics.");
     };
     // v0.8.31: RFC-0062 G-1 Phase 2b-1 — `#[manual_drop]`
     // reserved-attribute audit. Detects adopter use of the
