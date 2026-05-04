@@ -27720,21 +27720,30 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
     imported.push(src_path);
     module_record_add(module_records, src_path, raw_source);
     let resolved: str = resolve_source_with_records(raw_source, extract_dir(src_path), imported, module_records);
-    // v0.7.88 (defensive halt — Rust `compile_error!("MSG")`).
-    // Pre-fix the macro-call shape `compile_error ! (...)` was
+    // v0.7.88 (defensive halt — Rust compile_error ! macro invocation).
+    // Pre-fix the macro-call shape compile_error ! (...) was
     // silently dropped by the parser (Nucleor's `!`-after-ident
     // handling treats it as a logical-not on the args, which
     // then gets DCE'd as a discarded value), so adopters writing
-    // `compile_error!("required feature missing")` got a
+    // compile_error ! ("required feature missing") got a
     // successful build instead of the explicit compile-time
     // failure they wrote to force. Detect the literal
-    // `compile_error!(` byte sequence in the resolved source
+    // compile_error+!( byte sequence in the resolved source
     // and halt cleanly (the macro is now honored as the canonical
     // build-failure trigger).
-    if str_contains(resolved, "compile_error!(") == 1 {
-        print("ERROR: `compile_error!(...)` invocation in source. Pre-v0.7.88 this was silently dropped by the parser (the `!`-after-ident shape became a discarded logical-not on the args), so adopters writing the macro to force a compile-time failure got a successful build instead. The macro is now honored: this build is failing because the adopter explicitly requested it via `compile_error!`.");
-        print("       This is the canonical `compile_error!` semantic — it ALWAYS fails the build at the point of invocation. If you need conditional compile-time errors based on hardware capabilities, see RFC-0048 hardware-capability queries (Phase A landed v0.7.88) and the `target_caps_*` rod surface for runtime equivalents.");
-        panic("nucleor: compile_error! invoked in source");
+    // v0.7.94: skip when compiling the compiler itself (self-host
+    // fixed-point path). The compiler source contains the search
+    // pattern in string literals and comments; the textual pre-pass
+    // would fire on self-compilation — a Linux-bootstrap false-positive.
+    // str_concat avoids the literal pattern appearing in source text
+    // so the search string is constructed at runtime.
+    let ce_halt: str = str_concat("compile_error", "!(");
+    if str_ends_with(src_path, "nucleor_s1_compiler.nr") == 0 {
+        if str_contains(resolved, ce_halt) == 1 {
+            print("ERROR: compile_error!(...) invocation in source. Pre-v0.7.88 this was silently dropped by the parser (the exclamation-after-ident shape became a discarded logical-not on the args), so adopters writing the macro to force a compile-time failure got a successful build instead. The macro is now honored: this build is failing because the adopter explicitly requested it via compile_error!.");
+            print("       This is the canonical compile_error! semantic — it ALWAYS fails the build at the point of invocation. If you need conditional compile-time errors based on hardware capabilities, see RFC-0048 hardware-capability queries (Phase A landed v0.7.88) and the target_caps_* rod surface for runtime equivalents.");
+            panic("nucleor: compile_error! invoked in source");
+        };
     };
     // T2.6 (v0.2.346): expand println!/print!/format! macros AFTER all
     // imports are inlined and BEFORE caching, so the cache holds the
