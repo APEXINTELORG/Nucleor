@@ -5,6 +5,76 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.67] — 2026-05-04
+
+**Feature — `#[derive(Clone)]` on named and tuple structs now auto-generates
+a field-by-field `<Type>__clone(a) -> <Type>` helper; calling `.clone()` on
+a struct without `#[derive(Clone)]` now produces a clean halt instead of
+synthesising a wrong-class `vec_clone(...)` call that fails at clang link
+(TYP-005).**
+
+Pre-fix: `.clone()` on a user-defined struct (e.g., `Point`) fell through the
+method-dispatch chain to the vec-clone branch, synthesising
+`vec_clone(%Point* %tmp)` — an undefined symbol at clang link (wrong-class
+TYP-005). `#[derive(Clone)]` was silently dropped by DERIVE-001 with no
+code generated.
+
+Post-fix (three-part):
+
+1. **`expand_derive_clone` pre-pass** (mirrors v0.6.84 `expand_derive_partialeq`):
+   scans the source for `#[derive(... Clone ...)]` + following struct decl and
+   emits `fn <Name>__clone(a: <Name>) -> <Name> { return <Name> { f: a.f, … }; }`
+   (named struct) or `fn <Name>__clone(a: <Name>) -> <Name> { return <Name>(a.__0, …); }`
+   (tuple struct). The helper lands in the sym table via the normal fn-decl
+   path; the existing v0.3.123 user-method dispatch picks it up automatically —
+   no new dispatch code required.
+
+2. **Clean halt** for `.clone()` on a struct that lacks `#[derive(Clone)]`:
+   fires before the vec-clone fall-through with a diagnostic and workaround
+   pointer instead of silently mis-generating.
+
+3. **DERIVE-001 warning update**: warning text now names `Clone` alongside
+   `PartialEq` as an honored derive, and suppresses the warning for
+   `#[derive(Clone)]`-only and common `Clone + PartialEq + Debug` combos.
+
+```nucleor
+// Pre-fix wrong-class (undefined symbol at clang link):
+#[derive(PartialEq)]          // Clone silently dropped → DERIVE-001
+struct Point { x: i64, y: i64 }
+let p2: Point = p1.clone();  // → vec_clone(p1) → TYP-005
+
+// Post-fix — works with derive:
+#[derive(Clone, PartialEq)]
+struct Point { x: i64, y: i64 }
+let p2: Point = p1.clone();  // → Point__clone(p1) ✓
+
+// Post-fix — clean halt without derive:
+struct Bare { v: i64 }
+let b2 = b1.clone();
+// ERROR: `.clone()` called on struct `Bare` which does not `#[derive(Clone)]`.
+// Workaround: add `#[derive(Clone)]` above the struct definition.
+```
+
+Tuple structs are also supported:
+
+```nucleor
+#[derive(Clone)]
+struct Wrapper(i64);
+let w2: Wrapper = w1.clone();  // → Wrapper__clone(w1) → Wrapper(w1.__0) ✓
+```
+
+### Fixture
+
+`tests/fixtures/v0764_derive_clone_accept.nr` — positive fixture: named struct
+`Point` (with `#[derive(Clone, PartialEq)]`) and tuple struct `Wrapper`
+(with `#[derive(Clone)]`); both `.clone()` calls compile and produce correct
+field values; `main` returns 0.
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `1472cfe5236a8b343e480905ff9928c5`.
+Cold 5.19s median (3 samples: 5.10/5.19/5.53) / peak ~291MB (Linux).
+
 ## [0.7.66] — 2026-05-04
 
 **Test consolidation — collapse 3 RFC 2795 format-arg fixtures
