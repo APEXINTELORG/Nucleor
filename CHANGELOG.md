@@ -5,6 +5,60 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.34] — 2026-05-04
+
+**Defensive halt — Rust iterator/Option/Result conversion idioms
+(`.copied`, `.cloned`, `.as_ref`, `.as_mut`, `.and_then`,
+`.or_else`, `.ok_or`, `.ok_or_else`, `.transpose`, `.expect_err`)
+now route to the v0.6.82 idiom-list halt with drop-the-call or
+explicit-match workarounds.**
+
+Pre-fix: writing `v.iter().copied().collect()` or
+`opt.and_then(|x| ...)` surfaced as wrong-class `error[TYP-005]:
+receiver type 'Vec<T>' has no method '.copied()'` — same kind-8
+catch-all bug pattern as the previous four idiom ships
+(v0.7.30/31/32/33).
+
+Post-fix: 11 Rust iterator + Option/Result conversion methods
+added to the v0.6.82 idiom-list halt with per-method workarounds:
+
+```nucleor
+// Pre-fix wrong-class:
+let r: Vec<i64> = v.iter().copied().collect();
+let mapped: Option<i64> = opt.and_then(|x| Some(x + 1));
+let result: Result<i64, str> = opt.ok_or("missing");
+
+// Post-fix workarounds:
+// .copied() / .cloned() — drop the call (Nucleor i64-everywhere ABI):
+let r: Vec<i64> = v.iter().collect();
+
+// .and_then() — explicit if-let:
+let mapped: Option<i64> = if let Some(x) = opt { Some(x + 1) } else { None };
+
+// .ok_or() — explicit match:
+let result: Result<i64, str> = match opt {
+    Some(x) => Ok(x),
+    None => Err("missing"),
+};
+```
+
+Forward-roadmap: closure-receiving combinators (`.and_then`,
+`.or_else`, `.ok_or_else`) need the v1.x closure-substrate ship.
+The by-value methods (`.copied`, `.cloned`, `.as_ref`, `.as_mut`)
+are no-ops under the i64-everywhere ABI and the workaround is
+literally "drop the call" — making the halt purely a translation-
+fidelity surface.
+
+### Fixture
+
+`tests/fixtures/v0734_iter_copied_halt.nr` — negative fixture for
+`v.iter().copied().collect()` (fires v0.6.82 idiom halt with
+drop-call workaround, not the Vec<T>-method-table TYP-005).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `85502c09e9880b6108bf99397fb57519`.
+
 ## [0.7.33] — 2026-05-04
 
 **Defensive halt — Rust Vec mutating + sort + extend methods

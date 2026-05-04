@@ -22650,7 +22650,18 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                 || str_eq(mname, "sort_unstable_by") == 1
                                 || str_eq(mname, "max_by_key") == 1
                                 || str_eq(mname, "min_by_key") == 1
-                                || str_eq(mname, "extend_from_slice") == 1 { 1 } else { 0 };
+                                || str_eq(mname, "extend_from_slice") == 1
+                                || str_eq(mname, "copied") == 1
+                                || str_eq(mname, "cloned") == 1
+                                || str_eq(mname, "as_ref") == 1
+                                || str_eq(mname, "as_mut") == 1
+                                || str_eq(mname, "and_then") == 1
+                                || str_eq(mname, "or_else") == 1
+                                || str_eq(mname, "ok_or") == 1
+                                || str_eq(mname, "ok_or_else") == 1
+                                || str_eq(mname, "transpose") == 1
+                                || str_eq(mname, "expect_err") == 1
+                                || str_eq(mname, "iter_lines") == 1 { 1 } else { 0 };
                             if v082_idiom == 1 {
                                 let v082_workaround: str = if str_eq(mname, "into") == 1 {
                                     "no v0.6 conversion path; the From/Into trait family is not yet shipped — use an explicit named conversion fn (e.g. `i64_to_str(x)` for numeric→str)"
@@ -22742,6 +22753,22 @@ fn lower_expr(pool: Vec<i32>, nid: i64, blk: Vec<i32>, regs: Vec<i32>, lbls: Vec
                                     "manual reduce — `let mut best_val: T = vec_get(&v, 0); let mut best_key: K = key_fn(best_val); for x in &v { let k = key_fn(x); if k > best_key { best_key = k; best_val = x; } }`. Closure-receiving iterator combinators are forward-roadmap"
                                 } else if str_eq(mname, "extend_from_slice") == 1 {
                                     "loop and push — `for x in &other { v.push(x); }` (Nucleor's `.extend(...)` already supports the Vec form; the slice variant requires explicit element copy)"
+                                } else if str_eq(mname, "copied") == 1 || str_eq(mname, "cloned") == 1 {
+                                    "drop the call — under Nucleor's i64-everywhere ABI, iterators already yield by-value (no &T → T conversion needed). `v.iter().copied().collect()` is just `v.iter().collect()`. The Rust convention exists because .iter() yields &T; here the runtime passes everything by value already"
+                                } else if str_eq(mname, "as_ref") == 1 || str_eq(mname, "as_mut") == 1 {
+                                    "drop the call — Nucleor's i64-everywhere ABI passes everything by value; `Option<T>.as_ref()` (which returns `Option<&T>`) is unnecessary because Nucleor's Option already yields T by value. Use `if let Some(v) = opt { ... }` directly"
+                                } else if str_eq(mname, "and_then") == 1 {
+                                    "Option/Result chaining — write the explicit if-let chain — `if let Some(x) = opt { f(x) } else { None }`. Closure-receiving combinators are forward-roadmap (v1.x closure-substrate)"
+                                } else if str_eq(mname, "or_else") == 1 {
+                                    "Option/Result fallback — write the explicit match — `match opt { Some(x) => Some(x), None => fallback() }`"
+                                } else if str_eq(mname, "ok_or") == 1 || str_eq(mname, "ok_or_else") == 1 {
+                                    "Option-to-Result conversion — write the explicit match — `match opt { Some(x) => Ok(x), None => Err(err_value) }`"
+                                } else if str_eq(mname, "transpose") == 1 {
+                                    "manual swap — `Option<Result<T, E>>` → `Result<Option<T>, E>` via match — `match opt { Some(Ok(x)) => Ok(Some(x)), Some(Err(e)) => Err(e), None => Ok(None) }`. The unsupported nested-pattern halt may fire here; split into two-step destructure"
+                                } else if str_eq(mname, "expect_err") == 1 {
+                                    "manual match — `match r { Err(e) => e, Ok(_) => panic(\"expected err\") }`"
+                                } else if str_eq(mname, "iter_lines") == 1 {
+                                    "use `.lines()` (now also halted) workaround — `let parts: Vec<str> = str_split(s, \"\\n\");`"
                                 } else {
                                     "use a `while i < vec_len(&v) { let item: T = vec_get(&v, i); ...; i = i + 1; }` loop with index-based access — Nucleor doesn't auto-derive iterator interior mutability today"
                                 };
