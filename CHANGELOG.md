@@ -5,6 +5,104 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.74] — 2026-05-04
+
+**RFC-0062 G-3 Phase 2b — proper dataflow handoff detection
+LANDED.** The substantive Phase 2b implementation. Compile-time
+suppression of auto-drop on locals handed off via vec_push /
+vec_set / hashmap_insert. **Closes the dangling-pointer gap
+identified in v0.8.71 testing.**
+
+### What landed
+
+New helper `auto_drop_handoff_name(pool, expr_nid, sym)` that
+identifies handoff patterns in a Call expression. Returns the
+binding name to suppress if:
+
+1. Expr is a Call (kind 7)
+2. Callee is one of: `vec_push` / `vec_set` / `hashmap_insert`
+3. The VALUE arg (idx 1 for vec_push, idx 2 for vec_set/hashmap_insert)
+   is an identifier (kind 3)
+4. The identifier names a registered auto-drop binding
+
+Wired into kind-25 (ExprStmt) lowering — same site as
+`auto_drop_explicit_free_name`. When a handoff is detected,
+calls `auto_drop_mark_freed(sym, name)` to suppress the
+auto-drop emit at fn return.
+
+### Verification — the v0.8.71 dangling-pointer bug is FIXED
+
+Test fixture from v0.8.71:
+
+```nucleor
+fn build_into(reg: Vec<i32>) -> i64 {
+    let mut local: Vec<i32> = Vec::new();
+    local.push(99);
+    vec_push(reg, local);   // handoff detected; auto-drop suppressed
+    return 0;
+}
+fn main() -> i64 {
+    let mut registry: Vec<i32> = Vec::new();
+    build_into(registry);
+    return vec_len(&registry);
+}
+```
+
+| Mode | Pre-v0.8.74 rc | v0.8.74 rc |
+|---|---|---|
+| Flip OFF | 1 | 1 |
+| Flip ON  | 0 (dangling) | **1 (correct)** |
+
+The handoff detection makes flip-ON behaviorally identical to
+flip-OFF for the dangling-pointer-prone case, while preserving
+auto-drop's correct behavior on local-only patterns.
+
+### Conservatism
+
+The detection is conservative: ANY identifier value-arg whose
+name is in the auto-drop set triggers suppression, regardless
+of receiver locality. Over-suppresses in cases like:
+
+```nucleor
+let mut local_outer: Vec<Vec<i32>> = Vec::new();
+let inner: Vec<i32> = Vec::new();
+vec_push(local_outer, inner);  // both local — suppress on inner OK?
+```
+
+Here `inner` is suppressed even though `local_outer` is local
+too. Result: `inner` leaks instead of being correctly dropped
+when `local_outer` is dropped. **Leak, not dangling pointer
+— safe.** Phase 2c adds receiver-locality refinement to
+distinguish these cases.
+
+### Phase 2b sequence — UPDATED
+
+```
+v0.8.71  Honest readiness                      DONE
+v0.8.72  Dataflow design doc                   DONE
+v0.8.73  Pragmatic warning                     DONE
+v0.8.74  Proper dataflow detection             DONE (this) ✓
+v0.8.75+ Iterate; rod tests; tighten cases
+v0.9.0   Final unconditional flip              READY when iteration complete
+v0.9.x   30-day adopter migration window
+v1.0     Hard error promotion
+```
+
+### Phase 2c (future)
+
+Refinement TODO:
+- Receiver-locality check (only suppress if receiver is param/global)
+- Alias tracking through `let r = reg; vec_push(r, local)`
+- Cross-fn ownership analysis (forward fn calls)
+- Closure capture flow
+
+### Perf
+
+Cold mean ~3.79s (3.61/3.71/4.06 with multi-agent contention).
+Hot 0.41-0.78s. Within Job #1.
+
+Fixed-point md5: `b5ebe7d8a6d1d20510586095d574bbf8`.
+
 ## [0.8.73] — 2026-05-04
 
 **RFC-0062 G-3 Phase 2b — `warning[G3-HANDOFF-RISK]` audit
