@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.97] — 2026-05-04
+
+**stdlib/rods/bigint.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `bigint.nr` (arbitrary-
+precision integers) had no existing tests. Silent regressions in
+BigInt arithmetic are correctness-critical — the entire point of
+arbitrary-precision is exact.
+
+### The fixture
+
+`tests/features/bigint_smoke.nr` covers six invariant classes
+(every assertion via `bi_cmp` for handle-vs-handle comparison;
+no host-side reference depended on):
+
+| Test | Path |
+|---|---|
+| cmp basic | `cmp(5, 5) == 0`, `cmp(5, 10) == -1`, `cmp(10, 5) == 1` |
+| add / sub | `5 + 3 == 8`, `10 - 3 == 7`, `2^32+4 - 4 == 2^32` (limb-crossing) |
+| mul | `7 * 8 == 56`, `65536 * 65536 == 2^32` (crosses 32-bit limb boundary) |
+| div / mod | `100 / 7 == 14`, `100 % 7 == 2`, **Euclidean identity** (`100 == 14*7 + 2`) recombines correctly |
+| powmod | `2^10 mod 1000 == 24`, `2^32 mod 100 == 96` |
+| from_str | `bi_from_str("42") == bi_from_int(42)`, `"0" == 0`, `"-7" == -7` |
+
+All pass. rc=0. Cold 1.08s.
+
+### Significance
+
+This is the first executed correctness test for the BigInt
+runtime in `stdlib/runtime/bigint_rt.c`. Catches silent
+regressions in:
+
+- limb arithmetic at 2^32 boundaries (the fundamental BigInt
+  correctness property)
+- sign tracking through subtraction
+- Euclidean division / modulo consistency
+- `bi_from_str` parsing of decimal literals (positive, zero,
+  negative)
+- modular exponentiation correctness
+
+Other zero-coverage rods queued: autodiff / bm25 / bspline /
+cli / collections / compress / control / crypto / csv / fft /
+finance / fluid / fmt / fs / geom / image / ini / interp /
+interval / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.96] — 2026-05-04
 
 **stdlib/rods/datetime.nr first test coverage + pre-existing
