@@ -7,6 +7,18 @@
 // =====================================================
 
 fn math_abs(n: i64) -> i64 {
+    // RFC NUM-G2 Phase 1 (v0.8.80): explicit i64::MIN guard.
+    // Pre-fix: under NUCLEOR_INT_STRICT_INTRIN=0 the `0 - n`
+    // wrapped to i64::MIN itself (silent miscompute). math_gcd
+    // and math_lcm inherited the bug. Strict mode already
+    // panics via the checked sub. The explicit guard makes
+    // behavior consistent across strict / non-strict and
+    // cascades to math_gcd / math_lcm. Adopters who want the
+    // wrapping semantic should use `0 - n` inline; a future
+    // saturating_abs / wrapping_abs companion is queued.
+    if n == -9223372036854775807 - 1 {
+        panic("math_abs(i64::MIN) is undefined behavior; the result cannot be represented as a non-negative i64");
+    };
     if n < 0 { return 0 - n; };
     return n;
 }
