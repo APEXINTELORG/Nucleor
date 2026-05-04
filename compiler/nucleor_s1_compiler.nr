@@ -5702,6 +5702,10 @@ fn opt_fold_block(blk: Vec<i32>) -> i64 {
 // --- Pass 2: Dead Code Elimination ---
 // Removes instructions whose dest register is never used by any later instruction.
 // Side-effecting ops (store, call, ret, br, br_cond, alloca) are never removed.
+// v0.8.41 RFC-0062 G-1: HANDOFF — `new_insts` is stored INTO
+// `blk` via `vec_set(blk, 1, new_insts)`. Default-flip auto-drop
+// would dangle blk's instruction pointer.
+#[manual_drop]
 fn opt_dce_block(blk: Vec<i32>) -> i64 {
     let insts: Vec<i32> = vec_get(blk, 1);
     let ic: i64 = vec_len(insts);
@@ -5816,6 +5820,8 @@ fn opt_prop_block(blk: Vec<i32>) -> i64 {
 
 // --- Pass 4: Dead Store Elimination ---
 // Removes stores that are overwritten before being read within the same block.
+// v0.8.41 RFC-0062 G-1: HANDOFF — same pattern as opt_dce_block.
+#[manual_drop]
 fn opt_dead_store_block(blk: Vec<i32>) -> i64 {
     let insts: Vec<i32> = vec_get(blk, 1);
     let ic: i64 = vec_len(insts);
@@ -5866,6 +5872,8 @@ fn opt_dead_store_block(blk: Vec<i32>) -> i64 {
 // --- Pass 5: Common Subexpression Elimination ---
 // Deduplicates identical pure computations within a block.
 // When a duplicate is found, rewrites all uses of its dest to the original dest.
+// v0.8.41 RFC-0062 G-1: HANDOFF — same pattern as opt_dce_block.
+#[manual_drop]
 fn opt_cse_block(blk: Vec<i32>) -> i64 {
     let insts: Vec<i32> = vec_get(blk, 1);
     let ic: i64 = vec_len(insts);

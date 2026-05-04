@@ -50,10 +50,19 @@ MANUAL_DROP_RE = re.compile(r"#\[manual_drop\]")
 # Candidates with ANY of these signals are tagged POSSIBLE-HANDOFF
 # for manual review before the default-flip; without them, the
 # candidate is HIGH-CONFIDENCE-LEAK-FIX (auto-drop heals safely).
+#
+# v0.8.41: expanded heuristic. The original list of named-fn
+# helpers missed real handoff cases like cli_add_flag (which uses
+# vec_push(flags, f) where flags is a parameter field) and
+# map_grow (which uses vec_set(m, 0, new_keys) similarly). The
+# new heuristic flags fns that call vec_push or vec_set on a
+# parameter — these may be storing local heap state into a
+# longer-lived container.
 HANDOFF_RE = re.compile(
     r"\b(registry_insert|global_register|push_global|sym_set"
     r"|hashmap_insert|btreemap_insert|register_actor"
-    r"|register_rod|register_extern|push_back_global)\s*\("
+    r"|register_rod|register_extern|push_back_global"
+    r"|vec_push|vec_set)\s*\("
 )
 
 # Match `fn NAME(` capturing NAME and start byte position.

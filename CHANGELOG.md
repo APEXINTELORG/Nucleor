@@ -5,6 +5,66 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.41] — 2026-05-04
+
+**RFC-0062 G-1 Phase 2b-2.7 — handoff-suspect annotations + audit
+heuristic upgrade.** Found and fixed real handoff cases the
+v0.8.37 textual heuristic missed.
+
+### Discovery
+
+Spot-checking sampled stdlib candidates revealed that
+`cli_add_flag` and `cli_add_option` have a critical handoff
+pattern: `vec_push(flags, f)` where `flags` is a parameter
+field and `f` is a local Vec being PUSHED INTO it. After the
+fn returns, `flags` retains the pointer to `f`. Default-flip
+auto-drop on `f` would dangle the registry entry — a use-after-
+free bug. Same pattern in `map_grow` (`vec_set(m, 0, new_keys)`)
+and the optimizer block passes `opt_dce_block` /
+`opt_dead_store_block` / `opt_cse_block` / `opt_merge_blocks`
+(`vec_set(blk, 1, new_insts)`).
+
+### Heuristic upgrade
+
+Extended `tools/g1_default_flip_safety_audit.py` HANDOFF_RE to
+include `vec_push` and `vec_set` patterns. These were missed by
+the original heuristic which only knew named-fn helpers like
+`registry_insert` / `register_actor`. The new heuristic catches
+the real seed-side handoff patterns.
+
+### Annotated fns (v0.8.41)
+
+10 fns now carry `#[manual_drop]`:
+
+- `stdlib/rods/cli.nr`: `cli_add_flag`, `cli_add_option`
+- `stdlib/rods/collections.nr`: `map_grow`
+- `compiler/nucleor_s1_compiler.nr`: `opt_dce_block`,
+  `opt_dead_store_block`, `opt_cse_block`
+- `compiler/nucleor_tools_suite.nr`: `opt_dce_block`,
+  `opt_dead_store_block`, `opt_cse_block`, `opt_merge_blocks`
+
+### Audit progress
+
+Before this ship: 89 candidates, 0 HANDOFF-SUSPECT (textual
+heuristic missed real cases).
+
+After this ship: 79 candidates, **3 HANDOFF-SUSPECT remaining**
+— `md_path_exists`, `run_install_command`, `main`. Need
+spot-check next iteration.
+
+### Phase 2b-3 unblocking progress
+
+Each annotation removes a known-bad-case for the eventual
+unconditional default-flip. Once all HANDOFF-SUSPECT candidates
+are reviewed and either annotated or confirmed safe, the
+default-flip ship can land.
+
+### Perf
+
+Annotations are no-op under default v0.x semantics (auto-drop
+opt-in only). Stage1+2 fixed-point unchanged from v0.8.39
+(`d1a2cb9bd8e6834c20847a52a8ffe40e`). Cold 3.54s, hot 0.42s.
+
 ## [0.8.40] — 2026-05-04
 
 **G-1 default-flip — adopter guide + smoke fixture.** Pure
