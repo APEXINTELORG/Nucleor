@@ -215,6 +215,145 @@ in-bounds call sites).
 self-host (-24% string constants), .ll output -3.1% (-306 KB).
 Cold time +80ms within natural variance band.
 
+## Punchlist — Group D: Windows-PE link-hang investigation (added 2026-05-04 by main agent)
+
+> **Critical-path item — assigned to probe.**
+>
+> Two main-agent ships (v0.8.79, v0.8.83) attempted compiler.nr
+> text edits, both produced the SAME failure shape:
+> stage1+stage2 IR md5 match, but the resulting Windows PE bin
+> (built from new seed.ll + nucleor_llvm_rt.c via
+> `clang -fuse-ld=lld`) hangs on EVERY user-source compile at
+> the line `incremental: module graph cache hit`. Reverting
+> compiler.nr + bootstrap/nucleor_s1_seed.ll restores function.
+>
+> The Stage1 ELF binary (target/nucleor_s1.exe — clang's default
+> output target on MSYS bash, Linux ELF format) compiles user
+> source CORRECTLY using the same IR. So the bug is not in the
+> compiler IR semantics; it's in the LLD-link Windows PE path.
+>
+> Memory file `feedback_nucleor_self_host_validation.md` has the
+> full diagnosis. This blocks ALL Phase 2b compiler-edit ships
+> for: T-3, T-4, NUM-G9, E-1/2/3, RT-G1..G10, LAW-1, ROBO-7.
+> ~70% of remaining v1.0 critical-path work is gated on this.
+
+### D1 — Bisect the IR delta between working and hanging seed.ll
+
+**Repro recipe** — from a clean tree at v0.8.81 (commit
+f9d9c157), the working baseline:
+
+```
+git checkout f9d9c157
+rm -rf target/.nuc_cache target/.nuc_cache_v2 target/.nuc_native_cache
+bin/nucleor.exe build compiler/nucleor_s1_compiler.nr -o nucleor_s1
+target/nucleor_s1.exe build compiler/nucleor_s1_compiler.nr -o nucleor_s2
+md5sum target/nucleor_s1.ll target/nucleor_s2.ll      # must match
+cp target/nucleor_s2.ll /tmp/seed_working.ll
+# Build Windows PE from working seed (control)
+"/c/Program Files/LLVM/bin/clang.exe" -fuse-ld=lld \
+    /tmp/seed_working.ll stdlib/runtime/nucleor_llvm_rt.c \
+    -include stdlib/runtime/nuc_alloc.h \
+    -o /tmp/nucleor_working.exe -Wno-override-module \
+    "-Wl,/STACK:16777216" "-Wl,/Brepro"
+/tmp/nucleor_working.exe build tests/features/t3_char_cast_audit_lock.nr
+# Should print "compiled: target\\t3_char_cast_audit_lock.exe"
+```
+
+Then apply the v0.8.83 audit-text-only edit (recoverable from
+CHANGELOG.md commits between v0.8.82 and v0.8.84 — purely
+string-literal changes inside `print(...)` calls in the
+NUM-G289 audit-pass block; no new code paths added). Rebuild
+stage1 → stage2 → seed → /tmp/seed_broken.ll → Windows PE bin.
+The new bin will hang on the same fixture.
+
+**Investigation steps requested:**
+
+1. **Confirm repro under clean conditions.** Multi-agent
+   contention has been a confounder during main-agent
+   attempts. Run on idle machine with no probe / helper /
+   main concurrent processes.
+
+2. **Diff the two seed.ll files.** They should differ only in
+   string-constant `@.str.NNN = constant ...` declarations
+   for the changed audit-text. Are there any differences
+   OUTSIDE those string declarations? Different basic-block
+   ordering, different `!metadata` sections, different
+   COMDAT groups, different data section initializers?
+
+3. **Cross-link experiment** (the load-bearing question):
+   build `/tmp/seed_broken.ll` with the same `clang.exe`
+   commands but produce a Linux ELF (default target):
+   ```
+   clang.exe /tmp/seed_broken.ll stdlib/runtime/nucleor_llvm_rt.c \
+       -include stdlib/runtime/nuc_alloc.h \
+       -o /tmp/nucleor_broken_elf.exe -Wno-override-module
+   /tmp/nucleor_broken_elf.exe build tests/features/t3_char_cast_audit_lock.nr
+   ```
+   Does the ELF binary hang too, or work? If ELF works and
+   PE hangs from the SAME .ll, that confirms the hang is in
+   the LLD-link Windows PE backend or the C runtime
+   linkage path.
+
+4. **Capture stack trace at hang.** Attach WinDbg or lldb to
+   the hanging Windows PE binary at the
+   "incremental: module graph cache hit" point. What is the
+   process spinning on? Is it a tight loop in nucleor.exe
+   itself, a deadlock on a CRT mutex, or stuck in a Windows
+   syscall? `pstack`-equivalent on the hung process.
+
+5. **PE introspection.** Compare with `dumpbin /HEADERS` and
+   `llvm-readobj` between working and hanging PE binaries.
+   Look for differences in section sizes, RVA layout,
+   COMDAT folding, TLS table, alignment.
+
+**Expected output:** Either:
+(a) A finding in `findings/inbox/` named
+   `2026-05-04-windows-pe-link-hang-root-cause.md` with the IR
+   diff summary, ELF-vs-PE comparison, stack trace, PE-header
+   diff, and root-cause hypothesis — OR —
+(b) A real fix prepped on `perf/...` branch with all the
+   diagnostic artifacts attached as evidence. **Probe is NOT
+   limited to investigation; if the root cause is identifiable
+   and fixable in tools-suite or runtime-C scope, prep the
+   fix end-to-end.** Cross-cutting compiler.nr edits should
+   go through normal probe → main integration; smaller fixes
+   (e.g., "add `-Wl,/OPT:NOICF` to disable COMDAT folding"
+   in the build script) can ship directly.
+
+**No risk cap. No scope cap. Probe has full latitude on this
+one — whatever it takes, including:**
+- Switching linkers (try `link.exe` from MSVC instead of
+  `lld-link`)
+- Adding LLD flags (`/OPT:NOICF`, `/OPT:NOREF`, `/MERGE:`,
+  `/SECTION:`)
+- Patching `nucleor_llvm_rt.c` if a thread-local init or CRT
+  startup ordering is implicated
+- Pinning a known-working seed and merging text-only deltas
+  via diff/patch instead of regenerating
+- Anything else that produces a working Windows PE bin from
+  the same compiler.nr edit that today produces a hanging bin.
+
+The unblock is worth >=70% of v1.0 critical-path work. Take
+whatever wins reach a working bin.
+
+**Why it matters:** unblocks E-class effects, RT-G1..G10,
+LAW-1, NUM-G9, ROBO-7, T-3/T-4 Phase 2b real fixes, plus all
+future audit-pass text refinements. About 70% of remaining
+v1.0 critical-path work in `docs/rfcs/v1_PUNCHLIST.md` is
+gated on this one issue.
+
+### D2 — Optional follow-up: stable seed.ll generation
+
+If D1 root-causes the hang to layout/ordering nondeterminism
+rather than a real LLD bug, a tools-suite-level workaround
+may exist: post-process the regenerated seed.ll to
+canonicalize ordering, or pin the seed against a known-good
+prior version and only merge actually-needed delta changes.
+Probe has authority to ship this in the same workstream as
+D1 if it's the cleanest unblock.
+
+**Risk:** depends on D1.
+
 ## Group C: Deeper v1 architecture (NOT for helper — flag for main agent)
 
 These are too large for the helper's prep+propose workflow. They
