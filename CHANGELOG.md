@@ -5,6 +5,56 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.38] — 2026-05-04
+
+**V1.11 — Tuple destructure in `let`: `let (a, b) = expr;`**
+
+Pre-fix: `let (a, b) = (5, 7);` panicked at parse-let with
+`error: tuple destructuring in let not yet supported` (v0.4.33
+introduced the halt to replace the original silent-miscompute
+where bindings never came into scope). Post-fix: accepted and
+correctly lowered.
+
+### Implementation
+
+New AST kind 85 (TupleDestructure): `parse_let` now parses
+`(name1, name2, ...)` instead of panicking. Names are stored as
+a comma-separated string in field 1; the RHS init node ID in
+field 2. Five compiler passes extended:
+
+- **`parse_let`**: replaces the halt with a name-list parser;
+  `mut` prefix on individual names is accepted and consumed
+  (binding mutability tracking is forward-roadmap).
+- **`lower_stmt` kind-85**: lowers the RHS expression once to
+  get a register `rhs_r`, then for each name at index `i`
+  emits `vec_get(rhs_r, i)` and stores into a fresh alloca
+  slot. Works for BOTH anonymous-tuple RHS (kind-48 lowers to
+  a vec via `vec_new` + N × `vec_push`) AND named-tuple-struct
+  / fn-return RHS (already a struct-vec handle).
+- **`check_stmt` kind-85**: registers each binding in `own`.
+- **`type_check_stmt` kind-85**: type-checks the RHS expression.
+- **`closure_collect_capture_stmt` kind-85**: closure capture walk.
+
+Wildcard `_` bindings are correctly ignored (no `sym_set`).
+
+### Pre-fix surface
+
+```
+ERROR: tuple destructuring in `let` is not yet supported
+PANIC: nucleor: tuple destructuring in `let` not supported
+```
+
+### Four cases covered by smoke fixture
+
+1. `let (a, b) = (3, 4);` — anonymous tuple literal RHS
+2. `let (c, d) = make_pair(10, 20);` — named tuple-struct fn-return
+3. `let (x, y, z) = (1, 2, 3);` — three-element destructure
+4. `let (p, _) = (7, 99);` — wildcard binding
+
+Fixture: `tests/fixtures/v0837_tuple_destructure_let.nr` (rc=50).
+Cold (IR-only, no-cache) ~4.1s — no regression.
+Fixed-point md5: `f2ee5e5d8da054766852b8bd5209027c`.
+
 ## [0.8.37] — 2026-05-04
 
 **G-1 default-flip safety audit upgrade — auto-classifier.**

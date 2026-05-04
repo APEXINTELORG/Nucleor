@@ -3173,17 +3173,33 @@ fn parse_let(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
         };
     };
     if pk(tokens, cp) == 50 {
-        print("ERROR: tuple destructuring in `let` is not yet supported (e.g. `let (a, b) = (5, 7);`). Workaround: bind to a struct or to two separate `let` statements: `let a: i64 = 5; let b: i64 = 7;`. Tracked for a future ship — tuple-pattern lowering needed.");
-        // v0.4.33: pre-fix this emitted a placeholder let-stmt with a
-        // synthetic name and the build succeeded — the destructure
-        // bindings (a, b) silently never came into scope and any
-        // following code referencing them either failed at clang or
-        // (worse) resolved to a stale shadow. Halt now.
-        panic("nucleor: tuple destructuring in `let` not supported (see ERROR diagnostic above)");
-        let mut sk: i64 = cp;
-        while pk(tokens, sk) != 0 && pk(tokens, sk) != 43 { sk = sk + 1; };
-        if pk(tokens, sk) == 43 { sk = sk + 1; };
-        return pr(sk, mk5(pool, 20, "__tuple_destructure_unsupported__", 0, "", 0 - 1));
+        // v0.8.33 — tuple-destructure-in-let. `let (a, b) = expr;` is
+        // now accepted. Pre-v0.8.33 this panicked with a halt diagnostic
+        // (v0.4.33 introduced the halt to replace the original silent-
+        // miscompute where bindings never came into scope). Now: parse
+        // the binding list, emit kind-85 (TupleDestructure) AST node.
+        // lower_stmt kind-85 extracts each element via vec_get(rhs, i).
+        // For anonymous tuple RHS `(e1, e2)` the kind-48 lowering already
+        // builds a vec; for named tuple-struct or fn-return, the handle
+        // is the struct vec. Both yield correct vec_get results.
+        cp = cp + 1; // skip (
+        let mut names_csv: str = "";
+        let mut name_count85: i64 = 0;
+        while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
+            if name_count85 > 0 { cp = expect_tok(tokens, cp, 44); }; // skip ,
+            if pk(tokens, cp) == 12 { cp = cp + 1; }; // skip mut (record-but-ignore for v0.8.33)
+            let bname85: str = pkv(tokens, cp); cp = cp + 1;
+            if name_count85 > 0 { names_csv = str_concat(names_csv, ","); };
+            names_csv = str_concat(names_csv, bname85);
+            name_count85 = name_count85 + 1;
+        };
+        cp = expect_tok(tokens, cp, 51); // skip )
+        cp = expect_tok(tokens, cp, 40); // expect =
+        let mut er85: Vec<i32> = parse_expr(tokens, cp, pool);
+        cp = pr_pos(er85);
+        if pk(tokens, cp) == 43 { cp = cp + 1; }; // skip ;
+        let td_nid: i64 = mk3(pool, 85, names_csv, pr_val(er85));
+        return pr(cp, td_nid);
     };
     let name_span: i64 = tok_pos_at(tokens, cp);
     let name: i64 = pkv(tokens, cp); cp = cp + 1;
@@ -17198,6 +17214,29 @@ fn check_stmt(pool: Vec<i32>, nid: i64, own: Vec<i32>, structs: Vec<i32>, enums:
         };
         return warns;
     };
+    if kind == 85 {
+        // v0.8.33 — tuple-destructure-in-let ownership tracking.
+        // Register each binding in own so downstream code can reference it.
+        let ncv85c: str = node_field(pool, nid, 1);
+        let init85c: i64 = node_field(pool, nid, 2);
+        if init85c >= 0 { warns = warns + check_expr(pool, init85c, own, structs, enums, fn_name); };
+        let slen85c: i64 = str_len(ncv85c);
+        let mut i85c: i64 = 0;
+        while i85c <= slen85c {
+            let mut j85c: i64 = i85c;
+            while j85c < slen85c && str_char_at(ncv85c, j85c) != 44 { j85c = j85c + 1; };
+            if j85c > i85c {
+                let bn85c: str = str_substring(ncv85c, i85c, j85c);
+                if str_eq(bn85c, "_") == 0 {
+                    own_set_mutable(own, bn85c, 0);
+                    own_set_scope(own, bn85c, scope_depth);
+                    own_set_param(own, bn85c, 0);
+                };
+            };
+            i85c = j85c + 1;
+        };
+        return warns;
+    };
     return warns;
 }
 
@@ -20666,6 +20705,13 @@ fn type_check_stmt(pool: Vec<i32>, prog: i64, nid: i64, env: Vec<i32>, sigs: Vec
         };
         return warns;
     };
+    if kind == 85 {
+        // v0.8.33 — tuple-destructure-in-let type pass.
+        // Check the RHS expression; bindings are i64 by default.
+        let init85t: i64 = node_field(pool, nid, 2);
+        if init85t >= 0 { type_expr(pool, prog, init85t, env, sigs, structs, fn_name, diags, source, tprof); };
+        return 0;
+    };
     return warns;
 }
 fn type_check_stmts(pool: Vec<i32>, prog: i64, lid: i64, env: Vec<i32>, sigs: Vec<i32>, structs: Vec<i32>, fn_name: str, diags: Vec<i32>, source: str, rtype: str, tprof: Vec<i32>) -> i64 {
@@ -21533,6 +21579,11 @@ fn closure_collect_capture_stmt(pool: Vec<i32>, nid: i64, sym: Vec<i32>, params:
     };
     if kind == 23 {
         closure_collect_capture_expr(pool, nid, sym, params, caps);
+        return 0;
+    };
+    if kind == 85 {
+        // v0.8.33 — tuple-destructure-in-let capture walk.
+        closure_collect_capture_expr(pool, node_field(pool, nid, 2), sym, params, caps);
         return 0;
     };
     // v0.3.72: bare-expression body fall-through. When a closure
@@ -25616,6 +25667,45 @@ fn lower_stmt(pool: Vec<i32>, nid: i64, cur: Vec<i32>, regs: Vec<i32>, lbls: Vec
                     sym_set(sym, str_concat("__closure_caps_", lhs_name), caps_s2);
                 };
             };
+        };
+        return cur;
+    };
+    if kind == 85 {
+        // v0.8.33 — tuple-destructure-in-let. Node layout:
+        //   field 1: names_csv (str) — comma-separated binding names
+        //   field 2: init node ID (i64) — the RHS expression
+        // Strategy: lower the RHS into rhs_r, then for each name at
+        // index i emit vec_get(rhs_r, i) and store in a fresh alloca.
+        // Works for both kind-48 anonymous-tuple RHS (which kind-48
+        // lowering already stores as a vec) and named-tuple-struct /
+        // fn-return RHS (which is a struct vec handle).
+        let names_csv85: str = node_field(pool, nid, 1);
+        let init85: i64 = node_field(pool, nid, 2);
+        let mut rp85: Vec<i32> = lower_expr(pool, init85, cur, regs, lbls, sym, fir, strtab, lh, lx, structs, closures, trait_impls);
+        cur = lx_blk(rp85);
+        let rhs_r85: i64 = lx_reg(rp85);
+        let slen85: i64 = str_len(names_csv85);
+        let mut i85: i64 = 0;
+        let mut fidx85: i64 = 0;
+        while i85 <= slen85 {
+            let mut j85: i64 = i85;
+            while j85 < slen85 && str_char_at(names_csv85, j85) != 44 { j85 = j85 + 1; };
+            if j85 > i85 {
+                let bname85: str = str_substring(names_csv85, i85, j85);
+                let ar85: i64 = ctr_next(regs);
+                ir_fn_add_entry_alloca_t(fir, ar85, 0);
+                let idx_r85: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_const_int(idx_r85, fidx85));
+                let mut ga85: Vec<i32> = Vec::new();
+                ga85.push(rhs_r85);
+                ga85.push(idx_r85);
+                let fr85: i64 = ctr_next(regs);
+                ir_block_add(cur, ir_call_ex(fr85, "vec_get", ga85));
+                ir_block_add(cur, ir_store(fr85, ar85));
+                if str_eq(bname85, "_") == 0 { sym_set(sym, bname85, ar85); };
+                fidx85 = fidx85 + 1;
+            };
+            i85 = j85 + 1;
         };
         return cur;
     };
