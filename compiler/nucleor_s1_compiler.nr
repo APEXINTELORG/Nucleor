@@ -3479,6 +3479,18 @@ fn parse_fn_decl(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut params: Vec<i32> = Vec::new();
     while pk(tokens, cp) != 51 && pk(tokens, cp) != 0 {
         if vec_len(params) > 0 { cp = expect_tok(tokens, cp, 44); };
+        // v0.7.39 (defensive halt — Rust pattern-destructure in fn
+        // parameter: `fn h((a, b): (i64, i64))`, `fn h(P { x, y }: P)`).
+        // Pre-fix this surfaced as wrong-class `error[NR020]: expected
+        // ':', got identifier` because the param parser tried to read
+        // `(` (token 50) or `{` (52) as the binding name. Workaround:
+        // bind a single name and destructure inside the body — sister
+        // to v0.6.59 tuple-destructure-in-for-head halt.
+        if pk(tokens, cp) == 50 || pk(tokens, cp) == 52 {
+            print("ERROR: pattern-destructure in fn parameter (e.g. `fn h((a, b): (i64, i64))`, `fn h(P { x, y }: P)`) is not yet supported in Nucleor. Pre-v0.7.39 this surfaced as wrong-class `error[NR020]: expected ':', got identifier` because the param parser swallowed the opening `(` / `{` as the binding name.");
+            print("       Workaround: bind a single name and destructure inside the body — `fn h(p: (i64, i64)) -> i64 { let a: i64 = p.0; let b: i64 = p.1; ... }` or `fn h(p: P) -> i64 { let x: i64 = p.x; let y: i64 = p.y; ... }`. Sister to v0.6.59 tuple-destructure-in-for-head halt. Tracked for forward-roadmap (full pattern-in-param lowering arrives with v1 pattern-binding work).");
+            panic("nucleor: pattern-destructure in fn parameter not yet supported (see ERROR diagnostic above)");
+        };
         let pn: i64 = pkv(tokens, cp); cp = expect_tok(tokens, cp + 1, 42);
         let mut tr: Vec<i32> = parse_type(tokens, cp); cp = pr_pos(tr);
         let ptype: str = pr_val(tr);
