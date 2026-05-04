@@ -5,6 +5,25 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.74] — 2026-05-04
+
+**Defensive halt — Rust experimental `try { ... }` block expression
+(closes wrong-class TYP-005 from `try`-as-fn-call lowering).**
+
+Pre-fix `let r: i64 = try { let x = 5; x };` produced clang-link
+wrong-class `error[TYP-005]: undefined function 'try()'`:
+parse_primary read `try` as a regular identifier and the
+following `{ ... }` parsed as a stray block, so the surface
+emit treated `try` as a fn call. Now halts at parse_primary when
+`try` is immediately followed by `{`.
+
+Sister to the existing `unsafe { ... }` / `wrapping { ... }` /
+`saturating { ... }` block-expr branches at the same dispatch
+site; same ident-then-`{` lookahead, but no semantic substrate
+yet for the Result-wrapping rewrite.
+
+Fixture: `tests/fixtures/v0774_try_block_halt.nr`.
+
 ## [0.7.73] — 2026-05-04
 
 **Defensive halts (consolidated) — module-scope silent-strip family:
