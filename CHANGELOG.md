@@ -5,6 +5,45 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.26] — 2026-05-04
+
+**RFC-0062 G-9 Phase 2a — FFI-DIRECT audit-pass info diagnostic.**
+Wave A continues. Detects `extern fn ` declarations and surfaces
+the FFI surface area at compile time.
+
+### What's enforced today (Phase 2a)
+
+```
+info[FFI-DIRECT]: `extern fn` declarations in build: N
+  Per RFC-0062 G-9 Phase 2a: direct `extern fn` calls bypass
+  the safe-code bounds-check insertion that wraps Nucleor
+  index/range operations. Adopter discipline today: treat every
+  `extern fn` call site as an unsafe surface. Phase 2b will
+  require `#[allow(direct_ffi)]` on the calling fn or
+  `unsafe { }` block; Phase 4 promotes to hard error if missing.
+```
+
+### Phase 2a snapshot — three info diagnostics now firing
+
+```
+info[OWN-012]: explicit free calls present in build: 44
+info[FFI-NULL]: raw-pointer return types in extern fn decls: 4
+info[FFI-DIRECT]: `extern fn` declarations in build: 27
+```
+
+This is the cornerstone-RFC compile-time signal an adopter sees
+on every build. Phase 2a covers G-4, G-5, G-9 — the three FFI/
+ownership-edge gaps.
+
+### Perf
+
+Single additional `simple_attribute_audit_count` call. Cold
+variance after the ship: 3.41/3.50s mean (one outlier of 4.30s
+from concurrent-process load — confirmed external by hot-path
+spike to 1.3s; not a code regression). Within Job #1.
+
+Fixed-point md5: `f4a3db0908f7ad7c5ae1b2e4f5ae89fd`.
+
 ## [0.8.25] — 2026-05-04
 
 **RFC-0062 G-5 Phase 2a — FFI-NULL audit-pass info diagnostic.**

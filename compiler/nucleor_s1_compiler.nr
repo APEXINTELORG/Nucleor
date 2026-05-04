@@ -27975,6 +27975,18 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[FFI-NULL]: raw-pointer return types in extern fn decls: ", str_from_int(v0825_extern_void_count)));
         print("  Per RFC-0062 G-5 Phase 2a: extern fn returning `*const c_void` / `*mut c_void` / `*const u8` may return NULL on failure (RFC-0062 §3.3 G-5 contract). The compiler does NOT yet verify the wrapping rod fn null-checks before exposing to safe code. Adopter discipline today: every call site receiving a raw-pointer return must `if ptr_is_null(p) { panic(...); }` before deref. Phase 2b adds per-fn null-check inference; Phase 4 promotes to lint warning. Reference: docs/ffi-conventions.md §1.");
     };
+    // v0.8.26: RFC-0062 G-9 Phase 2a — direct-FFI audit-pass
+    // info. Counts `extern fn ` declarations to surface the FFI
+    // surface area at compile time. Phase 2a is heuristic;
+    // Phase 2b will require `#[allow(direct_ffi)]` on calling
+    // fn or `unsafe { }` block at call site. Phase 4 promotes
+    // to hard error.
+    let v0826_extern_count: i64 = simple_attribute_audit_count(after_async,
+        str_concat("extern ", "fn "));
+    if v0826_extern_count > 0 {
+        print(str_concat("info[FFI-DIRECT]: `extern fn` declarations in build: ", str_from_int(v0826_extern_count)));
+        print("  Per RFC-0062 G-9 Phase 2a: direct `extern fn` calls bypass the safe-code bounds-check insertion that wraps Nucleor index/range operations. Adopter discipline today: treat every `extern fn` call site as an unsafe surface. Phase 2b will require `#[allow(direct_ffi)]` on the calling fn or `unsafe { }` block; Phase 4 promotes to hard error if missing. Reference: docs/ffi-conventions.md §2.");
+    };
     // v0.3.0 (T3.1): wrap `#[deadline = N]` fns with start-capture
     // + `deadline_check` exit hook. Aborts on overrun (RT-004).
     let after_deadline: str = expand_deadline(after_async);
