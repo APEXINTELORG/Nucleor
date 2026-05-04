@@ -5,6 +5,28 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.71] — 2026-05-04
+
+**Defensive halt — Rust `async fn` (closes wrong-class
+silent-acceptance at module-item dispatch).**
+
+Pre-fix `async fn fetch() -> i64 { return 42; }` was silently
+accepted — the `async` ident was skipped at the module-item
+dispatch and the fn parsed as a regular synchronous fn. Call
+sites like `let r: i64 = fetch();` returned the inner value
+directly (rc=42 in probe), but adopters expect a
+`Future<Output = i64>` they can `.await`. The Future protocol is
+missing entirely (no executor, no `.await`, no state-machine
+lowering), so silent acceptance is the worst case. Now halts at
+the decl with a clean diagnostic and workaround pointer (use the
+existing thread/queue substrate for concurrency until the v1.x
+`async`/Future/executor substrate lands).
+
+Sister to v0.6.53 `unsafe fn` halt (same dispatch lookahead, same
+silent-strip-audit class).
+
+Fixture: `tests/fixtures/v0771_async_fn_halt.nr`.
+
 ## [0.7.70] — 2026-05-04
 
 **Perf — integrate helper agent's strtab-intern hash slice
