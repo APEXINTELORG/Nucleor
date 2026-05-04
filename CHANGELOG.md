@@ -5,6 +5,86 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] — 2026-05-04
+
+**Punchlist forward — RFC-0058 Phase A: post-quantum crypto
+surface (rod + STUB runtime). Closes V2 frontier Tier-B lane.**
+
+The full RFC-0058 ship adds NIST-standardized PQ primitives
+(ML-KEM / ML-DSA / SLH-DSA) plus the `@crypto_agile`
+annotation (~400 LOC compiler + ~2000 LOC stdlib + per-
+algorithm reference implementations of FIPS 203 / 204 / 205).
+Phase A (this rod + runtime) lands the canonical algorithm
+tags + opaque keypair / signature handles + a placeholder
+generate/encap/sign surface adopters can wire today. **The
+runtime is a STUB** — every primitive returns deterministic
+test vectors derived from a per-keypair counter, NOT secure
+crypto. Adopters writing PQ-aware code today get the API
+surface; Phase B brings in the FIPS reference implementations.
+
+This ship CLOSES the V2 frontier Tier-B lane:
+
+| RFC | Title | Phase A ship |
+|---|---|---|
+| RFC-0052 | Photonic compute types | v0.7.95 ✓ |
+| RFC-0053 | Neuromorphic / event-driven | v0.7.96 ✓ |
+| RFC-0054 | Logical qubit + pulse-level | v0.7.97 ✓ |
+| RFC-0055 | Distributed collectives | v0.7.99 ✓ |
+| RFC-0056 | Deterministic replay | v0.8.0 ✓ |
+| RFC-0057 | Enclave types + info-flow | v0.8.1 ✓ |
+| RFC-0058 | Post-quantum crypto | v0.8.2 ✓ (this) |
+
+Combined with the Tier-A close-out at v0.7.90, all 13 V2
+frontier RFCs (RFC-0046 through RFC-0058) have Phase A landed
+this session. Phase B (compiler-side enforcement) is the
+follow-up wave.
+
+### Surface added in `stdlib/rods/pq_crypto.nr`
+
+- 4 algorithm tags: `pq_algo_{mlkem, mldsa, slhdsa, unknown}`
+  (1..3 + 0) + `pq_algo_name(id) -> str` +
+  `pq_algo_kind(id) -> {kem, sig}`.
+- 3 SecurityLevel tags: `security_level_{1, 3, 5}` (NIST
+  L1/L3/L5 = 128/192/256-bit) +
+  `security_level_bits(level)` + `_name(level)`.
+- 4 HashFn tags: `hash_fn_{sha256, sha512, shake128, shake256}`
+  (1..4) + `hash_fn_name(id) -> str`.
+- `KeypairHandle { handle, algo, level }` +
+  `SignatureHandle { handle, algo }`.
+- ML-KEM (KEM): `mlkem_keygen(level)`, `_encap(kp)`,
+  `_decap(kp, ct)`.
+- ML-DSA (signature): `mldsa_keygen(level)`,
+  `_sign(kp, msg_digest)`, `_verify(kp, digest, sig)`.
+- SLH-DSA (signature, hash-based backup):
+  `slhdsa_keygen(level, hash_fn_id)`, `_sign(kp, digest)`,
+  `_verify(kp, digest, sig)`.
+- Introspection: `pq_keypair_algo` / `_level` / `_count` /
+  `pq_clear`.
+- Crypto-agility default picks: `crypto_agile_pick_kem()`,
+  `_pick_sig()`, `_pick_sig_backup()`.
+
+### Runtime: `stdlib/runtime/pq_crypto_rt.c`
+
+Process-local keypair table (max 256) + signature table (max
+1024). Encap returns a deterministic xorshift-mixed value;
+decap returns the ciphertext (round-trip stable). Sign records
+`(keypair_h, msg_digest)` in the signature registry; verify
+checks the recorded pair matches.
+
+### Smoke fixture
+
+`tests/fixtures/v0802_rfc0058_pq_crypto_smoke.nr` exercises all
+algorithm/security-level/hash tags, ML-KEM round-trip, ML-DSA
+sign/verify (correct + wrong digest + wrong keypair → reject),
+SLH-DSA sign/verify, crypto-agility defaults, count + clear.
+rc=0.
+
+No new defensive halt this ship — V2 Tier-B close-out is the
+priority. Cron may concurrently ship halts.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.8.1] — 2026-05-04
 
 **Punchlist forward — RFC-0057 Phase A: enclave types + info-flow
