@@ -5,6 +5,26 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.69] — 2026-05-04
+
+**Defensive halt — Rust opt-out trait bound `?Sized` / `?Trait`
+(closes wrong-class silent-acceptance in `parse_generic_params`).**
+
+Pre-fix `fn foo<T: ?Sized>(x: T) -> i64 { ... }` parsed silently:
+the `?` token (97) was consumed by the inline-bound walker and the
+trailing `Sized` was stored as a regular `?Sized` bound marker —
+visually identical to the already-prefixed v0.4.130 storage convention
+but semantically wrong. Adopter intent ("this generic accepts unsized
+types / DSTs") was lost without any signal, and the build proceeded
+under Nucleor's monomorphic Sized-only ABI as if no opt-out had been
+requested. Now halts in `parse_generic_params` immediately after the
+`:` with a clean diagnostic and workaround pointer.
+
+Sister to v0.7.10 const-generic halt (same parser, same fail-fast on
+unsupported bound shape).
+
+Fixture: `tests/fixtures/v0769_qsized_optout_bound_halt.nr`.
+
 ## [0.7.68] — 2026-05-04
 
 **Defensive halt — Rust C-string literal `c"..."` (closes wrong-class
