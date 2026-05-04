@@ -5,6 +5,46 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.27] — 2026-05-04
+
+**Defensive halt — Rust ref-pattern in `for`-loop binding position
+(`for &x in &v { ... }`, `for &mut x in &mut v { ... }`) now
+produces a clean halt with a drop-the-ampersand workaround
+pointer.**
+
+Pre-fix: writing `for &x in &v { ... }` surfaced as wrong-class
+`error[NR020]: parse error: expected token 57 (in), got identifier`
+because `parse_for_stmt` tried to read `&` (token 82) as the
+binding name. The next token was `x`, not the expected `in`.
+
+Post-fix: `parse_for_stmt` detects token 82 (`&`) at the binding
+position (with optional `mut`) and halts cleanly:
+
+```nucleor
+// Pre-fix wrong-class:
+for &x in &v { ... }              // ← NR020 wrong-class
+for &mut x in &mut v { ... }      // ← NR020 wrong-class
+
+// Post-fix workaround — drop the `&`:
+for x in &v { ... }               // same observable shape (i64-everywhere ABI)
+for x in &mut v { ... }
+```
+
+Forward-roadmap: ref-pattern in for-head arrives with the v1
+borrow-checker — until then `&` / `&mut` in this position are
+purely translation-fidelity surface (no semantic difference vs
+bare binding under the i64-everywhere runtime).
+
+### Fixture
+
+`tests/fixtures/v0727_for_ref_pat_halt.nr` — negative fixture for
+`for &x in &v { ... }` (fires clean halt with drop-`&` workaround,
+not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `e2605d84d3a990e909a37b227fb38ac1`.
+
 ## [0.7.26] — 2026-05-04
 
 **Defensive halt — Rust FFI extern block form `extern "C" { fn
