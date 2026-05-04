@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.65] — 2026-05-04
+
+**Test consolidation — collapse 4 local-decl fixtures (type-alias /
+const / static / fn inside fn body) into 1 combined fixture.
+Fixture count drops 53 → 50.**
+
+The 4 local-decl halts (v0.7.47 type-alias / v0.7.55 const /
+v0.7.56 static / v0.7.59 fn) all hit `parse_stmt`'s keyword-token
+check, distinguished only by token id (74 type / 73 const /
+ident-`static` / 10 fn). Each fixture was 4-12 lines and the
+diagnostic shape was identical (different keyword name).
+
+Replaced with `tests/fixtures/v0765_local_decl_halt_family.nr`
+that exercises the path via `type Pair = (i64, i64);` (covers all
+four — the build aborts at the first halt encountered; swap the
+body line to verify a different keyword).
+
+Files removed:
+- `tests/fixtures/v0747_local_type_alias_halt.nr`
+- `tests/fixtures/v0755_local_const_halt.nr`
+- `tests/fixtures/v0756_local_static_halt.nr`
+- `tests/fixtures/v0759_local_fn_halt.nr`
+
+Module-level forms of all four work cleanly; only fn-body local
+forms are caught. Sister consolidation to v0.7.64 (idiom-method
+family).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 — unchanged (compiler.nr not
+modified, only fixture removals + 1 add). Cold 3.24s / peak 301MB.
+
 ## [0.7.64] — 2026-05-04
 
 **Test consolidation — collapse 6 idiom-method fixtures into 1
