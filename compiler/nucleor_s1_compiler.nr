@@ -28079,6 +28079,26 @@ fn load_resolved_source_bundle(src_path: str, use_cache: i64) -> Vec<i32> {
         print(str_concat("info[ALIAS-G3]: Vec-of-reference patterns in build: ", str_from_int(v0827_vof_count)));
         print("  Per RFC-0062 G-3 Phase 2a: `Vec<&T>` constructions hide aliasing from the syntactic borrow tracker. Pushing two `&T` borrows of the same `T` is invisible today. Adopter mitigation: prefer indexing — store `Vec<i64>` indexes into an owned vector rather than `Vec<&T>` borrows of separate vectors. Phase 2b adds Vec-of-reference flow analysis; Phase 4 promotes to deny-by-default with `#[allow(vec_of_refs)]` opt-out. Reference: docs/heap-aliasing-evidence.md.");
     };
+    // v0.8.34 Q2 — slice-pattern diagnostic refinement.
+    // Pre-existing behavior: slice match with rest element hit
+    // parse_primary's token-58 panic and emitted the range-
+    // expression diagnostic, wrong-class. Pre-detect the
+    // textual shape (rest at slice-pattern closing bracket and
+    // related sites — rare in prose) and halt cleanly.
+    // Self-host safe: needles constructed via str_concat AND
+    // the diagnostic message + comments avoid the literal
+    // detected sequences (use spaced forms throughout).
+    let v0834_has_dotdot_mid: i64 = if str_index_of(after_async, str_concat(", ..", ",")) >= 0 { 1 } else { 0 };
+    let v0834_has_dotdot_close: i64 = if str_index_of(after_async, str_concat(", ..", "]")) >= 0 { 1 } else { 0 };
+    let v0834_has_bracket_dotdot: i64 = if str_index_of(after_async, str_concat("[..", ",")) >= 0 { 1 } else { 0 };
+    if v0834_has_dotdot_mid == 1 || v0834_has_dotdot_close == 1 || v0834_has_bracket_dotdot == 1 {
+        // Diagnostic message intentionally uses extra-spaced
+        // form `[a , .. , b]` to avoid self-matching the
+        // detector needles when this file gets self-host
+        // compiled.
+        print("ERROR: slice patterns with rest binding (the dot-dot rest element inside slice match brackets `[a , .. , b]`) are not yet supported in Nucleor. Pre-v0.8.34 surfaced as wrong-class range-expression diagnostic because the parser hit token 58 inside the slice pattern brackets and routed to the range halt. Workaround: rewrite as explicit indexing using vec_len + vec_get. Tracked for forward-roadmap (full slice-pattern matcher with rest binding). Sister to Q1 / Q9 from PARALLEL_AGENT_PUNCHLIST.");
+        panic("nucleor: slice patterns with rest binding not yet supported (see ERROR diagnostic above)");
+    };
     // v0.8.33: RFC-0062 G-6 Phase 2a — Sendable-edge surface
     // info. Counts `HashMap<` and `RefCell<` / `Cell<` substrings.
     // Phase 2b will close the four unaudited cases per
