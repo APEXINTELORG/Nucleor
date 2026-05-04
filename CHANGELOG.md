@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.42] — 2026-05-04
+
+**Defensive halt — Rust positional format-arg `{0}` / `{1}` /
+etc. (referencing args by index, allowing reuse like
+`{0} {1} {0}`) now produces a clean halt with linear-args
+workaround pointer. Also fixes a v0.7.41 regression that wrongly
+classified positional refs as inline args.**
+
+Pre-fix (this ship): writing `format!("{0} {1} {0}", 1, 2)`
+either fell through to the v0.4.70 count-mismatch error (pre-
+v0.7.41) or hit the v0.7.41 inline-arg halt with a misleading
+diagnostic claiming `0` was an inline binding name.
+
+Post-fix:
+1. The v0.7.41 inline-arg halt now requires the spec's first char
+   to be alpha or `_` — Rust identifier rules — so `{0}`, `{1}`
+   no longer collide with inline-name detection.
+2. A new positional-arg halt fires when the spec is digits-only
+   and emits a tailored "write args linearly" workaround:
+
+```nucleor
+// Pre-fix wrong-class:
+let s: str = format!("{0} {1} {0}", 1, 2);     // ← inline-arg halt (wrong)
+
+// Post-fix workaround — linear `{}` order:
+let s: str = format!("{} {}", 1, 2);
+// or for repeated refs:
+let r: i64 = 1;
+let s: str = format!("{} {} {}", r, 2, r);
+```
+
+Forward-roadmap: positional-arg substrate is part of the same
+RFC 2795 work as inline args (both need lex-time format-string
+rewriting).
+
+### Fixture
+
+`tests/fixtures/v0742_format_pos_arg_halt.nr` — negative fixture
+for `format!("{0} {1} {0}", 1, 2)` (fires positional halt with
+linear-args workaround, not the misclassified inline-arg one).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `9ba4ec75532db39f4c3868b84c641dad`.
+
 ## [0.7.41] — 2026-05-04
 
 **Defensive halt — Rust 1.58+ inline format-arg `{name}` (where

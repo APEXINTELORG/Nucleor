@@ -30685,18 +30685,44 @@ fn fmt_build_expansion(args_text: str, mode: i64, src: str) -> str {
                     // Detect the spec being a bare identifier (no format-
                     // spec colons / dots / commas) and halt with a clear
                     // explicit-arg workaround.
-                    let mut v741_inline_ident: i64 = if str_len(spec) > 0 { 1 } else { 0 };
-                    let mut v741_si: i64 = 0;
-                    while v741_si < str_len(spec) && v741_inline_ident == 1 {
-                        let v741_c: i64 = str_char_at(spec, v741_si);
-                        let v741_is_id_char: i64 = if (v741_c >= 65 && v741_c <= 90) || (v741_c >= 97 && v741_c <= 122) || (v741_c >= 48 && v741_c <= 57) || v741_c == 95 { 1 } else { 0 };
-                        if v741_is_id_char == 0 { v741_inline_ident = 0; };
-                        v741_si = v741_si + 1;
+                    // v0.7.42: require the first char to be alpha or `_` so
+                    // `{0}` / `{1}` (positional-arg refs, a separate Rust
+                    // feature) don't collide with the v0.7.41 inline-arg
+                    // halt. Digits-only specs are positional references and
+                    // get a different diagnostic just below.
+                    let mut v741_inline_ident: i64 = 0;
+                    if str_len(spec) > 0 {
+                        let v741_c0: i64 = str_char_at(spec, 0);
+                        if (v741_c0 >= 65 && v741_c0 <= 90) || (v741_c0 >= 97 && v741_c0 <= 122) || v741_c0 == 95 {
+                            v741_inline_ident = 1;
+                            let mut v741_si: i64 = 1;
+                            while v741_si < str_len(spec) && v741_inline_ident == 1 {
+                                let v741_c: i64 = str_char_at(spec, v741_si);
+                                let v741_is_id_char: i64 = if (v741_c >= 65 && v741_c <= 90) || (v741_c >= 97 && v741_c <= 122) || (v741_c >= 48 && v741_c <= 57) || v741_c == 95 { 1 } else { 0 };
+                                if v741_is_id_char == 0 { v741_inline_ident = 0; };
+                                v741_si = v741_si + 1;
+                            };
+                        };
                     };
                     if v741_inline_ident == 1 {
                         print(str_concat("ERROR: Rust 1.58+ inline format-arg `{", str_concat(spec, "}` (where `<name>` resolves to a binding in the calling scope) is not yet supported in Nucleor's textual macro layer. Pre-v0.7.41 surfaced as wrong-class \"format string has more `{}` placeholders than args supplied\".")));
                         print(str_concat("       Workaround: use the explicit-arg form — `format!(\"{}\", ", str_concat(spec, ")` (or `println!`/`print!`/etc.). For multiple inline args, list each as a separate trailing arg in the same order they appear in the format string. Tracked for forward-roadmap (lex-time inline-arg rewrite at `{name}` → `{}` + appended `name` arg, per Rust RFC 2795).")));
                         panic(str_concat("nucleor: inline format-arg `{", str_concat(spec, "}` not yet supported (see ERROR diagnostic above)")));
+                    };
+                    // v0.7.42 (defensive halt — Rust positional format-arg
+                    // `{0}` / `{1}` / etc.). Detect digits-only spec and
+                    // halt with an explicit `{}`-only workaround pointer.
+                    let mut v742_pos_arg: i64 = if str_len(spec) > 0 { 1 } else { 0 };
+                    let mut v742_pi: i64 = 0;
+                    while v742_pi < str_len(spec) && v742_pos_arg == 1 {
+                        let v742_c: i64 = str_char_at(spec, v742_pi);
+                        if v742_c < 48 || v742_c > 57 { v742_pos_arg = 0; };
+                        v742_pi = v742_pi + 1;
+                    };
+                    if v742_pos_arg == 1 {
+                        print(str_concat("ERROR: Rust positional format-arg `{", str_concat(spec, "}` (referencing arg #", str_concat(spec, " by index, allowing reuse like `{0} {1} {0}`) is not yet supported in Nucleor's textual macro layer."))));
+                        print("       Workaround: write the args linearly in `{}` order — `format!(\"{} {}\", a, b)` instead of `format!(\"{0} {1}\", a, b)`. For repeated refs, write the value once and bind it: `let r = a; format!(\"{} {} {}\", r, b, r)`. Tracked for forward-roadmap (positional-arg substrate is part of the same RFC 2795 work as inline args).");
+                        panic(str_concat("nucleor: positional format-arg `{", str_concat(spec, "}` not yet supported (see ERROR diagnostic above)")));
                     };
                     // v0.4.70: NUC-FEEDBACK silent-MISSING close (audit
                     // section 10). Pre-fix `println!("{} and {}", 42)`
