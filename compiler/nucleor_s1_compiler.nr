@@ -4078,6 +4078,28 @@ fn parse_impl_block(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i32> {
     let mut type_name: str = first_name;
     cp = cp + 1;
     if pk(tokens, cp) == 32 {
+        // v0.7.44 (defensive halt — impl-target type with lifetime in
+        // generic args: `impl<'a> R<'a> { ... }`). The parse_type call
+        // below doesn't handle lifetime tokens (98) in type-arg position;
+        // pre-fix this surfaced as wrong-class `error[NR020]: expected
+        // '{', got token 98`. Detect a lifetime inside the angle-bracket
+        // group and halt cleanly with a drop-the-lifetime workaround.
+        let mut v744_scan: i64 = cp + 1;
+        let mut v744_depth: i64 = 1;
+        let mut v744_has_lt: i64 = 0;
+        while v744_scan < vec_len(tokens) && v744_depth > 0 {
+            let v744_t: i64 = pk(tokens, v744_scan);
+            if v744_t == 32 { v744_depth = v744_depth + 1; };
+            if v744_t == 33 { v744_depth = v744_depth - 1; };
+            if v744_t == 98 && v744_depth > 0 { v744_has_lt = 1; };
+            if v744_t == 0 { v744_depth = 0; };
+            v744_scan = v744_scan + 1;
+        };
+        if v744_has_lt == 1 {
+            print(str_concat("ERROR: impl-target type `", str_concat(first_name, "<'a>` (lifetime in generic args of the impl-target type) is not yet supported in Nucleor. Pre-v0.7.44 surfaced as wrong-class `error[NR020]: expected '{', got token 98` because parse_type doesn't handle lifetime tokens in type-arg position.")));
+            print(str_concat("       Workaround: drop the lifetime from the impl-target type — `impl<'a> ", str_concat(first_name, " { ... }` (the impl-head `'a` already binds the lifetime; redeclaring it on the target is purely advisory under Nucleor's i64-everywhere ABI). Tracked for forward-roadmap (lifetime-as-generic-arg substrate is part of the v1 borrow-checker work).")));
+            panic(str_concat("nucleor: impl-target `", str_concat(first_name, "<'a>` lifetime-in-generics not yet supported (see ERROR diagnostic above)")));
+        };
         let mut first_tr: Vec<i32> = parse_type(tokens, pos);
         first_name = pr_val(first_tr);
         type_name = first_name;
