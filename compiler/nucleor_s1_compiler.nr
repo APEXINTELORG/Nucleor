@@ -1482,6 +1482,16 @@ fn parse_match_one_pattern(tokens: Vec<i32>, pos: i64, pool: Vec<i32>) -> Vec<i3
     let mut binding: str = "";
     if att == 21 && pk(tokens, cp + 1) == 2 && (pk(tokens, cp + 2) == 96 || pk(tokens, cp + 2) == 58) {
         panic("error[MATCH-014]: negative literal bounds in range patterns are not supported yet. Pattern forms like `-10..=-1` still parse as a unary-minus token followed by a literal, so the range-pattern parser cannot lower them safely. Use a guard instead, e.g. `_ if value >= -10 && value <= -1 => ...`, or shift the domain to non-negative bounds before matching.");
+    } else if att == 21 && pk(tokens, cp + 1) == 2 {
+        // v0.7.22 (defensive halt — bare negative-literal pattern in
+        // match arm: `match x { -5 => ..., _ => ... }`). Pre-fix this
+        // surfaced as wrong-class `error[NR020]: expected '=>', got
+        // integer literal` because the pattern parser had no `-` (token
+        // 21) entry — the `-` was consumed as a no-op, then `5` was
+        // read as the standalone int-lit pattern, leaving the trailing
+        // `=>` to land where the parser expected an expression
+        // continuation. Halt cleanly with a guard workaround.
+        panic("error[MATCH-015]: negative-literal patterns in match arms (e.g. `match x { -5 => ..., _ => ... }`) are not yet supported. Pre-v0.7.22 surfaced as wrong-class `error[NR020]: expected '=>', got integer literal` because the pattern parser had no unary-minus branch. Workaround: use a guard — `match x { n if n == -5 => { ... } _ => { ... } }` — the guard form supports negative literals natively. Tracked for forward-roadmap (negate-literal pattern lowering needs a signed-literal pattern AST node, sister to MATCH-014 negative-range-bound work).");
     } else if att == 2 {
         let lo_val: i64 = pkv(tokens, cp);
         cp = cp + 1;
