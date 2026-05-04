@@ -5,6 +5,70 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.9] — 2026-05-04
+
+**Phase B step-2 first ship — `@authored` author-list extraction.**
+
+The Phase B step-1 wave (v0.8.5 / v0.8.6 / v0.8.7 / v0.8.8)
+landed COUNT-only audits across 14 attribute families. Phase
+B step-2 starts extracting the *actual values* from each
+attribute invocation. First target: `@authored("name", "tool",
+"date")` — extract the first quoted string (the author name)
+and emit a build-time list alongside the count.
+
+Build summary lines (when `@authored` count > 0):
+
+```
+audit: @authored fns in build: 3
+audit:   authors: alice; bob; claude
+```
+
+Adopters porting RFC-0060 governance code now see the actual
+author names surfaced at build, not just a number — closes
+the discovery gap one notch tighter.
+
+### Implementation
+
+New helper `attribute_audit_first_str_arg(src, needle) -> str`
+scans the resolved source for each `<needle>` occurrence,
+walks past `(`, the optional `key=` prefix, and the leading
+whitespace, and captures the first `"..."` literal. Captures
+are joined with `; ` into a single output string. Empty when
+no quoted argument is present.
+
+Reusable across any attribute that takes a leading string-
+literal argument: `@policy("no_unsafe")`,
+`@photonic[device="lightmatter_x1"]`, etc. Phase B step-2
+can extend coverage in a single line per attribute as those
+syntaxes settle.
+
+### Smoke fixture
+
+`tests/fixtures/v0809_phaseB_authored_list_smoke.nr` — 3 fns
+tagged with three different authors. Runtime returns 6
+(1+2+3). Build log emits:
+
+```
+audit: @authored fns in build: 3
+audit:   authors: alice; bob; claude
+```
+
+once `bin/nucleor.exe` is rebuilt from the new seed.
+
+### Status
+
+Adopters using the existing `bin/nucleor.exe` (built from a
+pre-v0.8.5 seed) won't see audit messages until the next
+perf-integration ship rebuilds the binary. The seed itself
+contains the Phase B logic; T1.7 fixed-point validates.
+
+Phase B step-2 will extend to `@policy(...)` (RFC-0060) and
+`@photonic[device=...]` (RFC-0052) with one-line additions
+per family using the same helper.
+
+Fixed-point md5: `B28F8510E5D74E20527172F881C61A1C`.
+Cold 3.09s / peak 310MB (under 4s job #1).
+
 ## [0.8.8] — 2026-05-04
 
 **Phase B step-1 — core Nucleor attribute audit (`@hot`,
