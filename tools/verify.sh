@@ -4603,6 +4603,23 @@ v0512_str_to_int_strict_panic() {
     grep -qE 'PANIC: str_to_int_strict:' $NUC_VERIFY_RUN_LOG || return 1
 }
 
+v0717_governance_rod_phase2a() {
+    # RFC-0060 Phase 2a: governance rod registry round-trip. Locks the
+    # AuthorRecord surface (constructor + register + count + get + JSON
+    # serialization). Phase 2b (policy) and 2c (evidence/sign) build on
+    # this without re-exercising the registry shape.
+    rm -f target/v0717_gov.exe target/v0717_gov
+    "$BIN" build tests/rods/governance_smoke.nr -o "v0717_gov" >$NUC_VERIFY_STEP_LOG 2>&1 || return 1
+    local exe=""
+    if [ -x target/v0717_gov.exe ]; then exe=target/v0717_gov.exe; fi
+    if [ -z "$exe" ] && [ -x target/v0717_gov ]; then exe=target/v0717_gov; fi
+    [ -n "$exe" ] || return 1
+    "$exe" >$NUC_VERIFY_RUN_LOG 2>&1 || return 1
+    grep -q "OK governance_smoke" $NUC_VERIFY_RUN_LOG || return 1
+    grep -q '"by":"joseph_wescott"' $NUC_VERIFY_RUN_LOG || return 1
+    grep -q '"commit":"ef3d45cc"'   $NUC_VERIFY_RUN_LOG || return 1
+}
+
 v0714_where_clause_multi_param_bounds() {
     # v0.7.14 / probe Q3+Q4 fold-in: lock the parser surface for
     # `fn f<T,U>(...) where T: A + B + C, U: D` — multi-trait bound on
@@ -5427,6 +5444,7 @@ step "v0.6.34 Result::Ok(x).unwrap_err() panics with canonical message" v0634_re
 step "v0.5.10 i32::MIN / -1 panics cleanly (not Windows STATUS_INTEGER_OVERFLOW)" v0510_i32_min_div_overflow
 step "v0.5.12 str_to_int_strict panics on invalid input" v0512_str_to_int_strict_panic
 step "v0.7.14 where-clause multi-trait + multi-param bound parses and runs" v0714_where_clause_multi_param_bounds
+step "v0.7.18 governance rod Phase 2a — AuthorRecord registry round-trip (RFC-0060)" v0717_governance_rod_phase2a
 step "T1.7 bootstrap seed matches current compiler" t17_bootstrap_seed_matches
 
 # --- Cleanup ------------------------------------------------------------

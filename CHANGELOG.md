@@ -5,6 +5,38 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.18] — 2026-05-03
+
+**Governance rod Phase 2a — RFC-0060 scaffolding lands as an
+optional rod. Programs that don't import it pay zero cost.**
+
+- `stdlib/rods/governance.nr`: AuthorRecord struct + constructor
+  helpers (`governance_authored` / `governance_authored_full`),
+  registry API (`governance_register_authored` /
+  `governance_authored_count` / `governance_authored_get` /
+  `governance_clear`), JSON serialization
+  (`governance_authored_to_json` / `governance_authored_all_to_json`).
+- `stdlib/runtime/governance_rt.c`: process-local NucGovAuthor
+  registry (cap 256 entries) with heap-copied string fields,
+  per-field accessors. ~80 LOC.
+- `tests/rods/governance_smoke.nr`: end-to-end smoke locking
+  registry round-trip and JSON shape.
+- Verify step `v0.7.18 governance rod Phase 2a — AuthorRecord
+  registry round-trip (RFC-0060)` wired in.
+
+Phase 1 prereq (`tools/native_release.ps1`) confirmed working
+end-to-end this session: `nuc publish --sign` produces signed
+package; `nuc release package-verify` accepts the round-trip
+(ssh-ed25519, key_id `default-local`, openssh-y-sign).
+
+Phase 2a scope is intentionally narrow — only AuthorRecord. Phase
+2b (PolicyDecl + check_policies wired to source_rule_check) and
+Phase 2c (SchemaDecl + EvidenceBundle + sign/verify) ship in
+follow-up cycles per RFC-0060 §Implementation phases.
+
+Cold compiler self-host: 5-sample median **3.73s** (range 3.41–4.18s);
+peak 294 MB RSS / 770 MB e-stop. Compiler.nr unchanged this ship.
+
 ## [0.7.17] — 2026-05-04
 
 **Defensive halt — `if let` guard in match arm (Rust 1.77 let-chains)

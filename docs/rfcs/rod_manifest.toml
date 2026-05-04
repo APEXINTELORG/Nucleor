@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 229
-# Total fn definitions: 2240
-# Total LOC: 9971
+# Total rods: 230
+# Total fn definitions: 2249
+# Total LOC: 10040
 
 [[rod]]
 name           = "activation2"
@@ -703,6 +703,15 @@ function_count = 0
 cfile_count    = 1
 loc            = 16
 imports        = ["gnn"]
+
+[[rod]]
+name           = "governance"
+path           = "stdlib/rods/governance.nr"
+description    = "RFC-0060 Phase 2a: optional governance rod."
+function_count = 9
+cfile_count    = 1
+loc            = 69
+imports        = []
 
 [[rod]]
 name           = "gpu"
