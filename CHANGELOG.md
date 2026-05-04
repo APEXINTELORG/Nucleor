@@ -5,6 +5,57 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.80] — 2026-05-04
+
+**RFC NUM-G2 Phase 1 — `math_abs(i64::MIN)` silent miscompute
+fix.** Stdlib edit, no compiler change.
+
+### The bug
+
+Pre-fix, under `NUCLEOR_INT_STRICT_INTRIN=0` (the perf-tuning
+mode used in adopter hot loops), `math_abs(i64::MIN)` silently
+returned `i64::MIN` itself — `0 - i64::MIN` two's-complement
+wrapped, the result stayed negative, violating the implicit
+non-negative contract. `math_gcd` and `math_lcm` inherited the
+miscompute via internal `math_abs` calls.
+
+Strict-intrin mode (the default) already panicked via the
+checked sub. The fix makes behavior consistent across modes.
+
+### The fix
+
+Single explicit i64::MIN guard at the top of `math_abs`:
+
+```nr
+if n == -9223372036854775807 - 1 {
+    panic("math_abs(i64::MIN) is undefined behavior; ...");
+};
+```
+
+Cascades to math_gcd / math_lcm as a side effect — verified.
+
+### Fixtures
+
+| Fixture | Path | rc | Asserts |
+|---|---|---|---|
+| Positive | `tests/features/numg2_math_abs_positive.nr` | 0 | math_abs still correct for 0, ±1, ±42, i64::MAX |
+| Negative — direct | `tests/err/err_numg2_math_abs_imin.nr` | 1 | math_abs(i64::MIN) panics |
+| Negative — cascade | `tests/err/err_numg2_math_gcd_imin.nr` | 1 | math_gcd(i64::MIN, 7) panics via inherited math_abs |
+
+Cold compile of positive 4.32s under multi-agent contention,
+warm 2.43s. Within Job #1.
+
+### Closes
+
+- `findings/promoted/2026-05-04-num-g2-math-abs-imin-confirmed-non-strict-mode-cascade.md`
+  — Phase 1 ship for math_abs (load-bearing). math_pow_int
+  unchecked-multiply (separate sister bug in same finding)
+  remains open; queued for next ship. The cross-cutting risk
+  (env-controlled strict-intrin is global, no per-fn override)
+  is RFC Phase 4 work for v1.x.
+
+Pure stdlib fix; no compiler edit; no self-host involvement.
+
 ## [0.8.79] — 2026-05-04
 
 **T-4 hole canary fixture (no compiler edit).**

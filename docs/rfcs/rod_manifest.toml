@@ -9,7 +9,7 @@
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
 # Total rods: 248
 # Total fn definitions: 2770
-# Total LOC: 11784
+# Total LOC: 11787
 
 [[rod]]
 name           = "activation2"
@@ -1124,7 +1124,7 @@ path           = "stdlib/rods/math.nr"
 description    = "Integer math utilities"
 function_count = 10
 cfile_count    = 0
-loc            = 63
+loc            = 66
 imports        = ["math"]
 
 [[rod]]
