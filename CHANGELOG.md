@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.18] — 2026-05-04
+
+**RFC-0062 Memory-Safety Phase 1 batch — docs closures (G-3,
+G-4, G-5, G-9).** Pure-docs ship; no compiler change. Closes the
+docs-deferred items from the v0.8.17 RFC promotion in one batch
+so the Phase 1 punchlist drops from 7-open to 3-open Phase 1
+items.
+
+### G-4 P1 — OWN-012 diagnostic code reservation
+
+`docs/diagnostics/own-codes.md` is the new canonical reservation
+index for the `OWN-NNN` diagnostic-code namespace. OWN-012 is
+reserved here for the double-free / use-after-drop diagnostic
+with the explain text frozen for Phase 1. Per RFC-0062 §3.3 G-4
+P1: codes are reserved with explain text before they're
+enforced, so the eventual error matches the pre-1.0 docs.
+
+### G-5 P1 — FFI null convention documented
+
+`docs/ffi-conventions.md` documents the null contract every
+C-side `*_rt.c` runtime function adheres to: Nucleor `&T` /
+`&mut T` parameters are never null at the FFI boundary, return
+NULL is the failure signal that wrapping rod code must
+null-check before exposing to safe code.
+
+### G-9 P1 — FFI bounds-check trust documented
+
+`docs/ffi-conventions.md` §2 documents the trust contract: the
+Nucleor compiler emits bounds checks inside Nucleor-callable
+wrappers; the C runtime trusts the index arguments to be
+in-range and does NOT re-check. Direct FFI callers bypass the
+safe-code bounds-check insertion and are documented as an unsafe
+surface.
+
+### G-3 P1 — Heap-aliasing evidence note
+
+`docs/heap-aliasing-evidence.md` documents the pre-v1.0 borrow
+tracker's syntactic-only reasoning and the three known
+limitations: Vec-of-references containing the same target,
+HashMap value re-binding across mutating calls, and cross-rod
+shared registries. Includes adopter mitigation guidance for
+each.
+
+### Phase 1 closure progress
+
+| Gap | Severity | Phase 1 | Ship |
+|---|---|---|---|
+| G-1 auto-drop | CRITICAL | open | — |
+| G-2 lifetime enforce | CRITICAL | DONE | v0.8.17 |
+| G-3 heap alias | HIGH | **DONE** | v0.8.18 |
+| G-4 double-free | HIGH | **DONE** | v0.8.18 |
+| G-5 FFI null | HIGH | **DONE** | v0.8.18 |
+| G-6 Sendable | HIGH | open | — |
+| G-7 unsafe audit | HIGH | DONE | v0.8.17 |
+| G-8 cond divergence | MEDIUM | open | — |
+| G-9 FFI bounds | MEDIUM | **DONE** | v0.8.18 |
+| G-10 cross-fn | MEDIUM | via G-2 | v0.8.17 |
+| G-11 MS-7 stress | LOW | open | — |
+
+Next ships in this lane: G-1 P1 (`#[auto_drop]` opt-in
+stabilization), G-6 P1 (Sendable inventory), G-8 P1 (cond
+divergence test set), G-11 P1 (MS-7 uninit stress fixtures).
+
+No compiler changes; seed unchanged from v0.8.17.
+
 ## [0.8.17] — 2026-05-04
 
 **HIGH PRIORITY — RFC-0062 Memory-Safety / Borrow / Ownership
