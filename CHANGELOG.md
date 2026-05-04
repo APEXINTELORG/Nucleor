@@ -5,6 +5,53 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.95] — 2026-05-04
+
+**stdlib/rods/bloom.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey from v0.8.94 (base64).
+`bloom.nr` (Bloom filter + HyperLogLog) had no existing tests
+— silent regressions in either probabilistic structure would
+be undetectable. Bloom filters in particular are easy to break
+in subtle ways (off-by-one in hash slot indexing, wrong number
+of hash functions, bit-clearing where bit-setting was intended)
+that produce no overt error but degrade FP rate or introduce
+false negatives.
+
+### The fixture
+
+`tests/features/bloom_hll_smoke.nr` covers five textbook
+invariants:
+
+| Test | Invariant |
+|---|---|
+| Bloom empty | empty filter returns `0` for any query |
+| Bloom add+contains | added keys report contained |
+| Bloom no FN | for 50 keys added, every one reports contained (false negatives forbidden) |
+| HLL empty | empty estimator reports `0` |
+| HLL distinct count | adding 100 distinct keys produces a count in [50, 200] (HLL precision=10 std error ≈ 3.25%, wide tolerance for safety) |
+
+All five pass. rc=0. Cold 2.42s.
+
+### Significance
+
+This is the first executed correctness test for the Bloom and
+HLL implementations in `stdlib/runtime/bloom_rt.c`. The "no
+false negatives" invariant is the load-bearing Bloom property;
+its absence would silently produce wrong results in any
+adopter using the filter as a deduplication or membership-
+query short-circuit.
+
+Other zero-coverage rods queued: autodiff / bigint / bm25 /
+bspline / cli / collections / compress / control / crypto /
+csv / datetime / fft / finance / fluid / fmt / fs / geom /
+image / ini / interp / interval / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.94] — 2026-05-04
 
 **stdlib/rods/base64.nr first test coverage.** Pure fixture, no
