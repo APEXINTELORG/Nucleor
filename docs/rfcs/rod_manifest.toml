@@ -7,9 +7,9 @@
 #
 # Schema: see docs/rfcs/rod_manifest_schema.md
 # Companion: docs/rfcs/helper_manifest.toml (ABI surface)
-# Total rods: 230
-# Total fn definitions: 2249
-# Total LOC: 10040
+# Total rods: 242
+# Total fn definitions: 2581
+# Total LOC: 11226
 
 [[rod]]
 name           = "activation2"
@@ -507,6 +507,15 @@ loc            = 68
 imports        = []
 
 [[rod]]
+name           = "differentiable"
+path           = "stdlib/rods/differentiable.nr"
+description    = "RFC-0045 Phase A: differentiability"
+function_count = 15
+cfile_count    = 1
+loc            = 55
+imports        = ["differentiable"]
+
+[[rod]]
 name           = "diffusion"
 path           = "stdlib/rods/diffusion.nr"
 description    = "Diffusion models / rectified flow / DDPM"
@@ -597,6 +606,15 @@ loc            = 17
 imports        = []
 
 [[rod]]
+name           = "energy_budget"
+path           = "stdlib/rods/energy_budget.nr"
+description    = "RFC-0050 Phase A: per-fn energy +"
+function_count = 25
+cfile_count    = 1
+loc            = 58
+imports        = ["energy_budget"]
+
+[[rod]]
 name           = "env"
 path           = "stdlib/rods/env.nr"
 description    = "Environment variable utilities"
@@ -631,6 +649,15 @@ function_count = 12
 cfile_count    = 1
 loc            = 31
 imports        = ["finance"]
+
+[[rod]]
+name           = "fixed_point"
+path           = "stdlib/rods/fixed_point.nr"
+description    = "RFC-0043 Phase A: Q-format fixed-point"
+function_count = 23
+cfile_count    = 0
+loc            = 58
+imports        = ["fixed_point"]
 
 [[rod]]
 name           = "fk_chain"
@@ -699,18 +726,18 @@ imports        = ["geom"]
 name           = "gnn"
 path           = "stdlib/rods/gnn.nr"
 description    = "Graph Neural Network"
-function_count = 0
+function_count = 15
 cfile_count    = 1
-loc            = 16
+loc            = 33
 imports        = ["gnn"]
 
 [[rod]]
 name           = "governance"
 path           = "stdlib/rods/governance.nr"
 description    = "RFC-0060 Phase 2a: optional governance rod."
-function_count = 9
+function_count = 18
 cfile_count    = 1
-loc            = 69
+loc            = 123
 imports        = []
 
 [[rod]]
@@ -726,10 +753,19 @@ imports        = []
 name           = "graph"
 path           = "stdlib/rods/graph.nr"
 description    = "Classical graph algorithms"
-function_count = 12
+function_count = 17
 cfile_count    = 1
-loc            = 25
+loc            = 35
 imports        = ["graph"]
+
+[[rod]]
+name           = "graph_render"
+path           = "stdlib/rods/graph_render.nr"
+description    = "RFC-0061 Tier 2 Phase A: graph-rendering"
+function_count = 15
+cfile_count    = 0
+loc            = 158
+imports        = ["complex", "graph", "graph_render"]
 
 [[rod]]
 name           = "grasp"
@@ -975,6 +1011,15 @@ loc            = 84
 imports        = []
 
 [[rod]]
+name           = "kinematics_frame"
+path           = "stdlib/rods/kinematics_frame.nr"
+description    = "RFC-0046 Phase A: coordinate-frame"
+function_count = 11
+cfile_count    = 0
+loc            = 35
+imports        = ["kinematics_frame"]
+
+[[rod]]
 name           = "klt"
 path           = "stdlib/rods/klt.nr"
 description    = "Lucas-Kanade single-feature tracker."
@@ -1018,6 +1063,15 @@ function_count = 16
 cfile_count    = 0
 loc            = 58
 imports        = ["log"]
+
+[[rod]]
+name           = "logical_qubit"
+path           = "stdlib/rods/logical_qubit.nr"
+description    = "RFC-0054 Phase A: logical-qubit +"
+function_count = 40
+cfile_count    = 1
+loc            = 173
+imports        = ["logical_qubit"]
 
 [[rod]]
 name           = "loss"
@@ -1083,6 +1137,15 @@ loc            = 7
 imports        = []
 
 [[rod]]
+name           = "memspace"
+path           = "stdlib/rods/memspace.nr"
+description    = "RFC-0049 Phase A: memory-space type tags."
+function_count = 14
+cfile_count    = 0
+loc            = 54
+imports        = ["memspace"]
+
+[[rod]]
 name           = "mesh"
 path           = "stdlib/rods/mesh.nr"
 description    = "2D rectangular finite-element meshes + Laplacian assembly + VTK output."
@@ -1108,6 +1171,15 @@ function_count = 5
 cfile_count    = 1
 loc            = 36
 imports        = ["mobile"]
+
+[[rod]]
+name           = "model_provenance"
+path           = "stdlib/rods/model_provenance.nr"
+description    = "RFC-0051 Phase A: foundation-model"
+function_count = 31
+cfile_count    = 1
+loc            = 125
+imports        = ["model_provenance"]
 
 [[rod]]
 name           = "moe"
@@ -1171,6 +1243,15 @@ function_count = 2
 cfile_count    = 1
 loc            = 5
 imports        = ["multigrid"]
+
+[[rod]]
+name           = "neuromorphic"
+path           = "stdlib/rods/neuromorphic.nr"
+description    = "RFC-0053 Phase A: neuromorphic /"
+function_count = 26
+cfile_count    = 1
+loc            = 127
+imports        = ["neuromorphic"]
 
 [[rod]]
 name           = "nn"
@@ -1263,6 +1344,15 @@ loc            = 24
 imports        = ["os_info"]
 
 [[rod]]
+name           = "overflow"
+path           = "stdlib/rods/overflow.nr"
+description    = "RFC-0044 Phase A: per-BinOp overflow-mode"
+function_count = 19
+cfile_count    = 0
+loc            = 61
+imports        = ["overflow"]
+
+[[rod]]
 name           = "path"
 path           = "stdlib/rods/path.nr"
 description    = "Path manipulation utilities"
@@ -1315,6 +1405,15 @@ function_count = 8
 cfile_count    = 1
 loc            = 30
 imports        = ["pgs3"]
+
+[[rod]]
+name           = "photonic"
+path           = "stdlib/rods/photonic.nr"
+description    = "RFC-0052 Phase A: photonic-compute type"
+function_count = 26
+cfile_count    = 1
+loc            = 69
+imports        = ["photonic"]
 
 [[rod]]
 name           = "physics"
@@ -1821,6 +1920,15 @@ loc            = 33
 imports        = ["symbolic"]
 
 [[rod]]
+name           = "target_caps"
+path           = "stdlib/rods/target_caps.nr"
+description    = "RFC-0048 Phase A: hardware capability queries."
+function_count = 35
+cfile_count    = 0
+loc            = 64
+imports        = ["os_info"]
+
+[[rod]]
 name           = "taylor"
 path           = "stdlib/rods/taylor.nr"
 description    = "Validated Taylor Model ODE Integrator"
@@ -1977,9 +2085,9 @@ imports        = []
 name           = "units"
 path           = "stdlib/rods/units.nr"
 description    = "SI Unit Conversion"
-function_count = 45
+function_count = 68
 cfile_count    = 1
-loc            = 51
+loc            = 119
 imports        = ["units"]
 
 [[rod]]

@@ -5,6 +5,42 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.98] — 2026-05-04
+
+**Bootstrap fix — compile_error! false-positive on Linux self-compilation
+(src_path exclusion guard).**
+
+Pre-fix surface: `compile_error!(` halt (added v0.7.88) used a raw
+textual scan of the resolved source for the literal byte sequence
+`compile_error!(`. When the compiler compiled itself
+(`nucleor_s1_compiler.nr`) the search pattern appeared in string
+literals and comments inside the compiler source, causing the check
+to fire unconditionally — crashing every Linux bootstrap attempt.
+The Windows binary (committed as `bin/nucleor.exe`) was unaffected
+because it was already compiled; only attempts to rebuild the compiler
+from source (self-hosting, Linux bootstrap, CI) hit the false-positive.
+
+Post-fix workaround pointer: two-part fix.
+
+1. **Compiler source** (`compiler/nucleor_s1_compiler.nr`): added a
+   `str_ends_with(src_path, "nucleor_s1_compiler.nr") == 0` guard
+   around the compile_error! check so the scan is skipped when
+   compiling the compiler itself. Also replaced the search-string
+   literal with `str_concat("compile_error", "!(")` so the pattern no
+   longer appears verbatim in the source text.
+
+2. **Seed IR** (`bootstrap/nucleor_s1_seed.ll`): refreshed from
+   round-2 fixed-point incorporating all changes through v0.7.98.
+
+Fixed-point md5: `607abd04c8d47e44d88ded8c6c01d4c9`.
+
+Fixture: `tests/fixtures/v0797_linux_bootstrap_fix.nr` — positive
+smoke: normal user code (no compile_error invocation) compiles and
+exits 0. The existing `tests/fixtures/v0788_compile_error_halt.nr`
+negative fixture still fires correctly (src_path is not the compiler).
+
+Cold (this machine): retained at 3.0–3.1s (cache-hit path).
+
 ## [0.7.97] — 2026-05-04
 
 **Punchlist forward — RFC-0054 Phase A: logical-qubit +
