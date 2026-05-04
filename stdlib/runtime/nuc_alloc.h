@@ -18,6 +18,14 @@
 #ifndef NUC_ALLOC_H
 #define NUC_ALLOC_H
 
+/* Enable GNU extensions on Linux/POSIX so that SCHED_IDLE and other
+   glibc extensions are visible. Must come before any system header. */
+#ifndef _WIN32
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#endif
+
 /* Suppress MSVC's CRT_INSECURE_DEPRECATE on getenv/etc. nucleor_llvm_rt.c
    already does this for itself; but when this header is force-included
    into other rt TUs that DON'T set the macro, the deprecation warnings

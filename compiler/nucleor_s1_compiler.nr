@@ -2582,9 +2582,23 @@ fn parse_type(tokens: Vec<i32>, pos: i64) -> Vec<i32> {
     // v0.3.92/v0.4.112: trait object syntax `dyn Trait`.
     // Preserve the `dyn` marker so Box<dyn Trait> can be distinguished
     // from Box<Trait> during type checking.
+    // v0.7.15: consume any `+ Bound` / `+ 'lifetime` suffixes
+    // (e.g. `dyn Write + Send`, `dyn Trait + Sync + 'static`).
+    // Additional bounds are accepted and silently stripped — vtable dispatch
+    // and Send/Sync enforcement are deferred to the v1.x trait-object ship.
+    // Pre-fix: `&dyn Trait + Send` failed with NR020 "expected `,` got `+`".
     if pk(tokens, pos) == 1 && str_eq(pkv(tokens, pos), "dyn") == 1 {
         let mut tr: Vec<i32> = parse_type(tokens, pos + 1);
-        return pr(pr_pos(tr), str_concat("dyn ", pr_val(tr)));
+        let mut dyn_pos: i64 = pr_pos(tr);
+        while pk(tokens, dyn_pos) == 20 {
+            dyn_pos = dyn_pos + 1;
+            if pk(tokens, dyn_pos) == 98 {
+                dyn_pos = dyn_pos + 1;
+            } else if pk(tokens, dyn_pos) == 1 {
+                dyn_pos = dyn_pos + 1;
+            };
+        };
+        return pr(dyn_pos, str_concat("dyn ", pr_val(tr)));
     };
     // v0.3.83: fn-pointer type syntax `fn(T1, T2) -> R`. Nucleor stores
     // function pointers as i64, so we consume the syntactic shape and
@@ -25576,7 +25590,7 @@ fn host_stack_link_flag() -> str {
     // needed; -Wl,--build-id=none could go further but isn't required
     // for byte-reproducibility of two builds on the same machine.
     if host_is_windows() == 1 { return " -Wl,/STACK:16777216 -Wl,/Brepro"; };
-    return " -Wl,-z,stacksize=16777216";
+    return " -Wl,-z,stacksize=16777216 -lm -lpthread";
 }
 
 fn host_fast_link_flag() -> str {

@@ -3,6 +3,9 @@
 // This is the bridge between LLVM IR output and the OS.
 // Target: x86_64-pc-windows-msvc (also works on Linux with minor changes)
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
@@ -3849,23 +3852,30 @@ long long __nucleor_cpu_count(void) { return (long long)sysconf(_SC_NPROCESSORS_
 #endif
 
 // === Args ===
-// Use CRT globals __argc/__argv — populated before main() runs
+#ifdef _WIN32
+// MSVC CRT globals are populated before main() runs.
 extern int __argc;
 extern char **__argv;
-
-void __nucleor_init_args(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
-}
-
-long long __nucleor_args_count(void) {
-    return (long long)__argc;
-}
-
+void __nucleor_init_args(int argc, char **argv) { (void)argc; (void)argv; }
+long long __nucleor_args_count(void) { return (long long)__argc; }
 const char *__nucleor_args_get(long long i) {
     if (i < 0 || i >= __argc) return "";
     return __argv[(int)i];
 }
+#else
+// POSIX: store args forwarded from the Nucleor-emitted main() wrapper.
+static int _nuc_argc = 0;
+static char **_nuc_argv = NULL;
+void __nucleor_init_args(int argc, char **argv) {
+    _nuc_argc = argc;
+    _nuc_argv = argv;
+}
+long long __nucleor_args_count(void) { return (long long)_nuc_argc; }
+const char *__nucleor_args_get(long long i) {
+    if (i < 0 || i >= _nuc_argc || !_nuc_argv) return "";
+    return _nuc_argv[(int)i];
+}
+#endif
 
 // === getcwd ===
 // Returns the current working directory as a string. Used by tools that
