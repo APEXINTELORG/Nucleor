@@ -5,6 +5,51 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.31] — 2026-05-04
+
+**RFC-0062 G-1 Phase 2b-1 — `#[manual_drop]` reserved attribute.**
+First Wave B prep landing: parses adopter use of the future
+opt-out attribute and surfaces an info diagnostic so adopters
+can pre-mark code before the default-flip ship.
+
+### What's enforced today (Phase 2b-1)
+
+```
+info[MANUAL-DROP-RESERVED]: `#[manual_drop]` markers in build: N
+  Per RFC-0062 G-1 Phase 2b-1: `#[manual_drop]` is reserved for
+  the future Phase 2b-3 default-flip ship. Today the attribute
+  is a NO-OP — every fn still requires explicit `#[auto_drop]`
+  to receive auto-drop semantics. After the default flip,
+  `#[manual_drop]` becomes the opt-out for fns that need to
+  skip auto-drop (e.g. fns that already do all-explicit
+  `vec_free` / `hashmap_free` and want zero generated cleanup).
+  Adopters can add the attribute today to lock semantics across
+  the upcoming flip.
+```
+
+This is the **first non-Phase-2a landing** for the cornerstone
+RFC. It's a no-behavior-change ship that sets up Wave B's
+default-flip. Sequence:
+
+- v0.8.31 (this ship): parse `#[manual_drop]`, info-only
+- vNext: implement `#[auto_drop]` v2 — same pipeline, with
+  `#[manual_drop]` as the explicit suppress
+- vNext+1: flip default — every fn auto-drops unless `#[manual_drop]`
+- v1.0 cut: `#[manual_drop]` becomes deprecated; only
+  `unsafe { }` blocks can skip drop
+
+### Smoke fixture
+
+`tests/fixtures/v0831_manual_drop_reserved.nr` — `#[manual_drop]`
+on a fn with explicit `vec_free`. Build emits both OWN-012 and
+MANUAL-DROP-RESERVED info. rc=7.
+
+### Perf
+
+Cold 3.93s, hot 0.40s. Within Job #1.
+
+Fixed-point md5: `e1accb49ca6b80fa8e5bb54fbaf95d3f`.
+
 ## [0.8.30] — 2026-05-04
 
 **RFC-0062 Wave A reinforcement — signal lock-in fixtures.**
