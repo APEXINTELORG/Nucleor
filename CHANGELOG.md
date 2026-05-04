@@ -5,6 +5,48 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.44] — 2026-05-04
+
+**Defensive halt — impl-target type with lifetime in its generic
+args (`impl<'a> R<'a> { ... }`) now produces a clean halt with a
+drop-the-lifetime workaround pointer.**
+
+Pre-fix: writing `impl<'a> R<'a> { fn get(self) -> &'a str { ... } }`
+surfaced as wrong-class `error[NR020]: parse error: expected '{',
+got token 98` (token 98 is the lifetime/label token) because
+`parse_type` doesn't handle lifetimes in generic-arg position.
+Note: lifetimes in OTHER positions still work — `struct R<'a>`,
+`&'a T`, fn-param `&'a T`, fn-return `&'a T`, where-clause `T: 'a`
+all build cleanly.
+
+Post-fix: `parse_impl_block` peeks ahead through the angle-bracket
+group of the impl-target type and detects token 98 inside. Halts
+with a tailored diagnostic before the broken `parse_type` call:
+
+```nucleor
+// Pre-fix wrong-class:
+struct R<'a> { v: &'a str }
+impl<'a> R<'a> { fn get(self) -> &'a str { ... } }   // ← NR020
+
+// Post-fix workaround — drop the lifetime from the target:
+impl<'a> R { fn get(self) -> &'a str { ... } }       // builds cleanly
+```
+
+The impl-head `<'a>` already binds the lifetime; redeclaring it on
+the target type is purely advisory under Nucleor's i64-everywhere
+ABI. Forward-roadmap: lifetime-as-generic-arg substrate is part of
+the v1 borrow-checker work.
+
+### Fixture
+
+`tests/fixtures/v0744_impl_lt_target_halt.nr` — negative fixture
+for `impl<'a> R<'a> { ... }` (fires lifetime-in-target halt with
+drop-`'a` workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `a0cd44364cfbc92dc67f3e6f9226547c`.
+
 ## [0.7.43] — 2026-05-04
 
 **Defensive halt — Rust named format-arg `format!("{x}", x = 5)`
