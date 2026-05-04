@@ -5,6 +5,97 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.71] — 2026-05-04
+
+**G-4 readiness doc — honest assessment after empirical testing.**
+Pure docs ship. Updates `docs/g4-double-free-guard-readiness.md`
+with v0.8.70 testing findings.
+
+### The empirical finding
+
+Tested a handoff pattern under flip + guard:
+
+```nucleor
+fn build_into(reg: Vec<i32>) -> i64 {
+    let mut local: Vec<i32> = Vec::new();
+    local.push(1);
+    vec_push(reg, local);  // hands local off to reg
+    return 0;
+}
+```
+
+Under `NUC_AUTO_DROP_DEFAULT=1 + NUC_VEC_FREE_GUARD=1`:
+- Auto-drop fires on `local` at fn exit (no `#[manual_drop]`)
+- `vec_push(reg, local)` already stored local's pointer in reg
+- After fn exit, reg contains a dangling pointer
+- **Guard does NOT fire** — only one explicit free occurred
+- `vec_len(&registry)` reads the freed NVec's sentinel cap;
+  returns 0xDEADBEEF cast to i64 (wrong but no crash)
+
+### What this means
+
+The double-free guard catches `vec_free(v); vec_free(v)` —
+two explicit frees. **It does NOT catch silent dangling
+pointers from handoff patterns** where the registry holds
+the only reference and auto-drop fires once.
+
+The guard is necessary but **not sufficient** for unconditional
+default-flip safety.
+
+### What's actually needed
+
+**Path A — proper dataflow handoff detection at compile time:**
+Track in `lower_fn` when a local Vec is `vec_push`'d / `vec_set`'d
+into a parameter. Conservatively disable auto-drop for that
+local. This is the right semantic answer.
+
+**Path B — runtime conservative-skip:** Same logic but at
+runtime — auto-drop pipeline checks "did this local cross a
+vec_push boundary?" before emitting drop. Hack but safe.
+
+Path A is the proper fix. Tracked as the load-bearing item
+to unblock unconditional default-flip — substantial multi-
+ship work.
+
+### Honest memory-safety state
+
+```
+Static visibility (audits)               COMPLETE
+#[manual_drop] suppress                  COMPLETE
+Per-fn safety audit (textual heuristic)  COMPLETE
+Cache-key correctness                    COMPLETE v0.8.64
+Vec + HashMap double-free guard          COMPLETE v0.8.68/69
+String/Box/BTree double-free guard       QUEUED
+PROPER dataflow handoff analysis         BLOCKING
+Unconditional default-flip               BLOCKED on dataflow
+Phase 3 / Phase 4                        v0.9 / v1.0
+```
+
+The cornerstone-RFC memory safety has advanced from "shape-
+only" to "extensive visibility + opt-in safety net + opt-in
+flip." The remaining work is well-scoped: proper per-fn
+dataflow handoff analysis. Multi-ship effort, queued.
+
+### Adopter discipline today
+
+```bash
+# Default — zero overhead, leak risk on unfreed locals
+nucleor build my_code.nr
+
+# Opt-in flip — heals leaks but may dangle pointers in
+# handoff patterns. Use with caution.
+NUC_AUTO_DROP_DEFAULT=1 nucleor build my_code.nr
+
+# Opt-in guard — catches explicit double-free at runtime
+# (not silent dangling). Stage-1 testing of code under
+# the future default-flip semantics.
+NUC_VEC_FREE_GUARD=1 ./compiled_binary
+```
+
+### Perf
+
+No compiler change. Cold/hot bands unchanged.
+
 ## [0.8.70] — 2026-05-04
 
 **G-4 double-free guard — smoke fixtures + readiness doc.**
