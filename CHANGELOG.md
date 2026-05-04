@@ -5,6 +5,69 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] — 2026-05-04
+
+**Punchlist forward — RFC-0057 Phase A: enclave types + info-flow
+label surface (rod + runtime).**
+
+The full RFC-0057 ship adds language-level `Secret<T>` /
+`Public<T>` / `Confidential<T>` / `ExportControlled<T>` info-flow
+labels + `@enclave(engine)` placement attribute + `@attested`
+quote-emit attribute (~700 LOC compiler + ~900 LOC stdlib +
+per-vendor attestation parsers). Phase A (this rod + runtime)
+lands the canonical type tags + enclave engine registry +
+secret-wrap + declassify audit log adopters can use today.
+
+Sister to RFC-0052 / 53 / 54 / 55 / 56 Phase A — sixth V2
+frontier Tier-B follow-on after the Tier-A close-out at v0.7.90.
+
+### Surface added in `stdlib/rods/enclave.nr`
+
+- 7 enclave engine tags: `enclave_engine_{tdx, sev_snp,
+  secure_enclave, h100_confidential, arm_cca, software,
+  unknown}` (1..6 + 0) + `enclave_engine_name(id) -> str`.
+- 4 info-flow label tags: `info_flow_{public, confidential,
+  secret, export_controlled}` (1..4) +
+  `info_flow_label_name(id) -> str`.
+- Flow predicates (Phase A pre-flight; Phase B promotes to
+  type-level enforcement):
+  - `info_flow_can_flow(from, to) -> i64` (Public→anything;
+    Confidential→Confidential or Secret; Secret→Secret;
+    ExportControlled→ExportControlled).
+  - `info_flow_promote(a, b) -> i64` (more-sensitive wins;
+    ExportControlled > Secret > Confidential > Public).
+- `EnclaveHandle { handle, engine }` + `enclave_create(engine_id)`
+  / `_close` / `_count` / `_engine`.
+- `AttestationQuote { quote_id, engine }` + `enclave_attest(e)`
+  / `enclave_verify_quote(q, want_measurement)`.
+- `SecretHandle { handle, label }` + `secret_wrap(value, label)`
+  / `secret_label(s)` / `secret_unwrap_in_enclave(s, e)` /
+  `declassify(s, justification)` (sanctioned downgrade with
+  audit log).
+- Audit log: `declassify_log_count` / `declassify_log_get(idx)
+  -> str` / `secret_clear`.
+
+### Runtime: `stdlib/runtime/enclave_rt.c`
+
+Process-local enclave handle table (max 64) + secret-value
+table (max 1024) + declassify audit log (max 256 entries).
+Phase A is software-only; Phase B routes to per-vendor
+attestation services.
+
+### Smoke fixture
+
+`tests/fixtures/v0801_rfc0057_enclave_smoke.nr` — exercises
+all 7 engine tags + 4 info-flow labels + 6 flow_can_flow
+cases + 4 flow_promote cases + enclave create/attest/verify
++ secret wrap/unwrap/declassify with audit-log round-trip
+(append + read-back + clear). rc=0.
+
+No new defensive halt this ship — RFC-0057 forward progress is
+the priority. Cron may concurrently ship halts.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change → seed unchanged, fixed-point unchanged.
+
 ## [0.8.0] — 2026-05-04
 
 **Punchlist forward — RFC-0056 Phase A: deterministic-replay
