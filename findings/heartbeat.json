@@ -1,8 +1,8 @@
 {
   "instructions_read": "v0.6.72-post-v0.7.13-refresh",
-  "current_task": "q8_c_string_literal_clean_halt",
+  "current_task": "q8_q10_prefix_and_attr_clean_halts",
   "roadmap_phase": "v2_post_investigation",
-  "current_punchlist_item": "Q8",
+  "current_punchlist_item": "Q8/Q10",
   "edits_in_main_tree": false,
   "rebased_on_origin_main": "41b83459",
   "perf_baseline_pre_task": {
@@ -46,6 +46,18 @@
       "direct_negative_build": "pass_expected_exit_1",
       "diagnostic": "nucleor: C string `c\"...\"` not yet supported",
       "fixture": "tests/err/err_c_string_literal.nr",
+      "note": "No full verify run in this slice to avoid overlapping active main verification."
+    },
+    "q10_inline_cold_attributes": {
+      "direct_negative_build": "pass_expected_exit_1",
+      "diagnostics": [
+        "nucleor: inline attribute not yet supported",
+        "nucleor: cold attribute not yet supported"
+      ],
+      "fixtures": [
+        "tests/err/err_inline_attribute.nr",
+        "tests/err/err_cold_attribute.nr"
+      ],
       "note": "No full verify run in this slice to avoid overlapping active main verification."
     },
     "verify": {
