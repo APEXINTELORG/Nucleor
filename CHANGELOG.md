@@ -5,6 +5,49 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.37] — 2026-05-04
+
+**Defensive halt — Rust path type in type-annotation position
+(`std::collections::HashMap<K,V>`, `core::option::Option<T>`,
+`crate::MyType`) now produces a clean halt with an unqualified-name
+workaround pointer instead of wrong-class
+`error[NR020]: parse_primary cannot start an expression at token kind 46`.**
+
+Pre-fix: writing `let m: std::collections::HashMap<i64, i64>` caused
+`parse_type` to consume only the first identifier segment (`std`) and
+return it, leaving `::collections::HashMap<i64, i64>` unconsumed. The
+let-binding parser then saw `::` (token 46) where `=` was expected;
+control cascaded to `parse_primary` with `::` as the start token,
+triggering the wrong-class NR020. Sister to the v0.6.96 halt that
+covers the expression position (`std::collections::HashMap::new()`).
+
+Post-fix: `parse_type` checks `pk(tokens, p2) == 46` (i.e. `::` immediately
+follows the first identifier) and halts cleanly with an actionable
+diagnostic listing unqualified equivalents for common stdlib path types.
+
+```nucleor
+// Pre-fix wrong-class:
+let m: std::collections::HashMap<i64, i64> = HashMap::new();
+//     ^ NR020: parse_primary cannot start an expression at token kind 46
+
+// Post-fix workaround — drop the namespace prefix:
+let m: HashMap<i64, i64> = HashMap::new();
+//     ^ compiles cleanly
+```
+
+Forward-roadmap: Rust-stdlib namespace shim / path-type resolver to
+auto-strip common stdlib prefixes arrives with the v1 type-resolver pass.
+
+### Fixture
+
+`tests/fixtures/v0737_path_type_halt.nr` — negative fixture
+for `let m: std::collections::HashMap<i64, i64>` (fires clean halt with
+unqualified-name workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `1bdcaa2a3718043aa3c415c420046a98`.
+
 ## [0.7.36] — 2026-05-04
 
 **Feature acceptance — `todo!()` and `unimplemented!()` macros now
