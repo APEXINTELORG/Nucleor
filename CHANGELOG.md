@@ -5,6 +5,71 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.99] — 2026-05-04
+
+**Punchlist forward — RFC-0055 Phase A: distributed collectives
++ sharding-spec surface (rod-only, single-rank pass-through).**
+
+The full RFC-0055 ship adds language-level
+`ShardedTensor<T, Shape, ShardSpec>` + topology-aware dispatch
+(NCCL / RCCL / MPI / RDMA) + fault-domain replication (~600 LOC
+compiler + ~1500 LOC stdlib + per-backend bindings). Phase A
+(this rod + runtime) lands the canonical collectives surface +
+ShardSpec tags + rank/world_size scaffolding. On a single rank
+collectives are pass-through identity; the runtime increments a
+call counter so test harnesses can confirm the surface is being
+exercised.
+
+Sister to RFC-0052 / 53 / 54 Phase A — fourth V2 frontier
+Tier-B follow-on after the Tier-A close-out at v0.7.90.
+
+### Surface added in `stdlib/rods/distributed.nr`
+
+- 8 ReduceOp tags: `reduce_op_{sum, prod, min, max, mean, band,
+  bor, bxor}` (1..8) + `reduce_op_name(id) -> str`.
+- 4 ShardSpec kind tags: `shard_spec_kind_{replicate, shard,
+  pipeline, expert_parallel}` (1..4).
+- 4 ShardSpec constructors that pack kind + param into a single
+  i64: `shard_spec_replicate`, `_shard(axis)`, `_pipeline(stage)`,
+  `_expert_parallel(num_experts)`. Decoders:
+  `shard_spec_kind(s)`, `shard_spec_param(s)`,
+  `shard_spec_kind_name(kind)`.
+- Process-group init: `distributed_init(rank, world_size)` +
+  `distributed_rank()` / `_world_size()` / `_barrier()` /
+  `_call_count()` / `_reset()`.
+- 5 collectives (identity on world_size=1, barrier-incrementing):
+  `all_reduce(handle, op)`, `all_gather(handle)`,
+  `reduce_scatter(handle, op)`, `broadcast(handle, root)`,
+  `all_to_all(handle)`.
+- 4 sharding helpers returning `ShardedHandle { handle, spec }`:
+  `tensor_parallel(handle, axis)`, `pipeline_parallel(handle,
+  stage)`, `expert_parallel(handle, num_experts)`,
+  `replicate(handle)`. Plus `sharded_handle_inner` /
+  `sharded_handle_spec` accessors.
+- 2 RDMA stubs: `rdma_send(handle, peer_rank)`,
+  `rdma_recv(handle, peer_rank)`.
+
+### Runtime: `stdlib/runtime/distributed_rt.c`
+
+Process-local `(rank, world_size, call_count)` state. Single-
+rank pass-through; Phase B promotes to per-backend dispatch.
+
+### Smoke fixture
+
+`tests/fixtures/v0799_rfc0055_distributed_smoke.nr` — exercises
+all 8 ReduceOps + 4 ShardSpec round-trips + init/rank/world_size
++ all 5 collectives + 2 RDMA stubs (call counter = 7) + 4
+sharding helpers + spec decode. rc=0.
+
+No new defensive halt this ship — RFC-0055 forward progress is
+the priority. Cron concurrently shipped v0.7.98 with a
+compile_error! src_path guard (see entry below) that fixes the
+v0.7.88 textual-scan false-positive on Linux self-compilation.
+
+Cold (this machine): retained at 3.0–3.1s under 4s job #1.
+No compiler.nr change in this ship → seed unchanged, fixed-point
+unchanged.
+
 ## [0.7.98] — 2026-05-04
 
 **Bootstrap fix — compile_error! false-positive on Linux self-compilation
