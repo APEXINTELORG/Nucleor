@@ -5,6 +5,47 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.57] — 2026-05-04
+
+**Defensive halt — `where`-clause on enum declaration (`enum E<T>
+where T: Copy { ... }`) now produces a clean halt with a hoist-
+to-inline-bound workaround pointer.**
+
+Pre-fix: writing `enum E<T> where T: Copy { A(T) }` surfaced as
+wrong-class `error[NR020]: parse error: expected '{', got
+identifier` because `parse_enum_decl` had no `where` branch.
+Struct decls (`struct S<T> where T: Copy { ... }`) and fn decls
+(`fn h<T>() where T: Copy { ... }`) already accept `where`-
+clauses; only enum decls didn't.
+
+Post-fix: `parse_enum_decl` checks for the `where` ident at the
+post-generics position and halts cleanly with a hoist-bound-to-
+generic workaround:
+
+```nucleor
+// Pre-fix wrong-class:
+enum E<T> where T: Copy { A(T) }     // ← NR020 wrong-class
+
+// Post-fix workaround — inline generic bound:
+enum E<T: Copy> { A(T) }              // builds cleanly
+enum E<T: Copy + Clone> { A(T) }      // multi-bound also works
+```
+
+Forward-roadmap: parse_enum_decl needs the same `skip_where_clause`
+call as parse_struct_decl (sister to v0.6.46 work). Both forms are
+semantically equivalent under Nucleor's i64-everywhere ABI today.
+
+### Fixture
+
+`tests/fixtures/v0757_enum_where_halt.nr` — negative fixture for
+`enum E<T> where T: Copy { A(T) }` (fires enum-where halt with
+inline-bound workaround, not NR020).
+
+### Fixed-point + perf
+
+Round-2 self-host fixed-point md5 `d37ad3e594946ed59a37dd169c88d96d`.
+Cold 3.87s / peak 308MB.
+
 ## [0.7.56] — 2026-05-04
 
 **Defensive halt — local `static N: T = ...;` inside a fn body
