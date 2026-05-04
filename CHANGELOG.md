@@ -5,6 +5,55 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.112] — 2026-05-04
+
+**stdlib/rods/bits.nr first test coverage.** Pure fixture, no
+compiler / runtime / stdlib edit.
+
+### The gap
+
+Continuing the zero-coverage rod survey. `bits.nr` (popcount,
+leading/trailing zeros, byte_swap, rotate, msb/lsb_index,
+power-of-two helpers) had no existing tests. Bit-twiddling is
+correctness-critical for compression, checksums, low-level
+encoding.
+
+### The fixture
+
+`tests/features/bits_smoke.nr` covers seven invariant classes:
+
+| Test | Path |
+|---|---|
+| popcount | `0→0`, `1→1`, `7→3`, `255→8`, `(-1)→64` (all bits) |
+| leading/trailing zeros | `lz(0)=64`, `lz(1)=63`, `tz(0)=64`, `tz(1)=0`, `tz(8)=3` |
+| byte_swap involutive | `bs(bs(v)) == v` for any v (positive + negative) |
+| rotate round-trip | `rot_right(rot_left(v, n), n) == v` for n=7 and 31 |
+| msb/lsb index | -1 for 0; correct bit position for `1`, `8` |
+| is_power_of_two | `0→0, 1→1, 2→1, 3→0, 4→1, 255→0, 256→1` |
+| next_power_of_two | `1→1, 2→2, 3→4, 5→8` |
+
+All seven pass. rc=0. Cold 1.48s.
+
+### Significance
+
+Catches silent regressions in:
+
+- LLVM intrinsic plumbing (popcount/clz/ctz/bswap/rotate map
+  to LLVM intrinsics; any miswire surfaces here)
+- Edge cases at zero (lz/tz=64 for 0; msb/lsb_index returns
+  -1; popcount=0)
+- Negative-input handling (i64::MIN, -1 all-ones)
+- Power-of-two recognition correctness (popcount==1)
+
+These primitives underpin compression rods, hash functions,
+and low-level encoders — a regression here would silently
+corrupt every consumer.
+
+Other zero-coverage rods queued: autodiff / cli / collections /
+control / fluid / fs / ...
+
+Pure fixture; no compiler / runtime / stdlib edit.
+
 ## [0.8.111] — 2026-05-04
 
 **stdlib/rods/image.nr first test coverage.** Pure fixture, no
