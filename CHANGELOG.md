@@ -5,6 +5,62 @@ All notable changes to Nucleor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.6] — 2026-05-04
+
+**Phase B step-1 — RFC-0050 `@energy` / `@thermal` build-time
+audit count.**
+
+Same shape as v0.8.5 RFC-0045 `@differentiable` audit. The
+lex-time `@`-attribute skip already accepts the syntax
+silently; this Phase B step-1 adds a build-time count + one-
+line audit print, addressing the v0.7.89 Phase A "discovery"
+gap (the runtime budget registry only surfaces fns whose body
+explicitly calls `energy_budget_declare` / `thermal_budget_declare`;
+the audit catches every annotated fn whether-or-not the body
+calls the rod).
+
+Build summary lines (when count > 0):
+
+```
+audit: @energy budgets in build: 2
+audit: @thermal budgets in build: 1
+```
+
+Phase B step-2 (deferred): parse the literal value + unit
+(`max=2mJ`, `max_temp=85C`, `min_temp=-40C`) and store as fn
+metadata for the call-graph energy estimator. ~150 LOC.
+
+### Implementation
+
+Refactors `differentiable_audit_count` to a generic
+`simple_attribute_audit_count(src, needle)` substring counter.
+Sister to the v0.7.98 `compile_error!` self-host fix: needles
+constructed via `str_concat("@ene", "rgy(")` /
+`str_concat("@therm", "al(")` so the verbatim pattern doesn't
+appear in compiler.nr.
+
+Queried in `load_resolved_source_bundle` after
+`expand_async_syntax` returns. When non-zero, the build emits
+the matching summary; no allocation when zero.
+
+### Smoke fixture
+
+`tests/fixtures/v0806_rfc0050_phaseB_audit_smoke.nr` — 2 fns
+tagged `@energy(max=...)`, 1 fn tagged
+`@thermal(min_temp=-40C, max_temp=85C)`. Runtime returns
+40+8+5=53. Audit summary lines will appear in build log once
+the binary is rebuilt from the new seed.
+
+### Status
+
+Adopters using the existing `bin/nucleor.exe` (built from a
+pre-v0.8.5 seed) won't see the audit messages until the next
+perf-integration ship rebuilds the binary. The seed itself
+contains the Phase B logic; T1.7 fixed-point validates.
+
+Fixed-point md5: `9B68CE0454C0BA632BC6E6065AD4B4F9`.
+Cold 3.09s / peak 305MB (under 4s job #1).
+
 ## [0.8.5] — 2026-05-04
 
 **First Phase B compiler-side ship — RFC-0045 Phase B step-1:
