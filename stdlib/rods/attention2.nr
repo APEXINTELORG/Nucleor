@@ -24,9 +24,14 @@
 // on every flash-attention call. RFC reference: NUM/ML-1 in
 // docs/rfcs/gap-analyses/Nucleor_Tensor_ML_Autodiff_Gap_Analysis_and_RFC_2026-05-04.md.
 extern fn nuc_attn_flash(Q_h: i64, K_h: i64, V_h: i64, seq_q: i64, seq_k: i64, d_k: i64, block_size: i64) -> i64;
-extern fn nuc_attn_gqa(Q_h: i64, K_h: i64, V_h: i64, seq_len: i64, d_model: i64, n_q_heads: i64, n_kv_heads: i64) -> i64;
-extern fn nuc_attn_mla_compress(hidden_h: i64, W_down_h: i64, seq_len: i64, d_model: i64, d_latent: i64) -> i64;
-extern fn nuc_attn_mla_decompress(latent_h: i64, W_up_h: i64, seq_len: i64, d_latent: i64, d_model: i64) -> i64;
+// v0.8.66 ML-1 sister fixes (per probe finding 2026-05-04-ml-1):
+// gqa rod sig now matches C 8-arg sig (seq_q + seq_k split, head_dim
+// instead of d_model). mla_compress / mla_decompress rod sigs now
+// match C 4-arg sigs (the seq_len param was rod-side fiction; C never
+// used it).
+extern fn nuc_attn_gqa(Q_h: i64, K_h: i64, V_h: i64, seq_q: i64, seq_k: i64, head_dim: i64, n_q_heads: i64, n_kv_heads: i64) -> i64;
+extern fn nuc_attn_mla_compress(hidden_h: i64, W_down_h: i64, d_model: i64, d_latent: i64) -> i64;
+extern fn nuc_attn_mla_decompress(latent_h: i64, W_up_h: i64, d_latent: i64, d_out: i64) -> i64;
 extern fn nuc_attn_sliding_window(Q_h: i64, K_h: i64, V_h: i64, seq_len: i64, d_k: i64, window: i64) -> i64;
 extern fn nuc_attn_differential(Q_h: i64, K_h: i64, V_h: i64, seq_len: i64, d_k: i64, lambda_bits: i64) -> i64;
 
@@ -42,14 +47,22 @@ fn attn_flash(Q: i64, K: i64, V: i64, seq: i64, d_k: i64, block: i64) -> i64 {
 fn attn_flash_cross(Q: i64, K: i64, V: i64, seq_q: i64, seq_k: i64, d_k: i64, block: i64) -> i64 {
     return nuc_attn_flash(Q, K, V, seq_q, seq_k, d_k, block);
 }
-fn attn_gqa(Q: i64, K: i64, V: i64, seq: i64, d_model: i64, n_q: i64, n_kv: i64) -> i64 {
-    return nuc_attn_gqa(Q, K, V, seq, d_model, n_q, n_kv);
+// Self-attention convenience wrapper for GQA. For cross-attention,
+// call attn_gqa_cross with distinct seq_q/seq_k.
+fn attn_gqa(Q: i64, K: i64, V: i64, seq: i64, head_dim: i64, n_q: i64, n_kv: i64) -> i64 {
+    return nuc_attn_gqa(Q, K, V, seq, seq, head_dim, n_q, n_kv);
 }
-fn attn_mla_compress(h: i64, W_down: i64, seq: i64, d_model: i64, d_latent: i64) -> i64 {
-    return nuc_attn_mla_compress(h, W_down, seq, d_model, d_latent);
+fn attn_gqa_cross(Q: i64, K: i64, V: i64, seq_q: i64, seq_k: i64, head_dim: i64, n_q: i64, n_kv: i64) -> i64 {
+    return nuc_attn_gqa(Q, K, V, seq_q, seq_k, head_dim, n_q, n_kv);
 }
-fn attn_mla_decompress(latent: i64, W_up: i64, seq: i64, d_latent: i64, d_model: i64) -> i64 {
-    return nuc_attn_mla_decompress(latent, W_up, seq, d_latent, d_model);
+// MLA: rod parameter `seq` was fiction — C runtime never used it.
+// Drop the param. Callers using `seq` get a clean compile error and
+// can remove the dead arg.
+fn attn_mla_compress(h: i64, W_down: i64, d_model: i64, d_latent: i64) -> i64 {
+    return nuc_attn_mla_compress(h, W_down, d_model, d_latent);
+}
+fn attn_mla_decompress(latent: i64, W_up: i64, d_latent: i64, d_out: i64) -> i64 {
+    return nuc_attn_mla_decompress(latent, W_up, d_latent, d_out);
 }
 fn attn_sliding_window(Q: i64, K: i64, V: i64, seq: i64, d_k: i64, window: i64) -> i64 {
     return nuc_attn_sliding_window(Q, K, V, seq, d_k, window);
