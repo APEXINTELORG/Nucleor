@@ -22,7 +22,7 @@ launchability; Tier C are stdlib-coherence guarantees.
 1. **[Memory Safety / Borrow / Ownership](Nucleor_Memory_Safety_Borrow_Ownership_Gap_Analysis_and_RFC_2026-05-04.md)** — IN PROGRESS (RFC-0062). Phase 1 closed; Phase 2a Wave A complete; Phase 2b in flight.
 2. **[Type System](Nucleor_Type_System_Gap_Analysis_and_RFC_2026-05-04.md)** — T-3, T-4 silent fallthrough (char↔int compatibility, empty-type-is-compatible).
 3. **[Concurrency](Nucleor_Concurrency_Gap_Analysis_and_RFC_2026-05-04.md)** — C-1, C-2 cancel token linker bomb + POSIX channel no-op stub. Linux concurrency silently broken.
-4. **[Effect / Capability](Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md)** — E-1, E-2, E-3: pure fn / requires / restricts silently discarded by `nuc build`. Three-letter trust gap.
+4. **[Effect / Capability](Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md)** — E-1 direct `pure fn` side effects now emit `EFF-001`; `requires [...]`, block-form `restricts [...]`, transitive effect rows, and cross-module propagation remain a trust gap.
 5. **[Real-Time / Determinism](Nucleor_RealTime_Determinism_Gap_Analysis_and_RFC_2026-05-04.md)** — `#[deadline]` / `#[no_alloc]` enforcement gaps.
 6. **[Algebraic Laws](Nucleor_Algebraic_Laws_Gap_Analysis_and_RFC_2026-05-04.md)** — math-and-physics laws not validated by property tests.
 
@@ -50,7 +50,7 @@ must close before OSS goes public:
 | **NUM-G1** | Numeric | LAUNCH-BLOCKER | f64 lex truncation to 6 decimal digits — affects every float user |
 | **ML-1** | Tensor/ML | LAUNCH-BLOCKER | nuc_attn_flash ABI mismatch — silent miscompute, tests don't cover |
 | **C-1, C-2** | Concurrency | LAUNCH-BLOCKER (Linux) | cancel token + POSIX channel both broken |
-| **E-1, E-2, E-3** | Effect/Capability | TRUST | pure/requires/restricts silently discarded |
+| **E-1, E-2, E-3** | Effect/Capability | TRUST | direct pure-fn effects partially closed; requires/restricts/effect rows incomplete |
 | **T-3, T-4** | Type System | SILENT-MISCOMPUTE | char↔int compat + empty-type compat fallthrough |
 | **BOOT-3, BOOT-4** | Bootstrap | SELF-HOST INTEGRITY | fixed-point check guards 50-line proxy not 10K-line self-IR |
 | **PKG-1, PKG-3** | Packaging | LAUNCH-BLOCKER | Linux publish broken; semver doesn't resolve |

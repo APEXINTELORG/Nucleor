@@ -54,13 +54,20 @@ launch. After memory safety completes, these are next-priority.
 - **C-3 ordered atomic C backing:** DONE v0.8.86 — reclassified as wrong-class. Compiler emits LLVM atomic intrinsics directly (atomicrmw / load atomic / store atomic / cmpxchg); C-fallback path doesn't fire. Regression canary `tests/features/c3_ordered_atomics_direct_smoke.nr` locks behavior.
 - **POSIX validation:** still pending Linux CI runner; fixtures stage ready.
 
-### E-1, E-2, E-3 — Effect / Capability silent-discard
+### E-1, E-2, E-3 — Effect / Capability trust gap
 
 - **Source:** `gap-analyses/Nucleor_Effect_Capability_Gap_Analysis_and_RFC_2026-05-04.md`
-- **Severity:** TRUST GAP (effects parse but don't enforce)
-- **Symptom:** `pure fn`, `requires`, `restricts` parse, `nuc build` accepts, no enforcement.
-- **Phase 1:** Audit-pass info diagnostic showing effect-keyword counts.
-- **Phase 2b:** Per-fn enforcement passes.
+- **Severity:** TRUST GAP (effect rows are still incomplete)
+- **E-1 direct `pure fn` side effects:** DONE for Phase 1 —
+  `nuc build` emits `EFF-001` for direct print/alloc/ambient-capability
+  use; active fixtures `err_pure_print_build.nr` and
+  `err_pure_ambient_random.nr` lock this.
+- **RFC-0033 `with [...]` subset:** PARTIAL — `with [no_alloc]`
+  calling `with [Alloc]` emits `EFF-003`; active fixture
+  `err_effects_with_alloc_call.nr` locks this.
+- **Still open:** `requires [...]`, block-form `restricts [...]`,
+  transitive user-call effect inference, and cross-module propagation.
+- **Phase 2b:** effect-row enforcement in the main build path.
 - **Phase 4:** Hard error.
 
 ### T-3, T-4 — Type system silent fallthrough — Phase 1 DONE; Phase 2b queued
